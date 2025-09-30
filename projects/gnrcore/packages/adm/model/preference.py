@@ -20,27 +20,27 @@ class Table(object):
 
 
     def getMainStorePreference(self):
-        result = self.db.application.cache.getItem(MAIN_PREFERENCE)
+        result = self.db.application.cache.getItem(self.get_application_cache_key())
         if not result:
             with self.db.tempEnv(storename=self.db.rootstore):
                 result = self.loadPreference()['data']
-            self.db.application.cache.setItem(MAIN_PREFERENCE, result)
+            self.db.application.cache.setItem(self.get_application_cache_key(), result)
         return result.deepcopy()
     
     def getStorePreferences(self):
         storename = self.db.currentEnv.get('storename')
         pref_cache_key = '_storepref_%s' %storename
         preference = None
-        if not self.db.application.cache.expiredItem(MAIN_PREFERENCE):
+        if not self.db.application.cache.expiredItem(self.get_application_cache_key()):
             preference = self.db.application.cache.getItem(pref_cache_key)
         if not preference:
             preference = self.getMainStorePreference()
-            if self.db.application.site.multidomain:
+            if self.db.multidomain:
                 store_preference = self.record(MAIN_PREFERENCE).output('record')['data'] or Bag()
             else:
                 store_preference =  self.db.package('multidb').getStoretablePreference()
             for pkgid,pkgobj in self.db.application.packages.items():
-                multidb_pref = pkgobj.attributes.get('multidb_pref') or self.db.application.site.multidomain
+                multidb_pref = pkgobj.attributes.get('multidb_pref') or self.db.multidomain
                 if multidb_pref:
                     pkgstorepref = store_preference[pkgid] or Bag()
                     if multidb_pref is True:
@@ -93,7 +93,7 @@ class Table(object):
 
     def get_storeargs(self):
         storeargs = {}
-        if not self.db.application.site.multidomain:
+        if not self.db.multidomain:
             storeargs = {'storename':self.db.rootstore}
         return storeargs
 
@@ -119,8 +119,12 @@ class Table(object):
     def trigger_onUpdated(self,record=None,old_record=None):
         if self.fieldsChanged('data',record,old_record):
             self.db.application.pkgBroadcast('onSavedPreferences',preferences=record['data'])
-            self.db.application.cache.updatedItem(MAIN_PREFERENCE)
+            self.db.application.cache.updatedItem(self.get_application_cache_key())
             site = getattr(self.db.application,'site',None)
             if site and site.currentPage:
                 site.currentPage.setInClientData('gnr.serverEvent.refreshNode', value='gnr.app_preference', filters='*',
                              fired=True, public=True)
+
+    def get_application_cache_key(self):
+        active_domain = self.db.currentEnv.get('currentDomain') if self.db.multidomain else None
+        return MAIN_PREFERENCE if not active_domain else f'{MAIN_PREFERENCE}_{active_domain}'

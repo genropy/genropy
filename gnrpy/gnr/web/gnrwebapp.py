@@ -29,7 +29,8 @@ class WebApplicationCache(object):
     def updatedItem(self,key):
         with self.site.mainregister.globalStore() as gs:
             gs.setItem('CACHE_TS.%s' %key,datetime.now())
-    
+
+
     def expiredItem(self,key):
         item,ts = self.cache.get(key,(None,None))
         if item is None:

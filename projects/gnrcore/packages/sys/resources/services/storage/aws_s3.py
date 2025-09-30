@@ -418,8 +418,8 @@ class ServiceParameters(BaseComponent):
     def service_parameters(self,pane,datapath=None,**kwargs):
         bc = pane.borderContainer()
         fb = bc.contentPane(region='top').formbuilder(datapath=datapath)
-        fb.checkbox(value='^.readonly',lbl='Read Only')
-        fb.checkbox(value='^.write_in_local',lbl='Write enabled on local/secondary machine')
+        fb.checkbox(value='^.readonly',label='Read Only')
+        fb.checkbox(value='^.write_in_local',label='Write enabled on local/secondary machine')
         fb.textbox(value='^.bucket',lbl='Bucket')
         fb.textbox(value='^.base_path',lbl='Base path')
         fb.textbox(value='^.aws_access_key_id',lbl='Aws Access Key Id')

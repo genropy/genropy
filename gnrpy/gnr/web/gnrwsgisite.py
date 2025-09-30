@@ -1028,7 +1028,7 @@ class GnrWsgiSite(object):
             path_list = ['_rsrc','common', 'pwa','worker.js']
             # return response(environ, start_response)
 
-        if path_list and path_list[0]=='.well-known': #escludendo uno dei path strani funziona
+        if path_list and path_list[0] in ('.well-known'): #escludendo uno dei path strani funziona
             return
         
 

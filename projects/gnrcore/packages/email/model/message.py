@@ -263,6 +263,16 @@ class Table(object):
         if doCommit:
             self.db.commit()
         return message_to_dispatch
+    
+
+    def trigger_onInserted(self,record):
+        if self.db.currentEnv.get('storename'):
+            dbstore = self.db.currentEnv.get('storename')
+            with self.db.tempEnv(storename=False):
+                self.db.table('multidb.message_index').insert(self.db.table('multidb.message_index').newrecord(
+                    dbstore=dbstore,
+                    id=record['id']
+                ))
 
     def newMessageFromUserTemplate(self,record_id=None,letterhead_id=None,
                             template_id=None,table=None,template_code=None,

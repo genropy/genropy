@@ -432,7 +432,8 @@ class GnrWebPage(GnrBaseWebPage):
             self._db = self.application.db
             self._db.clearCurrentEnv()
             expirebag = self.globalStore().getItem('tables_user_conf_expire_ts')
-            self._db.updateEnv(storename=self.dbstore, workdate=self.workdate, locale=self.locale,
+            self._db.updateEnv(storename=self.dbstore,currentDomain=self.site.currentDomain,
+                                workdate=self.workdate, locale=self.locale,
                                 maxdate=datetime.date.max,mindate=datetime.date.min,
                                user=self.user, userTags=self.userTags, pagename=self.pagename,
                                mainpackage=self.mainpackage,_user_conf_expirebag=expirebag,
