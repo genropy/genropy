@@ -280,8 +280,6 @@ class TemplateEditor(TemplateEditorBase):
         fb.dbSelect(value='^.default_letterhead',dbtable='adm.htmltemplate',
                     lbl='!!Letterhead',hasDownArrow=True,colspan=3)
         fb.textbox(value='^.summary',lbl='!!Summary',colspan=4)
-        if self.isDeveloper():
-            fb.textbox(value='^#ANCHOR.userobject_meta.flags',lbl='!!Flags',colspan=7)
     
     @extract_kwargs(fieldsTree=dict(slice_prefix=False))
     def _te_info_vars(self,bc,table=None,datasourcepath=None,fieldsTree_kwargs=None,**kwargs):
