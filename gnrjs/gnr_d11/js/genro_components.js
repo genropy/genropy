@@ -3605,9 +3605,12 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
     },
 
     openTemplatePalette:function(chunkNode,editorConstrain,showLetterhead){
-        var paletteCode = 'template_editor_'+chunkNode._id;
-        //genro._data.popNode('gnr.palettes.'+paletteCode);
         let componentNode = chunkNode.getParentNode();
+        var paletteCode = componentNode.getAttributeFromDatasource('paletteCode');
+        if(!paletteCode){
+            paletteCode = 'template_editor_'+chunkNode._id;
+        }
+        //genro._data.popNode('gnr.palettes.'+paletteCode);
         var tplpars = componentNode.gnrwdg.tplpars;
         var templateHandler = chunkNode._templateHandler;
         var handler = this;
@@ -3739,6 +3742,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
     
     createContent:function(sourceNode, kw,children) {
         var resource = objectPop(kw,'resource');
+        var paletteCode = objectPop(kw,'paletteCode');
         var gnrwdg = sourceNode.gnrwdg;
         if(resource){
             console.warn('templateChunk warning: use "template" param instead of "resource" param');
@@ -3746,6 +3750,12 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         var tplpars = objectExtract(kw,'template,editable');
         var editorConstrain = objectExtract(kw,'constrain_*',null,true);
         var showLetterhead = objectPop(kw, 'showLetterhead');
+        if(paletteCode && (paletteCode[0]=='^' || paletteCode[0]=='=')){
+            paletteCode = paletteCode[0]+sourceNode.absDatapath(paletteCode);
+        }
+        if(paletteCode){
+            sourceNode.attr.paletteCode = paletteCode;
+        }
         sourceNode.attr.table = objectPop(kw,'table');
         sourceNode.attr.emailChunk = objectPop(kw,'emailChunk');
         var safeMode = objectPop(kw,'safeMode');
@@ -3943,6 +3953,13 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
     gnrwdg_setTemplate:function(templateBag){
         if(this.chunkNode._connectedPalette){
             this.gnr.loadTemplateEditData(this.chunkNode);
+        }
+    },
+
+    gnrwdg_setPaletteCode:function(){
+        if(this.chunkNode._connectedPalette){
+            this.chunkNode._connectedPalette._destroy();
+            this.chunkNode._connectedPalette = null;
         }
     },
 
@@ -7882,7 +7899,4 @@ dojo.declare("gnr.stores.VirtualSelection",gnr.stores.Selection,{
     }
     
 });
-
-
-
 

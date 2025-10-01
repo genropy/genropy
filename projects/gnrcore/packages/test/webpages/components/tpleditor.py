@@ -16,7 +16,7 @@ class GnrCustomWebPage(object):
                                                        emailChunk=True)
 
     def test_1_importTemplate(self,pane):
-        "ckEditor is just the Template Editor block where text can be edited"
+        "tinyMCE/ckEditor are the widgets used in the Template Editor block to edit the template body"
         content = pane.borderContainer(height='625px')
         top = content.borderContainer(region='top', height='25px')
         top.button('!!IMPORT TEMPLATE').dataRpc(self.importTemplate, _ask=dict(title='Import template', 
@@ -25,7 +25,10 @@ class GnrCustomWebPage(object):
                                     rowcaption='$code,$description', auxColumns='$description,$userid')]))
 
         middle = content.contentPane(region='center')
-        middle.ckeditor(value='^.body', height='100%', width='100%')
+        if self.getPreference('theme.ck_legacy', pkg='sys'):
+            middle.ckeditor(value='^.body', height='100%', width='100%')
+        else:
+            middle.tinymce(value='^.body', height='100%', width='100%')
 
     @public_method
     def importTemplate(self, query_object_id=None):
