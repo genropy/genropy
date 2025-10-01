@@ -303,6 +303,7 @@ class GnrDictCursor(Cursor):
         row_factory = gnrdict_row
         super(GnrDictCursor, self).__init__(*args, **kwargs)
         self._query_executed = 0
+        self.prepare_threshold = 0
         self.row_factory = row_factory
 
     def fetchone(self):
