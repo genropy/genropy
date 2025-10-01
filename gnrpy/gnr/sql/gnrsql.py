@@ -395,10 +395,7 @@ class GnrSqlDb(GnrObject):
         changes = migrator.getChanges()
         if changes:
             migrator.applyChanges()
-        extensions = migrator.sql_commands.get('extensions_commands',None)
-        if extensions:
-            print('extensions',extensions)
-
+        
     def closeConnection(self):
         """Close a connection"""
         thread_ident = _thread.get_ident()
@@ -1321,9 +1318,7 @@ class DbStoresHandler(object):
         :param storename: TODO
         :param changes: TODO. """
         with self.db.tempEnv(storename=storename):
-            try:
-                self.db.syncOrmToSql()
-            except Ex
+            self.db.syncOrmToSql()
 
 class DbLocalizer(object):
     def translate(self,v):

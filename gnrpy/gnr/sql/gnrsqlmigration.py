@@ -1115,17 +1115,15 @@ class SqlMigrator():
         db_creation = self.sql_commands.pop('db_creation',None)
         if db_creation:
             self.db.adapter.execute(db_creation,manager=True)
+        
         build_commands = self.sql_commands.pop('build_commands',None)
         if build_commands:
             # FIXME: why the manager is not used in this case?
             self.db.adapter.execute(build_commands,autoCommit=True)
         
-        
-    def applyExtensions(self):
         extensions_commands = self.sql_commands.pop('extensions_commands',None)
         if extensions_commands:
-            self.db.adapter.execute(extensions_commands,manager=True)
-
+            self.db.adapter.execute(extensions_commands)
 
     #jsonorm = OrmExtractor(GnrApp('dbsetup_tester').db).get_json_struct()
     
