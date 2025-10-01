@@ -335,6 +335,7 @@ class GnrDictCursor(Cursor):
     def execute(self, query, params=None, async_=0):
         self.index = {}
         self._query_executed = 1
+        self.prepare_threshold = 0
 
         if isinstance(params, Mapping):
             query = sql.SQL(query).format(**params).as_string(self.connection)
