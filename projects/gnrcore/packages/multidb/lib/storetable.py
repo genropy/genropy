@@ -57,8 +57,10 @@ class StoreTable(GnrDboTable):
         record = self.record(pkey=pkey,for_update=True).output('dict')
         dbstore = record['dbstore']
         master_index = self.db.tablesMasterIndex()['_index_']
-        for tblname in master_index.digest('#a.tbl'):
-            
+        tables = master_index.digest('#a.tbl')
+        if self.db.currentPage:
+            tables = self.db.currentPage.utils.quickThermo(tables,maxidx=len(tables),labelcb = lambda tbl:tbl)
+        for tblname in tables:
             tbl = self.db.table(tblname)
             startupData = tbl.multidb=='*' or tbl.isInStartupData() or tblname in self.multidb_setStartupData_whitelist()
             if not startupData:
