@@ -110,7 +110,7 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         def subArgs(m):
             key = m.group(1)
             sqlargs[key]=kwargs[key]
-            return f'{{{key}}}{m.group(2)} '
+            return f'{{{key}}}{m.group(2)}'
         sqltext = RE_SQL_PARAMS.sub(subArgs, sqltext)
         sqltext= sqltext.replace('REGEXP', '~*')
         
