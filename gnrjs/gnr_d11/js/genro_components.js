@@ -3595,13 +3595,20 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
 
     loadTemplateEditData:function(sourceNode){
         var paletteNode = sourceNode._connectedPalette;
-        var templateHandler = sourceNode._templateHandler;
-        paletteNode.setRelativeData('.data',templateHandler.data?templateHandler.data.deepCopy():new gnr.GnrBag({varsbag:new gnr.GnrBag(),content:'',content_css:''})); 
-        var respath = templateHandler.dataInfo.respath;
-        if(respath && respath.indexOf('_custom')>=0){
-            paletteNode.setRelativeData('.data.metadata.custom',true);
+        if(!paletteNode){
+            return;
         }
-        paletteNode.setRelativeData('.status','info');
+        var templateHandler = sourceNode._templateHandler;
+        var data = templateHandler.data?templateHandler.data.deepCopy():new gnr.GnrBag({varsbag:new gnr.GnrBag(),content:'',content_css:''});
+        var paletteCode = paletteNode.attr.paletteCode || sourceNode.getParentNode().getAttributeFromDatasource('paletteCode') || ('template_editor_'+sourceNode._id);
+        var paletteRoot = `gnr.palettes.${paletteCode}`;
+        genro.setData(paletteRoot+'.data',data);
+        var dataInfo = templateHandler.dataInfo || {};
+        var respath = dataInfo.respath;
+        if(respath && respath.indexOf('_custom')>=0){
+            genro.setData(paletteRoot+'.data.metadata.custom',true);
+        }
+        genro.setData(paletteRoot+'.status','info');
     },
 
     openTemplatePalette:function(chunkNode,editorConstrain,showLetterhead){
@@ -3610,6 +3617,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         if(!paletteCode){
             paletteCode = 'template_editor_'+chunkNode._id;
         }
+        chunkNode._currentPaletteCode = paletteCode;
         //genro._data.popNode('gnr.palettes.'+paletteCode);
         var tplpars = componentNode.gnrwdg.tplpars;
         var templateHandler = chunkNode._templateHandler;
@@ -3673,8 +3681,6 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
             chunkNode._connectedPalette = paletteNode; 
         }
     },
-    
-
     updateVirtualColumns:function(sourceNode,datasourceNode,dataProvider,mainNode){
         var vc,curr_vc;
         if(dataProvider){
@@ -3941,12 +3947,38 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
     },
     gnrwdg_refresh:function(){
         var pkey;
+        let paletteNode = this.chunkNode._connectedPalette;
+        let paletteCode = this.chunkNode._currentPaletteCode;
+        if(paletteNode){
+            try{
+                paletteNode._destroy();
+            }finally{
+                this.chunkNode._connectedPalette = null;
+            }
+        }
+        if(paletteCode){
+            genro._data.popNode('gnr.palettes.'+paletteCode);
+            this.chunkNode._currentPaletteCode = null;
+        }
         if(this.sourceNode.attr.record_id){
             pkey = this.sourceNode.getAttributeFromDatasource('record_id');
         }
         this.chunkNode.updateTemplate(pkey);
     },
     gnrwdg_setRecord_id:function(pkey){
+        let paletteNode = this.chunkNode._connectedPalette;
+        let paletteCode = this.chunkNode._currentPaletteCode;
+        if(paletteNode){
+            try{
+                paletteNode._destroy();
+            }finally{
+                this.chunkNode._connectedPalette = null;
+            }
+        }
+        if(paletteCode){
+            genro._data.popNode('gnr.palettes.'+paletteCode);
+            this.chunkNode._currentPaletteCode = null;
+        }
         this.chunkNode.updateTemplate(pkey);
     },
 
@@ -3957,24 +3989,51 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
     },
 
     gnrwdg_setPaletteCode:function(){
-        if(this.chunkNode._connectedPalette){
-            this.chunkNode._connectedPalette._destroy();
-            this.chunkNode._connectedPalette = null;
+        let paletteNode = this.chunkNode._connectedPalette;
+        let paletteCode = this.chunkNode._currentPaletteCode;
+        if(paletteNode){
+            try{
+                paletteNode._destroy();
+            }finally{
+                this.chunkNode._connectedPalette = null;
+            }
+        }
+        if(paletteCode){
+            genro._data.popNode('gnr.palettes.'+paletteCode);
+            this.chunkNode._currentPaletteCode = null;
         }
     },
 
     gnrwdg_setTable:function(){
-        if(this.chunkNode._connectedPalette){
-            this.chunkNode._connectedPalette._destroy();
-            this.chunkNode._connectedPalette = null;
+        let paletteNode = this.chunkNode._connectedPalette;
+        let paletteCode = this.chunkNode._currentPaletteCode;
+        if(paletteNode){
+            try{
+                paletteNode._destroy();
+            }finally{
+                this.chunkNode._connectedPalette = null;
+            }
+        }
+        if(paletteCode){
+            genro._data.popNode('gnr.palettes.'+paletteCode);
+            this.chunkNode._currentPaletteCode = null;
         }
 
     },
 
     gnrwdg_setEmailChunk:function(){
-        if(this.chunkNode._connectedPalette){
-            this.chunkNode._connectedPalette._destroy();
-            this.chunkNode._connectedPalette = null;
+        let paletteNode = this.chunkNode._connectedPalette;
+        let paletteCode = this.chunkNode._currentPaletteCode;
+        if(paletteNode){
+            try{
+                paletteNode._destroy();
+            }finally{
+                this.chunkNode._connectedPalette = null;
+            }
+        }
+        if(paletteCode){
+            genro._data.popNode('gnr.palettes.'+paletteCode);
+            this.chunkNode._currentPaletteCode = null;
         }
     },
 });
@@ -7899,4 +7958,3 @@ dojo.declare("gnr.stores.VirtualSelection",gnr.stores.Selection,{
     }
     
 });
-

@@ -511,7 +511,12 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         }
         var sb = this.views.views[0].scrollboxNode;
         if(this.sourceNode._footersNode){
-            sb.style.height = this.sourceNode.getParentNode().widget.domNode.clientHeight - this.viewsHeaderNode.clientHeight+1 +'px';
+            var parentNode = this.sourceNode.getParentNode && this.sourceNode.getParentNode();
+            var parentWidget = parentNode && parentNode.widget;
+            if(!parentWidget){
+                return;
+            }
+            sb.style.height = parentWidget.domNode.clientHeight - this.viewsHeaderNode.clientHeight+1 +'px';
             //sb.style.height =sb.clientHeight+18+'px';
         }
         var delta = sb.clientHeight - sb.firstElementChild.clientHeight;
