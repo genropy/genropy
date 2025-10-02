@@ -35,6 +35,18 @@ class SecurityTxt(WKUFile):
         return super().__call__(*args, **kwargs)
 
 
+
+class MissingWKU(WKUFile):
+    content_type = "application/json"
+    config_item = 'wku._missing_well_known_'
+
+    
+    @metadata(alias_url="/.well-known/_missing_well_known_.json")
+    def __call__(self, *args, **kwargs):
+        return "{}"
+
+
+
 class RobotsTxt(WKUFile):
     config_item = 'wku.robots_txt'
     content_type = "text/plain"
