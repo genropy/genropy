@@ -255,8 +255,8 @@ class GnrWsgiSite(object):
             alias_url = getattr(tool_impl.__call__, "alias_url", None)
             if alias_url:
                 self.webtools_static_routes[alias_url] = tool_name
-        self.static_routes = {'favicon.ico':['_site', 'favicon.ico'],
-                              '_pwa_worker.js':['_rsrc','common', 'pwa','worker.js']}
+        self.static_routes = {'favicon.ico':'_site/favicon.ico',
+                              '_pwa_worker.js':'_rsrc/common/pwa/worker.js'}
 
         # this is needed, don't remove - if removed, the register
         # is not initialized, since self.register is a property
@@ -824,7 +824,7 @@ class GnrWsgiSite(object):
         first_segment = path_list[0]
         redirect_to = None
         if first_segment in self.static_routes:
-            return self.static_routes[first_segment],redirect_to
+            return self.static_routes[first_segment].split('/'),redirect_to
         if self.multidomain:
             if first_segment in self.domains:
                 if path_list[-1]==first_segment and not path_info.endswith('/'):
@@ -835,7 +835,8 @@ class GnrWsgiSite(object):
                         request_kwargs['base_dbstore'] = first_segment
                     path_list.pop(0)
             elif first_segment not in self.storageTypes:
-                logger.warning('Multidomain site with first segment without domain - %s', first_segment)
+                logger.warning('Multidomain site with first segment without domain %s',first_segment)
+        self.db.currentEnv['domainName'] = self.currentDomain
         return path_list,redirect_to
 
     def _get_home_uri(self):
@@ -896,7 +897,7 @@ class GnrWsgiSite(object):
     def isInMaintenance(self):
         request = self.currentRequest
         request_kwargs = self.parse_kwargs(self.parse_request_params(request))
-        path_list = self.handle_path_list(request.path,request_kwargs=request_kwargs)[0]
+        path_list,redirect_to = self.handle_path_list(request.path,request_kwargs=request_kwargs)
         first_segment = path_list[0] if path_list else ''
         if request_kwargs.get('forcedlogin') or (first_segment.startswith('_') and first_segment!='_ping'):
             return False
@@ -940,7 +941,7 @@ class GnrWsgiSite(object):
         response = Response()
         response.mimetype = 'text/html'
         request_kwargs = self.parse_kwargs(self.parse_request_params(request))
-        path_list = self.handle_path_list(request.path,request_kwargs=request_kwargs)[0]
+        path_list,redirect_to = self.handle_path_list(request.path,request_kwargs=request_kwargs)
         if (path_list and path_list[0].startswith('_')) or ('method' in request_kwargs or 'rpc' in request_kwargs or '_plugin' in request_kwargs):
             response = self.setResultInResponse('maintenance', response, info_GnrSiteMaintenance=self.currentMaintenance)
             return response(environ, start_response)
@@ -976,8 +977,11 @@ class GnrWsgiSite(object):
 
     @functools.lru_cache
     def lookup_webtools_static_route(self, request_path):
-        return self.webtools_static_routes.get(request_path, None)
-
+        result = self.webtools_static_routes.get(request_path, None)
+        if not result and ('.well-known' in request_path):
+            result = self.webtools_static_routes.get('/.well-known/_missing_well_known_.json', None)
+        return result
+    
     def _dispatcher(self, environ, start_response):
         """Main :ref:`wsgi` dispatcher, serve static files and
         self.createWebpage for :ref:`gnrcustomwebpage`
@@ -993,18 +997,18 @@ class GnrWsgiSite(object):
         response.mimetype = 'text/html'
         request_kwargs = self.parse_kwargs(self.parse_request_params(request))
         
-
-        expiredConnections = self.register.cleanup()
-        if expiredConnections:
-            self.connectionLog('close',expiredConnections)
-
-        # lookup webtools static routes
         webtool_static_route_handler = self.lookup_webtools_static_route(request.path)
         if webtool_static_route_handler:
             return self.serve_tool(['_tools', webtool_static_route_handler], environ, start_response, **request_kwargs)
-        path_list,redirect_to_fixed_url = self.handle_path_list(request.path,request_kwargs=request_kwargs)
-        if redirect_to_fixed_url:
-            return self.redirect(environ,start_response,location=redirect_to_fixed_url)
+        # Url parsing start
+        path_list,redirect_to = self.handle_path_list(request.path,request_kwargs=request_kwargs)
+        if redirect_to:
+            return self.redirect(environ,start_response,location=redirect_to)
+        # path_list is never empty
+        expiredConnections = self.register.cleanup()
+        if expiredConnections:
+            self.connectionLog('close',expiredConnections)
+        # lookup webtools static routes
         self.currentAuxInstanceName = request_kwargs.get('aux_instance')
         user_agent = request.user_agent.string or ''
         isMobile = len(IS_MOBILE.findall(user_agent))>0
