@@ -359,8 +359,7 @@ dojo.declare('gnr.GenroClient', null, {
         if(!genro._reloading){
             let urlObj = new URL(window.location.href);
             if (!urlObj.searchParams.has("page_id")) {
-                var url = genro.makeUrl('/_beacon', {'method':'onClosedPage'});
-                navigator.sendBeacon(url);
+                navigator.sendBeacon(genro.makeUrl(genro.baseUrl + '_beacon', {'method':'onClosedPage'}));
             }
         }
         genro.publish('onClosePage');
