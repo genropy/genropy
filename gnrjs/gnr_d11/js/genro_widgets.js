@@ -1204,7 +1204,8 @@ dojo.declare("gnr.widgets.video", gnr.widgets.baseHtml, {
     startCapture:function(sourceNode,capture_kw){
         var onErrorGetUserMedia = objectPop(capture_kw,'onReject');
         var onAccept = objectPop(capture_kw,'onAccept');
-        let capture_enviroment= sourceNode.attr.capture === 'environment';
+let capture_environment = sourceNode.attr.capture === 'environment';
+let video = capture_environment ? {facingMode: "environment"} : true
         let video = capture_enviroment ? {facingMode: "environment"} : true
         navigator.mediaDevices.getUserMedia({ video: video, audio: false })
         .then(function(stream) {
