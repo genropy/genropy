@@ -13,14 +13,17 @@ import re
 SAFETRANSLATE = re.compile(r"""(?:\[tr-off\])(.*?)(?:\[tr-on\])""",flags=re.DOTALL)
 
 class Main(TranslationService):
-    def __init__(self, parent=None,api_key=None, region_name=None, aws_access_key_id=None, aws_secret_access_key=None, **kwargs ):
+    def __init__(self, parent=None,
+                 api_key=None, region_name="eu-central-1",
+                 aws_access_key_id=None, aws_secret_access_key=None,
+                 **kwargs):
         self.parent = parent
         self.enabled = boto3 is not False
         if not self.enabled:
             return
         self.client = boto3.client('translate', region_name=region_name,
                                    aws_access_key_id=aws_access_key_id,
-                                aws_secret_access_key=aws_secret_access_key)
+                                   aws_secret_access_key=aws_secret_access_key)
 
     def translate(self, what=None, to_language=None, from_language=None, **kwargs):
         if not self.enabled:
@@ -30,13 +33,13 @@ class Main(TranslationService):
         if not from_language:
             from_language = 'auto'
         safedict = dict()
+
         def cb(m):
             safekey = '[NO_TR_%i]' %len(safedict)
             safedict[safekey] = m.group(1)
             return safekey
+
         base_to_translate = SAFETRANSLATE.sub(cb,what)
-        #print('safedict',safedict)
-        #print('base_to_translate',base_to_translate)
         response = self.client.translate_text(Text=base_to_translate,
               SourceLanguageCode=from_language, TargetLanguageCode=to_language, **kwargs)
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
@@ -47,10 +50,9 @@ class Main(TranslationService):
                 txt = txt.replace(k,'[tr-off]%s[tr-on]' %v)
             return txt
             
-        
 class ServiceParameters(BaseComponent):
     def service_parameters(self, pane, datapath=None, **kwargs):
         fb = pane.formbuilder(datapath=datapath)
-        fb.textbox(value='^.region_name', lbl='Region name')# values=['eu-central-1','us-east-1', 'us-west-1', 'eu-west-1'])
+        fb.textbox(value='^.region_name', lbl='Region name')
         fb.textbox(value='^.aws_access_key_id',lbl='Aws Access Key Id')
         fb.textbox(value='^.aws_secret_access_key',lbl='Aws Secret Access Key')

@@ -2,15 +2,6 @@
 
 import datetime as _dt
 
-# ZoneInfo: stdlib from 3.9+, backport for 3.8
-try:
-    from zoneinfo import ZoneInfo  # Python 3.9+
-except ImportError:  # Python 3.8
-    from backports.zoneinfo import ZoneInfo  # pip install backports.zoneinfo
-
-# Reuse a single UTC instance
-UTC = ZoneInfo("UTC")
-
 
 class TZDateTime(_dt.datetime):
     """
@@ -24,24 +15,29 @@ class TZDateTime(_dt.datetime):
     # ---- Factories (return standard datetime) ----
     @classmethod
     def now(cls, tz=None):
-        """Return an aware datetime (UTC by default) as a standard _dt.datetime."""
-        tz = tz or UTC
+        """
+        Return an aware datetime (UTC by default) as a standard _dt.datetime.
+        """
+        tz = tz or _dt.timezone.utc
         return _dt.datetime.now(tz)
 
     @classmethod
     def utcnow(cls):
-        """Return an aware UTC datetime as a standard _dt.datetime."""
-        return _dt.datetime.now(UTC)
+        """
+        Return an aware UTC datetime as a standard _dt.datetime.
+        """
+        return _dt.datetime.now(_dt.timezone.utc)
 
     @classmethod
     def fromiso(cls, iso_str, tz=None):
         """
-        Parse ISO 8601. If naive, attach tz (default UTC). If aware, convert to tz if provided.
+        Parse ISO 8601. If naive, attach tz (default UTC).
+        If aware, convert to tz if provided.
         Always returns a standard _dt.datetime.
         """
         dt = _dt.datetime.fromisoformat(iso_str)
         if dt.tzinfo is None:
-            return dt.replace(tzinfo=(tz or UTC))
+            return dt.replace(tzinfo=(tz or _dt.timezone.utc))
         return dt.astimezone(tz or dt.tzinfo)
 
     # ---- Constructor bridge ----
@@ -50,7 +46,7 @@ class TZDateTime(_dt.datetime):
         Allow `TZDateTime(...)` to behave like _dt.datetime(...) but ensure tzinfo.
         Returns a standard _dt.datetime (not the subclass) to prevent leaking TZDateTime.
         """
-        tz = kwargs.pop("tz", None) or UTC
+        tz = kwargs.pop("tz", None) or _dt.timezone.utc
         base = _dt.datetime.__new__(cls, *args, **kwargs)
         if base.tzinfo is None:
             base = base.replace(tzinfo=tz)
@@ -86,7 +82,7 @@ def utcnow():
 
 __all__ = [
     # Classes / constants
-    "TZDateTime", "ZoneInfo", "UTC",
+    "TZDateTime",
     # datetime-like surface
     "datetime", "date", "time", "timedelta", "timezone", "tzinfo",
     "MINYEAR", "MAXYEAR",
