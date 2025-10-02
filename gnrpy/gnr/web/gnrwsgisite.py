@@ -897,7 +897,7 @@ class GnrWsgiSite(object):
     def isInMaintenance(self):
         request = self.currentRequest
         request_kwargs = self.parse_kwargs(self.parse_request_params(request))
-        path_list,redirect_to = self.handle_path_list(request.path,request_kwargs=request_kwargs)
+        path_list = self.handle_path_list(request.path,request_kwargs=request_kwargs)[0]
         first_segment = path_list[0] if path_list else ''
         if request_kwargs.get('forcedlogin') or (first_segment.startswith('_') and first_segment!='_ping'):
             return False
@@ -941,7 +941,7 @@ class GnrWsgiSite(object):
         response = Response()
         response.mimetype = 'text/html'
         request_kwargs = self.parse_kwargs(self.parse_request_params(request))
-        path_list,redirect_to = self.handle_path_list(request.path,request_kwargs=request_kwargs)
+        path_list = self.handle_path_list(request.path,request_kwargs=request_kwargs)[0]
         if (path_list and path_list[0].startswith('_')) or ('method' in request_kwargs or 'rpc' in request_kwargs or '_plugin' in request_kwargs):
             response = self.setResultInResponse('maintenance', response, info_GnrSiteMaintenance=self.currentMaintenance)
             return response(environ, start_response)
