@@ -255,6 +255,8 @@ class GnrWsgiSite(object):
             alias_url = getattr(tool_impl.__call__, "alias_url", None)
             if alias_url:
                 self.webtools_static_routes[alias_url] = tool_name
+        self.static_routes = {'favicon.ico':['_site', 'favicon.ico'],
+                              '_pwa_worker.js':['_rsrc','common', 'pwa','worker.js']}
 
         # this is needed, don't remove - if removed, the register
         # is not initialized, since self.register is a property
@@ -809,17 +811,6 @@ class GnrWsgiSite(object):
 
 
 
-    #def handle_path_list(self, path_info):
-    #    """TODO
-#
-    #    :param path_info: TODO"""
-    #    # No path -> indexpage is served
-    #    if path_info == '/' or path_info == '':
-    #        path_info = self.indexpage
-    #    path_list = path_info.strip('/').split('/')
-    #    path_list = [p for p in path_list if p]
-    #    return path_list
-
 
     def handle_path_list(self, path_info,request_kwargs=None):
         """TODO
@@ -832,21 +823,19 @@ class GnrWsgiSite(object):
         path_list = [p for p in path_list if p]
         first_segment = path_list[0]
         redirect_to = None
+        if first_segment in self.static_routes:
+            return self.static_routes[first_segment],redirect_to
         if self.multidomain:
-            #devo settare il domain corrente per cookie connessioni etc
-            #se il first segment è _main_ allora dico che corrisponde allo store primario
-            #altrimenti lo store lo deduco 
             if first_segment in self.domains:
                 if path_list[-1]==first_segment and not path_info.endswith('/'):
                     redirect_to = f'{path_info}/'
                 else:
                     self.currentDomain =  first_segment
-                    request_kwargs['base_dbstore'] = first_segment if first_segment!=self.rootDomain else self.db.rootstore
+                    if first_segment!=self.rootDomain:
+                        request_kwargs['base_dbstore'] = first_segment
                     path_list.pop(0)
-            else:
-                logger.warning('Multidomain site with first segment without domain')
-                print('first_segment',first_segment)
-        self.db.currentEnv['domainName'] = self.currentDomain
+            elif first_segment not in self.storageTypes:
+                logger.warning('Multidomain site with first segment without domain - %s', first_segment)
         return path_list,redirect_to
 
     def _get_home_uri(self):
@@ -907,7 +896,7 @@ class GnrWsgiSite(object):
     def isInMaintenance(self):
         request = self.currentRequest
         request_kwargs = self.parse_kwargs(self.parse_request_params(request))
-        path_list,redirect_to = self.handle_path_list(request.path,request_kwargs=request_kwargs)
+        path_list = self.handle_path_list(request.path,request_kwargs=request_kwargs)[0]
         first_segment = path_list[0] if path_list else ''
         if request_kwargs.get('forcedlogin') or (first_segment.startswith('_') and first_segment!='_ping'):
             return False
@@ -951,7 +940,7 @@ class GnrWsgiSite(object):
         response = Response()
         response.mimetype = 'text/html'
         request_kwargs = self.parse_kwargs(self.parse_request_params(request))
-        path_list,redirect_to = self.handle_path_list(request.path,request_kwargs=request_kwargs)
+        path_list = self.handle_path_list(request.path,request_kwargs=request_kwargs)[0]
         if (path_list and path_list[0].startswith('_')) or ('method' in request_kwargs or 'rpc' in request_kwargs or '_plugin' in request_kwargs):
             response = self.setResultInResponse('maintenance', response, info_GnrSiteMaintenance=self.currentMaintenance)
             return response(environ, start_response)
@@ -1004,11 +993,7 @@ class GnrWsgiSite(object):
         response.mimetype = 'text/html'
         request_kwargs = self.parse_kwargs(self.parse_request_params(request))
         
-        # Url parsing start
-        path_list,redirect_to = self.handle_path_list(request.path,request_kwargs=request_kwargs)
-        if redirect_to:
-            return self.redirect(environ,start_response,location=redirect_to)
-        # path_list is never empty
+
         expiredConnections = self.register.cleanup()
         if expiredConnections:
             self.connectionLog('close',expiredConnections)
@@ -1017,21 +1002,9 @@ class GnrWsgiSite(object):
         webtool_static_route_handler = self.lookup_webtools_static_route(request.path)
         if webtool_static_route_handler:
             return self.serve_tool(['_tools', webtool_static_route_handler], environ, start_response, **request_kwargs)
-            
-        # can this be moved?
-        if path_list == ['favicon.ico']:
-            path_list = ['_site', 'favicon.ico']
-            self.log_print('', code='FAVICON')
-
-        # can this be moved?
-        if path_list == ['_pwa_worker.js']:
-            path_list = ['_rsrc','common', 'pwa','worker.js']
-            # return response(environ, start_response)
-
-        if path_list and path_list[0] in ('.well-known'): #escludendo uno dei path strani funziona
-            return
-        
-
+        path_list,redirect_to_fixed_url = self.handle_path_list(request.path,request_kwargs=request_kwargs)
+        if redirect_to_fixed_url:
+            return self.redirect(environ,start_response,location=redirect_to_fixed_url)
         self.currentAuxInstanceName = request_kwargs.get('aux_instance')
         user_agent = request.user_agent.string or ''
         isMobile = len(IS_MOBILE.findall(user_agent))>0
