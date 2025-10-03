@@ -146,10 +146,19 @@ class UrlInfo(object):
 
 
 class GnrDomainProxy(object):
-    def __init__(self,domain=None,**kwargs):
-        self.domain = None
-        self.register = None
+    def __init__(self,parent,domain=None,**kwargs):
+        self.parent = parent
+        self.domain = domain
+        self._register = None
         self.attributes = kwargs      
+
+    @property
+    def register(self):
+        if self._register:
+            return self._register
+        self._register  = SiteRegisterClient(self.parent.site)
+        self.parent.site.checkPendingConnection()
+        return self._register 
 
 class GnrDomainHandler(object):
     def __init__(self,site):
@@ -170,7 +179,7 @@ class GnrDomainHandler(object):
 
     def add(self,domain):
         if domain not in self.domains:
-            self.domains[domain] = GnrDomainProxy(domain)
+            self.domains[domain] = GnrDomainProxy(self,domain)
 
     def _missing_from_dbstores(self,domain):
         if domain in self.site.db.dbstores:
@@ -397,15 +406,8 @@ class GnrWsgiSite(object):
 
     def get_register(self,domain):
         if domain in self.domains:
-            register = self.domains[domain].register
-        else:
-            register = None
-        if not register:
-            register  = SiteRegisterClient(self)
-            self.domains[domain].register = register
-            self.checkPendingConnection()
-        return register
-
+            return self.domains[domain].register
+  
     def getSubscribedTables(self,tables):
         if self.domains[self.currentDomain].register:
             return self.register.filter_subscribed_tables(tables,register_name='page')
