@@ -395,16 +395,16 @@ class GnrWsgiSite(object):
 
     @property
     def mainregister(self):
-        return self.get_register(self.rootDomain)
+        return self._get_register(self.rootDomain)
     
     @property
     def register(self):
         if not self.currentDomain:
             logger.error('missing domain')
             self.currentDomain = '_main_'
-        return self.get_register(self.currentDomain)
+        return self._get_register(self.currentDomain)
 
-    def get_register(self,domain):
+    def _get_register(self,domain):
         if domain in self.domains:
             return self.domains[domain].register
   
@@ -1015,6 +1015,7 @@ class GnrWsgiSite(object):
         t = time()
         request = self.currentRequest
         response = Response()
+        response.headers.add_header("X-PROCESS", str(os.getpid())) #debugging multiprocess in deploy
 
         # default mime type
         response.mimetype = 'text/html'
