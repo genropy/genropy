@@ -979,7 +979,7 @@ class GnrWsgiSite(object):
     def lookup_webtools_static_route(self, request_path):
         result = self.webtools_static_routes.get(request_path, None)
         if not result and ('.well-known' in request_path):
-            result = self.webtools_static_routes.get('/.well-known/_missing_well_known_.json', None)
+            raise HTTPNotFound('Missing well-known')
         return result
     
     def _dispatcher(self, environ, start_response):
