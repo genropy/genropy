@@ -36,6 +36,7 @@ import smtplib
 import time
 import glob
 import subprocess
+from functools import cached_property
 from collections import defaultdict
 from email.mime.text import MIMEText
 
@@ -168,8 +169,142 @@ class GnrMixinObj(object):
     def __init__(self):
         pass
 
+class DbStoresHandler(object):
+    """Handler for using multi-database"""
+        
+    def __init__(self, db):
+        self.db = db
+        self.auxstores = {}
+        instance_dbstores = db.application.config['dbstores'] if db.application.config else None
+        if instance_dbstores:
+            for n in instance_dbstores:
+                self.add_auxstore(n.label,n.attr)
+
+    @property
+    def dbstores(self):
+        with self.db.tempEnv(storename=False):
+            return self.db.application.cache.getItem('MULTI_DBSTORES',defaultFactory=self._calculate_multidbstores)
+
+    def _calculate_multidbstores(self):
+        result = {}
+        if self.db.storetable:    
+            dbdict = self.get_dbdict()
+            dbstores = self.db.table(self.db.storetable).query(
+                where='$dbstore IN :databases',
+                databases=list(dbdict.keys()),columns="$dbstore").fetch()
+            for r in dbstores:
+                storename = r['dbstore']
+                result[storename] = dict(database=dbdict[storename])
+        return result
+    
+    def get_dbdict(self):
+        existing_databases = self.db.adapter.listElements('databases',manager=True)
+        if self.db.dbname not in existing_databases:
+            return {}
+        multidb_prefix = self.db.multidb_prefix
+        return {dbname[len(multidb_prefix):]:dbname for dbname in existing_databases if dbname.startswith(multidb_prefix)}
+            
+    def raw_multdb_dbstores(self):
+        result = {}
+        if self.db.storetable:    
+            dbdict = self.get_dbdict()
+            if not dbdict:
+                return result
+            pkgname,tblname = self.db.storetable.split('.')
+            pkgattr = self.db.application.packages[pkgname].attributes
+            sqlschema = pkgattr.get('sqlschema') or pkgname
+            sqlprefix = True if pkgattr.get('sqlprefix') is not False else False
+            tblname = tblname if not sqlprefix else f'{pkgname}_{tblname}'
+            adaptSqlName = self.db.adapter.adaptSqlName
+            sqltblfullname = f'{adaptSqlName(sqlschema)}.{adaptSqlName(tblname)}'
+            dbstores = self.db.adapter.raw_fetch(f"""
+                SELECT dbstore FROM {sqltblfullname} WHERE dbstore IS NOT NULL
+            """)
+            for r in dbstores:
+                storename = r['dbstore']
+                if storename in dbdict:
+                    result[storename] = dict(database=dbdict[storename])
+        return result
+
+
+    def add_auxstore(self, storename, dbattr=None):
+        """TODO
+        :param storename: TODO
+        :param check: TODO"""
+        self.auxstores[storename] = dict(database=dbattr.get('dbname', storename),
+                                        host=dbattr.get('host', self.db.host), user=dbattr.get('user', self.db.user),
+                                        password=dbattr.get('password', self.db.password),
+                                        port=dbattr.get('port', self.db.port),
+                                        remote_host=dbattr.get('remote_host'),
+                                        remote_port=dbattr.get('remote_port'))
+        return dbattr
+
+    def dbstore_check(self, storename, verbose=False):
+        """checks if dbstore exists and if it needs to be aligned
+        
+        :param storename: TODO
+        :param verbose: TODO"""
+        with self.db.tempEnv(storename=storename):
+            self.db.use_store(storename)
+            changes = self.db.model.check()
+            if changes and not verbose:
+                return False
+            elif changes and verbose:
+                return changes
+            else: #not changes
+                return True
+            
+    def create_dbstore(self,storename):
+        self.db.createDb(f'{self.db.multidb_prefix}{storename}')
+        self.refresh_dbstores()
+
+    def refresh_dbstores(self):
+        self.db.application.cache.updatedItem('MULTI_DBSTORES')
+
+
+    def dbstore_align(self, storename, changes=None):
+        """TODO
+        
+        :param storename: TODO
+        :param changes: TODO. """
+        with self.db.tempEnv(storename=storename):
+            self.db.syncOrmToSql()
+
 class GnrSqlAppDb(GnrSqlDb):
     """TODO"""
+
+    @cached_property
+    def stores_handler(self):
+        return DbStoresHandler(self)
+
+    @property
+    def debug(self):
+        """TODO"""
+        return self.application.debug
+        
+    @property
+    def dbstores(self):
+        return self.stores_handler.dbstores
+        
+    @property
+    def auxstores(self):
+        return self.stores_handler.auxstores
+    
+    @cached_property
+    def tenant_table(self):
+        tenant_table = None
+        for pkgNode in self.application.config['packages']:
+            tenant_table = pkgNode.attr.get('tenant_table') or tenant_table
+        return tenant_table
+
+    @cached_property
+    def multidb_config(self):
+        result = {}
+        for n in self.application.config['packages']:
+            if n.attr.get('storetable'):
+                return n.attr
+        return result
+
     def checkTransactionWritable(self, tblobj):
         """TODO
         

@@ -647,14 +647,22 @@ class SqlDbAdapter(object):
 
         Returns None
         """
-
+        result = None
         connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit,
                                                                             storename=self.dbroot.currentStorename)
-        with connection.cursor() as cursor:
+        try:
+            cursor = connection.cursor()
             if isinstance(sqlargs,dict):
                 sql,sqlargs = self.prepareSqlText(sql,sqlargs)
-            cursor.execute(sql,sqlargs)
-        connection.close()
+            if sqlargs:
+                cursor.execute(sql,sqlargs)
+            else:
+                cursor.execute(sql)
+            if cursor.description:
+                result = cursor.fetchall()
+        finally:
+            connection.close()
+        return result
 
         
     def raw_fetch(self, sql, sqlargs=None, manager=False, autoCommit=False):
@@ -665,14 +673,7 @@ class SqlDbAdapter(object):
 
         Returns all records returned by the SQL statement.
         """
-        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit,storename=self.dbroot.currentStorename)
-        with connection.cursor() as cursor:
-            if isinstance(sqlargs,dict):
-                sql,sqlargs = self.prepareSqlText(sql,sqlargs)
-            cursor.execute(sql, sqlargs)
-            result = cursor.fetchall()
-        connection.close()
-        return result
+        return self.execute(sql,sqlargs=sqlargs,manager=manager,autoCommit=autoCommit)
                 
     def insert(self, dbtable, record_data,**kwargs):
         """Insert a record in the db
