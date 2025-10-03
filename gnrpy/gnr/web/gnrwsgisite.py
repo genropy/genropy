@@ -301,9 +301,7 @@ class GnrWsgiSite(object):
 
     @property
     def multidomain(self):
-        result = self.db.multidomain
-        print('multidomain property in site result',result)
-        return result
+        return self.db.multidomain
 
     @property
     def guest_counter(self):
