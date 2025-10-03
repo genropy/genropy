@@ -172,8 +172,6 @@ class GnrWsgiSite(object):
         abs_script_path = os.path.abspath(script_path)
         self.remote_db = ''
         self.domains = {}
-        self.multidomain = False
-
         if site_name and ':' in site_name:
             _,self.remote_db = site_name.split(':',1)
         
@@ -280,7 +278,11 @@ class GnrWsgiSite(object):
     def setDomain(self,domain,**kwargs):
         self.domains[domain] = GnrDomainProxy(domain)
 
-
+    @functools.cached_property
+    def multidomain(self):
+        result = self.db.multidomain
+        print('multidomain property in site result',result)
+        return result
 
     @property
     def guest_counter(self):

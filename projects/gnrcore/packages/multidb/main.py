@@ -154,7 +154,7 @@ class Package(GnrDboPackage):
 
     def onAuthentication(self,avatar):
         """dbstore user check"""
-        if boolean(self.attributes.get('multidomain')) or boolean(self.attributes.get('readOnly')):
+        if self.db.multidomain or boolean(self.attributes.get('readOnly')):
             return 
         dbstorepage = self.db.application.site.currentPage.dbstore
         user_record = getattr(avatar,'user_record',None)
@@ -164,11 +164,9 @@ class Package(GnrDboPackage):
     def onSiteInited(self):
         if boolean(self.attributes.get('readOnly')):
             return
-        multidomain = boolean(self.attributes.get('multidomain'))
-        if not multidomain:
+        if not self.db.multidomain:
             return
         site = self.db.application.site
-        site.multidomain = multidomain
         for dbstore in self.db.dbstores.keys():
             site.setDomain(dbstore)
 
