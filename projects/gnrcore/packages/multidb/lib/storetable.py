@@ -38,8 +38,6 @@ class StoreTable(GnrDboTable):
         dbstore = record['dbstore']
         if not dbstore:
             raise self.exception('business_logic',msg=f'dbstore in record {record[self.pkey]}')
-        if self.db.application.site.multidomain:
-            self.db.application.site.setDomain(dbstore)
         existing_db = dbstore in self.db.stores_handler.get_dbdict()
         if existing_db:
             self.db.stores_handler.refresh_dbstores()

@@ -28,7 +28,6 @@ import re
 import _thread
 import locale
 from time import time
-from functools import cached_property
 from multiprocessing.pool import ThreadPool
 from functools import wraps
 from gnr.sql import logger
@@ -197,16 +196,16 @@ class GnrSqlDb(GnrObject):
         """TODO"""
         return False
         
-    @cached_property
+    @property
     def tenant_table(self):
         return 
     
-    @cached_property
+    @property
     def stores_handler(self):
         #overridden by app integration
         return None
     
-    @cached_property
+    @property
     def multidb_config(self):
         print('calling multidbconfig in gnrsql')
         #overridden by app integration
@@ -222,20 +221,18 @@ class GnrSqlDb(GnrObject):
         #overridden by app integration
         return {}
     
-    @cached_property
+    @property
     def storetable(self):
         return self.multidb_config.get('storetable')
     
-    @cached_property
+    @property
     def multidb_prefix(self):
         prefix = self.multidb_config.get('prefix')
         return f'{prefix}_' if prefix else ''
     
-    @cached_property
+    @property
     def multidomain(self):
         return boolean(self.multidb_config.get('multidomain'))
-
-
     
     @property
     def reuse_relation_tree(self):

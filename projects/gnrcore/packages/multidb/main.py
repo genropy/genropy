@@ -161,16 +161,6 @@ class Package(GnrDboPackage):
         if user_record and avatar.user_record.get('dbstore') and dbstorepage!=avatar.user_record.get('dbstore'):
             avatar.user_tags = ''
 
-    def onSiteInited(self):
-        if boolean(self.attributes.get('readOnly')):
-            return
-        if not self.db.multidomain:
-            return
-        site = self.db.application.site
-        for dbstore in self.db.dbstores.keys():
-            site.setDomain(dbstore)
-
-
 class Table(GnrDboTable):
     def use_dbstores(self,**kwargs):
         return False

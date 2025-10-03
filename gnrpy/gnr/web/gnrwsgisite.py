@@ -149,8 +149,32 @@ class GnrDomainProxy(object):
     def __init__(self,domain=None,**kwargs):
         self.domain = None
         self.register = None
-        self.attributes = kwargs            
+        self.attributes = kwargs      
 
+class GnrDomainHandler(object):
+    def __init__(self,site):
+        self.site = site
+        self.domains = {}
+
+    def __contains__(self, name):
+        result = name in self.domains
+        if result:
+            return result
+        self._missing_from_dbstores(name)
+        return name in self.domains
+    
+    def __getitem__(self,name):
+        if name not in self.domains:
+            self._missing_from_dbstores(name)
+        return self.domains.get(name)
+
+    def add(self,domain):
+        if domain not in self.domains:
+            self.domains[domain] = GnrDomainProxy(domain)
+
+    def _missing_from_dbstores(self,domain):
+        if domain in self.site.db.dbstores:
+            self.add(domain)
 
 class GnrWsgiSite(object):
     """TODO"""
@@ -169,9 +193,9 @@ class GnrWsgiSite(object):
         self._currentDomains = {}
         self._currentRequests = {}
         self._currentMaintenances = {}
+        self.domains = GnrDomainHandler(self)
         abs_script_path = os.path.abspath(script_path)
         self.remote_db = ''
-        self.domains = {}
         if site_name and ':' in site_name:
             _,self.remote_db = site_name.split(':',1)
         
@@ -200,7 +224,7 @@ class GnrWsgiSite(object):
         self.cache_max_age = int(self.config['wsgi?cache_max_age'] or 5356800)
         self.default_uri = self.config['wsgi?home_uri'] or '/'
         self.rootDomain = '_main_'
-        self.setDomain(self.rootDomain)
+        self.domains.add(self.rootDomain)
 
         # FIXME: ???
         if boolean(self.config['wsgi?static_import_psycopg']):
@@ -275,10 +299,7 @@ class GnrWsgiSite(object):
         self.connection_max_age = int(cleanup.get('connection_max_age')or 600)
         self.db.closeConnection()
 
-    def setDomain(self,domain,**kwargs):
-        self.domains[domain] = GnrDomainProxy(domain)
-
-    @functools.cached_property
+    @property
     def multidomain(self):
         result = self.db.multidomain
         print('multidomain property in site result',result)

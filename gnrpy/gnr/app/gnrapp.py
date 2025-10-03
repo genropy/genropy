@@ -36,7 +36,6 @@ import smtplib
 import time
 import glob
 import subprocess
-from functools import cached_property
 from collections import defaultdict
 from email.mime.text import MIMEText
 
@@ -273,7 +272,7 @@ class DbStoresHandler(object):
 class GnrSqlAppDb(GnrSqlDb):
     """TODO"""
 
-    @cached_property
+    @property
     def stores_handler(self):
         return DbStoresHandler(self)
 
@@ -290,21 +289,24 @@ class GnrSqlAppDb(GnrSqlDb):
     def auxstores(self):
         return self.stores_handler.auxstores
     
-    @cached_property
+    @property
     def tenant_table(self):
         tenant_table = None
         for pkgNode in self.application.config['packages']:
             tenant_table = pkgNode.attr.get('tenant_table') or tenant_table
         return tenant_table
 
-    @cached_property
+    @property
     def multidb_config(self):
-        result = {}
+        if hasattr(self, '_multidb_config'):
+            return self._multidb_config
+        self._multidb_config = {}
         for n in self.application.config['packages']:
             if n.attr.get('storetable'):
-                return n.attr
-        return result
-
+                self._multidb_config.update(n.attr)
+        return self._multidb_config
+    
+    
     def checkTransactionWritable(self, tblobj):
         """TODO
         
