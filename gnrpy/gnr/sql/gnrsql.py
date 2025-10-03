@@ -208,6 +208,7 @@ class GnrSqlDb(GnrObject):
     
     @cached_property
     def multidb_config(self):
+        print('calling multidbconfig in gnrsql')
         #overridden by app integration
         return {}
     
@@ -232,7 +233,7 @@ class GnrSqlDb(GnrObject):
     
     @cached_property
     def multidomain(self):
-        return self.multidb_config.get('multidomain')
+        return boolean(self.multidb_config.get('multidomain'))
 
 
     
