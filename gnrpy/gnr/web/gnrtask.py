@@ -389,7 +389,10 @@ class GnrTaskScheduler:
             logger.debug("Checking for next schedule...")
             for task_id, task in self.tasks.items():
                 if task[0].is_due(last_scheduled_ts=task[1]):
-                    await self.put_task_in_queue(task_id, task[0])
+                    try:
+                        await self.put_task_in_queue(task_id, task[0])
+                    except Exception as e:
+                        logger.error("Unable to execute task %s - %s", task_id, e)
             await asyncio.sleep(SCHEDULER_RUN_INTERVAL)
 
     def worker_alive(self, worker_id, queue_name):
