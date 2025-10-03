@@ -27,9 +27,10 @@ from datetime import date
 import re
 import _thread
 import locale
-from functools import 
+from time import time
+from functools import cached_property
 from multiprocessing.pool import ThreadPool
-from functools import wraps,cached_property
+from functools import wraps
 from gnr.sql import logger
 from gnr.sql import sqlauditlogger
 from gnr.core.gnrstring import boolean
