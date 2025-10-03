@@ -6,7 +6,6 @@ import re
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrlang import getUuid
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrlang import boolean
 
 class Table(object):
     def config_db(self, pkg):
