@@ -37,6 +37,7 @@ var genro_plugin_grid_configurator = {
         var selectedViewCode = gridSourceNode.getRelativeData('.currViewAttrs.code');
         var datapath =  gridSourceNode.absDatapath('.currViewAttrs');
         var objtype = 'view';
+
         var collectionStore = gridSourceNode.widget.collectionStore();
         if(collectionStore.storeNode.attr.groupByStore){
             objtype = 'grpview';
@@ -44,7 +45,7 @@ var genro_plugin_grid_configurator = {
         var that = this;
         var saveCb = function(dlg) {
             var pagename = genro.getData('gnr.pagename');
-            var flag =  pagename+'_'+gridId;
+            var flag =  pagename+'_'+gridId.replace(/_DUP_.*?(?=_grid)/, "");
             var metadata = genro.getData(datapath);
             var flags = metadata.getItem('flags');
             if(flags){

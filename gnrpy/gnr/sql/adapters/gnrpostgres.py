@@ -121,7 +121,7 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         """Return a new connection object: provides cursors accessible by col number or col name
 
         :returns: a new connection object"""
-        kwargs = self.dbroot.get_connection_params(storename=storename)
+        kwargs = self.get_connection_params(storename=storename)
         kwargs.pop('implementation',None)
 
         # remove None parameters, psycopg can't handle them
@@ -278,7 +278,7 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         :returns: list of object names"""
         query = getattr(self, '_list_%s' % elType)()
         try:
-            result = self.dbroot.execute(query, kwargs).fetchall()
+            result = self.raw_fetch(query, sqlargs=kwargs)
         except psycopg2.OperationalError:
             raise GnrNonExistingDbException(self.dbroot.dbname)
         if comment:
@@ -312,10 +312,10 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         filtercol = ""
         if column:
             filtercol = "AND column_name=:column"
-        columns = self.dbroot.execute(sql % filtercol,
+        columns = self.raw_fetch(sql % filtercol,
                                       dict(schema=schema,
                                            table=table,
-                                           column=column)).fetchall()
+                                           column=column))
         iterator = self.columnAdapter(columns)
         return iterator if not column else next(iterator)
 
@@ -344,18 +344,14 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
             yield col
 
 class GnrDictConnection(_connection):
-    """A connection that uses DictCursor automatically."""
+    """Connection that defaults to GnrDictCursor."""
+
+    def cursor(self, name=None, cursor_factory=None, *args, **kwargs):
+        if cursor_factory is None:
+            cursor_factory = GnrDictCursor
+        return super().cursor(name=name, cursor_factory=cursor_factory, *args, **kwargs)
 
 
-    def __init__(self, *args, **kwargs):
-        super(GnrDictConnection, self).__init__(*args, **kwargs)
-
-    def cursor(self, name=None):
-        if name:
-            cur = super(GnrDictConnection, self).cursor(name, cursor_factory=GnrDictCursor)
-        else:
-            cur = super(GnrDictConnection, self).cursor(cursor_factory=GnrDictCursor)
-        return cur
 
 class GnrDictCursor(_cursor):
     """Base class for all dict-like cursors."""

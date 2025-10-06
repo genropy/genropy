@@ -37,6 +37,7 @@ class THPicker(BaseComponent):
         nodup = nodup or picker_kwargs.get('nodup')
         condition= condition or picker_kwargs.pop('condition',None)
         subtable= subtable or picker_kwargs.pop('subtable',None)
+        method = picker_kwargs.pop('method',None)
 
         many = relation_field or picker_kwargs.get('relation_field',None)
         table = table or picker_kwargs.get('table',None)
@@ -102,7 +103,7 @@ class THPicker(BaseComponent):
             grid.attributes.update(dropTargetCb_picker='return this.form?!this.form.isDisabled():true')
             grid.dragAndDrop(paletteCode)
             if autoInsert:
-                method = getattr(tblobj,'insertPicker',self._th_insertPicker)
+                method = method or getattr(tblobj,'insertPicker',self._th_insertPicker)
                 formNode = pane.parentNode.attributeOwnerNode('formId')
                 if not one and formNode and grid.attributes.get('table'):
                     formtblobj = self.db.table(formNode.attr.get('table'))

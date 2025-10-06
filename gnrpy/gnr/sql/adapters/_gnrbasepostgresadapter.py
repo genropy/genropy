@@ -219,7 +219,7 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
         return filename
 
     def _managerConnection(self):
-        connection_params = self.dbroot.get_connection_params(self.dbroot.currentStorename)
+        connection_params = self.get_connection_params(self.dbroot.currentStorename)
         return self._classConnection(host=connection_params.get('host'), 
                                      port=connection_params.get('port'),
                                      user=connection_params.get('user'), 

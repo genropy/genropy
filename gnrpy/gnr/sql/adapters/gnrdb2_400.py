@@ -128,7 +128,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         """Return a new connection object: provides cursors accessible by col number or col name
         @return: a new connection object"""
         dbroot = self.dbroot
-        kwargs = self.dbroot.get_connection_params(storename=storename)
+        kwargs = self.get_connection_params(storename=storename)
         kwargs = dict(
                 [(k, v) for k, v in list(kwargs.items()) if v != None]) # remove None parameters, psycopg can't handle them
         kwargs['server']=kwargs.pop('host',None)

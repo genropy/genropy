@@ -70,7 +70,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
     def connect(self,storename=None, **kwargs):
         """Return a new connection object: provides cursors accessible by col number or col name
         @return: a new connection object"""
-        connection_parameters = self.dbroot.get_connection_params(storename=storename)
+        connection_parameters = self.get_connection_params(storename=storename)
         connection_parameters.pop('implementation',None)
         dbpath = connection_parameters.get('database')
         if not os.path.exists(dbpath):

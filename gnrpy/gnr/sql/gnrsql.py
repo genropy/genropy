@@ -497,6 +497,7 @@ class GnrSqlDb(GnrObject):
     connection = property(_get_connection)
             
     def get_connection_params(self, storename=None):
+        
         if storename and storename != self.rootstore and storename in self.dbstores:
             storeattr = self.dbstores[storename]
             return dict(host=storeattr.get('host'),database=storeattr.get('database') or storeattr.get('dbname'),

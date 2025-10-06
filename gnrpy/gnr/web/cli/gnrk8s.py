@@ -31,9 +31,11 @@ def main():
     parser.add_argument('-e', '--env-file',
                         dest="env",
                         help="Env file to load")
-    parser.add_argument('-k', '--env-secret',
-                        dest="env_secret",
-                        help="Secret holding environment")
+    parser.add_argument('-k', '--env-secrets',
+                        dest="env_secrets",
+                        help="K8s Secret for environment",
+                        default=[],
+                        action='append')
     parser.add_argument('-p', '--container-port',
                         type=int,
                         default=8000,
@@ -52,13 +54,12 @@ def main():
     parser.add_argument('instance_name')
     
     options = parser.parse_args()
-
     generator = GnrK8SGenerator(options.instance_name, options.image,
                                 options.fqdn,
                                 deployment_name=options.name,
                                 split=options.split,
                                 env_file=options.env,
-                                env_secret=options.env_secret,
+                                env_secrets=options.env_secrets,
                                 container_port=options.container_port,
                                 secret_name=options.secret_name,
                                 replicas=options.replicas)

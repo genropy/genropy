@@ -249,6 +249,19 @@ class BaseSql(BaseGnrSqlTest):
                                group_by='$nationality', order_by='$nationality').fetch()
         assert [(r[0], r[1]) for r in result] == [('UK', 6), ('USA', 6), ('USA,UK', 5)]
 
+    def test_query_subtables(self):
+        tbl = self.db.table("video.cast")
+        assert tbl.subtable('first_movie') is not None
+        assert tbl.subtable('accalla') is None
+        r = self.db.query("video.cast", columns='movie_id').fetch()
+        total_records = len(r)
+        r1 = self.db.query("video.cast", columns='movie_id', subtable="first_movie").fetch()
+        assert len(r1) == 3
+        r2 = self.db.query("video.cast", columns='movie_id', subtable="!first_movie").fetch()
+        assert len(r2) == (total_records-len(r1))
+        r3 = self.db.query("video.cast", columns='movie_id', subtable="first_movie|second_movie").fetch()
+        assert len(r3) < total_records
+        
     def test_query_limit(self):
         result = self.db.query('video.cast', columns='person_id',
                                where="@person_id.id=:id",

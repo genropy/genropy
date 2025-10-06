@@ -44,17 +44,38 @@ def parse_cli_args():
     c = GunicornConfig()
     cli_parser = c.parser()
     cli_parser.add_argument('instance_name')
+    cli_parser.add_argument('--debug', default=False,
+                            action='store_true')
     return {k: v for k, v in vars(cli_parser.parse_args()).items() if v is not None}
 
-def get_gnr_wsgi_application(instance_name):
+def get_gnr_wsgi_application(instance_name, cli_config):
     """
     Create wsgi application instance
     """
-    site = GnrWsgiSite(instance_name)
+    
+    if cli_config.get("debug", False):
+        # use werkzeug's DebuggedApplication middleware wrapped
+        # in the development server middleware related to debug
+        from gnr.web.serverwsgi import GnrDebuggedApplication
+        class WrapOptions:
+            def __init__(self, options):
+                for k, v in options.items():
+                    setattr(self, k, v)
+            def __getattr__(self, k):
+                return None
+            
+        site = GnrDebuggedApplication(GnrWsgiSite(instance_name,
+                                                  options=WrapOptions(cli_config)),
+                                      evalex=True, pin_security=False)
+        # mimic werkzeug's
+        cli_config['workers'] = 1
+        cli_config['theads'] = 1
+    else:
+        site = GnrWsgiSite(instance_name)
     
     def application(environ,start_response):
         return site(environ,start_response)
-    
+
     return application
 
 class GnrProductionServer(BaseApplication):
@@ -99,12 +120,13 @@ def main():
     
     env_config = load_env_config()
     cli_config = parse_cli_args()
-    app = get_gnr_wsgi_application(cli_config.get("instance_name"))
+
+    app = get_gnr_wsgi_application(cli_config.get("instance_name"), cli_config)
 
     file_config = {}
     if "config" in cli_config:
         file_config = load_config_file(cli_config["config"])
-
+    
     # precedence order: command line options, environment, configuration file
     combined_config = {**file_config, **env_config, **cli_config}        
     GnrProductionServer(app, combined_config).run()

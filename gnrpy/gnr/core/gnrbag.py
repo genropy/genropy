@@ -68,7 +68,7 @@ import urllib.parse
 
 import requests
 
-from gnr.core import gnrstring
+from gnr.core import gnrstring, logger
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrlang import GnrObject, GnrException #setCallable
 from gnr.core.gnrlang import file_types
@@ -2943,6 +2943,10 @@ class DirectoryResolver(BagResolver):
         if not self.invisible:
             directory = [x for x in directory if not x.startswith('.')]
         for fname in directory:
+            # skip journal files
+            if fname.startswith("#") or fname.endswith("#") or fname.endswith("~"):
+                logger.debug("Skipping invalid filename %s", fname)
+                continue
             nodecaption = fname
             fullpath = os.path.join(self.path, fname)
             relpath = os.path.join(self.relocate, fname)

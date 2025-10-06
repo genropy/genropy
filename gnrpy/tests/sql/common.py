@@ -73,6 +73,8 @@ def configurePackage(pkg):
     cast = pkg.table('cast', name_short='cast', name_long='Cast',
                      rowcaption='', pkey='id')
     cast.column('id', 'L')
+    cast.subtable("first_movie", condition="$movie_id=1")
+    cast.subtable("second_movie", condition="$movie_id=2")
     cast.column('movie_id', 'L', name_short='Mid',
                 name_long='Movie id').relation('movie.id')
     cast.column('person_id', 'L', name_short='Prs',
