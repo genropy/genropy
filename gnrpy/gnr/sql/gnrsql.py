@@ -157,7 +157,14 @@ class GnrSqlDb(GnrObject):
         self.debugger = debugger
         self.application = application
         self.model = self.createModel()
-        self.adapters[implementation] = importModule(f'gnr.sql.adapters.gnr{self.implementation}').SqlDbAdapter(self)
+
+        if ':' in self.implementation:
+            self.implementation, adapter_module = self.implementation.split(':')
+        else:
+            adapter_module = f'gnr.sql.adapters.gnr{self.implementation}'
+            
+        self.adapters[self.implementation] = importModule(adapter_module).SqlDbAdapter(self)
+        
         if main_schema is None:
             main_schema = self.adapter.defaultMainSchema()
         self.main_schema = main_schema
@@ -500,12 +507,16 @@ class GnrSqlDb(GnrObject):
         
         if storename and storename != self.rootstore and storename in self.dbstores:
             storeattr = self.dbstores[storename]
-            return dict(host=storeattr.get('host'),database=storeattr.get('database') or storeattr.get('dbname'),
-                        user=storeattr.get('user'),password=storeattr.get('password'),
+            return dict(host=storeattr.get('host'),
+                        database=storeattr.get('database') or storeattr.get('dbname'),
+                        dbbranch=storeattr.get('dbbranch', None),
+                        user=storeattr.get('user'), password=storeattr.get('password'),
                         port=storeattr.get('port'),
                         implementation=storeattr.get('implementation') or self.implementation)
         else:
-            return dict(host=self.host, database=self.dbname if not storename or storename=='_main_db' else storename, user=self.user, password=self.password, port=self.port)
+            return dict(host=self.host,
+                        database=self.dbname if not storename or storename=='_main_db' else storename,
+                        user=self.user, password=self.password, port=self.port)
     
     @sql_audit
     def execute(self, sql, sqlargs=None, cursor=None, cursorname=None, 
