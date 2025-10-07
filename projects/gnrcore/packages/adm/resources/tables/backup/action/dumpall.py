@@ -56,6 +56,7 @@ class Main(BaseResourceBatch):
                                     dbname=self.db.stores_handler.dbstores[s]['database'],
                                     excluded_schemas=self.getExcluded(),
                                     options=options))
+                dbstoreconf.addItem(s,None,database=f'{self.db.multidb_prefix}{s}')
         dbStoreSn = self.tempSn.child('_dbstores.xml')
         with dbStoreSn.open('wb') as confpath:
             dbstoreconf.toXml(confpath)
