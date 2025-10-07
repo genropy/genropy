@@ -82,14 +82,30 @@ class Table(object):
                     reply_message_id = rif_id[4:26]
                     if self.existsRecord(reply_message_id):
                         record_data['reply_message_id'] = reply_message_id
-    
+
+    def trigger_onInserted(self, record_data):
+        if record_data['in_out']=='O' and record_data['send_date'] is None:
+            self.db.table('email.message_to_send').addMessageToQueue(record_data['id'])
+
     def trigger_onUpdating(self, record_data, old_record):
         self.deleteAddressRelations(record_data)
         self.explodeAddressRelations(record_data)
     
+    def trigger_onUpdated(self, record_data,old_record=None):
+        error_in_sending = record_data['error_msg'] and not old_record['error_msg']
+        just_sent = record_data['send_date'] and not old_record['send_date']
+        if just_sent or error_in_sending:
+            self.db.table('email.message_to_send').removeMessageFromQueue(record_data['id'])
+        elif record_data['in_out']=='O' and not (record_data['send_date'] or record_data['error_msg']):
+            self.db.table('email.message_to_send').addMessageToQueue(record_data['id'])
+
+
     def trigger_onDeleting(self, record_data):
         self.deleteAddressRelations(record_data)
         
+    def trigger_onDeleted(self, record_data):
+        self.db.table('email.message_to_send').removeMessageFromQueue(record_data['id'])
+
     def extractAddresses(self,addresses):
         if not addresses:
             return []
