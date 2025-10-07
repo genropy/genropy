@@ -42,7 +42,7 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         """Return a new connection object: provides cursors accessible by col number or col name
         
         :returns: a new connection object"""
-        kwargs = self.dbroot.get_connection_params(storename=storename)
+        kwargs = self.get_connection_params(storename=storename)
         kwargs.pop('implementation',None)
         # remove None parameters, psycopg can't handle them
         kwargs = dict([(k, v) for k, v in list(kwargs.items()) if v != None])
