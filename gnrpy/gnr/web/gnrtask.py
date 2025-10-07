@@ -72,7 +72,7 @@ class GnrTaskScheduler(object):
     def checkAlive(self):
         f = self.exectbl.query(where='$start_ts IS NOT NULL AND $end_ts IS NULL').fetchGrouped(key='pid')
         for pid,exec_records in f.items():
-            if pid_exists(pid):
+            if pid and pid_exists(pid):
                 continue
             keys_to_kill=[e['id'] for e in exec_records]
             self.exectbl.batchUpdate(dict(pid=None,start_ts=None),
