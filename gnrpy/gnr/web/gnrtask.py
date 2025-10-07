@@ -104,7 +104,8 @@ class GnrTaskSchedulerClient:
         configuration
         """
         return self._call("update_task", dict(record=record))
-    
+
+        
     def reload(self):
         """
         Reload the whole task configuration
@@ -136,11 +137,12 @@ class GnrTask:
     name: str
     action: str
     db: Any 
-    table: Any
+    table_name: Any
     schedule: dict
     task_id: str = None
     user: str = None
     domains: str = None
+    saved_query_code: str = None
     parameters: Any = None
     queue_name: str = None
     
@@ -202,6 +204,10 @@ class GnrTask:
         key_hm = max(hmlist)
         result = '-'.join([str(y),str(m),str(d),str(int(key_hm/60)),str(key_hm%60)])
         return result
+
+    async def completed(self):
+        print("TASK COMPLETED")
+        # TBD - update task execution accordingly
 
 # class GnrTaskOld(object):
 #     def __init__(self, record, db, table):
@@ -282,18 +288,18 @@ class GnrTaskScheduler:
             schedule = {k: x.get(k, None) for k in schedule_keys}
             self.tasks[x['id']] = [GnrTask(name=x['task_name'],
                                            action=x['command'],
-                                           db=self.db,
-                                           table=self.tasktbl,
+                                           db=self.db.dbname,
+                                           table_name=x['table_name'],
                                            schedule=schedule,
                                            task_id=x['id'],
+                                           saved_query_code=x['saved_query_code'],
                                            parameters=x['parameters']),
                                    x['last_scheduled_ts']]
         
     async def complete_task(self, task_id):
-        task = self.tasks.get(task_id)
+        task = self.tasks.get(task_id)[0]
         if task:
             logger.info("Task %s completed, saving", task_id)
-            
             await task.completed()
         else:
             logger.error("Task %s not found, can't complete", task_id)
@@ -392,7 +398,7 @@ class GnrTaskScheduler:
                     try:
                         await self.put_task_in_queue(task_id, task[0])
                     except Exception as e:
-                        logger.error("Unable to execute task %s - %s", task_id, e)
+                        logger.error("Unable to schedule task %s - %s", task_id, e)
             await asyncio.sleep(SCHEDULER_RUN_INTERVAL)
 
     def worker_alive(self, worker_id, queue_name):
@@ -671,6 +677,7 @@ class GnrTaskScheduler:
 
 def execute_task(sitename, task):
     app = GnrApp(sitename, enabled_packages=['gnrcore:sys'])
+    # task.db contains the name of the database
     db = app.db
     site = GnrWsgiSite(sitename)
     tasktbl = db.table("sys.task")
@@ -680,11 +687,9 @@ def execute_task(sitename, task):
     site.currentPage = page
     page._db = None
     page.db
-    
-    record = {x[0]:x[1] for x in json.loads(task['payload'])}
-        
+    record = task['payload'] #{x[0]:x[1] for x in task['payload']}
     task_class = tasktbl.getBtcClass(table=record['table_name'],
-                                     command=record['command'],
+                                     command=record['action'],
                                      page=page
                                      )
     if task_class:
@@ -694,10 +699,10 @@ def execute_task(sitename, task):
         with db.tempEnv(connectionName="execution"):
             logger.info("Executing task %s - %s",
                         record['table_name'],
-                        record['command'])
+                        record['action'])
             task_obj(parameters=Bag(task_params),task_execution_record=record)
     else:
-        logger.error("Can't find task class for command %s", record['command'])
+        logger.error("Can't find task class for command %s", record['action'])
             
     try:
         with requests.post(f"{GNR_SCHEDULER_URL}/ack", json={"run_id": task["run_id"]}) as resp:
