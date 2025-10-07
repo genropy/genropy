@@ -552,6 +552,7 @@ class GnrSqlDb(GnrObject):
             
         return dict(host=storeattr.get('host') or self.host,
                         database=storeattr.get('database') or storeattr.get('dbname'),
+                        dbbranch=storeattr.get('dbbranch', None),
                         user=storeattr.get('user') or self.user,
                         password=storeattr.get('password') or self.password,
                         port=storeattr.get('port') or self.port,
