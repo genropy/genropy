@@ -160,7 +160,12 @@ class SqlDbAdapter(object):
         sql = "UPDATE %s SET %s=:newpkey WHERE %s=:currpkey;" % (tblobj.sqlfullname, pkeyColumn,pkeyColumn)
         return self.dbroot.execute(sql, dbtable=dbtable.fullname,sqlargs=dict(currpkey=pkey,newpkey=newpkey))
 
-
+    def get_connection_params(self, storename=None):
+        """
+        Get the connection parameters as a dict for connect kwargs
+        """
+        return self.dbroot.get_connection_params(storename=storename)
+    
     def connect(self, storename=None, autoCommit=False, **kw):
         """-- IMPLEMENT THIS --
         Build and return a new connection object: ex. return dbapi.connect()
