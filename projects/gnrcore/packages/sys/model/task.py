@@ -4,8 +4,7 @@ from datetime import datetime
 
 from gnr.core.gnrbag import Bag
 from gnr.web.gnrtask import GnrTaskSchedulerClient
-
-
+from gnr.app import pkglog as logger
 
 class Table(object):
     
@@ -74,9 +73,16 @@ class Table(object):
         return 'sys/task'
     
     def _invoke_scheduler_reload(self):
-        # FIXME: the user should be informed
-        # if there are issues with the scheduler reload/update
-        self.db.deferAfterCommit(self.scheduler().reload)
+
+        def scheduler_deferred_reload():
+            try:
+                self.scheduler().reload()
+            except Exception as e:
+                self.db.currentPage.clientPublish('floating_message',
+                                                  message='Unable to contact scheduler',
+                                                  messageType='warning')
+                logger.error("Unable to contact scheduler: %s", e)
+        self.db.deferAfterCommit(scheduler_deferred_reload)
         
     def trigger_onUpdating(self, record=None,old_record=None):
         if not self.fieldsChanged('last_scheduled_ts,last_execution_ts',
