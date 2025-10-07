@@ -424,15 +424,21 @@ class GnrWebPage(GnrBaseWebPage):
     def modulePath(self):
         return  '%s.py' %os.path.splitext(sys.modules[self.__module__].__file__)[0]
 
-     
-        
+    @property
+    def currentDomain(self):
+        return self.site.currentDomain
+    
+    @property
+    def multidomain(self):
+        return self.site.multidomain
+    
     @property 
     def db(self):
         if not getattr(self, '_db',None):
             self._db = self.application.db
             self._db.clearCurrentEnv()
             expirebag = self.globalStore().getItem('tables_user_conf_expire_ts')
-            self._db.updateEnv(storename=self.dbstore,
+            self._db.updateEnv(storename=self.dbstore,currentDomain=self.currentDomain,
                                dbbranch=self._call_kwargs.get("dbbranch", None),
                                workdate=self.workdate, locale=self.locale,
                                maxdate=datetime.date.max, mindate=datetime.date.min,
@@ -1373,8 +1379,8 @@ class GnrWebPage(GnrBaseWebPage):
     @property
     def external_host(self):
         external_host = self.request.host_url if hasattr(self, 'request') else self.site.configurationItem('wsgi?external_host',mandatory=True) 
-        if self.site.multidomain:
-            external_host = f'{external_host}/{self.site.currentDomain}' if not external_host.endswith('/') else  f'{external_host}{self.site.currentDomain}' 
+        if self.multidomain:
+            external_host = f'{external_host}/{self.currentDomain}' if not external_host.endswith('/') else  f'{external_host}{self.currentDomain}' 
         return external_host
 
     def externalUrl(self, path, **kwargs):
@@ -2189,8 +2195,8 @@ class GnrWebPage(GnrBaseWebPage):
         page.data('gnr.locale', self.locale)
         page.data('gnr.pagename', self.pagename)
         page.data('gnr.remote_db',self.site.remote_db)
-        page.data('gnr.multidomain',self.site.multidomain)
-        page.data('gnr.currentDomain',self.site.currentDomain)
+        page.data('gnr.multidomain',self.multidomain)
+        page.data('gnr.currentDomain',self.currentDomain)
         if self.dbstore:
             page.data('gnr.dbstore',self.dbstore)
         if has_adm and not self.isGuest:

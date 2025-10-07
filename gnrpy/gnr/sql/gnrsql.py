@@ -537,6 +537,7 @@ class GnrSqlDb(GnrObject):
             
     connection = property(_get_connection)
             
+            
         
     def get_store_parameters(self,storename):
         return self.dbstores.get(storename) or self.auxstores.get(storename)
