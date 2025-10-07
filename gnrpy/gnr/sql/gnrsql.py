@@ -157,7 +157,14 @@ class GnrSqlDb(GnrObject):
         self.debugger = debugger
         self.application = application
         self.model = self.createModel()
-        self.adapters[implementation] = importModule(f'gnr.sql.adapters.gnr{self.implementation}').SqlDbAdapter(self)
+
+        if ':' in self.implementation:
+            self.implementation, adapter_module = self.implementation.split(':')
+        else:
+            adapter_module = f'gnr.sql.adapters.gnr{self.implementation}'
+            
+        self.adapters[self.implementation] = importModule(adapter_module).SqlDbAdapter(self)
+        
         if main_schema is None:
             main_schema = self.adapter.defaultMainSchema()
         self.main_schema = main_schema
