@@ -21,8 +21,9 @@ class Table(object):
 
     def sendMessages(self):
         with self.db.tempEnv(storename=False):
-            messages_to_send = [r['message_id'] for r in self.query().fetchGroped('dbstore')]
+            messages_to_send = self.query().fetchGrouped('dbstore')
+        message_tbl = self.db.table('email.message')
         for dbstore,message_pkeys in messages_to_send.items():
             with self.db.tempEnv(storename=dbstore or False):
-                for message_id in message_pkeys:
-                    self.message_tbl.sendMessage(pkey=message_id)
+                for m in message_pkeys:
+                    message_tbl.sendMessage(pkey=m['message_id'])
