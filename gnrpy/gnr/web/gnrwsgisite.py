@@ -945,6 +945,7 @@ class GnrWsgiSite(object):
     def dispatcher(self, environ, start_response):
         self.currentRequest = Request(environ)
         self.currentDomain = self.rootDomain
+        self.currentRequest.max_form_memory_size = 100_000_000
         if self.isInMaintenance:
             return self.maintenanceDispatcher(environ, start_response)
         else:
