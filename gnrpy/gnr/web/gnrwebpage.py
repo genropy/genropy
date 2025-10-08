@@ -252,6 +252,18 @@ class GnrWebPage(GnrBaseWebPage):
     def _T(self,value,lockey=None):
         return GnrLocString(value,lockey=lockey)
             
+    def _log_connection_debug(self, message, **kwargs):
+        if not self.site.connectionDebugEnabled:
+            return
+        payload = self.connection.describe()
+        payload.update(dict(page_class=self.__class__.__name__,
+                            page_id=getattr(self, 'page_id', None),
+                            requested_page_id=kwargs.pop('requested_page_id', None),
+                            page_path=self.pagepath,
+                            call_handler_type=getattr(self, '_call_handler_type', None)))
+        payload.update(kwargs)
+        self.site.log_connection_debug(message, payload)
+    
     def onPreIniting(self, *request_args, **request_kwargs):
         """TODO"""
         pass
@@ -285,14 +297,18 @@ class GnrWebPage(GnrBaseWebPage):
                 
     def _check_page_id(self, page_id=None, kwargs=None):
         if not self.connection.connection_id:
+            self._log_connection_debug('page.check_page_id.missing_connection', requested_page_id=page_id)
             raise self.site.client_exception('The connection is not longer valid', self._environ)
         if not self.connection.validate_page_id(page_id):
             if self.isGuest:
+                self._log_connection_debug('page.check_page_id.guest_missing', requested_page_id=page_id)
                 return self._register_new_page(page_id=page_id,kwargs=kwargs)
+            self._log_connection_debug('page.check_page_id.invalid', requested_page_id=page_id)
             raise self.site.client_exception('The referenced page_id is not valid in this connection',
                                              self._environ)
         page_item = self.site.register.page(page_id,include_data='lazy')
         if not page_item:
+            self._log_connection_debug('page.check_page_id.not_found', requested_page_id=page_id)
             raise self.site.client_exception('The referenced page_id is cannot be found in site register',
                                              self._environ)
         self.page_id = page_id
@@ -317,6 +333,8 @@ class GnrWebPage(GnrBaseWebPage):
             self.registerToAsyncServer(page_id=self.page_id,page_info=page_info,
                 class_info=class_info,init_info=init_info,mixin_set=[])
         self.onPageRegistered(**kwargs)
+        self._log_connection_debug('page.register_new', requested_page_id=page_id,
+                                   class_info=class_info, init_info=init_info)
         return page_item
 
     def registerToAsyncServer(self,**kwargs):
