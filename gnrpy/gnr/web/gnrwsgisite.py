@@ -733,6 +733,7 @@ class GnrWsgiSite(object):
                 return info
             default_info = UrlInfo(self,default_path,request_kwargs)
             default_info.request_args = path_list
+            logger.warning('using default_path')
             return default_info
         return info
 
