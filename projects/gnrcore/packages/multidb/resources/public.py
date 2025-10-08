@@ -17,6 +17,8 @@ from gnr.web.gnrwebstruct import struct_method
 class Public(BaseComponent):
     @oncalled
     def public_applyOnRoot(self,frame,**kwargs):
+        if self.multidomain:
+            return
         if self.dbstore or self.site.currentAuxInstanceName:
             return
         if self._getMultiDbSelector():
@@ -29,17 +31,12 @@ class Public(BaseComponent):
                 bar.replaceSlots('avatar','multidb_selector,10,avatar')
 
     def _getMultiDbSelector(self):
-        if self.db.multidomain:
-            return
         if hasattr(self,'public_multidbSelector'):
             return self.public_multidbSelector
         default_multidb_selector = None
         multidb_switch = self.getPreference('multidb_switch',pkg='multidb')
         multidb_switch_tag = self.getPreference('multidb_switch_tag',pkg='multidb') or 'user'
-        use_dbstores = None
-        if self.tblobj:
-            use_dbstores = self.tblobj.use_dbstores() or self.db.multidomain
-        if use_dbstores is not False and self.maintable and not self.tblobj.attributes.get('multidb') and multidb_switch_tag:
+        if self.maintable and not self.tblobj.attributes.get('multidb') and multidb_switch_tag:
             default_multidb_selector = self.application.checkResourcePermission(multidb_switch_tag,self.userTags)
         return default_multidb_selector
 
@@ -47,7 +44,7 @@ class Public(BaseComponent):
     def public_publicRoot_multidb_selector(self,pane, **kwargs): 
         pane.parent.parent.parent.center.attributes['context_dbstore'] = '=current.context_dbstore'
         fb = pane.div(margin_top='2px').formbuilder(border_spacing='0',cols=1)
-        storetable = self.db.storetable
+        storetable = self.db.package('multidb').attributes['storetable']
         multidb_selector = self._getMultiDbSelector() 
         extra_kw = {} if multidb_selector is True else multidb_selector
         fb.dbSelect(value='^current.context_dbstore',_storename=False,dbtable=storetable,
@@ -60,7 +57,7 @@ class TableHandlerMain(BaseComponent):
     def public_publicRoot_multidb_selector(self,pane, **kwargs): 
         pane.parent.parent.parent.center.attributes['context_dbstore'] = '=current.context_dbstore'
         fb = pane.div(margin_top='2px').formbuilder(border_spacing='0',cols=1)
-        storetable = self.db.storetable
+        storetable = self.db.package('multidb').attributes['storetable']
         multidb_selector = self._getMultiDbSelector() 
         extra_kw = {} if multidb_selector is True else multidb_selector
         fb.dbSelect(value='^current.context_dbstore',_storename=False,dbtable=storetable,
@@ -83,6 +80,8 @@ class TableHandlerMain(BaseComponent):
                 self.__formCustomization(th.form)
 
     def __formCustomization(self,form):
+        if self.multidomain:
+            return
         multidb = self.tblobj.multidb
         if not self.dbstore:
             if multidb is True:
@@ -116,7 +115,9 @@ class TableHandlerMain(BaseComponent):
             grid.column('lvalue',name='local value',width='15em')
 
 
-    def __viewCustomization(self,view): #poi ci passo il th direttamente
+    def __viewCustomization(self,view):
+        if self.multidomain:
+            return
         table = view.getInheritedAttributes()['table']
         
         
@@ -133,7 +134,7 @@ class TableHandlerMain(BaseComponent):
                 palette = bar.subscribepalette.palettePane(paletteCode='mainstore',title='!!Mainstore',
                                             dockButton_iconClass='iconbox add_row',width='900px',
                                             height='400px',_lazyBuild=True,overflow='hidden',dockButton_disabled='^.disabledButton')
-                urlist,redirect = self.site.handle_path_list(self.request.path_info)
+                urlist = self.site.get_path_list(self.request.path_info)
                 urlist.pop(0)
                 palette.iframe(src='/%s' %'/'.join(urlist),height='100%',width='100%',border=0,
                               main_th_public=False,main_env_target_store=self.dbstore,
