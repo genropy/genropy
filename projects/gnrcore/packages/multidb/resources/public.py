@@ -72,6 +72,8 @@ class TableHandlerMain(BaseComponent):
                             _if='runned',_fired='^current.context_dbstore')
 
     def onMain_multidb_addOn(self):
+        if self.multidomain:
+            return
         if not self.tblobj.multidb:
             return
         th = getattr(self,'root_tablehandler',None)
