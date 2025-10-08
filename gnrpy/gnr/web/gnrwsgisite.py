@@ -246,7 +246,7 @@ class GnrWsgiSite(object):
             self.default_uri += '/'
        
 
-        self.default_page = self.config['wsgi?default_page'] or 'sys/default'
+        
         self.root_static = self.config['wsgi?root_static']
         self.websockets= boolean(self.config['wsgi?websockets']) or websockets
         self.allConnectionsFolder = os.path.join(self.site_path, 'data', '_connections')
@@ -261,6 +261,9 @@ class GnrWsgiSite(object):
         self.secret = self.config['wsgi?secret'] or 'supersecret'
         self.config['secret'] = self.secret
         self.setDebugAttribute(options)
+        self.default_page = self.config['wsgi?default_page'] 
+        if not self.default_page and self.debug:
+            self.default_page = 'sys/default'
         self.statics = StaticHandlerManager(self)
         self.statics.addAllStatics()
         self.compressedJsPath = None
@@ -725,6 +728,9 @@ class GnrWsgiSite(object):
     def getUrlInfo(self,path_list,request_kwargs=None,default_path=None):
         info = UrlInfo(self,path_list,request_kwargs)
         if not info.relpath and default_path:
+            dirpath=os.path.join(info.basepath,*info.request_args)
+            if not os.path.isdir(dirpath):
+                return info
             default_info = UrlInfo(self,default_path,request_kwargs)
             default_info.request_args = path_list
             return default_info
