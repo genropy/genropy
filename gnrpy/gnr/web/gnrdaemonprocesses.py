@@ -2,10 +2,9 @@
 # encoding: utf-8
 #
 
-from datetime import datetime
-from multiprocessing import Process, get_logger, cpu_count
+
+from multiprocessing import Process
 import threading
-import os
 import time
 
 class GnrDaemonServiceManager(object):

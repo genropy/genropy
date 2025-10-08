@@ -20,7 +20,7 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrconfig import gnrConfigPath
 from gnr.app.gnrdeploy import PathResolver
-from gnr.web.gnrdaemonprocesses import GnrCronHandler, GnrDaemonServiceManager
+from gnr.web.gnrdaemonprocesses import GnrDaemonServiceManager
 from gnr.web import logger
 
 if hasattr(Pyro4.config, 'METADATA'):
