@@ -1156,12 +1156,17 @@ class GnrWsgiSite(object):
 
     @property
     def external_host(self):
-        if (self.currentPage and hasattr(self.currentPage,'request')):
-            external_host = self.currentPage.external_host
+        page = self.currentPage
+        if (page and hasattr(page,'request')):
+            external_host = page.request.host_url 
         else:
             external_host = self.configurationItem('wsgi?external_host',mandatory=True)
-        return (external_host or '').rstrip('/')
+        external_host = (external_host or '').rstrip('/')
+        if self.multidomain:
+            external_host = f'{external_host}/{self.currentDomain}'
+        return external_host
     
+
     @property
     def external_secret(self):
         return getEnvironmentItem('external_secret',default=getUuid(),update=True)
