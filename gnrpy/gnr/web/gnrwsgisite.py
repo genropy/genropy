@@ -987,7 +987,7 @@ class GnrWsgiSite(object):
         return PathResolution(
             resolved_path_list,
             redirect_to=redirect_to,
-            matched_domain=matched_domain or self.currentDomain,
+            matched_domain=matched_domain,
             base_dbstore=base_dbstore,
             original_path=path_info,
             normalized_path=normalized_path
