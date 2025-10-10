@@ -147,6 +147,7 @@ class GnrSqlDb(GnrObject):
         self._connections = {}
         self.adapters = {}
         self.dbname = self.dbpar(dbname)
+        self.dbbranch = self.dbpar(kwargs.get("dbbranch", None))
         self.host = self.dbpar(host)
         self.port = self.dbpar(str(port) if port else None)
         self.user = self.dbpar(user)
