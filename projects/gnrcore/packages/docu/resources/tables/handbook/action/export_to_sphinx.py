@@ -6,9 +6,7 @@
 
 from json import dumps
 from datetime import datetime
-import re
-import sys
-import time
+import re, sys, time
 
 if sys.version_info[0] == 3:
     from urllib.request import urlopen
@@ -112,12 +110,15 @@ class Main(BaseResourceBatch):
             toc_roots = self.handbook_record['toc_roots'].split(',')
             toc_trees = []
             for doc_id in toc_roots:
-                if doc_id in self.doc_data.keys():
-                    toc_elements = self.prepare(self.doc_data[doc_id],[])
+                node = self.doc_data.getNode(doc_id)
+                if node:
+                    subtree = Bag()
+                    subtree.setItem(node.label, node.value, **node.attr)
                     r = self.doctable.record(doc_id).output('dict')
                     title = Bag(r['docbag'])['%s.title' % self.handbook_record['language']] 
-                    toctree = self.createToc(elements=toc_elements, includehidden=True, titlesonly=True, caption=title)
-                    toc_trees.append(toctree)
+                    root_code = r['name']
+                    toc_elements = self.prepare(subtree,[], skip_first=True)
+                    toc_trees.append(self.createToc(elements=toc_elements, includehidden=True, titlesonly=True, caption=title))
             tocstring = '\n\n'.join(toc_trees)
         else:
             toc_elements = self.prepare(self.doc_data,[])
@@ -212,7 +213,7 @@ class Main(BaseResourceBatch):
             resultAttr['url'] = self.result_url
         return 'Export done', resultAttr
 
-    def prepare(self, data, pathlist):
+    def prepare(self, data, pathlist, skip_first=False):
         IMAGEFINDER = re.compile(r"\.\. image:: ([\w./:-]+)")
         LINKFINDER = re.compile(r"`([^`]*) <([\w./]+)>`_\b")
         #LINKFINDER = re.compile(r"`([^`]*) <([\w./-]+)(?:/(#[\w-]+))?>`_\b") version with group 3 after /#
@@ -221,14 +222,14 @@ class Main(BaseResourceBatch):
         result=[]
         if not data:
             return result
-        for n in data:
+        for idx, n in enumerate(data):
             v = n.value
-            record = self.doctable.record(n.label).output('dict')
+            record = self.doctable.record(n.label,
+                                          virtual_columns='$full_external_url,$root_handbook_url').output('dict')
             
             name=record['name']
             docbag = Bag(record['docbag'])
             self.curr_sourcebag = Bag(record['sourcebag'])
-            toc_elements=[name]
             self.hierarchical_name = record['hierarchical_name']
             lbag=docbag[self.handbook_record['language']] or Bag()
             rst = lbag['rst'] or ''
@@ -245,12 +246,18 @@ class Main(BaseResourceBatch):
             if self.examples_root and self.curr_sourcebag:
                         rst = EXAMPLE_FINDER.sub(self.fixExamples, rst)
 
-            if n.attr['child_count']>0:
-                if v:
-                    toc_elements=self.prepare(v, pathlist+toc_elements)
-                    self.curr_pathlist = pathlist+[name]
-            else:
-                self.curr_pathlist=pathlist
+            has_children = bool(n.attr['child_count'])
+            branch_pathlist = pathlist+[name] if has_children else pathlist
+            child_toc_elements = []
+            if has_children and v:
+                child_toc_elements = self.prepare(v, branch_pathlist)
+            self.curr_pathlist = branch_pathlist if has_children else pathlist
+
+            skip_current = skip_first and idx == 0
+            if skip_current:
+                prefixed_entries = ['%s/%s' % (name, entry) if entry else name for entry in child_toc_elements]
+                result.extend(prefixed_entries)
+                continue
 
             rst = IMAGEFINDER.sub(self.fixImages,rst)
             rst = LINKFINDER.sub(self.fixLinks, rst)
@@ -264,17 +271,21 @@ class Main(BaseResourceBatch):
                 date_format = '%Y-%m-%d'if self.handbook_record['language'] == 'en' else '%d-%m-%Y' 
                 publish_date_str = record['publish_date'].strftime(date_format) if record['publish_date'] else ''
                 footer += f"""\n.. raw:: html\n\n   <p style="font-size:0.8em;">{last_upd} {publish_date_str}</p>"""
-                
-            if n.attr['child_count']>0:
+
+            url = record.get('full_external_url') or record.get('root_handbook_url')
+            if url:
+                self.batch_log_write(f"{record.get('hierarchical_name') or record.get('name')}: {url}")
+
+            tocstring = ''
+            if has_children:
                 result.append('%s/%s.rst' % (name,name))
-                if v:
-                    tocstring = self.createToc(elements=toc_elements,
+                if child_toc_elements:
+                    tocstring = self.createToc(elements=child_toc_elements,
                                                     hidden=not record['sphinx_toc'],
                                                     titlesonly=True,
                                                     maxdepth=1)
             else:
                 result.append(name)
-                tocstring=''
                 
             self.createFile(pathlist=self.curr_pathlist, name=name,
                             title=lbag['title'], 
@@ -282,14 +293,24 @@ class Main(BaseResourceBatch):
                             tocstring=tocstring,
                             hname=record['hierarchical_name'], footer=footer)
             
+            if skip_first and idx == 0:
+                # treat first node as folder only: remove entry and add prefixed children
+                if has_children:
+                    prefixed = ['%s/%s' % (name, entry) if entry else name for entry in child_toc_elements]
+                else:
+                    prefixed = []
+                result.pop()  # remove current entry
+                result.extend(prefixed)
+                continue
+            
         return result
 
     def fixExamples(self, m):
         example_label = m.group(1)
         example_name = m.group(2)
-        print('**EXAMPLE**', example_name)
+        logger.debug(f'**EXAMPLE** {example_name}')
         sourcedata = self.curr_sourcebag[example_name] or Bag()
-        print(sourcedata)
+        logger.debug(sourcedata)
         return '.. raw:: html\n\n %s' %self.exampleHTMLChunk(sourcedata,example_label=example_label,example_name=example_name)
         
     def exampleHTMLChunk(self,sourcedata,example_label=None,example_name=None):
