@@ -26,7 +26,8 @@ class Table(object):
         tbl.formulaColumn('example_url',"'/webpages/docu_examples/'||$hierarchical_name")
 
         tbl.pyColumn('root_handbook_url', name_long='!!Root handbook url')
-        tbl.pyColumn('full_external_url', name_long='!!Full external url')
+        tbl.pyColumn('full_external_url', name_long='!!Full external url', 
+                     required_columns='$id,$child_count,$name')
         tbl.formulaColumn('is_published',"""
             CASE WHEN $publish_date IS NOT NULL THEN EXISTS(#has_published_children)
             ELSE $publish_date<=:env_workdate END
@@ -71,10 +72,9 @@ class Table(object):
         pkey = record.get('id') or record.get('pkey')
         if not pkey:
             return
-        doc_table = self.db.table('docu.documentation')
-        ancestors = doc_table.hierarchicalHandler.getAncestors(
+        ancestors = self.hierarchicalHandler.getAncestors(
                         pkey=pkey, meToo=True,
-                        columns='$id,$name,@handbooks.handbook_url AS handbook_url',
+                        columns='$id,$name,$child_count,@handbooks.handbook_url AS handbook_url,@handbooks.toc_roots AS handbook_toc_roots',
                         order_by='$hlevel')
         if not ancestors:
             return
@@ -82,11 +82,16 @@ class Table(object):
         base_url = record.get('root_handbook_url')
         segments = []
         collecting = False
+        root_doc_id = None
+        toc_roots_set = set()
         for ancestor in rows:
             handbook_url = ancestor.get('handbook_url')
-            if handbook_url:
+            if handbook_url and not collecting:
                 base_url = handbook_url
                 collecting = True
+                root_doc_id = ancestor.get('id')
+                toc_roots_str = ancestor.get('handbook_toc_roots') or ''
+                toc_roots_set = {token for token in toc_roots_str.split(',') if token}
                 continue
             if not collecting:
                 continue
@@ -95,10 +100,37 @@ class Table(object):
                 segments.append(name)
         if not base_url:
             return
-        url = base_url.rstrip('/')
-        if segments:
-            url = f"{url}/{'/'.join(segments)}"
-        return url
+        base = base_url.rstrip('/')
+        record_id = record.get('id') or record.get('pkey')
+        record_name = record.get('name')
+        child_count = record.get('child_count') or 0
+        has_children = child_count > 0
+        is_root_doc = record_id == root_doc_id
+        is_toc_root = record_id in toc_roots_set if record_id else False
+        if is_root_doc:
+            return f"{base}/index.html"
+        if is_toc_root:
+            if segments:
+                return f"{base}/{'/'.join(segments)}"
+            else:
+                return base
+        if not segments:
+            if not record_name:
+                return base
+            if has_children:
+                return f"{base}/{record_name}/{record_name}.html"
+            else:
+                return f"{base}/{record_name}.html"
+        record_segment = segments[-1]
+        ancestor_dirs = segments[:-1]
+        if has_children:
+            dirs = segments
+            filename = record_name or record_segment
+        else:
+            dirs = ancestor_dirs
+            filename = record_name or record_segment
+        path_parts = dirs + [f"{filename}.html"]
+        return f"{base}/{'/'.join(path_parts)}"
 
     def atc_getAttachmentPath(self,pkey):
         return f'documentation:attachments/{pkey}'

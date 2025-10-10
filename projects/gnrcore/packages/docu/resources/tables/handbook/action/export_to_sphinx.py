@@ -255,7 +255,7 @@ class Main(BaseResourceBatch):
 
             skip_current = skip_first and idx == 0
             if skip_current:
-                prefixed_entries = ['%s/%s' % (name, entry) if entry else name for entry in child_toc_elements]
+                prefixed_entries = ['%s/%s' % (name, entry) for entry in child_toc_elements if entry]
                 result.extend(prefixed_entries)
                 continue
 
@@ -292,16 +292,6 @@ class Main(BaseResourceBatch):
                             rst=rst,
                             tocstring=tocstring,
                             hname=record['hierarchical_name'], footer=footer)
-            
-            if skip_first and idx == 0:
-                # treat first node as folder only: remove entry and add prefixed children
-                if has_children:
-                    prefixed = ['%s/%s' % (name, entry) if entry else name for entry in child_toc_elements]
-                else:
-                    prefixed = []
-                result.pop()  # remove current entry
-                result.extend(prefixed)
-                continue
             
         return result
 
