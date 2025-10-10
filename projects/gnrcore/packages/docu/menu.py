@@ -3,6 +3,7 @@ class Menu(object):
     def config(self,root,**kwargs):
         documentation = root.branch(u"!!Documentation", tags="_DOC_,_DEV_")
         documentation.thpage(u"!!Documentation", table="docu.documentation", tags="")
+        documentation.thpage(u"!!FAQs", table="docu.faq_area", tags="")
         documentation.thpage(u"!!Contents", table="docu.content", tags="")
         documentation.thpage(u"!!Handbooks", table="docu.handbook", tags="")
         documentation.thpage(u"!!Redirects", table="docu.redirect", tags="")
