@@ -51,7 +51,8 @@ class Form(BaseComponent):
         self.notesPane(tc.contentPane(title='!!Notes', datapath='.record', overflow='hidden'))
     
     def referencesPane(self, pane):
-        pane.plainTableHandler(relation='@faq_documentations', picker='documentation_id')
+        pane.plainTableHandler(relation='@faq_documentations', picker='documentation_id',
+                               viewResource='ViewFromFaqs')
         
     def notesPane(self,pane):
         pane.simpleTextArea(value='^.note',width='100%',height='100%')

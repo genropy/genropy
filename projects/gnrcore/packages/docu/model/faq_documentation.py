@@ -10,3 +10,5 @@ class Table(object):
                     ).relation('faq.id', relation_name='faq_documentations', mode='foreignkey', onDelete='raise')
         tbl.column('documentation_id',size='22', group='_', name_long='!![en]Documentation'
                     ).relation('documentation.id', relation_name='documentation_faqs', mode='foreignkey', onDelete='raise')
+        
+        tbl.aliasColumn('doc_full_external_url', '@documentation_id.full_external_url', name_long='!![en]Url')
