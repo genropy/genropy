@@ -255,7 +255,19 @@ class Main(BaseResourceBatch):
 
             skip_current = skip_first and idx == 0
             if skip_current:
-                prefixed_entries = ['%s/%s' % (name, entry) for entry in child_toc_elements if entry]
+                tocstring = ''
+                if child_toc_elements:
+                    tocstring = self.createToc(elements=child_toc_elements,
+                                               titlesonly=True,
+                                               includehidden=True,
+                                               maxdepth=1)
+                self.createFile(pathlist=branch_pathlist,
+                                name='index',
+                                title=lbag['title'] or name,
+                                rst='',
+                                tocstring=tocstring,
+                                hname=record['hierarchical_name'])
+                prefixed_entries = [f'{name}/{entry}' for entry in child_toc_elements if entry]
                 result.extend(prefixed_entries)
                 continue
 

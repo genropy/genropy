@@ -110,10 +110,9 @@ class Table(object):
         if is_root_doc:
             return f"{base}/index.html"
         if is_toc_root:
-            if segments:
-                return f"{base}/{'/'.join(segments)}"
-            else:
-                return base
+            folder_parts = segments or ([record_name] if record_name else [])
+            folder = f"{base}/{'/'.join(folder_parts)}" if folder_parts else base
+            return f"{folder}/index.html"
         if not segments:
             if not record_name:
                 return base
