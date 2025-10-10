@@ -333,7 +333,7 @@ class Main(BaseResourceBatch):
         prefix = '%s/' % self.db.package('docu').htmlProcessorName()
         title= m.group(1)
         path= m.group(2)
-        ref = m.group(2).replace(prefix,'')
+        ref = path.replace(prefix,'')
         valid_link=self.doctable.query(where='$hierarchical_name=:ref', ref= ref).fetch()
         if valid_link:
             result = ' :ref:`%s<%s>` ' % (title, ref)
