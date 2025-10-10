@@ -34,6 +34,7 @@ class Table(object):
 
         tbl.column('schedulable',dtype='B',name_long='!!Schedulable',name_short='Sched')
         tbl.column('save_output_message', dtype='B', name_long='!!Save output message')
+        tbl.column('use_mailproxy', dtype='B', name_long='!![en]Use mail proxy')
         tbl.column('debug_address', name_long='!!Debug address')
     
     def getSmtpAccountPref(self,account=None,account_name=None):
