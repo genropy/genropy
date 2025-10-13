@@ -221,8 +221,8 @@ class Table(object):
         self.delete(pkey)
         self.db.commit()
 
-    @extract_kwargs(menuline=True)
     @public_method
+    @extract_kwargs(menuline=True)
     def userObjectMenu(self,table=None, objtype=None,menuline_kwargs=None,**kwargs): #th_listUserObject
         result = Bag()
         userobjects = self.listUserObject(objtype=objtype,userid=self.db.currentPage.user, tbl=table,
