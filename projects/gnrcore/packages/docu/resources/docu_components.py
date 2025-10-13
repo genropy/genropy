@@ -494,10 +494,16 @@ class DocumentationViewer(BaseComponent):
 class ContentsComponent(BaseComponent):
     js_requires='docu_components'
     
-    def contentEditor(self, pane, value=None,htmlpath=None,initialEditType='wysiwyg',**kwargs):
-        pane.MDEditor(value=value,htmlpath=htmlpath, nodeId='contentMd', height='100%', previewStyle='vertical',
+    def contentEditor(self, pane, mode='text', value=None, htmlpath=None, initialEditType='wysiwyg', **kwargs):
+        "Supported modes: html,rst"
+        if mode=='rst':
+            pane.MDEditor(value=value, htmlpath=htmlpath, nodeId='contentMd', height='100%', previewStyle='vertical',
                         initialEditType=initialEditType, **kwargs)
-        
+        elif mode=='html':
+            pane.tinyMce(value=value, nodeId='contentHtml', height='100%', **kwargs)
+        else:
+            pane.simpleTextArea(value=value, nodeId='contentText', height='100%', **kwargs)
+    
     @customizable    
     def contentData(self, pane, **kwargs):
         fb = pane.formbuilder(cols=1, width='600px', border_spacing='4px', **kwargs)
@@ -530,8 +536,18 @@ class ContentsComponent(BaseComponent):
                                                     configurable=False, 
                                                     **kwargs)
     
-    def contentText(self, pane, **kwargs):
-        self.contentEditor(pane, value='^.text',htmlpath='.html', **kwargs)
+    @struct_method
+    def contentText(self, pane, mode='text', **kwargs):
+        "Supported modes: text,html,rst. Text (default) is edited with a textarea, Html with ckeditor, rst with MDEditor"
+        if mode=='html':
+            value='^.html' 
+        elif mode=='rst':
+            value='^.text'
+            kwargs.update(htmlpath='.html')
+        else:
+            value='^.text'
+            
+        self.contentEditor(pane, value=value, mode=mode, **kwargs)
 
     def contentTemplate(self, pane):
         pane.templateChunk(template='^.tplbag', editable=True, height='100%', margin='5px', overflow='hidden',
