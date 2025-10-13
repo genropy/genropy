@@ -7,17 +7,17 @@ class View(BaseComponent):
 
     def th_struct(self,struct):
         r = struct.view().rows()
-        r.fieldcell('title')
         r.fieldcell('question')
+        r.fieldcell('topics')
         r.fieldcell('content_id')
         r.fieldcell('notes')
         r.fieldcell('faq_area_id')
 
     def th_order(self):
-        return 'title'
+        return 'question'
 
     def th_query(self):
-        return dict(column='title', op='contains', val='')
+        return dict(column='question', op='contains', val='')
 
 
 class ViewFromAreaFaqs(BaseComponent):
@@ -25,14 +25,14 @@ class ViewFromAreaFaqs(BaseComponent):
     def th_struct(self,struct):
         r = struct.view().rows()
         r.fieldcell('_row_count', width='2em', name=' ', counter=True)
-        r.fieldcell('title', width='15em')
         r.fieldcell('question', width='auto')
+        r.fieldcell('topics', width='30em')
 
     def th_order(self):
         return '_row_count'
 
     def th_query(self):
-        return dict(column='title', op='contains', val='')
+        return dict(column='question', op='contains', val='')
     
 
 class Form(BaseComponent):
@@ -41,9 +41,8 @@ class Form(BaseComponent):
     def th_form(self, form):
         bc = form.center.borderContainer()
         fl = bc.contentPane(region='top', datapath='.record').formlet()
-        fl.field('title')
-        fl.field('question', tag='simpleTextArea', width='100%', height='60px')
-        
+        fl.simpleTextArea('^.@content_id.title', lbl='!!Question', width='100%', height='60px')
+        fl.field('topics',width='12em',tag='checkBoxText',table='docu.topic',popup=True)
         tc = bc.tabContainer(region='center')
         self.contentText(tc.contentPane(title='!!Answer', datapath='.record.@content_id', 
                                         overflow='hidden'))
