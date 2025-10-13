@@ -20,10 +20,13 @@ class Table(object):
             self.deleteSelection('message_id',message_id)
 
     def sendMessages(self):
+        self.dispatchMessages(self.db.table('email.message').sendMessage)
+
+    def dispatchMessages(self,dispatchCb,**kwargs):
+        result = []
         with self.db.tempEnv(storename=False):
-            messages_to_send = self.query().fetchGrouped('dbstore')
-        message_tbl = self.db.table('email.message')
+            messages_to_send = self.query(**kwargs).fetchGrouped('dbstore')
         for dbstore,message_pkeys in messages_to_send.items():
             with self.db.tempEnv(storename=dbstore or False):
-                for m in message_pkeys:
-                    message_tbl.sendMessage(pkey=m['message_id'])
+                for m_pkey in message_pkeys:
+                    result.append(dispatchCb(m_pkey))
