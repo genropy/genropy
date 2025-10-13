@@ -11,4 +11,11 @@ class Table(object):
         tbl.column('documentation_id',size='22', group='_', name_long='!![en]Documentation'
                     ).relation('documentation.id', relation_name='documentation_faqs', mode='foreignkey', onDelete='raise')
         
-        tbl.aliasColumn('doc_full_external_url', '@documentation_id.full_external_url', name_long='!![en]Url')
+        tbl.pyColumn('doc_full_external_url', name_long='!![en]Full Url', required_columns='$documentation_id')
+    
+    
+    def pyColumn_doc_full_external_url(self, record, **kwargs):
+        """Returns the full url of the documentation page, based on the handbook_url 
+           of the closest ancestor handbook and on the hierarchical_name of the current record"""
+        doc_record = self.db.table('docu.documentation').record(record['documentation_id'], mode='bag')
+        return self.calculateExternalUrl(doc_record)

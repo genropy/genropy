@@ -28,7 +28,7 @@ class ViewFromFaqs(BaseComponent):
                     format_onclick="""
                 var row = this.widget.rowByIndex($1.rowIndex);
                 var doc_full_external_url = row.doc_full_external_url;
-                genro.textToClipboard(doc_full_external_url,_T('!!Copied to clipboard');
+                genro.textToClipboard(doc_full_external_url,_T('!!Copied to clipboard'));
                 """)
         r.fieldcell('doc_full_external_url', name='!![en]Url', width='2.5em',
                template='<a href="$doc_full_external_url" target="_blank"><img src="/_rsrc/common/css_icons/svg/16/link_connected.svg" height="13px" /></a>')
