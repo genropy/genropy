@@ -40,12 +40,12 @@ class Form(BaseComponent):
 
     def th_form(self, form):
         bc = form.center.borderContainer()
-        fl = bc.contentPane(region='top', datapath='.record').formlet()
+        fl = bc.contentPane(region='top').formlet(datapath='.record')
         fl.simpleTextArea('^.@content_id.title', lbl='!!Question', width='100%', height='60px')
         fl.field('topics',width='12em',tag='checkBoxText',table='docu.topic',popup=True)
+        
         tc = bc.tabContainer(region='center')
-        self.contentText(tc.contentPane(title='!!Answer', datapath='.record.@content_id', 
-                                        overflow='hidden'))
+        tc.contentPane(title='!!Answer', datapath='.record.@content_id', overflow='hidden').contentText(mode='html')
         self.referencesPane(tc.contentPane(title='!!References'))
         self.notesPane(tc.contentPane(title='!!Notes', datapath='.record', overflow='hidden'))
     
