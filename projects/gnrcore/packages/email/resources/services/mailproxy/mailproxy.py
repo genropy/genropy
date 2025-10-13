@@ -13,11 +13,12 @@ from gnr.web.gnrbaseclasses import BaseComponent
 
 
 class Main(GnrBaseService):
-    def __init__(self, parent=None, proxy_url=None, proxy_token=None, db_max_waiting=None, **kwargs):
+    def __init__(self, parent=None, proxy_url=None, proxy_token=None, db_max_waiting=None, batch_size=None,**kwargs):
         super().__init__(parent, **kwargs)
         self.proxy_url = proxy_url
         self.proxy_token = proxy_token
         self.db_max_waiting = db_max_waiting
+        self.batch_size = batch_size
 
     # Command helpers
     def run_now(self):
@@ -211,3 +212,4 @@ class ServiceParameters(BaseComponent):
         fb.textbox('^.proxy_url', lbl='!![en]Proxy url',width='30em')
         fb.PasswordTextBox('^.proxy_token', lbl='!![en]Token',width='30em')
         fb.numberTextbox('^.db_max_waiting',lbl='Db max waiting')
+        fb.numberTextBox('^.batch_size',lbl='Batch size')

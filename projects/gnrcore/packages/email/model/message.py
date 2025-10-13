@@ -50,7 +50,8 @@ class Table(object):
         tbl.column('reply_message_id',size='22', group='_', name_long='!!Reply message id'
                     ).relation('email.message.id', relation_name='replies', mode='foreignkey', onDelete='setnull')
         tbl.column('error_msg', name_long='Error message')
-        tbl.column('error_ts', name_long='Error Timestamp')
+        tbl.column('error_ts',dtype='DH', name_long='Error Timestamp')
+        tbl.column('proxy_ts',dtype='DH', name_long='Dispatched to mail proxy')
         tbl.column('connection_retry', dtype='L')
         tbl.column('priority', name_long='!![en]Priority',
                    values='9:[!![en]No send],3:[!![en]Low],2:[!![en]Standard],1:[!![en]High],-1:[!![en]Immediate]')
@@ -99,7 +100,9 @@ class Table(object):
     def trigger_onUpdated(self, record_data,old_record=None):
         error_in_sending = record_data['error_msg'] and not old_record['error_msg']
         just_sent = record_data['send_date'] and not old_record['send_date']
-        if just_sent or error_in_sending:
+        just_dispatched_to_proxy = record_data['proxy_ts'] and not old_record['proxy_ts']
+
+        if just_sent or error_in_sending or just_dispatched_to_proxy:
             self.db.table('email.message_to_send').removeMessageFromQueue(record_data['id'])
         elif record_data['in_out']=='O' and not (record_data['send_date'] or record_data['error_msg']):
             self.db.table('email.message_to_send').addMessageToQueue(record_data['id'])
