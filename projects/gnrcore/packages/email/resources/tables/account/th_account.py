@@ -2,9 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrdecorator import public_method,customizable
-from gnr.lib.services.mail import MailService
-from gnr.core.gnrlang import GnrException
+from gnr.core.gnrdecorator import customizable
 
 class View(BaseComponent):
 
@@ -42,13 +40,13 @@ class Form(BaseComponent):
 
     def th_form(self, form):
         main_bc = form.center.borderContainer()
-        top_fb = main_bc.contentPane(datapath='.record', region='top').formbuilder(cols=3, border_spacing='4px')
+        top_fb = main_bc.contentPane(datapath='.record', region='top').formbuilder(cols=1, border_spacing='4px')
         top_fb.field('account_name')
 
         tc = main_bc.tabContainer(margin='2px', region='center')
         self.imap_parameters(tc.borderContainer(title='!!Input', datapath='.record'))
         self.smtp_parameters(tc.borderContainer(title='!!Output', datapath='.record'))
-        self.account_users(main_bc.contentPane(region='bottom', height='50%'))
+        self.account_users(main_bc.contentPane(region='bottom', height='250px'))
 
     @customizable
     def imap_parameters(self, bc):
@@ -86,6 +84,7 @@ class Form(BaseComponent):
         fb.field('smtp_timeout')
         fb.field('smtp_tls')
         fb.field('smtp_ssl')
+        fb.field('smtp_reply_to')
         fb.field('system_bcc')
         fb.field('save_output_message',html_label=True)
         fb.field('send_limit')
@@ -97,10 +96,13 @@ class Form(BaseComponent):
     @customizable
     def smtp_toolbar(self, bottom):
         bar = bottom.slotToolbar('5,test,*')
-        bar.test.slotButton('!![en]Send test').dataRpc(self.testSmtpSettings, host='=.smtp_host', from_address='=.smtp_from_address', 
-                                        username='=.smtp_username', password='=.smtp_password', port='=.smtp_port',
-                                        tls='=.smtp_tls', ssl='=.smtp_ssl', _ask=dict(title="!![en]Send test e-mail",
-                                        fields=[dict(name="to_address",lbl="To address")]))
+        bar.test.slotButton('!![en]Send test').dataRpc(self.tblobj.sendEmailFromParams, 
+                                                       host='=.smtp_host', from_address='=.smtp_from_address', 
+                                                       username='=.smtp_username', password='=.smtp_password', 
+                                                       port='=.smtp_port', tls='=.smtp_tls', ssl='=.smtp_ssl', 
+                                                       reply_to='=.smtp_reply_to',
+                                                       _ask=dict(title="!![en]Send test e-mail",
+                                                                 fields=[dict(name="to_address",lbl="To address", default='^gnr.avatar.email')]))
         return bar
     
     def account_users(self, pane):
@@ -114,20 +116,3 @@ class Form(BaseComponent):
                                    dialog_height='600px',
                                    dialog_width='800px',
                                    dialog_title='Message')
-
-    @public_method
-    def testSmtpSettings(self, host=None, from_address=None, to_address=None, 
-                                username=None, password=None, tls=None, ssl=None, port=None):
-        account_params = dict(smtp_host=host, port=port, user=username, password=password, ssl=ssl, tls=tls)
-        mh = MailService()
-        msg = mh.build_base_message(subject='This is a test message', body=f"From: {from_address}\r\nTo: {to_address}\r\nTest Message")
-        try:
-            with mh.get_smtp_connection(**account_params) as smtp_connection:
-                smtp_connection.sendmail(from_address, to_address, msg.as_string())
-        except Exception as e:
-            raise GnrException(f'Error sending test message: {e}')
-            
-
-    def th_options(self):
-        return dict(duplicate=True)
-

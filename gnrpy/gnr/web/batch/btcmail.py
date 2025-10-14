@@ -26,6 +26,7 @@ class BaseResourceMail(BaseResourceBatch):
                                             cc_address=cc_address,subject=subject,**kwargs)
 
     def send_one_email(self,**kwargs):
+        #DP This method could probably just call sendmail 
         if self.db.package('email'):
             self.mail_handler.sendmail(account_id=self.batch_parameters.get('account_id'),**kwargs)
         else:

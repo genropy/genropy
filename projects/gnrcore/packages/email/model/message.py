@@ -28,6 +28,7 @@ class Table(object):
         tbl.column('from_address',name_long='!!From',_sendback=True)
         tbl.column('cc_address',name_long='!!Cc',_sendback=True)
         tbl.column('bcc_address',name_long='!!Bcc',_sendback=True)
+        tbl.column('reply_to',name_long='!!Reply to',_sendback=True)
         tbl.column('uid',name_long='!!UID')
         tbl.column('body',name_long='!!Body')
         tbl.column('body_plain',name_long='!!Plain Body')
@@ -51,12 +52,16 @@ class Table(object):
         tbl.column('error_msg', name_long='Error message')
         tbl.column('error_ts', name_long='Error Timestamp')
         tbl.column('connection_retry', dtype='L')
+        tbl.column('priority', name_long='!![en]Priority', 
+                   values='9:[!![en]No send],3:[!![en]Low],2:[!![en]Standard],1:[!![en]High],-1:[!![en]Immediate]')
         tbl.column('read', dtype='B', name_long='!!Read',indexed=True)
 
         #tbl.joinColumn('dest_user_id', name_long='!!Destination user').relation('adm.user.id', 
         #                                    cnd='@dest_user_id.email=$to_address', relation_name='received_messages')
         tbl.formulaColumn('dest_user_id', '$user_id', name_long='!!Destination user')
         tbl.formulaColumn('sent','$send_date IS NOT NULL', name_long='!!Sent')
+        tbl.formulaColumn('message_to_send', "$in_out=:out AND $send_date IS NULL AND $error_msg IS NULL", var_out='O', 
+                            name_long='!!Message to send', dtype='B')
         tbl.formulaColumn('plain_text', """regexp_replace($body, '<[^>]*>', '', 'g')""")
         tbl.formulaColumn('abstract', """LEFT(REPLACE($plain_text,'&nbsp;', ''),300)""", name_long='!![en]Abstract')
         tbl.formulaColumn('delta_send',"CAST( EXTRACT(EPOCH FROM ($send_date-$__ins_ts)) AS INTEGER)",dtype='L')
@@ -217,19 +222,28 @@ class Table(object):
 
     @public_method
     def newMessage(self, account_id=None,to_address=None,from_address=None,
-                  subject=None, body=None, cc_address=None, 
-                  reply_to=None, bcc_address=None, attachments=None,weak_attachments=None,
-                 message_id=None,message_date=None,message_type=None,
-                 html=False,doCommit=False,headers_kwargs=None,**kwargs):
+                    subject=None, body=None, cc_address=None, 
+                    reply_to=None, bcc_address=None, attachments=None,weak_attachments=None,
+                    message_id=None,message_date=None,message_type=None,
+                    html=False,doCommit=False,headers_kwargs=None,**kwargs):
         
         message_date = message_date or self.db.workdate
-        extra_headers = Bag(dict(message_id=message_id,message_date=str(message_date),reply_to=reply_to))
+        to_address = kwargs.get('system_debug_address') or to_address
+        reply_to = reply_to or self.db.application.getPreference('dflt_reply_to',pkg='email')
+        extra_headers = Bag(dict(message_id=message_id,message_date=str(message_date)))
         if headers_kwargs:
             extra_headers.update(headers_kwargs)
-        account_id = account_id or self.db.application.getPreference('mail', pkg='adm')['email_account_id']
-        if weak_attachments and isinstance(weak_attachments,list):
+        account_id = account_id or self.db.application.getPreference('mail', pkg='adm')['email_account_id'] or self.parent.getPreference('email_account_id',pkg='email') 
+        if not weak_attachments:
+            weak_attachments = None
+        elif isinstance(weak_attachments, (str, bytes)):
+            pass
+        elif isinstance(weak_attachments, (list, tuple, set)):
             site = self.db.application.site
-            weak_attachments = ','.join([site.storageNode(p).fullpath for p in weak_attachments])
+            weak_paths = [site.storageNode(p).fullpath for p in weak_attachments]
+            weak_attachments = ','.join(weak_paths) if weak_paths else None
+        else:
+            weak_attachments = str(weak_attachments)
         use_dbstores = self.use_dbstores()
         dbstore = self.db.currentEnv.get('storename')
         envkw = {}
@@ -245,7 +259,8 @@ class Table(object):
                             extra_headers=extra_headers,
                             message_type=message_type,
                             weak_attachments=weak_attachments,
-                            html=html,dbstore=dbstore,**kwargs)
+                            html=html,dbstore=dbstore,
+                            reply_to=reply_to,**kwargs)
         message_atc = self.db.table('email.message_atc')
         with self.db.tempEnv(autoCommit=True,**envkw):
             self.insert(message_to_dispatch)
@@ -275,11 +290,23 @@ class Table(object):
                             attachments=attachments,to_address=to_address, subject=subject,
                             cc_address=cc_address,bcc_address=bcc_address,from_address=from_address, account_id=account_id, **kwargs))
     
-
+    
     @public_method
-    def sendMessage(self,pkey=None):
-        site = self.db.application.site
-        mail_handler = site.getService('mail')
+    def sendMessage(self,pkey=None, smtp_connection=None, **kwargs):
+        """
+        Send a single queued message.
+
+        Uses the message's account_id to resolve SMTP parameters from email.account,
+        merges any overrides from **kwargs, and sends the email.
+
+        If `smtp_connection` is provided, it will be reused and NOT closed here.
+        If not provided, the underlying mail service will open and close a new connection.
+
+        Expected types:
+        - pkey: message id (string/uuid)
+        - smtp_connection: an open SMTP object from `mail.smtp_session(...)` (optional)
+        """
+        mail_handler = self.db.application.site.getService('mail')
         with self.recordToUpdate(pkey,for_update='SKIP LOCKED',ignoreMissing=True) as message:
             if not message:
                 return
@@ -291,6 +318,7 @@ class Table(object):
             account_id = message['account_id']
             mp = self.db.table('email.account').getSmtpAccountPref(account_id)
             bcc_address = message['bcc_address'] 
+            to_address = mp['system_debug_address'] or message['to_address']
             attachments = self.db.table('email.message_atc').query(where='$maintable_id=:mid',mid=message['id']).fetch()
             attachments = [r['filepath'] or r['external_url'] for r in attachments]
             if message['weak_attachments']:
@@ -298,16 +326,18 @@ class Table(object):
             if mp['system_bcc']:
                 bcc_address = '%s,%s' %(bcc_address,mp['system_bcc']) if bcc_address else mp['system_bcc']
             try:
-                mail_handler.sendmail(to_address = message['to_address'],
-                                account_id = account_id,
-                                body=self.getBody(message), subject=message['subject'],
-                                cc_address=message['cc_address'], bcc_address=bcc_address,
-                                from_address=message['from_address'] or mp['from_address'],
+                mail_handler.sendmail(to_address=to_address,
+                                body=message['body'], 
+                                subject=message['subject'],
+                                account_id=account_id,
+                                cc_address=message['cc_address'], 
+                                bcc_address=bcc_address,
+                                from_address=message['from_address'] or mp['from_address'], 
                                 attachments=attachments, 
                                 smtp_host=mp['smtp_host'], port=mp['port'], user=mp['user'], password=mp['password'],
                                 ssl=mp['ssl'], tls=mp['tls'], html= message['html'], async_=False,
+                                smtp_connection=smtp_connection,
                                 scheduler=False,headers_kwargs=extra_headers.asDict(ascii=True))
-
                 message['send_date'] = datetime.now()
                 message['bcc_address'] = bcc_address
             except SMTPConnectError as e:
