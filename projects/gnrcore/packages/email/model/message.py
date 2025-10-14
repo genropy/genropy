@@ -5,7 +5,6 @@ import re
 import os
 import email
 import base64
-from datetime import datetime
 from smtplib import SMTPConnectError
 from mailparser import parse_from_bytes
 
@@ -33,7 +32,7 @@ class Table(object):
         tbl.column('body_plain',name_long='!!Plain Body')
         tbl.column('html','B',name_long='!!Html')
         tbl.column('subject',name_long='!!Subject')
-        tbl.column('send_date','DH',name_long='!!Send date',indexed=True)
+        tbl.column('send_date','DHZ',name_long='!!Send date',indexed=True)
         tbl.column('user_id',size='22',name_long='!!User id').relation('adm.user.id', mode='foreignkey', relation_name='messages')
         tbl.column('account_id',size='22',name_long='!!Account id').relation('email.account.id', mode='foreignkey', relation_name='messages')
         tbl.column('mailbox_id',size='22',name_long='!!Mailbox id').relation('email.mailbox.id', mode='foreignkey', relation_name='messages')
@@ -49,8 +48,8 @@ class Table(object):
         tbl.column('reply_message_id',size='22', group='_', name_long='!!Reply message id'
                     ).relation('email.message.id', relation_name='replies', mode='foreignkey', onDelete='setnull')
         tbl.column('error_msg', name_long='Error message')
-        tbl.column('error_ts',dtype='DH', name_long='Error Timestamp')
-        tbl.column('proxy_ts',dtype='DH', name_long='Dispatched to mail proxy')
+        tbl.column('error_ts',dtype='DHZ', name_long='Error Timestamp')
+        tbl.column('proxy_ts',dtype='DHZ', name_long='Dispatched to mail proxy')
         tbl.column('connection_retry', dtype='L')
         tbl.column('read', dtype='B', name_long='!!Read',indexed=True)
 
@@ -151,11 +150,8 @@ class Table(object):
         ImapReceiver = imap_module.ImapReceiver
         if isinstance(account, str):
             account = self.db.table('email.account').record(pkey=account).output('bag')
-        print('INIT IMAP RECEIVER', account['account_name'])
         imap_checker = ImapReceiver(db=self.db, account=account)
-        print('RECEIVING', account['account_name'])
         imap_checker.receive()
-        print('RECEIVED', account['account_name'])
         #check_imap(page=page, account=account, remote_mailbox=remote_mailbox, local_mailbox=local_mailbox)
 
 
@@ -201,7 +197,7 @@ class Table(object):
         new_mail['cc_address'] = fill_address(mail.cc)
         new_mail['bcc_address'] = fill_address(mail.bcc)
         new_mail['subject'] = mail.subject
-        new_mail['send_date'] = mail.date or datetime.today()
+        new_mail['send_date'] = mail.date or self.newUTCDatetime()
 
 
     def parseAttachment(self, attachment, new_mail, atc_counter):
@@ -213,7 +209,7 @@ class Table(object):
         fname = fname.replace('.','_').replace('~','_').replace('#','_').replace(' ','').replace('/','_')
         fname = slugify(fname)
         filename = fname+ext
-        date = new_mail.get('send_date') or  datetime.datetime.today()
+        date = new_mail.get('send_date') or self.newUTCDatetime()
         attachmentNode =  self.getAttachmentNode(date=date,filename=filename, new_mail=new_mail, atc_counter=atc_counter)
         new_attachment['path'] = attachmentNode.fullpath
         new_attachment['filename'] = attachmentNode.basename
@@ -327,7 +323,7 @@ class Table(object):
                                 ssl=mp['ssl'], tls=mp['tls'], html= message['html'], async_=False,
                                 scheduler=False,headers_kwargs=extra_headers.asDict(ascii=True))
 
-                message['send_date'] = datetime.now()
+                message['send_date'] = self.newUTCDatetime()
                 message['bcc_address'] = bcc_address
             except SMTPConnectError as e:
                 message['connection_retry'] = (message['connection_retry'] or 0) + 1
@@ -336,7 +332,7 @@ class Table(object):
             
             except Exception as e:
                 error_msg = str(e)
-                ts = datetime.now()
+                ts = self.newUTCDatetime()
                 message['error_ts'] = ts
                 message['error_msg'] = error_msg
                 message['sending_attempt'] = message['sending_attempt'] or  Bag()

@@ -65,6 +65,16 @@ class Main(GnrBaseService):
         """Fetch messages currently deferred by the proxy."""
         return self._get("/deferred")
 
+    def list_messages(self):
+        """Return the full message queue with payload details."""
+        return self._get("/messages")
+
+    def delete_messages(self, message_ids: List[str]):
+        """Remove messages from the proxy queue using their identifiers."""
+        if not isinstance(message_ids, list):
+            raise ValueError("message_ids must be a list")
+        return self._post("/commands/delete-messages", json={"ids": message_ids})
+
     def send_message(self, message: dict):
         """Send a single message immediately."""
         if not isinstance(message, dict):
@@ -122,9 +132,12 @@ class Main(GnrBaseService):
         if response.status_code == 204 or not response.content:
             return {}
         try:
-            return response.json()
+            data = response.json()
         except ValueError as exc:
             raise RuntimeError("Mail proxy returned a non-JSON response") from exc
+        if isinstance(data, dict) and 'status' not in data and 'ok' in data:
+            data['status'] = 'ok' if data.get('ok') else 'error'
+        return data
 
     def _get(self, path: str, **kwargs):
         return self._request("GET", path, **kwargs)
