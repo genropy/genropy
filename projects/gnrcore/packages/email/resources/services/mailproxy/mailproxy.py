@@ -82,13 +82,19 @@ class Main(GnrBaseService):
         return self._post("/commands/send-message", json=message)
 
     def add_messages(self, messages: List[Dict[str, Any]], default_priority: Optional[int] = None):
-        """Queue a batch of messages for the scheduler."""
+        """Queue a batch of messages for the scheduler.
+
+        Returns the list of per-message outcomes produced by the async service.
+        """
         if not isinstance(messages, list):
             raise ValueError("messages must be a list")
         payload: dict[str, object] = {"messages": messages}
         if default_priority is not None:
             payload["default_priority"] = default_priority
-        return self._post("/commands/add-messages", json=payload)
+        response = self._post("/commands/add-messages", json=payload)
+        if not isinstance(response, list):
+            raise RuntimeError("Mail proxy add-messages returned an unexpected payload")
+        return response
 
     def add_rule(self, rule: dict):
         """Add a scheduler rule."""
