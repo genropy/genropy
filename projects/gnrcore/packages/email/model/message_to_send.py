@@ -19,20 +19,15 @@ class Table(object):
         with self.db.tempEnv(storename=False):
             self.deleteSelection('message_id',message_id)
 
+
     def sendMessages(self):
-        self.applyOnMessages(self.db.table('email.message').sendMessage)
-
-    def applyOnMessages(self, dispatch_cb, **kwargs):
-        """Execute `dispatch_cb` for each message queued for sending.
-
-        The callback receives the message primary key and the method collects
-        every return value in the resulting list.
-        """
+        """Sending message without proxy. One-by_one. Called by action in message_to_send resources"""
         results = []
+        dispatch_cb = self.db.table('email.message').sendMessage
         with self.db.tempEnv(storename=False):
-            messages_to_send = self.query(**kwargs).fetchGrouped('dbstore')
+            messages_to_send = self.query().fetchGrouped('dbstore')
         for dbstore, rows in messages_to_send.items():
-            target_store = dbstore or self.db.rootstore
+            target_store = dbstore or False
             with self.db.tempEnv(storename=target_store):
                 for row in rows:
                     results.append(dispatch_cb(row['message_id']))

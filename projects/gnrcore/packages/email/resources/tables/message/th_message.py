@@ -241,7 +241,10 @@ class Form(BaseComponent):
                                                     width='100%',
                                                     colswidth='auto')
         fb.field('in_out')
-        fb.field('subject', colspan=3)
+        fb.field('account_id',unmodifiable=True)
+        fb.field('proxy_priority')
+        fb.br()
+        fb.field('subject', colspan=4)
         fb.field('to_address',colspan=2)
         fb.field('from_address',colspan=2)
         fb.field('cc_address',colspan=2)

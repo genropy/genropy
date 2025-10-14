@@ -51,6 +51,8 @@ class Table(object):
         tbl.column('error_msg', name_long='Error message')
         tbl.column('error_ts',dtype='DHZ', name_long='Error Timestamp')
         tbl.column('proxy_ts',dtype='DHZ', name_long='Dispatched to mail proxy')
+        tbl.column('proxy_priority', dtype='L', name_long='Priority')
+
         tbl.column('connection_retry', dtype='L')
         tbl.column('priority', name_long='!![en]Priority',
                    values='9:[!![en]No send],3:[!![en]Low],2:[!![en]Standard],1:[!![en]High],-1:[!![en]Immediate]')
@@ -103,7 +105,7 @@ class Table(object):
 
         if just_sent or error_in_sending or just_dispatched_to_proxy:
             self.db.table('email.message_to_send').removeMessageFromQueue(record_data['id'])
-        elif record_data['in_out']=='O' and not (record_data['send_date'] or record_data['error_msg']):
+        elif record_data['in_out']=='O' and not (record_data['send_date'] or record_data['proxy_ts'] or  record_data['proxy_ts']):
             self.db.table('email.message_to_send').addMessageToQueue(record_data['id'])
 
 
