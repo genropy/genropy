@@ -26,6 +26,14 @@ class GnrCustomWebPage(object):
 
         shared_on_result = """
             var status = result && result.getItem ? result.getItem('status') : (result ? result.status : null);
+            if(!status && result){
+                var okValue = result && result.getItem ? result.getItem('ok') : (result ? result.ok : null);
+                if(okValue === true){
+                    status = 'ok';
+                }else if(okValue === false){
+                    status = 'error';
+                }
+            }
             var message = result && result.getItem ? result.getItem('message') : (result ? result.message : null);
             if(status !== 'ok'){
                 SET main.status.error = message || null;
@@ -207,7 +215,7 @@ class GnrCustomWebPage(object):
         status['pending_count'] = len(pending)
         status['deferred_count'] = len(deferred)
         status['active'] = any(rule.get('enabled') for rule in rules)
-        status['last_refresh'] = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        status['last_refresh'] = self.db.table('email.account').newUTCDatetime()
         if errors:
             status['error'] = '\n'.join(errors)
         result['status'] = status
@@ -239,8 +247,10 @@ class GnrCustomWebPage(object):
                 response = fromJson(response)
             except Exception as exc:
                 return Bag(dict(status='error', message='Add account: invalid JSON response (%s)' % exc))
-        if isinstance(response, dict) and not response.get('status') == 'ok':
-            return Bag(dict(status='error', message='Add account: %s' % response.get('error', 'Unknown error')))
+        response_status = self._response_status(response)
+        if response_status != 'ok':
+            message = self._response_message(response) or 'Unknown error'
+            return Bag(dict(status='error', message='Add account: %s' % message))
 
         overview = self.rpc_proxy_overview()
         return Bag(dict(status='ok', message='Account registered on mail proxy', overview=overview))
@@ -268,12 +278,46 @@ class GnrCustomWebPage(object):
                 return []
         if isinstance(response, Bag):
             response = response.asDict()
-        if isinstance(response, dict):
-            if response.get('ok'):
-                return response.get(result_key) or []
-            errors.append('%s: %s' % (label, response.get('error', 'Unknown error')))
+        status = self._response_status(response)
+        if status == 'error':
+            errors.append('%s: %s' % (label, self._response_message(response) or 'Unknown error'))
             return []
+        if isinstance(response, dict):
+            if status == 'ok':
+                return response.get(result_key) or []
+            if result_key in response:
+                return response.get(result_key) or []
         return response or []
+
+    def _response_status(self, response):
+        if response is None:
+            return None
+        if isinstance(response, Bag):
+            status = response.getItem('status')
+            if status:
+                return status
+            ok_value = response.getItem('ok')
+        elif isinstance(response, dict):
+            status = response.get('status')
+            if status:
+                return status
+            ok_value = response.get('ok')
+        else:
+            ok_value = None
+        if ok_value is True:
+            return 'ok'
+        if ok_value is False:
+            return 'error'
+        return None
+
+    def _response_message(self, response):
+        if response is None:
+            return None
+        if isinstance(response, Bag):
+            return response.getItem('message') or response.getItem('error')
+        if isinstance(response, dict):
+            return response.get('message') or response.get('error')
+        return None
 
     def _list_to_bag(self, items, key_field=None):
         if isinstance(items, Bag):
