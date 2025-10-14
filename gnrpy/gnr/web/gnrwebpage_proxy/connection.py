@@ -120,7 +120,15 @@ class GnrWebConnection(GnrBaseProxy):
 
     def write_cookie(self):
         expires = time.time() + CONNECTION_TIMEOUT*24
-        cookie_path = self.page.site.home_uri if self.page.site.multidomain else self.page.site.default_uri
+        site = self.page.site
+        cookie_path = site.home_uri if site.multidomain else site.default_uri
+        if site.multidomain:
+            # keep the connection cookie visible on the actual entry path, even if the
+            # incoming request did not include the domain slug (eg: /index instead of /<domain>/index)
+            request_path = getattr(site.currentRequest, 'path', None) or ''
+            cookie_prefix = cookie_path.rstrip('/') or '/'
+            if request_path and not request_path.startswith(cookie_prefix):
+                cookie_path = '/'
         self.cookie = self.page.newMarshalCookie(self.cookie_name, {'user': self.user,
                                                                     'connection_id': self.connection_id,
                                                                     'data': self.cookie_data,
