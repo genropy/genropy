@@ -532,7 +532,7 @@ class GnrWsgiSite(object):
     @property
     def storageTypes(self):
         return ['_storage','_site','_dojo','_gnr','_conn',
-                '_pages','_rsrc','_pkg','_pages',
+                '_pages','_rsrc','_pkg',
                 '_user','_vol', '_documentation']
         
     def storageType(self, path_list=None):
@@ -866,6 +866,7 @@ class GnrWsgiSite(object):
                     path_list.pop(0)
             elif first_segment not in self.storageTypes:
                 logger.warning('Multidomain site with first segment without domain %s',first_segment)
+                request_kwargs['_souspicious_request_'] = True
         self.db.currentEnv['domainName'] = self.currentDomain
         return path_list,redirect_to
 
@@ -927,7 +928,9 @@ class GnrWsgiSite(object):
     def isInMaintenance(self):
         request = self.currentRequest
         request_kwargs = self.parse_kwargs(self.parse_request_params(request))
-        path_list = self.handle_path_list(request.path,request_kwargs=request_kwargs)[0]
+        path_list,redirect_to = self.handle_path_list(request.path,request_kwargs=request_kwargs)
+        if redirect_to or request_kwargs.get('_souspicious_request_'):
+            return False
         first_segment = path_list[0] if path_list else ''
         if request_kwargs.get('forcedlogin') or (first_segment.startswith('_') and first_segment!='_ping'):
             return False
@@ -1041,6 +1044,8 @@ class GnrWsgiSite(object):
         path_list,redirect_to = self.handle_path_list(request.path,request_kwargs=request_kwargs)
         if redirect_to:
             return self.redirect(environ,start_response,location=redirect_to)
+        if request_kwargs.get('_souspicious_request_'):
+            return self.not_found_exception(environ,start_response)
         # path_list is never empty
         expiredConnections = self.register.cleanup()
         if expiredConnections:
