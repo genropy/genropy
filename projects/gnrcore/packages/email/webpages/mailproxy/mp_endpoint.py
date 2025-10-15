@@ -50,12 +50,12 @@ class GnrCustomWebPage(object):
     def _add_messages_to_proxy_queue(self,proxy_service,message_pkeys):
         message_tbl = self.db.table('email.message')
         messages = message_tbl.query(where='$id IN :message_pkeys',
-                                                        message_pkeys=message_pkeys,for_update=True,bagFields=True,
-                                                        order_by=f'COALESCE($proxy_priority,{MEDIUM_PRIORITY})',
-                                                        ).fetchAsDict('id')
+                                    message_pkeys=message_pkeys,for_update=True,bagFields=True,
+                                    order_by=f'COALESCE($proxy_priority,{MEDIUM_PRIORITY}),$__ins_ts',
+                                    ).fetchAsDict('id')
         payload = []
         for message in messages.values():
-            payload_chunk = self._convert_message_for_proxy_json(message)
+            payload_chunk = self._build_proxy_payload(message)
             if isinstance(payload_chunk,str):
                 oldrec = dict(message)
                 message['error_ts'] = message_tbl.newUtcDatetime()
@@ -81,7 +81,7 @@ class GnrCustomWebPage(object):
                 message_to_update['proxy_ts'] = response_row['proxy_ts']
             message_tbl.update(message_to_update,oldrec)
         
-    def _convert_message_for_proxy_json(self, record):
+    def _build_proxy_payload(self, record):
         storename = self.db.currentEnv.get('storename') or self.db.rootstore
         result = dict(
             id = f"{storename}:{record['id']}",
