@@ -71,26 +71,10 @@ class GnrWebConnection(GnrBaseProxy):
         self._log_debug('create', created_connection=True)
 
     def validate_page_id(self, page_id):
-        if not self.connection_item:
-            logger.warning(
-                "Page id validation requested without connection_item | domain=%s | connection_id=%s | page_id=%s",
-                getattr(self.page.site, 'currentDomain', None),
-                self.connection_id,
-                page_id,
-            )
-            return False
         pages = self.connection_item.get('pages') or self.page.site.register.pages(connection_id=self.connection_item['register_item_id'])
         exists = page_id in pages if pages else False
         if not exists:
             self._log_debug('validate_page_id.miss', page_id=page_id, available=list(pages.keys()) if isinstance(pages, dict) else pages)
-            logger.warning(
-                "Page id validation failed | domain=%s | connection_id=%s | user=%s | page_id=%s | available=%s",
-                getattr(self.page.site, 'currentDomain', None),
-                self.connection_id,
-                self.user,
-                page_id,
-                list(pages.keys()) if isinstance(pages, dict) else pages,
-            )
         return exists
 
     def validate_connection(self, connection_id=None, user=None):
@@ -107,23 +91,7 @@ class GnrWebConnection(GnrBaseProxy):
                 self.connection_item = connection_item
                 self._log_debug('validate_connection.success', connection_id=connection_id, user=user,
                                  register_item_id=connection_item.get('register_item_id'))
-            else:
-                logger.warning(
-                    "Connection validation user mismatch | domain=%s | connection_id=%s | expected_user=%s | received_user=%s",
-                    getattr(self.page.site, 'currentDomain', None),
-                    connection_id,
-                    connection_item.get('user'),
-                    user,
-                )
-                self._log_debug('validate_connection.miss_user', connection_id=connection_id, user=user)
         else:
-            logger.warning(
-                "Connection validation failed | domain=%s | connection_id=%s | user=%s | path=%s",
-                getattr(self.page.site, 'currentDomain', None),
-                connection_id,
-                user,
-                self.page._environ.get('PATH_INFO') if hasattr(self.page, '_environ') else None,
-            )
             self._log_debug('validate_connection.miss', connection_id=connection_id, user=user)
 
     @property

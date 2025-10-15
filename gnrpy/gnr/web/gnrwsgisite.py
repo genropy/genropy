@@ -1557,15 +1557,6 @@ class GnrWsgiSite(object):
 
         :param message: TODO
         :param environ: TODO"""
-        logger.warning(
-            "Client exception: %s | domain=%s | path=%s | query=%s | remote=%s | ua=%s",
-            message,
-            getattr(self, 'currentDomain', None),
-            environ.get('PATH_INFO') if environ else None,
-            environ.get('QUERY_STRING') if environ else None,
-            environ.get('REMOTE_ADDR') if environ else None,
-            environ.get('HTTP_USER_AGENT') if environ else None,
-        )
         message = 'ERROR REASON : %s' % message
         exc = HTTPClientError(message,
                               comment='SCRIPT_NAME=%r; PATH_INFO=%r'
