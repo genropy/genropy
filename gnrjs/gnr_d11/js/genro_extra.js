@@ -1527,6 +1527,12 @@ dojo.declare("gnr.widgets.TinyMCE", gnr.widgets.baseHtml, {
       paste_as_text: false,
       paste_data_images: !!savedAttrs.imageData,
       content_style: (savedAttrs.content_style || ''),
+      convert_urls: false,
+      relative_urls: false,
+      remove_script_host: false,
+      urlconverter_callback: function(url /*, node, on_save, name */){
+        return url;
+      },
       automatic_uploads: savedAttrs.imageData ? false : !!savedAttrs.uploadPath,
       file_picker_types: 'image',
       file_picker_callback: function (cb) {
