@@ -865,7 +865,7 @@ class GnrWsgiSite(object):
                         request_kwargs['base_dbstore'] = first_segment
                     path_list.pop(0)
             elif first_segment not in self.storageTypes:
-                logger.warning('Multidomain site with first segment without domain %s',first_segment)
+                logger.debug('Multidomain site with first segment without domain %s',first_segment)
                 request_kwargs['_souspicious_request_'] = True
         self.db.currentEnv['domainName'] = self.currentDomain
         return path_list,redirect_to
@@ -1036,7 +1036,7 @@ class GnrWsgiSite(object):
         # default mime type
         response.mimetype = 'text/html'
         request_kwargs = self.parse_kwargs(self.parse_request_params(request))
-        
+        # lookup webtools static routes
         webtool_static_route_handler = self.lookup_webtools_static_route(request.path)
         if webtool_static_route_handler:
             return self.serve_tool(['_tools', webtool_static_route_handler], environ, start_response, **request_kwargs)
@@ -1044,14 +1044,7 @@ class GnrWsgiSite(object):
         path_list,redirect_to = self.handle_path_list(request.path,request_kwargs=request_kwargs)
         if redirect_to:
             return self.redirect(environ,start_response,location=redirect_to)
-        if request_kwargs.get('_souspicious_request_'):
-            return self.not_found_exception(environ,start_response)
         # path_list is never empty
-        expiredConnections = self.register.cleanup()
-        if expiredConnections:
-            self.connectionLog('close',expiredConnections)
-        # lookup webtools static routes
-        self.currentAuxInstanceName = request_kwargs.get('aux_instance')
         user_agent = request.user_agent.string or ''
         isMobile = len(IS_MOBILE.findall(user_agent))>0
         if isMobile:
@@ -1059,9 +1052,7 @@ class GnrWsgiSite(object):
         request_kwargs.pop('_no_cache_', None)
         download_name = request_kwargs.pop('_download_name_', None)
         #print 'site dispatcher: ',path_list
-        if path_list and not self.multidomain:
-            self._checkFirstSegment(path_list,request_kwargs)
-            self.checkForDbStore(request_kwargs)
+        
         path_list = path_list or ['index']
         first_segment = path_list[0]
         last_segment = path_list[-1]
@@ -1112,6 +1103,13 @@ class GnrWsgiSite(object):
             if last_segment.split('.')[-1]!='py':
                 path_list = self.root_static.split('/')+path_list
                 first_segment = path_list[0]
+
+        #handling dbstore and auxistance
+        if path_list and not self.multidomain:
+            #multidomain dbstore is handled beforee
+            self._checkFirstSegment(path_list,request_kwargs)
+            self.checkForDbStore(request_kwargs)
+        self.currentAuxInstanceName = request_kwargs.get('aux_instance')
         storageType = self.storageType(path_list)
         if storageType:
             self.log_print('%s : kwargs: %s' % (path_list, str(request_kwargs)), code='STORAGE')
@@ -1129,6 +1127,12 @@ class GnrWsgiSite(object):
             except Exception as exc:
                 return self.not_found_exception(environ,start_response)
         else:
+            if request_kwargs.get('_souspicious_request_'):
+                return self.not_found_exception(environ,start_response)
+            #cleanup expired connections
+            expiredConnections = self.register.cleanup()
+            if expiredConnections:
+                self.connectionLog('close',expiredConnections)
             self.log_print('%s : kwargs: %s' % (path_list, str(request_kwargs)), code='RESOURCE')
             try:
                 page = self.resource_loader(path_list, request, response, environ=environ,request_kwargs=request_kwargs)
