@@ -76,34 +76,6 @@ class PrintHandlerError(Exception):
     pass
 
 
-class PathResolution(object):
-    __slots__ = ('path_list', 'redirect_to', 'matched_domain', 'matched_static_route',
-                 'base_dbstore', 'original_path', 'normalized_path')
-
-    def __init__(self, path_list, redirect_to=None, matched_domain=None,
-                 matched_static_route=None, base_dbstore=None, original_path=None,
-                 normalized_path=None):
-        self.path_list = tuple(path_list or [])
-        self.redirect_to = redirect_to
-        self.matched_domain = matched_domain
-        self.matched_static_route = matched_static_route
-        self.base_dbstore = base_dbstore
-        self.original_path = original_path
-        self.normalized_path = normalized_path
-
-
-class RequestContext(object):
-    __slots__ = ('request_kwargs', 'path_resolution', 'suspicious_request')
-
-    def __init__(self, request_kwargs=None, path_resolution=None, suspicious_request=False):
-        self.request_kwargs = dict(request_kwargs or {})
-        self.path_resolution = path_resolution
-        self.suspicious_request = suspicious_request
-
-    def clone_kwargs(self):
-        return dict(self.request_kwargs)
-
-
 class UrlInfo(object):
     def __init__(self, site, url_list=None, request_kwargs=None):
         self.site = site
@@ -451,21 +423,6 @@ class GnrWsgiSite(object):
             else:
                 self._connectionLogEnabled = self.getPreference('dev.connection_log_enabled',pkg='adm')
         return self._connectionLogEnabled
-
-    @property
-    def connectionDebugEnabled(self):
-        if not hasattr(self, '_connectionDebugEnabled'):
-            debug_flag = self.config.getItem('debug?connection')
-            self._connectionDebugEnabled = boolean(debug_flag) if debug_flag is not None else False
-        return self._connectionDebugEnabled
-
-    def log_connection_debug(self, message, payload=None):
-        if not self.connectionDebugEnabled:
-            return
-        payload = payload or {}
-        payload.setdefault('domain', self.currentDomain)
-        payload.setdefault('site', self.site_name)
-        logger.debug('connection.%s %s', message, payload)
 
 
     @property
@@ -885,146 +842,32 @@ class GnrWsgiSite(object):
 
 
 
-    def handle_path_list(self, path_info, request_kwargs=None):
-        """Return the path segments and eventual redirect target for the request."""
-        resolution = None
-        request = getattr(self, 'currentRequest', None)
-        if request is not None and getattr(request, 'path', None) == path_info:
-            request_context = self._ensure_request_context()
-            if request_context:
-                resolution = request_context.path_resolution
-        if resolution is None:
-            resolution = self._resolve_path_info(path_info)
-        self._apply_resolution_to_request(resolution, request_kwargs)
-        return list(resolution.path_list), resolution.redirect_to
+    def handle_path_list(self, path_info,request_kwargs=None):
+        """TODO
 
-    def _ensure_request_context(self):
-        context_store = self._current_request_context(create=True)
-        request_context = context_store.get('request_context') if context_store is not None else None
-        if request_context:
-            return request_context
-        request = getattr(self, 'currentRequest', None)
-        if request is None:
-            return None
-        request_kwargs = self.parse_kwargs(self.parse_request_params(request))
-        resolution = self._resolve_path_info(request.path)
-        self._apply_resolution_to_request(resolution, request_kwargs)
-        suspicious_request = self._detect_suspicious_request(resolution)
-        request_context = RequestContext(
-            request_kwargs=request_kwargs,
-            path_resolution=resolution,
-            suspicious_request=suspicious_request
-        )
-        if context_store is not None:
-            context_store['request_context'] = request_context
-        return request_context
-
-    def _detect_suspicious_request(self, resolution):
-        if not self.multidomain:
-            return False
-        if resolution.matched_domain:
-            return False
-        if resolution.matched_static_route or resolution.base_dbstore:
-            return False
-        normalized_segments = resolution.normalized_path.strip('/').split('/') if resolution.normalized_path else []
-        if not normalized_segments:
-            return False
-        first_segment = normalized_segments[0]
-        if first_segment in self.domains:
-            return False
-        if first_segment in self.storageTypes:
-            return False
-        if first_segment in self.static_routes:
-            return False
-        allowed_root_segments = {'_ping', '_beacon', '_pwa_manifest.json'}
-        allowed_prefixes = ('_tools',)
-        if first_segment in allowed_root_segments:
-            return False
-        if any(first_segment.startswith(prefix) for prefix in allowed_prefixes):
-            return False
-        return True
-
-    def _current_request_context(self, create=False):
-        request = getattr(self, 'currentRequest', None)
-        if request is None or not hasattr(request, 'environ'):
-            return {} if create else None
-        key = '__gnr_request_context__'
-        environ = request.environ
-        if create:
-            return environ.setdefault(key, {})
-        return environ.get(key)
-
-    def _apply_resolution_to_request(self, resolution, request_kwargs):
-        matched_domain = resolution.matched_domain or self.rootDomain
-        self.currentDomain = matched_domain
-        if request_kwargs is not None and resolution.base_dbstore:
-            request_kwargs['base_dbstore'] = resolution.base_dbstore
-        if hasattr(self, 'db') and getattr(self.db, 'currentEnv', None) is not None:
-            self.db.currentEnv['domainName'] = matched_domain
-
-    def _resolve_path_info(self, path_info):
-        normalized_path = self._normalize_path_info(path_info)
-        path_list = self._split_path_list(normalized_path)
-        if not path_list:
-            return PathResolution(
-                path_list,
-                matched_domain=self.currentDomain,
-                original_path=path_info,
-                normalized_path=normalized_path
-            )
-        static_target = self._resolve_static_route(path_list)
-        if static_target:
-            return PathResolution(
-                static_target,
-                matched_static_route=path_list[0],
-                matched_domain=self.currentDomain,
-                original_path=path_info,
-                normalized_path=normalized_path
-            )
-        resolved_path_list, redirect_to, matched_domain, base_dbstore = self._resolve_multidomain_path(
-            normalized_path, path_list
-        )
-        return PathResolution(
-            resolved_path_list,
-            redirect_to=redirect_to,
-            matched_domain=matched_domain,
-            base_dbstore=base_dbstore,
-            original_path=path_info,
-            normalized_path=normalized_path
-        )
-
-    def _normalize_path_info(self, path_info):
-        if path_info in ('/', ''):
-            return self.indexpage
-        return path_info
-
-    def _split_path_list(self, path_info):
-        return [p for p in path_info.strip('/').split('/') if p]
-
-    def _resolve_static_route(self, path_list):
+        :param path_info: TODO"""
+        # No path -> indexpage is served
+        if path_info == '/' or path_info == '':
+            path_info = self.indexpage
+        path_list = path_info.strip('/').split('/')
+        path_list = [p for p in path_list if p]
         first_segment = path_list[0]
-        if first_segment in self.static_routes:
-            return self.static_routes[first_segment].split('/')
-        return None
-
-    def _resolve_multidomain_path(self, path_info, path_list):
         redirect_to = None
-        matched_domain = None
-        base_dbstore = None
-        if self.multidomain and path_list:
-            first_segment = path_list[0]
+        if first_segment in self.static_routes:
+            return self.static_routes[first_segment].split('/'),redirect_to
+        if self.multidomain:
             if first_segment in self.domains:
-                if path_list[-1] == first_segment and not path_info.endswith('/'):
+                if path_list[-1]==first_segment and not path_info.endswith('/'):
                     redirect_to = f'{path_info}/'
                 else:
-                    self.currentDomain = first_segment
-                    matched_domain = first_segment
-                    if matched_domain != self.rootDomain:
-                        base_dbstore = matched_domain
-                    path_list = path_list[1:]
+                    self.currentDomain =  first_segment
+                    if first_segment!=self.rootDomain:
+                        request_kwargs['base_dbstore'] = first_segment
+                    path_list.pop(0)
             elif first_segment not in self.storageTypes:
-                logger.warning('Multidomain site with first segment without domain %s', first_segment)
-        return path_list, redirect_to, matched_domain, base_dbstore
+                logger.warning('Multidomain site with first segment without domain %s',first_segment)
+        self.db.currentEnv['domainName'] = self.currentDomain
+        return path_list,redirect_to
 
     def _get_home_uri(self):
         if self.multidomain:
@@ -1083,14 +926,8 @@ class GnrWsgiSite(object):
     @property
     def isInMaintenance(self):
         request = self.currentRequest
-        request_context = self._ensure_request_context()
-        if not request_context:
-            return False
-        if request_context.suspicious_request:
-            return False
-        resolution = request_context.path_resolution
-        path_list = list(resolution.path_list)
-        request_kwargs = request_context.clone_kwargs()
+        request_kwargs = self.parse_kwargs(self.parse_request_params(request))
+        path_list = self.handle_path_list(request.path,request_kwargs=request_kwargs)[0]
         first_segment = path_list[0] if path_list else ''
         if request_kwargs.get('forcedlogin') or (first_segment.startswith('_') and first_segment!='_ping'):
             return False
@@ -1110,16 +947,6 @@ class GnrWsgiSite(object):
         self.currentRequest = Request(environ)
         self.currentDomain = self.rootDomain
         self.currentRequest.max_form_memory_size = 100_000_000
-        request_context = self._ensure_request_context()
-        if request_context and request_context.suspicious_request:
-            self.log_connection_debug('request.suspicious', dict(
-                path=request_context.path_resolution.original_path,
-                normalized_path=request_context.path_resolution.normalized_path,
-                user_agent=self.currentRequest.user_agent.string if self.currentRequest.user_agent else None,
-                environ_host=environ.get('HTTP_HOST'),
-                referer=environ.get('HTTP_REFERER')
-            ))
-            return self.not_found_exception(environ, start_response, debug_message='suspicious root request')
         if self.isInMaintenance:
             return self.maintenanceDispatcher(environ, start_response)
         else:
@@ -1144,10 +971,8 @@ class GnrWsgiSite(object):
         request = self.currentRequest
         response = Response()
         response.mimetype = 'text/html'
-        request_context = self._ensure_request_context()
-        resolution = request_context.path_resolution if request_context else self._resolve_path_info(request.path)
-        request_kwargs = request_context.clone_kwargs() if request_context else {}
-        path_list = list(resolution.path_list)
+        request_kwargs = self.parse_kwargs(self.parse_request_params(request))
+        path_list = self.handle_path_list(request.path,request_kwargs=request_kwargs)[0]
         if (path_list and path_list[0].startswith('_')) or ('method' in request_kwargs or 'rpc' in request_kwargs or '_plugin' in request_kwargs):
             response = self.setResultInResponse('maintenance', response, info_GnrSiteMaintenance=self.currentMaintenance)
             return response(environ, start_response)
@@ -1207,21 +1032,13 @@ class GnrWsgiSite(object):
 
         # default mime type
         response.mimetype = 'text/html'
-        request_context = self._ensure_request_context()
-        if request_context:
-            request_kwargs = request_context.clone_kwargs()
-            resolution = request_context.path_resolution
-        else:
-            request_kwargs = self.parse_kwargs(self.parse_request_params(request))
-            resolution = self._resolve_path_info(request.path)
-            self._apply_resolution_to_request(resolution, request_kwargs)
+        request_kwargs = self.parse_kwargs(self.parse_request_params(request))
         
         webtool_static_route_handler = self.lookup_webtools_static_route(request.path)
         if webtool_static_route_handler:
             return self.serve_tool(['_tools', webtool_static_route_handler], environ, start_response, **request_kwargs)
         # Url parsing start
-        path_list = list(resolution.path_list)
-        redirect_to = resolution.redirect_to
+        path_list,redirect_to = self.handle_path_list(request.path,request_kwargs=request_kwargs)
         if redirect_to:
             return self.redirect(environ,start_response,location=redirect_to)
         # path_list is never empty
