@@ -12,8 +12,6 @@ from gnr.core.gnrdecorator import public_method
 from datetime import datetime
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 import time
-from gnr.core.gnrstring import boolean
-from gnr.web import logger
 
 CONNECTION_TIMEOUT = 3600
 CONNECTION_REFRESH = 20
@@ -68,14 +66,10 @@ class GnrWebConnection(GnrBaseProxy):
         self.user = self.guestname
         self.register()
         self.write_cookie()
-        self._log_debug('create', created_connection=True)
 
     def validate_page_id(self, page_id):
         pages = self.connection_item.get('pages') or self.page.site.register.pages(connection_id=self.connection_item['register_item_id'])
-        exists = page_id in pages if pages else False
-        if not exists:
-            self._log_debug('validate_page_id.miss', page_id=page_id, available=list(pages.keys()) if isinstance(pages, dict) else pages)
-        return exists
+        return page_id in pages
 
     def validate_connection(self, connection_id=None, user=None):
         connection_item = self.page.site.register.connection(connection_id)
@@ -89,10 +83,6 @@ class GnrWebConnection(GnrBaseProxy):
                 self.avatar_extra = connection_item.get('avatar_extra')
                 self.electron_static = connection_item.get('electron_static')
                 self.connection_item = connection_item
-                self._log_debug('validate_connection.success', connection_id=connection_id, user=user,
-                                 register_item_id=connection_item.get('register_item_id'))
-        else:
-            self._log_debug('validate_connection.miss', connection_id=connection_id, user=user)
 
     @property
     def guestname(self):
@@ -113,14 +103,12 @@ class GnrWebConnection(GnrBaseProxy):
         return self.page.site.currentDomainIdentifier
     
     def read_cookie(self):
-        cookie = self.page.get_cookie(self.cookie_name, 'marshal', secret=self.secret)
-        if cookie and self.debug_enabled:
-            self._log_debug('read_cookie', cookie_present=True, cookie_keys=list(cookie.keys()))
-        return cookie
+        return self.page.get_cookie(self.cookie_name, 'marshal', secret=self.secret)
 
     def write_cookie(self):
         expires = time.time() + CONNECTION_TIMEOUT*24
         cookie_path = self.page.site.home_uri if self.page.site.multidomain else self.page.site.default_uri
+        print('cookie_path',cookie_path,'cookie_name',self.cookie_name)
         self.cookie = self.page.newMarshalCookie(self.cookie_name, {'user': self.user,
                                                                     'connection_id': self.connection_id,
                                                                     'data': self.cookie_data,
@@ -130,8 +118,6 @@ class GnrWebConnection(GnrBaseProxy):
         self.cookie.path = cookie_path
         cookieattrs = self.page.site.config.getAttr('cookies') or {}
         self.page.add_cookie(self.cookie, **cookieattrs)
-        self._log_debug('write_cookie', cookie_path=cookie_path, cookie_name=self.cookie_name,
-                         cookie_attrs=list(cookieattrs.keys()), expires_at=expires)
 
     @property
     def loggedUser(self):
@@ -180,16 +166,15 @@ class GnrWebConnection(GnrBaseProxy):
         self.user_id = avatar_dict.get('user_id')
         if avatar:
             self.avatar_extra = avatar.extra_kwargs
+        print('calling change_connection_user',self.user,self.user_tags,self.user_id)
         self.page.site.register.change_connection_user(self.connection_id, user=self.user,
                                                        user_tags=self.user_tags, user_id=self.user_id,
                                                        user_name=self.user_name, avatar_extra=self.avatar_extra)
         self.write_cookie()
-        self._log_debug('change_user', user=self.user, user_id=self.user_id, user_tags=self.user_tags)
 
     def rpc_logout(self):
         self.page.site.register.drop_connection(self.connection_id,cascade=True)
         self.page.site.connectionLog('close',connection_id=self.connection_id)
-        self._log_debug('logout', connection_id=self.connection_id)
 
     @public_method
     def connected_users_bag(self, exclude=None, exclude_guest=True, max_age=600):
@@ -228,34 +213,6 @@ class GnrWebConnection(GnrBaseProxy):
             row.pop('datachanges', None)
             result.addItem(userkey, None, **row)
         return result
-
-    @property
-    def debug_enabled(self):
-        return boolean(self.page.site.connectionDebugEnabled)
-
-    def describe(self, include_cookie=False):
-        cookie_obj = getattr(self, '_cookie', None)
-        data = dict(connection_id=self.connection_id,
-                    user=self.user,
-                    domain=self.page.site.currentDomain,
-                    cookie_name=self.cookie_name,
-                    cookie_path=(cookie_obj.path if cookie_obj else None),
-                    user_device=self.user_device,
-                    ip=self.ip,
-                    electron_static=self.electron_static,
-                    base_dbstore=self.page.base_dbstore,
-                    temp_dbstore=self.page.temp_dbstore,
-                    aux_instance=self.page.aux_instance)
-        if include_cookie and cookie_obj:
-            data['cookie_payload'] = dict(cookie_obj)
-        return data
-
-    def _log_debug(self, message, **kwargs):
-        if not self.debug_enabled:
-            return
-        payload = self.describe()
-        payload.update(kwargs)
-        self.page.site.log_connection_debug(message, payload)
 
 
 
