@@ -1538,7 +1538,28 @@ class GnrApp(object):
                 destbl.insertMany(rows)
         sourcedb.closeConnection()
         logger.info('imported',tbl)
+        
+    @property
+    def retentionPolicy(self):
+        """
+        Retrieve the data retention policy for each table for each
+        package in the application
+        """
+        return {table: table.retentionPolicy for table in self.db.tables if table.retentionPolicy}
 
+    def executeRetentionPolicy(self, dry_run=True):
+        """
+        Execute (with dry run options) the retention
+        policy on each table having a policy defined.
+
+        Data deletion is committed for each table.
+        """
+        r = {}
+        for table in self.retentionPolicy.keys():
+            report = table.executeRetentionPolicy(dry_run=dry_run)
+            r[table] = report
+        return r
+    
     def getAuxInstance(self, name=None,check=False):
         """TODO
         
