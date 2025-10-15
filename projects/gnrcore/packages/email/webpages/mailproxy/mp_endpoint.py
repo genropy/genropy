@@ -47,6 +47,10 @@ class GnrCustomWebPage(object):
                     messagetbl.update(message,old_message)
                 self.db.commit()
 
+    def _adaptedMessages(self,messages):
+        for message in messages:
+            pass
+
     def _add_messages_to_proxy_queue(self,proxy_service,message_pkeys):
         message_tbl = self.db.table('email.message')
         messages = message_tbl.query(where='$id IN :message_pkeys',
@@ -55,7 +59,7 @@ class GnrCustomWebPage(object):
                                     ).fetchAsDict('id')
         payload = []
         for message in messages.values():
-            payload_chunk = self._build_proxy_payload(message)
+            payload_chunk = self._convert_to_proxy_message(message)
             if isinstance(payload_chunk,str):
                 oldrec = dict(message)
                 message['error_ts'] = message_tbl.newUtcDatetime()
@@ -81,26 +85,15 @@ class GnrCustomWebPage(object):
                 message_to_update['proxy_ts'] = response_row['proxy_ts']
             message_tbl.update(message_to_update,oldrec)
         
-    def _build_proxy_payload(self, record):
+    def _convert_to_proxy_message(self, record):
         storename = self.db.currentEnv.get('storename') or self.db.rootstore
-        result = dict(
-            id = f"{storename}:{record['id']}",
-            account_id=record.get('account_id'),
-            subject=record.get('subject') or '',
-        )
-        result['priority'] = record['proxy_priority'] or MEDIUM_PRIORITY
-        account_id = record.get('account_id')
-        if not account_id:
-            return 'missing_account'
-        from_address = record.get('from_address') or self._default_from_address(record.get('account_id'))
-        if not from_address:
-            return 'missing_from_address'
-        result['from'] = from_address
-
-        to_addresses = self._address_list(record.get('to_address'))
-        if not to_addresses:
-            return 'missing_to_address'
-        result['to'] = to_addresses
+        result = dict(id = f"{storename}:{record['id']}"
+                      account_id = record['account_id'],
+                      subject = record['subject'] or '',
+                      from = record['from_address']
+                      )
+        
+        result['to'] = self._address_list(record.get('to_address'))
         cc_addresses = self._address_list(record.get('cc_address'))
         if cc_addresses:
             result['cc'] = cc_addresses
@@ -144,13 +137,6 @@ class GnrCustomWebPage(object):
             return [addr for addr in value if addr]
         extractor = self.db.table('email.message')
         return extractor.extractAddresses(value)
-
-    def _default_from_address(self, account_id):
-        if not account_id:
-            return None
-        account_tbl = self.db.table('email.account')
-        account_pref = account_tbl.getSmtpAccountPref(account_id)
-        return account_pref.get('from_address')
 
     def _extra_headers(self, extra_headers):
         if not extra_headers:
