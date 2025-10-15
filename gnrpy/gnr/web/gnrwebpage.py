@@ -294,20 +294,42 @@ class GnrWebPage(GnrBaseWebPage):
         for proxy_name,proxy_class in proxy_classes:
             if proxy_class:
                 setattr(self,proxy_name,proxy_class(self))
+
+    def _log_page_check_issue(self, reason, page_id=None, **kwargs):
+        try:
+            connection_data = self.connection.describe(include_cookie=False)
+        except Exception:
+            connection_data = dict(connection_id=getattr(self.connection, 'connection_id', None),
+                                   user=getattr(self.connection, 'user', None))
+        info = dict(
+            reason=reason,
+            page_id=page_id,
+            domain=getattr(self.site, 'currentDomain', None),
+            path=self._environ.get('PATH_INFO') if hasattr(self, '_environ') else None,
+            query=self._environ.get('QUERY_STRING') if hasattr(self, '_environ') else None,
+            environ_page_id=self._environ.get('HTTP_X_GNR_PAGE_ID') if hasattr(self, '_environ') else None,
+        )
+        info.update(connection_data or {})
+        if kwargs:
+            info.update(kwargs)
+        logger.warning("page.check_page_id issue | %s", info)
                 
     def _check_page_id(self, page_id=None, kwargs=None):
         if not self.connection.connection_id:
+            self._log_page_check_issue('missing_connection', page_id=page_id)
             self._log_connection_debug('page.check_page_id.missing_connection', requested_page_id=page_id)
             raise self.site.client_exception('The connection is not longer valid', self._environ)
         if not self.connection.validate_page_id(page_id):
             if self.isGuest:
                 self._log_connection_debug('page.check_page_id.guest_missing', requested_page_id=page_id)
                 return self._register_new_page(page_id=page_id,kwargs=kwargs)
+            self._log_page_check_issue('invalid_for_connection', page_id=page_id)
             self._log_connection_debug('page.check_page_id.invalid', requested_page_id=page_id)
             raise self.site.client_exception('The referenced page_id is not valid in this connection',
                                              self._environ)
         page_item = self.site.register.page(page_id,include_data='lazy')
         if not page_item:
+            self._log_page_check_issue('missing_in_register', page_id=page_id)
             self._log_connection_debug('page.check_page_id.not_found', requested_page_id=page_id)
             raise self.site.client_exception('The referenced page_id is cannot be found in site register',
                                              self._environ)
