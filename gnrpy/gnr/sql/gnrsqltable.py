@@ -3099,7 +3099,7 @@ class SqlTable(GnrObject):
 
     @property
     @functools.lru_cache
-    def retentionPolicy(self):
+    def defaultRetentionPolicy(self):
         policy = self.attributes.get("retention_policy", [])
         if not policy:
             return None
@@ -3111,19 +3111,21 @@ class SqlTable(GnrObject):
             return None
         return policy
 
-    def executeRetentionPolicy(self, dry_run=True):
+    def executeRetentionPolicy(self, policy=None, dry_run=True):
         '''
         Execute the policy deletion and return a summary. If dry_run, only return the summary
         '''
-
-        cutoff = datetime.now() - timedelta(days=self.retentionPolicy[1])
-        count = self.query(where=f'${self.retentionPolicy[0]} < :cutoff', cutoff=cutoff).count()
+        if not policy:
+            return {}
+        
+        cutoff = datetime.now() - timedelta(days=policy['retention_period'])
+        count = self.query(where=f'${policy["filter_column"]} < :cutoff', cutoff=cutoff).count()
         summary = {"found_records": count}
         if dry_run:
             return summary
         else:
             # do the actual delete
-            r = self.deleteSelection(where=f'${self.retentionPolicy[0]} < :cutoff', cutoff=cutoff)
+            r = self.deleteSelection(where=f'${policy["filter_column"]} < :cutoff', cutoff=cutoff)
             summary['deleted_records'] = len(r)
             self.db.commit()
             return summary

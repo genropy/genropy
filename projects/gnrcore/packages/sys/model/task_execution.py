@@ -41,3 +41,4 @@ class Table(object):
                  ELSE 'waiting'
             END)
         """,name_long='Status')
+

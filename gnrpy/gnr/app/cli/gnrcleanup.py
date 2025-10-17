@@ -31,12 +31,12 @@ def main():
     if options.policy:
         print("Current policy:")
         for table, conf in policy.items():
-            print(f"Table: {table.name} - Retention for {conf[1]} days based on field '{conf[0]}'")
+            print(f"Table: {table} - Retention for {conf['retention_period']} days based on field '{conf['filter_column']}'")
         sys.exit(3)
         
     summary = app.executeRetentionPolicy(dry_run=dry_run)
     for table, report in summary.items():
-        logger.info(f"{table.fullname}", report)
+        logger.info(f"{table}: %s", report)
     
         
 if __name__ == "__main__":
