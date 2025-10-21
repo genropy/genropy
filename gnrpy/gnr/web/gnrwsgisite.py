@@ -751,6 +751,30 @@ class GnrWsgiSite(object):
                         out_dict[name] = value
                 except UnicodeDecodeError:
                     pass
+        if getattr(request, 'method', None) in ('POST', 'PUT', 'PATCH'):
+            mimetype = (request.mimetype or '').lower()
+            is_json = getattr(request, 'is_json', False)
+            json_payload = None
+            if is_json or 'json' in mimetype:
+                try:
+                    json_payload = request.get_json(silent=True)
+                except Exception:
+                    json_payload = None
+                if json_payload is not None:
+                    out_dict.setdefault('_json_body', json_payload)
+            elif 'xml' in mimetype:
+                body = request.get_data(cache=False, as_text=True) if hasattr(request, 'get_data') else None
+                if body is None and hasattr(request, 'data'):
+                    body = request.data
+                    if isinstance(body, bytes):
+                        body = body.decode(request.charset or 'utf-8', errors='ignore')
+                if body is not None:
+                    try:
+                        xml_bag = Bag()
+                        xml_bag.fromXml(body, catalog=self.gnrapp.catalog)
+                        out_dict.setdefault('_xml_body', xml_bag)
+                    except Exception:
+                        out_dict.setdefault('_xml_body', {'raw': body})
         return out_dict
 
     @property
