@@ -1,7 +1,8 @@
 #  -*- coding: utf-8 -*-
-from gnr.web import logger
+from datetime import datetime, timezone
 from collections import defaultdict
 
+from gnr.web import logger
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
 from webob.exc import HTTPServiceUnavailable
@@ -11,7 +12,8 @@ class GnrCustomWebPage(object):
     py_requires='gnrcomponents/externalcall:BaseRpc'
 
     @public_method(tags='_SYSTEM_') #tag di autorizzazione dell'utente 
-    def proxy_sync(self,delivery_report=None):
+    def proxy_sync(self,_json_body=None,**kwargs):
+        delivery_report = _json_body.get('delivery_report')
         print('proxy_sync',delivery_report)
         proxy_service = self.getService('mailproxy')
 
@@ -25,13 +27,15 @@ class GnrCustomWebPage(object):
 
         outgoing_messages_groped_by_store = self.db.table('email.message_to_send').query().fetchGrouped('dbstore')
         for storename,message_pkeys in outgoing_messages_groped_by_store.items():
-            with self.db.currentEnv(storename=storename or False):
+            with self.db.tempEnv(storename=storename or False):
                 self._add_messages_to_proxy_queue(proxy_service,[m['message_id'] for m in message_pkeys])
                 self.db.commit()
                 
     def _update_from_delivery_report(self,delivery_report):
+        print('delivery_report',delivery_report)
         if not delivery_report:
             return
+        #[{'id': '_main_db:LjCW5H_OOuqAKeGhjRFLGg', 'account_id': 'nRjo7qViNiShAuDMB63s_w', 'priority': 2, 'sent_ts': 1761049629, 'error_ts': None, 'error': None, 'deferred_ts': None}]
         delivery_report_by_storename = defaultdict(dict)
         for item in delivery_report:
             message_report = dict(item)
@@ -43,7 +47,21 @@ class GnrCustomWebPage(object):
                 messages = messagetbl.query(where='$id IN :message_pkeys',message_pkeys = list(store_reports.keys()),for_update=True).fetch()
                 for message in messages:
                     old_message = dict(message)
-                    message.update(store_reports[message['id']])
+                    report = dict(store_reports.get(message['id']) or {})
+                    send_ts = report.pop('sent_ts', None)
+                    if send_ts:
+                        try:
+                            message['send_date'] = datetime.fromtimestamp(int(send_ts), tz=timezone.utc)
+                        except (TypeError, ValueError):
+                            logger.warning('Invalid sent_ts in delivery report for message %s: %s', message['id'], send_ts)
+                    error_ts = report.get('error_ts')
+                    if error_ts:
+                        try:
+                            report['error_ts'] = datetime.fromtimestamp(int(error_ts), tz=timezone.utc)
+                        except (TypeError, ValueError):
+                            logger.warning('Invalid error_ts in delivery report for message %s: %s', message['id'], error_ts)
+                            report.pop('error_ts', None)
+                    message['error_msg'] = report.get('error')
                     messagetbl.update(message,old_message)
                 self.db.commit()
 
@@ -58,40 +76,56 @@ class GnrCustomWebPage(object):
                                     order_by=f'COALESCE($proxy_priority,{MEDIUM_PRIORITY}),$__ins_ts',
                                     ).fetchAsDict('id')
         payload = []
+        proxy_ids = {}
         for message in messages.values():
             payload_chunk = self._convert_to_proxy_message(message)
             if isinstance(payload_chunk,str):
                 oldrec = dict(message)
-                message['error_ts'] = message_tbl.newUtcDatetime()
+                message['error_ts'] = message_tbl.newUTCDatetime()
                 message['error_msg'] = payload_chunk
+                message_tbl.update(message, oldrec)
             elif payload_chunk:
                 payload.append(payload_chunk)
-        response_items = proxy_service.add_messages(payload) or []
-        for response_row in response_items:
-            proxy_message_id = response_row.get('id')
+                proxy_ids[message['id']] = payload_chunk.get('id')
+        if not payload:
+            return
+        response_data = proxy_service.add_messages(payload) or {}
+        if isinstance(response_data, list):
+            # Backwards compatibility in case the proxy still returns the legacy format
+            response_data = {'ok': True, 'legacy': response_data}
+        rejected = {
+            item.get('id'): item.get('reason')
+            for item in response_data.get('rejected') or []
+            if item
+        }
+        timestamp = message_tbl.newUTCDatetime()
+        fallback_error = response_data.get('error') or 'Queueing failed'
+        for message_id, message_to_update in messages.items():
+            proxy_message_id = proxy_ids.get(message_id)
             if not proxy_message_id:
-                logger.warning('wrong response from add_messages:missing id')
-                continue
-            message_id = proxy_message_id.split(':',1)[1]
-            message_to_update = messages.get(message_id)
-            if not message_to_update:
-                logger.warning('Message %s not found',message_id)
                 continue
             oldrec = dict(message_to_update)
-            if response_row['error_ts']:
-                message_to_update['error_ts'] = response_row['error_ts']
-                message_to_update['error_msg'] = response_row['error_reason']
+            rejection_reason = rejected.get(proxy_message_id)
+            if rejection_reason:
+                message_to_update['error_ts'] = timestamp
+                message_to_update['error_msg'] = rejection_reason
+            elif response_data.get('ok'):
+                message_to_update['proxy_ts'] = timestamp
+                message_to_update['error_ts'] = None
+                message_to_update['error_msg'] = None
             else:
-                message_to_update['proxy_ts'] = response_row['proxy_ts']
+                message_to_update['error_ts'] = timestamp
+                message_to_update['error_msg'] = fallback_error
             message_tbl.update(message_to_update,oldrec)
         
     def _convert_to_proxy_message(self, record):
         storename = self.db.currentEnv.get('storename') or self.db.rootstore
-        result = dict(id = f"{storename}:{record['id']}"
-                      account_id = record['account_id'],
-                      subject = record['subject'] or '',
-                      from = record['from_address']
-                      )
+        result = {
+            'id': f"{storename}:{record['id']}",
+            'account_id': record['account_id'],
+            'subject': record['subject'] or '',
+            'from': record['from_address'],
+        }
         
         result['to'] = self._address_list(record.get('to_address'))
         cc_addresses = self._address_list(record.get('cc_address'))
@@ -254,5 +288,3 @@ class GnrCustomWebPage(object):
         if not node or not node.exists:
             return None
         return node
-
-

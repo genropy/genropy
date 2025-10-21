@@ -4,9 +4,11 @@
 #  Created by Saverio Porcari on 2013-04-06.
 #  Copyright (c) 2013 Softwell. All rights reserved.
 
+from datetime import datetime, timezone
+from typing import Optional, List, Dict, Any, Union, Tuple
+
 from gnr.lib.services import GnrBaseService
 from gnr.core.gnrbag import Bag
-from typing import Optional, List, Dict, Any, Union, Tuple
 import requests
 from requests import RequestException
 from gnr.web.gnrbaseclasses import BaseComponent
@@ -34,13 +36,23 @@ class Main(GnrBaseService):
         return self._post("/commands/activate")
 
     def schedule(self, rules=None, active: Optional[bool] = None):
-        """Replace the full scheduler configuration."""
-        payload: Dict[str, Any] = {}
+        """Synchronise scheduler state with the async mail service.
+
+        ``rules`` should be an iterable of rule payloads accepted by the async
+        mail API (see ``RulePayload``). Each rule is sent individually to the
+        service. ``active`` toggles the scheduler via the dedicated commands.
+        """
+        last_response: Optional[Dict[str, Any]] = None
         if rules is not None:
-            payload["rules"] = rules
+            if not isinstance(rules, (list, tuple)):
+                raise ValueError("rules must be a list of rule payloads")
+            for rule in rules:
+                if not isinstance(rule, dict):
+                    raise ValueError("rules entries must be dictionaries")
+                last_response = self._post("/commands/rules", json=rule)
         if active is not None:
-            payload["active"] = bool(active)
-        return self._post("/commands/rules", json=payload)
+            last_response = self.activate() if active else self.suspend()
+        return last_response or {"ok": True}
 
     def add_account(self, account: Union[dict, str, None]):
         """Register or update an SMTP account on the proxy."""
@@ -57,17 +69,53 @@ class Main(GnrBaseService):
             raise ValueError("account_id is required")
         return self._delete(f"/account/{account_id}")
 
-    def pending_messages(self):
-        """Fetch the pending message list from the proxy."""
-        return self._get("/pending")
-
-    def list_deferred(self):
-        """Fetch messages currently deferred by the proxy."""
-        return self._get("/deferred")
-
     def list_messages(self):
         """Return the full message queue with payload details."""
-        return self._get("/messages")
+        response = self._get("/messages")
+        if isinstance(response, dict):
+            return response
+        if isinstance(response, list):
+            return {"ok": True, "messages": response}
+        raise RuntimeError("Mail proxy /messages returned an unexpected payload")
+
+    def pending_messages(self):
+        """Fetch messages awaiting delivery."""
+        response = self.list_messages()
+        messages = response.get("messages") or []
+        pending: List[Dict[str, Any]] = []
+        for entry in messages:
+            if entry.get("sent_ts") is not None or entry.get("error_ts") is not None:
+                continue
+            payload = entry.get("message") or {}
+            pending.append(
+                {
+                    "id": entry.get("id"),
+                    "account_id": entry.get("account_id"),
+                    "to_addr": self._format_recipients(payload.get("to")),
+                    "subject": payload.get("subject"),
+                    "started_at": entry.get("created_at"),
+                }
+            )
+        return {"ok": True, "pending": pending}
+
+    def list_deferred(self):
+        """Return messages deferred to a later time."""
+        response = self.list_messages()
+        messages = response.get("messages") or []
+        deferred: List[Dict[str, Any]] = []
+        for entry in messages:
+            deferred_ts = entry.get("deferred_ts")
+            if deferred_ts is None or entry.get("sent_ts") is not None:
+                continue
+            deferred.append(
+                {
+                    "id": entry.get("id"),
+                    "account_id": entry.get("account_id"),
+                    "deferred_time": self._format_timestamp(deferred_ts),
+                    "retry_count": (entry.get("message") or {}).get("retry_count", 0),
+                }
+            )
+        return {"ok": True, "deferred": deferred}
 
     def delete_messages(self, message_ids: List[str]):
         """Remove messages from the proxy queue using their identifiers."""
@@ -76,23 +124,26 @@ class Main(GnrBaseService):
         return self._post("/commands/delete-messages", json={"ids": message_ids})
 
     def send_message(self, message: dict):
-        """Send a single message immediately."""
+        """Enqueue a single message and immediately trigger a dispatch cycle."""
         if not isinstance(message, dict):
             raise ValueError("message must be a dictionary")
-        return self._post("/commands/send-message", json=message)
+        enqueue_result = self.add_messages([message])
+        if enqueue_result.get("ok"):
+            try:
+                self.run_now()
+            except Exception:
+                pass
+        return enqueue_result
 
     def add_messages(self, messages: List[Dict[str, Any]], default_priority: Optional[int] = None):
-        """Queue a batch of messages for the scheduler.
-
-        Returns the list of per-message outcomes produced by the async service.
-        """
+        """Queue a batch of messages for the scheduler and return the service reply."""
         if not isinstance(messages, list):
             raise ValueError("messages must be a list")
         payload: dict[str, object] = {"messages": messages}
         if default_priority is not None:
             payload["default_priority"] = default_priority
         response = self._post("/commands/add-messages", json=payload)
-        if not isinstance(response, list):
+        if not isinstance(response, dict):
             raise RuntimeError("Mail proxy add-messages returned an unexpected payload")
         return response
 
@@ -191,17 +242,11 @@ class Main(GnrBaseService):
 
         payload = {
             "id": account_dict.get("id"),
-            "account_name": account_dict.get("account_name"),
             "host": account_dict.get("smtp_host"),
             "port": self._safe_int(account_dict.get("smtp_port")),
             "user": account_dict.get("smtp_username"),
             "password": account_dict.get("smtp_password"),
             "use_tls": self._safe_bool(account_dict.get("smtp_tls")),
-            "use_ssl": self._safe_bool(account_dict.get("smtp_ssl")),
-            "from_address": account_dict.get("smtp_from_address"),
-            "system_bcc": account_dict.get("system_bcc"),
-            "debug_address": account_dict.get("debug_address"),
-            "system_debug_address": account_dict.get("debug_address"),
         }
         send_limit = account_dict.get("send_limit")
         if send_limit:
@@ -224,7 +269,26 @@ class Main(GnrBaseService):
         if value is None:
             return None
         return bool(value)
-    
+
+    def _format_recipients(self, value: Any) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, (list, tuple, set)):
+            addresses = [addr for addr in value if addr]
+        else:
+            addresses = [value]
+        return ", ".join(str(addr) for addr in addresses if addr)
+
+    def _format_timestamp(self, value: Optional[int]) -> Optional[str]:
+        if value in (None, ""):
+            return None
+        try:
+            ts = int(value)
+        except (TypeError, ValueError):
+            return None
+        dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+        return dt.isoformat().replace("+00:00", "Z")
+
 class ServiceParameters(BaseComponent):
     def service_parameters(self,pane,datapath=None,service_name=None,**kwargs):
         fb = pane.formbuilder(datapath=datapath)

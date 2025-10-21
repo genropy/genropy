@@ -96,6 +96,7 @@ class GnrCustomWebPage(object):
             SET .account_count = overview.getItem('status.account_count') || 0;
             SET .pending_count = overview.getItem('status.pending_count') || 0;
             SET .deferred_count = overview.getItem('status.deferred_count') || 0;
+            SET .error_count = overview.getItem('status.error_count') || 0;
             SET .active = !!overview.getItem('status.active');
             SET .last_refresh = overview.getItem('status.last_refresh') || null;
             SET .error = overview.getItem('status.error') || null;
@@ -107,6 +108,7 @@ class GnrCustomWebPage(object):
         fb.numberTextbox(value='^.account_count', lbl='!!Accounts')
         fb.numberTextbox(value='^.pending_count', lbl='!!Pending')
         fb.numberTextbox(value='^.deferred_count', lbl='!!Deferred')
+        fb.numberTextbox(value='^.error_count', lbl='!!Errors')
         fb.checkbox(value='^.active', label='!!Scheduler active', disabled=True)
         fb.div('^.error', colspan=4, _class='mp-status-error', hidden='^.error?=!#v')
 
@@ -133,21 +135,11 @@ class GnrCustomWebPage(object):
         )
 
         right_bc = bc.borderContainer(region='center')
-        right_bc.contentPane(region='top', height='50%', splitter=True).bagGrid(
-            frameCode='mp_pending',
-            title='!!Pending messages',
-            storepath='main.data.pending',
-            struct=self.pending_struct,
-            pbl_classes=True,
-            addrow=False,
-            delrow=False,
-            margin='6px',
-        )
         right_bc.contentPane(region='center').bagGrid(
-            frameCode='mp_deferred',
-            title='!!Deferred messages',
-            storepath='main.data.deferred',
-            struct=self.deferred_struct,
+            frameCode='mp_messages',
+            title='!!Messages',
+            storepath='main.data.messages',
+            struct=self.messages_struct,
             pbl_classes=True,
             addrow=False,
             delrow=False,
@@ -177,18 +169,19 @@ class GnrCustomWebPage(object):
         rows.cell('time_window', name='!!Time window', width='12em')
         rows.cell('days_label', name='!!Days', width='14em')
 
-    def pending_struct(self, struct):
-        rows = struct.view().rows()
-        rows.cell('id', name='!!Message ID', width='14em')
-        rows.cell('to_addr', name='!!Recipient', width='16em')
-        rows.cell('subject', name='!!Subject', width='18em')
-        rows.cell('started_at', name='!!Queued at', width='14em')
-
-    def deferred_struct(self, struct):
+    def messages_struct(self, struct):
         rows = struct.view().rows()
         rows.cell('id', name='!!Message ID', width='14em')
         rows.cell('account_id', name='!!Account', width='12em')
+        rows.cell('status', name='!!Status', width='10em')
+        rows.cell('priority_label', name='!!Priority', width='10em')
+        rows.cell('to_addr', name='!!Recipient', width='16em')
+        rows.cell('subject', name='!!Subject', width='18em')
+        rows.cell('created_at', name='!!Queued at', width='16em')
         rows.cell('deferred_time', name='!!Deferred until', width='16em')
+        rows.cell('sent_ts', name='!!Sent at', width='16em')
+        rows.cell('error_ts', name='!!Error at', width='16em')
+        rows.cell('error', name='!!Error message', width='24em')
         rows.cell('retry_count', name='!!Retries', width='8em', dtype='I')
 
     # -------------------------------------------------------------------------
@@ -200,20 +193,20 @@ class GnrCustomWebPage(object):
         errors = []
 
         accounts = self._safe_service_call(service.list_accounts, 'accounts', 'Accounts', errors)
-        pending = self._safe_service_call(service.pending_messages, 'pending', 'Pending messages', errors)
-        deferred = self._safe_service_call(service.list_deferred, 'deferred', 'Deferred messages', errors)
+        messages = self._safe_service_call(service.list_messages, 'messages', 'Messages', errors)
         rules = self._safe_service_call(service.list_rules, 'rules', 'Scheduler rules', errors)
 
         result = Bag()
         result['accounts'] = self._list_to_bag(accounts, 'id')
-        result['pending'] = self._list_to_bag(pending, 'id')
-        result['deferred'] = self._list_to_bag(self._decorate_deferred(deferred), 'id')
+        decorated_messages = self._decorate_messages(messages)
+        result['messages'] = self._list_to_bag(decorated_messages, 'id')
         result['rules'] = self._list_to_bag(self._decorate_rules(rules), 'id')
 
         status = Bag()
         status['account_count'] = len(accounts)
-        status['pending_count'] = len(pending)
-        status['deferred_count'] = len(deferred)
+        status['pending_count'] = len([msg for msg in decorated_messages if msg.get('status') == 'pending'])
+        status['deferred_count'] = len([msg for msg in decorated_messages if msg.get('status') == 'deferred'])
+        status['error_count'] = len([msg for msg in decorated_messages if msg.get('status') == 'error'])
         status['active'] = any(rule.get('enabled') for rule in rules)
         status['last_refresh'] = self.db.table('email.account').newUTCDatetime()
         if errors:
@@ -237,10 +230,11 @@ class GnrCustomWebPage(object):
     def rpc_add_account(self, account_id=None):
         if not account_id:
             return Bag(dict(ok=False, message='No account selected'))
-        try:
-            response = self._mailproxy_service().add_account(account_id)
-        except Exception as exc:
-            return Bag(dict(ok=False, message='Add account failed: %s' % exc))
+        response = self._mailproxy_service().add_account(account_id)
+       #try:
+       #    response = self._mailproxy_service().add_account(account_id)
+       #except Exception as exc:
+       #    return Bag(dict(ok=False, message='Add account failed: %s' % exc))
 
         if isinstance(response, str):
             try:
@@ -339,18 +333,69 @@ class GnrCustomWebPage(object):
             bag.setItem(item_key, entry)
         return bag
 
-    def _decorate_deferred(self, rows):
+    def _decorate_messages(self, rows):
         result = []
         for row in rows or []:
-            row = dict(row)
-            deferred_until = row.get('deferred_until')
-            if deferred_until:
-                row['deferred_time'] = datetime.fromtimestamp(int(deferred_until)).strftime('%Y-%m-%d %H:%M:%S')
-            else:
-                row['deferred_time'] = None
-            row['retry_count'] = row.get('retry_count', 0)
-            result.append(row)
+            data = dict(row or {})
+            payload = data.get('message') or {}
+            priority = data.get('priority')
+            entry = {
+                'id': data.get('id'),
+                'account_id': data.get('account_id'),
+                'priority': priority,
+                'priority_label': self._priority_label(priority),
+                'to_addr': self._format_recipients(payload.get('to')),
+                'subject': payload.get('subject'),
+                'created_at': self._format_timestamp(data.get('created_at')),
+                'deferred_time': self._format_timestamp(data.get('deferred_ts')),
+                'sent_ts': self._format_timestamp(data.get('sent_ts')),
+                'error_ts': self._format_timestamp(data.get('error_ts')),
+                'error': data.get('error'),
+                'retry_count': payload.get('retry_count') or 0,
+            }
+            entry['status'] = self._status_from_entry(entry, data)
+            result.append(entry)
         return result
+
+    def _status_from_entry(self, entry, raw):
+        if entry.get('error_ts') or raw.get('error'):
+            return 'error'
+        if entry.get('sent_ts'):
+            return 'sent'
+        deferred_ts = raw.get('deferred_ts') or raw.get('deferred_until')
+        if deferred_ts:
+            return 'deferred'
+        return 'pending'
+
+    def _priority_label(self, priority):
+        label_map = {0: 'immediate', 1: 'high', 2: 'medium', 3: 'low'}
+        try:
+            priority_int = int(priority)
+        except (TypeError, ValueError):
+            return None
+        return label_map.get(priority_int, str(priority_int))
+
+    def _format_timestamp(self, value):
+        if not value:
+            return None
+        if isinstance(value, str):
+            try:
+                return datetime.fromisoformat(value.replace('Z', '+00:00')).strftime('%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                return value
+        try:
+            return datetime.fromtimestamp(int(value)).strftime('%Y-%m-%d %H:%M:%S')
+        except (TypeError, ValueError):
+            return None
+
+    def _format_recipients(self, value):
+        if not value:
+            return None
+        if isinstance(value, (list, tuple, set)):
+            addresses = [addr for addr in value if addr]
+        else:
+            addresses = [value]
+        return ', '.join(str(addr) for addr in addresses if addr)
 
     def _decorate_rules(self, rows):
         day_names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
