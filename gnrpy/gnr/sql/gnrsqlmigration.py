@@ -1123,7 +1123,7 @@ class SqlMigrator():
         
         extensions_commands = self.sql_commands.pop('extensions_commands',None)
         if extensions_commands:
-            self.db.adapter.execute(extensions_commands)
+            self.db.adapter.execute(extensions_commands,manager=True)
 
     #jsonorm = OrmExtractor(GnrApp('dbsetup_tester').db).get_json_struct()
     
