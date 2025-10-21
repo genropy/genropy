@@ -3100,6 +3100,9 @@ class SqlTable(GnrObject):
     @property
     @functools.lru_cache
     def defaultRetentionPolicy(self):
+        """
+        Returns the data retention policy defined in the table, None otherwise
+        """
         policy = self.attributes.get("retention_policy", [])
         if not policy:
             return None

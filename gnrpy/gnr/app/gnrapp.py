@@ -1541,6 +1541,16 @@ class GnrApp(object):
 
     @property
     def defaultRetentionPolicy(self):
+        """
+        Returns the default data retention policy by developers in table definitions,
+        for all packages composing the Gnr Application.
+
+        The return dict has table fullname (package.table) as keys,
+        and a dict describing the policy, which reports the
+        filter_column , the default retention_period and the computed
+        retention_period, all defined as days.
+
+        """
         policy = {
             table.fullname: dict(filter_column=table.defaultRetentionPolicy[0],
                                  retention_period_default=table.defaultRetentionPolicy[1],
@@ -1554,7 +1564,10 @@ class GnrApp(object):
     def retentionPolicy(self):
         """
         Retrieve the data retention policy for each table for each
-        package in the application
+        package in the application, starting from the default policy
+        then applying eventual customizations, residing in
+        sys.datarentetion table.
+
         """
         policy = self.defaultRetentionPolicy
         # query the database for overrides
