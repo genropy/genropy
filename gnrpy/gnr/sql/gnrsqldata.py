@@ -759,7 +759,7 @@ class SqlQueryCompiler(object):
         colPars = {}
         joindict = {}
         virtual_columns = virtual_columns or []
-        static_virtual_columns = list(self.tblobj.static_virtual_columns.keys())
+        virtual_columns = virtual_columns or []
         if isinstance(virtual_columns, str):
             virtual_columns = gnrstring.splitAndStrip(virtual_columns, ',')
         for fieldname, value, attrs in self.relations.digest('#k,#v,#a'):
@@ -770,8 +770,7 @@ class SqlQueryCompiler(object):
             joiner = attrs.get('joiner')
             if joiner:
                 if joiner.get('virtual') and joiner['mode'] == 'O':
-                    if fieldname[1:] not in (virtual_columns+static_virtual_columns):
-                        continue
+                    virtual_columns.append(fieldname[1:])
                     for relation_condition in ('cnd', 'range'):
                         rel_cnd = joiner.get(relation_condition)
                         if rel_cnd:

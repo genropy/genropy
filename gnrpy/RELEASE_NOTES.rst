@@ -15,9 +15,12 @@ Enhancements
   callables *after* a commit
 * Introduced new 'gnr web serveprod' cli command, which start a
   production grade application server. Currently based on gunicorn.
-* Introduce new 'sys maintanance' instance cli command to
+* Introduced new 'sys maintanance' instance cli command to
   enable/disable maintenance mode
-  
+* Package dependencies solver/installer can now automatically
+  upgrade/downgrade version in order to fix the environment,
+  by using 'gnr app checkdep -f <instanceName>'
+
 
 Version 25.09.17
 ================
