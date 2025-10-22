@@ -12,6 +12,10 @@ def main():
                         dest="install",
                         action="store_true",
                         help="Try to install the missing deps")
+    parser.add_argument("-f", "--fix",
+                        dest="fix",
+                        action="store_true",
+                        help="Try to fix dependencies by upgrading packages")
     parser.add_argument("-n", "--nocache",
                         dest="nocache",
                         action="store_true",
@@ -49,6 +53,19 @@ def main():
         print("\nCheck has detected the following wrong dependencies")
         for requested, installed in wrong:
             print(f"{requested} is requested, but {installed} found")
+
+        if options.fix:
+            print("\nTrying to fix the problem by upgrading..")
+            app.check_package_install_missing(nocache=options.nocache,
+                                              upgrading=True)
+
+            # recheck
+            missing, wrong = app.check_package_missing_dependencies()
+            if wrong:
+                print("\nProblem not solved, please fix manually")
+            else:
+                print("\nAll conflicts solved!")
+               
         sys.exit(3)
         
     if not missing and not wrong:
