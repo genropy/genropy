@@ -80,7 +80,7 @@ class Form(BaseComponent):
                                viewResource='ViewFromFaqs')
         
     def notesPane(self,pane):
-        pane.simpleTextArea(value='^.note',width='100%',height='100%')
+        pane.simpleTextArea(value='^.notes',width='100%',height='100%')
                         
     def th_options(self):
         return dict(dialog_windowRatio=.8, duplicate=True)
