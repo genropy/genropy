@@ -20,6 +20,32 @@ class View(BaseComponent):
         return dict(column='question', op='contains', val='')
 
 
+class ViewPublic(BaseComponent):
+    
+    def th_struct(self,struct):
+        r = struct.view().rows()
+        r.fieldcell('_row_count', width='2em', name=' ', counter=True)
+        r.fieldcell('question', width='auto')
+        r.fieldcell('topics', width='30em')
+
+    def th_order(self):
+        return '_row_count'
+
+    def th_query(self):
+        return dict(column='answer',op='contains', val='')
+        
+    def th_top_custom(self, top):
+        top.slotToolbar('5,sections@areas,*',childname='upper',_position='<bar')
+            
+    def th_sections_areas(self):
+        return self.th_distinctSections(table='docu.faq',field='faq_area_name')
+        
+    def th_options(self):
+        return dict(addrow=False, delrow=False, readOnly=True)
+    
+    
+
+
 class ViewFromAreaFaqs(BaseComponent):
 
     def th_struct(self,struct):

@@ -12,4 +12,6 @@ class Table(object):
         tbl.column('faq_area_id',size='22', group='_', name_long='!!FAQ Area'
                     ).relation('faq_area.id', relation_name='faqs', mode='foreignkey', onDelete='raise')
         
+        tbl.aliasColumn('answer', '@content_id.html', name_long='!!Answer')
         tbl.aliasColumn('question', '@content_id.title', name_long='!!Question')
+        tbl.aliasColumn('faq_area_name', '@faq_area_id.name', name_long='!!FAQ Area Name')
