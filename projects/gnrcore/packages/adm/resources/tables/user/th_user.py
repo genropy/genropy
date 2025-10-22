@@ -73,9 +73,10 @@ class FormFromUserInfo(BaseComponent):
                     crop_border='2px dotted silver',crop_rounded=6,edit=True,
                     placeholder=True,upload_folder='*',takePicture=True,rowspan=4,lbl='!![en]Photo')
         fl.field('lastname')
-        #fl.field('language')
+        fl.field('language')
         fl.field('locale',tag='comboBox',
-                 values='en,it,fr', hasDownArrow=True)
+                 values='en_GB,en_US,en_AU,it_IT',
+                 hasDownArrow=True)
         fl.field('email',colspan=2)
 
     def th_options_autoSave(self):
