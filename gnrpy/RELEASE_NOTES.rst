@@ -20,7 +20,7 @@ Enhancements
 * Package dependencies solver/installer can now automatically
   upgrade/downgrade version in order to fix the environment,
   by using 'gnr app checkdep -f <instanceName>'
-
+* New FAQ models and backoffice tool from docu package
 
 Version 25.09.17
 ================
