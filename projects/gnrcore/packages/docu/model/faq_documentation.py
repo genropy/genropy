@@ -15,7 +15,11 @@ class Table(object):
     
     
     def pyColumn_doc_full_external_url(self, record, **kwargs):
-        """Returns the full url of the documentation page, based on the handbook_url 
-           of the closest ancestor handbook and on the hierarchical_name of the current record"""
-        doc_record = self.db.table('docu.documentation').record(record['documentation_id'], mode='bag')
-        return self.calculateExternalUrl(doc_record)
+        """Returns the full url of the documentation page, based on
+           the handbook_url of the closest ancestor handbook and on
+           the hierarchical_name of the current record
+
+        """
+        doc_record = self.db.table('docu.documentation').record(record['documentation_id'],
+                                                                mode='bag')
+        return doc_record and self.calculateExternalUrl(doc_record) or None
