@@ -50,6 +50,8 @@ class Table(object):
                     ).relation('email.message.id', relation_name='replies', mode='foreignkey', onDelete='setnull')
         tbl.column('error_msg', name_long='Error message')
         tbl.column('error_ts',dtype='DHZ', name_long='Error Timestamp')
+        tbl.column('deferred_ts',dtype='DHZ', name_long='Deferred to Timestamp') #if smtp server does not accept other email
+
         tbl.column('proxy_ts',dtype='DHZ', name_long='Dispatched to mail proxy')
         tbl.column('proxy_priority', dtype='L', name_long='Priority')
 
