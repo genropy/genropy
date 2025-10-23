@@ -18,6 +18,7 @@ from mako.template import Template
 
 from gnr.core.cli import GnrCliArgParse
 from gnr.app.gnrapp import GnrApp
+from gnr.app.gnrbuilder import GnrProjectBuilder
 from gnr.app import logger
 
 description = "Create a Docker image for the instance"
@@ -28,6 +29,7 @@ class MultiStageDockerImageBuilder:
         self.instance_name = self.instance.instanceName
         self.image_name = options.image_name or self.instance.instanceName
         self.options = options
+        self.builder = GnrProjectBuilder(self.instance)
 
         # check for required executables
         require_executables = ['git','docker']
@@ -42,52 +44,10 @@ class MultiStageDockerImageBuilder:
 
         self.main_repo_name = ""
         
-        self.config_file = os.path.join(self.instance.instanceFolder, "build.json")
-
-        logger.debug("Build configuration file: %s", self.config_file)
-
-        if not os.path.exists(self.config_file):
-            # generate a build configuration analyzing the instance
-            logger.warning(f"Build file configuration not found, creating one from current status")
-            self._create_build_config()
-        elif options.build_generate:
-            logger.warning(f"Build file configuration found, but forcing autogeneration")
-            self._create_build_config()
-        else:
-            logger.info("Found build configuration in instance folder")
-            
-        self.config = self.load_config()
+        self.config = self.builder.load_config(generate=options.build_generate)
         self.build_context_dir = tempfile.mkdtemp(dir=os.getcwd())
         atexit.register(self.cleanup_build_dir)
         
-    def _create_build_config(self):
-
-        git_repositories = {}
-        # search for git repos
-        for package, obj in self.instance.packages.items():
-            url = self._get_git_url_from_path(obj.packageFolder)
-
-            if "genropy/genropy" in url:
-                continue
-            
-            branch_or_commit = self._get_git_commit_from_path(obj.packageFolder)
-            description = url.split('/')[-1].replace(".git","")
-            logger.debug("Package %s is using git remote %s on branch/commit %s", obj.packageFolder, url, branch_or_commit)
-
-            git_repositories[description] = dict(
-                url=url,
-                branch_or_commit=branch_or_commit,
-                description=description
-            )
-            
-        config = {'dependencies': { "git_repositories": git_repositories} }
-        with open(self.config_file, "w") as wfp:
-            json.dump(config, wfp, indent=4, ensure_ascii=False)
-
-    def load_config(self):
-        """Load and parse the XML configuration file."""
-        return json.load(open(self.config_file))
-
     def cleanup_build_dir(self):
         if self.options.keep_temp:
             logger.warning(f"As requested, the build directory {self.build_context_dir} has NOT been removed")
@@ -107,19 +67,6 @@ class MultiStageDockerImageBuilder:
             docker_images.append(image)
         return docker_images
 
-    def _get_git_url_from_path(self, path):
-        url = subprocess.check_output(["git", "remote", "get-url", "origin"], cwd=path).decode().strip()
-        logger.debug("For path %s found git url: %s", path, url)
-        return url
-    
-    def _get_git_commit_from_path(self, path):
-        return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=path).decode().strip()
-    
-    def _get_git_branch_from_path(self, path):
-        return subprocess.check_output(["git", "branch", "--show-current"], cwd=path).decode().strip()
-    
-    def _get_git_repo_name_from_url(self, url):
-        return url.split("/")[-1].replace(".git", "")
     
     def get_git_repositories(self):
         """Get a list of Git repository dependencies."""
@@ -137,10 +84,10 @@ class MultiStageDockerImageBuilder:
         # Include the instance repository too
         start_build_dir = os.getcwd()
         os.chdir(self.instance.instanceFolder)
-        main_repo_url = self._get_git_url_from_path(self.instance.instanceFolder)
+        main_repo_url = self.builder.git_url_from_path(self.instance.instanceFolder)
         # get the repo name, needed for gunicorn/supervisor templates
-        self.main_repo_name = self._get_git_repo_name_from_url(main_repo_url)
-        commit = self._get_git_commit_from_path(self.instance.instanceFolder)
+        self.main_repo_name = self.builder.git_repo_name_from_url(main_repo_url)
+        commit = self.builder.git_commit_from_path(self.instance.instanceFolder)
         os.chdir(start_build_dir)
         code_repo = {
             'url': main_repo_url,
@@ -199,7 +146,7 @@ class MultiStageDockerImageBuilder:
                     else:
                         logger.error("Error checking out %s: %s", repo['branch_or_commit'], result.stderr)
                         
-                    commit = self._get_git_commit_from_path(".")
+                    commit = self.builder.git_commit_from_path(".")
                     if commit == repo['branch_or_commit']:
                         image_labels[f'git:{repo_name}'] = f"@{commit}"
                     else:
