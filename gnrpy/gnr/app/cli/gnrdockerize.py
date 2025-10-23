@@ -18,7 +18,7 @@ from mako.template import Template
 
 from gnr.core.cli import GnrCliArgParse
 from gnr.app.gnrapp import GnrApp
-from gnr.app.gnrbuilder import GnrProjectBuilder
+from gnr.dev.builder import GnrProjectBuilder
 from gnr.app import logger
 
 description = "Create a Docker image for the instance"
@@ -67,45 +67,12 @@ class MultiStageDockerImageBuilder:
             docker_images.append(image)
         return docker_images
 
-    
-    def get_git_repositories(self):
-        """Get a list of Git repository dependencies."""
-        _repos = {}
-        git_config = self.config.get("dependencies", {}).get("git_repositories", {})
-        for k, repo_conf in git_config.items():
-            repo = {
-                'url': repo_conf.get('url'),
-                'branch_or_commit': repo_conf.get('branch_or_commit', 'master'),
-                'subfolder': repo_conf.get("subfolder", None),
-                'description': repo_conf.get("description", "No description")
-            }
-            _repos[repo_conf.get('url')] = repo
-
-        # Include the instance repository too
-        start_build_dir = os.getcwd()
-        os.chdir(self.instance.instanceFolder)
-        main_repo_url = self.builder.git_url_from_path(self.instance.instanceFolder)
-        # get the repo name, needed for gunicorn/supervisor templates
-        self.main_repo_name = self.builder.git_repo_name_from_url(main_repo_url)
-        commit = self.builder.git_commit_from_path(self.instance.instanceFolder)
-        os.chdir(start_build_dir)
-        code_repo = {
-            'url': main_repo_url,
-            'branch_or_commit': commit,
-            'description': self.instance_name,
-            'subfolder': None
-            }
-        _repos[main_repo_url] = code_repo
-        git_repositories = list(_repos.values())
-        logger.debug("Found git repositories: %s", git_repositories)
-        return git_repositories
-
     def build_docker_image(self, version_tag="latest"):
         """
         Generate a multi-stage Dockerfile that clones and copies
         repositories from multiple Docker images.
         """
-        git_repositories = self.get_git_repositories()
+        git_repositories = self.builder.git_repositories()
         now = datetime.datetime.now(datetime.UTC)
         image_labels = {"gnr_app_dockerize_on": str(now)}
         entry_dir = os.getcwd()

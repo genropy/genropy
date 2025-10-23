@@ -51,6 +51,10 @@ class GnrProjectBuilder(object):
             config = json.load(open(self.config_file))
 
         return config
+
+    @property
+    def config(self):
+        return self.load_config()
     
     def git_url_from_path(self, path):
         """
@@ -85,6 +89,36 @@ class GnrProjectBuilder(object):
         """
         return url.split("/")[-1].replace(".git", "")
 
+    def git_repositories(self):
+        """Get a list of all Git repositories for this project."""
+        _repos = {}
+        git_config = self.config.get("dependencies", {}).get("git_repositories", {})
+        for k, repo_conf in git_config.items():
+            repo = {
+                'url': repo_conf.get('url'),
+                'branch_or_commit': repo_conf.get('branch_or_commit', 'master'),
+                'subfolder': repo_conf.get("subfolder", None),
+                'description': repo_conf.get("description", "No description")
+            }
+            _repos[repo_conf.get('url')] = repo
+
+        # Include the instance repository too
+        os.chdir(self.instance.instanceFolder)
+        main_repo_url = self.git_url_from_path(self.instance.instanceFolder)
+        # get the repo name, needed for gunicorn/supervisor templates
+        self.main_repo_name = self.git_repo_name_from_url(main_repo_url)
+        commit = self.git_commit_from_path(self.instance.instanceFolder)
+        code_repo = {
+            'url': main_repo_url,
+            'branch_or_commit': commit,
+            'description': self.instance.instanceName,
+            'subfolder': None
+            }
+        _repos[main_repo_url] = code_repo
+        git_repositories = list(_repos.values())
+        logger.debug("Found git repositories: %s", git_repositories)
+        return git_repositories
+    
     def create_config(self, save_conf=True):
         """
         Create a new build file based on the current
