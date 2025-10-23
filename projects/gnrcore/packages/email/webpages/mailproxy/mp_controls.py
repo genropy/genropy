@@ -109,25 +109,15 @@ class GnrCustomWebPage(object):
         fb.numberTextbox(value='^.pending_count', lbl='!!Pending')
         fb.numberTextbox(value='^.deferred_count', lbl='!!Deferred')
         fb.numberTextbox(value='^.error_count', lbl='!!Errors')
-        fb.checkbox(value='^.active', label='!!Scheduler active', disabled=True)
+        fb.checkbox(value='^.active', label='!!Dispatcher active', disabled=True)
         fb.div('^.error', colspan=4, _class='mp-status-error', hidden='^.error?=!#v')
 
-        left_bc = bc.borderContainer(region='left', width='38%', splitter=True)
-        left_bc.contentPane(region='center').bagGrid(
+        left_pane = bc.contentPane(region='left', width='38%', splitter=True)
+        left_pane.bagGrid(
             frameCode='mp_accounts',
             title='!!Accounts',
             storepath='main.data.accounts',
             struct=self.accounts_struct,
-            pbl_classes=True,
-            addrow=False,
-            delrow=False,
-            margin='6px',
-        )
-        left_bc.contentPane(region='bottom', height='45%', splitter=True).bagGrid(
-            frameCode='mp_rules',
-            title='!!Scheduler rules',
-            storepath='main.data.rules',
-            struct=self.rules_struct,
             pbl_classes=True,
             addrow=False,
             delrow=False,
@@ -160,15 +150,6 @@ class GnrCustomWebPage(object):
         rows.cell('limit_per_day', name='!!Per day', width='7em', dtype='I')
         rows.cell('created_at', name='!!Created at', width='12em')
 
-    def rules_struct(self, struct):
-        rows = struct.view().rows()
-        rows.cell('priority', name='!!Priority', width='6em', dtype='I')
-        rows.cell('name', name='!!Name', width='12em')
-        rows.cell('enabled', name='!!Enabled', width='7em', dtype='B')
-        rows.cell('interval_minutes', name='!!Interval (min)', width='10em', dtype='I')
-        rows.cell('time_window', name='!!Time window', width='12em')
-        rows.cell('days_label', name='!!Days', width='14em')
-
     def messages_struct(self, struct):
         rows = struct.view().rows()
         rows.cell('id', name='!!Message ID', width='14em')
@@ -194,20 +175,18 @@ class GnrCustomWebPage(object):
 
         accounts = self._safe_service_call(service.list_accounts, 'accounts', 'Accounts', errors)
         messages = self._safe_service_call(service.list_messages, 'messages', 'Messages', errors)
-        rules = self._safe_service_call(service.list_rules, 'rules', 'Scheduler rules', errors)
 
         result = Bag()
         result['accounts'] = self._list_to_bag(accounts, 'id')
         decorated_messages = self._decorate_messages(messages)
         result['messages'] = self._list_to_bag(decorated_messages, 'id')
-        result['rules'] = self._list_to_bag(self._decorate_rules(rules), 'id')
 
         status = Bag()
         status['account_count'] = len(accounts)
         status['pending_count'] = len([msg for msg in decorated_messages if msg.get('status') == 'pending'])
         status['deferred_count'] = len([msg for msg in decorated_messages if msg.get('status') == 'deferred'])
         status['error_count'] = len([msg for msg in decorated_messages if msg.get('status') == 'error'])
-        status['active'] = any(rule.get('enabled') for rule in rules)
+        status['active'] = True  # Always active, use suspend/activate commands to control
         status['last_refresh'] = self.db.table('email.account').newUTCDatetime()
         if errors:
             status['error'] = '\n'.join(errors)
@@ -220,11 +199,11 @@ class GnrCustomWebPage(object):
 
     @public_method
     def rpc_suspend(self):
-        return self._command_wrapper('Suspend scheduler', lambda svc: svc.suspend(), include_overview=True)
+        return self._command_wrapper('Suspend dispatcher', lambda svc: svc.suspend(), include_overview=True)
 
     @public_method
     def rpc_activate(self):
-        return self._command_wrapper('Activate scheduler', lambda svc: svc.activate(), include_overview=True)
+        return self._command_wrapper('Activate dispatcher', lambda svc: svc.activate(), include_overview=True)
 
     @public_method
     def rpc_add_account(self, account_id=None):
@@ -396,22 +375,6 @@ class GnrCustomWebPage(object):
         else:
             addresses = [value]
         return ', '.join(str(addr) for addr in addresses if addr)
-
-    def _decorate_rules(self, rows):
-        day_names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-        result = []
-        for row in rows or []:
-            row = dict(row)
-            days = row.get('days') or []
-            row['days_label'] = ', '.join(day_names[d % 7] for d in days) if days else 'All'
-            start_hour = row.get('start_hour')
-            end_hour = row.get('end_hour')
-            if start_hour is None or end_hour is None:
-                row['time_window'] = 'Always'
-            else:
-                row['time_window'] = '%02d:00-%02d:00' % (int(start_hour), int(end_hour))
-            result.append(row)
-        return result
 
     def _command_wrapper(self, label, func, include_overview=False):
         service = self._mailproxy_service()
