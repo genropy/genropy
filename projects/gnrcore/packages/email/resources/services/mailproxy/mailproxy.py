@@ -28,31 +28,12 @@ class Main(GnrBaseService):
         return self._post("/commands/run-now")
 
     def suspend(self):
-        """Suspend the remote scheduler."""
+        """Suspend the remote dispatcher."""
         return self._post("/commands/suspend")
 
     def activate(self):
-        """Activate the remote scheduler."""
+        """Activate the remote dispatcher."""
         return self._post("/commands/activate")
-
-    def schedule(self, rules=None, active: Optional[bool] = None):
-        """Synchronise scheduler state with the async mail service.
-
-        ``rules`` should be an iterable of rule payloads accepted by the async
-        mail API (see ``RulePayload``). Each rule is sent individually to the
-        service. ``active`` toggles the scheduler via the dedicated commands.
-        """
-        last_response: Optional[Dict[str, Any]] = None
-        if rules is not None:
-            if not isinstance(rules, (list, tuple)):
-                raise ValueError("rules must be a list of rule payloads")
-            for rule in rules:
-                if not isinstance(rule, dict):
-                    raise ValueError("rules entries must be dictionaries")
-                last_response = self._post("/commands/rules", json=rule)
-        if active is not None:
-            last_response = self.activate() if active else self.suspend()
-        return last_response or {"ok": True}
 
     def add_account(self, account: Union[dict, str, None]):
         """Register or update an SMTP account on the proxy."""
@@ -136,7 +117,7 @@ class Main(GnrBaseService):
         return enqueue_result
 
     def add_messages(self, messages: List[Dict[str, Any]], default_priority: Optional[int] = None):
-        """Queue a batch of messages for the scheduler and return the service reply."""
+        """Queue a batch of messages for the dispatcher and return the service reply."""
         if not isinstance(messages, list):
             raise ValueError("messages must be a list")
         payload: dict[str, object] = {"messages": messages}
@@ -146,28 +127,6 @@ class Main(GnrBaseService):
         if not isinstance(response, dict):
             raise RuntimeError("Mail proxy add-messages returned an unexpected payload")
         return response
-
-    def add_rule(self, rule: dict):
-        """Add a scheduler rule."""
-        if not isinstance(rule, dict):
-            raise ValueError("rule must be a dictionary")
-        return self._post("/commands/rules", json=rule)
-
-    def delete_rule(self, rule_id: int):
-        """Delete a scheduler rule."""
-        if rule_id is None:
-            raise ValueError("rule_id is required")
-        return self._delete(f"/commands/rules/{rule_id}")
-
-    def list_rules(self):
-        """List scheduler rules."""
-        return self._get("/commands/rules")
-
-    def set_rule_enabled(self, rule_id: int, enabled: bool):
-        """Enable or disable a scheduler rule."""
-        if rule_id is None:
-            raise ValueError("rule_id is required")
-        return self._patch(f"/commands/rules/{rule_id}", json={"enabled": bool(enabled)})
 
     # -------------------------------------------------------------------------
     # Internal helpers
