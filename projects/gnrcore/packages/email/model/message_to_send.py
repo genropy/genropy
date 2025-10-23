@@ -8,7 +8,8 @@ class Table(object):
         tbl.column('dbstore', name_long='Dbstore')
         tbl.column('message_id',size='22', group='_', name_long='Message'
                     ).relation('message.id',one_one=True,
-                               relation_name='sending_index')    
+                               relation_name='sending_index')  
+        tbl.aliasColumn('proxy_priority','@message_id.proxy_priority')  
 
     def addMessageToQueue(self,message_id):
         dbstore = self.db.currentEnv.get('storename')
@@ -32,3 +33,11 @@ class Table(object):
                 for row in rows:
                     results.append(dispatch_cb(row['message_id']))
         return results
+
+    def trigger_onInserted(self,record=None):
+        self.db.deferToCommit(self.proxyRunNow,_deferredId='_proxy_communication_')
+    
+    def proxyRunNow(self):
+        mailproxy = self.db.application.site.getService('mailproxy')
+        if mailproxy:
+            mailproxy.run_now()
