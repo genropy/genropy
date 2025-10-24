@@ -90,7 +90,13 @@ class Form(BaseComponent):
         fb.field('save_output_message',html_label=True)
         fb.field('send_limit')
         fb.field('debug_address')
-        
+        fb.field('proxy_ttl')
+        fb.field('proxy_limit_per_minute')
+        fb.field('proxy_limit_per_hour')
+        fb.field('proxy_limit_per_day')
+        fb.field('proxy_limit_behavior')
+        fb.field('proxy_batch_size')
+
         self.smtp_toolbar(bc.contentPane(region='bottom'))
         return fb
     

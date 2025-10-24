@@ -104,6 +104,22 @@ class Main(GnrBaseService):
             raise ValueError("message_ids must be a list")
         return self._post("/commands/delete-messages", json={"ids": message_ids})
 
+    def cleanup_messages(self, older_than_seconds: Optional[int] = None):
+        """Manually trigger cleanup of reported messages older than retention period.
+
+        Args:
+            older_than_seconds: Remove messages reported more than this many seconds ago.
+                              If None, uses the configured retention period (default 7 days).
+                              Set to 0 to remove all reported messages immediately.
+
+        Returns:
+            dict: Response with 'ok' status and 'removed' count.
+        """
+        payload = {}
+        if older_than_seconds is not None:
+            payload["older_than_seconds"] = int(older_than_seconds)
+        return self._post("/commands/cleanup-messages", json=payload)
+
     def send_message(self, message: dict):
         """Enqueue a single message and immediately trigger a dispatch cycle."""
         if not isinstance(message, dict):
@@ -206,10 +222,13 @@ class Main(GnrBaseService):
             "user": account_dict.get("smtp_username"),
             "password": account_dict.get("smtp_password"),
             "use_tls": self._safe_bool(account_dict.get("smtp_tls")),
+            "ttl": self._safe_int(account_dict.get("proxy_ttl")),
+            "limit_per_minute": self._safe_int(account_dict.get("proxy_limit_per_minute")),
+            "limit_per_hour": self._safe_int(account_dict.get("proxy_limit_per_hour")),
+            "limit_per_day": self._safe_int(account_dict.get("proxy_limit_per_day")),
+            "limit_behavior": account_dict.get("proxy_limit_behavior"),
+            "batch_size": self._safe_int(account_dict.get("proxy_batch_size")),
         }
-        send_limit = account_dict.get("send_limit")
-        if send_limit:
-            payload["limit_per_day"] = self._safe_int(send_limit)
         timeout = account_dict.get("smtp_timeout")
         if timeout:
             payload["timeout"] = self._safe_int(timeout)
