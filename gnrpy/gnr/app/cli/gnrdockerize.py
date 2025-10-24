@@ -12,7 +12,6 @@ import tempfile
 import datetime
 import os
 import subprocess
-import json
 
 from mako.template import Template
 
