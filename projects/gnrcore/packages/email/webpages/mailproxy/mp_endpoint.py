@@ -84,6 +84,7 @@ class GnrCustomWebPage(object):
                 explanation="Site unavailable retry later",
                 headers=[('Retry-After', retry_after)]
             )
+        print('calling endpoint')
 
         # Process delivery reports from async-mail-service
         report_summary = self._update_from_delivery_report(delivery_report)
@@ -160,6 +161,9 @@ class GnrCustomWebPage(object):
                     if send_ts:
                         try:
                             message['send_date'] = datetime.fromtimestamp(int(send_ts), tz=timezone.utc)
+                            message['deferred_ts'] = None
+                            message['error_ts'] = None
+                            message['error_msg'] = None
                             sent_count += 1
                         except (TypeError, ValueError):
                             logger.warning('Invalid sent_ts in delivery report for message %s: %s', message['id'], send_ts)
