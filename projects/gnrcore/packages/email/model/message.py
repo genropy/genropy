@@ -81,6 +81,12 @@ class Table(object):
         return dict(account_id=self.db.currentEnv.get('current_account_id'))
 
     def trigger_onInserting(self, record_data):
+        if record_data['account_id'] and record_data['in_out']=='O':
+            account_record = self.db.table('email.account').cachedRecord(record_data['account_id'],cacheInPage=True)
+            from_address = from_address or account_record['smtp_from_address']
+            bcc_address = bcc_address or account_record['system_bcc']
+            if account_record['system_bcc'] not in bcc_address:
+                bcc_address = f'{bcc_address},{account_record["system_bcc"]}'
         self.explodeAddressRelations(record_data)
         if record_data['in_out']=='I':
             email_bag = Bag(record_data['email_bag'])
@@ -300,7 +306,7 @@ class Table(object):
                                             moveFile=False, copyFile=True)
         if doCommit:
             self.db.commit()
-        return message_to_dispatch
+        return message_to_dispatch        
 
     def newMessageFromUserTemplate(self,record_id=None,letterhead_id=None,
                             template_id=None,table=None,template_code=None,
@@ -336,7 +342,9 @@ class Table(object):
             if message['weak_attachments']:
                 attachments.extend(message['weak_attachments'].split(','))
             if mp['system_bcc']:
-                bcc_address = '%s,%s' %(bcc_address,mp['system_bcc']) if bcc_address else mp['system_bcc']
+                bcc_address = bcc_address or mp['system_bcc']
+                if mp['system_bcc'] not in bcc_address:
+                    bcc_address = f'{bcc_address},{mp["system_bcc"]}'
             try:
                 mail_handler.sendmail(to_address=to_address,
                                 account_id = account_id,
@@ -347,7 +355,6 @@ class Table(object):
                                 smtp_host=mp['smtp_host'], port=mp['port'], user=mp['user'], password=mp['password'],
                                 ssl=mp['ssl'], tls=mp['tls'], html= message['html'], async_=False,
                                 scheduler=False,headers_kwargs=extra_headers.asDict(ascii=True))
-
                 message['send_date'] = self.newUTCDatetime()
                 message['bcc_address'] = bcc_address
             except SMTPConnectError as e:
