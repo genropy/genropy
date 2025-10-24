@@ -25,7 +25,7 @@ import json
 import os
 import re
 import threading
-
+import functools
 
 from datetime import datetime, timedelta
 import pytz
@@ -1410,8 +1410,6 @@ class SqlTable(GnrObject):
             n.resolver = None
         node.resolver = None
     
-   
-
     @public_method
     def onPasteRecord(self,sourceCluster=None,**kwargs):
         result = self.insertPastedCluster(sourceCluster=sourceCluster,**kwargs)
@@ -3099,6 +3097,42 @@ class SqlTable(GnrObject):
         for tbl in self.totalizers:
             self.db.table(tbl).tt_totalize(record=record,old_record=old_record)
 
+    @property
+    @functools.lru_cache
+    def defaultRetentionPolicy(self):
+        """
+        Returns the data retention policy defined in the table, None otherwise
+        """
+        policy = self.attributes.get("retention_policy", [])
+        if not policy:
+            return None
+        if not isinstance(policy, (tuple,list)) or len(policy) != 2:
+            logger.error("Retention policy for %s must be a 2 element list/tuple", self.name)
+            return None
+        if not isinstance(policy[1], int) or policy[1] < 1:
+            logger.error("Retention policy value for %s must be at least 1 day", self.name)
+            return None
+        return policy
 
+    def executeRetentionPolicy(self, policy=None, dry_run=True):
+        '''
+        Execute the policy deletion and return a summary. If dry_run, only return the summary
+        '''
+        if not policy:
+            return {}
+        
+        cutoff = datetime.now() - timedelta(days=policy['retention_period'])
+        count = self.query(where=f'${policy["filter_column"]} < :cutoff', cutoff=cutoff).count()
+        summary = {"found_records": count}
+        if dry_run:
+            return summary
+        else:
+            # do the actual delete
+            r = self.deleteSelection(where=f'${policy["filter_column"]} < :cutoff', cutoff=cutoff)
+            summary['deleted_records'] = len(r)
+            self.db.commit()
+            return summary
+            
+        
 if __name__ == '__main__':
     pass
