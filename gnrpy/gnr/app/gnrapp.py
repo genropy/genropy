@@ -906,12 +906,23 @@ class GnrApp(object):
                     logger.error(f"ERROR on {name}: {e}")
         return missing, wrong
 
-    def check_package_install_missing(self, nocache=False):
+    def check_package_install_missing(self, nocache=False, upgrading=False):
+        """
+        Install missing packages, or, with upgrading=True, try to
+        upgrade the wrong version of packages.
+        """
         missing, wrong = self.check_package_missing_dependencies()
-        base_cmd = [sys.executable, '-m', 'pip', 'install']
-        if nocache:
-            base_cmd.append("--no-cache-dir")
-        return subprocess.check_call(base_cmd+missing)
+        if upgrading:
+            base_cmd = [sys.executable, '-m', 'pip', 'install']
+            if nocache:
+                base_cmd.append("--no-cache-dir")
+            packages = [x[0] for x in wrong]
+            return subprocess.check_call(base_cmd+packages)
+        else:
+            base_cmd = [sys.executable, '-m', 'pip', 'install']
+            if nocache:
+                base_cmd.append("--no-cache-dir")
+            return subprocess.check_call(base_cmd+missing)
         
     def importFromSourceInstance(self,source_instance=None):
         to_import = ''
