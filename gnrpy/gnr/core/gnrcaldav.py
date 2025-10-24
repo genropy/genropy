@@ -1,12 +1,55 @@
 raise DeprecationWarning("Please don't using gnr.core.gnrcaldav module, deprecated. Will be removed soon")
 
 from datetime import datetime
+import urllib.request 
 import caldav
 from caldav.elements import dav
 
-from gnr.core.gnrbag import Bag,VObjectBag
+from gnr.core.gnrbag import Bag
 from gnr.core.gnrlang import getUuid
 
+
+class VObjectBag(Bag):
+    def fillFrom(self,source):
+        if isinstance(source, (bytes,str)):
+            source, fromFile, mode = self._sourcePrepare(source)
+            if fromFile:
+                urlobj = urllib.request.urlopen(source)
+                info = urlobj.info()
+                contentType = info.gettype().lower()
+                source= urlobj.read()
+            source=source.split('\r\n')
+        current=Bag()
+        self._vparse(source,current)
+        self._nodes[:] = current._nodes[:]
+        
+    def _vparse(self,rows,current):
+        counters={}
+        label,value = None,None
+        while rows:
+            r=rows.pop(0)
+            if not ':' in r:
+                if r:
+                    if label:
+                        value='%s%s'%(value,r)
+                    current.setItem(label,value)
+            else:
+                vtag,value=r.split(':',1)
+                if vtag=='BEGIN':
+                    vtag=value
+                    value=VObjectBag(rows)
+                    
+                elif vtag=='END':
+                    return 
+                if not vtag in counters:                    
+                    counters[vtag]=0
+                    label=vtag
+                else:
+                    label=('%s_%s'%(vtag,counters[vtag]))
+                label=label.lower()
+                current.setItem(label,value,vtag=vtag)
+                counters[vtag]=counters[vtag]+1       
+ 
 def test():
     return CalDavConnection(user='giovanni.porcari@softwell.it',password='toporaton',host='p04-caldav.icloud.com',root='/9403090/calendars/')
 def test1():
