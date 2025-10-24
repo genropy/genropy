@@ -40,6 +40,16 @@ def main():
         'repositories',
         help="Show all git repositories used in this project"
     )
+    subparsers.add_parser(
+        'update',
+        help="Update all repositories according to build configuration"
+    )
+    checkout_parser = subparsers.add_parser(
+        'checkout',
+        help="Show all git repositories used in this project"
+    )
+    checkout_parser.add_argument("path",
+                                help="Path where to execute the checkout")
     
     options = p.parse_args()
 
@@ -74,8 +84,15 @@ def main():
         config = builder.git_repositories()
         print(json.dumps(config, indent=4))
         exit_code = 0
+    elif options.command == 'update':
+        builder.update_project()
+        exit_code = 0
+    elif options.command == 'checkout':
+        builder.checkout_project(options.path)
+        exit_code = 0
     else:
         logger.error("Unsupported command: %s", options.command)
         exit_code = 2
 
     sys.exit(exit_code)
+    

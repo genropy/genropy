@@ -32,7 +32,7 @@ class MultiStageDockerImageBuilder:
         self.builder = GnrProjectBuilder(self.instance)
 
         # check for required executables
-        require_executables = ['git','docker']
+        require_executables = ['docker']
         missing_execs = []
         for executable in require_executables:
             if shutil.which(executable) is None:
@@ -77,72 +77,60 @@ class MultiStageDockerImageBuilder:
         image_labels = {"gnr_app_dockerize_on": str(now)}
         entry_dir = os.getcwd()
 
-        if True:
-            os.chdir(self.build_context_dir)
-            self.dockerfile_path = os.path.join(self.build_context_dir, "Dockerfile")
-            with open(self.dockerfile_path, 'w') as dockerfile:
-                dockerfile.write(f"# Docker image for instance {self.instance_name}\n")
-                dockerfile.write(f"# Dockerfile builded on {now}\n\n")
-                # Genropy image, which is our base image
-                base_image_tag = self.options.bleeding and "develop" or "latest"
-                dockerfile.write(f"FROM ghcr.io/genropy/genropy:{base_image_tag} as build_stage\n")
-                dockerfile.write("WORKDIR /home/genro/genropy_projects\n")
-                dockerfile.write("USER genro\n\n")
-                dockerfile.write('ENV PATH="/home/genro/.local/bin:$PATH"\n')
-                dockerfile.write('ENV GENRO_GNRFOLDER="/home/genro/.gnr/"\n')
+        os.chdir(self.build_context_dir)
+        self.dockerfile_path = os.path.join(self.build_context_dir, "Dockerfile")
+        with open(self.dockerfile_path, 'w') as dockerfile:
+            dockerfile.write(f"# Docker image for instance {self.instance_name}\n")
+            dockerfile.write(f"# Dockerfile builded on {now}\n\n")
+            # Genropy image, which is our base image
+            base_image_tag = self.options.bleeding and "develop" or "latest"
+            dockerfile.write(f"FROM ghcr.io/genropy/genropy:{base_image_tag} as build_stage\n")
+            dockerfile.write("WORKDIR /home/genro/genropy_projects\n")
+            dockerfile.write("USER genro\n\n")
+            dockerfile.write('ENV PATH="/home/genro/.local/bin:$PATH"\n')
+            dockerfile.write('ENV GENRO_GNRFOLDER="/home/genro/.gnr/"\n')
             
-                for idx, repo in enumerate(git_repositories, start=1):
-
-                    repo_name = repo['url'].split("/")[-1].replace(".git", "")
-                    logger.info(f"Checking repository {repo_name} at {repo['url']}")
-                    
-                    result = subprocess.run(["git", "clone", repo['url'], repo_name],
-                                            capture_output=True
-                                            )
-                    if result.returncode == 0:
-                        logger.debug("Git clone for %s went ok", repo['url'])
-                    else:
-                        logger.error("Error cloning %s: %s", repo['url'], result.stderr)
-                        
-                    os.chdir(os.path.join(self.build_context_dir, repo_name))
-                    result = subprocess.run(["git", "checkout", repo['branch_or_commit']],
-                                   capture_output=True
-                                   )
-                    if result.returncode == 0:
-                        logger.debug("Git checkout for branch %s went ok", repo['branch_or_commit'])
-                    else:
-                        logger.error("Error checking out %s: %s", repo['branch_or_commit'], result.stderr)
-                        
-                    commit = self.builder.git_commit_from_path(".")
-                    if commit == repo['branch_or_commit']:
-                        image_labels[f'git:{repo_name}'] = f"@{commit}"
-                    else:
-                        image_labels[f'git:{repo_name}'] = f"{repo['branch_or_commit']}@{commit}"
-
-                    image_labels[f'git:{repo_name}:url'] = "{http_repo_url}/commit/{commit}".format(
-                        # awful hack to get https URL on github if the repository is cloned via ssh
-                        http_repo_url=repo['url'].replace("git@", "https://").replace(".git","").replace("github.com:", "github.com/"),
-                        commit=commit
-                    )
-                    
-                    shutil.rmtree(".git")
-                    # go back to original build directory
-                    os.chdir(self.build_context_dir)
-                    docker_clone_dir = f"/home/genro/genropy_project/{repo_name}"
-                    dockerfile.write(f"# {repo['description']}\n")
-                    site_folder = f"/home/genro/genropy_projects/{repo_name}/instances/{self.instance_name}/site"
-                    if repo['subfolder']:
-                        site_folder = f"/home/genro/genropy_projects/{repo['subfolder']}/instances/{self.instance_name}/site"
-                        dockerfile.write(f"COPY --chown=genro:genro {repo_name}/{repo['subfolder']} /home/genro/genropy_projects/{repo['subfolder']}\n")
-                    else:
-
-                        dockerfile.write(f"COPY --chown=genro:genro {repo_name} /home/genro/genropy_projects/{repo_name}\n")
-
-                dockerfile.write(f"RUN ln -s {site_folder} /home/genro/site\n")
-                dockerfile.write("EXPOSE 8888/tcp 9999/tcp\n")
+            self.builder.checkout_project(dest_dir=".")
                 
-                dockerfile.write("\n# Final customizations\n")
-                gunicorn_template = """
+            for idx, repo in enumerate(git_repositories, start=1):
+                repo_name = self.builder.git_repo_name_from_url(repo['url'])
+                    
+                repo_path = os.path.join(self.build_context_dir, repo_name)
+
+                    
+                commit = self.builder.git_commit_from_path(repo_path)
+                    
+                if commit == repo['branch_or_commit']:
+                    image_labels[f'git:{repo_name}'] = f"@{commit}"
+                else:
+                    image_labels[f'git:{repo_name}'] = f"{repo['branch_or_commit']}@{commit}"
+                    
+                image_labels[f'git:{repo_name}:url'] = "{http_repo_url}/commit/{commit}".format(
+                    # awful hack to get https URL on github if the repository is cloned via ssh
+                    http_repo_url=repo['url'].replace("git@", "https://").replace(".git","").replace("github.com:", "github.com/"),
+                    commit=commit
+                )
+                
+                os.chdir(repo_path)                    
+                shutil.rmtree(".git")
+                # go back to original build directory
+                os.chdir(self.build_context_dir)
+                
+                docker_clone_dir = f"/home/genro/genropy_project/{repo_name}"
+                dockerfile.write(f"# {repo['description']}\n")
+                site_folder = f"/home/genro/genropy_projects/{repo_name}/instances/{self.instance_name}/site"
+                if repo['subfolder']:
+                    site_folder = f"/home/genro/genropy_projects/{repo['subfolder']}/instances/{self.instance_name}/site"
+                    dockerfile.write(f"COPY --chown=genro:genro {repo_name}/{repo['subfolder']} /home/genro/genropy_projects/{repo['subfolder']}\n")
+                else:
+
+                    dockerfile.write(f"COPY --chown=genro:genro {repo_name} /home/genro/genropy_projects/{repo_name}\n")
+
+            dockerfile.write(f"RUN ln -s {site_folder} /home/genro/site\n")
+            dockerfile.write("EXPOSE 8888/tcp 9999/tcp\n")
+            
+            dockerfile.write("\n# Final customizations\n")
+            gunicorn_template = """
 import multiprocessing
 bind = '0.0.0.0:8888'
 pidfile = '/home/genro/gunicorn_{instanceName}.pid'
@@ -158,12 +146,12 @@ max_requests_jitter = 50
 timeout = 1800
 graceful_timeout = 600      
                 """
-                with open("gunicorn.py", "w") as wfp:
-                    wfp.write(gunicorn_template.format(instanceName=self.instance_name,
+            with open("gunicorn.py", "w") as wfp:
+                wfp.write(gunicorn_template.format(instanceName=self.instance_name,
                                                        main_repo_name=self.main_repo_name))
-                dockerfile.write(f"COPY --chown=genro:genro gunicorn.py /home/genro/gunicorn.py\n")
+            dockerfile.write(f"COPY --chown=genro:genro gunicorn.py /home/genro/gunicorn.py\n")
                 
-                supervisor_template = """
+            supervisor_template = """
 [supervisord]
 nodaemon = true
                 
@@ -211,55 +199,55 @@ stdout_logfile_maxbytes=0
 stderr_logfile=/dev/stderr
 stderr_logfile_maxbytes=0
                 """
-                with open("supervisord.conf", "w") as wfp:
-                    wfp.write(supervisor_template.format(instanceName=self.instance_name))
+            with open("supervisord.conf", "w") as wfp:
+                wfp.write(supervisor_template.format(instanceName=self.instance_name))
                     
-                dockerfile.write(f"COPY --chown=genro:genro supervisord.conf /etc/supervisor/conf.d/{self.instance_name}-supervisor.conf\n")
+            dockerfile.write(f"COPY --chown=genro:genro supervisord.conf /etc/supervisor/conf.d/{self.instance_name}-supervisor.conf\n")
 
-                dockerfile.write(f"RUN gnr app checkdep -n -i {self.instance_name}\n")
+            dockerfile.write(f"RUN gnr app checkdep -n -i {self.instance_name}\n")
 
-                dockerfile.write("LABEL {}\n".format(
-                    " \\ \n\t ".join([f'{k}="{v}"' for k,v in image_labels.items()])
-                ))
-                dockerfile.write(f'CMD gnr db migrate -u {self.instance_name} && /usr/bin/supervisord\n')
-                dockerfile.close()
-                logger.info(f"Dockerfile generated at: {self.dockerfile_path}")
-                # Ensure to have Docker installed and running
-                build_command = ['docker', 'build', '-t',
-                                 f'{self.image_name}:{version_tag}',
-                                 self.build_context_dir]
-                subprocess.run(build_command, check=True)
-                logger.info("Docker image built successfully.")
-                os.chdir(entry_dir)
+            dockerfile.write("LABEL {}\n".format(
+                " \\ \n\t ".join([f'{k}="{v}"' for k,v in image_labels.items()])
+            ))
+            dockerfile.write(f'CMD gnr db migrate -u {self.instance_name} && /usr/bin/supervisord\n')
+            dockerfile.close()
+            logger.info(f"Dockerfile generated at: {self.dockerfile_path}")
+            # Ensure to have Docker installed and running
+            build_command = ['docker', 'build', '-t',
+                             f'{self.image_name}:{version_tag}',
+                             self.build_context_dir]
+            subprocess.run(build_command, check=True)
+            logger.info("Docker image built successfully.")
+            os.chdir(entry_dir)
                 
-            if self.options.push:
-                # push the newly created image to the registry
-                image_push = f"{self.image_name}:{version_tag}"
-                image_push_url = f'{self.options.registry}/{self.options.username}/{image_push}'
-                logger.info(f"Tagging image {image_push} to {image_push_url}")
-                subprocess.run(['docker','tag', image_push, image_push_url])
-                logger.info(f"Pushing image {image_push_url}")
-                subprocess.run(['docker', 'push', image_push_url])
+        if self.options.push:
+            # push the newly created image to the registry
+            image_push = f"{self.image_name}:{version_tag}"
+            image_push_url = f'{self.options.registry}/{self.options.username}/{image_push}'
+            logger.info(f"Tagging image {image_push} to {image_push_url}")
+            subprocess.run(['docker','tag', image_push, image_push_url])
+            logger.info(f"Pushing image {image_push_url}")
+            subprocess.run(['docker', 'push', image_push_url])
 
-            # docker compose conf file
-            if self.options.compose:
-                extra_labels = []
+        # docker compose conf file
+        if self.options.compose:
+            extra_labels = []
 
-                if self.options.fqdn and self.options.router == 'traefik':
-                    extra_labels.extend([
-                        'traefik.enable: "true"',
-                        f'traefik.http.routers.{self.instance_name}_web.rule: "(Host(`{self.options.fqdn}`) && !Path(`/websocket`))"',
-                        f'traefik.http.routers.{self.instance_name}_web.entrypoints: http',
-                        f'traefik.http.routers.{self.instance_name}_web.service: {self.instance_name}_svc_web',
-                        f'traefik.http.services.{self.instance_name}_svc_web.loadbalancer.server.port: 8888',
-                        f'traefik.http.routers.{self.instance_name}_wsk.rule: "(Host(`{self.options.fqdn}`) && Path(`/websocket`))"',
-                        f'traefik.http.routers.{self.instance_name}_wsk.entrypoints: http',
-                        f'traefik.http.routers.{self.instance_name}_wsk.service: {self.instance_name}_svc_wsk',
-                        f'traefik.http.services.{self.instance_name}_svc_wsk.loadbalancer.server.port: 9999'
-                    ])
-                                        
+            if self.options.fqdn and self.options.router == 'traefik':
+                extra_labels.extend([
+                    'traefik.enable: "true"',
+                    f'traefik.http.routers.{self.instance_name}_web.rule: "(Host(`{self.options.fqdn}`) && !Path(`/websocket`))"',
+                    f'traefik.http.routers.{self.instance_name}_web.entrypoints: http',
+                    f'traefik.http.routers.{self.instance_name}_web.service: {self.instance_name}_svc_web',
+                    f'traefik.http.services.{self.instance_name}_svc_web.loadbalancer.server.port: 8888',
+                    f'traefik.http.routers.{self.instance_name}_wsk.rule: "(Host(`{self.options.fqdn}`) && Path(`/websocket`))"',
+                    f'traefik.http.routers.{self.instance_name}_wsk.entrypoints: http',
+                    f'traefik.http.routers.{self.instance_name}_wsk.service: {self.instance_name}_svc_wsk',
+                    f'traefik.http.services.{self.instance_name}_svc_wsk.loadbalancer.server.port: 9999'
+                ])
+                
                     
-                compose_template = """
+            compose_template = """
 ---
 # Docker compose file for instance ${instanceName}:${version_tag}
 
@@ -304,15 +292,15 @@ services:
       - ${instanceName}_site:/home/genro/site/
                 
                 """
-                compose_template_file = f"{self.instance_name}-compose.yml"
-                with open(compose_template_file, "w") as wfp:
-                    t = Template(compose_template, strict_undefined=True)
-                    wfp.write(t.render(instanceName=self.instance_name,
-                                       version_tag=version_tag,
-                                       extra_labels=extra_labels))
-                    print(f"Created docker compose file {compose_template_file}")
-                    print(f"You can now execute 'docker-compose -f {compose_template_file} up'")
-                    print("YMMV, please adjust the generated file accordingly.")
+            compose_template_file = f"{self.instance_name}-compose.yml"
+            with open(compose_template_file, "w") as wfp:
+                t = Template(compose_template, strict_undefined=True)
+                wfp.write(t.render(instanceName=self.instance_name,
+                                   version_tag=version_tag,
+                                   extra_labels=extra_labels))
+                print(f"Created docker compose file {compose_template_file}")
+                print(f"You can now execute 'docker-compose -f {compose_template_file} up'")
+                print("YMMV, please adjust the generated file accordingly.")
                     
 def main():
     parser = GnrCliArgParse(description=description)
