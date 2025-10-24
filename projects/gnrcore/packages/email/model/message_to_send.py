@@ -38,6 +38,7 @@ class Table(object):
         self.db.deferToCommit(self.proxyRunNow,_deferredId='_proxy_communication_')
     
     def proxyRunNow(self):
-        mailproxy = self.db.application.site.getService('mailproxy')
-        if mailproxy:
-            mailproxy.run_now()
+        with self.db.tempEnv(storename=False):
+            mailproxy = self.db.application.site.getService('mailproxy')
+            if mailproxy:
+                mailproxy.run_now()
