@@ -76,12 +76,24 @@ class Table(object):
         return dict(account_id=self.db.currentEnv.get('current_account_id'))
 
     def trigger_onInserting(self, record_data):
-        if record_data['account_id'] and record_data['in_out']=='O':
-            account_record = self.db.table('email.account').cachedRecord(record_data['account_id'],cacheInPage=True)
-            from_address = from_address or account_record['smtp_from_address']
-            bcc_address = bcc_address or account_record['system_bcc']
-            if account_record['system_bcc'] not in bcc_address:
-                bcc_address = f'{bcc_address},{account_record["system_bcc"]}'
+        if record_data['account_id'] and record_data['in_out'] == 'O':
+            account_record = self.db.table('email.account').cachedRecord(
+                record_data['account_id'], 
+                cacheInPage=True
+            )
+            
+            # Set from_address if missing
+            if not record_data['from_address']:
+                record_data['from_address'] = account_record['smtp_from_address']
+            
+            # Handle BCC addresses
+            bcc_address = record_data['bcc_address'] or account_record['system_bcc'] or ''
+            system_bcc = account_record['system_bcc']
+            
+            if system_bcc and system_bcc not in bcc_address:
+                bcc_address = f'{bcc_address},{system_bcc}' if bcc_address else system_bcc
+            
+            record_data['bcc_address'] = bcc_address or None
         self.explodeAddressRelations(record_data)
         if record_data['in_out']=='I':
             email_bag = Bag(record_data['email_bag'])
@@ -321,9 +333,10 @@ class Table(object):
             if message['weak_attachments']:
                 attachments.extend(message['weak_attachments'].split(','))
             if mp['system_bcc']:
-                bcc_address = bcc_address or mp['system_bcc']
-                if mp['system_bcc'] not in bcc_address:
+                bcc_address = bcc_address or mp['system_bcc'] or ''
+                if mp['system_bcc'] and mp['system_bcc'] not in bcc_address:
                     bcc_address = f'{bcc_address},{mp["system_bcc"]}'
+                bcc_address = bcc_address or None
             try:
                 mail_handler.sendmail(to_address = message['to_address'],
                                 account_id = account_id,

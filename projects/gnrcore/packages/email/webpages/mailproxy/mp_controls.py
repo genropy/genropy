@@ -22,7 +22,7 @@ class GnrCustomWebPage(object):
         bc.css('.mp-status-error', 'color:#c00000; font-weight:bold;')
 
         status_pane = bc.contentPane(region='top', height='160px', datapath='.status', padding='6px')
-        bar = status_pane.slotToolbar('run_now,suspend,activate,*,add_account,refresh,last_message')
+        bar = status_pane.slotToolbar('run_now,suspend,activate,*,cleanup_messages,add_account,refresh,last_message')
 
         shared_on_result = """
             var status = result && result.getItem ? result.getItem('status') : (result ? result.status : null);
@@ -59,6 +59,24 @@ class GnrCustomWebPage(object):
         bar.activate.slotButton('!!Activate').dataRpc(
             'main.status.last_command',
             self.rpc_activate,
+            _onResult=shared_on_result
+        )
+        bar.cleanup_messages.slotButton('!!Cleanup messages', iconClass='iconbox delete').dataRpc(
+            'main.status.last_command',
+            self.rpc_cleanup_messages,
+            older_than_seconds='=_ask.older_than_seconds',
+            _ask=dict(
+                title='!!Cleanup reported messages',
+                fields=[
+                    dict(
+                        name='older_than_seconds',
+                        lbl='!!Retention (seconds)',
+                        tag='numberTextBox',
+                        tip='!!Leave empty to use configured retention (7 days). Set to 0 to remove all reported messages.',
+                        width='15em'
+                    )
+                ]
+            ),
             _onResult=shared_on_result
         )
         bar.add_account.slotButton('!!Add account').dataRpc(
@@ -162,6 +180,7 @@ class GnrCustomWebPage(object):
         rows.cell('deferred_time', name='!!Deferred until', width='16em')
         rows.cell('sent_ts', name='!!Sent at', width='16em')
         rows.cell('error_ts', name='!!Error at', width='16em')
+        rows.cell('reported_ts', name='!!Reported at', width='16em')
         rows.cell('error', name='!!Error message', width='24em')
         rows.cell('retry_count', name='!!Retries', width='8em', dtype='I')
 
@@ -204,6 +223,18 @@ class GnrCustomWebPage(object):
     @public_method
     def rpc_activate(self):
         return self._command_wrapper('Activate dispatcher', lambda svc: svc.activate(), include_overview=True)
+
+    @public_method
+    def rpc_cleanup_messages(self, older_than_seconds=None):
+        def cleanup_call(svc):
+            payload = {}
+            if older_than_seconds is not None:
+                try:
+                    payload['older_than_seconds'] = int(older_than_seconds)
+                except (TypeError, ValueError):
+                    pass
+            return svc.cleanup_messages(**payload)
+        return self._command_wrapper('Cleanup messages', cleanup_call, include_overview=True)
 
     @public_method
     def rpc_add_account(self, account_id=None):
@@ -329,6 +360,7 @@ class GnrCustomWebPage(object):
                 'deferred_time': self._format_timestamp(data.get('deferred_ts')),
                 'sent_ts': self._format_timestamp(data.get('sent_ts')),
                 'error_ts': self._format_timestamp(data.get('error_ts')),
+                'reported_ts': self._format_timestamp(data.get('reported_ts')),
                 'error': data.get('error'),
                 'retry_count': payload.get('retry_count') or 0,
             }
