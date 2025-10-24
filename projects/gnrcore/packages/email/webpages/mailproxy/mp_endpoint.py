@@ -84,8 +84,6 @@ class GnrCustomWebPage(object):
                 explanation="Site unavailable retry later",
                 headers=[('Retry-After', retry_after)]
             )
-        print('calling endpoint')
-
         # Process delivery reports from async-mail-service
         report_summary = self._update_from_delivery_report(delivery_report)
 
@@ -382,9 +380,9 @@ class GnrCustomWebPage(object):
         message_id = record['id']
         atc_tbl = self.db.table('email.message_atc')
         attachment_rows = atc_tbl.query(
-            where='$maintable_id=:mid',
+            where='$maintable_id=:mid AND $filepath IS NOT NULL',
             mid=message_id,
-            columns='$description,$filepath,$external_url,$full_external_url,$filepath_original_name',
+            columns='$filepath',
             addPkeyColumn=False
         ).fetch()
         for row in attachment_rows:
@@ -404,21 +402,12 @@ class GnrCustomWebPage(object):
         if hasattr(row, 'asDict'):
             row = row.asDict(ascii=True)
         filepath = row.get('filepath')
-        filename = row.get('filepath_original_name') or row.get('description')
-
-        # External URLs take precedence over storage resolution
-        url = row.get('full_external_url') or row.get('external_url')
-        if url:
-            entry = dict(url=url)
-            if filename:
-                entry['filename'] = filename
-            return entry
 
         node = self._storage_node(filepath)
         if not node:
             return None
-        filename = filename or node.basename
-        return self._attachment_payload_from_node(node, filename=filename)
+        # Always use node.basename as filename (includes extension)
+        return self._attachment_payload_from_node(node, filename=node.basename)
 
     def _attachment_entry_from_path(self, path):
         node = self._storage_node(path)
