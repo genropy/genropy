@@ -1,6 +1,8 @@
 import os
 import sys
 import time
+import shutil
+import pytest
 local_dir = os.path.dirname(__file__)
 sys.path.append(os.path.join(local_dir, ".."))
 
@@ -30,6 +32,8 @@ class BaseGnrDaemonTest(BaseGnrTest):
     @classmethod
     def setup_class(cls):
         super().setup_class()
+        if shutil.which("gnr") is None:
+            pytest.skip("gnr CLI not available in PATH")
         cls.external = ExternalProcess(['gnr','web','daemon'], cwd=None)
 
         try:
