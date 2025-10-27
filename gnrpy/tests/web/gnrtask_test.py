@@ -9,40 +9,34 @@ import pytest
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 
-if "unidecode" not in sys.modules:
-    unidecode_stub = types.ModuleType("unidecode")
-    unidecode_stub.unidecode = lambda value, *_, **__: value
-    sys.modules["unidecode"] = unidecode_stub
-
-if "tzlocal" not in sys.modules:
-    tzlocal_stub = types.ModuleType("tzlocal")
-
-    class _TimezoneStub:
-        def __call__(self):
-            return timezone.utc
-
-    tzlocal_stub.get_localzone = lambda: timezone.utc
-    tzlocal_stub.tzlocal = _TimezoneStub()
-    sys.modules["tzlocal"] = tzlocal_stub
-
-if "gnr.web.gnrwsgisite" not in sys.modules:
-    site_stub = types.ModuleType("gnr.web.gnrwsgisite")
-
-    class _GnrWsgiSite:
-        def __init__(self, *_, **__):
-            self.dummyPage = types.SimpleNamespace()
-            self.currentPage = None
-
-    site_stub.GnrWsgiSite = _GnrWsgiSite
-    sys.modules["gnr.web.gnrwsgisite"] = site_stub
-
-from webcommon import BaseGnrDaemonTest
+from webcommon import BaseGnrTest
 
 from gnr.web import gnrtask
 
 
+class _AsyncFixtureWrapper:
+    def __init__(self, wrapped, loop):
+        self._wrapped = wrapped
+        self._loop = loop
+
+    def run(self, coro):
+        return self._loop.run_until_complete(coro)
+
+    def __getattr__(self, item):
+        return getattr(self._wrapped, item)
+
+    def __setattr__(self, key, value):
+        if key in {"_wrapped", "_loop"} or key.startswith("_"):
+            super().__setattr__(key, value)
+        else:
+            setattr(self._wrapped, key, value)
+
+
 @pytest.fixture
 def scheduler(monkeypatch, tmp_path):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     class DummyQueryResult:
         def fetch(self):
             return []
@@ -81,13 +75,28 @@ def scheduler(monkeypatch, tmp_path):
 
     monkeypatch.setattr(gnrtask, "GnrApp", DummyApp)
 
-    scheduler = gnrtask.GnrTaskScheduler("gnrdevelop", host=None, port=None)
+    class DummySite:
+        def __init__(self, *_, **__):
+            self.dummyPage = types.SimpleNamespace()
+            self.currentPage = None
+
+    monkeypatch.setattr(gnrtask, "GnrWsgiSite", DummySite)
+
+    scheduler = gnrtask.GnrTaskScheduler("gnrtest", host=None, port=None)
     scheduler.dump_file_name = str(tmp_path / "queue_dump.json")
-    return scheduler
+    wrapper = _AsyncFixtureWrapper(scheduler, loop)
+
+    yield wrapper
+
+    asyncio.set_event_loop(None)
+    loop.close()
 
 
 @pytest.fixture
 def worker(monkeypatch):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     class DummyTable:
         pass
 
@@ -101,11 +110,34 @@ def worker(monkeypatch):
 
     monkeypatch.setattr(gnrtask, "GnrApp", DummyApp)
 
-    worker = gnrtask.GnrTaskWorker("gnrdevelop", queue_name="custom", processes=2)
-    return worker
+    class DummySite:
+        def __init__(self, *_, **__):
+            self.dummyPage = types.SimpleNamespace()
+            self.currentPage = None
+
+    monkeypatch.setattr(gnrtask, "GnrWsgiSite", DummySite)
+
+    worker = gnrtask.GnrTaskWorker("gnrtest", queue_name="custom", processes=2)
+    wrapper = _AsyncFixtureWrapper(worker, loop)
+
+    yield wrapper
+
+    asyncio.set_event_loop(None)
+    loop.close()
 
 
-class TestGnrTaskBasics(BaseGnrDaemonTest):
+class _NoDaemonBase(BaseGnrTest):
+    @classmethod
+    def setup_class(cls):
+        # Skip expensive BaseGnrTest environment bootstrap; tests provide their own stubs.
+        pass
+
+    @classmethod
+    def teardown_class(cls):
+        pass
+
+
+class TestGnrTaskBasics(_NoDaemonBase):
     def test_task_is_due_run_asap_returns_wildcard(self):
         task = gnrtask.GnrTask(
             name="t1",
@@ -147,7 +179,7 @@ class TestGnrTaskBasics(BaseGnrDaemonTest):
         assert result == "2024-4-1-12-15"
 
 
-class TestGnrTaskScheduler(BaseGnrDaemonTest):
+class TestGnrTaskScheduler(_NoDaemonBase):
     def test_dump_queue_to_disk_preserves_items(self, scheduler):
         item = {"queue_name": "general", "payload": {"task": 1}}
 
@@ -155,7 +187,7 @@ class TestGnrTaskScheduler(BaseGnrDaemonTest):
             await scheduler.queues["general"].put(item)
             await scheduler.dump_queue_to_disk()
 
-        asyncio.run(runner())
+        scheduler.run(runner())
 
         assert scheduler.queues["general"].qsize() == 1
         dump_path = scheduler.dump_file_name
@@ -172,7 +204,7 @@ class TestGnrTaskScheduler(BaseGnrDaemonTest):
             restored_item = await asyncio.wait_for(scheduler.queues["custom"].get(), timeout=1)
             return restored_item, scheduler.queues["custom"].empty()
 
-        restored, empty = asyncio.run(runner())
+        restored, empty = scheduler.run(runner())
 
         assert scheduler.queues["custom"].qsize() == 0
         assert restored == item
@@ -207,7 +239,7 @@ class TestGnrTaskScheduler(BaseGnrDaemonTest):
             await scheduler.empty_queue("custom")
 
         original_queue = scheduler.queues["custom"]
-        asyncio.run(runner())
+        scheduler.run(runner())
         new_queue = scheduler.queues["custom"]
 
         assert new_queue is not original_queue
@@ -227,7 +259,7 @@ class TestGnrTaskScheduler(BaseGnrDaemonTest):
         async def runner():
             await scheduler.put_task_in_queue("task1", task)
 
-        asyncio.run(runner())
+        scheduler.run(runner())
 
         assert scheduler.tasks["task1"][1].tzinfo is timezone.utc
         assert scheduler.exectbl.inserted, "Execution table should record insert"
@@ -255,13 +287,13 @@ class TestGnrTaskScheduler(BaseGnrDaemonTest):
         task.completed = completed
         scheduler.tasks["task42"] = [task, None]
 
-        asyncio.run(scheduler.complete_task("task42"))
+        scheduler.run(scheduler.complete_task("task42"))
         assert called["ok"]
 
     def test_complete_task_unknown_logs_error(self, scheduler, caplog):
         caplog.set_level("ERROR")
         scheduler.tasks["missing"] = [None, None]
-        asyncio.run(scheduler.complete_task("missing"))
+        scheduler.run(scheduler.complete_task("missing"))
         assert any("can't complete" in rec.message for rec in caplog.records)
 
     def test_load_configuration_populates_tasks(self, scheduler, monkeypatch):
@@ -293,7 +325,7 @@ class TestGnrTaskScheduler(BaseGnrDaemonTest):
 
         scheduler.tasktbl = CustomTaskTable()
 
-        asyncio.run(scheduler.load_configuration())
+        scheduler.run(scheduler.load_configuration())
 
         assert "task1" in scheduler.tasks
         loaded_task, last_ts = scheduler.tasks["task1"]
@@ -313,7 +345,7 @@ class TestGnrTaskScheduler(BaseGnrDaemonTest):
         monkeypatch.setattr(gnrtask.asyncio, "sleep", fake_sleep)
 
         with pytest.raises(asyncio.CancelledError):
-            asyncio.run(scheduler.retry_monitor())
+            scheduler.run(scheduler.retry_monitor())
 
         assert scheduler.queues["general"].qsize() == 1
         requeued = scheduler.queues["general"].get_nowait()
@@ -331,7 +363,7 @@ class TestGnrTaskScheduler(BaseGnrDaemonTest):
         monkeypatch.setattr(gnrtask.asyncio, "sleep", fake_sleep)
 
         with pytest.raises(asyncio.CancelledError):
-            asyncio.run(scheduler.retry_monitor())
+            scheduler.run(scheduler.retry_monitor())
 
         assert "run-limit" not in scheduler.pending_ack
         assert scheduler.failed_tasks[-1]["run_id"] == "run-limit"
@@ -345,7 +377,7 @@ class TestGnrTaskScheduler(BaseGnrDaemonTest):
             response = await scheduler.next_task(request)
             return response
 
-        response = asyncio.run(runner())
+        response = scheduler.run(runner())
         assert scheduler.workers["workerA"]["worked_tasks"] == 1
         assert "runX" in scheduler.pending_ack
         payload = json.loads(response.text)
@@ -357,7 +389,7 @@ class TestGnrTaskScheduler(BaseGnrDaemonTest):
         async def runner():
             return await scheduler.next_task(request)
 
-        response = asyncio.run(runner())
+        response = scheduler.run(runner())
         assert response is None
 
     def test_acknowledge_known_task(self, scheduler, monkeypatch):
@@ -373,7 +405,7 @@ class TestGnrTaskScheduler(BaseGnrDaemonTest):
             async def json(self):
                 return {"run_id": "run1"}
 
-        response = asyncio.run(scheduler.acknowledge(DummyRequest()))
+        response = scheduler.run(scheduler.acknowledge(DummyRequest()))
         assert json.loads(response.text) == {"status": "acknowledged"}
         assert "run1" not in scheduler.pending_ack
         assert called["task_id"] == "task1"
@@ -383,7 +415,7 @@ class TestGnrTaskScheduler(BaseGnrDaemonTest):
             async def json(self):
                 return {"run_id": "unknown"}
 
-        response = asyncio.run(scheduler.acknowledge(DummyRequest()))
+        response = scheduler.run(scheduler.acknowledge(DummyRequest()))
         assert response.status == 400
         assert json.loads(response.text)["status"] == "unknown task"
 
@@ -410,7 +442,7 @@ class TestGnrTaskScheduler(BaseGnrDaemonTest):
         async def runner():
             return await scheduler.schedule_single_execution(task_def)
 
-        result = asyncio.run(runner())
+        result = scheduler.run(runner())
         assert result == "ok"
         assert scheduler.tasks[None][0].name == "manual"
         assert scheduler.queues["custom"].qsize() == 1
@@ -443,7 +475,7 @@ class TestGnrTaskScheduler(BaseGnrDaemonTest):
         monkeypatch.setattr(scheduler, "retry_monitor", fake_retry_monitor)
         monkeypatch.setattr(gnrtask.asyncio, "create_task", fake_create_task)
 
-        asyncio.run(scheduler.start_service())
+        scheduler.run(scheduler.start_service())
 
         assert ("load_config", False) in calls
         assert ("load_queue", None) in calls
@@ -457,11 +489,11 @@ class TestGnrTaskScheduler(BaseGnrDaemonTest):
             calls.append("dumped")
 
         monkeypatch.setattr(scheduler, "dump_queue_to_disk", fake_dump)
-        asyncio.run(scheduler.shutdown_scheduler())
+        scheduler.run(scheduler.shutdown_scheduler())
         assert calls == ["dumped"]
 
 
-class TestSchedulerClient(BaseGnrDaemonTest):
+class TestSchedulerClient(_NoDaemonBase):
     def test_scheduler_client_routes_calls(self, monkeypatch):
         calls = []
 
@@ -519,7 +551,7 @@ class TestSchedulerClient(BaseGnrDaemonTest):
             client.empty_queue("general")
 
 
-class TestGnrTaskWorker(BaseGnrDaemonTest):
+class TestGnrTaskWorker(_NoDaemonBase):
     def test_worker_notify_alive_success(self, worker, monkeypatch):
         calls = []
 
@@ -589,7 +621,7 @@ class TestGnrTaskWorker(BaseGnrDaemonTest):
                 return DummyResponse(200)
 
         monkeypatch.setattr(gnrtask.aiohttp, "ClientSession", DummySession)
-        assert asyncio.run(worker.say_goodbye()) is True
+        assert worker.run(worker.say_goodbye()) is True
 
     def test_worker_say_goodbye_failure(self, worker, monkeypatch):
         class DummyResponse:
@@ -616,7 +648,7 @@ class TestGnrTaskWorker(BaseGnrDaemonTest):
                 return DummyResponse(500)
 
         monkeypatch.setattr(gnrtask.aiohttp, "ClientSession", DummySession)
-        assert asyncio.run(worker.say_goodbye()) is False
+        assert worker.run(worker.say_goodbye()) is False
 
     def test_worker_say_goodbye_exception(self, worker, monkeypatch, caplog):
         caplog.set_level("ERROR")
@@ -635,7 +667,7 @@ class TestGnrTaskWorker(BaseGnrDaemonTest):
                 raise RuntimeError("boom")
 
         monkeypatch.setattr(gnrtask.aiohttp, "ClientSession", DummySession)
-        assert asyncio.run(worker.say_goodbye()) is False
+        assert worker.run(worker.say_goodbye()) is False
         assert any("Unable to leave scheduler" in rec.message for rec in caplog.records)
 
     def test_worker_shutdown_worker_stops_consumers(self, worker, monkeypatch):
@@ -667,7 +699,7 @@ class TestGnrTaskWorker(BaseGnrDaemonTest):
             await worker.shutdown_worker(consumers, alive_task)
             return consumers, alive_task
 
-        consumers, alive_task = asyncio.run(runner())
+        consumers, alive_task = worker.run(runner())
 
         assert worker.stop_evt.is_set()
         assert worker.tasks_q.empty()
