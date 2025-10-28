@@ -35,7 +35,7 @@ from gnr.web import logger
 
 class GnrTaskScheduler(object):
     def __init__(self,instancename,interval=None):
-        self.app = GnrApp(instancename,enabled_packages=['gnrcore:sys'])
+        self.app = GnrApp(instancename,enabled_packages=['gnrcore:sys','gnrextra:neon'])
         self.db = self.app.db
         self.interval = interval or 60
         self.pid = os.getpid()
