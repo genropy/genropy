@@ -567,6 +567,10 @@ class SqlDbAdapter(object):
         Set the locale in the database connection
         """
         warnings.warn("Database adapter doesn't provide setLocale() implementation")
+
+    def retryAfter(self,max_time=None):
+        """to implement if the db provide a scale to zero"""
+        return 0
         
     def ageAtDate(self, dateColumn, dateArg=None, timeUnit='day'):
         """Returns the sql clause to obtain the age of a dateColum measured as difference from the dateArg or the workdate

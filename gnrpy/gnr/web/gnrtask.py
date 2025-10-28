@@ -44,8 +44,10 @@ class GnrTaskScheduler(object):
 
     def start(self):
         while True:
-            self.writeTaskExecutions()
-            self.db.closeConnection()
+            retryAfter =  self.db.adapter.retryAfter()
+            if not retryAfter:
+                self.writeTaskExecutions()
+                self.db.closeConnection()
             sleep(self.interval)
     
     def writeTaskExecutions(self):
@@ -132,16 +134,22 @@ class GnrTaskWorker(object):
     
     def start(self):
         while True:
-            for te_pkey in self.taskToExecute():
-                logger.info("Starting task %s", te_pkey)
-                with self.tblobj.recordToUpdate(te_pkey,for_update='SKIP LOCKED',
-                                                virtual_columns="""$task_table,
-                                                                    $task_name,
-                                                                    $task_parameters,
-                                                                    $task_command,
-                                                                    $task_saved_query""") as task_execution:
-                    self.runTask(task_execution)
-                    task_execution['end_ts'] = datetime.now()
-                self.db.commit()
-            self.db.closeConnection()
+            retryAfter =  self.db.adapter.retryAfter()
+            if not retryAfter:
+                self.executeTasks()
             sleep(randrange(self.interval-10,self.interval+10))
+    
+    def executeTasks(self,taskToExecute=None):
+        for te_pkey in self.taskToExecute():
+            logger.info("Starting task %s", te_pkey)
+            with self.tblobj.recordToUpdate(te_pkey,for_update='SKIP LOCKED',
+                                            virtual_columns="""$task_table,
+                                                                $task_name,
+                                                                $task_parameters,
+                                                                $task_command,
+                                                                $task_saved_query""") as task_execution:
+                self.runTask(task_execution)
+                task_execution['end_ts'] = datetime.now()
+            self.db.commit()
+        self.db.closeConnection()
+
