@@ -50,6 +50,131 @@ class Main(GnrBaseService):
             raise ValueError("account_id is required")
         return self._delete(f"/account/{account_id}")
 
+    def add_volumes(self, volumes: List[Dict[str, Any]]):
+        """Register storage volumes on the proxy.
+
+        Args:
+            volumes: List of volume configurations with id, storage_type, and config
+
+        Returns:
+            dict: Response with 'ok' status and 'added' count
+        """
+        if not isinstance(volumes, list):
+            raise ValueError("volumes must be a list")
+        return self._post("/volumes", json={"volumes": volumes})
+
+    def add_volume_from_service(self, service_name: str, volume_id: Optional[str] = None):
+        """Register a storage volume from a genropy storage service.
+
+        Args:
+            service_name: Name of the storage service in genropy
+            volume_id: Custom volume ID (defaults to service_name)
+
+        Returns:
+            dict: Response with 'ok' status and 'added' count
+        """
+        storage_service = self.parent.getService('storage', service_name)
+        if not storage_service:
+            raise ValueError(f"Storage service '{service_name}' not found")
+
+        volume_config = self._convert_service_to_volume_config(storage_service, volume_id or service_name)
+        return self.add_volumes([volume_config])
+
+    def _convert_service_to_volume_config(self, service, volume_id: str) -> Dict[str, Any]:
+        """Convert a genropy storage service to genro-storage volume configuration.
+
+        Args:
+            service: Genropy storage service instance
+            volume_id: Volume identifier
+
+        Returns:
+            dict: Volume configuration for genro-mail-proxy API
+        """
+        implementation = getattr(service, 'service_implementation', None)
+
+        if implementation == 'aws_s3':
+            config = {
+                'protocol': 's3',
+                'base_path': f"{service.bucket}/{service.base_path}" if service.base_path else service.bucket,
+                'key': service.aws_access_key_id,
+                'secret': service.aws_secret_access_key,
+            }
+            if service.region_name:
+                config['client_kwargs'] = {'region_name': service.region_name}
+            if getattr(service, 'endpoint_url', None):
+                config['endpoint_url'] = service.endpoint_url
+            return {
+                'id': volume_id,
+                'storage_type': 'fsspec',
+                'config': config
+            }
+
+        elif implementation == 'local':
+            return {
+                'id': volume_id,
+                'storage_type': 'local',
+                'config': {
+                    'base_path': service.base_path
+                }
+            }
+
+        elif implementation == 'sftp':
+            return {
+                'id': volume_id,
+                'storage_type': 'fsspec',
+                'config': {
+                    'protocol': 'sftp',
+                    'base_path': service.base_path,
+                    'host': service.host,
+                    'port': service.port,
+                    'username': service.username,
+                    'password': service.password
+                }
+            }
+
+        elif implementation == 'http':
+            return {
+                'id': volume_id,
+                'storage_type': 'fsspec',
+                'config': {
+                    'protocol': 'http',
+                    'base_path': getattr(service, 'base_url', '')
+                }
+            }
+
+        else:
+            raise ValueError(f"Unsupported storage implementation: {implementation}")
+
+    def list_volumes(self):
+        """Return the storage volumes configured on the proxy."""
+        return self._get("/volumes")
+
+    def get_volume(self, volume_id: str):
+        """Get details for a specific volume.
+
+        Args:
+            volume_id: The volume identifier
+
+        Returns:
+            dict: Volume configuration details
+        """
+        if not volume_id:
+            raise ValueError("volume_id is required")
+        return self._get(f"/volume/{volume_id}")
+
+    def delete_volume(self, volume_id: str):
+        """Remove a storage volume from the proxy.
+
+        Args:
+            volume_id: The volume identifier
+
+        Returns:
+            dict: Response with 'ok' status
+        """
+        if not volume_id:
+            raise ValueError("volume_id is required")
+        return self._delete(f"/volume/{volume_id}")
+
     def list_messages(self):
         """Return the full message queue with payload details."""
         response = self._get("/messages")
