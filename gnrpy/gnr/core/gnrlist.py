@@ -923,5 +923,5 @@ def getReader(file_path, filetype=None, **kwargs):
                 dialect = csv.Sniffer().sniff(csv_test.read(1024))
 
         reader = CsvReader(file_path,dialect=dialect,**kwargs)
-        reader.index = {slugify(k):v for k,v in reader.index.items()}
+        reader.index = {slugify(k, sep='_'):v for k,v in reader.index.items()}
     return reader

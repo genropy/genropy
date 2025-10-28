@@ -667,3 +667,91 @@ def test_sortByItem_case_insensitive():
     assert result[1]['name'] == 'bob'
     assert result[2]['name'] == 'Charlie'
 
+
+def test_slugify_consistency_across_readers():
+    """Test that CSV, XLS, and XLSX readers use consistent slugification"""
+    import tempfile
+    import csv
+
+    # Headers with spaces and special characters
+    headers = ['Transaction ID', 'User Name', 'Email-Address', 'Created At']
+    expected_keys = ['transaction_id', 'user_name', 'email_address', 'created_at']
+
+    # Test CSV via getReader
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, newline='') as f:
+        csv_file = f.name
+        writer = csv.writer(f)
+        writer.writerow(headers)
+        writer.writerow(['123', 'Alice', 'alice@test.com', '2025-10-28'])
+
+    try:
+        csv_reader = gl.getReader(csv_file)
+        csv_keys = list(csv_reader.index.keys())
+        assert csv_keys == expected_keys, f"CSV keys: {csv_keys}"
+
+        # Verify access works with underscores
+        for row in csv_reader():
+            assert row['transaction_id'] == '123'
+            assert row['user_name'] == 'Alice'
+            break
+    finally:
+        os.unlink(csv_file)
+
+    # Test XLSX
+    try:
+        from openpyxl import Workbook
+    except ImportError:
+        pytest.skip("openpyxl not available")
+
+    with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as f:
+        xlsx_file = f.name
+
+    try:
+        wb = Workbook()
+        ws = wb.active
+        ws.append(headers)
+        ws.append(['123', 'Alice', 'alice@test.com', '2025-10-28'])
+        wb.save(xlsx_file)
+
+        xlsx_reader = gl.XlsxReader(xlsx_file)
+        xlsx_keys = list(xlsx_reader.index.keys())
+        assert xlsx_keys == expected_keys, f"XLSX keys: {xlsx_keys}"
+
+        # Verify access works with underscores
+        for row in xlsx_reader():
+            assert row['transaction_id'] == '123'
+            assert row['user_name'] == 'Alice'
+            break
+    finally:
+        os.unlink(xlsx_file)
+
+    # Test XLS
+    try:
+        import xlwt
+    except ImportError:
+        pytest.skip("xlwt not available")
+
+    with tempfile.NamedTemporaryFile(suffix='.xls', delete=False) as f:
+        xls_file = f.name
+
+    try:
+        wb = xlwt.Workbook()
+        ws = wb.add_sheet('Sheet1')
+        for col, header in enumerate(headers):
+            ws.write(0, col, header)
+        for col, value in enumerate(['123', 'Alice', 'alice@test.com', '2025-10-28']):
+            ws.write(1, col, value)
+        wb.save(xls_file)
+
+        xls_reader = gl.XlsReader(xls_file)
+        xls_keys = list(xls_reader.index.keys())
+        assert xls_keys == expected_keys, f"XLS keys: {xls_keys}"
+
+        # Verify access works with underscores
+        for row in xls_reader():
+            assert row['transaction_id'] == '123'
+            assert row['user_name'] == 'Alice'
+            break
+    finally:
+        os.unlink(xls_file)
+
