@@ -331,9 +331,9 @@ class GenroStorageNodeWrapper:
     def base64(self, mime=None):
         """Returns the base64 encoded string of the file content"""
         if mime:
-            return self._genro_node.to_base64(mime_type=mime, data_uri=True)
+            return self._genro_node.to_base64(mime=mime, include_uri=True)
         else:
-            return self._genro_node.to_base64(mime_type=None, data_uri=False)
+            return self._genro_node.to_base64(mime=None, include_uri=False)
 
     def url(self, **kwargs):
         """Returns the external url of this file"""
