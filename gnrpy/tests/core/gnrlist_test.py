@@ -325,6 +325,345 @@ def test_sortByAttr():
     m1.a = MockObj()
     m2 = MockObj()
     m2.a = MockObj()
-    
-    
-                
+
+
+def test_CsvReader_duplicate_columns():
+    """Test handling of duplicate column names in CSV files"""
+    import tempfile
+    import csv
+
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, newline='') as f:
+        csv_file = f.name
+        writer = csv.writer(f)
+        # Headers with duplicate 'name' column
+        writer.writerow(['id', 'name', 'surname', 'name', 'email'])
+        writer.writerow(['1', 'Mario', 'Rossi', 'Giuseppe', 'mario@test.com'])
+        writer.writerow(['2', 'Laura', 'Bianchi', 'Anna', 'laura@test.com'])
+
+    try:
+        reader = gl.CsvReader(csv_file)
+
+        # Check that duplicate column has been renamed
+        assert 'name' in reader.headers
+        assert 'name[3]' in reader.headers
+        assert reader.headers == ['id', 'name', 'surname', 'name[3]', 'email']
+
+        # Check index mapping
+        assert reader.index['name'] == 1
+        assert reader.index['name[3]'] == 3
+
+        # Read rows
+        rows = [row for row in reader()]
+        assert len(rows) == 2
+
+        # Test first row
+        row = rows[0]
+        assert row[0] == '1'
+        assert row[1] == 'Mario'
+        assert row[2] == 'Rossi'
+        assert row[3] == 'Giuseppe'
+        assert row[4] == 'mario@test.com'
+
+        # Access by name
+        assert row['id'] == '1'
+        assert row['name'] == 'Mario'
+        assert row['surname'] == 'Rossi'
+        assert row['name[3]'] == 'Giuseppe'
+        assert row['email'] == 'mario@test.com'
+
+    finally:
+        os.unlink(csv_file)
+
+
+def test_XlsxReader_duplicate_columns():
+    """Test handling of duplicate column names in XLSX files"""
+    try:
+        from openpyxl import Workbook
+    except ImportError:
+        pytest.skip("openpyxl not available")
+
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as f:
+        xlsx_file = f.name
+
+    try:
+        # Create XLSX with duplicate columns
+        wb = Workbook()
+        ws = wb.active
+        ws.append(['id', 'name', 'surname', 'name', 'email'])
+        ws.append(['1', 'Mario', 'Rossi', 'Giuseppe', 'mario@test.com'])
+        ws.append(['2', 'Laura', 'Bianchi', 'Anna', 'laura@test.com'])
+        wb.save(xlsx_file)
+
+        reader = gl.XlsxReader(xlsx_file)
+
+        # Check that duplicate column has been renamed
+        assert 'name' in reader.headers
+        assert 'name[3]' in reader.headers
+        assert reader.headers == ['id', 'name', 'surname', 'name[3]', 'email']
+
+        # Check index mapping
+        assert reader.index['name'] == 1
+        assert reader.index['name[3]'] == 3
+
+        # Read rows
+        rows = [row for row in reader()]
+        assert len(rows) == 2
+
+        # Test first row
+        row = rows[0]
+        assert row[0] == '1'
+        assert row[1] == 'Mario'
+        assert row[2] == 'Rossi'
+        assert row[3] == 'Giuseppe'
+        assert row[4] == 'mario@test.com'
+
+        # Access by name
+        assert row['id'] == '1'
+        assert row['name'] == 'Mario'
+        assert row['surname'] == 'Rossi'
+        assert row['name[3]'] == 'Giuseppe'
+        assert row['email'] == 'mario@test.com'
+
+    finally:
+        os.unlink(xlsx_file)
+
+
+def test_XlsReader_duplicate_columns():
+    """Test handling of duplicate column names in XLS files"""
+    try:
+        import xlwt
+    except ImportError:
+        pytest.skip("xlwt not available")
+
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(suffix='.xls', delete=False) as f:
+        xls_file = f.name
+
+    try:
+        # Create XLS with duplicate columns
+        wb = xlwt.Workbook()
+        ws = wb.add_sheet('Sheet1')
+
+        # Headers
+        headers = ['id', 'name', 'surname', 'name', 'email']
+        for col, header in enumerate(headers):
+            ws.write(0, col, header)
+
+        # Data rows
+        data = [
+            ['1', 'Mario', 'Rossi', 'Giuseppe', 'mario@test.com'],
+            ['2', 'Laura', 'Bianchi', 'Anna', 'laura@test.com']
+        ]
+        for row_idx, row_data in enumerate(data, start=1):
+            for col_idx, value in enumerate(row_data):
+                ws.write(row_idx, col_idx, value)
+
+        wb.save(xls_file)
+
+        reader = gl.XlsReader(xls_file)
+
+        # Check that duplicate column has been renamed
+        assert 'name' in reader.headers
+        assert 'name[3]' in reader.headers
+        assert reader.headers == ['id', 'name', 'surname', 'name[3]', 'email']
+
+        # Check index mapping
+        assert reader.index['name'] == 1
+        assert reader.index['name[3]'] == 3
+
+        # Read rows
+        rows = [row for row in reader()]
+        assert len(rows) == 2
+
+        # Test first row
+        row = rows[0]
+        assert row[0] == '1'
+        assert row[1] == 'Mario'
+        assert row[2] == 'Rossi'
+        assert row[3] == 'Giuseppe'
+        assert row[4] == 'mario@test.com'
+
+        # Access by name
+        assert row['id'] == '1'
+        assert row['name'] == 'Mario'
+        assert row['surname'] == 'Rossi'
+        assert row['name[3]'] == 'Giuseppe'
+        assert row['email'] == 'mario@test.com'
+
+    finally:
+        os.unlink(xls_file)
+
+
+def test_hGetAttr():
+    """Test hierarchical attribute getter"""
+    class MockObj:
+        def __init__(self):
+            self.name = "Alice"
+            self.profile = None
+
+    class Profile:
+        def __init__(self):
+            self.city = "NYC"
+
+    obj = MockObj()
+    obj.profile = Profile()
+
+    # Simple attribute
+    assert gl.hGetAttr(obj, 'name') == "Alice"
+
+    # Hierarchical attribute
+    assert gl.hGetAttr(obj, 'profile.city') == "NYC"
+
+    # Non-existent attribute
+    assert gl.hGetAttr(obj, 'nonexistent') is None
+
+    # None object
+    assert gl.hGetAttr(None, 'anything') is None
+
+    # Nested None
+    obj.profile = None
+    assert gl.hGetAttr(obj, 'profile.city') is None
+
+
+def test_readTab():
+    """Test tab-delimited file reading"""
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.tab', delete=False) as f:
+        tab_file = f.name
+        f.write("name\tage\tcity\n")
+        f.write("Alice\t30\tNYC\n")
+        f.write("Bob\t25\tLA\n")
+
+    try:
+        rows = list(gl.readTab(tab_file))
+        assert len(rows) == 2
+        assert isinstance(rows[0], gl.GnrNamedList)
+        assert rows[0]['name'] == 'Alice'
+        assert rows[0]['age'] == '30'
+        assert rows[0]['city'] == 'NYC'
+        assert rows[1]['name'] == 'Bob'
+
+    finally:
+        os.unlink(tab_file)
+
+
+def test_GnrNamedList_extractMethods():
+    """Test extractItems and extractValues methods"""
+    index = {'name': 0, 'age': 1, 'city': 2}
+    row = gl.GnrNamedList(index, ['Alice', 30, 'NYC'])
+
+    # extractItems with specific columns
+    items = row.extractItems(['name', 'city'])
+    assert items == [('name', 'Alice'), ('city', 'NYC')]
+
+    # extractItems with all columns
+    all_items = row.extractItems(None)
+    assert len(all_items) == 3
+    assert ('name', 'Alice') in all_items
+
+    # extractValues with specific columns
+    values = row.extractValues(['age', 'name'])
+    assert values == [30, 'Alice']
+
+    # extractValues with all columns
+    all_values = row.extractValues(None)
+    assert len(all_values) == 3
+    assert 'Alice' in all_values
+
+
+def test_GnrNamedList_dynamic_columns():
+    """Test dynamic column addition"""
+    index = {'name': 0, 'age': 1}
+    row = gl.GnrNamedList(index, ['Alice', 30])
+
+    # Add new column
+    row['city'] = 'NYC'
+    assert row['city'] == 'NYC'
+    assert 'city' in row
+    assert row._index['city'] == 2
+
+    # Update existing column
+    row['age'] = 31
+    assert row['age'] == 31
+
+    # Add another new column
+    row['country'] = 'USA'
+    assert row['country'] == 'USA'
+    assert len(row._index) == 4
+
+
+def test_multiple_duplicate_columns():
+    """Test handling of 3+ duplicate columns"""
+    import tempfile
+    import csv
+
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, newline='') as f:
+        csv_file = f.name
+        writer = csv.writer(f)
+        # Three 'name' columns
+        writer.writerow(['id', 'name', 'name', 'name', 'email'])
+        writer.writerow(['1', 'First', 'Middle', 'Last', 'test@test.com'])
+
+    try:
+        reader = gl.CsvReader(csv_file)
+
+        # Check all duplicate columns are renamed
+        assert reader.headers == ['id', 'name', 'name[2]', 'name[3]', 'email']
+        assert reader.index['name'] == 1
+        assert reader.index['name[2]'] == 2
+        assert reader.index['name[3]'] == 3
+
+        rows = list(reader())
+        row = rows[0]
+
+        # All values accessible
+        assert row['name'] == 'First'
+        assert row['name[2]'] == 'Middle'
+        assert row['name[3]'] == 'Last'
+
+    finally:
+        os.unlink(csv_file)
+
+
+def test_GnrNamedList_iteritems():
+    """Test iteritems method"""
+    index = {'name': 0, 'age': 1, 'city': 2}
+    row = gl.GnrNamedList(index, ['Alice', 30, 'NYC'])
+
+    items_list = list(row.iteritems())
+    assert len(items_list) == 3
+    assert ('name', 'Alice') in items_list
+    assert ('age', 30) in items_list
+    assert ('city', 'NYC') in items_list
+
+
+def test_GnrNamedList_values():
+    """Test values method"""
+    index = {'name': 0, 'age': 1}
+    row = gl.GnrNamedList(index, ['Alice', 30])
+
+    values = row.values()
+    assert isinstance(values, tuple)
+    assert len(values) == 2
+    assert 'Alice' in values
+    assert 30 in values
+
+
+def test_sortByItem_case_insensitive():
+    """Test case-insensitive sorting"""
+    test_l = [
+        {'name': 'alice', 'age': 30},
+        {'name': 'Charlie', 'age': 25},
+        {'name': 'bob', 'age': 35},
+    ]
+
+    # Case-insensitive sort
+    result = gl.sortByItem(test_l, 'name:a*')
+    assert result[0]['name'] == 'alice'
+    assert result[1]['name'] == 'bob'
+    assert result[2]['name'] == 'Charlie'
+
