@@ -39,7 +39,8 @@ from tornado.tcpserver import TCPServer
 from tornado.httpserver import HTTPServer
 from tornado import queues
 
-from gnr.core.gnrbag import Bag,TraceBackResolver
+from gnr.core.gnrbag import Bag
+from gnr.core.gnrbagresolver import TraceBackResolver
 from gnr.core.gnrstring import fromJson
 from gnr.web import logger
 from gnr.web.gnrwsgisite_proxy.gnrwebsockethandler import AsyncWebSocketHandler

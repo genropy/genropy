@@ -31,7 +31,8 @@ import traceback
 import urllib.request, urllib.parse, urllib.error
 import json
 
-from gnr.core.gnrbag import Bag, TraceBackResolver
+from gnr.core.gnrbag import Bag
+from gnr.core.gnrbagresolver import TraceBackResolver
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrlang import GnrObject
 from gnr.core.gnrstring import  toJson

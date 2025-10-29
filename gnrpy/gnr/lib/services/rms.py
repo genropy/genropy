@@ -25,7 +25,8 @@ import os
 import urllib.parse
 
 from gnr.core.gnrconfig import gnrConfigPath,getRmsOptions,setRmsOptions
-from gnr.core.gnrbag import Bag,NetBag
+from gnr.core.gnrbag import Bag
+from gnr.core.gnrbagresolver import NetBag
 from gnr.app.gnrapp import GnrApp
 from gnr.app.gnrdeploy import PathResolver
 from gnr.lib.services import BaseServiceType

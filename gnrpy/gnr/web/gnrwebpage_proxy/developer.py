@@ -12,7 +12,8 @@ import os
 import urllib.parse
 from time import time
 
-from gnr.core.gnrbag import Bag,NetBag
+from gnr.core.gnrbag import Bag
+from gnr.core.gnrbagresolver import NetBag
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 from gnr.core.gnrdecorator import public_method
 
