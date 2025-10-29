@@ -6,20 +6,16 @@ This module provides:
 2. StorageNode wrapper: genro-storage API → Genropy API compatibility
 3. Runtime switch: native vs genro-storage backend
 
-Usage:
-    # In site configuration
-    STORAGE_BACKEND = 'genro-storage'  # or 'native'
+Usage (TEMPORARY - for testing phase):
+    # In siteconfig.xml or instanceconfig.xml
+    <storage_backend>genro-storage</storage_backend>
 
-    # Or per-service override
-    storage.configure([
-        {'name': 'uploads', 'type': 's3', 'backend': 'genro-storage'},
-        {'name': 'legacy', 'type': 'local', 'backend': 'native'}
-    ])
+    # Or keep default (native)
+    <storage_backend>native</storage_backend>
 """
 
-import os
 from gnr.lib.services.storage import StorageNode as NativeStorageNode
-from gnr.lib.services.storage import StorageService, BaseLocalService
+from gnr.lib.services.storage import StorageService
 
 # Try to import genro-storage
 try:
@@ -501,44 +497,37 @@ class GenroStorageServiceAdapter(StorageService):
         return f'genro-storage:{self._mount_name}'
 
 
-def get_storage_backend_preference(site, service_name=None):
+def get_storage_backend_preference(site):
     """
-    Determine which storage backend to use
+    TEMPORARY: Determine which storage backend to use during testing phase.
+    This function will be removed once genro-storage is stable and added to requirements.
 
-    Priority:
-    1. Per-service configuration
-    2. Global site configuration
-    3. Default (native)
+    Reads from siteconfig.xml or instanceconfig.xml:
+        <storage_backend>genro-storage</storage_backend>
 
     Args:
         site: Site instance
-        service_name: Optional service name
 
     Returns:
-        str: 'native' or 'genro-storage'
+        str: 'genro-storage' or 'native' (default)
     """
     # Check if genro-storage is available
     if not GENRO_STORAGE_AVAILABLE:
         return 'native'
 
-    # Check per-service override (if implemented in config)
-    if service_name:
-        service_backend = site.config.getAttr(f'services.{service_name}.backend')
-        if service_backend:
-            return service_backend
+    # Check global site configuration
+    backend = site.config.get('storage_backend', 'native')
 
-    # Check global default
-    global_backend = site.config.get('storage_backend', 'native')
-
-    return global_backend
+    return backend if backend in ('genro-storage', 'native') else 'native'
 
 
-def should_use_genro_storage(site, service_name=None):
+def should_use_genro_storage(site):
     """
-    Determine if genro-storage should be used
+    TEMPORARY: Determine if genro-storage should be used.
+    This function will be removed once genro-storage is stable.
 
     Returns:
         bool: True if genro-storage should be used, False for native
     """
-    backend = get_storage_backend_preference(site, service_name)
+    backend = get_storage_backend_preference(site)
     return backend == 'genro-storage' and GENRO_STORAGE_AVAILABLE

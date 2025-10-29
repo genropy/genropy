@@ -1,28 +1,30 @@
 #!/usr/bin/env pythonw
 # -*- coding: utf-8 -*-
 
-
+# Standard library imports
 import os
 import re
 import random
-import os
 import shutil
+import stat
+import sys
 import mimetypes
+from collections import deque
+from subprocess import check_call, check_output
+
+# Third-party imports
 from paste import fileapp
 from paste.httpheaders import ETAG
-from subprocess import check_call, check_output
-import stat
 
+# Genropy imports
 from gnr.core.gnrsys import expandpath
 from gnr.core import gnrstring
 from gnr.core.gnrbag import Bag, BagResolver
 from gnr.lib.services import GnrBaseService, BaseServiceType
 
+
 class NotExistingStorageNode(Exception):
     pass
-
-import sys
-from collections import deque
 
 
 class ExitStack(object):
