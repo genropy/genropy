@@ -601,6 +601,95 @@ class SqlTable(GnrObject):
     #                                        **kwargs)
 
 
+    def variantColumn_masked(self, field, mode='2-4', placeholder='*', **kwargs):
+        """
+        Creates a masked version of a field for secure display of sensitive data.
+
+        Args:
+            field: The field name to mask
+            mode: Masking mode - 'email', 'creditcard', 'phone', or 'N-M' format (e.g., '2-4', '3-3')
+                  where N is visible chars at start and M is visible chars at end
+            placeholder: Character to use for masking (default: '*')
+            **kwargs: Additional column attributes
+
+        Returns:
+            dict: Column definition with sql_formula for the masked field
+
+        Examples:
+            mode='email': 'mario.rossi@example.com' -> 'ma**********@example.com'
+            mode='creditcard': '1234567890123456' -> '************3456'
+            mode='phone': '+393331234567' -> '+39*******567'
+            mode='2-4': 'sensitive_data' -> 'se********ata'
+            mode='3-3': 'sensitive_data' -> 'sen******ata'
+        """
+        if mode == 'email':
+            # Mask local part of email, keep domain visible (default 2 chars visible at start)
+            sql_formula = f"""
+                CASE
+                    WHEN position('@' in ${field}) > 0 THEN
+                        substring(${field} from 1 for 2) ||
+                        repeat('{placeholder}', greatest(length(split_part(${field}, '@', 1)) - 2, 0)) ||
+                        '@' ||
+                        split_part(${field}, '@', 2)
+                    ELSE
+                        ${field}
+                END
+            """.strip()
+
+        elif mode == 'creditcard':
+            # Show only last 4 digits
+            sql_formula = f"""
+                CASE
+                    WHEN length(${field}) > 4 THEN
+                        repeat('{placeholder}', length(${field}) - 4) || right(${field}, 4)
+                    ELSE
+                        ${field}
+                END
+            """.strip()
+
+        elif mode == 'phone':
+            # Keep country code (3 chars) and last 3 digits visible
+            sql_formula = f"""
+                CASE
+                    WHEN length(${field}) > 6 THEN
+                        substring(${field} from 1 for 3) ||
+                        repeat('{placeholder}', length(${field}) - 6) ||
+                        right(${field}, 3)
+                    ELSE
+                        ${field}
+                END
+            """.strip()
+
+        else:
+            # Generic masking with N-M format
+            try:
+                visible_start, visible_end = map(int, mode.split('-'))
+            except (ValueError, AttributeError):
+                # Fallback to default if mode is invalid
+                visible_start, visible_end = 2, 4
+
+            sql_formula = f"""
+                CASE
+                    WHEN length(${field}) > {visible_start + visible_end} THEN
+                        substring(${field} from 1 for {visible_start}) ||
+                        repeat('{placeholder}', length(${field}) - {visible_start} - {visible_end}) ||
+                        right(${field}, {visible_end})
+                    ELSE
+                        ${field}
+                END
+            """.strip()
+
+        # Handle name_long: if present, append " (masked)" to it
+        if 'name_long' in kwargs:
+            kwargs['name_long'] = f"{kwargs['name_long']} (masked)"
+
+        return dict(
+            name=f'{field}_masked',
+            sql_formula=sql_formula,
+            dtype='T',
+            **kwargs
+        )
+
     def variantColumn_egvariant(self,field,**kwargs):
         #for documentation
         pass
