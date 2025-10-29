@@ -408,28 +408,65 @@ class GnrWsgiSite(object):
         return storage
 
     def storageNode(self,*args,**kwargs):
-        if isinstance(args[0], StorageNode):
+        # Check if first arg is already a StorageNode (or wrapper)
+        try:
+            from gnr.lib.services.storage_genro_adapter import GenroStorageNodeWrapper
+            node_types = (StorageNode, GenroStorageNodeWrapper)
+        except ImportError:
+            node_types = (StorageNode,)
+
+        if isinstance(args[0], node_types):
             if args[1:]:
                 return self.storageNode(args[0].fullpath, args[1:])
             else:
                 return args[0]
         path = '/'.join(args)
-        if not ':' in path: 
+        if not ':' in path:
             path = '_raw_:%s'%path
         if path.startswith('http://') or path.startswith('https://'):
             path = '_http_:%s'%path
         service_name, storage_path = path.split(':',1)
         storage_path = storage_path.lstrip('/')
-        if service_name == 'vol':       
+        if service_name == 'vol':
             #for legacy path
-            service_name, storage_path = storage_path.replace(':','/').split('/', 1) 
-        service = self.storage(service_name)
-        if kwargs.pop('_adapt', True):
-            storage_path = self.storagePath(service_name, storage_path)
-        if not service: return
+            service_name, storage_path = storage_path.replace(':','/').split('/', 1)
+
+        # Pop kwargs for both implementations
+        _adapt = kwargs.pop('_adapt', True)
         autocreate = kwargs.pop('autocreate', False)
         must_exist = kwargs.pop('must_exist', False)
         mode = kwargs.pop('mode', None)
+
+        # Apply storage path adaptation
+        if _adapt:
+            storage_path = self.storagePath(service_name, storage_path)
+
+        # Check if genro-storage backend should be used
+        if self.genro_storage_manager:
+            # Use genro-storage wrapper
+            from gnr.lib.services.storage_genro_adapter import (
+                GenroStorageNodeWrapper,
+                GenroStorageServiceAdapter
+            )
+
+            # Get genro-storage node
+            full_path = f'{service_name}:{storage_path}'
+            genro_node = self.genro_storage_manager.node(full_path)
+
+            # Create service adapter
+            service_adapter = GenroStorageServiceAdapter(
+                parent=self,
+                storage_manager=self.genro_storage_manager,
+                mount_name=service_name
+            )
+
+            # Wrap with Genropy API
+            # Note: autocreate, must_exist, mode are not used in genro-storage wrapper
+            return GenroStorageNodeWrapper(genro_node, parent=self, service=service_adapter)
+
+        # Native implementation (fallback)
+        service = self.storage(service_name)
+        if not service: return
 
         return StorageNode(parent=self, path=storage_path, service=service,
             autocreate=autocreate, must_exist=must_exist, mode=mode)
@@ -860,7 +897,45 @@ class GnrWsgiSite(object):
     @property
     def external_secret(self):
         return getEnvironmentItem('external_secret',default=getUuid(),update=True)
-        
+
+    @property
+    def genro_storage_manager(self):
+        """Lazy initialization of GenroStorageManager if genro-storage backend is enabled"""
+        if not hasattr(self, '_genro_storage_manager'):
+            from gnr.lib.services.storage_genro_adapter import should_use_genro_storage
+
+            if should_use_genro_storage(self):
+                try:
+                    from gnr.lib.services.storage_genro_adapter import (
+                        GenroStorageManager,
+                        GenroStorageConfigConverter
+                    )
+
+                    self._genro_storage_manager = GenroStorageManager()
+
+                    # Configure all storage services from site config
+                    services_config = []
+                    services = self.config.getItem('services')
+                    if services:
+                        for service_name in services.keys():
+                            service_conf = dict(services[service_name].items())
+                            service_conf['name'] = service_name
+                            genro_conf = GenroStorageConfigConverter.convert(service_conf)
+                            if genro_conf:
+                                services_config.append(genro_conf)
+
+                    if services_config:
+                        self._genro_storage_manager.configure(services_config)
+                        logger.info(f"GenroStorageManager initialized with {len(services_config)} mount points")
+
+                except Exception as e:
+                    logger.error(f"Failed to initialize genro-storage: {e}")
+                    self._genro_storage_manager = None
+            else:
+                self._genro_storage_manager = None
+
+        return self._genro_storage_manager
+
     def configurationItem(self,path,mandatory=False):
         result = self.config[path]
         if mandatory and result is None:
