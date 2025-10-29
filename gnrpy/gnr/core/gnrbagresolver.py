@@ -30,8 +30,6 @@ from gnr.core import gnrstring
 from gnr.core import logger
 from gnr.core.gnrclasses import GnrClassCatalog
 
-Bag=1
-
 class BagResolver(object):
     """BagResolver is an abstract class, that defines the interface for a new kind
     of dynamic objects. By "Dynamic" property we mean a property that is calculated
@@ -288,6 +286,7 @@ class DirectoryResolver(BagResolver):
     
     def load(self):
         """TODO"""
+        from gnr.core.gnrbag import Bag
         extensions = dict([((ext.split(':') + (ext.split(':'))))[0:2] for ext in self.ext.split(',')]) if self.ext else dict()
         extensions['directory'] = 'directory'
         result = Bag()
@@ -407,6 +406,7 @@ class XmlDocResolver(BagResolver):
     classArgs = ['path']
 
     def load(self):
+        from gnr.core.gnrbag import Bag
         return Bag(self.path)
 
 

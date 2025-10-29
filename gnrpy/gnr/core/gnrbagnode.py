@@ -1,4 +1,10 @@
 
+from gnr.core.gnrlang import GnrException
+from gnr.core.gnrbagresolver import BagResolver
+
+class BagNodeException(GnrException):
+    pass
+
 class BagNode(object):
     """BagNode is the element type which a Bag is composed of. That's why it's possible to say that a Bag
     is a collection of BagNodes. A BagNode is an object that gather within itself, three main things:
@@ -107,7 +113,9 @@ class BagNode(object):
         return self._value
     
     def getFormattedValue(self,joiner=None,omitEmpty=True,mode='',**kwargs):
+        from gnr.core.gnrbag import Bag
         v = self.getValue(mode=mode)
+
         if isinstance(v,Bag):
             v = v.getFormattedValue(joiner=joiner,omitEmpty=omitEmpty,mode=mode,**kwargs)
         else:
@@ -117,6 +125,7 @@ class BagNode(object):
         return ''
 
     def toJson(self,typed=True):
+        from gnr.core.gnrbag import Bag
         value = self.value
         if isinstance(value,Bag):
             value = value.toJson(typed=typed,nested=True)
@@ -200,6 +209,7 @@ class BagNode(object):
         self.setValue(None)
 
     def diff(self,other):
+        from gnr.core.gnrbag import Bag
         if self.label !=other.label:
             return 'Other label: %s' %other.label
         if self.attr != other.attr:
@@ -299,12 +309,15 @@ class BagNode(object):
         return (self.label, self.value, self.attr, self.resolver)
 
     def addValidator(self, validator, parameterString):
+
         """Set a new validator into the BagValidationList of the node.
         If there are no validators into the node then addValidator instantiate
         a new BagValidationList and append the validator to it
         
         :param validator: the type of validation to set into the list of the node
         :param parameterString: the parameter for a single validation type"""
+        from gnr.core.gnrbag import BagValidationList
+        
         if self._validators is None:
             self._validators = BagValidationList(self)
         self._validators.add(validator, parameterString)

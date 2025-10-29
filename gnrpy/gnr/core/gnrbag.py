@@ -66,6 +66,8 @@ import urllib.request, urllib.parse, urllib.error
 import urllib.parse
 
 from gnr.core import gnrstring
+from gnr.core.gnrbagresolver import BagResolver, BagFormula, UrlResolver
+from gnr.core.gnrbagresolver import DirectoryResolver, BagCbResolver
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrlang import GnrObject, GnrException #setCallable
 from gnr.core.gnrlang import file_types
@@ -80,8 +82,6 @@ def normalizeItemPath(item_path):
         return item_path
     return str(item_path).replace('.','_')
     
-class BagNodeException(GnrException):
-    pass
     
 class BagException(GnrException):
     pass
