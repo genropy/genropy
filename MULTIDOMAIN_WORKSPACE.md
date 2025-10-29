@@ -177,6 +177,18 @@ Multidomain mode works in conjunction with the dbstores refactoring:
   - UI customizations
   - Integration settings
 
+**Service Isolation:**
+- Service instances cached per domain using `(service_name, domain)` tuple keys
+- Same caching pattern used by register's globalStore for domain separation
+- Each domain gets its own service configurations from database
+- Service instances (email, storage, APIs, etc.) are domain-specific
+- Configuration changes tracked independently per domain
+- No service instance sharing between domains
+- Examples:
+  - Email service can use different SMTP servers per client
+  - Storage service can use different S3 buckets per domain
+  - Payment service can use different merchant accounts per client
+
 ### Key Files Modified
 
 **Core Framework:**
@@ -186,6 +198,7 @@ Multidomain mode works in conjunction with the dbstores refactoring:
 - `gnrpy/gnr/sql/gnrsql.py` - Database domain support
 - `gnrpy/gnr/sql/gnrsqltable.py` - Table domain awareness
 - `gnrpy/gnr/app/gnrapp.py` - App-level domain logic
+- `gnrpy/gnr/lib/services/__init__.py` - Domain-isolated service caching
 
 **Packages:**
 - `projects/gnrcore/packages/adm/model/preference.py` - Domain-separated preferences
