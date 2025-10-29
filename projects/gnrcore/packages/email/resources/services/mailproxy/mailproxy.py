@@ -50,25 +50,49 @@ class Main(GnrBaseService):
             raise ValueError("account_id is required")
         return self._delete(f"/account/{account_id}")
 
-    def add_volumes(self, volumes: List[Dict[str, Any]]):
+    def add_volumes(self, volumes: List[Dict[str, Any]], storename: Optional[str] = None):
         """Register storage volumes on the proxy.
 
         Args:
             volumes: List of volume configurations with id, storage_type, and config
+            storename: Store name for multitenant environments. If provided, volume IDs
+                      will be prefixed with 'storename@' unless already prefixed.
+                      If None, uses current store from database environment.
 
         Returns:
             dict: Response with 'ok' status and 'added' count
         """
         if not isinstance(volumes, list):
             raise ValueError("volumes must be a list")
+
+        # Determine storename from parameter or current database environment
+        if storename is None and hasattr(self.parent, 'db'):
+            storename = self.parent.db.currentEnv.get('storename') or self.parent.db.rootstore
+
+        # Prefix volume IDs with storename if in multitenant context
+        if storename:
+            prefixed_volumes = []
+            for vol in volumes:
+                vol_copy = dict(vol)
+                vol_id = vol_copy.get('id', '')
+                # Only add prefix if not already present
+                if vol_id and '@' not in vol_id:
+                    vol_copy['id'] = f"{storename}@{vol_id}"
+                prefixed_volumes.append(vol_copy)
+            volumes = prefixed_volumes
+
         return self._post("/volumes", json={"volumes": volumes})
 
-    def add_volume_from_service(self, service_name: str, volume_id: Optional[str] = None):
+    def add_volume_from_service(self, service_name: str, volume_id: Optional[str] = None,
+                                storename: Optional[str] = None):
         """Register a storage volume from a genropy storage service.
 
         Args:
             service_name: Name of the storage service in genropy
             volume_id: Custom volume ID (defaults to service_name)
+            storename: Store name for multitenant environments. If provided, volume_id
+                      will be prefixed with 'storename@' to avoid conflicts across stores.
+                      If None, uses current store from database environment.
 
         Returns:
             dict: Response with 'ok' status and 'added' count
@@ -77,7 +101,18 @@ class Main(GnrBaseService):
         if not storage_service:
             raise ValueError(f"Storage service '{service_name}' not found")
 
-        volume_config = self._convert_service_to_volume_config(storage_service, volume_id or service_name)
+        # Determine storename from parameter or current database environment
+        if storename is None and hasattr(self.parent, 'db'):
+            storename = self.parent.db.currentEnv.get('storename') or self.parent.db.rootstore
+
+        # Construct volume_id with storename prefix for multitenant scenarios
+        base_volume_id = volume_id or service_name
+        if storename:
+            full_volume_id = f"{storename}@{base_volume_id}"
+        else:
+            full_volume_id = base_volume_id
+
+        volume_config = self._convert_service_to_volume_config(storage_service, full_volume_id)
         return self.add_volumes([volume_config])
 
     def _convert_service_to_volume_config(self, service, volume_id: str) -> Dict[str, Any]:

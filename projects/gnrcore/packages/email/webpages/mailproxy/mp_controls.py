@@ -22,7 +22,7 @@ class GnrCustomWebPage(object):
         bc.css('.mp-status-error', 'color:#c00000; font-weight:bold;')
 
         status_pane = bc.contentPane(region='top', height='160px', datapath='.status', padding='6px')
-        bar = status_pane.slotToolbar('run_now,suspend,activate,*,cleanup_messages,add_account,refresh,last_message')
+        bar = status_pane.slotToolbar('run_now,suspend,activate,*,cleanup_messages,add_account,add_volume,refresh,last_message')
 
         shared_on_result = """
             var status = result && result.getItem ? result.getItem('status') : (result ? result.status : null);
@@ -100,6 +100,28 @@ class GnrCustomWebPage(object):
             ),
             _onResult=shared_on_result
         )
+        bar.add_volume.slotButton('!!Add volume', iconClass='iconbox add').dataRpc(
+            'main.status.last_command',
+            self.rpc_add_volume,
+            service_id='=_ask.service_id',
+            _ask=dict(
+                title='!!Add storage volume to mail proxy',
+                fields=[
+                    dict(
+                        name='service_id',
+                        lbl='!!Storage Service',
+                        tag='dbSelect',
+                        dbtable='sys.service',
+                        columns='$service_name,$service_type',
+                        condition='$service_type = :stype',
+                        condition_stype='storage',
+                        hasDownArrow=True,
+                        validate_notnull=True
+                    )
+                ]
+            ),
+            _onResult=shared_on_result
+        )
         bar.refresh.slotButton('!!Refresh').dataRpc(
             'main.data',
             self.rpc_proxy_overview,
@@ -112,6 +134,7 @@ class GnrCustomWebPage(object):
                 return;
             }
             SET .account_count = overview.getItem('status.account_count') || 0;
+            SET .volume_count = overview.getItem('status.volume_count') || 0;
             SET .pending_count = overview.getItem('status.pending_count') || 0;
             SET .deferred_count = overview.getItem('status.deferred_count') || 0;
             SET .error_count = overview.getItem('status.error_count') || 0;
@@ -124,18 +147,29 @@ class GnrCustomWebPage(object):
         fb = status_pane.formbuilder(cols=4, border_spacing='8px', margin_top='10px', fld_readOnly=True)
         fb.textbox(value='^.last_refresh', lbl='!!Last refresh')
         fb.numberTextbox(value='^.account_count', lbl='!!Accounts')
+        fb.numberTextbox(value='^.volume_count', lbl='!!Volumes')
         fb.numberTextbox(value='^.pending_count', lbl='!!Pending')
         fb.numberTextbox(value='^.deferred_count', lbl='!!Deferred')
         fb.numberTextbox(value='^.error_count', lbl='!!Errors')
         fb.checkbox(value='^.active', label='!!Dispatcher active', disabled=True)
         fb.div('^.error', colspan=4, _class='mp-status-error', hidden='^.error?=!#v')
 
-        left_pane = bc.contentPane(region='left', width='38%', splitter=True)
-        left_pane.bagGrid(
+        left_bc = bc.borderContainer(region='left', width='38%', splitter=True)
+        left_bc.contentPane(region='top', height='50%', splitter=True).bagGrid(
             frameCode='mp_accounts',
             title='!!Accounts',
             storepath='main.data.accounts',
             struct=self.accounts_struct,
+            pbl_classes=True,
+            addrow=False,
+            delrow=False,
+            margin='6px',
+        )
+        left_bc.contentPane(region='center').bagGrid(
+            frameCode='mp_volumes',
+            title='!!Volumes',
+            storepath='main.data.volumes',
+            struct=self.volumes_struct,
             pbl_classes=True,
             addrow=False,
             delrow=False,
@@ -168,6 +202,14 @@ class GnrCustomWebPage(object):
         rows.cell('limit_per_day', name='!!Per day', width='7em', dtype='I')
         rows.cell('created_at', name='!!Created at', width='12em')
 
+    def volumes_struct(self, struct):
+        rows = struct.view().rows()
+        rows.cell('id', name='!!Volume ID', width='20em')
+        rows.cell('storage_type', name='!!Storage Type', width='10em')
+        rows.cell('protocol', name='!!Protocol', width='8em')
+        rows.cell('base_path', name='!!Base Path', width='20em')
+        rows.cell('created_at', name='!!Created at', width='12em')
+
     def messages_struct(self, struct):
         rows = struct.view().rows()
         rows.cell('id', name='!!Message ID', width='14em')
@@ -194,14 +236,17 @@ class GnrCustomWebPage(object):
 
         accounts = self._safe_service_call(service.list_accounts, 'accounts', 'Accounts', errors)
         messages = self._safe_service_call(service.list_messages, 'messages', 'Messages', errors)
+        volumes = self._safe_service_call(service.list_volumes, 'volumes', 'Volumes', errors)
 
         result = Bag()
         result['accounts'] = self._list_to_bag(accounts, 'id')
         decorated_messages = self._decorate_messages(messages)
         result['messages'] = self._list_to_bag(decorated_messages, 'id')
+        result['volumes'] = self._list_to_bag(volumes, 'id')
 
         status = Bag()
         status['account_count'] = len(accounts)
+        status['volume_count'] = len(volumes)
         status['pending_count'] = len([msg for msg in decorated_messages if msg.get('status') == 'pending'])
         status['deferred_count'] = len([msg for msg in decorated_messages if msg.get('status') == 'deferred'])
         status['error_count'] = len([msg for msg in decorated_messages if msg.get('status') == 'error'])
@@ -261,6 +306,50 @@ class GnrCustomWebPage(object):
 
         overview = self.rpc_proxy_overview()
         return Bag(dict(status='ok', message='Account registered on mail proxy', overview=overview))
+
+    @public_method
+    def rpc_add_volume(self, service_id=None):
+        """Register a storage volume from a sys.service storage service.
+
+        Args:
+            service_id: Primary key of the sys.service record (service_type='storage')
+
+        Returns:
+            Bag with status, message, and updated overview
+        """
+        if not service_id:
+            return Bag(dict(ok=False, message='No storage service selected'))
+
+        # Get service record to extract service_name
+        service_tbl = self.db.table('sys.service')
+        service_record = service_tbl.record(pkey=service_id, ignoreMissing=True).output('dict')
+        if not service_record:
+            return Bag(dict(status='error', message='Storage service not found'))
+
+        service_name = service_record.get('service_name')
+        if not service_name:
+            return Bag(dict(status='error', message='Service name is missing'))
+
+        try:
+            # Add volume using the mailproxy service
+            # The add_volume_from_service will automatically prefix with storename@
+            response = self._mailproxy_service().add_volume_from_service(service_name)
+        except Exception as exc:
+            return Bag(dict(status='error', message='Add volume failed: %s' % exc))
+
+        if isinstance(response, str):
+            try:
+                response = fromJson(response)
+            except Exception as exc:
+                return Bag(dict(status='error', message='Add volume: invalid JSON response (%s)' % exc))
+
+        response_status = self._response_status(response)
+        if response_status != 'ok':
+            message = self._response_message(response) or 'Unknown error'
+            return Bag(dict(status='error', message='Add volume: %s' % message))
+
+        overview = self.rpc_proxy_overview()
+        return Bag(dict(status='ok', message='Storage volume registered on mail proxy', overview=overview))
 
     # -------------------------------------------------------------------------
     # Internal utilities
