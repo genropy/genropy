@@ -99,7 +99,7 @@ class HTableTree(BaseComponent):
                         childname='store',caption=caption,dbstore=dbstore,
                         columns=columns,related_kwargs=related_kwargs,
                         nodeId=nodeId,
-                        subtable=subtable,resolved=resolved,**storekw)
+                        subtable=subtable,resolved=resolved,_onStart=True,**storekw)
             treeNode._hstore = d
             d.addCallback("""
                 var selectedIdentifier;
