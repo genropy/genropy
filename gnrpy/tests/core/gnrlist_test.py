@@ -755,3 +755,94 @@ def test_slugify_consistency_across_readers():
     finally:
         os.unlink(xls_file)
 
+
+def test_GnrNamedList_sql_adapter_compatibility():
+    """Test GnrNamedList works correctly when used by SQL adapter (gnrdict_row)"""
+    # Simulate how gnrdict_row creates GnrNamedList
+    index = {'id': 0, 'name': 1, 'email': 2}
+    values = [1, 'John Doe', 'john@example.com']
+
+    row = gl.GnrNamedList(index, values=values)
+
+    # Test numeric access (as list)
+    assert row[0] == 1
+    assert row[1] == 'John Doe'
+    assert row[2] == 'john@example.com'
+
+    # Test named access (as dict)
+    assert row['id'] == 1
+    assert row['name'] == 'John Doe'
+    assert row['email'] == 'john@example.com'
+
+    # Test slice access (critical for SQL adapter)
+    assert row[:] == [1, 'John Doe', 'john@example.com']
+    assert row[0:2] == [1, 'John Doe']
+    assert row[1:] == ['John Doe', 'john@example.com']
+
+    # Test negative indexing
+    assert row[-1] == 'john@example.com'
+    assert row[-2] == 'John Doe'
+
+    # Test iteration
+    result = list(row)
+    assert result == [1, 'John Doe', 'john@example.com']
+
+    # Test len
+    assert len(row) == 3
+
+
+def test_GnrNamedList_sql_adapter_with_duplicates():
+    """Test GnrNamedList with duplicate column names (from reader with duplicates)"""
+    # Simulate reader that renamed duplicate columns
+    index = {'id': 0, 'value': 1, 'value[2]': 2, 'value[3]': 3}
+    values = [1, 10, 20, 30]
+
+    row = gl.GnrNamedList(index, values=values)
+
+    # Test all columns are accessible
+    assert row['id'] == 1
+    assert row['value'] == 10
+    assert row['value[2]'] == 20
+    assert row['value[3]'] == 30
+
+    # Test numeric access still works
+    assert row[0] == 1
+    assert row[1] == 10
+    assert row[2] == 20
+    assert row[3] == 30
+
+    # Test slice access
+    assert row[:] == [1, 10, 20, 30]
+    assert row[1:] == [10, 20, 30]
+
+
+def test_GnrNamedList_mixed_access_patterns():
+    """Test GnrNamedList with various access patterns used in production code"""
+    index = {'transaction_id': 0, 'user_name': 1, 'amount': 2}
+    values = ['TX123', 'Alice', 100.50]
+
+    row = gl.GnrNamedList(index, values=values)
+
+    # Common patterns used in tableImporterCheck and related code
+
+    # Pattern 1: Iterate and access by name
+    for item in row:
+        assert item is not None
+
+    # Pattern 2: Convert to dict
+    row_dict = dict(row)
+    assert 'transaction_id' in row_dict or 0 in row_dict
+
+    # Pattern 3: Slice and process
+    subset = row[1:]
+    assert len(subset) == 2
+    assert subset[0] == 'Alice'
+
+    # Pattern 4: Check membership (for index)
+    assert 'transaction_id' in row._index
+    assert 'user_name' in row._index
+
+    # Pattern 5: Enumerate
+    for i, value in enumerate(row):
+        assert row[i] == value
+
