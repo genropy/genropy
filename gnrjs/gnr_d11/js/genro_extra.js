@@ -1407,3 +1407,333 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
     }
 
 });
+
+
+dojo.declare("gnr.widgets.TinyMCE", gnr.widgets.baseHtml, {
+  constructor: function(application) {
+    this._domtag = 'textarea';
+  },
+
+  creating: function(attributes, sourceNode){
+    const valueAttr = sourceNode.attr.value;
+    if (!valueAttr) { throw new Error('TinyMCE widget: missing required "value" datapath'); }
+    const valuePath = sourceNode.absDatapath(valueAttr);
+    const height = objectPop(attributes,'height') || '100%';
+    const width  = objectPop(attributes,'width')  || '100%';
+    const textareaId = 'tinymce_' + sourceNode.getStringId();
+    const phRaw = objectPop(attributes,'placeholders');
+    const placeholderItems = phRaw ? String(phRaw).split(',').map(s=>s.trim()).filter(Boolean) : [];
+    const base_url = objectPop(attributes,'base_url') || '/_rsrc/js_libs/tinymce';
+    const content_style = objectPop(attributes,'content_style');
+    let plugins = objectPop(attributes,'plugins');
+    if (!plugins){ plugins = 'link lists table code image'; }
+    const onUploadedMethod = objectPop(attributes,'onUploadedMethod');
+    const rpcKw = objectExtract(attributes,'rpc_*');
+    let removeToolbarItems = objectPop(attributes,'removeToolbarItems');
+    if (removeToolbarItems == null) { removeToolbarItems = []; }
+    if (typeof removeToolbarItems === 'string') {
+      let s = removeToolbarItems.trim();
+      try {
+        removeToolbarItems = JSON.parse(s);
+      } catch(e) {
+        if (s[0] === '[' && s[s.length-1] === ']') { s = s.slice(1,-1); }
+        removeToolbarItems = s.split(',').map(t => t.trim().replace(/^['"]|['"]$/g,''));
+        removeToolbarItems = removeToolbarItems.filter(Boolean);
+      }
+    }
+    const imageDataRaw = objectPop(attributes,'imageData');
+    const imageData = (imageDataRaw === true || imageDataRaw === 'true' || imageDataRaw === 1 || imageDataRaw === '1');
+    const rawUploadPath = objectPop(attributes,'uploadPath');
+    const uploadPath = rawUploadPath || 'site:uploaded_files';
+    if (imageData && rawUploadPath){
+      throw new Error('TinyMCE widget: imageData=True is mutually exclusive with uploadPath');
+    }
+    attributes.id = textareaId;
+    attributes.style = `height:${height};width:${width};`;
+    return {valuePath, textareaId, placeholderItems, base_url, content_style, plugins, removeToolbarItems, imageData, uploadPath, onUploadedMethod, rpcKw, _rawHeight: height, _rawWidth: width};
+  },
+
+  created: function(domNode, savedAttrs, sourceNode){
+    var widgetObj = this;
+    // Widget created, defer editor initialization until node is visible
+    var initialized = false;
+    var that = this;
+    function initIfVisible() {
+        if (initialized) { return; }
+        if (genro.dom.isVisible(sourceNode)) {
+            initialized = true;
+            // Initialize TinyMCE editor once the node is visible
+            that.makeEditor(domNode, savedAttrs, sourceNode);
+        } else {
+            genro.callAfter(initIfVisible, 300, that, 'tinymce_wait_'+savedAttrs.textareaId);
+        }
+    }
+    sourceNode.subscribe('onShow', function() {
+        if (!initialized) {
+            initialized = true;
+            that.makeEditor(domNode, savedAttrs, sourceNode);
+        }
+    });
+    if (!window.tinymce){
+      genro.dom.loadJs(savedAttrs.base_url + '/tinymce.min.js', function(){
+        initIfVisible();
+      });
+    } else {
+      initIfVisible();
+    }
+    // Cleanup on widget deletion
+    dojo.connect(sourceNode,'_onDeleting',function(){
+      if (window.tinymce){ try{ tinymce.remove('#' + savedAttrs.textareaId); }catch(e){} }
+    });
+  },
+
+  makeEditor: function(domNode, savedAttrs, sourceNode){
+    var widgetObj = this;
+    // Preload value into textarea as fallback
+    try {
+      var initialContent = sourceNode.getRelativeData(savedAttrs.valuePath);
+      if (typeof initialContent !== 'undefined' && initialContent !== null){
+        domNode.value = initialContent;
+      }
+    } catch(_e) {}
+    const rawHeight = savedAttrs._rawHeight;
+    const rawWidth  = savedAttrs._rawWidth;
+    const numericHeight = (rawHeight && /px$/i.test(rawHeight)) ? parseInt(rawHeight, 10) : null;
+    // Initialize TinyMCE with toolbar and plugins
+    const defaultToolbarLines = [
+      'undo redo | bold italic underline | bullist numlist | alignleft aligncenter alignright alignjustify',
+      savedAttrs.placeholderItems && savedAttrs.placeholderItems.length ?
+        '| link image table | code | placeholders' :
+        '| link image table | code'
+    ];
+    const removeSet = new Set(savedAttrs.removeToolbarItems || []);
+    const toolbar = defaultToolbarLines
+      .map(line => line.split(' ').filter(tok => !removeSet.has(tok)).join(' '))
+      .join(' ');
+    tinymce.init({
+      target: domNode,
+      base_url: savedAttrs.base_url,
+      suffix: '.min',
+      license_key: 'gpl',
+      promotion: false,
+      menubar: false,
+      branding: false,
+      height: (numericHeight !== null) ? numericHeight : undefined,
+      width: rawWidth || null,
+      plugins: savedAttrs.plugins,
+      toolbar: toolbar,
+      forced_root_block: 'p',
+      valid_children: '+a[div|p|span|strong|em]',
+      paste_as_text: false,
+      paste_data_images: !!savedAttrs.imageData,
+      content_style: (savedAttrs.content_style || ''),
+      convert_urls: false,
+      relative_urls: false,
+      remove_script_host: false,
+      urlconverter_callback: function(url /*, node, on_save, name */){
+        return url;
+      },
+      automatic_uploads: savedAttrs.imageData ? false : !!savedAttrs.uploadPath,
+      file_picker_types: 'image',
+      file_picker_callback: function (cb) {
+        const url = prompt('Image URL https://…');
+        if (url) cb(url, { alt: '' });
+      },
+      images_upload_handler: function (blobInfo, progress) {
+        if (savedAttrs.imageData){
+          return new Promise(function(resolve, reject){
+            try{
+              var reader = new FileReader();
+              reader.onload = function(){ try{ progress(100); }catch(e){}; resolve(reader.result); };
+              reader.onerror = function(e){ reject(e); };
+              reader.readAsDataURL(blobInfo.blob());
+            }catch(e){ reject(e); }
+          });
+        }
+        var originalName = blobInfo.filename();
+        var dot = originalName.lastIndexOf('.')
+        var ext = dot >= 0 ? originalName.slice(dot) : '';
+        var base = dot >= 0 ? originalName.slice(0, dot) : originalName;
+        try { base = base.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch(_e) {}
+        base = base.replace(/[^A-Za-z0-9_-]+/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '').toLowerCase();
+        var safeFilename = (base || 'upload') + (ext ? ext.toLowerCase() : '');
+        var params = { uploadPath: savedAttrs.uploadPath, filename: safeFilename };
+        if (savedAttrs.onUploadedMethod){ params.onUploadedMethod = savedAttrs.onUploadedMethod; }
+        if (savedAttrs.rpcKw){ for (var k in savedAttrs.rpcKw){ params[k] = savedAttrs.rpcKw[k]; } }
+        return new Promise(function(resolve, reject){
+          try{
+            genro.rpc.uploadMultipart_oneFile(
+              blobInfo.blob(),
+              params,
+              {
+                method: 'rpc.upload_file',
+                uploaderId: (sourceNode && typeof sourceNode._id === 'string') ? sourceNode._id : (sourceNode && typeof sourceNode.getStringId === 'function' ? sourceNode.getStringId() : undefined),
+                uploadPath: params.uploadPath,
+                filename: params.filename,
+                onProgress: function(evt){
+                  if (evt && evt.lengthComputable){
+                    var pct = Math.round((evt.loaded / evt.total) * 100);
+                    try{ progress(pct); }catch(e){}
+                  }
+                },
+                onResult: function(evt){
+                  try{
+                    var txt = evt.target && evt.target.responseText ? evt.target.responseText : '';
+                    var url = null;
+                    try{ var j = JSON.parse(txt); url = (j && (j.url || j.uploaded_file_path || j.path)); }catch(_ignored){}
+                    if(!url && typeof txt === 'string'){
+                      var raw = txt.trim();
+                      if ((raw[0]==='"' && raw[raw.length-1]==='"') || (raw[0]==="'" && raw[raw.length-1]==="'")){
+                        raw = raw.slice(1,-1);
+                      }
+                      if (/^https?:\/\//i.test(raw)){
+                        url = raw;
+                      }else{
+                        var m = raw.match(/https?:\/\/[^\s"']+/);
+                        url = m ? m[0] : raw;
+                      }
+                    }
+                    if (!url){ throw new Error('Invalid upload response'); }
+                    try{ url = encodeURI(url); }catch(_e){}
+                    progress(100);
+                    resolve(url);
+                  }catch(e){ reject(e); }
+                },
+                onError: function(){ reject(new Error('Upload error')); },
+                onAbort: function(){ reject(new Error('Upload aborted')); }
+              }
+            );
+          }catch(e){ reject(e); }
+        });
+      },
+      images_reuse_filename: true,
+      setup: function(editor){
+        // expose
+        sourceNode.externalWidget = editor;
+        editor.sourceNode = sourceNode;
+        for (var prop in widgetObj) {
+          if (prop.indexOf('mixin_') === 0) {
+            editor[prop.replace('mixin_', '')] = widgetObj[prop];
+          }
+        }
+        // hover focus + drop placeholders
+        function focusOnDrag(e){ try{ e.preventDefault(); }catch(_e){}; try{ editor.focus(); }catch(_e){} }
+        function insertDroppedText(e){
+          try{ e.preventDefault(); }catch(_e){}; try{ editor.focus(); }catch(_e){};
+          var dt = e.dataTransfer || (e.originalEvent && e.originalEvent.dataTransfer);
+          var txt = dt ? (dt.getData('text/plain') || dt.getData('text') || '') : '';
+          if (!txt){ return; }
+          txt = String(txt).trim();
+          if (!txt){ return; }
+          if (txt[0] !== '$'){ txt = '$' + txt; }
+          try{
+            var doc = editor.getDoc();
+            var rng = null;
+            if (doc.caretRangeFromPoint){ rng = doc.caretRangeFromPoint(e.clientX, e.clientY); }
+            else if (doc.caretPositionFromPoint){ var pos = doc.caretPositionFromPoint(e.clientX, e.clientY); if (pos){ rng = doc.createRange(); rng.setStart(pos.offsetNode, pos.offset); rng.collapse(true); } }
+            if (rng){ editor.selection.setRng(rng); }
+          }catch(_e){}
+          editor.insertContent(editor.dom.encode(txt));
+        }
+        var cont = editor.getContainer();
+        if (cont){ ['dragenter','dragover'].forEach(function(ev){ cont.addEventListener(ev, focusOnDrag, {passive:false}); }); }
+        // datastore syncing
+        try { sourceNode.registerDynAttr && sourceNode.registerDynAttr('value'); } catch(_e) {}
+        editor.gnr_value = function(value){ if (!editor.hasFocus() && editor.getContent() !== (value || '')){ editor.setContent(value || ''); } };
+        // TinyMCE initialization complete
+        editor.on('Init', function(){
+          var c = editor.getContainer();
+          if (c){
+            if (rawHeight && /%$/.test(rawHeight)){
+              c.style.height = rawHeight; c.style.minHeight = '200px';
+            } else if (!rawHeight || rawHeight === '100%'){
+              c.style.height = '100%'; c.style.minHeight = '200px';
+            }
+          }
+          try{
+            var iv = sourceNode.getRelativeData(savedAttrs.valuePath);
+            if (typeof iv !== 'undefined' && iv !== null && editor.getContent() !== (iv || '')){ editor.setContent(iv || ''); }
+          }catch(_e){}
+          var body = editor.getBody();
+          if (body){ ['dragenter','dragover'].forEach(function(ev){ body.addEventListener(ev, focusOnDrag, {passive:false}); }); body.addEventListener('drop', insertDroppedText, {passive:false}); }
+          // Resize node alla fine dell'inizializzazione, se visibile
+          try {
+              if (genro.dom.isVisible(sourceNode)) {
+                  genro.dom.resizeNode(domNode);
+              }
+          } catch(e) {
+              console.warn('[TinyMCE] resize skipped - not ready yet', e);
+          }
+        });
+        const pushChange = function(){ sourceNode.setRelativeData(savedAttrs.valuePath, editor.getContent()); };
+        editor.on('Change KeyUp Undo Redo SetContent', pushChange);
+        sourceNode.subscribe(savedAttrs.valuePath, function(v, kw2, reason){
+          if (reason === 'container') { return; }
+          if (editor.getContent() !== v) { editor.setContent(v || ''); }
+        });
+        if (savedAttrs.placeholderItems && savedAttrs.placeholderItems.length){
+          editor.ui.registry.addMenuButton('placeholders', {
+            text: '$',
+            fetch: function(cb){
+              const items = savedAttrs.placeholderItems.map(function(name){
+                const txt = '$' + name.trim();
+                return { type: 'menuitem', text: txt, onAction: function(){ editor.insertContent(txt); } };
+              });
+              cb(items);
+            }
+          });
+        }
+        console.log('[TinyMCE] after init for', savedAttrs.textareaId);
+      }
+    });
+  },
+
+  mixin_gnr_value: function(value, kw, trigger_reason){
+      var ed = this.sourceNode && this.sourceNode.externalWidget;
+      if (!ed) { return; }
+      if (typeof value === 'undefined'){
+        try { value = this.sourceNode.getAttributeFromDatasource('value'); } catch(_e) { value = ''; }
+      }
+      if (!ed.hasFocus() && ed.getContent() !== (value || '')){
+        ed.setContent(value || '');
+      }
+  },
+
+  mixin_gnr_setDisabled: function(disabled){
+      var ed = this;
+      try{
+        if (disabled){
+          if (ed.mode && typeof ed.mode.set === 'function'){ ed.mode.set('readonly'); }
+          else if (typeof ed.setMode === 'function'){ ed.setMode('readonly'); }
+          var body = ed.getBody && ed.getBody();
+          if (body){ body.setAttribute('contenteditable','false'); }
+          var c = ed.getContainer && ed.getContainer();
+          if (c && c.querySelectorAll){
+            var ctrls = c.querySelectorAll('button, [role="menuitem"], [aria-label][tabindex]');
+            Array.prototype.forEach.call(ctrls, function(el){
+              try{ el.disabled = true; el.setAttribute('tabindex','-1'); }catch(_e){}
+            });
+          }
+        }else{
+          if (ed.mode && typeof ed.mode.set === 'function'){ ed.mode.set('design'); }
+          else if (typeof ed.setMode === 'function'){ ed.setMode('design'); }
+          var body2 = ed.getBody && ed.getBody();
+          if (body2){ body2.setAttribute('contenteditable','true'); }
+          var c2 = ed.getContainer && ed.getContainer();
+          if (c2 && c2.querySelectorAll){
+            var ctrls2 = c2.querySelectorAll('button, [role="menuitem"], [aria-label][tabindex]');
+            Array.prototype.forEach.call(ctrls2, function(el){
+              try{ el.disabled = false; el.removeAttribute('tabindex'); }catch(_e){}
+            });
+          }
+        }
+      }catch(e){}
+  },
+
+  mixin_gnr_readOnly: function(value, kw, trigger_reason){
+      this.gnr_setDisabled(!!value);
+  },
+  mixin_gnr_disabled: function(value, kw, trigger_reason){
+      this.gnr_setDisabled(!!value);
+  }
+});
