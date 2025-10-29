@@ -1,23 +1,105 @@
-
-Upcoming version
+Release 25.10.27
 ================
+
+Overview
+--------
+
+This release includes the introduction of several deployment utilities, and several
+enhancement and fixes throughout the whole framework.
+
+PLEASE NOTE: We've started dropping support for Python version prior
+to 3.10, this release introduces a preliminary warning. So you're
+being warned.
 
 Enhancements
 ------------
 
-* Reduced Docker image footprint by disabling local cache
-* Introduced switch to 'gnr app dockerize' to create images based on development version
-  of the framework, and new switch to specify a different image name
-* Package depencency installer ('gnr app checkdep') has a new '-n'
-  option to disable package caching
 * Support for 'security.txt' and 'robots.txt' WKUs through instanceconfig
 * Introduced 'deferAfterCommit' method in GnrSqlDb to executed
   callables *after* a commit
 * Introduced new 'gnr web serveprod' cli command, which start a
   production grade application server. Currently based on gunicorn.
-* Introduce new 'sys maintanance' instance cli command to
-  enable/disable maintenance mode
+* New FAQ models and backoffice tool from docu package
+* A new data retention framework has been introduced, allowing tables
+  to specify a retention period, which can be overriden in specific
+  deployments, and provided schedulable tasks and CLI command to
+  execute the retention cutoff. Introduced an initial retention policy
+  in sys.error and sys.task_execution tables. Please note that the
+  policy is not effecting if a task or a cron job for the cli command
+  is created, it doesn't work out-of-the-box.
+* Introduced support for database adapters subclassing, to extend the
+  current framework adapters with custom ones.
+* Introduced 'dbbranch' db connection attributes, for database
+  backends that supports branching.
+* boto3 client parameters now supports regions, retro-compatible.
+* Added support for multiple sub-table in the ORM.
+* Removed dependency from backports.zoneinfo, which is handled directly by
+  stdlib's datetime.timezone
+* Improvements to 2FA and validation handling at login.
+* Bag can now export to JSON format.
+* Formhandler support a dismissrow event publising for grid delete
+  operations.
+* Code cleanup for past/future references
+* App stores utilities to correctly handle integrations with native
+  mobile apps (Android/iOS)
   
+Develop & Deployment changes
+----------------------------
+
+* Added support for debugpy, installed via 'developer' profile.
+* Introduce a self-test procedure to verify if the deployment is
+  finalized for mobile app usage.
+* Introduced new 'sys maintanance' instance cli command to
+  enable/disable maintenance mode
+* Reduced Docker image footprint by disabling local cache
+* Introduced switch to 'gnr app dockerize' to create images based on development version
+  of the framework, and new switch to specify a different image name
+* New deployment tool to Kubernetes cluster has been introduced
+  (EXPERIMENTAL), allowing also splitted container deployments.
+* New commodity CLI command 'gnr web stack' is provided to run the
+  entire stack with a single command.
+* Package dependency installer ('gnr app checkdep') has a new '-n'
+  option to disable package caching.
+* Package dependencies solver/installer can now automatically
+  upgrade/downgrade version in order to fix the environment,
+  by using 'gnr app checkdep -f <instanceName>'.
+* Test suite for package has been added, automating invocation via
+  'gnr dev tests' CLI command.
+* A project builder framework has been introduce to manage multi-repositoy projects.
+  - **New module:** ``gnr.dev.builder``
+    - Manages ``build.json`` configuration.
+    - Handles Git operations (clone, checkout, update) for dependencies.
+    - Provides methods to rebuild or synchronize project state.
+  - **New CLI:** ``gnr dev builder``
+    - Commands: ``check``, ``generate``, ``regenerate``, ``show``, ``repositories``, ``update``, ``checkout``.
+  - **Integration:**
+    - ``gnrdockerize`` command now uses the new builder for build context creation.
+    - Simplified Docker image build pipeline with automatic repository checkout.
+  - Provides groundwork for future automated build and CI/CD pipelines.
+
+Fixes & Minor Adjustments
+-----------------------------
+
+* Updated werkzeug max_form_memory_size limit to 100M, to deal with new
+  hardcoded limit in recent werkzeug releases.
+* Fixed several regressions in menu resolver behavior, simplified
+  methods and fixes issue with single item menus.
+* Improved error handling in menu source loading.
+* Refined package branch expansion and flattening logic.
+* Cleaned up redundant imports and improved log consistency.
+* Added stricter executable dependency checks for builder and dockerization tools.
+* Handling duplicaes tables views related to user object.s
+* Aws translation service regressions fixes.
+* Bag file system loaders avois journal/backups files when globbing.
+* Picker building issues fixes, which was ignoring disable flag
+* Logging cleanup
+
+Migration Notes
+-----------------------------
+
+* Review and adjust data retention policies under ``/sys/dataretention``.
+* Validate custom menu or branch logic against the simplified menu resolver.
+
 
 Version 25.09.17
 ================

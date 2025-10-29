@@ -160,3 +160,24 @@ class TestGnrApp(BaseGnrAppTest):
         """
         a = ga.GnrSqlAppDb()
         assert a.application is None
+
+
+    def test_data_retention(self):
+        """
+        Test app higher level data retention
+        method and configurations
+        """
+        
+        default_policy = self.app.defaultRetentionPolicy
+        custom_policy = self.app.retentionPolicy
+
+        for p in (default_policy, custom_policy):
+            assert isinstance(p, dict)
+        
+            assert "sys.error" in p
+            assert "sys.task_execution" in p
+            assert isinstance(p['sys.error']['retention_period'], int)
+            assert p['sys.error']['retention_period_default'] == 60
+            assert p['sys.error']['filter_column'] == '__ins_ts'
+            assert p['sys.error']['retention_period'] == p['sys.error']['retention_period_default']
+       
