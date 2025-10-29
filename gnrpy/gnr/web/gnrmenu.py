@@ -103,121 +103,57 @@ class MenuStruct(GnrStructData):
     
     
     def branch(self, label, basepath=None ,tags='',pkg=None,**kwargs):
-        b = self.child('branch',label=label,basepath=basepath,tags=tags,pkg=pkg,**kwargs)
-        # ensure nested branches keep a valid page reference
-        try:
-            b._page = getattr(self, '_page', None)
-        except Exception:
-            pass
-        return b
+        return self.child('branch',label=label,basepath=basepath,tags=tags,pkg=pkg,**kwargs)
     
-    def webpage(self, label,filepath=None,tags='',multipage=None, _wrap=True, **kwargs):
-        if _wrap:
-            wlabel = label or (filepath and str(filepath).split('/')[-1]) or 'Page'
-            b = self.branch(label=wlabel, tags=tags, flatten=True)
-            b.webpage(label=wlabel, filepath=filepath, tags=tags, multipage=multipage, _wrap=False, **kwargs)
-            return b
+    def webpage(self, label,filepath=None,tags='',multipage=None, **kwargs):
         return self.child('webpage',label=label,multipage=multipage,tags=tags,
                         filepath=filepath,_returnStruct=False,**kwargs)
 
-    def thpage(self, label=None,table=None,tags='',multipage=True, _wrap=True, **kwargs):
-        if _wrap:
-            wlabel = label or (table and table.split('.')[-1].replace('_',' ').title()) or 'Table'
-            b = self.branch(label=wlabel, tags=tags, flatten=True)
-            b.thpage(label=wlabel, table=table, tags=tags, multipage=multipage, _wrap=False, **kwargs)
-            return b
+    def thpage(self, label=None,table=None,tags='',multipage=True, **kwargs):
         return self.child('thpage',label=label,table=table,
                             multipage=multipage,tags=tags,_returnStruct=False,**kwargs)
 
-    def lookups(self,label=None,lookup_manager=None,tags=None,_wrap=True,**kwargs):
-        if _wrap:
-            wlabel = label or 'Lookups'
-            b = self.branch(label=wlabel, tags=tags, flatten=True)
-            b.lookups(label=wlabel, lookup_manager=lookup_manager, tags=tags, _wrap=False, **kwargs)
-            return b
+    def lookups(self,label=None,lookup_manager=None,tags=None,**kwargs):
         return self.child('lookups',label=label,lookup_manager=lookup_manager,
                     tags=tags,_returnStruct=False,**kwargs)
     
-    def lookupPage(self,label=None,table=None,tags=None,_wrap=True,**kwargs):
-        if _wrap:
-            wlabel = label or (table and table.split('.')[-1].replace('_',' ').title()) or 'Lookup'
-            b = self.branch(label=wlabel, tags=tags, flatten=True)
-            b.lookupPage(label=wlabel, table=table, tags=tags, _wrap=False, **kwargs)
-            return b
+    def lookupPage(self,label=None,table=None,tags=None,**kwargs):
         return self.child('lookupPage',label=label,table=table,
                     tags=tags,_returnStruct=False,**kwargs)
 
-    def lookupBranch(self,label=None,pkg=None,tables=None,tags=None,_wrap=True,**kwargs):
-        if _wrap:
-            wlabel = label or (pkg and str(pkg)) or '!!Lookups'
-            b = self.branch(label=wlabel, tags=tags, flatten=True)
-            b.lookupBranch(label=wlabel, pkg=pkg, tables=tables, tags=tags, _wrap=False, **kwargs)
-            return b
-        return self.child('lookupBranch', label=label, pkg=pkg, tables=tables,
-                           tags=tags, _returnStruct=False, **kwargs)
+    def lookupBranch(self,label=None,pkg=None,tables=None,tags=None,**kwargs):
+        return self.child('lookupBranch',label=label,pkg=pkg,tables=tables,
+                            tags=tags,_returnStruct=False,**kwargs)
     
-    def directoryBranch(self,label=None,pkg=None,folder=None,tags=None,_wrap=True,**kwargs):
-        if _wrap:
-            wlabel = label or (folder and str(folder).split('/')[-1].replace('_',' ').title()) or 'Directory'
-            b = self.branch(label=wlabel, tags=tags, pkg=pkg, flatten=True)
-            b.directoryBranch(label=wlabel, pkg=pkg, folder=folder, tags=tags, _wrap=False, **kwargs)
-            return b
-        return self.child('directoryBranch', label=label, pkg=pkg, folder=folder,
-                           tags=tags, _returnStruct=False, **kwargs)
+    def directoryBranch(self,label=None,pkg=None,folder=None,tags=None,**kwargs):
+        return self.child('directoryBranch',label=label,pkg=pkg,folder=folder,
+                            tags=tags,_returnStruct=False,**kwargs)
 
-    def dashboardBranch(self,label,pkg=None,tags=None,code=None,cacheTime=None,_wrap=True,**kwargs):
-        if _wrap:
-            wlabel = label or (pkg and str(pkg)) or 'Dashboard'
-            b = self.branch(label=wlabel, tags=tags, flatten=True)
-            b.dashboardBranch(label=wlabel, pkg=pkg, tags=tags, code=code, cacheTime=cacheTime, _wrap=False, **kwargs)
-            return b
+    def dashboardBranch(self,label,pkg=None,tags=None,code=None,cacheTime=None,**kwargs):
         return self.child('packageBranch',label=label,pkg='biz',branchMethod='dashboardBranch',
                             branch_filterPkg=pkg,branch_code=code,
                             tags=tags,cacheTime=cacheTime,_returnStruct=False,**kwargs)
 
 
-    def packageBranch(self,label=None,pkg=None,subMenu=None,expand=False,_wrap=True,**kwargs):
-        """Build a package branch.
-        _wrap=True means we are at an external call-site and should create a wrapper branch
-        for a single package; internal calls set _wrap=False to avoid recursion.
-        """
+    def packageBranch(self,label=None,pkg=None,subMenu=None,**kwargs):
         kwargs['branchMethod'] = kwargs.get('branchMethod') or subMenu
         if pkg=='*':
-            packages = [p for p in self._page.db.packages.keys() if p != self._page.package.name]
+            packages = [pkg for pkg in self._page.db.packages.keys() if pkg!=self._page.package.name]
         else:
-            packages = pkg.split(',') if pkg else []
-
-        # Multiple packages: keep wrapper branch. Internal calls disable further wrapping.
-        if len(packages) > 1:
-            kwargs.pop('branchMethod', None)
-            branch = self.branch(label=label, **kwargs)
-            for p in packages:
-                pkgattr = self._page.db.package(p).attributes
-                plabel = pkgattr.get('name_plural') or pkgattr.get('name_long') or p
-                branch.packageBranch(label=plabel, pkg=p, expand=expand, _wrap=False)
+            packages = pkg.split(',')
+        if len(packages)>1:
+            kwargs.pop('branchMethod',None)
+            branch = self.branch(label=label,**kwargs)
+            for pkg in packages:
+                pkgattr = self._page.db.package(pkg).attributes
+                label = pkgattr.get('name_plural') or pkgattr.get('name_long') or pkg
+                branch.packageBranch(label=label,pkg=pkg)
             return branch
-
-        # Single package path
-        single_pkg = packages[0] if packages else None
-        pkgattr = self._page.db.package(single_pkg).attributes if single_pkg else {}
-        branch_label = label or pkgattr.get('name_long') or single_pkg or 'Menu'
-
-        if _wrap:
-            # External call: create a wrapper branch once, then call internally without wrapping
-            wrapper = self.branch(label=branch_label, flatten=True)
-            return wrapper.packageBranch(label=branch_label, pkg=single_pkg, expand=expand, _wrap=False, **kwargs)
-        else:
-            # Internal call: emit the actual packageBranch node, no further wrapping
-            return self.child('packageBranch', label=branch_label, pkg=single_pkg, expand=expand, _returnStruct=False, **kwargs)
+        return self.child('packageBranch',label=label,pkg=pkg,_returnStruct=False,**kwargs)
 
     
-    def tableBranch(self,label=None,table=None,_wrap=True,**kwargs):
-        if _wrap:
-            wlabel = label or (table and table.split('.')[-1].replace('_',' ').title()) or 'Table'
-            b = self.branch(label=wlabel, flatten=True)
-            b.tableBranch(label=wlabel, table=table, _wrap=False, **kwargs)
-            return b
-        return self.child('tableBranch', label=label, table=table, _returnStruct=False, **kwargs)
+    def tableBranch(self,label=None,table=None,**kwargs):
+        return self.child('tableBranch',label=label,table=table,_returnStruct=False,**kwargs)
 
 
     def toPython(self,filepath=None):
@@ -324,9 +260,11 @@ class MenuResolver(BagResolver):
             baseNode = result.getNode('#0')
             if not self.allowedNode(baseNode):
                 return Bag()
-            result = baseNode.value
-            baseattr = baseNode.attr
-            self.basepath = baseattr.get('basepath')
+            value = baseNode.value
+            if isinstance(value,Bag):
+                result = value
+                baseattr = baseNode.attr
+                self.basepath = baseattr.get('basepath')
         return result
 
     def legacyMenuFromPkgList(self,pkgMenus):
@@ -360,38 +298,19 @@ class MenuResolver(BagResolver):
 
     def load(self):
         result = Bag()
-        # Generalized source resolution: support None path and absent keys
-        source_root = self.sourceBag
-        source = source_root[self.path] if self.path else source_root
-        if source is None:
-            source = source_root
-            if source is None:
-                return result
-        # Flatten chains of a single top-level branch so inner items are shown directly
-        try:
-            while hasattr(source, '__len__') and len(source) == 1:
-                n0 = source.getNode('#0')
-                if n0 is not None and n0.attr.get('tag') == 'branch' and n0.value is not None:
-                    source = n0.value
-                else:
-                    break
-        except Exception:
-            pass
-        def _process_node(node):
+        source = self.sourceBag[self.path]
+        for node in source:
             if not self.allowedNode(node):
-                return
+                continue
             warning = self.checkLegacyNode(node)
             if warning:
                 self._page.log(f'AppMenu Changed tag in node {self.path}.{node.label}: {warning}')
-            menuTag = node.attr.get("tag")
-            handler = getattr(self, f'nodeType_{menuTag}') if menuTag else None
+            menuTag = node.attr["tag"]
+            handler = getattr(self,f'nodeType_{menuTag}')
             try:
-                if handler:
-                    value, attributes = handler(node)
-                else:
-                    value, attributes = None, dict(node.attr)
+                value,attributes = handler(node)
             except NotAllowedException:
-                return
+                continue
             self.setLabelClass(attributes)
             titleCounter_val = attributes.get('titleCounter')
             if titleCounter_val and menuTag != 'tableBranch':
@@ -400,56 +319,14 @@ class MenuResolver(BagResolver):
                     titleCounter_attrs.update(titleCounter_val)
                 table = attributes.get('table') or titleCounter_attrs.get('table')
                 if not table:
-                    return
+                    continue
                 self._page.subscribeTable(table, True, subscribeMode=True)
                 attributes['titleCounter_count'] = self._page.app.getRecordCount(
                     table=table,
                     where=attributes.get('titleCounter_condition'),
                     **titleCounter_attrs
                 )
-            #generate unique keys
-            key = node.label or attributes.get('label') or 'item'
-            if result.getNode(key) is not None:
-                # genera chiavi uniche: label__2, label__3, ...
-                i = 2
-                while result.getNode(f"{key}__{i}") is not None:
-                    i += 1
-                key = f"{key}__{i}"
-            attributes.setdefault('label', node.label)  # label visibile coerente
-            result.setItem(key, value, attributes)
-
-        # If there is exactly one packageBranch and it is marked expand=True, inline its children at root
-        try:
-            if hasattr(source, '__len__') and len(source) == 1:
-                n0 = source.getNode('#0')
-                if n0 is not None and n0.attr.get('tag') == 'packageBranch' and n0.attr.get('expand'):
-                    if self.allowedNode(n0):
-                        handler = getattr(self, 'nodeType_packageBranch')
-                        try:
-                            value, attributes = handler(n0)
-                        except NotAllowedException:
-                            return result
-                        innerbag = None
-                        if hasattr(value, 'load'):
-                            innerbag = value.load()
-                        elif isinstance(value, Bag):
-                            innerbag = value
-                        if innerbag:
-                            for child in innerbag:
-                                _process_node(child)
-                            return result
-        except Exception:
-            pass
-        for node in source:
-            # If this is a synthetic wrapper marked as flatten, inline its children
-            if node.attr.get('flatten') and node.attr.get('tag') == 'branch':
-                if not self.allowedNode(node):
-                    continue
-                inner = node.value or Bag()
-                for child in inner:
-                    _process_node(child)
-                continue
-            _process_node(node)
+            result.setItem(node.label, value, attributes)
         return result
 
     def setLabelClass(self,attributes):
