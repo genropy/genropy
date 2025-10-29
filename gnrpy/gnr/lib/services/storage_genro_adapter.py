@@ -305,8 +305,8 @@ class GenroStorageNodeWrapper:
         # Parse destination
         dest_node = self._parent.storageNode(dest_path)
 
-        # Perform copy
-        self._genro_node.copy(dest_node._genro_node if isinstance(dest_node, GenroStorageNodeWrapper) else dest_path)
+        # Perform copy (genro-storage v0.3.0+ uses copy_to)
+        self._genro_node.copy_to(dest_node._genro_node if isinstance(dest_node, GenroStorageNodeWrapper) else dest_path)
 
         return dest_node
 
@@ -320,8 +320,8 @@ class GenroStorageNodeWrapper:
 
         dest_node = self._parent.storageNode(dest_path)
 
-        # Perform move
-        self._genro_node.move(dest_node._genro_node if isinstance(dest_node, GenroStorageNodeWrapper) else dest_path)
+        # Perform move (genro-storage v0.3.0+ uses move_to)
+        self._genro_node.move_to(dest_node._genro_node if isinstance(dest_node, GenroStorageNodeWrapper) else dest_path)
 
         # Update self to point to new location
         self._genro_node = dest_node._genro_node if isinstance(dest_node, GenroStorageNodeWrapper) else dest_node
