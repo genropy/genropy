@@ -94,7 +94,11 @@ class BaseServiceType(object):
         service.service_type = self.service_type
         service.service_implementation = implementation
         service._service_creation_ts = datetime.now()
-        self.service_instances[service_name] = service
+
+        # Include domain in cache key for multidomain isolation
+        domain = self.site.currentDomain
+        cache_key_tuple = (service_name, domain)
+        self.service_instances[cache_key_tuple] = service
         return service
 
     def getConfiguration(self, service_name):
@@ -220,9 +224,14 @@ class BaseServiceType(object):
 
     def __call__(self, service_name=None, **kwargs):
         service_name = service_name or self.default_service_name
-        service = self.service_instances.get(service_name)
+
+        # Include domain in cache key for multidomain isolation
+        domain = self.site.currentDomain
+        cache_key_tuple = (service_name, domain)
+
+        service = self.service_instances.get(cache_key_tuple)
         gs = self.site.register.globalStore()
-        cache_key = 'globalServices_lastChangedConfigTS.%s_%s' % (self.service_type, service_name)
+        cache_key = 'globalServices_lastChangedConfigTS.%s_%s_%s' % (self.service_type, service_name, domain)
         lastChangedConfigurationTS = gs.getItem(cache_key)
         if service is None or (lastChangedConfigurationTS and service._service_creation_ts<lastChangedConfigurationTS):
             service = self.addService(service_name, **kwargs)
