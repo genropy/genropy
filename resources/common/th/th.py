@@ -745,11 +745,25 @@ class MultiButtonForm(BaseComponent):
                 """,
                 pkey='^.value',
                 frm=form,_if='pkey',caption_field=caption_field,store='=.store')
-            bar.dataController("""
-            if(_node.label=='store' && !(store && store.len()>0)){
-                SET .value = '*norecord*';
-            }
-            """,store='^.store',frm=form.js_form)
+            frame.dataController("""
+                if(_node && _node.label!='store'){
+                    return;
+                }
+                var hasRows = store && store.len()>0;
+                if(!hasRows){
+                    SET .value = '*norecord*';
+                    if(frm && typeof frm.getCurrentPkey === 'function' && typeof frm.norecord === 'function' && frm.getCurrentPkey()!='*norecord*'){
+                        frm.norecord();
+                    }
+                }
+                if(emptyMessage){
+                    if(hasRows){
+                        frameWidget.setHiderLayer(false);
+                    }else{
+                        frameWidget.setHiderLayer(true,{message:emptyMessage,_class:'hiderMessage',text_align:'center',top:'25%',left:0,right:0});
+                    }
+                }
+            """,store='^.store',frm=form.js_form,frameWidget=frame,emptyMessage=emptyPageMessage)
             form.dataController("""
                 if(mb.form){
                     mb.form.childForms[this.form.formId] = this.form;
@@ -1039,4 +1053,3 @@ class THBusinessIntelligence(BaseComponent):
                                                                               nodeId=nodeId,
                                                                               viewResource=viewResource,
                                                                               formResource=formResource)
-
