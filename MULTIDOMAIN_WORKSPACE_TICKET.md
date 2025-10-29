@@ -2,11 +2,36 @@
 
 ## Summary
 
-Implement enhanced multi-tenancy mode with strong domain separation, providing workspace-like isolation for tenants in the Genropy framework.
+Implement enhanced multi-tenancy mode with strong domain separation, providing workspace-like isolation for tenants in the Genropy framework. **Critical for SaaS providers serving multiple independent clients from single deployment with massive cost savings.**
+
+## Business Case
+
+**Problem:** SaaS companies need to serve hundreds of independent clients, each requiring complete isolation (users, configs, data), but separate deployments per client are prohibitively expensive.
+
+**Solution:** Multidomain mode enables one deployment to serve unlimited clients, each appearing to have their own dedicated application:
+- **Cost Impact:** 80-90% infrastructure cost reduction
+- **Scale:** Support 100s-1000s of clients from single deployment
+- **Isolation:** Complete user/session/data separation (compliance-ready)
+- **Experience:** Each client feels they have dedicated application
+- **Maintenance:** Single codebase, one update reaches all clients
+
+**Target Market:**
+- Healthcare SaaS (HIPAA compliance, separate clinics)
+- White-label platforms (resellers need "their own" app)
+- Multi-brand businesses (separate stores/brands)
+- Professional services (accounting firms, consultancies)
+- Enterprise with subsidiaries (separate entities, one platform)
 
 ## Description
 
 This feature introduces a "multidomain" mode for the multidb (multi-tenant) system that significantly strengthens tenant separation. Unlike standard multidb where tenants share most configuration, multidomain mode treats each domain as an almost-independent application with its own preferences, users, and database configuration.
+
+**Key differentiator:** Each client gets completely isolated:
+- **Users:** Separate user registries (no cross-client visibility)
+- **Sessions/Cookies:** Domain-scoped (no session leakage)
+- **Preferences:** Independent configurations per client
+- **Database:** Separate stores (compliance-ready)
+- **Domains:** Custom subdomains or domains per client
 
 ## Goals
 
