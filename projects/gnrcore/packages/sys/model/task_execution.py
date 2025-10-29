@@ -1,8 +1,11 @@
 # encoding: utf-8
 
 class Table(object):
+    
     def config_db(self,pkg):
-        tbl=pkg.table('task_execution', pkey='id', name_long='!!Task execution', name_plural='!!Task executions')
+        tbl=pkg.table('task_execution', pkey='id', name_long='!!Task execution', name_plural='!!Task executions',
+                      retention_policy=('__ins_ts', 180)
+                      )
         self.sysFields(tbl)
         tbl.column('task_id',size='22',name_long='!!Task ID').relation('sys.task.id', mode='foreignkey',
                                                                         relation_name='executions',onDelete='cascade')
@@ -38,3 +41,4 @@ class Table(object):
                  ELSE 'waiting'
             END)
         """,name_long='Status')
+

@@ -1050,12 +1050,23 @@ class GnrApp(object):
                     logger.error(f"ERROR on {name}: {e}")
         return missing, wrong
 
-    def check_package_install_missing(self, nocache=False):
+    def check_package_install_missing(self, nocache=False, upgrading=False):
+        """
+        Install missing packages, or, with upgrading=True, try to
+        upgrade the wrong version of packages.
+        """
         missing, wrong = self.check_package_missing_dependencies()
-        base_cmd = [sys.executable, '-m', 'pip', 'install']
-        if nocache:
-            base_cmd.append("--no-cache-dir")
-        return subprocess.check_call(base_cmd+missing)
+        if upgrading:
+            base_cmd = [sys.executable, '-m', 'pip', 'install']
+            if nocache:
+                base_cmd.append("--no-cache-dir")
+            packages = [x[0] for x in wrong]
+            return subprocess.check_call(base_cmd+packages)
+        else:
+            base_cmd = [sys.executable, '-m', 'pip', 'install']
+            if nocache:
+                base_cmd.append("--no-cache-dir")
+            return subprocess.check_call(base_cmd+missing)
         
     def importFromSourceInstance(self,source_instance=None):
         to_import = ''
@@ -1683,6 +1694,104 @@ class GnrApp(object):
         sourcedb.closeConnection()
         logger.info('imported',tbl)
 
+    @property
+    def defaultRetentionPolicy(self):
+        """
+        Returns the default data retention policy by developers in table definitions,
+        for all packages composing the Gnr Application.
+
+        The return dict has table fullname (package.table) as keys,
+        and a dict describing the policy, which reports the
+        filter_column , the default retention_period and the computed
+        retention_period, all defined as days.
+
+        """
+        policy = {
+            table.fullname: dict(filter_column=table.defaultRetentionPolicy[0],
+                                 retention_period_default=table.defaultRetentionPolicy[1],
+                                 retention_period=table.defaultRetentionPolicy[1])
+            for table in self.db.tables if table.defaultRetentionPolicy
+            }
+
+        return policy
+    
+    @property
+    def retentionPolicy(self):
+        """
+        Retrieve the data retention policy for each table for each
+        package in the application, starting from the default policy
+        then applying eventual customizations, residing in
+        sys.datarentetion table.
+
+        """
+        policy = self.defaultRetentionPolicy
+        # query the database for overrides
+        try:
+            custom_policies_qs = self.db.table('sys.dataretention').query().fetch()
+            if custom_policies_qs:
+                for record in custom_policies_qs:
+                    policy[record['table_fullname']]['retention_period_custom'] = record['retention_period']
+                    policy[record['table_fullname']]['retention_period'] = record['retention_period']
+        except:
+            pass
+        
+        return policy
+    
+    def saveRetentionPolicy(self, policy_bag):
+        """
+        Update the retention policy based on differences from
+        the default one. Manual comparison.
+        """
+        tbl = self.db.table("sys.dataretention")
+        
+        for r in policy_bag.values():
+
+            # no custom value set, ignore
+            if not r.get("retention_period_custom", None):
+                continue
+
+            # first, we search for existing configuration
+            existing_policy =None
+            exist = tbl.query(where='$table_fullname=:table_fullname AND $filter_column=:filter_column',
+                              table_fullname=r['table_fullname'],
+                              filter_column=r['filter_column']).fetch()
+            if exist:
+                existing_policy = exist[0]
+
+
+            if r['retention_period_custom'] == r['retention_period_default']:
+                # delete if present, not necessary
+                if existing_policy:
+                    tbl.delete(existing_policy)
+            else:
+                if existing_policy:
+                    existing_policy['retention_period'] = r['retention_period_custom']
+                    tbl.update(existing_policy)
+                    
+                else:
+                    # create the custom policy
+                    tbl.insert(
+                        dict(
+                            table_fullname=r['table_fullname'],
+                            filter_column=r['filter_column'],
+                            retention_period=r['retention_period_custom']
+                        )
+                    )
+        self.db.commit()
+            
+    def executeRetentionPolicy(self, dry_run=True):
+        """
+        Execute (with dry run options) the retention
+        policy on each table having a policy defined.
+
+        Data deletion is committed for each table.
+        """
+        r = {}
+        for table, policy in self.retentionPolicy.items():
+            report = self.db.table(table).executeRetentionPolicy(policy=policy, dry_run=dry_run)
+            r[table] = report
+        return r
+    
     def getAuxInstance(self, name=None,check=False):
         """TODO
         

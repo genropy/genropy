@@ -260,9 +260,11 @@ class MenuResolver(BagResolver):
             baseNode = result.getNode('#0')
             if not self.allowedNode(baseNode):
                 return Bag()
-            result = baseNode.value
-            baseattr = baseNode.attr
-            self.basepath = baseattr.get('basepath')
+            value = baseNode.value
+            if isinstance(value,Bag):
+                result = value
+                baseattr = baseNode.attr
+                self.basepath = baseattr.get('basepath')
         return result
 
     def legacyMenuFromPkgList(self,pkgMenus):
