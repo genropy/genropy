@@ -16,7 +16,7 @@ Integration Flow:
 Key Fields Mapping:
 -------------------
 Genropy -> async-mail-service:
-  - id: "storename:message_id" (unique across all stores)
+  - id: "storename@message_id" (unique across all stores, @ separator avoids conflicts with storage paths)
   - account_id: SMTP account identifier
   - from_address -> from
   - to_address/cc_address/bcc_address -> to/cc/bcc (list)
@@ -24,6 +24,8 @@ Genropy -> async-mail-service:
   - proxy_priority -> priority (0=immediate, 1=high, 2=medium, 3=low)
   - deferred_ts -> deferred_ts (Unix timestamp)
   - extra_headers -> message_id, reply_to, return_path, headers
+  - attachments -> storage_path format: "storename@volume_id:path/to/file"
+    (e.g., "store1@s3_attachments:emails/2024/file.pdf")
 
 async-mail-service -> Genropy (delivery reports):
   - sent_ts -> send_date (UTC datetime)
@@ -40,6 +42,16 @@ email.message:
   - error_msg: Error description
   - deferred_ts: When message is scheduled for later delivery
   - proxy_priority: Delivery priority (0-3)
+
+Storage Volumes (Multitenant):
+------------------------------
+In multitenant environments, storage volumes are registered with format:
+  - volume_id: "storename@service_name" (e.g., "store1@s3_attachments")
+  - storage_path: "volume_id:path" (e.g., "store1@s3_attachments:emails/file.pdf")
+
+This allows different stores to have storage services with the same logical name
+but pointing to different buckets/paths. The @ separator avoids conflicts with
+the : separator used in genropy storage paths (e.g., "home:path/to/file").
 
 For protocol details see:
 https://github.com/genropy/gnr-async-mail-service/blob/main/docs/protocol.rst
@@ -136,7 +148,7 @@ class GnrCustomWebPage(object):
         delivery_report_by_storename = defaultdict(dict)
         for item in delivery_report:
             message_report = dict(item)
-            storename, message_id = message_report.pop('id').split(':', 1)
+            storename, message_id = message_report.pop('id').split('@', 1)
             delivery_report_by_storename[storename][message_id] = message_report
 
         # Track summary statistics
@@ -284,7 +296,7 @@ class GnrCustomWebPage(object):
         """
         storename = self.db.currentEnv.get('storename') or self.db.rootstore
         result = {
-            'id': f"{storename}:{record['id']}",
+            'id': f"{storename}@{record['id']}",
             'account_id': record['account_id'],
             'subject': record['subject'] or '',
             'from': record['from_address'],
@@ -416,9 +428,24 @@ class GnrCustomWebPage(object):
         return self._attachment_payload_from_node(node, filename=node.basename or path.split('/')[-1])
 
     def _attachment_payload_from_node(self, node, filename=None):
+        """Convert storage node to attachment payload.
+
+        Uses the new genro-storage format with storage_path: 'volume_id@path'
+        where volume_id is 'storename@service_name' for multitenant scenarios.
+        Falls back to legacy s3/url format for backward compatibility.
+        """
         if not node:
             return None
 
+        # Try to use genro-storage format with volume_id
+        storage_path = self._node_to_storage_path(node)
+        if storage_path:
+            payload = dict(storage_path=storage_path)
+            if filename:
+                payload['filename'] = filename
+            return payload
+
+        # Fallback to legacy format for backward compatibility
         if self._node_is_s3(node):
             bucket = getattr(node.service, 'bucket', None)
             key = node.internal_path()
@@ -437,6 +464,34 @@ class GnrCustomWebPage(object):
         if filename:
             payload['filename'] = filename
         return payload
+
+    def _node_to_storage_path(self, node):
+        """Convert a storage node to genro-storage path format.
+
+        Returns:
+            str: Path in format 'storename@volume_id:path' or None if not applicable
+        """
+        if not node or not hasattr(node, 'service'):
+            return None
+
+        service = node.service
+        service_name = getattr(service, 'service_name', None)
+        if not service_name:
+            return None
+
+        # Get current storename for multitenant support
+        storename = self.db.currentEnv.get('storename') or self.db.rootstore
+
+        # Construct volume_id with storename prefix
+        volume_id = f"{storename}@{service_name}" if storename else service_name
+
+        # Get the internal path within the storage
+        internal_path = node.internal_path()
+        if not internal_path:
+            return None
+
+        # Format: volume_id:path (e.g., "store1@s3_attachments:emails/file.pdf")
+        return f"{volume_id}:{internal_path}"
 
     def _node_is_s3(self, node):
         service = getattr(node, 'service', None)
