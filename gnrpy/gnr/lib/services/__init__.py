@@ -76,11 +76,24 @@ class ServiceHandler(object):
         return self.service_types[service_type]
 
 class BaseServiceType(object):
-    
+
     def __init__(self, site=None, service_type=None, **kwargs):
         self.site = site
         self.service_type = service_type
-        self.service_instances = {}        
+        self.service_instances = {}
+
+    def instanceKey(self, service_name):
+        """Returns the cache key for service instance caching.
+
+        In multidomain mode, includes the domain to ensure service isolation.
+
+        Args:
+            service_name: Name of the service
+
+        Returns:
+            str: cache key in format 'service_name@domain'
+        """
+        return f'{service_name}@{self.site.currentDomain}'
 
     def addService(self, service_name=None, **kwargs):
         service_conf = kwargs or self.getConfiguration(service_name)
@@ -96,9 +109,7 @@ class BaseServiceType(object):
         service._service_creation_ts = datetime.now()
 
         # Include domain in cache key for multidomain isolation
-        domain = self.site.currentDomain
-        cache_key_tuple = (service_name, domain)
-        self.service_instances[cache_key_tuple] = service
+        self.service_instances[self.instanceKey(service_name)] = service
         return service
 
     def getConfiguration(self, service_name):
@@ -226,13 +237,11 @@ class BaseServiceType(object):
         service_name = service_name or self.default_service_name
 
         # Include domain in cache key for multidomain isolation
-        domain = self.site.currentDomain
-        cache_key_tuple = (service_name, domain)
-
-        service = self.service_instances.get(cache_key_tuple)
+        instance_key = self.instanceKey(service_name)
+        service = self.service_instances.get(instance_key)
         gs = self.site.register.globalStore()
-        cache_key = 'globalServices_lastChangedConfigTS.%s_%s_%s' % (self.service_type, service_name, domain)
-        lastChangedConfigurationTS = gs.getItem(cache_key)
+        gs_cache_key = f'globalServices_lastChangedConfigTS.{self.service_type}_{instance_key}'
+        lastChangedConfigurationTS = gs.getItem(gs_cache_key)
         if service is None or (lastChangedConfigurationTS and service._service_creation_ts<lastChangedConfigurationTS):
             service = self.addService(service_name, **kwargs)
         return service
