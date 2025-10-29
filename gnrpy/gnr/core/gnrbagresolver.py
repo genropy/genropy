@@ -259,7 +259,7 @@ class NetBag(BagResolver):
         self.converter = GnrClassCatalog()
 
     def load(self):
-
+        from gnr.core.gnrbag import Bag
         try:
             params = {k:self.converter.asTypedText(v) for k,v in list(self.kwargs.items())}
             response = self.requests.post('%s/%s' %(self.url,self.method),data=params)
@@ -441,7 +441,7 @@ class TraceBackResolver(BagResolver):
 
     def load(self):
         import sys, linecache
-
+        from gnr.core.gnrbag import Bag
         result = Bag()
         limit = self.limit
         if limit is None:
