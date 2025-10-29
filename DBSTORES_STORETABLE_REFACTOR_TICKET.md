@@ -1,22 +1,51 @@
-# Ticket: DBStores Storetable Refactoring
+# Ticket: DBStores Storetable Refactoring - Cloud-Native Configuration
 
 ## Summary
 
-Modernize database store configuration management by moving from XML files to database-stored configuration (storetable), enabling dynamic configuration and better deployment practices.
+Modernize database store configuration management by moving from XML files to database-stored configuration (storetable), enabling dynamic configuration and cloud-native deployment practices. **Critical for containerized/Kubernetes deployments.**
+
+## Business Context
+
+As Genropy moves toward cloud-native deployments (Docker, Kubernetes, cloud platforms), file-based XML configuration creates significant operational friction:
+
+- **DevOps Pain:** Multiple ConfigMaps per environment, complex volume mounting
+- **Scaling Issues:** Can't dynamically provision tenants without file system changes
+- **12-Factor Violation:** Configuration isn't truly separated from code
+- **Container Anti-Pattern:** Stateful configuration in stateless containers
+
+This refactoring eliminates these pain points by treating configuration as data, not files.
 
 ## Description
 
-Currently, multi-database (multidb) configurations are managed through XML files that require file system access and often need server restarts for changes. This refactoring moves dbstore configurations into the database itself, stored as a "storetable" in instance parameters, providing a more flexible and maintainable solution.
+Currently, multi-database (multidb) configurations are managed through XML files (`dbstores.xml`) that require file system access and often need server restarts for changes. This refactoring moves dbstore configurations into the database itself, stored as a "storetable" in instance parameters, providing a more flexible and maintainable solution.
+
+**Target Use Cases:**
+- SaaS multi-tenant deployments on Kubernetes
+- Containerized applications requiring zero file system dependencies
+- Dynamic tenant provisioning without redeployment
+- Cloud platform deployments (AWS, GCP, Azure)
+- CI/CD pipelines with infrastructure-as-code
 
 ## Problem
 
-**Current Issues:**
-- XML-based configuration requires file system access
+### Current Issues with XML Configuration
+
+**Technical Problems:**
+- XML-based configuration requires file system access and persistent volumes
 - Configuration changes often need server restart
-- Difficult to manage programmatically
+- Difficult to manage programmatically (can't use REST APIs)
 - Deployment-specific configs complicate version control
 - Not container/cloud-friendly (requires volume mounts for config files)
 - Coupling between code and deployment configuration
+
+**Container/Kubernetes Specific Pain Points:**
+- Each environment needs different ConfigMap with XML content
+- Can't use standard secret management (Vault, AWS Secrets Manager)
+- Volume mounts required just for configuration files
+- Can't horizontally scale with different configs per pod
+- Image must be rebuilt or reconfigured for each environment
+- Dynamic tenant onboarding requires pod restarts
+- Configuration drift between environments
 
 ## Goals
 
