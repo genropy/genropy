@@ -5412,6 +5412,7 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
         var tb;
         var gnrwdg = sourceNode.gnrwdg;
         var has_code;
+        var opSelector = objectPop(kw,'opSelector');
         gnrwdg.identifier = objectPop(kw,'identifier')
         gnrwdg.labelAttribute = objectPop(kw,'labelAttribute')
         gnrwdg._valuelabel = kw._valuelabel;
@@ -5482,16 +5483,53 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
         if(popup){
             var textBoxId = 'placingTextbox_'+genro.getCounter();
             var tbkw = {'value':has_code?value+'?_displayedValue':value,position:'relative',readOnly:true,nodeId:textBoxId};
-            objectExtract(originalKwargs,'table,values,cols,identifier,labelAttribute,popup') //belongs to cbtext
+            objectExtract(originalKwargs,'table,values,cols,identifier,labelAttribute,popup'); // belongs to cbtext
             objectUpdate(tbkw,originalKwargs);
             tb = sourceNode._('textbox',tbkw);
-            gnrwdg.textboxNode = tb.getParentNode(); 
+            gnrwdg.textboxNode = tb.getParentNode();
             rootNode = tb._('comboArrow')._('tooltipPane',{placingId:textBoxId,onOpening:onOpening})._('div',{padding:'5px',overflow:'auto',max_height:'300px',min_width:'200px'});
         }else{
+            rootNode = sourceNode;
             table_kw['tooltip']=objectPop(kw,'tooltip');
-            objectExtract(originalKwargs,'table,values,cols,identifier,labelAttribute,popup') //belongs to cbtext
+            objectExtract(originalKwargs,'table,values,cols,identifier,labelAttribute,popup'); // belongs to cbtext
             objectUpdate(table_kw,originalKwargs);
         }
+
+        if (opSelector && popup) {
+            var tbNode = tb.getParentNode();
+            var valuePath = tbNode.absDatapath(tbkw.value);
+        
+            tbNode._('span','andor_toggle_lbl',{
+                innerHTML: 'OR',
+                _class: 'andor_toggle_label',
+                connect_onclick: function(){
+                    var n = genro.getDataNode(valuePath);
+                    if(!n){ 
+                        return; 
+                    }
+                    var curr = (n.attr.andor_op || 'OR').toUpperCase();
+                    var next = (curr==='AND') ? 'OR' : 'AND';
+                    n.setAttribute('andor_op', next, true);   // <-- BagNode attribute
+                    this.domNode.innerHTML = next;
+                }
+            });
+
+            tbNode._('dataController', {
+                script: `
+                    var n = genro.getDataNode(valuePath);
+                    if(!n){ return; }
+                    var curr = n.attr.andor_op;
+                    var op = (curr && (curr.toUpperCase()==='AND' || curr.toUpperCase()==='OR')) ? curr.toUpperCase() : 'OR';
+                    if(curr !== op){ n.setAttribute('andor_op', op, true); }
+                    var ns = genro.nodeById(labelId);
+                    if(ns){ 
+                        ns.updAttributes({innerHTML: op}, true); 
+                    }`,
+                valuePath: valuePath,
+                labelId: tbNode.getParentNode().getStringId()
+            });
+        }
+
         gnrwdg.rootNode = rootNode;
         if(!gnrwdg.hierarchical){
             var tbl = rootNode._('table',table_kw)._('tbody')
@@ -5849,6 +5887,7 @@ dojo.declare("gnr.widgets.FieldsTree", gnr.widgets.gnrwdg, {
         return box;
     }
 });
+
 
 dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
     contentKwargs: function(sourceNode, attributes) {

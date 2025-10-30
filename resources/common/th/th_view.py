@@ -268,17 +268,32 @@ class TableHandlerView(BaseComponent):
                     op = n.attr.op  || 'equal';
                 }
                 if(typeof(value)=='string' && value.indexOf(',')>=0 && op!='in'){
+                    var jcAttr = (n.attr.andor_op || 'or').toString().toLowerCase();
+                    jcAttr = (jcAttr==='and' || jcAttr==='or') ? jcAttr : 'or';
+                    var parentOp = (jcAttr==='and') ? 'contains_all' : (n.attr.op || 'contains');
                     var subwhere = new gnr.GnrBag();
                     value.split(',').forEach(function(chunk,idx){
-                        if(chunk){
-                            subwhere.setItem('c_'+idx,chunk.trim(),{column_dtype:n.attr.column_dtype,
-                                                                    op:op,jc:'or',column:n.attr.column,
-                                                                    value_caption:value_caption,
-                                                                    parname:`${parname}_${idx}`});
+                        if(!chunk){ 
+                        return; 
                         }
-                    })
+                        subwhere.setItem('c_'+idx, chunk.trim(), {
+                            column_dtype: n.attr.column_dtype,
+                            op: op,
+                            jc: jcAttr,
+                            column: n.attr.column,
+                            value_caption: value_caption,
+                            parname: `${parname}_${idx}`
+                        });
+                    });
                     if(subwhere.len()){
-                        where.setItem('c_'+mainIdx,subwhere,{jc:'and'});
+                        where.setItem('c_'+mainIdx, subwhere, {
+                            jc: 'and',
+                            op: parentOp,
+                            column_dtype: n.attr.column_dtype,
+                            column: n.attr.column,
+                            value_caption: value_caption,
+                            parname: parname
+                        });
                     }
                 }else{
                     where.setItem('c_'+mainIdx,value,{column_dtype:n.attr.column_dtype,op:op,jc:'and',column:n.attr.column,value_caption:value_caption,parname:parname})

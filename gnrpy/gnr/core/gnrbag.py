@@ -265,7 +265,7 @@ class BagNode(object):
             for subscriber in list(self._node_subscribers.values()):
                 subscriber(node=self, info=oldvalue, evt='upd_value')
         if self.parentbag != None and self.parentbag.backref:
-            if hasattr(value,'_htraverse'):
+            if hasattr(value,'_htraverse'): # if value is a Bag or a BagNode
                 value.setBackRef(node=self, parent=self.parentbag)
             if trigger:
                 self.parentbag._onNodeChanged(self, [self.label],
@@ -3189,7 +3189,7 @@ class BagResolverNew(object):
         return result
         
     def load(self):
-        """.. warning:: deprecated since version 0.7"""
+        """Hook method, needs to be implemented"""
         pass
 
     def init(self):

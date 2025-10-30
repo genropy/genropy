@@ -121,6 +121,7 @@ class SqlQueryCompiler(object):
                            :meth:`setJoinCondition() <gnr.web.gnrwebpage.GnrWebPage.setJoinCondition>` method)
     :param sqlparams: a dict of parameters used in "WHERE" clause
     :param locale: the current locale (e.g: en, en_us, it)"""
+    
     def __init__(self, tblobj, joinConditions=None, sqlContextName=None, sqlparams=None, locale=None,aliasPrefix = None):
         self.tblobj = tblobj
         self.db = tblobj.db
@@ -415,6 +416,145 @@ class SqlQueryCompiler(object):
             self._explodingRows = True
         return alias, newpath
 
+    def _rewriteContainsAllToHaving(self, columns, where, group_by, having):
+        """
+        Rewrite AND-chains of multiple ILIKE conditions on the **same alias.column**
+        into HAVING clauses using SUM(CASE WHEN ... THEN 1 ELSE 0 END) > 0.
+
+        Rationale: when filtering on a many-related table (1:N), multiple ILIKE
+        conditions combined with AND in WHERE require *the same row* to match all
+        values, which yields no results. Moving each value-check into a COUNT-like
+        aggregate and grouping by the main record preserves the intended semantics:
+        "record has ALL these values across its related rows".
+
+        Supports both parameter syntaxes:
+          - colon style:  '%%' || :param || '%%'
+          - pyformat:     '%%' || %(param)s || '%%'
+
+        Returns the possibly-updated (columns, where, group_by, having).
+        """
+        import re
+
+        if not where:
+            return columns, where, group_by, having
+
+        w = where
+
+        # Match a single ILIKE predicate of the form:  "tN"."col" ILIKE '%%' || :param || '%%'
+        pat_colon = re.compile(r'\(\s*"(?P<alias>t\d+)"\."(?P<col>\w+)"\s+ILIKE\s+\'%\%\'\s*\|\|\s*:(?P<par>\w+)\s*\|\|\s*\'%\%\'\s*\)', re.I)
+        pat_pyfmt = re.compile(r'\(\s*"(?P<alias>t\d+)"\."(?P<col>\w+)"\s+ILIKE\s+\'%\%\'\s*\|\|\s*%\((?P<par>\w+)\)s\s*\|\|\s*\'%\%\'\s*\)', re.I)
+
+        matches = list(pat_colon.finditer(w)) + list(pat_pyfmt.finditer(w))
+        if not matches:
+            return columns, where, group_by, having
+
+        # Group matches by (alias, col)
+        groups = {}
+        for m in matches:
+            key = (m.group('alias'), m.group('col'))
+            groups.setdefault(key, []).append(m)
+
+        # Keep only groups with at least 2 occurrences AND with an AND between first..last
+        rewrite = {}
+        for key, lst in groups.items():
+            if len(lst) < 2:
+                continue
+            lst.sort(key=lambda x: x.start())
+            middle = w[lst[0].end():lst[-1].start()].upper()
+            if ' AND ' in middle:
+                rewrite[key] = lst
+
+        if not rewrite:
+            return columns, where, group_by, having
+
+        # Build HAVING parts using the *original* condition text, and mark spans to neutralize in WHERE
+        having_parts = []
+        spans = []
+        for key, lst in rewrite.items():
+            for m in lst:
+                cond = m.group(0)  # full matched predicate, incl. parentheses
+                having_parts.append(f"SUM(CASE WHEN {cond} THEN 1 ELSE 0 END) > 0")
+                spans.append((m.start(), m.end()))
+
+        # Replace each matched predicate with '(true)' and cleanup booleans
+        if spans:
+            spans.sort(reverse=True)
+            wl = list(w)
+            for s, e in spans:
+                wl[s:e] = '(true)'
+            where = ''.join(wl)
+            # cleanup trivial leftovers
+            where = re.sub(r'\bAND\s*\(true\)', '', where, flags=re.I)
+            where = re.sub(r'\(true\)\s*AND\b', '', where, flags=re.I)
+            where = re.sub(r'\(\s*true\s*\)', 'true', where, flags=re.I)
+            where = re.sub(r'\(\s*\)', '', where)
+
+        # Ensure GROUP BY includes at least the pkey
+        base_alias = self.aliasCode(0)
+        pkey = self.tblobj.pkey
+        gb_items = []
+        if group_by:
+            gb_items = [g.strip() for g in re.split(r',\s*', group_by) if g.strip()]
+        if pkey:
+            pkey_expr = f'{self.db.adapter.adaptSqlName(base_alias)}.{self.db.adapter.adaptSqlName(pkey)}'
+            if pkey_expr not in gb_items:
+                gb_items.append(pkey_expr)
+
+        # Top-level SELECT items (subqueries kept intact)
+        select_items = self._split_columns_top_level(columns)
+        gb_items = [g.strip() for g in re.split(r',\s*', group_by)] if group_by else []
+
+        # Always include pkey of main alias
+        base_alias = self.aliasCode(0)
+        pkey = self.tblobj.pkey
+        if pkey:
+            pkey_expr = f'{self.db.adapter.adaptSqlName(base_alias)}.{self.db.adapter.adaptSqlName(pkey)}'
+            if pkey_expr not in gb_items:
+                gb_items.append(pkey_expr)
+
+        # Add non-aggregate SELECT expressions (left side of AS)
+        for it in select_items:
+            left = re.split(r"\s+AS\s+", it, flags=re.IGNORECASE)[0].strip()
+
+            # 🔴 SKIP subselects entirely: they break GROUP BY
+            if re.search(r'\bSELECT\b', left, re.IGNORECASE):
+                continue
+            
+            if not re.search(r"\b(sum|count|avg|min|max)\s*\(", left, re.IGNORECASE):
+                if left and left not in gb_items:
+                    gb_items.append(left)
+
+        group_by = ', '.join(gb_items) if gb_items else None
+
+        # Merge HAVING parts
+        if having_parts:
+            new_having = ' AND '.join(f'({h})' for h in having_parts)
+            having = f"( {having} ) AND {new_having}" if having else new_having
+
+        return columns, where, group_by, having
+    
+    def _split_columns_top_level(self,s: str):
+        items, buf, depth = [], [], 0
+        i, n = 0, len(s)
+        while i < n:
+            ch = s[i]
+            if ch == '(':
+                depth += 1
+            elif ch == ')':
+                depth = max(0, depth-1)
+            if ch == ',' and depth == 0:
+                item = ''.join(buf).strip()
+                if item:
+                    items.append(item)
+                buf = []
+            else:
+                buf.append(ch)
+            i += 1
+        last = ''.join(buf).strip()
+        if last:
+            items.append(last)
+        return items
+
     def getJoinCondition(self, target_fld, from_fld, alias,relation=None):
         """Internal method:  get optional condition for a join clause from the joinConditions dict.
 
@@ -706,6 +846,8 @@ class SqlQueryCompiler(object):
         order_by = gnrstring.templateReplace(order_by, colPars)
         having = gnrstring.templateReplace(having, colPars)
         group_by = gnrstring.templateReplace(group_by, colPars)
+        # --- contains_all rewrite: move AND-chain ILIKE on same column to HAVING
+        columns, where, group_by, having = self._rewriteContainsAllToHaving(columns, where, group_by, having)
         #self.cpl.additional_joins.reverse()
         self.cpl.joins = [gnrstring.templateReplace(j, colPars) for j in self.cpl.joins+self.cpl.additional_joins]
         if distinct:

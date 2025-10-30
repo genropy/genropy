@@ -1380,7 +1380,36 @@ class GnrWhereTranslator(object):
 
     def op_fulltext(self, column, value, dtype, sqlArgs, tblobj, parname=None):
         "!!Matches"
-        return f"#TSQUERY({tblobj.column(column).attributes['tsvColumn']},:{self.storeArgs(value, dtype, sqlArgs, parname=parname)},{tblobj.column(column).attributes['tsvLanguage']})"
+        colobj = tblobj.column(column)
+        tsv_column = self._resolveFulltextRef(colobj.attributes.get('tsvColumn'), column)
+        language_ref = self._resolveFulltextRef(colobj.attributes.get('tsvLanguage'), column)
+        store_name = self.storeArgs(value, dtype, sqlArgs, parname=parname)
+        return f"#TSQUERY({tsv_column},:{store_name},{language_ref})"
+
+    def _resolveFulltextRef(self, ref, column_path):
+        """Adjust full-text helper references for related columns.
+
+        If the reference points to a simple ``$column`` but the queried field is a
+        relation path (``@rel.column``), prefix the helper with the same relation so
+        the SQL compiler can resolve it correctly.
+        """
+        if not ref:
+            return ref
+        if not column_path or not column_path.startswith('@'):
+            return ref
+
+        if ref.startswith('$'):
+            # Strip ${column} templating markers to reuse the relation path
+            if ref.startswith('${') and '}' in ref:
+                inner, suffix = ref[2:].split('}', 1)
+                ref = f"{inner}{suffix}"
+            else:
+                ref = ref[1:]
+
+            relation_bits = column_path.split('.')[:-1]
+            if relation_bits:
+                return '.'.join(relation_bits + [ref])
+        return ref
 
 
 
