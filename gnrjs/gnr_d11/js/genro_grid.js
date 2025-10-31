@@ -3474,30 +3474,36 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
         if(r==null){
             var r = this.selection.selectedIndex;
         }
-        var rc = this.gridEditor.findNextEditableCell({row: r, col: -1}, {r:0, c:1});
-        var grid = this;
         var ge = this.gridEditor;
-        if (rc) {
-            if(ge.remoteRowController){
-                var d = new Date();
-                this.sourceNode.watch('pendingRemoteController',
-                        function(){return !ge._pendingRemoteController},
-                        function(){
+        if(ge.remoteRowController){
+            this.sourceNode.watch('pendingRemoteController',
+                    function(){return !ge._pendingRemoteController},
+                    function(){
+                        let rc = ge.findNextEditableCell({row: r, col: -1}, {r:0, c:1});
+                        if(rc){
                             ge.startEdit(rc.row, rc.col);
-                        },10);
+                        }
+                        
+                    },10);
+        }
+        else if (delay) {
+            if (this._delayedEditing) {
+                clearTimeout(this._delayedEditing);
             }
-            else if (delay) {
-                if (this._delayedEditing) {
-                    clearTimeout(this._delayedEditing);
-                }
-                this._delayedEditing = setTimeout(function() {
+            this._delayedEditing = setTimeout(function() {
+                let rc = ge.findNextEditableCell({row: r, col: -1}, {r:0, c:1});
+                if(rc){
                     ge.startEdit(rc.row, rc.col);
-                }, delay);
-            } else {
+                }
+                
+            }, delay);
+        } else {
+            let rc = ge.findNextEditableCell({row: r, col: -1}, {r:0, c:1});
+            if(rc){
                 ge.startEdit(rc.row, rc.col);
             }
-
         }
+
     },
 
     mixin_newBagRow: function(defaultArgs) {
