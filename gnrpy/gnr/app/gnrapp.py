@@ -1563,12 +1563,9 @@ class GnrApp(object):
 
         """
         policy = {
-            table.fullname: dict(filter_column=table.defaultRetentionPolicy[0],
-                                 retention_period_default=table.defaultRetentionPolicy[1],
-                                 retention_period=table.defaultRetentionPolicy[1])
+            table.fullname: table.defaultRetentionPolicy
             for table in self.db.tables if table.defaultRetentionPolicy
             }
-
         return policy
     
     @property
