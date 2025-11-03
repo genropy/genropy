@@ -26,6 +26,23 @@ class TableHandlerView(BaseComponent):
                      gnrcomponents/batch_handler/batch_handler:TableScriptRunner,
                      js_plugins/chartjs/chartjs:ChartManager
                      """
+
+    # Hook system: allows external packages to modify the queryBySample JavaScript code
+    _querybysample_js_hooks = []
+
+    @classmethod
+    def register_querybysample_js_hook(cls, callback):
+        """
+        Register a callback that will be called to modify the JavaScript code generated
+        for handling queryBySample comma-separated values.
+
+        The callback receives (self, js_where_handling_code, table, pars) and must return
+        the modified JavaScript code (the part that handles comma-separated values).
+
+        :param callback: function with signature callback(self, js_code, table, pars) -> js_code
+        """
+        if callback not in cls._querybysample_js_hooks:
+            cls._querybysample_js_hooks.append(callback)
                          
     @extract_kwargs(condition=True,store=True,sections=True,structure_field=True)
     @struct_method
@@ -234,7 +251,9 @@ class TableHandlerView(BaseComponent):
         pars.setdefault('_class','th_querysampleform')
         view.data('.query.bySampleIsDefault',pars.pop('isDefault',False))
         bar = view.top.slotToolbar('fb,*',childname='queryBySample')
-        bar.dataController("""
+
+        # Build the JavaScript code for handling query by sample
+        js_code = """
             var where = new gnr.GnrBag();
             var parnames = {};
             var op;
@@ -285,7 +304,18 @@ class TableHandlerView(BaseComponent):
                 }
             });
             SET .query.where = where;
-        """,queryBySample='^.queryBySample',currentQuery='^.query.currentQuery',
+        """
+
+        # Hook point: allow external packages to modify the JavaScript code
+        for hook in self._querybysample_js_hooks:
+            try:
+                result = hook(self, js_code, table, pars)
+                if result is not None:
+                    js_code = result
+            except Exception as e:
+                print(f"Warning: QueryBySample JS hook failed: {e}")
+
+        bar.dataController(js_code, queryBySample='^.queryBySample', currentQuery='^.query.currentQuery',
                             _if='currentQuery=="__querybysample__"')
         fb = bar.fb.formbuilder(onEnter='genro.nodeById(this.getInheritedAttributes().target).publish("runbtn",{"modifiers":null});',
                                 **pars)

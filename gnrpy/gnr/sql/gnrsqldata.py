@@ -121,6 +121,21 @@ class SqlQueryCompiler(object):
                            :meth:`setJoinCondition() <gnr.web.gnrwebpage.GnrWebPage.setJoinCondition>` method)
     :param sqlparams: a dict of parameters used in "WHERE" clause
     :param locale: the current locale (e.g: en, en_us, it)"""
+
+    # Hook system: allows external packages to post-process compiled queries
+    _query_post_processors = []
+
+    @classmethod
+    def register_query_post_processor(cls, callback):
+        """
+        Register a callback that will be called after query compilation.
+        The callback receives (compiler_instance, compiled_query) and must return compiled_query.
+
+        :param callback: function with signature callback(compiler, cpl) -> cpl
+        """
+        if callback not in cls._query_post_processors:
+            cls._query_post_processors.append(callback)
+
     def __init__(self, tblobj, joinConditions=None, sqlContextName=None, sqlparams=None, locale=None,aliasPrefix = None):
         self.tblobj = tblobj
         self.db = tblobj.db
@@ -736,6 +751,16 @@ class SqlQueryCompiler(object):
         self.cpl.limit = limit
         self.cpl.offset = offset
         self.cpl.for_update = for_update
+
+        # Hook point: allow external packages to post-process the compiled query
+        for hook in self._query_post_processors:
+            try:
+                result = hook(self, self.cpl)
+                if result is not None:
+                    self.cpl = result
+            except Exception as e:
+                print(f"Warning: Query post-processor hook failed: {e}")
+
         #raise str(self.cpl.get_sqltext(self.db))  # uncomment it for hard debug
         return self.cpl
 
