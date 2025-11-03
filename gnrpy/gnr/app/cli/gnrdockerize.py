@@ -231,20 +231,19 @@ stderr_logfile_maxbytes=0
         # docker compose conf file
         if self.options.compose:
             extra_labels = []
-
-            if self.options.fqdn and self.options.router == 'traefik':
+            if self.options.fqdns and self.options.router == 'traefik':
+                hosts_rule = " || ".join([f"Host(`{fqdn}`)" for fqdn in self.options.fqdns])
                 extra_labels.extend([
                     'traefik.enable: "true"',
-                    f'traefik.http.routers.{self.instance_name}_web.rule: "(Host(`{self.options.fqdn}`) && !Path(`/websocket`))"',
+                    f'traefik.http.routers.{self.instance_name}_web.rule: "({hosts_rule}) && !Path(`/websocket`))"',
                     f'traefik.http.routers.{self.instance_name}_web.entrypoints: http',
                     f'traefik.http.routers.{self.instance_name}_web.service: {self.instance_name}_svc_web',
                     f'traefik.http.services.{self.instance_name}_svc_web.loadbalancer.server.port: 8888',
-                    f'traefik.http.routers.{self.instance_name}_wsk.rule: "(Host(`{self.options.fqdn}`) && Path(`/websocket`))"',
+                    f'traefik.http.routers.{self.instance_name}_wsk.rule: "({hosts_rule}) && Path(`/websocket`))"',
                     f'traefik.http.routers.{self.instance_name}_wsk.entrypoints: http',
                     f'traefik.http.routers.{self.instance_name}_wsk.service: {self.instance_name}_svc_wsk',
                     f'traefik.http.services.{self.instance_name}_svc_wsk.loadbalancer.server.port: 9999'
                 ])
-                
                     
             compose_template = """
 ---
@@ -308,10 +307,11 @@ def main():
                         dest="compose",
                         help="Generate a docker compose file for the created image")
     parser.add_argument('-f', '--fqdn',
-                        dest="fqdn",
+                        dest="fqdns",
+                        action='append',
                         type=str,
-                        default=None,
-                        help="The FQDN of the site for deployment")
+                        default=[],
+                        help="One (or more) FQDN of the site deployment")
     parser.add_argument('-n', '--name',
                         dest="image_name",
                         help="The image name (default to instance name)",
