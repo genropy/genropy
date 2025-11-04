@@ -76,6 +76,9 @@ class MultiStageDockerImageBuilder:
         image_labels = {"gnr_app_dockerize_on": str(now)}
         entry_dir = os.getcwd()
 
+        main_repo_url = self.builder.git_url_from_path(self.instance.instanceFolder)
+        self.main_repo_name = self.builder.git_repo_name_from_url(main_repo_url)
+        
         os.chdir(self.build_context_dir)
         self.dockerfile_path = os.path.join(self.build_context_dir, "Dockerfile")
         with open(self.dockerfile_path, 'w') as dockerfile:
