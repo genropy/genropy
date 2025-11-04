@@ -767,15 +767,17 @@ class GnrApp(object):
         self.catalog = GnrClassCatalog()
         self.localization = {}
 
-        # check for packages python dependencies
-        self.check_package_dependencies()
-        if 'checkdepcli' in self.kwargs:
-            return
+
+
 
         # load the packages
         for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
             self.addPackage(pkgid,pkgattrs=pkgattrs,pkgcontent=pkgcontent)
 
+        # check for packages python dependencies
+        self.check_package_dependencies()
+        if 'checkdepcli' in self.kwargs:
+            return
         
         if not forTesting:
             dbattrs = dict(self.config.getAttr('db') or {}) 
@@ -858,25 +860,15 @@ class GnrApp(object):
     def check_package_dependencies(self):
         logger.debug("Checking python dependencies")
         instance_deps = defaultdict(list)
-        for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
-            if ":" in pkgid:
-                project, pkgid = pkgid.split(":")
-            else:
-                project = None
-            path = pkgattrs.get('path', None)
-            if path is None:
-                path = self.pkg_name_to_path(pkgid,project)
-            if not os.path.isabs(path):
-                path = self.realPath(path)
-
-            requirements_file = os.path.join(path, pkgid, "requirements.txt")
+        for package in [x.getValue() for x in self.packages]:
+            requirements_file = os.path.join(package.packageFolder, "requirements.txt")
             if os.path.isfile(requirements_file):
                 with open(requirements_file) as fp:
                     for line in fp:
                         dep_name = line.strip()
                         if dep_name:
-                            instance_deps[dep_name].append(pkgid
-                                                           )
+                            instance_deps[dep_name].append(package.id)
+
         self.instance_packages_dependencies = instance_deps
 
         if not 'checkdepcli' in self.kwargs:
