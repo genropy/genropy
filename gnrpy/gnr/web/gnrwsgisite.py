@@ -29,7 +29,7 @@ from gnr.core.gnrstring import boolean
 from gnr.core.gnrdecorator import extract_kwargs,metadata
 from gnr.core.gnrcrypto import AuthTokenGenerator
 from gnr.lib.services import ServiceHandler
-from gnr.lib.services.storage import StorageNode
+from gnr.lib.services.storage import LegacyStorageHandler
 from gnr.app.gnrdeploy import PathResolver
 from gnr.app.gnrapp import GnrPackage
 from gnr.web import logger
@@ -218,6 +218,11 @@ class GnrWsgiSite(object):
         self.setDebugAttribute(options)
         self.statics = StaticHandlerManager(self)
         self.statics.addAllStatics()
+
+        # Initialize storage handler
+        # TODO: Add flag from config to choose between Legacy/New handler
+        self.storage = LegacyStorageHandler(self)
+
         self.compressedJsPath = None
         self.pages_dir = os.path.join(self.site_path, 'webpages')
         self.site_static_dir = self.config['resources?site'] or '.'
@@ -398,59 +403,25 @@ class GnrWsgiSite(object):
         :param service_handler_factory: TODO"""
         return self.statics.add(static_handler_factory, **kwargs)
 
+    @deprecated
     def getVolumeService(self, storage_name=None):
-        sitevolumes = self.config.getItem('volumes')
-        if sitevolumes and storage_name in sitevolumes:
-            vpath = sitevolumes.getAttr(storage_name,'path')
-        else:
-            vpath = storage_name
-        volume_path = expandpath(os.path.join(self.site_static_dir,vpath))
-        return self.getService(service_type='storage',service_name=storage_name
-            ,implementation='local',base_path=volume_path)
+        """Deprecated: Use self.storage.getVolumeService() instead"""
+        return self.storage.getVolumeService(storage_name=storage_name)
 
+    @deprecated
     def storagePath(self, storage_name, storage_path):
-        if storage_name == 'user':
-            return '%s/%s'%(self.currentPage.user, storage_path)
-        elif storage_name == 'conn':
-            return '%s/%s'%(self.currentPage.connection_id, storage_path)
-        elif storage_name == 'page':
-            return '%s/%s/%s'% (self.currentPage.connection_id, self.currentPage.page_id, storage_path)
-        return storage_path
+        """Deprecated: Use self.storage.storagePath() instead"""
+        return self.storage.storagePath(storage_name, storage_path)
 
+    @deprecated
     def storage(self, storage_name,**kwargs):
-        storage = self.getService(service_type='storage',service_name=storage_name)
-        if not storage: 
-            storage = self.getVolumeService(storage_name=storage_name)
-        return storage
+        """Deprecated: Use self.storage.storage() instead"""
+        return self.storage.storage(storage_name, **kwargs)
 
+    @deprecated
     def storageNode(self,*args,**kwargs):
-        if isinstance(args[0], StorageNode):
-            if args[1:]:
-                return self.storageNode(args[0].fullpath, args[1:])
-            else:
-                return args[0]
-        path = '/'.join(args)
-        if not ':' in path: 
-            path = '_raw_:%s'%path
-        if path.startswith('http://') or path.startswith('https://'):
-            path = '_http_:%s'%path
-        service_name, storage_path = path.split(':',1)
-        storage_path = storage_path.lstrip('/')
-        if service_name == 'vol':       
-            #for legacy path
-            service_name, storage_path = storage_path.replace(':','/').split('/', 1) 
-        service = self.storage(service_name)
-        if kwargs.pop('_adapt', True):
-            storage_path = self.storagePath(service_name, storage_path)
-        if not service: return
-        autocreate = kwargs.pop('autocreate', False)
-        must_exist = kwargs.pop('must_exist', False)
-        version = kwargs.pop('version', None)
-
-        mode = kwargs.pop('mode', None)
-
-        return StorageNode(parent=self, path=storage_path, service=service,
-            autocreate=autocreate, must_exist=must_exist, mode=mode,version=version)
+        """Deprecated: Use self.storage.storageNode() instead"""
+        return self.storage.storageNode(*args, **kwargs)
 
     def build_lazydoc(self,lazydoc,fullpath=None,temp_dbstore=None,**kwargs):
         ext = os.path.splitext(fullpath)[1]
@@ -469,19 +440,15 @@ class GnrWsgiSite(object):
             return result is not False
 
     @property
+    @deprecated
     def storageTypes(self):
-        return ['_storage','_site','_dojo','_gnr','_conn',
-                '_pages','_rsrc','_pkg','_pages',
-                '_user','_vol', '_documentation']
-        
+        """Deprecated: Use self.storage.storageTypes instead"""
+        return self.storage.storageTypes
+
+    @deprecated
     def storageType(self, path_list=None):
-        first_segment = path_list[0]
-        if ':' in first_segment:
-            return first_segment
-        else:
-            for k in self.storageTypes:
-                if first_segment.startswith(k):
-                    return k[1:]
+        """Deprecated: Use self.storage.storageType() instead"""
+        return self.storage.storageType(path_list=path_list)
     
     def pathListFromUrl(self, url):
         "Returns path_list from given url"
@@ -489,94 +456,31 @@ class GnrWsgiSite(object):
         path_list = parsed_url.path.split('/')
         return list(filter(None, path_list))
 
+    @deprecated
     def storageNodeFromPathList(self, path_list=None, storageType=None):
-        "Returns storageNode from path_list"
-        if not storageType:
-            storageType = self.storageType(path_list)
-        if ':' in storageType:
-            #site:image -> site
-            storage_name, path_list[0] = storageType.split(':')
-        elif storageType == 'storage':
-            #/_storage/site/pippo -> site
-            storage_name, path_list = path_list[1], path_list[2:]
-        else:
-            #_vol/pippo -> vol
-            storage_name = storageType
-            path_list.pop(0)
-
-        path = '/'.join(path_list)
-        return self.storageNode('%s:%s'%(storage_name,path),_adapt=False)
+        """Deprecated: Use self.storage.storageNodeFromPathList() instead"""
+        return self.storage.storageNodeFromPathList(path_list=path_list, storageType=storageType)
     
+    @deprecated
     def storageDispatcher(self,path_list,environ,start_response,storageType=None,**kwargs):
-        storageNode = self.storageNodeFromPathList(path_list, storageType)
-        exists = storageNode and storageNode.exists
-        if not exists and '_lazydoc' in kwargs:
-            #fullpath = None ### QUI NON DOBBIAMO USARE I FULLPATH
-            exists = self.build_lazydoc(kwargs['_lazydoc'],fullpath=storageNode.internal_path,**kwargs) 
-            exists = exists and storageNode.exists
+        """Deprecated: Use self.storage.storageDispatcher() instead"""
+        return self.storage.storageDispatcher(path_list, environ, start_response, storageType=storageType, **kwargs)
 
-        # WHY THIS?
-        self.db.closeConnection()
-        if not exists:
-            if kwargs.get('_lazydoc'):
-                headers = []
-                start_response('200 OK', headers)
-                return ['']
-            return self.not_found_exception(environ, start_response)
-        return storageNode.serve(environ, start_response,**kwargs)
-
+    @deprecated
     def getStaticPath(self, static, *args, **kwargs):
-        """TODO
-
-        :param static: TODO"""
-        static_name, static_path = static.split(':',1)
-        
-        symbolic = kwargs.pop('symbolic', False)
-        if symbolic:
-            return self.storageNode(static, *args).fullpath
-        autocreate = kwargs.pop('autocreate', False)
-        if not ':' in static:
-            return static
-
-        args = self.adaptStaticArgs(static_name, static_path, args)
-        static_handler = self.getStatic(static_name)
-        if autocreate and static_handler.supports_autocreate:
-            assert autocreate == True or autocreate < 0
-            if autocreate != True:
-                autocreate_args = args[:autocreate]
-            else:
-                autocreate_args = args
-            dest_dir = static_handler.path(*autocreate_args)
-            if not os.path.exists(dest_dir):
-                os.makedirs(dest_dir)
-        dest_path = static_handler.path(*args)
-        return dest_path
+        """Deprecated: Use self.storage.getStaticPath() instead"""
+        return self.storage.getStaticPath(static, *args, **kwargs)
 
 
+    @deprecated
     def getStaticUrl(self, static, *args, **kwargs):
-        """TODO
+        """Deprecated: Use self.storage.getStaticUrl() instead"""
+        return self.storage.getStaticUrl(static, *args, **kwargs)
 
-        :param static: TODO"""
-        if not ':' in static:
-            return static
-        static_name, static_url = static.split(':',1)
-        args = self.adaptStaticArgs(static_name, static_url, args)
-        return self.storage(static_name).url(*args, **kwargs)
-
+    @deprecated
     def adaptStaticArgs(self, static_name, static_path, args):
-        """TODO
-
-        :param static_name: TODO
-        :param static_path: TODO
-        :param args: TODO"""
-        args = tuple(static_path.split(os.path.sep)) + args
-        if static_name == 'user':
-            args = (self.currentPage.user,) + args #comma does matter
-        elif static_name == 'conn':
-            args = (self.currentPage.connection_id,) + args
-        elif static_name == 'page':
-            args = (self.currentPage.connection_id, self.currentPage.page_id) + args
-        return args
+        """Deprecated: Use self.storage.adaptStaticArgs() instead"""
+        return self.storage.adaptStaticArgs(static_name, static_path, args)
 
     def getStatic(self, static_name):
         """TODO

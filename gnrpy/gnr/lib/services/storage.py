@@ -196,7 +196,16 @@ class ServiceType(BaseServiceType):
     def getServiceFactory(self,implementation=None):
         return self.implementations.get(implementation)
     
-class StorageNode(object):
+class BaseStorageNode(object):
+    """Base class for storage nodes.
+
+    This base class will allow different implementations of storage nodes
+    (legacy and new genro-storage based) while maintaining a common interface.
+    """
+    pass
+
+
+class LegacyStorageNode(BaseStorageNode):
     def __str__(self):
         return 'StorageNode %s <%s>' %(self.service.service_implementation,self.internal_path)
 
@@ -530,7 +539,7 @@ class StorageService(GnrBaseService):
         else:
             autocreate_args = args
         
-        dest_dir = StorageNode(parent=self.parent,
+        dest_dir = LegacyStorageNode(parent=self.parent,
             service=self,path='/'.join(autocreate_args))
         if not dest_dir.exists:
             self.makedirs(dest_dir.path)
@@ -801,7 +810,7 @@ class BaseLocalService(StorageService):
         out = []
         for d in directory:
             subpath = os.path.join(os.path.join(*args),d)
-            out.append(StorageNode(parent=self.parent, path=subpath, service=self))
+            out.append(LegacyStorageNode(parent=self.parent, path=subpath, service=self))
         return out
 
 class StorageResolver(BagResolver):
@@ -954,3 +963,238 @@ class XmlStorageResolver(BagResolver):
             b = Bag()
             b.fromXml(xmlfile.read())
             return b
+
+
+# ==================== Storage Handlers ====================
+
+class BaseStorageHandler(object):
+    """Base class for storage handlers.
+
+    A storage handler manages the creation of storage nodes and determines
+    which implementation (Legacy or New) to use.
+    """
+
+    def __init__(self, site):
+        """Initialize the storage handler.
+
+        Args:
+            site: The GnrWsgiSite instance
+        """
+        self.site = site
+
+    def getVolumeService(self, storage_name=None):
+        sitevolumes = self.site.config.getItem('volumes')
+        if sitevolumes and storage_name in sitevolumes:
+            vpath = sitevolumes.getAttr(storage_name,'path')
+        else:
+            vpath = storage_name
+        volume_path = expandpath(os.path.join(self.site.site_static_dir,vpath))
+        return self.site.getService(service_type='storage',service_name=storage_name
+            ,implementation='local',base_path=volume_path)
+
+    def storagePath(self, storage_name, storage_path):
+        if storage_name == 'user':
+            return '%s/%s'%(self.site.currentPage.user, storage_path)
+        elif storage_name == 'conn':
+            return '%s/%s'%(self.site.currentPage.connection_id, storage_path)
+        elif storage_name == 'page':
+            return '%s/%s/%s'% (self.site.currentPage.connection_id, self.site.currentPage.page_id, storage_path)
+        return storage_path
+
+    def storage(self, storage_name,**kwargs):
+        storage = self.site.getService(service_type='storage',service_name=storage_name)
+        if not storage:
+            storage = self.getVolumeService(storage_name=storage_name)
+        return storage
+
+    def storageNode(self, *args, **kwargs):
+        """Create a storage node.
+
+        Args:
+            *args: Path components
+            **kwargs: Storage node options
+
+        Returns:
+            BaseStorageNode: A storage node instance
+        """
+        raise NotImplementedError("Subclasses must implement storageNode()")
+
+    @property
+    def storageTypes(self):
+        return ['_storage','_site','_dojo','_gnr','_conn',
+                '_pages','_rsrc','_pkg','_pages',
+                '_user','_vol', '_documentation']
+
+    def storageType(self, path_list=None):
+        first_segment = path_list[0]
+        if ':' in first_segment:
+            return first_segment
+        else:
+            for k in self.storageTypes:
+                if first_segment.startswith(k):
+                    return k[1:]
+
+    def storageNodeFromPathList(self, path_list=None, storageType=None):
+        "Returns storageNode from path_list"
+        if not storageType:
+            storageType = self.storageType(path_list)
+        if ':' in storageType:
+            #site:image -> site
+            storage_name, path_list[0] = storageType.split(':')
+        elif storageType == 'storage':
+            #/_storage/site/pippo -> site
+            storage_name, path_list = path_list[1], path_list[2:]
+        else:
+            #_vol/pippo -> vol
+            storage_name = storageType
+            path_list.pop(0)
+
+        path = '/'.join(path_list)
+        return self.storageNode('%s:%s'%(storage_name,path),_adapt=False)
+
+    def storageDispatcher(self,path_list,environ,start_response,storageType=None,**kwargs):
+        storageNode = self.storageNodeFromPathList(path_list, storageType)
+        exists = storageNode and storageNode.exists
+        if not exists and '_lazydoc' in kwargs:
+            #fullpath = None ### QUI NON DOBBIAMO USARE I FULLPATH
+            exists = self.site.build_lazydoc(kwargs['_lazydoc'],fullpath=storageNode.internal_path,**kwargs)
+            exists = exists and storageNode.exists
+
+        # WHY THIS?
+        self.site.db.closeConnection()
+        if not exists:
+            if kwargs.get('_lazydoc'):
+                headers = []
+                start_response('200 OK', headers)
+                return ['']
+            return self.site.not_found_exception(environ, start_response)
+        return storageNode.serve(environ, start_response,**kwargs)
+
+    def getStaticPath(self, static, *args, **kwargs):
+        """TODO
+
+        :param static: TODO"""
+        static_name, static_path = static.split(':',1)
+
+        symbolic = kwargs.pop('symbolic', False)
+        if symbolic:
+            return self.storageNode(static, *args).fullpath
+        autocreate = kwargs.pop('autocreate', False)
+        if not ':' in static:
+            return static
+
+        args = self.adaptStaticArgs(static_name, static_path, args)
+        static_handler = self.site.getStatic(static_name)
+        if autocreate and static_handler.supports_autocreate:
+            assert autocreate == True or autocreate < 0
+            if autocreate != True:
+                autocreate_args = args[:autocreate]
+            else:
+                autocreate_args = args
+            dest_dir = static_handler.path(*autocreate_args)
+            if not os.path.exists(dest_dir):
+                os.makedirs(dest_dir)
+        dest_path = static_handler.path(*args)
+        return dest_path
+
+
+    def getStaticUrl(self, static, *args, **kwargs):
+        """TODO
+
+        :param static: TODO"""
+        if not ':' in static:
+            return static
+        static_name, static_url = static.split(':',1)
+        args = self.adaptStaticArgs(static_name, static_url, args)
+        return self.storage(static_name).url(*args, **kwargs)
+
+    def adaptStaticArgs(self, static_name, static_path, args):
+        """TODO
+
+        :param static_name: TODO
+        :param static_path: TODO
+        :param args: TODO"""
+        args = tuple(static_path.split(os.path.sep)) + args
+        if static_name == 'user':
+            args = (self.site.currentPage.user,) + args #comma does matter
+        elif static_name == 'conn':
+            args = (self.site.currentPage.connection_id,) + args
+        elif static_name == 'page':
+            args = (self.site.currentPage.connection_id, self.site.currentPage.page_id) + args
+        return args
+
+
+class LegacyStorageHandler(BaseStorageHandler):
+    """Legacy storage handler that creates LegacyStorageNode instances."""
+
+    def storageNode(self, *args, **kwargs):
+        """Create a legacy storage node.
+
+        This method contains the original storageNode logic from GnrWsgiSite.
+
+        Args:
+            *args: Path components (mount:path or separate args)
+            **kwargs: Options including:
+                - _adapt: Whether to adapt path (default True)
+                - autocreate: Auto-create directories
+                - must_exist: Raise error if doesn't exist
+                - version: Version specifier
+                - mode: Access mode
+
+        Returns:
+            LegacyStorageNode: A legacy storage node instance
+        """
+        # Handle StorageNode passthrough
+        if args and isinstance(args[0], BaseStorageNode):
+            if args[1:]:
+                return self.storageNode(args[0].fullpath, *args[1:])
+            else:
+                return args[0]
+
+        # Build path from args
+        path = '/'.join(args) if args else None
+        if not path:
+            return None
+
+        # Add default mount if no ':' in path
+        if ':' not in path:
+            path = '_raw_:%s' % path
+
+        # Handle HTTP URLs
+        if path.startswith('http://') or path.startswith('https://'):
+            path = '_http_:%s' % path
+
+        # Parse mount:path
+        service_name, storage_path = path.split(':', 1)
+        storage_path = storage_path.lstrip('/')
+
+        # Handle legacy 'vol:' format
+        if service_name == 'vol':
+            # vol:name/path -> name:path
+            service_name, storage_path = storage_path.replace(':', '/').split('/', 1)
+
+        # Get storage service
+        service = self.storage(service_name)
+
+        # Adapt path for special mounts (user, conn, page)
+        if kwargs.pop('_adapt', True):
+            storage_path = self.storagePath(service_name, storage_path)
+
+        if not service:
+            return None
+
+        # Extract parameters
+        autocreate = kwargs.pop('autocreate', False)
+        must_exist = kwargs.pop('must_exist', False)
+        version = kwargs.pop('version', None)
+        mode = kwargs.pop('mode', None)
+
+        return LegacyStorageNode(
+            parent=self.site,
+            path=storage_path,
+            service=service,
+            autocreate=autocreate,
+            must_exist=must_exist,
+            mode=mode,
+            version=version
+        )
