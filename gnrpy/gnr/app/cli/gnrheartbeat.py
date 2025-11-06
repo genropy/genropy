@@ -58,7 +58,7 @@ def get_site_url(site_name):
             site_config = get_site_config(site_path, gnr_config)
             return 'http://localhost:%s'%site_config['wsgi?port']
 
-description = "heartbeat"
+description = "Start heartbeat monitoring service"
 
 def main():
     parser = GnrCliArgParse(description=description)

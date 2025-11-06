@@ -21,7 +21,8 @@ class Table(object):
     def config_db(self, pkg):
         tbl =  pkg.table('message', rowcaption='$to_address,$subject', pkey='id',
                      name_long='!!Message', name_plural='!!Messages')
-        self.sysFields(tbl,draftField=True)
+        self.sysFields(tbl,draftField=True,ldel=False)
+        tbl.subtable('user_messages',condition='$dest_user_id=:env_user_id')
         tbl.column('in_out', size='1', name_long='!!I/O', name_short='!!I/O',values='I:Input,O:Output')
         tbl.column('to_address',name_long='!!To',_sendback=True)
         tbl.column('from_address',name_long='!!From',_sendback=True)
@@ -32,7 +33,7 @@ class Table(object):
         tbl.column('body_plain',name_long='!!Plain Body')
         tbl.column('html','B',name_long='!!Html')
         tbl.column('subject',name_long='!!Subject')
-        tbl.column('send_date','DH',name_long='!!Send date')
+        tbl.column('send_date','DH',name_long='!!Send date',indexed=True)
         tbl.column('user_id',size='22',name_long='!!User id').relation('adm.user.id', mode='foreignkey', relation_name='messages')
         tbl.column('account_id',size='22',name_long='!!Account id').relation('email.account.id', mode='foreignkey', relation_name='messages')
         tbl.column('mailbox_id',size='22',name_long='!!Mailbox id').relation('email.mailbox.id', mode='foreignkey', relation_name='messages')
@@ -50,12 +51,23 @@ class Table(object):
         tbl.column('error_msg', name_long='Error message')
         tbl.column('error_ts', name_long='Error Timestamp')
         tbl.column('connection_retry', dtype='L')
+        tbl.column('read', dtype='B', name_long='!!Read',indexed=True)
 
+        #tbl.joinColumn('dest_user_id', name_long='!!Destination user').relation('adm.user.id', 
+        #                                    cnd='@dest_user_id.email=$to_address', relation_name='received_messages')
+        tbl.formulaColumn('dest_user_id', '$user_id', name_long='!!Destination user')
         tbl.formulaColumn('sent','$send_date IS NOT NULL', name_long='!!Sent')
         tbl.formulaColumn('plain_text', """regexp_replace($body, '<[^>]*>', '', 'g')""")
         tbl.formulaColumn('abstract', """LEFT(REPLACE($plain_text,'&nbsp;', ''),300)""", name_long='!![en]Abstract')
         tbl.formulaColumn('delta_send',"CAST( EXTRACT(EPOCH FROM ($send_date-$__ins_ts)) AS INTEGER)",dtype='L')
-
+        tbl.formulaColumn('show_read', """CASE WHEN $read IS NOT TRUE THEN '<div style="border-radius\\:10px;background\\:var(--primary-color);height\\:10px;width\\:10px"></div>'
+                                                ELSE NULL END""", name_long='!!Show read')
+        tbl.pyColumn('full_external_url', name_long='Full external url')
+        tbl.pyColumn('compiled_body', py_method='getBody')
+        
+    def pyColumn_full_external_url(self,record,field):
+        return self.db.application.site.externalUrl('/index', menucode='messages')
+        
     def defaultValues(self):
         return dict(account_id=self.db.currentEnv.get('current_account_id'))
 
@@ -288,7 +300,7 @@ class Table(object):
             try:
                 mail_handler.sendmail(to_address = message['to_address'],
                                 account_id = account_id,
-                                body=message['body'], subject=message['subject'],
+                                body=self.getBody(message), subject=message['subject'],
                                 cc_address=message['cc_address'], bcc_address=bcc_address,
                                 from_address=message['from_address'] or mp['from_address'],
                                 attachments=attachments, 
@@ -313,6 +325,12 @@ class Table(object):
         self.db.commit()
         return message
     
+    def getBody(self, message=None, **kwargs):
+        "Customizable method to return the body of the email. Default is to return the actual 'body' field."
+        if not message:
+            return ""
+        return message['body']
+    
     @public_method
     def clearErrors(self, pkey):
         with self.recordToUpdate(pkey) as message:
@@ -322,6 +340,12 @@ class Table(object):
         self.db.commit()
         return 
 
+    @public_method
+    def markAsRead(self, pkey):
+        with self.recordToUpdate(pkey) as message_rec:
+            message_rec['read'] = True
+        self.db.commit()
+        
     def atc_getAttachmentPath(self,pkey):
         return self.folderPath(self.recordAs(pkey))
 

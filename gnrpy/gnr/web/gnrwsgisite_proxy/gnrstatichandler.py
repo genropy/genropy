@@ -51,11 +51,12 @@ class StaticHandlerManager(object):
     def static_dispatcher(self, path_list, environ, start_response, download=False, **kwargs):
         logger.debug('Calling static_dispatcher %s', path_list) 
         handler = self.get(path_list[0][1:])
+        logger.debug("Static handler %s", handler)
         if handler:
             result = handler.serve(path_list, environ, start_response, download=download, **kwargs)
-
             return result
         else:
+            logger.debug("Static resource %s not found", path_list)
             return self.site.not_found_exception(environ, start_response)
 
 
@@ -99,6 +100,8 @@ class StaticHandler(object):
             return result is not False
 
     def serve(self, f, environ, start_response, download=False, download_name=None, **kwargs):
+        EMPTY_BODY = bytes('', 'utf-8')
+        
         if isinstance(f,list):
             fullpath = self.path(*f[1:])
         elif isinstance(f,file_types):
@@ -116,7 +119,7 @@ class StaticHandler(object):
             if kwargs.get('_lazydoc'):
                 headers = []
                 start_response('200 OK', headers)
-                return ['']
+                return [EMPTY_BODY]
             return self.site.not_found_exception(environ, start_response)
         if_none_match = environ.get('HTTP_IF_NONE_MATCH')
         if if_none_match:
@@ -129,7 +132,7 @@ class StaticHandler(object):
                 headers = []
                 ETAG.update(headers, my_none_match)
                 start_response('304 Not Modified', headers)
-                return [''] # empty body
+                return [EMPTY_BODY]
         file_args = dict()
         if download or download_name:
             download_name = download_name or os.path.basename(fullpath)
@@ -156,7 +159,19 @@ class StaticHandler(object):
         return url
 
 
+class CordovaAssetHandler(StaticHandler):
+    prefix = "cordova_asset"
 
+    def url(self, version, *args, **kwargs):
+        return f'{self.home_uri}/_cordova_asset/{"/".join(args)}'
+    
+    def path(self, *args, **kwargs):
+        resource_dirs = self.site.resource_loader.package_resourceDirs(self.site.mainpackage)
+        for dirname in resource_dirs:
+            resource_filename = expandpath(os.path.join(dirname, "cordova", *args))
+            if os.path.isfile(resource_filename):
+                return resource_filename
+    
 class DojoStaticHandler(StaticHandler):
     prefix = 'dojo'
 

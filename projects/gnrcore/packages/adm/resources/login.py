@@ -18,6 +18,7 @@ from gnr.web.gnrwebstruct import struct_method
 
         
 class LoginComponent(BaseComponent):
+    py_requires = 'public:PublicBase'
     css_requires = 'login'
     js_requires = 'login'
     login_error_msg = '!!Invalid login'

@@ -113,6 +113,11 @@ class TableScriptHandler(BaseComponent):
         optionsform = dlgoptions.boxForm(formId='_ts_options_',store='dummy',
                                  formDatapath='#table_script_runner.data.batch_options')
         pane = pane.div(datapath='#table_script_runner')
+        askOptions = batch_dict.get('ask_options')
+        if askOptions is None:
+            askOptions = True
+        elif isinstance(askOptions,str):
+            askOptions = self.db.application.allowedByPreference(askOptions)
         if hasParameters:
             parsbox = parsform.div(datapath='#table_script_runner.data',
                             min_width='300px',childname='contentNode',position='relative',top='0',
@@ -132,18 +137,15 @@ class TableScriptHandler(BaseComponent):
                     frm.publish('message',{message:_T(msg),sound:'$error',messageType:'error'});
                 }
                 """,confirm="^.confirm",msg="!!Invalid parameters")  
-            dlgpars.dataController("dlgoptions.show();",
+            dlgpars.dataController(" dlgoptions.show();",
                             confirm="^.confirm_do",dlg=dlgpars.js_widget,
                                     dlgoptions=dlgoptions.js_widget,
-                                    hasOptions=hasOptions,_if='hasOptions&&confirm==true',
-                                    _else="""FIRE #table_script_runner.confirm;""")  
+                                    hasOptions=hasOptions,askOptions=askOptions,_if='(askOptions && hasOptions && confirm)==true',
+                                    _else="""FIRE #table_script_runner.confirm;""",
+                                    )  
             parsform.dataController("dlg.hide()",_fired="^.cancel",dlg=dlgpars.js_widget)  
-        optionsEnabled = batch_dict.get('batch_ask_options')
-        if optionsEnabled is None:
-            optionsEnabled = True
-        elif isinstance(optionsEnabled,str):
-            optionsEnabled = self.db.application.allowedByPreference(optionsEnabled)
-        if hasOptions and optionsEnabled:
+
+        if hasOptions and askOptions:
             self.table_script_option_pane(optionsform.div(datapath='#table_script_runner.data.batch_options',childname='contentNode'),**batch_dict)
             self.table_script_option_footer(dlgoptions.div(left=0,right=0,position='absolute',bottom=0,childname='footerNode'),**batch_dict) 
             dlgoptions.dataController("""
@@ -183,12 +185,12 @@ class TableScriptHandler(BaseComponent):
         pane.dataController(
         """if(hasParameters){
                 dlgpars.show();
-            }else if(hasOptions){
+            }else if(hasOptions && askOptions){
                 dlgoptions.show();
             }else{
                 FIRE .confirm;
             }
-        """,_onBuilt=True,
+        """,_onBuilt=True,askOptions=askOptions,
             dlgpars=dlgpars.js_widget,
             dlgoptions=dlgoptions.js_widget,
             hasParameters=hasParameters,hasOptions=hasOptions)

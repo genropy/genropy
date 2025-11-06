@@ -1,26 +1,162 @@
-Upcoming release
+Release 25.10.27
 ================
+
+Overview
+--------
+
+This release includes the introduction of several deployment utilities, and several
+enhancement and fixes throughout the whole framework.
+
+PLEASE NOTE: We've started dropping support for Python version prior
+to 3.10, this release introduces a preliminary warning. So you're
+being warned.
 
 Enhancements
 ------------
 
-* **New tools**:
-  * Added 'gnr dev bugreport <instance name>' to create a report of
-    the current environment the instance is using, for more complete
-    bug reports - please see `--help` for possible usage
-    
-* **Dependency Updates**:
-  * Introduced dependency on 'dictdiffer' for handling SQL migration
-    differences.
-  * Removed all `deepdiff`-related tests, data, and dependencies.
+* Support for 'security.txt' and 'robots.txt' WKUs through instanceconfig
+* Introduced 'deferAfterCommit' method in GnrSqlDb to executed
+  callables *after* a commit
+* Introduced new 'gnr web serveprod' cli command, which start a
+  production grade application server. Currently based on gunicorn.
+* New FAQ models and backoffice tool from docu package
+* A new data retention framework has been introduced, allowing tables
+  to specify a retention period, which can be overriden in specific
+  deployments, and provided schedulable tasks and CLI command to
+  execute the retention cutoff. Introduced an initial retention policy
+  in sys.error and sys.task_execution tables. Please note that the
+  policy is not effecting if a task or a cron job for the cli command
+  is created, it doesn't work out-of-the-box.
+* Introduced support for database adapters subclassing, to extend the
+  current framework adapters with custom ones.
+* Introduced 'dbbranch' db connection attributes, for database
+  backends that supports branching.
+* boto3 client parameters now supports regions, retro-compatible.
+* Added support for multiple sub-table in the ORM.
+* Removed dependency from backports.zoneinfo, which is handled directly by
+  stdlib's datetime.timezone
+* Improvements to 2FA and validation handling at login.
+* Bag can now export to JSON format.
+* Formhandler support a dismissrow event publising for grid delete
+  operations.
+* Code cleanup for past/future references
+* App stores utilities to correctly handle integrations with native
+  mobile apps (Android/iOS)
+  
+Develop & Deployment changes
+----------------------------
 
-* **SQL Migration Improvements**:
+* Added support for debugpy, installed via 'developer' profile.
+* Introduce a self-test procedure to verify if the deployment is
+  finalized for mobile app usage.
+* Introduced new 'sys maintanance' instance cli command to
+  enable/disable maintenance mode
+* Reduced Docker image footprint by disabling local cache
+* Introduced switch to 'gnr app dockerize' to create images based on development version
+  of the framework, and new switch to specify a different image name
+* New deployment tool to Kubernetes cluster has been introduced
+  (EXPERIMENTAL), allowing also splitted container deployments.
+* New commodity CLI command 'gnr web stack' is provided to run the
+  entire stack with a single command.
+* Package dependency installer ('gnr app checkdep') has a new '-n'
+  option to disable package caching.
+* Package dependencies solver/installer can now automatically
+  upgrade/downgrade version in order to fix the environment,
+  by using 'gnr app checkdep -f <instanceName>'.
+* Test suite for package has been added, automating invocation via
+  'gnr dev tests' CLI command.
+* A project builder framework has been introduce to manage multi-repositoy projects.
+  - **New module:** ``gnr.dev.builder``
+    - Manages ``build.json`` configuration.
+    - Handles Git operations (clone, checkout, update) for dependencies.
+    - Provides methods to rebuild or synchronize project state.
+  - **New CLI:** ``gnr dev builder``
+    - Commands: ``check``, ``generate``, ``regenerate``, ``show``, ``repositories``, ``update``, ``checkout``.
+  - **Integration:**
+    - ``gnrdockerize`` command now uses the new builder for build context creation.
+    - Simplified Docker image build pipeline with automatic repository checkout.
+  - Provides groundwork for future automated build and CI/CD pipelines.
+
+Fixes & Minor Adjustments
+-----------------------------
+
+* Updated werkzeug max_form_memory_size limit to 100M, to deal with new
+  hardcoded limit in recent werkzeug releases.
+* Fixed several regressions in menu resolver behavior, simplified
+  methods and fixes issue with single item menus.
+* Improved error handling in menu source loading.
+* Refined package branch expansion and flattening logic.
+* Cleaned up redundant imports and improved log consistency.
+* Added stricter executable dependency checks for builder and dockerization tools.
+* Handling duplicaes tables views related to user object.s
+* Aws translation service regressions fixes.
+* Bag file system loaders avois journal/backups files when globbing.
+* Picker building issues fixes, which was ignoring disable flag
+* Logging cleanup
+
+Migration Notes
+-----------------------------
+
+* Review and adjust data retention policies under ``/sys/dataretention``.
+* Validate custom menu or branch logic against the simplified menu resolver.
+
+
+Version 25.09.17
+================
+
+Bug fixing release, properly handle database connection close on raw
+database executions.
+
+Version 25.08.12
+================
+
+Bug fixing release, correct malformed publish action in app preferences
+
+Version 25.04.10
+================
+
+Overview
+--------
+
+This release delivers major improvements across the database migration
+tooling, PostgreSQL adapter, Docker tooling, UI components (especially
+attachment and media handling), and the web server infrastructure. It
+also introduces a WSGI testing framework, endpoint handling for
+tables, fixes to ensure compatibility with various Python versions.
+
+Enhancements
+------------
+
+* **General Code Improvements**:
+  * Introduced SQL comment decorators for better traceability in SQL execution.
+  * Standardized decorator patterns across the codebase for clarity.
+  * `_documentation` storage is now used for **locally generated** documentation files, improving file management.
+  * **Removed `httplib2`**, replacing it with `requests`, which is more actively maintained. 
+  * **Removed `future` dependency**, since Python 3 is now the baseline. 
+  * Eliminated **redundant** runtime imports to **reduce startup overhead**.
+  * Removed **`simplejson`**, since `json` is part of Python’s standard library.
+  - Removed **unused imports** across multiple files.
+    
+* **SQL Improvements**:
+  * Enhanced database migration logic by improving error handling for relation-based exceptions.
+  * The `GNR_GLOBAL_DEBUG` flag was removed, and `gnr db migrate` now defaults to **INFO** log level instead of DEBUG.
+  * Improved `checkRelationIndex()` to log more descriptive errors when an invalid relation is encountered.
   * Improved handling of deferred relations and indexing for tenant schemas.
+  * **New `#BETWEEN` syntax** added for SQL queries, supporting range
+    filtering (e.g., dates, integers), which include the **upper
+    bound** by default.
   * Excluded unique constraints that overlap with primary keys.
   * Added support for PostgreSQL extensions in migrations, including:
     * Commands to create extensions.
     * Integration with the migration framework.
-  * Added event triggers to the migration structure with preliminary support.
+  * Added event triggers to the migration structure.
+  * **New `--inspect` flag for `gnr db migrate`**. Outputs a zip file
+    with SQL schema, DB structure in JSON, ORM state, and planned SQL
+    changes.
+  * Added support to avoid table creation if columns are empty.
+  * Centralized UNIQUE constraint generation (`addColumnUniqueConstraint()` method).
+  * Improved diff and handler mechanism with default fallback for missing handlers.
+  * New test cases covering unique columns and empty tables.
 
 * **PostgreSQL Utilities**:
   * Introduced new utilities for monitoring PostgreSQL performance:
@@ -29,37 +165,116 @@ Enhancements
     * Top and least-efficient queries statistics.
 
 * **Database Schema**:
-  * Updated PostgreSQL adapter to handle `DEFERRABLE` and `INITIALLY
-    DEFERRED` constraints.
   * Added support for extension management in migration commands.
-
-* **General Code Improvements**:
-  * Introduced SQL comment decorators for better traceability in SQL execution.
-  * Standardized decorator patterns across the codebase for clarity.
+  * Introduced structured column grouping (`colgroup_label`, `colgroup_name_long`) for better schema organization.
+  * Refactored column width estimation logic to use **a lookup table** for improved accuracy.
+  * Enhanced column width calculations when handling **empty tables**. 
+  * Injected column group metadata into table models to improve **attribute management**. 
 
 * **Database adapters**:
+  * Updated PostgreSQL adapter to handle `DEFERRABLE` and `INITIALLY DEFERRED` constraints.
   * Added support for capabilities declaration inside of database
     adapter, in order to conditionally execute specific tasks base on such
     specific capabilities.
   * Introduced 'postgres3' database adapter which uses the psycopg3 driver.
   * Aligned adapters inheritance method and added test coverage for it
-  
+  * Improved FK detection with ordering preserved.
+  * Extended constraint introspection logic for better diff generation.
+  * Multikey sort support for foreign keys.
+  * Ordered foreign key extraction for better reproducibility.
+  - The `gnr db migrate` command recognizes adapter-specific
+    capabilities, ensuring better database compatibility.
+
+* **Logging infrastructure**:
+  * Introduced a consistent usage of python logging inside the framework.
+  * All CLI commands provide a `--loglevel` options to set the logging level.
+  * Logging levels can be also defined using `GNR_LOGLEVEL` env var.
+  * `sys` package provide a minimale UI to control levels for each
+    package of the framework.
+  * Logging captures **all** exceptions for model relation validation errors.
+    
+* Added 'gnr dev bugreport <instance name>' to create a report of
+  the current environment the instance is using, for more complete
+  bug reports - please see `--help` for possible usage
+
+* **Sphinx Export Enhancements**
+  * Improved **error handling** when exporting documentation to **Sphinx**.
+  * Missing images will **no longer break** the export process. 
+  * Removed redundant configuration settings for **handbook preferences**. 
+  * Instead of spawning an **external** Sphinx process, the framework now calls the **Sphinx build API directly**.
+
+* **AttachManager Enhancements**:
+  - Supports inline preview for images with zoom-in feature.
+  - Conditional PDF viewer usage based on file extension.
+  - Reworked iframe viewer logic for better handling of images/videos/docs.
+
+* **Login Reload Fix**:
+  * Removed `gnrtoken` from reload URLs to avoid state duplication.
+
+- **PDF/Image Preview Detection Logic**:
+  - Refined JS detection of when to use PDF viewer vs inline display.
+
+- **GnrWsgiSite refactoring**:
+  - Safer fallback on bad URLs or missing packages.
+  - Better modularity in `UrlInfo` routing logic.
+  - Handles edge cases like `..//etc/passwd` to harden path traversal.
+
+- **Werkzeug Compatibility Patch**:
+  - Fix for subcommand CLI trick used by `gnr` that breaks Python 3.8 autoreloader.
+
+Docker Tooling
+--------------
+
+* Introducing a new docker image creation, based on the instance configuration
+* Image creation and pushing towards registry
+* Images are labeled with the details of all packages/repositoty involved.
+
+Test Infrastructure
+-------------------
+
+* Added a **minimal `instanceconfig.xml`** with **framework-only packages** for unit testing.
+* Expanded SQL **common tests** by adding a new `location` table definition. 
+* Improved **test suite structure** to follow a **package-based layout**. 
+* Enhanced unit tests for SQL migration features and removed obsolete test cases.
+* Introduced `WSGITestClient` and `ExternalProcess` for end-to-end daemon testing.
+* Test coverage for API key management, storage paths, routing logic, and page serving.
+* Test coverage on unique constraints, foreign keys, and empty table handling.
+* Test for print endpoint and variant column handler behavior.
+
 Bug Fixes
 ---------
 
 * Resolved issues with unused imports that caused linting errors.
+* Fixed PostgreSQL unique constraint overlaps with primary keys.
+* Eliminated runtime import artifacts and unused decorators.
+* Removed deprecated mobile meta attributes.
+* Corrected unique removal syntax from test fixtures.
+* **MDEditor Focus Issue**
+  * Fixed an issue where **MDEditor** would **lose focus**, leading to unsaved changes. 
+  * Implemented an **event listener** to save changes upon focus loss.
 
-Testing and Quality
--------------------
+* **SQL Query Fixes**
+  * Fixed incorrect **column width calculations** in `ThResourceMaker`. :contentReference[oaicite:33]{index=33}
+  * Ensured `#BETWEEN` syntax correctly handles **blank values**. :contentReference[oaicite:34]{index=34}
+  * SQL **range comparisons** now consistently include the **upper bound**. :contentReference[oaicite:35]{index=35}
 
-* Replaced the official PostgreSQL Docker image with `dockette/postgres` for compatibility with required extensions.
-* Enhanced unit tests for SQL migration features and removed obsolete test cases.
 
-Breaking Changes
-----------------
 
-* The dependency on `deepdiff` has been entirely removed in favor of `dictdiffer`. Update your environment accordingly.
-* Migration commands now explicitly require extensions to be declared.
+Removed / Deprecated / Breaking changes
+---------------------------------------
+
+- **Removed**: legacy `deepdiff` in favor of `dictdiffer`. Update your environment accordingly.
+- **Removed**: obsolete Closure Compiler support.
+- **Removed**: redundant iframe/viewer JS logic, refactored AttachManager handlers.
+
+Upgrade Instructions
+--------------------
+
+* Recommended for every upgrade, to reinstall the framework using the original installation method in order to
+  have dependencies working correctly.
+* **Update your SQL queries** to properly utilize **`#BETWEEN`** syntax changes.
+- **Review migration logs**, as error handling for relations has changed.
+- **Reconfigure handbook settings**, as redundant preferences were removed.
 
 Version 24.12.23
 ================
@@ -69,6 +284,7 @@ Version 24.12.23
 
 Version 24.12.03
 ================
+
 * introduce gnr.app.gnrutils module, for GnrApp utilities. First
   utility is GnrAppInsights, which retrieve statistical information
   about a specific GnrApp, with plugin support. Includes a new command
@@ -110,7 +326,8 @@ Enhancements
   management.
 
 Bug Fixes
------
+---------
+
 * **Dependency Management**: Replaced `pkg_resources` with
   `importlib.metadata` for package version handling to resolve
   deprecation warnings on Python >= 3.12.

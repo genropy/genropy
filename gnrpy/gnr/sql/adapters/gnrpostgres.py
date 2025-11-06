@@ -51,13 +51,77 @@ RE_SQL_PARAMS = re.compile(r":(\S\w*)(\W|$)")
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
 
 
+class TsVectorCompiler:
+    # Regex patterns for each macro with improved support for quoted identifiers
+    finders = {
+        'tsquery': re.compile(
+            r"#TSQUERY\s*\(\s*(?P<tsv>\"?[\w\.\@\$]+\"?(?:\s*\.\s*\"?[\w\.\@\$]+\"?)?)\s*,\s*(?P<querystring>:[\w]+)\s*(?:,\s*(?P<language>:[\w]+))?\s*\)"
+        ),
+        'tsrank': re.compile(
+            r"#TSRANK\s*\(\s*(?P<tsv>\"?[\w\.\@\$]+\"?(?:\s*\.\s*\"?[\w\.\@\$]+\"?)?)\s*,\s*(?P<querystring>:[\w]+)\s*"
+            r"(?:,\s*(?P<language>:[\w]+))?\s*(?:,\s*\[(?P<weights>[\d.,\s]*)\])?\s*(?:,\s*(?P<normalization>\d+))?\s*\)"
+        ),
+        'tsheadline': re.compile(
+            r"#TSHEADLINE\s*\(\s*(?P<text>\"?[\w\.\@\$]+\"?(?:\s*\.\s*\"?[\w\.\@\$]+\"?)?)\s*,\s*(?P<querystring>:[\w]+)\s*"
+            r"(?:,\s*(?P<language>:[\w]+))?\s*(?:,\s*'(?P<config>[^']+)')?\s*\)"
+        )
+    }
+
+    # Function mapping for expansion
+    expanders = {
+        'tsquery': '_expand_tsquery',
+        'tsrank': '_expand_tsrank',
+        'tsheadline': '_expand_tsheadline'
+    }
+
+    def _expand_tsquery(self, m):
+        """Expands the #TSQUERY macro into a full-text search condition using websearch_to_tsquery."""
+        tsv = m.group("tsv").strip()  # The field containing the ts_vector
+        querystring = m.group("querystring")  # The search text parameter (e.g., :querystring)
+        language = m.group("language") or "'simple'"  # Default to 'simple' if no language is provided
+
+        return f"{tsv} @@ websearch_to_tsquery({language}, {querystring})"
+
+    def _expand_tsrank(self, m):
+        """Expands the #TSRANK macro into a ts_rank function for ranking full-text search results."""
+        tsvector = m.group("tsv").strip()  # The field containing the ts_vector
+        query_param = m.group("querystring")  # The search text parameter (e.g., :querystring)
+        language_param = m.group("language") or "'simple'"  # Default language to 'simple'
+        weights = m.group("weights")  # The weight array
+        normalization = m.group("normalization") or "8"  # Default normalization factor
+
+        weights_sql = f"ARRAY[{weights}]" if weights else "NULL"
+
+        return f"ts_rank({weights_sql}, {tsvector}, websearch_to_tsquery({language_param}, {query_param}), {normalization})"
+
+    def _expand_tsheadline(self, m):
+        """Expands the #TSHEADLINE macro into a ts_headline function for highlighting search terms."""
+        text_field = m.group("text").strip()  # The text field to highlight
+        query_param = m.group("querystring")  # The search text parameter (e.g., :querystring)
+        language_param = m.group("language") or "'simple'"  # Default language to 'simple'
+        config = m.group("config") or "StartSel=<mark>, StopSel=</mark>, MaxWords=20, MinWords=5, MaxFragments=3"
+
+        return f"ts_headline({language_param}, {text_field}, websearch_to_tsquery({language_param}, {query_param}), '{config}')"
+
+    def adapt(self, sql_text, finder):
+        """Expands macros in the given SQL text.
+
+        :param sql_text: The SQL string containing macros.
+        :param finder: The macro type to expand (e.g., 'tsquery', 'tsrank', 'tsheadline').
+        :return: The SQL string with macros expanded.
+        """
+        if finder not in self.finders:
+            raise ValueError(f"Unknown finder: {finder}")
+
+        return self.finders[finder].sub(getattr(self, self.expanders[finder]), sql_text)
+    
 class SqlDbAdapter(PostgresSqlDbBaseAdapter):
     
     def connect(self, storename=None, autoCommit=False):
         """Return a new connection object: provides cursors accessible by col number or col name
 
         :returns: a new connection object"""
-        kwargs = self.dbroot.get_connection_params(storename=storename)
+        kwargs = self.get_connection_params(storename=storename)
         kwargs.pop('implementation',None)
 
         # remove None parameters, psycopg can't handle them
@@ -100,6 +164,37 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         return RE_SQL_PARAMS.sub(r'%(\1)s\2', sql).replace('REGEXP', '~*'), kwargs
 
 
+    def compileSql(self, maintable, columns, distinct='', joins=None, where=None,
+                   group_by=None, having=None, order_by=None, limit=None, offset=None,
+                   for_update=None,maintable_as=None):
+        """
+        Create the final SQL query text, aggregation all query's portions
+        """
+        def _smartappend(x, name, value):
+            if value:
+                x.append('%s %s' % (name, value))
+        maintable_as = maintable_as or 't0'
+        result = ['SELECT  %s%s' % (distinct, columns)]
+        result.append(' FROM %s AS %s' % (maintable, maintable_as))
+        joins = joins or []
+        for join in joins:
+            result.append('       %s' % join)
+        _smartappend(result, 'WHERE', where)
+        _smartappend(result, 'GROUP BY', group_by)
+        _smartappend(result, 'HAVING', having)
+        _smartappend(result, 'ORDER BY', order_by)
+        _smartappend(result, 'LIMIT', limit)
+        _smartappend(result, 'OFFSET', offset)
+        if for_update:
+            result.append(self._selectForUpdate(maintable_as=maintable_as,mode=for_update))
+        result = '\n'.join(result)
+
+        tscompiler = TsVectorCompiler()
+        result = tscompiler.adapt(result,'tsquery')
+        result = tscompiler.adapt(result,'tsrank')
+        result = tscompiler.adapt(result,'tsheadline')
+        return result
+    
     @classmethod
     def _classConnection(cls, host=None, port=None,
                          user=None, password=None):
@@ -183,7 +278,7 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         :returns: list of object names"""
         query = getattr(self, '_list_%s' % elType)()
         try:
-            result = self.dbroot.execute(query, kwargs).fetchall()
+            result = self.raw_fetch(query, sqlargs=kwargs)
         except psycopg2.OperationalError:
             raise GnrNonExistingDbException(self.dbroot.dbname)
         if comment:
@@ -217,10 +312,10 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         filtercol = ""
         if column:
             filtercol = "AND column_name=:column"
-        columns = self.dbroot.execute(sql % filtercol,
+        columns = self.raw_fetch(sql % filtercol,
                                       dict(schema=schema,
                                            table=table,
-                                           column=column)).fetchall()
+                                           column=column))
         iterator = self.columnAdapter(columns)
         return iterator if not column else next(iterator)
 
@@ -249,18 +344,14 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
             yield col
 
 class GnrDictConnection(_connection):
-    """A connection that uses DictCursor automatically."""
+    """Connection that defaults to GnrDictCursor."""
+
+    def cursor(self, name=None, cursor_factory=None, *args, **kwargs):
+        if cursor_factory is None:
+            cursor_factory = GnrDictCursor
+        return super().cursor(name=name, cursor_factory=cursor_factory, *args, **kwargs)
 
 
-    def __init__(self, *args, **kwargs):
-        super(GnrDictConnection, self).__init__(*args, **kwargs)
-
-    def cursor(self, name=None):
-        if name:
-            cur = super(GnrDictConnection, self).cursor(name, cursor_factory=GnrDictCursor)
-        else:
-            cur = super(GnrDictConnection, self).cursor(cursor_factory=GnrDictCursor)
-        return cur
 
 class GnrDictCursor(_cursor):
     """Base class for all dict-like cursors."""

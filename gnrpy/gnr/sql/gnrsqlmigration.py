@@ -4,8 +4,7 @@ import hashlib
 import json
 import dictdiffer
 from collections import defaultdict
-
-from gnr.app.gnrapp import GnrApp
+from gnr.core.gnrstring import boolean
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
 from gnr.dev.decorator import time_measure
@@ -34,7 +33,7 @@ COMPATIBLE_TYPES = {
     "L": {"I", "N", "R"},              # BigInt-like: bigint → int, numeric
 }
 
-COL_JSON_KEYS = ("dtype","notnull","sqldefault","size","unique")
+COL_JSON_KEYS = ("dtype","notnull","sqldefault","size","unique","extra_sql","generated_expression")
 
 GNR_DTYPE_CONVERTER = {'X':'T', 'Z':'T', 'P':'T'}
 
@@ -205,8 +204,9 @@ class OrmExtractor:
 
     def __init__(self,migrator=None, db=None,extensions=None):
         self.migrator = migrator
+        self.excludeReadOnly =  migrator and migrator.excludeReadOnly
         self.db = db or self.migrator.db
-        self.json_structure = new_structure_root(self.db.dbname)
+        self.json_structure = new_structure_root(self.db.get_dbname())
         self.json_meta = nested_defaultdict()
         self.extensions = extensions or []
         self.schemas = self.json_structure['root']['schemas']
@@ -371,7 +371,10 @@ class OrmExtractor:
             if ':' in size:
                 dtype = 'A'
             elif ',' not in size:
-                dtype = 'C'                
+                if not dtype or 'C' in COMPATIBLE_TYPES[dtype]:
+                    dtype = 'C'    
+                elif dtype =='N':
+                    size = f'{size},0'
         if dtype in ('A','C') and not size:
             dtype = 'T'
         result['dtype'] = dtype
@@ -383,6 +386,8 @@ class OrmExtractor:
     def get_json_struct(self):
         """Generates the JSON structure of the database."""
         for pkg in self.db.packages.values():
+            if self.excludeReadOnly and boolean(pkg.attributes.get('readOnly')):
+                continue
             self.fill_json_package(pkg)
         self.add_tenant_schemas()
         for deferred_index_kw in self.deferred_indexes:
@@ -425,7 +430,7 @@ class DbExtractor(object):
     @time_measure
     def prepare_json_struct(self,schemas=None):
         """Generates the JSON structure of the database."""
-        self.json_structure = new_structure_root(self.db.dbname)
+        self.json_structure = new_structure_root(self.db.get_dbname())
         self.json_meta = nested_defaultdict()
         self.json_schemas = self.json_structure["root"]['schemas']  
         infodict = self.get_info_from_db(schemas=schemas)
@@ -557,13 +562,14 @@ class SqlMigrator():
                  removeDisabled=True):
         self.db = db
         self.extensions = extensions.split(',') if extensions else []
+        self.commands = {}
         self.sql_commands = {'db_creation':None,'build_commands':None,'extensions_commands':None}
-        self.dbExtractor = DbExtractor(migrator=self)
-        self.ormExtractor = OrmExtractor(migrator=self,extensions=self.extensions)
         self.excludeReadOnly = excludeReadOnly
         self.removeDisabled = removeDisabled
         self.ignore_constraint_name = ignore_constraint_name
-    
+        self.dbExtractor = DbExtractor(migrator=self)
+        self.ormExtractor = OrmExtractor(migrator=self,extensions=self.extensions)
+
     @property
     def diff(self):
         return dictdiffer.diff(self.sqlStructure or {'root':{}},self.ormStructure)
@@ -622,16 +628,17 @@ class SqlMigrator():
     def prepareMigrationCommands(self):
         self.prepareStructures()
         self.commands = nested_defaultdict()
-
         for evt,kw in self.dictDifferChanges():
             if evt=='removed' and self.removeDisabled:
                 continue
             item = kw['item']
             if item.get('schema_name') in self.readOnly_schemas:
                 continue
-            handler = getattr(self, f'{evt}_{kw["entity"]}' ,'missing_handler')
+            handler = getattr(self, f'{evt}_{kw["entity"]}' ,self.missing_handler_cb)
             handler(**kw)
 
+    def missing_handler_cb(self,**kwargs):
+        return f'missing {kwargs}'
  
     def prepareStructures(self):
         self.application_schemas = self.db.getApplicationSchemas()
@@ -704,6 +711,9 @@ class SqlMigrator():
     def added_table(self, item=None,**kwargs):
         sqltablename = self.tableSqlName(item)
         substatements = []
+        if not item['columns']:
+            #without columns avoid table creation
+            return
         for col in item['columns'].values():
             substatements.append(self.columnSql(col).strip())
         if item["attributes"]["pkeys"]:
@@ -853,19 +863,7 @@ class SqlMigrator():
         elif changed_attribute == 'unique':
             # Handle changes to the UNIQUE constraint
             if newvalue:
-                columns = [column_name]
-                constraint_name = hashed_name(schema=item['schema_name'],table=item['table_name'],columns=columns,obj_type='cst')
-                sql = self.db.adapter.struct_constraint_sql(
-                    constraint_type='UNIQUE',
-                    constraint_name=constraint_name,
-                    columns=columns,
-                    schema_name=item['schema_name'],
-                    table_name=item['table_name']
-                )
-                constraints_dict = table_dict['constraints']
-                constraints_dict[constraint_name] = {
-                    "command": f'ADD {sql}'
-                }
+                self.addColumnUniqueConstraint(item)
             else:
                 columns = [column_name]
                 constraints_dict = table_dict['constraints']
@@ -876,6 +874,24 @@ class SqlMigrator():
                     table_name=item['table_name'],
                 )
                 constraints_dict[constraint_name] = {"command":sql}
+        elif changed_attribute in ('generated_expression','extra_sql'):
+            return
+
+    def addColumnUniqueConstraint(self,col):
+        table_dict = self.schema_tables(col['schema_name'])[col['table_name']]
+        columns = [col['entity_name']]
+        constraint_name = hashed_name(schema=col['schema_name'],table=col['table_name'],columns=columns,obj_type='cst')
+        sql = self.db.adapter.struct_constraint_sql(
+            constraint_type='UNIQUE',
+            constraint_name=constraint_name,
+            columns=columns,
+            schema_name=col['schema_name'],
+            table_name=col['table_name']
+        )
+        constraints_dict = table_dict['constraints']
+        constraints_dict[constraint_name] = {
+            "command": f'ADD {sql}'
+        }
 
     def changed_index(self, item=None,changed_attribute=None,oldvalue=None,newvalue=None, **kwargs):
         """
@@ -922,7 +938,11 @@ class SqlMigrator():
             deferrable= relattr.get('deferrable'),
             initially_deferred = relattr.get('initially_deferred')
         )
-        relations_dict[f'rem_{entity_name}']['command'] = f"DROP CONSTRAINT {relattr['constraint_name']}"
+        relations_dict[f'rem_{entity_name}']['command'] = self.db.adapter.struct_drop_constraint_sql(
+                    constraint_name=relattr['constraint_name'],
+                    schema_name=item['schema_name'],
+                    table_name=item['table_name'],
+        )
         relations_dict[f'add_{entity_name}']['command'] = f"ADD {add_sql}"
 
     def changed_constraint(self, item=None,changed_attribute=None,oldvalue=None,newvalue=None, **kwargs):
@@ -984,12 +1004,14 @@ class SqlMigrator():
     def columnSql(self, col):
         """Return the statement string for creating a table's column"""
         colattr = col['attributes']
+        if colattr.get('unique'):
+            self.addColumnUniqueConstraint(col)
         return self.db.adapter.columnSqlDefinition(col['entity_name'],
                                                    dtype=colattr['dtype'], size=colattr.get('size'),
                                                    notnull=colattr.get('notnull', False),
-                                                    unique=colattr.get('unique'),
                                                     default=colattr.get('sqldefault'),
-                                                    extra_sql=colattr.get('extra_sql'))
+                                                    extra_sql=colattr.get('extra_sql'),
+                                                    generated_expression=colattr.get('generated_expression'))
     
     def constraintSql(self,const_item):
         pass
@@ -1026,6 +1048,8 @@ class SqlMigrator():
 
         The resulting SQL commands are stored in `self.sql_commands` and returned as a single concatenated string.
         """
+        if 'db' not in self.commands:
+            self.prepareMigrationCommands()
         commands = self.commands
         dbitem = commands['db']
         sql_command = dbitem.get('command')
@@ -1091,54 +1115,56 @@ class SqlMigrator():
         db_creation = self.sql_commands.pop('db_creation',None)
         if db_creation:
             self.db.adapter.execute(db_creation,manager=True)
-        extensions_commands = self.sql_commands.pop('extensions_commands',None)
-        if extensions_commands:
-            self.db.adapter.execute(extensions_commands,manager=True)
+        
         build_commands = self.sql_commands.pop('build_commands',None)
         if build_commands:
             # FIXME: why the manager is not used in this case?
             self.db.adapter.execute(build_commands,autoCommit=True)
-
+        
+        extensions_commands = self.sql_commands.pop('extensions_commands',None)
+        if extensions_commands:
+            self.db.adapter.execute(extensions_commands,manager=True)
 
     #jsonorm = OrmExtractor(GnrApp('dbsetup_tester').db).get_json_struct()
     
-def dbsetupComparison():
-    app = GnrApp('sandboxpg')
-    mig = SqlMigrator(app.db)
-    mig.prepareMigrationCommands()
-
-    with open('testsqlextractor.json','w') as f:
-        f.write(json.dumps(mig.sqlStructure))
-
-    with open('testormextractor.json','w') as f:
-        f.write(json.dumps(mig.ormStructure))
-    with open('sandbox_migration.sql','w') as f:
-        f.write(mig.getChanges())
-
-    app.db.model.check()
-
-    with open('sandbox_modelchecker.sql','w') as f:
-        f.write('\n'.join(app.db.model.modelChanges))
-
-def multiTenantTester():
-    app = GnrApp('mtx_tester')
-    mig = SqlMigrator(app.db)
-    mig.prepareMigrationCommands()
-    with open('ts2_multi_tenant_orm.json','w') as f:
-        f.write(json.dumps(mig.ormStructure))
-
-    with open('ts2_multi_tenant_sql.json','w') as f:
-        f.write(json.dumps(mig.sqlStructure))
-
-def testTree():
-    app = GnrApp('sandboxpg')
-    mig = SqlMigrator(app.db)
-    mig.prepareMigrationCommands()
-    res = mig.jsonModelWithoutMeta()
-    
-if __name__ == '__main__':
-    app = GnrApp('sandboxpg')
-    mig = SqlMigrator(app.db)
-    mig.prepareMigrationCommands()
-    #testTree()
-    #multiTenantTester()
+#def dbsetupComparison():
+#    app = GnrApp('sandboxpg')
+#    mig = SqlMigrator(app.db)
+#    mig.prepareMigrationCommands()
+#
+#    with open('testsqlextractor.json','w') as f:
+#        f.write(json.dumps(mig.sqlStructure))
+#
+#    with open('testormextractor.json','w') as f:
+#        f.write(json.dumps(mig.ormStructure))
+#    with open('sandbox_migration.sql','w') as f:
+#        f.write(mig.getChanges())
+#
+#    app.db.model.check()
+#
+#    with open('sandbox_modelchecker.sql','w') as f:
+#        f.write('\n'.join(app.db.model.modelChanges))
+#
+#def multiTenantTester():
+#    app = GnrApp('mtx_tester')
+#    mig = SqlMigrator(app.db)
+#    mig.prepareMigrationCommands()
+#    with open('ts2_multi_tenant_orm.json','w') as f:
+#        f.write(json.dumps(mig.ormStructure))
+#
+#    with open('ts2_multi_tenant_sql.json','w') as f:
+#        f.write(json.dumps(mig.sqlStructure))
+#
+#def testTree():
+#    app = GnrApp('sandboxpg')
+#    mig = SqlMigrator(app.db)
+#    mig.prepareMigrationCommands()
+#    res = mig.jsonModelWithoutMeta()
+#    
+#if __name__ == '__main__':
+#    app = GnrApp('sandboxpg')
+#    mig = SqlMigrator(app.db)
+#    mig.prepareMigrationCommands()
+#    #testTree()
+#    #multiTenantTester()
+#

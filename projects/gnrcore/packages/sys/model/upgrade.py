@@ -1,6 +1,4 @@
 # encoding: utf-8
-from __future__ import print_function
-
 
 import os 
 from gnr.core.gnrlang import gnrImport

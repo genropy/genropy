@@ -6,9 +6,7 @@
 
 from json import dumps
 from datetime import datetime
-import re
-import sys
-import time
+import re, sys, time
 
 if sys.version_info[0] == 3:
     from urllib.request import urlopen
@@ -37,7 +35,7 @@ class Main(BaseResourceBatch):
     batch_title =  'Export to sphinx'
     batch_cancellable = False
     batch_delay = 0.5
-    batch_steps = 'prepareRstDocs,buildHtmlDocs'
+    batch_steps = 'prepareConfFile,prepareRstDocs,buildHtmlDocs'
 
     def pre_process(self):
         self.handbook_id = self.batch_parameters['extra_parameters']['handbook_id']
@@ -51,20 +49,12 @@ class Main(BaseResourceBatch):
         #DP202208 publishedDocNode node is where the final documentation will be published, at beginning of the process we erase former docs
         self.publishedDocNode = self.page.site.storageNode(self.handbook_record['sphinx_path'])
         self.publishedDocNode.delete()
-        confSn = self.sourceDirNode.child('conf.py')
-        self.page.site.storageNode('rsrc:pkg_docu','sphinx_env','default_conf.py').copy(self.page.site.storageNode(confSn))
-        theme = self.handbook_record['theme'] or 'sphinx_rtd_theme'
-        theme_path = self.page.site.storageNode('rsrc:pkg_docu','sphinx_env','themes').internal_path
-        html_baseurl = self.db.application.getPreference('.sphinx_baseurl',pkg='docu') or self.page.site.externalUrl('') + '_documentation/' 
-        self.handbook_url = html_baseurl + self.handbook_record['name'] + '/'
-        extra_conf = """html_theme = '%s'\nhtml_theme_path = ['%s/']\nhtml_baseurl='%s'\nsitemap_url_scheme = '%s/{link}'"""%(theme, theme_path, html_baseurl,self.handbook_record['name'])
-        with confSn.open('a') as confFile:
-            confFile.write(extra_conf)
+        self.html_baseurl = self.db.application.getPreference('.sphinx_baseurl',pkg='docu') or self.page.site.externalUrl('/_documentation/')
+        self.handbook_url = f"{self.html_baseurl}{self.handbook_record['name']}/"
+        self.enable_sitemap = self.db.application.getPreference('.enable_sitemap',pkg='docu')
         self.imagesDict = dict()
         self.imagesPath='_static/images'
         self.examplesPath='_static/_webpages'
-        self.customCssPath='_static/custom.css'
-        self.customJSPath='_static/custom.js'
         self.examples_root = None 
         self.examples_pars = Bag(self.handbook_record['examples_pars'])
         self.examples_mode = self.examples_pars['mode'] or 'iframe'
@@ -79,20 +69,56 @@ class Main(BaseResourceBatch):
         #DP202112 Check if there are active redirects
         if self.db.application.getPreference('.manage_redirects',pkg='docu'):
             self.redirect_pkeys = self.db.table('docu.redirect').query(where='$old_handbook_id=:h_id AND $is_active IS TRUE', 
-                        h_id=self.handbook_id).selection().output('pkeylist')
-
+                        h_id=self.handbook_id).selection().output('pkeylist')   
+            
+    def step_prepareConfFile(self):
+        "Prepare conf file"
+        confSn = self.sourceDirNode.child('conf.py')
+        self.page.site.storageNode('rsrc:pkg_docu','sphinx_env','default_conf.py').copy(self.page.site.storageNode(confSn))
+        theme = self.handbook_record['theme'] or 'sphinx_rtd_theme'
+        theme_path = self.page.site.storageNode('rsrc:pkg_docu','sphinx_env','themes').internal_path
+        handbooks_theme_pref = self.db.application.getPreference('.handbooks_theme',pkg='docu')
+        conf_lines = [
+            f"html_theme = '{theme}'",
+            f"html_theme_path = ['{theme_path}/']",
+            f"html_baseurl='{self.html_baseurl}'",
+        ]
+        if handbooks_theme_pref['logo']:
+            conf_lines.append(f"html_logo = '{self.page.site.externalUrl(handbooks_theme_pref['logo'])}'")
+            conf_lines.append("html_short_title = 'Handbook'")
+        if handbooks_theme_pref['copyright']:
+            conf_lines.append("show_copyright = True")
+            conf_lines.append("html_show_sphinx = False")
+            conf_lines.append(f"copyright = '{self.db.workdate.year} {handbooks_theme_pref['copyright']}'")
+        if handbooks_theme_pref['display_version']:
+            conf_lines.append("theme_display_version = True")
+            conf_lines.append(f"version = release = '{self.handbook_record['version']}'")
+        if handbooks_theme_pref['last_update']:
+            conf_lines.append("html_last_updated_fmt = '%d-%m-%Y'")
+        if handbooks_theme_pref['show_authors']:
+            conf_lines.append("show_authors = True")
+        if self.enable_sitemap: #DP Enabled extensions = ['sphinx_sitemap','sphinxext.opengraph']
+            conf_lines.append(f"sitemap_url_scheme = '{self.handbook_record['name']}/{{link}}'")
+        extra_conf = '\n'.join(conf_lines)
+        with confSn.open('a') as confFile:
+            confFile.write(extra_conf)
+            logger.info("Extra conf lines added to conf.py: %s" % extra_conf)
+            
     def step_prepareRstDocs(self):
         "Prepare Rst docs"
         if self.handbook_record['toc_roots']:
             toc_roots = self.handbook_record['toc_roots'].split(',')
             toc_trees = []
             for doc_id in toc_roots:
-                if doc_id in self.doc_data.keys():
-                    toc_elements = self.prepare(self.doc_data[doc_id],[])
+                node = self.doc_data.getNode(doc_id)
+                if node:
+                    subtree = Bag()
+                    subtree.setItem(node.label, node.value, **node.attr)
                     r = self.doctable.record(doc_id).output('dict')
                     title = Bag(r['docbag'])['%s.title' % self.handbook_record['language']] 
-                    toctree = self.createToc(elements=toc_elements, includehidden=True, titlesonly=True, caption=title)
-                    toc_trees.append(toctree)
+                    root_code = r['name']
+                    toc_elements = self.prepare(subtree,[], skip_first=True)
+                    toc_trees.append(self.createToc(elements=toc_elements, includehidden=True, titlesonly=True, caption=title))
             tocstring = '\n\n'.join(toc_trees)
         else:
             toc_elements = self.prepare(self.doc_data,[])
@@ -101,7 +127,7 @@ class Main(BaseResourceBatch):
         self.createFile(pathlist=[], name='index', title=self.handbook_record['title'], rst='', tocstring=tocstring)
         for k,v in self.imagesDict.items():
             #DP202112 Useful for local debugging
-            source_url = self.page.externalUrl(v) if v.startswith('/') else v
+            source_url = self.page.site.externalUrl(v) if v.startswith('/') else v
             child = self.sourceDirNode.child(k)
             with child.open('wb') as f:
                 try:
@@ -119,7 +145,7 @@ class Main(BaseResourceBatch):
     def step_buildHtmlDocs(self):
         "Build HTML docs"
         self.resultNode = self.sphinxNode.child('build')
-        ogp_image = self.page.externalUrl(self.handbook_record['ogp_image']) if self.handbook_record['ogp_image'] else None
+        ogp_image = self.page.site.externalUrl(self.handbook_record['ogp_image']) if self.handbook_record['ogp_image'] else None
         build_args = dict(project=self.handbook_record['title'],
                           version=self.handbook_record['version'],
                           author=self.handbook_record['author'],
@@ -134,13 +160,10 @@ class Main(BaseResourceBatch):
         for k,v in template_variables.items():
             if v:
                 args.extend(['-A', '%s=%s' % (k,v)])
-        customStyles = self.handbook_record['custom_styles'] or ''
-        customStyles = '%s\n%s' %(customStyles,self.defaultCssCustomization())
-        with self.sourceDirNode.child(self.customCssPath).open('wb') as cssfile:
-            cssfile.write(customStyles.encode())
-        with self.sourceDirNode.child(self.customJSPath).open('wb') as jsfile:
-            jsfile.write(self.defaultJSCustomization().encode())
-            
+        
+        self.processCssCustomizations()
+        self.processJsCustomizations()
+        self.processHtmlCustomizations()
 
         args = [self.sourceDirNode.internal_path, self.resultNode.internal_path] + args
         sphinx_build_main(args)
@@ -161,7 +184,8 @@ class Main(BaseResourceBatch):
                 self.resultNode.move(self.publishedDocNode)
                 record['handbook_url'] = self.handbook_url
                 self.result_url = None
-        self.sphinxNode.delete()
+        if not self.db.application.getPreference('.save_src_debug',pkg='docu'):
+            self.sphinxNode.delete()
         self.db.commit()
 
         if self.db.application.getPreference('.manage_redirects',pkg='docu'):
@@ -189,7 +213,7 @@ class Main(BaseResourceBatch):
             resultAttr['url'] = self.result_url
         return 'Export done', resultAttr
 
-    def prepare(self, data, pathlist):
+    def prepare(self, data, pathlist, skip_first=False):
         IMAGEFINDER = re.compile(r"\.\. image:: ([\w./:-]+)")
         LINKFINDER = re.compile(r"`([^`]*) <([\w./]+)>`_\b")
         #LINKFINDER = re.compile(r"`([^`]*) <([\w./-]+)(?:/(#[\w-]+))?>`_\b") version with group 3 after /#
@@ -198,14 +222,14 @@ class Main(BaseResourceBatch):
         result=[]
         if not data:
             return result
-        for n in data:
+        for idx, n in enumerate(data):
             v = n.value
-            record = self.doctable.record(n.label).output('dict')
+            record = self.doctable.record(n.label,
+                                          virtual_columns='$full_external_url,$root_handbook_url').output('dict')
             
             name=record['name']
             docbag = Bag(record['docbag'])
             self.curr_sourcebag = Bag(record['sourcebag'])
-            toc_elements=[name]
             self.hierarchical_name = record['hierarchical_name']
             lbag=docbag[self.handbook_record['language']] or Bag()
             rst = lbag['rst'] or ''
@@ -222,32 +246,58 @@ class Main(BaseResourceBatch):
             if self.examples_root and self.curr_sourcebag:
                         rst = EXAMPLE_FINDER.sub(self.fixExamples, rst)
 
-            if n.attr['child_count']>0:
-                if v:
-                    toc_elements=self.prepare(v, pathlist+toc_elements)
-                    self.curr_pathlist = pathlist+[name]
-            else:
-                self.curr_pathlist=pathlist
+            has_children = bool(n.attr['child_count'])
+            branch_pathlist = pathlist+[name] if has_children else pathlist
+            child_toc_elements = []
+            if has_children and v:
+                child_toc_elements = self.prepare(v, branch_pathlist)
+            self.curr_pathlist = branch_pathlist if has_children else pathlist
+
+            skip_current = skip_first and idx == 0
+            if skip_current:
+                tocstring = ''
+                if child_toc_elements:
+                    tocstring = self.createToc(elements=child_toc_elements,
+                                               titlesonly=True,
+                                               includehidden=True,
+                                               maxdepth=1)
+                self.createFile(pathlist=branch_pathlist,
+                                name='index',
+                                title=lbag['title'] or name,
+                                rst='',
+                                tocstring=tocstring,
+                                hname=record['hierarchical_name'])
+                prefixed_entries = [f'{name}/{entry}' for entry in child_toc_elements if entry]
+                result.extend(prefixed_entries)
+                continue
 
             rst = IMAGEFINDER.sub(self.fixImages,rst)
             rst = LINKFINDER.sub(self.fixLinks, rst)
 
             rst=rst.replace('[tr-off]','').replace('[tr-on]','')
+            footer= ''
             if record['author']:
-                footer = '\n.. sectionauthor:: %s\n'%record['author']
-            else:
-                footer= ''
-                
-            if n.attr['child_count']>0:
+                footer = '\n.. sectionauthor:: %s\n' % (record['author'] or self.handbook_record['author'])
+            if self.db.application.getPreference('.handbooks_theme.last_update',pkg='docu'):
+                last_upd = translator.getTranslation('!!Publish date', language=self.handbook_record['language']).get('translation') or 'Publish date'
+                date_format = '%Y-%m-%d'if self.handbook_record['language'] == 'en' else '%d-%m-%Y' 
+                publish_date_str = record['publish_date'].strftime(date_format) if record['publish_date'] else ''
+                footer += f"""\n.. raw:: html\n\n   <p style="font-size:0.8em;">{last_upd} {publish_date_str}</p>"""
+
+            url = record.get('full_external_url') or record.get('root_handbook_url')
+            if url:
+                self.batch_log_write(f"{record.get('hierarchical_name') or record.get('name')}: {url}")
+
+            tocstring = ''
+            if has_children:
                 result.append('%s/%s.rst' % (name,name))
-                if v:
-                    tocstring = self.createToc(elements=toc_elements,
+                if child_toc_elements:
+                    tocstring = self.createToc(elements=child_toc_elements,
                                                     hidden=not record['sphinx_toc'],
                                                     titlesonly=True,
                                                     maxdepth=1)
             else:
                 result.append(name)
-                tocstring=''
                 
             self.createFile(pathlist=self.curr_pathlist, name=name,
                             title=lbag['title'], 
@@ -260,9 +310,9 @@ class Main(BaseResourceBatch):
     def fixExamples(self, m):
         example_label = m.group(1)
         example_name = m.group(2)
-        print('**EXAMPLE**', example_name)
+        logger.debug(f'**EXAMPLE** {example_name}')
         sourcedata = self.curr_sourcebag[example_name] or Bag()
-        print(sourcedata)
+        logger.debug(sourcedata)
         return '.. raw:: html\n\n %s' %self.exampleHTMLChunk(sourcedata,example_label=example_label,example_name=example_name)
         
     def exampleHTMLChunk(self,sourcedata,example_label=None,example_name=None):
@@ -306,7 +356,7 @@ class Main(BaseResourceBatch):
         prefix = '%s/' % self.db.package('docu').htmlProcessorName()
         title= m.group(1)
         path= m.group(2)
-        ref = m.group(2).replace(prefix,'')
+        ref = path.replace(prefix,'')
         valid_link=self.doctable.query(where='$hierarchical_name=:ref', ref= ref).fetch()
         if valid_link:
             result = ' :ref:`%s<%s>` ' % (title, ref)
@@ -340,7 +390,6 @@ class Main(BaseResourceBatch):
         return '\n%s\n%s\n\n\n   %s' % (".. toctree::", '\n'.join(toc_options),'\n   '.join(elements))
 
     def invalidateCloudfrontCache(self):
-
         client = boto3.client('cloudfront')
         response = client.create_invalidation(
                     DistributionId=self.db.application.getPreference('.cloudfront_distribution_id',pkg='docu'),
@@ -393,40 +442,80 @@ class Main(BaseResourceBatch):
             #                title='!![en]Notification recipients', 
             #                margin='2px', pbl_classes=True, addrow=False, delrow=False, height='200px')
 
+    def processCssCustomizations(self):
+        customCssPath='_static/custom.css' #DP Customizable?
+        cssStyles = [
+            s for s in [
+                self.db.application.getPreference('.base_css', pkg='docu'),
+                self.handbook_record.get('custom_styles'),
+                self.defaultCssCustomization()
+            ] if s
+        ]
+        with self.sourceDirNode.child(customCssPath).open('wb') as cssfile:
+            cssfile.write('\n'.join(cssStyles).encode())
+    
+    def processJsCustomizations(self):
+        customJSPath='_static/custom.js'    
+        jsStyles = [
+            s for s in [
+                self.db.application.getPreference('.base_js',pkg='docu'),
+                self.defaultJSCustomization()
+            ] if s
+        ]
+        with self.sourceDirNode.child(customJSPath).open('wb') as jsfile:
+            jsfile.write('\n'.join(jsStyles).encode())
+            
+    def processHtmlCustomizations(self):
+        extra_head = self.db.application.getPreference('.html_extra_head', pkg='docu')
+        if not extra_head:
+            return
+        layout_html = f"""
+            {{% extends "!layout.html" %}}
+
+            {{% block extrahead %}}
+              {{% raw %}}{{{{ super() }}}}{{% endraw %}}
+              {extra_head}
+            {{% endblock %}}
+            """
+        template_file = self.sourceDirNode.child('_templates', 'layout.html')
+        template_file.ensureParent()
+        with template_file.open('w') as f:
+            f.write(layout_html)
+            
     def defaultCssCustomization(self):
         return """/* override table width restrictions */
 
-@media screen and (min-width: 767px) {
+                @media screen and (min-width: 767px) {
 
-   .wy-table-responsive table td {
-      /* !important prevents the common CSS stylesheets from overriding
-         this as on RTD they are loaded after this stylesheet */
-      white-space: normal !important;
-   }
+                   .wy-table-responsive table td {
+                      /* !important prevents the common CSS stylesheets from overriding
+                         this as on RTD they are loaded after this stylesheet */
+                      white-space: normal !important;
+                   }
 
-   .wy-table-responsive {
-      overflow: visible !important;
-   }
-}
+                   .wy-table-responsive {
+                      overflow: visible !important;
+                   }
+                }
 
-.gnrexamplebox_title{
-    color:#2980B9;
-    cursor:pointer;
-}
-.gnrexamplebox_iframecont{
-    border:1px solid silver;
-    margin:5px;
-}
-"""
+                .gnrexamplebox_title{
+                    color:#2980B9;
+                    cursor:pointer;
+                }
+                .gnrexamplebox_iframecont{
+                    border:1px solid silver;
+                    margin:5px;
+                }
+                """
 
     def defaultJSCustomization(self):
         return """
-        var gnrExampleIframe = function(box,kw){
-            var src_root = window.location.port?window.location.origin+'/webpages/docu_examples':kw.examples_root;
-            var src = [src_root,kw.example_folder,kw.example_name].join('/');
-            src+=kw.parsstring;
-            var height = kw.height || '200px';
-            var width = kw.width || '100%'
-            box.innerHTML = '<div class="gnrexamplebox_iframecont"><iframe style="padding-bottom:3px; padding-right:3px; resize:vertical;" src="'+src+'" frameborder="0" height="'+height+'" width="'+width+'"></iframe></div>';
-        }
-    """
+                    var gnrExampleIframe = function(box,kw){
+                        var src_root = window.location.port?window.location.origin+'/webpages/docu_examples':kw.examples_root;
+                        var src = [src_root,kw.example_folder,kw.example_name].join('/');
+                        src+=kw.parsstring;
+                        var height = kw.height || '200px';
+                        var width = kw.width || '100%'
+                        box.innerHTML = '<div class="gnrexamplebox_iframecont"><iframe style="padding-bottom:3px; padding-right:3px; resize:vertical;" src="'+src+'" frameborder="0" height="'+height+'" width="'+width+'"></iframe></div>';
+                    }
+                """
