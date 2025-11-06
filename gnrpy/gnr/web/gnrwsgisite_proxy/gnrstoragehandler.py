@@ -18,6 +18,7 @@ import os
 from gnr.lib.services.storage import StorageNode as LegacyStorageNode
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrbag import Bag
+from gnr.core.gnrdecorator import deprecated
 
 # Future integration with genro_storage brick implementation
 # from genro_storage import StorageNode as BrickStorageNode
@@ -110,30 +111,53 @@ class BaseStorageHandler:
             </storage>
             <my_s3 service_type="storage" implementation="aws_s3" bucket="my-bucket" />
         </services>
+
+        Also reads from volumes section:
+        <volumes>
+            <uploads path="uploads"/>
+            <documents path="../documents"/>
+        </volumes>
         """
-        if not self.site.config.get('services'):
-            return
-
-        # Check for storage-specific section
-        storage_services = self.site.config.get('services.storage')
-        if storage_services:
-            for service_name, service_bag in storage_services.items():
-                params = dict(service_bag.getAttr())
-                # Remove service_type if present (it's redundant)
-                params.pop('service_type', None)
-                self.storage_params[service_name] = params
-
-        # Check for flat structure where service_type is an attribute
-        all_services = self.site.config.get('services')
-        if all_services:
-            for service_name, service_bag in all_services.items():
-                if service_name == 'storage':  # Skip the nested section we already processed
-                    continue
-                attrs = service_bag.getAttr() if hasattr(service_bag, 'getAttr') else {}
-                if attrs.get('service_type') == 'storage':
-                    params = dict(attrs)
+        # Load from services section
+        if self.site.config.get('services'):
+            # Check for storage-specific section
+            storage_services = self.site.config.get('services.storage')
+            if storage_services:
+                for service_name, service_bag in storage_services.items():
+                    params = dict(service_bag.getAttr())
+                    # Remove service_type if present (it's redundant)
                     params.pop('service_type', None)
                     self.storage_params[service_name] = params
+
+            # Check for flat structure where service_type is an attribute
+            all_services = self.site.config.get('services')
+            if all_services:
+                for service_name, service_bag in all_services.items():
+                    if service_name == 'storage':  # Skip the nested section we already processed
+                        continue
+                    attrs = service_bag.getAttr() if hasattr(service_bag, 'getAttr') else {}
+                    if attrs.get('service_type') == 'storage':
+                        params = dict(attrs)
+                        params.pop('service_type', None)
+                        self.storage_params[service_name] = params
+
+        # Load from volumes section (LEGACY - should be migrated to services)
+        volumes = self.site.config.getItem('volumes')
+        if volumes:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                "DEPRECATED: 'volumes' configuration is legacy. "
+                "Please migrate to 'services' section in siteconfig.xml. "
+                f"Found volumes: {', '.join(volumes.keys())}"
+            )
+            for volume_name in volumes.keys():
+                vpath = volumes.getAttr(volume_name, 'path')
+                volume_path = expandpath(os.path.join(self.site.site_static_dir, vpath))
+                self.storage_params[volume_name] = {
+                    'implementation': 'local',
+                    'base_path': volume_path
+                }
 
     def _loadStorageParametersFromDb(self):
         """Load storage parameters from database sys.service table.
@@ -294,8 +318,13 @@ class BaseStorageHandler:
             return True
         return False
 
+    @deprecated('Storage services should be accessed via storage_params registry, not dynamically created')
     def getVolumeService(self, storage_name=None):
         """Get or create a volume-based local storage service.
+
+        DEPRECATED: This method bypasses the storage_params registry and creates
+        services dynamically. All storage configurations should be defined in
+        database, site config, or volumes section and accessed via storage_params.
 
         Resolves the storage path from site configuration volumes, or uses the
         storage_name directly as a path if not configured. Creates a local storage
