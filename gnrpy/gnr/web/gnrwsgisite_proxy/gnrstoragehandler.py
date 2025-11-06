@@ -74,5 +74,5 @@ class LegacyStorageHandler(BaseStorageHandler):
             storage_path = self.storagePath(service_name, storage_path)
         if not service:
             return None
-        return LegacyStorageNode(self.site, path=storage_path, **kwargs)
+        return LegacyStorageNode(parent=self.site,service=service, path=storage_path, **kwargs)
 
