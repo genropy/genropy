@@ -162,7 +162,7 @@ class TestGnrApp(BaseGnrAppTest):
         assert a.application is None
 
 
-    def test_data_retentetion(self):
+    def test_data_retention(self):
         """
         Test app higher level data retention
         method and configurations
