@@ -14,6 +14,7 @@ The module defines:
 """
 
 import os
+import logging
 
 from gnr.lib.services.storage import StorageNode as LegacyStorageNode
 from gnr.core.gnrsys import expandpath
@@ -144,7 +145,6 @@ class BaseStorageHandler:
         # Load from volumes section (LEGACY - should be migrated to services)
         volumes = self.site.config.getItem('volumes')
         if volumes:
-            import logging
             logger = logging.getLogger(__name__)
             logger.warning(
                 "DEPRECATED: 'volumes' configuration is legacy. "
@@ -165,51 +165,39 @@ class BaseStorageHandler:
         Reads from sys.service where service_type='storage'.
         The 'parameters' column is a Bag containing additional configuration.
         """
-        if not hasattr(self.site, 'gnrapp'):
-            return
-
-        if not hasattr(self.site, 'db'):
-            return
-
         # Check if sys package is available
         if 'sys' not in self.site.gnrapp.packages.keys():
             return
 
-        try:
-            # Query all storage services from database
-            services = self.site.db.table('sys.service').query(
-                where='$service_type=:st',
-                st='storage',
-                order_by='$service_name'
-            ).fetch()
+        # Query all storage services from database
+        services = self.site.db.table('sys.service').query(
+            where='$service_type=:st',
+            st='storage',
+            order_by='$service_name'
+        ).fetch()
 
-            for service_record in services:
-                service_name = service_record['service_name']
-                implementation = service_record['implementation']
+        for service_record in services:
+            service_name = service_record['service_name']
+            implementation = service_record['implementation']
 
-                # Parameters is a Bag (XML) type column
-                parameters_bag = service_record.get('parameters')
+            # Parameters is a Bag (XML) type column
+            parameters_bag = service_record.get('parameters')
 
-                # Convert Bag to dict
-                if parameters_bag:
-                    if isinstance(parameters_bag, Bag):
-                        params = parameters_bag.asDict()
-                    else:
-                        # If it's already a dict or other type
-                        params = dict(parameters_bag) if parameters_bag else {}
+            # Convert Bag to dict
+            if parameters_bag:
+                if isinstance(parameters_bag, Bag):
+                    params = parameters_bag.asDict()
                 else:
-                    params = {}
+                    # If it's already a dict or other type
+                    params = dict(parameters_bag) if parameters_bag else {}
+            else:
+                params = {}
 
-                # Add implementation to params
-                params['implementation'] = implementation
+            # Add implementation to params
+            params['implementation'] = implementation
 
-                # Store parameters (overrides previous configs)
-                self.storage_params[service_name] = params
-
-        except Exception as e:
-            # Silently fail if database is not available or table doesn't exist
-            # This can happen during initialization or in test environments
-            pass
+            # Store parameters (overrides previous configs)
+            self.storage_params[service_name] = params
 
     def getStorageParameters(self, storage_name):
         """Get parameters for a storage service.

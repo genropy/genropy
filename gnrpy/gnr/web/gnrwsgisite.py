@@ -216,7 +216,6 @@ class GnrWsgiSite(object):
         self.secret = self.config['wsgi?secret'] or 'supersecret'
         self.config['secret'] = self.secret
         self.setDebugAttribute(options)
-        self.storage_handler = LegacyStorageHandler(self)
         self.statics = StaticHandlerManager(self)
         self.statics.addAllStatics()
         self.compressedJsPath = None
@@ -232,6 +231,7 @@ class GnrWsgiSite(object):
         self.debugpy = debugpy
         logger.debug("Debugpy active: %s", self.debugpy)
         self.dbstores = self.db.dbstores
+        self.storage_handler = LegacyStorageHandler(self)
         self.resource_loader = ResourceLoader(self)
         self.pwa_handler = PWAHandler(self)
         self.auth_token_generator = AuthTokenGenerator(self.external_secret)
@@ -260,6 +260,7 @@ class GnrWsgiSite(object):
         self.cleanup_interval = int(cleanup.get('interval') or 120)
         self.page_max_age = int(cleanup.get('page_max_age') or 120)
         self.connection_max_age = int(cleanup.get('connection_max_age')or 600)
+
         self.db.closeConnection()
 
 
