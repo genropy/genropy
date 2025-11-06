@@ -9,27 +9,24 @@ from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
 
 class View(BaseComponent):
-
+    css_requires = 'sys'
+    
+    def th_hiddencolumns(self):
+        return '$bad_status'
+    
     def th_struct(self,struct):
         r = struct.view().rows()
         r.fieldcell('stopped',inv_semaphore=True,name='!!Active')
         r.fieldcell('task_name',width='10em') # char(4)
+        r.fieldcell('last_scheduled_ts')
+        r.fieldcell('last_execution_ts')
+        r.fieldcell('last_completed')
+        r.fieldcell('last_error')
         r.fieldcell('table_name',width='10em')
         r.fieldcell('command',width='15em')
         r.fieldcell('frequency',width='7em')
         r.fieldcell('run_asap',width='5em',name='ASAP')
-        r.fieldcell('last_completed')
-        r.fieldcell('last_error')
         r.fieldcell('saved_query_code',width='8em')
-        r.fieldcell('last_scheduled_ts')
-        r.fieldcell('last_execution_ts')
-
-        #r.fieldcell('month',width='20em')
-       # r.fieldcell('day',width='15em')
-       # r.fieldcell('weekday',width='20em')
-       # r.fieldcell('hour',width='12em')
-       # r.fieldcell('minute',width='12em')
-       # r.fieldcell('last_execution_ts',width='14em')
 
     def th_order(self):
         return 'task_name'
@@ -77,7 +74,6 @@ class Form(BaseComponent):
         
         self.task_timeRules(rpane)
 
-        #center.contentPane(title='!!Logs',hidden='^#FORM.record.log_result?=!#v').plainTableHandler(relation='@logs',pbl_classes=True,margin='2px')
         center.contentPane(title='Executions').plainTableHandler(relation='@executions',viewResource='ViewFromTask')
     
     def task_timeRules(self,pane):

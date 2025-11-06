@@ -37,6 +37,12 @@ class Table(object):
         tbl.column('worker_code', size=':10', name_long="Worker code",
                    indexed=True)
         tbl.column('saved_query_code', size=':40', name_long="!![en]Query")
+        
+        tbl.formulaColumn('bad_status',
+                          "($last_scheduled_ts - $last_execution_ts) > INTERVAL '1 DAYS'",
+                          dtype="B",
+                          _addClass="task_bad_status")
+        
         tbl.formulaColumn('active_workers',
                           select=dict(table='sys.task_execution',
                                       where="$task_id=#THIS.id AND $start_ts IS NOT NULL AND $end_ts IS NULL",
