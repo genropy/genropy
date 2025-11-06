@@ -185,7 +185,7 @@ class BaseStorageHandler:
             logger.warning(
                 "DEPRECATED: 'volumes' configuration is legacy. "
                 "Please migrate to 'services' section in siteconfig.xml. "
-                f"Found volumes: {', '.join(volumes.keys())}"
+                "Found volumes: %s", ', '.join(volumes.keys())
             )
             for volume_name in volumes.keys():
                 vpath = volumes.getAttr(volume_name, 'path')
