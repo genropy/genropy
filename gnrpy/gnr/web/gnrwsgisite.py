@@ -399,15 +399,15 @@ class GnrWsgiSite(object):
         :param service_handler_factory: TODO"""
         return self.statics.add(static_handler_factory, **kwargs)
 
-    @deprecated
+    @deprecated('Use storage_handler.getVolumeService() instead')
     def getVolumeService(self, storage_name=None):
         return self.storage_handler.getVolumeService(storage_name)
-    
-    @deprecated
+
+    @deprecated('Use storage_handler.storagePath() instead')
     def storagePath(self, storage_name, storage_path):
         return self.storage_handler.storagePath(storage_name, storage_path)
 
-    @deprecated
+    @deprecated('Use storage_handler.storageService() instead')
     def storage(self, storage_name,**kwargs):
         return self.storage_handler.storageService(storage_name, **kwargs)
 
@@ -1538,12 +1538,12 @@ class GnrWsgiSite(object):
                 result[k] = v
         return result
 
-    @deprecated
+    @deprecated('deprecated since version 0.7')
     def site_static_path(self, *args):
         """.. warning:: deprecated since version 0.7"""
         return self.storage('site').path(*args)
 
-    @deprecated
+    @deprecated('deprecated since version 0.7')
     def site_static_url(self, *args):
         """.. warning:: deprecated since version 0.7"""
         return self.storage('site').url(*args)
