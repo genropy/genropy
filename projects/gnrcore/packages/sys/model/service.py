@@ -69,6 +69,16 @@ class Table(object):
 
     def trigger_onUpdated(self,record,old_record=None):
         self.serviceExpiredTs(record)
+        # Update storage_handler cache if this is a storage service
+        site = getattr(self.db.application, 'site', None)
+        if site and hasattr(site, 'storage_handler'):
+            if record.get('service_type') == 'storage':
+                site.storage_handler.updateStorageCache(record.get('service_name'))
 
     def trigger_onDeleted(self,record):
         self.serviceExpiredTs(record)
+        # Remove from storage_handler cache if this is a storage service
+        site = getattr(self.db.application, 'site', None)
+        if site and hasattr(site, 'storage_handler'):
+            if record.get('service_type') == 'storage':
+                site.storage_handler.removeStorageFromCache(record.get('service_name'))
