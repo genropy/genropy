@@ -404,13 +404,11 @@ class GnrWsgiSite(object):
     def getVolumeService(self, storage_name=None):
         return self.storage_handler.getVolumeService(storage_name)
 
-    @deprecated('Use storage_handler.storagePath() instead')
     def storagePath(self, storage_name, storage_path):
         return self.storage_handler.storagePath(storage_name, storage_path)
 
-    @deprecated('Use storage_handler.storageService() instead')
     def storage(self, storage_name,**kwargs):
-        return self.storage_handler.storageService(storage_name, **kwargs)
+        return self.storage_handler.storage(storage_name, **kwargs)
 
     def storageNode(self,*args,**kwargs):
         return self.storage_handler.storageNode(*args, **kwargs)

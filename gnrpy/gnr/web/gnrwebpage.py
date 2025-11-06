@@ -1754,7 +1754,7 @@ class GnrWebPage(GnrBaseWebPage):
             url = self.site.storage('pages').url(*uripath)
         elif fpath.startswith(packageFolder):
             uripath = fpath[len(packageFolder):].lstrip('/').split(os.path.sep)
-            url = self.site.storage('pkg').url(pkg, *uripath)
+            url = self.site.storage_handler.storageService('pkg').url(pkg, *uripath)
         else:
             for rsrc, rsrc_path in list(self.site.resources.items()):
                 if fpath.startswith(rsrc_path):

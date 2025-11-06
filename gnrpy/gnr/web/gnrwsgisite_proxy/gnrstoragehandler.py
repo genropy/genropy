@@ -60,6 +60,40 @@ class BaseStorageHandler:
         self.storage_params = {}
         self._loadAllStorageParameters()
 
+    def _setStorageParams(self, service_name, parameters=None, implementation=None):
+        """Set storage parameters for a service.
+
+        Centralizes the logic for converting and storing storage parameters.
+        Handles Bag/dict conversion and implementation assignment.
+
+        Args:
+            service_name: Name of the storage service
+            parameters: Can be a Bag, dict, or None
+            implementation: Implementation type (local, symbolic, aws_s3, etc.)
+
+        Returns:
+            The stored parameters dict
+        """
+        # Convert parameters to dict
+        if parameters:
+            if isinstance(parameters, Bag):
+                params = parameters.asDict()
+            elif isinstance(parameters, dict):
+                params = dict(parameters)
+            else:
+                # Try to convert to dict
+                params = dict(parameters) if parameters else {}
+        else:
+            params = {}
+
+        # Add implementation if provided (overrides what's in parameters)
+        if implementation:
+            params['implementation'] = implementation
+
+        # Store parameters
+        self.storage_params[service_name] = params
+        return params
+
     def _loadAllStorageParameters(self):
         """Load all storage service parameters from all sources.
 
@@ -83,18 +117,18 @@ class BaseStorageHandler:
 
         # Add dynamic defaults that depend on site properties
         if hasattr(self.site, 'site_static_dir'):
-            self.storage_params['home'] = {
-                'implementation': 'local',
-                'base_path': self.site.site_static_dir
-            }
-            self.storage_params['site'] = {
-                'implementation': 'local',
-                'base_path': self.site.site_static_dir
-            }
-            self.storage_params['mail'] = {
-                'implementation': 'local',
-                'base_path': f'{self.site.site_static_dir}/mail'
-            }
+            self._setStorageParams('home',
+                parameters={'base_path': self.site.site_static_dir},
+                implementation='local'
+            )
+            self._setStorageParams('site',
+                parameters={'base_path': self.site.site_static_dir},
+                implementation='local'
+            )
+            self._setStorageParams('mail',
+                parameters={'base_path': f'{self.site.site_static_dir}/mail'},
+                implementation='local'
+            )
 
         # Override with site config
         self._loadStorageParametersFromSiteConfig()
@@ -128,7 +162,8 @@ class BaseStorageHandler:
                     params = dict(service_bag.getAttr())
                     # Remove service_type if present (it's redundant)
                     params.pop('service_type', None)
-                    self.storage_params[service_name] = params
+                    implementation = params.pop('implementation', None)
+                    self._setStorageParams(service_name, parameters=params, implementation=implementation)
 
             # Check for flat structure where service_type is an attribute
             all_services = self.site.config.get('services')
@@ -140,7 +175,8 @@ class BaseStorageHandler:
                     if attrs.get('service_type') == 'storage':
                         params = dict(attrs)
                         params.pop('service_type', None)
-                        self.storage_params[service_name] = params
+                        implementation = params.pop('implementation', None)
+                        self._setStorageParams(service_name, parameters=params, implementation=implementation)
 
         # Load from volumes section (LEGACY - should be migrated to services)
         volumes = self.site.config.getItem('volumes')
@@ -154,10 +190,10 @@ class BaseStorageHandler:
             for volume_name in volumes.keys():
                 vpath = volumes.getAttr(volume_name, 'path')
                 volume_path = expandpath(os.path.join(self.site.site_static_dir, vpath))
-                self.storage_params[volume_name] = {
-                    'implementation': 'local',
-                    'base_path': volume_path
-                }
+                self._setStorageParams(volume_name,
+                    parameters={'base_path': volume_path},
+                    implementation='local'
+                )
 
     def _loadStorageParametersFromDb(self):
         """Load storage parameters from database sys.service table.
@@ -173,31 +209,20 @@ class BaseStorageHandler:
         services = self.site.db.table('sys.service').query(
             where='$service_type=:st',
             st='storage',
-            order_by='$service_name'
+            order_by='$service_name',
+            bagFields=True
         ).fetch()
 
         for service_record in services:
             service_name = service_record['service_name']
             implementation = service_record['implementation']
+            parameters_bag = Bag(service_record['parameters'])
 
-            # Parameters is a Bag (XML) type column
-            parameters_bag = service_record.get('parameters')
-
-            # Convert Bag to dict
-            if parameters_bag:
-                if isinstance(parameters_bag, Bag):
-                    params = parameters_bag.asDict()
-                else:
-                    # If it's already a dict or other type
-                    params = dict(parameters_bag) if parameters_bag else {}
-            else:
-                params = {}
-
-            # Add implementation to params
-            params['implementation'] = implementation
-
-            # Store parameters (overrides previous configs)
-            self.storage_params[service_name] = params
+            # Use centralized method to set parameters
+            self._setStorageParams(service_name,
+                parameters=parameters_bag,
+                implementation=implementation
+            )
 
     def getStorageParameters(self, storage_name):
         """Get parameters for a storage service.
@@ -232,7 +257,7 @@ class BaseStorageHandler:
                 lines.append(f"    {key}: {value}")
         return "\n".join(lines)
 
-    def updateStorageCache(self, service_name):
+    def updateStorageParams(self, service_name):
         """Update parameters for a specific storage service by reloading from database.
 
         This method is called by sys.service table triggers when a storage
@@ -244,50 +269,30 @@ class BaseStorageHandler:
         Returns:
             True if update was successful, False otherwise
         """
-        if not hasattr(self.site, 'db'):
-            return False
+        # Query the specific service record
+        service_record = self.site.db.table('sys.service').record(
+            service_type='storage',
+            service_name=service_name,
+            ignoreMissing=True
+        ).output('dict')
 
-        if 'sys' not in self.site.gnrapp.packages.keys():
-            return False
-
-        try:
-            # Query the specific service record
-            service_record = self.site.db.table('sys.service').record(
-                service_type='storage',
-                service_name=service_name,
-                ignoreMissing=True
-            ).output('dict')
-
-            if not service_record:
-                # Service was deleted or doesn't exist, remove from params
-                if service_name in self.storage_params:
-                    del self.storage_params[service_name]
-                return True
-
-            # Extract parameters
-            implementation = service_record.get('implementation')
-            parameters_bag = service_record.get('parameters')
-
-            # Convert Bag to dict
-            if parameters_bag:
-                if isinstance(parameters_bag, Bag):
-                    params = parameters_bag.asDict()
-                else:
-                    params = dict(parameters_bag) if parameters_bag else {}
-            else:
-                params = {}
-
-            # Add implementation to params
-            if implementation:
-                params['implementation'] = implementation
-
-            # Update storage parameters
-            self.storage_params[service_name] = params
+        if not service_record:
+            # Service was deleted or doesn't exist, remove from params
+            if service_name in self.storage_params:
+                del self.storage_params[service_name]
             return True
 
-        except Exception as e:
-            # Log error but don't crash
-            return False
+        # Extract parameters
+        implementation = service_record.get('implementation')
+        parameters_bag = service_record.get('parameters')
+
+        # Use centralized method to set parameters
+        self._setStorageParams(service_name,
+            parameters=parameters_bag,
+            implementation=implementation
+        )
+        return True
+
 
     def removeStorageFromCache(self, service_name):
         """Remove a storage service from parameters.
@@ -360,11 +365,14 @@ class BaseStorageHandler:
             return f'{self.site.currentPage.connection_id}/{self.site.currentPage.page_id}/{storage_path}'
         return storage_path
 
-    def storageService(self, storage_name, **kwargs):
+    def storage(self, storage_name, **kwargs):
         """Get a storage service by name using stored parameters.
 
+        Template method to be overridden by subclasses. The base implementation
+        does nothing - subclasses must provide concrete implementation.
+
         All storage services are pre-loaded at initialization and kept
-        in sync via database triggers. This method always uses storage_params.
+        in sync via database triggers. Implementations should use storage_params.
 
         Args:
             storage_name: Name of the storage service
@@ -373,24 +381,8 @@ class BaseStorageHandler:
         Returns:
             Storage service instance, or None if service not found
         """
-        # Get stored parameters for this storage
-        stored_params = self.getStorageParameters(storage_name)
-
-        if not stored_params:
-            # Service not in storage_params - should be extremely rare
-            # Only happens for dynamically named services not in DB/config
-            return None
-
-        # Merge stored params with any override kwargs
-        service_params = dict(stored_params)
-        service_params.update(kwargs)
-
-        # Create/get service using stored parameters
-        return self.site.getService(
-            service_type='storage',
-            service_name=storage_name,
-            **service_params
-        )
+        # To be implemented by subclasses
+        return None
 
     def storageNode(self, *args, **kwargs):
         """Create or return a storage node.
@@ -423,8 +415,45 @@ class LegacyStorageHandler(BaseStorageHandler):
 
     Implements storage handling using the legacy StorageNode from gnr.lib.services.storage.
     Provides path adaptation for various legacy formats including the old 'vol:' prefix.
+
+    Overrides the storage() method to provide concrete implementation using the
+    ServiceHandler pattern to create/retrieve storage service instances.
     """
 
+    def storage(self, storage_name, **kwargs):
+        """Get a storage service by name using stored parameters.
+
+        Concrete implementation that retrieves parameters from storage_params registry
+        and uses ServiceHandler to get/create the actual storage service instance.
+
+        All storage services are pre-loaded at initialization and kept in sync
+        via database triggers. This method always uses storage_params.
+
+        Args:
+            storage_name: Name of the storage service
+            **kwargs: Additional arguments to override stored parameters
+
+        Returns:
+            Storage service instance, or None if service not found
+        """
+        # Get stored parameters for this storage
+        stored_params = self.getStorageParameters(storage_name)
+
+        if not stored_params:
+            # Service not in storage_params - should be extremely rare
+            # Only happens for dynamically named services not in DB/config
+            return None
+
+        # Merge stored params with any override kwargs
+        service_params = dict(stored_params)
+        service_params.update(kwargs)
+        # Create/get service using stored parameters
+        return self.site.getService(
+            service_type='storage',
+            service_name=storage_name,
+            **service_params
+        )
+    
     def _adapt_path(self, *args, **kwargs):
         """Adapt and parse legacy path formats.
 
@@ -471,12 +500,16 @@ class LegacyStorageHandler(BaseStorageHandler):
             *args: Path components
             **kwargs: Additional arguments passed to StorageNode, plus:
                 _adapt: If True (default), apply context-based path adaptation
+                autocreate: Auto-create directories if needed
+                must_exist: Raise exception if path doesn't exist
+                mode: File mode ('r', 'w', etc.)
+                version: Version identifier for versioned storage
 
         Returns:
             LegacyStorageNode instance, or None if service unavailable
         """
         service_name, storage_path = self._adapt_path(*args, **kwargs)
-        service = self.storageService(service_name)
+        service = self.storage(service_name)
 
         # Apply context-based path adaptation if requested
         if kwargs.pop('_adapt', True):
@@ -485,11 +518,20 @@ class LegacyStorageHandler(BaseStorageHandler):
         if not service:
             return None
 
+        # Extract StorageNode-specific parameters
+        autocreate = kwargs.pop('autocreate', False)
+        must_exist = kwargs.pop('must_exist', False)
+        mode = kwargs.pop('mode', None)
+        version = kwargs.pop('version', None)
+
         return LegacyStorageNode(
             parent=self.site,
             service=service,
             path=storage_path,
-            **kwargs
+            autocreate=autocreate,
+            must_exist=must_exist,
+            mode=mode,
+            version=version
         )
 
 
