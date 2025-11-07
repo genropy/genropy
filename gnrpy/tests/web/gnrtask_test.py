@@ -41,6 +41,9 @@ def scheduler(monkeypatch, tmp_path):
         def fetch(self):
             return []
 
+        def output(self, data_format):
+            return {}
+
     class DummyTable:
         def __init__(self, name):
             self.name = name
@@ -61,6 +64,12 @@ def scheduler(monkeypatch, tmp_path):
 
         def commit(self):
             pass
+
+        def record(self, task_id):
+            return DummyQueryResult()
+
+        def update(self, data_dict, task_record):
+            return []
 
     class DummyDB:
         def __init__(self):
@@ -281,7 +290,7 @@ class TestGnrTaskScheduler(_NoDaemonBase):
         )
         called = {}
 
-        async def completed():
+        async def completed(tasktbl, exectbl):
             called["ok"] = True
 
         task.completed = completed
