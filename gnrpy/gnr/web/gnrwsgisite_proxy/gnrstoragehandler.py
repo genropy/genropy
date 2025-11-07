@@ -5,24 +5,44 @@ Storage Handler Module
 
 This module provides storage handling functionality for Genropy web applications.
 It implements a proxy pattern to manage storage nodes and services, supporting both
-legacy storage implementations and preparing for future brick storage integration.
+legacy storage implementations and the new genro-storage library integration.
 
 The module defines:
 - BaseStorageHandler: Base class with core storage operations
-- LegacyStorageHandler: Implementation using legacy StorageNode
-- BaseStorageNode: Base class for future storage node implementations
+- LegacyStorageHandler: Implementation using legacy gnr.lib.services.storage.StorageNode
+- NewStorageNode: Wrapper providing LegacyStorageNode-compatible API for genro-storage BrickStorageNode
+- NewStorageHandler: Implementation using genro-storage library (StorageManager + BrickStorageNode)
+- LegacyStorageServiceAdapter: Minimal deprecated adapter for site.storage() backward compatibility
+
+Integration with genro-storage:
+    The NewStorageHandler uses the genro-storage library to provide a modern, unified
+    storage abstraction across local filesystems, cloud storage (S3, GCS, Azure), and
+    remote protocols (HTTP, SFTP, etc.).
+
+Configuration:
+    Storage handler selection will be configurable via siteconfig.xml:
+    <storage_handler>new</storage_handler>  # Use genro-storage (NewStorageHandler)
+    <storage_handler>legacy</storage_handler>  # Use legacy implementation (default)
+
+Migration notes:
+    - site.storage('name').method() pattern is deprecated when using NewStorageHandler
+    - Use site.storageNode('name:path').method() directly instead
+    - NewStorageNode provides full API compatibility with LegacyStorageNode
 """
 
 import os
 import logging
+import random
+from urllib.parse import urlencode
 
 from gnr.lib.services.storage import StorageNode as LegacyStorageNode
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import deprecated
 
-# Future integration with genro_storage brick implementation
-# from genro_storage import StorageNode as BrickStorageNode
+# Integration with genro-storage library
+from genro_storage import StorageNode as BrickStorageNode
+from genro_storage import StorageManager
 
 
 class BaseStorageHandler:
@@ -534,5 +554,549 @@ class LegacyStorageHandler(BaseStorageHandler):
             version=version
         )
 
+
+class NewStorageNode:
+    """Wrapper class for BrickStorageNode to provide LegacyStorageNode-compatible interface.
+
+    This class wraps a BrickStorageNode instance and adapts its API to match the
+    LegacyStorageNode interface used throughout Genropy. It uses __getattr__ to delegate
+    compatible method calls directly to the wrapped BrickStorageNode, while providing
+    adapter methods for API differences.
+
+    API Compatibility:
+        Direct delegation (identical APIs):
+            - fullpath, path, exists, isfile, isdir, size, mtime, basename
+            - md5hash, versions, ext_attributes, mimetype
+            - open(), delete(), mkdir(), children()
+            - url(), internal_url(), serve(), local_path()
+            - get_metadata(), set_metadata()
+
+        Adapted methods (different APIs):
+            - cleanbasename → stem
+            - dirname → adapted to return fullpath format
+            - parentStorageNode → parent
+            - move() → move_to()
+            - copy() → copy_to()
+            - base64() → to_base64()
+            - ext → suffix (with dot removal)
+            - child() → child() with different path handling
+
+    Args:
+        brick_node: The BrickStorageNode instance to wrap
+        parent: The site instance (for compatibility with legacy code)
+        service_name: The storage service name for fullpath construction
+    """
+
+    def __init__(self, brick_node, parent=None, service_name=None):
+        """Initialize the wrapper.
+
+        Args:
+            brick_node: BrickStorageNode instance from genro-storage
+            parent: Site instance for legacy compatibility
+            service_name: Storage service name
+        """
+        self._brick_node = brick_node
+        self.parent = parent
+        self.service_name = service_name
+        # Legacy compatibility attributes
+        self.service = None  # For legacy code that checks node.service
+        self.mode = 'r'
+        self.autocreate = False
+        self.version = None
+
+    def __str__(self):
+        """String representation matching LegacyStorageNode format."""
+        return f'NewStorageNode <{self._brick_node.fullpath}>'
+
+    def __getattr__(self, name):
+        """Delegate attribute access to wrapped BrickStorageNode for compatible APIs.
+
+        This method is called when an attribute is not found in NewStorageNode.
+        It delegates to BrickStorageNode for all compatible methods/properties.
+        """
+        # Direct delegation for compatible APIs
+        compatible_attrs = {
+            'fullpath', 'path', 'exists', 'isfile', 'isdir', 'size', 'mtime',
+            'basename', 'md5hash', 'versions', 'ext_attributes', 'mimetype',
+            'open', 'delete', 'mkdir', 'children', 'url', 'internal_url',
+            'serve', 'local_path', 'get_metadata', 'set_metadata', 'splitext',
+            'fill_from_url'
+        }
+
+        if name in compatible_attrs:
+            return getattr(self._brick_node, name)
+
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+
+    # Adapted properties and methods
+
+    @property
+    def cleanbasename(self):
+        """Returns basename without extension (legacy name for 'stem')."""
+        return self._brick_node.stem
+
+    @property
+    def ext(self):
+        """Returns file extension without leading dot."""
+        suffix = self._brick_node.suffix
+        return suffix.lstrip('.') if suffix else ''
+
+    @property
+    def dirname(self):
+        """Returns the fullpath of parent directory in legacy format."""
+        # BrickStorageNode.dirname returns just the path, we need fullpath format
+        return self._brick_node.parent.fullpath if self._brick_node.parent else ''
+
+    @property
+    def parentStorageNode(self):
+        """Returns the StorageNode pointing to the parent directory."""
+        parent_brick = self._brick_node.parent
+        if parent_brick and self.parent:
+            return NewStorageNode(parent_brick, parent=self.parent, service_name=self.service_name)
+        return None
+
+    @property
+    def internal_path(self):
+        """Returns the internal path within the storage service."""
+        # For BrickStorageNode, path is already the internal path
+        return self._brick_node.path
+
+    def base64(self, mime=None):
+        """Returns base64 encoded string of file content (legacy API)."""
+        include_uri = mime is not None
+        return self._brick_node.to_base64(mime=mime, include_uri=include_uri)
+
+    def move(self, dest=None):
+        """Moves the file to another path (legacy API).
+
+        Args:
+            dest: Destination path or StorageNode
+        """
+        # Convert dest to appropriate format
+        if isinstance(dest, NewStorageNode):
+            dest_node = dest._brick_node
+        elif isinstance(dest, str):
+            # If string, create a node for it
+            # This requires access to storage manager - simplified for now
+            dest_node = dest
+        else:
+            dest_node = dest
+
+        result = self._brick_node.move_to(dest_node)
+
+        # Update self to point to new location (legacy behavior)
+        self._brick_node = result
+        return result
+
+    def copy(self, dest=None):
+        """Copies the file to another path (legacy API).
+
+        Args:
+            dest: Destination path or StorageNode
+
+        Returns:
+            NewStorageNode pointing to the copy
+        """
+        if isinstance(dest, NewStorageNode):
+            dest_node = dest._brick_node
+        elif isinstance(dest, str):
+            dest_node = dest
+        else:
+            dest_node = dest
+
+        result = self._brick_node.copy_to(dest_node)
+        return NewStorageNode(result, parent=self.parent, service_name=self.service_name)
+
+    def child(self, path=None):
+        """Returns a StorageNode pointing to a sub path (legacy API).
+
+        Args:
+            path: Relative path to child
+
+        Returns:
+            NewStorageNode for the child path
+        """
+        # Legacy behavior: adds '/' if not present
+        if self._brick_node.path and not self._brick_node.path.endswith('/'):
+            path = f'/{path}'
+
+        child_brick = self._brick_node.child(path)
+        return NewStorageNode(child_brick, parent=self.parent, service_name=self.service_name)
+
+    def listdir(self):
+        """Returns list of file/dir names contained (if isdir) - legacy API."""
+        if self.isdir:
+            return [child.basename for child in self._brick_node.children()]
+        return []
+
+    def kwargs_url(self, **kwargs):
+        """Get URL with kwargs support (nocache, etc).
+
+        Similar to url() but handles special kwargs like 'nocache' that add
+        query parameters based on file modification time.
+
+        Args:
+            **kwargs: URL parameters
+                nocache: If True, adds mtime-based cache-busting parameter
+                Other kwargs are added as query parameters
+
+        Returns:
+            URL string with query parameters
+        """
+        url = self._brick_node.url()
+        if not kwargs:
+            return url
+
+        nocache = kwargs.pop('nocache', None)
+        if nocache:
+            if self._brick_node.exists:
+                mtime = self._brick_node.mtime
+            else:
+                mtime = random.random() * 100000
+            kwargs['_'] = int(mtime)
+
+        if kwargs:
+            url = f'{url}?{urlencode(kwargs)}'
+
+        return url
+
+
+class LegacyStorageServiceAdapter:
+    """Minimal adapter service that delegates to storageNode().
+
+    DEPRECATED: This class exists only for backward compatibility with legacy code
+    that uses site.storage('name').method() pattern. New code should use
+    site.storageNode('name:path').method() directly.
+
+    All methods are deprecated and internally delegate to storageNode() calls.
+
+    Args:
+        handler: The NewStorageHandler instance
+        service_name: Name of the storage service/mount
+    """
+
+    def __init__(self, handler, service_name):
+        """Initialize the minimal service adapter.
+
+        Args:
+            handler: NewStorageHandler instance for storageNode() delegation
+            service_name: Name of the storage mount
+        """
+        self.handler = handler
+        self.service_name = service_name
+
+    @deprecated(f"Use site.storageNode('{{service_name}}:path').url(**kwargs) instead")
+    def url(self, *args, **kwargs):
+        """Get URL for the given path.
+
+        DEPRECATED: Use site.storageNode('{service_name}:path').url(**kwargs) instead.
+
+        Args:
+            *args: Path components
+            **kwargs: Additional parameters passed to node.url()
+
+        Returns:
+            URL string or None
+        """
+        path = '/'.join(str(arg) for arg in args)
+        fullpath = f'{self.service_name}:{path}'
+        node = self.handler.storageNode(fullpath)
+        return node.url(**kwargs) if node else None
+
+    @deprecated(f"Use site.storageNode('{{service_name}}:path').kwargs_url(**kwargs) instead")
+    def kwargs_url(self, *args, **kwargs):
+        """Get URL with kwargs support (nocache, etc).
+
+        DEPRECATED: Use site.storageNode('{service_name}:path').kwargs_url(**kwargs) instead.
+
+        Args:
+            *args: Path components
+            **kwargs: URL parameters (nocache, etc)
+
+        Returns:
+            URL string with query parameters
+        """
+        path = '/'.join(str(arg) for arg in args)
+        fullpath = f'{self.service_name}:{path}'
+        node = self.handler.storageNode(fullpath)
+        return node.kwargs_url(**kwargs) if node else None
+
+    @deprecated(f"Use site.storageNode('{{service_name}}:path').internal_url() for local paths or local_path() context manager")
+    def path(self, *args):
+        """Get local filesystem path.
+
+        DEPRECATED: Use site.storageNode('{service_name}:path').internal_url() for
+        local paths, or local_path() context manager for temporary access.
+
+        Args:
+            *args: Path components
+
+        Returns:
+            Local path string or None
+        """
+        path = '/'.join(str(arg) for arg in args)
+        fullpath = f'{self.service_name}:{path}'
+        node = self.handler.storageNode(fullpath)
+        if not node:
+            return None
+
+        # Try to get internal_url which might be a local path
+        internal = node.internal_url()
+        if internal and not internal.startswith('http'):
+            return internal
+
+        return None
+
+    @deprecated(f"Use site.storageNode('{{service_name}}:path').open(mode=mode) instead")
+    def open(self, *args, **kwargs):
+        """Open file at the given path.
+
+        DEPRECATED: Use site.storageNode('{service_name}:path').open(mode=mode) instead.
+
+        Args:
+            *args: Path components
+            **kwargs: Open mode and other parameters
+
+        Returns:
+            File-like object
+        """
+        path = '/'.join(str(arg) for arg in args)
+        fullpath = f'{self.service_name}:{path}'
+        node = self.handler.storageNode(fullpath)
+        mode = kwargs.get('mode', 'rb')
+        return node.open(mode=mode)
+
+
+class NewStorageHandler(BaseStorageHandler):
+    """Storage handler using genro-storage library (BrickStorageNode).
+
+    This handler inherits from BaseStorageHandler and uses the genro-storage library
+    to provide a modern, unified storage abstraction. It converts storage_params
+    configurations into StorageManager mount configurations and wraps BrickStorageNode
+    instances in NewStorageNode for API compatibility.
+
+    Configuration mapping:
+        - 'local' implementation → 'local' type
+        - 'aws_s3' implementation → 's3' type
+        - 'symbolic' implementation → 'local' type with dynamic paths
+        - 'http'/'raw' implementation → 'http' type
+
+    Args:
+        site: The GnrWsgiSite instance
+    """
+
+    def __init__(self, site):
+        """Initialize the storage handler with StorageManager.
+
+        Args:
+            site: The GnrWsgiSite instance
+        """
+        super().__init__(site)
+
+        # Create StorageManager instance
+        self.storage_manager = StorageManager()
+
+        # Configure storage manager from storage_params
+        self._configureStorageManager()
+
+    def _configureStorageManager(self):
+        """Configure StorageManager from storage_params registry.
+
+        Converts storage_params dict into StorageManager mount configurations.
+        Maps Genropy storage implementations to genro-storage backend types.
+        """
+        mount_configs = []
+
+        for service_name, params in self.storage_params.items():
+            mount_config = self._adaptStorageParamsToMount(service_name, params)
+            if mount_config:
+                mount_configs.append(mount_config)
+
+        # Configure all mounts at once
+        if mount_configs:
+            self.storage_manager.configure(mount_configs)
+
+    def _adaptStorageParamsToMount(self, service_name, params):
+        """Adapt storage_params to StorageManager mount configuration.
+
+        Args:
+            service_name: Name of the storage service
+            params: Storage parameters dict
+
+        Returns:
+            Mount configuration dict for StorageManager, or None if not applicable
+        """
+        if not params:
+            return None
+
+        implementation = params.get('implementation')
+
+        # Map Genropy implementations to genro-storage types
+        type_mapping = {
+            'local': 'local',
+            'symbolic': 'local',  # Symbolic also uses local type
+            'aws_s3': 's3',
+            's3': 's3',
+            'http': 'http',
+            'raw': 'local',  # Raw files use local type
+            'memory': 'memory',
+        }
+
+        storage_type = type_mapping.get(implementation)
+
+        if not storage_type:
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                f"Unknown storage implementation '{implementation}' for service '{service_name}'. "
+                "Skipping mount configuration."
+            )
+            return None
+
+        # Build mount configuration
+        mount_config = {
+            'name': service_name,
+            'type': storage_type
+        }
+
+        # Add type-specific parameters
+        if storage_type == 'local':
+            # For local storage, we need a base_path
+            base_path = params.get('base_path')
+            if base_path:
+                mount_config['path'] = expandpath(base_path)
+            elif implementation == 'symbolic':
+                # Symbolic paths are resolved dynamically - use a placeholder
+                # The actual path resolution happens in storagePath()
+                mount_config['path'] = self.site.site_static_dir
+
+        elif storage_type == 's3':
+            # S3-specific parameters
+            if 'bucket' in params:
+                mount_config['bucket'] = params['bucket']
+            if 'region' in params:
+                mount_config['region'] = params['region']
+            if 'access_key' in params:
+                mount_config['key'] = params['access_key']
+            if 'secret_key' in params:
+                mount_config['secret'] = params['secret_key']
+
+        # Add permission level if specified
+        if 'permission' in params:
+            mount_config['permission'] = params['permission']
+
+        # Copy other parameters that might be relevant
+        for key in ['endpoint_url', 'prefix', 'readonly']:
+            if key in params:
+                mount_config[key] = params[key]
+
+        return mount_config
+
+    def storage(self, storage_name, **kwargs):
+        """Get storage service adapter.
+
+        Returns a LegacyStorageServiceAdapter instance that provides legacy
+        StorageService-compatible API (url, path, open, kwargs_url methods).
+
+        DEPRECATED: The returned adapter's methods are all deprecated. Use
+        site.storageNode('service:path').method() directly in new code.
+
+        Args:
+            storage_name: Name of the storage service
+            **kwargs: Additional parameters (currently unused, for compatibility)
+
+        Returns:
+            LegacyStorageServiceAdapter instance, or None if mount not found
+        """
+        if self.storage_manager.has_mount(storage_name):
+            return LegacyStorageServiceAdapter(
+                handler=self,
+                service_name=storage_name
+            )
+        return None
+
+    def makeNode(self, *args, **kwargs):
+        """Create a NewStorageNode instance wrapping BrickStorageNode.
+
+        Template method implementation that creates storage nodes using genro-storage.
+        Unlike LegacyStorageHandler, this works directly with fullpath format since
+        StorageManager handles path parsing internally.
+
+        Args:
+            *args: Path components (supports both 'service:path' and separate args)
+            **kwargs: Additional arguments:
+                _adapt: If True (default), apply context-based path adaptation
+                autocreate: Auto-create directories if needed
+                must_exist: Raise exception if path doesn't exist
+                mode: File mode ('r', 'w', etc.)
+                version: Version identifier for versioned storage
+
+        Returns:
+            NewStorageNode instance wrapping BrickStorageNode, or None if mount not found
+        """
+        # Build fullpath from args
+        path = '/'.join(args)
+
+        # Add default service prefix if none specified
+        if ':' not in path:
+            path = f'_raw_:{path}'
+
+        # Handle HTTP/HTTPS URLs
+        if path.startswith('http://') or path.startswith('https://'):
+            path = f'_http_:{path}'
+
+        # Extract service name for context-based adaptation
+        service_name = path.split(':', 1)[0]
+        storage_path = path.split(':', 1)[1].lstrip('/')
+
+        # Apply context-based path adaptation if requested
+        if kwargs.pop('_adapt', True):
+            storage_path = self.storagePath(service_name, storage_path)
+            # Rebuild fullpath with adapted path
+            path = f'{service_name}:{storage_path}'
+
+        # Check if mount exists
+        if not self.storage_manager.has_mount(service_name):
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Storage mount '{service_name}' not found")
+            return None
+
+        # Extract parameters
+        autocreate = kwargs.pop('autocreate', False)
+        must_exist = kwargs.pop('must_exist', False)
+        mode = kwargs.pop('mode', None)
+        version = kwargs.pop('version', None)
+
+        # Create BrickStorageNode using StorageManager
+        # StorageManager.node() handles the fullpath parsing internally
+        brick_node = self.storage_manager.node(path, version=version)
+
+        # Handle autocreate
+        if autocreate and not brick_node.exists:
+            if autocreate == -1:  # Create parent directory
+                brick_node.parent.mkdir(parents=True, exist_ok=True)
+            else:
+                brick_node.mkdir(parents=True, exist_ok=True)
+
+        # Handle must_exist
+        if must_exist and not brick_node.exists:
+            from gnr.lib.services.storage import NotExistingStorageNode
+            raise NotExistingStorageNode(f"Storage node {path} does not exist")
+
+        # Wrap in NewStorageNode
+        wrapped_node = NewStorageNode(
+            brick_node=brick_node,
+            parent=self.site,
+            service_name=service_name
+        )
+
+        # Set mode if provided
+        if mode:
+            wrapped_node.mode = mode
+        if version:
+            wrapped_node.version = version
+        if autocreate:
+            wrapped_node.autocreate = autocreate
+
+        return wrapped_node
 
 

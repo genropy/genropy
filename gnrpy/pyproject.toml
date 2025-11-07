@@ -30,6 +30,7 @@ dependencies = [
 	     "dictdiffer", # for gnr.sql migration
 	     "docutils",
 	     "dulwich", # needed by gnrgit
+	     "genro-storage", # unified storage abstraction
 	     "gunicorn",
 	     "jsmin",
 	     "lxml",
