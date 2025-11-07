@@ -613,12 +613,14 @@ class NewStorageNode:
 
         This method is called when an attribute is not found in NewStorageNode.
         It delegates to BrickStorageNode for all compatible methods/properties.
+
+        Note: url() and internal_url() are implemented as methods below, not delegated.
         """
-        # Direct delegation for compatible APIs
+        # Direct delegation for compatible APIs (excluding url/internal_url which we override)
         compatible_attrs = {
             'fullpath', 'path', 'exists', 'isfile', 'isdir', 'size', 'mtime',
             'basename', 'md5hash', 'versions', 'ext_attributes', 'mimetype',
-            'open', 'delete', 'mkdir', 'children', 'url', 'internal_url',
+            'open', 'delete', 'mkdir', 'children',
             'serve', 'local_path', 'get_metadata', 'set_metadata', 'splitext',
             'fill_from_url'
         }
@@ -729,11 +731,31 @@ class NewStorageNode:
             return [child.basename for child in self._brick_node.children()]
         return []
 
-    def kwargs_url(self, **kwargs):
-        """Get URL with kwargs support (nocache, etc).
+    def url(self, **kwargs):
+        """Generate external URL for this storage node.
 
-        Similar to url() but handles special kwargs like 'nocache' that add
-        query parameters based on file modification time.
+        TEMPORARY WORKAROUND: genro-storage's BrickStorageNode.url() returns None for local mounts.
+        See GENRO_STORAGE_ISSUE.md for details. This method will be removed once genro-storage
+        properly supports URL generation for local storages.
+
+        We override to generate URLs in Genropy's expected format: {external_host}/_storage/{service}/{path}
+
+        Args:
+            **kwargs: URL parameters (passed to internal_url)
+
+        Returns:
+            URL string
+        """
+        return self.internal_url(**kwargs)
+
+    def internal_url(self, **kwargs):
+        """Generate internal URL for this storage node.
+
+        TEMPORARY WORKAROUND: See url() method comment. This will be removed once genro-storage
+        has native URL generation support.
+
+        Generates URLs in the format: {external_host}/_storage/{service_name}/{path}
+        This matches the legacy Genropy URL format.
 
         Args:
             **kwargs: URL parameters
@@ -741,9 +763,15 @@ class NewStorageNode:
                 Other kwargs are added as query parameters
 
         Returns:
-            URL string with query parameters
+            URL string
         """
-        url = self._brick_node.url()
+        if not self.parent or not hasattr(self.parent, 'external_host'):
+            # Fallback if no parent site available
+            return f'/_storage/{self.service_name}/{self._brick_node.path}'
+
+        external_host = self.parent.external_host.rstrip('/')
+        url = f'{external_host}/_storage/{self.service_name}/{self._brick_node.path}'
+
         if not kwargs:
             return url
 
@@ -753,12 +781,31 @@ class NewStorageNode:
                 mtime = self._brick_node.mtime
             else:
                 mtime = random.random() * 100000
-            kwargs['_'] = int(mtime)
+            kwargs['mtime'] = '%0.0f' % (mtime)
 
         if kwargs:
             url = f'{url}?{urlencode(kwargs)}'
 
         return url
+
+    def kwargs_url(self, **kwargs):
+        """Get URL with kwargs support (nocache, etc).
+
+        Similar to url() but handles special kwargs like 'nocache' that add
+        query parameters based on file modification time.
+
+        This method is kept for compatibility but now delegates to internal_url().
+
+        Args:
+            **kwargs: URL parameters
+                nocache: If True, adds mtime-based cache-busting parameter
+                Other kwargs are added as query parameters
+
+        Returns:
+            URL string with query parameters
+        """
+        # Use internal_url() which already handles nocache and other kwargs
+        return self.internal_url(**kwargs)
 
 
 class LegacyStorageServiceAdapter:
@@ -872,12 +919,14 @@ class LegacyStorageServiceAdapter:
             *args: Path components
 
         Returns:
-            float: Modification time timestamp
+            float: Modification time timestamp, or 0 if file doesn't exist
         """
         path = '/'.join(str(arg) for arg in args)
         fullpath = f'{self.service_name}:{path}'
         node = self.handler.storageNode(fullpath)
-        return node.mtime if node else None
+        if not node or not node.exists:
+            return 0
+        return node.mtime
 
     def size(self, *args):
         """Get size of file at the given path.
