@@ -494,13 +494,13 @@ class DocumentationViewer(BaseComponent):
 class ContentsComponent(BaseComponent):
     js_requires='docu_components'
     
-    def contentEditor(self, pane, mode='text', value=None, htmlpath=None, initialEditType='wysiwyg', **kwargs):
+    def contentEditor(self, pane, mode='text', value=None, htmlpath=None, textpath=None, initialEditType='wysiwyg', **kwargs):
         "Supported modes: html,rst"
         if mode=='rst':
             pane.MDEditor(value=value, htmlpath=htmlpath, nodeId='contentMd', height='100%', previewStyle='vertical',
                         initialEditType=initialEditType, **kwargs)
         elif mode=='html':
-            pane.tinyMce(value=value, nodeId='contentHtml', height='100%', **kwargs)
+            pane.tinyMce(value=value, textpath=textpath, nodeId='contentHtml', height='100%', **kwargs)
         else:
             pane.simpleTextArea(value=value, nodeId='contentText', height='100%', **kwargs)
     
@@ -538,16 +538,21 @@ class ContentsComponent(BaseComponent):
     
     @struct_method
     def contentText(self, pane, mode='text', **kwargs):
-        "Supported modes: text,html,rst. Text (default) is edited with a textarea, Html with ckeditor, rst with MDEditor"
+        "Supported modes: text,html,rst. Text (default) is edited with a textarea, Html with tinyMce, rst with MDEditor"
         if mode=='html':
-            value='^.html' 
+            # TinyMCE edits HTML, saves HTML in value and optionally plain text in textpath
+            value = '^.html'
+            textpath = '^.text'
+            self.contentEditor(pane, value=value, mode=mode, textpath=textpath, **kwargs)
         elif mode=='rst':
-            value='^.text'
-            kwargs.update(htmlpath='.html')
+            # MDEditor edits Markdown, saves Markdown in value and HTML in htmlpath
+            value = '^.text'
+            htmlpath = '^.html'
+            self.contentEditor(pane, value=value, mode=mode, htmlpath=htmlpath, **kwargs)
         else:
-            value='^.text'
-            
-        self.contentEditor(pane, value=value, mode=mode, **kwargs)
+            # Plain text mode
+            value = '^.text'
+            self.contentEditor(pane, value=value, mode=mode, **kwargs)
 
     def contentTemplate(self, pane):
         pane.templateChunk(template='^.tplbag', editable=True, height='100%', margin='5px', overflow='hidden',

@@ -1418,6 +1418,11 @@ dojo.declare("gnr.widgets.TinyMCE", gnr.widgets.baseHtml, {
     const valueAttr = sourceNode.attr.value;
     if (!valueAttr) { throw new Error('TinyMCE widget: missing required "value" datapath'); }
     const valuePath = sourceNode.absDatapath(valueAttr);
+
+    // Optional text field - if provided, plain text will be extracted and saved to textpath
+    const textAttr = sourceNode.attr.textpath;
+    const textPath = textAttr ? sourceNode.absDatapath(textAttr) : null;
+
     const height = objectPop(attributes,'height') || '100%';
     const width  = objectPop(attributes,'width')  || '100%';
     const textareaId = 'tinymce_' + sourceNode.getStringId();
@@ -1450,7 +1455,7 @@ dojo.declare("gnr.widgets.TinyMCE", gnr.widgets.baseHtml, {
     }
     attributes.id = textareaId;
     attributes.style = `height:${height};width:${width};`;
-    return {valuePath, textareaId, placeholderItems, base_url, content_style, plugins, removeToolbarItems, imageData, uploadPath, onUploadedMethod, rpcKw, _rawHeight: height, _rawWidth: width};
+    return {valuePath, textPath, textareaId, placeholderItems, base_url, content_style, plugins, removeToolbarItems, imageData, uploadPath, onUploadedMethod, rpcKw, _rawHeight: height, _rawWidth: width};
   },
 
   created: function(domNode, savedAttrs, sourceNode){
@@ -1490,6 +1495,7 @@ dojo.declare("gnr.widgets.TinyMCE", gnr.widgets.baseHtml, {
   makeEditor: function(domNode, savedAttrs, sourceNode){
     var widgetObj = this;
     // Preload value into textarea as fallback
+    // Load HTML from valuePath
     try {
       var initialContent = sourceNode.getRelativeData(savedAttrs.valuePath);
       if (typeof initialContent !== 'undefined' && initialContent !== null){
@@ -1640,6 +1646,75 @@ dojo.declare("gnr.widgets.TinyMCE", gnr.widgets.baseHtml, {
         // datastore syncing
         try { sourceNode.registerDynAttr && sourceNode.registerDynAttr('value'); } catch(_e) {}
         editor.gnr_value = function(value){ if (!editor.hasFocus() && editor.getContent() !== (value || '')){ editor.setContent(value || ''); } };
+
+        // Subscribe to value changes BEFORE Init to catch early updates
+        var changeListenerActive = false; // Flag to prevent false positives during initial load
+        var originalNormalizedContent = null; // Store normalized version of initial content
+
+        // Helper to normalize HTML for comparison (remove whitespace differences)
+        const normalizeForComparison = function(html){
+          if (!html) return '';
+          return html.replace(/>\s+</g, '><').replace(/\s+/g, ' ').trim();
+        };
+
+        const pushChange = function(){
+          try {
+            if (editor.initialized && changeListenerActive) {
+              var currentContent = editor.getContent();
+
+              // Check if content actually changed (ignoring whitespace-only differences)
+              var shouldSave = true;
+              if (originalNormalizedContent !== null) {
+                var currentNormalized = normalizeForComparison(currentContent);
+                if (currentNormalized === originalNormalizedContent) {
+                  shouldSave = false; // Content unchanged, don't save
+                }
+              }
+
+              if (shouldSave) {
+                // Always save HTML to valuePath
+                sourceNode.setRelativeData(savedAttrs.valuePath, currentContent);
+              }
+            }
+          } catch(e) {}
+        };
+        editor.on('Change Undo Redo SetContent', pushChange);
+
+        // Save plain text to textPath only when user leaves the editor (blur event)
+        if (savedAttrs.textPath) {
+          editor.on('blur', function(){
+            try {
+              var plainText = editor.getContent({format: 'text'});
+              sourceNode.setRelativeData(savedAttrs.textPath, plainText);
+            } catch(e) {
+              console.warn('[TinyMCE] Failed to extract plain text on blur', e);
+            }
+          });
+        }
+
+        // Subscribe to valuePath (HTML content)
+        sourceNode.subscribe(savedAttrs.valuePath, function(v, kw2, reason){
+          if (reason === 'container') { return; }
+          if (!editor.initialized) {
+            // Editor not ready yet, retry after a short delay
+            setTimeout(function(){
+              try {
+                if (editor.initialized && editor.getContent() !== (v || '')) {
+                  editor.setContent(v || '');
+                }
+              } catch(e) {
+                console.warn('[TinyMCE] Failed to set content in retry', e);
+              }
+            }, 100);
+            return;
+          }
+          try {
+            if (editor.getContent() !== (v || '')) { editor.setContent(v || ''); }
+          } catch(e) {
+            console.warn('[TinyMCE] Failed to set content in subscribe', e);
+          }
+        });
+
         // TinyMCE initialization complete
         editor.on('Init', function(){
           var c = editor.getContainer();
@@ -1664,12 +1739,68 @@ dojo.declare("gnr.widgets.TinyMCE", gnr.widgets.baseHtml, {
           } catch(e) {
               console.warn('[TinyMCE] resize skipped - not ready yet', e);
           }
-        });
-        const pushChange = function(){ sourceNode.setRelativeData(savedAttrs.valuePath, editor.getContent()); };
-        editor.on('Change KeyUp Undo Redo SetContent', pushChange);
-        sourceNode.subscribe(savedAttrs.valuePath, function(v, kw2, reason){
-          if (reason === 'container') { return; }
-          if (editor.getContent() !== v) { editor.setContent(v || ''); }
+
+          // Mark editor as initialized
+          editor.initialized = true;
+
+          // Retry loading content after a delay to handle race conditions
+          setTimeout(function(){
+            try {
+              var currentValue = sourceNode.getRelativeData(savedAttrs.valuePath);
+              if (currentValue && currentValue !== '') {
+                var editorContent = '';
+                try {
+                  editorContent = editor.getContent();
+                } catch(e) {
+                  console.warn('[TinyMCE] Could not get content in retry', e);
+                }
+                if (editorContent !== currentValue) {
+                  editor.setContent(currentValue);
+                  console.log('[TinyMCE] Loaded content from datastore after delay');
+                }
+              }
+
+              // Store the normalized version of initial content for comparison
+              setTimeout(function(){
+                try {
+                  var currentContent = editor.getContent();
+                  var originalContent = sourceNode.getRelativeData(savedAttrs.valuePath);
+
+                  // Store normalized versions for comparison
+                  originalNormalizedContent = normalizeForComparison(originalContent || '');
+                  var currentNormalized = normalizeForComparison(currentContent);
+
+                  console.log('[TinyMCE] Initial content loaded');
+                  console.log('[TinyMCE] Original normalized:', originalNormalizedContent.substring(0, 100));
+                  console.log('[TinyMCE] Current normalized:', currentNormalized.substring(0, 100));
+                  console.log('[TinyMCE] savedAttrs.textPath:', savedAttrs.textPath);
+                  console.log('[TinyMCE] savedAttrs.valuePath:', savedAttrs.valuePath);
+
+                  // Note: We don't populate textPath on initial load to avoid marking record as modified
+                  // Plain text extraction happens only when user edits the content
+
+                  // Activate change listener only after first REAL user interaction
+                  var activateListener = function(){
+                    if (!changeListenerActive) {
+                      changeListenerActive = true;
+                      console.log('[TinyMCE] Change listener activated');
+                    }
+                  };
+
+                  // Activate ONLY on actual user typing or content change
+                  editor.once('keydown', activateListener);
+                  editor.once('input', activateListener);
+                  editor.once('ExecCommand', activateListener);
+                } catch(e) {
+                  console.warn('[TinyMCE] Failed to setup change detection', e);
+                  changeListenerActive = true;
+                }
+              }, 100);
+            } catch(e) {
+              console.warn('[TinyMCE] Failed to load content after delay', e);
+              changeListenerActive = true; // Activate anyway
+            }
+          }, 200);
         });
         if (savedAttrs.placeholderItems && savedAttrs.placeholderItems.length){
           editor.ui.registry.addMenuButton('placeholders', {
