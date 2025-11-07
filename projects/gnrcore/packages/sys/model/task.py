@@ -9,7 +9,9 @@ from gnr.app import pkglog as logger
 class Table(object):
     
     def config_db(self, pkg):
-        tbl =  pkg.table('task', rowcaption='$task_name',caption_field='task_name', pkey='id',name_long='!!Task',name_plural='!!Tasks')
+        tbl =  pkg.table('task', rowcaption='$task_name',
+                         caption_field='task_name', pkey='id',
+                         name_long='!!Task',name_plural='!!Tasks')
         self.sysFields(tbl)
         tbl.column('table_name',name_long='!!Table')
         tbl.column('task_name',name_long='!!Task name',name_short='!!Name') # char(4)
