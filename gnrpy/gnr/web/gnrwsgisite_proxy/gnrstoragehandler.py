@@ -916,6 +916,57 @@ class NewStorageHandler(BaseStorageHandler):
         if mount_configs:
             self.storage_manager.configure(mount_configs)
 
+    def _makeSymbolicPathCallable(self, service_name):
+        """Create a callable that resolves symbolic storage path dynamically.
+
+        Symbolic storages like 'dojo', 'gnr', 'rsrc', 'pkg' resolve their paths
+        based on site configuration and package locations at runtime.
+
+        Args:
+            service_name: Name of the symbolic storage service
+
+        Returns:
+            Callable that returns the resolved absolute path when invoked
+        """
+        def resolve_symbolic_path():
+            """Resolve the symbolic storage path at runtime."""
+            # These storages resolve to static resource directories
+            if service_name == 'dojo':
+                # Dojo libraries location
+                return os.path.join(self.site.site_static_dir, 'dojo')
+            elif service_name == 'gnr':
+                # Genropy static resources
+                return os.path.join(self.site.site_static_dir, 'gnr')
+            elif service_name == 'rsrc':
+                # Common resources
+                if hasattr(self.site, 'resources_path'):
+                    return self.site.resources_path
+                return os.path.join(self.site.site_path, 'resources')
+            elif service_name == 'pkg':
+                # Package resources - use site_static_dir as base
+                # Actual package resolution happens in storagePath()
+                return self.site.site_static_dir
+            elif service_name == 'pages':
+                # Pages directory
+                return os.path.join(self.site.site_path, 'pages')
+            elif service_name in ('user', 'conn', 'page'):
+                # Context-dependent storages - these need the base data directory
+                # Actual user/conn/page resolution happens in storagePath()
+                if service_name == 'user':
+                    return os.path.join(self.site.site_path, 'data', 'users')
+                elif service_name == 'conn':
+                    return os.path.join(self.site.site_path, 'data', 'connections')
+                elif service_name == 'page':
+                    return os.path.join(self.site.site_path, 'data', 'pages')
+            elif service_name == 'temp':
+                # Temporary storage
+                return os.path.join(self.site.site_path, 'data', 'temp')
+            else:
+                # Fallback to site_static_dir for unknown symbolic storages
+                return self.site.site_static_dir
+
+        return resolve_symbolic_path
+
     def _adaptStorageParamsToMount(self, service_name, params):
         """Adapt storage_params to StorageManager mount configuration.
 
@@ -965,9 +1016,12 @@ class NewStorageHandler(BaseStorageHandler):
             if base_path:
                 mount_config['path'] = expandpath(base_path)
             elif implementation == 'symbolic':
-                # Symbolic paths are resolved dynamically - use a placeholder
-                # The actual path resolution happens in storagePath()
-                mount_config['path'] = self.site.site_static_dir
+                # Symbolic storage uses dynamic path resolution via callable
+                # Create a callable that resolves the path based on service_name
+                mount_config['path'] = self._makeSymbolicPathCallable(service_name)
+            elif implementation == 'raw':
+                # Raw storage uses absolute filesystem paths
+                mount_config['path'] = '/'
 
         elif storage_type == 's3':
             # S3-specific parameters
@@ -979,6 +1033,11 @@ class NewStorageHandler(BaseStorageHandler):
                 mount_config['key'] = params['access_key']
             if 'secret_key' in params:
                 mount_config['secret'] = params['secret_key']
+
+        elif storage_type == 'http':
+            # HTTP storage - placeholder for HTTP URLs
+            # Actual URL is provided at node creation time
+            mount_config['base_url'] = params.get('base_url', '')
 
         # Add permission level if specified
         if 'permission' in params:
@@ -1098,5 +1157,34 @@ class NewStorageHandler(BaseStorageHandler):
             wrapped_node.autocreate = autocreate
 
         return wrapped_node
+
+
+def StorageHandler(site):
+    """Factory function to create appropriate storage handler based on site configuration.
+
+    Reads site.config['storage?mode'] to determine which handler to instantiate:
+    - 'ns': Returns NewStorageHandler (uses genro-storage library)
+    - 'legacy' or None: Returns LegacyStorageHandler (default)
+
+    Args:
+        site: GnrWsgiSite instance
+
+    Returns:
+        BaseStorageHandler subclass instance (either NewStorageHandler or LegacyStorageHandler)
+
+    Example siteconfig.xml:
+        <storage mode="ns"/>        <!-- Use genro-storage -->
+        <storage mode="legacy"/>    <!-- Use legacy (default) -->
+        <storage/>                  <!-- Use legacy (default) -->
+    """
+    logger = logging.getLogger(__name__)
+    storage_mode = site.config['storage?mode'] or 'legacy'
+
+    if storage_mode == 'ns':
+        logger.info("Initializing NewStorageHandler (genro-storage)")
+        return NewStorageHandler(site)
+    else:
+        logger.debug("Initializing LegacyStorageHandler")
+        return LegacyStorageHandler(site)
 
 

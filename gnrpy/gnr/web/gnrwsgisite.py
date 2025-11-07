@@ -40,7 +40,7 @@ from gnr.web.gnrwsgisite_proxy.gnrstatichandler import StaticHandlerManager
 from gnr.web.gnrwsgisite_proxy.gnrpwahandler import PWAHandler
 from gnr.web.gnrwsgisite_proxy.gnrsiteregister import SiteRegisterClient
 from gnr.web.gnrwsgisite_proxy.gnrwebsockethandler import WsgiWebSocketHandler
-from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import LegacyStorageHandler
+from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import StorageHandler
 
 try:
     from werkzeug import EnvironBuilder
@@ -231,7 +231,7 @@ class GnrWsgiSite(object):
         self.debugpy = debugpy
         logger.debug("Debugpy active: %s", self.debugpy)
         self.dbstores = self.db.dbstores
-        self.storage_handler = LegacyStorageHandler(self)
+        self.storage_handler = StorageHandler(self)
         self.resource_loader = ResourceLoader(self)
         self.pwa_handler = PWAHandler(self)
         self.auth_token_generator = AuthTokenGenerator(self.external_secret)
