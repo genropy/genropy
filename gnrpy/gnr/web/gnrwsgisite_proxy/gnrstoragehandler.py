@@ -851,6 +851,76 @@ class LegacyStorageServiceAdapter:
         mode = kwargs.get('mode', 'rb')
         return node.open(mode=mode)
 
+    def exists(self, *args):
+        """Check if file/directory exists at the given path.
+
+        Args:
+            *args: Path components
+
+        Returns:
+            bool: True if exists, False otherwise
+        """
+        path = '/'.join(str(arg) for arg in args)
+        fullpath = f'{self.service_name}:{path}'
+        node = self.handler.storageNode(fullpath)
+        return node.exists if node else False
+
+    def mtime(self, *args):
+        """Get modification time of file at the given path.
+
+        Args:
+            *args: Path components
+
+        Returns:
+            float: Modification time timestamp
+        """
+        path = '/'.join(str(arg) for arg in args)
+        fullpath = f'{self.service_name}:{path}'
+        node = self.handler.storageNode(fullpath)
+        return node.mtime if node else None
+
+    def size(self, *args):
+        """Get size of file at the given path.
+
+        Args:
+            *args: Path components
+
+        Returns:
+            int: File size in bytes
+        """
+        path = '/'.join(str(arg) for arg in args)
+        fullpath = f'{self.service_name}:{path}'
+        node = self.handler.storageNode(fullpath)
+        return node.size if node else None
+
+    def isdir(self, *args):
+        """Check if path is a directory.
+
+        Args:
+            *args: Path components
+
+        Returns:
+            bool: True if directory, False otherwise
+        """
+        path = '/'.join(str(arg) for arg in args)
+        fullpath = f'{self.service_name}:{path}'
+        node = self.handler.storageNode(fullpath)
+        return node.isdir if node else False
+
+    def isfile(self, *args):
+        """Check if path is a file.
+
+        Args:
+            *args: Path components
+
+        Returns:
+            bool: True if file, False otherwise
+        """
+        path = '/'.join(str(arg) for arg in args)
+        fullpath = f'{self.service_name}:{path}'
+        node = self.handler.storageNode(fullpath)
+        return node.isfile if node else False
+
 
 class NewStorageHandler(BaseStorageHandler):
     """Storage handler using genro-storage library (BrickStorageNode).
