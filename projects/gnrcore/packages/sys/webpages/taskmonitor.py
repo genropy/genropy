@@ -233,24 +233,24 @@ class GnrCustomWebPage(object):
         from the scheduler status API endpoint
         '''
         result = Bag()
-        failed_show_keys = ['task_name',
-                     'command', 'last_scheduled_ts',
-                     'table_name']
+        failed_show_keys = ['name',
+                            'action',
+                            #'last_scheduled_ts',
+                            'table_name']
         status,error = self._get_status_data()
         if status:
             # PENDING
             for i, (k, v) in enumerate(status.get("pending", {}).items()):
                 desc = dict(v[0])
-                payload = {x[0]:x[1] for x in json.loads(desc['payload'])}
                 for k in failed_show_keys:
-                    desc[k] = payload[k]
+                    desc[k] = desc['payload'][k]
                 desc['status'] = "Pending"
                 desc['last_scheduled_ts'] = v[1]
                 result.setItem(i, None, **desc)
 
             # FAILED
             for i, v in enumerate(status.get("failed", [])):
-                payload = {x[0]:x[1] for x in json.loads(v['payload'])}
+                payload = v['payload']
                 for k in failed_show_keys:
                     v[k] = payload[k]
                 
