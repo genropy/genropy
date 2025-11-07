@@ -537,17 +537,21 @@ class ContentsComponent(BaseComponent):
                                                     **kwargs)
     
     @struct_method
-    def contentText(self, pane, mode='text', **kwargs):
-        "Supported modes: text,html,rst. Text (default) is edited with a textarea, Html with tinyMce, rst with MDEditor"
+    def contentText(self, pane, mode='text', convertText=False, convertHtml=True, **kwargs):
+        """Supported modes: text,html,rst. 
+            Text (default) is edited with a textarea, Html with tinyMce, rst with MDEditor.
+            convertText: when mode is html, if convertText is True, the plain text version is saved in the 'text' field
+            convertHtml: when mode is rst, if convertHtml is True, the html version is saved in the 'html' field
+        """
         if mode=='html':
             # TinyMCE edits HTML, saves HTML in value and optionally plain text in textpath
             value = '^.html'
-            textpath = '^.text'
+            textpath = '^.text' if convertText else None
             self.contentEditor(pane, value=value, mode=mode, textpath=textpath, **kwargs)
         elif mode=='rst':
             # MDEditor edits Markdown, saves Markdown in value and HTML in htmlpath
             value = '^.text'
-            htmlpath = '^.html'
+            htmlpath = '^.html' if convertHtml else None
             self.contentEditor(pane, value=value, mode=mode, htmlpath=htmlpath, **kwargs)
         else:
             # Plain text mode
