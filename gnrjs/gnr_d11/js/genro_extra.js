@@ -117,7 +117,7 @@ dojo.declare("gnr.widgets.fullcalendar", gnr.widgets.baseHtml, {
         }]
         var calendar = new FullCalendar.Calendar(domroot,calAttrs);
         //dojo.style(domroot.firstChild,{height:'inherit',top:0,left:0,right:0,bottom:0,position:'absolute'})
-       
+
         calendar.render();
         calendar.sourceNode = domroot.sourceNode;
         calendar.gnr = this;
@@ -127,6 +127,19 @@ dojo.declare("gnr.widgets.fullcalendar", gnr.widgets.baseHtml, {
                 calendar[prop.replace('mixin_', '')] = this[prop];
             }
         }
+
+        // Watch for visibility changes and update size when visible
+        var sourceNode = calendar.sourceNode;
+        sourceNode.watch('isVisible',function(){
+            return genro.dom.isVisible(sourceNode);
+        },function(){
+            calendar.updateSize();
+        });
+
+        // Initial updateSize after a short delay to handle initial render issues
+        setTimeout(function(){
+            calendar.updateSize();
+        }, 100);
     },
 
     mixin_gnr_storepath:function(value,kw, trigger_reason){        
@@ -153,9 +166,6 @@ dojo.declare("gnr.widgets.fullcalendar", gnr.widgets.baseHtml, {
                 events.push(row);
             }
         });
-        if(!events.length){
-            events = [{title:'Prova',start:new Date()}]
-        }
         console.log('successCallback',events);
         successCallback(events);
         
