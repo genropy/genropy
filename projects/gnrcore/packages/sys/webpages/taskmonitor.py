@@ -6,7 +6,6 @@
 #  Copyright (c) 2025 Softwell. 
 #
 
-import json
 import time
 import datetime
 import requests

@@ -21,7 +21,6 @@
 # Copyright (c) 2025 Softwell.
 
 import os
-import copy
 import uuid
 import requests
 import json
