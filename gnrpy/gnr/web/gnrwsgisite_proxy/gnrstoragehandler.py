@@ -764,11 +764,9 @@ class NewStorageNode:
 class LegacyStorageServiceAdapter:
     """Minimal adapter service that delegates to storageNode().
 
-    DEPRECATED: This class exists only for backward compatibility with legacy code
-    that uses site.storage('name').method() pattern. New code should use
-    site.storageNode('name:path').method() directly.
-
-    All methods are deprecated and internally delegate to storageNode() calls.
+    This class provides backward compatibility for legacy code that uses
+    site.storage('name').method() pattern by internally delegating to
+    site.storageNode() calls.
 
     Args:
         handler: The NewStorageHandler instance
@@ -785,11 +783,8 @@ class LegacyStorageServiceAdapter:
         self.handler = handler
         self.service_name = service_name
 
-    @deprecated(f"Use site.storageNode('{{service_name}}:path').url(**kwargs) instead")
     def url(self, *args, **kwargs):
         """Get URL for the given path.
-
-        DEPRECATED: Use site.storageNode('{service_name}:path').url(**kwargs) instead.
 
         Args:
             *args: Path components
@@ -803,11 +798,8 @@ class LegacyStorageServiceAdapter:
         node = self.handler.storageNode(fullpath)
         return node.url(**kwargs) if node else None
 
-    @deprecated(f"Use site.storageNode('{{service_name}}:path').kwargs_url(**kwargs) instead")
     def kwargs_url(self, *args, **kwargs):
         """Get URL with kwargs support (nocache, etc).
-
-        DEPRECATED: Use site.storageNode('{service_name}:path').kwargs_url(**kwargs) instead.
 
         Args:
             *args: Path components
@@ -821,12 +813,8 @@ class LegacyStorageServiceAdapter:
         node = self.handler.storageNode(fullpath)
         return node.kwargs_url(**kwargs) if node else None
 
-    @deprecated(f"Use site.storageNode('{{service_name}}:path').internal_url() for local paths or local_path() context manager")
     def path(self, *args):
         """Get local filesystem path.
-
-        DEPRECATED: Use site.storageNode('{service_name}:path').internal_url() for
-        local paths, or local_path() context manager for temporary access.
 
         Args:
             *args: Path components
@@ -847,11 +835,8 @@ class LegacyStorageServiceAdapter:
 
         return None
 
-    @deprecated(f"Use site.storageNode('{{service_name}}:path').open(mode=mode) instead")
     def open(self, *args, **kwargs):
         """Open file at the given path.
-
-        DEPRECATED: Use site.storageNode('{service_name}:path').open(mode=mode) instead.
 
         Args:
             *args: Path components
