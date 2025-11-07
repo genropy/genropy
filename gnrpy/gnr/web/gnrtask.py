@@ -21,6 +21,7 @@
 # Copyright (c) 2025 Softwell.
 
 import os
+import copy
 import uuid
 import requests
 import json
@@ -149,19 +150,15 @@ class GnrTask:
     def __post_init__(self):
         self.queue_name = self.queue_name if self.queue_name else "general"
 
-    # async def completed(self):
-    #     """
-    #     The task has been executed and acknowledged, update
-    #     the last execution timestamp accordingly
-    #     """
-    #     self.record['last_execution_ts'] = datetime.now(timezone.utc)
-    #     await self.update_record()
-        
-    # async def update_record(self):
-    #     self.table.update(self.record, self.old_record)
-    #     self.old_record = copy.deepcopy(self.record)
-    #     logger.debug("Committing record change")
-    #     self.db.commit()
+    async def completed(self, tasktbl, exectbl):
+        """
+        The task has been executed and acknowledged, update
+        the last execution timestamp accordingly
+        """
+        record = tasktbl.record(self.task_id).output('dict')
+        tasktbl.update(dict(last_execution_ts=datetime.now(timezone.utc)),
+                       record)                                    
+        tasktbl.db.commit()
 
     def is_due(self, timestamp=None, last_scheduled_ts=None):
         """
@@ -205,39 +202,7 @@ class GnrTask:
         result = '-'.join([str(y),str(m),str(d),str(int(key_hm/60)),str(key_hm%60)])
         return result
 
-    async def completed(self):
-        print("TASK COMPLETED")
-        # TBD - update task execution accordingly
-
-# class GnrTaskOld(object):
-#     def __init__(self, record, db, table):
-#         self.record = record
-#         self.old_record = copy.deepcopy(self.record)
-#         self.db = db
-#         self.table = table
-#         self.task_id = record['id']
-#         self.payload = json.dumps(self.record.items(), default=str)
-#         self.queue_name = record['worker_code'] or "general"
         
-#     def __str__(self):
-#         return self.record['task_name']
-    
-#     def __repr__(self):
-#         return str(self)
-
-#     async def completed(self):
-#         """
-#         The task has been executed and acknowledged, update
-#         the last execution timestamp accordingly
-#         """
-#         self.record['last_execution_ts'] = datetime.now(timezone.utc)
-#         await self.update_record()
-        
-#     async def update_record(self):
-#         self.table.update(self.record, self.old_record)
-#         self.old_record = copy.deepcopy(self.record)
-#         logger.debug("Committing record change")
-#         self.db.commit()
 
     
 class GnrTaskScheduler:
@@ -254,7 +219,10 @@ class GnrTaskScheduler:
         self.host = host and host or GNR_SCHEDULER_HOST
         self.port = port and port or GNR_SCHEDULER_PORT
 
-        self.app = GnrApp(self.sitename, enabled_packages=['gnrcore:sys'])
+        self.app = GnrApp(
+            self.sitename,
+            enabled_packages=['gnrcore:sys', 'gnrcore:adm']
+        )
         self.db = self.app.db
         self.tasktbl = self.db.table("sys.task")
         self.exectbl = self.db.table("sys.task_execution")
@@ -300,7 +268,7 @@ class GnrTaskScheduler:
         task = self.tasks.get(task_id)[0]
         if task:
             logger.info("Task %s completed, saving", task_id)
-            await task.completed()
+            await task.completed(self.tasktbl, self.exectbl)
         else:
             logger.error("Task %s not found, can't complete", task_id)
             
@@ -372,11 +340,19 @@ class GnrTaskScheduler:
     async def put_task_in_queue(self, task_id, task):
         now = datetime.now(timezone.utc)
         self.tasks[task_id][1] = now
+
+        # update the last scheduled ts for task
+        task_record = self.tasktbl.record(task_id).output('dict')
+        self.tasktbl.update(dict(last_scheduled_ts=datetime.now(timezone.utc)),
+                            task_record)
+
+        # insert a new execution log record
         exec_record = {
             "task_id": task_id,
             "start_ts": now,
         }
         exec_q = self.exectbl.insert(exec_record)
+        # commit both entries
         self.exectbl.db.commit()
         
         task_instance = {
@@ -426,7 +402,7 @@ class GnrTaskScheduler:
         run_id = data.get("run_id")
         
         if run_id in self.pending_ack:
-            logger.info("Task %s acknowledged", run_id)
+            logger.info("Task run %s acknowledged", run_id)
             # update the task
             ack_run = self.pending_ack.pop(run_id)
             await self.complete_task(ack_run[0]['task_id'])
@@ -676,7 +652,7 @@ class GnrTaskScheduler:
 ############ WORKER CODE #####################################
 
 def execute_task(sitename, task):
-    app = GnrApp(sitename, enabled_packages=['gnrcore:sys'])
+    app = GnrApp(sitename, enabled_packages=['gnrcore:sys', 'gnrcore:adm'])
     # task.db contains the name of the database
     db = app.db
     site = GnrWsgiSite(sitename)
@@ -727,7 +703,7 @@ class GnrTaskWorker:
         self.site = GnrWsgiSite(self.sitename)
         self.scheduler_url = GNR_SCHEDULER_URL
 
-        self.app = GnrApp(self.sitename, enabled_packages=['gnrcore:sys'])
+        self.app = GnrApp(self.sitename, enabled_packages=['gnrcore:sys', 'gnrcore:adm'])
         self.db = self.app.db
         self.tasktbl = self.db.table("sys.task")
         
