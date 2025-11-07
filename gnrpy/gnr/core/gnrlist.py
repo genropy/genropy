@@ -48,12 +48,6 @@ def findByAttr(l, **kwargs):
     return result
 
 def hGetAttr(obj, attr):
-    """Hierarchical get attribute - traverse nested object attributes using dot notation.
-
-    :param obj: the object to get the attribute from
-    :param attr: attribute path, can be hierarchical using dots (e.g., 'user.profile.name')
-    :return: the attribute value or None if not found
-    """
     if obj is None: return None
     if not '.' in attr:
         return getattr(obj, attr, None)
@@ -118,18 +112,11 @@ def sortByItem(l, *args, **kwargs):
     return l
         
 def sortByAttr(l, *args):
-    """Sort a list of objects by their attributes.
+    """TODO
+    
+    :param l: the list"""
 
-    :param l: the list of objects to sort
-    :param args: attribute names to sort by. Can include ':d' suffix for descending order.
-                 Supports hierarchical attributes with dot notation (e.g., 'user.name')
-    :return: the sorted list
 
-    Example:
-        sortByAttr(objects, 'name')  # sort by name ascending
-        sortByAttr(objects, 'age:d')  # sort by age descending
-        sortByAttr(objects, 'dept.name', 'salary:d')  # multi-level sort
-    """
     criteria = list(args)
     criteria.reverse()
     for crit in criteria:
@@ -144,18 +131,8 @@ def sortByAttr(l, *args):
     return l
 
 def merge(*args):
-    """Merge multiple iterables into a single list, removing duplicates while preserving order.
-
-    Elements from the first iterable are added first, followed by unique elements from
-    subsequent iterables.
-
-    :param args: variable number of iterables to merge
-    :return: merged list with unique elements
-
-    Note: Elements must be iterable. No type checking is performed.
-
-    Example:
-        merge([1, 2, 3], [2, 3, 4], [4, 5])  # returns [1, 2, 3, 4, 5]
+    """TODO
+    FIXME: args elements must be iterable, but they're not checked
     """
     result = list(args[0])
     for l in args[1:]:
@@ -279,17 +256,7 @@ def readXLS(doc):
         yield GnrNamedList(index, row)
         
 class XlsReader(object):
-    """Reader for XLS (Excel 97-2003) files using xlrd library.
-
-    Supports multiple sheets, automatic column header detection with slugification,
-    and handling of duplicate column names. Date cells are automatically converted
-    to datetime objects.
-
-    :param docname: path to the XLS file
-    :param mainsheet: name or index of the main sheet to use (default: first sheet)
-    :param compressEmptyRows: if True, compress consecutive empty rows into one
-    :param allEmptyRows: if True, yield all empty rows
-    """
+    """Read an XLS file"""
     def __init__(self, docname,mainsheet=None,compressEmptyRows=None,allEmptyRows=None,**kwargs):
         import xlrd
         self.XL_CELL_DATE = xlrd.XL_CELL_DATE
@@ -324,27 +291,19 @@ class XlsReader(object):
         colindex = dict([(i,True)for i,h in enumerate(headers) if h])
         headers = [h for h in headers if h]
         index = dict()
-        errors = []
+        errors = None
         for i,k in enumerate(headers):
             if k in index:
-                # Rename duplicate column with format name[index]
-                new_k = f"{k}[{i}]"
-                errors.append(f"Duplicate column '{k}' at position {i}, renamed to '{new_k}'")
-                headers[i] = new_k
-                index[new_k] = i
+                errors = 'duplicated column %s' %k
             else:
                 index[k] = i
-
-        if errors:
-            logger.warning(f"Sheet '{sheetname}': " + "; ".join(errors))
-
         self.sheets[sheetname] = {'sheet': sheet,
                                    'headers':headers,
                                    'colindex':colindex,
                                    'index':index,
                                     'ncols':len(headers),
                                     'nrows': max(sheet.nrows - 1, 0),
-                                    'errors':'; '.join(errors) if errors else None,
+                                    'errors':errors,
                                     'linegen':linegen}
 
 
@@ -403,22 +362,8 @@ class XlsReader(object):
 
 
 class XlsxReader(object):
-    """Reader for XLSX (Excel 2007+) files using openpyxl library.
+    """Read an XLSX file"""
 
-    Supports multiple sheets, automatic column header detection with slugification,
-    and handling of duplicate column names. Empty column headers are automatically
-    named as 'gnr_emptycol_N' where N is the column index.
-
-    Uses read-only mode with lazy loading for better performance with large files.
-    Formula cells return their last calculated value, not the formula itself.
-
-    :param docname: path to the XLSX file
-    :param mainsheet: name or index of the main sheet to use (default: active sheet)
-    :param compressEmptyRows: if True, compress consecutive empty rows into one
-    :param allEmptyRows: if True, yield all empty rows
-
-    Note: The workbook should be explicitly closed with close() method when done.
-    """
     def __init__(self, docname, mainsheet=None, compressEmptyRows=None, allEmptyRows=None, **kwargs):
         from openpyxl import load_workbook
         self.docname = docname
@@ -463,27 +408,20 @@ class XlsxReader(object):
             headers.append(header)
         colindex = dict([(i,True)for i,h in enumerate(headers) if h])
         index = dict()
-        errors = []
+        errors = None
         for i,k in enumerate(headers):
             if k in index:
-                # Rename duplicate column with format name[index]
-                new_k = f"{k}[{i}]"
-                errors.append(f"Duplicate column '{k}' at position {i}, renamed to '{new_k}'")
-                headers[i] = new_k
-                index[new_k] = i
+                errors = 'duplicated column %s' %k
             else:
                 index[k] = i
-
-        if errors:
-            logger.warning(f"Sheet '{sheetname}': " + "; ".join(errors))
-
+        
         self.sheets[sheetname] = {'sheet': sheet,
                                    'headers':headers,
                                    'colindex':colindex,
                                    'index':index,
                                     'ncols':len(headers),
                                     'nrows':0, #we dont pre-allocate sheet size
-                                    'errors':'; '.join(errors) if errors else None,
+                                    'errors':errors,
                                     'linegen':linegen}
 
     @property
@@ -517,20 +455,15 @@ class XlsxReader(object):
             yield GnrNamedList(s['index'], [c for i,c in enumerate(line) if i in s['colindex']])
             
     def _sheetlines(self,sheet):
-        """Generate lines from the sheet, handling empty rows according to settings.
-
-        :param sheet: openpyxl worksheet object
-        :yield: list of cell values for each row
-        """
+        # itera tra le righe
         last_line_empty = False
-        for line in sheet.rows:
+        for lineno, line in enumerate(sheet.rows):
             result = []
             empty_flag = True
             for cell in line:
-                # cell attributes: is_date, data_type => s:string, n:null and numeric, d:date
-                value = cell.value
+                value = cell.value  # cell attr:  is_date , data_type => s:string,n:null e numeric,d:date  
                 if value:
-                    # Note: the previous [elem for elem in line if elem] also considers zeros
+                    # nota: il precedente [elem for elem in line if elem] considera anche gli zeri
                     empty_flag = False
 
                 if value=='':
@@ -539,13 +472,13 @@ class XlsxReader(object):
                     result.append(value)
 
             if empty_flag:
-                # self.allEmptyRows and self.compressEmptyRows cannot both be False
+                # self.allEmptyRows e self.compressEmptyRows non possono essere entrambi False
                 if self.allEmptyRows:
                     yield []
                 elif self.compressEmptyRows:
                     if not last_line_empty:
                         last_line_empty = True
-                        logger.debug('yielding empty row')
+                        logger.debug('b yield empty row')
                         yield []
             else:
                 last_line_empty = False
@@ -553,19 +486,7 @@ class XlsxReader(object):
 
 
 class CsvReader(object):
-    """Reader for CSV (Comma-Separated Values) files.
-
-    Supports custom delimiters, encoding detection, and automatic handling of
-    duplicate column names. The first row is treated as headers.
-
-    :param docname: path to the CSV file
-    :param dialect: CSV dialect (e.g., 'excel', 'excel-tab'). If None, uses default
-    :param delimiter: field delimiter character (default: ',')
-    :param detect_encoding: if True, automatically detect file encoding using chardet
-    :param encoding: explicit encoding to use (currently overridden by detect_encoding logic)
-
-    Note: There's a FIXME - the encoding parameter is currently reset to None.
-    """
+    """Read an csv file"""
     def __init__(self, docname,dialect=None,delimiter=None,detect_encoding=False,
                 encoding=None,**kwargs):
         self.docname = docname
@@ -585,24 +506,7 @@ class CsvReader(object):
             self.filecsv = open(docname,'r')
         self.rows = csv.reader(self.filecsv,dialect=dialect,delimiter=delimiter or ',')
         self.headers = next(self.rows)
-
-        # Handle duplicate columns
-        index = dict()
-        errors = []
-        for i, k in enumerate(self.headers):
-            if k in index:
-                # Rename duplicate column with format name[index]
-                new_k = f"{k}[{i}]"
-                errors.append(f"Duplicate column '{k}' at position {i}, renamed to '{new_k}'")
-                self.headers[i] = new_k
-                index[new_k] = i
-            else:
-                index[k] = i
-
-        if errors:
-            logger.warning(f"CSV file '{docname}': " + "; ".join(errors))
-
-        self.index = index
+        self.index = dict([(k, i) for i, k in enumerate(self.headers)])
         self.ncols = len(self.headers)
 
     def __call__(self):
@@ -616,7 +520,7 @@ class CsvReader(object):
         except ImportError:
             try:
                 import chardet # noqa: F401
-            except ImportError:
+            except ImportError as e:
                 logger.exception('either cchardet or chardet are required to detect encoding')
                 return
         from chardet.universaldetector import UniversalDetector
@@ -631,19 +535,10 @@ class CsvReader(object):
 
 
 class XmlReader(object):
-    """Reader for XML files that converts them to GnrNamedList objects.
-
-    Parses XML files using Bag structure and extracts rows based on either a collection
-    path or a row tag. Automatically detects the most common tag as row separator if not specified.
-
-    :param docname: path to the XML file
-    :param collection_path: optional path to the collection in the Bag structure
-    :param row_tag: optional tag name to use as row separator
-    """
     def __init__(self, docname,collection_path=None,row_tag=None,**kwargs):
         from gnr.core.gnrbag import Bag
         self.source = Bag(docname)
-
+        
         if collection_path:
             rows = [n.value.asDict(ascii=True) if n.value else n.attr for n in self.source[collection_path]]
         else:
@@ -656,57 +551,21 @@ class XmlReader(object):
         self.rows = rows
         r0 = rows[0]
         self.headers = list(r0.keys())
-
-        # Handle duplicate columns
-        index = dict()
-        errors = []
-        for i, k in enumerate(self.headers):
-            if k in index:
-                # Rename duplicate column with format name[index]
-                new_k = f"{k}[{i}]"
-                errors.append(f"Duplicate column '{k}' at position {i}, renamed to '{new_k}'")
-                self.headers[i] = new_k
-                index[new_k] = i
-            else:
-                index[k] = i
-
-        if errors:
-            logger.warning(f"XML file '{docname}': " + "; ".join(errors))
-
-        self.index = index
+        self.index = dict([(k, i) for i, k in enumerate(self.headers)])
         self.ncols = len(self.headers)
 
     def __call__(self):
-        """Iterate over rows in the XML file.
-
-        :yield: GnrNamedList objects for each row
-        """
         for r in self.rows:
             yield GnrNamedList(self.index, r)
         
             
 class GnrNamedList(list):
-    """A list-like object that allows access to elements by both index and column name.
+    """Row object. Allow access to data by column name. Allow also to add columns and alter data.
+    
+    :param index: a dict object with the column name as key, and the integer index of the value
+    :param values: a list of values ordered as 'index' key/values definition
 
-    This class combines list and dict-like interfaces, enabling both numeric and named
-    access to elements. It's primarily used to represent rows from CSV, Excel, or XML files.
-
-    :param index: dict mapping column names (str) to their position indices (int)
-    :param values: optional list of initial values ordered according to the index mapping.
-                   If None, initializes with None values for all columns.
-
-    Example:
-        >>> index = {'name': 0, 'age': 1, 'city': 2}
-        >>> row = GnrNamedList(index, ['Alice', 30, 'NYC'])
-        >>> row[0]           # Access by numeric index
-        'Alice'
-        >>> row['name']      # Access by column name
-        'Alice'
-        >>> row['email'] = 'alice@example.com'  # Add new column dynamically
-        >>> 'name' in row    # Check column existence
-        True
-
-    Note: Constructor parameters are not type-checked.
+    FIXME: costructor's parameters types/interfaces are not checked.
     """
     def __init__(self, index, values=None):
         self._index = index
@@ -716,17 +575,13 @@ class GnrNamedList(list):
             self[:] = values
             
     def __getitem__(self, x):
-        if type(x) == int or type(x) == slice:
-            # Numeric index or slice - use list's __getitem__ directly
-            return list.__getitem__(self, x)
-        else:
-            # String key - look up in index
+        if type(x) != int:
             x = self._index[x]
-            try:
-                return list.__getitem__(self, x)
-            except:
-                if x > len(self._index):
-                    raise
+        try:
+            return list.__getitem__(self, x)
+        except:
+            if x > len(self._index):
+                raise
                 
     def __contains__(self, what):
         return what in self._index
@@ -773,12 +628,10 @@ class GnrNamedList(list):
         return '[%s]' % ','.join(['%s=%s' % (k, v) for k, v in list(self.items())])
         
     def get(self, x, default=None):
-        """Get value by column name or index, similar to dict.get().
-
-        :param x: column name (str) or numeric index (int)
-        :param default: value to return if key/index is not found or raises an exception
-        :return: the value at the specified position or default value
-        """
+        """Same of ``get`` method's dict
+        
+        :param x: TODO
+        :param default: the value returned if ``self[x]`` is ``None``"""
         try:
             return self[x]
         except:
@@ -815,17 +668,11 @@ class GnrNamedList(list):
         return result
         
     @deprecated(message='do not use pop in named tuple')
-    def pop(self, x, dflt=None):
-        """Remove and return value at column name or index, similar to dict.pop().
-
-        .. deprecated::
-            Do not use pop() with GnrNamedList as it breaks the column index mapping.
-
-        :param x: column name (str) or numeric index (int)
-        :param dflt: default value if key not found (currently not used)
-        :return: the removed value
-        :raises IndexError: if index is out of range
-        """
+    def pop(self, x,dflt=None):
+        """Same of ``pop`` method's dict
+        
+        :param x: TODO
+        :param dflt: TODO"""
         if type(x) != int:
             x = self._index[x]
         try:
@@ -835,9 +682,9 @@ class GnrNamedList(list):
                 raise
                 
     def update(self, d):
-        """Update values from a dict, similar to dict.update().
-
-        :param d: dictionary with column names as keys and new values
+        """Same of ``update`` method's dict
+        
+        :param d: the dict to update
         """
         for k, v in list(d.items()):
             self[k] = v
@@ -847,60 +694,27 @@ class GnrNamedList(list):
         return tuple(self[:] + [None] * (len(self._index) - len(self)))
         
     def extractItems(self, columns):
-        """Extract (key, value) pairs for specified columns.
-
-        This is a utility method used by :meth:`fetch() <gnr.sql.gnrsqldata.SqlQuery.fetch()>`.
-
-        :param columns: list of column names to extract. If None or empty, extracts all items
-        :return: list of (column_name, value) tuples
-        """
+        """It is a utility method of the sql :meth:`fetch() <gnr.sql.gnrsqldata.SqlQuery.fetch()>`
+        method. It returns a list of namedlist (that is, a list of dictionaries).
+        
+        :param columns: the items of the namedlist dict"""
         if columns:
             return [(k, self[k]) for k in columns]
         else:
             return list(self.items())
-
+            
     def extractValues(self, columns):
-        """Extract values for specified columns.
-
-        This is a utility method used by :meth:`fetch() <gnr.sql.gnrsqldata.SqlQuery.fetch()>`.
-
-        :param columns: list of column names to extract. If None or empty, extracts all values
-        :return: list of values in the order specified by columns
-        """
+        """It is a utility method of the sql :meth:`fetch() <gnr.sql.gnrsqldata.SqlQuery.fetch()>`
+        method. It returns a list of namedlist (that is, a list of dictionaries).
+        
+        :param columns: the values of the namedlist dict"""
         if columns:
             return [self[k] for k in columns]
         else:
             return list(self.values())     
 
 
-def getReader(file_path, filetype=None, **kwargs):
-    """Factory function to create the appropriate reader based on file type.
-
-    Automatically detects the file type from extension or uses explicit filetype parameter.
-    Column names are slugified for CSV/TAB files to ensure valid identifiers.
-
-    :param file_path: path to the file to read
-    :param filetype: explicit file type override. Options:
-                     - 'excel': force Excel reader (XLS/XLSX)
-                     - 'tab': tab-delimited file
-                     - 'csv_auto': CSV with automatic dialect detection
-                     - None: auto-detect from file extension
-    :param kwargs: additional arguments passed to the specific reader constructor
-
-    :return: appropriate reader instance (XlsReader, XlsxReader, CsvReader, or XmlReader)
-
-    File type detection:
-        - .xls  -> XlsReader
-        - .xlsx -> XlsxReader (falls back to XlsReader if openpyxl not available)
-        - .xml  -> XmlReader
-        - .tab  -> CsvReader with excel-tab dialect
-        - others -> CsvReader
-
-    Example:
-        >>> reader = getReader('data.csv')
-        >>> for row in reader():
-        ...     print(row['column_name'])
-    """
+def getReader(file_path,filetype=None,**kwargs):
     filename, ext = os.path.splitext(file_path)
     if filetype == 'excel' or not filetype and ext in ('.xls','.xlsx'):
         if ext == '.xls':
@@ -923,5 +737,5 @@ def getReader(file_path, filetype=None, **kwargs):
                 dialect = csv.Sniffer().sniff(csv_test.read(1024))
 
         reader = CsvReader(file_path,dialect=dialect,**kwargs)
-        reader.index = {slugify(k, sep='_'):v for k,v in reader.index.items()}
+        reader.index = {slugify(k):v for k,v in reader.index.items()}
     return reader
