@@ -500,10 +500,10 @@ class ContentsComponent(BaseComponent):
             pane.MDEditor(value=value, htmlpath=htmlpath, nodeId='contentMd', height='100%', previewStyle='vertical',
                         initialEditType=initialEditType, **kwargs)
         elif mode=='html':
-            pane.ckeditor(value=value, nodeId='contentHtml', height='100%', **kwargs)
+            pane.tinyMce(value=value, nodeId='contentHtml', height='100%', **kwargs)
         else:
             pane.simpleTextArea(value=value, nodeId='contentText', height='100%', **kwargs)
-        
+    
     @customizable    
     def contentData(self, pane, **kwargs):
         fb = pane.formbuilder(cols=1, width='600px', border_spacing='4px', **kwargs)

@@ -227,9 +227,17 @@ class Table(object):
         if headers_kwargs:
             extra_headers.update(headers_kwargs)
         account_id = account_id or self.db.application.getPreference('mail', pkg='adm')['email_account_id']
-        if weak_attachments and isinstance(weak_attachments,list):
+        if not weak_attachments:
+            weak_attachments = None
+        elif isinstance(weak_attachments, (str, bytes)):
+            pass
+        elif isinstance(weak_attachments, (list, tuple, set)):
             site = self.db.application.site
-            weak_attachments = ','.join([site.storageNode(p).fullpath for p in weak_attachments])
+            weak_paths = [site.storageNode(p).fullpath for p in weak_attachments]
+            weak_attachments = ','.join(weak_paths) if weak_paths else None
+        else:
+            weak_attachments = str(weak_attachments)
+
         use_dbstores = self.use_dbstores()
         dbstore = self.db.currentEnv.get('storename')
         envkw = {}
