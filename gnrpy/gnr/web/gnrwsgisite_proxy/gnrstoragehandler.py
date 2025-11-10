@@ -1207,27 +1207,28 @@ class NewStorageHandler(BaseStorageHandler):
         logger = logging.getLogger(__name__)
 
         mount_configs = []
-        logger.info(f"Configuring StorageManager with {len(self.storage_params)} storage services")
+        logger.debug(f"Configuring StorageManager with {len(self.storage_params)} storage services")
 
         for service_name, params in self.storage_params.items():
-            # Skip gnr and dojo - they use version-specific paths incompatible with genro-storage
-            if service_name in ('gnr', 'dojo'):
-                logger.debug(f"Skipping {service_name} (version-specific paths)")
+            # Skip gnr, dojo, rsrc, pkg - they use special path resolution incompatible with genro-storage
+            # These are handled by StaticHandler instead
+            if service_name in ('gnr', 'dojo', 'rsrc', 'pkg'):
+                logger.debug(f"Skipping {service_name} (handled by StaticHandler)")
                 continue
 
             mount_config = self._adaptStorageParamsToMount(service_name, params)
             if mount_config:
-                logger.info(f"Creating mount for '{service_name}': type={mount_config.get('type')}")
+                logger.debug(f"Creating mount for '{service_name}': type={mount_config.get('type')}")
                 mount_configs.append(mount_config)
             else:
                 logger.warning(f"Failed to create mount config for '{service_name}' with params: {params}")
 
         # Configure all mounts at once
         if mount_configs:
-            logger.info(f"Configuring {len(mount_configs)} mounts in StorageManager")
+            logger.debug(f"Configuring {len(mount_configs)} mounts in StorageManager")
             try:
                 self.storage_manager.configure(mount_configs)
-                logger.info(f"Available mounts: {list(self.storage_manager._mounts.keys())}")
+                logger.debug(f"Available mounts: {list(self.storage_manager._mounts.keys())}")
             except Exception as e:
                 logger.error(f"Failed to configure StorageManager: {e}", exc_info=True)
                 logger.error(f"Mount configs that failed: {mount_configs}")
@@ -1412,10 +1413,12 @@ class NewStorageHandler(BaseStorageHandler):
         Returns:
             LegacyStorageServiceAdapter instance, or None if mount not found
         """
-        # For gnr and dojo, delegate to their respective StaticHandlers
-        # These have version-specific path resolution incompatible with genro-storage
+        # For gnr, dojo, rsrc, pkg: delegate to their respective StaticHandlers
+        # These have special path resolution incompatible with genro-storage:
+        # - gnr, dojo: version-specific paths
+        # - rsrc, pkg: dynamic resource_id/package_name resolution
         # Wrap with adapter to provide internal_path() method that legacy code expects
-        if storage_name in ('gnr', 'dojo'):
+        if storage_name in ('gnr', 'dojo', 'rsrc', 'pkg'):
             static_handler = self.site.getStatic(storage_name)
             return LegacyGnrStaticAdapter(static_handler)
 
@@ -1468,6 +1471,15 @@ class NewStorageHandler(BaseStorageHandler):
 
         # Check if mount exists
         if not self.storage_manager.has_mount(service_name):
+            # For services handled by StaticHandler (gnr, dojo, rsrc, pkg), delegate to legacy handler
+            if service_name in ('gnr', 'dojo', 'rsrc', 'pkg'):
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.debug(f"Delegating {service_name} node creation to legacy handler")
+                # Use legacy handler for these special storages
+                legacy_handler = LegacyStorageHandler(self.site)
+                return legacy_handler.makeNode(*args, **kwargs)
+
             import logging
             logger = logging.getLogger(__name__)
             available_mounts = list(self.storage_manager._mounts.keys()) if hasattr(self.storage_manager, '_mounts') else 'unknown'
@@ -1483,6 +1495,12 @@ class NewStorageHandler(BaseStorageHandler):
         must_exist = kwargs.pop('must_exist', False)
         mode = kwargs.pop('mode', None)
         version = kwargs.pop('version', None)
+
+        # Convert Genropy's '_latest_' convention to None for genro-storage
+        # Legacy code uses '_latest_' as a special marker for the current version,
+        # but genro-storage expects None to mean "get the latest/current version"
+        if version == '_latest_':
+            version = None
 
         # Create BrickStorageNode using StorageManager
         # StorageManager.node() handles the fullpath parsing internally
@@ -1540,7 +1558,7 @@ def StorageHandler(site):
     storage_mode = site.config['storage?mode'] or 'legacy'
 
     if storage_mode == 'ns':
-        logger.info("Initializing NewStorageHandler (genro-storage)")
+        logger.debug("Initializing NewStorageHandler (genro-storage)")
         return NewStorageHandler(site)
     else:
         logger.debug("Initializing LegacyStorageHandler")

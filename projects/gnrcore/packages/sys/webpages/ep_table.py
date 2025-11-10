@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
+import logging
 from gnr.sql.gnrsql import GnrSqlMissingTable
 from gnr.core.gnrstring import templateReplace
 from gnr.core.gnrbag import Bag
+
+logger = logging.getLogger(__name__)
 AUTH_FORBIDDEN = -1
 
 
@@ -21,7 +24,7 @@ class GnrCustomWebPage(object):
             tblobj = self.db.table(table)
         except GnrSqlMissingTable:
             self.ep_error = 'Missing table {table}'
-            return 
+            return
         return ephandler(tblobj,pkey,source,*args,**kwargs)
 
     def ep_missing(self,*args,**kwargs):
@@ -100,7 +103,7 @@ class GnrCustomWebPage(object):
         documentNode = None
         clientRecordUpdater = Bag()
         if documentPath:
-            documentNode = self.site.storageNode(documentPath,version=version) 
+            documentNode = self.site.storageNode(documentPath,version=version)
             if documentNode and not documentNode.exists:
                 documentNode = None
         if handler and not documentNode:
@@ -111,9 +114,9 @@ class GnrCustomWebPage(object):
                 rec[source] = documentNode.fullpath
             clientRecordUpdater[source] = record[source]
             self.db.commit()
-
         # Check if documentNode exists before accessing its versions
         if not documentNode:
+            logger.warning(f"Document node not found for path: {documentPath}")
             return None
 
         versions_bag =  self._getVersionBag(documentNode,**kwargs)
