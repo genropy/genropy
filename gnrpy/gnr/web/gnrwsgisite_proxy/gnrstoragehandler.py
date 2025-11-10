@@ -1218,9 +1218,10 @@ class NewStorageHandler(BaseStorageHandler):
         logger.debug(f"Configuring StorageManager with {len(self.storage_params)} storage services")
 
         for service_name, params in self.storage_params.items():
-            # Skip gnr, dojo, rsrc, pkg - they use special path resolution incompatible with genro-storage
+            # Skip gnr, dojo - they use version-specific path resolution incompatible with genro-storage
             # These are handled by StaticHandler instead
-            if service_name in ('gnr', 'dojo', 'rsrc', 'pkg'):
+            # Note: rsrc and pkg now use switched mount pattern (callable with parameter)
+            if service_name in ('gnr', 'dojo'):
                 logger.debug(f"Skipping {service_name} (handled by StaticHandler)")
                 continue
 
@@ -1306,6 +1307,74 @@ class NewStorageHandler(BaseStorageHandler):
 
         return resolve_symbolic_path
 
+    def _makeRsrcPathResolver(self):
+        """Create a callable that resolves rsrc paths using site.resources dict.
+
+        Uses genro-storage's "switched mount" pattern where the callable accepts
+        a parameter (resource_id) and returns the corresponding base path.
+
+        The first path component (resource_id) is extracted and looked up in
+        site.resources dict to get the actual filesystem path.
+
+        Example:
+            rsrc:common/images/logo.png
+            -> resource_id='common' -> site.resources['common'] -> /path/to/common
+            -> final path: /path/to/common/images/logo.png
+
+        Returns:
+            Callable that accepts resource_id and returns base path
+
+        See: https://github.com/genropy/genro-storage/issues/60
+        """
+        def resolve_rsrc_path(resource_id):
+            """Resolve resource_id to actual filesystem path."""
+            if not hasattr(self.site, 'resources') or not self.site.resources:
+                raise ValueError(f"site.resources not configured")
+
+            base_path = self.site.resources.get(resource_id)
+            if not base_path:
+                raise ValueError(f"Unknown resource_id: {resource_id}")
+
+            return expandpath(base_path)
+
+        return resolve_rsrc_path
+
+    def _makePkgPathResolver(self):
+        """Create a callable that resolves pkg paths using site.packages dict.
+
+        Uses genro-storage's "switched mount" pattern where the callable accepts
+        a parameter (package_name) and returns the corresponding base path.
+
+        The first path component (package_name) is extracted and looked up in
+        site.packages dict to get the actual package filesystem path.
+
+        Example:
+            pkg:gnrcore/pwa/conf.xml
+            -> package_name='gnrcore' -> site.packages['gnrcore'] -> /path/to/gnrcore
+            -> final path: /path/to/gnrcore/pwa/conf.xml
+
+        Returns:
+            Callable that accepts package_name and returns base path
+
+        See: https://github.com/genropy/genro-storage/issues/60
+        """
+        def resolve_pkg_path(package_name):
+            """Resolve package_name to actual filesystem path."""
+            if not hasattr(self.site, 'packages') or not self.site.packages:
+                raise ValueError(f"site.packages not configured")
+
+            package_obj = self.site.packages.get(package_name)
+            if not package_obj:
+                raise ValueError(f"Unknown package: {package_name}")
+
+            # Package object has packageFolder attribute
+            if hasattr(package_obj, 'packageFolder'):
+                return expandpath(package_obj.packageFolder)
+            else:
+                raise ValueError(f"Package {package_name} has no packageFolder attribute")
+
+        return resolve_pkg_path
+
     def _adaptStorageParamsToMount(self, service_name, params):
         """Adapt storage_params to StorageManager mount configuration.
 
@@ -1354,6 +1423,14 @@ class NewStorageHandler(BaseStorageHandler):
             base_path = params.get('base_path')
             if base_path:
                 mount_config['path'] = expandpath(base_path)
+            elif service_name == 'rsrc':
+                # rsrc uses switched mount pattern: callable with parameter (resource_id)
+                # See: https://github.com/genropy/genro-storage/issues/60
+                mount_config['path'] = self._makeRsrcPathResolver()
+            elif service_name == 'pkg':
+                # pkg uses switched mount pattern: callable with parameter (package_name)
+                # See: https://github.com/genropy/genro-storage/issues/60
+                mount_config['path'] = self._makePkgPathResolver()
             elif implementation == 'symbolic':
                 # Symbolic storage uses dynamic path resolution via callable
                 # Create a callable that resolves the path based on service_name
@@ -1426,12 +1503,11 @@ class NewStorageHandler(BaseStorageHandler):
         Returns:
             LegacyStorageServiceAdapter instance, or None if mount not found
         """
-        # For gnr, dojo, rsrc, pkg: delegate to their respective StaticHandlers
-        # These have special path resolution incompatible with genro-storage:
-        # - gnr, dojo: version-specific paths
-        # - rsrc, pkg: dynamic resource_id/package_name resolution
+        # For gnr, dojo: delegate to their respective StaticHandlers
+        # These have version-specific path resolution incompatible with genro-storage
         # Wrap with adapter to provide internal_path() method that legacy code expects
-        if storage_name in ('gnr', 'dojo', 'rsrc', 'pkg'):
+        # Note: rsrc and pkg now use switched mount pattern in genro-storage
+        if storage_name in ('gnr', 'dojo'):
             static_handler = self.site.getStatic(storage_name)
             return LegacyGnrStaticAdapter(static_handler)
 
@@ -1484,8 +1560,9 @@ class NewStorageHandler(BaseStorageHandler):
 
         # Check if mount exists
         if not self.storage_manager.has_mount(service_name):
-            # For services handled by StaticHandler (gnr, dojo, rsrc, pkg), delegate to legacy handler
-            if service_name in ('gnr', 'dojo', 'rsrc', 'pkg'):
+            # For gnr, dojo: delegate to legacy handler (version-specific paths)
+            # Note: rsrc and pkg now use switched mount pattern in genro-storage
+            if service_name in ('gnr', 'dojo'):
                 import logging
                 logger = logging.getLogger(__name__)
                 logger.debug(f"Delegating {service_name} node creation to legacy handler")
