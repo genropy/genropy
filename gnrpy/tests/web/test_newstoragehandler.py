@@ -810,3 +810,238 @@ class TestStorageHandlerFactory(BaseGnrTest):
         finally:
             if os.path.exists(test_site_path):
                 shutil.rmtree(test_site_path)
+
+
+class TestSwitchedMountPattern:
+    """Tests for switched mount pattern (rsrc, pkg, gnr, dojo).
+
+    These tests verify that all services using dynamic path resolution
+    work correctly with genro-storage's switched mount pattern.
+    """
+
+    def test_rsrc_switched_mount(self):
+        """Test rsrc service with resource_id routing."""
+        from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import NewStorageHandler
+
+        # Create mock site with resources
+        mock_site = MagicMock()
+        mock_site.config_mode = 'ns'
+        mock_site.resources = {
+            'common': '/var/www/resources/common',
+            'js_libs': '/usr/local/share/js-libs'
+        }
+
+        # Create test directories
+        test_dir = tempfile.mkdtemp(prefix='test_rsrc_')
+        try:
+            os.makedirs(os.path.join(test_dir, 'common'), exist_ok=True)
+            os.makedirs(os.path.join(test_dir, 'js_libs'), exist_ok=True)
+            mock_site.resources = {
+                'common': os.path.join(test_dir, 'common'),
+                'js_libs': os.path.join(test_dir, 'js_libs')
+            }
+
+            # Setup minimal site config
+            mock_site.site_path = test_dir
+            mock_site.site_static_dir = os.path.join(test_dir, 'static')
+            mock_site.gnrapp = MagicMock()
+            mock_site.gnrapp.db = None
+            os.makedirs(mock_site.site_static_dir, exist_ok=True)
+
+            handler = NewStorageHandler(mock_site)
+            resolver = handler._makeRsrcPathResolver()
+
+            # Test resolver returns correct paths
+            assert resolver('common') == os.path.join(test_dir, 'common')
+            assert resolver('js_libs') == os.path.join(test_dir, 'js_libs')
+
+            # Test unknown resource_id raises error
+            with pytest.raises(ValueError, match="Unknown resource_id"):
+                resolver('unknown')
+
+        finally:
+            if os.path.exists(test_dir):
+                shutil.rmtree(test_dir)
+
+    def test_pkg_switched_mount(self):
+        """Test pkg service with package_name routing."""
+        from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import NewStorageHandler
+
+        # Create mock site with packages
+        mock_site = MagicMock()
+        mock_site.config_mode = 'ns'
+
+        # Mock package objects
+        mock_pkg1 = MagicMock()
+        mock_pkg1.packageFolder = '/opt/genropy/packages/gnrcore'
+        mock_pkg2 = MagicMock()
+        mock_pkg2.packageFolder = '/opt/genropy/packages/sys'
+
+        mock_site.packages = {
+            'gnrcore': mock_pkg1,
+            'sys': mock_pkg2
+        }
+
+        # Create test directories
+        test_dir = tempfile.mkdtemp(prefix='test_pkg_')
+        try:
+            os.makedirs(os.path.join(test_dir, 'gnrcore'), exist_ok=True)
+            os.makedirs(os.path.join(test_dir, 'sys'), exist_ok=True)
+            mock_pkg1.packageFolder = os.path.join(test_dir, 'gnrcore')
+            mock_pkg2.packageFolder = os.path.join(test_dir, 'sys')
+
+            # Setup minimal site config
+            mock_site.site_path = test_dir
+            mock_site.site_static_dir = os.path.join(test_dir, 'static')
+            mock_site.gnrapp = MagicMock()
+            mock_site.gnrapp.db = None
+            os.makedirs(mock_site.site_static_dir, exist_ok=True)
+
+            handler = NewStorageHandler(mock_site)
+            resolver = handler._makePkgPathResolver()
+
+            # Test resolver returns correct paths
+            assert resolver('gnrcore') == os.path.join(test_dir, 'gnrcore')
+            assert resolver('sys') == os.path.join(test_dir, 'sys')
+
+            # Test unknown package raises error
+            with pytest.raises(ValueError, match="Unknown package"):
+                resolver('unknown')
+
+        finally:
+            if os.path.exists(test_dir):
+                shutil.rmtree(test_dir)
+
+    def test_gnr_switched_mount(self):
+        """Test gnr service with version routing."""
+        from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import NewStorageHandler
+
+        # Create mock site with gnr_path
+        mock_site = MagicMock()
+        mock_site.config_mode = 'ns'
+
+        # Create test directories for different versions
+        test_dir = tempfile.mkdtemp(prefix='test_gnr_')
+        try:
+            gnr_11_path = os.path.join(test_dir, 'gnr_d11')
+            gnr_12_path = os.path.join(test_dir, 'gnr_d12')
+            os.makedirs(gnr_11_path, exist_ok=True)
+            os.makedirs(gnr_12_path, exist_ok=True)
+
+            mock_site.gnr_path = {
+                '11': gnr_11_path,
+                '12': gnr_12_path
+            }
+
+            # Setup minimal site config
+            mock_site.site_path = test_dir
+            mock_site.site_static_dir = os.path.join(test_dir, 'static')
+            mock_site.gnrapp = MagicMock()
+            mock_site.gnrapp.db = None
+            os.makedirs(mock_site.site_static_dir, exist_ok=True)
+
+            handler = NewStorageHandler(mock_site)
+            resolver = handler._makeGnrPathResolver()
+
+            # Test resolver returns correct paths for versions
+            assert resolver('11') == gnr_11_path
+            assert resolver('12') == gnr_12_path
+
+            # Test unknown version raises error
+            with pytest.raises(ValueError, match="Unknown gnr version"):
+                resolver('99')
+
+        finally:
+            if os.path.exists(test_dir):
+                shutil.rmtree(test_dir)
+
+    def test_dojo_switched_mount(self):
+        """Test dojo service with version routing."""
+        from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import NewStorageHandler
+
+        # Create mock site with dojo_path
+        mock_site = MagicMock()
+        mock_site.config_mode = 'ns'
+
+        # Create test directories for different versions
+        test_dir = tempfile.mkdtemp(prefix='test_dojo_')
+        try:
+            dojo_18_path = os.path.join(test_dir, 'dojo1.8')
+            dojo_110_path = os.path.join(test_dir, 'dojo1.10')
+            os.makedirs(dojo_18_path, exist_ok=True)
+            os.makedirs(dojo_110_path, exist_ok=True)
+
+            mock_site.dojo_path = {
+                '1.8': dojo_18_path,
+                '1.10': dojo_110_path
+            }
+
+            # Setup minimal site config
+            mock_site.site_path = test_dir
+            mock_site.site_static_dir = os.path.join(test_dir, 'static')
+            mock_site.gnrapp = MagicMock()
+            mock_site.gnrapp.db = None
+            os.makedirs(mock_site.site_static_dir, exist_ok=True)
+
+            handler = NewStorageHandler(mock_site)
+            resolver = handler._makeDojoPathResolver()
+
+            # Test resolver returns correct paths for versions
+            assert resolver('1.8') == dojo_18_path
+            assert resolver('1.10') == dojo_110_path
+
+            # Test unknown version raises error
+            with pytest.raises(ValueError, match="Unknown dojo version"):
+                resolver('999')
+
+        finally:
+            if os.path.exists(test_dir):
+                shutil.rmtree(test_dir)
+
+    def test_all_resolvers_integrated(self):
+        """Test that all resolvers are properly integrated in mount configuration."""
+        from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import NewStorageHandler
+
+        # Create comprehensive mock site
+        mock_site = MagicMock()
+        mock_site.config_mode = 'ns'
+
+        test_dir = tempfile.mkdtemp(prefix='test_integrated_')
+        try:
+            # Setup all paths
+            mock_site.resources = {'common': os.path.join(test_dir, 'rsrc')}
+
+            mock_pkg = MagicMock()
+            mock_pkg.packageFolder = os.path.join(test_dir, 'pkg')
+            mock_site.packages = {'gnrcore': mock_pkg}
+
+            mock_site.gnr_path = {'11': os.path.join(test_dir, 'gnr')}
+            mock_site.dojo_path = {'1.8': os.path.join(test_dir, 'dojo')}
+
+            # Create directories
+            for subdir in ['rsrc', 'pkg', 'gnr', 'dojo', 'static']:
+                os.makedirs(os.path.join(test_dir, subdir), exist_ok=True)
+
+            # Setup minimal site config
+            mock_site.site_path = test_dir
+            mock_site.site_static_dir = os.path.join(test_dir, 'static')
+            mock_site.gnrapp = MagicMock()
+            mock_site.gnrapp.db = None
+
+            # Create handler - should configure all mounts
+            handler = NewStorageHandler(mock_site)
+
+            # Verify all resolvers are created and functional
+            rsrc_resolver = handler._makeRsrcPathResolver()
+            pkg_resolver = handler._makePkgPathResolver()
+            gnr_resolver = handler._makeGnrPathResolver()
+            dojo_resolver = handler._makeDojoPathResolver()
+
+            assert rsrc_resolver('common') == os.path.join(test_dir, 'rsrc')
+            assert pkg_resolver('gnrcore') == os.path.join(test_dir, 'pkg')
+            assert gnr_resolver('11') == os.path.join(test_dir, 'gnr')
+            assert dojo_resolver('1.8') == os.path.join(test_dir, 'dojo')
+
+        finally:
+            if os.path.exists(test_dir):
+                shutil.rmtree(test_dir)
