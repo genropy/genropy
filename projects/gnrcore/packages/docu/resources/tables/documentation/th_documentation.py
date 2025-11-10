@@ -80,7 +80,8 @@ class Form(BaseComponent):
     @extract_kwargs(source=True,preview=True)
     def sourceEditor(self,frame,theme=None,source_kwargs=None,preview_kwargs=None):
         bar = frame.top.slotToolbar('5,mbuttons,2,titleAsk,2,fbmeta,*,delgridrow,addrow_dlg')
-        bar.mbuttons.multiButton(value='^#FORM.sourceViewMode',values='rstonly:Source Only,mixed: Mixed view,preview:Preview')
+        bar.mbuttons.multiButton(value='^#FORM.sourceViewMode', nodeId='sourceViewMode',
+                                 values='rstonly:Source Only,mixed: Mixed view,preview:Preview')
         bar.titleAsk.slotButton('!!Change version name',iconClass='iconbox tag',
                                 action="""
  
@@ -141,7 +142,8 @@ class Form(BaseComponent):
                             subscribe_setInLocalIframe=True,grid=fg.grid.js_widget,
                             data='=#FORM.record.sourcebag')
 
-        center = bc.borderContainer(region='center',_class='hideSplitter',border='1px solid silver',margin='4px')
+        center = bc.borderContainer(region='center',_class='hideSplitter',
+                                    border='1px solid silver',margin='4px')
         bc.dataController("""var width = 0;
                             status = status || 'rstonly';
                              if(status=='mixed'){
@@ -182,10 +184,11 @@ class Form(BaseComponent):
                           grid=fg.grid.js_widget)
         fg.grid.dataFormula("#FORM.versionsFrame._editorDatapath", "'#FORM.record.sourcebag.'+selectedLabel;",
         selectedLabel="^.selectedLabel",_if='selectedLabel',_else='"#FORM.versionsFrame.dummypath"')
-        cm = self.sourceViewerCM(center) 
+        #self.sourceViewerCM(center) #DP Schianta
 
     def sourceViewerCM(self,parent):
-        bc = parent.borderContainer(region='center',datapath='^#FORM.versionsFrame._editorDatapath',margin_left='6px')
+        bc = parent.borderContainer(region='center',datapath='^#FORM.versionsFrame._editorDatapath',margin_left='6px',
+                                    visible='^#FORM.versionsFrame.grid.selectedLabel')
         cm = bc.contentPane(region='center').codemirror(value='^.source',parentForm=True,config_theme='twilight',
                           config_mode='python',config_lineNumbers=True,
                           config_indentUnit=4,config_keyMap='softTab',
@@ -227,8 +230,13 @@ class GnrCustomWebPage(object):
     """
     @public_method
     def th_onLoading(self, record, newrecord, loadingParameters, recInfo):
-        if newrecord:        
-            parentrecord = record['@parent_id'] 
+        from gnr.core.gnrbag import Bag
+        # Inizializza sourcebag se non esiste (per evitare problemi con sourceEditor)
+        if not record.get('sourcebag'):
+            record['sourcebag'] = Bag()
+
+        if newrecord:
+            parentrecord = record['@parent_id']
             if parentrecord:
                 record['doctype'] = parentrecord['doctype']
         else:

@@ -42,7 +42,7 @@ class ContentForm(BaseComponent):
                                         table='docu.content').field('title', width='30em')
 
         self.contentText(bc.contentPane(region='center', datapath='.@content_id', 
-                                        overflow='hidden', title='!!Content'))
+                                        overflow='hidden', title='!!Content'), mode='rst')
                             
     def th_options(self):
         return dict(showtoolbar=False, defaultPrompt=dict(title='!!New content',
