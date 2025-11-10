@@ -1289,12 +1289,11 @@ class NewStorageHandler(BaseStorageHandler):
         logger.debug(f"Configuring StorageManager with {len(self.storage_params)} storage services")
 
         for service_name, params in self.storage_params.items():
-            # Skip gnr, dojo - they use version-specific path resolution incompatible with genro-storage
-            # These are handled by StaticHandler instead
-            # Note: rsrc and pkg now use switched mount pattern (callable with parameter)
-            if service_name in ('gnr', 'dojo'):
-                logger.debug(f"Skipping {service_name} (handled by StaticHandler)")
-                continue
+            # All services now use switched mount pattern with callable resolvers:
+            # - rsrc: resource_id lookup via site.resources
+            # - pkg: package_name lookup via site.packages
+            # - gnr: version lookup via site.gnr_path
+            # - dojo: version lookup via site.dojo_path
 
             mount_config = self._adaptStorageParamsToMount(service_name, params)
             if mount_config:
@@ -1446,6 +1445,70 @@ class NewStorageHandler(BaseStorageHandler):
 
         return resolve_pkg_path
 
+    def _makeGnrPathResolver(self):
+        """Create a callable that resolves gnr paths using site.gnr_path dict.
+
+        Uses genro-storage's "switched mount" pattern where the callable accepts
+        a parameter (version) and returns the corresponding base path.
+
+        The first path component (version) is extracted and looked up in
+        site.gnr_path dict to get the actual filesystem path for that version.
+
+        Example:
+            gnr:11/js/gnr.js
+            -> version='11' -> site.gnr_path['11'] -> /path/to/gnr_d11
+            -> final path: /path/to/gnr_d11/js/gnr.js
+
+        Returns:
+            Callable that accepts version and returns base path
+
+        See: https://github.com/genropy/genro-storage/issues/56
+        """
+        def resolve_gnr_path(version):
+            """Resolve version to actual gnr filesystem path."""
+            if not hasattr(self.site, 'gnr_path') or not self.site.gnr_path:
+                raise ValueError(f"site.gnr_path not configured")
+
+            base_path = self.site.gnr_path.get(version)
+            if not base_path:
+                raise ValueError(f"Unknown gnr version: {version}")
+
+            return expandpath(base_path)
+
+        return resolve_gnr_path
+
+    def _makeDojoPathResolver(self):
+        """Create a callable that resolves dojo paths using site.dojo_path dict.
+
+        Uses genro-storage's "switched mount" pattern where the callable accepts
+        a parameter (version) and returns the corresponding base path.
+
+        The first path component (version) is extracted and looked up in
+        site.dojo_path dict to get the actual filesystem path for that version.
+
+        Example:
+            dojo:1.8/dijit/form/Button.js
+            -> version='1.8' -> site.dojo_path['1.8'] -> /path/to/dojo1.8
+            -> final path: /path/to/dojo1.8/dijit/form/Button.js
+
+        Returns:
+            Callable that accepts version and returns base path
+
+        See: https://github.com/genropy/genro-storage/issues/56
+        """
+        def resolve_dojo_path(version):
+            """Resolve version to actual dojo filesystem path."""
+            if not hasattr(self.site, 'dojo_path') or not self.site.dojo_path:
+                raise ValueError(f"site.dojo_path not configured")
+
+            base_path = self.site.dojo_path.get(version)
+            if not base_path:
+                raise ValueError(f"Unknown dojo version: {version}")
+
+            return expandpath(base_path)
+
+        return resolve_dojo_path
+
     def _adaptStorageParamsToMount(self, service_name, params):
         """Adapt storage_params to StorageManager mount configuration.
 
@@ -1502,6 +1565,14 @@ class NewStorageHandler(BaseStorageHandler):
                 # pkg uses switched mount pattern: callable with parameter (package_name)
                 # See: https://github.com/genropy/genro-storage/issues/60
                 mount_config['path'] = self._makePkgPathResolver()
+            elif service_name == 'gnr':
+                # gnr uses switched mount pattern: callable with parameter (version)
+                # See: https://github.com/genropy/genro-storage/issues/56
+                mount_config['path'] = self._makeGnrPathResolver()
+            elif service_name == 'dojo':
+                # dojo uses switched mount pattern: callable with parameter (version)
+                # See: https://github.com/genropy/genro-storage/issues/56
+                mount_config['path'] = self._makeDojoPathResolver()
             elif implementation == 'symbolic':
                 # Symbolic storage uses dynamic path resolution via callable
                 # Create a callable that resolves the path based on service_name
@@ -1574,13 +1645,8 @@ class NewStorageHandler(BaseStorageHandler):
         Returns:
             LegacyStorageServiceAdapter instance, or None if mount not found
         """
-        # For gnr, dojo: delegate to their respective StaticHandlers
-        # These have version-specific path resolution incompatible with genro-storage
-        # Wrap with adapter to provide internal_path() method that legacy code expects
-        # Note: rsrc and pkg now use switched mount pattern in genro-storage
-        if storage_name in ('gnr', 'dojo'):
-            static_handler = self.site.getStatic(storage_name)
-            return LegacyGnrStaticAdapter(static_handler)
+        # All services now use genro-storage with switched mount pattern
+        # No legacy delegation needed anymore
 
         if self.storage_manager.has_mount(storage_name):
             return LegacyStorageServiceAdapter(
@@ -1631,16 +1697,8 @@ class NewStorageHandler(BaseStorageHandler):
 
         # Check if mount exists
         if not self.storage_manager.has_mount(service_name):
-            # For gnr, dojo: delegate to legacy handler (version-specific paths)
-            # Note: rsrc and pkg now use switched mount pattern in genro-storage
-            if service_name in ('gnr', 'dojo'):
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.debug(f"Delegating {service_name} node creation to legacy handler")
-                # Use legacy handler for these special storages
-                legacy_handler = LegacyStorageHandler(self.site)
-                return legacy_handler.makeNode(*args, **kwargs)
-
+            # All services should be configured with switched mount pattern
+            # If mount not found, it's a configuration error
             import logging
             logger = logging.getLogger(__name__)
             available_mounts = list(self.storage_manager._mounts.keys()) if hasattr(self.storage_manager, '_mounts') else 'unknown'
