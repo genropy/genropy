@@ -1412,6 +1412,12 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
 dojo.declare("gnr.widgets.TinyMCE", gnr.widgets.baseHtml, {
   constructor: function(application) {
     this._domtag = 'textarea';
+    // Initialize global queue for TinyMCE initialization
+    if (!window._gnr_tinymce_init_queue) {
+      window._gnr_tinymce_init_queue = [];
+      window._gnr_tinymce_loading = false;
+      window._gnr_tinymce_processing = false;
+    }
   },
 
   creating: function(attributes, sourceNode){
@@ -1461,36 +1467,77 @@ dojo.declare("gnr.widgets.TinyMCE", gnr.widgets.baseHtml, {
 
   created: function(domNode, savedAttrs, sourceNode){
     var widgetObj = this;
-    // Widget created, defer editor initialization until node is visible
     var initialized = false;
     var that = this;
-    function initIfVisible() {
+
+    // Function to actually initialize this editor
+    var doInit = function() {
         if (initialized) { return; }
-        if (genro.dom.isVisible(sourceNode)) {
-            initialized = true;
-            // Initialize TinyMCE editor once the node is visible
-            that.makeEditor(domNode, savedAttrs, sourceNode);
-        } else {
-            genro.callAfter(initIfVisible, 300, that, 'tinymce_wait_'+savedAttrs.textareaId);
+        if (!genro.dom.isVisible(sourceNode)) {
+            genro.callAfter(doInit, 300, that, 'tinymce_wait_'+savedAttrs.textareaId);
+            return;
         }
-    }
+        initialized = true;
+        that.makeEditor(domNode, savedAttrs, sourceNode);
+    };
+
+    // Subscribe to onShow event
     sourceNode.subscribe('onShow', function() {
         if (!initialized) {
-            initialized = true;
-            that.makeEditor(domNode, savedAttrs, sourceNode);
+            that.queueTinyMCEInit(doInit, savedAttrs);
         }
     });
-    if (!window.tinymce){
-      genro.dom.loadJs(savedAttrs.base_url + '/tinymce.min.js', function(){
-        initIfVisible();
-      });
-    } else {
-      initIfVisible();
-    }
+
+    // Queue this editor for initialization
+    this.queueTinyMCEInit(doInit, savedAttrs);
+
     // Cleanup on widget deletion
     dojo.connect(sourceNode,'_onDeleting',function(){
       if (window.tinymce){ try{ tinymce.remove('#' + savedAttrs.textareaId); }catch(e){} }
     });
+  },
+
+  queueTinyMCEInit: function(initCallback, savedAttrs) {
+    // Add to queue
+    window._gnr_tinymce_init_queue.push(initCallback);
+
+    // Ensure TinyMCE library is loaded
+    if (!window.tinymce && !window._gnr_tinymce_loading) {
+      window._gnr_tinymce_loading = true;
+      genro.dom.loadJs(savedAttrs.base_url + '/tinymce.min.js', function(){
+        console.log('[TinyMCE] Library loaded, processing queue');
+        window._gnr_tinymce_loading = false;
+        this.processTinyMCEQueue();
+      }.bind(this));
+    } else if (window.tinymce && !window._gnr_tinymce_processing) {
+      // TinyMCE already loaded, process queue
+      this.processTinyMCEQueue();
+    }
+  },
+
+  processTinyMCEQueue: function() {
+    if (window._gnr_tinymce_processing) { return; }
+    if (window._gnr_tinymce_init_queue.length === 0) { return; }
+    if (!window.tinymce) {
+      // Library not ready yet, try again later
+      setTimeout(this.processTinyMCEQueue.bind(this), 100);
+      return;
+    }
+
+    window._gnr_tinymce_processing = true;
+    var callback = window._gnr_tinymce_init_queue.shift();
+
+    try {
+      callback();
+    } catch(e) {
+      console.error('[TinyMCE] Initialization error:', e);
+    }
+
+    // Process next item in queue after a short delay
+    setTimeout(function() {
+      window._gnr_tinymce_processing = false;
+      this.processTinyMCEQueue();
+    }.bind(this), 50);
   },
 
   makeEditor: function(domNode, savedAttrs, sourceNode){
