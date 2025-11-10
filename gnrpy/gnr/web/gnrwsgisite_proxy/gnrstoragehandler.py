@@ -659,8 +659,18 @@ class NewStorageNode:
 
     @property
     def internal_path(self):
-        """Returns the internal path within the storage service."""
-        # For BrickStorageNode, path is already the internal path
+        """Returns the internal filesystem path (absolute path for local storage).
+
+        For local storages, this returns the resolved absolute filesystem path.
+        For remote storages (S3, etc.), this returns the relative path within the storage.
+        """
+        # Try to get the resolved filesystem path from the backend
+        if hasattr(self._brick_node, '_backend') and hasattr(self._brick_node._backend, '_resolve_path'):
+            try:
+                return self._brick_node._backend._resolve_path(self._brick_node._path)
+            except:
+                pass
+        # Fallback to relative path
         return self._brick_node.path
 
     def base64(self, mime=None):
@@ -754,8 +764,13 @@ class NewStorageNode:
         TEMPORARY WORKAROUND: See url() method comment. This will be removed once genro-storage
         has native URL generation support.
 
-        Generates URLs in the format: {external_host}/_storage/{service_name}/{path}
-        This matches the legacy Genropy URL format.
+        Generates service-specific URLs to match legacy Genropy URL patterns:
+        - rsrc: {external_host}/_rsrc/{resource_id}/{path}
+        - pkg: {external_host}/_pkg/{package_name}/{path}
+        - pages: {external_host}/_pages/{path}
+        - gnr: {external_host}/_gnr/{version}/{path}
+        - dojo: {external_host}/_dojo/{version}/{path}
+        - other: {external_host}/_storage/{service_name}/{path}
 
         Args:
             **kwargs: URL parameters
@@ -767,10 +782,10 @@ class NewStorageNode:
         """
         if not self.parent or not hasattr(self.parent, 'external_host'):
             # Fallback if no parent site available
-            return f'/_storage/{self.service_name}/{self._brick_node.path}'
+            return self._generate_url_pattern(self.service_name, self._brick_node.path, '')
 
         external_host = self.parent.external_host.rstrip('/')
-        url = f'{external_host}/_storage/{self.service_name}/{self._brick_node.path}'
+        url = self._generate_url_pattern(self.service_name, self._brick_node.path, external_host)
 
         if not kwargs:
             return url
@@ -785,6 +800,54 @@ class NewStorageNode:
 
         if kwargs:
             url = f'{url}?{urlencode(kwargs)}'
+
+        return url
+
+    def _generate_url_pattern(self, service_name, path, external_host):
+        """Generate service-specific URL pattern.
+
+        Different storage services use different URL patterns in Genropy:
+        - rsrc, pkg: first path component is resource_id/package_name
+        - pages: direct path mapping
+        - gnr, dojo: first path component is version (but these are handled by StaticHandler)
+        - others: generic /_storage/ pattern
+
+        Args:
+            service_name: Name of storage service (rsrc, pkg, pages, etc.)
+            path: Relative path in storage
+            external_host: External host URL (may be empty string)
+
+        Returns:
+            Complete URL string
+        """
+        # Parse path components
+        parts = path.split('/', 1) if path else ['']
+        first_component = parts[0]
+        rest_path = parts[1] if len(parts) > 1 else ''
+
+        # Generate service-specific URL pattern
+        if service_name == 'rsrc':
+            # Format: /_rsrc/{resource_id}/{remaining_path}
+            url = f'{external_host}/_rsrc/{first_component}'
+            if rest_path:
+                url = f'{url}/{rest_path}'
+        elif service_name == 'pkg':
+            # Format: /_pkg/{package_name}/{remaining_path}
+            url = f'{external_host}/_pkg/{first_component}'
+            if rest_path:
+                url = f'{url}/{rest_path}'
+        elif service_name == 'pages':
+            # Format: /_pages/{path}
+            url = f'{external_host}/_pages/{path}'
+        elif service_name in ('gnr', 'dojo'):
+            # Format: /_gnr/{version}/{path} or /_dojo/{version}/{path}
+            # Note: These should be handled by LegacyGnrStaticAdapter, but include pattern for completeness
+            url = f'{external_host}/_{service_name}/{first_component}'
+            if rest_path:
+                url = f'{url}/{rest_path}'
+        else:
+            # Generic pattern for other storages
+            url = f'{external_host}/_storage/{service_name}/{path}'
 
         return url
 
@@ -970,6 +1033,133 @@ class LegacyStorageServiceAdapter:
         node = self.handler.storageNode(fullpath)
         return node.isfile if node else False
 
+    def internal_path(self, *args):
+        """Get internal filesystem path for the given path.
+
+        Args:
+            *args: Path components
+
+        Returns:
+            str: Internal filesystem path or None
+        """
+        path = '/'.join(str(arg) for arg in args)
+        fullpath = f'{self.service_name}:{path}'
+        node = self.handler.storageNode(fullpath)
+        if not node:
+            return None
+
+        # For NewStorageNode, use internal_path property
+        if hasattr(node, 'internal_path') and not callable(node.internal_path):
+            return node.internal_path
+
+        # For BrickStorageNode, try to get the resolved filesystem path
+        if hasattr(node, '_brick_node'):
+            brick = node._brick_node
+            # For local storage backends, access the resolved path
+            if hasattr(brick, '_backend') and hasattr(brick._backend, '_resolve_path'):
+                try:
+                    return brick._backend._resolve_path(brick._path)
+                except:
+                    pass
+
+        return None
+
+
+class LegacyGnrStaticAdapter:
+    """Adapter for GnrStaticHandler to provide storage service API.
+
+    This adapter wraps GnrStaticHandler to provide the expected storage service
+    interface with internal_path() method that legacy code expects.
+
+    GnrStaticHandler has path() method but not internal_path().
+    This adapter bridges that gap.
+
+    Args:
+        static_handler: The GnrStaticHandler or DojoStaticHandler instance
+    """
+
+    def __init__(self, static_handler):
+        """Initialize the adapter.
+
+        Args:
+            static_handler: GnrStaticHandler or DojoStaticHandler instance
+        """
+        self.static_handler = static_handler
+
+    def url(self, *args, **kwargs):
+        """Get URL for the given path.
+
+        Args:
+            *args: Path components (first arg is typically version)
+            **kwargs: Additional parameters
+
+        Returns:
+            URL string
+        """
+        return self.static_handler.url(*args, **kwargs)
+
+    def kwargs_url(self, *args, **kwargs):
+        """Get URL with kwargs support.
+
+        Args:
+            *args: Path components (first arg is typically version)
+            **kwargs: URL parameters
+
+        Returns:
+            URL string with query parameters
+        """
+        return self.static_handler.kwargs_url(*args, **kwargs)
+
+    def path(self, *args, **kwargs):
+        """Get local filesystem path.
+
+        Args:
+            *args: Path components (first arg is typically version)
+            **kwargs: Additional parameters
+
+        Returns:
+            Local filesystem path string
+        """
+        return self.static_handler.path(*args, **kwargs)
+
+    def internal_path(self, *args, **kwargs):
+        """Get internal filesystem path.
+
+        This is an alias for path() to provide compatibility with
+        storage service API that expects internal_path() method.
+
+        Args:
+            *args: Path components (first arg is typically version)
+            **kwargs: Additional parameters
+
+        Returns:
+            Local filesystem path string
+        """
+        return self.static_handler.path(*args, **kwargs)
+
+    def mtime(self, *args, **kwargs):
+        """Get modification time of file.
+
+        Args:
+            *args: Path components (first arg is typically version)
+            **kwargs: Additional parameters
+
+        Returns:
+            float: Modification time timestamp, or 0 if file doesn't exist
+        """
+        import os
+        # Get the filesystem path
+        file_path = self.static_handler.path(*args, **kwargs)
+
+        if not file_path:
+            return 0
+
+        # Get mtime from filesystem
+        try:
+            return os.path.getmtime(file_path)
+        except (OSError, TypeError):
+            return 0
+
 
 class NewStorageHandler(BaseStorageHandler):
     """Storage handler using genro-storage library (BrickStorageNode).
@@ -1008,17 +1198,42 @@ class NewStorageHandler(BaseStorageHandler):
 
         Converts storage_params dict into StorageManager mount configurations.
         Maps Genropy storage implementations to genro-storage backend types.
+
+        Note: 'gnr' and 'dojo' storages are excluded from genro-storage because they use
+        version-specific path resolution that is incompatible with genro-storage's static
+        base_path model. See GENRO_STORAGE_ISSUE.md Issue #2 for details.
         """
+        import logging
+        logger = logging.getLogger(__name__)
+
         mount_configs = []
+        logger.info(f"Configuring StorageManager with {len(self.storage_params)} storage services")
 
         for service_name, params in self.storage_params.items():
+            # Skip gnr and dojo - they use version-specific paths incompatible with genro-storage
+            if service_name in ('gnr', 'dojo'):
+                logger.debug(f"Skipping {service_name} (version-specific paths)")
+                continue
+
             mount_config = self._adaptStorageParamsToMount(service_name, params)
             if mount_config:
+                logger.info(f"Creating mount for '{service_name}': type={mount_config.get('type')}")
                 mount_configs.append(mount_config)
+            else:
+                logger.warning(f"Failed to create mount config for '{service_name}' with params: {params}")
 
         # Configure all mounts at once
         if mount_configs:
-            self.storage_manager.configure(mount_configs)
+            logger.info(f"Configuring {len(mount_configs)} mounts in StorageManager")
+            try:
+                self.storage_manager.configure(mount_configs)
+                logger.info(f"Available mounts: {list(self.storage_manager._mounts.keys())}")
+            except Exception as e:
+                logger.error(f"Failed to configure StorageManager: {e}", exc_info=True)
+                logger.error(f"Mount configs that failed: {mount_configs}")
+                raise
+        else:
+            logger.warning("No mount configs created!")
 
     def _makeSymbolicPathCallable(self, service_name):
         """Create a callable that resolves symbolic storage path dynamically.
@@ -1034,13 +1249,24 @@ class NewStorageHandler(BaseStorageHandler):
         """
         def resolve_symbolic_path():
             """Resolve the symbolic storage path at runtime."""
-            # These storages resolve to static resource directories
-            if service_name == 'dojo':
-                # Dojo libraries location
-                return os.path.join(self.site.site_static_dir, 'dojo')
-            elif service_name == 'gnr':
-                # Genropy static resources
+            # For 'gnr' and 'dojo', use site.gnr_path or site.dojo_path to get versioned directory
+            # These have version-specific paths (e.g., gnr_d11, dojo1.11)
+            if service_name == 'gnr':
+                # gnr_path is a dict like {'11': '/path/to/gnrjs/gnr_d11', ...}
+                # Use the first/default version's path
+                if hasattr(self.site, 'gnr_path') and self.site.gnr_path:
+                    # Get first version's base path
+                    first_version_path = next(iter(self.site.gnr_path.values()))
+                    return first_version_path
+                # Fallback
                 return os.path.join(self.site.site_static_dir, 'gnr')
+            elif service_name == 'dojo':
+                # Similar logic for dojo
+                if hasattr(self.site, 'dojo_path') and self.site.dojo_path:
+                    first_version_path = next(iter(self.site.dojo_path.values()))
+                    return first_version_path
+                # Fallback
+                return os.path.join(self.site.site_static_dir, 'dojo')
             elif service_name == 'rsrc':
                 # Common resources
                 if hasattr(self.site, 'resources_path'):
@@ -1129,14 +1355,26 @@ class NewStorageHandler(BaseStorageHandler):
 
         elif storage_type == 's3':
             # S3-specific parameters
+            # Map Genropy parameter names to genro-storage parameter names
             if 'bucket' in params:
                 mount_config['bucket'] = params['bucket']
-            if 'region' in params:
+            # Region can be 'region' or 'region_name'
+            if 'region_name' in params:
+                mount_config['region'] = params['region_name']
+            elif 'region' in params:
                 mount_config['region'] = params['region']
-            if 'access_key' in params:
+            # Credentials can use AWS standard names or short names
+            if 'aws_access_key_id' in params:
+                mount_config['key'] = params['aws_access_key_id']
+            elif 'access_key' in params:
                 mount_config['key'] = params['access_key']
-            if 'secret_key' in params:
+            if 'aws_secret_access_key' in params:
+                mount_config['secret'] = params['aws_secret_access_key']
+            elif 'secret_key' in params:
                 mount_config['secret'] = params['secret_key']
+            # S3 prefix/base_path
+            if 'base_path' in params and params['base_path']:
+                mount_config['prefix'] = params['base_path']
 
         elif storage_type == 'http':
             # HTTP storage - placeholder for HTTP URLs
@@ -1160,6 +1398,10 @@ class NewStorageHandler(BaseStorageHandler):
         Returns a LegacyStorageServiceAdapter instance that provides legacy
         StorageService-compatible API (url, path, open, kwargs_url methods).
 
+        Note: For 'gnr' and 'dojo' storages, this delegates directly to GnrStaticHandler
+        because these use version-specific path resolution incompatible with genro-storage.
+        See GENRO_STORAGE_ISSUE.md Issue #2 for details.
+
         DEPRECATED: The returned adapter's methods are all deprecated. Use
         site.storageNode('service:path').method() directly in new code.
 
@@ -1170,6 +1412,13 @@ class NewStorageHandler(BaseStorageHandler):
         Returns:
             LegacyStorageServiceAdapter instance, or None if mount not found
         """
+        # For gnr and dojo, delegate to their respective StaticHandlers
+        # These have version-specific path resolution incompatible with genro-storage
+        # Wrap with adapter to provide internal_path() method that legacy code expects
+        if storage_name in ('gnr', 'dojo'):
+            static_handler = self.site.getStatic(storage_name)
+            return LegacyGnrStaticAdapter(static_handler)
+
         if self.storage_manager.has_mount(storage_name):
             return LegacyStorageServiceAdapter(
                 handler=self,
@@ -1219,8 +1468,14 @@ class NewStorageHandler(BaseStorageHandler):
 
         # Check if mount exists
         if not self.storage_manager.has_mount(service_name):
+            import logging
             logger = logging.getLogger(__name__)
-            logger.warning(f"Storage mount '{service_name}' not found")
+            available_mounts = list(self.storage_manager._mounts.keys()) if hasattr(self.storage_manager, '_mounts') else 'unknown'
+            logger.error(
+                f"Storage mount '{service_name}' not found for path '{path}'. "
+                f"Available mounts: {available_mounts}. "
+                f"Original args: {args}"
+            )
             return None
 
         # Extract parameters
