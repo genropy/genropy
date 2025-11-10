@@ -111,6 +111,11 @@ class GnrCustomWebPage(object):
                 rec[source] = documentNode.fullpath
             clientRecordUpdater[source] = record[source]
             self.db.commit()
+
+        # Check if documentNode exists before accessing its versions
+        if not documentNode:
+            return None
+
         versions_bag =  self._getVersionBag(documentNode,**kwargs)
         if related_page_item:
             clientRecordUpdater.addItem(f'${source}_versions',versions_bag)
@@ -136,13 +141,20 @@ class GnrCustomWebPage(object):
     def _getVersionBag(self,documentNode,**kwargs):
         result = Bag()
         for version in documentNode.versions:
-            localized_date = self.toText(version['LastModified'],dtype='D')
-            version_key = version['VersionId'] if not version['IsLatest'] else '_latest_'
-            result.addItem(version_key.replace('.','_'),None,caption=self._('!![en]Latest') if version['IsLatest'] else localized_date,version_id=version['VersionId'],
-                                                date=version['LastModified'],
-                                                localized_date=localized_date,
-                                                isLatest=version['IsLatest'],
-                                                version_key=version_key)
+            # Support both formats: CamelCase (legacy boto3) and snake_case (genro-storage)
+            last_modified = version.get('last_modified') or version.get('LastModified')
+            version_id = version.get('version_id') or version.get('VersionId')
+            is_latest = version.get('is_latest') or version.get('IsLatest')
+
+            localized_date = self.toText(last_modified, dtype='D')
+            version_key = version_id if not is_latest else '_latest_'
+            result.addItem(version_key.replace('.','_'), None,
+                          caption=self._('!![en]Latest') if is_latest else localized_date,
+                          version_id=version_id,
+                          date=last_modified,
+                          localized_date=localized_date,
+                          isLatest=is_latest,
+                          version_key=version_key)
         return result
 
 
