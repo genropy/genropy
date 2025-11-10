@@ -187,8 +187,7 @@ class Form(BaseComponent):
         #self.sourceViewerCM(center) #DP Schianta
 
     def sourceViewerCM(self,parent):
-        bc = parent.borderContainer(region='center',datapath='^#FORM.versionsFrame._editorDatapath',margin_left='6px',
-                                    visible='^#FORM.versionsFrame.grid.selectedLabel')
+        bc = parent.borderContainer(region='center',datapath='^#FORM.versionsFrame._editorDatapath',margin_left='6px')
         cm = bc.contentPane(region='center').codemirror(value='^.source',parentForm=True,config_theme='twilight',
                           config_mode='python',config_lineNumbers=True,
                           config_indentUnit=4,config_keyMap='softTab',
@@ -230,13 +229,8 @@ class GnrCustomWebPage(object):
     """
     @public_method
     def th_onLoading(self, record, newrecord, loadingParameters, recInfo):
-        from gnr.core.gnrbag import Bag
-        # Inizializza sourcebag se non esiste (per evitare problemi con sourceEditor)
-        if not record.get('sourcebag'):
-            record['sourcebag'] = Bag()
-
-        if newrecord:
-            parentrecord = record['@parent_id']
+        if newrecord:        
+            parentrecord = record['@parent_id'] 
             if parentrecord:
                 record['doctype'] = parentrecord['doctype']
         else:
