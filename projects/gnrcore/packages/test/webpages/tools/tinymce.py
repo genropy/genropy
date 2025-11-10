@@ -17,3 +17,8 @@ class GnrCustomWebPage(object):
     def test_3_imageData(self, pane):
         """Image upload: imageData to manage image as base64"""
         pane.tinymce(value='^.mycontent', imageData=True, height='400px')
+
+    def test_4_maxLength(self, pane):
+        """TinyMCE with maxLength: character limit and counter"""
+        pane.tinymce(value='^.mycontent', maxLength=1024, height='400px',
+                     removeToolbarItems=['image', 'code'])

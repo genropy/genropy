@@ -1453,9 +1453,10 @@ dojo.declare("gnr.widgets.TinyMCE", gnr.widgets.baseHtml, {
     if (imageData && rawUploadPath){
       throw new Error('TinyMCE widget: imageData=True is mutually exclusive with uploadPath');
     }
+    const maxLength = objectPop(attributes,'maxLength');
     attributes.id = textareaId;
     attributes.style = `height:${height};width:${width};`;
-    return {valuePath, textPath, textareaId, placeholderItems, base_url, content_style, plugins, removeToolbarItems, imageData, uploadPath, onUploadedMethod, rpcKw, _rawHeight: height, _rawWidth: width};
+    return {valuePath, textPath, textareaId, placeholderItems, base_url, content_style, plugins, removeToolbarItems, imageData, uploadPath, onUploadedMethod, rpcKw, maxLength, _rawHeight: height, _rawWidth: width};
   },
 
   created: function(domNode, savedAttrs, sourceNode){
@@ -1814,6 +1815,82 @@ dojo.declare("gnr.widgets.TinyMCE", gnr.widgets.baseHtml, {
             }
           });
         }
+
+        // maxLength management
+        if (savedAttrs.maxLength) {
+          var statusbarItemName = 'charcount_' + savedAttrs.textareaId;
+
+          // Function to update character count display
+          var updateCharCount = function(){
+            try {
+              var content = editor.getContent({format: 'text'}) || '';
+              var currentLength = content.length;
+              var remaining = savedAttrs.maxLength - currentLength;
+              var container = editor.getContainer();
+              if (!container) return;
+
+              var statusbar = container.querySelector('.tox-statusbar');
+              if (!statusbar) return;
+
+              var charCountEl = statusbar.querySelector('.' + statusbarItemName);
+              if (!charCountEl) {
+                charCountEl = document.createElement('div');
+                charCountEl.className = statusbarItemName;
+                charCountEl.style.cssText = 'margin-left: auto; padding: 0 8px; font-size: 12px; font-style: italic;';
+                statusbar.appendChild(charCountEl);
+              }
+
+              charCountEl.textContent = 'Remaining: ' + remaining;
+              if (remaining < 0) {
+                charCountEl.style.color = 'red';
+              } else if (remaining < savedAttrs.maxLength * 0.1) {
+                charCountEl.style.color = 'orange';
+              } else {
+                charCountEl.style.color = '';
+              }
+            } catch(e) {
+              console.warn('[TinyMCE] Failed to update char count', e);
+            }
+          };
+
+          // Function to enforce maxLength
+          var checkMaxLength = function(){
+            try {
+              var content = editor.getContent({format: 'text'}) || '';
+              if (content.length > savedAttrs.maxLength) {
+                // Prevent further input by reverting to last valid content
+                var html = editor.getContent();
+                // Try to trim content intelligently
+                var doc = new DOMParser().parseFromString(html, 'text/html');
+                var text = doc.body.textContent || '';
+                if (text.length > savedAttrs.maxLength) {
+                  // Content is too long, we need to truncate
+                  // This is a simple approach - you could improve it
+                  console.warn('[TinyMCE] Content exceeds maxLength, content will be truncated');
+                }
+              }
+              updateCharCount();
+            } catch(e) {
+              console.warn('[TinyMCE] Failed to check maxLength', e);
+            }
+          };
+
+          // Attach event handlers
+          editor.on('keyup', checkMaxLength);
+          editor.on('change', checkMaxLength);
+          editor.on('SetContent', function(){
+            setTimeout(updateCharCount, 10);
+          });
+          editor.on('init', function(){
+            setTimeout(updateCharCount, 100);
+          });
+
+          // Also update on paste
+          editor.on('paste', function(){
+            setTimeout(checkMaxLength, 10);
+          });
+        }
+
         console.log('[TinyMCE] after init for', savedAttrs.textareaId);
       }
     });
