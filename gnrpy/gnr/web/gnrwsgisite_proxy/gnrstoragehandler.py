@@ -663,14 +663,16 @@ class NewStorageNode:
 
         For local storages, this returns the resolved absolute filesystem path.
         For remote storages (S3, etc.), this returns the relative path within the storage.
+
+        Uses genro-storage's public resolved_path API (genro-storage >= 0.5.1).
+        See: https://github.com/genropy/genro-storage/issues/59
         """
-        # Try to get the resolved filesystem path from the backend
-        if hasattr(self._brick_node, '_backend') and hasattr(self._brick_node._backend, '_resolve_path'):
-            try:
-                return self._brick_node._backend._resolve_path(self._brick_node._path)
-            except:
-                pass
-        # Fallback to relative path
+        # Use public API for resolved path (genro-storage >= 0.5.1)
+        resolved = self._brick_node.resolved_path
+        if resolved is not None:
+            return resolved
+
+        # Fallback to relative path for remote storages
         return self._brick_node.path
 
     def base64(self, mime=None):
@@ -792,6 +794,9 @@ class NewStorageNode:
 
         nocache = kwargs.pop('nocache', None)
         if nocache:
+            # Check exists before accessing mtime (genro-storage design pattern)
+            # mtime raises FileNotFoundError for non-existent files
+            # See: https://github.com/genropy/genro-storage/issues/58
             if self._brick_node.exists:
                 mtime = self._brick_node.mtime
             else:
@@ -987,6 +992,9 @@ class LegacyStorageServiceAdapter:
         path = '/'.join(str(arg) for arg in args)
         fullpath = f'{self.service_name}:{path}'
         node = self.handler.storageNode(fullpath)
+        # Check exists before accessing mtime (genro-storage design pattern)
+        # mtime raises FileNotFoundError for non-existent files
+        # See: https://github.com/genropy/genro-storage/issues/58
         if not node or not node.exists:
             return 0
         return node.mtime
@@ -1353,6 +1361,11 @@ class NewStorageHandler(BaseStorageHandler):
             elif implementation == 'raw':
                 # Raw storage uses absolute filesystem paths
                 mount_config['path'] = '/'
+
+            # Add base_url for URL generation (genro-storage >= 0.5.1)
+            # See: https://github.com/genropy/genro-storage/issues/55
+            if 'base_url' in params:
+                mount_config['base_url'] = params['base_url']
 
         elif storage_type == 's3':
             # S3-specific parameters
