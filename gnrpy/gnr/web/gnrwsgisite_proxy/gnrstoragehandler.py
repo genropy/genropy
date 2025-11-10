@@ -875,6 +875,77 @@ class NewStorageNode:
         # Use internal_url() which already handles nocache and other kwargs
         return self.internal_url(**kwargs)
 
+    def serve(self, environ, start_response, **kwargs):
+        """Serve the file content via WSGI.
+
+        This method handles HTTP file serving with support for:
+        - ETags for caching
+        - Download/attachment mode
+        - Cache control headers
+
+        Args:
+            environ: WSGI environment dict
+            start_response: WSGI start_response callable
+            **kwargs: Additional options:
+                download: If True, serve as download
+                download_name: Custom filename for download
+                file: Ignored (legacy compatibility)
+
+        Returns:
+            WSGI response iterable
+        """
+        from paste import fileapp
+        from paste.httpheaders import ETAG
+
+        # Remove 'file' kwarg if present (legacy compatibility)
+        kwargs.pop('file', None)
+
+        # Check if file exists
+        if not self.exists:
+            # Return 404
+            start_response('404 Not Found', [('Content-Type', 'text/plain')])
+            return [b'File not found']
+
+        # Get internal path for FileApp
+        fullpath = self.internal_path
+        if not fullpath:
+            start_response('404 Not Found', [('Content-Type', 'text/plain')])
+            return [b'File not found']
+
+        # Handle ETag for caching
+        if_none_match = environ.get('HTTP_IF_NONE_MATCH')
+        if if_none_match:
+            if_none_match = if_none_match.replace('"', '')
+            try:
+                mytime = self.mtime
+                size = self.size
+                my_none_match = f"{mytime}-{size}"
+                if my_none_match == if_none_match:
+                    headers = []
+                    ETAG.update(headers, my_none_match)
+                    start_response('304 Not Modified', headers)
+                    return [b'']  # empty body
+            except:
+                pass  # If mtime/size fail, continue without ETag
+
+        # Handle download mode
+        file_args = {}
+        download = kwargs.get('download', False)
+        download_name = kwargs.get('download_name')
+        if download or download_name:
+            import os
+            download_name = download_name or os.path.basename(fullpath)
+            file_args['content_disposition'] = f"attachment; filename={download_name}"
+
+        # Use FileApp to serve the file
+        file_responder = fileapp.FileApp(fullpath, **file_args)
+
+        # Add cache control if configured
+        if hasattr(self.parent, 'cache_max_age') and self.parent.cache_max_age:
+            file_responder.cache_control(max_age=self.parent.cache_max_age)
+
+        return file_responder(environ, start_response)
+
 
 class LegacyStorageServiceAdapter:
     """Minimal adapter service that delegates to storageNode().
