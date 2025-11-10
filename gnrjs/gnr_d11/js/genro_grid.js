@@ -69,7 +69,7 @@ gnr.columnsFromStruct = function(struct, columns) {
             fld = fld+'_'+node.attr.group_aggr.toLowerCase().replace(/\W/g, '_');
         }
         if(node.attr.template_columns || node.attr.rowTemplate){
-            let template_columns = node.attr.template_columns?node.attr.template_columns.split(','):node.attr.rowTemplate.match(/\$[a-zA-Z_]+/g);
+            let template_columns = node.attr.template_columns?node.attr.template_columns.split(','):node.attr.rowTemplate.match(/\$[a-zA-Z_0-9]+/g);
             template_columns.forEach(function(n){
                 arrayPushNoDup(columns,(n[0]=='$' || n[0]=='@')?n:'$'+n);
             });
@@ -82,6 +82,11 @@ gnr.columnsFromStruct = function(struct, columns) {
                 var caption_field = node.attr.caption_field;
                 caption_field = (stringStartsWith(caption_field, '$') || stringStartsWith(caption_field, '@'))?caption_field:'$'+caption_field;
                 arrayPushNoDup(columns,caption_field);
+            }
+            if(node.attr.required_columns){
+                for(let col of node.attr.required_columns.split(',')){
+                    arrayPushNoDup(columns,col);
+                }
             }
             if(node.attr['_joiner_storename']){
                 //_extname considerare
@@ -800,6 +805,12 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         sourceNode.registerSubscription(nodeId + '_reload', widget, function(keep_selection) {
             this.reload(keep_selection !== false);
         });
+        if(genro.isDeveloper && sourceNode.attr.table){
+            sourceNode.registerSubscription(nodeId + '_touchSelection', widget, function(keep_selection) {
+                this.touchSelectedRows();
+            });
+        }
+        
         sourceNode.registerSubscription(nodeId + '_serverAction',widget,function(kw){
             if(this.serverAction){
                 this.serverAction(kw);
@@ -1242,11 +1253,15 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         return this.storebag().getNodeByAttr(this.rowIdentifier(),pkey);
     },
     mixin_updateShowCount:function(cnt){
-        let pane = this.getRootPane();
+        let pane = this.getTitleCounterPane();
         if(pane && pane.attr.title && pane.attr.titleCounter){
             pane.widget.setTitle(`${pane.attr.title} (${cnt})`);
         }
     },
+    mixin_getTitleCounterPane:function(){
+        return this.sourceNode.attr.counterChannel?this.sourceNode.attributeOwnerNode('titleCounter',this.sourceNode.attr.counterChannel):this.getRootPane();
+    },
+
     mixin_getRootPane:function(){
         let rootPaneNodeId = this.sourceNode.getAttributeFromDatasource('rootPaneNodeId');
         if (!rootPaneNodeId){
@@ -1969,7 +1984,8 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                         row.push(cell);
                         cellmap[cell.field] = cell;
                         if(cell.sort){
-                            cellsort.push(`${cell.field_getter}:${cell.sort}`);
+                            let field_sorter = cell.field_sorter || cell.field_getter
+                            cellsort.push(`${field_sorter}:${cell.sort}`);
                         }
                     },'static');
                     rows.push(row);
@@ -2555,7 +2571,7 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
             var c;
             for(var k in this.grid.cellmap){
                 c = this.grid.cellmap[k];
-                formats[c.field] = c._formats;
+                formats[c.field] = {...c._formats};
             }
             return dataTemplate(this.rowTemplate,new gnr.GnrBag(rowdata),null,null,{formats:formats});
         }else{
@@ -3183,6 +3199,10 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
            //    this.prevFilterValue = null;
            //}
         }
+    },
+
+    mixin_touchSelectedRows:function() {
+        genro.serverCall('app.touchGridSelectedRows',{table:this.sourceNode.attr.table,pkeys:this.getSelectedPkeys()},function(){});
     },
 
     mixin_reload:function(keep_selection) {
@@ -4633,7 +4653,8 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
             order = 'a';
         }
         var cell = this.layout.cells[sortInfo - 1];
-        var sortedBy = cell.field_getter + ':' + order;
+        let field_sorter = cell.field_sorter || cell.field_getter;
+        var sortedBy = field_sorter+ ':' + order;
         this.sourceNode.publish('setSortedBy',sortedBy);
         if ('sortedBy' in this.sourceNode.attr){
             var sortpath = this.sourceNode.attr['sortedBy'];

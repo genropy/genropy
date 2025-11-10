@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 
 """Context tester"""
-from __future__ import print_function
-
 
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method

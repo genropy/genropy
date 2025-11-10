@@ -29,8 +29,9 @@ import _thread
 import locale
 from time import time
 from multiprocessing.pool import ThreadPool
-
+from functools import wraps
 from gnr.sql import logger
+from gnr.sql import sqlauditlogger
 from gnr.core.gnrstring import boolean
 from gnr.core.gnrlang import getUuid
 from gnr.core.gnrlang import GnrObject
@@ -59,6 +60,29 @@ def in_triggerstack(func):
         return result
         
     return decore
+
+def sql_audit(func):
+    """
+    Decorator to add a `sql_comment` parameter to the SQL methods.
+    Combines user info, caller info, and any existing sql_comment.
+    """
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        # Access the self instance
+        self_instance = args[0]
+        sql = args[1]
+        # Get caller info and user info
+        sql_details = self_instance.currentEnv.get("sql_details", {})
+        start_time = time()
+        result = func(*args, **kwargs)
+        end_time = time()
+        sql_details['time'] = end_time-start_time
+        getattr(sqlauditlogger, sql.split(" ")[0])(sql, extra=sql_details)
+        return result
+        
+    
+    return wrapper
+
 
 class GnrSqlException(GnrException):
     """Standard Gnr Sql Base Exception
@@ -96,7 +120,10 @@ class GnrSqlDb(GnrObject):
     * manage operations on db at high level, hiding adapter's layer and connections.
     """
     rootstore = '_main_db'
-    
+
+    # deferred queues ids
+    QUEUE_DEFER_TO_COMMIT = "to_commit_defer_calls"
+    QUEUE_DEFER_AFTER_COMMIT = "after_commit_defer_calls"
     
     def __init__(self, implementation='sqlite', dbname='mydb',
                  host=None, user=None, password=None, port=None,
@@ -120,6 +147,7 @@ class GnrSqlDb(GnrObject):
         self._connections = {}
         self.adapters = {}
         self.dbname = self.dbpar(dbname)
+        self.dbbranch = self.dbpar(kwargs.get("dbbranch", "production"))
         self.host = self.dbpar(host)
         self.port = self.dbpar(str(port) if port else None)
         self.user = self.dbpar(user)
@@ -130,7 +158,14 @@ class GnrSqlDb(GnrObject):
         self.debugger = debugger
         self.application = application
         self.model = self.createModel()
-        self.adapters[implementation] = importModule(f'gnr.sql.adapters.gnr{self.implementation}').SqlDbAdapter(self)
+
+        if ':' in self.implementation:
+            self.implementation, adapter_module = self.implementation.split(':')
+        else:
+            adapter_module = f'gnr.sql.adapters.gnr{self.implementation}'
+            
+        self.adapters[self.implementation] = importModule(adapter_module).SqlDbAdapter(self)
+        
         if main_schema is None:
             main_schema = self.adapter.defaultMainSchema()
         self.main_schema = main_schema
@@ -470,15 +505,21 @@ class GnrSqlDb(GnrObject):
     connection = property(_get_connection)
             
     def get_connection_params(self, storename=None):
+        
         if storename and storename != self.rootstore and storename in self.dbstores:
             storeattr = self.dbstores[storename]
-            return dict(host=storeattr.get('host'),database=storeattr.get('database') or storeattr.get('dbname'),
-                        user=storeattr.get('user'),password=storeattr.get('password'),
+            return dict(host=storeattr.get('host'),
+                        database=storeattr.get('database') or storeattr.get('dbname'),
+                        dbbranch=storeattr.get('dbbranch', None),
+                        user=storeattr.get('user'), password=storeattr.get('password'),
                         port=storeattr.get('port'),
                         implementation=storeattr.get('implementation') or self.implementation)
         else:
-            return dict(host=self.host, database=self.dbname if not storename or storename=='_main_db' else storename, user=self.user, password=self.password, port=self.port)
+            return dict(host=self.host,
+                        database=self.dbname if not storename or storename=='_main_db' else storename,
+                        user=self.user, password=self.password, port=self.port)
     
+    @sql_audit
     def execute(self, sql, sqlargs=None, cursor=None, cursorname=None, 
                 autocommit=False, dbtable=None,storename=None,_adaptArguments=True):
         """Execute the sql statement using given kwargs. Return the sql cursor
@@ -505,6 +546,9 @@ class GnrSqlDb(GnrObject):
         storename = storename or envargs.get('env_storename', self.rootstore)
         sqlargs = envargs
         sql_comment = self.currentEnv.get('sql_comment') or self.currentEnv.get('user')
+        #sql_details = self.currentEnv.get("sql_details", {})
+        #getattr(sqlauditlogger, sql.split(" ")[0])(sql, extra=sql_details)
+        
         for k,v in list(sqlargs.items()):
             if isinstance(v,bytes):
                 v=v.decode('utf-8')
@@ -579,8 +623,7 @@ class GnrSqlDb(GnrObject):
             if evt in loggable_events:
                 tblobj.onLogChange(evt,record,old_record=old_record)
                 self.table(self.changeLogTable).logChange(tblobj,evt=evt,record=record)
-        
-
+                
     @in_triggerstack
     def insert(self, tblobj, record, **kwargs):
         """Insert a record in a :ref:`table`
@@ -639,7 +682,7 @@ class GnrSqlDb(GnrObject):
             tblobj.dbo_onUpdating(record,old_record=old_record,pkey=pkey,**kwargs)
 
         tblobj.trigger_assignCounters(record=record,old_record=old_record)
-        self.adapter.update(tblobj, record, pkey=pkey,**kwargs)
+        self.adapter.update(tblobj, record, pkey=pkey,old_record=old_record,**kwargs)
         tblobj.updateRelated(record,old_record=old_record)
         self._onDbChange(tblobj,'U',record=record,old_record=old_record,**kwargs)
         tblobj._doFieldTriggers('onUpdated', record, old_record=old_record)
@@ -681,17 +724,30 @@ class GnrSqlDb(GnrObject):
             if not connections:
                 break
             connection = connections[0]
-            with self.tempEnv(storename=connection.storename,onCommittingStep=True):
-                self.onCommitting()
+            # invoke deferred callables just before commit
+            # added via deferToCommit
+            with self.tempEnv(storename=connection.storename, onCommittingStep=True):
+                self._invoke_deferred_cbs(self.QUEUE_DEFER_TO_COMMIT)
+                
             pending_exceptions = self.currentEnv.get('_pendingExceptions')
+            
             if pending_exceptions:
                 raise  GnrException('\n'.join([str(exception) for exception in pending_exceptions]))
             connection.commit()
             connection.committed = True
+            # invoke deferred callables after the commit
+            # added via deferAfterCommit
+            with self.tempEnv(storename=connection.storename, onCommittingStep=True):
+                self._invoke_deferred_cbs(self.QUEUE_DEFER_AFTER_COMMIT)
+                
         self.onDbCommitted()
 
-    def onCommitting(self):
-        deferreds_blocks = self.currentEnv.setdefault('deferredCalls_%s' %self.connectionKey(),Bag()) 
+    def _invoke_deferred_cbs(self, queue):
+        """
+        Execute deferred callables inside `queue`
+        """
+        queue_name = f"{queue}_{self.connectionKey()}"
+        deferreds_blocks = self.currentEnv.setdefault(queue_name, Bag())
         while deferreds_blocks:
             deferreds_blocks.sort()
             block = deferreds_blocks['#0']
@@ -709,10 +765,28 @@ class GnrSqlDb(GnrObject):
 
     def deferredRaise(self,exception):
         self.currentEnv.setdefault('_pendingExceptions',[]).append(exception)
+        
+    def deferToCommit(self, cb, *args, **kwargs):
+        """
+        Add a callable in the DEFER_TO_COMMIT queue, executed
+        just before the database connection commit
+        """
+        return self.deferCallable(self.QUEUE_DEFER_TO_COMMIT, cb, *args, **kwargs)
 
-    def deferToCommit(self,cb,*args,**kwargs):
+    def deferAfterCommit(self, cb, *args, **kwargs):
+        """
+        Add a callable in the DEFER_AFTER_COMMIT queue, executed
+        just after the database connection commit
+        """
+        return self.deferCallable(self.QUEUE_DEFER_AFTER_COMMIT, cb, *args, **kwargs)
+    
+    def deferCallable(self, queue, cb, *args, **kwargs):
+        """
+        Add a callable in the selected `queue`
+        """
         deferredBlock = kwargs.pop('_deferredBlock',None) or '_base_'
-        deferreds_blocks = self.currentEnv.setdefault('deferredCalls_%s' %self.connectionKey(),Bag())
+        queue_name = f"{queue}_{self.connectionKey()}"
+        deferreds_blocks = self.currentEnv.setdefault(queue_name, Bag())
         if deferredBlock not in deferreds_blocks:
             deferreds_blocks[deferredBlock] = Bag()
         deferreds = deferreds_blocks[deferredBlock]
@@ -726,7 +800,6 @@ class GnrSqlDb(GnrObject):
         else:
             cb,args,deferkw = deferreds[deferredKey]
         return deferkw
-        
 
     def systemDbEvent(self):
         return self.currentEnv.get('_systemDbEvent',False)
@@ -874,7 +947,25 @@ class GnrSqlDb(GnrObject):
             if len(result[pkg]) == 0:
                 result.pop(pkg)
         return result
-            
+    
+    @property
+    def tables(self):
+        for pkgobj in self.packages.values():
+            for tblobj in pkgobj.tables.values():
+                yield tblobj.dbtable
+
+    def filteredTables(self,filterStr=None):
+        regex_pattern = None
+        if filterStr is not None:
+            patterns = filterStr.split(',')
+            regex_pattern = rf"^({'|'.join(re.escape(p) for p in patterns)})(\.|$)"
+        for tblobj in self.tables:
+            if regex_pattern is None or bool(re.match(regex_pattern, tblobj.fullname)):
+                yield tblobj
+
+
+
+
     def table(self, tblname, pkg=None):
         """Return a table object
         

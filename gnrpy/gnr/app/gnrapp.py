@@ -46,6 +46,7 @@ from gnr.core.gnrlang import  objectExtract,gnrImport, instanceMixin, GnrExcepti
 from gnr.core.gnrstring import makeSet, toText, splitAndStrip, like, boolean
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrconfig import getGnrConfig
+from gnr.core import gnrlog
 from gnr.utils import ssmtplib
 from gnr.app.gnrdeploy import PathResolver
 from gnr.app import logger
@@ -366,7 +367,8 @@ class GnrPackagePlugin(object):
         
 class GnrPackage(object):
     """TODO"""
-    def __init__(self, pkg_id, application, path=None, filename=None, project=None,**pkgattrs):
+    def __init__(self, pkg_id, application,
+                 path=None, filename=None, project=None, **pkgattrs):
         self.id = pkg_id
         filename = filename or pkg_id
         self.application = application
@@ -375,7 +377,6 @@ class GnrPackage(object):
         # for path, which is the default value of the method
         # parameter, and no checks are being made on it.
         self.packageFolder = os.path.join(path, filename)
-        
         self.libPath = os.path.join(self.packageFolder, 'lib')
         sys.path.append(self.libPath)
         self.attributes = {}
@@ -404,7 +405,7 @@ class GnrPackage(object):
         except Exception as e:
             logger.exception(e)
             raise GnrImportException(
-                    "Cannot import package %s from %s" % (pkg_id, os.path.join(self.packageFolder, 'main.py')))    
+                    "Cannot import package %s from %s: %s" % (pkg_id, os.path.join(self.packageFolder, 'main.py'), str(e)))
         self.pkgMixin = GnrMixinObj()
         instanceMixin(self.pkgMixin, getattr(self.main_module, 'Package', None))
         
@@ -623,8 +624,9 @@ class GnrApp(object):
     >>> testgarden = GnrApp('testgarden')
     >>> testgarden.db.table('showcase.person').query().count()
     12"""
-    def __init__(self, instanceFolder=None,custom_config=None, forTesting=False, 
-                debug=False, restorepath=None,enabled_packages=None,**kwargs):
+    def __init__(self, instanceFolder=None, custom_config=None,
+                 forTesting=False, debug=False, restorepath=None,
+                 enabled_packages=None, **kwargs):
         self.aux_instances = {}
         self.gnr_config = getGnrConfig(set_environment=True)
         self.debug=debug
@@ -634,8 +636,14 @@ class GnrApp(object):
         self.project_packages_path = None
         self.enabled_packages = enabled_packages
         if instanceFolder:
-            if '@' in instanceFolder:
-                instanceFolder,self.remote_db  = instanceFolder.split('@',1)
+            if ":" in instanceFolder:
+                if sys.platform == 'win32':
+                    if instanceFolder.count(':') > 1:
+                        _s = instanceFolder.split(":")
+                        instanceFolder = ":".join(_s[:2])
+                        self.remote_db = _s[-1]
+                else:
+                    instanceFolder,self.remote_db  = instanceFolder.split(':',1)
             self.instanceFolder = self.instance_name_to_path(instanceFolder)
             self.instanceName = os.path.basename(self.instanceFolder)
             project_packages_path = os.path.normpath(os.path.join(self.instanceFolder, '..', '..', 'packages'))
@@ -644,6 +652,8 @@ class GnrApp(object):
             if os.path.exists(os.path.join(self.instanceFolder,'config','instanceconfig.xml')):
                 self.instanceFolder = os.path.join(self.instanceFolder,'config')
 
+            self.load_logging_conf()
+            
         sys.meta_path.insert(0,self.get_modulefinder())
         self.pluginFolder = os.path.normpath(os.path.join(self.instanceFolder, 'plugin'))
         self.kwargs = kwargs
@@ -662,14 +672,16 @@ class GnrApp(object):
         if custom_config:
             self.config.update(custom_config)
         if self.remote_db:
-            remote_db_node = self.config.getNode('remote_db.%s' %self.remote_db)
-            remotedbattr = remote_db_node.attr
-            if remotedbattr and 'ssh_host' in remotedbattr:
-                db_node = self.config.getNode('db')
-                sshattr = dict(db_node.attr)
-                sshattr.update(remotedbattr)
-                sshattr['forwarded_port'] = sshattr.pop('port',None)
-                db_node.attr['port'] = self.gnrdaemon.sshtunnel_port(**sshattr)
+            remote_db_node = self.config.getNode(f'remote_db.{self.remote_db}')
+            if remote_db_node:
+                remotedbattr = remote_db_node.attr
+                if remotedbattr:
+                    db_node = self.config.getNode('db')
+                    if 'ssh_host' in remotedbattr:
+                        sshattr = dict(db_node.attr)
+                        sshattr.update(remotedbattr)
+                        sshattr['forwarded_port'] = sshattr.pop('port',None)
+                        db_node.attr['port'] = self.gnrdaemon.sshtunnel_port(**sshattr)
         if 'menu' not in self.config:
             self.config['menu'] = Bag()
             #------ application instance customization-------
@@ -686,7 +698,26 @@ class GnrApp(object):
     def get_modulefinder(self):
         """TODO"""
         return GnrModuleFinder(self)
-        
+
+    def save_logging_conf(self, conf_bag, apply=False):
+        logger.debug("Saving new logging configuration")
+        log_conf = os.path.join(self.instanceFolder, "logging.xml")
+        with open(log_conf, "w") as wfp:
+            wfp.write(conf_bag.toXml())
+        if apply:
+            gnrlog.apply_dynamic_conf(conf_bag)
+    
+    def load_logging_conf(self):
+        logger.debug("Loading logging configuration")
+        log_conf = os.path.join(self.instanceFolder, "logging.xml")
+        if os.path.isfile(log_conf):
+            try:
+                c = Bag(log_conf)
+                gnrlog.apply_dynamic_conf(c)
+                logger.debug("Logging configuration loaded")
+            except:
+                logger.exception("Logging configuration error")
+                
     def load_instance_config(self):
         """TODO"""
         if not self.instanceFolder:
@@ -708,7 +739,14 @@ class GnrApp(object):
         instance_config = normalizePackages(self.gnr_config['gnr.instanceconfig.default_xml']) or Bag()
         template = base_instance_config['instance?template']
         if template:
-            instance_config.update(normalizePackages(self.gnr_config['gnr.instanceconfig.%s_xml' % template]) or Bag())
+            template_update = self.gnr_config['gnr.instanceconfig.%s_xml' % template]
+            if template_update:
+                instance_config.update(normalizePackages(template_update) or Bag())
+            else:
+                template_config_path = os.path.join(self.instance_name_to_path(template),'config','instanceconfig.xml')
+                if os.path.exists(template_config_path):
+                    instance_config.update(normalizePackages(Bag(template_config_path)) or Bag())
+
         if 'instances' in self.gnr_config['gnr.environment_xml']:
             for path, instance_template in self.gnr_config.digest(
                     'gnr.environment_xml.instances:#a.path,#a.instance_template') or []:
@@ -729,21 +767,30 @@ class GnrApp(object):
         self.catalog = GnrClassCatalog()
         self.localization = {}
 
-        for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
-            self.addPackage(pkgid,pkgattrs=pkgattrs,pkgcontent=pkgcontent)
-
         # check for packages python dependencies
         self.check_package_dependencies()
         if 'checkdepcli' in self.kwargs:
             return
+
+        # load the packages
+        for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
+            self.addPackage(pkgid,pkgattrs=pkgattrs,pkgcontent=pkgcontent)
+
         
         if not forTesting:
-            dbattrs = self.config.getAttr('db') or {}
+            dbattrs = dict(self.config.getAttr('db') or {}) 
             dbattrs['implementation'] = dbattrs.get('implementation') or 'sqlite'
             if dbattrs.get('dbname') == '_dummydb':
                 pass
             elif self.remote_db:
-                dbattrs.update(self.config.getAttr('remote_db.%s' %self.remote_db))
+                rdb = self.config.get(f"remote_db")#.{self.remote_db}")
+                if rdb:
+                    rconf = rdb.getAttr(self.remote_db)
+                    if rconf:
+                        logger.info("Using remote db: %s", self.remote_db)
+                        dbattrs.update(rconf)
+                    else:
+                        logger.error("Remote db %s does not exists", self.remote_db)
             elif dbattrs and dbattrs.get('implementation') == 'sqlite':
                 dbname = dbattrs.pop('filename',None) or dbattrs['dbname']
                 if not os.path.isabs(dbname):
@@ -811,14 +858,25 @@ class GnrApp(object):
     def check_package_dependencies(self):
         logger.debug("Checking python dependencies")
         instance_deps = defaultdict(list)
-        for a, p in self.packages.items():
-            requirements_file = os.path.join(p.packageFolder, "requirements.txt")
+        for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
+            if ":" in pkgid:
+                project, pkgid = pkgid.split(":")
+            else:
+                project = None
+            path = pkgattrs.get('path', None)
+            if path is None:
+                path = self.pkg_name_to_path(pkgid,project)
+            if not os.path.isabs(path):
+                path = self.realPath(path)
+
+            requirements_file = os.path.join(path, pkgid, "requirements.txt")
             if os.path.isfile(requirements_file):
                 with open(requirements_file) as fp:
                     for line in fp:
                         dep_name = line.strip()
                         if dep_name:
-                            instance_deps[dep_name].append(a)
+                            instance_deps[dep_name].append(pkgid
+                                                           )
         self.instance_packages_dependencies = instance_deps
 
         if not 'checkdepcli' in self.kwargs:
@@ -848,9 +906,23 @@ class GnrApp(object):
                     logger.error(f"ERROR on {name}: {e}")
         return missing, wrong
 
-    def check_package_install_missing(self):
+    def check_package_install_missing(self, nocache=False, upgrading=False):
+        """
+        Install missing packages, or, with upgrading=True, try to
+        upgrade the wrong version of packages.
+        """
         missing, wrong = self.check_package_missing_dependencies()
-        return subprocess.check_call([sys.executable, '-m', 'pip', 'install',]+missing)
+        if upgrading:
+            base_cmd = [sys.executable, '-m', 'pip', 'install']
+            if nocache:
+                base_cmd.append("--no-cache-dir")
+            packages = [x[0] for x in wrong]
+            return subprocess.check_call(base_cmd+packages)
+        else:
+            base_cmd = [sys.executable, '-m', 'pip', 'install']
+            if nocache:
+                base_cmd.append("--no-cache-dir")
+            return subprocess.check_call(base_cmd+missing)
         
     def importFromSourceInstance(self,source_instance=None):
         to_import = ''
@@ -953,6 +1025,13 @@ class GnrApp(object):
                 path = os.path.join(project_path,'packages')
                 if not os.path.isdir(os.path.join(path, pkgid)):
                     path=None
+                    external_project_path = os.path.join(project_path,'external_projects.xml')
+                    if os.path.exists(external_project_path):
+                        external_projects = Bag(external_project_path)
+                        package_attrs = external_projects.getAttr(pkgid) or {}
+                        external_project = package_attrs.get('project')
+                        if external_project:
+                            return self.pkg_name_to_path(pkgid,external_project)
         else:
             path = self.package_path.get(pkgid)
             
@@ -1478,6 +1557,104 @@ class GnrApp(object):
         sourcedb.closeConnection()
         logger.info('imported',tbl)
 
+    @property
+    def defaultRetentionPolicy(self):
+        """
+        Returns the default data retention policy by developers in table definitions,
+        for all packages composing the Gnr Application.
+
+        The return dict has table fullname (package.table) as keys,
+        and a dict describing the policy, which reports the
+        filter_column , the default retention_period and the computed
+        retention_period, all defined as days.
+
+        """
+        policy = {
+            table.fullname: dict(filter_column=table.defaultRetentionPolicy[0],
+                                 retention_period_default=table.defaultRetentionPolicy[1],
+                                 retention_period=table.defaultRetentionPolicy[1])
+            for table in self.db.tables if table.defaultRetentionPolicy
+            }
+
+        return policy
+    
+    @property
+    def retentionPolicy(self):
+        """
+        Retrieve the data retention policy for each table for each
+        package in the application, starting from the default policy
+        then applying eventual customizations, residing in
+        sys.datarentetion table.
+
+        """
+        policy = self.defaultRetentionPolicy
+        # query the database for overrides
+        try:
+            custom_policies_qs = self.db.table('sys.dataretention').query().fetch()
+            if custom_policies_qs:
+                for record in custom_policies_qs:
+                    policy[record['table_fullname']]['retention_period_custom'] = record['retention_period']
+                    policy[record['table_fullname']]['retention_period'] = record['retention_period']
+        except:
+            pass
+        
+        return policy
+    
+    def saveRetentionPolicy(self, policy_bag):
+        """
+        Update the retention policy based on differences from
+        the default one. Manual comparison.
+        """
+        tbl = self.db.table("sys.dataretention")
+        
+        for r in policy_bag.values():
+
+            # no custom value set, ignore
+            if not r.get("retention_period_custom", None):
+                continue
+
+            # first, we search for existing configuration
+            existing_policy =None
+            exist = tbl.query(where='$table_fullname=:table_fullname AND $filter_column=:filter_column',
+                              table_fullname=r['table_fullname'],
+                              filter_column=r['filter_column']).fetch()
+            if exist:
+                existing_policy = exist[0]
+
+
+            if r['retention_period_custom'] == r['retention_period_default']:
+                # delete if present, not necessary
+                if existing_policy:
+                    tbl.delete(existing_policy)
+            else:
+                if existing_policy:
+                    existing_policy['retention_period'] = r['retention_period_custom']
+                    tbl.update(existing_policy)
+                    
+                else:
+                    # create the custom policy
+                    tbl.insert(
+                        dict(
+                            table_fullname=r['table_fullname'],
+                            filter_column=r['filter_column'],
+                            retention_period=r['retention_period_custom']
+                        )
+                    )
+        self.db.commit()
+            
+    def executeRetentionPolicy(self, dry_run=True):
+        """
+        Execute (with dry run options) the retention
+        policy on each table having a policy defined.
+
+        Data deletion is committed for each table.
+        """
+        r = {}
+        for table, policy in self.retentionPolicy.items():
+            report = self.db.table(table).executeRetentionPolicy(policy=policy, dry_run=dry_run)
+            r[table] = report
+        return r
+    
     def getAuxInstance(self, name=None,check=False):
         """TODO
         
@@ -1494,7 +1671,7 @@ class GnrApp(object):
         instance_name = instance_node.getAttr('name') or name
         remote_db = instance_node.getAttr('remote_db')
         if remote_db:
-            instance_name = '%s@%s' %(instance_name,remote_db)
+            instance_name = '%s:%s' %(instance_name,remote_db)
         self.aux_instances[name] = self.createAuxInstance(instance_name)
         return self.aux_instances[name]
     

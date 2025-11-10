@@ -1,33 +1,21 @@
-#!/usr/bin/env pythonw
-# -*- coding: UTF-8 -*-
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 #
 #  Created by Saverio Porcari on 2013-04-06.
 #  Copyright (c) 2013 Softwell. All rights reserved.
 
 
-from gnr.core.gnrbaseservice import GnrBaseService
-from subprocess import call
 import os
+import shutil
+from subprocess import call
 
-def which(program):
-    def is_exe(fpath):
-        return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
-
-    fpath, fname = os.path.split(program)
-    if fpath:
-        if is_exe(program):
-            return program
-    else:
-        for path in os.environ["PATH"].split(os.pathsep):
-            path = path.strip('"')
-            exe_file = os.path.join(path, program)
-            if is_exe(exe_file):
-                return exe_file
-
-    return None
+from gnr.core.gnrbaseservice import GnrBaseService
 
 def whichoffice():
-    return which('swriter') or which('lowriter') or which('oowriter')
+    for executable_name in ['swriter','lowriter','oowriter']:
+        path = shutil.which(executable_name)
+        if path:
+            return path
 
 class Main(GnrBaseService):
     def __init__(self, parent=None):

@@ -28,6 +28,9 @@ class Table(object):
         tbl.formulaColumn('example_url',"'/webpages/docu_examples/'||$hierarchical_name")
         tbl.formulaColumn('available_languages', select=dict(table='docu.documentation_content', where='$documentation_id=#THIS.id',
                                         columns="STRING_AGG($language_code, ',')"), name_long='!![en]Available languages', static=True)
+        tbl.pyColumn('root_handbook_url', name_long='!!Root handbook url')
+        tbl.pyColumn('full_external_url', name_long='!!Full external url', 
+                     required_columns='$id,$child_count,$name')
         tbl.formulaColumn('is_published',"""
             CASE WHEN $publish_date IS NOT NULL THEN EXISTS(#has_published_children)
             ELSE $publish_date<=:env_workdate END
@@ -49,16 +52,52 @@ class Table(object):
             result.append(col)
         return result
 
+    def pyColumn_root_handbook_url(self, record, **kwargs):
+        """Returns the handbook_url of the closest ancestor handbook"""
+        pkey = record.get('id') or record.get('pkey')
+        if not pkey:
+            return
+        ancestors = self.db.table('docu.documentation').hierarchicalHandler.getAncestors(
+                        pkey=pkey, meToo=True,
+                        columns='$id,@handbooks.handbook_url AS handbook_url',
+                        order_by='$hlevel')
+        if not ancestors:
+            return
+        rows = ancestors.output('dictlist') if hasattr(ancestors, 'output') else ancestors
+        for ancestor in reversed(rows):
+            if ancestor.get('handbook_url'):
+                return ancestor['handbook_url']
+        return
+
+    def pyColumn_full_external_url(self, record, **kwargs):
+        """Returns the full url of the documentation page, based on the handbook_url 
+           of the closest ancestor handbook and on the hierarchical_name of the current record"""
+        return self.calculateExternalUrl(record)
+
     def atc_getAttachmentPath(self,pkey):
         return f'documentation:attachments/{pkey}'
 
+    def defaultValues(self):
+        if self.db.currentEnv.get('firstname') and self.db.currentEnv.get('lastname'):
+            author_name = self.db.currentEnv.get('firstname') + ' ' + self.db.currentEnv.get('lastname')
+            return dict(author=author_name)
+        else:
+            return dict()
+        
     def trigger_onUpdating(self,record,old_record):
         record['sourcebag'] = record['sourcebag'] or None
         if record['sourcebag']:
             record['sourcebag'] = Bag(record['sourcebag'])
             for v in list(record['sourcebag'].values()):
                 v['url'] = '/webpages/docu_examples/%s/%s.py' %(record['hierarchical_name'],v['version'])
-
+    
+    def trigger_onUpdated(self,record,old_record):
+        if record['hierarchical_name'] != old_record['hierarchical_name']:
+            self.updateLink(record, old_record)
+            if record['sourcebag'] and record['sourcebag']==old_record['sourcebag']:
+                self.tutorialRecordNode(old_record).move(self.tutorialRecordNode(record))
+        if record['sourcebag'] != old_record['sourcebag']:
+            self.writeModulesFromSourceBag(record)
 
     def updateLink(self, record, old_record):
         old_link = '&lt;%s/%s&gt;' %(self.pkg.htmlProcessorName(),old_record['hierarchical_name'])
@@ -69,22 +108,7 @@ class Table(object):
         
         self.batchUpdate(cb,where='$docbag ILIKE :old_link_query OR $docbag ILIKE :old_link_query',
                             old_link_query='%%%s%%',_raw_update=True,bagFields=True)
-
-    def trigger_onUpdated(self,record,old_record):
-        if record['hierarchical_name'] != old_record['hierarchical_name']:
-            self.updateLink(record, old_record)
-            if record['sourcebag'] and record['sourcebag']==old_record['sourcebag']:
-                self.tutorialRecordNode(old_record).move(self.tutorialRecordNode(record))
-        if record['sourcebag'] != old_record['sourcebag']:
-            self.writeModulesFromSourceBag(record)
-
-    def defaultValues(self):
-        if self.db.currentEnv.get('firstname') and self.db.currentEnv.get('lastname'):
-            author_name = self.db.currentEnv.get('firstname') + ' ' + self.db.currentEnv.get('lastname')
-            return dict(author=author_name)
-        else:
-            return dict()
-
+    
     def tutorialRecordNode(self,record):
         return self.db.application.site.storageNode('site:webpages','docu_examples',record['hierarchical_name'])
 
@@ -98,6 +122,7 @@ class Table(object):
             for source_version in record['sourcebag'].values():
                 with tutorial_record_node.child('%(version)s.py' %source_version).open('w') as f:
                     f.write(source_version['source'])
+
 
     @public_method
     def checkSourceBagModules(self,record=None,**kwargs):

@@ -1,24 +1,21 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
+import datetime
 import sys
 import os
 import glob
+import zipfile
+import json
 
 from gnr.db import logger
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrconfig import getGnrConfig
 from gnr.core.cli import GnrCliArgParse
+from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrApp
 from gnr.sql.gnrsqlmigration import SqlMigrator
 from gnr.sql import AdapterCapabilities
-
-
-S_GNRHOME = os.path.split(os.environ.get('GNRHOME', '/usr/local/genro'))
-GNRHOME = os.path.join(*S_GNRHOME)
-S_GNRINSTANCES = (os.environ.get('GNRINSTANCES') and os.path.split(os.environ.get('GNRINSTANCES'))) or (
-S_GNRHOME + ('data', 'instances'))
-GNRINSTANCES = os.path.join(*S_GNRINSTANCES)
 
 description = "create/update/check database models in Genro framework NG"
 
@@ -39,6 +36,7 @@ def site_name_to_path(gnr_config, site_name):
                 return site_path
         raise Exception(
                 'Error: no site named %s found' % site_name)
+
 
 def instance_name_to_path(gnr_config, instance_name):
     path_list = []
@@ -66,14 +64,15 @@ def get_app(options):
             return GnrApp(instance_path, debug=options.debug)
         else:
             raise Exception("No valid instance provided")
-        
+
     if hasattr(options, 'config_path') and options.config_path:
         config_path = options.config_path
     else:
         config_path = None
-        
+
     gnr_config = getGnrConfig(config_path=config_path, set_environment=True)
     instance_name = options.instance
+
     if instance_name:
         if '.' in instance_name:
             instance_name, storename = instance_name.split('.')
@@ -82,16 +81,58 @@ def get_app(options):
             return GnrApp(instance_path, debug=options.debug), storename
         else:
             raise Exception("No valid instance provided")
+
     if options.site:
         site_path = site_name_to_path(gnr_config, options.site)
         if not site_path:
-            site_path = os.path.join(gnr_config['gnr.environment_xml.sites?path'] or '', options.site)
+            site_path = os.path.join(gnr_config['gnr.environment_xml.sites?path'] or '',
+                                     options.site)
         instance_path = os.path.join(site_path, 'instance')
         if os.path.isfile(os.path.join(instance_path, 'instanceconfig.xml')):
-            return GnrApp(instance_path,debug=options.debug), storename
+            return GnrApp(instance_path, debug=options.debug), storename
         else:
             raise "No valid instance provided"
     return GnrApp(os.getcwd()), storename
+
+
+def inspect(migrator, options):
+    # dump the information from the migrator, and generates a zip file
+    # useful for inspection/debug
+    logger.info("Creating migration inspection archive")
+    now = datetime.datetime.now().strftime("%Y%m%d%H%M")
+    dump_files = []
+
+    to_dump = [
+        ("db_struct", migrator.sqlStructure),
+        ("orm_struct", migrator.ormStructure),
+        ("changes", migrator.getChanges)
+    ]
+
+    for dump_item in to_dump:
+        filename = f"{options.instance}_{dump_item[0]}_{now}.json"
+        with open(filename, "w") as wfp:
+            if callable(dump_item[1]):
+                wfp.write(json.dumps(dump_item[1]()))
+            else:
+                wfp.write(json.dumps(dump_item[1]))
+        dump_files.append(filename)
+    orig_db_dump = f"{options.instance}_cur_db_struct_{now}"
+    dump_files.append(migrator.db.dump(orig_db_dump,
+                                       options=Bag(plain_text=True,
+                                                   schema_only=True)
+                                       )
+                      )
+    zip_name = f"{options.instance}_migrate_inspection_{now}.zip"
+    with zipfile.ZipFile(zip_name, "w") as zipf:
+        for filename in dump_files:
+            zipf.write(filename)
+            logger.info("Added %s to inspection archive", filename)
+
+    # Remove temporary files after successful zip creation
+    for filename in dump_files:
+        os.remove(filename)
+        logger.debug("Removed temp file %s", filename)
+    print(f"Inspection archive {zip_name} created.")
 
 
 def check_db(migrator, options):
@@ -100,7 +141,7 @@ def check_db(migrator, options):
     logger.info(f'DB {dbname}')
     if options.rebuild_relations or options.remove_relations_only:
         logger.info('Removing all relations')
-        migrator.db.model.enableForeignKeys(enable=False) 
+        migrator.db.model.enableForeignKeys(enable=False)
         logger.info('Removed')
     if options.remove_relations_only:
         return
@@ -114,73 +155,65 @@ def check_db(migrator, options):
         logger.info('STRUCTURE OK')
     return changes
 
+
 def import_db(filepath, options):
     app = get_app(options)
     app.db.importXmlData(filepath)
     app.db.commit()
 
+
 def main():
     parser = GnrCliArgParse(description=description)
-    
     parser.add_argument('-c', '--check',
                         dest='check',
                         action='store_true',
                         help="Check only, don't apply changes")
-    
     parser.add_argument('-u', '--upgrade',
                         dest='upgrade',
                         action='store_true',
                         help="Execute upgrade")
-    
     parser.add_argument('-U', '--upgrade_only',
                         dest='upgrade_only',
                         action='store_true',
                         help="Execute only upgrade")
-    
     parser.add_argument('-v', '--verbose',
                         dest='verbose',
                         action='store_true',
                         help="Verbose mode")
-    
     parser.add_argument('-r', '--rebuild_relations',
                         dest='rebuild_relations',
                         action='store_true',
                         help="Rebuild relations")
-    
     parser.add_argument('-x', '--remove_relations_only',
                         dest='remove_relations_only',
                         action='store_true',
                         help="Remove relations")
-    
+    parser.add_argument('--inspect',
+                        dest='inspect',
+                        action='store_true',
+                        help='Create a dump file for inspection')
     parser.add_argument('-i', '--instance',
                         dest='instance',
-                        help="Use command on instance identified by supplied name")
-    
-    parser.add_argument("instance", nargs="?")
-    
+                        help="Use command on instance")
+    parser.add_argument("instance")
     parser.add_argument('-D', '--directory',
                         dest='directory',
-                        help="Use command on instance identified by supplied directory (overrides -i)")
-    
+                        help="Use command on supplied directory")
     parser.add_argument('-s', '--site',
                         dest='site',
-                        help="Use command on instance identified by supplied site")
-    
+                        help="Use command on supplied site")
     parser.add_argument('-I', '--import',
                         dest='import_file',
                         help="Import specified XML file")
-    
     parser.add_argument('--config',
                         dest='config_path',
                         help="gnrserve file path")
 
-    
     parser.set_defaults(loglevel="info")
     options = parser.parse_args()
-    
     app, storename = get_app(options)
     if not app.db.adapter.has_capability(AdapterCapabilities.MIGRATIONS):
-        logger.error(f"The instance '{options.instance}' is using a database adapter which doesn't support migrations")
+        logger.error(f"Instance '{options.instance}' adapter doesn't support migrations")
         sys.exit(1)
 
     errordb = []
@@ -198,14 +231,18 @@ def main():
             app.db.closeConnection()
             continue
         extensions = app.db.application.config['db?extensions']
-        migrator = SqlMigrator(app.db,extensions=extensions,
-                               ignore_constraint_name=True,excludeReadOnly=True,
+        migrator = SqlMigrator(app.db, extensions=extensions,
+                               ignore_constraint_name=True,
+                               excludeReadOnly=True,
                                removeDisabled=True)
         migrator.prepareMigrationCommands()
         if options.check:
             check_db(migrator, options)
         elif options.import_file:
             import_db(options.import_file, options)
+        elif options.inspect:
+
+            inspect(migrator, options)
         else:
             changes = check_db(migrator, options)
             if changes:
@@ -220,6 +257,7 @@ def main():
         app.db.closeConnection()
     if errordb:
         logger.error(f'db: {errordb}')
-        
+
+
 if __name__ == '__main__':
     main()

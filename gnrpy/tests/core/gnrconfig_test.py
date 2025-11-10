@@ -3,7 +3,7 @@ Tests for gnr.core.gnrconfig package
 """
 import pytest
 import gnr.core.gnrconfig as gnrc
-from common import BaseGnrTest
+from .common import BaseGnrTest
 
 class TestGnrConfig(BaseGnrTest):
     """

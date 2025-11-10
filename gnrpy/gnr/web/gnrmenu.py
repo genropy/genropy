@@ -57,7 +57,7 @@ class MenuStruct(GnrStructData):
             if methodname.startswith('config_'):
                 handler = getattr(obj,methodname)
                 group_code = getattr(handler,'group_code',None)
-                if group_code==page.rootenv['user_group_code']:
+                if group_code and group_code==page.rootenv['user_group_code']:
                     return methodname
         return 'config'
 
@@ -260,9 +260,11 @@ class MenuResolver(BagResolver):
             baseNode = result.getNode('#0')
             if not self.allowedNode(baseNode):
                 return Bag()
-            result = baseNode.value
-            baseattr = baseNode.attr
-            self.basepath = baseattr.get('basepath')
+            value = baseNode.value
+            if isinstance(value,Bag):
+                result = value
+                baseattr = baseNode.attr
+                self.basepath = baseattr.get('basepath')
         return result
 
     def legacyMenuFromPkgList(self,pkgMenus):
@@ -310,10 +312,20 @@ class MenuResolver(BagResolver):
             except NotAllowedException:
                 continue
             self.setLabelClass(attributes)
-            if attributes.get('titleCounter') and menuTag!='tableBranch':
-                self._page.subscribeTable(attributes['table'],True,subscribeMode=True)
-                attributes['titleCounter_count'] = self._page.app.getRecordCount(table=attributes['table'],
-                                                                                 where=attributes.get('titleCounter_condition'))
+            titleCounter_val = attributes.get('titleCounter')
+            if titleCounter_val and menuTag != 'tableBranch':
+                titleCounter_attrs = {}
+                if isinstance(titleCounter_val, dict):
+                    titleCounter_attrs.update(titleCounter_val)
+                table = attributes.get('table') or titleCounter_attrs.get('table')
+                if not table:
+                    continue
+                self._page.subscribeTable(table, True, subscribeMode=True)
+                attributes['titleCounter_count'] = self._page.app.getRecordCount(
+                    table=table,
+                    where=attributes.get('titleCounter_condition'),
+                    **titleCounter_attrs
+                )
             result.setItem(node.label, value, attributes)
         return result
 

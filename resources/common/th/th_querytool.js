@@ -63,7 +63,7 @@ dojo.declare("gnr.QueryManager", null, {
         this.frameNode = genro.getFrameNode(this.th_root);
         this.wherepath = this.sourceNode.absDatapath('.query.where');
         this.dtypes_dict = {'A':'alpha','T':'alpha','C':'alpha','X':'alpha',
-            'PHONETIC':'alpha_phonetic',
+            'PHONETIC':'alpha_phonetic','FULLTEXT':'alpha_fulltext',
             'D':'date','DH':'date','DHZ':'date','I':'number',
             'L':'number','N':'number','R':'number','B':'boolean','TAG':'tagged'};
         this.helper_op_dict = {'in':'in','tagged':'tagged'};
@@ -126,7 +126,7 @@ dojo.declare("gnr.QueryManager", null, {
                             querymanager.onChangedQueryColumn(originalContextNode,item.attr,originalContextNode.attr.relpath);
                         }});
         node._('menu', {modifiers:'*',_class:'smallmenu',storepath:'gnr.qb.sqlop.op',id:this.relativeId('qb_op_menu')});
-        var opmenu_types = ['alpha','alpha_phonetic','date','number','other','boolean','unselected_column'];
+        var opmenu_types = ['alpha','alpha_phonetic','alpha_fulltext','date','number','other','boolean','unselected_column'];
         for (var i = 0; i < opmenu_types.length; i++) {
             node._('menu', {modifiers:'*',_class:'smallmenu',
                 storepath:'gnr.qb.sqlop.op_spec.' + opmenu_types[i],id:this.relativeId('qb_op_menu_') + opmenu_types[i]});

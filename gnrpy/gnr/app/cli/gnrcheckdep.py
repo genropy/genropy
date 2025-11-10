@@ -12,6 +12,14 @@ def main():
                         dest="install",
                         action="store_true",
                         help="Try to install the missing deps")
+    parser.add_argument("-f", "--fix",
+                        dest="fix",
+                        action="store_true",
+                        help="Try to fix dependencies by upgrading packages")
+    parser.add_argument("-n", "--nocache",
+                        dest="nocache",
+                        action="store_true",
+                        help="Try to install the missing deps")
     parser.add_argument("-v", "--verbose",
                         dest="verbose",
                         action="store_true",
@@ -19,7 +27,6 @@ def main():
     
     parser.add_argument("instance_name")
     options = parser.parse_args()
-
     app = GnrApp(options.instance_name, checkdepcli=True)
     instance_deps = app.instance_packages_dependencies
     
@@ -37,7 +44,7 @@ def main():
         print(f"\nThe following dependencies are missing: {dep_list}")
         if options.install:
             print("Installing as requested...")
-            app.check_package_install_missing()
+            app.check_package_install_missing(nocache=options.nocache)
         else:
             print(f"\nPlease execute\n\npip install {dep_list}") 
             sys.exit(2)
@@ -46,6 +53,19 @@ def main():
         print("\nCheck has detected the following wrong dependencies")
         for requested, installed in wrong:
             print(f"{requested} is requested, but {installed} found")
+
+        if options.fix:
+            print("\nTrying to fix the problem by upgrading..")
+            app.check_package_install_missing(nocache=options.nocache,
+                                              upgrading=True)
+
+            # recheck
+            missing, wrong = app.check_package_missing_dependencies()
+            if wrong:
+                print("\nProblem not solved, please fix manually")
+            else:
+                print("\nAll conflicts solved!")
+               
         sys.exit(3)
         
     if not missing and not wrong:
