@@ -81,10 +81,11 @@ class Table(object):
         return 'sys/task'
     
     def _invoke_scheduler_reload(self):
-
+        
         def scheduler_deferred_reload():
             try:
-                self.scheduler().reload()
+                domain = self.db.currentEnv.get("domainName", None)
+                self.scheduler().reload(domain=domain)
             except Exception as e:
                 self.db.currentPage.clientPublish('floating_message',
                                                   message='Unable to contact scheduler',

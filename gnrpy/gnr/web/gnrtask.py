@@ -82,7 +82,7 @@ class GnrTaskSchedulerClient:
     
     def execute(self, table, action,
                 parameters,
-                user, domains,
+                user, domain,
                 worker_code=None,
                 attime=None):
         """
@@ -93,7 +93,7 @@ class GnrTaskSchedulerClient:
                                           action=action,
                                           parameters=parameters,
                                           user=user,
-                                          domains=domains,
+                                          domain=domain,
                                           worker_code=None,
                                           attime=None)
                           )
@@ -106,11 +106,15 @@ class GnrTaskSchedulerClient:
         return self._call("update_task", dict(record=record))
 
         
-    def reload(self):
+    def reload(self, domain=None):
         """
-        Reload the whole task configuration
+        Reload the whole task configuration.
+
+        If a domain is passed, just reload it. Otherwise reload
+        them all.
+        
         """
-        return self._call("reload")
+        return self._call("reload", dict(domain=domain))
 
     def status(self):
         """
@@ -141,7 +145,7 @@ class GnrTask:
     schedule: dict
     task_id: str = None
     user: str = None
-    domains: str = None
+    domain: str = None
     saved_query_code: str = None
     parameters: Any = None
     queue_name: str = None
@@ -239,11 +243,22 @@ class GnrTaskScheduler:
         self.tasks = {}  # Loaded tasks from DB or mock
         self.dump_file_name = "gnr_scheduler_queue_dump.json"
 
-    async def load_configuration(self, triggered=False):
+    async def load_configuration(self, triggered=False, domain=None):
+        """
+        Reload the task configuration. If a domain is passed, just reload the single
+        one if the deploy is a multi-domain one, otherwise reload them all.
+        If single domain, ignores it.
+        """
+        print("DOMAIN", domain)
         if triggered:
             logger.info("Triggered scheduler configuration loading")
 
-        logger.info("Loading scheduler configuration")
+        # FIXME: check if the application is multidb first, and report
+        # if a domain as been supplied in a mono-db context.
+        if domain:
+            logger.info("Loading scheduler configuration for domain %s", domain)
+        else:
+            logger.info("Loading scheduler configuration")
 
         # FIXME: should be loop over a list of databases to load the tasks?
         all_tasks = self.tasktbl.query("*,parameters", where='$stopped IS NOT TRUE').fetch()
@@ -412,7 +427,7 @@ class GnrTaskScheduler:
         task_name = task_def.get("task_name", f"Manual exec on {task_def.get('table')}")
         task = GnrTask(
             name=task_name,
-            db=task_def.get('domains'),
+            db=task_def.get('domain'),
             action=task_def.get('action'),
             table=task_def.get('table'),
             schedule={},
@@ -606,7 +621,8 @@ class GnrTaskScheduler:
         pass
     
     async def api_reload(self, request):
-        await self.load_configuration(triggered=True)
+        domain = request.query.get("domain", None)
+        await self.load_configuration(triggered=True, domain=domain)
         return web.json_response({"reload": "requested"})
     
     async def api_empty_queue(self, request):
@@ -704,8 +720,7 @@ class GnrTaskWorker:
 
         self.app = GnrApp(self.sitename, enabled_packages=['gnrcore:sys', 'gnrcore:adm'])
         self.db = self.app.db
-        self.tasktbl = self.db.table("sys.task")
-        
+
         self.loop = None
         self.stop_evt = threading.Event()
         # the local queue has the size of the maximum
@@ -713,7 +728,14 @@ class GnrTaskWorker:
         # will get all the tasks
         self.tasks_q = asyncio.Queue(maxsize=self.processes)
         self.process_pool = None
-        
+
+    def get_task_table(self, domain=None):
+        if domain:
+            # FIXME: get the table from the correct dbstore
+            return self.db.table("sys.task")
+        else:
+            return self.db.table("sys.task")
+
     def _notify_alive(self):
         with requests.Session() as session:
             try:
