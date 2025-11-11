@@ -624,8 +624,15 @@ class SqlQueryCompiler(object):
             for condition in list(env_conditions.values()):
                 wherelist.append('( %s )' %condition)
         wherelist.append(self.tblobj.dbtable.getPartitionCondition(ignorePartition=ignorePartition))
-        if subtable and subtable!='*':
-            wherelist.append(self.tblobj.dbtable.subtable(subtable).getCondition(sqlparams=self.sqlparams))
+        if subtable and subtable != '*':
+            subtable_list = re.split(r'[&|]', subtable)
+            st_condition = subtable.replace('&',' AND ').replace('|',' OR ').replace('!',' NOT ')
+            for s in subtable_list:
+                if s.startswith('!'):
+                    s = s[1:]
+                cond = self.tblobj.dbtable.subtable(s.strip()).getCondition(sqlparams=self.sqlparams)
+                st_condition = st_condition.replace(s,cond)
+            wherelist.append(st_condition)
         logicalDeletionField = self.tblobj.logicalDeletionField
         if logicalDeletionField:
             if excludeLogicalDeleted is True:
@@ -751,6 +758,7 @@ class SqlQueryCompiler(object):
         self.init(lazy=lazy, eager=eager)
         colPars = {}
         joindict = {}
+        virtual_columns = virtual_columns or []
         virtual_columns = virtual_columns or []
         if isinstance(virtual_columns, str):
             virtual_columns = gnrstring.splitAndStrip(virtual_columns, ',')

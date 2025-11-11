@@ -123,7 +123,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         """Return a new connection object: provides cursors accessible by col number or col name
         @return: a new connection object"""
         dbroot = self.dbroot
-        kwargs = self.dbroot.get_connection_params(storename=storename)
+        kwargs = self.get_connection_params(storename=storename)
         #kwargs['as_dict']=True
         #kwargs = dict(host=dbroot.host, database=dbroot.dbname, user=dbroot.user, password=dbroot.password,
         #              port=dbroot.port, as_dict=True)

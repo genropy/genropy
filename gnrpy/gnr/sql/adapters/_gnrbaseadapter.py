@@ -160,7 +160,12 @@ class SqlDbAdapter(object):
         sql = "UPDATE %s SET %s=:newpkey WHERE %s=:currpkey;" % (tblobj.sqlfullname, pkeyColumn,pkeyColumn)
         return self.dbroot.execute(sql, dbtable=dbtable.fullname,sqlargs=dict(currpkey=pkey,newpkey=newpkey))
 
-
+    def get_connection_params(self, storename=None):
+        """
+        Get the connection parameters as a dict for connect kwargs
+        """
+        return self.dbroot.get_connection_params(storename=storename)
+    
     def connect(self, storename=None, autoCommit=False, **kw):
         """-- IMPLEMENT THIS --
         Build and return a new connection object: ex. return dbapi.connect()
@@ -289,6 +294,7 @@ class SqlDbAdapter(object):
         specific adapters
         """
         raise AdapterMethodNotImplemented()
+    
 
     def listElements(self, elType, **kwargs):
         """-- IMPLEMENT THIS --
@@ -646,9 +652,15 @@ class SqlDbAdapter(object):
 
         Returns None
         """
-        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit,storename=self.dbroot.currentStorename)
+
+        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit,
+                                                                            storename=self.dbroot.currentStorename)
         with connection.cursor() as cursor:
+            if isinstance(sqlargs,dict):
+                sql,sqlargs = self.prepareSqlText(sql,sqlargs)
             cursor.execute(sql,sqlargs)
+        connection.close()
+
         
     def raw_fetch(self, sql, sqlargs=None, manager=False, autoCommit=False):
         """
@@ -660,8 +672,12 @@ class SqlDbAdapter(object):
         """
         connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit,storename=self.dbroot.currentStorename)
         with connection.cursor() as cursor:
+            if isinstance(sqlargs,dict):
+                sql,sqlargs = self.prepareSqlText(sql,sqlargs)
             cursor.execute(sql, sqlargs)
-            return cursor.fetchall()
+            result = cursor.fetchall()
+        connection.close()
+        return result
                 
     def insert(self, dbtable, record_data,**kwargs):
         """Insert a record in the db
