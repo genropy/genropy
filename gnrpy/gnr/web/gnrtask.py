@@ -249,7 +249,6 @@ class GnrTaskScheduler:
         one if the deploy is a multi-domain one, otherwise reload them all.
         If single domain, ignores it.
         """
-        print("DOMAIN", domain)
         if triggered:
             logger.info("Triggered scheduler configuration loading")
 
