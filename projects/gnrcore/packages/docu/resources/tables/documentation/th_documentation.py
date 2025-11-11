@@ -62,7 +62,7 @@ class Form(BaseComponent):
     def documentationContent(self,bc):
         cframe = bc.contentPane(margin='2px',region='center').multiButtonForm(relation='@contents',
                                                                             formResource='ContentForm',
-                                                                            datapath='#FORM.content', 
+                                                                            datapath='#FORM.documentation_content',
                                                                             parentForm=True)
         cframe.multiButtonView.item(code='add_account',caption='+',frm=cframe.form.js_form,
                                     action='frm.newrecord();',
@@ -80,11 +80,10 @@ class Form(BaseComponent):
     @extract_kwargs(source=True,preview=True)
     def sourceEditor(self,frame,theme=None,source_kwargs=None,preview_kwargs=None):
         bar = frame.top.slotToolbar('5,mbuttons,2,titleAsk,2,fbmeta,*,delgridrow,addrow_dlg')
-        bar.mbuttons.multiButton(value='^#FORM.sourceViewMode', nodeId='sourceViewMode',
+        bar.mbuttons.multiButton(value='^#FORM.sourceViewMode', 
                                  values='rstonly:Source Only,mixed: Mixed view,preview:Preview')
         bar.titleAsk.slotButton('!!Change version name',iconClass='iconbox tag',
                                 action="""
- 
                                 n = data.getNode(selectedLabel);
                                 if(!n){
                                     return;
@@ -178,13 +177,13 @@ class Form(BaseComponent):
                              },1)
                                 """,
                                 defaultsource= self.getDefaultSource(),
-                         version="^#FORM.versionsFrame.newVersion",
+                          version="^#FORM.versionsFrame.newVersion",
                           currVersions='=#FORM.record.sourcebag',
                           editorDatapath='=#FORM.versionsFrame._editorDatapath',
                           grid=fg.grid.js_widget)
         fg.grid.dataFormula("#FORM.versionsFrame._editorDatapath", "'#FORM.record.sourcebag.'+selectedLabel;",
         selectedLabel="^.selectedLabel",_if='selectedLabel',_else='"#FORM.versionsFrame.dummypath"')
-        #self.sourceViewerCM(center) #DP Schianta
+        self.sourceViewerCM(center)
 
     def sourceViewerCM(self,parent):
         bc = parent.borderContainer(region='center',datapath='^#FORM.versionsFrame._editorDatapath',margin_left='6px')
