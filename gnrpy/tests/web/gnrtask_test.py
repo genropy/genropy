@@ -435,7 +435,7 @@ class TestGnrTaskScheduler(_NoDaemonBase):
             "table": "tbl",
             "parameters": {"x": 1},
             "worker_code": "custom",
-            "domains": "domain",
+            "domain": "domain",
         }
 
         original_cls = gnrtask.GnrTask
@@ -523,7 +523,7 @@ class TestSchedulerClient(_NoDaemonBase):
         client = gnrtask.GnrTaskSchedulerClient(url="http://scheduler")
 
         client.stop_run("run1")
-        client.execute("tbl", "act", {"a": 1}, user="usr", domains="dom", worker_code="w", attime="later")
+        client.execute("tbl", "act", {"a": 1}, user="usr", domain="dom", worker_code="w", attime="later")
         client.update_task({"id": 1})
         client.reload()
         status = client.status()
