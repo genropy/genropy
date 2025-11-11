@@ -77,25 +77,25 @@ class Main(BaseResourceBatch):
         self.page.site.storageNode('rsrc:pkg_docu','sphinx_env','default_conf.py').copy(self.page.site.storageNode(confSn))
         theme = self.handbook_record['theme'] or 'sphinx_rtd_theme'
         theme_path = self.page.site.storageNode('rsrc:pkg_docu','sphinx_env','themes').internal_path
-        handbooks_theme_pref = self.db.application.getPreference('.handbooks_theme',pkg='docu')
+        handbooks_theme_pref = self.db.application.getPreference('.handbooks_theme',pkg='docu') or {}
         conf_lines = [
             f"html_theme = '{theme}'",
             f"html_theme_path = ['{theme_path}/']",
             f"html_baseurl='{self.html_baseurl}'",
         ]
-        if handbooks_theme_pref['logo']:
+        if handbooks_theme_pref.get('logo'):
             conf_lines.append(f"html_logo = '{self.page.site.externalUrl(handbooks_theme_pref['logo'])}'")
             conf_lines.append("html_short_title = 'Handbook'")
-        if handbooks_theme_pref['copyright']:
+        if handbooks_theme_pref.get('copyright'):
             conf_lines.append("show_copyright = True")
             conf_lines.append("html_show_sphinx = False")
             conf_lines.append(f"copyright = '{self.db.workdate.year} {handbooks_theme_pref['copyright']}'")
-        if handbooks_theme_pref['display_version']:
+        if handbooks_theme_pref.get('display_version'):
             conf_lines.append("theme_display_version = True")
             conf_lines.append(f"version = release = '{self.handbook_record['version']}'")
-        if handbooks_theme_pref['last_update']:
+        if handbooks_theme_pref.get('last_update'):
             conf_lines.append("html_last_updated_fmt = '%d-%m-%Y'")
-        if handbooks_theme_pref['show_authors']:
+        if handbooks_theme_pref.get('show_authors'):
             conf_lines.append("show_authors = True")
         if self.enable_sitemap: #DP Enabled extensions = ['sphinx_sitemap','sphinxext.opengraph']
             conf_lines.append(f"sitemap_url_scheme = '{self.handbook_record['name']}/{{link}}'")
@@ -106,25 +106,66 @@ class Main(BaseResourceBatch):
             
     def step_prepareRstDocs(self):
         "Prepare Rst docs"
+        IMAGEFINDER = re.compile(r"\.\. image:: ([\w./:-]+)")
+        LINKFINDER = re.compile(r"`([^`]*) <([\w./]+)>`_\b")
+
+        # Get docroot content if available
+        docroot_rst = ''
+        docroot_record = self.doctable.record(self.handbook_record['docroot_id']).output('dict')
+        if docroot_record:
+            docroot_docbag = Bag(docroot_record['docbag'])
+            docroot_lang_bag = docroot_docbag[self.handbook_record['language']] or Bag()
+            docroot_rst = docroot_lang_bag.get('rst') or ''
+
+            # Apply same fixes as in prepare() method
+            if docroot_rst:
+                self.curr_pathlist = []  # Root level
+                docroot_rst = IMAGEFINDER.sub(self.fixImages, docroot_rst)
+                docroot_rst = LINKFINDER.sub(self.fixLinks, docroot_rst)
+                docroot_rst = docroot_rst.replace('[tr-off]', '').replace('[tr-on]', '')
+
         if self.handbook_record['toc_roots']:
             toc_roots = self.handbook_record['toc_roots'].split(',')
             toc_trees = []
+            regular_pages = []  # For published pages that are NOT toc_roots
+
+            # First, collect published non-toc_root pages
+            for child_node in self.doc_data or []:
+                doc_id = child_node.label
+                if doc_id not in toc_roots:
+                    # Check if it's a published page (has publish_date)
+                    doc_rec = self.doctable.record(doc_id).output('dict')
+                    if doc_rec and doc_rec.get('publish_date'):
+                        # This is a published page, not a toc_root
+                        subtree = Bag()
+                        subtree.setItem(child_node.label, child_node.value, **child_node.attr)
+                        elements = self.prepare(subtree, [])
+                        regular_pages.extend(elements)
+
+            # Then process toc_roots with captions (only if published)
             for doc_id in toc_roots:
                 node = self.doc_data.getNode(doc_id)
                 if node:
-                    subtree = Bag()
-                    subtree.setItem(node.label, node.value, **node.attr)
                     r = self.doctable.record(doc_id).output('dict')
-                    title = Bag(r['docbag'])['%s.title' % self.handbook_record['language']] 
-                    root_code = r['name']
-                    toc_elements = self.prepare(subtree,[], skip_first=True)
-                    toc_trees.append(self.createToc(elements=toc_elements, includehidden=True, titlesonly=True, caption=title))
-            tocstring = '\n\n'.join(toc_trees)
+                    # Check if toc_root has publish_date
+                    if r and r.get('publish_date'):
+                        subtree = Bag()
+                        subtree.setItem(node.label, node.value, **node.attr)
+                        title = Bag(r['docbag'])['%s.title' % self.handbook_record['language']]
+                        toc_elements = self.prepare(subtree, [], skip_first=True)
+                        toc_trees.append(self.createToc(elements=toc_elements, includehidden=True, titlesonly=True, caption=title))
+
+            # Build final tocstring: regular pages first, then toc_roots
+            toc_parts = []
+            if regular_pages:
+                toc_parts.append(self.createToc(elements=regular_pages, includehidden=True, titlesonly=True))
+            toc_parts.extend(toc_trees)
+            tocstring = '\n\n'.join(toc_parts)
         else:
             toc_elements = self.prepare(self.doc_data,[])
             tocstring = self.createToc(elements=toc_elements, includehidden=True, titlesonly=True)
 
-        self.createFile(pathlist=[], name='index', title=self.handbook_record['title'], rst='', tocstring=tocstring)
+        self.createFile(pathlist=[], name='index', title=self.handbook_record['title'], rst=docroot_rst, tocstring=tocstring)
         for k,v in self.imagesDict.items():
             #DP202112 Useful for local debugging
             source_url = self.page.site.externalUrl(v) if v.startswith('/') else v
@@ -417,7 +458,8 @@ class Main(BaseResourceBatch):
     def createFile(self, pathlist=None, name=None, title=None, rst=None, hname=None, tocstring=None, footer=''):
         reference_label='.. _%s:\n' % hname if hname else ''
         title = title or name
-        content = '\n'.join([reference_label, title, '='*len(title), tocstring, '\n\n', rst, footer])
+        # Content comes before toctree menu
+        content = '\n'.join([reference_label, title, '='*len(title), '\n\n', rst, footer, tocstring])
         storageNode = self.page.site.storageNode('/'.join([self.sourceDirNode.internal_path]+pathlist))
         with storageNode.child('%s.rst' % name).open('wb') as f:
             f.write(content.encode())

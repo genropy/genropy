@@ -60,16 +60,22 @@ class Form(BaseComponent):
         fb.field('docroot_id', hasDownArrow=True, validate_notnull=True, tag='hdbselect', folderSelectable=True)
         fb.checkBoxText(value='^.toc_roots',
                         table='docu.documentation', popup=True, cols=4,lbl='!![en]TOC roots',
-                        condition='$parent_id = :docroot_id', condition_docroot_id='^.docroot_id' )
+                        condition='$parent_id=:docroot_id AND $sphinx_toc IS TRUE', 
+                        condition_docroot_id='^.docroot_id' )
         fb.field('language', validate_notnull=True)
         fb.field('version')
         fb.field('author')
+        # Check for available themes
         themesSn = self.site.storageNode('rsrc:pkg_docu','sphinx_env','themes')
+        themes = ''
         if themesSn.exists:
             themes = ','.join([s.basename for s in themesSn.children() if s.isdir and not s.basename.startswith('.')])
+
+        # Show theme selector if themes are available, otherwise show default theme
+        if themes:
             fb.field('theme', values=themes, tag='filteringSelect')
         else:
-            fb.textBox(value='Sphinx RTD standard theme', lbl='Theme', readOnly=True)
+            fb.textBox(value='Sphinx RTD standard theme', lbl='!![en]Theme', readOnly=True)
         
         fb.field('examples_site')
         fb.field('examples_directory')
