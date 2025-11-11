@@ -1169,6 +1169,13 @@ class GnrApp(object):
                 path = os.path.join(project_path,'packages')
                 if not os.path.isdir(os.path.join(path, pkgid)):
                     path=None
+                    external_project_path = os.path.join(project_path,'external_projects.xml')
+                    if os.path.exists(external_project_path):
+                        external_projects = Bag(external_project_path)
+                        package_attrs = external_projects.getAttr(pkgid) or {}
+                        external_project = package_attrs.get('project')
+                        if external_project:
+                            return self.pkg_name_to_path(pkgid,external_project)
         else:
             path = self.package_path.get(pkgid)
             
