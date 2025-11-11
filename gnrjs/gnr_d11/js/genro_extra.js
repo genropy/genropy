@@ -314,18 +314,34 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
     },
 
     attachHooks:function(editor, editor_attrs, sourceNode){
-    // Usa il metodo ufficiale di Toast UI Editor per intercettare la perdita del focus
-        editor.on('blur', () => {
-            //console.log("📌 [DEBUG] Focus perso, salvo nel datastore...");
-            this.setInDatastore(editor, sourceNode);
-        });
+        // Flag to prevent automatic conversions until user actually modifies content
+        let changeListenerActive = false;
+        let originalMarkdown = null;
 
-        // Se serve gestire anche quando prende focus
         editor.on('focus', () => {
-            //console.log("📌 [DEBUG] Editor ha preso il focus.");
+            if (!changeListenerActive) {
+                // Save original markdown only on first focus
+                originalMarkdown = editor.getMarkdown();
+                changeListenerActive = true; // Activate listener after first focus
+            }
         });
 
-        // Mantieni la gestione della lunghezza massima su keydown se necessario
+        editor.on('blur', () => {
+            // Do NOT write to datastore if user hasn't modified content yet
+            if (!changeListenerActive) {
+                return;
+            }
+
+            let newMarkdown = editor.getMarkdown();
+
+            // Check if text was actually modified
+            if (newMarkdown !== originalMarkdown) {
+                this.setInDatastore(editor, sourceNode);
+                originalMarkdown = newMarkdown; // Update original
+            }
+        });
+
+        // Maintain max length handling
         editor.addHook('keydown', () => {
             genro.callAfter(() => {
                 if (editor_attrs.maxLength) {
@@ -340,7 +356,7 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
         if (value.length > maxLength) {
             editor.setMarkdown(value);
         }
-        // Aggiorna il conteggio dei caratteri nella toolbar
+        // Update character count in toolbar
         editor.removeToolbarItem('remaining');
         editor.insertToolbarItem({ groupIndex: -1, itemIndex: -1 }, {
             name: 'remaining',
@@ -349,16 +365,16 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
             style: { textAlign: 'right', fontStyle: 'italic', fontSize: '.8em', cursor: 'auto', width: '75px', textAlign: 'center'}
         });
     },
-    
+
     onTyped:function(editor){
-        // Logica di callback per la digitazione
+        // Typing callback logic
     },
-    
+
     setInDatastore:function(editor, sourceNode){
         let value = editor.getMarkdown();
         let currentValue = sourceNode.getAttributeFromDatasource('value');
-    
-        // Aggiorna il datastore SOLO se il valore è cambiato
+
+        // Update datastore ONLY if value has changed
         if (currentValue !== value) {
             sourceNode.setAttributeInDatasource('value', value || null);
             const htmlpath = sourceNode.attr.htmlpath;
