@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import pypandoc
+import re
 from gnr.web.batch.btcbase import BaseResourceBatch
+from gnr.app import pkglog as logger
 
 caption = '!!Convert content format'
 description = 'Convert documentation content between RST and Markdown'
@@ -22,6 +24,35 @@ class Main(BaseResourceBatch):
         self.skipped_count = 0
         self.error_count = 0
 
+    def fix_markdown_image_attributes(self, text):
+        """Convert markdown image syntax with attributes to HTML img tags"""
+        # Pattern: ![alt](url){.class attr="value" attr2="value2"}
+        pattern = r'!\[(.*?)\]\((.*?)\)\{([^}]+)\}'
+
+        def replace_image(match):
+            alt_text = match.group(1)
+            url = match.group(2)
+            attrs_string = match.group(3)
+
+            # Parse attributes
+            html_attrs = []
+            if alt_text:
+                html_attrs.append(f'alt="{alt_text}"')
+
+            # Extract class (starts with .)
+            classes = re.findall(r'\.([a-zA-Z0-9_-]+)', attrs_string)
+            if classes:
+                html_attrs.append(f'class="{" ".join(classes)}"')
+
+            # Extract other attributes (key="value" or key='value')
+            other_attrs = re.findall(r'([a-zA-Z0-9_-]+)=["\']([^"\']+)["\']', attrs_string)
+            for attr_name, attr_value in other_attrs:
+                html_attrs.append(f'{attr_name}="{attr_value}"')
+
+            return f'<img src="{url}" {" ".join(html_attrs)} />'
+
+        return re.sub(pattern, replace_image, text)
+
     def step_convertContents(self):
         """Convert content format for all selected documentation records"""
         content_table = self.db.table('docu.content')
@@ -38,7 +69,6 @@ class Main(BaseResourceBatch):
             for doc_content in doc_contents:
                 content_id = doc_content['content_id']
                 language = doc_content['language_code']
-
                 try:
                     with content_table.recordToUpdate(content_id) as content_rec:
                         source_text = content_rec.get(self.source_field)
@@ -46,29 +76,31 @@ class Main(BaseResourceBatch):
 
                         # Skip if source is empty
                         if not source_text:
-                            self.batch_log_write(f"  - Content {content_id} ({language}): No source text, skipping")
+                            logger.warning(f"  - Content {content_id} ({language}): No source text, skipping")
                             self.skipped_count += 1
                             continue
 
                         # Skip if target already exists and overwrite is False
                         if target_text and not self.overwrite_existing:
-                            self.batch_log_write(f"  - Content {content_id} ({language}): Target already exists, skipping")
+                            logger.warning(f"  - Content {content_id} ({language}): Target already exists, skipping")
                             self.skipped_count += 1
                             continue
 
                         # Convert content
                         if self.conversion_direction == 'rst_to_markdown':
-                            converted_text = self.pypandoc.convert_text(source_text, 'markdown', format='rst')
+                            converted_text = pypandoc.convert_text(source_text, 'markdown', format='rst')
+                            # Fix markdown image attributes (convert to HTML)
+                            converted_text = self.fix_markdown_image_attributes(converted_text)
                         else:
-                            converted_text = self.pypandoc.convert_text(source_text, 'rst', format='markdown')
+                            converted_text = pypandoc.convert_text(source_text, 'rst', format='markdown')
 
                         # Save converted text
                         content_rec[self.target_field] = converted_text
-                        self.batch_log_write(f"  - Content {content_id} ({language}): Converted successfully")
+                        logger.debug(f"  - Content {content_id} ({language}): Converted successfully")
                         self.converted_count += 1
 
                 except Exception as e:
-                    self.batch_log_write(f"  - Content {content_id} ({language}): ERROR - {str(e)}")
+                    logger.error(f"  - Content {content_id} ({language}): ERROR - {str(e)}")
                     self.error_count += 1
 
             self.db.commit()
