@@ -355,15 +355,15 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
     },
     
     createViewer:function(widget, editor_attrs){
-        editor_attrs.autofocus = true;
+        editor_attrs.autofocus = editor_attrs.autofocus || false;
         return window.toastui.Editor.factory({
             el: widget,
             ...editor_attrs
         });
     },
-    
+
     createEditor:function(widget, editor_attrs){
-        editor_attrs.autofocus = editor_attrs.autofocus || false;
+        editor_attrs.autofocus = false;
         // Attach Color Syntax plugin if loaded via CDN
         try {
             const Editor = window.toastui && window.toastui.Editor;
