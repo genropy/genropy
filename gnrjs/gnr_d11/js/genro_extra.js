@@ -404,34 +404,70 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
     },
 
     attachHooks:function(editor, editor_attrs, sourceNode){
-        // Flag to prevent automatic conversions until user actually modifies content
+        // Flag to prevent false positives during initial load
         let changeListenerActive = false;
-        let originalMarkdown = null;
+        let originalNormalizedMarkdown = null;
 
-        editor.on('focus', () => {
+        // Helper to normalize markdown for comparison
+        const normalizeMarkdown = function(md) {
+            if (!md) return '';
+            // Normalize whitespace and common markdown variations
+            return md
+                .replace(/\r\n/g, '\n')  // Normalize line endings
+                .replace(/\n{3,}/g, '\n\n')  // Normalize multiple blank lines
+                .trim();
+        };
+
+        // Activate change listener on first real user interaction
+        const activateListener = function() {
             if (!changeListenerActive) {
-                // Save original markdown only on first focus
-                originalMarkdown = editor.getMarkdown();
-                changeListenerActive = true; // Activate listener after first focus
+                changeListenerActive = true;
+                console.log('[MDEditor] Change listener activated');
             }
-        });
+        };
 
+        // Wait for editor to normalize content after initial load
+        setTimeout(() => {
+            try {
+                const currentMarkdown = editor.getMarkdown();
+                originalNormalizedMarkdown = normalizeMarkdown(currentMarkdown);
+                console.log('[MDEditor] Initial content stored');
+
+                // Activate listener only on actual user typing
+                let activationDone = false;
+                editor.addHook('keydown', () => {
+                    if (!activationDone) {
+                        activationDone = true;
+                        activateListener();
+                    }
+                });
+            } catch(e) {
+                console.warn('[MDEditor] Failed to setup change detection', e);
+                changeListenerActive = true;  // Fallback: activate immediately
+            }
+        }, 100);
+
+        // Save to datastore only if content actually changed
         editor.on('blur', () => {
-            // Do NOT write to datastore if user hasn't modified content yet
             if (!changeListenerActive) {
+                console.log('[MDEditor] Blur ignored - listener not active yet');
                 return;
             }
 
-            let newMarkdown = editor.getMarkdown();
+            const currentMarkdown = editor.getMarkdown();
+            const currentNormalized = normalizeMarkdown(currentMarkdown);
 
-            // Check if text was actually modified
-            if (newMarkdown !== originalMarkdown) {
+            // Only save if content actually changed
+            if (currentNormalized !== originalNormalizedMarkdown) {
+                console.log('[MDEditor] Content changed, saving to datastore');
                 this.setInDatastore(editor, sourceNode);
-                originalMarkdown = newMarkdown; // Update original
+                originalNormalizedMarkdown = currentNormalized;
+            } else {
+                console.log('[MDEditor] Content unchanged, skipping save');
             }
         });
 
-        // Maintain max length handling
+        // Handle max length check on keydown if needed
         editor.addHook('keydown', () => {
             genro.callAfter(() => {
                 if (editor_attrs.maxLength) {
