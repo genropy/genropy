@@ -50,38 +50,35 @@ class Main(GnrBaseService):
             raise ValueError("account_id is required")
         return self._delete(f"/account/{account_id}")
 
-    def add_volumes(self, volumes: List[Dict[str, Any]], storename: Optional[str] = None):
-        """Register storage volumes on the proxy.
+    def add_volume(self, volume: Dict[str, Any], storename: Optional[str] = None):
+        """Register a storage volume on the proxy.
 
         Args:
-            volumes: List of volume configurations with id, storage_type, and config
-            storename: Store name for multitenant environments. If provided, volume IDs
+            volume: Volume configuration with name, backend, and config
+            storename: Store name for multitenant environments. If provided, volume name
                       will be prefixed with 'storename@' unless already prefixed.
                       If None, uses current store from database environment.
 
         Returns:
-            dict: Response with 'ok' status and 'added' count
+            dict: Response with 'ok' status
         """
-        if not isinstance(volumes, list):
-            raise ValueError("volumes must be a list")
+        if not isinstance(volume, dict):
+            raise ValueError("volume must be a dictionary")
 
         # Determine storename from parameter or current database environment
         if storename is None and hasattr(self.parent, 'db'):
             storename = self.parent.db.currentEnv.get('storename') or self.parent.db.rootstore
 
-        # Prefix volume IDs with storename if in multitenant context
+        # Prefix volume name with storename if in multitenant context
         if storename:
-            prefixed_volumes = []
-            for vol in volumes:
-                vol_copy = dict(vol)
-                vol_id = vol_copy.get('id', '')
-                # Only add prefix if not already present
-                if vol_id and '@' not in vol_id:
-                    vol_copy['id'] = f"{storename}@{vol_id}"
-                prefixed_volumes.append(vol_copy)
-            volumes = prefixed_volumes
+            vol_copy = dict(volume)
+            vol_name = vol_copy.get('name', '')
+            # Only add prefix if not already present
+            if vol_name and '@' not in vol_name:
+                vol_copy['name'] = f"{storename}@{vol_name}"
+            volume = vol_copy
 
-        return self._post("/volumes", json={"volumes": volumes})
+        return self._post("/volume", json=volume)
 
     def add_volume_from_service(self, service_name: str, volume_id: Optional[str] = None,
                                 storename: Optional[str] = None):
@@ -113,7 +110,7 @@ class Main(GnrBaseService):
             full_volume_id = base_volume_id
 
         volume_config = self._convert_service_to_volume_config(storage_service, full_volume_id)
-        return self.add_volumes([volume_config])
+        return self.add_volume(volume_config)
 
     def _convert_service_to_volume_config(self, service, volume_id: str) -> Dict[str, Any]:
         """Convert a genropy storage service to genro-storage volume configuration.
@@ -129,50 +126,40 @@ class Main(GnrBaseService):
 
         if implementation == 'aws_s3':
             config = {
-                'protocol': 's3',
-                'base_path': f"{service.bucket}/{service.base_path}" if service.base_path else service.bucket,
-                'key': service.aws_access_key_id,
-                'secret': service.aws_secret_access_key,
+                'bucket': service.bucket,
+                'access_key': service.aws_access_key_id,
+                'secret_key': service.aws_secret_access_key,
             }
+            if service.base_path:
+                config['base_path'] = service.base_path
             if service.region_name:
-                config['client_kwargs'] = {'region_name': service.region_name}
+                config['region'] = service.region_name
             if getattr(service, 'endpoint_url', None):
                 config['endpoint_url'] = service.endpoint_url
             return {
-                'id': volume_id,
-                'storage_type': 'fsspec',
+                'name': volume_id,
+                'backend': 's3',
                 'config': config
             }
 
         elif implementation == 'local':
             return {
-                'id': volume_id,
-                'storage_type': 'local',
+                'name': volume_id,
+                'backend': 'local',
                 'config': {
                     'base_path': service.base_path
                 }
             }
 
         elif implementation == 'sftp':
-            return {
-                'id': volume_id,
-                'storage_type': 'fsspec',
-                'config': {
-                    'protocol': 'sftp',
-                    'base_path': service.base_path,
-                    'host': service.host,
-                    'port': service.port,
-                    'username': service.username,
-                    'password': service.password
-                }
-            }
+            # SFTP non è tra i backend supportati direttamente, ma potrebbe essere aggiunto in futuro
+            raise ValueError(f"SFTP backend is not currently supported by genro-mail-proxy")
 
         elif implementation == 'http':
             return {
-                'id': volume_id,
-                'storage_type': 'fsspec',
+                'name': volume_id,
+                'backend': 'http',
                 'config': {
-                    'protocol': 'http',
                     'base_path': getattr(service, 'base_url', '')
                 }
             }

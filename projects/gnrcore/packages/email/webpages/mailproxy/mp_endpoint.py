@@ -24,8 +24,8 @@ Genropy -> async-mail-service:
   - proxy_priority -> priority (0=immediate, 1=high, 2=medium, 3=low)
   - deferred_ts -> deferred_ts (Unix timestamp)
   - extra_headers -> message_id, reply_to, return_path, headers
-  - attachments -> storage_path format: "storename@volume_id:path/to/file"
-    (e.g., "store1@s3_attachments:emails/2024/file.pdf")
+  - attachments -> storage_path format: "storename@volume:path/to/file"
+    (e.g., "mydb@home:emails/2024/file.pdf")
 
 async-mail-service -> Genropy (delivery reports):
   - sent_ts -> send_date (UTC datetime)
@@ -45,13 +45,14 @@ email.message:
 
 Storage Volumes (Multitenant):
 ------------------------------
-In multitenant environments, storage volumes are registered with format:
-  - volume_id: "storename@service_name" (e.g., "store1@s3_attachments")
-  - storage_path: "volume_id:path" (e.g., "store1@s3_attachments:emails/file.pdf")
+Both client and proxy have the same volumes registered. In multitenant environments,
+volume names are prefixed with storename when registering on the proxy:
+  - volume_name on proxy: "storename@volume" (e.g., "mydb@home", "mydb@docs")
+  - storage_path format: "storename@volume:path" (e.g., "mydb@home:emails/file.pdf")
 
-This allows different stores to have storage services with the same logical name
-but pointing to different buckets/paths. The @ separator avoids conflicts with
-the : separator used in genropy storage paths (e.g., "home:path/to/file").
+The client uses node.fullpath (format "volume:path") and adds the storename@ prefix
+for multitenant scenarios. This allows different stores to use the same logical volume
+names while pointing to different storage locations on the proxy.
 
 For protocol details see:
 https://github.com/genropy/gnr-async-mail-service/blob/main/docs/protocol.rst
@@ -415,7 +416,7 @@ class GnrCustomWebPage(object):
             row = row.asDict(ascii=True)
         filepath = row.get('filepath')
 
-        node = self._storage_node(filepath)
+        node = self.site.storageNode(filepath)
         if not node:
             return None
         # Always use node.basename as filename (includes extension)
@@ -430,87 +431,43 @@ class GnrCustomWebPage(object):
     def _attachment_payload_from_node(self, node, filename=None):
         """Convert storage node to attachment payload.
 
-        Uses the new genro-storage format with storage_path: 'volume_id@path'
-        where volume_id is 'storename@service_name' for multitenant scenarios.
-        Falls back to legacy s3/url format for backward compatibility.
+        Uses genro-storage format with storage_path: 'storename@volume:path'
+        The proxy server has the same volumes registered, so we just need to
+        adapt the path with the storename prefix for multitenant support.
         """
         if not node:
             return None
 
-        # Try to use genro-storage format with volume_id
-        storage_path = self._node_to_storage_path(node)
-        if storage_path:
-            payload = dict(storage_path=storage_path)
-            if filename:
-                payload['filename'] = filename
-            return payload
-
-        # Fallback to legacy format for backward compatibility
-        if self._node_is_s3(node):
-            bucket = getattr(node.service, 'bucket', None)
-            key = node.internal_path()
-            if not bucket or not key:
-                return None
-            payload = dict(s3=dict(bucket=bucket, key=key))
-        else:
-            try:
-                url = node.url()
-            except Exception:
-                url = None
-            if not url:
-                return None
-            payload = dict(url=url)
-
+        storage_path = self._adapt_path_to_proxy_volume(node)
+        payload = dict(storage_path=storage_path)
         if filename:
             payload['filename'] = filename
         return payload
 
-    def _node_to_storage_path(self, node):
-        """Convert a storage node to genro-storage path format.
+    def _adapt_path_to_proxy_volume(self, node):
+        """Adapt node path to match proxy volume naming.
+
+        Since volumes are registered on the proxy with storename@ prefix in multitenant
+        environments, we need to adapt the node's fullpath by adding the same prefix.
+        This ensures the proxy can locate the file using its registered volumes.
+
+        Args:
+            node: Storage node with fullpath in format 'volume:path'
 
         Returns:
-            str: Path in format 'storename@volume_id:path' or None if not applicable
+            str: Adapted path in format 'storename@volume:path' (multitenant)
+                 or 'volume:path' (single tenant)
         """
-        if not node or not hasattr(node, 'service'):
-            return None
-
-        service = node.service
-        service_name = getattr(service, 'service_name', None)
-        if not service_name:
-            return None
+        # node.fullpath is already in format 'volume:path'
+        # e.g., 'home:alfa/beta/gamma' or 'docs:alfa/beta/gamma'
+        fullpath = node.fullpath
 
         # Get current storename for multitenant support
         storename = self.db.currentEnv.get('storename') or self.db.rootstore
 
-        # Construct volume_id with storename prefix
-        volume_id = f"{storename}@{service_name}" if storename else service_name
+        # Add storename prefix to match how volumes are registered on the proxy
+        # Format: storename@volume:path (e.g., "mydb@home:alfa/beta/gamma")
+        if storename:
+            return f"{storename}@{fullpath}"
 
-        # Get the internal path within the storage
-        internal_path = node.internal_path()
-        if not internal_path:
-            return None
-
-        # Format: volume_id:path (e.g., "store1@s3_attachments:emails/file.pdf")
-        return f"{volume_id}:{internal_path}"
-
-    def _node_is_s3(self, node):
-        service = getattr(node, 'service', None)
-        if not service:
-            return False
-        location = getattr(service, 'location_identifier', None)
-        if not location:
-            return False
-        return str(location).startswith('s3/')
-
-    def _storage_node(self, path):
-        if not path:
-            return None
-        site = self.db.application.site
-        try:
-            storage_path = path if ':' in path else f'home:{path}'
-            node = site.storageNode(storage_path)
-        except Exception:
-            return None
-        if not node or not node.exists:
-            return None
-        return node
+        return fullpath
