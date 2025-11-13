@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import pypandoc
-import re
 from gnr.web.batch.btcbase import BaseResourceBatch
 from gnr.app import pkglog as logger
 
@@ -23,78 +22,6 @@ class Main(BaseResourceBatch):
         self.converted_count = 0
         self.skipped_count = 0
         self.error_count = 0
-
-    def fix_markdown_line_breaks(self, text):
-        """Remove single line breaks but keep paragraph breaks (double line breaks)"""
-        # Split by double newlines to preserve paragraphs
-        paragraphs = text.split('\n\n')
-
-        fixed_paragraphs = []
-        for para in paragraphs:
-            # Within each paragraph, remove single line breaks
-            # but preserve lines that start with special markdown characters
-            lines = para.split('\n')
-            cleaned_lines = []
-
-            for i, line in enumerate(lines):
-                stripped = line.strip()
-                # Skip empty lines
-                if not stripped:
-                    continue
-
-                # Preserve lines that are markdown structures
-                if (stripped.startswith('#') or  # Headers
-                    stripped.startswith('-') or  # Lists
-                    stripped.startswith('*') or  # Lists
-                    stripped.startswith('>') or  # Blockquotes
-                    stripped.startswith('```') or  # Code blocks
-                    stripped.startswith('|') or  # Tables
-                    stripped.startswith('<') or  # HTML tags
-                    re.match(r'^\d+\.', stripped)):  # Numbered lists
-                    # If previous line exists and doesn't end with special chars, add space
-                    if cleaned_lines and not cleaned_lines[-1].endswith(('  ', '\n')):
-                        cleaned_lines.append('\n' + line)
-                    else:
-                        cleaned_lines.append(line)
-                else:
-                    # Regular text line - join with previous
-                    if cleaned_lines:
-                        cleaned_lines.append(' ' + stripped)
-                    else:
-                        cleaned_lines.append(stripped)
-
-            fixed_paragraphs.append(''.join(cleaned_lines))
-
-        return '\n\n'.join(fixed_paragraphs)
-
-    def fix_markdown_image_attributes(self, text):
-        """Convert markdown image syntax with attributes to HTML img tags"""
-        # Pattern: ![alt](url){.class attr="value" attr2="value2"}
-        pattern = r'!\[(.*?)\]\((.*?)\)\{([^}]+)\}'
-
-        def replace_image(match):
-            alt_text = match.group(1)
-            url = match.group(2)
-            attrs_string = match.group(3)
-
-            # Parse attributes
-            html_attrs = []
-            if alt_text:
-                html_attrs.append(f'alt="{alt_text}"')
-
-            # Extract class (starts with .)
-            classes = re.findall(r'\.([a-zA-Z0-9_-]+)', attrs_string)
-            if classes:
-                html_attrs.append(f'class="{" ".join(classes)}"')
-
-            # Extract other attributes (key="value" or key='value')
-            other_attrs = re.findall(r'([a-zA-Z0-9_-]+)=["\']([^"\']+)["\']', attrs_string)
-            for attr_name, attr_value in other_attrs:
-                html_attrs.append(f'{attr_name}="{attr_value}"')
-
-            return f'<img src="{url}" {" ".join(html_attrs)} />'
-
-        return re.sub(pattern, replace_image, text)
 
     def step_convertContents(self):
         """Convert content format for all selected documentation records"""
@@ -131,11 +58,16 @@ class Main(BaseResourceBatch):
 
                         # Convert content
                         if self.conversion_direction == 'rst_to_markdown':
-                            converted_text = pypandoc.convert_text(source_text, 'markdown', format='rst')
-                            # Fix markdown line breaks (join lines within paragraphs)
-                            converted_text = self.fix_markdown_line_breaks(converted_text)
-                            # Fix markdown image attributes (convert to HTML)
-                            converted_text = self.fix_markdown_image_attributes(converted_text)
+                            # Use pandoc options:
+                            # --wrap=none: don't wrap lines
+                            # --markdown-headings=atx: use # for headers
+                            # Disable extensions that add attributes: -link_attributes-fenced_code_attributes-inline_code_attributes
+                            converted_text = pypandoc.convert_text(
+                                source_text,
+                                'markdown-smart-simple_tables-multiline_tables-grid_tables-link_attributes-fenced_code_attributes-inline_code_attributes',
+                                format='rst',
+                                extra_args=['--wrap=none', '--markdown-headings=atx']
+                            )
                         else:
                             converted_text = pypandoc.convert_text(source_text, 'rst', format='markdown')
 
