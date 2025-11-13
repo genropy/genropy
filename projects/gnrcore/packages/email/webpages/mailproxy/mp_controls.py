@@ -22,7 +22,7 @@ class GnrCustomWebPage(object):
         bc.css('.mp-status-error', 'color:#c00000; font-weight:bold;')
 
         status_pane = bc.contentPane(region='top', height='160px', datapath='.status', padding='6px')
-        bar = status_pane.slotToolbar('run_now,suspend,activate,*,cleanup_messages,add_account,add_volume,refresh,last_message')
+        bar = status_pane.slotToolbar('run_now,suspend,activate,*,cleanup_messages,refresh,last_message')
 
         shared_on_result = """
             var status = result && result.getItem ? result.getItem('status') : (result ? result.status : null);
@@ -79,49 +79,6 @@ class GnrCustomWebPage(object):
             ),
             _onResult=shared_on_result
         )
-        bar.add_account.slotButton('!!Add account').dataRpc(
-            'main.status.last_command',
-            self.rpc_add_account,
-            account_id='=_ask.account_id',
-            _ask=dict(
-                title='!!Add account to mail proxy',
-                fields=[
-                    dict(
-                        name='account_id',
-                        lbl='!!Account',
-                        tag='dbSelect',
-                        dbtable='email.account',
-                        columns='$account_name,$save_output_message',
-                        condition='$save_output_message IS TRUE',
-                        hasDownArrow=True,
-                        validate_notnull=True
-                    )
-                ]
-            ),
-            _onResult=shared_on_result
-        )
-        bar.add_volume.slotButton('!!Add volume', iconClass='iconbox add').dataRpc(
-            'main.status.last_command',
-            self.rpc_add_volume,
-            service_id='=_ask.service_id',
-            _ask=dict(
-                title='!!Add storage volume to mail proxy',
-                fields=[
-                    dict(
-                        name='service_id',
-                        lbl='!!Storage Service',
-                        tag='dbSelect',
-                        dbtable='sys.service',
-                        columns='$service_name,$service_type',
-                        condition='$service_type = :stype',
-                        condition_stype='storage',
-                        hasDownArrow=True,
-                        validate_notnull=True
-                    )
-                ]
-            ),
-            _onResult=shared_on_result
-        )
         bar.refresh.slotButton('!!Refresh').dataRpc(
             'main.data',
             self.rpc_proxy_overview,
@@ -155,25 +112,86 @@ class GnrCustomWebPage(object):
         fb.div('^.error', colspan=4, _class='mp-status-error', hidden='^.error?=!#v')
 
         left_bc = bc.borderContainer(region='left', width='38%', splitter=True)
-        left_bc.contentPane(region='top', height='50%', splitter=True).bagGrid(
+        accounts_grid = left_bc.contentPane(region='top', height='50%', splitter=True).bagGrid(
             frameCode='mp_accounts',
             title='!!Accounts',
             storepath='main.data.accounts',
             struct=self.accounts_struct,
             pbl_classes=True,
-            addrow=False,
-            delrow=False,
+            addrow=True,
+            delrow=True,
             margin='6px',
         )
-        left_bc.contentPane(region='center').bagGrid(
+        accounts_bar = accounts_grid.top.bar.replaceSlots('addrow', 'add_account')
+        accounts_bar.add_account.slotButton('!!Add account', iconClass='iconbox add_row').dataRpc(
+            'main.status.last_command',
+            self.rpc_add_account,
+            account_id='=_ask.account_id',
+            _ask=dict(
+                title='!!Add account to mail proxy',
+                fields=[
+                    dict(
+                        name='account_id',
+                        lbl='!!Account',
+                        tag='dbSelect',
+                        dbtable='email.account',
+                        columns='$account_name,$save_output_message',
+                        condition='$save_output_message IS TRUE',
+                        hasDownArrow=True,
+                        validate_notnull=True
+                    )
+                ]
+            ),
+            _onResult=shared_on_result
+        )
+        accounts_grid.top.bar.replaceSlots('delrow', 'delete_account')
+        accounts_grid.top.bar.delete_account.slotButton('!!Delete account', iconClass='iconbox delete_row').dataRpc(
+            'main.status.last_command',
+            self.rpc_delete_account,
+            account_id='=.grid.selectedId',
+            _if='account_id',
+            _onResult=shared_on_result
+        )
+        volumes_grid = left_bc.contentPane(region='center').bagGrid(
             frameCode='mp_volumes',
             title='!!Volumes',
             storepath='main.data.volumes',
             struct=self.volumes_struct,
             pbl_classes=True,
-            addrow=False,
-            delrow=False,
+            addrow=True,
+            delrow=True,
             margin='6px',
+        )
+        volumes_bar = volumes_grid.top.bar.replaceSlots('addrow', 'add_volume')
+        volumes_bar.add_volume.slotButton('!!Add volume', iconClass='iconbox add_row').dataRpc(
+            'main.status.last_command',
+            self.rpc_add_volume,
+            service_id='=_ask.service_id',
+            _ask=dict(
+                title='!!Add storage volume to mail proxy',
+                fields=[
+                    dict(
+                        name='service_id',
+                        lbl='!!Storage Service',
+                        tag='dbSelect',
+                        dbtable='sys.service',
+                        columns='$service_name,$service_type',
+                        condition='$service_type = :stype',
+                        condition_stype='storage',
+                        hasDownArrow=True,
+                        validate_notnull=True
+                    )
+                ]
+            ),
+            _onResult=shared_on_result
+        )
+        volumes_grid.top.bar.replaceSlots('delrow', 'delete_volume')
+        volumes_grid.top.bar.delete_volume.slotButton('!!Delete volume', iconClass='iconbox delete_row').dataRpc(
+            'main.status.last_command',
+            self.rpc_delete_volume,
+            volume_id='=.grid.selectedId',
+            _if='volume_id',
+            _onResult=shared_on_result
         )
 
         right_bc = bc.borderContainer(region='center')
@@ -204,11 +222,12 @@ class GnrCustomWebPage(object):
 
     def volumes_struct(self, struct):
         rows = struct.view().rows()
-        rows.cell('id', name='!!Volume ID', width='20em')
-        rows.cell('storage_type', name='!!Storage Type', width='10em')
-        rows.cell('protocol', name='!!Protocol', width='8em')
+        rows.cell('name', name='!!Volume Name', width='20em')
+        rows.cell('backend', name='!!Backend', width='10em')
         rows.cell('base_path', name='!!Base Path', width='20em')
-        rows.cell('created_at', name='!!Created at', width='12em')
+        rows.cell('endpoint_url', name='!!Endpoint URL', width='25em')
+        rows.cell('created_at', name='!!Created at', width='16em')
+        rows.cell('updated_at', name='!!Updated at', width='16em')
 
     def messages_struct(self, struct):
         rows = struct.view().rows()
@@ -242,7 +261,8 @@ class GnrCustomWebPage(object):
         result['accounts'] = self._list_to_bag(accounts, 'id')
         decorated_messages = self._decorate_messages(messages)
         result['messages'] = self._list_to_bag(decorated_messages, 'id')
-        result['volumes'] = self._list_to_bag(volumes, 'id')
+        decorated_volumes = self._decorate_volumes(volumes)
+        result['volumes'] = self._list_to_bag(decorated_volumes, 'name')
 
         status = Bag()
         status['account_count'] = len(accounts)
@@ -308,6 +328,43 @@ class GnrCustomWebPage(object):
         return Bag(dict(status='ok', message='Account registered on mail proxy', overview=overview))
 
     @public_method
+    def rpc_delete_account(self, account_id=None):
+        """Remove an account from the mail proxy.
+
+        Args:
+            account_id: The account ID to remove
+
+        Returns:
+            Bag with status, message, and updated overview
+        """
+        if not account_id:
+            return Bag(dict(ok=False, message='No account ID provided'))
+
+        try:
+            response = self._mailproxy_service().delete_account(account_id)
+        except Exception as exc:
+            return Bag(dict(status='error', message='Delete account failed: %s' % exc))
+
+        if isinstance(response, str):
+            try:
+                response = fromJson(response)
+            except Exception as exc:
+                return Bag(dict(status='error', message='Delete account: invalid JSON response (%s)' % exc))
+
+        response_status = self._response_status(response)
+        if response_status != 'ok':
+            message = self._response_message(response) or 'Unknown error'
+            return Bag(dict(status='error', message='Delete account: %s' % message))
+
+        # Update the local database record
+        with self.db.table('email.account').recordToUpdate(account_id) as rec_account:
+            rec_account['use_mailproxy'] = False
+        self.db.commit()
+
+        overview = self.rpc_proxy_overview()
+        return Bag(dict(status='ok', message='Account removed from mail proxy', overview=overview))
+
+    @public_method
     def rpc_add_volume(self, service_id=None):
         """Register a storage volume from a sys.service storage service.
 
@@ -350,6 +407,38 @@ class GnrCustomWebPage(object):
 
         overview = self.rpc_proxy_overview()
         return Bag(dict(status='ok', message='Storage volume registered on mail proxy', overview=overview))
+
+    @public_method
+    def rpc_delete_volume(self, volume_id=None):
+        """Remove a storage volume from the mail proxy.
+
+        Args:
+            volume_id: The volume ID to remove
+
+        Returns:
+            Bag with status, message, and updated overview
+        """
+        if not volume_id:
+            return Bag(dict(ok=False, message='No volume ID provided'))
+
+        try:
+            response = self._mailproxy_service().delete_volume(volume_id)
+        except Exception as exc:
+            return Bag(dict(status='error', message='Delete volume failed: %s' % exc))
+
+        if isinstance(response, str):
+            try:
+                response = fromJson(response)
+            except Exception as exc:
+                return Bag(dict(status='error', message='Delete volume: invalid JSON response (%s)' % exc))
+
+        response_status = self._response_status(response)
+        if response_status != 'ok':
+            message = self._response_message(response) or 'Unknown error'
+            return Bag(dict(status='error', message='Delete volume: %s' % message))
+
+        overview = self.rpc_proxy_overview()
+        return Bag(dict(status='ok', message='Storage volume removed from mail proxy', overview=overview))
 
     # -------------------------------------------------------------------------
     # Internal utilities
@@ -454,6 +543,22 @@ class GnrCustomWebPage(object):
                 'retry_count': payload.get('retry_count') or 0,
             }
             entry['status'] = self._status_from_entry(entry, data)
+            result.append(entry)
+        return result
+
+    def _decorate_volumes(self, rows):
+        result = []
+        for row in rows or []:
+            data = dict(row or {})
+            config = data.get('config') or {}
+            entry = {
+                'name': data.get('name'),
+                'backend': data.get('backend'),
+                'base_path': config.get('base_path'),
+                'endpoint_url': config.get('endpoint_url'),
+                'created_at': data.get('created_at'),
+                'updated_at': data.get('updated_at'),
+            }
             result.append(entry)
         return result
 
