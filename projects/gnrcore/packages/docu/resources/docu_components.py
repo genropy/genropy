@@ -494,14 +494,23 @@ class DocumentationViewer(BaseComponent):
 class ContentsComponent(BaseComponent):
     js_requires='docu_components'
     
-    def contentEditor(self, pane, mode='text', value=None, htmlpath=None, initialEditType='wysiwyg', **kwargs):
-        "Supported modes: html,rst"
-        if mode=='rst':
-            pane.MDEditor(value=value, htmlpath=htmlpath, nodeId='contentMd', height='100%', previewStyle='vertical',
-                        initialEditType=initialEditType, **kwargs)
+    def contentEditor(self, pane, mode='text', value=None, htmlpath=None, initialEditType='wysiwyg', code_mode='rst', **kwargs):
+        "Supported modes: text, html, code (codemirror), markdown (MDEditor)"
+        if mode=='code':
+            # Codemirror for code editing (RST, Python, etc.)
+            pane.codemirror(value=value, nodeId='contentCode', height='100%',
+                          config_mode=code_mode, config_lineNumbers=True,
+                          config_keyMap='softTab', config_addon='search',
+                          parentForm=True, **kwargs)
+        elif mode=='markdown':
+            # MDEditor for Markdown editing
+            pane.MDEditor(value=value, htmlpath=htmlpath, nodeId='contentMd', height='100%',
+                        previewStyle='vertical', initialEditType=initialEditType, **kwargs)
         elif mode=='html':
+            # CKEditor for HTML editing
             pane.ckeditor(value=value, nodeId='contentHtml', height='100%', **kwargs)
         else:
+            # Simple textarea for plain text
             pane.simpleTextArea(value=value, nodeId='contentText', height='100%', **kwargs)
         
     @customizable    
@@ -538,15 +547,29 @@ class ContentsComponent(BaseComponent):
     
     @struct_method
     def contentText(self, pane, mode='text', **kwargs):
-        "Supported modes: text,html,rst. Text (default) is edited with a textarea, Html with ckeditor, rst with MDEditor"
+        """Supported modes: text, html, code, markdown, rst (legacy).
+
+        - text: plain textarea
+        - html: CKEditor for HTML editing
+        - code: Codemirror for code editing (RST, Python, etc.)
+        - markdown: MDEditor for Markdown editing
+        - rst: (legacy) mapped to 'code' with code_mode='rst'
+        """
         if mode=='html':
-            value='^.html' 
-        elif mode=='rst':
+            value='^.html'
+        elif mode=='markdown':
             value='^.text'
             kwargs.update(htmlpath='.html')
+        elif mode=='code':
+            value='^.text'
+        elif mode=='rst':
+            # Legacy support: map 'rst' to 'code' mode
+            value='^.text'
+            mode = 'code'
+            kwargs.setdefault('code_mode', 'rst')
         else:
             value='^.text'
-            
+
         self.contentEditor(pane, value=value, mode=mode, **kwargs)
 
     def contentTemplate(self, pane):

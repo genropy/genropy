@@ -34,6 +34,10 @@ class AppPref(object):
         
     def mainDocuPreferences(self, pane):
         fb = pane.formbuilder(cols=1,border_spacing='4px')
+        fb.filteringSelect('^.editing_mode', lbl='!![en]Editing mode',
+                          values='rst:RST (reStructuredText),markdown:Markdown',
+                          default='rst',
+                          tooltip='!![en]Choose the markup language for documentation editing')
         fb.textbox('^.sphinx_baseurl', lbl='!![en]Sphinx baseurl', placeholder='Default: http://genropy.org/docs/')
         fb.textbox('^.cloudfront_distribution_id', lbl='!![en]Cloudfront distribution ID', placeholder='E.g. E350MXXXXXZ73K')
         fb.checkbox('^.manage_redirects', label='!![en]Manage redirects')

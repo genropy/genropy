@@ -38,11 +38,13 @@ class ContentForm(BaseComponent):
 
     def th_form(self, form):
         bc = form.center.borderContainer(datapath='.record')
-        bc.contentPane(region='top').formbuilder(datapath='.@content_id', 
+        bc.contentPane(region='top').formbuilder(datapath='.@content_id',
                                         table='docu.content').field('title', width='30em')
 
-        self.contentText(bc.contentPane(region='center', datapath='.@content_id', 
-                                        overflow='hidden', title='!!Content'), mode='rst')
+        # Read editing mode from docu preference, default to 'rst' for backwards compatibility
+        editing_mode = self.db.application.getPreference('.editing_mode', pkg='docu') or 'rst'
+        self.contentText(bc.contentPane(region='center', datapath='.@content_id',
+                                        overflow='hidden', title='!!Content'), mode=editing_mode)
                             
     def th_options(self):
         return dict(showtoolbar=False, defaultPrompt=dict(title='!!New content',
