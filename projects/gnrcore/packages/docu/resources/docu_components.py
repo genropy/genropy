@@ -545,8 +545,27 @@ class ContentsComponent(BaseComponent):
                                                     configurable=False, 
                                                     **kwargs)
     
+    def hintButton(self):
+        """Returns configuration for hint admonition button in MDEditor"""
+        # Simple lightbulb icon in flat dark gray style
+        icon = '''<svg viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8.5 2C6.015 2 4 4.015 4 6.5c0 1.8 1.05 3.35 2.5 4.1v2.4c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-2.4c1.45-.75 2.5-2.3 2.5-4.1 0-2.485-2.015-4.5-4.5-4.5z"
+                  stroke="#333" stroke-width="1.3" stroke-linejoin="round"/>
+            <path d="M6.5 14h4M7 15.5h3" stroke="#333" stroke-width="1.3" stroke-linecap="round"/>
+        </svg>'''
+
+        return {
+            'name': 'hint',
+            'tooltip': 'Insert Hint',
+            'icon': icon,
+            'insertText': ':::{hint}\n\n:::',
+            'moveCursorLines': 1,
+            'groupIndex': 0,
+            'itemIndex': -1
+        }
+
     @struct_method
-    def contentText(self, pane, mode='text', convertHtml=False, **kwargs):
+    def contentText(self, pane, mode='text', convertHtml=False, insertToolbarItems=None, **kwargs):
         """Supported modes: text, html, code, markdown, rst (legacy).
 
         - text: plain textarea (uses 'text' field)
@@ -556,6 +575,7 @@ class ContentsComponent(BaseComponent):
         - rst: (legacy) mapped to 'code' with code_mode='rst' (uses 'rst' field)
 
         convertHtml: when mode is markdown, if convertHtml is True, the html version is saved in the 'html' field
+        insertToolbarItems: list of button names (e.g., ['hintButton']) to add to toolbar
         """
         if mode=='html':
             value='^.html'
@@ -563,6 +583,24 @@ class ContentsComponent(BaseComponent):
             value='^.markdown'
             if convertHtml:
                 kwargs.update(htmlpath='.html')
+
+            # Resolve toolbar button names to their configurations
+            if insertToolbarItems:
+                resolved_items = []
+                for item in insertToolbarItems:
+                    if isinstance(item, str):
+                        # Resolve string names to method calls
+                        method = getattr(self, item, None)
+                        if method and callable(method):
+                            resolved_items.append(method())
+                        else:
+                            # If not a method, pass as-is
+                            resolved_items.append(item)
+                    else:
+                        # Already a dict, pass as-is
+                        resolved_items.append(item)
+                kwargs['insertToolbarItems'] = resolved_items
+
         elif mode=='code':
             # For code mode, use specific field based on code_mode
             code_mode = kwargs.get('code_mode', 'python')

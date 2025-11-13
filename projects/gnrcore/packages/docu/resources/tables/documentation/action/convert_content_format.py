@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import pypandoc
+import re
 from gnr.web.batch.btcbase import BaseResourceBatch
 from gnr.app import pkglog as logger
 
@@ -22,6 +23,38 @@ class Main(BaseResourceBatch):
         self.converted_count = 0
         self.skipped_count = 0
         self.error_count = 0
+
+    def fix_admonitions(self, text):
+        """Convert pypandoc admonition format to MyST format.
+
+        Converts from:
+            :::: hint
+            ::: title
+            Hint
+            :::
+
+            Content here
+            ::::
+
+        To:
+            :::{hint}
+            Content here
+            :::
+        """
+        # List of admonition types supported by MyST
+        admonition_types = [
+            'attention', 'caution', 'danger', 'error', 'hint',
+            'important', 'note', 'seealso', 'tip', 'warning'
+        ]
+
+        for adm_type in admonition_types:
+            # Pattern to match pypandoc admonition format
+            # :::: TYPE\n::: title\nTITLE\n:::\n\nCONTENT\n::::
+            pattern = rf'::::\s*{adm_type}\s*\n::: title\n.*?\n:::\s*\n\n(.*?)\n::::'
+            replacement = rf':::{{{adm_type}}}\n\1\n:::'
+            text = re.sub(pattern, replacement, text, flags=re.DOTALL)
+
+        return text
 
     def step_convertContents(self):
         """Convert content format for all selected documentation records"""
@@ -68,6 +101,8 @@ class Main(BaseResourceBatch):
                                 format='rst',
                                 extra_args=['--wrap=none', '--markdown-headings=atx']
                             )
+                            # Fix admonitions to MyST format
+                            converted_text = self.fix_admonitions(converted_text)
                         else:
                             converted_text = pypandoc.convert_text(source_text, 'rst', format='markdown')
 

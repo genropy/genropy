@@ -399,7 +399,72 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
             editor_attrs.removeToolbarItems.forEach(item => editor.removeToolbarItem(item));
         }
         if(editor_attrs.insertToolbarItems){
-            editor_attrs.insertToolbarItems.forEach(item => editor.insertToolbarItem(item));
+            editor_attrs.insertToolbarItems.forEach(item => {
+                // If item has insertText, create a button that inserts that text
+                if(item.insertText){
+                    const insertText = item.insertText;
+                    const buttonEl = document.createElement('button');
+                    buttonEl.className = 'toastui-editor-toolbar-icons custom-toolbar-button ' + (item.className || '');
+                    buttonEl.type = 'button';
+                    buttonEl.title = item.tooltip || 'Insert';
+
+                    // Use SVG icon if provided, otherwise text
+                    if(item.icon){
+                        buttonEl.innerHTML = item.icon;
+                    }else{
+                        buttonEl.textContent = item.text || '▼';
+                        buttonEl.style.cssText = 'background: none; font-size: 16px;';
+                    }
+
+                    buttonEl.onclick = (e) => {
+                        e.preventDefault();
+                        try {
+                            // Get current cursor position
+                            const pos = editor.getSelection();
+                            let startLine = 0;
+
+                            // Handle both array formats
+                            if(Array.isArray(pos) && Array.isArray(pos[0])){
+                                startLine = pos[0][0];
+                            }else if(Array.isArray(pos)){
+                                startLine = pos[0];
+                            }
+
+                            // Insert text at cursor
+                            editor.insertText(insertText);
+
+                            // Move cursor inside the block if specified
+                            if(item.moveCursorLines && typeof startLine === 'number'){
+                                setTimeout(() => {
+                                    try {
+                                        const newLine = startLine + item.moveCursorLines;
+                                        editor.setSelection([newLine, 0], [newLine, 0]);
+                                        editor.focus();
+                                    }catch(e){
+                                        console.warn('Could not move cursor', e);
+                                    }
+                                }, 50);
+                            }else{
+                                editor.focus();
+                            }
+                        }catch(e){
+                            console.error('Insert text error:', e);
+                        }
+                    };
+
+                    editor.insertToolbarItem(
+                        { groupIndex: item.groupIndex || -1, itemIndex: item.itemIndex || -1 },
+                        {
+                            name: item.name || 'customButton',
+                            tooltip: item.tooltip || 'Insert',
+                            el: buttonEl
+                        }
+                    );
+                }else{
+                    // Standard toolbar item insertion
+                    editor.insertToolbarItem(item);
+                }
+            });
         }
     },
 

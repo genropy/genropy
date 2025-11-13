@@ -44,7 +44,9 @@ class ContentForm(BaseComponent):
         # Read editing mode from docu preference, default to 'rst' for backwards compatibility
         editing_mode = self.db.application.getPreference('.editing_mode', pkg='docu') or 'rst'
         self.contentText(bc.contentPane(region='center', datapath='.@content_id',
-                                        overflow='hidden', title='!!Content'), mode=editing_mode)
+                                        overflow='hidden', title='!!Content'),
+                        mode=editing_mode,
+                        insertToolbarItems=['hintButton'] if editing_mode == 'markdown' else None)
                             
     def th_options(self):
         return dict(showtoolbar=False, defaultPrompt=dict(title='!!New content',
