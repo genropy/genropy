@@ -239,11 +239,8 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
 
     creating: function(attributes, sourceNode) {
         let editorAttrs = {...attributes};
-        let value = objectPop(editorAttrs,'value');
-        if(value){
-            editorAttrs.initialValue = value;
-        }
-        editorAttrs.usageStatistics = objectPop(editorAttrs,'usageStatistics') || false; //usageStatistics is false by default
+        // Do NOT derive initialValue from `value` here; it is a datapath, not content.
+        editorAttrs.usageStatistics = objectPop(editorAttrs,'usageStatistics') || false; // default false
         objectPopAll(attributes);
         return editorAttrs;
     },
@@ -251,38 +248,107 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
     created:function(widget, savedAttrs, sourceNode){
         const scriptUrl = "https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js";
         const cssUrl = "https://uicdn.toast.com/editor/latest/toastui-editor.min.css";
-    
-        const loadResource = (url, type) => {
-            return new Promise((resolve, reject) => {
-                if (type === 'js') {
-                    genro.dom.loadJs(url, resolve);
-                } else if (type === 'css') {
-                    genro.dom.loadCss(url, 'tuieditor', resolve);
-                }
-            });
-        };
-    
+        const pickerCss = "https://uicdn.toast.com/tui-color-picker/latest/tui-color-picker.min.css";
+        const pickerJs  = "https://uicdn.toast.com/tui-color-picker/latest/tui-color-picker.min.js";
+        const colorCss  = "https://uicdn.toast.com/editor-plugin-color-syntax/latest/toastui-editor-plugin-color-syntax.min.css";
+        const colorJs   = "https://uicdn.toast.com/editor-plugin-color-syntax/latest/toastui-editor-plugin-color-syntax.min.js";
+        
+        const loadResource = (url, type) => new Promise((resolve) => {
+            if (type === 'js') { genro.dom.loadJs(url, resolve); }
+            else if (type === 'css') { genro.dom.loadCss(url, 'tuieditor', resolve); }
+        });
+        
+        const wantColor = !(savedAttrs && savedAttrs.colorSyntax === false);
+        const init = () => { this.ready = true; this.initialize(widget, savedAttrs, sourceNode); };
+
+        // Ensure strict load order: Editor -> Picker -> Plugin
         if (!(window.toastui && window.toastui.Editor)) {
-            Promise.all([
-                loadResource(scriptUrl, 'js'),
-                loadResource(cssUrl, 'css')
-            ]).then(() => {
-                this.ready = true;
-                this.initialize(widget, savedAttrs, sourceNode);
-            });
+            Promise.resolve()
+                .then(() => loadResource(scriptUrl, 'js'))
+                .then(() => loadResource(cssUrl, 'css'))
+                .then(() => wantColor? loadResource(pickerCss, 'css') : null)
+                .then(() => wantColor? loadResource(pickerJs,  'js') : null)
+                .then(() => wantColor? loadResource(colorCss,  'css') : null)
+                .then(() => wantColor? loadResource(colorJs,   'js') : null)
+                .then(() => {
+                    // Sanity check: plugin expects window.tui.colorPicker
+                    if (wantColor && !(window.tui && window.tui.colorPicker)) {
+                        console.warn('[MDEditor] tui.colorPicker missing. Color Syntax plugin may fail.');
+                    }
+                    init();
+                });
         } else {
-            this.ready = true;
-            this.initialize(widget, savedAttrs, sourceNode);
+            // Editor already present. Load dependency then plugin in order
+            const needPicker = wantColor && !(window.tui && window.tui.colorPicker);
+            const needPlugin = wantColor && !(window.toastui && window.toastui.Editor && window.toastui.Editor.plugin && window.toastui.Editor.plugin.colorSyntax);
+            Promise.resolve()
+                .then(() => needPicker ? loadResource(pickerCss, 'css') : null)
+                .then(() => needPicker ? loadResource(pickerJs,  'js')  : null)
+                .then(() => needPlugin ? loadResource(colorCss,  'css') : null)
+                .then(() => needPlugin ? loadResource(colorJs,   'js')  : null)
+                .then(() => {
+                    if (!(window.tui && window.tui.colorPicker)) {
+                        console.warn('[MDEditor] tui.colorPicker missing after load.');
+                    }
+                    init();
+                });
         }
     },
 
     initialize:function(widget, savedAttrs, sourceNode){
         let editor_attrs = {...savedAttrs};
+        // Detect if the value datapath points to a Bag.
+        // Use inner nodes ONLY when no explicit htmlpath is provided.
+        let valuePath = sourceNode.attr.value;
+        let explicitHtmlPath = !!sourceNode.attr.htmlpath;
+        if (valuePath){
+            let v = sourceNode.getRelativeData(valuePath);
+            if (v instanceof gnr.GnrBag){
+                if (!explicitHtmlPath){
+                    // Enter Bag mode ONLY if Bag already has text/html keys. Do NOT create nodes.
+                    var hasText = (v.getItem('text') !== undefined);
+                    var hasHtml = (v.getItem('html') !== undefined);
+                    if (hasText || hasHtml){
+                        sourceNode._mdBagPath = valuePath;
+                        let innerText = v.getItem('text');
+                        if(innerText){ editor_attrs.initialValue = String(innerText); }
+                        sourceNode._mdInternalHtmlPath = valuePath + '.html';
+                    }
+                }else{
+                    // htmlpath present: use Bag root value
+                    if (typeof v.getValue === 'function'){
+                        let rootVal = v.getValue();
+                        if(!isNullOrBlank(rootVal)){
+                            editor_attrs.initialValue = String(rootVal);
+                        }
+                    }
+                }
+            }
+        }
+        // Normalize initialValue to a safe string for ToastUI
+        if (editor_attrs.initialValue === undefined){
+            // Pull current content from datasource when available
+            const vp = sourceNode.attr.value;
+            if (vp && !sourceNode._mdBagPath){
+                const raw = sourceNode.getRelativeData(vp);
+                editor_attrs.initialValue = (raw == null) ? '' : String(raw);
+            } else if (sourceNode._mdBagPath){
+                const rawText = sourceNode.getRelativeData(sourceNode._mdBagPath + '.text');
+                editor_attrs.initialValue = (rawText == null) ? '' : String(rawText);
+            } else {
+                editor_attrs.initialValue = '';
+            }
+        } else {
+            editor_attrs.initialValue = (editor_attrs.initialValue == null) ? '' : String(editor_attrs.initialValue);
+        }
         objectPop(editor_attrs,'htmlpath');
         const editor = editor_attrs.viewer
             ? this.createViewer(widget, editor_attrs)
             : this.createEditor(widget, editor_attrs);
-    
+        if (savedAttrs.previewStyle === 'hidden'){
+            this._ensureNoPreviewCss();
+            try{ editor.el && editor.el.classList && editor.el.classList.add('tui-no-preview'); }catch(e){}
+        }
         this.configureToolbar(editor, editor_attrs);
         this.setExternalWidget(sourceNode, editor);
         this.attachHooks(editor, editor_attrs, sourceNode);
@@ -298,10 +364,34 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
     
     createEditor:function(widget, editor_attrs){
         editor_attrs.autofocus = editor_attrs.autofocus || false;
+        // Attach Color Syntax plugin if loaded via CDN
+        try {
+            const Editor = window.toastui && window.toastui.Editor;
+            const colorSyntax = Editor && Editor.plugin && Editor.plugin.colorSyntax;
+            if (editor_attrs.colorSyntax !== false && colorSyntax) {
+                editor_attrs.plugins = (editor_attrs.plugins || []).concat([colorSyntax]);
+            }
+        } catch(e) { /* no-op */ }
         return new window.toastui.Editor({
             el: widget,
             ...editor_attrs
         });
+    },
+
+    _ensureNoPreviewCss:function(){
+        try{
+            const id = 'tui-no-preview-style';
+            if(document.getElementById(id)) return;
+            const css = [
+                '.tui-no-preview .te-preview,',
+                '.tui-no-preview .te-mode-switch-section,',
+                '.tui-no-preview .toastui-editor-md-splitter,',
+                '.tui-no-preview .toastui-editor-md-preview,',
+                '.tui-no-preview .toastui-editor-tabs { display:none !important; }'
+            ].join('');
+            const st = document.createElement('style');
+            st.id = id; st.textContent = css; document.head.appendChild(st);
+        }catch(e){}
     },
 
     configureToolbar:function(editor, editor_attrs){
@@ -372,19 +462,81 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
 
     setInDatastore:function(editor, sourceNode){
         let value = editor.getMarkdown();
+        const vp = sourceNode.attr.value;
+        const htmlpath = sourceNode.attr.htmlpath;
+
+        // If we are in Bag text/html mode, write there
+        if (sourceNode._mdBagPath){
+            let textPath = sourceNode._mdBagPath + '.text';
+            let htmlPath = sourceNode._mdInternalHtmlPath || (sourceNode._mdBagPath + '.html');
+            let currText = sourceNode.getRelativeData(textPath);
+            if (currText !== value){ sourceNode.setRelativeData(textPath, value || null); }
+            sourceNode.setRelativeData(htmlPath, editor.getHTML());
+            return;
+        }
+
+        // If explicit htmlpath exists and value is a Bag, keep root value and htmlpath
+        if (htmlpath && vp){
+            let b = sourceNode.getRelativeData(vp);
+            if (b instanceof gnr.GnrBag){
+                if (typeof b.setValue === 'function'){ b.setValue(value || null); }
+                sourceNode.setRelativeData(vp, b); // trigger listeners
+                sourceNode.setRelativeData(htmlpath, editor.getHTML());
+                return;
+            }
+        }
+
+        // No explicit htmlpath: if value is Bag without text/html, treat as scalar on root value
+        if (vp){
+            let b0 = sourceNode.getRelativeData(vp);
+            if (b0 instanceof gnr.GnrBag){
+                let hasText0 = (b0.getItem('text') !== undefined);
+                let hasHtml0 = (b0.getItem('html') !== undefined);
+                if (!hasText0 && !hasHtml0 && typeof b0.setValue === 'function'){
+                    b0.setValue(value || null);
+                    sourceNode.setRelativeData(vp, b0);
+                    return;
+                }
+            }
+        }
+
+        // Default scalar behavior
         let currentValue = sourceNode.getAttributeFromDatasource('value');
 
         // Update datastore ONLY if value has changed
         if (currentValue !== value) {
             sourceNode.setAttributeInDatasource('value', value || null);
-            const htmlpath = sourceNode.attr.htmlpath;
-            if (htmlpath) {
-                sourceNode.setRelativeData(htmlpath, editor.getHTML());
-            }
+            if (htmlpath) { sourceNode.setRelativeData(htmlpath, editor.getHTML()); }
         }
     },
     
-    mixin_gnr_value:function(value,kw, trigger_reason){    
+    mixin_gnr_value:function(value,kw, trigger_reason){
+        const vp = this.sourceNode.attr.value;
+        const hasHtml = !!this.sourceNode.attr.htmlpath;
+        if (vp){
+            let b = this.sourceNode.getRelativeData(vp);
+            if (!hasHtml && b instanceof gnr.GnrBag){
+                // Enter Bag mode only if existing text/html keys
+                let hasText = (b.getItem('text') !== undefined);
+                let hasHtmlKey = (b.getItem('html') !== undefined);
+                if (hasText || hasHtmlKey){
+                    this.sourceNode._mdBagPath = vp;
+                    let text = this.sourceNode.getRelativeData(vp + '.text') || '';
+                    this.setMarkdown(text);
+                    return;
+                }
+                // Bare Bag without keys: use root value as scalar
+                if (typeof b.getValue === 'function'){
+                    this.setMarkdown(String(b.getValue() || ''));
+                    return;
+                }
+            }
+            if (hasHtml && b instanceof gnr.GnrBag && typeof b.getValue === 'function'){
+                this.setMarkdown(String(b.getValue() || ''));
+                return;
+            }
+        }
+        // Fallback scalar
         this.setMarkdown(value || '');
     },
 
@@ -472,7 +624,13 @@ dojo.declare("gnr.widgets.codemirror", gnr.widgets.baseHtml, {
         var theme = cmAttrs.theme;
         var addon = cmAttrs.addon;
         if(addon){
-            addon = addon.split(',');
+            if (typeof addon === 'string'){
+                addon = addon.split(',');
+            } else if (Array.isArray(addon)){
+                // keep as-is
+            } else {
+                addon = [String(addon)];
+            }
         }
 
         var cb = function(){
@@ -865,7 +1023,7 @@ dojo.declare("gnr.widgets.chartjs", gnr.widgets.baseHtml, {
         var optpath = triggerNode.getFullpath(null,optionsBagChunk);
         var currOptionBag = optionsBagChunk;
         var node,val;
-        var optlist = optpath.split('.');
+        var optlist = ((typeof optpath === 'string') ? optpath : String(optpath || '')).split('.');
         var lastLabel = optlist.pop();
         var k;
         optlist.forEach(function(chunk){
@@ -983,7 +1141,7 @@ dojo.declare("gnr.widgets.dygraph", gnr.widgets.baseHtml, {
     },
 
     mixin_gnr_columns:function(value,kw, trigger_reason){  
-        this.sourceNode.labelKeys = value.split(',');
+        this.sourceNode.labelKeys = (typeof value === 'string') ? value.split(',') : (Array.isArray(value) ? value : [String(value||'')]);
         this.sourceNode.rebuild();
     },
     
