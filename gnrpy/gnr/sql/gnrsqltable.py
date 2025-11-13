@@ -605,6 +605,9 @@ class SqlTable(GnrObject):
         """
         Creates a masked version of a field for secure display of sensitive data.
 
+        Note: This method uses PostgreSQL-specific SQL functions (position, split_part, repeat,
+        substring, right) and is compatible with PostgreSQL-based adapters only.
+
         Args:
             field: The field name to mask
             mode: Masking mode - 'email', 'creditcard', 'phone', or 'N-M' format (e.g., '2-4', '3-3')
