@@ -448,12 +448,15 @@ class GnrSqlDb(GnrObject):
         self.updateEnv(storename=storename)
         
     def get_dbname(self):
-        """TODO"""
+        """Get the database name for the current store"""
         storename = self.currentEnv.get('storename')
         if storename:
-            return self.dbstores[storename]['database']
-        else:
-            return self.dbname
+            store_params = self.get_store_parameters(storename)
+            if not store_params:
+                # Backward compatibility: raise KeyError if store doesn't exist
+                raise KeyError(f'Store {storename} not configured')
+            return store_params['database']
+        return self.dbname
     
     def getTenantSchemas(self):
         if not self.tenant_table:
@@ -1206,15 +1209,18 @@ class DbStoresHandler(object):
     def __init__(self, db):
         self.db = db
         self.auxstores = {}
-        instance_dbstores = db.application.config['dbstores']
-        if instance_dbstores:
-            for n in instance_dbstores:
-                self.add_store(n.label,n.attr)
+        if db.application:
+            instance_dbstores = db.application.config.get('dbstores')
+            if instance_dbstores:
+                for n in instance_dbstores:
+                    self.add_auxstore(n.label, n.attr)
 
     @property
     def dbstores(self):
+        if not self.db.application:
+            return {}
         with self.db.tempEnv(storename=False):
-            return self.db.application.cache.getItem('MULTI_DBSTORES',defaultFactory=self._calculate_multidbstores)
+            return self.db.application.cache.getItem('MULTI_DBSTORES', defaultFactory=self._calculate_multidbstores)
 
     def _calculate_multidbstores(self):
         result = {}
@@ -1229,11 +1235,12 @@ class DbStoresHandler(object):
                 result[storename] = dict(database=databases[storename])
         return result
 
-            
-    def add_store(self, storename, dbattr=None):
-        """TODO
-        :param storename: TODO
-        :param check: TODO"""
+
+    def add_auxstore(self, storename, dbattr=None):
+        """Add an auxiliary store to the handler
+
+        :param storename: The name of the store to add
+        :param dbattr: Dictionary with store attributes (dbname, host, user, password, port, etc.)"""
         self.auxstores[storename] = dict(database=dbattr.get('dbname', storename),
                                         host=dbattr.get('host', self.db.host), user=dbattr.get('user', self.db.user),
                                         password=dbattr.get('password', self.db.password),
