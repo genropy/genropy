@@ -86,7 +86,16 @@ class Table(object):
     def trigger_onUpdating(self, record_data, old_record):
         self.deleteAddressRelations(record_data)
         self.explodeAddressRelations(record_data)
-    
+
+    def trigger_onUpdated(self, record_data,old_record=None):
+        error_in_sending = record_data['error_msg'] and not old_record['error_msg']
+        just_sent = record_data['send_date'] and not old_record['send_date']
+        just_dispatched_to_proxy = record_data['proxy_ts'] and not old_record['proxy_ts']
+        if just_sent or error_in_sending or just_dispatched_to_proxy:
+            self.db.table('email.message_to_send').removeMessageFromQueue(record_data['id'])
+        elif record_data['in_out']=='O' and not (record_data['send_date'] or record_data['proxy_ts']):
+            self.db.table('email.message_to_send').addMessageToQueue(record_data['id'])
+
     def trigger_onDeleting(self, record_data):
         self.deleteAddressRelations(record_data)
         
@@ -334,6 +343,8 @@ class Table(object):
     @public_method
     def clearErrors(self, pkey):
         with self.recordToUpdate(pkey) as message:
+            message['send_date'] = None
+            message['proxy_ts'] = None
             message['error_ts'] = None
             message['error_msg'] = None
             message['sending_attempt'] = None
