@@ -405,21 +405,30 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
 
     attachHooks:function(editor, editor_attrs, sourceNode){
         // Flag to prevent automatic conversions until user actually modifies content
-        let userHasModified = false;
+        let changeListenerActive = false;
+        let originalMarkdown = null;
 
-        // Track actual user modifications (not just editor normalization)
-        editor.on('change', () => {
-            userHasModified = true;
+        editor.on('focus', () => {
+            if (!changeListenerActive) {
+                // Save original markdown only on first focus
+                originalMarkdown = editor.getMarkdown();
+                changeListenerActive = true; // Activate listener after first focus
+            }
         });
 
         editor.on('blur', () => {
-            // Only write if user actually made changes
-            if (!userHasModified) {
+            // Do NOT write to datastore if user hasn't modified content yet
+            if (!changeListenerActive) {
                 return;
             }
 
-            this.setInDatastore(editor, sourceNode);
-            userHasModified = false; // Reset for next edit cycle
+            let newMarkdown = editor.getMarkdown();
+
+            // Check if text was actually modified
+            if (newMarkdown !== originalMarkdown) {
+                this.setInDatastore(editor, sourceNode);
+                originalMarkdown = newMarkdown; // Update original
+            }
         });
 
         // Maintain max length handling

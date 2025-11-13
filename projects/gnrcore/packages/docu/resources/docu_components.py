@@ -546,7 +546,7 @@ class ContentsComponent(BaseComponent):
                                                     **kwargs)
     
     @struct_method
-    def contentText(self, pane, mode='text', **kwargs):
+    def contentText(self, pane, mode='text', convertHtml=False, **kwargs):
         """Supported modes: text, html, code, markdown, rst (legacy).
 
         - text: plain textarea (uses 'text' field)
@@ -554,12 +554,15 @@ class ContentsComponent(BaseComponent):
         - code: Codemirror for code editing (uses field based on code_mode)
         - markdown: MDEditor for Markdown editing (uses 'markdown' field)
         - rst: (legacy) mapped to 'code' with code_mode='rst' (uses 'rst' field)
+
+        convertHtml: when mode is markdown, if convertHtml is True, the html version is saved in the 'html' field
         """
         if mode=='html':
             value='^.html'
         elif mode=='markdown':
             value='^.markdown'
-            kwargs.update(htmlpath='.html')
+            if convertHtml:
+                kwargs.update(htmlpath='.html')
         elif mode=='code':
             # For code mode, use specific field based on code_mode
             code_mode = kwargs.get('code_mode', 'python')
