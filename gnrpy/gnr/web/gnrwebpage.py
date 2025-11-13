@@ -672,11 +672,12 @@ class GnrWebPage(GnrBaseWebPage):
 
     def mixinTableResource(self, table, path,safeMode=False,**kwargs):
         """TODO
-        
+
         :param table: the :ref:`database table <table>` name on which the query will be executed,
                       in the form ``packageName.tableName`` (packageName is the name of the
                       :ref:`package <packages>` to which the table belongs to)
-        :param path: the table resource path"""
+        :param path: the table resource path
+        :param safeMode: if True, missing resources will not raise exceptions. Defaults to False"""
         pkg,table = table.split('.')
         result = self.mixinComponent('tables/%s/%s' %(table,path),safeMode=safeMode,**kwargs)
         self.mixinComponent('tables/_packages/%s/%s/%s' %(pkg,table,path),safeMode=True,**kwargs) #customization always safe mode
