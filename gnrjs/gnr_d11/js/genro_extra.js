@@ -407,6 +407,7 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
         // Flag to prevent automatic conversions until user actually modifies content
         let changeListenerActive = false;
         let originalMarkdown = null;
+        let userInteracted = false; // Track if user made any actual change
 
         editor.on('focus', () => {
             if (!changeListenerActive) {
@@ -416,9 +417,16 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
             }
         });
 
+        // Track actual user changes (typing, paste, etc.)
+        editor.on('change', () => {
+            if (changeListenerActive) {
+                userInteracted = true;
+            }
+        });
+
         editor.on('blur', () => {
             // Do NOT write to datastore if user hasn't modified content yet
-            if (!changeListenerActive) {
+            if (!changeListenerActive || !userInteracted) {
                 return;
             }
 
@@ -428,6 +436,7 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
             if (newMarkdown !== originalMarkdown) {
                 this.setInDatastore(editor, sourceNode);
                 originalMarkdown = newMarkdown; // Update original
+                userInteracted = false; // Reset for next interaction
             }
         });
 
