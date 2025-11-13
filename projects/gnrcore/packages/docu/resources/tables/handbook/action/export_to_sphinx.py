@@ -42,6 +42,11 @@ class Main(BaseResourceBatch):
         self.handbook_record = self.tblobj.record(self.handbook_id, virtual_columns='$sphinx_path').output('bag')
         self.doctable =self.db.table('docu.documentation')
         self.doc_data = self.doctable.getHierarchicalData(root_id=self.handbook_record['docroot_id'], condition='$is_published IS TRUE')['root']['#0']
+
+        # Read editing mode preference to determine which field to use (rst or markdown)
+        self.editing_mode = self.db.application.getPreference('.editing_mode', pkg='docu') or 'rst'
+        self.content_field = 'markdown' if self.editing_mode == 'markdown' else 'rst'
+        self.file_extension = 'md' if self.editing_mode == 'markdown' else 'rst'
         #DP202208 Temporary node to build files, moved after creation to definitive folder
         self.handbookNode = self.page.site.storageNode('site:handbooks', self.handbook_record['name'])
         self.sphinxNode = self.handbookNode.child('sphinx') 
@@ -99,6 +104,13 @@ class Main(BaseResourceBatch):
             conf_lines.append("show_authors = True")
         if self.enable_sitemap: #DP Enabled extensions = ['sphinx_sitemap','sphinxext.opengraph']
             conf_lines.append(f"sitemap_url_scheme = '{self.handbook_record['name']}/{{link}}'")
+
+        # Configure myst-parser if using markdown
+        if self.editing_mode == 'markdown':
+            conf_lines.append("extensions.append('myst_parser')")
+            conf_lines.append("source_suffix = {'.rst': 'restructuredtext', '.md': 'markdown'}")
+            conf_lines.append("myst_enable_extensions = ['deflist', 'colon_fence', 'substitution']")
+
         extra_conf = '\n'.join(conf_lines)
         with confSn.open('a') as confFile:
             confFile.write(extra_conf)
@@ -232,7 +244,22 @@ class Main(BaseResourceBatch):
             self.curr_sourcebag = Bag(record['sourcebag'])
             self.hierarchical_name = record['hierarchical_name']
             lbag=docbag[self.handbook_record['language']] or Bag()
-            rst = lbag['rst'] or ''
+
+            # Try to read from new content system first, fallback to legacy docbag
+            rst = ''
+            doc_content = self.db.table('docu.documentation_content').query(
+                where='$documentation_id=:doc_id AND $language_code=:lang',
+                doc_id=record['id'],
+                lang=self.handbook_record['language']
+            ).fetch()
+
+            if doc_content:
+                content_id = doc_content[0]['content_id']
+                content_rec = self.db.table('docu.content').record(content_id).output('dict')
+                rst = content_rec.get(self.content_field) or ''
+            else:
+                # Fallback to legacy docbag
+                rst = lbag['rst'] or ''
             df_rst = self.doctable.dfAsRstTable(record['id'], language=self.handbook_record['language'])
             translator = AppLocalizer(self.db.application) 
             if df_rst:
@@ -290,7 +317,7 @@ class Main(BaseResourceBatch):
 
             tocstring = ''
             if has_children:
-                result.append('%s/%s.rst' % (name,name))
+                result.append(f'{name}/{name}.{self.file_extension}')
                 if child_toc_elements:
                     tocstring = self.createToc(elements=child_toc_elements,
                                                     hidden=not record['sphinx_toc'],
@@ -387,7 +414,13 @@ class Main(BaseResourceBatch):
         if caption:
             toc_options.append('   :caption: %s' % caption)
 
-        return '\n%s\n%s\n\n\n   %s' % (".. toctree::", '\n'.join(toc_options),'\n   '.join(elements))
+        # Format toctree according to editing mode
+        if self.editing_mode == 'markdown':
+            # Markdown with MyST-parser uses similar syntax but within code fence
+            return '\n```{toctree}\n%s\n\n   %s\n```' % ('\n'.join(toc_options), '\n   '.join(elements))
+        else:
+            # RST format
+            return '\n%s\n%s\n\n\n   %s' % (".. toctree::", '\n'.join(toc_options),'\n   '.join(elements))
 
     def invalidateCloudfrontCache(self):
         client = boto3.client('cloudfront')
@@ -415,11 +448,21 @@ class Main(BaseResourceBatch):
                                             bot_token=notification_bot, page_id_code=recipient)
              
     def createFile(self, pathlist=None, name=None, title=None, rst=None, hname=None, tocstring=None, footer=''):
-        reference_label='.. _%s:\n' % hname if hname else ''
         title = title or name
-        content = '\n'.join([reference_label, title, '='*len(title), tocstring, '\n\n', rst, footer])
+
+        # Format title according to editing mode
+        if self.editing_mode == 'markdown':
+            # Markdown format
+            reference_label = f'(#{hname})=\n' if hname else ''
+            title_line = f'# {title}'
+        else:
+            # RST format
+            reference_label = f'.. _{hname}:\n' if hname else ''
+            title_line = f'{title}\n{"="*len(title)}'
+
+        content = '\n'.join([reference_label, title_line, tocstring, '\n\n', rst, footer])
         storageNode = self.page.site.storageNode('/'.join([self.sourceDirNode.internal_path]+pathlist))
-        with storageNode.child('%s.rst' % name).open('wb') as f:
+        with storageNode.child(f'{name}.{self.file_extension}').open('wb') as f:
             f.write(content.encode())
 
     

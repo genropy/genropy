@@ -1,17 +1,14 @@
 # -*- coding: utf-8 -*-
-
+import pypandoc
 from gnr.web.batch.btcbase import BaseResourceBatch
 
-caption = 'Convert content format'
+caption = '!!Convert content format'
 description = 'Convert documentation content between RST and Markdown'
 tags = '_DEV_'
 
 class Main(BaseResourceBatch):
-    dialog_height = '350px'
-    dialog_width = '550px'
     batch_prefix = 'CCF'
-    batch_title = 'Convert content format'
-    batch_cancellable = True
+    batch_title = caption
     batch_delay = 0.3
     batch_steps = 'convertContents'
 
@@ -20,18 +17,6 @@ class Main(BaseResourceBatch):
         self.source_field = 'rst' if self.conversion_direction == 'rst_to_markdown' else 'markdown'
         self.target_field = 'markdown' if self.conversion_direction == 'rst_to_markdown' else 'rst'
         self.overwrite_existing = self.batch_parameters.get('overwrite_existing', False)
-
-        # Check if pypandoc is available
-        try:
-            import pypandoc
-            self.pypandoc = pypandoc
-        except ImportError:
-            raise Exception("pypandoc library is not installed. Please install it with: pip install pypandoc")
-
-        # Get selected documentation records
-        self.selection_pkeys = self.batch_parameters.get('_pkeys', [])
-        if not self.selection_pkeys:
-            raise Exception("No documentation records selected")
 
         self.converted_count = 0
         self.skipped_count = 0
@@ -42,8 +27,7 @@ class Main(BaseResourceBatch):
         content_table = self.db.table('docu.content')
         doc_content_table = self.db.table('docu.documentation_content')
 
-        for doc_pkey in self.selection_pkeys:
-            self.batch_log_write(f"Processing documentation: {doc_pkey}")
+        for doc_pkey in self.get_selection_pkeys():
 
             # Get all documentation_content records for this documentation
             doc_contents = doc_content_table.query(
