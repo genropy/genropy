@@ -3,7 +3,7 @@
 
 class Table(object):
     def config_db(self, pkg):
-        tbl = pkg.table('content', pkey='id', name_long='!!Content', 
+        tbl = pkg.table('content', pkey='id', name_long='!!Content',
                         name_plural='!!Contents', caption_field='title')
         self.sysFields(tbl)
 
@@ -12,6 +12,8 @@ class Table(object):
         tbl.column('abstract', name_long='!!Abstract')
         tbl.column('text', name_long='!!Text')
         tbl.column('html', name_long='!!HTML')
+        tbl.column('rst', name_long='!!RST')
+        tbl.column('markdown', name_long='!!Markdown')
 
         tbl.column('tplbag', dtype='X', name_long='!!Template')
 

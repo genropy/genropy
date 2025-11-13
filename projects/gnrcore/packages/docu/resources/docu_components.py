@@ -549,22 +549,27 @@ class ContentsComponent(BaseComponent):
     def contentText(self, pane, mode='text', **kwargs):
         """Supported modes: text, html, code, markdown, rst (legacy).
 
-        - text: plain textarea
-        - html: CKEditor for HTML editing
-        - code: Codemirror for code editing (RST, Python, etc.)
-        - markdown: MDEditor for Markdown editing
-        - rst: (legacy) mapped to 'code' with code_mode='rst'
+        - text: plain textarea (uses 'text' field)
+        - html: CKEditor for HTML editing (uses 'html' field)
+        - code: Codemirror for code editing (uses field based on code_mode)
+        - markdown: MDEditor for Markdown editing (uses 'markdown' field)
+        - rst: (legacy) mapped to 'code' with code_mode='rst' (uses 'rst' field)
         """
         if mode=='html':
             value='^.html'
         elif mode=='markdown':
-            value='^.text'
+            value='^.markdown'
             kwargs.update(htmlpath='.html')
         elif mode=='code':
-            value='^.text'
+            # For code mode, use specific field based on code_mode
+            code_mode = kwargs.get('code_mode', 'python')
+            if code_mode == 'rst':
+                value='^.rst'
+            else:
+                value='^.text'
         elif mode=='rst':
-            # Legacy support: map 'rst' to 'code' mode
-            value='^.text'
+            # Legacy support: map 'rst' to 'code' mode with 'rst' field
+            value='^.rst'
             mode = 'code'
             kwargs.setdefault('code_mode', 'rst')
         else:
