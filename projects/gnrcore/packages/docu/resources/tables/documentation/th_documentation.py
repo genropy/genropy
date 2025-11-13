@@ -56,7 +56,7 @@ class Form(BaseComponent):
         frame = bc.framePane(region='center', margin='2px')
         frame.top.slotToolbar('*,stackButtons,*')
         sc = frame.center.stackContainer(region='center',margin='2px')
-        self.documentationContent(sc.borderContainer(title='!!Documentation'))
+        self.documentationContent(sc.borderContainer(title='!!Documentation', datapath='#FORM'))
         sc.contentPane(title='!![en]Parameters',datapath='#FORM').fieldsGrid()
 
     def documentationContent(self,bc):
