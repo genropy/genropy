@@ -109,7 +109,7 @@ class Main(BaseResourceBatch):
         if self.editing_mode == 'markdown':
             conf_lines.append("extensions.append('myst_parser')")
             conf_lines.append("source_suffix = {'.rst': 'restructuredtext', '.md': 'markdown'}")
-            conf_lines.append("myst_enable_extensions = ['deflist', 'colon_fence', 'substitution']")
+            conf_lines.append("myst_enable_extensions = ['deflist', 'colon_fence', 'substitution', 'attrs_inline', 'attrs_image']")
 
         extra_conf = '\n'.join(conf_lines)
         with confSn.open('a') as confFile:
