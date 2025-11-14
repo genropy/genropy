@@ -92,8 +92,13 @@ class ApplicationCache(object):
         self.application = application
         self.cache = {}
     
-    def getItem(self,key):
-        return self.cache.get(key,None)
+    def getItem(self,key,defaultFactory=None):
+        item =  self.cache.get(key,None)
+        if item is None and defaultFactory:
+            item = defaultFactory()
+            self.setItem(key,item)
+        return item
+
     
     def setItem(self,key,value):
         self.cache[key] = value
@@ -176,6 +181,12 @@ class GnrSqlAppDb(GnrSqlDb):
                     tblobj.attributes.get('transaction', tblobj.pkg.attributes.get('transaction', '')))
         if not self.inTransactionDaemon and tblobj._usesTransaction:
             raise GnrWriteInReservedTableError('%s.%s' % (tblobj.pkg.name, tblobj.name))
+
+    @property
+    def storetable(self):
+        if not hasattr(self,'_storetable'):
+            self._storetable = self.application.config['db?storetable']
+        return self._storetable
 
     @property
     def localizer(self):

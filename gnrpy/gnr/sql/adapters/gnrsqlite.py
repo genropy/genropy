@@ -148,14 +148,14 @@ class SqlDbAdapter(SqlDbBaseAdapter):
 
     def _list_tables(self, schema=None, comment=None):
         query = "SELECT name FROM %s.sqlite_master WHERE type='table';" % (schema,)
-        result = self.dbroot.execute(query).fetchall()
+        result = self.raw_fetch(query)
         if comment:
             return [(r[0],None) for r in result]
         return [r[0] for r in result]
 
     def _list_views(self, schema=None, comment=None):
         query = "SELECT name FROM %s.sqlite_master WHERE type='view';" % (schema,)
-        result = self.dbroot.execute(query).fetchall()
+        result = self.raw_fetch(query)
         if comment:
             return [(r[0],None) for r in result]
         return [r[0] for r in result]
@@ -163,7 +163,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
     def _list_columns(self, schema=None, table=None, comment=None):
         """cid|name|type|notnull|dflt_value|pk"""
         query = "PRAGMA %s.table_info(%s);" % (schema, table)
-        result = self.dbroot.execute(query).fetchall()
+        result = self.raw_fetch(query)
         if comment:
             return [(r[1],None) for r in result]
         return [r[1] for r in result]
@@ -182,7 +182,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         for schema in self._list_schemata():
             for tbl in self._list_tables(schema=schema):
                 query = "PRAGMA %s.foreign_key_list(%s);" % (schema, tbl)
-                l = self.dbroot.execute(query).fetchall()
+                l = self.raw_fetch(query)
 
                 for r in l:
                     un_tbl = r[2]
@@ -200,7 +200,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         @param schema: schema name
         @return: list of columns wich are the primary key for the table"""
         query = "PRAGMA %s.table_info(%s);" % (schema, table)
-        l = self.dbroot.execute(query).fetchall()
+        l = self.raw_fetch(query)
         return [r[1] for r in l if r[5] > 0]
 
 
@@ -283,11 +283,11 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         @param schema: schema name
         @return: list of index infos"""
         query = "PRAGMA %s.index_list(%s);" % (schema, table)
-        idxs = self.dbroot.execute(query).fetchall()
+        idxs = self.raw_fetch(query)
         result = []
         for idx in idxs:
             query = "PRAGMA %s.index_info(%s);" % (schema, idx['name'])
-            cols = self.dbroot.execute(query).fetchall()
+            cols = self.raw_fetch(query)
             cols = [c['name'] for c in cols]
             result.append(dict(name=idx['name'], primary=None, unique=idx['unique'], columns=','.join(cols)))
         return result

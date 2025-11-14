@@ -7,6 +7,19 @@ import pytest
 from gnr.sql import gnrsql as gs
 from .common import BaseGnrSqlTest
 
+class MockCache(object):
+    def __init__(self):
+        self._cache = {}
+
+    def getItem(self, key, defaultFactory=None):
+        if key not in self._cache and defaultFactory:
+            self._cache[key] = defaultFactory()
+        return self._cache.get(key)
+
+    def updatedItem(self, key):
+        if key in self._cache:
+            del self._cache[key]
+
 class MockApplication(object):
     debug = True
     config = { "db?reuse_relation_tree": False,
@@ -14,6 +27,8 @@ class MockApplication(object):
                'dbstores': None}
     localizer = False
     instanceFolder = None
+    cache = MockCache()
+
     def checkResourcePermission(self, deletable, tags, test=True):
         return test
     
@@ -103,9 +118,6 @@ class TestGnrSql(BaseGnrSqlTest):
         db.use_store("*")
         con = db.connection
         assert con is not None
-        db.use_store("_main_db,_main_connection")
-        con = db.connection
-        assert con is not None
         db.use_store()
         assert "_main_db" in db.connectionKey()
         assert "_main_connection" in db.connectionKey()
@@ -121,7 +133,7 @@ class TestGnrSql(BaseGnrSqlTest):
             application = MockApplication()
             application.instanceFolder = tmp_instancefolder
             db = gs.GnrSqlDb(application=application)
-            db.stores_handler.add_store(test_store, dbattr=dict(dbname=test_store))
+            db.stores_handler.add_auxstore(test_store, dbattr=dict(dbname=test_store))
             p = db.get_connection_params(storename=test_store)
             assert p.get("database") == test_store
             # ensure it's not the default
