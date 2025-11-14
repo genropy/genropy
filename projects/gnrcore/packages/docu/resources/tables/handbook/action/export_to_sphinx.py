@@ -80,8 +80,15 @@ class Main(BaseResourceBatch):
         "Prepare conf file"
         confSn = self.sourceDirNode.child('conf.py')
         self.page.site.storageNode('rsrc:pkg_docu','sphinx_env','default_conf.py').copy(self.page.site.storageNode(confSn))
+
+        # Check if theme exists, fallback to sphinx_rtd_theme if not
         theme = self.handbook_record['theme'] or 'sphinx_rtd_theme'
         theme_path = self.page.site.storageNode('rsrc:pkg_docu','sphinx_env','themes').internal_path
+        theme_node = self.page.site.storageNode('rsrc:pkg_docu','sphinx_env','themes', theme)
+
+        if not theme_node.exists():
+            logger.warning(f"Theme '{theme}' not found, falling back to 'sphinx_rtd_theme'")
+            theme = 'sphinx_rtd_theme'
         handbooks_theme_pref = self.db.application.getPreference('.handbooks_theme',pkg='docu')
         conf_lines = [
             f"html_theme = '{theme}'",
