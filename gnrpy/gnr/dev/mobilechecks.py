@@ -9,8 +9,6 @@ class MobileAppChecks(object):
 
     def __init__(self, site, base_url=None):
         self.site = site
-        # FIXME: if base_url is not provided, retrieve from
-        # configuration or from running site
         self.base_url = base_url if base_url else self.site.config.getNode("wsgi").getAttr("external_host")
 
     def _verify_config_item(self, path):
@@ -30,7 +28,11 @@ class MobileAppChecks(object):
         return self._verify_config_item("mobile_app.android")
 
     def _verify_url_presence(self, sub_path):
-        final_url = self.base_url + sub_path
+        try:
+            final_url = self.base_url + sub_path
+        except:
+            return (False, "Test error - can't retrieve URL configuration")
+        
         try:
             r = requests.get(final_url)
             return (r.ok, r.reason)
