@@ -42,9 +42,18 @@ class Form(BaseComponent):
 
     def th_form(self, form):
         bc = form.center.borderContainer(datapath='.record')
-        bc.rstHelpDrawer()
+        # Read editing mode from docu preference
+        editing_mode = self.db.application.getPreference('.editing_mode', pkg='docu') or 'rst'
+
+        # Use appropriate drag&drop handlers based on editing mode
+        if editing_mode == 'markdown':
+            bc.md_rstHelpDrawer()
+            form.htree.md_customizeTreeOnDrag()
+        else:
+            bc.rstHelpDrawer()
+            form.htree.customizeTreeOnDrag()
+
         bc.translationController()
-        form.htree.customizeTreeOnDrag()
         form.htree.attributes.update(getLabel="""function(node){
                             var l = genro.getData('gnr.language') || genro.locale().split('-')[1];
                             return node && node.attr?node.attr['title_'+l.toLowerCase()] || node.attr.caption:'Documentation';
@@ -125,6 +134,11 @@ class Form(BaseComponent):
                             grid_onDrag_versionLink="""
                             var version = dragValues.gridrow.rowdata['version'];
                             var v = "`"+version+" <javascript:localIframe('version:"+version+"')>`_";
+                            dragValues['text/plain'] = v;
+                            """,
+                            grid_onDrag_mdVersionLink="""
+                            var version = dragValues.gridrow.rowdata['version'];
+                            var v = "["+version+"](javascript:localIframe('version:"+version+"'))";
                             dragValues['text/plain'] = v;
                             """,
                             _class='noheader buttons_grid no_over')

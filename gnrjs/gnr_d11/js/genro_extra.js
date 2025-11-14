@@ -540,6 +540,57 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
                 }
             }, 10, this, 'typing');
         });
+
+        // Add drag&drop support for external elements
+        try {
+            const editorElements = editor.getEditorElements();
+            console.log('[MDEditor] Editor elements:', editorElements);
+
+            // Get both markdown and wysiwyg editor elements
+            const mdEditor = editorElements?.mdEditor;
+            const wwEditor = editorElements?.wwEditor;
+
+            const setupDropListener = (element, name) => {
+                if (!element) return;
+
+                console.log('[MDEditor] Setting up drop on', name);
+
+                element.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('[MDEditor] dragover on', name);
+                });
+
+                element.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('[MDEditor] drop event on', name);
+
+                    const text = e.dataTransfer.getData('text/plain');
+                    console.log('[MDEditor] Dropped text:', text);
+
+                    if (text && editor.insertText) {
+                        editor.insertText(text);
+                        console.log('[MDEditor] Text inserted');
+                        // Activate listener if not already done
+                        if (!changeListenerActive) {
+                            activateListener();
+                        }
+                    }
+                });
+            };
+
+            // Setup listeners on both elements
+            setupDropListener(mdEditor, 'mdEditor');
+            setupDropListener(wwEditor, 'wwEditor');
+
+            // Also try on the main container
+            if (editor.el) {
+                setupDropListener(editor.el, 'editor.el');
+            }
+        } catch (e) {
+            console.warn('[MDEditor] Failed to setup drop listeners', e);
+        }
     },
 
     checkMaxLength:function(editor, maxLength){
