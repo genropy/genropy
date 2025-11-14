@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from gnr.web.gnrheadlesspage import GnrHeadlessPage as page_factory # noqa: F401
+from gnr.web.gnrheadlesspage import GnrHeadlessPage
 
 class GnrCustomWebPage(object):
     skip_connection=True
-
+    page_factory = GnrHeadlessPage
 
     # BEGIN base externalcall handlers
     def rootPage(self,*args, **kwargs):
