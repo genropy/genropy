@@ -86,7 +86,7 @@ class Main(BaseResourceBatch):
         theme_path = self.page.site.storageNode('rsrc:pkg_docu','sphinx_env','themes').internal_path
         theme_node = self.page.site.storageNode('rsrc:pkg_docu','sphinx_env','themes', theme)
 
-        if not theme_node.exists():
+        if not theme_node.exists:
             logger.warning(f"Theme '{theme}' not found, falling back to 'sphinx_rtd_theme'")
             theme = 'sphinx_rtd_theme'
         handbooks_theme_pref = self.db.application.getPreference('.handbooks_theme',pkg='docu')
@@ -442,17 +442,20 @@ class Main(BaseResourceBatch):
         return '*MISSING LINK (%s)* %s' % (ref,title)
 
     def createToc(self, elements=None, maxdepth=None, hidden=None, titlesonly=None, caption=None, includehidden=None):
+        # In RST mode, options need 3-space indentation; in Markdown/MyST mode, no indentation
+        indent = '   ' if self.editing_mode == 'rst' else ''
+
         toc_options=[]
         if includehidden:
-            toc_options.append('   :includehidden:')
+            toc_options.append(f'{indent}:includehidden:')
         if maxdepth:
-            toc_options.append('   :maxdepth: %i' % maxdepth)
+            toc_options.append(f'{indent}:maxdepth: {maxdepth}')
         if hidden:
-            toc_options.append('   :hidden:')
+            toc_options.append(f'{indent}:hidden:')
         if titlesonly:
-            toc_options.append('   :titlesonly:')
+            toc_options.append(f'{indent}:titlesonly:')
         if caption:
-            toc_options.append('   :caption: %s' % caption)
+            toc_options.append(f'{indent}:caption: {caption}')
 
         # Format toctree according to editing mode
         if self.editing_mode == 'markdown':
