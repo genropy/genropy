@@ -98,8 +98,8 @@ class Form(BaseComponent):
                                 """,
                                 data = '=#FORM.record.sourcebag',
                                 selectedLabel='=.grid.selectedLabel',
-                                ask=dict(title='Change name',fields=[dict(name='newname',lbl='New version name',validate_case='l'),
-                                                                        dict(name='newdesc',lbl='New version description')]))
+                                ask=dict(title='!!Change name',fields=[dict(name='newname',lbl='!!New version name',validate_case='l'),
+                                                                        dict(name='newdesc',lbl='!!New version description')]))
 
         bar.dataFormula('#FORM.sourceMetaCurrentDatapath',"selectedLabel?this.absDatapath('#FORM.record.sourcebag.'+selectedLabel):'nosourcelabel';",
                         selectedLabel='^.grid.selectedLabel',sbag='=#FORM.record.sourcebag')
@@ -174,8 +174,8 @@ class Form(BaseComponent):
         bar.addrow_dlg.slotButton('!!Add version',iconClass='iconbox add_row',
                                     version='==(!_currVersions || _currVersions.len()===0)?"_base_":"untitled"',
                                     _currVersions='=#FORM.record.sourcebag',
-                                    ask=dict(title='New version',
-                                    fields=[dict(name='version',lbl='Version',validate_case='l')]),
+                                    ask=dict(title='!!New version',
+                                    fields=[dict(name='version',lbl='!!Version',validate_case='l')]),
                                     action='FIRE #FORM.versionsFrame.newVersion=version;')
         bar.delgridrow.slotButton('!!Delete selected template',iconClass='iconbox delete_row',
                                     action="""grid.publish("delrow");grid.widget.updateRowCount();""",grid=fg.grid)
