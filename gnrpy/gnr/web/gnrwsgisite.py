@@ -929,6 +929,8 @@ class GnrWsgiSite(object):
         request = self.currentRequest
         request_kwargs = self.parse_kwargs(self.parse_request_params(request))
         path_list,redirect_to = self.handle_path_list(request.path,request_kwargs=request_kwargs)
+        # Quick exit for invalid domains BEFORE accessing register/cookies
+        # This prevents accumulation on _main_ register from bot scanning and invalid requests
         if redirect_to or request_kwargs.get('_souspicious_request_'):
             return False
         first_segment = path_list[0] if path_list else ''
