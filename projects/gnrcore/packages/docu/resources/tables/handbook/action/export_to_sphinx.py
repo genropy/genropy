@@ -128,17 +128,37 @@ class Main(BaseResourceBatch):
         if self.handbook_record['toc_roots']:
             toc_roots = self.handbook_record['toc_roots'].split(',')
             toc_trees = []
-            for doc_id in toc_roots:
-                node = self.doc_data.getNode(doc_id)
-                if node:
+            regular_pages = []
+
+            # Process all direct children of docroot
+            for node in self.doc_data:
+                doc_id = node.label
+                record = self.doctable.record(doc_id).output('dict')
+
+                # Skip if no publish_date
+                if not record.get('publish_date'):
+                    continue
+
+                if doc_id in toc_roots:
+                    # Process as toc_root with caption
                     subtree = Bag()
                     subtree.setItem(node.label, node.value, **node.attr)
-                    r = self.doctable.record(doc_id).output('dict')
-                    title = Bag(r['docbag'])['%s.title' % self.handbook_record['language']] 
-                    root_code = r['name']
-                    toc_elements = self.prepare(subtree,[], skip_first=True)
+                    title = Bag(record['docbag'])['%s.title' % self.handbook_record['language']]
+                    toc_elements = self.prepare(subtree, [], skip_first=True)
                     toc_trees.append(self.createToc(elements=toc_elements, includehidden=True, titlesonly=True, caption=title))
-            tocstring = '\n\n'.join(toc_trees)
+                else:
+                    # Process as regular page (not in toc_roots but has publish_date)
+                    subtree = Bag()
+                    subtree.setItem(node.label, node.value, **node.attr)
+                    page_elements = self.prepare(subtree, [])
+                    regular_pages.extend(page_elements)
+
+            # Build main TOC: regular pages first, then toc_root sections
+            main_toc_parts = []
+            if regular_pages:
+                main_toc_parts.append(self.createToc(elements=regular_pages, includehidden=True, titlesonly=True))
+            main_toc_parts.extend(toc_trees)
+            tocstring = '\n\n'.join(main_toc_parts)
         else:
             toc_elements = self.prepare(self.doc_data,[])
             tocstring = self.createToc(elements=toc_elements, includehidden=True, titlesonly=True)
