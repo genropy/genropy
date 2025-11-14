@@ -1023,7 +1023,7 @@ class GnrApp(object):
             project_path = self.project_path(project)
             if project_path:
                 path = os.path.join(project_path,'packages')
-                if not os.path.isdir(os.path.join(path, pkgid)):
+                if not os.path.exists(os.path.join(path, pkgid,'main.py')):
                     path=None
                     external_project_path = os.path.join(project_path,'external_projects.xml')
                     if os.path.exists(external_project_path):
