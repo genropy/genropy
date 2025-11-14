@@ -110,11 +110,11 @@ todo_include_todos = False
 # further.  For a list of options available for each theme, see the
 # documentation.
 
-html_theme_options = {'includehidden': True,   
-                    'titles_only': False,
+html_theme_options = {'includehidden': True,
+                    'titles_only': True,
                     'collapse_navigation': True,
                     'sticky_navigation': False,
-                    'navigation_depth': -1}
+                    'navigation_depth': 1}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

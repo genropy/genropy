@@ -112,6 +112,21 @@ class Main(BaseResourceBatch):
         text = re.sub(pattern, replace_myst_iframe, text, flags=re.MULTILINE)
         return text
 
+    def downgrade_markdown_headings(self, text):
+        """Downgrade all markdown headings by one level (# -> ##, ## -> ###, etc.).
+
+        This is necessary because the page title will be added by the formatter as #,
+        so the content headings need to start from ## to maintain proper hierarchy.
+        """
+        def replace_heading(match):
+            hashes = match.group(1)
+            rest = match.group(2)
+            # Add one more # to downgrade the heading level
+            return f'#{hashes}{rest}'
+
+        # Replace headings at start of line, preserving the rest of the content
+        return re.sub(r'^(#{1,6})( .*)$', replace_heading, text, flags=re.MULTILINE)
+
     def step_convertContents(self):
         """Convert content format for all selected documentation records"""
         content_table = self.db.table('docu.content')
@@ -161,6 +176,8 @@ class Main(BaseResourceBatch):
                             converted_text = self.fix_admonitions(converted_text)
                             # Fix iframes to MyST format
                             converted_text = self.fix_iframes(converted_text)
+                            # Downgrade all headings by one level since the page title will be added by the formatter
+                            converted_text = self.downgrade_markdown_headings(converted_text)
                         else:
                             # Convert MyST iframe to RST before pypandoc conversion
                             source_text = self.convert_myst_iframe_to_rst(source_text)
