@@ -23,6 +23,7 @@ from gnr.web.batch.btcbase import BaseResourceBatch
 from gnr.app.gnrlocalization import AppLocalizer
 from gnr.core.gnrbag import Bag
 from gnr.app import pkglog as logger
+from sphinx_formatters import SphinxFormatter
 
 caption = 'Export to sphinx'
 description = 'Export to sphinx'
@@ -73,8 +74,20 @@ class Main(BaseResourceBatch):
         self.examplesDirNode = self.sourceDirNode.child(self.examplesPath)
         #DP202112 Check if there are active redirects
         if self.db.application.getPreference('.manage_redirects',pkg='docu'):
-            self.redirect_pkeys = self.db.table('docu.redirect').query(where='$old_handbook_id=:h_id AND $is_active IS TRUE', 
-                        h_id=self.handbook_id).selection().output('pkeylist')   
+            self.redirect_pkeys = self.db.table('docu.redirect').query(where='$old_handbook_id=:h_id AND $is_active IS TRUE',
+                        h_id=self.handbook_id).selection().output('pkeylist')
+
+        # Initialize formatter for mode-aware content generation
+        self.formatter = SphinxFormatter(
+            editing_mode=self.editing_mode,
+            handbook_record=self.handbook_record,
+            doctable=self.doctable,
+            page=self.page,
+            images_path=self.imagesPath,
+            curr_pathlist=[],
+            images_dict=self.imagesDict,
+            show_last_update=self.db.application.getPreference('.handbooks_theme.last_update', pkg='docu')
+        )   
             
     def step_prepareConfFile(self):
         "Prepare conf file"
@@ -145,7 +158,7 @@ class Main(BaseResourceBatch):
                     subtree.setItem(node.label, node.value, **node.attr)
                     title = Bag(record['docbag'])['%s.title' % self.handbook_record['language']]
                     toc_elements = self.prepare(subtree, [], skip_first=True)
-                    toc_trees.append(self.createToc(elements=toc_elements, includehidden=True, titlesonly=True, caption=title))
+                    toc_trees.append(self.formatter.create_toc(elements=toc_elements, includehidden=True, titlesonly=True, caption=title))
                 else:
                     # Process as regular page (not in toc_roots but has publish_date)
                     subtree = Bag()
@@ -156,12 +169,12 @@ class Main(BaseResourceBatch):
             # Build main TOC: regular pages first, then toc_root sections
             main_toc_parts = []
             if regular_pages:
-                main_toc_parts.append(self.createToc(elements=regular_pages, includehidden=True, titlesonly=True))
+                main_toc_parts.append(self.formatter.create_toc(elements=regular_pages, includehidden=True, titlesonly=True))
             main_toc_parts.extend(toc_trees)
             tocstring = '\n\n'.join(main_toc_parts)
         else:
             toc_elements = self.prepare(self.doc_data,[])
-            tocstring = self.createToc(elements=toc_elements, includehidden=True, titlesonly=True)
+            tocstring = self.formatter.create_toc(elements=toc_elements, includehidden=True, titlesonly=True)
 
         self.createFile(pathlist=[], name='index', title=self.handbook_record['title'], rst='', tocstring=tocstring)
         for k,v in self.imagesDict.items():
@@ -271,11 +284,14 @@ class Main(BaseResourceBatch):
         result=[]
         if not data:
             return result
+
+        translator = AppLocalizer(self.db.application)
+
         for idx, n in enumerate(data):
             v = n.value
             record = self.doctable.record(n.label,
                                           virtual_columns='$full_external_url,$root_handbook_url').output('dict')
-            
+
             name=record['name']
             docbag = Bag(record['docbag'])
             self.curr_sourcebag = Bag(record['sourcebag'])
@@ -297,15 +313,12 @@ class Main(BaseResourceBatch):
             else:
                 # Fallback to legacy docbag
                 rst = lbag['rst'] or ''
-            df_rst = self.doctable.dfAsRstTable(record['id'], language=self.handbook_record['language'])
-            translator = AppLocalizer(self.db.application) 
-            if df_rst:
-                params = translator.getTranslation('!!Parameters', language=self.handbook_record['language']).get('translation') or 'Parameters'
-                rst = f'{rst}\n\n' + '.. raw:: html\n\n <hr>' + f'\n\n**{params}:**\n\n{df_rst}'
-            atc_rst = self.doctable.atcAsRstTable(record['id'], host=self.page.external_host)
-            if atc_rst:
-                atcs = translator.getTranslation('!!Attachments', language=self.handbook_record['language']).get('translation') or 'Attachments'
-                rst = f'{rst}\n\n' + '.. raw:: html\n\n <hr>' + f'\n\n**{atcs}:**\n\n{atc_rst}'
+
+            # Add parameters table
+            rst = self.formatter.append_parameters_table(rst, record['id'])
+
+            # Add attachments table
+            rst = self.formatter.append_attachments_table(rst, record['id'])
             
             if self.examples_root and self.curr_sourcebag:
                         rst = EXAMPLE_FINDER.sub(self.fixExamples, rst)
@@ -316,12 +329,13 @@ class Main(BaseResourceBatch):
             if has_children and v:
                 child_toc_elements = self.prepare(v, branch_pathlist)
             self.curr_pathlist = branch_pathlist if has_children else pathlist
+            self.formatter.curr_pathlist = self.curr_pathlist  # Keep formatter in sync
 
             skip_current = skip_first and idx == 0
             if skip_current:
                 tocstring = ''
                 if child_toc_elements:
-                    tocstring = self.createToc(elements=child_toc_elements,
+                    tocstring = self.formatter.create_toc(elements=child_toc_elements,
                                                titlesonly=True,
                                                includehidden=True,
                                                maxdepth=1)
@@ -335,7 +349,7 @@ class Main(BaseResourceBatch):
                 result.extend(prefixed_entries)
                 continue
 
-            rst = IMAGEFINDER.sub(self.fixImages,rst)
+            rst = IMAGEFINDER.sub(self.formatter.fix_images, rst)
             rst = LINKFINDER.sub(self.fixLinks, rst)
 
             # Handle iframe directive in Markdown mode
@@ -343,14 +357,7 @@ class Main(BaseResourceBatch):
                 rst = IFRAME_FINDER.sub(self.fixIframes, rst)
 
             rst=rst.replace('[tr-off]','').replace('[tr-on]','')
-            footer= ''
-            if record['author']:
-                footer = '\n.. sectionauthor:: %s\n' % (record['author'] or self.handbook_record['author'])
-            if self.db.application.getPreference('.handbooks_theme.last_update',pkg='docu'):
-                last_upd = translator.getTranslation('!!Publish date', language=self.handbook_record['language']).get('translation') or 'Publish date'
-                date_format = '%Y-%m-%d'if self.handbook_record['language'] == 'en' else '%d-%m-%Y' 
-                publish_date_str = record['publish_date'].strftime(date_format) if record['publish_date'] else ''
-                footer += f"""\n.. raw:: html\n\n   <p style="font-size:0.8em;">{last_upd} {publish_date_str}</p>"""
+            footer = self.formatter.create_footer(record, translator)
 
             url = record.get('full_external_url') or record.get('root_handbook_url')
             if url:
@@ -360,15 +367,15 @@ class Main(BaseResourceBatch):
             if has_children:
                 result.append(f'{name}/{name}.{self.file_extension}')
                 if child_toc_elements:
-                    tocstring = self.createToc(elements=child_toc_elements,
+                    tocstring = self.formatter.create_toc(elements=child_toc_elements,
                                                     hidden=not record['sphinx_toc'],
                                                     titlesonly=True,
                                                     maxdepth=1)
             else:
                 result.append(name)
-                
+
             self.createFile(pathlist=self.curr_pathlist, name=name,
-                            title=lbag['title'], 
+                            title=lbag['title'],
                             rst=rst,
                             tocstring=tocstring,
                             hname=record['hierarchical_name'], footer=footer)
@@ -381,8 +388,9 @@ class Main(BaseResourceBatch):
         logger.debug(f'**EXAMPLE** {example_name}')
         sourcedata = self.curr_sourcebag[example_name] or Bag()
         logger.debug(sourcedata)
-        return '.. raw:: html\n\n %s' %self.exampleHTMLChunk(sourcedata,example_label=example_label,example_name=example_name)
-        
+        html_chunk = self.exampleHTMLChunk(sourcedata, example_label=example_label, example_name=example_name)
+        return self.formatter.format_raw_html(html_chunk)
+
     def exampleHTMLChunk(self,sourcedata,example_label=None,example_name=None):
         height = sourcedata['iframe_height'] or self.examples_pars['default_height'] or  100
         width = sourcedata['iframe_width'] or self.examples_pars['default_width']
@@ -412,25 +420,6 @@ class Main(BaseResourceBatch):
         </div> 
         """  %(dumps(iframekw),iframekw['example_label'])
 
-    def fixImages(self, m):
-        # Handle both RST and Markdown formats
-        if self.editing_mode == 'markdown':
-            # Markdown: ![alt](url) → group(1) = alt, group(2) = url
-            alt_text = m.group(1)
-            old_filepath = m.group(2)
-            filename = old_filepath.split('/')[-1]
-            new_filepath = '%s/%s' % (self.imagesPath, '/'.join(self.curr_pathlist+[filename]))
-            self.imagesDict[new_filepath]=old_filepath
-            result = "![%s](/%s)" % (alt_text, new_filepath)
-        else:
-            # RST: .. image:: url → group(1) = url
-            old_filepath = m.group(1)
-            filename = old_filepath.split('/')[-1]
-            new_filepath = '%s/%s' % (self.imagesPath, '/'.join(self.curr_pathlist+[filename]))
-            self.imagesDict[new_filepath]=old_filepath
-            result = ".. image:: /%s" % new_filepath
-        return result
-
     def fixIframes(self, m):
         """Handle MyST iframe directive - convert to raw HTML for Sphinx"""
         url = m.group(1)
@@ -446,44 +435,17 @@ class Main(BaseResourceBatch):
         ref = path.replace(prefix,'')
         valid_link=self.doctable.query(where='$hierarchical_name=:ref', ref= ref).fetch()
         if valid_link:
-            result = ' :ref:`%s<%s>` ' % (title, ref)
-            return result
+            return self.formatter.format_internal_link(title, ref)
         splitted_ref=ref.split('/')
         parent_name = '/'.join(splitted_ref[-2:])
         parent_name='%' + parent_name
         similar = self.doctable.query(where='$hierarchical_name LIKE :parent_name', parent_name=parent_name).fetch()
         if similar:
-            result = ' :ref:`%s<%s>` ' % (title, similar[0]['hierarchical_name'])
-            return result
+            return self.formatter.format_internal_link(title, similar[0]['hierarchical_name'])
         same_name=self.doctable.query(where='$name= :name', name=splitted_ref[-1] ).fetch()
         if same_name and len(same_name)==0:
-            result = ' :ref:`%s<%s>` ' % (title, same_name[0]['hierarchical_name'])
-            return result
+            return self.formatter.format_internal_link(title, same_name[0]['hierarchical_name'])
         return '*MISSING LINK (%s)* %s' % (ref,title)
-
-    def createToc(self, elements=None, maxdepth=None, hidden=None, titlesonly=None, caption=None, includehidden=None):
-        # In RST mode, options need 3-space indentation; in Markdown/MyST mode, no indentation
-        indent = '   ' if self.editing_mode == 'rst' else ''
-
-        toc_options=[]
-        if includehidden:
-            toc_options.append(f'{indent}:includehidden:')
-        if maxdepth:
-            toc_options.append(f'{indent}:maxdepth: {maxdepth}')
-        if hidden:
-            toc_options.append(f'{indent}:hidden:')
-        if titlesonly:
-            toc_options.append(f'{indent}:titlesonly:')
-        if caption:
-            toc_options.append(f'{indent}:caption: {caption}')
-
-        # Format toctree according to editing mode
-        if self.editing_mode == 'markdown':
-            # Markdown with MyST-parser uses similar syntax but within code fence
-            return '\n```{toctree}\n%s\n\n   %s\n```' % ('\n'.join(toc_options), '\n   '.join(elements))
-        else:
-            # RST format
-            return '\n%s\n%s\n\n\n   %s' % (".. toctree::", '\n'.join(toc_options),'\n   '.join(elements))
 
     def invalidateCloudfrontCache(self):
         client = boto3.client('cloudfront')
@@ -511,24 +473,14 @@ class Main(BaseResourceBatch):
                                             bot_token=notification_bot, page_id_code=recipient)
              
     def createFile(self, pathlist=None, name=None, title=None, rst=None, hname=None, tocstring=None, footer=''):
+        """Create documentation file with proper formatting for the editing mode"""
         title = title or name
+        content = self.formatter.format_file_content(title, hname, tocstring, rst, footer)
 
-        # Format title according to editing mode
-        if self.editing_mode == 'markdown':
-            # Markdown format
-            reference_label = f'(#{hname})=\n' if hname else ''
-            title_line = f'# {title}'
-        else:
-            # RST format
-            reference_label = f'.. _{hname}:\n' if hname else ''
-            title_line = f'{title}\n{"="*len(title)}'
-
-        content = '\n'.join([reference_label, title_line, tocstring, '\n\n', rst, footer])
         storageNode = self.page.site.storageNode('/'.join([self.sourceDirNode.internal_path]+pathlist))
         with storageNode.child(f'{name}.{self.file_extension}').open('wb') as f:
             f.write(content.encode())
 
-    
     def table_script_parameters_pane(self,pane,**kwargs):   
         fb = pane.formbuilder(cols=1, border_spacing='5px')
         if self.db.application.getPreference('.manage_redirects',pkg='docu'):
