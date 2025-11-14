@@ -226,11 +226,21 @@ class Main(BaseResourceBatch):
         return 'Export done', resultAttr
 
     def prepare(self, data, pathlist, skip_first=False):
-        IMAGEFINDER = re.compile(r"\.\. image:: ([\w./:-]+)")
-        LINKFINDER = re.compile(r"`([^`]*) <([\w./]+)>`_\b")
-        #LINKFINDER = re.compile(r"`([^`]*) <([\w./-]+)(?:/(#[\w-]+))?>`_\b") version with group 3 after /#
+        # Define patterns based on editing mode
+        if self.editing_mode == 'markdown':
+            # Markdown patterns
+            IMAGEFINDER = re.compile(r"!\[([^\]]*)\]\(([\w./:-]+)\)")  # ![alt](url)
+            LINKFINDER = re.compile(r"\[([^\]]*)\]\(([\w./#-]+)\)")  # [text](url)
+            EXAMPLE_FINDER = re.compile(r"\[([^\]]*)\]\(javascript:localIframe\('version:([\w_]+)'\)\)")  # [text](javascript:...)
+            IFRAME_FINDER = re.compile(r":::\{iframe\}\s+([\w./:?&=-]+)")  # :::{iframe} url
+        else:
+            # RST patterns
+            IMAGEFINDER = re.compile(r"\.\. image:: ([\w./:-]+)")
+            LINKFINDER = re.compile(r"`([^`]*) <([\w./]+)>`_\b")
+            EXAMPLE_FINDER = re.compile(r"`([^`]*)<javascript:localIframe\('version:([\w_]+)'\)>`_")
+            IFRAME_FINDER = None  # RST uses raw html, not a specific pattern
+
         TOCFINDER = re.compile(r"_TOC?(\w*)")
-        EXAMPLE_FINDER = re.compile(r"`([^`]*)<javascript:localIframe\('version:([\w_]+)'\)>`_")
         result=[]
         if not data:
             return result
@@ -300,6 +310,10 @@ class Main(BaseResourceBatch):
 
             rst = IMAGEFINDER.sub(self.fixImages,rst)
             rst = LINKFINDER.sub(self.fixLinks, rst)
+
+            # Handle iframe directive in Markdown mode
+            if self.editing_mode == 'markdown' and IFRAME_FINDER:
+                rst = IFRAME_FINDER.sub(self.fixIframes, rst)
 
             rst=rst.replace('[tr-off]','').replace('[tr-on]','')
             footer= ''
@@ -372,13 +386,32 @@ class Main(BaseResourceBatch):
         """  %(dumps(iframekw),iframekw['example_label'])
 
     def fixImages(self, m):
-        old_filepath = m.group(1)
-        filename = old_filepath.split('/')[-1]
-        new_filepath = '%s/%s' % (self.imagesPath, '/'.join(self.curr_pathlist+[filename]))
-        self.imagesDict[new_filepath]=old_filepath
-        result = ".. image:: /%s" % new_filepath
+        # Handle both RST and Markdown formats
+        if self.editing_mode == 'markdown':
+            # Markdown: ![alt](url) → group(1) = alt, group(2) = url
+            alt_text = m.group(1)
+            old_filepath = m.group(2)
+            filename = old_filepath.split('/')[-1]
+            new_filepath = '%s/%s' % (self.imagesPath, '/'.join(self.curr_pathlist+[filename]))
+            self.imagesDict[new_filepath]=old_filepath
+            result = "![%s](/%s)" % (alt_text, new_filepath)
+        else:
+            # RST: .. image:: url → group(1) = url
+            old_filepath = m.group(1)
+            filename = old_filepath.split('/')[-1]
+            new_filepath = '%s/%s' % (self.imagesPath, '/'.join(self.curr_pathlist+[filename]))
+            self.imagesDict[new_filepath]=old_filepath
+            result = ".. image:: /%s" % new_filepath
         return result
-        
+
+    def fixIframes(self, m):
+        """Handle MyST iframe directive - convert to raw HTML for Sphinx"""
+        url = m.group(1)
+        # Convert MyST iframe to raw HTML that Sphinx understands
+        # Keep the URL as-is (could be external video or internal content)
+        iframe_html = f'<iframe src="{url}" width="100%" height="315" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>'
+        return f'```{{raw}} html\n{iframe_html}\n```'
+
     def fixLinks(self, m):
         prefix = '%s/' % self.db.package('docu').htmlProcessorName()
         title= m.group(1)
