@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from gnr.core.gnrbag import Bag
 
 "MDEditor"
 
@@ -17,7 +18,7 @@ class GnrCustomWebPage(object):
 
     def test_2_parametric(self, pane):
         "MDEditor with parameters"
-        bc = pane.borderContainer(height='800px',width='600px',border='1px solid silver')
+        bc = pane.borderContainer(height='400px',width='600px',border='1px solid silver')
         fb = bc.contentPane(region='top').formbuilder()
         fb.filteringSelect('^.initialEditType',lbl='initialEditType', values='markdown,wysiwyg', default='markdown')
         fb.textbox('^.initialValue',lbl='initialValue', default='This is a **markdown** text')
@@ -32,3 +33,8 @@ class GnrCustomWebPage(object):
         "MDEditor with maxLength"
         pane.MDEditor(value='^.mycontent.text',height='300px',width='400px',htmlpath='.mycontent.html',
                       maxLength=1024, removeToolbarItems=['image', 'code'])
+        
+    def test_4_bag(self, pane):
+        pane.data('.mycontent', Bag())
+        "If a Bag is set as value and no htmlpath is set, the MDEditor will create a 'text' and 'html' nodes in the Bag"
+        pane.MDEditor(value='^.mycontent',height='300px',width='400px', colorSyntax=True)
