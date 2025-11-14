@@ -56,6 +56,62 @@ class Main(BaseResourceBatch):
 
         return text
 
+    def fix_iframes(self, text):
+        """Convert RST raw HTML iframe blocks to MyST iframe directive.
+
+        Converts from:
+            .. raw:: html
+
+                <iframe src="URL" width="100%" height="315" ...></iframe><hr>
+
+        To:
+            :::{iframe} URL
+            :width: 100%
+            :::
+        """
+        # Pattern to match RST raw html blocks with iframe
+        # Matches: .. raw:: html\n\n    <iframe src="URL" ... ></iframe>
+        pattern = r'\.\.\s+raw::\s+html\s*\n\s*\n\s+<iframe\s+src="([^"]+)"[^>]*>.*?</iframe>(?:<hr>)?'
+
+        def replace_iframe(match):
+            url = match.group(1)
+            # Extract width if present in the original iframe
+            width_match = re.search(r'width="([^"]+)"', match.group(0))
+            width = width_match.group(1) if width_match else '100%'
+
+            return f':::{{iframe}} {url}\n:width: {width}\n:::'
+
+        text = re.sub(pattern, replace_iframe, text, flags=re.DOTALL)
+        return text
+
+    def convert_myst_iframe_to_rst(self, text):
+        """Convert MyST iframe directive to RST raw HTML.
+
+        Converts from:
+            :::{iframe} URL
+            :width: 100%
+            Caption text
+            :::
+
+        To:
+            .. raw:: html
+
+                <iframe src="URL" width="100%" height="315" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe><hr>
+        """
+        # Pattern to match MyST iframe blocks
+        # Matches: :::{iframe} URL\n:width: WIDTH\nCAPTION\n:::
+        pattern = r':::\{iframe\}\s+([^\s\n]+)(?:\s*\n:width:\s+([^\n]+))?(?:\s*\n([^\n]*))?\s*\n:::'
+
+        def replace_myst_iframe(match):
+            url = match.group(1)
+            width = match.group(2) if match.group(2) else '100%'
+            # caption = match.group(3) if match.group(3) else ''
+
+            return f'.. raw:: html\n\n    <iframe src="{url}" width="{width}" height="315" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe><hr>'
+
+        text = re.sub(pattern, replace_myst_iframe, text, flags=re.MULTILINE)
+        return text
+
     def step_convertContents(self):
         """Convert content format for all selected documentation records"""
         content_table = self.db.table('docu.content')
@@ -103,7 +159,11 @@ class Main(BaseResourceBatch):
                             )
                             # Fix admonitions to MyST format
                             converted_text = self.fix_admonitions(converted_text)
+                            # Fix iframes to MyST format
+                            converted_text = self.fix_iframes(converted_text)
                         else:
+                            # Convert MyST iframe to RST before pypandoc conversion
+                            source_text = self.convert_myst_iframe_to_rst(source_text)
                             converted_text = pypandoc.convert_text(source_text, 'rst', format='markdown')
 
                         # Save converted text

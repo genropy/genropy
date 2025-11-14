@@ -564,6 +564,26 @@ class ContentsComponent(BaseComponent):
             'itemIndex': -1
         }
 
+    def iframeButton(self):
+        """Returns configuration for iframe embed button in MDEditor"""
+        # Document/file icon in flat dark gray style
+        icon = '''<svg viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 2h6l3 3v9a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z" stroke="#333" stroke-width="1.3" stroke-linejoin="round"/>
+            <path d="M10 2v3h3" stroke="#333" stroke-width="1.3" stroke-linejoin="round"/>
+            <path d="M6 9h5M6 11h5" stroke="#333" stroke-width="1.3" stroke-linecap="round"/>
+        </svg>'''
+
+        return {
+            'name': 'iframe',
+            'tooltip': 'Insert Iframe',
+            'icon': icon,
+            'insertText': ':::{iframe} IFRAME_URL_HERE\n:width: 100%\nCaption\n:::',
+            'moveCursorLines': 0,
+            'selectText': 'IFRAME_URL_HERE',
+            'groupIndex': 0,
+            'itemIndex': -1
+        }
+
     @struct_method
     def contentText(self, pane, mode='text', convertHtml=False, insertToolbarItems=None, **kwargs):
         """Supported modes: text, html, code, markdown, rst (legacy).
