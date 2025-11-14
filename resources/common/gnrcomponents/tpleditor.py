@@ -280,8 +280,6 @@ class TemplateEditor(TemplateEditorBase):
         fb.dbSelect(value='^.default_letterhead',dbtable='adm.htmltemplate',
                     lbl='!!Letterhead',hasDownArrow=True,colspan=3)
         fb.textbox(value='^.summary',lbl='!!Summary',colspan=4)
-        if self.isDeveloper():
-            fb.textbox(value='^#ANCHOR.userobject_meta.flags',lbl='!!Flags',colspan=7)
     
     @extract_kwargs(fieldsTree=dict(slice_prefix=False))
     def _te_info_vars(self,bc,table=None,datasourcepath=None,fieldsTree_kwargs=None,**kwargs):
@@ -392,7 +390,7 @@ class TemplateEditor(TemplateEditorBase):
                             FIRE .tree_rebuild;""",
             varsbag="=.data.varsbag",parameters='=.data.parameters',
             varcaption='!!Fields',parscaption='!!Parameters',_if='status=="edit"',status='^.status')
-        vartab = tc.contentPane(title='Variables',overflow='auto',text_align='left',margin='2px',_class='pbl_roundedGroup')
+        vartab = tc.contentPane(title='!!Variables',overflow='auto',text_align='left',margin='2px',_class='pbl_roundedGroup')
         vartab.tree(storepath='.allvariables',_fired='^.tree_rebuild',onDrag="dragValues['text/plain'] = '$'+treeItem.attr.code;",
                 hideValues=True,draggable=True,_class='fieldsTree',labelAttribute='code'
                 )
@@ -475,11 +473,15 @@ class TemplateEditor(TemplateEditorBase):
                             this.widget.setValue(v,true);
                             """,
                             rounded=6,padding='5px')
-        else:
+        elif self.getPreference('theme.ck_legacy', pkg='sys'):
             bc.ExtendedCkeditor(region='center',margin='2px',margin_left='5px',
                             value='^.data.content',css_value='^.data.content_css',
                             constrain_height='^.editor.height',
                             constrain_width='^.editor.width',**editorConstrain)
+        else:
+            bc.contentPane(region='center',margin='2px',margin_left='5px').tinymce(
+                            value='^.data.content',css_value='^.data.content_css',
+                            height='^.editor.height', width='^.editor.width', **editorConstrain)
 
     def _te_framePreview(self,frame,table=None):
         bar = frame.top.slotToolbar('5,parentStackButtons,10,fb,*',parentStackButtons_font_size='8pt')                   
