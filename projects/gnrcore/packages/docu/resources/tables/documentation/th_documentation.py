@@ -42,18 +42,9 @@ class Form(BaseComponent):
 
     def th_form(self, form):
         bc = form.center.borderContainer(datapath='.record')
-        # Read editing mode from docu preference
-        editing_mode = self.db.application.getPreference('.editing_mode', pkg='docu') or 'rst'
-
-        # Use appropriate drag&drop handlers based on editing mode
-        if editing_mode == 'markdown':
-            bc.md_rstHelpDrawer()
-            form.htree.md_customizeTreeOnDrag()
-        else:
-            bc.rstHelpDrawer()
-            form.htree.customizeTreeOnDrag()
-
+        bc.rstHelpDrawer()
         bc.translationController()
+        form.htree.customizeTreeOnDrag()
         form.htree.attributes.update(getLabel="""function(node){
                             var l = genro.getData('gnr.language') || genro.locale().split('-')[1];
                             return node && node.attr?node.attr['title_'+l.toLowerCase()] || node.attr.caption:'Documentation';
@@ -124,6 +115,24 @@ class Form(BaseComponent):
         fb.checkbox(value='^.source_inspector',label='inspector')
 
         bc = frame.center.borderContainer(design='sidebar')
+
+        # Determine drag handler based on editing mode
+        editing_mode = self.db.application.getPreference('.editing_mode', pkg='docu') or 'rst'
+        if editing_mode == 'markdown':
+            drag_handler_name = 'grid_onDrag_mdVersionLink'
+            drag_handler_js = """
+                            var version = dragValues.gridrow.rowdata['version'];
+                            var v = "["+version+"](javascript:localIframe('version:"+version+"'))";
+                            dragValues['text/plain'] = v;
+                            """
+        else:
+            drag_handler_name = 'grid_onDrag_versionLink'
+            drag_handler_js = """
+                            var version = dragValues.gridrow.rowdata['version'];
+                            var v = "`"+version+" <javascript:localIframe('version:"+version+"')>`_";
+                            dragValues['text/plain'] = v;
+                            """
+
         fg = bc.frameGrid(region='left',width='120px',splitter=True,margin='5px',
                             storepath='#FORM.record.sourcebag',datamode='bag',
                             struct=self.browserSource,
@@ -131,16 +140,7 @@ class Form(BaseComponent):
                             grid_autoSelect=True,
                             grid_selected_url='#FORM.versionsFrame.selectedUrl',
                             grid_draggable_row=True,
-                            grid_onDrag_versionLink="""
-                            var version = dragValues.gridrow.rowdata['version'];
-                            var v = "`"+version+" <javascript:localIframe('version:"+version+"')>`_";
-                            dragValues['text/plain'] = v;
-                            """,
-                            grid_onDrag_mdVersionLink="""
-                            var version = dragValues.gridrow.rowdata['version'];
-                            var v = "["+version+"](javascript:localIframe('version:"+version+"'))";
-                            dragValues['text/plain'] = v;
-                            """,
+                            **{drag_handler_name: drag_handler_js},
                             _class='noheader buttons_grid no_over')
         fg.dataController("""
                             var l = url.split(':');

@@ -10,22 +10,25 @@ class RstDocumentationHandler(BaseComponent):
     py_requires='gnrcomponents/attachmanager/attachmanager:AttachManager'
     @struct_method
     def rst_customizeTreeOnDrag(self,tree):
-        tree.attributes.update(onDrag_linkPrepare="""
-            var hname = treeItem.attr._record['hierarchical_name'];
-            var url = '%s/'+hname;
-            var txt = dragValues['text/plain'];
-            dragValues['text/plain'] = '`'+txt+' <'+url+'>`_'
-            """ % self.db.package('docu').htmlProcessorName())
+        """Configure tree drag&drop for documentation links based on editing mode"""
+        editing_mode = self.db.application.getPreference('.editing_mode', pkg='docu') or 'rst'
 
-    @struct_method
-    def md_customizeTreeOnDrag(self,tree):
-        """Markdown version of tree drag&drop for documentation links"""
-        tree.attributes.update(onDrag_linkPrepare="""
-            var hname = treeItem.attr._record['hierarchical_name'];
-            var url = '%s/'+hname;
-            var txt = dragValues['text/plain'];
-            dragValues['text/plain'] = '['+txt+']('+url+')'
-            """ % self.db.package('docu').htmlProcessorName())
+        if editing_mode == 'markdown':
+            # Markdown format: [text](url)
+            tree.attributes.update(onDrag_linkPrepare="""
+                var hname = treeItem.attr._record['hierarchical_name'];
+                var url = '%s/'+hname;
+                var txt = dragValues['text/plain'];
+                dragValues['text/plain'] = '['+txt+']('+url+')'
+                """ % self.db.package('docu').htmlProcessorName())
+        else:
+            # RST format: `text <url>`_
+            tree.attributes.update(onDrag_linkPrepare="""
+                var hname = treeItem.attr._record['hierarchical_name'];
+                var url = '%s/'+hname;
+                var txt = dragValues['text/plain'];
+                dragValues['text/plain'] = '`'+txt+' <'+url+'>`_'
+                """ % self.db.package('docu').htmlProcessorName())
 
     def rst_snippetTab(self,pane,path=None):
         pane.data('#FORM.snippetEditor.data',Bag(path))
@@ -83,101 +86,79 @@ class RstDocumentationHandler(BaseComponent):
         bar.savebtn.button('!!Save',iconClass='fh_semaphore',action='this.form.publish("save",{destPkey:"*dismiss*"})')
 
     def rst_imageTab(self,pane):
+        """Configure image tab drag&drop for attachments based on editing mode"""
+        editing_mode = self.db.application.getPreference('.editing_mode', pkg='docu') or 'rst'
         th = pane.attachmentGrid(pbl_classes=True,screenshot=True,design='headline')
-        template_image = """.. image:: $fileurl
+
+        if editing_mode == 'markdown':
+            # Markdown templates
+            template_image = """![$description]($fileurl)"""
+            template_figure= """![$description]($fileurl)"""
+            template_iframe = """:::{iframe} $fileurl
+:width: 100%
+:::"""
+            template_link= """[$description]($fileurl?download=1)"""
+            drag_handler = 'onDrag_mdimage'
+        else:
+            # RST templates
+            template_image = """.. image:: $fileurl
     :width: 200px
     :align: center
     :height: 100px"""
-        template_figure= """.. figure:: stars.jpg
+            template_figure= """.. figure:: stars.jpg
     :width: 200px
     :align: center
     :height: 100px
     :figclass: align-center
 
     $description"""
-        iframesrc = """<iframez onload="this.contentDocument.body.firstChild.style.whiteSpace='pre';" style='border:1px solid silver;background:lightyellow;resize:auto;' width="560" height="315" src="$fileurl" frameborder="0"></iframe>"""
-        template_iframedoc = """.. raw:: html\n\n {iframesrc}""".format(iframesrc=iframesrc)
-        template_link= """ `$description <$fileurl ?download=1>`_"""
-        th.view.grid.attributes.update(onDrag_rstimage="""
-                                    var rowset = dragValues.gridrow.rowset;
-                                    var result = [];
-                                    var url = dragValues.gridrow.rowdata.fileurl;
-                                    var ext = url.slice(url.lastIndexOf('.'));
-                                    var tpl,tplname;
-                                    if(!['.jpg','.jpeg','.png','.gif','.svg','.tiff'].includes(ext)){
-                                        tplname = dragInfo.modifier=='Shift' ?'_tpl_link':'_tpl_iframedoc';
-                                    }else{
-                                        tplname = dragInfo.modifier=='Shift' ? '_tpl_figure':'_tpl_image';
-                                    }
-                                    tpl = dragInfo.sourceNode.attr[tplname];
-                                    rowset.forEach(function(row){
-                                        if(row.fileurl){
-                                            if(tplname=='_tpl_iframedoc'){
-                                                row.fileurl = document.location.protocol+'//'+document.location.host+row.fileurl;
-                                            }
-                                            result.push(dataTemplate(tpl,row));
-                                        }
-                                    });
-                                    dragValues['text/plain'] = result.join(_lf+_lf)
-                                """ ,_tpl_image=template_image,
-                                    _tpl_link=template_link,
-                                    _tpl_iframedoc=template_iframedoc,
-                                    _tpl_figure=template_figure)
+            iframesrc = """<iframez onload="this.contentDocument.body.firstChild.style.whiteSpace='pre';" style='border:1px solid silver;background:lightyellow;resize:auto;' width="560" height="315" src="$fileurl" frameborder="0"></iframe>"""
+            template_iframe = """.. raw:: html\n\n {iframesrc}""".format(iframesrc=iframesrc)
+            template_link= """ `$description <$fileurl ?download=1>`_"""
+            drag_handler = 'onDrag_rstimage'
 
-    def md_imageTab(self,pane):
-        """Markdown version of image tab for drag&drop attachments"""
-        th = pane.attachmentGrid(pbl_classes=True,screenshot=True,design='headline')
-        # Markdown templates
-        template_image = """![$description]($fileurl)"""
-        template_figure= """![$description]($fileurl)"""
-        template_iframe = """:::{iframe} $fileurl
-:width: 100%
-:::"""
-        template_link= """[$description]($fileurl?download=1)"""
-        th.view.grid.attributes.update(onDrag_mdimage="""
-                                    var rowset = dragValues.gridrow.rowset;
-                                    var result = [];
-                                    var url = dragValues.gridrow.rowdata.fileurl;
-                                    var ext = url.slice(url.lastIndexOf('.'));
-                                    var tpl,tplname;
-                                    if(!['.jpg','.jpeg','.png','.gif','.svg','.tiff'].includes(ext)){
-                                        tplname = dragInfo.modifier=='Shift' ?'_tpl_link':'_tpl_iframe';
-                                    }else{
-                                        tplname = dragInfo.modifier=='Shift' ? '_tpl_figure':'_tpl_image';
-                                    }
-                                    tpl = dragInfo.sourceNode.attr[tplname];
-                                    rowset.forEach(function(row){
-                                        if(row.fileurl){
-                                            if(tplname=='_tpl_iframe'){
-                                                row.fileurl = document.location.protocol+'//'+document.location.host+row.fileurl;
-                                            }
-                                            result.push(dataTemplate(tpl,row));
-                                        }
-                                    });
-                                    dragValues['text/plain'] = result.join(_lf+_lf)
-                                """ ,_tpl_image=template_image,
-                                    _tpl_link=template_link,
-                                    _tpl_iframe=template_iframe,
-                                    _tpl_figure=template_figure)
+        # Common drag handler logic
+        drag_js = """
+                    var rowset = dragValues.gridrow.rowset;
+                    var result = [];
+                    var url = dragValues.gridrow.rowdata.fileurl;
+                    var ext = url.slice(url.lastIndexOf('.'));
+                    var tpl,tplname;
+                    if(!['.jpg','.jpeg','.png','.gif','.svg','.tiff'].includes(ext)){
+                        tplname = dragInfo.modifier=='Shift' ?'_tpl_link':'_tpl_iframe';
+                    }else{
+                        tplname = dragInfo.modifier=='Shift' ? '_tpl_figure':'_tpl_image';
+                    }
+                    tpl = dragInfo.sourceNode.attr[tplname];
+                    rowset.forEach(function(row){
+                        if(row.fileurl){
+                            if(tplname=='_tpl_iframe'){
+                                row.fileurl = document.location.protocol+'//'+document.location.host+row.fileurl;
+                            }
+                            result.push(dataTemplate(tpl,row));
+                        }
+                    });
+                    dragValues['text/plain'] = result.join(_lf+_lf)
+                """
+
+        th.view.grid.attributes.update({
+            drag_handler: drag_js,
+            '_tpl_image': template_image,
+            '_tpl_link': template_link,
+            '_tpl_iframe': template_iframe,
+            '_tpl_figure': template_figure
+        })
 
 
 
     @struct_method
     def rst_rstHelpDrawer(self,parent,closable='close',region='right',width='300px',margin='2px',**kwargs):
+        """Help drawer with drag&drop support (auto-detects editing mode)"""
         tc = parent.tabContainer(overflow='hidden',
                        closable=closable,
                        splitter=True,datapath='#FORM',region='right',width=width,**kwargs)
         self.rst_snippetTab(tc.contentPane(title='Snippet',overflow='hidden'),path=self.getResource('rst_snippets.xml',pkg='docu'))
         self.rst_imageTab(tc.contentPane(title='Attachments',overflow='hidden'))
-
-    @struct_method
-    def md_rstHelpDrawer(self,parent,closable='close',region='right',width='300px',margin='2px',**kwargs):
-        """Markdown version of help drawer with drag&drop support"""
-        tc = parent.tabContainer(overflow='hidden',
-                       closable=closable,
-                       splitter=True,datapath='#FORM',region='right',width=width,**kwargs)
-        self.rst_snippetTab(tc.contentPane(title='Snippet',overflow='hidden'),path=self.getResource('rst_snippets.xml',pkg='docu'))
-        self.md_imageTab(tc.contentPane(title='Attachments',overflow='hidden'))
 
     @struct_method
     def rst_translationController(self,pane):
@@ -558,7 +539,7 @@ class ContentsComponent(BaseComponent):
                           config_keyMap='softTab', config_addon='search',
                           parentForm=True, **kwargs)
         elif mode=='markdown':
-            # MDEditor for Markdown editing
+            # MDEditor for Markdown editing (drag&drop support is built-in)
             pane.MDEditor(value=value, htmlpath=htmlpath, nodeId='contentMd', height='100%',
                         previewStyle='vertical', initialEditType=initialEditType, **kwargs)
         elif mode=='html':
