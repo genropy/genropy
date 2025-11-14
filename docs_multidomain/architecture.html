@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Architettura - Genropy Multidomain Workspace</title>
+    <link rel="stylesheet" href="assets/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="logo">
+            <h2>Genropy</h2>
+            <span class="subtitle">Multidomain Workspace</span>
+        </div>
+        <ul class="nav-menu">
+            <li><a href="index.html">Overview</a></li>
+            <li><a href="architecture.html" class="active">Architettura</a></li>
+            <li><a href="request-flow.html">Flusso Richieste</a></li>
+            <li><a href="isolation.html">Meccanismi Isolamento</a></li>
+            <li><a href="onboarding.html">Onboarding Workspace</a></li>
+            <li><a href="configuration.html">Configurazione</a></li>
+            <li><a href="neon-integration.html">Neon DB Integration</a></li>
+            <li><a href="best-practices.html">Best Practices</a></li>
+            <li><a href="issues-future.html">Problemi & Roadmap</a></li>
+        </ul>
+        <div class="sidebar-footer">
+            <p>Branch: <code>feature/multidomain-workspace</code></p>
+            <p>Base: <code>feature/refactor-dbstores-storetable</code></p>
+        </div>
+    </nav>
+
+    <main class="content">
+        <header>
+            <h1>🏗️ Architettura Sistema</h1>
+            <p class="tagline">Schema dettagliato dei componenti e delle loro interazioni</p>
+        </header>
+
+        <section>
+            <h2>Architettura a Livelli</h2>
+            <p>Il sistema Multidomain Workspace è strutturato in 6 livelli principali, ognuno con responsabilità specifiche per garantire isolamento e scalabilità.</p>
+
+            <div class="architecture-stack">
+                <div class="layer">
+                    <span class="layer-name">1. Client</span>
+                    <span class="layer-tech">Browser + Cookie isolation (Path-based scoping)</span>
+                </div>
+                <div class="layer">
+                    <span class="layer-name">2. Reverse Proxy</span>
+                    <span class="layer-tech">Nginx → Gunicorn (multiprocesso + multithread)</span>
+                </div>
+                <div class="layer">
+                    <span class="layer-name">3. WSGI Site</span>
+                    <span class="layer-tech">Domain extraction, Thread-local context, Register per-domain</span>
+                </div>
+                <div class="layer">
+                    <span class="layer-name">4. Page</span>
+                    <span class="layer-tech">Domain-scoped connection, DB environment setup</span>
+                </div>
+                <div class="layer">
+                    <span class="layer-name">5. Database Layer</span>
+                    <span class="layer-tech">Thread-local connection pool, Store-specific queries</span>
+                </div>
+                <div class="layer">
+                    <span class="layer-name">6. Neon DB</span>
+                    <span class="layer-tech">PostgreSQL autoscaling, Database per workspace</span>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Componenti Chiave</h2>
+
+            <h3>GnrDomainHandler</h3>
+            <p><strong>File:</strong> <code>gnrwsgisite.py:163-186</code></p>
+            <p>Gestisce il registry di tutti i domini disponibili nel sistema.</p>
+            <pre><code class="language-python">class GnrDomainHandler(object):
+    def __init__(self, site):
+        self.site = site
+        self.domains = {}  # Dictionary: domain_name → GnrDomainProxy
+
+    def __contains__(self, name):
+        # Check if domain exists
+        result = name in self.domains
+        if result:
+            return result
+        # Lazy loading from dbstores
+        self._missing_from_dbstores(name)
+        return name in self.domains
+
+    def _missing_from_dbstores(self, domain):
+        # Auto-discover domain from database stores
+        if domain in self.site.db.dbstores:
+            self.add(domain)</code></pre>
+            <p><strong>Caratteristiche:</strong></p>
+            <ul>
+                <li>Registry centralizzato di tutti i domini</li>
+                <li>Lazy loading: domini caricati on-demand</li>
+                <li>Auto-discovery da <code>dbstores</code> configuration</li>
+            </ul>
+
+            <h3>GnrDomainProxy</h3>
+            <p><strong>File:</strong> <code>gnrwsgisite.py:148-162</code></p>
+            <p>Rappresenta un singolo dominio con register e attributi dedicati.</p>
+            <pre><code class="language-python">class GnrDomainProxy(object):
+    def __init__(self, parent, domain=None, **kwargs):
+        self.parent = parent
+        self.domain = domain
+        self._register = None  # Lazy-loaded register
+        self.attributes = kwargs
+
+    @property
+    def register(self):
+        if self._register:
+            return self._register
+        # Create domain-specific register
+        self._register = SiteRegisterClient(self.parent.site)
+        self.parent.site.checkPendingConnection()
+        return self._register</code></pre>
+            <p><strong>Proprietà:</strong></p>
+            <ul>
+                <li><code>domain</code>: Nome identificativo del dominio</li>
+                <li><code>register</code>: SiteRegisterClient dedicato per tracking connessioni/pagine</li>
+                <li><code>attributes</code>: Metadati aggiuntivi del dominio</li>
+            </ul>
+
+            <h3>Thread-Safe Domain Context</h3>
+            <p><strong>File:</strong> <code>gnrwsgisite.py:832-840</code></p>
+            <p>Gestione thread-local del dominio corrente per supportare concorrenza.</p>
+            <pre><code class="language-python">def _get_currentDomain(self):
+    """Returns the domain currently used in this thread"""
+    return self._currentDomains.get(_thread.get_ident())
+
+def _set_currentDomain(self, domain):
+    """Set currentDomain for this thread"""
+    self._currentDomains[_thread.get_ident()] = domain
+
+currentDomain = property(_get_currentDomain, _set_currentDomain)</code></pre>
+            <p><strong>Vantaggi:</strong></p>
+            <ul>
+                <li>Ogni thread ha il proprio <code>currentDomain</code></li>
+                <li>Nessuna contaminazione tra richieste concorrenti</li>
+                <li>Supporto nativo per Gunicorn multiprocesso/multithread</li>
+            </ul>
+
+            <h3>URL Parsing & Domain Extraction</h3>
+            <p><strong>File:</strong> <code>gnrwsgisite.py:845-871</code></p>
+            <p>Metodo critico che estrae il dominio dall'URL e configura il contesto.</p>
+            <pre><code class="language-python">def handle_path_list(self, path_info, request_kwargs=None):
+    path_list = path_info.strip('/').split('/')
+    first_segment = path_list[0]
+    redirect_to = None
+
+    # Check static routes first
+    if first_segment in self.static_routes:
+        return self.static_routes[first_segment].split('/'), redirect_to
+
+    # MULTIDOMAIN LOGIC
+    if self.multidomain:
+        if first_segment in self.domains:
+            if path_list[-1] == first_segment and not path_info.endswith('/'):
+                redirect_to = f'{path_info}/'  # Force trailing slash
+            else:
+                self.currentDomain = first_segment  # SET DOMAIN
+                if first_segment != self.rootDomain:
+                    request_kwargs['base_dbstore'] = first_segment  # MAP TO STORE
+                path_list.pop(0)  # Remove domain from path
+        elif first_segment not in self.storageTypes:
+            logger.debug('Suspicious request without valid domain')
+            request_kwargs['_souspicious_request_'] = True
+
+    # Store domain in DB environment
+    self.db.currentEnv['domainName'] = self.currentDomain
+    return path_list, redirect_to</code></pre>
+            <p><strong>Flusso:</strong></p>
+            <ol>
+                <li>Parse URL: <code>/workspace1/sys/user</code></li>
+                <li>Extract first segment: <code>workspace1</code></li>
+                <li>Check if in domains: <code>workspace1 in self.domains</code></li>
+                <li>Set domain context: <code>currentDomain = 'workspace1'</code></li>
+                <li>Map to dbstore: <code>base_dbstore = 'workspace1'</code></li>
+                <li>Remove from path: <code>path_list = ['sys', 'user']</code></li>
+            </ol>
+        </section>
+
+        <section>
+            <h2>Database Integration</h2>
+
+            <h3>Connection Pool per Store</h3>
+            <p><strong>File:</strong> <code>gnrsql.py:513-538</code></p>
+            <p>Ogni workspace ha un connection pool dedicato, isolato per thread.</p>
+            <pre><code class="language-python">def _get_store_connection(self, storename):
+    thread_ident = _thread.get_ident()
+    thread_connections = self._connections.setdefault(thread_ident, {})
+
+    # Connection key: (storename, connectionName)
+    connectionTuple = (storename or self.currentStorename, self.currentConnectionName)
+    connection = thread_connections.get(connectionTuple)
+
+    if not connection:
+        # Create new connection for this store
+        connection = self.adapter.connect(storename)
+        connection.storename = storename
+        connection.committed = False
+        connection.connectionName = connectionTuple[1]
+        thread_connections[connectionTuple] = connection
+    return connection</code></pre>
+
+            <h3>DbStores Discovery</h3>
+            <p><strong>File:</strong> <code>gnrapp.py:171-261</code></p>
+            <p>I workspace vengono scoperti automaticamente dalla storetable.</p>
+            <pre><code class="language-python">def _calculate_multidbstores(self):
+    result = {}
+    if self.db.storetable:
+        # Get all databases with multidb_prefix
+        dbdict = self.get_dbdict()
+
+        # Query storetable for active dbstores
+        dbstores = self.db.table(self.db.storetable).query(
+            where='$dbstore IN :databases',
+            databases=list(dbdict.keys()),
+            columns="$dbstore"
+        ).fetch()
+
+        for r in dbstores:
+            storename = r['dbstore']
+            result[storename] = dict(database=dbdict[storename])
+    return result</code></pre>
+        </section>
+
+        <section>
+            <h2>Files Chiave</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <h3>gnrwsgisite.py</h3>
+                    <p><strong>+234/-46 lines</strong></p>
+                    <ul>
+                        <li>GnrDomainHandler</li>
+                        <li>GnrDomainProxy</li>
+                        <li>handle_path_list() enhancements</li>
+                        <li>Thread-safe currentDomain</li>
+                        <li>Per-domain registers</li>
+                    </ul>
+                </div>
+                <div class="feature-card">
+                    <h3>gnrwebpage.py</h3>
+                    <p><strong>+21/-8 lines</strong></p>
+                    <ul>
+                        <li>currentDomain property</li>
+                        <li>multidomain property</li>
+                        <li>DB environment setup</li>
+                        <li>Client-side data propagation</li>
+                    </ul>
+                </div>
+                <div class="feature-card">
+                    <h3>gnrsql.py</h3>
+                    <p><strong>+217/-372 lines</strong></p>
+                    <ul>
+                        <li>Thread-local connection pool</li>
+                        <li>Store parameters resolution</li>
+                        <li>Query execution with storename</li>
+                        <li>tempEnv context manager</li>
+                    </ul>
+                </div>
+                <div class="feature-card">
+                    <h3>gnrapp.py</h3>
+                    <p><strong>+163/-8 lines</strong></p>
+                    <ul>
+                        <li>DbStoresHandler</li>
+                        <li>Store management</li>
+                        <li>Dbstore alignment</li>
+                        <li>Cache integration</li>
+                    </ul>
+                </div>
+                <div class="feature-card">
+                    <h3>connection.py</h3>
+                    <p><strong>+11/-3 lines</strong></p>
+                    <ul>
+                        <li>Domain-scoped cookie name</li>
+                        <li>Cookie path isolation</li>
+                        <li>Connection tracking</li>
+                    </ul>
+                </div>
+                <div class="feature-card">
+                    <h3>services/__init__.py</h3>
+                    <p><strong>+30 lines</strong></p>
+                    <ul>
+                        <li>instanceKey() method</li>
+                        <li>Service isolation per domain</li>
+                        <li>Cache key with domain</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Prossimi Passi</h2>
+            <div class="cards-grid">
+                <a href="request-flow.html" class="nav-card">
+                    <h3>🔄 Flusso Richieste</h3>
+                    <p>Vedi il flusso dettagliato da HTTP a Database</p>
+                </a>
+                <a href="isolation.html" class="nav-card">
+                    <h3>🔒 Meccanismi Isolamento</h3>
+                    <p>Scopri come viene garantito l'isolamento completo</p>
+                </a>
+            </div>
+        </section>
+
+        <footer>
+            <p>Genropy Multidomain Workspace - Branch: <code>feature/multidomain-workspace</code></p>
+            <p><a href="index.html">← Torna alla Home</a></p>
+        </footer>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/xml.min.js"></script>
+    <script src="assets/script.js"></script>
+</body>
+</html>
