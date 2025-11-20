@@ -10,7 +10,7 @@ class Table(object):
                         rowcaption='$code,$description',caption_field='hierarchical_description',
                         newrecord_caption='!!New tag',hierarchical_caption_field='description',
                         sysRecord_masterfield='hierarchical_code')
-        self.sysFields(tbl,hierarchical='code,description')
+        self.sysFields(tbl,hierarchical='code,description',counter=True,sysrecords=True)
         #self.htableFields(tbl)
         #tbl.column('parent_code').relation('htag.code',onDelete='cascade')
 
@@ -24,46 +24,9 @@ class Table(object):
         tbl.column('linked_table', name_long='Linked table')
         tbl.formulaColumn('authorization_tag','COALESCE($__syscode,$hierarchical_code)')
 
-
-    @metadata(mandatory=True)
-    def sysRecord_user(self):
-        return self.newrecord(code='user',description='User',
-                                hierarchical_code='user')
-
-    @metadata(mandatory=True)
-    def sysRecord_admin(self):
-        return self.newrecord(code='admin',description='Admin',
-                            hierarchical_code='admin')
-
-    @metadata(mandatory=True)
-    def sysRecord_superadmin(self):
-        return self.newrecord(code='superadmin',description='SuperAdmin',
-                                isreserved=True,hierarchical_code='superadmin')
-
-    @metadata(mandatory=True)
-    def sysRecord__DEV_(self):
-        return self.newrecord(code='_DEV_',description='Developer',
-                                isreserved=True,hierarchical_code='_DEV_')
-
-    @metadata(mandatory=True)
-    def sysRecord__TRD_(self):
-        return self.newrecord(code='_TRD_',description='Translator',
-                                isreserved=True,hierarchical_code='_TRD_')
-
-    @metadata(mandatory=True)
-    def sysRecord__DOC_(self):
-        return self.newrecord(code='_DOC_',description='Documentation',
-                            isreserved=True,hierarchical_code='_DOC_')
-
-
-    @metadata(mandatory=True)
-    def sysRecord__SYSTEM_(self):
-        return self.newrecord(code='_SYSTEM_',description='System',
-                            isreserved=True,hierarchical_code='_SYSTEM_')
-
     def createSysRecords(self,do_update=False):
         self.createSysRecords_(do_update=do_update)
-        permissions = AuthTagStruct()
+        permissions = AuthTagStruct.makeRoot()
 
         # Populate the structure for all packages
         for pkg in self.db.packages.keys():
@@ -75,7 +38,6 @@ class Table(object):
             code = tag_info.pop('code')
             description = tag_info.pop('description')
             parent_code = tag_info.pop('parent_code')
-
             # Resolve parent_id from parent_code
             parent_id = code_to_id.get(parent_code) if parent_code else None
 
@@ -97,19 +59,17 @@ class Table(object):
 
         if not packageTags_str and not has_method:
             return
-
-        # Create branch for this package
         pkg_branch = permissions.branch(pkg, description=f'Package {pkg}')
-
-        # Handle legacy string format
         if packageTags_str:
             packageTags_list = packageTags_str.split(',')
+            
             for tag_spec in packageTags_list:
+                # Handle string format
                 code, description = tag_spec.split(':')
                 # Legacy format: code is the identifier, description is the human-readable label
                 pkg_branch.authTag(label=code, description=description, identifier=code)
 
-        # Handle new method format
+        # Handle method format
         if has_method:
             pkgobj.packageTags(pkg_branch)
 
