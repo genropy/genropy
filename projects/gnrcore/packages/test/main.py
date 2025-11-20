@@ -20,20 +20,20 @@ class Package(GnrDboPackage):
         :param root: AuthTagStruct branch for this package"""
         
         # Admin permissions
-        admin = root.branch('admin', description='Administration')
-        admin.authTag('full_access', description='Full Access', note='Complete administrative access')
-        admin.authTag('system_config', description='System Configuration', note='Configure system settings')
+        po = root.branch('PO', description='Purchase Orders')
+        po.authTag('FA', description='Full Access')
+        po.authTag('RO', description='Read only')
 
         # Test management
-        tests = root.branch('test_management', description='Test Management')
-        tests.authTag('run_tests', description='Run Tests', note='Execute test suites')
-        tests.authTag('view_results', description='View Results', note='View test execution results')
-        tests.authTag('configure_tests', description='Configure Tests', note='Modify test configurations')
-
-        # Development tools
-        dev = root.branch('development', description='Development')
-        dev.authTag('debug_mode', description='Debug Mode', note='Enable debug features', isreserved=True)
-        dev.authTag('source_viewer', description='Source Viewer', note='Access source code viewer')
+        tests = root.branch('tm', description='Test Management')
+        tests.authTag('run', description='Run Tests', note='Execute test suites')
+        tests.authTag('view_res', description='View Results', note='View test execution results')
+        tests.authTag('conf', description='Configure Tests', note='Modify test configurations')
+#
+        ## Development tools
+        #dev = root.branch('development', description='Development')
+        #dev.authTag('debug_mode', description='Debug Mode', note='Enable debug features', isreserved=True)
+        #dev.authTag('source_viewer', description='Source Viewer', note='Access source code viewer')
 
 class Table(GnrDboTable):
     pass
