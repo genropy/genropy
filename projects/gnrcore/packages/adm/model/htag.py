@@ -2,6 +2,7 @@
 # encoding: utf-8
 
 from gnr.core.gnrdecorator import metadata
+from gnr.app.gnrapp import AuthTagStruct
 
 class Table(object):
     def config_db(self, pkg):
@@ -62,24 +63,62 @@ class Table(object):
 
     def createSysRecords(self,do_update=False):
         self.createSysRecords_(do_update=do_update)
+        permissions = AuthTagStruct()
+
+        # Populate the structure for all packages
         for pkg in self.db.packages.keys():
-            self.checkPackageTags(pkg)
-            
-    def checkPackageTags(self,pkg):
+            self.fillPermissions(pkg, permissions)
+
+        # Now iterate over the complete flattened structure and create records
+        code_to_id = {}
+        for tag_info in permissions.iterFlattenedTags():
+            code = tag_info.pop('code')
+            description = tag_info.pop('description')
+            parent_code = tag_info.pop('parent_code')
+
+            # Resolve parent_id from parent_code
+            parent_id = code_to_id.get(parent_code) if parent_code else None
+
+            # Create or get the tag record
+            record = self.checkPackageTagRecord(code=code, description=description,
+                                         parent_id=parent_id, **tag_info)
+
+            # Store the mapping for children to reference
+            code_to_id[code] = record['id']
+
+    def fillPermissions(self, pkg, permissions):
         pkgobj = self.db.package(pkg)
-        packageTags = pkgobj.attributes.get('packageTags')
-        packageTags = packageTags.split(',') if packageTags else []
-        if not packageTags:
+
+        # Check for packageTags attribute (string format: legacy)
+        packageTags_str = pkgobj.attributes.get('packageTags')
+
+        # Check for packageTags method (new hierarchical format)
+        has_method = hasattr(pkgobj, 'packageTags') and callable(getattr(pkgobj, 'packageTags'))
+
+        if not packageTags_str and not has_method:
             return
-        parent_id = self.checkPackageTag(code=pkg,description=pkg)['id']
-        for code,description in map(lambda c: c.split(':'),packageTags):
-            self.checkPackageTag(code=code,description=description,parent_id=parent_id)
+
+        # Create branch for this package
+        pkg_branch = permissions.branch(pkg, description=f'Package {pkg}')
+
+        # Handle legacy string format
+        if packageTags_str:
+            packageTags_list = packageTags_str.split(',')
+            for tag_spec in packageTags_list:
+                code, description = tag_spec.split(':')
+                # Legacy format: code is the identifier, description is the human-readable label
+                pkg_branch.authTag(label=code, description=description, identifier=code)
+
+        # Handle new method format
+        if has_method:
+            pkgobj.packageTags(pkg_branch)
 
 
-    def checkPackageTag(self,code=None,description=None,parent_id=None):
-        record = self.record(__syscode=code,ignoreMissing=True).output('dict')
+    def checkPackageTagRecord(self, code=None, description=None, parent_id=None, **kwargs):
+        record = self.record(__syscode=code, ignoreMissing=True).output('dict')
         if not record:
-            record = self.newrecord(__syscode=code,code=code,description=description,parent_id=parent_id)
+            record = self.newrecord(__syscode=code, code=code, description=description,
+                                   parent_id=parent_id, **kwargs)
             self.insert(record)
         return record
 
