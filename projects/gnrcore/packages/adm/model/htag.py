@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-from gnr.core.gnrdecorator import metadata
 from gnr.app.gnrapp import AuthTagStruct
 
 class Table(object):
