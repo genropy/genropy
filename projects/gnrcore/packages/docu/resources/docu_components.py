@@ -79,6 +79,7 @@ class RstDocumentationHandler(BaseComponent):
         bc.roundedGroupFrame(title='Snippet',region='center',overflow='hidden').codemirror(value='^.snippet',
                                     height='100%',config_lineNumbers=True,
                                 config_mode='rst',config_keyMap='softTab',
+                                lineWrapping=True,
                                 config_addon='search')
         bar = form.bottom.slotBar('revertbtn,*,cancel,savebtn',margin_bottom='2px',_class='slotbar_dialog_footer')
         bar.revertbtn.button('!!Revert',action='this.form.publish("reload")',disabled='^.controller.changed?=!#v')
@@ -537,6 +538,7 @@ class ContentsComponent(BaseComponent):
             pane.codemirror(value=value, nodeId='contentCode', height='100%',
                           config_mode=code_mode, config_lineNumbers=True,
                           config_keyMap='softTab', config_addon='search',
+                          lineWrapping=True,
                           parentForm=True, **kwargs)
         elif mode=='markdown':
             # MDEditor for Markdown editing (drag&drop support is built-in)

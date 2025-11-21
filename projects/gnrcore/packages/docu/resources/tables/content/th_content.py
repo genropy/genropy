@@ -62,7 +62,7 @@ class Form(BaseComponent):
     
     @customizable
     def contentMain(self, tc):
-        self.contentText(tc.contentPane(title='!!Text', datapath='.record', overflow='hidden'))
+        self.contentText(tc.contentPane(title='!!Text', datapath='.record', overflow='hidden', height='100%'))
         self.contentTemplate(tc.contentPane(title='!!Template', datapath='.record'))
         self.contentAttachments(tc.contentPane(title='!!Attachments'))
         return tc
@@ -77,7 +77,7 @@ class FormEmbed(Form):
 
     def th_form(self, form):
         bc = form.record
-        self.contentText(bc.contentPane(region='center',overflow='hidden',datapath='.record'))
+        self.contentText(bc.contentPane(region='center',overflow='hidden',datapath='.record',height='100%'))
 
     def th_options(self):
         return dict(autoSave=True, showtoolbar=False)
@@ -91,7 +91,7 @@ class FormReview(Form):
     def th_form(self, form):
         tc = form.center.tabContainer(tabPosition='left-h')
         self.contentText(tc.contentPane(title='!!Text', region='center',overflow='hidden',
-                                        datapath='.record'))
+                                        datapath='.record',height='100%'))
         self.contentVersions(tc.borderContainer(title='!!Versions', region='center'), value='^.text')
         return tc
 
