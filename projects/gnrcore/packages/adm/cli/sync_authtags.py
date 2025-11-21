@@ -3,7 +3,7 @@
 from gnr.core.cli import GnrCliArgParse
 from gnr.app.gnrapp import AuthTagStruct
 
-description = "Synchronize auth tags from code definitions to database"
+DESCRIPTION = "Synchronize auth tags from code definitions to database"
 
 def main(instance):
     """Update existing auth tag records with current code definitions.
@@ -16,7 +16,7 @@ def main(instance):
         gnr adm sync_authtags [instance_name] [--dry-run]
     """
 
-    parser = GnrCliArgParse(description=description)
+    parser = GnrCliArgParse(description=DESCRIPTION)
     parser.add_argument('--dry-run', action='store_true',
                        help='Show changes without applying them')
     args = parser.parse_args()
@@ -35,9 +35,9 @@ def main(instance):
     code_to_id = {}
     for tag_info in permissions.iterFlattenedTags():
         code = tag_info.pop('code')
-        description = tag_info.pop('description')
+        tag_description = tag_info.pop('description')
         parent_code = tag_info.pop('parent_code')
-        tag_type = tag_info.pop('tag_type')
+        tag_info.pop('tag_type')  # Remove tag_type, not needed for DB
 
         # Resolve parent_id from parent_code
         parent_id = code_to_id.get(parent_code) if parent_code else None
@@ -51,8 +51,8 @@ def main(instance):
             needs_update = False
             update_fields = {}
 
-            if record.get('description') != description:
-                update_fields['description'] = description
+            if record.get('description') != tag_description:
+                update_fields['description'] = tag_description
                 needs_update = True
 
             if parent_id != record.get('parent_id'):
@@ -79,12 +79,12 @@ def main(instance):
         else:
             # Create new record
             if args.dry_run:
-                print(f"Would create tag '{code}': {description}")
+                print(f"Would create tag '{code}': {tag_description}")
             else:
                 new_record = htag_table.newrecord(
                     __syscode=code,
                     code=code,
-                    description=description,
+                    description=tag_description,
                     parent_id=parent_id,
                     **tag_info
                 )
@@ -95,10 +95,10 @@ def main(instance):
 
     if not args.dry_run:
         instance.db.commit()
-        print(f"\nChanges committed successfully.")
+        print("\nChanges committed successfully.")
 
-    print(f"\nSummary:")
+    print("\nSummary:")
     print(f"  Created: {created_count}")
     print(f"  Updated: {updated_count}")
     if args.dry_run:
-        print(f"  (dry-run mode - no changes applied)")
+        print("  (dry-run mode - no changes applied)")

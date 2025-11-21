@@ -43,7 +43,7 @@ from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import extract_kwargs
 from gnr.core.gnrlang import  objectExtract,gnrImport, instanceMixin, GnrException
-from gnr.core.gnrstring import makeSet, toText, splitAndStrip, like, boolean, slugify
+from gnr.core.gnrstring import makeSet, toText, splitAndStrip, like, boolean
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrconfig import getGnrConfig
 from gnr.core import gnrlog
