@@ -13,17 +13,19 @@ class Table(object):
         self.sysFields(tbl,hierarchical='name',df=True,
                         counter=True,user_ins=True,user_upd=True)
         
-        tbl.column('name',name_long='!!Code', validate_notnull=True)
+        tbl.column('name',name_long='!!Code', validate_notnull=True,
+                        validate_regex='![^A-Za-z0-9_]',
+                        validate_regex_error='!!Code must contain only lowercase letters, numbers, underscores and hyphens')
         tbl.column('topics',name_long='!!Topics')
         tbl.column('publish_date',dtype='D',name_long='!!Publish date')
         tbl.column('sourcebag',dtype='X',name_long='!!Python Source',_sendback=True)
         tbl.column('docbag',dtype='X',name_long='!!Rst data',_sendback=True)
         tbl.column('revision',size=':3', name_long='!!Revision',
                         values='001:[!![en]Draft],050:[!![en]Work in progress],080:[!![en]Pre-release],100:[!![en]Final]')
-        tbl.column('author', name_long='Author')
-        tbl.column('base_language',size=':2',name_long='Base language').relation('adm.language.code')
+        tbl.column('author', name_long='!!Author')
+        tbl.column('base_language',size=':2',name_long='!!Base language').relation('adm.language.code')
         tbl.column('old_html')
-        tbl.column('sphinx_toc', dtype='B', name_long='Sphinx toc')
+        tbl.column('sphinx_toc', dtype='B', name_long='!!Sphinx toc')
 
         tbl.formulaColumn('example_url',"'/webpages/docu_examples/'||$hierarchical_name")
         tbl.formulaColumn('available_languages', select=dict(table='docu.documentation_content', where='$documentation_id=#THIS.id',

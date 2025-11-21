@@ -61,12 +61,15 @@ class Form(BaseComponent):
 
     def documentationContent(self,bc):
         cframe = bc.contentPane(margin='2px',region='center').multiButtonForm(relation='@contents',
-                                                                            formResource='ContentForm',
+                                                                            formResource='EditorForm',
                                                                             datapath='#FORM.documentation_content',
                                                                             parentForm=True)
         cframe.multiButtonView.item(code='add_account',caption='+',frm=cframe.form.js_form,
                                     action='frm.newrecord();',
                                     parentForm=True,deleteAction=False)
+        bar = cframe.top.bar
+        bar.replaceSlots('#', 'ctitle,*,mbslot,2', background='white')
+        bar.ctitle.formbuilder().textbox(value='^.@content_id.title', lbl='!!Title', width='40em')
 
         if self.isDeveloper():
             source_footer = bc.contentPane(region='bottom',height='50%',splitter=True,closable='close')
@@ -220,7 +223,7 @@ class Form(BaseComponent):
         fb.field('topics',width='12em',tag='checkBoxText',table='docu.topic',popup=True)
         fb.field('publish_date',width='7em')
 
-        fb.field('base_language',width='4em')
+        fb.field('base_language',width='7em')
         fb.field('revision', width='7em')
         fb.field('author', width='10em')
         fb.field('sphinx_toc')

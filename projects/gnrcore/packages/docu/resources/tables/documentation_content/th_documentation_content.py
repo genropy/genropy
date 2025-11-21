@@ -54,3 +54,22 @@ class ContentForm(BaseComponent):
                                                  table='adm.language', hasDownArrow=True, 
                                                  condition="$code NOT ILIKE ALL(string_to_array(:exs_lang, ','))",
                                                  condition_exs_lang='^#FORM/parent/#FORM.record.available_languages')]))
+
+
+class EditorForm(BaseComponent):
+    py_requires='docu_components:ContentsComponent'
+
+    def th_form(self, form):
+        # Read editing mode from docu preference, default to 'rst' for backwards compatibility
+        editing_mode = self.db.application.getPreference('.editing_mode', pkg='docu') or 'rst'
+        self.contentText(form.record.contentPane(region='center', datapath='.@content_id',
+                                        overflow='hidden', title='!!Content'),
+                        mode=editing_mode,
+                        insertToolbarItems=['hintButton', 'iframeButton'] if editing_mode == 'markdown' else None)
+                            
+    def th_options(self):
+        return dict(showtoolbar=False, defaultPrompt=dict(title='!!New content',
+                                    fields=[dict(value='^.language_code',tag='dbSelect',lbl='!!Language',validate_notnull=True,
+                                                 table='adm.language', hasDownArrow=True, 
+                                                 condition="$code NOT ILIKE ALL(string_to_array(:exs_lang, ','))",
+                                                 condition_exs_lang='^#FORM/parent/#FORM.record.available_languages')]))

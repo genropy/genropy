@@ -1,150 +1,311 @@
-<?xml version='1.0' encoding='UTF-8'?>
-<GenRoBag><menu path="menu.py" ext="py"><en_documentation base="Documentation" de="Dokumentation" en="Documentation" fr="Documentation" it="Documentazione"></en_documentation>
-<en_handbooks base="Handbooks" it="Manuali" en="Handbooks"></en_handbooks>
-<en_redirects base="Redirects" en="Redirects" it="Reindirizzamenti"></en_redirects>
-<en_docu_tables base="Docu tables" en="Docu tables" it="Tabelle Docu"></en_docu_tables></menu>
-<model><_packages><orgn><annotation path="model/_packages/orgn/annotation.py" ext="py"><en_documentation base="Documentation" de="Dokumentation" en="Documentation" fr="Documentation" it="Documentazione"></en_documentation></annotation></orgn></_packages>
-<author path="model/author.py" ext="py"><en_author base="Author" de="Verfasser" en="Author" fr="Auteur" it="Autore"></en_author>
-<en_authors base="Authors" it="Autori"></en_authors>
-<en_first_name fr="Prénom" de="Vorname" en="First name" it="Nome" base="First name"></en_first_name>
-<en_mandatory_field fr="Champ obligatoire" de="Pflichtfeld" en="Mandatory field" it="Campo obbligatorio" base="Mandatory field"></en_mandatory_field>
-<en_last_name fr="Nom de famille" de="Nachname" en="Last name" it="Cognome" base="Last name"></en_last_name>
-<en_full_name base="Full name" it="Nome e cognome"></en_full_name></author>
-<content path="model/content.py" ext="py"><en_content fr="Content" de="Inhalt" en="Content" it="Contenuto" base="Content"></en_content>
-<en_contents base="Contents"></en_contents>
-<en_title fr="Titre" de="Titel" en="Title" it="Titolo" base="Title"></en_title>
-<en_headline base="Headline" it="Sottotitolo"></en_headline>
-<en_abstract base="Abstract" it="Riassunto"></en_abstract>
-<en_text base="Text" it="Testo"></en_text>
-<en_html base="HTML" en="Html" it="Html"></en_html>
-<en_template fr="Modèle" de="Schablone" en="Template" it="Template" base="Template" es="plantilla"></en_template></content>
-<content_author path="model/content_author.py" ext="py"><en_content_author base="Content author" it="Autore del contenuto"></en_content_author>
-<en_content_authors base="Content authors" it="Autori di contenuti"></en_content_authors>
-<en_content fr="Content" de="Inhalt" en="Content" it="Contenuto" base="Content"></en_content>
-<en_author base="Author" de="Verfasser" en="Author" fr="Auteur" it="Autore"></en_author></content_author>
-<content_history path="model/content_history.py" ext="py"><en_content_history base="Content history"></en_content_history>
-<en_contents_history base="Contents history"></en_contents_history>
-<en_content fr="Content" de="Inhalt" en="Content" it="Contenuto" base="Content"></en_content>
-<en_version fr="Version" de="Version" en="Version" it="Versione" base="Version"></en_version>
-<en_vers_ base="Vers." en="Vers." it="Vers."></en_vers_>
-<en_text base="Text" it="Testo"></en_text>
-<en_html base="Html" en="Html" it="Html"></en_html></content_history>
-<content_topic path="model/content_topic.py" ext="py"><en_content_topic base="Content topic" it="Argomento del contenuto"></en_content_topic>
-<en_content_topics base="Content topics" it="Argomenti dei contenuti"></en_content_topics>
-<en_content fr="Content" de="Inhalt" en="Content" it="Contenuto" base="Content"></en_content>
-<en_topic base="Topic" de="Thema" en="Topic" fr="Sujet" it="Argomento"></en_topic></content_topic>
-<documentation path="model/documentation.py" ext="py"><en_documentation base="Documentation" de="Dokumentation" en="Documentation" fr="Documentation" it="Documentazione"></en_documentation>
-<en_code base="Code" en="Code" it="Codice"></en_code>
-<en_topics base="Topics" en="Topics" it="Argomenti"></en_topics>
-<en_publish_date base="Publish date" en="Publish date" it="Data di pubblicazione"></en_publish_date>
-<en_revision base="Revision" en="Revision" it="Revisione"></en_revision>
-<en_draft base="Draft" it="Bozza" en="Draft"></en_draft>
-<en_work_in_progress base="Work in progress" it="In corso"></en_work_in_progress>
-<en_pre_release base="Pre-release" it="Pre-rilascio"></en_pre_release>
-<en_final base="Final" it="Completato"></en_final>
-<en_rst_s base="Rst %s" en="Rst [50]" it="Rst %s"></en_rst_s>
-<en_title_s base="Title %s" en="Title [51]" it="Titolo %s"></en_title_s>
-<en_parameter_name base="Parameter name" en="Parameter name" it="Nome parametro"></en_parameter_name>
-<en_type fr="Type" de="Art" en="Type" it="Tipo" base="Type"></en_type>
-<en_description base="Description" en="Description" it="Descrizione"></en_description>
-<en_parameters base="Parameters" de="Parameter" en="Parameters" fr="Paramètres" it="Parametri"></en_parameters></documentation>
-<documentation_visit path="model/documentation_visit.py" ext="py"><en_documentation_visit base="Documentation visit" en="Documentation visit" it="Visita alla documentazione"></en_documentation_visit>
-<en_documentation_visits base="Documentation visits" en="Documentation visits" it="Visite alla documentazione"></en_documentation_visits>
-<en_visitor_identifier base="Visitor identifier" en="Visitor identifier" it="Identificatore del visitatore"></en_visitor_identifier>
-<en_doc_id base="Doc.Id" en="Doc.Id" it="Doc.ID"></en_doc_id>
-<en_visit_level base="Visit level" en="Visit level" it="Livello di visita"></en_visit_level>
-<en_01_quick_view_02_have_questions_09_okay base="01:Quick view,02:Have questions,09:Okay" en="01:Quick view,02:Have questions,09:Okay" it="01:Visualizzazione rapida, 02:Ho domande, 09:OK"></en_01_quick_view_02_have_questions_09_okay>
-<en_notes fr="Remarques" de="Aufzeichnungen" en="Notes" it="Note" base="Notes"></en_notes></documentation_visit>
-<handbook path="model/handbook.py" ext="py"><en_handbook base="Handbook" en="Handbook" it="Manuale"></en_handbook>
-<en_handbooks base="Handbooks" it="Manuali" en="Handbooks"></en_handbooks>
-<en_name fr="Nom" de="Name" en="Name" it="Nome" base="Name"></en_name>
-<en_title fr="Titre" de="Titel" en="Title" it="Titolo" base="Title"></en_title>
-<en_doc_root base="Doc root" en="Doc root" it="Radice del documento"></en_doc_root>
-<en_toc_roots base="Toc roots" en="TOC roots" it="Radici TOC"></en_toc_roots>
-<en_base_language base="Base language" it="Lingua base" en=""></en_base_language>
-<en_sphinx_path base="Sphinx path" en="Sphinx path" it="Path Sphinx"></en_sphinx_path>
-<en_is_local_handbook base="Is local handbook" it="Manuale locale" en="Is local handbook"></en_is_local_handbook>
-<en_local_handbook_zip base="Local handbook zip" it="Manuale locale (zip)" en=""></en_local_handbook_zip>
-<en_version fr="Version" de="Version" en="Version" it="Versione" base="Version"></en_version>
-<en_author base="Author" de="Verfasser" en="Author" fr="Auteur" it="Autore"></en_author>
-<en_theme base="Theme" it="Tema" en="Theme"></en_theme>
-<en_handbook_url base="Handbook url" it="Url manuale" en="Handbook url"></en_handbook_url>
-<en_examples_site base="Examples site" it="Sito di esempi" en=""></en_examples_site>
-<en_examples_dir base="Examples dir" it="Dir degli esempi" en=""></en_examples_dir>
-<en_last_export_ts base="Last export ts" it="Ultima esportazione ts" en=""></en_last_export_ts>
-<en_custom_styles base="Custom styles" it="Stili personalizzati" en=""></en_custom_styles>
-<en_examples_parameters base="Examples parameters" it="Esempi di parametri" en=""></en_examples_parameters>
-<en_handbook_preview_image base="Handbook preview image" it="Immagine anteprima manuale" en="Handbook preview image"></en_handbook_preview_image></handbook>
-<redirect path="model/redirect.py" ext="py"><en_moved_page base="Moved Page" en="Moved Page" it="Pagina spostata"></en_moved_page>
-<en_old_url base="Old url" en="Old url" it="Vecchia url"></en_old_url>
-<en_new_url base="New url" en="New url" it="Nuovo url"></en_new_url>
-<en_old_handbook base="Old Handbook" en="Old Handbook" it="Vecchio manuale"></en_old_handbook>
-<en_new_handbook base="New Handbook" en="New Handbook" it="Nuovo manuale"></en_new_handbook>
-<en_page_name fr="Nom de la page" de="Seitenname" en="Page Name" it="Nome pagina" base="Page name"></en_page_name>
-<en_handbook_path base="Handbook path" en="Handbook path" it="Percorso del manuale"></en_handbook_path>
-<en_handbook_url base="Handbook url" it="Url manuale" en="Handbook url"></en_handbook_url></redirect>
-<topic path="model/topic.py" ext="py"><en_topic base="Topic" de="Thema" en="Topic" fr="Sujet" it="Argomento"></en_topic></topic></model>
-<resources><docu_components path="resources/docu_components.py" ext="py"><en_revert base="Revert" de="Zurückkehren" en="Revert" fr="Revenir" it="Ritornare"></en_revert>
-<en_cancel base="Cancel" de="Stornieren" en="Cancel" fr="Annuler" it="Annulla"></en_cancel>
-<en_save fr="Sauvegarder" de="Speichern" en="Save" it="Salva" base="Save"></en_save>
-<en_title fr="Titre" de="Titel" en="Title" it="Titolo" base="Title"></en_title>
-<en_line_wrapping base="Line wrapping" en="Line wrapping" it="A capo automatico"></en_line_wrapping>
-<en_quote base="Quote" en="Quote" it="Citazione"></en_quote>
-<en_parent base="Parent" de="Elternteil" en="Parent" fr="Mère" it="Genitore"></en_parent>
-<en_first_child base="First child" en="First child" it="Primo figlio"></en_first_child>
-<en_prev base="Prev" de="Zurück" en="Prev" fr="Précédent" it="Prev"></en_prev>
-<en_next base="Next" de="Nächste" en="Next" fr="Prochaine" it="Prossimo" zh="下一步"></en_next>
-<en_search base="Search" de="Suche" en="Search" fr="Recherche" it="Cerca"></en_search>
-<en_01_quick_view_02_have_questions_09_okay base="01:Quick view,02:Have questions,09:Okay" en="01:Quick view,02:Have questions,09:Okay" it="01:Visualizzazione rapida, 02:Ho domande, 09:OK"></en_01_quick_view_02_have_questions_09_okay>
-<en_differences base="Differences"></en_differences></docu_components>
-<preference path="resources/preference.py" ext="py"><en_sphinx_project_path base="Sphinx project path" en="Sphinx project path" it="Percorso del progetto Sphinx"></en_sphinx_project_path>
-<en_local_handbooks_path base="Local handbooks path" en="Local handbooks path" it="Percorso dei manuali locali"></en_local_handbooks_path>
-<en_sphinx_baseurl base="Sphinx baseurl" en="Sphinx baseurl" it="Sphinx baseurl"></en_sphinx_baseurl>
-<en_cloudfront_distribution_id base="Cloudfront distribution ID" en="Cloudfront distribution ID" it="ID di distribuzione Cloudfront"></en_cloudfront_distribution_id>
-<en_manage_redirects base="Manage redirects" it="Gestisci reindirizzamenti" en="Manage redirects"></en_manage_redirects></preference>
-<tables><content><th_content path="resources/tables/content/th_content.py" ext="py"><en_content_data base="Content Data" it="Dati sui contenuti"></en_content_data>
-<en_content_attributes base="Content Attributes" it="Attributi del contenuto"></en_content_attributes>
-<en_text base="Text" it="Testo"></en_text>
-<en_template fr="Modèle" de="Schablone" en="Template" it="Template" base="Template" es="plantilla"></en_template>
-<en_attachments base="Attachments" de="Zubehör" en="Attachments" fr="Pièces jointes" it="Allegati"></en_attachments>
-<en_versions base="Versions" en="Versions" it="Versioni"></en_versions></th_content></content>
-<documentation><th_documentation path="resources/tables/documentation/th_documentation.py" ext="py"><en_documentation base="Documentation" de="Dokumentation" en="Documentation" fr="Documentation" it="Documentazione"></en_documentation>
-<en_parameters base="Parameters" de="Parameter" en="Parameters" fr="Paramètres" it="Parametri"></en_parameters>
-<en_change_version_name base="Change version name" en="Change version name" it="Cambia il nome della versione"></en_change_version_name>
-<en_add_version base="Add version" en="Add version" it="Aggiungi versione"></en_add_version>
-<en_delete_selected_template base="Delete selected template" de="Löschen ausgewählte Vorlage" en="Delete selected template" fr="Supprimer le modèle sélectionné" it="Cancella modello selezionato"></en_delete_selected_template>
-<en_empty base="Empty" en="Empty" it="Vuoto"></en_empty>
-<en_movie base="Movie" en="Movie" it="Film"></en_movie>
-<en_run base="Run" en="Run" it="Esegui"></en_run>
-<en_italiano base="Italiano" en="Italiano" it="English"></en_italiano>
-<en_english base="English" de="Englisch" en="English" fr="Anglais" it="Inglese"></en_english></th_documentation></documentation>
-<documentation_user><th_documentation_user path="resources/tables/documentation_user/th_documentation_user.py" ext="py"><en_date fr="Date" de="Datum" en="Date" it="Data" base="Date"></en_date>
-<en_user fr="Utilisateur" de="Benutzer" en="User" it="Utente" base="User"></en_user></th_documentation_user></documentation_user>
-<handbook><action><export_to_sphinx path="resources/tables/handbook/action/export_to_sphinx.py" ext="py"><en_parameters base="Parameters" de="Parameter" en="Parameters" fr="Paramètres" it="Parametri"></en_parameters>
-<en_attachments base="Attachments" de="Zubehör" en="Attachments" fr="Pièces jointes" it="Allegati"></en_attachments>
-<en_skip_redirects base="Skip redirects" en="Skip redirects" it="Salta i reindirizzamenti"></en_skip_redirects>
-<en_force_cloudfront_cache_invalidation base="Force Cloudfront cache invalidation" en="Force Cloudfront cache invalidation" it="Forza l'invalidazione della cache di Cloudfront"></en_force_cloudfront_cache_invalidation>
-<en_send_notification_via_telegram base="Send notification via Telegram" en="Send notification via Telegram" it="Invia una notifica tramite Telegram"></en_send_notification_via_telegram>
-<en_notification_content base="Notification content" en="Notification content" it="Contenuto delle notifiche"></en_notification_content>
-<en_genropy_documentation_updated_handbook_title_was_modified_timestamp_check_out_what_s_new_on_handbook_url_ base="Genropy Documentation updated: {handbook_title} was modified @ {timestamp}. Check out what's new on {handbook_url}" en="Genropy Documentation updated: {handbook_title} was modified @ {timestamp}. Check out what's new on {handbook_url}" it="Documentazione Genropy aggiornata: {handbook_title} è stato modificato @ {timestamp}. Scopri le novità su {handbook_url}"></en_genropy_documentation_updated_handbook_title_was_modified_timestamp_check_out_what_s_new_on_handbook_url_>
-<en_notification_recipients base="Notification recipients" en="Notification recipients" it="Destinatari delle notifiche"></en_notification_recipients></export_to_sphinx></action>
-<th_handbook path="resources/tables/handbook/th_handbook.py" ext="py"><en_name fr="Nom" de="Name" en="Name" it="Nome" base="Name"></en_name>
-<en_title fr="Titre" de="Titel" en="Title" it="Titolo" base="Title"></en_title>
-<en_doc_root base="Doc root" en="Doc root" it="Radice del documento"></en_doc_root>
-<en_language base="Language" en="Language" it="Lingua"></en_language>
-<en_vers_ base="Vers." en="Vers." it="Vers."></en_vers_>
-<en_last_exp_ts base="Last exp.ts"></en_last_exp_ts>
-<en_all fr="Tous" de="Alle" en="All" it="Tutto" base="All"></en_all>
-<en_online base="Online" en="Online" it="Online"></en_online>
-<en_local base="Local" it="Locale" en="Local"></en_local>
-<en_info fr="Infos" de="Info" en="Info" it="Info" base="Info"></en_info>
-<en_documentation base="Documentation" de="Dokumentation" en="Documentation" fr="Documentation" it="Documentazione"></en_documentation>
-<en_preview base="Preview" de="Vorschau" en="Preview" fr="Avant-première" it="Anteprima"></en_preview>
-<en_zip base="Zip" en="Zip" it="Zip"></en_zip>
-<en_is_local_handbook base="Is local handbook" it="Manuale locale" en="Is local handbook"></en_is_local_handbook>
-<en_sphinx_path base="Sphinx path" en="Sphinx path" it="Path Sphinx"></en_sphinx_path>
-<en_toc_roots base="TOC roots" en="TOC roots" it="Radici TOC"></en_toc_roots>
-<en_doc_url_ base="Doc url:" en="Doc url:" it="URL del documento:"></en_doc_url_></th_handbook></handbook>
-<redirect><th_redirect path="resources/tables/redirect/th_redirect.py" ext="py"><en_all fr="Tous" de="Alle" en="All" it="Tutto" base="All"></en_all>
-<en_make_redirect base="Make redirect" it="Fai redirect" en="Make redirect"></en_make_redirect>
-<en_page base="Page" de="Seite" en="Page" fr="Page" it="Pagina"></en_page></th_redirect></redirect></tables></resources></GenRoBag>
+<?xml version="1.0" ?>
+<GenRoBag>
+	<lib>
+		<sphinx_formatters path="lib/sphinx_formatters.py" ext="py">
+			<en_publish_date base="Publish date" en="Publish date" it="Data di pubblicazione"/>
+				<en_parameters base="Parameters" de="Parameter" en="Parameters" fr="Paramètres" it="Parametri"/>
+				<en_attachments base="Attachments" de="Zubehör" en="Attachments" fr="Pièces jointes" it="Allegati"/>
+		</sphinx_formatters>
+	</lib>
+
+	<menu path="menu.py" ext="py">
+		<en_documentation base="Documentation" de="Dokumentation" en="Documentation" fr="Documentation" it="Documentazione"/>
+		<en_contents base="Contents" it="Contenuti"/>
+		<en_handbooks base="Handbooks" it="Manuali" en="Handbooks"/>
+		<en_redirects base="Redirects" en="Redirects" it="Reindirizzamenti"/>
+		<en_docu_tables base="Docu tables" en="Docu tables" it="Tabelle Docu"/>
+		<en_faqs base="FAQs" it=""/>
+		<en_faqs_submission base="FAQs Submission" it="Domande frequenti Invio"/>
+		<en_faqs_consultation base="FAQs Consultation" it="Domande frequenti Consultazione"/>
+	</menu>
+
+	<model>
+		<_packages>
+			<orgn>
+				<annotation path="model/_packages/orgn/annotation.py" ext="py">
+					<en_documentation base="Documentation" de="Dokumentation" en="Documentation" fr="Documentation" it="Documentazione"/>
+				</annotation>
+			</orgn>
+		</_packages>
+		<author path="model/author.py" ext="py">
+			<en_author base="Author" de="Verfasser" en="Author" fr="Auteur" it="Autore"/>
+				<en_authors base="Authors" it="Autori"/>
+				<en_first_name fr="Prénom" de="Vorname" en="First name" it="Nome" base="First name"/>
+				<en_mandatory_field fr="Champ obligatoire" de="Pflichtfeld" en="Mandatory field" it="Campo obbligatorio" base="Mandatory field"/>
+				<en_last_name fr="Nom de famille" de="Nachname" en="Last name" it="Cognome" base="Last name"/>
+				<en_full_name base="Full name" it="Nome e cognome"/>
+		</author>
+		<content path="model/content.py" ext="py">
+			<en_content fr="Content" de="Inhalt" en="Content" it="Contenuto" base="Content"/>
+				<en_contents base="Contents" it="Contenuti"/>
+				<en_title fr="Titre" de="Titel" en="Title" it="Titolo" base="Title"/>
+				<en_headline base="Headline" it="Sottotitolo"/>
+				<en_abstract base="Abstract" it="Riassunto"/>
+				<en_text base="Text" it="Testo"/>
+				<en_html base="HTML" en="Html" it="Html"/>
+				<en_rst base="RST" it="PRIMO"/>
+				<en_markdown base="Markdown" it=""/>
+				<en_template fr="Modèle" de="Schablone" en="Template" it="Template" base="Template" es="plantilla"/>
+		</content>
+		<content_author path="model/content_author.py" ext="py">
+			<en_content_author base="Content author" it="Autore del contenuto"/>
+				<en_content_authors base="Content authors" it="Autori di contenuti"/>
+				<en_content fr="Content" de="Inhalt" en="Content" it="Contenuto" base="Content"/>
+				<en_author base="Author" de="Verfasser" en="Author" fr="Auteur" it="Autore"/>
+		</content_author>
+		<content_history path="model/content_history.py" ext="py">
+			<en_content_history base="Content history" it="Cronologia dei contenuti"/>
+				<en_contents_history base="Contents history" it="Cronologia dei contenuti"/>
+				<en_content fr="Content" de="Inhalt" en="Content" it="Contenuto" base="Content"/>
+				<en_version fr="Version" de="Version" en="Version" it="Versione" base="Version"/>
+				<en_vers_ base="Vers." en="Vers." it="Vers."/>
+				<en_text base="Text" it="Testo"/>
+				<en_html base="Html" en="Html" it="Html"/>
+		</content_history>
+		<content_topic path="model/content_topic.py" ext="py">
+			<en_content_topic base="Content topic" it="Argomento del contenuto"/>
+				<en_content_topics base="Content topics" it="Argomenti dei contenuti"/>
+				<en_content fr="Content" de="Inhalt" en="Content" it="Contenuto" base="Content"/>
+				<en_topic base="Topic" de="Thema" en="Topic" fr="Sujet" it="Argomento"/>
+		</content_topic>
+		<documentation path="model/documentation.py" ext="py">
+			<en_documentation base="Documentation" de="Dokumentation" en="Documentation" fr="Documentation" it="Documentazione"/>
+				<en_code base="Code" en="Code" it="Codice"/>
+				<en_code_must_contain_only_lowercase_letters_numbers_underscores_and_hyphens base="Code must contain only lowercase letters, numbers, underscores and hyphens" it="Il codice deve contenere solo lettere minuscole, numeri, trattini bassi e trattini"/>
+				<en_topics base="Topics" en="Topics" it="Argomenti"/>
+				<en_publish_date base="Publish date" en="Publish date" it="Data di pubblicazione"/>
+				<en_python_source base="Python Source" it="Fonte Python"/>
+				<en_rst_data base="Rst data" it="Dati Rst"/>
+				<en_revision base="Revision" en="Revision" it="Revisione"/>
+				<en_draft base="Draft" it="Bozza" en="Draft"/>
+				<en_work_in_progress base="Work in progress" it="In corso"/>
+				<en_pre_release base="Pre-release" it="Pre-rilascio"/>
+				<en_final base="Final" it="Completato"/>
+				<en_author base="Author" de="Verfasser" en="Author" fr="Auteur" it="Autore"/>
+				<en_base_language base="Base language" it="Lingua base" en=""/>
+				<en_sphinx_toc base="Sphinx toc" it="TOC Sphinx" en="TOC Sphinx" fr="TOC Sphinx"/>
+				<en_available_languages base="Available languages" it="Lingue disponibili"/>
+				<en_root_handbook_url base="Root handbook url" it="URL del manuale Root"/>
+				<en_full_external_url base="Full external url" it="URL esterno completo"/>
+				<en_rst_s base="Rst %s" en="Rst [50]" it="Rst %s"/>
+				<en_title_s base="Title %s" en="Title [51]" it="Titolo %s"/>
+				<en_parameter_name base="Parameter name" en="Parameter name" it="Nome parametro"/>
+				<en_type fr="Type" de="Art" en="Type" it="Tipo" base="Type"/>
+				<en_description base="Description" en="Description" it="Descrizione"/>
+				<en_parameters base="Parameters" de="Parameter" en="Parameters" fr="Paramètres" it="Parametri"/>
+		</documentation>
+		<documentation_content path="model/documentation_content.py" ext="py">
+			<en_documentation_content base="Documentation content" it="Contenuto della documentazione"/>
+				<en_content fr="Content" de="Inhalt" en="Content" it="Contenuto" base="Content"/>
+				<en_documentation base="Documentation" de="Dokumentation" en="Documentation" fr="Documentation" it="Documentazione"/>
+				<en_language base="Language" en="Language" it="Lingua"/>
+		</documentation_content>
+		<documentation_visit path="model/documentation_visit.py" ext="py">
+			<en_documentation_visit base="Documentation visit" en="Documentation visit" it="Visita alla documentazione"/>
+				<en_documentation_visits base="Documentation visits" en="Documentation visits" it="Visite alla documentazione"/>
+				<en_visitor_identifier base="Visitor identifier" en="Visitor identifier" it="Identificatore del visitatore"/>
+				<en_doc_id base="Doc.Id" en="Doc.Id" it="Doc.ID"/>
+				<en_visit_level base="Visit level" en="Visit level" it="Livello di visita"/>
+				<en_01_quick_view_02_have_questions_09_okay base="01:Quick view,02:Have questions,09:Okay" en="01:Quick view,02:Have questions,09:Okay" it="01:Visualizzazione rapida, 02:Ho domande, 09:OK"/>
+				<en_notes fr="Remarques" de="Aufzeichnungen" en="Notes" it="Note" base="Notes"/>
+		</documentation_visit>
+		<faq path="model/faq.py" ext="py">
+			<en_faq base="FAQ" it=""/>
+				<en_faqs base="FAQs" it=""/>
+				<en_topics base="Topics" en="Topics" it="Argomenti"/>
+				<en_content fr="Content" de="Inhalt" en="Content" it="Contenuto" base="Content"/>
+				<en_notes fr="Remarques" de="Aufzeichnungen" en="Notes" it="Note" base="Notes"/>
+				<en_faq_area base="FAQ Area" it="Area FAQ"/>
+				<en_answer base="Answer" it="Risposta"/>
+				<en_question base="Question" it="Domanda"/>
+				<en_faq_area_name base="FAQ Area Name" it="Nome area FAQ"/>
+		</faq>
+		<faq_area path="model/faq_area.py" ext="py">
+			<en_faq_area base="FAQ area" it="Area FAQ"/>
+				<en_faq_areas base="FAQ areas" it="Aree FAQ"/>
+				<en_name fr="Nom" de="Name" en="Name" it="Nome" base="Name"/>
+		</faq_area>
+		<faq_documentation path="model/faq_documentation.py" ext="py">
+			<en_faq_documentation base="FAQ Documentation" it="Documentazione FAQ"/>
+				<en_faqs_documentation base="FAQs documentation" it="Documentazione FAQ"/>
+				<en_faq base="FAQ" it=""/>
+				<en_documentation base="Documentation" de="Dokumentation" en="Documentation" fr="Documentation" it="Documentazione"/>
+				<en_full_url base="Full Url" it="Url completo"/>
+		</faq_documentation>
+		<handbook path="model/handbook.py" ext="py">
+			<en_handbook base="Handbook" en="Handbook" it="Manuale"/>
+				<en_handbooks base="Handbooks" it="Manuali" en="Handbooks"/>
+				<en_name fr="Nom" de="Name" en="Name" it="Nome" base="Name"/>
+				<en_title fr="Titre" de="Titel" en="Title" it="Titolo" base="Title"/>
+				<en_doc_root base="Doc root" en="Doc root" it="Radice del documento"/>
+				<en_toc_roots base="Toc roots" en="TOC roots" it="Radici TOC"/>
+				<en_base_language base="Base language" it="Lingua base" en=""/>
+				<en_is_local_handbook base="Is local handbook" it="Manuale locale" en="Is local handbook"/>
+				<en_local_handbook_zip base="Local handbook zip" it="Manuale locale (zip)" en=""/>
+				<en_version fr="Version" de="Version" en="Version" it="Versione" base="Version"/>
+				<en_author base="Author" de="Verfasser" en="Author" fr="Auteur" it="Autore"/>
+				<en_theme base="Theme" it="Tema" en="Theme"/>
+				<en_handbook_url base="Handbook url" it="Url manuale" en="Handbook url"/>
+				<en_examples_site base="Examples site" it="Sito di esempi" en=""/>
+				<en_examples_dir base="Examples dir" it="Dir degli esempi" en=""/>
+				<en_last_export_ts base="Last export ts" it="Ultima esportazione ts" en=""/>
+				<en_custom_styles base="Custom styles" it="Stili personalizzati" en=""/>
+				<en_examples_parameters base="Examples parameters" it="Esempi di parametri" en=""/>
+				<en_handbook_preview_image base="Handbook preview image" it="Immagine anteprima manuale" en="Handbook preview image"/>
+				<en_sphinx_path base="Sphinx path" en="Sphinx path" it="Path Sphinx"/>
+		</handbook>
+		<redirect path="model/redirect.py" ext="py">
+			<en_moved_page base="Moved Page" en="Moved Page" it="Pagina spostata"/>
+				<en_old_url base="Old url" en="Old url" it="Vecchia url"/>
+				<en_new_url base="New url" en="New url" it="Nuovo url"/>
+				<en_old_handbook base="Old Handbook" en="Old Handbook" it="Vecchio manuale"/>
+				<en_new_handbook base="New Handbook" en="New Handbook" it="Nuovo manuale"/>
+				<en_page_name fr="Nom de la page" de="Seitenname" en="Page Name" it="Nome pagina" base="Page name"/>
+				<en_handbook_path base="Handbook path" en="Handbook path" it="Percorso del manuale"/>
+				<en_handbook_url base="Handbook url" it="Url manuale" en="Handbook url"/>
+		</redirect>
+		<topic path="model/topic.py" ext="py">
+			<en_topic base="Topic" de="Thema" en="Topic" fr="Sujet" it="Argomento"/>
+		</topic>
+	</model>
+
+	<resources>
+		<docu_components path="resources/docu_components.py" ext="py">
+			<en_revert base="Revert" de="Zurückkehren" en="Revert" fr="Revenir" it="Ritornare"/>
+				<en_cancel base="Cancel" de="Stornieren" en="Cancel" fr="Annuler" it="Annulla"/>
+				<en_save fr="Sauvegarder" de="Speichern" en="Save" it="Salva" base="Save"/>
+				<en_title fr="Titre" de="Titel" en="Title" it="Titolo" base="Title"/>
+				<en_line_wrapping base="Line wrapping" en="Line wrapping" it="A capo automatico"/>
+				<en_quote base="Quote" en="Quote" it="Citazione"/>
+				<en_parent base="Parent" de="Elternteil" en="Parent" fr="Mère" it="Genitore"/>
+				<en_first_child base="First child" en="First child" it="Primo figlio"/>
+				<en_prev base="Prev" de="Zurück" en="Prev" fr="Précédent" it="Prev"/>
+				<en_next base="Next" de="Nächste" en="Next" fr="Prochaine" it="Prossimo" zh="下一步"/>
+				<en_search base="Search" de="Suche" en="Search" fr="Recherche" it="Cerca"/>
+				<en_01_quick_view_02_have_questions_09_okay base="01:Quick view,02:Have questions,09:Okay" en="01:Quick view,02:Have questions,09:Okay" it="01:Visualizzazione rapida, 02:Ho domande, 09:OK"/>
+				<en_differences base="Differences" it="Differenze"/>
+		</docu_components>
+		<preference path="resources/preference.py" ext="py">
+			<en_handbooks_theme base="Handbooks theme" it="Tema dei manuali"/>
+				<en_base_css base="Base CSS" it="CSS di base"/>
+				<en_base_html base="Base HTML" it="HTML di base"/>
+				<en_base_js base="Base JS" it=""/>
+				<en_editing_mode base="Editing mode" it="Modalità di modifica"/>
+				<en_choose_the_markup_language_for_documentation_editing base="Choose the markup language for documentation editing" it="Scegli il linguaggio di markup per la modifica della documentazione"/>
+				<en_sphinx_baseurl base="Sphinx baseurl" en="Sphinx baseurl" it="Sphinx baseurl"/>
+				<en_cloudfront_distribution_id base="Cloudfront distribution ID" en="Cloudfront distribution ID" it="ID di distribuzione Cloudfront"/>
+				<en_manage_redirects base="Manage redirects" it="Gestisci reindirizzamenti" en="Manage redirects"/>
+				<en_enable_sitemap base="Enable sitemap" it="Abilita mappa del sito"/>
+				<en_save_source_debug_files base="Save source debug files" it="Salva i file di debug di origine"/>
+				<en_handbook_logo base="Handbook Logo" it="Logo del manuale"/>
+				<en_copyright_text base="Copyright text" it="Testo del copyright"/>
+				<en_show_last_update_date base="Show last update date" it="Mostra la data dell'ultimo aggiornamento"/>
+				<en_display_version_number base="Display version number" it="Visualizza il numero di versione"/>
+				<en_show_authors base="Show authors" it="Mostra autori"/>
+		</preference>
+		<tables>
+			<content>
+				<th_content path="resources/tables/content/th_content.py" ext="py">
+					<en_content_data base="Content Data" it="Dati sui contenuti"/>
+								<en_content_attributes base="Content Attributes" it="Attributi del contenuto"/>
+								<en_text base="Text" it="Testo"/>
+								<en_template fr="Modèle" de="Schablone" en="Template" it="Template" base="Template" es="plantilla"/>
+								<en_attachments base="Attachments" de="Zubehör" en="Attachments" fr="Pièces jointes" it="Allegati"/>
+								<en_versions base="Versions" en="Versions" it="Versioni"/>
+				</th_content>
+			</content>
+				<documentation>
+				<action>
+					<convert_content_format path="resources/tables/documentation/action/convert_content_format.py" ext="py">
+						<en_convert_content_format base="Convert content format" it="Convertire il formato dei contenuti"/>
+										<en_conversion_direction base="Conversion direction" it="Direzione di conversione"/>
+										<en_choose_the_conversion_direction base="Choose the conversion direction" it="Scegli la direzione di conversione"/>
+										<en_overwrite_existing_target_field base="Overwrite existing target field" it="Sovrascrivi il campo di destinazione esistente"/>
+										<en_if_checked_will_overwrite_target_field_even_if_it_already_contains_text base="If checked, will overwrite target field even if it already contains text" it="Se selezionata, sovrascriverà il campo di destinazione anche se contiene già del testo"/>
+					</convert_content_format>
+				</action>
+						<th_documentation path="resources/tables/documentation/th_documentation.py" ext="py">
+					<en_documentation base="Documentation" de="Dokumentation" en="Documentation" fr="Documentation" it="Documentazione"/>
+								<en_parameters base="Parameters" de="Parameter" en="Parameters" fr="Paramètres" it="Parametri"/>
+								<en_title fr="Titre" de="Titel" en="Title" it="Titolo" base="Title"/>
+								<en_change_version_name base="Change version name" en="Change version name" it="Cambia il nome della versione"/>
+								<en_change_name base="Change name" it="Cambia nome"/>
+								<en_new_version_name base="New version name" it="Nome della nuova versione"/>
+								<en_new_version_description base="New version description" it="Descrizione della nuova versione"/>
+								<en_add_version base="Add version" en="Add version" it="Aggiungi versione"/>
+								<en_new_version base="New version" it="Nuova versione"/>
+								<en_version fr="Version" de="Version" en="Version" it="Versione" base="Version"/>
+								<en_delete_selected_template base="Delete selected template" de="Löschen ausgewählte Vorlage" en="Delete selected template" fr="Supprimer le modèle sélectionné" it="Cancella modello selezionato"/>
+								<en_italiano base="Italiano" en="Italiano" it="English"/>
+								<en_english base="English" de="Englisch" en="English" fr="Anglais" it="Inglese"/>
+				</th_documentation>
+			</documentation>
+				<documentation_content>
+				<th_documentation_content path="resources/tables/documentation_content/th_documentation_content.py" ext="py">
+					<en_content fr="Content" de="Inhalt" en="Content" it="Contenuto" base="Content"/>
+								<en_new_content base="New content" it="Nuovi contenuti"/>
+								<en_language base="Language" en="Language" it="Lingua"/>
+				</th_documentation_content>
+			</documentation_content>
+				<documentation_user>
+				<th_documentation_user path="resources/tables/documentation_user/th_documentation_user.py" ext="py">
+					<en_date fr="Date" de="Datum" en="Date" it="Data" base="Date"/>
+								<en_user fr="Utilisateur" de="Benutzer" en="User" it="Utente" base="User"/>
+				</th_documentation_user>
+			</documentation_user>
+				<faq>
+				<th_faq path="resources/tables/faq/th_faq.py" ext="py">
+					<en_question base="Question" it="Domanda"/>
+								<en_answer base="Answer" it="Risposta"/>
+								<en_references base="References" it="Referenze"/>
+								<en_notes fr="Remarques" de="Aufzeichnungen" en="Notes" it="Note" base="Notes"/>
+				</th_faq>
+			</faq>
+				<faq_documentation>
+				<th_faq_documentation path="resources/tables/faq_documentation/th_faq_documentation.py" ext="py">
+					<en_copy base="Copy" it="Copia"/>
+								<en_copied_to_clipboard base="Copied to clipboard" it="Copiato negli appunti"/>
+								<en_url base="Url" it=""/>
+				</th_faq_documentation>
+			</faq_documentation>
+				<handbook>
+				<action>
+					<export_to_sphinx path="resources/tables/handbook/action/export_to_sphinx.py" ext="py">
+						<en_skip_redirects base="Skip redirects" en="Skip redirects" it="Salta i reindirizzamenti"/>
+										<en_force_cloudfront_cache_invalidation base="Force Cloudfront cache invalidation" en="Force Cloudfront cache invalidation" it="Forza l'invalidazione della cache di Cloudfront"/>
+										<en_send_notification_via_telegram base="Send notification via Telegram" en="Send notification via Telegram" it="Invia una notifica tramite Telegram"/>
+										<en_notification_content base="Notification content" en="Notification content" it="Contenuto delle notifiche"/>
+										<en_genropy_documentation_updated_handbook_title_was_modified_timestamp_check_out_what_s_new_on_handbook_url_ base="Genropy Documentation updated: {handbook_title} was modified @ {timestamp}. Check out what's new on {handbook_url}" en="Genropy Documentation updated: {handbook_title} was modified @ {timestamp}. Check out what's new on {handbook_url}" it="Documentazione Genropy aggiornata: {handbook_title} è stato modificato @ {timestamp}. Scopri le novità su {handbook_url}"/>
+										<en_notification_recipients base="Notification recipients" en="Notification recipients" it="Destinatari delle notifiche"/>
+					</export_to_sphinx>
+				</action>
+						<th_handbook path="resources/tables/handbook/th_handbook.py" ext="py">
+					<en_name fr="Nom" de="Name" en="Name" it="Nome" base="Name"/>
+								<en_title fr="Titre" de="Titel" en="Title" it="Titolo" base="Title"/>
+								<en_doc_root base="Doc root" en="Doc root" it="Radice del documento"/>
+								<en_language base="Language" en="Language" it="Lingua"/>
+								<en_vers_ base="Vers." en="Vers." it="Vers."/>
+								<en_last_exp_ts base="Last exp.ts" it="Ultimi exp.ts"/>
+								<en_all fr="Tous" de="Alle" en="All" it="Tutto" base="All"/>
+								<en_online base="Online" en="Online" it="Online"/>
+								<en_local base="Local" it="Locale" en="Local"/>
+								<en_info fr="Infos" de="Info" en="Info" it="Info" base="Info"/>
+								<en_documentation base="Documentation" de="Dokumentation" en="Documentation" fr="Documentation" it="Documentazione"/>
+								<en_preview base="Preview" de="Vorschau" en="Preview" fr="Avant-première" it="Anteprima"/>
+								<en_zip base="Zip" en="Zip" it="Zip"/>
+								<en_is_local_handbook base="Is local handbook" it="Manuale locale" en="Is local handbook"/>
+								<en_sphinx_path base="Sphinx path" en="Sphinx path" it="Path Sphinx"/>
+								<en_toc_roots base="TOC roots" en="TOC roots" it="Radici TOC"/>
+								<en_doc_url_ base="Doc url:" en="Doc url:" it="URL del documento:"/>
+				</th_handbook>
+			</handbook>
+				<redirect>
+				<th_redirect path="resources/tables/redirect/th_redirect.py" ext="py">
+					<en_all fr="Tous" de="Alle" en="All" it="Tutto" base="All"/>
+								<en_make_redirect base="Make redirect" it="Fai redirect" en="Make redirect"/>
+								<en_page base="Page" de="Seite" en="Page" fr="Page" it="Pagina"/>
+				</th_redirect>
+			</redirect>
+		</tables>
+	</resources>
+</GenRoBag>
