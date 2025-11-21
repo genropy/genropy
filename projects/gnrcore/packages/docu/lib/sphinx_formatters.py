@@ -212,7 +212,7 @@ class SphinxFormatter:
         if self.editing_mode == 'markdown':
             params_table = self.doctable.dfAsHtmlTable(doc_id, language=self.handbook_record['language'])
             if params_table:
-                return f'{content}\n\n---\n\n**{params_label}:**\n\n{params_table}'
+                return f'{content}\n\n<hr>\n\n**{params_label}:**\n\n{params_table}'
         else:
             params_table = self.doctable.dfAsRstTable(doc_id, language=self.handbook_record['language'])
             if params_table:
@@ -228,7 +228,7 @@ class SphinxFormatter:
         if self.editing_mode == 'markdown':
             atc_table = self.doctable.atcAsHtmlTable(doc_id, host=self.page.external_host)
             if atc_table:
-                return f'{content}\n\n---\n\n**{atcs_label}:**\n\n{atc_table}'
+                return f'{content}\n\n<hr>\n\n**{atcs_label}:**\n\n{atc_table}'
         else:
             atc_table = self.doctable.atcAsRstTable(doc_id, host=self.page.external_host)
             if atc_table:
