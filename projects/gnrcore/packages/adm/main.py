@@ -101,6 +101,7 @@ class Package(GnrDboPackage):
     def packageTags(self,root):
         root.authTag('user', description='User')
         root.authTag('admin', description='Admin')
+        root.authTag('superadmin', description='SuperAdmin',isreserved=True)
         root.authTag('_DEV_', description='Developer',isreserved=True)
         root.authTag('_TRD_', description='Translator',isreserved=True)
         root.authTag('_DOC_', description='Documentation',isreserved=True)
