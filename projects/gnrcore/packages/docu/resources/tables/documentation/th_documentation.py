@@ -69,7 +69,7 @@ class Form(BaseComponent):
                                     parentForm=True,deleteAction=False)
         bar = cframe.top.bar
         bar.replaceSlots('#', 'ctitle,*,mbslot,2', background='white')
-        bar.ctitle.formbuilder().textbox(value='^.@content_id.title', lbl='!!Title', width='40em')
+        bar.ctitle.formbuilder().textbox(value='^.record.@content_id.title', lbl='!!Title', width='40em')
 
         if self.isDeveloper():
             source_footer = bc.contentPane(region='bottom',height='50%',splitter=True,closable='close')
