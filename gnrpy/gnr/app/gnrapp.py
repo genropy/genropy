@@ -188,6 +188,10 @@ class GnrSqlAppDb(GnrSqlDb):
             self._storetable = self.application.config['db?storetable']
         return self._storetable
 
+    @storetable.setter
+    def storetable(self, value):
+        self._storetable = value
+
     @property
     def localizer(self):
         return self.application.localizer
