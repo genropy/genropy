@@ -1,4 +1,6 @@
 # encoding: utf-8
+from gnr.web import gnrtask
+
 class Menu(object):
     def config(self,root,**kwargs):
         system = root.branch("!!System", tags="sysadmin,_DEV_,superadmin")
@@ -9,7 +11,8 @@ class Menu(object):
         system.thpage("Services", table="sys.service", tags="")
         system.thpage("Tasks", table="sys.task", tags="_DEV_")
         system.thpage("Task Executions", table="sys.task_execution", tags="_DEV_")
-        system.thpage("Task Monitor", tags="_DEV_", filepath="/sys/taskmonitor")
+        if gnrtask.USE_ASYNC_TASKS:
+            system.thpage("Task Monitor", tags="_DEV_", filepath="/sys/taskmonitor")
         
         system.webpage(u"Mobile App Check", filepath="/sys/mobileappcheck", tags="_DEV_,sysadmin,superadmin")
         system.webpage("Db Structure", tags="", filepath="/sys/dbstruct")

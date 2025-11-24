@@ -25,8 +25,8 @@ class View(BaseComponent):
     def th_order(self):
         return '__ins_ts:d'
 
-    #def th_query(self):
-    #    return dict(column='task_id', op='contains', val='')
+    def th_query(self):
+        return dict(column='task_id', op='contains', val='')
 
 class ViewFromTask(BaseComponent):
 

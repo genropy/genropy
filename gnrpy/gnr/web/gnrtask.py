@@ -27,11 +27,24 @@ from psutil import pid_exists
 from datetime import datetime
 from time import sleep
 from random import randrange
-
+from gnr.core.gnrconfig import getGnrConfig
 from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrbag import Bag
 from gnr.web.gnrwsgisite import GnrWsgiSite
 from gnr.web import logger
+
+
+def determine_task_manager_to_use():
+    _c = getGnrConfig()
+    _env = _c['gnr.environment_xml']
+    task_configuration = _env.getAttr('tasks')
+    if task_configuration and task_configuration.get("async_impl") == 'true':
+            return True
+    return False
+
+# global bool to be used to determine if we're using the old
+# or the new async based task scheduler/worker
+USE_ASYNC_TASKS = determine_task_manager_to_use()
 
 class GnrTaskScheduler(object):
     def __init__(self,instancename,interval=None):
@@ -124,7 +137,7 @@ class GnrTaskWorker(object):
                             batch_selection_savedQuery=task_execution['task_saved_query'])
         taskparameters = task_execution['task_parameters']
         with self.db.tempEnv(connectionName='execution'):
-            logger.info("Executing task %s.%s - %s", task_execution['table_table'],
+            logger.info("Executing task %s.%s - %s", 
                         task_execution['table_table'],
                         task_execution['table_name'],
                         task_execution['table_command'])

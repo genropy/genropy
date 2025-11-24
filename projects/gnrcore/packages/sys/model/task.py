@@ -3,8 +3,16 @@
 from datetime import datetime
 
 from gnr.core.gnrbag import Bag
-from gnr.web.gnrtask import GnrTaskSchedulerClient
+from gnr.web.gnrtask import USE_ASYNC_TASKS
 from gnr.app import pkglog as logger
+
+
+if USE_ASYNC_TASKS:
+    from gnr.web.gnrtask_new import GnrTaskSchedulerClient
+else:
+    class GnrTaskSchedulerClient(object):
+        pass
+
 
 class Table(object):
     
@@ -39,12 +47,7 @@ class Table(object):
         tbl.column('worker_code', size=':10', name_long="Worker code",
                    indexed=True)
         tbl.column('saved_query_code', size=':40', name_long="!![en]Query")
-        
-        tbl.formulaColumn('bad_status',
-                          "($last_scheduled_ts - $last_execution_ts) > INTERVAL '1 DAYS'",
-                          dtype="B",
-                          _addClass="task_bad_status")
-        
+
         tbl.formulaColumn('active_workers',
                           select=dict(table='sys.task_execution',
                                       where="$task_id=#THIS.id AND $start_ts IS NOT NULL AND $end_ts IS NULL",
@@ -73,33 +76,41 @@ class Table(object):
                               order_by='$start_ts DESC', limit=1,
                               columns='$start_ts')
                           )
+        if USE_ASYNC_TASKS:
+            tbl.formulaColumn('bad_status',
+                              "($last_scheduled_ts - $last_execution_ts) > INTERVAL '1 DAYS'",
+                              dtype="B",
+                              _addClass="task_bad_status")
 
     def scheduler(self):
-        return GnrTaskSchedulerClient()
+        if USE_ASYNC_TASKS:
+            return GnrTaskSchedulerClient()
     
     def zoomUrl(self):
         return 'sys/task'
     
     def _invoke_scheduler_reload(self):
-        
-        def scheduler_deferred_reload():
-            try:
-                domain = self.db.currentEnv.get("domainName", None)
-                self.scheduler().reload(domain=domain)
-            except Exception as e:
-                self.db.currentPage.clientPublish('floating_message',
-                                                  message='Unable to contact scheduler',
-                                                  messageType='warning')
-                logger.error("Unable to contact scheduler: %s", e)
-        self.db.deferAfterCommit(scheduler_deferred_reload)
+        if USE_ASYNC_TASKS:
+            def scheduler_deferred_reload():
+                try:
+                    domain = self.db.currentEnv.get("domainName", None)
+                    self.scheduler().reload(domain=domain)
+                except Exception as e:
+                    self.db.currentPage.clientPublish('floating_message',
+                                                      message='Unable to contact scheduler',
+                                                      messageType='warning')
+                    logger.error("Unable to contact scheduler: %s", e)
+            self.db.deferAfterCommit(scheduler_deferred_reload)
         
     def trigger_onUpdating(self, record=None,old_record=None):
-        if not self.fieldsChanged('last_scheduled_ts,last_execution_ts',
-                                  record, old_record):
-            self._invoke_scheduler_reload()
+        if USE_ASYNC_TASKS:
+            if not self.fieldsChanged('last_scheduled_ts,last_execution_ts',
+                                      record, old_record):
+                self._invoke_scheduler_reload()
 
     def trigger_onInserting(self, record):
-        self._invoke_scheduler_reload()
+        if USE_ASYNC_TASKS:
+            self._invoke_scheduler_reload()
         
     trigger_onDeleted = trigger_onInserting
 

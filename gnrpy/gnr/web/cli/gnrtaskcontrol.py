@@ -1,12 +1,22 @@
 #!/usr/bin/env python
 # encoding: utf-8
 #
+
+import sys
+
 from gnr.core.cli import GnrCliArgParse
-from gnr.web import gnrtask
+
 
 description = "Control the task scheduler"
 
 def main():
+    from gnr.web import gnrtask
+    if not gnrtask.USE_ASYNC_TASKS:
+        print("This tool can be used only when new async task scheduler/worker is active")
+        sys.exit(1)
+
+    from gnr.web import gnrtask_new as gnrtask
+    
     parser = GnrCliArgParse(description=description)
     parser.add_argument('--url',
                         dest='url',

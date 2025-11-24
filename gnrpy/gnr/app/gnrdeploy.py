@@ -1197,8 +1197,12 @@ class GunicornDeployBuilder(object):
 
         gnrasync = group.section('program', f'{self.site_name}_gnrasync')
         gnrasync.parameter('command', f"{os.path.join(self.bin_folder,'gnrasync')} {self.site_name}")
+
         
-        self.taskSchedulerConf(group)
+        from gnr.web.gnrtask import USE_ASYNC_TASKS
+        if USE_ASYNC_TASKS:
+            self.taskSchedulerConf(group)
+
         self.taskWorkersConf(group)
         root.toIniConf(os.path.join(self.config_folder,'supervisord.conf'))
 
@@ -1210,11 +1214,9 @@ class GunicornDeployBuilder(object):
         secondary = has_sys and self.instance_config['packages'].getAttr('gnrcore:sys').get('secondary')
         if not has_sys or secondary:
             return
-        print("WRITING CONF")
         scheduler_section = group.section("program", f"{self.site_name}_taskscheduler")
         scheduler_section.parameter("process_name", f"{self.site_name}_gnrtaskscheduler")
         scheduler_section.parameter('command', f'{os.path.join(self.bin_folder,"gnr")} web taskscheduler {self.site_name}')
-        print("COMPLETED")
         
     def taskWorkersConf(self,group):
         """
@@ -1259,7 +1261,11 @@ class GunicornDeployBuilder(object):
         gunicorn.parameter('command','%s -c %s root' %(os.path.join(self.bin_folder,'gunicorn'),self.gunicorn_conf_path))
         gnrasync = group.section('program','%s_gnrasync' %self.site_name)
         gnrasync.parameter('command','%s %s' %(os.path.join(self.bin_folder,'gnrasync'),self.site_name))
-        self.taskSchedulerConf(group)
+
+        from gnr.web.gnrtask import USE_ASYNC_TASKS
+        if USE_ASYNC_TASKS:
+            self.taskSchedulerConf(group)
+            
         self.taskWorkersConf(group)
         if self.supervisord_monitor_parameters:
             self.xmlRpcServerConf(root)

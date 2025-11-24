@@ -11,7 +11,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from webcommon import BaseGnrTest
 
-from gnr.web import gnrtask
+from gnr.web import gnrtask_new as gnrtask
 
 
 class _AsyncFixtureWrapper:

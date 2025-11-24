@@ -7,12 +7,14 @@
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
+from gnr.web import gnrtask
 
 class View(BaseComponent):
     css_requires = 'sys'
     
     def th_hiddencolumns(self):
-        return '$bad_status'
+        if gnrtask.USE_ASYNC_TASKS:
+            return '$bad_status'
     
     def th_struct(self,struct):
         r = struct.view().rows()

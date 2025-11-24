@@ -20,13 +20,15 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrconfig import gnrConfigPath
 from gnr.app.gnrdeploy import PathResolver
-from gnr.web.gnrdaemonprocesses import GnrDaemonServiceManager
+from gnr.web.gnrdaemonprocesses import GnrCronHandler, GnrDaemonServiceManager
+from gnr.web import gnrtask
 from gnr.web import logger
 
 if hasattr(Pyro4.config, 'METADATA'):
     Pyro4.config.METADATA = False
 if hasattr(Pyro4.config, 'REQUIRE_EXPOSE'):
     Pyro4.config.REQUIRE_EXPOSE = False
+    
 OLD_HMAC_MODE = hasattr(Pyro4.config,'HMAC_KEY')
 PYRO_HOST = 'localhost'
 PYRO_PORT = 40004
@@ -44,6 +46,10 @@ def createHeartBeat(site_url=None,interval=None,**kwargs):
     time.sleep(interval)
     server.start()
 
+def createTaskScheduler(sitename, interval=None):
+    scheduler = gnrtask.GnrTaskScheduler(sitename, interval=interval)
+    scheduler.start()
+    
 def getFullOptions(options=None):
     gnr_path = gnrConfigPath()
     enviroment_path = os.path.join(gnr_path,'environment.xml')
@@ -121,6 +127,9 @@ class GnrDaemon(object):
         self.multiprocessing_manager =  Manager()
         self.batch_processes = dict()
         self.cron_processes = dict()
+        if not gnrtask.USE_ASYNC_TASKS:
+            self.task_locks = dict()
+            self.task_execution_dicts = dict()
         self.logger = logger
 
 
@@ -218,6 +227,13 @@ class GnrDaemon(object):
     def on_reloader_restart(self, sitename=None):
         pass
 
+    def startCronProcess(self, sitename=None, batch_pars=None, batch_queue=None):
+        siteregister_processes_dict = self.siteregisters_process[sitename]
+        cron_handler = GnrCronHandler(self, sitename=sitename, batch_queue=batch_queue,
+            batch_pars=batch_pars)
+        cron_handler.start()
+        siteregister_processes_dict['cron'] = cron_handler
+
     def startGnrDaemonServiceManager(self, sitename, sitedict=None):
         siteregister_processes_dict = self.siteregisters_process[sitename]
         daemonServiceHandler = GnrDaemonServiceManager(self, sitename=sitename)
@@ -251,7 +267,15 @@ class GnrDaemon(object):
         proc.daemon = True
         proc.start()
         return proc
-    
+
+    def hasSysPackageAndIsPrimary(self,sitename):
+        instanceconfig = PathResolver().get_instanceconfig(sitename)
+        if instanceconfig:
+            has_sys = 'gnrcore:sys' in instanceconfig['packages']
+            secondary = has_sys and instanceconfig['packages'].getAttr('gnrcore:sys').get('secondary')
+            return has_sys and not secondary
+        return False
+
     def addSiteRegister(self,sitename,storage_path=None,autorestore=False,port=None):
         if not sitename in self.siteregisters:
             siteregister_processes_dict = dict()
@@ -270,6 +294,12 @@ class GnrDaemon(object):
             childprocess.daemon = True
             childprocess.start()
             siteregister_processes_dict['register'] = childprocess
+
+            if not gnrtask.USE_ASYNC_TASKS and self.hasSysPackageAndIsPrimary(sitename):
+                taskScheduler = Process(name='ts_%s' %sitename, target=createTaskScheduler,kwargs=dict(sitename=sitename))
+                taskScheduler.daemon = True
+                taskScheduler.start()
+                siteregister_processes_dict['task_scheduler'] = taskScheduler 
 
             sitedict = siteregister_processes_dict
             self.startServiceProcesses(sitename,sitedict=sitedict)
