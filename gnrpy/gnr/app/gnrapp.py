@@ -321,6 +321,16 @@ class GnrSqlAppDb(GnrSqlDb):
         
 
     @property
+    def storetable(self):
+        if not hasattr(self,'_storetable'):
+            self._storetable = self.application.config['db?storetable']
+        return self._storetable
+
+    @storetable.setter
+    def storetable(self, value):
+        self._storetable = value
+
+    @property
     def localizer(self):
         return self.application.localizer
 

@@ -157,6 +157,7 @@ class GnrSqlDb(GnrObject):
         self.typeConverter = GnrClassCatalog()
         self.debugger = debugger
         self.application = application
+        self.storetable = None #it may be set during createModel
         self.model = self.createModel()
 
         if ':' in self.implementation:
@@ -205,43 +206,52 @@ class GnrSqlDb(GnrObject):
         return False
         
     @property
-    def tenant_table(self):
-        return 
-    
-    @property
     def stores_handler(self):
         #overridden by app integration
         return None
-    
+
     @property
     def multidb_config(self):
-        print('calling multidbconfig in gnrsql')
         #overridden by app integration
         return {}
-    
+
     @property
     def dbstores(self):
-        #overridden by app integration
+        """TODO"""
+        if self.stores_handler:
+            return self.stores_handler.dbstores
         return {}
-        
+
     @property
     def auxstores(self):
-        #overridden by app integration
+        """TODO"""
+        if self.stores_handler:
+            return self.stores_handler.auxstores
         return {}
-    
+
     @property
     def storetable(self):
         return self.multidb_config.get('storetable')
-    
+
     @property
     def multidb_prefix(self):
         prefix = self.multidb_config.get('prefix')
         return f'{prefix}_' if prefix else ''
-    
+
     @property
     def multidomain(self):
         return boolean(self.multidb_config.get('multidomain'))
-    
+
+    @property
+    def tenant_table(self):
+        if hasattr(self,'_tenant_table'):
+            return self._tenant_table
+        tenant_table = None
+        for pkg in self.packages.values():
+            tenant_table = pkg.attributes.get('tenant_table') or tenant_table
+        self._tenant_table = tenant_table
+        return self._tenant_table
+
     @property
     def reuse_relation_tree(self):
         if self.application:
@@ -467,12 +477,15 @@ class GnrSqlDb(GnrObject):
         self.updateEnv(storename=storename)
         
     def get_dbname(self):
-        """TODO"""
+        """Get the database name for the current store"""
         storename = self.currentEnv.get('storename')
         if storename:
-            return self.dbstores[storename]['database']
-        else:
-            return self.dbname
+            store_params = self.get_store_parameters(storename)
+            if not store_params:
+                # Backward compatibility: raise KeyError if store doesn't exist
+                raise KeyError(f'Store {storename} not configured')
+            return store_params['database']
+        return self.dbname
     
     def getTenantSchemas(self):
         if not self.tenant_table:
@@ -537,9 +550,7 @@ class GnrSqlDb(GnrObject):
             return self._get_store_connection(storename)
             
     connection = property(_get_connection)
-            
-            
-        
+
     def get_store_parameters(self,storename):
         return self.dbstores.get(storename) or self.auxstores.get(storename)
 
@@ -550,7 +561,7 @@ class GnrSqlDb(GnrObject):
         storeattr = self.get_store_parameters(storename)
         if not storeattr:
             raise GnrSqlException(f'Not existing connection configuration for {storename}')
-            
+
         return dict(host=storeattr.get('host') or self.host,
                         database=storeattr.get('database') or storeattr.get('dbname'),
                         dbbranch=storeattr.get('dbbranch', None),
@@ -558,7 +569,6 @@ class GnrSqlDb(GnrObject):
                         password=storeattr.get('password') or self.password,
                         port=storeattr.get('port') or self.port,
                         implementation=storeattr.get('implementation') or self.implementation)
-
     @sql_audit
     def execute(self, sql, sqlargs=None, cursor=None, cursorname=None, 
                 autocommit=False, dbtable=None,storename=None,_adaptArguments=True):
@@ -1221,7 +1231,78 @@ class TriggerStackItem(object):
         self.record = record
         self.old_record = old_record
 
+class DbStoresHandler(object):
+    """Handler for using multi-database"""
 
+    def __init__(self, db):
+        self.db = db
+        self.auxstores = {}
+        if db.application:
+            instance_dbstores = db.application.config.get('dbstores')
+            if instance_dbstores:
+                for n in instance_dbstores:
+                    self.add_auxstore(n.label, n.attr)
+
+    @property
+    def dbstores(self):
+        if not self.db.application:
+            return {}
+        with self.db.tempEnv(storename=False):
+            return self.db.application.cache.getItem('MULTI_DBSTORES', defaultFactory=self._calculate_multidbstores)
+
+    def _calculate_multidbstores(self):
+        result = {}
+        if self.db.storetable:
+            prefixname = f'{self.db.dbname}_'
+            databases = {dbname[len(prefixname):]:dbname for dbname in self.db.adapter.listElements('databases') if dbname.startswith(prefixname)}
+            dbstores = self.db.table(self.db.storetable).query(
+                where='$dbstore IN :databases',
+                databases=list(databases.keys()),columns="$dbstore").fetch()
+            for r in dbstores:
+                storename = r['dbstore']
+                result[storename] = dict(database=databases[storename])
+        return result
+
+
+    def add_auxstore(self, storename, dbattr=None):
+        """Add an auxiliary store to the handler
+
+        :param storename: The name of the store to add
+        :param dbattr: Dictionary with store attributes (dbname, host, user, password, port, etc.)"""
+        self.auxstores[storename] = dict(database=dbattr.get('dbname', storename),
+                                        host=dbattr.get('host', self.db.host), user=dbattr.get('user', self.db.user),
+                                        password=dbattr.get('password', self.db.password),
+                                        port=dbattr.get('port', self.db.port),
+                                        remote_host=dbattr.get('remote_host'),
+                                        remote_port=dbattr.get('remote_port'))
+        return dbattr
+
+    def dbstore_check(self, storename, verbose=False):
+        """checks if dbstore exists and if it needs to be aligned
+
+        :param storename: TODO
+        :param verbose: TODO"""
+        with self.db.tempEnv(storename=storename):
+            self.db.use_store(storename)
+            changes = self.db.model.check()
+            if changes and not verbose:
+                return False
+            elif changes and verbose:
+                return changes
+            else: #not changes
+                return True
+
+    def create_dbstore(self,storename):
+        self.db.createDb(f'{self.db.dbname}_{storename}')
+        self.db.application.cache.updatedItem('MULTI_DBSTORES')
+
+    def dbstore_align(self, storename, changes=None):
+        """TODO
+
+        :param storename: TODO
+        :param changes: TODO. """
+        with self.db.tempEnv(storename=storename):
+            self.db.syncOrmToSql()
 
 class DbLocalizer(object):
     def translate(self,v):

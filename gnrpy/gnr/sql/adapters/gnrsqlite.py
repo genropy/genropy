@@ -135,6 +135,50 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         @return: list of object names"""
         return getattr(self, '_list_%s' % elType)(**kwargs)
 
+    def execute(self, sql, sqlargs=None, manager=False, autoCommit=False):
+        """
+        Execute a sql statement on a new cursor from the connection of the selected
+        connection manager if provided, otherwise through a new connection.
+        sqlargs will be used for query params substitutions.
+
+        Returns None
+        """
+        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit,
+                                                                            storename=self.dbroot.currentStorename)
+        cursor = connection.cursor(GnrSqliteCursor)
+        try:
+            if isinstance(sqlargs, dict):
+                sql, sqlargs = self.prepareSqlText(sql, sqlargs)
+            if sqlargs is None:
+                cursor.execute(sql)
+            else:
+                cursor.execute(sql, sqlargs)
+        finally:
+            cursor.close()
+            connection.close()
+
+    def raw_fetch(self, sql, sqlargs=None, manager=False, autoCommit=False):
+        """
+        Execute a sql statement on a new cursor from the connection of the selected
+        connection manager if provided, otherwise through a new connection.
+        sqlargs will be used for query params substitutions.
+
+        Returns all records returned by the SQL statement.
+        """
+        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit, storename=self.dbroot.currentStorename)
+        cursor = connection.cursor(GnrSqliteCursor)
+        try:
+            if isinstance(sqlargs, dict):
+                sql, sqlargs = self.prepareSqlText(sql, sqlargs)
+            if sqlargs is None:
+                cursor.execute(sql)
+            else:
+                cursor.execute(sql, sqlargs)
+            result = cursor.fetchall()
+        finally:
+            cursor.close()
+            connection.close()
+        return result
 
     def _list_enabled_extensions(self):
         return []
