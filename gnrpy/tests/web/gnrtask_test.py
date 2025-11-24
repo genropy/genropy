@@ -692,6 +692,7 @@ class TestGnrTaskWorker(BaseGnrTest):
                 if item is None:
                     break
 
+
         async def runner():
             consumers = [asyncio.create_task(consumer()) for _ in range(worker.processes)]
             alive_task = asyncio.create_task(asyncio.sleep(60))
