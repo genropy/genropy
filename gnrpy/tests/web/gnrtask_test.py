@@ -135,18 +135,8 @@ def worker(monkeypatch):
     loop.close()
 
 
-class _NoDaemonBase(BaseGnrTest):
-    @classmethod
-    def setup_class(cls):
-        # Skip expensive BaseGnrTest environment bootstrap; tests provide their own stubs.
-        pass
 
-    @classmethod
-    def teardown_class(cls):
-        pass
-
-
-class TestGnrTaskBasics(_NoDaemonBase):
+class TestGnrTaskBasics(BaseGnrTest):
     def test_task_is_due_run_asap_returns_wildcard(self):
         task = gnrtask.GnrTask(
             name="t1",
@@ -188,7 +178,7 @@ class TestGnrTaskBasics(_NoDaemonBase):
         assert result == "2024-4-1-12-15"
 
 
-class TestGnrTaskScheduler(_NoDaemonBase):
+class TestGnrTaskScheduler(BaseGnrTest):
     def test_dump_queue_to_disk_preserves_items(self, scheduler):
         item = {"queue_name": "general", "payload": {"task": 1}}
 
@@ -502,7 +492,7 @@ class TestGnrTaskScheduler(_NoDaemonBase):
         assert calls == ["dumped"]
 
 
-class TestSchedulerClient(_NoDaemonBase):
+class TestSchedulerClient(BaseGnrTest):
     def test_scheduler_client_routes_calls(self, monkeypatch):
         calls = []
 
@@ -560,7 +550,7 @@ class TestSchedulerClient(_NoDaemonBase):
             client.empty_queue("general")
 
 
-class TestGnrTaskWorker(_NoDaemonBase):
+class TestGnrTaskWorker(BaseGnrTest):
     def test_worker_notify_alive_success(self, worker, monkeypatch):
         calls = []
 
