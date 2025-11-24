@@ -35,11 +35,19 @@ from gnr.web import logger
 
 
 def determine_task_manager_to_use():
-    _c = getGnrConfig()
-    _env = _c['gnr.environment_xml']
-    task_configuration = _env.getAttr('tasks')
-    if task_configuration and task_configuration.get("async_impl") == 'true':
+    """
+    Load the task async implementation configuration from
+    environment.xml. If it fails, for example by importing the code
+    in a non-established environment, default back to old implementation anyway.
+    """
+    try:
+        _c = getGnrConfig()
+        _env = _c['gnr.environment_xml']
+        task_configuration = _env.getAttr('tasks')
+        if task_configuration and task_configuration.get("async_impl") == 'true':
             return True
+    except:
+        pass
     return False
 
 # global bool to be used to determine if we're using the old
