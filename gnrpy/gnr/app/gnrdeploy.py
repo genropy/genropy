@@ -102,7 +102,7 @@ def build_siteconfig_xml(path=None, gnrdaemon_password=None, gnrdaemon_port=None
 
 def create_folder(folder_path=None):
     if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
+        os.makedirs(folder_path, exist_ok=True)
     elif not os.path.isdir(folder_path):
         raise GnrConfigException("A file named %s already exists so i couldn't create a folder at same path" % folder_path)
 
@@ -270,14 +270,14 @@ def createVirtualEnv(name=None, copy_genropy=False, copy_projects=None,
         
     gitrepos_path = os.path.join(venv_path, 'gitrepos')
     if not os.path.exists(gitrepos_path):
-        os.makedirs(gitrepos_path)
+        os.makedirs(gitrepos_path, exist_ok=True)
     base_path_resolver = PathResolver()
     base_gnr_config = getGnrConfig()
     activateVirtualEnv(venv_path)
     if copy_projects:
         projects_path = os.path.join(gitrepos_path, 'genropy_projects')
         if not os.path.exists(projects_path):
-            os.makedirs(projects_path)
+            os.makedirs(projects_path, exist_ok=True)
         projects = copy_projects.split(',')
         #path_resolver = PathResolver()
         for project in projects:
@@ -411,7 +411,7 @@ class PathResolver(object):
                         root_py_path = expandpath(os.path.join(folders[0],'root.py'))
                         if os.path.exists(root_py_path):
                             if not os.path.exists(sitepath):
-                                os.makedirs(sitepath)
+                                os.makedirs(sitepath, exist_ok=True)
                             return sitepath
 
                         
@@ -562,7 +562,7 @@ class ProjectMaker(object):
         self.instances_path = os.path.join(self.project_path, 'instances')
         for path in (self.project_path, self.packages_path, self.instances_path):
             if not os.path.isdir(path):
-                os.makedirs(path)
+                os.makedirs(path, exist_ok=True)
                 
 
 
@@ -596,9 +596,9 @@ class SiteMaker(object):
         root_py_path = os.path.join(self.site_path, 'root.py')
         siteconfig_xml_path = os.path.join(self.site_path, 'siteconfig.xml')
         if not os.path.isdir(self.site_path):
-            os.makedirs(self.site_path)
+            os.makedirs(self.site_path, exist_ok=True)
         if not os.path.isdir(pages_path):
-            os.makedirs(pages_path)
+            os.makedirs(pages_path, exist_ok=True)
         if not os.path.isfile(root_py_path):
             root_py = open(root_py_path, 'w')
             root_py.write("""#!/usr/bin/env python2.6
@@ -692,7 +692,7 @@ class InstanceMaker(object):
             folders_to_make.append(dbstores_path)
         for path in folders_to_make:
             if not os.path.isdir(path):
-                os.makedirs(path)
+                os.makedirs(path, exist_ok=True)
         if not os.path.isfile(instanceconfig_xml_path):
             if not self.config:
                 instanceconfig = Bag()
@@ -723,7 +723,7 @@ class InstanceMaker(object):
         root_py_path = os.path.join(self.instance_path, 'root.py')
         siteconfig_xml_path = os.path.join(self.config_path, 'siteconfig.xml')
         if not os.path.isdir(self.site_path):
-            os.makedirs(self.site_path)
+            os.makedirs(self.site_path, exist_ok=True)
         if not os.path.isfile(root_py_path):
             root_py = open(root_py_path, 'w')
             root_py.write("""
@@ -791,7 +791,7 @@ class PackageMaker(object):
         for path in (self.package_path, self.model_path, self.cli_path,
                      self.lib_path, self.webpages_path, self.resources_path):
             if not os.path.isdir(path):
-                os.makedirs(path)
+                os.makedirs(path, exist_ok=True)
 
         # create an emptydir file allowing an empty cli directory to be
         # pushed to repository
@@ -865,7 +865,7 @@ class ResourceMaker(object):
         self.resource_path = os.path.join(self.base_path, self.resource_name)
         for path in (self.resource_path, ):
             if not os.path.isdir(path):
-                os.makedirs(path)
+                os.makedirs(path, exist_ok=True)
         
 class ThPackageResourceMaker(object):
     def __init__(self,application,package=None,tables=None,force=False,menu=False,columns=2,guess_size=False,indent=4, bag_columns=None):
@@ -1011,7 +1011,7 @@ class ThPackageResourceMaker(object):
     def createResourceFile(self, table):
         resourceFolder = os.path.join(self.packageFolder,'resources', 'tables', table)
         if not os.path.exists(resourceFolder):
-            os.makedirs(resourceFolder)
+            os.makedirs(resourceFolder, exist_ok=True)
         name = 'th_%s.py'%table
         path = os.path.join(resourceFolder, name)
         if os.path.exists(path) and not self.option_force:
@@ -1159,7 +1159,7 @@ class GunicornDeployBuilder(object):
     def create_dirs(self):
         for dir_path in (self.socket_path,self.logs_path):
             if not os.path.exists(dir_path):
-                os.makedirs(dir_path)
+                os.makedirs(dir_path, exist_ok=True)
 
     def write_gunicorn_conf(self):
         pars = dict()
