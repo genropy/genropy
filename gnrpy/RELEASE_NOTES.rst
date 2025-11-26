@@ -15,7 +15,11 @@ Fixes
 * Improvements in app template loader
 * Fixed regression on docker images labels where the main application
   repository went missing
-  
+* The python dependency loader now get the list of packages from the
+  loaded app, rather than parsing the instanceconfig, since more
+  package can be applied from other sources (like
+  instanceconfig/default.xml), so no dependency is going missing.
+
 Release 25.10.27
 ================
 
