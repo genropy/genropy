@@ -168,8 +168,145 @@ class GnrMixinObj(object):
     def __init__(self):
         pass
 
+class DbStoresHandler(object):
+    """Handler for using multi-database"""
+        
+    def __init__(self, db):
+        self.db = db
+        self.auxstores = {}
+        instance_dbstores = db.application.config['dbstores'] if db.application.config else None
+        if instance_dbstores:
+            for n in instance_dbstores:
+                self.add_auxstore(n.label,n.attr)
+
+    @property
+    def dbstores(self):
+        with self.db.tempEnv(storename=False):
+            return self.db.application.cache.getItem('MULTI_DBSTORES',defaultFactory=self._calculate_multidbstores)
+
+    def _calculate_multidbstores(self):
+        result = {}
+        if self.db.storetable:    
+            dbdict = self.get_dbdict()
+            dbstores = self.db.table(self.db.storetable).query(
+                where='$dbstore IN :databases',
+                databases=list(dbdict.keys()),columns="$dbstore").fetch()
+            for r in dbstores:
+                storename = r['dbstore']
+                result[storename] = dict(database=dbdict[storename])
+        return result
+    
+    def get_dbdict(self):
+        existing_databases = self.db.adapter.listElements('databases',manager=True)
+        if self.db.dbname not in existing_databases:
+            return {}
+        multidb_prefix = self.db.multidb_prefix
+        return {dbname[len(multidb_prefix):]:dbname for dbname in existing_databases if dbname.startswith(multidb_prefix)}
+            
+    def raw_multdb_dbstores(self):
+        result = {}
+        if self.db.storetable:    
+            dbdict = self.get_dbdict()
+            if not dbdict:
+                return result
+            pkgname,tblname = self.db.storetable.split('.')
+            pkgattr = self.db.application.packages[pkgname].attributes
+            sqlschema = pkgattr.get('sqlschema') or pkgname
+            sqlprefix = True if pkgattr.get('sqlprefix') is not False else False
+            tblname = tblname if not sqlprefix else f'{pkgname}_{tblname}'
+            adaptSqlName = self.db.adapter.adaptSqlName
+            sqltblfullname = f'{adaptSqlName(sqlschema)}.{adaptSqlName(tblname)}'
+            dbstores = self.db.adapter.raw_fetch(f"""
+                SELECT dbstore FROM {sqltblfullname} WHERE dbstore IS NOT NULL
+            """)
+            for r in dbstores:
+                storename = r['dbstore']
+                if storename in dbdict:
+                    result[storename] = dict(database=dbdict[storename])
+        return result
+
+
+    def add_auxstore(self, storename, dbattr=None):
+        """TODO
+        :param storename: TODO
+        :param check: TODO"""
+        self.auxstores[storename] = dict(database=dbattr.get('dbname', storename),
+                                        host=dbattr.get('host', self.db.host), user=dbattr.get('user', self.db.user),
+                                        password=dbattr.get('password', self.db.password),
+                                        port=dbattr.get('port', self.db.port),
+                                        remote_host=dbattr.get('remote_host'),
+                                        remote_port=dbattr.get('remote_port'))
+        return dbattr
+
+    def dbstore_check(self, storename, verbose=False):
+        """checks if dbstore exists and if it needs to be aligned
+        
+        :param storename: TODO
+        :param verbose: TODO"""
+        with self.db.tempEnv(storename=storename):
+            self.db.use_store(storename)
+            changes = self.db.model.check()
+            if changes and not verbose:
+                return False
+            elif changes and verbose:
+                return changes
+            else: #not changes
+                return True
+            
+    def create_dbstore(self,storename):
+        self.db.createDb(f'{self.db.multidb_prefix}{storename}')
+        self.refresh_dbstores()
+
+    def refresh_dbstores(self):
+        self.db.application.cache.updatedItem('MULTI_DBSTORES')
+
+
+    def dbstore_align(self, storename, changes=None):
+        """TODO
+        
+        :param storename: TODO
+        :param changes: TODO. """
+        with self.db.tempEnv(storename=storename):
+            self.db.syncOrmToSql()
+
 class GnrSqlAppDb(GnrSqlDb):
     """TODO"""
+
+    @property
+    def stores_handler(self):
+        return DbStoresHandler(self)
+
+    @property
+    def debug(self):
+        """TODO"""
+        return self.application.debug
+        
+    @property
+    def dbstores(self):
+        return self.stores_handler.dbstores
+        
+    @property
+    def auxstores(self):
+        return self.stores_handler.auxstores
+    
+    @property
+    def tenant_table(self):
+        tenant_table = None
+        for pkgNode in self.application.config['packages']:
+            tenant_table = pkgNode.attr.get('tenant_table') or tenant_table
+        return tenant_table
+    
+    @property
+    def multidb_config(self):
+        result = getattr(self, '_multidb_config', None)
+        if result is None:
+            result = {}
+            for n in self.application.config['packages']:
+                if n.attr.get('storetable'):
+                    result.update(n.attr)
+            self._multidb_config = result
+        return result
+    
     def checkTransactionWritable(self, tblobj):
         """TODO
         
@@ -181,16 +318,11 @@ class GnrSqlAppDb(GnrSqlDb):
                     tblobj.attributes.get('transaction', tblobj.pkg.attributes.get('transaction', '')))
         if not self.inTransactionDaemon and tblobj._usesTransaction:
             raise GnrWriteInReservedTableError('%s.%s' % (tblobj.pkg.name, tblobj.name))
+        
 
     @property
     def storetable(self):
-        if not hasattr(self,'_storetable'):
-            self._storetable = self.application.config['db?storetable']
-        return self._storetable
-
-    @storetable.setter
-    def storetable(self, value):
-        self._storetable = value
+        return self.multidb_config.get("storetable")
 
     @property
     def localizer(self):
@@ -865,8 +997,9 @@ class GnrApp(object):
             attrs['path'] = self.realPath(attrs['path'])
         apppkg = GnrPackage(pkgid, self, **attrs)
         apppkg.content = pkgcontent or Bag()
+        readOnlyAttrs = {'readOnly':True} if attrs.get('readOnly') else None
         for reqpkgid in apppkg.required_packages():
-            self.addPackage(reqpkgid)
+            self.addPackage(reqpkgid,pkgattrs=readOnlyAttrs)
         self.packagesIdByPath[os.path.realpath(apppkg.packageFolder)] = pkgid
         self.packages[pkgid] = apppkg
 
@@ -1038,8 +1171,15 @@ class GnrApp(object):
             project_path = self.project_path(project)
             if project_path:
                 path = os.path.join(project_path,'packages')
-                if not os.path.isdir(os.path.join(path, pkgid)):
+                if not os.path.exists(os.path.join(path, pkgid,'main.py')):
                     path=None
+                    external_project_path = os.path.join(project_path,'external_projects.xml')
+                    if os.path.exists(external_project_path):
+                        external_projects = Bag(external_project_path)
+                        package_attrs = external_projects.getAttr(pkgid) or {}
+                        external_project = package_attrs.get('project')
+                        if external_project:
+                            return self.pkg_name_to_path(pkgid,external_project)
         else:
             path = self.package_path.get(pkgid)
             
@@ -1100,9 +1240,9 @@ class GnrApp(object):
             found_locale = locale.getlocale(locale.LC_MESSAGES)[0]
         return (found_locale or 'en-US').replace('_','-')
 
-    def setPreference(self, path, data, pkg):
+    def setPreference(self, path, data, pkg,**kwargs):
         if self.db.package('adm'):
-            self.db.table('adm.preference').setPreference(path, data, pkg=pkg)
+            self.db.table('adm.preference').setPreference(path, data, pkg=pkg,**kwargs)
 
     def getPreference(self, path, pkg=None, dflt=None, mandatoryMsg=None):
         if self.db.package('adm'):
@@ -1749,5 +1889,4 @@ class GnrWriteInReservedTableError(Exception):
     pass
     
 if __name__ == '__main__':
-    pass # Non Scrivere qui, pena: castrazione!
-         # Don't write here, otherwise: castration!
+    pass
