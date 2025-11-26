@@ -1,3 +1,21 @@
+Upcoming release
+================
+
+Deprecations
+------------
+* the 'gnr app update' cli command has been marked as deprecated
+  
+
+Fixes
+-----
+
+* Mobile deployment checks retrieve the correct URL from configuration
+* GLBL data is loaded automatically via upgrade script
+* Directory creation for existing directory now fails silently to have tidy logs
+* Improvements in app template loader
+* Fixed regression on docker images labels where the main application
+  repository went missing
+  
 Release 25.10.27
 ================
 
