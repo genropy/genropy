@@ -1,3 +1,12 @@
+Upcoming release
+================
+
+Fixes
+-----
+
+* Mobile deployment checks retrieve the correct URL from configuration
+* GLBL data is loaded automatically via upgrade script
+
 Release 25.10.27
 ================
 
