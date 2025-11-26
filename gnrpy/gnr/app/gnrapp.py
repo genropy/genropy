@@ -274,7 +274,11 @@ class GnrSqlAppDb(GnrSqlDb):
 
     @property
     def stores_handler(self):
-        return DbStoresHandler(self)
+        handler = getattr(self, '_stores_handler', None)
+        if handler is None:
+            handler = DbStoresHandler(self)
+            self._stores_handler = handler
+        return handler
 
     @property
     def debug(self):
