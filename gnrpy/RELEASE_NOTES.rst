@@ -1,8 +1,15 @@
 Upcoming release
 ================
 
+Enhancements
+------------
+
+* Docker images and Kubernetes deployer now support labels allowing
+multi-FQDNs deployments
+
 Deprecations
 ------------
+
 * the 'gnr app update' cli command has been marked as deprecated
   
 
