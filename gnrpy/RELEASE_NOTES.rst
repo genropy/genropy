@@ -1,3 +1,32 @@
+Upcoming release
+================
+
+Enhancements
+------------
+
+* Docker images and Kubernetes deployer now support labels allowing
+multi-FQDNs deployments
+
+Deprecations
+------------
+
+* the 'gnr app update' cli command has been marked as deprecated
+  
+
+Fixes
+-----
+
+* Mobile deployment checks retrieve the correct URL from configuration
+* GLBL data is loaded automatically via upgrade script
+* Directory creation for existing directory now fails silently to have tidy logs
+* Improvements in app template loader
+* Fixed regression on docker images labels where the main application
+  repository went missing
+* The python dependency loader now get the list of packages from the
+  loaded app, rather than parsing the instanceconfig, since more
+  package can be applied from other sources (like
+  instanceconfig/default.xml), so no dependency is going missing.
+
 Release 25.10.27
 ================
 
