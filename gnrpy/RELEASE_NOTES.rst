@@ -1,6 +1,11 @@
 Upcoming release
 ================
 
+Deprecations
+------------
+* the 'gnr app update' cli command has been marked as deprecated
+  
+
 Fixes
 -----
 
