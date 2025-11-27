@@ -1,0 +1,73 @@
+name: Feature Request
+description: Suggest a new feature or improvement with clear goals and rationale.
+title: "[FEATURE] Short summary of the feature"
+labels: ["enhancement"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form to propose new features or improvements.  
+        Provide enough clarity so the team can understand the motivation, expected outcome, and constraints.
+
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: >
+        Brief description of the requested feature.
+      placeholder: "Short, goal-oriented summary"
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or Need
+      description: >
+        Describe the underlying problem or need this feature addresses.  
+        Focus on the “why” behind the request.
+      placeholder: "What problem are you trying to solve?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Solution
+      description: >
+        Describe the proposed feature or behavior.  
+        Explain what it should do and how you imagine it working.
+      placeholder: "Describe how the feature should behave"
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Considered Alternatives
+      description: >
+        List any alternative solutions or workarounds considered before requesting this feature.
+      placeholder: "Optional: any other approaches you evaluated"
+    validations:
+      required: false
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact and Scope
+      description: >
+        Explain who benefits from this feature and where it fits in the system.  
+        Mention any potential limitations or dependencies.
+      placeholder: "Who is affected? What parts of the system are involved?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional_info
+    attributes:
+      label: Additional Information
+      description: "Anything else that might help evaluate the request."
+      placeholder: "Optional"
+    validations:
+      required: false
