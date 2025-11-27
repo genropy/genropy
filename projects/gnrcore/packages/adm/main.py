@@ -98,6 +98,16 @@ class Package(GnrDboPackage):
     def loginUrl(self):
         return 'adm/login'
 
+    def packageTags(self,root):
+        root.authTag('user', description='User')
+        root.authTag('admin', description='Admin')
+        root.authTag('superadmin', description='SuperAdmin',isreserved=True)
+        root.authTag('_DEV_', description='Developer',isreserved=True)
+        root.authTag('_TRD_', description='Translator',isreserved=True)
+        root.authTag('_DOC_', description='Documentation',isreserved=True)
+        root.authTag('_SYSTEM_', description='System',isreserved=True)
+
+
     
 class Table(GnrDboTable):
     def use_dbstores(self,forced_dbstore=None, env_forced_dbstore=None,**kwargs):

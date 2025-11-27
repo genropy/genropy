@@ -280,7 +280,7 @@ class TableBase(object):
                   draftField=False, invalidFields=None,invalidRelations=None,md5=False,
                   counter=None,relidx=None,hierarchical=None,hierarchical_virtual_roots=False,
                     hierarchical_root_id=False,hierarchical_linked_to=None,hdepth=None,useProtectionTag=None,
-                  group='zzz', group_name='!![en]System',
+                  group='zzz', group_name='!![en]System',sysrecords=None,
                   df=None,counter_kwargs=None,**kwargs):
         """Add some useful columns for tables management (first of all, the ``id`` column)
         
@@ -464,8 +464,10 @@ class TableBase(object):
 
         if [r for r in dir(self) if r!='_release_' and r.startswith('_release_')]:
             tbl.column('__release', dtype='L', name_long='Sys Version', group=group,_sysfield=True)
-            
-        if [r for r in dir(self) if r!='sysRecord_' and r.startswith('sysRecord_')]:
+        
+        if sysrecords is None:
+            sysrecords = [r for r in dir(self) if r!='sysRecord_' and r.startswith('sysRecord_')]
+        if sysrecords:
             tbl.column('__syscode',size=':20',unique=True,indexed=True,
                 _sysfield=True,group=group,name_long='!![en]Internal code')
             tbl.formulaColumn('__protected_by_syscode',
