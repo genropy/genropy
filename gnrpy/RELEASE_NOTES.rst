@@ -28,6 +28,7 @@ Fixes
   loaded app, rather than parsing the instanceconfig, since more
   package can be applied from other sources (like
   instanceconfig/default.xml), so no dependency is going missing.
+* The fullcalendar widget now resizes correctly upon viewport adjustments
 
 Release 25.10.27
 ================
