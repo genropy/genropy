@@ -41,7 +41,7 @@ from email.mime.text import MIMEText
 
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrdecorator import extract_kwargs
+from gnr.core.gnrdecorator import extract_kwargs, deprecated
 from gnr.core.gnrlang import  objectExtract,gnrImport, instanceMixin, GnrException
 from gnr.core.gnrstring import makeSet, toText, splitAndStrip, like, boolean
 from gnr.core.gnrsys import expandpath
@@ -256,6 +256,31 @@ class DbStoresHandler(object):
     def create_dbstore(self,storename):
         self.db.createDb(f'{self.db.multidb_prefix}{storename}')
         self.refresh_dbstores()
+
+    @deprecated(message='Storetable-based architecture auto-detects stores. Use create_dbstore instead.')
+    def add_dbstore_config(self, storename, dbname=None, host=None,  # noqa: ARG002
+                           user=None, password=None, port=None,
+                           save=None, **_kwargs):
+        """Deprecated: creates dbstore without XML config file.
+
+        Storetable-based architecture auto-detects stores from database.
+        This method now delegates to create_dbstore for backward compatibility.
+
+        Args dbname, host, user, password, port are kept for API compatibility but ignored.
+        """
+        del dbname, host, user, password, port  # unused, kept for API compatibility
+        self.create_dbstore(storename)
+        if save:
+            self.dbstore_align(storename)
+
+    @deprecated(message='Storetable-based architecture auto-detects stores. This method has no effect.')
+    def drop_dbstore_config(self, _storename):
+        """Deprecated: no-op in storetable-based architecture.
+
+        Storetable-based architecture auto-detects stores from database.
+        Store removal should be handled by deleting the storetable record.
+        """
+        pass
 
     def refresh_dbstores(self):
         self.db.application.cache.updatedItem('MULTI_DBSTORES')
@@ -1244,9 +1269,9 @@ class GnrApp(object):
             found_locale = locale.getlocale(locale.LC_MESSAGES)[0]
         return (found_locale or 'en-US').replace('_','-')
 
-    def setPreference(self, path, data, pkg,**kwargs):
+    def setPreference(self, path, data, pkg):
         if self.db.package('adm'):
-            self.db.table('adm.preference').setPreference(path, data, pkg=pkg,**kwargs)
+            self.db.table('adm.preference').setPreference(path, data, pkg=pkg)
 
     def getPreference(self, path, pkg=None, dflt=None, mandatoryMsg=None):
         if self.db.package('adm'):
