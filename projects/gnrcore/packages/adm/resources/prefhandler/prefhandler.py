@@ -33,9 +33,20 @@ from gnr.core.gnrlang import gnrImport
 
 class BasePreferenceTabs(BaseComponent):
     def _pr_makePreferenceTabs(self,parent,packages='*',datapath=None,context_dbstore=None,wdg='tab',**kwargs):
-        if isinstance(packages,str):
-            packages = list(self.application.packages.keys()) if packages == '*' else packages.split(',')
-        packages = {pkgId:self.application.packages[pkgId] for pkgId in packages}
+        if isinstance(packages, str):
+            packages = packages.strip()
+            if packages == '*':
+                if context_dbstore:
+                    packages = [pkg for pkg, pkgobj in self.db.application.packages.items()
+                                if pkgobj.attributes.get('multidb_pref')]
+                else:
+                    packages = list(self.application.packages.keys())
+            else:
+                packages = [pkg for pkg in (chunk.strip() for chunk in packages.split(',')) if pkg]
+        elif packages is None:
+            packages = []
+        application_packages = self.application.packages
+        packages = {pkgId: application_packages[pkgId] for pkgId in packages if pkgId in application_packages}
         grouped_packages = defaultdict(list)
         for pkgId,pkgObj in packages.items():
             grouped_packages[pkgObj.attributes.get('prefgroup') or pkgObj.projectInfo['project?prefgroup'] or pkgObj.projectInfo['project?name'] or pkgId].append(pkgObj)

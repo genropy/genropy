@@ -123,7 +123,7 @@ class GnrCustomWebPage(object):
             extensions = db.application.config['db?extensions']
         mig = SqlMigrator(db,ignore_constraint_name=True,extensions=extensions)
         result = Bag()
-        mig.prepareMigrationCommands()
+        #mig.prepareMigrationCommands()
         changes = mig.getChanges()
         if changes and applyChanges:
             mig.applyChanges()
