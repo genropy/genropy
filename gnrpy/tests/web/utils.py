@@ -1,3 +1,4 @@
+import sys
 import os
 import signal
 import subprocess
@@ -6,6 +7,8 @@ import io
 from urllib.parse import urlencode
 from wsgiref.util import setup_testing_defaults
 from wsgiref.validate import validator
+
+from gnr.web import logger
 
 class WSGITestClient:
     """
@@ -82,19 +85,26 @@ class ExternalProcess:
 
     def start(self):
         if self.process is not None:
+            logger.info("Not starting %s since it's already running", self.command)
             return
+        
         self.process = subprocess.Popen(
             self.command,
             cwd=self.cwd,
             env=self.env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=sys.stdout,
+            stderr=sys.stderr,
             preexec_fn=os.setsid
         )
         time.sleep(2)  # Adjust if your process needs more time
 
     def stop(self):
+        logger.info("Stopping external process %s", self.command)
         if self.process:
+            logger.info("Found external process %s to stop with PID %s",
+                        self.command,
+                        self.process.pid)
             os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
             self.process.wait()
             self.process = None
+            logger.info("External process %s stopped.", self.command)
