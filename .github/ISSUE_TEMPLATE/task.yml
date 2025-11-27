@@ -1,0 +1,85 @@
+name: Task
+description: Track a technical task, maintenance activity, or internal improvement.
+title: "[TASK] Short summary of the task"
+labels: ["task"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form to describe tasks that are not feature requests and not bug reports.  
+        This includes refactoring, maintenance, upgrades, cleanup, or internal improvements.
+
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: >
+        Brief description of the task to be completed.
+      placeholder: "Short, action-oriented summary"
+    validations:
+      required: true
+
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+      description: >
+        Explain the purpose of this task and the outcome you aim to achieve.
+      placeholder: "What should be accomplished by completing this task?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: >
+        Describe what is included in the task, and if relevant, what is explicitly out of scope.
+      placeholder: |
+        In scope:
+        - ...
+        Out of scope:
+        - ...
+    validations:
+      required: false
+
+  - type: textarea
+    id: details
+    attributes:
+      label: Technical Details / Notes
+      description: >
+        Add any additional context or technical notes.  
+        Include references, implementation hints, constraints, or related work.
+      placeholder: "Optional technical context"
+    validations:
+      required: false
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: >
+        List related issues, PRs, or external dependencies (if any).
+      placeholder: "- #123\n- External API, etc."
+    validations:
+      required: false
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      description: >
+        Define the conditions under which this task is considered complete.
+      placeholder: "- [ ] Step or condition\n- [ ] Another condition"
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional_info
+    attributes:
+      label: Additional Information
+      description: "Optional extra notes or context."
+      placeholder: "Optional"
+    validations:
+      required: false
