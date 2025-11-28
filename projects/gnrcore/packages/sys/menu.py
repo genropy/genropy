@@ -12,6 +12,7 @@ class Menu(object):
         system.webpage(u"Db Structure", tags="", filepath="/sys/dbstruct")
         system.webpage(u"Logging", tags="_DEV_", filepath="/sys/logging")
         system.webpage(u"Startup data manager", tags="_DEV_", filepath="/sys/startupdata_manager")
+        system.webpage(u"Data retention", tags="_DEV_", filepath="/sys/dataretention")
         system.webpage(u"Package editor", tags="_DEV_", filepath="/sys/package_editor")
         system.webpage(u"Localization editor", tags="_DEV_,_TRD_,superadmin", filepath="/sys/localizationeditor")
         system.webpage(u"GnrIDE", tags="_DEV_", filepath="/sys/gnride")

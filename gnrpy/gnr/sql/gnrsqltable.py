@@ -25,7 +25,7 @@ import json
 import os
 import re
 import threading
-
+import functools
 
 from datetime import datetime, timedelta
 import pytz
@@ -1410,8 +1410,6 @@ class SqlTable(GnrObject):
             n.resolver = None
         node.resolver = None
     
-   
-
     @public_method
     def onPasteRecord(self,sourceCluster=None,**kwargs):
         result = self.insertPastedCluster(sourceCluster=sourceCluster,**kwargs)
@@ -3099,6 +3097,55 @@ class SqlTable(GnrObject):
         for tbl in self.totalizers:
             self.db.table(tbl).tt_totalize(record=record,old_record=old_record)
 
+    @property
+    @functools.lru_cache
+    def defaultRetentionPolicy(self):
+        """
+        Returns the data retention policy defined in the table, None otherwise
+        """
+        table_policy = self.attributes.get("retention_policy", [])
+        if not table_policy:
+            return None
+        if not isinstance(table_policy, (tuple,list)) or len(table_policy) != 2:
+            logger.error("Retention policy for %s must be a 2 element list/tuple", self.name)
+            return None
+        if not isinstance(table_policy[1], int) or table_policy[1] < 1:
+            logger.error("Retention policy value for %s must be at least 1 day", self.name)
+            return None
 
+        extra_where_filter = getattr(self, 'retention_extra_where', lambda: None)()
+        policy = dict(filter_column=table_policy[0],
+                      extra_where_filter=extra_where_filter,
+                      retention_period_default=table_policy[1],
+                      retention_period=table_policy[1],
+                      )
+
+        return policy
+
+    def executeRetentionPolicy(self, policy=None, dry_run=True):
+        '''
+        Execute the policy deletion and return a summary. If dry_run, only return the summary
+        '''
+        if not policy:
+            return {}
+
+        where_clause=f'${policy["filter_column"]} < :cutoff'
+        extra_where_filter = policy.get("extra_where_filter", None)
+        if extra_where_filter:
+            where_clause=f'{where_clause} AND {extra_where_filter}'
+            
+        cutoff = datetime.now() - timedelta(days=policy['retention_period'])
+        count = self.query(where=where_clause, cutoff=cutoff).count()
+        summary = {"found_records": count}
+        if dry_run:
+            return summary
+        else:
+            # do the actual delete
+            r = self.deleteSelection(where=where_clause, cutoff=cutoff)
+            summary['deleted_records'] = len(r)
+            self.db.commit()
+            return summary
+            
+        
 if __name__ == '__main__':
     pass

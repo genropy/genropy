@@ -19,8 +19,9 @@ class Table(object):
 
     @public_method
     def getNotification(self,pkey=None):
-        user_id,notification_template,notification_title,confirm_label,notification_bag = self.readColumns(pkey=pkey,columns="""$user_id,@notification_id.template,@notification_id.title,
-                                                                                                                                 @notification_id.confirm_label,$notification""")
+        user_id,notification_template,notification_title,confirm_label,notification_bag = self.readColumns(
+                                    pkey=pkey,columns="""$user_id,@notification_id.template,@notification_id.title,
+                                                         @notification_id.confirm_label,$notification""")
         usertbl = self.db.table('adm.user')
         source_record = usertbl.record(pkey=user_id).output('bag')
         htmlbuilder = TableTemplateToHtml(usertbl)
