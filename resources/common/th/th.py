@@ -745,14 +745,15 @@ class MultiButtonForm(BaseComponent):
                 """,
                 pkey='^.value',
                 frm=form,_if='pkey',caption_field=caption_field,store='=.store')
+            # DataController moved to frame scope to properly handle store updates and norecord state
             frame.dataController("""
-                if(_node && _node.label!='store'){
+                if(!_node || _node.label!='store'){
                     return;
                 }
                 var hasRows = store && store.len()>0;
                 if(!hasRows){
                     SET .value = '*norecord*';
-                    if(frm && typeof frm.getCurrentPkey === 'function' && typeof frm.norecord === 'function' && frm.getCurrentPkey()!='*norecord*'){
+                    if(frm && frm.getCurrentPkey()!='*norecord*'){
                         frm.norecord();
                     }
                 }
