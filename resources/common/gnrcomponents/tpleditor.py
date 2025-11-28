@@ -473,15 +473,15 @@ class TemplateEditor(TemplateEditorBase):
                             this.widget.setValue(v,true);
                             """,
                             rounded=6,padding='5px')
-        elif self.getPreference('theme.ck_legacy', pkg='sys'):
+        elif self.getPreference('theme.tinymce_beta', pkg='sys'):
+            bc.contentPane(region='center',margin='2px',margin_left='5px').tinymce(
+                            value='^.data.content',css_value='^.data.content_css',
+                            height='^.editor.height', width='^.editor.width', **editorConstrain)
+        else:
             bc.ExtendedCkeditor(region='center',margin='2px',margin_left='5px',
                             value='^.data.content',css_value='^.data.content_css',
                             constrain_height='^.editor.height',
                             constrain_width='^.editor.width',**editorConstrain)
-        else:
-            bc.contentPane(region='center',margin='2px',margin_left='5px').tinymce(
-                            value='^.data.content',css_value='^.data.content_css',
-                            height='^.editor.height', width='^.editor.width', **editorConstrain)
 
     def _te_framePreview(self,frame,table=None):
         bar = frame.top.slotToolbar('5,parentStackButtons,10,fb,*',parentStackButtons_font_size='8pt')                   

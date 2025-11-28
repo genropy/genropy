@@ -25,10 +25,10 @@ class GnrCustomWebPage(object):
                                     rowcaption='$code,$description', auxColumns='$description,$userid')]))
 
         middle = content.contentPane(region='center')
-        if self.getPreference('theme.ck_legacy', pkg='sys'):
-            middle.ckeditor(value='^.body', height='100%', width='100%')
-        else:
+        if self.getPreference('theme.tinymce_beta', pkg='sys'):
             middle.tinymce(value='^.body', height='100%', width='100%')
+        else:
+            middle.ckeditor(value='^.body', height='100%', width='100%')
 
     @public_method
     def importTemplate(self, query_object_id=None):

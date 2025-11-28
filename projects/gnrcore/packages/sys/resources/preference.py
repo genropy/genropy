@@ -47,7 +47,7 @@ class AppPref(object):
         fb.textbox(value='^.palette_colors',lbl='!![en]Default color palette')
         fb.textbox(value='^.palette_steps',lbl='!![en]Default color steps')
         fb.checkBox(value='^.use_formlets',label='!!Use formlets')
-        fb.checkBox(value='^.ck_legacy',label='!!Use CKEditor legacy mode')
+        fb.checkBox(value='^.tinymce_beta',label='!!Use TinyMCE (beta)')
 
     def printPreferences(self, pane):
         fb = pane.roundedGroup(title='!![en]Print Modes',
