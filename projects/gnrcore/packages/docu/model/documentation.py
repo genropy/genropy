@@ -12,19 +12,24 @@ class Table(object):
                         name_plural='!!Documentation',caption_field='name',audit='lazy')
         self.sysFields(tbl,hierarchical='name',df=True,
                         counter=True,user_ins=True,user_upd=True)
-        tbl.column('name',name_long='!!Code', validate_notnull=True)
+        
+        tbl.column('name',name_long='!!Code', validate_notnull=True,
+                        validate_regex='![^A-Za-z0-9_]',
+                        validate_regex_error='!!Code must contain only lowercase letters, numbers, underscores and hyphens')
         tbl.column('topics',name_long='!!Topics')
         tbl.column('publish_date',dtype='D',name_long='!!Publish date')
-        tbl.column('sourcebag',dtype='X',name_long='Python Source',_sendback=True)
-        tbl.column('docbag',dtype='X',name_long='Rst data',_sendback=True)
-        tbl.column('revision',size=':3', name_long='!!Revision',values='001:Draft,050:Work in progress,080:Pre-release,100:Final')
-        tbl.column('author', name_long='Author')
-        tbl.column('base_language',size=':2',name_long='Base language').relation('adm.language.code')
+        tbl.column('sourcebag',dtype='X',name_long='!!Python Source',_sendback=True)
+        tbl.column('docbag',dtype='X',name_long='!!Rst data',_sendback=True)
+        tbl.column('revision',size=':3', name_long='!!Revision',
+                        values='001:[!![en]Draft],050:[!![en]Work in progress],080:[!![en]Pre-release],100:[!![en]Final]')
+        tbl.column('author', name_long='!!Author')
+        tbl.column('base_language',size=':2',name_long='!!Base language').relation('adm.language.code')
         tbl.column('old_html')
-        tbl.column('sphinx_toc', dtype='B', name_long='Sphinx toc')
+        tbl.column('sphinx_toc', dtype='B', name_long='!!Sphinx toc')
 
         tbl.formulaColumn('example_url',"'/webpages/docu_examples/'||$hierarchical_name")
-
+        tbl.formulaColumn('available_languages', select=dict(table='docu.documentation_content', where='$documentation_id=#THIS.id',
+                                        columns="STRING_AGG($language_code, ',')"), name_long='!![en]Available languages', static=True)
         tbl.pyColumn('root_handbook_url', name_long='!!Root handbook url')
         tbl.pyColumn('full_external_url', name_long='!!Full external url', 
                      required_columns='$id,$child_count,$name')
@@ -153,6 +158,19 @@ class Table(object):
             result.append(tpl % atc)
         return '\n'.join(result)
 
+    def atcAsHtmlTable(self, pkey, host=None):
+        """Generate attachments list as HTML for use in Markdown/MyST documentation"""
+        attachments = self.db.table('docu.documentation_atc').query(columns='*,$fileurl',where='$maintable_id=:pkey AND $atc_download IS TRUE', pkey=pkey).fetch()
+        if not attachments:
+            return
+        host = host or ''
+        result = ['<ul>']
+        for atc in attachments:
+            atc = dict(atc)
+            result.append(f'<li><a href="{host}{atc["fileurl"]}?download=1">{atc["description"]}</a></li>')
+        result.append('</ul>')
+        return '\n'.join(result)
+
     def dfAsRstTable(self,pkey,language=None):
         rows = self.df_getFieldsRows(pkey=pkey)
         if not rows:
@@ -169,7 +187,7 @@ class Table(object):
             pages = ['Main']+pages
         result = ''
         l0 = '+%s+%s+%s+' %(24*'-',6*'-',50*'-')
-        ltemplate = '|%s|%s|%s|' 
+        ltemplate = '|%s|%s|%s|'
         l1 = '+%s+%s+%s+' %(24*'=',6*'=',50*'=')
         result = [l0]
         translator = AppLocalizer(self.db.application)
@@ -200,6 +218,59 @@ class Table(object):
                     result.append(ltemplate %(pname.ljust(24),dtype.ljust(6),docline.ljust(50)))
                 result.append(l0)
         return '\n'.join(result)
+
+    def dfAsHtmlTable(self, pkey, language=None):
+        """Generate parameters table as HTML for use in Markdown/MyST documentation"""
+        rows = self.df_getFieldsRows(pkey=pkey)
+        if not rows:
+            return
+
+        translator = AppLocalizer(self.db.application)
+        param_name = translator.getTranslation('!!Parameter name', language=language).get('translation') or 'Parameter name'
+        param_type = translator.getTranslation('!!Type', language=language).get('translation') or 'Type'
+        param_desc = translator.getTranslation('!!Description', language=language).get('translation') or 'Description'
+
+        # Group rows by page
+        fdict = dict()
+        for r in rows:
+            page = r.pop('page', None) or 'Main'
+            fdict.setdefault(page, []).append(r)
+
+        pages = list(fdict.keys())
+        if 'Main' in pages:
+            pages.remove('Main')
+            pages = ['Main'] + pages
+
+        # Build HTML table
+        html = ['<table border="1" class="docutils">']
+        html.append('<thead>')
+        html.append('<tr>')
+        html.append(f'<th>{param_name}</th>')
+        html.append(f'<th>{param_type}</th>')
+        html.append(f'<th>{param_desc}</th>')
+        html.append('</tr>')
+        html.append('</thead>')
+        html.append('<tbody>')
+
+        for k, page in enumerate(pages):
+            if k > 0:
+                params = translator.getTranslation('!!Parameters', language=language).get('translation') or 'Parameters'
+                html.append(f'<tr><td colspan="3" style="text-align:center;"><em>{page} {params}</em></td></tr>')
+
+            page_rows = fdict[page]
+            for r in page_rows:
+                pname = r['code']
+                dtype = r['data_type']
+                documentation = r.get('documentation') or r.get('field_tip') or ''
+                html.append('<tr>')
+                html.append(f'<td>{pname}</td>')
+                html.append(f'<td>{dtype}</td>')
+                html.append(f'<td>{documentation}</td>')
+                html.append('</tr>')
+
+        html.append('</tbody>')
+        html.append('</table>')
+        return '\n'.join(html)
 
 
     def exportToSphinx(self, path):

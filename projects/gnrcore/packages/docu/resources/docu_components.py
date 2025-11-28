@@ -10,12 +10,25 @@ class RstDocumentationHandler(BaseComponent):
     py_requires='gnrcomponents/attachmanager/attachmanager:AttachManager'
     @struct_method
     def rst_customizeTreeOnDrag(self,tree):
-        tree.attributes.update(onDrag_linkPrepare="""
-            var hname = treeItem.attr._record['hierarchical_name'];
-            var url = '%s/'+hname;
-            var txt = dragValues['text/plain'];
-            dragValues['text/plain'] = '`'+txt+' <'+url+'>`_'
-            """ % self.db.package('docu').htmlProcessorName())
+        """Configure tree drag&drop for documentation links based on editing mode"""
+        editing_mode = self.db.application.getPreference('.editing_mode', pkg='docu') or 'rst'
+
+        if editing_mode == 'markdown':
+            # Markdown format: [text](url)
+            tree.attributes.update(onDrag_linkPrepare="""
+                var hname = treeItem.attr._record['hierarchical_name'];
+                var url = '%s/'+hname;
+                var txt = dragValues['text/plain'];
+                dragValues['text/plain'] = '['+txt+']('+url+')'
+                """ % self.db.package('docu').htmlProcessorName())
+        else:
+            # RST format: `text <url>`_
+            tree.attributes.update(onDrag_linkPrepare="""
+                var hname = treeItem.attr._record['hierarchical_name'];
+                var url = '%s/'+hname;
+                var txt = dragValues['text/plain'];
+                dragValues['text/plain'] = '`'+txt+' <'+url+'>`_'
+                """ % self.db.package('docu').htmlProcessorName())
 
     def rst_snippetTab(self,pane,path=None):
         pane.data('#FORM.snippetEditor.data',Bag(path))
@@ -66,6 +79,7 @@ class RstDocumentationHandler(BaseComponent):
         bc.roundedGroupFrame(title='Snippet',region='center',overflow='hidden').codemirror(value='^.snippet',
                                     height='100%',config_lineNumbers=True,
                                 config_mode='rst',config_keyMap='softTab',
+                                lineWrapping=True,
                                 config_addon='search')
         bar = form.bottom.slotBar('revertbtn,*,cancel,savebtn',margin_bottom='2px',_class='slotbar_dialog_footer')
         bar.revertbtn.button('!!Revert',action='this.form.publish("reload")',disabled='^.controller.changed?=!#v')
@@ -73,51 +87,74 @@ class RstDocumentationHandler(BaseComponent):
         bar.savebtn.button('!!Save',iconClass='fh_semaphore',action='this.form.publish("save",{destPkey:"*dismiss*"})')
 
     def rst_imageTab(self,pane):
+        """Configure image tab drag&drop for attachments based on editing mode"""
+        editing_mode = self.db.application.getPreference('.editing_mode', pkg='docu') or 'rst'
         th = pane.attachmentGrid(pbl_classes=True,screenshot=True,design='headline')
-        template_image = """.. image:: $fileurl
+
+        if editing_mode == 'markdown':
+            # Markdown templates
+            template_image = """![$description]($fileurl)"""
+            template_figure= """![$description]($fileurl)"""
+            template_iframe = """:::{iframe} $fileurl
+:width: 100%
+:::"""
+            template_link= """[$description]($fileurl?download=1)"""
+            drag_handler = 'onDrag_mdimage'
+        else:
+            # RST templates
+            template_image = """.. image:: $fileurl
     :width: 200px
     :align: center
     :height: 100px"""
-        template_figure= """.. figure:: stars.jpg
+            template_figure= """.. figure:: stars.jpg
     :width: 200px
     :align: center
     :height: 100px
     :figclass: align-center
 
     $description"""
-        iframesrc = """<iframez onload="this.contentDocument.body.firstChild.style.whiteSpace='pre';" style='border:1px solid silver;background:lightyellow;resize:auto;' width="560" height="315" src="$fileurl" frameborder="0"></iframe>"""
-        template_iframedoc = """.. raw:: html\n\n {iframesrc}""".format(iframesrc=iframesrc)
-        template_link= """ `$description <$fileurl ?download=1>`_"""
-        th.view.grid.attributes.update(onDrag_rstimage="""
-                                    var rowset = dragValues.gridrow.rowset;
-                                    var result = [];
-                                    var url = dragValues.gridrow.rowdata.fileurl;
-                                    var ext = url.slice(url.lastIndexOf('.'));
-                                    var tpl,tplname;
-                                    if(!['.jpg','.jpeg','.png','.gif','.svg','.tiff'].includes(ext)){
-                                        tplname = dragInfo.modifier=='Shift' ?'_tpl_link':'_tpl_iframedoc';
-                                    }else{
-                                        tplname = dragInfo.modifier=='Shift' ? '_tpl_figure':'_tpl_image';
-                                    }
-                                    tpl = dragInfo.sourceNode.attr[tplname];
-                                    rowset.forEach(function(row){
-                                        if(row.fileurl){
-                                            if(tplname=='_tpl_iframedoc'){
-                                                row.fileurl = document.location.protocol+'//'+document.location.host+row.fileurl;
-                                            }
-                                            result.push(dataTemplate(tpl,row));
-                                        }
-                                    });
-                                    dragValues['text/plain'] = result.join(_lf+_lf)
-                                """ ,_tpl_image=template_image,
-                                    _tpl_link=template_link,
-                                    _tpl_iframedoc=template_iframedoc,
-                                    _tpl_figure=template_figure)
+            iframesrc = """<iframez onload="this.contentDocument.body.firstChild.style.whiteSpace='pre';" style='border:1px solid silver;background:lightyellow;resize:auto;' width="560" height="315" src="$fileurl" frameborder="0"></iframe>"""
+            template_iframe = """.. raw:: html\n\n {iframesrc}""".format(iframesrc=iframesrc)
+            template_link= """ `$description <$fileurl ?download=1>`_"""
+            drag_handler = 'onDrag_rstimage'
+
+        # Common drag handler logic
+        drag_js = """
+                    var rowset = dragValues.gridrow.rowset;
+                    var result = [];
+                    var url = dragValues.gridrow.rowdata.fileurl;
+                    var ext = url.slice(url.lastIndexOf('.'));
+                    var tpl,tplname;
+                    if(!['.jpg','.jpeg','.png','.gif','.svg','.tiff'].includes(ext)){
+                        tplname = dragInfo.modifier=='Shift' ?'_tpl_link':'_tpl_iframe';
+                    }else{
+                        tplname = dragInfo.modifier=='Shift' ? '_tpl_figure':'_tpl_image';
+                    }
+                    tpl = dragInfo.sourceNode.attr[tplname];
+                    rowset.forEach(function(row){
+                        if(row.fileurl){
+                            if(tplname=='_tpl_iframe'){
+                                row.fileurl = document.location.protocol+'//'+document.location.host+row.fileurl;
+                            }
+                            result.push(dataTemplate(tpl,row));
+                        }
+                    });
+                    dragValues['text/plain'] = result.join(_lf+_lf)
+                """
+
+        th.view.grid.attributes.update({
+            drag_handler: drag_js,
+            '_tpl_image': template_image,
+            '_tpl_link': template_link,
+            '_tpl_iframe': template_iframe,
+            '_tpl_figure': template_figure
+        })
 
 
 
     @struct_method
     def rst_rstHelpDrawer(self,parent,closable='close',region='right',width='300px',margin='2px',**kwargs):
+        """Help drawer with drag&drop support (auto-detects editing mode)"""
         tc = parent.tabContainer(overflow='hidden',
                        closable=closable,
                        splitter=True,datapath='#FORM',region='right',width=width,**kwargs)
@@ -494,14 +531,24 @@ class DocumentationViewer(BaseComponent):
 class ContentsComponent(BaseComponent):
     js_requires='docu_components'
     
-    def contentEditor(self, pane, mode='text', value=None, htmlpath=None, initialEditType='wysiwyg', **kwargs):
-        "Supported modes: html,rst"
-        if mode=='rst':
-            pane.MDEditor(value=value, htmlpath=htmlpath, nodeId='contentMd', height='100%', previewStyle='vertical',
-                        initialEditType=initialEditType, **kwargs)
+    def contentEditor(self, pane, mode='text', value=None, htmlpath=None, initialEditType='wysiwyg', code_mode='rst', **kwargs):
+        "Supported modes: text, html, code (codemirror), markdown (MDEditor)"
+        if mode=='code':
+            # Codemirror for code editing (RST, Python, etc.)
+            pane.codemirror(value=value, nodeId='contentCode', height='100%',
+                          config_mode=code_mode, config_lineNumbers=True,
+                          config_keyMap='softTab', config_addon='search',
+                          lineWrapping=True,
+                          parentForm=True, **kwargs)
+        elif mode=='markdown':
+            # MDEditor for Markdown editing (drag&drop support is built-in)
+            pane.MDEditor(value=value, htmlpath=htmlpath, nodeId='contentMd', height='100%',
+                        previewStyle='vertical', initialEditType=initialEditType, **kwargs)
         elif mode=='html':
+            # CKEditor for HTML editing
             pane.ckeditor(value=value, nodeId='contentHtml', height='100%', **kwargs)
         else:
+            # Simple textarea for plain text
             pane.simpleTextArea(value=value, nodeId='contentText', height='100%', **kwargs)
         
     @customizable    
@@ -536,17 +583,97 @@ class ContentsComponent(BaseComponent):
                                                     configurable=False, 
                                                     **kwargs)
     
+    def hintButton(self):
+        """Returns configuration for hint admonition button in MDEditor"""
+        # Simple lightbulb icon in flat dark gray style
+        icon = '''<svg viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8.5 2C6.015 2 4 4.015 4 6.5c0 1.8 1.05 3.35 2.5 4.1v2.4c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-2.4c1.45-.75 2.5-2.3 2.5-4.1 0-2.485-2.015-4.5-4.5-4.5z"
+                  stroke="#333" stroke-width="1.3" stroke-linejoin="round"/>
+            <path d="M6.5 14h4M7 15.5h3" stroke="#333" stroke-width="1.3" stroke-linecap="round"/>
+        </svg>'''
+
+        return {
+            'name': 'hint',
+            'tooltip': 'Insert Hint',
+            'icon': icon,
+            'insertText': ':::{hint}\n\n:::',
+            'moveCursorLines': 1,
+            'groupIndex': 0,
+            'itemIndex': -1
+        }
+
+    def iframeButton(self):
+        """Returns configuration for iframe embed button in MDEditor"""
+        # Document/file icon in flat dark gray style
+        icon = '''<svg viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 2h6l3 3v9a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z" stroke="#333" stroke-width="1.3" stroke-linejoin="round"/>
+            <path d="M10 2v3h3" stroke="#333" stroke-width="1.3" stroke-linejoin="round"/>
+            <path d="M6 9h5M6 11h5" stroke="#333" stroke-width="1.3" stroke-linecap="round"/>
+        </svg>'''
+
+        return {
+            'name': 'iframe',
+            'tooltip': 'Insert Iframe',
+            'icon': icon,
+            'insertText': ':::{iframe} IFRAME_URL_HERE\n:width: 100%\nCaption\n:::',
+            'moveCursorLines': 0,
+            'selectText': 'IFRAME_URL_HERE',
+            'groupIndex': 0,
+            'itemIndex': -1
+        }
+
     @struct_method
-    def contentText(self, pane, mode='text', **kwargs):
-        "Supported modes: text,html,rst. Text (default) is edited with a textarea, Html with ckeditor, rst with MDEditor"
+    def contentText(self, pane, mode='text', convertHtml=False, insertToolbarItems=None, **kwargs):
+        """Supported modes: text, html, code, markdown, rst (legacy).
+
+        - text: plain textarea (uses 'text' field)
+        - html: CKEditor for HTML editing (uses 'html' field)
+        - code: Codemirror for code editing (uses field based on code_mode)
+        - markdown: MDEditor for Markdown editing (uses 'markdown' field)
+        - rst: (legacy) mapped to 'code' with code_mode='rst' (uses 'rst' field)
+
+        convertHtml: when mode is markdown, if convertHtml is True, the html version is saved in the 'html' field
+        insertToolbarItems: list of button names (e.g., ['hintButton']) to add to toolbar
+        """
         if mode=='html':
-            value='^.html' 
+            value='^.html'
+        elif mode=='markdown':
+            value='^.markdown'
+            if convertHtml:
+                kwargs.update(htmlpath='.html')
+
+            # Resolve toolbar button names to their configurations
+            if insertToolbarItems:
+                resolved_items = []
+                for item in insertToolbarItems:
+                    if isinstance(item, str):
+                        # Resolve string names to method calls
+                        method = getattr(self, item, None)
+                        if method and callable(method):
+                            resolved_items.append(method())
+                        else:
+                            # If not a method, pass as-is
+                            resolved_items.append(item)
+                    else:
+                        # Already a dict, pass as-is
+                        resolved_items.append(item)
+                kwargs['insertToolbarItems'] = resolved_items
+
+        elif mode=='code':
+            # For code mode, use specific field based on code_mode
+            code_mode = kwargs.get('code_mode', 'python')
+            if code_mode == 'rst':
+                value='^.rst'
+            else:
+                value='^.text'
         elif mode=='rst':
-            value='^.text'
-            kwargs.update(htmlpath='.html')
+            # Legacy support: map 'rst' to 'code' mode with 'rst' field
+            value='^.rst'
+            mode = 'code'
+            kwargs.setdefault('code_mode', 'rst')
         else:
             value='^.text'
-            
+
         self.contentEditor(pane, value=value, mode=mode, **kwargs)
 
     def contentTemplate(self, pane):

@@ -39,3 +39,4 @@ _main_connection
 mydb
 projects/gnrcore/instances/gnrdevelop/data/adm.db
 projects/gnrcore/instances/gnrdevelop/data/sys.db
+.claude/README.md
