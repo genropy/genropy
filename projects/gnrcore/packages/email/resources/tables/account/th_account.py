@@ -2,9 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrdecorator import public_method,customizable
-from gnr.lib.services.mail import MailService
-from gnr.core.gnrlang import GnrException
+from gnr.core.gnrdecorator import customizable
 
 class View(BaseComponent):
 
