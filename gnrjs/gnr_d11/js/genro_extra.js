@@ -610,11 +610,17 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
         }
         // Update character count in toolbar
         editor.removeToolbarItem('remaining');
+
+        // Create explicit HTML element for the counter
+        const counterEl = document.createElement('span');
+        counterEl.className = 'toastui-editor-toolbar-icons';
+        counterEl.style.cssText = 'text-align: right; font-style: italic; font-size: .8em; cursor: auto; width: 75px; text-align: center; padding: 0 8px;';
+        counterEl.textContent = `Remaining: ${(maxLength - value.length)}`;
+
         editor.insertToolbarItem({ groupIndex: -1, itemIndex: -1 }, {
             name: 'remaining',
             tooltip: 'Remaining characters',
-            text: `Remaining: ${(maxLength - value.length)}`,
-            style: { textAlign: 'right', fontStyle: 'italic', fontSize: '.8em', cursor: 'auto', width: '75px', textAlign: 'center'}
+            el: counterEl
         });
     },
 
