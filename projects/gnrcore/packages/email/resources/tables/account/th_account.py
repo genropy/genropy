@@ -80,6 +80,7 @@ class Form(BaseComponent):
         fb = bc.contentPane(region='center', padding='10px').formbuilder(cols=2,border_spacing='4px')
         fb.field('smtp_host')
         fb.field('smtp_from_address')
+        fb.field('smtp_reply_to')
         fb.field('smtp_username')
         fb.field('smtp_password',tag='passwordTextBox')
         fb.field('smtp_port')
@@ -97,10 +98,14 @@ class Form(BaseComponent):
     @customizable
     def smtp_toolbar(self, bottom):
         bar = bottom.slotToolbar('5,test,*')
-        bar.test.slotButton('!![en]Send test').dataRpc(self.testSmtpSettings, host='=.smtp_host', from_address='=.smtp_from_address', 
-                                        username='=.smtp_username', password='=.smtp_password', port='=.smtp_port',
-                                        tls='=.smtp_tls', ssl='=.smtp_ssl', _ask=dict(title="!![en]Send test e-mail",
-                                        fields=[dict(name="to_address",lbl="To address")]))
+        bar.test.slotButton('!![en]Send test').dataRpc(self.tblobj.sendEmailFromParams,
+                                        host='=.smtp_host', from_address='=.smtp_from_address',
+                                        username='=.smtp_username', password='=.smtp_password',
+                                        port='=.smtp_port', tls='=.smtp_tls', ssl='=.smtp_ssl',
+                                        reply_to='=.smtp_reply_to',
+                                        _ask=dict(title="!![en]Send test e-mail",
+                                                  fields=[dict(name="to_address",lbl="To address",
+                                                              default='^gnr.avatar.email')]))
         return bar
     
     def account_users(self, pane):
@@ -115,18 +120,6 @@ class Form(BaseComponent):
                                    dialog_width='800px',
                                    dialog_title='Message')
 
-    @public_method
-    def testSmtpSettings(self, host=None, from_address=None, to_address=None, 
-                                username=None, password=None, tls=None, ssl=None, port=None):
-        account_params = dict(smtp_host=host, port=port, user=username, password=password, ssl=ssl, tls=tls)
-        mh = MailService()
-        msg = mh.build_base_message(subject='This is a test message', body=f"From: {from_address}\r\nTo: {to_address}\r\nTest Message")
-        try:
-            with mh.get_smtp_connection(**account_params) as smtp_connection:
-                smtp_connection.sendmail(from_address, to_address, msg.as_string())
-        except Exception as e:
-            raise GnrException(f'Error sending test message: {e}')
-            
 
     def th_options(self):
         return dict(duplicate=True)
