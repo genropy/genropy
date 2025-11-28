@@ -16,6 +16,7 @@
 <en_last_uid base="Last UID" it="Ultimo UID" en="Last UID"></en_last_uid>
 <en_smtp_host base="SMTP host" it="Host SMTP" en="SMTP host"></en_smtp_host>
 <en_from_address base="From address" it="Mittente" en="From address" es="Desde la dirección"></en_from_address>
+<en_reply_to base="Reply to" it="Rispondi a" en="Reply to"></en_reply_to>
 <en_smtp_username base="Smtp username" it="Username smtp" en="Smtp username"></en_smtp_username>
 <en_smtp_password base="Smtp password" it="Password smtp" en="Smtp password"></en_smtp_password>
 <en_smtp_port base="Smtp port" it="Porta smtp" en="Smtp port"></en_smtp_port>
@@ -46,6 +47,7 @@
 <en_from base="From" de="Von" en="From" fr="À partir de" it="Da"></en_from>
 <en_cc base="Cc" de="CC" en="Cc" fr="CC" it="CC"></en_cc>
 <en_bcc base="Bcc" de="BCC" en="Bcc" fr="BCC" it="BCC"></en_bcc>
+<en_reply_to base="Reply to" it="Rispondi a" en="Reply to"></en_reply_to>
 <en_uid base="UID" en="UID" it="UID"></en_uid>
 <en_body base="Body" de="Körper" en="Body" fr="Corps" it="Corpo"></en_body>
 <en_plain_body base="Plain Body" it="Corpo piatto" en="Plain Body"></en_plain_body>
@@ -63,6 +65,13 @@
 <en_extra_headers base="Extra headers" en="Extra headers" it="Intestazioni aggiuntive"></en_extra_headers>
 <en_weak_attachments base="Weak attachments" en="Weak attachments" it="Allegati deboli"></en_weak_attachments>
 <en_reply_message_id base="Reply message id" it="Indirizzo risposta" en="Reply message id"></en_reply_message_id>
+<en_priority base="Priority" it="Priorità" en="Priority"></en_priority>
+<en_no_send base="No send" it="Nessun invio" en="No send"></en_no_send>
+<en_low base="Low" it="Basso" en="Low"></en_low>
+<en_standard base="Standard" it="Standard" en="Standard"></en_standard>
+<en_high base="High" it="Alto" en="High"></en_high>
+<en_immediate base="Immediate" it="Immediato" en="Immediate"></en_immediate>
+<en_message_to_send base="Message to send" it="Messaggio da inviare" en="Message to send"></en_message_to_send>
 <en_read base="Read"></en_read>
 <en_destination_user fr="utilisateur Destinations" de="Zielbenutzer" en="Destination user" it="Utente destinatario" base="Destination user"></en_destination_user>
 <en_sent base="Sent" it="Inviato" en="Sent" es="Enviado"></en_sent>
@@ -88,7 +97,9 @@
 <user_account path="model/user_account.py" ext="py"><en_user_id fr="ID de l'utilisateur" de="Benutzer-ID" en="User id" it="ID utente" base="User id"></en_user_id>
 <en_account_id base="Account id" en="Account id" it="ID account"></en_account_id>
 <en_can_send base="Can Send" it="Può inviare" en="Can Send"></en_can_send></user_account></model>
-<resources><tables><account><action><receive_mail path="resources/tables/account/action/receive_mail.py" ext="py"><en_receive_email base="Receive email" it="Ricevi email" en="Receive email"></en_receive_email></receive_mail>
+<resources><preference path="resources/preference.py" ext="py"><en_default_e_mail_account base="Default e-mail account" it="Account email predefinito" en="Default e-mail account"></en_default_e_mail_account>
+<en_default_reply_to_address base="Default reply-to address" it="Indirizzo reply-to predefinito" en="Default reply-to address"></en_default_reply_to_address></preference>
+<tables><account><action><receive_mail path="resources/tables/account/action/receive_mail.py" ext="py"><en_receive_email base="Receive email" it="Ricevi email" en="Receive email"></en_receive_email></receive_mail>
 <send_mail path="resources/tables/account/action/send_mail.py" ext="py"><en_send_emails base="Send emails" it="Invia email" en="Send emails"></en_send_emails></send_mail></action>
 <th_account path="resources/tables/account/th_account.py" ext="py"><en_input base="Input"></en_input>
 <en_output base="Output"></en_output>
