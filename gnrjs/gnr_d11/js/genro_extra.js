@@ -509,12 +509,20 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
                 console.log('[MDEditor] Initial content stored');
 
                 // Activate listener only on actual user typing
+                // Also handle maxLength check on same keydown hook
                 let activationDone = false;
                 editor.addHook('keydown', () => {
                     if (!activationDone) {
                         activationDone = true;
                         activateListener();
                     }
+
+                    // Handle max length check
+                    genro.callAfter(() => {
+                        if (editor_attrs.maxLength) {
+                            this.checkMaxLength(editor, editor_attrs.maxLength);
+                        }
+                    }, 10, this, 'typing');
                 });
             } catch(e) {
                 console.warn('[MDEditor] Failed to setup change detection', e);
@@ -540,15 +548,6 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
             } else {
                 console.log('[MDEditor] Content unchanged, skipping save');
             }
-        });
-
-        // Handle max length check on keydown if needed
-        editor.addHook('keydown', () => {
-            genro.callAfter(() => {
-                if (editor_attrs.maxLength) {
-                    this.checkMaxLength(editor, editor_attrs.maxLength);
-                }
-            }, 10, this, 'typing');
         });
 
         // Add drag&drop support for external elements
@@ -610,17 +609,18 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
         }
         // Update character count in toolbar
         editor.removeToolbarItem('remaining');
-
-        // Create explicit HTML element for the counter
-        const counterEl = document.createElement('span');
-        counterEl.className = 'toastui-editor-toolbar-icons';
-        counterEl.style.cssText = 'text-align: right; font-style: italic; font-size: .8em; cursor: auto; width: 75px; text-align: center; padding: 0 8px;';
-        counterEl.textContent = `Remaining: ${(maxLength - value.length)}`;
-
         editor.insertToolbarItem({ groupIndex: -1, itemIndex: -1 }, {
             name: 'remaining',
             tooltip: 'Remaining characters',
-            el: counterEl
+            text: `Remaining: ${(maxLength - value.length)}`,
+            style: {
+                textAlign: 'center',
+                fontStyle: 'italic',
+                fontSize: '.8em',
+                cursor: 'auto',
+                width: '75px',
+                padding: '0 8px'
+            }
         });
     },
 
