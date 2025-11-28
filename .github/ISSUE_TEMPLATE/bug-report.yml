@@ -1,0 +1,71 @@
+name: Bug Report
+description: Report a bug or malfunction with clear details and reproducible steps.
+title: "[BUG] Short summary of the problem"
+labels: ["bug"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please fill out every section.  
+        Issues without reproducible steps or without enough context may be difficult to investigate.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Problem Description
+      description: >
+        Provide a clear and complete description of the issue.  
+        Describe the observed behavior and the expected behavior.
+      placeholder: "What happened? What did you expect instead?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction Steps
+      description: >
+        Provide step-by-step instructions to reproduce the issue.  
+        Whenever possible, use a neutral context such as a sandbox, a generic test environment, or data not tied to a specific customer.
+      placeholder: |
+        1. Step one  
+        2. Step two  
+        3. Step three  
+        Observed result: ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: non_repro_context
+    attributes:
+      label: If It Cannot Be Reproduced Externally
+      description: >
+        If the issue cannot be reproduced in an isolated environment, provide enough detail to reconstruct it anyway.  
+        Include involved modules/features, environment conditions, anonymized data/configurations, logs, or any relevant clues.
+      placeholder: |
+        - Module/feature involved  
+        - Specific environment conditions  
+        - Relevant configuration (sanitized)  
+        - Logs or error messages  
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: >
+        Specify where the issue occurred (versions, environment, OS/browser if applicable).
+      placeholder: "Example: v1.4.2, staging environment, Ubuntu 22.04"
+    validations:
+      required: true
+
+  - type: textarea
+    id: extras
+    attributes:
+      label: Additional Material
+      description: "Attach screenshots, logs, configuration dumps, or anything that may help."
+      placeholder: "Optional"
+    validations:
+      required: false
