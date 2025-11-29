@@ -4378,6 +4378,25 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
         sourceNode.attr.items = items;
         var containerKw = {_class:'multibutton_container'};
         var btn_action;
+        var btn_dblaction;
+
+        // Helper function to get all locked button codes
+        var getLockedCodes = function(){
+            var lockedCodes = [];
+            var mb = gnrwdg.multibuttonSource;
+            if(mb){
+                mb.forEach(function(n){
+                    if(n.domNode && n.domNode.dataset.locked === 'true'){
+                        var code = n.attr.multibutton_code || n.attr[gnrwdg.identifier] || n.attr['code'] || n.label;
+                        if(code){
+                            lockedCodes.push(code);
+                        }
+                    }
+                });
+            }
+            return lockedCodes;
+        };
+
         if (sticky){
             btn_action = function(_kwargs){
                 let event = _kwargs.event;
@@ -4397,11 +4416,54 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
                                 }
                                 mcode = prevmcode.join(',');
                             }
+                        }else if(multivalue){
+                            // Include locked buttons in selection
+                            var lockedCodes = getLockedCodes();
+                            if(lockedCodes.length > 0){
+                                if(lockedCodes.indexOf(mcode) < 0){
+                                    lockedCodes.push(mcode);
+                                }
+                                mcode = lockedCodes.join(',');
+                            }
                         }
                         sourceNode.setRelativeData(value,mcode);
                     }
                 }
             };
+
+            // Double-click handler to toggle locked state
+            if(multivalue){
+                btn_dblaction = function(_kwargs){
+                    let event = _kwargs.event;
+                    var sn = event.target?genro.dom.getBaseSourceNode(event.target):null;
+                    if(sn && sn.domNode){
+                        var mcode = sn.getInheritedAttributes()['multibutton_code'];
+                        if(mcode){
+                            var isLocked = sn.domNode.dataset.locked === 'true';
+                            sn.domNode.dataset.locked = isLocked ? 'false' : 'true';
+                            // Update selection to include/exclude locked button
+                            var lockedCodes = getLockedCodes();
+                            var currentValue = sourceNode.getRelativeData(value);
+                            if(lockedCodes.length > 0){
+                                // Ensure current selection includes all locked codes
+                                var currentCodes = currentValue ? currentValue.split(',') : [];
+                                lockedCodes.forEach(function(lc){
+                                    if(currentCodes.indexOf(lc) < 0){
+                                        currentCodes.push(lc);
+                                    }
+                                });
+                                sourceNode.setRelativeData(value, currentCodes.join(','));
+                            }else if(currentValue){
+                                // No locked buttons, keep only the last selected
+                                var currentCodes = currentValue.split(',');
+                                if(currentCodes.length > 0){
+                                    sourceNode.setRelativeData(value, currentCodes[currentCodes.length-1]);
+                                }
+                            }
+                        }
+                    }
+                };
+            }
         }else{
             btn_action = function(_kwargs){
                 var event=_kwargs.event
@@ -4415,6 +4477,9 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
             }
         }
         containerKw.action = btn_action;
+        if(btn_dblaction){
+            containerKw.dblaction = btn_dblaction;
+        }
         containerKw.selfsubscribe_appendItem = function(kw){
             gnrwdg.appendItem(kw);
         }
