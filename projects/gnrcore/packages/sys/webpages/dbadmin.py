@@ -78,6 +78,8 @@ class GnrCustomWebPage(object):
         bc.roundedGroupFrame(region='bottom',height='50%',title='Orm',splitter=True).bagEditor(storepath='.orm_clean')
         bc.roundedGroupFrame(region='center',title='SQL').bagEditor(storepath='.sql_clean')
 
+        self.unusedElementsPane(tc,title='Unused',datapath='.unused',
+                                hidden='^main.structures.unused_elements?=!#v || #v.len()==0')
         self.dbUtilsPane(tc,title='Utils',datapath='.dbutils')
 
         bc = tc.borderContainer(title='JSON Structures',datapath='.structures')
@@ -92,6 +94,36 @@ class GnrCustomWebPage(object):
                                 config_gutters=["CodeMirror-linenumbers"])
         bar = frame.top.slotToolbar('*,applyChanges,5')
         bar.applyChanges.slotButton('Apply',fire='main.applyChanges')
+
+    def unusedElementsPane(self,parent,**kwargs):
+        frame = parent.frameGrid(frameCode='unusedGrid',
+                                 storepath='main.structures.unused_elements',
+                                 struct=self.unusedGridStruct,
+                                 pkey='_pkey',
+                                 checkboxColumn=True,
+                                 **kwargs)
+        bar = frame.top.slotToolbar('5,generateDrop,*,searchOn,5')
+        bar.generateDrop.slotButton('Generate DROP Commands').dataRpc(
+            'main.unused.drop_commands',self.generateDropCommands,
+            selected_elements='=.checked',
+            _lockScreen=True
+        )
+        bottom = frame.bottom.contentPane(height='40%',splitter=True,padding='5px')
+        bottom.div('DROP Commands:',font_weight='bold',margin_bottom='5px')
+        bottom.codemirror(value='^main.unused.drop_commands',
+                         config_lineNumbers=True,config_mode='sql',
+                         config_indentUnit=4,
+                         height='100%',readOnly=True)
+
+    def unusedGridStruct(self,struct):
+        r = struct.view().rows()
+        r.cell('entity_type',name='Type',width='8em')
+        r.cell('schema_name',name='Schema',width='8em')
+        r.cell('table_name',name='Table',width='12em')
+        r.cell('entity_name',name='Name',width='15em')
+        r.cell('sql_name',name='SQL Name',width='15em')
+        r.cell('details',name='Details',width='20em')
+        return struct
 
     def dbUtilsPane(self,parent,**kwargs):
         tc = parent.tabContainer(**kwargs)
@@ -136,7 +168,44 @@ class GnrCustomWebPage(object):
         result['diff'] = mig.getDiffBag()
         result['commands_tree'] = Bag(mig.commands)
         result['sql_commands'] = changes
-        
+        result['unused_elements'] = self.extractUnusedElements(mig)
+        return result
+
+    def extractUnusedElements(self,mig):
+        """Estrae elementi nel DB che non sono definiti nell'ORM"""
+        result = Bag()
+        row_idx = 0
+        for reason,kw in mig.dictDifferChanges():
+            if reason != 'removed':
+                continue
+            item = kw['item']
+            entity_type = item.get('entity')
+            if entity_type not in ('index','relation','constraint'):
+                continue
+            schema_name = item.get('schema_name','')
+            table_name = item.get('table_name','')
+            entity_name = item.get('entity_name','')
+            attributes = item.get('attributes',{})
+            sql_name = attributes.get('index_name') or attributes.get('constraint_name') or entity_name
+            if entity_type == 'index':
+                columns = attributes.get('columns',{})
+                if isinstance(columns,dict):
+                    details = f"columns: {', '.join(columns.keys())}"
+                else:
+                    details = f"columns: {columns}"
+            elif entity_type == 'relation':
+                details = f"-> {attributes.get('related_schema','')}.{attributes.get('related_table','')}"
+            else:
+                details = attributes.get('constraint_type','')
+            result.setItem(f'r_{row_idx}',None,
+                          entity_type=entity_type,
+                          schema_name=schema_name,
+                          table_name=table_name,
+                          entity_name=entity_name,
+                          sql_name=sql_name,
+                          details=details,
+                          _pkey=f'{schema_name}.{table_name}.{entity_type}.{sql_name}')
+            row_idx += 1
         return result
     
     
@@ -153,6 +222,26 @@ class GnrCustomWebPage(object):
                 password=connection_pars['password']
             )
         return db
+
+    @public_method
+    def generateDropCommands(self,selected_elements=None):
+        """Genera comandi DROP per gli elementi selezionati"""
+        if not selected_elements:
+            return ''
+        commands = []
+        for pkey in selected_elements:
+            parts = pkey.split('.')
+            if len(parts) < 4:
+                continue
+            schema_name = parts[0]
+            table_name = parts[1]
+            entity_type = parts[2]
+            entity_name = '.'.join(parts[3:])
+            if entity_type == 'index':
+                commands.append(f'DROP INDEX IF EXISTS "{schema_name}"."{entity_name}";')
+            elif entity_type in ('relation','constraint'):
+                commands.append(f'ALTER TABLE "{schema_name}"."{table_name}" DROP CONSTRAINT IF EXISTS "{entity_name}";')
+        return '\n'.join(commands)
 
     @public_method
     def runDbUtils(self,instance_name=None,implementation=None,connection_pars=None,methodname=None):

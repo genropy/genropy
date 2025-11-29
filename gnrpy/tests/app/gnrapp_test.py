@@ -180,4 +180,8 @@ class TestGnrApp(BaseGnrAppTest):
             assert p['sys.error']['retention_period_default'] == 60
             assert p['sys.error']['filter_column'] == '__ins_ts'
             assert p['sys.error']['retention_period'] == p['sys.error']['retention_period_default']
+            assert "extra_where_filter" in p['sys.error']
+            assert "extra_where_filter" in p['sys.task_execution']
+            assert p['sys.error']['extra_where_filter'] == None
+            assert p['sys.task_execution']['extra_where_filter'] == None
        

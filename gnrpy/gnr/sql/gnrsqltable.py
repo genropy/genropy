@@ -3103,15 +3103,23 @@ class SqlTable(GnrObject):
         """
         Returns the data retention policy defined in the table, None otherwise
         """
-        policy = self.attributes.get("retention_policy", [])
-        if not policy:
+        table_policy = self.attributes.get("retention_policy", [])
+        if not table_policy:
             return None
-        if not isinstance(policy, (tuple,list)) or len(policy) != 2:
+        if not isinstance(table_policy, (tuple,list)) or len(table_policy) != 2:
             logger.error("Retention policy for %s must be a 2 element list/tuple", self.name)
             return None
-        if not isinstance(policy[1], int) or policy[1] < 1:
+        if not isinstance(table_policy[1], int) or table_policy[1] < 1:
             logger.error("Retention policy value for %s must be at least 1 day", self.name)
             return None
+
+        extra_where_filter = getattr(self, 'retention_extra_where', lambda: None)()
+        policy = dict(filter_column=table_policy[0],
+                      extra_where_filter=extra_where_filter,
+                      retention_period_default=table_policy[1],
+                      retention_period=table_policy[1],
+                      )
+
         return policy
 
     def executeRetentionPolicy(self, policy=None, dry_run=True):
@@ -3120,15 +3128,20 @@ class SqlTable(GnrObject):
         '''
         if not policy:
             return {}
-        
+
+        where_clause=f'${policy["filter_column"]} < :cutoff'
+        extra_where_filter = policy.get("extra_where_filter", None)
+        if extra_where_filter:
+            where_clause=f'{where_clause} AND {extra_where_filter}'
+            
         cutoff = datetime.now() - timedelta(days=policy['retention_period'])
-        count = self.query(where=f'${policy["filter_column"]} < :cutoff', cutoff=cutoff).count()
+        count = self.query(where=where_clause, cutoff=cutoff).count()
         summary = {"found_records": count}
         if dry_run:
             return summary
         else:
             # do the actual delete
-            r = self.deleteSelection(where=f'${policy["filter_column"]} < :cutoff', cutoff=cutoff)
+            r = self.deleteSelection(where=where_clause, cutoff=cutoff)
             summary['deleted_records'] = len(r)
             self.db.commit()
             return summary

@@ -71,7 +71,6 @@ class TestGnrWsgiSite(BaseGnrTest):
  
     def test_service_handler(self):
         # non existing service
-        print("UNO")
         with pytest.raises(KeyError) as excinfo:
             r = self.services_handler("foobar").configurations()
             
@@ -79,10 +78,7 @@ class TestGnrWsgiSite(BaseGnrTest):
         assert r is None
         r = self.site.getService("git", "gitpython")
         assert r is None
-        print(self.site.serviceList("git"))
-        print("DUE")
         assert "git" in self.services_handler.service_types
-        print("TRE")
 
     def test_auxinstances(self):
         with pytest.raises(Exception) as excinfo:
