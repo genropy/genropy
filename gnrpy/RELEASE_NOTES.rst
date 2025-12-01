@@ -29,7 +29,9 @@ Fixes
   package can be applied from other sources (like
   instanceconfig/default.xml), so no dependency is going missing.
 * The fullcalendar widget now resizes correctly upon viewport adjustments
-
+* DB Migrate handles correctly varchar fields with min/max sizes used
+  in validation, but not supported by RDBMS.
+  
 Release 25.10.27
 ================
 
