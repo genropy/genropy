@@ -2972,13 +2972,18 @@ dojo.declare("gnr.widgets.GridGallery", gnr.widgets.gnrwdg, {
 dojo.declare("gnr.widgets.BagField",gnr.widgets.gnrwdg,{
 
     createContent:function(sourceNode, kw,children,subTagItems) {
-        let value = objectPop(kw,'value')        
+        let value = objectPop(kw,'value');
+        let showOnFormLoaded = objectPop(kw,'showOnFormLoaded',true)        
+
         var valuepath = value?sourceNode.absDatapath(value):null;
         kw.remote_field = objectPop(kw,'field') || valuepath.split('.').slice(-1)[0];
         kw.remote_resource = objectPop(kw,'resource');
         kw.remote_table = objectPop(kw,'table');
         kw.remote_bfhandler = objectPop(kw,'bfhandler');
         kw.remote_version = objectPop(kw,'version');
+        if(showOnFormLoaded){
+             kw.remote_onFormLoaded = '^#FORM.controller.loaded'
+        }
         if (kw.remote_resource){
             kw.remote__if='resource'
         }
@@ -2990,12 +2995,13 @@ dojo.declare("gnr.widgets.BagField",gnr.widgets.gnrwdg,{
         kw.min_width = kw.min_width || '1px';
         kw.remote_async = true;
         kw.remote__waitingMessage = true;
+        kw.remote__onRemote ="const frm = this.form;if(frm){this.delayedCall(()=>{frm.checkInvalidFields()},1,'buildingDynamicForm');}"
         var root = sourceNode;
         if(kw.enableEdit){
             root = sourceNode._('tabContainer');
             kw.pageName = 'view';
             kw.title = 'View';
-            kw.remote__onRemote = "this.setRelativeData('.$_source',this._value.getNode('#0').attr.bagfieldmodule)"
+            kw.remote__onRemote = kw.remote__onRemote+"this.setRelativeData('.$_source',this._value.getNode('#0').attr.bagfieldmodule);"
         }
         var result = root._('contentPane','bagFieldRemote',kw);
         if(kw.enableEdit){

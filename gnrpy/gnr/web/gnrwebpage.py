@@ -670,16 +670,17 @@ class GnrWebPage(GnrBaseWebPage):
         return self._helpers[path],{'path':path,'in_cache':False}
 
 
-    def mixinTableResource(self, table, path,**kwargs):
+    def mixinTableResource(self, table, path,safeMode=False,**kwargs):
         """TODO
-        
+
         :param table: the :ref:`database table <table>` name on which the query will be executed,
                       in the form ``packageName.tableName`` (packageName is the name of the
                       :ref:`package <packages>` to which the table belongs to)
-        :param path: the table resource path"""
+        :param path: the table resource path
+        :param safeMode: if True, missing resources will not raise exceptions. Defaults to False"""
         pkg,table = table.split('.')
-        result = self.mixinComponent('tables/%s/%s' %(table,path),**kwargs)
-        self.mixinComponent('tables/_packages/%s/%s/%s' %(pkg,table,path),safeMode=True,**kwargs)
+        result = self.mixinComponent('tables/%s/%s' %(table,path),safeMode=safeMode,**kwargs)
+        self.mixinComponent('tables/_packages/%s/%s/%s' %(pkg,table,path),safeMode=True,**kwargs) #customization always safe mode
         return result
 
         
@@ -2441,7 +2442,7 @@ class GnrWebPage(GnrBaseWebPage):
                 resource = '{resource}:BagField_{field}'.format(resource=resource,field=field)
                 handlername = 'bf_main'
             if table:
-                mixinedClass = self.mixinTableResource(table,'bagfields/{resource}'.format(resource=resource))
+                mixinedClass = self.mixinTableResource(table,'bagfields/{resource}'.format(resource=resource),safeMode=True)
             else:
                 mixinedClass = self.mixinComponent(resource)
         bagfieldmodule = getattr(mixinedClass,'__top_mixined_module',None)

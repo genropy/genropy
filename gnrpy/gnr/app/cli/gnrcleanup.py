@@ -31,7 +31,10 @@ def main():
     if options.policy:
         print("Current policy:")
         for table, conf in policy.items():
-            print(f"Table: {table} - Retention for {conf['retention_period']} days based on field '{conf['filter_column']}'")
+            mesg = f"Table: {table} - {conf['retention_period']} days on '{conf['filter_column']}'"
+            if conf['extra_where_filter']:
+                mesg += f" - extra filter: '{conf['extra_where_filter']}'"
+            print(mesg)
         sys.exit(3)
         
     summary = app.executeRetentionPolicy(dry_run=dry_run)

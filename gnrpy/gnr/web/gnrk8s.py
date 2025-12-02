@@ -11,7 +11,7 @@ from gnr.web import logger
 
 class GnrK8SGenerator(object):
     def __init__(self, instance_name, image,
-                 fqdn,
+                 fqdns,
                  deployment_name=None, split=False,
                  env_file=False, env_secrets=[],
                  container_port=8000,
@@ -23,7 +23,7 @@ class GnrK8SGenerator(object):
         if ":" not in self.image:
             self.image = f'{self.image}:latest'
         self.secret_name = secret_name
-        self.fqdn = fqdn
+        self.fqdns = fqdns
         self.container_port = container_port
         self.stack_name = deployment_name or instance_name
         self.application_name = f'{self.stack_name}-application'
@@ -59,7 +59,7 @@ class GnrK8SGenerator(object):
         self.env.append(dict(name='GNR_DAEMON_PORT', value=str(self.GNR_DAEMON_PORT)))
         # have gunicorn listen on all interfaces
         self.env.append(dict(name='GNR_GUNICORN_BIND', value='0.0.0.0'))
-        self.env.append(dict(name="GNR_EXTERNALHOST", value=f'https://{self.fqdn}'))
+        self.env.append(dict(name="GNR_EXTERNALHOST", value=f'https://{self.fqdns[0]}'))
 
     def get_pv(self):
         pv = {
@@ -376,7 +376,7 @@ class GnrK8SGenerator(object):
             "spec": {
                 "rules": [
                     {
-                        "host": self.fqdn,
+                        "host": fqdn,
                         "http": {
                             "paths": [
                                 {
@@ -394,12 +394,11 @@ class GnrK8SGenerator(object):
                             ]
                         }
                     }
+                    for fqdn in self.fqdns
                 ],
                 "tls": [
                     {
-                        "hosts": [
-                            self.fqdn
-                        ]
+                        "hosts": self.fqdns
                     },
                 ],
             }
