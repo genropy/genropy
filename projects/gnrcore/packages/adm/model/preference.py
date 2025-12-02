@@ -90,7 +90,7 @@ class Table(object):
 
     def setPreference(self, path=None, value=None, pkg='',_attributes=None,**kwargs):
         with self.db.tempEnv(connectionName='system',storename=self.db.rootstore):
-            with self.recordToUpdate(MAIN_PREFERENCE) as record:
+            with self.recordToUpdate(code=MAIN_PREFERENCE, insertMissing=True) as record:
                 l = ['data',pkg]
                 if path:
                     l.append(path)
