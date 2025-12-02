@@ -186,9 +186,10 @@ class GnrDboPackage(object):
                             tblobj.query().count()
                             )
                 tblobj.insertMany(recordsToInsert)
-        db.commit()
 
-        self.db.table('adm.preference').initPkgPref(self.name,s['preferences'])
+        if s['preferences']:
+            self.db.table('adm.preference').initPkgPref(self.name,s['preferences'])
+            
         db.commit()
         
         os.remove('%s.pik' %bagpath)
