@@ -1,4 +1,47 @@
 #!/usr/bin/env python3
+"""
+sync_authtags.py - Manual synchronization of auth tags from code to database
+
+WHY THIS SCRIPT EXISTS
+======================
+
+The createSysRecords method (called during db setup/upgrade) only INSERTS new
+auth tags - it never updates existing ones. This is a deliberate design choice:
+
+1. PRODUCTION SAFETY: A running production instance may have customized tag
+   descriptions, notes, or other attributes directly in the database to match
+   specific customer requirements.
+
+2. NO SILENT OVERWRITES: Framework upgrades should never silently overwrite
+   database customizations made by administrators.
+
+3. EXPLICIT CONTROL: When you want to realign database tags with new code
+   definitions (e.g., after updating packageTags in a package), you must
+   explicitly run this script.
+
+WHEN TO USE THIS SCRIPT
+=======================
+
+- After modifying packageTags() definitions in package main.py files
+- After adding new auth tags that need to update existing records
+- When you want to reset tag descriptions/attributes to code defaults
+- During controlled migration/upgrade procedures
+
+USAGE
+=====
+
+    # Preview changes without applying them (recommended first step)
+    gnr adm sync_authtags instance_name --dry-run
+
+    # Apply changes to database
+    gnr adm sync_authtags instance_name
+
+The script will:
+- Update existing records (matched by __syscode) with current code definitions
+- Create new records for newly defined tags
+- Use for_update locking for safe concurrent access
+- Show a summary of created/updated records
+"""
 
 from gnr.core.cli import GnrCliArgParse
 from gnr.app.gnrapp import AuthTagStruct
