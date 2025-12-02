@@ -121,7 +121,7 @@ class Form(BaseComponent):
             record['notif_linked_query_desc'] = '!!Add linked query'
             
     def th_options(self):
-        return dict(dialog_height='400px', dialog_width='600px')
+        return dict(dialog_height='400px', dialog_width='600px', duplicate=True)
 
 
 class FormEmbed(Form):
