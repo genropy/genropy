@@ -11,12 +11,12 @@ multi-FQDNs deployments
 * MDEditor improvements: Drag & Drop support, custom toolbar buttons,
   color syntax plugin, hidden preview mode, and bag mode support to
   store mardown text into nested Bag structures.
-
+* TinyMCE is now the default editor (#219)
+  
 Deprecations
 ------------
 
 * the 'gnr app update' cli command has been marked as deprecated
-  
 
 Fixes
 -----
