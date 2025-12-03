@@ -1974,6 +1974,14 @@ class RelationTreeResolver(BagResolver):
 
     def load(self):
         """TODO"""
+        if self.dbroot.package(self.pkg_name) is None:
+            # Package not loaded - skip relation to avoid errors
+            # This can happen when a table has relations to packages not enabled
+            # Warning: this may indicate a package dependency violation
+            logger.warning("Relation to unloaded package '%s' skipped (table: %s)",
+                           self.pkg_name, self.tbl_name
+                           )
+            return None
         self.main_table_obj = self.dbroot.model.table(self.main_tbl)
         if not self.__fields:
             self._lock.acquire()
