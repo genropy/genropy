@@ -22,7 +22,7 @@ class Table(object):
         tbl.column('last_uid',name_long='!!Last UID')
         tbl.column('smtp_host',name_long='!!SMTP host')
         tbl.column('smtp_from_address',name_long='!!From address')
-        tbl.column('smtp_reply_to',name_long='!!Reply to')
+        tbl.column('smtp_reply_to',name_long='!!Reply to', validate_email=True)
         tbl.column('smtp_username',name_long='!!Smtp username')
         tbl.column('smtp_password',name_long='!!Smtp password')
         tbl.column('smtp_port',name_long='!!Smtp port',dtype='L')
