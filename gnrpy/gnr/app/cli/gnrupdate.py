@@ -3,7 +3,8 @@
 import re
 import os
 from subprocess import Popen
-
+import warnings
+    
 from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrconfig import gnrConfigPath, getGnrConfig,IniConfStruct
 from gnr.app.gnrapp import GnrApp
@@ -223,7 +224,16 @@ class UwsgiUpdater(BaseUpdater):
             print("Vassal %s restarted" % name)
 
 description = "update something (FIXME)"
+gnr_cli_hide = True
 def main():
+    warnings.simplefilter("always", FutureWarning)
+    warnings.warn(
+        "This CLI tool is deprecated and it will be removed in future releases",
+        FutureWarning,
+        stacklevel=2,
+    )
+    warnings.simplefilter("default", FutureWarning)
+    
     parser = GnrCliArgParse(description=description)
     parser.add_argument('--stop',
                         dest='stop',

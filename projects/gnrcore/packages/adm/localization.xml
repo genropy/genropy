@@ -91,8 +91,8 @@
 				<en_userid fr="Userid" de="Benutzer-ID" en="Userid" it="Id Utente" base="Userid"/>
 				<en_username fr="Nom d'utilisateur" de="Benutzername" en="Username" it="Nome utente" base="Username"/>
 				<en_ip_number fr="Numéro IP" de="IP-Nummer" en="Ip number" it="Numero IP" base="Ip number"/>
-				<en_start_ts fr="Lancer ts" de="Starten ts" en="Start ts" it="TS inizio" base="Start TS"/>
-				<en_end_ts base="End TS" it="Fine ts" en="End ts"/>
+				<en_start_ts fr="Lancer ts" de="Starten ts" en="Start ts" it="Data ora inizio" base="Start TS"/>
+				<en_end_ts base="End TS" it="Data ora fine" en="End ts"/>
 				<en_end_reason fr="Fin Raison" de="End Reason" en="End Reason" it="End Ragione" base="End reason"/>
 				<en_user_agent fr="L'agent utilisateur" de="User-Agent" en="User agent" it="User agent" base="User agent"/>
 				<en_user_fullname fr="fullname utilisateur" de="Benutzerfullname" en="User fullname" it="Fullname utente" base="User fullname"/>
@@ -196,10 +196,12 @@
 				<en_notifications fr="Notifications" de="Benachrichtigungen" en="Notifications" it="Notifiche" base="Notifications"/>
 				<en_title base="Title" de="Titel" en="Title" fr="Titre" it="Titolo"/>
 				<en_template fr="Modèle" de="Schablone" en="Template" it="Template" base="Template" es="plantilla"/>
-				<en_confirm_label fr="Confirmez étiquette" de="Label bestätigen" en="Confirm label" it="Confermare l'etichetta" base="Confirm label"/>
+				<en_confirm_label fr="Confirmez étiquette" de="Label bestätigen" en="Confirm label" it="Etichetta di conferma" base="Confirm label"/>
 				<en_tag_rule fr="règle de Tag" de="Tag-Regel" en="Tag rule" it="Regola Tag" base="Tag rule"/>
+				<en_group_code base="Group code"/>
 				<en_for_all_users fr="Pour tous les utilisateurs" de="Für alle Benutzer" en="For all users" it="Per tutti gli utenti" base="For all users"/>
 				<en_letterhead fr="Tête" de="Briefkopf" en="Letterhead" it="Carta intestata" base="Letterhead" zh="信头"/>
+				<en_linked_query base="Linked query" it="Query collegata" en="Linked query" zh="关联查询"/>
 		</notification>
 		<pkginfo path="model/pkginfo.py" ext="py">
 			<en_package_info base="Package info" en="Package info" it="Informazioni sul pacchetto"/>
@@ -230,8 +232,8 @@
 				<en_served_pages fr="Pages desservis" de="Serviert Seiten" en="Served pages" it="Pagine servite" base="Served pages"/>
 				<en_page_id fr="Id page" de="Seiten-ID" en="Page id" it="Pagina id" base="Page id"/>
 				<en_page_name fr="Nom de la page" de="Seitenname" en="Page Name" it="Nome pagina" base="Page name"/>
-				<en_start_ts fr="Lancer ts" de="Starten ts" en="Start ts" it="TS inizio" base="Start ts"/>
-				<en_end_ts base="End ts" it="Fine ts" en="End ts"/>
+				<en_start_ts fr="Lancer ts" de="Starten ts" en="Start ts" it="Data ora inizio" base="Start ts"/>
+				<en_end_ts base="End ts" it="Data ora fine" en="End ts"/>
 				<en_end_reason fr="Fin Raison" de="End Reason" en="End Reason" it="End Ragione" base="End Reason"/>
 		</served_page>
 		<shortcut path="model/shortcut.py" ext="py">
@@ -416,7 +418,7 @@
 				<en_backups fr="Sauvegardes" de="Backups" en="Backups" it="Backup" base="Backups"/>
 				<en_developers base="Developers" en="Developers" it="Sviluppatori"/>
 				<en_helpdesk base="Helpdesk" en="Helpdesk" it="Helpdesk"/>
-				<en_privacy base="Privacy" en=""/>
+				<en_privacy base="Privacy" en="Privacy" it="Privacy"/>
 				<en_testing base="Testing" en="Testing" it="Test"/>
 				<en_deny_message base="Deny message" en="Deny message" it="Rifiuta messaggio"/>
 				<en_url base="Url" en="Url" it="url"/>
@@ -433,7 +435,7 @@
 				<en_screenlock_timeout_minutes_ fr="ScreenLock timeout (minutes)" de="Screenlock Timeout (Minuten)" en="Screenlock timeout (minutes)" it="Screenlock timeout (minuti)" base="Screenlock timeout (minutes)"/>
 				<en_folder_path base="Folder path" en="Folder path" it="Percorso della cartella"/>
 				<en_max_copies base="Max copies" it="Max copie" en="Max copies"/>
-				<en_account base="Account" en="Account" it="Account"/>
+				<en_account base="Account" en="Account" it="Conto"/>
 				<en_mail_settings base="Mail Settings" it="Impostazioni e-mail" en="Mail Settings"/>
 				<en_smtp_host base="SMTP Host" it="Host SMTP" en="SMTP host"/>
 				<en_from_address base="From address" it="Mittente" en="From address" es="Desde la dirección"/>
@@ -472,7 +474,7 @@
 			</prefhandler>
 		</prefhandler>
 		<privacy path="resources/privacy.py" ext="py">
-			<en_privacy base="Privacy" en=""/>
+			<en_privacy base="Privacy" en="Privacy" it="Privacy"/>
 				<en_consents base="Consents" en=""/>
 				<en_code base="Code" en="Code" it="Codice"/>
 				<en_description base="Description" en="Description" it="Descrizione"/>
@@ -500,7 +502,7 @@
 			</backup>
 				<connection>
 				<th_connection path="resources/tables/connection/th_connection.py" ext="py">
-					<en_open base="Open" en="Open" it="Aperta"/>
+					<en_open base="Open" en="Open" it="Aprire"/>
 								<en_closed base="Closed" it="Chiuso" en="Closed"/>
 								<en_all fr="Tous" de="Alle" en="All" it="Tutto" base="All"/>
 				</th_connection>
@@ -547,7 +549,7 @@
 								<en_width base="Width" de="Breite" en="Width" fr="Largeur" it="Larghezza"/>
 								<en_top fr="Haut" de="Top" en="Top" it="Top" base="Top"/>
 								<en_bottom fr="Bas" de="Boden" en="Bottom" it="Fondo" base="Bottom"/>
-								<en_left fr="Gauche" de="Links" en="Left" it="Sinistra" base="Left"/>
+								<en_left fr="Gauche" de="Links" en="Left" it="Uscita" base="Left"/>
 								<en_right fr="Droite" de="Recht" en="Right" it="Destra" base="Right"/>
 								<en_s_height _tag="en__s_height" fr="%s hauteur" en="[48] height" de="%s Höhe" it="%s Altezza" base="%s height"/>
 								<en_s _tag="en__s" fr="% S" en="[29]" de="% S" it="% S" base="%s"/>
@@ -565,13 +567,17 @@
 			</install_checklist>
 				<notification>
 				<th_notification path="resources/tables/notification/th_notification.py" ext="py">
-					<en_template fr="Modèle" de="Schablone" en="Template" it="Template" base="Template" es="plantilla"/>
+					<en_restriction_query base="Restriction query" en="Restriction query" it="Interrogazione di restrizione"/>
+								<en_template fr="Modèle" de="Schablone" en="Template" it="Template" base="Template" es="plantilla"/>
 								<en_users fr="Utilisateurs" de="Benutzer" en="Users" it="Utenti" base="Users"/>
+								<en_linked_query base="Linked query" it="Query collegata" en="Linked query" zh="关联查询"/>
+								<en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm" zh="确认"/>
+								<en_add_linked_query base="Add linked query"/>
 				</th_notification>
 			</notification>
 				<served_page>
 				<th_served_page path="resources/tables/served_page/th_served_page.py" ext="py">
-					<en_open base="Open" en="Open" it="Aperta"/>
+					<en_open base="Open" en="Open" it="Aprire"/>
 								<en_closed base="Closed" it="Chiuso" en="Closed"/>
 								<en_all fr="Tous" de="Alle" en="All" it="Tutto" base="All"/>
 				</th_served_page>
@@ -627,6 +633,7 @@
 				<user_notification>
 				<th_user_notification path="resources/tables/user_notification/th_user_notification.py" ext="py">
 					<en_username fr="Nom d'utilisateur" de="Benutzername" en="Username" it="Nome utente" base="Username"/>
+								<en_conf_ base="Conf." it="Conf."/>
 				</th_user_notification>
 			</user_notification>
 				<user_setting>
@@ -645,7 +652,7 @@
 								<general>
 						<email path="resources/tables/user_setting/formlet/general/email.py" ext="py">
 							<en_email fr="Email" de="E-Mail-" en="Email" it="Email" base="Email"/>
-												<en_account base="Account" en="Account" it="Account"/>
+												<en_account base="Account" en="Account" it="Conto"/>
 												<en_mail_settings base="Mail Settings" it="Impostazioni e-mail" en="Mail Settings"/>
 												<en_smtp_host base="SMTP Host" it="Host SMTP" en="SMTP host"/>
 												<en_from_address base="From address" it="Mittente" en="From address" es="Desde la dirección"/>
@@ -708,10 +715,10 @@
 								<en_save_resource base="Save resource" en=""/>
 								<en_code base="Code" en="Code" it="Codice"/>
 								<en_table fr="Table" de="Tabelle" en="Table" it="Tabella" base="Table"/>
-								<en_extended_parameters base="Extended parameters" en=""/>
-								<en_get_token base="Get token" en=""/>
-								<en_boolean base="Boolean" it="booleano" en=""/>
-								<en_text base="Text" it="Testo" en=""/>
+								<en_extended_parameters base="Extended parameters" en="" it="Parametri estesi"/>
+								<en_get_token base="Get token" it="Ottieni un token"/>
+								<en_boolean base="Boolean" it="booleano"/>
+								<en_text base="Text" it="Testo"/>
 								<en_numeric base="Numeric" en=""/>
 								<en_integer base="Integer" en=""/>
 								<en_data_type fr="Type de données" de="Datentyp" en="Data type" it="Tipo di dati" base="Data type"/>

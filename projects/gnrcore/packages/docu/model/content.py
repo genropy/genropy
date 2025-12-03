@@ -21,5 +21,3 @@ class Table(object):
     def trigger_onUpdated(self, record, old_record=None):
         if self.fieldsChanged('text', record, old_record):
             self.db.table('docu.content_history').makeNewVersionFromContent(record)
-
-    

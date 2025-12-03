@@ -831,6 +831,29 @@ class SqlDbAdapter(object):
         """
         return f"string_agg({fieldpath},'{separator}')"
 
+    def mask_field_sql(self, field, mode='2-4', placeholder='*'):
+        """
+        Returns a SQL expression for masking a field value for secure display.
+
+        This base implementation emits a warning and returns the field unchanged.
+        Subclasses should override this method with database-specific implementations.
+
+        Args:
+            field: The field expression to mask (with $ prefix for gnr substitution)
+            mode: Masking mode - 'email', 'creditcard', 'phone', or 'N-M' format
+            placeholder: Character to use for masking (default: '*')
+
+        Returns:
+            str: SQL expression for the masked field
+        """
+        warnings.warn(
+            f"mask_field_sql is not implemented for {self.__class__.__name__}. "
+            "The field will be returned unmasked. "
+            "Use PostgreSQL or SQLite adapter for masking support.",
+            UserWarning
+        )
+        return field
+
     def addForeignKeySql(self, c_name,
                          o_pkg, o_tbl, o_fld,
                          m_pkg, m_tbl, m_fld,
