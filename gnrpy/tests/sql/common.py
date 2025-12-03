@@ -1,10 +1,43 @@
 import sys
 import os
 import os.path
+import tempfile
 import pytest
 from testing.postgresql import Postgresql
 
 from gnr.core.gnrbag import Bag
+
+
+class MockCache:
+    """Mock cache for testing GnrSqlDb and GnrSqlAppDb"""
+    def __init__(self):
+        self._cache = {}
+
+    def getItem(self, key, defaultFactory=None):
+        if key not in self._cache and defaultFactory:
+            self._cache[key] = defaultFactory()
+        return self._cache.get(key)
+
+    def updatedItem(self, key):
+        if key in self._cache:
+            del self._cache[key]
+
+
+class MockApplication:
+    """Mock application for testing GnrSqlDb and GnrSqlAppDb"""
+    debug = True
+    config = Bag({
+        'db?reuse_relation_tree': False,
+        'db?auto_static_enabled': False,
+        'dbstores': None,
+        'packages': Bag()
+    })
+    localizer = False
+    instanceFolder = None
+    cache = MockCache()
+
+    def checkResourcePermission(self, deletable, tags, test=True):
+        return test
 
 excludewin32 = pytest.mark.skipif(sys.platform == "win32",
                                   reason="testing.postgresl doesn't run on Windows")

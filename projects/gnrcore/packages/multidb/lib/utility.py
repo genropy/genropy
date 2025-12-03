@@ -3,13 +3,14 @@
 #  Created by Francesco Porcari
 #
 from gnr.core.gnrbag import Bag
+from gnr.app import pkglog as logger
 
 def getSyncTables(db,filterstring=None,multidbMode=None):
     filterstring = filterstring or ''
     result = Bag()
     for pkgobj in list(db.packages.values()):
         for tableobj in list(pkgobj.tables.values()):
-            print('tableobj',tableobj.fullname)
+            logger.debug('tableobj %s', tableobj.fullname)
             tblattr = tableobj.attributes
             tablename = tableobj.fullname
             if tblattr.get('multidb') and filterstring in tablename:
