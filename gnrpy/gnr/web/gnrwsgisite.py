@@ -34,7 +34,7 @@ from gnr.app.gnrdeploy import PathResolver
 from gnr.app.gnrapp import GnrPackage
 from gnr.web import logger
 from gnr.web.gnrwebapp import GnrWsgiWebApp
-from gnr.web.gnrwebpage import GnrUnsupportedBrowserException, GnrMaintenanceException
+from gnr.web.gnrwebpage import GnrUnsupportedBrowserException
 from gnr.web.gnrwebreqresp import GnrWebRequest
 from gnr.web.gnrwsgisite_proxy.gnrresourceloader import ResourceLoader
 from gnr.web.gnrwsgisite_proxy.gnrstatichandler import StaticHandlerManager
@@ -158,7 +158,6 @@ class GnrWsgiSite(object):
         self._currentAuxInstanceNames = {}
         self._currentPages = {}
         self._currentRequests = {}
-        self._currentMaintenances = {}
         abs_script_path = os.path.abspath(script_path)
         self.remote_db = ''
         self._register = None
@@ -814,59 +813,22 @@ class GnrWsgiSite(object):
                 page.mixinComponent(path)
         return page
 
-    @property
-    def isInMaintenance(self):
-        request = self.currentRequest
-        request_kwargs = self.parse_kwargs(self.parse_request_params(request))
-        path_list = self.get_path_list(request.path)
-        first_segment = path_list[0] if path_list else ''
-        if request_kwargs.get('forcedlogin') or (first_segment.startswith('_') and first_segment!='_ping'):
-            return False
-        elif 'page_id' in request_kwargs:
-            self.currentMaintenance = 'maintenance' if self.register.pageInMaintenance(page_id=request_kwargs['page_id'],register_name='page') else None
-            if not self.currentMaintenance or (first_segment == '_ping'):
-                return False
-            return True
-        else:
-            r = GnrWebRequest(request)
-            c = r.get_cookie(self.site_name,'marshal', secret=self.config['secret'])
-            user = c.get('user') if c else None
-            return self.register.isInMaintenance(user)
-
     def dispatcher(self, environ, start_response):
         self.currentRequest = Request(environ)
         self.currentRequest.max_form_memory_size = 100_000_000
-        if self.isInMaintenance:
-            return self.maintenanceDispatcher(environ, start_response)
-        else:
-            try:
-                return self._dispatcher(environ, start_response)
-            except self.register.errors.ConnectionClosedError:
-                self.currentMaintenance = 'register_error'
-                self._register = None
-                return self.maintenanceDispatcher(environ, start_response)
-            except Exception as e:
-                page = self.currentPage
-                if self.debug and ((page and page.isDeveloper()) or self.force_debug):
-                    raise
-                self.writeException(exception=e,traceback=tracebackBag())
-                exc = HTTPInternalServerError(
-                    'Internal server error',
-                    comment='SCRIPT_NAME=%r; PATH_INFO=%r;'
-                    % (environ.get('SCRIPT_NAME'), environ.get('PATH_INFO')))
-                return exc(environ, start_response)
 
-    def maintenanceDispatcher(self,environ, start_response):
-        request = self.currentRequest
-        response = Response()
-        response.mimetype = 'text/html'
-        request_kwargs = self.parse_kwargs(self.parse_request_params(request))
-        path_list = self.get_path_list(request.path)
-        if (path_list and path_list[0].startswith('_')) or ('method' in request_kwargs or 'rpc' in request_kwargs or '_plugin' in request_kwargs):
-            response = self.setResultInResponse('maintenance', response, info_GnrSiteMaintenance=self.currentMaintenance)
-            return response(environ, start_response)
-        else:
-            return self.serve_htmlPage('html_pages/maintenance.html', environ, start_response)
+        try:
+            return self._dispatcher(environ, start_response)
+        except Exception as e:
+            page = self.currentPage
+            if self.debug and ((page and page.isDeveloper()) or self.force_debug):
+                raise
+            self.writeException(exception=e,traceback=tracebackBag())
+            exc = HTTPInternalServerError(
+                'Internal server error',
+                comment='SCRIPT_NAME=%r; PATH_INFO=%r;'
+                % (environ.get('SCRIPT_NAME'), environ.get('PATH_INFO')))
+            return exc(environ, start_response)
 
     @property
     def external_host(self):
@@ -961,7 +923,7 @@ class GnrWsgiSite(object):
                 result = self.serve_ping(response, environ, start_response, **request_kwargs)
                 if not isinstance(result, (bytes,str)):
                     return result
-                response = self.setResultInResponse(result, response, info_GnrTime=time() - t,info_GnrSiteMaintenance=self.currentMaintenance)
+                response = self.setResultInResponse(result, response, info_GnrTime=time() - t)
                 self.cleanup()
             except Exception as exc:
                 raise
@@ -1051,18 +1013,20 @@ class GnrWsgiSite(object):
                     return self.statics.fileserve(result, environ, start_response,nocache=True,download_name=page.download_name)
             except GnrUnsupportedBrowserException:
                 return self.serve_htmlPage('html_pages/unsupported.html', environ, start_response)
-            except GnrMaintenanceException:
-                return self.serve_htmlPage('html_pages/maintenance.html', environ, start_response)
             except HTTPNotFound:
                 return self.serve_htmlPage('html_pages/missing_result.html', environ, start_response)
             finally:
                 self.onServedPage(page)
                 self.cleanup()
-            response = self.setResultInResponse(result, response, info_GnrTime=time() - t,info_GnrSqlTime=page.sql_time,info_GnrSqlCount=page.sql_count,
-                                                                info_GnrXMLTime=getattr(page,'xml_deltatime',None),info_GnrXMLSize=getattr(page,'xml_size',None),
-                                                                info_GnrSiteMaintenance=self.currentMaintenance,
-                                                                forced_headers=page.getForcedHeaders(),
-                                                                mimetype=getattr(page,'forced_mimetype',None))
+                
+            response = self.setResultInResponse(
+                result, response, info_GnrTime=time() - t,
+                info_GnrSqlTime=page.sql_time, info_GnrSqlCount=page.sql_count,
+                info_GnrXMLTime=getattr(page,'xml_deltatime',None),
+                info_GnrXMLSize=getattr(page,'xml_size',None),
+                forced_headers=page.getForcedHeaders(),
+                mimetype=getattr(page,'forced_mimetype',None)
+            )
 
             return response(environ, start_response)
 
@@ -1466,17 +1430,6 @@ class GnrWsgiSite(object):
         self._currentAuxInstanceNames[_thread.get_ident()] = auxInstance
 
     currentAuxInstanceName = property(_get_currentAuxInstanceName, _set_currentAuxInstanceName)
-
-
-    def _get_currentMaintenance(self):
-        """property currentPage it returns the page currently used in this thread"""
-        return self._currentMaintenances.get(_thread.get_ident())
-
-    def _set_currentMaintenance(self, page):
-        """set currentPage for this thread"""
-        self._currentMaintenances[_thread.get_ident()] = page
-
-    currentMaintenance = property(_get_currentMaintenance, _set_currentMaintenance)
 
     def _get_currentRequest(self):
         """property currentRequest it returns the request currently used in this thread"""
