@@ -248,6 +248,7 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
         :param filename: db name
         :param excluded_schemas: excluded schemas
         :param filename: dump options"""
+
         available_parameters = dict(
             data_only='-a', clean='-c', create='-C', no_owner='-O',
             schema_only='-s', no_privileges='-x', if_exists='--if-exists',
@@ -255,11 +256,11 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
             compress = '--compress='
         )
         dbname = dbname or self.dbroot.dbname
-        pars = {'dbname':dbname,
-                'user':self.dbroot.user,
-                'password':self.dbroot.password,
-                'host':self.dbroot.host or 'localhost',
-                'port':self.dbroot.port or '5432'}
+        db_params = {'dbname':dbname,
+                     'user':self.dbroot.user,
+                     'password':self.dbroot.password,
+                     'host':self.dbroot.host or 'localhost',
+                     'port':self.dbroot.port or '5432'}
         excluded_schemas = excluded_schemas or []
         options = options or Bag()
         dump_options = []
@@ -282,11 +283,17 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
                 dump_options.append(parameter_value)
         if not filename.endswith(file_extension):
             filename = '%s%s' % (filename, file_extension)
-        #args = ['pg_dump', dbname, '-U', self.dbroot.user, '-f', filename]+extras
-        args = ['pg_dump',
-            '--dbname=postgresql://%(user)s:%(password)s@%(host)s:%(port)s/%(dbname)s' %pars, 
-            '-f', filename]+dump_options
-        callresult = subprocess.call(args)
+        cmd = ['pg_dump',
+                '--dbname=postgresql://%(user)s:%(password)s@%(host)s:%(port)s/%(dbname)s' % db_params,
+                '-f', filename] + dump_options
+        proc = subprocess.run(cmd,
+                              stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE,
+                              text=True)
+        if proc.returncode != 0:
+            raise RuntimeError(
+                f"pg_dump failed with exit code {proc.returncode}:\n{proc.stderr}"
+                )
         return filename
 
     def _managerConnection(self):
