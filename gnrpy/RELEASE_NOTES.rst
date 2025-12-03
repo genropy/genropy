@@ -24,6 +24,7 @@ Deprecations
 Fixes
 -----
 
+* Improved checks on genropy's packages relations and dependencies (#178, #279)
 * remoteRowController handling for new rows fixes
 * Mobile deployment checks retrieve the correct URL from configuration
 * GLBL data is loaded automatically via upgrade script
