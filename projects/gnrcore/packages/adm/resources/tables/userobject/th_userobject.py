@@ -135,6 +135,7 @@ class Form(BaseComponent):
     def objectResource_template(self,bc, **kwargs):
         bc.dataFormula('#FORM.is_mail', 'is_mail?"*":null', is_mail='^#FORM.record.is_mail')
         bc.dataFormula('#FORM.is_print', 'is_print?true:null', is_print='^#FORM.record.is_print')
+        bc.dataFormula('#FORM.paletteCode', "pkey?'template_editor_'+pkey:null", pkey='^#FORM.pkey')
         bc.roundedGroup(title='!![en]Template management', overflow_y='auto').templateChunk(
                                         template='^#FORM.record.data',
                                         editable=True,
@@ -144,6 +145,7 @@ class Form(BaseComponent):
                                         selfsubscribe_onChunkEdit='this.form.save();',
                                         emailChunk='^#FORM.is_mail',
                                         showLetterhead='^#FORM.is_print',
+                                        paletteCode='^#FORM.paletteCode',
                                         padding='5px', overflow='auto',
                                         )
 
