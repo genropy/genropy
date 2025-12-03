@@ -338,6 +338,88 @@ class SqlDbAdapter(SqlDbBaseAdapter):
     def string_agg(self,fieldpath,separator):
         return f"group_concat({fieldpath},'{separator}')"
 
+    def mask_field_sql(self, field, mode='2-4', placeholder='*'):
+        """
+        Returns a SQLite SQL expression for masking a field value.
+
+        Args:
+            field: The field expression to mask (with $ prefix for gnr substitution)
+            mode: Masking mode - 'email', 'creditcard', 'phone', or 'N-M' format
+            placeholder: Character to use for masking (default: '*')
+
+        Returns:
+            str: SQLite SQL expression for the masked field
+        """
+        # Helper to generate repeat pattern in SQLite (which lacks repeat())
+        # We use substr with replace: replace(substr('**********...', 1, n), '*', placeholder)
+        # But simpler: we generate placeholder characters inline using printf or just hardcoded pattern
+        # SQLite approach: use printf('%.*c', length, char) - but this doesn't work in SQLite
+        # Alternative: use replace(substr('************************************', 1, n), '*', placeholder)
+        # We'll use a long string of asterisks and substr it
+        max_mask_chars = 100  # Maximum mask length supported
+        mask_base = '*' * max_mask_chars
+
+        if mode == 'email':
+            # Mask local part of email, keep domain visible (default 2 chars visible at start)
+            # SQLite uses instr() instead of position(), substr() instead of substring()
+            # SQLite doesn't have split_part, so we use substr with instr
+            sql_formula = f"""
+                CASE
+                    WHEN instr({field}, '@') > 0 THEN
+                        substr({field}, 1, 2) ||
+                        replace(substr('{mask_base}', 1, max(instr({field}, '@') - 1 - 2, 0)), '*', '{placeholder}') ||
+                        substr({field}, instr({field}, '@'))
+                    ELSE
+                        {field}
+                END
+            """.strip()
+
+        elif mode == 'creditcard':
+            # Show only last 4 digits
+            sql_formula = f"""
+                CASE
+                    WHEN length({field}) > 4 THEN
+                        replace(substr('{mask_base}', 1, length({field}) - 4), '*', '{placeholder}') ||
+                        substr({field}, -4)
+                    ELSE
+                        {field}
+                END
+            """.strip()
+
+        elif mode == 'phone':
+            # Keep country code (3 chars) and last 3 digits visible
+            sql_formula = f"""
+                CASE
+                    WHEN length({field}) > 6 THEN
+                        substr({field}, 1, 3) ||
+                        replace(substr('{mask_base}', 1, length({field}) - 6), '*', '{placeholder}') ||
+                        substr({field}, -3)
+                    ELSE
+                        {field}
+                END
+            """.strip()
+
+        else:
+            # Generic masking with N-M format
+            try:
+                visible_start, visible_end = map(int, mode.split('-'))
+            except (ValueError, AttributeError):
+                # Fallback to default if mode is invalid
+                visible_start, visible_end = 2, 4
+
+            sql_formula = f"""
+                CASE
+                    WHEN length({field}) > {visible_start + visible_end} THEN
+                        substr({field}, 1, {visible_start}) ||
+                        replace(substr('{mask_base}', 1, length({field}) - {visible_start} - {visible_end}), '*', '{placeholder}') ||
+                        substr({field}, -{visible_end})
+                    ELSE
+                        {field}
+                END
+            """.strip()
+
+        return sql_formula
+
 
 class GnrSqliteCursor(pysqlite.Cursor):
     def _get_index(self):

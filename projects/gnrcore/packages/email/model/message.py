@@ -236,7 +236,7 @@ class Table(object):
         if headers_kwargs:
             extra_headers.update(headers_kwargs)
         account_id = account_id or self.db.application.getPreference('mail', pkg='adm')['email_account_id']
-        # Fix weak_attachments handling for empty arrays
+        
         if not weak_attachments:
             weak_attachments = None
         elif isinstance(weak_attachments, (str, bytes)):
@@ -247,6 +247,7 @@ class Table(object):
             weak_attachments = ','.join(weak_paths) if weak_paths else None
         else:
             weak_attachments = str(weak_attachments)
+
         use_dbstores = self.use_dbstores()
         dbstore = self.db.currentEnv.get('storename')
         envkw = {}
