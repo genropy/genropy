@@ -2300,8 +2300,13 @@ dojo.declare("gnr.GridChangeManager", null, {
             if(!rowEditor){
                 rowEditor = gridEditor.newRowEditor(kw.node);
                 let rowSelectedQueries = gridEditor.rowSelectedQueries(rowEditor.data);
-                if((gridEditor.remoteRowController || rowSelectedQueries.len(rowEditor.data)>0) && rowEditor.data.getItem(this.grid.masterEditColumn())!==null ){
-                    gridEditor.callRemoteController(kw.node,null,null,true);
+
+                const hasRemoteController = gridEditor.remoteRowController || rowSelectedQueries.len(rowEditor.data) > 0;
+                const hasMasterEditValue = rowEditor.data.getItem(this.grid.masterEditColumn()) !== null;
+                const hasDefaultController = gridEditor.remoteRowController_default;
+
+                if (hasRemoteController && (hasMasterEditValue || hasDefaultController)) {
+                    gridEditor.callRemoteController(kw.node, null, null, true);
                 }
             }
         }

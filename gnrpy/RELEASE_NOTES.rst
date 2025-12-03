@@ -5,7 +5,7 @@ Enhancements
 ------------
 
 * Docker images and Kubernetes deployer now support labels allowing
-multi-FQDNs deployments
+  multi-FQDNs deployments
 * Retetion policies have been upgraded to allow tables to provide more
   complex cutoff queries.
 * MDEditor improvements: Drag & Drop support, custom toolbar buttons,
