@@ -35,7 +35,6 @@ from gnr.app.gnrapp import GnrPackage
 from gnr.web import logger
 from gnr.web.gnrwebapp import GnrWsgiWebApp
 from gnr.web.gnrwebpage import GnrUnsupportedBrowserException
-from gnr.web.gnrwebreqresp import GnrWebRequest
 from gnr.web.gnrwsgisite_proxy.gnrresourceloader import ResourceLoader
 from gnr.web.gnrwsgisite_proxy.gnrstatichandler import StaticHandlerManager
 from gnr.web.gnrwsgisite_proxy.gnrpwahandler import PWAHandler

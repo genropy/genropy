@@ -7,7 +7,9 @@
 #  Copyright (c) 2007 Softwell. All rights reserved.
 #
 
+from datetime import datetime,timedelta
 import Pyro4
+
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
 
@@ -16,8 +18,7 @@ if hasattr(Pyro4.config, 'METADATA'):
 if hasattr(Pyro4.config, 'REQUIRE_EXPOSE'):
     Pyro4.config.REQUIRE_EXPOSE = False
 
-from gnr.core.gnrstring import fromJson
-from datetime import datetime,timedelta
+
 
 
 
