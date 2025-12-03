@@ -494,16 +494,16 @@ class DocumentationViewer(BaseComponent):
 class ContentsComponent(BaseComponent):
     js_requires='docu_components'
     
-    def contentEditor(self, pane, mode='text', value=None, htmlpath=None, initialEditType='wysiwyg', **kwargs):
+    def contentEditor(self, pane, mode='text', value=None, htmlpath=None, textpath=None, initialEditType='wysiwyg', **kwargs):
         "Supported modes: html,rst"
         if mode=='rst':
             pane.MDEditor(value=value, htmlpath=htmlpath, nodeId='contentMd', height='100%', previewStyle='vertical',
                         initialEditType=initialEditType, **kwargs)
         elif mode=='html':
-            pane.ckeditor(value=value, nodeId='contentHtml', height='100%', **kwargs)
+            pane.tinyMce(value=value, textpath=textpath, nodeId='contentHtml', height='100%', **kwargs)
         else:
             pane.simpleTextArea(value=value, nodeId='contentText', height='100%', **kwargs)
-        
+    
     @customizable    
     def contentData(self, pane, **kwargs):
         fb = pane.formbuilder(cols=1, width='600px', border_spacing='4px', **kwargs)
@@ -537,17 +537,26 @@ class ContentsComponent(BaseComponent):
                                                     **kwargs)
     
     @struct_method
-    def contentText(self, pane, mode='text', **kwargs):
-        "Supported modes: text,html,rst. Text (default) is edited with a textarea, Html with ckeditor, rst with MDEditor"
+    def contentText(self, pane, mode='text', convertText=False, convertHtml=True, **kwargs):
+        """Supported modes: text,html,rst. 
+            Text (default) is edited with a textarea, Html with tinyMce, rst with MDEditor.
+            convertText: when mode is html, if convertText is True, the plain text version is saved in the 'text' field
+            convertHtml: when mode is rst, if convertHtml is True, the html version is saved in the 'html' field
+        """
         if mode=='html':
-            value='^.html' 
+            # TinyMCE edits HTML, saves HTML in value and optionally plain text in textpath
+            value = '^.html'
+            textpath = '^.text' if convertText else None
+            self.contentEditor(pane, value=value, mode=mode, textpath=textpath, **kwargs)
         elif mode=='rst':
-            value='^.text'
-            kwargs.update(htmlpath='.html')
+            # MDEditor edits Markdown, saves Markdown in value and HTML in htmlpath
+            value = '^.text'
+            htmlpath = '^.html' if convertHtml else None
+            self.contentEditor(pane, value=value, mode=mode, htmlpath=htmlpath, **kwargs)
         else:
-            value='^.text'
-            
-        self.contentEditor(pane, value=value, mode=mode, **kwargs)
+            # Plain text mode
+            value = '^.text'
+            self.contentEditor(pane, value=value, mode=mode, **kwargs)
 
     def contentTemplate(self, pane):
         pane.templateChunk(template='^.tplbag', editable=True, height='100%', margin='5px', overflow='hidden',
