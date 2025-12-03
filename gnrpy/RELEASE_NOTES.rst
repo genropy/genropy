@@ -4,20 +4,28 @@ Upcoming release
 Enhancements
 ------------
 
+* Added a new 'variantColumn_masked' method to sqlTable for securely
+  displaying sensitive data by masking portions of it, like credit
+  cards numbers, email addresses etc
 * Docker images and Kubernetes deployer now support labels allowing
-multi-FQDNs deployments
+  multi-FQDNs deployments
 * Retetion policies have been upgraded to allow tables to provide more
   complex cutoff queries.
+* MDEditor improvements: Drag & Drop support, custom toolbar buttons,
+  color syntax plugin, hidden preview mode, and bag mode support to
+  store mardown text into nested Bag structures.
+* TinyMCE is now the default editor (#219)
   
 Deprecations
 ------------
 
 * the 'gnr app update' cli command has been marked as deprecated
-  
 
 Fixes
 -----
 
+* Improved checks on genropy's packages relations and dependencies (#178, #279)
+* remoteRowController handling for new rows fixes
 * Mobile deployment checks retrieve the correct URL from configuration
 * GLBL data is loaded automatically via upgrade script
 * Directory creation for existing directory now fails silently to have tidy logs
