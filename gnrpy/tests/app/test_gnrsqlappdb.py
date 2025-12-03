@@ -2,7 +2,7 @@ import tempfile
 
 from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrSqlAppDb, DbStoresHandler
-from gnrpy.tests.sql.common import MockApplication, MockCache
+from gnrpy.tests.sql.common import MockApplication
 
 
 class TestGnrSqlAppDb:
