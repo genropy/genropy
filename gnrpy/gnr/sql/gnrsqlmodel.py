@@ -1978,10 +1978,9 @@ class RelationTreeResolver(BagResolver):
             # Package not loaded - skip relation to avoid errors
             # This can happen when a table has relations to packages not enabled
             # Warning: this may indicate a package dependency violation
-            import logging
-            logging.getLogger('gnr.sql').warning(
-                f"Relation to unloaded package '{self.pkg_name}' skipped (table: {self.tbl_name})"
-            )
+            logger.warning("Relation to unloaded package '%s' skipped (table: %s)",
+                           self.pkg_name, self.tbl_name
+                           )
             return None
         self.main_table_obj = self.dbroot.model.table(self.main_tbl)
         if not self.__fields:
