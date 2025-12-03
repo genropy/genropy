@@ -234,8 +234,7 @@ class GnrSqlDb(GnrObject):
 
     @property
     def multidb_prefix(self):
-        prefix = self.multidb_config.get('prefix')
-        return f'{prefix}_' if prefix else ''
+        return f'{self.dbname}_'
 
     @property
     def multidomain(self):
