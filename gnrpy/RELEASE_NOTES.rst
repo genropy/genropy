@@ -4,6 +4,9 @@ Upcoming release
 Enhancements
 ------------
 
+* Added a new 'variantColumn_masked' method to sqlTable for securely
+  displaying sensitive data by masking portions of it, like credit
+  cards numbers, email addresses etc
 * Docker images and Kubernetes deployer now support labels allowing
   multi-FQDNs deployments
 * Retetion policies have been upgraded to allow tables to provide more
