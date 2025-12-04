@@ -38,8 +38,8 @@ from gnr.core.gnrlang import GnrObject
 from gnr.core.gnrlang import importModule, GnrException
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrclasses import GnrClassCatalog
-
-from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
+from gnr.sql.gnrsqlmigration import SqlMigrator
+from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable,GnrSqlException
 
 MAIN_CONNECTION_NAME = '_main_connection'
 __version__ = '1.0b'
@@ -171,7 +171,6 @@ class GnrSqlDb(GnrObject):
         self.main_schema = main_schema
         self._connections = {}
         self.started = False
-        self.stores_handler = DbStoresHandler(self)
         self.exceptions = {
             'base':GnrSqlException,
             'exec':GnrSqlExecException,
@@ -203,13 +202,45 @@ class GnrSqlDb(GnrObject):
     @property
     def debug(self):
         """TODO"""
-        return self.application and self.application.debug
+        return False
         
+    @property
+    def stores_handler(self):
+        #overridden by app integration
+        return None
+
+    @property
+    def multidb_config(self):
+        #overridden by app integration
+        return {}
+
     @property
     def dbstores(self):
         """TODO"""
-        return self.stores_handler.dbstores
-    
+        if self.stores_handler:
+            return self.stores_handler.dbstores
+        return {}
+
+    @property
+    def auxstores(self):
+        """TODO"""
+        if self.stores_handler:
+            return self.stores_handler.auxstores
+        return {}
+
+    @property
+    def storetable(self):
+        return self.multidb_config.get('storetable')
+
+    @property
+    def multidb_prefix(self):
+        prefix = self.multidb_config.get('prefix') or self.dbname
+        return f'{prefix}_' if prefix else ''
+
+    @property
+    def multidomain(self):
+        return boolean(self.multidb_config.get('multidomain'))
+
     @property
     def tenant_table(self):
         if hasattr(self,'_tenant_table'):
@@ -219,7 +250,6 @@ class GnrSqlDb(GnrObject):
             tenant_table = pkg.attributes.get('tenant_table') or tenant_table
         self._tenant_table = tenant_table
         return self._tenant_table
-
 
     @property
     def reuse_relation_tree(self):
@@ -291,8 +321,12 @@ class GnrSqlDb(GnrObject):
             stores[dbname] = os.path.join(extractpath,f)
         dbstoreconfig = Bag(stores.pop('_dbstores'))
         mainfilepath = stores.pop('mainstore',None)
-        for s in list(self.stores_handler.dbstores.keys()):
-            self.stores_handler.drop_store(s)
+        try:
+            storeconfs = self.stores_handler.raw_multdb_dbstores().values() if self.stores_handler else []
+        except Exception:
+            storeconfs = []
+        for storeconf in storeconfs:
+            self.dropDb(storeconf['database'])
         if mainfilepath:
             self._autoRestore_one(dbname=self.dbname,filepath=mainfilepath,sqltextCb=sqltextCb,onRestored=onRestored)
         for storename,filepath in list(stores.items()):
@@ -300,7 +334,6 @@ class GnrSqlDb(GnrObject):
             dbattr = conf.getAttr('db')
             dbname = dbattr.pop('dbname')
             self._autoRestore_one(dbname=dbname,filepath=filepath,sqltextCb=sqltextCb,onRestored=onRestored)
-            self.stores_handler.add_dbstore_config(storename,dbname=dbname,save=False,**dbattr)
         if destroyFolder:
             shutil.rmtree(extractpath)
 
@@ -361,6 +394,16 @@ class GnrSqlDb(GnrObject):
         
         :param applyChanges: boolean. If ``True``, all the changes are executed and committed"""
         return self.model.check(applyChanges=applyChanges)
+    
+    def diffOrmToSql(self):
+        migrator = SqlMigrator(self)
+        return migrator.getChanges()
+
+    def syncOrmToSql(self):
+        migrator = SqlMigrator(self)
+        changes = migrator.getChanges()
+        if changes:
+            migrator.applyChanges()
         
     def closeConnection(self):
         """Close a connection"""
@@ -433,12 +476,15 @@ class GnrSqlDb(GnrObject):
         self.updateEnv(storename=storename)
         
     def get_dbname(self):
-        """TODO"""
+        """Get the database name for the current store"""
         storename = self.currentEnv.get('storename')
         if storename:
-            return self.dbstores[storename]['database']
-        else:
-            return self.dbname
+            store_params = self.get_store_parameters(storename)
+            if not store_params:
+                # Backward compatibility: raise KeyError if store doesn't exist
+                raise KeyError(f'Store {storename} not configured')
+            return store_params['database']
+        return self.dbname
     
     def getTenantSchemas(self):
         if not self.tenant_table:
@@ -504,21 +550,25 @@ class GnrSqlDb(GnrObject):
             
     connection = property(_get_connection)
             
-    def get_connection_params(self, storename=None):
         
-        if storename and storename != self.rootstore and storename in self.dbstores:
-            storeattr = self.dbstores[storename]
-            return dict(host=storeattr.get('host'),
+    def get_store_parameters(self,storename):
+        return self.dbstores.get(storename) or self.auxstores.get(storename)
+
+
+    def get_connection_params(self, storename=None):
+        if storename == self.rootstore or not storename:
+            return dict(host=self.host, database=self.dbname, user=self.user, password=self.password, port=self.port)
+        storeattr = self.get_store_parameters(storename)
+        if not storeattr:
+            raise GnrSqlException(f'Not existing connection configuration for {storename}')
+
+        return dict(host=storeattr.get('host') or self.host,
                         database=storeattr.get('database') or storeattr.get('dbname'),
                         dbbranch=storeattr.get('dbbranch', None),
-                        user=storeattr.get('user'), password=storeattr.get('password'),
-                        port=storeattr.get('port'),
+                        user=storeattr.get('user') or self.user,
+                        password=storeattr.get('password') or self.password,
+                        port=storeattr.get('port') or self.port,
                         implementation=storeattr.get('implementation') or self.implementation)
-        else:
-            return dict(host=self.host,
-                        database=self.dbname if not storename or storename=='_main_db' else storename,
-                        user=self.user, password=self.password, port=self.port)
-    
     @sql_audit
     def execute(self, sql, sqlargs=None, cursor=None, cursorname=None, 
                 autocommit=False, dbtable=None,storename=None,_adaptArguments=True):
@@ -1180,119 +1230,6 @@ class TriggerStackItem(object):
         self.table = tblobj.fullname
         self.record = record
         self.old_record = old_record
-
-class DbStoresHandler(object):
-    """Handler for using multi-database"""
-        
-    def __init__(self, db):
-        self.db = db
-        if db.application:
-            self.config_folder = os.path.join(db.application.instanceFolder, 'dbstores')
-            instance_dbstores = db.application.config['dbstores']
-        else:
-            self.config_folder = None
-            instance_dbstores = None
-        self.dbstores = {}
-        if instance_dbstores:
-            self.dbstores = {n.label:n.attr for n in instance_dbstores}
-        self.create_stores()
-
-    def get_dbstore(self,storename):
-        if storename in self.dbstores:
-            return self.dbstores[storename]
-        else:
-            return self.add_store(storename)
-        return
-             
-    def create_stores(self, check=False):
-        """TODO"""
-        if not (self.config_folder and os.path.exists(self.config_folder)):
-            return
-        for filename in os.listdir(self.config_folder):
-            name,ext = os.path.splitext(filename)
-            if ext!='.xml':
-                continue
-            self.add_store(name, check=check)
-            
-    def add_store(self, storename, check=False,dbattr=None):
-        """TODO
-        
-        :param storename: TODO
-        :param check: TODO"""
-        if not dbattr:
-            storefile = os.path.join(self.config_folder,'%s.xml' %storename)
-            if not os.path.exists(storefile):
-                return
-            dbattr = Bag(os.path.join(self.config_folder,'%s.xml' %storename)).getAttr('db')
-        self.dbstores[storename] = dict(database=dbattr.get('dbname', storename),
-                                        host=dbattr.get('host', self.db.host), user=dbattr.get('user', self.db.user),
-                                        password=dbattr.get('password', self.db.password),
-                                        port=dbattr.get('port', self.db.port),
-                                        remote_host=dbattr.get('remote_host'),
-                                        remote_port=dbattr.get('remote_port'))
-        if check:
-            self.dbstore_align(storename)
-        return dbattr
-            
-    def drop_dbstore_config(self, storename):
-        """TODO
-        
-        :param storename: TODO"""
-        dbstore = self.get_dbstore(storename)
-        if dbstore:
-            storefile = os.path.join(self.config_folder,'%s.xml' %storename)
-            if os.path.exists(storefile):
-                os.remove(storefile)
-        self.dbstores.pop(storename,None)
-    
-    def drop_store(self,storename):
-        dbstoreattr = self.get_dbstore(storename)
-        self.db.dropDb(dbstoreattr['database'])
-        self.drop_dbstore_config(storename)
-        
-        
-    def add_dbstore_config(self, storename, dbname=None, host=None,
-                           user=None, password=None, port=None,
-                           save=None,**kwargs):
-        """TODO
-        :param storename: TODO
-        :param dbname: the database name
-        :param host: the database server host
-        :param user: the username
-        :param password: the username's password
-        :param port: TODO
-        :param save: TODO"""
-        b = Bag()
-        b.setItem('db', None, dbname=dbname,
-                  host=host, user=user,
-                  password=password,port=port)
-        b.toXml(os.path.join(self.config_folder,f'{storename}.xml'))
-        self.add_store(storename, check=save)
-            
-    def dbstore_check(self, storename, verbose=False):
-        """checks if dbstore exists and if it needs to be aligned
-        
-        :param storename: TODO
-        :param verbose: TODO"""
-        with self.db.tempEnv(storename=storename):
-            self.db.use_store(storename)
-            changes = self.db.model.check()
-            if changes and not verbose:
-                return False
-            elif changes and verbose:
-                return changes
-            else: #not changes
-                return True
-                
-    def dbstore_align(self, storename, changes=None):
-        """TODO
-        
-        :param storename: TODO
-        :param changes: TODO. """
-        with self.db.tempEnv(storename=storename):
-            changes = changes or self.db.model.check()
-            if changes:
-                self.db.model.applyModelChanges()
 
 class DbLocalizer(object):
     def translate(self,v):
