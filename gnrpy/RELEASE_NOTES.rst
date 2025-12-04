@@ -30,6 +30,8 @@ Deprecations
 Fixes
 -----
 
+* Fixed issue with multiButtonForm, now we force norecord in order to
+  hide former selected record values after record is changed
 * Improved checks on genropy's packages relations and dependencies (#178, #279)
 * remoteRowController handling for new rows fixes
 * Mobile deployment checks retrieve the correct URL from configuration
