@@ -1,7 +1,6 @@
 import sys
 import os
 import os.path
-import tempfile
 import pytest
 from testing.postgresql import Postgresql
 
