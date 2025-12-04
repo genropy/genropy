@@ -22,7 +22,8 @@ Deprecations
 ------------
 
 * the 'gnr app update' cli command has been marked as deprecated
-
+* The "site in maintenance" feature has been deprecated and removed.
+  
 Fixes
 -----
 
