@@ -34,7 +34,10 @@ class Public(BaseComponent):
         default_multidb_selector = None
         multidb_switch = self.getPreference('multidb_switch',pkg='multidb')
         multidb_switch_tag = self.getPreference('multidb_switch_tag',pkg='multidb') or 'user'
-        if self.maintable and not self.tblobj.attributes.get('multidb') and multidb_switch_tag:
+        use_dbstores = None
+        if self.tblobj:
+            use_dbstores = self.tblobj.use_dbstores()
+        if use_dbstores is not False and self.maintable and not self.tblobj.attributes.get('multidb') and multidb_switch_tag:
             default_multidb_selector = self.application.checkResourcePermission(multidb_switch_tag,self.userTags)
         return default_multidb_selector
 
@@ -42,7 +45,7 @@ class Public(BaseComponent):
     def public_publicRoot_multidb_selector(self,pane, **kwargs): 
         pane.parent.parent.parent.center.attributes['context_dbstore'] = '=current.context_dbstore'
         fb = pane.div(margin_top='2px').formbuilder(border_spacing='0',cols=1)
-        storetable = self.db.package('multidb').attributes['storetable']
+        storetable = self.db.storetable
         multidb_selector = self._getMultiDbSelector() 
         extra_kw = {} if multidb_selector is True else multidb_selector
         fb.dbSelect(value='^current.context_dbstore',_storename=False,dbtable=storetable,
@@ -55,7 +58,7 @@ class TableHandlerMain(BaseComponent):
     def public_publicRoot_multidb_selector(self,pane, **kwargs): 
         pane.parent.parent.parent.center.attributes['context_dbstore'] = '=current.context_dbstore'
         fb = pane.div(margin_top='2px').formbuilder(border_spacing='0',cols=1)
-        storetable = self.db.package('multidb').attributes['storetable']
+        storetable = self.db.storetable
         multidb_selector = self._getMultiDbSelector() 
         extra_kw = {} if multidb_selector is True else multidb_selector
         fb.dbSelect(value='^current.context_dbstore',_storename=False,dbtable=storetable,
