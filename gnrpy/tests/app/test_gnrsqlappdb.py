@@ -2,36 +2,7 @@ import tempfile
 
 from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrSqlAppDb, DbStoresHandler
-
-
-class MockCache:
-    def __init__(self):
-        self._cache = {}
-
-    def getItem(self, key, defaultFactory=None):
-        if key not in self._cache and defaultFactory:
-            self._cache[key] = defaultFactory()
-        return self._cache.get(key)
-
-    def updatedItem(self, key):
-        if key in self._cache:
-            del self._cache[key]
-
-
-class MockApplication:
-    debug = True
-    config = Bag({
-        'db?reuse_relation_tree': False,
-        'db?auto_static_enabled': False,
-        'dbstores': None,
-        'packages': Bag()
-    })
-    localizer = False
-    instanceFolder = None
-    cache = MockCache()
-
-    def checkResourcePermission(self, deletable, tags, test=True):
-        return test
+from sql.common import MockApplication
 
 
 class TestGnrSqlAppDb:

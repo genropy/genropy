@@ -234,7 +234,7 @@ class GnrSqlDb(GnrObject):
 
     @property
     def multidb_prefix(self):
-        prefix = self.multidb_config.get('prefix')
+        prefix = self.multidb_config.get('prefix') or self.dbname
         return f'{prefix}_' if prefix else ''
 
     @property
@@ -322,9 +322,9 @@ class GnrSqlDb(GnrObject):
         dbstoreconfig = Bag(stores.pop('_dbstores'))
         mainfilepath = stores.pop('mainstore',None)
         try:
-            storeconfs = self.stores_handler.raw_multdb_dbstores().values() if self.stores_handler else {}
+            storeconfs = self.stores_handler.raw_multdb_dbstores().values() if self.stores_handler else []
         except Exception:
-            storeconfs = {}
+            storeconfs = []
         for storeconf in storeconfs:
             self.dropDb(storeconf['database'])
         if mainfilepath:
