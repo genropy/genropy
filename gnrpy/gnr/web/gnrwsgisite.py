@@ -1051,7 +1051,7 @@ class GnrWsgiSite(object):
             else:
                 request_kwargs['_subdomain'] = request_kwargs.get('_subdomain') or first
         else:
-            if self.db.stores_handler.get_dbstore(first):
+            if self.db.get_store_parameters(first):
                 request_kwargs['base_dbstore'] = path_list.pop(0)
         if request_kwargs.get('_subdomain'):
             self.gnrapp.pkgBroadcast('handleSubdomain',path_list,request_kwargs=request_kwargs)
@@ -1064,7 +1064,7 @@ class GnrWsgiSite(object):
         auxapp = self.gnrapp.getAuxInstance(instance_name)
         if not auxapp:
             raise Exception('not existing aux instance %s' %instance_name)
-        if self.db.stores_handler.get_dbstore(storename):
+        if self.db.get_store_parameters(storename):
             return
         dbattr = auxapp.config.getAttr('db')
         if auxapp.remote_db:
@@ -1078,7 +1078,7 @@ class GnrWsgiSite(object):
                     dbattr['remote_host'] = host
                     dbattr['remote_port'] = port
                 dbattr.update(remote_db_attr)
-        self.db.stores_handler.add_store(storename,dbattr=dbattr)
+        self.db.stores_handler.add_auxstore(storename,dbattr=dbattr)
 
 
     @extract_kwargs(info=True)

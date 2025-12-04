@@ -15,7 +15,9 @@ Enhancements
   color syntax plugin, hidden preview mode, and bag mode support to
   store mardown text into nested Bag structures.
 * TinyMCE is now the default editor (#219)
-  
+* Postgres database dump is now correctly monitored for runtime
+  errors, like server version mismatches
+
 Deprecations
 ------------
 
