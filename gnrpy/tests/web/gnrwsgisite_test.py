@@ -25,7 +25,11 @@ class TestGnrWsgiSite(BaseGnrTest):
     @classmethod
     def setup_class(cls):
         super().setup_class()
-        cls.external = ExternalProcess(['gnr','web','daemon'], cwd=None)
+        
+        cls.external = ExternalProcess(
+            ['gnr','web','daemon', '-P', str(cls.daemon_port)],
+            port_check = cls.daemon_port, cwd=None
+        )
 
         try:
             cls.external.start()

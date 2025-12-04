@@ -1,7 +1,6 @@
 name: Bug Report
 description: Report a bug or malfunction with clear details and reproducible steps.
 title: "[BUG] Short summary of the problem"
-labels: ["bug"]
 
 body:
   - type: markdown
@@ -49,7 +48,7 @@ body:
         - Relevant configuration (sanitized)  
         - Logs or error messages  
     validations:
-      required: true
+      required: false
 
   - type: input
     id: environment
