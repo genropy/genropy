@@ -135,6 +135,50 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         @return: list of object names"""
         return getattr(self, '_list_%s' % elType)(**kwargs)
 
+    def execute(self, sql, sqlargs=None, manager=False, autoCommit=False):
+        """
+        Execute a sql statement on a new cursor from the connection of the selected
+        connection manager if provided, otherwise through a new connection.
+        sqlargs will be used for query params substitutions.
+
+        Returns None
+        """
+        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit,
+                                                                            storename=self.dbroot.currentStorename)
+        cursor = connection.cursor(GnrSqliteCursor)
+        try:
+            if isinstance(sqlargs, dict):
+                sql, sqlargs = self.prepareSqlText(sql, sqlargs)
+            if sqlargs is None:
+                cursor.execute(sql)
+            else:
+                cursor.execute(sql, sqlargs)
+        finally:
+            cursor.close()
+            connection.close()
+
+    def raw_fetch(self, sql, sqlargs=None, manager=False, autoCommit=False):
+        """
+        Execute a sql statement on a new cursor from the connection of the selected
+        connection manager if provided, otherwise through a new connection.
+        sqlargs will be used for query params substitutions.
+
+        Returns all records returned by the SQL statement.
+        """
+        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit, storename=self.dbroot.currentStorename)
+        cursor = connection.cursor(GnrSqliteCursor)
+        try:
+            if isinstance(sqlargs, dict):
+                sql, sqlargs = self.prepareSqlText(sql, sqlargs)
+            if sqlargs is None:
+                cursor.execute(sql)
+            else:
+                cursor.execute(sql, sqlargs)
+            result = cursor.fetchall()
+        finally:
+            cursor.close()
+            connection.close()
+        return result
 
     def _list_enabled_extensions(self):
         return []
@@ -148,14 +192,14 @@ class SqlDbAdapter(SqlDbBaseAdapter):
 
     def _list_tables(self, schema=None, comment=None):
         query = "SELECT name FROM %s.sqlite_master WHERE type='table';" % (schema,)
-        result = self.dbroot.execute(query).fetchall()
+        result = self.raw_fetch(query)
         if comment:
             return [(r[0],None) for r in result]
         return [r[0] for r in result]
 
     def _list_views(self, schema=None, comment=None):
         query = "SELECT name FROM %s.sqlite_master WHERE type='view';" % (schema,)
-        result = self.dbroot.execute(query).fetchall()
+        result = self.raw_fetch(query)
         if comment:
             return [(r[0],None) for r in result]
         return [r[0] for r in result]
@@ -163,7 +207,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
     def _list_columns(self, schema=None, table=None, comment=None):
         """cid|name|type|notnull|dflt_value|pk"""
         query = "PRAGMA %s.table_info(%s);" % (schema, table)
-        result = self.dbroot.execute(query).fetchall()
+        result = self.raw_fetch(query)
         if comment:
             return [(r[1],None) for r in result]
         return [r[1] for r in result]
@@ -182,7 +226,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         for schema in self._list_schemata():
             for tbl in self._list_tables(schema=schema):
                 query = "PRAGMA %s.foreign_key_list(%s);" % (schema, tbl)
-                l = self.dbroot.execute(query).fetchall()
+                l = self.raw_fetch(query)
 
                 for r in l:
                     un_tbl = r[2]
@@ -200,7 +244,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         @param schema: schema name
         @return: list of columns wich are the primary key for the table"""
         query = "PRAGMA %s.table_info(%s);" % (schema, table)
-        l = self.dbroot.execute(query).fetchall()
+        l = self.raw_fetch(query)
         return [r[1] for r in l if r[5] > 0]
 
 
@@ -283,11 +327,11 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         @param schema: schema name
         @return: list of index infos"""
         query = "PRAGMA %s.index_list(%s);" % (schema, table)
-        idxs = self.dbroot.execute(query).fetchall()
+        idxs = self.raw_fetch(query)
         result = []
         for idx in idxs:
             query = "PRAGMA %s.index_info(%s);" % (schema, idx['name'])
-            cols = self.dbroot.execute(query).fetchall()
+            cols = self.raw_fetch(query)
             cols = [c['name'] for c in cols]
             result.append(dict(name=idx['name'], primary=None, unique=idx['unique'], columns=','.join(cols)))
         return result
