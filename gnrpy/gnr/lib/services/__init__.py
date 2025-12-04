@@ -80,8 +80,8 @@ class BaseServiceType(object):
     def __init__(self, site=None, service_type=None, **kwargs):
         self.site = site
         self.service_type = service_type
-        self.service_instances = {}        
-
+        self.service_instances = {}   
+        
     def addService(self, service_name=None, **kwargs):
         service_conf = kwargs or self.getConfiguration(service_name)
         if not service_conf:
