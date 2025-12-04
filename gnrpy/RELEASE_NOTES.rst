@@ -4,6 +4,9 @@ Upcoming release
 Enhancements
 ------------
 
+* Introduing AuthTagStruct, a new declarative system for defining
+  hierarchical permission structures in applications. It's fully
+  retro-compatible.
 * Added a new 'variantColumn_masked' method to sqlTable for securely
   displaying sensitive data by masking portions of it, like credit
   cards numbers, email addresses etc
