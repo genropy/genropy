@@ -52,6 +52,7 @@ from gnr.app.gnrdeploy import PathResolver
 from gnr.app import logger
 from gnr.app.gnrlocalization import AppLocalizer
 from gnr.sql.gnrsql import GnrSqlDb
+from gnr.core.gnrstructures import GnrStructData
 
 class GnrRestrictedAccessException(GnrException):
     """GnrRestrictedAccessException"""
@@ -1856,9 +1857,204 @@ class GnrApp(object):
             self._gnrdaemon = GnrDaemonProxy(use_environment=True).proxy() 
         return self._gnrdaemon
 
+class AuthTagStruct(GnrStructData):
+    """A class for hierarchical auth tag structure definition.
+
+    This class provides a declarative way to define permission hierarchies
+    using a functional syntax with .branch() and .authTag() methods.
+
+    Unlike MenuStruct, this is instantiated once at application level.
+    Each package can define a packageTags(self, root) method in its main.py
+    to contribute its auth tags to the hierarchy.
+
+    Usage:
+        # At application level
+        auth_struct = AuthTagStruct()
+
+        # For each package
+        pkg_branch = auth_struct.branch('mypackage')
+        if hasattr(package, 'packageTags'):
+            package.packageTags(pkg_branch)
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._registered_tags = set()  # Track unique tag identifiers
+
+    def _validateLabel(self, label):
+        """Validate that a label is a valid identifier.
+
+        Labels can contain letters (uppercase or lowercase), numbers, and underscores.
+        Must start with a letter or underscore. No spaces, dots, or special characters allowed.
+        Raises GnrException if label is invalid.
+
+        :param label: the label to validate
+        :raises GnrException: if label format is invalid"""
+        import re
+
+        # Check if label matches valid identifier pattern (can start with _ or letter)
+        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', label):
+            raise GnrException(
+                f"Invalid label '{label}': must be a valid identifier (letters, numbers, _) "
+                f"and start with a letter or underscore. No spaces, dots, or special characters allowed."
+            )
+
+    def branch(self, label, description=None, **kwargs):
+        """Create a hierarchical branch for organizing auth tags.
+
+        Branches are intermediate nodes that organize permissions hierarchically
+        but do not generate auth tag entries themselves.
+
+        :param label: internal identifier (must be lowercase snake_case: a-z, 0-9, _)
+        :param description: human-readable label shown to users
+        :param kwargs: additional attributes for the branch
+        :return: the created branch structure
+        :raises GnrException: if label format is invalid"""
+        # Validate label format
+        self._validateLabel(label)
+        description = description or label
+
+        return self.child('branch', childname=label, label=label,
+                         description=description, **kwargs)
+
+    def authTag(self, label, description=None, identifier=None, isreserved=None,
+                note=None, linked_table=None, require_2fa=None, **kwargs):
+        """Define an auth tag entry.
+
+        This generates an actual permission entry in the final Bag.
+
+        :param label: internal identifier (must be lowercase snake_case: a-z, 0-9, _)
+        :param description: human-readable label shown to users
+        :param identifier: optional custom code override (auto-generated from path if not provided)
+        :param isreserved: Boolean - if True, tag is reserved for system use
+        :param note: optional notes about this permission
+        :param linked_table: optional table name this permission is linked to
+        :param require_2fa: Boolean - if True, requires two-factor authentication
+        :param kwargs: additional attributes for the tag
+        :return: None (leaf node)
+        :raises GnrException: if label format is invalid or identifier is duplicate"""
+
+        # Validate label format
+        self._validateLabel(label)
+
+        # Auto-generate identifier from path if not provided
+        if not identifier:
+            identifier = self.generateAuthCode(label)
+
+        # Check uniqueness at root level
+        root = self.root if hasattr(self, 'root') else self
+        if identifier in root._registered_tags:
+            raise GnrException(f"Duplicate auth tag identifier: {identifier}")
+
+        root._registered_tags.add(identifier)
+
+        # Default description to label if not provided
+        description = description or label
+
+        # Pass arguments directly to child(), using label as childname and identifier as code
+        return self.child('authTag', childname=label, _returnStruct=False,
+                         label=label, description=description, code=identifier,
+                         isreserved=isreserved, note=note, linked_table=linked_table,
+                         require_2fa=require_2fa, **kwargs)
+
+    def generateAuthCode(self, label):
+        """Generate a unique auth code from label and hierarchical path.
+
+        Uses fullpath property to build the complete hierarchical path,
+        then joins with underscore separator.
+        :param label: the label to generate a code from
+        :return: generated auth code"""
+
+        # Get full path using fullpath property (returns path with dots)
+        full_path = self.fullpath or ''
+
+        # Build complete path including current label
+        if full_path:
+            complete_path = f"{full_path}.{label}"
+        else:
+            complete_path = label
+
+        result = '_'.join(complete_path.split('.')[1:]) #exclude rootlevel 
+        return result
+
+    def toBag(self):
+        """Convert the auth tag structure to a flat Bag of tag_id: label mappings.
+
+        :return: Bag with tag_id keys and label values"""
+        result = Bag()
+        self._toBagRecursive(self, result)
+        return result
+
+    def _toBagRecursive(self, node, result_bag):
+        """Recursively process nodes to build the final auth tags Bag.
+
+        :param node: current node to process
+        :param result_bag: the Bag to populate"""
+        for child_node in node:
+            child_attr = child_node.attr
+            tag_type = child_attr.get('tag')
+
+            if tag_type == 'authTag':
+                # This is a leaf tag, add it to result
+                code = child_attr.get('code')
+                label = child_attr.get('label')
+                result_bag.setItem(code, label, **{k:v for k,v in child_attr.items()
+                                                      if k not in ('tag', 'code', 'label')})
+            elif tag_type == 'branch':
+                # Recurse into branch
+                if child_node.value:
+                    self._toBagRecursive(child_node.value, result_bag)
+
+    def iterFlattenedTags(self):
+        """Iterate over all tags including intermediate branches.
+
+        Uses Bag.getIndex() to traverse the structure. Yields dictionaries with
+        tag information, ordered so that parent nodes always come before their children.
+
+        :yields: dict with keys: code, description, parent_code, tag_type ('branch' or 'authTag'), **attrs"""
+
+        for path, node in self.getIndex():
+            node_attr = node.attr
+            tag_type = node_attr.get('tag')
+
+            # Get parent code from path (path contains validated node labels)
+            # Parent is simply the second-to-last element in path
+            parent_code = path[-2] if len(path) > 1 else None
+
+            if tag_type == 'branch':
+                # node.label is the validated label (no need to slugify)
+                code = node.label
+                branch_description = node_attr.get('description', node.label)
+
+                # Yield branch info
+                yield {
+                    'code': code,
+                    'description': branch_description,
+                    'parent_code': parent_code,
+                    'tag_type': 'branch'
+                }
+
+            elif tag_type == 'authTag':
+                # Get tag info (code is already generated with full path)
+                code = node_attr.get('code')
+                description = node_attr.get('description')
+
+                # Extract additional attributes (excluding internal ones)
+                attrs = {k: v for k, v in node_attr.items()
+                        if k not in ('tag', 'code', 'description', 'label')}
+
+                # Yield tag info
+                yield {
+                    'code': code,
+                    'description': description,
+                    'parent_code': parent_code,
+                    'tag_type': 'authTag',
+                    **attrs
+                }
+
 class GnrAvatar(object):
     """A class for avatar management
-    
+
     :param user: TODO
     :param user_name: the avatar username
     :param user_id: the user id
