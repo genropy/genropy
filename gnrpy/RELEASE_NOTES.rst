@@ -4,6 +4,8 @@ Upcoming release
 Enhancements
 ------------
 
+* Added support for camera selection on image acquisition on mobile
+  devices (#301)
 * Introduing AuthTagStruct, a new declarative system for defining
   hierarchical permission structures in applications. It's fully
   retro-compatible.
