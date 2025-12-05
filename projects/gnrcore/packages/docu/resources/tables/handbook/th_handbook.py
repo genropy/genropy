@@ -5,7 +5,6 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrdecorator import public_method
 
 class View(BaseComponent):
     def th_struct(self,struct):
@@ -40,9 +39,8 @@ class Form(BaseComponent):
         tc = form.center.tabContainer(datapath='.record')
         self.handbookInfo(tc.contentPane(title='!![en]Info'))
         self.handbookDocRoot(tc.contentPane(title='!![en]Documentation', hidden='^.docroot_id?=!#v'))
-        tc.contentPane(title='!![en]Preview', hidden='==(handbook_url || local)', 
-                    handbook_url='^.handbook_url?=!#v', local='^.is_local_handbook').remote(
-                    self.handbookPreview, _if='handbook_url', handbook_url='^.handbook_url?=!#v')
+        self.handbookPreview(tc.borderContainer(title='!![en]Preview', hidden='==(handbook_url || local)',
+                    handbook_url='^.handbook_url?=!#v', local='^.is_local_handbook'))
         self.handbookZip(tc.contentPane(title='!![en]Zip', hidden='^.is_local_handbook?=#v!=true'))
 
     def handbookInfo(self, main):
@@ -55,8 +53,10 @@ class Form(BaseComponent):
         fb.field('name', validate_notnull=True)
         fb.field('is_local_handbook', lbl='', label='!![en]Is local handbook')
         fb.field('title', validate_notnull=True)
-        fb.div('^.sphinx_path', lbl='!![en]Sphinx path', hidden='==(handbook_url || local)', 
-                                                handbook_url='^.handbook_url?=!#v', local='^.is_local_handbook')
+        fb.div('^.sphinx_path', lbl='!![en]Sphinx path', hidden='==(handbook_url || local)',
+                        _virtual_column='sphinx_path',
+                        handbook_url='^.handbook_url?=!#v',
+                        local='^.is_local_handbook')
         fb.field('docroot_id', hasDownArrow=True, validate_notnull=True, tag='hdbselect', folderSelectable=True)
         fb.checkBoxText(value='^.toc_roots',
                         table='docu.documentation', popup=True, cols=4,lbl='!![en]TOC roots',
@@ -115,13 +115,11 @@ class Form(BaseComponent):
                 docroot_id='=#FORM.record.docroot_id',
                 _if='docroot_id', _delay=1)
 
-    @public_method
-    def handbookPreview(self, frame, **kwargs):
-        frame_bc = frame.borderContainer()
-        frame_bc.contentPane(region='top', height='30px', overflow='hidden').formbuilder(margin='2px').a(
-                            '^.handbook_url', lbl='!![en]Doc url:', href='^.handbook_url', 
+    def handbookPreview(self, bc, **kwargs):
+        bc.contentPane(region='top', height='30px', overflow='hidden').formbuilder(margin='2px').a(
+                            '^.handbook_url', lbl='!![en]Doc url:', href='^.handbook_url',
                             target='_blank', hidden='^.handbook_url?=!#v')
-        frame_bc.contentPane(region='center', overflow='hidden').htmlIframe(src='^.handbook_url', width='100%', height='100%')
+        bc.contentPane(region='center', overflow='hidden').htmlIframe(src='^.handbook_url', width='100%', height='100%')
     
     def handbookZip(self, frame):
         frame_bc = frame.borderContainer()
