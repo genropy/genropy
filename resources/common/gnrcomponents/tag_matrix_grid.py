@@ -262,46 +262,22 @@ class TagMatrixGrid(BaseComponent):
         - tagMap: Mapping of tag_id to tag info
         """
         # Extract condition values from kwargs (condition_* parameters)
-        condition_values = {k.replace('condition_', ''): v
-                           for k, v in kwargs.items()
-                           if k.startswith('condition_')}
-
-        # Load source entities (users, groups, members, etc.)
         source_tblobj = self.db.table(source_table)
-        source_where = None
-        source_params = {}
-
-        if source_condition:
-            # Convert :param to proper query parameters
-            source_where = source_condition.replace('$', '')
-            for param, value in condition_values.items():
-                source_where = source_where.replace(f':{param}', f':{param}')
-                source_params[param] = value
-
         source_query = source_tblobj.query(
             columns=f'${source_pkey},${caption_field}',
-            where=source_where,
+            where=source_condition,
             order_by=f'${caption_field}',
-            **source_params
+            **kwargs
         )
         source_rows = source_query.fetch()
 
         # Load tags (hierarchical)
         htag_tbl = self.db.table('adm.htag')
-        tag_where = None
-        tag_params = {}
-
-        if tag_condition:
-            tag_where = tag_condition.replace('$', '')
-            for param, value in condition_values.items():
-                tag_where = tag_where.replace(f':{param}', f':{param}')
-                tag_params[param] = value
-
         tag_query = htag_tbl.query(
             columns='$id,$code,$description,$hierarchical_code,$parent_id',
-            where=tag_where,
+            where=tag_condition,
             order_by='$hierarchical_code',
-            **tag_params
+            **kwargs
         )
         tag_rows = tag_query.fetch()
 
