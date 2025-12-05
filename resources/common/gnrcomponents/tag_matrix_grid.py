@@ -119,43 +119,28 @@ class TagMatrixGrid(BaseComponent):
             tag_condition=tag_condition
         )))
 
-        # Store condition parameters
-        for k, v in condition_kwargs.items():
-            frame.data(f'.condition_{k}', v)
-
         # Add reload button to toolbar
         bar = frame.top.bar.replaceSlots('#', '#,reloadBtn,5')
         bar.reloadBtn.slotButton('!!Reload', iconClass='iconbox reload',
                                   action='FIRE .reload;')
 
         # Setup data loading
-        self._tmg_setupDataLoading(frame, frameCode, source, source_table,
+        self._tmg_setupDataLoading(frame, source, source_table,
                                    source_pkey, caption_field,
                                    source_condition, tag_condition,
                                    condition_kwargs)
 
         # Setup save handling
-        self._tmg_setupSaveHandler(frame, frameCode, source)
+        self._tmg_setupSaveHandler(frame, source)
 
         return frame
 
-    def _tmg_setupDataLoading(self, frame, frameCode, source, source_table,
+    def _tmg_setupDataLoading(self, frame, source, source_table,
                                source_pkey, caption_field, source_condition,
                                tag_condition, condition_kwargs):
         """Setup data loading controllers for the matrix grid."""
-
-        # Build condition parameters
-        condition_params = {}
-        for k, v in condition_kwargs.items():
-            if isinstance(v, str) and v.startswith('^'):
-                condition_params[k] = v
-            else:
-                condition_params[f'condition_{k}'] = f'=.condition_{k}'
-
-        # Load data on build or reload, with callback to update grid
-        load_triggers = {'_onBuilt': True, '_fired': '^.reload'}
-        load_triggers.update(condition_params)
-
+        if not condition_kwargs:
+            condition_kwargs['_onBuilt'] = True
         frame.dataRpc('.matrixData', self.tmg_loadData,
                       source=source,
                       source_table=source_table,
@@ -163,26 +148,28 @@ class TagMatrixGrid(BaseComponent):
                       caption_field=caption_field,
                       source_condition=source_condition,
                       tag_condition=tag_condition,
-                      _onResult="""
-                          const struct = result.getItem('struct');
-                          const store = result.getItem('store');
-                          const tagMap = result.getItem('tagMap');
-                          SET .grid.struct = struct;
-                          SET .store = store;
-                          SET .tagMap = tagMap;
-                      """,
-                      **load_triggers,
-                      **{f'condition_{k}': f'=.condition_{k}' for k in condition_kwargs})
+                      _reload='^.reload',
+                      _onResult="""const struct = result.getItem('struct');
+                                   const store = result.getItem('store');
+                                   const tagMap = result.getItem('tagMap');
+                                   SET .grid.struct = struct;
+                                   SET .store = store;
+                                   SET .tagMap = tagMap;""",
+                      **condition_kwargs)
 
-    def _tmg_setupSaveHandler(self, frame, frameCode, source):
+    def _tmg_setupSaveHandler(self, frame, source):
         """Setup save handler for checkbox changes with multi-selection support."""
 
         # Handle checkbox changes - apply to all selected rows
         frame.dataController("""
-            if(!_triggerpars || !_triggerpars.kw || !_triggerpars.kw.changedAttr){
+            if(!_triggerpars || !_triggerpars.kw){
                 return;
             }
-            const changedAttr = _triggerpars.kw.changedAttr;
+            const kw = _triggerpars.kw;
+            if(kw.reason == 'tmg_multiselect' || !kw.changedAttr){
+                return;
+            }
+            const changedAttr = kw.changedAttr;
             if(!changedAttr.startsWith('tag_')){
                 return;
             }
@@ -202,8 +189,8 @@ class TagMatrixGrid(BaseComponent):
                 selectedRowsIdx.forEach(function(rowIdx){
                     const rowPath = '#' + grid.absIndex(rowIdx);
                     const sep = grid.datamode=='bag'? '.':'?';
-                    // Update store for all selected rows
-                    storebag.setItem(rowPath + sep + changedAttr, checked);
+                    // Update store for all selected rows with reason to avoid re-trigger
+                    storebag.setItem(rowPath + sep + changedAttr, checked, null, {doTrigger:'tmg_multiselect'});
                 });
             } else {
                 // Single row
