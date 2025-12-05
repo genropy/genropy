@@ -494,16 +494,59 @@ class DocumentationViewer(BaseComponent):
 class ContentsComponent(BaseComponent):
     js_requires='docu_components'
     
-    def contentEditor(self, pane, mode='text', value=None, htmlpath=None, textpath=None, initialEditType='wysiwyg', **kwargs):
-        "Supported modes: html,rst"
-        if mode=='rst':
-            pane.MDEditor(value=value, htmlpath=htmlpath, nodeId='contentMd', height='100%', previewStyle='vertical',
-                        initialEditType=initialEditType, **kwargs)
-        elif mode=='html':
-            pane.tinyMce(value=value, textpath=textpath, nodeId='contentHtml', height='100%', **kwargs)
+    @struct_method
+    def contentEditor(self, pane, mode=None, **kwargs):
+        """
+        Unified content editor supporting multiple editor types.
+
+        Supported modes:
+        - 'html': WYSIWYG HTML editor (tinyMce or ckeditor based on sys stylingPreferences)
+            Edits .html field, optionally saves plain text to .text
+        - 'md': Markdown editor with preview (MDEditor)
+            Edits .text field, optionally renders HTML to .html
+        - 'text': Simple textarea fallback
+            Edits .text field
+        - 'template': Template chunk editor
+            Edits .tplbag field
+
+        Args:
+            pane: Container pane for the editor
+            mode: Editor mode ('html', 'md', 'text', 'template')
+            **kwargs: Additional arguments passed to underlying editor
+                     (e.g., initialEditType for MDEditor)
+        """
+        if mode == 'html':
+            self.contentEditor_html(pane, **kwargs)
+        elif mode == 'md':
+            self.contentEditor_md(pane, **kwargs)
+        elif mode == 'template':
+            self.contentEditor_template(pane, **kwargs)
         else:
-            pane.simpleTextArea(value=value, nodeId='contentText', height='100%', **kwargs)
+            self.contentEditor_text(pane, **kwargs)
     
+    def contentEditor_html(self, pane, **kwargs):
+        "Chooses html editor after checking sys stylingPreferences for tinymce_beta (True=tinyMce, False=ckeditor)"
+        use_tinymce = self.getPreference('theme.tinymce_beta', pkg='sys') 
+        if use_tinymce:
+            pane.tinyMce(value='^.html', textpath='.text', nodeId='contentHtml',
+                        height='100%', **kwargs)
+        else:
+            pane.ckeditor(value='^.html', nodeId='contentHtml', height='100%', **kwargs)
+    
+    def contentEditor_md(self, pane, initialEditType='wysiwyg', previewStyle='vertical', **kwargs):
+        "Markdown editor with preview. Default initialEditType to 'wysiwyg' if not provided"
+        pane.MDEditor(value='^.text', htmlpath='.html', nodeId='contentMd_',
+                        height='100%', initialEditType=initialEditType, previewStyle=previewStyle, **kwargs)
+        
+    def contentEditor_text(self, pane, **kwargs):
+        "Simple textarea fallback"
+        pane.simpleTextArea(value='^.text', nodeId='contentText', height='100%', **kwargs)
+        
+    def contentEditor_template(self, pane, **kwargs):
+        "Simple template chunk editor"
+        pane.templateChunk(template='^.tplbag', editable=True, height='100%', margin='5px', overflow='hidden',
+                                                table='docu.content', selfsubscribe_onChunkEdit='this.form.save();')
+                
     @customizable    
     def contentData(self, pane, **kwargs):
         fb = pane.formbuilder(cols=1, width='600px', border_spacing='4px', **kwargs)
@@ -535,32 +578,6 @@ class ContentsComponent(BaseComponent):
                                                     delrow=True,
                                                     configurable=False, 
                                                     **kwargs)
-    
-    @struct_method
-    def contentText(self, pane, mode='text', convertText=False, convertHtml=True, **kwargs):
-        """Supported modes: text,html,rst. 
-            Text (default) is edited with a textarea, Html with tinyMce, rst with MDEditor.
-            convertText: when mode is html, if convertText is True, the plain text version is saved in the 'text' field
-            convertHtml: when mode is rst, if convertHtml is True, the html version is saved in the 'html' field
-        """
-        if mode=='html':
-            # TinyMCE edits HTML, saves HTML in value and optionally plain text in textpath
-            value = '^.html'
-            textpath = '^.text' if convertText else None
-            self.contentEditor(pane, value=value, mode=mode, textpath=textpath, **kwargs)
-        elif mode=='rst':
-            # MDEditor edits Markdown, saves Markdown in value and HTML in htmlpath
-            value = '^.text'
-            htmlpath = '^.html' if convertHtml else None
-            self.contentEditor(pane, value=value, mode=mode, htmlpath=htmlpath, **kwargs)
-        else:
-            # Plain text mode
-            value = '^.text'
-            self.contentEditor(pane, value=value, mode=mode, **kwargs)
-
-    def contentTemplate(self, pane):
-        pane.templateChunk(template='^.tplbag', editable=True, height='100%', margin='5px', overflow='hidden',
-                                                table='docu.content', selfsubscribe_onChunkEdit='this.form.save();')
 
     def contentAttachments(self, pane):
         pane.attachmentMultiButtonFrame()
