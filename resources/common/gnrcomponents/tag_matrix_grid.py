@@ -81,29 +81,33 @@ class TagMatrixGrid(BaseComponent):
         # Get source table info from user_tag FK definition
         user_tag_tbl = self.db.table('adm.user_tag')
         source_col = user_tag_tbl.column(source)
-        if not source_col:
-            raise ValueError(f"Column '{source}' not found in adm.user_tag")
+        if source_col is None:
+            raise ValueError(f"Column '{source}' not found in adm.user_tag. "
+                           f"Available columns: {list(user_tag_tbl.columns.keys())}")
 
         # Get related table info
         relation = source_col.relatedTable()
-        if not relation:
+        if relation is None:
             raise ValueError(f"Column '{source}' is not a foreign key in adm.user_tag")
 
         source_table = relation.fullname
-        source_tblobj = self.db.table(source_table)
+        source_tblobj = relation.dbtable
         caption_field = source_tblobj.attributes.get('caption_field') or source_tblobj.pkey
         source_pkey = source_tblobj.pkey
 
-        # Apply pbl_classes styling if requested
-        if pbl_classes:
-            _custclass = kwargs.get('_class', '')
-            kwargs['_class'] = f'pbl_roundedGroup {_custclass}'
-            if pbl_classes == '*':
-                kwargs['_class'] = f'pbl_roundedGroup noheader {_custclass}'
-
-        # Create frame container
-        frame = pane.framePane(frameCode=frameCode, datapath=datapath,
-                               center_overflow='hidden', **kwargs)
+        # Create bagGrid frame with AttributesBagRows datamode
+        frame = pane.bagGrid(
+            frameCode=frameCode,
+            datapath=datapath,
+            storepath='.store',
+            datamode='attr',
+            title=title,
+            pbl_classes=pbl_classes,
+            addrow=False,
+            delrow=False,
+            searchOn=True,
+            **kwargs
+        )
 
         # Store configuration in data
         frame.data('.config', Bag(dict(
@@ -119,35 +123,8 @@ class TagMatrixGrid(BaseComponent):
         for k, v in condition_kwargs.items():
             frame.data(f'.condition_{k}', v)
 
-        # Build the grid structure
-        bc = frame.borderContainer(region='center')
-        center = bc.contentPane(region='center')
-
-        # Create the includedView grid with AttributesBagRows datamode
-        grid = center.includedView(
-            nodeId=f'{frameCode}_grid',
-            datapath='.grid',
-            storepath='.store',
-            autoWidth=False,
-            _newGrid=True,
-            parentFrame=frameCode,
-            datamode='attr'
-        )
-        frame.grid = grid
-
-        # Setup bagStore with AttributesBagRows
-        grid.bagStore(storepath='.store', storeType='AttributesBagRows')
-
-        # Add toolbar
-        if title:
-            if pbl_classes:
-                bar = frame.top.slotBar('5,vtitle,*,reloadBtn,5', _class='pbl_roundedGroupLabel')
-            else:
-                bar = frame.top.slotToolbar('5,vtitle,*,reloadBtn,5')
-            bar.vtitle.div(title, _class='frameGridTitle')
-        else:
-            bar = frame.top.slotToolbar('5,*,reloadBtn,5')
-
+        # Add reload button to toolbar
+        bar = frame.top.bar.replaceSlots('#', '#,reloadBtn,5')
         bar.reloadBtn.slotButton('!!Reload', iconClass='iconbox reload',
                                   action='FIRE .reload;')
 
@@ -167,7 +144,7 @@ class TagMatrixGrid(BaseComponent):
                                tag_condition, condition_kwargs):
         """Setup data loading controllers for the matrix grid."""
 
-        # Build condition parameters for dataController
+        # Build condition parameters
         condition_params = {}
         for k, v in condition_kwargs.items():
             if isinstance(v, str) and v.startswith('^'):
@@ -175,7 +152,7 @@ class TagMatrixGrid(BaseComponent):
             else:
                 condition_params[f'condition_{k}'] = f'=.condition_{k}'
 
-        # Controller to load data on build or reload
+        # Load data on build or reload, with callback to update grid
         load_triggers = {'_onBuilt': True, '_fired': '^.reload'}
         load_triggers.update(condition_params)
 
@@ -186,45 +163,62 @@ class TagMatrixGrid(BaseComponent):
                       caption_field=caption_field,
                       source_condition=source_condition,
                       tag_condition=tag_condition,
+                      _onResult="""
+                          const struct = result.getItem('struct');
+                          const store = result.getItem('store');
+                          const tagMap = result.getItem('tagMap');
+                          SET .grid.struct = struct;
+                          SET .store = store;
+                          SET .tagMap = tagMap;
+                      """,
                       **load_triggers,
                       **{f'condition_{k}': f'=.condition_{k}' for k in condition_kwargs})
 
-        # When matrixData changes, update struct and store
-        frame.dataController("""
-            if(!matrixData){
-                return;
-            }
-            var struct = matrixData.getItem('struct');
-            var store = matrixData.getItem('store');
-            var tagMap = matrixData.getItem('tagMap');
-
-            SET .grid.struct = struct;
-            SET .store = store;
-            SET .tagMap = tagMap;
-        """, matrixData='^.matrixData')
-
     def _tmg_setupSaveHandler(self, frame, frameCode, source):
-        """Setup save handler for checkbox changes."""
+        """Setup save handler for checkbox changes with multi-selection support."""
 
+        # Handle checkbox changes - apply to all selected rows
         frame.dataController("""
             if(!_triggerpars || !_triggerpars.kw || !_triggerpars.kw.changedAttr){
                 return;
             }
-            var changedAttr = _triggerpars.kw.changedAttr;
+            const changedAttr = _triggerpars.kw.changedAttr;
             if(!changedAttr.startsWith('tag_')){
                 return;
             }
-            var tagId = changedAttr.substring(4);
-            var sourceId = _node.attr._pkey;
-            var checked = _node.attr[changedAttr];
+            const tagId = changedAttr.substring(4);
+            const clickedPkey = _node.attr._pkey;
+            const checked = _node.attr[changedAttr];
 
-            genro.serverCall('tmg_saveChange', {
+            // Get selected pkeys from grid
+            const selectedPkeys = grid.getSelectedPkeys() || [];
+            let sourceIds = [];
+            const storebag = grid.storebag();
+
+            if(selectedPkeys.length > 1 && selectedPkeys.includes(clickedPkey)){
+                // Multiple selection - apply to all selected rows
+                sourceIds = selectedPkeys;
+                const selectedRowsIdx = grid.getSelectedRowidx() || [];
+                selectedRowsIdx.forEach(function(rowIdx){
+                    const rowPath = '#' + grid.absIndex(rowIdx);
+                    const sep = grid.datamode=='bag'? '.':'?';
+                    // Update store for all selected rows
+                    storebag.setItem(rowPath + sep + changedAttr, checked);
+                });
+            } else {
+                // Single row
+                sourceIds.push(clickedPkey);
+            }
+
+            // Save to server
+            genro.serverCall(rpcmethod, {
                 source: source,
-                source_id: sourceId,
+                source_ids: sourceIds,
                 tag_id: tagId,
                 checked: checked
             });
-        """, store='^.store', source=source)
+        """, store='^.store', source=source, grid=frame.grid.js_widget,
+            rpcmethod=self.tmg_saveChanges)
 
     @public_method
     def tmg_loadData(self, source=None, source_table=None, source_pkey=None,
@@ -342,7 +336,8 @@ class TagMatrixGrid(BaseComponent):
         # First column: entity caption
         r.cell('caption',
                name=caption_field.replace('_', ' ').title(),
-               width='15em')
+               width='15em',
+               sort='a')
 
         # Group tags by parent for columnsets
         parent_groups = {}
@@ -396,31 +391,33 @@ class TagMatrixGrid(BaseComponent):
         return struct
 
     @public_method
-    def tmg_saveChange(self, source=None, source_id=None, tag_id=None, checked=None):
+    def tmg_saveChanges(self, source=None, source_ids=None, tag_id=None, checked=None):
         """
-        Save a single tag assignment change.
+        Save tag assignment changes for one or more source entities.
 
         Performs INSERT when checked=True, DELETE when checked=False.
+        Supports batch operations on multiple selected rows.
         """
         user_tag_tbl = self.db.table('adm.user_tag')
 
-        # Check if assignment exists
-        existing = user_tag_tbl.query(
-            where=f'${source}=:source_id AND $tag_id=:tag_id',
-            source_id=source_id,
-            tag_id=tag_id
-        ).fetch()
+        for source_id in source_ids:
+            # Check if assignment exists
+            existing = user_tag_tbl.query(
+                where=f'${source}=:source_id AND $tag_id=:tag_id',
+                source_id=source_id,
+                tag_id=tag_id
+            ).fetch()
 
-        if checked and not existing:
-            # INSERT new assignment
-            new_record = user_tag_tbl.newrecord(**{
-                source: source_id,
-                'tag_id': tag_id
-            })
-            user_tag_tbl.insert(new_record)
-        elif not checked and existing:
-            # DELETE existing assignment
-            user_tag_tbl.delete(existing[0])
+            if checked and not existing:
+                # INSERT new assignment
+                new_record = user_tag_tbl.newrecord(**{
+                    source: source_id,
+                    'tag_id': tag_id
+                })
+                user_tag_tbl.insert(new_record)
+            elif not checked and existing:
+                # DELETE existing assignment
+                user_tag_tbl.delete(existing[0])
 
         self.db.commit()
         return True
