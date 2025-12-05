@@ -53,7 +53,8 @@ class TagMatrixGrid(BaseComponent):
     def tmg_tagMatrixGrid(self, pane, frameCode=None, source=None,
                           source_condition=None, tag_condition=None,
                           condition_kwargs=None, title=None,
-                          datapath=None, pbl_classes=None, **kwargs):
+                          datapath=None, pbl_classes=None,
+                          visible_columnsets=None, **kwargs):
         """
         Main entry point for TagMatrixGrid component.
 
@@ -73,6 +74,8 @@ class TagMatrixGrid(BaseComponent):
             title: Optional title for the grid frame
             datapath: Data path for the component (default: .{frameCode})
             pbl_classes: If True, apply pbl_roundedGroup styling
+            visible_columnsets: Comma-separated list of columnset codes to show initially,
+                   or '*' for all (default). Example: 'theme1,theme2'
         """
         frameCode = frameCode or f'tmg_{id(pane)}'
         datapath = datapath or f'.{frameCode}'
@@ -106,6 +109,7 @@ class TagMatrixGrid(BaseComponent):
             addrow=False,
             delrow=False,
             searchOn=True,
+            _anchor=True,
             **kwargs
         )
 
@@ -119,16 +123,28 @@ class TagMatrixGrid(BaseComponent):
             tag_condition=tag_condition
         )))
 
-        # Add reload button to toolbar
-        bar = frame.top.bar.replaceSlots('#', '#,reloadBtn,5')
+        # Add toolbar buttons: columnset filter and reload
+        bar = frame.top.bar.replaceSlots('#', '#,columnsetFilter,reloadBtn,5')
         bar.reloadBtn.slotButton('!!Reload', iconClass='iconbox reload',
                                   action='FIRE .reload;')
+
+        # Columnset visibility filter (tooltipPane with checkboxText)
+        filterBtn = bar.columnsetFilter.div( _class='iconbox filter',
+                                                    tip='!!Show/hide tag groups')
+        tp = filterBtn.tooltipPane()
+        fb = tp.div(padding='10px').formbuilder(cols=1, border_spacing='3px')
+        fb.checkboxText(value='^.visibleColumnsets',
+                        values='^.columnsetOptions',
+                        cols=1,
+                        popup=False,
+                        codeSeparator='|')
 
         # Setup data loading
         self._tmg_setupDataLoading(frame, source, source_table,
                                    source_pkey, caption_field,
                                    source_condition, tag_condition,
-                                   condition_kwargs)
+                                   condition_kwargs,
+                                   visible_columnsets)
 
         # Setup save handling
         self._tmg_setupSaveHandler(frame, source)
@@ -137,10 +153,13 @@ class TagMatrixGrid(BaseComponent):
 
     def _tmg_setupDataLoading(self, frame, source, source_table,
                                source_pkey, caption_field, source_condition,
-                               tag_condition, condition_kwargs):
+                               tag_condition, condition_kwargs,
+                               visible_columnsets):
         """Setup data loading controllers for the matrix grid."""
         if not condition_kwargs:
             condition_kwargs['_onBuilt'] = True
+
+        # Initialize visible columnsets ('*' means all, or specific comma-separated list)
         frame.dataRpc('.matrixData', self.tmg_loadData,
                       source=source,
                       source_table=source_table,
@@ -148,13 +167,36 @@ class TagMatrixGrid(BaseComponent):
                       caption_field=caption_field,
                       source_condition=source_condition,
                       tag_condition=tag_condition,
+                      _default_visible_columnsets=visible_columnsets or '*',
                       _reload='^.reload',
-                      _onResult="""const struct = result.getItem('struct');
+                      _onResult="""
+                                  const struct = result.getItem('struct');
                                    const store = result.getItem('store');
                                    const tagMap = result.getItem('tagMap');
+                                   const columnsets = struct.getItem('info.columnsets');
+                                   // Extract columnset options for visibility filter
+                                   if(columnsets){
+                                       let options = [];
+                                       let codes = [];
+                                       columnsets.forEach(function(n){
+                                           let code = n.attr.code;
+                                           options.push(code + '|' + n.attr.name);
+                                           codes.push(code);
+                                       });
+                                       SET .columnsetOptions = options.join(',');
+                                       // If visible_columnsets is '*', set all visible
+                                       let currentVisible = GET .visibleColumnsets;
+                                       if(!(this._loaded_once || currentVisible)){
+                                           currentVisible = kwargs._default_visible_columnsets=='*'?codes.join(','):kwargs._default_visible_columnsets;
+                                           SET .visibleColumnsets = currentVisible;
+                                       }
+                                   }
+
                                    SET .grid.struct = struct;
                                    SET .store = store;
-                                   SET .tagMap = tagMap;""",
+                                   SET .tagMap = tagMap;
+                                   this._loaded_once = true;
+                                   """,
                       **condition_kwargs)
 
     def _tmg_setupSaveHandler(self, frame, source):
@@ -239,6 +281,7 @@ class TagMatrixGrid(BaseComponent):
         source_query = source_tblobj.query(
             columns=f'${source_pkey},${caption_field}',
             where=source_where,
+            order_by=f'${caption_field}',
             **source_params
         )
         source_rows = source_query.fetch()
@@ -315,7 +358,10 @@ class TagMatrixGrid(BaseComponent):
         """Build the grid structure with dynamic tag columns grouped by parent.
 
         Uses the newGridStruct API to properly build the struct with checkboxcell support.
-        Tags are grouped by their parent (theme) creating columnsets.
+
+        Logic: Only leaf nodes (tags without children) are shown as checkboxes.
+        Columnsets are created for the immediate parents of leaf nodes (the nodes
+        just before the leaves in the hierarchy).
         """
         struct = self.newGridStruct()
         r = struct.view().rows()
@@ -326,54 +372,76 @@ class TagMatrixGrid(BaseComponent):
                width='15em',
                sort='a')
 
-        # Group tags by parent for columnsets
-        parent_groups = {}
-        root_tags = []
-        parent_map = {}  # To look up parent info by id
+        # Build lookup structures
+        tag_by_id = {tag['id']: tag for tag in tag_rows}
+        children_of = {}  # parent_id -> [child_tags]
 
         for tag in tag_rows:
             parent_id = tag.get('parent_id')
-            parent_map[tag['id']] = tag
             if parent_id:
-                if parent_id not in parent_groups:
-                    parent_groups[parent_id] = []
-                parent_groups[parent_id].append(tag)
+                if parent_id not in children_of:
+                    children_of[parent_id] = []
+                children_of[parent_id].append(tag)
+
+        # Identify leaf nodes (tags that have no children)
+        leaf_tags = [tag for tag in tag_rows if tag['id'] not in children_of]
+
+        # Identify leaf parents (immediate parents of leaves)
+        # These are the nodes that will become columnsets
+        leaf_parent_ids = set()
+        for leaf in leaf_tags:
+            parent_id = leaf.get('parent_id')
+            if parent_id:
+                leaf_parent_ids.add(parent_id)
+
+        # Group leaves by their parent
+        leaves_by_parent = {}
+        orphan_leaves = []  # Leaves without a parent (root-level leaves)
+
+        for leaf in leaf_tags:
+            parent_id = leaf.get('parent_id')
+            if parent_id:
+                if parent_id not in leaves_by_parent:
+                    leaves_by_parent[parent_id] = []
+                leaves_by_parent[parent_id].append(leaf)
             else:
-                root_tags.append(tag)
+                orphan_leaves.append(leaf)
 
-        # Process root tags and their children
-        for parent_tag in root_tags:
-            parent_id = parent_tag['id']
-            children = parent_groups.get(parent_id, [])
+        # Create columnsets for leaf parents, sorted by hierarchical_code
+        sorted_parent_ids = sorted(
+            leaf_parent_ids,
+            key=lambda pid: tag_by_id[pid]['hierarchical_code'] if pid in tag_by_id else ''
+        )
 
-            if children:
-                # Create columnset for this parent theme
-                columnset_id = f'cs_{parent_id}'
-                cs = r.columnset(code=columnset_id, name=parent_tag['description'])
+        for parent_id in sorted_parent_ids:
+            parent_tag = tag_by_id.get(parent_id)
+            if not parent_tag:
+                continue
 
-                # Add child tag columns under this columnset
-                for child_tag in children:
-                    cs.checkboxcell(
-                        f"tag_{child_tag['id']}",
-                        name=child_tag['description'],
-                        width='5em'
-                    )
+            columnset_code = parent_tag['code']
+            # Use .#parent to go up from .grid to the frame datapath
+            hidden = f"^.#parent.visibleColumnsets?=!(#v||'').split(',').includes('{columnset_code}')"
+            cs = r.columnset(code=columnset_code, name=parent_tag['description'])
 
-                    # Also handle grandchildren (second level nesting)
-                    grandchildren = parent_groups.get(child_tag['id'], [])
-                    for grandchild_tag in grandchildren:
-                        cs.checkboxcell(
-                            f"tag_{grandchild_tag['id']}",
-                            name=grandchild_tag['description'],
-                            width='5em'
-                        )
-            else:
-                # Root tag without children - add directly
-                r.checkboxcell(
-                    f"tag_{parent_tag['id']}",
-                    name=parent_tag['description'],
-                    width='5em'
+            # Add leaf children as checkboxes, sorted by hierarchical_code
+            children = sorted(leaves_by_parent[parent_id],
+                            key=lambda t: t['hierarchical_code'])
+            for child_tag in children:
+                cs.checkboxcell(
+                    f"tag_{child_tag['id']}",
+                    name=child_tag['description'],
+                    width='5em',
+                    hidden=hidden
                 )
+
+        # Add orphan leaves (root-level tags without children) directly
+        orphan_leaves.sort(key=lambda t: t['hierarchical_code'])
+        for leaf_tag in orphan_leaves:
+            r.checkboxcell(
+                f"tag_{leaf_tag['id']}",
+                name=leaf_tag['description'],
+                width='5em'
+            )
 
         return struct
 
