@@ -112,9 +112,17 @@ class TestStorageHandler(BaseGnrTest):
         assert hasattr(gnr_storage, 'exists')
 
     def test_storage_nonexistent(self):
-        """Test accessing non-existent storage returns None."""
+        """Test accessing non-existent storage falls back to local storage.
+
+        For backward compatibility, accessing a storage that doesn't exist
+        in storage_params creates a local storage with the storage_name
+        as subdirectory of site_static_dir.
+        """
         result = self.site.storage('nonexistent_storage_12345')
-        assert result is None
+        # Should create a fallback local storage, not return None
+        assert result is not None
+        assert hasattr(result, 'exists')
+        assert hasattr(result, 'url')
 
     def test_storage_with_kwargs(self):
         """Test that storage() accepts additional kwargs."""
@@ -365,10 +373,15 @@ class TestStorageHandler(BaseGnrTest):
     # ========================================================================
 
     def test_storage_with_empty_name(self):
-        """Test storage access with empty storage name."""
+        """Test storage access with empty storage name.
+
+        For backward compatibility, even empty names create a fallback
+        local storage in site_static_dir.
+        """
         result = self.site.storage('')
-        # Should handle gracefully (return None or raise specific exception)
-        assert result is None or isinstance(result, Exception)
+        # Should create a fallback local storage (backward compatibility)
+        assert result is not None
+        assert hasattr(result, 'exists')
 
     def test_storage_node_with_none_path(self):
         """Test storage node creation with None in path."""
