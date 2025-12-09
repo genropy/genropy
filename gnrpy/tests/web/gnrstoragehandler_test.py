@@ -124,6 +124,25 @@ class TestStorageHandler(BaseGnrTest):
         assert hasattr(result, 'exists')
         assert hasattr(result, 'url')
 
+    def test_storage_node_nonexistent_storage(self):
+        """Test storageNode with non-existent storage name creates fallback local storage.
+
+        This is the exact scenario reported by mbertoldi: using storageNode with
+        an arbitrary storage name that doesn't exist in storage_params should
+        create a subfolder in site_static_dir, not return None.
+        """
+        # This is the pattern reported as broken: storageNode('non_existing_storage:', filename)
+        node = self.site.storageNode('my_custom_storage:', 'testfile.txt')
+
+        # Should create a valid storage node, not None
+        assert node is not None
+        assert hasattr(node, 'fullpath')
+        assert hasattr(node, 'exists')
+
+        # The path should be under site_static_dir/my_custom_storage/
+        assert 'my_custom_storage' in node.fullpath
+        assert 'testfile.txt' in node.fullpath
+
     def test_storage_with_kwargs(self):
         """Test that storage() accepts additional kwargs."""
         # Should not raise exception
