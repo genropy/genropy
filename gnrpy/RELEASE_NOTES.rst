@@ -4,6 +4,11 @@ Upcoming release
 Enhancements
 ------------
 
+* Added support for camera selection on image acquisition on mobile
+  devices (#301)
+* Introduing AuthTagStruct, a new declarative system for defining
+  hierarchical permission structures in applications. It's fully
+  retro-compatible.
 * Added a new 'variantColumn_masked' method to sqlTable for securely
   displaying sensitive data by masking portions of it, like credit
   cards numbers, email addresses etc
@@ -15,15 +20,20 @@ Enhancements
   color syntax plugin, hidden preview mode, and bag mode support to
   store mardown text into nested Bag structures.
 * TinyMCE is now the default editor (#219)
-  
+* Postgres database dump is now correctly monitored for runtime
+  errors, like server version mismatches
+
 Deprecations
 ------------
 
 * the 'gnr app update' cli command has been marked as deprecated
-
+* The "site in maintenance" feature has been deprecated and removed.
+  
 Fixes
 -----
 
+* Fixed issue with multiButtonForm, now we force norecord in order to
+  hide former selected record values after record is changed
 * Improved checks on genropy's packages relations and dependencies (#178, #279)
 * remoteRowController handling for new rows fixes
 * Mobile deployment checks retrieve the correct URL from configuration

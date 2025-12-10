@@ -591,12 +591,6 @@ class PageRegister(BaseRegister):
                 data.setBackRef()
             self.subscribe_path(page_id,serverpath)
 
-    def pageInMaintenance(self,page_id=None):
-        page_item = self.get_item(page_id)
-        if not page_item:
-            return
-        user = page_item['user']
-        return self.siteregister.isInMaintenance(user)
 
     def setInClientData(self,path, value=None, attributes=None, page_id=None, filters=None,
                         fired=False, reason=None, public=False, replace=False):
@@ -626,7 +620,6 @@ class SiteRegister(BaseRemoteObject):
         self.sitename = sitename
         self.storage_path = storage_path
         self.catalog = GnrClassCatalog()
-        self.maintenance = False
         self.allowed_users = None
         self.interproces_commands = dict()
 
@@ -957,25 +950,6 @@ class SiteRegister(BaseRemoteObject):
                 else:
                     pidhandler['commands'].append(command)
 
-
-    def setMaintenance(self,status,allowed_users=None):
-        if status is False:
-            self.allowed_users = None
-            self.maintenance = False
-        else:
-            self.allowed_users = allowed_users
-            self.maintenance = True
-
-    def isInMaintenance(self,user=None):
-        if not self.maintenance or user=='*forced*':
-            return False
-        if not user or not self.allowed_users:
-            return self.maintenance
-        return not user in self.allowed_users
-
-    def allowedUsers(self):
-        return self.allowed_users
-
     def __getattr__(self, fname):
         if fname=='_pyroId':
             if not '_pyroId' in self.__dict__:
@@ -1197,6 +1171,7 @@ class SiteRegisterClient(object):
             return h
         def decore(*args,**kwargs):
             attempt = 0
+            r = None
             while attempt < MAX_RETRY_ATTEMPTS:
                 try:
                     r = h(*args,**kwargs)
