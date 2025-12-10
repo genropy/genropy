@@ -582,8 +582,22 @@ class ContentsComponent(BaseComponent):
     def contentAttachments(self, pane):
         pane.attachmentMultiButtonFrame()
 
-    def contentVersions(self, bc, **kwargs):
-        bc.contentPane(region='center').plainTableHandler(relation='@versions', formResource='FormDiff', configurable=False)
-        bc.contentPane(region='bottom', closable='close', closable_label='!![en]Differences', height='50%').simpleTextArea(
-                                                    '^.diff', overflow='hidden', height='100%', width='100%', 
+    def contentVersions(self, bc, table=None, condition=None, relation=None, **kwargs):
+        "Please provide either table or relation"
+        historyth_params = dict(formResource='FormDiff' or kwargs.pop('formResource', None),
+                                viewResource='ViewFromContent' or kwargs.pop('viewResource', None),
+                                configurable=False or kwargs.pop('configurable', False))
+        if table:
+            historyth_params['table'] = table 
+        elif relation:
+            historyth_params['relation'] = relation
+        else:
+            raise GnrException('Please provide either table or relation to contentVersions')
+        if condition:
+            historyth_params['condition'] = condition
+        bc.contentPane(region='center').plainTableHandler(**historyth_params, **kwargs)
+        bc.contentPane(region='bottom', closable='close', closable_label='!![en]Differences', 
+                                                    height='50%').simpleTextArea(
+                                                    '^.diff', overflow='hidden', 
+                                                    height='100%', width='100%', 
                                                     editor=True, readOnly=True)
