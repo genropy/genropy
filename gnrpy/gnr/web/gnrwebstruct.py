@@ -684,6 +684,104 @@ class GnrDomSrc(GnrStructData):
     
     def gridbox(self,columns=None,align_content=None,justify_content=None,
                 align_items=None,justify_items=None,table=None,**kwargs):
+        """Create a gridbox container for two-dimensional grid-based layouts.
+
+        The gridbox container uses CSS Grid layout to arrange child elements in a two-dimensional
+        grid system with rows and columns. It provides powerful control over item positioning,
+        sizing, and alignment, making it ideal for complex layouts, forms, and dashboards.
+
+        Args:
+            columns (int or str): Number of columns or explicit column definition.
+                                - int: Number of equal-width columns (e.g., 3)
+                                - str: CSS grid-template-columns value (e.g., '1fr 2fr 1fr')
+                                If not specified, uses auto-placement.
+
+            align_content (str): Aligns the grid within the container when there's extra space.
+                               - 'start': Grid aligned to start
+                               - 'end': Grid aligned to end
+                               - 'center': Grid centered
+                               - 'stretch': Grid stretches to fill (default)
+                               - 'space-between': Space distributed between rows
+                               - 'space-around': Space around each row
+                               - 'space-evenly': Equal space between all rows
+
+            justify_content (str): Aligns the grid horizontally within the container.
+                                 - 'start': Grid aligned to start
+                                 - 'end': Grid aligned to end
+                                 - 'center': Grid centered
+                                 - 'stretch': Grid stretches to fill (default)
+                                 - 'space-between': Space distributed between columns
+                                 - 'space-around': Space around each column
+                                 - 'space-evenly': Equal space between all columns
+
+            align_items (str): Aligns items vertically within their grid cell.
+                             - 'start': Items aligned to cell start
+                             - 'end': Items aligned to cell end
+                             - 'center': Items centered in cell
+                             - 'stretch': Items stretch to fill cell (default)
+
+            justify_items (str): Aligns items horizontally within their grid cell.
+                               - 'start': Items aligned to cell start
+                               - 'end': Items aligned to cell end
+                               - 'center': Items centered in cell
+                               - 'stretch': Items stretch to fill cell (default)
+
+            table (str): Optional table name for integration with Genro data handling.
+                        Defaults to page.maintable if not specified.
+
+            **kwargs: Additional attributes:
+                     - gap (str): Spacing between grid items (e.g., '10px', '1em')
+                     - column_gap (str): Horizontal spacing between columns
+                     - row_gap (str): Vertical spacing between rows
+                     - item_height (str): Default height for grid items
+                     - item_border (str): Border applied to all items
+                     - item_side (str): Label position for labledBox items ('top', 'left', etc.)
+
+        Returns:
+            GnrDomSrcNode: The gridbox container node
+
+        Grid Item Attributes:
+            Child elements can use these attributes for positioning:
+            - colspan (int): Number of columns the item spans
+            - rowspan (int): Number of rows the item spans
+
+        Example:
+            # Simple 3-column grid
+            grid = pane.gridbox(columns=3, gap='10px')
+            grid.div('Item 1')
+            grid.div('Item 2')
+            grid.div('Item 3', colspan=2)  # Spans 2 columns
+            grid.div('Item 4')
+
+            # Explicit column widths
+            grid = pane.gridbox(columns='200px 1fr 2fr', row_gap='15px')
+            grid.div('Sidebar', height='100%')
+            grid.div('Content')
+            grid.div('Main area')
+
+            # Form layout with gridbox
+            form = pane.gridbox(columns=2, gap='10px')
+            form.textbox(value='^.name', lbl='Name')
+            form.textbox(value='^.surname', lbl='Surname')
+            form.textbox(value='^.email', lbl='Email', colspan=2)
+
+            # Dashboard with different sized sections
+            dashboard = pane.gridbox(columns=3, gap='20px', height='100%')
+            dashboard.labledBox('Stats', colspan=2).borderContainer()
+            dashboard.labledBox('Quick Actions')
+            dashboard.labledBox('Recent Activity', colspan=3)
+
+            # Centered grid
+            grid = pane.gridbox(columns=4, justify_content='center',
+                               align_items='center', height='400px')
+            for i in range(8):
+                grid.div(f'Cell {i}', border='1px solid #ccc')
+
+        See Also:
+            - flexbox(): For one-dimensional flexible layouts
+            - formbuilder(): For traditional form layouts
+            - labledBox(): For labeled containers within gridbox
+        """
         return self.child('gridbox',columns=columns,table=table or self.page.maintable,
                           align_content=align_content,justify_content=justify_content,
                           align_items=align_items,justify_items=justify_items

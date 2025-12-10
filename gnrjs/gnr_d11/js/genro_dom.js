@@ -656,7 +656,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
     style_setall:  function(label, styledict/*{}*/, attributes/*{}*/, noConvertStyle) {
         for (var attrname in attributes) {
             if (stringStartsWith(attrname, label + '_') && arrayIndexOf(noConvertStyle, attrname) == -1) {
-                styledict[attrname.replace('_', '-')] = objectPop(attributes, attrname);
+                styledict[attrname.replace(/_/g, '-')] = objectPop(attributes, attrname);
             }
         }
     },
