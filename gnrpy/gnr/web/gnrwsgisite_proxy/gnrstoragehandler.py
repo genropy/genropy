@@ -153,30 +153,24 @@ class BaseStorageHandler:
             <documents path="../documents"/>
         </volumes>
         """
-        # Load from services section
-        if self.site.config.get('services'):
-            # Check for storage-specific section
-            storage_services = self.site.config.get('services.storage')
+        # Load from services section (mimics ServiceHandler.serviceConfigurationsFromSiteConfig)
+        services = self.site.config['services']
+        if services:
+            # Check for storage-specific section: <services><storage>...</storage></services>
+            storage_services = self.site.config['services.storage']
             if storage_services:
-                for service_name, service_bag in storage_services.items():
-                    params = dict(service_bag.getAttr())
-                    # Remove service_type if present (it's redundant)
-                    params.pop('service_type', None)
-                    implementation = params.pop('implementation', None)
-                    self._setStorageParams(service_name, parameters=params, implementation=implementation)
-
-            # Check for flat structure where service_type is an attribute
-            all_services = self.site.config.get('services')
-            if all_services:
-                for service_name, service_bag in all_services.items():
-                    if service_name == 'storage':  # Skip the nested section we already processed
-                        continue
-                    attrs = service_bag.getAttr() if hasattr(service_bag, 'getAttr') else {}
-                    if attrs.get('service_type') == 'storage':
-                        params = dict(attrs)
-                        params.pop('service_type', None)
-                        implementation = params.pop('implementation', None)
-                        self._setStorageParams(service_name, parameters=params, implementation=implementation)
+                for service_name, attrs in storage_services.digest('#k,#a'):
+                    attrs = dict(attrs) if attrs else {}
+                    attrs.pop('service_type', None)
+                    implementation = attrs.pop('implementation', None)
+                    self._setStorageParams(service_name, parameters=attrs, implementation=implementation)
+            # Also check flat structure: <services><my_storage service_type="storage" .../></services>
+            for service_name, attrs in services.digest('#k,#a'):
+                attrs = dict(attrs) if attrs else {}
+                service_type = attrs.pop('service_type', None) or service_name
+                if service_type == 'storage':
+                    implementation = attrs.pop('implementation', None)
+                    self._setStorageParams(service_name, parameters=attrs, implementation=implementation)
 
         # Load from volumes section (LEGACY - should be migrated to services)
         volumes = self.site.config.getItem('volumes')
