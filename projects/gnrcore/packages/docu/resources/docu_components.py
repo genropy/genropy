@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import warnings
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import public_method,customizable
@@ -515,15 +516,24 @@ class ContentsComponent(BaseComponent):
             **kwargs: Additional arguments passed to underlying editor
                      (e.g., initialEditType for MDEditor)
         """
-        if mode == 'html':
-            self.contentEditor_html(pane, **kwargs)
-        elif mode == 'md':
-            self.contentEditor_md(pane, **kwargs)
-        elif mode == 'template':
-            self.contentEditor_template(pane, **kwargs)
-        else:
-            self.contentEditor_text(pane, **kwargs)
-    
+        getattr(self, f"contentEditor_{mode}", self.contentEditor_text)(pane, **kwargs)
+
+    @struct_method
+    def contentText(self, pane, mode=None, **kwargs):
+        """
+        DEPRECATED: Use contentEditor() instead.
+
+        This method is deprecated and will be removed in a future release.
+        Please update your code to use contentEditor() with the appropriate mode parameter.
+        """
+        warnings.warn(
+            "contentText() is deprecated and will be removed in a future release. "
+            "Please use contentEditor() instead.",
+            FutureWarning,
+            stacklevel=2
+        )
+        self.contentEditor(pane, mode=mode, **kwargs)
+
     def contentEditor_html(self, pane, **kwargs):
         "Chooses html editor after checking sys stylingPreferences for tinymce_beta (True=tinyMce, False=ckeditor)"
         use_tinymce = self.getPreference('theme.tinymce_beta', pkg='sys') 
