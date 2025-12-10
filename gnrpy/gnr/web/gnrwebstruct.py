@@ -610,6 +610,74 @@ class GnrDomSrc(GnrStructData):
     def flexbox(self,direction=None,wrap=None,align_content=None,
                 justify_content=None,align_items=None,
                 justify_items=None,**kwargs):
+        """Create a flexbox container for flexible layout of child elements.
+
+        The flexbox container uses CSS Flexbox layout to arrange child elements in a flexible,
+        responsive manner. It provides powerful alignment and distribution capabilities.
+
+        Args:
+            direction (str): Main axis direction for flex items.
+                           - 'row': Left to right (default)
+                           - 'column': Top to bottom
+                           - 'row-reverse': Right to left
+                           - 'column-reverse': Bottom to top
+
+            wrap (bool or str): Whether flex items should wrap to next line.
+                              - True/'wrap': Items wrap onto multiple lines
+                              - False/'nowrap': Items stay on single line (default)
+                              - 'wrap-reverse': Items wrap in reverse order
+
+            align_content (str): Aligns lines when there is extra space on cross axis.
+                               - 'flex-start': Lines packed to start
+                               - 'flex-end': Lines packed to end
+                               - 'center': Lines centered
+                               - 'space-between': Lines evenly distributed
+                               - 'space-around': Lines with equal space around
+                               - 'stretch': Lines stretch to fill container (default)
+
+            justify_content (str): Aligns items along main axis.
+                                 - 'flex-start': Items packed to start (default)
+                                 - 'flex-end': Items packed to end
+                                 - 'center': Items centered
+                                 - 'space-between': Items evenly distributed
+                                 - 'space-around': Items with equal space around
+                                 - 'space-evenly': Items with equal space between
+
+            align_items (str): Aligns items along cross axis.
+                             - 'flex-start': Items aligned to start
+                             - 'flex-end': Items aligned to end
+                             - 'center': Items centered
+                             - 'baseline': Items aligned to baseline
+                             - 'stretch': Items stretch to fill (default)
+
+            justify_items (str): Justifies items within their area (grid-specific).
+
+            **kwargs: Additional HTML/CSS attributes (e.g., height, width, border, padding)
+
+        Returns:
+            GnrDomSrcNode: The flexbox container node
+
+        Example:
+            # Simple horizontal flexbox
+            box = pane.flexbox(direction='row', justify_content='space-between')
+            box.div('Item 1')
+            box.div('Item 2')
+            box.div('Item 3')
+
+            # Vertical flexbox with wrapping
+            box = pane.flexbox(direction='column', wrap=True, height='200px')
+            for i in range(10):
+                box.div(f'Item {i}', height='30px')
+
+            # Centered content
+            box = pane.flexbox(justify_content='center', align_items='center',
+                              height='100%')
+            box.div('Centered content')
+
+        See Also:
+            - gridbox(): For grid-based layouts
+            - borderContainer(): For region-based layouts
+        """
         return self.child('flexbox',direction=direction, wrap=wrap,
                           align_content=align_content,justify_content=justify_content,
                           align_items=align_items,justify_items=justify_items,**kwargs)
