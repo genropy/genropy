@@ -114,43 +114,30 @@ class GnrCustomWebPage(object):
 
         Gridbox is ideal when you need more control than formbuilder provides.
         """
+        bc = pane.borderContainer(height='500px',width='700px',border='1px solid lime')
+
         # Control panel for dynamic columns
-        fb = pane.formbuilder(cols=2)
-        fb.textBox(value='^columns',default='4',lbl='Columns')
+        fb = bc.contentPane(region='top').formbuilder(cols=2)
+        fb.textBox(value='^.columns',default='3',lbl='Columns')
 
-        # Create form with gridbox instead of formbuilder
-        form = pane.frameForm(frameCode='TestForm3',datapath='.mieidati',
-                             store='memory',height='500px',
-                             border='1px solid silver',rounded=10,margin_top='10px')
-        bc = form.center.borderContainer(datapath='.record')
-        bc.contentPane(region='right',splitter=True,width='150px')
-
-        # Gridbox with dynamic columns
-        gb = bc.contentPane(region='center').gridbox(columns='^columns',gap='5px')
+        # Gridbox with dynamic columns used as form layout
+        gb = bc.contentPane(region='center').gridbox(columns='^.columns',gap='10px',
+                                                     margin='10px')
         side = 'top'
 
         # Form fields in grid layout
-        gb.textbox(value='^.nome',lbl='Nome',lbl_side=side,validate_notnull=True)
-        gb.textbox(value='^.cognome',lbl='Cognome',lbl_side=side,validate_notnull=True)
-        gb.dateTextBox(value='^.nato_il',lbl='Essendo Nato il',lbl_side=side)
-        gb.dbSelect(value='^.provincia_nascita',lbl='Pr.Nascita',
-                   table='glbl.provincia',hasDownArrow=True,lbl_side=side)
+        gb.textbox(value='^.nome',lbl='Nome',lbl_side=side)
+        gb.textbox(value='^.cognome',lbl='Cognome',lbl_side=side)
+        gb.dateTextBox(value='^.nato_il',lbl='Nato il',lbl_side=side)
 
         # Email field spans 2 columns
         gb.textbox(value='^.email',lbl='Email',lbl_side=side,
-                  wrp_style='grid-column:span 2;')
+                  colspan=2)
 
         gb.radioButtonText(value='^.genere',values='M:Maschi,F:Femmina,N:Neutro',
                           lbl='Genere',lbl_side=side)
-        gb.checkbox(value='^.privacy',label='Accept',
-                   lbl='Privacy acceptance',lbl_side=side)
-
-        # Form actions
-        bar = form.bottom.slotBar('*,confirm,5')
-        bar.confirm.button('Save',action='alert(this.form.getFormData().toXml())')
-
-        # Initialize with new record
-        pane.dataController("frm.newrecord();",frm=form.js_form,_onStart=True)
+        gb.checkbox(value='^.privacy',label='Accetto privacy',
+                   lbl='Privacy',lbl_side=side)
 
     def test_4_gridbox_with_labledbox(self,pane):
         """Gridbox with labledBox items: Styled form containers
