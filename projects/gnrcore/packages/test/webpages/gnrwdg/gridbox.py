@@ -8,7 +8,7 @@ for creating two-dimensional layouts with rows and columns.
 
 class GnrCustomWebPage(object):
     py_requires="""gnrcomponents/testhandler:TestHandlerFull,
-                th/th:TableHandler"""
+                    th/th:TableHandler"""
 
     def test_0_basic_gridbox(self,pane):
         """Basic gridbox: Fixed grid with CSS template
@@ -115,13 +115,13 @@ class GnrCustomWebPage(object):
         Gridbox is ideal when you need more control than formbuilder provides.
         """
         # Control panel for dynamic columns
-        fb = pane.contentPane(region='top').formbuilder(cols=2)
+        fb = pane.formbuilder(cols=2)
         fb.textBox(value='^columns',default='4',lbl='Columns')
 
         # Create form with gridbox instead of formbuilder
         form = pane.frameForm(frameCode='TestForm3',datapath='.mieidati',
                              store='memory',height='500px',
-                             border='1px solid silver',rounded=10)
+                             border='1px solid silver',rounded=10,margin_top='10px')
         bc = form.center.borderContainer(datapath='.record')
         bc.contentPane(region='right',splitter=True,width='150px')
 
