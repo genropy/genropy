@@ -28,7 +28,10 @@ Enhancements
 * 'gnr app checkdep -i' installation process now have better control
   over subprocess execution to collect errors and provide useful
   informations to debug issues (#343)
-
+* new contentEditor in docu_components which supports multiple text
+  editors. (#344)
+  
+  
 Deprecations
 ------------
 
@@ -37,6 +40,8 @@ Deprecations
 * getVolumeService() and legacy volumes configuration have been
   deprecated in favor of section 'services'
 * the subdomain concept from wsgisite and gnrwebpage has been dropped (#334)
+* contentText component in docu_components has been deprecated by
+  contentEditor which supports multiple text editors.
 
 Fixes
 -----
