@@ -92,9 +92,6 @@ class GnrWebPageException(GnrException):
 class GnrUnsupportedBrowserException(GnrException):
     pass
 
-class GnrMaintenanceException(GnrException):
-    pass
-
 class GnrSignedTokenException(GnrException):
     pass
 
@@ -109,12 +106,13 @@ class GnrUserNotAllowed(GnrException):
 class GnrBasicAuthenticationError(GnrException):
     code = 'AUTH-901'
 
-EXCEPTIONS = {'user_not_allowed': GnrUserNotAllowed,
-              'missing_resource': GnrMissingResourceException,
-              'unsupported_browser': GnrUnsupportedBrowserException,
-              'generic': GnrWebPageException,
-              'basic_authentication':GnrBasicAuthenticationError,
-              'maintenance': GnrMaintenanceException}
+EXCEPTIONS = {
+    'user_not_allowed': GnrUserNotAllowed,
+    'missing_resource': GnrMissingResourceException,
+    'unsupported_browser': GnrUnsupportedBrowserException,
+    'generic': GnrWebPageException,
+    'basic_authentication':GnrBasicAuthenticationError
+}
 
 class GnrWebPage(GnrBaseWebPage):
     """Standard class for :ref:`webpages <webpage>`

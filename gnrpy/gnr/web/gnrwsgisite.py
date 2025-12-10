@@ -29,18 +29,17 @@ from gnr.core.gnrstring import boolean
 from gnr.core.gnrdecorator import extract_kwargs,metadata
 from gnr.core.gnrcrypto import AuthTokenGenerator
 from gnr.lib.services import ServiceHandler
-from gnr.lib.services.storage import StorageNode
 from gnr.app.gnrdeploy import PathResolver
 from gnr.app.gnrapp import GnrPackage
 from gnr.web import logger
 from gnr.web.gnrwebapp import GnrWsgiWebApp
-from gnr.web.gnrwebpage import GnrUnsupportedBrowserException, GnrMaintenanceException
-from gnr.web.gnrwebreqresp import GnrWebRequest
+from gnr.web.gnrwebpage import GnrUnsupportedBrowserException
 from gnr.web.gnrwsgisite_proxy.gnrresourceloader import ResourceLoader
 from gnr.web.gnrwsgisite_proxy.gnrstatichandler import StaticHandlerManager
 from gnr.web.gnrwsgisite_proxy.gnrpwahandler import PWAHandler
 from gnr.web.gnrwsgisite_proxy.gnrsiteregister import SiteRegisterClient
 from gnr.web.gnrwsgisite_proxy.gnrwebsockethandler import WsgiWebSocketHandler
+from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import LegacyStorageHandler
 
 try:
     from werkzeug import EnvironBuilder
@@ -158,7 +157,6 @@ class GnrWsgiSite(object):
         self._currentAuxInstanceNames = {}
         self._currentPages = {}
         self._currentRequests = {}
-        self._currentMaintenances = {}
         abs_script_path = os.path.abspath(script_path)
         self.remote_db = ''
         self._register = None
@@ -231,6 +229,7 @@ class GnrWsgiSite(object):
         self.debugpy = debugpy
         logger.debug("Debugpy active: %s", self.debugpy)
         self.dbstores = self.db.dbstores
+        self.storage_handler = LegacyStorageHandler(self)
         self.resource_loader = ResourceLoader(self)
         self.pwa_handler = PWAHandler(self)
         self.auth_token_generator = AuthTokenGenerator(self.external_secret)
@@ -259,6 +258,7 @@ class GnrWsgiSite(object):
         self.cleanup_interval = int(cleanup.get('interval') or 120)
         self.page_max_age = int(cleanup.get('page_max_age') or 120)
         self.connection_max_age = int(cleanup.get('connection_max_age')or 600)
+
         self.db.closeConnection()
 
 
@@ -398,59 +398,18 @@ class GnrWsgiSite(object):
         :param service_handler_factory: TODO"""
         return self.statics.add(static_handler_factory, **kwargs)
 
+    @deprecated('Use storage_handler.getVolumeService() instead')
     def getVolumeService(self, storage_name=None):
-        sitevolumes = self.config.getItem('volumes')
-        if sitevolumes and storage_name in sitevolumes:
-            vpath = sitevolumes.getAttr(storage_name,'path')
-        else:
-            vpath = storage_name
-        volume_path = expandpath(os.path.join(self.site_static_dir,vpath))
-        return self.getService(service_type='storage',service_name=storage_name
-            ,implementation='local',base_path=volume_path)
+        return self.storage_handler.getVolumeService(storage_name)
 
     def storagePath(self, storage_name, storage_path):
-        if storage_name == 'user':
-            return '%s/%s'%(self.currentPage.user, storage_path)
-        elif storage_name == 'conn':
-            return '%s/%s'%(self.currentPage.connection_id, storage_path)
-        elif storage_name == 'page':
-            return '%s/%s/%s'% (self.currentPage.connection_id, self.currentPage.page_id, storage_path)
-        return storage_path
+        return self.storage_handler.storagePath(storage_name, storage_path)
 
     def storage(self, storage_name,**kwargs):
-        storage = self.getService(service_type='storage',service_name=storage_name)
-        if not storage: 
-            storage = self.getVolumeService(storage_name=storage_name)
-        return storage
+        return self.storage_handler.storage(storage_name, **kwargs)
 
     def storageNode(self,*args,**kwargs):
-        if isinstance(args[0], StorageNode):
-            if args[1:]:
-                return self.storageNode(args[0].fullpath, args[1:])
-            else:
-                return args[0]
-        path = '/'.join(args)
-        if not ':' in path: 
-            path = '_raw_:%s'%path
-        if path.startswith('http://') or path.startswith('https://'):
-            path = '_http_:%s'%path
-        service_name, storage_path = path.split(':',1)
-        storage_path = storage_path.lstrip('/')
-        if service_name == 'vol':       
-            #for legacy path
-            service_name, storage_path = storage_path.replace(':','/').split('/', 1) 
-        service = self.storage(service_name)
-        if kwargs.pop('_adapt', True):
-            storage_path = self.storagePath(service_name, storage_path)
-        if not service: return
-        autocreate = kwargs.pop('autocreate', False)
-        must_exist = kwargs.pop('must_exist', False)
-        version = kwargs.pop('version', None)
-
-        mode = kwargs.pop('mode', None)
-
-        return StorageNode(parent=self, path=storage_path, service=service,
-            autocreate=autocreate, must_exist=must_exist, mode=mode,version=version)
+        return self.storage_handler.storageNode(*args, **kwargs)
 
     def build_lazydoc(self,lazydoc,fullpath=None,temp_dbstore=None,**kwargs):
         ext = os.path.splitext(fullpath)[1]
@@ -814,59 +773,22 @@ class GnrWsgiSite(object):
                 page.mixinComponent(path)
         return page
 
-    @property
-    def isInMaintenance(self):
-        request = self.currentRequest
-        request_kwargs = self.parse_kwargs(self.parse_request_params(request))
-        path_list = self.get_path_list(request.path)
-        first_segment = path_list[0] if path_list else ''
-        if request_kwargs.get('forcedlogin') or (first_segment.startswith('_') and first_segment!='_ping'):
-            return False
-        elif 'page_id' in request_kwargs:
-            self.currentMaintenance = 'maintenance' if self.register.pageInMaintenance(page_id=request_kwargs['page_id'],register_name='page') else None
-            if not self.currentMaintenance or (first_segment == '_ping'):
-                return False
-            return True
-        else:
-            r = GnrWebRequest(request)
-            c = r.get_cookie(self.site_name,'marshal', secret=self.config['secret'])
-            user = c.get('user') if c else None
-            return self.register.isInMaintenance(user)
-
     def dispatcher(self, environ, start_response):
         self.currentRequest = Request(environ)
         self.currentRequest.max_form_memory_size = 100_000_000
-        if self.isInMaintenance:
-            return self.maintenanceDispatcher(environ, start_response)
-        else:
-            try:
-                return self._dispatcher(environ, start_response)
-            except self.register.errors.ConnectionClosedError:
-                self.currentMaintenance = 'register_error'
-                self._register = None
-                return self.maintenanceDispatcher(environ, start_response)
-            except Exception as e:
-                page = self.currentPage
-                if self.debug and ((page and page.isDeveloper()) or self.force_debug):
-                    raise
-                self.writeException(exception=e,traceback=tracebackBag())
-                exc = HTTPInternalServerError(
-                    'Internal server error',
-                    comment='SCRIPT_NAME=%r; PATH_INFO=%r;'
-                    % (environ.get('SCRIPT_NAME'), environ.get('PATH_INFO')))
-                return exc(environ, start_response)
 
-    def maintenanceDispatcher(self,environ, start_response):
-        request = self.currentRequest
-        response = Response()
-        response.mimetype = 'text/html'
-        request_kwargs = self.parse_kwargs(self.parse_request_params(request))
-        path_list = self.get_path_list(request.path)
-        if (path_list and path_list[0].startswith('_')) or ('method' in request_kwargs or 'rpc' in request_kwargs or '_plugin' in request_kwargs):
-            response = self.setResultInResponse('maintenance', response, info_GnrSiteMaintenance=self.currentMaintenance)
-            return response(environ, start_response)
-        else:
-            return self.serve_htmlPage('html_pages/maintenance.html', environ, start_response)
+        try:
+            return self._dispatcher(environ, start_response)
+        except Exception as e:
+            page = self.currentPage
+            if self.debug and ((page and page.isDeveloper()) or self.force_debug):
+                raise
+            self.writeException(exception=e,traceback=tracebackBag())
+            exc = HTTPInternalServerError(
+                'Internal server error',
+                comment='SCRIPT_NAME=%r; PATH_INFO=%r;'
+                % (environ.get('SCRIPT_NAME'), environ.get('PATH_INFO')))
+            return exc(environ, start_response)
 
     @property
     def external_host(self):
@@ -961,7 +883,7 @@ class GnrWsgiSite(object):
                 result = self.serve_ping(response, environ, start_response, **request_kwargs)
                 if not isinstance(result, (bytes,str)):
                     return result
-                response = self.setResultInResponse(result, response, info_GnrTime=time() - t,info_GnrSiteMaintenance=self.currentMaintenance)
+                response = self.setResultInResponse(result, response, info_GnrTime=time() - t)
                 self.cleanup()
             except Exception as exc:
                 raise
@@ -1051,18 +973,20 @@ class GnrWsgiSite(object):
                     return self.statics.fileserve(result, environ, start_response,nocache=True,download_name=page.download_name)
             except GnrUnsupportedBrowserException:
                 return self.serve_htmlPage('html_pages/unsupported.html', environ, start_response)
-            except GnrMaintenanceException:
-                return self.serve_htmlPage('html_pages/maintenance.html', environ, start_response)
             except HTTPNotFound:
                 return self.serve_htmlPage('html_pages/missing_result.html', environ, start_response)
             finally:
                 self.onServedPage(page)
                 self.cleanup()
-            response = self.setResultInResponse(result, response, info_GnrTime=time() - t,info_GnrSqlTime=page.sql_time,info_GnrSqlCount=page.sql_count,
-                                                                info_GnrXMLTime=getattr(page,'xml_deltatime',None),info_GnrXMLSize=getattr(page,'xml_size',None),
-                                                                info_GnrSiteMaintenance=self.currentMaintenance,
-                                                                forced_headers=page.getForcedHeaders(),
-                                                                mimetype=getattr(page,'forced_mimetype',None))
+                
+            response = self.setResultInResponse(
+                result, response, info_GnrTime=time() - t,
+                info_GnrSqlTime=page.sql_time, info_GnrSqlCount=page.sql_count,
+                info_GnrXMLTime=getattr(page,'xml_deltatime',None),
+                info_GnrXMLSize=getattr(page,'xml_size',None),
+                forced_headers=page.getForcedHeaders(),
+                mimetype=getattr(page,'forced_mimetype',None)
+            )
 
             return response(environ, start_response)
 
@@ -1086,7 +1010,7 @@ class GnrWsgiSite(object):
             if self.gnrapp.config.getNode(f'aux_instances.{first}'):
                 request_kwargs['base_dbstore'] = f'instance_{first}'
         else:
-            if self.db.stores_handler.get_dbstore(first):
+            if self.db.get_store_parameters(first):
                 request_kwargs['base_dbstore'] = path_list.pop(0)
         temp_dbstore = request_kwargs.get('temp_dbstore','')
         if temp_dbstore and temp_dbstore.startswith('@'):
@@ -1097,7 +1021,7 @@ class GnrWsgiSite(object):
         auxapp = self.gnrapp.getAuxInstance(instance_name)
         if not auxapp:
             raise Exception('not existing aux instance %s' %instance_name)
-        if self.db.stores_handler.get_dbstore(storename):
+        if self.db.get_store_parameters(storename):
             return
         dbattr = auxapp.config.getAttr('db')
         if auxapp.remote_db:
@@ -1111,7 +1035,7 @@ class GnrWsgiSite(object):
                     dbattr['remote_host'] = host
                     dbattr['remote_port'] = port
                 dbattr.update(remote_db_attr)
-        self.db.stores_handler.add_store(storename,dbattr=dbattr)
+        self.db.stores_handler.add_auxstore(storename,dbattr=dbattr)
 
 
     @extract_kwargs(info=True)
@@ -1463,17 +1387,6 @@ class GnrWsgiSite(object):
 
     currentAuxInstanceName = property(_get_currentAuxInstanceName, _set_currentAuxInstanceName)
 
-
-    def _get_currentMaintenance(self):
-        """property currentPage it returns the page currently used in this thread"""
-        return self._currentMaintenances.get(_thread.get_ident())
-
-    def _set_currentMaintenance(self, page):
-        """set currentPage for this thread"""
-        self._currentMaintenances[_thread.get_ident()] = page
-
-    currentMaintenance = property(_get_currentMaintenance, _set_currentMaintenance)
-
     def _get_currentRequest(self):
         """property currentRequest it returns the request currently used in this thread"""
         return self._currentRequests.get(_thread.get_ident())
@@ -1572,12 +1485,12 @@ class GnrWsgiSite(object):
                 result[k] = v
         return result
 
-    @deprecated
+    @deprecated('deprecated since version 0.7')
     def site_static_path(self, *args):
         """.. warning:: deprecated since version 0.7"""
         return self.storage('site').path(*args)
 
-    @deprecated
+    @deprecated('deprecated since version 0.7')
     def site_static_url(self, *args):
         """.. warning:: deprecated since version 0.7"""
         return self.storage('site').url(*args)
