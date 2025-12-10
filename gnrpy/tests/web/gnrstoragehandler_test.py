@@ -536,3 +536,193 @@ class TestStorageHandler(BaseGnrTest):
         for node in [txt_node, json_node, html_node]:
             mimetype = node.mimetype
             assert mimetype is None or isinstance(mimetype, str)
+
+    # ========================================================================
+    # Site Config Loading Tests (Bug #348)
+    # ========================================================================
+
+    def test_load_storage_from_siteconfig_nested_structure(self):
+        """Test loading storage params from nested <services><storage>...</storage></services> structure."""
+        from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import BaseStorageHandler
+
+        # Create a mock site with nested storage config
+        class MockSite:
+            def __init__(self):
+                self.config = Bag()
+                # Nested structure: <services><storage><my_store .../></storage></services>
+                self.config['services.storage.my_nested_store'] = Bag()
+                self.config.setAttr('services.storage.my_nested_store',
+                    implementation='local', base_path='/tmp/nested')
+                self.site_static_dir = '/tmp/test_site'
+
+            @property
+            def gnrapp(self):
+                class MockApp:
+                    packages = type('obj', (object,), {'keys': lambda self: []})()
+                return MockApp()
+
+            @property
+            def db(self):
+                return None
+
+        mock_site = MockSite()
+        handler = BaseStorageHandler.__new__(BaseStorageHandler)
+        handler.site = mock_site
+        handler.storage_params = {}
+
+        # Load from site config
+        handler._loadStorageParametersFromSiteConfig()
+
+        # Should have loaded my_nested_store
+        assert 'my_nested_store' in handler.storage_params
+        params = handler.storage_params['my_nested_store']
+        assert params.get('implementation') == 'local'
+        assert params.get('base_path') == '/tmp/nested'
+
+    def test_load_storage_from_siteconfig_flat_structure(self):
+        """Test loading storage params from flat <services><my_store service_type='storage' .../></services> structure."""
+        from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import BaseStorageHandler
+
+        # Create a mock site with flat config
+        class MockSite:
+            def __init__(self):
+                self.config = Bag()
+                # Flat structure: <services><my_flat_store service_type="storage" .../></services>
+                self.config['services.my_flat_store'] = Bag()
+                self.config.setAttr('services.my_flat_store',
+                    service_type='storage', implementation='local', base_path='/tmp/flat')
+                self.site_static_dir = '/tmp/test_site'
+
+            @property
+            def gnrapp(self):
+                class MockApp:
+                    packages = type('obj', (object,), {'keys': lambda self: []})()
+                return MockApp()
+
+            @property
+            def db(self):
+                return None
+
+        mock_site = MockSite()
+        handler = BaseStorageHandler.__new__(BaseStorageHandler)
+        handler.site = mock_site
+        handler.storage_params = {}
+
+        # Load from site config
+        handler._loadStorageParametersFromSiteConfig()
+
+        # Should have loaded my_flat_store
+        assert 'my_flat_store' in handler.storage_params
+        params = handler.storage_params['my_flat_store']
+        assert params.get('implementation') == 'local'
+        assert params.get('base_path') == '/tmp/flat'
+
+    def test_load_storage_from_siteconfig_mixed_services(self):
+        """Test that non-storage services in config don't cause errors (Bug #348).
+
+        This tests the exact scenario from issue #348 where having other service types
+        in the <services> section (like Neon database) caused AttributeError because
+        getAttr() returned None for services without attributes.
+        """
+        from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import BaseStorageHandler
+
+        # Create a mock site with mixed services (storage and non-storage)
+        class MockSite:
+            def __init__(self):
+                self.config = Bag()
+                # Add a non-storage service (like Neon database) - this was causing the bug
+                self.config['services.neon'] = Bag()
+                self.config.setAttr('services.neon',
+                    service_type='database', host='localhost', port=5432)
+
+                # Add another service without any attributes (edge case)
+                self.config['services.empty_service'] = Bag()
+
+                # Add a storage service
+                self.config['services.my_storage'] = Bag()
+                self.config.setAttr('services.my_storage',
+                    service_type='storage', implementation='local', base_path='/tmp/storage')
+
+                self.site_static_dir = '/tmp/test_site'
+
+            @property
+            def gnrapp(self):
+                class MockApp:
+                    packages = type('obj', (object,), {'keys': lambda self: []})()
+                return MockApp()
+
+            @property
+            def db(self):
+                return None
+
+        mock_site = MockSite()
+        handler = BaseStorageHandler.__new__(BaseStorageHandler)
+        handler.site = mock_site
+        handler.storage_params = {}
+
+        # This should NOT raise AttributeError: 'NoneType' object has no attribute 'get'
+        handler._loadStorageParametersFromSiteConfig()
+
+        # Should have loaded only the storage service
+        assert 'my_storage' in handler.storage_params
+        assert 'neon' not in handler.storage_params
+        assert 'empty_service' not in handler.storage_params
+
+    def test_load_storage_from_siteconfig_no_services(self):
+        """Test that missing services section doesn't cause errors."""
+        from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import BaseStorageHandler
+
+        class MockSite:
+            def __init__(self):
+                self.config = Bag()  # No services section
+                self.site_static_dir = '/tmp/test_site'
+
+            @property
+            def gnrapp(self):
+                class MockApp:
+                    packages = type('obj', (object,), {'keys': lambda self: []})()
+                return MockApp()
+
+            @property
+            def db(self):
+                return None
+
+        mock_site = MockSite()
+        handler = BaseStorageHandler.__new__(BaseStorageHandler)
+        handler.site = mock_site
+        handler.storage_params = {}
+
+        # Should not raise any exception
+        handler._loadStorageParametersFromSiteConfig()
+
+        # storage_params should remain empty (no services configured)
+        assert len(handler.storage_params) == 0
+
+    def test_load_storage_from_siteconfig_null_attrs(self):
+        """Test handling of services where getAttr returns None (Bug #348 root cause)."""
+        from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import BaseStorageHandler
+
+        class MockSite:
+            def __init__(self):
+                self.config = Bag()
+                # Service with no attributes at all - getAttr() returns None
+                self.config['services.service_with_no_attrs'] = 'just a string value'
+                self.site_static_dir = '/tmp/test_site'
+
+            @property
+            def gnrapp(self):
+                class MockApp:
+                    packages = type('obj', (object,), {'keys': lambda self: []})()
+                return MockApp()
+
+            @property
+            def db(self):
+                return None
+
+        mock_site = MockSite()
+        handler = BaseStorageHandler.__new__(BaseStorageHandler)
+        handler.site = mock_site
+        handler.storage_params = {}
+
+        # Should not raise: AttributeError: 'NoneType' object has no attribute 'get'
+        handler._loadStorageParametersFromSiteConfig()
