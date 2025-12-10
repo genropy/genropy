@@ -14,12 +14,12 @@ The module defines:
 """
 
 import os
-import logging
 
 from gnr.lib.services.storage import StorageNode as LegacyStorageNode
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import deprecated
+from gnr.web import logger
 
 # Future integration with genro_storage brick implementation
 # from genro_storage import StorageNode as BrickStorageNode
@@ -181,7 +181,6 @@ class BaseStorageHandler:
         # Load from volumes section (LEGACY - should be migrated to services)
         volumes = self.site.config.getItem('volumes')
         if volumes:
-            logger = logging.getLogger(__name__)
             logger.warning(
                 "DEPRECATED: 'volumes' configuration is legacy. "
                 "Please migrate to 'services' section in siteconfig.xml. "
