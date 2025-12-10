@@ -1009,13 +1009,9 @@ class GnrWsgiSite(object):
             path_list.pop(0)
             if self.gnrapp.config.getNode(f'aux_instances.{first}'):
                 request_kwargs['base_dbstore'] = f'instance_{first}'
-            else:
-                request_kwargs['_subdomain'] = request_kwargs.get('_subdomain') or first
         else:
             if self.db.get_store_parameters(first):
                 request_kwargs['base_dbstore'] = path_list.pop(0)
-        if request_kwargs.get('_subdomain'):
-            self.gnrapp.pkgBroadcast('handleSubdomain',path_list,request_kwargs=request_kwargs)
         temp_dbstore = request_kwargs.get('temp_dbstore','')
         if temp_dbstore and temp_dbstore.startswith('@'):
             request_kwargs['temp_dbstore'] = f'instance_{request_kwargs["temp_dbstore"][1:]}'
