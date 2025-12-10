@@ -25,7 +25,10 @@ Enhancements
 * Storage handling logic has been refactored and moved out of
   GnrWsgiSite, to be handled by a dedicated storage handler proxy
   module.
-  
+* 'gnr app checkdep -i' installation process now have better control
+  over subprocess execution to collect errors and provide useful
+  informations to debug issues (#343)
+
 Deprecations
 ------------
 
