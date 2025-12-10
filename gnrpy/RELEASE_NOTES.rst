@@ -22,13 +22,19 @@ Enhancements
 * TinyMCE is now the default editor (#219)
 * Postgres database dump is now correctly monitored for runtime
   errors, like server version mismatches
-
+* Storage handling logic has been refactored and moved out of
+  GnrWsgiSite, to be handled by a dedicated storage handler proxy
+  module.
+  
 Deprecations
 ------------
 
 * the 'gnr app update' cli command has been marked as deprecated
 * The "site in maintenance" feature has been deprecated and removed.
-  
+* getVolumeService() and legacy volumes configuration have been
+  deprecated in favor of section 'services'
+* the subdomain concept from wsgisite and gnrwebpage has been dropped (#334)
+
 Fixes
 -----
 
