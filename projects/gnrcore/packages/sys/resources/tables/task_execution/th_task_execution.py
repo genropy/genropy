@@ -10,6 +10,7 @@ class View(BaseComponent):
 
     def th_struct(self,struct):
         r = struct.view().rows()
+        r.fieldcell('id', name='Run id', width="auto")
         r.fieldcell('__ins_ts',width='10em')
 
         r.fieldcell('task_id')
@@ -23,8 +24,6 @@ class View(BaseComponent):
 
     def th_order(self):
         return '__ins_ts:d'
-
-
 
     def th_query(self):
         return dict(column='task_id', op='contains', val='')
