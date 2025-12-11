@@ -19,6 +19,8 @@
 #You should have received a copy of the GNU Lesser General Public
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+from collections.abc import Mapping
+from itertools import chain
 
 import warnings
 
@@ -41,6 +43,28 @@ def dictExtract(mydict, prefix, pop=False, slice_prefix=True,is_list=False):
 
 class FakeDict(dict):
     pass
+
+
+
+class UnionDict(Mapping):
+    def __init__(self, *dicts):
+        self.dicts = dicts
+
+    def __getitem__(self, key):
+        for d in self.dicts:
+            if key in d:
+                return d[key]
+        raise KeyError(key)
+
+    def __iter__(self):
+        # dict.fromkeys elimina i duplicati mantenendo l'ordine
+        return iter(dict.fromkeys(chain.from_iterable(self.dicts)))
+
+    def __len__(self):
+        return len(dict.fromkeys(chain.from_iterable(self.dicts)))
+
+    def __repr__(self):
+        return f"{dict(self)}"
 
 class GnrDict(dict):
     """An ordered dictionary"""

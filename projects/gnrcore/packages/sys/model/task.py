@@ -38,9 +38,8 @@ class Table(object):
         tbl.column('run_asap','B',name_long='!!Run ASAP')
         tbl.column('max_workers','L',name_long='!!Max workers') # Allows concurrent execution of the same task
         tbl.column('log_result', 'B', name_long='!!Log Task')
-        tbl.column('user_id', size='22', group='_', name_long='User id').relation('adm.user.id',
-                                                                                  mode='foreignkey',
-                                                                                  onDelete='raise')
+
+        tbl.column('user_id', size='22', group='_', name_long='User id')
         tbl.column('date_start','D', name_long='!!Start Date')
         tbl.column('date_end','D', name_long='!!End Date')
         tbl.column('stopped','B', name_long='!!Stopped')
@@ -54,6 +53,7 @@ class Table(object):
                                       columns='COUNT(*)'
                                       ),
                           dtype='N', name_long='N.Active workers')
+
         tbl.formulaColumn('last_result_ts',
             select=dict(table='sys.task_result',
             columns='MAX($start_time)',

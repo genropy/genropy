@@ -5,8 +5,8 @@ import gnr.web.gnrwsgisite as gws
 
 from webcommon import BaseGnrDaemonTest
 
-class TestGnrWsgiSite(BaseGnrDaemonTest):
 
+class TestGnrWsgiSite(BaseGnrDaemonTest):
     def test_site_structure(self):
         assert gws.GNRSITE == self.site
         assert "gnrcore" in self.site.site_path

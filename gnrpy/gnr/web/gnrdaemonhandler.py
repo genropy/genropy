@@ -334,10 +334,6 @@ class GnrDaemon(object):
             return proxy.dump()
 
 
-    def setSiteInMaintenance(self,sitename,status=None,allowed_users=None):
-        uri = self.siteregisters[sitename]['register_uri']
-        with self.pyroProxy(uri) as proxy:
-            return proxy.setMaintenance(status,allowed_users=allowed_users)
 
     def siteregister_stop(self,sitename=None,saveStatus=False,**kwargs):
         if sitename == '*':
@@ -371,8 +367,6 @@ class GnrDaemon(object):
 
     def siteregister_restart(self,sitename=None,**kwargs):
         self.siteregister_start(self.siteregister_stop(sitename,True))
-
-
 
     def sshtunnel_port(self,ssh_host=None,ssh_port=None, ssh_user=None, ssh_password=None, forwarded_port=None,forwarded_host=None,**kwargs):
         return self.sshtunnel_get(ssh_host=ssh_host,ssh_port=ssh_port,ssh_password=ssh_password,forwarded_port=forwarded_port,forwarded_host=forwarded_host).local_port

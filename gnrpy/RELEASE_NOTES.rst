@@ -1,3 +1,71 @@
+Upcoming release
+================
+
+Enhancements
+------------
+
+* Added support for camera selection on image acquisition on mobile
+  devices (#301)
+* Introduing AuthTagStruct, a new declarative system for defining
+  hierarchical permission structures in applications. It's fully
+  retro-compatible.
+* Added a new 'variantColumn_masked' method to sqlTable for securely
+  displaying sensitive data by masking portions of it, like credit
+  cards numbers, email addresses etc
+* Docker images and Kubernetes deployer now support labels allowing
+  multi-FQDNs deployments
+* Retetion policies have been upgraded to allow tables to provide more
+  complex cutoff queries.
+* MDEditor improvements: Drag & Drop support, custom toolbar buttons,
+  color syntax plugin, hidden preview mode, and bag mode support to
+  store mardown text into nested Bag structures.
+* TinyMCE is now the default editor (#219)
+* Postgres database dump is now correctly monitored for runtime
+  errors, like server version mismatches
+* Storage handling logic has been refactored and moved out of
+  GnrWsgiSite, to be handled by a dedicated storage handler proxy
+  module.
+* 'gnr app checkdep -i' installation process now have better control
+  over subprocess execution to collect errors and provide useful
+  informations to debug issues (#343)
+* new contentEditor in docu_components which supports multiple text
+  editors. (#344)
+  
+  
+Deprecations
+------------
+
+* the 'gnr app update' cli command has been marked as deprecated
+* The "site in maintenance" feature has been deprecated and removed.
+* getVolumeService() and legacy volumes configuration have been
+  deprecated in favor of section 'services'
+* the subdomain concept from wsgisite and gnrwebpage has been dropped (#334)
+* contentText component in docu_components has been deprecated by
+  contentEditor which supports multiple text editors.
+
+Fixes
+-----
+
+* Fixed issue with multiButtonForm, now we force norecord in order to
+  hide former selected record values after record is changed
+* Improved checks on genropy's packages relations and dependencies (#178, #279)
+* remoteRowController handling for new rows fixes
+* Mobile deployment checks retrieve the correct URL from configuration
+* GLBL data is loaded automatically via upgrade script
+* Directory creation for existing directory now fails silently to have tidy logs
+* Improvements in app template loader
+* Fixed regression on docker images labels where the main application
+  repository went missing
+* The python dependency loader now get the list of packages from the
+  loaded app, rather than parsing the instanceconfig, since more
+  package can be applied from other sources (like
+  instanceconfig/default.xml), so no dependency is going missing.
+* The fullcalendar widget now resizes correctly upon viewport adjustments
+* DB Migrate handles correctly varchar fields with min/max sizes used
+  in validation, but not supported by RDBMS.
+* 'gnr' cli command now correctly handle errors in sub-commands loading (#322)
+
+  
 Release 25.10.27
 ================
 

@@ -41,7 +41,7 @@ from email.mime.text import MIMEText
 
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrdecorator import extract_kwargs
+from gnr.core.gnrdecorator import extract_kwargs, deprecated
 from gnr.core.gnrlang import  objectExtract,gnrImport, instanceMixin, GnrException
 from gnr.core.gnrstring import makeSet, toText, splitAndStrip, like, boolean
 from gnr.core.gnrsys import expandpath
@@ -52,6 +52,7 @@ from gnr.app.gnrdeploy import PathResolver
 from gnr.app import logger
 from gnr.app.gnrlocalization import AppLocalizer
 from gnr.sql.gnrsql import GnrSqlDb
+from gnr.core.gnrstructures import GnrStructData
 
 class GnrRestrictedAccessException(GnrException):
     """GnrRestrictedAccessException"""
@@ -92,8 +93,13 @@ class ApplicationCache(object):
         self.application = application
         self.cache = {}
     
-    def getItem(self,key):
-        return self.cache.get(key,None)
+    def getItem(self,key,defaultFactory=None):
+        item =  self.cache.get(key,None)
+        if item is None and defaultFactory:
+            item = defaultFactory()
+            self.setItem(key,item)
+        return item
+
     
     def setItem(self,key,value):
         self.cache[key] = value
@@ -163,8 +169,174 @@ class GnrMixinObj(object):
     def __init__(self):
         pass
 
+class DbStoresHandler(object):
+    """Handler for using multi-database"""
+        
+    def __init__(self, db):
+        self.db = db
+        self.auxstores = {}
+        instance_dbstores = db.application.config['dbstores'] if db.application.config else None
+        if instance_dbstores:
+            for n in instance_dbstores:
+                self.add_auxstore(n.label,n.attr)
+
+    @property
+    def dbstores(self):
+        with self.db.tempEnv(storename=False):
+            return self.db.application.cache.getItem('MULTI_DBSTORES',defaultFactory=self._calculate_multidbstores)
+
+    def _calculate_multidbstores(self):
+        result = {}
+        if self.db.storetable:    
+            dbdict = self.get_dbdict()
+            dbstores = self.db.table(self.db.storetable).query(
+                where='$dbstore IN :databases',
+                databases=list(dbdict.keys()),columns="$dbstore").fetch()
+            for r in dbstores:
+                storename = r['dbstore']
+                result[storename] = dict(database=dbdict[storename])
+        return result
+    
+    def get_dbdict(self):
+        existing_databases = self.db.adapter.listElements('databases',manager=True)
+        if self.db.dbname not in existing_databases:
+            return {}
+        multidb_prefix = self.db.multidb_prefix
+        return {dbname[len(multidb_prefix):]:dbname for dbname in existing_databases if dbname.startswith(multidb_prefix)}
+            
+    def raw_multdb_dbstores(self):
+        result = {}
+        if self.db.storetable:    
+            dbdict = self.get_dbdict()
+            if not dbdict:
+                return result
+            pkgname,tblname = self.db.storetable.split('.')
+            pkgattr = self.db.application.packages[pkgname].attributes
+            sqlschema = pkgattr.get('sqlschema') or pkgname
+            sqlprefix = True if pkgattr.get('sqlprefix') is not False else False
+            tblname = tblname if not sqlprefix else f'{pkgname}_{tblname}'
+            adaptSqlName = self.db.adapter.adaptSqlName
+            sqltblfullname = f'{adaptSqlName(sqlschema)}.{adaptSqlName(tblname)}'
+            dbstores = self.db.adapter.raw_fetch(f"""
+                SELECT dbstore FROM {sqltblfullname} WHERE dbstore IS NOT NULL
+            """)
+            for r in dbstores:
+                storename = r['dbstore']
+                if storename in dbdict:
+                    result[storename] = dict(database=dbdict[storename])
+        return result
+
+
+    def add_auxstore(self, storename, dbattr=None):
+        """TODO
+        :param storename: TODO
+        :param check: TODO"""
+        self.auxstores[storename] = dict(database=dbattr.get('dbname', storename),
+                                        host=dbattr.get('host', self.db.host), user=dbattr.get('user', self.db.user),
+                                        password=dbattr.get('password', self.db.password),
+                                        port=dbattr.get('port', self.db.port),
+                                        remote_host=dbattr.get('remote_host'),
+                                        remote_port=dbattr.get('remote_port'))
+        return dbattr
+
+    def dbstore_check(self, storename, verbose=False):
+        """checks if dbstore exists and if it needs to be aligned
+        
+        :param storename: TODO
+        :param verbose: TODO"""
+        with self.db.tempEnv(storename=storename):
+            self.db.use_store(storename)
+            changes = self.db.model.check()
+            if changes and not verbose:
+                return False
+            elif changes and verbose:
+                return changes
+            else: #not changes
+                return True
+            
+    def create_dbstore(self,storename):
+        self.db.createDb(f'{self.db.multidb_prefix}{storename}')
+        self.refresh_dbstores()
+
+    @deprecated(message='Storetable-based architecture auto-detects stores. Use create_dbstore instead.')
+    def add_dbstore_config(self, storename, dbname=None, host=None,  # noqa: ARG002
+                           user=None, password=None, port=None,
+                           save=None, **_kwargs):
+        """Deprecated: creates dbstore without XML config file.
+
+        Storetable-based architecture auto-detects stores from database.
+        This method now delegates to create_dbstore for backward compatibility.
+
+        Args dbname, host, user, password, port are kept for API compatibility but ignored.
+        """
+        del dbname, host, user, password, port  # unused, kept for API compatibility
+        self.create_dbstore(storename)
+        if save:
+            self.dbstore_align(storename)
+
+    @deprecated(message='Storetable-based architecture auto-detects stores. This method has no effect.')
+    def drop_dbstore_config(self, _storename):
+        """Deprecated: no-op in storetable-based architecture.
+
+        Storetable-based architecture auto-detects stores from database.
+        Store removal should be handled by deleting the storetable record.
+        """
+        pass
+
+    def refresh_dbstores(self):
+        self.db.application.cache.updatedItem('MULTI_DBSTORES')
+
+
+    def dbstore_align(self, storename, changes=None):
+        """TODO
+        
+        :param storename: TODO
+        :param changes: TODO. """
+        with self.db.tempEnv(storename=storename):
+            self.db.syncOrmToSql()
+
 class GnrSqlAppDb(GnrSqlDb):
     """TODO"""
+
+    @property
+    def stores_handler(self):
+        handler = getattr(self, '_stores_handler', None)
+        if handler is None:
+            handler = DbStoresHandler(self)
+            self._stores_handler = handler
+        return handler
+
+    @property
+    def debug(self):
+        """TODO"""
+        return self.application.debug
+        
+    @property
+    def dbstores(self):
+        return self.stores_handler.dbstores
+        
+    @property
+    def auxstores(self):
+        return self.stores_handler.auxstores
+    
+    @property
+    def tenant_table(self):
+        tenant_table = None
+        for pkgNode in self.application.config['packages']:
+            tenant_table = pkgNode.attr.get('tenant_table') or tenant_table
+        return tenant_table
+    
+    @property
+    def multidb_config(self):
+        result = getattr(self, '_multidb_config', None)
+        if result is None:
+            result = {}
+            for n in self.application.config['packages']:
+                if n.attr.get('storetable'):
+                    result.update(n.attr)
+            self._multidb_config = result
+        return result
+    
     def checkTransactionWritable(self, tblobj):
         """TODO
         
@@ -176,6 +348,11 @@ class GnrSqlAppDb(GnrSqlDb):
                     tblobj.attributes.get('transaction', tblobj.pkg.attributes.get('transaction', '')))
         if not self.inTransactionDaemon and tblobj._usesTransaction:
             raise GnrWriteInReservedTableError('%s.%s' % (tblobj.pkg.name, tblobj.name))
+        
+
+    @property
+    def storetable(self):
+        return self.multidb_config.get("storetable")
 
     @property
     def localizer(self):
@@ -767,15 +944,17 @@ class GnrApp(object):
         self.catalog = GnrClassCatalog()
         self.localization = {}
 
-        # check for packages python dependencies
-        self.check_package_dependencies()
-        if 'checkdepcli' in self.kwargs:
-            return
+
+
 
         # load the packages
         for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
             self.addPackage(pkgid,pkgattrs=pkgattrs,pkgcontent=pkgcontent)
 
+        # check for packages python dependencies
+        self.check_package_dependencies()
+        if 'checkdepcli' in self.kwargs:
+            return
         
         if not forTesting:
             dbattrs = dict(self.config.getAttr('db') or {}) 
@@ -850,33 +1029,24 @@ class GnrApp(object):
             attrs['path'] = self.realPath(attrs['path'])
         apppkg = GnrPackage(pkgid, self, **attrs)
         apppkg.content = pkgcontent or Bag()
+        readOnlyAttrs = {'readOnly':True} if attrs.get('readOnly') else None
         for reqpkgid in apppkg.required_packages():
-            self.addPackage(reqpkgid)
+            self.addPackage(reqpkgid,pkgattrs=readOnlyAttrs)
         self.packagesIdByPath[os.path.realpath(apppkg.packageFolder)] = pkgid
         self.packages[pkgid] = apppkg
 
     def check_package_dependencies(self):
         logger.debug("Checking python dependencies")
         instance_deps = defaultdict(list)
-        for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
-            if ":" in pkgid:
-                project, pkgid = pkgid.split(":")
-            else:
-                project = None
-            path = pkgattrs.get('path', None)
-            if path is None:
-                path = self.pkg_name_to_path(pkgid,project)
-            if not os.path.isabs(path):
-                path = self.realPath(path)
-
-            requirements_file = os.path.join(path, pkgid, "requirements.txt")
+        for package in [x.getValue() for x in self.packages]:
+            requirements_file = os.path.join(package.packageFolder, "requirements.txt")
             if os.path.isfile(requirements_file):
                 with open(requirements_file) as fp:
                     for line in fp:
                         dep_name = line.strip()
                         if dep_name:
-                            instance_deps[dep_name].append(pkgid
-                                                           )
+                            instance_deps[dep_name].append(package.id)
+
         self.instance_packages_dependencies = instance_deps
 
         if not 'checkdepcli' in self.kwargs:
@@ -906,24 +1076,41 @@ class GnrApp(object):
                     logger.error(f"ERROR on {name}: {e}")
         return missing, wrong
 
-    def check_package_install_missing(self, nocache=False, upgrading=False):
+    def check_package_install_missing(self, nocache=False,
+                                      verbose=False,
+                                      upgrading=False):
         """
         Install missing packages, or, with upgrading=True, try to
         upgrade the wrong version of packages.
         """
         missing, wrong = self.check_package_missing_dependencies()
+
+        packages = missing
+
+        # used the wrong versioned package when upgrading
         if upgrading:
-            base_cmd = [sys.executable, '-m', 'pip', 'install']
-            if nocache:
-                base_cmd.append("--no-cache-dir")
             packages = [x[0] for x in wrong]
-            return subprocess.check_call(base_cmd+packages)
-        else:
-            base_cmd = [sys.executable, '-m', 'pip', 'install']
-            if nocache:
-                base_cmd.append("--no-cache-dir")
-            return subprocess.check_call(base_cmd+missing)
-        
+            
+        base_cmd = [sys.executable, '-m', 'pip', 'install']
+        if nocache:
+            base_cmd.append("--no-cache-dir")
+        try:
+            result = subprocess.run(base_cmd+packages,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE,
+                                    text=True,
+                                    check=True)
+            if verbose:
+                print(result.stdout)
+                print(result.stderr)
+            print("Installation complete")
+            return result
+        except subprocess.CalledProcessError as e:
+            print(f"Package installation failed with exit code {e.returncode}.")
+            if verbose:
+                print(e.stdout)
+            print(e.stderr)
+                
     def importFromSourceInstance(self,source_instance=None):
         to_import = ''
         if ':' in source_instance:
@@ -1570,12 +1757,9 @@ class GnrApp(object):
 
         """
         policy = {
-            table.fullname: dict(filter_column=table.defaultRetentionPolicy[0],
-                                 retention_period_default=table.defaultRetentionPolicy[1],
-                                 retention_period=table.defaultRetentionPolicy[1])
+            table.fullname: table.defaultRetentionPolicy
             for table in self.db.tables if table.defaultRetentionPolicy
             }
-
         return policy
     
     @property
@@ -1690,9 +1874,204 @@ class GnrApp(object):
             self._gnrdaemon = GnrDaemonProxy(use_environment=True).proxy() 
         return self._gnrdaemon
 
+class AuthTagStruct(GnrStructData):
+    """A class for hierarchical auth tag structure definition.
+
+    This class provides a declarative way to define permission hierarchies
+    using a functional syntax with .branch() and .authTag() methods.
+
+    Unlike MenuStruct, this is instantiated once at application level.
+    Each package can define a packageTags(self, root) method in its main.py
+    to contribute its auth tags to the hierarchy.
+
+    Usage:
+        # At application level
+        auth_struct = AuthTagStruct()
+
+        # For each package
+        pkg_branch = auth_struct.branch('mypackage')
+        if hasattr(package, 'packageTags'):
+            package.packageTags(pkg_branch)
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._registered_tags = set()  # Track unique tag identifiers
+
+    def _validateLabel(self, label):
+        """Validate that a label is a valid identifier.
+
+        Labels can contain letters (uppercase or lowercase), numbers, and underscores.
+        Must start with a letter or underscore. No spaces, dots, or special characters allowed.
+        Raises GnrException if label is invalid.
+
+        :param label: the label to validate
+        :raises GnrException: if label format is invalid"""
+        import re
+
+        # Check if label matches valid identifier pattern (can start with _ or letter)
+        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', label):
+            raise GnrException(
+                f"Invalid label '{label}': must be a valid identifier (letters, numbers, _) "
+                f"and start with a letter or underscore. No spaces, dots, or special characters allowed."
+            )
+
+    def branch(self, label, description=None, **kwargs):
+        """Create a hierarchical branch for organizing auth tags.
+
+        Branches are intermediate nodes that organize permissions hierarchically
+        but do not generate auth tag entries themselves.
+
+        :param label: internal identifier (must be lowercase snake_case: a-z, 0-9, _)
+        :param description: human-readable label shown to users
+        :param kwargs: additional attributes for the branch
+        :return: the created branch structure
+        :raises GnrException: if label format is invalid"""
+        # Validate label format
+        self._validateLabel(label)
+        description = description or label
+
+        return self.child('branch', childname=label, label=label,
+                         description=description, **kwargs)
+
+    def authTag(self, label, description=None, identifier=None, isreserved=None,
+                note=None, linked_table=None, require_2fa=None, **kwargs):
+        """Define an auth tag entry.
+
+        This generates an actual permission entry in the final Bag.
+
+        :param label: internal identifier (must be lowercase snake_case: a-z, 0-9, _)
+        :param description: human-readable label shown to users
+        :param identifier: optional custom code override (auto-generated from path if not provided)
+        :param isreserved: Boolean - if True, tag is reserved for system use
+        :param note: optional notes about this permission
+        :param linked_table: optional table name this permission is linked to
+        :param require_2fa: Boolean - if True, requires two-factor authentication
+        :param kwargs: additional attributes for the tag
+        :return: None (leaf node)
+        :raises GnrException: if label format is invalid or identifier is duplicate"""
+
+        # Validate label format
+        self._validateLabel(label)
+
+        # Auto-generate identifier from path if not provided
+        if not identifier:
+            identifier = self.generateAuthCode(label)
+
+        # Check uniqueness at root level
+        root = self.root if hasattr(self, 'root') else self
+        if identifier in root._registered_tags:
+            raise GnrException(f"Duplicate auth tag identifier: {identifier}")
+
+        root._registered_tags.add(identifier)
+
+        # Default description to label if not provided
+        description = description or label
+
+        # Pass arguments directly to child(), using label as childname and identifier as code
+        return self.child('authTag', childname=label, _returnStruct=False,
+                         label=label, description=description, code=identifier,
+                         isreserved=isreserved, note=note, linked_table=linked_table,
+                         require_2fa=require_2fa, **kwargs)
+
+    def generateAuthCode(self, label):
+        """Generate a unique auth code from label and hierarchical path.
+
+        Uses fullpath property to build the complete hierarchical path,
+        then joins with underscore separator.
+        :param label: the label to generate a code from
+        :return: generated auth code"""
+
+        # Get full path using fullpath property (returns path with dots)
+        full_path = self.fullpath or ''
+
+        # Build complete path including current label
+        if full_path:
+            complete_path = f"{full_path}.{label}"
+        else:
+            complete_path = label
+
+        result = '_'.join(complete_path.split('.')[1:]) #exclude rootlevel 
+        return result
+
+    def toBag(self):
+        """Convert the auth tag structure to a flat Bag of tag_id: label mappings.
+
+        :return: Bag with tag_id keys and label values"""
+        result = Bag()
+        self._toBagRecursive(self, result)
+        return result
+
+    def _toBagRecursive(self, node, result_bag):
+        """Recursively process nodes to build the final auth tags Bag.
+
+        :param node: current node to process
+        :param result_bag: the Bag to populate"""
+        for child_node in node:
+            child_attr = child_node.attr
+            tag_type = child_attr.get('tag')
+
+            if tag_type == 'authTag':
+                # This is a leaf tag, add it to result
+                code = child_attr.get('code')
+                label = child_attr.get('label')
+                result_bag.setItem(code, label, **{k:v for k,v in child_attr.items()
+                                                      if k not in ('tag', 'code', 'label')})
+            elif tag_type == 'branch':
+                # Recurse into branch
+                if child_node.value:
+                    self._toBagRecursive(child_node.value, result_bag)
+
+    def iterFlattenedTags(self):
+        """Iterate over all tags including intermediate branches.
+
+        Uses Bag.getIndex() to traverse the structure. Yields dictionaries with
+        tag information, ordered so that parent nodes always come before their children.
+
+        :yields: dict with keys: code, description, parent_code, tag_type ('branch' or 'authTag'), **attrs"""
+
+        for path, node in self.getIndex():
+            node_attr = node.attr
+            tag_type = node_attr.get('tag')
+
+            # Get parent code from path (path contains validated node labels)
+            # Parent is simply the second-to-last element in path
+            parent_code = path[-2] if len(path) > 1 else None
+
+            if tag_type == 'branch':
+                # node.label is the validated label (no need to slugify)
+                code = node.label
+                branch_description = node_attr.get('description', node.label)
+
+                # Yield branch info
+                yield {
+                    'code': code,
+                    'description': branch_description,
+                    'parent_code': parent_code,
+                    'tag_type': 'branch'
+                }
+
+            elif tag_type == 'authTag':
+                # Get tag info (code is already generated with full path)
+                code = node_attr.get('code')
+                description = node_attr.get('description')
+
+                # Extract additional attributes (excluding internal ones)
+                attrs = {k: v for k, v in node_attr.items()
+                        if k not in ('tag', 'code', 'description', 'label')}
+
+                # Yield tag info
+                yield {
+                    'code': code,
+                    'description': description,
+                    'parent_code': parent_code,
+                    'tag_type': 'authTag',
+                    **attrs
+                }
+
 class GnrAvatar(object):
     """A class for avatar management
-    
+
     :param user: TODO
     :param user_name: the avatar username
     :param user_id: the user id
@@ -1741,5 +2120,4 @@ class GnrWriteInReservedTableError(Exception):
     pass
     
 if __name__ == '__main__':
-    pass # Non Scrivere qui, pena: castrazione!
-         # Don't write here, otherwise: castration!
+    pass
