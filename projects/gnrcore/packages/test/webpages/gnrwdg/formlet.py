@@ -359,18 +359,15 @@ class GnrCustomWebPage(object):
             icon='settings',
             formCols=1,
             fields=[
-                ('checkbox', 'newsletter', '', {
-                    'label': 'Subscribe to newsletter',
-                    'box': False
+                ('checkbox', 'newsletter', 'Newsletter', {
+                    'label': 'Subscribe to newsletter'
                 }),
-                ('checkbox', 'sms_notifications', '', {
-                    'label': 'Receive SMS notifications',
-                    'box': False
+                ('checkbox', 'sms_notifications', 'SMS Notifications', {
+                    'label': 'Receive notifications via SMS'
                 }),
-                ('checkbox', 'privacy', '', {
-                    'label': 'I have read and accept the privacy policy',
-                    'validate_notnull': True,
-                    'box': False
+                ('checkbox', 'privacy', 'Privacy Policy', {
+                    'label': 'I accept the privacy policy',
+                    'validate_notnull': True
                 }),
                 ('simpleTextArea', 'notes', 'Additional Notes', {
                     'height': '100px'
