@@ -7,7 +7,7 @@ for creating two-dimensional layouts with rows and columns.
 """
 
 class GnrCustomWebPage(object):
-    py_requires="""gnrcomponents/testhandler:TestHandlerFull,
+    py_requires="""gnrcomponents/testhandler:TestHandlerBase,
                     th/th:TableHandler"""
 
     def test_0_basic_gridbox(self,pane):
@@ -114,7 +114,7 @@ class GnrCustomWebPage(object):
 
         Gridbox is ideal when you need more control than formbuilder provides.
         """
-        bc = pane.borderContainer(height='500px',width='700px',border='1px solid lime')
+        bc = pane.borderContainer(height='200px',border='1px solid lime')
 
         # Control panel for dynamic columns
         fb = bc.contentPane(region='top').formbuilder(cols=2)
@@ -154,25 +154,28 @@ class GnrCustomWebPage(object):
 
         Try adjusting the styling parameters to see the effects.
         """
-        bc = pane.borderContainer(height='500px')
+        bc = pane.borderContainer(height='400px')
         top = bc.contentPane(region='top')
 
         # Control panel for styling parameters
-        fb = top.gridbox(columns=4,gap='10px',margin='5px',
+        gb = top.gridbox(columns=4,gap='10px',margin='5px',
                         nodeId='boxControllers',datapath='.controllers')
-        fb.textBox(value='^.columns',default='3',lbl='Columns')
-        fb.filteringSelect(value='^.item_side',lbl='Label Side',values='top,left,bottom,right')
-        fb.textbox(value='^.item_border',lbl='Item border')
-        fb.numberTextBox(value='^.item_rounded',lbl='Rounded')
-        fb.input(value='^.item_box_l_background',lbl='Label background',type='color')
-        fb.textbox(value='^.item_box_c_padding',lbl='Content Padding')
-        fb.textbox(value='^.item_fld_border',lbl='Field border')
-        fb.textbox(value='^.item_fld_background',lbl='Field background')
+        gb.h3('Box Styling Controls',colspan=4)
+        gb.textBox(value='^.columns',default='3',lbl='Columns')
+        gb.filteringSelect(value='^.item_side',lbl='Label Side',values='top,left,bottom,right')
+        gb.textbox(value='^.item_border',lbl='Item border')
+        gb.numberTextBox(value='^.item_rounded',lbl='Rounded')
+        gb.input(value='^.item_box_l_background',lbl='Label background',type='color')
+        gb.textbox(value='^.item_box_c_padding',lbl='Content Padding')
+        gb.textbox(value='^.item_fld_border',lbl='Field border')
+        gb.textbox(value='^.item_fld_background',lbl='Field background')
 
         # Form with labledBox items and dynamic styling
-        gb = top.formlet(
+        prevbox = bc.contentPane(region='center').div(padding='10px')
+        prevbox.h3('Preview Area')
+        fl = prevbox.formlet(
             columns='^#boxControllers.columns',
-            gap='10px',margin='20px',
+            gap='10px',
             item_border='^#boxControllers.item_border',
             item_side='^#boxControllers.item_side',
             item_rounded='^#boxControllers.item_rounded',
@@ -182,20 +185,18 @@ class GnrCustomWebPage(object):
             item_box_c_padding='^#boxControllers.item_box_c_padding')
 
         # Form fields with labledBox
-        gb.labledBox('Nome',helpcode='bbb').textbox(value='^.nome',validate_notnull=True)
-        gb.labledBox('Cognome',helpcode='aaa').textbox(value='^.cognome',validate_notnull=True)
-        gb.labledBox('Genere',rowspan=2).radioButtonText(
+        
+        fl.labledBox('Nome',tip='bbb').textbox(value='^.nome',validate_notnull=True)
+        fl.labledBox('Cognome',tip='aaa').textbox(value='^.cognome',validate_notnull=True)
+        fl.labledBox('Genere',rowspan=2).radioButtonText(
             value='^.genere',values='M:Maschi,F:Femmina,N:Neutro',cols=1)
-        gb.labledBox('Essendo Nato il').dateTextBox(value='^.nato_il')
-        gb.labledBox('Pr.Nascita').dbSelect(value='^.provincia_nascita',
+        fl.labledBox('Essendo Nato il').dateTextBox(value='^.nato_il')
+        fl.labledBox('Pr.Nascita').dbSelect(value='^.provincia_nascita',
                                             table='glbl.provincia',hasDownArrow=True)
-        gb.labledBox('Privacy acceptance').checkbox(value='^.privacy',label='Accept')
-        gb.br()
-
+        fl.labledBox('Privacy acceptance').checkbox(value='^.privacy',label='Accept')
+        fl.br()
         # Conditional field - only visible if privacy is accepted
-        gb.textbox(value='^.email',lbl='Email',colspan=2,hidden='^.privacy?=!#v')
-
-        bc.contentPane(region='center').div('Preview area')
+        fl.textbox(value='^.email',lbl='Email',colspan=2,hidden='^.privacy?=!#v')
 
     def test_5_gridbox_dashboard(self,pane):
         """Gridbox dashboard: Multiple data tables
@@ -226,28 +227,7 @@ class GnrCustomWebPage(object):
         gb.labledBox('Comuni',colspan=3).borderContainer().plainTableHandler(
             table='glbl.comune',region='center')
 
-    def test_6_flexible_grid_tables(self,pane):
-        """Flexible gridbox: Tables without fixed container size
-
-        This example shows a "liquid" layout where the gridbox adapts to content
-        rather than having fixed dimensions. Each table defines its own size.
-
-        This approach is useful when you want the grid to flow naturally
-        with the page layout.
-        """
-        gb = pane.gridbox(cols=3,item_border='1px solid silver')
-
-        # Tables with explicit heights, grid adapts
-        gb.plainTableHandler(table='glbl.nazione',height='200px')
-        gb.plainTableHandler(table='glbl.regione',height='200px')
-        gb.plainTableHandler(table='glbl.provincia',height='200px')
-
-        # Full-width table with custom width
-        gb.plainTableHandler(table='glbl.comune',height='200px',
-                            width='900px',colspan=3)
-
-
-    def test_7_flexbox_vs_gridbox(self,pane):
+    def test_6_flexbox_vs_gridbox(self,pane):
         """Comparison: Flexbox with labledBox
 
         This example shows how labledBox can be used within a flexbox layout
@@ -290,7 +270,7 @@ class GnrCustomWebPage(object):
         fbox.labledBox('Flexible Section',
                       border='1px solid silver',margin='5px',flex=1,rounded=6)
 
-    def test_8_simple_gridbox_layout(self,pane):
+    def test_7_simple_gridbox_layout(self,pane):
         """Simple gridbox with labledBox: Auto-sized sections
 
         This example shows a simple gridbox with auto-sized labledBox items.

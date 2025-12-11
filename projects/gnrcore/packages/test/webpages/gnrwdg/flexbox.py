@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
 class GnrCustomWebPage(object):
-    py_requires="gnrcomponents/testhandler:TestHandlerFull,gnrcomponents/source_viewer/source_viewer:SourceViewer"
+    py_requires="""gnrcomponents/testhandler:TestHandlerFull,
+                 gnrcomponents/source_viewer/source_viewer:SourceViewer"""
 
     def test_0_basic_direction_wrap(self,pane):
         """Basic flexbox: direction and wrap
