@@ -1090,6 +1090,13 @@ class GnrDomSrc(GnrStructData):
             raise NotImplementedError('Not implemented in formlet')
         if formNode:
             table = table or formNode.attr.get('table')
+
+        # Extract ALL item_* parameters and propagate them to child items
+        item_params = dictExtract(kwargs, 'item_', pop=False, slice_prefix=True)
+        for param_name, value in item_params.items():
+            if param_name not in kwargs:  # Don't override explicit params
+                kwargs[param_name] = value
+
         result =  self.gridbox(columns=columns,
                                table=table,
                             formletCode=formletCode,
@@ -1112,6 +1119,12 @@ class GnrDomSrc(GnrStructData):
         commonKwargs.pop('item_lbl_width',None)
         commonKwargs.pop('item_lbl_min_width',None)
         kwargs.update(commonKwargs)
+
+        # Convert lblpos to item_lbl_side for formlet compatibility
+        if lblpos and 'item_lbl_side' not in kwargs:
+            lblpos_map = {'L': 'left', 'T': 'top', 'R': 'right', 'B': 'bottom'}
+            kwargs['item_lbl_side'] = lblpos_map.get(lblpos, 'left')
+
         result =  self.formlet(columns=cols,table=table or self.page.maintable,
                             formletCode=formlet,**kwargs)
         return result
