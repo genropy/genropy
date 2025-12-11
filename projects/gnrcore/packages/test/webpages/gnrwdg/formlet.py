@@ -359,10 +359,15 @@ class GnrCustomWebPage(object):
             icon='settings',
             formCols=1,
             fields=[
-                ('checkbox', 'newsletter', 'Subscribe to newsletter', {}),
-                ('checkbox', 'sms_notifications', 'Receive SMS notifications', {}),
+                ('checkbox', 'newsletter', 'Subscribe to newsletter', {
+                    'box__class': 'formlet_fakelabel'
+                }),
+                ('checkbox', 'sms_notifications', 'Receive SMS notifications', {
+                    'box__class': 'formlet_fakelabel'
+                }),
                 ('checkbox', 'privacy', 'I accept the privacy policy', {
-                    'validate_notnull': True
+                    'validate_notnull': True,
+                    'box__class': 'formlet_fakelabel'
                 }),
                 ('simpleTextArea', 'notes', 'Additional Notes', {
                     'height': '100px'
@@ -412,14 +417,14 @@ class GnrCustomWebPage(object):
             item_box_l_background='#f8f9fa',
             item_box_c_padding='8px')
 
-        # Add fields using .field() method
+        # Add fields
         for field_def in fields:
             field_type, field_name, field_label, field_kwargs = field_def
+            method = getattr(fl, field_type)
             if field_label:
                 field_kwargs['lbl'] = field_label
             field_kwargs['value'] = f'^.{field_name}'
-            field_kwargs['dtype'] = field_type
-            fl.field(**field_kwargs)
+            method(**field_kwargs)
 
     def test_5_formlet_vs_formbuilder(self, pane):
         """Formlet vs Formbuilder comparison
