@@ -2075,7 +2075,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
     def checkbox(self, value=None, label=None,lbl=None,**kwargs):
         """Return a :ref:`checkbox`: setting the value to true will check the box
         while false will uncheck it
-        
+
         :param label: the checkbox label
         :param value: the checkbox path for value. For more information, check the
                       :ref:`datapath` section
@@ -2083,6 +2083,9 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         if lbl and not label and not getattr(self,'fbuilder',None):
             label = lbl
             lbl = '&nbsp;'
+            # Auto-add formlet_fakelabel class to hide empty label row in formlet
+            if 'box__class' not in kwargs:
+                kwargs['box__class'] = 'formlet_fakelabel'
         return self.child('checkbox', value=value, label=label,lbl=lbl, **kwargs)
         
     def dropdownbutton(self, label=None, **kwargs):
