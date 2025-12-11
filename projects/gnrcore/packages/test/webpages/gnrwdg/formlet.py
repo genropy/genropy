@@ -360,14 +360,17 @@ class GnrCustomWebPage(object):
             formCols=1,
             fields=[
                 ('checkbox', 'newsletter', '', {
-                    'label': 'Subscribe to newsletter'
+                    'label': 'Subscribe to newsletter',
+                    'box': False
                 }),
                 ('checkbox', 'sms_notifications', '', {
-                    'label': 'Receive SMS notifications'
+                    'label': 'Receive SMS notifications',
+                    'box': False
                 }),
                 ('checkbox', 'privacy', '', {
                     'label': 'I have read and accept the privacy policy',
-                    'validate_notnull': True
+                    'validate_notnull': True,
+                    'box': False
                 }),
                 ('simpleTextArea', 'notes', 'Additional Notes', {
                     'height': '100px'
