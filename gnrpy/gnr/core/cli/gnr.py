@@ -200,7 +200,7 @@ class CommandManager():
                 try:
                     cmd_module = self.load_module(*cmd_impl[2])
                 except Exception as e:
-                    print(f"Command {command_name} not available: {e}")
+                    print(f"Command {os.path.basename(command_name)} not available: {e}")
                     return 
 
                 # measure execution time

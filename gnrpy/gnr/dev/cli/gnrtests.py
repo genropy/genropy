@@ -3,13 +3,12 @@ import sys
 import os
 import os.path
 import glob
-from gnr.dev import logger
+
 
 try:
     import pytest
 except ImportError:
-    logger.error("pytest is not installed - please install genropy with 'developer' installation profile")
-    sys.exit(1)
+    raise ImportError("Please install 'pytest' module")
 
 from gnr.core.cli import GnrCliArgParse
 from gnr.app.gnrapp import GnrApp
