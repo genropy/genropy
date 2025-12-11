@@ -412,14 +412,14 @@ class GnrCustomWebPage(object):
             item_box_l_background='#f8f9fa',
             item_box_c_padding='8px')
 
-        # Add fields
+        # Add fields using .field() method
         for field_def in fields:
             field_type, field_name, field_label, field_kwargs = field_def
-            method = getattr(fl, field_type)
             if field_label:
                 field_kwargs['lbl'] = field_label
             field_kwargs['value'] = f'^.{field_name}'
-            method(**field_kwargs)
+            field_kwargs['dtype'] = field_type
+            fl.field(**field_kwargs)
 
     def test_5_formlet_vs_formbuilder(self, pane):
         """Formlet vs Formbuilder comparison
