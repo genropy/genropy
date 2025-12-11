@@ -13,41 +13,6 @@ class GnrCustomWebPage(object):
     py_requires="""gnrcomponents/testhandler:TestHandlerFull,
                     gnrcomponents/source_viewer/source_viewer:SourceViewer"""
 
-    def test_0_debug_labels(self, pane):
-        """Debug test: Check if item_lbl_side works"""
-        pane.div('Testing label position inheritance',
-                font_size='18px',
-                font_weight='bold',
-                margin='20px')
-
-        # Test 1: Direct formbuilder with lblpos
-        pane.div('Test 1: formbuilder(lblpos="L")',
-                margin='20px',
-                font_weight='bold')
-        fb = pane.formbuilder(cols=1, lblpos='L', border='1px solid blue',
-                             margin='20px', padding='10px')
-        fb.textbox(value='^.fb_name', lbl='Name')
-        fb.textbox(value='^.fb_email', lbl='Email')
-
-        # Test 2: formlet with item_lbl_side
-        pane.div('Test 2: formlet(item_lbl_side="left")',
-                margin='20px',
-                font_weight='bold')
-        fl = pane.formlet(cols=1, item_lbl_side='left',
-                         border='1px solid red',
-                         margin='20px', padding='10px')
-        fl.textbox(value='^.fl_name', lbl='Name')
-        fl.textbox(value='^.fl_email', lbl='Email')
-
-        # Test 3: Field with explicit lbl_side
-        pane.div('Test 3: field with explicit lbl_side="left"',
-                margin='20px',
-                font_weight='bold')
-        fl2 = pane.formlet(cols=1, border='1px solid green',
-                          margin='20px', padding='10px')
-        fl2.textbox(value='^.fl2_name', lbl='Name', lbl_side='left')
-        fl2.textbox(value='^.fl2_email', lbl='Email', lbl_side='left')
-
     def test_0_basic_formlet(self, pane):
         """Basic formlet: Simple two-column form
 
@@ -257,14 +222,14 @@ class GnrCustomWebPage(object):
                 margin_bottom='15px',
                 color='#666')
 
-        # Container for three device examples
+        # Container with 3 columns: mobile (1/3), tablet (2/3), desktop (full width below)
         container = pane.gridbox(columns=3, gap='15px', margin='20px')
 
-        # Mobile layout (1 column)
+        # Mobile layout (1 column) - takes 1/3 width
         mobile = container.div(border='2px solid #4CAF50',
                               border_radius='8px',
                               padding='15px',
-                              max_width='350px')
+                              colspan=1)
         mobile.div('Mobile (1 column)',
                   font_weight='bold',
                   margin_bottom='10px',
@@ -283,11 +248,11 @@ class GnrCustomWebPage(object):
         fl_mobile.textbox(value='^.m_email', lbl='Email')
         fl_mobile.textbox(value='^.m_phone', lbl='Phone')
 
-        # Tablet layout (2 columns)
+        # Tablet layout (2 columns) - takes 2/3 width
         tablet = container.div(border='2px solid #2196F3',
                               border_radius='8px',
                               padding='15px',
-                              max_width='500px')
+                              colspan=2)
         tablet.div('Tablet (2 columns)',
                   font_weight='bold',
                   margin_bottom='10px',
@@ -306,10 +271,11 @@ class GnrCustomWebPage(object):
         fl_tablet.textbox(value='^.t_email', lbl='Email', colspan=2)
         fl_tablet.textbox(value='^.t_phone', lbl='Phone', colspan=2)
 
-        # Desktop layout (3 columns)
+        # Desktop layout (3 columns) - takes full width below
         desktop = container.div(border='2px solid #FF9800',
                                border_radius='8px',
-                               padding='15px')
+                               padding='15px',
+                               colspan=3)
         desktop.div('Desktop (3 columns)',
                    font_weight='bold',
                    margin_bottom='10px',
