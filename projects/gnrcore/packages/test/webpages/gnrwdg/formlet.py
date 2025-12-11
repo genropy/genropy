@@ -297,30 +297,31 @@ class GnrCustomWebPage(object):
     def test_4_complex_form(self, pane):
         """Complex multi-section form
 
-        This example shows a complete, production-ready form using formlet
-        with multiple sections, validation, and form controls.
+        This example shows a complete form using formlet with multiple sections
+        and different field types.
 
         This demonstrates how formlet can handle complex real-world forms
         while remaining responsive and mobile-friendly.
         """
-        form = pane.frameForm(
-            frameCode='ComplexTestForm',
-            datapath='.userdata',
-            store='memory',
-            height='700px',
-            border='1px solid #ccc',
-            border_radius='8px')
+        pane.div('Complex Multi-Section Form',
+                font_size='18px',
+                font_weight='bold',
+                margin='20px',
+                margin_bottom='10px')
 
-        bc = form.center.borderContainer(datapath='.record')
+        pane.div('Form with multiple sections, validation, and various field types.',
+                margin='20px',
+                margin_bottom='15px',
+                color='#666')
 
-        # Main scrollable area
-        center = bc.contentPane(region='center', overflow='auto')
+        # Main container
+        center = pane.div(overflow='auto', padding='10px')
 
         # Section 1: Personal Information
         self._formSection(
             center,
             title='Personal Information',
-            icon='iconbox person',
+            icon='person',
             formCols=3,
             fields=[
                 ('textbox', 'firstname', 'First Name', {'validate_notnull': True}),
@@ -337,7 +338,7 @@ class GnrCustomWebPage(object):
         self._formSection(
             center,
             title='Contact Information',
-            icon='iconbox mail',
+            icon='mail',
             formCols=2,
             fields=[
                 ('textbox', 'email', 'Email', {
@@ -355,7 +356,7 @@ class GnrCustomWebPage(object):
         self._formSection(
             center,
             title='Preferences & Privacy',
-            icon='iconbox settings',
+            icon='settings',
             formCols=1,
             fields=[
                 ('checkbox', 'newsletter', '', {
@@ -373,34 +374,6 @@ class GnrCustomWebPage(object):
                 }),
             ])
 
-        # Bottom bar with action buttons
-        bar = form.bottom.slotBar('*,btnSave,btnCancel,5',
-                                 background='#f8f9fa',
-                                 border_top='1px solid #dee2e6')
-        bar.btnSave.button(
-            'Save',
-            iconClass='iconbox save',
-            action="""
-                var data = this.form.getFormData();
-                if (this.form.validate()) {
-                    console.log('Valid form data:', data.toXml());
-                    genro.dlg.alert('Form saved successfully!', 'Success');
-                } else {
-                    genro.dlg.alert('Please fill in all required fields', 'Validation Error');
-                }
-            """)
-        bar.btnCancel.button(
-            'Cancel',
-            iconClass='iconbox close',
-            action='this.form.abort();')
-
-        # Initialize with new record
-        # Commented out to avoid autofocus on page load
-        # pane.dataController(
-        #     'frm.newrecord();',
-        #     frm=form.js_form,
-        #     _onStart=True)
-
     def _formSection(self, pane, title, icon, formCols, fields):
         """Helper to create a styled form section"""
         section = pane.div(
@@ -412,13 +385,23 @@ class GnrCustomWebPage(object):
             background='#ffffff',
             box_shadow='0 1px 3px rgba(0,0,0,0.1)')
 
-        # Section header
+        # Section header with icon
         header = section.div(
             margin_bottom='20px',
             padding_bottom='10px',
-            border_bottom='2px solid #007bff')
+            border_bottom='2px solid #007bff',
+            display='flex',
+            align_items='center')
+
+        # Icon
+        if icon:
+            header.div(iconClass=f'iconbox {icon}',
+                      margin_right='10px',
+                      font_size='18px')
+
+        # Title
         header.div(
-            f'{icon or ""} {title}',
+            title,
             font_size='18px',
             font_weight='bold',
             color='#333')
