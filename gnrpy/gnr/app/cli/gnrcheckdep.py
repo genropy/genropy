@@ -19,7 +19,7 @@ def main():
     parser.add_argument("-n", "--nocache",
                         dest="nocache",
                         action="store_true",
-                        help="Try to install the missing deps")
+                        help="Don't use the local package cache")
     parser.add_argument("-v", "--verbose",
                         dest="verbose",
                         action="store_true",
@@ -41,10 +41,12 @@ def main():
 
     if missing:
         dep_list = " ".join(missing)
-        print(f"\nThe following dependencies are missing: {dep_list}")
+        if options.verbose:
+            print(f"\nThe following dependencies are missing: {dep_list}")
         if options.install:
             print("Installing as requested...")
-            app.check_package_install_missing(nocache=options.nocache)
+            app.check_package_install_missing(nocache=options.nocache,
+                                              verbose=options.verbose)
         else:
             print(f"\nPlease execute\n\npip install {dep_list}") 
             sys.exit(2)
@@ -57,6 +59,7 @@ def main():
         if options.fix:
             print("\nTrying to fix the problem by upgrading..")
             app.check_package_install_missing(nocache=options.nocache,
+                                              verbose=options.verbose,
                                               upgrading=True)
 
             # recheck

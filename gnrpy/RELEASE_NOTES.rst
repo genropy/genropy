@@ -25,6 +25,12 @@ Enhancements
 * Storage handling logic has been refactored and moved out of
   GnrWsgiSite, to be handled by a dedicated storage handler proxy
   module.
+* 'gnr app checkdep -i' installation process now have better control
+  over subprocess execution to collect errors and provide useful
+  informations to debug issues (#343)
+* new contentEditor in docu_components which supports multiple text
+  editors. (#344)
+  
   
 Deprecations
 ------------
@@ -34,6 +40,8 @@ Deprecations
 * getVolumeService() and legacy volumes configuration have been
   deprecated in favor of section 'services'
 * the subdomain concept from wsgisite and gnrwebpage has been dropped (#334)
+* contentText component in docu_components has been deprecated by
+  contentEditor which supports multiple text editors.
 
 Fixes
 -----
@@ -55,6 +63,8 @@ Fixes
 * The fullcalendar widget now resizes correctly upon viewport adjustments
 * DB Migrate handles correctly varchar fields with min/max sizes used
   in validation, but not supported by RDBMS.
+* 'gnr' cli command now correctly handle errors in sub-commands loading (#322)
+
   
 Release 25.10.27
 ================

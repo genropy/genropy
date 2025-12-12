@@ -46,7 +46,7 @@ The script will:
 from gnr.core.cli import GnrCliArgParse
 from gnr.app.gnrapp import AuthTagStruct
 
-DESCRIPTION = "Synchronize auth tags from code definitions to database"
+description = "Synchronize auth tags from code definitions to database"
 
 def main(instance):
     """Update existing auth tag records with current code definitions.
@@ -59,7 +59,7 @@ def main(instance):
         gnr adm sync_authtags [instance_name] [--dry-run]
     """
 
-    parser = GnrCliArgParse(description=DESCRIPTION)
+    parser = GnrCliArgParse(description=description)
     parser.add_argument('--dry-run', action='store_true',
                        help='Show changes without applying them')
     args = parser.parse_args()
