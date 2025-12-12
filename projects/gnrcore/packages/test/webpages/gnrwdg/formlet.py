@@ -433,17 +433,17 @@ class GnrCustomWebPage(object):
         - Easier field spanning
         - Modern CSS Grid layout
         """
-        bc = pane.borderContainer(height='600px')
+        bc = pane.borderContainer(height='520px')
 
         top = bc.contentPane(region='top', height='60px')
         top.div('Comparison: Formbuilder vs Formlet',
                font_size='20px',
                font_weight='bold',
-               margin='15px')
+               margin='10px')
 
         center = bc.contentPane(region='center')
         comparison = center.gridbox(columns=2, gap='20px',
-                                   margin='20px')
+                                   margin='10px')
 
         # Left: Traditional Formbuilder
         fbContainer = comparison.div(
@@ -481,10 +481,10 @@ class GnrCustomWebPage(object):
 
         fl = flContainer.formlet(
             cols=2,
-            gap='10px',
-            item_lbl_side='top',
-            item_border='1px solid #e0e0e0',
-            item_rounded=4)
+            gap='10px')
+            #item_lbl_side='top',
+            #item_border='1px solid #e0e0e0',
+            #item_rounded=4) # Styling can be added as needed
 
         fl.textbox(value='^.fl_name', lbl='Name')
         fl.textbox(value='^.fl_surname', lbl='Surname')
@@ -495,7 +495,7 @@ class GnrCustomWebPage(object):
                         colspan=2, height='60px')
 
         # Comparison notes
-        bottom = bc.contentPane(region='bottom', height='100px')
+        bottom = bc.contentPane(region='bottom', height='150px')
         notes = bottom.div(margin='20px',
                           padding='15px',
                           background='#fffbea',

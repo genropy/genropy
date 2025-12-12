@@ -198,36 +198,7 @@ class GnrCustomWebPage(object):
         # Conditional field - only visible if privacy is accepted
         fl.textbox(value='^.email',lbl='Email',colspan=2,hidden='^.privacy?=!#v')
 
-    def test_5_gridbox_dashboard(self,pane):
-        """Gridbox dashboard: Multiple data tables
-
-        This example demonstrates using gridbox to create a dashboard layout
-        with multiple TableHandlers arranged in a grid.
-
-        Features:
-        - Multiple related tables in organized layout
-        - labledBox for titled sections
-        - colspan to make sections span multiple columns
-        - Fixed height and width for consistent layout
-
-        This pattern is common for admin dashboards and data management interfaces.
-        """
-        gb = pane.gridbox(height='600px',width='600px',
-                         cols=3,item_border='1px solid silver')
-
-        # Three tables in top row
-        gb.labledBox('Nazioni').borderContainer().plainTableHandler(
-            table='glbl.nazione',region='center')
-        gb.labledBox('Regioni').borderContainer().plainTableHandler(
-            table='glbl.regione',region='center')
-        gb.labledBox('Province').borderContainer().plainTableHandler(
-            table='glbl.provincia',region='center')
-
-        # Full-width table in bottom row
-        gb.labledBox('Comuni',colspan=3).borderContainer().plainTableHandler(
-            table='glbl.comune',region='center')
-
-    def test_6_flexbox_vs_gridbox(self,pane):
+    def test_5_flexbox_vs_gridbox(self,pane):
         """Comparison: Flexbox with labledBox
 
         This example shows how labledBox can be used within a flexbox layout
@@ -269,21 +240,3 @@ class GnrCustomWebPage(object):
         # Flexible section (fills remaining space)
         fbox.labledBox('Flexible Section',
                       border='1px solid silver',margin='5px',flex=1,rounded=6)
-
-    def test_7_simple_gridbox_layout(self,pane):
-        """Simple gridbox with labledBox: Auto-sized sections
-
-        This example shows a simple gridbox with auto-sized labledBox items.
-        The grid auto-generates columns and rows based on content.
-
-        Compare with test_7 to see the difference: gridbox creates a true
-        2D grid, while flexbox creates a 1D flow (column in that case).
-        """
-        gb = pane.gridbox(height='800px',width='100%',
-                         item_border='1px solid silver')
-
-        # Auto-sized sections in grid
-        gb.labledBox('Section Alfa',height='100px')
-        gb.labledBox('Section Beta',height='200px')
-        gb.labledBox('Section Gamma',height='150px')
-        gb.labledBox('Section Delta')  # Flexible height
