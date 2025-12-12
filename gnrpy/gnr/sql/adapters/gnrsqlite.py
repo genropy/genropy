@@ -135,6 +135,50 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         @return: list of object names"""
         return getattr(self, '_list_%s' % elType)(**kwargs)
 
+    def execute(self, sql, sqlargs=None, manager=False, autoCommit=False):
+        """
+        Execute a sql statement on a new cursor from the connection of the selected
+        connection manager if provided, otherwise through a new connection.
+        sqlargs will be used for query params substitutions.
+
+        Returns None
+        """
+        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit,
+                                                                            storename=self.dbroot.currentStorename)
+        cursor = connection.cursor(GnrSqliteCursor)
+        try:
+            if isinstance(sqlargs, dict):
+                sql, sqlargs = self.prepareSqlText(sql, sqlargs)
+            if sqlargs is None:
+                cursor.execute(sql)
+            else:
+                cursor.execute(sql, sqlargs)
+        finally:
+            cursor.close()
+            connection.close()
+
+    def raw_fetch(self, sql, sqlargs=None, manager=False, autoCommit=False):
+        """
+        Execute a sql statement on a new cursor from the connection of the selected
+        connection manager if provided, otherwise through a new connection.
+        sqlargs will be used for query params substitutions.
+
+        Returns all records returned by the SQL statement.
+        """
+        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit, storename=self.dbroot.currentStorename)
+        cursor = connection.cursor(GnrSqliteCursor)
+        try:
+            if isinstance(sqlargs, dict):
+                sql, sqlargs = self.prepareSqlText(sql, sqlargs)
+            if sqlargs is None:
+                cursor.execute(sql)
+            else:
+                cursor.execute(sql, sqlargs)
+            result = cursor.fetchall()
+        finally:
+            cursor.close()
+            connection.close()
+        return result
 
     def _list_enabled_extensions(self):
         return []
@@ -148,14 +192,14 @@ class SqlDbAdapter(SqlDbBaseAdapter):
 
     def _list_tables(self, schema=None, comment=None):
         query = "SELECT name FROM %s.sqlite_master WHERE type='table';" % (schema,)
-        result = self.dbroot.execute(query).fetchall()
+        result = self.raw_fetch(query)
         if comment:
             return [(r[0],None) for r in result]
         return [r[0] for r in result]
 
     def _list_views(self, schema=None, comment=None):
         query = "SELECT name FROM %s.sqlite_master WHERE type='view';" % (schema,)
-        result = self.dbroot.execute(query).fetchall()
+        result = self.raw_fetch(query)
         if comment:
             return [(r[0],None) for r in result]
         return [r[0] for r in result]
@@ -163,7 +207,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
     def _list_columns(self, schema=None, table=None, comment=None):
         """cid|name|type|notnull|dflt_value|pk"""
         query = "PRAGMA %s.table_info(%s);" % (schema, table)
-        result = self.dbroot.execute(query).fetchall()
+        result = self.raw_fetch(query)
         if comment:
             return [(r[1],None) for r in result]
         return [r[1] for r in result]
@@ -182,7 +226,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         for schema in self._list_schemata():
             for tbl in self._list_tables(schema=schema):
                 query = "PRAGMA %s.foreign_key_list(%s);" % (schema, tbl)
-                l = self.dbroot.execute(query).fetchall()
+                l = self.raw_fetch(query)
 
                 for r in l:
                     un_tbl = r[2]
@@ -200,7 +244,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         @param schema: schema name
         @return: list of columns wich are the primary key for the table"""
         query = "PRAGMA %s.table_info(%s);" % (schema, table)
-        l = self.dbroot.execute(query).fetchall()
+        l = self.raw_fetch(query)
         return [r[1] for r in l if r[5] > 0]
 
 
@@ -283,11 +327,11 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         @param schema: schema name
         @return: list of index infos"""
         query = "PRAGMA %s.index_list(%s);" % (schema, table)
-        idxs = self.dbroot.execute(query).fetchall()
+        idxs = self.raw_fetch(query)
         result = []
         for idx in idxs:
             query = "PRAGMA %s.index_info(%s);" % (schema, idx['name'])
-            cols = self.dbroot.execute(query).fetchall()
+            cols = self.raw_fetch(query)
             cols = [c['name'] for c in cols]
             result.append(dict(name=idx['name'], primary=None, unique=idx['unique'], columns=','.join(cols)))
         return result
@@ -337,6 +381,88 @@ class SqlDbAdapter(SqlDbBaseAdapter):
 
     def string_agg(self,fieldpath,separator):
         return f"group_concat({fieldpath},'{separator}')"
+
+    def mask_field_sql(self, field, mode='2-4', placeholder='*'):
+        """
+        Returns a SQLite SQL expression for masking a field value.
+
+        Args:
+            field: The field expression to mask (with $ prefix for gnr substitution)
+            mode: Masking mode - 'email', 'creditcard', 'phone', or 'N-M' format
+            placeholder: Character to use for masking (default: '*')
+
+        Returns:
+            str: SQLite SQL expression for the masked field
+        """
+        # Helper to generate repeat pattern in SQLite (which lacks repeat())
+        # We use substr with replace: replace(substr('**********...', 1, n), '*', placeholder)
+        # But simpler: we generate placeholder characters inline using printf or just hardcoded pattern
+        # SQLite approach: use printf('%.*c', length, char) - but this doesn't work in SQLite
+        # Alternative: use replace(substr('************************************', 1, n), '*', placeholder)
+        # We'll use a long string of asterisks and substr it
+        max_mask_chars = 100  # Maximum mask length supported
+        mask_base = '*' * max_mask_chars
+
+        if mode == 'email':
+            # Mask local part of email, keep domain visible (default 2 chars visible at start)
+            # SQLite uses instr() instead of position(), substr() instead of substring()
+            # SQLite doesn't have split_part, so we use substr with instr
+            sql_formula = f"""
+                CASE
+                    WHEN instr({field}, '@') > 0 THEN
+                        substr({field}, 1, 2) ||
+                        replace(substr('{mask_base}', 1, max(instr({field}, '@') - 1 - 2, 0)), '*', '{placeholder}') ||
+                        substr({field}, instr({field}, '@'))
+                    ELSE
+                        {field}
+                END
+            """.strip()
+
+        elif mode == 'creditcard':
+            # Show only last 4 digits
+            sql_formula = f"""
+                CASE
+                    WHEN length({field}) > 4 THEN
+                        replace(substr('{mask_base}', 1, length({field}) - 4), '*', '{placeholder}') ||
+                        substr({field}, -4)
+                    ELSE
+                        {field}
+                END
+            """.strip()
+
+        elif mode == 'phone':
+            # Keep country code (3 chars) and last 3 digits visible
+            sql_formula = f"""
+                CASE
+                    WHEN length({field}) > 6 THEN
+                        substr({field}, 1, 3) ||
+                        replace(substr('{mask_base}', 1, length({field}) - 6), '*', '{placeholder}') ||
+                        substr({field}, -3)
+                    ELSE
+                        {field}
+                END
+            """.strip()
+
+        else:
+            # Generic masking with N-M format
+            try:
+                visible_start, visible_end = map(int, mode.split('-'))
+            except (ValueError, AttributeError):
+                # Fallback to default if mode is invalid
+                visible_start, visible_end = 2, 4
+
+            sql_formula = f"""
+                CASE
+                    WHEN length({field}) > {visible_start + visible_end} THEN
+                        substr({field}, 1, {visible_start}) ||
+                        replace(substr('{mask_base}', 1, length({field}) - {visible_start} - {visible_end}), '*', '{placeholder}') ||
+                        substr({field}, -{visible_end})
+                    ELSE
+                        {field}
+                END
+            """.strip()
+
+        return sql_formula
 
 
 class GnrSqliteCursor(pysqlite.Cursor):

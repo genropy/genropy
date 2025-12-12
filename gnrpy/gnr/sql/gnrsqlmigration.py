@@ -5,6 +5,7 @@ import json
 import dictdiffer
 from collections import defaultdict
 from gnr.core.gnrstring import boolean
+
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
 from gnr.dev.decorator import time_measure

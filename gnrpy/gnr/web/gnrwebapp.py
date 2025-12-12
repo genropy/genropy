@@ -11,12 +11,15 @@ class WebApplicationCache(object):
         self.site = application.site
         self.cache = {}
 
-    def getItem(self,key):
+    def getItem(self,key,defaultFactory=None):
         item,ts = self.cache.get(key,(None,None))
         if item is not None:
             last_change_ts = self.site.register.globalStore().getItem('CACHE_TS.%s' %key)
             if last_change_ts and ts<last_change_ts:
                 item = None 
+        if item is None and defaultFactory:
+            item = defaultFactory()
+            self.setItem(key,item)
         return item
 
     def setItem(self,key,value):

@@ -263,3 +263,128 @@ class TestSqlDbAdapter():
 
         r = self.adapter.createSchemaSql("MYSCHEMA")
         assert r == "CREATE SCHEMA MYSCHEMA;"
+
+    def test_mask_field_sql_base_warning(self):
+        """Test that base adapter mask_field_sql emits a warning and returns field unchanged."""
+        import warnings
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            result = self.adapter.mask_field_sql("$email", mode='email')
+            # Should return the field unchanged
+            assert result == "$email"
+            # Should have emitted a warning
+            assert len(w) == 1
+            assert "not implemented" in str(w[0].message).lower()
+
+
+class TestPostgresAdapterMaskField:
+    """Test mask_field_sql for PostgreSQL adapter."""
+
+    @classmethod
+    def setup_class(cls):
+        from gnr.sql.adapters._gnrbasepostgresadapter import PostgresSqlDbBaseAdapter
+        cls.adapter = PostgresSqlDbBaseAdapter(FakeDbRoot(False))
+
+    def test_mask_email(self):
+        """Test email masking mode for PostgreSQL."""
+        result = self.adapter.mask_field_sql("$email", mode='email')
+        # Should contain PostgreSQL-specific functions
+        assert "position('@'" in result.lower()
+        assert "split_part" in result.lower()
+        assert "repeat" in result.lower()
+        assert "$email" in result
+        assert "CASE" in result
+
+    def test_mask_creditcard(self):
+        """Test credit card masking mode for PostgreSQL."""
+        result = self.adapter.mask_field_sql("$cc", mode='creditcard')
+        assert "right(" in result.lower()
+        assert "repeat(" in result.lower()
+        assert "length(" in result.lower()
+        assert "$cc" in result
+        assert "4" in result  # Shows last 4 digits
+
+    def test_mask_phone(self):
+        """Test phone masking mode for PostgreSQL."""
+        result = self.adapter.mask_field_sql("$phone", mode='phone')
+        assert "substring(" in result.lower()
+        assert "repeat(" in result.lower()
+        assert "right(" in result.lower()
+        assert "$phone" in result
+        assert "3" in result  # Shows first 3 and last 3
+
+    def test_mask_custom(self):
+        """Test custom N-M masking mode for PostgreSQL."""
+        result = self.adapter.mask_field_sql("$data", mode='3-5')
+        assert "substring(" in result.lower()
+        assert "repeat(" in result.lower()
+        assert "3" in result
+        assert "5" in result
+
+    def test_mask_custom_placeholder(self):
+        """Test custom placeholder character for PostgreSQL."""
+        result = self.adapter.mask_field_sql("$data", mode='2-4', placeholder='#')
+        assert "#" in result
+        assert "*" not in result
+
+    def test_mask_invalid_mode_fallback(self):
+        """Test that invalid mode falls back to 2-4 format for PostgreSQL."""
+        result = self.adapter.mask_field_sql("$data", mode='invalid')
+        # Should fall back to 2-4
+        assert "2" in result
+        assert "4" in result
+
+
+class TestSqliteAdapterMaskField:
+    """Test mask_field_sql for SQLite adapter."""
+
+    @classmethod
+    def setup_class(cls):
+        from gnr.sql.adapters.gnrsqlite import SqlDbAdapter as SqliteAdapter
+        cls.adapter = SqliteAdapter(FakeDbRoot(False))
+
+    def test_mask_email(self):
+        """Test email masking mode for SQLite."""
+        result = self.adapter.mask_field_sql("$email", mode='email')
+        # Should contain SQLite-specific functions
+        assert "instr(" in result.lower()
+        assert "substr(" in result.lower()
+        assert "$email" in result
+        assert "CASE" in result
+        # Should NOT contain PostgreSQL-specific functions
+        assert "split_part" not in result.lower()
+        assert "position(" not in result.lower()
+
+    def test_mask_creditcard(self):
+        """Test credit card masking mode for SQLite."""
+        result = self.adapter.mask_field_sql("$cc", mode='creditcard')
+        assert "substr(" in result.lower()
+        assert "length(" in result.lower()
+        assert "$cc" in result
+        assert "-4" in result  # SQLite uses negative index for last chars
+
+    def test_mask_phone(self):
+        """Test phone masking mode for SQLite."""
+        result = self.adapter.mask_field_sql("$phone", mode='phone')
+        assert "substr(" in result.lower()
+        assert "$phone" in result
+        assert "-3" in result  # SQLite uses negative index for last chars
+
+    def test_mask_custom(self):
+        """Test custom N-M masking mode for SQLite."""
+        result = self.adapter.mask_field_sql("$data", mode='3-5')
+        assert "substr(" in result.lower()
+        assert "3" in result
+        assert "5" in result
+
+    def test_mask_custom_placeholder(self):
+        """Test custom placeholder character for SQLite."""
+        result = self.adapter.mask_field_sql("$data", mode='2-4', placeholder='#')
+        assert "#" in result
+
+    def test_mask_invalid_mode_fallback(self):
+        """Test that invalid mode falls back to 2-4 format for SQLite."""
+        result = self.adapter.mask_field_sql("$data", mode='invalid')
+        # Should fall back to 2-4
+        assert "2" in result
+        assert "4" in result

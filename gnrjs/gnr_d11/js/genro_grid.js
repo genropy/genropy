@@ -511,7 +511,12 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         }
         var sb = this.views.views[0].scrollboxNode;
         if(this.sourceNode._footersNode){
-            sb.style.height = this.sourceNode.getParentNode().widget.domNode.clientHeight - this.viewsHeaderNode.clientHeight+1 +'px';
+            var parentNode = this.sourceNode.getParentNode && this.sourceNode.getParentNode();
+            var parentWidget = parentNode && parentNode.widget;
+            if(!parentWidget){
+                return;
+            }
+            sb.style.height = parentWidget.domNode.clientHeight - this.viewsHeaderNode.clientHeight+1 +'px';
             //sb.style.height =sb.clientHeight+18+'px';
         }
         var delta = sb.clientHeight - sb.firstElementChild.clientHeight;
@@ -3474,30 +3479,36 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
         if(r==null){
             var r = this.selection.selectedIndex;
         }
-        var rc = this.gridEditor.findNextEditableCell({row: r, col: -1}, {r:0, c:1});
-        var grid = this;
         var ge = this.gridEditor;
-        if (rc) {
-            if(ge.remoteRowController){
-                var d = new Date();
-                this.sourceNode.watch('pendingRemoteController',
-                        function(){return !ge._pendingRemoteController},
-                        function(){
+        if(ge.remoteRowController){
+            this.sourceNode.watch('pendingRemoteController',
+                    function(){return !ge._pendingRemoteController},
+                    function(){
+                        let rc = ge.findNextEditableCell({row: r, col: -1}, {r:0, c:1});
+                        if(rc){
                             ge.startEdit(rc.row, rc.col);
-                        },10);
+                        }
+                        
+                    },10);
+        }
+        else if (delay) {
+            if (this._delayedEditing) {
+                clearTimeout(this._delayedEditing);
             }
-            else if (delay) {
-                if (this._delayedEditing) {
-                    clearTimeout(this._delayedEditing);
-                }
-                this._delayedEditing = setTimeout(function() {
+            this._delayedEditing = setTimeout(function() {
+                let rc = ge.findNextEditableCell({row: r, col: -1}, {r:0, c:1});
+                if(rc){
                     ge.startEdit(rc.row, rc.col);
-                }, delay);
-            } else {
+                }
+                
+            }, delay);
+        } else {
+            let rc = ge.findNextEditableCell({row: r, col: -1}, {r:0, c:1});
+            if(rc){
                 ge.startEdit(rc.row, rc.col);
             }
-
         }
+
     },
 
     mixin_newBagRow: function(defaultArgs) {

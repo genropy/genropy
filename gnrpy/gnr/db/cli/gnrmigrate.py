@@ -101,7 +101,18 @@ def inspect(migrator, options):
     logger.info("Creating migration inspection archive")
     now = datetime.datetime.now().strftime("%Y%m%d%H%M")
     dump_files = []
-
+    orig_db_dump = f"{options.instance}_cur_db_struct_{now}"
+    try:
+        db_dump = migrator.db.dump(orig_db_dump,
+                                   options=Bag(plain_text=True,
+                                               schema_only=True)
+                                   )
+    except RuntimeError as e:
+        logger.error("Can't execute database dump: %s", e)
+        sys.exit(1)
+        
+    dump_files.append(db_dump)
+        
     to_dump = [
         ("db_struct", migrator.sqlStructure),
         ("orm_struct", migrator.ormStructure),
@@ -116,12 +127,7 @@ def inspect(migrator, options):
             else:
                 wfp.write(json.dumps(dump_item[1]))
         dump_files.append(filename)
-    orig_db_dump = f"{options.instance}_cur_db_struct_{now}"
-    dump_files.append(migrator.db.dump(orig_db_dump,
-                                       options=Bag(plain_text=True,
-                                                   schema_only=True)
-                                       )
-                      )
+
     zip_name = f"{options.instance}_migrate_inspection_{now}.zip"
     with zipfile.ZipFile(zip_name, "w") as zipf:
         for filename in dump_files:

@@ -246,6 +246,7 @@ class Form(BaseComponent):
         fb.field('from_address',colspan=2)
         fb.field('cc_address',colspan=2)
         fb.field('bcc_address',colspan=2)
+        fb.field('reply_to',colspan=2)
         fb.field('send_date', tag='div')
         fb.field('html',html_label=True)
         fb.field('__is_draft', lbl='!![en]Draft')

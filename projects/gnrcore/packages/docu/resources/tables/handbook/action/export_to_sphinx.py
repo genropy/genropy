@@ -75,27 +75,34 @@ class Main(BaseResourceBatch):
         "Prepare conf file"
         confSn = self.sourceDirNode.child('conf.py')
         self.page.site.storageNode('rsrc:pkg_docu','sphinx_env','default_conf.py').copy(self.page.site.storageNode(confSn))
+
+        # Check if theme exists, fallback to sphinx_rtd_theme if not
         theme = self.handbook_record['theme'] or 'sphinx_rtd_theme'
         theme_path = self.page.site.storageNode('rsrc:pkg_docu','sphinx_env','themes').internal_path
-        handbooks_theme_pref = self.db.application.getPreference('.handbooks_theme',pkg='docu')
+        theme_node = self.page.site.storageNode('rsrc:pkg_docu','sphinx_env','themes', theme)
+
+        if not theme_node.exists:
+            logger.warning(f"Theme '{theme}' not found, falling back to 'sphinx_rtd_theme'")
+            theme = 'sphinx_rtd_theme'
+        handbooks_theme_pref = self.db.application.getPreference('.handbooks_theme',pkg='docu') or {}
         conf_lines = [
             f"html_theme = '{theme}'",
             f"html_theme_path = ['{theme_path}/']",
             f"html_baseurl='{self.html_baseurl}'",
         ]
-        if handbooks_theme_pref['logo']:
+        if handbooks_theme_pref.get('logo'):
             conf_lines.append(f"html_logo = '{self.page.site.externalUrl(handbooks_theme_pref['logo'])}'")
             conf_lines.append("html_short_title = 'Handbook'")
-        if handbooks_theme_pref['copyright']:
+        if handbooks_theme_pref.get('copyright'):
             conf_lines.append("show_copyright = True")
             conf_lines.append("html_show_sphinx = False")
             conf_lines.append(f"copyright = '{self.db.workdate.year} {handbooks_theme_pref['copyright']}'")
-        if handbooks_theme_pref['display_version']:
+        if handbooks_theme_pref.get('display_version'):
             conf_lines.append("theme_display_version = True")
             conf_lines.append(f"version = release = '{self.handbook_record['version']}'")
-        if handbooks_theme_pref['last_update']:
+        if handbooks_theme_pref.get('last_update'):
             conf_lines.append("html_last_updated_fmt = '%d-%m-%Y'")
-        if handbooks_theme_pref['show_authors']:
+        if handbooks_theme_pref.get('show_authors'):
             conf_lines.append("show_authors = True")
         if self.enable_sitemap: #DP Enabled extensions = ['sphinx_sitemap','sphinxext.opengraph']
             conf_lines.append(f"sitemap_url_scheme = '{self.handbook_record['name']}/{{link}}'")
@@ -109,17 +116,37 @@ class Main(BaseResourceBatch):
         if self.handbook_record['toc_roots']:
             toc_roots = self.handbook_record['toc_roots'].split(',')
             toc_trees = []
-            for doc_id in toc_roots:
-                node = self.doc_data.getNode(doc_id)
-                if node:
+            regular_pages = []
+
+            # Process all direct children of docroot
+            for node in self.doc_data:
+                doc_id = node.label
+                record = self.doctable.record(doc_id).output('dict')
+
+                # Skip if no publish_date
+                if not record.get('publish_date'):
+                    continue
+
+                if doc_id in toc_roots:
+                    # Process as toc_root with caption
                     subtree = Bag()
                     subtree.setItem(node.label, node.value, **node.attr)
-                    r = self.doctable.record(doc_id).output('dict')
-                    title = Bag(r['docbag'])['%s.title' % self.handbook_record['language']] 
-                    root_code = r['name']
-                    toc_elements = self.prepare(subtree,[], skip_first=True)
+                    title = Bag(record['docbag'])['%s.title' % self.handbook_record['language']]
+                    toc_elements = self.prepare(subtree, [], skip_first=True)
                     toc_trees.append(self.createToc(elements=toc_elements, includehidden=True, titlesonly=True, caption=title))
-            tocstring = '\n\n'.join(toc_trees)
+                else:
+                    # Process as regular page (not in toc_roots but has publish_date)
+                    subtree = Bag()
+                    subtree.setItem(node.label, node.value, **node.attr)
+                    page_elements = self.prepare(subtree, [])
+                    regular_pages.extend(page_elements)
+
+            # Build main TOC: regular pages first, then toc_root sections
+            main_toc_parts = []
+            if regular_pages:
+                main_toc_parts.append(self.createToc(elements=regular_pages, includehidden=True, titlesonly=True))
+            main_toc_parts.extend(toc_trees)
+            tocstring = '\n\n'.join(main_toc_parts)
         else:
             toc_elements = self.prepare(self.doc_data,[])
             tocstring = self.createToc(elements=toc_elements, includehidden=True, titlesonly=True)
@@ -181,7 +208,9 @@ class Main(BaseResourceBatch):
                 record['local_handbook_zip'] = self.result_url
             else:
                 #DP202208 Html files will be moved to published Doc node after creation. Building folders will be deleted
+                logger.info(f"Moving HTML build from {self.resultNode.fullpath} to {self.publishedDocNode.fullpath}")
                 self.resultNode.move(self.publishedDocNode)
+                logger.info(f"Move completed. Published doc available at: {self.publishedDocNode.fullpath}")
                 record['handbook_url'] = self.handbook_url
                 self.result_url = None
         if not self.db.application.getPreference('.save_src_debug',pkg='docu'):

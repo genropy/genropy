@@ -6784,3 +6784,20 @@ div[disabled='true'], div[disabled='disabled']{
 
 
 /*labledbox  end*/
+
+/* MDEditor custom toolbar buttons alignment fix */
+.toastui-editor-toolbar-icons.custom-toolbar-button {
+    margin: 0 !important;
+    background: none !important;
+    font-size: 16px;
+    line-height: normal;
+    vertical-align: middle;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+}
+.toastui-editor-toolbar-icons.custom-toolbar-button svg {
+    display: block;
+    width: 17px;
+    height: 17px;
+}
