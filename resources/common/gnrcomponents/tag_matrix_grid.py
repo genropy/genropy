@@ -271,35 +271,15 @@ class TagMatrixGrid(BaseComponent):
         )
         source_rows = source_query.fetch()
 
-        # Load tags (hierarchical) with child_count to identify leaves vs parents
+        # Load leaf tags (child_count=0) with parent info via join
         htag_tbl = self.db.table('adm.htag')
-        tag_query = htag_tbl.query(
-            columns='$id,$code,$description,$hierarchical_code,$parent_id,$child_count',
-            where=tag_condition,
-            order_by='$hierarchical_code',
+        leaf_tags = htag_tbl.query(
+            columns='''$id,$code,$description,$hierarchical_code,$parent_id,
+                       @parent_id.code AS parent_code,
+                       @parent_id.description AS parent_description''',
+            where='$child_count=0' + (f' AND ({tag_condition})' if tag_condition else ''),
             **kwargs
-        )
-        tag_rows = tag_query.fetch()
-
-        # Separate leaves (child_count=0) from parents (child_count>0)
-        leaf_tags = [t for t in tag_rows if t.get('child_count', 0) == 0]
-        parent_tags_by_id = {t['id']: t for t in tag_rows if t.get('child_count', 0) > 0}
-
-        # Load missing parents (needed for columnsets) if filtered out by tag_condition
-        missing_parent_ids = set()
-        for leaf in leaf_tags:
-            pid = leaf.get('parent_id')
-            if pid and pid not in parent_tags_by_id:
-                missing_parent_ids.add(pid)
-
-        if missing_parent_ids:
-            parent_query = htag_tbl.query(
-                columns='$id,$code,$description,$hierarchical_code,$parent_id',
-                where='$id IN :pids',
-                pids=list(missing_parent_ids)
-            )
-            for p in parent_query.fetch():
-                parent_tags_by_id[p['id']] = p
+        ).fetch()
 
         # Load existing user_tag assignments
         user_tag_tbl = self.db.table('adm.user_tag')
@@ -312,7 +292,7 @@ class TagMatrixGrid(BaseComponent):
             assignment_map.setdefault(a[source], set()).add(a['tag_id'])
 
         # Build grid structure
-        struct = self._tmg_buildStruct(leaf_tags, parent_tags_by_id, caption_field)
+        struct = self._tmg_buildStruct(leaf_tags, caption_field)
 
         # Build store data (only leaves get checkbox columns)
         store = Bag()
@@ -339,12 +319,11 @@ class TagMatrixGrid(BaseComponent):
 
         return Bag(dict(struct=struct, store=store, tagMap=tagMap))
 
-    def _tmg_buildStruct(self, leaf_tags, parent_tags_by_id, caption_field):
+    def _tmg_buildStruct(self, leaf_tags, caption_field):
         """Build the grid structure with dynamic tag columns grouped by parent.
 
         Args:
-            leaf_tags: List of leaf tags (child_count=0) - these become checkboxes
-            parent_tags_by_id: Dict of parent tags by id - these become columnsets
+            leaf_tags: List of leaf tags with parent_code and parent_description from join
             caption_field: Field name for the first column
         """
         struct = self.newGridStruct()
@@ -356,35 +335,23 @@ class TagMatrixGrid(BaseComponent):
                width='15em',
                sort='a')
 
-        # Group leaves by parent_id
+        # Group leaves by parent_code (already sorted by hierarchical_code from query)
         leaves_by_parent = {}
         orphan_leaves = []
         for leaf in leaf_tags:
-            pid = leaf.get('parent_id')
-            if pid:
-                leaves_by_parent.setdefault(pid, []).append(leaf)
+            parent_code = leaf.get('parent_code')
+            if parent_code:
+                leaves_by_parent.setdefault(parent_code, []).append(leaf)
             else:
                 orphan_leaves.append(leaf)
 
-        # Create columnsets sorted by parent's hierarchical_code
-        sorted_parent_ids = sorted(
-            leaves_by_parent.keys(),
-            key=lambda pid: parent_tags_by_id.get(pid, {}).get('hierarchical_code', '')
-        )
+        # Create columnsets (order preserved from query sort)
+        for parent_code, leaves in leaves_by_parent.items():
+            parent_description = leaves[0].get('parent_description', parent_code)
+            hidden = f"^.#parent.visibleColumnsets?=!(#v||'').split(',').includes('{parent_code}')"
+            cs = r.columnset(code=parent_code, name=parent_description)
 
-        for parent_id in sorted_parent_ids:
-            parent_tag = parent_tags_by_id.get(parent_id)
-            if not parent_tag:
-                # Parent not found - add leaves as orphans
-                orphan_leaves.extend(leaves_by_parent[parent_id])
-                continue
-
-            columnset_code = parent_tag['code']
-            hidden = f"^.#parent.visibleColumnsets?=!(#v||'').split(',').includes('{columnset_code}')"
-            cs = r.columnset(code=columnset_code, name=parent_tag['description'])
-
-            # Add leaves as checkboxes, sorted by hierarchical_code
-            for leaf in sorted(leaves_by_parent[parent_id], key=lambda t: t['hierarchical_code']):
+            for leaf in leaves:
                 cs.checkboxcell(
                     f"tag_{leaf['id']}",
                     name=leaf['description'],
@@ -393,7 +360,7 @@ class TagMatrixGrid(BaseComponent):
                 )
 
         # Add orphan leaves directly (no columnset)
-        for leaf in sorted(orphan_leaves, key=lambda t: t['hierarchical_code']):
+        for leaf in orphan_leaves:
             r.checkboxcell(
                 f"tag_{leaf['id']}",
                 name=leaf['description'],

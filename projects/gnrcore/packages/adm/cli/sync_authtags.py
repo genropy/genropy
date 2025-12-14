@@ -112,9 +112,16 @@ def main(instance):
                 if args.dry_run:
                     print(f"Would update tag '{code}': {update_fields}")
                 else:
+                    old_record = dict(record)
                     for key, value in update_fields.items():
                         record[key] = value
-                    htag_table.update(record)
+                    # Ensure _row_count is set for hierarchical tables
+                    if record.get('_row_count') is None:
+                        where = '$parent_id IS NULL' if not record.get('parent_id') else '$parent_id =:p_id'
+                        last_counter = htag_table.readColumns(columns='$_row_count', where=where, subtable='*',
+                                                              order_by='$_row_count desc', limit=1, p_id=record.get('parent_id'))
+                        record['_row_count'] = (last_counter or 0) + 1
+                    htag_table.update(record, old_record=old_record)
                     print(f"Updated tag '{code}'")
                 updated_count += 1
 
