@@ -1029,9 +1029,9 @@ class GnrApp(object):
             attrs['path'] = self.realPath(attrs['path'])
         apppkg = GnrPackage(pkgid, self, **attrs)
         apppkg.content = pkgcontent or Bag()
-        readOnlyAttrs = {'readOnly':True} if attrs.get('readOnly') else None
+        readOnlyAttrs = {'readOnly':True} if attrs.get('readOnly') else dict()
         for reqpkgid in apppkg.required_packages():
-            self.addPackage(reqpkgid,pkgattrs=readOnlyAttrs)
+            self.addPackage(reqpkgid,pkgattrs=dict(readOnlyAttrs))
         self.packagesIdByPath[os.path.realpath(apppkg.packageFolder)] = pkgid
         self.packages[pkgid] = apppkg
 
