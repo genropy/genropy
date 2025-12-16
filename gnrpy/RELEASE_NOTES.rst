@@ -63,6 +63,8 @@ Fixes
 * The fullcalendar widget now resizes correctly upon viewport adjustments
 * DB Migrate handles correctly varchar fields with min/max sizes used
   in validation, but not supported by RDBMS.
+* 'gnr' cli command now correctly handle errors in sub-commands loading (#322)
+
   
 Release 25.10.27
 ================
