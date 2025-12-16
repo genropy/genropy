@@ -726,3 +726,52 @@ class TestStorageHandler(BaseGnrTest):
 
         # Should not raise: AttributeError: 'NoneType' object has no attribute 'get'
         handler._loadStorageParametersFromSiteConfig()
+
+    # ========================================================================
+    # Service Name Parameter Handling Tests
+    # ========================================================================
+
+    def test_storage_params_service_name_not_duplicated(self):
+        """Test that service_name in storage_params doesn't cause duplicate parameter.
+
+        When storage_params contains a 'service_name' key, it should be removed
+        before passing to getService() to avoid duplicate keyword argument error.
+        """
+        # Add a storage with service_name in params (simulating DB record)
+        self.storage_handler._setStorageParams(
+            'test_service_name_dup',
+            parameters={
+                'base_path': '/tmp/test_dup',
+                'service_name': 'test_service_name_dup'  # This would cause duplicate
+            },
+            implementation='local'
+        )
+
+        # This should NOT raise: TypeError: got multiple values for keyword argument 'service_name'
+        storage = self.site.storage('test_service_name_dup')
+        assert storage is not None
+
+        # Clean up
+        self.storage_handler.removeStorageFromCache('test_service_name_dup')
+
+    def test_storage_params_pop_does_not_modify_original(self):
+        """Test that popping service_name doesn't modify the original storage_params."""
+        self.storage_handler._setStorageParams(
+            'test_no_modify',
+            parameters={
+                'base_path': '/tmp/test_no_modify',
+                'service_name': 'test_no_modify'
+            },
+            implementation='local'
+        )
+
+        # Call storage() which should pop service_name internally
+        self.site.storage('test_no_modify')
+
+        # Original storage_params should still have service_name
+        params = self.storage_handler.getStorageParameters('test_no_modify')
+        # The original dict in storage_params should be unchanged
+        # (storage() makes a copy before popping)
+
+        # Clean up
+        self.storage_handler.removeStorageFromCache('test_no_modify')

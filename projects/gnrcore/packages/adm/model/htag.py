@@ -81,3 +81,13 @@ class Table(object):
             self.insert(record)
         return record
 
+    def protect_validate(self, record, old_record=None):
+        linked_table = record.get('linked_table')
+        if not linked_table:
+            return
+        try:
+            self.db.table(linked_table)
+        except Exception:
+            raise self.exception('protect_validate', record=record,
+                                 msg=f'!!Invalid table name: {linked_table}')
+
