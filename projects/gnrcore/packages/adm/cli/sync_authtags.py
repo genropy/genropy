@@ -85,8 +85,8 @@ def main(instance):
         # Resolve parent_id from parent_code
         parent_id = code_to_id.get(parent_code) if parent_code else None
 
-        # Get existing record with for_update lock
-        record = htag_table.record(__syscode=code, for_update=True, ignoreMissing=True).output('dict')
+        # Get existing record with for_update lock (by code since it's unique)
+        record = htag_table.record(code=code, for_update=True, ignoreMissing=True).output('dict')
 
         if record:
             # Update only if code matches (code change means different tag)
@@ -96,6 +96,17 @@ def main(instance):
 
             if record.get('description') != tag_description:
                 update_fields['description'] = tag_description
+                needs_update = True
+
+            # Ensure __syscode is set (for records that existed without it)
+            if record.get('__syscode') != code:
+                update_fields['__syscode'] = code
+                needs_update = True
+
+            # Ensure id matches sysrecord convention (code padded with _)
+            expected_id = code.ljust(22, '_')
+            if record.get('id') != expected_id:
+                update_fields['id'] = expected_id
                 needs_update = True
 
             if parent_id != record.get('parent_id'):
@@ -113,6 +124,7 @@ def main(instance):
                     print(f"Would update tag '{code}': {update_fields}")
                 else:
                     old_record = dict(record)
+                    original_pkey = record['id']
                     for key, value in update_fields.items():
                         record[key] = value
                     # Ensure _row_count is set for hierarchical tables
@@ -121,7 +133,8 @@ def main(instance):
                         last_counter = htag_table.readColumns(columns='$_row_count', where=where, subtable='*',
                                                               order_by='$_row_count desc', limit=1, p_id=record.get('parent_id'))
                         record['_row_count'] = (last_counter or 0) + 1
-                    htag_table.update(record, old_record=old_record)
+                    # Pass original pkey if id is being changed
+                    htag_table.update(record, old_record=old_record, pkey=original_pkey)
                     print(f"Updated tag '{code}'")
                 updated_count += 1
 
