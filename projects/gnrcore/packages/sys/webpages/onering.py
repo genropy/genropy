@@ -40,7 +40,6 @@ class GnrCustomWebPage(object):
         r.cell('register_port',name='Port',width='8em')
         r.cell('is_alive',width='20px',name='Alive',dtype='B',semaphore=True)
         r.cell('active',width='20px',name='S',dtype='B',semaphore=True)
-        r.cell('allowed_users',width='25em',name='Allowed users')
 
     def main(self, root, **kwargs):
         bc = root.borderContainer(datapath='main')
@@ -239,11 +238,50 @@ class GnrCustomWebPage(object):
         if pgbadger:
             return pgbadger.run(start_ts=datetime.now()-timedelta(minutes=since))
 
+    def _maintenance_get_items(self, items, child_name=None,exclude_guest=None, **kwargs):
+        result = Bag()
+        now = datetime.now()
+
+        for item in items:
+            item = dict(item)
+            key = item['register_item_id']
+            item.pop('data',None)
+            if exclude_guest and ( key.startswith('guest_') or item.get('user','').startswith('guest_')):
+                continue
+            _customClasses = []
+            item['_pkey'] = key
+            item['alive'] = True
+            item['age'] = (now - item.get('start_ts')).seconds
+            last_refresh_ts = item.get('last_refresh_ts') or item['start_ts']
+            last_user_ts = item.get('last_user_ts') or item['start_ts']
+            last_rpc_ts = item.get('last_rpc_ts') or item['start_ts']
+            item['last_refresh_age'] = (now - last_refresh_ts).seconds
+            item['last_event_age'] = (now - last_user_ts).seconds
+            item['last_rpc_age'] = (now - last_rpc_ts).seconds
+            if item['last_refresh_age'] > 60:
+                item['alive'] = False
+                _customClasses.append('disconnected')
+            elif item['last_event_age'] > 60:
+                _customClasses.append('inactive')
+            item.pop('datachanges', None)
+            result.addItem(key.replace('.','_').replace('@','_'), None, _customClasses=' '.join(_customClasses), **item)
+        return result
+    
+    @public_method
+    def maintenance_update_data(self,register_proxy, exclude_guest=None,**kwargs):
+        result = Bag()
+        users = register_proxy.users()
+        result['users'] = self._maintenance_get_items(users, 'connections',exclude_guest=exclude_guest)
+        connections = register_proxy.connections()
+        result['connections'] = self._maintenance_get_items(connections, 'pages')
+        pages = register_proxy.pages()
+        result['pages'] = self._maintenance_get_items(pages,exclude_guest=exclude_guest)
+        return result
+    
     @public_method
     def loadSelectedSiteSituation(self,sitename=None):
         with self.site.register.gnrdaemon_proxy.siteRegisterProxy(sitename) as register_proxy:
             result = self.maintenance_update_data(register_proxy)
-            
             return result
         return Bag()
 
@@ -251,7 +289,7 @@ class GnrCustomWebPage(object):
     def getSiteRecord(self,sitename=None):
         result = Bag()
         with self.site.register.gnrdaemon_proxy.siteRegisterProxy(sitename) as register_proxy:
-            result = Bag(dict(sitename=sitename,allowed_users=register_proxy.allowedUsers()))
+            result = Bag(dict(sitename=sitename))
         return result
 
     def _page_grid_struct(self, struct):
@@ -334,10 +372,8 @@ class GnrCustomWebPage(object):
                 try:
                     with self.site.register.pyroProxy(v['register_uri']) as proxy:
                         v['active'] = True
-                        v['allowed_users'] = proxy.allowedUsers()
                 except Pyro4.errors.CommunicationError:
                     v['active'] = False
-                    v['allowed_user'] = None
                     v['error'] = 'Not connected'
             result.setItem(k,None,**v)
         return result
