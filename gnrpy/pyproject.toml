@@ -186,7 +186,6 @@ packages = [
 # COVERAGE
 [tool.coverage.run]
 omit = [
-     "*/cli/*",
 ]
 
 # LINTERS
