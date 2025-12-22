@@ -3,8 +3,11 @@ BagEditor class for manipulating XML files using Genropy Bag.
 Provides methods to add, set, update, and delete entities in Bag structures.
 """
 from pathlib import Path
+from datetime import datetime
+import shutil
 
 from gnr.core.gnrbag import Bag
+from gnr.core import logger
 
 class BagEditor:
     """Editor for XML files using Genropy Bag."""
@@ -63,6 +66,20 @@ class BagEditor:
 
         if self.bag is None:
             raise ValueError("No Bag loaded to save")
+
+        # Create backup if saving to the same file that was loaded
+        if file_path == self.file_path and self.file_path is not None:
+            source_path = Path(file_path)
+            if source_path.exists():
+                # Generate backup filename: <filename><extension>-YYYYMMDDHHMMSS
+                timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+                backup_path = source_path.parent / f"{source_path.name}-{timestamp}"
+
+                try:
+                    shutil.copy2(file_path, backup_path)
+                    logger.info(f"Backup created: {backup_path}")
+                except Exception as e:
+                    raise Exception(f"Failed to create backup file: {e}")
 
         try:
             self.bag.toXml(file_path, autocreate=True, encoding='UTF-8', pretty=indent)

@@ -391,6 +391,139 @@ class TestBagEditor(BaseGnrTest):
         assert "attributes" in entity
         assert entity["attributes"] == {}
 
+    def test_save_creates_backup_for_same_file(self):
+        """Test that saving to the same file creates a backup."""
+        # Clean up any existing backups first
+        for backup in Path(self.test_dir).glob("test.xml-*"):
+            backup.unlink()
+
+        self.editor.load(str(self.test_file))
+
+        # Make a change
+        self.editor.add_entity("projects.project2", {"name": "New Project"})
+
+        # Save to the same file
+        self.editor.save()
+
+        # Check that a backup was created
+        backups = list(Path(self.test_dir).glob("test.xml-*"))
+        assert len(backups) == 1
+        backup_file = backups[0]
+
+        # Verify backup filename format: test.xml-YYYYMMDDHHMMSS
+        import re
+        assert re.match(r"test\.xml-\d{14}$", backup_file.name)
+
+        # Verify backup contains the original content (before the change)
+        backup_editor = BagEditor(str(backup_file))
+        assert not backup_editor.entity_exists("projects.project2")
+        assert backup_editor.entity_exists("projects.project1")
+
+        # Clean up backup
+        backup_file.unlink()
+
+    def test_save_no_backup_for_different_file(self):
+        """Test that saving to a different file does not create a backup."""
+        # Clean up any existing backups first
+        for backup in Path(self.test_dir).glob("test.xml-*"):
+            backup.unlink()
+
+        self.editor.load(str(self.test_file))
+
+        # Make a change
+        self.editor.add_entity("projects.project2", {"name": "New Project"})
+
+        # Save to a different file
+        new_file = Path(self.test_dir) / "test2.xml"
+        self.editor.save(str(new_file))
+
+        # Check that no backup was created for the original file
+        backups = list(Path(self.test_dir).glob("test.xml-*"))
+        assert len(backups) == 0
+
+        # Clean up
+        new_file.unlink()
+
+    def test_save_creates_multiple_backups(self):
+        """Test that multiple saves create multiple backups with different timestamps."""
+        import time
+        # Clean up any existing backups first
+        for backup in Path(self.test_dir).glob("test.xml-*"):
+            backup.unlink()
+
+        self.editor.load(str(self.test_file))
+
+        # Make first change and save
+        self.editor.add_entity("projects.project2", {"name": "Project 2"})
+        self.editor.save()
+
+        # Wait a moment to ensure different timestamp (now includes seconds)
+        time.sleep(2)  # Wait 2 seconds to get different timestamp
+
+        # Make second change and save
+        self.editor.add_entity("projects.project3", {"name": "Project 3"})
+        self.editor.save()
+
+        # Check that two backups were created
+        backups = list(Path(self.test_dir).glob("test.xml-*"))
+        assert len(backups) >= 2
+
+        # Clean up backups
+        for backup in backups:
+            backup.unlink()
+
+    def test_save_backup_preserves_original_content(self):
+        """Test that backup file contains the original content before changes."""
+        # Clean up any existing backups first
+        for backup in Path(self.test_dir).glob("test.xml-*"):
+            backup.unlink()
+
+        self.editor.load(str(self.test_file))
+
+        # Get original attributes
+        original_attrs = self.editor.get_entity_attributes("projects.project1")
+
+        # Modify the entity
+        self.editor.set_entity("projects.project1", {"name": "Modified", "status": "changed"})
+
+        # Save (this should create a backup with original content)
+        self.editor.save()
+
+        # Find the backup file
+        backups = list(Path(self.test_dir).glob("test.xml-*"))
+        assert len(backups) == 1
+        backup_file = backups[0]
+
+        # Load backup and verify it has the original content
+        backup_editor = BagEditor(str(backup_file))
+        backup_attrs = backup_editor.get_entity_attributes("projects.project1")
+        assert backup_attrs == original_attrs
+
+        # Verify current file has the modified content
+        current_editor = BagEditor(str(self.test_file))
+        current_attrs = current_editor.get_entity_attributes("projects.project1")
+        assert current_attrs["name"] == "Modified"
+        assert current_attrs["status"] == "changed"
+
+        # Clean up
+        backup_file.unlink()
+
+    def test_save_backup_failure(self):
+        """Test that save raises exception when backup creation fails."""
+        from unittest.mock import patch
+
+        self.editor.load(str(self.test_file))
+
+        # Make a change
+        self.editor.add_entity("projects.project2", {"name": "New Project"})
+
+        # Mock shutil.copy2 to raise an exception
+        with patch('gnr.core.gnrbageditor.shutil.copy2', side_effect=Exception("Permission denied")):
+            with pytest.raises(Exception) as context:
+                self.editor.save()
+
+            assert "Failed to create backup file" in str(context.value)
+
 
 class TestBagEditorCLI(BaseGnrTest):
     """Test cases for BagEditor CLI command."""
@@ -415,13 +548,20 @@ class TestBagEditorCLI(BaseGnrTest):
 
     def setup_method(self, method):
         """Reset test file before each test."""
+        # Clean up any backup files from previous tests
+        for backup in Path(self.test_dir).glob("test_cli.xml-*"):
+            backup.unlink()
+        # Reset the main test file
         self.test_file.write_text(self.original_xml_content)
 
     @classmethod
     def teardown_class(cls):
         """Clean up test fixtures."""
-        if cls.test_file.exists():
-            cls.test_file.unlink()
+        # Remove all files in the test directory (including backups)
+        for file_path in Path(cls.test_dir).glob("*"):
+            if file_path.is_file():
+                file_path.unlink()
+        # Now remove the empty directory
         Path(cls.test_dir).rmdir()
 
     def run_cli(self, args, stdin_input=None):
