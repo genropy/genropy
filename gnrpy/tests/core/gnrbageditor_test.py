@@ -979,7 +979,6 @@ class TestBagEditorCLI(BaseGnrTest):
     def test_cli_main_as_script(self):
         """Test running CLI as a script."""
         # This tests the if __name__ == '__main__' block
-        import subprocess
         result = subprocess.run(
             [sys.executable, "gnr/core/cli/gnrbagedit.py", str(self.test_file), "get", "projects.project1"],
             capture_output=True,

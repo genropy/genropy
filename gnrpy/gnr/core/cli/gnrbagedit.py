@@ -7,7 +7,6 @@ from pathlib import Path
 from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrbageditor import BagEditor
 from gnr.core.gnrconfig import getEnvironmentPath
-from gnr.core.gnrbag import Bag
 
 def get_default_file_paths():
     """Get default file paths, returning None if environment is not configured."""
