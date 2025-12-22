@@ -594,7 +594,7 @@ class TestBagEditorCLI(BaseGnrTest):
         ])
 
         assert result.returncode == 0
-        assert "Successfully updateed entity: projects.project1" in result.stderr
+        assert "Successfully updated entity: projects.project1" in result.stderr
 
         # Verify the update
         editor = BagEditor(str(self.test_file))
@@ -622,7 +622,7 @@ class TestBagEditorCLI(BaseGnrTest):
         ])
 
         assert result.returncode == 0
-        assert "Successfully deleteed entity: projects.project1" in result.stderr
+        assert "Successfully deleted entity: projects.project1" in result.stderr
 
         # Verify the deletion
         editor = BagEditor(str(self.test_file))
@@ -961,6 +961,38 @@ class TestBagEditorCLI(BaseGnrTest):
         assert result.returncode != 0
         assert "Error reading from stdin" in result.stderr
 
+    @patch('os.fdopen')
+    def test_cli_stdin_write_error_with_cleanup(self, mock_fdopen):
+        """Test error handling when writing to temp file fails after creation."""
+        # Mock fdopen to raise an exception after temp file is created
+        mock_fdopen.side_effect = Exception("Write failed")
+
+        stdin_content = self.test_file.read_text()
+        result = self.run_cli([
+            "-",
+            "get",
+            "projects.project1"
+        ], stdin_input=stdin_content)
+
+        assert result.returncode != 0
+        assert "Error reading from stdin" in result.stderr
+
+    @patch('gnr.core.gnrbageditor.BagEditor.load')
+    def test_cli_stdin_file_not_found_with_cleanup(self, mock_load):
+        """Test FileNotFoundError during load with temp file cleanup."""
+        # Mock load to raise FileNotFoundError after temp file is created
+        mock_load.side_effect = FileNotFoundError("File not found")
+
+        stdin_content = self.test_file.read_text()
+        result = self.run_cli([
+            "-",
+            "get",
+            "projects.project1"
+        ], stdin_input=stdin_content)
+
+        assert result.returncode != 0
+        assert "File not found" in result.stderr
+
     @patch('gnr.core.gnrbageditor.BagEditor.add_entity')
     def test_cli_generic_exception_handling(self, mock_add):
         """Test generic exception handling in CLI."""
@@ -986,6 +1018,41 @@ class TestBagEditorCLI(BaseGnrTest):
         )
         # Just verify it runs without crashing
         assert "projects.project1" in result.stdout or result.returncode in [0, 1, 2]
+
+    def test_cli_main_direct_call(self):
+        """Test the __name__ == '__main__' block by executing the module."""
+        import importlib.util
+        import sys
+        from pathlib import Path
+
+        # Get the path to gnrbagedit.py
+        module_path = Path(__file__).parent.parent.parent / "gnr" / "core" / "cli" / "gnrbagedit.py"
+
+        # Load the module
+        spec = importlib.util.spec_from_file_location("__main__", str(module_path))
+        module = importlib.util.module_from_spec(spec)
+
+        # Mock sys.argv for this test
+        original_argv = sys.argv
+        sys.argv = ["gnrbagedit", str(self.test_file), "get", "projects.project1"]
+
+        # Capture stdout/stderr
+        stdout_capture = io.StringIO()
+        stderr_capture = io.StringIO()
+
+        try:
+            with patch('sys.stdout', stdout_capture), \
+                 patch('sys.stderr', stderr_capture):
+                try:
+                    spec.loader.exec_module(module)
+                except SystemExit:
+                    pass  # Expected for CLI
+        finally:
+            sys.argv = original_argv
+
+        # Verify output
+        output = stdout_capture.getvalue()
+        assert "projects.project1" in output or "Entity:" in output
 
     @patch('gnr.core.cli.gnrbagedit.getEnvironmentPath')
     def test_get_default_file_paths_exception(self, mock_env):

@@ -43,12 +43,13 @@ class BagEditor:
         except Exception as e:
             raise Exception(f"Failed to load XML file as Bag: {e}")
 
-    def save(self, file_path=None):
+    def save(self, file_path=None, indent=False):
         """
         Save the Bag to an XML file.
 
         Args:
             file_path: Path to save the file. If None, uses the loaded file path.
+            indent: If True, pretty-print the XML with indentation.
 
         Raises:
             ValueError: If no file path is provided and none was loaded.
@@ -64,7 +65,7 @@ class BagEditor:
             raise ValueError("No Bag loaded to save")
 
         try:
-            self.bag.toXml(file_path, autocreate=True, encoding='UTF-8')
+            self.bag.toXml(file_path, autocreate=True, encoding='UTF-8', pretty=indent)
         except Exception as e:
             raise Exception(f"Failed to write XML file: {e}")
 

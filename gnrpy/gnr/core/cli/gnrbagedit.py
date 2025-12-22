@@ -198,16 +198,25 @@ def main():
             # Save the result
             if output_path == '-':
                 # Write to stdout
-                xml_content = editor.bag.toXml(autocreate=False, encoding='UTF-8')
+                xml_content = editor.bag.toXml(autocreate=False, encoding='UTF-8', pretty=args.indent)
                 sys.stdout.write(xml_content)
                 sys.stdout.flush()
             else:
                 # Save to file
-                editor.save(output_path)
+                # Map operation to past tense for success message
+                operation_past_tense = {
+                    'add': 'added',
+                    'update': 'updated',
+                    'delete': 'deleted',
+                    'set': 'set'
+                }
+                operation_text = operation_past_tense.get(args.operation, args.operation)
+
+                editor.save(output_path, indent=args.indent)
                 if output_path != file_path:
-                    print(f"Successfully {args.operation}ed entity: {args.entity_path} (saved to {output_path})", file=sys.stderr)
+                    print(f"Successfully {operation_text} entity: {args.entity_path} (saved to {output_path})", file=sys.stderr)
                 else:
-                    print(f"Successfully {args.operation}ed entity: {args.entity_path}", file=sys.stderr)
+                    print(f"Successfully {operation_text} entity: {args.entity_path}", file=sys.stderr)
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
