@@ -30,7 +30,9 @@ Enhancements
   informations to debug issues (#343)
 * new contentEditor in docu_components which supports multiple text
   editors. (#344)
-  
+* New 'gnr core bagedit' CLI tool which allows to manipulate
+  (get/add/set/update/delete) entities inside bag files using the
+  command line
   
 Deprecations
 ------------
