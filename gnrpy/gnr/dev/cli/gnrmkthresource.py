@@ -147,7 +147,7 @@ class ThResourceMaker(object):
                         raise RuntimeError("Root branch not found")
                     insert_at = finder.config_func.end_lineno
                     for item in self.packageMenus[package]['auto']:
-                        new_line = f'        {finder.branch_var}.webpage(u"{item.attr['label']}", table="{item.attr['table']}")\n'
+                        new_line = f"        {finder.branch_var}.webpage(u'{item.attr['label']}', table='{item.attr['table']}')\n"
                         lines.insert(insert_at, new_line)
                         insert_at += 1
                     pymenupath.write_text("".join(lines), encoding="utf-8")
