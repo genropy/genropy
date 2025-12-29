@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # encoding: utf-8
 import os
+import ast
+from pathlib import Path
 from collections import defaultdict
 
 from gnr.core.cli import GnrCliArgParse
@@ -63,6 +65,7 @@ class ThResourceMaker(object):
             if self.option_name:
                 logger.error('-o/--output option is incompatible with multiple table mode')
             exit(-1)
+            
         for pkg in list(self.pkg_tables.keys()):
             packageFolder = self.app.packages(pkg).packageFolder
             path = os.path.join(packageFolder,'menu.xml')
@@ -79,17 +82,82 @@ class ThResourceMaker(object):
                     self.createResourceFile(pkg, table)
             except Exception as e:
                 logger.exception(str(e))
+                
         if self.option_menu:
             for pkg in list(self.pkg_tables.keys()):
                 packageFolder = self.app.packages(pkg).packageFolder
                 xmlmenupath = os.path.join(packageFolder,'menu.xml')
+
                 if hasLookups:
-                    self.packageMenus[package].setItem('auto.lookups', None, label="!!Lookup tables", 
-                                                                    pkg=pkg, tag='lookupBranch')
-                self.packageMenus[pkg].toXml(xmlmenupath)
-                ms = MenuStruct(xmlmenupath)
-                ms.toPython(os.path.join(packageFolder,'menu.py'))
-                os.remove(xmlmenupath)
+                    self.packageMenus[package].setItem('auto.lookups', None,
+                                                       label="!!Lookup tables", 
+                                                       pkg=pkg, tag='lookupBranch')
+
+                pymenupath = Path(os.path.join(packageFolder, "menu.py"))
+
+                
+                if pymenupath.exists():
+                    logger.info("Menu file %s exists, appending", pymenupath)
+                    source = pymenupath.read_text(encoding="utf-8")
+                    tree = ast.parse(source)
+                    lines = source.splitlines(keepends=True)
+                    class Finder(ast.NodeVisitor):
+                        """
+                        Simple AST visitor to search for the root branch assignment
+                        and add a new page to such branch
+                        """
+                        def __init__(self):
+                            self.config_func = None
+                            self.branch_var = None
+                        def visit_ClassDef(self, node):
+                            if node.name != "Menu":
+                                return
+                            for item in node.body:
+                                if isinstance(item, ast.FunctionDef) and item.name == "config":
+                                    self.config_func = item
+                                    self._find_branch_assignment(item)
+                                    return
+                        def _find_branch_assignment(self, func):
+                            for stmt in func.body:
+                                if not isinstance(stmt, ast.Assign):
+                                    continue
+                                if len(stmt.targets) != 1:
+                                    continue
+                                target = stmt.targets[0]
+                                if not isinstance(target, ast.Name):
+                                    continue
+                                value = stmt.value
+                                if not isinstance(value, ast.Call):
+                                    continue
+                                func_attr = value.func
+                                if (
+                                        isinstance(func_attr, ast.Attribute)
+                                        and isinstance(func_attr.value, ast.Name)
+                                        and func_attr.value.id == "root"
+                                        and func_attr.attr == "branch"
+                                ):
+                                    self.branch_var = target.id
+                                    return
+
+                    finder = Finder()
+                    finder.visit(tree)
+                    if not finder.config_func:
+                        raise RuntimeError("Menu.config not found")
+                    if finder.branch_var is None:
+                        raise RuntimeError("Root branch not found")
+                    insert_at = finder.config_func.end_lineno
+                    for item in self.packageMenus[package]['auto']:
+                        new_line = f"\n        {finder.branch_var}.thpage(u'{item.attr['label']}', table='{item.attr['table']}')"
+                        lines.insert(insert_at, new_line)
+                        insert_at += 1
+                    pymenupath.write_text("".join(lines), encoding="utf-8")
+
+                else:
+                    logger.info("Menu file %s doesn't exists, creating", pymenupath)
+                    self.packageMenus[pkg].toXml(xmlmenupath)
+                    ms = MenuStruct(xmlmenupath)
+                    ms.toPython(pymenupath)
+                    os.remove(xmlmenupath)
         
     def write(self, out_file, line=None, indent=0):
         line = line or ''
@@ -287,14 +355,18 @@ class ThResourceMaker(object):
 
         # populate the menu anyway, even if the resource already exists
         if self.option_menu:
-            self.packageMenus[package].setItem('auto.%s' %table,None,label='!!%s' %table.capitalize(),
-                                                            table='%s.%s' %(package,table), tag='thpage')
-
+            self.packageMenus[package].setItem(f'auto.{table}',
+                                               None,
+                                               label=f'!!{table.capitalize()}',
+                                               table=f'{package}.{table}',
+                                               tag='thpage')
         if not os.path.exists(resourceFolder) and not self.option_output:
             os.makedirs(resourceFolder)
+
         if self.option_name and not self.option_name.endswith('.py'):
-            self.option_name = '%s.py'%self.option_name
-        name = self.option_name or 'th_%s.py'%table
+            self.option_name = f'{self.option_name}.py'
+            
+        name = self.option_name or f'th_{table}.py'
         path = os.path.join(resourceFolder, name) if not self.option_output else self.option_output
         if os.path.exists(path) and not self.option_force:
             logger.warning('%s exist: will be skipped, use -f/--force to force replace', name)
@@ -303,7 +375,7 @@ class ThResourceMaker(object):
         column_groups = defaultdict(list)
         columns = []
 
-        tbl_obj =  self.app.db.table('%s.%s'%(package,table))
+        tbl_obj =  self.app.db.table(f'{package}.{table}')
         for col_name in tbl_obj.columns:
 
             # Skip id and internal columns
