@@ -215,8 +215,8 @@ stderr_logfile_maxbytes=0
             dockerfile.close()
             logger.info(f"Dockerfile generated at: {self.dockerfile_path}")
             # Ensure to have Docker installed and running
-            build_command = ['docker', 'build', '-t',
-                             f'{self.image_name}:{version_tag}',
+            build_command = ['docker', 'build', '--platform', self.options.architecture,
+                             '-t', f'{self.image_name}:{version_tag}',
                              self.build_context_dir]
             subprocess.run(build_command, check=True)
             logger.info("Docker image built successfully.")
@@ -328,6 +328,11 @@ def main():
                         type=str,
                         default="ghcr.io",
                         help="The registry where to push the image")
+    parser.add_argument('-a', '--arch',
+                        dest="architecture",
+                        type=str,
+                        default="linux/amd64",
+                        help="The image architecture/platform to be built for")
     parser.add_argument('-t', '--tag',
                         dest="version_tag",
                         help="The image version tag",
@@ -338,7 +343,6 @@ def main():
                         type=str,
                         default="softwellsrl",
                         help="The registry username where to push the image")
-
     parser.add_argument('--bleeding',
                         action="store_true",
                         dest="bleeding",
