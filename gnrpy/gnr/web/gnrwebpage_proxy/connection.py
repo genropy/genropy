@@ -36,7 +36,7 @@ class GnrWebConnection(GnrBaseProxy):
         self.ip = self.page.user_ip or '0.0.0.0'
         self.connection_name = '%s_%s' % (self.ip.replace('.', '_'), self.browser_name)
         self.secret = page.site.config['secret'] or self.page.siteName
-        self.cookie_name = self.page.siteName
+        self.cookie_name = self.page.currentDomainIdentifier
         self.electron_static = electron_static
         self.connection_id = None
         self.user = None

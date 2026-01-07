@@ -369,6 +369,15 @@ class GnrWebPage(GnrBaseWebPage):
         return self.site.multidomain
 
     @property
+    def currentDomainIdentifier(self):
+        """Returns the unique identifier for the current domain.
+
+        In multidomain: {site_name}_{domain}
+        In single-domain: {site_name}
+        """
+        return self.site.currentDomainIdentifier
+
+    @property
     def wsk_enabled(self):
         if not hasattr(self, '_wsk_enabled'):
             self._wsk_enabled = self.wsk and self.getPreference('experimental.wsk_enabled',pkg='sys')
