@@ -352,12 +352,22 @@ class GnrWebPage(GnrBaseWebPage):
         
     frontend = property(_get_frontend)
             
-    @property 
+    @property
     def wsk(self):
         if hasattr(self,'asyncServer'):
             return self.asyncServer.wsk
         return self.site.wsk
-    
+
+    @property
+    def currentDomain(self):
+        """Returns the current domain/workspace from site."""
+        return self.site.currentDomain
+
+    @property
+    def multidomain(self):
+        """Returns True if multidomain mode is enabled."""
+        return self.site.multidomain
+
     @property
     def wsk_enabled(self):
         if not hasattr(self, '_wsk_enabled'):

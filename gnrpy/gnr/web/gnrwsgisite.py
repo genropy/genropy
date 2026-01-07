@@ -358,7 +358,12 @@ class GnrWsgiSite(object):
     @property
     def db(self):
         return self.gnrapp.db
-    
+
+    @property
+    def multidomain(self):
+        """Returns True if multidomain mode is enabled."""
+        return self.db.multidomain
+
     @property
     def gnrapp(self):
         if self.currentAuxInstanceName:
