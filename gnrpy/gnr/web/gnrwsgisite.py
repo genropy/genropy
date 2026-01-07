@@ -1087,6 +1087,9 @@ class GnrWsgiSite(object):
         if not router.route():
             return HTTPNotFound()(environ, start_response)
         router.register_aux_instance_stores()
+        # Sync currentDomain with database environment
+        if self.multidomain and self.currentDomain:
+            self.db.currentEnv['domainName'] = self.currentDomain
         path_list = router.path_list or ['index']
         first_segment = path_list[0]
         last_segment = path_list[-1]

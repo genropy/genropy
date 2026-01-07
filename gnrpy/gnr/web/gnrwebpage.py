@@ -445,7 +445,8 @@ class GnrWebPage(GnrBaseWebPage):
                                maxdate=datetime.date.max, mindate=datetime.date.min,
                                user=self.user, userTags=self.userTags, pagename=self.pagename,
                                mainpackage=self.mainpackage, _user_conf_expirebag=expirebag,
-                               external_host=self.external_host)
+                               external_host=self.external_host,
+                               domainName=self.currentDomain)
             
             self._db.setLocale()
             avatar = self.avatar
@@ -2197,6 +2198,9 @@ class GnrWebPage(GnrBaseWebPage):
         page.data('gnr.remote_db',self.site.remote_db)
         if self.dbstore:
             page.data('gnr.dbstore',self.dbstore)
+        if self.multidomain:
+            page.data('gnr.multidomain', True)
+            page.data('gnr.currentDomain', self.currentDomain)
         if has_adm and not self.isGuest:
             page.dataRemote('gnr.user_preference', self.getUserPreference,username='^gnr.avatar.user',
                             _resolved=True,_resolved_username=self.user)
