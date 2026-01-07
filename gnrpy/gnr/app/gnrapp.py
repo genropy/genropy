@@ -991,6 +991,12 @@ class GnrApp(object):
                 shutil.rmtree(tempdir)
                 
         dbattrs['application'] = self
+        
+        # refs #372 - environment always have precedence
+        dbattrs['dbname'] = os.environ.get("GNR_DB_NAME", dbattrs.get("dbname", None))
+        
+        logger.debug("Using databasename: %s", dbattrs['dbname'])
+        
         self.db = GnrSqlAppDb(debugger=getattr(self, 'sqlDebugger', None), **dbattrs)
         
         for pkgid, apppkg in list(self.packages.items()):
