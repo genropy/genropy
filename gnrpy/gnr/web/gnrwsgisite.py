@@ -1071,16 +1071,12 @@ class GnrWsgiSite(object):
         
         # Url parsing start
         path_list = self.get_path_list(request.path)
-        # path_list is never empty
-        expiredConnections = self.register.cleanup()
-        if expiredConnections:
-            self.connectionLog('close',expiredConnections)
 
         # lookup webtools static routes
         webtool_static_route_handler = self.lookup_webtools_static_route(request.path)
         if webtool_static_route_handler:
             return self.serve_tool(['_tools', webtool_static_route_handler], environ, start_response, **request_kwargs)
-            
+
         # can this be moved?
         if path_list == ['favicon.ico']:
             path_list = ['_site', 'favicon.ico']
@@ -1090,7 +1086,7 @@ class GnrWsgiSite(object):
         if path_list == ['_pwa_worker.js']:
             path_list = ['_rsrc','common', 'pwa','worker.js']
             # return response(environ, start_response)
-        
+
 
         self.currentAuxInstanceName = request_kwargs.get('aux_instance')
         user_agent = request.user_agent.string or ''
@@ -1109,6 +1105,11 @@ class GnrWsgiSite(object):
         if self.multidomain and self.currentDomain:
             self.db.currentEnv['domainName'] = self.currentDomain
         path_list = router.path_list or ['index']
+
+        # Cleanup expired connections (after routing to ensure domain is set in multidomain)
+        expiredConnections = self.register.cleanup()
+        if expiredConnections:
+            self.connectionLog('close',expiredConnections)
         first_segment = path_list[0]
         last_segment = path_list[-1]
         # this can be moved.
