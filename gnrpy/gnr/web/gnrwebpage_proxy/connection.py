@@ -107,10 +107,11 @@ class GnrWebConnection(GnrBaseProxy):
         self.cookie = self.page.newMarshalCookie(self.cookie_name, {'user': self.user,
                                                                     'connection_id': self.connection_id,
                                                                     'data': self.cookie_data,
-                                                                    'locale': None}, 
+                                                                    'locale': None},
                                                                     secret=self.secret)
         self.cookie.expires = expires
-        self.cookie.path = self.page.site.default_uri
+        # In multidomain, restrict cookie to workspace path
+        self.cookie.path = self.page.site.home_uri if self.page.site.multidomain else self.page.site.default_uri
         cookieattrs = self.page.site.config.getAttr('cookies') or {}
         self.page.add_cookie(self.cookie, **cookieattrs)
 
