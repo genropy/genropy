@@ -142,6 +142,61 @@ class UrlInfo(object):
         self.basepath = mobilepath or self.basepath
         self.request_args = path_list
 
+
+class GnrDomainProxy(object):
+    """Proxy for a single domain with its own isolated register.
+
+    Each domain in multidomain mode has its own GnrDomainProxy instance
+    that manages the SiteRegister for that specific domain/workspace.
+    """
+    def __init__(self, parent, domain=None, **kwargs):
+        self.parent = parent
+        self.domain = domain
+        self._register = None
+        self.attributes = kwargs
+
+    @property
+    def register(self):
+        if self._register:
+            return self._register
+        self._register = SiteRegisterClient(self.parent.site)
+        self.parent.site.checkPendingConnection()
+        return self._register
+
+
+class GnrDomainHandler(object):
+    """Central handler for managing multiple domains in multidomain mode.
+
+    Manages a collection of GnrDomainProxy instances, one per domain/workspace.
+    Domains are auto-discovered from dbstores when accessed.
+    """
+    def __init__(self, site):
+        self.site = site
+        self.domains = {}
+
+    def __contains__(self, name):
+        result = name in self.domains
+        if result:
+            return result
+        self._missing_from_dbstores(name)
+        return name in self.domains
+
+    def __getitem__(self, name):
+        if name not in self.domains:
+            self._missing_from_dbstores(name)
+        return self.domains.get(name)
+
+    def add(self, domain):
+        """Register a new domain if not already present."""
+        if domain not in self.domains:
+            self.domains[domain] = GnrDomainProxy(self, domain)
+
+    def _missing_from_dbstores(self, domain):
+        """Auto-register domain if it exists in dbstores."""
+        if domain in self.site.db.dbstores:
+            self.add(domain)
+
+
 class GnrWsgiSite(object):
     """TODO"""
 
@@ -157,6 +212,10 @@ class GnrWsgiSite(object):
         self._currentAuxInstanceNames = {}
         self._currentPages = {}
         self._currentRequests = {}
+        self._currentDomains = {}
+        self.domains = GnrDomainHandler(self)
+        self.rootDomain = '_main_'
+        self.domains.add(self.rootDomain)
         abs_script_path = os.path.abspath(script_path)
         self.remote_db = ''
         self._register = None
@@ -1396,6 +1455,16 @@ class GnrWsgiSite(object):
         self._currentRequests[_thread.get_ident()] = request
 
     currentRequest = property(_get_currentRequest, _set_currentRequest)
+
+    def _get_currentDomain(self):
+        """property currentDomain - returns the domain currently used in this thread"""
+        return self._currentDomains.get(_thread.get_ident()) or self.rootDomain
+
+    def _set_currentDomain(self, domain):
+        """set currentDomain for this thread"""
+        self._currentDomains[_thread.get_ident()] = domain
+
+    currentDomain = property(_get_currentDomain, _set_currentDomain)
 
     def callTableScript(self, page=None, table=None, respath=None, class_name=None, runKwargs=None, **kwargs):
         """Call a script from a table's resources (e.g: ``_resources/tables/<table>/<respath>``).
