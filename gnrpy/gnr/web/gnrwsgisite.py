@@ -197,6 +197,127 @@ class GnrDomainHandler(object):
             self.add(domain)
 
 
+class DbStoreRouter(object):
+    """Handles dbstore routing from URL path for both standard and multidomain modes.
+
+    This class is responsible for:
+    - Extracting dbstore and aux_instance from the URL path
+    - Setting currentDomain in multidomain mode (where domain = dbstore)
+    - Updating request_kwargs with base_dbstore and temp_dbstore
+    - Registering aux instance database stores when needed
+
+    Usage in dispatcher:
+        router = DbStoreRouter(site, path_list, request_kwargs)
+        if not router.route():
+            return HTTPNotFound()
+        router.register_aux_instance_stores()
+        path_list = router.path_list
+    """
+    def __init__(self, site, path_list, request_kwargs):
+        """Initialize the DbStoreRouter.
+
+        :param site: The GnrWsgiSite instance
+        :param path_list: List of URL path segments
+        :param request_kwargs: Dictionary of request parameters to update
+        """
+        self.site = site
+        self.path_list = list(path_list) if path_list else []
+        self.request_kwargs = request_kwargs
+
+    def route(self):
+        """Parse the URL path and extract routing information.
+
+        Analyzes the first segment of the path to determine:
+        - If it's an @aux_instance reference
+        - If it's a dbstore name (required in multidomain, optional otherwise)
+
+        In multidomain mode, also sets site.currentDomain and registers
+        the domain in site.domains.
+
+        :returns: True if routing succeeded, False if a 404 should be returned
+        """
+        if not self.path_list:
+            return not self.site.multidomain  # 404 only in multidomain
+
+        first_segment = self.path_list[0]
+
+        # @aux_instance syntax: e.g., /@myinstance/page
+        if first_segment.startswith('@'):
+            instance_name = first_segment[1:]
+            self.path_list.pop(0)
+            if self.site.gnrapp.config.getNode(f'aux_instances.{instance_name}'):
+                self.request_kwargs['base_dbstore'] = f'instance_{instance_name}'
+            return True
+
+        # Check if first segment is a dbstore
+        if first_segment in self.site.db.dbstores:
+            self.path_list.pop(0)
+            self.request_kwargs['base_dbstore'] = first_segment
+            if self.site.multidomain:
+                self.site.currentDomain = first_segment
+                self.site.domains.add(first_segment)
+            return True
+
+        # In multidomain without valid dbstore = 404
+        if self.site.multidomain:
+            return False
+
+        # Standard mode: check other store types via get_store_parameters
+        if self.site.db.get_store_parameters(first_segment):
+            self.request_kwargs['base_dbstore'] = self.path_list.pop(0)
+
+        # Handle temp_dbstore with @ prefix in query params
+        temp_dbstore = self.request_kwargs.get('temp_dbstore', '')
+        if temp_dbstore and temp_dbstore.startswith('@'):
+            self.request_kwargs['temp_dbstore'] = f'instance_{temp_dbstore[1:]}'
+
+        return True
+
+    def register_aux_instance_stores(self):
+        """Register aux instance database stores if needed.
+
+        Checks base_dbstore and temp_dbstore in request_kwargs.
+        If either starts with 'instance_', registers the corresponding
+        aux instance's database configuration as a store.
+        """
+        for key in ('temp_dbstore', 'base_dbstore'):
+            storename = self.request_kwargs.get(key)
+            if storename and storename.startswith('instance_'):
+                self._register_aux_instance_store(storename)
+
+    def _register_aux_instance_store(self, storename):
+        """Register a single aux instance database store.
+
+        Creates a database store configuration from an aux instance's
+        database settings, including handling of remote database connections.
+
+        :param storename: Store name in format 'instance_<name>'
+        """
+        instance_name = storename.replace('instance_', '')
+        auxapp = self.site.gnrapp.getAuxInstance(instance_name)
+        if not auxapp:
+            raise Exception(f'Aux instance not found: {instance_name}')
+
+        # Skip if already registered
+        if self.site.db.get_store_parameters(storename):
+            return
+
+        dbattr = auxapp.config.getAttr('db')
+        if auxapp.remote_db:
+            remote_db_attr = auxapp.config.getAttr(f'remote_db.{auxapp.remote_db}')
+            if remote_db_attr:
+                remote_db_attr = dict(remote_db_attr)
+                ssh_host = remote_db_attr.pop('ssh_host', None)
+                if ssh_host:
+                    host = ssh_host.split('@')[1] if '@' in ssh_host else ssh_host
+                    port = remote_db_attr.get('port')
+                    dbattr['remote_host'] = host
+                    dbattr['remote_port'] = port
+                dbattr.update(remote_db_attr)
+
+        self.site.db.stores_handler.add_auxstore(storename, dbattr=dbattr)
+
+
 class GnrWsgiSite(object):
     """TODO"""
 
@@ -433,6 +554,16 @@ class GnrWsgiSite(object):
     def currentDomainIdentifier(self):
         """Returns the unique identifier for the current domain."""
         return self.get_domainIdentifier(self.currentDomain)
+
+    @property
+    def current_home_uri(self):
+        """Returns the home URI for the current context.
+
+        In multidomain mode, includes the domain prefix.
+        """
+        if self.multidomain:
+            return f'{self.default_uri}{self.currentDomain}/'
+        return self.default_uri
 
     def getSubscribedTables(self,tables):
         if self._register is not None:
@@ -950,14 +1081,13 @@ class GnrWsgiSite(object):
             request_kwargs['_mobile'] = True
         request_kwargs.pop('_no_cache_', None)
         download_name = request_kwargs.pop('_download_name_', None)
-        #print 'site dispatcher: ',path_list
-        if path_list:
-            self._checkFirstSegment(path_list,request_kwargs)
 
-        self.checkForDbStore(request_kwargs)
-       #if path_list and (path_list[0] in self.dbstores):
-       #    request_kwargs.setdefault('temp_dbstore',path_list.pop(0))
-        path_list = path_list or ['index']
+        # Route the request: extract domain/dbstore from path
+        router = DbStoreRouter(self, path_list, request_kwargs)
+        if not router.route():
+            return HTTPNotFound()(environ, start_response)
+        router.register_aux_instance_stores()
+        path_list = router.path_list or ['index']
         first_segment = path_list[0]
         last_segment = path_list[-1]
         # this can be moved.
@@ -1080,46 +1210,6 @@ class GnrWsgiSite(object):
             path_list = uri[1:].split('/')
             return self.statics.static_dispatcher(path_list, environ, start_response,nocache=True)
 
-    def checkForDbStore(self,request_kwargs):
-        for k in ('temp_dbstore','base_dbstore'):
-            storename = request_kwargs.get(k)        
-            if storename and storename.startswith('instance_'):
-                self._registerAuxInstanceDbStore(storename)
-
-    def _checkFirstSegment(self,path_list,request_kwargs):
-        first = path_list[0]
-        if first.startswith('@'):
-            first = first[1:]
-            path_list.pop(0)
-            if self.gnrapp.config.getNode(f'aux_instances.{first}'):
-                request_kwargs['base_dbstore'] = f'instance_{first}'
-        else:
-            if self.db.get_store_parameters(first):
-                request_kwargs['base_dbstore'] = path_list.pop(0)
-        temp_dbstore = request_kwargs.get('temp_dbstore','')
-        if temp_dbstore and temp_dbstore.startswith('@'):
-            request_kwargs['temp_dbstore'] = f'instance_{request_kwargs["temp_dbstore"][1:]}'
-
-    def _registerAuxInstanceDbStore(self,storename):
-        instance_name = storename.replace('instance_','')
-        auxapp = self.gnrapp.getAuxInstance(instance_name)
-        if not auxapp:
-            raise Exception('not existing aux instance %s' %instance_name)
-        if self.db.get_store_parameters(storename):
-            return
-        dbattr = auxapp.config.getAttr('db')
-        if auxapp.remote_db:
-            remote_db_attr = auxapp.config.getAttr('remote_db.%s' %auxapp.remote_db)
-            if remote_db_attr:
-                remote_db_attr = dict(remote_db_attr)
-                ssh_host = remote_db_attr.pop('ssh_host',None)
-                if ssh_host:
-                    host = ssh_host.split('@')[1] if '@' in ssh_host else ssh_host
-                    port = remote_db_attr.get('port')
-                    dbattr['remote_host'] = host
-                    dbattr['remote_port'] = port
-                dbattr.update(remote_db_attr)
-        self.db.stores_handler.add_auxstore(storename,dbattr=dbattr)
 
 
     @extract_kwargs(info=True)
