@@ -214,8 +214,6 @@ class GnrWsgiSite(object):
         self._currentRequests = {}
         self._currentDomains = {}
         self.domains = GnrDomainHandler(self)
-        self.rootDomain = '_main_'
-        self.domains.add(self.rootDomain)
         abs_script_path = os.path.abspath(script_path)
         self.remote_db = ''
         self._register = None
@@ -409,10 +407,32 @@ class GnrWsgiSite(object):
 
     @property
     def register(self):
+        """Returns the register for the current context.
+
+        In multidomain mode, each domain has its own isolated register.
+        In single-domain mode, uses the standard site register.
+        """
+        if self.multidomain:
+            domain_proxy = self.domains[self.currentDomain]
+            if domain_proxy:
+                return domain_proxy.register
+            return None
+        # Single-domain mode
         if self._register is None:
             self._register = SiteRegisterClient(self)
             self.checkPendingConnection()
         return self._register
+
+    def get_domainIdentifier(self, domain):
+        """Get a unique identifier for a domain, used for register naming."""
+        if not self.multidomain:
+            return self.site_name
+        return f'{self.site_name}_{domain}'
+
+    @property
+    def currentDomainIdentifier(self):
+        """Returns the unique identifier for the current domain."""
+        return self.get_domainIdentifier(self.currentDomain)
 
     def getSubscribedTables(self,tables):
         if self._register is not None:
@@ -1462,8 +1482,12 @@ class GnrWsgiSite(object):
     currentRequest = property(_get_currentRequest, _set_currentRequest)
 
     def _get_currentDomain(self):
-        """property currentDomain - returns the domain currently used in this thread"""
-        return self._currentDomains.get(_thread.get_ident()) or self.rootDomain
+        """property currentDomain - returns the domain currently used in this thread.
+
+        In multidomain mode, this must be set by the dispatcher from the URL.
+        Returns None if not set (which would indicate an error in multidomain mode).
+        """
+        return self._currentDomains.get(_thread.get_ident())
 
     def _set_currentDomain(self, domain):
         """set currentDomain for this thread"""

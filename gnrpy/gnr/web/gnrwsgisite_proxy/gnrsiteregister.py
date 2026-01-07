@@ -1034,7 +1034,9 @@ class SiteRegisterClient(object):
 
     def checkSiteRegisterServerUri(self,daemonProxy):
         if not self.siteregisterserver_uri:
-            info = daemonProxy.getSite(self.site.site_name,create=True,storage_path=self.storage_path,autorestore=True)
+            # In multidomain mode, use domain-specific identifier for register isolation
+            site_identifier = getattr(self.site, 'currentDomainIdentifier', None) or self.site.site_name
+            info = daemonProxy.getSite(site_identifier, create=True, storage_path=self.storage_path, autorestore=True)
             self.siteregisterserver_uri = info.get('server_uri',False)
             if not self.siteregisterserver_uri:
                 time.sleep(1)
