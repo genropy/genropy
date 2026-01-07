@@ -144,15 +144,16 @@ class UrlInfo(object):
 
 
 class GnrDomainProxy(object):
-    """Proxy for a single domain with its own isolated register.
+    """Proxy for a single domain with its own isolated register and services.
 
     Each domain in multidomain mode has its own GnrDomainProxy instance
-    that manages the SiteRegister for that specific domain/workspace.
+    that manages the SiteRegister and ServiceHandler for that specific domain/workspace.
     """
     def __init__(self, parent, domain=None, **kwargs):
         self.parent = parent
         self.domain = domain
         self._register = None
+        self._services_handler = None
         self.attributes = kwargs
 
     @property
@@ -162,6 +163,12 @@ class GnrDomainProxy(object):
         self._register = SiteRegisterClient(self.parent.site)
         self.parent.site.checkPendingConnection()
         return self._register
+
+    @property
+    def services_handler(self):
+        if self._services_handler is None:
+            self._services_handler = ServiceHandler(self.parent.site)
+        return self._services_handler
 
 
 class GnrDomainHandler(object):
@@ -491,7 +498,18 @@ class GnrWsgiSite(object):
 
     @property
     def services_handler(self):
-        if not hasattr(self,'_services_handler'):
+        """Returns the services handler for the current context.
+
+        In multidomain mode, each domain has its own isolated services handler.
+        In single-domain mode, uses the standard site services handler.
+        """
+        if self.multidomain:
+            domain_proxy = self.domains[self.currentDomain]
+            if domain_proxy:
+                return domain_proxy.services_handler
+            return None
+        # Single-domain mode
+        if not hasattr(self, '_services_handler'):
             self._services_handler = ServiceHandler(self)
         return self._services_handler
     
