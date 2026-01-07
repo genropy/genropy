@@ -3,11 +3,23 @@
 from datetime import datetime
 
 from gnr.core.gnrbag import Bag
+from gnr.web.gnrtask import USE_ASYNC_TASKS
+from gnr.app import pkglog as logger
+
+
+if USE_ASYNC_TASKS:
+    from gnr.web.gnrtask_new import GnrTaskSchedulerClient
+else:
+    class GnrTaskSchedulerClient(object):
+        pass
+
 
 class Table(object):
-
+    
     def config_db(self, pkg):
-        tbl =  pkg.table('task', rowcaption='$task_name',caption_field='task_name', pkey='id',name_long='!!Task',name_plural='!!Tasks')
+        tbl =  pkg.table('task', rowcaption='$task_name',
+                         caption_field='task_name', pkey='id',
+                         name_long='!!Task',name_plural='!!Tasks')
         self.sysFields(tbl)
         tbl.column('table_name',name_long='!!Table')
         tbl.column('task_name',name_long='!!Task name',name_short='!!Name') # char(4)
@@ -19,34 +31,88 @@ class Table(object):
         tbl.column('minute',name_long='!!Minute',values=','.join([str(x) for x in range(60)]))
         tbl.column('frequency', dtype='L', name_long='!!Freq.(min)')
         tbl.column('parameters',dtype='X',name_long='!!Parameters') # date
-        tbl.column('last_scheduled_ts','DH',name_long='!!Last scheduled',indexed=True)
-        tbl.column('last_execution_ts','DH',name_long='!!Last Execution')
-        tbl.column('last_error_ts','DH',name_long='!!Last Error')
+        tbl.column('last_scheduled_ts','DHZ',name_long='!!Last scheduled',indexed=True)
+        tbl.column('last_execution_ts','DHZ',name_long='!!Last Execution')
+        tbl.column('last_error_ts','DHZ',name_long='!!Last Error')
         tbl.column('last_error_info','X',name_long='!!Last Error Info')
         tbl.column('run_asap','B',name_long='!!Run ASAP')
         tbl.column('max_workers','L',name_long='!!Max workers') # Allows concurrent execution of the same task
         tbl.column('log_result', 'B', name_long='!!Log Task')
-        tbl.column('user_id',size='22',group='_',name_long='User id')
-        tbl.column('date_start','D',name_long='!!Start Date')
-        tbl.column('date_end','D',name_long='!!End Date')
-        tbl.column('stopped','B',name_long='!!Stopped')
-        tbl.column('worker_code',size=':10',name_long="Worker code",indexed=True)
-        tbl.column('saved_query_code',size=':40',name_long="!![en]Query")
-        tbl.formulaColumn('active_workers',select=dict(table='sys.task_execution',
-            where="$task_id=#THIS.id AND $start_ts IS NOT NULL AND $end_ts IS NULL",
-            columns='COUNT(*)'
-        ),dtype='N',name_long='N.Active workers')
+
+        tbl.column('user_id', size='22', group='_', name_long='User id')
+        tbl.column('date_start','D', name_long='!!Start Date')
+        tbl.column('date_end','D', name_long='!!End Date')
+        tbl.column('stopped','B', name_long='!!Stopped')
+        tbl.column('worker_code', size=':10', name_long="Worker code",
+                   indexed=True)
+        tbl.column('saved_query_code', size=':40', name_long="!![en]Query")
+
+        tbl.formulaColumn('active_workers',
+                          select=dict(table='sys.task_execution',
+                                      where="$task_id=#THIS.id AND $start_ts IS NOT NULL AND $end_ts IS NULL",
+                                      columns='COUNT(*)'
+                                      ),
+                          dtype='N', name_long='N.Active workers')
+
         tbl.formulaColumn('last_result_ts',
             select=dict(table='sys.task_result',
-            columns='MAX($start_time)', where='$task_id = #THIS.id'),
+            columns='MAX($start_time)',
+            where='$task_id = #THIS.id'),
             name_long='!!Last Execution')
 
-        tbl.formulaColumn('last_completed', dtype='DH', name_long='!![en]Last completed', select=dict(
-                                        table='sys.task_execution', where='$task_id=#THIS.id AND $end_ts IS NOT NULL',
-                                        order_by='$end_ts DESC', limit=1, columns='$end_ts'))
-        tbl.formulaColumn('last_error', dtype='DH', name_long='!![en]Last error', select=dict(
-                                        table='sys.task_execution', where='$task_id=#THIS.id AND $is_error IS TRUE',
-                                        order_by='$start_ts DESC', limit=1, columns='$start_ts'))
+        tbl.formulaColumn('last_completed', dtype='DH',
+                          name_long='!![en]Last completed',
+                          select=dict(
+                              table='sys.task_execution',
+                              where='$task_id=#THIS.id AND $end_ts IS NOT NULL',
+                              order_by='$end_ts DESC', limit=1,
+                              columns='$end_ts')
+                          )
+        tbl.formulaColumn('last_error', dtype='DH',
+                          name_long='!![en]Last error',
+                          select=dict(
+                              table='sys.task_execution',
+                              where='$task_id=#THIS.id AND $is_error IS TRUE',
+                              order_by='$start_ts DESC', limit=1,
+                              columns='$start_ts')
+                          )
+        if USE_ASYNC_TASKS:
+            tbl.formulaColumn('bad_status',
+                              "($last_scheduled_ts - $last_execution_ts) > INTERVAL '1 DAYS'",
+                              dtype="B",
+                              _addClass="task_bad_status")
+
+    def scheduler(self):
+        if USE_ASYNC_TASKS:
+            return GnrTaskSchedulerClient()
+    
+    def zoomUrl(self):
+        return 'sys/task'
+    
+    def _invoke_scheduler_reload(self):
+        if USE_ASYNC_TASKS:
+            def scheduler_deferred_reload():
+                try:
+                    domain = self.db.currentEnv.get("domainName", None)
+                    self.scheduler().reload(domain=domain)
+                except Exception as e:
+                    self.db.currentPage.clientPublish('floating_message',
+                                                      message='Unable to contact scheduler',
+                                                      messageType='warning')
+                    logger.error("Unable to contact scheduler: %s", e)
+            self.db.deferAfterCommit(scheduler_deferred_reload)
+        
+    def trigger_onUpdating(self, record=None,old_record=None):
+        if USE_ASYNC_TASKS:
+            if not self.fieldsChanged('last_scheduled_ts,last_execution_ts',
+                                      record, old_record):
+                self._invoke_scheduler_reload()
+
+    def trigger_onInserting(self, record):
+        if USE_ASYNC_TASKS:
+            self._invoke_scheduler_reload()
+        
+    trigger_onDeleted = trigger_onInserting
 
     def isTaskScheduledNow(self,task,timestamp):
         result = []

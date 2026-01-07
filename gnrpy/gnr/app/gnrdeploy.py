@@ -1198,24 +1198,44 @@ class GunicornDeployBuilder(object):
         gunicorn.parameter('stderr_logfile','/dev/stderr')
         gunicorn.parameter('stderr_logfile_maxbytes','0')
 
-        gnrasync = group.section('program','%s_gnrasync' %self.site_name)
-        gnrasync.parameter('command','%s %s' %(os.path.join(self.bin_folder,'gnrasync'),self.site_name))
+        gnrasync = group.section('program', f'{self.site_name}_gnrasync')
+        gnrasync.parameter('command', f"{os.path.join(self.bin_folder,'gnrasync')} {self.site_name}")
+
+        
+        from gnr.web.gnrtask import USE_ASYNC_TASKS
+        if USE_ASYNC_TASKS:
+            self.taskSchedulerConf(group)
+
         self.taskWorkersConf(group)
         root.toIniConf(os.path.join(self.config_folder,'supervisord.conf'))
-    
+
+    def taskSchedulerConf(self, group):
+        """
+        create the configuration to start the local task scheduler
+        """
+        has_sys = 'gnrcore:sys' in self.instance_config['packages']
+        secondary = has_sys and self.instance_config['packages'].getAttr('gnrcore:sys').get('secondary')
+        if not has_sys or secondary:
+            return
+        scheduler_section = group.section("program", f"{self.site_name}_taskscheduler")
+        scheduler_section.parameter("process_name", f"{self.site_name}_gnrtaskscheduler")
+        scheduler_section.parameter('command', f'{os.path.join(self.bin_folder,"gnr")} web taskscheduler {self.site_name}')
+        
     def taskWorkersConf(self,group):
+        """
+        create the configuration to start the local task worker
+        """
         taskworkers = self.site_config.getAttr('taskworkers') or {'count':'1'}
         has_sys = 'gnrcore:sys' in self.instance_config['packages']
         secondary = has_sys and self.instance_config['packages'].getAttr('gnrcore:sys').get('secondary')
         if not has_sys or secondary:
             return
         if taskworkers:
-            tw_base = group.section('program','%s_taskworkers' %self.site_name)
-            nice = taskworkers.pop('nice',None)
+            tw_base = group.section('program', f'{self.site_name}_taskworkers')
+            nice = taskworkers.pop('nice', None)
             nicecommand = 'nice' if nice is None else 'nice -%s' %nice
-            tw_base.parameter('process_name',"%s_gnrtaskworker%%(process_num)s" %self.site_name)
-            tw_base.parameter('command','%s %s %s' %(nicecommand,os.path.join(self.bin_folder,'gnrtaskworker'),self.site_name))
-            reserved_workers = self.site_config['taskworkers']
+            tw_base.parameter('process_name', f"{self.site_name}_gnrtaskworker%%(process_num)s")
+            tw_base.parameter('command', f"{nicecommand} {os.path.join(self.bin_folder,'gnr')} web taskworker {self.site_name}")
             tw_base.parameter('numprocs',taskworkers.pop('count','1'))
             for key,val in taskworkers.items():
                 command,key = key.split('_')
@@ -1244,6 +1264,11 @@ class GunicornDeployBuilder(object):
         gunicorn.parameter('command','%s -c %s root' %(os.path.join(self.bin_folder,'gunicorn'),self.gunicorn_conf_path))
         gnrasync = group.section('program','%s_gnrasync' %self.site_name)
         gnrasync.parameter('command','%s %s' %(os.path.join(self.bin_folder,'gnrasync'),self.site_name))
+
+        from gnr.web.gnrtask import USE_ASYNC_TASKS
+        if USE_ASYNC_TASKS:
+            self.taskSchedulerConf(group)
+            
         self.taskWorkersConf(group)
         if self.supervisord_monitor_parameters:
             self.xmlRpcServerConf(root)

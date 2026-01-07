@@ -9,6 +9,7 @@
 from datetime import datetime
 
 from gnr.core.gnrbag import Bag
+from gnr.web import logger
 
 class BaseResourceBatch(object):
     """Base resource class to create a :ref:`batch`"""
@@ -57,12 +58,18 @@ class BaseResourceBatch(object):
         self.batch_parameters = parameters.asDict(True) if isinstance(parameters, Bag) else parameters or {}
         self.batch_note = batch_note or self.batch_parameters.get('batch_note')
         self.task_execution_record = task_execution_record
+        logger.info("Received task execution record: %s", task_execution_record)
         if self.batch_dblog:
-            self.batch_logrecord = self.batch_logtbl.newrecord(id=self.batch_log_id,
-                                batch_title=self.batch_title,tbl=self.tblobj.fullname,
-                                start_ts=datetime.now(),notes=self.batch_note)
+            self.batch_logrecord = self.batch_logtbl.newrecord(
+                id=self.batch_log_id,
+                batch_title=self.batch_title,
+                tbl=self.tblobj.fullname,
+                start_ts=datetime.now(),
+                notes=self.batch_note
+            )
         try:
-            with self.db.tempEnv(cacheInPage=self.batch_local_cache,hidden_transaction=self.batch_hidden_transaction):
+            with self.db.tempEnv(cacheInPage=self.batch_local_cache,
+                                 hidden_transaction=self.batch_hidden_transaction):
                 self.run()
                 result, result_attr = self.result_handler()
                 self.btc.batch_complete(result=result, result_attr=result_attr)

@@ -1,0 +1,4 @@
+div.dojoxGrid-row.task_bad_status {
+    background-color: #f002 !important;
+    border: 2px solid red;
+}

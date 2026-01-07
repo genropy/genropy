@@ -35,6 +35,9 @@ variables = {
         "GNR_CURRENT_SITE": "TBD",
         "GNR_WSGI_OPT_": "Prefix for options to be passed to the wsgi server",
         "GNR_GUNICORN_": "Prefix for options to be passed to the gunicorn based application server",
+        "GNR_WORKER_ID": "Used by taskworker, the worker ID",
+        "GNR_WORKER_QUEUE_NAME": "Used by taskworker, the queue name to attach to",
+        "GNR_WORKER_PROCESSES": "Used by taskworker, the number of worker processes"
     }
     
 
