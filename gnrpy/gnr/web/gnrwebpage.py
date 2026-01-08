@@ -2186,7 +2186,7 @@ class GnrWebPage(GnrBaseWebPage):
                                 genro.publish('dbevent_'+_node.label,{'changelist':changelist,'changeattr':_node.attr});""",
                                 changes="^gnr.dbchanges")
         page.data('gnr.homepage', self.externalUrl(self.site.homepage))
-        page.data('gnr.homeFolder', self.externalUrl(self.site.home_uri).rstrip('/'))
+        page.data('gnr.homeFolder', f"{self.externalUrl(self.site.default_uri).rstrip('/')}/")
         page.data('gnr.homeUrl', self.site.home_uri)
         page.data('gnr.defaultUrl', self.site.default_uri)
         page.data('gnr.siteName',self.siteName)
