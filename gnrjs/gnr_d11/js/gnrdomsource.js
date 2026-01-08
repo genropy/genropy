@@ -1985,6 +1985,25 @@ dojo.declare("gnr.GnrDomSource", gnr.GnrStructData, {
     _validationPrefix: 'structvalidate_',
     _nodeFactory:gnr.GnrDomSourceNode,
 
+    constructor: function(source, kw) {
+        var bag = this;
+        return new Proxy(this, {
+            get: function(target, prop) {
+                if (prop in target) {
+                    var value = target[prop];
+                    if (typeof value === 'function') {
+                        return value.bind(target);
+                    }
+                    return value;
+                }
+                // Proprietà inesistente: restituisce una funzione che chiama _() con prop come tag
+                return function(name, attributes, extrakw) {
+                    return bag._(prop, name, attributes, extrakw);
+                };
+            }
+        });
+    },
+
     _ : function(tag, name/*optional*/, attributes/*Object*/, extrakw) {
         var tag_UpperLower = null;
         var content;
