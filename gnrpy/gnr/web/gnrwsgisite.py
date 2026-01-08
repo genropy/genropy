@@ -268,6 +268,10 @@ class DbStoreRouter(object):
 
         first_segment = self.path_list[0]
 
+        # Static/storage resources don't need domain routing
+        if self.site.storageType(self.path_list):
+            return True
+
         # @aux_instance syntax: e.g., /@myinstance/page
         if first_segment.startswith('@'):
             instance_name = first_segment[1:]
