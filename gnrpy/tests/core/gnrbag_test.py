@@ -39,7 +39,28 @@ class TestBasicBag(object):
         test_kwargs = dict(TESTVAR="admin", TESTVAR2="admin2")
         b = Bag(source, _template_kwargs=test_kwargs)
         assert b['name'] == "admin"
-        
+
+    def test_template_kwargs_with_default(self):
+        # Test Docker-style {VAR:-default} syntax
+        source = "<db host='{DB_HOST:-localhost}' port='{DB_PORT:-5432}'/>"
+        test_kwargs = dict(DB_HOST="myserver")
+        b = Bag(source, _template_kwargs=test_kwargs)
+        assert b.getAttr('db', 'host') == "myserver"  # from kwargs
+        assert b.getAttr('db', 'port') == "5432"  # default value
+
+    def test_template_kwargs_dollar_syntax_deprecated(self):
+        import warnings
+        # Test that $VAR syntax works but raises deprecation warning
+        source = "<name>$TESTVAR</name>"
+        test_kwargs = dict(TESTVAR="admin")
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            b = Bag(source, _template_kwargs=test_kwargs)
+            assert b['name'] == "admin"
+            assert len(w) == 1
+            assert issubclass(w[0].category, DeprecationWarning)
+            assert "Dollar syntax" in str(w[0].message)
+
     def test_fillFromBag(self):
         c = Bag(self.mybag)
         assert c == self.mybag

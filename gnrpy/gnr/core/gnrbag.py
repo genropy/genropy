@@ -77,6 +77,48 @@ from gnr.core.gnrlang import file_types
 class AllowMissingDict(dict):
     def __missing__(self, key):
         return "{"+key+"}"
+
+class TemplateDict(dict):
+    """Dict for Docker-style variable substitution with defaults.
+
+    Supports:
+    - {VAR} - variable (keeps placeholder if missing)
+    - {VAR:-default} - variable with default value
+    - $VAR, ${VAR} - deprecated syntax (converted to {VAR} with warning)
+    """
+
+    PATTERN = re.compile(r'\{([^}:]+)(?::-([^}]*))?\}')
+    DOLLAR_PATTERN = re.compile(r'\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?')
+
+    def substitute(self, source):
+        """Substitute variables in source string.
+
+        :param source: string with variable placeholders
+        :returns: string with variables substituted
+        """
+        import warnings
+
+        # Deprecation warning for $ syntax
+        if self.DOLLAR_PATTERN.search(source):
+            warnings.warn(
+                "Dollar syntax ($VAR, ${VAR}) is deprecated. "
+                "Use Docker-style {VAR} or {VAR:-default}",
+                DeprecationWarning,
+                stacklevel=4
+            )
+            source = self.DOLLAR_PATTERN.sub(r'{\1}', source)
+
+        def replacer(match):
+            var_name = match.group(1)
+            default = match.group(2)
+            if var_name in self:
+                return str(self[var_name])
+            elif default is not None:
+                return default
+            else:
+                return match.group(0)  # keep placeholder if missing
+
+        return self.PATTERN.sub(replacer, source)
     
 def normalizeItemPath(item_path):
     if isinstance(item_path, str) or isinstance(item_path,list):
@@ -1992,7 +2034,7 @@ class Bag(GnrObject):
             # source = source.format_map(AllowMissingDict(_template_kwargs))
 
             if self._template_kwargs:
-                source = source.format_map(self._template_kwargs)
+                source = TemplateDict(self._template_kwargs).substitute(source)
             return self._fromXml(source, fromFile)
         elif mode == 'xsd':
             return self._fromXsd(source, fromFile)
