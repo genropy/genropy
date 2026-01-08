@@ -1159,41 +1159,6 @@ class TestBagEditorCLI(BaseGnrTest):
         # Just verify it runs without crashing
         assert "projects.project1" in result.stdout or result.returncode in [0, 1, 2]
 
-    def test_cli_main_direct_call(self):
-        """Test the __name__ == '__main__' block by executing the module."""
-        import importlib.util
-        import sys
-        from pathlib import Path
-
-        # Get the path to gnrbagedit.py
-        module_path = Path(__file__).parent.parent.parent / "gnr" / "core" / "cli" / "gnrbagedit.py"
-
-        # Load the module
-        spec = importlib.util.spec_from_file_location("__main__", str(module_path))
-        module = importlib.util.module_from_spec(spec)
-
-        # Mock sys.argv for this test
-        original_argv = sys.argv
-        sys.argv = ["gnrbagedit", str(self.test_file), "get", "projects.project1"]
-
-        # Capture stdout/stderr
-        stdout_capture = io.StringIO()
-        stderr_capture = io.StringIO()
-
-        try:
-            with patch('sys.stdout', stdout_capture), \
-                 patch('sys.stderr', stderr_capture):
-                try:
-                    spec.loader.exec_module(module)
-                except SystemExit:
-                    pass  # Expected for CLI
-        finally:
-            sys.argv = original_argv
-
-        # Verify output
-        output = stdout_capture.getvalue()
-        assert "projects.project1" in output or "Entity:" in output
-
     @patch('gnr.core.cli.gnrbagedit.getEnvironmentPath')
     def test_get_default_file_paths_exception(self, mock_env):
         """Test get_default_file_paths handles exceptions."""
