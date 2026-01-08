@@ -1079,6 +1079,8 @@ class GnrWsgiSite(object):
                 comment='SCRIPT_NAME=%r; PATH_INFO=%r;'
                 % (environ.get('SCRIPT_NAME'), environ.get('PATH_INFO')))
             return exc(environ, start_response)
+        finally:
+            self.currentDomain = self.rootDomain
 
     @property
     def external_host(self):
