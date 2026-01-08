@@ -6,17 +6,27 @@ from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrlang import getUuid
 
 class WebApplicationCache(object):
+    """Application-level cache using the main_register for shared storage.
+
+    Uses main_register (rootDomain) to ensure cache is shared across all domains
+    in multidomain mode. This is essential for shared resources like dbstores cache.
+    """
     def __init__(self,application=None):
         self.application = application
         self.site = application.site
         self.cache = {}
 
+    @property
+    def register(self):
+        """Returns the main_register for shared cache storage."""
+        return self.site.main_register
+
     def getItem(self,key,defaultFactory=None):
         item,ts = self.cache.get(key,(None,None))
         if item is not None:
-            last_change_ts = self.site.register.globalStore().getItem('CACHE_TS.%s' %key)
+            last_change_ts = self.register.globalStore().getItem('CACHE_TS.%s' %key)
             if last_change_ts and ts<last_change_ts:
-                item = None 
+                item = None
         if item is None and defaultFactory:
             item = defaultFactory()
             self.setItem(key,item)
@@ -27,14 +37,14 @@ class WebApplicationCache(object):
         self.cache[key] = (value,now)
 
     def updatedItem(self,key):
-        with self.site.register.globalStore() as gs:
+        with self.register.globalStore() as gs:
             gs.setItem('CACHE_TS.%s' %key,datetime.now())
-    
+
     def expiredItem(self,key):
         item,ts = self.cache.get(key,(None,None))
         if item is None:
             return True
-        last_cache_ts = self.site.register.globalStore().getItem('CACHE_TS.%s' %key)
+        last_cache_ts = self.register.globalStore().getItem('CACHE_TS.%s' %key)
         return last_cache_ts and ts<last_cache_ts
 
 class GnrWsgiWebApp(GnrApp):
