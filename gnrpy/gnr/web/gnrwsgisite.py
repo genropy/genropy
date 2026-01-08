@@ -191,6 +191,7 @@ class GnrDomainHandler(object):
     def __init__(self, site):
         self.site = site
         self.domains = {}
+        self._lock = RLock()
 
     def __contains__(self, name):
         result = name in self.domains
@@ -205,9 +206,14 @@ class GnrDomainHandler(object):
         return self.domains.get(name)
 
     def add(self, domain):
-        """Register a new domain if not already present."""
-        if domain not in self.domains:
-            self.domains[domain] = GnrDomainProxy(self, domain)
+        """Register a new domain if not already present.
+
+        Thread-safe: uses lock to prevent race conditions when multiple
+        threads try to register the same domain concurrently.
+        """
+        with self._lock:
+            if domain not in self.domains:
+                self.domains[domain] = GnrDomainProxy(self, domain)
 
     def _missing_from_dbstores(self, domain):
         """Auto-register domain if it exists in dbstores."""
