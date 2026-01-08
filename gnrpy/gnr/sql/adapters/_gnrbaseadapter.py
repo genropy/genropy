@@ -33,6 +33,7 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrlist import GnrNamedList
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrdate import decodeDatePeriod
+from gnr.sql import AdapterCapabilities as Capabilities
 from gnr.sql import logger
 
 FLDMASK = dict(qmark='%s=?',named=':%s',pyformat='%%(%s)s')
@@ -105,7 +106,8 @@ class SqlDbAdapter(object):
         self.options = kwargs
         self._whereTranslator = None
 
-        self._check_required_executables()
+        if self._check_required_executables():
+            self.CAPABILITIES.add(Capabilities.ADMINISTER)
         
 
     def _check_required_executables(self):
@@ -118,15 +120,8 @@ class SqlDbAdapter(object):
             missing_desc = ", ".join(missing)
             logger.warning(f"DB adapter required executables not found: {missing_desc}, please install to avoid runtime errors."),
             
-        return missing
+        return not missing
 
-    def has_admin_tools(self):
-        """
-        return a bool whether the adapter has all
-        the admin tools available.
-        """
-        return not self._check_required_executables()
-    
     def adaptSqlName(self,name):
         """
         Adapt/fix a name if needed in a specific adapter/driver
