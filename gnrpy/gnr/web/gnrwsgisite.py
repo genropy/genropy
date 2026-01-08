@@ -161,16 +161,19 @@ class GnrDomainProxy(object):
 
     @property
     def register(self):
-        if self._register:
-            return self._register
-        self._register = SiteRegisterClient(self.parent.site)
-        self.parent.site.checkPendingConnection()
+        if self._register is None:
+            self._register = SiteRegisterClient(self.parent.site)
+            self.parent.site.checkPendingConnection()
         return self._register
 
     @property
     def services_handler(self):
         if self._services_handler is None:
-            self._services_handler = ServiceHandler(self.parent.site)
+            try:
+                self._services_handler = ServiceHandler(self.parent.site)
+            except Exception as e:
+                logger.error(f"Failed to initialize ServiceHandler for domain {self.domain}: {e}")
+                raise
         return self._services_handler
 
     @property
@@ -191,18 +194,19 @@ class GnrDomainHandler(object):
     def __init__(self, site):
         self.site = site
         self.domains = {}
+        self._not_found_domains = set()  # Cache for domains not found in dbstores
         self._lock = RLock()
 
     def __contains__(self, name):
         result = name in self.domains
         if result:
             return result
-        self._missing_from_dbstores(name)
+        self._discover_from_dbstores(name)
         return name in self.domains
 
     def __getitem__(self, name):
         if name not in self.domains:
-            self._missing_from_dbstores(name)
+            self._discover_from_dbstores(name)
         return self.domains.get(name)
 
     def add(self, domain):
@@ -214,11 +218,19 @@ class GnrDomainHandler(object):
         with self._lock:
             if domain not in self.domains:
                 self.domains[domain] = GnrDomainProxy(self, domain)
+                self._not_found_domains.discard(domain)
 
-    def _missing_from_dbstores(self, domain):
-        """Auto-register domain if it exists in dbstores."""
+    def _discover_from_dbstores(self, domain):
+        """Auto-register domain if it exists in dbstores.
+
+        Caches domains not found to avoid repeated database lookups.
+        """
+        if domain in self._not_found_domains:
+            return
         if domain in self.site.db.dbstores:
             self.add(domain)
+        else:
+            self._not_found_domains.add(domain)
 
 
 class DbStoreRouter(object):
@@ -282,8 +294,11 @@ class DbStoreRouter(object):
         if first_segment.startswith('@'):
             instance_name = first_segment[1:]
             self.path_list.pop(0)
-            if self.site.gnrapp.config.getNode(f'aux_instances.{instance_name}'):
-                self.request_kwargs['base_dbstore'] = f'instance_{instance_name}'
+            config_node = self.site.gnrapp.config.getNode(f'aux_instances.{instance_name}')
+            if not config_node:
+                logger.warning(f"Unknown aux_instance: {instance_name}")
+                return False  # Return 404
+            self.request_kwargs['base_dbstore'] = f'instance_{instance_name}'
             return True
 
         # Check if first segment is rootDomain (_main_)
@@ -615,11 +630,12 @@ class GnrWsgiSite(object):
         """Get a unique identifier for a domain, used for register naming.
 
         For rootDomain (_main_), returns just site_name (no suffix).
-        For other domains in multidomain mode, returns site_name_domain.
+        For other domains in multidomain mode, returns site_name|domain.
+        Uses '|' as separator to avoid collisions (e.g., site_abc + domain_def vs site_abc_def + domain).
         """
         if not self.multidomain or domain == self.rootDomain:
             return self.site_name
-        return f'{self.site_name}_{domain}'
+        return f'{self.site_name}|{domain}'
 
     @property
     def currentDomainIdentifier(self):
