@@ -378,14 +378,8 @@ dojo.declare("gnr.FramedIndexManager", null, {
         let urlkw = objectExtract(kw,'url_*',true);
         objectExtract(urlkw,'level_offset');
         let baseurl = kw.webpage || kw.file || kw.filepath;
-        if(!kw.aux_instance && baseurl && baseurl.indexOf('/')===0){
-            const firstchunk = baseurl.slice(1).split('/')[0];
-            if(this.multidomain &&  firstchunk!= this.currentDomain){
-                baseurl = `/${this.currentDomain}${baseurl}`;
-            }
-            else if(this.dbstore && firstchunk!=this.dbstore){
-                    baseurl = `/${this.dbstore}${baseurl}`;
-            }
+        if(!kw.aux_instance){
+            baseurl = genro.buildContextUrl(baseurl);
         }
         if(kw.unique){
             urlPars.ts = new Date().getMilliseconds();
