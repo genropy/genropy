@@ -6396,6 +6396,34 @@ div[disabled='true'], div[disabled='disabled']{
     -webkit-mask-size: 100%;
 }
 
+
+
+.google_innericonbox {
+    height: 100%;
+    width: 100%;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    cursor: pointer;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.google_iconcolor_gray{
+    background-color: #666666;
+}
+
+.google_iconcolor_white{
+    background-color: #ffffff;
+}
+.language {
+    -webkit-mask-image: url('/_rsrc/common/css_icons/google_icons/language.svg');
+    mask-image: url('/_rsrc/common/css_icons/google_icons/language.svg');
+}
+
 .arrowBack{
     mask: url('/_rsrc/common/css_icons/google_icons/arrow_back.svg') center center no-repeat;
     -webkit-mask: url('/_rsrc/common/css_icons/google_icons/arrow_back.svg') center center no-repeat;
@@ -6496,6 +6524,8 @@ div[disabled='true'], div[disabled='disabled']{
     -webkit-mask: url('/_rsrc/common/css_icons/google_icons/filters.svg') center center no-repeat;
     height: 35px;
 }
+
+
 .filter_list{
     mask: url('/_rsrc/common/css_icons/google_icons/filter_list.svg') center center no-repeat;
     -webkit-mask: url('/_rsrc/common/css_icons/google_icons/filter_list.svg') center center no-repeat;
