@@ -15,7 +15,7 @@ class AdapterCapabilities(Enum):
     MIGRATIONS = auto()
     VECTOR = auto()
     SCHEMAS = auto()
-
+    ADMINISTER = auto()
 
 # static list of all available db implementations adapters
 AVAILABLE_DB_IMPLEMENTATIONS = [os.path.basename(x.replace(".py","").replace("gnr", ""))
