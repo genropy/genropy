@@ -2034,6 +2034,11 @@ class Bag(GnrObject):
             # source = source.format_map(AllowMissingDict(_template_kwargs))
 
             if self._template_kwargs:
+                if fromFile:
+                    # Read file content before template substitution
+                    with open(source, 'r', encoding='utf-8') as f:
+                        source = f.read()
+                    fromFile = False
                 source = TemplateDict(self._template_kwargs).substitute(source)
             return self._fromXml(source, fromFile)
         elif mode == 'xsd':

@@ -61,6 +61,22 @@ class TestBasicBag(object):
             assert issubclass(w[0].category, DeprecationWarning)
             assert "Dollar syntax" in str(w[0].message)
 
+    def test_template_kwargs_from_file(self):
+        import tempfile
+        import os
+        # Test that template substitution works when loading from file
+        xml_content = "<db host='{DB_HOST:-localhost}' port='{DB_PORT:-5432}'/>"
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.xml', delete=False) as f:
+            f.write(xml_content)
+            temp_path = f.name
+        try:
+            test_kwargs = dict(DB_HOST="myserver")
+            b = Bag(temp_path, _template_kwargs=test_kwargs)
+            assert b.getAttr('db', 'host') == "myserver"  # from kwargs
+            assert b.getAttr('db', 'port') == "5432"  # default value
+        finally:
+            os.unlink(temp_path)
+
     def test_fillFromBag(self):
         c = Bag(self.mybag)
         assert c == self.mybag
