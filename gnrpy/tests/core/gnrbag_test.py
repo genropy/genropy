@@ -115,13 +115,13 @@ class TestBasicBag(object):
 
         b.update(c, preservePattern=re.compile(r'^[\$\{]'))
 
-        # valori che iniziano con $ o { sono preservati
+        # values starting with $ or { are preserved
         assert b['name'] == '$placeholder'
         assert b['code'] == '{template}'
-        # attributi che iniziano con $ o { sono preservati
+        # attributes starting with $ or { are preserved
         assert b.getAttr('name', 'caption') == '${title}'
         assert b.getAttr('code', 'label') == '{dynamic}'
-        # valori e attributi normali sono aggiornati
+        # values and attributes not matching are updated
         assert b['value'] == 'updated'
         assert b.getAttr('value', 'desc') == 'new desc'
 
