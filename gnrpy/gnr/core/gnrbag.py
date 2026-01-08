@@ -1099,15 +1099,24 @@ class Bag(GnrObject):
         if self.backref:
             self._onNodeDeleted(oldnodes, -1)
 
-    def update(self, otherbag, resolved=False,ignoreNone=False):
+    def update(self, otherbag, resolved=False, ignoreNone=False, preservePattern=None):
         """Update the Bag with the ``key/value`` pairs from *otherbag*,
         overwriting all the existing keys. Return ``None``
-        
+
         :param otherbag: the Bag to merge into
-        :param resolved: TODO"""
+        :param resolved: TODO
+        :param ignoreNone: if True, skip None values
+        :param preservePattern: compiled regex - if current string value/attr matches, don't overwrite"""
+
+        def updatable(value):
+            if preservePattern and isinstance(value, str):
+                return preservePattern.search(value) is None
+            return True
+
         if isinstance(otherbag, dict):
             for k, v in list(otherbag.items()):
-                self.setItem(k, v)
+                if updatable(self[k]):
+                    self.setItem(k, v)
             return
         if isinstance(otherbag, str):
             cls = self.__class__
@@ -1122,14 +1131,21 @@ class Bag(GnrObject):
                 node_resolver = None
             if n.label in list(self.keys()):
                 currNode = self.getNode(n.label)
-                currNode.attr.update(n.attr)
+                node_attr = currNode.attr
+                if not preservePattern:
+                    node_attr.update(n.attr)
+                else:
+                    for k, v in n.attr.items():
+                        if updatable(node_attr.get(k)):
+                            node_attr[k] = v
                 if node_resolver is not None:
                     currNode.resolver = node_resolver
-                if isinstance(node_value, Bag) and  isinstance(currNode.value, Bag):
-                    currNode.value.update(node_value,resolved=resolved,ignoreNone=ignoreNone)
+                if isinstance(node_value, Bag) and isinstance(currNode.value, Bag):
+                    currNode.value.update(node_value, resolved=resolved, ignoreNone=ignoreNone, preservePattern=preservePattern)
                 else:
                     if not ignoreNone or node_value is not None:
-                        currNode.value = node_value
+                        if updatable(currNode.value):
+                            currNode.value = node_value
             else:
                 self.setItem(n.label, node_value, n.attr)
 
