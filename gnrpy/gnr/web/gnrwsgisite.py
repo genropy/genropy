@@ -39,7 +39,6 @@ from gnr.web.gnrwsgisite_proxy.gnrstatichandler import StaticHandlerManager
 from gnr.web.gnrwsgisite_proxy.gnrpwahandler import PWAHandler
 from gnr.web.gnrwsgisite_proxy.gnrsiteregister import SiteRegisterClient
 from gnr.web.gnrwsgisite_proxy.gnrwebsockethandler import WsgiWebSocketHandler
-from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import LegacyStorageHandler
 
 try:
     from werkzeug import EnvironBuilder
@@ -144,10 +143,10 @@ class UrlInfo(object):
 
 
 class GnrDomainProxy(object):
-    """Proxy for a single domain with its own isolated register and services.
+    """Proxy for a single domain with its own isolated register, services and storage.
 
     Each domain has its own GnrDomainProxy instance that manages the
-    SiteRegister and ServiceHandler for that specific domain.
+    SiteRegister, ServiceHandler and StorageHandler for that specific domain.
 
     In single-domain mode, only the rootDomain (_main_) proxy exists.
     In multidomain mode, each workspace has its own proxy.
@@ -157,6 +156,7 @@ class GnrDomainProxy(object):
         self.domain = domain
         self._register = None
         self._services_handler = None
+        self._storage_handler = None
         self.attributes = kwargs
 
     @property
@@ -172,6 +172,13 @@ class GnrDomainProxy(object):
         if self._services_handler is None:
             self._services_handler = ServiceHandler(self.parent.site)
         return self._services_handler
+
+    @property
+    def storage_handler(self):
+        if self._storage_handler is None:
+            from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import LegacyStorageHandler
+            self._storage_handler = LegacyStorageHandler(self.parent.site)
+        return self._storage_handler
 
 
 class GnrDomainHandler(object):
@@ -441,7 +448,6 @@ class GnrWsgiSite(object):
         self.debugpy = debugpy
         logger.debug("Debugpy active: %s", self.debugpy)
         self.dbstores = self.db.dbstores
-        self.storage_handler = LegacyStorageHandler(self)
         self.resource_loader = ResourceLoader(self)
         self.pwa_handler = PWAHandler(self)
         self.auth_token_generator = AuthTokenGenerator(self.external_secret)
@@ -533,7 +539,18 @@ class GnrWsgiSite(object):
         if domain_proxy:
             return domain_proxy.services_handler
         return None
-    
+
+    @property
+    def storage_handler(self):
+        """Returns the storage handler for the current domain.
+
+        Always uses the GnrDomainProxy for the current domain (rootDomain in single-domain mode).
+        """
+        domain_proxy = self.domains[self.currentDomain]
+        if domain_proxy:
+            return domain_proxy.storage_handler
+        return None
+
     @property
     def mainpackage(self):
         return self.config['wsgi?mainpackage'] or self.gnrapp.config['packages?main'] or self.gnrapp.packages.keys()[-1]
