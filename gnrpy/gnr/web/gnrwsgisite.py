@@ -602,8 +602,12 @@ class GnrWsgiSite(object):
         return self.domains[self.rootDomain].register
 
     def get_domainIdentifier(self, domain):
-        """Get a unique identifier for a domain, used for register naming."""
-        if not self.multidomain:
+        """Get a unique identifier for a domain, used for register naming.
+
+        For rootDomain (_main_), returns just site_name (no suffix).
+        For other domains in multidomain mode, returns site_name_domain.
+        """
+        if not self.multidomain or domain == self.rootDomain:
             return self.site_name
         return f'{self.site_name}_{domain}'
 
