@@ -566,7 +566,7 @@ class DbModelSrc(GnrStructData):
                default=None, notnull=None, unique=None, indexed=None,
                sqlname=None, comment=None,
                name_short=None, name_long=None, name_full=None,
-               group=None, onInserting=None, onUpdating=None, onDeleting=None,
+               group=None, onInserting=None, onUpdating=None, onDeleting=None,localized=None,
                variant=None,variant_kwargs=None,ext_kwargs=None,**kwargs):
         """Insert a :ref:`column` into a :ref:`table`
 
@@ -603,6 +603,8 @@ class DbModelSrc(GnrStructData):
         if not 'columns' in self:
             self.child('column_list', 'columns')
         vc = self.getNode(f'virtual_columns.{name}')
+        if localized:
+            localized = self.root._dbmodel.db.application.config['db?languages']
         if vc:
             colattr = dict(dtype=dtype, name_short=name_short, 
                            name_long=name_long, name_full=name_full,
@@ -614,11 +616,21 @@ class DbModelSrc(GnrStructData):
         kwargs.update(variant_kwargs)
         kwargs.update(ext_kwargs)
         result = self.child('column', f'columns.{name}', dtype=dtype, size=size,
-                          comment=comment, sqlname=sqlname,
+                          comment=comment, sqlname=sqlname,localized=localized,
                           name_short=name_short, name_long=name_long, name_full=name_full,
                           default=default, notnull=notnull, unique=unique, indexed=indexed,
                           group=group, onInserting=onInserting, onUpdating=onUpdating, onDeleting=onDeleting,
                           variant=variant,**kwargs)
+        if localized:
+            if dtype and dtype not in ('T','A'):
+                raise TypeError('You can localize only text')
+            for lang in localized.split(',')[1:]:
+                loc_name = f'{name}_{lang}'
+                loc_name_short = f'{name_short} ({lang})' if name_short else None
+                loc_name_long = f'{name_long} ({lang})' if name_long else loc_name
+                self.child('column', f'columns.{loc_name}', dtype=dtype, size=size,
+                        name_short=loc_name_short, name_long=loc_name_long, 
+                        indexed=indexed,group=group,**kwargs)
         if ext_kwargs:
             for pkgExt,extKwargs in ext_kwargs.items():
                 if pkgExt not in self.root._dbmodel.db.application.packages:
