@@ -455,7 +455,7 @@ class GnrWebPage(GnrBaseWebPage):
                                user=self.user, userTags=self.userTags, pagename=self.pagename,
                                mainpackage=self.mainpackage, _user_conf_expirebag=expirebag,
                                external_host=self.external_host,
-                               domainName=self.currentDomain)
+                               currentDomain=self.currentDomain)
             
             self._db.setLocale()
             avatar = self.avatar

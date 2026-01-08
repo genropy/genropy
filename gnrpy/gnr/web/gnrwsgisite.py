@@ -146,8 +146,11 @@ class UrlInfo(object):
 class GnrDomainProxy(object):
     """Proxy for a single domain with its own isolated register and services.
 
-    Each domain in multidomain mode has its own GnrDomainProxy instance
-    that manages the SiteRegister and ServiceHandler for that specific domain/workspace.
+    Each domain has its own GnrDomainProxy instance that manages the
+    SiteRegister and ServiceHandler for that specific domain.
+
+    In single-domain mode, only the rootDomain (_main_) proxy exists.
+    In multidomain mode, each workspace has its own proxy.
     """
     def __init__(self, parent, domain=None, **kwargs):
         self.parent = parent
@@ -172,10 +175,11 @@ class GnrDomainProxy(object):
 
 
 class GnrDomainHandler(object):
-    """Central handler for managing multiple domains in multidomain mode.
+    """Central handler for managing domains.
 
-    Manages a collection of GnrDomainProxy instances, one per domain/workspace.
-    Domains are auto-discovered from dbstores when accessed.
+    Manages a collection of GnrDomainProxy instances.
+    In single-domain mode, contains only the rootDomain (_main_).
+    In multidomain mode, domains are auto-discovered from dbstores when accessed.
     """
     def __init__(self, site):
         self.site = site
@@ -220,31 +224,40 @@ class DbStoreRouter(object):
         router.register_aux_instance_stores()
         path_list = router.path_list
     """
-    def __init__(self, site, path_list, request_kwargs):
+    def __init__(self, site, path_list, request_kwargs, request_path=None):
         """Initialize the DbStoreRouter.
 
         :param site: The GnrWsgiSite instance
         :param path_list: List of URL path segments
         :param request_kwargs: Dictionary of request parameters to update
+        :param request_path: Original request path for redirect detection
         """
         self.site = site
         self.path_list = list(path_list) if path_list else []
         self.request_kwargs = request_kwargs
+        self.request_path = request_path or ''
+        self.redirect_to = None
 
     def route(self):
         """Parse the URL path and extract routing information.
 
         Analyzes the first segment of the path to determine:
         - If it's an @aux_instance reference
-        - If it's a dbstore name (required in multidomain, optional otherwise)
+        - If it's a dbstore name (workspace in multidomain)
+        - If it's the rootDomain (_main_) for accessing the main database
 
-        In multidomain mode, also sets site.currentDomain and registers
-        the domain in site.domains.
+        In multidomain mode:
+        - URL must start with a domain (_main_ or workspace)
+        - Empty path or unknown first segment = 404
+
+        currentDomain is initialized to rootDomain in dispatcher.
+        This method changes it in multidomain mode based on URL.
 
         :returns: True if routing succeeded, False if a 404 should be returned
         """
         if not self.path_list:
-            return not self.site.multidomain  # 404 only in multidomain
+            # Empty path: OK in single-domain, 404 in multidomain
+            return not self.site.multidomain
 
         first_segment = self.path_list[0]
 
@@ -256,8 +269,20 @@ class DbStoreRouter(object):
                 self.request_kwargs['base_dbstore'] = f'instance_{instance_name}'
             return True
 
-        # Check if first segment is a dbstore
+        # Check if first segment is rootDomain (_main_)
+        if first_segment == self.site.rootDomain:
+            # Redirect if missing trailing slash: /app/_main_ -> /app/_main_/
+            if len(self.path_list) == 1 and not self.request_path.endswith('/'):
+                self.redirect_to = f'{self.request_path}/'
+            self.path_list.pop(0)
+            # currentDomain already set to rootDomain in dispatcher
+            return True
+
+        # Check if first segment is a dbstore (workspace)
         if first_segment in self.site.db.dbstores:
+            # Redirect if missing trailing slash: /app/client1 -> /app/client1/
+            if len(self.path_list) == 1 and not self.request_path.endswith('/'):
+                self.redirect_to = f'{self.request_path}/'
             self.path_list.pop(0)
             self.request_kwargs['base_dbstore'] = first_segment
             if self.site.multidomain:
@@ -265,11 +290,11 @@ class DbStoreRouter(object):
                 self.site.domains.add(first_segment)
             return True
 
-        # In multidomain without valid dbstore = 404
+        # In multidomain, first segment must be a valid domain
         if self.site.multidomain:
             return False
 
-        # Standard mode: check other store types via get_store_parameters
+        # Single-domain mode: check other store types via get_store_parameters
         if self.site.db.get_store_parameters(first_segment):
             self.request_kwargs['base_dbstore'] = self.path_list.pop(0)
 
@@ -342,9 +367,11 @@ class GnrWsgiSite(object):
         self._currentRequests = {}
         self._currentDomains = {}
         self.domains = GnrDomainHandler(self)
+        self.rootDomain = '_main_'
+        self.domains.add(self.rootDomain)
+        self.currentDomain = self.rootDomain
         abs_script_path = os.path.abspath(script_path)
         self.remote_db = ''
-        self._register = None
         if site_name and ':' in site_name:
             _,self.remote_db = site_name.split(':',1)
         
@@ -498,20 +525,14 @@ class GnrWsgiSite(object):
 
     @property
     def services_handler(self):
-        """Returns the services handler for the current context.
+        """Returns the services handler for the current domain.
 
-        In multidomain mode, each domain has its own isolated services handler.
-        In single-domain mode, uses the standard site services handler.
+        Always uses the GnrDomainProxy for the current domain (rootDomain in single-domain mode).
         """
-        if self.multidomain:
-            domain_proxy = self.domains[self.currentDomain]
-            if domain_proxy:
-                return domain_proxy.services_handler
-            return None
-        # Single-domain mode
-        if not hasattr(self, '_services_handler'):
-            self._services_handler = ServiceHandler(self)
-        return self._services_handler
+        domain_proxy = self.domains[self.currentDomain]
+        if domain_proxy:
+            return domain_proxy.services_handler
+        return None
     
     @property
     def mainpackage(self):
@@ -546,21 +567,22 @@ class GnrWsgiSite(object):
 
     @property
     def register(self):
-        """Returns the register for the current context.
+        """Returns the register for the current domain.
 
-        In multidomain mode, each domain has its own isolated register.
-        In single-domain mode, uses the standard site register.
+        Always uses the GnrDomainProxy for the current domain (rootDomain in single-domain mode).
         """
-        if self.multidomain:
-            domain_proxy = self.domains[self.currentDomain]
-            if domain_proxy:
-                return domain_proxy.register
-            return None
-        # Single-domain mode
-        if self._register is None:
-            self._register = SiteRegisterClient(self)
-            self.checkPendingConnection()
-        return self._register
+        domain_proxy = self.domains[self.currentDomain]
+        if domain_proxy:
+            return domain_proxy.register
+        return None
+
+    @property
+    def main_register(self):
+        """Returns the register for the rootDomain (_main_).
+
+        Used for shared resources like dbstores cache that are common across all domains.
+        """
+        return self.domains[self.rootDomain].register
 
     def get_domainIdentifier(self, domain):
         """Get a unique identifier for a domain, used for register naming."""
@@ -584,7 +606,8 @@ class GnrWsgiSite(object):
         return self.default_uri
 
     def getSubscribedTables(self,tables):
-        if self._register is not None:
+        domain_proxy = self.domains[self.currentDomain]
+        if domain_proxy and domain_proxy._register is not None:
             return self.register.filter_subscribed_tables(tables,register_name='page')
 
     @property
@@ -962,6 +985,8 @@ class GnrWsgiSite(object):
         return path_list
 
     def _get_home_uri(self):
+        if self.multidomain:
+            return f'{self.default_uri}{self.currentDomain}/'
         if self.currentPage and self.currentPage.dbstore:
             return '%s%s/' % (self.default_uri, self.currentPage.dbstore)
         else:
@@ -1009,6 +1034,7 @@ class GnrWsgiSite(object):
     def dispatcher(self, environ, start_response):
         self.currentRequest = Request(environ)
         self.currentRequest.max_form_memory_size = 100_000_000
+        self.currentDomain = self.rootDomain
 
         try:
             return self._dispatcher(environ, start_response)
@@ -1097,13 +1123,14 @@ class GnrWsgiSite(object):
         download_name = request_kwargs.pop('_download_name_', None)
 
         # Route the request: extract domain/dbstore from path
-        router = DbStoreRouter(self, path_list, request_kwargs)
+        router = DbStoreRouter(self, path_list, request_kwargs, request_path=request.path)
         if not router.route():
             return HTTPNotFound()(environ, start_response)
+        if router.redirect_to:
+            return HTTPMovedPermanently(location=router.redirect_to)(environ, start_response)
         router.register_aux_instance_stores()
         # Sync currentDomain with database environment
-        if self.multidomain and self.currentDomain:
-            self.db.currentEnv['domainName'] = self.currentDomain
+        self.db.currentEnv['currentDomain'] = self.currentDomain
         path_list = router.path_list or ['index']
 
         # Cleanup expired connections (after routing to ensure domain is set in multidomain)
@@ -1596,10 +1623,10 @@ class GnrWsgiSite(object):
     def _get_currentDomain(self):
         """property currentDomain - returns the domain currently used in this thread.
 
-        In multidomain mode, this must be set by the dispatcher from the URL.
-        Returns None if not set (which would indicate an error in multidomain mode).
+        Returns rootDomain (_main_) as default if not explicitly set.
+        In request context, dispatcher sets this at the start of each request.
         """
-        return self._currentDomains.get(_thread.get_ident())
+        return self._currentDomains.get(_thread.get_ident()) or self.rootDomain
 
     def _set_currentDomain(self, domain):
         """set currentDomain for this thread"""
