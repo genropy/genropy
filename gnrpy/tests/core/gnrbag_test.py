@@ -101,6 +101,30 @@ class TestBasicBag(object):
         assert b['name'] == 'John K.'
         assert b.getAttr('hobbie.sport', 'role') == 'forward'
 
+    def test_update_preservePattern(self):
+        import re
+        b = Bag()
+        b.setItem('name', '$placeholder', caption='${title}')
+        b.setItem('code', '{template}', label='{dynamic}')
+        b.setItem('value', 'normal', desc='static')
+
+        c = Bag()
+        c.setItem('name', 'NewName', caption='New Caption')
+        c.setItem('code', 'NewCode', label='New Label')
+        c.setItem('value', 'updated', desc='new desc')
+
+        b.update(c, preservePattern=re.compile(r'^[\$\{]'))
+
+        # values starting with $ or { are preserved
+        assert b['name'] == '$placeholder'
+        assert b['code'] == '{template}'
+        # attributes starting with $ or { are preserved
+        assert b.getAttr('name', 'caption') == '${title}'
+        assert b.getAttr('code', 'label') == '{dynamic}'
+        # values and attributes not matching are updated
+        assert b['value'] == 'updated'
+        assert b.getAttr('value', 'desc') == 'new desc'
+
     def test_sort(self):
         b = Bag({'d': 1, 'z': 2, 'r': 3, 'a': 4})
         b.sort()
