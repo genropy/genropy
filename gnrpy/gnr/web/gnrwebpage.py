@@ -430,6 +430,9 @@ class GnrWebPage(GnrBaseWebPage):
             self._db.clearCurrentEnv()
             expirebag = self.globalStore().getItem('tables_user_conf_expire_ts')
             locale = self.locale
+            # Initialize database localization environment
+            # db_languages contains the list of supported languages (first is default)
+            # locale_language is extracted from user's locale (e.g. 'it' from 'it_IT')
             db_languages = self._db.extra_kw.get('languages')
             db_languages = db_languages.split(',') if db_languages else []
             default_language = db_languages[0] if db_languages else None

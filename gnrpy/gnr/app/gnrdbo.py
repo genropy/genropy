@@ -20,7 +20,18 @@ from gnr.app import logger
 mimetypes.init() # Required for python 2.6 (fixes a multithread bug)
 
 
-def add_localized_prefix(label, prefix):
+def _add_localized_prefix(label, prefix):
+    """Add a prefix to a localized label preserving the localization markers.
+
+    Handles labels with GenroPy localization format (starting with '!!'
+    and optional language code like '!![en]').
+
+    :param label: the original label, possibly with '!!' prefix
+    :param prefix: the prefix to insert after localization markers
+    :returns: the label with prefix inserted after localization markers
+
+    Example: _add_localized_prefix('!!My Label', 'Hierarchical') -> '!!Hierarchical My Label'
+    """
     return re.sub(
         r'^(!!(\[[a-z]{2}\])?)\s*(.*)$',
         lambda m: f"{m.group(1)}{prefix} {m.group(3)}",
@@ -204,36 +215,55 @@ class GnrDboPackage(object):
         os.remove('%s.pik' %bagpath)
 
 
-    def handleLocalizedColumn(self,tblsrc,colname,colattr=None,languages=None,**kwargs):
+    def handleLocalizedColumn(self, tblsrc, colname, colattr=None, languages=None, **kwargs):
+        """Create additional columns for each localized language variant.
+
+        When a column is marked as 'localized', this method creates additional
+        columns for each language (except the default/first one). It also handles
+        hierarchical tables by creating corresponding hierarchical columns for
+        each language.
+
+        :param tblsrc: the table source node
+        :param colname: the name of the column being localized
+        :param colattr: dictionary of column attributes (dtype, name_long, etc.)
+        :param languages: comma-separated string of language codes (e.g. 'en,it,fr')
+        """
         languages = languages.split(',')
-        if len(languages)<2:
+        if len(languages) < 2:
             return
         dtype = colattr.get('dtype') or 'T'
         name_long = colattr.get('name_long')
         name_short = colattr.get('name_short')
-        if dtype not in ('T','A'):
+        if dtype not in ('T', 'A'):
             raise TypeError('You can localize only text')
-        group = tblsrc.colgroup(f'{colname}_language',name_long=f'{name_long} - loc')
+        group = tblsrc.colgroup(f'{colname}_language', name_long=f'{name_long} - loc')
+
+        # Check if this column is part of a hierarchical table structure
         hierarchical_localization_needed = False
         hierarchical_fields = tblsrc.attributes.get('hierarchical')
         if hierarchical_fields:
             hierarchical_fields = hierarchical_fields.split(',')
             hierarchical_localization_needed = colname in hierarchical_fields
             if hierarchical_localization_needed:
+                # Mark the base hierarchical column as localized too
                 tblsrc[f'columns.hierarchical_{colname}'].attributes['localized'] = colattr['localized']
+
+        # Create a column for each additional language (skip the first/default language)
         for lang in languages[1:]:
             loc_name = f'{colname}_{lang}'
             loc_name_short = f'{name_short} ({lang})' if name_short else None
             loc_name_long = f'{name_long} ({lang})' if name_long else loc_name
-            group.column(loc_name,dtype=dtype,size=colattr.get('size'),indexed=colattr.get('indexed'),
-                         name_short=loc_name_short,name_long=loc_name_long)
+            group.column(loc_name, dtype=dtype, size=colattr.get('size'), indexed=colattr.get('indexed'),
+                         name_short=loc_name_short, name_long=loc_name_long)
             if hierarchical_localization_needed:
+                # Create corresponding hierarchical column for this language
                 hfield = f'hierarchical_{loc_name}'
-                group.column(hfield,name_long=add_localized_prefix(loc_name_long,'Hierarchical'))
+                group.column(hfield, name_long=_add_localized_prefix(loc_name_long, 'Hierarchical'))
                 hierarchical_fields.append(hfield)
+
+        # Update hierarchical fields list with the new localized hierarchical columns
         if hierarchical_fields:
             tblsrc.attributes['hierarchical'] = ','.join(hierarchical_fields)
-        
 
     def startupData_tables(self):
         return  [tbl for tbl in list(self.db.tablesMasterIndex()[self.name].keys()) if self.table(tbl).dbtable.isInStartupData()]

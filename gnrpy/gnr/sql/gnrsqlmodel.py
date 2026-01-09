@@ -621,23 +621,27 @@ class DbModelSrc(GnrStructData):
                           default=default, notnull=notnull, unique=unique, indexed=indexed,
                           group=group, onInserting=onInserting, onUpdating=onUpdating, onDeleting=onDeleting,
                           variant=variant,**kwargs)
+        # Get table source node (needed for ext_kwargs and localized handling)
+        tblsrc = self._destinationNode if hasattr(self, '_destinationNode') else self
+
+        # Handle package extension configuration
         if ext_kwargs:
-            tblsrc = self._destinationNode  if hasattr(self,'_destinationNode') else self 
-            for pkgExt,extKwargs in ext_kwargs.items():
+            for pkgExt, extKwargs in ext_kwargs.items():
                 if pkgExt not in self.root._dbmodel.db.application.packages:
                     continue
                 pkgobj = self.root._dbmodel.db.application.packages[pkgExt]
-                handler = getattr(pkgobj,'ext_config',None)
+                handler = getattr(pkgobj, 'ext_config', None)
                 if handler:
-                    extKwargs = extKwargs if isinstance(extKwargs,dict) else {pkgExt:extKwargs}
-                    handler(tblsrc,colname=name,colattr=result.attributes,**extKwargs)
+                    extKwargs = extKwargs if isinstance(extKwargs, dict) else {pkgExt: extKwargs}
+                    handler(tblsrc, colname=name, colattr=result.attributes, **extKwargs)
                     return result
+
+        # Handle localized columns: create additional columns for each language variant
         if localized:
-            tblsrc = self._destinationNode  if hasattr(self,'_destinationNode') else self
             currpkgobj = self.root._dbmodel.db.application.packages[tblsrc.attributes['pkg']]
-            localization_handler = getattr(currpkgobj,'handleLocalizedColumn',None)
+            localization_handler = getattr(currpkgobj, 'handleLocalizedColumn', None)
             if localization_handler:
-                localization_handler(tblsrc,colname=name,colattr=result.attributes,languages=localized)
+                localization_handler(tblsrc, colname=name, colattr=result.attributes, languages=localized)
         return result
 
     
@@ -1756,9 +1760,17 @@ class DbColumnObj(DbBaseColumnObj):
 
 
     def _get_sqlname(self):
+        """Return the SQL column name, considering localization.
+
+        For localized columns, returns the language-specific column name
+        (e.g. 'description_it') when the current locale differs from the
+        default language. Otherwise returns the base column name.
+
+        :returns: the appropriate SQL column name for the current locale
+        """
         base_sqlname = self.attributes.get('sqlname', self.name)
         if self.attributes.get('localized'):
-            default_lang =self.db.currentEnv.get('default_language')
+            default_lang = self.db.currentEnv.get('default_language')
             current_lang = self.db.currentEnv.get('locale_language')
             if default_lang and current_lang and current_lang != default_lang:
                 return f"{base_sqlname}_{current_lang}"

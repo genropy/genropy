@@ -5355,27 +5355,30 @@ dojo.declare("gnr.widgets.PasswordTextBox", gnr.widgets.gnrwdg, {
     }
 });
 
+// Widget for editing localized text fields with language dropdown
 dojo.declare("gnr.widgets.MultiLanguageTextBox", gnr.widgets.gnrwdg, {
-    createContent:function(sourceNode,kw,childSourceNode){
+    createContent:function(sourceNode, kw, childSourceNode){
         const value = kw.value;
         const languages = kw.languages.split(',');
+        // Remove default language (handled by main textbox)
         languages.shift();
-        kw.nodeId = kw.nodeId || 'ml_text_box_'+genro.getCounter();
-        const textboxId =  kw.nodeId ;
-        let tb = sourceNode._('textbox',kw);
-        let ca = tb._('comboArrow',{iconClass:'language google_innericonbox google_iconcolor_gray'});
-        let tp = ca._('tooltipPane',{placingId:kw.nodeId,_class:'formlet',padding:'3px',onOpening:function(){
-            genro.nodeById(textboxId+'_langbox').domNode.style.width =genro.wdgById(textboxId).domNode.clientWidth-10+'px';
-        }})
-        tp._('div',{nodeId:textboxId+'_langbox'});
-        tp._('div',{height:'5px'})
+        kw.nodeId = kw.nodeId || 'ml_text_box_' + genro.getCounter();
+        const textboxId = kw.nodeId;
+        let tb = sourceNode._('textbox', kw);
+        let ca = tb._('comboArrow', {iconClass: 'language google_innericonbox google_iconcolor_gray'});
+        let tp = ca._('tooltipPane', {placingId: kw.nodeId, _class: 'formlet', padding: '3px', onOpening: function(){
+            genro.nodeById(textboxId + '_langbox').domNode.style.width = genro.wdgById(textboxId).domNode.clientWidth - 10 + 'px';
+        }});
+        tp._('div', {nodeId: textboxId + '_langbox'});
+        tp._('div', {height: '5px'});
+        // Create textbox for each additional language
         for (const lang of languages){
-            tp._('div',{height:'5px'})
-            tp._('textbox',{"value":`${value}_${lang}`,lbl:lang.toUpperCase(),
-                    lbl_side:"left",lbl_width:"3em",lbl_padding_right:'3px',
-                lbl_align:"right",width:kw.width,margin_right:'15px'});
+            tp._('div', {height: '5px'});
+            tp._('textbox', {"value": `${value}_${lang}`, lbl: lang.toUpperCase(),
+                    lbl_side: "left", lbl_width: "3em", lbl_padding_right: '3px',
+                    lbl_align: "right", width: kw.width, margin_right: '15px'});
         }
-        tp._('div',{height:'10px'})
+        tp._('div', {height: '10px'});
         return tb;
     }
 });
