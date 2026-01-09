@@ -4,6 +4,7 @@
 import datetime
 import warnings as warnings_module
 import os
+import re
 import pytz
 import mimetypes
 from collections import defaultdict
@@ -17,6 +18,14 @@ from gnr.core.gnrdict import dictExtract
 from gnr.app import logger
 
 mimetypes.init() # Required for python 2.6 (fixes a multithread bug)
+
+
+def add_localized_prefix(label, prefix):
+    return re.sub(
+        r'^(!!(\[[a-z]{2}\])?)\s*(.*)$',
+        lambda m: f"{m.group(1)}{prefix} {m.group(3)}",
+        label
+    )
 
 class GnrDboPackage(object):
     """Base class for packages"""
@@ -195,38 +204,36 @@ class GnrDboPackage(object):
         os.remove('%s.pik' %bagpath)
 
 
-    def _createStartupData_do(self,basepath=None,btc=None):
-        pkgapp = self.db.application.packages[self.name]
-        tables = self.startupData_tables()
-        if not tables:
+    def handleLocalizedColumn(self,tblsrc,colname,colattr=None,languages=None,**kwargs):
+        languages = languages.split(',')
+        if len(languages)<2:
             return
-        bagpath = basepath or os.path.join(pkgapp.packageFolder,'startup_data')
-        s = Bag()
-        s['tables'] = tables
-        tables = btc.thermo_wrapper(tables,'tables',message='Table') if btc else tables
-        for tname in tables:
-            tblobj = self.tables[tname]
-            handler = getattr(tblobj.dbtable,'startupData',None)
-            if handler:
-                f = handler()
-            else:
-                qp_handler = getattr(tblobj.dbtable,'startupDataQueryPars',None)
-                queryPars = dict(addPkeyColumn=False,bagFields=True)
-                if qp_handler:
-                    queryPars.update(qp_handler())
-                f = tblobj.dbtable.query(**queryPars).fetch()
-            s[tname] = f
-        s['preferences'] = self.db.table('adm.preference').loadPreference()['data'][self.name]
-        s.makePicklable()
-        s.pickle('%s.pik' %bagpath)
-        import gzip
-        zipPath = '%s.gz' %bagpath
-        with open('%s.pik' %bagpath,'rb') as sfile:
-            with gzip.open(zipPath, 'wb') as f_out:
-                f_out.writelines(sfile)
-        os.remove('%s.pik' %bagpath)
-        if os.path.isdir(bagpath):
-            os.removedirs(bagpath)
+        dtype = colattr.get('dtype') or 'T'
+        name_long = colattr.get('name_long')
+        name_short = colattr.get('name_short')
+        if dtype not in ('T','A'):
+            raise TypeError('You can localize only text')
+        group = tblsrc.colgroup(f'{colname}_language',name_long=f'{name_long} - loc')
+        hierarchical_localization_needed = False
+        hierarchical_fields = tblsrc.attributes.get('hierarchical')
+        if hierarchical_fields:
+            hierarchical_fields = hierarchical_fields.split(',')
+            hierarchical_localization_needed = colname in hierarchical_fields
+            if hierarchical_localization_needed:
+                tblsrc[f'columns.hierarchical_{colname}'].attributes['localized'] = colattr['localized']
+        for lang in languages[1:]:
+            loc_name = f'{colname}_{lang}'
+            loc_name_short = f'{name_short} ({lang})' if name_short else None
+            loc_name_long = f'{name_long} ({lang})' if name_long else loc_name
+            group.column(loc_name,dtype=dtype,size=colattr.get('size'),indexed=colattr.get('indexed'),
+                         name_short=loc_name_short,name_long=loc_name_long)
+            if hierarchical_localization_needed:
+                hfield = f'hierarchical_{loc_name}'
+                group.column(hfield,name_long=add_localized_prefix(loc_name_long,'Hierarchical'))
+                hierarchical_fields.append(hfield)
+        if hierarchical_fields:
+            tblsrc.attributes['hierarchical'] = ','.join(hierarchical_fields)
+        
 
     def startupData_tables(self):
         return  [tbl for tbl in list(self.db.tablesMasterIndex()[self.name].keys()) if self.table(tbl).dbtable.isInStartupData()]
@@ -239,6 +246,7 @@ class GnrDboPackage(object):
         self._createStartupData_do(basepath=basepath,btc=btc)
         if btc:
             btc.batch_complete(result='ok', result_attr=dict())
+
 
     def _createStartupData_do(self,basepath=None,btc=None):
         pkgapp = self.db.application.packages[self.name]
@@ -275,7 +283,7 @@ class GnrDboPackage(object):
         
 class TableBase(object):
     """TODO"""
-
+    
     @extract_kwargs(counter=True)
     def sysFields(self, tbl, id=True, ins=True, upd=True, full_upd=False, ldel=True, user_ins=None, user_upd=None, 
                   draftField=False, invalidFields=None,invalidRelations=None,md5=False,
@@ -365,7 +373,6 @@ class TableBase(object):
                                                 tbl.parentNode.label),related_tbl=hierarchical_linked_to)
 
             hfields = []
-            hlocalized_fields = []
             for fld in hierarchical.split(','):
                 if fld=='pkey':
                     hierarchical_col = tbl.column('hierarchical_pkey',unique=True,group=group,
@@ -380,17 +387,9 @@ class TableBase(object):
                     hcol = tbl.column(fld)
                     fld_caption=hcol.attributes.get('name_long',fld).replace('!![en]','')  
                     hfields.append(fld)
-                    localized_fld = tbl[f'columns.{fld}?localized']
-                    if localized_fld:
-                        print('fld',fld,localized_fld)
                     hierarchical_col = tbl.column('hierarchical_%s'%fld,name_long='!![en]Hierarchical %s'%fld_caption,
-                                unique=unique,localized=localized_fld)  
-                    if localized_fld:
-                        hlocalized_fields.append(fld)
-                        #mi faccio dire tutte quelle che iniziano per 
-                        pass
+                                unique=unique)  
                     tbl.column('_parent_h_%s'%fld,name_long='!![en]Parent Hierarchical %s'%fld_caption,group=group,_sysfield=True)
-                #vado a prendere per ogni lineanche c'è vado ad appenderlo allo 
                 if hdepth:
                     hcolattrs = hierarchical_col.attributes
                     hcolattrs.update(variant='hdepth',variant_hdepth_levels=hdepth)
@@ -398,13 +397,7 @@ class TableBase(object):
                         hfld = 'hierarchical_%s'%fld
                         hcolattrs['group'] = hfld
                         tbl.attributes['group_{name}'.format(name=hfld)] = hcolattrs.get('name_long',hfld)
-            if hlocalized_fields:
-                languages = self.db.extra_kw.get('languages')
-                languages = languages.split(',') if languages else []
-                for l in hlocalized_fields:
-                    hfields.extend([f'{l}_{lang}' for lang in languages[1:]])
             tbl.attributes['hierarchical'] = ','.join(hfields)
-            
             if not counter:
                 tbl.attributes.setdefault('order_by','$hierarchical_%s' %hfields[0] )
             
@@ -498,7 +491,7 @@ class TableBase(object):
         self.sysFields_extra(tbl,_sysfield=True,group=group)
         
         
-
+ 
     def _sysFields_defaults(self,user_ins=None,user_upd=None):
         if user_ins is None:
             default_user_ins = self.db.application.config['sysfield?user_ins']

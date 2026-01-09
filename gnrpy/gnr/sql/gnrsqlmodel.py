@@ -621,17 +621,8 @@ class DbModelSrc(GnrStructData):
                           default=default, notnull=notnull, unique=unique, indexed=indexed,
                           group=group, onInserting=onInserting, onUpdating=onUpdating, onDeleting=onDeleting,
                           variant=variant,**kwargs)
-        if localized:
-            if dtype and dtype not in ('T','A'):
-                raise TypeError('You can localize only text')
-            for lang in localized.split(',')[1:]:
-                loc_name = f'{name}_{lang}'
-                loc_name_short = f'{name_short} ({lang})' if name_short else None
-                loc_name_long = f'{name_long} ({lang})' if name_long else loc_name
-                self.child('column', f'columns.{loc_name}', dtype=dtype, size=size,
-                        name_short=loc_name_short, name_long=loc_name_long, 
-                        indexed=indexed,group=group,**kwargs)
         if ext_kwargs:
+            tblsrc = self._destinationNode  if hasattr(self,'_destinationNode') else self 
             for pkgExt,extKwargs in ext_kwargs.items():
                 if pkgExt not in self.root._dbmodel.db.application.packages:
                     continue
@@ -639,9 +630,14 @@ class DbModelSrc(GnrStructData):
                 handler = getattr(pkgobj,'ext_config',None)
                 if handler:
                     extKwargs = extKwargs if isinstance(extKwargs,dict) else {pkgExt:extKwargs}
-                    tblsrc = self._destinationNode  if hasattr(self,'_destinationNode') else self
                     handler(tblsrc,colname=name,colattr=result.attributes,**extKwargs)
                     return result
+        if localized:
+            tblsrc = self._destinationNode  if hasattr(self,'_destinationNode') else self
+            currpkgobj = self.root._dbmodel.db.application.packages[tblsrc.attributes['pkg']]
+            localization_handler = getattr(currpkgobj,'handleLocalizedColumn',None)
+            if localization_handler:
+                localization_handler(tblsrc,colname=name,colattr=result.attributes,languages=localized)
         return result
 
     
