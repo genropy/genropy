@@ -365,6 +365,7 @@ class TableBase(object):
                                                 tbl.parentNode.label),related_tbl=hierarchical_linked_to)
 
             hfields = []
+            hlocalized_fields = []
             for fld in hierarchical.split(','):
                 if fld=='pkey':
                     hierarchical_col = tbl.column('hierarchical_pkey',unique=True,group=group,
@@ -379,9 +380,17 @@ class TableBase(object):
                     hcol = tbl.column(fld)
                     fld_caption=hcol.attributes.get('name_long',fld).replace('!![en]','')  
                     hfields.append(fld)
+                    localized_fld = tbl[f'columns.{fld}?localized']
+                    if localized_fld:
+                        print('fld',fld,localized_fld)
                     hierarchical_col = tbl.column('hierarchical_%s'%fld,name_long='!![en]Hierarchical %s'%fld_caption,
-                                unique=unique)  
+                                unique=unique,localized=localized_fld)  
+                    if localized_fld:
+                        hlocalized_fields.append(fld)
+                        #mi faccio dire tutte quelle che iniziano per 
+                        pass
                     tbl.column('_parent_h_%s'%fld,name_long='!![en]Parent Hierarchical %s'%fld_caption,group=group,_sysfield=True)
+                #vado a prendere per ogni lineanche c'è vado ad appenderlo allo 
                 if hdepth:
                     hcolattrs = hierarchical_col.attributes
                     hcolattrs.update(variant='hdepth',variant_hdepth_levels=hdepth)
@@ -389,7 +398,13 @@ class TableBase(object):
                         hfld = 'hierarchical_%s'%fld
                         hcolattrs['group'] = hfld
                         tbl.attributes['group_{name}'.format(name=hfld)] = hcolattrs.get('name_long',hfld)
+            if hlocalized_fields:
+                languages = self.db.extra_kw.get('languages')
+                languages = languages.split(',') if languages else []
+                for l in hlocalized_fields:
+                    hfields.extend([f'{l}_{lang}' for lang in languages[1:]])
             tbl.attributes['hierarchical'] = ','.join(hfields)
+            
             if not counter:
                 tbl.attributes.setdefault('order_by','$hierarchical_%s' %hfields[0] )
             
