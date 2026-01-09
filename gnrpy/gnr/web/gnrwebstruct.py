@@ -2363,7 +2363,6 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                 kwargs['colspan'] = kwargs.pop('autospan')
                 kwargs['width'] = '99%'
             result.update(kwargs)
-        print('fldattr',fldattr)
         if result['tag']=='textBox' and fldattr.get('localized'):
             result['tag'] = 'MultiLanguageTextBox'
             result['languages'] = fldattr.get('localized')
