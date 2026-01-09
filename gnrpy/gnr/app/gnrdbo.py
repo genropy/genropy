@@ -253,8 +253,12 @@ class GnrDboPackage(object):
             loc_name = f'{colname}_{lang}'
             loc_name_short = f'{name_short} ({lang})' if name_short else None
             loc_name_long = f'{name_long} ({lang})' if name_long else loc_name
+            # Store localization metadata and set up placeholder trigger for empty translations
             group.column(loc_name, dtype=dtype, size=colattr.get('size'), indexed=colattr.get('indexed'),
-                         name_short=loc_name_short, name_long=loc_name_long)
+                         name_short=loc_name_short, name_long=loc_name_long,
+                         localization_language=lang,
+                         localized_field=colname,
+                         onInserting='setLocalizationPlaceholder', onUpdating='setLocalizationPlaceholder')
             if hierarchical_localization_needed:
                 # Create corresponding hierarchical column for this language
                 hfield = f'hierarchical_{loc_name}'
@@ -954,6 +958,19 @@ class TableBase(object):
             xtd['main_id'] = record[relidx_fkey]
             xtd[keyrelidx] = (xtd[keyrelidx] or 0) + 1
         record[fldname] = xtd[keyrelidx]
+
+    def trigger_setLocalizationPlaceholder(self, record, fldname, **kwargs):
+        """Set a placeholder for empty localized fields using the default language value.
+
+        When a localized field is empty, this trigger prefixes the original field value
+        with '~' to indicate it needs translation. This helps identify untranslated content.
+
+        :param record: the record being inserted or updated
+        :param fldname: the localized field name (e.g. 'description_it')
+        """
+        original_value = record.get(self.column(fldname).attributes['localized_field'])
+        if original_value and not record[fldname]:
+            record[fldname] = f'~{original_value}'
 
     def trigger_setTSNow(self, record, fldname,**kwargs):
         """This method is triggered during the insertion (or a change) of a record. It returns
