@@ -137,8 +137,9 @@ class Main(BaseResourceAction):
         localized_fields = [
             f"{colobj.name}:{self.localize(colobj.attributes.get('name_long', colobj.name))}"
             for colobj in self.tblobj.columns.values()
-            if colobj.attributes.get('localized')
+            if colobj.attributes.get('localized') and not colobj.attributes.get('hierarchical_field_of')
         ]
+
         lfields = ','.join(localized_fields)
         fb = pane.formlet()
         fb.checkboxText(value='^.fields', values=lfields, lbl='!![en]Localize fields')
