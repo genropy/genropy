@@ -695,8 +695,10 @@ def execute_task(sitename, task):
         logger.error("Can't find task class for command %s", record['action'])
             
     try:
-        with requests.post(f"{GNR_SCHEDULER_URL}/ack", json={"run_id": task["run_id"]}) as resp:
-            logger.info("Acknowledged run %s, response %s", task['run_id'], resp.text)
+        with requests.Session() as session:
+            resp = session.post(f"{GNR_SCHEDULER_URL}/ack", json={"run_id": task["run_id"]})
+            if resp:
+                logger.info("Acknowledged run %s, response %s", task['run_id'], resp.text)
     except Exception as e:
         logger.exception(e)
         logger.error("Failed to acknowledge task run %s: %s", task['run_id'], e)
