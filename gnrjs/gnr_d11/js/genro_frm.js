@@ -106,13 +106,13 @@ dojo.declare("gnr.GnrFrmHandler", null, {
 
 
         var tblname = this.getControllerData('table?name_long');
-        var pref = tblname?tblname+' record':'Record';
-        this.msg_saved = pref +' saved ';
-        this.msg_deleted = pref +' deleted';
+        var pref = tblname?tblname+' '+_T('record'):_T('Record');
+        this.msg_saved = pref +' '+_T('saved');
+        this.msg_deleted = pref +' '+_T('deleted');
         this.table_name = tblname || formId;
 
-        this.msg_unsaved_changes ="Current record has been modified.";
-        this.msg_confirm_delete ="You are going to delete the current record.";
+        this.msg_unsaved_changes = _T("Current record has been modified.");
+        this.msg_confirm_delete = _T("You are going to delete the current record.");
 
     },
     getParentForm:function(){
@@ -855,7 +855,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             return;
         }
         saveSlot = saveSlot===undefined? true:saveSlot;
-        var dlg = genro.dlg.quickDialog('Pending changes in '+this.table_name.toLowerCase(),{_showParent:true,width:'280px'});
+        var dlg = genro.dlg.quickDialog(_T('Pending changes in ')+this.table_name.toLowerCase(),{_showParent:true,width:'280px'});
         dlg.center._('div',{innerHTML:this.msg_unsaved_changes, text_align:'center',_class:'alertBodyMessage'});
         var form = this;
         var slotbar = dlg.bottom._('slotBar',{slots:saveSlot?'discard,*,cancel,save':'discard,*,cancel',
@@ -864,10 +864,10 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                                                    kw.command = this.attr.command;
                                                    form.publish('pendingChangesAnswer',kw);
                                                }});
-        slotbar._('button','discard',{label:'Discard changes',command:'discard'});
-        slotbar._('button','cancel',{label:'Cancel',command:'cancel'});
+        slotbar._('button','discard',{label:_T('Discard changes'),command:'discard'});
+        slotbar._('button','cancel',{label:_T('Cancel'),command:'cancel'});
         if(saveSlot){
-            slotbar._('button','save',{label:'Save',command:'save'});
+            slotbar._('button','save',{label:_T('Save'),command:'save'});
         }
         dlg.show_action();
      },
