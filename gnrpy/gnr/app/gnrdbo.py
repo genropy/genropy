@@ -263,7 +263,7 @@ class GnrDboPackage(object):
                 # Create corresponding hierarchical column for this language
                 hfield = f'hierarchical_{loc_name}'
                 group.column(hfield, name_long=_add_localized_prefix(loc_name_long, 'Hierarchical'))
-                hierarchical_fields.append(hfield)
+                hierarchical_fields.append(loc_name)
 
         # Update hierarchical fields list with the new localized hierarchical columns
         if hierarchical_fields:
