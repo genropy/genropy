@@ -484,7 +484,7 @@ class Main(BaseResourceBatch):
             cssfile.write('\n'.join(cssStyles).encode())
     
     def processJsCustomizations(self):
-        customJSPath='_static/custom.js'    
+        customJSPath='_static/custom.js'
         jsStyles = [
             s for s in [
                 self.db.application.getPreference('.base_js',pkg='docu'),
@@ -495,19 +495,19 @@ class Main(BaseResourceBatch):
             jsfile.write('\n'.join(jsStyles).encode())
             
     def processHtmlCustomizations(self):
-        extra_head = self.db.application.getPreference('.html_extra_head', pkg='docu')
+        extra_head = self.db.application.getPreference('.base_html', pkg='docu')
         if not extra_head:
             return
-        layout_html = f"""
-            {{% extends "!layout.html" %}}
 
-            {{% block extrahead %}}
-              {{% raw %}}{{{{ super() }}}}{{% endraw %}}
-              {extra_head}
-            {{% endblock %}}
-            """
-        template_file = self.sourceDirNode.child('_templates', 'layout.html')
-        template_file.ensureParent()
+        # Create Jinja2 template that extends layout.html
+        layout_html = f"""{{% extends "!layout.html" %}}
+
+{{% block extrahead %}}
+{extra_head}
+{{{{ super() }}}}
+{{% endblock %}}
+"""
+        template_file = self.sourceDirNode.child('_templates').child('layout.html')
         with template_file.open('w') as f:
             f.write(layout_html)
             

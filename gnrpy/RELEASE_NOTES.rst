@@ -1,4 +1,12 @@
-Upcoming release
+Upcoming Release
+================
+
+WARNING: This will be the last release supporting Python 3.8
+
+
+
+
+Release 26.01.09
 ================
 
 Enhancements
@@ -30,8 +38,13 @@ Enhancements
   informations to debug issues (#343)
 * new contentEditor in docu_components which supports multiple text
   editors. (#344)
-  
-  
+* New 'gnr core bagedit' CLI tool which allows to manipulate
+  (get/add/set/update/delete) entities inside bag files using the
+  command line
+* Bag's update() method now include a 'preservePattern' parameters
+  (a compiled regex) which will prevent to update matching values
+  or attributes, preserving the original value.
+
 Deprecations
 ------------
 

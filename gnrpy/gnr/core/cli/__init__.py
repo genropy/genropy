@@ -9,6 +9,7 @@ from gnr.core import gnrlog
 class GnrCliArgParse(argparse.ArgumentParser):
     
     def __init__(self, *args, **kwargs):
+        kwargs['formatter_class'] = argparse.ArgumentDefaultsHelpFormatter
         super().__init__(*args, **kwargs)
         self.add_argument("--version", action="version",
                           version="%(prog)s "+VERSION)

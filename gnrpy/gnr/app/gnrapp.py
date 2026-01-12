@@ -25,6 +25,7 @@ import atexit
 import shutil
 import locale
 import sys
+import re
 import types
 import importlib
 import importlib.metadata
@@ -929,7 +930,7 @@ class GnrApp(object):
                     'gnr.environment_xml.instances:#a.path,#a.instance_template') or []:
                 if path == os.path.dirname(self.instanceFolder):
                     instance_config.update(normalizePackages(self.gnr_config['gnr.instanceconfig.%s_xml' % instance_template]) or Bag())
-        instance_config.update(base_instance_config)
+        instance_config.update(base_instance_config, preservePattern=re.compile(r'^[\$\{]'))
         return instance_config
         
     def init(self, forTesting=False,restorepath=None):
@@ -1029,9 +1030,9 @@ class GnrApp(object):
             attrs['path'] = self.realPath(attrs['path'])
         apppkg = GnrPackage(pkgid, self, **attrs)
         apppkg.content = pkgcontent or Bag()
-        readOnlyAttrs = {'readOnly':True} if attrs.get('readOnly') else None
+        readOnlyAttrs = {'readOnly':True} if attrs.get('readOnly') else dict()
         for reqpkgid in apppkg.required_packages():
-            self.addPackage(reqpkgid,pkgattrs=readOnlyAttrs)
+            self.addPackage(reqpkgid,pkgattrs=dict(readOnlyAttrs))
         self.packagesIdByPath[os.path.realpath(apppkg.packageFolder)] = pkgid
         self.packages[pkgid] = apppkg
 

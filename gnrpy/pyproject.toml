@@ -61,7 +61,7 @@ dependencies = [
 	     "watchgod", # used in asyncio for autoreload
 	     "weasyprint",
 	     "webob",
-	     "werkzeug>=2.3.8",
+	     "werkzeug>=2.3.8,!=3.1.4",
 	     "xlrd",
 	     "xlwt"
 	     ]
@@ -188,7 +188,6 @@ packages = [
 # COVERAGE
 [tool.coverage.run]
 omit = [
-     "*/cli/*",
 ]
 
 # LINTERS

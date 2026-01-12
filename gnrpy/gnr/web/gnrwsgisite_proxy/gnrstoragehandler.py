@@ -416,13 +416,15 @@ class LegacyStorageHandler(BaseStorageHandler):
     def storage(self, storage_name, **kwargs):
         """Get a storage service by name using stored parameters.
 
-        Concrete implementation that retrieves parameters from storage_params registry
-        and uses ServiceHandler to get/create the actual storage service instance.
+        Retrieves parameters from storage_params registry and uses ServiceHandler
+        to get/create the actual storage service instance.
 
         All storage services are pre-loaded at initialization and kept in sync
-        via database triggers. If storage_name is not found in storage_params,
-        falls back to legacy behavior: creates a local storage with storage_name
-        as subdirectory of site_static_dir.
+        via database triggers (onInserted, onUpdated, onDeleted).
+
+        If storage_name is not found in storage_params, falls back to legacy
+        behavior: creates a local storage with storage_name as subdirectory
+        of site_static_dir.
 
         Args:
             storage_name: Name of the storage service
@@ -431,12 +433,8 @@ class LegacyStorageHandler(BaseStorageHandler):
         Returns:
             Storage service instance
         """
-        # Get stored parameters for this storage
         stored_params = self.getStorageParameters(storage_name)
-
         if not stored_params:
-            # Fallback to legacy behavior: use storage_name as path relative to site_static_dir
-            # This maintains backward compatibility with code that uses arbitrary storage names
             volume_path = expandpath(os.path.join(self.site.site_static_dir, storage_name))
             return self.site.getService(
                 service_type='storage',
@@ -444,11 +442,9 @@ class LegacyStorageHandler(BaseStorageHandler):
                 implementation='local',
                 base_path=volume_path
             )
-
-        # Merge stored params with any override kwargs
         service_params = dict(stored_params)
+        service_params.pop('service_name', None)
         service_params.update(kwargs)
-        # Create/get service using stored parameters
         return self.site.getService(
             service_type='storage',
             service_name=storage_name,
