@@ -5,7 +5,6 @@ import shutil
 import subprocess
 import urllib.request, urllib.parse, urllib.error
 from urllib.parse import urlsplit
-import _thread
 import mimetypes
 import functools
 from time import time
