@@ -1363,6 +1363,11 @@ class GnrWsgiSite(object):
             debugger.onClosePage()
         self.currentPage = None
         self.db.closeConnection()
+        # TEMP FIX #379: cleanup thread-local storage - will be replaced by develop merge
+        thread_id = _thread.get_ident()
+        self._currentPages.pop(thread_id, None)
+        self._currentRequests.pop(thread_id, None)
+        self._currentAuxInstanceNames.pop(thread_id, None)
 
     def serve_tool(self, path_list, environ, start_response, **kwargs):
         """TODO
