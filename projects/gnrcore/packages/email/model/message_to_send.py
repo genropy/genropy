@@ -41,5 +41,4 @@ class Table(object):
         with self.db.tempEnv(storename=False):
             mailproxy = self.db.application.site.getService('mailproxy')
             if mailproxy:
-                run_now_executed = mailproxy.run_now()
-                print('run now executed',run_now_executed)
+                mailproxy.run_now()
