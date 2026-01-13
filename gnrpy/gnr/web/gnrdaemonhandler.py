@@ -198,11 +198,11 @@ class GnrDaemon(object):
     def ping(self,**kwargs):
         return 'ping'
 
-    def getSite(self,sitename=None,create=False,storage_path=None,autorestore=None,**kwargs):
-        if sitename in self.siteregisters and self.siteregisters[sitename]['server_uri']:
-            return self.siteregisters[sitename]
+    def getSite(self,domainIdentifier=None,create=False,storage_path=None,autorestore=None,**kwargs):
+        if domainIdentifier in self.siteregisters and self.siteregisters[domainIdentifier]['server_uri']:
+            return self.siteregisters[domainIdentifier]
         elif create:
-            self.addSiteRegister(sitename,storage_path=storage_path,autorestore=autorestore)
+            self.addSiteRegister(domainIdentifier,storage_path=storage_path,autorestore=autorestore)
             return dict()
 
     def stop(self,saveStatus=False,**kwargs):
@@ -240,8 +240,9 @@ class GnrDaemon(object):
         siteregister_processes_dict['services'] = daemonServiceHandler
         
 
-    def startServiceProcesses(self, sitename, sitedict=None):
-        siteregister_processes_dict = self.siteregisters_process[sitename]
+    def startServiceProcesses(self, domainIdentifier, sitedict=None):
+        siteregister_processes_dict = self.siteregisters_process[domainIdentifier]
+        sitename = self.siteregisters[domainIdentifier]['sitename']
         p = PathResolver()
         siteconfig = p.get_siteconfig(sitename)
         services = siteconfig['services']
@@ -249,10 +250,11 @@ class GnrDaemon(object):
             return
         for serv in services:
             if serv.attr.get('daemon'):
-                service_process = self.startServiceDaemon(sitename,serv.label)
+                service_process = self.startServiceDaemon(domainIdentifier, serv.label)
                 siteregister_processes_dict[serv.label] = service_process
 
-    def startServiceDaemon(self,sitename, service_name=None):
+    def startServiceDaemon(self, domainIdentifier, service_name=None):
+        sitename = self.siteregisters[domainIdentifier]['sitename']
         p = PathResolver()
         siteconfig = p.get_siteconfig(sitename)
         services = siteconfig['services']
@@ -260,8 +262,8 @@ class GnrDaemon(object):
         pkg, pathlib = service_attr['daemon'].split(':')
         p = os.path.join(p.package_name_to_path(pkg), 'lib', '%s.py' % pathlib)
         m = gnrImport(p)
-        service_attr.update({'sitename': sitename})
-        proc = Process(name='service_daemon_%s_%s' %(sitename, service_name),
+        service_attr.update({'domainIdentifier': domainIdentifier, 'sitename': sitename})
+        proc = Process(name='service_daemon_%s_%s' %(domainIdentifier, service_name),
                         target=getattr(m, 'run'), kwargs=service_attr)
         proc.daemon = True
         proc.start()
@@ -275,18 +277,20 @@ class GnrDaemon(object):
             return has_sys and not secondary
         return False
 
-    def addSiteRegister(self,sitename,storage_path=None,autorestore=False,port=None):
-        if not sitename in self.siteregisters:
+    def addSiteRegister(self,domainIdentifier,storage_path=None,autorestore=False,port=None):
+        if not domainIdentifier in self.siteregisters:
+            # Extract sitename from domainIdentifier (format: sitename|domain or just sitename)
+            sitename = domainIdentifier.split('|')[0] if '|' in domainIdentifier else domainIdentifier
             siteregister_processes_dict = dict()
-            self.siteregisters_process[sitename] = siteregister_processes_dict
+            self.siteregisters_process[domainIdentifier] = siteregister_processes_dict
             siteregister_dict = dict()
-            self.siteregisters[sitename] = siteregister_dict
-            socket = os.path.join(self.sockets,'%s_daemon.sock' %sitename) if self.sockets else None
-            process_kwargs = dict(sitename=sitename,daemon_uri=self.main_uri,host=self.host,socket=socket
+            self.siteregisters[domainIdentifier] = siteregister_dict
+            socket = os.path.join(self.sockets,'%s_daemon.sock' %domainIdentifier) if self.sockets else None
+            process_kwargs = dict(sitename=domainIdentifier,daemon_uri=self.main_uri,host=self.host,socket=socket
                                    ,hmac_key=self.hmac_key, storage_path=storage_path,autorestore=autorestore,
                                    port=port)
-            childprocess = Process(name='sr_%s' %sitename, target=createSiteRegister,kwargs=process_kwargs)
-            siteregister_dict.update(sitename=sitename,server_uri=False,
+            childprocess = Process(name='sr_%s' %domainIdentifier, target=createSiteRegister,kwargs=process_kwargs)
+            siteregister_dict.update(domainIdentifier=domainIdentifier,sitename=sitename,server_uri=False,
                                         register_uri=False,start_ts=datetime.now(),
                                         storage_path=storage_path,
                                         autorestore=autorestore)
@@ -295,12 +299,12 @@ class GnrDaemon(object):
             siteregister_processes_dict['register'] = childprocess
 
             if self.hasSysPackageAndIsPrimary(sitename):
-                taskScheduler = Process(name='ts_%s' %sitename, target=createTaskScheduler,kwargs=dict(sitename=sitename))
+                taskScheduler = Process(name='ts_%s' %domainIdentifier, target=createTaskScheduler,kwargs=dict(sitename=domainIdentifier))
                 taskScheduler.daemon = True
                 taskScheduler.start()
-                siteregister_processes_dict['task_scheduler'] = taskScheduler 
+                siteregister_processes_dict['task_scheduler'] = taskScheduler
             sitedict = siteregister_processes_dict
-            self.startServiceProcesses(sitename,sitedict=sitedict)
+            self.startServiceProcesses(domainIdentifier,sitedict=sitedict)
             #self.startGnrDaemonServiceManager(sitename)
             #self.siteregisters_process[sitename] = sitedict
 
