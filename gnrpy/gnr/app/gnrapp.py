@@ -25,6 +25,7 @@ import atexit
 import shutil
 import locale
 import sys
+import re
 import types
 import importlib
 import importlib.metadata
@@ -929,7 +930,7 @@ class GnrApp(object):
                     'gnr.environment_xml.instances:#a.path,#a.instance_template') or []:
                 if path == os.path.dirname(self.instanceFolder):
                     instance_config.update(normalizePackages(self.gnr_config['gnr.instanceconfig.%s_xml' % instance_template]) or Bag())
-        instance_config.update(base_instance_config)
+        instance_config.update(base_instance_config, preservePattern=re.compile(r'^[\$\{]'))
         return instance_config
         
     def init(self, forTesting=False,restorepath=None):
