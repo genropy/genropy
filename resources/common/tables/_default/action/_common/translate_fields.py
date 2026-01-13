@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
 # translate_fields.py
-# Created by Francesco Porcari on 2010-07-02.
-# Copyright (c) 2011 Softwell. All rights reserved.
+# Created by Francesco Porcari on 2026-01-12
+# Copyright (c) 2025 Softwell. All rights reserved.
 
 from gnr.web.batch.btcaction import BaseResourceAction
 
