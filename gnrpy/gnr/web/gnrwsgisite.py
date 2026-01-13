@@ -1093,9 +1093,9 @@ class GnrWsgiSite(object):
         self.currentPage = None
         self.db.closeConnection()
         # cleanup thread storage
-        self._currentPages.set(None)
-        self._currentRequests.set(None)
-        self._currentAuxInstanceNames.set(None)
+        self.currentPage = None
+        self.currentRequest = None
+        self.currentAuxInstanceName = None
 
     def serve_tool(self, path_list, environ, start_response, **kwargs):
         """TODO
