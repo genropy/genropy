@@ -5,7 +5,6 @@ import shutil
 import subprocess
 import urllib.request, urllib.parse, urllib.error
 from urllib.parse import urlsplit
-import _thread
 import mimetypes
 import functools
 from time import time
@@ -21,7 +20,8 @@ from webob.exc import (WSGIHTTPException, HTTPInternalServerError,
 
 from gnr.core.gnrbag import Bag
 from gnr.core import gnrstring
-from gnr.core.gnrlang import GnrException,GnrDebugException,tracebackBag,getUuid
+from gnr.core.gnrlang import GnrException, GnrDebugException
+from gnr.core.gnrlang import tracebackBag, getUuid, ThreadedDict
 from gnr.core.gnrdecorator import public_method, deprecated
 from gnr.core.gnrconfig import getGnrConfig,getEnvironmentItem
 from gnr.core.gnrsys import expandpath
@@ -142,6 +142,7 @@ class UrlInfo(object):
         self.basepath = mobilepath or self.basepath
         self.request_args = path_list
 
+        
 class GnrWsgiSite(object):
     """TODO"""
 
@@ -154,9 +155,9 @@ class GnrWsgiSite(object):
         GNRSITE = self
         counter = int(counter or '0')
         self.pathfile_cache = {}
-        self._currentAuxInstanceNames = {}
-        self._currentPages = {}
-        self._currentRequests = {}
+        self._currentAuxInstanceNames = ThreadedDict()
+        self._currentPages = ThreadedDict()
+        self._currentRequests = ThreadedDict()
         abs_script_path = os.path.abspath(script_path)
         self.remote_db = ''
         self._register = None
@@ -1091,6 +1092,10 @@ class GnrWsgiSite(object):
             debugger.onClosePage()
         self.currentPage = None
         self.db.closeConnection()
+        # cleanup thread storage
+        self.currentPage = None
+        self.currentRequest = None
+        self.currentAuxInstanceName = None
 
     def serve_tool(self, path_list, environ, start_response, **kwargs):
         """TODO
@@ -1369,31 +1374,31 @@ class GnrWsgiSite(object):
 
     def _get_currentPage(self):
         """property currentPage it returns the page currently used in this thread"""
-        return self._currentPages.get(_thread.get_ident())
+        return self._currentPages.get()
 
     def _set_currentPage(self, page):
         """set currentPage for this thread"""
-        self._currentPages[_thread.get_ident()] = page
+        self._currentPages.set(page)
 
     currentPage = property(_get_currentPage, _set_currentPage)
 
     def _get_currentAuxInstanceName(self):
         """property currentAuxInstanceName it returns the page currently used in this thread"""
-        return self._currentAuxInstanceNames.get(_thread.get_ident())
+        return self._currentAuxInstanceNames.get()
 
     def _set_currentAuxInstanceName(self, auxInstance):
         """set currentAuxInstanceName for this thread"""
-        self._currentAuxInstanceNames[_thread.get_ident()] = auxInstance
+        self._currentAuxInstanceNames.set(auxInstance)
 
     currentAuxInstanceName = property(_get_currentAuxInstanceName, _set_currentAuxInstanceName)
 
     def _get_currentRequest(self):
         """property currentRequest it returns the request currently used in this thread"""
-        return self._currentRequests.get(_thread.get_ident())
+        return self._currentRequests.get()
 
     def _set_currentRequest(self, request):
         """set currentRequest for this thread"""
-        self._currentRequests[_thread.get_ident()] = request
+        self._currentRequests.set(request)
 
     currentRequest = property(_get_currentRequest, _set_currentRequest)
 
