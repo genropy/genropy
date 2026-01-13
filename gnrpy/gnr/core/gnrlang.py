@@ -702,3 +702,31 @@ def errorLog(proc_name, host=None, from_address='', to_address=None, user=None, 
             
     return tb_text
 
+
+
+class ThreadedDict:
+    """
+    A dictionary-like object with automatic keys
+    based on the current thread ident
+    """
+    def __init__(self):
+        self._data = {}
+        
+    def get(self):
+        """
+        Retrieve the value associated to the current thread ident
+        """
+        return self._data.get(_thread.get_ident(), None)
+    
+    def set(self, value=None):
+        """
+        Set a value using the thred ident as hash
+        """
+        tid = _thread.get_ident()
+        if value is None:
+            self._data.pop(tid, None)
+        else:
+            self._data[tid] = value
+        
+
+    
