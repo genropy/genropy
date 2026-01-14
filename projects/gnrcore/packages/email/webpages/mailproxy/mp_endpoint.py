@@ -71,7 +71,7 @@ class GnrCustomWebPage(object):
     py_requires='gnrcomponents/externalcall:BaseRpc'
 
     @public_method(tags='_SYSTEM_') #tag di autorizzazione dell'utente
-    def proxy_sync(self,_json_body=None,**kwargs):
+    def proxy_sync(self, **kwargs):
         """
         Endpoint called by async-mail-service to deliver batch delivery reports.
 
@@ -81,13 +81,11 @@ class GnrCustomWebPage(object):
         3. Fetches pending messages and submits them to the proxy service
         4. Returns a summary of processed delivery reports
 
-        Args:
-            _json_body: JSON payload containing 'delivery_report' array
-
         Returns:
             dict: Summary of processed reports (sent, error, deferred counts)
         """
-        delivery_report = _json_body.get('delivery_report') or []
+        json_data = self.get_request_body_json() or {}
+        delivery_report = json_data.get('delivery_report') or []
         proxy_service = self.getService('mailproxy')
 
         # Check database availability before processing
