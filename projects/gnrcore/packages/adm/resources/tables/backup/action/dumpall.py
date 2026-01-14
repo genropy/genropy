@@ -48,17 +48,18 @@ class Main(BaseResourceBatch):
         checkedDbstores = self.batch_parameters.get('checkedDbstores')
         checkedDbstores = checkedDbstores.split(',') if checkedDbstores else [s for s in self.db.stores_handler.dbstores.keys() if not s.startswith('instance_')]
         dbstoreconf = Bag()
-        dbstorefolder = os.path.join(self.db.application.instanceFolder, 'dbstores')
+        #dbstorefolder = os.path.join(self.db.application.instanceFolder, 'dbstores')
         options = self.batch_parameters['options']
     
         for s in self.btc.thermo_wrapper(checkedDbstores,line_code='dbl',message=lambda item, k, m, **kwargs: '!!Dumping %s' %item):
             with self.db.tempEnv(storename=s):
                 folder_path = self.backupSn.internal_path
+                dbname = self.db.stores_handler.dbstores[s]['database']
                 self.filelist.append(self.db.dump(os.path.join(folder_path,s),
-                                    dbname=self.db.stores_handler.dbstores[s]['database'],
+                                    dbname=dbname,
                                     excluded_schemas=self.getExcluded(),
                                     options=options))
-                dbstoreconf[s] = Bag(os.path.join(dbstorefolder,'%s.xml' %s))
+                dbstoreconf.addItem(s,None,dbname=dbname)
         dbStoreSn = self.tempSn.child('_dbstores.xml')
         with dbStoreSn.open('wb') as confpath:
             dbstoreconf.toXml(confpath)
