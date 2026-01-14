@@ -634,8 +634,17 @@ class GnrWebPage(GnrBaseWebPage):
             return AUTH_FORBIDDEN
         return AUTH_OK
     
-    def _checkRootPage(self):
+    @property
+    def avatar_rootpage(self):
+        if not self.avatar:
+            return
         avatar_rootpage = self.avatar.avatar_rootpage or self.rootenv['singlepage'] if self.avatar else None
+        if avatar_rootpage and avatar_rootpage.startswith('/') and self.multidomain:
+            return f'/{self.currentDomain}{avatar_rootpage}'
+        return avatar_rootpage
+    
+    def _checkRootPage(self):
+        avatar_rootpage = self.avatar_rootpage
         if self.pageOptions.get('standAlonePage') \
             or self.root_page_id or not self.avatar \
                 or not avatar_rootpage:
@@ -2789,8 +2798,8 @@ class GnrWebPage(GnrBaseWebPage):
     def forbiddenRedirectPage(self):
         if hasattr(self,'forbidden_redirect'):
             return self.forbidden_redirect()
-        if self.avatar and self.avatar.avatar_rootpage:
-            return self.avatar.avatar_rootpage
+        if self.avatar_rootpage:
+            return self.avatar_rootpage
 
     def isLocalizer(self):
         """TODO"""
