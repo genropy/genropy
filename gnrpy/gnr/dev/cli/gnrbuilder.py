@@ -53,9 +53,7 @@ def main():
     
     options = p.parse_args()
 
-    instance = GnrApp(options.instance_name)
-
-    builder = GnrProjectBuilder(instance)
+    builder = GnrProjectBuilder(options.instance_name)
 
     if options.command == 'check':
         has_config = os.path.exists(builder.config_file)
