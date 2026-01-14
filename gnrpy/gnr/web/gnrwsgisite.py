@@ -1105,7 +1105,11 @@ class GnrWsgiSite(object):
             external_host = self.currentPage.external_host
         else:
             external_host = self.configurationItem('wsgi?external_host',mandatory=True)
-        return (external_host or '').rstrip('/')
+        external_host = (external_host or '').rstrip('/')
+        # Include domain in external_host for absolute URLs in multidomain mode
+        if self.multidomain and self.currentDomain:
+            external_host = f'{external_host}/{self.currentDomain}'
+        return external_host
     
     @property
     def external_secret(self):
