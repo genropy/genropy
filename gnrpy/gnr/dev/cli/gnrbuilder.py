@@ -4,7 +4,6 @@ import os
 import sys
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.app.gnrapp import GnrApp
 from gnr.dev.builder import GnrProjectBuilder
 from gnr.dev import logger
 
