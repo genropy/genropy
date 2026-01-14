@@ -239,9 +239,11 @@ class GnrWsgiWebApp(GnrApp):
                 for node in self.config['authentication'].nodes:
                     nodeattr = node.attr
                     authmode = nodeattr.get('mode') or node.label.replace('_auth', '')
-                    avatar = getattr(self, 'auth_%s' % authmode)(node, user, password=password,
-                                                                 authenticate=authenticate,
-                                                                 **kwargs)
+                    storename = page.dbstore if self.site.multidomain else False
+                    with self.db.tempEnv(storename=storename):
+                        avatar = getattr(self, 'auth_%s' % authmode)(node, user, password=password,
+                                                                     authenticate=authenticate,
+                                                                     **kwargs)
                     if not (avatar is None):
                         avatar.page = page
                         avatar.authmode = authmode
