@@ -331,8 +331,7 @@ class GnrSqlDb(GnrObject):
         if mainfilepath:
             self._autoRestore_one(dbname=self.dbname,filepath=mainfilepath,sqltextCb=sqltextCb,onRestored=onRestored)
         for storename,filepath in list(stores.items()):
-            conf = dbstoreconfig.getItem(storename)
-            dbattr = conf.getAttr('db')
+            dbattr = dbstoreconfig.getAttr(storename)
             dbname = dbattr.pop('dbname')
             self._autoRestore_one(dbname=dbname,filepath=filepath,sqltextCb=sqltextCb,onRestored=onRestored)
         if destroyFolder:
