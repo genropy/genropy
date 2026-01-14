@@ -3934,6 +3934,18 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
         if (currNode.attr.disabled) {
             return;
         }
+        if (cellkw.readOnly) {
+            var isReadOnly = cellkw.readOnly;
+            if (typeof isReadOnly === 'string' && isReadOnly.startsWith('=#ROW.')) {
+                var fieldName = isReadOnly.substring(6);
+                isReadOnly = currNode.attr[fieldName];
+            } else if (typeof isReadOnly === 'string' && isReadOnly.charAt(0) === '=' || isReadOnly.charAt(0) === '^') {
+                isReadOnly = sourceNode.currentFromDatasource(isReadOnly);
+            }
+            if (isReadOnly) {
+                return;
+            }
+        }
         var newval = !checked;
         if(cellkw.radioButton){
             if(cellkw.radioButton===true){
