@@ -9,6 +9,7 @@ Enhancements
 * Introduced a new experimental aiohttp-based task scheduler/worker, not enabled by
   default. It needs a new deployment if activated, YMMV.
 * Introduce a localization attribute for table columns.
+* Support for multidb backup/restore for storetable-based architecture (#402)
  
 Fixes
 -----
