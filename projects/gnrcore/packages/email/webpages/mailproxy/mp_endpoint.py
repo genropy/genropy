@@ -24,8 +24,9 @@ Genropy -> async-mail-service:
   - proxy_priority -> priority (0=immediate, 1=high, 2=medium, 3=low)
   - deferred_ts -> deferred_ts (Unix timestamp)
   - extra_headers -> message_id, reply_to, return_path, headers
-  - attachments -> storage_path format: "storename@volume:path/to/file"
+  - attachments -> storage_path format: "storename@volume:path"
     (e.g., "mydb@home:emails/2024/file.pdf")
+    Downloaded via proxy_get_attachments RPC method
 
 async-mail-service -> Genropy (delivery reports):
   - sent_ts -> send_date (UTC datetime)
@@ -43,16 +44,22 @@ email.message:
   - deferred_ts: When message is scheduled for later delivery
   - proxy_priority: Delivery priority (0-3)
 
-Storage Volumes (Multitenant):
-------------------------------
-Both client and proxy have the same volumes registered. In multitenant environments,
-volume names are prefixed with storename when registering on the proxy:
-  - volume_name on proxy: "storename@volume" (e.g., "mydb@home", "mydb@docs")
-  - storage_path format: "storename@volume:path" (e.g., "mydb@home:emails/file.pdf")
+Attachment Downloads (RPC):
+---------------------------
+Attachments are downloaded via proxy_get_attachments RPC method instead of HTTP endpoints.
+The proxy calls this RPC method with a list of storage paths:
+  - storage_path format: "storename@volume:path" (same @ separator as message_id)
+  - batch support: single RPC call for multiple attachments
+  - multi-tenant: storename prefix enables correct DB context switching
+  - authentication: @public_method(tags='_SYSTEM_') (same as proxy_sync)
+  - no volume registration needed on proxy
+  - no public HTTP endpoint needed
 
-The client uses node.fullpath (format "volume:path") and adds the storename@ prefix
-for multitenant scenarios. This allows different stores to use the same logical volume
-names while pointing to different storage locations on the proxy.
+Example RPC call:
+  proxy_get_attachments(storage_paths=["mydb@home:emails/file.pdf", "mydb@docs:report.xlsx"])
+
+Returns list of file data:
+  [{'storage_path': '...', 'content': bytes, 'mimetype': '...', 'filename': '...', 'size': int}, ...]
 
 For protocol details see:
 https://github.com/genropy/gnr-async-mail-service/blob/main/docs/protocol.rst
@@ -203,6 +210,105 @@ class GnrCustomWebPage(object):
                 self.db.commit()
 
         return {'sent': sent_count, 'error': error_count, 'deferred': deferred_count}
+
+    @public_method(tags='_SYSTEM_')
+    def proxy_get_attachments(self, storage_paths=None, **kwargs):
+        """
+        Download multiple attachment files in a single RPC call.
+
+        Called by async-mail-service to retrieve attachment content when sending emails.
+        Uses @public_method(tags='_SYSTEM_') for authentication (same as proxy_sync).
+
+        Args:
+            storage_paths: List of storage paths in format "storename@volume:path"
+                          Example: ["mydb@home:emails/file.pdf", "mydb@docs:report.xlsx"]
+                          The @ separator splits storename from storage path.
+
+        Returns:
+            list: List of attachment data dictionaries:
+            [
+                {
+                    'storage_path': 'mydb@home:emails/file.pdf',
+                    'content': bytes,      # File content (base64 encoded in JSON response)
+                    'mimetype': str,       # MIME type (e.g., 'application/pdf')
+                    'filename': str,       # Base filename
+                    'size': int           # File size in bytes
+                },
+                # or in case of error:
+                {
+                    'storage_path': 'mydb@home:missing.pdf',
+                    'error': 'File not found: home:missing.pdf'
+                }
+            ]
+
+        Notes:
+            - Supports batch downloads (multiple attachments in one call)
+            - Supports multi-tenant (different storenames in same batch)
+            - Errors are returned per-file (doesn't fail entire batch)
+            - File content is base64 encoded automatically by JSON serializer
+        """
+        if not storage_paths:
+            raise Exception("Missing required parameter: storage_paths")
+
+        if not isinstance(storage_paths, list):
+            raise Exception("storage_paths must be a list")
+
+        results = []
+        logger.info('proxy_get_attachments: processing %d attachment(s)', len(storage_paths))
+
+        for full_path in storage_paths:
+            # Parse storename from path (format: "storename@volume:path")
+            if '@' in full_path:
+                storename, storage_path = full_path.split('@', 1)
+            else:
+                # Fallback if no storename (shouldn't happen in normal operation)
+                storename = None
+                storage_path = full_path
+
+            try:
+                # Switch to correct store context
+                with self.db.tempEnv(storename=storename or False):
+                    # Get storage node from path
+                    storage_node = self.site.storageNode(storage_path)
+
+                    if not storage_node or not storage_node.exists:
+                        logger.warning('Attachment not found: %s (storename=%s)', storage_path, storename)
+                        results.append({
+                            'storage_path': full_path,
+                            'error': f'File not found: {storage_path}'
+                        })
+                        continue
+
+                    # Read file content
+                    with storage_node.open('rb') as f:
+                        content = f.read()
+
+                    logger.debug('Attachment retrieved: %s (%d bytes)', full_path, len(content))
+
+                    results.append({
+                        'storage_path': full_path,
+                        'content': content,
+                        'mimetype': storage_node.mimetype or 'application/octet-stream',
+                        'filename': storage_node.basename or storage_path.split('/')[-1],
+                        'size': len(content)
+                    })
+
+            except Exception as e:
+                logger.error('Error retrieving attachment %s: %s', full_path, e, exc_info=True)
+                results.append({
+                    'storage_path': full_path,
+                    'error': f'Error reading file: {str(e)}'
+                })
+
+        # Log summary
+        success_count = sum(1 for r in results if 'error' not in r)
+        error_count = len(results) - success_count
+        total_size = sum(r.get('size', 0) for r in results if 'error' not in r)
+
+        logger.info('proxy_get_attachments: completed %d/%d successful (total %d bytes)',
+                   success_count, len(results), total_size)
+
+        return results
 
     def _adaptedMessages(self,messages):
         for message in messages:
@@ -427,45 +533,25 @@ class GnrCustomWebPage(object):
         return self._attachment_payload_from_node(node, filename=node.basename or path.split('/')[-1])
 
     def _attachment_payload_from_node(self, node, filename=None):
-        """Convert storage node to attachment payload.
+        """Convert storage node to attachment storage path for RPC download.
 
-        Uses genro-storage format with storage_path: 'storename@volume:path'
-        The proxy server has the same volumes registered, so we just need to
-        adapt the path with the storename prefix for multitenant support.
+        Returns: {"storage_path": "storename@volume:path", "filename": "..."}
+
+        The storage_path format uses @ separator (same as message_id format) to include
+        the storename, enabling multi-tenant support in proxy_get_attachments RPC method.
         """
         if not node:
             return None
 
-        storage_path = self._adapt_path_to_proxy_volume(node)
-        payload = dict(storage_path=storage_path)
-        if filename:
-            payload['filename'] = filename
-        return payload
-
-    def _adapt_path_to_proxy_volume(self, node):
-        """Adapt node path to match proxy volume naming.
-
-        Since volumes are registered on the proxy with storename@ prefix in multitenant
-        environments, we need to adapt the node's fullpath by adding the same prefix.
-        This ensures the proxy can locate the file using its registered volumes.
-
-        Args:
-            node: Storage node with fullpath in format 'volume:path'
-
-        Returns:
-            str: Adapted path in format 'storename@volume:path' (multitenant)
-                 or 'volume:path' (single tenant)
-        """
-        # node.fullpath is already in format 'volume:path'
-        # e.g., 'home:alfa/beta/gamma' or 'docs:alfa/beta/gamma'
-        fullpath = node.fullpath
-
-        # Get current storename for multitenant support
+        # Get storename for multitenant routing (same as message_id format)
         storename = self.db.currentEnv.get('storename') or self.db.rootstore
 
-        # Add storename prefix to match how volumes are registered on the proxy
-        # Format: storename@volume:path (e.g., "mydb@home:alfa/beta/gamma")
-        if storename:
-            return f"{storename}@{fullpath}"
+        # Format: storename@volume:path (consistent with message_id format)
+        # node.fullpath is already in format "volume:path" (e.g., "home:emails/file.pdf")
+        storage_path = f'{storename}@{node.fullpath}'
 
-        return fullpath
+        payload = {'storage_path': storage_path}
+        if filename:
+            payload['filename'] = filename
+
+        return payload
