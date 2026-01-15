@@ -1,4 +1,4 @@
-Upcoming Release
+Release 26.01.15
 ================
 
 WARNING: This will be the last release supporting Python 3.8
