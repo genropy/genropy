@@ -20,7 +20,10 @@ class GnrCustomWebPage(object):
         bc = root.borderContainer(datapath='main')
         self.dbSelectorPane(bc,region='top',datapath='.selector',margin='2px')
         self.dbViewersTabs(bc,region='center',margin='2px')
-    
+
+    def pageAuthTags(self, method=None, **kwargs):
+        return 'admin'
+
     def dbSelectorPane(self,parent,**kwargs):
         pane = parent.contentPane(**kwargs)
         fb = pane.formlet(cols=7)
