@@ -3,8 +3,23 @@ Upcoming Release
 
 WARNING: This will be the last release supporting Python 3.8
 
+Enhancements
+------------
 
+* Introduced a new experimental aiohttp-based task scheduler/worker, not enabled by
+  default. It needs a new deployment if activated, YMMV.
+* Introduce a localization attribute for table columns.
+ 
+Fixes
+-----
 
+* Localization scanner regex and dialog strings locations fixed (#391,#393)
+* Password recovery is now providing more insights when message
+  deliveries occurs (#121)
+* current page/request/aux instance thread-based tracker memory leak
+  fixed (#379)
+
+  
 
 Release 26.01.09
 ================
@@ -27,7 +42,7 @@ Enhancements
 * MDEditor improvements: Drag & Drop support, custom toolbar buttons,
   color syntax plugin, hidden preview mode, and bag mode support to
   store mardown text into nested Bag structures.
-* TinyMCE is now the default editor (#219)
+* TinyMCE is now available as new text editor (#219)
 * Postgres database dump is now correctly monitored for runtime
   errors, like server version mismatches
 * Storage handling logic has been refactored and moved out of
