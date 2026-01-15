@@ -5340,7 +5340,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                                                     }});
         let cropPage = dlg.center._('div',{width:boundaryWidth+'px',height:(boundaryHeight+40)+'px',position:'relative',margin:'10px'})._('div',{nodeId:frameCode+'_cropper',position:'absolute',top:0,bottom:0,left:0,right:0});
         var slotbar = dlg.bottom._('slotBar',{slots:'*,5,confirmImage,5'});
-        slotbar._('button','confirmImage',{label:'Confirm',
+        slotbar._('button','confirmImage',{label:_T('Confirm'),
         action:function(){
             cropPage.getParentNode()._croppie.result({
                     'type':'base64'
@@ -5411,7 +5411,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                 genro.nodeById(videoNodeId).publish('takePicture');
             }
         }});
-        slotbar._('button','confirmImage',{label:'Confirm',
+        slotbar._('button','confirmImage',{label:_T('Confirm'),
                         action:function(){
                             cropPage.getParentNode()._croppie.result({
                                     'type':'base64'
