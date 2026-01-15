@@ -18,10 +18,10 @@
 				<en_batch_logs base="Batch logs" it="Log batch" en="Batch logs"/>
 				<en_batch_title base="Batch title" it="Titolo batch" en="Batch title"/>
 				<en_page base="Page" de="Seite" en="Page" fr="Page" it="Pagina"/>
-				<en_start_ts fr="Lancer ts" de="Starten ts" en="Start ts" it="TS inizio" base="Start ts"/>
-				<en_end_ts base="End ts" it="Fine ts" en="End ts"/>
+				<en_start_ts fr="Lancer ts" de="Starten ts" en="Start ts" it="Data ora inizio" base="Start ts"/>
+				<en_end_ts base="End ts" it="Data ora fine" en="End ts"/>
 				<en_notes fr="Remarques" de="Aufzeichnungen" en="Notes" it="Note" base="Notes"/>
-				<en_log base="Log" en="Log" it="Registro"/>
+				<en_log base="Log" en="Log" it="Attività"/>
 				<en_table fr="Table" de="Tabelle" en="Table" it="Tabella" base="Table"/>
 		</batch_log>
 		<calendar path="model/calendar.py" ext="py">
@@ -32,6 +32,13 @@
 				<en_month fr="Mois" de="Monat" en="Month" it="Mese" base="Month"/>
 				<en_holiday base="Holiday" it="Vacanza" en="Holiday"/>
 		</calendar>
+		<dataretention path="model/dataretention.py" ext="py">
+			<en_data_retention_policy base="Data Retention Policy"/>
+				<en_data_retention_policies base="Data Retention Policies"/>
+				<en_table fr="Table" de="Tabelle" en="Table" it="Tabella" base="Table"/>
+				<en_filter_column base="Filter Column"/>
+				<en_retention_days_ base="Retention (days)"/>
+		</dataretention>
 		<dbchange path="model/dbchange.py" ext="py">
 			<en_dbchange base="Dbchange" en="Dbchange" it="Cambio di DB"/>
 				<en_db_change base="Db change" en="Db change" it="Variazione del db"/>
@@ -203,7 +210,8 @@
 		</gnrcomponents>
 		<package_editor>
 			<extdb_explorer path="resources/package_editor/extdb_explorer.py" ext="py">
-				<en_drop_sqlite_file_here_or_do_double_click_to_browse_your_disk base="Drop sqlite file here or do double click to browse your disk" it="Trascina qui il db sqlite o fai doppio clic e cerca nel filesystem" en="Drop sqlite file here or do double click to browse your disk"/>
+				<en_sql_file_added_press_connect base="Sql file added. Press connect"/>
+						<en_drop_sqlite_file_here_or_do_double_click_to_browse_your_disk base="Drop sqlite file here or do double click to browse your disk" it="Trascina qui il db sqlite o fai doppio clic e cerca nel filesystem" en="Drop sqlite file here or do double click to browse your disk"/>
 			</extdb_explorer>
 				<model_editor path="resources/package_editor/model_editor.py" ext="py">
 				<en_table_from_csv_xls base="Table from csv/xls" en="Table from csv/xls" it="Tabella da csv/xls"/>
@@ -226,6 +234,8 @@
 				<en_theme_variant base="Theme variant" it="Variante tema" en="Theme variant"/>
 				<en_default_color_palette base="Default color palette" it="Colore palette default" en="Default color palette"/>
 				<en_default_color_steps base="Default color steps" it="Gradini colore default" en="Default color steps"/>
+				<en_use_formlets base="Use formlets"/>
+				<en_use_tinymce_beta_ base="Use TinyMCE (beta)"/>
 				<en_print_modes base="Print Modes" en=""/>
 				<en_print_options_enabled base="Print Options Enabled" en="Print Options Enabled" it="Opzioni di stampa abilitate"/>
 				<en_pdf_render base="PDF Render" en="PDF Render" it="Rendering PDF"/>
@@ -247,7 +257,7 @@
 				<en_download base="Download" de="Herunterladen" en="Download" fr="Télécharger" it="Scarica"/>
 				<en_tools base="Tools" it="Strumenti" en=""/>
 				<en_pdf_viewer_tools base="PDF viewer tools" it="Strumenti PDF viewer" en=""/>
-				<en_open base="Open" en="Open" it="Aperta"/>
+				<en_open base="Open" en="Open" it="Aprire"/>
 				<en_presentation_mode base="Presentation mode" it="Modalità presentazione" en=""/>
 				<en_view_bookmark base="View bookmark" it="Pagina corrente" en=""/>
 				<en_first_page base="First page" it="Prima pagina" en=""/>
@@ -347,7 +357,7 @@
 					<en_active base="Active" it="Attivo" en="Active"/>
 								<en_config base="Config" it="Configurazione" en="Config"/>
 								<en_rules fr="Règles" de="Regeln" en="Rules" it="Regole" base="Rules"/>
-								<en_logs base="Logs" en="Logs" it="Registri"/>
+								<en_logs base="Logs" en="Logs" it="Attività"/>
 				</th_task>
 			</task>
 				<task_execution>
@@ -380,6 +390,10 @@
 	</resources>
 
 	<webpages>
+		<dataretention path="webpages/dataretention.py" ext="py">
+			<en_data_retention_policies base="Data retention policies"/>
+				<en_save_policies base="Save policies"/>
+		</dataretention>
 		<dbadmin path="webpages/dbadmin.py" ext="py">
 			<en_drop_sqlite_file_here_or_do_double_click_to_browse_your_disk base="Drop sqlite file here or do double click to browse your disk" it="Trascina qui il db sqlite o fai doppio clic e cerca nel filesystem" en="Drop sqlite file here or do double click to browse your disk"/>
 		</dbadmin>

@@ -21,13 +21,14 @@ from gnr.core.gnrsys import expandpath
 from gnr.core.gnrconfig import gnrConfigPath
 from gnr.app.gnrdeploy import PathResolver
 from gnr.web.gnrdaemonprocesses import GnrCronHandler, GnrDaemonServiceManager
-from gnr.web.gnrtask import GnrTaskScheduler
+from gnr.web import gnrtask
 from gnr.web import logger
 
 if hasattr(Pyro4.config, 'METADATA'):
     Pyro4.config.METADATA = False
 if hasattr(Pyro4.config, 'REQUIRE_EXPOSE'):
     Pyro4.config.REQUIRE_EXPOSE = False
+    
 OLD_HMAC_MODE = hasattr(Pyro4.config,'HMAC_KEY')
 PYRO_HOST = 'localhost'
 PYRO_PORT = 40004
@@ -45,10 +46,10 @@ def createHeartBeat(site_url=None,interval=None,**kwargs):
     time.sleep(interval)
     server.start()
 
-def createTaskScheduler(sitename,interval=None):
-    scheduler = GnrTaskScheduler(sitename,interval=interval)
+def createTaskScheduler(sitename, interval=None):
+    scheduler = gnrtask.GnrTaskScheduler(sitename, interval=interval)
     scheduler.start()
-
+    
 def getFullOptions(options=None):
     gnr_path = gnrConfigPath()
     enviroment_path = os.path.join(gnr_path,'environment.xml')
@@ -126,8 +127,9 @@ class GnrDaemon(object):
         self.multiprocessing_manager =  Manager()
         self.batch_processes = dict()
         self.cron_processes = dict()
-        self.task_locks = dict()
-        self.task_execution_dicts = dict()
+        if not gnrtask.USE_ASYNC_TASKS:
+            self.task_locks = dict()
+            self.task_execution_dicts = dict()
         self.logger = logger
 
 
@@ -232,7 +234,6 @@ class GnrDaemon(object):
         cron_handler.start()
         siteregister_processes_dict['cron'] = cron_handler
 
-
     def startGnrDaemonServiceManager(self, sitename, sitedict=None):
         siteregister_processes_dict = self.siteregisters_process[sitename]
         daemonServiceHandler = GnrDaemonServiceManager(self, sitename=sitename)
@@ -268,7 +269,7 @@ class GnrDaemon(object):
         proc.daemon = True
         proc.start()
         return proc
-    
+
     def hasSysPackageAndIsPrimary(self,sitename):
         instanceconfig = PathResolver().get_instanceconfig(sitename)
         if instanceconfig:
@@ -298,7 +299,7 @@ class GnrDaemon(object):
             childprocess.start()
             siteregister_processes_dict['register'] = childprocess
 
-            if self.hasSysPackageAndIsPrimary(sitename):
+            if not gnrtask.USE_ASYNC_TASKS and self.hasSysPackageAndIsPrimary(sitename):
                 taskScheduler = Process(name='ts_%s' %domainIdentifier, target=createTaskScheduler,kwargs=dict(sitename=domainIdentifier))
                 taskScheduler.daemon = True
                 taskScheduler.start()

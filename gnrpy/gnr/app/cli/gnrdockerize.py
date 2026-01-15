@@ -16,19 +16,19 @@ import subprocess
 from mako.template import Template
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.app.gnrapp import GnrApp
+from gnr.app.gnrdeploy import PathResolver
 from gnr.dev.builder import GnrProjectBuilder
 from gnr.app import logger
 
 description = "Create a Docker image for the instance"
 
 class MultiStageDockerImageBuilder:
-    def __init__(self, instance, options):
-        self.instance = instance
-        self.instance_name = self.instance.instanceName
-        self.image_name = options.image_name or self.instance.instanceName
+    def __init__(self, instance_name, options):
+        self.instance_name = instance_name
+        self.instance_folder = PathResolver().instance_name_to_path(self.instance_name)
+        self.image_name = options.image_name or self.instance_name
         self.options = options
-        self.builder = GnrProjectBuilder(self.instance)
+        self.builder = GnrProjectBuilder(self.instance_name)
 
         # check for required executables
         require_executables = ['docker']
@@ -76,7 +76,7 @@ class MultiStageDockerImageBuilder:
         image_labels = {"gnr_app_dockerize_on": str(now)}
         entry_dir = os.getcwd()
 
-        main_repo_url = self.builder.git_url_from_path(self.instance.instanceFolder)
+        main_repo_url = self.builder.git_url_from_path(self.instance_folder)
         self.main_repo_name = self.builder.git_repo_name_from_url(main_repo_url)
         
         os.chdir(self.build_context_dir)
@@ -113,8 +113,11 @@ class MultiStageDockerImageBuilder:
                     commit=commit
                 )
                 
-                os.chdir(repo_path)                    
-                shutil.rmtree(".git")
+                os.chdir(repo_path)
+                # remove the git folder - ignore errors
+                # because the downloaded repo could be an archive rather than
+                # a clone
+                shutil.rmtree(".git", ignore_errors=True)
                 # go back to original build directory
                 os.chdir(self.build_context_dir)
                 
@@ -367,8 +370,8 @@ def main():
     options = parser.parse_args()
 
     try:
-        instance = GnrApp(options.instance_name)
-        builder = MultiStageDockerImageBuilder(instance, options=options)
+        builder = MultiStageDockerImageBuilder(options.instance_name,
+                                               options=options)
         builder.build_docker_image(version_tag=options.version_tag)
     except Exception as e:
         logger.exception("%s", e)
