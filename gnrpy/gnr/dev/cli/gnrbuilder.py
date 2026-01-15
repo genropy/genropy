@@ -4,7 +4,6 @@ import os
 import sys
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.app.gnrapp import GnrApp
 from gnr.dev.builder import GnrProjectBuilder
 from gnr.dev import logger
 
@@ -53,9 +52,7 @@ def main():
     
     options = p.parse_args()
 
-    instance = GnrApp(options.instance_name)
-
-    builder = GnrProjectBuilder(instance)
+    builder = GnrProjectBuilder(options.instance_name)
 
     if options.command == 'check':
         has_config = os.path.exists(builder.config_file)
