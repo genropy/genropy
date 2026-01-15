@@ -17,9 +17,11 @@ Fixes
 * Localization scanner regex and dialog strings locations fixed (#391,#393)
 * Password recovery is now providing more insights when message
   deliveries occurs (#121)
-* current page/request/aux instance thread-based tracker memory leak
+* Current page/request/aux instance thread-based tracker memory leak
   fixed (#379)
-
+* Project builder/dockerize now is capable of building a project
+  without the dependencies installed, provided a valid build.json is
+  avilable for the instance (#404)
   
 
 Release 26.01.09
