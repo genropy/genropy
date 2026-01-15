@@ -4,7 +4,7 @@ import logging
 
 from gnr.core import gnrlog
 
-VERSION = "25.10.27"
+VERSION = "26.01.09"
 
 gnrlog.init_logging_system()
 logger = logging.getLogger("gnr")

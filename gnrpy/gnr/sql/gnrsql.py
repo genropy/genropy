@@ -169,6 +169,7 @@ class GnrSqlDb(GnrObject):
         if main_schema is None:
             main_schema = self.adapter.defaultMainSchema()
         self.main_schema = main_schema
+        self.extra_kw = dict(kwargs) 
         self._connections = {}
         self.started = False
         self.exceptions = {

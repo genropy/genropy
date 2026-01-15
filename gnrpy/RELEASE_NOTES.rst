@@ -1,4 +1,12 @@
-Upcoming release
+Upcoming Release
+================
+
+WARNING: This will be the last release supporting Python 3.8
+
+
+
+
+Release 26.01.09
 ================
 
 Enhancements

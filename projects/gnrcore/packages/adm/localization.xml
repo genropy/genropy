@@ -16,6 +16,7 @@
 		<en_pkginfo base="Pkginfo" en="Pkginfo" it="Informazioni sul pacchetto"/>
 		<en_tableinfo base="Tableinfo" en="Tableinfo" it="Informazioni sulla tabella"/>
 		<en_user_configurator base="User configurator" it="Configuratore utenti" en="User configurator"/>
+		<en_tag_manager base="Tag Manager"/>
 		<en_unused base="Unused" it="Inutilizzato" en="Unused"/>
 		<en_menu_manager fr="Gestionnaire de Menu" de="Menu Manager" en="Menu Manager" it="Gestione Menu" base="Menu Manager"/>
 		<en_menu_pages fr="Pages de Menu" de="Menu Seiten" en="Menu Pages" it="Pagine del menu" base="Menu Pages"/>
@@ -140,6 +141,7 @@
 				<en_description base="Description" en="Description" it="Descrizione"/>
 				<en_reserved fr="Réservé" de="Reserviert" en="Reserved" it="Riservato" base="Reserved"/>
 				<en_notes fr="Remarques" de="Aufzeichnungen" en="Notes" it="Note" base="Notes"/>
+				<en_invalid_table_name_linked_table_ base="Invalid table name: {linked_table}"/>
 		</htag>
 		<htmltemplate path="model/htmltemplate.py" ext="py">
 			<en_letterhead fr="Tête" de="Briefkopf" en="Letterhead" it="Carta intestata" base="Letterhead" zh="信头"/>
@@ -573,6 +575,7 @@
 								<en_linked_query base="Linked query" it="Query collegata" en="Linked query" zh="关联查询"/>
 								<en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm" zh="确认"/>
 								<en_add_linked_query base="Add linked query"/>
+								<en_notification_parameters base="Notification parameters"/>
 				</th_notification>
 			</notification>
 				<served_page>
@@ -706,7 +709,7 @@
 								<en_print base="Print" de="Druck" en="Print" fr="Imprimer" it="Stampa"/>
 								<en_row base="Row" de="Reihe" en="Row" fr="Rangée" it="Riga"/>
 								<en_all_flags base="All flags" en=""/>
-								<en_standard base="Standard" en=""/>
+								<en_standard base="Standard" it="Standard" en="Standard"/>
 								<en_system fr="Système" de="System" en="System" it="Sistema" base="System"/>
 								<en_object_parameters base="Object parameters" en=""/>
 								<en_template_management base="Template management" en=""/>
@@ -733,7 +736,7 @@
 				<en_date fr="Date" de="Datum" en="Date" it="Data" base="Date"/>
 						<en_title base="Title" de="Titel" en="Title" fr="Titre" it="Titolo"/>
 						<en_type fr="Type" de="Art" en="Type" it="Tipo" base="Type"/>
-						<en_priority base="Priority" en="Priority" it="Priorità"/>
+						<en_priority base="Priority" it="Priorità" en="Priority"/>
 						<en_description base="Description" en="Description" it="Descrizione"/>
 						<en_status fr="Statut" de="Status" en="Status" it="Stato" base="Status"/>
 			</ticket_handler>
@@ -761,6 +764,13 @@
 			<en_preference_panel fr="panneau de préférence" de="Fenster zu" en="Preference panel" it="Pannello Preferenze" base="Preference panel"/>
 				<en_preference fr="Préférence" de="Vorliebe" en="Preference" it="Preferenza" base="Preference"/>
 		</preference>
+		<tag_manager path="webpages/tag_manager.py" ext="py">
+			<en_authorization_tag_manager base="Authorization Tag Manager"/>
+				<en_user_tags fr="Tags d'utilisateurs" de="Nutzer-Tags" en="User tags" it="Tags utenti" base="User Tags"/>
+				<en_assign_tags_to_users base="Assign Tags to Users"/>
+				<en_group_tags base="Group Tags"/>
+				<en_assign_tags_to_groups base="Assign Tags to Groups"/>
+		</tag_manager>
 		<test>
 			<test_pref path="webpages/test/test_pref.py" ext="py">
 				<en_test_pref base="Test pref" en="Test pref" it="Test pref"/>

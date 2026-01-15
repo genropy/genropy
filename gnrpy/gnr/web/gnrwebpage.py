@@ -421,17 +421,35 @@ class GnrWebPage(GnrBaseWebPage):
     def modulePath(self):
         return  '%s.py' %os.path.splitext(sys.modules[self.__module__].__file__)[0]
 
-     
-        
-    @property 
+    @property
+    def default_language(self):
+        """Return the default language for database localization.
+
+        :returns: the first language code from db languages config, or None
+        """
+        db_languages = self._db.extra_kw.get('languages')
+        db_languages = db_languages.split(',') if db_languages else []
+        return db_languages[0] if db_languages else None
+
+    @property
+    def locale_language(self):
+        """Return the language code extracted from the user's locale.
+
+        :returns: the language part of the locale (e.g. 'it' from 'it_IT'), or None
+        """
+        return self.locale.split('_')[0].lower() if self.locale else None
+
+    @property
     def db(self):
-        if not getattr(self, '_db',None):
+        if not getattr(self, '_db', None):
             self._db = self.application.db
             self._db.clearCurrentEnv()
             expirebag = self.globalStore().getItem('tables_user_conf_expire_ts')
             self._db.updateEnv(storename=self.dbstore,
                                dbbranch=self._call_kwargs.get("dbbranch", None),
                                workdate=self.workdate, locale=self.locale,
+                               default_language=self.default_language,
+                               locale_language=self.locale_language,
                                maxdate=datetime.date.max, mindate=datetime.date.min,
                                user=self.user, userTags=self.userTags, pagename=self.pagename,
                                mainpackage=self.mainpackage, _user_conf_expirebag=expirebag,

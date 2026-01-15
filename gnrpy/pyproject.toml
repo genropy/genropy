@@ -23,6 +23,7 @@ classifiers = [
     "License :: OSI Approved :: GNU Lesser General Public License v2 or later (LGPLv2+)",
 ]
 dependencies = [
+	     "aiohttp",
 	     "babel",
 	     "boto3",
 	     "caldav",
@@ -57,9 +58,10 @@ dependencies = [
 	     "tzlocal",
 	     "unidecode",
 	     "vobject",
+	     "watchgod", # used in asyncio for autoreload
 	     "weasyprint",
 	     "webob",
-	     "werkzeug>=2.3.8",
+	     "werkzeug>=2.3.8,!=3.1.4",
 	     "xlrd",
 	     "xlwt"
 	     ]
