@@ -357,7 +357,7 @@ class MailService(GnrBaseService):
             if not v:
                 continue
             msg.add_header(k,str(v))
-        if ',' in to_address:
+        if to_address and ',' in to_address:  # note: to_address may be None
             to_address = to_address.split(',')
         message_date = datetime.datetime.now()
         if isinstance(message_date,datetime.datetime) or isinstance(message_date,datetime.date):
