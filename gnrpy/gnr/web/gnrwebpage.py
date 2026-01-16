@@ -429,7 +429,7 @@ class GnrWebPage(GnrBaseWebPage):
         """
         db_languages = self._db.extra_kw.get('languages')
         db_languages = db_languages.split(',') if db_languages else []
-        return db_languages[0] if db_languages else None
+        return db_languages[0].upper() if db_languages else None
 
     @property
     def locale_language(self):
@@ -437,7 +437,7 @@ class GnrWebPage(GnrBaseWebPage):
 
         :returns: the language part of the locale (e.g. 'it' from 'it_IT'), or None
         """
-        return self.locale.split('_')[0].lower() if self.locale else None
+        return self.locale[0:2].upper() if self.locale else None
 
     @property
     def db(self):
@@ -449,7 +449,7 @@ class GnrWebPage(GnrBaseWebPage):
                                dbbranch=self._call_kwargs.get("dbbranch", None),
                                workdate=self.workdate, locale=self.locale,
                                default_language=self.default_language,
-                               locale_language=self.locale_language,
+                               current_language=self.language,
                                maxdate=datetime.date.max, mindate=datetime.date.min,
                                user=self.user, userTags=self.userTags, pagename=self.pagename,
                                mainpackage=self.mainpackage, _user_conf_expirebag=expirebag,
@@ -506,7 +506,7 @@ class GnrWebPage(GnrBaseWebPage):
 
     def _get_language(self):
         if not getattr(self,'_language',None):
-            self._language = self.pageStore().getItem('rootenv.language') or self.locale.split('-')[0].upper()
+            self._language = self.pageStore().getItem('rootenv.language') or self.locale_language
         return self._language
 
     def _set_language(self, language):

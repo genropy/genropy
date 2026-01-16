@@ -31,7 +31,7 @@ class Main(BaseResourceAction):
         if not self.localizer.translator:
             raise self.tblobj.exception('business_logic', msg='No translator service configured')
 
-        self.default_language = self.page.default_language
+        self.default_language = self.page.default_language.lower()
 
         fields = self.batch_parameters.get('fields')
         if not fields:
