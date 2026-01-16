@@ -1773,7 +1773,7 @@ class DbColumnObj(DbBaseColumnObj):
             default_language = self.db.currentEnv.get('default_language')
             current_language = self.db.currentEnv.get('current_language')
             if default_language and current_language and current_language != default_language:
-                return f"{base_sqlname}_{current_language.lower()}"
+                return f"{base_sqlname}_{current_language}"
         return base_sqlname
     sqlname = property(_get_sqlname)
 
