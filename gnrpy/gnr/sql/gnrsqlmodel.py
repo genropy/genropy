@@ -604,7 +604,7 @@ class DbModelSrc(GnrStructData):
             self.child('column_list', 'columns')
         vc = self.getNode(f'virtual_columns.{name}')
         if localized is True:
-            localized = self.root._dbmodel.db.extra_kw.get('languages')
+            localized = self.root._dbmodel.db.extra_kw.get('languages').lower()
         if vc:
             colattr = dict(dtype=dtype, name_short=name_short, 
                            name_long=name_long, name_full=name_full,
@@ -1770,10 +1770,10 @@ class DbColumnObj(DbBaseColumnObj):
         """
         base_sqlname = self.attributes.get('sqlname', self.name)
         if self.attributes.get('localized'):
-            default_lang = self.db.currentEnv.get('default_language')
-            current_lang = self.db.currentEnv.get('locale_language')
-            if default_lang and current_lang and current_lang != default_lang:
-                return f"{base_sqlname}_{current_lang}"
+            default_language = self.db.currentEnv.get('default_language')
+            current_language = self.db.currentEnv.get('current_language')
+            if default_language and current_language and current_language != default_language:
+                return f"{base_sqlname}_{current_language.lower()}"
         return base_sqlname
     sqlname = property(_get_sqlname)
 
