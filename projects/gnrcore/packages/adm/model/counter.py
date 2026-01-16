@@ -45,7 +45,10 @@ class Table(object):
             self.initializePackageSequences(pkg,thermo_wrapper=thermo_wrapper)
 
     def initializePackageSequences(self,pkgobj,thermo_wrapper=None):
-        tables = thermo_wrapper(list(pkgobj['tables'].values()),message=lambda t,n,m: 'Sequences for table %s' %t.name,line_code='tbl') if thermo_wrapper else list(pkgobj['tables'].values())
+        tables = pkgobj['tables']
+        if not tables:
+            return
+        tables = thermo_wrapper(tables.values(),message=lambda t,n,m: 'Sequences for table %s' %t.name,line_code='tbl') if thermo_wrapper else tables.values()
         for tblobj in tables:
             self.initializeTableSequences(tblobj.dbtable,thermo_wrapper=thermo_wrapper)
 
