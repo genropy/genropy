@@ -62,8 +62,8 @@ def checkDateKeywords(keywords,datestr,locale):
 def monthsFromDateRange(date_start=None,date_end=None,locale=None):
     curr_date = datetime.date(date_start.year,date_start.month,1)
     result = []
-    if locale and '-' in locale:
-        locale = locale.split('-')[0]
+    if locale and len(locale) > 2:
+        locale = locale[:2]
     months = dates.get_month_names(width='wide', locale=locale)
     while curr_date<=date_end:
         m = curr_date.month
