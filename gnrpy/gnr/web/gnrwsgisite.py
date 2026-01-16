@@ -221,6 +221,12 @@ class GnrDomainHandler(object):
                 self.domains[domain] = GnrDomainProxy(self, domain)
                 self._not_found_domains.discard(domain)
 
+    def remove(self, domain):
+        """Remove a domain from the handler."""
+        with self._lock:
+            if domain in self.domains:
+                del self.domains[domain]
+
     def _discover_from_dbstores(self, domain):
         """Auto-register domain if it exists in dbstores.
 
