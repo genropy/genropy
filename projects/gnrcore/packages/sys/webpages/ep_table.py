@@ -81,7 +81,6 @@ class GnrCustomWebPage(object):
         except AttributeError:
             handler = None
         documentPath = None
-        currentDomain = self.site.currentDomain
         record = tblobj.record(pkey).output('record')
         if isCachedInField:
             readTags = colobj.attributes.get('readTags')
