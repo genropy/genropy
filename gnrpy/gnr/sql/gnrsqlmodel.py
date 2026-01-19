@@ -604,7 +604,11 @@ class DbModelSrc(GnrStructData):
             self.child('column_list', 'columns')
         vc = self.getNode(f'virtual_columns.{name}')
         if localized is True:
-            localized = self.root._dbmodel.db.extra_kw.get('languages').lower()
+            dblanguages = self.root._dbmodel.db.extra_kw.get('languages')
+            if dblanguages and len(dblanguages.split(',')) > 1:
+                localized = dblanguages.lower()
+            else:
+                localized = None
         if vc:
             colattr = dict(dtype=dtype, name_short=name_short, 
                            name_long=name_long, name_full=name_full,
