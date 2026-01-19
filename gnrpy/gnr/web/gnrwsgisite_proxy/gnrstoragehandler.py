@@ -199,12 +199,16 @@ class BaseStorageHandler:
             return
 
         # Query all storage services from database
-        services = self.site.db.table('sys.service').query(
-            where='$service_type=:st',
-            st='storage',
-            order_by='$service_name',
-            bagFields=True
-        ).fetch()
+        storename = False
+        if self.site.multidomain and self.site.currentDomain!=self.site.rootDomain:
+            storename = self.site.currentDomain
+        with self.site.db.tempEnv(storename=storename):
+            services = self.site.db.table('sys.service').query(
+                where='$service_type=:st',
+                st='storage',
+                order_by='$service_name',
+                bagFields=True
+            ).fetch()
 
         for service_record in services:
             service_name = service_record['service_name']
@@ -263,11 +267,15 @@ class BaseStorageHandler:
             True if update was successful, False otherwise
         """
         # Query the specific service record
-        service_record = self.site.db.table('sys.service').record(
-            service_type='storage',
-            service_name=service_name,
-            ignoreMissing=True
-        ).output('dict')
+        storename = False
+        if self.site.multidomain and self.site.currentDomain!=self.site.rootDomain:
+            storename = self.site.currentDomain
+        with self.site.db.tempEnv(storename=storename):
+            service_record = self.site.db.table('sys.service').record(
+                service_type='storage',
+                service_name=service_name,
+                ignoreMissing=True
+            ).output('dict')
 
         if not service_record:
             # Service was deleted or doesn't exist, remove from params

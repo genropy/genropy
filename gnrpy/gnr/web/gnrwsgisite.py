@@ -35,6 +35,7 @@ from gnr.web import logger
 from gnr.web.gnrwebapp import GnrWsgiWebApp
 from gnr.web.gnrwebpage import GnrUnsupportedBrowserException
 from gnr.web.gnrwsgisite_proxy.gnrresourceloader import ResourceLoader
+from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import LegacyStorageHandler
 from gnr.web.gnrwsgisite_proxy.gnrstatichandler import StaticHandlerManager
 from gnr.web.gnrwsgisite_proxy.gnrpwahandler import PWAHandler
 from gnr.web.gnrwsgisite_proxy.gnrsiteregister import SiteRegisterClient
@@ -180,7 +181,6 @@ class GnrDomainProxy(object):
     @property
     def storage_handler(self):
         if self._storage_handler is None:
-            from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import LegacyStorageHandler
             self._storage_handler = LegacyStorageHandler(self.parent.site)
         return self._storage_handler
 
