@@ -16,7 +16,7 @@ Integration Flow:
 Key Fields Mapping:
 -------------------
 Genropy -> async-mail-service:
-  - id: "storename@message_id" (unique across all stores, @ separator avoids conflicts with storage paths)
+  - id: message_id (primary key from email.message)
   - account_id: SMTP account identifier
   - from_address -> from
   - to_address/cc_address/bcc_address -> to/cc/bcc (list)
@@ -24,8 +24,8 @@ Genropy -> async-mail-service:
   - proxy_priority -> priority (0=immediate, 1=high, 2=medium, 3=low)
   - deferred_ts -> deferred_ts (Unix timestamp)
   - extra_headers -> message_id, reply_to, return_path, headers
-  - attachments -> storage_path format: "storename@volume:path"
-    (e.g., "mydb@home:emails/2024/file.pdf")
+  - attachments -> storage_path format: "volume:path"
+    (e.g., "home:emails/2024/file.pdf")
     Downloaded via proxy_get_attachments RPC method
 
 async-mail-service -> Genropy (delivery reports):
@@ -46,17 +46,14 @@ email.message:
 
 Attachment Downloads (RPC):
 ---------------------------
-Attachments are downloaded via proxy_get_attachments RPC method instead of HTTP endpoints.
+Attachments are downloaded via proxy_get_attachments RPC method.
 The proxy calls this RPC method with a list of storage paths:
-  - storage_path format: "storename@volume:path" (same @ separator as message_id)
+  - storage_path format: "volume:path" (e.g., "home:emails/file.pdf")
   - batch support: single RPC call for multiple attachments
-  - multi-tenant: storename prefix enables correct DB context switching
-  - authentication: @public_method(tags='_SYSTEM_') (same as proxy_sync)
-  - no volume registration needed on proxy
-  - no public HTTP endpoint needed
+  - authentication: @public_method(tags='_MAILPROXY_')
 
 Example RPC call:
-  proxy_get_attachments(storage_paths=["mydb@home:emails/file.pdf", "mydb@docs:report.xlsx"])
+  proxy_get_attachments(storage_paths=["home:emails/file.pdf", "docs:report.xlsx"])
 
 Returns list of file data:
   [{'storage_path': '...', 'content': bytes, 'mimetype': '...', 'filename': '...', 'size': int}, ...]
@@ -65,7 +62,6 @@ For protocol details see:
 https://github.com/genropy/gnr-async-mail-service/blob/main/docs/protocol.rst
 """
 from datetime import datetime, timezone
-from collections import defaultdict
 
 from gnr.web import logger
 from gnr.core.gnrbag import Bag
@@ -94,18 +90,18 @@ class GnrCustomWebPage(object):
         Returns:
             dict: Summary of processed reports (sent, error, deferred counts)
         """
-
         json_data = self.get_request_body_json() or {}
         delivery_report = json_data.get('delivery_report') or []
         proxy_service = self.getService('mailproxy')
 
         # Check database availability before processing
         retry_after = self.db.adapter.retryAfter(max_time=proxy_service.db_max_waiting)
-        if retry_after>0:
+        if retry_after > 0:
             raise HTTPServiceUnavailable(
                 explanation="Site unavailable retry later",
                 headers=[('Retry-After', retry_after)]
             )
+
         # Process delivery reports from async-mail-service
         report_summary = self._update_from_delivery_report(delivery_report)
 
@@ -118,31 +114,29 @@ class GnrCustomWebPage(object):
                        report_summary.get('deferred', 0))
 
         # Fetch and submit pending outgoing messages to proxy (with batch limit)
-        batch_size = proxy_service.batch_size or 1000  # Default to 1000 if not configured
-        outgoing_messages_groped_by_store = self.db.table('email.message_to_send').query(
+        batch_size = proxy_service.batch_size or 1000
+        outgoing_messages = self.db.table('email.message_to_send').query(
             limit=batch_size,
             order_by=f'COALESCE($proxy_priority,{MEDIUM_PRIORITY}),$__ins_ts',
-        ).fetchGrouped('dbstore')
+        ).fetch()
 
-        total_queued = sum(len(messages) for messages in outgoing_messages_groped_by_store.values())
-        if total_queued > 0:
-            logger.info('proxy_sync: fetched %d pending messages to submit (limit=%d)', total_queued, batch_size)
-
-        for storename,message_pkeys in outgoing_messages_groped_by_store.items():
-            with self.db.tempEnv(storename=storename or False):
-                self._add_messages_to_proxy_queue(proxy_service,[m['message_id'] for m in message_pkeys])
-                self.db.commit()
+        if outgoing_messages:
+            logger.info('proxy_sync: fetched %d pending messages to submit (limit=%d)',
+                       len(outgoing_messages), batch_size)
+            message_pkeys = [m['message_id'] for m in outgoing_messages]
+            self._add_messages_to_proxy_queue(proxy_service, message_pkeys)
+            self.db.commit()
 
         # Return summary for async-mail-service to mark reports as acknowledged
         return report_summary
         
                 
-    def _update_from_delivery_report(self,delivery_report):
+    def _update_from_delivery_report(self, delivery_report):
         """
         Process delivery reports from async-mail-service and update local message records.
 
         Expected format:
-        [{'id': 'storename:message_id', 'account_id': '...', 'priority': 2,
+        [{'id': 'message_id', 'account_id': '...', 'priority': 2,
           'sent_ts': 1761049629, 'error_ts': None, 'error': None, 'deferred_ts': None}]
 
         Args:
@@ -154,12 +148,8 @@ class GnrCustomWebPage(object):
         if not delivery_report:
             return {'sent': 0, 'error': 0, 'deferred': 0}
 
-        # Group reports by storename for batch processing
-        delivery_report_by_storename = defaultdict(dict)
-        for item in delivery_report:
-            message_report = dict(item)
-            storename, message_id = message_report.pop('id').split('@', 1)
-            delivery_report_by_storename[storename][message_id] = message_report
+        # Build lookup dict by message_id
+        reports_by_id = {item['id']: item for item in delivery_report}
 
         # Track summary statistics
         sent_count = 0
@@ -167,52 +157,55 @@ class GnrCustomWebPage(object):
         deferred_count = 0
 
         messagetbl = self.db.table('email.message')
-        for storename,store_reports in delivery_report_by_storename.items():
-            with self.db.tempEnv(storename=storename):
-                messages = messagetbl.query(where='$id IN :message_pkeys',
-                                          message_pkeys = list(store_reports.keys()),
-                                          for_update=True).fetch()
-                for message in messages:
-                    old_message = dict(message)
-                    report = dict(store_reports.get(message['id']) or {})
+        messages = messagetbl.query(
+            where='$id IN :message_pkeys',
+            message_pkeys=list(reports_by_id.keys()),
+            for_update=True
+        ).fetch()
 
-                    # Process sent_ts timestamp
-                    send_ts = report.pop('sent_ts', None)
-                    if send_ts:
-                        try:
-                            message['send_date'] = datetime.fromtimestamp(int(send_ts), tz=timezone.utc)
-                            message['deferred_ts'] = None
-                            message['error_ts'] = None
-                            message['error_msg'] = None
-                            sent_count += 1
-                        except (TypeError, ValueError):
-                            logger.warning('Invalid sent_ts in delivery report for message %s: %s', message['id'], send_ts)
+        for message in messages:
+            old_message = dict(message)
+            report = reports_by_id.get(message['id']) or {}
 
-                    # Process error_ts timestamp
-                    error_ts = report.get('error_ts')
-                    if error_ts:
-                        try:
-                            message['error_ts'] = datetime.fromtimestamp(int(error_ts), tz=timezone.utc)
-                            error_count += 1
-                        except (TypeError, ValueError):
-                            logger.warning('Invalid error_ts in delivery report for message %s: %s', message['id'], error_ts)
-                            report.pop('error_ts', None)
+            # Process sent_ts timestamp
+            send_ts = report.get('sent_ts')
+            if send_ts:
+                try:
+                    message['send_date'] = datetime.fromtimestamp(int(send_ts), tz=timezone.utc)
+                    message['deferred_ts'] = None
+                    message['error_ts'] = None
+                    message['error_msg'] = None
+                    sent_count += 1
+                except (TypeError, ValueError):
+                    logger.warning('Invalid sent_ts in delivery report for message %s: %s',
+                                 message['id'], send_ts)
 
-                    # Process deferred_ts timestamp (if message was deferred by rate limiter)
-                    deferred_ts = report.get('deferred_ts')
-                    if deferred_ts and not send_ts and not error_ts:
-                        try:
-                            message['deferred_ts'] = datetime.fromtimestamp(int(deferred_ts), tz=timezone.utc)
-                            deferred_count += 1
-                        except (TypeError, ValueError):
-                            logger.warning('Invalid deferred_ts in delivery report for message %s: %s', message['id'], deferred_ts)
+            # Process error_ts timestamp
+            error_ts = report.get('error_ts')
+            if error_ts:
+                try:
+                    message['error_ts'] = datetime.fromtimestamp(int(error_ts), tz=timezone.utc)
+                    error_count += 1
+                except (TypeError, ValueError):
+                    logger.warning('Invalid error_ts in delivery report for message %s: %s',
+                                 message['id'], error_ts)
 
-                    # Update error message if present
-                    message['error_msg'] = report.get('error')
+            # Process deferred_ts timestamp (if message was deferred by rate limiter)
+            deferred_ts = report.get('deferred_ts')
+            if deferred_ts and not send_ts and not error_ts:
+                try:
+                    message['deferred_ts'] = datetime.fromtimestamp(int(deferred_ts), tz=timezone.utc)
+                    deferred_count += 1
+                except (TypeError, ValueError):
+                    logger.warning('Invalid deferred_ts in delivery report for message %s: %s',
+                                 message['id'], deferred_ts)
 
-                    messagetbl.update(message,old_message)
-                self.db.commit()
+            # Update error message if present
+            message['error_msg'] = report.get('error')
 
+            messagetbl.update(message, old_message)
+
+        self.db.commit()
         return {'sent': sent_count, 'error': error_count, 'deferred': deferred_count}
 
     @public_method(tags='_MAILPROXY_')
@@ -230,9 +223,8 @@ class GnrCustomWebPage(object):
            - Batch: JSON body {"attachments": ["path1", "path2", ...]}
 
         Args:
-            storage_paths: List of storage paths in format "storename@volume:path"
-                          Example: ["mydb@home:emails/file.pdf", "mydb@docs:report.xlsx"]
-                          The @ separator splits storename from storage path.
+            storage_paths: List of storage paths in format "volume:path"
+                          Example: ["home:emails/file.pdf", "docs:report.xlsx"]
 
         Returns:
             For RPC/single: list of attachment data dictionaries
@@ -240,7 +232,7 @@ class GnrCustomWebPage(object):
 
             Each attachment dict contains:
             {
-                'storage_path': 'mydb@home:emails/file.pdf',
+                'storage_path': 'home:emails/file.pdf',
                 'content': bytes,      # File content (base64 encoded in JSON response)
                 'mimetype': str,       # MIME type (e.g., 'application/pdf')
                 'filename': str,       # Base filename
@@ -248,13 +240,12 @@ class GnrCustomWebPage(object):
             }
             or in case of error:
             {
-                'storage_path': 'mydb@home:missing.pdf',
+                'storage_path': 'home:missing.pdf',
                 'error': 'File not found: home:missing.pdf'
             }
 
         Notes:
             - Supports batch downloads (multiple attachments in one call)
-            - Supports multi-tenant (different storenames in same batch)
             - Errors are returned per-file (doesn't fail entire batch)
             - File content is base64 encoded automatically by JSON serializer
         """
@@ -284,47 +275,36 @@ class GnrCustomWebPage(object):
         results = []
         logger.info('proxy_get_attachments: processing %d attachment(s)', len(storage_paths))
 
-        for full_path in storage_paths:
-            # Parse storename from path (format: "storename@volume:path")
-            if '@' in full_path:
-                storename, storage_path = full_path.split('@', 1)
-            else:
-                # Fallback if no storename (shouldn't happen in normal operation)
-                storename = None
-                storage_path = full_path
-
+        for storage_path in storage_paths:
             try:
-                # Switch to correct store context
-                with self.db.tempEnv(storename=storename or False):
-                    # Get storage node from path
-                    storage_node = self.site.storageNode(storage_path)
+                storage_node = self.site.storageNode(storage_path)
 
-                    if not storage_node or not storage_node.exists:
-                        logger.warning('Attachment not found: %s (storename=%s)', storage_path, storename)
-                        results.append({
-                            'storage_path': full_path,
-                            'error': f'File not found: {storage_path}'
-                        })
-                        continue
-
-                    # Read file content
-                    with storage_node.open('rb') as f:
-                        content = f.read()
-
-                    logger.debug('Attachment retrieved: %s (%d bytes)', full_path, len(content))
-
+                if not storage_node or not storage_node.exists:
+                    logger.warning('Attachment not found: %s', storage_path)
                     results.append({
-                        'storage_path': full_path,
-                        'content': content,
-                        'mimetype': storage_node.mimetype or 'application/octet-stream',
-                        'filename': storage_node.basename or storage_path.split('/')[-1],
-                        'size': len(content)
+                        'storage_path': storage_path,
+                        'error': f'File not found: {storage_path}'
                     })
+                    continue
+
+                # Read file content
+                with storage_node.open('rb') as f:
+                    content = f.read()
+
+                logger.debug('Attachment retrieved: %s (%d bytes)', storage_path, len(content))
+
+                results.append({
+                    'storage_path': storage_path,
+                    'content': content,
+                    'mimetype': storage_node.mimetype or 'application/octet-stream',
+                    'filename': storage_node.basename or storage_path.split('/')[-1],
+                    'size': len(content)
+                })
 
             except Exception as e:
-                logger.error('Error retrieving attachment %s: %s', full_path, e, exc_info=True)
+                logger.error('Error retrieving attachment %s: %s', storage_path, e, exc_info=True)
                 results.append({
-                    'storage_path': full_path,
+                    'storage_path': storage_path,
                     'error': f'Error reading file: {str(e)}'
                 })
 
@@ -432,9 +412,8 @@ class GnrCustomWebPage(object):
         Returns:
             dict: Message payload compatible with async-mail-service API
         """
-        storename = self.db.currentEnv.get('storename') or self.db.rootstore
         result = {
-            'id': f"{storename}@{record['id']}",
+            'id': record['id'],
             'account_id': record['account_id'],
             'subject': record['subject'] or '',
             'from': record['from_address'],
@@ -569,29 +548,20 @@ class GnrCustomWebPage(object):
         """Convert storage node to attachment payload for HTTP download.
 
         Returns: {
-            "storage_path": "storename@volume:path",
+            "storage_path": "volume:path",
             "filename": "...",
             "fetch_mode": "endpoint",
             "content_md5": "..."
         }
 
-        The storage_path format uses @ separator (same as message_id format) to include
-        the storename, enabling multi-tenant support in proxy_get_attachments.
         fetch_mode="endpoint" tells the proxy to use client_attachment_url for fetching.
         content_md5 enables cache lookup on the proxy side.
         """
         if not node:
             return None
 
-        # Get storename for multitenant routing (same as message_id format)
-        storename = self.db.currentEnv.get('storename') or self.db.rootstore
-
-        # Format: storename@volume:path (consistent with message_id format)
-        # node.fullpath is already in format "volume:path" (e.g., "home:emails/file.pdf")
-        storage_path = f'{storename}@{node.fullpath}'
-
         payload = {
-            'storage_path': storage_path,
+            'storage_path': node.fullpath,
             'fetch_mode': 'endpoint',
         }
         if filename:
