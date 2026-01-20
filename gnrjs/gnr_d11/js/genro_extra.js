@@ -1794,6 +1794,18 @@ dojo.declare("gnr.widgets.TinyMCE", gnr.widgets.baseHtml, {
         removeToolbarItems = removeToolbarItems.filter(Boolean);
       }
     }
+    let insertToolbarItems = objectPop(attributes,'insertToolbarItems');
+    if (insertToolbarItems == null) { insertToolbarItems = []; }
+    if (typeof insertToolbarItems === 'string') {
+      let s = insertToolbarItems.trim();
+      try {
+        insertToolbarItems = JSON.parse(s);
+      } catch(e) {
+        if (s[0] === '[' && s[s.length-1] === ']') { s = s.slice(1,-1); }
+        insertToolbarItems = s.split(',').map(t => t.trim().replace(/^['"]|['"]$/g,''));
+        insertToolbarItems = insertToolbarItems.filter(Boolean);
+      }
+    }
     const imageDataRaw = objectPop(attributes,'imageData');
     const imageData = (imageDataRaw === true || imageDataRaw === 'true' || imageDataRaw === 1 || imageDataRaw === '1');
     const rawUploadPath = objectPop(attributes,'uploadPath');
@@ -1804,7 +1816,7 @@ dojo.declare("gnr.widgets.TinyMCE", gnr.widgets.baseHtml, {
     const maxLength = objectPop(attributes,'maxLength');
     attributes.id = textareaId;
     attributes.style = `height:${height};width:${width};`;
-    return {valuePath, textPath, textareaId, placeholderItems, base_url, content_style, plugins, removeToolbarItems, imageData, uploadPath, onUploadedMethod, rpcKw, maxLength, _rawHeight: height, _rawWidth: width};
+    return {valuePath, textPath, textareaId, placeholderItems, base_url, content_style, plugins, removeToolbarItems, insertToolbarItems, imageData, uploadPath, onUploadedMethod, rpcKw, maxLength, _rawHeight: height, _rawWidth: width};
   },
 
   created: function(domNode, savedAttrs, sourceNode){
@@ -1895,6 +1907,34 @@ dojo.declare("gnr.widgets.TinyMCE", gnr.widgets.baseHtml, {
     const rawHeight = savedAttrs._rawHeight;
     const rawWidth  = savedAttrs._rawWidth;
     const numericHeight = (rawHeight && /px$/i.test(rawHeight)) ? parseInt(rawHeight, 10) : null;
+
+    // Pre-process insertToolbarItems to generate button names and add missing plugins
+    if (savedAttrs.insertToolbarItems && savedAttrs.insertToolbarItems.length){
+      const pluginsArray = savedAttrs.plugins ? savedAttrs.plugins.split(' ').filter(Boolean) : [];
+      const pluginsSet = new Set(pluginsArray);
+
+      savedAttrs.insertToolbarItems = savedAttrs.insertToolbarItems.map(function(item){
+        if (typeof item === 'string') {
+          // For simple string items, check if they need to be added as plugins
+          // Common TinyMCE plugins that might be added via insertToolbarItems
+          const knownPlugins = ['codesample', 'emoticons', 'charmap', 'anchor', 'searchreplace', 'visualblocks', 'fullscreen', 'insertdatetime', 'media', 'preview', 'help', 'wordcount'];
+          if (knownPlugins.indexOf(item) !== -1 && !pluginsSet.has(item)) {
+            pluginsArray.push(item);
+            pluginsSet.add(item);
+          }
+        } else if (typeof item === 'object' && item !== null && item.insertText && !item.name) {
+          // Generate a unique name for custom buttons without a name
+          item.name = 'customButton_' + Math.random().toString(36).substr(2, 9);
+        }
+        return item;
+      });
+
+      // Update plugins string
+      if (pluginsArray.length > 0) {
+        savedAttrs.plugins = pluginsArray.join(' ');
+      }
+    }
+
     // Initialize TinyMCE with toolbar and plugins
     const defaultToolbarLines = [
       'undo redo | bold italic underline | bullist numlist | alignleft aligncenter alignright alignjustify',
@@ -1903,9 +1943,25 @@ dojo.declare("gnr.widgets.TinyMCE", gnr.widgets.baseHtml, {
         '| link image table | code'
     ];
     const removeSet = new Set(savedAttrs.removeToolbarItems || []);
-    const toolbar = defaultToolbarLines
+    let toolbar = defaultToolbarLines
       .map(line => line.split(' ').filter(tok => !removeSet.has(tok)).join(' '))
       .join(' ');
+
+    // Add insertToolbarItems to toolbar
+    if (savedAttrs.insertToolbarItems && savedAttrs.insertToolbarItems.length){
+      const insertItems = savedAttrs.insertToolbarItems.map(function(item){
+        if (typeof item === 'string') {
+          return item; // Simple string like 'codesample'
+        } else if (typeof item === 'object' && item !== null) {
+          return item.name || ''; // Custom button name
+        }
+        return '';
+      }).filter(Boolean);
+
+      if (insertItems.length > 0) {
+        toolbar += ' | ' + insertItems.join(' ');
+      }
+    }
     tinymce.init({
       target: domNode,
       base_url: savedAttrs.base_url,
@@ -2201,6 +2257,32 @@ dojo.declare("gnr.widgets.TinyMCE", gnr.widgets.baseHtml, {
                 return { type: 'menuitem', text: txt, onAction: function(){ editor.insertContent(txt); } };
               });
               cb(items);
+            }
+          });
+        }
+
+        // insertToolbarItems management
+        if (savedAttrs.insertToolbarItems && savedAttrs.insertToolbarItems.length){
+          savedAttrs.insertToolbarItems.forEach(function(item){
+            // Only register custom buttons for objects with insertText
+            // Simple strings (like 'codesample') are handled directly in the toolbar
+            if (typeof item === 'object' && item !== null && item.insertText){
+              const buttonName = item.name;
+              const buttonText = item.text || item.tooltip || 'Insert';
+              const insertText = item.insertText;
+
+              editor.ui.registry.addButton(buttonName, {
+                text: buttonText,
+                tooltip: item.tooltip || 'Insert',
+                onAction: function(){
+                  try {
+                    editor.insertContent(insertText);
+                    editor.focus();
+                  } catch(e) {
+                    console.error('[TinyMCE] Insert text error:', e);
+                  }
+                }
+              });
             }
           });
         }
