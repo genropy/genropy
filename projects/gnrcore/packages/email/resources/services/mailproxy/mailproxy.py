@@ -12,15 +12,19 @@ from gnr.core.gnrbag import Bag
 import requests
 from requests import RequestException
 from gnr.web.gnrbaseclasses import BaseComponent
+from gnr.core.gnrdecorator import public_method
+import secrets
 
 
 class Main(GnrBaseService):
-    def __init__(self, parent=None, proxy_url=None, proxy_token=None, db_max_waiting=None, batch_size=None,**kwargs):
+    def __init__(self, parent=None, proxy_url=None, proxy_token=None, db_max_waiting=None, batch_size=None,
+                 **kwargs):
         super().__init__(parent, **kwargs)
         self.proxy_url = proxy_url
         self.proxy_token = proxy_token
         self.db_max_waiting = db_max_waiting
         self.batch_size = batch_size
+        self.tenant_id = self.parent.site_name
 
     # Command helpers
     def run_now(self):
@@ -120,6 +124,34 @@ class Main(GnrBaseService):
             payload["older_than_seconds"] = int(older_than_seconds)
         return self._post("/commands/cleanup-messages", json=payload)
 
+    def register_tenant(self, tenant_id, client_sync_url, client_attachment_url=None,
+                        client_sync_user=None, client_sync_password=None):
+        """Register or update this genropy instance as a tenant on the mail proxy.
+
+        Args:
+            tenant_id: Unique tenant identifier
+            client_sync_url: Callback URL for delivery reports
+            client_attachment_url: URL for attachment downloads
+            client_sync_user: Username for Basic Auth
+            client_sync_password: Password for Basic Auth
+
+        Returns:
+            dict: Response with 'ok' status from proxy
+        """
+        payload = {
+            "id": tenant_id,
+            "client_sync_url": client_sync_url,
+        }
+        if client_attachment_url:
+            payload["client_attachment_url"] = client_attachment_url
+        if client_sync_user and client_sync_password:
+            payload["client_auth"] = {
+                "method": "basic",
+                "user": client_sync_user,
+                "password": client_sync_password
+            }
+        return self._post("/tenant", json=payload)
+
     def send_message(self, message: dict):
         """Enqueue a single message and immediately trigger a dispatch cycle."""
         if not isinstance(message, dict):
@@ -217,6 +249,7 @@ class Main(GnrBaseService):
 
         payload = {
             "id": account_dict.get("id"),
+            "tenant_id": self.tenant_id,
             "host": account_dict.get("smtp_host"),
             "port": self._safe_int(account_dict.get("smtp_port")),
             "user": account_dict.get("smtp_username"),
@@ -268,9 +301,184 @@ class Main(GnrBaseService):
         return dt.isoformat().replace("+00:00", "Z")
 
 class ServiceParameters(BaseComponent):
-    def service_parameters(self,pane,datapath=None,service_name=None,**kwargs):
-        fb = pane.formbuilder(datapath=datapath)
-        fb.textbox('^.proxy_url', lbl='!![en]Proxy url',width='30em')
-        fb.PasswordTextBox('^.proxy_token', lbl='!![en]Token',width='30em')
-        fb.numberTextbox('^.db_max_waiting',lbl='Db max waiting')
-        fb.numberTextBox('^.batch_size',lbl='Batch size')
+    def service_parameters(self, pane, datapath=None, service_name=None, **kwargs):
+        fb = pane.formlet(datapath=datapath,cols=3)
+        fb.textbox('^.proxy_url', lbl='!![en]Proxy url')
+        fb.PasswordTextBox('^.proxy_token', lbl='!![en]API Token')
+        btn = fb.button('!![en]Register Tenant', iconClass="^.tenant_registered?=#v?'greenLight' : 'redLight'",lbl='&nbsp;')
+
+        btn.dataRpc(self.rpc_register_tenant,
+                     service_name=service_name,
+                     _onResult="""
+                        if(result.getItem('status') === 'ok'){
+                            genro.publish('floating_message', {message: result.getItem('message')});
+                            this.form.reload();
+                        } else {
+                            genro.publish('floating_message', {
+                                message: result.getItem('message'),
+                                messageType: 'error'
+                            });
+                        }
+                     """)
+
+
+        fb.numberTextbox('^.db_max_waiting', lbl='Db max waiting')
+        fb.numberTextBox('^.batch_size', lbl='Batch size')
+        fb.div()
+
+    
+
+
+        # Register tenant button
+
+    @public_method
+    def rpc_register_tenant(self, service_name=None):
+        """Register tenant on mail proxy and sync accounts."""
+        # Get mailproxy service
+        service = self.getService('mailproxy', service_name)
+        if not service:
+            return Bag(dict(status='error', message='Mailproxy service not found'))
+
+        # Verify proxy_url is configured
+        if not service.proxy_url:
+            return Bag(dict(status='error', message='Proxy URL not configured'))
+
+        # Generate tenant_id from site_name
+        tenant_id = self.site.site_name
+
+        # Create/update mailproxy system user with _MAILPROXY_ tag
+        username, password = self._ensure_mailproxy_user()
+
+        # Build callback URLs for RPC endpoints
+        client_sync_url = self.site.externalUrl('/email/mailproxy/mp_endpoint')
+        client_attachment_url = self.site.externalUrl('/email/mailproxy/mp_endpoint/proxy_get_attachments')
+
+        try:
+            # Register/update tenant on proxy with Basic Auth credentials
+            response = service.register_tenant(
+                tenant_id=tenant_id,
+                client_sync_url=client_sync_url,
+                client_attachment_url=client_attachment_url,
+                client_sync_user=username,
+                client_sync_password=password
+            )
+
+            if not response.get('ok'):
+                error_msg = response.get('error') or 'Registration failed'
+                return Bag(dict(status='error', message=f'Proxy error: {error_msg}'))
+
+            # Save registration status to service parameters
+            service_tbl = self.db.table('sys.service')
+            service_record = service_tbl.record(
+                service_type='mailproxy',
+                service_name=service_name,
+                ignoreMissing=True
+            ).output('record')
+
+            if service_record:
+                params = Bag(service_record.get('parameters') or {})
+                params['tenant_registered'] = True
+
+                with service_tbl.recordToUpdate(service_record['service_identifier']) as rec:
+                    rec['parameters'] = params
+                self.db.commit()
+
+            # Sync accounts with use_mailproxy=true
+            synced, failed = self._sync_mailproxy_accounts(service)
+
+            return Bag(dict(
+                status='ok',
+                message=f'Tenant "{tenant_id}" registered. Accounts: {synced} synced, {failed} failed',
+                tenant_id=tenant_id
+            ))
+
+        except Exception as e:
+            return Bag(dict(status='error', message=f'Error: {str(e)}'))
+
+    def _ensure_mailproxy_user(self):
+        """Create or update the mailproxy system user with _MAILPROXY_ tag.
+
+        Returns:
+            tuple: (username, password)
+        """
+        username = 'mailproxy'
+        password = secrets.token_urlsafe(32)
+
+        user_tbl = self.db.table('adm.user')
+        user_record = user_tbl.record(username=username, ignoreMissing=True).output('dict')
+
+        if user_record:
+            # Update existing user with new password
+            with user_tbl.recordToUpdate(user_record['id']) as rec:
+                rec['md5pwd'] = password
+        else:
+            # Create new system user
+            user_record = user_tbl.newrecord(
+                username=username,
+                firstname='Mail',
+                lastname='Proxy',
+                email='mailproxy@system.local',
+                status='conf',
+                md5pwd=password
+            )
+            user_tbl.insert(user_record)
+
+        # Ensure user has _MAILPROXY_ tag
+        self._ensure_user_tag(user_record['id'], '_MAILPROXY_')
+        self.db.commit()
+
+        return username, password
+
+    def _ensure_user_tag(self, user_id, tag_code):
+        """Ensure user has the specified tag."""
+        htag_tbl = self.db.table('adm.htag')
+        user_tag_tbl = self.db.table('adm.user_tag')
+
+        # Find the tag
+        tag_record = htag_tbl.record(
+            where='$hierarchical_code=:tc OR $__syscode=:tc',
+            tc=tag_code,
+            ignoreMissing=True
+        ).output('dict')
+
+        if not tag_record:
+            return
+
+        # Check if user already has this tag
+        existing = user_tag_tbl.record(
+            user_id=user_id,
+            tag_id=tag_record['id'],
+            ignoreMissing=True
+        ).output('dict')
+
+        if not existing:
+            user_tag_tbl.insert(user_tag_tbl.newrecord(
+                user_id=user_id,
+                tag_id=tag_record['id']
+            ))
+
+    def _sync_mailproxy_accounts(self, service):
+        """Sync all accounts with use_mailproxy=true to the proxy.
+
+        Returns:
+            tuple: (synced_count, failed_count)
+        """
+        account_tbl = self.db.table('email.account')
+        accounts = account_tbl.query(
+            where='$use_mailproxy IS TRUE',
+            columns='$id'
+        ).fetch()
+
+        synced, failed = 0, 0
+        for account in accounts:
+            try:
+                # add_account already handles payload conversion
+                response = service.add_account(account['id'])
+                if response.get('ok'):
+                    synced += 1
+                else:
+                    failed += 1
+            except Exception:
+                failed += 1
+
+        return synced, failed
