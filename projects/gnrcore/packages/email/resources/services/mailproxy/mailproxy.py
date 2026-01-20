@@ -124,9 +124,23 @@ class Main(GnrBaseService):
             payload["older_than_seconds"] = int(older_than_seconds)
         return self._post("/commands/cleanup-messages", json=payload)
 
+    def get_tenant(self, tenant_id=None):
+        """Get tenant information from the mail proxy.
+
+        Args:
+            tenant_id: Tenant identifier (defaults to site_name)
+
+        Returns:
+            dict: Tenant info if found, None if not found
+        """
+        tenant_id = tenant_id or self.tenant_id
+        try:
+            return self._get(f"/tenant/{tenant_id}")
+        except RuntimeError:
+            return None
+
     def register_tenant(self, tenant_id, client_base_url, client_sync_path=None,
-                        client_attachment_path=None, client_sync_user=None,
-                        client_sync_password=None):
+                        client_attachment_path=None, username=None, password=None):
         """Register or update this genropy instance as a tenant on the mail proxy.
 
         Args:
@@ -134,8 +148,8 @@ class Main(GnrBaseService):
             client_base_url: Base URL for tenant HTTP endpoints
             client_sync_path: Relative path for delivery report callbacks
             client_attachment_path: Relative path for attachment fetcher endpoint
-            client_sync_user: Username for Basic Auth
-            client_sync_password: Password for Basic Auth
+            username: Username for Basic Auth
+            password: Password for Basic Auth
 
         Returns:
             dict: Response with 'ok' status from proxy
@@ -148,11 +162,11 @@ class Main(GnrBaseService):
             payload["client_sync_path"] = client_sync_path
         if client_attachment_path:
             payload["client_attachment_path"] = client_attachment_path
-        if client_sync_user and client_sync_password:
+        if username and password:
             payload["client_auth"] = {
                 "method": "basic",
-                "user": client_sync_user,
-                "password": client_sync_password
+                "user": username,
+                "password": password
             }
         return self._post("/tenant", json=payload)
 
@@ -309,7 +323,13 @@ class ServiceParameters(BaseComponent):
         fb = pane.formlet(datapath=datapath,cols=3)
         fb.textbox('^.proxy_url', lbl='!![en]Proxy url')
         fb.PasswordTextBox('^.proxy_token', lbl='!![en]API Token')
-        btn = fb.button('!![en]Register Tenant', iconClass="^.tenant_registered?=#v?'greenLight' : 'redLight'",lbl='&nbsp;')
+        btn = fb.button('!![en]Register', iconClass="^.tenant_status?=#v?'greenLight' : 'redLight'",
+                        disabled='^.tenant_status', lbl='&nbsp;')
+
+        # Check tenant status on proxy when form loads
+        fb.dataRpc('.tenant_status', self.rpc_check_tenant_status,
+                   service_name=service_name,
+                   _onBuilt=True)
 
         btn.dataRpc(self.rpc_register_tenant,
                      service_name=service_name,
@@ -333,7 +353,14 @@ class ServiceParameters(BaseComponent):
     
 
 
-        # Register tenant button
+    @public_method
+    def rpc_check_tenant_status(self, service_name=None):
+        """Check if tenant is registered on the mail proxy."""
+        service = self.getService('mailproxy', service_name)
+        if not service or not service.proxy_url:
+            return False
+        tenant_info = service.get_tenant()
+        return tenant_info is not None
 
     @public_method
     def rpc_register_tenant(self, service_name=None):
@@ -365,8 +392,8 @@ class ServiceParameters(BaseComponent):
                 client_base_url=client_base_url,
                 client_sync_path=client_sync_path,
                 client_attachment_path=client_attachment_path,
-                client_sync_user=username,
-                client_sync_password=password
+                username=username,
+                password=password
             )
 
             if not response.get('ok'):
