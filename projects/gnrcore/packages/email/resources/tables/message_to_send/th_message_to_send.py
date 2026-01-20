@@ -7,14 +7,14 @@ class View(BaseComponent):
 
     def th_struct(self,struct):
         r = struct.view().rows()
-        r.fieldcell('dbstore')
+        r.fieldcell('__ins_ts')
         r.fieldcell('message_id')
 
     def th_order(self):
-        return 'dbstore'
+        return '__ins_ts'
 
     def th_query(self):
-        return dict(column='dbstore', op='contains', val='')
+        return dict(column='message_id', op='contains', val='')
 
 
 
@@ -23,7 +23,6 @@ class Form(BaseComponent):
     def th_form(self, form):
         pane = form.record
         fb = pane.formbuilder(cols=2, border_spacing='4px')
-        fb.field('dbstore')
         fb.field('message_id')
 
 
