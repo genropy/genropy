@@ -124,14 +124,16 @@ class Main(GnrBaseService):
             payload["older_than_seconds"] = int(older_than_seconds)
         return self._post("/commands/cleanup-messages", json=payload)
 
-    def register_tenant(self, tenant_id, client_sync_url, client_attachment_url=None,
-                        client_sync_user=None, client_sync_password=None):
+    def register_tenant(self, tenant_id, client_base_url, client_sync_path=None,
+                        client_attachment_path=None, client_sync_user=None,
+                        client_sync_password=None):
         """Register or update this genropy instance as a tenant on the mail proxy.
 
         Args:
             tenant_id: Unique tenant identifier
-            client_sync_url: Callback URL for delivery reports
-            client_attachment_url: URL for attachment downloads
+            client_base_url: Base URL for tenant HTTP endpoints
+            client_sync_path: Relative path for delivery report callbacks
+            client_attachment_path: Relative path for attachment fetcher endpoint
             client_sync_user: Username for Basic Auth
             client_sync_password: Password for Basic Auth
 
@@ -140,10 +142,12 @@ class Main(GnrBaseService):
         """
         payload = {
             "id": tenant_id,
-            "client_sync_url": client_sync_url,
+            "client_base_url": client_base_url,
         }
-        if client_attachment_url:
-            payload["client_attachment_url"] = client_attachment_url
+        if client_sync_path:
+            payload["client_sync_path"] = client_sync_path
+        if client_attachment_path:
+            payload["client_attachment_path"] = client_attachment_path
         if client_sync_user and client_sync_password:
             payload["client_auth"] = {
                 "method": "basic",
@@ -349,16 +353,18 @@ class ServiceParameters(BaseComponent):
         # Create/update mailproxy system user with _MAILPROXY_ tag
         username, password = self._ensure_mailproxy_user()
 
-        # Build callback URLs for RPC endpoints
-        client_sync_url = self.site.externalUrl('/email/mailproxy/mp_endpoint')
-        client_attachment_url = self.site.externalUrl('/email/mailproxy/mp_endpoint/proxy_get_attachments')
+        # Build base URL and relative paths for RPC endpoints
+        client_base_url = self.site.externalUrl('/email/mailproxy/mp_endpoint')
+        client_sync_path = '/proxy_sync'
+        client_attachment_path = '/proxy_get_attachments'
 
         try:
             # Register/update tenant on proxy with Basic Auth credentials
             response = service.register_tenant(
                 tenant_id=tenant_id,
-                client_sync_url=client_sync_url,
-                client_attachment_url=client_attachment_url,
+                client_base_url=client_base_url,
+                client_sync_path=client_sync_path,
+                client_attachment_path=client_attachment_path,
                 client_sync_user=username,
                 client_sync_password=password
             )
