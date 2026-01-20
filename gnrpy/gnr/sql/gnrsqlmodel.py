@@ -605,7 +605,9 @@ class DbModelSrc(GnrStructData):
         vc = self.getNode(f'virtual_columns.{name}')
         if localized is True:
             dblanguages = self.root._dbmodel.db.extra_kw.get('languages')
-            if dblanguages and len(dblanguages.split(',')) > 1:
+            # if we don't have multiple languages (comma search), there is
+            # no localization
+            if dblanguages and "," in dblanguages:
                 localized = dblanguages.lower()
             else:
                 localized = None
