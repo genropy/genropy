@@ -32,6 +32,7 @@ class Table(object):
         tbl.column('smtp_ssl',name_long='!!Smtp ssl',dtype='B')
         tbl.column('send_limit', dtype='L', name_long='!!Sending limit')
         tbl.column('system_bcc',name_long='!!System bcc')
+        tbl.column('use_mailproxy', dtype='B', name_long='!![en]Use mail proxy')
         tbl.column('proxy_ttl', dtype='L', name_long='!!Proxy connection TTL (seconds)', default=300)
         tbl.column('proxy_limit_per_minute', dtype='L', name_long='!!Proxy limit per minute')
         tbl.column('proxy_limit_per_hour', dtype='L', name_long='!!Proxy limit per hour')
@@ -41,7 +42,6 @@ class Table(object):
 
         tbl.column('schedulable',dtype='B',name_long='!!Schedulable',name_short='Sched')
         tbl.column('save_output_message', dtype='B', name_long='!!Save output message')
-        tbl.column('use_mailproxy', dtype='B', name_long='!![en]Use mail proxy')
         tbl.column('debug_address', name_long='!!Debug address')
     
     def getSmtpAccountPref(self,account=None,account_name=None):
@@ -114,7 +114,7 @@ class Table(object):
         if not service:
             return
         try:
-            service.add_account(record_data)
+            service.add_account(record_data['id'])
         except Exception as e:
             gnrlogger.error(f'Failed to sync account to mailproxy: {e}')
 
