@@ -1,10 +1,43 @@
 Upcoming Release
 ================
 
+Enhancements
+------------
+
+* Added get_json method to Request object to automatically parse JSON
+  payloads based on request mime type
+
+Fixes
+-----
+
+* Locale detection for localized columns fixes
+* Docker image build fixes when cleaning up cloned git repositories
+
+Release 26.01.15
+================
+
 WARNING: This will be the last release supporting Python 3.8
 
+Enhancements
+------------
 
+* Introduced a new experimental aiohttp-based task scheduler/worker, not enabled by
+  default. It needs a new deployment if activated, YMMV.
+* Introduce a localization attribute for table columns.
+* Support for multidb backup/restore for storetable-based architecture (#402)
+ 
+Fixes
+-----
 
+* Localization scanner regex and dialog strings locations fixed (#391,#393)
+* Password recovery is now providing more insights when message
+  deliveries occurs (#121)
+* Current page/request/aux instance thread-based tracker memory leak
+  fixed (#379)
+* Project builder/dockerize now is capable of building a project
+  without the dependencies installed, provided a valid build.json is
+  avilable for the instance (#404)
+  
 
 Release 26.01.09
 ================
@@ -27,7 +60,7 @@ Enhancements
 * MDEditor improvements: Drag & Drop support, custom toolbar buttons,
   color syntax plugin, hidden preview mode, and bag mode support to
   store mardown text into nested Bag structures.
-* TinyMCE is now the default editor (#219)
+* TinyMCE is now available as new text editor (#219)
 * Postgres database dump is now correctly monitored for runtime
   errors, like server version mismatches
 * Storage handling logic has been refactored and moved out of

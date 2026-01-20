@@ -12,6 +12,8 @@ import subprocess
 import shutil
 from pathlib import Path
 
+from gnr.app.gnrapp import GnrApp
+from gnr.app.gnrdeploy import PathResolver
 from gnr.app import logger
 
 class GnrProjectBuilder(object):
@@ -24,9 +26,12 @@ class GnrProjectBuilder(object):
 
     BUILD_FILE_NAME = "build.json"
     
-    def __init__(self, instance):
-        self.instance = instance
-        self.config_file = os.path.join(self.instance.instanceFolder,
+    def __init__(self, instance_name):
+        self.instance_name = instance_name
+        
+        self.instance_folder = PathResolver().instance_name_to_path(self.instance_name)
+        self.config_file = os.path.join(self.instance_folder,
+                                        "config",
                                         self.BUILD_FILE_NAME)
         require_executables = ['git']
         for executable in require_executables:
@@ -104,14 +109,14 @@ class GnrProjectBuilder(object):
             _repos[repo_conf.get('url')] = repo
 
         # Include the instance repository too
-        main_repo_url = self.git_url_from_path(self.instance.instanceFolder)
+        main_repo_url = self.git_url_from_path(self.instance_folder)
         # get the repo name, needed for gunicorn/supervisor templates
         self.main_repo_name = self.git_repo_name_from_url(main_repo_url)
-        commit = self.git_commit_from_path(self.instance.instanceFolder)
+        commit = self.git_commit_from_path(self.instance_folder)
         code_repo = {
             'url': main_repo_url,
             'branch_or_commit': commit,
-            'description': self.instance.instanceName,
+            'description': self.instance_name,
             'subfolder': None
             }
         _repos[main_repo_url] = code_repo
@@ -145,7 +150,8 @@ class GnrProjectBuilder(object):
         """
         git_repositories = {}
         # search for git repos
-        for package, obj in self.instance.packages.items():
+        instance = GnrApp(self.instance_name)
+        for package, obj in instance.packages.items():
             url = self.git_url_from_path(obj.packageFolder)
 
             # find the local path

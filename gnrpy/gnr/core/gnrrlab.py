@@ -46,7 +46,7 @@ class RlabResource(object):
             self.locale = locale or '{language}-{languageUPPER}'.format(language=self.language,
                                         languageUPPER=self.language.upper())
         elif self.locale:
-            self.language = self.locale.split('-')[0].lower()
+            self.language = self.locale[:2].lower()
         result = self.makePdf(record=record, **kwargs) 
 
         if downloadAs:
