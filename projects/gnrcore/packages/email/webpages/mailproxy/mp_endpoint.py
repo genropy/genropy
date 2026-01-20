@@ -77,10 +77,13 @@ MEDIUM_PRIORITY = 2
 class GnrCustomWebPage(object):
     py_requires='gnrcomponents/externalcall:BaseRpc'
 
-    @public_method(tags='_SYSTEM_') #tag di autorizzazione dell'utente
+    @public_method(tags='_MAILPROXY_')
     def proxy_sync(self, **kwargs):
         """
         Endpoint called by async-mail-service to deliver batch delivery reports.
+
+        Authentication is handled by genropy via Basic Auth with the mailproxy user
+        (created during tenant registration) which has the _MAILPROXY_ tag.
 
         This method:
         1. Receives delivery_report array with sent/error status
@@ -91,6 +94,7 @@ class GnrCustomWebPage(object):
         Returns:
             dict: Summary of processed reports (sent, error, deferred counts)
         """
+
         json_data = self.get_request_body_json() or {}
         delivery_report = json_data.get('delivery_report') or []
         proxy_service = self.getService('mailproxy')
@@ -211,13 +215,19 @@ class GnrCustomWebPage(object):
 
         return {'sent': sent_count, 'error': error_count, 'deferred': deferred_count}
 
-    @public_method(tags='_SYSTEM_')
+    @public_method(tags='_MAILPROXY_')
     def proxy_get_attachments(self, storage_paths=None, **kwargs):
         """
-        Download multiple attachment files in a single RPC call.
+        Download multiple attachment files via RPC or HTTP POST.
 
-        Called by async-mail-service to retrieve attachment content when sending emails.
-        Uses @public_method(tags='_SYSTEM_') for authentication (same as proxy_sync).
+        Called by async-mail-service HttpFetcher to retrieve attachment content.
+        Authentication is handled by genropy via Basic Auth with the mailproxy user.
+
+        Supports two call modes:
+        1. RPC call: storage_paths parameter directly
+        2. HTTP POST from HttpFetcher:
+           - Single: body contains storage_path string directly
+           - Batch: JSON body {"attachments": ["path1", "path2", ...]}
 
         Args:
             storage_paths: List of storage paths in format "storename@volume:path"
@@ -225,21 +235,22 @@ class GnrCustomWebPage(object):
                           The @ separator splits storename from storage path.
 
         Returns:
-            list: List of attachment data dictionaries:
-            [
-                {
-                    'storage_path': 'mydb@home:emails/file.pdf',
-                    'content': bytes,      # File content (base64 encoded in JSON response)
-                    'mimetype': str,       # MIME type (e.g., 'application/pdf')
-                    'filename': str,       # Base filename
-                    'size': int           # File size in bytes
-                },
-                # or in case of error:
-                {
-                    'storage_path': 'mydb@home:missing.pdf',
-                    'error': 'File not found: home:missing.pdf'
-                }
-            ]
+            For RPC/single: list of attachment data dictionaries
+            For batch HTTP: {"attachments": [...]} format for HttpFetcher
+
+            Each attachment dict contains:
+            {
+                'storage_path': 'mydb@home:emails/file.pdf',
+                'content': bytes,      # File content (base64 encoded in JSON response)
+                'mimetype': str,       # MIME type (e.g., 'application/pdf')
+                'filename': str,       # Base filename
+                'size': int           # File size in bytes
+            }
+            or in case of error:
+            {
+                'storage_path': 'mydb@home:missing.pdf',
+                'error': 'File not found: home:missing.pdf'
+            }
 
         Notes:
             - Supports batch downloads (multiple attachments in one call)
@@ -247,11 +258,28 @@ class GnrCustomWebPage(object):
             - Errors are returned per-file (doesn't fail entire batch)
             - File content is base64 encoded automatically by JSON serializer
         """
+        is_batch_http = False
+
+        # Handle HTTP POST from HttpFetcher if storage_paths not provided via RPC
+        if storage_paths is None:
+            json_data = self.get_request_body_json()
+            if json_data and 'attachments' in json_data:
+                # Batch HTTP request: {"attachments": ["path1", "path2", ...]}
+                storage_paths = json_data.get('attachments') or []
+                is_batch_http = True
+            else:
+                # Single HTTP request: body contains the storage_path directly
+                body = self.get_request_body()
+                if body:
+                    if isinstance(body, bytes):
+                        body = body.decode('utf-8')
+                    storage_paths = [body.strip()]
+
         if not storage_paths:
             raise Exception("Missing required parameter: storage_paths")
 
         if not isinstance(storage_paths, list):
-            raise Exception("storage_paths must be a list")
+            storage_paths = [storage_paths]
 
         results = []
         logger.info('proxy_get_attachments: processing %d attachment(s)', len(storage_paths))
@@ -307,6 +335,11 @@ class GnrCustomWebPage(object):
 
         logger.info('proxy_get_attachments: completed %d/%d successful (total %d bytes)',
                    success_count, len(results), total_size)
+
+        # Return format depends on call mode
+        if is_batch_http:
+            # HttpFetcher expects {"attachments": [...]} for batch
+            return {'attachments': results}
 
         return results
 
@@ -533,12 +566,19 @@ class GnrCustomWebPage(object):
         return self._attachment_payload_from_node(node, filename=node.basename or path.split('/')[-1])
 
     def _attachment_payload_from_node(self, node, filename=None):
-        """Convert storage node to attachment storage path for RPC download.
+        """Convert storage node to attachment payload for HTTP download.
 
-        Returns: {"storage_path": "storename@volume:path", "filename": "..."}
+        Returns: {
+            "storage_path": "storename@volume:path",
+            "filename": "...",
+            "fetch_mode": "endpoint",
+            "content_md5": "..."
+        }
 
         The storage_path format uses @ separator (same as message_id format) to include
-        the storename, enabling multi-tenant support in proxy_get_attachments RPC method.
+        the storename, enabling multi-tenant support in proxy_get_attachments.
+        fetch_mode="endpoint" tells the proxy to use client_attachment_url for fetching.
+        content_md5 enables cache lookup on the proxy side.
         """
         if not node:
             return None
@@ -550,8 +590,16 @@ class GnrCustomWebPage(object):
         # node.fullpath is already in format "volume:path" (e.g., "home:emails/file.pdf")
         storage_path = f'{storename}@{node.fullpath}'
 
-        payload = {'storage_path': storage_path}
+        payload = {
+            'storage_path': storage_path,
+            'fetch_mode': 'endpoint',
+        }
         if filename:
             payload['filename'] = filename
+
+        # MD5 for cache lookup on proxy side
+        md5_hash = node.md5hash
+        if md5_hash:
+            payload['content_md5'] = md5_hash
 
         return payload
