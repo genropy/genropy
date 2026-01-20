@@ -1,6 +1,7 @@
 # encoding: utf-8
 from gnr.lib.services.mail import MailService
 from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrbag import Bag
 from gnr.app import logger as gnrlogger
 
 class Table(object):
@@ -69,12 +70,63 @@ class Table(object):
         mboxtbl = self.db.table('email.mailbox')
         for i,mbox in enumerate(self.standardMailboxes()):
             mboxtbl.createMbox(mbox,record_data['id'],order=i+1)
+        if record_data.get('use_mailproxy'):
+            self._sync_account_to_mailproxy(record_data)
 
-    def trigger_onUpdated(self, record_data,old_record=None):
+    def trigger_onUpdated(self, record_data, old_record=None):
         mboxtbl = self.db.table('email.mailbox')
         if mboxtbl.query(where='$account_id=:account_id',account_id=record_data['id']).count()==0:
             for i,mbox in enumerate(self.standardMailboxes()):
                 mboxtbl.createMbox(mbox,record_data['id'],order=i+1)
+        if self.fieldsChanged('use_mailproxy', record_data, old_record):
+            if record_data.get('use_mailproxy'):
+                self._sync_account_to_mailproxy(record_data)
+            else:
+                self._remove_account_from_mailproxy(record_data)
+
+    def trigger_onDeleted(self, record_data):
+        if record_data.get('use_mailproxy'):
+            self._remove_account_from_mailproxy(record_data)
+
+    def _get_mailproxy_service(self):
+        """Get mailproxy service if configured and registered."""
+        try:
+            service = self.db.application.site.getService('mailproxy')
+            if not service or not service.proxy_url:
+                return None
+            # Check if tenant is registered
+            service_tbl = self.db.table('sys.service')
+            service_record = service_tbl.record(
+                service_type='mailproxy',
+                ignoreMissing=True
+            ).output('dict')
+            if service_record:
+                params = Bag(service_record.get('parameters') or {})
+                if params.getItem('tenant_registered'):
+                    return service
+        except Exception:
+            pass
+        return None
+
+    def _sync_account_to_mailproxy(self, record_data):
+        """Sync account to mailproxy service."""
+        service = self._get_mailproxy_service()
+        if not service:
+            return
+        try:
+            service.add_account(record_data)
+        except Exception as e:
+            gnrlogger.error(f'Failed to sync account to mailproxy: {e}')
+
+    def _remove_account_from_mailproxy(self, record_data):
+        """Remove account from mailproxy service."""
+        service = self._get_mailproxy_service()
+        if not service:
+            return
+        try:
+            service.delete_account(record_data['id'])
+        except Exception as e:
+            gnrlogger.error(f'Failed to remove account from mailproxy: {e}')
 
 
     def partitionioning_pkeys(self):
