@@ -19,7 +19,7 @@ class GnrCustomWebPage(object):
             
 
     def baseViewer(self,root,hierarchical_name):
-        language = self.locale.split('-')[0]
+        language = self.language
         doctable = self.db.table('docu.documentation')
         record = doctable.record(hierarchical_name=hierarchical_name).output('record')
         self.db.table('docu.documentation').checkSourceBagModules(record)
