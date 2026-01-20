@@ -7,18 +7,21 @@ class Package(GnrDboPackage):
     def config_attributes(self):
         return dict(comment='email package',sqlschema='email',
                 name_short='Email', name_long='Email', name_full='Email')
-                
+
     def config_db(self, pkg):
         pass
-    
+
     def required_packages(self):
         return ['gnrcore:adm']
-        
+
     def loginUrl(self):
         return 'email/login'
 
     def services(self):
         return [dict(service_name='mail',resource='emailservice')]
+
+    def packageTags(self, branch):
+        branch.authTag(label='_MAILPROXY_', description='Mail proxy service access')
         
 class Table(GnrDboTable):
     def use_dbstores(self,forced_dbstore=None, env_forced_dbstore=None,**kwargs):
