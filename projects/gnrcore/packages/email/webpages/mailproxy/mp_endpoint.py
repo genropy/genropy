@@ -67,7 +67,6 @@ from datetime import datetime, timezone
 from gnr.web import logger
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
-#from webob.exc import HTTPServiceUnavailable
 
 MEDIUM_PRIORITY = 2
 

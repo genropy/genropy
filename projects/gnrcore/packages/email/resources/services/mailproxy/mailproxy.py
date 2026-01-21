@@ -1,8 +1,8 @@
 #!/usr/bin/env pythonw
 # -*- coding: utf-8 -*-
 #
-#  Created by Saverio Porcari on 2013-04-06.
-#  Copyright (c) 2013 Softwell. All rights reserved.
+#  Created by Saverio Porcari on 2025-01-14.
+#  Copyright (c) 2025 Softwell. All rights reserved.
 
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any, Union, Tuple
@@ -474,7 +474,7 @@ class ServiceParameters(BaseComponent):
     def service_parameters(self, pane, datapath=None, service_name=None, **kwargs):
         fb = pane.formlet(datapath=datapath, cols=4)
 
-        # Campo Identifier (tenant_id) - default da site_name se vuoto
+        # Identifier field (tenant_id) - defaults to site_name if empty
         fb.textbox('^.tenant_id', lbl='!![en]Identifier',
                    placeholder=self.site.site_name,
                    disabled='^.tenant_registered')
