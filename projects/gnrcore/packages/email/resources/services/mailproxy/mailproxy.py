@@ -199,7 +199,6 @@ class Main(GnrBaseService):
     # -------------------------------------------------------------------------
     def _request(self, method: str, path: str, *, json: Optional[Dict[str, Any]] = None,
                  params: Optional[Dict[str, Any]] = None, timeout: float = 10.0):
-        self._ensure_configuration()
         if not self.proxy_url:
             raise RuntimeError("Proxy URL is not configured")
         url = f"{self.proxy_url.rstrip('/')}{path}"
@@ -252,24 +251,6 @@ class Main(GnrBaseService):
 
     def _delete(self, path: str, **kwargs):
         return self._request("DELETE", path, **kwargs)
-
-    def _ensure_configuration(self):
-        if self.proxy_url:
-            return
-        if not hasattr(self.parent, 'db'):
-            return
-        service_tbl = self.parent.db.table('sys.service') if 'sys' in self.parent.gnrapp.packages else None
-        if not service_tbl:
-            return
-        record = service_tbl.record(service_type=getattr(self, 'service_type', None),
-                                    service_name=getattr(self, 'service_name', None),
-                                    ignoreMissing=True)
-        if not record:
-            return
-        params = Bag(record['parameters'] or {})
-        self.proxy_url = params.getItem('proxy_url') or self.proxy_url
-        self.proxy_token = params.getItem('proxy_token') or self.proxy_token
-        self.db_max_waiting = params.getItem('db_max_waiting') or self.db_max_waiting
 
     def _resolve_account_payload(self, account: Union[dict, str, None]) -> Tuple[Dict[str, Any], Optional[str]]:
         if isinstance(account, dict):
