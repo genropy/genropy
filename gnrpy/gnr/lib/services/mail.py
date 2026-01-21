@@ -349,7 +349,12 @@ class MailService(GnrBaseService):
         from_address = account_params['from_address']
         msg = self.build_base_message(subject, body, attachments=attachments, html=html, charset=charset)
         msg['From'] = from_address
-        msg['To'] = to_address
+        if to_address:
+            # to_address could be None
+            msg['To'] = to_address
+            if ',' in to_address:
+                to_address = to_address.split(',')
+
         headers_kwargs = headers_kwargs or {}
         message_id = message_id or headers_kwargs.pop('message_id',None)
         reply_to = reply_to or headers_kwargs.pop('reply_to',None)
@@ -357,8 +362,7 @@ class MailService(GnrBaseService):
             if not v:
                 continue
             msg.add_header(k,str(v))
-        if to_address and ',' in to_address:  # note: to_address may be None
-            to_address = to_address.split(',')
+        
         message_date = datetime.datetime.now()
         if isinstance(message_date,datetime.datetime) or isinstance(message_date,datetime.date):
             message_date = formatdate(time.mktime(message_date.timetuple()))
