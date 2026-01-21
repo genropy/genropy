@@ -18,13 +18,14 @@ import secrets
 
 class Main(GnrBaseService):
     def __init__(self, parent=None, proxy_url=None, proxy_token=None, db_max_waiting=None, batch_size=None,
-                 **kwargs):
+                 tenant_id=None, tenant_registered=None, **kwargs):
         super().__init__(parent, **kwargs)
         self.proxy_url = proxy_url
         self.proxy_token = proxy_token
         self.db_max_waiting = db_max_waiting
         self.batch_size = batch_size
-        self.tenant_id = self.parent.site_name
+        self.tenant_id = tenant_id or self.parent.site_name
+        self.tenant_registered = tenant_registered or False
 
     # Command helpers
     def run_now(self):
@@ -169,6 +170,20 @@ class Main(GnrBaseService):
                 "password": password
             }
         return self._post("/tenant", json=payload)
+
+    def delete_tenant(self, tenant_id=None):
+        """Delete/unregister a tenant from the mail proxy.
+
+        Args:
+            tenant_id: Tenant identifier (defaults to self.tenant_id)
+
+        Returns:
+            dict: Response with 'ok' status from proxy
+        """
+        tenant_id = tenant_id or self.tenant_id
+        if not tenant_id:
+            raise ValueError("tenant_id is required")
+        return self._delete(f"/tenant/{tenant_id}")
 
     def send_message(self, message: dict):
         """Enqueue a single message and immediately trigger a dispatch cycle."""
@@ -319,115 +334,85 @@ class Main(GnrBaseService):
         dt = datetime.fromtimestamp(ts, tz=timezone.utc)
         return dt.isoformat().replace("+00:00", "Z")
 
-class ServiceParameters(BaseComponent):
-    def service_parameters(self, pane, datapath=None, service_name=None, **kwargs):
-        fb = pane.formlet(datapath=datapath,cols=3)
-        fb.textbox('^.proxy_url', lbl='!![en]Proxy url')
-        fb.PasswordTextBox('^.proxy_token', lbl='!![en]API Token')
-        btn = fb.button('!![en]Register', iconClass="^.tenant_status?=#v?'greenLight' : 'redLight'",
-                        disabled='^.tenant_status', lbl='&nbsp;')
+    # -------------------------------------------------------------------------
+    # Programmatic activation/deactivation
+    # -------------------------------------------------------------------------
+    def activateService(self):
+        """Programmatically register this service with the mail proxy.
 
-        # Check tenant status on proxy when form loads
-        fb.dataRpc('.tenant_status', self.rpc_check_tenant_status,
-                   service_name=service_name,
-                   _onBuilt=True)
+        This method can be called after a service record has been created
+        with all required parameters (proxy_url, proxy_token, tenant_id).
 
-        btn.dataRpc(self.rpc_register_tenant,
-                     service_name=service_name,
-                     _onResult="""
-                        if(result.getItem('status') === 'ok'){
-                            genro.publish('floating_message', {message: result.getItem('message')});
-                            this.form.reload();
-                        } else {
-                            genro.publish('floating_message', {
-                                message: result.getItem('message'),
-                                messageType: 'error'
-                            });
-                        }
-                     """)
+        Usage:
+            service = site.getService('mailproxy')
+            result = service.activateService()
 
+        Returns:
+            dict: Result with 'ok', 'message', 'tenant_id', 'synced', 'failed'
+        """
+        if not self.proxy_url:
+            return {'ok': False, 'error': 'Proxy URL not configured'}
 
-        fb.numberTextbox('^.db_max_waiting', lbl='Db max waiting')
-        fb.numberTextBox('^.batch_size', lbl='Batch size')
-        fb.div()
-
-    
-
-
-    @public_method
-    def rpc_check_tenant_status(self, service_name=None):
-        """Check if tenant is registered on the mail proxy."""
-        service = self.getService('mailproxy', service_name)
-        if not service or not service.proxy_url:
-            return False
-        tenant_info = service.get_tenant()
-        return tenant_info is not None
-
-    @public_method
-    def rpc_register_tenant(self, service_name=None):
-        """Register tenant on mail proxy and sync accounts."""
-        # Get mailproxy service
-        service = self.getService('mailproxy', service_name)
-        if not service:
-            return Bag(dict(status='error', message='Mailproxy service not found'))
-
-        # Verify proxy_url is configured
-        if not service.proxy_url:
-            return Bag(dict(status='error', message='Proxy URL not configured'))
-
-        # Generate tenant_id from site_name
-        tenant_id = self.site.site_name
-
-        # Create/update mailproxy system user with _MAILPROXY_ tag
+        tenant_id = self.tenant_id or self.parent.site_name
         username, password = self._ensure_mailproxy_user()
 
-        # Build base URL and relative paths for RPC endpoints
-        client_base_url = self.site.externalUrl('/email/mailproxy/mp_endpoint')
-        client_sync_path = '/proxy_sync'
-        client_attachment_path = '/proxy_get_attachments'
+        client_base_url = self.parent.externalUrl('/email/mailproxy/mp_endpoint')
 
         try:
-            # Register/update tenant on proxy with Basic Auth credentials
-            response = service.register_tenant(
+            response = self.register_tenant(
                 tenant_id=tenant_id,
                 client_base_url=client_base_url,
-                client_sync_path=client_sync_path,
-                client_attachment_path=client_attachment_path,
+                client_sync_path='/proxy_sync',
+                client_attachment_path='/proxy_get_attachments',
                 username=username,
                 password=password
             )
 
             if not response.get('ok'):
-                error_msg = response.get('error') or 'Registration failed'
-                return Bag(dict(status='error', message=f'Proxy error: {error_msg}'))
+                raise Exception(response.get('error') or 'Registration failed')
 
-            # Save registration status to service parameters
-            service_tbl = self.db.table('sys.service')
-            service_record = service_tbl.record(
-                service_type='mailproxy',
-                service_name=service_name,
-                ignoreMissing=True
-            ).output('record')
-
-            if service_record:
-                params = Bag(service_record.get('parameters') or {})
+            service_tbl = self.parent.db.table('sys.service')
+            with service_tbl.recordToUpdate(service_type=self.service_type,
+                                            service_name=self.service_name) as rec:
+                params = Bag(rec['parameters'])
                 params['tenant_registered'] = True
+                params['tenant_id'] = tenant_id
+                rec['parameters'] = params
 
-                with service_tbl.recordToUpdate(service_record['service_identifier']) as rec:
-                    rec['parameters'] = params
-                self.db.commit()
+            synced, failed = self._sync_mailproxy_accounts()
 
-            # Sync accounts with use_mailproxy=true
-            synced, failed = self._sync_mailproxy_accounts(service)
-
-            return Bag(dict(
-                status='ok',
-                message=f'Tenant "{tenant_id}" registered. Accounts: {synced} synced, {failed} failed',
-                tenant_id=tenant_id
-            ))
-
+            return {
+                'ok': True,
+                'message': f'Tenant "{tenant_id}" registered',
+                'tenant_id': tenant_id,
+                'synced': synced,
+                'failed': failed
+            }
         except Exception as e:
-            return Bag(dict(status='error', message=f'Error: {str(e)}'))
+            return {'ok': False, 'error': str(e)}
+
+    def deactivateService(self):
+        """Programmatically unregister this service from the mail proxy.
+
+        Returns:
+            dict: Result with 'ok' and 'message'
+        """
+        if not self.tenant_id:
+            return {'ok': False, 'error': 'No tenant_id configured'}
+
+        try:
+            self.delete_tenant()
+        except Exception:
+            pass
+
+        service_tbl = self.parent.db.table('sys.service')
+        with service_tbl.recordToUpdate(service_type=self.service_type,
+                                        service_name=self.service_name) as rec:
+            params = Bag(rec['parameters'])
+            params['tenant_registered'] = False
+            rec['parameters'] = params
+
+        return {'ok': True, 'message': f'Tenant "{self.tenant_id}" unregistered'}
 
     def _ensure_mailproxy_user(self):
         """Create or update the mailproxy system user with _MAILPROXY_ tag.
@@ -438,66 +423,34 @@ class ServiceParameters(BaseComponent):
         username = 'mailproxy'
         password = secrets.token_urlsafe(32)
 
-        user_tbl = self.db.table('adm.user')
-        user_record = user_tbl.record(username=username, ignoreMissing=True).output('dict')
+        db = self.parent.db
+        user_tbl = db.table('adm.user')
 
-        if user_record:
-            # Update existing user with new password
-            with user_tbl.recordToUpdate(user_record['id']) as rec:
-                rec['md5pwd'] = password
-        else:
-            # Create new system user
-            user_record = user_tbl.newrecord(
-                username=username,
-                firstname='Mail',
-                lastname='Proxy',
-                email='mailproxy@system.local',
-                status='conf',
-                md5pwd=password
-            )
-            user_tbl.insert(user_record)
+        with user_tbl.recordToUpdate(username=username, insertMissing=True) as rec:
+            rec['username'] = username
+            rec['firstname'] = 'Mail'
+            rec['lastname'] = 'Proxy'
+            rec['email'] = 'mailproxy@system.local'
+            rec['status'] = 'conf'
+            rec['md5pwd'] = password
+            user_id = rec['id']
 
-        # Ensure user has _MAILPROXY_ tag
-        self._ensure_user_tag(user_record['id'], '_MAILPROXY_')
-        self.db.commit()
+        tag_id = db.table('adm.htag').sysRecord('_MAILPROXY_')['id']
+        user_tag_tbl = db.table('adm.user_tag')
+        with user_tag_tbl.recordToUpdate(user_id=user_id, tag_id=tag_id, insertMissing=True) as rec:
+            rec['user_id'] = user_id
+            rec['tag_id'] = tag_id
 
+        db.commit()
         return username, password
 
-    def _ensure_user_tag(self, user_id, tag_code):
-        """Ensure user has the specified tag."""
-        htag_tbl = self.db.table('adm.htag')
-        user_tag_tbl = self.db.table('adm.user_tag')
-
-        # Find the tag
-        tag_record = htag_tbl.record(
-            where='$hierarchical_code=:tc OR $__syscode=:tc',
-            tc=tag_code,
-            ignoreMissing=True
-        ).output('dict')
-
-        if not tag_record:
-            return
-
-        # Check if user already has this tag
-        existing = user_tag_tbl.record(
-            user_id=user_id,
-            tag_id=tag_record['id'],
-            ignoreMissing=True
-        ).output('dict')
-
-        if not existing:
-            user_tag_tbl.insert(user_tag_tbl.newrecord(
-                user_id=user_id,
-                tag_id=tag_record['id']
-            ))
-
-    def _sync_mailproxy_accounts(self, service):
+    def _sync_mailproxy_accounts(self):
         """Sync all accounts with use_mailproxy=true to the proxy.
 
         Returns:
             tuple: (synced_count, failed_count)
         """
-        account_tbl = self.db.table('email.account')
+        account_tbl = self.parent.db.table('email.account')
         accounts = account_tbl.query(
             where='$use_mailproxy IS TRUE',
             columns='$id'
@@ -506,8 +459,7 @@ class ServiceParameters(BaseComponent):
         synced, failed = 0, 0
         for account in accounts:
             try:
-                # add_account already handles payload conversion
-                response = service.add_account(account['id'])
+                response = self.add_account(account['id'])
                 if response.get('ok'):
                     synced += 1
                 else:
@@ -516,3 +468,109 @@ class ServiceParameters(BaseComponent):
                 failed += 1
 
         return synced, failed
+
+
+class ServiceParameters(BaseComponent):
+    def service_parameters(self, pane, datapath=None, service_name=None, **kwargs):
+        fb = pane.formlet(datapath=datapath, cols=4)
+
+        # Campo Identifier (tenant_id) - default da site_name se vuoto
+        fb.textbox('^.tenant_id', lbl='!![en]Identifier',
+                   placeholder=self.site.site_name,
+                   disabled='^.tenant_registered')
+        fb.textbox('^.proxy_url', lbl='!![en]Proxy url',
+                   disabled='^.tenant_registered')
+        fb.PasswordTextBox('^.proxy_token', lbl='!![en]API Token',
+                   disabled='^.tenant_registered')
+
+        # Status semaphore in div separato
+        status_box = fb.div(lbl='!![en]Proxy reachable')
+        status_box.div('^#FORM.proxy_status',dtype='B',format='semaphore')
+        
+        # Check proxy status on load e quando cambia proxy_url
+        status_box.dataRpc('#FORM.proxy_status', self.rpc_check_proxy_status,
+                   proxy_url='^.proxy_url',
+                   _onBuilt=1)
+
+        fb.numberTextbox('^.db_max_waiting', lbl='Db max waiting',
+                         disabled='^.tenant_registered')
+        fb.numberTextBox('^.batch_size', lbl='Batch size',
+                         disabled='^.tenant_registered')
+
+        # Register button - solo se NON registrato
+        register_btn = fb.button('!![en]Register',
+                                 hidden='^.tenant_registered',
+                                 lbl='&nbsp;')
+        register_btn.dataRpc(self.rpc_register_tenant,
+                             service_name=service_name,
+                             _onResult="""
+                                if(result.getItem('status') === 'ok'){
+                                    genro.publish('floating_message', {message: result.getItem('message')});
+                                } else {
+                                    genro.publish('floating_message', {
+                                        message: result.getItem('message'),
+                                        messageType: 'error'
+                                    });
+                                }
+                                this.form.reload();
+                             """)
+
+        # Unregister button - solo se registrato
+        unregister_btn = fb.button('!![en]Unregister',
+                                   hidden='^.tenant_registered?=!#v',
+                                   lbl='&nbsp;')
+        unregister_btn.dataRpc(self.rpc_unregister_tenant,
+                               service_name=service_name,
+                               _onResult="""
+                                  if(result.getItem('status') === 'ok'){
+                                      genro.publish('floating_message', {message: result.getItem('message')});
+                                  } else {
+                                      genro.publish('floating_message', {
+                                          message: result.getItem('message'),
+                                          messageType: 'error'
+                                      });
+                                  }
+                                  this.form.reload();
+                               """)
+
+    
+
+
+    @public_method
+    def rpc_check_proxy_status(self, proxy_url=None):
+        """Check if proxy server is reachable."""
+        if not proxy_url:
+            return None
+        try:
+            response = requests.get(f"{proxy_url.rstrip('/')}/health", timeout=5)
+            return True if response.ok else None
+        except Exception:
+            return None
+
+    @public_method
+    def rpc_register_tenant(self, service_name=None):
+        """Register tenant on mail proxy via UI."""
+        service = self.getService('mailproxy', service_name)
+        if not service:
+            return Bag(dict(status='error', message='Mailproxy service not found'))
+
+        result = service.activateService()
+        self.db.commit()
+        return Bag(dict(
+            status='ok' if result.get('ok') else 'error',
+            message=result.get('message') or result.get('error')
+        ))
+
+    @public_method
+    def rpc_unregister_tenant(self, service_name=None):
+        """Unregister tenant from mail proxy via UI."""
+        service = self.getService('mailproxy', service_name)
+        if not service:
+            return Bag(dict(status='error', message='Mailproxy service not found'))
+
+        result = service.deactivateService()
+        self.db.commit()
+        return Bag(dict(
+            status='ok' if result.get('ok') else 'error',
+            message=result.get('message') or result.get('error')
+        ))
