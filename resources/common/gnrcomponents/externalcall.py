@@ -90,54 +90,6 @@ class BaseRpc(BaseComponent):
     def rpc_error(self, method, *args, **kwargs):
         return 'Not existing method %s' % method
 
-    def get_request_body_json(self):
-        """
-        Parse request body as JSON.
-
-        Returns:
-            dict/list: Parsed JSON data, or None if parsing fails or body is empty
-        """
-        if getattr(self.request, 'method', None) not in ('POST', 'PUT', 'PATCH'):
-            return None
-
-        mimetype = (self.request.mimetype or '').lower()
-        is_json = getattr(self.request, 'is_json', False)
-        if not (is_json or 'json' in mimetype):
-            return None
-
-        return self.request.get_json(silent=True)
-
-    def get_request_body_xml(self):
-        """
-        Parse request body as XML and convert to Bag.
-
-        Returns:
-            Bag: Parsed XML as Bag object, or None if parsing fails or body is empty
-        """
-        if getattr(self.request, 'method', None) not in ('POST', 'PUT', 'PATCH'):
-            return None
-
-        mimetype = (self.request.mimetype or '').lower()
-        if 'xml' not in mimetype:
-            return None
-
-        try:
-            body = None
-            if hasattr(self.request, 'get_data'):
-                body = self.request.get_data(cache=False, as_text=True)
-            elif hasattr(self.request, 'data'):
-                charset = getattr(self.request, 'charset', 'utf-8') or 'utf-8'
-                body = self.request.data.decode(charset)
-
-            if not body:
-                return None
-
-            xml_bag = Bag()
-            xml_bag.fromXml(body, catalog=self.site.gnrapp.catalog)
-            return xml_bag
-        except Exception:
-            return None
-
 class NetBagRpc(BaseComponent):
 
     skip_connection = True

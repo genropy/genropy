@@ -80,6 +80,10 @@ class GnrCustomWebPage(object):
         self.response.content_type = 'application/json'
         return json.dumps(data)
 
+    def _request_json(self):
+        """Parse request body as JSON using Werkzeug."""
+        return self.request.get_json(silent=True) or {}
+
     @public_method(tags='_MAILPROXY_')
     def proxy_sync(self, **kwargs):
         """
@@ -110,7 +114,7 @@ class GnrCustomWebPage(object):
             All IDs will be marked as reported by the proxy regardless of response content.
             The response is for logging/debugging purposes.
         """
-        json_data = self.get_request_body_json() or {}
+        json_data = self._request_json()
         delivery_report = json_data.get('delivery_report') or []
         proxy_service = self.getService('mailproxy')
 
@@ -239,7 +243,7 @@ class GnrCustomWebPage(object):
         Raises:
             Exception: If file not found or error reading file.
         """
-        json_data = self.get_request_body_json() or {}
+        json_data = self._request_json()
         storage_path = json_data.get('storage_path')
 
         if not storage_path:
@@ -262,11 +266,7 @@ class GnrCustomWebPage(object):
         self.response.content_type = 'application/octet-stream'
         return content
 
-    def _adaptedMessages(self,messages):
-        for message in messages:
-            pass
-
-    def _add_messages_to_proxy_queue(self,proxy_service,message_pkeys):
+    def _add_messages_to_proxy_queue(self, proxy_service, message_pkeys):
         """
         Fetch pending messages and submit them to async-mail-service.
 
