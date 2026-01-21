@@ -82,7 +82,7 @@ class GnrCustomWebPage(object):
 
     def _request_json(self):
         """Parse request body as JSON using Werkzeug."""
-        return self.request.get_json(silent=True) or {}
+        return self.request.get_json() or {}
 
     @public_method(tags='_MAILPROXY_')
     def proxy_sync(self, **kwargs):

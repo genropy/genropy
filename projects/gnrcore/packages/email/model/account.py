@@ -1,7 +1,6 @@
 # encoding: utf-8
 from gnr.lib.services.mail import MailService
 from gnr.core.gnrdecorator import public_method
-from gnr.core.gnrbag import Bag
 from gnr.app import logger as gnrlogger
 
 class Table(object):
@@ -89,30 +88,26 @@ class Table(object):
             self._remove_account_from_mailproxy(record_data)
 
     def _get_mailproxy_service(self):
-        """Get mailproxy service if configured and registered."""
-        try:
-            service = self.db.application.site.getService('mailproxy')
-            if not service or not service.proxy_url:
-                return None
-            # Check if tenant is registered
-            service_tbl = self.db.table('sys.service')
-            service_record = service_tbl.record(
-                service_type='mailproxy',
-                ignoreMissing=True
-            ).output('dict')
-            if service_record:
-                params = Bag(service_record.get('parameters') or {})
-                if params.getItem('tenant_registered'):
-                    return service
-        except Exception:
-            pass
-        return None
+        """Get mailproxy service if configured and registered.
+
+        Returns:
+            service instance
+
+        Raises:
+            Exception: If service is not configured or not registered
+        """
+        service = self.db.application.site.getService('mailproxy')
+        if not service or not service.proxy_url:
+            raise self.exception('business_logic',
+                msg='Mailproxy service is not configured')
+        if not service.tenant_registered:
+            raise self.exception('business_logic',
+                msg='Mailproxy service is not activated')
+        return service
 
     def _sync_account_to_mailproxy(self, record_data):
         """Sync account to mailproxy service."""
         service = self._get_mailproxy_service()
-        if not service:
-            return
         try:
             service.add_account(record_data['id'])
         except Exception as e:
@@ -121,8 +116,6 @@ class Table(object):
     def _remove_account_from_mailproxy(self, record_data):
         """Remove account from mailproxy service."""
         service = self._get_mailproxy_service()
-        if not service:
-            return
         try:
             service.delete_account(record_data['id'])
         except Exception as e:
