@@ -209,6 +209,26 @@ class Main(GnrBaseService):
         try:
             response = requests.request(method, url, json=json, params=params, headers=headers, timeout=timeout)
             response.raise_for_status()
+        except requests.HTTPError as exc:
+            # Try to extract response body - it may contain useful data like rejected messages
+            error_body = None
+            try:
+                error_body = exc.response.json() if exc.response is not None else None
+            except (ValueError, AttributeError):
+                pass
+            # If response contains 'rejected' list, return it for normal processing
+            # This allows partial success scenarios (some messages accepted, some rejected)
+            if error_body and isinstance(error_body, dict) and 'rejected' in error_body:
+                return error_body
+            # Otherwise, raise with details if available
+            error_detail = None
+            if error_body:
+                error_detail = error_body.get('detail') or error_body.get('error') or error_body.get('message')
+                if not error_detail:
+                    error_detail = str(error_body)
+            if error_detail:
+                raise RuntimeError(f"Mail proxy request failed: {exc.response.status_code} - {error_detail}") from exc
+            raise RuntimeError(f"Mail proxy request failed: {exc}") from exc
         except RequestException as exc:
             raise RuntimeError(f"Mail proxy request failed: {exc}") from exc
         if response.status_code == 204 or not response.content:

@@ -66,7 +66,7 @@ from datetime import datetime, timezone
 from gnr.web import logger
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
-from webob.exc import HTTPServiceUnavailable
+#from webob.exc import HTTPServiceUnavailable
 
 MEDIUM_PRIORITY = 2
 
@@ -94,13 +94,13 @@ class GnrCustomWebPage(object):
         delivery_report = json_data.get('delivery_report') or []
         proxy_service = self.getService('mailproxy')
 
-        # Check database availability before processing
-        retry_after = self.db.adapter.retryAfter(max_time=proxy_service.db_max_waiting)
-        if retry_after > 0:
-            raise HTTPServiceUnavailable(
-                explanation="Site unavailable retry later",
-                headers=[('Retry-After', retry_after)]
-            )
+       ## Check database availability before processing
+       #retry_after = self.db.adapter.retryAfter(max_time=proxy_service.db_max_waiting)
+       #if retry_after > 0:
+       #    raise HTTPServiceUnavailable(
+       #        explanation="Site unavailable retry later",
+       #        headers=[('Retry-After', retry_after)]
+       #    )
 
         # Process delivery reports from async-mail-service
         report_summary = self._update_from_delivery_report(delivery_report)
@@ -367,6 +367,7 @@ class GnrCustomWebPage(object):
 
         # Submit batch to async-mail-service
         response_data = proxy_service.add_messages(payload) or {}
+
         if isinstance(response_data, list):
             # Backwards compatibility in case the proxy still returns the legacy format
             response_data = {'ok': True, 'legacy': response_data}
@@ -380,7 +381,7 @@ class GnrCustomWebPage(object):
 
         # Update local message records based on response
         timestamp = message_tbl.newUTCDatetime()
-        fallback_error = response_data.get('error') or 'Queueing failed'
+        general_error = response_data.get('error')
         for message_id, message_to_update in messages.items():
             proxy_message_id = proxy_ids.get(message_id)
             if not proxy_message_id:
@@ -391,15 +392,15 @@ class GnrCustomWebPage(object):
                 # Message was rejected by proxy service
                 message_to_update['error_ts'] = timestamp
                 message_to_update['error_msg'] = rejection_reason
-            elif response_data.get('ok'):
+            elif general_error:
+                # General failure affecting all messages
+                message_to_update['error_ts'] = timestamp
+                message_to_update['error_msg'] = general_error
+            else:
                 # Message successfully queued in proxy
                 message_to_update['proxy_ts'] = timestamp
                 message_to_update['error_ts'] = None
                 message_to_update['error_msg'] = None
-            else:
-                # General failure
-                message_to_update['error_ts'] = timestamp
-                message_to_update['error_msg'] = fallback_error
             message_tbl.update(message_to_update,oldrec)
         
     def _convert_to_proxy_message(self, record):
