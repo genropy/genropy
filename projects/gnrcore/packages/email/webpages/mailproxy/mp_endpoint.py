@@ -401,9 +401,12 @@ class GnrCustomWebPage(object):
                 result['headers'] = headers
 
         # Attachments (inline/base64, URLs, or S3 references)
-        attachments = self._attachments_for_message(record)
-        if attachments:
-            result['attachments'] = attachments
+        try:
+            attachments = self._attachments_for_message(record)
+            if attachments:
+                result['attachments'] = attachments
+        except FileNotFoundError as e:
+            return str(e)  # Return error string to mark message as failed
 
         return result
 
@@ -445,6 +448,7 @@ class GnrCustomWebPage(object):
         return normalized
 
     def _attachments_for_message(self, record):
+        """Collect attachments for a message. Raises FileNotFoundError if any attachment is missing."""
         attachments = []
         message_id = record['id']
         atc_tbl = self.db.table('email.message_atc')
@@ -456,14 +460,12 @@ class GnrCustomWebPage(object):
         ).fetch()
         for row in attachment_rows:
             entry = self._attachment_entry_from_row(row)
-            if entry:
-                attachments.append(entry)
+            attachments.append(entry)
 
         weak_attachments = record.get('weak_attachments') or ''
         for path in [p.strip() for p in weak_attachments.split(',') if p.strip()]:
             entry = self._attachment_entry_from_path(path)
-            if entry:
-                attachments.append(entry)
+            attachments.append(entry)
 
         return attachments
 
@@ -474,14 +476,14 @@ class GnrCustomWebPage(object):
 
         node = self.site.storageNode(filepath)
         if not node:
-            return None
+            raise FileNotFoundError(f'Attachment not found: {filepath}')
         # Always use node.basename as filename (includes extension)
         return self._attachment_payload_from_node(node, filename=node.basename)
 
     def _attachment_entry_from_path(self, path):
         node = self._storage_node(path)
         if not node:
-            return None
+            raise FileNotFoundError(f'Attachment not found: {path}')
         return self._attachment_payload_from_node(node, filename=node.basename or path.split('/')[-1])
 
     def _attachment_payload_from_node(self, node, filename=None):
