@@ -250,10 +250,6 @@ class GnrCustomWebPage(object):
         if not account_id:
             return Bag(dict(ok=False, message='No account selected'))
         response = self._mailproxy_service().add_account(account_id)
-       #try:
-       #    response = self._mailproxy_service().add_account(account_id)
-       #except Exception as exc:
-       #    return Bag(dict(ok=False, message='Add account failed: %s' % exc))
 
         if isinstance(response, str):
             try:
