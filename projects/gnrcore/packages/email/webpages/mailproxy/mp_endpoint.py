@@ -61,6 +61,7 @@ Returns list of file data:
 For protocol details see:
 https://github.com/genropy/gnr-async-mail-service/blob/main/docs/protocol.rst
 """
+import json
 from datetime import datetime, timezone
 
 from gnr.web import logger
@@ -72,6 +73,12 @@ MEDIUM_PRIORITY = 2
 
 class GnrCustomWebPage(object):
     py_requires='gnrcomponents/externalcall:BaseRpc'
+    convert_result = False  # Return pure JSON without ::JS suffix
+
+    def _json_response(self, data):
+        """Return JSON string for pure JSON API responses."""
+        self.response.content_type = 'application/json'
+        return json.dumps(data)
 
     @public_method(tags='_MAILPROXY_')
     def proxy_sync(self, **kwargs):
@@ -85,33 +92,40 @@ class GnrCustomWebPage(object):
         1. Receives delivery_report array with sent/error status
         2. Updates local email.message records with delivery status
         3. Fetches pending messages and submits them to the proxy service
-        4. Returns a summary of processed delivery reports
+        4. Returns ok or categorized response with problematic IDs
+
+        Request format:
+            {
+                "delivery_report": [
+                    {"id": "msg1", "sent_ts": 1234567890},
+                    {"id": "msg2", "error_ts": 1234567890, "error": "550 User not found"}
+                ]
+            }
 
         Returns:
-            dict: Summary of processed reports (sent, error, deferred counts)
+            {"ok": true} if all reports processed successfully
+            {"error": [...], "not_found": [...]} if there are problems (only non-empty lists)
+
+        Note:
+            All IDs will be marked as reported by the proxy regardless of response content.
+            The response is for logging/debugging purposes.
         """
         json_data = self.get_request_body_json() or {}
         delivery_report = json_data.get('delivery_report') or []
         proxy_service = self.getService('mailproxy')
 
-       ## Check database availability before processing
-       #retry_after = self.db.adapter.retryAfter(max_time=proxy_service.db_max_waiting)
-       #if retry_after > 0:
-       #    raise HTTPServiceUnavailable(
-       #        explanation="Site unavailable retry later",
-       #        headers=[('Retry-After', retry_after)]
-       #    )
-
-        # Process delivery reports from async-mail-service
-        report_summary = self._update_from_delivery_report(delivery_report)
+        # Process delivery reports
+        report_result = self._update_from_delivery_report(delivery_report)
 
         # Log delivery report processing if any reports were received
         if delivery_report:
-            logger.info('proxy_sync: processed %d delivery reports (sent=%d, error=%d, deferred=%d)',
-                       len(delivery_report),
-                       report_summary.get('sent', 0),
-                       report_summary.get('error', 0),
-                       report_summary.get('deferred', 0))
+            if report_result.get('ok'):
+                logger.info('proxy_sync: processed %d delivery reports - all OK', len(delivery_report))
+            else:
+                logger.info('proxy_sync: processed %d delivery reports (error=%d, not_found=%d)',
+                           len(delivery_report),
+                           len(report_result.get('error', [])),
+                           len(report_result.get('not_found', [])))
 
         # Fetch and submit pending outgoing messages to proxy (with batch limit)
         batch_size = proxy_service.batch_size or 1000
@@ -127,8 +141,7 @@ class GnrCustomWebPage(object):
             self._add_messages_to_proxy_queue(proxy_service, message_pkeys)
             self.db.commit()
 
-        # Return summary for async-mail-service to mark reports as acknowledged
-        return report_summary
+        return self._json_response(report_result)
         
                 
     def _update_from_delivery_report(self, delivery_report):
@@ -136,25 +149,24 @@ class GnrCustomWebPage(object):
         Process delivery reports from async-mail-service and update local message records.
 
         Expected format:
-        [{'id': 'message_id', 'account_id': '...', 'priority': 2,
-          'sent_ts': 1761049629, 'error_ts': None, 'error': None, 'deferred_ts': None}]
+        [{'id': 'message_id', 'sent_ts': 1761049629, 'error_ts': None, 'error': None}]
 
         Args:
             delivery_report: List of delivery report items from async-mail-service
 
         Returns:
-            dict: Summary with counts of sent/error/deferred messages
+            {"ok": True} if all reports processed successfully
+            {"error": [...], "not_found": [...]} if there are problems (only non-empty lists)
         """
         if not delivery_report:
-            return {'sent': 0, 'error': 0, 'deferred': 0}
+            return {'ok': True}
 
         # Build lookup dict by message_id
         reports_by_id = {item['id']: item for item in delivery_report}
 
-        # Track summary statistics
-        sent_count = 0
-        error_count = 0
-        deferred_count = 0
+        # Track problematic IDs only
+        error_ids = []
+        not_found_ids = []
 
         messagetbl = self.db.table('email.message')
         messages = messagetbl.query(
@@ -163,165 +175,92 @@ class GnrCustomWebPage(object):
             for_update=True
         ).fetch()
 
+        # Find IDs not in DB
+        found_ids = {m['id'] for m in messages}
+        for msg_id in reports_by_id:
+            if msg_id not in found_ids:
+                not_found_ids.append(msg_id)
+
+        # Process found messages
         for message in messages:
             old_message = dict(message)
             report = reports_by_id.get(message['id']) or {}
 
-            # Process sent_ts timestamp
-            send_ts = report.get('sent_ts')
-            if send_ts:
+            sent_ts = report.get('sent_ts')
+            error_ts = report.get('error_ts')
+
+            if sent_ts:
                 try:
-                    message['send_date'] = datetime.fromtimestamp(int(send_ts), tz=timezone.utc)
+                    message['send_date'] = datetime.fromtimestamp(int(sent_ts), tz=timezone.utc)
                     message['deferred_ts'] = None
                     message['error_ts'] = None
                     message['error_msg'] = None
-                    sent_count += 1
                 except (TypeError, ValueError):
-                    logger.warning('Invalid sent_ts in delivery report for message %s: %s',
-                                 message['id'], send_ts)
+                    pass
 
-            # Process error_ts timestamp
-            error_ts = report.get('error_ts')
-            if error_ts:
+            elif error_ts:
                 try:
                     message['error_ts'] = datetime.fromtimestamp(int(error_ts), tz=timezone.utc)
-                    error_count += 1
+                    message['error_msg'] = report.get('error')
+                    error_ids.append(message['id'])
                 except (TypeError, ValueError):
-                    logger.warning('Invalid error_ts in delivery report for message %s: %s',
-                                 message['id'], error_ts)
-
-            # Process deferred_ts timestamp (if message was deferred by rate limiter)
-            deferred_ts = report.get('deferred_ts')
-            if deferred_ts and not send_ts and not error_ts:
-                try:
-                    message['deferred_ts'] = datetime.fromtimestamp(int(deferred_ts), tz=timezone.utc)
-                    deferred_count += 1
-                except (TypeError, ValueError):
-                    logger.warning('Invalid deferred_ts in delivery report for message %s: %s',
-                                 message['id'], deferred_ts)
-
-            # Update error message if present
-            message['error_msg'] = report.get('error')
+                    pass
 
             messagetbl.update(message, old_message)
 
         self.db.commit()
-        return {'sent': sent_count, 'error': error_count, 'deferred': deferred_count}
+
+        # Return ok:true if no problems, otherwise only non-empty problem lists
+        if not error_ids and not not_found_ids:
+            return {'ok': True}
+
+        result = {}
+        if error_ids:
+            result['error'] = error_ids
+        if not_found_ids:
+            result['not_found'] = not_found_ids
+        return result
 
     @public_method(tags='_MAILPROXY_')
-    def proxy_get_attachments(self, storage_paths=None, **kwargs):
+    def proxy_get_attachments(self, **kwargs):
         """
-        Download multiple attachment files via RPC or HTTP POST.
+        Download attachment file via HTTP POST.
 
         Called by async-mail-service HttpFetcher to retrieve attachment content.
         Authentication is handled by genropy via Basic Auth with the mailproxy user.
 
-        Supports two call modes:
-        1. RPC call: storage_paths parameter directly
-        2. HTTP POST from HttpFetcher:
-           - Single: body contains storage_path string directly
-           - Batch: JSON body {"attachments": ["path1", "path2", ...]}
-
-        Args:
-            storage_paths: List of storage paths in format "volume:path"
-                          Example: ["home:emails/file.pdf", "docs:report.xlsx"]
+        Request format (JSON body):
+            {"storage_path": "volume:path"}
+            Example: {"storage_path": "home:emails/file.pdf"}
 
         Returns:
-            For RPC/single: list of attachment data dictionaries
-            For batch HTTP: {"attachments": [...]} format for HttpFetcher
+            Binary file content directly.
 
-            Each attachment dict contains:
-            {
-                'storage_path': 'home:emails/file.pdf',
-                'content': bytes,      # File content (base64 encoded in JSON response)
-                'mimetype': str,       # MIME type (e.g., 'application/pdf')
-                'filename': str,       # Base filename
-                'size': int           # File size in bytes
-            }
-            or in case of error:
-            {
-                'storage_path': 'home:missing.pdf',
-                'error': 'File not found: home:missing.pdf'
-            }
-
-        Notes:
-            - Supports batch downloads (multiple attachments in one call)
-            - Errors are returned per-file (doesn't fail entire batch)
-            - File content is base64 encoded automatically by JSON serializer
+        Raises:
+            Exception: If file not found or error reading file.
         """
-        is_batch_http = False
+        json_data = self.get_request_body_json() or {}
+        storage_path = json_data.get('storage_path')
 
-        # Handle HTTP POST from HttpFetcher if storage_paths not provided via RPC
-        if storage_paths is None:
-            json_data = self.get_request_body_json()
-            if json_data and 'attachments' in json_data:
-                # Batch HTTP request: {"attachments": ["path1", "path2", ...]}
-                storage_paths = json_data.get('attachments') or []
-                is_batch_http = True
-            else:
-                # Single HTTP request: body contains the storage_path directly
-                body = self.get_request_body()
-                if body:
-                    if isinstance(body, bytes):
-                        body = body.decode('utf-8')
-                    storage_paths = [body.strip()]
+        if not storage_path:
+            raise Exception("Missing required parameter: storage_path")
 
-        if not storage_paths:
-            raise Exception("Missing required parameter: storage_paths")
+        logger.info('proxy_get_attachments: fetching %s', storage_path)
+        storage_node = self.site.storageNode(storage_path)
 
-        if not isinstance(storage_paths, list):
-            storage_paths = [storage_paths]
+        if not storage_node or not storage_node.exists:
+            logger.warning('Attachment not found: %s', storage_path)
+            raise Exception(f'File not found: {storage_path}')
 
-        results = []
-        logger.info('proxy_get_attachments: processing %d attachment(s)', len(storage_paths))
+        # Read and return binary content directly
+        with storage_node.open('rb') as f:
+            content = f.read()
 
-        for storage_path in storage_paths:
-            try:
-                storage_node = self.site.storageNode(storage_path)
+        logger.debug('Attachment retrieved: %s (%d bytes)', storage_path, len(content))
 
-                if not storage_node or not storage_node.exists:
-                    logger.warning('Attachment not found: %s', storage_path)
-                    results.append({
-                        'storage_path': storage_path,
-                        'error': f'File not found: {storage_path}'
-                    })
-                    continue
-
-                # Read file content
-                with storage_node.open('rb') as f:
-                    content = f.read()
-
-                logger.debug('Attachment retrieved: %s (%d bytes)', storage_path, len(content))
-
-                results.append({
-                    'storage_path': storage_path,
-                    'content': content,
-                    'mimetype': storage_node.mimetype or 'application/octet-stream',
-                    'filename': storage_node.basename or storage_path.split('/')[-1],
-                    'size': len(content)
-                })
-
-            except Exception as e:
-                logger.error('Error retrieving attachment %s: %s', storage_path, e, exc_info=True)
-                results.append({
-                    'storage_path': storage_path,
-                    'error': f'Error reading file: {str(e)}'
-                })
-
-        # Log summary
-        success_count = sum(1 for r in results if 'error' not in r)
-        error_count = len(results) - success_count
-        total_size = sum(r.get('size', 0) for r in results if 'error' not in r)
-
-        logger.info('proxy_get_attachments: completed %d/%d successful (total %d bytes)',
-                   success_count, len(results), total_size)
-
-        # Return format depends on call mode
-        if is_batch_http:
-            # HttpFetcher expects {"attachments": [...]} for batch
-            return {'attachments': results}
-
-        return results
+        # Return binary content - the proxy reads it with response.read()
+        self.response.content_type = 'application/octet-stream'
+        return content
 
     def _adaptedMessages(self,messages):
         for message in messages:
