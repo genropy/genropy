@@ -31,7 +31,6 @@ class Table(object):
         tbl.column('smtp_ssl',name_long='!!Smtp ssl',dtype='B')
         tbl.column('send_limit', dtype='L', name_long='!!Sending limit')
         tbl.column('system_bcc',name_long='!!System bcc')
-        tbl.column('use_mailproxy', dtype='B', name_long='!![en]Use mail proxy')
         tbl.column('proxy_ttl', dtype='L', name_long='!!Proxy connection TTL (seconds)', default=300)
         tbl.column('proxy_limit_per_minute', dtype='L', name_long='!!Proxy limit per minute')
         tbl.column('proxy_limit_per_hour', dtype='L', name_long='!!Proxy limit per hour')
@@ -69,53 +68,33 @@ class Table(object):
         mboxtbl = self.db.table('email.mailbox')
         for i,mbox in enumerate(self.standardMailboxes()):
             mboxtbl.createMbox(mbox,record_data['id'],order=i+1)
-        if record_data.get('use_mailproxy'):
-            self._sync_account_to_mailproxy(record_data)
+        self._sync_account_to_mailproxy_if_active(record_data)
 
     def trigger_onUpdated(self, record_data, old_record=None):
         mboxtbl = self.db.table('email.mailbox')
         if mboxtbl.query(where='$account_id=:account_id',account_id=record_data['id']).count()==0:
             for i,mbox in enumerate(self.standardMailboxes()):
                 mboxtbl.createMbox(mbox,record_data['id'],order=i+1)
-        if self.fieldsChanged('use_mailproxy', record_data, old_record):
-            if record_data.get('use_mailproxy'):
-                self._sync_account_to_mailproxy(record_data)
-            else:
-                self._remove_account_from_mailproxy(record_data)
+        self._sync_account_to_mailproxy_if_active(record_data)
 
     def trigger_onDeleted(self, record_data):
-        if record_data.get('use_mailproxy'):
-            self._remove_account_from_mailproxy(record_data)
+        self._remove_account_from_mailproxy_if_active(record_data)
 
-    def _get_mailproxy_service(self):
-        """Get mailproxy service if configured and registered.
-
-        Returns:
-            service instance
-
-        Raises:
-            Exception: If service is not configured or not registered
-        """
-        service = self.db.application.site.getService('mailproxy')
-        if not service or not service.proxy_url:
-            raise self.exception('business_logic',
-                msg='Mailproxy service is not configured')
-        if not service.tenant_registered:
-            raise self.exception('business_logic',
-                msg='Mailproxy service is not activated')
-        return service
-
-    def _sync_account_to_mailproxy(self, record_data):
-        """Sync account to mailproxy service."""
-        service = self._get_mailproxy_service()
+    def _sync_account_to_mailproxy_if_active(self, record_data):
+        """Sync account to mailproxy if service is active."""
+        service = self.pkg.getMailProxy(raise_if_missing=False)
+        if not service:
+            return
         try:
             service.add_account(record_data['id'])
         except Exception as e:
             gnrlogger.error(f'Failed to sync account to mailproxy: {e}')
 
-    def _remove_account_from_mailproxy(self, record_data):
-        """Remove account from mailproxy service."""
-        service = self._get_mailproxy_service()
+    def _remove_account_from_mailproxy_if_active(self, record_data):
+        """Remove account from mailproxy if service is active."""
+        service = self.pkg.getMailProxy(raise_if_missing=False)
+        if not service:
+            return
         try:
             service.delete_account(record_data['id'])
         except Exception as e:

@@ -40,10 +40,10 @@ class Package(GnrDboPackage):
         Raises:
             Exception: If mailproxy service already exists
         """
-        if self.application.site.getService('mailproxy'):
+        if self.db.application.site.getService('mailproxy'):
             raise Exception('Mailproxy service already exists')
 
-        service_tbl = self.application.db.table('sys.service')
+        service_tbl = self.db.table('sys.service')
 
         service_tbl.addService(
             service_type='mailproxy',
@@ -56,21 +56,48 @@ class Package(GnrDboPackage):
             db_max_waiting=db_max_waiting
         )
 
-        self.application.db.commit()
+        self.db.commit()
 
         try:
-            service = self.application.site.getService('mailproxy')
+            service = self.db.application.site.getService('mailproxy')
             result = service.activateService()
 
-            self.application.db.commit()
+            self.db.commit()
 
             return result
         except Exception as e:
             service_tbl.delete(service_tbl.record(
                 service_type='mailproxy'
             ))
-            self.application.db.commit()
+            self.db.commit()
             raise
+
+    def getMailProxy(self, raise_if_missing=True):
+        """Get the configured and activated mailproxy service.
+
+        Args:
+            raise_if_missing: If True, raises exception when service not available.
+                             If False, returns None.
+
+        Returns:
+            The mailproxy service instance or None.
+        """
+        service = self.db.application.site.getService('mailproxy')
+
+        if service and service.disabled:
+            return None
+
+        if not service or not service.proxy_url:
+            if raise_if_missing:
+                raise Exception('Mailproxy service is not configured')
+            return None
+
+        if not service.tenant_registered:
+            if raise_if_missing:
+                raise Exception('Mailproxy service is not activated')
+            return None
+
+        return service
 
 class Table(GnrDboTable):
     def use_dbstores(self,forced_dbstore=None, env_forced_dbstore=None,**kwargs):

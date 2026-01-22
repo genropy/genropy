@@ -6,7 +6,7 @@ class Table(object):
                         name_long='[en]Sending messages', order_by='$__ins_ts')
         self.sysFields(tbl, id=False)
         tbl.column('message_id', size='22', group='_', name_long='Message'
-                   ).relation('message.id', one_one=True,
+                   ).relation('message.id', one_one=True,onDelete='cascade',
                               relation_name='sending_index')
         tbl.aliasColumn('proxy_priority', '@message_id.proxy_priority')  
 
@@ -30,6 +30,6 @@ class Table(object):
         self.db.deferToCommit(self.proxyRunNow,_deferredId='_proxy_communication_')
     
     def proxyRunNow(self):
-        mailproxy = self.db.application.site.getService('mailproxy')
+        mailproxy = self.pkg.getMailProxy(raise_if_missing=False)
         if mailproxy:
             mailproxy.run_now()
