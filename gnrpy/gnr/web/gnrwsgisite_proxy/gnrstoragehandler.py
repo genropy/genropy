@@ -50,13 +50,16 @@ class BaseStorageHandler:
         '_http_': {'implementation': 'http'},
     }
 
-    def __init__(self, site):
+    def __init__(self, site, domain=None):
         """Initialize the storage handler.
 
         Args:
             site: The GnrWsgiSite instance
+            domain: The domain this handler belongs to (for multidomain mode).
+                    If None, uses site.currentDomain at query time.
         """
         self.site = site
+        self.domain = domain
         self.storage_params = {}
         self._loadAllStorageParameters()
 
@@ -199,9 +202,11 @@ class BaseStorageHandler:
             return
 
         # Query all storage services from database
+        # Use explicit domain if set, otherwise fall back to currentDomain
         storename = False
-        if self.site.multidomain and self.site.currentDomain!=self.site.rootDomain:
-            storename = self.site.currentDomain
+        domain = self.domain if self.domain else self.site.currentDomain
+        if self.site.multidomain and domain and domain != self.site.rootDomain:
+            storename = domain
         with self.site.db.tempEnv(storename=storename):
             services = self.site.db.table('sys.service').query(
                 where='$service_type=:st',
@@ -267,9 +272,11 @@ class BaseStorageHandler:
             True if update was successful, False otherwise
         """
         # Query the specific service record
+        # Use explicit domain if set, otherwise fall back to currentDomain
         storename = False
-        if self.site.multidomain and self.site.currentDomain!=self.site.rootDomain:
-            storename = self.site.currentDomain
+        domain = self.domain if self.domain else self.site.currentDomain
+        if self.site.multidomain and domain and domain != self.site.rootDomain:
+            storename = domain
         with self.site.db.tempEnv(storename=storename):
             service_record = self.site.db.table('sys.service').record(
                 service_type='storage',

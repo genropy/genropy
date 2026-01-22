@@ -181,7 +181,7 @@ class GnrDomainProxy(object):
     @property
     def storage_handler(self):
         if self._storage_handler is None:
-            self._storage_handler = LegacyStorageHandler(self.parent.site)
+            self._storage_handler = LegacyStorageHandler(self.parent.site, domain=self.domain)
         return self._storage_handler
 
 
@@ -199,16 +199,18 @@ class GnrDomainHandler(object):
         self._lock = RLock()
 
     def __contains__(self, name):
-        result = name in self.domains
-        if result:
-            return result
-        self._discover_from_dbstores(name)
-        return name in self.domains
+        with self._lock:
+            result = name in self.domains
+            if result:
+                return result
+            self._discover_from_dbstores(name)
+            return name in self.domains
 
     def __getitem__(self, name):
-        if name not in self.domains:
-            self._discover_from_dbstores(name)
-        return self.domains.get(name)
+        with self._lock:
+            if name not in self.domains:
+                self._discover_from_dbstores(name)
+            return self.domains.get(name)
 
     def add(self, domain):
         """Register a new domain if not already present.
