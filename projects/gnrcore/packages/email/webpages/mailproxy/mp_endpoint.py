@@ -137,14 +137,20 @@ class GnrCustomWebPage(object):
             order_by=f'COALESCE($proxy_priority,{MEDIUM_PRIORITY}),$__ins_ts',
         ).fetch()
 
+        queued_count = 0
         if outgoing_messages:
             logger.info('proxy_sync: fetched %d pending messages to submit (limit=%d)',
                        len(outgoing_messages), batch_size)
             message_pkeys = [m['message_id'] for m in outgoing_messages]
-            self._add_messages_to_proxy_queue(proxy_service, message_pkeys)
+            queued_count = self._add_messages_to_proxy_queue(proxy_service, message_pkeys) or 0
             self.db.commit()
+            logger.info('proxy_sync: queued %d messages to proxy', queued_count)
 
-        return self._json_response(report_result)
+        # Include queued count in response for proxy polling optimization
+        response = dict(report_result)
+        response['queued'] = queued_count
+
+        return self._json_response(response)
         
                 
     def _update_from_delivery_report(self, delivery_report):
@@ -301,10 +307,23 @@ class GnrCustomWebPage(object):
                 proxy_ids[message['id']] = payload_chunk.get('id')
 
         if not payload:
-            return
+            return 0
 
         # Submit batch to async-mail-service
-        response_data = proxy_service.add_messages(payload) or {}
+        try:
+            response_data = proxy_service.add_messages(payload) or {}
+        except Exception as e:
+            # Proxy not reachable or returned error - mark all messages as failed
+            error_msg = f"Proxy communication error: {e}"
+            logger.error('proxy_sync: %s', error_msg)
+            timestamp = message_tbl.newUTCDatetime()
+            for message_id, message_to_update in messages.items():
+                if proxy_ids.get(message_id):  # Only messages that would have been sent
+                    oldrec = dict(message_to_update)
+                    message_to_update['error_ts'] = timestamp
+                    message_to_update['error_msg'] = error_msg
+                    message_tbl.update(message_to_update, oldrec)
+            return 0
 
         if isinstance(response_data, list):
             # Backwards compatibility in case the proxy still returns the legacy format
@@ -340,7 +359,10 @@ class GnrCustomWebPage(object):
                 message_to_update['error_ts'] = None
                 message_to_update['error_msg'] = None
             message_tbl.update(message_to_update,oldrec)
-        
+
+        # Return the count of successfully queued messages from proxy response
+        return response_data.get('queued', 0)
+
     def _convert_to_proxy_message(self, record):
         """
         Convert a Genropy email.message record to async-mail-service message format.
