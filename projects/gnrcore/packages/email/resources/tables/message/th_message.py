@@ -64,7 +64,8 @@ class View(BaseComponent):
     @metadata(isMain=True,_if='inout=="O"',_if_inout='^.in_out.current', variable_struct=True)
     def th_sections_sendingstatus(self):
         return [dict(code='drafts',caption='!!Drafts',condition="$__is_draft IS TRUE",includeDraft=True),
-                dict(code='to_send',caption='!!Ready to send',isDefault=True,condition='$send_date IS NULL AND $error_msg IS NULL'),
+                dict(code='to_send',caption='!!Ready to send',isDefault=True,condition='$send_date IS NULL  AND $proxy_ts IS NULL AND $error_msg IS NULL'),
+                dict(code='dispatched_to_proxy',caption='!!Dispatched',isDefault=True,condition='$send_date IS NULL AND $proxy_ts IS NOT NULL AND $error_msg IS NULL'),
                 dict(code='sending_error',caption='!!Sending error',condition='$error_msg IS NOT NULL', struct='sending_error'),
                 dict(code='sent',caption='!!Sent',includeDraft=False,condition='$send_date IS NOT NULL', struct='sent'),
                 dict(code='all',caption='!!All',includeDraft=True)]
@@ -241,7 +242,10 @@ class Form(BaseComponent):
                                                     width='100%',
                                                     colswidth='auto')
         fb.field('in_out')
-        fb.field('subject', colspan=3)
+        fb.field('account_id',unmodifiable=True)
+        fb.field('proxy_priority')
+        fb.br()
+        fb.field('subject', colspan=4)
         fb.field('to_address',colspan=2)
         fb.field('from_address',colspan=2)
         fb.field('cc_address',colspan=2)

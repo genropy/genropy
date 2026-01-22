@@ -90,6 +90,16 @@ class Form(BaseComponent):
         fb.field('send_limit')
         fb.field('debug_address')
         
+        if self.db.package('email').getMailProxy(raise_if_missing=False):
+            fb.br()
+            proxy_hidden = '^.save_output_message?=!#v'
+            fb.field('proxy_ttl',hidden=proxy_hidden)
+            fb.field('proxy_limit_per_minute',hidden=proxy_hidden)
+            fb.field('proxy_limit_per_hour',hidden=proxy_hidden)
+            fb.field('proxy_limit_per_day',hidden=proxy_hidden)
+            fb.field('proxy_limit_behavior',hidden=proxy_hidden)
+            fb.field('proxy_batch_size',hidden=proxy_hidden)
+
         self.smtp_toolbar(bc.contentPane(region='bottom'))
         return fb
     
