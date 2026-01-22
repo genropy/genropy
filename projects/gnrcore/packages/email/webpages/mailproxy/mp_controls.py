@@ -260,9 +260,6 @@ class GnrCustomWebPage(object):
         if response_status != 'ok':
             message = self._response_message(response) or 'Unknown error'
             return Bag(dict(status='error', message='Add account: %s' % message))
-        with self.db.table('email.account').recordToUpdate(account_id) as rec_account:
-            rec_account['use_mailproxy'] = True
-        self.db.commit()
 
         overview = self.rpc_proxy_overview()
         return Bag(dict(status='ok', message='Account registered on mail proxy', overview=overview))
@@ -295,11 +292,6 @@ class GnrCustomWebPage(object):
         if response_status != 'ok':
             message = self._response_message(response) or 'Unknown error'
             return Bag(dict(status='error', message='Delete account: %s' % message))
-
-        # Update the local database record
-        with self.db.table('email.account').recordToUpdate(account_id) as rec_account:
-            rec_account['use_mailproxy'] = False
-        self.db.commit()
 
         overview = self.rpc_proxy_overview()
         return Bag(dict(status='ok', message='Account removed from mail proxy', overview=overview))

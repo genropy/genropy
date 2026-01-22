@@ -18,7 +18,7 @@ import secrets
 
 class Main(GnrBaseService):
     def __init__(self, parent=None, proxy_url=None, proxy_token=None, db_max_waiting=None, batch_size=None,
-                 tenant_id=None, tenant_registered=None, **kwargs):
+                 tenant_id=None, tenant_registered=None, disabled=None, **kwargs):
         super().__init__(parent, **kwargs)
         self.proxy_url = proxy_url
         self.proxy_token = proxy_token
@@ -26,6 +26,7 @@ class Main(GnrBaseService):
         self.batch_size = batch_size
         self.tenant_id = tenant_id or self.parent.site_name
         self.tenant_registered = tenant_registered or False
+        self.disabled = disabled or False
 
     # Command helpers
     def run_now(self):
@@ -445,14 +446,14 @@ class Main(GnrBaseService):
         return username, password
 
     def _sync_mailproxy_accounts(self):
-        """Sync all accounts with use_mailproxy=true to the proxy.
+        """Sync all accounts with save_output_message=true to the proxy.
 
         Returns:
             tuple: (synced_count, failed_count)
         """
         account_tbl = self.parent.db.table('email.account')
         accounts = account_tbl.query(
-            where='$use_mailproxy IS TRUE',
+            where='$save_output_message IS TRUE',
             columns='$id'
         ).fetch()
 
@@ -496,6 +497,7 @@ class ServiceParameters(BaseComponent):
                          disabled='^.tenant_registered')
         fb.numberTextBox('^.batch_size', lbl='Batch size',
                          disabled='^.tenant_registered')
+        fb.checkbox('^.disabled',lbl='&nbps;', label='!![en]Disable mail proxy connection')
 
         # Register button - solo se NON registrato
         register_btn = fb.button('!![en]Register',
