@@ -86,7 +86,10 @@ class Table(object):
         if not service:
             return
         try:
-            service.add_account(record_data['id'])
+            if record_data['save_output_message'] and record_data['smtp_host']:
+                service.add_account(record_data['id'])
+            else:
+                service.delete_account(record_data['id'])
         except Exception as e:
             gnrlogger.error(f'Failed to sync account to mailproxy: {e}')
 
