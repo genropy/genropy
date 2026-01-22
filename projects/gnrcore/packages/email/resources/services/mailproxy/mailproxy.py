@@ -18,7 +18,7 @@ import secrets
 
 class Main(GnrBaseService):
     def __init__(self, parent=None, proxy_url=None, proxy_token=None, db_max_waiting=None, batch_size=None,
-                 tenant_id=None, tenant_registered=None, disabled=None, **kwargs):
+                 tenant_id=None, tenant_registered=None, disabled=None, client_base_url=None, **kwargs):
         super().__init__(parent, **kwargs)
         self.proxy_url = proxy_url
         self.proxy_token = proxy_token
@@ -27,6 +27,7 @@ class Main(GnrBaseService):
         self.tenant_id = tenant_id or self.parent.site_name
         self.tenant_registered = tenant_registered or False
         self.disabled = disabled or False
+        self.client_base_url = client_base_url or self.parent.externalUrl('/email/mailproxy/mp_endpoint')
 
     # Command helpers
     def run_now(self):
@@ -130,7 +131,7 @@ class Main(GnrBaseService):
         """Get tenant information from the mail proxy.
 
         Args:
-            tenant_id: Tenant identifier (defaults to site_name)
+            tenant_id: Tenant identifier (defaults to self.tenant_id)
 
         Returns:
             dict: Tenant info if found, None if not found
@@ -141,15 +142,12 @@ class Main(GnrBaseService):
         except RuntimeError:
             return None
 
-    def register_tenant(self, tenant_id, client_base_url, client_sync_path=None,
-                        client_attachment_path=None, username=None, password=None):
+    def register_tenant(self, username=None, password=None):
         """Register or update this genropy instance as a tenant on the mail proxy.
 
+        Uses self.tenant_id and self.client_base_url for identification.
+
         Args:
-            tenant_id: Unique tenant identifier
-            client_base_url: Base URL for tenant HTTP endpoints
-            client_sync_path: Relative path for delivery report callbacks
-            client_attachment_path: Relative path for attachment fetcher endpoint
             username: Username for Basic Auth
             password: Password for Basic Auth
 
@@ -157,13 +155,11 @@ class Main(GnrBaseService):
             dict: Response with 'ok' status from proxy
         """
         payload = {
-            "id": tenant_id,
-            "client_base_url": client_base_url,
+            "id": self.tenant_id,
+            "client_base_url": self.client_base_url,
         }
-        if client_sync_path:
-            payload["client_sync_path"] = client_sync_path
-        if client_attachment_path:
-            payload["client_attachment_path"] = client_attachment_path
+        payload["client_sync_path"] = '/proxy_sync'
+        payload["client_attachment_path"] = '/proxy_get_attachments'
         if username and password:
             payload["client_auth"] = {
                 "method": "basic",
@@ -354,17 +350,10 @@ class Main(GnrBaseService):
         if not self.proxy_url:
             return {'ok': False, 'error': 'Proxy URL not configured'}
 
-        tenant_id = self.tenant_id or self.parent.site_name
         username, password = self._ensure_mailproxy_user()
-
-        client_base_url = self.parent.externalUrl('/email/mailproxy/mp_endpoint')
 
         try:
             response = self.register_tenant(
-                tenant_id=tenant_id,
-                client_base_url=client_base_url,
-                client_sync_path='/proxy_sync',
-                client_attachment_path='/proxy_get_attachments',
                 username=username,
                 password=password
             )
@@ -377,15 +366,14 @@ class Main(GnrBaseService):
                                             service_name=self.service_name) as rec:
                 params = Bag(rec['parameters'])
                 params['tenant_registered'] = True
-                params['tenant_id'] = tenant_id
                 rec['parameters'] = params
 
             synced, failed = self._sync_mailproxy_accounts()
 
             return {
                 'ok': True,
-                'message': f'Tenant "{tenant_id}" registered',
-                'tenant_id': tenant_id,
+                'message': f'Tenant "{self.tenant_id}" registered',
+                'tenant_id': self.tenant_id,
                 'synced': synced,
                 'failed': failed
             }
@@ -434,8 +422,9 @@ class Main(GnrBaseService):
             rec['email'] = 'mailproxy@system.local'
             rec['status'] = 'conf'
             rec['md5pwd'] = password
-            user_id = rec['id']
-
+            rec['__syscode'] = username
+            rec['id'] = rec['__syscode'].ljust(22,'_')
+        user_id = rec['id']
         tag_id = db.table('adm.htag').sysRecord('_MAILPROXY_')['id']
         user_tag_tbl = db.table('adm.user_tag')
         with user_tag_tbl.recordToUpdate(user_id=user_id, tag_id=tag_id, insertMissing=True) as rec:
@@ -484,20 +473,20 @@ class ServiceParameters(BaseComponent):
         fb.PasswordTextBox('^.proxy_token', lbl='!![en]API Token',
                    disabled='^.tenant_registered')
 
-        # Status semaphore in div separato
-        status_box = fb.div(lbl='!![en]Proxy reachable')
-        status_box.div('^#FORM.proxy_status',dtype='B',format='semaphore')
-        
-        # Check proxy status on load e quando cambia proxy_url
-        status_box.dataRpc('#FORM.proxy_status', self.rpc_check_proxy_status,
-                   proxy_url='^.proxy_url',
-                   _onBuilt=1)
+        fb.textbox('^.client_base_url', lbl='Client endpoint url', colspan=2,
+                   placeholder=self.externalUrl('/email/mailproxy/mp_endpoint'))
 
         fb.numberTextbox('^.db_max_waiting', lbl='Db max waiting',
                          disabled='^.tenant_registered')
         fb.numberTextBox('^.batch_size', lbl='Batch size',
                          disabled='^.tenant_registered')
-        fb.checkbox('^.disabled',lbl='&nbsp;', label='!![en]Disable mail proxy connection')
+
+        status_box = fb.div(lbl='!![en]Proxy reachable')
+        status_box.div('^#FORM.proxy_status', dtype='B', format='semaphore')
+        status_box.dataRpc('#FORM.proxy_status', self.rpc_check_proxy_status,
+                           proxy_url='^.proxy_url', _onBuilt=1)
+
+        fb.checkbox('^.disabled', lbl='&nbsp;', label='!![en]Disable mail proxy connection')
 
         # Register button - solo se NON registrato
         register_btn = fb.button('!![en]Register',
@@ -534,9 +523,6 @@ class ServiceParameters(BaseComponent):
                                   }
                                   this.form.reload();
                                """)
-
-    
-
 
     @public_method
     def rpc_check_proxy_status(self, proxy_url=None):
