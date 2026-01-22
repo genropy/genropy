@@ -1035,12 +1035,16 @@ class SiteRegisterClient(object):
     def checkSiteRegisterServerUri(self,daemonProxy):
         if not self.siteregisterserver_uri:
             # Use domain-specific identifier for register isolation
-            info = daemonProxy.getSite(self.site.currentDomainIdentifier, create=True, storage_path=self.storage_path, autorestore=True)
-            self.siteregisterserver_uri = info.get('server_uri',False)
-            if not self.siteregisterserver_uri:
+            try:
+                info = daemonProxy.getSite(self.site.currentDomainIdentifier, create=True, storage_path=self.storage_path, autorestore=True)
+                self.siteregisterserver_uri = info.get('server_uri',False)
+                if not self.siteregisterserver_uri:
+                    time.sleep(1)
+                else:
+                    self.siteregister_uri = info['register_uri']
+            except Exception as e:
+                logger.warning(f'getSite failed for {self.site.currentDomainIdentifier}: {e}, retrying...')
                 time.sleep(1)
-            else:
-                self.siteregister_uri = info['register_uri']
         return self.siteregisterserver_uri
 
     def runningDaemon(self,daemonProxy):
