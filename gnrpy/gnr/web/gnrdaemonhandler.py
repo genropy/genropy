@@ -300,7 +300,7 @@ class GnrDaemon(object):
             siteregister_processes_dict['register'] = childprocess
 
             if not gnrtask.USE_ASYNC_TASKS and self.hasSysPackageAndIsPrimary(sitename):
-                taskScheduler = Process(name='ts_%s' %domainIdentifier, target=createTaskScheduler,kwargs=dict(sitename=domainIdentifier))
+                taskScheduler = Process(name='ts_%s' %sitename, target=createTaskScheduler,kwargs=dict(sitename=sitename))
                 taskScheduler.daemon = True
                 taskScheduler.start()
                 siteregister_processes_dict['task_scheduler'] = taskScheduler
