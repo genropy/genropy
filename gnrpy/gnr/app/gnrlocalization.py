@@ -93,7 +93,7 @@ class AppLocalizer(object):
         return self.getTranslation(txt,language=language)['translation']
 
     def getTranslation(self,txt,language=None):
-        language = (language or self.application.locale).split('-')[0].lower()
+        language = (language or self.application.locale)[:2].lower()
         result = dict(status='OK',translation=None)
         if isinstance(txt,GnrLocString):
             lockey = txt.lockey

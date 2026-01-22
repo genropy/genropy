@@ -2097,3 +2097,32 @@ dojo.declare("gnr.GnrDomSource", gnr.GnrStructData, {
         return node===true?null:node;
     }
 });
+
+// Wrap the GnrDomSource constructor to return a Proxy
+(function() {
+    var OriginalGnrDomSource = gnr.GnrDomSource;
+
+    gnr.GnrDomSource = function(source, kw) {
+        var instance = new OriginalGnrDomSource(source, kw);
+
+        return new Proxy(instance, {
+            get: function(target, prop) {
+                // If property exists on target, return it
+                if (prop in target) {
+                    var value = target[prop];
+                    if (typeof value === 'function') {
+                        return value.bind(target);
+                    }
+                    return value;
+                }
+                // Unknown property: return a function that calls _() with prop as tag
+                return function(name, attributes, extrakw) {
+                    return target._(prop, name, attributes, extrakw);
+                };
+            }
+        });
+    };
+
+    // Preserve the prototype chain
+    gnr.GnrDomSource.prototype = OriginalGnrDomSource.prototype;
+})();

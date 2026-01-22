@@ -1,3 +1,18 @@
+Upcoming Release
+================
+
+Enhancements
+------------
+
+* Added get_json method to Request object to automatically parse JSON
+  payloads based on request mime type
+
+Fixes
+-----
+
+* Locale detection for localized columns fixes
+* Docker image build fixes when cleaning up cloned git repositories
+
 Release 26.01.15
 ================
 
