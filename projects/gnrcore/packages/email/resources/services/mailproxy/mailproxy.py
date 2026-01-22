@@ -497,7 +497,7 @@ class ServiceParameters(BaseComponent):
                          disabled='^.tenant_registered')
         fb.numberTextBox('^.batch_size', lbl='Batch size',
                          disabled='^.tenant_registered')
-        fb.checkbox('^.disabled',lbl='&nbps;', label='!![en]Disable mail proxy connection')
+        fb.checkbox('^.disabled',lbl='&nbsp;', label='!![en]Disable mail proxy connection')
 
         # Register button - solo se NON registrato
         register_btn = fb.button('!![en]Register',
