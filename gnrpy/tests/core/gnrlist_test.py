@@ -308,6 +308,23 @@ def test_readCSV_new():
         assert isinstance(d[0], gl.GnrNamedList)
         assert 'a' in d[0].keys()
 
+def test_readCSV_semicolon():
+    """Test CSV Sniffer with semicolon delimiter on truncated file (issue #427)
+
+    Verifies that the csv_auto filetype correctly detects semicolon delimiter
+    even when the file has incomplete/truncated lines, which previously caused
+    the Sniffer to fail with 'Could not determine delimiter' error.
+    """
+    test_file = os.path.join(os.path.dirname(__file__),
+                              'data', 'testSemicolon.csv')
+
+    # Read CSV with automatic dialect detection
+    reader = gl.getReader(test_file, filetype='csv_auto')
+
+    # Verify we can read the header correctly
+    assert reader.ncols == 11
+    assert reader.headers[0] == 'Data contabile'
+    assert reader.headers[10] == 'Note'
         
 def test_sortByAttr():
     class MockObj(object):
@@ -845,4 +862,3 @@ def test_GnrNamedList_mixed_access_patterns():
     # Pattern 5: Enumerate
     for i, value in enumerate(row):
         assert row[i] == value
-

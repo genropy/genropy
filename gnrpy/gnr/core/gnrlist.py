@@ -584,6 +584,14 @@ class CsvReader(object):
         else:
             self.filecsv = open(docname,'r')
         self.rows = csv.reader(self.filecsv,dialect=dialect,delimiter=delimiter or ',')
+
+        if delimiter:
+            self.rows = csv.reader(self.filecsv, dialect=dialect, delimiter=delimiter)
+        elif dialect:
+            self.rows = csv.reader(self.filecsv, dialect=dialect)
+        else:
+            self.rows = csv.reader(self.filecsv, dialect=dialect, delimiter=',')
+        
         self.headers = next(self.rows)
 
         # Handle duplicate columns
@@ -920,8 +928,24 @@ def getReader(file_path, filetype=None, **kwargs):
             dialect = 'excel-tab'
         elif filetype == 'csv_auto':
             with open(file_path) as csv_test:
-                dialect = csv.Sniffer().sniff(csv_test.read(1024))
+                # Read complete lines to avoid truncating mid-field
+                # which causes Sniffer to fail with semicolon/tab delimiters
+                CSV_SNIFFER_MAX_LINES = 20
+                CSV_SNIFFER_MAX_CHARS = 8192
 
-        reader = CsvReader(file_path,dialect=dialect,**kwargs)
+                sample_lines = []
+                sample_size = 0
+                for line in csv_test:
+                    # Check limits BEFORE appending to avoid exceeding them
+                    if (sample_size + len(line) >= CSV_SNIFFER_MAX_CHARS
+                        or len(sample_lines) >= CSV_SNIFFER_MAX_LINES):
+                        break
+                    sample_lines.append(line)
+                    sample_size += len(line)
+                
+                sample = ''.join(sample_lines)   # Sniffer requires a string
+                dialect = csv.Sniffer().sniff(sample)
+
+        reader = CsvReader(file_path, dialect=dialect, **kwargs)
         reader.index = {slugify(k, sep='_'):v for k,v in reader.index.items()}
     return reader
