@@ -366,6 +366,7 @@ class Main(GnrBaseService):
                                             service_name=self.service_name) as rec:
                 params = Bag(rec['parameters'])
                 params['tenant_registered'] = True
+                params['client_base_url'] = self.client_base_url
                 rec['parameters'] = params
 
             synced, failed = self._sync_mailproxy_accounts()
@@ -474,7 +475,8 @@ class ServiceParameters(BaseComponent):
                    disabled='^.tenant_registered')
 
         fb.textbox('^.client_base_url', lbl='Client endpoint url', colspan=2,
-                   placeholder=self.externalUrl('/email/mailproxy/mp_endpoint'))
+                   placeholder=self.externalUrl('/email/mailproxy/mp_endpoint'),
+                   disabled='^.tenant_registered')
 
         fb.numberTextbox('^.db_max_waiting', lbl='Db max waiting',
                          disabled='^.tenant_registered')
