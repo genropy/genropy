@@ -5,6 +5,8 @@
 
 from datetime import datetime
 
+import requests
+
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrstring import fromJson
@@ -22,7 +24,7 @@ class GnrCustomWebPage(object):
         bc.css('.mp-status-error', 'color:#c00000; font-weight:bold;')
 
         status_pane = bc.contentPane(region='top', height='160px', datapath='.status', padding='6px')
-        bar = status_pane.slotToolbar('run_now,suspend,activate,*,cleanup_messages,refresh,last_message')
+        bar = status_pane.slotToolbar('run_now,*,cleanup_messages,refresh,proxy_status')
 
         shared_on_result = """
             var status = result && result.getItem ? result.getItem('status') : (result ? result.status : null);
@@ -37,8 +39,14 @@ class GnrCustomWebPage(object):
             var message = result && result.getItem ? result.getItem('message') : (result ? result.message : null);
             if(status !== 'ok'){
                 SET main.status.error = message || null;
+                if(message){
+                    genro.publish('floating_message', {message: message, messageType: 'error'});
+                }
             }else{
                 SET main.status.error = null;
+                if(message){
+                    genro.publish('floating_message', {message: message});
+                }
                 var overview = result && result.getItem ? result.getItem('overview') : (result ? result.overview : null);
                 if(overview){
                     SET main.data = overview;
@@ -51,17 +59,7 @@ class GnrCustomWebPage(object):
             self.rpc_run_now,
             _onResult=shared_on_result
         )
-        bar.suspend.slotButton('!!Suspend').dataRpc(
-            'main.status.last_command',
-            self.rpc_suspend,
-            _onResult=shared_on_result
-        )
-        bar.activate.slotButton('!!Activate').dataRpc(
-            'main.status.last_command',
-            self.rpc_activate,
-            _onResult=shared_on_result
-        )
-        bar.cleanup_messages.slotButton('!!Cleanup messages', iconClass='iconbox delete').dataRpc(
+        bar.cleanup_messages.slotButton('!!Cleanup sent').dataRpc(
             'main.status.last_command',
             self.rpc_cleanup_messages,
             older_than_seconds='=_ask.older_than_seconds',
@@ -73,7 +71,8 @@ class GnrCustomWebPage(object):
                         lbl='!!Retention (seconds)',
                         tag='numberTextBox',
                         tip='!!Leave empty to use configured retention (7 days). Set to 0 to remove all reported messages.',
-                        width='15em'
+                        width='15em',
+                        value=1
                     )
                 ]
             ),
@@ -85,6 +84,9 @@ class GnrCustomWebPage(object):
             _onResult=shared_on_result,
             _onStart=True
         )
+        proxy_status = bar.proxy_status.div()
+        proxy_status.div('^.proxy_reachable', dtype='B', format='semaphore')
+        proxy_status.dataRpc('.proxy_reachable', self.rpc_check_proxy_status, _onBuilt=1)
 
         status_pane.dataController("""
             if(!overview){
@@ -94,61 +96,28 @@ class GnrCustomWebPage(object):
             SET .pending_count = overview.getItem('status.pending_count') || 0;
             SET .deferred_count = overview.getItem('status.deferred_count') || 0;
             SET .error_count = overview.getItem('status.error_count') || 0;
-            SET .active = !!overview.getItem('status.active');
             SET .last_refresh = overview.getItem('status.last_refresh') || null;
             SET .error = overview.getItem('status.error') || null;
         """, overview='^main.data')
-        bar.last_message.div('^main.status.last_command.message', margin_left='15px', font_style='italic')
 
-        fb = status_pane.formbuilder(cols=4, border_spacing='8px', margin_top='10px', fld_readOnly=True)
+        fb = status_pane.formlet(cols=5, margin_top='10px', fld_readOnly=True)
         fb.textbox(value='^.last_refresh', lbl='!!Last refresh')
         fb.numberTextbox(value='^.account_count', lbl='!!Accounts')
         fb.numberTextbox(value='^.pending_count', lbl='!!Pending')
         fb.numberTextbox(value='^.deferred_count', lbl='!!Deferred')
         fb.numberTextbox(value='^.error_count', lbl='!!Errors')
-        fb.checkbox(value='^.active', label='!!Dispatcher active', disabled=True)
         fb.div('^.error', colspan=4, _class='mp-status-error', hidden='^.error?=!#v')
 
         left_bc = bc.borderContainer(region='left', width='38%', splitter=True)
-        accounts_grid = left_bc.contentPane(region='center').bagGrid(
+        left_bc.contentPane(region='center').bagGrid(
             frameCode='mp_accounts',
             title='!!Accounts',
             storepath='main.data.accounts',
             struct=self.accounts_struct,
             pbl_classes=True,
-            addrow=True,
-            delrow=True,
+            addrow=False,
+            delrow=False,
             margin='6px',
-        )
-        accounts_bar = accounts_grid.top.bar.replaceSlots('addrow', 'add_account')
-        accounts_bar.add_account.slotButton('!!Add account', iconClass='iconbox add_row').dataRpc(
-            'main.status.last_command',
-            self.rpc_add_account,
-            account_id='=_ask.account_id',
-            _ask=dict(
-                title='!!Add account to mail proxy',
-                fields=[
-                    dict(
-                        name='account_id',
-                        lbl='!!Account',
-                        tag='dbSelect',
-                        dbtable='email.account',
-                        columns='$account_name,$save_output_message',
-                        condition='$save_output_message IS TRUE',
-                        hasDownArrow=True,
-                        validate_notnull=True
-                    )
-                ]
-            ),
-            _onResult=shared_on_result
-        )
-        accounts_grid.top.bar.replaceSlots('delrow', 'delete_account')
-        accounts_grid.top.bar.delete_account.slotButton('!!Delete account', iconClass='iconbox delete_row').dataRpc(
-            'main.status.last_command',
-            self.rpc_delete_account,
-            account_id='=.grid.selectedId',
-            _if='account_id',
-            _onResult=shared_on_result
         )
 
         right_bc = bc.borderContainer(region='center')
@@ -214,7 +183,6 @@ class GnrCustomWebPage(object):
         status['pending_count'] = len([msg for msg in decorated_messages if msg.get('status') == 'pending'])
         status['deferred_count'] = len([msg for msg in decorated_messages if msg.get('status') == 'deferred'])
         status['error_count'] = len([msg for msg in decorated_messages if msg.get('status') == 'error'])
-        status['active'] = True  # Always active, use suspend/activate commands to control
         status['last_refresh'] = self.db.table('email.account').newUTCDatetime()
         if errors:
             status['error'] = '\n'.join(errors)
@@ -224,14 +192,6 @@ class GnrCustomWebPage(object):
     @public_method
     def rpc_run_now(self):
         return self._command_wrapper('Run now', lambda svc: svc.run_now(), include_overview=True)
-
-    @public_method
-    def rpc_suspend(self):
-        return self._command_wrapper('Suspend dispatcher', lambda svc: svc.suspend(), include_overview=True)
-
-    @public_method
-    def rpc_activate(self):
-        return self._command_wrapper('Activate dispatcher', lambda svc: svc.activate(), include_overview=True)
 
     @public_method
     def rpc_cleanup_messages(self, older_than_seconds=None):
@@ -246,55 +206,17 @@ class GnrCustomWebPage(object):
         return self._command_wrapper('Cleanup messages', cleanup_call, include_overview=True)
 
     @public_method
-    def rpc_add_account(self, account_id=None):
-        if not account_id:
-            return Bag(dict(ok=False, message='No account selected'))
-        response = self._mailproxy_service().add_account(account_id)
-
-        if isinstance(response, str):
-            try:
-                response = fromJson(response)
-            except Exception as exc:
-                return Bag(dict(status='error', message='Add account: invalid JSON response (%s)' % exc))
-        response_status = self._response_status(response)
-        if response_status != 'ok':
-            message = self._response_message(response) or 'Unknown error'
-            return Bag(dict(status='error', message='Add account: %s' % message))
-
-        overview = self.rpc_proxy_overview()
-        return Bag(dict(status='ok', message='Account registered on mail proxy', overview=overview))
-
-    @public_method
-    def rpc_delete_account(self, account_id=None):
-        """Remove an account from the mail proxy.
-
-        Args:
-            account_id: The account ID to remove
-
-        Returns:
-            Bag with status, message, and updated overview
-        """
-        if not account_id:
-            return Bag(dict(ok=False, message='No account ID provided'))
-
+    def rpc_check_proxy_status(self):
+        """Check if proxy server is reachable."""
         try:
-            response = self._mailproxy_service().delete_account(account_id)
-        except Exception as exc:
-            return Bag(dict(status='error', message='Delete account failed: %s' % exc))
-
-        if isinstance(response, str):
-            try:
-                response = fromJson(response)
-            except Exception as exc:
-                return Bag(dict(status='error', message='Delete account: invalid JSON response (%s)' % exc))
-
-        response_status = self._response_status(response)
-        if response_status != 'ok':
-            message = self._response_message(response) or 'Unknown error'
-            return Bag(dict(status='error', message='Delete account: %s' % message))
-
-        overview = self.rpc_proxy_overview()
-        return Bag(dict(status='ok', message='Account removed from mail proxy', overview=overview))
+            service = self._mailproxy_service()
+            proxy_url = service.proxy_url
+            if not proxy_url:
+                return None
+            response = requests.get(f"{proxy_url.rstrip('/')}/health", timeout=5)
+            return True if response.ok else None
+        except Exception:
+            return None
 
     # -------------------------------------------------------------------------
     # Internal utilities
