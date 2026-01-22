@@ -23,7 +23,7 @@ class Package(GnrDboPackage):
     def packageTags(self, branch):
         branch.authTag(label='_MAILPROXY_', description='Mail proxy service access')
 
-    def addProxyService(self, proxy_url, proxy_token, tenant_id=None,
+    def addProxyService(self, proxy_url, proxy_token, tenant_id=None,client_base_url=None,
                         batch_size=None, db_max_waiting=None):
         """Create and activate a mailproxy service programmatically.
 
@@ -52,6 +52,7 @@ class Package(GnrDboPackage):
             proxy_url=proxy_url,
             proxy_token=proxy_token,
             tenant_id=tenant_id,
+            client_base_url=client_base_url,
             batch_size=batch_size,
             db_max_waiting=db_max_waiting
         )
