@@ -608,8 +608,9 @@ class GnrSqlDb(GnrObject):
                     sqlargs[k] = v[1:]
 
         # FIXME: we'll need an external package  table to test this
-        if dbtable and (self.table(dbtable).use_dbstores(**sqlargs) or self.multidomain) is False: # pragma: no cover
-            storename = self.rootstore
+        if not self.multidomain:
+            if dbtable and self.table(dbtable).use_dbstores(**sqlargs) is False: # pragma: no cover
+                storename = self.rootstore
         with self.tempEnv(storename=storename):
             sql = f'-- {sql_comment}\n{sql}'
             if _adaptArguments:
