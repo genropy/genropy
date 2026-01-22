@@ -83,7 +83,8 @@ class Package(GnrDboPackage):
             The mailproxy service instance or None.
         """
         service = self.db.application.site.getService('mailproxy')
-
+        if not service:
+            return
         if service and service.disabled:
             return None
 
