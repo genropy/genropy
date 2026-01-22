@@ -818,9 +818,18 @@ dojo.declare("gnr.QueryManager", null, {
     
     buildParsDialog:function(parslist) {
         var sourceNode = this.sourceNode;
-        var dlg = genro.dlg.quickDialog('Complete query',{datapath:this.wherepath,width:'250px',autoSize:true});
+        // Use a temporary datapath to avoid issues with nested forms
+        var tempPath = 'gnr.temp_querypars_'+genro.time36Id();
+        var dlg = genro.dlg.quickDialog('Complete query',{datapath:tempPath,width:'250px',autoSize:true});
         var that = this;
+        // Copy current where values to temp path
+        var whereData = sourceNode.getRelativeData(this.wherepath);
+        genro.setData(tempPath, whereData.deepCopy());
+
         var confirm = function(){
+            // Copy values from temp path back to wherepath before running query
+            var tempData = genro.getData(tempPath);
+            sourceNode.setRelativeData(that.wherepath, tempData);
             that.runQuery()
             dlg.close_action();
         };
@@ -829,7 +838,7 @@ dojo.declare("gnr.QueryManager", null, {
         };
         var center = dlg.center._('div',{padding:'10px'});
         var bottom = dlg.bottom._('slotBar',{'slots':'cancel,*,confirm'});
-        genro.dev.dynamicQueryParsFb(center,sourceNode.getRelativeData(this.wherepath),parslist,1);
+        genro.dev.dynamicQueryParsFb(center,genro.getData(tempPath),parslist,1);
         bottom._('button', 'cancel',{label:'Cancel',baseClass:'bottom_btn',action:cancel});
         bottom._('button', 'confirm',{label:'Confirm',baseClass:'bottom_btn',action:confirm});
         dlg.show_action();
