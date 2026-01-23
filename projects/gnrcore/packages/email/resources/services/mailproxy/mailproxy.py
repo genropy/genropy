@@ -31,16 +31,9 @@ class Main(GnrBaseService):
 
     # Command helpers
     def run_now(self):
-        """Trigger an immediate fetch/send cycle."""
-        return self._post("/commands/run-now")
+        """Trigger an immediate fetch/send cycle for this tenant."""
+        return self._post("/commands/run-now", params={"tenant_id": self.tenant_id})
 
-    def suspend(self):
-        """Suspend the remote dispatcher."""
-        return self._post("/commands/suspend")
-
-    def activate(self):
-        """Activate the remote dispatcher."""
-        return self._post("/commands/activate")
 
     def add_account(self, account: Union[dict, str, None]):
         """Register or update an SMTP account on the proxy."""
@@ -48,18 +41,18 @@ class Main(GnrBaseService):
         return self._post("/account", json=payload or {})
 
     def list_accounts(self):
-        """Return the accounts known by the proxy."""
-        return self._get("/accounts")
+        """Return the accounts known by the proxy for this tenant."""
+        return self._get("/accounts", params={"tenant_id": self.tenant_id})
 
     def delete_account(self, account_id: str):
-        """Remove an account from the proxy."""
+        """Remove an account from the proxy for this tenant."""
         if not account_id:
             raise ValueError("account_id is required")
-        return self._delete(f"/account/{account_id}")
+        return self._delete(f"/account/{account_id}", params={"tenant_id": self.tenant_id})
 
     def list_messages(self):
-        """Return the full message queue with payload details."""
-        response = self._get("/messages")
+        """Return the full message queue for this tenant."""
+        response = self._get("/messages", params={"tenant_id": self.tenant_id})
         if isinstance(response, dict):
             return response
         if isinstance(response, list):
@@ -106,13 +99,13 @@ class Main(GnrBaseService):
         return {"ok": True, "deferred": deferred}
 
     def delete_messages(self, message_ids: List[str]):
-        """Remove messages from the proxy queue using their identifiers."""
+        """Remove messages from the proxy queue for this tenant."""
         if not isinstance(message_ids, list):
             raise ValueError("message_ids must be a list")
-        return self._post("/commands/delete-messages", json={"ids": message_ids})
+        return self._post("/commands/delete-messages", json={"ids": message_ids}, params={"tenant_id": self.tenant_id})
 
     def cleanup_messages(self, older_than_seconds: Optional[int] = None):
-        """Manually trigger cleanup of reported messages older than retention period.
+        """Manually trigger cleanup of reported messages for this tenant.
 
         Args:
             older_than_seconds: Remove messages reported more than this many seconds ago.
@@ -125,7 +118,7 @@ class Main(GnrBaseService):
         payload = {}
         if older_than_seconds is not None:
             payload["older_than_seconds"] = int(older_than_seconds)
-        return self._post("/commands/cleanup-messages", json=payload)
+        return self._post("/commands/cleanup-messages", json=payload, params={"tenant_id": self.tenant_id})
 
     def get_tenant(self, tenant_id=None):
         """Get tenant information from the mail proxy.
