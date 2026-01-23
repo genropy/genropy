@@ -102,7 +102,7 @@ class Main(GnrBaseService):
         """Remove messages from the proxy queue for this tenant."""
         if not isinstance(message_ids, list):
             raise ValueError("message_ids must be a list")
-        return self._post("/commands/delete-messages", json={"ids": message_ids}, params={"tenant_id": self.tenant_id})
+        return self._post("/commands/delete-messages", json={"tenant_id": self.tenant_id, "ids": message_ids})
 
     def cleanup_messages(self, older_than_seconds: Optional[int] = None):
         """Manually trigger cleanup of reported messages for this tenant.
@@ -115,10 +115,10 @@ class Main(GnrBaseService):
         Returns:
             dict: Response with 'ok' status and 'removed' count.
         """
-        payload = {}
+        payload = {"tenant_id": self.tenant_id}
         if older_than_seconds is not None:
             payload["older_than_seconds"] = int(older_than_seconds)
-        return self._post("/commands/cleanup-messages", json=payload, params={"tenant_id": self.tenant_id})
+        return self._post("/commands/cleanup-messages", json=payload)
 
     def get_tenant(self, tenant_id=None):
         """Get tenant information from the mail proxy.
