@@ -243,33 +243,43 @@ class GnrCustomWebPage(object):
             Example: {"storage_path": "home:emails/file.pdf"}
 
         Returns:
-            Binary file content directly.
+            Binary file content directly with application/octet-stream.
 
         Raises:
-            Exception: If file not found or error reading file.
+            ValueError: If storage_path parameter is missing
+            FileNotFoundError: If the specified file does not exist
+            IOError: If there's an error reading the file
         """
         json_data = self._request_json()
         storage_path = json_data.get('storage_path')
 
+        # Parametro mancante -> ValueError
         if not storage_path:
-            raise Exception("Missing required parameter: storage_path")
+            logger.warning('proxy_get_attachments: missing storage_path parameter')
+            raise ValueError("Missing required parameter: storage_path")
 
         logger.info('proxy_get_attachments: fetching %s', storage_path)
         storage_node = self.site.storageNode(storage_path)
 
+        # File non trovato -> FileNotFoundError
         if not storage_node or not storage_node.exists:
             logger.warning('Attachment not found: %s', storage_path)
-            raise Exception(f'File not found: {storage_path}')
+            raise FileNotFoundError(f'Attachment not found: {storage_path}')
 
-        # Read and return binary content directly
-        with storage_node.open('rb') as f:
-            content = f.read()
+        # Lettura file con gestione errori I/O
+        try:
+            with storage_node.open('rb') as f:
+                content = f.read()
 
-        logger.debug('Attachment retrieved: %s (%d bytes)', storage_path, len(content))
+            logger.debug('Attachment retrieved: %s (%d bytes)', storage_path, len(content))
 
-        # Return binary content - the proxy reads it with response.read()
-        self.response.content_type = 'application/octet-stream'
-        return content
+            # Return binary content - the proxy reads it with response.read()
+            self.response.content_type = 'application/octet-stream'
+            return content
+
+        except (IOError, OSError) as e:
+            logger.error('Error reading attachment %s: %s', storage_path, str(e))
+            raise IOError(f'Error reading attachment {storage_path}: {str(e)}')
 
     def _add_messages_to_proxy_queue(self, proxy_service, message_pkeys):
         """
