@@ -17,14 +17,15 @@ import secrets
 
 
 class Main(GnrBaseService):
-    def __init__(self, parent=None, proxy_url=None, proxy_token=None, db_max_waiting=None, batch_size=None,
+    def __init__(self, parent=None, proxy_url=None, tenant_token=None, db_max_waiting=None, batch_size=None,
                  tenant_id=None, tenant_registered=None, disabled=None, client_base_url=None, **kwargs):
         super().__init__(parent, **kwargs)
         self.proxy_url = proxy_url
-        self.proxy_token = proxy_token
+        self.admin_token = self.parent.db.application.config['api_keys.private.genro_mail_proxy?token'] if parent else None
+        self.tenant_token = tenant_token
         self.db_max_waiting = db_max_waiting
         self.batch_size = batch_size
-        self.tenant_id = tenant_id or self.parent.site_name
+        self.tenant_id = tenant_id or self.parent.db.dbname
         self.tenant_registered = tenant_registered or False
         self.disabled = disabled or False
         self.client_base_url = client_base_url or self.parent.externalUrl('/email/mailproxy/mp_endpoint')
@@ -139,13 +140,15 @@ class Main(GnrBaseService):
         """Register or update this genropy instance as a tenant on the mail proxy.
 
         Uses self.tenant_id and self.client_base_url for identification.
+        If registration is successful and returns an api_key, it will be saved
+        as 'tenant_token' in sys.service.parameters.
 
         Args:
             username: Username for Basic Auth
             password: Password for Basic Auth
 
         Returns:
-            dict: Response with 'ok' status from proxy
+            dict: Response with 'ok' status and 'api_key' (for new registrations) from proxy
         """
         payload = {
             "id": self.tenant_id,
@@ -159,7 +162,22 @@ class Main(GnrBaseService):
                 "user": username,
                 "password": password
             }
-        return self._post("/tenant", json=payload)
+        response = self._post("/tenant", json=payload)
+
+        # Save tenant_token in parameters if received
+        if response.get('ok') and response.get('api_key'):
+            service_tbl = self.parent.db.table('sys.service')
+            with service_tbl.recordToUpdate(service_type=self.service_type,
+                                            service_name=self.service_name
+            ) as rec:
+                params = Bag(rec['parameters'])
+                params['tenant_token'] = response['api_key']
+                rec['parameters'] = params
+
+            # Update instance memory for immediate use in _sync_mailproxy_accounts()
+            self.tenant_token = response['api_key']
+
+        return response
 
     def delete_tenant(self, tenant_id=None):
         """Delete/unregister a tenant from the mail proxy.
@@ -194,7 +212,7 @@ class Main(GnrBaseService):
         payload: dict[str, object] = {"messages": messages}
         if default_priority is not None:
             payload["default_priority"] = default_priority
-        response = self._post("/commands/add-messages", json=payload)
+        response = self._post("/commands/add-messages", json=payload, params={"tenant_id": self.tenant_id})
         if not isinstance(response, dict):
             raise RuntimeError("Mail proxy add-messages returned an unexpected payload")
         return response
@@ -207,9 +225,15 @@ class Main(GnrBaseService):
         if not self.proxy_url:
             raise RuntimeError("Proxy URL is not configured")
         url = f"{self.proxy_url.rstrip('/')}{path}"
+
+        # Determine which token to use based on the endpoint path
+        admin_endpoints = ['/tenant', '/tenants', '/instance', '/command-log']
+        use_admin = any(path.startswith(ep) or path == ep for ep in admin_endpoints)
+        token = self.admin_token if use_admin else self.tenant_token
+
         headers = {}
-        if self.proxy_token:
-            headers["X-API-Token"] = self.proxy_token
+        if token:
+            headers["X-API-Token"] = token
         try:
             response = requests.request(method, url, json=json, params=params, headers=headers, timeout=timeout)
             response.raise_for_status()
@@ -331,7 +355,7 @@ class Main(GnrBaseService):
         """Programmatically register this service with the mail proxy.
 
         This method can be called after a service record has been created
-        with all required parameters (proxy_url, proxy_token, tenant_id).
+        with all required parameters (proxy_url, tenant_id).
 
         Usage:
             service = site.getService('mailproxy')
@@ -342,6 +366,9 @@ class Main(GnrBaseService):
         """
         if not self.proxy_url:
             return {'ok': False, 'error': 'Proxy URL not configured'}
+
+        if not self.admin_token:
+            return {'ok': False, 'error': 'Admin token not configured. Add api_keys.private.genro_mail_proxy?token in instanceconfig'}
 
         username, password = self._ensure_mailproxy_user()
 
@@ -360,6 +387,7 @@ class Main(GnrBaseService):
                 params = Bag(rec['parameters'])
                 params['tenant_registered'] = True
                 params['client_base_url'] = self.client_base_url
+                params['tenant_id'] = self.tenant_id
                 rec['parameters'] = params
 
             synced, failed = self._sync_mailproxy_accounts()
@@ -393,6 +421,7 @@ class Main(GnrBaseService):
                                         service_name=self.service_name) as rec:
             params = Bag(rec['parameters'])
             params['tenant_registered'] = False
+            params.pop('tenant_token', None)
             rec['parameters'] = params
 
         return {'ok': True, 'message': f'Tenant "{self.tenant_id}" unregistered'}
@@ -464,8 +493,6 @@ class ServiceParameters(BaseComponent):
                    disabled='^.tenant_registered')
         fb.textbox('^.proxy_url', lbl='!![en]Proxy url',
                    disabled='^.tenant_registered')
-        fb.PasswordTextBox('^.proxy_token', lbl='!![en]API Token',
-                   disabled='^.tenant_registered')
 
         fb.textbox('^.client_base_url', lbl='Client endpoint url', colspan=2,
                    placeholder=self.externalUrl('/email/mailproxy/mp_endpoint'),
@@ -483,7 +510,6 @@ class ServiceParameters(BaseComponent):
 
         fb.checkbox('^.disabled', lbl='&nbsp;', label='!![en]Disable mail proxy connection')
 
-        # Register button - solo se NON registrato
         register_btn = fb.button('!![en]Register',
                                  hidden='^.tenant_registered',
                                  lbl='&nbsp;')
@@ -501,7 +527,6 @@ class ServiceParameters(BaseComponent):
                                 this.form.reload();
                              """)
 
-        # Unregister button - solo se registrato
         unregister_btn = fb.button('!![en]Unregister',
                                    hidden='^.tenant_registered?=!#v',
                                    lbl='&nbsp;')
@@ -527,7 +552,7 @@ class ServiceParameters(BaseComponent):
         try:
             response = requests.get(f"{proxy_url.rstrip('/')}/health", timeout=5)
             return True if response.ok else None
-        except Exception:
+        except Exception as e:
             return None
 
     @public_method
