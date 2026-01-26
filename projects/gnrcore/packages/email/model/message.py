@@ -54,6 +54,7 @@ class Table(object):
 
         tbl.column('proxy_ts',dtype='DHZ', name_long='Dispatched to mail proxy')
         tbl.column('proxy_priority', dtype='L', name_long='Priority')
+        tbl.column('batch_code', size=':22', name_long='!!Batch code for circular mails')
 
         tbl.column('connection_retry', dtype='L')
         tbl.column('priority', name_long='!![en]Priority',
@@ -260,6 +261,7 @@ class Table(object):
                   subject=None, body=None, cc_address=None,
                   reply_to=None, bcc_address=None, attachments=None,weak_attachments=None,
                  message_id=None,message_date=None,message_type=None,
+                 batch_code=None,
                  html=False,doCommit=False,headers_kwargs=None,**kwargs):
 
         message_date = message_date or self.db.workdate
@@ -298,6 +300,7 @@ class Table(object):
                             extra_headers=extra_headers,
                             message_type=message_type,
                             weak_attachments=weak_attachments,
+                            batch_code=batch_code,
                             html=html,dbstore=dbstore,
                             reply_to=reply_to,**kwargs)
         message_atc = self.db.table('email.message_atc')
