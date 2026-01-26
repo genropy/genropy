@@ -23,13 +23,12 @@ class Package(GnrDboPackage):
     def packageTags(self, branch):
         branch.authTag(label='_MAILPROXY_', description='Mail proxy service access')
 
-    def addProxyService(self, proxy_url, proxy_token, tenant_id=None,client_base_url=None,
+    def addProxyService(self, proxy_url,tenant_id=None,client_base_url=None,
                         batch_size=None, db_max_waiting=None):
         """Create and activate a mailproxy service programmatically.
 
         Args:
             proxy_url: URL of the mail proxy server
-            proxy_token: API token for authentication
             tenant_id: Tenant identifier (defaults to site_name if empty)
             batch_size: Optional batch size for message processing
             db_max_waiting: Optional max waiting time for DB operations
@@ -39,6 +38,10 @@ class Package(GnrDboPackage):
 
         Raises:
             Exception: If mailproxy service already exists
+
+        Note:
+            Admin token must be configured in instanceconfig as:
+            api_keys.private.genro_mail_proxy?token
         """
         if self.db.application.site.getService('mailproxy'):
             raise Exception('Mailproxy service already exists')
@@ -50,7 +53,6 @@ class Package(GnrDboPackage):
             service_name='mailproxy',
             implementation='mailproxy',
             proxy_url=proxy_url,
-            proxy_token=proxy_token,
             tenant_id=tenant_id,
             client_base_url=client_base_url,
             batch_size=batch_size,

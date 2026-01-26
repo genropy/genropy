@@ -295,7 +295,7 @@ class GnrCustomWebPage(object):
 
         # Convert messages to proxy format
         for message in messages.values():
-            payload_chunk = self._convert_to_proxy_message(message)
+            payload_chunk = self._convert_to_proxy_message(message, proxy_service.tenant_id)
             # If conversion returns a string, it's an error message
             if isinstance(payload_chunk,str):
                 oldrec = dict(message)
@@ -363,18 +363,20 @@ class GnrCustomWebPage(object):
         # Return the count of successfully queued messages from proxy response
         return response_data.get('queued', 0)
 
-    def _convert_to_proxy_message(self, record):
+    def _convert_to_proxy_message(self, record, tenant_id):
         """
         Convert a Genropy email.message record to async-mail-service message format.
 
         Args:
             record: Message record from email.message table
+            tenant_id: Tenant identifier for multi-tenant isolation
 
         Returns:
             dict: Message payload compatible with async-mail-service API
         """
         result = {
             'id': record['id'],
+            'tenant_id': tenant_id,
             'account_id': record['account_id'],
             'subject': record['subject'] or '',
             'from': record['from_address'],

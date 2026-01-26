@@ -169,10 +169,8 @@ class GnrCustomWebPage(object):
     def rpc_proxy_overview(self):
         service = self._mailproxy_service()
         errors = []
-
         accounts = self._safe_service_call(service.list_accounts, 'accounts', 'Accounts', errors)
         messages = self._safe_service_call(service.list_messages, 'messages', 'Messages', errors)
-
         result = Bag()
         result['accounts'] = self._list_to_bag(accounts, 'id')
         decorated_messages = self._decorate_messages(messages)
