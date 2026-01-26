@@ -423,6 +423,11 @@ class GnrCustomWebPage(object):
             if headers:
                 result['headers'] = headers
 
+        # Batch code for circular mails
+        batch_code = record.get('batch_code')
+        if batch_code:
+            result['batch_code'] = batch_code
+
         # Attachments (inline/base64, URLs, or S3 references)
         try:
             attachments = self._attachments_for_message(record)

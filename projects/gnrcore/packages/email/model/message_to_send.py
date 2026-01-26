@@ -8,7 +8,8 @@ class Table(object):
         tbl.column('message_id', size='22', group='_', name_long='Message'
                    ).relation('message.id', one_one=True,onDelete='cascade',
                               relation_name='sending_index')
-        tbl.aliasColumn('proxy_priority', '@message_id.proxy_priority')  
+        tbl.aliasColumn('proxy_priority', '@message_id.proxy_priority')
+        tbl.aliasColumn('batch_code', '@message_id.batch_code')  
 
     def addMessageToQueue(self, message_id):
         self.insert(self.newrecord(message_id=message_id))
