@@ -743,6 +743,7 @@ dojo.declare("gnr.QueryManager", null, {
         value = value || '';
         console.log('[DEBUG checkQueryLineValue] CALLED - relpath:', relpath, 'value:', value);
         console.log('[DEBUG checkQueryLineValue] sourceNode:', sourceNode);
+        console.log('[DEBUG checkQueryLineValue] _inParametricDialog flag:', this._inParametricDialog);
         console.log('[DEBUG checkQueryLineValue] Stack trace:', new Error().stack);
 
         if (value.indexOf('set:')==0){
@@ -750,6 +751,11 @@ dojo.declare("gnr.QueryManager", null, {
             return;
         }
         if (value.indexOf('?') == 0) {
+            // If we're in a parametric dialog, ignore ? markers from the main query builder
+            if (this._inParametricDialog) {
+                console.log('[DEBUG checkQueryLineValue] Value starts with ? but _inParametricDialog=true - IGNORING');
+                return;
+            }
             console.log('[DEBUG checkQueryLineValue] Value starts with ? - SETTING TO NULL');
             sourceNode.setRelativeData(relpath, null);
             sourceNode.setRelativeData(relpath + '?css_class', 'queryAsk');
@@ -836,6 +842,10 @@ dojo.declare("gnr.QueryManager", null, {
         console.log('[DEBUG buildParsDialog] sourceNode:', sourceNode);
         console.log('[DEBUG buildParsDialog] sourceNode datapath:', sourceNode.getFullpath ? sourceNode.getFullpath() : 'N/A');
 
+        // Set flag to prevent checkQueryLineValue from interfering during parametric dialog
+        this._inParametricDialog = true;
+        console.log('[DEBUG buildParsDialog] Set _inParametricDialog flag to true');
+
         var dlg = genro.dlg.quickDialog('Complete query',{datapath:this.wherepath,width:'250px',autoSize:true});
         console.log('[DEBUG buildParsDialog] Dialog created with datapath:', this.wherepath);
         console.log('[DEBUG buildParsDialog] Dialog object:', dlg);
@@ -889,10 +899,17 @@ dojo.declare("gnr.QueryManager", null, {
                 }
             }
 
+            // Clear the parametric dialog flag
+            that._inParametricDialog = false;
+            console.log('[DEBUG confirm] Cleared _inParametricDialog flag');
+
             that.runQuery()
             dlg.close_action();
         };
         var cancel = function(){
+            // Clear the parametric dialog flag on cancel too
+            that._inParametricDialog = false;
+            console.log('[DEBUG cancel] Cleared _inParametricDialog flag');
             dlg.close_action();
         };
         var center = dlg.center._('div',{padding:'10px'});
