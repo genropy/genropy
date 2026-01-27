@@ -853,11 +853,11 @@ dojo.declare("gnr.QueryManager", null, {
         console.log('[DEBUG buildParsDialog] sourceNode:', sourceNode);
         console.log('[DEBUG buildParsDialog] sourceNode datapath:', sourceNode.getFullpath ? sourceNode.getFullpath() : 'N/A');
 
-        // Set flag to prevent checkQueryLineValue from interfering during parametric dialog
-        this._inParametricDialog = true;
-        console.log('[DEBUG buildParsDialog] Set _inParametricDialog flag to true');
+        // TESTING: Use tempPath to see if checkQueryLineValue is called
+        var tempPath = 'gnr.temp_querypars_'+genro.time36Id();
+        console.log('[DEBUG buildParsDialog] Using tempPath:', tempPath);
 
-        var dlg = genro.dlg.quickDialog('Complete query',{datapath:this.wherepath,width:'250px',autoSize:true});
+        var dlg = genro.dlg.quickDialog('Complete query',{datapath:tempPath,width:'250px',autoSize:true});
         console.log('[DEBUG buildParsDialog] Dialog created with datapath:', this.wherepath);
         console.log('[DEBUG buildParsDialog] Dialog object:', dlg);
 
@@ -878,79 +878,81 @@ dojo.declare("gnr.QueryManager", null, {
             console.log('[DEBUG buildParsDialog] whereData.asDict():', whereData.asDict());
         }
 
-        // Clean parametric markers (?Parameter) from whereData to prevent checkQueryLineValue from setting them to null
+        // Copy whereData to tempPath
+        console.log('[DEBUG buildParsDialog] Copying whereData to tempPath');
+        genro.setData(tempPath, whereData.deepCopy());
+        var tempData = genro.getData(tempPath);
+        console.log('[DEBUG buildParsDialog] tempData after copy:', tempData ? (tempData.asDict ? tempData.asDict() : tempData) : 'null');
+
+        // Clean parametric markers (?Parameter) from tempData
         console.log('[DEBUG buildParsDialog] Cleaning parametric markers from parslist:', parslist);
         for (var i = 0; i < parslist.length; i++) {
             var relpath = parslist[i].relpath;
-            var currentValue = whereData.getItem ? whereData.getItem(relpath) : null;
+            var currentValue = tempData.getItem ? tempData.getItem(relpath) : null;
             console.log('[DEBUG buildParsDialog] Checking relpath:', relpath, 'currentValue:', currentValue);
             if (currentValue && typeof currentValue === 'string' && currentValue.indexOf('?') === 0) {
                 console.log('[DEBUG buildParsDialog] Removing parametric marker from:', relpath);
-                whereData.setItem(relpath, null);
+                tempData.setItem(relpath, null);
             }
         }
-        console.log('[DEBUG buildParsDialog] whereData after cleaning:', whereData.asDict ? whereData.asDict() : whereData);
+        console.log('[DEBUG buildParsDialog] tempData after cleaning:', tempData.asDict ? tempData.asDict() : tempData);
 
         var confirm = function(){
             console.log('[DEBUG confirm] START confirm callback');
+            console.log('[DEBUG confirm] tempPath:', tempPath);
             console.log('[DEBUG confirm] wherepath:', that.wherepath);
+
+            // Get data from tempPath
+            var tempConfirmData = genro.getData(tempPath);
+            console.log('[DEBUG confirm] Data in tempPath:', tempConfirmData);
+            if (tempConfirmData && tempConfirmData.asDict) {
+                console.log('[DEBUG confirm] tempPath.asDict():', tempConfirmData.asDict());
+            }
+
+            // Copy from tempPath back to wherepath
+            console.log('[DEBUG confirm] Copying tempPath data back to wherepath');
+            sourceNode.setRelativeData(that.wherepath, tempConfirmData);
+
             var confirmData = sourceNode.getRelativeData(that.wherepath);
-            console.log('[DEBUG confirm] Data in wherepath:', confirmData);
+            console.log('[DEBUG confirm] Data in wherepath after copy:', confirmData);
             if (confirmData && confirmData.asDict) {
-                console.log('[DEBUG confirm] wherepath.asDict():', confirmData.asDict());
+                console.log('[DEBUG confirm] wherepath.asDict() after copy:', confirmData.asDict());
             }
-            console.log('[DEBUG confirm] Direct check c_0:', sourceNode.getRelativeData(that.wherepath + '.c_0'));
-
-            // Check if value was written elsewhere
-            if (dialogNode) {
-                var dialogDatapath = dialogNode.absDatapath ? dialogNode.absDatapath('') : null;
-                if (dialogDatapath) {
-                    console.log('[DEBUG confirm] Dialog datapath was:', dialogDatapath);
-                    console.log('[DEBUG confirm] Check dialog path c_0:', genro.getData(dialogDatapath + '.c_0'));
-                }
-            }
-
-            // Clear the parametric dialog flag
-            that._inParametricDialog = false;
-            console.log('[DEBUG confirm] Cleared _inParametricDialog flag');
 
             that.runQuery()
             dlg.close_action();
         };
         var cancel = function(){
-            // Clear the parametric dialog flag on cancel too
-            that._inParametricDialog = false;
-            console.log('[DEBUG cancel] Cleared _inParametricDialog flag');
             dlg.close_action();
         };
         var center = dlg.center._('div',{padding:'10px'});
         var bottom = dlg.bottom._('slotBar',{'slots':'cancel,*,confirm'});
-        console.log('[DEBUG buildParsDialog] Before dynamicQueryParsFb - whereData:', whereData);
-        genro.dev.dynamicQueryParsFb(center,whereData,parslist,1);
+        console.log('[DEBUG buildParsDialog] Before dynamicQueryParsFb - tempData:', tempData);
+        genro.dev.dynamicQueryParsFb(center,tempData,parslist,1);
         bottom._('button', 'cancel',{label:'Cancel',baseClass:'bottom_btn',action:cancel});
         bottom._('button', 'confirm',{label:'Confirm',baseClass:'bottom_btn',action:confirm});
         console.log('[DEBUG buildParsDialog] About to show dialog');
         dlg.show_action();
         console.log('[DEBUG buildParsDialog] Dialog shown');
 
-        // Monitor data changes in wherepath
+        // Monitor data changes in tempPath to see if values are being written
         setTimeout(function() {
-            var data = sourceNode.getRelativeData(that.wherepath);
-            console.log('[DEBUG buildParsDialog] After 100ms - wherepath data:', data);
+            var data = genro.getData(tempPath);
+            console.log('[DEBUG buildParsDialog] After 100ms - tempPath data:', data);
             if (data && data.asDict) console.log('[DEBUG buildParsDialog] After 100ms - asDict:', data.asDict());
-            console.log('[DEBUG buildParsDialog] After 100ms - c_0 value:', sourceNode.getRelativeData(that.wherepath + '.c_0'));
+            console.log('[DEBUG buildParsDialog] After 100ms - c_0 value:', data ? data.getItem('c_0') : 'null');
         }, 100);
         setTimeout(function() {
-            var data = sourceNode.getRelativeData(that.wherepath);
-            console.log('[DEBUG buildParsDialog] After 500ms - wherepath data:', data);
+            var data = genro.getData(tempPath);
+            console.log('[DEBUG buildParsDialog] After 500ms - tempPath data:', data);
             if (data && data.asDict) console.log('[DEBUG buildParsDialog] After 500ms - asDict:', data.asDict());
-            console.log('[DEBUG buildParsDialog] After 500ms - c_0 value:', sourceNode.getRelativeData(that.wherepath + '.c_0'));
+            console.log('[DEBUG buildParsDialog] After 500ms - c_0 value:', data ? data.getItem('c_0') : 'null');
         }, 500);
         setTimeout(function() {
-            var data = sourceNode.getRelativeData(that.wherepath);
-            console.log('[DEBUG buildParsDialog] After 1000ms - wherepath data:', data);
+            var data = genro.getData(tempPath);
+            console.log('[DEBUG buildParsDialog] After 1000ms - tempPath data:', data);
             if (data && data.asDict) console.log('[DEBUG buildParsDialog] After 1000ms - asDict:', data.asDict());
-            console.log('[DEBUG buildParsDialog] After 1000ms - c_0 value:', sourceNode.getRelativeData(that.wherepath + '.c_0'));
+            console.log('[DEBUG buildParsDialog] After 1000ms - c_0 value:', data ? data.getItem('c_0') : 'null');
         }, 1000);
     }
 });
