@@ -758,6 +758,11 @@ dojo.declare("gnr.QueryManager", null, {
     },
 
     onQueryCalling:function(querybag,filteringPkeys){
+        console.log('[DEBUG onQueryCalling] START - querybag:', querybag);
+        console.log('[DEBUG onQueryCalling] filteringPkeys:', filteringPkeys);
+        console.log('[DEBUG onQueryCalling] this.wherepath:', this.wherepath);
+        console.log('[DEBUG onQueryCalling] sourceNode:', this.sourceNode);
+
         var parslist=[];
         var sourceNode = this.sourceNode;
         if(filteringPkeys){
@@ -765,13 +770,14 @@ dojo.declare("gnr.QueryManager", null, {
             var params = objectExtract(currAttrs,'parameter_*');
             var dflt = objectExtract(currAttrs,'default_*');
             for(var k in params){
-                parslist.push({value_caption:'?'+(k in dflt? params[k]+'|'+dflt[k] : params[k]), 
+                parslist.push({value_caption:'?'+(k in dflt? params[k]+'|'+dflt[k] : params[k]),
                                 relpath:'parameter_'+k});
             }
         }else if(querybag.getItem("#0?column")){
-            this.cleanQueryPane(querybag); 
+            this.cleanQueryPane(querybag);
             parslist = this.translateQueryPars();
         }
+        console.log('[DEBUG onQueryCalling] parslist:', parslist);
         if (parslist.length>0){
             this.buildParsDialog(parslist);
         }else{
@@ -818,18 +824,36 @@ dojo.declare("gnr.QueryManager", null, {
     
     buildParsDialog:function(parslist) {
         var sourceNode = this.sourceNode;
+        console.log('[DEBUG buildParsDialog] START - parslist:', parslist);
+        console.log('[DEBUG buildParsDialog] wherepath:', this.wherepath);
+        console.log('[DEBUG buildParsDialog] sourceNode:', sourceNode);
+
         // Use a temporary datapath to avoid issues with nested forms
         var tempPath = 'gnr.temp_querypars_'+genro.time36Id();
+        console.log('[DEBUG buildParsDialog] tempPath:', tempPath);
+
         var dlg = genro.dlg.quickDialog('Complete query',{datapath:tempPath,width:'250px',autoSize:true});
         var that = this;
+
         // Copy current where values to temp path
         var whereData = sourceNode.getRelativeData(this.wherepath);
+        console.log('[DEBUG buildParsDialog] whereData before copy:', whereData);
+        console.log('[DEBUG buildParsDialog] whereData keys:', whereData ? Object.keys(whereData) : 'null/undefined');
+
         genro.setData(tempPath, whereData.deepCopy());
+        console.log('[DEBUG buildParsDialog] tempPath data after copy:', genro.getData(tempPath));
 
         var confirm = function(){
+            console.log('[DEBUG confirm] START confirm callback');
             // Copy values from temp path back to wherepath before running query
             var tempData = genro.getData(tempPath);
+            console.log('[DEBUG confirm] tempData:', tempData);
+            console.log('[DEBUG confirm] tempData keys:', tempData ? Object.keys(tempData) : 'null/undefined');
+            console.log('[DEBUG confirm] wherepath:', that.wherepath);
+
             sourceNode.setRelativeData(that.wherepath, tempData);
+            console.log('[DEBUG confirm] Data after setRelativeData:', sourceNode.getRelativeData(that.wherepath));
+
             that.runQuery()
             dlg.close_action();
         };

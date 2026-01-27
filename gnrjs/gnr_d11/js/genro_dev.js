@@ -1121,11 +1121,16 @@ dojo.declare("gnr.GnrDevHandler", null, {
     },
 
     dynamicQueryParsFb:function(sourceNode,wherebag,parslist,cols){
+        console.log('[DEBUG dynamicQueryParsFb] START - sourceNode:', sourceNode);
+        console.log('[DEBUG dynamicQueryParsFb] wherebag:', wherebag);
+        console.log('[DEBUG dynamicQueryParsFb] parslist:', parslist);
+
         parslist = parslist || this.translateQueryPars(wherebag);
         var queryform = genro.dev.formbuilder(sourceNode,cols || 1,{border_spacing:'3px',onEnter:confirm,margin_top:'6px'});
         var tr, attrs;
         for (var i = 0; i < parslist.length; i++) {
             attrs = parslist[i];
+            console.log('[DEBUG dynamicQueryParsFb] Processing attrs:', attrs);
             var lbl = attrs.lbl || attrs.value_caption.slice(1);
             var dflt;
 
@@ -1140,15 +1145,19 @@ dojo.declare("gnr.GnrDevHandler", null, {
             }
             
             if(dflt){
+                console.log('[DEBUG dynamicQueryParsFb] Setting default value for', attrs.relpath, ':', dflt);
                 wherebag.setItem(attrs.relpath,dflt);
             }
             if(attrs.column_relationTo){
                 var ro = attrs.column_relationTo.split('.');
+                console.log('[DEBUG dynamicQueryParsFb] Adding dbselect field - relpath:', attrs.relpath, 'value:', '^.' + attrs.relpath);
                 queryform.addField('dbselect',{lbl:lbl,value:'^.' + attrs.relpath, width:'12em',dbtable:ro[0]+'.'+ro[1]});
             }else{
+                console.log('[DEBUG dynamicQueryParsFb] Adding textbox field - relpath:', attrs.relpath, 'value:', '^.' + attrs.relpath);
                 queryform.addField('textbox',{lbl:lbl,value:'^.' + attrs.relpath, width:'12em'});
             }
         }
+        console.log('[DEBUG dynamicQueryParsFb] END - final wherebag:', wherebag);
     },
 
 
