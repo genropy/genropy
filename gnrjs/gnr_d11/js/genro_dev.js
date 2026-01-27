@@ -1154,8 +1154,6 @@ dojo.declare("gnr.GnrDevHandler", null, {
                 queryform.addField('dbselect',{lbl:lbl,value:'^.' + attrs.relpath, width:'12em',dbtable:ro[0]+'.'+ro[1]});
             }else{
                 console.log('[DEBUG dynamicQueryParsFb] Adding textbox field - relpath:', attrs.relpath, 'value:', '^.' + attrs.relpath);
-                console.log('[DEBUG dynamicQueryParsFb] sourceNode datapath for textbox:', sourceNode.absDatapath ? sourceNode.absDatapath('') : 'N/A');
-                console.log('[DEBUG dynamicQueryParsFb] Full binding path will be:', sourceNode.absDatapath ? sourceNode.absDatapath('.' + attrs.relpath) : 'N/A');
                 queryform.addField('textbox',{lbl:lbl,value:'^.' + attrs.relpath, width:'12em'});
             }
         }
