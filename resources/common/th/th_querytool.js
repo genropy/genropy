@@ -833,6 +833,14 @@ dojo.declare("gnr.QueryManager", null, {
         console.log('[DEBUG buildParsDialog] Dialog created with datapath:', this.wherepath);
         console.log('[DEBUG buildParsDialog] Dialog object:', dlg);
 
+        // Get the actual absolute datapath used by the dialog
+        var dialogNode = dlg.getParentNode ? dlg.getParentNode() : null;
+        if (dialogNode) {
+            var dialogDatapath = dialogNode.absDatapath ? dialogNode.absDatapath('') : 'N/A';
+            console.log('[DEBUG buildParsDialog] Dialog absolute datapath:', dialogDatapath);
+            console.log('[DEBUG buildParsDialog] Dialog will write to:', dialogDatapath + '.c_0');
+        }
+
         var that = this;
 
         var whereData = sourceNode.getRelativeData(this.wherepath);
@@ -851,6 +859,15 @@ dojo.declare("gnr.QueryManager", null, {
                 console.log('[DEBUG confirm] wherepath.asDict():', confirmData.asDict());
             }
             console.log('[DEBUG confirm] Direct check c_0:', sourceNode.getRelativeData(that.wherepath + '.c_0'));
+
+            // Check if value was written elsewhere
+            if (dialogNode) {
+                var dialogDatapath = dialogNode.absDatapath ? dialogNode.absDatapath('') : null;
+                if (dialogDatapath) {
+                    console.log('[DEBUG confirm] Dialog datapath was:', dialogDatapath);
+                    console.log('[DEBUG confirm] Check dialog path c_0:', genro.getData(dialogDatapath + '.c_0'));
+                }
+            }
 
             that.runQuery()
             dlg.close_action();
