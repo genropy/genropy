@@ -28,7 +28,7 @@ class Table(object):
         return results
 
     def trigger_onInserted(self,record=None):
-        self.db.deferToCommit(self.proxyRunNow,_deferredId='_proxy_communication_')
+        self.db.deferAfterCommit(self.proxyRunNow,_deferredId='_proxy_communication_')
     
     def proxyRunNow(self):
         mailproxy = self.pkg.getMailProxy(raise_if_missing=False)
