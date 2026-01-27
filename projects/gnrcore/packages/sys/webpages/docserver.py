@@ -13,7 +13,7 @@ class GnrCustomWebPage(object):
 
     @public_method
     def rst(self,*args,**kwargs):
-        language = self.locale.split('-')[0]
+        language = self.language
         doctable = self.db.table('.'.join(args[0:2]))
         urlist = args[2:]
         columns = '$id,$content_rst_it,$content_rst_en' if language == 'it' else '$id,$content_rst_en,$content_rst_it'

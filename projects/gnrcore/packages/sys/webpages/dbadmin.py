@@ -20,7 +20,10 @@ class GnrCustomWebPage(object):
         bc = root.borderContainer(datapath='main')
         self.dbSelectorPane(bc,region='top',datapath='.selector',margin='2px')
         self.dbViewersTabs(bc,region='center',margin='2px')
-    
+
+    def pageAuthTags(self, method=None, **kwargs):
+        return 'admin'
+
     def dbSelectorPane(self,parent,**kwargs):
         pane = parent.contentPane(**kwargs)
         fb = pane.formlet(cols=7)
@@ -155,7 +158,7 @@ class GnrCustomWebPage(object):
             extensions = db.application.config['db?extensions']
         mig = SqlMigrator(db,ignore_constraint_name=True,extensions=extensions)
         result = Bag()
-        mig.prepareMigrationCommands()
+        #mig.prepareMigrationCommands()
         changes = mig.getChanges()
         if changes and applyChanges:
             mig.applyChanges()

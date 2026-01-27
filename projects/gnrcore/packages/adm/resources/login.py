@@ -317,9 +317,13 @@ class LoginComponent(BaseComponent):
                     FIRE recover_password_ok;
                 }else{
                     FIRE recover_password_err;
-                }""")
+                }""",
+                _onError="""
+                    console.error('Password recovery error:', error);
+                    FIRE recover_password_err;
+                """)
         fb.dataController("""genro.dlg.floatingMessage(sn,{message:msg,messageType:'error',yRatio:.95})""",
-                            msg='!!Missing user for this email',_fired='^recover_password_err',sn=dlg)
+                            msg='!!Missing user for this email or user not confirmed',_fired='^recover_password_err',sn=dlg)
         fb.dataController("""genro.dlg.floatingMessage(sn,{message:msg,yRatio:.95})""",
                             msg='!!Check your email for instruction',_fired='^recover_password_ok',sn=dlg)
         footer = self.login_commonFooter(box)
@@ -575,14 +579,18 @@ class LoginComponent(BaseComponent):
             recordBag['link'] = self.externalUrlToken(self.site.homepage, userid=recordBag['id'],max_usages=1)
             recordBag['greetings'] = recordBag['firstname'] or recordBag['lastname']
             body = self.loginPreference('confirm_password_tpl') or 'Dear $greetings set your password $link'
-            if tpl_new_password_id:
-                mailservice.sendUserTemplateMail(record_id=recordBag,template_id=tpl_new_password_id,
-                                                 async_=False,html=True,scheduler=False)
-            else:
-                mailservice.sendmail_template(recordBag,to_address=email,
-                                        body=body, subject=self.loginPreference('confirm_password_subject') or 'Password recovery',
-                                        async_=False,html=True,scheduler=False)
-            self.db.commit()
+            try:
+                if tpl_new_password_id:
+                    mailservice.sendUserTemplateMail(record_id=recordBag,template_id=tpl_new_password_id,
+                                                     async_=False,html=True,scheduler=False)
+                else:
+                    mailservice.sendmail_template(recordBag,to_address=email,
+                                            body=body, subject=self.loginPreference('confirm_password_subject') or 'Password recovery',
+                                            async_=False,html=True,scheduler=False)
+                self.db.commit()
+            except Exception as e:
+                logger.error("Failed to send password recovery email to %s: %s", email, str(e))
+                return 'err'
 
         return 'ok'
             #self.sendMailTemplate('confirm_new_pwd.xml', recordBag['email'], recordBag)

@@ -26,7 +26,7 @@ from gnr.core.gnrstring import templateReplace
 class SendMail(object):
     def sendMailTemplate(self, tpl, mailto, params, locale=None, **kwargs):
         locale = locale or self.locale
-        localelang = locale.split('-')[0]
+        localelang = locale[:2]
         mailtpl = self.getMailTemplate(tpl, locale=localelang)
 
         if mailtpl:
@@ -36,7 +36,7 @@ class SendMail(object):
             return 'mail sent'
 
     def getMailTemplate(self, tpl, locale):
-        localelang = locale.split('-')[0]
+        localelang = locale[:2]
         tplfile = self.getResource(os.path.join('mail_templates', localelang, tpl))
         if not tplfile:
             tplfile = self.getResource(os.path.join('mail_templates', tpl))

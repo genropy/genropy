@@ -92,9 +92,6 @@ class GnrWebPageException(GnrException):
 class GnrUnsupportedBrowserException(GnrException):
     pass
 
-class GnrMaintenanceException(GnrException):
-    pass
-
 class GnrSignedTokenException(GnrException):
     pass
 
@@ -109,12 +106,13 @@ class GnrUserNotAllowed(GnrException):
 class GnrBasicAuthenticationError(GnrException):
     code = 'AUTH-901'
 
-EXCEPTIONS = {'user_not_allowed': GnrUserNotAllowed,
-              'missing_resource': GnrMissingResourceException,
-              'unsupported_browser': GnrUnsupportedBrowserException,
-              'generic': GnrWebPageException,
-              'basic_authentication':GnrBasicAuthenticationError,
-              'maintenance': GnrMaintenanceException}
+EXCEPTIONS = {
+    'user_not_allowed': GnrUserNotAllowed,
+    'missing_resource': GnrMissingResourceException,
+    'unsupported_browser': GnrUnsupportedBrowserException,
+    'generic': GnrWebPageException,
+    'basic_authentication':GnrBasicAuthenticationError
+}
 
 class GnrWebPage(GnrBaseWebPage):
     """Standard class for :ref:`webpages <webpage>`
@@ -213,7 +211,6 @@ class GnrWebPage(GnrBaseWebPage):
                                            connection_id=request_kwargs.pop('_connection_id', None),
                                            user=request_kwargs.pop('_user', None))
         page_id = request_kwargs.pop('page_id', None)
-        self.subdomain = request_kwargs.pop('_subdomain',None) if page_id else request_kwargs.get('_subdomain')        
         self.root_page_id = None
         self.parent_page_id = None
         self.sourcepage_id = request_kwargs.pop('sourcepage_id', None)
@@ -424,17 +421,35 @@ class GnrWebPage(GnrBaseWebPage):
     def modulePath(self):
         return  '%s.py' %os.path.splitext(sys.modules[self.__module__].__file__)[0]
 
-     
-        
-    @property 
+    @property
+    def default_language(self):
+        """Return the default language for database localization.
+
+        :returns: the first language code from db languages config, or None
+        """
+        db_languages = self._db.extra_kw.get('languages')
+        db_languages = db_languages.split(',') if db_languages else []
+        return db_languages[0].lower() if db_languages else None
+
+    @property
+    def locale_language(self):
+        """Return the language code extracted from the user's locale.
+
+        :returns: the language part of the locale (e.g. 'it' from 'it_IT'), or None
+        """
+        return self.locale[0:2].lower() if self.locale else None
+
+    @property
     def db(self):
-        if not getattr(self, '_db',None):
+        if not getattr(self, '_db', None):
             self._db = self.application.db
             self._db.clearCurrentEnv()
             expirebag = self.globalStore().getItem('tables_user_conf_expire_ts')
             self._db.updateEnv(storename=self.dbstore,
                                dbbranch=self._call_kwargs.get("dbbranch", None),
                                workdate=self.workdate, locale=self.locale,
+                               default_language=self.default_language,
+                               current_language=self.language,
                                maxdate=datetime.date.max, mindate=datetime.date.min,
                                user=self.user, userTags=self.userTags, pagename=self.pagename,
                                mainpackage=self.mainpackage, _user_conf_expirebag=expirebag,
@@ -489,15 +504,14 @@ class GnrWebPage(GnrBaseWebPage):
         self.db.workdate = workdate
     workdate = property(_get_workdate, _set_workdate)
 
-    def _get_language(self):
+    @property
+    def language(self):
         if not getattr(self,'_language',None):
-            self._language = self.pageStore().getItem('rootenv.language') or self.locale.split('-')[0].upper()
+            avatar_language = getattr(self.avatar,'language',None) if self.avatar else None
+            language = avatar_language or self.locale_language
+            self._language = language.lower() if language else None
+            self.pageStore().setItem('rootenv.language', self._language)
         return self._language
-
-    def _set_language(self, language):
-        self.pageStore().setItem('rootenv.language', language)
-        self._language = language
-    language = property(_get_language, _set_language)
 
     def _set_locale(self, val):
         self._locale = val
@@ -505,8 +519,20 @@ class GnrWebPage(GnrBaseWebPage):
     def _get_locale(self):
         if not getattr(self,'_locale',None):
             headers_locale = self.request.headers.get('Accept-Language', 'en').split(',')[0]
-            self._locale = (self.avatar.locale if self.avatar and getattr(self.avatar,'locale',None) else headers_locale) or 'en' #to check
-            #self._locale = headers_locale or 'en'
+            headers_locale = headers_locale.split(';')[0].replace('-', '_')
+            avatar_locale = None
+            if self.avatar:
+                avatar_locale = getattr(self.avatar,'locale',None)
+                if not avatar_locale:
+                    avatar_language = getattr(self.avatar,'language',None)
+                    avatar_locale = avatar_language
+            locale = avatar_locale or headers_locale or 'en'
+            if '_' in locale:
+                lang, territory = locale.split('_', 1)
+                locale = f'{lang.lower()}_{territory.upper()}'
+            else:
+                locale = locale.lower()
+            self._locale = locale
         return self._locale
     locale = property(_get_locale, _set_locale)
     
@@ -670,16 +696,17 @@ class GnrWebPage(GnrBaseWebPage):
         return self._helpers[path],{'path':path,'in_cache':False}
 
 
-    def mixinTableResource(self, table, path,**kwargs):
+    def mixinTableResource(self, table, path,safeMode=False,**kwargs):
         """TODO
-        
+
         :param table: the :ref:`database table <table>` name on which the query will be executed,
                       in the form ``packageName.tableName`` (packageName is the name of the
                       :ref:`package <packages>` to which the table belongs to)
-        :param path: the table resource path"""
+        :param path: the table resource path
+        :param safeMode: if True, missing resources will not raise exceptions. Defaults to False"""
         pkg,table = table.split('.')
-        result = self.mixinComponent('tables/%s/%s' %(table,path),**kwargs)
-        self.mixinComponent('tables/_packages/%s/%s/%s' %(pkg,table,path),safeMode=True,**kwargs)
+        result = self.mixinComponent('tables/%s/%s' %(table,path),safeMode=safeMode,**kwargs)
+        self.mixinComponent('tables/_packages/%s/%s/%s' %(pkg,table,path),safeMode=True,**kwargs) #customization always safe mode
         return result
 
         
@@ -2441,7 +2468,7 @@ class GnrWebPage(GnrBaseWebPage):
                 resource = '{resource}:BagField_{field}'.format(resource=resource,field=field)
                 handlername = 'bf_main'
             if table:
-                mixinedClass = self.mixinTableResource(table,'bagfields/{resource}'.format(resource=resource))
+                mixinedClass = self.mixinTableResource(table,'bagfields/{resource}'.format(resource=resource),safeMode=True)
             else:
                 mixinedClass = self.mixinComponent(resource)
         bagfieldmodule = getattr(mixinedClass,'__top_mixined_module',None)

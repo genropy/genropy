@@ -364,6 +364,9 @@ class TableHandlerHierarchicalView(BaseComponent):
         tblobj = self.db.table(table)
         hierarchical = tblobj.attributes['hierarchical']
         hfield = hierarchical.split(',')[0]
+        if tblobj.column(hfield).attributes.get('localized') \
+            and self.default_language and self.language!=self.default_language:
+            hfield = f'{hfield}_{self.language}'
         breadroot = pane.div()
         pane.dataController("genro.dom.setClass(breadroot.getParentNode(),'lockedToolbar',locked)",
                             locked='^#FORM.controller.locked',breadroot=breadroot)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
-
+from gnr.core.gnrbag import Bag
 
 class Table(object):
     def config_db(self, pkg):
@@ -25,8 +25,8 @@ class Table(object):
         if not record['linked_query']:
             record['all_users'] = True
     
-    def trigger_onInserted(self, record, old_record=None):
-        if record['linked_query'] and self.fieldsChanged('linked_query,tag_rule,all_users,group_code', record, old_record):
+    def trigger_onInserted(self, record):
+        if record['linked_query']:
             self.updateUserNotificationsFromQuery(record)
             
     def trigger_onUpdating(self, record, old_record=None):
@@ -64,8 +64,9 @@ class Table(object):
                 where.append('(' + ' OR '.join(tag_conditions) + ')')
 
         # Add linked query condition
+        wherebag = Bag(notification_record['linked_query'])['query.where']
         condition, selection_kwargs = self.db.table('adm.user').sqlWhereFromBag(
-                            notification_record['linked_query']['query.where'], selection_kwargs)
+                                wherebag, selection_kwargs)
         where.append(condition)
         users = user_tbl.query(where=' AND '.join(where),**selection_kwargs).selection().output('pkeylist')
 

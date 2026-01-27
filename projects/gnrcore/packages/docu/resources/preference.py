@@ -57,18 +57,19 @@ class AppPref(object):
         fb.checkbox(value='^.show_authors', label='!![en]Show authors')
     
     def baseCss(self, pane):
-        pane.codemirror('^.base_css', height='100%', width='100%',
+        pane.codemirror('^.base_css', nodeId='docu_base_css_editor',
+                            height='100%', width='100%',
                             config_lineNumbers=True, config_mode='css')
-        
+
     def baseHtml(self, pane):
-        pane.codemirror('^.base_html', height='100%', width='100%',             #DP Todo
-                            config_lineNumbers=True, config_mode='html',
-                            config_addon='search,lint')
-    
+        pane.codemirror('^.base_html', nodeId='docu_base_html_editor',
+                            height='100%', width='100%',
+                            config_lineNumbers=True, config_mode='htmlmixed')
+
     def baseJs(self, pane):
-        pane.codemirror('^.base_js', height='100%', width='100%',             #DP Todo
-                            config_lineNumbers=True, config_mode='javascript',
-                            config_addon='search,lint')
+        pane.codemirror('^.base_js', nodeId='docu_base_js_editor',
+                            height='100%', width='100%',
+                            config_lineNumbers=True, config_mode='javascript')
             
 class UserPref(object):
     pass

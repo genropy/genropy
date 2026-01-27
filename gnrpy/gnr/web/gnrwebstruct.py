@@ -610,12 +610,178 @@ class GnrDomSrc(GnrStructData):
     def flexbox(self,direction=None,wrap=None,align_content=None,
                 justify_content=None,align_items=None,
                 justify_items=None,**kwargs):
+        """Create a flexbox container for flexible layout of child elements.
+
+        The flexbox container uses CSS Flexbox layout to arrange child elements in a flexible,
+        responsive manner. It provides powerful alignment and distribution capabilities.
+
+        Args:
+            direction (str): Main axis direction for flex items.
+                           - 'row': Left to right (default)
+                           - 'column': Top to bottom
+                           - 'row-reverse': Right to left
+                           - 'column-reverse': Bottom to top
+
+            wrap (bool or str): Whether flex items should wrap to next line.
+                              - True/'wrap': Items wrap onto multiple lines
+                              - False/'nowrap': Items stay on single line (default)
+                              - 'wrap-reverse': Items wrap in reverse order
+
+            align_content (str): Aligns lines when there is extra space on cross axis.
+                               - 'flex-start': Lines packed to start
+                               - 'flex-end': Lines packed to end
+                               - 'center': Lines centered
+                               - 'space-between': Lines evenly distributed
+                               - 'space-around': Lines with equal space around
+                               - 'stretch': Lines stretch to fill container (default)
+
+            justify_content (str): Aligns items along main axis.
+                                 - 'flex-start': Items packed to start (default)
+                                 - 'flex-end': Items packed to end
+                                 - 'center': Items centered
+                                 - 'space-between': Items evenly distributed
+                                 - 'space-around': Items with equal space around
+                                 - 'space-evenly': Items with equal space between
+
+            align_items (str): Aligns items along cross axis.
+                             - 'flex-start': Items aligned to start
+                             - 'flex-end': Items aligned to end
+                             - 'center': Items centered
+                             - 'baseline': Items aligned to baseline
+                             - 'stretch': Items stretch to fill (default)
+
+            justify_items (str): Justifies items within their area (grid-specific).
+
+            **kwargs: Additional HTML/CSS attributes (e.g., height, width, border, padding)
+
+        Returns:
+            GnrDomSrcNode: The flexbox container node
+
+        Example:
+            # Simple horizontal flexbox
+            box = pane.flexbox(direction='row', justify_content='space-between')
+            box.div('Item 1')
+            box.div('Item 2')
+            box.div('Item 3')
+
+            # Vertical flexbox with wrapping
+            box = pane.flexbox(direction='column', wrap=True, height='200px')
+            for i in range(10):
+                box.div(f'Item {i}', height='30px')
+
+            # Centered content
+            box = pane.flexbox(justify_content='center', align_items='center',
+                              height='100%')
+            box.div('Centered content')
+
+        See Also:
+            - gridbox(): For grid-based layouts
+            - borderContainer(): For region-based layouts
+        """
         return self.child('flexbox',direction=direction, wrap=wrap,
                           align_content=align_content,justify_content=justify_content,
                           align_items=align_items,justify_items=justify_items,**kwargs)
     
     def gridbox(self,columns=None,align_content=None,justify_content=None,
                 align_items=None,justify_items=None,table=None,**kwargs):
+        """Create a gridbox container for two-dimensional grid-based layouts.
+
+        The gridbox container uses CSS Grid layout to arrange child elements in a two-dimensional
+        grid system with rows and columns. It provides powerful control over item positioning,
+        sizing, and alignment, making it ideal for complex layouts, forms, and dashboards.
+
+        Args:
+            columns (int or str): Number of columns or explicit column definition.
+                                - int: Number of equal-width columns (e.g., 3)
+                                - str: CSS grid-template-columns value (e.g., '1fr 2fr 1fr')
+                                If not specified, uses auto-placement.
+
+            align_content (str): Aligns the grid within the container when there's extra space.
+                               - 'start': Grid aligned to start
+                               - 'end': Grid aligned to end
+                               - 'center': Grid centered
+                               - 'stretch': Grid stretches to fill (default)
+                               - 'space-between': Space distributed between rows
+                               - 'space-around': Space around each row
+                               - 'space-evenly': Equal space between all rows
+
+            justify_content (str): Aligns the grid horizontally within the container.
+                                 - 'start': Grid aligned to start
+                                 - 'end': Grid aligned to end
+                                 - 'center': Grid centered
+                                 - 'stretch': Grid stretches to fill (default)
+                                 - 'space-between': Space distributed between columns
+                                 - 'space-around': Space around each column
+                                 - 'space-evenly': Equal space between all columns
+
+            align_items (str): Aligns items vertically within their grid cell.
+                             - 'start': Items aligned to cell start
+                             - 'end': Items aligned to cell end
+                             - 'center': Items centered in cell
+                             - 'stretch': Items stretch to fill cell (default)
+
+            justify_items (str): Aligns items horizontally within their grid cell.
+                               - 'start': Items aligned to cell start
+                               - 'end': Items aligned to cell end
+                               - 'center': Items centered in cell
+                               - 'stretch': Items stretch to fill cell (default)
+
+            table (str): Optional table name for integration with Genro data handling.
+                        Defaults to page.maintable if not specified.
+
+            **kwargs: Additional attributes:
+                     - gap (str): Spacing between grid items (e.g., '10px', '1em')
+                     - column_gap (str): Horizontal spacing between columns
+                     - row_gap (str): Vertical spacing between rows
+                     - item_height (str): Default height for grid items
+                     - item_border (str): Border applied to all items
+                     - item_side (str): Label position for labledBox items ('top', 'left', etc.)
+
+        Returns:
+            GnrDomSrcNode: The gridbox container node
+
+        Grid Item Attributes:
+            Child elements can use these attributes for positioning:
+            - colspan (int): Number of columns the item spans
+            - rowspan (int): Number of rows the item spans
+
+        Example:
+            # Simple 3-column grid
+            grid = pane.gridbox(columns=3, gap='10px')
+            grid.div('Item 1')
+            grid.div('Item 2')
+            grid.div('Item 3', colspan=2)  # Spans 2 columns
+            grid.div('Item 4')
+
+            # Explicit column widths
+            grid = pane.gridbox(columns='200px 1fr 2fr', row_gap='15px')
+            grid.div('Sidebar', height='100%')
+            grid.div('Content')
+            grid.div('Main area')
+
+            # Form layout with gridbox
+            form = pane.gridbox(columns=2, gap='10px')
+            form.textbox(value='^.name', lbl='Name')
+            form.textbox(value='^.surname', lbl='Surname')
+            form.textbox(value='^.email', lbl='Email', colspan=2)
+
+            # Dashboard with different sized sections
+            dashboard = pane.gridbox(columns=3, gap='20px', height='100%')
+            dashboard.labledBox('Stats', colspan=2).borderContainer()
+            dashboard.labledBox('Quick Actions')
+            dashboard.labledBox('Recent Activity', colspan=3)
+
+            # Centered grid
+            grid = pane.gridbox(columns=4, justify_content='center',
+                               align_items='center', height='400px')
+            for i in range(8):
+                grid.div(f'Cell {i}', border='1px solid #ccc')
+
+        See Also:
+            - flexbox(): For one-dimensional flexible layouts
+            - formbuilder(): For traditional form layouts
+            - labledBox(): For labeled containers within gridbox
+        """
         return self.child('gridbox',columns=columns,table=table or self.page.maintable,
                           align_content=align_content,justify_content=justify_content,
                           align_items=align_items,justify_items=justify_items
@@ -924,6 +1090,13 @@ class GnrDomSrc(GnrStructData):
             raise NotImplementedError('Not implemented in formlet')
         if formNode:
             table = table or formNode.attr.get('table')
+
+        # Extract ALL item_* parameters and propagate them to child items
+        item_params = dictExtract(kwargs, 'item_', pop=False, slice_prefix=True)
+        for param_name, value in item_params.items():
+            if param_name not in kwargs:  # Don't override explicit params
+                kwargs[param_name] = value
+
         result =  self.gridbox(columns=columns,
                                table=table,
                             formletCode=formletCode,
@@ -946,6 +1119,12 @@ class GnrDomSrc(GnrStructData):
         commonKwargs.pop('item_lbl_width',None)
         commonKwargs.pop('item_lbl_min_width',None)
         kwargs.update(commonKwargs)
+
+        # Convert lblpos to item_lbl_side for formlet compatibility
+        if lblpos and 'item_lbl_side' not in kwargs:
+            lblpos_map = {'L': 'left', 'T': 'top', 'R': 'right', 'B': 'bottom'}
+            kwargs['item_lbl_side'] = lblpos_map.get(lblpos, 'left')
+
         result =  self.formlet(columns=cols,table=table or self.page.maintable,
                             formletCode=formlet,**kwargs)
         return result
@@ -1145,8 +1324,8 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
              'tinyMCE', 'protovis','codemirror','mdeditor','qrscanner','fullcalendar','dygraph','chartjs','MultiButton','PaletteGroup','DocumentFrame','DownloadButton','bagEditor','PagedHtml',
              'DocItem','UserObjectLayout','UserObjectBar', 'PalettePane','PasswordTextBox','PaletteMap','PaletteImporter','DropUploader','ModalUploader','DropUploaderGrid','VideoPickerPalette','GeoCoderField','StaticMap','ImgUploader','TooltipPane','MenuDiv', 'BagNodeEditor','FlatBagEditor',
              'PaletteBagNodeEditor','StackButtons', 'Palette', 'PaletteTree','TreeFrame','CheckBoxText','RadioButtonText','GeoSearch','ComboArrow','ComboMenu','ChartPane','PaletteChart','ColorTextBox','ColorFiltering', 'SearchBox', 'FormStore',
-             'FramePane', 'FrameForm','BoxForm','QuickEditor','ExtendedCkeditor','CodeEditor','TreeGrid','QuickGrid',
-            "GridGallery","VideoPlayer",'MultiValueEditor','TextboxMenu','MultiLineTextbox','QuickTree','SharedObject','IframeDiv','FieldsTree', 'SlotButton','TemplateChunk','LightButton','Semaphore','CharCounterTextarea']
+             'FramePane', 'FrameForm','BoxForm','QuickEditor','ExtendedCkeditor','ExtendedTinyMCE','CodeEditor','TreeGrid','QuickGrid',
+            "GridGallery","VideoPlayer",'MultiValueEditor','MultiLanguageTextBox','TextboxMenu','MultiLineTextbox','QuickTree','SharedObject','IframeDiv','FieldsTree', 'SlotButton','TemplateChunk','LightButton','Semaphore','CharCounterTextarea']
     genroNameSpace = dict([(name.lower(), name) for name in htmlNS])
     genroNameSpace.update(dict([(name.lower(), name) for name in dijitNS]))
     genroNameSpace.update(dict([(name.lower(), name) for name in dojoxNS]))
@@ -1896,7 +2075,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
     def checkbox(self, value=None, label=None,lbl=None,**kwargs):
         """Return a :ref:`checkbox`: setting the value to true will check the box
         while false will uncheck it
-        
+
         :param label: the checkbox label
         :param value: the checkbox path for value. For more information, check the
                       :ref:`datapath` section
@@ -1904,6 +2083,9 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         if lbl and not label and not getattr(self,'fbuilder',None):
             label = lbl
             lbl = '&nbsp;'
+            # Auto-add formlet_fakelabel class to hide empty label row in formlet
+            if 'box__class' not in kwargs:
+                kwargs['box__class'] = 'formlet_fakelabel'
         return self.child('checkbox', value=value, label=label,lbl=lbl, **kwargs)
         
     def dropdownbutton(self, label=None, **kwargs):
@@ -2181,6 +2363,9 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                 kwargs['colspan'] = kwargs.pop('autospan')
                 kwargs['width'] = '99%'
             result.update(kwargs)
+        if result['tag']=='textBox' and fldattr.get('localized'):
+            result['tag'] = 'MultiLanguageTextBox'
+            result['languages'] = fldattr.get('localized')
         return result
         
 class GnrFormBuilder(object):

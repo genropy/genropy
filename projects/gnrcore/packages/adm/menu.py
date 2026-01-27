@@ -15,6 +15,7 @@ class Menu(object):
         permissions.thpage(u"!!Pkginfo", table="adm.pkginfo")
         permissions.thpage(u"!!Tableinfo", table="adm.tblinfo")
         permissions.webpage(u"!!User configurator", filepath="/adm/user_configuration",tags='superadmin')
+        permissions.webpage(u"!!Tag Manager", filepath="/adm/tag_manager",tags='superadmin')
         unused = administration.branch('!!Unused',tags='_DEV_')
         unused.thpage(u"!!Menu Manager", table="adm.menu")
         unused.thpage(u"!!Menu Pages", table="adm.menu_page")

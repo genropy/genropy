@@ -2156,6 +2156,8 @@ dojo.declare("gnr.widgets.ExtendedCkeditor", gnr.widgets.gnrwdg, {
 
 });
 
+
+
 dojo.declare("gnr.widgets.QuickTree", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode, kw,children) {
         var value = objectPop(kw,'value');
@@ -2972,13 +2974,18 @@ dojo.declare("gnr.widgets.GridGallery", gnr.widgets.gnrwdg, {
 dojo.declare("gnr.widgets.BagField",gnr.widgets.gnrwdg,{
 
     createContent:function(sourceNode, kw,children,subTagItems) {
-        let value = objectPop(kw,'value')        
+        let value = objectPop(kw,'value');
+        let showOnFormLoaded = objectPop(kw,'showOnFormLoaded',true)        
+
         var valuepath = value?sourceNode.absDatapath(value):null;
         kw.remote_field = objectPop(kw,'field') || valuepath.split('.').slice(-1)[0];
         kw.remote_resource = objectPop(kw,'resource');
         kw.remote_table = objectPop(kw,'table');
         kw.remote_bfhandler = objectPop(kw,'bfhandler');
         kw.remote_version = objectPop(kw,'version');
+        if(showOnFormLoaded){
+             kw.remote_onFormLoaded = '^#FORM.controller.loaded'
+        }
         if (kw.remote_resource){
             kw.remote__if='resource'
         }
@@ -2990,12 +2997,13 @@ dojo.declare("gnr.widgets.BagField",gnr.widgets.gnrwdg,{
         kw.min_width = kw.min_width || '1px';
         kw.remote_async = true;
         kw.remote__waitingMessage = true;
+        kw.remote__onRemote ="const frm = this.form;if(frm){this.delayedCall(()=>{frm.checkInvalidFields()},1,'buildingDynamicForm');}"
         var root = sourceNode;
         if(kw.enableEdit){
             root = sourceNode._('tabContainer');
             kw.pageName = 'view';
             kw.title = 'View';
-            kw.remote__onRemote = "this.setRelativeData('.$_source',this._value.getNode('#0').attr.bagfieldmodule)"
+            kw.remote__onRemote = kw.remote__onRemote+"this.setRelativeData('.$_source',this._value.getNode('#0').attr.bagfieldmodule);"
         }
         var result = root._('contentPane','bagFieldRemote',kw);
         if(kw.enableEdit){
@@ -3593,19 +3601,30 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
 
     loadTemplateEditData:function(sourceNode){
         var paletteNode = sourceNode._connectedPalette;
-        var templateHandler = sourceNode._templateHandler;
-        paletteNode.setRelativeData('.data',templateHandler.data?templateHandler.data.deepCopy():new gnr.GnrBag({varsbag:new gnr.GnrBag(),content:'',content_css:''})); 
-        var respath = templateHandler.dataInfo.respath;
-        if(respath && respath.indexOf('_custom')>=0){
-            paletteNode.setRelativeData('.data.metadata.custom',true);
+        if(!paletteNode){
+            return;
         }
-        paletteNode.setRelativeData('.status','info');
+        var templateHandler = sourceNode._templateHandler;
+        var data = templateHandler.data?templateHandler.data.deepCopy():new gnr.GnrBag({varsbag:new gnr.GnrBag(),content:'',content_css:''});
+        var paletteCode = paletteNode.attr.paletteCode || sourceNode.getParentNode().getAttributeFromDatasource('paletteCode') || ('template_editor_'+sourceNode._id);
+        var paletteRoot = `gnr.palettes.${paletteCode}`;
+        genro.setData(paletteRoot+'.data',data);
+        var dataInfo = templateHandler.dataInfo || {};
+        var respath = dataInfo.respath;
+        if(respath && respath.indexOf('_custom')>=0){
+            genro.setData(paletteRoot+'.data.metadata.custom',true);
+        }
+        genro.setData(paletteRoot+'.status','info');
     },
 
     openTemplatePalette:function(chunkNode,editorConstrain,showLetterhead){
-        var paletteCode = 'template_editor_'+chunkNode._id;
-        //genro._data.popNode('gnr.palettes.'+paletteCode);
         let componentNode = chunkNode.getParentNode();
+        var paletteCode = componentNode.getAttributeFromDatasource('paletteCode');
+        if(!paletteCode){
+            paletteCode = 'template_editor_'+chunkNode._id;
+        }
+        chunkNode._currentPaletteCode = paletteCode;
+        //genro._data.popNode('gnr.palettes.'+paletteCode);
         var tplpars = componentNode.gnrwdg.tplpars;
         var templateHandler = chunkNode._templateHandler;
         var handler = this;
@@ -3668,8 +3687,6 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
             chunkNode._connectedPalette = paletteNode; 
         }
     },
-    
-
     updateVirtualColumns:function(sourceNode,datasourceNode,dataProvider,mainNode){
         var vc,curr_vc;
         if(dataProvider){
@@ -3737,6 +3754,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
     
     createContent:function(sourceNode, kw,children) {
         var resource = objectPop(kw,'resource');
+        var paletteCode = objectPop(kw,'paletteCode');
         var gnrwdg = sourceNode.gnrwdg;
         if(resource){
             console.warn('templateChunk warning: use "template" param instead of "resource" param');
@@ -3744,6 +3762,12 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         var tplpars = objectExtract(kw,'template,editable');
         var editorConstrain = objectExtract(kw,'constrain_*',null,true);
         var showLetterhead = objectPop(kw, 'showLetterhead');
+        if(paletteCode && (paletteCode[0]=='^' || paletteCode[0]=='=')){
+            paletteCode = paletteCode[0]+sourceNode.absDatapath(paletteCode);
+        }
+        if(paletteCode){
+            sourceNode.attr.paletteCode = paletteCode;
+        }
         sourceNode.attr.table = objectPop(kw,'table');
         sourceNode.attr.emailChunk = objectPop(kw,'emailChunk');
         var safeMode = objectPop(kw,'safeMode');
@@ -3929,12 +3953,38 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
     },
     gnrwdg_refresh:function(){
         var pkey;
+        let paletteNode = this.chunkNode._connectedPalette;
+        let paletteCode = this.chunkNode._currentPaletteCode;
+        if(paletteNode){
+            try{
+                paletteNode._destroy();
+            }finally{
+                this.chunkNode._connectedPalette = null;
+            }
+        }
+        if(paletteCode){
+            genro._data.popNode('gnr.palettes.'+paletteCode);
+            this.chunkNode._currentPaletteCode = null;
+        }
         if(this.sourceNode.attr.record_id){
             pkey = this.sourceNode.getAttributeFromDatasource('record_id');
         }
         this.chunkNode.updateTemplate(pkey);
     },
     gnrwdg_setRecord_id:function(pkey){
+        let paletteNode = this.chunkNode._connectedPalette;
+        let paletteCode = this.chunkNode._currentPaletteCode;
+        if(paletteNode){
+            try{
+                paletteNode._destroy();
+            }finally{
+                this.chunkNode._connectedPalette = null;
+            }
+        }
+        if(paletteCode){
+            genro._data.popNode('gnr.palettes.'+paletteCode);
+            this.chunkNode._currentPaletteCode = null;
+        }
         this.chunkNode.updateTemplate(pkey);
     },
 
@@ -3944,18 +3994,52 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         }
     },
 
+    gnrwdg_setPaletteCode:function(){
+        let paletteNode = this.chunkNode._connectedPalette;
+        let paletteCode = this.chunkNode._currentPaletteCode;
+        if(paletteNode){
+            try{
+                paletteNode._destroy();
+            }finally{
+                this.chunkNode._connectedPalette = null;
+            }
+        }
+        if(paletteCode){
+            genro._data.popNode('gnr.palettes.'+paletteCode);
+            this.chunkNode._currentPaletteCode = null;
+        }
+    },
+
     gnrwdg_setTable:function(){
-        if(this.chunkNode._connectedPalette){
-            this.chunkNode._connectedPalette._destroy();
-            this.chunkNode._connectedPalette = null;
+        let paletteNode = this.chunkNode._connectedPalette;
+        let paletteCode = this.chunkNode._currentPaletteCode;
+        if(paletteNode){
+            try{
+                paletteNode._destroy();
+            }finally{
+                this.chunkNode._connectedPalette = null;
+            }
+        }
+        if(paletteCode){
+            genro._data.popNode('gnr.palettes.'+paletteCode);
+            this.chunkNode._currentPaletteCode = null;
         }
 
     },
 
     gnrwdg_setEmailChunk:function(){
-        if(this.chunkNode._connectedPalette){
-            this.chunkNode._connectedPalette._destroy();
-            this.chunkNode._connectedPalette = null;
+        let paletteNode = this.chunkNode._connectedPalette;
+        let paletteCode = this.chunkNode._currentPaletteCode;
+        if(paletteNode){
+            try{
+                paletteNode._destroy();
+            }finally{
+                this.chunkNode._connectedPalette = null;
+            }
+        }
+        if(paletteCode){
+            genro._data.popNode('gnr.palettes.'+paletteCode);
+            this.chunkNode._currentPaletteCode = null;
         }
     },
 });
@@ -5267,6 +5351,34 @@ dojo.declare("gnr.widgets.PasswordTextBox", gnr.widgets.gnrwdg, {
             let currType = input.type;
             input.setAttribute('type',currType=='password'?'text':'password');
         }})
+        return tb;
+    }
+});
+
+// Widget for editing localized text fields with language dropdown
+dojo.declare("gnr.widgets.MultiLanguageTextBox", gnr.widgets.gnrwdg, {
+    createContent:function(sourceNode, kw, childSourceNode){
+        const value = kw.value;
+        const languages = kw.languages.split(',');
+        // Remove default language (handled by main textbox)
+        languages.shift();
+        kw.nodeId = kw.nodeId || 'ml_text_box_' + genro.getCounter();
+        const textboxId = kw.nodeId;
+        let tb = sourceNode._('textbox', kw);
+        let ca = tb._('comboArrow', {iconClass: 'language google_innericonbox google_iconcolor_gray'});
+        let tp = ca._('tooltipPane', {placingId: kw.nodeId, _class: 'formlet', padding: '3px', onOpening: function(){
+            genro.nodeById(textboxId + '_langbox').domNode.style.width = genro.wdgById(textboxId).domNode.clientWidth - 10 + 'px';
+        }});
+        tp._('div', {nodeId: textboxId + '_langbox'});
+        tp._('div', {height: '5px'});
+        // Create textbox for each additional language
+        for (const lang of languages){
+            tp._('div', {height: '5px'});
+            tp._('textbox', {"value": `${value}_${lang}`, lbl: lang.toUpperCase(),
+                    lbl_side: "left", lbl_width: "3em", lbl_padding_right: '3px',
+                    lbl_align: "right", width: kw.width, margin_right: '15px'});
+        }
+        tp._('div', {height: '10px'});
         return tb;
     }
 });
@@ -7880,7 +7992,3 @@ dojo.declare("gnr.stores.VirtualSelection",gnr.stores.Selection,{
     }
     
 });
-
-
-
-

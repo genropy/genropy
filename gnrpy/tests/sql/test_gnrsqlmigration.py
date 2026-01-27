@@ -369,16 +369,17 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         tbl.column('id',size='22')
         self.checkChanges('CREATE TABLE "alfa"."alfa_my_empty_table"(\n "id" character(22) NOT NULL,\n PRIMARY KEY (id)\n);')
 
+    def test_11_varchar_min_max(self):
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('text_test_table', pkey='id')
+        tbl.column('id', dtype='serial')
 
-
-    #def test_09b_remove_relation(self):
-    #    pkg = self.src.package('alfa')
-    #    tbl = pkg.table('recipe_row_alternative', pkey='id')
-    #    col = tbl.column('recipe_code')
-    #    col.pop('relation')
-    #    check_value = '?'
-    #    self.checkChanges(check_value)
-
+        # please see #324 - varchar colums with min/max should only
+        # use the max to define the column size attribute
+        tbl.column('code', dtype='A', size="5:18")
+        check_value = 'CREATE TABLE "alfa"."alfa_text_test_table"("id" serial8 NOT NULL, "code" character varying(18), PRIMARY KEY(id));'
+        self.checkChanges(check_value)
+        
 
 @pytest.mark.skipif(gnrpostgres.SqlDbAdapter.not_capable(Capabilities.MIGRATIONS),
                     reason="Adapter doesn't support migrations")

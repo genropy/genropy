@@ -5,6 +5,7 @@ import json
 import dictdiffer
 from collections import defaultdict
 from gnr.core.gnrstring import boolean
+
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
 from gnr.dev.decorator import time_measure
@@ -248,6 +249,15 @@ class OrmExtractor:
             if colattr.get(auto_ext_attribute) and auto_ext_attribute not in self.extensions:
                 self.extensions.append(auto_ext_attribute)
         attributes = self.convert_colattr(colattr)
+
+        # normalize the input from ORM when the size has min/max, used in validation
+        # but can't be used in varchar column definitions. So we need to reset the min
+        # statically to avoid a field always tagged to be upgraded. We can't just
+        # use the max value since it will convert the column to a CHAR({max}) rather
+        # than varchar
+        if ":" in attributes.get('size', '') and not attributes.get('size').startswith('0'):
+            attributes['size'] = f"0:{attributes['size'].split(':')[1]}"
+
         table_json = self.schemas[schema_name]['tables'][table_name]
         column_name = colobj.sqlname
         pkeys = table_json['attributes']['pkeys']
@@ -1123,7 +1133,7 @@ class SqlMigrator():
         
         extensions_commands = self.sql_commands.pop('extensions_commands',None)
         if extensions_commands:
-            self.db.adapter.execute(extensions_commands,manager=True)
+            self.db.adapter.execute(extensions_commands,autoCommit=True)
 
     #jsonorm = OrmExtractor(GnrApp('dbsetup_tester').db).get_json_struct()
     

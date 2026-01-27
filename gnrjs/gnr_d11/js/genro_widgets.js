@@ -1212,7 +1212,15 @@ dojo.declare("gnr.widgets.video", gnr.widgets.baseHtml, {
     startCapture:function(sourceNode,capture_kw){
         var onErrorGetUserMedia = objectPop(capture_kw,'onReject');
         var onAccept = objectPop(capture_kw,'onAccept');
-        navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        // Get capture value from datasource if it's a reactive binding (^)
+        let captureMode = sourceNode.getAttributeFromDatasource('capture') || sourceNode.attr.capture;
+        let video = true;
+        if (captureMode === 'environment') {
+            video = {facingMode: "environment"};
+        } else if (captureMode === 'user') {
+            video = {facingMode: "user"};
+        }
+        navigator.mediaDevices.getUserMedia({ video: video, audio: false })
         .then(function(stream) {
             if(onAccept){
                 funcApply(onAccept,{},sourceNode);
@@ -5127,7 +5135,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
         var that = this;
         if(objectNotEmpty(crop)){
             crop = objectUpdate({text_align:'center',overflow:'hidden'},crop);
-            var innerImage=objectExtract(attr,'src,src_back,placeholder,height,width,edit,upload_maxsize,upload_folder,upload_filename,upload_ext,zoomWindow,format,mask,border,takePicture,nodeId');
+            var innerImage=objectExtract(attr,'src,src_back,placeholder,height,width,edit,upload_maxsize,upload_folder,upload_filename,upload_ext,zoomWindow,format,mask,border,takePicture,nodeId,capture');
             if (innerImage.placeholder===true){
                 innerImage.placeholder = '/_gnr/11/css/icons/placeholder_img_dflt.png'
             }
@@ -5210,6 +5218,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                         this.domNode.value = null;
                     }
                 });
+                if (attr.capture){sourceNode.attr.capture=attr.capture};
                 var uploadhandler_key = genro.isMobile? 'connect_onclick':'connect_ondblclick';
 
                 attr[uploadhandler_key] = function(){
@@ -5265,6 +5274,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
         var slotbar = dlg.bottom._('slotBar',{slots:'5,emptyValue,*,takePicture,editCanvas,upload,5',
         action:function(){
             dlg.close_action();
+            console.log(this.attr.command)
             if(this.attr.command=='upload'){
                  uploadCb();
             }else if(this.attr.command=='takePicture'){
@@ -5330,7 +5340,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                                                     }});
         let cropPage = dlg.center._('div',{width:boundaryWidth+'px',height:(boundaryHeight+40)+'px',position:'relative',margin:'10px'})._('div',{nodeId:frameCode+'_cropper',position:'absolute',top:0,bottom:0,left:0,right:0});
         var slotbar = dlg.bottom._('slotBar',{slots:'*,5,confirmImage,5'});
-        slotbar._('button','confirmImage',{label:'Confirm',
+        slotbar._('button','confirmImage',{label:_T('Confirm'),
         action:function(){
             cropPage.getParentNode()._croppie.result({
                     'type':'base64'
@@ -5355,7 +5365,11 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
         let clientHeight = sourceNode.domNode.clientHeight;
         var dlg = genro.dlg.quickDialog(_T('Take picture'),{_showParent:true,_workspace:true,closable:true,width:videoWidth+22+'px',
                         connect_show:function(){
-                            genro.nodeById(videoNodeId).publish('startCapture');
+                            let videoNode = genro.nodeById(videoNodeId);
+                            // Get capture value from img datasource if reactive binding
+                            let captureValue = sourceNode.getAttributeFromDatasource('capture') || sourceNode.attr.capture;
+                            if (captureValue){videoNode.attr.capture=captureValue};
+                            videoNode.publish('startCapture');
                         }});
         var sc = dlg.center._('StackContainer',{height:videoHeight+42+'px',nodeId:frameCode,selectedPage:'^#WORKSPACE.selectedPage'});
         let video = sc._('contentPane',{pageName:'video'});
@@ -5397,7 +5411,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                 genro.nodeById(videoNodeId).publish('takePicture');
             }
         }});
-        slotbar._('button','confirmImage',{label:'Confirm',
+        slotbar._('button','confirmImage',{label:_T('Confirm'),
                         action:function(){
                             cropPage.getParentNode()._croppie.result({
                                     'type':'base64'

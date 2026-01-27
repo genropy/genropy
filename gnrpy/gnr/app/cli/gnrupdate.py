@@ -66,18 +66,6 @@ class BaseUpdater(object):
         self.gnrdaemon_stop()
         self.gnrdaemon_start()
     
-    def web_maintenance(self,status=None):
-        with self.daemonProxy.proxy() as p:
-            registers = p.siteRegisters()
-            if registers:
-                registers = dict(registers)
-            for sitename in self.instances:
-                if sitename in registers:
-                    print('setting in maintenance',sitename,status)
-                    p.setSiteInMaintenance(sitename,status=status)
-                else:
-                    print('not found in register',sitename)
-
     def gnrdaemon_stop(self):
         with self.daemonProxy.proxy() as p:
             self.stoppedStatus = p.siteregister_stop(self.instances,saveStatus=self.daemonRestart=='keep')
@@ -99,20 +87,16 @@ class BaseUpdater(object):
 
     def update(self):
         #instances = [os.path.splitext(l)[0] for l in os.listdir(self.vassals_path) if l not in ('gnrdaemon.ini','pg.ini')]
-        self.web_maintenance(True)
         self.web_stop()
         if self.daemonRestart=='keep':
             self.gnrdaemon_restart()
-            self.web_maintenance(True)
         elif self.daemonRestart=='clean':
             self.gnrdaemon_stop()
         if not self.skip_dbsetup:
             self.instanceBroadcast(self.dbsetup)
         if self.daemonRestart=='clean':
             self.gnrdaemon_start()
-            self.web_maintenance(True)
         self.web_start()
-        self.web_maintenance(False)
         print('Update ok')
 
 class ApacheUpdater(BaseUpdater):

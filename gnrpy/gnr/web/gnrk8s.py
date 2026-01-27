@@ -244,6 +244,7 @@ class GnrK8SGenerator(object):
         args = ['web','stack',self.instance_name, '--all']
         service_def = {
             'name': f'{self.stack_name}-fullstack-container',
+            'imagePullPolicy': "Always",
             'image': self.image,
             'command': ['gnr'],
             'args': args,

@@ -7,7 +7,9 @@
 #  Copyright (c) 2007 Softwell. All rights reserved.
 #
 
+from datetime import datetime,timedelta
 import Pyro4
+
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
 
@@ -16,8 +18,7 @@ if hasattr(Pyro4.config, 'METADATA'):
 if hasattr(Pyro4.config, 'REQUIRE_EXPOSE'):
     Pyro4.config.REQUIRE_EXPOSE = False
 
-from gnr.core.gnrstring import fromJson
-from datetime import datetime,timedelta
+
 
 
 
@@ -39,7 +40,6 @@ class GnrCustomWebPage(object):
         r.cell('register_port',name='Port',width='8em')
         r.cell('is_alive',width='20px',name='Alive',dtype='B',semaphore=True)
         r.cell('active',width='20px',name='S',dtype='B',semaphore=True)
-        r.cell('allowed_users',width='25em',name='Allowed users')
 
     def main(self, root, **kwargs):
         bc = root.borderContainer(datapath='main')
@@ -229,25 +229,8 @@ class GnrCustomWebPage(object):
                                     }            
                                     """,_lockScreen=True,timeout=0)
         bar.stop_button.button('Stop current',fire_stop='runningSites.command')
-        #fb.button('load current',fire_load='runningSites.command')
         bar.restart_button.button('Restart current',fire_restart='runningSites.command')
-        #fb.button('Restart All',fire_restart_all='runningSites.command',colspan=2)
         fb = frame.formbuilder(cols=2,border_spacing='3px',datapath='current_site.record',margin_top='5ex')
-        fb.checkbox(value='^.maintenance',label='Maintenance',validate_onAccept="""if(userChange){
-                                                                                                if(!value){
-                                                                                                    SET .allowed_users = null;
-                                                                                                }
-                                                                                                FIRE main.setInMaintenance = value;
-                                                                                         }""")
-        fb.textbox(value='^.allowed_users',lbl='Allowed user',validate_onAccept="""if(userChange){
-                                                                                                if(GET .maintenance){
-                                                                                                    FIRE main.setInMaintenance = value;
-                                                                                                }
-                                                                                         }""",width='30em')
-
-        fb.dataRpc('dummy',self.setInMaintenance,sitename='=main.sitename',
-                   status='^main.setInMaintenance',
-                   allowed_users='=.allowed_users')
 
     @public_method
     def pgbadger_run(self,since=None):
@@ -255,11 +238,50 @@ class GnrCustomWebPage(object):
         if pgbadger:
             return pgbadger.run(start_ts=datetime.now()-timedelta(minutes=since))
 
+    def _maintenance_get_items(self, items, child_name=None,exclude_guest=None, **kwargs):
+        result = Bag()
+        now = datetime.now()
+
+        for item in items:
+            item = dict(item)
+            key = item['register_item_id']
+            item.pop('data',None)
+            if exclude_guest and ( key.startswith('guest_') or item.get('user','').startswith('guest_')):
+                continue
+            _customClasses = []
+            item['_pkey'] = key
+            item['alive'] = True
+            item['age'] = (now - item.get('start_ts')).seconds
+            last_refresh_ts = item.get('last_refresh_ts') or item['start_ts']
+            last_user_ts = item.get('last_user_ts') or item['start_ts']
+            last_rpc_ts = item.get('last_rpc_ts') or item['start_ts']
+            item['last_refresh_age'] = (now - last_refresh_ts).seconds
+            item['last_event_age'] = (now - last_user_ts).seconds
+            item['last_rpc_age'] = (now - last_rpc_ts).seconds
+            if item['last_refresh_age'] > 60:
+                item['alive'] = False
+                _customClasses.append('disconnected')
+            elif item['last_event_age'] > 60:
+                _customClasses.append('inactive')
+            item.pop('datachanges', None)
+            result.addItem(key.replace('.','_').replace('@','_'), None, _customClasses=' '.join(_customClasses), **item)
+        return result
+    
+    @public_method
+    def maintenance_update_data(self,register_proxy, exclude_guest=None,**kwargs):
+        result = Bag()
+        users = register_proxy.users()
+        result['users'] = self._maintenance_get_items(users, 'connections',exclude_guest=exclude_guest)
+        connections = register_proxy.connections()
+        result['connections'] = self._maintenance_get_items(connections, 'pages')
+        pages = register_proxy.pages()
+        result['pages'] = self._maintenance_get_items(pages,exclude_guest=exclude_guest)
+        return result
+    
     @public_method
     def loadSelectedSiteSituation(self,sitename=None):
         with self.site.register.gnrdaemon_proxy.siteRegisterProxy(sitename) as register_proxy:
             result = self.maintenance_update_data(register_proxy)
-            
             return result
         return Bag()
 
@@ -267,9 +289,7 @@ class GnrCustomWebPage(object):
     def getSiteRecord(self,sitename=None):
         result = Bag()
         with self.site.register.gnrdaemon_proxy.siteRegisterProxy(sitename) as register_proxy:
-            maintenance = register_proxy.isInMaintenance()
-            #result.setItem('site_situation')
-            result = Bag(dict(sitename=sitename,maintenance=maintenance,allowed_users=register_proxy.allowedUsers()))
+            result = Bag(dict(sitename=sitename))
         return result
 
     def _page_grid_struct(self, struct):
@@ -339,11 +359,6 @@ class GnrCustomWebPage(object):
     def daemonCommands(self,command=None,sitename=None):
         return getattr(self.site.register.gnrdaemon_proxy,'siteregister_%s' %command,None)(sitename)
         
-    @public_method
-    def setInMaintenance(self,sitename=None,status=None,allowed_users=None):
-        self.site.register.gnrdaemon_proxy.setSiteInMaintenance(sitename=sitename,status=status,allowed_users=allowed_users)
-
-   
 
     @public_method
     def runningSites(self):
@@ -356,81 +371,11 @@ class GnrCustomWebPage(object):
             if v['is_alive']:
                 try:
                     with self.site.register.pyroProxy(v['register_uri']) as proxy:
-                        v['active'] = not proxy.isInMaintenance()
-                        v['allowed_users'] = proxy.allowedUsers()
+                        v['active'] = True
                 except Pyro4.errors.CommunicationError:
                     v['active'] = False
-                    v['allowed_user'] = None
                     v['error'] = 'Not connected'
             result.setItem(k,None,**v)
-        return result
-
-
-    def _maintenance_get_items(self, items, child_name=None,exclude_guest=None, **kwargs):
-        result = Bag()
-        now = datetime.now()
-
-        for item in items:
-            item = dict(item)
-            key = item['register_item_id']
-            item.pop('data',None)
-            if exclude_guest and ( key.startswith('guest_') or item.get('user','').startswith('guest_')):
-                continue
-            _customClasses = []
-            item['_pkey'] = key
-            item['alive'] = True
-            item['age'] = (now - item.get('start_ts')).seconds
-            last_refresh_ts = item.get('last_refresh_ts') or item['start_ts']
-            last_user_ts = item.get('last_user_ts') or item['start_ts']
-            last_rpc_ts = item.get('last_rpc_ts') or item['start_ts']
-            item['last_refresh_age'] = (now - last_refresh_ts).seconds
-            item['last_event_age'] = (now - last_user_ts).seconds
-            item['last_rpc_age'] = (now - last_rpc_ts).seconds
-            if item['last_refresh_age'] > 60:
-                item['alive'] = False
-                _customClasses.append('disconnected')
-            elif item['last_event_age'] > 60:
-                _customClasses.append('inactive')
-           #if child_name and not item[child_name]:
-           #    _customClasses.append('no_children')
-            item.pop('datachanges', None)
-            #if child_name is None:
-            #    self.maintenance_cellServerProfile(item)
-            result.addItem(key.replace('.','_').replace('@','_'), None, _customClasses=' '.join(_customClasses), **item)
-        return result
-
-
-    def maintenance_cellServerProfile(self,item):
-        if not item['profile']:
-            return
-        profiles = fromJson(item['profile'])
-        result = []
-        for n in profiles:
-            st = n['st']
-            if st==0:
-                color = 'gray'
-            elif st<=2:
-                color = 'green'
-            elif st<4:
-                color = 'yellow'
-            elif st<6:
-                color = 'orange'
-            else:
-                color = 'red'
-            c = dict(height=1+int(n['nc']/4),color=color)
-            result.append('<div style="background:%(color)s;height:%(height)ipx; width:3px; display:inline-block;margin-right:1px;"></div>' %c)
-        item['page_profile'] = '<div>%s</div>'  %''.join(result)
-
-
-    @public_method
-    def maintenance_update_data(self,register_proxy, exclude_guest=None,**kwargs):
-        result = Bag()
-        users = register_proxy.users()
-        result['users'] = self._maintenance_get_items(users, 'connections',exclude_guest=exclude_guest)
-        connections = register_proxy.connections()
-        result['connections'] = self._maintenance_get_items(connections, 'pages')
-        pages = register_proxy.pages()
-        result['pages'] = self._maintenance_get_items(pages,exclude_guest=exclude_guest)
         return result
 
 

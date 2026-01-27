@@ -489,9 +489,11 @@ class MenuResolver(BagResolver):
         if not aux_instance:
             attributes['url_th_from_package'] = attributes['url_th_from_package'] or self._page.package.name
         attributes.setdefault('multipage',False)
-        tableattr = self._page.db.table(table).attributes
-        attributes['label'] =  attributes.get('label') or tableattr.get('name_long')
+        
         application = self.app.getAuxInstance(aux_instance) if aux_instance else self.app
+        tableattr = application.db.table(table).attributes
+        attributes['label'] =  attributes.get('label') or tableattr.get('name_long')
+        
         if not application.allowedByPreference(**tableattr):
             raise NotAllowedException('Not allowed by preference')
         return None,attributes
@@ -517,9 +519,11 @@ class MenuResolver(BagResolver):
             attributes.setdefault('url_th_public',True)
         else:
             attributes.setdefault('multipage',True)
-        tableattr = self._page.db.table(table).attributes
-        attributes['label'] =  attributes.get('label') or tableattr.get('name_long')
+
         application = self.app.getAuxInstance(aux_instance) if aux_instance else self.app
+        tableattr = application.db.table(table).attributes
+        attributes['label'] =  attributes.get('label') or tableattr.get('name_long')
+        
         if not application.allowedByPreference(**tableattr):
             raise NotAllowedException('Not allowed by preference')
         return None,attributes
