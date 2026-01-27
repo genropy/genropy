@@ -741,10 +741,21 @@ dojo.declare("gnr.QueryManager", null, {
     checkQueryLineValue:function(sourceNode, value) {
         var relpath = sourceNode.attr.relpath;
         value = value || '';
-        console.log('[DEBUG checkQueryLineValue] CALLED - relpath:', relpath, 'value:', value);
-        console.log('[DEBUG checkQueryLineValue] sourceNode:', sourceNode);
+        console.log('[DEBUG checkQueryLineValue] ======== CALLED ========');
+        console.log('[DEBUG checkQueryLineValue] relpath:', relpath, 'value:', value);
+        console.log('[DEBUG checkQueryLineValue] sourceNode label:', sourceNode.label);
+        console.log('[DEBUG checkQueryLineValue] sourceNode _id:', sourceNode._id);
+        console.log('[DEBUG checkQueryLineValue] sourceNode widget:', sourceNode.widget);
+        console.log('[DEBUG checkQueryLineValue] sourceNode getFullpath:', sourceNode.getFullpath ? sourceNode.getFullpath() : 'N/A');
+        console.log('[DEBUG checkQueryLineValue] sourceNode absDatapath:', sourceNode.absDatapath ? sourceNode.absDatapath('') : 'N/A');
         console.log('[DEBUG checkQueryLineValue] _inParametricDialog flag:', this._inParametricDialog);
-        console.log('[DEBUG checkQueryLineValue] Stack trace:', new Error().stack);
+
+        // Log if this is coming from the main query builder or from somewhere else
+        if (sourceNode.label === 'searchboxTextbox') {
+            console.log('[DEBUG checkQueryLineValue] >>> Called from MAIN QUERY BUILDER searchboxTextbox <<<');
+        } else {
+            console.log('[DEBUG checkQueryLineValue] >>> Called from OTHER widget:', sourceNode.label, '<<<');
+        }
 
         if (value.indexOf('set:')==0){
             console.log('[DEBUG checkQueryLineValue] Skip - value starts with set:');
