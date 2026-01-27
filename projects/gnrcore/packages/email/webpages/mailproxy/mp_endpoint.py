@@ -253,7 +253,6 @@ class GnrCustomWebPage(object):
         json_data = self._request_json()
         storage_path = json_data.get('storage_path')
 
-        # Parametro mancante -> ValueError
         if not storage_path:
             logger.warning('proxy_get_attachments: missing storage_path parameter')
             raise ValueError("Missing required parameter: storage_path")
@@ -261,12 +260,10 @@ class GnrCustomWebPage(object):
         logger.info('proxy_get_attachments: fetching %s', storage_path)
         storage_node = self.site.storageNode(storage_path)
 
-        # File non trovato -> FileNotFoundError
         if not storage_node or not storage_node.exists:
             logger.warning('Attachment not found: %s', storage_path)
             raise FileNotFoundError(f'Attachment not found: {storage_path}')
 
-        # Lettura file con gestione errori I/O
         try:
             with storage_node.open('rb') as f:
                 content = f.read()
