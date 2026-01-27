@@ -857,6 +857,19 @@ dojo.declare("gnr.QueryManager", null, {
             console.log('[DEBUG buildParsDialog] whereData.asDict():', whereData.asDict());
         }
 
+        // Clean parametric markers (?Parameter) from whereData to prevent checkQueryLineValue from setting them to null
+        console.log('[DEBUG buildParsDialog] Cleaning parametric markers from parslist:', parslist);
+        for (var i = 0; i < parslist.length; i++) {
+            var relpath = parslist[i].relpath;
+            var currentValue = whereData.getItem ? whereData.getItem(relpath) : null;
+            console.log('[DEBUG buildParsDialog] Checking relpath:', relpath, 'currentValue:', currentValue);
+            if (currentValue && typeof currentValue === 'string' && currentValue.indexOf('?') === 0) {
+                console.log('[DEBUG buildParsDialog] Removing parametric marker from:', relpath);
+                whereData.setItem(relpath, null);
+            }
+        }
+        console.log('[DEBUG buildParsDialog] whereData after cleaning:', whereData.asDict ? whereData.asDict() : whereData);
+
         var confirm = function(){
             console.log('[DEBUG confirm] START confirm callback');
             console.log('[DEBUG confirm] wherepath:', that.wherepath);
