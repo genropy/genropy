@@ -838,11 +838,19 @@ dojo.declare("gnr.QueryManager", null, {
         var whereData = sourceNode.getRelativeData(this.wherepath);
         console.log('[DEBUG buildParsDialog] whereData:', whereData);
         console.log('[DEBUG buildParsDialog] whereData keys:', whereData ? Object.keys(whereData) : 'null/undefined');
+        if (whereData && whereData.asDict) {
+            console.log('[DEBUG buildParsDialog] whereData.asDict():', whereData.asDict());
+        }
 
         var confirm = function(){
             console.log('[DEBUG confirm] START confirm callback');
             console.log('[DEBUG confirm] wherepath:', that.wherepath);
-            console.log('[DEBUG confirm] Data in wherepath:', sourceNode.getRelativeData(that.wherepath));
+            var confirmData = sourceNode.getRelativeData(that.wherepath);
+            console.log('[DEBUG confirm] Data in wherepath:', confirmData);
+            if (confirmData && confirmData.asDict) {
+                console.log('[DEBUG confirm] wherepath.asDict():', confirmData.asDict());
+            }
+            console.log('[DEBUG confirm] Direct check c_0:', sourceNode.getRelativeData(that.wherepath + '.c_0'));
 
             that.runQuery()
             dlg.close_action();
@@ -862,13 +870,22 @@ dojo.declare("gnr.QueryManager", null, {
 
         // Monitor data changes in wherepath
         setTimeout(function() {
-            console.log('[DEBUG buildParsDialog] After 100ms - wherepath data:', sourceNode.getRelativeData(that.wherepath));
+            var data = sourceNode.getRelativeData(that.wherepath);
+            console.log('[DEBUG buildParsDialog] After 100ms - wherepath data:', data);
+            if (data && data.asDict) console.log('[DEBUG buildParsDialog] After 100ms - asDict:', data.asDict());
+            console.log('[DEBUG buildParsDialog] After 100ms - c_0 value:', sourceNode.getRelativeData(that.wherepath + '.c_0'));
         }, 100);
         setTimeout(function() {
-            console.log('[DEBUG buildParsDialog] After 500ms - wherepath data:', sourceNode.getRelativeData(that.wherepath));
+            var data = sourceNode.getRelativeData(that.wherepath);
+            console.log('[DEBUG buildParsDialog] After 500ms - wherepath data:', data);
+            if (data && data.asDict) console.log('[DEBUG buildParsDialog] After 500ms - asDict:', data.asDict());
+            console.log('[DEBUG buildParsDialog] After 500ms - c_0 value:', sourceNode.getRelativeData(that.wherepath + '.c_0'));
         }, 500);
         setTimeout(function() {
-            console.log('[DEBUG buildParsDialog] After 1000ms - wherepath data:', sourceNode.getRelativeData(that.wherepath));
+            var data = sourceNode.getRelativeData(that.wherepath);
+            console.log('[DEBUG buildParsDialog] After 1000ms - wherepath data:', data);
+            if (data && data.asDict) console.log('[DEBUG buildParsDialog] After 1000ms - asDict:', data.asDict());
+            console.log('[DEBUG buildParsDialog] After 1000ms - c_0 value:', sourceNode.getRelativeData(that.wherepath + '.c_0'));
         }, 1000);
     }
 });
