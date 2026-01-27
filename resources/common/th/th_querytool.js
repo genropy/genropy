@@ -831,8 +831,7 @@ dojo.declare("gnr.QueryManager", null, {
 
         var dlg = genro.dlg.quickDialog('Complete query',{datapath:this.wherepath,width:'250px',autoSize:true});
         console.log('[DEBUG buildParsDialog] Dialog created with datapath:', this.wherepath);
-        console.log('[DEBUG buildParsDialog] Dialog widget:', dlg);
-        console.log('[DEBUG buildParsDialog] Dialog actual datapath:', dlg.widget ? dlg.widget.getAttributeFromDatasource('datapath') : 'N/A');
+        console.log('[DEBUG buildParsDialog] Dialog object:', dlg);
 
         var that = this;
 
