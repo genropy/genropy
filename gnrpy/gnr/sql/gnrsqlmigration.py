@@ -560,7 +560,8 @@ class SqlMigrator():
                  ignore_constraint_name=True,
                  excludeReadOnly=True,
                  removeDisabled=True,
-                 force=False):
+                 force=False,
+                 backup=False):
         self.db = db
         self.extensions = extensions.split(',') if extensions else []
         self.commands = {}
@@ -568,7 +569,8 @@ class SqlMigrator():
         self.excludeReadOnly = excludeReadOnly
         self.removeDisabled = removeDisabled
         self.ignore_constraint_name = ignore_constraint_name
-        self.force = force
+        self.force = force or backup  # backup implies force
+        self.backup = backup
         self.dbExtractor = DbExtractor(migrator=self)
         self.ormExtractor = OrmExtractor(migrator=self,extensions=self.extensions)
 
@@ -901,8 +903,18 @@ class SqlMigrator():
                     full_table = f'"{schema_name}"."{table_name}"'
                     conversion_expression = conversion_def.format(column_name=f'"{column_name}"')
 
-                    # In force mode: create backup column before conversion
-                    if self.force:
+                    # Default mode: raise exception if column is not empty
+                    if not self.force:
+                        if not self.is_empty_column(item):
+                            raise GnrSqlException(
+                                f'Incompatible type conversion {oldvalue}→{newvalue} on non-empty column '
+                                f'{table_name}.{column_name}. '
+                                f'Use --force to convert (non-matching values become NULL) '
+                                f'or --backup to create backup columns first.'
+                            )
+
+                    # In backup mode: create backup column before conversion
+                    if self.backup:
                         backup_column_name = f'{column_name}__{oldvalue}'
 
                         # Store backup info for post-migration verification
@@ -927,7 +939,7 @@ class SqlMigrator():
                             f'UPDATE {full_table} SET "{backup_column_name}" = "{column_name}"::text'
                         )
 
-                    # The conversion command (same for both modes)
+                    # The conversion command (used with --force or --backup)
                     columns_dict[column_name]['command'] = self.db.adapter.struct_alter_column_with_conversion_sql(
                         column_name=column_name,
                         new_sql_type=new_sql_type,

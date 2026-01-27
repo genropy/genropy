@@ -842,21 +842,267 @@ class TestGnrSqlMigration_postgres3(BaseGnrSqlMigration):
         )
 
 
-class BaseGnrSqlMigration_ForceMode(BaseGnrSqlTest):
+class BaseGnrSqlMigration_DefaultException(BaseGnrSqlTest):
     """
-    Test suite for SQL migration force mode with backup columns.
-    In force mode, type conversions create backup columns to preserve original data.
+    Test suite for SQL migration default mode exception behavior.
+    In default mode (no --force, no --backup), incompatible type conversions
+    on non-empty columns should raise an exception.
     """
 
     @classmethod
     def setup_class(cls):
         """
-        Sets up the test class with force=True migrator.
+        Sets up the test class with default migrator (no force, no backup).
+        """
+        super().setup_class()
+        cls.init()
+        cls.src = cls.db.model.src
+        cls.migrator = SqlMigrator(cls.db, removeDisabled=False)
+        cls.db.dropDb(cls.dbname)
+
+    def test_exception_01_create_db(self):
+        """Tests database creation"""
+        check_value = f"""CREATE DATABASE "{self.dbname}" ENCODING 'UNICODE';\n"""
+        self.db.startup()
+        self.migrator.prepareMigrationCommands()
+        changes = self.migrator.getChanges()
+        assert normalize_sql(changes) == normalize_sql(check_value)
+        self.migrator.applyChanges()
+
+    def test_exception_02_create_table_with_data(self):
+        """Creates test table and inserts data with invalid date format"""
+        self.src.package('gamma', sqlschema='gamma')
+        pkg = self.src.package('gamma')
+        tbl = pkg.table('exception_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col')
+        self.db.startup()
+        self.migrator.prepareMigrationCommands()
+        self.migrator.applyChanges()
+        # Insert data that cannot be converted to date
+        self.db.execute("INSERT INTO gamma.gamma_exception_test (text_col) VALUES ('not a date')")
+        self.db.commit()
+
+    def test_exception_03_incompatible_conversion_raises(self):
+        """Default mode: exception on incompatible type conversion with non-empty column"""
+        from gnr.sql.gnrsqlmigration import GnrSqlException
+        pkg = self.src.package('gamma')
+        tbl = pkg.table('exception_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='D')  # Try to convert text with 'not a date' to date
+        self.db.startup()
+        with pytest.raises(GnrSqlException) as excinfo:
+            self.migrator.prepareMigrationCommands()
+        # Exception message suggests both --force and --backup options
+        assert '--force' in str(excinfo.value)
+        assert '--backup' in str(excinfo.value)
+
+    def test_exception_04_empty_column_converts(self):
+        """Test that incompatible conversion on empty column works"""
+        pkg = self.src.package('gamma')
+        tbl = pkg.table('exception_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        text_col = tbl.column('text_col')
+        text_col.attributes['dtype'] = 'T'
+        tbl.column('empty_col')
+        self.db.startup()
+        self.migrator = SqlMigrator(self.db, removeDisabled=False)
+        self.migrator.prepareMigrationCommands()
+        self.migrator.applyChanges()
+
+        # Convert empty column to date
+        pkg = self.src.package('gamma')
+        tbl = pkg.table('exception_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col')
+        tbl.column('empty_col', dtype='D')
+        self.db.startup()
+        self.migrator.prepareMigrationCommands()
+        changes = self.migrator.getChanges()
+        assert 'ALTER COLUMN' in changes or 'TYPE date' in changes
+
+
+@pytest.mark.skipif(gnrpostgres.SqlDbAdapter.not_capable(Capabilities.MIGRATIONS),
+                    reason="Adapter doesn't support migrations")
+class TestGnrSqlMigration_postgres_exception(BaseGnrSqlMigration_DefaultException):
+    @classmethod
+    def init(cls):
+        """
+        Initializes the test database connection with PostgreSQL settings (exception test).
+        """
+        cls.name = 'postgres_exception'
+        cls.dbname = 'test_gnrsqlmigration_exception'
+        cls.db = GnrSqlDb(
+            implementation='postgres',
+            host=cls.pg_conf.get("host"),
+            port=cls.pg_conf.get("port"),
+            dbname=cls.dbname,
+            user=cls.pg_conf.get("user"),
+            password=cls.pg_conf.get("password")
+        )
+
+
+class BaseGnrSqlMigration_ForceMode(BaseGnrSqlTest):
+    """
+    Test suite for SQL migration force mode (without backup).
+    In force mode, type conversions proceed without creating backup columns.
+    """
+
+    @classmethod
+    def setup_class(cls):
+        """
+        Sets up the test class with force=True migrator (no backup).
         """
         super().setup_class()
         cls.init()
         cls.src = cls.db.model.src
         cls.migrator = SqlMigrator(cls.db, removeDisabled=False, force=True)
+        cls.db.dropDb(cls.dbname)
+
+    def checkChanges(self, expected_value=None, apply_only=False):
+        """
+        Validates the expected SQL changes against actual changes.
+        """
+        self.db.startup()
+        self.migrator.prepareMigrationCommands()
+        if apply_only:
+            changes = self.migrator.getChanges()
+            self.migrator.applyChanges()
+            return changes
+        if expected_value == '?':
+            expected_changes = self.migrator.getChanges()
+            print('Expected value:', expected_changes)
+            return
+        normalized_expected_value = normalize_sql(expected_value)
+        changes = self.migrator.getChanges()
+        normalized_changes = normalize_sql(changes)
+        if normalized_changes != normalized_expected_value:
+            print('Actual changes:', changes)
+            print('ORM Structure:', self.migrator.ormStructure)
+            print('SQL Structure:', self.migrator.sqlStructure)
+            assert normalized_changes == normalized_expected_value, 'Mismatch in expected SQL commands.'
+        else:
+            self.migrator.applyChanges()
+            self.migrator.prepareMigrationCommands()
+            changes = self.migrator.getChanges()
+            if changes:
+                print('unexpected changes', changes)
+            assert not changes, 'Failed to execute SQL command as expected.'
+
+    def test_force_01_create_db(self):
+        """Tests database creation"""
+        check_value = f"""CREATE DATABASE "{self.dbname}" ENCODING 'UNICODE';\n"""
+        self.checkChanges(check_value)
+
+    def test_force_02_create_schema_and_table(self):
+        """Creates schema and test table with data"""
+        self.src.package('delta', sqlschema='delta')
+        pkg = self.src.package('delta')
+        tbl = pkg.table('force_only_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col')
+        self.checkChanges(apply_only=True)
+        # Insert data with invalid date format
+        self.db.execute("INSERT INTO delta.delta_force_only_test (text_col) VALUES ('not a date')")
+        self.db.execute("INSERT INTO delta.delta_force_only_test (text_col) VALUES ('2024-01-15')")
+        self.db.commit()
+
+    def test_force_03_text_to_date_invalid_becomes_null(self):
+        """Test text to date conversion: invalid values become NULL"""
+        pkg = self.src.package('delta')
+        tbl = pkg.table('force_only_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='D')
+        check_value = '''ALTER TABLE "delta"."delta_force_only_test"
+ALTER COLUMN "text_col" TYPE date USING CASE WHEN "text_col" IS NULL THEN NULL WHEN "text_col" ~ \'^[0-9]{4}-[0-9]{2}-[0-9]{2}\' THEN "text_col"::date ELSE NULL END;'''
+        self.db.startup()
+        self.migrator.prepareMigrationCommands()
+        changes = self.migrator.getChanges()
+        assert normalize_sql(changes) == normalize_sql(check_value)
+        self.migrator.applyChanges()
+        self.db.closeConnection()
+        # Verify: first row should be NULL, second should have the date
+        self.db.startup()
+        result = self.db.execute("SELECT text_col FROM delta.delta_force_only_test ORDER BY id").fetchall()
+        assert result[0][0] is None  # 'not a date' → NULL
+        assert str(result[1][0]) == '2024-01-15'
+        self.db.closeConnection()
+
+    def test_force_04_add_and_convert_integer(self):
+        """Test text to integer conversion: invalid values become NULL"""
+        pkg = self.src.package('delta')
+        tbl = pkg.table('force_only_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='D')
+        tbl.column('int_col')
+        self.db.startup()
+        self.migrator = SqlMigrator(self.db, removeDisabled=False, force=True)
+        self.migrator.prepareMigrationCommands()
+        self.migrator.applyChanges()
+        self.db.closeConnection()
+        # Insert data with invalid integer format
+        self.db.startup()
+        self.db.execute("UPDATE delta.delta_force_only_test SET int_col = 'abc' WHERE id = 1")
+        self.db.execute("UPDATE delta.delta_force_only_test SET int_col = '42' WHERE id = 2")
+        self.db.commit()
+        self.db.closeConnection()
+
+        pkg = self.src.package('delta')
+        tbl = pkg.table('force_only_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='D')
+        tbl.column('int_col', dtype='I')
+        check_value = '''ALTER TABLE "delta"."delta_force_only_test"
+ALTER COLUMN "int_col" TYPE integer USING CASE WHEN "int_col" IS NULL THEN NULL WHEN "int_col" ~ \'^-?[0-9]+$\' THEN "int_col"::integer ELSE NULL END;'''
+        self.db.startup()
+        self.migrator = SqlMigrator(self.db, removeDisabled=False, force=True)
+        self.migrator.prepareMigrationCommands()
+        changes = self.migrator.getChanges()
+        assert normalize_sql(changes) == normalize_sql(check_value)
+        self.migrator.applyChanges()
+        self.db.closeConnection()
+        # Verify: first row should be NULL, second should have 42
+        self.db.startup()
+        result = self.db.execute("SELECT int_col FROM delta.delta_force_only_test ORDER BY id").fetchall()
+        assert result[0][0] is None  # 'abc' → NULL
+        assert result[1][0] == 42
+
+
+@pytest.mark.skipif(gnrpostgres.SqlDbAdapter.not_capable(Capabilities.MIGRATIONS),
+                    reason="Adapter doesn't support migrations")
+class TestGnrSqlMigration_postgres_force(BaseGnrSqlMigration_ForceMode):
+    @classmethod
+    def init(cls):
+        """
+        Initializes the test database connection with PostgreSQL settings (force mode).
+        """
+        cls.name = 'postgres_force'
+        cls.dbname = 'test_gnrsqlmigration_force'
+        cls.db = GnrSqlDb(
+            implementation='postgres',
+            host=cls.pg_conf.get("host"),
+            port=cls.pg_conf.get("port"),
+            dbname=cls.dbname,
+            user=cls.pg_conf.get("user"),
+            password=cls.pg_conf.get("password")
+        )
+
+
+class BaseGnrSqlMigration_BackupMode(BaseGnrSqlTest):
+    """
+    Test suite for SQL migration backup mode.
+    In backup mode, type conversions create backup columns to preserve original data.
+    """
+
+    @classmethod
+    def setup_class(cls):
+        """
+        Sets up the test class with backup=True migrator.
+        """
+        super().setup_class()
+        cls.init()
+        cls.src = cls.db.model.src
+        cls.migrator = SqlMigrator(cls.db, removeDisabled=False, backup=True)
         cls.db.dropDb(cls.dbname)
 
     def checkChanges(self, expected_value=None, apply_only=False, skip_recheck=False):
@@ -894,86 +1140,119 @@ class BaseGnrSqlMigration_ForceMode(BaseGnrSqlTest):
                     print('unexpected changes', changes)
                 assert not changes, 'Failed to execute SQL command as expected.'
 
-    def test_force_01_create_db(self):
-        """Tests database creation (same as prudent mode)"""
-        check_value = """CREATE DATABASE "test_gnrsqlmigration_force" ENCODING 'UNICODE';\n"""
+    def test_backup_01_create_db(self):
+        """Tests database creation (same as default mode)"""
+        check_value = """CREATE DATABASE "test_gnrsqlmigration_backup" ENCODING 'UNICODE';\n"""
         self.checkChanges(check_value)
 
-    def test_force_02_create_schema_and_table(self):
-        """Creates schema and test table for force mode tests"""
+    def test_backup_02_create_schema_and_table(self):
+        """Creates schema and test table with data"""
         self.src.package('beta', sqlschema='beta')
         pkg = self.src.package('beta')
-        tbl = pkg.table('force_test', pkey='id')
+        tbl = pkg.table('backup_test', pkey='id')
         tbl.column('id', dtype='serial')
         tbl.column('text_col')
         self.checkChanges(apply_only=True)
+        # Insert data with invalid date format
+        self.db.execute("INSERT INTO beta.beta_backup_test (text_col) VALUES ('not a date')")
+        self.db.execute("INSERT INTO beta.beta_backup_test (text_col) VALUES ('2024-01-15')")
+        self.db.commit()
 
-    def test_force_03_text_to_date_with_backup(self):
-        """Test text to date conversion with backup column in force mode"""
+    def test_backup_03_text_to_date_with_backup(self):
+        """Test text to date conversion with backup: original data preserved"""
         pkg = self.src.package('beta')
-        tbl = pkg.table('force_test', pkey='id')
+        tbl = pkg.table('backup_test', pkey='id')
         tbl.column('id', dtype='serial')
         tbl.column('text_col', dtype='D')
-        # In force mode: creates backup column, copies data, then converts
-        check_value = '''ALTER TABLE "beta"."beta_force_test" ADD COLUMN "text_col__T" text;
-UPDATE "beta"."beta_force_test" SET "text_col__T" = "text_col"::text;
-ALTER TABLE "beta"."beta_force_test"
+        check_value = '''ALTER TABLE "beta"."beta_backup_test" ADD COLUMN "text_col__T" text;
+UPDATE "beta"."beta_backup_test" SET "text_col__T" = "text_col"::text;
+ALTER TABLE "beta"."beta_backup_test"
 ALTER COLUMN "text_col" TYPE date USING CASE WHEN "text_col" IS NULL THEN NULL WHEN "text_col" ~ \'^[0-9]{4}-[0-9]{2}-[0-9]{2}\' THEN "text_col"::date ELSE NULL END;'''
-        # skip_recheck because backup columns are intentionally not in ORM
-        self.checkChanges(check_value, skip_recheck=True)
+        self.db.startup()
+        self.migrator.prepareMigrationCommands()
+        changes = self.migrator.getChanges()
+        assert normalize_sql(changes) == normalize_sql(check_value)
+        self.migrator.applyChanges()
+        self.db.closeConnection()
+        # Verify: backup column has original data, converted column has NULL/date
+        self.db.startup()
+        result = self.db.execute('SELECT text_col, "text_col__T" FROM beta.beta_backup_test ORDER BY id').fetchall()
+        assert result[0][0] is None  # 'not a date' → NULL
+        assert result[0][1] == 'not a date'  # backup has original
+        assert str(result[1][0]) == '2024-01-15'
+        assert result[1][1] == '2024-01-15'  # backup has original
+        self.db.closeConnection()
 
-    def test_force_04_add_integer_col(self):
-        """Add integer column for next conversion test"""
+    def test_backup_04_add_integer_col(self):
+        """Add integer column with data for next conversion test"""
         pkg = self.src.package('beta')
-        tbl = pkg.table('force_test', pkey='id')
+        tbl = pkg.table('backup_test', pkey='id')
         tbl.column('id', dtype='serial')
         tbl.column('text_col', dtype='D')
         tbl.column('int_source')
         self.checkChanges(apply_only=True)
+        self.db.closeConnection()
+        self.db.startup()
+        # Insert invalid integer data
+        self.db.execute("UPDATE beta.beta_backup_test SET int_source = 'invalid' WHERE id = 1")
+        self.db.execute("UPDATE beta.beta_backup_test SET int_source = '123' WHERE id = 2")
+        self.db.commit()
 
-    def test_force_05_text_to_integer_with_backup(self):
-        """Test text to integer conversion with backup column"""
+    def test_backup_05_text_to_integer_with_backup(self):
+        """Test text to integer conversion with backup: original data preserved"""
         pkg = self.src.package('beta')
-        tbl = pkg.table('force_test', pkey='id')
+        tbl = pkg.table('backup_test', pkey='id')
         tbl.column('id', dtype='serial')
         tbl.column('text_col', dtype='D')
         tbl.column('int_source', dtype='I')
-        check_value = '''ALTER TABLE "beta"."beta_force_test" ADD COLUMN "int_source__T" text;
-UPDATE "beta"."beta_force_test" SET "int_source__T" = "int_source"::text;
-ALTER TABLE "beta"."beta_force_test"
+        check_value = '''ALTER TABLE "beta"."beta_backup_test" ADD COLUMN "int_source__T" text;
+UPDATE "beta"."beta_backup_test" SET "int_source__T" = "int_source"::text;
+ALTER TABLE "beta"."beta_backup_test"
 ALTER COLUMN "int_source" TYPE integer USING CASE WHEN "int_source" IS NULL THEN NULL WHEN "int_source" ~ \'^-?[0-9]+$\' THEN "int_source"::integer ELSE NULL END;'''
-        # skip_recheck because backup columns are intentionally not in ORM
-        self.checkChanges(check_value, skip_recheck=True)
+        self.db.startup()
+        self.migrator.prepareMigrationCommands()
+        changes = self.migrator.getChanges()
+        assert normalize_sql(changes) == normalize_sql(check_value)
+        self.migrator.applyChanges()
+        self.db.closeConnection()
+        # Verify: backup column has original data
+        self.db.startup()
+        result = self.db.execute('SELECT int_source, "int_source__T" FROM beta.beta_backup_test ORDER BY id').fetchall()
+        assert result[0][0] is None  # 'invalid' → NULL
+        assert result[0][1] == 'invalid'  # backup has original
+        assert result[1][0] == 123
+        assert result[1][1] == '123'  # backup has original
+        self.db.closeConnection()
 
-    def test_force_06_add_boolean_col(self):
+    def test_backup_06_add_boolean_col(self):
         """Add text column for boolean conversion test"""
         pkg = self.src.package('beta')
-        tbl = pkg.table('force_test', pkey='id')
+        tbl = pkg.table('backup_test', pkey='id')
         tbl.column('id', dtype='serial')
         tbl.column('text_col', dtype='D')
         tbl.column('int_source', dtype='I')
         tbl.column('bool_source')
         self.checkChanges(apply_only=True)
 
-    def test_force_07_text_to_boolean_with_backup(self):
+    def test_backup_07_text_to_boolean_with_backup(self):
         """Test text to boolean conversion with backup column"""
         pkg = self.src.package('beta')
-        tbl = pkg.table('force_test', pkey='id')
+        tbl = pkg.table('backup_test', pkey='id')
         tbl.column('id', dtype='serial')
         tbl.column('text_col', dtype='D')
         tbl.column('int_source', dtype='I')
         tbl.column('bool_source', dtype='B')
-        check_value = '''ALTER TABLE "beta"."beta_force_test" ADD COLUMN "bool_source__T" text;
-UPDATE "beta"."beta_force_test" SET "bool_source__T" = "bool_source"::text;
-ALTER TABLE "beta"."beta_force_test"
+        check_value = '''ALTER TABLE "beta"."beta_backup_test" ADD COLUMN "bool_source__T" text;
+UPDATE "beta"."beta_backup_test" SET "bool_source__T" = "bool_source"::text;
+ALTER TABLE "beta"."beta_backup_test"
 ALTER COLUMN "bool_source" TYPE boolean USING CASE WHEN "bool_source" IS NULL THEN NULL WHEN LOWER("bool_source") IN (\'true\', \'t\', \'yes\', \'y\', \'1\') THEN TRUE WHEN LOWER("bool_source") IN (\'false\', \'f\', \'no\', \'n\', \'0\', \'\') THEN FALSE ELSE NULL END;'''
         # skip_recheck because backup columns are intentionally not in ORM
         self.checkChanges(check_value, skip_recheck=True)
 
-    def test_force_08_any_to_text_no_backup(self):
+    def test_backup_08_any_to_text_no_backup(self):
         """Test any-to-text conversion has no backup (simple conversion)"""
         pkg = self.src.package('beta')
-        tbl = pkg.table('force_test', pkey='id')
+        tbl = pkg.table('backup_test', pkey='id')
         tbl.column('id', dtype='serial')
         tbl.column('text_col', dtype='D')
         tbl.column('int_source', dtype='I')
@@ -983,7 +1262,7 @@ ALTER COLUMN "bool_source" TYPE boolean USING CASE WHEN "bool_source" IS NULL TH
 
         # Convert numeric to text - no backup needed (lossless conversion)
         pkg = self.src.package('beta')
-        tbl = pkg.table('force_test', pkey='id')
+        tbl = pkg.table('backup_test', pkey='id')
         tbl.column('id', dtype='serial')
         tbl.column('text_col', dtype='D')
         tbl.column('int_source', dtype='I')
@@ -992,21 +1271,21 @@ ALTER COLUMN "bool_source" TYPE boolean USING CASE WHEN "bool_source" IS NULL TH
         numeric_col = tbl.column('numeric_col', dtype='T')
         numeric_col.attributes.pop('size', None)
         # Simple ALTER TYPE, no backup column
-        check_value = 'ALTER TABLE "beta"."beta_force_test" \n ALTER COLUMN "numeric_col" TYPE text;'
+        check_value = 'ALTER TABLE "beta"."beta_backup_test" \n ALTER COLUMN "numeric_col" TYPE text;'
         # skip_recheck because backup columns from previous tests are still in DB
         self.checkChanges(check_value, skip_recheck=True)
 
 
 @pytest.mark.skipif(gnrpostgres.SqlDbAdapter.not_capable(Capabilities.MIGRATIONS),
                     reason="Adapter doesn't support migrations")
-class TestGnrSqlMigration_postgres_force(BaseGnrSqlMigration_ForceMode):
+class TestGnrSqlMigration_postgres_backup(BaseGnrSqlMigration_BackupMode):
     @classmethod
     def init(cls):
         """
-        Initializes the test database connection with PostgreSQL settings (force mode).
+        Initializes the test database connection with PostgreSQL settings (backup mode).
         """
-        cls.name = 'postgres_force'
-        cls.dbname = 'test_gnrsqlmigration_force'
+        cls.name = 'postgres_backup'
+        cls.dbname = 'test_gnrsqlmigration_backup'
         cls.db = GnrSqlDb(
             implementation='postgres',
             host=cls.pg_conf.get("host"),

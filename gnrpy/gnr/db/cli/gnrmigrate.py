@@ -201,7 +201,11 @@ def main():
     parser.add_argument('-f', '--force',
                         dest='force',
                         action='store_true',
-                        help='Force conversions even with incompatible data (converts to NULL)')
+                        help='Force type conversions (non-matching values become NULL)')
+    parser.add_argument('-b', '--backup',
+                        dest='backup',
+                        action='store_true',
+                        help='Create backup columns before type conversions (implies --force)')
     parser.add_argument('-i', '--instance',
                         dest='instance',
                         help="Use command on instance")
@@ -245,7 +249,8 @@ def main():
                                ignore_constraint_name=True,
                                excludeReadOnly=True,
                                removeDisabled=True,
-                               force=options.force)
+                               force=options.force,
+                               backup=options.backup)
         migrator.prepareMigrationCommands()
         if options.check:
             check_db(migrator, options)
