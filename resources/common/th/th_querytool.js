@@ -741,14 +741,21 @@ dojo.declare("gnr.QueryManager", null, {
     checkQueryLineValue:function(sourceNode, value) {
         var relpath = sourceNode.attr.relpath;
         value = value || '';
+        console.log('[DEBUG checkQueryLineValue] CALLED - relpath:', relpath, 'value:', value);
+        console.log('[DEBUG checkQueryLineValue] sourceNode:', sourceNode);
+        console.log('[DEBUG checkQueryLineValue] Stack trace:', new Error().stack);
+
         if (value.indexOf('set:')==0){
+            console.log('[DEBUG checkQueryLineValue] Skip - value starts with set:');
             return;
         }
         if (value.indexOf('?') == 0) {
+            console.log('[DEBUG checkQueryLineValue] Value starts with ? - SETTING TO NULL');
             sourceNode.setRelativeData(relpath, null);
             sourceNode.setRelativeData(relpath + '?css_class', 'queryAsk');
             sourceNode.setRelativeData(relpath + '?dtype',sourceNode.getRelativeData(relpath + '?column_dtype'));
         }else{
+            console.log('[DEBUG checkQueryLineValue] Normal value - setting:', value);
             sourceNode.setRelativeData(relpath,value);
             sourceNode.setRelativeData(relpath + '?css_class', null);
         }
@@ -878,6 +885,16 @@ dojo.declare("gnr.QueryManager", null, {
         var center = dlg.center._('div',{padding:'10px'});
         var bottom = dlg.bottom._('slotBar',{'slots':'cancel,*,confirm'});
         console.log('[DEBUG buildParsDialog] Before dynamicQueryParsFb - whereData:', whereData);
+
+        // Subscribe to changes on c_0 to track when value is written/cleared
+        var c0Path = this.wherepath + '.c_0';
+        var absoluteC0Path = sourceNode.absDatapath(c0Path);
+        console.log('[DEBUG buildParsDialog] Subscribing to:', absoluteC0Path);
+        genro.subscribe(absoluteC0Path, function(data) {
+            console.log('[DEBUG SUBSCRIBER] c_0 changed to:', data.node.getValue(), 'at', new Date().toISOString());
+            console.log('[DEBUG SUBSCRIBER] Full data:', data);
+        });
+
         genro.dev.dynamicQueryParsFb(center,whereData,parslist,1);
         bottom._('button', 'cancel',{label:'Cancel',baseClass:'bottom_btn',action:cancel});
         bottom._('button', 'confirm',{label:'Confirm',baseClass:'bottom_btn',action:confirm});
