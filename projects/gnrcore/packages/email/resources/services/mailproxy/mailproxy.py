@@ -487,9 +487,9 @@ class ServiceParameters(BaseComponent):
     def service_parameters(self, pane, datapath=None, service_name=None, **kwargs):
         fb = pane.formlet(datapath=datapath, cols=4)
 
-        # Identifier field (tenant_id) - defaults to site_name if empty
+        # Identifier field (tenant_id) - defaults to dbname if empty
         fb.textbox('^.tenant_id', lbl='!![en]Identifier',
-                   placeholder=self.site.site_name,
+                   placeholder=self.db.dbname,
                    disabled='^.tenant_registered')
         fb.textbox('^.proxy_url', lbl='!![en]Proxy url',
                    disabled='^.tenant_registered')
