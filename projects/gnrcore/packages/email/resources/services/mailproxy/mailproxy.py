@@ -297,6 +297,7 @@ class Main(GnrBaseService):
 
         payload = {
             "id": account_dict.get("id"),
+            "name": account_dict.get("account_name"),
             "tenant_id": self.tenant_id,
             "host": account_dict.get("smtp_host"),
             "port": self._safe_int(account_dict.get("smtp_port")),
