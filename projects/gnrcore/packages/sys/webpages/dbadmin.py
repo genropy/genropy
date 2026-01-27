@@ -175,7 +175,7 @@ class GnrCustomWebPage(object):
         return result
 
     def extractUnusedElements(self,mig):
-        """Estrae elementi nel DB che non sono definiti nell'ORM"""
+        """Extract elements from the Database which are undefined in the ORM"""
         result = Bag()
         row_idx = 0
         for reason,kw in mig.dictDifferChanges():
@@ -228,7 +228,7 @@ class GnrCustomWebPage(object):
 
     @public_method
     def generateDropCommands(self,selected_elements=None):
-        """Genera comandi DROP per gli elementi selezionati"""
+        """Generates DROP commands for the selected elements"""
         if not selected_elements:
             return ''
         commands = []
