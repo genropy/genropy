@@ -741,38 +741,14 @@ dojo.declare("gnr.QueryManager", null, {
     checkQueryLineValue:function(sourceNode, value) {
         var relpath = sourceNode.attr.relpath;
         value = value || '';
-        console.log('[DEBUG checkQueryLineValue] ======== CALLED ========');
-        console.log('[DEBUG checkQueryLineValue] relpath:', relpath, 'value:', value);
-        console.log('[DEBUG checkQueryLineValue] sourceNode label:', sourceNode.label);
-        console.log('[DEBUG checkQueryLineValue] sourceNode _id:', sourceNode._id);
-        console.log('[DEBUG checkQueryLineValue] sourceNode widget:', sourceNode.widget);
-        console.log('[DEBUG checkQueryLineValue] sourceNode getFullpath:', sourceNode.getFullpath ? sourceNode.getFullpath() : 'N/A');
-        console.log('[DEBUG checkQueryLineValue] sourceNode absDatapath:', sourceNode.absDatapath ? sourceNode.absDatapath('') : 'N/A');
-        console.log('[DEBUG checkQueryLineValue] _inParametricDialog flag:', this._inParametricDialog);
-
-        // Log if this is coming from the main query builder or from somewhere else
-        if (sourceNode.label === 'searchboxTextbox') {
-            console.log('[DEBUG checkQueryLineValue] >>> Called from MAIN QUERY BUILDER searchboxTextbox <<<');
-        } else {
-            console.log('[DEBUG checkQueryLineValue] >>> Called from OTHER widget:', sourceNode.label, '<<<');
-        }
-
         if (value.indexOf('set:')==0){
-            console.log('[DEBUG checkQueryLineValue] Skip - value starts with set:');
             return;
         }
         if (value.indexOf('?') == 0) {
-            // If we're in a parametric dialog, ignore ? markers from the main query builder
-            if (this._inParametricDialog) {
-                console.log('[DEBUG checkQueryLineValue] Value starts with ? but _inParametricDialog=true - IGNORING');
-                return;
-            }
-            console.log('[DEBUG checkQueryLineValue] Value starts with ? - SETTING TO NULL');
             sourceNode.setRelativeData(relpath, null);
             sourceNode.setRelativeData(relpath + '?css_class', 'queryAsk');
             sourceNode.setRelativeData(relpath + '?dtype',sourceNode.getRelativeData(relpath + '?column_dtype'));
         }else{
-            console.log('[DEBUG checkQueryLineValue] Normal value - setting:', value);
             sourceNode.setRelativeData(relpath,value);
             sourceNode.setRelativeData(relpath + '?css_class', null);
         }
@@ -782,11 +758,6 @@ dojo.declare("gnr.QueryManager", null, {
     },
 
     onQueryCalling:function(querybag,filteringPkeys){
-        console.log('[DEBUG onQueryCalling] START - querybag:', querybag);
-        console.log('[DEBUG onQueryCalling] filteringPkeys:', filteringPkeys);
-        console.log('[DEBUG onQueryCalling] this.wherepath:', this.wherepath);
-        console.log('[DEBUG onQueryCalling] sourceNode:', this.sourceNode);
-
         var parslist=[];
         var sourceNode = this.sourceNode;
         if(filteringPkeys){
@@ -801,7 +772,6 @@ dojo.declare("gnr.QueryManager", null, {
             this.cleanQueryPane(querybag);
             parslist = this.translateQueryPars();
         }
-        console.log('[DEBUG onQueryCalling] parslist:', parslist);
         if (parslist.length>0){
             this.buildParsDialog(parslist);
         }else{
@@ -848,77 +818,31 @@ dojo.declare("gnr.QueryManager", null, {
     
     buildParsDialog:function(parslist) {
         var sourceNode = this.sourceNode;
-        console.log('[DEBUG buildParsDialog] START - parslist:', parslist);
-        console.log('[DEBUG buildParsDialog] wherepath:', this.wherepath);
-        console.log('[DEBUG buildParsDialog] sourceNode:', sourceNode);
-        console.log('[DEBUG buildParsDialog] sourceNode datapath:', sourceNode.getFullpath ? sourceNode.getFullpath() : 'N/A');
-
-        // TESTING: Use tempPath to see if checkQueryLineValue is called
-        var tempPath = 'gnr.temp_querypars_'+genro.time36Id();
-        console.log('[DEBUG buildParsDialog] Using tempPath:', tempPath);
-
-        var dlg = genro.dlg.quickDialog('Complete query',{datapath:tempPath,width:'250px',autoSize:true});
-        console.log('[DEBUG buildParsDialog] Dialog created with datapath:', this.wherepath);
-        console.log('[DEBUG buildParsDialog] Dialog object:', dlg);
-
-        // Get the actual absolute datapath used by the dialog
-        var dialogNode = dlg.getParentNode ? dlg.getParentNode() : null;
-        if (dialogNode) {
-            var dialogDatapath = dialogNode.absDatapath ? dialogNode.absDatapath('') : 'N/A';
-            console.log('[DEBUG buildParsDialog] Dialog absolute datapath:', dialogDatapath);
-            console.log('[DEBUG buildParsDialog] Dialog will write to:', dialogDatapath + '.c_0');
-        }
-
         var that = this;
 
-        var whereData = sourceNode.getRelativeData(this.wherepath);
-        console.log('[DEBUG buildParsDialog] whereData:', whereData);
-        console.log('[DEBUG buildParsDialog] whereData keys:', whereData ? Object.keys(whereData) : 'null/undefined');
-        if (whereData && whereData.asDict) {
-            console.log('[DEBUG buildParsDialog] whereData.asDict():', whereData.asDict());
-        }
+        // Use a temporary isolated datapath to avoid interference with the main query builder
+        var tempPath = 'gnr.temp_querypars_'+genro.time36Id();
+        var dlg = genro.dlg.quickDialog('Complete query',{datapath:tempPath,width:'250px',autoSize:true});
 
-        // Copy whereData to tempPath
-        console.log('[DEBUG buildParsDialog] Copying whereData to tempPath');
+        // Copy current where clause data to temporary path
+        var whereData = sourceNode.getRelativeData(this.wherepath);
         genro.setData(tempPath, whereData.deepCopy());
         var tempData = genro.getData(tempPath);
-        console.log('[DEBUG buildParsDialog] tempData after copy:', tempData ? (tempData.asDict ? tempData.asDict() : tempData) : 'null');
 
-        // Clean parametric markers (?Parameter) from tempData
-        console.log('[DEBUG buildParsDialog] Cleaning parametric markers from parslist:', parslist);
+        // Clean parametric markers (?Parameter) from tempData before displaying
+        // These markers are placeholders and should not appear as initial values
         for (var i = 0; i < parslist.length; i++) {
             var relpath = parslist[i].relpath;
             var currentValue = tempData.getItem ? tempData.getItem(relpath) : null;
-            console.log('[DEBUG buildParsDialog] Checking relpath:', relpath, 'currentValue:', currentValue);
             if (currentValue && typeof currentValue === 'string' && currentValue.indexOf('?') === 0) {
-                console.log('[DEBUG buildParsDialog] Removing parametric marker from:', relpath);
                 tempData.setItem(relpath, null);
             }
         }
-        console.log('[DEBUG buildParsDialog] tempData after cleaning:', tempData.asDict ? tempData.asDict() : tempData);
 
         var confirm = function(){
-            console.log('[DEBUG confirm] START confirm callback');
-            console.log('[DEBUG confirm] tempPath:', tempPath);
-            console.log('[DEBUG confirm] wherepath:', that.wherepath);
-
-            // Get data from tempPath
+            // Copy values from temporary path back to where clause before running query
             var tempConfirmData = genro.getData(tempPath);
-            console.log('[DEBUG confirm] Data in tempPath:', tempConfirmData);
-            if (tempConfirmData && tempConfirmData.asDict) {
-                console.log('[DEBUG confirm] tempPath.asDict():', tempConfirmData.asDict());
-            }
-
-            // Copy from tempPath back to wherepath
-            console.log('[DEBUG confirm] Copying tempPath data back to wherepath');
             sourceNode.setRelativeData(that.wherepath, tempConfirmData);
-
-            var confirmData = sourceNode.getRelativeData(that.wherepath);
-            console.log('[DEBUG confirm] Data in wherepath after copy:', confirmData);
-            if (confirmData && confirmData.asDict) {
-                console.log('[DEBUG confirm] wherepath.asDict() after copy:', confirmData.asDict());
-            }
-
             that.runQuery()
             dlg.close_action();
         };
@@ -927,33 +851,10 @@ dojo.declare("gnr.QueryManager", null, {
         };
         var center = dlg.center._('div',{padding:'10px'});
         var bottom = dlg.bottom._('slotBar',{'slots':'cancel,*,confirm'});
-        console.log('[DEBUG buildParsDialog] Before dynamicQueryParsFb - tempData:', tempData);
         genro.dev.dynamicQueryParsFb(center,tempData,parslist,1);
         bottom._('button', 'cancel',{label:'Cancel',baseClass:'bottom_btn',action:cancel});
         bottom._('button', 'confirm',{label:'Confirm',baseClass:'bottom_btn',action:confirm});
-        console.log('[DEBUG buildParsDialog] About to show dialog');
         dlg.show_action();
-        console.log('[DEBUG buildParsDialog] Dialog shown');
-
-        // Monitor data changes in tempPath to see if values are being written
-        setTimeout(function() {
-            var data = genro.getData(tempPath);
-            console.log('[DEBUG buildParsDialog] After 100ms - tempPath data:', data);
-            if (data && data.asDict) console.log('[DEBUG buildParsDialog] After 100ms - asDict:', data.asDict());
-            console.log('[DEBUG buildParsDialog] After 100ms - c_0 value:', data ? data.getItem('c_0') : 'null');
-        }, 100);
-        setTimeout(function() {
-            var data = genro.getData(tempPath);
-            console.log('[DEBUG buildParsDialog] After 500ms - tempPath data:', data);
-            if (data && data.asDict) console.log('[DEBUG buildParsDialog] After 500ms - asDict:', data.asDict());
-            console.log('[DEBUG buildParsDialog] After 500ms - c_0 value:', data ? data.getItem('c_0') : 'null');
-        }, 500);
-        setTimeout(function() {
-            var data = genro.getData(tempPath);
-            console.log('[DEBUG buildParsDialog] After 1000ms - tempPath data:', data);
-            if (data && data.asDict) console.log('[DEBUG buildParsDialog] After 1000ms - asDict:', data.asDict());
-            console.log('[DEBUG buildParsDialog] After 1000ms - c_0 value:', data ? data.getItem('c_0') : 'null');
-        }, 1000);
     }
 });
 
