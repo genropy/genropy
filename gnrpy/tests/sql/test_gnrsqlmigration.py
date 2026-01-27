@@ -329,7 +329,8 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         tbl = pkg.table('recipe_row_alternative')
         tbl.column('vegan').attributes.pop('dtype')
         tbl.column('vegan',size='1',values='Y:Yes,C:Crudist,F:Fresh Fruit')
-        check_value = 'ALTER TABLE "alfa"."alfa_recipe_row_alternative"\nDROP COLUMN "vegan",\nADD COLUMN "vegan" character(1) ;'
+        # Now uses simple ALTER COLUMN TYPE (any type → text is always convertible)
+        check_value = 'ALTER TABLE "alfa"."alfa_recipe_row_alternative"\nALTER COLUMN "vegan" TYPE character(1);'
         self.checkChanges(check_value)
 
     def test_08c_modify_column_add_unique(self):
@@ -350,8 +351,9 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
     def test_08d_modify_dtype_bis(self):
         pkg = self.src.package('alfa')
         tbl = pkg.table('author')
-        tbl.column('foo',dtype='D') 
-        check_value = 'ALTER TABLE "alfa"."alfa_author"\nDROP COLUMN "foo",\nADD COLUMN "foo" date ;'
+        tbl.column('foo',dtype='D')
+        # Prudent mode: direct conversion with USING clause (no backup)
+        check_value = 'ALTER TABLE "alfa"."alfa_author"\nALTER COLUMN "foo" TYPE date USING CASE WHEN "foo" IS NULL THEN NULL WHEN "foo" ~ \'^[0-9]{4}-[0-9]{2}-[0-9]{2}\' THEN "foo"::date ELSE NULL END;'
         self.checkChanges(check_value)
 
     def test_09a_remove_column(self):
@@ -379,7 +381,426 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         tbl.column('code', dtype='A', size="5:18")
         check_value = 'CREATE TABLE "alfa"."alfa_text_test_table"("id" serial8 NOT NULL, "code" character varying(18), PRIMARY KEY(id));'
         self.checkChanges(check_value)
-        
+
+    def test_12a_simple_text_conversion(self):
+        """Test simple type conversion without USING clause (T → A)"""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('type_conv_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col')  # Text column (no size = text)
+        check_value = 'CREATE TABLE "alfa"."alfa_type_conv_test"("id" serial8 NOT NULL, "text_col" text, PRIMARY KEY(id));'
+        self.checkChanges(check_value)
+
+        # Now change text to varchar (simple conversion)
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('type_conv_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', size=':50')  # Changed to varchar(50)
+        check_value = 'ALTER TABLE "alfa"."alfa_type_conv_test" \n ALTER COLUMN "text_col" TYPE character varying(50);'
+        self.checkChanges(check_value)
+
+    def test_12b_simple_text_to_varchar(self):
+        """Test simple conversion back (A → A with different size)"""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('type_conv_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='A', size=':30')  # Change back to varchar with different size
+        check_value = 'ALTER TABLE "alfa"."alfa_type_conv_test" \n ALTER COLUMN "text_col" TYPE character varying(30);'
+        self.checkChanges(check_value)
+
+    def test_12c_text_to_timestamp_conversion(self):
+        """Test complex conversion with USING clause (T → DHZ) - prudent mode"""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('type_conv_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='A', size=':30')
+        tbl.column('ts_col')
+        self.checkChanges('ALTER TABLE "alfa"."alfa_type_conv_test" \n ADD COLUMN "ts_col" text;', apply_only=True)
+
+        # Change to timestamp with timezone (prudent mode: no backup)
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('type_conv_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='A', size=':30')
+        tbl.column('ts_col', dtype='DHZ')
+        check_value = 'ALTER TABLE "alfa"."alfa_type_conv_test" \n ALTER COLUMN "ts_col" TYPE timestamp with time zone USING CASE WHEN "ts_col" IS NULL THEN NULL WHEN "ts_col" ~ \'^[0-9]{4}-[0-9]{2}-[0-9]{2}\' THEN "ts_col"::timestamp with time zone ELSE NULL END;'
+        self.checkChanges(check_value)
+
+    def test_12d_text_to_date_conversion(self):
+        """Test text to date conversion - prudent mode"""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('type_conv_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='A', size=':30')
+        tbl.column('ts_col', dtype='DHZ')
+        tbl.column('date_col')
+        self.checkChanges('ALTER TABLE "alfa"."alfa_type_conv_test" \n ADD COLUMN "date_col" text;', apply_only=True)
+
+        # Change to date (prudent mode: no backup)
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('type_conv_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='A', size=':30')
+        tbl.column('ts_col', dtype='DHZ')
+        tbl.column('date_col', dtype='D')
+        check_value = 'ALTER TABLE "alfa"."alfa_type_conv_test" \n ALTER COLUMN "date_col" TYPE date USING CASE WHEN "date_col" IS NULL THEN NULL WHEN "date_col" ~ \'^[0-9]{4}-[0-9]{2}-[0-9]{2}\' THEN "date_col"::date ELSE NULL END;'
+        self.checkChanges(check_value)
+
+    def test_12e_text_to_integer_conversion(self):
+        """Test text to integer conversion - prudent mode"""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('type_conv_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='A', size=':30')
+        tbl.column('ts_col', dtype='DHZ')
+        tbl.column('date_col', dtype='D')
+        tbl.column('int_col')
+        self.checkChanges('ALTER TABLE "alfa"."alfa_type_conv_test" \n ADD COLUMN "int_col" text;', apply_only=True)
+
+        # Change to integer (prudent mode: no backup)
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('type_conv_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='A', size=':30')
+        tbl.column('ts_col', dtype='DHZ')
+        tbl.column('date_col', dtype='D')
+        tbl.column('int_col', dtype='I')
+        check_value = 'ALTER TABLE "alfa"."alfa_type_conv_test" \n ALTER COLUMN "int_col" TYPE integer USING CASE WHEN "int_col" IS NULL THEN NULL WHEN "int_col" ~ \'^-?[0-9]+$\' THEN "int_col"::integer ELSE NULL END;'
+        self.checkChanges(check_value)
+
+    def test_12f_text_to_boolean_conversion(self):
+        """Test text to boolean conversion with backup"""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('type_conv_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='A', size=':30')
+        tbl.column('ts_col', dtype='DHZ')
+        tbl.column('date_col', dtype='D')
+        tbl.column('int_col', dtype='I')
+        tbl.column('bool_col')
+        self.checkChanges('ALTER TABLE "alfa"."alfa_type_conv_test" \n ADD COLUMN "bool_col" text;', apply_only=True)
+
+        # Change to boolean (prudent mode: no backup)
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('type_conv_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='A', size=':30')
+        tbl.column('ts_col', dtype='DHZ')
+        tbl.column('date_col', dtype='D')
+        tbl.column('int_col', dtype='I')
+        tbl.column('bool_col', dtype='B')
+        check_value = 'ALTER TABLE "alfa"."alfa_type_conv_test" \n ALTER COLUMN "bool_col" TYPE boolean USING CASE WHEN "bool_col" IS NULL THEN NULL WHEN LOWER("bool_col") IN (\'true\', \'t\', \'yes\', \'y\', \'1\') THEN TRUE WHEN LOWER("bool_col") IN (\'false\', \'f\', \'no\', \'n\', \'0\', \'\') THEN FALSE ELSE NULL END;'
+        self.checkChanges(check_value)
+
+    def test_12g_text_to_numeric_conversion(self):
+        """Test text to numeric conversion - prudent mode"""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('type_conv_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='A', size=':30')
+        tbl.column('ts_col', dtype='DHZ')
+        tbl.column('date_col', dtype='D')
+        tbl.column('int_col', dtype='I')
+        tbl.column('bool_col', dtype='B')
+        tbl.column('num_col')
+        self.checkChanges('ALTER TABLE "alfa"."alfa_type_conv_test" \n ADD COLUMN "num_col" text;', apply_only=True)
+
+        # Change to numeric (prudent mode: no backup)
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('type_conv_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='A', size=':30')
+        tbl.column('ts_col', dtype='DHZ')
+        tbl.column('date_col', dtype='D')
+        tbl.column('int_col', dtype='I')
+        tbl.column('bool_col', dtype='B')
+        tbl.column('num_col', dtype='N', size='10,2')
+        check_value = 'ALTER TABLE "alfa"."alfa_type_conv_test" \n ALTER COLUMN "num_col" TYPE numeric(10,2) USING CASE WHEN "num_col" IS NULL THEN NULL WHEN "num_col" ~ \'^-?[0-9]+(\\.[0-9]+)?$\' THEN "num_col"::numeric ELSE NULL END;'
+        self.checkChanges(check_value)
+
+    def test_12h_real_to_integer_conversion(self):
+        """Test real to integer conversion with rounding - prudent mode"""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('type_conv_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='A', size=':30')
+        tbl.column('ts_col', dtype='DHZ')
+        tbl.column('date_col', dtype='D')
+        tbl.column('int_col', dtype='I')
+        tbl.column('bool_col', dtype='B')
+        tbl.column('num_col', dtype='N', size='10,2')
+        tbl.column('real_col', dtype='R')
+        self.checkChanges('ALTER TABLE "alfa"."alfa_type_conv_test" \n ADD COLUMN "real_col" real;', apply_only=True)
+
+        # Change to integer with ROUND (prudent mode: no backup)
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('type_conv_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='A', size=':30')
+        tbl.column('ts_col', dtype='DHZ')
+        tbl.column('date_col', dtype='D')
+        tbl.column('int_col', dtype='I')
+        tbl.column('bool_col', dtype='B')
+        tbl.column('num_col', dtype='N', size='10,2')
+        tbl.column('real_col', dtype='I')
+        check_value = 'ALTER TABLE "alfa"."alfa_type_conv_test" \n ALTER COLUMN "real_col" TYPE integer USING CASE WHEN "real_col" IS NULL THEN NULL ELSE ROUND("real_col")::integer END;'
+        self.checkChanges(check_value)
+
+    def test_12i_incompatible_conversion_empty_column(self):
+        """Test incompatible conversion on empty column (should drop and recreate)"""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('type_conv_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='A', size=':30')
+        tbl.column('ts_col', dtype='DHZ')
+        tbl.column('date_col', dtype='D')
+        tbl.column('int_col', dtype='I')
+        tbl.column('bool_col', dtype='B')
+        tbl.column('num_col', dtype='N', size='10,2')
+        tbl.column('real_col', dtype='I')
+        tbl.column('bytea_col')  # Add text column
+        self.checkChanges('ALTER TABLE "alfa"."alfa_type_conv_test" \n ADD COLUMN "bytea_col" text;', apply_only=True)
+
+        # Change to bytea (incompatible, should drop and recreate)
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('type_conv_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='A', size=':30')
+        tbl.column('ts_col', dtype='DHZ')
+        tbl.column('date_col', dtype='D')
+        tbl.column('int_col', dtype='I')
+        tbl.column('bool_col', dtype='B')
+        tbl.column('num_col', dtype='N', size='10,2')
+        tbl.column('real_col', dtype='I')
+        tbl.column('bytea_col', dtype='O')
+        check_value = 'ALTER TABLE "alfa"."alfa_type_conv_test"\nDROP COLUMN "bytea_col",\nADD COLUMN "bytea_col" bytea;'
+        self.checkChanges(check_value)
+
+    def test_12j_date_conversions(self):
+        """Test date/time type conversions"""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('type_conv_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='A', size=':30')
+        tbl.column('ts_col', dtype='DHZ')
+        tbl.column('date_col', dtype='D')
+        tbl.column('int_col', dtype='I')
+        tbl.column('bool_col', dtype='B')
+        tbl.column('num_col', dtype='N', size='10,2')
+        tbl.column('real_col', dtype='I')
+        tbl.column('bytea_col', dtype='O')
+        tbl.column('date_time_col', dtype='D')  # Start with date
+        self.checkChanges('ALTER TABLE "alfa"."alfa_type_conv_test" \n ADD COLUMN "date_time_col" date;', apply_only=True)
+
+        # Convert to timestamp (simple conversion)
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('type_conv_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='A', size=':30')
+        tbl.column('ts_col', dtype='DHZ')
+        tbl.column('date_col', dtype='D')
+        tbl.column('int_col', dtype='I')
+        tbl.column('bool_col', dtype='B')
+        tbl.column('num_col', dtype='N', size='10,2')
+        tbl.column('real_col', dtype='I')
+        tbl.column('bytea_col', dtype='O')
+        tbl.column('date_time_col', dtype='DH')
+        check_value = 'ALTER TABLE "alfa"."alfa_type_conv_test" \n ALTER COLUMN "date_time_col" TYPE timestamp without time zone;'
+        self.checkChanges(check_value, apply_only=True)
+
+        # Convert to timestamp with timezone (simple conversion)
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('type_conv_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='A', size=':30')
+        tbl.column('ts_col', dtype='DHZ')
+        tbl.column('date_col', dtype='D')
+        tbl.column('int_col', dtype='I')
+        tbl.column('bool_col', dtype='B')
+        tbl.column('num_col', dtype='N', size='10,2')
+        tbl.column('real_col', dtype='I')
+        tbl.column('bytea_col', dtype='O')
+        tbl.column('date_time_col', dtype='DHZ')
+        check_value = 'ALTER TABLE "alfa"."alfa_type_conv_test" \n ALTER COLUMN "date_time_col" TYPE timestamp with time zone;'
+        self.checkChanges(check_value)
+
+    def test_12k_numeric_conversions(self):
+        """Test numeric type conversions"""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('type_conv_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='A', size=':30')
+        tbl.column('ts_col', dtype='DHZ')
+        tbl.column('date_col', dtype='D')
+        tbl.column('int_col', dtype='I')
+        tbl.column('bool_col', dtype='B')
+        tbl.column('num_col', dtype='N', size='10,2')
+        tbl.column('real_col', dtype='I')
+        tbl.column('bytea_col', dtype='O')
+        tbl.column('date_time_col', dtype='DHZ')
+        tbl.column('numeric_col', dtype='I')  # Start with integer
+        self.checkChanges('ALTER TABLE "alfa"."alfa_type_conv_test" \n ADD COLUMN "numeric_col" integer;', apply_only=True)
+
+        # Convert to bigint (simple conversion)
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('type_conv_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='A', size=':30')
+        tbl.column('ts_col', dtype='DHZ')
+        tbl.column('date_col', dtype='D')
+        tbl.column('int_col', dtype='I')
+        tbl.column('bool_col', dtype='B')
+        tbl.column('num_col', dtype='N', size='10,2')
+        tbl.column('real_col', dtype='I')
+        tbl.column('bytea_col', dtype='O')
+        tbl.column('date_time_col', dtype='DHZ')
+        tbl.column('numeric_col', dtype='L')
+        check_value = 'ALTER TABLE "alfa"."alfa_type_conv_test" \n ALTER COLUMN "numeric_col" TYPE bigint;'
+        self.checkChanges(check_value, apply_only=True)
+
+        # Convert to numeric (simple conversion)
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('type_conv_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='A', size=':30')
+        tbl.column('ts_col', dtype='DHZ')
+        tbl.column('date_col', dtype='D')
+        tbl.column('int_col', dtype='I')
+        tbl.column('bool_col', dtype='B')
+        tbl.column('num_col', dtype='N', size='10,2')
+        tbl.column('real_col', dtype='I')
+        tbl.column('bytea_col', dtype='O')
+        tbl.column('date_time_col', dtype='DHZ')
+        tbl.column('numeric_col', dtype='N', size='14,2')
+        check_value = 'ALTER TABLE "alfa"."alfa_type_conv_test" \n ALTER COLUMN "numeric_col" TYPE numeric(14,2);'
+        self.checkChanges(check_value)
+
+    def test_12l_any_to_text_integer(self):
+        """Test generic conversion: integer to text"""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('to_text_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('int_col', dtype='I')
+        self.checkChanges('CREATE TABLE "alfa"."alfa_to_text_test"("id" serial8 NOT NULL, "int_col" integer, PRIMARY KEY(id));', apply_only=True)
+
+        # Convert integer to text
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('to_text_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('int_col', dtype='T')
+        check_value = 'ALTER TABLE "alfa"."alfa_to_text_test" \n ALTER COLUMN "int_col" TYPE text;'
+        self.checkChanges(check_value)
+
+    def test_12m_any_to_text_date(self):
+        """Test generic conversion: date to text"""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('to_text_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('int_col', dtype='T')
+        tbl.column('date_col', dtype='D')
+        self.checkChanges('ALTER TABLE "alfa"."alfa_to_text_test" \n ADD COLUMN "date_col" date;', apply_only=True)
+
+        # Convert date to text
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('to_text_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('int_col', dtype='T')
+        tbl.column('date_col', dtype='T')
+        check_value = 'ALTER TABLE "alfa"."alfa_to_text_test" \n ALTER COLUMN "date_col" TYPE text;'
+        self.checkChanges(check_value)
+
+    def test_12n_any_to_text_boolean(self):
+        """Test generic conversion: boolean to text"""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('to_text_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('int_col', dtype='T')
+        tbl.column('date_col', dtype='T')
+        tbl.column('bool_col', dtype='B')
+        self.checkChanges('ALTER TABLE "alfa"."alfa_to_text_test" \n ADD COLUMN "bool_col" boolean;', apply_only=True)
+
+        # Convert boolean to text
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('to_text_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('int_col', dtype='T')
+        tbl.column('date_col', dtype='T')
+        tbl.column('bool_col', dtype='T')
+        check_value = 'ALTER TABLE "alfa"."alfa_to_text_test" \n ALTER COLUMN "bool_col" TYPE text;'
+        self.checkChanges(check_value)
+
+    def test_12o_any_to_text_timestamp(self):
+        """Test generic conversion: timestamp with timezone to text"""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('to_text_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('int_col', dtype='T')
+        tbl.column('date_col', dtype='T')
+        tbl.column('bool_col', dtype='T')
+        tbl.column('ts_col', dtype='DHZ')
+        self.checkChanges('ALTER TABLE "alfa"."alfa_to_text_test" \n ADD COLUMN "ts_col" timestamp with time zone;', apply_only=True)
+
+        # Convert timestamp to text
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('to_text_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('int_col', dtype='T')
+        tbl.column('date_col', dtype='T')
+        tbl.column('bool_col', dtype='T')
+        tbl.column('ts_col', dtype='T')
+        check_value = 'ALTER TABLE "alfa"."alfa_to_text_test" \n ALTER COLUMN "ts_col" TYPE text;'
+        self.checkChanges(check_value)
+
+    def test_12p_any_to_text_numeric(self):
+        """Test generic conversion: numeric to varchar"""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('to_text_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('int_col', dtype='T')
+        tbl.column('date_col', dtype='T')
+        tbl.column('bool_col', dtype='T')
+        tbl.column('ts_col', dtype='T')
+        tbl.column('num_col', dtype='N', size='10,2')
+        self.checkChanges('ALTER TABLE "alfa"."alfa_to_text_test" \n ADD COLUMN "num_col" numeric(10,2);', apply_only=True)
+
+        # Convert numeric to varchar
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('to_text_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('int_col', dtype='T')
+        tbl.column('date_col', dtype='T')
+        tbl.column('bool_col', dtype='T')
+        tbl.column('ts_col', dtype='T')
+        tbl.column('num_col', dtype='A', size=':50')
+        check_value = 'ALTER TABLE "alfa"."alfa_to_text_test" \n ALTER COLUMN "num_col" TYPE character varying(50);'
+        self.checkChanges(check_value)
+
+    def test_12q_bytea_to_text(self):
+        """Test bytea to text conversion with encode"""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('to_text_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('int_col', dtype='T')
+        tbl.column('date_col', dtype='T')
+        tbl.column('bool_col', dtype='T')
+        tbl.column('ts_col', dtype='T')
+        tbl.column('num_col', dtype='A', size=':50')
+        tbl.column('bytea_col', dtype='O')
+        self.checkChanges('ALTER TABLE "alfa"."alfa_to_text_test" \n ADD COLUMN "bytea_col" bytea;', apply_only=True)
+
+        # Convert bytea to text (requires encode)
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('to_text_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('int_col', dtype='T')
+        tbl.column('date_col', dtype='T')
+        tbl.column('bool_col', dtype='T')
+        tbl.column('ts_col', dtype='T')
+        tbl.column('num_col', dtype='A', size=':50')
+        tbl.column('bytea_col', dtype='T')
+        check_value = "ALTER TABLE \"alfa\".\"alfa_to_text_test\" \n ALTER COLUMN \"bytea_col\" TYPE text USING encode(\"bytea_col\", 'hex');"
+        self.checkChanges(check_value)
+
 
 @pytest.mark.skipif(gnrpostgres.SqlDbAdapter.not_capable(Capabilities.MIGRATIONS),
                     reason="Adapter doesn't support migrations")
@@ -413,6 +834,181 @@ class TestGnrSqlMigration_postgres3(BaseGnrSqlMigration):
         cls.dbname = 'test_gnrsqlmigration'
         cls.db = GnrSqlDb(
             implementation='postgres3',
+            host=cls.pg_conf.get("host"),
+            port=cls.pg_conf.get("port"),
+            dbname=cls.dbname,
+            user=cls.pg_conf.get("user"),
+            password=cls.pg_conf.get("password")
+        )
+
+
+class BaseGnrSqlMigration_ForceMode(BaseGnrSqlTest):
+    """
+    Test suite for SQL migration force mode with backup columns.
+    In force mode, type conversions create backup columns to preserve original data.
+    """
+
+    @classmethod
+    def setup_class(cls):
+        """
+        Sets up the test class with force=True migrator.
+        """
+        super().setup_class()
+        cls.init()
+        cls.src = cls.db.model.src
+        cls.migrator = SqlMigrator(cls.db, removeDisabled=False, force=True)
+        cls.db.dropDb(cls.dbname)
+
+    def checkChanges(self, expected_value=None, apply_only=False, skip_recheck=False):
+        """
+        Validates the expected SQL changes against actual changes.
+
+        For force mode tests with backup columns, set skip_recheck=True because
+        after applying, the backup columns exist in DB but not in ORM, so the
+        migrator will always want to drop them (which is expected behavior).
+        """
+        self.db.startup()
+        self.migrator.prepareMigrationCommands()
+        if apply_only:
+            changes = self.migrator.getChanges()
+            self.migrator.applyChanges()
+            return changes
+        if expected_value == '?':
+            expected_changes = self.migrator.getChanges()
+            print('Expected value:', expected_changes)
+            return
+        normalized_expected_value = normalize_sql(expected_value)
+        changes = self.migrator.getChanges()
+        normalized_changes = normalize_sql(changes)
+        if normalized_changes != normalized_expected_value:
+            print('Actual changes:', changes)
+            print('ORM Structure:', self.migrator.ormStructure)
+            print('SQL Structure:', self.migrator.sqlStructure)
+            assert normalized_changes == normalized_expected_value, 'Mismatch in expected SQL commands.'
+        else:
+            self.migrator.applyChanges()
+            if not skip_recheck:
+                self.migrator.prepareMigrationCommands()
+                changes = self.migrator.getChanges()
+                if changes:
+                    print('unexpected changes', changes)
+                assert not changes, 'Failed to execute SQL command as expected.'
+
+    def test_force_01_create_db(self):
+        """Tests database creation (same as prudent mode)"""
+        check_value = """CREATE DATABASE "test_gnrsqlmigration_force" ENCODING 'UNICODE';\n"""
+        self.checkChanges(check_value)
+
+    def test_force_02_create_schema_and_table(self):
+        """Creates schema and test table for force mode tests"""
+        self.src.package('beta', sqlschema='beta')
+        pkg = self.src.package('beta')
+        tbl = pkg.table('force_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col')
+        self.checkChanges(apply_only=True)
+
+    def test_force_03_text_to_date_with_backup(self):
+        """Test text to date conversion with backup column in force mode"""
+        pkg = self.src.package('beta')
+        tbl = pkg.table('force_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='D')
+        # In force mode: creates backup column, copies data, then converts
+        check_value = '''ALTER TABLE "beta"."beta_force_test" ADD COLUMN "text_col__T" text;
+UPDATE "beta"."beta_force_test" SET "text_col__T" = "text_col"::text;
+ALTER TABLE "beta"."beta_force_test"
+ALTER COLUMN "text_col" TYPE date USING CASE WHEN "text_col" IS NULL THEN NULL WHEN "text_col" ~ \'^[0-9]{4}-[0-9]{2}-[0-9]{2}\' THEN "text_col"::date ELSE NULL END;'''
+        # skip_recheck because backup columns are intentionally not in ORM
+        self.checkChanges(check_value, skip_recheck=True)
+
+    def test_force_04_add_integer_col(self):
+        """Add integer column for next conversion test"""
+        pkg = self.src.package('beta')
+        tbl = pkg.table('force_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='D')
+        tbl.column('int_source')
+        self.checkChanges(apply_only=True)
+
+    def test_force_05_text_to_integer_with_backup(self):
+        """Test text to integer conversion with backup column"""
+        pkg = self.src.package('beta')
+        tbl = pkg.table('force_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='D')
+        tbl.column('int_source', dtype='I')
+        check_value = '''ALTER TABLE "beta"."beta_force_test" ADD COLUMN "int_source__T" text;
+UPDATE "beta"."beta_force_test" SET "int_source__T" = "int_source"::text;
+ALTER TABLE "beta"."beta_force_test"
+ALTER COLUMN "int_source" TYPE integer USING CASE WHEN "int_source" IS NULL THEN NULL WHEN "int_source" ~ \'^-?[0-9]+$\' THEN "int_source"::integer ELSE NULL END;'''
+        # skip_recheck because backup columns are intentionally not in ORM
+        self.checkChanges(check_value, skip_recheck=True)
+
+    def test_force_06_add_boolean_col(self):
+        """Add text column for boolean conversion test"""
+        pkg = self.src.package('beta')
+        tbl = pkg.table('force_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='D')
+        tbl.column('int_source', dtype='I')
+        tbl.column('bool_source')
+        self.checkChanges(apply_only=True)
+
+    def test_force_07_text_to_boolean_with_backup(self):
+        """Test text to boolean conversion with backup column"""
+        pkg = self.src.package('beta')
+        tbl = pkg.table('force_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='D')
+        tbl.column('int_source', dtype='I')
+        tbl.column('bool_source', dtype='B')
+        check_value = '''ALTER TABLE "beta"."beta_force_test" ADD COLUMN "bool_source__T" text;
+UPDATE "beta"."beta_force_test" SET "bool_source__T" = "bool_source"::text;
+ALTER TABLE "beta"."beta_force_test"
+ALTER COLUMN "bool_source" TYPE boolean USING CASE WHEN "bool_source" IS NULL THEN NULL WHEN LOWER("bool_source") IN (\'true\', \'t\', \'yes\', \'y\', \'1\') THEN TRUE WHEN LOWER("bool_source") IN (\'false\', \'f\', \'no\', \'n\', \'0\', \'\') THEN FALSE ELSE NULL END;'''
+        # skip_recheck because backup columns are intentionally not in ORM
+        self.checkChanges(check_value, skip_recheck=True)
+
+    def test_force_08_any_to_text_no_backup(self):
+        """Test any-to-text conversion has no backup (simple conversion)"""
+        pkg = self.src.package('beta')
+        tbl = pkg.table('force_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='D')
+        tbl.column('int_source', dtype='I')
+        tbl.column('bool_source', dtype='B')
+        tbl.column('numeric_col', dtype='N', size='10,2')
+        self.checkChanges(apply_only=True)
+
+        # Convert numeric to text - no backup needed (lossless conversion)
+        pkg = self.src.package('beta')
+        tbl = pkg.table('force_test', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('text_col', dtype='D')
+        tbl.column('int_source', dtype='I')
+        tbl.column('bool_source', dtype='B')
+        # Change numeric_col to text (remove size attribute to get text, not char)
+        numeric_col = tbl.column('numeric_col', dtype='T')
+        numeric_col.attributes.pop('size', None)
+        # Simple ALTER TYPE, no backup column
+        check_value = 'ALTER TABLE "beta"."beta_force_test" \n ALTER COLUMN "numeric_col" TYPE text;'
+        # skip_recheck because backup columns from previous tests are still in DB
+        self.checkChanges(check_value, skip_recheck=True)
+
+
+@pytest.mark.skipif(gnrpostgres.SqlDbAdapter.not_capable(Capabilities.MIGRATIONS),
+                    reason="Adapter doesn't support migrations")
+class TestGnrSqlMigration_postgres_force(BaseGnrSqlMigration_ForceMode):
+    @classmethod
+    def init(cls):
+        """
+        Initializes the test database connection with PostgreSQL settings (force mode).
+        """
+        cls.name = 'postgres_force'
+        cls.dbname = 'test_gnrsqlmigration_force'
+        cls.db = GnrSqlDb(
+            implementation='postgres',
             host=cls.pg_conf.get("host"),
             port=cls.pg_conf.get("port"),
             dbname=cls.dbname,

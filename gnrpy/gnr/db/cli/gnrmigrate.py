@@ -198,6 +198,10 @@ def main():
                         dest='inspect',
                         action='store_true',
                         help='Create a dump file for inspection')
+    parser.add_argument('-f', '--force',
+                        dest='force',
+                        action='store_true',
+                        help='Force conversions even with incompatible data (converts to NULL)')
     parser.add_argument('-i', '--instance',
                         dest='instance',
                         help="Use command on instance")
@@ -240,7 +244,8 @@ def main():
         migrator = SqlMigrator(app.db, extensions=extensions,
                                ignore_constraint_name=True,
                                excludeReadOnly=True,
-                               removeDisabled=True)
+                               removeDisabled=True,
+                               force=options.force)
         migrator.prepareMigrationCommands()
         if options.check:
             check_db(migrator, options)
