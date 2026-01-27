@@ -172,7 +172,7 @@ class GnrDomainProxy(object):
     def services_handler(self):
         if self._services_handler is None:
             try:
-                self._services_handler = ServiceHandler(self.parent.site)
+                self._services_handler = ServiceHandler(self.parent.site, domain=self.domain)
             except Exception as e:
                 logger.error(f"Failed to initialize ServiceHandler for domain {self.domain}: {e}")
                 raise
