@@ -13,8 +13,8 @@ class Formlet(BaseComponent):
     def flt_main(self,pane):
         url = self.application.config['mobile_app.ios?store_url']
         pane.dataController(""";
-            SET #WORKSPACE.qrcode_url = `/_tools/qrcode?text=${url}`;""",
-            url=url,_onBuilt=True)
+            SET #WORKSPACE.qrcode_url = `${homeFolder}_tools/qrcode?text=${url}`;""",
+            url=url,homeFolder='=gnr.homeFolder',_onBuilt=True)
         flex = pane.flexbox(justify_content='center',align_items='center',margin_top='50px',flex_direction='column')
         link = flex.a(href=url,target="_blank")
         link.img(src='/_rsrc/pkg_adm/app_stores/ios_badge.svg',height='40px')

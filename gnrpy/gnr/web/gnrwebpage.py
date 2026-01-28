@@ -352,12 +352,31 @@ class GnrWebPage(GnrBaseWebPage):
         
     frontend = property(_get_frontend)
             
-    @property 
+    @property
     def wsk(self):
         if hasattr(self,'asyncServer'):
             return self.asyncServer.wsk
         return self.site.wsk
-    
+
+    @property
+    def currentDomain(self):
+        """Returns the current domain/workspace from site."""
+        return self.site.currentDomain
+
+    @property
+    def multidomain(self):
+        """Returns True if multidomain mode is enabled."""
+        return self.site.multidomain
+
+    @property
+    def currentDomainIdentifier(self):
+        """Returns the unique identifier for the current domain.
+
+        In multidomain: {site_name}_{domain}
+        In single-domain: {site_name}
+        """
+        return self.site.currentDomainIdentifier
+
     @property
     def wsk_enabled(self):
         if not hasattr(self, '_wsk_enabled'):
@@ -453,7 +472,8 @@ class GnrWebPage(GnrBaseWebPage):
                                maxdate=datetime.date.max, mindate=datetime.date.min,
                                user=self.user, userTags=self.userTags, pagename=self.pagename,
                                mainpackage=self.mainpackage, _user_conf_expirebag=expirebag,
-                               external_host=self.external_host)
+                               external_host=self.external_host,
+                               currentDomain=self.currentDomain)
             
             self._db.setLocale()
             avatar = self.avatar
@@ -625,8 +645,17 @@ class GnrWebPage(GnrBaseWebPage):
             return AUTH_FORBIDDEN
         return AUTH_OK
     
-    def _checkRootPage(self):
+    @property
+    def avatar_rootpage(self):
+        if not self.avatar:
+            return
         avatar_rootpage = self.avatar.avatar_rootpage or self.rootenv['singlepage'] if self.avatar else None
+        if avatar_rootpage and avatar_rootpage.startswith('/') and self.multidomain:
+            return f'/{self.currentDomain}{avatar_rootpage}'
+        return avatar_rootpage
+    
+    def _checkRootPage(self):
+        avatar_rootpage = self.avatar_rootpage
         if self.pageOptions.get('standAlonePage') \
             or self.root_page_id or not self.avatar \
                 or not avatar_rootpage:
@@ -2194,8 +2223,8 @@ class GnrWebPage(GnrBaseWebPage):
                                 })
                                 genro.publish('dbevent_'+_node.label,{'changelist':changelist,'changeattr':_node.attr});""",
                                 changes="^gnr.dbchanges")
-        page.data('gnr.homepage', self.externalUrl(self.site.homepage))
-        page.data('gnr.homeFolder', self.externalUrl(self.site.home_uri).rstrip('/'))
+        page.data('gnr.homepage', self.externalUrl(f"{self.site.default_uri.rstrip('/')}{self.site.indexpage}"))
+        page.data('gnr.homeFolder', f"{self.externalUrl(self.site.default_uri).rstrip('/')}/")
         page.data('gnr.homeUrl', self.site.home_uri)
         page.data('gnr.defaultUrl', self.site.default_uri)
         page.data('gnr.siteName',self.siteName)
@@ -2216,6 +2245,8 @@ class GnrWebPage(GnrBaseWebPage):
         page.data('gnr.remote_db',self.site.remote_db)
         if self.dbstore:
             page.data('gnr.dbstore',self.dbstore)
+        page.data('gnr.multidomain', self.multidomain)
+        page.data('gnr.currentDomain', self.currentDomain)
         if has_adm and not self.isGuest:
             page.dataRemote('gnr.user_preference', self.getUserPreference,username='^gnr.avatar.user',
                             _resolved=True,_resolved_username=self.user)
@@ -2778,8 +2809,8 @@ class GnrWebPage(GnrBaseWebPage):
     def forbiddenRedirectPage(self):
         if hasattr(self,'forbidden_redirect'):
             return self.forbidden_redirect()
-        if self.avatar and self.avatar.avatar_rootpage:
-            return self.avatar.avatar_rootpage
+        if self.avatar_rootpage:
+            return self.avatar_rootpage
 
     def isLocalizer(self):
         """TODO"""

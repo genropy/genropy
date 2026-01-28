@@ -35,11 +35,11 @@ from gnr.web import logger
 from gnr.web.gnrwebapp import GnrWsgiWebApp
 from gnr.web.gnrwebpage import GnrUnsupportedBrowserException
 from gnr.web.gnrwsgisite_proxy.gnrresourceloader import ResourceLoader
+from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import LegacyStorageHandler
 from gnr.web.gnrwsgisite_proxy.gnrstatichandler import StaticHandlerManager
 from gnr.web.gnrwsgisite_proxy.gnrpwahandler import PWAHandler
 from gnr.web.gnrwsgisite_proxy.gnrsiteregister import SiteRegisterClient
 from gnr.web.gnrwsgisite_proxy.gnrwebsockethandler import WsgiWebSocketHandler
-from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import LegacyStorageHandler
 
 try:
     from werkzeug import EnvironBuilder
@@ -49,6 +49,11 @@ except ImportError:
 mimetypes.init()
 
 IS_MOBILE = re.compile(r'iPhone|iPad|Android')
+
+STORAGE_TYPES = ['_storage']
+STATIC_HANDLER_TYPES = ['_site','_dojo','_gnr','_conn',
+                        '_rsrc','_pkg','_user','_vol',
+                        '_pages','_page','_cordova_asset','_xvol']
 
 warnings.simplefilter("default")
 global GNRSITE
@@ -142,7 +147,255 @@ class UrlInfo(object):
         self.basepath = mobilepath or self.basepath
         self.request_args = path_list
 
-        
+
+
+class GnrDomainProxy(object):
+    """Proxy for a single domain with its own isolated register, services and storage.
+
+    Each domain has its own GnrDomainProxy instance that manages the
+    SiteRegister, ServiceHandler and StorageHandler for that specific domain.
+
+    In single-domain mode, only the rootDomain (_main_) proxy exists.
+    In multidomain mode, each workspace has its own proxy.
+    """
+    def __init__(self, parent, domain=None, **kwargs):
+        self.parent = parent
+        self.domain = domain
+        self._register = None
+        self._services_handler = None
+        self._storage_handler = None
+        self.attributes = kwargs
+
+    @property
+    def register(self):
+        if self._register is None:
+            self._register = SiteRegisterClient(self.parent.site)
+            self.parent.site.checkPendingConnection()
+        return self._register
+
+    @property
+    def services_handler(self):
+        if self._services_handler is None:
+            try:
+                self._services_handler = ServiceHandler(self.parent.site, domain=self.domain)
+            except Exception as e:
+                logger.error(f"Failed to initialize ServiceHandler for domain {self.domain}: {e}")
+                raise
+        return self._services_handler
+
+    @property
+    def storage_handler(self):
+        if self._storage_handler is None:
+            self._storage_handler = LegacyStorageHandler(self.parent.site, domain=self.domain)
+        return self._storage_handler
+
+
+class GnrDomainHandler(object):
+    """Central handler for managing domains.
+
+    Manages a collection of GnrDomainProxy instances.
+    In single-domain mode, contains only the rootDomain (_main_).
+    In multidomain mode, domains are auto-discovered from dbstores when accessed.
+    """
+    def __init__(self, site):
+        self.site = site
+        self.domains = {}
+        self._not_found_domains = set()  # Cache for domains not found in dbstores
+        self._lock = RLock()
+
+    def __contains__(self, name):
+        with self._lock:
+            result = name in self.domains
+            if result:
+                return result
+            self._discover_from_dbstores(name)
+            return name in self.domains
+
+    def __getitem__(self, name):
+        with self._lock:
+            if name not in self.domains:
+                self._discover_from_dbstores(name)
+            return self.domains.get(name)
+
+    def add(self, domain):
+        """Register a new domain if not already present.
+
+        Thread-safe: uses lock to prevent race conditions when multiple
+        threads try to register the same domain concurrently.
+        """
+        with self._lock:
+            if domain not in self.domains:
+                self.domains[domain] = GnrDomainProxy(self, domain)
+                self._not_found_domains.discard(domain)
+
+    def remove(self, domain):
+        """Remove a domain from the handler."""
+        with self._lock:
+            if domain in self.domains:
+                del self.domains[domain]
+
+    def _discover_from_dbstores(self, domain):
+        """Auto-register domain if it exists in dbstores.
+
+        Caches domains not found to avoid repeated database lookups.
+        """
+        if domain in self._not_found_domains:
+            return
+        if domain in self.site.db.dbstores:
+            self.add(domain)
+        else:
+            self._not_found_domains.add(domain)
+
+
+class DbStoreRouter(object):
+    """Handles dbstore routing from URL path for both standard and multidomain modes.
+
+    This class is responsible for:
+    - Extracting dbstore and aux_instance from the URL path
+    - Setting currentDomain in multidomain mode (where domain = dbstore)
+    - Updating request_kwargs with base_dbstore and temp_dbstore
+    - Registering aux instance database stores when needed
+
+    Usage in dispatcher:
+        router = DbStoreRouter(site, path_list, request_kwargs)
+        if not router.route():
+            return HTTPNotFound()
+        router.register_aux_instance_stores()
+        path_list = router.path_list
+    """
+    def __init__(self, site, path_list, request_kwargs, request_path=None):
+        """Initialize the DbStoreRouter.
+
+        :param site: The GnrWsgiSite instance
+        :param path_list: List of URL path segments
+        :param request_kwargs: Dictionary of request parameters to update
+        :param request_path: Original request path for redirect detection
+        """
+        self.site = site
+        self.path_list = list(path_list) if path_list else []
+        self.request_kwargs = request_kwargs
+        self.request_path = request_path or ''
+        self.redirect_to = None
+
+    def route(self):
+        """Parse the URL path and extract routing information.
+
+        Analyzes the first segment of the path to determine:
+        - If it's an @aux_instance reference
+        - If it's a dbstore name (workspace in multidomain)
+        - If it's the rootDomain (_main_) for accessing the main database
+
+        In multidomain mode:
+        - URL must start with a domain (_main_ or workspace)
+        - Empty path or unknown first segment = 404
+
+        currentDomain is initialized to rootDomain in dispatcher.
+        This method changes it in multidomain mode based on URL.
+
+        :returns: True if routing succeeded, False if a 404 should be returned
+        """
+        if not self.path_list:
+            # Empty path: OK in single-domain, 404 in multidomain
+            return not self.site.multidomain
+
+        first_segment = self.path_list[0]
+
+        # Static/storage resources don't need domain routing
+        if self.site.storageType(self.path_list):
+            return True
+
+        # @aux_instance syntax: e.g., /@myinstance/page
+        if first_segment.startswith('@'):
+            instance_name = first_segment[1:]
+            self.path_list.pop(0)
+            config_node = self.site.gnrapp.config.getNode(f'aux_instances.{instance_name}')
+            if not config_node:
+                logger.warning(f"Unknown aux_instance: {instance_name}")
+                return False  # Return 404
+            self.request_kwargs['base_dbstore'] = f'instance_{instance_name}'
+            return True
+
+        # Check if first segment is rootDomain (_main_)
+        if first_segment == self.site.rootDomain:
+            # Redirect if missing trailing slash: /app/_main_ -> /app/_main_/
+            if len(self.path_list) == 1 and not self.request_path.endswith('/'):
+                self.redirect_to = f'{self.request_path}/'
+            self.path_list.pop(0)
+            # currentDomain already set to rootDomain in dispatcher
+            return True
+
+        # Check if first segment is a dbstore (workspace)
+        if first_segment in self.site.db.dbstores:
+            # Redirect if missing trailing slash: /app/client1 -> /app/client1/
+            if len(self.path_list) == 1 and not self.request_path.endswith('/'):
+                self.redirect_to = f'{self.request_path}/'
+            self.path_list.pop(0)
+            self.request_kwargs['base_dbstore'] = first_segment
+            if self.site.multidomain:
+                self.site.currentDomain = first_segment
+                self.site.domains.add(first_segment)
+            return True
+
+        # In multidomain, first segment must be a valid domain
+        if self.site.multidomain:
+            return False
+
+        # Single-domain mode: check other store types via get_store_parameters
+        if self.site.db.get_store_parameters(first_segment):
+            self.request_kwargs['base_dbstore'] = self.path_list.pop(0)
+
+        # Handle temp_dbstore with @ prefix in query params
+        temp_dbstore = self.request_kwargs.get('temp_dbstore', '')
+        if temp_dbstore and temp_dbstore.startswith('@'):
+            self.request_kwargs['temp_dbstore'] = f'instance_{temp_dbstore[1:]}'
+
+        return True
+
+    def register_aux_instance_stores(self):
+        """Register aux instance database stores if needed.
+
+        Checks base_dbstore and temp_dbstore in request_kwargs.
+        If either starts with 'instance_', registers the corresponding
+        aux instance's database configuration as a store.
+        """
+        for key in ('temp_dbstore', 'base_dbstore'):
+            storename = self.request_kwargs.get(key)
+            if storename and storename.startswith('instance_'):
+                self._register_aux_instance_store(storename)
+
+    def _register_aux_instance_store(self, storename):
+        """Register a single aux instance database store.
+
+        Creates a database store configuration from an aux instance's
+        database settings, including handling of remote database connections.
+
+        :param storename: Store name in format 'instance_<name>'
+        """
+        instance_name = storename.replace('instance_', '')
+        auxapp = self.site.gnrapp.getAuxInstance(instance_name)
+        if not auxapp:
+            raise Exception(f'Aux instance not found: {instance_name}')
+
+        # Skip if already registered
+        if self.site.db.get_store_parameters(storename):
+            return
+
+        dbattr = auxapp.config.getAttr('db')
+        if auxapp.remote_db:
+            remote_db_attr = auxapp.config.getAttr(f'remote_db.{auxapp.remote_db}')
+            if remote_db_attr:
+                remote_db_attr = dict(remote_db_attr)
+                ssh_host = remote_db_attr.pop('ssh_host', None)
+                if ssh_host:
+                    host = ssh_host.split('@')[1] if '@' in ssh_host else ssh_host
+                    port = remote_db_attr.get('port')
+                    dbattr['remote_host'] = host
+                    dbattr['remote_port'] = port
+                dbattr.update(remote_db_attr)
+
+        self.site.db.stores_handler.add_auxstore(storename, dbattr=dbattr)
+
+
 class GnrWsgiSite(object):
     """TODO"""
 
@@ -154,13 +407,18 @@ class GnrWsgiSite(object):
         global GNRSITE
         GNRSITE = self
         counter = int(counter or '0')
+        self.storageTypes = STORAGE_TYPES + STATIC_HANDLER_TYPES
         self.pathfile_cache = {}
         self._currentAuxInstanceNames = ThreadedDict()
         self._currentPages = ThreadedDict()
         self._currentRequests = ThreadedDict()
+        self._currentDomains = ThreadedDict()
+        self.domains = GnrDomainHandler(self)
+        self.rootDomain = '_main_'
+        self.domains.add(self.rootDomain)
+        self.currentDomain = self.rootDomain
         abs_script_path = os.path.abspath(script_path)
         self.remote_db = ''
-        self._register = None
         if site_name and ':' in site_name:
             _,self.remote_db = site_name.split(':',1)
         
@@ -230,7 +488,6 @@ class GnrWsgiSite(object):
         self.debugpy = debugpy
         logger.debug("Debugpy active: %s", self.debugpy)
         self.dbstores = self.db.dbstores
-        self.storage_handler = LegacyStorageHandler(self)
         self.resource_loader = ResourceLoader(self)
         self.pwa_handler = PWAHandler(self)
         self.auth_token_generator = AuthTokenGenerator(self.external_secret)
@@ -300,7 +557,12 @@ class GnrWsgiSite(object):
     @property
     def db(self):
         return self.gnrapp.db
-    
+
+    @property
+    def multidomain(self):
+        """Returns True if multidomain mode is enabled."""
+        return self.db.multidomain
+
     @property
     def gnrapp(self):
         if self.currentAuxInstanceName:
@@ -309,10 +571,26 @@ class GnrWsgiSite(object):
 
     @property
     def services_handler(self):
-        if not hasattr(self,'_services_handler'):
-            self._services_handler = ServiceHandler(self)
-        return self._services_handler
-    
+        """Returns the services handler for the current domain.
+
+        Always uses the GnrDomainProxy for the current domain (rootDomain in single-domain mode).
+        """
+        domain_proxy = self.domains[self.currentDomain]
+        if domain_proxy:
+            return domain_proxy.services_handler
+        return None
+
+    @property
+    def storage_handler(self):
+        """Returns the storage handler for the current domain.
+
+        Always uses the GnrDomainProxy for the current domain (rootDomain in single-domain mode).
+        """
+        domain_proxy = self.domains[self.currentDomain]
+        if domain_proxy:
+            return domain_proxy.storage_handler
+        return None
+
     @property
     def mainpackage(self):
         return self.config['wsgi?mainpackage'] or self.gnrapp.config['packages?main'] or self.gnrapp.packages.keys()[-1]
@@ -346,13 +624,52 @@ class GnrWsgiSite(object):
 
     @property
     def register(self):
-        if self._register is None:
-            self._register = SiteRegisterClient(self)
-            self.checkPendingConnection()
-        return self._register
+        """Returns the register for the current domain.
+
+        Always uses the GnrDomainProxy for the current domain (rootDomain in single-domain mode).
+        """
+        domain_proxy = self.domains[self.currentDomain]
+        if domain_proxy:
+            return domain_proxy.register
+        return None
+
+    @property
+    def main_register(self):
+        """Returns the register for the rootDomain (_main_).
+
+        Used for shared resources like dbstores cache that are common across all domains.
+        """
+        return self.domains[self.rootDomain].register
+
+    def get_domainIdentifier(self, domain):
+        """Get a unique identifier for a domain, used for register naming.
+
+        For rootDomain (_main_), returns just site_name (no suffix).
+        For other domains in multidomain mode, returns site_name|domain.
+        Uses '|' as separator to avoid collisions (e.g., site_abc + domain_def vs site_abc_def + domain).
+        """
+        if not self.multidomain or domain == self.rootDomain:
+            return self.site_name
+        return f'{self.site_name}|{domain}'
+
+    @property
+    def currentDomainIdentifier(self):
+        """Returns the unique identifier for the current domain."""
+        return self.get_domainIdentifier(self.currentDomain)
+
+    @property
+    def current_home_uri(self):
+        """Returns the home URI for the current context.
+
+        In multidomain mode, includes the domain prefix.
+        """
+        if self.multidomain:
+            return f'{self.default_uri}{self.currentDomain}/'
+        return self.default_uri
 
     def getSubscribedTables(self,tables):
-        if self._register is not None:
+        domain_proxy = self.domains[self.currentDomain]
+        if domain_proxy and domain_proxy._register is not None:
             return self.register.filter_subscribed_tables(tables,register_name='page')
 
     @property
@@ -428,12 +745,6 @@ class GnrWsgiSite(object):
             result = m(pkey)
             return result is not False
 
-    @property
-    def storageTypes(self):
-        return ['_storage','_site','_dojo','_gnr','_conn',
-                '_pages','_rsrc','_pkg','_pages',
-                '_user','_vol', '_documentation']
-        
     def storageType(self, path_list=None):
         first_segment = path_list[0]
         if ':' in first_segment:
@@ -730,6 +1041,8 @@ class GnrWsgiSite(object):
         return path_list
 
     def _get_home_uri(self):
+        if self.multidomain:
+            return f'{self.default_uri}{self.currentDomain}/'
         if self.currentPage and self.currentPage.dbstore:
             return '%s%s/' % (self.default_uri, self.currentPage.dbstore)
         else:
@@ -777,6 +1090,7 @@ class GnrWsgiSite(object):
     def dispatcher(self, environ, start_response):
         self.currentRequest = Request(environ)
         self.currentRequest.max_form_memory_size = 100_000_000
+        self.currentDomain = self.rootDomain
 
         try:
             return self._dispatcher(environ, start_response)
@@ -790,6 +1104,8 @@ class GnrWsgiSite(object):
                 comment='SCRIPT_NAME=%r; PATH_INFO=%r;'
                 % (environ.get('SCRIPT_NAME'), environ.get('PATH_INFO')))
             return exc(environ, start_response)
+        finally:
+            self.currentDomain = self.rootDomain
 
     @property
     def external_host(self):
@@ -797,7 +1113,11 @@ class GnrWsgiSite(object):
             external_host = self.currentPage.external_host
         else:
             external_host = self.configurationItem('wsgi?external_host',mandatory=True)
-        return (external_host or '').rstrip('/')
+        external_host = (external_host or '').rstrip('/')
+        # Include domain in external_host for absolute URLs in multidomain mode
+        if self.multidomain and self.currentDomain:
+            external_host = f'{external_host}/{self.currentDomain}'
+        return external_host
     
     @property
     def external_secret(self):
@@ -839,16 +1159,12 @@ class GnrWsgiSite(object):
         
         # Url parsing start
         path_list = self.get_path_list(request.path)
-        # path_list is never empty
-        expiredConnections = self.register.cleanup()
-        if expiredConnections:
-            self.connectionLog('close',expiredConnections)
 
         # lookup webtools static routes
         webtool_static_route_handler = self.lookup_webtools_static_route(request.path)
         if webtool_static_route_handler:
             return self.serve_tool(['_tools', webtool_static_route_handler], environ, start_response, **request_kwargs)
-            
+
         # can this be moved?
         if path_list == ['favicon.ico']:
             path_list = ['_site', 'favicon.ico']
@@ -858,7 +1174,7 @@ class GnrWsgiSite(object):
         if path_list == ['_pwa_worker.js']:
             path_list = ['_rsrc','common', 'pwa','worker.js']
             # return response(environ, start_response)
-        
+
 
         self.currentAuxInstanceName = request_kwargs.get('aux_instance')
         user_agent = request.user_agent.string or ''
@@ -867,14 +1183,22 @@ class GnrWsgiSite(object):
             request_kwargs['_mobile'] = True
         request_kwargs.pop('_no_cache_', None)
         download_name = request_kwargs.pop('_download_name_', None)
-        #print 'site dispatcher: ',path_list
-        if path_list:
-            self._checkFirstSegment(path_list,request_kwargs)
 
-        self.checkForDbStore(request_kwargs)
-       #if path_list and (path_list[0] in self.dbstores):
-       #    request_kwargs.setdefault('temp_dbstore',path_list.pop(0))
-        path_list = path_list or ['index']
+        # Route the request: extract domain/dbstore from path
+        router = DbStoreRouter(self, path_list, request_kwargs, request_path=request.path)
+        if not router.route():
+            return HTTPNotFound()(environ, start_response)
+        if router.redirect_to:
+            return HTTPMovedPermanently(location=router.redirect_to)(environ, start_response)
+        router.register_aux_instance_stores()
+        # Sync currentDomain with database environment
+        self.db.currentEnv['currentDomain'] = self.currentDomain
+        path_list = router.path_list or ['index']
+
+        # Cleanup expired connections (after routing to ensure domain is set in multidomain)
+        expiredConnections = self.register.cleanup()
+        if expiredConnections:
+            self.connectionLog('close',expiredConnections)
         first_segment = path_list[0]
         last_segment = path_list[-1]
         # this can be moved.
@@ -997,46 +1321,6 @@ class GnrWsgiSite(object):
             path_list = uri[1:].split('/')
             return self.statics.static_dispatcher(path_list, environ, start_response,nocache=True)
 
-    def checkForDbStore(self,request_kwargs):
-        for k in ('temp_dbstore','base_dbstore'):
-            storename = request_kwargs.get(k)        
-            if storename and storename.startswith('instance_'):
-                self._registerAuxInstanceDbStore(storename)
-
-    def _checkFirstSegment(self,path_list,request_kwargs):
-        first = path_list[0]
-        if first.startswith('@'):
-            first = first[1:]
-            path_list.pop(0)
-            if self.gnrapp.config.getNode(f'aux_instances.{first}'):
-                request_kwargs['base_dbstore'] = f'instance_{first}'
-        else:
-            if self.db.get_store_parameters(first):
-                request_kwargs['base_dbstore'] = path_list.pop(0)
-        temp_dbstore = request_kwargs.get('temp_dbstore','')
-        if temp_dbstore and temp_dbstore.startswith('@'):
-            request_kwargs['temp_dbstore'] = f'instance_{request_kwargs["temp_dbstore"][1:]}'
-
-    def _registerAuxInstanceDbStore(self,storename):
-        instance_name = storename.replace('instance_','')
-        auxapp = self.gnrapp.getAuxInstance(instance_name)
-        if not auxapp:
-            raise Exception('not existing aux instance %s' %instance_name)
-        if self.db.get_store_parameters(storename):
-            return
-        dbattr = auxapp.config.getAttr('db')
-        if auxapp.remote_db:
-            remote_db_attr = auxapp.config.getAttr('remote_db.%s' %auxapp.remote_db)
-            if remote_db_attr:
-                remote_db_attr = dict(remote_db_attr)
-                ssh_host = remote_db_attr.pop('ssh_host',None)
-                if ssh_host:
-                    host = ssh_host.split('@')[1] if '@' in ssh_host else ssh_host
-                    port = remote_db_attr.get('port')
-                    dbattr['remote_host'] = host
-                    dbattr['remote_port'] = port
-                dbattr.update(remote_db_attr)
-        self.db.stores_handler.add_auxstore(storename,dbattr=dbattr)
 
 
     @extract_kwargs(info=True)
@@ -1096,6 +1380,7 @@ class GnrWsgiSite(object):
         self.currentPage = None
         self.currentRequest = None
         self.currentAuxInstanceName = None
+        self.currentDomain = None
 
     def serve_tool(self, path_list, environ, start_response, **kwargs):
         """TODO
@@ -1401,6 +1686,20 @@ class GnrWsgiSite(object):
         self._currentRequests.set(request)
 
     currentRequest = property(_get_currentRequest, _set_currentRequest)
+
+    def _get_currentDomain(self):
+        """property currentDomain - returns the domain currently used in this thread.
+
+        Returns rootDomain (_main_) as default if not explicitly set.
+        In request context, dispatcher sets this at the start of each request.
+        """
+        return self._currentDomains.get() or self.rootDomain
+
+    def _set_currentDomain(self, domain):
+        """set currentDomain for this thread"""
+        self._currentDomains.set(domain)
+
+    currentDomain = property(_get_currentDomain, _set_currentDomain)
 
     def callTableScript(self, page=None, table=None, respath=None, class_name=None, runKwargs=None, **kwargs):
         """Call a script from a table's resources (e.g: ``_resources/tables/<table>/<respath>``).
