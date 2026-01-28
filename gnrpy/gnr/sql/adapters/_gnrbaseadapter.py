@@ -87,7 +87,7 @@ class SqlDbAdapter(object):
 
     revTypesDict = {'A': 'character varying', 'C': 'character', 'T': 'text',
                     'X': 'text', 'P': 'text', 'Z': 'text', 'N': 'numeric', 'M': 'money',
-                    'B': 'boolean', 'D': 'date', 
+                    'B': 'boolean', 'D': 'date',
                     'H': 'time without time zone',
                     'HZ': 'time without time zone',
                     'DH': 'timestamp without time zone',
@@ -96,8 +96,51 @@ class SqlDbAdapter(object):
                     'I': 'integer', 'L': 'bigint', 'R': 'real',
                     'serial': 'serial8', 'O': 'bytea'}
 
+    # Type conversions for migration system
+    # Format: (old_dtype, new_dtype) → conversion rule
+    # - None or True: simple conversion (just ALTER COLUMN TYPE)
+    # - SQL string: complex conversion requiring USING clause (database-specific)
+    # - Key absent: incompatible conversion
+    TYPE_CONVERSIONS = {
+        # Simple text conversions (no USING needed)
+        ('A', 'T'): None,
+        ('A', 'C'): None,
+        ('A', 'X'): None,
+        ('A', 'Z'): None,
+        ('A', 'P'): None,
+        ('T', 'A'): None,
+        ('T', 'C'): None,
+        ('T', 'X'): None,
+        ('T', 'Z'): None,
+        ('T', 'P'): None,
+        ('C', 'A'): None,
+        ('C', 'T'): None,
+        ('C', 'X'): None,
+        ('C', 'Z'): None,
+        ('C', 'P'): None,
 
-    
+        # Simple numeric conversions
+        ('I', 'L'): None,
+        ('I', 'N'): None,
+        ('B', 'I'): None,
+        ('N', 'I'): None,
+        ('N', 'L'): None,
+        ('N', 'R'): None,
+        ('L', 'I'): None,
+        ('L', 'N'): None,
+        ('L', 'R'): None,
+
+        # Simple date/time conversions
+        ('D', 'DH'): None,
+        ('D', 'DHZ'): None,
+        ('DH', 'D'): None,
+        ('DH', 'DHZ'): None,
+        ('DHZ', 'D'): None,
+        ('DHZ', 'DH'): None,
+    }
+
+
+
     paramstyle = 'named'
     allowAlterColumn=True
 
@@ -509,6 +552,17 @@ class SqlDbAdapter(object):
     def struct_alter_column_sql(self, column_name=None, new_sql_type=None, **kwargs):
         """Generates SQL to alter the type of a column."""
         raise AdapterMethodNotImplemented()
+
+    def struct_alter_column_with_conversion_sql(self, column_name=None, new_sql_type=None,
+                                                conversion_expression=None, **kwargs):
+        """
+        Generate SQL to alter column type with explicit conversion.
+        Default implementation for databases that don't support USING clause.
+        """
+        raise AdapterMethodNotImplemented(
+            "Type conversion not supported for this database adapter. "
+            "Use an upgrade script for manual conversion."
+        )
 
     def struct_add_not_null_sql(self, column_name, **kwargs):
         """Generates SQL to add a NOT NULL constraint to a column."""
