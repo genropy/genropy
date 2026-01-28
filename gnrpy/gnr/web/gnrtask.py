@@ -54,6 +54,8 @@ def determine_task_manager_to_use():
 # or the new async based task scheduler/worker
 USE_ASYNC_TASKS = determine_task_manager_to_use()
 
+logger.info("Using new task infrastructure: %s", USE_ASYNC_TASKS)
+
 class GnrTaskScheduler(object):
     def __init__(self,instancename,interval=None):
         self.app = GnrApp(instancename,enabled_packages=['gnrcore:sys'])
@@ -63,7 +65,9 @@ class GnrTaskScheduler(object):
         self.tasktbl = self.db.table('sys.task')
         self.exectbl = self.db.table('sys.task_execution')
 
+
     def start(self):
+        logger.info("Starting task scheduler, check every %s seconds", self.interval)
         while True:
             self.writeTaskExecutions()
             self.db.closeConnection()
@@ -71,7 +75,9 @@ class GnrTaskScheduler(object):
     
     def writeTaskExecutions(self):
         now = datetime.now()
+        logger.info("Checking for new tasks")
         task_to_schedule = self.tasktbl.findTasks()
+        logger.debug("Found tasks to schedule: %s", task_to_schedule)
         existing_executions = self.exectbl.query(columns='$reasonkey,$status',
                                                 where='$reasonkey IN :reasonkeys',
                                                 reasonkeys=['%s_%s' %t for t in task_to_schedule if t[1]!='*']).fetchAsDict('reasonkey')
@@ -83,7 +89,7 @@ class GnrTaskScheduler(object):
             if reasonkey not in existing_executions:
                 self.exectbl.insert(self.exectbl.newrecord(task_id=t,exec_reason=reason,reasonkey=reasonkey))
                 taskToUpdate.append(t)
-
+        logger.debug("Tasks to be updated: %s", taskToUpdate)
         self.tasktbl.batchUpdate(dict(last_scheduled_ts=now,run_asap=None),
                                  _pkeys=taskToUpdate,
                                  for_update='SKIP LOCKED')
