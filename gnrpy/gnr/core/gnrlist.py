@@ -32,6 +32,7 @@ import clevercsv
 from gnr.core import logger
 from gnr.core.gnrdecorator import deprecated
 from gnr.core.gnrstring import slugify
+from gnr.core.gnrlang import getEncoding
 
 # FIXME: what's this for?
 class FakeList(list):
@@ -563,33 +564,40 @@ class CsvReader(object):
     :param delimiter: field delimiter character (default: ',')
     :param detect_encoding: if True, automatically detect file encoding using chardet
     :param encoding: explicit encoding to use (currently overridden by detect_encoding logic)
-
-    Note: There's a FIXME - the encoding parameter is currently reset to None.
+    :param start_at_line: Start reading from given (human-readable) line number
     """
-    def __init__(self, docname, dialect=None, delimiter=None,
-                 detect_encoding=False, encoding=None, **kwargs):
+    def __init__(self, docname,
+                 dialect=None, delimiter=None,
+                 detect_encoding=False, encoding=None,
+                 start_at_line=1,
+                 **kwargs):
         self.docname = docname
         self.dirname = os.path.dirname(docname)
         self.basename, self.ext = os.path.splitext(os.path.basename(docname))
         self.ext = self.ext.replace('.', '')
 
         if detect_encoding and not encoding:
-            encoding = self.detect_encoding()
+            encoding = getEncoding(docname)
+
         if encoding:
             self.filecsv = open(docname,'r', encoding=encoding)
         else:
             self.filecsv = open(docname,'r')
+        
+        # Skip "start_at_line" lines (for future GUI developments)
+        # If start_at_line is None, treat it as 1 (no lines to skip)
+        if start_at_line is None:
+            start_at_line = 1
+        for _ in range(start_at_line - 1):
+            next(self.filecsv)
 
-        # delimiter argument has priority over dialect in csv.reader, so...
+        # Delimiter argument has priority over dialect in clevercsv.reader
         if delimiter:
             self.rows = clevercsv.reader(self.filecsv, dialect=dialect, delimiter=delimiter)
         elif dialect:
             self.rows = clevercsv.reader(self.filecsv, dialect=dialect)
         else:
             self.rows = clevercsv.reader(self.filecsv, delimiter=',')
-        
-
-
 
         self.headers = next(self.rows)
 
@@ -616,25 +624,6 @@ class CsvReader(object):
         for r in self.rows:
             yield GnrNamedList(self.index, r)
         self.filecsv.close()
-
-    def detect_encoding(self):
-        try:
-            import cchardet as chardet # noqa: F401
-        except ImportError:
-            try:
-                import chardet # noqa: F401
-            except ImportError:
-                logger.exception('either cchardet or chardet are required to detect encoding')
-                return
-        from chardet.universaldetector import UniversalDetector
-        detector = UniversalDetector()
-        detector.reset()
-        with open(self.docname, 'rb') as f:
-            for row in f:
-                detector.feed(row)
-                if detector.done: break
-        detector.close()
-        return detector.result.get('encoding')
 
 
 class XmlReader(object):
@@ -965,8 +954,7 @@ def getReader(file_path, filetype=None,
 
             encoding = kwargs.get('encoding')
             if not encoding:
-                encoding = clevercsv.encoding.get_encoding(file_path,
-                                                           try_cchardet=False)
+                encoding = getEncoding(file_path)
 
             dialect = getCsvDialect(file_path,
                                     encoding=encoding,
@@ -974,6 +962,9 @@ def getReader(file_path, filetype=None,
                                     start_at_line=start_at_line,
                                     detector_max_lines=detector_max_lines)
 
-        reader = CsvReader(file_path, dialect=dialect, **kwargs)
+        reader = CsvReader(file_path,
+                           dialect=dialect,
+                           start_at_line=start_at_line,
+                           **kwargs)
         reader.index = {slugify(k, sep='_'):v for k,v in reader.index.items()}
     return reader

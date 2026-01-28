@@ -261,63 +261,29 @@ def test_getReader():
         a = gl.getReader(filename)
 
 def test_getReader_CsvAuto():
-    """Test CSV Sniffer with various delimiters (issue #427)
-
-    Verifies that the csv_auto filetype correctly detects different delimiters
-    (comma, semicolon, tab, pipe, colon) across multiple test files.
-    """
+    """Test getReader with csv_auto filetype detects various delimiters correctly."""
     test_dir = os.path.dirname(__file__)
 
-    # Test files with different delimiters and decimal formats
     test_files = [
-        ('test_CsvAuto_Colon.csv', '-50,00'),
-        ('test_CsvAuto_Comma.csv', '-50.00'),
-        ('test_CsvAuto_CommaQuotedDecimalsEUR.csv', '-50,00'),
-        ('test_CsvAuto_CommaQuotedDecimalsUSA.csv', '-50.00'),
-        ('test_CsvAuto_Pipe.csv', '-50,00'),
-        ('test_CsvAuto_SemiColon.csv', '-50,00'),
-        ('test_CsvAuto_Tab.csv', '-50,00'),
+        'test_CsvAuto_Colon.csv',
+        'test_CsvAuto_Comma.csv',
+        'test_CsvAuto_CommaQuotedDecimalsEUR.csv',
+        'test_CsvAuto_CommaQuotedDecimalsUSA.csv',
+        'test_CsvAuto_Pipe.csv',
+        'test_CsvAuto_SemiColon.csv',
+        'test_CsvAuto_Tab.csv',
     ]
 
-    expected_description = 'PAGAMENTO   CARTA DEBITO;\tINTERNAZIONALE: "5375******3179" -03/01/26-13:49 BIANCHI NEGOZIO ABBIGLIAMENTO -ITA'
-
-    for filename, expected_importo in test_files:
+    for filename in test_files:
         test_file = os.path.join(test_dir, 'data', filename)
 
-        # Read CSV with automatic dialect detection
         reader = gl.getReader(test_file, filetype='csv_auto')
 
-        # Verify header structure
-        assert reader.ncols == 11, f"{filename}: Expected 11 columns, got {reader.ncols}"
-        assert reader.headers[0] == 'Data contabile', f"{filename}: First header mismatch"
-        assert reader.headers[10] == 'Note', f"{filename}: Last header mismatch"
-
-        # Read all rows
-        rows = list(reader())
-
-        # Verify row count (6 data rows + 1 header = 7 total, but reader returns only data rows)
-        assert len(rows) == 6, f"{filename}: Expected 6 data rows, got {len(rows)}"
-
-        # Verify last row (index 5, which is row 7 in the CSV including header)
-        last_row = rows[5]
-
-        # Check "Importo" field (index 2)
-        assert last_row[2] == expected_importo, f"{filename}: Expected importo '{expected_importo}', got '{last_row[2]}'"
-
-        # Check "Descrizione" field (index 9)
-        assert last_row[9] == expected_description, f"{filename}: Description mismatch, got '{last_row[9]}'"
-        
-def test_CsvReader():
-    test_dir = os.path.dirname(__file__)
-    test_file = os.path.join(test_dir, "data", "test.csv")
-    a = gl.CsvReader(test_file)
-    # FIXME: odd interface using __call__
-    r = [x for x in a()]
-    assert len(r) == 1
-    assert isinstance(r[0], gl.GnrNamedList)
-    assert 'a' in r[0].keys()
-    a = gl.CsvReader(test_file, detect_encoding=True)
-
+        assert reader.ncols == 11
+        assert reader.headers[0] == 'Data contabile'
+        assert reader.headers[10] == 'Note'
+        assert len(list(reader())) == 6
+       
 
 def test_XlsReader():
     test_dir = os.path.dirname(__file__)
@@ -423,55 +389,6 @@ def test_sortByAttr():
     m1.a = MockObj()
     m2 = MockObj()
     m2.a = MockObj()
-
-
-def test_CsvReader_duplicate_columns():
-    """Test handling of duplicate column names in CSV files"""
-    import tempfile
-    import csv
-
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, newline='') as f:
-        csv_file = f.name
-        writer = csv.writer(f)
-        # Headers with duplicate 'name' column
-        writer.writerow(['id', 'name', 'surname', 'name', 'email'])
-        writer.writerow(['1', 'Mario', 'Rossi', 'Giuseppe', 'mario@test.com'])
-        writer.writerow(['2', 'Laura', 'Bianchi', 'Anna', 'laura@test.com'])
-
-    try:
-        reader = gl.CsvReader(csv_file)
-
-        # Check that duplicate column has been renamed
-        assert 'name' in reader.headers
-        assert 'name[3]' in reader.headers
-        assert reader.headers == ['id', 'name', 'surname', 'name[3]', 'email']
-
-        # Check index mapping
-        assert reader.index['name'] == 1
-        assert reader.index['name[3]'] == 3
-
-        # Read rows
-        rows = [row for row in reader()]
-        assert len(rows) == 2
-
-        # Test first row
-        row = rows[0]
-        assert row[0] == '1'
-        assert row[1] == 'Mario'
-        assert row[2] == 'Rossi'
-        assert row[3] == 'Giuseppe'
-        assert row[4] == 'mario@test.com'
-
-        # Access by name
-        assert row['id'] == '1'
-        assert row['name'] == 'Mario'
-        assert row['surname'] == 'Rossi'
-        assert row['name[3]'] == 'Giuseppe'
-        assert row['email'] == 'mario@test.com'
-
-    finally:
-        os.unlink(csv_file)
-
 
 def test_XlsxReader_duplicate_columns():
     """Test handling of duplicate column names in XLSX files"""
@@ -943,3 +860,203 @@ def test_GnrNamedList_mixed_access_patterns():
     # Pattern 5: Enumerate
     for i, value in enumerate(row):
         assert row[i] == value
+
+
+class TestCsvReader:
+    """Test suite for CsvReader class"""
+
+    def test_basics(self):
+        test_dir = os.path.dirname(__file__)
+        test_file = os.path.join(test_dir, "data", "test.csv")
+        a = gl.CsvReader(test_file)
+        # FIXME: odd interface using __call__
+        r = [x for x in a()]
+        assert len(r) == 1
+        assert isinstance(r[0], gl.GnrNamedList)
+        assert 'a' in r[0].keys()
+        a = gl.CsvReader(test_file, detect_encoding=True)
+
+
+    def test_duplicate_columns(self):
+        """Test handling of duplicate column names in CSV files"""
+        import tempfile
+        import csv
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, newline='') as f:
+            csv_file = f.name
+            writer = csv.writer(f)
+            # Headers with duplicate 'name' column
+            writer.writerow(['id', 'name', 'surname', 'name', 'email'])
+            writer.writerow(['1', 'Mario', 'Rossi', 'Giuseppe', 'mario@test.com'])
+            writer.writerow(['2', 'Laura', 'Bianchi', 'Anna', 'laura@test.com'])
+
+        try:
+            reader = gl.CsvReader(csv_file)
+
+            # Check that duplicate column has been renamed
+            assert 'name' in reader.headers
+            assert 'name[3]' in reader.headers
+            assert reader.headers == ['id', 'name', 'surname', 'name[3]', 'email']
+
+            # Check index mapping
+            assert reader.index['name'] == 1
+            assert reader.index['name[3]'] == 3
+
+            # Read rows
+            rows = [row for row in reader()]
+            assert len(rows) == 2
+
+            # Test first row
+            row = rows[0]
+            assert row[0] == '1'
+            assert row[1] == 'Mario'
+            assert row[2] == 'Rossi'
+            assert row[3] == 'Giuseppe'
+            assert row[4] == 'mario@test.com'
+
+            # Access by name
+            assert row['id'] == '1'
+            assert row['name'] == 'Mario'
+            assert row['surname'] == 'Rossi'
+            assert row['name[3]'] == 'Giuseppe'
+            assert row['email'] == 'mario@test.com'
+
+        finally:
+            os.unlink(csv_file)
+
+
+    def test_quoted_decimals(self):
+        """Test CsvReader correctly reads quoted decimal values in different formats (EUR vs USA)"""
+        test_dir = os.path.dirname(__file__)
+
+        test_cases = [
+            ('test_CsvAuto_CommaQuotedDecimalsEUR.csv', '-50,00'),  # European format: comma as decimal separator
+            ('test_CsvAuto_CommaQuotedDecimalsUSA.csv', '-50.00'),  # US format: period as decimal separator
+        ]
+
+        expected_description = 'PAGAMENTO   CARTA DEBITO;\tINTERNAZIONALE: "5375******3179" -03/01/26-13:49 BIANCHI NEGOZIO ABBIGLIAMENTO -ITA'
+
+        for filename, expected_importo in test_cases:
+            test_file = os.path.join(test_dir, 'data', filename)
+
+            # Detect dialect first, then create CsvReader
+            dialect = gl.getCsvDialect(test_file, encoding='utf-8')
+            reader = gl.CsvReader(test_file, dialect=dialect, encoding='utf-8')
+
+            assert reader.ncols == 11
+            assert reader.headers[0] == 'Data contabile'
+            assert reader.headers[10] == 'Note'
+
+            rows = list(reader())
+            assert len(rows) == 6
+
+            last_row = rows[5]
+            assert last_row[2] == expected_importo
+            assert last_row[9] == expected_description
+
+    def test_encoding_detection(self):
+        """Test CsvReader with detect_encoding=True on files with various encodings.
+
+        Verifies that:
+        1. Header is correctly read (slugified to 'id,nome,citta,descrizione' or similar)
+        2. Last row, 4th field (descrizione) contains encoding-specific characters
+        """
+        test_dir = os.path.dirname(__file__)
+
+        # Map filename to expected last row description field
+        # Each file has different content in the last row's 'descrizione' field
+        test_cases = [
+            ('test_Enc_ASCII.csv', ['id', 'nome', 'citta', 'descrizione'], 'Descrizione semplice e pulita'),
+            ('test_Enc_UTF8.csv', ['id', 'nome', 'città', 'descrizione'], 'Текст на русском языке'),
+            ('test_Enc_ISO8859_1.csv', ['id', 'nome', 'città', 'descrizione'], 'Größe und Qualität'),
+            ('test_Enc_Windows1252.csv', ['id', 'nome', 'città', 'descrizione'], 'Größe™ und Qualität'),
+            ('test_Enc_Windows1251.csv', ['id', 'name', 'city', 'description'], 'Белорусская столица'),
+            ('test_Enc_Windows1253.csv', ['id', 'name', 'city', 'description'], 'Νησί της Κρήτης €'),
+            ('test_Enc_KOI8R.csv', ['id', 'name', 'city', 'description'], 'Дальний Восток России'),
+            ('test_Enc_SHIFTJIS.csv', ['id', 'name', 'city', 'description'], '北海道の首都'),
+            ('test_Enc_EUCKR.csv', ['id', 'name', 'city', 'description'], '영남지방 중심도시'),
+            ('test_Enc_GB2312.csv', ['id', 'nome', 'città', 'descrizione'], '经济特区城市'),
+        ]
+
+        for filename, expected_header, expected_last_descrizione in test_cases:
+            test_file = os.path.join(test_dir, 'data', filename)
+
+            reader = gl.CsvReader(test_file, detect_encoding=True)
+
+            assert reader.headers == expected_header
+
+            rows = list(reader())
+            last_row = rows[-1]
+
+            assert last_row[3] == expected_last_descrizione
+
+    def test_start_at_line(self):
+        """Test CsvReader start_at_line parameter skips header lines correctly.
+
+        Uses test_CsvAuto_Colon_skipLines.csv which has 12 lines of metadata before the actual CSV data.
+        With start_at_line=13, results should be identical to test_CsvAuto_Colon.csv without the parameter.
+        """
+        test_dir = os.path.dirname(__file__)
+
+        # Reference file (no skip)
+        reference_file = os.path.join(test_dir, 'data', 'test_CsvAuto_Colon.csv')
+        dialect = gl.getCsvDialect(reference_file, encoding='utf-8')
+        reference_reader = gl.CsvReader(reference_file,
+                                        dialect=dialect, encoding='utf-8')
+        reference_rows = list(reference_reader())
+
+        # File with metadata to skip
+        START_LINE = 13
+        skip_file = os.path.join(test_dir, 'data', 'test_CsvAuto_Colon_skipLines.csv')
+        dialect = gl.getCsvDialect(skip_file, encoding='utf-8',
+                                   start_at_line=START_LINE)
+        skip_reader = gl.CsvReader(skip_file,
+                                   dialect=dialect, encoding='utf-8',
+                                   start_at_line=START_LINE)
+        skip_rows = list(skip_reader())
+
+        assert reference_reader.headers == skip_reader.headers
+        assert len(reference_rows) == len(skip_rows)
+
+        for ref_row, skip_row in zip(reference_rows, skip_rows):
+            for j in range(len(ref_row)):
+                assert ref_row[j] == skip_row[j]
+
+    def test_auto_dialect(self):
+        """Test CsvReader with automatic dialect detection via getCsvDialect.
+
+        Verifies that CsvReader correctly reads CSV files with various delimiters
+        (comma, semicolon, tab, pipe, colon) when dialect is detected via getCsvDialect.
+        """
+        test_dir = os.path.dirname(__file__)
+
+        # Test files with different delimiters and decimal formats
+        test_files = [
+            ('test_CsvAuto_Colon.csv', '-50,00'),
+            ('test_CsvAuto_Comma.csv', '-50.00'),
+            ('test_CsvAuto_CommaQuotedDecimalsEUR.csv', '-50,00'),
+            ('test_CsvAuto_CommaQuotedDecimalsUSA.csv', '-50.00'),
+            ('test_CsvAuto_Pipe.csv', '-50,00'),
+            ('test_CsvAuto_SemiColon.csv', '-50,00'),
+            ('test_CsvAuto_Tab.csv', '-50,00'),
+        ]
+
+        expected_description = 'PAGAMENTO   CARTA DEBITO;\tINTERNAZIONALE: "5375******3179" -03/01/26-13:49 BIANCHI NEGOZIO ABBIGLIAMENTO -ITA'
+
+        for filename, expected_importo in test_files:
+            test_file = os.path.join(test_dir, 'data', filename)
+
+            # Detect dialect first, then create CsvReader
+            dialect = gl.getCsvDialect(test_file, encoding='utf-8')
+            reader = gl.CsvReader(test_file, dialect=dialect, encoding='utf-8')
+
+            assert reader.ncols == 11
+            assert reader.headers[0] == 'Data contabile'
+            assert reader.headers[10] == 'Note'
+
+            rows = list(reader())
+            assert len(rows) == 6
+
+            last_row = rows[5]
+            assert last_row[2] == expected_importo
+            assert last_row[9] == expected_description
