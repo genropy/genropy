@@ -140,22 +140,23 @@ class Main(GnrBaseService):
         """Register or update this genropy instance as a tenant on the mail proxy.
 
         Uses self.tenant_id and self.client_base_url for identification.
-        If registration is successful and returns an api_key, it will be saved
-        as 'tenant_token' in sys.service.parameters.
 
         Args:
             username: Username for Basic Auth
             password: Password for Basic Auth
 
         Returns:
-            dict: Response with 'ok' status and 'api_key' (for new registrations) from proxy
+            dict: Response with 'ok' status and 'api_key' (for new registrations)
+
+        Raises:
+            Exception: If registration fails
         """
         payload = {
             "id": self.tenant_id,
             "client_base_url": self.client_base_url,
+            "client_sync_path": '/proxy_sync',
+            "client_attachment_path": '/proxy_get_attachments'
         }
-        payload["client_sync_path"] = '/proxy_sync'
-        payload["client_attachment_path"] = '/proxy_get_attachments'
         if username and password:
             payload["client_auth"] = {
                 "method": "basic",
@@ -164,18 +165,8 @@ class Main(GnrBaseService):
             }
         response = self._post("/tenant", json=payload)
 
-        # Save tenant_token in parameters if received
-        if response.get('ok') and response.get('api_key'):
-            service_tbl = self.parent.db.table('sys.service')
-            with service_tbl.recordToUpdate(service_type=self.service_type,
-                                            service_name=self.service_name
-            ) as rec:
-                params = Bag(rec['parameters'])
-                params['tenant_token'] = response['api_key']
-                rec['parameters'] = params
-
-            # Update instance memory for immediate use in _sync_mailproxy_accounts()
-            self.tenant_token = response['api_key']
+        if not response.get('ok'):
+            raise Exception(response.get('error') or 'Registration failed')
 
         return response
 
@@ -379,9 +370,6 @@ class Main(GnrBaseService):
                 password=password
             )
 
-            if not response.get('ok'):
-                raise Exception(response.get('error') or 'Registration failed')
-
             service_tbl = self.parent.db.table('sys.service')
             with service_tbl.recordToUpdate(service_type=self.service_type,
                                             service_name=self.service_name) as rec:
@@ -389,8 +377,10 @@ class Main(GnrBaseService):
                 params['tenant_registered'] = True
                 params['client_base_url'] = self.client_base_url
                 params['tenant_id'] = self.tenant_id
+                params['tenant_token'] = response['api_key']
                 rec['parameters'] = params
 
+            self.tenant_token = params['tenant_token']
             synced, failed = self._sync_mailproxy_accounts()
 
             return {
