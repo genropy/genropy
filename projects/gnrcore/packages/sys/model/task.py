@@ -1,8 +1,7 @@
 # encoding: utf-8
 
-from datetime import datetime
-
 from gnr.core.gnrbag import Bag
+from gnr.core.gnrdatetime import datetime
 from gnr.web.gnrtask import USE_ASYNC_TASKS
 from gnr.app import pkglog as logger
 
@@ -155,6 +154,7 @@ class Table(object):
                 if reason:
                     tasks_to_run.append((task['id'],reason))
             except Exception as e:
+                logger.exception("Error checking for tasks: %s", e)
                 self.db.table('sys.error').writeException(description='Scheduling Error task %s %s :%s' %(task['table_name'],task['command'],str(e)))
         return tasks_to_run
 
