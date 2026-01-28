@@ -765,11 +765,11 @@ dojo.declare("gnr.QueryManager", null, {
             var params = objectExtract(currAttrs,'parameter_*');
             var dflt = objectExtract(currAttrs,'default_*');
             for(var k in params){
-                parslist.push({value_caption:'?'+(k in dflt? params[k]+'|'+dflt[k] : params[k]), 
+                parslist.push({value_caption:'?'+(k in dflt? params[k]+'|'+dflt[k] : params[k]),
                                 relpath:'parameter_'+k});
             }
         }else if(querybag.getItem("#0?column")){
-            this.cleanQueryPane(querybag); 
+            this.cleanQueryPane(querybag);
             parslist = this.translateQueryPars();
         }
         if (parslist.length>0){
@@ -818,9 +818,31 @@ dojo.declare("gnr.QueryManager", null, {
     
     buildParsDialog:function(parslist) {
         var sourceNode = this.sourceNode;
-        var dlg = genro.dlg.quickDialog('Complete query',{datapath:this.wherepath,width:'250px',autoSize:true});
         var that = this;
+
+        // Use a temporary isolated datapath to avoid interference with the main query builder
+        var tempPath = 'gnr.temp_querypars_'+genro.time36Id();
+        var dlg = genro.dlg.quickDialog('Complete query',{datapath:tempPath,width:'250px',autoSize:true});
+
+        // Copy current where clause data to temporary path
+        var whereData = sourceNode.getRelativeData(this.wherepath);
+        genro.setData(tempPath, whereData.deepCopy());
+        var tempData = genro.getData(tempPath);
+
+        // Clean parametric markers (?Parameter) from tempData before displaying
+        // These markers are placeholders and should not appear as initial values
+        for (var i = 0; i < parslist.length; i++) {
+            var relpath = parslist[i].relpath;
+            var currentValue = tempData.getItem ? tempData.getItem(relpath) : null;
+            if (currentValue && typeof currentValue === 'string' && currentValue.indexOf('?') === 0) {
+                tempData.setItem(relpath, null);
+            }
+        }
+
         var confirm = function(){
+            // Copy values from temporary path back to where clause before running query
+            var tempConfirmData = genro.getData(tempPath);
+            sourceNode.setRelativeData(that.wherepath, tempConfirmData);
             that.runQuery()
             dlg.close_action();
         };
@@ -829,7 +851,7 @@ dojo.declare("gnr.QueryManager", null, {
         };
         var center = dlg.center._('div',{padding:'10px'});
         var bottom = dlg.bottom._('slotBar',{'slots':'cancel,*,confirm'});
-        genro.dev.dynamicQueryParsFb(center,sourceNode.getRelativeData(this.wherepath),parslist,1);
+        genro.dev.dynamicQueryParsFb(center,tempData,parslist,1);
         bottom._('button', 'cancel',{label:'Cancel',baseClass:'bottom_btn',action:cancel});
         bottom._('button', 'confirm',{label:'Confirm',baseClass:'bottom_btn',action:confirm});
         dlg.show_action();

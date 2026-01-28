@@ -1138,7 +1138,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
             }else{
                 dflt = attrs.dflt;
             }
-            
+
             if(dflt){
                 wherebag.setItem(attrs.relpath,dflt);
             }
