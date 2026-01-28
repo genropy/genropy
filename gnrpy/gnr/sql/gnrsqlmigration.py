@@ -22,17 +22,6 @@ ENTITY_TREE = {
             }
         }
 }
-COMPATIBLE_TYPES = {
-    "A": {"T", "C", "X", "Z", "P"},              # Text-like: character, varchar, text
-    "T": {"A", "C", "X", "Z", "P"},              # Text-like: text, varchar
-    "C": {"A", "T", "X", "Z", "P"},              # Text-like: character, varchar
-    "I": {"L", "N"},         # Integer-like: int, bigint, numeric
-    "B": {"I"},                   # Boolean-like: boolean → int
-    "D": {"DH", "DHZ"},                  # Date-like: date → timestamp
-    "DH": {"D", "DHZ"},     # DateTime-like: timestamp → date, with/without tz
-    "N": {"I", "L", "R"},         # Numeric-like: numeric → integer, bigint
-    "L": {"I", "N", "R"},              # BigInt-like: bigint → int, numeric
-}
 
 COL_JSON_KEYS = ("dtype","notnull","sqldefault","size","unique","extra_sql","generated_expression")
 
@@ -381,8 +370,9 @@ class OrmExtractor:
             if ':' in size:
                 dtype = 'A'
             elif ',' not in size:
-                if not dtype or 'C' in COMPATIBLE_TYPES[dtype]:
-                    dtype = 'C'    
+                # Text-like types that can be converted to fixed-length character
+                if not dtype or dtype in ('A', 'T', 'X', 'Z', 'P'):
+                    dtype = 'C'
                 elif dtype =='N':
                     size = f'{size},0'
         if dtype in ('A','C') and not size:
@@ -569,7 +559,9 @@ class SqlMigrator():
                  extensions=None,
                  ignore_constraint_name=True,
                  excludeReadOnly=True,
-                 removeDisabled=True):
+                 removeDisabled=True,
+                 force=False,
+                 backup=False):
         self.db = db
         self.extensions = extensions.split(',') if extensions else []
         self.commands = {}
@@ -577,6 +569,8 @@ class SqlMigrator():
         self.excludeReadOnly = excludeReadOnly
         self.removeDisabled = removeDisabled
         self.ignore_constraint_name = ignore_constraint_name
+        self.force = force or backup  # backup implies force
+        self.backup = backup
         self.dbExtractor = DbExtractor(migrator=self)
         self.ormExtractor = OrmExtractor(migrator=self,extensions=self.extensions)
 
@@ -830,25 +824,131 @@ class SqlMigrator():
         columns_dict = table_dict['columns']
         column_name = item['entity_name']
         if changed_attribute=='size' and not item.get('_rebuilt'):
-            new_sql_type = self.db.adapter.columnSqlType(dtype=item['attributes']['dtype'], size=item['attributes'].get('size'))
-            columns_dict[column_name]['command'] = self.db.adapter.struct_alter_column_sql(
-                    column_name=column_name,
-                    new_sql_type=new_sql_type,
-                    schema_name=item['schema_name'],
-                    table_name=item['table_name']
+            # Check if there's already a command with USING clause from dtype conversion
+            existing_command = columns_dict[column_name].get('command', '')
+            if 'USING' not in existing_command:
+                # Only update if there's no dtype conversion with USING clause
+                new_sql_type = self.db.adapter.columnSqlType(dtype=item['attributes']['dtype'], size=item['attributes'].get('size'))
+                columns_dict[column_name]['command'] = self.db.adapter.struct_alter_column_sql(
+                        column_name=column_name,
+                        new_sql_type=new_sql_type,
+                        schema_name=item['schema_name'],
+                        table_name=item['table_name']
+                    )
+            else:
+                # Dtype conversion already handles size, but update the sql type in the existing command
+                # Replace the type in the USING command with the correct sized type
+                new_sql_type = self.db.adapter.columnSqlType(dtype=item['attributes']['dtype'], size=item['attributes'].get('size'))
+                # Extract just the type name from existing command and update it
+                # The existing command will have the old type, we need to update it with the sized type
+                import re
+                existing_command = columns_dict[column_name]['command']
+                # Replace "TYPE <oldtype>" with "TYPE <newtype>" before USING
+                columns_dict[column_name]['command'] = re.sub(
+                    r'TYPE\s+\S+(\s+USING)',
+                    f'TYPE {new_sql_type}\\1',
+                    existing_command
                 )
 
         elif changed_attribute == 'dtype':
-            compatible_types = COMPATIBLE_TYPES.get(oldvalue,[])
-            if newvalue in compatible_types:
-                new_sql_type = self.db.adapter.columnSqlType(dtype=item['attributes']['dtype'], size=item['attributes'].get('size'))
-                columns_dict[column_name]['command'] = self.db.adapter.struct_alter_column_sql(
-                    column_name=column_name,
-                    new_sql_type=new_sql_type,
-                    schema_name=item['schema_name'],
-                    table_name=item['table_name']
+            TEXT_TYPES = ('T', 'A', 'C', 'X', 'Z', 'P')
+
+            # Generic rule: any type → text is always possible
+            if newvalue in TEXT_TYPES and oldvalue not in TEXT_TYPES:
+                new_sql_type = self.db.adapter.columnSqlType(
+                    dtype=item['attributes']['dtype'],
+                    size=item['attributes'].get('size')
                 )
+                # Bytea requires special encoding
+                if oldvalue == 'O':
+                    conversion_expression = f'encode("{column_name}", \'hex\')'
+                    columns_dict[column_name]['command'] = self.db.adapter.struct_alter_column_with_conversion_sql(
+                        column_name=column_name,
+                        new_sql_type=new_sql_type,
+                        conversion_expression=conversion_expression,
+                        schema_name=item['schema_name'],
+                        table_name=item['table_name']
+                    )
+                else:
+                    # Simple conversion (PostgreSQL does implicit cast)
+                    columns_dict[column_name]['command'] = self.db.adapter.struct_alter_column_sql(
+                        column_name=column_name,
+                        new_sql_type=new_sql_type,
+                        schema_name=item['schema_name'],
+                        table_name=item['table_name']
+                    )
+                return  # Conversion handled
+
+            conversion_key = (oldvalue, newvalue)
+            if conversion_key in self.db.adapter.TYPE_CONVERSIONS:  # Conversion is supported
+                conversion_def = self.db.adapter.TYPE_CONVERSIONS[conversion_key]
+                new_sql_type = self.db.adapter.columnSqlType(
+                    dtype=item['attributes']['dtype'],
+                    size=item['attributes'].get('size')
+                )
+
+                # Simple conversion (None or True)
+                if conversion_def in (None, True):
+                    columns_dict[column_name]['command'] = self.db.adapter.struct_alter_column_sql(
+                        column_name=column_name,
+                        new_sql_type=new_sql_type,
+                        schema_name=item['schema_name'],
+                        table_name=item['table_name']
+                    )
+
+                # Complex conversion with USING clause (string format)
+                elif isinstance(conversion_def, str):
+                    schema_name = item['schema_name']
+                    table_name = item['table_name']
+                    full_table = f'"{schema_name}"."{table_name}"'
+                    conversion_expression = conversion_def.format(column_name=f'"{column_name}"')
+
+                    # Default mode: raise exception if column is not empty
+                    if not self.force:
+                        if not self.is_empty_column(item):
+                            raise GnrSqlException(
+                                f'Incompatible type conversion {oldvalue}→{newvalue} on non-empty column '
+                                f'{table_name}.{column_name}. '
+                                f'Use --force to convert (non-matching values become NULL) '
+                                f'or --backup to create backup columns first.'
+                            )
+
+                    # In backup mode: create backup column before conversion
+                    if self.backup:
+                        backup_column_name = f'{column_name}__{oldvalue}'
+
+                        # Store backup info for post-migration verification
+                        if not hasattr(self, '_conversion_backups'):
+                            self._conversion_backups = []
+                        self._conversion_backups.append({
+                            'schema': schema_name,
+                            'table': table_name,
+                            'column': column_name,
+                            'backup_column': backup_column_name,
+                            'old_dtype': oldvalue,
+                            'new_dtype': newvalue
+                        })
+
+                        # Store pre-conversion commands (backup creation and data copy)
+                        if 'pre_commands' not in table_dict:
+                            table_dict['pre_commands'] = []
+                        table_dict['pre_commands'].append(
+                            f'ALTER TABLE {full_table} ADD COLUMN "{backup_column_name}" text'
+                        )
+                        table_dict['pre_commands'].append(
+                            f'UPDATE {full_table} SET "{backup_column_name}" = "{column_name}"::text'
+                        )
+
+                    # The conversion command (used with --force or --backup)
+                    columns_dict[column_name]['command'] = self.db.adapter.struct_alter_column_with_conversion_sql(
+                        column_name=column_name,
+                        new_sql_type=new_sql_type,
+                        conversion_expression=conversion_expression,
+                        schema_name=schema_name,
+                        table_name=table_name
+                    )
             else:
+                # Conversion not supported
                 if self.is_empty_column(item):
                     entity_name = item['entity_name']
                     table_dict['columns'][f'rem_{entity_name}']['command'] = f'DROP COLUMN "{entity_name}"'
@@ -1099,9 +1199,15 @@ class SqlMigrator():
         command_list = []
         relation_command_list = []
         alter_table_command = f'ALTER TABLE "{schema_name}"."{table_name}"'
+
+        # Add pre-conversion commands (backup columns) first
+        pre_commands = tbl_item.get('pre_commands', [])
+        for pre_cmd in pre_commands:
+            command_list.append(f"{pre_cmd};")
+
         col_commands = ',\n'.join(col['command'] for col in tbl_item['columns'].values())
         constraint_commands = [con['command'] for con in tbl_item['constraints'].values()]
-        
+
         #append to relation_command_list the foreign key constraints.
         relation_command_list += [f"{alter_table_command}\n {rel['command']};" for rel in tbl_item['relations'].values()]
 
@@ -1113,7 +1219,7 @@ class SqlMigrator():
             command_list.append(f"{alter_table_command}\n{col_commands};")
         # Add constraint commands
         for constraint_sql in constraint_commands:
-            #if the table has been created each constraint needs an alter table 
+            #if the table has been created each constraint needs an alter table
             command_list.append(f"{alter_table_command}\n{constraint_sql};")
 
         # Add index commands
@@ -1134,6 +1240,70 @@ class SqlMigrator():
         extensions_commands = self.sql_commands.pop('extensions_commands',None)
         if extensions_commands:
             self.db.adapter.execute(extensions_commands,autoCommit=True)
+
+    def verifyConversionBackups(self):
+        """Verify conversion backups and cleanup if no data was lost.
+
+        After a migration with type conversions, this method:
+        1. Checks each backup column for data loss (values that became NULL)
+        2. If no data loss: drops the backup column
+        3. If data loss: reports the issue and keeps the backup for recovery
+
+        Returns:
+            dict: Report of conversions with data loss (if any)
+        """
+        if not hasattr(self, '_conversion_backups') or not self._conversion_backups:
+            return {}
+
+        data_loss_report = {}
+
+        for backup_info in self._conversion_backups:
+            schema = backup_info['schema']
+            table = backup_info['table']
+            column = backup_info['column']
+            backup_column = backup_info['backup_column']
+            old_dtype = backup_info['old_dtype']
+            new_dtype = backup_info['new_dtype']
+
+            full_table = f'"{schema}"."{table}"'
+
+            # Count values that were lost (backup has value but converted column is NULL)
+            check_sql = f'''
+                SELECT COUNT(*) FROM {full_table}
+                WHERE "{backup_column}" IS NOT NULL AND "{column}" IS NULL
+            '''
+
+            try:
+                result = self.db.execute(check_sql)
+                row = result.fetchone() if result else None
+                lost_count = row[0] if row else 0
+
+                if lost_count > 0:
+                    # Data was lost - keep backup and report
+                    data_loss_report[f'{schema}.{table}.{column}'] = {
+                        'lost_values': lost_count,
+                        'backup_column': backup_column,
+                        'conversion': f'{old_dtype} -> {new_dtype}',
+                        'message': f'WARNING: {lost_count} value(s) could not be converted. '
+                                   f'Original data preserved in column "{backup_column}".'
+                    }
+                else:
+                    # No data loss - safe to drop backup
+                    drop_sql = f'ALTER TABLE {full_table} DROP COLUMN "{backup_column}"'
+                    self.db.adapter.execute(drop_sql, autoCommit=True)
+
+            except Exception as e:
+                # If check fails, keep backup to be safe
+                data_loss_report[f'{schema}.{table}.{column}'] = {
+                    'error': str(e),
+                    'backup_column': backup_column,
+                    'message': f'Could not verify conversion. Backup column "{backup_column}" preserved.'
+                }
+
+        # Clear the backups list
+        self._conversion_backups = []
+
+        return data_loss_report
 
     #jsonorm = OrmExtractor(GnrApp('dbsetup_tester').db).get_json_struct()
     
