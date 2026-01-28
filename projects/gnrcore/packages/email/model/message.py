@@ -5,7 +5,6 @@ import re
 import os
 import email
 import base64
-from datetime import datetime
 from smtplib import SMTPConnectError
 from mailparser import parse_from_bytes
 
@@ -34,7 +33,7 @@ class Table(object):
         tbl.column('body_plain',name_long='!!Plain Body')
         tbl.column('html','B',name_long='!!Html')
         tbl.column('subject',name_long='!!Subject')
-        tbl.column('send_date','DH',name_long='!!Send date',indexed=True)
+        tbl.column('send_date','DHZ',name_long='!!Send date',indexed=True)
         tbl.column('user_id',size='22',name_long='!!User id').relation('adm.user.id', mode='foreignkey', relation_name='messages')
         tbl.column('account_id',size='22',name_long='!!Account id').relation('email.account.id', mode='foreignkey', relation_name='messages')
         tbl.column('mailbox_id',size='22',name_long='!!Mailbox id').relation('email.mailbox.id', mode='foreignkey', relation_name='messages')
@@ -50,7 +49,13 @@ class Table(object):
         tbl.column('reply_message_id',size='22', group='_', name_long='!!Reply message id'
                     ).relation('email.message.id', relation_name='replies', mode='foreignkey', onDelete='setnull')
         tbl.column('error_msg', name_long='Error message')
-        tbl.column('error_ts', name_long='Error Timestamp')
+        tbl.column('error_ts',dtype='DHZ', name_long='Error Timestamp')
+        tbl.column('deferred_ts',dtype='DHZ', name_long='Deferred to Timestamp') #if smtp server does not accept other email
+
+        tbl.column('proxy_ts',dtype='DHZ', name_long='Dispatched to mail proxy')
+        tbl.column('proxy_priority', dtype='L', name_long='Priority')
+        tbl.column('batch_code', size=':22', name_long='!!Batch code for circular mails')
+
         tbl.column('connection_retry', dtype='L')
         tbl.column('priority', name_long='!![en]Priority',
                    values='9:[!![en]No send],3:[!![en]Low],2:[!![en]Standard],1:[!![en]High],-1:[!![en]Immediate]')
@@ -77,6 +82,24 @@ class Table(object):
         return dict(account_id=self.db.currentEnv.get('current_account_id'))
 
     def trigger_onInserting(self, record_data):
+        if record_data['account_id'] and record_data['in_out'] == 'O':
+            account_record = self.db.table('email.account').cachedRecord(
+                record_data['account_id'], 
+                cacheInPage=True
+            )
+            
+            # Set from_address if missing
+            if not record_data['from_address']:
+                record_data['from_address'] = account_record['smtp_from_address']
+            
+            # Handle BCC addresses
+            bcc_address = record_data['bcc_address'] or account_record['system_bcc'] or ''
+            system_bcc = account_record['system_bcc']
+            
+            if system_bcc and system_bcc not in bcc_address:
+                bcc_address = f'{bcc_address},{system_bcc}' if bcc_address else system_bcc
+            
+            record_data['bcc_address'] = bcc_address or None
         self.explodeAddressRelations(record_data)
         if record_data['in_out']=='I':
             email_bag = Bag(record_data['email_bag'])
@@ -87,14 +110,30 @@ class Table(object):
                     reply_message_id = rif_id[4:26]
                     if self.existsRecord(reply_message_id):
                         record_data['reply_message_id'] = reply_message_id
-    
+
+    def trigger_onInserted(self, record_data):
+        if record_data['in_out']=='O' and record_data['send_date'] is None:
+            self.db.table('email.message_to_send').addMessageToQueue(record_data['id'])
+
     def trigger_onUpdating(self, record_data, old_record):
         self.deleteAddressRelations(record_data)
         self.explodeAddressRelations(record_data)
     
+    def trigger_onUpdated(self, record_data,old_record=None):
+        error_in_sending = record_data['error_msg'] and not old_record['error_msg']
+        just_sent = record_data['send_date'] and not old_record['send_date']
+        just_dispatched_to_proxy = record_data['proxy_ts'] and not old_record['proxy_ts']
+        if just_sent or error_in_sending or just_dispatched_to_proxy:
+            self.db.table('email.message_to_send').removeMessageFromQueue(record_data['id'])
+        elif record_data['in_out']=='O' and not (record_data['send_date'] or record_data['proxy_ts']):
+            self.db.table('email.message_to_send').addMessageToQueue(record_data['id'])
+
     def trigger_onDeleting(self, record_data):
         self.deleteAddressRelations(record_data)
         
+    def trigger_onDeleted(self, record_data):
+        self.db.table('email.message_to_send').removeMessageFromQueue(record_data['id'])
+
     def extractAddresses(self,addresses):
         if not addresses:
             return []
@@ -137,11 +176,8 @@ class Table(object):
         ImapReceiver = imap_module.ImapReceiver
         if isinstance(account, str):
             account = self.db.table('email.account').record(pkey=account).output('bag')
-        print('INIT IMAP RECEIVER', account['account_name'])
         imap_checker = ImapReceiver(db=self.db, account=account)
-        print('RECEIVING', account['account_name'])
         imap_checker.receive()
-        print('RECEIVED', account['account_name'])
         #check_imap(page=page, account=account, remote_mailbox=remote_mailbox, local_mailbox=local_mailbox)
 
 
@@ -187,7 +223,7 @@ class Table(object):
         new_mail['cc_address'] = fill_address(mail.cc)
         new_mail['bcc_address'] = fill_address(mail.bcc)
         new_mail['subject'] = mail.subject
-        new_mail['send_date'] = mail.date or datetime.today()
+        new_mail['send_date'] = mail.date or self.newUTCDatetime()
 
 
     def parseAttachment(self, attachment, new_mail, atc_counter):
@@ -199,7 +235,7 @@ class Table(object):
         fname = fname.replace('.','_').replace('~','_').replace('#','_').replace(' ','').replace('/','_')
         fname = slugify(fname)
         filename = fname+ext
-        date = new_mail.get('send_date') or  datetime.datetime.today()
+        date = new_mail.get('send_date') or self.newUTCDatetime()
         attachmentNode =  self.getAttachmentNode(date=date,filename=filename, new_mail=new_mail, atc_counter=atc_counter)
         new_attachment['path'] = attachmentNode.fullpath
         new_attachment['filename'] = attachmentNode.basename
@@ -225,6 +261,7 @@ class Table(object):
                   subject=None, body=None, cc_address=None,
                   reply_to=None, bcc_address=None, attachments=None,weak_attachments=None,
                  message_id=None,message_date=None,message_type=None,
+                 batch_code=None,
                  html=False,doCommit=False,headers_kwargs=None,**kwargs):
 
         message_date = message_date or self.db.workdate
@@ -263,6 +300,7 @@ class Table(object):
                             extra_headers=extra_headers,
                             message_type=message_type,
                             weak_attachments=weak_attachments,
+                            batch_code=batch_code,
                             html=html,dbstore=dbstore,
                             reply_to=reply_to,**kwargs)
         message_atc = self.db.table('email.message_atc')
@@ -281,7 +319,7 @@ class Table(object):
                                             moveFile=False, copyFile=True)
         if doCommit:
             self.db.commit()
-        return message_to_dispatch
+        return message_to_dispatch        
 
     def newMessageFromUserTemplate(self,record_id=None,letterhead_id=None,
                             template_id=None,table=None,template_code=None,
@@ -317,7 +355,10 @@ class Table(object):
             if message['weak_attachments']:
                 attachments.extend(message['weak_attachments'].split(','))
             if mp['system_bcc']:
-                bcc_address = '%s,%s' %(bcc_address,mp['system_bcc']) if bcc_address else mp['system_bcc']
+                bcc_address = bcc_address or mp['system_bcc'] or ''
+                if mp['system_bcc'] and mp['system_bcc'] not in bcc_address:
+                    bcc_address = f'{bcc_address},{mp["system_bcc"]}'
+                bcc_address = bcc_address or None
             try:
                 mail_handler.sendmail(to_address=to_address,
                                 account_id = account_id,
@@ -328,8 +369,7 @@ class Table(object):
                                 smtp_host=mp['smtp_host'], port=mp['port'], user=mp['user'], password=mp['password'],
                                 ssl=mp['ssl'], tls=mp['tls'], html= message['html'], async_=False,
                                 scheduler=False,headers_kwargs=extra_headers.asDict(ascii=True))
-
-                message['send_date'] = datetime.now()
+                message['send_date'] = self.newUTCDatetime()
                 message['bcc_address'] = bcc_address
             except SMTPConnectError as e:
                 message['connection_retry'] = (message['connection_retry'] or 0) + 1
@@ -338,7 +378,7 @@ class Table(object):
             
             except Exception as e:
                 error_msg = str(e)
-                ts = datetime.now()
+                ts = self.newUTCDatetime()
                 message['error_ts'] = ts
                 message['error_msg'] = error_msg
                 message['sending_attempt'] = message['sending_attempt'] or  Bag()
@@ -355,6 +395,8 @@ class Table(object):
     @public_method
     def clearErrors(self, pkey):
         with self.recordToUpdate(pkey) as message:
+            message['send_date'] = None
+            message['proxy_ts'] = None
             message['error_ts'] = None
             message['error_msg'] = None
             message['sending_attempt'] = None

@@ -4,5 +4,7 @@ class Menu(object):
         email_config = root.branch(u"!!Email Config", tags="admin")
         email_config.thpage(u"!!Accounts", table="email.account", tags="")
         email_config.thpage(u"!!Messages", table="email.message", tags="")
+        if self.db.package('email').getMailProxy(raise_if_missing=False):
+            email_config.webpage(u"!!Proxy dashboard", webpage='/email/mailproxy/mp_controls')
         email_config.lookupBranch(u"!!Utility tables", pkg="email")
 
