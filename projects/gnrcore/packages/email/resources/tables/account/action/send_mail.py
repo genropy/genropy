@@ -13,6 +13,8 @@ class Main(BaseResourceAction):
     batch_immediate = True
     
     def do(self):
+        if self.db.package('email').getMailProxy():
+            return
         self.message_tbl = self.db.table('email.message')
         accounts = self.tblobj.query(where='$save_output_message IS TRUE').fetch()
         for account in accounts:
