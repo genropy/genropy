@@ -44,8 +44,7 @@ class Package(GnrDboPackage):
             api_keys.private.genro_mail_proxy?token
         """
         service_tbl = self.db.table('sys.service')
-
-        if service_tbl.checkDuplicate('mailproxy','mailproxy'):
+        if service_tbl.checkDuplicate(service_name='mailproxy',service_type='mailproxy'):
             raise Exception('Mailproxy service already exists')
 
         service_tbl.addService(
