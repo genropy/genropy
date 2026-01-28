@@ -154,7 +154,59 @@ def test_sortByItem():
     assert "Wayne" in res[-1]['company']['name']
     res = gl.sortByItem(test_l, "company.name:d*", hkeys=True)
     assert "Wayne" in res[0]['company']['name']
-    
+
+
+def test_getCsvDialect():
+    """Test getCsvDialect: detects correct delimiter, quotechar and escapechar for various CSV formats"""
+    test_dir = os.path.dirname(__file__)
+
+    # Map filename pattern to expected delimiter
+    test_cases = [
+        ('test_CsvAuto_Comma.csv', ','),
+        ('test_CsvAuto_CommaQuotedDecimalsEUR.csv', ','),
+        ('test_CsvAuto_CommaQuotedDecimalsUSA.csv', ','),
+        ('test_CsvAuto_SemiColon.csv', ';'),
+        ('test_CsvAuto_Tab.csv', '\t'),
+        ('test_CsvAuto_Pipe.csv', '|'),
+        ('test_CsvAuto_Colon.csv', ':'),
+    ]
+
+    for filename, expected_delimiter in test_cases:
+        test_file = os.path.join(test_dir, 'data', filename)
+        dialect = gl.getCsvDialect(test_file, encoding='utf-8')
+
+        assert dialect.delimiter == expected_delimiter
+        assert dialect.quotechar == '"'
+        assert not dialect.escapechar
+
+
+def test_getCsvDialect_limited_lines():
+    """Test getCsvDialect with detector_max_lines=1 does not detect quotechar
+
+    When reading only the first line, the dialect detector should not
+    find any quotechar since the quoted content only appears in later rows.
+    """
+    test_dir = os.path.dirname(__file__)
+
+    # Some test files that have quoted content only beyond the first line)
+    test_files = [
+        'test_CsvAuto_Comma.csv',
+        'test_CsvAuto_CommaQuotedDecimalsEUR.csv',
+        'test_CsvAuto_CommaQuotedDecimalsUSA.csv',
+        'test_CsvAuto_SemiColon.csv',
+        'test_CsvAuto_Tab.csv',
+        'test_CsvAuto_Pipe.csv',
+        'test_CsvAuto_Colon.csv',
+    ]
+
+    for filename in test_files:
+        test_file = os.path.join(test_dir, 'data', filename)
+        dialect = gl.getCsvDialect(test_file, encoding='utf-8', detector_max_lines=1)
+
+        # When reading only first line, quotechar should not be detected
+        assert not dialect.quotechar
+
+
 def test_getReader():
     import tempfile
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -208,6 +260,53 @@ def test_getReader():
         filename = os.path.join(test_dir, "data", "testbag.xml")
         a = gl.getReader(filename)
 
+def test_getReader_CsvAuto():
+    """Test CSV Sniffer with various delimiters (issue #427)
+
+    Verifies that the csv_auto filetype correctly detects different delimiters
+    (comma, semicolon, tab, pipe, colon) across multiple test files.
+    """
+    test_dir = os.path.dirname(__file__)
+
+    # Test files with different delimiters and decimal formats
+    test_files = [
+        ('test_CsvAuto_Colon.csv', '-50,00'),
+        ('test_CsvAuto_Comma.csv', '-50.00'),
+        ('test_CsvAuto_CommaQuotedDecimalsEUR.csv', '-50,00'),
+        ('test_CsvAuto_CommaQuotedDecimalsUSA.csv', '-50.00'),
+        ('test_CsvAuto_Pipe.csv', '-50,00'),
+        ('test_CsvAuto_SemiColon.csv', '-50,00'),
+        ('test_CsvAuto_Tab.csv', '-50,00'),
+    ]
+
+    expected_description = 'PAGAMENTO   CARTA DEBITO;\tINTERNAZIONALE: "5375******3179" -03/01/26-13:49 BIANCHI NEGOZIO ABBIGLIAMENTO -ITA'
+
+    for filename, expected_importo in test_files:
+        test_file = os.path.join(test_dir, 'data', filename)
+
+        # Read CSV with automatic dialect detection
+        reader = gl.getReader(test_file, filetype='csv_auto')
+
+        # Verify header structure
+        assert reader.ncols == 11, f"{filename}: Expected 11 columns, got {reader.ncols}"
+        assert reader.headers[0] == 'Data contabile', f"{filename}: First header mismatch"
+        assert reader.headers[10] == 'Note', f"{filename}: Last header mismatch"
+
+        # Read all rows
+        rows = list(reader())
+
+        # Verify row count (6 data rows + 1 header = 7 total, but reader returns only data rows)
+        assert len(rows) == 6, f"{filename}: Expected 6 data rows, got {len(rows)}"
+
+        # Verify last row (index 5, which is row 7 in the CSV including header)
+        last_row = rows[5]
+
+        # Check "Importo" field (index 2)
+        assert last_row[2] == expected_importo, f"{filename}: Expected importo '{expected_importo}', got '{last_row[2]}'"
+
+        # Check "Descrizione" field (index 9)
+        assert last_row[9] == expected_description, f"{filename}: Description mismatch, got '{last_row[9]}'"
+        
 def test_CsvReader():
     test_dir = os.path.dirname(__file__)
     test_file = os.path.join(test_dir, "data", "test.csv")
@@ -308,24 +407,6 @@ def test_readCSV_new():
         assert isinstance(d[0], gl.GnrNamedList)
         assert 'a' in d[0].keys()
 
-def test_readCSV_semicolon():
-    """Test CSV Sniffer with semicolon delimiter on truncated file (issue #427)
-
-    Verifies that the csv_auto filetype correctly detects semicolon delimiter
-    even when the file has incomplete/truncated lines, which previously caused
-    the Sniffer to fail with 'Could not determine delimiter' error.
-    """
-    test_file = os.path.join(os.path.dirname(__file__),
-                              'data', 'testSemicolon.csv')
-
-    # Read CSV with automatic dialect detection
-    reader = gl.getReader(test_file, filetype='csv_auto')
-
-    # Verify we can read the header correctly
-    assert reader.ncols == 11
-    assert reader.headers[0] == 'Data contabile'
-    assert reader.headers[10] == 'Note'
-        
 def test_sortByAttr():
     class MockObj(object):
         a = 1

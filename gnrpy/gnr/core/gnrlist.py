@@ -27,7 +27,7 @@ Some useful operations on lists.
 import os.path
 from functools import cmp_to_key
 import datetime
-import csv
+import clevercsv
 
 from gnr.core import logger
 from gnr.core.gnrdecorator import deprecated
@@ -566,32 +566,31 @@ class CsvReader(object):
 
     Note: There's a FIXME - the encoding parameter is currently reset to None.
     """
-    def __init__(self, docname,dialect=None,delimiter=None,detect_encoding=False,
-                encoding=None,**kwargs):
+    def __init__(self, docname, dialect=None, delimiter=None,
+                 detect_encoding=False, encoding=None, **kwargs):
         self.docname = docname
         self.dirname = os.path.dirname(docname)
         self.basename, self.ext = os.path.splitext(os.path.basename(docname))
         self.ext = self.ext.replace('.', '')
 
-        # FIXME: why an explit "encoding" parameter for the constructor but
-        # ignoring its value?
-        encoding = None
-        
         if detect_encoding and not encoding:
             encoding = self.detect_encoding()
         if encoding:
             self.filecsv = open(docname,'r', encoding=encoding)
         else:
             self.filecsv = open(docname,'r')
-        self.rows = csv.reader(self.filecsv,dialect=dialect,delimiter=delimiter or ',')
 
+        # delimiter argument has priority over dialect in csv.reader, so...
         if delimiter:
-            self.rows = csv.reader(self.filecsv, dialect=dialect, delimiter=delimiter)
+            self.rows = clevercsv.reader(self.filecsv, dialect=dialect, delimiter=delimiter)
         elif dialect:
-            self.rows = csv.reader(self.filecsv, dialect=dialect)
+            self.rows = clevercsv.reader(self.filecsv, dialect=dialect)
         else:
-            self.rows = csv.reader(self.filecsv, dialect=dialect, delimiter=',')
+            self.rows = clevercsv.reader(self.filecsv, delimiter=',')
         
+
+
+
         self.headers = next(self.rows)
 
         # Handle duplicate columns
@@ -881,7 +880,41 @@ class GnrNamedList(list):
             return list(self.values())     
 
 
-def getReader(file_path, filetype=None, **kwargs):
+def getCsvDialect(file_path, encoding=None, delimiter=None,
+               start_at_line=None, detector_max_lines=None):
+    """Detect the CSV dialect of a file using clevercsv.
+
+    :param file_path: path to the CSV file to analyze
+    :param encoding: file encoding (e.g., 'utf-8', 'latin-1').
+                     If None, uses system default
+    :param delimiter: if provided, limits detection to this
+                      single delimiter character
+    :param start_at_line: line number to start reading from (1-indexed).
+                          Use this to skip header rows or comments at the beginning
+    :param detector_max_lines: maximum number of lines to read for dialect detection.
+                               Limiting this can improve performance on large files
+
+    :return: a csv.SimpleDialect subclass suitable for use with clevercsv.reader
+    """
+    with open(file_path, encoding=encoding) as csv_test:
+
+        # Skip initial lines
+        for _ in range(start_at_line - 1 if start_at_line else 0):
+            csv_test.readline()
+
+        # Read only needed lines
+        if detector_max_lines:
+            sample = ''.join(csv_test.readline() for _ in range(detector_max_lines))
+        else:
+            sample = csv_test.read()
+
+        delimiters = [delimiter] if delimiter else None
+        return clevercsv.Detector().sniff(sample, delimiters=delimiters)
+
+
+def getReader(file_path, filetype=None,
+              start_at_line=None, detector_max_lines=None,
+              **kwargs):
     """Factory function to create the appropriate reader based on file type.
 
     Automatically detects the file type from extension or uses explicit filetype parameter.
@@ -893,6 +926,8 @@ def getReader(file_path, filetype=None, **kwargs):
                      - 'tab': tab-delimited file
                      - 'csv_auto': CSV with automatic dialect detection
                      - None: auto-detect from file extension
+    :param start_at_line: start processing at line number
+    :param detector_max_lines: max number of lines to be processed by the dialet detector
     :param kwargs: additional arguments passed to the specific reader constructor
 
     :return: appropriate reader instance (XlsReader, XlsxReader, CsvReader, or XmlReader)
@@ -927,24 +962,17 @@ def getReader(file_path, filetype=None, **kwargs):
         if filetype=='tab' or ext=='.tab':
             dialect = 'excel-tab'
         elif filetype == 'csv_auto':
-            with open(file_path) as csv_test:
-                # Read complete lines to avoid truncating mid-field
-                # which causes Sniffer to fail with semicolon/tab delimiters
-                CSV_SNIFFER_MAX_LINES = 20
-                CSV_SNIFFER_MAX_CHARS = 8192
 
-                sample_lines = []
-                sample_size = 0
-                for line in csv_test:
-                    # Check limits BEFORE appending to avoid exceeding them
-                    if (sample_size + len(line) >= CSV_SNIFFER_MAX_CHARS
-                        or len(sample_lines) >= CSV_SNIFFER_MAX_LINES):
-                        break
-                    sample_lines.append(line)
-                    sample_size += len(line)
-                
-                sample = ''.join(sample_lines)   # Sniffer requires a string
-                dialect = csv.Sniffer().sniff(sample)
+            encoding = kwargs.get('encoding')
+            if not encoding:
+                encoding = clevercsv.encoding.get_encoding(file_path,
+                                                           try_cchardet=False)
+
+            dialect = getCsvDialect(file_path,
+                                    encoding=encoding,
+                                    delimiter=kwargs.get('delimiter'),
+                                    start_at_line=start_at_line,
+                                    detector_max_lines=detector_max_lines)
 
         reader = CsvReader(file_path, dialect=dialect, **kwargs)
         reader.index = {slugify(k, sep='_'):v for k,v in reader.index.items()}
