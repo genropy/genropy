@@ -43,10 +43,10 @@ class Package(GnrDboPackage):
             Admin token must be configured in instanceconfig as:
             api_keys.private.genro_mail_proxy?token
         """
-        if self.db.application.site.getService('mailproxy'):
-            raise Exception('Mailproxy service already exists')
-
         service_tbl = self.db.table('sys.service')
+
+        if service_tbl.checkDuplicate('mailproxy','mailproxy'):
+            raise Exception('Mailproxy service already exists')
 
         service_tbl.addService(
             service_type='mailproxy',
