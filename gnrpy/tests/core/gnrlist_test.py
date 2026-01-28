@@ -994,7 +994,7 @@ class TestCsvReader:
         """Test CsvReader start_at_line parameter skips header lines correctly.
 
         Uses test_CsvAuto_Colon_skipLines.csv which has 12 lines of metadata before the actual CSV data.
-        With start_at_line=13, results should be identical to test_CsvAuto_Colon.csv without the parameter.
+        With start_at_line=12, results should be identical to test_CsvAuto_Colon.csv without the parameter.
         """
         test_dir = os.path.dirname(__file__)
 
@@ -1006,7 +1006,7 @@ class TestCsvReader:
         reference_rows = list(reference_reader())
 
         # File with metadata to skip
-        START_LINE = 13
+        START_LINE = 12
         skip_file = os.path.join(test_dir, 'data', 'test_CsvAuto_Colon_skipLines.csv')
         dialect = gl.getCsvDialect(skip_file, encoding='utf-8',
                                    start_at_line=START_LINE)

@@ -564,12 +564,12 @@ class CsvReader(object):
     :param delimiter: field delimiter character (default: ',')
     :param detect_encoding: if True, automatically detect file encoding using chardet
     :param encoding: explicit encoding to use (currently overridden by detect_encoding logic)
-    :param start_at_line: Start reading from given (human-readable) line number
+    :param start_at_line: Start reading from given line number (0=first line)
     """
     def __init__(self, docname,
                  dialect=None, delimiter=None,
                  detect_encoding=False, encoding=None,
-                 start_at_line=1,
+                 start_at_line=0,
                  **kwargs):
         self.docname = docname
         self.dirname = os.path.dirname(docname)
@@ -587,13 +587,14 @@ class CsvReader(object):
         # Skip "start_at_line" lines (for future GUI developments)
         # If start_at_line is None, treat it as 1 (no lines to skip)
         if start_at_line is None:
-            start_at_line = 1
-        for _ in range(start_at_line - 1):
+            start_at_line = 0
+        for _ in range(start_at_line):
             next(self.filecsv)
 
         # Delimiter argument has priority over dialect in clevercsv.reader
         if delimiter:
-            self.rows = clevercsv.reader(self.filecsv, dialect=dialect, delimiter=delimiter)
+            self.rows = clevercsv.reader(self.filecsv, dialect=dialect,
+                                         delimiter=delimiter)
         elif dialect:
             self.rows = clevercsv.reader(self.filecsv, dialect=dialect)
         else:
@@ -878,7 +879,7 @@ def getCsvDialect(file_path, encoding=None, delimiter=None,
                      If None, uses system default
     :param delimiter: if provided, limits detection to this
                       single delimiter character
-    :param start_at_line: line number to start reading from (1-indexed).
+    :param start_at_line: line number to start reading from (0=first line).
                           Use this to skip header rows or comments at the beginning
     :param detector_max_lines: maximum number of lines to read for dialect detection.
                                Limiting this can improve performance on large files
@@ -888,7 +889,7 @@ def getCsvDialect(file_path, encoding=None, delimiter=None,
     with open(file_path, encoding=encoding) as csv_test:
 
         # Skip initial lines
-        for _ in range(start_at_line - 1 if start_at_line else 0):
+        for _ in range(start_at_line if start_at_line else 0):
             csv_test.readline()
 
         # Read only needed lines
@@ -915,7 +916,7 @@ def getReader(file_path, filetype=None,
                      - 'tab': tab-delimited file
                      - 'csv_auto': CSV with automatic dialect detection
                      - None: auto-detect from file extension
-    :param start_at_line: start processing at line number
+    :param start_at_line: start processing at line number (0=first line)
     :param detector_max_lines: max number of lines to be processed by the dialet detector
     :param kwargs: additional arguments passed to the specific reader constructor
 
