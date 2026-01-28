@@ -42,8 +42,8 @@ function _T(str,lazy){
     if(isNullOrBlank(str)){
         return str;
     }
-    var locale = genro.locale() || 'en-EN';
-    var language = locale.split('-')[0];
+    var locale = genro.locale() || 'en';
+    var language = locale.slice(0, 2);
     var localekey = 'localsdict_'+language;
     var noLocMarker = (str.search(/^!!|\[!!/)<0);
     if(lazy && noLocMarker){
