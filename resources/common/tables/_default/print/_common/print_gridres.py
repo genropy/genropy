@@ -39,15 +39,19 @@ class Main(BaseResourcePrint):
 
         
     def table_script_parameters_pane(self,pane,extra_parameters=None,record_count=None,**kwargs):
-        pane = pane.div(min_height='60px')        
+        pane = pane.div(min_height='60px')
         fb = pane.formbuilder(cols=1,fld_width='20em',border_spacing='4px')
         userobject = extra_parameters['userobject']
         where = None
         printParams = {}
         if userobject:
+            # Use current_batch.tblobj instead of self.tblobj
+            # After mixin, self is the page (which has tblobj=None), not the batch object
+            tblobj = getattr(self, 'current_batch', self).tblobj
+
             userobject_params,metadata = self.db.table('adm.userobject'
                                 ).loadUserObject(userObjectIdOrCode=userobject,
-                                                table=self.tblobj.fullname)
+                                                table=tblobj.fullname)
             struct =  userobject_params['struct']
             query = userobject_params['query']
             queryPars = userobject_params['queryPars']
@@ -61,7 +65,7 @@ class Main(BaseResourcePrint):
                 fb.div('!!Query',font_weight='bold',color='#444')
                 for code,pars in queryPars.digest('#k,#a'):
                     field = pars['field']
-                    tblobj = self.db.table(self.tblobj.fullname)
+                    # tblobj already defined above, reuse it
                     rc = tblobj.column(field).relatedColumn()
                     wherepath = pars['relpath']
                     colobj = tblobj.column(field)
@@ -69,7 +73,7 @@ class Main(BaseResourcePrint):
                     wdgvalue = '^.wherepars.{wherepath}'.format(wherepath=wherepath)
                     if colobj.name==tblcol.pkey:
                         wdg = fb.dbSelect(value=wdgvalue,lbl=pars['lbl'],
-                                            dbtable=self.tblobj.fullname)
+                                            dbtable=tblobj.fullname)
                     elif pars['op'] == 'equal' and rc is not None:
                         wdg = fb.dbSelect(value=wdgvalue,lbl=pars['lbl'],
                                             dbtable=rc.table.fullname)
