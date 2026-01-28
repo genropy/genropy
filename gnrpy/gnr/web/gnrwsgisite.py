@@ -50,6 +50,11 @@ mimetypes.init()
 
 IS_MOBILE = re.compile(r'iPhone|iPad|Android')
 
+STORAGE_TYPES = ['_storage']
+STATIC_HANDLER_TYPES = ['_site','_dojo','_gnr','_conn',
+                        '_rsrc','_pkg','_user','_vol',
+                        '_pages','_page','_cordova_asset','_xvol']
+
 warnings.simplefilter("default")
 global GNRSITE
 
@@ -402,6 +407,7 @@ class GnrWsgiSite(object):
         global GNRSITE
         GNRSITE = self
         counter = int(counter or '0')
+        self.storageTypes = STORAGE_TYPES + STATIC_HANDLER_TYPES
         self.pathfile_cache = {}
         self._currentAuxInstanceNames = ThreadedDict()
         self._currentPages = ThreadedDict()
@@ -739,12 +745,6 @@ class GnrWsgiSite(object):
             result = m(pkey)
             return result is not False
 
-    @property
-    def storageTypes(self):
-        return ['_storage','_site','_dojo','_gnr','_conn',
-                '_pages','_rsrc','_pkg','_pages',
-                '_user','_vol', '_documentation']
-        
     def storageType(self, path_list=None):
         first_segment = path_list[0]
         if ':' in first_segment:
