@@ -29,7 +29,7 @@ class LoginComponent(BaseComponent):
     closable_login = False
     loginBox_kwargs = dict()
     external_verified_user = None
-    
+
     @customizable
     def loginDialog(self,pane,gnrtoken=None,closable_login=None,**kwargs):
         closable_login = self.closable_login if closable_login is None else closable_login
@@ -354,22 +354,33 @@ class LoginComponent(BaseComponent):
             fb.data('.gnrtoken',gnrtoken)
 
         fb.passwordTextBox(value='^.password',lbl='!!New password',
-                    validate_remote=self.db.table('adm.user').validateNewPassword)
+                    validate_remote=self.db.table('adm.user').validateNewPassword,validate_notnull=True)
         fb.passwordTextBox(value='^.password_confirm',lbl='!!Confirm password',
-                    validate_call='return value==GET .password;',validate_call_message='!!Passwords must be equal')
+                    validate_call='return value==GET .password;',validate_call_message='!!Passwords must be equal',
+                    validate_notnull=True)
         fb.dataRpc(self.login_changePassword,_fired='^set_new_password',
                     current_password='=.current_password',
                     newusername='=.newusername',
                     password='=.password',password_confirm='=.password_confirm',
-                    _if='password==password_confirm',_box=box,
-                    _else="genro.dlg.floatingMessage(_box,{message:'Passwords must be equal',messageType:'error',yRatio:.95})",
+                    _onCalling="""
+                    if(!password){
+                        genro.dlg.floatingMessage(_box,{message:_missing_password_error,messageType:'error',yRatio:.95})
+                        return false;
+                    }if(password!=password_confirm){
+                        genro.dlg.floatingMessage(_box,{message:_different_password_error,messageType:'error',yRatio:.95})
+                        return false;
+                    }
+                    """,
+                    _box=box,
+                    _missing_password_error="!![en]You must set a new password",
+                    _different_password_error="!![en]Passwords must be equal",
                     gnrtoken=gnrtoken,_onResult="""if(result){
                         genro.dlg.floatingMessage(kwargs._box,{message:'Wrong password',messageType:'error',yRatio:.95});
                         return;
                     }
                     genro.publish("closeNewPwd");genro.publish("openLogin")""")
         footer = self.login_commonFooter(box)
-        footer.rightbox.button('!!Send',action='FIRE set_new_password',_class='login_confirm_btn')
+        footer.rightbox.button('!!Send',action='FIRE set_new_password',_class='login_confirm_btn',disabled='^new_password.password?=!#v')
         return dlg
     
     @public_method
