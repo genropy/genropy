@@ -61,7 +61,7 @@ class RobotsTxt(WKUFile):
     
 class DeepLinkIOS(WKUFile):
     config_item = "mobile_app.ios"
-    content_type = "text/plain"
+    content_type = "application/json"
     def get_content(self, apps_config):
         app_template = {
             "appIDs": [],
