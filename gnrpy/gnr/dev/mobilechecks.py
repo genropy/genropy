@@ -9,23 +9,24 @@ class MobileAppChecks(object):
 
     def __init__(self, site, base_url=None):
         self.site = site
+        self.mobile_app_config = self.site.get_mobile_app_config()
         self.base_url = base_url if base_url else self.site.config.getNode("wsgi").getAttr("external_host")
 
-    def _verify_config_item(self, path):
+    def _verify_config_item(self, mobile_os):
         status = True
-        description = "Path presence confirmed"
-        if not self.site.gnrapp.config.getNode(path):
+        description = f"{mobile_os} config exists"
+        if not self.mobile_app_config.get(mobile_os).get('store_url'):
             status = False
-            description = "Path configuration is missing"
+            description = f"{mobile_os} config missing"
         return (status, description)
 
     def test_ios_config(self):
         """'mobile_app.ios' path presence in instance configuration """
-        return self._verify_config_item("mobile_app.ios")
+        return self._verify_config_item("ios")
 
     def test_android_config(self):
         """'mobile_app.android' path presence in instance configuration """
-        return self._verify_config_item("mobile_app.android")
+        return self._verify_config_item("android")
 
     def _verify_url_presence(self, sub_path):
         try:
