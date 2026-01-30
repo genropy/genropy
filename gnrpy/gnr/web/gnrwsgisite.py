@@ -769,6 +769,7 @@ class GnrWsgiSite(object):
         if bundles:
             bundles = Bag(bundles)['#0']
         else:
+            # Backward compatibility: prefer mobile_app/bundles.xml resource
             bundles = self.gnrapp.config['mobile_app']
         if not bundles:
             return {}
