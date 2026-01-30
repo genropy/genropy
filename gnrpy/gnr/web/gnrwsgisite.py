@@ -769,7 +769,7 @@ class GnrWsgiSite(object):
         if bundles:
             bundles = Bag(bundles)['#0']
         else:
-            bundles = self.application.config['mobile_app']
+            bundles = self.gnrapp.config['mobile_app']
         if not bundles:
             return {}
         if mobile_os:
