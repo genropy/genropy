@@ -243,11 +243,19 @@ class MailService(GnrBaseService):
             if not mime_type:
                 mime_type = attachment_node.mimetype
             mime_family, mime_subtype = mime_type.split('/')
-            with attachment_node.local_path() as attachment_path:
-                with open(attachment_path, mode='rb') as attachment_file:
-                    email_attachment = mime_mapping[mime_family](attachment_file.read(), mime_subtype)
-                    email_attachment.add_header('content-disposition', 'attachment', filename=attachment_node.basename)
-                    msg.attach(email_attachment)
+            # check mime_family to fix file open mode
+            if mime_family=='text':
+                with attachment_node.local_path() as attachment_path:
+                    with open(attachment_path, mode='r') as attachment_file:
+                        email_attachment = mime_mapping[mime_family](attachment_file.read(), mime_subtype)
+                        email_attachment.add_header('content-disposition', 'attachment', filename=attachment_node.basename)
+                        msg.attach(email_attachment)
+            else:
+                with attachment_node.local_path() as attachment_path:
+                    with open(attachment_path, mode='rb') as attachment_file:
+                        email_attachment = mime_mapping[mime_family](attachment_file.read(), mime_subtype)
+                        email_attachment.add_header('content-disposition', 'attachment', filename=attachment_node.basename)
+                        msg.attach(email_attachment)
 
     def sendmail_template(self, datasource, to_address=None, cc_address=None, bcc_address=None, reply_to=None, subject=None,
                           from_address=None, body=None, attachments=None, account=None,
