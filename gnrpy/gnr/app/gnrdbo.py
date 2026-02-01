@@ -1752,7 +1752,7 @@ class AttachmentTable(GnrDboTable):
             return self.filepath_endpoint_url(record)
         if not record.get('fileurl'):
             return
-        return self.db.application.site.externalUrl(record['fileurl'])
+        return self.db.application.site.externalUrl(record['filepath'])
     
     def pyColumn_missing_file(self,record,**kwargs):
         sn = self.db.application.site.storageNode(record['filepath'])
