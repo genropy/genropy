@@ -55,12 +55,14 @@ class Table(object):
         tbl.column('priority', name_long='!![en]Priority',
                    values='9:[!![en]No send],3:[!![en]Low],2:[!![en]Standard],1:[!![en]High],-1:[!![en]Immediate]')
         tbl.column('read', dtype='B', name_long='!!Read',indexed=True)
+        tbl.column('deferred_ts', dtype='DHZ', name_long='!!Deferred send',
+                   name_short='!!Deferred', indexed=True)
 
-        #tbl.joinColumn('dest_user_id', name_long='!!Destination user').relation('adm.user.id', 
+        #tbl.joinColumn('dest_user_id', name_long='!!Destination user').relation('adm.user.id',
         #                                    cnd='@dest_user_id.email=$to_address', relation_name='received_messages')
         tbl.formulaColumn('dest_user_id', '$user_id', name_long='!!Destination user')
         tbl.formulaColumn('sent','$send_date IS NOT NULL', name_long='!!Sent')
-        tbl.formulaColumn('message_to_send', "$in_out=:out AND $send_date IS NULL AND $error_msg IS NULL", var_out='O',
+        tbl.formulaColumn('message_to_send', "$in_out=:out AND $send_date IS NULL AND $error_msg IS NULL AND ($deferred_ts IS NULL OR $deferred_ts <= NOW())", var_out='O',
                             name_long='!!Message to send', dtype='B')
         tbl.formulaColumn('plain_text', """regexp_replace($body, '<[^>]*>', '', 'g')""")
         tbl.formulaColumn('abstract', """LEFT(REPLACE($plain_text,'&nbsp;', ''),300)""", name_long='!![en]Abstract')

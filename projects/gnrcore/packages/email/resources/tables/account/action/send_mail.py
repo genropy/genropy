@@ -19,10 +19,8 @@ class Main(BaseResourceAction):
             self.sendEmailsForAccount(account)
     
     def sendEmailsForAccount(self,account):
-        email_to_send = self.message_tbl.query(where="""$in_out=:out AND $send_date IS NULL 
-                                                        AND $account_id=:acid 
-                                                        AND $error_msg IS NULL""",
-                                        out='O',order_by='$__ins_ts',
+        email_to_send = self.message_tbl.query(where='$message_to_send IS TRUE AND $account_id=:acid',
+                                        order_by='$__ins_ts',
                                         limit=account['send_limit'],
                                         acid=account['id'],
                                         bagFields=True).fetch()
