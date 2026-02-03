@@ -277,8 +277,7 @@ class BaseStorageHandler:
 
         # Extract parameters
         implementation = service_record.get('implementation')
-        parameters_bag = service_record.get('parameters')
-
+        parameters_bag = Bag(service_record.get('parameters'))
         # Use centralized method to set parameters
         self._setStorageParams(service_name,
             parameters=parameters_bag,

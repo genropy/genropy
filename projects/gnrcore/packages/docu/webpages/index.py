@@ -13,8 +13,7 @@ class GnrCustomWebPage(object):
 
     @public_method
     def rst(self,*args,**kwargs):
-        language = kwargs['selected_language'] if 'selected_language' in kwargs else self.locale.split('-')[0]
-        language = language.lower()
+        language = kwargs.get('selected_language') or self.language
         doctable = self.db.table('docu.documentation')
         pkey,docbag = doctable.readColumns(columns='$id,$docbag',
                                                     where='$hierarchical_name=:hname',
@@ -33,8 +32,7 @@ class GnrCustomWebPage(object):
 
     @public_method
     def search(self,text=None,**kwargs):
-        language = kwargs['selected_language'] if 'selected_language' in kwargs else self.locale.split('-')[0]
-        language = language.lower()
+        language = kwargs.get('selected_language') or self.language
         doctable = self.db.table('docu.documentation')
         f = doctable.query(where="$is_published IS TRUE AND ( $title_%s ILIKE :val OR $rst_%s ILIKE :val ) AND $title_%s IS NOT NULL" %(language,language,language),val='%%%s%%' %text,
                         columns='$hierarchical_name,$rst_%s AS rst,$title_%s AS title' %(language,language)).fetch()

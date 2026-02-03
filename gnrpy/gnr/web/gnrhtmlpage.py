@@ -192,7 +192,7 @@ class GnrHtmlDojoPage(GnrHtmlPage):
         theme = theme or self.theme
         version = version or self.dojo_version
         djConfig = "parseOnLoad: true, isDebug: %s, locale: '%s'" % (
-        self.isDeveloper() and 'true' or 'false', self.locale)
+        self.isDeveloper() and 'true' or 'false', self.locale.lower().replace('_', '-'))
         css_dojo = self.frontend.css_frontend(theme=theme)
         import_statements = ';\n    '.join(
                 ['@import url("%s")' % self.dojo_storage_handler.url(version, 'dojo', f) for f in css_dojo])

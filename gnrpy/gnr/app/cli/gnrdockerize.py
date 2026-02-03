@@ -113,8 +113,11 @@ class MultiStageDockerImageBuilder:
                     commit=commit
                 )
                 
-                os.chdir(repo_path)                    
-                shutil.rmtree(".git")
+                os.chdir(repo_path)
+                # remove the git folder - ignore errors
+                # because the downloaded repo could be an archive rather than
+                # a clone
+                shutil.rmtree(".git", ignore_errors=True)
                 # go back to original build directory
                 os.chdir(self.build_context_dir)
                 

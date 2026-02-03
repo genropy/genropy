@@ -1,3 +1,34 @@
+Upcoming Release
+================
+
+  
+Breaking changes
+----------------
+
+* REMOVED SUPPORT FOR PYTHON < 3.11
+  
+Enhancements
+------------
+
+* Added get_json method to Request object to automatically parse JSON
+  payloads based on request mime type (#408)
+* DbAdmin now can show the orphaned entities in the databases and
+  offer a cleanup method (#319)
+* Generalized use of '{}' to support environment variables in bags
+* Added 'insertToolbarItems' parameters for TinyMCE widget (#418)  
+
+Fixes
+-----
+
+* Extension creation on managed postgresql services now works correctly (#415)
+* Fixed regression for task scheduling due to timezone-aware comparisons (#434)
+* Locale detection for localized columns fixes
+* Docker image build fixes when cleaning up cloned git repositories
+* Fixed to handle correctly empty to_address in mail service (#406)
+* Minor fixes on storage parameters
+* Fix with tz-aware timestamp in XLSX export (#419)
+
+  
 Release 26.01.15
 ================
 
