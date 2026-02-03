@@ -1746,8 +1746,6 @@ class AttachmentTable(GnrDboTable):
         return self.db.application.site.externalUrl(f'/_vol/{filepath}')
 
     def pyColumn_full_external_url(self,record,field):
-        if record['external_url']:
-            return record['external_url']
         # Compute directly from filepath - no dependency on fileurl pyColumn
         return self.filepath_endpoint_url(record)
     
