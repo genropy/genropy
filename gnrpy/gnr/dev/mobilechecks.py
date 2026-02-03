@@ -11,11 +11,11 @@ class MobileAppChecks(object):
         self.site = site
         self.mobile_app_config = self.site.get_mobile_app_config()
         self.base_url = base_url if base_url else self.site.config.getNode("wsgi").getAttr("external_host")
-
+        
     def _verify_config_item(self, mobile_os):
         status = True
         description = f"{mobile_os} config exists"
-        if not self.mobile_app_config.get(mobile_os).get('store_url'):
+        if not self.mobile_app_config.get(mobile_os, {}).get('store_url'):
             status = False
             description = f"{mobile_os} config missing"
         return (status, description)
@@ -57,7 +57,7 @@ class MobileAppChecks(object):
 
     def test_android_deeplinking(self):
         """Verify Android deeplinking deployment"""
-        sub_path = "/.well-known/apple-app-site-association"
+        sub_path = "/.well-known/assetlinks.json"
         return self._verify_url_presence(sub_path)
     
         

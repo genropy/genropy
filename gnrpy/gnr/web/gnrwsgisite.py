@@ -767,12 +767,19 @@ class GnrWsgiSite(object):
     def get_mobile_app_config(self,mobile_os=None):
         bundles = self.getResource('mobile_app/bundles.xml')
         if bundles:
-            bundles = Bag(bundles)['#0']
-        else:
+            try:
+                bundles = Bag(bundles)['#0']
+            except Exception as e:
+                bundles = None
+                logger.error("Mobile app bundles %s file exists but can't be read: %s", bundles, e)
+                
+        if not bundles:
             # Backward compatibility: prefer mobile_app/bundles.xml resource
             bundles = self.gnrapp.config['mobile_app']
+            
         if not bundles:
             return {}
+        
         if mobile_os:
             return bundles.getAttr(mobile_os) or {}
         return {k:bundles.getAttr(k) for k in bundles.keys()}
