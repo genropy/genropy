@@ -40,6 +40,7 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.sql.gnrsqlmigration import SqlMigrator
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable,GnrSqlException
+from gnr.sql.gnrslowquerylogger import log_slow_query
 
 MAIN_CONNECTION_NAME = '_main_connection'
 __version__ = '1.0b'
@@ -157,6 +158,8 @@ class GnrSqlDb(GnrObject):
         self.typeConverter = GnrClassCatalog()
         self.debugger = debugger
         self.application = application
+        self.slow_query_threshold = float(kwargs.get('slow_query_threshold', 0)) or None
+        self.slow_query_logdir = kwargs.get('slow_query_logdir')
         self.model = self.createModel()
 
         if ':' in self.implementation:
@@ -639,9 +642,15 @@ class GnrSqlDb(GnrObject):
                 else:
                     cursor.execute(sql, sqlargs)
                     cursor.connection.committed = False
+                execution_time = time() - t_0
                 if self.debugger:
-                    self.debugger(sql=sql, sqlargs=sqlargs, dbtable=dbtable,delta_time=time()-t_0)
-            
+                    self.debugger(sql=sql, sqlargs=sqlargs, dbtable=dbtable, delta_time=execution_time)
+                if self.slow_query_threshold and execution_time > self.slow_query_threshold:
+                    # Log only SELECT queries - INSERT/UPDATE/DELETE have variable times due to locks, triggers, etc.
+                    sql_command = self.currentEnv.get('sql_details', {}).get('sqlcommand')
+                    if sql_command == 'query':
+                        log_slow_query(self, sql, sqlargs, execution_time, dbtable=dbtable)
+
             except Exception as e:
                 logger.warning('error executing:%s - with kwargs:%s \n\n', sql, str(sqlargs))
                 self.rollback()
