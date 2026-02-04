@@ -92,4 +92,8 @@ class GnrSqlMissingColumn(GnrException):
         
 class GnrSqlRelationError(GnrException):
     pass
-        
+
+class GnrSqlTablePermissionError(GnrException):
+    """Exception raised when user has no permission to access a table"""
+    pass
+
