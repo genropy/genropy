@@ -313,16 +313,21 @@ class MenuResolver(BagResolver):
                 continue
             self.setLabelClass(attributes)
             titleCounter_val = attributes.get('titleCounter')
-            if titleCounter_val and menuTag != 'tableBranch':
-                titleCounter_attrs = dictExtract(attributes,'titleCounter_',pop=False)
-                if isinstance(titleCounter_val, dict):
-                    titleCounter_attrs.update(titleCounter_val)
-                table = attributes.get('table') or titleCounter_attrs.get('table')
-                titleCounter_attrs['table'] = table
-                if not table:
-                    continue
-                self._page.subscribeTable(table, True, subscribeMode=True)
-                attributes['badgeContent'] = self._page.menu.getMenuLineBadge(**titleCounter_attrs)
+            menuLineBadge = attributes.get('menuLineBadge')
+            menuLineBadge_attr = {}
+            if (titleCounter_val or menuLineBadge) and menuTag != 'tableBranch':
+                if menuLineBadge:
+                    menuLineBadge_attr = dictExtract(attributes,'menuLineBadge_',pop=False)
+                    menuLineBadge_attr['table'] = menuLineBadge_attr.get('table') or attributes.get('table')
+                    menuLineBadge_attr['handler'] = menuLineBadge
+                else:
+                    menuLineBadge_attr = dictExtract(attributes,'titleCounter_',pop=False)
+                    if isinstance(titleCounter_val, dict):
+                        menuLineBadge_attr.update(titleCounter_val)
+                    menuLineBadge_attr['table'] = attributes.get('table') or menuLineBadge_attr.get('table')
+                if menuLineBadge_attr.get('table'):
+                    self._page.subscribeTable(menuLineBadge_attr.get('table'), True, subscribeMode=True)
+                    attributes['badgeContent'] = self._page.menu.getMenuLineBadge(**menuLineBadge_attr)
             result.setItem(node.label, value, attributes)
         return result
 
