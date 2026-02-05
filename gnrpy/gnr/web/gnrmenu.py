@@ -552,13 +552,14 @@ class MenuResolver(BagResolver):
         attributes.pop('branchPage',None)
         self._page.subscribeTable(kwargs['table'],True,subscribeMode=True)
         titleCounter = attributes.get('titleCounter')
+        menuLineBadge = attributes.get('menuLineBadge')
         xmlresolved=titleCounter is not None
         sbresolver = TableMenuResolver(xmlresolved=xmlresolved,
                             _page=self._page,cacheTime=cacheTime, 
                             level_offset=self.level,
                             **kwargs)
         attributes['isDir'] = True
-        if titleCounter:
+        if menuLineBadge is True or titleCounter:
             attributes['child_count'] =  len(sbresolver())
             attributes['badgeContent'] = str(attributes['child_count'] or 0)
         return sbresolver,attributes

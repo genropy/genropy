@@ -138,21 +138,25 @@ class MenuIframes(BaseComponent):
                                 let store = treeNode.widget.storebag();
                                 store.walk(function(n){
                                     const titleCounter = n.attr.titleCounter;
+                                    const menuLineBadge = n.attr.menuLineBadge;
+                                    if(titleCounter){
+                                        console.warn('titleCounter is deprecated. Use menuLineBadge instead of it')
+                                    }
                                     if(n.attr.tag == "tableBranch" && n.attr.table.replace('.','_') == flat_tblname){
                                         n.refresh(true)
                                         let content = n.getValue();
                                         let child_count = (content instanceof gnr.GnrBag)?content.len():0;
                                         let updater = {child_count:child_count};
-                                        if(titleCounter){
+                                        if(titleCounter || menuLineBadge === true){
                                             updater.badgeContent = child_count;
                                         }
                                         n.updAttributes(updater);
                                         return;
                                     }
                                     let menuLineBadgeKW = {};
-                                    if(n.attr.menuLineBadge){
+                                    if(menuLineBadge){
                                         objectUpdate(menuLineBadgeKW,objectExtract(n.attr, 'menuLineBadge_*', true));
-                                        menuLineBadgeKW.handler = n.attr.menuLineBadge
+                                        menuLineBadgeKW.handler = menuLineBadge
                                     }
                                     else if(titleCounter){
                                         objectUpdate(menuLineBadgeKW,objectExtract(n.attr, 'titleCounter_*', true));
