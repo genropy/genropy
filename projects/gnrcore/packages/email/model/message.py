@@ -22,9 +22,9 @@ class Table(object):
         tbl =  pkg.table('message', rowcaption='$to_address,$subject', pkey='id',
                      name_long='!!Message', name_plural='!!Messages')
         self.sysFields(tbl,draftField=True,ldel=False)
-        tbl.subtable('user_messages',condition='$dest_user_id=:env_user_id')
+        
         tbl.column('in_out', size='1', name_long='!!I/O', name_short='!!I/O',values='I:Input,O:Output')
-        tbl.column('to_address',name_long='!!To',_sendback=True)
+        tbl.column('to_address',name_long='!!To',indexed=True,_sendback=True)
         tbl.column('from_address',name_long='!!From',_sendback=True)
         tbl.column('cc_address',name_long='!!Cc',_sendback=True)
         tbl.column('bcc_address',name_long='!!Bcc',_sendback=True)
@@ -58,9 +58,6 @@ class Table(object):
         tbl.column('deferred_ts', dtype='DHZ', name_long='!!Deferred send',
                    name_short='!!Deferred', indexed=True)
 
-        #tbl.joinColumn('dest_user_id', name_long='!!Destination user').relation('adm.user.id',
-        #                                    cnd='@dest_user_id.email=$to_address', relation_name='received_messages')
-        tbl.formulaColumn('dest_user_id', '$user_id', name_long='!!Destination user')
         tbl.formulaColumn('sent','$send_date IS NOT NULL', name_long='!!Sent')
         tbl.formulaColumn('message_to_send', "$in_out=:out AND $send_date IS NULL AND $error_msg IS NULL AND ($deferred_ts IS NULL OR $deferred_ts <= NOW())", var_out='O',
                             name_long='!!Message to send', dtype='B')
