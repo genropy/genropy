@@ -141,8 +141,21 @@ class SqlQueryCompiler(object):
     def aliasCode(self,n):
         return '%s%i' %(self.aliasPrefix,n)
 
-    def checkTablePermission(self, table):
-        """Check if the current user has permission to access the table.
+    def _initPermissionEnforcement(self):
+        """Initialize permission enforcement flags as a set.
+
+        Called once at init. The flags are: T=table, R=relations, C=columns.
+        The currentEnv can disable all checks by setting permission_enforcement=False.
+        """
+        env_value = self.db.currentEnv.get('permission_enforcement')
+        if env_value is False:
+            self._permission_enforcement = set()
+            return
+        enforcement = getattr(self.db, 'permission_enforcement', '') or ''
+        self._permission_enforcement = set(enforcement.replace(',', '').upper())
+
+    def _checkTablePermission(self, table):
+        """Check table permission via currentPage.
 
         :param table: the full table name (pkg.tablename)
         """
@@ -158,6 +171,8 @@ class SqlQueryCompiler(object):
         :param tblobj: the table object (defaults to main table)
         :returns: True if column is hidden, False otherwise
         """
+        if 'C' not in self._permission_enforcement:
+            return False
         currentPage = getattr(self.db, 'currentPage', None)
         if not currentPage:
             return False
@@ -180,7 +195,9 @@ class SqlQueryCompiler(object):
         self._explodingTables = []
         self.lazy = lazy or []
         self.eager = eager or []
-        self.checkTablePermission(self.tblobj.fullname)
+        self._initPermissionEnforcement()
+        if 'T' in self._permission_enforcement:
+            self._checkTablePermission(self.tblobj.fullname)
         self.aliases = {self.tblobj.sqlfullname: self.aliasCode(0)}
         self.fieldlist = []
 
@@ -373,7 +390,8 @@ class SqlQueryCompiler(object):
             from_tbl = self.dbmodel.table(joiner['one_relation'])
             from_column = joiner['one_relation'].split('.')[-1]
             manyrelation = not joiner.get('one_one', False)
-        self.checkTablePermission(target_tbl.fullname)
+        if 'R' in self._permission_enforcement:
+            self._checkTablePermission(target_tbl.fullname)
         #target_sqlschema = target_tbl.sqlschema
         #target_sqltable = target_tbl.sqlname
         ignore_tenant = joiner.get('ignore_tenant')
@@ -706,7 +724,7 @@ class SqlQueryCompiler(object):
             # Check column permission: extract column name from last dotted part, strip $ or @
             colname_for_check = col.split(' AS ')[0].split('.')[-1].lstrip('$@')
             if colname_for_check and self.isColumnHidden(colname_for_check):
-                col = "'***' AS %s" % as_
+                col = "NULL AS %s" % as_
             col_dict[as_] = col
         # build the clean and complete sql string for the columns, but still all fields are expressed as $fieldname
         as_col_values = col_dict.values()

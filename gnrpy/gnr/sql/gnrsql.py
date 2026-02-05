@@ -157,6 +157,8 @@ class GnrSqlDb(GnrObject):
         self.typeConverter = GnrClassCatalog()
         self.debugger = debugger
         self.application = application
+        # Permission enforcement levels: T=table, R=relations, C=columns (e.g. "T,R,C")
+        self.permission_enforcement = kwargs.get('permission_enforcement', '')
         self.model = self.createModel()
 
         if ':' in self.implementation:
