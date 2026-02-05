@@ -195,6 +195,7 @@ class Form(BaseComponent):
         bar.send_button.slotButton('Send message', hidden='^#FORM.record.send_date').dataRpc(
                     self.db.table('email.message').sendMessage, pkey='=#FORM.record.id')
 
+
 class FormFromDashboard(Form):
 
     def th_form(self, form):
@@ -203,20 +204,3 @@ class FormFromDashboard(Form):
     
     def th_options(self):
         return dict(showtoolbar=False)
-
-
-class FormMobile(BaseComponent):
-    py_requires = "gnrcomponents/attachmanager/attachmanager:AttachManager"
-
-    def th_form(self, form):
-        bc = form.center.borderContainer(datapath='.record', overflow='auto')
-        bc.contentPane(region='center', margin='10px').templateChunk(
-                                    table='email.message', record_id='^.id', template='msg_preview')
-        
-        bc.dataController("bc.widget.setRegionVisible('bottom',read)",bc=bc,read='^#FORM.record.read?=!#v')
-        bc.contentPane(region='bottom').div(_class='mobile_button_container', margin_bottom='20px').lightButton(
-                        '!!Mark as read', _class='mobile_button').dataRpc(self.db.table('email.message').markAsRead, 
-                                                                        pkey='=#FORM.pkey', _onResult="""this.form.dismiss();""")
-
-    def th_options(self):
-        return dict(attachmentDrawer=True, modal='navigation')
