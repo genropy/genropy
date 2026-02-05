@@ -33,8 +33,10 @@ class GnrMenuProxy(GnrBaseProxy):
         # handler starts with '#': use fetch count, optionally with ':columnName' to filter by boolean column
         where = None
         if ':' in handler:
-            column = handler.split(':')[1]
-            where = f'${column} IS TRUE'
+            fieldpath = handler.split(':')[1]
+            if fieldpath[0] not in ('$','@'):
+                fieldpath = f'${fieldpath}'
+            where = f'{fieldpath} IS TRUE'
         return self.page.db.table(table).query(where=where,**kwargs).count()
             
 
