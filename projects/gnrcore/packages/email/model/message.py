@@ -112,9 +112,16 @@ class Table(object):
         self.db.table('email.message_address').deleteSelection('message_id',record['id'])
         
     def explodeAddressRelations(self,record):
+        prefs = self.db.application.getPreference('', pkg='email') or {}
+        if not prefs.get('collect_addresses'):
+            return
+        exclude_from = prefs.get('exclude_from_address')
         tblmsgaddres = self.db.table('email.message_address')
         message_id = record['id']
-        for address_type in ('to','from','bcc','cc'):
+        address_types = ['to', 'bcc', 'cc']
+        if not exclude_from:
+            address_types.append('from')
+        for address_type in address_types:
             addresslist = self.extractAddresses(record['%s_address' %address_type])
             for address in addresslist:
                 tblmsgaddres.insert(dict(address=address,message_id=message_id,reason=address_type))
