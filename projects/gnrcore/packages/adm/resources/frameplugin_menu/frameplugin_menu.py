@@ -76,7 +76,7 @@ class MenuIframes(BaseComponent):
             let label = node.attr.label;
             let badgeContent =  node.attr.badgeContent;
             let badgeClass = node.attr.badgeClass || 'menuline_badge';
-            if(badgeContent){
+            if(badgeContent!==null){
                 label = `innerHTML:${label} <span class="${badgeClass}">${badgeContent}</span>`
             }
             return label;
@@ -161,7 +161,7 @@ class MenuIframes(BaseComponent):
                                     else if(titleCounter){
                                         objectUpdate(menuLineBadgeKW,objectExtract(n.attr, 'titleCounter_*', true));
                                         if(n.attr.titleCounter!==true){
-                                            objectUpdate(menuLineBadgeKW,objectUpdate(menuLineBadgeKW,n.attr.titleCounter));
+                                            objectUpdate(menuLineBadgeKW, n.attr.titleCounter);
                                         }
                                     }
                                     if(objectNotEmpty(menuLineBadgeKW)){
