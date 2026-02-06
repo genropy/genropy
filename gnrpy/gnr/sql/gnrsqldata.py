@@ -121,7 +121,7 @@ class SqlQueryCompiler(object):
                            :meth:`setJoinCondition() <gnr.web.gnrwebpage.GnrWebPage.setJoinCondition>` method)
     :param sqlparams: a dict of parameters used in "WHERE" clause
     :param locale: the current locale (e.g: en, en_us, it)"""
-    def __init__(self, tblobj, joinConditions=None, sqlContextName=None, sqlparams=None, locale=None,aliasPrefix = None):
+    def __init__(self, tblobj, joinConditions=None, sqlContextName=None, sqlparams=None, locale=None,aliasPrefix = None, mangler=None):
         self.tblobj = tblobj
         self.db = tblobj.db
         self.dbmodel = tblobj.db.model
@@ -136,11 +136,30 @@ class SqlQueryCompiler(object):
         self._currColKey = None
         self.aliasPrefix = aliasPrefix or 't'
         self.locale = locale
+        self.mangler = mangler
         self.macro_expander = self.db.adapter.macroExpander(self)
 
     def aliasCode(self,n):
         return '%s%i' %(self.aliasPrefix,n)
 
+    def mangle(self, sql_text):
+        if not self.mangler:
+            return sql_text
+        def replace_param(m):
+            param_name = m.group(2)
+            if param_name.startswith('env_'):
+                return m.group(0)
+            if param_name in self.sqlparams:
+                return '%s%s_%s%s' % (m.group(1), self.mangler, param_name, m.group(3))
+            return m.group(0)
+        return re.sub(r"(:)(\w+)(\W|$)", replace_param, sql_text)
+
+    def mangleParams(self):
+        if not self.mangler:
+            return
+        for k in list(self.sqlparams.keys()):
+            if not k.startswith('env_'):
+                self.sqlparams['%s_%s' % (self.mangler, k)] = self.sqlparams.pop(k)
 
     def init(self, lazy=None, eager=None):
         """TODO
@@ -728,14 +747,16 @@ class SqlQueryCompiler(object):
                         # of rows returned by the query, but it is correct in terms of main table records.
                         # It is the right behaviour ???? Yes in some cases: see SqlSelection._aggregateRows
         self.cpl.distinct = distinct
-        self.cpl.columns = self.macro_expander.replace(columns,'TSRANK,TSHEADLINE')
-        self.cpl.where = where
-        self.cpl.group_by = group_by
-        self.cpl.having = having
-        self.cpl.order_by = self.macro_expander.replace(order_by,'TSRANK')
+        self.cpl.columns = self.mangle(self.macro_expander.replace(columns,'TSRANK,TSHEADLINE'))
+        self.cpl.where = self.mangle(where)
+        self.cpl.group_by = self.mangle(group_by)
+        self.cpl.having = self.mangle(having)
+        self.cpl.order_by = self.mangle(self.macro_expander.replace(order_by,'TSRANK'))
+        self.cpl.joins = [self.mangle(j) for j in self.cpl.joins]
         self.cpl.limit = limit
         self.cpl.offset = offset
         self.cpl.for_update = for_update
+        self.mangleParams()
         #raise str(self.cpl.get_sqltext(self.db))  # uncomment it for hard debug
         return self.cpl
 
@@ -1038,6 +1059,7 @@ class SqlQuery(object):
                  locale=None,_storename=None,
                  checkPermissions=None,
                  aliasPrefix=None,
+                 mangler=None,
                  **kwargs):
         self.dbtable = dbtable
         self.sqlparams = sqlparams or {}
@@ -1056,6 +1078,7 @@ class SqlQuery(object):
         self.storename = _storename
         self.checkPermissions = checkPermissions
         self.aliasPrefix = aliasPrefix
+        self.mangler = mangler
         test = " ".join([v for v in (columns, where, order_by, group_by, having) if v])
         rels = set(re.findall(r'\$(\w*)', test))
         params = set(re.findall(r'\:(\w*)', test))
@@ -1113,7 +1136,8 @@ class SqlQuery(object):
                                 sqlContextName=self.sqlContextName,
                                 sqlparams=self.sqlparams,
                                 aliasPrefix=self.aliasPrefix,
-                                locale=self.locale).compiledQuery(count=count,
+                                locale=self.locale,
+                                mangler=self.mangler).compiledQuery(count=count,
                                                                   relationDict=self.relationDict,
                                                                   **self.querypars)
 

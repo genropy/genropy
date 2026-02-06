@@ -299,6 +299,55 @@ class BaseSql(BaseGnrSqlTest):
                                where="$code = :code", code=0).fetch()
         assert result[0]['title'] == "Match point"
 
+    def test_mangler_sqltext(self):
+        query = self.db.query('video.movie',
+                              columns='$title',
+                              where='$year = :year AND $nationality = :nat',
+                              year=2005, nat='USA',
+                              mangler='q0')
+        sqltext, sqlparams = query.test()
+        assert ':q0_year' in sqltext
+        assert ':q0_nat' in sqltext
+        assert ':year' not in sqltext
+        assert ':nat' not in sqltext
+
+    def test_mangler_sqlparams(self):
+        query = self.db.query('video.movie',
+                              columns='$title',
+                              where='$year = :year',
+                              year=2005,
+                              mangler='q0')
+        sqltext, sqlparams = query.test()
+        assert 'q0_year' in sqlparams
+        assert sqlparams['q0_year'] == 2005
+        assert 'year' not in sqlparams
+
+    def test_mangler_none_unchanged(self):
+        query_no_mangler = self.db.query('video.movie',
+                              columns='$title',
+                              where='$year = :year',
+                              year=2005)
+        sqltext, sqlparams = query_no_mangler.test()
+        assert ':year' in sqltext
+        assert 'year' in sqlparams
+
+    def test_mangler_fetch(self):
+        query = self.db.query('video.movie',
+                              columns='$title',
+                              where='$year = :year',
+                              year=2005,
+                              mangler='q0')
+        result = query.fetch()
+        assert len(result) == 2
+
+    def test_mangler_count(self):
+        query = self.db.query('video.movie',
+                              columns='$title',
+                              where='$year = :year',
+                              year=2005,
+                              mangler='q0')
+        assert query.count() == 2
+
     def teardown_class(cls):
         cls.db.closeConnection()
         cls.db.dropDb(cls.dbname)
