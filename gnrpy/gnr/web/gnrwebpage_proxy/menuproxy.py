@@ -57,9 +57,8 @@ class GnrMenuProxy(GnrBaseProxy):
 
             # build WHERE clause based on column dtype
             column = tblobj.column(fieldpath)
-            if not column:
-                logger.error(f"Column {fieldpath} not found in table {table}")
-                return 0
+            if column is None:
+                raise ValueError(f"Column {fieldpath} not found in table {table}")
             dtype = column.attributes.get('dtype')
             if dtype == 'B':
                 # boolean: check for TRUE/NOT TRUE
