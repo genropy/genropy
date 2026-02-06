@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-import logging
 
-from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
-from gnr.web.gnrmenu import MenuResolver
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
+from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
+from gnr.web.gnrmenu import MenuResolver
+from gnr.web import logger
 
-log = logging.getLogger(__name__)
 
 class GnrMenuProxy(GnrBaseProxy):
 
@@ -30,8 +29,8 @@ class GnrMenuProxy(GnrBaseProxy):
             - Other (text, date, etc.): IS NOT NULL / IS NULL
         """
         if condition:
-            log.warning("getMenuLineBadge 'condition' parameter is deprecated. "
-                       "Use menuLineBadge='#' for count or '#:columnName' for filtered count")
+            logger.warning("getMenuLineBadge 'condition' parameter is deprecated. "
+                           "Use menuLineBadge='#' for count or '#:columnName' for filtered count")
             return self.page.db.table(table).query(where=condition, **kwargs).count()
         if not handler:
             return
@@ -59,7 +58,7 @@ class GnrMenuProxy(GnrBaseProxy):
             # build WHERE clause based on column dtype
             column = tblobj.column(fieldpath)
             if not column:
-                log.error(f"Column {fieldpath} not found in table {table}")
+                logger.error(f"Column {fieldpath} not found in table {table}")
                 return 0
             dtype = column.attributes.get('dtype')
             if dtype == 'B':
