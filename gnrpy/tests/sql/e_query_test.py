@@ -348,6 +348,72 @@ class BaseSql(BaseGnrSqlTest):
                               mangler='q0')
         assert query.count() == 2
 
+    def test_compound_union_sqltext(self):
+        self.db.currentEnv['_compound_counter'] = 0
+        q1 = self.db.query('video.movie', columns='$title', where='$year = :year', year=2005)
+        q2 = self.db.query('video.movie', columns='$title', where='$year = :year', year=2006)
+        compound = q1 + q2
+        sqltext, sqlparams = compound.test()
+        assert 'UNION' in sqltext
+        assert ':q0_year' in sqltext
+        assert ':q1_year' in sqltext
+        assert sqlparams['q0_year'] == 2005
+        assert sqlparams['q1_year'] == 2006
+
+    def test_compound_union_fetch(self):
+        q1 = self.db.query('video.movie', columns='$title', where='$year = :year', year=2005)
+        q2 = self.db.query('video.movie', columns='$title', where='$year = :year', year=2006)
+        result = (q1 + q2).fetch()
+        titles = sorted([r['title'] for r in result])
+        assert titles == ['Match point', 'Munich', 'Scoop', 'The Departed']
+
+    def test_compound_union_all(self):
+        q1 = self.db.query('video.movie', columns='$title', where='$year = :year', year=2005)
+        q2 = self.db.query('video.movie', columns='$title', where='$year = :year', year=2005)
+        result = (q1 | q2).fetch()
+        titles = sorted([r['title'] for r in result])
+        assert titles == ['Match point', 'Match point', 'Munich', 'Munich']
+
+    def test_compound_intersect(self):
+        q1 = self.db.query('video.movie', columns='$title', where='$year = :year', year=2005)
+        q2 = self.db.query('video.movie', columns='$title', where='$nationality = :nat', nat='USA')
+        result = (q1 & q2).fetch()
+        assert len(result) == 1
+        assert result[0]['title'] == 'Munich'
+
+    def test_compound_except(self):
+        q1 = self.db.query('video.movie', columns='$title,$year', where='$year = :year', year=2005)
+        q2 = self.db.query('video.movie', columns='$title,$year', where='$nationality = :nat', nat='USA')
+        result = (q1 - q2).fetch()
+        assert len(result) == 1
+        assert result[0]['title'] == 'Match point'
+
+    def test_compound_chain(self):
+        q1 = self.db.query('video.movie', columns='$title', where='$year = :year', year=2005)
+        q2 = self.db.query('video.movie', columns='$title', where='$year = :year', year=2006)
+        q3 = self.db.query('video.movie', columns='$title', where='$year = :year', year=1999)
+        compound = q1 + q2 + q3
+        titles = sorted([r['title'] for r in compound.fetch()])
+        assert titles == ['Eyes wide shut', 'Match point', 'Munich', 'Scoop', 'The Departed']
+
+    def test_compound_count(self):
+        q1 = self.db.query('video.movie', columns='$title', where='$year = :year', year=2005)
+        q2 = self.db.query('video.movie', columns='$title', where='$year = :year', year=2006)
+        assert (q1 + q2).count() == 4
+
+    def test_compound_parentheses(self):
+        q1 = self.db.query('video.movie', columns='$title', where='$year = :year', year=2005)
+        q2 = self.db.query('video.movie', columns='$title', where='$year = :year', year=2006)
+        q3 = self.db.query('video.movie', columns='$title', where='$year = :year', year=1999)
+        q4 = self.db.query('video.movie', columns='$title', where='$year = :year', year=2005)
+        compound = (q1 + q2) & (q3 + q4)
+        sqltext, sqlparams = compound.test()
+        assert 'INTERSECT' in sqltext
+        assert sqltext.count('UNION') == 2
+        result = compound.fetch()
+        titles = sorted([r['title'] for r in result])
+        assert titles == ['Match point', 'Munich']
+
     def teardown_class(cls):
         cls.db.closeConnection()
         cls.db.dropDb(cls.dbname)

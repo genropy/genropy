@@ -1379,6 +1379,89 @@ class SqlQuery(object):
             cursor.close()
         return n
 
+    def _next_compound_key(self):
+        env = self.db.currentEnv
+        idx = env.get('_compound_counter', 0)
+        env['_compound_counter'] = idx + 1
+        return 'q%d' % idx
+
+    def _compound(self, other, operator):
+        if isinstance(other, SqlCompoundQuery):
+            self_key = self._next_compound_key()
+            self.mangler = self_key
+            queries = dict(other.queries)
+            queries[self_key] = self
+            template = '{%s} %s SELECT * FROM (%s) AS _cr' % (self_key, operator, other._template)
+        else:
+            self_key = self._next_compound_key()
+            other_key = other._next_compound_key()
+            self.mangler = self_key
+            other.mangler = other_key
+            queries = {self_key: self, other_key: other}
+            template = '{%s} %s {%s}' % (self_key, operator, other_key)
+        return SqlCompoundQuery(queries=queries, template=template,
+                                dbtable=self.dbtable, db=self.db)
+
+    def __add__(self, other):
+        return self._compound(other, 'UNION')
+
+    def __or__(self, other):
+        return self._compound(other, 'UNION ALL')
+
+    def __and__(self, other):
+        return self._compound(other, 'INTERSECT')
+
+    def __sub__(self, other):
+        return self._compound(other, 'EXCEPT')
+
+
+class SqlCompoundQuery(SqlQuery):
+
+    def __init__(self, queries, template, dbtable, db):
+        self.queries = queries
+        self._template = template
+        self.dbtable = dbtable
+        self.db = db
+        self.storename = None
+
+    def _get_sqltext(self):
+        return self._template.format(**{k: q.sqltext for k, q in self.queries.items()})
+
+    sqltext = property(_get_sqltext)
+
+    def _get_compiled(self):
+        return next(iter(self.queries.values())).compiled
+
+    compiled = property(_get_compiled)
+
+    @property
+    def sqlparams(self):
+        result = {}
+        for q in self.queries.values():
+            result.update(q.sqlparams)
+        return result
+
+    def _compound(self, other, operator):
+        queries = dict(self.queries)
+        if isinstance(other, SqlCompoundQuery):
+            queries.update(other.queries)
+            template = 'SELECT * FROM (%s) AS _cl %s SELECT * FROM (%s) AS _cr' % (self._template, operator, other._template)
+        else:
+            key = other._next_compound_key()
+            other.mangler = key
+            queries[key] = other
+            template = '%s %s {%s}' % (self._template, operator, key)
+        return SqlCompoundQuery(queries=queries, template=template,
+                                dbtable=self.dbtable, db=self.db)
+
+    def count(self):
+        count_sql = 'SELECT count(*) AS gnr_row_count FROM (%s) AS _compound' % self.sqltext
+        cursor = self.db.execute(count_sql, self.sqlparams,
+                                 dbtable=self.dbtable.fullname,
+                                 storename=self.storename)
+        return cursor.fetchall()[0][0]
+
+
 class SqlSelection(object):
     """It is the resulting data from the execution of an istance of the :class:`SqlQuery`. Through the
     SqlSelection you can get data into differents modes: you can use the :meth:`output()` method or you
