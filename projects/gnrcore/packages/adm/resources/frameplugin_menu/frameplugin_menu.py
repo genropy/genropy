@@ -76,7 +76,7 @@ class MenuIframes(BaseComponent):
             let label = node.attr.label;
             let badgeContent =  node.attr.badgeContent;
             let badgeClass = node.attr.badgeClass || 'menuline_badge';
-            if(badgeContent!==null){
+            if(!isNullOrBlank(badgeContent)){
                 label = `innerHTML:${label} <span class="${badgeClass}">${badgeContent}</span>`
             }
             return label;
