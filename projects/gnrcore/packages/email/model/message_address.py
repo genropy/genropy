@@ -4,7 +4,7 @@
 class Table(object):
     def config_db(self, pkg):
         tbl =  pkg.table('message_address',pkey='id',name_long='!!Message address',
-                      name_plural='!!Message addresses')
+                      name_plural='!!Message addresses', retention_policy=('__ins_ts', 180))
         self.sysFields(tbl)
         tbl.column('message_id',size='22',name_long='!!Message id').relation('email.message.id', mode='foreignkey', 
                                                                             relation_name='addresses',deferred=True)
