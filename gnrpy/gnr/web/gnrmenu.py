@@ -313,19 +313,21 @@ class MenuResolver(BagResolver):
                 continue
             self.setLabelClass(attributes)
             titleCounter_val = attributes.get('titleCounter')
-            if titleCounter_val and menuTag != 'tableBranch':
-                titleCounter_attrs = {}
-                if isinstance(titleCounter_val, dict):
-                    titleCounter_attrs.update(titleCounter_val)
-                table = attributes.get('table') or titleCounter_attrs.get('table')
-                if not table:
-                    continue
-                self._page.subscribeTable(table, True, subscribeMode=True)
-                attributes['titleCounter_count'] = self._page.app.getRecordCount(
-                    table=table,
-                    where=attributes.get('titleCounter_condition'),
-                    **titleCounter_attrs
-                )
+            menuLineBadge = attributes.get('menuLineBadge')
+            menuLineBadge_attr = {}
+            if (titleCounter_val or menuLineBadge) and menuTag != 'tableBranch':
+                if menuLineBadge:
+                    menuLineBadge_attr = dictExtract(attributes,'menuLineBadge_',pop=False)
+                    menuLineBadge_attr['table'] = menuLineBadge_attr.get('table') or attributes.get('table')
+                    menuLineBadge_attr['handler'] = menuLineBadge
+                else:
+                    menuLineBadge_attr = dictExtract(attributes,'titleCounter_',pop=False)
+                    if isinstance(titleCounter_val, dict):
+                        menuLineBadge_attr.update(titleCounter_val)
+                    menuLineBadge_attr['table'] = attributes.get('table') or menuLineBadge_attr.get('table')
+                if menuLineBadge_attr.get('table'):
+                    self._page.subscribeTable(menuLineBadge_attr.get('table'), True, subscribeMode=True)
+                    attributes['badgeContent'] = self._page.menu.getMenuLineBadge(**menuLineBadge_attr)
             result.setItem(node.label, value, attributes)
         return result
 
@@ -549,13 +551,17 @@ class MenuResolver(BagResolver):
         xmlresolved = kwargs.pop('resolved',False)
         attributes.pop('branchPage',None)
         self._page.subscribeTable(kwargs['table'],True,subscribeMode=True)
-        if attributes.get('titleCounter'):
-            xmlresolved=True
+        titleCounter = attributes.get('titleCounter')
+        menuLineBadge = attributes.get('menuLineBadge')
+        xmlresolved=titleCounter is not None
         sbresolver = TableMenuResolver(xmlresolved=xmlresolved,
                             _page=self._page,cacheTime=cacheTime, 
                             level_offset=self.level,
                             **kwargs)
         attributes['isDir'] = True
+        if menuLineBadge is True or titleCounter:
+            attributes['child_count'] =  len(sbresolver())
+            attributes['badgeContent'] = str(attributes['child_count'] or 0)
         return sbresolver,attributes
 
     def nodeType_packageBranch(self,node):
