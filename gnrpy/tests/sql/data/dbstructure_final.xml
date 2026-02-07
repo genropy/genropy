@@ -24,7 +24,9 @@
 <description _T="BAG" name_short="Dsc" name_long="Movie description" tag="column"></description></columns>
 <virtual_columns tag="virtual_columns_list"><title_upper _T="BAG" sql_formula="UPPER($title)" virtual_column="y" dtype="A" tag="virtual_column"></title_upper>
 <title_year _T="BAG" sql_formula="$title || ' (' || $year || ')'" virtual_column="y" dtype="A" tag="virtual_column"></title_year>
-<dvd_count _T="BAG" select='{"columns": "COUNT(*)", "table": "video.dvd", "where": "$movie_id=#THIS.id"}' virtual_column="y" dtype="L" tag="virtual_column"></dvd_count></virtual_columns></movie>
+<title_with_label _T="BAG" sql_formula="$title || :label" virtual_column="y" dtype="A" var_label=" [DVD]" tag="virtual_column"></title_with_label>
+<dvd_count _T="BAG" select='{"columns": "COUNT(*)", "table": "video.dvd", "where": "$movie_id=#THIS.id"}' virtual_column="y" dtype="L" tag="virtual_column"></dvd_count>
+<dvd_count_available _T="BAG" select='{"columns": "COUNT(*)", "table": "video.dvd", "where": "$movie_id=#THIS.id AND $available=:avail", "avail": "yes"}' virtual_column="y" dtype="L" tag="virtual_column"></dvd_count_available></virtual_columns></movie>
 <dvd name_short="Dvd" name_long="Dvd" pkey="code" pkg="video" fullname="video.dvd" tag="table"><columns tag="column_list"><code _T="BAG" dtype="L" tag="column"></code>
 <movie_id dtype="L" name_short="Mid" name_long="Movie id" tag="column"><relation _T="BAG" related_column="movie.id" mode="relation" onUpdate_sql="cascade"></relation></movie_id>
 <purchasedate _T="BAG" dtype="D" name_short="Pdt" name_long="Purchase date" tag="column"></purchasedate>

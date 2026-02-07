@@ -34,7 +34,7 @@ hdlr = logging.FileHandler('logs.log')
 gnrlogger.addHandler(hdlr)
 
 from gnr.sql.gnrsql import GnrSqlDb
-from gnr.sql.gnrsqldata import SqlQuery, SqlSelection
+from gnr.sql.gnrsqldata import SqlQuery, SqlSelection, SqlCompiledQuery
 from gnr.sql import gnrsqldata as gsd
 
 from .common import BaseGnrSqlTest, configurePackage
@@ -349,16 +349,16 @@ class BaseSql(BaseGnrSqlTest):
         assert query.count() == 2
 
     def test_compound_union_sqltext(self):
-        self.db.currentEnv['_compound_counter'] = 0
+        self.db.currentEnv['_mangler_counters'] = {}
         q1 = self.db.query('video.movie', columns='$title', where='$year = :year', year=2005)
         q2 = self.db.query('video.movie', columns='$title', where='$year = :year', year=2006)
         compound = q1 + q2
         sqltext, sqlparams = compound.test()
         assert 'UNION' in sqltext
-        assert ':q0_year' in sqltext
-        assert ':q1_year' in sqltext
-        assert sqlparams['q0_year'] == 2005
-        assert sqlparams['q1_year'] == 2006
+        assert ':cq0_year' in sqltext
+        assert ':cq1_year' in sqltext
+        assert sqlparams['cq0_year'] == 2005
+        assert sqlparams['cq1_year'] == 2006
 
     def test_compound_union_fetch(self):
         q1 = self.db.query('video.movie', columns='$title', where='$year = :year', year=2005)
@@ -498,6 +498,19 @@ class BaseSql(BaseGnrSqlTest):
         assert result[0]['title_upper'] == 'MATCH POINT'
         assert result[0]['dvd_count'] == 3
 
+    def test_formulaColumn_subquery_with_params(self):
+        result = self.db.query('video.movie',
+                              columns='$title,$dvd_count_available',
+                              where='$id = :id', id=0).fetch()
+        assert result[0]['dvd_count_available'] == 3  # movie 0 has 3 dvds with available='yes'
+
+    def test_formulaColumn_subquery_params_and_count(self):
+        result = self.db.query('video.movie',
+                              columns='$title,$dvd_count,$dvd_count_available',
+                              where='$id = :id', id=0).fetch()
+        assert result[0]['dvd_count'] == 3
+        assert result[0]['dvd_count_available'] == 3
+
     def test_formulaColumn_subquery_order_by(self):
         result = self.db.query('video.movie',
                               columns='$title,$dvd_count',
@@ -506,6 +519,244 @@ class BaseSql(BaseGnrSqlTest):
         counts = [r['dvd_count'] for r in result]
         assert counts == sorted(counts, reverse=True)
         assert counts[0] == 3
+
+    # --- SqlCompiledQuery __eq__ / __hash__ / _identity_hash tests ---
+
+    def test_compiled_eq_same_identity_hash(self):
+        a = SqlCompiledQuery('video_movie')
+        b = SqlCompiledQuery('video_movie')
+        a._identity_hash = hash(('video_movie', 'some_where'))
+        b._identity_hash = hash(('video_movie', 'some_where'))
+        assert a == b
+
+    def test_compiled_eq_different_identity_hash(self):
+        a = SqlCompiledQuery('video_movie')
+        b = SqlCompiledQuery('video_movie')
+        a._identity_hash = hash(('video_movie', 'where_1'))
+        b._identity_hash = hash(('video_movie', 'where_2'))
+        assert a != b
+
+    def test_compiled_eq_different_table(self):
+        a = SqlCompiledQuery('video_movie')
+        b = SqlCompiledQuery('video_dvd')
+        a._identity_hash = hash(('video_movie', 'w'))
+        b._identity_hash = hash(('video_dvd', 'w'))
+        assert a != b
+
+    def test_compiled_eq_none_identity_hash(self):
+        a = SqlCompiledQuery('video_movie')
+        b = SqlCompiledQuery('video_movie')
+        # entrambi hanno _identity_hash=None (default)
+        assert a != b
+
+    def test_compiled_eq_one_none(self):
+        a = SqlCompiledQuery('video_movie')
+        b = SqlCompiledQuery('video_movie')
+        a._identity_hash = hash(('video_movie', 'w'))
+        # b._identity_hash resta None
+        assert a != b
+
+    def test_compiled_eq_not_implemented(self):
+        a = SqlCompiledQuery('video_movie')
+        a._identity_hash = 42
+        assert a.__eq__("not a compiled") is NotImplemented
+
+    def test_compiled_hash_with_identity(self):
+        a = SqlCompiledQuery('video_movie')
+        h = hash(('video_movie', 'w'))
+        a._identity_hash = h
+        assert hash(a) == h
+
+    def test_compiled_hash_without_identity(self):
+        a = SqlCompiledQuery('video_movie')
+        assert hash(a) == id(a)
+
+    def test_compiled_in_set(self):
+        a = SqlCompiledQuery('video_movie')
+        b = SqlCompiledQuery('video_movie')
+        h = hash(('video_movie', 'same_where'))
+        a._identity_hash = h
+        b._identity_hash = h
+        s = {a, b}
+        assert len(s) == 1
+
+    def test_compiled_as_dict_key(self):
+        a = SqlCompiledQuery('video_movie')
+        b = SqlCompiledQuery('video_movie')
+        h = hash(('video_movie', 'same_where'))
+        a._identity_hash = h
+        b._identity_hash = h
+        d = {a: 'value_a'}
+        assert d[b] == 'value_a'
+
+    def test_compiled_different_in_set(self):
+        a = SqlCompiledQuery('video_movie')
+        b = SqlCompiledQuery('video_movie')
+        a._identity_hash = hash(('video_movie', 'w1'))
+        b._identity_hash = hash(('video_movie', 'w2'))
+        s = {a, b}
+        assert len(s) == 2
+
+    # --- compileQuery produce SqlCompiledQuery ---
+
+    def test_compileQuery_returns_compiled_object(self):
+        q = self.db.query('video.movie', columns='$title', where='$id = :id', id=0)
+        compiled = q.compileQuery()
+        assert isinstance(compiled, SqlCompiledQuery)
+
+    def test_compiled_has_maintable(self):
+        q = self.db.query('video.movie', columns='$title', where='$id = :id', id=0)
+        compiled = q.compileQuery()
+        assert 'movie' in compiled.maintable
+
+    def test_compiled_tpl_none_by_default(self):
+        q = self.db.query('video.movie', columns='$title', where='$id = :id', id=0)
+        compiled = q.compileQuery()
+        assert compiled.tpl is None
+
+    def test_compiled_identity_hash_none_for_main_query(self):
+        """Le query principali non hanno _identity_hash (è per le subquery)"""
+        q = self.db.query('video.movie', columns='$title', where='$id = :id', id=0)
+        compiled = q.compileQuery()
+        assert compiled._identity_hash is None
+
+    # --- get_sqltext template handling ---
+
+    def test_get_sqltext_without_tpl(self):
+        q = self.db.query('video.movie', columns='$title', where='$id = :id', id=0)
+        compiled = q.compileQuery()
+        sql = compiled.get_sqltext(self.db)
+        assert '%s' not in sql
+        assert 'SELECT' in sql.upper()
+
+    def test_get_sqltext_with_tpl(self):
+        q = self.db.query('video.movie', columns='$title', where='$id = :id', id=0)
+        compiled = q.compileQuery()
+        compiled.tpl = ' ( %s ) '
+        sql = compiled.get_sqltext(self.db)
+        assert sql.strip().startswith('(')
+        assert sql.strip().endswith(')')
+
+    def test_get_sqltext_cast_tpl(self):
+        q = self.db.query('video.movie', columns='$title', where='$id = :id', id=0)
+        compiled = q.compileQuery()
+        compiled.tpl = ' CAST( ( %s ) AS integer) '
+        sql = compiled.get_sqltext(self.db)
+        assert 'CAST' in sql
+        assert 'integer' in sql
+
+    def test_get_sqltext_exists_tpl(self):
+        q = self.db.query('video.dvd', columns='$code', where='$movie_id = :mid', mid=0)
+        compiled = q.compileQuery()
+        compiled.tpl = ' EXISTS( %s ) '
+        sql = compiled.get_sqltext(self.db)
+        assert 'EXISTS' in sql
+
+    # --- Subquery tramite formulaColumn: risultati corretti ---
+
+    def test_subquery_dvd_count_all_movies(self):
+        """Verifica dvd_count sui film noti — la subquery funziona per ogni riga"""
+        result = self.db.query('video.movie',
+                              columns='$title,$dvd_count',
+                              where='$id <= :maxid', maxid=10,
+                              order_by='$id').fetch()
+        expected = {
+            'Match point': 3, 'Scoop': 2, 'Munich': 2,
+            'Saving private Ryan': 0, 'Eyes wide shut': 2,
+            'Barry Lindon': 2, 'Scarface': 1, 'The untouchables': 1,
+            'Psycho': 2, 'The Aviator': 1, 'The Departed': 1
+        }
+        for r in result:
+            assert r['dvd_count'] == expected[r['title']]
+
+    def test_subquery_with_params_all_movies(self):
+        """Verifica dvd_count_available — subquery con parametri extra (:avail)"""
+        result = self.db.query('video.movie',
+                              columns='$title,$dvd_count_available',
+                              order_by='$id').fetch()
+        for r in result:
+            assert isinstance(r['dvd_count_available'], int)
+
+    def test_subquery_params_preserved_in_sqlparams(self):
+        """I parametri della subquery devono essere nei sqlparams della query principale"""
+        q = self.db.query('video.movie',
+                         columns='$title,$dvd_count_available',
+                         where='$id = :id', id=0)
+        sqltext, sqlparams = q.test()
+        has_avail = any('avail' in k for k in sqlparams)
+        assert has_avail
+
+    def test_subquery_sqltext_contains_subselect(self):
+        """L'SQL generato deve contenere la subquery wrappata tra parentesi"""
+        q = self.db.query('video.movie',
+                         columns='$title,$dvd_count',
+                         where='$id = :id', id=0)
+        sqltext, sqlparams = q.test()
+        upper = sqltext.upper()
+        assert upper.count('SELECT') >= 2  # main query + subquery
+
+    def test_two_subqueries_in_same_query(self):
+        """Due formulaColumn con subquery nella stessa query"""
+        result = self.db.query('video.movie',
+                              columns='$title,$dvd_count,$dvd_count_available',
+                              where='$id = :id', id=0).fetch()
+        assert result[0]['dvd_count'] == 3
+        assert result[0]['dvd_count_available'] == 3
+
+    def test_subquery_zero_when_no_match(self):
+        """COUNT deve dare 0 quando non ci sono righe corrispondenti"""
+        result = self.db.query('video.movie',
+                              columns='$title,$dvd_count',
+                              where='$id = :id', id=3).fetch()
+        assert result[0]['dvd_count'] == 0
+        assert result[0]['title'] == 'Saving private Ryan'
+
+    def test_subquery_available_zero_when_no_match(self):
+        """dvd_count_available deve dare 0 quando nessun dvd è available"""
+        result = self.db.query('video.movie',
+                              columns='$title,$dvd_count_available',
+                              where='$id = :id', id=1).fetch()
+        # movie_id=1 (Scoop) ha 2 dvd ma entrambi available='no'
+        assert result[0]['dvd_count_available'] == 0
+
+    def test_subquery_mixed_with_formula_and_alias(self):
+        """Combinazione di formulaColumn pura, aliasColumn e subquery nella stessa query"""
+        result = self.db.query('video.movie',
+                              columns='$title,$title_upper,$dvd_count,$title_year',
+                              where='$id = :id', id=0).fetch()
+        assert result[0]['title_upper'] == 'MATCH POINT'
+        assert result[0]['dvd_count'] == 3
+        assert result[0]['title_year'] == 'Match point (2005)'
+
+    def test_subquery_with_order_by_subquery_column(self):
+        """ORDER BY su colonna subquery"""
+        result = self.db.query('video.movie',
+                              columns='$title,$dvd_count',
+                              order_by='$dvd_count DESC',
+                              limit=3).fetch()
+        counts = [r['dvd_count'] for r in result]
+        assert counts == sorted(counts, reverse=True)
+
+    def test_subquery_with_where_on_main(self):
+        """Subquery combinata con WHERE sulla tabella principale"""
+        result = self.db.query('video.movie',
+                              columns='$title,$dvd_count',
+                              where='$genre = :genre',
+                              genre='DRAMA').fetch()
+        assert len(result) == 4
+        for r in result:
+            assert isinstance(r['dvd_count'], int)
+
+    def test_compiled_sqltext_stable(self):
+        """Due compilazioni identiche producono lo stesso SQL"""
+        q1 = self.db.query('video.movie', columns='$title,$dvd_count',
+                          where='$id = :id', id=0)
+        q2 = self.db.query('video.movie', columns='$title,$dvd_count',
+                          where='$id = :id', id=0)
+        sql1, _ = q1.test()
+        sql2, _ = q2.test()
+        # La struttura dell'SQL deve essere uguale (i mangler possono variare)
+        assert sql1.upper().count('SELECT') == sql2.upper().count('SELECT')
 
     def teardown_class(cls):
         cls.db.closeConnection()

@@ -134,6 +134,10 @@ def configurePackage(pkg):
     movie.formulaColumn('dvd_count', select=dict(
         columns='COUNT(*)', table='video.dvd', where='$movie_id=#THIS.id'
     ), dtype='L')
+    movie.formulaColumn('dvd_count_available', select=dict(
+        columns='COUNT(*)', table='video.dvd',
+        where='$movie_id=#THIS.id AND $available=:avail', avail='yes'
+    ), dtype='L')
 
     dvd = pkg.table('dvd', name_short='Dvd', name_long='Dvd', pkey='code')
     dvd.column('code', 'L')

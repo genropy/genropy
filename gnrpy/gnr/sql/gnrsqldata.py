@@ -92,6 +92,8 @@ class SqlCompiledQuery(object):
         self.aggregateDict = {}
         self.pyColumns = []
         self.maintable_as = maintable_as
+        self.tpl = None
+        self._identity_hash = None
 
     def get_sqltext(self, db):
         """Compile the sql query string based on current query parameters and the specific db
@@ -103,8 +105,20 @@ class SqlCompiledQuery(object):
         'maintable', 'distinct', 'columns', 'joins', 'where', 'group_by', 'having', 'order_by', 'limit', 'offset',
         'for_update'):
             kwargs[k] = getattr(self, k)
-        return db.adapter.compileSql(maintable_as=self.maintable_as,**kwargs)
+        result = db.adapter.compileSql(maintable_as=self.maintable_as,**kwargs)
+        if self.tpl:
+            result = self.tpl % result
+        return result
 
+    def __eq__(self, other):
+        if not isinstance(other, SqlCompiledQuery):
+            return NotImplemented
+        return self._identity_hash is not None and self._identity_hash == other._identity_hash
+
+    def __hash__(self):
+        if self._identity_hash is not None:
+            return self._identity_hash
+        return id(self)
 
 
 class SqlQueryCompiler(object):
@@ -121,9 +135,10 @@ class SqlQueryCompiler(object):
                            :meth:`setJoinCondition() <gnr.web.gnrwebpage.GnrWebPage.setJoinCondition>` method)
     :param sqlparams: a dict of parameters used in "WHERE" clause
     :param locale: the current locale (e.g: en, en_us, it)"""
-    def __init__(self, tblobj, joinConditions=None, sqlContextName=None, sqlparams=None, locale=None,aliasPrefix = None, mangler=None, query_kw=None, mainquery_kw=None):
+    def __init__(self, tblobj, joinConditions=None, sqlContextName=None, sqlparams=None, locale=None,aliasPrefix = None, mangler=None, query_kw=None, mainquery_kw=None, query=None):
         self.tblobj = tblobj
         self.db = tblobj.db
+        self.query = query
         self.dbmodel = tblobj.db.model
         if tblobj.db.reuse_relation_tree:
             self.relations = tblobj.relations
@@ -253,28 +268,36 @@ class SqlQueryCompiler(object):
 
                 
             elif fldalias.sql_formula or fldalias.select or fldalias.exists:
-                # Virtual column dispatch based on subquery presence:
-                #   - A subquery exists only if select, exists, or select_ attributes are present
-                #   - sql_formula alone (str or True) without select/exists = pure formula
-                #   - sql_formula=True delegates to a Python method sql_formula_<fieldname>()
                 attr = dict(fldalias.attributes)
                 formula_kw = dictExtract(attr, 'var_')
                 multi_select = dictExtract(attr, 'select_')
-                has_subquery = fldalias.select or fldalias.exists or multi_select
-                if not has_subquery:
-                    # Pure formula: only $col and @rel.col references, resolved inline
-                    return self._handleFormulaColumn(fldalias, fld, curr_tblobj, alias, curr,
-                                                      attr, formula_kw)
-                elif not multi_select:
-                    # Single subquery (select or exists), with or without a wrapping sql_formula
-                    return self._handleSubQuery(fldalias, fld, curr_tblobj, alias, curr,
-                                                      expandThis, expandEnv, expandPref,
-                                                      attr, formula_kw)
+                sql_formula = fldalias.sql_formula
+                if sql_formula is True:
+                    sql_formula = getattr(curr_tblobj, 'sql_formula_%s' % fld)(attr)
+                select_dict = dict(multi_select) if multi_select else {}
+                if not sql_formula:
+                    select_dict['default'] = fldalias.select or fldalias.exists
+                if not select_dict:
+                    return self._handleFormulaColumn(fldalias, alias, curr,
+                                                      sql_formula, formula_kw)
+                elif len(select_dict) == 1:
+                    sq_select = select_dict['default']
+                    if isinstance(sq_select, str):
+                        sq_select = getattr(self.tblobj.dbtable, 'subquery_%s' % sq_select)()
+                    sq_pars = dict(sq_select)
+                    cast = sq_pars.pop('cast', None)
+                    if fldalias.exists:
+                        tpl = ' EXISTS( %s ) '
+                    elif cast:
+                        tpl = ' CAST( ( %s ) AS ' + cast + ') '
+                    else:
+                        tpl = ' ( %s ) '
+                    compiled = self._compiledSubQuery(alias, expandThis, sq_pars)
+                    return tpl % compiled.get_sqltext(self.db)
                 else:
-                    # Multiple subqueries (select_ prefix in attributes)
-                    return self._handleFormulaColumn_legacy(fldalias, fld, curr_tblobj, alias, curr,
+                    return self._handleFormulaColumn_legacy(fldalias, alias, curr,
                                                       expandThis, expandEnv, expandPref,
-                                                      attr, formula_kw, multi_select)
+                                                      sql_formula, formula_kw, select_dict)
             elif fldalias.py_method:
                 #self.cpl.pyColumns.append((fld,getattr(self.tblobj.dbtable,fldalias.py_method,None)))
                 self.cpl.pyColumns.append((fld,getattr(fldalias.table.dbtable,fldalias.py_method,None)))
@@ -284,39 +307,13 @@ class SqlQueryCompiler(object):
                 fld, curr.pkg_name, curr.tbl_name, '.'.join(newpath)))
         return '%s.%s' % (self.db.adapter.asTranslator(alias), curr_tblobj.column(fld).adapted_sqlname)
 
-    def _handleFormulaColumn(self, fldalias, fld, curr_tblobj, alias, curr, attr, formula_kw):
+    def _handleFormulaColumn(self, fldalias, alias, curr, sql_formula, formula_kw):
         """Handle pure formula columns with no subquery.
 
-        Translates a sql_formula string containing $col and @rel.col placeholders
-        into valid SQL by resolving each reference to its table alias (e.g. t0.col, t3.col).
-
-        The sql_formula can be either:
-            - A string (e.g. ``"UPPER($title)"`` or ``"$role || ' in ' || @movie_id.title"``).
-            - The boolean ``True``, meaning the formula is defined as a Python method
-              ``sql_formula_<fieldname>(attributes)`` on the table object.
-
-        Resolution is done in two passes via regex substitution:
-            1. RELFINDER resolves ``@relation.column`` references (e.g. ``@movie_id.title`` -> ``t3.title``).
-            2. COLFINDER resolves ``$column`` references (e.g. ``$title`` -> ``t0.title``).
-
-        Both regexes capture a leading non-word character in group(1) and the field path
-        in group(2). The callback delegates to ``getFieldAlias`` which handles join registration.
-
         Args:
-            fldalias: The virtual column definition node from the model.
-            fld: The field name (e.g. ``'title_upper'``).
-            curr_tblobj: The current table object in the model.
-            alias: The SQL table alias for the current table (e.g. ``'t0'``).
-            curr: The current table model node.
-            attr: Pre-extracted dict of fldalias.attributes.
+            sql_formula: The resolved SQL formula string.
             formula_kw: Pre-extracted var_ parameters (dict), for :placeholder resolution.
-
-        Returns:
-            A parenthesized SQL expression string (e.g. ``'( UPPER(t0.title) )'``).
         """
-        sql_formula = fldalias.sql_formula
-        if sql_formula is True:
-            sql_formula = getattr(curr_tblobj,'sql_formula_%s' %fld)(attr)
         def resolveField(m):
             return m.group(1) + self.getFieldAlias(m.group(2), curr=curr, basealias=alias)
         sql_formula = RELFINDER.sub(resolveField, sql_formula)
@@ -331,25 +328,65 @@ class SqlQueryCompiler(object):
                                      sql_formula)
         return f'( {sql_formula} )'
 
-    def _handleSubQuery(self, fldalias, fld, curr_tblobj, alias, curr, expandThis, expandEnv, expandPref,
-                        attr, formula_kw):
-        """Handle a single subquery column (select or exists), with or without a wrapping sql_formula.
-        When sql_formula is absent, it defaults to '#default' (or 'EXISTS(#default)').
-        Subquery parameters live inside the select dict and are resolved by queryCompile."""
-        return self._handleFormulaColumn_legacy(fldalias, fld, curr_tblobj, alias, curr,
-                                          expandThis, expandEnv, expandPref,
-                                          attr, formula_kw)
+    def _compiledSubQuery(self, alias, expandThis, sq_pars, tpl=None):
+        """Compile a subquery column (select or exists) into SQL text.
 
-    def _handleFormulaColumn_legacy(self, fldalias, fld, curr_tblobj, alias, curr,
+        Builds and compiles an independent SqlQuery with a mangler prefix,
+        so that subquery parameters (e.g. ``avail='yes'``) are namespaced
+        into the main query's sqlparams without collisions.
+        The compiled SQL is wrapped with the given template (e.g. for CAST).
+
+        Args:
+            alias: The SQL table alias for the current table (e.g. ``'t0'``).
+            expandThis: Callback to replace ``#THIS.col`` with ``alias.col``.
+            sq_pars: The subquery parameters dict (table, where, columns, plus
+                     any extra params like avail='yes'). Already without 'cast'.
+            tpl: SQL template to wrap the subquery (e.g. ``' ( %s ) '`` or
+                 ``' CAST( ( %s ) AS integer) '``).
+
+        Returns:
+            str: the compiled subquery SQL text, wrapped with the template.
+        """
+        # 1. Extract table and where; remaining items are subquery parameters
+        sq_table = sq_pars.pop('table')
+        sq_where = sq_pars.pop('where')
+        sq_pars.setdefault('ignorePartition', True)
+        sq_pars.setdefault('excludeDraft', False)
+        sq_pars.setdefault('excludeLogicalDeleted', False)
+        sq_pars.setdefault('subtable', '*')
+        aliasPrefix = '%s_t' % alias
+
+        # 3. Expand #THIS in the subquery WHERE
+        sq_where = THISFINDER.sub(expandThis, sq_where)
+
+        # 4. Compile the subquery with a mangler for parameter namespacing
+        mangler_prefix = self.query._next_mangler_key('sq')
+        q = self.db.table(sq_table).query(
+            where=sq_where,
+            aliasPrefix=aliasPrefix,
+            addPkeyColumn=False,
+            ignoreTableOrderBy=True,
+            mangler=mangler_prefix,
+            **sq_pars
+        )
+        compiled = q.compileQuery()
+        compiled.tpl = tpl
+
+        # 5. Build identity hash for CTE merge: resolve params in WHERE to get
+        #    a mangler-independent fingerprint
+        resolved_where = compiled.where or ''
+        for k, v in q.sqlparams.items():
+            resolved_where = resolved_where.replace(':%s' % k, str(v))
+        compiled._identity_hash = hash((compiled.maintable, resolved_where))
+
+        # 6. Merge mangled subquery params into main query params
+        self.sqlparams.update(q.sqlparams)
+
+        return compiled
+
+    def _handleFormulaColumn_legacy(self, fldalias, alias, curr,
                               expandThis, expandEnv, expandPref,
-                              attr, formula_kw, multi_select=None):
-        sql_formula = fldalias.sql_formula
-        if sql_formula is True:
-            sql_formula = getattr(curr_tblobj,'sql_formula_%s' %fld)(attr)
-        select_dict = multi_select or {}
-        if not sql_formula:
-            sql_formula = '#default' if fldalias.select else 'EXISTS(#default)'
-            select_dict['default'] = fldalias.select or fldalias.exists
+                              sql_formula, formula_kw, select_dict):
         for susbselect,sq_pars in list(select_dict.items()):
             if isinstance(sq_pars, str):
                 sq_pars = getattr(self.tblobj.dbtable,'subquery_%s' %sq_pars)()
@@ -1227,7 +1264,8 @@ class SqlQuery(object):
                                 locale=self.locale,
                                 mangler=self.mangler,
                                 query_kw=self.query_kw,
-                                mainquery_kw=self.mainquery_kw).compiledQuery(count=count,
+                                mainquery_kw=self.mainquery_kw,
+                                query=self).compiledQuery(count=count,
                                                                   relationDict=self.relationDict,
                                                                   **self.querypars)
 
@@ -1469,22 +1507,23 @@ class SqlQuery(object):
             cursor.close()
         return n
 
-    def _next_compound_key(self):
+    def _next_mangler_key(self, prefix):
         env = self.db.currentEnv
-        idx = env.get('_compound_counter', 0)
-        env['_compound_counter'] = idx + 1
-        return 'q%d' % idx
+        counters = env.setdefault('_mangler_counters', {})
+        idx = counters.get(prefix, 0)
+        counters[prefix] = idx + 1
+        return '%s%d' % (prefix, idx)
 
     def _compound(self, other, operator):
         if isinstance(other, SqlCompoundQuery):
-            self_key = self._next_compound_key()
+            self_key = self._next_mangler_key('cq')
             self.mangler = self_key
             queries = dict(other.queries)
             queries[self_key] = self
             template = '{%s} %s SELECT * FROM (%s) AS _cr' % (self_key, operator, other._template)
         else:
-            self_key = self._next_compound_key()
-            other_key = other._next_compound_key()
+            self_key = self._next_mangler_key('cq')
+            other_key = other._next_mangler_key('cq')
             self.mangler = self_key
             other.mangler = other_key
             queries = {self_key: self, other_key: other}
@@ -1537,7 +1576,7 @@ class SqlCompoundQuery(SqlQuery):
             queries.update(other.queries)
             template = 'SELECT * FROM (%s) AS _cl %s SELECT * FROM (%s) AS _cr' % (self._template, operator, other._template)
         else:
-            key = other._next_compound_key()
+            key = other._next_mangler_key('cq')
             other.mangler = key
             queries[key] = other
             template = '%s %s {%s}' % (self._template, operator, key)
