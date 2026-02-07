@@ -320,7 +320,7 @@ class BaseSql(BaseGnrSqlTest):
         sqltext, sqlparams = query.test()
         assert 'q0_year' in sqlparams
         assert sqlparams['q0_year'] == 2005
-        assert 'year' not in sqlparams
+        assert 'year' in sqlparams
 
     def test_mangler_none_unchanged(self):
         query_no_mangler = self.db.query('video.movie',

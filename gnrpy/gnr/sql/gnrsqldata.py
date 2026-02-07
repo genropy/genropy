@@ -157,9 +157,9 @@ class SqlQueryCompiler(object):
     def mangleParams(self):
         if not self.mangler:
             return
-        for k in list(self.sqlparams.keys()):
+        for k, v in list(self.sqlparams.items()):
             if not k.startswith('env_'):
-                self.sqlparams['%s_%s' % (self.mangler, k)] = self.sqlparams.pop(k)
+                self.sqlparams['%s_%s' % (self.mangler, k)] = v
 
     def init(self, lazy=None, eager=None):
         """TODO
