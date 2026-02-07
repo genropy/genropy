@@ -414,6 +414,99 @@ class BaseSql(BaseGnrSqlTest):
         titles = sorted([r['title'] for r in result])
         assert titles == ['Match point', 'Munich']
 
+    def test_formulaColumn_pure(self):
+        result = self.db.query('video.movie',
+                              columns='$title,$title_upper',
+                              where='$id = :id', id=0).fetch()
+        assert result[0]['title_upper'] == 'MATCH POINT'
+
+    def test_formulaColumn_pure_relation(self):
+        result = self.db.query('video.cast',
+                              columns='$movie_year,$role',
+                              where='$id = :id', id=0).fetch()
+        assert result[0]['movie_year'] == 2005
+
+    def test_aliasColumn(self):
+        result = self.db.query('video.cast',
+                              columns='$movie_title,$role',
+                              where='$id = :id', id=0).fetch()
+        assert result[0]['movie_title'] == 'Match point'
+
+    def test_formulaColumn_with_subquery(self):
+        result = self.db.query('video.movie',
+                              columns='$title,$dvd_count',
+                              where='$id = :id', id=0).fetch()
+        assert result[0]['dvd_count'] == 3
+
+    def test_formulaColumn_subquery_no_match(self):
+        result = self.db.query('video.movie',
+                              columns='$title,$dvd_count',
+                              where='$id = :id', id=3).fetch()
+        assert result[0]['dvd_count'] == 0
+
+    def test_formulaColumn_mixed(self):
+        result = self.db.query('video.movie',
+                              columns='$title,$title_upper,$dvd_count',
+                              where='$id = :id', id=1).fetch()
+        assert result[0]['title_upper'] == 'SCOOP'
+        assert result[0]['dvd_count'] == 2
+
+    def test_formulaColumn_multi_col(self):
+        result = self.db.query('video.movie',
+                              columns='$title_year',
+                              where='$id = :id', id=0).fetch()
+        assert result[0]['title_year'] == 'Match point (2005)'
+
+    def test_formulaColumn_col_and_rel(self):
+        result = self.db.query('video.cast',
+                              columns='$role_in_movie',
+                              where='$id = :id', id=0).fetch()
+        assert result[0]['role_in_movie'] == 'director in Match point'
+
+    def test_aliasColumn_in_where(self):
+        result = self.db.query('video.cast',
+                              columns='$movie_title,$role',
+                              where='$movie_title = :title',
+                              title='Match point').fetch()
+        assert len(result) == 3
+        assert all(r['movie_title'] == 'Match point' for r in result)
+
+    def test_formulaColumn_with_var(self):
+        result = self.db.query('video.movie',
+                              columns='$title_with_label',
+                              where='$id = :id', id=0).fetch()
+        assert result[0]['title_with_label'] == 'Match point [DVD]'
+
+    def test_formulaColumn_with_var_via_relation(self):
+        result = self.db.query('video.cast',
+                              columns='@movie_id.title_with_label,$role',
+                              where='$id = :id', id=0).fetch()
+        assert result[0]['_movie_id_title_with_label'] == 'Match point [DVD]'
+
+    def test_formulaColumn_with_var_multiple_rows(self):
+        result = self.db.query('video.cast',
+                              columns='@movie_id.title_with_label,$role',
+                              where='$movie_id = :mid', mid=0).fetch()
+        assert len(result) == 3
+        assert all(r['_movie_id_title_with_label'] == 'Match point [DVD]' for r in result)
+
+    def test_formulaColumn_with_var_and_other_formulas(self):
+        result = self.db.query('video.movie',
+                              columns='$title_with_label,$title_upper,$dvd_count',
+                              where='$id = :id', id=0).fetch()
+        assert result[0]['title_with_label'] == 'Match point [DVD]'
+        assert result[0]['title_upper'] == 'MATCH POINT'
+        assert result[0]['dvd_count'] == 3
+
+    def test_formulaColumn_subquery_order_by(self):
+        result = self.db.query('video.movie',
+                              columns='$title,$dvd_count',
+                              order_by='$dvd_count DESC',
+                              limit=3).fetch()
+        counts = [r['dvd_count'] for r in result]
+        assert counts == sorted(counts, reverse=True)
+        assert counts[0] == 3
+
     def teardown_class(cls):
         cls.db.closeConnection()
         cls.db.dropDb(cls.dbname)

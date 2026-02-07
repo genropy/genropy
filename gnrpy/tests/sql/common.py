@@ -113,6 +113,9 @@ def configurePackage(pkg):
                 name_long='Person id').relation('people.id')
     cast.column('role', name_short='Rl.', name_long='Role')
     cast.column('prizes', name_short='Priz.', name_long='Prizes', size='40')
+    cast.formulaColumn('movie_year', sql_formula='@movie_id.year')
+    cast.formulaColumn('role_in_movie', sql_formula="$role || ' in ' || @movie_id.title")
+    cast.aliasColumn('movie_title', relation_path='@movie_id.title')
 
     movie = pkg.table('movie', name_short='Mv', name_long='Movie',
                       rowcaption='title', pkey='id')
@@ -124,6 +127,13 @@ def configurePackage(pkg):
     movie.column('year', 'L', name_short='Yr', name_long='Year', indexed='y')
     movie.column('nationality', name_short='Ntl', name_long='Nationality')
     movie.column('description', name_short='Dsc', name_long='Movie description')
+
+    movie.formulaColumn('title_upper', sql_formula='UPPER($title)')
+    movie.formulaColumn('title_year', sql_formula="$title || ' (' || $year || ')'")
+    movie.formulaColumn('title_with_label', sql_formula="$title || :label", var_label=' [DVD]')
+    movie.formulaColumn('dvd_count', select=dict(
+        columns='COUNT(*)', table='video.dvd', where='$movie_id=#THIS.id'
+    ), dtype='L')
 
     dvd = pkg.table('dvd', name_short='Dvd', name_long='Dvd', pkey='code')
     dvd.column('code', 'L')
