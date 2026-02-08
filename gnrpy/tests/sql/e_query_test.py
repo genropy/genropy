@@ -836,12 +836,39 @@ class BaseSql(BaseGnrSqlTest):
                               where='$id = :id', id=0).fetch()
         assert result[0]['dvd_count_join'] == result[0]['dvd_count']
 
+    def test_sq_as_join_sqltext(self):
+        """Check generated SQL contains LEFT JOIN"""
+        q = self.db.query('video.movie',
+                          columns='$title,$dvd_count_join',
+                          where='$id = :id', id=0)
+        compiled = q.compileQuery()
+        sqltext = compiled.get_sqltext(self.db)
+        print('\n=== SQL ===')
+        print(sqltext)
+        assert 'LEFT JOIN' in sqltext
+
     def test_sq_as_join_no_match(self):
         """dvd_count_join returns 0 when no dvds"""
         result = self.db.query('video.movie',
                               columns='$title,$dvd_count_join',
                               where='$id = :id', id=3).fetch()
         assert result[0]['dvd_count_join'] == 0
+
+    def test_sq_as_join_preprocess_output(self):
+        """Verify _preprocess_subqueryes output when as_join=True"""
+        from gnr.sql.gnrsqldata import SqlQueryCompiler, THISFINDER
+        tblobj = self.db.table('video.movie').model
+        fldalias = tblobj.column('dvd_count_join')
+        import copy
+        attr = copy.deepcopy(dict(fldalias.attributes))
+        alias = 't0'
+        def expandThis(m):
+            return '%s.%s' % (alias, m.group(1))
+        compiler = SqlQueryCompiler.__new__(SqlQueryCompiler)
+        result = compiler._preprocess_subqueryes(attr, as_join=True, alias=alias, expandThis=expandThis)
+        print('\n=== preprocess output ===')
+        for k, v in result.items():
+            print(f'{k}: {v}')
 
     def teardown_class(cls):
         cls.db.closeConnection()

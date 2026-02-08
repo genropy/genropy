@@ -21,6 +21,7 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 
+import copy
 import os
 import shutil
 import re
@@ -60,7 +61,6 @@ BAGCOLSEXPFINDER = re.compile(r"#BAGCOLS\s*\(\s*((?:\$|@)?[\w\.\@]+)\s*\)(\s*AS\
 ENVFINDER = re.compile(r"#ENV\(([^,)]+)(,[^),]+)?\)")
 PREFFINDER = re.compile(r"#PREF\(([^,)]+)(,[^),]+)?\)")
 THISFINDER = re.compile(r'#THIS\.([\w\.@]+)')
-JOINER_FINDER = re.compile(r'(\$\w+\s*=\s*#THIS\.\w+)')
 
 class SqlCompiledQuery(object):
     """SqlCompiledQuery is a private class used by the :class:`SqlQueryCompiler` class.
@@ -81,6 +81,7 @@ class SqlCompiledQuery(object):
         self.columns = ''
         self.joins = []
         self.additional_joins = []
+        self.sq_joins = []
         self.where = None
         self.group_by = None
         self.having = None
@@ -116,8 +117,6 @@ class SqlCompiledSubQuery(SqlCompiledQuery):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._identity_hash = None
-        self.joiner = None
-        self.residual_where = None
 
     def __eq__(self, other):
         if not isinstance(other, SqlCompiledSubQuery):
@@ -288,25 +287,29 @@ class SqlQueryCompiler(object):
         return '%s.%s' % (self.db.adapter.asTranslator(alias), curr_tblobj.column(fld).adapted_sqlname)
 
     def _handleFormulaColumn(self, fldalias, fld, alias, curr, curr_tblobj, expandThis):
-        attr = dict(fldalias.attributes)
+        attr = copy.deepcopy(dict(fldalias.attributes))
         as_join = self._should_convert_to_join(fldalias)
-        multi_select = self._preprocess_subqueryes(attr)
         formula_kw = dictExtract(attr, 'var_')
         sql_formula = fldalias.sql_formula
         if sql_formula is True:
             sql_formula = getattr(curr_tblobj, 'sql_formula_%s' % fld)(attr)
+        if sql_formula:
+            sql_formula = self._preprocessFormula(fldalias, alias, curr, sql_formula, formula_kw)
+        multi_select = self._preprocess_subqueryes(attr, as_join, alias, expandThis)
         if not sql_formula:
             sql_formula = " || ' ' || ".join('#%s' % k for k in multi_select) if multi_select else None
-        else:
-            sql_formula = self._preprocessFormula(fldalias, alias, curr, sql_formula, formula_kw)
         select_dict = dict(multi_select) if multi_select else {}
         if select_dict:
             for sq_name, sq_select in list(select_dict.items()):
                 if isinstance(sq_select, str):
                     sq_select = getattr(self.tblobj.dbtable, 'subquery_%s' % sq_select)()
                 sq_pars = dict(sq_select)
-                compiled = self._compiledSubQuery(alias, expandThis, sq_pars)
-                sql_formula = re.sub(r'#%s\b' % sq_name, compiled.get_sqltext(self.db), sql_formula)
+                compiled = self._compiledSubQuery(alias, expandThis, sq_pars, sq_name=sq_name)
+                if as_join:
+                    self.cpl.sq_joins.append(compiled.get_sqltext(self.db))
+                    sql_formula = re.sub(r'#%s_(\w+)' % sq_name, r'%s.\1' % sq_name, sql_formula)
+                else:
+                    sql_formula = re.sub(r'#%s\b' % sq_name, compiled.get_sqltext(self.db), sql_formula)
         return f'( {sql_formula} )'
 
     def _should_convert_to_join(self, fldalias):
@@ -315,16 +318,42 @@ class SqlQueryCompiler(object):
             return gnrstring.boolean(sq_as_join)
         return gnrstring.boolean(getattr(self.db, 'extra_kw', {}).get('subquery_as_join', False))
 
-    def _preprocess_subqueryes(self, attr):
+    def _preprocess_subqueryes(self, attr, as_join=False, alias=None, expandThis=None):
         if 'exists' in attr:
             exists_sq = attr.pop('exists')
             exists_sq['exists'] = True
-            attr['select_default'] = exists_sq
+            attr['select_dflt'] = exists_sq
         elif 'select' in attr:
-            attr['select_default'] = attr.pop('select')
-        return dictExtract(attr, 'select_')
+            attr['select_dflt'] = attr.pop('select')
+        sq_dict = dictExtract(attr, 'select_')
+        if not as_join or not sq_dict:
+            return sq_dict
+        for sq_name, sq_pars in sq_dict.items():
+            sq_where = sq_pars.get('where', '')
+            m = re.match(r'(\$\w+)\s*=\s*#THIS\.(\w+)(.*)', sq_where, re.DOTALL)
+            if m:
+                fk_field = m.group(1)
+                joiner = '%s=#THIS.%s' % (fk_field, m.group(2))
+                residual = m.group(3).strip()
+                if residual.upper().startswith('AND '):
+                    residual = residual[4:].strip()
+                sq_pars['where'] = residual or None
+                sq_pars['group_by'] = fk_field
+                # Assign positional aliases (c_0, c_1, ...) to columns without explicit AS
+                col_parts = [c.strip() for c in sq_pars['columns'].split(',')]
+                aliased_cols = []
+                for i, col in enumerate(col_parts):
+                    if ' AS ' in col.upper():
+                        aliased_cols.append(col)
+                    else:
+                        aliased_cols.append('%s AS c_%i' % (col, i))
+                sq_pars['columns'] = '%s AS joiner, %s' % (fk_field, ', '.join(aliased_cols))
+                joiner = THISFINDER.sub(expandThis, joiner)
+                sq_pars['joiner'] = joiner
+        return sq_dict
 
     def _preprocessFormula(self, fldalias, alias, curr, sql_formula, formula_kw):
+        sql_formula = sql_formula.replace('#default', '#dflt')
         def resolveField(m):
             return m.group(1) + self.getFieldAlias(m.group(2), curr=curr, basealias=alias)
         sql_formula = RELFINDER.sub(resolveField, sql_formula)
@@ -339,7 +368,7 @@ class SqlQueryCompiler(object):
                                      sql_formula)
         return sql_formula
 
-    def _compiledSubQuery(self, alias, expandThis, sq_pars):
+    def _compiledSubQuery(self, alias, expandThis, sq_pars, sq_name=None):
         """Compile a subquery column (select or exists) into SQL text.
 
         Builds and compiles an independent SqlQuery with a mangler prefix,
@@ -359,11 +388,16 @@ class SqlQueryCompiler(object):
             str: the compiled subquery SQL text, wrapped with the template.
         """
         # 1. Extract template parameters and table/where
+        joiner = sq_pars.pop('joiner', None)
         tpl = sq_pars.pop('tpl', None)
         cast = sq_pars.pop('cast', None)
         is_exists = sq_pars.pop('exists', False)
         if not tpl:
-            if is_exists:
+            if joiner:
+                # joiner is like '$movie_id=t0.id' — resolve $field to sq_alias.joiner
+                on_clause = re.sub(r'\$\w+', '%s.joiner' % sq_name, joiner)
+                tpl = ' LEFT JOIN (%%s) AS %s ON (%s) ' % (sq_name, on_clause)
+            elif is_exists:
                 tpl = ' EXISTS( %s ) '
             elif cast:
                 tpl = ' CAST( ( %s ) AS ' + cast + ') '
@@ -377,21 +411,9 @@ class SqlQueryCompiler(object):
         sq_pars.setdefault('subtable', '*')
         aliasPrefix = '%s_t' % alias
 
-        # 3. Wrap joiner condition in parentheses, then expand #THIS
-        sq_where = JOINER_FINDER.sub(r'(\1)', sq_where, count=1)
-        sq_where = THISFINDER.sub(expandThis, sq_where)
-
-        # 3b. Extract joiner and residual_where from expanded WHERE
-        joiner = None
-        residual_where = None
-        if sq_where.startswith('('):
-            close = sq_where.index(')')
-            joiner = sq_where[1:close]
-            rest = sq_where[close+1:].strip()
-            if rest.upper().startswith('AND '):
-                residual_where = rest[4:].strip()
-            elif rest:
-                residual_where = rest
+        # 3. Expand #THIS in the subquery WHERE
+        if sq_where:
+            sq_where = THISFINDER.sub(expandThis, sq_where)
 
         # 4. Compile the subquery with a mangler for parameter namespacing
         mangler_prefix = self.query._next_mangler_key('sq')
@@ -405,8 +427,6 @@ class SqlQueryCompiler(object):
         )
         compiled = q.compileQuery(compiled_class=SqlCompiledSubQuery)
         compiled.tpl = tpl
-        compiled.joiner = joiner
-        compiled.residual_where = residual_where
 
         # 5. Build identity hash for CTE merge: resolve params in WHERE to get
         #    a mangler-independent fingerprint
@@ -850,6 +870,8 @@ class SqlQueryCompiler(object):
         group_by = gnrstring.templateReplace(group_by, colPars)
         #self.cpl.additional_joins.reverse()
         self.cpl.joins = [gnrstring.templateReplace(j, colPars) for j in self.cpl.joins+self.cpl.additional_joins]
+        if self.cpl.sq_joins:
+            self.cpl.joins.extend(self.cpl.sq_joins)
         if distinct:
             distinct = 'DISTINCT '
         elif distinct is None or distinct == '':

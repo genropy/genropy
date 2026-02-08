@@ -161,9 +161,47 @@ def configurePackage(pkg):
         columns='COUNT(*)', table='video.dvd',
         where='$movie_id=#THIS.id', cast='integer'
     ), dtype='L')
-    movie.formulaColumn('dvd_count_join', sq_as_join=True, select=dict(
-        columns='COUNT(*)', table='video.dvd', where='$movie_id=#THIS.id'
+    movie.formulaColumn('dvd_count_join', sq_as_join=True,
+        sql_formula='COALESCE(#dflt_c_0, 0)',
+        select=dict(
+            columns='COUNT(*)', table='video.dvd', where='$movie_id=#THIS.id'
+        ), dtype='L')
+    movie.formulaColumn('dvd_latest', select=dict(
+        columns='MAX($purchasedate)', table='video.dvd', where='$movie_id=#THIS.id'
+    ), dtype='D')
+    movie.formulaColumn('dvd_latest_join', sq_as_join=True,
+        sql_formula='#dflt_c_0',
+        select=dict(
+            columns='MAX($purchasedate)', table='video.dvd', where='$movie_id=#THIS.id'
+        ), dtype='D')
+    movie.formulaColumn('dvd_count_avail_join', sq_as_join=True,
+        sql_formula='COALESCE(#dflt_c_0, 0)',
+        select=dict(
+            columns='COUNT(*)', table='video.dvd',
+            where='$movie_id=#THIS.id AND $available=:avail', avail='yes'
+        ), dtype='L')
+    # Benchmark: SUM(price) inline
+    movie.formulaColumn('dvd_total_price', select=dict(
+        columns='SUM($price)', table='video.dvd', where='$movie_id=#THIS.id'
+    ), dtype='N')
+    # Benchmark: SUM(price) join
+    movie.formulaColumn('dvd_total_price_join', sq_as_join=True,
+        sql_formula='COALESCE(#dflt_c_0, 0)',
+        select=dict(
+            columns='SUM($price)', table='video.dvd', where='$movie_id=#THIS.id'
+        ), dtype='N')
+    # Benchmark: COUNT with LIKE condition inline
+    movie.formulaColumn('dvd_count_like', select=dict(
+        columns='COUNT(*)', table='video.dvd',
+        where="$movie_id=#THIS.id AND $available LIKE :pattern", pattern='y%'
     ), dtype='L')
+    # Benchmark: COUNT with LIKE condition join
+    movie.formulaColumn('dvd_count_like_join', sq_as_join=True,
+        sql_formula='COALESCE(#dflt_c_0, 0)',
+        select=dict(
+            columns='COUNT(*)', table='video.dvd',
+            where="$movie_id=#THIS.id AND $available LIKE :pattern", pattern='y%'
+        ), dtype='L')
     movie.formulaColumn('dvd_stats', sql_formula='#total || :sep || #available',
         var_sep='/',
         select_total=dict(
@@ -180,6 +218,7 @@ def configurePackage(pkg):
     dvd.column('movie_id', 'L',name_short='Mid', name_long='Movie id').relation('movie.id')
     dvd.column('purchasedate', 'D', name_short='Pdt', name_long='Purchase date')
     dvd.column('available', name_short='Avl', name_long='Available')
+    dvd.column('price', 'N', name_short='Prc', name_long='Price')
 
     location = pkg.table('location',
                          name_short='Loc',
@@ -189,14 +228,52 @@ def configurePackage(pkg):
     location.column('name', name_short='Name', name_long='Name')
     location.column('rating', 'I', name_short='Rt', name_long='Rating')
 
-    # loc_allocation = pkg.table('loc_allocation',
-    #                            name_short='Loc. Alloc',
-    #                            name_long='Location Allocation',
-    #                            pkey='id')
-    # loc_allocation.column('id', 'L')
-    # loc_allocation.column('location_id', 'L', name_short='Loc', name_long='Location'
-    #                         ).relation('location.id')
-    # loc_allocation.column('movie_id', 'L', name_short='Movie', name_long='Movie ID'
-    #                         ).relation('movie.id')
-    # loc_allocation.column('from_date', 'D', name_short='From', name_long='From Date')
-    # loc_allocation.column('to_date', 'D', name_short='To', name_long='To Date')
+    country = pkg.table('country', name_short='Ctr', name_long='Country', pkey='id')
+    country.column('id', 'L')
+    country.column('name', name_short='Name', name_long='Name')
+    country.column('code', name_short='Cd', name_long='Code')
+    # Benchmark: total sales per country (inline)
+    country.formulaColumn('total_sales', select=dict(
+        columns='SUM($amount)', table='video.sales',
+        where='$country_id=#THIS.id'
+    ), dtype='N')
+    # Benchmark: total sales per country (join)
+    country.formulaColumn('total_sales_join', sq_as_join=True,
+        sql_formula='COALESCE(#dflt_c_0, 0)',
+        select=dict(
+            columns='SUM($amount)', table='video.sales',
+            where='$country_id=#THIS.id'
+        ), dtype='N')
+    # Benchmark: action movie sales per country (inline)
+    country.formulaColumn('action_sales', select=dict(
+        columns='SUM($amount)', table='video.sales',
+        where="$country_id=#THIS.id AND @dvd_id.@movie_id.genre=:genre",
+        genre='ACTION'
+    ), dtype='N')
+    # Benchmark: action movie sales per country (join)
+    country.formulaColumn('action_sales_join', sq_as_join=True,
+        sql_formula='COALESCE(#dflt_c_0, 0)',
+        select=dict(
+            columns='SUM($amount)', table='video.sales',
+            where="$country_id=#THIS.id AND @dvd_id.@movie_id.genre=:genre",
+            genre='ACTION'
+        ), dtype='N')
+    # Benchmark: count sales per country (inline)
+    country.formulaColumn('sale_count', select=dict(
+        columns='COUNT(*)', table='video.sales',
+        where='$country_id=#THIS.id'
+    ), dtype='L')
+    # Benchmark: count sales per country (join)
+    country.formulaColumn('sale_count_join', sq_as_join=True,
+        sql_formula='COALESCE(#dflt_c_0, 0)',
+        select=dict(
+            columns='COUNT(*)', table='video.sales',
+            where='$country_id=#THIS.id'
+        ), dtype='L')
+
+    sales = pkg.table('sales', name_short='Sls', name_long='Sales', pkey='id')
+    sales.column('id', 'L')
+    sales.column('dvd_id', 'L', name_short='Dvd', name_long='Dvd').relation('dvd.code')
+    sales.column('country_id', 'L', name_short='Ctr', name_long='Country').relation('country.id')
+    sales.column('sale_date', 'D', name_short='Sdt', name_long='Sale date')
+    sales.column('amount', 'N', name_short='Amt', name_long='Amount')
