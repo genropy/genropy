@@ -286,6 +286,7 @@ class SqlQueryCompiler(object):
 
     def _handleFormulaColumn(self, fldalias, fld, alias, curr, curr_tblobj, expandThis):
         attr = dict(fldalias.attributes)
+        as_join = self._should_convert_to_join(fldalias)
         multi_select = self._preprocess_subqueryes(attr)
         formula_kw = dictExtract(attr, 'var_')
         sql_formula = fldalias.sql_formula
@@ -304,6 +305,12 @@ class SqlQueryCompiler(object):
                 compiled = self._compiledSubQuery(alias, expandThis, sq_pars)
                 sql_formula = re.sub(r'#%s\b' % sq_name, compiled.get_sqltext(self.db), sql_formula)
         return f'( {sql_formula} )'
+
+    def _should_convert_to_join(self, fldalias):
+        sq_as_join = fldalias.attributes.get('sq_as_join')
+        if sq_as_join is not None:
+            return gnrstring.boolean(sq_as_join)
+        return gnrstring.boolean(getattr(self.db, 'extra_kw', {}).get('subquery_as_join', False))
 
     def _preprocess_subqueryes(self, attr):
         if 'exists' in attr:

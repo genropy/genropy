@@ -161,6 +161,9 @@ def configurePackage(pkg):
         columns='COUNT(*)', table='video.dvd',
         where='$movie_id=#THIS.id', cast='integer'
     ), dtype='L')
+    movie.formulaColumn('dvd_count_join', sq_as_join=True, select=dict(
+        columns='COUNT(*)', table='video.dvd', where='$movie_id=#THIS.id'
+    ), dtype='L')
     movie.formulaColumn('dvd_stats', sql_formula='#total || :sep || #available',
         var_sep='/',
         select_total=dict(

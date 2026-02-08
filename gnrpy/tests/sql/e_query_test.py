@@ -819,6 +819,30 @@ class BaseSql(BaseGnrSqlTest):
         # La struttura dell'SQL deve essere uguale (i mangler possono variare)
         assert sql1.upper().count('SELECT') == sql2.upper().count('SELECT')
 
+    # --- sq_as_join flag tests ---
+
+    def test_sq_as_join_flag_per_column(self):
+        """sq_as_join=True on formulaColumn is readable"""
+        tblobj = self.db.table('video.movie').model
+        fldalias_join = tblobj.column('dvd_count_join')
+        fldalias_plain = tblobj.column('dvd_count')
+        assert fldalias_join.attributes.get('sq_as_join') == True
+        assert fldalias_plain.attributes.get('sq_as_join') is None
+
+    def test_sq_as_join_same_result(self):
+        """dvd_count_join gives same result as dvd_count (still inline for now)"""
+        result = self.db.query('video.movie',
+                              columns='$title,$dvd_count,$dvd_count_join',
+                              where='$id = :id', id=0).fetch()
+        assert result[0]['dvd_count_join'] == result[0]['dvd_count']
+
+    def test_sq_as_join_no_match(self):
+        """dvd_count_join returns 0 when no dvds"""
+        result = self.db.query('video.movie',
+                              columns='$title,$dvd_count_join',
+                              where='$id = :id', id=3).fetch()
+        assert result[0]['dvd_count_join'] == 0
+
     def teardown_class(cls):
         cls.db.closeConnection()
         cls.db.dropDb(cls.dbname)
