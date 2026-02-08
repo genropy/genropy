@@ -34,7 +34,7 @@ hdlr = logging.FileHandler('logs.log')
 gnrlogger.addHandler(hdlr)
 
 from gnr.sql.gnrsql import GnrSqlDb
-from gnr.sql.gnrsqldata import SqlQuery, SqlSelection, SqlCompiledQuery
+from gnr.sql.gnrsqldata import SqlQuery, SqlSelection, SqlCompiledQuery, SqlCompiledSubQuery
 from gnr.sql import gnrsqldata as gsd
 
 from .common import BaseGnrSqlTest, configurePackage
@@ -580,60 +580,60 @@ class BaseSql(BaseGnrSqlTest):
         assert counts == sorted(counts, reverse=True)
         assert counts[0] == 3
 
-    # --- SqlCompiledQuery __eq__ / __hash__ / _identity_hash tests ---
+    # --- SqlCompiledSubQuery __eq__ / __hash__ / _identity_hash tests ---
 
     def test_compiled_eq_same_identity_hash(self):
-        a = SqlCompiledQuery('video_movie')
-        b = SqlCompiledQuery('video_movie')
+        a = SqlCompiledSubQuery('video_movie')
+        b = SqlCompiledSubQuery('video_movie')
         a._identity_hash = hash(('video_movie', 'some_where'))
         b._identity_hash = hash(('video_movie', 'some_where'))
         assert a == b
 
     def test_compiled_eq_different_identity_hash(self):
-        a = SqlCompiledQuery('video_movie')
-        b = SqlCompiledQuery('video_movie')
+        a = SqlCompiledSubQuery('video_movie')
+        b = SqlCompiledSubQuery('video_movie')
         a._identity_hash = hash(('video_movie', 'where_1'))
         b._identity_hash = hash(('video_movie', 'where_2'))
         assert a != b
 
     def test_compiled_eq_different_table(self):
-        a = SqlCompiledQuery('video_movie')
-        b = SqlCompiledQuery('video_dvd')
+        a = SqlCompiledSubQuery('video_movie')
+        b = SqlCompiledSubQuery('video_dvd')
         a._identity_hash = hash(('video_movie', 'w'))
         b._identity_hash = hash(('video_dvd', 'w'))
         assert a != b
 
     def test_compiled_eq_none_identity_hash(self):
-        a = SqlCompiledQuery('video_movie')
-        b = SqlCompiledQuery('video_movie')
+        a = SqlCompiledSubQuery('video_movie')
+        b = SqlCompiledSubQuery('video_movie')
         # entrambi hanno _identity_hash=None (default)
         assert a != b
 
     def test_compiled_eq_one_none(self):
-        a = SqlCompiledQuery('video_movie')
-        b = SqlCompiledQuery('video_movie')
+        a = SqlCompiledSubQuery('video_movie')
+        b = SqlCompiledSubQuery('video_movie')
         a._identity_hash = hash(('video_movie', 'w'))
         # b._identity_hash resta None
         assert a != b
 
     def test_compiled_eq_not_implemented(self):
-        a = SqlCompiledQuery('video_movie')
+        a = SqlCompiledSubQuery('video_movie')
         a._identity_hash = 42
         assert a.__eq__("not a compiled") is NotImplemented
 
     def test_compiled_hash_with_identity(self):
-        a = SqlCompiledQuery('video_movie')
+        a = SqlCompiledSubQuery('video_movie')
         h = hash(('video_movie', 'w'))
         a._identity_hash = h
         assert hash(a) == h
 
     def test_compiled_hash_without_identity(self):
-        a = SqlCompiledQuery('video_movie')
+        a = SqlCompiledSubQuery('video_movie')
         assert hash(a) == id(a)
 
     def test_compiled_in_set(self):
-        a = SqlCompiledQuery('video_movie')
-        b = SqlCompiledQuery('video_movie')
+        a = SqlCompiledSubQuery('video_movie')
+        b = SqlCompiledSubQuery('video_movie')
         h = hash(('video_movie', 'same_where'))
         a._identity_hash = h
         b._identity_hash = h
@@ -641,8 +641,8 @@ class BaseSql(BaseGnrSqlTest):
         assert len(s) == 1
 
     def test_compiled_as_dict_key(self):
-        a = SqlCompiledQuery('video_movie')
-        b = SqlCompiledQuery('video_movie')
+        a = SqlCompiledSubQuery('video_movie')
+        b = SqlCompiledSubQuery('video_movie')
         h = hash(('video_movie', 'same_where'))
         a._identity_hash = h
         b._identity_hash = h
@@ -650,8 +650,8 @@ class BaseSql(BaseGnrSqlTest):
         assert d[b] == 'value_a'
 
     def test_compiled_different_in_set(self):
-        a = SqlCompiledQuery('video_movie')
-        b = SqlCompiledQuery('video_movie')
+        a = SqlCompiledSubQuery('video_movie')
+        b = SqlCompiledSubQuery('video_movie')
         a._identity_hash = hash(('video_movie', 'w1'))
         b._identity_hash = hash(('video_movie', 'w2'))
         s = {a, b}
@@ -675,10 +675,11 @@ class BaseSql(BaseGnrSqlTest):
         assert compiled.tpl is None
 
     def test_compiled_identity_hash_none_for_main_query(self):
-        """Le query principali non hanno _identity_hash (è per le subquery)"""
+        """Main queries produce SqlCompiledQuery, not SqlCompiledSubQuery"""
         q = self.db.query('video.movie', columns='$title', where='$id = :id', id=0)
         compiled = q.compileQuery()
-        assert compiled._identity_hash is None
+        assert not isinstance(compiled, SqlCompiledSubQuery)
+        assert not hasattr(compiled, '_identity_hash')
 
     # --- get_sqltext template handling ---
 
