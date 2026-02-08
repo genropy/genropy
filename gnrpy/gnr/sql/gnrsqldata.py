@@ -60,6 +60,7 @@ BAGCOLSEXPFINDER = re.compile(r"#BAGCOLS\s*\(\s*((?:\$|@)?[\w\.\@]+)\s*\)(\s*AS\
 ENVFINDER = re.compile(r"#ENV\(([^,)]+)(,[^),]+)?\)")
 PREFFINDER = re.compile(r"#PREF\(([^,)]+)(,[^),]+)?\)")
 THISFINDER = re.compile(r'#THIS\.([\w\.@]+)')
+JOINER_FINDER = re.compile(r'(\$\w+\s*=\s*#THIS\.\w+)')
 
 class SqlCompiledQuery(object):
     """SqlCompiledQuery is a private class used by the :class:`SqlQueryCompiler` class.
@@ -115,6 +116,8 @@ class SqlCompiledSubQuery(SqlCompiledQuery):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._identity_hash = None
+        self.joiner = None
+        self.residual_where = None
 
     def __eq__(self, other):
         if not isinstance(other, SqlCompiledSubQuery):
@@ -374,8 +377,21 @@ class SqlQueryCompiler(object):
         sq_pars.setdefault('subtable', '*')
         aliasPrefix = '%s_t' % alias
 
-        # 3. Expand #THIS in the subquery WHERE
+        # 3. Wrap joiner condition in parentheses, then expand #THIS
+        sq_where = JOINER_FINDER.sub(r'(\1)', sq_where, count=1)
         sq_where = THISFINDER.sub(expandThis, sq_where)
+
+        # 3b. Extract joiner and residual_where from expanded WHERE
+        joiner = None
+        residual_where = None
+        if sq_where.startswith('('):
+            close = sq_where.index(')')
+            joiner = sq_where[1:close]
+            rest = sq_where[close+1:].strip()
+            if rest.upper().startswith('AND '):
+                residual_where = rest[4:].strip()
+            elif rest:
+                residual_where = rest
 
         # 4. Compile the subquery with a mangler for parameter namespacing
         mangler_prefix = self.query._next_mangler_key('sq')
@@ -389,6 +405,8 @@ class SqlQueryCompiler(object):
         )
         compiled = q.compileQuery(compiled_class=SqlCompiledSubQuery)
         compiled.tpl = tpl
+        compiled.joiner = joiner
+        compiled.residual_where = residual_where
 
         # 5. Build identity hash for CTE merge: resolve params in WHERE to get
         #    a mangler-independent fingerprint
