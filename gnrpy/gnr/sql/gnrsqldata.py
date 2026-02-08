@@ -278,22 +278,11 @@ class SqlQueryCompiler(object):
                 if not sql_formula:
                     select_dict['default'] = fldalias.select or fldalias.exists
                 if not select_dict:
-                    return self._handleFormulaColumn(fldalias, alias, curr,
+                    return self._handleFormulaColumn_plain(fldalias, alias, curr,
                                                       sql_formula, formula_kw)
                 elif len(select_dict) == 1:
-                    sq_select = select_dict['default']
-                    if isinstance(sq_select, str):
-                        sq_select = getattr(self.tblobj.dbtable, 'subquery_%s' % sq_select)()
-                    sq_pars = dict(sq_select)
-                    cast = sq_pars.pop('cast', None)
-                    if fldalias.exists:
-                        tpl = ' EXISTS( %s ) '
-                    elif cast:
-                        tpl = ' CAST( ( %s ) AS ' + cast + ') '
-                    else:
-                        tpl = ' ( %s ) '
-                    compiled = self._compiledSubQuery(alias, expandThis, sq_pars)
-                    return tpl % compiled.get_sqltext(self.db)
+                    return self._handleFormulaColumn_oneQuery(fldalias, alias, expandThis,
+                                                      select_dict)
                 else:
                     return self._handleFormulaColumn_legacy(fldalias, alias, curr,
                                                       expandThis, expandEnv, expandPref,
@@ -307,7 +296,22 @@ class SqlQueryCompiler(object):
                 fld, curr.pkg_name, curr.tbl_name, '.'.join(newpath)))
         return '%s.%s' % (self.db.adapter.asTranslator(alias), curr_tblobj.column(fld).adapted_sqlname)
 
-    def _handleFormulaColumn(self, fldalias, alias, curr, sql_formula, formula_kw):
+    def _handleFormulaColumn_oneQuery(self, fldalias, alias, expandThis, select_dict):
+        sq_select = select_dict['default']
+        if isinstance(sq_select, str):
+            sq_select = getattr(self.tblobj.dbtable, 'subquery_%s' % sq_select)()
+        sq_pars = dict(sq_select)
+        cast = sq_pars.pop('cast', None)
+        if fldalias.exists:
+            tpl = ' EXISTS( %s ) '
+        elif cast:
+            tpl = ' CAST( ( %s ) AS ' + cast + ') '
+        else:
+            tpl = ' ( %s ) '
+        compiled = self._compiledSubQuery(alias, expandThis, sq_pars)
+        return tpl % compiled.get_sqltext(self.db)
+
+    def _handleFormulaColumn_plain(self, fldalias, alias, curr, sql_formula, formula_kw):
         """Handle pure formula columns with no subquery.
 
         Args:
