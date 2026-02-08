@@ -823,6 +823,80 @@ class TestGnrSqlDb_postgres3(BaseSql):
                           user=cls.pg_conf.get("user"),
                           password=cls.pg_conf.get("password")
                           )
-        
+
     init = classmethod(init)
+
+
+# --- Step 1: _should_convert_to_join flag tests ---
+
+class TestShouldConvertToJoinFlag(BaseGnrSqlTest):
+    """Test che _should_convert_to_join legga correttamente il flag
+    a livello globale (db.extra_kw) e per-colonna (sq_as_join)."""
+
+    @classmethod
+    def setup_class(cls):
+        super().setup_class()
+        cls.dbname = cls.CONFIG['db.sqlite?filename'] + '_flag'
+        cls.db = GnrSqlDb(dbname=cls.dbname)
+        configurePackage(cls.db.packageSrc('video'))
+        cls.db.startup()
+        cls.db.checkDb(applyChanges=True)
+        cls.db.importXmlData(cls.SAMPLE_XMLDATA)
+        cls.db.commit()
+
+    def _make_compiler(self):
+        tblobj = self.db.table('video.movie').model
+        q = self.db.query('video.movie', columns='$title')
+        return gsd.SqlQueryCompiler(tblobj, sqlparams={}, query=q)
+
+    def test_flag_default_false(self):
+        """Senza flag globale ne per-colonna, _should_convert_to_join ritorna False"""
+        compiler = self._make_compiler()
+        fldalias = self.db.table('video.movie').model.getVirtualColumn('dvd_count')
+        assert compiler._should_convert_to_join(fldalias) is False
+
+    def test_flag_global_true(self):
+        """Con flag globale subquery_as_join=True, ritorna True"""
+        old = self.db.extra_kw.get('subquery_as_join')
+        self.db.extra_kw['subquery_as_join'] = True
+        try:
+            compiler = self._make_compiler()
+            fldalias = self.db.table('video.movie').model.getVirtualColumn('dvd_count')
+            assert compiler._should_convert_to_join(fldalias) is True
+        finally:
+            if old is None:
+                self.db.extra_kw.pop('subquery_as_join', None)
+            else:
+                self.db.extra_kw['subquery_as_join'] = old
+
+    def test_flag_column_overrides_global(self):
+        """Il flag per-colonna sq_as_join sovrascrive il globale"""
+        old = self.db.extra_kw.get('subquery_as_join')
+        self.db.extra_kw['subquery_as_join'] = True
+        try:
+            compiler = self._make_compiler()
+            fldalias = self.db.table('video.movie').model.getVirtualColumn('dvd_count')
+            # Simula sq_as_join=False sulla colonna
+            fldalias.attributes['sq_as_join'] = False
+            assert compiler._should_convert_to_join(fldalias) is False
+            # Rimuovi il flag per non inquinare altri test
+            del fldalias.attributes['sq_as_join']
+        finally:
+            if old is None:
+                self.db.extra_kw.pop('subquery_as_join', None)
+            else:
+                self.db.extra_kw['subquery_as_join'] = old
+
+    def test_no_flag_subquery_still_inline(self):
+        """Senza flag, la subquery resta inline (SELECT annidato)"""
+        q = self.db.query('video.movie', columns='$title,$dvd_count',
+                          where='$id = :id', id=0)
+        sqltext, _ = q.test()
+        upper = sqltext.upper()
+        assert upper.count('SELECT') >= 2  # subquery inline
+
+    @classmethod
+    def teardown_class(cls):
+        cls.db.closeConnection()
+        cls.db.dropDb(cls.dbname)
 

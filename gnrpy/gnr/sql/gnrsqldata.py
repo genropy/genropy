@@ -319,6 +319,23 @@ class SqlQueryCompiler(object):
         self._expandEnv = expandEnv
         self._expandPref = expandPref
 
+    def _should_convert_to_join(self, fldalias):
+        """Check if the subquery_as_join optimization is requested.
+
+        Priority: per-column attribute ``sq_as_join`` overrides the global
+        ``subquery_as_join`` flag on the db instance.
+
+        Args:
+            fldalias: The virtual column descriptor.
+
+        Returns:
+            True if the optimization is requested, False otherwise.
+        """
+        col_flag = fldalias.attributes.get('sq_as_join')
+        if col_flag is not None:
+            return bool(col_flag)
+        return gnrstring.boolean(self.db.extra_kw.get('subquery_as_join', False))
+
     def _handleFormulaColumns(self, fldalias, fld, curr, curr_tblobj, alias):
         """Handle formula-based virtual columns (unified path).
 
