@@ -268,25 +268,7 @@ class SqlQueryCompiler(object):
 
                 
             elif fldalias.sql_formula or fldalias.select or fldalias.exists:
-                attr = dict(fldalias.attributes)
-                multi_select = self._preprocess_subqueryes(attr)
-                formula_kw = dictExtract(attr, 'var_')
-                sql_formula = fldalias.sql_formula
-                if sql_formula is True:
-                    sql_formula = getattr(curr_tblobj, 'sql_formula_%s' % fld)(attr)
-                if not sql_formula:
-                    sql_formula = " || ' ' || ".join('#%s' % k for k in multi_select) if multi_select else None
-                else:
-                    sql_formula = self._preprocessFormula(fldalias, alias, curr, sql_formula, formula_kw)
-                select_dict = dict(multi_select) if multi_select else {}
-                if select_dict:
-                    for sq_name, sq_select in list(select_dict.items()):
-                        if isinstance(sq_select, str):
-                            sq_select = getattr(self.tblobj.dbtable, 'subquery_%s' % sq_select)()
-                        sq_pars = dict(sq_select)
-                        compiled = self._compiledSubQuery(alias, expandThis, sq_pars)
-                        sql_formula = re.sub(r'#%s\b' % sq_name, compiled.get_sqltext(self.db), sql_formula)
-                return f'( {sql_formula} )'
+                return self._handleFormulaColumn(fldalias, fld, alias, curr, curr_tblobj, expandThis)
             elif fldalias.py_method:
                 #self.cpl.pyColumns.append((fld,getattr(self.tblobj.dbtable,fldalias.py_method,None)))
                 self.cpl.pyColumns.append((fld,getattr(fldalias.table.dbtable,fldalias.py_method,None)))
@@ -295,6 +277,27 @@ class SqlQueryCompiler(object):
                 raise GnrSqlMissingColumn('Invalid column %s in table %s.%s (requested field %s)' % (
                 fld, curr.pkg_name, curr.tbl_name, '.'.join(newpath)))
         return '%s.%s' % (self.db.adapter.asTranslator(alias), curr_tblobj.column(fld).adapted_sqlname)
+
+    def _handleFormulaColumn(self, fldalias, fld, alias, curr, curr_tblobj, expandThis):
+        attr = dict(fldalias.attributes)
+        multi_select = self._preprocess_subqueryes(attr)
+        formula_kw = dictExtract(attr, 'var_')
+        sql_formula = fldalias.sql_formula
+        if sql_formula is True:
+            sql_formula = getattr(curr_tblobj, 'sql_formula_%s' % fld)(attr)
+        if not sql_formula:
+            sql_formula = " || ' ' || ".join('#%s' % k for k in multi_select) if multi_select else None
+        else:
+            sql_formula = self._preprocessFormula(fldalias, alias, curr, sql_formula, formula_kw)
+        select_dict = dict(multi_select) if multi_select else {}
+        if select_dict:
+            for sq_name, sq_select in list(select_dict.items()):
+                if isinstance(sq_select, str):
+                    sq_select = getattr(self.tblobj.dbtable, 'subquery_%s' % sq_select)()
+                sq_pars = dict(sq_select)
+                compiled = self._compiledSubQuery(alias, expandThis, sq_pars)
+                sql_formula = re.sub(r'#%s\b' % sq_name, compiled.get_sqltext(self.db), sql_formula)
+        return f'( {sql_formula} )'
 
     def _preprocess_subqueryes(self, attr):
         if 'exists' in attr:
