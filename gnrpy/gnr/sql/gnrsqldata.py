@@ -269,24 +269,24 @@ class SqlQueryCompiler(object):
                 
             elif fldalias.sql_formula or fldalias.select or fldalias.exists:
                 attr = dict(fldalias.attributes)
+                multi_select = self._preprocess_subqueryes(attr)
                 formula_kw = dictExtract(attr, 'var_')
-                multi_select = dictExtract(attr, 'select_')
                 sql_formula = fldalias.sql_formula
                 if sql_formula is True:
                     sql_formula = getattr(curr_tblobj, 'sql_formula_%s' % fld)(attr)
-                select_dict = dict(multi_select) if multi_select else {}
                 if not sql_formula:
-                    select_dict['default'] = fldalias.select or fldalias.exists
-                if not select_dict:
-                    return self._handleFormulaColumn_plain(fldalias, alias, curr,
-                                                      sql_formula, formula_kw)
-                elif len(select_dict) == 1:
-                    return self._handleFormulaColumn_oneQuery(fldalias, alias, expandThis,
-                                                      select_dict)
+                    sql_formula = " || ' ' || ".join('#%s' % k for k in multi_select) if multi_select else None
                 else:
-                    return self._handleFormulaColumn_legacy(fldalias, alias, curr,
-                                                      expandThis, expandEnv, expandPref,
-                                                      sql_formula, formula_kw, select_dict)
+                    sql_formula = self._preprocessFormula(fldalias, alias, curr, sql_formula, formula_kw)
+                select_dict = dict(multi_select) if multi_select else {}
+                if select_dict:
+                    for sq_name, sq_select in list(select_dict.items()):
+                        if isinstance(sq_select, str):
+                            sq_select = getattr(self.tblobj.dbtable, 'subquery_%s' % sq_select)()
+                        sq_pars = dict(sq_select)
+                        compiled = self._compiledSubQuery(alias, expandThis, sq_pars)
+                        sql_formula = re.sub(r'#%s\b' % sq_name, compiled.get_sqltext(self.db), sql_formula)
+                return f'( {sql_formula} )'
             elif fldalias.py_method:
                 #self.cpl.pyColumns.append((fld,getattr(self.tblobj.dbtable,fldalias.py_method,None)))
                 self.cpl.pyColumns.append((fld,getattr(fldalias.table.dbtable,fldalias.py_method,None)))
@@ -296,28 +296,16 @@ class SqlQueryCompiler(object):
                 fld, curr.pkg_name, curr.tbl_name, '.'.join(newpath)))
         return '%s.%s' % (self.db.adapter.asTranslator(alias), curr_tblobj.column(fld).adapted_sqlname)
 
-    def _handleFormulaColumn_oneQuery(self, fldalias, alias, expandThis, select_dict):
-        sq_select = select_dict['default']
-        if isinstance(sq_select, str):
-            sq_select = getattr(self.tblobj.dbtable, 'subquery_%s' % sq_select)()
-        sq_pars = dict(sq_select)
-        cast = sq_pars.pop('cast', None)
-        if fldalias.exists:
-            tpl = ' EXISTS( %s ) '
-        elif cast:
-            tpl = ' CAST( ( %s ) AS ' + cast + ') '
-        else:
-            tpl = ' ( %s ) '
-        compiled = self._compiledSubQuery(alias, expandThis, sq_pars)
-        return tpl % compiled.get_sqltext(self.db)
+    def _preprocess_subqueryes(self, attr):
+        if 'exists' in attr:
+            exists_sq = attr.pop('exists')
+            exists_sq['exists'] = True
+            attr['select_default'] = exists_sq
+        elif 'select' in attr:
+            attr['select_default'] = attr.pop('select')
+        return dictExtract(attr, 'select_')
 
-    def _handleFormulaColumn_plain(self, fldalias, alias, curr, sql_formula, formula_kw):
-        """Handle pure formula columns with no subquery.
-
-        Args:
-            sql_formula: The resolved SQL formula string.
-            formula_kw: Pre-extracted var_ parameters (dict), for :placeholder resolution.
-        """
+    def _preprocessFormula(self, fldalias, alias, curr, sql_formula, formula_kw):
         def resolveField(m):
             return m.group(1) + self.getFieldAlias(m.group(2), curr=curr, basealias=alias)
         sql_formula = RELFINDER.sub(resolveField, sql_formula)
@@ -330,9 +318,9 @@ class SqlQueryCompiler(object):
                 sql_formula = re.sub(r"(:)(%s)(\W|$)" % k,
                                      lambda m, mk=mangled_k: f'{m.group(1)}{mk}{m.group(3)}',
                                      sql_formula)
-        return f'( {sql_formula} )'
+        return sql_formula
 
-    def _compiledSubQuery(self, alias, expandThis, sq_pars, tpl=None):
+    def _compiledSubQuery(self, alias, expandThis, sq_pars):
         """Compile a subquery column (select or exists) into SQL text.
 
         Builds and compiles an independent SqlQuery with a mangler prefix,
@@ -351,7 +339,17 @@ class SqlQueryCompiler(object):
         Returns:
             str: the compiled subquery SQL text, wrapped with the template.
         """
-        # 1. Extract table and where; remaining items are subquery parameters
+        # 1. Extract template parameters and table/where
+        tpl = sq_pars.pop('tpl', None)
+        cast = sq_pars.pop('cast', None)
+        is_exists = sq_pars.pop('exists', False)
+        if not tpl:
+            if is_exists:
+                tpl = ' EXISTS( %s ) '
+            elif cast:
+                tpl = ' CAST( ( %s ) AS ' + cast + ') '
+            else:
+                tpl = ' ( %s ) '
         sq_table = sq_pars.pop('table')
         sq_where = sq_pars.pop('where')
         sq_pars.setdefault('ignorePartition', True)
@@ -387,45 +385,6 @@ class SqlQueryCompiler(object):
         self.sqlparams.update(q.sqlparams)
 
         return compiled
-
-    def _handleFormulaColumn_legacy(self, fldalias, alias, curr,
-                              expandThis, expandEnv, expandPref,
-                              sql_formula, formula_kw, select_dict):
-        for susbselect,sq_pars in list(select_dict.items()):
-            if isinstance(sq_pars, str):
-                sq_pars = getattr(self.tblobj.dbtable,'subquery_%s' %sq_pars)()
-            sq_pars = dict(sq_pars)
-            cast = sq_pars.pop('cast',None)
-            tpl = ' CAST( ( %s ) AS ' +cast +') ' if cast else ' ( %s ) '
-            sq_table = sq_pars.pop('table')
-            sq_where = sq_pars.pop('where')
-            sq_pars.setdefault('ignorePartition',True)
-            sq_pars.setdefault('excludeDraft',False)
-            sq_pars.setdefault('excludeLogicalDeleted',False)
-            sq_pars.setdefault('subtable','*')
-            aliasPrefix = '%s_t' %alias
-            sq_where = THISFINDER.sub(expandThis,sq_where)
-            sql_text = self.db.queryCompile(table=sq_table,where=sq_where,aliasPrefix=aliasPrefix,addPkeyColumn=False,ignoreTableOrderBy=True,**sq_pars)
-            sql_formula = re.sub('#%s\\b' %susbselect, tpl %sql_text,sql_formula)
-        subreldict = {}
-        sql_formula = self.macro_expander.replace(sql_formula,'TSRANK,TSHEADLINE')
-        sql_formula = self.updateFieldDict(sql_formula, reldict=subreldict)
-        sql_formula = BETWEENFINDER.sub(self.expandBetween, sql_formula)
-        sql_formula = ENVFINDER.sub(expandEnv, sql_formula)
-        sql_formula = PREFFINDER.sub(expandPref, sql_formula)
-        sql_formula = THISFINDER.sub(expandThis,sql_formula)
-        if formula_kw:
-            prefix = str(id(fldalias))
-            currentEnv = self.db.currentEnv
-            for k,v in list(formula_kw.items()):
-                newk = f'{prefix}_{self._currColKey}_{k}'
-                currentEnv[newk] = v
-                sql_formula = re.sub("(:)(%s)(\\W|$)" %k,lambda m: '%senv_%s%s'%(m.group(1),newk,m.group(3)), sql_formula)
-        subColPars = {}
-        for key, value in list(subreldict.items()):
-            subColPars[key] = self.getFieldAlias(value, curr=curr, basealias=alias)
-        sql_formula = gnrstring.templateReplace(sql_formula, subColPars, safeMode=True)
-        return f'( {sql_formula} )'
 
     def _findRelationAlias(self, pathlist, curr, basealias, newpath, parent=None):
         """Internal method: called by getFieldAlias to get the alias (t1, t2...) for the join table.

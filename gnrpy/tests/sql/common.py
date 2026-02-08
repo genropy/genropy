@@ -134,10 +134,40 @@ def configurePackage(pkg):
     movie.formulaColumn('dvd_count', select=dict(
         columns='COUNT(*)', table='video.dvd', where='$movie_id=#THIS.id'
     ), dtype='L')
+    movie.formulaColumn('dvd_count_coalesce', sql_formula='COALESCE(#default, 0)',
+        select=dict(
+        columns='COUNT(*)', table='video.dvd', where='$movie_id=#THIS.id'
+    ), dtype='L')
     movie.formulaColumn('dvd_count_available', select=dict(
         columns='COUNT(*)', table='video.dvd',
         where='$movie_id=#THIS.id AND $available=:avail', avail='yes'
     ), dtype='L')
+    movie.formulaColumn('has_dvd', exists=dict(
+        table='video.dvd', where='$movie_id=#THIS.id'
+    ))
+    movie.formulaColumn('has_dvd_label', sql_formula="CASE WHEN #default THEN 'YES' ELSE 'NO' END",
+        exists=dict(
+        table='video.dvd', where='$movie_id=#THIS.id'
+    ))
+    movie.formulaColumn('has_dvd_after_2006', sql_formula="CASE WHEN #default THEN 'YES' ELSE 'NO' END",
+        exists=dict(
+        table='video.dvd', where="$movie_id=#THIS.id AND $purchasedate > :cutoff",
+        cutoff='2006-01-01'
+    ))
+    movie.formulaColumn('dvd_count_cast', select=dict(
+        columns='COUNT(*)', table='video.dvd',
+        where='$movie_id=#THIS.id', cast='integer'
+    ), dtype='L')
+    movie.formulaColumn('dvd_stats', sql_formula='#total || :sep || #available',
+        var_sep='/',
+        select_total=dict(
+            columns='COUNT(*)', table='video.dvd', where='$movie_id=#THIS.id'
+        ),
+        select_available=dict(
+            columns='COUNT(*)', table='video.dvd',
+            where='$movie_id=#THIS.id AND $available=:avail', avail='yes'
+        )
+    )
 
     dvd = pkg.table('dvd', name_short='Dvd', name_long='Dvd', pkey='code')
     dvd.column('code', 'L')

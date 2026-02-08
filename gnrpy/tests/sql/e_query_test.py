@@ -438,11 +438,71 @@ class BaseSql(BaseGnrSqlTest):
                               where='$id = :id', id=0).fetch()
         assert result[0]['dvd_count'] == 3
 
+    def test_formulaColumn_with_subquery_and_formula(self):
+        result = self.db.query('video.movie',
+                              columns='$title,$dvd_count_coalesce',
+                              where='$id = :id', id=0).fetch()
+        assert result[0]['dvd_count_coalesce'] == 3
+
     def test_formulaColumn_subquery_no_match(self):
         result = self.db.query('video.movie',
                               columns='$title,$dvd_count',
                               where='$id = :id', id=3).fetch()
         assert result[0]['dvd_count'] == 0
+
+    def test_formulaColumn_exists(self):
+        result = self.db.query('video.movie',
+                              columns='$title,$has_dvd',
+                              where='$id = :id', id=0).fetch()
+        assert result[0]['has_dvd'] == True
+
+    def test_formulaColumn_exists_false(self):
+        result = self.db.query('video.movie',
+                              columns='$title,$has_dvd',
+                              where='$id = :id', id=3).fetch()
+        assert result[0]['has_dvd'] == False
+
+    def test_formulaColumn_exists_with_formula(self):
+        result = self.db.query('video.movie',
+                              columns='$title,$has_dvd_label',
+                              where='$id = :id', id=0).fetch()
+        assert result[0]['has_dvd_label'] == 'YES'
+
+    def test_formulaColumn_exists_with_formula_false(self):
+        result = self.db.query('video.movie',
+                              columns='$title,$has_dvd_label',
+                              where='$id = :id', id=3).fetch()
+        assert result[0]['has_dvd_label'] == 'NO'
+
+    def test_formulaColumn_exists_with_params_true(self):
+        result = self.db.query('video.movie',
+                              columns='$title,$has_dvd_after_2006',
+                              where='$id = :id', id=0).fetch()
+        assert result[0]['has_dvd_after_2006'] == 'YES'
+
+    def test_formulaColumn_exists_with_params_false(self):
+        result = self.db.query('video.movie',
+                              columns='$title,$has_dvd_after_2006',
+                              where='$id = :id', id=3).fetch()
+        assert result[0]['has_dvd_after_2006'] == 'NO'
+
+    def test_formulaColumn_subquery_with_cast(self):
+        result = self.db.query('video.movie',
+                              columns='$title,$dvd_count_cast',
+                              where='$id = :id', id=0).fetch()
+        assert result[0]['dvd_count_cast'] == 3
+
+    def test_formulaColumn_multi_select(self):
+        result = self.db.query('video.movie',
+                              columns='$title,$dvd_stats',
+                              where='$id = :id', id=0).fetch()
+        assert result[0]['dvd_stats'] == '3/3'
+
+    def test_formulaColumn_multi_select_partial(self):
+        result = self.db.query('video.movie',
+                              columns='$title,$dvd_stats',
+                              where='$id = :id', id=1).fetch()
+        assert result[0]['dvd_stats'] == '2/0'
 
     def test_formulaColumn_mixed(self):
         result = self.db.query('video.movie',
