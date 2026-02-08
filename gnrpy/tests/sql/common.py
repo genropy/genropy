@@ -1,6 +1,7 @@
 import sys
 import os
 import os.path
+import subprocess
 import pytest
 from testing.postgresql import Postgresql
 
@@ -72,6 +73,8 @@ class BaseGnrSqlTest:
                                password=os.environ.get("GNR_TEST_PG_PASSWORD"))
             cls.mysql_conf = None
         else:
+            # cleanup stale postgres temp instances from previous interrupted runs
+            subprocess.run(['pkill', '-f', 'postgres.*tmp'], capture_output=True)
             cls.pg_instance = Postgresql()
             cls.pg_conf = cls.pg_instance.dsn()
             cls.mysql_conf = dict(host="localhost",
