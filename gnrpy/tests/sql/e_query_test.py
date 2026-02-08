@@ -34,7 +34,7 @@ hdlr = logging.FileHandler('logs.log')
 gnrlogger.addHandler(hdlr)
 
 from gnr.sql.gnrsql import GnrSqlDb
-from gnr.sql.gnrsqldata import SqlQuery, SqlSelection, SqlCompiledQuery
+from gnr.sql.gnrsqldata import SqlQuery, SqlSelection, SqlCompiledQuery, SqlCompiledSubQuery
 from gnr.sql import gnrsqldata as gsd
 
 from .common import BaseGnrSqlTest, configurePackage
@@ -523,8 +523,8 @@ class BaseSql(BaseGnrSqlTest):
     # --- SqlCompiledQuery __eq__ / __hash__ / identity_hash tests ---
 
     def test_compiled_eq_same_identity_hash(self):
-        a = SqlCompiledQuery('video_movie')
-        b = SqlCompiledQuery('video_movie')
+        a = SqlCompiledSubQuery('video_movie')
+        b = SqlCompiledSubQuery('video_movie')
         a.where = 'x = :p'
         b.where = 'x = :p'
         a.mangled_params = {'p': 'val'}
@@ -532,8 +532,8 @@ class BaseSql(BaseGnrSqlTest):
         assert a == b
 
     def test_compiled_eq_different_identity_hash(self):
-        a = SqlCompiledQuery('video_movie')
-        b = SqlCompiledQuery('video_movie')
+        a = SqlCompiledSubQuery('video_movie')
+        b = SqlCompiledSubQuery('video_movie')
         a.where = 'x = :p'
         b.where = 'x = :p'
         a.mangled_params = {'p': 'val1'}
@@ -541,8 +541,8 @@ class BaseSql(BaseGnrSqlTest):
         assert a != b
 
     def test_compiled_eq_different_table(self):
-        a = SqlCompiledQuery('video_movie')
-        b = SqlCompiledQuery('video_dvd')
+        a = SqlCompiledSubQuery('video_movie')
+        b = SqlCompiledSubQuery('video_dvd')
         a.where = 'x = :p'
         b.where = 'x = :p'
         a.mangled_params = {'p': 'val'}
@@ -550,38 +550,38 @@ class BaseSql(BaseGnrSqlTest):
         assert a != b
 
     def test_compiled_eq_no_mangled_params(self):
-        a = SqlCompiledQuery('video_movie')
-        b = SqlCompiledQuery('video_movie')
-        # entrambi senza mangled_params → identity_hash è None
+        a = SqlCompiledSubQuery('video_movie')
+        b = SqlCompiledSubQuery('video_movie')
+        # both without mangled_params → identity_hash is None
         assert a != b
 
     def test_compiled_eq_one_without_mangled(self):
-        a = SqlCompiledQuery('video_movie')
-        b = SqlCompiledQuery('video_movie')
+        a = SqlCompiledSubQuery('video_movie')
+        b = SqlCompiledSubQuery('video_movie')
         a.where = 'x = :p'
         a.mangled_params = {'p': 'val'}
-        # b senza mangled_params
+        # b without mangled_params
         assert a != b
 
     def test_compiled_eq_not_implemented(self):
-        a = SqlCompiledQuery('video_movie')
+        a = SqlCompiledSubQuery('video_movie')
         a.where = 'x = :p'
         a.mangled_params = {'p': 'val'}
         assert a.__eq__("not a compiled") is NotImplemented
 
     def test_compiled_hash_with_identity(self):
-        a = SqlCompiledQuery('video_movie')
+        a = SqlCompiledSubQuery('video_movie')
         a.where = 'x = :p'
         a.mangled_params = {'p': 'val'}
         assert hash(a) == hash(('video_movie', 'x = val'))
 
     def test_compiled_hash_without_identity(self):
-        a = SqlCompiledQuery('video_movie')
+        a = SqlCompiledSubQuery('video_movie')
         assert hash(a) == id(a)
 
     def test_compiled_in_set(self):
-        a = SqlCompiledQuery('video_movie')
-        b = SqlCompiledQuery('video_movie')
+        a = SqlCompiledSubQuery('video_movie')
+        b = SqlCompiledSubQuery('video_movie')
         a.where = 'x = :p'
         b.where = 'x = :p'
         a.mangled_params = {'p': 'val'}
@@ -590,8 +590,8 @@ class BaseSql(BaseGnrSqlTest):
         assert len(s) == 1
 
     def test_compiled_as_dict_key(self):
-        a = SqlCompiledQuery('video_movie')
-        b = SqlCompiledQuery('video_movie')
+        a = SqlCompiledSubQuery('video_movie')
+        b = SqlCompiledSubQuery('video_movie')
         a.where = 'x = :p'
         b.where = 'x = :p'
         a.mangled_params = {'p': 'val'}
@@ -600,8 +600,8 @@ class BaseSql(BaseGnrSqlTest):
         assert d[b] == 'value_a'
 
     def test_compiled_different_in_set(self):
-        a = SqlCompiledQuery('video_movie')
-        b = SqlCompiledQuery('video_movie')
+        a = SqlCompiledSubQuery('video_movie')
+        b = SqlCompiledSubQuery('video_movie')
         a.where = 'x = :p1'
         b.where = 'x = :p2'
         a.mangled_params = {'p1': 'val1'}
@@ -627,10 +627,11 @@ class BaseSql(BaseGnrSqlTest):
         assert compiled.tpl is None
 
     def test_compiled_identity_hash_none_for_main_query(self):
-        """Le query principali non hanno identity_hash (è per le subquery)"""
+        """Main queries produce SqlCompiledQuery, not SqlCompiledSubQuery"""
         q = self.db.query('video.movie', columns='$title', where='$id = :id', id=0)
         compiled = q.compileQuery()
-        assert compiled.identity_hash is None
+        assert not isinstance(compiled, SqlCompiledSubQuery)
+        assert not hasattr(compiled, 'identity_hash')
 
     # --- get_sqltext template handling ---
 
@@ -724,11 +725,11 @@ class BaseSql(BaseGnrSqlTest):
         assert result[0]['title'] == 'Saving private Ryan'
 
     def test_subquery_available_zero_when_no_match(self):
-        """dvd_count_available deve dare 0 quando nessun dvd è available"""
+        """dvd_count_available should return 0 when no dvd is available"""
         result = self.db.query('video.movie',
                               columns='$title,$dvd_count_available',
                               where='$id = :id', id=1).fetch()
-        # movie_id=1 (Scoop) ha 2 dvd ma entrambi available='no'
+        # movie_id=1 (Scoop) has 2 dvds but both have available='no'
         assert result[0]['dvd_count_available'] == 0
 
     def test_subquery_mixed_with_formula_and_alias(self):

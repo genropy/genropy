@@ -147,9 +147,22 @@ class SqlCompiledQuery(object):
             result = self.tpl % result
         return result
 
+class SqlCompiledSubQuery(SqlCompiledQuery):
+    """A compiled subquery with correlation analysis and identity support.
+
+    Extends ``SqlCompiledQuery`` with attributes specific to subqueries
+    used inside formula columns: correlation info for JOIN conversion,
+    aggregate column tracking, and identity hashing for merge.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.correlation = None
+        self.aggregate_column = None
+
     @property
     def identity_hash(self):
-        """Mangler-independent fingerprint for CTE merge.
+        """Mangler-independent fingerprint for subquery merge.
 
         Resolves mangled parameter placeholders in ``self.where`` with their
         actual values, then hashes ``(maintable, resolved_where)``.
@@ -165,7 +178,7 @@ class SqlCompiledQuery(object):
         return hash((self.maintable, resolved_where))
 
     def __eq__(self, other):
-        if not isinstance(other, SqlCompiledQuery):
+        if not isinstance(other, SqlCompiledSubQuery):
             return NotImplemented
         return self.identity_hash is not None and self.identity_hash == other.identity_hash
 
@@ -473,7 +486,7 @@ class SqlQueryCompiler(object):
             mangler=mangler_prefix,
             **sq_pars
         )
-        compiled = q.compileQuery()
+        compiled = q.compileQuery(compiled_class=SqlCompiledSubQuery)
         compiled.tpl = tpl
 
         # 5. Merge mangled subquery params into main query params
@@ -726,7 +739,8 @@ class SqlQueryCompiler(object):
                       storename=None,subtable=None,
                       count=False, excludeLogicalDeleted=True,excludeDraft=True,
                       ignorePartition=False,ignoreTableOrderBy=False,
-                      addPkeyColumn=True):
+                      addPkeyColumn=True,
+                      compiled_class=None):
         """Prepare the SqlCompiledQuery to get the sql query for a selection.
 
         :param columns: it represents the :ref:`columns` to be returned by the "SELECT"
@@ -751,9 +765,12 @@ class SqlQueryCompiler(object):
         :param excludeLogicalDeleted: boolean. If ``True``, exclude from the query all the records that are
                                       "logical deleted"
         :param excludeDraft: TODO
-        :param addPkeyColumn: boolean. If ``True``, add a column with the pkey attribute"""
+        :param addPkeyColumn: boolean. If ``True``, add a column with the pkey attribute
+        :param compiled_class: optional factory class for the compiled query object.
+                               Defaults to ``SqlCompiledQuery``."""
         # get the SqlCompiledQuery: an object that mantains all the informations to build the sql text
-        self.cpl = SqlCompiledQuery(self.tblobj.sqlfullname,relationDict=relationDict,maintable_as=self.aliasCode(0),
+        compiled_class = compiled_class or SqlCompiledQuery
+        self.cpl = compiled_class(self.tblobj.sqlfullname,relationDict=relationDict,maintable_as=self.aliasCode(0),
                                     mangler=self.mangler, sqlparams=self.sqlparams)
         distinct = distinct or '' # distinct is a text to be inserted in the sql query string
 
@@ -1312,10 +1329,11 @@ class SqlQuery(object):
 
     compiled = property(_get_compiled)
 
-    def compileQuery(self, count=False):
+    def compileQuery(self, count=False, compiled_class=None):
         """Return the :meth:`compiledQuery() <SqlQueryCompiler.compiledQuery()>` method.
 
-        :param count: boolean. If ``True``, optimize the sql query to get the number of resulting rows (like count(*))"""
+        :param count: boolean. If ``True``, optimize the sql query to get the number of resulting rows (like count(*))
+        :param compiled_class: optional factory class for the compiled query object."""
         return SqlQueryCompiler(self.dbtable.model,
                                 joinConditions=self.joinConditions,
                                 sqlContextName=self.sqlContextName,
@@ -1326,6 +1344,7 @@ class SqlQuery(object):
                                 query_kw=self.query_kw,
                                 mainquery_kw=self.mainquery_kw,
                                 query=self).compiledQuery(count=count,
+                                                                  compiled_class=compiled_class,
                                                                   relationDict=self.relationDict,
                                                                   **self.querypars)
 
