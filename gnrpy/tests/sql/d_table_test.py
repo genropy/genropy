@@ -37,7 +37,7 @@ gnrlogger.addHandler(hdlr)
 
 from gnr.sql.gnrsql import GnrSqlDb
 
-from .common import BaseGnrSqlTest, configurePackage
+from .common import BaseGnrSqlTest, configureDb
 
 class BaseSql(BaseGnrSqlTest):
     @classmethod
@@ -46,9 +46,8 @@ class BaseSql(BaseGnrSqlTest):
         cls.init()
         # create database (actually create the DB file or structure)
         cls.db.createDb(cls.dbname)
-        
-        # read the structure of the db from xml file: this is the recipe only
-        cls.db.loadModel(cls.SAMPLE_XMLSTRUCT)
+
+        configureDb(cls.db)
 
         # build the python db structure from the recipe
         cls.db.startup()
@@ -189,7 +188,7 @@ class BaseSql(BaseGnrSqlTest):
         assert isinstance(result, dict)
 
     def test_createStructureFromCode(self):
-        configurePackage(self.db.packageSrc('video'))
+        configureDb(self.db)
         with tempfile.NamedTemporaryFile(delete=True) as tmpdbfile:
             self.db.saveModel(tmpdbfile.name)
         assert self.db.model.src['packages.video.tables.people?pkey'] == 'id'

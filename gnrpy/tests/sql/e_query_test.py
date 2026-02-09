@@ -37,7 +37,7 @@ from gnr.sql.gnrsql import GnrSqlDb
 from gnr.sql.gnrsqldata import SqlQuery, SqlSelection
 from gnr.sql import gnrsqldata as gsd
 
-from .common import BaseGnrSqlTest, configurePackage
+from .common import BaseGnrSqlTest, configureDb
 
 class BaseSql(BaseGnrSqlTest):
     @classmethod
@@ -47,9 +47,7 @@ class BaseSql(BaseGnrSqlTest):
         # create database (actually create the DB file or structure)
 
         cls.db.createDb(cls.dbname)
-        # read the structure of the db from xml file: this is the recipe only
-        # cls.db.loadModel(cls.SAMPLE_XMLSTRUCT)
-        configurePackage(cls.db.packageSrc('video'))
+        configureDb(cls.db)
 
         # build the python db structure from the recipe
         cls.db.startup()
