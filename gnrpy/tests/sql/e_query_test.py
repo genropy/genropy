@@ -848,11 +848,11 @@ class BaseSql(BaseGnrSqlTest):
         assert 'LEFT JOIN' in sqltext
 
     def test_sq_as_join_no_match(self):
-        """dvd_count_join returns 0 when no dvds"""
+        """dvd_count_join returns None when no dvds (no COALESCE without sql_formula)"""
         result = self.db.query('video.movie',
                               columns='$title,$dvd_count_join',
                               where='$id = :id', id=3).fetch()
-        assert result[0]['dvd_count_join'] == 0
+        assert result[0]['dvd_count_join'] is None
 
     def test_formulaColumn_raw_subquery_with_this(self):
         """Verify legacy pattern: sql_formula with inline subselect and #THIS"""
@@ -888,6 +888,19 @@ class BaseSql(BaseGnrSqlTest):
         print('\n=== preprocess output ===')
         for k, v in result.items():
             print(f'{k}: {v}')
+
+    def test_enable_sq_join_query_level(self):
+        """Verify enable_sq_join=True at query level converts subquery to JOIN"""
+        q_inline = self.db.query('video.movie', columns='$title,$dvd_count',
+                                  where='$id = :id', id=1)
+        q_join = self.db.query('video.movie', columns='$title,$dvd_count',
+                                where='$id = :id', id=1, enable_sq_join=True)
+        assert 'LEFT JOIN' in q_join.sqltext
+        assert '#dflt' not in q_join.sqltext
+        r_inline = q_inline.fetch()
+        r_join = q_join.fetch()
+        assert len(r_inline) == 1
+        assert r_inline[0]['dvd_count'] == r_join[0]['dvd_count']
 
     def teardown_class(cls):
         cls.db.closeConnection()

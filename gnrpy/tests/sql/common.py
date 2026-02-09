@@ -165,7 +165,6 @@ def configurePackage(pkg):
         where='$movie_id=#THIS.id', cast='integer'
     ), dtype='L')
     movie.formulaColumn('dvd_count_join', sq_as_join=True,
-        sql_formula='COALESCE(#dflt_c_0, 0)',
         select=dict(
             columns='COUNT(*)', table='video.dvd', where='$movie_id=#THIS.id'
         ), dtype='L')
@@ -173,7 +172,6 @@ def configurePackage(pkg):
         columns='MAX($purchasedate)', table='video.dvd', where='$movie_id=#THIS.id'
     ), dtype='D')
     movie.formulaColumn('dvd_latest_join', sq_as_join=True,
-        sql_formula='#dflt_c_0',
         select=dict(
             columns='MAX($purchasedate)', table='video.dvd', where='$movie_id=#THIS.id'
         ), dtype='D')
@@ -242,7 +240,6 @@ def configurePackage(pkg):
     ), dtype='N')
     # Benchmark: total sales per country (join)
     country.formulaColumn('total_sales_join', sq_as_join=True,
-        sql_formula='COALESCE(#dflt_c_0, 0)',
         select=dict(
             columns='SUM($amount)', table='video.sales',
             where='$country_id=#THIS.id'
@@ -268,7 +265,6 @@ def configurePackage(pkg):
     ), dtype='L')
     # Benchmark: count sales per country (join)
     country.formulaColumn('sale_count_join', sq_as_join=True,
-        sql_formula='COALESCE(#dflt_c_0, 0)',
         select=dict(
             columns='COUNT(*)', table='video.sales',
             where='$country_id=#THIS.id'

@@ -310,6 +310,7 @@ class SqlQueryCompiler(object):
                 if as_join:
                     self.cpl.sq_joins.append(compiled.get_sqltext(self.db))
                     sql_formula = re.sub(r'#%s_(\w+)' % sq_name, r'%s.\1' % sq_name, sql_formula)
+                    sql_formula = re.sub(r'#%s\b' % sq_name, r'%s.c_0' % sq_name, sql_formula)
                 else:
                     sql_formula = re.sub(r'#%s\b' % sq_name, compiled.get_sqltext(self.db), sql_formula)
         return f'( {sql_formula} )'
@@ -318,6 +319,8 @@ class SqlQueryCompiler(object):
         sq_as_join = fldalias.attributes.get('sq_as_join')
         if sq_as_join is not None:
             return gnrstring.boolean(sq_as_join)
+        if self.query and getattr(self.query, 'enable_sq_join', None) is not None:
+            return gnrstring.boolean(self.query.enable_sq_join)
         return gnrstring.boolean(getattr(self.db, 'extra_kw', {}).get('subquery_as_join', False))
 
     def _preprocess_subqueryes(self, attr, as_join=False, alias=None):
@@ -1216,6 +1219,7 @@ class SqlQuery(object):
         self.joinConditions = joinConditions or {}
         self.sqlContextName = sqlContextName
         self.relationDict = relationDict or {}
+        self.enable_sq_join = kwargs.pop('enable_sq_join', None)
         self.query_kw = dict(kwargs)
         self.sqlparams.update(kwargs)
         self.excludeLogicalDeleted = excludeLogicalDeleted
