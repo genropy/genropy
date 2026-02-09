@@ -24,7 +24,7 @@ class Main(BaseResourceAction):
         mts_tbl = self.db.table('email.message_to_send')
         messages_to_send = mts_tbl.query(
             columns='$message_id',
-            where='@message_id.account_id=:acid AND $message_to_send IS TRUE',
+            where='@message_id.account_id=:acid AND @message_id.message_to_send IS TRUE',
             acid=account['id'],
             order_by='$__ins_ts',
             limit=account['send_limit']
