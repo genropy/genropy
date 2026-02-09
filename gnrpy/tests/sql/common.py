@@ -54,9 +54,7 @@ class BaseGnrSqlTest:
         """
         base_path = os.path.join(os.path.dirname(__file__), "data")
         cls.CONFIG = Bag(os.path.join(base_path, 'configTest.xml'))
-        cls.SAMPLE_XMLSTRUCT = os.path.join(base_path, 'dbstructure_base.xml')
         cls.SAMPLE_XMLDATA = os.path.join(base_path, 'dbdata_base.xml')
-        cls.SAMPLE_XMLSTRUCT_FINAL = os.path.join(base_path, 'dbstructure_final.xml')
         
         if "GITHUB_WORKFLOW" in os.environ:
             # we are running inside the Github CI
