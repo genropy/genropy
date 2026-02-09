@@ -30,6 +30,7 @@ import base64
 from types import MethodType
 from io import IOBase
 from functools import total_ordering
+from chardet.universaldetector import UniversalDetector
 
 from gnr.core import logger
 from gnr.core.gnrdecorator import extract_kwargs # keep for compatibility
@@ -182,6 +183,27 @@ def importModule(module):
         __import__(module)
     return sys.modules[module]
 
+def getEncoding(docname):
+    """Detect the encoding of a file using chardet.
+
+    :param docname: path to the file to analyze
+
+    :returns: encoding name as string, or None if not detectable
+    """
+    
+    detector = UniversalDetector()
+    detector.reset()
+    finalChunk = False
+    blockSize = 64 * 1024
+    with open(docname, 'rb') as f:
+        while (not finalChunk) and (not detector.done):
+            chunk = f.read(blockSize)
+            if len(chunk) < blockSize:
+                finalChunk = True
+            detector.feed(chunk)
+    detector.close()
+    return detector.result.get('encoding', None)
+    
 def getUuid():
     """Return a Python Universally Unique IDentifier 3 (UUID3) through the Python \'base64.urlsafe_b64encode\' method"""
     t_id = _thread.get_ident()

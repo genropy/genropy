@@ -74,22 +74,10 @@ class MenuIframes(BaseComponent):
     def _menutree_getLabel(self):
         return """
             let label = node.attr.label;
-            if(node.attr.titleCounter){
-                if(node.attr.isDir){
-                    let v = node.getValue();
-                    let count = 0;
-                    if(v && v instanceof gnr.GnrBag){
-                        count = v.len();
-                    }
-                    if(count && node.attr.tag=="tableBranch" && node.attr.add_label){
-                        count-=1;
-                    }
-                    label = `${label} (${count})`
-                }else{
-                    let count = node.attr.titleCounter_count;
-                    label = `${label} (${count})`
-                }
-                
+            let badgeContent =  node.attr.badgeContent;
+            let badgeClass = node.attr.badgeClass || 'menuline_badge';
+            if(!isNullOrBlank(badgeContent)){
+                label = `innerHTML:${label} <span class="${badgeClass}">${badgeContent}</span>`
             }
             return label;
         """
@@ -149,16 +137,38 @@ class MenuIframes(BaseComponent):
         pane.dataController("""var flat_tblname = _node.label;
                                 let store = treeNode.widget.storebag();
                                 store.walk(function(n){
+                                    const titleCounter = n.attr.titleCounter;
+                                    const menuLineBadge = n.attr.menuLineBadge;
+                                    if(titleCounter){
+                                        console.warn('titleCounter is deprecated. Use menuLineBadge instead of it')
+                                    }
                                     if(n.attr.tag == "tableBranch" && n.attr.table.replace('.','_') == flat_tblname){
                                         n.refresh(true)
                                         let content = n.getValue();
                                         let child_count = (content instanceof gnr.GnrBag)?content.len():0;
-                                        n.updAttributes({'child_count':child_count});
+                                        let updater = {child_count:child_count};
+                                        if(titleCounter || menuLineBadge === true){
+                                            updater.badgeContent = child_count;
+                                        }
+                                        n.updAttributes(updater);
+                                        return;
                                     }
-                                    else if(n.attr.titleCounter){
-                                        genro.serverCall('app.getRecordCount',{table:n.attr.table,where:n.attr.titleCounter_condition},
+                                    let menuLineBadgeKW = {};
+                                    if(menuLineBadge){
+                                        objectUpdate(menuLineBadgeKW,objectExtract(n.attr, 'menuLineBadge_*', true));
+                                        menuLineBadgeKW.handler = menuLineBadge
+                                    }
+                                    else if(titleCounter){
+                                        objectUpdate(menuLineBadgeKW,objectExtract(n.attr, 'titleCounter_*', true));
+                                        if(n.attr.titleCounter!==true){
+                                            objectUpdate(menuLineBadgeKW, n.attr.titleCounter);
+                                        }
+                                    }
+                                    if(objectNotEmpty(menuLineBadgeKW)){
+                                        menuLineBadgeKW.table = menuLineBadgeKW.table || n.attr.table;
+                                        genro.serverCall('menu.getMenuLineBadge',menuLineBadgeKW,
                                                             function(result){
-                                                                n.updAttributes({titleCounter_count:result});
+                                                                n.updAttributes({badgeContent:result});
                                                             })
                                     }
                                 },'static');

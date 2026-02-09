@@ -244,7 +244,7 @@ class MailService(GnrBaseService):
                 mime_type = attachment_node.mimetype
             mime_family, mime_subtype = mime_type.split('/')
             with attachment_node.local_path() as attachment_path:
-                with open(attachment_path, mode='rb') as attachment_file:
+                with open(attachment_path, mode='text' in mime_family and 'r' or 'rb') as attachment_file:
                     email_attachment = mime_mapping[mime_family](attachment_file.read(), mime_subtype)
                     email_attachment.add_header('content-disposition', 'attachment', filename=attachment_node.basename)
                     msg.attach(email_attachment)

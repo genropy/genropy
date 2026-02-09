@@ -1,4 +1,5 @@
 import pytest
+import os
 from gnr.core import gnrlang as gl
 from gnr.core.gnrbag import Bag
 
@@ -185,3 +186,51 @@ class TestGnrLang():
         with pytest.raises(AttributeError):
             assert 1000 in fl
         assert "d" not in fl
+
+class TestGnrLang_getEncoding():
+    def _get_data_path(self, filename):
+        return os.path.join(os.path.dirname(__file__), 'data', filename)
+
+    def test_getEncoding_ascii(self):
+        result = gl.getEncoding(self._get_data_path('test_Enc_ASCII.csv'))
+        assert result.lower() == 'ascii'
+
+    def test_getEncoding_utf8(self):
+        result = gl.getEncoding(self._get_data_path('test_Enc_UTF8.csv'))
+        assert result.lower() == 'utf-8'
+
+    def test_getEncoding_iso8859_1(self):
+        result = gl.getEncoding(self._get_data_path('test_Enc_ISO8859_1.csv'))
+        assert result.lower() == 'iso-8859-1'
+
+    def test_getEncoding_windows1251(self):
+        result = gl.getEncoding(self._get_data_path('test_Enc_Windows1251.csv'))
+        assert result.lower() == 'windows-1251'
+
+    def test_getEncoding_windows1252(self):
+        result = gl.getEncoding(self._get_data_path('test_Enc_Windows1252.csv'))
+        assert result.lower() == 'windows-1252'
+
+    def test_getEncoding_windows1253(self):
+        result = gl.getEncoding(self._get_data_path('test_Enc_Windows1253.csv'))
+        assert result.lower() == 'windows-1253'
+
+    def test_getEncoding_gb2312(self):
+        result = gl.getEncoding(self._get_data_path('test_Enc_GB2312.csv'))
+        assert result.lower() == 'gb2312'
+
+    def test_getEncoding_euckr(self):
+        result = gl.getEncoding(self._get_data_path('test_Enc_EUCKR.csv'))
+        assert result.lower() == 'euc-kr'
+
+    def test_getEncoding_koi8r(self):
+        result = gl.getEncoding(self._get_data_path('test_Enc_KOI8R.csv'))
+        assert result.lower() == 'koi8-r'
+
+    def test_getEncoding_shiftjis(self):
+        result = gl.getEncoding(self._get_data_path('test_Enc_SHIFTJIS.csv'))
+        assert result.lower() == 'shift_jis'
+
+    def test_getEncoding_file_not_found(self):
+        with pytest.raises(FileNotFoundError):
+            gl.getEncoding(self._get_data_path('nonexistent_file.csv'))
