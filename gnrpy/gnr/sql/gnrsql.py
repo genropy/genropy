@@ -38,6 +38,7 @@ from gnr.core.gnrlang import GnrObject
 from gnr.core.gnrlang import importModule, GnrException
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrclasses import GnrClassCatalog
+from gnr.core.gnrdecorator import extract_kwargs
 from gnr.sql.gnrsqlmigration import SqlMigrator
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable,GnrSqlException
 
@@ -715,6 +716,7 @@ class GnrSqlDb(GnrObject):
         self.adapter.delete(tblobj, record,**kwargs)
         self._onDbChange(tblobj,'D',record=record,
                         old_record=None,_raw=True,**kwargs)
+
     @in_triggerstack
     def update(self, tblobj, record, old_record=None, pkey=None, **kwargs):
         """Update a :ref:`table`'s record
@@ -1139,12 +1141,26 @@ class GnrSqlDb(GnrObject):
         
     def importXmlData(self, path):
         """Populates a database from an XML file
-        
+
         :param path: the file path"""
         data = Bag(path)
         for table, pkg in data.digest('#k,#a.pkg'):
             for n in data[table]:
                 self.table(table, pkg=pkg).insertOrUpdate(n.attr)
+
+    @extract_kwargs(config=True)
+    def createRandomRecords(self, table, how_many=10, config=None,
+                            config_kwargs=None, seed=None, batch_prefix='RND'):
+        from gnr.sql.gnrsql_random import RandomRecordGenerator
+        tblobj = self.table(table)
+        config = config or dict()
+        for flat_key, flat_value in (config_kwargs or dict()).items():
+            parts = flat_key.split('_', 1)
+            if len(parts) == 2:
+                field_name, param_name = parts
+                config.setdefault(field_name, dict())[param_name] = flat_value
+        generator = RandomRecordGenerator(tblobj, config=config)
+        generator.generate(how_many, seed=seed, batch_prefix=batch_prefix)
 
     def freezedPkeys(self,fpath):
         filename = '%s_pkeys.pik' % fpath
