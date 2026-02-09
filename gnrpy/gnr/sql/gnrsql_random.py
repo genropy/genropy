@@ -7,11 +7,42 @@
 # to make the logic available without web dependencies.
 
 from datetime import datetime, time, date
+import json
+import os
 import string
 import random
 
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrnumber import decimalRound
+
+
+def load_config_file(path):
+    ext = os.path.splitext(path)[1].lower()
+    with open(path, 'r') as f:
+        if ext in ('.yaml', '.yml'):
+            import yaml
+            return yaml.safe_load(f)
+        elif ext == '.json':
+            return json.load(f)
+        else:
+            content = f.read()
+            try:
+                import yaml
+                return yaml.safe_load(content)
+            except Exception:
+                return json.loads(content)
+
+
+def parse_typed_value(raw, dtype, converter):
+    if not raw:
+        return None
+    if converter is str:
+        if dtype in ('T', 'A') and raw.lower() in ('y', 'yes', 'true', '1'):
+            return True
+        if dtype in ('T', 'A') and raw.lower() in ('n', 'no', 'false', '0'):
+            return None
+        return raw
+    return converter(raw)
 
 
 class RandomRecordGenerator:

@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 import random
-from datetime import date, time, datetime
-from unittest.mock import MagicMock, patch, call
-
-import pytest
+from datetime import date, time
+from unittest.mock import MagicMock, patch
 
 from gnr.sql.gnrsql_random import RandomRecordGenerator
 
@@ -350,61 +348,61 @@ class TestDbCreateRandomRecords:
 
 
 # ---------------------------------------------------------------------------
-# _load_config_file and _parse_typed_value
+# load_config_file and parse_typed_value
 # ---------------------------------------------------------------------------
 
 class TestConfigFile:
 
     def test_load_yaml(self, tmp_path):
-        from gnr.db.cli.gnrrandom_records import _load_config_file
+        from gnr.sql.gnrsql_random import load_config_file
         f = tmp_path / "cfg.yaml"
         f.write_text("price:\n  min_value: 10\nname:\n  default_value: hello\n")
-        result = _load_config_file(str(f))
+        result = load_config_file(str(f))
         assert result == {'price': {'min_value': 10}, 'name': {'default_value': 'hello'}}
 
     def test_load_json(self, tmp_path):
         import json as json_mod
-        from gnr.db.cli.gnrrandom_records import _load_config_file
+        from gnr.sql.gnrsql_random import load_config_file
         f = tmp_path / "cfg.json"
         f.write_text(json_mod.dumps({'qty': {'min_value': 1}}))
-        result = _load_config_file(str(f))
+        result = load_config_file(str(f))
         assert result == {'qty': {'min_value': 1}}
 
     def test_load_unknown_ext_yaml_content(self, tmp_path):
-        from gnr.db.cli.gnrrandom_records import _load_config_file
+        from gnr.sql.gnrsql_random import load_config_file
         f = tmp_path / "cfg.txt"
         f.write_text("amount:\n  max_value: 99\n")
-        result = _load_config_file(str(f))
+        result = load_config_file(str(f))
         assert result == {'amount': {'max_value': 99}}
 
 
 class TestParseTypedValue:
 
     def test_empty_returns_none(self):
-        from gnr.db.cli.gnrrandom_records import _parse_typed_value
-        assert _parse_typed_value('', 'I', int) is None
+        from gnr.sql.gnrsql_random import parse_typed_value
+        assert parse_typed_value('', 'I', int) is None
 
     def test_int_conversion(self):
-        from gnr.db.cli.gnrrandom_records import _parse_typed_value
-        assert _parse_typed_value('42', 'I', int) == 42
+        from gnr.sql.gnrsql_random import parse_typed_value
+        assert parse_typed_value('42', 'I', int) == 42
 
     def test_float_conversion(self):
-        from gnr.db.cli.gnrrandom_records import _parse_typed_value
-        assert _parse_typed_value('3.14', 'N', float) == 3.14
+        from gnr.sql.gnrsql_random import parse_typed_value
+        assert parse_typed_value('3.14', 'N', float) == 3.14
 
     def test_str_yes_for_text_dtype(self):
-        from gnr.db.cli.gnrrandom_records import _parse_typed_value
-        assert _parse_typed_value('y', 'T', str) is True
-        assert _parse_typed_value('yes', 'T', str) is True
+        from gnr.sql.gnrsql_random import parse_typed_value
+        assert parse_typed_value('y', 'T', str) is True
+        assert parse_typed_value('yes', 'T', str) is True
 
     def test_str_no_for_text_dtype(self):
-        from gnr.db.cli.gnrrandom_records import _parse_typed_value
-        assert _parse_typed_value('n', 'T', str) is None
-        assert _parse_typed_value('no', 'T', str) is None
+        from gnr.sql.gnrsql_random import parse_typed_value
+        assert parse_typed_value('n', 'T', str) is None
+        assert parse_typed_value('no', 'T', str) is None
 
     def test_str_passthrough(self):
-        from gnr.db.cli.gnrrandom_records import _parse_typed_value
-        assert _parse_typed_value('hello #N', 'T', str) == 'hello #N'
+        from gnr.sql.gnrsql_random import parse_typed_value
+        assert parse_typed_value('hello #N', 'T', str) == 'hello #N'
 
 
 # ---------------------------------------------------------------------------

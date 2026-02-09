@@ -2,10 +2,10 @@
 # encoding: utf-8
 
 import json
-import os
 
 from gnr.core.cli import GnrCliArgParse
 from gnr.app.cli.gnrdbsetup import get_app
+from gnr.sql.gnrsql_random import load_config_file, parse_typed_value
 
 description = "generate random records for a given table"
 
@@ -31,36 +31,6 @@ DTYPE_PROMPTS = {
     'DH': [('min_value', 'Min datetime (YYYY-MM-DD HH:MM)', str),
             ('max_value', 'Max datetime (YYYY-MM-DD HH:MM)', str)],
 }
-
-
-def _parse_typed_value(raw, dtype, converter):
-    if not raw:
-        return None
-    if converter is str:
-        if dtype in ('T', 'A') and raw.lower() in ('y', 'yes', 'true', '1'):
-            return True
-        if dtype in ('T', 'A') and raw.lower() in ('n', 'no', 'false', '0'):
-            return None
-        return raw
-    return converter(raw)
-
-
-def _load_config_file(path):
-    ext = os.path.splitext(path)[1].lower()
-    with open(path, 'r') as f:
-        if ext in ('.yaml', '.yml'):
-            import yaml
-            return yaml.safe_load(f)
-        elif ext == '.json':
-            return json.load(f)
-        else:
-            # try yaml first, fallback to json
-            content = f.read()
-            try:
-                import yaml
-                return yaml.safe_load(content)
-            except Exception:
-                return json.loads(content)
 
 
 def interactive_config(tblobj):
@@ -91,7 +61,7 @@ def interactive_config(tblobj):
         field_config = dict()
         for param_name, prompt_text, converter in prompts:
             raw = input(f"    {prompt_text}: ").strip()
-            value = _parse_typed_value(raw, dtype, converter)
+            value = parse_typed_value(raw, dtype, converter)
             if value is not None:
                 field_config[param_name] = value
         if field_config:
@@ -153,7 +123,7 @@ def main():
 
     config = None
     if options.config_file:
-        config = _load_config_file(options.config_file)
+        config = load_config_file(options.config_file)
     if options.interactive:
         tblobj = app.db.table(options.table)
         config = interactive_config(tblobj)
