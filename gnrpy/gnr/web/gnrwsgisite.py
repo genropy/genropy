@@ -1075,6 +1075,37 @@ class GnrWsgiSite(object):
         page = self.resource_loader(['sys', 'headless'], request, response)
         page.locale = self.server_locale
         return page
+    
+    
+    def get_mobile_app_config(self,mobile_os=None):
+        bundles = self.getResource('mobile_app/bundles.xml')
+        if bundles:
+            try:
+                bundles = Bag(bundles)['#0']
+            except Exception as e:
+                bundles = None
+                logger.error("Mobile app bundles %s file exists but can't be read: %s", bundles, e)
+                
+        if not bundles:
+            # Backward compatibility: prefer mobile_app/bundles.xml resource
+            bundles = self.gnrapp.config['mobile_app']
+            
+        if not bundles:
+            return {}
+        
+        if mobile_os:
+            return bundles.getAttr(mobile_os) or {}
+        return {k:bundles.getAttr(k) for k in bundles.keys()}
+
+    def is_mobile_app_enabled(self):
+        mobile_config = self.get_mobile_app_config()
+        return (mobile_config.get('ios',{}).get('store_url') \
+                or mobile_config.get('android',{}).get('store_url')) is not None
+
+
+    
+    def getResource(self, path, ext=None, pkg=None):
+        return self.resource_loader.getResource(path, ext=ext, pkg=pkg)
 
     def virtualPage(self, table=None,table_resources=None,py_requires=None):
         page = self.dummyPage
