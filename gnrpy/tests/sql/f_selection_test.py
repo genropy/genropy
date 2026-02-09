@@ -33,7 +33,7 @@ from gnr.sql.gnrsql import GnrSqlDb
 from gnr.core.gnrbag import Bag
 from gnr.core import gnrstring
 
-from .common import BaseGnrSqlTest
+from .common import BaseGnrSqlTest, configureDb
 
 # this module test all the post-process methods on selection resolver
 
@@ -44,8 +44,7 @@ class BaseDb(BaseGnrSqlTest):
         cls.init()
         # create database (actually create the DB file or structure)
         cls.db.createDb(cls.dbname)
-        # read the structure of the db from xml file: this is the recipe only
-        cls.db.loadModel(cls.SAMPLE_XMLSTRUCT)
+        configureDb(cls.db)
         # build the python db structure from the recipe
         cls.db.startup()
         cls.db.checkDb(applyChanges=True)

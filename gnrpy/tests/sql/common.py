@@ -54,9 +54,7 @@ class BaseGnrSqlTest:
         """
         base_path = os.path.join(os.path.dirname(__file__), "data")
         cls.CONFIG = Bag(os.path.join(base_path, 'configTest.xml'))
-        cls.SAMPLE_XMLSTRUCT = os.path.join(base_path, 'dbstructure_base.xml')
         cls.SAMPLE_XMLDATA = os.path.join(base_path, 'dbdata_base.xml')
-        cls.SAMPLE_XMLSTRUCT_FINAL = os.path.join(base_path, 'dbstructure_final.xml')
         
         if "GITHUB_WORKFLOW" in os.environ:
             # we are running inside the Github CI
@@ -94,6 +92,10 @@ class BaseGnrSqlTest:
             cls.pg_instance.stop()
 
 
+
+def configureDb(db, package_name='video'):
+    pkg = db.packageSrc(package_name)
+    configurePackage(pkg)
 
 def configurePackage(pkg):
     pkg.attributes.update(comment='video package', name_short='video', name_long='video', name_full='video')
