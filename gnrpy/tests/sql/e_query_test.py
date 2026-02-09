@@ -854,18 +854,37 @@ class BaseSql(BaseGnrSqlTest):
                               where='$id = :id', id=3).fetch()
         assert result[0]['dvd_count_join'] == 0
 
+    def test_formulaColumn_raw_subquery_with_this(self):
+        """Verify legacy pattern: sql_formula with inline subselect and #THIS"""
+        q = self.db.query('video.movie', columns='$title,$dvd_count_raw',
+                          where='$id = :id', id=1)
+        result = q.fetch()
+        assert len(result) == 1
+        # compare with dvd_count (same logic via select=dict)
+        q2 = self.db.query('video.movie', columns='$title,$dvd_count',
+                           where='$id = :id', id=1)
+        result2 = q2.fetch()
+        assert result[0]['dvd_count_raw'] == result2[0]['dvd_count']
+
+    def test_formulaColumn_raw_subquery_sqltext(self):
+        """Verify #THIS is expanded in sql_formula (legacy pattern)"""
+        q = self.db.query('video.movie', columns='$title,$dvd_count_raw')
+        assert '#THIS' not in q.sqltext, f'#THIS not expanded in: {q.sqltext}'
+
     def test_sq_as_join_preprocess_output(self):
         """Verify _preprocess_subqueryes output when as_join=True"""
-        from gnr.sql.gnrsqldata import SqlQueryCompiler, THISFINDER
-        tblobj = self.db.table('video.movie').model
-        fldalias = tblobj.column('dvd_count_join')
+        from gnr.sql.gnrsqldata import SqlQueryCompiler
+        tblobj = self.db.table('video.movie')
+        fldalias = tblobj.model.column('dvd_count_join')
         import copy
         attr = copy.deepcopy(dict(fldalias.attributes))
         alias = 't0'
-        def expandThis(m):
-            return '%s.%s' % (alias, m.group(1))
         compiler = SqlQueryCompiler.__new__(SqlQueryCompiler)
-        result = compiler._preprocess_subqueryes(attr, as_join=True, alias=alias, expandThis=expandThis)
+        compiler.db = self.db
+        compiler._alias = alias
+        compiler._curr = tblobj.model.relations
+        compiler._curr_tblobj = tblobj
+        result = compiler._preprocess_subqueryes(attr, as_join=True, alias=alias)
         print('\n=== preprocess output ===')
         for k, v in result.items():
             print(f'{k}: {v}')

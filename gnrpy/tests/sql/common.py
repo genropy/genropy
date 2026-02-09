@@ -134,6 +134,9 @@ def configurePackage(pkg):
     movie.formulaColumn('title_upper', sql_formula='UPPER($title)')
     movie.formulaColumn('title_year', sql_formula="$title || ' (' || $year || ')'")
     movie.formulaColumn('title_with_label', sql_formula="$title || :label", var_label=' [DVD]')
+    movie.formulaColumn('dvd_count_raw',
+        sql_formula="(SELECT COUNT(*) FROM video_dvd AS sq WHERE sq.movie_id = #THIS.id)",
+        dtype='L')
     movie.formulaColumn('dvd_count', select=dict(
         columns='COUNT(*)', table='video.dvd', where='$movie_id=#THIS.id'
     ), dtype='L')

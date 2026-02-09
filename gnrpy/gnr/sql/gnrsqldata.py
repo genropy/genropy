@@ -203,6 +203,34 @@ class SqlQueryCompiler(object):
         self.aliases = {self.tblobj.sqlfullname: self.aliasCode(0)}
         self.fieldlist = []
 
+    def expandThis(self, m):
+        fld = m.group(1)
+        return self.getFieldAlias(fld, curr=self._curr, basealias=self._alias)
+
+    def expandPref(self, m):
+        prefpath = m.group(1)
+        dflt = m.group(2)[1:] if m.group(2) else None
+        return str(self._curr_tblobj.pkg.getPreference(prefpath, dflt))
+
+    def expandEnv(self, m):
+        what = m.group(1)
+        par2 = None
+        if m.group(2):
+            par2 = m.group(2)[1:]
+        if what in self.db.currentEnv:
+            return "'%s'" % gnrstring.toText(self.db.currentEnv[what])
+        elif par2 and par2 in self.db.currentEnv:
+            return "'%s'" % gnrstring.toText(self.db.currentEnv[par2])
+        if par2:
+            env_tblobj = self.db.table(par2)
+        else:
+            env_tblobj = self._curr_tblobj
+        handler = getattr(env_tblobj, 'env_%s' % what, None)
+        if handler:
+            return handler()
+        else:
+            return 'Not found %s' % what
+
     def getFieldAlias(self, fieldpath, curr=None,basealias=None, parent=None):
         """Internal method. Translate fields path and related fields path in a valid sql string for the column.
 
@@ -217,35 +245,6 @@ class SqlQueryCompiler(object):
         :param fieldpath: a field path. (e.g: '$colname'; e.g: '@relname.@rel2name.colname')
         :param curr: TODO.
         :param basealias: TODO. """
-
-        def expandThis(m):
-            fld = m.group(1)
-            return self.getFieldAlias(fld,curr=curr,basealias=alias)
-
-        def expandPref(m):
-            """#PREF(myprefpath,default)"""
-            prefpath = m.group(1)
-            dflt=m.group(2)[1:] if m.group(2) else None
-            return str(curr_tblobj.pkg.getPreference(prefpath,dflt))
-
-        def expandEnv(m):
-            what = m.group(1)
-            par2 = None
-            if m.group(2):
-                par2 = m.group(2)[1:]
-            if what in self.db.currentEnv:
-                return "'%s'" % gnrstring.toText(self.db.currentEnv[what])
-            elif par2 and par2 in self.db.currentEnv:
-                return "'%s'" % gnrstring.toText(self.db.currentEnv[par2])
-            if par2:
-                env_tblobj = self.db.table(par2)
-            else:
-                env_tblobj = curr_tblobj
-            handler = getattr(env_tblobj, 'env_%s' % what, None)
-            if handler:
-                return handler()
-            else:
-                return 'Not found %s' % what
         pathlist = fieldpath.split('.')
         fld = pathlist.pop()
         curr = curr or self.relations
@@ -256,6 +255,9 @@ class SqlQueryCompiler(object):
         else:
             alias = basealias
         curr_tblobj = self.db.table(curr.tbl_name, pkg=curr.pkg_name)
+        self._curr = curr
+        self._alias = alias
+        self._curr_tblobj = curr_tblobj
         if not fld in curr.keys():
             fldalias = curr_tblobj.model.getVirtualColumn(fld,sqlparams=self.sqlparams)
             if fldalias == None:
@@ -276,7 +278,7 @@ class SqlQueryCompiler(object):
 
                 
             elif fldalias.sql_formula or fldalias.select or fldalias.exists:
-                return self._handleFormulaColumn(fldalias, fld, alias, curr, curr_tblobj, expandThis)
+                return self._handleFormulaColumn(fldalias, fld, alias, curr, curr_tblobj)
             elif fldalias.py_method:
                 #self.cpl.pyColumns.append((fld,getattr(self.tblobj.dbtable,fldalias.py_method,None)))
                 self.cpl.pyColumns.append((fld,getattr(fldalias.table.dbtable,fldalias.py_method,None)))
@@ -286,7 +288,7 @@ class SqlQueryCompiler(object):
                 fld, curr.pkg_name, curr.tbl_name, '.'.join(newpath)))
         return '%s.%s' % (self.db.adapter.asTranslator(alias), curr_tblobj.column(fld).adapted_sqlname)
 
-    def _handleFormulaColumn(self, fldalias, fld, alias, curr, curr_tblobj, expandThis):
+    def _handleFormulaColumn(self, fldalias, fld, alias, curr, curr_tblobj):
         attr = copy.deepcopy(dict(fldalias.attributes))
         as_join = self._should_convert_to_join(fldalias)
         formula_kw = dictExtract(attr, 'var_')
@@ -295,7 +297,7 @@ class SqlQueryCompiler(object):
             sql_formula = getattr(curr_tblobj, 'sql_formula_%s' % fld)(attr)
         if sql_formula:
             sql_formula = self._preprocessFormula(fldalias, alias, curr, sql_formula, formula_kw)
-        multi_select = self._preprocess_subqueryes(attr, as_join, alias, expandThis)
+        multi_select = self._preprocess_subqueryes(attr, as_join, alias)
         if not sql_formula:
             sql_formula = " || ' ' || ".join('#%s' % k for k in multi_select) if multi_select else None
         select_dict = dict(multi_select) if multi_select else {}
@@ -304,7 +306,7 @@ class SqlQueryCompiler(object):
                 if isinstance(sq_select, str):
                     sq_select = getattr(self.tblobj.dbtable, 'subquery_%s' % sq_select)()
                 sq_pars = dict(sq_select)
-                compiled = self._compiledSubQuery(alias, expandThis, sq_pars, sq_name=sq_name)
+                compiled = self._compiledSubQuery(alias, sq_pars, sq_name=sq_name)
                 if as_join:
                     self.cpl.sq_joins.append(compiled.get_sqltext(self.db))
                     sql_formula = re.sub(r'#%s_(\w+)' % sq_name, r'%s.\1' % sq_name, sql_formula)
@@ -318,7 +320,7 @@ class SqlQueryCompiler(object):
             return gnrstring.boolean(sq_as_join)
         return gnrstring.boolean(getattr(self.db, 'extra_kw', {}).get('subquery_as_join', False))
 
-    def _preprocess_subqueryes(self, attr, as_join=False, alias=None, expandThis=None):
+    def _preprocess_subqueryes(self, attr, as_join=False, alias=None):
         if 'exists' in attr:
             exists_sq = attr.pop('exists')
             exists_sq['exists'] = True
@@ -348,7 +350,7 @@ class SqlQueryCompiler(object):
                     else:
                         aliased_cols.append('%s AS c_%i' % (col, i))
                 sq_pars['columns'] = '%s AS joiner, %s' % (fk_field, ', '.join(aliased_cols))
-                joiner = THISFINDER.sub(expandThis, joiner)
+                joiner = THISFINDER.sub(self.expandThis, joiner)
                 sq_pars['joiner'] = joiner
         return sq_dict
 
@@ -358,6 +360,9 @@ class SqlQueryCompiler(object):
             return m.group(1) + self.getFieldAlias(m.group(2), curr=curr, basealias=alias)
         sql_formula = RELFINDER.sub(resolveField, sql_formula)
         sql_formula = COLFINDER.sub(resolveField, sql_formula)
+        sql_formula = THISFINDER.sub(self.expandThis, sql_formula)
+        sql_formula = ENVFINDER.sub(self.expandEnv, sql_formula)
+        sql_formula = PREFFINDER.sub(self.expandPref, sql_formula)
         if formula_kw:
             prefix = f'{id(fldalias)}_{self._currColKey}'
             for k, v in formula_kw.items():
@@ -368,7 +373,7 @@ class SqlQueryCompiler(object):
                                      sql_formula)
         return sql_formula
 
-    def _compiledSubQuery(self, alias, expandThis, sq_pars, sq_name=None):
+    def _compiledSubQuery(self, alias, sq_pars, sq_name=None):
         """Compile a subquery column (select or exists) into SQL text.
 
         Builds and compiles an independent SqlQuery with a mangler prefix,
@@ -378,14 +383,11 @@ class SqlQueryCompiler(object):
 
         Args:
             alias: The SQL table alias for the current table (e.g. ``'t0'``).
-            expandThis: Callback to replace ``#THIS.col`` with ``alias.col``.
             sq_pars: The subquery parameters dict (table, where, columns, plus
                      any extra params like avail='yes'). Already without 'cast'.
-            tpl: SQL template to wrap the subquery (e.g. ``' ( %s ) '`` or
-                 ``' CAST( ( %s ) AS integer) '``).
 
         Returns:
-            str: the compiled subquery SQL text, wrapped with the template.
+            SqlCompiledSubQuery: the compiled subquery object.
         """
         # 1. Extract template parameters and table/where
         joiner = sq_pars.pop('joiner', None)
@@ -413,7 +415,7 @@ class SqlQueryCompiler(object):
 
         # 3. Expand #THIS in the subquery WHERE
         if sq_where:
-            sq_where = THISFINDER.sub(expandThis, sq_where)
+            sq_where = THISFINDER.sub(self.expandThis, sq_where)
 
         # 4. Compile the subquery with a mangler for parameter namespacing
         mangler_prefix = self.query._next_mangler_key('sq')
