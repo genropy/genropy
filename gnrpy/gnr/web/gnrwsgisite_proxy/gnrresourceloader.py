@@ -232,6 +232,17 @@ class ResourceLoader(object):
         if os.path.exists(path):
             result.append(path)
                     
+
+    def getResource(self, path, ext=None, pkg=None):
+        if pkg:
+            resourceDirs = self.package_resourceDirs(pkg)
+        else:
+            resourceDirs = self.page_class_resourceDirs(None, path, pkg)
+        result = self.getResourceList(resourceDirs, path, ext=ext)
+        if result:
+            return result[0]        
+
+
     def page_class_resourceDirs(self, page_class, path, pkg=None):
         """Build page resources directories
         

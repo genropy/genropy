@@ -21,9 +21,9 @@ class Table(object):
         tbl =  pkg.table('message', rowcaption='$to_address,$subject', pkey='id',
                      name_long='!!Message', name_plural='!!Messages')
         self.sysFields(tbl,draftField=True,ldel=False)
-        tbl.subtable('user_messages',condition='$dest_user_id=:env_user_id')
+        
         tbl.column('in_out', size='1', name_long='!!I/O', name_short='!!I/O',values='I:Input,O:Output')
-        tbl.column('to_address',name_long='!!To',_sendback=True)
+        tbl.column('to_address',name_long='!!To',indexed=True,_sendback=True)
         tbl.column('from_address',name_long='!!From',_sendback=True)
         tbl.column('cc_address',name_long='!!Cc',_sendback=True)
         tbl.column('bcc_address',name_long='!!Bcc',_sendback=True)
@@ -60,12 +60,11 @@ class Table(object):
         tbl.column('priority', name_long='!![en]Priority',
                    values='9:[!![en]No send],3:[!![en]Low],2:[!![en]Standard],1:[!![en]High],-1:[!![en]Immediate]')
         tbl.column('read', dtype='B', name_long='!!Read',indexed=True)
+        tbl.column('deferred_ts', dtype='DHZ', name_long='!!Deferred send',
+                   name_short='!!Deferred', indexed=True)
 
-        #tbl.joinColumn('dest_user_id', name_long='!!Destination user').relation('adm.user.id', 
-        #                                    cnd='@dest_user_id.email=$to_address', relation_name='received_messages')
-        tbl.formulaColumn('dest_user_id', '$user_id', name_long='!!Destination user')
         tbl.formulaColumn('sent','$send_date IS NOT NULL', name_long='!!Sent')
-        tbl.formulaColumn('message_to_send', "$in_out=:out AND $send_date IS NULL AND $error_msg IS NULL", var_out='O',
+        tbl.formulaColumn('message_to_send', "$in_out=:out AND $send_date IS NULL AND $error_msg IS NULL AND ($deferred_ts IS NULL OR $deferred_ts <= NOW())", var_out='O',
                             name_long='!!Message to send', dtype='B')
         tbl.formulaColumn('plain_text', """regexp_replace($body, '<[^>]*>', '', 'g')""")
         tbl.formulaColumn('abstract', """LEFT(REPLACE($plain_text,'&nbsp;', ''),300)""", name_long='!![en]Abstract')
@@ -149,9 +148,16 @@ class Table(object):
         self.db.table('email.message_address').deleteSelection('message_id',record['id'])
         
     def explodeAddressRelations(self,record):
+        prefs = self.db.application.getPreference('', pkg='email') or {}
+        if not prefs.get('collect_addresses'):
+            return
+        exclude_from = prefs.get('exclude_from_address')
         tblmsgaddres = self.db.table('email.message_address')
         message_id = record['id']
-        for address_type in ('to','from','bcc','cc'):
+        address_types = ['to', 'bcc', 'cc']
+        if not exclude_from:
+            address_types.append('from')
+        for address_type in address_types:
             addresslist = self.extractAddresses(record['%s_address' %address_type])
             for address in addresslist:
                 tblmsgaddres.insert(dict(address=address,message_id=message_id,reason=address_type))
