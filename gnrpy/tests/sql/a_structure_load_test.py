@@ -4,7 +4,7 @@
 #--------------------------------------------------------------------------
 # package       : GenroPy core - see LICENSE for details
 # module gnrbag : an advanced data storage system
-# Copyright (c) : 2004 - 2007 Softwell sas - Milano
+# Copyright (c) : 2004 - 2026 Softwell srl - Milano
 # Written by    : Giovanni Porcari, Michele Bertoldi
 #                 Saverio Porcari, Francesco Porcari , Francesco Cavazzana
 #--------------------------------------------------------------------------
