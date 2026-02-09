@@ -95,6 +95,10 @@ class BaseGnrSqlTest:
 
 
 
+def configureDb(db, package_name='video'):
+    pkg = db.packageSrc(package_name)
+    configurePackage(pkg)
+
 def configurePackage(pkg):
     pkg.attributes.update(comment='video package', name_short='video', name_long='video', name_full='video')
 
