@@ -95,6 +95,15 @@ class BaseGnrSqlTest:
 
 
 
+def checkInstance(instance_name):
+    """Attempt to load a Genropy instance.
+    Returns the GnrApp object or None if not available."""
+    from gnr.app.gnrapp import GnrApp
+    try:
+        return GnrApp(instance_name)
+    except:
+        return None
+
 def configureDb(db, package_name='video'):
     pkg = db.packageSrc(package_name)
     configurePackage(pkg)
