@@ -350,6 +350,64 @@ class TestDbCreateRandomRecords:
 
 
 # ---------------------------------------------------------------------------
+# _load_config_file and _parse_typed_value
+# ---------------------------------------------------------------------------
+
+class TestConfigFile:
+
+    def test_load_yaml(self, tmp_path):
+        from gnr.db.cli.gnrrandom_records import _load_config_file
+        f = tmp_path / "cfg.yaml"
+        f.write_text("price:\n  min_value: 10\nname:\n  default_value: hello\n")
+        result = _load_config_file(str(f))
+        assert result == {'price': {'min_value': 10}, 'name': {'default_value': 'hello'}}
+
+    def test_load_json(self, tmp_path):
+        import json as json_mod
+        from gnr.db.cli.gnrrandom_records import _load_config_file
+        f = tmp_path / "cfg.json"
+        f.write_text(json_mod.dumps({'qty': {'min_value': 1}}))
+        result = _load_config_file(str(f))
+        assert result == {'qty': {'min_value': 1}}
+
+    def test_load_unknown_ext_yaml_content(self, tmp_path):
+        from gnr.db.cli.gnrrandom_records import _load_config_file
+        f = tmp_path / "cfg.txt"
+        f.write_text("amount:\n  max_value: 99\n")
+        result = _load_config_file(str(f))
+        assert result == {'amount': {'max_value': 99}}
+
+
+class TestParseTypedValue:
+
+    def test_empty_returns_none(self):
+        from gnr.db.cli.gnrrandom_records import _parse_typed_value
+        assert _parse_typed_value('', 'I', int) is None
+
+    def test_int_conversion(self):
+        from gnr.db.cli.gnrrandom_records import _parse_typed_value
+        assert _parse_typed_value('42', 'I', int) == 42
+
+    def test_float_conversion(self):
+        from gnr.db.cli.gnrrandom_records import _parse_typed_value
+        assert _parse_typed_value('3.14', 'N', float) == 3.14
+
+    def test_str_yes_for_text_dtype(self):
+        from gnr.db.cli.gnrrandom_records import _parse_typed_value
+        assert _parse_typed_value('y', 'T', str) is True
+        assert _parse_typed_value('yes', 'T', str) is True
+
+    def test_str_no_for_text_dtype(self):
+        from gnr.db.cli.gnrrandom_records import _parse_typed_value
+        assert _parse_typed_value('n', 'T', str) is None
+        assert _parse_typed_value('no', 'T', str) is None
+
+    def test_str_passthrough(self):
+        from gnr.db.cli.gnrrandom_records import _parse_typed_value
+        assert _parse_typed_value('hello #N', 'T', str) == 'hello #N'
+
+
+# ---------------------------------------------------------------------------
 # CLI argument parsing
 # ---------------------------------------------------------------------------
 
@@ -402,3 +460,164 @@ class TestCLI:
             gnrrandom_records.main()
 
         mock_app.db.use_store.assert_called_once_with('mystore')
+
+    def test_cli_with_config_yaml(self, tmp_path):
+        """Test --config loads YAML file and passes config dict"""
+        import sys
+        from gnr.db.cli import gnrrandom_records
+
+        config_file = tmp_path / "fields.yaml"
+        config_file.write_text("price:\n  min_value: 10\n  max_value: 100\n")
+
+        test_argv = ['gnr db random_records', 'pkg.tbl',
+                     '--config', str(config_file)]
+
+        mock_app = MagicMock()
+
+        with patch.object(sys, 'argv', test_argv), \
+             patch('gnr.db.cli.gnrrandom_records.get_app',
+                   return_value=(mock_app, None)):
+            gnrrandom_records.main()
+
+        call_kwargs = mock_app.db.createRandomRecords.call_args
+        assert call_kwargs[1]['config'] == {'price': {'min_value': 10, 'max_value': 100}}
+
+    def test_cli_with_config_json(self, tmp_path):
+        """Test --config loads JSON file"""
+        import sys
+        import json as json_mod
+        from gnr.db.cli import gnrrandom_records
+
+        config_data = {'name': {'default_value': 'TEST_#N'}}
+        config_file = tmp_path / "fields.json"
+        config_file.write_text(json_mod.dumps(config_data))
+
+        test_argv = ['gnr db random_records', 'pkg.tbl',
+                     '--config', str(config_file)]
+
+        mock_app = MagicMock()
+
+        with patch.object(sys, 'argv', test_argv), \
+             patch('gnr.db.cli.gnrrandom_records.get_app',
+                   return_value=(mock_app, None)):
+            gnrrandom_records.main()
+
+        call_kwargs = mock_app.db.createRandomRecords.call_args
+        assert call_kwargs[1]['config'] == {'name': {'default_value': 'TEST_#N'}}
+
+    def test_cli_interactive_confirm(self):
+        """Test -I interactive mode with user input"""
+        import sys
+        from gnr.db.cli import gnrrandom_records
+
+        test_argv = ['gnr db random_records', 'pkg.tbl', '-I']
+
+        mock_app = MagicMock()
+        mock_tblobj = MagicMock()
+        mock_tblobj.fullname = 'pkg.tbl'
+        # one numeric column
+        col = MagicMock()
+        col.attributes = {'dtype': 'N'}
+        col.relatedTable.return_value = None
+        mock_tblobj.columns = {'amount': col}
+        mock_app.db.table.return_value = mock_tblobj
+
+        # simulate user: configure? y, min_value: 5, max_value: 50, proceed? y
+        user_inputs = iter(['y', '5', '50', 'y'])
+
+        with patch.object(sys, 'argv', test_argv), \
+             patch('gnr.db.cli.gnrrandom_records.get_app',
+                   return_value=(mock_app, None)), \
+             patch('builtins.input', side_effect=user_inputs):
+            gnrrandom_records.main()
+
+        call_kwargs = mock_app.db.createRandomRecords.call_args
+        assert call_kwargs[1]['config'] == {'amount': {'min_value': 5.0, 'max_value': 50.0}}
+
+    def test_cli_interactive_abort(self):
+        """Test -I interactive mode abort"""
+        import sys
+        from gnr.db.cli import gnrrandom_records
+
+        test_argv = ['gnr db random_records', 'pkg.tbl', '-I']
+
+        mock_app = MagicMock()
+        mock_tblobj = MagicMock()
+        mock_tblobj.fullname = 'pkg.tbl'
+        col = MagicMock()
+        col.attributes = {'dtype': 'I'}
+        col.relatedTable.return_value = None
+        mock_tblobj.columns = {'qty': col}
+        mock_app.db.table.return_value = mock_tblobj
+
+        # configure? y, min: 1, max: 10, proceed? n
+        user_inputs = iter(['y', '1', '10', 'n'])
+
+        with patch.object(sys, 'argv', test_argv), \
+             patch('gnr.db.cli.gnrrandom_records.get_app',
+                   return_value=(mock_app, None)), \
+             patch('builtins.input', side_effect=user_inputs):
+            gnrrandom_records.main()
+
+        mock_app.db.createRandomRecords.assert_not_called()
+
+    def test_cli_interactive_skip_sysfield(self):
+        """Test that interactive mode skips system fields"""
+        import sys
+        from gnr.db.cli import gnrrandom_records
+
+        test_argv = ['gnr db random_records', 'pkg.tbl', '-I']
+
+        mock_app = MagicMock()
+        mock_tblobj = MagicMock()
+        mock_tblobj.fullname = 'pkg.tbl'
+        sys_col = MagicMock()
+        sys_col.attributes = {'dtype': 'T', '_sysfield': True}
+        name_col = MagicMock()
+        name_col.attributes = {'dtype': 'T'}
+        name_col.relatedTable.return_value = None
+        mock_tblobj.columns = {'__ins_ts': sys_col, 'name': name_col}
+        mock_app.db.table.return_value = mock_tblobj
+
+        # only name is shown: skip it -> empty config -> no confirm needed
+        user_inputs = iter(['n'])
+
+        with patch.object(sys, 'argv', test_argv), \
+             patch('gnr.db.cli.gnrrandom_records.get_app',
+                   return_value=(mock_app, None)), \
+             patch('builtins.input', side_effect=user_inputs):
+            gnrrandom_records.main()
+
+        # called without config since all skipped
+        call_kwargs = mock_app.db.createRandomRecords.call_args
+        assert 'config' not in call_kwargs[1]
+
+    def test_cli_interactive_fk_column(self):
+        """Test interactive mode with FK column"""
+        import sys
+        from gnr.db.cli import gnrrandom_records
+
+        test_argv = ['gnr db random_records', 'pkg.tbl', '-I']
+
+        mock_app = MagicMock()
+        mock_tblobj = MagicMock()
+        mock_tblobj.fullname = 'pkg.tbl'
+        fk_col = MagicMock()
+        fk_col.attributes = {'dtype': 'T'}
+        related = MagicMock()
+        related.fullname = 'other.table'
+        fk_col.relatedTable.return_value = related
+        mock_tblobj.columns = {'other_id': fk_col}
+        mock_app.db.table.return_value = mock_tblobj
+
+        # configure? y, WHERE condition: $active=true, proceed? y
+        user_inputs = iter(['y', '$active=true', 'y'])
+
+        with patch.object(sys, 'argv', test_argv), \
+             patch('gnr.db.cli.gnrrandom_records.get_app',
+                   return_value=(mock_app, None)), \
+             patch('builtins.input', side_effect=user_inputs):
+            gnrrandom_records.main()
+
+        call_kwargs = mock_app.db.createRandomRecords.call_args
+        assert call_kwargs[1]['config'] == {'other_id': {'condition': '$active=true'}}
