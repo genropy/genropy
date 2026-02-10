@@ -8,5 +8,5 @@ class Table(object):
                         caption_field='description',
                         lookup=True)
         self.sysFields(tbl,id=False)
-        tbl.column('code' ,size=':5',name_long='!!Code')
+        tbl.column('code' ,size=':10',name_long='!!Code')
         tbl.column('description',name_long='Description')

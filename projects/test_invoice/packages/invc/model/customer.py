@@ -11,7 +11,7 @@ class Table(object):
         tbl.column('state',size=':5',name_long='!!State',name_short='Pr.').relation('invc.state.code',relation_name='clients',mode='foreignkey',onDelete='raise')
         tbl.column('postcode',size=':5',name_long='!!Postcode',name_short='Postcode')
         tbl.column('customer_type_code', size=':5',name_long='!!Customer type code',name_short='!!Cust type').relation('customer_type.code',relation_name='customers',mode='foreignkey',onDelete='raise')
-        tbl.column('payment_type_code',size=':5',name_long='!!Payment type code',name_short='!!Pay type').relation('payment_type.code',relation_name='customers',mode='foreignkey',onDelete='raise')
+        tbl.column('payment_type_code',size=':10',name_long='!!Payment type code',name_short='!!Pay type').relation('payment_type.code',relation_name='customers',mode='foreignkey',onDelete='raise')
         tbl.column('notes',name_long="!!Notes")
         tbl.column('email',name_long='!!Email')
         tbl.column('phone' ,name_long='!!Phone')
