@@ -15,7 +15,6 @@ import argparse
 import csv
 import os
 import sys
-from datetime import datetime
 
 SCHEMA = 'invc'
 

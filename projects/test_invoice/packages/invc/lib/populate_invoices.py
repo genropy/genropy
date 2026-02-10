@@ -24,7 +24,7 @@ class Populator(object):
         self.len_prodotti = len(self.prodotti)
         self.len_clienti = len(self.clienti)
         start_date = date(2015,1,1) if not data_ultima_fattura else max(date(2015,1,1),data_ultima_fattura)
-        print start_date, data_ultima_fattura
+        print(start_date, data_ultima_fattura)
         end_date = date.today()
         day_adder = timedelta(days=1)
         d = start_date
