@@ -117,6 +117,34 @@ class SqlCompiledSubQuery(SqlCompiledQuery):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._identity_hash = None
+        self._rn_limit = None
+
+    def get_sqltext(self, db):
+        if self._rn_limit:
+            return self._get_sqltext_with_rn(db)
+        return super().get_sqltext(db)
+
+    def _get_sqltext_with_rn(self, db):
+        kwargs = {}
+        for k in ('maintable', 'distinct', 'columns', 'joins', 'where',
+                   'group_by', 'having', 'order_by', 'limit', 'offset', 'for_update'):
+            kwargs[k] = getattr(self, k)
+        inner_sql = db.adapter.compileSql(maintable_as=self.maintable_as, **kwargs)
+        # Extract the real column expression aliased as "joiner"
+        joiner_match = re.search(r'([\w."]+)\s+AS\s+joiner\b', inner_sql)
+        joiner_col = joiner_match.group(1) if joiner_match else 'joiner'
+        order_match = re.search(r'\sORDER\s+BY\s+(.+)$', inner_sql, re.IGNORECASE)
+        if order_match:
+            order_clause = order_match.group(1).strip()
+            inner_sql = inner_sql[:order_match.start()]
+            inner_sql = inner_sql.replace(
+                'SELECT ',
+                'SELECT ROW_NUMBER() OVER (PARTITION BY %s ORDER BY %s) AS _rn, '
+                % (joiner_col, order_clause), 1)
+        result = 'SELECT * FROM (%s) _sub WHERE _sub._rn <= %i' % (inner_sql, self._rn_limit)
+        if self.tpl:
+            result = self.tpl % result
+        return result
 
     def __eq__(self, other):
         if not isinstance(other, SqlCompiledSubQuery):
@@ -297,9 +325,18 @@ class SqlQueryCompiler(object):
             sql_formula = getattr(curr_tblobj, 'sql_formula_%s' % fld)(attr)
         if sql_formula:
             sql_formula = self._preprocessFormula(fldalias, alias, curr, sql_formula, formula_kw)
-        multi_select = self._preprocess_subqueryes(attr, as_join, alias)
-        if not sql_formula:
-            sql_formula = " || ' ' || ".join('#%s' % k for k in multi_select) if multi_select else None
+        multi_select, sql_formula = self._preprocess_subqueryes(attr, as_join, alias,
+                                        formula_column_name=fld, sql_formula=sql_formula)
+        if not sql_formula and multi_select:
+            if as_join:
+                parts = []
+                for sq_name, sq_pars in multi_select.items():
+                    m = re.search(r'AS (c_\d+)', sq_pars.get('columns', ''))
+                    col_ref = m.group(1) if m else 'c_0'
+                    parts.append('%s.%s' % (sq_name, col_ref))
+                sql_formula = " || ' ' || ".join(parts)
+            else:
+                sql_formula = " || ' ' || ".join('#%s' % k for k in multi_select)
         select_dict = dict(multi_select) if multi_select else {}
         if select_dict:
             for sq_name, sq_select in list(select_dict.items()):
@@ -309,8 +346,6 @@ class SqlQueryCompiler(object):
                 compiled = self._compiledSubQuery(alias, sq_pars, sq_name=sq_name)
                 if as_join:
                     self.cpl.sq_joins.append(compiled.get_sqltext(self.db))
-                    sql_formula = re.sub(r'#%s_(\w+)' % sq_name, r'%s.\1' % sq_name, sql_formula)
-                    sql_formula = re.sub(r'#%s\b' % sq_name, r'%s.c_0' % sq_name, sql_formula)
                 else:
                     sql_formula = re.sub(r'#%s\b' % sq_name, compiled.get_sqltext(self.db), sql_formula)
         return f'( {sql_formula} )'
@@ -323,7 +358,8 @@ class SqlQueryCompiler(object):
             return gnrstring.boolean(self.query.enable_sq_join)
         return gnrstring.boolean(getattr(self.db, 'extra_kw', {}).get('subquery_as_join', False))
 
-    def _preprocess_subqueryes(self, attr, as_join=False, alias=None):
+    def _preprocess_subqueryes(self, attr, as_join=False, alias=None,
+                               formula_column_name=None, sql_formula=None):
         if 'exists' in attr:
             exists_sq = attr.pop('exists')
             exists_sq['exists'] = True
@@ -332,10 +368,23 @@ class SqlQueryCompiler(object):
             attr['select_dflt'] = attr.pop('select')
         sq_dict = dictExtract(attr, 'select_')
         if not as_join or not sq_dict:
-            return sq_dict
+            return sq_dict, sql_formula
+        # Condensation: merge subqueries with same (table, where)
+        sq_dict, sql_formula = self._condense_subqueries(sq_dict, sql_formula)
+        # Prefix keys with formula_column_name for cross-formulaColumn uniqueness
+        if formula_column_name:
+            prefixed = {}
+            for sq_name, sq_pars in sq_dict.items():
+                subquery_name = '%s_%s' % (formula_column_name, sq_name)
+                # Update formula references: #old_name -> #new_name
+                if sql_formula:
+                    sql_formula = sql_formula.replace('%s.' % sq_name, '%s.' % subquery_name)
+                prefixed[subquery_name] = sq_pars
+            sq_dict = prefixed
+        # Extract joiner from WHERE for each subquery
         for sq_name, sq_pars in sq_dict.items():
             sq_where = sq_pars.get('where', '')
-            m = re.match(r'(\$\w+)\s*=\s*#THIS\.(\w+)(.*)', sq_where, re.DOTALL)
+            m = re.match(r'(@[\w.]+|\$\w+)\s*=\s*#THIS\.(\w+)(.*)', sq_where, re.DOTALL)
             if m:
                 fk_field = m.group(1)
                 joiner = '%s=#THIS.%s' % (fk_field, m.group(2))
@@ -343,19 +392,54 @@ class SqlQueryCompiler(object):
                 if residual.upper().startswith('AND '):
                     residual = residual[4:].strip()
                 sq_pars['where'] = residual or None
-                sq_pars['group_by'] = fk_field
-                # Assign positional aliases (c_0, c_1, ...) to columns without explicit AS
-                col_parts = [c.strip() for c in sq_pars['columns'].split(',')]
-                aliased_cols = []
-                for i, col in enumerate(col_parts):
-                    if ' AS ' in col.upper():
-                        aliased_cols.append(col)
-                    else:
-                        aliased_cols.append('%s AS c_%i' % (col, i))
-                sq_pars['columns'] = '%s AS joiner, %s' % (fk_field, ', '.join(aliased_cols))
+                has_limit = 'limit' in sq_pars
+                existing_group_by = sq_pars.get('group_by')
+                if existing_group_by:
+                    sq_pars['group_by'] = '%s,%s' % (fk_field, existing_group_by)
+                elif not has_limit:
+                    sq_pars['group_by'] = fk_field
+                sq_pars['columns'] = '%s AS joiner, %s' % (fk_field, sq_pars['columns'])
                 joiner = THISFINDER.sub(self.expandThis, joiner)
                 sq_pars['joiner'] = joiner
-        return sq_dict
+        return sq_dict, sql_formula
+
+    def _condense_subqueries(self, sq_dict, sql_formula):
+        groups = {}
+        for sq_name, sq_pars in sq_dict.items():
+            key = (sq_pars['table'], sq_pars.get('where'))
+            groups.setdefault(key, []).append(sq_name)
+        col_counter = 0
+        remap = {}
+        for key, names in groups.items():
+            if len(names) == 1:
+                sq_name = names[0]
+                sq_pars = sq_dict[sq_name]
+                col_alias = 'c_%i' % col_counter
+                sq_pars['columns'] = '%s AS %s' % (sq_pars['columns'], col_alias)
+                col_counter += 1
+                continue
+            master = names[0]
+            master_pars = sq_dict[master]
+            merged_cols = []
+            for name in names:
+                pars = sq_dict[name]
+                col_alias = 'c_%i' % col_counter
+                merged_cols.append('%s AS %s' % (pars['columns'], col_alias))
+                if name != master:
+                    remap[name] = (master, col_alias)
+                col_counter += 1
+            master_pars['columns'] = ', '.join(merged_cols)
+            for name in names[1:]:
+                del sq_dict[name]
+        if sql_formula:
+            for absorbed, (master, col_alias) in remap.items():
+                sql_formula = re.sub(r'#%s\b' % absorbed, '%s.%s' % (master, col_alias), sql_formula)
+            for sq_name, sq_pars in sq_dict.items():
+                m = re.search(r'AS (c_\d+)', sq_pars['columns'])
+                if m:
+                    first_col = m.group(1)
+                    sql_formula = re.sub(r'#%s\b' % sq_name, '%s.%s' % (sq_name, first_col), sql_formula)
+        return sq_dict, sql_formula
 
     def _preprocessFormula(self, fldalias, alias, curr, sql_formula, formula_kw):
         sql_formula = sql_formula.replace('#default', '#dflt')
@@ -397,10 +481,11 @@ class SqlQueryCompiler(object):
         tpl = sq_pars.pop('tpl', None)
         cast = sq_pars.pop('cast', None)
         is_exists = sq_pars.pop('exists', False)
+        sq_limit = sq_pars.pop('limit', None) if joiner else None
         if not tpl:
             if joiner:
                 # joiner is like '$movie_id=t0.id' — resolve $field to sq_alias.joiner
-                on_clause = re.sub(r'\$\w+', '%s.joiner' % sq_name, joiner)
+                on_clause = re.sub(r'@[\w.]+|\$\w+', '%s.joiner' % sq_name, joiner)
                 tpl = ' LEFT JOIN (%%s) AS %s ON (%s) ' % (sq_name, on_clause)
             elif is_exists:
                 tpl = ' EXISTS( %s ) '
@@ -432,6 +517,8 @@ class SqlQueryCompiler(object):
         )
         compiled = q.compileQuery(compiled_class=SqlCompiledSubQuery)
         compiled.tpl = tpl
+        if sq_limit:
+            compiled._rn_limit = int(sq_limit)
 
         # 5. Build identity hash for CTE merge: resolve params in WHERE to get
         #    a mangler-independent fingerprint

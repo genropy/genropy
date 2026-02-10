@@ -37,7 +37,7 @@ from gnr.sql.gnrsql import GnrSqlDb
 from gnr.sql.gnrsqldata import SqlQuery, SqlSelection, SqlCompiledQuery, SqlCompiledSubQuery
 from gnr.sql import gnrsqldata as gsd
 
-from .common import BaseGnrSqlTest, configurePackage
+from .common import BaseGnrSqlTest, configureDb
 
 class BaseSql(BaseGnrSqlTest):
     @classmethod
@@ -47,9 +47,7 @@ class BaseSql(BaseGnrSqlTest):
         # create database (actually create the DB file or structure)
 
         cls.db.createDb(cls.dbname)
-        # read the structure of the db from xml file: this is the recipe only
-        # cls.db.loadModel(cls.SAMPLE_XMLSTRUCT)
-        configurePackage(cls.db.packageSrc('video'))
+        configureDb(cls.db)
 
         # build the python db structure from the recipe
         cls.db.startup()
@@ -884,10 +882,11 @@ class BaseSql(BaseGnrSqlTest):
         compiler._alias = alias
         compiler._curr = tblobj.model.relations
         compiler._curr_tblobj = tblobj
-        result = compiler._preprocess_subqueryes(attr, as_join=True, alias=alias)
+        result, formula = compiler._preprocess_subqueryes(attr, as_join=True, alias=alias)
         print('\n=== preprocess output ===')
         for k, v in result.items():
             print(f'{k}: {v}')
+        print(f'formula: {formula}')
 
     def test_enable_sq_join_query_level(self):
         """Verify enable_sq_join=True at query level converts subquery to JOIN"""
