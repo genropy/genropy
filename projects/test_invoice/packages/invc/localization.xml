@@ -1,0 +1,64 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<GenRoBag><menu path="menu.py" ext="py"><en_customers base="Customers"></en_customers>
+<en_invoice base="Invoice"></en_invoice>
+<en_invoice_rows base="Invoice rows"></en_invoice_rows>
+<en_products fr="Produits" de="Produkte" en="Products" it="Prodotti" base="Products"></en_products>
+<en_product_types base="Product types"></en_product_types>
+<en_postcodes base="Postcodes"></en_postcodes></menu>
+<model><customer path="model/customer.py" ext="py"><en_customer base="Customer"></en_customer>
+<en_customers base="Customers"></en_customers>
+<en_account_name base="Account name"></en_account_name>
+<en_street_address base="Street Address"></en_street_address>
+<en_suburb base="Suburb"></en_suburb>
+<en_state base="State" it="Provincia"></en_state>
+<en_postcode base="Postcode"></en_postcode>
+<en_customer_type_code base="Customer type code"></en_customer_type_code>
+<en_cust_type base="Cust type"></en_cust_type>
+<en_payment_type_code base="Payment type code"></en_payment_type_code>
+<en_pay_type base="Pay type"></en_pay_type>
+<en_notes fr="Remarques" de="Aufzeichnungen" en="Notes" it="Note" base="Notes"></en_notes>
+<en_email fr="Email" de="E-Mail-" en="Email" it="Email" base="Email"></en_email>
+<en_phone base="Phone" it="Telefono"></en_phone></customer>
+<customer_type path="model/customer_type.py" ext="py"><en_customer_type base="Customer type"></en_customer_type>
+<en_customer_types base="Customer types"></en_customer_types>
+<en_code base="Code" en="Code" it="Codice"></en_code></customer_type>
+<invoice path="model/invoice.py" ext="py"><en_invoice base="Invoice"></en_invoice>
+<en_invoice_number base="Invoice number"></en_invoice_number>
+<en_customer base="Customer"></en_customer>
+<en_date fr="Date" de="Datum" en="Date" it="Data" base="Date"></en_date>
+<en_total base="Total"></en_total>
+<en_vat_total base="VAT total"></en_vat_total>
+<en_gross_total base="Gross total"></en_gross_total></invoice>
+<invoice_row path="model/invoice_row.py" ext="py"><en_invoice_row base="Invoice row"></en_invoice_row>
+<en_invoice_rows base="Invoice rows"></en_invoice_rows>
+<en_invoice base="Invoice"></en_invoice>
+<en_product base="Product"></en_product>
+<it_quantity base="Quantity"></it_quantity>
+<en_unit_price base="Unit price"></en_unit_price>
+<en_total_price base="Total price"></en_total_price>
+<it_vat_rate base="Vat rate"></it_vat_rate></invoice_row>
+<payment_type path="model/payment_type.py" ext="py"><en_payment_type base="Payment type"></en_payment_type>
+<en_payment_types base="Payment types"></en_payment_types>
+<en_code base="Code" en="Code" it="Codice"></en_code></payment_type>
+<product path="model/product.py" ext="py"><en_product base="Product"></en_product>
+<en_prodocts base="Prodocts"></en_prodocts>
+<en_code base="Code" en="Code" it="Codice"></en_code>
+<en_description base="Description" en="Description" it="Descrizione"></en_description>
+<en_presentation base="Presentation"></en_presentation>
+<it_vat_type base="VAT type"></it_vat_type>
+<en_product_type base="Product type"></en_product_type>
+<en_price base="Price"></en_price>
+<en_image_url base="Image url"></en_image_url>
+<en_details base="Details"></en_details>
+<en_picture base="Picture"></en_picture></product>
+<product_type path="model/product_type.py" ext="py"><en_product_type base="Product type"></en_product_type>
+<en_product_types base="Product types"></en_product_types>
+<en_description base="Description" en="Description" it="Descrizione"></en_description></product_type>
+<state path="model/state.py" ext="py"><en_state base="State" it="Provincia"></en_state>
+<en_states base="States"></en_states>
+<en_code base="Code" en="Code" it="Codice"></en_code>
+<en_name fr="Nom" de="Name" en="Name" it="Nome" base="Name"></en_name></state>
+<vat_type path="model/vat_type.py" ext="py"><en_vat_type base="VAT type"></en_vat_type>
+<en_vat_types base="VAT types"></en_vat_types>
+<en_code base="Code" en="Code" it="Codice"></en_code>
+<en_vat_rate base="VAT rate"></en_vat_rate></vat_type></model></GenRoBag>
