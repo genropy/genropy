@@ -1,10 +1,14 @@
 # -*- coding: utf-8 -*-
 import random
+import sys
 from datetime import date, time
 from unittest.mock import MagicMock, patch
-
+import json as json_mod
+        
+from gnr.sql.gnrsql import GnrSqlDb
 from gnr.sql.gnrsql_random import RandomRecordGenerator
-
+from gnr.sql.gnrsql_random import parse_typed_value, load_config_file
+from gnr.db.cli import gnrrandom_records
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -313,13 +317,11 @@ class TestGenerate:
 class TestDbCreateRandomRecords:
 
     def test_extract_kwargs_wiring(self):
-        from gnr.sql.gnrsql import GnrSqlDb
         db = GnrSqlDb()
         assert hasattr(db, 'createRandomRecords')
 
     def test_config_kwargs_parsing(self):
         """config_price_min_value=5 should become config={'price': {'min_value': 5}}"""
-        from gnr.sql.gnrsql import GnrSqlDb
         db = GnrSqlDb()
         with patch('gnr.sql.gnrsql_random.RandomRecordGenerator') as MockGen:
             mock_instance = MockGen.return_value
@@ -334,7 +336,6 @@ class TestDbCreateRandomRecords:
                 assert config_passed['price']['max_value'] == 100
 
     def test_config_dict_passed_through(self):
-        from gnr.sql.gnrsql import GnrSqlDb
         db = GnrSqlDb()
         with patch('gnr.sql.gnrsql_random.RandomRecordGenerator') as MockGen:
             mock_instance = MockGen.return_value
@@ -354,22 +355,18 @@ class TestDbCreateRandomRecords:
 class TestConfigFile:
 
     def test_load_yaml(self, tmp_path):
-        from gnr.sql.gnrsql_random import load_config_file
         f = tmp_path / "cfg.yaml"
         f.write_text("price:\n  min_value: 10\nname:\n  default_value: hello\n")
         result = load_config_file(str(f))
         assert result == {'price': {'min_value': 10}, 'name': {'default_value': 'hello'}}
 
     def test_load_json(self, tmp_path):
-        import json as json_mod
-        from gnr.sql.gnrsql_random import load_config_file
         f = tmp_path / "cfg.json"
         f.write_text(json_mod.dumps({'qty': {'min_value': 1}}))
         result = load_config_file(str(f))
         assert result == {'qty': {'min_value': 1}}
 
     def test_load_unknown_ext_yaml_content(self, tmp_path):
-        from gnr.sql.gnrsql_random import load_config_file
         f = tmp_path / "cfg.txt"
         f.write_text("amount:\n  max_value: 99\n")
         result = load_config_file(str(f))
@@ -379,29 +376,23 @@ class TestConfigFile:
 class TestParseTypedValue:
 
     def test_empty_returns_none(self):
-        from gnr.sql.gnrsql_random import parse_typed_value
         assert parse_typed_value('', 'I', int) is None
 
     def test_int_conversion(self):
-        from gnr.sql.gnrsql_random import parse_typed_value
         assert parse_typed_value('42', 'I', int) == 42
 
     def test_float_conversion(self):
-        from gnr.sql.gnrsql_random import parse_typed_value
         assert parse_typed_value('3.14', 'N', float) == 3.14
 
     def test_str_yes_for_text_dtype(self):
-        from gnr.sql.gnrsql_random import parse_typed_value
         assert parse_typed_value('y', 'T', str) is True
         assert parse_typed_value('yes', 'T', str) is True
 
     def test_str_no_for_text_dtype(self):
-        from gnr.sql.gnrsql_random import parse_typed_value
         assert parse_typed_value('n', 'T', str) is None
         assert parse_typed_value('no', 'T', str) is None
 
     def test_str_passthrough(self):
-        from gnr.sql.gnrsql_random import parse_typed_value
         assert parse_typed_value('hello #N', 'T', str) == 'hello #N'
 
 
@@ -412,19 +403,14 @@ class TestParseTypedValue:
 class TestCLI:
 
     def test_module_has_description(self):
-        from gnr.db.cli import gnrrandom_records
         assert hasattr(gnrrandom_records, 'description')
         assert gnrrandom_records.description
 
     def test_module_has_main(self):
-        from gnr.db.cli import gnrrandom_records
         assert callable(gnrrandom_records.main)
 
     def test_cli_invocation(self):
         """Test that CLI correctly wires args to db.createRandomRecords"""
-        import sys
-        from gnr.db.cli import gnrrandom_records
-
         test_argv = ['gnr db random_records',
                      'fatt.fattura', '-n', '50', '--seed', '42']
 
@@ -445,9 +431,6 @@ class TestCLI:
 
     def test_cli_with_store(self):
         """Test that storename triggers use_store"""
-        import sys
-        from gnr.db.cli import gnrrandom_records
-
         test_argv = ['gnr db random_records', 'pkg.tbl']
 
         mock_app = MagicMock()
@@ -461,9 +444,6 @@ class TestCLI:
 
     def test_cli_with_config_yaml(self, tmp_path):
         """Test --config loads YAML file and passes config dict"""
-        import sys
-        from gnr.db.cli import gnrrandom_records
-
         config_file = tmp_path / "fields.yaml"
         config_file.write_text("price:\n  min_value: 10\n  max_value: 100\n")
 
@@ -482,10 +462,6 @@ class TestCLI:
 
     def test_cli_with_config_json(self, tmp_path):
         """Test --config loads JSON file"""
-        import sys
-        import json as json_mod
-        from gnr.db.cli import gnrrandom_records
-
         config_data = {'name': {'default_value': 'TEST_#N'}}
         config_file = tmp_path / "fields.json"
         config_file.write_text(json_mod.dumps(config_data))
@@ -505,9 +481,6 @@ class TestCLI:
 
     def test_cli_interactive_confirm(self):
         """Test -I interactive mode with user input"""
-        import sys
-        from gnr.db.cli import gnrrandom_records
-
         test_argv = ['gnr db random_records', 'pkg.tbl', '-I']
 
         mock_app = MagicMock()
@@ -534,9 +507,6 @@ class TestCLI:
 
     def test_cli_interactive_abort(self):
         """Test -I interactive mode abort"""
-        import sys
-        from gnr.db.cli import gnrrandom_records
-
         test_argv = ['gnr db random_records', 'pkg.tbl', '-I']
 
         mock_app = MagicMock()
@@ -561,9 +531,6 @@ class TestCLI:
 
     def test_cli_interactive_skip_sysfield(self):
         """Test that interactive mode skips system fields"""
-        import sys
-        from gnr.db.cli import gnrrandom_records
-
         test_argv = ['gnr db random_records', 'pkg.tbl', '-I']
 
         mock_app = MagicMock()
@@ -592,9 +559,6 @@ class TestCLI:
 
     def test_cli_interactive_fk_column(self):
         """Test interactive mode with FK column"""
-        import sys
-        from gnr.db.cli import gnrrandom_records
-
         test_argv = ['gnr db random_records', 'pkg.tbl', '-I']
 
         mock_app = MagicMock()
