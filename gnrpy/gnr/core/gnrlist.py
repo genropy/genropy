@@ -27,7 +27,10 @@ Some useful operations on lists.
 import os.path
 from functools import cmp_to_key
 import datetime
-import clevercsv
+try:
+    import clevercsv as csv_module
+except ImportError:
+    import csv as csv_module
 
 from gnr.core import logger
 from gnr.core.gnrdecorator import deprecated
@@ -593,12 +596,12 @@ class CsvReader(object):
 
         # Delimiter argument has priority over dialect in clevercsv.reader
         if delimiter:
-            self.rows = clevercsv.reader(self.filecsv, dialect=dialect,
+            self.rows = csv_module.reader(self.filecsv, dialect=dialect,
                                          delimiter=delimiter)
         elif dialect:
-            self.rows = clevercsv.reader(self.filecsv, dialect=dialect)
+            self.rows = csv_module.reader(self.filecsv, dialect=dialect)
         else:
-            self.rows = clevercsv.reader(self.filecsv, delimiter=',')
+            self.rows = csv_module.reader(self.filecsv, delimiter=',')
 
         self.headers = next(self.rows)
 
@@ -899,7 +902,7 @@ def getCsvDialect(file_path, encoding=None, delimiter=None,
             sample = csv_test.read()
 
         delimiters = [delimiter] if delimiter else None
-        return clevercsv.Detector().sniff(sample, delimiters=delimiters)
+        return csv_module.Sniffer().sniff(sample, delimiters=delimiters)
 
 
 def getReader(file_path, filetype=None,
