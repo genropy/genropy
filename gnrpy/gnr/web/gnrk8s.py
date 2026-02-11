@@ -16,7 +16,8 @@ class GnrK8SGenerator(object):
                  env_file=False, env_secrets=[],
                  container_port=8000,
                  secret_name=None,
-                 replicas=1):
+                 replicas=1,
+                 extra_labels=None):
         
         self.instance_name = instance_name
         self.image = image
@@ -42,7 +43,9 @@ class GnrK8SGenerator(object):
                             line = line.strip()
                             k, v = line.split("=")
                             self.env.append(dict(name=k, value=v))
-
+                            
+        self.extra_labels = extra_labels if isinstance(extra_labels, dict) else {}
+        
         self.GNR_DAEMON_PORT = 40407
         self.services = [
             'daemon',
@@ -66,7 +69,7 @@ class GnrK8SGenerator(object):
             "apiVersion": "v1",
             "kind": "PersistentVolume",
             "metadata": {
-                "name": f"{self.stack_name}-site-pv",
+                "name": f"{self.stack_name}-site-pv"
             },
             "spec": {
                 "capacity": {
@@ -79,6 +82,9 @@ class GnrK8SGenerator(object):
                 }
             }
         }
+        if self.extra_labels:
+            pv['metadata']['labels'] = self.extra_labels
+            
         return [pv]
     
     def get_pvc(self):
@@ -86,7 +92,8 @@ class GnrK8SGenerator(object):
             "apiVersion": "v1",
             "kind": "PersistentVolumeClaim",
             "metadata": {
-                "name": f"{self.stack_name}-site-pvc",
+                "name": f"{self.stack_name}-site-pvc"
+
                 },
             "spec": {
                 "accessModes": [
@@ -100,6 +107,8 @@ class GnrK8SGenerator(object):
                 "storageClassName": "standard"
             }
         }
+        if self.extra_labels:
+            pvc['metadata']['labels'] = self.extra_labels
         return [pvc]
     
     def generate_conf(self, fp=sys.stdout):
@@ -181,6 +190,10 @@ class GnrK8SGenerator(object):
                     }
                 }
             }
+            
+            deployment['metadata']['labels'].update(self.extra_labels)
+            deployment['spec']['template']['metadata']['labels'].update(self.extra_labels)
+            
             if service == "daemon":
                 container['readinessProbe'] = {
                     "tcpSocket": {
@@ -227,6 +240,7 @@ class GnrK8SGenerator(object):
                         }
                     }
                 }
+                service['metadata']['labels'].update(self.extra_labels)
                 services.append(service)
                 
         return deployments, services, self.get_ingress()
@@ -335,6 +349,9 @@ class GnrK8SGenerator(object):
                 }
             }
         }
+        deployment['metadata']['labels'].update(self.extra_labels)
+        deployment['spec']['template']['metadata']['labels'].update(self.extra_labels)
+        
         if self.secret_name:
             deployment['spec']['template']['spec']['imagePullSecrets'] = [{"name": self.secret_name}]
 
@@ -359,7 +376,7 @@ class GnrK8SGenerator(object):
                 }
             }
         }
-        
+        service['metadata']['labels'].update(self.extra_labels)
         return [deployment], [service], self.get_ingress()
     
     def get_ingress(self):
@@ -404,7 +421,9 @@ class GnrK8SGenerator(object):
                 ],
             }
         }
-        
+        if self.extra_labels:
+            ingress['metadata']['labels'] = self.extra_labels
+            
         return [ingress]
     
 
