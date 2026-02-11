@@ -1,9 +1,7 @@
 import os
-import time
 import tempfile
 import shutil
 
-import gnr.web.gnrwsgisite as gws
 from gnr.core.gnrbag import Bag
 
 from webcommon import BaseGnrDaemonTest
