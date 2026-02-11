@@ -21,6 +21,7 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 
+import copy
 import os
 import shutil
 import re
@@ -80,6 +81,7 @@ class SqlCompiledQuery(object):
         self.columns = ''
         self.joins = []
         self.additional_joins = []
+        self.sq_joins = []
         self.where = None
         self.group_by = None
         self.having = None
@@ -92,6 +94,7 @@ class SqlCompiledQuery(object):
         self.aggregateDict = {}
         self.pyColumns = []
         self.maintable_as = maintable_as
+        self.tpl = None
 
     def get_sqltext(self, db):
         """Compile the sql query string based on current query parameters and the specific db
@@ -103,8 +106,27 @@ class SqlCompiledQuery(object):
         'maintable', 'distinct', 'columns', 'joins', 'where', 'group_by', 'having', 'order_by', 'limit', 'offset',
         'for_update'):
             kwargs[k] = getattr(self, k)
-        return db.adapter.compileSql(maintable_as=self.maintable_as,**kwargs)
+        result = db.adapter.compileSql(maintable_as=self.maintable_as,**kwargs)
+        if self.tpl:
+            result = self.tpl % result
+        return result
 
+class SqlCompiledSubQuery(SqlCompiledQuery):
+    """A compiled subquery with identity support for merge."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._identity_hash = None
+
+    def __eq__(self, other):
+        if not isinstance(other, SqlCompiledSubQuery):
+            return NotImplemented
+        return self._identity_hash is not None and self._identity_hash == other._identity_hash
+
+    def __hash__(self):
+        if self._identity_hash is not None:
+            return self._identity_hash
+        return id(self)
 
 
 class SqlQueryCompiler(object):
@@ -121,9 +143,10 @@ class SqlQueryCompiler(object):
                            :meth:`setJoinCondition() <gnr.web.gnrwebpage.GnrWebPage.setJoinCondition>` method)
     :param sqlparams: a dict of parameters used in "WHERE" clause
     :param locale: the current locale (e.g: en, en_us, it)"""
-    def __init__(self, tblobj, joinConditions=None, sqlContextName=None, sqlparams=None, locale=None,aliasPrefix = None):
+    def __init__(self, tblobj, joinConditions=None, sqlContextName=None, sqlparams=None, locale=None,aliasPrefix = None, mangler=None, query_kw=None, mainquery_kw=None, query=None):
         self.tblobj = tblobj
         self.db = tblobj.db
+        self.query = query
         self.dbmodel = tblobj.db.model
         if tblobj.db.reuse_relation_tree:
             self.relations = tblobj.relations
@@ -136,11 +159,37 @@ class SqlQueryCompiler(object):
         self._currColKey = None
         self.aliasPrefix = aliasPrefix or 't'
         self.locale = locale
+        self.mangler = mangler
+        self.query_kw = query_kw or {}
+        self.mainquery_kw = mainquery_kw or {}
+        self.subquery_kw = {}
+        self.sq_compiled_dct = {}
         self.macro_expander = self.db.adapter.macroExpander(self)
 
     def aliasCode(self,n):
         return '%s%i' %(self.aliasPrefix,n)
 
+    def mangle(self, sql_text):
+        if not self.mangler:
+            return sql_text
+        def replace_param(m):
+            param_name = m.group(2)
+            if param_name.startswith('env_'):
+                return m.group(0)
+            if param_name in self.sqlparams:
+                return '%s%s_%s%s' % (m.group(1), self.mangler, param_name, m.group(3))
+            return m.group(0)
+        return re.sub(r"(:)(\w+)(\W|$)", replace_param, sql_text)
+
+    def mangleParams(self):
+        if not self.mangler:
+            return
+        for k, v in list(self.sqlparams.items()):
+            if not k.startswith('env_'):
+                mangled_key = '%s_%s' % (self.mangler, k)
+                mangled_value = self.query_kw.get(k, self.mainquery_kw.get(k))
+                self.subquery_kw[mangled_key] = mangled_value
+                self.sqlparams[mangled_key] = v
 
     def init(self, lazy=None, eager=None):
         """TODO
@@ -154,6 +203,34 @@ class SqlQueryCompiler(object):
         self.eager = eager or []
         self.aliases = {self.tblobj.sqlfullname: self.aliasCode(0)}
         self.fieldlist = []
+
+    def expandThis(self, m):
+        fld = m.group(1)
+        return self.getFieldAlias(fld, curr=self._curr, basealias=self._alias)
+
+    def expandPref(self, m):
+        prefpath = m.group(1)
+        dflt = m.group(2)[1:] if m.group(2) else None
+        return str(self._curr_tblobj.pkg.getPreference(prefpath, dflt))
+
+    def expandEnv(self, m):
+        what = m.group(1)
+        par2 = None
+        if m.group(2):
+            par2 = m.group(2)[1:]
+        if what in self.db.currentEnv:
+            return "'%s'" % gnrstring.toText(self.db.currentEnv[what])
+        elif par2 and par2 in self.db.currentEnv:
+            return "'%s'" % gnrstring.toText(self.db.currentEnv[par2])
+        if par2:
+            env_tblobj = self.db.table(par2)
+        else:
+            env_tblobj = self._curr_tblobj
+        handler = getattr(env_tblobj, 'env_%s' % what, None)
+        if handler:
+            return handler()
+        else:
+            return 'Not found %s' % what
 
     def getFieldAlias(self, fieldpath, curr=None,basealias=None, parent=None):
         """Internal method. Translate fields path and related fields path in a valid sql string for the column.
@@ -169,35 +246,6 @@ class SqlQueryCompiler(object):
         :param fieldpath: a field path. (e.g: '$colname'; e.g: '@relname.@rel2name.colname')
         :param curr: TODO.
         :param basealias: TODO. """
-
-        def expandThis(m):
-            fld = m.group(1)
-            return self.getFieldAlias(fld,curr=curr,basealias=alias)
-
-        def expandPref(m):
-            """#PREF(myprefpath,default)"""
-            prefpath = m.group(1)
-            dflt=m.group(2)[1:] if m.group(2) else None
-            return str(curr_tblobj.pkg.getPreference(prefpath,dflt))
-
-        def expandEnv(m):
-            what = m.group(1)
-            par2 = None
-            if m.group(2):
-                par2 = m.group(2)[1:]
-            if what in self.db.currentEnv:
-                return "'%s'" % gnrstring.toText(self.db.currentEnv[what])
-            elif par2 and par2 in self.db.currentEnv:
-                return "'%s'" % gnrstring.toText(self.db.currentEnv[par2])
-            if par2:
-                env_tblobj = self.db.table(par2)
-            else:
-                env_tblobj = curr_tblobj
-            handler = getattr(env_tblobj, 'env_%s' % what, None)
-            if handler:
-                return handler()
-            else:
-                return 'Not found %s' % what
         pathlist = fieldpath.split('.')
         fld = pathlist.pop()
         curr = curr or self.relations
@@ -208,6 +256,9 @@ class SqlQueryCompiler(object):
         else:
             alias = basealias
         curr_tblobj = self.db.table(curr.tbl_name, pkg=curr.pkg_name)
+        self._curr = curr
+        self._alias = alias
+        self._curr_tblobj = curr_tblobj
         if not fld in curr.keys():
             fldalias = curr_tblobj.model.getVirtualColumn(fld,sqlparams=self.sqlparams)
             if fldalias == None:
@@ -228,51 +279,7 @@ class SqlQueryCompiler(object):
 
                 
             elif fldalias.sql_formula or fldalias.select or fldalias.exists:
-                sql_formula = fldalias.sql_formula
-                attr = dict(fldalias.attributes)
-                if sql_formula is True:
-                    sql_formula = getattr(curr_tblobj,'sql_formula_%s' %fld)(attr)
-                select_dict = dictExtract(attr,'select_')
-                if not sql_formula:
-                    sql_formula = '#default' if fldalias.select else 'EXISTS(#default)'
-                    select_dict['default'] = fldalias.select or fldalias.exists
-                if select_dict:
-                    for susbselect,sq_pars in list(select_dict.items()):
-                        if isinstance(sq_pars, str):
-                            sq_pars = getattr(self.tblobj.dbtable,'subquery_%s' %sq_pars)()
-                        sq_pars = dict(sq_pars)
-                        cast = sq_pars.pop('cast',None)
-                        tpl = ' CAST( ( %s ) AS ' +cast +') ' if cast else ' ( %s ) '
-                        sq_table = sq_pars.pop('table')
-                        sq_where = sq_pars.pop('where')
-                        sq_pars.setdefault('ignorePartition',True)
-                        sq_pars.setdefault('excludeDraft',False)
-                        sq_pars.setdefault('excludeLogicalDeleted',False)
-                        sq_pars.setdefault('subtable','*')
-                        aliasPrefix = '%s_t' %alias
-                        sq_where = THISFINDER.sub(expandThis,sq_where)
-                        sql_text = self.db.queryCompile(table=sq_table,where=sq_where,aliasPrefix=aliasPrefix,addPkeyColumn=False,ignoreTableOrderBy=True,**sq_pars)
-                        sql_formula = re.sub('#%s\\b' %susbselect, tpl %sql_text,sql_formula)
-                subreldict = {}
-                sql_formula = self.macro_expander.replace(sql_formula,'TSRANK,TSHEADLINE')
-                sql_formula = self.updateFieldDict(sql_formula, reldict=subreldict)
-                sql_formula = BETWEENFINDER.sub(self.expandBetween, sql_formula)
-                sql_formula = ENVFINDER.sub(expandEnv, sql_formula)
-                sql_formula = PREFFINDER.sub(expandPref, sql_formula)
-                sql_formula = THISFINDER.sub(expandThis,sql_formula)
-                sql_formula_var = dictExtract(attr,'var_')
-                if sql_formula_var:
-                    prefix = str(id(fldalias))
-                    currentEnv = self.db.currentEnv
-                    for k,v in list(sql_formula_var.items()):
-                        newk = f'{prefix}_{self._currColKey}_{k}'
-                        currentEnv[newk] = v
-                        sql_formula = re.sub("(:)(%s)(\\W|$)" %k,lambda m: '%senv_%s%s'%(m.group(1),newk,m.group(3)), sql_formula)
-                subColPars = {}
-                for key, value in list(subreldict.items()):
-                    subColPars[key] = self.getFieldAlias(value, curr=curr, basealias=alias)
-                sql_formula = gnrstring.templateReplace(sql_formula, subColPars, safeMode=True)
-                return f'( {sql_formula} )' 
+                return self._handleFormulaColumn(fldalias, fld, alias, curr, curr_tblobj)
             elif fldalias.py_method:
                 #self.cpl.pyColumns.append((fld,getattr(self.tblobj.dbtable,fldalias.py_method,None)))
                 self.cpl.pyColumns.append((fld,getattr(fldalias.table.dbtable,fldalias.py_method,None)))
@@ -281,6 +288,273 @@ class SqlQueryCompiler(object):
                 raise GnrSqlMissingColumn('Invalid column %s in table %s.%s (requested field %s)' % (
                 fld, curr.pkg_name, curr.tbl_name, '.'.join(newpath)))
         return '%s.%s' % (self.db.adapter.asTranslator(alias), curr_tblobj.column(fld).adapted_sqlname)
+
+    def _handleFormulaColumn(self, fldalias, fld, alias, curr, curr_tblobj):
+        attr = copy.deepcopy(dict(fldalias.attributes))
+        as_join = self._should_convert_to_join(fldalias)
+        if as_join:
+            select_attr = attr.get('select') or attr.get('select_dflt')
+            if isinstance(select_attr, dict) and 'limit' in select_attr:
+                as_join = False
+            elif as_join and isinstance(select_attr, dict):
+                as_join = not self._where_references_formula_column(
+                    select_attr.get('where', ''), curr_tblobj)
+        formula_kw = dictExtract(attr, 'var_')
+        sql_formula = fldalias.sql_formula
+        if sql_formula is True:
+            sql_formula = getattr(curr_tblobj, 'sql_formula_%s' % fld)(attr)
+        if sql_formula:
+            sql_formula = self._preprocessFormula(fldalias, alias, curr, sql_formula, formula_kw)
+        multi_select, sql_formula = self._preprocess_subqueryes(attr, as_join, alias,
+                                        formula_column_name=fld, sql_formula=sql_formula)
+        if not sql_formula and multi_select:
+            if as_join:
+                parts = []
+                for sq_name, sq_pars in multi_select.items():
+                    m = re.search(r'AS (c_\d+)', sq_pars.get('columns', ''))
+                    col_ref = m.group(1) if m else 'c_0'
+                    col_expr = '%s.%s' % (sq_name, col_ref)
+                    if 'COUNT(' in sq_pars.get('columns', '').upper():
+                        col_expr = 'COALESCE(%s, 0)' % col_expr
+                    parts.append(col_expr)
+                sql_formula = " || ' ' || ".join(parts)
+            else:
+                sql_formula = " || ' ' || ".join('#%s' % k for k in multi_select)
+        select_dict = dict(multi_select) if multi_select else {}
+        if select_dict:
+            for sq_name, sq_select in list(select_dict.items()):
+                if isinstance(sq_select, str):
+                    sq_select = getattr(self.tblobj.dbtable, 'subquery_%s' % sq_select)()
+                sq_pars = dict(sq_select)
+                compiled = self._compiledSubQuery(alias, sq_pars, sq_name=sq_name)
+                if as_join:
+                    h = compiled._identity_hash
+                    if h in self.sq_compiled_dct:
+                        existing, existing_name, col_counter = self.sq_compiled_dct[h]
+                        new_col = self._extract_aggregate_column(compiled.columns)
+                        new_alias = 'c_%i' % col_counter
+                        existing.columns += ', %s AS %s' % (new_col, new_alias)
+                        self.sq_compiled_dct[h] = (existing, existing_name, col_counter + 1)
+                        sql_formula = sql_formula.replace(
+                            '%s.c_0' % sq_name,
+                            '%s.%s' % (existing_name, new_alias))
+                    else:
+                        self.sq_compiled_dct[h] = (compiled, sq_name, 1)
+                else:
+                    sql_formula = re.sub(r'#%s\b' % sq_name, compiled.get_sqltext(self.db), sql_formula)
+        return f'( {sql_formula} )'
+
+    def _should_convert_to_join(self, fldalias):
+        sq_as_join = fldalias.attributes.get('sq_as_join')
+        if sq_as_join is not None:
+            return gnrstring.boolean(sq_as_join)
+        if self.query and getattr(self.query, 'enable_sq_join', None) is not None:
+            return gnrstring.boolean(self.query.enable_sq_join)
+        return gnrstring.boolean(getattr(self.db, 'extra_kw', {}).get('subquery_as_join', False))
+
+    def _where_references_formula_column(self, where_str, tblobj):
+        """Check if a formulaColumn WHERE contains #THIS references to other formulaColumns.
+
+        When a WHERE like '$product_id=#THIS.top_product_id' references another
+        formulaColumn, the sq_join LEFT JOIN would contain a correlated subquery
+        that references the main table alias — which is not visible without LATERAL.
+        In this case the formulaColumn must stay as inline correlated subquery.
+        """
+        if not where_str:
+            return False
+        for m in THISFINDER.finditer(where_str):
+            ref_field = m.group(1).split('.')[0]
+            ref_col = tblobj.column(ref_field)
+            if ref_col is not None and (getattr(ref_col, 'sql_formula', None)
+                                        or getattr(ref_col, 'select', None)):
+                return True
+        return False
+
+    def _preprocess_subqueryes(self, attr, as_join=False, alias=None,
+                               formula_column_name=None, sql_formula=None):
+        if 'exists' in attr:
+            exists_sq = attr.pop('exists')
+            exists_sq['exists'] = True
+            attr['select_dflt'] = exists_sq
+        elif 'select' in attr:
+            attr['select_dflt'] = attr.pop('select')
+        sq_dict = dictExtract(attr, 'select_')
+        if not as_join or not sq_dict:
+            return sq_dict, sql_formula
+        # Condensation: merge subqueries with same (table, where)
+        sq_dict, sql_formula = self._condense_subqueries(sq_dict, sql_formula)
+        # Prefix keys with formula_column_name for cross-formulaColumn uniqueness
+        if formula_column_name:
+            prefixed = {}
+            for sq_name, sq_pars in sq_dict.items():
+                subquery_name = '%s_%s' % (formula_column_name, sq_name)
+                # Update formula references: #old_name -> #new_name
+                if sql_formula:
+                    sql_formula = sql_formula.replace('%s.' % sq_name, '%s.' % subquery_name)
+                prefixed[subquery_name] = sq_pars
+            sq_dict = prefixed
+        # Extract joiner from WHERE for each subquery
+        for sq_name, sq_pars in sq_dict.items():
+            sq_where = sq_pars.get('where', '')
+            m = re.match(r'(@[\w.]+|\$\w+)\s*=\s*#THIS\.(\w+)(.*)', sq_where, re.DOTALL)
+            if m:
+                fk_field = m.group(1)
+                joiner = '%s=#THIS.%s' % (fk_field, m.group(2))
+                residual = m.group(3).strip()
+                if residual.upper().startswith('AND '):
+                    residual = residual[4:].strip()
+                sq_pars['where'] = residual or None
+                has_limit = 'limit' in sq_pars
+                existing_group_by = sq_pars.get('group_by')
+                if existing_group_by:
+                    sq_pars['group_by'] = '%s,%s' % (fk_field, existing_group_by)
+                elif not has_limit:
+                    sq_pars['group_by'] = fk_field
+                sq_pars['columns'] = '%s AS joiner, %s' % (fk_field, sq_pars['columns'])
+                joiner = THISFINDER.sub(self.expandThis, joiner)
+                sq_pars['joiner'] = joiner
+        return sq_dict, sql_formula
+
+    def _condense_subqueries(self, sq_dict, sql_formula):
+        groups = {}
+        for sq_name, sq_pars in sq_dict.items():
+            key = (sq_pars['table'], sq_pars.get('where'))
+            groups.setdefault(key, []).append(sq_name)
+        col_counter = 0
+        remap = {}
+        for key, names in groups.items():
+            if len(names) == 1:
+                sq_name = names[0]
+                sq_pars = sq_dict[sq_name]
+                col_alias = 'c_%i' % col_counter
+                sq_pars['columns'] = '%s AS %s' % (sq_pars['columns'], col_alias)
+                col_counter += 1
+                continue
+            master = names[0]
+            master_pars = sq_dict[master]
+            merged_cols = []
+            for name in names:
+                pars = sq_dict[name]
+                col_alias = 'c_%i' % col_counter
+                merged_cols.append('%s AS %s' % (pars['columns'], col_alias))
+                if name != master:
+                    remap[name] = (master, col_alias)
+                col_counter += 1
+            master_pars['columns'] = ', '.join(merged_cols)
+            for name in names[1:]:
+                del sq_dict[name]
+        if sql_formula:
+            for absorbed, (master, col_alias) in remap.items():
+                sql_formula = re.sub(r'#%s\b' % absorbed, '%s.%s' % (master, col_alias), sql_formula)
+            for sq_name, sq_pars in sq_dict.items():
+                m = re.search(r'AS (c_\d+)', sq_pars['columns'])
+                if m:
+                    first_col = m.group(1)
+                    sql_formula = re.sub(r'#%s\b' % sq_name, '%s.%s' % (sq_name, first_col), sql_formula)
+        return sq_dict, sql_formula
+
+    def _preprocessFormula(self, fldalias, alias, curr, sql_formula, formula_kw):
+        sql_formula = sql_formula.replace('#default', '#dflt')
+        def resolveField(m):
+            return m.group(1) + self.getFieldAlias(m.group(2), curr=curr, basealias=alias)
+        sql_formula = RELFINDER.sub(resolveField, sql_formula)
+        sql_formula = COLFINDER.sub(resolveField, sql_formula)
+        sql_formula = THISFINDER.sub(self.expandThis, sql_formula)
+        sql_formula = ENVFINDER.sub(self.expandEnv, sql_formula)
+        sql_formula = PREFFINDER.sub(self.expandPref, sql_formula)
+        if formula_kw:
+            prefix = f'{id(fldalias)}_{self._currColKey}'
+            for k, v in formula_kw.items():
+                mangled_k = f'{prefix}_{k}'
+                self.sqlparams[mangled_k] = v
+                sql_formula = re.sub(r"(:)(%s)(\W|$)" % k,
+                                     lambda m, mk=mangled_k: f'{m.group(1)}{mk}{m.group(3)}',
+                                     sql_formula)
+        return sql_formula
+
+    def _extract_aggregate_column(self, columns_str):
+        """Extract the aggregate expression from a compiled subquery columns string.
+
+        Given a string like '"t0_t0"."customer_id" AS joiner,\\nCOUNT(*) AS c_0',
+        returns the aggregate part without joiner and alias: 'COUNT(*)'.
+        """
+        # Find everything after 'AS joiner,' — the aggregate part
+        m = re.search(r'AS\s+joiner\s*,\s*', columns_str)
+        if m:
+            col_part = columns_str[m.end():]  # e.g. 'COUNT(*) AS c_0'
+            col_part = re.sub(r'\s+AS\s+c_\d+\s*$', '', col_part.strip())
+            return col_part
+        return columns_str
+
+    def _compiledSubQuery(self, alias, sq_pars, sq_name=None):
+        """Compile a subquery column (select or exists) into SQL text.
+
+        Builds and compiles an independent SqlQuery with a mangler prefix,
+        so that subquery parameters (e.g. ``avail='yes'``) are namespaced
+        into the main query's sqlparams without collisions.
+        The compiled SQL is wrapped with the given template (e.g. for CAST).
+
+        Args:
+            alias: The SQL table alias for the current table (e.g. ``'t0'``).
+            sq_pars: The subquery parameters dict (table, where, columns, plus
+                     any extra params like avail='yes'). Already without 'cast'.
+
+        Returns:
+            SqlCompiledSubQuery: the compiled subquery object.
+        """
+        # 1. Extract template parameters and table/where
+        joiner = sq_pars.pop('joiner', None)
+        tpl = sq_pars.pop('tpl', None)
+        cast = sq_pars.pop('cast', None)
+        is_exists = sq_pars.pop('exists', False)
+        sq_limit = sq_pars.pop('limit', None) if joiner else None
+        if not tpl:
+            if joiner:
+                # joiner is like '$movie_id=t0.id' — resolve $field to sq_alias.joiner
+                on_clause = re.sub(r'@[\w.]+|\$\w+', '%s.joiner' % sq_name, joiner)
+                tpl = ' LEFT JOIN (%%s) AS %s ON (%s) ' % (sq_name, on_clause)
+            elif is_exists:
+                tpl = ' EXISTS( %s ) '
+            elif cast:
+                tpl = ' CAST( ( %s ) AS ' + cast + ') '
+            else:
+                tpl = ' ( %s ) '
+        sq_table = sq_pars.pop('table')
+        sq_where = sq_pars.pop('where')
+        sq_pars.setdefault('ignorePartition', True)
+        sq_pars.setdefault('excludeDraft', False)
+        sq_pars.setdefault('excludeLogicalDeleted', False)
+        sq_pars.setdefault('subtable', '*')
+        aliasPrefix = '%s_t' % alias
+
+        # 3. Expand #THIS in the subquery WHERE
+        if sq_where:
+            sq_where = THISFINDER.sub(self.expandThis, sq_where)
+
+        # 4. Compile the subquery with a mangler for parameter namespacing
+        mangler_prefix = self.query._next_mangler_key('sq')
+        q = self.db.table(sq_table).query(
+            where=sq_where,
+            aliasPrefix=aliasPrefix,
+            addPkeyColumn=False,
+            ignoreTableOrderBy=True,
+            mangler=mangler_prefix,
+            **sq_pars
+        )
+        compiled = q.compileQuery(compiled_class=SqlCompiledSubQuery)
+        compiled.tpl = tpl
+
+        # 5. Build identity hash for CTE merge: resolve params in WHERE to get
+        #    a mangler-independent fingerprint
+        resolved_where = compiled.where or ''
+        for k, v in q.sqlparams.items():
+            resolved_where = resolved_where.replace(':%s' % k, str(v))
+        compiled._identity_hash = hash((compiled.maintable, resolved_where, compiled.group_by or ''))
+
+        # 6. Merge mangled subquery params into main query params
+        self.sqlparams.update(q.sqlparams)
+
+        return compiled
 
     def _findRelationAlias(self, pathlist, curr, basealias, newpath, parent=None):
         """Internal method: called by getFieldAlias to get the alias (t1, t2...) for the join table.
@@ -526,7 +800,8 @@ class SqlQueryCompiler(object):
                       storename=None,subtable=None,
                       count=False, excludeLogicalDeleted=True,excludeDraft=True,
                       ignorePartition=False,ignoreTableOrderBy=False,
-                      addPkeyColumn=True):
+                      addPkeyColumn=True,
+                      compiled_class=None):
         """Prepare the SqlCompiledQuery to get the sql query for a selection.
 
         :param columns: it represents the :ref:`columns` to be returned by the "SELECT"
@@ -551,9 +826,12 @@ class SqlQueryCompiler(object):
         :param excludeLogicalDeleted: boolean. If ``True``, exclude from the query all the records that are
                                       "logical deleted"
         :param excludeDraft: TODO
-        :param addPkeyColumn: boolean. If ``True``, add a column with the pkey attribute"""
+        :param addPkeyColumn: boolean. If ``True``, add a column with the pkey attribute
+        :param compiled_class: optional factory class for the compiled query object.
+                               Defaults to ``SqlCompiledQuery``."""
         # get the SqlCompiledQuery: an object that mantains all the informations to build the sql text
-        self.cpl = SqlCompiledQuery(self.tblobj.sqlfullname,relationDict=relationDict,maintable_as=self.aliasCode(0))
+        compiled_class = compiled_class or SqlCompiledQuery
+        self.cpl = compiled_class(self.tblobj.sqlfullname,relationDict=relationDict,maintable_as=self.aliasCode(0))
         distinct = distinct or '' # distinct is a text to be inserted in the sql query string
 
         # aggregate: test if the result will aggregate db rows
@@ -708,6 +986,10 @@ class SqlQueryCompiler(object):
         group_by = gnrstring.templateReplace(group_by, colPars)
         #self.cpl.additional_joins.reverse()
         self.cpl.joins = [gnrstring.templateReplace(j, colPars) for j in self.cpl.joins+self.cpl.additional_joins]
+        if self.cpl.sq_joins:
+            self.cpl.joins.extend(self.cpl.sq_joins)
+        for _h, (sq_compiled, _sq_name, _col_counter) in self.sq_compiled_dct.items():
+            self.cpl.joins.append(sq_compiled.get_sqltext(self.db))
         if distinct:
             distinct = 'DISTINCT '
         elif distinct is None or distinct == '':
@@ -728,14 +1010,16 @@ class SqlQueryCompiler(object):
                         # of rows returned by the query, but it is correct in terms of main table records.
                         # It is the right behaviour ???? Yes in some cases: see SqlSelection._aggregateRows
         self.cpl.distinct = distinct
-        self.cpl.columns = self.macro_expander.replace(columns,'TSRANK,TSHEADLINE')
-        self.cpl.where = where
-        self.cpl.group_by = group_by
-        self.cpl.having = having
-        self.cpl.order_by = self.macro_expander.replace(order_by,'TSRANK')
+        self.cpl.columns = self.mangle(self.macro_expander.replace(columns,'TSRANK,TSHEADLINE'))
+        self.cpl.where = self.mangle(where)
+        self.cpl.group_by = self.mangle(group_by)
+        self.cpl.having = self.mangle(having)
+        self.cpl.order_by = self.mangle(self.macro_expander.replace(order_by,'TSRANK'))
+        self.cpl.joins = [self.mangle(j) for j in self.cpl.joins]
         self.cpl.limit = limit
         self.cpl.offset = offset
         self.cpl.for_update = for_update
+        self.mangleParams()
         #raise str(self.cpl.get_sqltext(self.db))  # uncomment it for hard debug
         return self.cpl
 
@@ -1038,6 +1322,8 @@ class SqlQuery(object):
                  locale=None,_storename=None,
                  checkPermissions=None,
                  aliasPrefix=None,
+                 mangler=None,
+                 mainquery_kw=None,
                  **kwargs):
         self.dbtable = dbtable
         self.sqlparams = sqlparams or {}
@@ -1046,6 +1332,8 @@ class SqlQuery(object):
         self.joinConditions = joinConditions or {}
         self.sqlContextName = sqlContextName
         self.relationDict = relationDict or {}
+        self.enable_sq_join = kwargs.pop('enable_sq_join', None)
+        self.query_kw = dict(kwargs)
         self.sqlparams.update(kwargs)
         self.excludeLogicalDeleted = excludeLogicalDeleted
         self.excludeDraft = excludeDraft
@@ -1056,6 +1344,8 @@ class SqlQuery(object):
         self.storename = _storename
         self.checkPermissions = checkPermissions
         self.aliasPrefix = aliasPrefix
+        self.mangler = mangler
+        self.mainquery_kw = mainquery_kw or {}
         test = " ".join([v for v in (columns, where, order_by, group_by, having) if v])
         rels = set(re.findall(r'\$(\w*)', test))
         params = set(re.findall(r'\:(\w*)', test))
@@ -1104,16 +1394,23 @@ class SqlQuery(object):
 
     compiled = property(_get_compiled)
 
-    def compileQuery(self, count=False):
+    def compileQuery(self, count=False, compiled_class=None):
         """Return the :meth:`compiledQuery() <SqlQueryCompiler.compiledQuery()>` method.
 
-        :param count: boolean. If ``True``, optimize the sql query to get the number of resulting rows (like count(*))"""
+        :param count: boolean. If ``True``, optimize the sql query to get the number of resulting rows (like count(*))
+        :param compiled_class: optional factory class for the compiled query object.
+                               Defaults to ``SqlCompiledQuery``."""
         return SqlQueryCompiler(self.dbtable.model,
                                 joinConditions=self.joinConditions,
                                 sqlContextName=self.sqlContextName,
                                 sqlparams=self.sqlparams,
                                 aliasPrefix=self.aliasPrefix,
-                                locale=self.locale).compiledQuery(count=count,
+                                locale=self.locale,
+                                mangler=self.mangler,
+                                query_kw=self.query_kw,
+                                mainquery_kw=self.mainquery_kw,
+                                query=self).compiledQuery(count=count,
+                                                                  compiled_class=compiled_class,
                                                                   relationDict=self.relationDict,
                                                                   **self.querypars)
 
@@ -1354,6 +1651,90 @@ class SqlQuery(object):
                 n = l[0][0]
             cursor.close()
         return n
+
+    def _next_mangler_key(self, prefix):
+        env = self.db.currentEnv
+        counters = env.setdefault('_mangler_counters', {})
+        idx = counters.get(prefix, 0)
+        counters[prefix] = idx + 1
+        return '%s%d' % (prefix, idx)
+
+    def _compound(self, other, operator):
+        if isinstance(other, SqlCompoundQuery):
+            self_key = self._next_mangler_key('cq')
+            self.mangler = self_key
+            queries = dict(other.queries)
+            queries[self_key] = self
+            template = '{%s} %s SELECT * FROM (%s) AS _cr' % (self_key, operator, other._template)
+        else:
+            self_key = self._next_mangler_key('cq')
+            other_key = other._next_mangler_key('cq')
+            self.mangler = self_key
+            other.mangler = other_key
+            queries = {self_key: self, other_key: other}
+            template = '{%s} %s {%s}' % (self_key, operator, other_key)
+        return SqlCompoundQuery(queries=queries, template=template,
+                                dbtable=self.dbtable, db=self.db)
+
+    def __add__(self, other):
+        return self._compound(other, 'UNION')
+
+    def __or__(self, other):
+        return self._compound(other, 'UNION ALL')
+
+    def __and__(self, other):
+        return self._compound(other, 'INTERSECT')
+
+    def __sub__(self, other):
+        return self._compound(other, 'EXCEPT')
+
+
+class SqlCompoundQuery(SqlQuery):
+
+    def __init__(self, queries, template, dbtable, db):
+        self.queries = queries
+        self._template = template
+        self.dbtable = dbtable
+        self.db = db
+        self.storename = None
+
+    def _get_sqltext(self):
+        return self._template.format(**{k: q.sqltext for k, q in self.queries.items()})
+
+    sqltext = property(_get_sqltext)
+
+    def _get_compiled(self):
+        return next(iter(self.queries.values())).compiled
+
+    compiled = property(_get_compiled)
+
+    @property
+    def sqlparams(self):
+        result = {}
+        for q in self.queries.values():
+            result.update(q.sqlparams)
+        return result
+
+    def _compound(self, other, operator):
+        queries = dict(self.queries)
+        if isinstance(other, SqlCompoundQuery):
+            queries.update(other.queries)
+            template = 'SELECT * FROM (%s) AS _cl %s SELECT * FROM (%s) AS _cr' % (self._template, operator, other._template)
+        else:
+            key = other._next_mangler_key('cq')
+            other.mangler = key
+            queries[key] = other
+            template = '%s %s {%s}' % (self._template, operator, key)
+        return SqlCompoundQuery(queries=queries, template=template,
+                                dbtable=self.dbtable, db=self.db)
+
+    def count(self):
+        count_sql = 'SELECT count(*) AS gnr_row_count FROM (%s) AS _compound' % self.sqltext
+        cursor = self.db.execute(count_sql, self.sqlparams,
+                                 dbtable=self.dbtable.fullname,
+                                 storename=self.storename)
+        return cursor.fetchall()[0][0]
+
 
 class SqlSelection(object):
     """It is the resulting data from the execution of an istance of the :class:`SqlQuery`. Through the
