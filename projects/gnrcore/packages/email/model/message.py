@@ -90,9 +90,6 @@ class Table(object):
     def trigger_onUpdating(self, record_data, old_record):
         self.deleteAddressRelations(record_data)
         self.explodeAddressRelations(record_data)
-    
-    def trigger_onDeleting(self, record_data):
-        self.deleteAddressRelations(record_data)
         
     def extractAddresses(self,addresses):
         if not addresses:
