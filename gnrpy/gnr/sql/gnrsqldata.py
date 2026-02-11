@@ -45,7 +45,7 @@ from gnr.core.gnrbag import Bag, BagResolver, BagAsXml
 from gnr.core.gnranalyzingbag import AnalyzingBag
 from gnr.sql.gnrsql_exceptions import GnrSqlException,SelectionExecutionError, RecordDuplicateError,\
     RecordNotExistingError, RecordSelectionError,\
-    GnrSqlMissingField, GnrSqlMissingColumn
+    GnrSqlMissingField, GnrSqlMissingColumn, GnrSqlTablePermissionError
 
 COLFINDER = re.compile(r"(\W|^)\$(\w+)")
 RELFINDER = re.compile(r"([^A-Za-z0-9_]|^)(\@(\w[\w.@:]+))")
@@ -141,6 +141,49 @@ class SqlQueryCompiler(object):
     def aliasCode(self,n):
         return '%s%i' %(self.aliasPrefix,n)
 
+    def _initPermissionEnforcement(self):
+        """Initialize permission enforcement flags as a set.
+
+        Called once at init. The flags are: T=table, R=relations, C=columns.
+        The currentEnv can disable all checks by setting permission_enforcement=False.
+        """
+        env_value = self.db.currentEnv.get('permission_enforcement')
+        if env_value is False:
+            self._permission_enforcement = set()
+            return
+        enforcement = getattr(self.db, 'permission_enforcement', '') or ''
+        self._permission_enforcement = set(enforcement.replace(',', '').upper())
+
+    def _checkTablePermission(self, table):
+        """Check table permission via currentPage.
+
+        :param table: the full table name (pkg.tablename)
+        """
+        currentPage = getattr(self.db, 'currentPage', None)
+        if currentPage and hasattr(currentPage, 'checkTablePermission'):
+            if not currentPage.checkTablePermission(table=table, permissions='hidden'):
+                raise GnrSqlTablePermissionError(f'Access denied to table {table}')
+
+    def isColumnHidden(self, colname, tblobj=None):
+        """Check if a column is hidden for the current user.
+
+        :param colname: the column name (without $ prefix)
+        :param tblobj: the table object (defaults to main table)
+        :returns: True if column is hidden, False otherwise
+        """
+        if 'C' not in self._permission_enforcement:
+            return False
+        currentPage = getattr(self.db, 'currentPage', None)
+        if not currentPage:
+            return False
+        tblobj = tblobj or self.tblobj
+        avatar = getattr(currentPage, 'avatar', None)
+        if not avatar:
+            return False
+        colperm = tblobj.getColPermissions(colname,
+                                           user=currentPage.user,
+                                           user_group=avatar.group_code)
+        return colperm.get('user_hidden') == True
 
     def init(self, lazy=None, eager=None):
         """TODO
@@ -152,6 +195,9 @@ class SqlQueryCompiler(object):
         self._explodingTables = []
         self.lazy = lazy or []
         self.eager = eager or []
+        self._initPermissionEnforcement()
+        if 'T' in self._permission_enforcement:
+            self._checkTablePermission(self.tblobj.fullname)
         self.aliases = {self.tblobj.sqlfullname: self.aliasCode(0)}
         self.fieldlist = []
 
@@ -344,6 +390,8 @@ class SqlQueryCompiler(object):
             from_tbl = self.dbmodel.table(joiner['one_relation'])
             from_column = joiner['one_relation'].split('.')[-1]
             manyrelation = not joiner.get('one_one', False)
+        if 'R' in self._permission_enforcement:
+            self._checkTablePermission(target_tbl.fullname)
         #target_sqlschema = target_tbl.sqlschema
         #target_sqltable = target_tbl.sqlname
         ignore_tenant = joiner.get('ignore_tenant')
@@ -673,6 +721,10 @@ class SqlQueryCompiler(object):
                 # leave the col as is, but save the AS name to recover the db column original name from selection result
                 as_ = self.db.adapter.asTranslator(as_.strip())
                 self.cpl.aliasDict[as_] = colbody.strip()
+            # Check column permission: extract column name from last dotted part, strip $ or @
+            colname_for_check = col.split(' AS ')[0].split('.')[-1].lstrip('$@')
+            if colname_for_check and self.isColumnHidden(colname_for_check):
+                col = "NULL AS %s" % as_
             col_dict[as_] = col
         # build the clean and complete sql string for the columns, but still all fields are expressed as $fieldname
         as_col_values = col_dict.values()
