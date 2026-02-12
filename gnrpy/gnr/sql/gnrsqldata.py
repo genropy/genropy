@@ -21,16 +21,12 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 
-import os
-import shutil
 import re
-import pickle
 import itertools
 import json
 import datetime
 from collections import OrderedDict
 from xml.sax import saxutils
-import tempfile
 
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrdecorator import deprecated
@@ -1534,8 +1530,6 @@ class SqlSelection(object):
     data = property(_get_data)
 
     def _get_filtered_data(self):
-        if self._frz_filtered_data == 'frozen':
-            self._freeze_filtered('r')
         return self._frz_filtered_data
 
     def _set_filtered_data(self, value):
@@ -1544,98 +1538,12 @@ class SqlSelection(object):
     _filtered_data = property(_get_filtered_data, _set_filtered_data)
 
     def _get_full_data(self):
-        if self._frz_data == 'frozen':
-            self._freeze_data('r')
         return self._frz_data
 
     def _set_full_data(self, value):
         self._frz_data = value
 
     _data = property(_get_full_data, _set_full_data)
-
-    def _freezeme(self):
-        if self.analyzeBag != None:
-            self.analyzeBag.makePicklable()
-        saved = self.dbtable, self._data, self._filtered_data
-        self.dbtable, self._data, self._filtered_data = None, 'frozen', 'frozen' * bool(self._filtered_data) or None
-        selection_path = '%s.pik' % self.freezepath
-        dumpfile_handle, dumpfile_path = tempfile.mkstemp(prefix='gnrselection',suffix='.pik')
-        with os.fdopen(dumpfile_handle, "wb") as f:
-            pickle.dump(self, f)
-        shutil.move(dumpfile_path, selection_path)
-        self.dbtable, self._data, self._filtered_data = saved
-
-    def _freeze_data(self, readwrite):
-        pik_path = '%s_data.pik' % self.freezepath
-        if readwrite == 'w':
-            dumpfile_handle, dumpfile_path = tempfile.mkstemp(prefix='gnrselection_data',suffix='.pik')
-            with os.fdopen(dumpfile_handle, "wb") as f:
-                pickle.dump(self._data, f)
-            shutil.move(dumpfile_path, pik_path)
-        else:
-            with open(pik_path, 'rb') as f:
-                self._data = pickle.load(f)
-
-    def _freeze_pkeys(self, readwrite):
-        if not self.dbtable.pkey:
-            return
-        pik_path = '%s_pkeys.pik' % self.freezepath
-        if readwrite == 'w':
-            dumpfile_handle, dumpfile_path = tempfile.mkstemp(prefix='gnrselection_data',suffix='.pik')
-            with os.fdopen(dumpfile_handle, "wb") as f:
-                pickle.dump(self.output('pkeylist'), f)
-            shutil.move(dumpfile_path, pik_path)
-        else:
-            with open(pik_path, 'rb') as f:
-                return pickle.load(f)
-
-    def _freeze_filtered(self, readwrite):
-        fpath = '%s_filtered.pik' % self.freezepath
-        if readwrite == 'w' and self._filtered_data is None:
-            if os.path.isfile(fpath):
-                os.remove(fpath)
-        else:
-            if readwrite == 'w':
-                dumpfile_handle, dumpfile_path = tempfile.mkstemp(prefix='gnrselection_filtered',suffix='.pik')
-                with os.fdopen(dumpfile_handle, "wb") as f:
-                    pickle.dump(self._filtered_data, f)
-                shutil.move(dumpfile_path, fpath)
-            else:
-                with open(fpath, 'rb') as f:
-                    self._filtered_data = pickle.load(f)
-
-    def freeze(self, fpath, autocreate=False,freezePkeys=False):
-        """TODO
-
-        :param fpath: the freeze path
-        :param autocreate: boolean. if ``True``, TODO"""
-        self.freezepath = fpath
-        self.isChangedSelection = False
-        self.isChangedData = False
-        self.isChangedFiltered = False
-        if autocreate:
-            dirname = os.path.dirname(fpath)
-            if not os.path.exists(dirname):
-                os.makedirs(dirname)
-        self._freezeme()
-        self._freeze_data('w')
-        self._freeze_filtered('w')
-        if freezePkeys:
-            self._freeze_pkeys('w')
-
-    def freezeUpdate(self):
-        """TODO"""
-        if self.isChangedData:
-            self._freeze_data('w')
-        if self.isChangedFiltered:
-            self._freeze_filtered('w')
-
-        isChangedSelection = self.isChangedSelection
-        self.isChangedSelection = False # clear all changes flag before freeze self
-        self.isChangedData = False
-        self.isChangedFiltered = False
-        if isChangedSelection:
-            self._freezeme()
 
     def getByKey(self, k):
         """TODO

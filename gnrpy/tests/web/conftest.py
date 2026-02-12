@@ -17,12 +17,24 @@ FIXTURE_JSON = os.path.join(
 )
 
 
+def _cleanup_fixture_data(db, data):
+    """Delete all fixture invoices (cascade removes rows)."""
+    inv_tbl = db.table('invc.invoice')
+    for inv in data['invoice']:
+        try:
+            inv_tbl.delete({'id': inv['id']})
+        except Exception:
+            pass
+    db.commit()
+
+
 @pytest.fixture(scope='session')
 def site():
     s = GnrWsgiSite('test_invoice_pg')
     with open(FIXTURE_JSON) as f:
         data = json.load(f)
     db = s.db
+    _cleanup_fixture_data(db, data)
     inv_tbl = db.table('invc.invoice')
     row_tbl = db.table('invc.invoice_row')
     for inv in data['invoice']:
@@ -31,6 +43,4 @@ def site():
         row_tbl.insert(row)
     db.commit()
     yield s
-    for inv in data['invoice']:
-        inv_tbl.delete({'id': inv['id']})
-    db.commit()
+    _cleanup_fixture_data(db, data)

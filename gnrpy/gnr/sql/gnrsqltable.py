@@ -1940,13 +1940,6 @@ class SqlTable(GnrObject):
 
 
 
-    def frozenSelection(self, fpath):
-        """Get a pickled selection and return it
-
-        :param fpath: TODO"""
-        selection = self.db.unfreezeSelection(fpath)
-        assert selection.dbtable == self, 'the frozen selection does not belong to this table'
-        return selection
 
     def checkPkey(self, record):
         """TODO
