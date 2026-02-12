@@ -67,7 +67,7 @@ class TestFreezeUnfreezeBase:
         if not frozen_page.use_freeze_sqlite:
             pytest.skip('sqlite-only test')
         folder = frozen_page.pageLocalDocument(SEL_NAME)
-        assert os.path.exists(os.path.join(folder, 'columns.json'))
+        assert os.path.exists(os.path.join(folder, 'selection_meta.json'))
         assert os.path.exists(os.path.join(folder, 'selection.sqlite'))
 
     def test_freeze_creates_pkeys_file(self, frozen_page):

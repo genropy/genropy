@@ -732,12 +732,23 @@ class GnrWebAppHandler(GnrBaseProxy):
             else:
                 selectionName = selectionName[1:]
         elif selectionName:
-            selection = self.page.unfreezeSelection(tblobj, selectionName)
-            if selection is not None:
-                if sortedBy and  ','.join(selection.sortedBy or []) != sortedBy:
-                    selection.sort(sortedBy)
-                    self.page.freezeSelectionUpdate(selection)
-                debug = 'fromPickle'
+            freezed_sum_columns = sum_columns.split(',') if sum_columns else None
+            freezed_result = self.page.getFromFreezedSelection(
+                dbtable=tblobj, name=selectionName,
+                row_start=row_start, row_count=row_count,
+                order_by=sortedBy, sum_columns=freezed_sum_columns)
+            if freezed_result is not None:
+                selection = freezed_result['selection']
+                resultAttributes.update(
+                    table=table, method='app.getSelection',
+                    selectionName=selectionName,
+                    row_count=row_count,
+                    totalrows=freezed_result['totalrows'])
+                if freezed_result.get('sum_columns'):
+                    for col, val in freezed_result['sum_columns'].items():
+                        resultAttributes['sum_%s' % col] = val
+                    sum_columns = None
+                debug = 'fromFreezed'
                 newSelection = False
         if newSelection:
             debug = 'fromDb'
@@ -808,7 +819,10 @@ class GnrWebAppHandler(GnrBaseProxy):
             resultAttributes.update(table=table, method='app.getSelection', selectionName=selectionName,
                                     row_count=row_count,
                                     totalrows=len(selection))
-        generator = selection.output(mode='generator', offset=row_start, limit=row_count, formats=formats)
+        if newSelection:
+            generator = selection.output(mode='generator', offset=row_start, limit=row_count, formats=formats)
+        else:
+            generator = selection.output(mode='generator', formats=formats)
         _addClassesDict = dict([(k, v['_addClass']) for k, v in list(selection.colAttrs.items()) if '_addClass' in v])
         data = self.gridSelectionData(selection, generator, logicalDeletionField=tblobj.logicalDeletionField,
                                       recordResolver=recordResolver, numberedRows=numberedRows,

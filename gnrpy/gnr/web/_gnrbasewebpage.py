@@ -201,6 +201,16 @@ class GnrBaseWebPage(GnrObject):
     def freezedPkeys(self, dbtable=None, name=None, page_id=None):
         return self.gnrfreezedselections.freezedPkeys(dbtable=dbtable, name=name, page_id=page_id)
 
+    def getFromFreezedSelection(self, dbtable=None, name=None,
+                                row_start=0, row_count=0,
+                                order_by=None, sum_columns=None,
+                                page_id=None):
+        return self.gnrfreezedselections.getFromFreezedSelection(
+            dbtable=dbtable, name=name,
+            row_start=row_start, row_count=row_count,
+            order_by=order_by, sum_columns=sum_columns,
+            page_id=page_id)
+
     @public_method
     def getUserSelection(self, selectionName=None, selectedRowidx=None, filterCb=None, columns=None,
                          sortBy=None, condition=None, table=None, condition_args=None, limit=None):

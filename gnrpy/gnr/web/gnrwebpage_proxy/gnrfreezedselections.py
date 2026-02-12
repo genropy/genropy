@@ -31,7 +31,7 @@ Two storage backends are available:
 - **Pickle** (default): serializes the ``SqlSelection`` object and its data
   into separate ``.pik`` files.
 - **SQLite**: stores each selection as a lightweight SQLite database
-  (via ``GnrSqlDb``) alongside a ``columns.json`` metadata file.
+  (via ``GnrSqlDb``) alongside a ``selection_meta.json`` metadata file.
 
 The active backend is selected through the ``freeze_on_sqlite`` preference
 in the ``sys`` package, or overridden per-page via the ``use_freeze_sqlite``
@@ -65,22 +65,37 @@ Pickle backend contents::
 
 SQLite backend contents::
 
-    columns.json           -- column definitions + query metadata
-    selection.sqlite       -- GnrSqlDb sqlite with one table: sel.selection_data
+    selection_meta.json    -- selection metadata (tablename, colAttrs, querypars, ...)
+    selection.sqlite       -- SQLite database with one table: selection_data
 """
 
+import datetime
+import decimal
 import json
 import os
 import pickle
 import shutil
+import sqlite3
 import tempfile
 
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrlist import GnrNamedList
-from gnr.sql.gnrsql import GnrSqlDb
 from gnr.sql.gnrsqldata import SqlSelection
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
+
+
+class _MetaEncoder(json.JSONEncoder):
+    """JSON encoder for selection metadata that handles date/datetime/Decimal."""
+
+    def default(self, o):
+        if isinstance(o, datetime.datetime):
+            return o.isoformat()
+        if isinstance(o, datetime.date):
+            return o.isoformat()
+        if isinstance(o, decimal.Decimal):
+            return float(o)
+        return super().default(o)
 
 
 class GnrFreezedSelectionsBackend(object):
@@ -308,28 +323,49 @@ class GnrFreezedSelectionsPickle(GnrFreezedSelectionsBackend):
         with open(pkeys_path, 'rb') as f:
             return pickle.load(f)
 
+    def getFromFreezedSelection(self, dbtable=None, name=None,
+                                row_start=0, row_count=0,
+                                order_by=None, sum_columns=None,
+                                page_id=None):
+        selection = self.unfreezeSelection(
+            dbtable=dbtable, name=name, page_id=page_id)
+        if selection is None:
+            return None
+        totalrows = len(selection)
+        if order_by:
+            selection.sort(order_by)
+        result = dict(totalrows=totalrows, selection=selection)
+        if sum_columns:
+            sum_values = selection.sum(sum_columns)
+            result['sum_columns'] = dict(zip(sum_columns, sum_values)) if sum_values else {}
+        return result
+
 
 class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
     """SQLite-based backend.
 
-    Each frozen selection is stored as a ``columns.json`` metadata file
+    Each frozen selection is stored as a ``selection_meta.json`` metadata file
     and a ``selection.sqlite`` database inside a dedicated folder.
 
-    The SQLite database is managed through ``GnrSqlDb`` with a single
-    package ``sel`` containing one table ``selection_data``.  Column types
-    are taken from the selection's ``colAttrs['dataType']``.
+    The SQLite database contains a single table ``selection_data`` with
+    one column per selection field plus ``_rowidx`` as primary key.
+    Column types are derived from ``colAttrs['dataType']``.
+
+    When the client requests a different sort order, a materialised sort
+    index table is created on first access and reused for subsequent
+    page requests with the same order.
     """
 
     def _meta_path(self, folder):
-        """Return the path to ``columns.json`` inside the given folder."""
-        return os.path.join(folder, 'columns.json')
+        """Return the path to ``selection_meta.json`` inside the given folder."""
+        return os.path.join(folder, 'selection_meta.json')
 
     def _db_path(self, folder):
         """Return the path to ``selection.sqlite`` inside the given folder."""
         return os.path.join(folder, 'selection.sqlite')
 
     def _save_meta(self, folder, selection):
-        """Serialize selection metadata to ``columns.json``.
+        """Serialize selection metadata to ``selection_meta.json``.
 
         Saved fields: ``tablename``, ``querypars``, ``colAttrs``,
         ``allColumns``, ``sortedBy``, ``key``.
@@ -344,13 +380,14 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
             colAttrs={k: dict(v) for k, v in selection.colAttrs.items()},
             allColumns=selection.allColumns,
             sortedBy=selection.sortedBy,
-            key=selection.key
+            key=selection.key,
+            totalrows=len(selection.data)
         )
         with open(self._meta_path(folder), 'w') as f:
-            json.dump(meta, f)
+            json.dump(meta, f, cls=_MetaEncoder)
 
     def _load_meta(self, folder):
-        """Deserialize selection metadata from ``columns.json``.
+        """Deserialize selection metadata from ``selection_meta.json``.
 
         Args:
             folder: Folder containing the metadata file.
@@ -362,74 +399,124 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
         with open(self._meta_path(folder)) as f:
             return json.load(f)
 
-    def _sqlite_db(self, folder, meta):
-        """Create a ``GnrSqlDb`` instance with the model matching the selection columns.
+    def _sqlite_col_name(self, col_name):
+        """Return the SQLite column name for a selection column.
 
-        Builds the in-memory model (package ``sel``, table ``selection_data``)
-        with one column per entry in ``meta['allColumns']``, plus the internal
-        ``_rowidx`` column used as primary key.  Column types are read from
-        ``colAttrs[col]['dataType']`` (set by ``_prepColAttrs`` during query).
-
-        Args:
-            folder: Folder containing ``selection.sqlite``.
-            meta: Metadata dict as returned by ``_load_meta``.
-
-        Returns:
-            A configured and started ``GnrSqlDb`` instance.
+        Maps ``'pkey'`` to ``'_pkey'`` to avoid clashing with SQLite
+        internals; all other names pass through unchanged.
         """
-        db_path = self._db_path(folder)
-        db = GnrSqlDb(implementation='sqlite', dbname=db_path)
-        pkg = db.packageSrc('sel')
-        pkg.attributes.update(name_short='sel', name_long='sel',
-                              name_full='sel')
-        tbl = pkg.table('selection_data', pkey='_rowidx',
-                        name_short='selection_data',
-                        name_long='Selection Data')
-        tbl.column('_rowidx', 'L')
-        for col_name in meta['allColumns']:
-            sqlite_col = '_pkey' if col_name == 'pkey' else col_name
-            col_attrs = meta['colAttrs'].get(col_name, {})
-            dtype = col_attrs.get('dataType', 'T')
-            tbl.column(sqlite_col, dtype)
-        db.startup()
-        return db
+        return '_pkey' if col_name == 'pkey' else col_name
 
-    def _reset_sqlite(self, folder, meta):
-        """Delete any existing SQLite file and create a fresh empty database.
+    def _sqlite_col_type(self, dtype):
+        """Map a Genropy dtype to a SQLite column type string."""
+        if dtype in ('I', 'L'):
+            return 'INTEGER'
+        if dtype in ('N', 'R'):
+            return 'REAL'
+        return 'TEXT'
 
-        Args:
-            folder: Folder containing (or that will contain) ``selection.sqlite``.
-            meta: Metadata dict with column definitions.
+    def _parse_order_by(self, order_by):
+        """Parse a Genropy order_by string into (sqlite_col, direction) pairs.
+
+        Accepts formats like ``'col_name:a'``, ``'col_name:d'``,
+        ``'col_name'`` (defaults to ASC), or comma-separated combinations.
 
         Returns:
-            A ``GnrSqlDb`` instance with the physical table already created.
+            A list of ``(sqlite_col_name, 'ASC'|'DESC')`` tuples.
+        """
+        result = []
+        for part in order_by.split(','):
+            part = part.strip()
+            if ':' in part:
+                col, direction = part.rsplit(':', 1)
+                direction = 'DESC' if direction.lower().startswith('d') else 'ASC'
+            else:
+                col = part
+                direction = 'ASC'
+            result.append((self._sqlite_col_name(col), direction))
+        return result
+
+    def _sort_table_name(self, order_by):
+        """Derive a deterministic table name from an order_by string.
+
+        Example: ``'_product_id_description:a'`` → ``'sort___product_id_description_a'``
+        """
+        safe = order_by.replace(',', '_').replace(':', '_').replace(' ', '')
+        return 'sort_%s' % safe
+
+    def _ensure_sort_table(self, conn, order_by):
+        """Create the sort index table for the given order_by if it doesn't exist.
+
+        The table has two INTEGER columns: ``_sortidx`` (PRIMARY KEY) and
+        ``_rowidx`` (foreign key into ``selection_data``).  It is populated
+        using ``ROW_NUMBER() OVER (ORDER BY ...)`` so that paginating by
+        ``_sortidx`` returns rows in the desired order.
+
+        Returns:
+            The table name (to be used in subsequent queries).
+        """
+        table_name = self._sort_table_name(order_by)
+        exists = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+            (table_name,)).fetchone()
+        if exists:
+            return table_name
+        parsed = self._parse_order_by(order_by)
+        order_clause = ', '.join('%s %s' % (col, d) for col, d in parsed)
+        conn.execute(
+            'CREATE TABLE %s AS '
+            'SELECT (ROW_NUMBER() OVER (ORDER BY %s)) - 1 AS _sortidx, '
+            '_rowidx FROM selection_data' % (table_name, order_clause))
+        conn.execute(
+            'CREATE UNIQUE INDEX idx_%s ON %s (_sortidx)' % (
+                table_name, table_name))
+        conn.commit()
+        return table_name
+
+    def _prepare_rows(self, all_columns, data):
+        """Convert selection data rows to flat lists for SQLite insert."""
+        rows = []
+        for i, row in enumerate(data):
+            values = [i]
+            for col in all_columns:
+                v = row[col]
+                if isinstance(v, decimal.Decimal):
+                    v = float(v)
+                values.append(v)
+            rows.append(values)
+        return rows
+
+    def _create_and_populate(self, folder, meta, selection):
+        """Create a fresh SQLite database and bulk-insert all rows.
+
+        Uses ``sqlite3`` directly with ``executemany`` for maximum speed.
+
+        Args:
+            folder: Target folder path.
+            meta: Metadata dict with column definitions.
+            selection: The ``SqlSelection`` whose data to persist.
         """
         db_path = self._db_path(folder)
         if os.path.exists(db_path):
             os.remove(db_path)
-        db = self._sqlite_db(folder, meta)
-        db.checkDb(applyChanges=True)
-        return db
-
-    def _populate_sqlite(self, db, selection):
-        """Insert all rows from a selection into the SQLite database.
-
-        Each row is stored with an additional ``_rowidx`` field preserving
-        the original row order.
-
-        Args:
-            db: An open ``GnrSqlDb`` instance (from ``_reset_sqlite``).
-            selection: The ``SqlSelection`` whose data to persist.
-        """
-        tbl = db.table('sel.selection_data')
-        for i, row in enumerate(selection.data):
-            record = dict(row)
-            if 'pkey' in record:
-                record['_pkey'] = record.pop('pkey')
-            record['_rowidx'] = i
-            tbl.insert(record)
-        db.commit()
-        db.closeConnection()
+        all_columns = meta['allColumns']
+        sqlite_cols = [self._sqlite_col_name(c) for c in all_columns]
+        col_defs = ['_rowidx INTEGER PRIMARY KEY']
+        for col_name in all_columns:
+            sqlite_col = self._sqlite_col_name(col_name)
+            col_attrs = meta['colAttrs'].get(col_name, {})
+            dtype = col_attrs.get('dataType', 'T')
+            col_defs.append('%s %s' % (sqlite_col, self._sqlite_col_type(dtype)))
+        create_sql = 'CREATE TABLE selection_data (%s)' % ', '.join(col_defs)
+        insert_sql = 'INSERT INTO selection_data (_rowidx, %s) VALUES (%s)' % (
+            ', '.join(sqlite_cols),
+            ', '.join(['?'] * (len(sqlite_cols) + 1)))
+        rows = self._prepare_rows(all_columns, selection.data)
+        conn = sqlite3.connect(db_path)
+        conn.execute(create_sql)
+        conn.executemany(insert_sql, rows)
+        conn.commit()
+        conn.close()
 
     def freezeSelection(self, selection, name, **kwargs):
         """Persist a selection to a new SQLite database.
@@ -447,10 +534,10 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
             The folder path of the frozen selection.
         """
         folder = self.selection_folder(name)
+
         self._save_meta(folder, selection)
         meta = self._load_meta(folder)
-        db = self._reset_sqlite(folder, meta)
-        self._populate_sqlite(db, selection)
+        self._create_and_populate(folder, meta, selection)
         return folder
 
     def freezeSelectionUpdate(self, selection):
@@ -467,18 +554,17 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
         folder = os.path.dirname(selection.freezepath)
         if not os.path.isdir(folder):
             return
+
         self._save_meta(folder, selection)
         meta = self._load_meta(folder)
-        db = self._reset_sqlite(folder, meta)
-        self._populate_sqlite(db, selection)
+        self._create_and_populate(folder, meta, selection)
 
     def unfreezeSelection(self, dbtable=None, name=None, page_id=None):
         """Restore a previously frozen selection from SQLite.
 
-        Reads the metadata, fetches all rows ordered by ``_rowidx``,
-        and reconstructs a ``SqlSelection`` bound to the **original** table.
-        The returned selection is identical to what the pickle backend
-        would produce: same dbtable, same index, same colAttrs.
+        Uses ``sqlite3`` directly for maximum speed.  Reads the metadata,
+        fetches all rows ordered by ``_rowidx``, and reconstructs a
+        ``SqlSelection`` bound to the **original** table.
 
         Args:
             dbtable: Expected table (string or table object).
@@ -506,29 +592,26 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
         db_path = self._db_path(folder)
         if not os.path.exists(db_path):
             return None
-        db = self._sqlite_db(folder, meta)
-        sel_tbl = db.table('sel.selection_data')
-        sqlite_columns = ['$_pkey' if c == 'pkey' else '$%s' % c
-                          for c in meta['allColumns']]
-        columns = ','.join(sqlite_columns)
-        rows = sel_tbl.query(
-            columns=columns, order_by='$_rowidx',
-            addPkeyColumn=False
-        ).fetch()
-        db.closeConnection()
-        original_dbtable = dbtable or self.proxy.db.table(meta['tablename'])
+
         all_columns = meta['allColumns']
+        sqlite_cols = [self._sqlite_col_name(c) for c in all_columns]
+        select_sql = 'SELECT %s FROM selection_data ORDER BY _rowidx' % (
+            ', '.join(sqlite_cols))
+        conn = sqlite3.connect(db_path)
+        cursor = conn.execute(select_sql)
+        rows = cursor.fetchall()
+        conn.close()
+        original_dbtable = dbtable or self.proxy.db.table(meta['tablename'])
         index = {col: i for i, col in enumerate(all_columns)}
-        data = []
-        for row in rows:
-            values = [row['_pkey'] if col == 'pkey' else row[col]
-                      for col in all_columns]
-            data.append(GnrNamedList(index, values))
+        data = [GnrNamedList(index, list(row)) for row in rows]
+        sortedBy = meta.get('sortedBy')
+        if isinstance(sortedBy, list):
+            sortedBy = ','.join(sortedBy)
         selection = SqlSelection(original_dbtable, data,
                                  index=index,
                                  colAttrs=meta['colAttrs'],
                                  querypars=meta.get('querypars'),
-                                 sortedBy=meta.get('sortedBy'))
+                                 sortedBy=sortedBy)
         selection.freezepath = os.path.join(folder, 'selection')
         if meta.get('key'):
             selection.setKey(meta['key'])
@@ -540,8 +623,7 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
     def freezedPkeys(self, dbtable=None, name=None, page_id=None):
         """Return the list of pkeys from a frozen selection.
 
-        Opens the SQLite database and queries only the ``pkey``
-        column, avoiding full data deserialization.
+        Uses ``sqlite3`` directly, querying only the ``_pkey`` column.
 
         Args:
             dbtable: Expected table (string or table object).
@@ -555,18 +637,120 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
         folder = self.proxy.pageLocalDocument(name, page_id=page_id)
         if not os.path.isdir(folder):
             return []
-        meta_path = self._meta_path(folder)
-        if not os.path.exists(meta_path):
-            return []
-        meta = self._load_meta(folder)
         db_path = self._db_path(folder)
         if not os.path.exists(db_path):
             return []
-        db = self._sqlite_db(folder, meta)
-        tbl = db.table('sel.selection_data')
-        rows = tbl.query(columns='$_pkey').fetch()
-        db.closeConnection()
-        return [r['_pkey'] for r in rows]
+
+        conn = sqlite3.connect(db_path)
+        rows = conn.execute('SELECT _pkey FROM selection_data').fetchall()
+        conn.close()
+        return [r[0] for r in rows]
+
+    def _needs_sort_table(self, order_by, meta):
+        """Check if order_by differs from the original sortedBy."""
+        if not order_by:
+            return False
+        original = meta.get('sortedBy', '')
+        if isinstance(original, list):
+            original = ','.join(original)
+        return order_by != original
+
+    def getFromFreezedSelection(self, dbtable=None, name=None,
+                                row_start=0, row_count=0,
+                                order_by=None, sum_columns=None,
+                                page_id=None):
+        """Return a page of rows from a frozen SQLite selection.
+
+        Serves paginated data directly from SQLite using LIMIT/OFFSET-style
+        slicing on ``_rowidx`` (original order) or on a materialised sort
+        index table (when a different ``order_by`` is requested).
+
+        Args:
+            dbtable: Expected table (string or table object).
+            name: Logical selection name.
+            row_start: 0-based index of the first row to return.
+            row_count: Number of rows to return (0 = all).
+            order_by: Genropy sort string (e.g. ``'col:a'``).
+            sum_columns: List of column names to SUM over the full dataset.
+            page_id: Optional page_id override.
+
+        Returns:
+            A dict with ``totalrows``, ``selection`` (a ``SqlSelection``
+            containing only the requested page) and optionally
+            ``sum_columns``, or ``None`` if the frozen selection does not
+            exist.
+        """
+        assert name, 'name is mandatory'
+        if isinstance(dbtable, str):
+            dbtable = self.proxy.db.table(dbtable)
+        folder = self.proxy.pageLocalDocument(name, page_id=page_id)
+        if not os.path.isdir(folder):
+            return None
+        meta_path = self._meta_path(folder)
+        if not os.path.exists(meta_path):
+            return None
+        meta = self._load_meta(folder)
+        db_path = self._db_path(folder)
+        if not os.path.exists(db_path):
+            return None
+        all_columns = meta['allColumns']
+        sqlite_cols = [self._sqlite_col_name(c) for c in all_columns]
+        totalrows = meta.get('totalrows', 0)
+        conn = sqlite3.connect(db_path)
+        use_sort_table = self._needs_sort_table(order_by, meta)
+        if use_sort_table:
+            sort_table = self._ensure_sort_table(conn, order_by)
+        data_cols = ', '.join('d.%s' % c for c in sqlite_cols)
+        if use_sort_table:
+            if row_count:
+                select_sql = (
+                    'SELECT %s FROM selection_data d '
+                    'JOIN %s s ON d._rowidx = s._rowidx '
+                    'WHERE s._sortidx >= %d AND s._sortidx < %d '
+                    'ORDER BY s._sortidx'
+                ) % (data_cols, sort_table, row_start, row_start + row_count)
+            else:
+                select_sql = (
+                    'SELECT %s FROM selection_data d '
+                    'JOIN %s s ON d._rowidx = s._rowidx '
+                    'ORDER BY s._sortidx'
+                ) % (data_cols, sort_table)
+        else:
+            if row_count:
+                select_sql = (
+                    'SELECT %s FROM selection_data d '
+                    'WHERE d._rowidx >= %d AND d._rowidx < %d '
+                    'ORDER BY d._rowidx'
+                ) % (data_cols, row_start, row_start + row_count)
+            else:
+                select_sql = (
+                    'SELECT %s FROM selection_data d ORDER BY d._rowidx'
+                ) % (data_cols,)
+        rows = conn.execute(select_sql).fetchall()
+        result = dict(totalrows=totalrows)
+        if sum_columns:
+            sum_exprs = ', '.join(
+                'SUM(%s)' % self._sqlite_col_name(c) for c in sum_columns)
+            sum_row = conn.execute(
+                'SELECT %s FROM selection_data' % sum_exprs).fetchone()
+            result['sum_columns'] = dict(zip(sum_columns, sum_row))
+        conn.close()
+        original_dbtable = dbtable or self.proxy.db.table(meta['tablename'])
+        index = {col: i for i, col in enumerate(all_columns)}
+        data = [GnrNamedList(index, list(row)) for row in rows]
+        sortedBy = order_by or meta.get('sortedBy')
+        if isinstance(sortedBy, list):
+            sortedBy = ','.join(sortedBy)
+        selection = SqlSelection(original_dbtable, data,
+                                 index=index,
+                                 colAttrs=meta['colAttrs'],
+                                 querypars=meta.get('querypars'),
+                                 sortedBy=sortedBy)
+        selection.freezepath = os.path.join(folder, 'selection')
+        if meta.get('key'):
+            selection.setKey(meta['key'])
+        result['selection'] = selection
+        return result
 
 
 class GnrFreezedSelections(GnrBaseProxy):
@@ -614,6 +798,17 @@ class GnrFreezedSelections(GnrBaseProxy):
         """Return pkeys from a frozen selection. Delegates to the active backend."""
         return self._backend.freezedPkeys(
             dbtable=dbtable, name=name, page_id=page_id)
+
+    def getFromFreezedSelection(self, dbtable=None, name=None,
+                                row_start=0, row_count=0,
+                                order_by=None, sum_columns=None,
+                                page_id=None):
+        """Return a page of rows from a frozen selection. Delegates to the active backend."""
+        return self._backend.getFromFreezedSelection(
+            dbtable=dbtable, name=name,
+            row_start=row_start, row_count=row_count,
+            order_by=order_by, sum_columns=sum_columns,
+            page_id=page_id)
 
     @public_method
     def getUserSelection(self, selectionName=None, selectedRowidx=None,

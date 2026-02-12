@@ -1194,7 +1194,7 @@ class TableHandlerView(BaseComponent):
             condPars = condition[1] or {}
             condition = condition[0]
         gridattr = frame.grid.attributes
-        rowsPerPage = self._th_hook('rowsPerPage',dflt=25,mangler=frame)()
+        rowsPerPage = self._th_hook('rowsPerPage',dflt=50,mangler=frame)()
         gridattr.update(rowsPerPage=rowsPerPage,
                         dropTypes=None,dropTarget=True,
                         
@@ -1214,7 +1214,7 @@ class TableHandlerView(BaseComponent):
         gridattr.setdefault('userSets','.sets')
 
         if virtualStore:
-            chunkSize= rowsPerPage * 4
+            chunkSize= rowsPerPage * 8
             selectionName = '*%s' %th_root
         else:
             chunkSize = None
