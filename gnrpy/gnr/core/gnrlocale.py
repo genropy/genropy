@@ -302,7 +302,7 @@ def defaultLocale():
     if sys.platform == 'win32':
         windll = ctypes.windll.kernel32
         sys_locale = locale.windows_locale[windll.GetUserDefaultUILanguage()]
-    return os.environ.get('GNR_LOCALE', sys_locale)
+    return os.environ.get('GNR_LOCALE', sys_locale) or "en_GB"
 
 def currentLocale(locale=None):
     r = (locale or defaultLocale()).replace('-', '_')
