@@ -14,19 +14,13 @@ into a dedicated proxy and introducing SQLite backend.
 """
 import os
 import shutil
-import pytest
 
-from gnr.web.gnrwsgisite import GnrWsgiSite
+import pytest
 
 COLUMNS = '$id,$inv_number,$date,$total,$gross_total,$customer_id'
 TABLE = 'invc.invoice'
 SEL_NAME = 'test_sel'
 SEL_LIMIT = 20
-
-
-@pytest.fixture(scope='module')
-def site():
-    return GnrWsgiSite('test_invoice_pg')
 
 
 @pytest.fixture

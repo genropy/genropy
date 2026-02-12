@@ -6,7 +6,7 @@ class Table(object):
         tbl = pkg.table('invoice_row', pkey='id', name_long='!!Invoice row', name_plural='!!Invoice rows')
         self.sysFields(tbl,counter='invoice_id')
         tbl.column('invoice_id',size='22' ,group='_',
-                    name_long='!!Invoice').relation('invoice.id',relation_name='rows',mode='foreignkey',onDelete='cascade')
+                    name_long='!!Invoice').relation('invoice.id',relation_name='rows',mode='foreignkey',onDelete='cascade',onDelete_sql='cascade')
         tbl.column('product_id',size='22' ,group='_',name_long='!!Product').relation('product.id',relation_name='invoice_rows',mode='foreignkey',onDelete='raise')
         tbl.column('quantity',dtype='I',name_long=u'!![it]Quantity',name_short='Q.')
         tbl.column('unit_price',dtype='money',name_long='!!Unit price',name_short='U.Pr.')
