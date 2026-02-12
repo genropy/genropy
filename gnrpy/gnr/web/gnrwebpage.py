@@ -58,6 +58,7 @@ from gnr.web.gnrwebpage_proxy.gnrpdb import GnrPdbClient
 from gnr.web.gnrwebpage_proxy.utils import GnrWebUtils
 from gnr.web.gnrwebpage_proxy.pluginhandler import GnrWebPluginHandler
 from gnr.web.gnrwebpage_proxy.jstools import GnrWebJSTools
+from gnr.web.gnrwebpage_proxy.gnrfreezedselections import GnrFreezedSelections
 from gnr.web.gnrwebstruct import GnrGridStruct
 
  # DO NOT REMOVE, old code relies on BaseComponent being defined in this file
@@ -1548,6 +1549,12 @@ class GnrWebPage(GnrBaseWebPage):
         if not hasattr(self, '_app'):
             self._app = GnrWebAppHandler(self)
         return self._app
+
+    @property
+    def gnrfreezedselections(self):
+        if not hasattr(self, '_gnrfreezedselections'):
+            self._gnrfreezedselections = GnrFreezedSelections(self)
+        return self._gnrfreezedselections
         
     @property
     def menu(self):

@@ -572,76 +572,19 @@ class GnrWebAppHandler(GnrBaseProxy):
         return result
 
     @public_method
-    def freezedSelectionPkeys(self,table=None,selectionName=None,caption_field=None):
-        selection = self.page.unfreezeSelection(dbtable=table, name=selectionName)
-        l = selection.output('dictlist')
-        return [dict(pkey=r['pkey'],caption=r['caption_field']) if caption_field else r['pkey'] for r in l]
+    def freezedSelectionPkeys(self, table=None, selectionName=None, caption_field=None):
+        return self.page.gnrfreezedselections.freezedSelectionPkeys(
+            table=table, selectionName=selectionName, caption_field=caption_field)
 
     @public_method
-    def sumOnFreezedSelection(self,selectionName=None,where=None,table=None,sum_column=None,**kwargs):
-        """TODO
-        
-        ``sumOnFreezedSelection()`` method is decorated with the :meth:`public_method
-        <gnr.core.gnrdecorator.public_method>` decorator
-        
-        :param changelist: TODO
-        :param selectionName: TODO
-        :param where: the sql "WHERE" clause. For more information check the :ref:`sql_where` section
-        :param table: the :ref:`database table <table>` name on which the query will be executed,
-                      in the form ``packageName.tableName`` (packageName is the name of the
-                      :ref:`package <packages>` to which the table belongs to)"""
-        selection = self.page.unfreezeSelection(dbtable=table, name=selectionName)
-        if selection is None:
-            return 0
-        return selection.sum(sum_column)
-    
+    def sumOnFreezedSelection(self, selectionName=None, where=None, table=None, sum_column=None, **kwargs):
+        return self.page.gnrfreezedselections.sumOnFreezedSelection(
+            selectionName=selectionName, where=where, table=table, sum_column=sum_column, **kwargs)
+
     @public_method
-    def checkFreezedSelection(self,changelist=None,selectionName=None,where=None,table=None,**kwargs):
-        """TODO
-        
-        ``checkFreezedSelection()`` method is decorated with the :meth:`public_method
-        <gnr.core.gnrdecorator.public_method>` decorator
-        
-        :param changelist: TODO
-        :param selectionName: TODO
-        :param where: the sql "WHERE" clause. For more information check the :ref:`sql_where` section
-        :param table: the :ref:`database table <table>` name on which the query will be executed,
-                      in the form ``packageName.tableName`` (packageName is the name of the
-                      :ref:`package <packages>` to which the table belongs to)"""
-        selection = self.page.unfreezeSelection(dbtable=table, name=selectionName)
-        if selection is None:
-            return False #no update required
-        eventdict = {}
-        for change in changelist:
-            eventdict.setdefault(change['dbevent'],[]).append(change['pkey'])
-        deleted = eventdict.get('D',[])
-        if deleted:
-            if bool([r for r in selection.data if r['pkey'] in deleted]):
-                return True #update required delete in selection
-
-        updated = eventdict.get('U',[])
-        if updated:
-            if bool([r for r in selection.data if r['pkey'] in updated]):
-                return True #update required update in selection
-
-        inserted = eventdict.get('I',[])
-        kwargs.pop('where_attr',None)
-        tblobj = self.db.table(table)
-        wherelist = ['( $%s IN :_pkeys )' %tblobj.pkey]
-        if isinstance(where,Bag):
-            where, kwargs = self._decodeWhereBag(tblobj, where, kwargs)
-        if where:
-            wherelist.append(' ( %s ) ' %where)
-        condition = kwargs.pop('condition',None)
-        if condition:
-            wherelist.append(condition)
-        where = ' AND '.join(wherelist)
-        kwargs.pop('columns',None)
-        kwargs['limit'] = 1
-        if bool(tblobj.query(where=where,_pkeys=inserted+updated,**kwargs).fetch()):
-            return True #update required: insert or update not in selection but satisfying query
-
-        return False
+    def checkFreezedSelection(self, changelist=None, selectionName=None, where=None, table=None, **kwargs):
+        return self.page.gnrfreezedselections.checkFreezedSelection(
+            changelist=changelist, selectionName=selectionName, where=where, table=table, **kwargs)
 
 
     @public_method
