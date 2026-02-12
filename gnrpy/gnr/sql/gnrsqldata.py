@@ -1597,7 +1597,7 @@ class SqlSelection(object):
         else:
             if readwrite == 'w':
                 dumpfile_handle, dumpfile_path = tempfile.mkstemp(prefix='gnrselection_filtered',suffix='.pik')
-                with os.fdopen(dumpfile_handle, "w") as f:
+                with os.fdopen(dumpfile_handle, "wb") as f:
                     pickle.dump(self._filtered_data, f)
                 shutil.move(dumpfile_path, fpath)
             else:
