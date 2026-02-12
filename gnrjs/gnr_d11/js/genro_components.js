@@ -7396,12 +7396,20 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
             return;
         }
         var isExternalDict = {};
+        console.log('[DGPACI DEBUG] onExternalChange - changelist:', changelist);
+        console.log('[DGPACI DEBUG] onExternalChange - table:', this.storeNode.attr.table);
         changelist.forEach(function(change){
+            console.log('[DGPACI DEBUG] onExternalChange - change:', change, 'pkey:', change.pkey, 'type:', typeof change.pkey);
+            // WORKAROUND: Skip broadcasts with invalid pkey (boolean/undefined/null)
+            if (!change.pkey || typeof change.pkey !== 'string') {
+                console.warn('[DGPACI WORKAROUND] Skipping broadcast with invalid pkey:', change.pkey, 'type:', typeof change.pkey);
+                return;
+            }
             if (change['dbevent']=='D'){
                 if (dojo.indexOf(delKeys,change.pkey)<0){
                      delKeys.push(change.pkey);
                 }
-               
+
             }else{
                 if (dojo.indexOf(insOrUpdKeys,change.pkey)<0){
                     insOrUpdKeys.push(change.pkey);
@@ -7417,11 +7425,13 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
                 }
             }
         });
+        console.log('[DGPACI DEBUG] onExternalChange - insOrUpdKeys after loop:', insOrUpdKeys);
 
         if (insOrUpdKeys.length>0) {
             var original_condition =  this.storeNode.getAttributeFromDatasource('condition');
             var newcondition = ' ( $pkey IN :store_chpkeys ) ';
             var chpkeys = insOrUpdKeys;
+            console.log('[DGPACI DEBUG] onExternalChange - about to runQuery with store_chpkeys:', chpkeys);
             var condition = original_condition?original_condition+' AND '+newcondition:newcondition;
             if(this.freezedStore()){
                 return;
