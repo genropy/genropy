@@ -2604,8 +2604,13 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
             var v = rowdata[this.field_getter];
             var seed = this.grid.currentFilterValue;
             if(seed && typeof(v) == 'string'){
-                var re = new RegExp('(' + seed.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')','ig');
-                v = v.replace(re, "<span class='search_highlight'>$1</span>");
+                var tokens = seed.split(/\s+/);
+                for(var i=0; i<tokens.length; i++){
+                    if(tokens[i]){
+                        var re = new RegExp('(' + tokens[i].replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')','ig');
+                        v = v.replace(re, "<span class='search_highlight'>$1</span>");
+                    }
+                }
             }
             return v;
         }
