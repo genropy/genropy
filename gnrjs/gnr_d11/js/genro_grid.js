@@ -1011,6 +1011,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             var snode = genro.nodeById(sourceNode.attr.store+'_store');
             var isVirtual = snode && snode.attr.selectionName && snode.attr.row_count;
             var sqliteBackend = genro.appPreference('sys.freeze_on_sqlite');
+            this.currentFilterValue = v || null;
             if(isVirtual && sqliteBackend){
                 if(v || snode.attr.searchOn_seed){
                     snode.attr.searchOn_seed = v || null;
@@ -2600,7 +2601,13 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
             }
             return dataTemplate(this.rowTemplate,new gnr.GnrBag(rowdata),null,null,{formats:formats});
         }else{
-            return rowdata[this.field_getter]; 
+            var v = rowdata[this.field_getter];
+            var seed = this.grid.currentFilterValue;
+            if(seed && typeof(v) == 'string'){
+                var re = new RegExp('(' + seed.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')','ig');
+                v = v.replace(re, "<span class='search_highlight'>$1</span>");
+            }
+            return v;
         }
         //return this._customGetter ? this._customGetter.call(this, rowdata,inRowIndex) : ;
     },
