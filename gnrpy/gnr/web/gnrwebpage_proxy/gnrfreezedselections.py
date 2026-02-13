@@ -490,6 +490,9 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
         """Create a fresh SQLite database and bulk-insert all rows.
 
         Uses ``sqlite3`` directly with ``executemany`` for maximum speed.
+        Writes to a temporary file first and then atomically replaces
+        the target path via ``os.replace`` to avoid race conditions with
+        concurrent readers (scroll, sort).
 
         Args:
             folder: Target folder path.
@@ -497,8 +500,6 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
             selection: The ``SqlSelection`` whose data to persist.
         """
         db_path = self._db_path(folder)
-        if os.path.exists(db_path):
-            os.remove(db_path)
         all_columns = meta['allColumns']
         sqlite_cols = [self._sqlite_col_name(c) for c in all_columns]
         col_defs = ['_rowidx INTEGER PRIMARY KEY']
@@ -512,11 +513,19 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
             ', '.join(sqlite_cols),
             ', '.join(['?'] * (len(sqlite_cols) + 1)))
         rows = self._prepare_rows(all_columns, selection.data)
-        conn = sqlite3.connect(db_path)
-        conn.execute(create_sql)
-        conn.executemany(insert_sql, rows)
-        conn.commit()
-        conn.close()
+        fd, tmp_path = tempfile.mkstemp(dir=folder, suffix='.sqlite.tmp')
+        os.close(fd)
+        try:
+            conn = sqlite3.connect(tmp_path)
+            conn.execute(create_sql)
+            conn.executemany(insert_sql, rows)
+            conn.commit()
+            conn.close()
+            os.replace(tmp_path, db_path)
+        except BaseException:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
 
     def freezeSelection(self, selection, name, **kwargs):
         """Persist a selection to a new SQLite database.
