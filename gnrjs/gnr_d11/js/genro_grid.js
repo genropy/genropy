@@ -994,16 +994,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             };
             dojo.connect(widget,'onSetStructpath',widget,cb);
             dojo.connect(widget,'newDataStore',function(){
-                var snode = genro.nodeById(sourceNode.attr.store+'_store');
-                var isVirtualSqlite = snode && snode.attr.row_count
-                                      && genro.appPreference('sys.freeze_on_sqlite');
-                if(isVirtualSqlite){
-                    snode.attr.searchOn_mode = null;
-                    snode.attr.searchOn_seed = null;
-                    snode.attr.searchOn_field = null;
-                }
-                searchBoxNode.setRelativeData('.currentValue','');
-                searchBoxNode.setRelativeData('.value','');
+                widget.currentFilterValue = null;
             });
             setTimeout(function(){cb.call(widget);},1);
         }
@@ -1027,6 +1018,16 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         });
         sourceNode.registerSubscription(searchBoxCode+'_stopSearch',widget,function(kw){
             kw.finalize();
+            var snode = genro.nodeById(sourceNode.attr.store+'_store');
+            var isVirtualSqlite = snode && snode.attr.row_count
+                                  && genro.appPreference('sys.freeze_on_sqlite');
+            if(isVirtualSqlite && snode.attr.searchOn_mode){
+                snode.attr.searchOn_mode = null;
+                snode.attr.searchOn_seed = null;
+                snode.attr.searchOn_field = null;
+                snode.store.loadData();
+            }
+            this.currentFilterValue = null;
         });
         sourceNode.subscribe('command',function(){
             widget[arguments[0]](arguments.slice(1));
