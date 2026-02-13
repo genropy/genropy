@@ -1013,10 +1013,10 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             var sqliteBackend = genro.appPreference('sys.freeze_on_sqlite');
             this.currentFilterValue = v || null;
             if(isVirtual && sqliteBackend){
-                if(v || snode.attr.searchOn_seed){
+                if(v || snode.attr.searchOn_seed || snode.attr.searchOn_mode){
                     snode.attr.searchOn_seed = v || null;
                     snode.attr.searchOn_field = v ? (field || null) : null;
-                    snode.attr.searchOn_mode = true;
+                    snode.attr.searchOn_mode = v ? true : null;
                     snode.store.loadData();
                 }
             }else{
