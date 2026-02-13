@@ -437,6 +437,51 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
             return 'REAL'
         return 'TEXT'
 
+    @staticmethod
+    def _make_converter(dtype):
+        """Return a function that converts a SQLite value back to the original Python type."""
+        if dtype == 'B':
+            return lambda v: bool(v) if v is not None else None
+        if dtype == 'N':
+            return lambda v: decimal.Decimal(str(v)) if v is not None else None
+        if dtype == 'D':
+            return lambda v: (datetime.date.fromisoformat(v)
+                              if v is not None else None)
+        if dtype in ('DH', 'DHZ'):
+            return lambda v: (datetime.datetime.fromisoformat(v)
+                              if v is not None else None)
+        return None
+
+    def _build_converters(self, all_columns, col_attrs):
+        """Build a list of converter functions (one per column) from colAttrs.
+
+        Columns that need no conversion get None.
+        Returns None if no column needs conversion (fast path).
+        """
+        converters = []
+        any_needed = False
+        for col in all_columns:
+            attrs = col_attrs.get(col, {})
+            dtype = attrs.get('dataType', 'T')
+            conv = self._make_converter(dtype)
+            converters.append(conv)
+            if conv is not None:
+                any_needed = True
+        return converters if any_needed else None
+
+    def _restore_rows(self, rows, converters):
+        """Apply type converters to raw SQLite tuples, returning lists."""
+        if converters is None:
+            return [list(row) for row in rows]
+        result = []
+        for row in rows:
+            values = list(row)
+            for i, conv in enumerate(converters):
+                if conv is not None:
+                    values[i] = conv(values[i])
+            result.append(values)
+        return result
+
     def _parse_order_by(self, order_by):
         """Parse a Genropy order_by string into (sqlite_col, direction) pairs.
 
@@ -496,14 +541,27 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
         return table_name
 
     def _prepare_rows(self, all_columns, data):
-        """Convert selection data rows to flat lists for SQLite insert."""
+        """Convert selection data rows to flat lists for SQLite insert.
+
+        Ensures Python types are stored in a format that ``_restore_rows``
+        can reliably convert back:
+        - ``Decimal`` → ``float`` (stored as REAL, restored to Decimal)
+        - ``bool`` → ``int`` (stored as INTEGER, restored to bool)
+        - ``date``/``datetime`` → ``str`` via isoformat (stored as TEXT)
+        """
         rows = []
         for i, row in enumerate(data):
             values = [i]
             for col in all_columns:
                 v = row[col]
-                if isinstance(v, decimal.Decimal):
+                if isinstance(v, bool):
+                    v = int(v)
+                elif isinstance(v, decimal.Decimal):
                     v = float(v)
+                elif isinstance(v, datetime.datetime):
+                    v = v.isoformat()
+                elif isinstance(v, datetime.date):
+                    v = v.isoformat()
                 values.append(v)
             rows.append(values)
         return rows
@@ -634,14 +692,17 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
             rows = conn.execute(select_sql).fetchall()
             conn.close()
         original_dbtable = dbtable or self.proxy.db.table(meta['tablename'])
+        col_attrs = meta['colAttrs']
+        converters = self._build_converters(all_columns, col_attrs)
         index = {col: i for i, col in enumerate(all_columns)}
-        data = [GnrNamedList(index, list(row)) for row in rows]
+        data = [GnrNamedList(index, r)
+                for r in self._restore_rows(rows, converters)]
         sortedBy = meta.get('sortedBy')
         if isinstance(sortedBy, list):
             sortedBy = ','.join(sortedBy)
         selection = SqlSelection(original_dbtable, data,
                                  index=index,
-                                 colAttrs=meta['colAttrs'],
+                                 colAttrs=col_attrs,
                                  querypars=meta.get('querypars'),
                                  sortedBy=sortedBy)
         selection.freezepath = os.path.join(folder, 'selection')
@@ -773,14 +834,17 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
                 result['sum_columns'] = dict(zip(sum_columns, sum_row))
             conn.close()
         original_dbtable = dbtable or self.proxy.db.table(meta['tablename'])
+        col_attrs = meta['colAttrs']
+        converters = self._build_converters(all_columns, col_attrs)
         index = {col: i for i, col in enumerate(all_columns)}
-        data = [GnrNamedList(index, list(row)) for row in rows]
+        data = [GnrNamedList(index, r)
+                for r in self._restore_rows(rows, converters)]
         sortedBy = order_by or meta.get('sortedBy')
         if isinstance(sortedBy, list):
             sortedBy = ','.join(sortedBy)
         selection = SqlSelection(original_dbtable, data,
                                  index=index,
-                                 colAttrs=meta['colAttrs'],
+                                 colAttrs=col_attrs,
                                  querypars=meta.get('querypars'),
                                  sortedBy=sortedBy)
         selection.freezepath = os.path.join(folder, 'selection')
