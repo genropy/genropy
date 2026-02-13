@@ -350,6 +350,7 @@ class TableHandlerView(BaseComponent):
                 templateManager = 'templateManager'
             else:
                 templateManager = False
+            sqlite_search = virtualStore and self.getPreference('freeze_on_sqlite', pkg='sys')
             if extendedQuery == '*':
                 base_slots = ['5','fastQueryBox','runbtn','queryMenu','viewsMenu','5','filterSelected,menuUserSets','15','export','importer','resourcePrints','resourceMails','resourceActions',batchAssign,'5',templateManager,'stats','advancedTools','10',pageHooksSelector,'*']
                 if self.deviceScreenSize=='phone':
@@ -358,6 +359,10 @@ class TableHandlerView(BaseComponent):
                 base_slots = ['5','fastQueryBox','runbtn','queryMenu','viewsMenu','5',statsSlot,'advancedTools','10',pageHooksSelector,'*','count','5']
             else:
                 base_slots = extendedQuery.split(',')
+            if sqlite_search:
+                star_idx = base_slots.index('*')
+                base_slots.insert(star_idx, 'searchOn')
+                top_kwargs['searchOn_delay'] = 1000
         elif roundedEnvelope:
             top_kwargs['toolbar'] = False
             base_slots = ['*','vtitle','*'] if not searchOn else ['10','vtitle','*','searchOn','10']
@@ -374,6 +379,8 @@ class TableHandlerView(BaseComponent):
 
         else:
             base_slots = ['5','vtitle','count','*']
+            if searchOn and self.getPreference('freeze_on_sqlite', pkg='sys'):
+                base_slots.append('searchOn')
         base_slots = ','.join([b for b in base_slots if b])
         if 'slots' in top_kwargs:
             top_kwargs['slots'] = top_kwargs['slots'].replace('#',base_slots)

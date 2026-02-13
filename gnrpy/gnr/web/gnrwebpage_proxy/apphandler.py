@@ -697,6 +697,11 @@ class GnrWebAppHandler(GnrBaseProxy):
         :param savedView: TODO
         :param externalChanges: TODO"""
         t = time.time()
+        searchOn_mode = kwargs.pop('searchOn_mode', None)
+        searchOn_seed = kwargs.pop('searchOn_seed', None)
+        searchOn_field = kwargs.pop('searchOn_field', None)
+        if searchOn_mode and selectionName.startswith('*'):
+            selectionName = selectionName.lstrip('*')
         tblobj = self.db.table(table)
         row_start = int(row_start)
         row_count = int(row_count)
@@ -736,7 +741,8 @@ class GnrWebAppHandler(GnrBaseProxy):
             freezed_result = self.page.getFromFreezedSelection(
                 dbtable=tblobj, name=selectionName,
                 row_start=row_start, row_count=row_count,
-                order_by=sortedBy, sum_columns=freezed_sum_columns)
+                order_by=sortedBy, sum_columns=freezed_sum_columns,
+                searchOn_seed=searchOn_seed, searchOn_field=searchOn_field)
             if freezed_result is not None:
                 selection = freezed_result['selection']
                 resultAttributes.update(

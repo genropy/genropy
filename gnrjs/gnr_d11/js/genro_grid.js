@@ -994,13 +994,32 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             };
             dojo.connect(widget,'onSetStructpath',widget,cb);
             dojo.connect(widget,'newDataStore',function(){
-                searchBoxNode.setRelativeData('.currentValue','');
-                searchBoxNode.setRelativeData('.value','');
+                var snode = genro.nodeById(sourceNode.attr.store+'_store');
+                var isVirtualSqlite = snode && snode.attr.row_count
+                                      && genro.appPreference('sys.freeze_on_sqlite');
+                if(isVirtualSqlite){
+                    snode.attr.searchOn_mode = null;
+                }else{
+                    searchBoxNode.setRelativeData('.currentValue','');
+                    searchBoxNode.setRelativeData('.value','');
+                }
             });
             setTimeout(function(){cb.call(widget);},1);
         }
         sourceNode.registerSubscription(searchBoxCode+'_changedValue',widget,function(v,field){
-            this.applyFilter(v,null,field);
+            var snode = genro.nodeById(sourceNode.attr.store+'_store');
+            var isVirtual = snode && snode.attr.selectionName && snode.attr.row_count;
+            var sqliteBackend = genro.appPreference('sys.freeze_on_sqlite');
+            if(isVirtual && sqliteBackend){
+                if(v || snode.attr.searchOn_seed){
+                    snode.attr.searchOn_seed = v || null;
+                    snode.attr.searchOn_field = v ? (field || null) : null;
+                    snode.attr.searchOn_mode = true;
+                    snode.store.loadData();
+                }
+            }else{
+                this.applyFilter(v,null,field);
+            }
             genro.dom.setClass(this.domNode,'filteredGrid',v);
             this.updateTotalsCount();
         });

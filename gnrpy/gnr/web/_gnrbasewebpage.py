@@ -204,12 +204,14 @@ class GnrBaseWebPage(GnrObject):
     def getFromFreezedSelection(self, dbtable=None, name=None,
                                 row_start=0, row_count=0,
                                 order_by=None, sum_columns=None,
-                                page_id=None):
+                                page_id=None,
+                                searchOn_seed=None, searchOn_field=None):
         return self.gnrfreezedselections.getFromFreezedSelection(
             dbtable=dbtable, name=name,
             row_start=row_start, row_count=row_count,
             order_by=order_by, sum_columns=sum_columns,
-            page_id=page_id)
+            page_id=page_id,
+            searchOn_seed=searchOn_seed, searchOn_field=searchOn_field)
 
     @public_method
     def getUserSelection(self, selectionName=None, selectedRowidx=None, filterCb=None, columns=None,

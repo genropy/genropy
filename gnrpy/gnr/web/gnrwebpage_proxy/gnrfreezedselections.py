@@ -327,7 +327,8 @@ class GnrFreezedSelectionsPickle(GnrFreezedSelectionsBackend):
     def getFromFreezedSelection(self, dbtable=None, name=None,
                                 row_start=0, row_count=0,
                                 order_by=None, sum_columns=None,
-                                page_id=None):
+                                page_id=None,
+                                searchOn_seed=None, searchOn_field=None):
         selection = self.unfreezeSelection(
             dbtable=dbtable, name=name, page_id=page_id)
         if selection is None:
@@ -750,15 +751,69 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
             original = ','.join(original)
         return order_by != original
 
+    def _ensure_search_table(self, conn, seed, col_attrs, all_columns,
+                             order_by=None):
+        """Create (or reuse) a search index table for the given seed.
+
+        Finds all TEXT-like columns (dtype in T, A or missing) and builds a
+        WHERE clause with ``col LIKE '%seed%'`` ORed together.  The matching
+        rows are stored in ``_search_idx`` with a sequential ``_searchidx``
+        used for pagination.
+
+        If an ``order_by`` is provided the search results are sorted
+        accordingly; otherwise the original ``_rowidx`` order is preserved.
+
+        Returns:
+            ``(search_table_name, filtered_totalrows)``
+        """
+        search_table = '_search_idx'
+        conn.execute('DROP TABLE IF EXISTS %s' % search_table)
+        text_cols = []
+        for col in all_columns:
+            attrs = col_attrs.get(col, {})
+            dtype = attrs.get('dataType', 'T')
+            if dtype in ('T', 'A', 'C'):
+                text_cols.append(self._sqlite_col_name(col))
+        if not text_cols:
+            return None, 0
+        concat_expr = " || ' ' || ".join(
+            "COALESCE(%s, '')" % c for c in text_cols)
+        tokens = seed.split()
+        like_clauses = ' AND '.join(
+            "%s LIKE '%%%s%%'" % (concat_expr, t.replace("'", "''"))
+            for t in tokens)
+        if order_by:
+            parsed = self._parse_order_by(order_by)
+            order_clause = ', '.join('%s %s' % (col, d) for col, d in parsed)
+        else:
+            order_clause = '_rowidx'
+        conn.execute(
+            'CREATE TABLE %s AS '
+            'SELECT (ROW_NUMBER() OVER (ORDER BY %s)) - 1 AS _searchidx, '
+            '_rowidx FROM selection_data WHERE %s'
+            % (search_table, order_clause, like_clauses))
+        conn.execute(
+            'CREATE UNIQUE INDEX idx_%s ON %s (_searchidx)'
+            % (search_table, search_table))
+        conn.commit()
+        count = conn.execute(
+            'SELECT COUNT(*) FROM %s' % search_table).fetchone()[0]
+        return search_table, count
+
     def getFromFreezedSelection(self, dbtable=None, name=None,
                                 row_start=0, row_count=0,
                                 order_by=None, sum_columns=None,
-                                page_id=None):
+                                page_id=None,
+                                searchOn_seed=None, searchOn_field=None):
         """Return a page of rows from a frozen SQLite selection.
 
         Serves paginated data directly from SQLite using LIMIT/OFFSET-style
         slicing on ``_rowidx`` (original order) or on a materialised sort
         index table (when a different ``order_by`` is requested).
+
+        When ``searchOn_seed`` is provided, a ``_search_idx`` table is created
+        filtering rows where any TEXT column contains the seed.  Pagination
+        and sums then operate on the filtered subset.
 
         Args:
             dbtable: Expected table (string or table object).
@@ -768,6 +823,8 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
             order_by: Genropy sort string (e.g. ``'col:a'``).
             sum_columns: List of column names to SUM over the full dataset.
             page_id: Optional page_id override.
+            searchOn_seed: Text to search for (LIKE match on TEXT columns).
+            searchOn_field: Reserved for future per-field search.
 
         Returns:
             A dict with ``totalrows``, ``selection`` (a ``SqlSelection``
@@ -791,13 +848,37 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
                 return None
             all_columns = meta['allColumns']
             sqlite_cols = [self._sqlite_col_name(c) for c in all_columns]
+            col_attrs = meta['colAttrs']
             totalrows = meta.get('totalrows', 0)
             conn = sqlite3.connect(db_path)
+            use_search = bool(searchOn_seed)
             use_sort_table = self._needs_sort_table(order_by, meta)
-            if use_sort_table:
-                sort_table = self._ensure_sort_table(conn, order_by)
+            if use_search:
+                search_table, totalrows = self._ensure_search_table(
+                    conn, searchOn_seed, col_attrs, all_columns,
+                    order_by=order_by)
+                if search_table is None:
+                    conn.close()
+                    return None
+            elif use_sort_table:
+                self._ensure_sort_table(conn, order_by)
             data_cols = ', '.join('d.%s' % c for c in sqlite_cols)
-            if use_sort_table:
+            if use_search:
+                if row_count:
+                    select_sql = (
+                        'SELECT %s FROM selection_data d '
+                        'JOIN _search_idx x ON d._rowidx = x._rowidx '
+                        'WHERE x._searchidx >= %d AND x._searchidx < %d '
+                        'ORDER BY x._searchidx'
+                    ) % (data_cols, row_start, row_start + row_count)
+                else:
+                    select_sql = (
+                        'SELECT %s FROM selection_data d '
+                        'JOIN _search_idx x ON d._rowidx = x._rowidx '
+                        'ORDER BY x._searchidx'
+                    ) % (data_cols,)
+            elif use_sort_table:
+                sort_table = self._sort_table_name(order_by)
                 if row_count:
                     select_sql = (
                         'SELECT %s FROM selection_data d '
@@ -829,12 +910,17 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
                 sum_exprs = ', '.join(
                     'SUM(%s)' % self._sqlite_col_name(c)
                     for c in sum_columns)
-                sum_row = conn.execute(
-                    'SELECT %s FROM selection_data' % sum_exprs).fetchone()
+                if use_search:
+                    sum_sql = (
+                        'SELECT %s FROM selection_data d '
+                        'JOIN _search_idx x ON d._rowidx = x._rowidx'
+                    ) % sum_exprs
+                else:
+                    sum_sql = 'SELECT %s FROM selection_data' % sum_exprs
+                sum_row = conn.execute(sum_sql).fetchone()
                 result['sum_columns'] = dict(zip(sum_columns, sum_row))
             conn.close()
         original_dbtable = dbtable or self.proxy.db.table(meta['tablename'])
-        col_attrs = meta['colAttrs']
         converters = self._build_converters(all_columns, col_attrs)
         index = {col: i for i, col in enumerate(all_columns)}
         data = [GnrNamedList(index, r)
@@ -903,13 +989,15 @@ class GnrFreezedSelections(GnrBaseProxy):
     def getFromFreezedSelection(self, dbtable=None, name=None,
                                 row_start=0, row_count=0,
                                 order_by=None, sum_columns=None,
-                                page_id=None):
+                                page_id=None,
+                                searchOn_seed=None, searchOn_field=None):
         """Return a page of rows from a frozen selection. Delegates to the active backend."""
         return self._backend.getFromFreezedSelection(
             dbtable=dbtable, name=name,
             row_start=row_start, row_count=row_count,
             order_by=order_by, sum_columns=sum_columns,
-            page_id=page_id)
+            page_id=page_id,
+            searchOn_seed=searchOn_seed, searchOn_field=searchOn_field)
 
     @public_method
     def getUserSelection(self, selectionName=None, selectedRowidx=None,

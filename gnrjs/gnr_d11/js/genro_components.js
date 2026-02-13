@@ -1864,8 +1864,8 @@ dojo.declare("gnr.widgets.SearchBox", gnr.widgets.gnrwdg, {
         databag.setItem('value', '');
         sourceNode.setRelativeData(null, databag);
         var searchbox = sourceNode._('form',{autocomplete:'false',action:'javascript:void(0);',onsubmit:"event.preventDefault()"})._('table', {nodeId:nodeId})._('tbody')._('tr');
-        var delay = objectPop(kw, 'delay') || objectPop(search_kw, 'delay') || 100;
         var search_kw = objectPop(kw,'search_kw') || {};
+        var delay = objectPop(kw, 'delay') || objectPop(search_kw, 'delay') || 100;
         sourceNode._('dataController', {'script':'genro.publish(searchBoxId+"_changedValue",currentValue,field,this.evaluateOnNode(search_kw));',
             'searchBoxId':nodeId,currentValue:'^.currentValue',field:'=.field',
             _userChanges:true,_delay:delay,search_kw:search_kw});
@@ -7910,12 +7910,20 @@ dojo.declare("gnr.stores.VirtualSelection",gnr.stores.Selection,{
         var that = this;
         var row_start = pageIdx * this.chunkSize;
         var kw = this.getData().getParentNode().attr;
-        var result = genro.rpc.remoteCall(kw.method, {'selectionName':kw.selectionName,
+        var callKw = {'selectionName':kw.selectionName,
             'row_start':row_start,
             'row_count':this.chunkSize,
             'sortedBy':this.sortedBy,
             'table':kw.table,
-            'recordResolver':false},
+            'recordResolver':false};
+        if(this.storeNode.attr.searchOn_mode){
+            callKw.searchOn_mode = true;
+            if(this.storeNode.attr.searchOn_seed){
+                callKw.searchOn_seed = this.storeNode.attr.searchOn_seed;
+                callKw.searchOn_field = this.storeNode.attr.searchOn_field;
+            }
+        }
+        var result = genro.rpc.remoteCall(kw.method, callKw,
             null,
             this.storeNode.attr.httpMethod,
             null,
