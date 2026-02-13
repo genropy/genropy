@@ -77,6 +77,7 @@ import pickle
 import shutil
 import sqlite3
 import tempfile
+import threading
 
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
@@ -356,6 +357,16 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
     page requests with the same order.
     """
 
+    _folder_locks = {}
+    _locks_lock = threading.Lock()
+
+    def _get_lock(self, folder):
+        """Return a per-folder threading.Lock, creating it if needed."""
+        with self._locks_lock:
+            if folder not in self._folder_locks:
+                self._folder_locks[folder] = threading.Lock()
+            return self._folder_locks[folder]
+
     def _meta_path(self, folder):
         """Return the path to ``selection_meta.json`` inside the given folder."""
         return os.path.join(folder, 'selection_meta.json')
@@ -364,17 +375,9 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
         """Return the path to ``selection.sqlite`` inside the given folder."""
         return os.path.join(folder, 'selection.sqlite')
 
-    def _save_meta(self, folder, selection):
-        """Serialize selection metadata to ``selection_meta.json``.
-
-        Saved fields: ``tablename``, ``querypars``, ``colAttrs``,
-        ``allColumns``, ``sortedBy``, ``key``.
-
-        Args:
-            folder: Target folder path.
-            selection: The ``SqlSelection`` whose metadata to save.
-        """
-        meta = dict(
+    def _build_meta(self, selection):
+        """Build the metadata dict from a selection (without I/O)."""
+        return dict(
             tablename=selection.tablename,
             querypars=selection.querypars,
             colAttrs={k: dict(v) for k, v in selection.colAttrs.items()},
@@ -383,8 +386,27 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
             key=selection.key,
             totalrows=len(selection.data)
         )
-        with open(self._meta_path(folder), 'w') as f:
-            json.dump(meta, f, cls=_MetaEncoder)
+
+    def _save_meta(self, folder, meta):
+        """Atomically write metadata dict to ``selection_meta.json``.
+
+        Writes to a temporary file first, then uses ``os.replace``
+        for an atomic swap.
+
+        Args:
+            folder: Target folder path.
+            meta: Metadata dict to serialize.
+        """
+        meta_path = self._meta_path(folder)
+        fd, tmp_path = tempfile.mkstemp(dir=folder, suffix='.json.tmp')
+        try:
+            with os.fdopen(fd, 'w') as f:
+                json.dump(meta, f, cls=_MetaEncoder)
+            os.replace(tmp_path, meta_path)
+        except BaseException:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
 
     def _load_meta(self, folder):
         """Deserialize selection metadata from ``selection_meta.json``.
@@ -532,7 +554,7 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
 
         Always recreates the database from scratch: saves metadata,
         drops any existing SQLite file, creates the schema and inserts
-        all rows.
+        all rows.  Protected by a per-folder lock.
 
         Args:
             selection: The ``SqlSelection`` to freeze.
@@ -543,10 +565,10 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
             The folder path of the frozen selection.
         """
         folder = self.selection_folder(name)
-
-        self._save_meta(folder, selection)
-        meta = self._load_meta(folder)
-        self._create_and_populate(folder, meta, selection)
+        meta = self._build_meta(selection)
+        with self._get_lock(folder):
+            self._save_meta(folder, meta)
+            self._create_and_populate(folder, meta, selection)
         return folder
 
     def freezeSelectionUpdate(self, selection):
@@ -554,6 +576,7 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
 
         Completely rebuilds the SQLite database with the current
         selection data.  Does nothing if the selection has no ``freezepath``.
+        Protected by a per-folder lock.
 
         Args:
             selection: The ``SqlSelection`` to update on disk.
@@ -563,10 +586,10 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
         folder = os.path.dirname(selection.freezepath)
         if not os.path.isdir(folder):
             return
-
-        self._save_meta(folder, selection)
-        meta = self._load_meta(folder)
-        self._create_and_populate(folder, meta, selection)
+        meta = self._build_meta(selection)
+        with self._get_lock(folder):
+            self._save_meta(folder, meta)
+            self._create_and_populate(folder, meta, selection)
 
     def unfreezeSelection(self, dbtable=None, name=None, page_id=None):
         """Restore a previously frozen selection from SQLite.
@@ -574,6 +597,7 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
         Uses ``sqlite3`` directly for maximum speed.  Reads the metadata,
         fetches all rows ordered by ``_rowidx``, and reconstructs a
         ``SqlSelection`` bound to the **original** table.
+        Protected by a per-folder lock.
 
         Args:
             dbtable: Expected table (string or table object).
@@ -597,19 +621,18 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
         meta_path = self._meta_path(folder)
         if not os.path.exists(meta_path):
             return None
-        meta = self._load_meta(folder)
-        db_path = self._db_path(folder)
-        if not os.path.exists(db_path):
-            return None
-
-        all_columns = meta['allColumns']
-        sqlite_cols = [self._sqlite_col_name(c) for c in all_columns]
-        select_sql = 'SELECT %s FROM selection_data ORDER BY _rowidx' % (
-            ', '.join(sqlite_cols))
-        conn = sqlite3.connect(db_path)
-        cursor = conn.execute(select_sql)
-        rows = cursor.fetchall()
-        conn.close()
+        with self._get_lock(folder):
+            meta = self._load_meta(folder)
+            db_path = self._db_path(folder)
+            if not os.path.exists(db_path):
+                return None
+            all_columns = meta['allColumns']
+            sqlite_cols = [self._sqlite_col_name(c) for c in all_columns]
+            select_sql = 'SELECT %s FROM selection_data ORDER BY _rowidx' % (
+                ', '.join(sqlite_cols))
+            conn = sqlite3.connect(db_path)
+            rows = conn.execute(select_sql).fetchall()
+            conn.close()
         original_dbtable = dbtable or self.proxy.db.table(meta['tablename'])
         index = {col: i for i, col in enumerate(all_columns)}
         data = [GnrNamedList(index, list(row)) for row in rows]
@@ -633,6 +656,7 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
         """Return the list of pkeys from a frozen selection.
 
         Uses ``sqlite3`` directly, querying only the ``_pkey`` column.
+        Protected by a per-folder lock.
 
         Args:
             dbtable: Expected table (string or table object).
@@ -649,10 +673,11 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
         db_path = self._db_path(folder)
         if not os.path.exists(db_path):
             return []
-
-        conn = sqlite3.connect(db_path)
-        rows = conn.execute('SELECT _pkey FROM selection_data').fetchall()
-        conn.close()
+        with self._get_lock(folder):
+            conn = sqlite3.connect(db_path)
+            rows = conn.execute(
+                'SELECT _pkey FROM selection_data').fetchall()
+            conn.close()
         return [r[0] for r in rows]
 
     def _needs_sort_table(self, order_by, meta):
@@ -698,52 +723,55 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
         meta_path = self._meta_path(folder)
         if not os.path.exists(meta_path):
             return None
-        meta = self._load_meta(folder)
-        db_path = self._db_path(folder)
-        if not os.path.exists(db_path):
-            return None
-        all_columns = meta['allColumns']
-        sqlite_cols = [self._sqlite_col_name(c) for c in all_columns]
-        totalrows = meta.get('totalrows', 0)
-        conn = sqlite3.connect(db_path)
-        use_sort_table = self._needs_sort_table(order_by, meta)
-        if use_sort_table:
-            sort_table = self._ensure_sort_table(conn, order_by)
-        data_cols = ', '.join('d.%s' % c for c in sqlite_cols)
-        if use_sort_table:
-            if row_count:
-                select_sql = (
-                    'SELECT %s FROM selection_data d '
-                    'JOIN %s s ON d._rowidx = s._rowidx '
-                    'WHERE s._sortidx >= %d AND s._sortidx < %d '
-                    'ORDER BY s._sortidx'
-                ) % (data_cols, sort_table, row_start, row_start + row_count)
+        with self._get_lock(folder):
+            meta = self._load_meta(folder)
+            db_path = self._db_path(folder)
+            if not os.path.exists(db_path):
+                return None
+            all_columns = meta['allColumns']
+            sqlite_cols = [self._sqlite_col_name(c) for c in all_columns]
+            totalrows = meta.get('totalrows', 0)
+            conn = sqlite3.connect(db_path)
+            use_sort_table = self._needs_sort_table(order_by, meta)
+            if use_sort_table:
+                sort_table = self._ensure_sort_table(conn, order_by)
+            data_cols = ', '.join('d.%s' % c for c in sqlite_cols)
+            if use_sort_table:
+                if row_count:
+                    select_sql = (
+                        'SELECT %s FROM selection_data d '
+                        'JOIN %s s ON d._rowidx = s._rowidx '
+                        'WHERE s._sortidx >= %d AND s._sortidx < %d '
+                        'ORDER BY s._sortidx'
+                    ) % (data_cols, sort_table, row_start,
+                         row_start + row_count)
+                else:
+                    select_sql = (
+                        'SELECT %s FROM selection_data d '
+                        'JOIN %s s ON d._rowidx = s._rowidx '
+                        'ORDER BY s._sortidx'
+                    ) % (data_cols, sort_table)
             else:
-                select_sql = (
-                    'SELECT %s FROM selection_data d '
-                    'JOIN %s s ON d._rowidx = s._rowidx '
-                    'ORDER BY s._sortidx'
-                ) % (data_cols, sort_table)
-        else:
-            if row_count:
-                select_sql = (
-                    'SELECT %s FROM selection_data d '
-                    'WHERE d._rowidx >= %d AND d._rowidx < %d '
-                    'ORDER BY d._rowidx'
-                ) % (data_cols, row_start, row_start + row_count)
-            else:
-                select_sql = (
-                    'SELECT %s FROM selection_data d ORDER BY d._rowidx'
-                ) % (data_cols,)
-        rows = conn.execute(select_sql).fetchall()
-        result = dict(totalrows=totalrows)
-        if sum_columns:
-            sum_exprs = ', '.join(
-                'SUM(%s)' % self._sqlite_col_name(c) for c in sum_columns)
-            sum_row = conn.execute(
-                'SELECT %s FROM selection_data' % sum_exprs).fetchone()
-            result['sum_columns'] = dict(zip(sum_columns, sum_row))
-        conn.close()
+                if row_count:
+                    select_sql = (
+                        'SELECT %s FROM selection_data d '
+                        'WHERE d._rowidx >= %d AND d._rowidx < %d '
+                        'ORDER BY d._rowidx'
+                    ) % (data_cols, row_start, row_start + row_count)
+                else:
+                    select_sql = (
+                        'SELECT %s FROM selection_data d ORDER BY d._rowidx'
+                    ) % (data_cols,)
+            rows = conn.execute(select_sql).fetchall()
+            result = dict(totalrows=totalrows)
+            if sum_columns:
+                sum_exprs = ', '.join(
+                    'SUM(%s)' % self._sqlite_col_name(c)
+                    for c in sum_columns)
+                sum_row = conn.execute(
+                    'SELECT %s FROM selection_data' % sum_exprs).fetchone()
+                result['sum_columns'] = dict(zip(sum_columns, sum_row))
+            conn.close()
         original_dbtable = dbtable or self.proxy.db.table(meta['tablename'])
         index = {col: i for i, col in enumerate(all_columns)}
         data = [GnrNamedList(index, list(row)) for row in rows]
