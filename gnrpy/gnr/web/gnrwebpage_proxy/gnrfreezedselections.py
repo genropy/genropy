@@ -445,7 +445,7 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
         if dtype == 'N':
             return lambda v: decimal.Decimal(str(v)) if v is not None else None
         if dtype == 'D':
-            return lambda v: (datetime.date.fromisoformat(v)
+            return lambda v: (datetime.datetime.fromisoformat(v).date()
                               if v is not None else None)
         if dtype in ('DH', 'DHZ'):
             return lambda v: (datetime.datetime.fromisoformat(v)
