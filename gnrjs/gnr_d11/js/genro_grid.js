@@ -999,10 +999,11 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                                       && genro.appPreference('sys.freeze_on_sqlite');
                 if(isVirtualSqlite){
                     snode.attr.searchOn_mode = null;
-                }else{
-                    searchBoxNode.setRelativeData('.currentValue','');
-                    searchBoxNode.setRelativeData('.value','');
+                    snode.attr.searchOn_seed = null;
+                    snode.attr.searchOn_field = null;
                 }
+                searchBoxNode.setRelativeData('.currentValue','');
+                searchBoxNode.setRelativeData('.value','');
             });
             setTimeout(function(){cb.call(widget);},1);
         }

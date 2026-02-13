@@ -742,6 +742,14 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
             conn.close()
         return [r[0] for r in rows]
 
+    def _order_by_is_valid(self, order_by, all_columns):
+        """Check that all columns in order_by exist in the SQLite schema."""
+        sqlite_cols = {self._sqlite_col_name(c) for c in all_columns}
+        for col, _ in self._parse_order_by(order_by):
+            if col not in sqlite_cols:
+                return False
+        return True
+
     def _needs_sort_table(self, order_by, meta):
         """Check if order_by differs from the original sortedBy."""
         if not order_by:
@@ -749,7 +757,9 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
         original = meta.get('sortedBy', '')
         if isinstance(original, list):
             original = ','.join(original)
-        return order_by != original
+        if order_by == original:
+            return False
+        return self._order_by_is_valid(order_by, meta['allColumns'])
 
     def _ensure_search_table(self, conn, seed, col_attrs, all_columns,
                              order_by=None):
@@ -782,7 +792,7 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
         like_clauses = ' AND '.join(
             "%s LIKE '%%%s%%'" % (concat_expr, t.replace("'", "''"))
             for t in tokens)
-        if order_by:
+        if order_by and self._order_by_is_valid(order_by, all_columns):
             parsed = self._parse_order_by(order_by)
             order_clause = ', '.join('%s %s' % (col, d) for col, d in parsed)
         else:
