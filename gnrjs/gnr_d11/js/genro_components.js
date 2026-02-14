@@ -1835,8 +1835,7 @@ dojo.declare("gnr.widgets.BagNodeEditor", gnr.widgets.gnrwdg, {
 
 dojo.declare("gnr.widgets.SearchBox", gnr.widgets.gnrwdg, {
     contentKwargs: function(sourceNode, attributes) {
-        //var topic = attributes.nodeId+'_keyUp';
-        attributes.onKeyUp = function(e) {
+        attributes.onInput = function(e) {
             var sourceNode = e.target.sourceNode;
             genro.dom.setClass(sourceNode.getParentNode(),'activeSearch',!isNullOrBlank(e.target.value));
             sourceNode.setRelativeData('.currentValue', e.target.value);
@@ -1885,7 +1884,7 @@ dojo.declare("gnr.widgets.SearchBox", gnr.widgets.gnrwdg, {
                 genro.publish(nodeId+"_stopSearch",{inputSourceNode:this,finalize:finalize});
                
             }
-        }})._('input', {'value':'^.value',connect_onkeyup:kw.onKeyUp,
+        }})._('input', {'value':'^.value',connect_oninput:kw.onInput,
                          parentForm:false,width:objectPop(kw,'width') || '6em',
                          tabindex:"-1",connect_focus:function(){this.domNode.select()}});
         sourceNode.registerSubscription(nodeId + '_updmenu', this, function(searchOn) {
@@ -7910,20 +7909,12 @@ dojo.declare("gnr.stores.VirtualSelection",gnr.stores.Selection,{
         var that = this;
         var row_start = pageIdx * this.chunkSize;
         var kw = this.getData().getParentNode().attr;
-        var callKw = {'selectionName':kw.selectionName,
+        var result = genro.rpc.remoteCall(kw.method, {'selectionName':kw.selectionName,
             'row_start':row_start,
             'row_count':this.chunkSize,
             'sortedBy':this.sortedBy,
             'table':kw.table,
-            'recordResolver':false};
-        if(this.storeNode.attr.searchOn_mode){
-            callKw.searchOn_mode = true;
-            if(this.storeNode.attr.searchOn_seed){
-                callKw.searchOn_seed = this.storeNode.attr.searchOn_seed;
-                callKw.searchOn_field = this.storeNode.attr.searchOn_field;
-            }
-        }
-        var result = genro.rpc.remoteCall(kw.method, callKw,
+            'recordResolver':false},
             null,
             this.storeNode.attr.httpMethod,
             null,

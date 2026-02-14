@@ -328,7 +328,8 @@ class GnrFreezedSelectionsPickle(GnrFreezedSelectionsBackend):
                                 row_start=0, row_count=0,
                                 order_by=None, sum_columns=None,
                                 page_id=None,
-                                searchOn_seed=None, searchOn_field=None):
+                                searchOn_seed=None, searchOn_field=None,
+                                searchOn_columns=None):
         selection = self.unfreezeSelection(
             dbtable=dbtable, name=name, page_id=page_id)
         if selection is None:
@@ -762,13 +763,17 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
         return self._order_by_is_valid(order_by, meta['allColumns'])
 
     def _ensure_search_table(self, conn, seed, col_attrs, all_columns,
-                             order_by=None):
+                             order_by=None, searchOn_columns=None):
         """Create (or reuse) a search index table for the given seed.
 
         Finds all TEXT-like columns (dtype in T, A or missing) and builds a
         WHERE clause with ``col LIKE '%seed%'`` ORed together.  The matching
         rows are stored in ``_search_idx`` with a sequential ``_searchidx``
         used for pagination.
+
+        If ``searchOn_columns`` is provided (comma-separated string of
+        visible column names), only those columns are searched.  Otherwise
+        all TEXT-like columns are searched.
 
         If an ``order_by`` is provided the search results are sorted
         accordingly; otherwise the original ``_rowidx`` order is preserved.
@@ -778,8 +783,13 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
         """
         search_table = '_search_idx'
         conn.execute('DROP TABLE IF EXISTS %s' % search_table)
+        visible_set = None
+        if searchOn_columns:
+            visible_set = set(searchOn_columns.split(','))
         text_cols = []
         for col in all_columns:
+            if visible_set and col not in visible_set:
+                continue
             attrs = col_attrs.get(col, {})
             dtype = attrs.get('dataType', 'T')
             if dtype in ('T', 'A', 'C'):
@@ -814,7 +824,8 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
                                 row_start=0, row_count=0,
                                 order_by=None, sum_columns=None,
                                 page_id=None,
-                                searchOn_seed=None, searchOn_field=None):
+                                searchOn_seed=None, searchOn_field=None,
+                                searchOn_columns=None):
         """Return a page of rows from a frozen SQLite selection.
 
         Serves paginated data directly from SQLite using LIMIT/OFFSET-style
@@ -866,7 +877,8 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
             if use_search:
                 search_table, totalrows = self._ensure_search_table(
                     conn, searchOn_seed, col_attrs, all_columns,
-                    order_by=order_by)
+                    order_by=order_by,
+                    searchOn_columns=searchOn_columns)
                 if search_table is None:
                     conn.close()
                     return None
@@ -1000,14 +1012,16 @@ class GnrFreezedSelections(GnrBaseProxy):
                                 row_start=0, row_count=0,
                                 order_by=None, sum_columns=None,
                                 page_id=None,
-                                searchOn_seed=None, searchOn_field=None):
+                                searchOn_seed=None, searchOn_field=None,
+                                searchOn_columns=None):
         """Return a page of rows from a frozen selection. Delegates to the active backend."""
         return self._backend.getFromFreezedSelection(
             dbtable=dbtable, name=name,
             row_start=row_start, row_count=row_count,
             order_by=order_by, sum_columns=sum_columns,
             page_id=page_id,
-            searchOn_seed=searchOn_seed, searchOn_field=searchOn_field)
+            searchOn_seed=searchOn_seed, searchOn_field=searchOn_field,
+            searchOn_columns=searchOn_columns)
 
     @public_method
     def getUserSelection(self, selectionName=None, selectedRowidx=None,

@@ -994,7 +994,8 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             };
             dojo.connect(widget,'onSetStructpath',widget,cb);
             dojo.connect(widget,'newDataStore',function(){
-                widget.currentFilterValue = null;
+                searchBoxNode.setRelativeData('.currentValue','',null,null,null,null,{doTrigger:false});
+                searchBoxNode.setRelativeData('.value','');
             });
             setTimeout(function(){cb.call(widget);},1);
         }
@@ -1002,32 +1003,16 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             var snode = genro.nodeById(sourceNode.attr.store+'_store');
             var isVirtual = snode && snode.attr.selectionName && snode.attr.row_count;
             var sqliteBackend = genro.appPreference('sys.freeze_on_sqlite');
-            this.currentFilterValue = v || null;
             if(isVirtual && sqliteBackend){
-                if(v || snode.attr.searchOn_seed || snode.attr.searchOn_mode){
-                    snode.attr.searchOn_seed = v || null;
-                    snode.attr.searchOn_field = v ? (field || null) : null;
-                    snode.attr.searchOn_mode = v ? true : null;
-                    snode.store.loadData();
-                }
+                snode.store.loadData();
             }else{
                 this.applyFilter(v,null,field);
+                genro.dom.setClass(this.domNode,'filteredGrid',v);
+                this.updateTotalsCount();
             }
-            genro.dom.setClass(this.domNode,'filteredGrid',v);
-            this.updateTotalsCount();
         });
         sourceNode.registerSubscription(searchBoxCode+'_stopSearch',widget,function(kw){
             kw.finalize();
-            var snode = genro.nodeById(sourceNode.attr.store+'_store');
-            var isVirtualSqlite = snode && snode.attr.row_count
-                                  && genro.appPreference('sys.freeze_on_sqlite');
-            if(isVirtualSqlite && snode.attr.searchOn_mode){
-                snode.attr.searchOn_mode = null;
-                snode.attr.searchOn_seed = null;
-                snode.attr.searchOn_field = null;
-                snode.store.loadData();
-            }
-            this.currentFilterValue = null;
         });
         sourceNode.subscribe('command',function(){
             widget[arguments[0]](arguments.slice(1));
@@ -2581,16 +2566,15 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
         }else{
             rowdata = this.grid.rowByIndex(inRowIndex,true,true);
         }
-        
         if(!rowdata){
             console.log('no rowdata:',rowdata);
         }
         var result;
         if(this._customGetter){
             try{
-                return this._customGetter.call(this, rowdata,inRowIndex)
+                result = this._customGetter.call(this, rowdata,inRowIndex);
             }catch(e){
-                console.error(e)
+                console.error(e);
                 return 'err';
             }
         }else if(this.rowTemplate){
@@ -2600,22 +2584,21 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
                 c = this.grid.cellmap[k];
                 formats[c.field] = {...c._formats};
             }
-            return dataTemplate(this.rowTemplate,new gnr.GnrBag(rowdata),null,null,{formats:formats});
+            result = dataTemplate(this.rowTemplate,new gnr.GnrBag(rowdata),null,null,{formats:formats});
         }else{
-            var v = rowdata[this.field_getter];
-            var seed = this.grid.currentFilterValue;
-            if(seed && typeof(v) == 'string'){
-                var tokens = seed.split(/\s+/);
-                for(var i=0; i<tokens.length; i++){
-                    if(tokens[i]){
-                        var re = new RegExp('(' + tokens[i].replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')','ig');
-                        v = v.replace(re, "<span class='search_highlight'>$1</span>");
-                    }
+            result = rowdata[this.field_getter];
+        }
+        var seed = this.grid.sourceNode.getRelativeData('.#parent.searchbox.currentValue');
+        if(seed && typeof(result) == 'string'){
+            var tokens = seed.split(/\s+/);
+            for(var i=0; i<tokens.length; i++){
+                if(tokens[i]){
+                    var re = new RegExp('(' + tokens[i].replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')','ig');
+                    result = result.replace(re, "<span class='search_highlight'>$1</span>");
                 }
             }
-            return v;
         }
-        //return this._customGetter ? this._customGetter.call(this, rowdata,inRowIndex) : ;
+        return result;
     },
 
     mixin_rowCached:function(inRowIndex) {
@@ -4998,6 +4981,7 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         });
         return struct;
     },
+
     mixin_getFormulaVariants:function(){
         var result = new gnr.GnrBag();
         for(let cell in this.cellmap){

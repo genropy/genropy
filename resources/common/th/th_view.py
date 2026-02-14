@@ -1296,6 +1296,7 @@ class TableHandlerView(BaseComponent):
                                queryExtraPars='=.query.extraPars',
                                joinConditions='=.query.joinConditions',
                                hardQueryLimit='=.hardQueryLimit',
+                               searchOn_seed='=.searchbox.currentValue',
                                _onStart=_onStart,
                                _th_root =th_root,
                                _POST =True,
