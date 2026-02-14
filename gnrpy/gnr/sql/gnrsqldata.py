@@ -1095,7 +1095,19 @@ class SqlQuery(object):
         #joinConditions=self.joinConditions, bagFields=self.bagFields, **self.querypars)
 
     def _get_sqltext(self):
-        return self.compiled.get_sqltext(self.db)
+        sql = self.compiled.get_sqltext(self.db)
+        output_table = self.sqlparams.pop('_outputTable', None)
+        self._outputTable_fetch = self.sqlparams.pop('_outputTable_fetch', None)
+        if output_table:
+            self._outputTable = output_table
+            unlogged = ''
+            if output_table.startswith('UL:'):
+                unlogged = 'UNLOGGED '
+                output_table = output_table[3:]
+            sql = f'CREATE {unlogged}TABLE {output_table} AS {sql}'
+        else:
+            self._outputTable = None
+        return sql
 
     sqltext = property(_get_sqltext)
 
@@ -1247,6 +1259,22 @@ class SqlQuery(object):
                 data.extend([r for r in rows if pyWhere(r)])
         else:
             cursor = self.cursor()
+            if getattr(self, '_outputTable', None):
+                cursor.close()
+                index = self.index
+                fetch_limit = getattr(self, '_outputTable_fetch', None)
+                if fetch_limit:
+                    output_table = self._outputTable
+                    if output_table.startswith('UL:'):
+                        output_table = output_table[3:]
+                    fetch_cursor = self.db.execute(
+                        f'SELECT * FROM {output_table} LIMIT {int(fetch_limit)}',
+                        dbtable=self.dbtable.fullname, storename=self.storename)
+                    data = fetch_cursor.fetchall() or []
+                    fetch_cursor.close()
+                else:
+                    data = []
+                return index, data
             if isinstance(cursor, list):
                 data = []
                 for c in cursor:
