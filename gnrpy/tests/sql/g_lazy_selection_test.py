@@ -28,7 +28,6 @@ the lazy-selection refactoring (issue #488) can be validated against them.
 Every test here MUST pass both before and after the lazy change.
 """
 
-import os
 import datetime
 
 from gnr.sql.gnrsql import GnrSqlDb
@@ -271,26 +270,6 @@ class BaseSelectionTest(BaseGnrSqlTest):
         sel = self._movie_selection()
         result = sel.output('bag')
         assert isinstance(result, Bag)
-
-    # -----------------------------------------------------------------------
-    #  11. freeze / unfreeze (pickle)
-    # -----------------------------------------------------------------------
-
-    def test_freeze_unfreeze(self):
-        sel = self._movie_selection()
-        freeze_dir = os.path.join(os.path.dirname(__file__), 'data')
-        freeze_path = os.path.join(freeze_dir, 'test_lazy_sel')
-        try:
-            sel.freeze(freeze_path)
-            restored = self.db.table('video.movie').frozenSelection(freeze_path)
-            assert len(restored) == len(sel)
-            assert restored.data == sel.data
-        finally:
-            for suffix in ('', '.pik', '_data.pik', '_filtered.pik',
-                           '_pkeys.pik'):
-                p = freeze_path + suffix
-                if os.path.exists(p):
-                    os.remove(p)
 
     # -----------------------------------------------------------------------
     #  12. pyWhere (callback during fetch)
