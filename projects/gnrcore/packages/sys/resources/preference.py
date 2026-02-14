@@ -88,7 +88,9 @@ class AppPref(object):
         fb = pane.formbuilder()
         fb.comboBox(value='^.experimental.remoteForm',lbl='!![en]Remote forms',values='onEnter,delayed')
         fb.checkbox(value='^.experimental.wsk_enabled',lbl='!![en]WSK Enabled')
-        fb.checkbox(value='^.freeze_on_sqlite',label='!![en]Freeze selections on SQLite')
+        fb.filteringSelect(value='^.freeze_backend',lbl='!![en]Freeze backend',
+                            values='pickle:Pickle,sqlite:SQLite,postgres:PostgreSQL',
+                            default_value='pickle')
         
     def tablesConfiguration(self, pane):
         fb = pane.formbuilder(cols=1,border_spacing='3px',datapath='.tblconf')

@@ -26,16 +26,18 @@ This is the **only** entry point for persisting and restoring SQL selections
 on the page's connection folder.  No external code should call
 ``SqlSelection.freeze`` or ``GnrSqlDb.unfreezeSelection`` directly.
 
-Two storage backends are available:
+Three storage backends are available:
 
 - **Pickle** (default): serializes the ``SqlSelection`` object and its data
   into separate ``.pik`` files.
 - **SQLite**: stores each selection as a lightweight SQLite database
-  (via ``GnrSqlDb``) alongside a ``selection_meta.json`` metadata file.
+  alongside a ``selection_meta.json`` metadata file.
+- **PostgreSQL**: stores each selection as a PostgreSQL UNLOGGED table
+  in schema ``_qc``, with metadata in ``unlogged_meta.json``.
 
-The active backend is selected through the ``freeze_on_sqlite`` preference
-in the ``sys`` package, or overridden per-page via the ``use_freeze_sqlite``
-attribute (useful for testing).
+The active backend is selected through the ``freeze_backend`` preference
+in the ``sys`` package (values: ``pickle``, ``sqlite``, ``postgres``),
+or overridden per-page via the ``use_freeze_backend`` attribute.
 
 Architecture
 ------------
@@ -44,33 +46,18 @@ all storage operations to a backend object following the Strategy pattern::
 
     GnrFreezedSelections  (proxy, public API)
         |
-        +-- GnrFreezedSelectionsPickle   (backend)
-        +-- GnrFreezedSelectionsSqlite   (backend)
+        +-- GnrFreezedSelectionsPickle    (backend)
+        +-- GnrFreezedSelectionsSqlite    (backend)
+        +-- GnrFreezedSelectionsUnlogged  (backend, PostgreSQL)
 
-Both backends inherit from ``GnrFreezedSelectionsBackend`` and implement
-the same four methods: ``freezeSelection``, ``freezeSelectionUpdate``,
-``unfreezeSelection``, ``freezedPkeys``.
-
-Disk layout
------------
-For each frozen selection a dedicated folder is created at
-``<connectionFolder>/<page_id>/<selectionName>/``.
-
-Pickle backend contents::
-
-    selection.pik          -- serialized SqlSelection (without data)
-    selection_data.pik     -- pickled row data
-    selection_pkeys.pik    -- pickled list of primary keys
-    selection_filtered.pik -- pickled filtered data (if any)
-
-SQLite backend contents::
-
-    selection_meta.json    -- selection metadata (tablename, colAttrs, querypars, ...)
-    selection.sqlite       -- SQLite database with one table: selection_data
+All backends inherit from ``GnrFreezedSelectionsBackend`` and implement
+the same methods: ``freezeSelection``, ``freezeSelectionUpdate``,
+``unfreezeSelection``, ``freezedPkeys``, ``getFromFreezedSelection``.
 """
 
 import datetime
 import decimal
+import hashlib
 import json
 import os
 import pickle
@@ -962,33 +949,464 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
         return result
 
 
+QC_SCHEMA = '_qc'
+META_FILENAME = 'unlogged_meta.json'
+
+
+def _make_pg_table_name(page_id, sel_name, max_len=63):
+    """Build a PostgreSQL-safe table name from page_id and selection name."""
+    raw = 'p%s_%s' % (page_id, sel_name)
+    safe = ''.join(c if c.isalnum() or c == '_' else '_' for c in raw)
+    if len(safe.encode('utf-8')) <= max_len:
+        return safe[:max_len]
+    h = hashlib.sha256(sel_name.encode('utf-8')).hexdigest()[:12]
+    prefix = 'p%s_' % page_id
+    safe_prefix = ''.join(c if c.isalnum() or c == '_' else '_' for c in prefix)
+    return (safe_prefix + h)[:max_len]
+
+
+def _pg_col_type(dtype):
+    """Map a Genropy dataType to a PostgreSQL column type."""
+    return {
+        'T': 'TEXT', 'A': 'TEXT', 'C': 'TEXT',
+        'I': 'INTEGER', 'L': 'BIGINT',
+        'N': 'NUMERIC', 'R': 'DOUBLE PRECISION',
+        'B': 'BOOLEAN',
+        'D': 'DATE', 'DH': 'TIMESTAMP', 'DHZ': 'TIMESTAMPTZ',
+    }.get(dtype, 'TEXT')
+
+
+def _pg_parse_order_by(order_by):
+    """Parse a Genropy order_by string into a SQL ORDER BY clause."""
+    parts = []
+    for segment in order_by.split(','):
+        segment = segment.strip()
+        if not segment:
+            continue
+        if ':' in segment:
+            col, direction = segment.rsplit(':', 1)
+            direction = 'DESC' if direction.lower().startswith('d') else 'ASC'
+        else:
+            col = segment
+            direction = 'ASC'
+        parts.append('"%s" %s' % (col.strip(), direction))
+    return ', '.join(parts)
+
+
+class GnrFreezedSelectionsUnlogged(GnrFreezedSelectionsBackend):
+    """PostgreSQL UNLOGGED TABLE backend for frozen selections.
+
+    Each frozen selection is stored as a PostgreSQL UNLOGGED table in
+    schema ``_qc`` with metadata in ``unlogged_meta.json`` on the filesystem.
+
+    Fast path: ``CREATE UNLOGGED TABLE AS SELECT`` keeps data entirely
+    server-side.  Slow path: ``CREATE TABLE`` + row-by-row ``INSERT``.
+    """
+
+    def __init__(self, proxy, schema=None):
+        super().__init__(proxy)
+        self.schema = schema or QC_SCHEMA
+        self._schema_ready = False
+
+    @property
+    def db(self):
+        return self.proxy.db
+
+    def _execute(self, sql, args=None):
+        self.db.execute(sql, args)
+
+    def _fetchone(self, sql, args=None):
+        return self.db.execute(sql, args, dbtable=None).fetchone()
+
+    def _fetchall(self, sql, args=None):
+        return self.db.execute(sql, args, dbtable=None).fetchall()
+
+    def _ensure_schema(self):
+        if self._schema_ready:
+            return
+        self._execute('CREATE SCHEMA IF NOT EXISTS %s' % self.schema)
+        self.db.commit()
+        self._schema_ready = True
+
+    def _qualified(self, table_name):
+        return '%s."%s"' % (self.schema, table_name)
+
+    def _table_exists(self, table_name):
+        row = self._fetchone(
+            "SELECT 1 FROM pg_tables WHERE schemaname = %s AND tablename = %s",
+            (self.schema, table_name))
+        return row is not None
+
+    def _drop_table(self, table_name):
+        self._execute('DROP TABLE IF EXISTS %s' % self._qualified(table_name))
+
+    def _meta_path(self, folder):
+        return os.path.join(folder, META_FILENAME)
+
+    def _save_meta(self, folder, meta):
+        meta_path = self._meta_path(folder)
+        fd, tmp_path = tempfile.mkstemp(dir=folder, suffix='.json.tmp')
+        try:
+            with os.fdopen(fd, 'w') as f:
+                json.dump(meta, f, cls=_MetaEncoder)
+            os.replace(tmp_path, meta_path)
+        except BaseException:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
+
+    def _load_meta(self, folder):
+        meta_path = self._meta_path(folder)
+        if not os.path.exists(meta_path):
+            return None
+        with open(meta_path) as f:
+            return json.load(f)
+
+    def _build_meta(self, table_name, selection):
+        col_attrs = {k: dict(v) for k, v in selection.colAttrs.items()}
+        sorted_by = selection.sortedBy
+        if isinstance(sorted_by, list):
+            sorted_by = ','.join(sorted_by)
+        return dict(
+            pg_table_name=table_name,
+            tablename=selection.tablename,
+            col_attrs=col_attrs,
+            all_columns=selection.allColumns,
+            sorted_by=sorted_by,
+            querypars=selection.querypars,
+            key=selection.key if hasattr(selection, 'key') else None,
+            totalrows=len(selection),
+        )
+
+    def _create_via_query(self, table_name, selection):
+        """Fast path: CREATE UNLOGGED TABLE AS SELECT."""
+        querypars = selection.querypars
+        if not querypars:
+            return False
+        dbtable = selection.dbtable
+        if not dbtable:
+            return False
+        try:
+            q = dbtable.query(**querypars)
+            sql_text = q.sqltext
+            sql_args = q.sqlargs
+            if not sql_text:
+                return False
+            qualified = self._qualified(table_name)
+            create_sql = (
+                "CREATE UNLOGGED TABLE {qualified} AS "
+                "SELECT (row_number() OVER ())::integer - 1 AS _rowidx, "
+                "_inner_q.* FROM ({inner_query}) _inner_q"
+            ).format(qualified=qualified, inner_query=sql_text)
+            self._execute(create_sql, sql_args)
+            return True
+        except Exception:
+            self._drop_table(table_name)
+            return False
+
+    def _create_via_insert(self, table_name, selection):
+        """Slow path: create empty table + bulk insert from Python data."""
+        all_columns = selection.allColumns
+        col_attrs = selection.colAttrs
+        qualified = self._qualified(table_name)
+        col_defs = ['_rowidx INTEGER NOT NULL']
+        for col in all_columns:
+            attrs = col_attrs.get(col, {})
+            dtype = attrs.get('dataType', 'T')
+            col_defs.append('"%s" %s' % (col, _pg_col_type(dtype)))
+        self._execute('CREATE UNLOGGED TABLE %s (%s)' % (
+            qualified, ', '.join(col_defs)))
+        col_names = ', '.join(['_rowidx'] + ['"%s"' % c for c in all_columns])
+        placeholders = ', '.join(['%%s'] * (len(all_columns) + 1))
+        insert_sql = 'INSERT INTO %s (%s) VALUES (%s)' % (
+            qualified, col_names, placeholders)
+        data = selection.data
+        for i, row in enumerate(data):
+            values = [i]
+            for col in all_columns:
+                v = row[col]
+                if isinstance(v, decimal.Decimal):
+                    v = float(v)
+                values.append(v)
+            self._execute(insert_sql, values)
+
+    def _create_rowidx_index(self, table_name):
+        qualified = self._qualified(table_name)
+        idx_name = 'idx_%s_rowidx' % table_name
+        self._execute(
+            'CREATE UNIQUE INDEX "%s" ON %s (_rowidx)' % (idx_name, qualified))
+
+    def freezeSelection(self, selection, name, freezePkeys=False, **kwargs):
+        self._ensure_schema()
+        page_id = self.proxy.page_id
+        table_name = _make_pg_table_name(page_id, name)
+        folder = self.selection_folder(name)
+        self._drop_table(table_name)
+        if not self._create_via_query(table_name, selection):
+            self._create_via_insert(table_name, selection)
+        self._create_rowidx_index(table_name)
+        meta = self._build_meta(table_name, selection)
+        self._save_meta(folder, meta)
+        self.db.commit()
+        selection.freezepath = os.path.join(folder, 'selection')
+        selection._pg_table_name = table_name
+        return folder
+
+    def freezeSelectionUpdate(self, selection):
+        if not selection.freezepath:
+            return
+        folder = os.path.dirname(selection.freezepath)
+        if not os.path.isdir(folder):
+            return
+        meta = self._load_meta(folder)
+        if not meta:
+            return
+        self._ensure_schema()
+        table_name = meta['pg_table_name']
+        self._drop_table(table_name)
+        self._create_via_insert(table_name, selection)
+        self._create_rowidx_index(table_name)
+        new_meta = self._build_meta(table_name, selection)
+        self._save_meta(folder, new_meta)
+        self.db.commit()
+        selection.isChangedSelection = False
+        selection.isChangedData = False
+        selection.isChangedFiltered = False
+
+    def unfreezeSelection(self, dbtable=None, name=None, page_id=None):
+        assert name, 'name is mandatory'
+        self._ensure_schema()
+        if isinstance(dbtable, str):
+            dbtable = self.proxy.db.table(dbtable)
+        folder = self.proxy.pageLocalDocument(name, page_id=page_id)
+        meta = self._load_meta(folder) if os.path.isdir(folder) else None
+        if not meta:
+            return None
+        table_name = meta['pg_table_name']
+        if not self._table_exists(table_name):
+            return None
+        all_columns = meta['all_columns']
+        col_attrs = meta['col_attrs']
+        qualified = self._qualified(table_name)
+        col_list = ', '.join('"%s"' % c for c in all_columns)
+        rows = self._fetchall(
+            'SELECT %s FROM %s ORDER BY _rowidx' % (col_list, qualified))
+        original_dbtable = dbtable or self.proxy.db.table(meta['tablename'])
+        index = {col: i for i, col in enumerate(all_columns)}
+        data = [GnrNamedList(index, list(row)) for row in rows]
+        sorted_by = meta.get('sorted_by')
+        if isinstance(sorted_by, list):
+            sorted_by = ','.join(sorted_by)
+        selection = SqlSelection(
+            original_dbtable, data,
+            index=index,
+            colAttrs=col_attrs,
+            querypars=meta.get('querypars'),
+            sortedBy=sorted_by)
+        selection.freezepath = os.path.join(folder, 'selection')
+        selection._pg_table_name = table_name
+        if meta.get('key'):
+            selection.setKey(meta['key'])
+        if dbtable:
+            assert original_dbtable == selection.dbtable, \
+                'unfrozen selection does not belong to the given table'
+        return selection
+
+    def freezedPkeys(self, dbtable=None, name=None, page_id=None):
+        assert name, 'name is mandatory'
+        self._ensure_schema()
+        folder = self.proxy.pageLocalDocument(name, page_id=page_id)
+        meta = self._load_meta(folder) if os.path.isdir(folder) else None
+        if not meta:
+            return []
+        table_name = meta['pg_table_name']
+        if not self._table_exists(table_name):
+            return []
+        qualified = self._qualified(table_name)
+        rows = self._fetchall(
+            'SELECT "pkey" FROM %s ORDER BY _rowidx' % qualified)
+        return [r[0] for r in rows]
+
+    def getFromFreezedSelection(self, dbtable=None, name=None,
+                                row_start=0, row_count=0,
+                                order_by=None, sum_columns=None,
+                                page_id=None,
+                                searchOn_seed=None, searchOn_field=None,
+                                searchOn_columns=None):
+        assert name, 'name is mandatory'
+        self._ensure_schema()
+        if isinstance(dbtable, str):
+            dbtable = self.proxy.db.table(dbtable)
+        folder = self.proxy.pageLocalDocument(name, page_id=page_id)
+        meta = self._load_meta(folder) if os.path.isdir(folder) else None
+        if not meta:
+            return None
+        table_name = meta['pg_table_name']
+        if not self._table_exists(table_name):
+            return None
+        all_columns = meta['all_columns']
+        col_attrs = meta['col_attrs']
+        qualified = self._qualified(table_name)
+        totalrows = meta.get('totalrows', 0)
+
+        # WHERE (text search)
+        where_clause = ''
+        where_args = []
+        if searchOn_seed:
+            text_cols = []
+            for col in all_columns:
+                attrs = col_attrs.get(col, {})
+                dtype = attrs.get('dataType', 'T')
+                if dtype in ('T', 'A', 'C'):
+                    text_cols.append("COALESCE(\"%s\"::text, '')" % col)
+            if text_cols:
+                concat_expr = " || ' ' || ".join(text_cols)
+                tokens = searchOn_seed.split()
+                clauses = []
+                for token in tokens:
+                    clauses.append('%s ILIKE %%s' % concat_expr)
+                    where_args.append('%%%s%%' % token)
+                where_clause = 'WHERE ' + ' AND '.join(clauses)
+                count_row = self._fetchone(
+                    'SELECT COUNT(*) FROM %s %s' % (qualified, where_clause),
+                    where_args)
+                totalrows = count_row[0] if count_row else 0
+
+        # ORDER BY
+        if order_by:
+            order_clause = 'ORDER BY ' + _pg_parse_order_by(order_by)
+        else:
+            order_clause = 'ORDER BY _rowidx'
+
+        # LIMIT / OFFSET
+        limit_clause = ''
+        limit_args = []
+        if row_count:
+            limit_clause = 'LIMIT %s OFFSET %s'
+            limit_args = [row_count, row_start]
+        elif row_start:
+            limit_clause = 'OFFSET %s'
+            limit_args = [row_start]
+
+        # Main SELECT
+        col_list = ', '.join('"%s"' % c for c in all_columns)
+        select_sql = 'SELECT %s FROM %s %s %s %s' % (
+            col_list, qualified, where_clause, order_clause, limit_clause)
+        all_args = where_args + limit_args
+        rows = self._fetchall(select_sql, all_args if all_args else None)
+
+        result = dict(totalrows=totalrows)
+
+        # SUMs
+        if sum_columns:
+            sum_exprs = ', '.join('SUM("%s")' % c for c in sum_columns)
+            sum_sql = 'SELECT %s FROM %s %s' % (
+                sum_exprs, qualified, where_clause)
+            sum_row = self._fetchone(
+                sum_sql, where_args if where_args else None)
+            if sum_row:
+                result['sum_columns'] = dict(zip(sum_columns, sum_row))
+            else:
+                result['sum_columns'] = {c: 0 for c in sum_columns}
+
+        # Build SqlSelection for the page
+        original_dbtable = dbtable or self.proxy.db.table(meta['tablename'])
+        index = {col: i for i, col in enumerate(all_columns)}
+        data = [GnrNamedList(index, list(row)) for row in rows]
+        sorted_by = order_by or meta.get('sorted_by')
+        if isinstance(sorted_by, list):
+            sorted_by = ','.join(sorted_by)
+        selection = SqlSelection(
+            original_dbtable, data,
+            index=index,
+            colAttrs=col_attrs,
+            querypars=meta.get('querypars'),
+            sortedBy=sorted_by)
+        selection.freezepath = os.path.join(folder, 'selection')
+        selection._pg_table_name = table_name
+        if meta.get('key'):
+            selection.setKey(meta['key'])
+        result['selection'] = selection
+        return result
+
+    def cleanupSelection(self, name, page_id=None):
+        self._ensure_schema()
+        folder = self.proxy.pageLocalDocument(name, page_id=page_id)
+        meta = self._load_meta(folder) if os.path.isdir(folder) else None
+        if meta:
+            self._drop_table(meta['pg_table_name'])
+            meta_path = self._meta_path(folder)
+            if os.path.exists(meta_path):
+                os.remove(meta_path)
+            self.db.commit()
+
+    def cleanupPage(self, page_id=None):
+        self._ensure_schema()
+        page_id = page_id or self.proxy.page_id
+        page_folder = self.proxy.pageLocalDocument('', page_id=page_id)
+        if not os.path.isdir(page_folder):
+            return
+        for entry in os.listdir(page_folder):
+            sel_folder = os.path.join(page_folder, entry)
+            if not os.path.isdir(sel_folder):
+                continue
+            meta = self._load_meta(sel_folder)
+            if meta:
+                self._drop_table(meta['pg_table_name'])
+                os.remove(self._meta_path(sel_folder))
+        self.db.commit()
+
+    def cleanupOrphans(self, live_page_ids):
+        self._ensure_schema()
+        live_set = set(live_page_ids)
+        rows = self._fetchall(
+            "SELECT tablename FROM pg_tables WHERE schemaname = %s",
+            (self.schema,))
+        for row in rows:
+            tname = row[0]
+            if not tname.startswith('p'):
+                continue
+            rest = tname[1:]
+            sep = rest.find('_')
+            if sep < 0:
+                continue
+            extracted_page_id = rest[:sep]
+            if extracted_page_id not in live_set:
+                self._drop_table(tname)
+        self.db.commit()
+
+    def cleanupAll(self):
+        self._execute('DROP SCHEMA IF EXISTS %s CASCADE' % self.schema)
+        self._schema_ready = False
+        self._ensure_schema()
+
+
+FREEZE_BACKENDS = {
+    'pickle': GnrFreezedSelectionsPickle,
+    'sqlite': GnrFreezedSelectionsSqlite,
+    'postgres': GnrFreezedSelectionsUnlogged,
+}
+
+
 class GnrFreezedSelections(GnrBaseProxy):
     """Page proxy managing the lifecycle of frozen selections.
 
     Acts as the public API called by the page (``page.freezeSelection``,
     ``page.unfreezeSelection``, etc.) and by ``apphandler.getSelection``.
 
-    On initialization selects the storage backend:
-
-    - If ``page.use_freeze_sqlite`` is set, uses that value directly
-      (useful for testing without touching preferences).
-    - Otherwise reads the ``freeze_on_sqlite`` preference from the
-      ``sys`` package (default: ``False``).
+    On initialization selects the storage backend based on the
+    ``freeze_backend`` preference (``pickle``, ``sqlite``, ``postgres``).
+    Can be overridden per-page via ``use_freeze_backend``.
     """
 
     def init(self, **kwargs):
-        """Initialize the proxy and select the storage backend.
-
-        Called automatically by the proxy framework after the page is set up.
-        """
-        use_sqlite = getattr(self.page, 'use_freeze_sqlite', None)
-        if use_sqlite is None:
-            use_sqlite = self.application.getPreference(
-                'freeze_on_sqlite', pkg='sys') or False
-        if use_sqlite:
-            self._backend = GnrFreezedSelectionsSqlite(self)
-        else:
-            self._backend = GnrFreezedSelectionsPickle(self)
+        """Initialize the proxy and select the storage backend."""
+        backend_name = getattr(self.page, 'use_freeze_backend', None)
+        if backend_name is None:
+            backend_name = self.application.getPreference(
+                'freeze_backend', pkg='sys') or 'pickle'
+        backend_cls = FREEZE_BACKENDS.get(backend_name, GnrFreezedSelectionsPickle)
+        self._backend = backend_cls(self)
 
     def freezeSelection(self, selection, name, **kwargs):
         """Persist a selection to disk. Delegates to the active backend."""

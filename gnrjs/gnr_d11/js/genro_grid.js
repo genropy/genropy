@@ -1002,8 +1002,8 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         sourceNode.registerSubscription(searchBoxCode+'_changedValue',widget,function(v,field){
             var snode = genro.nodeById(sourceNode.attr.store+'_store');
             var isVirtual = snode && snode.attr.selectionName && snode.attr.row_count;
-            var sqliteBackend = genro.appPreference('sys.freeze_on_sqlite');
-            if(isVirtual && sqliteBackend){
+            var freezeBackend = genro.appPreference('sys.freeze_backend');
+            if(isVirtual && freezeBackend && freezeBackend !== 'pickle'){
                 snode.store.loadData();
             }else{
                 this.applyFilter(v,null,field);
