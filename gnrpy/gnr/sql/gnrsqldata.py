@@ -91,6 +91,7 @@ class SqlCompiledQuery(object):
         self.evaluateBagColumns = []
         self.aggregateDict = {}
         self.pyColumns = []
+        self.columnOrder = []
         self.maintable_as = maintable_as
 
     def get_sqltext(self, db):
@@ -674,6 +675,7 @@ class SqlQueryCompiler(object):
                 as_ = self.db.adapter.asTranslator(as_.strip())
                 self.cpl.aliasDict[as_] = colbody.strip()
             col_dict[as_] = col
+        self.cpl.columnOrder = list(col_dict.keys())
         # build the clean and complete sql string for the columns, but still all fields are expressed as $fieldname
         as_col_values = col_dict.values()
         columns = ',\n'.join(as_col_values)
@@ -1261,26 +1263,59 @@ class SqlQuery(object):
     def selection(self, pyWhere=None, key=None, sortedBy=None, _aggregateRows=False):
         """Execute the query and return a SqlSelection
 
-        :param pyWhere: a callback that can be used to reduce the selection during the fetch
+        :param pyWhere: a callback that can be used to reduce the selection during the fetch.
+                        Deprecated: use a SQL WHERE clause instead.
         :param key: TODO
         :param sortedBy: TODO
         :param _aggregateRows: boolean. TODO"""
-        index, data = self._dofetch(pyWhere=pyWhere)
+        eager = bool(pyWhere) or bool(_aggregateRows)
+        if pyWhere:
+            import warnings
+            warnings.warn(
+                "pyWhere is deprecated and will be removed in a future version. "
+                "Use a SQL WHERE clause instead.",
+                DeprecationWarning, stacklevel=2)
+        if eager:
+            index, data = self._dofetch(pyWhere=pyWhere)
+            querypars = dict(self.querypars)
+            querypars.update(self.sqlparams)
+            return SqlSelection(self.dbtable, data,
+                                index=index,
+                                querypars=querypars,
+                                colAttrs=self._prepColAttrs(index),
+                                joinConditions=self.joinConditions,
+                                sqlContextName=self.sqlContextName,
+                                key=key,
+                                sortedBy=sortedBy,
+                                explodingColumns=self.compiled.explodingColumns,
+                                checkPermissions=self.checkPermissions,
+                                _aggregateRows=_aggregateRows,
+                                _aggregateDict=self.compiled.aggregateDict
+                                )
         querypars = dict(self.querypars)
         querypars.update(self.sqlparams)
-        return SqlSelection(self.dbtable, data,
-                            index=index,
+        return SqlSelection(self.dbtable, None,
+                            query=self,
+                            index=self.index,
+                            colAttrs=self.colAttrs,
                             querypars=querypars,
-                            colAttrs=self._prepColAttrs(index),
                             joinConditions=self.joinConditions,
                             sqlContextName=self.sqlContextName,
                             key=key,
                             sortedBy=sortedBy,
                             explodingColumns=self.compiled.explodingColumns,
-                            checkPermissions = self.checkPermissions,
-                            _aggregateRows=_aggregateRows,
-                            _aggregateDict = self.compiled.aggregateDict
+                            checkPermissions=self.checkPermissions
                             )
+
+    def _get_index(self):
+        return dict((k.strip('"'), i) for i, k in enumerate(self.compiled.columnOrder))
+
+    index = property(_get_index)
+
+    def _get_colAttrs(self):
+        return self._prepColAttrs(self.index)
+
+    colAttrs = property(_get_colAttrs)
 
     def _prepColAttrs(self, index):
         colAttrs = {}
@@ -1362,39 +1397,53 @@ class SqlSelection(object):
     on a SqlSelection."""
     def __init__(self, dbtable, data, index=None, colAttrs=None, key=None, sortedBy=None,
                  joinConditions=None, sqlContextName=None, explodingColumns=None, checkPermissions=None,
-                 querypars=None,_aggregateRows=False,_aggregateDict=None):
+                 querypars=None, _aggregateRows=False, _aggregateDict=None, query=None):
         self._frz_data = None
         self._frz_filtered_data = None
+        self._query = query
         self.dbtable = dbtable
         self.querypars = querypars
         self.tablename = dbtable.fullname
-        self.colAttrs = colAttrs or {}
         self.explodingColumns = explodingColumns
         self.aggregateDict = _aggregateDict
-        if _aggregateRows == True:
-            data = self._aggregateRows(data, index, explodingColumns,aggregateDict=_aggregateDict)
-        self._data = data
-        if key:
-            self.setKey(key)
-        elif 'pkey' in index:
-            self.key = 'pkey'
-        else:
-            self.key = None
-        self.sortedBy = sortedBy
-        if sortedBy:
-            self.sort(sortedBy)
+        self._deferred_key = key
+        self._deferred_sortedBy = sortedBy
+        self.joinConditions = joinConditions
+        self.sqlContextName = sqlContextName
+        self.checkPermissions = checkPermissions
         self._keyDict = None
         self._filtered_data = None
-        self._index = index
-        self.columns = self.allColumns
+        self._index = index or {}
+        self.colAttrs = colAttrs or {}
+        self.key = 'pkey' if 'pkey' in self._index else None
+        self.sortedBy = sortedBy
+        self.columns = self.allColumns if self._index else []
         self.freezepath = None
         self.analyzeBag = None
         self.isChangedSelection = True
         self.isChangedData = True
         self.isChangedFiltered = True
-        self.joinConditions = joinConditions
-        self.sqlContextName = sqlContextName
-        self.checkPermissions = checkPermissions
+        if data is not None:
+            self._initWithData(data, index, colAttrs, _aggregateRows, _aggregateDict)
+        elif query is None:
+            self._initWithData([], index or {}, colAttrs, False, None)
+
+    def _initWithData(self, data, index, colAttrs, _aggregateRows, _aggregateDict):
+        self.colAttrs = colAttrs or {}
+        if _aggregateRows:
+            data = self._aggregateRows(data, index, self.explodingColumns, aggregateDict=_aggregateDict)
+        self._data = data
+        self._index = index
+        if self._deferred_key:
+            self.setKey(self._deferred_key)
+        elif 'pkey' in index:
+            self.key = 'pkey'
+        else:
+            self.key = None
+        self.sortedBy = self._deferred_sortedBy
+        if self.sortedBy:
+            self.sort(self.sortedBy)
+        self.columns = self.allColumns
 
     def _aggregateRows(self, data, index, explodingColumns,aggregateDict=None):
         if self.explodingColumns:
@@ -1544,9 +1593,19 @@ class SqlSelection(object):
     _filtered_data = property(_get_filtered_data, _set_filtered_data)
 
     def _get_full_data(self):
-        if self._frz_data == 'frozen':
+        if self._frz_data is None and self._query is not None:
+            self._ensureFetched()
+        elif self._frz_data == 'frozen':
             self._freeze_data('r')
         return self._frz_data
+
+    def _ensureFetched(self):
+        if self._frz_data is None and self._query is not None:
+            query = self._query
+            self._query = None
+            index, data = query._dofetch()
+            colAttrs = query._prepColAttrs(index)
+            self._initWithData(data, index, colAttrs, False, None)
 
     def _set_full_data(self, value):
         self._frz_data = value
