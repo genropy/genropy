@@ -820,7 +820,9 @@ class GnrWebAppHandler(GnrBaseProxy):
                     resultAttributes.update(applyresult)
 
             if selectionName:
-                selection.setKey('rowidx')
+                if not selection._outputTable:
+                    selection.setKey('rowidx')
+                selection.selectionName = selectionName
                 selectionPath = self.page.freezeSelection(selection, selectionName,freezePkeys=True)
                 self.page.userStore().setItem('current.table.%s.last_selection_path' % table.replace('.', '_'), selectionPath)
             resultAttributes.update(table=table, method='app.getSelection', selectionName=selectionName,

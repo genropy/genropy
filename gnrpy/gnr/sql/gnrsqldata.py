@@ -1093,14 +1093,15 @@ class SqlQuery(object):
     def _get_sqltext(self):
         sql = self.compiled.get_sqltext(self.db)
         output_table = self.sqlparams.pop('_outputTable', None)
-        self._outputTable_fetch = self.sqlparams.pop('_outputTable_fetch', None)
         if output_table:
             self._outputTable = output_table
             unlogged = ''
             if output_table.startswith('UL:'):
                 unlogged = 'UNLOGGED '
                 output_table = output_table[3:]
-            sql = f'CREATE {unlogged}TABLE {output_table} AS {sql}'
+            sql = (f'CREATE {unlogged}TABLE {output_table} AS '
+                   f'SELECT (row_number() OVER ())::integer - 1 AS _rowidx, '
+                   f'_inner_q.* FROM ({sql}) _inner_q')
         else:
             self._outputTable = None
         return sql
@@ -1256,21 +1257,9 @@ class SqlQuery(object):
         else:
             cursor = self.cursor()
             if getattr(self, '_outputTable', None):
+                self._outputTable_rowcount = cursor.rowcount
                 cursor.close()
-                index = self.index
-                fetch_limit = getattr(self, '_outputTable_fetch', None)
-                if fetch_limit:
-                    output_table = self._outputTable
-                    if output_table.startswith('UL:'):
-                        output_table = output_table[3:]
-                    fetch_cursor = self.db.execute(
-                        f'SELECT * FROM {output_table} LIMIT {int(fetch_limit)}',
-                        dbtable=self.dbtable.fullname, storename=self.storename)
-                    data = fetch_cursor.fetchall() or []
-                    fetch_cursor.close()
-                else:
-                    data = []
-                return index, data
+                return self.index, []
             if isinstance(cursor, list):
                 data = []
                 for c in cursor:
@@ -1303,7 +1292,7 @@ class SqlQuery(object):
             index, data = self._dofetch(pyWhere=pyWhere)
             querypars = dict(self.querypars)
             querypars.update(self.sqlparams)
-            return SqlSelection(self.dbtable, data,
+            sel = SqlSelection(self.dbtable, data,
                                 index=index,
                                 querypars=querypars,
                                 colAttrs=self._prepColAttrs(index),
@@ -1316,6 +1305,10 @@ class SqlQuery(object):
                                 _aggregateRows=_aggregateRows,
                                 _aggregateDict=self.compiled.aggregateDict
                                 )
+            if getattr(self, '_outputTable', None):
+                sel._outputTable = self._outputTable
+                sel._totalrows = getattr(self, '_outputTable_rowcount', 0)
+            return sel
         querypars = dict(self.querypars)
         querypars.update(self.sqlparams)
         return SqlSelection(self.dbtable, None,
@@ -1443,6 +1436,9 @@ class SqlSelection(object):
         self.sortedBy = sortedBy
         self.columns = self.allColumns if self._index else []
         self.freezepath = None
+        self.selectionName = None
+        self._totalrows = None
+        self._outputTable = None
         self.analyzeBag = None
         self.isChangedSelection = True
         self.isChangedData = True
@@ -1596,6 +1592,8 @@ class SqlSelection(object):
             raise SelectionExecutionError('Not existing mode: %s' % outmethod)
 
     def __len__(self):
+        if self._outputTable:
+            return self._totalrows
         return len(self.data)
 
     def _get_data(self):
