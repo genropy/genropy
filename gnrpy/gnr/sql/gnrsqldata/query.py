@@ -26,8 +26,8 @@ import datetime
 from collections import OrderedDict
 
 from gnr.core.gnrbag import Bag, BagResolver
-from gnr.sql.gnrsqldata_compiler import SqlQueryCompiler
-from gnr.sql.gnrsqldata_selection import SqlSelection
+from gnr.sql.gnrsqldata.compiler import SqlQueryCompiler
+from gnr.sql.gnrsqldata.selection import SqlSelection
 
 
 class SqlDataResolver(BagResolver):

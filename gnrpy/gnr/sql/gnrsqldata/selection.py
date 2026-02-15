@@ -37,7 +37,7 @@ from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrbag import Bag, BagAsXml
 from gnr.core.gnranalyzingbag import AnalyzingBag
 from gnr.sql.gnrsql_exceptions import GnrSqlException, SelectionExecutionError
-from gnr.sql.gnrsqldata_record import SqlRelatedRecordResolver
+from gnr.sql.gnrsqldata.record import SqlRelatedRecordResolver
 
 
 class SqlSelection(object):

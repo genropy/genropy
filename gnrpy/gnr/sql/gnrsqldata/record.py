@@ -22,7 +22,7 @@
 
 from gnr.core import gnrstring
 from gnr.core.gnrbag import Bag, BagResolver
-from gnr.sql.gnrsqldata_compiler import SqlQueryCompiler
+from gnr.sql.gnrsqldata.compiler import SqlQueryCompiler
 from gnr.sql.gnrsql_exceptions import SelectionExecutionError, RecordDuplicateError, \
     RecordNotExistingError, RecordSelectionError
 

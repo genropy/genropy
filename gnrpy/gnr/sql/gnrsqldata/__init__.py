@@ -1,7 +1,7 @@
 #-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package       : GenroPy sql - see LICENSE for details
-# module gnrsqldata : Genro SQL query and data (facade)
+# module gnrsqldata : Genro SQL query and data (package facade)
 # Copyright (c) : 2004 - 2007 Softwell sas - Milano
 # Written by    : Giovanni Porcari, Michele Bertoldi
 #                 Saverio Porcari, Francesco Porcari , Francesco Cavazzana
@@ -22,14 +22,14 @@
 
 # Re-export all public classes for backward compatibility.
 # The actual implementations live in:
-#   gnrsqldata_compiler.py  - SqlCompiledQuery, SqlQueryCompiler
-#   gnrsqldata_query.py     - SqlQuery, SqlDataResolver
-#   gnrsqldata_selection.py - SqlSelection
-#   gnrsqldata_record.py    - SqlRecord, SqlRecordBag, SqlRelatedRecordResolver, SqlRelatedSelectionResolver
+#   gnrsqldata/compiler.py  - SqlCompiledQuery, SqlQueryCompiler
+#   gnrsqldata/query.py     - SqlQuery, SqlDataResolver
+#   gnrsqldata/selection.py - SqlSelection
+#   gnrsqldata/record.py    - SqlRecord, SqlRecordBag, SqlRelatedRecordResolver, SqlRelatedSelectionResolver
 
-from gnr.sql.gnrsqldata_compiler import SqlCompiledQuery, SqlQueryCompiler  # noqa: F401
-from gnr.sql.gnrsqldata_query import SqlQuery, SqlDataResolver  # noqa: F401
-from gnr.sql.gnrsqldata_selection import SqlSelection  # noqa: F401
-from gnr.sql.gnrsqldata_record import (SqlRecord, SqlRecordBag,  # noqa: F401
+from gnr.sql.gnrsqldata.compiler import SqlCompiledQuery, SqlQueryCompiler  # noqa: F401
+from gnr.sql.gnrsqldata.query import SqlQuery, SqlDataResolver  # noqa: F401
+from gnr.sql.gnrsqldata.selection import SqlSelection  # noqa: F401
+from gnr.sql.gnrsqldata.record import (SqlRecord, SqlRecordBag,  # noqa: F401
                                         SqlRelatedRecordResolver,
                                         SqlRelatedSelectionResolver)
