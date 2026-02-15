@@ -20,6 +20,24 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
+"""SQL query builder and data resolver.
+
+This module provides:
+
+- ``SqlDataResolver``: a ``BagResolver`` subclass for lazy table-data loading
+  inside Bag hierarchies. Rarely used directly; serves as base for
+  application-level data resolvers.
+
+- ``SqlQuery``: the main entry point for building and executing SQL queries.
+  Compiles the query through ``SqlQueryCompiler``, then offers multiple
+  consumption modes:
+
+  - ``selection()`` → ``SqlSelection`` (row-set with sort/filter/output)
+  - ``fetch()`` / ``fetchAsDict()`` / ``fetchAsBag()`` / ``fetchGrouped()``
+  - ``fetchPkeys()`` / ``fetchAsJson()``
+  - ``count()`` / ``cursor()`` / ``servercursor()``
+"""
+
 import re
 import json
 import datetime
@@ -31,14 +49,27 @@ from gnr.sql.gnrsqldata.selection import SqlSelection
 
 
 class SqlDataResolver(BagResolver):
-    """TODO"""
+    """Lazy BagResolver that loads table data on first Bag access.
+
+    Subclass this to create application-level data resolvers that populate
+    a Bag node with query results when the node is first read.
+
+    Attributes:
+        tablename: Positional class argument — the ``pkg.table`` to query.
+        db: The ``GnrSqlDb`` instance (injected at construction).
+        dbtable: The resolved ``SqlTable`` object (set in ``init()``).
+    """
     classKwargs = {'cacheTime': 0,
                    'readOnly': True,
                    'db': None}
     classArgs = ['tablename']
 
     def resolverSerialize(self):
-        """TODO"""
+        """Serialize the resolver state for Bag persistence.
+
+        Returns:
+            dict: Module, class, args and kwargs for reconstruction.
+        """
         attr = {}
         attr['resolvermodule'] = self.__class__.__module__
         attr['resolverclass'] = self.__class__.__name__
@@ -49,18 +80,22 @@ class SqlDataResolver(BagResolver):
         return attr
 
     def init(self):
-        """TODO"""
-    ##raise str(self._initKwargs)
-    #if 'get_app' in self._initKwargs:
-    #self.db = self._initKwargs['get_app'].db
-        #if '.' in self.table:
-        #    self.package, self.table = self.table.split('.')
-        #self.tblstruct = self.dbroot.package(self.package).table(self.table)
+        """Resolve ``tablename`` into a ``dbtable`` reference.
+
+        Called automatically by ``BagResolver`` after construction.
+        Delegates to ``onCreate()`` for subclass-specific initialization.
+        """
+        # REVIEW: commented-out code block (original lines 53-58) --
+        # leftovers from an old init mechanism via ``get_app``.
+        # Can be removed.
         self.dbtable = self.db.table(self.tablename)
         self.onCreate()
 
     def onCreate(self):
-        """TODO"""
+        """Hook for subclass initialization after ``dbtable`` is resolved.
+
+        Override in subclasses to perform custom setup. Default is no-op.
+        """
         pass
 
 class SqlQuery(object):
@@ -153,22 +188,24 @@ class SqlQuery(object):
         self.db = self.dbtable.db
         self._compiled = None
 
-    def setJoinCondition(self, target_fld=None, from_fld=None, relation=None,condition=None, one_one=False, **kwargs):
-        """TODO
+    def setJoinCondition(self, target_fld=None, from_fld=None, relation=None,
+                         condition=None, one_one=False, **kwargs):
+        """Register an extra join condition for a specific relation.
 
-        :param target_fld: TODO
-        :param from_fld: TODO
-        :param condition: set a :ref:`sql_condition` for the join
-        :param one_one: boolean. TODO
+        Args:
+            target_fld: Fully-qualified target field (``pkg.table.column``).
+            from_fld: Fully-qualified source field.
+            relation: Optional relation name key (alternative to
+                ``target_fld``/``from_fld`` pair).
+            condition: SQL condition string (may reference ``$tbl``).
+            one_one: If ``True``, treat a one-to-many relation as one-to-one.
+            **kwargs: Additional bind parameters for the condition.
         """
-
         cond = dict(condition=condition, one_one=one_one, params=kwargs)
         self.joinConditions[relation or '%s_%s' % (target_fld.replace('.', '_'), from_fld.replace('.', '_'))] = cond
 
-        #def resolver(self, mode='bag'):
-        #return SqlSelectionResolver(self.dbtable.fullname,  db=self.db, mode=mode,
-        #relationDict=self.relationDict, sqlparams=self.sqlparams,
-        #joinConditions=self.joinConditions, bagFields=self.bagFields, **self.querypars)
+        # REVIEW: commented-out ``resolver()`` method (lines 168-171) --
+        # leftover from an old ``SqlSelectionResolver``. Can be removed.
 
     def _get_sqltext(self):
         return self.compiled.get_sqltext(self.db)
@@ -216,25 +253,44 @@ class SqlQuery(object):
         self.handleBagColumns(result)
         return result
 
-    def handlePyColumns(self,data):
+    def handlePyColumns(self, data):
+        """Evaluate Python-computed virtual columns on fetched rows.
+
+        Iterates over declared ``pyColumns`` and calls each handler
+        function for every row in *data*, storing the result back into
+        the row dict.
+
+        Args:
+            data: List of row dicts (modified in place).
+        """
         if not self.compiled.pyColumns:
             return
         pcdict = dict(self.compiled.pyColumns)
-        for field in  list(self.dbtable.model.virtual_columns.keys()):
+        for field in list(self.dbtable.model.virtual_columns.keys()):
             if not field in pcdict:
                 continue
             handler = pcdict[field]
             if handler:
                 for d in data:
-                    #d[field] = handler(d,field=field)
-                    result = handler(d,field=field)
+                    # REVIEW: commented-out line ``d[field] = handler(...)``
+                    # followed by identical uncommented line -- debug leftover.
+                    result = handler(d, field=field)
                     d[field] = result
 
-    def handleBagColumns(self,data):
+    def handleBagColumns(self, data):
+        """Post-process Bag-type columns (``#BAG`` / ``#BAGCOLS``) in fetched rows.
+
+        For each declared ``evaluateBagColumns`` entry, parses the raw
+        string value into a ``Bag``. If ``separateCols`` is ``True``,
+        flattens the Bag leaves into individual dict keys.
+
+        Args:
+            data: List of row dicts (modified in place).
+        """
         if not self.compiled.evaluateBagColumns:
             return
         for d in data:
-            for field,separateCols in self.compiled.evaluateBagColumns:
+            for field, separateCols in self.compiled.evaluateBagColumns:
                 val = Bag(d[field])
                 if separateCols:
                     for k,v in val.getLeaves():
@@ -245,20 +301,35 @@ class SqlQuery(object):
 
 
     def fetchPkeys(self):
+        """Fetch and return only the primary key values.
+
+        Returns:
+            list: Primary key values for all matching rows.
+        """
         fetch = self.fetch()
         pkeyfield = self.dbtable.pkey
         return [r[pkeyfield] for r in fetch]
 
     def fetchAsJson(self, key=None):
+        """Fetch rows and serialize as a JSON string.
 
+        Args:
+            key: Unused (present for signature compatibility).
+
+        Returns:
+            str: JSON array of row dicts.
+        """
         fetch = self.fetch()
         key = key or self.dbtable.pkey
+        # REVIEW: GnrDictRowEncoder is defined as an inner class inside the
+        # method -- it could be extracted to module level for reusability
+        # and clarity.
         class GnrDictRowEncoder(json.JSONEncoder):
             def default(self, obj):
                 if isinstance(obj, datetime.datetime):
                     return obj.isoformat()
                 return str(obj)
-        return json.dumps([ {k: v for k, v in r.items()} for r in fetch], cls=GnrDictRowEncoder)
+        return json.dumps([{k: v for k, v in r.items()} for r in fetch], cls=GnrDictRowEncoder)
 
     def fetchAsDict(self, key=None, ordered=False, pkeyOnly=False):
         """Return the :meth:`~gnr.sql.gnrsqldata.SqlQuery.fetch` method as a dict with as key
@@ -311,11 +382,28 @@ class SqlQuery(object):
         return result
 
     def test(self):
+        """Return the compiled SQL text and parameters without executing.
+
+        Useful for debugging and logging.
+
+        Returns:
+            tuple: ``(sql_text, sql_params)``
+        """
         return (self.sqltext, self.sqlparams)
 
     def _dofetch(self, pyWhere=None):
-        """private: called by _get_selection"""
+        """Execute the query and return raw index and data.
+
+        Args:
+            pyWhere: Optional Python-side filter callback applied row-by-row
+                during fetch (server-cursor mode).
+
+        Returns:
+            tuple: ``(index, data)`` where *index* is a column-name → position
+            dict and *data* is a list of row dicts.
+        """
         if pyWhere:
+            # Server-side cursor mode: fetch in chunks and filter in Python
             cursor, rowset = self.serverfetch(arraysize=100)
             index = cursor.index
             data = []
@@ -323,6 +411,7 @@ class SqlQuery(object):
                 data.extend([r for r in rows if pyWhere(r)])
         else:
             cursor = self.cursor()
+            # Multi-store scenario: cursor is a list of cursors
             if isinstance(cursor, list):
                 data = []
                 for c in cursor:
@@ -361,6 +450,18 @@ class SqlQuery(object):
                             )
 
     def _prepColAttrs(self, index):
+        """Build column-attribute metadata for ``SqlSelection``.
+
+        For each column in the result set, looks up the corresponding
+        database column to gather attributes like ``dtype``, ``name_long``,
+        ``print_width``, and permission overrides.
+
+        Args:
+            index: Column-name → position dict from the cursor.
+
+        Returns:
+            dict: Column-name → attributes dict.
+        """
         colAttrs = {}
         for k in list(index.keys()):
             if k == 'pkey':
@@ -383,26 +484,50 @@ class SqlQuery(object):
         return colAttrs
 
     def servercursor(self):
-        """Get a cursor on dbserver"""
-        return self.db.execute(self.sqltext, self.sqlparams, cursorname='*',storename=self.storename)
+        """Open a named server-side cursor for large result sets.
+
+        Returns:
+            cursor: A named cursor (server-side) for chunk-based fetching.
+        """
+        return self.db.execute(self.sqltext, self.sqlparams, cursorname='*', storename=self.storename)
 
     def serverfetch(self, arraysize=30):
-        """Get fetch of the :meth:`servercursor()` method.
+        """Fetch from a server-side cursor in chunks.
 
-        :param arraysize: TODO"""
+        Args:
+            arraysize: Number of rows per chunk.
+
+        Returns:
+            tuple: ``(cursor, row_generator)`` where the generator yields
+            lists of rows in chunks of *arraysize*.
+        """
         cursor = self.servercursor()
         cursor.arraysize = arraysize
         rows = cursor.fetchmany()
         return cursor, self._cursorGenerator(cursor, rows)
 
     def iterfetch(self, arraysize=30):
-        """TODO
+        """Iterate over rows using a server-side cursor.
 
-        :param arraysize: TODO"""
+        Args:
+            arraysize: Number of rows per chunk.
+
+        Yields:
+            Row chunks from the server-side cursor.
+        """
         for r in self.serverfetch(arraysize=arraysize)[1]:
             yield r
 
     def _cursorGenerator(self, cursor, firstRows=None):
+        """Generator that yields row chunks from a server-side cursor.
+
+        Args:
+            cursor: The server-side cursor.
+            firstRows: Optional first chunk already fetched.
+
+        Yields:
+            list: Chunks of rows until the cursor is exhausted.
+        """
         if firstRows:
             yield firstRows
         rows = True
@@ -412,23 +537,70 @@ class SqlQuery(object):
         cursor.close()
 
     def count(self):
-        """Return rowcount. It does not save a selection"""
+        """Return the number of matching rows without building a selection.
+
+        For plain queries, uses ``COUNT(*)``; for ``GROUP BY`` or
+        ``DISTINCT`` queries, counts the resulting groups/rows.
+
+        Returns:
+            int: The total row count.
+        """
         with self.db.tempEnv(currentImplementation=self.dbtable.dbImplementation):
             compiledQuery = self.compileQuery(count=True)
-            cursor = self.db.execute(compiledQuery.get_sqltext(self.db), self.sqlparams, dbtable=self.dbtable.fullname,storename=self.storename)
+            cursor = self.db.execute(compiledQuery.get_sqltext(self.db), self.sqlparams,
+                                     dbtable=self.dbtable.fullname, storename=self.storename)
+        # Multi-store scenario: cursor is a list
         if isinstance(cursor, list):
             n = 0
             for c in cursor:
+                # REVIEW: variable ``l`` shadows the builtin ``len`` -- renaming
+                # to ``rows`` would improve readability.
                 l = c.fetchall()
-                partial = len(l) # for group or distinct query select -1 for each group
-                if partial == 1 and c.description[0][0] == 'gnr_row_count': # for plain query select count(*)
+                # For GROUP BY / DISTINCT: row count = number of groups
+                partial = len(l)
+                # For plain COUNT(*): single row with gnr_row_count
+                if partial == 1 and c.description[0][0] == 'gnr_row_count':
                     partial = l[0][0]
                 c.close()
-                n+=partial
+                n += partial
         else:
             l = cursor.fetchall()
-            n = len(l) # for group or distinct query select -1 for each group
-            if n == 1 and cursor.description[0][0] == 'gnr_row_count': # for plain query select count(*)
+            n = len(l)
+            if n == 1 and cursor.description[0][0] == 'gnr_row_count':
                 n = l[0][0]
             cursor.close()
         return n
+
+
+# ===========================================================================
+# REVIEW NOTES (query.py)
+# ===========================================================================
+#
+# 1. REVIEW: commented-out code in SqlDataResolver.init()
+#    Original lines 53-58 contain leftovers from an old ``get_app``
+#    mechanism. Can be removed.
+#
+# 2. REVIEW: commented-out ``resolver()`` method (after setJoinCondition)
+#    Reference to a non-existent ``SqlSelectionResolver``. Dead code.
+#
+# 3. REVIEW: GnrDictRowEncoder defined inside fetchAsJson()
+#    Inner class re-created on every call. Extracting to module level
+#    would improve readability and performance (marginally).
+#
+# 4. REVIEW: variable ``l`` in count()
+#    Shadows the builtin ``len``. Rename to ``rows`` or ``fetched``.
+#
+# 5. REVIEW: handlePyColumns -- commented-out line
+#    ``#d[field] = handler(d,field=field)`` followed by identical
+#    uncommented code. Debug leftover that can be removed.
+#
+# 6. REVIEW: _dofetch -- inconsistent multi-cursor handling
+#    In the ``pyWhere`` branch, ``cursor.close()`` is not called.
+#    In the ``isinstance(cursor, list)`` branch, ``index`` is overwritten
+#    on each iteration (could be undefined if the list is empty).
+#
+# 7. REVIEW: ``rels`` and ``params`` computed in __init__ (lines 172-174)
+#    The variables ``rels`` and ``params`` are computed via regex but
+#    never used afterwards. Evaluate whether they are leftovers from an
+#    old validation mechanism.
+# ===========================================================================
