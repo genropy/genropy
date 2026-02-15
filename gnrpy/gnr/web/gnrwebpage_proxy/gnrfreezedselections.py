@@ -337,10 +337,13 @@ class GnrFreezedSelectionsPickle(GnrFreezedSelectionsBackend):
         totalrows = len(selection)
         if order_by:
             selection.sort(order_by)
+        row_start = int(row_start)
+        row_count = int(row_count)
+        if row_count:
+            selection._data = selection._data[row_start:row_start + row_count]
         result = dict(totalrows=totalrows, selection=selection)
-        if sum_columns:
-            sum_values = selection.sum(sum_columns)
-            result['sum_columns'] = dict(zip(sum_columns, sum_values)) if sum_values else {}
+        if sum_columns and selection._sum_values:
+            result['sum_columns'] = selection._sum_values
         return result
 
 
@@ -379,7 +382,7 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
 
     def _build_meta(self, selection):
         """Build the metadata dict from a selection (without I/O)."""
-        return dict(
+        meta = dict(
             tablename=selection.tablename,
             querypars=selection.querypars,
             colAttrs={k: dict(v) for k, v in selection.colAttrs.items()},
@@ -388,6 +391,9 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
             key=selection.key,
             totalrows=len(selection.data)
         )
+        if selection._sum_values:
+            meta['_sum_values'] = selection._sum_values
+        return meta
 
     def _save_meta(self, folder, meta):
         """Atomically write metadata dict to ``selection_meta.json``.
@@ -505,42 +511,6 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
             result.append((self._sqlite_col_name(col), direction))
         return result
 
-    def _sort_table_name(self, order_by):
-        """Derive a deterministic table name from an order_by string.
-
-        Example: ``'_product_id_description:a'`` → ``'sort___product_id_description_a'``
-        """
-        safe = order_by.replace(',', '_').replace(':', '_').replace(' ', '')
-        return 'sort_%s' % safe
-
-    def _ensure_sort_table(self, conn, order_by):
-        """Create the sort index table for the given order_by if it doesn't exist.
-
-        The table has two INTEGER columns: ``_sortidx`` (PRIMARY KEY) and
-        ``_rowidx`` (foreign key into ``selection_data``).  It is populated
-        using ``ROW_NUMBER() OVER (ORDER BY ...)`` so that paginating by
-        ``_sortidx`` returns rows in the desired order.
-
-        Returns:
-            The table name (to be used in subsequent queries).
-        """
-        table_name = self._sort_table_name(order_by)
-        exists = conn.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
-            (table_name,)).fetchone()
-        if exists:
-            return table_name
-        parsed = self._parse_order_by(order_by)
-        order_clause = ', '.join('%s %s' % (col, d) for col, d in parsed)
-        conn.execute(
-            'CREATE TABLE %s AS '
-            'SELECT (ROW_NUMBER() OVER (ORDER BY %s)) - 1 AS _sortidx, '
-            '_rowidx FROM selection_data' % (table_name, order_clause))
-        conn.execute(
-            'CREATE UNIQUE INDEX idx_%s ON %s (_sortidx)' % (
-                table_name, table_name))
-        conn.commit()
-        return table_name
 
     def _prepare_rows(self, all_columns, data):
         """Convert selection data rows to flat lists for SQLite insert.
@@ -751,38 +721,44 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
                 return False
         return True
 
-    def _needs_sort_table(self, order_by, meta):
-        """Check if order_by differs from the original sortedBy."""
-        if not order_by:
-            return False
-        original = meta.get('sortedBy', '')
-        if isinstance(original, list):
-            original = ','.join(original)
-        if order_by == original:
-            return False
-        return self._order_by_is_valid(order_by, meta['allColumns'])
+    def _search_state_path(self, folder):
+        """Return the path to ``_search_state.json`` inside the given folder."""
+        return os.path.join(folder, '_search_state.json')
 
-    def _ensure_search_table(self, conn, seed, col_attrs, all_columns,
-                             order_by=None, searchOn_columns=None):
-        """Create (or reuse) a search index table for the given seed.
+    def _load_search_state(self, folder):
+        """Load search state from ``_search_state.json``, or None if absent."""
+        path = self._search_state_path(folder)
+        if not os.path.exists(path):
+            return None
+        with open(path) as f:
+            return json.load(f)
 
-        Finds all TEXT-like columns (dtype in T, A or missing) and builds a
-        WHERE clause with ``col LIKE '%seed%'`` ORed together.  The matching
-        rows are stored in ``_search_idx`` with a sequential ``_searchidx``
-        used for pagination.
+    def _save_search_state(self, folder, state):
+        """Atomically write search state to ``_search_state.json``."""
+        path = self._search_state_path(folder)
+        fd, tmp_path = tempfile.mkstemp(dir=folder, suffix='.json.tmp')
+        try:
+            with os.fdopen(fd, 'w') as f:
+                json.dump(state, f, cls=_MetaEncoder)
+            os.replace(tmp_path, path)
+        except BaseException:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
 
-        If ``searchOn_columns`` is provided (comma-separated string of
-        visible column names), only those columns are searched.  Otherwise
-        all TEXT-like columns are searched.
+    def _clear_search_state(self, folder, conn):
+        """Drop the search view and remove the search state file."""
+        conn.execute('DROP VIEW IF EXISTS _search_view')
+        conn.commit()
+        path = self._search_state_path(folder)
+        if os.path.exists(path):
+            os.unlink(path)
 
-        If an ``order_by`` is provided the search results are sorted
-        accordingly; otherwise the original ``_rowidx`` order is preserved.
+    def _build_like_clause(self, seed, col_attrs, all_columns, searchOn_columns=None):
+        """Build the WHERE clause for text search on TEXT-like columns.
 
-        Returns:
-            ``(search_table_name, filtered_totalrows)``
+        Returns the LIKE clause string, or None if no searchable columns exist.
         """
-        search_table = '_search_idx'
-        conn.execute('DROP TABLE IF EXISTS %s' % search_table)
         visible_set = None
         if searchOn_columns:
             visible_set = set(searchOn_columns.split(','))
@@ -795,30 +771,54 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
             if dtype in ('T', 'A', 'C'):
                 text_cols.append(self._sqlite_col_name(col))
         if not text_cols:
-            return None, 0
+            return None
         concat_expr = " || ' ' || ".join(
             "COALESCE(%s, '')" % c for c in text_cols)
         tokens = seed.split()
+        if not tokens:
+            return None
         like_clauses = ' AND '.join(
             "%s LIKE '%%%s%%'" % (concat_expr, t.replace("'", "''"))
             for t in tokens)
-        if order_by and self._order_by_is_valid(order_by, all_columns):
-            parsed = self._parse_order_by(order_by)
-            order_clause = ', '.join('%s %s' % (col, d) for col, d in parsed)
-        else:
-            order_clause = '_rowidx'
+        return like_clauses
+
+    def _ensure_search_view(self, folder, conn, seed, col_attrs, all_columns,
+                            sum_columns=None, searchOn_columns=None):
+        """Create the search VIEW and compute search state (totalrows, sums).
+
+        If a search state already exists for the same seed, reuses it.
+        Otherwise drops any existing view, creates a new one, computes
+        COUNT and SUMs, and saves the state to ``_search_state.json``.
+
+        Returns:
+            ``(totalrows, sum_values_dict_or_None)``
+        """
+        existing_state = self._load_search_state(folder)
+        if existing_state and existing_state.get('seed') == seed:
+            return existing_state['totalrows'], existing_state.get('sum_values')
+        self._clear_search_state(folder, conn)
+        like_clause = self._build_like_clause(seed, col_attrs, all_columns,
+                                              searchOn_columns=searchOn_columns)
+        if like_clause is None:
+            return 0, None
         conn.execute(
-            'CREATE TABLE %s AS '
-            'SELECT (ROW_NUMBER() OVER (ORDER BY %s)) - 1 AS _searchidx, '
-            '_rowidx FROM selection_data WHERE %s'
-            % (search_table, order_clause, like_clauses))
-        conn.execute(
-            'CREATE UNIQUE INDEX idx_%s ON %s (_searchidx)'
-            % (search_table, search_table))
+            'CREATE VIEW _search_view AS '
+            'SELECT * FROM selection_data WHERE %s' % like_clause)
         conn.commit()
-        count = conn.execute(
-            'SELECT COUNT(*) FROM %s' % search_table).fetchone()[0]
-        return search_table, count
+        totalrows = conn.execute(
+            'SELECT COUNT(*) FROM _search_view').fetchone()[0]
+        sum_values = None
+        if sum_columns:
+            sum_exprs = ', '.join(
+                'SUM(%s)' % self._sqlite_col_name(c) for c in sum_columns)
+            sum_row = conn.execute(
+                'SELECT %s FROM _search_view' % sum_exprs).fetchone()
+            sum_values = dict(zip(sum_columns, sum_row))
+        state = dict(seed=seed, totalrows=totalrows)
+        if sum_values:
+            state['sum_values'] = sum_values
+        self._save_search_state(folder, state)
+        return totalrows, sum_values
 
     def getFromFreezedSelection(self, dbtable=None, name=None,
                                 row_start=0, row_count=0,
@@ -828,13 +828,11 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
                                 searchOn_columns=None):
         """Return a page of rows from a frozen SQLite selection.
 
-        Serves paginated data directly from SQLite using LIMIT/OFFSET-style
-        slicing on ``_rowidx`` (original order) or on a materialised sort
-        index table (when a different ``order_by`` is requested).
-
-        When ``searchOn_seed`` is provided, a ``_search_idx`` table is created
-        filtering rows where any TEXT column contains the seed.  Pagination
-        and sums then operate on the filtered subset.
+        Uses ``ORDER BY ... LIMIT ... OFFSET`` for pagination and sorting.
+        When ``searchOn_seed`` is provided, a ``_search_view`` VIEW filters
+        rows where TEXT columns match the seed.  Search metadata (totalrows,
+        sum_values) are cached in ``_search_state.json`` and reused across
+        paginations with the same seed.
 
         Args:
             dbtable: Expected table (string or table object).
@@ -846,6 +844,7 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
             page_id: Optional page_id override.
             searchOn_seed: Text to search for (LIKE match on TEXT columns).
             searchOn_field: Reserved for future per-field search.
+            searchOn_columns: Comma-separated column names to restrict search.
 
         Returns:
             A dict with ``totalrows``, ``selection`` (a ``SqlSelection``
@@ -872,75 +871,38 @@ class GnrFreezedSelectionsSqlite(GnrFreezedSelectionsBackend):
             col_attrs = meta['colAttrs']
             totalrows = meta.get('totalrows', 0)
             conn = sqlite3.connect(db_path)
-            use_search = bool(searchOn_seed)
-            use_sort_table = self._needs_sort_table(order_by, meta)
-            if use_search:
-                search_table, totalrows = self._ensure_search_table(
-                    conn, searchOn_seed, col_attrs, all_columns,
-                    order_by=order_by,
-                    searchOn_columns=searchOn_columns)
-                if search_table is None:
-                    conn.close()
-                    return None
-            elif use_sort_table:
-                self._ensure_sort_table(conn, order_by)
-            data_cols = ', '.join('d.%s' % c for c in sqlite_cols)
-            if use_search:
-                if row_count:
-                    select_sql = (
-                        'SELECT %s FROM selection_data d '
-                        'JOIN _search_idx x ON d._rowidx = x._rowidx '
-                        'WHERE x._searchidx >= %d AND x._searchidx < %d '
-                        'ORDER BY x._searchidx'
-                    ) % (data_cols, row_start, row_start + row_count)
-                else:
-                    select_sql = (
-                        'SELECT %s FROM selection_data d '
-                        'JOIN _search_idx x ON d._rowidx = x._rowidx '
-                        'ORDER BY x._searchidx'
-                    ) % (data_cols,)
-            elif use_sort_table:
-                sort_table = self._sort_table_name(order_by)
-                if row_count:
-                    select_sql = (
-                        'SELECT %s FROM selection_data d '
-                        'JOIN %s s ON d._rowidx = s._rowidx '
-                        'WHERE s._sortidx >= %d AND s._sortidx < %d '
-                        'ORDER BY s._sortidx'
-                    ) % (data_cols, sort_table, row_start,
-                         row_start + row_count)
-                else:
-                    select_sql = (
-                        'SELECT %s FROM selection_data d '
-                        'JOIN %s s ON d._rowidx = s._rowidx '
-                        'ORDER BY s._sortidx'
-                    ) % (data_cols, sort_table)
-            else:
-                if row_count:
-                    select_sql = (
-                        'SELECT %s FROM selection_data d '
-                        'WHERE d._rowidx >= %d AND d._rowidx < %d '
-                        'ORDER BY d._rowidx'
-                    ) % (data_cols, row_start, row_start + row_count)
-                else:
-                    select_sql = (
-                        'SELECT %s FROM selection_data d ORDER BY d._rowidx'
-                    ) % (data_cols,)
-            rows = conn.execute(select_sql).fetchall()
             result = dict(totalrows=totalrows)
-            if sum_columns:
-                sum_exprs = ', '.join(
-                    'SUM(%s)' % self._sqlite_col_name(c)
-                    for c in sum_columns)
-                if use_search:
-                    sum_sql = (
-                        'SELECT %s FROM selection_data d '
-                        'JOIN _search_idx x ON d._rowidx = x._rowidx'
-                    ) % sum_exprs
-                else:
-                    sum_sql = 'SELECT %s FROM selection_data' % sum_exprs
-                sum_row = conn.execute(sum_sql).fetchone()
-                result['sum_columns'] = dict(zip(sum_columns, sum_row))
+            if searchOn_seed:
+                search_totalrows, search_sums = self._ensure_search_view(
+                    folder, conn, searchOn_seed, col_attrs, all_columns,
+                    sum_columns=sum_columns,
+                    searchOn_columns=searchOn_columns)
+                result['totalrows'] = search_totalrows
+                source_table = '_search_view'
+                if search_sums:
+                    result['sum_columns'] = search_sums
+            else:
+                self._clear_search_state(folder, conn)
+                source_table = 'selection_data'
+                if sum_columns and meta.get('_sum_values'):
+                    result['sum_columns'] = meta['_sum_values']
+            data_cols = ', '.join(sqlite_cols)
+            if order_by and self._order_by_is_valid(order_by, all_columns):
+                parsed = self._parse_order_by(order_by)
+                order_clause = ', '.join(
+                    '%s %s' % (col, d) for col, d in parsed)
+            else:
+                order_clause = '_rowidx'
+            if row_count:
+                select_sql = (
+                    'SELECT %s FROM %s ORDER BY %s LIMIT %d OFFSET %d'
+                ) % (data_cols, source_table, order_clause,
+                     row_count, row_start)
+            else:
+                select_sql = (
+                    'SELECT %s FROM %s ORDER BY %s'
+                ) % (data_cols, source_table, order_clause)
+            rows = conn.execute(select_sql).fetchall()
             conn.close()
         original_dbtable = dbtable or self.proxy.db.table(meta['tablename'])
         converters = self._build_converters(all_columns, col_attrs)

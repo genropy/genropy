@@ -1391,6 +1391,15 @@ class SqlSelection(object):
         self.joinConditions = joinConditions
         self.sqlContextName = sqlContextName
         self.checkPermissions = checkPermissions
+        _sum_columns = self.querypars.pop('_sum_columns', None) if self.querypars else None
+        if _sum_columns:
+            if isinstance(_sum_columns, str):
+                _sum_columns = _sum_columns.split(',')
+            _sum_columns = [c for c in _sum_columns if c in self._index]
+            totals = self.sum(_sum_columns)
+            self._sum_values = dict(zip(_sum_columns, totals)) if totals else {}
+        else:
+            self._sum_values = None
 
     def _aggregateRows(self, data, index, explodingColumns,aggregateDict=None):
         if self.explodingColumns:

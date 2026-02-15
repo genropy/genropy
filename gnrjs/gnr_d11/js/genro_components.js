@@ -7909,11 +7909,13 @@ dojo.declare("gnr.stores.VirtualSelection",gnr.stores.Selection,{
         var that = this;
         var row_start = pageIdx * this.chunkSize;
         var kw = this.getData().getParentNode().attr;
+        var searchOn_seed = this.storeNode.getAttributeFromDatasource('searchOn_seed');
         var result = genro.rpc.remoteCall(kw.method, {'selectionName':kw.selectionName,
             'row_start':row_start,
             'row_count':this.chunkSize,
             'sortedBy':this.sortedBy,
             'table':kw.table,
+            'searchOn_seed':searchOn_seed || null,
             'recordResolver':false},
             null,
             this.storeNode.attr.httpMethod,

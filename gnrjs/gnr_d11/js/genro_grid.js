@@ -994,8 +994,16 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             };
             dojo.connect(widget,'onSetStructpath',widget,cb);
             dojo.connect(widget,'newDataStore',function(){
-                searchBoxNode.setRelativeData('.currentValue','',null,null,null,null,{doTrigger:false});
-                searchBoxNode.setRelativeData('.value','');
+                var data = this.storebag();
+                var result_attr = data ? data.getParentNode().attr : {};
+                if('freezed_search_seed' in result_attr){
+                    var serverSeed = result_attr.freezed_search_seed;
+                    searchBoxNode.setRelativeData('.currentValue',serverSeed,null,null,null,null,{doTrigger:false});
+                    searchBoxNode.setRelativeData('.value',serverSeed);
+                }else{
+                    searchBoxNode.setRelativeData('.currentValue','',null,null,null,null,{doTrigger:false});
+                    searchBoxNode.setRelativeData('.value','');
+                }
             });
             setTimeout(function(){cb.call(widget);},1);
         }
@@ -2590,12 +2598,18 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
         }
         var seed = this.grid.sourceNode.getRelativeData('.#parent.searchbox.currentValue');
         if(seed && typeof(result) == 'string'){
+            var parts = [];
             var tokens = seed.split(/\s+/);
             for(var i=0; i<tokens.length; i++){
                 if(tokens[i]){
-                    var re = new RegExp('(' + tokens[i].replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')','ig');
-                    result = result.replace(re, "<span class='search_highlight'>$1</span>");
+                    parts.push(tokens[i].replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
                 }
+            }
+            if(parts.length){
+                var re = new RegExp('(<[^>]*>)|(' + parts.join('|') + ')','ig');
+                result = result.replace(re, function(match, tag, text){
+                    return tag ? tag : "<span class='search_highlight'>" + text + "</span>";
+                });
             }
         }
         return result;

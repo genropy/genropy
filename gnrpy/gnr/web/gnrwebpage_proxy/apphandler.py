@@ -755,6 +755,8 @@ class GnrWebAppHandler(GnrBaseProxy):
                     for col, val in freezed_result['sum_columns'].items():
                         resultAttributes['sum_%s' % col] = val
                     sum_columns = None
+                if searchOn_seed:
+                    resultAttributes['freezed_search_seed'] = searchOn_seed
                 debug = 'fromFreezed'
                 newSelection = False
         if newSelection:
@@ -791,11 +793,13 @@ class GnrWebAppHandler(GnrBaseProxy):
                 joinConditions = self._decodeJoinConditions(tblobj,joinConditions,kwargs)
                 kwargs['joinConditions'] = joinConditions
             
+            if sum_columns:
+                kwargs['_sum_columns'] = sum_columns
             selection_pars = dict(tblobj=tblobj, table=table, distinct=distinct, columns=columns, where=where,
                                       condition=condition,queryMode=queryMode,
                                       order_by=order_by, limit=limit, offset=offset, group_by=group_by, having=having,
                                       relationDict=relationDict, sqlparams=sqlparams,
-                                      recordResolver=recordResolver, selectionName=selectionName, 
+                                      recordResolver=recordResolver, selectionName=selectionName,
                                       pkeys=pkeys, sortedBy=sortedBy, excludeLogicalDeleted=excludeLogicalDeleted,
                                       excludeDraft=excludeDraft,checkPermissions=checkPermissions,
                                       filteringPkeys=filteringPkeys,countOnly=countOnly,**kwargs)
@@ -850,16 +854,9 @@ class GnrWebAppHandler(GnrBaseProxy):
                                                              excludeDraft=excludeDraft,
                                                              **kwargs).count()
 
-        if sum_columns:
-            sum_columns_list = sum_columns.split(',')
-            sum_columns_filtered = [c for c in sum_columns_list if c in selection.columns]
-            totals = selection.sum(sum_columns_filtered)
-            if totals:
-                for i,col in enumerate(sum_columns_filtered):
-                    resultAttributes['sum_%s' % col] = totals[i]
-                    sum_columns_list.remove(col)
-            for col in sum_columns_list:
-                resultAttributes['sum_%s' % col] = False
+        if sum_columns and selection._sum_values:
+            for col, val in selection._sum_values.items():
+                resultAttributes['sum_%s' % col] = val
 
         if prevSelectedDict:
             keys = list(prevSelectedDict.keys())
