@@ -26,6 +26,14 @@ Browser ──WebSocket──► gnr_async (aiohttp)
 WSGI Server ──Unix socket──► gnr_async (wsproxy)
 ```
 
+See also:
+
+- [REMOTE_DEBUGGER.md](REMOTE_DEBUGGER.md) — integrated Python debugger (PDB via browser/GnrIDE)
+- [SHARED_OBJECTS.md](SHARED_OBJECTS.md) — real-time shared objects architecture and data flow
+- [WEBSOCKET_VS_RPC.md](WEBSOCKET_VS_RPC.md) — HTTP RPC vs WebSocket routing, piggyback, ping
+- [GNRIDE.md](GNRIDE.md) — integrated IDE: editor, debugger, CodeMirror assessment
+- [SHARED_OBJECTS_SCENARIOS.md](SHARED_OBJECTS_SCENARIOS.md) — use cases, assessment, and evolution roadmap
+
 ## Main components
 
 ### WebSocketSession
