@@ -28,6 +28,7 @@ this test module focus on SqlSelection's methods
 
 import os, os.path
 import datetime
+import tempfile
 
 from gnr.sql.gnrsql import GnrSqlDb
 from gnr.core.gnrbag import Bag
@@ -87,7 +88,7 @@ class BaseDb(BaseGnrSqlTest):
         self.mysel.filter()
 
     def test_freeze(self):
-        import tempfile
+
         freeze_dir = tempfile.mkdtemp(prefix='gnr_test_freeze_')
         freeze_fname = os.path.join(freeze_dir, 'myselection')
         self.mysel.freeze(freeze_fname)
