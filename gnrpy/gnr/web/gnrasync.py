@@ -929,7 +929,7 @@ class GnrBaseAsyncServer(object):
         os.chmod(socket_path, 0o666)
             #server = HTTPServer(self.tornadoApp)
         server.add_socket(main_socket)
-        debug_socket_path = os.path.join(sockets_dir, 'debugger.tornado')
+        debug_socket_path = os.path.join(sockets_dir, 'debugger.sock')
         debug_socket = bind_unix_socket(debug_socket_path)
         debug_server = GnrDebugServer(self.io_loop)
         #debug_server.listen(8888)

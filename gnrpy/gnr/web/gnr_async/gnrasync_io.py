@@ -1344,7 +1344,7 @@ class GnrBaseAsyncServer:
         os.chmod(socket_path, 0o666)
 
         # Debug server su Unix socket
-        debug_socket_path = os.path.join(sockets_dir, 'debugger.aiohttp')
+        debug_socket_path = os.path.join(sockets_dir, 'debugger.sock')
         if os.path.exists(debug_socket_path):
             os.unlink(debug_socket_path)
         await asyncio.start_unix_server(
