@@ -28,7 +28,7 @@
 #   gnrsqldata/record.py    - SqlRecord, SqlRecordBag, SqlRelatedRecordResolver, SqlRelatedSelectionResolver
 
 from gnr.sql.gnrsqldata.compiler import SqlCompiledQuery, SqlQueryCompiler  # noqa: F401
-from gnr.sql.gnrsqldata.query import SqlQuery, SqlDataResolver  # noqa: F401
+from gnr.sql.gnrsqldata.query import SqlQuery, SqlDataResolver, SqlCompoundQuery  # noqa: F401
 from gnr.sql.gnrsqldata.selection import SqlSelection  # noqa: F401
 from gnr.sql.gnrsqldata.record import (SqlRecord, SqlRecordBag,  # noqa: F401
                                         SqlRelatedRecordResolver,
