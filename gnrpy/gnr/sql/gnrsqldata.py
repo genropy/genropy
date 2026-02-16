@@ -576,6 +576,7 @@ class SqlQueryCompiler(object):
         columns = columns.replace('\n', '')
         columns = columns.replace(' as ', ' AS ')
         columns = columns.replace(' ,', ',')
+        storename = storename or self.db.currentEnv.get('storename')
         if storename and (storename=='*' or ',' in storename):
             columns = "%s, '_STORENAME_' AS _dbstore_" %columns
         if columns and not columns.endswith(','):
