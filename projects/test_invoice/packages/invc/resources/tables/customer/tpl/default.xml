@@ -1,0 +1,75 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<GenRoBag><metadata><email><subject _T="NN"></subject>
+<to_address _T="NN"></to_address>
+<from_address _T="NN"></from_address>
+<cc_address _T="NN"></cc_address>
+<bcc_address _T="NN"></bcc_address>
+<attachments _T="NN"></attachments></email></metadata>
+<varsbag><n_1704 _pkey="n_1704"><fieldpath>account_name</fieldpath>
+<dtype>T</dtype>
+<fieldname dtype="::NN">Account name</fieldname>
+<varname dtype="::NN">account_name</varname>
+<virtual_column _T="NN"></virtual_column>
+<required_columns _T="NN"></required_columns>
+<df_template _T="NN"></df_template>
+<format _T="NN" dtype="::NN"></format>
+<mask _T="NN" dtype="::NN"></mask>
+<editable _T="NN" dtype="::NN"></editable></n_1704>
+<n_1717 _pkey="n_1717"><fieldpath>street_address</fieldpath>
+<dtype>T</dtype>
+<fieldname dtype="::NN">Street Address</fieldname>
+<varname dtype="::NN">street_address</varname>
+<virtual_column _T="NN"></virtual_column>
+<required_columns _T="NN"></required_columns>
+<df_template _T="NN"></df_template>
+<format _T="NN" dtype="::NN"></format>
+<mask _T="NN" dtype="::NN"></mask>
+<editable _T="NN" dtype="::NN"></editable></n_1717>
+<n_1730 _pkey="n_1730"><fieldpath>suburb</fieldpath>
+<dtype>T</dtype>
+<fieldname dtype="::NN">suburb</fieldname>
+<varname dtype="::NN">suburb</varname>
+<virtual_column _T="NN"></virtual_column>
+<required_columns _T="NN"></required_columns>
+<df_template _T="NN"></df_template>
+<format _T="NN" dtype="::NN"></format>
+<mask _T="NN" dtype="::NN"></mask>
+<editable _T="NN" dtype="::NN"></editable></n_1730>
+<n_1743 _pkey="n_1743"><fieldpath>state</fieldpath>
+<dtype>A</dtype>
+<fieldname dtype="::NN">State</fieldname>
+<varname dtype="::NN">state</varname>
+<virtual_column _T="NN"></virtual_column>
+<required_columns _T="NN"></required_columns>
+<df_template _T="NN"></df_template>
+<format _T="NN" dtype="::NN"></format>
+<mask _T="NN" dtype="::NN"></mask>
+<editable _T="NN" dtype="::NN"></editable></n_1743>
+<n_1765 _pkey="n_1765"><fieldpath>@customer_type_code.description</fieldpath>
+<dtype>T</dtype>
+<fieldname dtype="::NN">Customer type code/Description</fieldname>
+<varname dtype="::NN">customer_type_code_description</varname>
+<virtual_column _T="NN"></virtual_column>
+<required_columns _T="NN"></required_columns>
+<df_template _T="NN"></df_template>
+<format _T="NN" dtype="::NN"></format>
+<mask _T="NN" dtype="::NN"></mask>
+<editable _T="NN" dtype="::NN"></editable></n_1765></varsbag>
+<content>&lt;div&gt;
+	${&lt;strong&gt;Account name&lt;/strong&gt;: $account_name}&lt;/div&gt;
+&lt;div&gt;
+	$street_address&lt;/div&gt;
+&lt;div&gt;
+	$suburb $state&lt;/div&gt;
+&lt;div&gt;
+	${&lt;strong&gt;Type&lt;/strong&gt;: $customer_type_code_description}&lt;/div&gt;
+</content>
+<compiled><main virtual_columns="" locale="it-IT" masks="{}::JS" dtypes='{"suburb": "T", "state": "A", "customer_type_code_description": "T", "account_name": "T", "street_address": "T"}::JS' maintable="invc.customer" columns="account_name,street_address,suburb,state,@customer_type_code.description" formats="{}::JS" editcols="{}::JS" df_templates="{}::JS">&lt;html&gt;&lt;body&gt;&lt;div&gt;
+	${&lt;strong&gt;Account name&lt;/strong&gt;: $account_name}&lt;/div&gt;
+&lt;div&gt;
+	$street_address&lt;/div&gt;
+&lt;div&gt;
+	$suburb $state&lt;/div&gt;
+&lt;div&gt;
+	${&lt;strong&gt;Type&lt;/strong&gt;: $@customer_type_code.description}&lt;/div&gt;
+&lt;/body&gt;&lt;/html&gt;</main></compiled></GenRoBag>
