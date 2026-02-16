@@ -189,97 +189,39 @@ class GnrBaseWebPage(GnrObject):
             os.makedirs(folder)
         return os.path.join(folder, docname)
         
-    def freezeSelection(self, selection, name,**kwargs):
-        """TODO
-        
-        :param selection: TODO
-        :param name: TODO"""
-        path = self.pageLocalDocument(name)
-        selection.freeze(path, autocreate=True,**kwargs)
-        return path
+    def freezeSelection(self, selection, name, **kwargs):
+        return self.gnrfreezedselections.freezeSelection(selection, name, **kwargs)
 
-    def freezeSelectionUpdate(self,selection):
-        selection.freezeUpdate()
-        
+    def freezeSelectionUpdate(self, selection):
+        self.gnrfreezedselections.freezeSelectionUpdate(selection)
+
     def unfreezeSelection(self, dbtable=None, name=None, page_id=None):
-        """TODO
-        
-        :param dbtable: specify the :ref:`database table <table>`. More information in the
-                        :ref:`dbtable` section (:ref:`dbselect_examples_simple`)
-        :param name: TODO
-        :param page_id: TODO"""
-        assert name, 'name is mandatory'
-        if isinstance(dbtable, str):
-            dbtable = self.db.table(dbtable)
-        selection = self.db.unfreezeSelection(self.pageLocalDocument(name,page_id=page_id))
-        if dbtable and selection is not None:
-            assert dbtable == selection.dbtable, 'unfrozen selection does not belong to the given table'
-        return selection
-    
-    def freezedPkeys(self,dbtable=None,name=None,page_id=None):
-        assert name, 'name is mandatory'
-        if isinstance(dbtable, str):
-            dbtable = self.db.table(dbtable)
-        return self.db.freezedPkeys(self.pageLocalDocument(name,page_id=page_id))
+        return self.gnrfreezedselections.unfreezeSelection(dbtable=dbtable, name=name, page_id=page_id)
+
+    def freezedPkeys(self, dbtable=None, name=None, page_id=None):
+        return self.gnrfreezedselections.freezedPkeys(dbtable=dbtable, name=name, page_id=page_id)
+
+    def getFromFreezedSelection(self, dbtable=None, name=None,
+                                row_start=0, row_count=0,
+                                order_by=None, sum_columns=None,
+                                page_id=None,
+                                searchOn_seed=None, searchOn_field=None,
+                                searchOn_columns=None):
+        return self.gnrfreezedselections.getFromFreezedSelection(
+            dbtable=dbtable, name=name,
+            row_start=row_start, row_count=row_count,
+            order_by=order_by, sum_columns=sum_columns,
+            page_id=page_id,
+            searchOn_seed=searchOn_seed, searchOn_field=searchOn_field,
+            searchOn_columns=searchOn_columns)
 
     @public_method
     def getUserSelection(self, selectionName=None, selectedRowidx=None, filterCb=None, columns=None,
-                         sortBy=None,condition=None, table=None, condition_args=None,limit=None):
-        """TODO
-        
-        :param selectionName: TODO
-        :param selectedRowidx: TODO
-        :param filterCb: TODO
-        :param columns: it represents the :ref:`columns` to be returned by the "SELECT"
-                        clause in the traditional sql query. For more information, check the
-                        :ref:`sql_columns` section
-        :param condition: set a :ref:`sql_condition` for the selection
-        :param table: the :ref:`database table <table>` name on which the query will be executed,
-                      in the form ``packageName.tableName`` (packageName is the name of the
-                      :ref:`package <packages>` to which the table belongs to)
-        :param condition_args: the arguments of the *condition* parameter. Their syntax
-                               is ``condition_`` followed by the name of the argument"""
-        # table is for checking if the selection belong to the table
-        assert selectionName, 'selectionName is mandatory'
-        page_id = self.sourcepage_id or self.page_id
-        if isinstance(table, str):
-            table = self.db.table(table)
-        selection = self.unfreezeSelection(dbtable=table, name=selectionName,page_id=page_id)
-        table = table or selection.dbtable
-        if not columns and limit is not None:
-            qpars = dict(selection.querypars)
-            selection_limit = qpars.get('limit')
-            if selection_limit!=limit:
-                qpars['limit'] = limit
-                selection = table.query(**qpars).selection(_aggregateRows=True)
-        if filterCb:
-            filterCb = self.getPublicMethod('rpc',filterCb)
-            selection.filter(filterCb)
-        elif selectedRowidx:
-            if isinstance(selectedRowidx, str):
-                selectedRowidx = [int(x) for x  in selectedRowidx.split(',')]
-                selectedRowidx = set(selectedRowidx) #use uniquify (gnrlang) instead
-            selection.filter(lambda r: r['rowidx'] in selectedRowidx)
-        if sortBy:
-            selection.sort(sortBy)
-        if not columns:
-            return selection
-        if columns=='pkey':
-            return selection.output('pkeylist')
-        condition_args = condition_args or {}
-        pkeys = selection.output('pkeylist')
-        where = 't0.%s in :pkeys' % table.pkey
-        if condition:
-            where = '%s AND %s' % (where, condition)
-        selection = table.query(columns=columns, where=where,
-                                pkeys=pkeys, addPkeyColumn=False,
-                                excludeLogicalDeleted=False,
-                                ignorePartition=True,subtable='*',
-                                excludeDraft=False,limit=limit,
-                                **condition_args).selection(_aggregateRows=True)
-        if sortBy:
-            selection.sort(sortBy)
-        return selection
+                         sortBy=None, condition=None, table=None, condition_args=None, limit=None):
+        return self.gnrfreezedselections.getUserSelection(selectionName=selectionName,
+                         selectedRowidx=selectedRowidx, filterCb=filterCb, columns=columns,
+                         sortBy=sortBy, condition=condition, table=table,
+                         condition_args=condition_args, limit=limit)
         
     def getAbsoluteUrl(self, path, **kwargs):
         """Get TODO. Return an external link to the page

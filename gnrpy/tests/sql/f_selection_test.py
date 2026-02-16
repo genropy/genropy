@@ -26,7 +26,7 @@
 this test module focus on SqlSelection's methods
 """
 
-import os, os.path
+
 import datetime
 
 from gnr.sql.gnrsql import GnrSqlDb
@@ -86,11 +86,6 @@ class BaseDb(BaseGnrSqlTest):
         assert result[0][0] == 'Al Pacino'
         self.mysel.filter()
 
-    def test_freeze(self):
-        freeze_fname = os.path.join(os.path.dirname(__file__), 'data/myselection')
-        self.mysel.freeze(freeze_fname)
-        sel = self.db.table('video.cast').frozenSelection(freeze_fname)
-        assert self.mysel.data == sel.data
 
     def xtest_formatSelection(self):
         sel = self.db.query('video.dvd', columns='$purchasedate, @movie_id.title AS title').selection()

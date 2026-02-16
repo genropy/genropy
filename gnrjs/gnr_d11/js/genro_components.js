@@ -1835,8 +1835,7 @@ dojo.declare("gnr.widgets.BagNodeEditor", gnr.widgets.gnrwdg, {
 
 dojo.declare("gnr.widgets.SearchBox", gnr.widgets.gnrwdg, {
     contentKwargs: function(sourceNode, attributes) {
-        //var topic = attributes.nodeId+'_keyUp';
-        attributes.onKeyUp = function(e) {
+        attributes.onInput = function(e) {
             var sourceNode = e.target.sourceNode;
             genro.dom.setClass(sourceNode.getParentNode(),'activeSearch',!isNullOrBlank(e.target.value));
             sourceNode.setRelativeData('.currentValue', e.target.value);
@@ -1864,8 +1863,8 @@ dojo.declare("gnr.widgets.SearchBox", gnr.widgets.gnrwdg, {
         databag.setItem('value', '');
         sourceNode.setRelativeData(null, databag);
         var searchbox = sourceNode._('form',{autocomplete:'false',action:'javascript:void(0);',onsubmit:"event.preventDefault()"})._('table', {nodeId:nodeId})._('tbody')._('tr');
-        var delay = objectPop(kw, 'delay') || objectPop(search_kw, 'delay') || 100;
         var search_kw = objectPop(kw,'search_kw') || {};
+        var delay = objectPop(kw, 'delay') || objectPop(search_kw, 'delay') || 100;
         sourceNode._('dataController', {'script':'genro.publish(searchBoxId+"_changedValue",currentValue,field,this.evaluateOnNode(search_kw));',
             'searchBoxId':nodeId,currentValue:'^.currentValue',field:'=.field',
             _userChanges:true,_delay:delay,search_kw:search_kw});
@@ -1885,7 +1884,7 @@ dojo.declare("gnr.widgets.SearchBox", gnr.widgets.gnrwdg, {
                 genro.publish(nodeId+"_stopSearch",{inputSourceNode:this,finalize:finalize});
                
             }
-        }})._('input', {'value':'^.value',connect_onkeyup:kw.onKeyUp,
+        }})._('input', {'value':'^.value',connect_oninput:kw.onInput,
                          parentForm:false,width:objectPop(kw,'width') || '6em',
                          tabindex:"-1",connect_focus:function(){this.domNode.select()}});
         sourceNode.registerSubscription(nodeId + '_updmenu', this, function(searchOn) {
@@ -7910,11 +7909,13 @@ dojo.declare("gnr.stores.VirtualSelection",gnr.stores.Selection,{
         var that = this;
         var row_start = pageIdx * this.chunkSize;
         var kw = this.getData().getParentNode().attr;
+        var searchOn_seed = this.storeNode.getAttributeFromDatasource('searchOn_seed');
         var result = genro.rpc.remoteCall(kw.method, {'selectionName':kw.selectionName,
             'row_start':row_start,
             'row_count':this.chunkSize,
             'sortedBy':this.sortedBy,
             'table':kw.table,
+            'searchOn_seed':searchOn_seed || null,
             'recordResolver':false},
             null,
             this.storeNode.attr.httpMethod,

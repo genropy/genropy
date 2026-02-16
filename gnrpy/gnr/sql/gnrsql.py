@@ -20,7 +20,6 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-import pickle
 import os
 import shutil
 from datetime import date
@@ -1146,25 +1145,6 @@ class GnrSqlDb(GnrObject):
             for n in data[table]:
                 self.table(table, pkg=pkg).insertOrUpdate(n.attr)
 
-    def freezedPkeys(self,fpath):
-        filename = '%s_pkeys.pik' % fpath
-        if not os.path.exists(filename):
-            return []
-        with open(filename, 'rb') as f:
-            return pickle.load(f)
-
-    def unfreezeSelection(self, fpath):
-        """Get a pickled selection and return it
-        
-        :param fpath: the file path"""
-        filename = '%s.pik' % fpath
-        if not os.path.exists(filename):
-            return
-        with open('%s.pik' % fpath, 'rb') as f:
-            selection = pickle.load(f)
-        selection.dbtable = self.table(selection.tablename)
-        return selection
-        
 class TempEnv(object):
     """TODO
     

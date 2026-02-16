@@ -994,15 +994,30 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             };
             dojo.connect(widget,'onSetStructpath',widget,cb);
             dojo.connect(widget,'newDataStore',function(){
-                searchBoxNode.setRelativeData('.currentValue','');
-                searchBoxNode.setRelativeData('.value','');
+                var data = this.storebag();
+                var result_attr = data ? data.getParentNode().attr : {};
+                if('freezed_search_seed' in result_attr){
+                    var serverSeed = result_attr.freezed_search_seed;
+                    searchBoxNode.setRelativeData('.currentValue',serverSeed,null,null,null,null,{doTrigger:false});
+                    searchBoxNode.setRelativeData('.value',serverSeed);
+                }else{
+                    searchBoxNode.setRelativeData('.currentValue','',null,null,null,null,{doTrigger:false});
+                    searchBoxNode.setRelativeData('.value','');
+                }
             });
             setTimeout(function(){cb.call(widget);},1);
         }
         sourceNode.registerSubscription(searchBoxCode+'_changedValue',widget,function(v,field){
-            this.applyFilter(v,null,field);
-            genro.dom.setClass(this.domNode,'filteredGrid',v);
-            this.updateTotalsCount();
+            var snode = genro.nodeById(sourceNode.attr.store+'_store');
+            var isVirtual = snode && snode.attr.selectionName && snode.attr.row_count;
+            var sqliteBackend = genro.appPreference('sys.freeze_on_sqlite');
+            if(isVirtual && sqliteBackend){
+                snode.store.loadData();
+            }else{
+                this.applyFilter(v,null,field);
+                genro.dom.setClass(this.domNode,'filteredGrid',v);
+                this.updateTotalsCount();
+            }
         });
         sourceNode.registerSubscription(searchBoxCode+'_stopSearch',widget,function(kw){
             kw.finalize();
@@ -2559,16 +2574,15 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
         }else{
             rowdata = this.grid.rowByIndex(inRowIndex,true,true);
         }
-        
         if(!rowdata){
             console.log('no rowdata:',rowdata);
         }
         var result;
         if(this._customGetter){
             try{
-                return this._customGetter.call(this, rowdata,inRowIndex)
+                result = this._customGetter.call(this, rowdata,inRowIndex);
             }catch(e){
-                console.error(e)
+                console.error(e);
                 return 'err';
             }
         }else if(this.rowTemplate){
@@ -2578,11 +2592,27 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
                 c = this.grid.cellmap[k];
                 formats[c.field] = {...c._formats};
             }
-            return dataTemplate(this.rowTemplate,new gnr.GnrBag(rowdata),null,null,{formats:formats});
+            result = dataTemplate(this.rowTemplate,new gnr.GnrBag(rowdata),null,null,{formats:formats});
         }else{
-            return rowdata[this.field_getter]; 
+            result = rowdata[this.field_getter];
         }
-        //return this._customGetter ? this._customGetter.call(this, rowdata,inRowIndex) : ;
+        var seed = this.grid.sourceNode.getRelativeData('.#parent.searchbox.currentValue');
+        if(seed && typeof(result) == 'string'){
+            var parts = [];
+            var tokens = seed.split(/\s+/);
+            for(var i=0; i<tokens.length; i++){
+                if(tokens[i]){
+                    parts.push(tokens[i].replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
+                }
+            }
+            if(parts.length){
+                var re = new RegExp('(<[^>]*>)|(' + parts.join('|') + ')','ig');
+                result = result.replace(re, function(match, tag, text){
+                    return tag ? tag : "<span class='search_highlight'>" + text + "</span>";
+                });
+            }
+        }
+        return result;
     },
 
     mixin_rowCached:function(inRowIndex) {
@@ -4965,6 +4995,7 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         });
         return struct;
     },
+
     mixin_getFormulaVariants:function(){
         var result = new gnr.GnrBag();
         for(let cell in this.cellmap){

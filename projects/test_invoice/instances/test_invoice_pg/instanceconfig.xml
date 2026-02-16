@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <GenRoBag>
-	<db dbname="test_invoice_pg" implementation="postgres" host="localhost" port="5432"/>
+	<db dbname="test_invoice_pg" implementation="postgres" host="localhost" port="5432" user="postgres" password="postgres"/>
 
 	<packages>
 		<gnrcore_sys pkgcode="gnrcore:sys"/>

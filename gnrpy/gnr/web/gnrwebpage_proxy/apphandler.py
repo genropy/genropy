@@ -572,76 +572,19 @@ class GnrWebAppHandler(GnrBaseProxy):
         return result
 
     @public_method
-    def freezedSelectionPkeys(self,table=None,selectionName=None,caption_field=None):
-        selection = self.page.unfreezeSelection(dbtable=table, name=selectionName)
-        l = selection.output('dictlist')
-        return [dict(pkey=r['pkey'],caption=r['caption_field']) if caption_field else r['pkey'] for r in l]
+    def freezedSelectionPkeys(self, table=None, selectionName=None, caption_field=None):
+        return self.page.gnrfreezedselections.freezedSelectionPkeys(
+            table=table, selectionName=selectionName, caption_field=caption_field)
 
     @public_method
-    def sumOnFreezedSelection(self,selectionName=None,where=None,table=None,sum_column=None,**kwargs):
-        """TODO
-        
-        ``sumOnFreezedSelection()`` method is decorated with the :meth:`public_method
-        <gnr.core.gnrdecorator.public_method>` decorator
-        
-        :param changelist: TODO
-        :param selectionName: TODO
-        :param where: the sql "WHERE" clause. For more information check the :ref:`sql_where` section
-        :param table: the :ref:`database table <table>` name on which the query will be executed,
-                      in the form ``packageName.tableName`` (packageName is the name of the
-                      :ref:`package <packages>` to which the table belongs to)"""
-        selection = self.page.unfreezeSelection(dbtable=table, name=selectionName)
-        if selection is None:
-            return 0
-        return selection.sum(sum_column)
-    
+    def sumOnFreezedSelection(self, selectionName=None, where=None, table=None, sum_column=None, **kwargs):
+        return self.page.gnrfreezedselections.sumOnFreezedSelection(
+            selectionName=selectionName, where=where, table=table, sum_column=sum_column, **kwargs)
+
     @public_method
-    def checkFreezedSelection(self,changelist=None,selectionName=None,where=None,table=None,**kwargs):
-        """TODO
-        
-        ``checkFreezedSelection()`` method is decorated with the :meth:`public_method
-        <gnr.core.gnrdecorator.public_method>` decorator
-        
-        :param changelist: TODO
-        :param selectionName: TODO
-        :param where: the sql "WHERE" clause. For more information check the :ref:`sql_where` section
-        :param table: the :ref:`database table <table>` name on which the query will be executed,
-                      in the form ``packageName.tableName`` (packageName is the name of the
-                      :ref:`package <packages>` to which the table belongs to)"""
-        selection = self.page.unfreezeSelection(dbtable=table, name=selectionName)
-        if selection is None:
-            return False #no update required
-        eventdict = {}
-        for change in changelist:
-            eventdict.setdefault(change['dbevent'],[]).append(change['pkey'])
-        deleted = eventdict.get('D',[])
-        if deleted:
-            if bool([r for r in selection.data if r['pkey'] in deleted]):
-                return True #update required delete in selection
-
-        updated = eventdict.get('U',[])
-        if updated:
-            if bool([r for r in selection.data if r['pkey'] in updated]):
-                return True #update required update in selection
-
-        inserted = eventdict.get('I',[])
-        kwargs.pop('where_attr',None)
-        tblobj = self.db.table(table)
-        wherelist = ['( $%s IN :_pkeys )' %tblobj.pkey]
-        if isinstance(where,Bag):
-            where, kwargs = self._decodeWhereBag(tblobj, where, kwargs)
-        if where:
-            wherelist.append(' ( %s ) ' %where)
-        condition = kwargs.pop('condition',None)
-        if condition:
-            wherelist.append(condition)
-        where = ' AND '.join(wherelist)
-        kwargs.pop('columns',None)
-        kwargs['limit'] = 1
-        if bool(tblobj.query(where=where,_pkeys=inserted+updated,**kwargs).fetch()):
-            return True #update required: insert or update not in selection but satisfying query
-
-        return False
+    def checkFreezedSelection(self, changelist=None, selectionName=None, where=None, table=None, **kwargs):
+        return self.page.gnrfreezedselections.checkFreezedSelection(
+            changelist=changelist, selectionName=selectionName, where=where, table=table, **kwargs)
 
 
     @public_method
@@ -754,6 +697,11 @@ class GnrWebAppHandler(GnrBaseProxy):
         :param savedView: TODO
         :param externalChanges: TODO"""
         t = time.time()
+        searchOn_seed = kwargs.pop('searchOn_seed', None)
+        searchOn_field = kwargs.pop('searchOn_field', None)
+        searchOn_columns = kwargs.pop('searchOn_columns', None)
+        if searchOn_seed and selectionName.startswith('*'):
+            selectionName = selectionName.lstrip('*')
         tblobj = self.db.table(table)
         row_start = int(row_start)
         row_count = int(row_count)
@@ -789,12 +737,27 @@ class GnrWebAppHandler(GnrBaseProxy):
             else:
                 selectionName = selectionName[1:]
         elif selectionName:
-            selection = self.page.unfreezeSelection(tblobj, selectionName)
-            if selection is not None:
-                if sortedBy and  ','.join(selection.sortedBy or []) != sortedBy:
-                    selection.sort(sortedBy)
-                    self.page.freezeSelectionUpdate(selection)
-                debug = 'fromPickle'
+            freezed_sum_columns = sum_columns.split(',') if sum_columns else None
+            freezed_result = self.page.getFromFreezedSelection(
+                dbtable=tblobj, name=selectionName,
+                row_start=row_start, row_count=row_count,
+                order_by=sortedBy, sum_columns=freezed_sum_columns,
+                searchOn_seed=searchOn_seed, searchOn_field=searchOn_field,
+                searchOn_columns=searchOn_columns)
+            if freezed_result is not None:
+                selection = freezed_result['selection']
+                resultAttributes.update(
+                    table=table, method='app.getSelection',
+                    selectionName=selectionName,
+                    row_count=row_count,
+                    totalrows=freezed_result['totalrows'])
+                if freezed_result.get('sum_columns'):
+                    for col, val in freezed_result['sum_columns'].items():
+                        resultAttributes['sum_%s' % col] = val
+                    sum_columns = None
+                if searchOn_seed:
+                    resultAttributes['freezed_search_seed'] = searchOn_seed
+                debug = 'fromFreezed'
                 newSelection = False
         if newSelection:
             debug = 'fromDb'
@@ -830,11 +793,13 @@ class GnrWebAppHandler(GnrBaseProxy):
                 joinConditions = self._decodeJoinConditions(tblobj,joinConditions,kwargs)
                 kwargs['joinConditions'] = joinConditions
             
+            if sum_columns:
+                kwargs['_sum_columns'] = sum_columns
             selection_pars = dict(tblobj=tblobj, table=table, distinct=distinct, columns=columns, where=where,
                                       condition=condition,queryMode=queryMode,
                                       order_by=order_by, limit=limit, offset=offset, group_by=group_by, having=having,
                                       relationDict=relationDict, sqlparams=sqlparams,
-                                      recordResolver=recordResolver, selectionName=selectionName, 
+                                      recordResolver=recordResolver, selectionName=selectionName,
                                       pkeys=pkeys, sortedBy=sortedBy, excludeLogicalDeleted=excludeLogicalDeleted,
                                       excludeDraft=excludeDraft,checkPermissions=checkPermissions,
                                       filteringPkeys=filteringPkeys,countOnly=countOnly,**kwargs)
@@ -865,7 +830,10 @@ class GnrWebAppHandler(GnrBaseProxy):
             resultAttributes.update(table=table, method='app.getSelection', selectionName=selectionName,
                                     row_count=row_count,
                                     totalrows=len(selection))
-        generator = selection.output(mode='generator', offset=row_start, limit=row_count, formats=formats)
+        if newSelection:
+            generator = selection.output(mode='generator', offset=row_start, limit=row_count, formats=formats)
+        else:
+            generator = selection.output(mode='generator', formats=formats)
         _addClassesDict = dict([(k, v['_addClass']) for k, v in list(selection.colAttrs.items()) if '_addClass' in v])
         data = self.gridSelectionData(selection, generator, logicalDeletionField=tblobj.logicalDeletionField,
                                       recordResolver=recordResolver, numberedRows=numberedRows,
@@ -886,16 +854,9 @@ class GnrWebAppHandler(GnrBaseProxy):
                                                              excludeDraft=excludeDraft,
                                                              **kwargs).count()
 
-        if sum_columns:
-            sum_columns_list = sum_columns.split(',')
-            sum_columns_filtered = [c for c in sum_columns_list if c in selection.columns]
-            totals = selection.sum(sum_columns_filtered)
-            if totals:
-                for i,col in enumerate(sum_columns_filtered):
-                    resultAttributes['sum_%s' % col] = totals[i]
-                    sum_columns_list.remove(col)
-            for col in sum_columns_list:
-                resultAttributes['sum_%s' % col] = False
+        if sum_columns and selection._sum_values:
+            for col, val in selection._sum_values.items():
+                resultAttributes['sum_%s' % col] = val
 
         if prevSelectedDict:
             keys = list(prevSelectedDict.keys())

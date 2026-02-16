@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrdecorator import metadata, public_method
 from gnr.core.gnrnumber import decimalRound
 
 class View(BaseComponent):
@@ -16,6 +16,38 @@ class View(BaseComponent):
         r.fieldcell('vat_rate')
         r.fieldcell('tot_price')
         r.fieldcell('vat')
+
+    @metadata(multivalue=True)
+    def th_sections_year(self):
+        years = self.db.table('invc.invoice').query(
+            columns='DISTINCT EXTRACT(YEAR FROM $date) AS year',
+            order_by='year'
+        ).fetchAsDict('year')
+        result = [dict(code='all', caption='All')]
+        for year in years:
+            result.append(dict(code=str(year),
+                               caption=str(year),
+                               condition="EXTRACT(YEAR FROM @invoice_id.date)=:yr",
+                               condition_yr=int(year)))
+        return result
+
+    @metadata(multivalue=True)
+    def th_sections_state(self):
+        states = self.db.table('invc.state').query(
+            columns='$code,$name',
+            order_by='$name'
+        ).fetch()
+        result = [dict(code='all', caption='All')]
+        for s in states:
+            result.append(dict(code=s['code'],
+                               caption=s['name'],
+                               condition="@invoice_id.@customer_id.state=:st",
+                               condition_st=s['code']))
+        return result
+
+    def th_top_custom(self, top):
+        top.slotToolbar('5,sections@year,*,sections@state,5',
+                        childname='upper', _position='<bar')
 
     def th_order(self):
         return 'invoice_id'

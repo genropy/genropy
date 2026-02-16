@@ -269,7 +269,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                 colType = colType[:colType.find('(')]
             colType = colType.strip()
             col['dtype'] = self.typesDict[colType] if colType else 'T'
-            col['notnull'] = (col['notnull'] == 'NO')
+            col['notnull'] = bool(col['notnull'])
             col = self._filterColInfo(col, '_sl_')
             if col['dtype'] in ('A','C') and col.get('length'):
                 col['size'] = col['_sl_size'] if col['dtype']=='C' else '0:%s' %col['_sl_size']
