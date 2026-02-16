@@ -147,6 +147,80 @@ Option name mapping from the old library:
 | `timeoutInterval` | `connectionTimeout` |
 | `maxReconnectAttempts` | `maxRetries` |
 
+## GnrSimplePage (static page)
+
+The async server maintains a persistent page instance (`GnrSimplePage`) for each
+connected browser page. This is the counterpart of the ephemeral `GnrWebPage`
+that the WSGI server recreates on every HTTP request.
+
+`GnrSimplePage` is instantiated by `resource_loader.instantiate_page()` and stored
+in `server.pages[page_id]`. WebSocket RPC calls (`do_call`) execute methods on this
+persistent instance via ThreadPoolExecutor.
+
+### Known limitations
+
+The WebSocket subsystem was abandoned for several years while the WSGI page
+(`GnrWebPage`) continued to evolve. As a result, `GnrSimplePage` has diverged
+significantly. The following issues have been identified and must be addressed
+before production deployment:
+
+| # | Issue | Severity | Status |
+| --- | ----- | -------- | ------ |
+| 1 | `dbstore` always `None` — multi-tenant broken | Critical | Deferred (see below) |
+| 2 | `locale` hardcoded to `'en'` | Critical | Deferred (see below) |
+| 3 | Thread safety on shared instance | Critical | Likely OK (see below) |
+| 4 | `request`/`response`/`environ` absent | Grave | Not an issue |
+| 5 | `extraFeatures` absent | Grave | To verify |
+| 6 | `local_datachanges` absent | Grave | To verify |
+| 7 | Lifecycle hooks not called | Grave | Not an issue |
+| 8 | Connection "frozen" at registration time | Significant | Not an issue |
+| 9 | Mixin accumulation without cleanup | Significant | Not an issue |
+| 10 | `getWsMethod` doesn't verify `@public_method` | Significant | Fix before production |
+| 11 | `do_call` calls `getWsMethod` twice | Significant | Confirmed bug, not blocking |
+| 12 | State accumulation / memory leak | Significant | To verify |
+
+### Decision: dbstore (multi-tenant)
+
+The multi-tenant feature (`dbstore`) was developed after the original WebSocket
+implementation. In the current testing phase, the async server operates in
+**single-store mode only** (`dbstore=None`).
+
+**IMPORTANT**: Multi-database support must be implemented before deploying the
+asyncio server in production environments that use multi-tenant configurations.
+This requires propagating the correct `dbstore` value from the WSGI page
+registration to the `GnrSimplePage` instance, and ensuring it is applied
+on every `do_call` execution.
+
+### Decision: locale
+
+`GnrSimplePage` hardcodes `_locale='en'`, ignoring the user's `_language`
+attribute captured in `ATTRIBUTES_SIMPLEWEBPAGE`. All date/number formatting
+and translations via WebSocket RPC use English regardless of the connected user.
+
+Not blocking for the current testing phase (single-locale environments).
+Must be fixed before production by propagating `_language` from the WSGI
+page registration to the `GnrSimplePage` instance.
+
+### Decision: thread safety
+
+The `GnrSimplePage` instance is shared across concurrent `do_call` invocations
+running in the ThreadPoolExecutor. Analysis shows the existing design already
+handles thread isolation for the critical paths:
+
+- **DB access**: `GnrSqlDb` uses `_thread.get_ident()` for thread-local env;
+  `do_call` resets `page._db = None` before each invocation, forcing a fresh
+  connection per thread.
+- **Private data**: `page.privateData` uses `_thread.get_ident()` as key,
+  providing per-thread storage.
+- **Shared data**: `page.sharedData()` returns `SharedLockedObject` instances
+  with built-in locking.
+- **Call parameters**: `_call_args` / `_call_kwargs` are set only at `__init__`
+  time, not modified per-call. Each `do_call` receives its parameters as
+  function arguments, not via shared page state.
+
+This should work correctly in practice. Must be verified under load before
+production deployment to confirm no edge cases exist.
+
 ## Dependencies
 
 - `aiohttp` (already present in the project)
