@@ -30,8 +30,9 @@ dojo.declare("gnr.GnrWebSocketHandler", null, {
         this.application = application;
         this.wsroot=wsroot;
         this.url=(window.location.protocol=='https:'?'wss://':'ws://')+window.location.host+wsroot;
-        this.options=objectUpdate({ debug: false, reconnectInterval: 4000, ping_time:1000 },
-                                  options);
+        var wsOptions = objectUpdate({ debug: false, ping_time:1000,
+                                       minReconnectionDelay: 4000 }, options);
+        this.options = wsOptions;
         this.waitingCalls={};
         
     },
@@ -260,373 +261,416 @@ dojo.declare("gnr.GnrWebSocketHandler", null, {
     }
 });
 
-// MIT License:
-//
-// Copyright (c) 2010-2012, Joe Walnes
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
-/**
- * This behaves like a WebSocket in every way, except if it fails to connect,
- * or it gets disconnected, it will repeatedly poll until it successfully connects
- * again.
- *
- * It is API compatible, so when you have:
- *   ws = new WebSocket('ws://....');
- * you can replace with:
- *   ws = new ReconnectingWebSocket('ws://....');
- *
- * The event stream will typically look like:
- *  onconnecting
- *  onopen
- *  onmessage
- *  onmessage
- *  onclose // lost connection
- *  onconnecting
- *  onopen  // sometime later...
- *  onmessage
- *  onmessage
- *  etc...
- *
- * It is API compatible with the standard WebSocket API, apart from the following members:
- *
- * - `bufferedAmount`
- * - `extensions`
- * - `binaryType`
- *
- * Latest version: https://github.com/joewalnes/reconnecting-websocket/
- * - Joe Walnes
- *
- * Syntax
- * ======
- * var socket = new ReconnectingWebSocket(url, protocols, options);
- *
- * Parameters
- * ==========
- * url - The url you are connecting to.
- * protocols - Optional string or array of protocols.
- * options - See below
- *
- * Options
- * =======
- * Options can either be passed upon instantiation or set after instantiation:
- *
- * var socket = new ReconnectingWebSocket(url, null, { debug: true, reconnectInterval: 4000 });
- *
- * or
- *
- * var socket = new ReconnectingWebSocket(url);
- * socket.debug = true;
- * socket.reconnectInterval = 4000;
- *
- * debug
- * - Whether this instance should log debug messages. Accepts true or false. Default: false.
- *
- * automaticOpen
- * - Whether or not the websocket should attempt to connect immediately upon instantiation. The socket can be manually opened or closed at any time using ws.open() and ws.close().
- *
- * reconnectInterval
- * - The number of milliseconds to delay before attempting to reconnect. Accepts integer. Default: 1000.
- *
- * maxReconnectInterval
- * - The maximum number of milliseconds to delay a reconnection attempt. Accepts integer. Default: 30000.
- *
- * reconnectDecay
- * - The rate of increase of the reconnect delay. Allows reconnect attempts to back off when problems persist. Accepts integer or float. Default: 1.5.
- *
- * timeoutInterval
- * - The maximum time in milliseconds to wait for a connection to succeed before closing and retrying. Accepts integer. Default: 2000.
- *
+/*!
+ * Reconnecting WebSocket v4.4.0
+ * by Pedro Ladaria <pedro.ladaria@gmail.com>
+ * https://github.com/pladaria/reconnecting-websocket
+ * License MIT
  */
-(function (global, factory) {
-    if (typeof define === 'function' && define.amd) {
-        define([], factory);
-    } else if (typeof module !== 'undefined' && module.exports){
-        module.exports = factory();
-    } else {
-        global.ReconnectingWebSocket = factory();
+var ReconnectingWebSocket = (function () {
+    'use strict';
+
+    var extendStatics = function(d, b) {
+        extendStatics = Object.setPrototypeOf ||
+            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+            function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+        return extendStatics(d, b);
+    };
+
+    function __extends(d, b) {
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
     }
-})(this, function () {
 
-    if (!('WebSocket' in window)) {
-        return;
-    }
-
-    function ReconnectingWebSocket(url, protocols, options) {
-
-        // Default settings
-        var settings = {
-
-            /** Whether this instance should log debug messages. */
-            debug: false,
-
-            /** Whether or not the websocket should attempt to connect immediately upon instantiation. */
-            automaticOpen: true,
-
-            /** The number of milliseconds to delay before attempting to reconnect. */
-            reconnectInterval: 1000,
-            /** The maximum number of milliseconds to delay a reconnection attempt. */
-            maxReconnectInterval: 30000,
-            /** The rate of increase of the reconnect delay. Allows reconnect attempts to back off when problems persist. */
-            reconnectDecay: 1.5,
-
-            /** The maximum time in milliseconds to wait for a connection to succeed before closing and retrying. */
-            timeoutInterval: 2000,
-
-            /** The maximum number of reconnection attempts to make. Unlimited if null. */
-            maxReconnectAttempts: null
-        }
-        if (!options) { options = {}; }
-
-        // Overwrite and define settings with options if they exist.
-        for (var key in settings) {
-            if (typeof options[key] !== 'undefined') {
-                this[key] = options[key];
-            } else {
-                this[key] = settings[key];
+    function __values(o) {
+        var m = typeof Symbol === "function" && o[Symbol.iterator], i = 0;
+        if (m) return m.call(o);
+        return {
+            next: function () {
+                if (o && i >= o.length) o = void 0;
+                return { value: o && o[i++], done: !o };
             }
-        }
-
-        // These should be treated as read-only properties
-
-        /** The URL as resolved by the constructor. This is always an absolute URL. Read only. */
-        this.url = url;
-        this.pendingMessagesToSend=[]
-        
-
-        /** The number of attempted reconnects since starting, or the last successful connection. Read only. */
-        this.reconnectAttempts = 0;
-
-        /**
-         * The current state of the connection.
-         * Can be one of: WebSocket.CONNECTING, WebSocket.OPEN, WebSocket.CLOSING, WebSocket.CLOSED
-         * Read only.
-         */
-        this.readyState = WebSocket.CONNECTING;
-
-        /**
-         * A string indicating the name of the sub-protocol the server selected; this will be one of
-         * the strings specified in the protocols parameter when creating the WebSocket object.
-         * Read only.
-         */
-        this.protocol = null;
-
-        // Private state variables
-
-        var self = this;
-        var ws;
-        var forcedClose = false;
-        var timedOut = false;
-        var eventTarget = document.createElement('div');
-
-        // Wire up "on*" properties as event handlers
-
-        eventTarget.addEventListener('open',       function(event) { self.onopen(event); });
-        eventTarget.addEventListener('close',      function(event) { self.onclose(event); });
-        eventTarget.addEventListener('connecting', function(event) { self.onconnecting(event); });
-        eventTarget.addEventListener('message',    function(event) { self.onmessage(event); });
-        eventTarget.addEventListener('error',      function(event) { self.onerror(event); });
-
-        // Expose the API required by EventTarget
-
-        this.addEventListener = eventTarget.addEventListener.bind(eventTarget);
-        this.removeEventListener = eventTarget.removeEventListener.bind(eventTarget);
-        this.dispatchEvent = eventTarget.dispatchEvent.bind(eventTarget);
-
-        /**
-         * This function generates an event that is compatible with standard
-         * compliant browsers and IE9 - IE11
-         *
-         * This will prevent the error:
-         * Object doesn't support this action
-         *
-         * http://stackoverflow.com/questions/19345392/why-arent-my-parameters-getting-passed-through-to-a-dispatched-event/19345563#19345563
-         * @param s String The name that the event should use
-         * @param args Object an optional object that the event will use
-         */
-        function generateEvent(s, args) {
-            var evt = document.createEvent("CustomEvent");
-            evt.initCustomEvent(s, false, false, args);
-            return evt;
         };
+    }
 
-        this.open = function (reconnectAttempt) {
-            ws = new WebSocket(self.url, protocols || []);
-
-            if (reconnectAttempt) {
-                if (this.maxReconnectAttempts && this.reconnectAttempts > this.maxReconnectAttempts) {
-                    return;
-                }
-            } else {
-                eventTarget.dispatchEvent(generateEvent('connecting'));
-                this.reconnectAttempts = 0;
+    function __read(o, n) {
+        var m = typeof Symbol === "function" && o[Symbol.iterator];
+        if (!m) return o;
+        var i = m.call(o), r, ar = [], e;
+        try {
+            while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
+        }
+        catch (error) { e = { error: error }; }
+        finally {
+            try {
+                if (r && !r.done && (m = i["return"])) m.call(i);
             }
+            finally { if (e) throw e.error; }
+        }
+        return ar;
+    }
 
-            if (self.debug || ReconnectingWebSocket.debugAll) {
-                console.debug('ReconnectingWebSocket', 'attempt-connect', self.url);
-            }
+    function __spread() {
+        for (var ar = [], i = 0; i < arguments.length; i++)
+            ar = ar.concat(__read(arguments[i]));
+        return ar;
+    }
 
-            var localWs = ws;
-            var timeout = setTimeout(function() {
-                if (self.debug || ReconnectingWebSocket.debugAll) {
-                    console.debug('ReconnectingWebSocket', 'connection-timeout', self.url);
-                }
-                timedOut = true;
-                localWs.close();
-                timedOut = false;
-            }, self.timeoutInterval);
+    var Event = /** @class */ (function () {
+        function Event(type, target) {
+            this.target = target;
+            this.type = type;
+        }
+        return Event;
+    }());
+    var ErrorEvent = /** @class */ (function (_super) {
+        __extends(ErrorEvent, _super);
+        function ErrorEvent(error, target) {
+            var _this = _super.call(this, 'error', target) || this;
+            _this.message = error.message;
+            _this.error = error;
+            return _this;
+        }
+        return ErrorEvent;
+    }(Event));
+    var CloseEvent = /** @class */ (function (_super) {
+        __extends(CloseEvent, _super);
+        function CloseEvent(code, reason, target) {
+            if (code === void 0) { code = 1000; }
+            if (reason === void 0) { reason = ''; }
+            var _this = _super.call(this, 'close', target) || this;
+            _this.wasClean = true;
+            _this.code = code;
+            _this.reason = reason;
+            return _this;
+        }
+        return CloseEvent;
+    }(Event));
 
-            ws.onopen = function(event) {
-                clearTimeout(timeout);
-                if (self.debug || ReconnectingWebSocket.debugAll) {
-                    console.debug('ReconnectingWebSocket', 'onopen', self.url);
-                }
-                self.protocol = ws.protocol;
-                self.readyState = WebSocket.OPEN;
-                self.reconnectAttempts = 0;
-                var e = generateEvent('open');
-                e.isReconnect = reconnectAttempt;
-                reconnectAttempt = false;
-                eventTarget.dispatchEvent(e);
-                while (self.pendingMessagesToSend.length>0){
-                    console.log('send pending')
-                    self.send(self.pendingMessagesToSend.shift())
-                }
+    var getGlobalWebSocket = function () {
+        if (typeof WebSocket !== 'undefined') {
+            return WebSocket;
+        }
+    };
+    var isWebSocket = function (w) { return typeof w !== 'undefined' && !!w && w.CLOSING === 2; };
+    var DEFAULT = {
+        maxReconnectionDelay: 10000,
+        minReconnectionDelay: 1000 + Math.random() * 4000,
+        minUptime: 5000,
+        reconnectionDelayGrowFactor: 1.3,
+        connectionTimeout: 4000,
+        maxRetries: Infinity,
+        maxEnqueuedMessages: Infinity,
+        startClosed: false,
+        debug: false,
+    };
+    var ReconnectingWebSocket = /** @class */ (function () {
+        function ReconnectingWebSocket(url, protocols, options) {
+            var _this = this;
+            if (options === void 0) { options = {}; }
+            this._listeners = {
+                error: [],
+                message: [],
+                open: [],
+                close: [],
             };
-
-            ws.onclose = function(event) {
-                clearTimeout(timeout);
-                ws = null;
-                if (forcedClose) {
-                    self.readyState = WebSocket.CLOSED;
-                    eventTarget.dispatchEvent(generateEvent('close'));
-                } else {
-                    self.readyState = WebSocket.CONNECTING;
-                    var e = generateEvent('connecting');
-                    e.code = event.code;
-                    e.reason = event.reason;
-                    e.wasClean = event.wasClean;
-                    eventTarget.dispatchEvent(e);
-                    if (!reconnectAttempt && !timedOut) {
-                        if (self.debug || ReconnectingWebSocket.debugAll) {
-                            console.debug('ReconnectingWebSocket', 'onclose', self.url);
-                        }
-                        eventTarget.dispatchEvent(generateEvent('close'));
+            this._retryCount = -1;
+            this._shouldReconnect = true;
+            this._connectLock = false;
+            this._binaryType = 'blob';
+            this._closeCalled = false;
+            this._messageQueue = [];
+            this.onclose = null;
+            this.onerror = null;
+            this.onmessage = null;
+            this.onopen = null;
+            this._handleOpen = function (event) {
+                _this._debug('open event');
+                var _a = _this._options.minUptime, minUptime = _a === void 0 ? DEFAULT.minUptime : _a;
+                clearTimeout(_this._connectTimeout);
+                _this._uptimeTimeout = setTimeout(function () { return _this._acceptOpen(); }, minUptime);
+                _this._ws.binaryType = _this._binaryType;
+                _this._messageQueue.forEach(function (message) { return _this._ws.send(message); });
+                _this._messageQueue = [];
+                if (_this.onopen) {
+                    _this.onopen(event);
+                }
+                _this._listeners.open.forEach(function (listener) { return _this._callEventListener(event, listener); });
+            };
+            this._handleMessage = function (event) {
+                _this._debug('message event');
+                if (_this.onmessage) {
+                    _this.onmessage(event);
+                }
+                _this._listeners.message.forEach(function (listener) { return _this._callEventListener(event, listener); });
+            };
+            this._handleError = function (event) {
+                _this._debug('error event', event.message);
+                _this._disconnect(undefined, event.message === 'TIMEOUT' ? 'timeout' : undefined);
+                if (_this.onerror) {
+                    _this.onerror(event);
+                }
+                _this._debug('exec error listeners');
+                _this._listeners.error.forEach(function (listener) { return _this._callEventListener(event, listener); });
+                _this._connect();
+            };
+            this._handleClose = function (event) {
+                _this._debug('close event');
+                _this._clearTimeouts();
+                if (_this._shouldReconnect) {
+                    _this._connect();
+                }
+                if (_this.onclose) {
+                    _this.onclose(event);
+                }
+                _this._listeners.close.forEach(function (listener) { return _this._callEventListener(event, listener); });
+            };
+            this._url = url;
+            this._protocols = protocols;
+            this._options = options;
+            if (this._options.startClosed) {
+                this._shouldReconnect = false;
+            }
+            this._connect();
+        }
+        Object.defineProperty(ReconnectingWebSocket, "CONNECTING", {
+            get: function () { return 0; },
+            enumerable: true, configurable: true
+        });
+        Object.defineProperty(ReconnectingWebSocket, "OPEN", {
+            get: function () { return 1; },
+            enumerable: true, configurable: true
+        });
+        Object.defineProperty(ReconnectingWebSocket, "CLOSING", {
+            get: function () { return 2; },
+            enumerable: true, configurable: true
+        });
+        Object.defineProperty(ReconnectingWebSocket, "CLOSED", {
+            get: function () { return 3; },
+            enumerable: true, configurable: true
+        });
+        Object.defineProperty(ReconnectingWebSocket.prototype, "CONNECTING", {
+            get: function () { return ReconnectingWebSocket.CONNECTING; },
+            enumerable: true, configurable: true
+        });
+        Object.defineProperty(ReconnectingWebSocket.prototype, "OPEN", {
+            get: function () { return ReconnectingWebSocket.OPEN; },
+            enumerable: true, configurable: true
+        });
+        Object.defineProperty(ReconnectingWebSocket.prototype, "CLOSING", {
+            get: function () { return ReconnectingWebSocket.CLOSING; },
+            enumerable: true, configurable: true
+        });
+        Object.defineProperty(ReconnectingWebSocket.prototype, "CLOSED", {
+            get: function () { return ReconnectingWebSocket.CLOSED; },
+            enumerable: true, configurable: true
+        });
+        Object.defineProperty(ReconnectingWebSocket.prototype, "binaryType", {
+            get: function () {
+                return this._ws ? this._ws.binaryType : this._binaryType;
+            },
+            set: function (value) {
+                this._binaryType = value;
+                if (this._ws) { this._ws.binaryType = value; }
+            },
+            enumerable: true, configurable: true
+        });
+        Object.defineProperty(ReconnectingWebSocket.prototype, "retryCount", {
+            get: function () { return Math.max(this._retryCount, 0); },
+            enumerable: true, configurable: true
+        });
+        Object.defineProperty(ReconnectingWebSocket.prototype, "bufferedAmount", {
+            get: function () {
+                var bytes = this._messageQueue.reduce(function (acc, message) {
+                    if (typeof message === 'string') { acc += message.length; }
+                    else if (message instanceof Blob) { acc += message.size; }
+                    else { acc += message.byteLength; }
+                    return acc;
+                }, 0);
+                return bytes + (this._ws ? this._ws.bufferedAmount : 0);
+            },
+            enumerable: true, configurable: true
+        });
+        Object.defineProperty(ReconnectingWebSocket.prototype, "extensions", {
+            get: function () { return this._ws ? this._ws.extensions : ''; },
+            enumerable: true, configurable: true
+        });
+        Object.defineProperty(ReconnectingWebSocket.prototype, "protocol", {
+            get: function () { return this._ws ? this._ws.protocol : ''; },
+            enumerable: true, configurable: true
+        });
+        Object.defineProperty(ReconnectingWebSocket.prototype, "readyState", {
+            get: function () {
+                if (this._ws) { return this._ws.readyState; }
+                return this._options.startClosed
+                    ? ReconnectingWebSocket.CLOSED
+                    : ReconnectingWebSocket.CONNECTING;
+            },
+            enumerable: true, configurable: true
+        });
+        Object.defineProperty(ReconnectingWebSocket.prototype, "url", {
+            get: function () { return this._ws ? this._ws.url : ''; },
+            enumerable: true, configurable: true
+        });
+        ReconnectingWebSocket.prototype.close = function (code, reason) {
+            if (code === void 0) { code = 1000; }
+            this._closeCalled = true;
+            this._shouldReconnect = false;
+            this._clearTimeouts();
+            if (!this._ws) { this._debug('close enqueued: no ws instance'); return; }
+            if (this._ws.readyState === this.CLOSED) { this._debug('close: already closed'); return; }
+            this._ws.close(code, reason);
+        };
+        ReconnectingWebSocket.prototype.reconnect = function (code, reason) {
+            this._shouldReconnect = true;
+            this._closeCalled = false;
+            this._retryCount = -1;
+            if (!this._ws || this._ws.readyState === this.CLOSED) {
+                this._connect();
+            } else {
+                this._disconnect(code, reason);
+                this._connect();
+            }
+        };
+        ReconnectingWebSocket.prototype.send = function (data) {
+            if (this._ws && this._ws.readyState === this.OPEN) {
+                this._debug('send', data);
+                this._ws.send(data);
+            } else {
+                var _a = this._options.maxEnqueuedMessages, maxEnqueuedMessages = _a === void 0 ? DEFAULT.maxEnqueuedMessages : _a;
+                if (this._messageQueue.length < maxEnqueuedMessages) {
+                    this._debug('enqueue', data);
+                    this._messageQueue.push(data);
+                }
+            }
+        };
+        ReconnectingWebSocket.prototype.addEventListener = function (type, listener) {
+            if (this._listeners[type]) { this._listeners[type].push(listener); }
+        };
+        ReconnectingWebSocket.prototype.dispatchEvent = function (event) {
+            var e_1, _a;
+            var listeners = this._listeners[event.type];
+            if (listeners) {
+                try {
+                    for (var listeners_1 = __values(listeners), listeners_1_1 = listeners_1.next(); !listeners_1_1.done; listeners_1_1 = listeners_1.next()) {
+                        var listener = listeners_1_1.value;
+                        this._callEventListener(event, listener);
                     }
-
-                    var timeout = self.reconnectInterval * Math.pow(self.reconnectDecay, self.reconnectAttempts);
-                    setTimeout(function() {
-                        self.reconnectAttempts++;
-                        self.open(true);
-                    }, timeout > self.maxReconnectInterval ? self.maxReconnectInterval : timeout);
                 }
-            };
-            ws.onmessage = function(event) {
-                if (self.debug || ReconnectingWebSocket.debugAll) {
-                    console.debug('ReconnectingWebSocket', 'onmessage', self.url, event.data);
+                catch (e_1_1) { e_1 = { error: e_1_1 }; }
+                finally {
+                    try { if (listeners_1_1 && !listeners_1_1.done && (_a = listeners_1.return)) _a.call(listeners_1); }
+                    finally { if (e_1) throw e_1.error; }
                 }
-                var e = generateEvent('message');
-                e.data = event.data;
-                eventTarget.dispatchEvent(e);
-            };
-            ws.onerror = function(event) {
-                if (self.debug || ReconnectingWebSocket.debugAll) {
-                    console.debug('ReconnectingWebSocket', 'onerror', self.url, event);
-                }
-                eventTarget.dispatchEvent(generateEvent('error'));
-            };
-        }
-
-        // Whether or not to create a websocket upon instantiation
-        if (this.automaticOpen == true) {
-            this.open(false);
-        }
-
-        /**
-         * Transmits data to the server over the WebSocket connection.
-         *
-         * @param data a text string, ArrayBuffer or Blob to send to the server.
-         */
-        this.send = function(data) {
-            if (ws) {
-                if (self.debug || ReconnectingWebSocket.debugAll) {
-                    console.debug('ReconnectingWebSocket', 'send', self.url, data);
-                }
-                return ws.send(data);
-            } else {
-                console.log('socket not ready - adding to queue')
-                this.pendingMessagesToSend.push(data)
-                //console.log ('Error sending :',data);
-                //throw 'INVALID_STATE_ERR : Pausing to reconnect websocket'
+            }
+            return true;
+        };
+        ReconnectingWebSocket.prototype.removeEventListener = function (type, listener) {
+            if (this._listeners[type]) {
+                this._listeners[type] = this._listeners[type].filter(function (l) { return l !== listener; });
             }
         };
-
-        /**
-         * Closes the WebSocket connection or connection attempt, if any.
-         * If the connection is already CLOSED, this method does nothing.
-         */
-        this.close = function(code, reason) {
-            // Default CLOSE_NORMAL code
-            if (typeof code == 'undefined') {
-                code = 1000;
-            }
-            forcedClose = true;
-            if (ws) {
-                ws.close(code, reason);
-            }
+        ReconnectingWebSocket.prototype._debug = function () {
+            var args = [];
+            for (var _i = 0; _i < arguments.length; _i++) { args[_i] = arguments[_i]; }
+            if (this._options.debug) { console.log.apply(console, __spread(['RWS>'], args)); }
         };
-
-        /**
-         * Additional public API method to refresh the connection if still open (close, re-open).
-         * For example, if the app suspects bad data / missed heart beats, it can try to refresh.
-         */
-        this.refresh = function() {
-            if (ws) {
-                ws.close();
+        ReconnectingWebSocket.prototype._getNextDelay = function () {
+            var _a = this._options, _b = _a.reconnectionDelayGrowFactor, reconnectionDelayGrowFactor = _b === void 0 ? DEFAULT.reconnectionDelayGrowFactor : _b, _c = _a.minReconnectionDelay, minReconnectionDelay = _c === void 0 ? DEFAULT.minReconnectionDelay : _c, _d = _a.maxReconnectionDelay, maxReconnectionDelay = _d === void 0 ? DEFAULT.maxReconnectionDelay : _d;
+            var delay = 0;
+            if (this._retryCount > 0) {
+                delay = minReconnectionDelay * Math.pow(reconnectionDelayGrowFactor, this._retryCount - 1);
+                if (delay > maxReconnectionDelay) { delay = maxReconnectionDelay; }
             }
+            this._debug('next delay', delay);
+            return delay;
         };
-    }
-
-    /**
-     * An event listener to be called when the WebSocket connection's readyState changes to OPEN;
-     * this indicates that the connection is ready to send and receive data.
-     */
-    ReconnectingWebSocket.prototype.onopen = function(event) {};
-    /** An event listener to be called when the WebSocket connection's readyState changes to CLOSED. */
-    ReconnectingWebSocket.prototype.onclose = function(event) {};
-    /** An event listener to be called when a connection begins being attempted. */
-    ReconnectingWebSocket.prototype.onconnecting = function(event) {};
-    /** An event listener to be called when a message is received from the server. */
-    ReconnectingWebSocket.prototype.onmessage = function(event) {};
-    /** An event listener to be called when an error occurs. */
-    ReconnectingWebSocket.prototype.onerror = function(event) {};
-
-    /**
-     * Whether all instances of ReconnectingWebSocket should log debug messages.
-     * Setting this to true is the equivalent of setting all instances of ReconnectingWebSocket.debug to true.
-     */
-    ReconnectingWebSocket.debugAll = false;
-
-    ReconnectingWebSocket.CONNECTING = WebSocket.CONNECTING;
-    ReconnectingWebSocket.OPEN = WebSocket.OPEN;
-    ReconnectingWebSocket.CLOSING = WebSocket.CLOSING;
-    ReconnectingWebSocket.CLOSED = WebSocket.CLOSED;
+        ReconnectingWebSocket.prototype._wait = function () {
+            var _this = this;
+            return new Promise(function (resolve) { setTimeout(resolve, _this._getNextDelay()); });
+        };
+        ReconnectingWebSocket.prototype._getNextUrl = function (urlProvider) {
+            if (typeof urlProvider === 'string') { return Promise.resolve(urlProvider); }
+            if (typeof urlProvider === 'function') {
+                var url = urlProvider();
+                if (typeof url === 'string') { return Promise.resolve(url); }
+                if (!!url.then) { return url; }
+            }
+            throw Error('Invalid URL');
+        };
+        ReconnectingWebSocket.prototype._connect = function () {
+            var _this = this;
+            if (this._connectLock || !this._shouldReconnect) { return; }
+            this._connectLock = true;
+            var _a = this._options, _b = _a.maxRetries, maxRetries = _b === void 0 ? DEFAULT.maxRetries : _b, _c = _a.connectionTimeout, connectionTimeout = _c === void 0 ? DEFAULT.connectionTimeout : _c, _d = _a.WebSocket, WebSocket = _d === void 0 ? getGlobalWebSocket() : _d;
+            if (this._retryCount >= maxRetries) {
+                this._debug('max retries reached', this._retryCount, '>=', maxRetries);
+                return;
+            }
+            this._retryCount++;
+            this._debug('connect', this._retryCount);
+            this._removeListeners();
+            if (!isWebSocket(WebSocket)) { throw Error('No valid WebSocket class provided'); }
+            this._wait()
+                .then(function () { return _this._getNextUrl(_this._url); })
+                .then(function (url) {
+                if (_this._closeCalled) { return; }
+                _this._debug('connect', { url: url, protocols: _this._protocols });
+                _this._ws = _this._protocols
+                    ? new WebSocket(url, _this._protocols)
+                    : new WebSocket(url);
+                _this._ws.binaryType = _this._binaryType;
+                _this._connectLock = false;
+                _this._addListeners();
+                _this._connectTimeout = setTimeout(function () { return _this._handleTimeout(); }, connectionTimeout);
+            });
+        };
+        ReconnectingWebSocket.prototype._handleTimeout = function () {
+            this._debug('timeout event');
+            this._handleError(new ErrorEvent(Error('TIMEOUT'), this));
+        };
+        ReconnectingWebSocket.prototype._disconnect = function (code, reason) {
+            if (code === void 0) { code = 1000; }
+            this._clearTimeouts();
+            if (!this._ws) { return; }
+            this._removeListeners();
+            try {
+                this._ws.close(code, reason);
+                this._handleClose(new CloseEvent(code, reason, this));
+            } catch (error) { /* ignore */ }
+        };
+        ReconnectingWebSocket.prototype._acceptOpen = function () {
+            this._debug('accept open');
+            this._retryCount = 0;
+        };
+        ReconnectingWebSocket.prototype._callEventListener = function (event, listener) {
+            if ('handleEvent' in listener) { listener.handleEvent(event); }
+            else { listener(event); }
+        };
+        ReconnectingWebSocket.prototype._removeListeners = function () {
+            if (!this._ws) { return; }
+            this._debug('removeListeners');
+            this._ws.removeEventListener('open', this._handleOpen);
+            this._ws.removeEventListener('close', this._handleClose);
+            this._ws.removeEventListener('message', this._handleMessage);
+            this._ws.removeEventListener('error', this._handleError);
+        };
+        ReconnectingWebSocket.prototype._addListeners = function () {
+            if (!this._ws) { return; }
+            this._debug('addListeners');
+            this._ws.addEventListener('open', this._handleOpen);
+            this._ws.addEventListener('close', this._handleClose);
+            this._ws.addEventListener('message', this._handleMessage);
+            this._ws.addEventListener('error', this._handleError);
+        };
+        ReconnectingWebSocket.prototype._clearTimeouts = function () {
+            clearTimeout(this._connectTimeout);
+            clearTimeout(this._uptimeTimeout);
+        };
+        return ReconnectingWebSocket;
+    }());
 
     return ReconnectingWebSocket;
-});
+
+}());

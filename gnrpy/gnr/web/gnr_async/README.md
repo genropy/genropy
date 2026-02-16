@@ -110,6 +110,43 @@ by Supervisor, with Nginx routing:
 - `/websocket` — asyncio process (Unix socket)
 - `/` — Gunicorn (Unix socket)
 
+## JavaScript client
+
+The browser-side WebSocket handler lives in `gnrjs/gnr_d11/js/gnrwebsocket.js`
+and contains two parts:
+
+### GnrWebSocketHandler
+
+Genro application-level handler (`gnr.GnrWebSocketHandler`).
+Manages the protocol: JSON commands out, XML/GnrBag responses in.
+
+Key methods: `create()`, `send()`, `call()` (RPC with token-based response),
+`onmessage()` (dispatches to `do_*` handlers).
+
+### ReconnectingWebSocket (vendored)
+
+Auto-reconnecting WebSocket wrapper included at the bottom of the same file.
+
+**Current version**: [pladaria/reconnecting-websocket v4.4.0](https://github.com/pladaria/reconnecting-websocket) (MIT license).
+
+Replaced the original Joe Walnes (2012) library. Key improvements:
+
+- Exponential backoff with random jitter (avoids thundering herd)
+- Built-in message queue with configurable `maxEnqueuedMessages`
+- No deprecated DOM APIs (`initCustomEvent`, `document.createElement` as EventTarget)
+- `reconnect()` method for explicit reconnection
+- Maintained codebase with TypeScript source
+
+Option name mapping from the old library:
+
+| Old (Walnes) | New (pladaria) |
+| ------------ | -------------- |
+| `reconnectInterval` | `minReconnectionDelay` |
+| `maxReconnectInterval` | `maxReconnectionDelay` |
+| `reconnectDecay` | `reconnectionDelayGrowFactor` |
+| `timeoutInterval` | `connectionTimeout` |
+| `maxReconnectAttempts` | `maxRetries` |
+
 ## Dependencies
 
 - `aiohttp` (already present in the project)
