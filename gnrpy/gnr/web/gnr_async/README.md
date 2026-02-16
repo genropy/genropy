@@ -1,82 +1,116 @@
-# gnr_async — Server asincrono Genro (asyncio/aiohttp)
+# gnr_async — Genro async server (asyncio/aiohttp)
 
-Reimplementazione del server asincrono Genro (`gnrasync.py`, basato su Tornado)
-usando **asyncio nativo** e **aiohttp**.
+Modern reimplementation of the Genro async server (`gnrasync.py`, Tornado-based)
+using **native asyncio** and **aiohttp**.
 
-## Moduli
+## Modules
 
-| Modulo | Descrizione |
+| Module | Description |
 |--------|-------------|
-| `gnrasync_io.py` | Server principale: WebSocket, shared objects, debug remoto, proxy HTTP |
+| `gnrasync_io.py` | Main server: WebSocket, shared objects, remote debug, HTTP proxy |
 
-## Architettura
+## Architecture
 
-Il server async gestisce esclusivamente la comunicazione real-time.
-Il serving delle pagine web (WSGI) gira come processo separato,
-sia in sviluppo che in produzione.
+The async server handles real-time communication only.
+Web page serving (WSGI) runs as a separate process,
+both in development and production.
 
 ```
 Browser ──WebSocket──► gnr_async (aiohttp)
-                          │
-                          ├── WebSocketSession: RPC, routing, ping
-                          ├── SharedObjectsManager: oggetti condivisi real-time
-                          ├── DebugSession: debug remoto via TCP
-                          └── WsProxyHandler: bridge HTTP ← server WSGI
+                          |
+                          +-- WebSocketSession: RPC, routing, ping
+                          +-- SharedObjectsManager: real-time shared objects
+                          +-- DebugSession: remote debug via TCP
+                          +-- WsProxyHandler: HTTP bridge from WSGI server
 
-Server WSGI ──Unix socket──► gnr_async (wsproxy)
+WSGI Server ──Unix socket──► gnr_async (wsproxy)
 ```
 
-## Componenti principali
+## Main components
 
 ### WebSocketSession
-Gestisce la connessione WebSocket con il browser. Riceve comandi JSON
-e li smista ai metodi `do_*`:
 
-- `do_connected` — registra la pagina
-- `do_call` — RPC: invoca metodi Python della pagina (threadpool)
+Handles a single WebSocket connection with the browser.
+Receives JSON commands and dispatches them to `do_*` methods:
+
+- `do_connected` — registers the page
+- `do_call` — RPC: invokes server-side Python methods (threadpool)
 - `do_ping` — keepalive
-- `do_route` — inoltra messaggi tra pagine
-- `do_service` — servizi remoti
-- `do_pdb_command` — debug remoto
+- `do_route` — forwards messages between pages
+- `do_service` — remote services
+- `do_pdb_command` — remote debugging
 
 ### SharedObject
-Oggetto condiviso tra pagine per collaborazione real-time.
-Le modifiche vengono propagate in broadcast a tutte le pagine sottoscritte.
 
-Funzionalita:
-- Persistenza su file XML o database SQL
-- Controllo accesso tramite tag (read/write)
-- Backup automatico con versioning
-- Scadenza automatica dopo disconnessione
-- Lock per serializzazione modifiche
+Object shared between pages for real-time collaboration.
+Changes are broadcast to all subscribed pages.
 
-Sottoclassi:
-- `SharedStatus` — stato globale del server (utenti, connessioni, pagine)
-- `SharedLogger` — logging condiviso
-- `SqlSharedObject` — placeholder per estensioni SQL
+Features:
+
+- Persistence to XML files or SQL database
+- Access control via tags (read/write)
+- Automatic backup with versioning
+- Auto-expiration after last disconnection
+- Lock for change serialization
+
+Subclasses:
+
+- `SharedStatus` — global server state (users, connections, pages)
+- `SharedLogger` — shared logging
+- `SqlSharedObject` — placeholder for SQL extensions
 
 ### DebugSession
-Sessione di debug remoto via socket TCP. Collega il debugger Python (PDB)
-al browser tramite code async bidirezionali.
+
+Remote debug session via TCP socket. Bridges the Python debugger (PDB)
+to the browser through bidirectional async queues.
 
 ### AioWebSocket
-Wrapper di compatibilita su `aiohttp.WebSocketResponse` che espone
-`write_message()` per interoperare con `AsyncWebSocketHandler` esistente.
 
-## Differenze rispetto a gnrasync.py (Tornado)
+Compatibility wrapper on `aiohttp.WebSocketResponse` exposing
+`write_message()` to interoperate with the existing `AsyncWebSocketHandler`.
 
-| Aspetto | Tornado | asyncio/aiohttp |
-|---------|---------|-----------------|
-| Coroutine | `@gen.coroutine` / `yield` | `async def` / `await` |
+## Differences from gnrasync.py (Tornado)
+
+| Aspect | Tornado | asyncio/aiohttp |
+|--------|---------|-----------------|
+| Coroutines | `@gen.coroutine` / `yield` | `async def` / `await` |
 | Lock | `tornado.locks.Lock` | `asyncio.Lock` |
-| Code | `tornado.queues.Queue` | `asyncio.Queue` |
+| Queues | `tornado.queues.Queue` | `asyncio.Queue` |
 | WebSocket server | `tornado.websocket` | `aiohttp.web.WebSocketResponse` |
-| HTTP handler | `tornado.web.RequestHandler` | funzioni `aiohttp.web` |
+| HTTP handler | `tornado.web.RequestHandler` | `aiohttp.web` functions |
 | TCP server (debug) | `tornado.tcpserver.TCPServer` | `asyncio.start_unix_server` |
 | Unix socket | `tornado.netutil.bind_unix_socket` | `aiohttp.web.UnixSite` |
-| WSGI bridge | `tornado_wsgi.WSGIHandler` | rimosso (processo separato) |
+| WSGI bridge | `tornado_wsgi.WSGIHandler` | removed (separate process) |
 
-## Dipendenze
+## Startup
 
-- `aiohttp` (gia presente nel progetto)
-- Nessuna dipendenza aggiuntiva rispetto al progetto base
+### Development
+
+The asyncio WebSocket server starts alongside the WSGI server with the `-ws` flag:
+
+```bash
+gnrwsgiserve mysite -ws
+```
+
+This launches two processes:
+
+- **WSGI** (werkzeug) — serves web pages
+- **WebSocket** (asyncio/aiohttp) — handles real-time communication
+
+The `-ws` and `-t` (tornado) flags are mutually exclusive:
+
+- `-ws` — two separate processes (WSGI + asyncio WebSocket)
+- `-t` — single Tornado process with integrated WSGI (legacy)
+
+### Production
+
+In production the WebSocket server runs as a separate process managed
+by Supervisor, with Nginx routing:
+
+- `/websocket` — asyncio process (Unix socket)
+- `/` — Gunicorn (Unix socket)
+
+## Dependencies
+
+- `aiohttp` (already present in the project)
+- No additional dependencies

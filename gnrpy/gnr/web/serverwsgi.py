@@ -192,10 +192,15 @@ class Server(object):
                             dest='websockets',
                             action='store_true',
                             help="Use websockets")
-        parser.add_argument('-t','--tornado',
+        async_group = parser.add_mutually_exclusive_group()
+        async_group.add_argument('-t','--tornado',
                             dest='tornado',
                             action='store_true',
-                            help="Serve using tornado")
+                            help="Serve using tornado (single process)")
+        async_group.add_argument('-ws','--websocket-server',
+                            dest='websocket_server',
+                            action='store_true',
+                            help="Launch asyncio WebSocket server as separate process")
         
         parser.add_argument('-c', '--config',
                             dest='config_path',
@@ -416,11 +421,31 @@ class Server(object):
         logger.info('sitedaemon started')
         time.sleep(1)
 
+    def start_websocket_server(self, site_name):
+        from multiprocessing import Process
+        from gnr.web.gnr_async.gnrasync_io import GnrAsyncServer
+
+        def run_ws_server(instance):
+            server = GnrAsyncServer(instance=instance)
+            server.start()
+
+        ws_process = Process(
+            name='websocket_%s' % self.site_name,
+            target=run_ws_server,
+            kwargs=dict(instance=site_name)
+        )
+        ws_process.daemon = True
+        ws_process.start()
+        logger.info('WebSocket server (asyncio) started as separate process')
+        time.sleep(1)
+
     def serve(self):
         port = int(self.options.port)
         now = datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')
         host = self.options.host
         site_name= f'{self.site_name}:{self.remote_db}' if self.remote_db else self.site_name
+        if getattr(self.options, 'websocket_server', False):
+            self.start_websocket_server(site_name)
         if self.options.tornado:
             host = '127.0.0.1' if self.options.host == '0.0.0.0' else self.options.host
 
