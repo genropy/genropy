@@ -1043,7 +1043,7 @@ class GnrSqlDb(GnrObject):
               relationDict=None, sqlparams=None, excludeLogicalDeleted=True,
               excludeDraft=True,
               addPkeyColumn=True,ignorePartition=False, locale=None,
-              mode=None,_storename=None,aliasPrefix=None,ignoreTableOrderBy=None, subtable=None,**kwargs):
+              mode=None,_storename=None,aliasPrefix=None,ignoreTableOrderBy=None, subtable=None,mainquery_kw=None,**kwargs):
         q = self.table(table).query(columns=columns, where=where, order_by=order_by,
                          distinct=distinct, limit=limit, offset=offset,
                          group_by=group_by, having=having, for_update=for_update,
@@ -1051,7 +1051,8 @@ class GnrSqlDb(GnrObject):
                          excludeLogicalDeleted=excludeLogicalDeleted,excludeDraft=excludeDraft,
                          ignorePartition=ignorePartition,
                          addPkeyColumn=addPkeyColumn, locale=locale,_storename=_storename,
-                         aliasPrefix=aliasPrefix,ignoreTableOrderBy=ignoreTableOrderBy,subtable=subtable)
+                         aliasPrefix=aliasPrefix,ignoreTableOrderBy=ignoreTableOrderBy,subtable=subtable,
+                         mainquery_kw=mainquery_kw)
         result = q.sqltext
         if kwargs:
             prefix = str(id(kwargs))
