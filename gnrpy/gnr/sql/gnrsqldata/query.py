@@ -2,7 +2,7 @@
 #--------------------------------------------------------------------------
 # package       : GenroPy sql - see LICENSE for details
 # module gnrsqldata_query : SQL query builder and data resolver
-# Copyright (c) : 2004 - 2007 Softwell sas - Milano
+# Copyright (c) : 2004 - 2026 Softwell srk - Milano
 # Written by    : Giovanni Porcari, Michele Bertoldi
 #                 Saverio Porcari, Francesco Porcari , Francesco Cavazzana
 #--------------------------------------------------------------------------
