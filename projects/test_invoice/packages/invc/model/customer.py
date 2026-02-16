@@ -24,4 +24,63 @@ class Table(object):
                                                   columns='SUM($total)',
                                                   where='$customer_id=#THIS.id'),
                                       dtype='N',name_long='Invoiced Total')
-  
+
+        tbl.formulaColumn('last_invoice_date',
+                          select=dict(table='invc.invoice',
+                                      columns='MAX($date)',
+                                      where='$customer_id=#THIS.id'),
+                          dtype='D', name_long='Last Invoice Date')
+
+        tbl.formulaColumn('avg_invoice_total',
+                          select=dict(table='invc.invoice',
+                                      columns='AVG($total)',
+                                      where='$customer_id=#THIS.id'),
+                          dtype='N', name_long='Avg Invoice Total')
+
+        tbl.formulaColumn('max_invoice',
+                          select=dict(table='invc.invoice',
+                                      columns='MAX($total)',
+                                      where='$customer_id=#THIS.id'),
+                          dtype='N', name_long='Max Invoice')
+
+        tbl.formulaColumn('min_invoice',
+                          select=dict(table='invc.invoice',
+                                      columns='MIN($total)',
+                                      where='$customer_id=#THIS.id'),
+                          dtype='N', name_long='Min Invoice')
+
+        for year in (2022, 2023, 2024, 2025):
+            tbl.formulaColumn(f'invoiced_{year}',
+                              select=dict(table='invc.invoice',
+                                          columns='SUM($total)',
+                                          where=f'$customer_id=#THIS.id AND EXTRACT(YEAR FROM $date)={year}'),
+                              dtype='N', name_long=f'Invoiced {year}')
+            tbl.formulaColumn(f'n_invoices_{year}',
+                              select=dict(table='invc.invoice',
+                                          columns='COUNT(*)',
+                                          where=f'$customer_id=#THIS.id AND EXTRACT(YEAR FROM $date)={year}'),
+                              dtype='L', name_long=f'N.Invoices {year}')
+
+        tbl.formulaColumn('top_product_id',
+                          select=dict(table='invc.invoice_row',
+                                      columns='$product_id',
+                                      where='@invoice_id.customer_id=#THIS.id',
+                                      order_by='SUM($tot_price) DESC, $product_id',
+                                      group_by='$product_id',
+                                      limit=1),
+                          dtype='T', name_long='Top Product'
+                          ).relation('invc.product.id', relation_name='top_product', one_name='Top Product', many_name='Top Customers')
+
+        tbl.formulaColumn('top_product_n_sold',
+                          select=dict(table='invc.invoice_row',
+                                      columns='SUM($quantity)',
+                                      where='@invoice_id.customer_id=#THIS.id AND $product_id=#THIS.top_product_id'),
+                          dtype='L', name_long='Top Product N.Sold')
+
+        tbl.formulaColumn('last_invoice_id',
+                          select=dict(table='invc.invoice',
+                                      columns='$id',
+                                      where='$customer_id=#THIS.id',
+                                      order_by='$date DESC, $id',
+                                      limit=1),
+                          dtype='T', name_long='Last Invoice')

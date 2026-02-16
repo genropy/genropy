@@ -17,6 +17,18 @@ class Table(object):
         tbl.column('vat_total',dtype='money',name_long='!!VAT total')
         tbl.column('gross_total',dtype='money',name_long='!!Gross total')
 
+        tbl.formulaColumn('n_rows',
+                          select=dict(table='invc.invoice_row',
+                                      columns='COUNT(*)',
+                                      where='$invoice_id=#THIS.id'),
+                          dtype='L', name_long='N.Rows')
+
+        tbl.formulaColumn('row_total',
+                          select=dict(table='invc.invoice_row',
+                                      columns='SUM($tot_price)',
+                                      where='$invoice_id=#THIS.id'),
+                          dtype='N', name_long='Row Total')
+
     def calculateTotals(self,invoice_id):
         with self.recordToUpdate(invoice_id) as record:
             total,vat_total = self.db.table('invc.invoice_row').readColumns(columns="""SUM($tot_price) AS total,

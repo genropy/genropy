@@ -7,12 +7,13 @@ query compilation, execution, selections, single-record loading, and lazy resolv
 
 ```
 gnrsqldata/
-├── __init__.py      # Facade: re-exports all public classes
-├── compiler.py      # SQL compiler (query → SQL text)
-├── query.py         # Query builder and fetch methods
-├── selection.py     # Result-set wrapper (sort, filter, output)
-├── record.py        # Single-record loading and resolvers
-└── README.md        # This file
+├── __init__.py            # Facade: re-exports all public classes
+├── compiler.py            # SQL compiler (query → SQL text)
+├── query.py               # Query builder and fetch methods
+├── selection.py           # Result-set wrapper (sort, filter, output)
+├── record.py              # Single-record loading and resolvers
+├── README.md              # This file
+└── SUBQUERY_AS_JOIN.md    # Detailed design doc for subquery-as-join
 ```
 
 ## Modules and responsibilities

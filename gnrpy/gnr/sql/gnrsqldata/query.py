@@ -225,10 +225,11 @@ class SqlQuery(object):
 
     compiled = property(_get_compiled)
 
-    def compileQuery(self, count=False):
+    def compileQuery(self, count=False, compiled_class=None):
         """Return the :meth:`compiledQuery() <SqlQueryCompiler.compiledQuery()>` method.
 
-        :param count: boolean. If ``True``, optimize the sql query to get the number of resulting rows (like count(*))"""
+        :param count: boolean. If ``True``, optimize the sql query to get the number of resulting rows (like count(*))
+        :param compiled_class: optional factory class for the compiled query object."""
         return SqlQueryCompiler(self.dbtable.model,
                                 joinConditions=self.joinConditions,
                                 sqlContextName=self.sqlContextName,
@@ -240,6 +241,7 @@ class SqlQuery(object):
                                 mainquery_kw=self.mainquery_kw,
                                 query=self).compiledQuery(count=count,
                                                           relationDict=self.relationDict,
+                                                          compiled_class=compiled_class,
                                                           **self.querypars)
 
     def cursor(self):
