@@ -29,7 +29,7 @@ def page(site, request):
     p.page_id = 'test_page'
     p._connection_id = 'test_conn'
     p.sourcepage_id = None
-    p.use_freeze_sqlite = request.param
+    p.use_freeze_backend = 'sqlite' if request.param else 'pickle'
     if hasattr(p, '_gnrfreezedselections'):
         del p._gnrfreezedselections
     yield p
@@ -57,21 +57,21 @@ class TestFreezeUnfreezeBase:
         assert os.path.isdir(folder)
 
     def test_freeze_creates_files_pickle(self, frozen_page):
-        if frozen_page.use_freeze_sqlite:
+        if frozen_page.use_freeze_backend == 'sqlite':
             pytest.skip('pickle-only test')
         folder = frozen_page.pageLocalDocument(SEL_NAME)
         assert os.path.exists(os.path.join(folder, 'selection.pik'))
         assert os.path.exists(os.path.join(folder, 'selection_data.pik'))
 
     def test_freeze_creates_files_sqlite(self, frozen_page):
-        if not frozen_page.use_freeze_sqlite:
+        if not frozen_page.use_freeze_backend == 'sqlite':
             pytest.skip('sqlite-only test')
         folder = frozen_page.pageLocalDocument(SEL_NAME)
         assert os.path.exists(os.path.join(folder, 'selection_meta.json'))
         assert os.path.exists(os.path.join(folder, 'selection.sqlite'))
 
     def test_freeze_creates_pkeys_file(self, frozen_page):
-        if frozen_page.use_freeze_sqlite:
+        if frozen_page.use_freeze_backend == 'sqlite':
             pytest.skip('pkeys file is pickle-only')
         folder = frozen_page.pageLocalDocument(SEL_NAME)
         assert os.path.exists(os.path.join(folder, 'selection_pkeys.pik'))
@@ -168,7 +168,7 @@ class TestFreezeUpdate:
 
     def test_freezeUpdate_selective_pickle(self, frozen_page):
         """Pickle backend only rewrites files whose content changed."""
-        if frozen_page.use_freeze_sqlite:
+        if frozen_page.use_freeze_backend == 'sqlite':
             pytest.skip('selective update is pickle-only')
         folder = frozen_page.pageLocalDocument(SEL_NAME)
         pik_path = os.path.join(folder, 'selection.pik')
@@ -194,7 +194,7 @@ class TestFullyLoaded:
         assert len(sel.data) == SEL_LIMIT
 
     def test_filtered_fully_loaded(self, frozen_page):
-        if frozen_page.use_freeze_sqlite:
+        if frozen_page.use_freeze_backend == 'sqlite':
             pytest.skip('sqlite backend does not preserve filtered data separately')
         sel = frozen_page.unfreezeSelection(dbtable=TABLE, name=SEL_NAME)
         sel.filter(lambda r: r['total'] is not None and r['total'] > 0)
@@ -303,7 +303,7 @@ def sqlite_page(site):
     p.page_id = 'test_page_sqlite'
     p._connection_id = 'test_conn_sqlite'
     p.sourcepage_id = None
-    p.use_freeze_sqlite = True
+    p.use_freeze_backend = 'sqlite'
     if hasattr(p, '_gnrfreezedselections'):
         del p._gnrfreezedselections
     yield p

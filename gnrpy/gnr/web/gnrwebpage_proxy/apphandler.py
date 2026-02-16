@@ -795,6 +795,10 @@ class GnrWebAppHandler(GnrBaseProxy):
             
             if sum_columns:
                 kwargs['_sum_columns'] = sum_columns
+            if selectionName:
+                _outputTable = self.page.outputTableName(selectionName)
+                if _outputTable:
+                    kwargs['_outputTable'] = _outputTable
             selection_pars = dict(tblobj=tblobj, table=table, distinct=distinct, columns=columns, where=where,
                                       condition=condition,queryMode=queryMode,
                                       order_by=order_by, limit=limit, offset=offset, group_by=group_by, having=having,
@@ -833,7 +837,20 @@ class GnrWebAppHandler(GnrBaseProxy):
                                     row_count=row_count,
                                     totalrows=len(selection))
         if newSelection:
-            generator = selection.output(mode='generator', offset=row_start, limit=row_count, formats=formats)
+            if selection._outputTable:
+                freezed_sum_columns = sum_columns.split(',') if sum_columns else None
+                freezed_result = self.page.getFromFreezedSelection(
+                    dbtable=tblobj, name=selectionName,
+                    row_start=row_start, row_count=row_count,
+                    order_by=sortedBy, sum_columns=freezed_sum_columns)
+                selection = freezed_result['selection']
+                if freezed_result.get('sum_columns'):
+                    for col, val in freezed_result['sum_columns'].items():
+                        resultAttributes['sum_%s' % col] = val
+                    sum_columns = None
+                generator = selection.output(mode='generator', formats=formats)
+            else:
+                generator = selection.output(mode='generator', offset=row_start, limit=row_count, formats=formats)
         else:
             generator = selection.output(mode='generator', formats=formats)
         _addClassesDict = dict([(k, v['_addClass']) for k, v in list(selection.colAttrs.items()) if '_addClass' in v])

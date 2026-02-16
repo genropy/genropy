@@ -1100,7 +1100,7 @@ class SqlQuery(object):
                 unlogged = 'UNLOGGED '
                 output_table = output_table[3:]
             sql = (f'CREATE {unlogged}TABLE {output_table} AS '
-                   f'SELECT (row_number() OVER ())::integer - 1 AS _rowidx, '
+                   f'SELECT row_number() OVER () - 1 AS _rowidx, '
                    f'_inner_q.* FROM ({sql}) _inner_q')
         else:
             self._outputTable = None
