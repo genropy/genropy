@@ -12,7 +12,7 @@ import requests
 
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
-from gnr.web.gnrtask import GNR_SCHEDULER_URL
+from gnr.web.gnrtask_new import GNR_SCHEDULER_URL
 
 
 class GnrCustomWebPage(object):
