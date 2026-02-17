@@ -76,6 +76,10 @@ class TransactionMixin:
 
             pending_exceptions = self.currentEnv.get('_pendingExceptions')
 
+            # REVIEW: _pendingExceptions is never cleared after the raise,
+            # so if the caller catches this exception and retries commit(),
+            # the same exceptions will be raised again.  Consider clearing
+            # the list here or in a finally block.
             if pending_exceptions:
                 raise GnrException(
                     '\n'.join([str(exception) for exception in pending_exceptions])

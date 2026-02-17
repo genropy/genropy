@@ -137,6 +137,9 @@ class GnrSqlDb(
         self.user = self.dbpar(user)
         self.password = self.dbpar(password)
         self.fixed_schema = self.dbpar(fixed_schema)
+        # REVIEW: read_only is stored but never enforced — no write method
+        # checks this flag.  Consider adding a guard in WriteMixin.insert/
+        # update/delete or removing the parameter if unused.
         self.read_only = read_only
         self.typeConverter = GnrClassCatalog()
         self.debugger = debugger
@@ -154,6 +157,10 @@ class GnrSqlDb(
             main_schema = self.adapter.defaultMainSchema()
         self.main_schema = main_schema
         self.extra_kw = dict(kwargs)
+        # REVIEW: _connections is initialised twice — once at the top of
+        # __init__ (line ~131) and again here.  The second assignment
+        # silently discards any connections opened during adapter setup.
+        # Probably harmless but worth verifying.
         self._connections = {}
         self.started = False
         self.exceptions = {
@@ -251,7 +258,13 @@ class GnrSqlDb(
 
     @property
     def tenant_table(self) -> str | None:
-        """The table used for multi-tenant schema resolution, if any."""
+        """The table used for multi-tenant schema resolution, if any.
+
+        REVIEW: uses ``hasattr`` for manual caching — the cached value is
+        never invalidated if packages change after first access.  Consider
+        using ``functools.cached_property`` or an explicit invalidation
+        mechanism.
+        """
         if hasattr(self, '_tenant_table'):
             return self._tenant_table
         tenant_table = None

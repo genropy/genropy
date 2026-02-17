@@ -69,6 +69,9 @@ class ConnectionMixin:
         Returns:
             A string like ``'_main_db__main_connection'``.
         """
+        # REVIEW: double fallback — if storename arg is None, it falls back
+        # to currentEnv['storename'] then rootstore; then the join also has
+        # `storename or self.currentStorename` which is redundant at this point.
         storename = storename or self.currentEnv.get('storename') or self.rootstore
         return '_'.join((storename or self.currentStorename, self.currentConnectionName))
 

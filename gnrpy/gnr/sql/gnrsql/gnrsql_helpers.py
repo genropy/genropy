@@ -67,6 +67,8 @@ def in_triggerstack(func: Callable[..., Any]) -> Callable[..., Any]:
     Returns:
         The decorated method.
     """
+    # REVIEW: if func raises, pop() is never called and the trigger stack
+    # is left in a dirty state.  Consider wrapping in try/finally.
     funcname = func.__name__
 
     def decore(self: GnrSqlDb, *args: Any, **kwargs: Any) -> Any:
@@ -106,6 +108,10 @@ def sql_audit(func: Callable[..., Any]) -> Callable[..., Any]:
         result = func(*args, **kwargs)
         end_time = time()
         sql_details['time'] = end_time - start_time
+        # REVIEW: sql.split(" ")[0] is fragile — if the SQL starts with
+        # a comment (e.g. "-- user\nSELECT ...") the verb will be "--"
+        # which may not exist on sqlauditlogger.  Consider stripping
+        # leading comments before extracting the verb.
         getattr(sqlauditlogger, sql.split(" ")[0])(sql, extra=sql_details)
         return result
 
@@ -140,6 +146,9 @@ class GnrSqlExecException(GnrSqlException):
     description = '!!Genro SQL execution exception'
 
 
+# REVIEW: GnrMissedCommitException inherits from GnrException rather than
+# GnrSqlException.  This means it won't be caught by `except GnrSqlException`.
+# Intentional?  If not, consider changing the base class.
 class GnrMissedCommitException(GnrException):
     """Raised when pending db-events have not been committed.
 
@@ -198,6 +207,11 @@ class TempEnv:
 
     def __exit__(self, type: Any, value: Any, traceback: Any) -> None:
         currentEnv = self.db.currentEnv
+        # REVIEW: the equality check `currentEnv.get(k) == v` uses value
+        # equality.  For mutable objects (dicts, lists) this may give false
+        # positives — a nested function could mutate v in place, making the
+        # check always True.  Consider using `currentEnv.get(k) is v`
+        # (identity) instead.
         for k, v in self.addedKeys:
             if currentEnv.get(k) == v:
                 currentEnv.pop(k, None)

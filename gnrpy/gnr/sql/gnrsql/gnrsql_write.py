@@ -243,6 +243,9 @@ class WriteMixin:
         """
         deletable = tblobj.attributes.get('deletable', True)
         if isinstance(deletable, str):
+            # REVIEW: if self.application is None (standalone mode), this
+            # will raise AttributeError.  Also, currentEnv['userTags']
+            # will raise KeyError if not set.  Consider adding guards.
             deletable = self.application.checkResourcePermission(
                 deletable, self.currentEnv['userTags']
             )

@@ -126,6 +126,7 @@ class ExecuteMixin:
                             cursorname = 'c%s' % re.sub(r"\W", '_', getUuid())
                         cursor = self.adapter.cursor(self.connection, cursorname)
                     else:
+                        # REVIEW: cenv is assigned but never used.
                         cenv = self.currentEnv
                         cursor = self.adapter.cursor(self.connection)
 
@@ -172,6 +173,9 @@ class ExecuteMixin:
             sql: The SQL statement (may contain ``_STORENAME_``).
             sqlargs: The parameter bindings.
         """
+        # REVIEW: a new ThreadPool(4) is created on every call and never
+        # shut down — this leaks threads.  Consider reusing a single pool
+        # or calling p.close()/p.join() after p.map().
         p = ThreadPool(4)
 
         def _executeOnThread(cursor: Any) -> None:

@@ -189,6 +189,8 @@ class SchemaMixin:
         Raises:
             AssertionError: If *path* does not exist.
         """
+        # REVIEW: assert is stripped when running with python -O.  Consider
+        # raising a proper exception (e.g. FileNotFoundError) instead.
         assert os.path.exists(path), 'Restore archive %s does not exist' % path
         extractpath = path.replace('.zip', '')
         destroyFolder = False
