@@ -351,11 +351,11 @@ class TableHandlerView(BaseComponent):
             else:
                 templateManager = False
             if extendedQuery == '*':
-                base_slots = ['5','fastQueryBox','runbtn','queryMenu','viewsMenu','5','filterSelected,menuUserSets','15','export','importer','resourcePrints','resourceMails','resourceActions',batchAssign,'5',templateManager,'stats','advancedTools','10',pageHooksSelector,'*']
+                base_slots = ['5','fastQueryBox','runbtn','queryMenu','viewsMenu','5','filterSelected,menuUserSets','15','export','importer','resourcePrints','resourceMails','resourceActions',batchAssign,'5',templateManager,'stats','advancedTools','aiPrompt','10',pageHooksSelector,'*']
                 if self.deviceScreenSize=='phone':
                     base_slots = ['5','fastQueryBox','runbtn','queryMenu','viewsMenu',statsSlot,'export','resourcePrints','resourceMails,5',pageHooksSelector,'*']
             elif extendedQuery is True:
-                base_slots = ['5','fastQueryBox','runbtn','queryMenu','viewsMenu','5',statsSlot,'advancedTools','10',pageHooksSelector,'*','count','5']
+                base_slots = ['5','fastQueryBox','runbtn','queryMenu','viewsMenu','5',statsSlot,'advancedTools','aiPrompt','10',pageHooksSelector,'*','count','5']
             else:
                 base_slots = extendedQuery.split(',')
         elif roundedEnvelope:
@@ -523,6 +523,31 @@ class TableHandlerView(BaseComponent):
             loadmenu = Bag()
             loadmenu.update(userobjects)
             b.setItem('r_%s' %len(b),loadmenu,label='!!Load dashboard',action=loadAction)
+
+    @struct_method
+    def th_slotbar_aiPrompt(self,pane,**kwargs):
+        inattr = pane.getInheritedAttributes()
+        table = inattr['table']
+        pane.slotButton(u'\U0001F9E0',
+                 tip='!!AI View Editor', border='0px').dataRpc(
+                    self.ai_prompt, table=table,
+                    current_struct='=.view.grid.struct',
+                    _ask=dict(title='!!AI View Editor',
+                              fields=[dict(name='prompt_text',
+                                           lbl='!!Command',
+                                           tag='simpleTextArea',
+                                           width='100%',
+                                           height='80px',
+                                           placeholder='e.g. Remove column Type and add fiscal code')]))
+
+    @public_method
+    def ai_prompt(self, prompt_text=None, table=None, current_struct=None, **kwargs):
+        print('=== AI PROMPT ===')
+        print('Table:', table)
+        print('Prompt:', prompt_text)
+        print('--- STRUCT ---')
+        print(current_struct)
+        print('=================')
 
     def _th_handle_page_hooks(self,view,page_hooks):
         frameCode = view.attributes['frameCode']
