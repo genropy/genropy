@@ -36,6 +36,10 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import boolean
 
 
+pysqlite.register_converter("timestamp", lambda val: datetime.datetime.fromisoformat(val.decode()))
+
+
+
 class GnrSqliteConnection(pysqlite.Connection):
     pass
 
@@ -125,6 +129,12 @@ class SqlDbAdapter(SqlDbBaseAdapter):
     def adaptSqlName(self,name):
         return '"%s"' %name
 
+    def setLocale(self, locale):
+        """
+        Ignore the locale change, no meaning for this adapter
+        """
+        pass
+    
     def _selectForUpdate(self,maintable_as=None,**kwargs):
         return ''
 
