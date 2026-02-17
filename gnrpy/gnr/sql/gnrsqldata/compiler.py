@@ -118,6 +118,24 @@ class CompiledColumn(object):
 
 
 # ===================================================================
+#  SubqueryEntry
+# ===================================================================
+
+class SubqueryEntry(object):
+    """Registry entry for a deferred subquery."""
+
+    __slots__ = ('compiled', 'origin', 'placeholder_key', 'identity_hash', 'sq_name')
+
+    def __init__(self, compiled, origin, placeholder_key,
+                 identity_hash=None, sq_name=None):
+        self.compiled = compiled
+        self.origin = origin
+        self.placeholder_key = placeholder_key
+        self.identity_hash = identity_hash
+        self.sq_name = sq_name
+
+
+# ===================================================================
 #  AliasManager
 # ===================================================================
 
@@ -214,6 +232,13 @@ class ColumnCompiler(object):
 
     def __init__(self, compiler):
         self.compiler = compiler
+
+    def _is_lazy_enabled(self):
+        """Check if lazy subquery rendering is enabled."""
+        query = self.compiler.query
+        if query and getattr(query, 'enable_lazy_subquery', None) is not None:
+            return gnrstring.boolean(query.enable_lazy_subquery)
+        return self.compiler._enable_lazy_subquery
 
     # --- Per-column state (set during compile, consumed by helpers) ---
 
@@ -375,8 +400,16 @@ class ColumnCompiler(object):
                     else:
                         self.compiler.sq_compiled_dct[h] = (compiled, sq_name, 1)
                 else:
-                    sql_formula = re.sub(
-                        r'#%s\b' % sq_name, compiled.get_sqltext(self.compiler.db), sql_formula)
+                    if self._is_lazy_enabled():
+                        ph_key = self.compiler._next_placeholder_key()
+                        self.compiler.cpl.subquery_registry.append(SubqueryEntry(
+                            compiled=compiled, origin='formula_inline',
+                            placeholder_key=ph_key, identity_hash=compiled._identity_hash,
+                            sq_name=sq_name))
+                        sql_formula = re.sub(r'#%s\b' % sq_name, ph_key, sql_formula)
+                    else:
+                        sql_formula = re.sub(
+                            r'#%s\b' % sq_name, compiled.get_sqltext(self.compiler.db), sql_formula)
         return f'( {sql_formula} )'
 
     def _should_convert_to_join(self, fldalias):
@@ -794,6 +827,12 @@ class ColumnCompiler(object):
         )
 
         compiled = self._compiled_sub_query(basealias, sq_pars)
+        if self._is_lazy_enabled():
+            ph_key = self.compiler._next_placeholder_key()
+            self.compiler.cpl.subquery_registry.append(SubqueryEntry(
+                compiled=compiled, origin='many_side',
+                placeholder_key=ph_key, identity_hash=compiled._identity_hash))
+            return ph_key
         return compiled.get_sqltext(self.compiler.db)
 
     def _resolve_target_column_info(self, target_table, target_field):
@@ -886,6 +925,8 @@ class SqlCompiledQuery(object):
         self.pyColumns = []
         self.maintable_as = maintable_as
         self.tpl = None
+        self.subquery_registry = []
+        self.ctes = {}
 
     def get_sqltext(self, db):
         """Render the final SQL text using the database adapter."""
@@ -894,10 +935,19 @@ class SqlCompiledQuery(object):
         'maintable', 'distinct', 'columns', 'joins', 'where', 'group_by', 'having', 'order_by', 'limit', 'offset',
         'for_update'):
             kwargs[k] = getattr(self, k)
-        result = db.adapter.compileSql(maintable_as=self.maintable_as,**kwargs)
+        result = db.adapter.compileSql(maintable_as=self.maintable_as, **kwargs)
+        if self.subquery_registry:
+            result = self._resolve_placeholders(result, db)
         if self.tpl:
             result = self.tpl % result
         return result
+
+    def _resolve_placeholders(self, sql_text, db):
+        """Replace placeholder keys with rendered SQL from the registry."""
+        for entry in self.subquery_registry:
+            sql_text = sql_text.replace(entry.placeholder_key,
+                                        entry.compiled.get_sqltext(db))
+        return sql_text
 
 
 class SqlCompiledSubQuery(SqlCompiledQuery):
@@ -952,6 +1002,17 @@ class SqlQueryCompiler(object):
         self.sq_compiled_dct = {}
         self.alias_manager = AliasManager(self.aliasPrefix, self.tblobj.sqlfullname)
         self.macro_expander = self.db.adapter.macroExpander(self)
+        self._sq_placeholder_counter = 0
+        self._enable_lazy_subquery = bool(
+            self.query_kw.get('enable_lazy_subquery')
+            or (self.query and getattr(self.query, 'enable_lazy_subquery', None))
+            or getattr(self.db, 'extra_kw', {}).get('lazy_subquery', False))
+
+    def _next_placeholder_key(self):
+        """Generate a unique placeholder key for a deferred subquery."""
+        key = '__sq_%d__' % self._sq_placeholder_counter
+        self._sq_placeholder_counter += 1
+        return key
 
     def aliasCode(self, n):
         """Return the table alias for index *n*."""
@@ -1286,7 +1347,14 @@ class SqlQueryCompiler(object):
         if self.cpl.sq_joins:
             self.cpl.joins.extend(self.cpl.sq_joins)
         for _h, (sq_compiled, _sq_name, _col_counter) in self.sq_compiled_dct.items():
-            self.cpl.joins.append(sq_compiled.get_sqltext(self.db))
+            if self._enable_lazy_subquery:
+                ph_key = self._next_placeholder_key()
+                self.cpl.subquery_registry.append(SubqueryEntry(
+                    compiled=sq_compiled, origin='formula_join',
+                    placeholder_key=ph_key, identity_hash=_h, sq_name=_sq_name))
+                self.cpl.joins.append(ph_key)
+            else:
+                self.cpl.joins.append(sq_compiled.get_sqltext(self.db))
         # --- DISTINCT handling ---
         if distinct:
             distinct = 'DISTINCT '

@@ -162,6 +162,7 @@ class SqlQuery(object):
         self.sqlContextName = sqlContextName
         self.relationDict = relationDict or {}
         self.enable_sq_join = kwargs.pop('enable_sq_join', None)
+        self.enable_lazy_subquery = kwargs.pop('enable_lazy_subquery', None)
         self.query_kw = dict(kwargs)
         self.sqlparams.update(kwargs)
         self.excludeLogicalDeleted = excludeLogicalDeleted
