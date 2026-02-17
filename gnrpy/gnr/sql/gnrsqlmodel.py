@@ -903,6 +903,9 @@ class DbModelObj(GnrStructObj):
     def doInit(self):
         pass
 
+    def __bool__(self):
+        return True
+
     def _get_dbroot(self):
         return self._dbroot
 

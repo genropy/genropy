@@ -1,18 +1,79 @@
-Upcoming Release
+Release 26.02.16
 ================
 
+This release includes significant improvements to the task scheduling
+system, email handling, database administration tools, and migration
+utilities. Notable additions include deferred email sending, enhanced
+dbadmin functionality with unused element detection, and improved
+locale/language handling throughout the codebase.
+
+This release removes support for Python < 3.11. Please upgrade to
+Python 3.11 or later before upgrading to this release.
+
+Breaking changes
+----------------
+
+* REMOVED SUPPORT FOR PYTHON < 3.11
+* Removed SOAP functionality from test15 package
+* Removed ``dest_user_id`` concept and ``ViewMobile`` class from email.message
+
+  
 Enhancements
 ------------
 
 * Added get_json method to Request object to automatically parse JSON
-  payloads based on request mime type
-
+  payloads based on request mime type (#408)
+* DbAdmin now can show the orphaned entities in the databases and
+  offer a cleanup method (#319)
+* Generalized use of '{}' to support environment variables in bags
+* Added 'insertToolbarItems' parameters for TinyMCE widget (#418)
+* K8S extensive metadata labeling for custom resource tagging
+* Deferred email sending support, backward compatible.
+* Opt-in preference for collecting message_address to reduce database
+  size, including a new retention policy to help keeping the db tidy.
+* Implementend smart type conversion in migration for Postgres,
+  supporting 3 distinct modes to handle conversion. Added support for
+  missing DHZ type conversions (timestamp with timezone)
+* New test invoice sample application provided (#467, #468), to
+  support more complex tests related to complex database structures.
+* Removed XML LoadModel from sql tests, structures are now Python-based.
+* Added support for empty to_address in email, allowing sending email
+  just using BCC recipients.
+  
 Fixes
 -----
 
-* Locale detection for localized columns fixes
+* Sqlite structure creation fixes (#478) upon ALTER COLUMN SET NOT NULL.
+* pyColumn_full_external_url now always computes URL directly via
+  'filepath_endpoint_url()', simplifying logic and eliminating
+  inter-column dependencies. (#443)
+* DbModelObj (column, table, relation) wrappers now always evalute to
+  truthy when they exist, to fix logical bug where empty Bag are
+  evaluated. (#453)
+* Fixed Excel export with DHZ content as string (#419)
+* remoteRowController on empty rows is no longer triggered
+  automatically, need to opt-in via 'remoteRowController_onEmptyRow'
+  attribute.
+* menuLineBadge fixes using virtual columns, including edge case
+  handling for undefined or empty string content. (#444)
+* Extension creation on managed postgresql services now works
+  correctly (#415)
+* Fixed regression for task scheduling due to timezone-aware
+  comparisons (#434)
+* Task scheduling and execution tracking fixes.
+* Locale detection for localized columns fixes, and added a global
+  default for non-compliant environments.
+* File encoding detection improvements, with test coverage.
 * Docker image build fixes when cleaning up cloned git repositories
+* Fixed to handle correctly empty to_address in mail service (#406)
+* Minor fixes on storage parameters
+* Fix with tz-aware timestamp in XLSX export (#419)
+* Stale test-based Postgresql instances cleanup in test infrastructure.
+* Centralized mobile app config access, improviing code organization
+  for mobile app configuration (#439)
+  
 
+  
 Release 26.01.15
 ================
 

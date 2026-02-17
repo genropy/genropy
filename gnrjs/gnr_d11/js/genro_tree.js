@@ -467,6 +467,9 @@ dojo.declare("gnr.widgets.Tree", gnr.widgets.baseDojo, {
                     if(!searchColumn){
                         var label = that.getLabel(item);
                         if(label){
+                            if(label.startsWith('innerHTML:')){
+                                label = label.replace('innerHTML:','');
+                            }
                             tn.labelNode.innerHTML = label.replace(filterRegExp,"<span class='search_highlight'>$1</span>");
                         }
                     }

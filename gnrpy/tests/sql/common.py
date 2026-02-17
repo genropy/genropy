@@ -1,6 +1,7 @@
 import sys
 import os
 import os.path
+import subprocess
 import pytest
 from testing.postgresql import Postgresql
 
@@ -53,9 +54,7 @@ class BaseGnrSqlTest:
         """
         base_path = os.path.join(os.path.dirname(__file__), "data")
         cls.CONFIG = Bag(os.path.join(base_path, 'configTest.xml'))
-        cls.SAMPLE_XMLSTRUCT = os.path.join(base_path, 'dbstructure_base.xml')
         cls.SAMPLE_XMLDATA = os.path.join(base_path, 'dbdata_base.xml')
-        cls.SAMPLE_XMLSTRUCT_FINAL = os.path.join(base_path, 'dbstructure_final.xml')
         
         if "GITHUB_WORKFLOW" in os.environ:
             # we are running inside the Github CI
@@ -72,6 +71,8 @@ class BaseGnrSqlTest:
                                password=os.environ.get("GNR_TEST_PG_PASSWORD"))
             cls.mysql_conf = None
         else:
+            # cleanup stale postgres temp instances from previous interrupted runs
+            subprocess.run(['pkill', '-f', 'postgres.*tmp'], capture_output=True)
             cls.pg_instance = Postgresql()
             cls.pg_conf = cls.pg_instance.dsn()
             cls.mysql_conf = dict(host="localhost",
@@ -91,6 +92,10 @@ class BaseGnrSqlTest:
             cls.pg_instance.stop()
 
 
+
+def configureDb(db, package_name='video'):
+    pkg = db.packageSrc(package_name)
+    configurePackage(pkg)
 
 def configurePackage(pkg):
     pkg.attributes.update(comment='video package', name_short='video', name_long='video', name_full='video')

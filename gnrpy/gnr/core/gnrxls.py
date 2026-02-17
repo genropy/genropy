@@ -467,7 +467,7 @@ class XlsxWriter(BaseXls):
                 self.writeCell(sheet, current_row, c, value, style="date")
             elif coltype=='DH':
                 self.writeCell(sheet, current_row, c, value, style="datetime")
-            elif coltype=='DHZ':
+            elif coltype=='DHZ' and not isinstance(value, str):
                 # Excel format doesn't manage timezone: writing the UTC (the user timezone is missing here)
                 self.writeCell(sheet, current_row, c, value.replace(tzinfo=None) if value else None, style="datetime")
             else:

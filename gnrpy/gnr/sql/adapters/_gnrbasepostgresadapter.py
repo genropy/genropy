@@ -136,6 +136,54 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
         'serial': 'serial8',
     }
 
+    # PostgreSQL-specific TYPE_CONVERSIONS
+    # Inherits simple conversions from base adapter and adds complex conversions with USING clause
+    # Values that don't match the pattern are converted to NULL
+    # A backup column is created before conversion to allow recovery if needed
+    TYPE_CONVERSIONS = {
+        # Inherit all simple conversions from base adapter
+        **SqlDbBaseAdapter.TYPE_CONVERSIONS,
+
+        # PostgreSQL-specific text → timestamp conversions
+        ('T', 'DH'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN {column_name} ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}' THEN {column_name}::timestamp ELSE NULL END",
+        ('T', 'DHZ'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN {column_name} ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}' THEN {column_name}::timestamp with time zone ELSE NULL END",
+        ('A', 'DH'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN {column_name} ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}' THEN {column_name}::timestamp ELSE NULL END",
+        ('A', 'DHZ'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN {column_name} ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}' THEN {column_name}::timestamp with time zone ELSE NULL END",
+
+        # Text → Date
+        ('T', 'D'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN {column_name} ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}' THEN {column_name}::date ELSE NULL END",
+        ('A', 'D'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN {column_name} ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}' THEN {column_name}::date ELSE NULL END",
+        ('C', 'D'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN TRIM({column_name}) ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}' THEN TRIM({column_name})::date ELSE NULL END",
+
+        # Text → Time
+        ('T', 'H'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN {column_name} ~ '^[0-9]{{2}}:[0-9]{{2}}' THEN {column_name}::time ELSE NULL END",
+        ('A', 'H'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN {column_name} ~ '^[0-9]{{2}}:[0-9]{{2}}' THEN {column_name}::time ELSE NULL END",
+
+        # Text → Numeric
+        ('T', 'N'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN {column_name} ~ '^-?[0-9]+(\\.[0-9]+)?$' THEN {column_name}::numeric ELSE NULL END",
+        ('A', 'N'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN {column_name} ~ '^-?[0-9]+(\\.[0-9]+)?$' THEN {column_name}::numeric ELSE NULL END",
+        ('C', 'N'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN TRIM({column_name}) ~ '^-?[0-9]+(\\.[0-9]+)?$' THEN TRIM({column_name})::numeric ELSE NULL END",
+
+        # Text → Integer
+        ('T', 'I'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN {column_name} ~ '^-?[0-9]+$' THEN {column_name}::integer ELSE NULL END",
+        ('A', 'I'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN {column_name} ~ '^-?[0-9]+$' THEN {column_name}::integer ELSE NULL END",
+        ('C', 'I'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN TRIM({column_name}) ~ '^-?[0-9]+$' THEN TRIM({column_name})::integer ELSE NULL END",
+
+        # Text → BigInt
+        ('T', 'L'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN {column_name} ~ '^-?[0-9]+$' THEN {column_name}::bigint ELSE NULL END",
+        ('A', 'L'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN {column_name} ~ '^-?[0-9]+$' THEN {column_name}::bigint ELSE NULL END",
+        ('C', 'L'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN TRIM({column_name}) ~ '^-?[0-9]+$' THEN TRIM({column_name})::bigint ELSE NULL END",
+
+        # Text → Boolean (non-matching values become NULL)
+        ('T', 'B'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN LOWER({column_name}) IN ('true', 't', 'yes', 'y', '1') THEN TRUE WHEN LOWER({column_name}) IN ('false', 'f', 'no', 'n', '0', '') THEN FALSE ELSE NULL END",
+        ('A', 'B'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN LOWER({column_name}) IN ('true', 't', 'yes', 'y', '1') THEN TRUE WHEN LOWER({column_name}) IN ('false', 'f', 'no', 'n', '0', '') THEN FALSE ELSE NULL END",
+        ('C', 'B'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN LOWER(TRIM({column_name})) IN ('true', 't', 'yes', 'y', '1') THEN TRUE WHEN LOWER(TRIM({column_name})) IN ('false', 'f', 'no', 'n', '0', '') THEN FALSE ELSE NULL END",
+
+        # Real → Integer (with rounding)
+        ('R', 'I'): "CASE WHEN {column_name} IS NULL THEN NULL ELSE ROUND({column_name})::integer END",
+        ('R', 'L'): "CASE WHEN {column_name} IS NULL THEN NULL ELSE ROUND({column_name})::bigint END",
+    }
+
 
     @property
     def macroExpander(self):
@@ -879,6 +927,14 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
         Generate SQL to alter the type of a column.
         """
         return f'ALTER COLUMN "{column_name}" TYPE {new_sql_type}'
+
+    def struct_alter_column_with_conversion_sql(self, column_name=None, new_sql_type=None,
+                                                conversion_expression=None, **kwargs):
+        """
+        Generate SQL to alter column type with explicit conversion using USING clause.
+        Used for type conversions that require data transformation.
+        """
+        return f'ALTER COLUMN "{column_name}" TYPE {new_sql_type} USING {conversion_expression}'
 
     def struct_add_not_null_sql(self, column_name,**kwargs):
         """
