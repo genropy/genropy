@@ -276,7 +276,7 @@ class ExecutorMixin:
             '''
 
             try:
-                result = self.db.execute(check_sql)
+                result = self.db.execute(check_sql)  # REVIEW: uses db.execute instead of db.adapter.execute — inconsistent API
                 row = result.fetchone() if result else None
                 lost_count = row[0] if row else 0
 
@@ -300,7 +300,7 @@ class ExecutorMixin:
                     )
                     self.db.adapter.execute(drop_sql, autoCommit=True)
 
-            except Exception as e:
+            except Exception as e:  # REVIEW: bare except catches everything — should narrow to specific DB exceptions
                 # On error, preserve backup for safety
                 data_loss_report[f'{schema}.{table}.{column}'] = {
                     'error': str(e),

@@ -74,7 +74,7 @@ Both the ORM extractor and the DB extractor filter column attributes
 keeping only these keys, ensuring a homogeneous comparison.
 """
 
-GNR_DTYPE_CONVERTER = {'X': 'T', 'Z': 'T', 'P': 'T'}
+GNR_DTYPE_CONVERTER = {'X': 'T', 'Z': 'T', 'P': 'T'}  # REVIEW: Genropy-specific constant in a module meant to be framework-agnostic
 """Mapping from internal Genropy dtypes to canonical dtypes.
 
 Some Genropy dtypes (X=XML, Z=compressed text, P=pickle) are normalized
@@ -273,7 +273,7 @@ def new_relation_item(schema_name, table_name, columns, attributes=None,
     Returns:
         dict: Relation item with cleaned attributes and hashed name.
     """
-    attributes['columns'] = columns
+    attributes['columns'] = columns  # REVIEW: mutates caller's dict — should copy first
     hashed_entity_name = hashed_name(
         schema=schema_name, table=table_name,
         columns=columns, obj_type='fk'
@@ -311,7 +311,7 @@ def new_index_item(schema_name, table_name, columns, attributes=None,
         schema=schema_name, table=table_name,
         columns=columns, obj_type='idx'
     )
-    attributes['index_name'] = index_name or hashed_entity_name
+    attributes['index_name'] = index_name or hashed_entity_name  # REVIEW: mutates caller's dict — should copy first
     return {
         "entity": "index",
         "entity_name": hashed_entity_name,
@@ -375,7 +375,7 @@ def json_equal(json1, json2):
     return json1_str == json2_str
 
 
-def json_to_tree(data, key, entity_tree=None, parent=None):
+def json_to_tree(data, key, entity_tree=None, parent=None):  # REVIEW: Genropy-specific (uses Bag) in a module meant to be framework-agnostic
     """Convert a flat JSON structure into a hierarchical Bag tree.
 
     Recursively navigates the JSON structure following the hierarchy defined
@@ -470,5 +470,5 @@ def hashed_name(schema, table, columns, obj_type='idx'):
     """
     columns_str = "_".join(columns)
     identifier = f"{schema}_{table}_{columns_str}_{obj_type}"
-    hash_suffix = hashlib.md5(identifier.encode()).hexdigest()[:8]
+    hash_suffix = hashlib.md5(identifier.encode()).hexdigest()[:8]  # REVIEW: 8 hex chars = 32 bits — collision probable at ~65k items (birthday paradox)
     return f"{obj_type}_{hash_suffix}"

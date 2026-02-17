@@ -88,7 +88,7 @@ from .structures import (
 )
 
 
-class DbExtractor(object):
+class DbExtractor(object):  # REVIEW: old-style (object) base class — unnecessary in Python 3
     """Extract the database structure from the actual PostgreSQL instance.
 
     Queries the database via the adapter to obtain the actual definition
@@ -159,7 +159,7 @@ class DbExtractor(object):
         self.json_meta = nested_defaultdict()
         self.json_schemas = self.json_structure["root"]['schemas']
         infodict = self.get_info_from_db(schemas=schemas)
-        if infodict is False:
+        if infodict is False:  # REVIEW: {} is also falsy — if get_info_from_db returns {} this path is skipped
             self.json_structure = {}
             return
         for k, v in infodict.items():
@@ -315,7 +315,7 @@ class DbExtractor(object):
                     schema_name, table_name,
                     multiple_unique_const['columns'],
                     constraint_type='UNIQUE',
-                    constraint_name=v['constraint_name']
+                    constraint_name=v['constraint_name']  # REVIEW: uses stale loop variable v — should be multiple_unique_const['constraint_name']
                 )
                 table_json['constraints'][const_item['entity_name']] = const_item
             # CHECK constraints not handled at this time
@@ -386,7 +386,7 @@ class DbExtractor(object):
         for extension_name, extension_dict in extensions.items():
             if extension_dict.get('schema_name') == 'pg_catalog':
                 continue
-            extension_dict = clean_attributes(extension_dict)
+            extension_dict = clean_attributes(extension_dict)  # REVIEW: reassigns local var — original info lost before storing in json_meta
             extension_item = new_extension_item(extension_name)
             self.json_meta['root']['extension'] = extension_dict
             self.json_structure["root"]['extensions'][extension_name] = extension_item

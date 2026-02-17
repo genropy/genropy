@@ -260,7 +260,7 @@ class CommandBuilderMixin:
         """
         table_dict = self.schema_tables(item['schema_name'])[item['table_name']]
         constraints_dict = table_dict['constraints']
-        sql = self.db.adapter.struct_constraint_sql(
+        sql = self.db.adapter.struct_constraint_sql(  # REVIEW: passes schema_name/table_name which may not be expected by adapter
             schema_name=item['schema_name'],
             table_name=item['table_name'],
             constraint_name=item['entity_name'],
@@ -595,7 +595,7 @@ class CommandBuilderMixin:
                 backup_column_name = f'{column_name}__{oldvalue}'
 
                 # Register backup info for post-migration verification
-                if not hasattr(self, '_conversion_backups'):
+                if not hasattr(self, '_conversion_backups'):  # REVIEW: should be initialized in __init__ instead of hasattr check
                     self._conversion_backups = []
                 self._conversion_backups.append({
                     'schema': schema_name,
@@ -738,7 +738,7 @@ class CommandBuilderMixin:
         add_sql = self.db.adapter.struct_constraint_sql(
             schema_name=item['schema_name'],
             table_name=item['table_name'],
-            constraint_name=constraints_dict['constraint_name'],
+            constraint_name=constraints_dict['constraint_name'],  # REVIEW: should be constraint_attr['constraint_name'] — reads from command dict instead of entity attributes
             constraint_type=item['attributes']['constraint_type'],
             columns=item['attributes']['columns']
         )

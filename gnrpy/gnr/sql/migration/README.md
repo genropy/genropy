@@ -337,6 +337,108 @@ This would help catch bugs in custom extractors (especially for the standalone
 
 ---
 
+## Summary of issues and oddities found
+
+Each entry corresponds to a `# REVIEW:` marker in the source code.
+
+### structures.py
+
+| # | Line | Issue | Severity |
+|---|------|-------|----------|
+| 1 | 77 | `GNR_DTYPE_CONVERTER` — Genropy-specific constant in a module meant to be framework-agnostic | Design |
+| 2 | 276 | `new_relation_item()` — mutates the `attributes` dict passed by the caller | **Bug** |
+| 3 | 314 | `new_index_item()` — mutates the `attributes` dict passed by the caller | **Bug** |
+| 4 | 378 | `json_to_tree()` — Genropy-specific function (uses `Bag`) in a module meant to be framework-agnostic | Design |
+| 5 | 473 | `hashed_name()` — MD5 with 8 hex chars = 32 bits; collision probable at ~65k items (birthday paradox) | Design |
+
+### orm_extractor.py
+
+| # | Line | Issue | Severity |
+|---|------|-------|----------|
+| 1 | 250 | `fill_json_relations_and_indexes()` — `indexed = indexed or True` always evaluates to `True`; original value from `colattr` is discarded | Code smell |
+| 2 | 330 | `statement_converter()` — returns `None` implicitly for unknown commands; silent data loss | Potential bug |
+
+### db_extractor.py
+
+| # | Line | Issue | Severity |
+|---|------|-------|----------|
+| 1 | 91 | `class DbExtractor(object)` — old-style `(object)` base class, unnecessary in Python 3 | Code smell |
+| 2 | 162 | `prepare_json_struct()` — `infodict is False` comparison; `{}` is also falsy, but the intent is to distinguish "DB doesn't exist" from "empty result" | Potential bug |
+| 3 | 318 | `process_constraints()` — `constraint_name=v['constraint_name']` uses stale loop variable `v`; should be `multiple_unique_const['constraint_name']` | **Bug** |
+| 4 | 389 | `process_extensions()` — `extension_dict` reassigned to cleaned version; original info lost before storing in `json_meta` | Code smell |
+
+### diff_engine.py
+
+| # | Line | Issue | Severity |
+|---|------|-------|----------|
+| 1 | 157 | `dictDifferChanges()` — `dict(difflist)` assumes items are 2-tuples; crashes with no context on unexpected format | Potential bug |
+| 2 | 160 | `dictDifferChanges()` — `collection.get('entity_name')` wrapping: falsy `entity_name` (empty string) skips wrapping incorrectly | Potential bug |
+
+### command_builder.py
+
+| # | Line | Issue | Severity |
+|---|------|-------|----------|
+| 1 | 263 | `added_constraint()` — passes `schema_name`/`table_name` to `struct_constraint_sql()` which may not expect them | Design |
+| 2 | 598 | `_apply_type_conversion()` — `_conversion_backups` initialized via `hasattr` check instead of in `__init__` | Code smell |
+| 3 | 741 | `changed_constraint()` — `constraints_dict['constraint_name']` reads from command dict instead of `constraint_attr['constraint_name']` | **Bug** |
+
+### executor.py
+
+| # | Line | Issue | Severity |
+|---|------|-------|----------|
+| 1 | 279 | `verifyConversionBackups()` — `self.db.execute()` instead of `self.db.adapter.execute()` — inconsistent API usage | Potential bug |
+| 2 | 303 | `verifyConversionBackups()` — bare `except Exception` catches everything; should narrow to specific DB exceptions | Code smell |
+
+### migrator.py
+
+| # | Line | Issue | Severity |
+|---|------|-------|----------|
+| 1 | 149 | `__init__()` — `self.commands = {}` immediately overwritten by `nested_defaultdict()` in `prepareMigrationCommands()` | Dead code |
+| 2 | 254 | `jsonModelWithoutMeta()` — `not (self.sqlStructure or self.ormStructure)`: `{}` is falsy, so re-extracts even when structures were prepared but DB is empty | **Bug** |
+
+---
+
+## Confirmed bugs (to be fixed)
+
+1. **`structures.py:276`** — `new_relation_item()` mutates the caller's
+   `attributes` dict by inserting `columns` and `constraint_name` keys.
+   Should `dict(attributes)` first.
+
+2. **`structures.py:314`** — `new_index_item()` mutates the caller's
+   `attributes` dict by inserting `index_name`.
+   Should `dict(attributes)` first.
+
+3. **`db_extractor.py:318`** — `process_constraints()` uses stale loop
+   variable `v` instead of `multiple_unique_const` when building
+   multi-column UNIQUE constraints. The constraint name from the last
+   single-column UNIQUE is used instead of the correct one.
+
+4. **`command_builder.py:741`** — `changed_constraint()` reads
+   `constraints_dict['constraint_name']` (from the command dict, which
+   is a `nested_defaultdict` — returns an empty defaultdict, never a string)
+   instead of `constraint_attr['constraint_name']`.
+
+5. **`migrator.py:254`** — `jsonModelWithoutMeta()` uses
+   `not (self.sqlStructure or self.ormStructure)`. When the DB doesn't exist,
+   `sqlStructure` is `{}` (falsy), causing unnecessary re-extraction even
+   after `prepareStructures()` was called.
+
+## Verification checklist
+
+```bash
+# Import smoke tests
+python -c "from gnr.sql.migration import SqlMigrator; print('OK')"
+python -c "from gnr.sql.migration import OrmExtractor, DbExtractor; print('OK')"
+
+# Full test suite
+cd gnrpy && python -m pytest tests/sql/ -x -k "not test_outputMode"
+
+# Flake8
+flake8 gnrpy/gnr/sql/migration/ --max-line-length=120 --ignore=E501,W503,E402
+```
+
+---
+
 ## Module summary
 
 | Module | Responsibility |

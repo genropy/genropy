@@ -146,7 +146,7 @@ class SqlMigrator(DiffMixin, CommandBuilderMixin, ExecutorMixin):
                  backup=False):
         self.db = db
         self.extensions = extensions.split(',') if extensions else []
-        self.commands = {}
+        self.commands = {}  # REVIEW: immediately overwritten by nested_defaultdict() in prepareMigrationCommands — dead initialization
         self.sql_commands = {
             'db_creation': None,
             'build_commands': None,
@@ -251,7 +251,7 @@ class SqlMigrator(DiffMixin, CommandBuilderMixin, ExecutorMixin):
             Bag: With two sub-nodes ``orm`` and ``sql``, each containing
             the hierarchical tree of schemas and tables.
         """
-        if not (self.sqlStructure or self.ormStructure):
+        if not (self.sqlStructure or self.ormStructure):  # REVIEW: {} is falsy — re-extracts even when structures were prepared but DB is empty
             self.prepareStructures()
         result = Bag()
         result.addItem(

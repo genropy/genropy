@@ -247,7 +247,7 @@ class OrmExtractor:
 
         if joiner:
             # FKs always have an index to optimize JOINs
-            indexed = indexed or True
+            indexed = indexed or True  # REVIEW: always evaluates to True — original indexed value from colattr is discarded
             relation_info = self._relation_info_from_joiner(
                 colobj, joiner, tenant_schema=tenant_schema
             )
@@ -327,6 +327,7 @@ class OrmExtractor:
             return 'SET NULL'
         elif command in ('SD', 'SETDEFAULT', 'SET DEFAULT'):
             return 'SET DEFAULT'
+        # REVIEW: returns None implicitly for unknown commands — silent data loss
 
     def _relation_info_from_joiner(self, colobj, joiner, tenant_schema=None):
         """Extract FK relation information from the ORM joiner.

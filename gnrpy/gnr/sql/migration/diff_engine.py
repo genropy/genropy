@@ -154,10 +154,10 @@ class DiffMixin:
             else:
                 # --- ADDED or REMOVED event ---
                 # The difflist contains the added or removed entities
-                collection = dict(difflist)
+                collection = dict(difflist)  # REVIEW: assumes difflist items are 2-tuples — crashes with no context on unexpected format
                 # If the dict contains a single item with entity_name,
                 # wrap it as {entity_name: item}
-                if collection.get('entity_name'):
+                if collection.get('entity_name'):  # REVIEW: falsy entity_name (empty string) skips wrapping incorrectly
                     collection = {collection['entity_name']: collection}
                 for item in collection.values():
                     kw = {}
