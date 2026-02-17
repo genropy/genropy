@@ -44,14 +44,14 @@ from gnr.core.gnrlang import moduleDict
 from gnr.core.gnrstructures import GnrStructData
 from gnr.sql import logger
 from gnr.sql.gnrsql_exceptions import GnrSqlException, GnrSqlRelationError
-from gnr.sql.gnrsqlmodel.gnrsqlmodel_columns import DbVirtualColumnObj
-from gnr.sql.gnrsqlmodel.gnrsqlmodel_containers import DbIndexObj
-from gnr.sql.gnrsqlmodel.gnrsqlmodel_helpers import (
+from gnr.sql.gnrsqlmodel.columns import DbVirtualColumnObj
+from gnr.sql.gnrsqlmodel.containers import DbIndexObj
+from gnr.sql.gnrsqlmodel.helpers import (
     ConfigureAfterStartError,
     bagItemFormula,
     toolFormula,
 )
-from gnr.sql.gnrsqlmodel.gnrsqlmodel_obj import DbModelObj
+from gnr.sql.gnrsqlmodel.obj import DbModelObj
 from gnr.sql.gnrsqlutils import ModelExtractor, SqlModelChecker
 
 

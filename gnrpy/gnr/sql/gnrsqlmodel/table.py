@@ -38,10 +38,10 @@ from gnr.sql import logger
 from gnr.sql.gnrsql_exceptions import (
     GnrSqlException, GnrSqlMissingField, GnrSqlMissingColumn, GnrSqlRelationError,
 )
-from gnr.sql.gnrsqlmodel.gnrsqlmodel_obj import DbModelObj
-from gnr.sql.gnrsqlmodel.gnrsqlmodel_columns import DbVirtualColumnObj, AliasColumnWrapper
-from gnr.sql.gnrsqlmodel.gnrsqlmodel_resolvers import RelationTreeResolver
-from gnr.sql.gnrsqlmodel.gnrsqlmodel_helpers import bagItemFormula
+from gnr.sql.gnrsqlmodel.obj import DbModelObj
+from gnr.sql.gnrsqlmodel.columns import DbVirtualColumnObj, AliasColumnWrapper
+from gnr.sql.gnrsqlmodel.resolvers import RelationTreeResolver
+from gnr.sql.gnrsqlmodel.helpers import bagItemFormula
 from gnr.sql.gnrsqltable import SqlTable
 
 

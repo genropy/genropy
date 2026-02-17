@@ -9,32 +9,32 @@ Ref: issue #498
 
 | Module | Lines | Classes / Functions |
 |---|---:|---|
-| `gnrsqlmodel_helpers.py` | 133 | `bagItemFormula`, `toolFormula`, `NotExistingTableError`, `ConfigureAfterStartError` |
-| `gnrsqlmodel_obj.py` | 238 | `DbModelObj`, `DbPackageObj` |
-| `gnrsqlmodel_columns.py` | 358 | `DbBaseColumnObj`, `DbColumnObj`, `DbVirtualColumnObj`, `AliasColumnWrapper` |
-| `gnrsqlmodel_containers.py` | 157 | `DbTableAliasObj`, `DbColgroupObj`, `DbSubtableObj`, 8 list objects, `DbIndexObj` |
-| `gnrsqlmodel_resolvers.py` | 252 | `RelationTreeResolver`, `ModelSrcResolver` |
-| `gnrsqlmodel_table.py` | 902 | `DbTableObj` |
-| `gnrsqlmodel_model.py` | 1337 | `DbModel`, `DbModelSrc` |
+| `helpers.py` | 133 | `bagItemFormula`, `toolFormula`, `NotExistingTableError`, `ConfigureAfterStartError` |
+| `obj.py` | 238 | `DbModelObj`, `DbPackageObj` |
+| `columns.py` | 358 | `DbBaseColumnObj`, `DbColumnObj`, `DbVirtualColumnObj`, `AliasColumnWrapper` |
+| `containers.py` | 157 | `DbTableAliasObj`, `DbColgroupObj`, `DbSubtableObj`, 8 list objects, `DbIndexObj` |
+| `resolvers.py` | 252 | `RelationTreeResolver`, `ModelSrcResolver` |
+| `table.py` | 902 | `DbTableObj` |
+| `model.py` | 1337 | `DbModel`, `DbModelSrc` |
 | `__init__.py` | 151 | facade — re-exports all 24 classes + 2 functions + 2 exceptions |
 | **Total** | **3 528** | |
 
 ## Dependency Graph (compile-time)
 
 ```
-gnrsqlmodel_helpers  ← standalone, no gnrsqlmodel imports
+helpers      ← standalone, no gnrsqlmodel imports
        ↑
-gnrsqlmodel_obj      ← imports: GnrStructObj, GnrSqlMissingTable
+obj          ← imports: GnrStructObj, GnrSqlMissingTable
        ↑
-gnrsqlmodel_columns  ← inherits from DbModelObj
+columns      ← inherits from DbModelObj
        ↑
-gnrsqlmodel_containers ← inherits from DbModelObj
+containers   ← inherits from DbModelObj
        ↑
-gnrsqlmodel_resolvers  ← standalone (uses self.dbroot at runtime)
+resolvers    ← standalone (uses self.dbroot at runtime)
        ↑
-gnrsqlmodel_table    ← imports: RelationTreeResolver, DbVirtualColumnObj, AliasColumnWrapper
+table        ← imports: RelationTreeResolver, DbVirtualColumnObj, AliasColumnWrapper
        ↑
-gnrsqlmodel_model    ← imports: DbVirtualColumnObj, DbIndexObj, DbModelObj, helpers
+model        ← imports: DbVirtualColumnObj, DbIndexObj, DbModelObj, helpers
        ↑
 __init__.py          ← imports everything, re-exports, patches __module__
 ```
@@ -98,23 +98,23 @@ object
 
 | File | Line | Issue |
 |---|---|---|
-| `gnrsqlmodel_resolvers.py` | 104 | Lock acquire/release without try/finally — deadlock risk if `_fields()` raises |
-| `gnrsqlmodel_table.py` | 354 | `virtual_columns` property has side effects and is not thread-safe (race between cache check and write) |
+| `resolvers.py` | 104 | Lock acquire/release without try/finally — deadlock risk if `_fields()` raises |
+| `table.py` | 354 | `virtual_columns` property has side effects and is not thread-safe (race between cache check and write) |
 
 ### Medium — Error Handling / Design
 
 | File | Line | Issue |
 |---|---|---|
-| `gnrsqlmodel_model.py` | 234 | `addRelation()` ~170 lines with bare `except Exception` catching everything |
-| `gnrsqlmodel_model.py` | 1015 | Runtime insertion into compiled model during source-tree building is fragile |
-| `gnrsqlmodel_columns.py` | 345 | `AliasColumnWrapper.__init__` — `pop('tag')` / `pop('relation_path')` without defaults |
+| `model.py` | 234 | `addRelation()` ~170 lines with bare `except Exception` catching everything |
+| `model.py` | 1015 | Runtime insertion into compiled model during source-tree building is fragile |
+| `columns.py` | 345 | `AliasColumnWrapper.__init__` — `pop('tag')` / `pop('relation_path')` without defaults |
 
 ### Low — Configuration / Purity
 
 | File | Line | Issue |
 |---|---|---|
-| `gnrsqlmodel_helpers.py` | 76 | Hardcoded PostgreSQL type map in `bagItemFormula` — breaks on other backends |
-| `gnrsqlmodel_columns.py` | 98 | `print_width` property getter has side effect (mutates `self.attributes`) |
+| `helpers.py` | 76 | Hardcoded PostgreSQL type map in `bagItemFormula` — breaks on other backends |
+| `columns.py` | 98 | `print_width` property getter has side effect (mutates `self.attributes`) |
 
 ## Coverage
 

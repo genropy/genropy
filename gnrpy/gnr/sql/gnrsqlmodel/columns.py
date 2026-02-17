@@ -32,7 +32,7 @@ from __future__ import annotations
 from typing import Any
 
 from gnr.core.gnrstring import boolean
-from gnr.sql.gnrsqlmodel.gnrsqlmodel_obj import DbModelObj
+from gnr.sql.gnrsqlmodel.obj import DbModelObj
 
 
 class DbBaseColumnObj(DbModelObj):

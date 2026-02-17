@@ -25,17 +25,17 @@
 This package was refactored from the monolithic ``gnrsqlmodel.py``
 (~2 150 lines) into focused modules:
 
-- :mod:`gnrsqlmodel_helpers` — standalone functions and exceptions
-- :mod:`gnrsqlmodel_obj` — base model object (``DbModelObj``) and
+- :mod:`helpers` — standalone functions and exceptions
+- :mod:`obj` — base model object (``DbModelObj``) and
   package (``DbPackageObj``)
-- :mod:`gnrsqlmodel_columns` — column classes (``DbBaseColumnObj``,
+- :mod:`columns` — column classes (``DbBaseColumnObj``,
   ``DbColumnObj``, ``DbVirtualColumnObj``, ``AliasColumnWrapper``)
-- :mod:`gnrsqlmodel_containers` — list containers, alias, colgroup,
+- :mod:`containers` — list containers, alias, colgroup,
   subtable, and index objects
-- :mod:`gnrsqlmodel_resolvers` — ``RelationTreeResolver`` and
+- :mod:`resolvers` — ``RelationTreeResolver`` and
   ``ModelSrcResolver``
-- :mod:`gnrsqlmodel_table` — ``DbTableObj``
-- :mod:`gnrsqlmodel_model` — ``DbModel`` and ``DbModelSrc``
+- :mod:`table` — ``DbTableObj``
+- :mod:`model` — ``DbModel`` and ``DbModelSrc``
 
 All public names are re-exported here so that existing imports like
 ``from gnr.sql.gnrsqlmodel import DbModel`` continue to work.
@@ -48,7 +48,7 @@ namespace — the star-imports below ensure that.
 from __future__ import annotations
 
 # -- Helpers (standalone functions + exceptions) ---------------------------
-from gnr.sql.gnrsqlmodel.gnrsqlmodel_helpers import (  # noqa: F401
+from gnr.sql.gnrsqlmodel.helpers import (  # noqa: F401
     ConfigureAfterStartError,
     NotExistingTableError,
     bagItemFormula,
@@ -56,13 +56,13 @@ from gnr.sql.gnrsqlmodel.gnrsqlmodel_helpers import (  # noqa: F401
 )
 
 # -- Base model objects ----------------------------------------------------
-from gnr.sql.gnrsqlmodel.gnrsqlmodel_obj import (  # noqa: F401
+from gnr.sql.gnrsqlmodel.obj import (  # noqa: F401
     DbModelObj,
     DbPackageObj,
 )
 
 # -- Column objects --------------------------------------------------------
-from gnr.sql.gnrsqlmodel.gnrsqlmodel_columns import (  # noqa: F401
+from gnr.sql.gnrsqlmodel.columns import (  # noqa: F401
     AliasColumnWrapper,
     DbBaseColumnObj,
     DbColumnObj,
@@ -70,7 +70,7 @@ from gnr.sql.gnrsqlmodel.gnrsqlmodel_columns import (  # noqa: F401
 )
 
 # -- Container and list objects --------------------------------------------
-from gnr.sql.gnrsqlmodel.gnrsqlmodel_containers import (  # noqa: F401
+from gnr.sql.gnrsqlmodel.containers import (  # noqa: F401
     DbColAliasListObj,
     DbColgroupListObj,
     DbColgroupObj,
@@ -86,16 +86,16 @@ from gnr.sql.gnrsqlmodel.gnrsqlmodel_containers import (  # noqa: F401
 )
 
 # -- BagResolver subclasses -----------------------------------------------
-from gnr.sql.gnrsqlmodel.gnrsqlmodel_resolvers import (  # noqa: F401
+from gnr.sql.gnrsqlmodel.resolvers import (  # noqa: F401
     ModelSrcResolver,
     RelationTreeResolver,
 )
 
 # -- Table object ----------------------------------------------------------
-from gnr.sql.gnrsqlmodel.gnrsqlmodel_table import DbTableObj  # noqa: F401
+from gnr.sql.gnrsqlmodel.table import DbTableObj  # noqa: F401
 
 # -- Model orchestration ---------------------------------------------------
-from gnr.sql.gnrsqlmodel.gnrsqlmodel_model import (  # noqa: F401
+from gnr.sql.gnrsqlmodel.model import (  # noqa: F401
     DbModel,
     DbModelSrc,
 )

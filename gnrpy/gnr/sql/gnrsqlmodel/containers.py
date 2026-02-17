@@ -32,7 +32,7 @@ import re
 from typing import Any
 
 from gnr.core.gnrdict import dictExtract
-from gnr.sql.gnrsqlmodel.gnrsqlmodel_obj import DbModelObj
+from gnr.sql.gnrsqlmodel.obj import DbModelObj
 
 
 class DbTableAliasObj(DbModelObj):
