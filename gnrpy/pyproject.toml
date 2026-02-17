@@ -108,7 +108,6 @@ gnrrms = 'gnr.app.cli.gnrrms:main'
 gnrsendmail = 'gnr.app.cli.gnrsendmail:main'
 gnrserviceworker = 'gnr.app.cli.gnrserviceworker:main'
 gnrtrdaemon = 'gnr.app.cli.gnrtrdaemon:main'
-gnrupdate = 'gnr.app.cli.gnrupdate:main'
 initgenropy = 'gnr.app.cli.initgenropy:main'
 # gnr.dev
 gnrnotes = 'gnr.dev.cli.gnrnotes:main'
