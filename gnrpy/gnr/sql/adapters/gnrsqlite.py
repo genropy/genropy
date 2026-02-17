@@ -36,9 +36,39 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import boolean
 
 
-pysqlite.register_converter("timestamp", lambda val: datetime.datetime.fromisoformat(val.decode()))
 
+def adapt_date_iso(val):
+    """Adapt datetime.date to ISO 8601 date."""
+    return val.isoformat()
 
+def adapt_datetime_iso(val):
+    """Adapt datetime.datetime to timezone-naive ISO 8601 date."""
+    return val.replace(tzinfo=None).isoformat()
+
+def adapt_datetime_epoch(val):
+    """Adapt datetime.datetime to Unix timestamp."""
+    return int(val.timestamp())
+
+pysqlite.register_adapter(datetime.date, adapt_date_iso)
+pysqlite.register_adapter(datetime.datetime, adapt_datetime_iso)
+pysqlite.register_adapter(datetime.datetime, adapt_datetime_epoch)
+
+def convert_date(val):
+    """Convert ISO 8601 date to datetime.date object."""
+    return datetime.date.fromisoformat(val.decode())
+
+def convert_datetime(val):
+    """Convert ISO 8601 datetime to datetime.datetime object."""
+    return datetime.datetime.fromisoformat(val.decode())
+
+def convert_timestamp(val):
+    """Convert Unix epoch timestamp to datetime.datetime object."""
+    return datetime.datetime.fromtimestamp(int(val))
+
+pysqlite.register_converter("date", convert_date)
+pysqlite.register_converter("datetime", convert_datetime)
+pysqlite.register_converter("timestamp", convert_timestamp)
+#pysqlite.register_converter("timestamp", lambda val: datetime.datetime.fromisoformat(val.decode()))
 
 class GnrSqliteConnection(pysqlite.Connection):
     pass
