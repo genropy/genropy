@@ -166,6 +166,7 @@ packages = [
     	    'gnr.sql',
     	    'gnr.sql.gnrsqltable_proxy',
 	    'gnr.sql.gnrsqldata',
+	    'gnr.sql.gnrsqlmodel',
       	    'gnr.lib.services',	
       	    'gnr.web',
 	    'gnr.gnrjs',
