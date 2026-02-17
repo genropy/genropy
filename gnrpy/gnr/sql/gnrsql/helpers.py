@@ -42,7 +42,7 @@ from gnr.core.gnrlang import GnrException
 from gnr.sql import sqlauditlogger
 
 if TYPE_CHECKING:
-    from gnr.sql.gnrsql.gnrsql_db import GnrSqlDb
+    from gnr.sql.gnrsql.db import GnrSqlDb
 
 MAIN_CONNECTION_NAME: str = '_main_connection'
 

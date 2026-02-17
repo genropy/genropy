@@ -46,19 +46,19 @@ from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrlang import GnrObject, importModule
 from gnr.core.gnrstring import boolean
 
-from gnr.sql.gnrsql.gnrsql_helpers import (
+from gnr.sql.gnrsql.helpers import (
     DbLocalizer,
     GnrMissedCommitException,
     GnrSqlException,
     GnrSqlExecException,
 )
-from gnr.sql.gnrsql.gnrsql_connections import ConnectionMixin
-from gnr.sql.gnrsql.gnrsql_env import EnvMixin
-from gnr.sql.gnrsql.gnrsql_execute import ExecuteMixin
-from gnr.sql.gnrsql.gnrsql_query import QueryMixin
-from gnr.sql.gnrsql.gnrsql_schema import SchemaMixin
-from gnr.sql.gnrsql.gnrsql_transactions import TransactionMixin
-from gnr.sql.gnrsql.gnrsql_write import WriteMixin
+from gnr.sql.gnrsql.connections import ConnectionMixin
+from gnr.sql.gnrsql.env import EnvMixin
+from gnr.sql.gnrsql.execute import ExecuteMixin
+from gnr.sql.gnrsql.query import QueryMixin
+from gnr.sql.gnrsql.schema import SchemaMixin
+from gnr.sql.gnrsql.transactions import TransactionMixin
+from gnr.sql.gnrsql.write import WriteMixin
 
 
 class GnrSqlDb(

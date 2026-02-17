@@ -34,7 +34,7 @@ from typing import Any, Callable
 
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlang import GnrException, getUuid
-from gnr.sql.gnrsql.gnrsql_helpers import GnrMissedCommitException
+from gnr.sql.gnrsql.helpers import GnrMissedCommitException
 
 
 class TransactionMixin:

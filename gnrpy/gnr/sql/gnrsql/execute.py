@@ -35,7 +35,7 @@ from typing import Any
 
 from gnr.core.gnrlang import getUuid
 from gnr.sql import logger
-from gnr.sql.gnrsql.gnrsql_helpers import sql_audit
+from gnr.sql.gnrsql.helpers import sql_audit
 
 
 class ExecuteMixin:

@@ -35,15 +35,15 @@ The `__init__.py` facade re-exports every public name that the old
 | Module | Lines | Contents |
 |--------|------:|----------|
 | `__init__.py` | 54 | Facade — re-exports all public names |
-| `gnrsql_helpers.py` | 328 | Standalone helpers: decorators (`in_triggerstack`, `sql_audit`), exceptions (`GnrSqlException`, `GnrSqlExecException`, `GnrMissedCommitException`), `TempEnv`, `TriggerStack`, `TriggerStackItem`, `DbLocalizer`, `MAIN_CONNECTION_NAME` |
-| `gnrsql_db.py` | 321 | Core `GnrSqlDb` class: `__init__`, `adapter`, store properties, `createModel`, `startup`, `localizer` |
-| `gnrsql_connections.py` | 175 | `ConnectionMixin`: connection lifecycle, store routing, connection parameters |
-| `gnrsql_env.py` | 212 | `EnvMixin`: `currentEnv`, `tempEnv`, `workdate`, `locale`, `updateEnv`, tenant/application schemas |
-| `gnrsql_execute.py` | 186 | `ExecuteMixin`: `execute` (with `@sql_audit`), `_multiCursorExecute` |
-| `gnrsql_write.py` | 269 | `WriteMixin`: `insert`, `update`, `delete`, `insertMany`, `raw_*`, `_onDbChange`, `notifyDbEvent` |
-| `gnrsql_transactions.py` | 279 | `TransactionMixin`: `commit`, `rollback`, deferred callback queues, `dbevents`, db maintenance (`analyze`, `vacuum`, `listen`, `notify`) |
-| `gnrsql_query.py` | 423 | `QueryMixin`: `query`, `queryCompile`, `table`, `package`, `packages`, `tablesMasterIndex`, `tableTreeBag`, `relationExplorer`, `colToAs` |
-| `gnrsql_schema.py` | 399 | `SchemaMixin`: DDL (`createDb`, `dropDb`, `dropTable`, `dropColumn`), dump/restore, model I/O, data import (`importArchive`, `importXmlData`), migration (`diffOrmToSql`, `syncOrmToSql`) |
+| `helpers.py` | 328 | Standalone helpers: decorators (`in_triggerstack`, `sql_audit`), exceptions (`GnrSqlException`, `GnrSqlExecException`, `GnrMissedCommitException`), `TempEnv`, `TriggerStack`, `TriggerStackItem`, `DbLocalizer`, `MAIN_CONNECTION_NAME` |
+| `db.py` | 321 | Core `GnrSqlDb` class: `__init__`, `adapter`, store properties, `createModel`, `startup`, `localizer` |
+| `connections.py` | 175 | `ConnectionMixin`: connection lifecycle, store routing, connection parameters |
+| `env.py` | 212 | `EnvMixin`: `currentEnv`, `tempEnv`, `workdate`, `locale`, `updateEnv`, tenant/application schemas |
+| `execute.py` | 186 | `ExecuteMixin`: `execute` (with `@sql_audit`), `_multiCursorExecute` |
+| `write.py` | 269 | `WriteMixin`: `insert`, `update`, `delete`, `insertMany`, `raw_*`, `_onDbChange`, `notifyDbEvent` |
+| `transactions.py` | 279 | `TransactionMixin`: `commit`, `rollback`, deferred callback queues, `dbevents`, db maintenance (`analyze`, `vacuum`, `listen`, `notify`) |
+| `query.py` | 423 | `QueryMixin`: `query`, `queryCompile`, `table`, `package`, `packages`, `tablesMasterIndex`, `tableTreeBag`, `relationExplorer`, `colToAs` |
+| `schema.py` | 399 | `SchemaMixin`: DDL (`createDb`, `dropDb`, `dropTable`, `dropColumn`), dump/restore, model I/O, data import (`importArchive`, `importXmlData`), migration (`diffOrmToSql`, `syncOrmToSql`) |
 | **Total** | **2 646** | |
 
 ---
@@ -51,15 +51,15 @@ The `__init__.py` facade re-exports every public name that the old
 ## Dependency graph
 
 ```
-             gnrsql_db.py  (core, __init__, properties)
-                  |
-    +------+------+------+------+------+
+             db.py  (core, __init__, properties)
+                |
+    +------+----+----+------+------+
     |      |      |      |      |      |
   env  connections execute write transactions
     |      |      |      |      |      |
     +------+------+------+------+------+
                   |             |
-            gnrsql_query    gnrsql_schema
+              query          schema
 ```
 
 All arrows represent `self.*` calls resolved at runtime through the
@@ -85,33 +85,33 @@ Below is the full inventory, grouped by severity.
 
 | Module | Line | Issue |
 |--------|------|-------|
-| `gnrsql_helpers.py` | 70 | `in_triggerstack` does not call `pop()` if `func` raises — the trigger stack grows unboundedly on repeated failures |
-| `gnrsql_transactions.py` | 79 | `_pendingExceptions` is never cleared after `commit()` raises — a retry of `commit()` will re-raise the same exceptions |
-| `gnrsql_write.py` | 246 | `delete()` with a string `deletable` calls `self.application.checkDeletable()`, but `self.application` can be `None` in standalone mode |
-| `gnrsql_schema.py` | 192 | `assert os.path.exists(path)` is stripped when running with `python -O` — should be a proper `FileNotFoundError` |
+| `helpers.py` | 70 | `in_triggerstack` does not call `pop()` if `func` raises — the trigger stack grows unboundedly on repeated failures |
+| `transactions.py` | 79 | `_pendingExceptions` is never cleared after `commit()` raises — a retry of `commit()` will re-raise the same exceptions |
+| `write.py` | 246 | `delete()` with a string `deletable` calls `self.application.checkDeletable()`, but `self.application` can be `None` in standalone mode |
+| `schema.py` | 192 | `assert os.path.exists(path)` is stripped when running with `python -O` — should be a proper `FileNotFoundError` |
 
 ### Design concerns
 
 | Module | Line | Issue |
 |--------|------|-------|
-| `gnrsql_helpers.py` | 111 | `sql_audit` extracts the SQL verb via `sql.split(" ")[0]`, which is fragile when the SQL starts with a comment or whitespace |
-| `gnrsql_helpers.py` | 149 | `GnrMissedCommitException` inherits from `GnrException` rather than `GnrSqlException` — inconsistent with the other SQL exceptions |
-| `gnrsql_helpers.py` | 210 | `TempEnv.__exit__` uses value equality (`==`) to decide whether to restore — fragile with mutable values that may have been modified in place |
-| `gnrsql_db.py` | 140 | `read_only` is stored in `__init__` but never enforced — no write method checks it |
-| `gnrsql_db.py` | 160 | `_connections` is initialised twice in `__init__` (as `{}` and then overwritten) |
-| `gnrsql_connections.py` | 72 | `connectionKey()` has a double fallback on `self.currentEnv` that makes the logic hard to follow |
+| `helpers.py` | 111 | `sql_audit` extracts the SQL verb via `sql.split(" ")[0]`, which is fragile when the SQL starts with a comment or whitespace |
+| `helpers.py` | 149 | `GnrMissedCommitException` inherits from `GnrException` rather than `GnrSqlException` — inconsistent with the other SQL exceptions |
+| `helpers.py` | 210 | `TempEnv.__exit__` uses value equality (`==`) to decide whether to restore — fragile with mutable values that may have been modified in place |
+| `db.py` | 140 | `read_only` is stored in `__init__` but never enforced — no write method checks it |
+| `db.py` | 160 | `_connections` is initialised twice in `__init__` (as `{}` and then overwritten) |
+| `connections.py` | 72 | `connectionKey()` has a double fallback on `self.currentEnv` that makes the logic hard to follow |
 
 ### Dead / unused code
 
 | Module | Line | Issue |
 |--------|------|-------|
-| `gnrsql_execute.py` | 129 | `cenv = self.currentEnv` — assigned but never used |
+| `execute.py` | 129 | `cenv = self.currentEnv` — assigned but never used |
 
 ### Resource leaks
 
 | Module | Line | Issue |
 |--------|------|-------|
-| `gnrsql_execute.py` | 176 | A new `ThreadPool(4)` is created on every `_multiCursorExecute` call and never shut down — threads leak over time |
+| `execute.py` | 176 | A new `ThreadPool(4)` is created on every `_multiCursorExecute` call and never shut down — threads leak over time |
 
 ---
 

@@ -33,7 +33,7 @@ from typing import Any, Callable, Generator
 
 from gnr.core.gnrbag import Bag
 from gnr.sql import logger
-from gnr.sql.gnrsql.gnrsql_helpers import GnrSqlException
+from gnr.sql.gnrsql.helpers import GnrSqlException
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
 
 

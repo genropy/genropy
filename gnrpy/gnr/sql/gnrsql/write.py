@@ -30,7 +30,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from gnr.sql.gnrsql.gnrsql_helpers import GnrSqlException, in_triggerstack
+from gnr.sql.gnrsql.helpers import GnrSqlException, in_triggerstack
 
 
 class WriteMixin:

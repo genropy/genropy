@@ -33,7 +33,7 @@ import locale as locale_mod
 from datetime import date
 from typing import Any
 
-from gnr.sql.gnrsql.gnrsql_helpers import TempEnv
+from gnr.sql.gnrsql.helpers import TempEnv
 
 
 class EnvMixin:
@@ -190,7 +190,7 @@ class EnvMixin:
 
     def usingMainConnection(self) -> bool:
         """Return ``True`` if the current connection is the main connection."""
-        from gnr.sql.gnrsql.gnrsql_helpers import MAIN_CONNECTION_NAME
+        from gnr.sql.gnrsql.helpers import MAIN_CONNECTION_NAME
 
         return self.currentConnectionName == MAIN_CONNECTION_NAME
 
@@ -202,7 +202,7 @@ class EnvMixin:
     @property
     def currentConnectionName(self) -> str:
         """The name of the currently active connection."""
-        from gnr.sql.gnrsql.gnrsql_helpers import MAIN_CONNECTION_NAME
+        from gnr.sql.gnrsql.helpers import MAIN_CONNECTION_NAME
 
         return self.currentEnv.get('connectionName') or MAIN_CONNECTION_NAME
 

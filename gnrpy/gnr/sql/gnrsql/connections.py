@@ -31,7 +31,7 @@ from __future__ import annotations
 import _thread
 from typing import Any
 
-from gnr.sql.gnrsql.gnrsql_helpers import GnrSqlException
+from gnr.sql.gnrsql.helpers import GnrSqlException
 
 
 class ConnectionMixin:

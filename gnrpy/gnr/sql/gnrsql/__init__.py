@@ -25,22 +25,22 @@
 Re-exports all public names for backward compatibility.
 The actual implementations live in:
 
-* ``gnrsql/gnrsql_helpers.py``      — decorators, exceptions, TempEnv, TriggerStack, DbLocalizer
-* ``gnrsql/gnrsql_db.py``           — GnrSqlDb (assembles all mixins)
-* ``gnrsql/gnrsql_connections.py``  — ConnectionMixin
-* ``gnrsql/gnrsql_env.py``          — EnvMixin
-* ``gnrsql/gnrsql_execute.py``      — ExecuteMixin
-* ``gnrsql/gnrsql_write.py``        — WriteMixin
-* ``gnrsql/gnrsql_transactions.py`` — TransactionMixin
-* ``gnrsql/gnrsql_query.py``        — QueryMixin
-* ``gnrsql/gnrsql_schema.py``       — SchemaMixin
+* ``gnrsql/helpers.py``      — decorators, exceptions, TempEnv, TriggerStack, DbLocalizer
+* ``gnrsql/db.py``           — GnrSqlDb (assembles all mixins)
+* ``gnrsql/connections.py``  — ConnectionMixin
+* ``gnrsql/env.py``          — EnvMixin
+* ``gnrsql/execute.py``      — ExecuteMixin
+* ``gnrsql/write.py``        — WriteMixin
+* ``gnrsql/transactions.py`` — TransactionMixin
+* ``gnrsql/query.py``        — QueryMixin
+* ``gnrsql/schema.py``       — SchemaMixin
 """
 
 # Core class
-from gnr.sql.gnrsql.gnrsql_db import GnrSqlDb  # noqa: F401
+from gnr.sql.gnrsql.db import GnrSqlDb  # noqa: F401
 
 # Helpers, decorators, exceptions
-from gnr.sql.gnrsql.gnrsql_helpers import (  # noqa: F401
+from gnr.sql.gnrsql.helpers import (  # noqa: F401
     MAIN_CONNECTION_NAME,
     DbLocalizer,
     GnrMissedCommitException,
