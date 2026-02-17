@@ -22,12 +22,15 @@
 
 # Re-export all public classes for backward compatibility.
 # The actual implementations live in:
-#   gnrsqldata/compiler.py  - SqlCompiledQuery, SqlQueryCompiler
+#   gnrsqldata/compiler.py  - CompiledColumn, AliasManager, ColumnCompiler,
+#                             SqlCompiledQuery, SqlCompiledSubQuery, SqlQueryCompiler
 #   gnrsqldata/query.py     - SqlQuery, SqlDataResolver
 #   gnrsqldata/selection.py - SqlSelection
 #   gnrsqldata/record.py    - SqlRecord, SqlRecordBag, SqlRelatedRecordResolver, SqlRelatedSelectionResolver
 
-from gnr.sql.gnrsqldata.compiler import SqlCompiledQuery, SqlCompiledSubQuery, SqlQueryCompiler  # noqa: F401
+from gnr.sql.gnrsqldata.compiler import (CompiledColumn, AliasManager,  # noqa: F401
+                                          ColumnCompiler, SqlCompiledQuery,
+                                          SqlCompiledSubQuery, SqlQueryCompiler)
 from gnr.sql.gnrsqldata.query import SqlQuery, SqlDataResolver, SqlCompoundQuery  # noqa: F401
 from gnr.sql.gnrsqldata.selection import SqlSelection  # noqa: F401
 from gnr.sql.gnrsqldata.record import (SqlRecord, SqlRecordBag,  # noqa: F401
