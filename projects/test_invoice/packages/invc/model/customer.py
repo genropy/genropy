@@ -94,3 +94,9 @@ class Table(object):
                                       columns='SUM($tot_price)',
                                       where='@invoice_id.customer_id=#THIS.id AND @product_id.@product_type_id.production_state=#THIS.@postcode_id.state'),
                           dtype='N', name_long='Sales From Local State')
+
+        tbl.formulaColumn('sales_from_local_state_v2',
+                          select=dict(table='invc.invoice_row',
+                                      columns='SUM($tot_price)',
+                                      where='@invoice_id.@customer_id.@postcode_id.state=@product_id.@product_type_id.production_state'),
+                          dtype='N', name_long='Sales From Local State V2')
