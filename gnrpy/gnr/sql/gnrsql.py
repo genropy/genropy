@@ -38,7 +38,7 @@ from gnr.core.gnrlang import GnrObject
 from gnr.core.gnrlang import importModule, GnrException
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrclasses import GnrClassCatalog
-from gnr.sql.gnrsqlmigration import SqlMigrator
+from gnr.sql.migration import SqlMigrator
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable,GnrSqlException
 
 MAIN_CONNECTION_NAME = '_main_connection'

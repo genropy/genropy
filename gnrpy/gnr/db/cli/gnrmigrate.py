@@ -14,7 +14,7 @@ from gnr.core.gnrconfig import getGnrConfig
 from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrApp
-from gnr.sql.gnrsqlmigration import SqlMigrator
+from gnr.sql.migration import SqlMigrator
 from gnr.sql import AdapterCapabilities
 
 description = "create/update/check database models in Genro framework NG"

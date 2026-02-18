@@ -6,7 +6,7 @@
 
 import json
 from gnr.core.gnrdecorator import public_method
-from gnr.sql.gnrsqlmigration import SqlMigrator
+from gnr.sql.migration import SqlMigrator
 from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrApp
 import gnr.sql

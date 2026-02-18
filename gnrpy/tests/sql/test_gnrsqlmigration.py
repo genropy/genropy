@@ -1,5 +1,5 @@
 import pytest
-from gnr.sql.gnrsqlmigration import SqlMigrator
+from gnr.sql.migration import SqlMigrator
 from gnr.sql.gnrsql import GnrSqlDb
 from gnr.sql.adapters import gnrpostgres, gnrpostgres3
 from gnr.sql import AdapterCapabilities as Capabilities
@@ -885,7 +885,7 @@ class BaseGnrSqlMigration_DefaultException(BaseGnrSqlTest):
 
     def test_exception_03_incompatible_conversion_raises(self):
         """Default mode: exception on incompatible type conversion with non-empty column"""
-        from gnr.sql.gnrsqlmigration import GnrSqlException
+        from gnr.sql.gnrsql_exceptions import GnrSqlException
         pkg = self.src.package('gamma')
         tbl = pkg.table('exception_test', pkey='id')
         tbl.column('id', dtype='serial')

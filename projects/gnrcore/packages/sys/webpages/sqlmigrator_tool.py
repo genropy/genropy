@@ -5,7 +5,7 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 
 from gnr.core.gnrdecorator import public_method
-from gnr.sql.gnrsqlmigration import SqlMigrator
+from gnr.sql.migration import SqlMigrator
 from gnr.core.gnrbag import Bag
 
 class GnrCustomWebPage(object):
