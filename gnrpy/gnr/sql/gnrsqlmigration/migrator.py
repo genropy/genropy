@@ -251,7 +251,7 @@ class SqlMigrator(DiffMixin, CommandBuilderMixin, ExecutorMixin):
             Bag: With two sub-nodes ``orm`` and ``sql``, each containing
             the hierarchical tree of schemas and tables.
         """
-        if not (self.sqlStructure or self.ormStructure):  # REVIEW: {} is falsy — re-extracts even when structures were prepared but DB is empty
+        if self.sqlStructure is None or self.ormStructure is None: 
             self.prepareStructures()
         result = Bag()
         result.addItem(

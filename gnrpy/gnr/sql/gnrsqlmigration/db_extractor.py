@@ -315,7 +315,7 @@ class DbExtractor(object):  # REVIEW: old-style (object) base class — unnecess
                     schema_name, table_name,
                     multiple_unique_const['columns'],
                     constraint_type='UNIQUE',
-                    constraint_name=v['constraint_name']  # REVIEW: uses stale loop variable v — should be multiple_unique_const['constraint_name']
+                    constraint_name=multiple_unique_const['constraint_name']
                 )
                 table_json['constraints'][const_item['entity_name']] = const_item
             # CHECK constraints not handled at this time
