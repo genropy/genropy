@@ -738,7 +738,7 @@ class CommandBuilderMixin:
         add_sql = self.db.adapter.struct_constraint_sql(
             schema_name=item['schema_name'],
             table_name=item['table_name'],
-            constraint_name=constraints_dict['constraint_name'],  # REVIEW: should be constraint_attr['constraint_name'] — reads from command dict instead of entity attributes
+            constraint_name=constraint_attr['constraint_name'],  
             constraint_type=item['attributes']['constraint_type'],
             columns=item['attributes']['columns']
         )
