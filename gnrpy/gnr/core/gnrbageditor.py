@@ -1,33 +1,64 @@
+"""BagEditor class for manipulating XML files using Genropy Bag.
+
+This module provides an editor interface for modifying Bag/XML files
+programmatically. It supports adding, setting, updating, and deleting
+entities in Bag structures with automatic backup creation.
+
+Example:
+    >>> from gnr.core.gnrbageditor import BagEditor
+    >>> editor = BagEditor('/path/to/file.xml')
+    >>> editor.add_entity('projects.new_project', {'name': 'My Project'})
+    >>> editor.save()
 """
-BagEditor class for manipulating XML files using Genropy Bag.
-Provides methods to add, set, update, and delete entities in Bag structures.
-"""
+
+from __future__ import annotations
+
 from pathlib import Path
 from datetime import datetime
 import shutil
+from typing import TYPE_CHECKING
 
 from gnr.core.gnrbag import Bag
 from gnr.core import logger
 
-class BagEditor:
-    """Editor for XML files using Genropy Bag."""
+if TYPE_CHECKING:
+    from typing import Any
 
-    def __init__(self, file_path=None):
-        """
-        Initialize BagEditor.
+
+class BagEditor:
+    """Editor for XML files using Genropy Bag.
+
+    Provides methods to load, modify, and save Bag structures stored
+    in XML files. Automatically creates timestamped backups when
+    saving to the same file that was loaded.
+
+    Args:
+        file_path: Path to XML file. If provided, loads the file immediately.
+
+    Attributes:
+        file_path: Path to the currently loaded file.
+        bag: The loaded Bag structure, or None if no file loaded.
+
+    Example:
+        >>> editor = BagEditor('/path/to/config.xml')
+        >>> editor.add_entity('settings.debug', {'enabled': 'true'})
+        >>> editor.save()  # Creates backup, then saves
+    """
+
+    def __init__(self, file_path: str | None = None) -> None:
+        """Initialize BagEditor.
 
         Args:
             file_path: Path to XML file. If provided, loads the file.
         """
-        self.file_path = file_path
-        self.bag = None
+        self.file_path: str | None = file_path
+        self.bag: Bag | None = None
 
         if file_path:
             self.load(file_path)
 
-    def load(self, file_path):
-        """
-        Load an XML file as a Bag.
+    def load(self, file_path: str) -> None:
+        """Load an XML file as a Bag.
 
         Args:
             file_path: Path to the XML file to load.
@@ -46,9 +77,11 @@ class BagEditor:
         except Exception as e:
             raise Exception(f"Failed to load XML file as Bag: {e}")
 
-    def save(self, file_path=None, indent=False):
-        """
-        Save the Bag to an XML file.
+    def save(self, file_path: str | None = None, indent: bool = False) -> None:
+        """Save the Bag to an XML file.
+
+        Creates a timestamped backup when saving to the same file
+        that was originally loaded.
 
         Args:
             file_path: Path to save the file. If None, uses the loaded file path.
@@ -56,7 +89,8 @@ class BagEditor:
 
         Raises:
             ValueError: If no file path is provided and none was loaded.
-            Exception: If the file cannot be written.
+            ValueError: If no Bag is loaded to save.
+            Exception: If backup creation or file writing fails.
         """
         if file_path is None:
             file_path = self.file_path
@@ -82,16 +116,21 @@ class BagEditor:
                     raise Exception(f"Failed to create backup file: {e}")
 
         try:
-            self.bag.toXml(file_path, autocreate=True, encoding='UTF-8', pretty=indent)
+            self.bag.toXml(file_path, autocreate=True, encoding="UTF-8", pretty=indent)
         except Exception as e:
             raise Exception(f"Failed to write XML file: {e}")
 
-    def add_entity(self, entity_path, attributes=None):
-        """
-        Add an entity in the Bag.
+    def add_entity(
+        self, entity_path: str, attributes: dict[str, Any] | None = None
+    ) -> None:
+        """Add an entity in the Bag.
+
+        Adds a new node at the specified path. If parent nodes don't exist,
+        they are created automatically.
 
         Args:
-            entity_path: Dot-separated path to the entity (e.g., "projects.pippo.pluto").
+            entity_path: Dot-separated path to the entity
+                (e.g., "projects.pippo.pluto").
             attributes: Dictionary of attributes to set on the entity.
 
         Raises:
@@ -109,13 +148,17 @@ class BagEditor:
         # Add the node with attributes
         # If the path doesn't exist, Bag will create it
         self.bag.addItem(entity_path, None, attributes)
-        
-    def set_entity(self, entity_path, attributes=None):
-        """
-        Set an entity in the Bag.
+
+    def set_entity(
+        self, entity_path: str, attributes: dict[str, Any] | None = None
+    ) -> None:
+        """Set an entity in the Bag.
+
+        Creates the entity if it doesn't exist, or replaces it if it does.
 
         Args:
-            entity_path: Dot-separated path to the entity (e.g., "projects.pippo.pluto").
+            entity_path: Dot-separated path to the entity
+                (e.g., "projects.pippo.pluto").
             attributes: Dictionary of attributes to set on the entity.
 
         Raises:
@@ -134,16 +177,21 @@ class BagEditor:
         # If the path doesn't exist, Bag will create it
         self.bag.setItem(entity_path, None, attributes)
 
-    def update_entity(self, entity_path, attributes=None):
-        """
-        Update an existing entity (error if it doesn't exist).
+    def update_entity(
+        self, entity_path: str, attributes: dict[str, Any] | None = None
+    ) -> None:
+        """Update an existing entity (error if it doesn't exist).
+
+        Unlike set_entity, this method raises an error if the entity
+        doesn't already exist.
 
         Args:
             entity_path: Dot-separated path to the entity.
             attributes: Dictionary of attributes to update on the entity.
 
         Raises:
-            ValueError: If entity_path is empty, Bag is not loaded, or entity not found.
+            ValueError: If entity_path is empty, Bag is not loaded,
+                or entity not found.
         """
         if self.bag is None:
             raise ValueError("No Bag loaded")
@@ -162,15 +210,15 @@ class BagEditor:
         # Update attributes while preserving the node value
         self.bag.setItem(entity_path, node.value, attributes)
 
-    def delete_entity(self, entity_path):
-        """
-        Delete an entity from the Bag.
+    def delete_entity(self, entity_path: str) -> None:
+        """Delete an entity from the Bag.
 
         Args:
             entity_path: Dot-separated path to the entity.
 
         Raises:
-            ValueError: If entity_path is empty, Bag is not loaded, or entity not found.
+            ValueError: If entity_path is empty, Bag is not loaded,
+                or entity not found.
         """
         if self.bag is None:
             raise ValueError("No Bag loaded")
@@ -185,30 +233,28 @@ class BagEditor:
         # Delete the node
         self.bag.delItem(entity_path)
 
-    def entity_exists(self, entity_path):
-        """
-        Check if an entity exists in the Bag.
+    def entity_exists(self, entity_path: str) -> bool:
+        """Check if an entity exists in the Bag.
 
         Args:
             entity_path: Dot-separated path to the entity.
 
         Returns:
-            bool: True if the entity exists, False otherwise.
+            True if the entity exists, False otherwise.
         """
         if self.bag is None:
             return False
 
         return self.bag.getNode(entity_path) is not None
 
-    def get_entity_attributes(self, entity_path):
-        """
-        Get the attributes of an entity.
+    def get_entity_attributes(self, entity_path: str) -> dict[str, Any] | None:
+        """Get the attributes of an entity.
 
         Args:
             entity_path: Dot-separated path to the entity.
 
         Returns:
-            dict: Dictionary of attributes, or None if entity not found.
+            Dictionary of attributes, or None if entity not found.
         """
         if self.bag is None:
             return None
@@ -219,16 +265,22 @@ class BagEditor:
 
         return dict(node.attr) if node.attr else {}
 
-    def get_entity(self, entity_path):
-        """
-        Get the complete entity information (value and attributes).
+    def get_entity(self, entity_path: str) -> dict[str, Any] | None:
+        """Get the complete entity information (value and attributes).
 
         Args:
             entity_path: Dot-separated path to the entity.
 
         Returns:
-            dict: Dictionary with 'value' and 'attributes' keys, or None if entity not found.
-                  Example: {'value': 'some_value', 'attributes': {'name': 'test', 'path': '/foo'}}
+            Dictionary with 'value' and 'attributes' keys, or None if
+            entity not found.
+
+            Example::
+
+                {
+                    'value': 'some_value',
+                    'attributes': {'name': 'test', 'path': '/foo'}
+                }
         """
         if self.bag is None:
             return None
@@ -237,7 +289,4 @@ class BagEditor:
         if node is None:
             return None
 
-        return {
-            'value': node.value,
-            'attributes': dict(node.attr) if node.attr else {}
-        }
+        return {"value": node.value, "attributes": dict(node.attr) if node.attr else {}}
