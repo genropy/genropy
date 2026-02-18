@@ -153,15 +153,24 @@ class GnrTask:
     def __post_init__(self):
         self.queue_name = self.queue_name if self.queue_name else "general"
 
-    async def completed(self, tasktbl, exectbl):
+    async def completed(self, tasktbl, exectbl, run_id=None):
         """
         The task has been executed and acknowledged, update
         the last execution timestamp accordingly
         """
+        end_ts = datetime.now(timezone.utc)
+        
         record = tasktbl.record(self.task_id).output('dict')
-        tasktbl.update(dict(last_execution_ts=datetime.now(timezone.utc)),
-                       record)                                    
+        tasktbl.update(dict(last_execution_ts=end_ts),
+                       record)
         tasktbl.db.commit()
+
+        if run_id:
+            record = exectbl.record(run_id).output('dict')
+            exectbl.update(dict(end_ts=end_ts),
+                           record)
+            exectbl.db.commit()
+        
 
     def is_due(self, timestamp=None, last_scheduled_ts=None):
         """
@@ -204,8 +213,6 @@ class GnrTask:
         key_hm = max(hmlist)
         result = '-'.join([str(y),str(m),str(d),str(int(key_hm/60)),str(key_hm%60)])
         return result
-
-        
 
     
 class GnrTaskScheduler:
@@ -277,11 +284,11 @@ class GnrTaskScheduler:
                                            parameters=x['parameters']),
                                    x['last_scheduled_ts']]
         
-    async def complete_task(self, task_id):
+    async def complete_task(self, task_id, run_id=None):
         task = self.tasks.get(task_id)[0]
         if task:
             logger.info("Task %s completed, saving", task_id)
-            await task.completed(self.tasktbl, self.exectbl)
+            await task.completed(self.tasktbl, self.exectbl, run_id)
         else:
             logger.error("Task %s not found, can't complete", task_id)
             
@@ -418,7 +425,7 @@ class GnrTaskScheduler:
             logger.info("Task run %s acknowledged", run_id)
             # update the task
             ack_run = self.pending_ack.pop(run_id)
-            await self.complete_task(ack_run[0]['task_id'])
+            await self.complete_task(ack_run[0]['task_id'], run_id=run_id)
             return web.json_response({"status": "acknowledged"})
         return web.json_response({"status": "unknown task"}, status=400)
 

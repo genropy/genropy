@@ -280,7 +280,7 @@ class TestGnrTaskScheduler(BaseGnrTest):
         )
         called = {}
 
-        async def completed(tasktbl, exectbl):
+        async def completed(tasktbl, exectbl, run_id):
             called["ok"] = True
 
         task.completed = completed
@@ -394,7 +394,7 @@ class TestGnrTaskScheduler(BaseGnrTest):
     def test_acknowledge_known_task(self, scheduler, monkeypatch):
         called = {}
 
-        async def fake_complete(task_id):
+        async def fake_complete(task_id, run_id):
             called["task_id"] = task_id
 
         scheduler.pending_ack["run1"] = ({"task_id": "task1"}, datetime.now(timezone.utc), 0, None)
