@@ -475,7 +475,82 @@ class TestJoinModeTorture:
 
 
 # =====================================================================
-#  10. SQL TEXT VERIFICATION — no placeholders leak
+#  10. DEEP CROSS-JOIN — both sides traverse relations
+#      remote: invoice_row → product → product_type → production_state
+#      local:  customer → postcode → state
+# =====================================================================
+
+class TestDeepCrossJoin:
+    """Formula where BOTH sides of the correlation traverse relations."""
+
+    def test_sales_from_local_state_basic(self, db):
+        """sales_from_local_state: 3-hop remote + 2-hop local via #THIS."""
+        cols = '$account_name,$state,$sales_from_local_state'
+        kw = dict(columns=cols, order_by='$id', limit=20)
+        r_eager = db.query('invc.customer', **kw).fetch()
+        r_lazy = db.query('invc.customer', enable_lazy_subquery=True, **kw).fetch()
+        _compare_rows(r_eager, r_lazy, ['sales_from_local_state'])
+
+    def test_sales_from_local_state_full_dataset(self, db):
+        """All customers — deep cross-join on full dataset."""
+        cols = '$account_name,$sales_from_local_state'
+        kw = dict(columns=cols, order_by='$id')
+        r_eager = db.query('invc.customer', **kw).fetch()
+        r_lazy = db.query('invc.customer', enable_lazy_subquery=True, **kw).fetch()
+        _compare_rows(r_eager, r_lazy, ['sales_from_local_state'])
+
+    def test_sales_from_local_state_with_other_formulas(self, db):
+        """Deep cross-join + other formula columns in same query."""
+        cols = '$account_name,$n_invoices,$invoiced_total,$sales_from_local_state'
+        kw = dict(columns=cols, order_by='$id', limit=20)
+        r_eager = db.query('invc.customer', **kw).fetch()
+        r_lazy = db.query('invc.customer', enable_lazy_subquery=True, **kw).fetch()
+        _compare_rows(r_eager, r_lazy,
+                      ['n_invoices', 'invoiced_total', 'sales_from_local_state'])
+
+    def test_sales_from_local_state_in_where(self, db):
+        """Filter on deep cross-join formula."""
+        cols = '$account_name,$sales_from_local_state'
+        kw = dict(columns=cols,
+                  where='$sales_from_local_state > :min_sales',
+                  min_sales=100000,
+                  order_by='$sales_from_local_state DESC')
+        r_eager = db.query('invc.customer', **kw).fetch()
+        r_lazy = db.query('invc.customer', enable_lazy_subquery=True, **kw).fetch()
+        _compare_rows(r_eager, r_lazy, ['sales_from_local_state'])
+        assert all(r['sales_from_local_state'] > 100000 for r in r_eager)
+
+    def test_sales_from_local_state_order_by(self, db):
+        """Order by deep cross-join formula."""
+        cols = '$account_name,$sales_from_local_state'
+        kw = dict(columns=cols,
+                  order_by='$sales_from_local_state DESC',
+                  limit=10)
+        r_eager = db.query('invc.customer', **kw).fetch()
+        r_lazy = db.query('invc.customer', enable_lazy_subquery=True, **kw).fetch()
+        _compare_rows(r_eager, r_lazy, ['account_name', 'sales_from_local_state'])
+
+    def test_sales_from_local_state_with_postcode_navigation(self, db):
+        """Deep cross-join + explicit navigation to postcode state."""
+        cols = '$account_name,$state,@postcode_id.state,$sales_from_local_state'
+        kw = dict(columns=cols, order_by='$id', limit=20)
+        r_eager = db.query('invc.customer', **kw).fetch()
+        r_lazy = db.query('invc.customer', enable_lazy_subquery=True, **kw).fetch()
+        _compare_rows(r_eager, r_lazy,
+                      ['state', '_postcode_id_state', 'sales_from_local_state'])
+
+    @pytest.mark.xfail(reason='Requires LATERAL JOIN: subquery references outer table via #THIS.@relation path')
+    def test_sales_from_local_state_join_mode(self, db):
+        """Deep cross-join with enable_sq_join=True — needs LATERAL."""
+        cols = '$account_name,$sales_from_local_state'
+        kw = dict(columns=cols, order_by='$id', limit=20, enable_sq_join=True)
+        r_eager = db.query('invc.customer', **kw).fetch()
+        r_lazy = db.query('invc.customer', enable_lazy_subquery=True, **kw).fetch()
+        _compare_rows(r_eager, r_lazy, ['sales_from_local_state'])
+
+
+# =====================================================================
+#  11. SQL TEXT VERIFICATION — no placeholders leak
 # =====================================================================
 
 class TestNoPlaceholderLeak:
@@ -516,3 +591,8 @@ class TestNoPlaceholderLeak:
         self._assert_no_placeholder(db, 'invc.customer',
             columns='$account_name,$n_invoices,$invoiced_total',
             where='$id=:id', id='x', enable_sq_join=True)
+
+    def test_deep_cross_join_no_placeholder(self, db):
+        self._assert_no_placeholder(db, 'invc.customer',
+            columns='$account_name,$sales_from_local_state',
+            where='$id=:id', id='x')

@@ -8,3 +8,4 @@ class Table(object):
                         caption_field='hierarchical_description')
         self.sysFields(tbl,hierarchical='description',counter=True,df=True)
         tbl.column('description' ,size=':50',name_long='!!Description')
+        tbl.column('production_state',size=':5',name_long='!!Production State',name_short='Prod.State').relation('state.code',relation_name='production_types',mode='foreignkey')

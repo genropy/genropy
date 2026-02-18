@@ -10,6 +10,7 @@ class Table(object):
         tbl.column('suburb', name_long='!!Suburb', name_short='!!Suburb')
         tbl.column('state',size=':5',name_long='!!State',name_short='Pr.').relation('invc.state.code',relation_name='clients',mode='foreignkey',onDelete='raise')
         tbl.column('postcode',size=':5',name_long='!!Postcode',name_short='Postcode')
+        tbl.column('postcode_id',size='22',name_long='!!Postcode Ref',name_short='PC Ref').relation('postcode.id',relation_name='customers_by_postcode',mode='foreignkey')
         tbl.column('customer_type_code', size=':5',name_long='!!Customer type code',name_short='!!Cust type').relation('customer_type.code',relation_name='customers',mode='foreignkey',onDelete='raise')
         tbl.column('payment_type_code',size=':10',name_long='!!Payment type code',name_short='!!Pay type').relation('payment_type.code',relation_name='customers',mode='foreignkey',onDelete='raise')
         tbl.column('notes',name_long="!!Notes")
@@ -84,3 +85,12 @@ class Table(object):
                                       order_by='$date DESC, $id',
                                       limit=1),
                           dtype='T', name_long='Last Invoice')
+
+        # Torture test: deep traversal on BOTH sides of the join
+        # remote: invoice_row → product → product_type → production_state (3 hops)
+        # local:  customer → postcode → state (2 hops via #THIS)
+        tbl.formulaColumn('sales_from_local_state',
+                          select=dict(table='invc.invoice_row',
+                                      columns='SUM($tot_price)',
+                                      where='@invoice_id.customer_id=#THIS.id AND @product_id.@product_type_id.production_state=#THIS.@postcode_id.state'),
+                          dtype='N', name_long='Sales From Local State')
