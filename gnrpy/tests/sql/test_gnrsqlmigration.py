@@ -1,4 +1,6 @@
 import pytest
+from unittest.mock import MagicMock, patch
+
 from gnr.sql.gnrsqlmigration import SqlMigrator, DbExtractor
 from gnr.sql.gnrsqlmigration import new_relation_item, new_index_item, nested_defaultdict
 from gnr.sql.gnrsqlmigration.command_builder import CommandBuilderMixin
