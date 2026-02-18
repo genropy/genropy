@@ -1,8 +1,4 @@
-"""Tests that demonstrate confirmed bugs in the migration package.
-
-Each test is marked with ``pytest.mark.xfail`` because the bug has NOT been
-fixed yet.  When the fix is applied, the test will start passing and the
-``xfail`` marker should be removed.
+"""Tests for confirmed bugs in the migration package (now fixed).
 
 Bug inventory (from migration/README.md):
 
@@ -14,7 +10,6 @@ Bug inventory (from migration/README.md):
 5. migrator.py — falsy check on ``{}`` causes unnecessary re-extraction
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
 
 
@@ -24,7 +19,6 @@ from unittest.mock import MagicMock, patch
 
 class TestBug1_RelationItemMutatesCallerDict:
 
-    @pytest.mark.xfail(reason="Bug #1: new_relation_item mutates caller's attributes dict", strict=True)
     def test_caller_dict_unchanged_after_new_relation_item(self):
         from gnr.sql.gnrsqlmigration.structures import new_relation_item
 
@@ -54,7 +48,6 @@ class TestBug1_RelationItemMutatesCallerDict:
 
 class TestBug2_IndexItemMutatesCallerDict:
 
-    @pytest.mark.xfail(reason="Bug #2: new_index_item mutates caller's attributes dict", strict=True)
     def test_caller_dict_unchanged_after_new_index_item(self):
         from gnr.sql.gnrsqlmigration.structures import new_index_item
 
@@ -83,7 +76,6 @@ class TestBug2_IndexItemMutatesCallerDict:
 
 class TestBug3_StaleLoopVariableInProcessConstraints:
 
-    @pytest.mark.xfail(reason="Bug #3: stale loop variable v in process_constraints", strict=True)
     def test_multi_unique_constraint_uses_own_constraint_name(self):
         """When two multi-column UNIQUE constraints exist, each should use
         its own constraint_name — not the last value of ``v`` from the
@@ -150,7 +142,6 @@ class TestBug3_StaleLoopVariableInProcessConstraints:
 
 class TestBug4_ChangedConstraintReadsWrongDict:
 
-    @pytest.mark.xfail(reason="Bug #4: changed_constraint reads constraint_name from command dict instead of entity attributes", strict=True)
     def test_changed_constraint_uses_entity_attributes(self):
         """changed_constraint() should read constraint_name from
         item['attributes'], not from the commands nested_defaultdict
@@ -210,7 +201,6 @@ class TestBug4_ChangedConstraintReadsWrongDict:
 
 class TestBug5_FalsyCheckCausesReextraction:
 
-    @pytest.mark.xfail(reason="Bug #5: falsy check on {} causes unnecessary re-extraction", strict=True)
     def test_empty_dict_structures_not_reextracted(self):
         """After prepareStructures() sets sqlStructure={} (empty DB) and
         ormStructure={} (empty model), jsonModelWithoutMeta() should NOT

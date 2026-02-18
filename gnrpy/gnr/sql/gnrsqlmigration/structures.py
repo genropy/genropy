@@ -273,7 +273,8 @@ def new_relation_item(schema_name, table_name, columns, attributes=None,
     Returns:
         dict: Relation item with cleaned attributes and hashed name.
     """
-    attributes['columns'] = columns  # REVIEW: mutates caller's dict — should copy first
+    attributes = dict(attributes or {})
+    attributes['columns'] = columns
     hashed_entity_name = hashed_name(
         schema=schema_name, table=table_name,
         columns=columns, obj_type='fk'
@@ -311,7 +312,8 @@ def new_index_item(schema_name, table_name, columns, attributes=None,
         schema=schema_name, table=table_name,
         columns=columns, obj_type='idx'
     )
-    attributes['index_name'] = index_name or hashed_entity_name  # REVIEW: mutates caller's dict — should copy first
+    attributes = dict(attributes or {})
+    attributes['index_name'] = index_name or hashed_entity_name
     return {
         "entity": "index",
         "entity_name": hashed_entity_name,
