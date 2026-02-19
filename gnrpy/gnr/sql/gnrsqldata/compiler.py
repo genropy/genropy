@@ -59,6 +59,7 @@ from gnr.core.gnrdate import decodeDatePeriod
 from gnr.core import gnrstring
 from gnr.core.gnrbag import Bag
 from gnr.sql.gnrsql_exceptions import GnrSqlException, GnrSqlMissingField, GnrSqlMissingColumn
+from gnr.sql.gnrsqldata.subquery_utils import normalize_subquery_dict
 
 COLFINDER = re.compile(r"(\W|^)\$(\w+)")
 RELFINDER = re.compile(r"([^A-Za-z0-9_]|^)(\@(\w[\w.@:]+))")
@@ -713,22 +714,20 @@ class SqlQueryCompiler(object):
                 prefixed[subquery_name] = sq_pars
             sq_dict = prefixed
         for sq_name, sq_pars in sq_dict.items():
-            sq_where = sq_pars.get('where', '')
-            m = re.match(r'(@[\w.]+|\$\w+)\s*=\s*#THIS\.(\w+)(.*)', sq_where, re.DOTALL)
-            if m:
-                fk_field = m.group(1)
-                joiner = '%s=#THIS.%s' % (fk_field, m.group(2))
-                residual = m.group(3).strip()
-                if residual.upper().startswith('AND '):
-                    residual = residual[4:].strip()
-                sq_pars['where'] = residual or None
+            normalize_subquery_dict(sq_pars)
+            join_to = sq_pars.pop('join_to', None)
+            if join_to:
+                join_from = sq_pars.pop('join_from', None)
+                join_condition = sq_pars.pop('join_condition', None)
+                sq_pars['where'] = join_condition
+                joiner = '%s=#THIS.%s' % (join_to, join_from)
                 has_limit = 'limit' in sq_pars
                 existing_group_by = sq_pars.get('group_by')
                 if existing_group_by:
-                    sq_pars['group_by'] = '%s,%s' % (fk_field, existing_group_by)
+                    sq_pars['group_by'] = '%s,%s' % (join_to, existing_group_by)
                 elif not has_limit:
-                    sq_pars['group_by'] = fk_field
-                sq_pars['columns'] = '%s AS joiner, %s' % (fk_field, sq_pars['columns'])
+                    sq_pars['group_by'] = join_to
+                sq_pars['columns'] = '%s AS joiner, %s' % (join_to, sq_pars['columns'])
                 joiner = THISFINDER.sub(self.expandThis, joiner)
                 sq_pars['joiner'] = joiner
         return sq_dict, sql_formula
