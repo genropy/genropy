@@ -203,7 +203,7 @@ class SqlQueryCompiler(object):
         macro_expander: Adapter-specific macro expander instance.
     """
 
-    def __init__(self, tblobj, joinConditions=None, sqlContextName=None, sqlparams=None, locale=None, aliasPrefix=None):
+    def __init__(self, tblobj, joinConditions=None, sqlContextName=None, sqlparams=None, locale=None, aliasPrefix=None, mangler=None, query_kw=None, mainquery_kw=None, query=None):
         """Initialise the compiler for a given table.
 
         Args:
@@ -220,9 +220,17 @@ class SqlQueryCompiler(object):
                 used for date decoding and text formatting.
             aliasPrefix: Optional prefix for generated table aliases.
                 Defaults to ``'t'`` producing ``t0``, ``t1``, ...
+            mangler: Optional prefix for parameter namespacing in
+                compound queries.
+            query_kw: Optional dict of original query keyword arguments.
+            mainquery_kw: Optional dict of main query keyword arguments
+                (used by subqueries to access parent parameters).
+            query: Optional back-reference to the ``SqlQuery`` instance
+                that created this compiler.
         """
         self.tblobj = tblobj
         self.db = tblobj.db
+        self.query = query
         self.dbmodel = tblobj.db.model
         if tblobj.db.reuse_relation_tree:
             self.relations = tblobj.relations
@@ -235,6 +243,10 @@ class SqlQueryCompiler(object):
         self._currColKey = None
         self.aliasPrefix = aliasPrefix or 't'
         self.locale = locale
+        self.mangler = mangler
+        self.query_kw = query_kw or {}
+        self.mainquery_kw = mainquery_kw or {}
+        self.subquery_kw = {}
         self.macro_expander = self.db.adapter.macroExpander(self)
 
     def aliasCode(self, n):
@@ -248,6 +260,48 @@ class SqlQueryCompiler(object):
         """
         return '%s%i' %(self.aliasPrefix,n)
 
+    def mangle(self, sql_text):
+        """Prefix bind-parameter names with the mangler string.
+
+        Used by compound queries to namespace parameters from different
+        sub-queries so that they don't collide when merged into a single
+        ``sqlparams`` dict.
+
+        Parameters starting with ``env_`` are left untouched.
+
+        Args:
+            sql_text: SQL fragment potentially containing ``:param``
+                placeholders.
+
+        Returns:
+            str: The fragment with mangled parameter names, or the
+            original text if no mangler is set.
+        """
+        if not self.mangler:
+            return sql_text
+        def replace_param(m):
+            param_name = m.group(2)
+            if param_name.startswith('env_'):
+                return m.group(0)
+            if param_name in self.sqlparams:
+                return '%s%s_%s%s' % (m.group(1), self.mangler, param_name, m.group(3))
+            return m.group(0)
+        return re.sub(r"(:)(\w+)(\W|$)", replace_param, sql_text)
+
+    def mangleParams(self):
+        """Rename entries in ``sqlparams`` with the mangler prefix.
+
+        After mangling the SQL text, the actual parameter keys must be
+        updated to match.  Environment parameters (``env_*``) are skipped.
+        """
+        if not self.mangler:
+            return
+        for k, v in list(self.sqlparams.items()):
+            if not k.startswith('env_'):
+                mangled_key = '%s_%s' % (self.mangler, k)
+                mangled_value = self.query_kw.get(k, self.mainquery_kw.get(k))
+                self.subquery_kw[mangled_key] = mangled_value
+                self.sqlparams[mangled_key] = v
 
     def init(self, lazy=None, eager=None):
         """Reset per-compilation state before a new compilation pass.
@@ -1119,14 +1173,16 @@ class SqlQueryCompiler(object):
 
         # --- Store all compiled fragments into the SqlCompiledQuery ---
         self.cpl.distinct = distinct
-        self.cpl.columns = self.macro_expander.replace(columns,'TSRANK,TSHEADLINE')
-        self.cpl.where = where
-        self.cpl.group_by = group_by
-        self.cpl.having = having
-        self.cpl.order_by = self.macro_expander.replace(order_by,'TSRANK')
+        self.cpl.columns = self.mangle(self.macro_expander.replace(columns,'TSRANK,TSHEADLINE'))
+        self.cpl.where = self.mangle(where)
+        self.cpl.group_by = self.mangle(group_by)
+        self.cpl.having = self.mangle(having)
+        self.cpl.order_by = self.mangle(self.macro_expander.replace(order_by,'TSRANK'))
+        self.cpl.joins = [self.mangle(j) for j in self.cpl.joins]
         self.cpl.limit = limit
         self.cpl.offset = offset
         self.cpl.for_update = for_update
+        self.mangleParams()
         # REVIEW: commented-out debug raise -- remove if no longer needed
         #raise str(self.cpl.get_sqltext(self.db))  # uncomment it for hard debug
         return self.cpl
