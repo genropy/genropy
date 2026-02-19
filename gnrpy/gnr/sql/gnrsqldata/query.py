@@ -151,6 +151,8 @@ class SqlQuery(object):
                  locale=None,_storename=None,
                  checkPermissions=None,
                  aliasPrefix=None,
+                 mangler=None,
+                 mainquery_kw=None,
                  **kwargs):
         self.dbtable = dbtable
         self.sqlparams = sqlparams or {}
@@ -159,6 +161,9 @@ class SqlQuery(object):
         self.joinConditions = joinConditions or {}
         self.sqlContextName = sqlContextName
         self.relationDict = relationDict or {}
+        self.enable_sq_join = kwargs.pop('enable_sq_join', None)
+        self.sql_aggregate = kwargs.pop('sql_aggregate', None)
+        self.query_kw = dict(kwargs)
         self.sqlparams.update(kwargs)
         self.excludeLogicalDeleted = excludeLogicalDeleted
         self.excludeDraft = excludeDraft
@@ -169,6 +174,8 @@ class SqlQuery(object):
         self.storename = _storename
         self.checkPermissions = checkPermissions
         self.aliasPrefix = aliasPrefix
+        self.mangler = mangler
+        self.mainquery_kw = mainquery_kw or {}
         test = " ".join([v for v in (columns, where, order_by, group_by, having) if v])
         rels = set(re.findall(r'\$(\w*)', test))
         params = set(re.findall(r'\:(\w*)', test))
@@ -219,18 +226,24 @@ class SqlQuery(object):
 
     compiled = property(_get_compiled)
 
-    def compileQuery(self, count=False):
+    def compileQuery(self, count=False, compiled_class=None):
         """Return the :meth:`compiledQuery() <SqlQueryCompiler.compiledQuery()>` method.
 
-        :param count: boolean. If ``True``, optimize the sql query to get the number of resulting rows (like count(*))"""
+        :param count: boolean. If ``True``, optimize the sql query to get the number of resulting rows (like count(*))
+        :param compiled_class: optional factory class for the compiled query object."""
         return SqlQueryCompiler(self.dbtable.model,
                                 joinConditions=self.joinConditions,
                                 sqlContextName=self.sqlContextName,
                                 sqlparams=self.sqlparams,
                                 aliasPrefix=self.aliasPrefix,
-                                locale=self.locale).compiledQuery(count=count,
-                                                                  relationDict=self.relationDict,
-                                                                  **self.querypars)
+                                locale=self.locale,
+                                mangler=self.mangler,
+                                query_kw=self.query_kw,
+                                mainquery_kw=self.mainquery_kw,
+                                query=self).compiledQuery(count=count,
+                                                          compiled_class=compiled_class,
+                                                          relationDict=self.relationDict,
+                                                          **self.querypars)
 
     def cursor(self):
         """Get a cursor of the current selection."""
@@ -570,6 +583,132 @@ class SqlQuery(object):
                 n = l[0][0]
             cursor.close()
         return n
+
+    def _next_mangler_key(self, prefix):
+        """Generate a unique mangler key for parameter namespacing.
+
+        Each call increments a per-prefix counter stored in the database
+        environment, producing keys like ``sq0``, ``sq1``, ``cq0``, etc.
+
+        Args:
+            prefix: Short string prefix (e.g. ``'sq'`` for subqueries,
+                ``'cq'`` for compound queries).
+
+        Returns:
+            str: A unique key like ``'cq0'``, ``'cq1'``, etc.
+        """
+        env = self.db.currentEnv
+        counters = env.setdefault('_mangler_counters', {})
+        idx = counters.get(prefix, 0)
+        counters[prefix] = idx + 1
+        return '%s%d' % (prefix, idx)
+
+    def _compound(self, other, operator):
+        """Combine this query with *other* using a SQL set operator.
+
+        Args:
+            other: Another ``SqlQuery`` or ``SqlCompoundQuery``.
+            operator: SQL set operator string (``'UNION'``,
+                ``'UNION ALL'``, ``'INTERSECT'``, ``'EXCEPT'``).
+
+        Returns:
+            SqlCompoundQuery: A new compound query combining both.
+        """
+        if isinstance(other, SqlCompoundQuery):
+            self_key = self._next_mangler_key('cq')
+            self.mangler = self_key
+            queries = dict(other.queries)
+            queries[self_key] = self
+            template = '{%s} %s SELECT * FROM (%s) AS _cr' % (self_key, operator, other._template)
+        else:
+            self_key = self._next_mangler_key('cq')
+            other_key = other._next_mangler_key('cq')
+            self.mangler = self_key
+            other.mangler = other_key
+            queries = {self_key: self, other_key: other}
+            template = '{%s} %s {%s}' % (self_key, operator, other_key)
+        return SqlCompoundQuery(queries=queries, template=template,
+                                dbtable=self.dbtable, db=self.db)
+
+    def __add__(self, other):
+        return self._compound(other, 'UNION')
+
+    def __or__(self, other):
+        return self._compound(other, 'UNION ALL')
+
+    def __and__(self, other):
+        return self._compound(other, 'INTERSECT')
+
+    def __sub__(self, other):
+        return self._compound(other, 'EXCEPT')
+
+
+class SqlCompoundQuery(SqlQuery):
+    """A query built from multiple ``SqlQuery`` instances combined with
+    SQL set operators (UNION, INTERSECT, EXCEPT).
+
+    Created via the ``+``, ``|``, ``&``, ``-`` operators on ``SqlQuery``::
+
+        q_union     = q1 + q2   # UNION
+        q_union_all = q1 | q2   # UNION ALL
+        q_intersect = q1 & q2   # INTERSECT
+        q_except    = q1 - q2   # EXCEPT
+
+    Each sub-query is compiled independently with a mangler prefix so
+    that bind parameters don't collide.
+    """
+
+    def __init__(self, queries, template, dbtable, db):
+        self.queries = queries
+        self._template = template
+        self.dbtable = dbtable
+        self.db = db
+        self.storename = None
+
+    def _get_sqltext(self):
+        return self._template.format(**{k: q.sqltext for k, q in self.queries.items()})
+
+    sqltext = property(_get_sqltext)
+
+    def _get_compiled(self):
+        return next(iter(self.queries.values())).compiled
+
+    compiled = property(_get_compiled)
+
+    @property
+    def sqlparams(self):
+        result = {}
+        for q in self.queries.values():
+            result.update(q.sqlparams)
+        return result
+
+    def _compound(self, other, operator):
+        queries = dict(self.queries)
+        if isinstance(other, SqlCompoundQuery):
+            queries.update(other.queries)
+            template = 'SELECT * FROM (%s) AS _cl %s SELECT * FROM (%s) AS _cr' % (
+                self._template, operator, other._template)
+        else:
+            key = other._next_mangler_key('cq')
+            other.mangler = key
+            queries[key] = other
+            template = '%s %s {%s}' % (self._template, operator, key)
+        return SqlCompoundQuery(queries=queries, template=template,
+                                dbtable=self.dbtable, db=self.db)
+
+    def count(self):
+        """Return the total number of rows in the compound result.
+
+        Wraps the compound SQL in a ``SELECT count(*)`` wrapper.
+
+        Returns:
+            int: The total row count.
+        """
+        count_sql = 'SELECT count(*) AS gnr_row_count FROM (%s) AS _compound' % self.sqltext
+        cursor = self.db.execute(count_sql, self.sqlparams,
+                                 dbtable=self.dbtable.fullname,
+                                 storename=self.storename)
+        return cursor.fetchall()[0][0]
 
 
 # ===========================================================================
