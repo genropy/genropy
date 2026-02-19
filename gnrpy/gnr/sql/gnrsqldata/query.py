@@ -151,6 +151,8 @@ class SqlQuery(object):
                  locale=None,_storename=None,
                  checkPermissions=None,
                  aliasPrefix=None,
+                 mangler=None,
+                 mainquery_kw=None,
                  **kwargs):
         self.dbtable = dbtable
         self.sqlparams = sqlparams or {}
@@ -159,6 +161,8 @@ class SqlQuery(object):
         self.joinConditions = joinConditions or {}
         self.sqlContextName = sqlContextName
         self.relationDict = relationDict or {}
+        self.enable_sq_join = kwargs.pop('enable_sq_join', None)
+        self.query_kw = dict(kwargs)
         self.sqlparams.update(kwargs)
         self.excludeLogicalDeleted = excludeLogicalDeleted
         self.excludeDraft = excludeDraft
@@ -169,6 +173,8 @@ class SqlQuery(object):
         self.storename = _storename
         self.checkPermissions = checkPermissions
         self.aliasPrefix = aliasPrefix
+        self.mangler = mangler
+        self.mainquery_kw = mainquery_kw or {}
         test = " ".join([v for v in (columns, where, order_by, group_by, having) if v])
         rels = set(re.findall(r'\$(\w*)', test))
         params = set(re.findall(r'\:(\w*)', test))
@@ -228,9 +234,13 @@ class SqlQuery(object):
                                 sqlContextName=self.sqlContextName,
                                 sqlparams=self.sqlparams,
                                 aliasPrefix=self.aliasPrefix,
-                                locale=self.locale).compiledQuery(count=count,
-                                                                  relationDict=self.relationDict,
-                                                                  **self.querypars)
+                                locale=self.locale,
+                                mangler=self.mangler,
+                                query_kw=self.query_kw,
+                                mainquery_kw=self.mainquery_kw,
+                                query=self).compiledQuery(count=count,
+                                                          relationDict=self.relationDict,
+                                                          **self.querypars)
 
     def cursor(self):
         """Get a cursor of the current selection."""
@@ -570,6 +580,25 @@ class SqlQuery(object):
                 n = l[0][0]
             cursor.close()
         return n
+
+    def _next_mangler_key(self, prefix):
+        """Generate a unique mangler key for parameter namespacing.
+
+        Each call increments a per-prefix counter stored in the database
+        environment, producing keys like ``sq0``, ``sq1``, ``cq0``, etc.
+
+        Args:
+            prefix: Short string prefix (e.g. ``'sq'`` for subqueries,
+                ``'cq'`` for compound queries).
+
+        Returns:
+            str: A unique key like ``'cq0'``, ``'cq1'``, etc.
+        """
+        env = self.db.currentEnv
+        counters = env.setdefault('_mangler_counters', {})
+        idx = counters.get(prefix, 0)
+        counters[prefix] = idx + 1
+        return '%s%d' % (prefix, idx)
 
 
 # ===========================================================================
