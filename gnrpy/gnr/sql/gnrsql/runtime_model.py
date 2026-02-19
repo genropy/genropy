@@ -26,7 +26,7 @@ Provides ``RuntimeModel``, a container/context manager that collects
 virtual column and relation definitions and activates them inside a
 ``with`` block.
 
-Usage::
+Basic formula column::
 
     rm = db.runtimeModel()
     customer = rm.table('invc.customer')
@@ -38,6 +38,29 @@ Usage::
         result = db.query('invc.customer',
             columns='$account_name, $n_invoices').fetch()
     # outside: runtime model extensions are gone
+
+Formula column with relation navigation::
+
+    customer.formulaColumn('top_product_id', dtype='T',
+        select=dict(table='invc.invoice_row',
+                    columns='$product_id',
+                    where='@invoice_id.customer_id=#THIS.id',
+                    group_by='$product_id',
+                    order_by='COUNT(*) DESC',
+                    limit=1,
+        )).relation('product.id')
+
+    with rm:
+        # navigate through the runtime relation
+        result = db.query('invc.customer',
+            columns='$account_name, @top_product_id.description').fetch()
+
+Reusable across multiple with blocks::
+
+    with rm:
+        r1 = db.query(...).fetch()
+    with rm:
+        r2 = db.query(...).fetch()
 """
 
 from __future__ import annotations
