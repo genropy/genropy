@@ -74,6 +74,12 @@ ENVFINDER = re.compile(r"#ENV\(([^,)]+)(,[^),]+)?\)")
 PREFFINDER = re.compile(r"#PREF\(([^,)]+)(,[^),]+)?\)")
 THISFINDER = re.compile(r'#THIS\.([\w\.@]+)')
 
+AGGREGATOR_SQL = {
+    'SUM': 'SUM', 'MAX': 'MAX', 'MIN': 'MIN', 'AVG': 'AVG',
+    'CNT': 'COUNT',
+    'AND': 'BOOL_AND', 'OR': 'BOOL_OR',
+}
+
 class SqlCompiledQuery(object):
     """Value object holding every component of a compiled SQL SELECT statement.
 
@@ -425,6 +431,12 @@ class SqlQueryCompiler(object):
         newpath = []
         basealias = basealias or self.aliasCode(0)
 
+        # --- Preprocess: intercept many-side relations → inline subquery ---
+        if pathlist and self._sqlAggregateEnabled():
+            result = self._preprocessManyRelation(list(pathlist), fld, curr, basealias)
+            if result is not None:
+                return result
+
         # --- If the path has relation segments, resolve JOINs first ---
         if pathlist:
             alias, curr = self._findRelationAlias(list(pathlist), curr, basealias, newpath, parent=parent)
@@ -549,6 +561,136 @@ class SqlQueryCompiler(object):
                                         or getattr(ref_col, 'select', None)):
                 return True
         return False
+
+    # --- sql_aggregate: many-side relation → inline subquery ---
+
+    def _sqlAggregateEnabled(self):
+        """Return True when many-side relations should be converted to
+        inline aggregate subqueries instead of exploding JOINs."""
+        if self.query and getattr(self.query, 'sql_aggregate', None) is not None:
+            return gnrstring.boolean(self.query.sql_aggregate)
+        return gnrstring.boolean(getattr(self.db, 'extra_kw', {}).get('sql_aggregate', False))
+
+    def _preprocessManyRelation(self, pathlist, fld, curr, basealias):
+        """Scan *pathlist* for a many-side relation hop.
+
+        If found, build an inline aggregate subquery and return the SQL
+        expression.  If no many-side relation is encountered, return None
+        so that the caller falls through to the standard JOIN path.
+        """
+        segments_before = []
+        scan_curr = curr
+        for i, seg in enumerate(pathlist):
+            node = self._findRuntimeRelationNode(seg, scan_curr) or scan_curr.getNode(seg)
+            if node is None:
+                return None
+            joiner = node.attr.get('joiner')
+            if joiner is None:
+                return None
+            is_many = (joiner['mode'] != 'O' and not joiner.get('one_one', False))
+            if is_many:
+                remaining = list(pathlist[i + 1:])
+                remaining.append(fld)
+                target_field = '.'.join(remaining)
+                return self._compileManyAsSubquery(
+                    joiner, target_field, basealias, segments_before)
+            segments_before.append(seg)
+            scan_curr = node.getValue()
+        return None
+
+    def _compileManyAsSubquery(self, joiner, target_field, basealias,
+                               segments_before):
+        """Build a correlated aggregate subquery for a many-side relation.
+
+        Args:
+            joiner: The joiner dict from the many-side relation node.
+            target_field: Dot-separated field path inside the target table
+                (e.g. ``'total'`` or ``'@product_id.name'``).
+            basealias: SQL alias of the current (one-side) table.
+            segments_before: List of one-side relation segments already
+                traversed before the many-side hop (used to resolve
+                the correlation column via JOINs if needed).
+        """
+        many_rel = joiner['many_relation']
+        one_rel = joiner['one_relation']
+        mpkg, mtbl, mfld = many_rel.split('.')
+        _opkg, _otbl, ofld = one_rel.split('.')
+        target_table = '%s.%s' % (mpkg, mtbl)
+
+        dtype, aggregator = self._resolveTargetColumnInfo(target_table, target_field)
+        if aggregator is False:
+            return None
+
+        col_ref = self._fieldRef(target_field)
+        col_expr = self._buildAggregateExpr(dtype, aggregator, col_ref)
+
+        # Resolve the correlation: if there were one-side hops before the
+        # many-side, the correlation column must reference the alias obtained
+        # by traversing those hops.
+        if segments_before:
+            corr_path = '.'.join(segments_before)
+            corr_alias = self.getFieldAlias(corr_path + '.' + ofld)
+        else:
+            corr_alias = '%s.%s' % (self.db.adapter.asTranslator(basealias),
+                                    self.db.table(
+                                        joiner['one_relation'].rsplit('.', 1)[0]
+                                    ).column(ofld).adapted_sqlname)
+
+        sq_pars = dict(
+            table=target_table,
+            columns=col_expr,
+            where='$%s=%s' % (mfld, corr_alias),
+        )
+        compiled = self._compiledSubQuery(basealias, sq_pars)
+        return compiled.get_sqltext(self.db)
+
+    def _resolveTargetColumnInfo(self, target_table, target_field):
+        """Walk a (possibly deep) field path to find dtype and aggregator.
+
+        Returns:
+            tuple: ``(dtype, aggregator)`` of the leaf column.
+        """
+        parts = target_field.replace('@', '').split('.')
+        tblobj = self.db.table(target_table)
+        for seg in parts[:-1]:
+            col = tblobj.model.column(seg)
+            if col is None:
+                return 'T', None
+            rel = col.relatedColumn()
+            if rel is None:
+                return 'T', None
+            tblobj = rel.table.dbtable
+        leaf = parts[-1]
+        col = tblobj.model.column(leaf)
+        if col is not None:
+            attrs = col.attributes
+            return attrs.get('dtype', 'T'), attrs.get('aggregator')
+        vc = tblobj.model.getVirtualColumn(leaf)
+        if vc is not None:
+            return vc.attributes.get('dtype', 'T'), vc.attributes.get('aggregator')
+        return 'T', None
+
+    @staticmethod
+    def _fieldRef(target_field):
+        """Convert a target_field to the ``$``/``@``-prefixed column
+        reference used inside a subquery ``columns`` expression."""
+        if target_field.startswith('@'):
+            return target_field
+        return '$%s' % target_field
+
+    def _buildAggregateExpr(self, dtype, aggregator, col_ref):
+        """Build the SQL aggregate expression from dtype/aggregator.
+
+        Mirrors the logic of ``SqlTable.fieldAggregate``."""
+        if dtype in ('R', 'L', 'N', 'I'):
+            sql_func = AGGREGATOR_SQL.get(aggregator or 'SUM', 'SUM')
+            return '%s(%s)' % (sql_func, col_ref)
+        if dtype == 'B':
+            sql_func = 'BOOL_AND' if (not aggregator or aggregator == 'AND') else 'BOOL_OR'
+            return '%s(%s)' % (sql_func, col_ref)
+        # Text/other: use adapter-aware string_agg
+        separator = aggregator if (aggregator and aggregator is not False) else ','
+        return self.db.adapter.string_agg('DISTINCT %s::TEXT' % col_ref, separator)
 
     def _preprocess_subqueryes(self, attr, as_join=False, alias=None,
                                formula_column_name=None, sql_formula=None):

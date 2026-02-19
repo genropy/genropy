@@ -162,6 +162,7 @@ class SqlQuery(object):
         self.sqlContextName = sqlContextName
         self.relationDict = relationDict or {}
         self.enable_sq_join = kwargs.pop('enable_sq_join', None)
+        self.sql_aggregate = kwargs.pop('sql_aggregate', None)
         self.query_kw = dict(kwargs)
         self.sqlparams.update(kwargs)
         self.excludeLogicalDeleted = excludeLogicalDeleted
