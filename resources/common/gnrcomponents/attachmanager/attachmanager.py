@@ -315,14 +315,9 @@ class AttachManager(BaseComponent):
                                     onclick="genro.openBrowserTab(this.src, {target:'_blank'})")
         if currentPreviewZoom:
             imgPane.dataController("""
-                if(!zoomValue){
-                    imgDom.className = 'atc_img_fit';
-                    imgDom.style.zoom = '';
-                }else{
-                    imgDom.className = '';
-                    imgDom.style.zoom = zoomValue;
-                }
-            """,zoomValue=currentPreviewZoom,imgDom=img.js_domNode,_onStart=True)
+                genro.dom.setClass(imgDom,'atc_img_fit',!zoomValue);
+                imgDom.style.zoom = zoomValue || '';
+            """,zoomValue=currentPreviewZoom,imgDom=img.js_domNode)
         sc.contentPane(pageName='video', overflow='hidden').video(src=src,height='100%',width='100%',
                                     border=0,controls=True)
         parent.dataController("""       
