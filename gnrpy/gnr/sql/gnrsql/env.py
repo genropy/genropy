@@ -83,6 +83,18 @@ class EnvMixin:
 
     workdate = property(_get_workdate, _set_workdate)
 
+    # -- currentRuntimeModel property ---------------------------------------
+
+    def _get_currentRuntimeModel(self):
+        """Return the active RuntimeModel for the current thread, or None."""
+        return self.currentEnv.get('_runtime_model')
+
+    def _set_currentRuntimeModel(self, runtime_model):
+        """Set the active RuntimeModel for the current thread."""
+        self.currentEnv['_runtime_model'] = runtime_model
+
+    currentRuntimeModel = property(_get_currentRuntimeModel, _set_currentRuntimeModel)
+
     # -- locale property ----------------------------------------------------
 
     def _get_locale(self) -> str | None:

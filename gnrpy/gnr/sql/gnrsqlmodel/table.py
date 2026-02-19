@@ -45,6 +45,56 @@ from gnr.sql.gnrsqlmodel.helpers import bagItemFormula
 from gnr.sql.gnrsqltable import SqlTable
 
 
+class _VirtualColumnsWithRuntime:
+    """Wrapper that adds runtime virtual columns over the static container.
+
+    Delegates to the base container for static columns, with runtime
+    columns taking priority. Does NOT mutate the base container.
+    """
+
+    def __init__(self, base, runtime_cols):
+        self._base = base
+        self._extra = runtime_cols
+
+    def __getitem__(self, key):
+        if key:
+            result = self._extra.get(key.lower())
+            if result is not None:
+                return result
+        return self._base[key]
+
+    def get(self, key, default=None):
+        if key:
+            result = self._extra.get(key.lower())
+            if result is not None:
+                return result
+        result = self._base[key]
+        return result if result is not None else default
+
+    def items(self):
+        seen = set()
+        for name, obj in self._extra.items():
+            seen.add(name)
+            yield name, obj
+        for name, obj in self._base.items():
+            if name not in seen:
+                yield name, obj
+
+    def keys(self):
+        return [name for name, _ in self.items()]
+
+    def values(self):
+        return [obj for _, obj in self.items()]
+
+    def __contains__(self, key):
+        if key and key.lower() in self._extra:
+            return True
+        return key in self._base
+
+    def __getattr__(self, name):
+        return getattr(self._base, name)
+
+
 class DbTableObj(DbModelObj):
     """Compiled model object representing a database table.
 
@@ -358,19 +408,34 @@ class DbTableObj(DbModelObj):
         vc_key = '_virtual_columns_{}'.format(self.dbtable.fullname.replace('.', '_'))
         env_virtual_columns = self.db.currentEnv.get(vc_key)
         if env_virtual_columns:
-            return env_virtual_columns
-        virtual_columns = self['virtual_columns']
-        local_virtual_columns = self.db.localVirtualColumns(self.fullname)
-        if local_virtual_columns:
-            for node in local_virtual_columns:
+            virtual_columns = env_virtual_columns
+        else:
+            virtual_columns = self['virtual_columns']
+            local_virtual_columns = self.db.localVirtualColumns(self.fullname)
+            if local_virtual_columns:
+                for node in local_virtual_columns:
+                    obj = DbVirtualColumnObj(structnode=node, parent=virtual_columns)
+                    virtual_columns.children[obj.name.lower()] = obj
+            for node in self.dynamic_columns:
                 obj = DbVirtualColumnObj(structnode=node, parent=virtual_columns)
                 virtual_columns.children[obj.name.lower()] = obj
-        for node in self.dynamic_columns:
-            obj = DbVirtualColumnObj(structnode=node, parent=virtual_columns)
-            virtual_columns.children[obj.name.lower()] = obj
-        self._handle_variant_columns(virtual_columns=virtual_columns)
-        self.db.currentEnv[vc_key] = virtual_columns
-        return virtual_columns
+            self._handle_variant_columns(virtual_columns=virtual_columns)
+            self.db.currentEnv[vc_key] = virtual_columns
+        return self._withRuntimeColumns(virtual_columns)
+
+    def _withRuntimeColumns(self, virtual_columns):
+        """Wrap virtual_columns with runtime columns if a RuntimeModel is active.
+
+        Returns the wrapper if runtime columns exist, otherwise the
+        original container unchanged.
+        """
+        runtime = self.db.currentRuntimeModel
+        if not runtime:
+            return virtual_columns
+        runtime_cols = runtime.columns_for(self.fullname)
+        if not runtime_cols:
+            return virtual_columns
+        return _VirtualColumnsWithRuntime(virtual_columns, runtime_cols)
 
     @property
     def composite_columns(self) -> Bag:
