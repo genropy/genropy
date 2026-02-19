@@ -286,6 +286,7 @@ class QueryMixin:
         aliasPrefix: str | None = None,
         ignoreTableOrderBy: bool | None = None,
         subtable: str | None = None,
+        mainquery_kw: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> str:
         """Compile a query to raw SQL text.
@@ -317,6 +318,8 @@ class QueryMixin:
             aliasPrefix: Prefix for column aliases.
             ignoreTableOrderBy: If set, ignore the table's default ordering.
             subtable: Subtable filter name.
+            mainquery_kw: Optional dict of main query keyword arguments
+                (used by subqueries to access parent parameters).
             **kwargs: Extra parameter bindings injected into ``currentEnv``.
 
         Returns:
@@ -343,6 +346,7 @@ class QueryMixin:
             aliasPrefix=aliasPrefix,
             ignoreTableOrderBy=ignoreTableOrderBy,
             subtable=subtable,
+            mainquery_kw=mainquery_kw,
         )
         result = q.sqltext
         if kwargs:
