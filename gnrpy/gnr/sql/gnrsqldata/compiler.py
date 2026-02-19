@@ -133,6 +133,7 @@ class SqlCompiledQuery(object):
         self.columns = ''
         self.joins = []
         self.additional_joins = []
+        self.sq_joins = []
         self.where = None
         self.group_by = None
         self.having = None
@@ -145,6 +146,7 @@ class SqlCompiledQuery(object):
         self.aggregateDict = {}
         self.pyColumns = []
         self.maintable_as = maintable_as
+        self.tpl = None
 
     def get_sqltext(self, db):
         """Render the final SQL text using the database adapter.
@@ -165,8 +167,33 @@ class SqlCompiledQuery(object):
         'maintable', 'distinct', 'columns', 'joins', 'where', 'group_by', 'having', 'order_by', 'limit', 'offset',
         'for_update'):
             kwargs[k] = getattr(self, k)
-        return db.adapter.compileSql(maintable_as=self.maintable_as,**kwargs)
+        result = db.adapter.compileSql(maintable_as=self.maintable_as,**kwargs)
+        if self.tpl:
+            result = self.tpl % result
+        return result
 
+
+class SqlCompiledSubQuery(SqlCompiledQuery):
+    """A compiled subquery with identity support for merge.
+
+    Used by ``_compiledSubQuery`` to track subquery identity so that
+    identical subqueries (same table, resolved WHERE, GROUP BY) can be
+    merged into a single LEFT JOIN with multiple aggregate columns.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._identity_hash = None
+
+    def __eq__(self, other):
+        if not isinstance(other, SqlCompiledSubQuery):
+            return NotImplemented
+        return self._identity_hash is not None and self._identity_hash == other._identity_hash
+
+    def __hash__(self):
+        if self._identity_hash is not None:
+            return self._identity_hash
+        return id(self)
 
 
 class SqlQueryCompiler(object):
@@ -247,6 +274,7 @@ class SqlQueryCompiler(object):
         self.query_kw = query_kw or {}
         self.mainquery_kw = mainquery_kw or {}
         self.subquery_kw = {}
+        self.sq_compiled_dct = {}
         self.macro_expander = self.db.adapter.macroExpander(self)
 
     def aliasCode(self, n):
@@ -928,7 +956,8 @@ class SqlQueryCompiler(object):
                       storename=None,subtable=None,
                       count=False, excludeLogicalDeleted=True,excludeDraft=True,
                       ignorePartition=False,ignoreTableOrderBy=False,
-                      addPkeyColumn=True):
+                      addPkeyColumn=True,
+                      compiled_class=None):
         """Compile a SELECT query for a multi-row selection.
 
         This is the main entry point used by ``SqlQuery``.  It performs the
@@ -987,7 +1016,8 @@ class SqlQueryCompiler(object):
             rendered to SQL via ``get_sqltext``.
         """
         # get the SqlCompiledQuery: an object that mantains all the informations to build the sql text
-        self.cpl = SqlCompiledQuery(self.tblobj.sqlfullname,relationDict=relationDict,maintable_as=self.aliasCode(0))
+        compiled_class = compiled_class or SqlCompiledQuery
+        self.cpl = compiled_class(self.tblobj.sqlfullname,relationDict=relationDict,maintable_as=self.aliasCode(0))
         distinct = distinct or '' # distinct is a text to be inserted in the sql query string
 
         # aggregate: test if the result will aggregate db rows
