@@ -23,7 +23,7 @@ class Table(object):
         self.sysFields(tbl,draftField=True,ldel=False)
         
         tbl.column('in_out', size='1', name_long='!!I/O', name_short='!!I/O',values='I:Input,O:Output')
-        tbl.column('to_address',name_long='!!To',indexed=True,_sendback=True)
+        tbl.column('to_address',name_long='!!To',_sendback=True)
         tbl.column('from_address',name_long='!!From',_sendback=True)
         tbl.column('cc_address',name_long='!!Cc',_sendback=True)
         tbl.column('bcc_address',name_long='!!Bcc',_sendback=True)
