@@ -351,6 +351,34 @@ class SqlQueryCompiler(object):
         self.aliases = {self.tblobj.sqlfullname: self.aliasCode(0)}
         self.fieldlist = []
 
+    def expandThis(self, m):
+        fld = m.group(1)
+        return self.getFieldAlias(fld, curr=self._curr, basealias=self._alias)
+
+    def expandPref(self, m):
+        prefpath = m.group(1)
+        dflt = m.group(2)[1:] if m.group(2) else None
+        return str(self._curr_tblobj.pkg.getPreference(prefpath, dflt))
+
+    def expandEnv(self, m):
+        what = m.group(1)
+        par2 = None
+        if m.group(2):
+            par2 = m.group(2)[1:]
+        if what in self.db.currentEnv:
+            return "'%s'" % gnrstring.toText(self.db.currentEnv[what])
+        elif par2 and par2 in self.db.currentEnv:
+            return "'%s'" % gnrstring.toText(self.db.currentEnv[par2])
+        if par2:
+            env_tblobj = self.db.table(par2)
+        else:
+            env_tblobj = self._curr_tblobj
+        handler = getattr(env_tblobj, 'env_%s' % what, None)
+        if handler:
+            return handler()
+        else:
+            return 'Not found %s' % what
+
     def getFieldAlias(self, fieldpath, curr=None, basealias=None, parent=None):
         """Resolve a field path into its SQL ``alias.column`` representation.
 
@@ -389,46 +417,6 @@ class SqlQueryCompiler(object):
                 or py_method).
         """
 
-        def expandThis(m):
-            """Regex callback: resolve ``#THIS.field`` references relative to current alias."""
-            fld = m.group(1)
-            return self.getFieldAlias(fld, curr=curr, basealias=alias)
-
-        def expandPref(m):
-            """Regex callback: resolve ``#PREF(path, default)`` to a literal preference value."""
-            prefpath = m.group(1)
-            dflt = m.group(2)[1:] if m.group(2) else None
-            return str(curr_tblobj.pkg.getPreference(prefpath, dflt))
-
-        def expandEnv(m):
-            """Regex callback: resolve ``#ENV(name, fallback)`` to a quoted env value.
-
-            Resolution order:
-                1. Direct lookup of *name* in ``db.currentEnv``.
-                2. Direct lookup of *fallback* (par2) in ``db.currentEnv``.
-                3. Call ``env_<name>`` method on the table object.
-                4. Return a literal ``'Not found <name>'`` string.
-            """
-            what = m.group(1)
-            par2 = None
-            if m.group(2):
-                par2 = m.group(2)[1:]
-            # Branch 1: direct env lookup
-            if what in self.db.currentEnv:
-                return "'%s'" % gnrstring.toText(self.db.currentEnv[what])
-            # Branch 2: fallback env lookup
-            elif par2 and par2 in self.db.currentEnv:
-                return "'%s'" % gnrstring.toText(self.db.currentEnv[par2])
-            # Branch 3: delegate to table's env_<name> handler
-            if par2:
-                env_tblobj = self.db.table(par2)
-            else:
-                env_tblobj = curr_tblobj
-            handler = getattr(env_tblobj, 'env_%s' % what, None)
-            if handler:
-                return handler()
-            else:
-                return 'Not found %s' % what
         # --- Split the dotted field path into relation segments + final field ---
         pathlist = fieldpath.split('.')
         fld = pathlist.pop()
@@ -442,6 +430,9 @@ class SqlQueryCompiler(object):
         else:
             alias = basealias
         curr_tblobj = self.db.table(curr.tbl_name, pkg=curr.pkg_name)
+        self._curr = curr
+        self._alias = alias
+        self._curr_tblobj = curr_tblobj
 
         # --- Branch: field is NOT a physical column -- check virtual columns ---
         if not fld in curr.keys():
@@ -495,16 +486,16 @@ class SqlQueryCompiler(object):
                         sq_pars.setdefault('excludeLogicalDeleted',False)
                         sq_pars.setdefault('subtable','*')
                         aliasPrefix = '%s_t' %alias
-                        sq_where = THISFINDER.sub(expandThis,sq_where)
+                        sq_where = THISFINDER.sub(self.expandThis,sq_where)
                         sql_text = self.db.queryCompile(table=sq_table,where=sq_where,aliasPrefix=aliasPrefix,addPkeyColumn=False,ignoreTableOrderBy=True,**sq_pars)
                         sql_formula = re.sub('#%s\\b' %susbselect, tpl %sql_text,sql_formula)
                 subreldict = {}
                 sql_formula = self.macro_expander.replace(sql_formula,'TSRANK,TSHEADLINE')
                 sql_formula = self.updateFieldDict(sql_formula, reldict=subreldict)
                 sql_formula = BETWEENFINDER.sub(self.expandBetween, sql_formula)
-                sql_formula = ENVFINDER.sub(expandEnv, sql_formula)
-                sql_formula = PREFFINDER.sub(expandPref, sql_formula)
-                sql_formula = THISFINDER.sub(expandThis,sql_formula)
+                sql_formula = ENVFINDER.sub(self.expandEnv, sql_formula)
+                sql_formula = PREFFINDER.sub(self.expandPref, sql_formula)
+                sql_formula = THISFINDER.sub(self.expandThis,sql_formula)
                 sql_formula_var = dictExtract(attr,'var_')
                 if sql_formula_var:
                     prefix = str(id(fldalias))
