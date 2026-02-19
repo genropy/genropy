@@ -1339,6 +1339,10 @@ class SqlQueryCompiler(object):
         group_by = gnrstring.templateReplace(group_by, colPars)
         #self.cpl.additional_joins.reverse()
         self.cpl.joins = [gnrstring.templateReplace(j, colPars) for j in self.cpl.joins+self.cpl.additional_joins]
+        if self.cpl.sq_joins:
+            self.cpl.joins.extend(self.cpl.sq_joins)
+        for _h, (sq_compiled, _sq_name, _col_counter) in self.sq_compiled_dct.items():
+            self.cpl.joins.append(sq_compiled.get_sqltext(self.db))
         # --- DISTINCT handling ---
         if distinct:
             # Branch: caller explicitly requested DISTINCT
