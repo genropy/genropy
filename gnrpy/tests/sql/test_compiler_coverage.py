@@ -29,6 +29,10 @@ DISCOUNT_TIER_COUNT = 16
 REGION_COUNT = 5
 PRICE_YEAR_COUNT = 6780
 PRICE_YEAR_NOTE_COUNT = 3381
+CUSTOMER_RES_COUNT = 1625
+CUSTOMER_TRD_COUNT = 791
+CUSTOMER_COM_COUNT = 483
+CUSTOMER_GOV_COUNT = 301
 
 
 @pytest.fixture(scope='module')
@@ -1883,3 +1887,418 @@ class TestCombinedQueries:
             year_val = int(float(r['anno']))
             assert 2000 <= year_val <= 2030
             assert len(r['periodo']) == 7
+
+
+# ===================================================================
+# Erpy patterns: exists=dict, group_by+having, INTERVAL, CAST date,
+# :env_workdate, RTRIM, var_* IN :list, static alias, draftField
+# ===================================================================
+
+class TestExistsDict:
+    """exists=dict() pattern — has_expensive_rows on invoice."""
+
+    def test_has_expensive_rows_pg(self, db_pg):
+        rows = db_pg.table('invc.invoice').query(
+            columns='$inv_number, $has_expensive_rows',
+            limit=10
+        ).fetch()
+        assert len(rows) == 10
+        for r in rows:
+            assert r['has_expensive_rows'] in (True, False)
+
+    @pytest.mark.skipif(True, reason='EXISTS not supported on SQLite')
+    def test_has_expensive_rows_sqlite(self, db_sqlite):
+        rows = db_sqlite.table('invc.invoice').query(
+            columns='$inv_number, $has_expensive_rows',
+            limit=10
+        ).fetch()
+        assert len(rows) == 10
+
+    def test_has_expensive_rows_where_pg(self, db_pg):
+        rows = db_pg.table('invc.invoice').query(
+            columns='$inv_number, $total',
+            where='$has_expensive_rows IS TRUE',
+            limit=5
+        ).fetch()
+        for r in rows:
+            max_price = db_pg.table('invc.invoice_row').readColumns(
+                columns='MAX($unit_price)',
+                where='$invoice_id=:iid', iid=r['pkey']
+            )
+            assert max_price is not None and float(max_price) > 100
+
+
+class TestGroupByHaving:
+    """select_* with group_by + having — duplicate_products on invoice."""
+
+    def test_duplicate_products_pg(self, db_pg):
+        rows = db_pg.table('invc.invoice').query(
+            columns='$inv_number, $duplicate_products',
+            limit=20
+        ).fetch()
+        assert len(rows) == 20
+        for r in rows:
+            assert r['duplicate_products'] is not None
+            assert int(r['duplicate_products']) >= 0
+
+    def test_duplicate_products_sqlite(self, db_sqlite):
+        rows = db_sqlite.table('invc.invoice').query(
+            columns='$inv_number, $duplicate_products',
+            limit=20
+        ).fetch()
+        assert len(rows) == 20
+        for r in rows:
+            assert int(r['duplicate_products']) >= 0
+
+
+class TestIntervalArithmetic:
+    """INTERVAL in sql_formula — due_date on invoice."""
+
+    def test_due_date_pg(self, db_pg):
+        from datetime import date, datetime
+        rows = db_pg.table('invc.invoice').query(
+            columns='$date, $due_date',
+            limit=10
+        ).fetch()
+        assert len(rows) == 10
+        for r in rows:
+            if r['date'] and r['due_date']:
+                inv_date = r['date']
+                due = r['due_date']
+                if isinstance(inv_date, datetime):
+                    inv_date = inv_date.date()
+                if isinstance(due, datetime):
+                    due = due.date()
+                if isinstance(inv_date, date) and isinstance(due, date):
+                    assert (due - inv_date).days == 30
+
+    @pytest.mark.skipif(True, reason='INTERVAL not supported on SQLite')
+    def test_due_date_sqlite(self, db_sqlite):
+        rows = db_sqlite.table('invc.invoice').query(
+            columns='$date, $due_date',
+            limit=10
+        ).fetch()
+        assert len(rows) == 10
+
+
+class TestCastDate:
+    """CAST($__ins_ts AS DATE) = $date — created_same_day on invoice."""
+
+    def test_created_same_day_pg(self, db_pg):
+        rows = db_pg.table('invc.invoice').query(
+            columns='$inv_number, $created_same_day',
+            limit=10
+        ).fetch()
+        assert len(rows) == 10
+        for r in rows:
+            assert r['created_same_day'] in (True, False)
+
+    def test_created_same_day_sqlite(self, db_sqlite):
+        rows = db_sqlite.table('invc.invoice').query(
+            columns='$inv_number, $created_same_day',
+            limit=10
+        ).fetch()
+        assert len(rows) == 10
+
+
+class TestEnvWorkdate:
+    """:env_workdate in formula — is_recent on invoice."""
+
+    def test_is_recent_pg(self, db_pg):
+        rows = db_pg.table('invc.invoice').query(
+            columns='$inv_number, $date, $is_recent',
+            limit=20
+        ).fetch()
+        assert len(rows) == 20
+        for r in rows:
+            assert r['is_recent'] in (True, False)
+
+    @pytest.mark.skipif(True, reason='INTERVAL not supported on SQLite')
+    def test_is_recent_sqlite(self, db_sqlite):
+        rows = db_sqlite.table('invc.invoice').query(
+            columns='$inv_number, $date, $is_recent',
+            limit=20
+        ).fetch()
+        assert len(rows) == 20
+
+
+class TestRtrim:
+    """RTRIM in sql_formula — note_text_rtrim on invoice_note."""
+
+    def test_rtrim_pg(self, db_pg):
+        rows = db_pg.table('invc.invoice_note').query(
+            columns='$note_text, $note_text_rtrim',
+            limit=10
+        ).fetch()
+        assert len(rows) == 10
+        for r in rows:
+            if r['note_text']:
+                assert r['note_text_rtrim'] == r['note_text'].rstrip()
+
+    def test_rtrim_sqlite(self, db_sqlite):
+        rows = db_sqlite.table('invc.invoice_note').query(
+            columns='$note_text, $note_text_rtrim',
+            limit=10
+        ).fetch()
+        assert len(rows) == 10
+        for r in rows:
+            if r['note_text']:
+                assert r['note_text_rtrim'] == r['note_text'].rstrip()
+
+
+class TestVarInList:
+    """var_* with IN :list — is_exempt_vat on invoice_row."""
+
+    def test_is_exempt_vat_pg(self, db_pg):
+        rows = db_pg.table('invc.invoice_row').query(
+            columns='$id, $is_exempt_vat',
+            limit=20
+        ).fetch()
+        assert len(rows) == 20
+        for r in rows:
+            assert r['is_exempt_vat'] in (True, False)
+
+    def test_is_exempt_vat_sqlite(self, db_sqlite):
+        rows = db_sqlite.table('invc.invoice_row').query(
+            columns='$id, $is_exempt_vat',
+            limit=20
+        ).fetch()
+        assert len(rows) == 20
+        for r in rows:
+            assert r['is_exempt_vat'] in (0, 1, True, False)
+
+    def test_is_exempt_vat_cross_validate_pg(self, db_pg):
+        """Verify exempt matches FRE/INP vat_type_code."""
+        rows = db_pg.table('invc.invoice_row').query(
+            columns='$id, $is_exempt_vat, @product_id.vat_type_code',
+            limit=50
+        ).fetch()
+        for r in rows:
+            vat_code = r['_product_id_vat_type_code']
+            if vat_code in ('FRE', 'INP'):
+                assert r['is_exempt_vat'] is True
+            else:
+                assert r['is_exempt_vat'] is False
+
+
+class TestStaticAlias:
+    """static=True on aliasColumn — invoice_date_static on invoice_row."""
+
+    def test_static_alias_pg(self, db_pg):
+        rows = db_pg.table('invc.invoice_row').query(
+            columns='$id, $invoice_date_static, @invoice_id.date',
+            limit=10
+        ).fetch()
+        assert len(rows) == 10
+        for r in rows:
+            assert r['invoice_date_static'] is not None
+
+    def test_static_alias_sqlite(self, db_sqlite):
+        rows = db_sqlite.table('invc.invoice_row').query(
+            columns='$id, $invoice_date_static',
+            limit=10
+        ).fetch()
+        assert len(rows) == 10
+        for r in rows:
+            assert r['invoice_date_static'] is not None
+
+
+class TestDraftField:
+    """draftField=True — is_confirmed on customer."""
+
+    def test_is_confirmed_pg(self, db_pg):
+        rows = db_pg.table('invc.customer').query(
+            columns='$account_name, $is_confirmed',
+            limit=10
+        ).fetch()
+        assert len(rows) == 10
+        for r in rows:
+            assert r['is_confirmed'] is True
+
+    def test_is_confirmed_sqlite(self, db_sqlite):
+        rows = db_sqlite.table('invc.customer').query(
+            columns='$account_name, $is_confirmed',
+            limit=10
+        ).fetch()
+        assert len(rows) == 10
+        for r in rows:
+            assert bool(r['is_confirmed'])
+
+    def test_draft_filter_count_pg(self, db_pg):
+        """Default query excludes drafts, count must match."""
+        default = db_pg.table('invc.customer').query().count()
+        no_draft = db_pg.table('invc.customer').query(
+            excludeDraft=False
+        ).count()
+        assert default == no_draft == CUSTOMER_COUNT
+
+    def test_draft_filter_count_sqlite(self, db_sqlite):
+        default = db_sqlite.table('invc.customer').query().count()
+        no_draft = db_sqlite.table('invc.customer').query(
+            excludeDraft=False
+        ).count()
+        assert default == no_draft == CUSTOMER_COUNT
+
+
+# ---------------------------------------------------------------------------
+# Cat. Subtable — tbl.subtable() filter on customer_type_code
+# ---------------------------------------------------------------------------
+
+class TestSubtableSingle:
+    """Query with a single subtable filter."""
+
+    def test_subtable_residential_pg(self, db_pg):
+        count = db_pg.table('invc.customer').query(
+            subtable='residential'
+        ).count()
+        assert count == CUSTOMER_RES_COUNT
+
+    def test_subtable_residential_sqlite(self, db_sqlite):
+        count = db_sqlite.table('invc.customer').query(
+            subtable='residential'
+        ).count()
+        assert count == CUSTOMER_RES_COUNT
+
+    def test_subtable_commercial_pg(self, db_pg):
+        count = db_pg.table('invc.customer').query(
+            subtable='commercial'
+        ).count()
+        assert count == CUSTOMER_COM_COUNT
+
+    def test_subtable_commercial_sqlite(self, db_sqlite):
+        count = db_sqlite.table('invc.customer').query(
+            subtable='commercial'
+        ).count()
+        assert count == CUSTOMER_COM_COUNT
+
+    def test_subtable_government_pg(self, db_pg):
+        count = db_pg.table('invc.customer').query(
+            subtable='government'
+        ).count()
+        assert count == CUSTOMER_GOV_COUNT
+
+    def test_subtable_government_sqlite(self, db_sqlite):
+        count = db_sqlite.table('invc.customer').query(
+            subtable='government'
+        ).count()
+        assert count == CUSTOMER_GOV_COUNT
+
+    def test_subtable_trade_pg(self, db_pg):
+        count = db_pg.table('invc.customer').query(
+            subtable='trade'
+        ).count()
+        assert count == CUSTOMER_TRD_COUNT
+
+    def test_subtable_trade_sqlite(self, db_sqlite):
+        count = db_sqlite.table('invc.customer').query(
+            subtable='trade'
+        ).count()
+        assert count == CUSTOMER_TRD_COUNT
+
+
+class TestSubtableCombined:
+    """Subtable with AND/OR operators and wildcard."""
+
+    def test_subtable_and_pg(self, db_pg):
+        """residential & commercial — intersection (should be 0)."""
+        count = db_pg.table('invc.customer').query(
+            subtable='residential&commercial'
+        ).count()
+        assert count == 0
+
+    def test_subtable_and_sqlite(self, db_sqlite):
+        count = db_sqlite.table('invc.customer').query(
+            subtable='residential&commercial'
+        ).count()
+        assert count == 0
+
+    def test_subtable_or_pg(self, db_pg):
+        """residential | government — union."""
+        count = db_pg.table('invc.customer').query(
+            subtable='residential|government'
+        ).count()
+        assert count == CUSTOMER_RES_COUNT + CUSTOMER_GOV_COUNT
+
+    def test_subtable_or_sqlite(self, db_sqlite):
+        count = db_sqlite.table('invc.customer').query(
+            subtable='residential|government'
+        ).count()
+        assert count == CUSTOMER_RES_COUNT + CUSTOMER_GOV_COUNT
+
+    def test_subtable_wildcard_pg(self, db_pg):
+        """subtable='*' disables subtable filter — full count."""
+        count = db_pg.table('invc.customer').query(
+            subtable='*'
+        ).count()
+        assert count == CUSTOMER_COUNT
+
+    def test_subtable_wildcard_sqlite(self, db_sqlite):
+        count = db_sqlite.table('invc.customer').query(
+            subtable='*'
+        ).count()
+        assert count == CUSTOMER_COUNT
+
+    def test_subtable_sum_equals_total_pg(self, db_pg):
+        """All subtable counts must sum to total."""
+        tbl = db_pg.table('invc.customer')
+        total = sum(
+            tbl.query(subtable=s).count()
+            for s in ('residential', 'commercial', 'government', 'trade')
+        )
+        assert total == CUSTOMER_COUNT
+
+    def test_subtable_sum_equals_total_sqlite(self, db_sqlite):
+        tbl = db_sqlite.table('invc.customer')
+        total = sum(
+            tbl.query(subtable=s).count()
+            for s in ('residential', 'commercial', 'government', 'trade')
+        )
+        assert total == CUSTOMER_COUNT
+
+
+class TestSubtableVirtualColumn:
+    """$subtable_* auto-generated boolean virtual columns."""
+
+    def test_subtable_vc_residential_pg(self, db_pg):
+        rows = db_pg.table('invc.customer').query(
+            columns='$account_name, $subtable_residential',
+            where='$subtable_residential IS TRUE',
+            limit=5
+        ).fetch()
+        assert len(rows) == 5
+        for r in rows:
+            assert r['subtable_residential'] is True
+
+    def test_subtable_vc_residential_sqlite(self, db_sqlite):
+        rows = db_sqlite.table('invc.customer').query(
+            columns='$account_name, $subtable_residential',
+            where='$subtable_residential IS TRUE',
+            limit=5
+        ).fetch()
+        assert len(rows) == 5
+
+    def test_subtable_vc_count_pg(self, db_pg):
+        """Count via $subtable_residential IS TRUE must match subtable filter."""
+        count = db_pg.table('invc.customer').query(
+            where='$subtable_residential IS TRUE'
+        ).count()
+        assert count == CUSTOMER_RES_COUNT
+
+    def test_subtable_vc_count_sqlite(self, db_sqlite):
+        count = db_sqlite.table('invc.customer').query(
+            where='$subtable_residential IS TRUE'
+        ).count()
+        assert count == CUSTOMER_RES_COUNT
+
+    def test_subtable_vc_false_pg(self, db_pg):
+        """$subtable_residential IS FALSE = all non-residential."""
+        count = db_pg.table('invc.customer').query(
+            where='$subtable_residential IS FALSE'
+        ).count()
+        assert count == CUSTOMER_COUNT - CUSTOMER_RES_COUNT
+
+    def test_subtable_vc_false_sqlite(self, db_sqlite):
+        count = db_sqlite.table('invc.customer').query(
+            where='$subtable_residential IS FALSE'
+        ).count()
+        assert count == CUSTOMER_COUNT - CUSTOMER_RES_COUNT

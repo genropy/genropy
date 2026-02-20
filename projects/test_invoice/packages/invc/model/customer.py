@@ -85,6 +85,11 @@ class Table(object):
                                        " WHERE i.customer_id = #THIS.id)"),
                           dtype='B', name_long='Has Activity')
 
+        tbl.subtable('residential', condition="$customer_type_code = 'RES'")
+        tbl.subtable('commercial', condition="$customer_type_code = 'COM'")
+        tbl.subtable('government', condition="$customer_type_code = 'GOV'")
+        tbl.subtable('trade', condition="$customer_type_code = 'TRD'")
+
         # $__is_draft in formula - pattern erpy
         tbl.formulaColumn('is_confirmed',
                           sql_formula="$__is_draft IS NOT TRUE",
