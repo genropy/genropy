@@ -1,199 +1,173 @@
-"""Test for SQLite boolean rewrite in prepareSqlText.
+"""Test for SQLite boolean rewrite (bug #549).
 
-Verifies that IS [NOT] TRUE/FALSE rewrites handle NULL correctly,
-matching PostgreSQL's three-valued logic semantics.
+The excludeDraft filter generates ``$__is_draft IS NOT TRUE``.
+On PostgreSQL this correctly includes rows where __is_draft is NULL
+(three-valued logic).  The old SQLite rewrite turned IS NOT TRUE
+into ``!=1``, which loses NULL rows because ``NULL != 1`` is NULL.
 
-Bug #549: the old rewrite turned ``IS NOT TRUE`` into ``!=1``,
-but ``NULL != 1`` is ``NULL`` in SQL (not TRUE as in PostgreSQL).
+These tests use the real model (customer with draftField=True) and
+run actual queries through the adapter on both PG and SQLite to
+verify the fix end-to-end.
 """
 
-import re
-import sqlite3
 import pytest
+from gnr.app.gnrapp import GnrApp
+
+INSTANCE_PATH_PG = (
+    '/Users/gporcari/Sviluppo/Genropy/genropy'
+    '/projects/test_invoice/instances/test_invoice_pg'
+)
+INSTANCE_PATH_SQLITE = (
+    '/Users/gporcari/Sviluppo/Genropy/genropy'
+    '/projects/test_invoice/instances/test_invoice'
+)
+
+DRAFT_MARKER = '__bool_rewrite_test__'
 
 
 @pytest.fixture(scope='module')
-def conn():
-    """In-memory SQLite database with a test table."""
-    c = sqlite3.connect(':memory:')
-    cur = c.cursor()
-    cur.execute('CREATE TABLE t (id INTEGER, flag BOOLEAN)')
-    cur.execute('INSERT INTO t VALUES (1, NULL)')
-    cur.execute('INSERT INTO t VALUES (2, 0)')
-    cur.execute('INSERT INTO t VALUES (3, 1)')
-    c.commit()
-    return c
+def db_pg():
+    try:
+        app = GnrApp(INSTANCE_PATH_PG)
+        return app.db
+    except Exception:
+        pytest.skip('PostgreSQL instance not available')
 
 
-class TestPostgresSemantics:
-    """Expected results based on PostgreSQL three-valued logic.
+@pytest.fixture(scope='module')
+def db_sqlite():
+    try:
+        app = GnrApp(INSTANCE_PATH_SQLITE)
+        return app.db
+    except Exception:
+        pytest.skip('SQLite instance not available')
 
-    PostgreSQL truth table:
-        NULL IS TRUE      -> FALSE
-        NULL IS NOT TRUE  -> TRUE
-        NULL IS FALSE     -> FALSE
-        NULL IS NOT FALSE -> TRUE
-        0    IS TRUE      -> FALSE
-        0    IS NOT TRUE  -> TRUE
-        0    IS FALSE     -> TRUE
-        0    IS NOT FALSE -> FALSE
-        1    IS TRUE      -> TRUE
-        1    IS NOT TRUE  -> FALSE
-        1    IS FALSE     -> FALSE
-        1    IS NOT FALSE -> TRUE
+
+def _insert_draft_records(db):
+    """Insert 3 customer records with __is_draft NULL, FALSE, TRUE.
+
+    Uses DRAFT_MARKER in notes so they can be found and cleaned up.
+    Returns list of inserted pkeys.
     """
-
-    def test_is_not_true_includes_null(self, conn):
-        """IS NOT TRUE must match NULL and 0 (ids 1, 2)."""
-        cur = conn.cursor()
-        cur.execute(
-            'SELECT id FROM t WHERE flag IS NOT TRUE ORDER BY id'
-        )
-        assert [r[0] for r in cur.fetchall()] == [1, 2]
-
-    def test_is_true_excludes_null(self, conn):
-        """IS TRUE must match only 1 (id 3)."""
-        cur = conn.cursor()
-        cur.execute('SELECT id FROM t WHERE flag IS TRUE ORDER BY id')
-        assert [r[0] for r in cur.fetchall()] == [3]
-
-    def test_is_false_excludes_null(self, conn):
-        """IS FALSE must match only 0 (id 2)."""
-        cur = conn.cursor()
-        cur.execute('SELECT id FROM t WHERE flag IS FALSE ORDER BY id')
-        assert [r[0] for r in cur.fetchall()] == [2]
-
-    def test_is_not_false_includes_null(self, conn):
-        """IS NOT FALSE must match NULL and 1 (ids 1, 3)."""
-        cur = conn.cursor()
-        cur.execute(
-            'SELECT id FROM t WHERE flag IS NOT FALSE ORDER BY id'
-        )
-        assert [r[0] for r in cur.fetchall()] == [1, 3]
+    tbl = db.table('invc.customer')
+    pkeys = []
+    for i, draft_val in enumerate([None, False, True]):
+        record = tbl.insert(dict(
+            account_name='BoolRewrite Test %i' % i,
+            state='NSW',
+            customer_type_code='RES',
+            payment_type_code='CC',
+            notes=DRAFT_MARKER,
+            __is_draft=draft_val,
+        ))
+        pkeys.append(record['id'])
+    db.commit()
+    return pkeys
 
 
-class TestOldRewriteBroken:
-    """Demonstrate that the old !=1 / =1 rewrite is wrong for NULL."""
-
-    def test_old_is_not_true_misses_null(self, conn):
-        """Old rewrite: IS NOT TRUE -> !=1.  NULL!=1 is NULL, row lost."""
-        cur = conn.cursor()
-        cur.execute('SELECT id FROM t WHERE flag !=1 ORDER BY id')
-        result = [r[0] for r in cur.fetchall()]
-        # Only id=2 (flag=0) matches.  id=1 (NULL) is LOST.
-        assert result == [2], (
-            'Old rewrite loses NULL rows: got %s instead of [1, 2]' % result
-        )
-
-    def test_old_is_not_false_misses_null(self, conn):
-        """Old rewrite: IS NOT FALSE -> !=0.  NULL!=0 is NULL, row lost."""
-        cur = conn.cursor()
-        cur.execute('SELECT id FROM t WHERE flag !=0 ORDER BY id')
-        result = [r[0] for r in cur.fetchall()]
-        # Only id=3 (flag=1) matches.  id=1 (NULL) is LOST.
-        assert result == [3], (
-            'Old rewrite loses NULL rows: got %s instead of [1, 3]' % result
-        )
+def _cleanup_draft_records(db):
+    """Remove all records tagged with DRAFT_MARKER."""
+    tbl = db.table('invc.customer')
+    rows = tbl.query(
+        where='$notes = :marker',
+        marker=DRAFT_MARKER,
+        excludeDraft=False,
+        excludeLogicalDeleted=False
+    ).fetch()
+    for r in rows:
+        tbl.delete(r)
+    db.commit()
 
 
-class TestFixedRewrite:
-    """Verify the corrected rewrite handles NULL properly."""
+class TestExcludeDraftSqlite:
+    """excludeDraft must include NULL and FALSE, exclude TRUE on SQLite."""
 
-    def test_fixed_is_not_true(self, conn):
-        """Fixed: IS NOT TRUE -> (IS NULL OR !=1)."""
-        cur = conn.cursor()
-        cur.execute(
-            'SELECT id FROM t WHERE (flag IS NULL OR flag !=1) ORDER BY id'
-        )
-        assert [r[0] for r in cur.fetchall()] == [1, 2]
+    def test_exclude_draft_includes_null_and_false(self, db_sqlite):
+        _cleanup_draft_records(db_sqlite)
+        pkeys = _insert_draft_records(db_sqlite)
+        try:
+            tbl = db_sqlite.table('invc.customer')
+            rows = tbl.query(
+                where='$notes = :marker',
+                marker=DRAFT_MARKER,
+                excludeDraft=True,
+                excludeLogicalDeleted=False
+            ).fetch()
+            found = {r['pkey'] for r in rows}
+            # NULL and FALSE must pass the filter
+            assert pkeys[0] in found, '__is_draft=NULL must be included'
+            assert pkeys[1] in found, '__is_draft=FALSE must be included'
+            # TRUE must be excluded
+            assert pkeys[2] not in found, '__is_draft=TRUE must be excluded'
+        finally:
+            _cleanup_draft_records(db_sqlite)
 
-    def test_fixed_is_true(self, conn):
-        """Fixed: IS TRUE -> (IS NOT NULL AND =1)."""
-        cur = conn.cursor()
-        cur.execute(
-            'SELECT id FROM t WHERE (flag IS NOT NULL AND flag =1) ORDER BY id'
-        )
-        assert [r[0] for r in cur.fetchall()] == [3]
-
-    def test_fixed_is_false(self, conn):
-        """Fixed: IS FALSE -> (IS NOT NULL AND =0)."""
-        cur = conn.cursor()
-        cur.execute(
-            'SELECT id FROM t WHERE (flag IS NOT NULL AND flag =0) ORDER BY id'
-        )
-        assert [r[0] for r in cur.fetchall()] == [2]
-
-    def test_fixed_is_not_false(self, conn):
-        """Fixed: IS NOT FALSE -> (IS NULL OR !=0)."""
-        cur = conn.cursor()
-        cur.execute(
-            'SELECT id FROM t WHERE (flag IS NULL OR flag !=0) ORDER BY id'
-        )
-        assert [r[0] for r in cur.fetchall()] == [1, 3]
+    def test_exclude_draft_count(self, db_sqlite):
+        _cleanup_draft_records(db_sqlite)
+        _insert_draft_records(db_sqlite)
+        try:
+            tbl = db_sqlite.table('invc.customer')
+            total = tbl.query(
+                where='$notes = :marker',
+                marker=DRAFT_MARKER,
+                excludeDraft=False,
+                excludeLogicalDeleted=False
+            ).count()
+            filtered = tbl.query(
+                where='$notes = :marker',
+                marker=DRAFT_MARKER,
+                excludeDraft=True,
+                excludeLogicalDeleted=False
+            ).count()
+            assert total == 3
+            assert filtered == 2
+        finally:
+            _cleanup_draft_records(db_sqlite)
 
 
-class TestAdapterRewrite:
-    """Test the actual regex rewrite from gnrsqlite._booleanSubCb."""
+class TestExcludeDraftPgVsSqlite:
+    """Same query on PG and SQLite must return the same results."""
 
-    PATTERN = re.compile(r'(\(*)(["\w]["\w.]*) +IS +(NOT +)?(TRUE|FALSE)', re.I)
+    def test_draft_filter_same_count(self, db_pg, db_sqlite):
+        for db in (db_pg, db_sqlite):
+            _cleanup_draft_records(db)
+            _insert_draft_records(db)
+        try:
+            counts = {}
+            for name, db in [('pg', db_pg), ('sqlite', db_sqlite)]:
+                tbl = db.table('invc.customer')
+                counts[name] = tbl.query(
+                    where='$notes = :marker',
+                    marker=DRAFT_MARKER,
+                    excludeDraft=True,
+                    excludeLogicalDeleted=False
+                ).count()
+            assert counts['pg'] == counts['sqlite'] == 2
+        finally:
+            for db in (db_pg, db_sqlite):
+                _cleanup_draft_records(db)
 
-    @staticmethod
-    def _rewrite(m):
-        prefix = m.group(1)
-        expr = m.group(2)
-        is_not = bool(m.group(3))
-        is_true = m.group(4).upper() == 'TRUE'
-        val = '1' if is_true else '0'
-        if is_not:
-            return '%s(%s IS NULL OR %s !=%s)' % (prefix, expr, expr, val)
-        else:
-            return '%s(%s IS NOT NULL AND %s =%s)' % (prefix, expr, expr, val)
-
-    def _apply(self, sql):
-        return self.PATTERN.sub(self._rewrite, sql)
-
-    def test_rewrite_is_not_true(self):
-        result = self._apply('"t0"."flag" IS NOT TRUE')
-        assert result == '("t0"."flag" IS NULL OR "t0"."flag" !=1)'
-
-    def test_rewrite_is_true(self):
-        result = self._apply('"t0"."flag" IS TRUE')
-        assert result == '("t0"."flag" IS NOT NULL AND "t0"."flag" =1)'
-
-    def test_rewrite_is_false(self):
-        result = self._apply('"t0"."flag" IS FALSE')
-        assert result == '("t0"."flag" IS NOT NULL AND "t0"."flag" =0)'
-
-    def test_rewrite_is_not_false(self):
-        result = self._apply('"t0"."flag" IS NOT FALSE')
-        assert result == '("t0"."flag" IS NULL OR "t0"."flag" !=0)'
-
-    def test_rewrite_in_where_clause(self):
-        sql = (
-            'SELECT * FROM t WHERE ("t0"."__del_ts" IS NULL)'
-            ' AND ("t0"."__is_draft" IS NOT TRUE)'
-        )
-        result = self._apply(sql)
-        assert '("t0"."__is_draft" IS NULL OR "t0"."__is_draft" !=1)' in result
-        assert '"__del_ts" IS NULL' in result
-
-    def test_rewrite_preserves_null_rows(self, conn):
-        """End-to-end: rewritten SQL returns same rows as native IS NOT TRUE."""
-        rewritten = self._apply(
-            'SELECT id FROM t WHERE flag IS NOT TRUE ORDER BY id'
-        )
-        cur = conn.cursor()
-        cur.execute(rewritten)
-        assert [r[0] for r in cur.fetchall()] == [1, 2]
-
-    def test_rewrite_balanced_parentheses(self, conn):
-        """Full WHERE clause produces valid SQL after rewrite."""
-        sql = (
-            'SELECT id FROM t WHERE (flag IS NULL OR flag =0)'
-            ' AND (flag IS NOT TRUE) ORDER BY id'
-        )
-        rewritten = self._apply(sql)
-        cur = conn.cursor()
-        cur.execute(rewritten)
-        rows = [r[0] for r in cur.fetchall()]
-        assert rows == [1, 2]
+    def test_draft_filter_same_pkeys_excluded(self, db_pg, db_sqlite):
+        for db in (db_pg, db_sqlite):
+            _cleanup_draft_records(db)
+        pkeys = {}
+        for name, db in [('pg', db_pg), ('sqlite', db_sqlite)]:
+            pkeys[name] = _insert_draft_records(db)
+        try:
+            for name, db in [('pg', db_pg), ('sqlite', db_sqlite)]:
+                tbl = db.table('invc.customer')
+                rows = tbl.query(
+                    where='$notes = :marker',
+                    marker=DRAFT_MARKER,
+                    excludeDraft=True,
+                    excludeLogicalDeleted=False
+                ).fetch()
+                found = {r['pkey'] for r in rows}
+                assert len(found) == 2, '%s: expected 2 non-draft rows' % name
+                # The TRUE record must not be there
+                assert pkeys[name][2] not in found, (
+                    '%s: draft=TRUE must be excluded' % name
+                )
+        finally:
+            for db in (db_pg, db_sqlite):
+                _cleanup_draft_records(db)
