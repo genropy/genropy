@@ -804,7 +804,7 @@ class GnrApp(object):
     12"""
     def __init__(self, instanceFolder=None, custom_config=None,
                  forTesting=False, debug=False, restorepath=None,
-                 enabled_packages=None, **kwargs):
+                 enabled_packages=None, db_attrs=None, **kwargs):
         self.aux_instances = {}
         self.gnr_config = getGnrConfig(set_environment=True)
         self.debug=debug
@@ -870,7 +870,7 @@ class GnrApp(object):
             self.main_module = gnrImport(os.path.join(self.customFolder, 'custom.py'),avoidDup=True, silent=False)
             instanceMixin(self, getattr(self.main_module, 'Application', None))
             self.webPageCustom = getattr(self.main_module, 'WebPage', None)
-        self.init(forTesting=forTesting,restorepath=restorepath)
+        self.init(forTesting=forTesting, restorepath=restorepath, db_attrs=db_attrs)
         self.creationTime = time.time()
 
     def get_modulefinder(self):
@@ -933,20 +933,36 @@ class GnrApp(object):
         instance_config.update(base_instance_config, preservePattern=re.compile(r'^[\$\{]'))
         return instance_config
         
-    def init(self, forTesting=False,restorepath=None):
+    def init(self, db_attrs=None, restorepath=None, forTesting=False):
         """Initiate a :class:`GnrApp`
-        
-        :param forTesting:  if ``False``, setup the application normally.
-                            if ``True``, setup the application for testing with a temporary sqlite database.
-                            If it's a :ref:`bag`, setup the application for testing and import test data from this bag.
-                            (see :meth:`loadTestingData()`)"""
+
+        :param db_attrs:    a dict of db connection attributes that override
+                            the ones read from instanceconfig. When provided,
+                            ``model.check(applyChanges=True)`` is called after
+                            startup so that the schema is created/updated.
+        :param forTesting:  deprecated — use *db_attrs* instead.
+        """
+        if forTesting:
+            import warnings
+            warnings.warn(
+                "GnrApp(forTesting=...) is deprecated. "
+                "Use db_attrs=dict(implementation='sqlite', dbname=...) "
+                "and call app.db.model.check(applyChanges=True) after init.",
+                DeprecationWarning, stacklevel=3
+            )
+            tempdir = tempfile.mkdtemp()
+            db_attrs = dict(implementation='sqlite',
+                            dbname=os.path.join(tempdir, 'testing'))
+            logger.info('Testing database dir: %s', tempdir)
+
+            @atexit.register
+            def removeTemporaryDirectory():
+                shutil.rmtree(tempdir)
+
         self.onIniting()
         self.base_lang = self.config['i18n?base_lang'] or 'en'
         self.catalog = GnrClassCatalog()
         self.localization = {}
-
-
-
 
         # load the packages
         for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
@@ -956,44 +972,32 @@ class GnrApp(object):
         self.check_package_dependencies()
         if 'checkdepcli' in self.kwargs:
             return
-        
-        if not forTesting:
-            dbattrs = dict(self.config.getAttr('db') or {}) 
-            dbattrs['implementation'] = dbattrs.get('implementation') or 'sqlite'
-            if dbattrs.get('dbname') == '_dummydb':
-                pass
-            elif self.remote_db:
-                rdb = self.config.get(f"remote_db")#.{self.remote_db}")
-                if rdb:
-                    rconf = rdb.getAttr(self.remote_db)
-                    if rconf:
-                        logger.info("Using remote db: %s", self.remote_db)
-                        dbattrs.update(rconf)
-                    else:
-                        logger.error("Remote db %s does not exists", self.remote_db)
-            elif dbattrs and dbattrs.get('implementation') == 'sqlite':
-                dbname = dbattrs.pop('filename',None) or dbattrs['dbname']
-                if not os.path.isabs(dbname):
-                    dbname = self.realPath(os.path.join('..','data',dbname))
-                dbattrs['dbname'] = dbname
-        else:
-            # Setup for testing with a temporary sqlite database
-            tempdir = tempfile.mkdtemp()
-            dbattrs = {}
-            dbattrs['implementation'] = 'sqlite'
-            dbattrs['dbname'] = os.path.join(tempdir, 'testing')
 
-            # We have to use a directory, because genro sqlite adapter
-            # will create a sqlite file for each package
-            logger.info('Testing database dir: %s', tempdir)
+        dbattrs = dict(self.config.getAttr('db') or {})
+        dbattrs['implementation'] = dbattrs.get('implementation') or 'sqlite'
+        if dbattrs.get('dbname') == '_dummydb':
+            pass
+        elif self.remote_db:
+            rdb = self.config.get(f"remote_db")#.{self.remote_db}")
+            if rdb:
+                rconf = rdb.getAttr(self.remote_db)
+                if rconf:
+                    logger.info("Using remote db: %s", self.remote_db)
+                    dbattrs.update(rconf)
+                else:
+                    logger.error("Remote db %s does not exists", self.remote_db)
+        elif dbattrs and dbattrs.get('implementation') == 'sqlite':
+            dbname = dbattrs.pop('filename',None) or dbattrs['dbname']
+            if not os.path.isabs(dbname):
+                dbname = self.realPath(os.path.join('..','data',dbname))
+            dbattrs['dbname'] = dbname
 
-            @atexit.register
-            def removeTemporaryDirectory():
-                shutil.rmtree(tempdir)
-                
+        if db_attrs:
+            dbattrs.update(db_attrs)
+
         dbattrs['application'] = self
         self.db = GnrSqlAppDb(debugger=getattr(self, 'sqlDebugger', None), **dbattrs)
-        
+
         for pkgid, apppkg in list(self.packages.items()):
             apppkg.initTableMixinDict()
             self.db.packageMixin('%s' % (pkgid), apppkg.pkgMixin)
@@ -1006,13 +1010,11 @@ class GnrApp(object):
             self.config['menu'] = self.config['menu']['#0']
         #if self.instanceMenu:
         #    self.config['menu']=self.instanceMenu
-            
+
         self.localizer = AppLocalizer(self)
-        if forTesting:
-            # Create tables in temporary database
+        if db_attrs:
             self.db.model.check(applyChanges=True)
-                
-            if isinstance(forTesting, Bag):
+            if forTesting and isinstance(forTesting, Bag):
                 self.loadTestingData(forTesting)
         self.onInited()
 
