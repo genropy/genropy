@@ -33,6 +33,12 @@ CUSTOMER_RES_COUNT = 1625
 CUSTOMER_TRD_COUNT = 791
 CUSTOMER_COM_COUNT = 483
 CUSTOMER_GOV_COUNT = 301
+CUSTOMER_NSW_COUNT = 399
+CUSTOMER_VIC_COUNT = 402
+INVOICE_NSW_COUNT = 21
+INVOICE_VIC_COUNT = 39
+STAFF_COUNT = 32
+STAFF_ROLE_COUNT = 5
 
 
 @pytest.fixture(scope='module')
@@ -2302,3 +2308,174 @@ class TestSubtableVirtualColumn:
             where='$subtable_residential IS FALSE'
         ).count()
         assert count == CUSTOMER_COUNT - CUSTOMER_RES_COUNT
+
+
+# ---------------------------------------------------------------------------
+# Cat. Partition — partition_state on customer, partition_customer_state on invoice
+# ---------------------------------------------------------------------------
+
+class TestPartitionCurrentState:
+    """partition with current_invc_state (single value)."""
+
+    def test_customer_partition_nsw_pg(self, db_pg):
+        db_pg.currentEnv['current_invc_state'] = 'NSW'
+        try:
+            count = db_pg.table('invc.customer').query().count()
+            assert count == CUSTOMER_NSW_COUNT
+        finally:
+            del db_pg.currentEnv['current_invc_state']
+
+    def test_customer_partition_nsw_sqlite(self, db_sqlite):
+        db_sqlite.currentEnv['current_invc_state'] = 'NSW'
+        try:
+            count = db_sqlite.table('invc.customer').query().count()
+            assert count == CUSTOMER_NSW_COUNT
+        finally:
+            del db_sqlite.currentEnv['current_invc_state']
+
+    def test_invoice_partition_nsw_pg(self, db_pg):
+        db_pg.currentEnv['current_invc_state'] = 'NSW'
+        try:
+            count = db_pg.table('invc.invoice').query().count()
+            assert count == INVOICE_NSW_COUNT
+        finally:
+            del db_pg.currentEnv['current_invc_state']
+
+    def test_invoice_partition_nsw_sqlite(self, db_sqlite):
+        db_sqlite.currentEnv['current_invc_state'] = 'NSW'
+        try:
+            count = db_sqlite.table('invc.invoice').query().count()
+            assert count == INVOICE_NSW_COUNT
+        finally:
+            del db_sqlite.currentEnv['current_invc_state']
+
+    def test_partition_ignore_pg(self, db_pg):
+        """ignorePartition=True bypasses the filter."""
+        db_pg.currentEnv['current_invc_state'] = 'NSW'
+        try:
+            count = db_pg.table('invc.customer').query(
+                ignorePartition=True
+            ).count()
+            assert count == CUSTOMER_COUNT
+        finally:
+            del db_pg.currentEnv['current_invc_state']
+
+    def test_partition_ignore_sqlite(self, db_sqlite):
+        db_sqlite.currentEnv['current_invc_state'] = 'NSW'
+        try:
+            count = db_sqlite.table('invc.customer').query(
+                ignorePartition=True
+            ).count()
+            assert count == CUSTOMER_COUNT
+        finally:
+            del db_sqlite.currentEnv['current_invc_state']
+
+
+class TestPartitionAllowedStates:
+    """partition with allowed_invc_state (multiple values)."""
+
+    def test_customer_allowed_pg(self, db_pg):
+        db_pg.currentEnv['allowed_invc_state'] = ['NSW', 'VIC']
+        try:
+            count = db_pg.table('invc.customer').query().count()
+            assert count == CUSTOMER_NSW_COUNT + CUSTOMER_VIC_COUNT
+        finally:
+            del db_pg.currentEnv['allowed_invc_state']
+
+    def test_customer_allowed_sqlite(self, db_sqlite):
+        db_sqlite.currentEnv['allowed_invc_state'] = ['NSW', 'VIC']
+        try:
+            count = db_sqlite.table('invc.customer').query().count()
+            assert count == CUSTOMER_NSW_COUNT + CUSTOMER_VIC_COUNT
+        finally:
+            del db_sqlite.currentEnv['allowed_invc_state']
+
+    def test_invoice_allowed_pg(self, db_pg):
+        db_pg.currentEnv['allowed_invc_state'] = ['NSW', 'VIC']
+        try:
+            count = db_pg.table('invc.invoice').query().count()
+            assert count == INVOICE_NSW_COUNT + INVOICE_VIC_COUNT
+        finally:
+            del db_pg.currentEnv['allowed_invc_state']
+
+    def test_invoice_allowed_sqlite(self, db_sqlite):
+        db_sqlite.currentEnv['allowed_invc_state'] = ['NSW', 'VIC']
+        try:
+            count = db_sqlite.table('invc.invoice').query().count()
+            assert count == INVOICE_NSW_COUNT + INVOICE_VIC_COUNT
+        finally:
+            del db_sqlite.currentEnv['allowed_invc_state']
+
+    def test_no_partition_full_count_pg(self, db_pg):
+        """Without env vars, no partition filter — full count."""
+        count = db_pg.table('invc.customer').query().count()
+        assert count == CUSTOMER_COUNT
+
+    def test_no_partition_full_count_sqlite(self, db_sqlite):
+        count = db_sqlite.table('invc.customer').query().count()
+        assert count == CUSTOMER_COUNT
+
+
+class TestStaffBasic:
+    """Basic staff table queries — VC and cross-package relation."""
+
+    def test_staff_count_pg(self, db_pg):
+        count = db_pg.table('invc.staff').query().count()
+        assert count == STAFF_COUNT
+
+    def test_staff_count_sqlite(self, db_sqlite):
+        count = db_sqlite.table('invc.staff').query().count()
+        assert count == STAFF_COUNT
+
+    def test_staff_full_name_pg(self, db_pg):
+        rows = db_pg.table('invc.staff').query(
+            columns='$full_name, $role_description, $state_name',
+            where="$role_code = 'MGR'",
+            order_by='$state'
+        ).fetch()
+        assert len(rows) == 8
+        assert rows[0]['role_description'] == 'Manager'
+        assert rows[0]['full_name']
+
+    def test_staff_full_name_sqlite(self, db_sqlite):
+        rows = db_sqlite.table('invc.staff').query(
+            columns='$full_name, $role_description, $state_name',
+            where="$role_code = 'MGR'",
+            order_by='$state'
+        ).fetch()
+        assert len(rows) == 8
+        assert rows[0]['role_description'] == 'Manager'
+
+    def test_staff_username_cross_pkg_pg(self, db_pg):
+        """$username alias traverses cross-package relation to adm.user."""
+        rows = db_pg.table('invc.staff').query(
+            columns='$full_name, $username',
+            where="$state = 'NSW' AND $role_code = 'MGR'"
+        ).fetch()
+        assert len(rows) == 1
+        assert rows[0]['username'] == 'james.wilson'
+
+    def test_staff_username_cross_pkg_sqlite(self, db_sqlite):
+        rows = db_sqlite.table('invc.staff').query(
+            columns='$full_name, $username',
+            where="$state = 'NSW' AND $role_code = 'MGR'"
+        ).fetch()
+        assert len(rows) == 1
+        assert rows[0]['username'] == 'james.wilson'
+
+    def test_staff_region_deep_relation_pg(self, db_pg):
+        """$region_name traverses @state.@region_code.name."""
+        rows = db_pg.table('invc.staff').query(
+            columns='$full_name, $region_name',
+            where="$state = 'NSW'",
+            limit=1
+        ).fetch()
+        assert rows[0]['region_name'] == 'New South Wales'
+
+    def test_staff_region_deep_relation_sqlite(self, db_sqlite):
+        rows = db_sqlite.table('invc.staff').query(
+            columns='$full_name, $region_name',
+            where="$state = 'NSW'",
+            limit=1
+        ).fetch()
+        assert rows[0]['region_name'] == 'New South Wales'

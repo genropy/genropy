@@ -3,7 +3,9 @@
 
 class Table(object):
     def config_db(self, pkg):
-        tbl = pkg.table('customer', pkey='id', name_long='!!Customer', name_plural='!!Customers',caption_field='account_name')
+        tbl = pkg.table('customer', pkey='id', name_long='!!Customer', name_plural='!!Customers',
+                        caption_field='account_name',
+                        partition_state='invc_state')
         self.sysFields(tbl, draftField=True)
         tbl.column('account_name', name_long='!!Account name',name_short='Account name', validate_notnull=True, validate_len='2:40')
         tbl.column('street_address',name_long='!!Street Address', name_short='St.Address')

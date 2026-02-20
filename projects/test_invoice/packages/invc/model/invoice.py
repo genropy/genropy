@@ -4,7 +4,9 @@ from decimal import Decimal
 
 class Table(object):
     def config_db(self, pkg):
-        tbl = pkg.table('invoice', pkey='id', name_long='!!Invoice', name_plural='!!Invoice', caption_field='inv_number')
+        tbl = pkg.table('invoice', pkey='id', name_long='!!Invoice', name_plural='!!Invoice',
+                        caption_field='inv_number',
+                        partition_customer_state='invc_state')
         self.sysFields(tbl)
         tbl.column('inv_number' ,size='10',name_long='!!Invoice number', name_short='Inv N',unique=True)
         tbl.column('customer_id',size='22' ,group='_',name_long='!!Customer'
@@ -33,6 +35,9 @@ class Table(object):
         tbl.aliasColumn('customer_name',
                         relation_path='@customer_id.account_name',
                         name_long='Customer Name')
+        tbl.aliasColumn('customer_state',
+                        relation_path='@customer_id.state',
+                        name_long='Customer State')
         tbl.formulaColumn('anno',
                           sql_formula="EXTRACT(YEAR FROM $date)",
                           dtype='T', name_long='Anno')
