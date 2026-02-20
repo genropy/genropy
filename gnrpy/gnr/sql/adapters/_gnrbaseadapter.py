@@ -620,7 +620,7 @@ class SqlDbAdapter(object):
         result = """'<a %s >%s</a>'""" % (' '.join(['%s="%s"' %(k,v) for k,v in list(kw.items())]), link_txt)
         return result
 
-    def setLocale(self, locale):
+    def setLocale(self, locale): # pragma: no cover
         """-- IMPLEMENT THIS --
         Set the locale in the database connection
         """
