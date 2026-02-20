@@ -17,7 +17,7 @@ class Table(object):
                         name_long='Customer name')
         tbl.aliasColumn('customer_id', relation_path='@invoice_id.customer_id',
                         name_long='Customer id'
-                        ).relation('customer.id',relation_name='invoice_rows_by_customer',mode='foreignkey')
+                        ).relation('customer.id',relation_name='invoice_rows_by_customer')
         tbl.aliasColumn('product_name',
                         relation_path='@product_id.description',
                         name_long='Product Name')
@@ -59,6 +59,26 @@ class Table(object):
         tbl.aliasColumn('customer_region',
                         relation_path='@invoice_id.@customer_id.@state.@region_code.name',
                         name_long='Customer Region')
+        tbl.formulaColumn('product_code_prefix',
+                          sql_formula="substr(@product_id.code, 1, 3)",
+                          dtype='T', name_long='Product Code Prefix')
+        tbl.formulaColumn('rounded_total',
+                          sql_formula='ROUND($line_total, 2)',
+                          dtype='N', name_long='Rounded Total')
+        tbl.formulaColumn('abs_discount',
+                          sql_formula='ABS($unit_price - @product_id.unit_price)',
+                          dtype='N', name_long='Abs Discount')
+        tbl.formulaColumn('prev_quantity',
+                          sql_formula='LAG($quantity, 1) OVER (PARTITION BY $invoice_id ORDER BY $_row_count)',
+                          dtype='I', name_long='Previous Quantity')
+        tbl.formulaColumn('matches_list_price',
+                          sql_formula='CAST($unit_price = @product_id.unit_price AS boolean)',
+                          dtype='B', name_long='Matches List Price')
+        tbl.formulaColumn('distinct_products_in_invoice',
+                          sql_formula="""array_length(ARRAY(SELECT DISTINCT ir.product_id
+                                                            FROM invc.invc_invoice_row AS ir
+                                                            WHERE ir.invoice_id = #THIS.invoice_id), 1)""",
+                          dtype='L', name_long='Distinct Products In Invoice')
 
     def trigger_onInserted(self,record=None):
         self.db.table('invc.invoice').calculateTotals(record['invoice_id'])

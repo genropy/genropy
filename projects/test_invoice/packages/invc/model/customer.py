@@ -31,7 +31,7 @@ class Table(object):
                                                   order_by='$date DESC',
                                                   limit=1),
                                       dtype='T',name_long='Last Invoice'
-                                      ).relation('invoice.id',relation_name='last_invoice',mode='foreignkey')
+                                      ).relation('invoice.id',relation_name='last_invoice')
         tbl.formulaColumn('full_address',
                           sql_formula="$street_address || ', ' || $suburb",
                           dtype='T',name_long='Full Address')
@@ -62,3 +62,31 @@ class Table(object):
         tbl.formulaColumn('is_active_valuable',
                           sql_formula='$has_invoices AND $n_invoices >= 3',
                           dtype='B', name_long='Active Valuable Customer')
+        tbl.formulaColumn('contact_info',
+                          sql_formula="CONCAT(COALESCE($email, 'no-email'), ' | ', COALESCE($phone, 'no-phone'))",
+                          dtype='T', name_long='Contact Info')
+        tbl.pyColumn('customer_score', dtype='N',
+                     required_columns='$account_name,$email',
+                     name_long='Customer Score')
+        tbl.formulaColumn('invoice_numbers',
+                          sql_formula="array_to_string(ARRAY(#inv_nums), ', ')",
+                          select_inv_nums=dict(table='invc.invoice',
+                                               columns='$inv_number',
+                                               where='$customer_id=#THIS.id',
+                                               order_by='$date DESC',
+                                               limit=5),
+                          dtype='T', name_long='Invoice Numbers')
+        tbl.formulaColumn('avg_invoice_value',
+                          sql_formula='$invoiced_total / NULLIF($n_invoices, 0)',
+                          dtype='N', name_long='Avg Invoice Value')
+        tbl.formulaColumn('has_activity',
+                          sql_formula=("$has_invoices OR EXISTS(SELECT 1 FROM invc.invc_invoice_note AS n"
+                                       " INNER JOIN invc.invc_invoice AS i ON n.invoice_id = i.id"
+                                       " WHERE i.customer_id = #THIS.id)"),
+                          dtype='B', name_long='Has Activity')
+
+    def pyColumn_customer_score(self, record, field):
+        score = 10
+        if record.get('email'):
+            score += 5
+        return score

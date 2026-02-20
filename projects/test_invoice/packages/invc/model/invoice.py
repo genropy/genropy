@@ -16,6 +16,7 @@ class Table(object):
         tbl.column('total',dtype='money',name_long='!!Total')
         tbl.column('vat_total',dtype='money',name_long='!!VAT total')
         tbl.column('gross_total',dtype='money',name_long='!!Gross total')
+        tbl.column('invoice_time',dtype='H',name_long='!!Invoice Time')
         tbl.formulaColumn('row_count',
                           select=dict(table='invc.invoice_row',
                                       columns='COUNT(*)',
@@ -28,7 +29,7 @@ class Table(object):
                                       order_by='$_row_count',
                                       limit=1),
                           dtype='T',name_long='First Product'
-                          ).relation('product.id',relation_name='first_in_invoice',mode='foreignkey')
+                          ).relation('product.id',relation_name='first_in_invoice')
         tbl.aliasColumn('customer_name',
                         relation_path='@customer_id.account_name',
                         name_long='Customer Name')
@@ -79,6 +80,56 @@ class Table(object):
                           var_mid_label='Standard Invoice',
                           var_low_label='Basic Invoice',
                           dtype='A', name_long='Status Label')
+        tbl.formulaColumn('days_since_invoice',
+                          sql_formula="date_part('day', now() - $date)",
+                          dtype='L', name_long='Days Since Invoice')
+        tbl.formulaColumn('number_series',
+                          sql_formula="""CASE WHEN $inv_number LIKE :pat_a THEN 'Series A'
+                                              WHEN $inv_number LIKE :pat_b THEN 'Series B'
+                                              ELSE 'Other' END""",
+                          var_pat_a='A%%',
+                          var_pat_b='B%%',
+                          dtype='A', name_long='Number Series')
+        tbl.formulaColumn('week_start',
+                          sql_formula=("$date - MOD(CAST(EXTRACT(DOW FROM $date) AS integer) + 6, 7)"
+                                       " * INTERVAL '1 day'"),
+                          dtype='D', name_long='Week Start')
+        tbl.formulaColumn('priced_rows_pct',
+                          select=dict(table='invc.invoice_row',
+                                      columns=("COUNT(*) FILTER (WHERE $unit_price IS NOT NULL)"
+                                               " * 100.0 / NULLIF(COUNT(*), 0)"),
+                                      where='$invoice_id=#THIS.id'),
+                          dtype='N', name_long='Priced Rows Pct')
+        tbl.formulaColumn('invoice_datetime',
+                          sql_formula='$date + $invoice_time',
+                          dtype='DH', name_long='Invoice Datetime')
+        tbl.formulaColumn('invoice_month',
+                          sql_formula="date_trunc('month', $date)",
+                          dtype='D', name_long='Invoice Month')
+        tbl.formulaColumn('smart_row_count',
+                          sql_formula="CASE WHEN $total > 1000 THEN #high_rows ELSE #all_rows END",
+                          select_high_rows=dict(table='invc.invoice_row',
+                                                columns='COUNT(*)',
+                                                where='$invoice_id=#THIS.id AND $unit_price > 100'),
+                          select_all_rows=dict(table='invc.invoice_row',
+                                               columns='COUNT(*)',
+                                               where='$invoice_id=#THIS.id'),
+                          dtype='L', name_long='Smart Row Count')
+        tbl.subQueryColumn('rows_json',
+                           query=dict(table='invc.invoice_row',
+                                      columns='$product_id,$quantity,$unit_price',
+                                      where='$invoice_id=#THIS.id'),
+                           mode='json')
+        tbl.subQueryColumn('notes_xml',
+                           query=dict(table='invc.invoice_note',
+                                      columns='$note_type,$note_text',
+                                      where='$invoice_id=#THIS.id'),
+                           mode='xml')
+        tbl.subQueryColumn('max_row_price',
+                           query=dict(table='invc.invoice_row',
+                                      columns='MAX($unit_price)',
+                                      where='$invoice_id=#THIS.id'),
+                           dtype='N', name_long='Max Row Price')
 
     def calculateTotals(self,invoice_id):
         with self.recordToUpdate(invoice_id) as record:
