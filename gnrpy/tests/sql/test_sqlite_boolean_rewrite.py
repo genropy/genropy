@@ -135,18 +135,19 @@ class TestFixedRewrite:
 class TestAdapterRewrite:
     """Test the actual regex rewrite from gnrsqlite._booleanSubCb."""
 
-    PATTERN = re.compile(r'(\S+) +IS +(NOT +)?(TRUE|FALSE)', re.I)
+    PATTERN = re.compile(r'(\(*)(["\w]["\w.]*) +IS +(NOT +)?(TRUE|FALSE)', re.I)
 
     @staticmethod
     def _rewrite(m):
-        expr = m.group(1)
-        is_not = bool(m.group(2))
-        is_true = m.group(3).upper() == 'TRUE'
+        prefix = m.group(1)
+        expr = m.group(2)
+        is_not = bool(m.group(3))
+        is_true = m.group(4).upper() == 'TRUE'
         val = '1' if is_true else '0'
         if is_not:
-            return '(%s IS NULL OR %s !=%s)' % (expr, expr, val)
+            return '%s(%s IS NULL OR %s !=%s)' % (prefix, expr, expr, val)
         else:
-            return '(%s IS NOT NULL AND %s =%s)' % (expr, expr, val)
+            return '%s(%s IS NOT NULL AND %s =%s)' % (prefix, expr, expr, val)
 
     def _apply(self, sql):
         return self.PATTERN.sub(self._rewrite, sql)
@@ -173,8 +174,7 @@ class TestAdapterRewrite:
             ' AND ("t0"."__is_draft" IS NOT TRUE)'
         )
         result = self._apply(sql)
-        assert '"__is_draft" IS NULL OR' in result
-        assert '"__is_draft" !=1)' in result
+        assert '("t0"."__is_draft" IS NULL OR "t0"."__is_draft" !=1)' in result
         assert '"__del_ts" IS NULL' in result
 
     def test_rewrite_preserves_null_rows(self, conn):
@@ -185,3 +185,15 @@ class TestAdapterRewrite:
         cur = conn.cursor()
         cur.execute(rewritten)
         assert [r[0] for r in cur.fetchall()] == [1, 2]
+
+    def test_rewrite_balanced_parentheses(self, conn):
+        """Full WHERE clause produces valid SQL after rewrite."""
+        sql = (
+            'SELECT id FROM t WHERE (flag IS NULL OR flag =0)'
+            ' AND (flag IS NOT TRUE) ORDER BY id'
+        )
+        rewritten = self._apply(sql)
+        cur = conn.cursor()
+        cur.execute(rewritten)
+        rows = [r[0] for r in cur.fetchall()]
+        assert rows == [1, 2]
