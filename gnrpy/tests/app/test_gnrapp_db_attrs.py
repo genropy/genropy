@@ -9,7 +9,7 @@ import tempfile
 import warnings
 
 from gnr.app.gnrapp import GnrApp
-from tests.core.common import BaseGnrTest
+from core.common import BaseGnrTest
 
 
 class TestDbAttrs(BaseGnrTest):
