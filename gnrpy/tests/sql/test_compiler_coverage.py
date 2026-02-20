@@ -9,7 +9,6 @@ Uses both PostgreSQL and SQLite instances of the test_invoice project.
 """
 
 import pytest
-from gnr.app.gnrapp import GnrApp
 
 CUSTOMER_COUNT = 3200
 INVOICE_COUNT = 256
@@ -30,24 +29,6 @@ INVOICE_NSW_COUNT = 21
 INVOICE_VIC_COUNT = 39
 STAFF_COUNT = 32
 STAFF_ROLE_COUNT = 5
-
-
-@pytest.fixture(scope='module')
-def db_pg():
-    try:
-        app = GnrApp('test_invoice_pg')
-        return app.db
-    except Exception:
-        pytest.skip('PostgreSQL instance not available')
-
-
-@pytest.fixture(scope='module')
-def db_sqlite():
-    try:
-        app = GnrApp('test_invoice')
-        return app.db
-    except Exception:
-        pytest.skip('SQLite instance not available')
 
 
 # ===================================================================
