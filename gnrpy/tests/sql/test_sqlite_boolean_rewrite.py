@@ -18,7 +18,7 @@ import tempfile
 import pytest
 
 from gnr.app.gnrapp import GnrApp
-from tests.core.common import BaseGnrTest
+from core.common import BaseGnrTest
 
 DRAFT_MARKER = '__bool_rewrite_test__'
 
