@@ -13,22 +13,13 @@ verify the fix end-to-end.
 import pytest
 from gnr.app.gnrapp import GnrApp
 
-INSTANCE_PATH_PG = (
-    '/Users/gporcari/Sviluppo/Genropy/genropy'
-    '/projects/test_invoice/instances/test_invoice_pg'
-)
-INSTANCE_PATH_SQLITE = (
-    '/Users/gporcari/Sviluppo/Genropy/genropy'
-    '/projects/test_invoice/instances/test_invoice'
-)
-
 DRAFT_MARKER = '__bool_rewrite_test__'
 
 
 @pytest.fixture(scope='module')
 def db_pg():
     try:
-        app = GnrApp(INSTANCE_PATH_PG)
+        app = GnrApp('test_invoice_pg')
         return app.db
     except Exception:
         pytest.skip('PostgreSQL instance not available')
@@ -37,7 +28,7 @@ def db_pg():
 @pytest.fixture(scope='module')
 def db_sqlite():
     try:
-        app = GnrApp(INSTANCE_PATH_SQLITE)
+        app = GnrApp('test_invoice')
         return app.db
     except Exception:
         pytest.skip('SQLite instance not available')
