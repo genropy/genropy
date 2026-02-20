@@ -10,28 +10,77 @@ run actual queries through the adapter on both PG and SQLite to
 verify the fix end-to-end.
 """
 
+import os
+import sys
+import subprocess
+import tempfile
+
 import pytest
+
 from gnr.app.gnrapp import GnrApp
+from tests.core.common import BaseGnrTest
 
 DRAFT_MARKER = '__bool_rewrite_test__'
 
+_base_gnr_test_ready = False
 
-@pytest.fixture(scope='module')
-def db_pg():
-    try:
-        app = GnrApp('test_invoice_pg')
-        return app.db
-    except Exception:
-        pytest.skip('PostgreSQL instance not available')
+
+def _ensure_base_gnr_test():
+    global _base_gnr_test_ready
+    if not _base_gnr_test_ready:
+        BaseGnrTest.setup_class()
+        _base_gnr_test_ready = True
 
 
 @pytest.fixture(scope='module')
 def db_sqlite():
+    _ensure_base_gnr_test()
+    tempdir = tempfile.mkdtemp()
+    app = GnrApp('test_invoice', db_attrs=dict(
+        implementation='sqlite',
+        dbname=os.path.join(tempdir, 'testing'),
+    ))
+    return app.db
+
+
+@pytest.fixture(scope='module')
+def db_pg():
+    _ensure_base_gnr_test()
+    if sys.platform == 'win32':
+        pytest.skip('testing.postgresql not available on Windows')
+    pg_instance = None
+    if 'GITHUB_WORKFLOW' in os.environ:
+        pg_conf = dict(host='127.0.0.1', port='5432',
+                       user='postgres', password='postgres')
+    elif 'GNR_TEST_PG_PASSWORD' in os.environ:
+        pg_conf = dict(
+            host=os.environ.get('GNR_TEST_PG_HOST', '127.0.0.1'),
+            port=os.environ.get('GNR_TEST_PG_PORT', '5432'),
+            user=os.environ.get('GNR_TEST_PG_USER', 'postgres'),
+            password=os.environ.get('GNR_TEST_PG_PASSWORD'),
+        )
+    else:
+        try:
+            from testing.postgresql import Postgresql
+        except ImportError:
+            pytest.skip('testing.postgresql not installed')
+        subprocess.run(['pkill', '-f', 'postgres.*tmp'], capture_output=True)
+        pg_instance = Postgresql()
+        dsn = pg_instance.dsn()
+        pg_conf = dict(host=dsn['host'], port=dsn['port'], user=dsn['user'])
+    dbname = pg_conf.pop('database', 'test_bool_rewrite')
     try:
-        app = GnrApp('test_invoice')
-        return app.db
+        app = GnrApp('test_invoice', db_attrs=dict(
+            implementation='postgres',
+            dbname=dbname,
+            **pg_conf,
+        ))
+        yield app.db
     except Exception:
-        pytest.skip('SQLite instance not available')
+        pytest.skip('PostgreSQL not available')
+    finally:
+        if pg_instance:
+            pg_instance.stop()
 
 
 def _insert_draft_records(db):
@@ -45,9 +94,6 @@ def _insert_draft_records(db):
     for i, draft_val in enumerate([None, False, True]):
         record = tbl.insert(dict(
             account_name='BoolRewrite Test %i' % i,
-            state='NSW',
-            customer_type_code='RES',
-            payment_type_code='CC',
             notes=DRAFT_MARKER,
             __is_draft=draft_val,
         ))
@@ -85,10 +131,8 @@ class TestExcludeDraftSqlite:
                 excludeLogicalDeleted=False
             ).fetch()
             found = {r['pkey'] for r in rows}
-            # NULL and FALSE must pass the filter
             assert pkeys[0] in found, '__is_draft=NULL must be included'
             assert pkeys[1] in found, '__is_draft=FALSE must be included'
-            # TRUE must be excluded
             assert pkeys[2] not in found, '__is_draft=TRUE must be excluded'
         finally:
             _cleanup_draft_records(db_sqlite)
@@ -155,7 +199,6 @@ class TestExcludeDraftPgVsSqlite:
                 ).fetch()
                 found = {r['pkey'] for r in rows}
                 assert len(found) == 2, '%s: expected 2 non-draft rows' % name
-                # The TRUE record must not be there
                 assert pkeys[name][2] not in found, (
                     '%s: draft=TRUE must be excluded' % name
                 )
