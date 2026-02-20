@@ -85,6 +85,11 @@ class Table(object):
                                        " WHERE i.customer_id = #THIS.id)"),
                           dtype='B', name_long='Has Activity')
 
+        # $__is_draft in formula - pattern erpy
+        tbl.formulaColumn('is_confirmed',
+                          sql_formula="$__is_draft IS NOT TRUE",
+                          dtype='B', name_long='Is Confirmed')
+
     def pyColumn_customer_score(self, record, field):
         score = 10
         if record.get('email'):

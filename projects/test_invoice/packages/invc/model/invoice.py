@@ -115,6 +115,32 @@ class Table(object):
                                                columns='COUNT(*)',
                                                where='$invoice_id=#THIS.id'),
                           dtype='L', name_long='Smart Row Count')
+        # exists=dict() - pattern erpy (has_expensive_rows)
+        tbl.formulaColumn('has_expensive_rows',
+                          exists=dict(table='invc.invoice_row',
+                                      where='$invoice_id=#THIS.id AND $unit_price > 100'),
+                          dtype='B', name_long='Has Expensive Rows')
+        # select_* con group_by + having - pattern erpy
+        tbl.formulaColumn('duplicate_products',
+                          sql_formula="COALESCE(#dup_prods, 0)",
+                          select_dup_prods=dict(table='invc.invoice_row',
+                                                columns='COUNT(*)',
+                                                where='$invoice_id=#THIS.id',
+                                                group_by='$product_id',
+                                                having='COUNT(*) > 1'),
+                          dtype='L', name_long='Duplicate Products')
+        # INTERVAL aritmetica - pattern erpy
+        tbl.formulaColumn('due_date',
+                          sql_formula="$date + INTERVAL '30 days'",
+                          dtype='D', name_long='Due Date')
+        # CAST($__ins_ts AS DATE) = $date - pattern erpy date() cast
+        tbl.formulaColumn('created_same_day',
+                          sql_formula="CAST($__ins_ts AS DATE) = $date",
+                          dtype='B', name_long='Created Same Day')
+        # :env_workdate in formula - pattern erpy
+        tbl.formulaColumn('is_recent',
+                          sql_formula="$date >= :env_workdate - INTERVAL '90 days'",
+                          dtype='B', name_long='Is Recent')
         tbl.subQueryColumn('rows_json',
                            query=dict(table='invc.invoice_row',
                                       columns='$product_id,$quantity,$unit_price',

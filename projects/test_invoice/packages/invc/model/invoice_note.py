@@ -23,3 +23,7 @@ class Table(object):
         tbl.formulaColumn('created_date',
                           sql_formula="date_trunc('day', $__ins_ts)",
                           dtype='D', name_long='Created Date')
+        # RTRIM - pattern erpy
+        tbl.formulaColumn('note_text_rtrim',
+                          sql_formula="RTRIM($note_text)",
+                          dtype='T', name_long='Note Text Rtrim')

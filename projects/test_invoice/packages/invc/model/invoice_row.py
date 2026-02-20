@@ -80,6 +80,17 @@ class Table(object):
                                                             WHERE ir.invoice_id = #THIS.invoice_id), 1)""",
                           dtype='L', name_long='Distinct Products In Invoice')
 
+        # var_* con lista (IN :list) - pattern erpy
+        tbl.formulaColumn('is_exempt_vat',
+                          sql_formula="@product_id.vat_type_code IN :exempt_codes",
+                          var_exempt_codes=['FRE', 'INP'],
+                          dtype='B', name_long='Is Exempt VAT')
+        # static=True su aliasColumn - pattern erpy
+        tbl.aliasColumn('invoice_date_static',
+                        relation_path='@invoice_id.date',
+                        static=True, dtype='D',
+                        name_long='Invoice Date Static')
+
     def trigger_onInserted(self,record=None):
         self.db.table('invc.invoice').calculateTotals(record['invoice_id'])
 
