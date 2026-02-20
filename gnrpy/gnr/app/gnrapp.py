@@ -975,7 +975,9 @@ class GnrApp(object):
 
         dbattrs = dict(self.config.getAttr('db') or {})
         dbattrs['implementation'] = dbattrs.get('implementation') or 'sqlite'
-        if dbattrs.get('dbname') == '_dummydb':
+        if db_attrs:
+            dbattrs.update(db_attrs)
+        elif dbattrs.get('dbname') == '_dummydb':
             pass
         elif self.remote_db:
             rdb = self.config.get(f"remote_db")#.{self.remote_db}")
@@ -991,9 +993,6 @@ class GnrApp(object):
             if not os.path.isabs(dbname):
                 dbname = self.realPath(os.path.join('..','data',dbname))
             dbattrs['dbname'] = dbname
-
-        if db_attrs:
-            dbattrs.update(db_attrs)
 
         dbattrs['application'] = self
         self.db = GnrSqlAppDb(debugger=getattr(self, 'sqlDebugger', None), **dbattrs)
