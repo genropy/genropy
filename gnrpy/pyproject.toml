@@ -189,6 +189,10 @@ packages = [
 "gnr.webtools" = "../webtools"
 
 
+# PYTEST
+[tool.pytest.ini_options]
+pythonpath = ["tests"]
+
 # COVERAGE
 [tool.coverage.run]
 omit = [
