@@ -1499,7 +1499,7 @@ class TableHandlerView(BaseComponent):
                                genro.dlg.alert(alertmsg,dlgtitle);
                                  """, _fired="^.showQueryCountDlg", waitmsg='!!Working.....',
                               dlgtitle='!!Current query record count',alertmsg='=.currentQueryCountAsString')
-        box = pane.div(datapath='.query.where',onEnter='genro.nodeById(this.getInheritedAttributes().target).publish("runbtn",{"modifiers":null});')
+        box = pane.div(datapath='.query.where',onEnter='genro.nodeById(this.getInheritedAttributes().target).publish("runbtn",{"modifiers":null});',parentForm=False)
         box.data('.#parent.queryMode','S',caption='!!Search')
         box.div('^.#parent.queryMode?caption',_class='gnrfieldlabel th_searchlabel',
                 nodeId='%s_searchMenu_a' %th_root)
