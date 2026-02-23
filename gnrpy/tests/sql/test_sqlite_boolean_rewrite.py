@@ -40,6 +40,7 @@ def db_sqlite():
         implementation='sqlite',
         dbname=os.path.join(tempdir, 'testing'),
     ))
+    app.db.model.check(applyChanges=True)
     return app.db
 
 
@@ -75,6 +76,7 @@ def db_pg():
             dbname=dbname,
             **pg_conf,
         ))
+        app.db.model.check(applyChanges=True)
         yield app.db
     except Exception:
         pytest.skip('PostgreSQL not available')
