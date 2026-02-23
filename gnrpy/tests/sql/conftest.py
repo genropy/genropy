@@ -109,6 +109,7 @@ def db_sqlite():
         implementation='sqlite',
         dbname=os.path.join(tempdir, 'testing'),
     ))
+    app.db.model.check(applyChanges=True)
     _import_csv_data(app.db)
     return app.db
 
@@ -145,6 +146,7 @@ def db_pg():
             dbname=dbname,
             **pg_conf,
         ))
+        app.db.model.check(applyChanges=True)
         _import_csv_data(app.db)
         yield app.db
     except Exception:
