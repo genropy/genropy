@@ -87,6 +87,7 @@ class BaseGnrSqlTest:
         """
         if "GNR_TEST_PG_PASSWORD" in os.environ:
             if hasattr(cls,'dbname'):
+                cls.db.closeConnection()
                 cls.db.dropDb(cls.dbname)
         elif not ("GITHUB_WORKFLOW" in os.environ or "GNR_TEST_PG_PASSWORD" in os.environ):
             cls.pg_instance.stop()
