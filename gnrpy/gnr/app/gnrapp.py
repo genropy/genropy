@@ -937,9 +937,7 @@ class GnrApp(object):
         """Initiate a :class:`GnrApp`
 
         :param db_attrs:    a dict of db connection attributes that override
-                            the ones read from instanceconfig. When provided,
-                            ``model.check(applyChanges=True)`` is called after
-                            startup so that the schema is created/updated.
+                            the ones read from instanceconfig.
         :param forTesting:  deprecated — use *db_attrs* instead.
         """
         if forTesting:
@@ -1011,10 +1009,6 @@ class GnrApp(object):
         #    self.config['menu']=self.instanceMenu
 
         self.localizer = AppLocalizer(self)
-        if db_attrs:
-            self.db.model.check(applyChanges=True)
-            if forTesting and isinstance(forTesting, Bag):
-                self.loadTestingData(forTesting)
         self.onInited()
 
     def addPackage(self,pkgid,pkgattrs=None,pkgcontent=None):

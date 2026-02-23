@@ -30,12 +30,14 @@ class TestDbAttrs(BaseGnrTest):
 
     def test_tables_created(self):
         app = GnrApp('test_invoice', db_attrs=self.db_attrs)
+        app.db.model.check(applyChanges=True)
         tbl = app.db.table('invc.customer')
         count = tbl.query().count()
         assert count == 0
 
     def test_insert_and_query(self):
         app = GnrApp('test_invoice', db_attrs=self.db_attrs)
+        app.db.model.check(applyChanges=True)
         tbl = app.db.table('invc.customer')
         tbl.insert(dict(account_name='DbAttrs Test'))
         app.db.commit()
@@ -67,6 +69,7 @@ class TestForTestingDeprecation(BaseGnrTest):
             warnings.simplefilter('always')
             app = GnrApp('test_invoice', forTesting=True)
             assert app.db is not None
+            app.db.model.check(applyChanges=True)
             tbl = app.db.table('invc.customer')
             count = tbl.query().count()
             assert count == 0
