@@ -20,9 +20,6 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-import tempfile
-import atexit
-import shutil
 import locale
 import sys
 import re
@@ -790,10 +787,8 @@ class GnrApp(object):
     
     :param instanceFolder: instance folder or name
     :param custom_config:  a :ref:`bag` or dictionary that will override configuration value
-    :param forTesting:  if ``False``, setup the application normally.
-                        if ``True``, setup the application for testing with a temporary sqlite database.
-                        If it's a bag, setup the application for testing and import test data from this bag.
-                        (see :meth:`loadTestingData()`)
+    :param db_attrs:    a dict of db connection attributes that override
+                        the ones read from instanceconfig.
     
     If you want to interact with a Genro instance from your own python script, you can use this class directly.
     
@@ -803,7 +798,7 @@ class GnrApp(object):
     >>> testgarden.db.table('showcase.person').query().count()
     12"""
     def __init__(self, instanceFolder=None, custom_config=None,
-                 forTesting=False, debug=False, restorepath=None,
+                 debug=False, restorepath=None,
                  enabled_packages=None, db_attrs=None, **kwargs):
         self.aux_instances = {}
         self.gnr_config = getGnrConfig(set_environment=True)
@@ -870,7 +865,7 @@ class GnrApp(object):
             self.main_module = gnrImport(os.path.join(self.customFolder, 'custom.py'),avoidDup=True, silent=False)
             instanceMixin(self, getattr(self.main_module, 'Application', None))
             self.webPageCustom = getattr(self.main_module, 'WebPage', None)
-        self.init(forTesting=forTesting, restorepath=restorepath, db_attrs=db_attrs)
+        self.init(restorepath=restorepath, db_attrs=db_attrs)
         self.creationTime = time.time()
 
     def get_modulefinder(self):
@@ -933,30 +928,12 @@ class GnrApp(object):
         instance_config.update(base_instance_config, preservePattern=re.compile(r'^[\$\{]'))
         return instance_config
         
-    def init(self, db_attrs=None, restorepath=None, forTesting=False):
+    def init(self, db_attrs=None, restorepath=None):
         """Initiate a :class:`GnrApp`
 
         :param db_attrs:    a dict of db connection attributes that override
                             the ones read from instanceconfig.
-        :param forTesting:  deprecated — use *db_attrs* instead.
         """
-        if forTesting:
-            import warnings
-            warnings.warn(
-                "GnrApp(forTesting=...) is deprecated. "
-                "Use db_attrs=dict(implementation='sqlite', dbname=...) "
-                "and call app.db.model.check(applyChanges=True) after init.",
-                DeprecationWarning, stacklevel=3
-            )
-            tempdir = tempfile.mkdtemp()
-            db_attrs = dict(implementation='sqlite',
-                            dbname=os.path.join(tempdir, 'testing'))
-            logger.info('Testing database dir: %s', tempdir)
-
-            @atexit.register
-            def removeTemporaryDirectory():
-                shutil.rmtree(tempdir)
-
         self.onIniting()
         self.base_lang = self.config['i18n?base_lang'] or 'en'
         self.catalog = GnrClassCatalog()
@@ -1148,32 +1125,6 @@ class GnrApp(object):
                 tables_to_import.append(tbl)
         
 
-    def loadTestingData(self, bag):
-        """Load data used for testing in the database.
-        
-        Called by the constructor when you pass a :ref:`bag` into the *forTesting* parameter
-        
-        :param bag: a :ref:`bag` your test data
-        
-        Use this format in your test data::
-        
-            <?xml version="1.0" encoding="UTF-8"?>
-            <GenRoBag>
-                <table name="package.table">
-                    <some_name>
-                        <field1>ABCDEFG</field2>
-                        <field2>1235</field2>
-                        <!-- ... more fields ... -->
-                    </some_name>
-                    <!-- ... more records ... -->
-                </table>
-                <!-- ... more tables ... -->
-            </GenRoBag>"""
-        for table_name, records in bag.digest('#a.name,#v'):
-            tbl = self.db.table(table_name)
-            for r in list(records.values()):
-                tbl.insert(r)
-        self.db.commit()
 
     def instance_name_to_path(self, instance_name):
         """TODO
