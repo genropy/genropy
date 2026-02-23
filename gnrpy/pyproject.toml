@@ -27,7 +27,7 @@ dependencies = [
 	     "babel",
 	     "boto3",
 	     "caldav",
-	     "chardet",
+	     "chardet==5.2.0",
 	     "dictdiffer", # for gnr.sql migration
 	     "docutils",
 	     "dulwich", # needed by gnrgit
