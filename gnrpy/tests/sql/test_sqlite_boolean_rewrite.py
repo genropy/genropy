@@ -11,14 +11,13 @@ verify the fix end-to-end.
 """
 
 import os
-import sys
-import subprocess
 import tempfile
 
 import pytest
 
 from gnr.app.gnrapp import GnrApp
 from core.common import BaseGnrTest
+from .common import get_pg_config
 
 DRAFT_MARKER = '__bool_rewrite_test__'
 
@@ -47,28 +46,7 @@ def db_sqlite():
 @pytest.fixture(scope='module')
 def db_pg():
     _ensure_base_gnr_test()
-    if sys.platform == 'win32':
-        pytest.skip('testing.postgresql not available on Windows')
-    pg_instance = None
-    if 'GITHUB_WORKFLOW' in os.environ:
-        pg_conf = dict(host='127.0.0.1', port='5432',
-                       user='postgres', password='postgres')
-    elif 'GNR_TEST_PG_PASSWORD' in os.environ:
-        pg_conf = dict(
-            host=os.environ.get('GNR_TEST_PG_HOST', '127.0.0.1'),
-            port=os.environ.get('GNR_TEST_PG_PORT', '5432'),
-            user=os.environ.get('GNR_TEST_PG_USER', 'postgres'),
-            password=os.environ.get('GNR_TEST_PG_PASSWORD'),
-        )
-    else:
-        try:
-            from testing.postgresql import Postgresql
-        except ImportError:
-            pytest.skip('testing.postgresql not installed')
-        subprocess.run(['pkill', '-f', 'postgres.*tmp'], capture_output=True)
-        pg_instance = Postgresql()
-        dsn = pg_instance.dsn()
-        pg_conf = dict(host=dsn['host'], port=dsn['port'], user=dsn['user'])
+    pg_conf, pg_instance = get_pg_config()
     dbname = pg_conf.pop('database', 'test_bool_rewrite')
     try:
         app = GnrApp('test_invoice', db_attrs=dict(
@@ -81,7 +59,7 @@ def db_pg():
     except Exception:
         pytest.skip('PostgreSQL not available')
     finally:
-        if pg_instance:
+        if pg_instance is not None:
             pg_instance.stop()
 
 
