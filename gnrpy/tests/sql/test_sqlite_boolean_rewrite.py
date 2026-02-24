@@ -22,22 +22,24 @@ from .common import get_pg_config
 DRAFT_MARKER = '__bool_rewrite_test__'
 
 
-SQLITE_TEMP_DIR = None
-
 def setup_module(module):
-    global SQLITE_TEMP_DIR
     BaseGnrTest.setup_class()
-    SQLITE_TEMP_DIR = tempfile.mkdtemp()
-
 def teardown_module(module):
-    shutil.rmtree(SQLITE_TEMP_DIR)
     BaseGnrTest.teardown_class()
-    
+
+@pytest.fixture(scope="module", autouse=True)
+def sqlite_temp_dir():
+    tmpdir = tempfile.mkdtemp()
+    try:
+        yield tmpdir
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
 @pytest.fixture(scope='module')
-def db_sqlite():
+def db_sqlite(sqlite_temp_dir):
     app = GnrApp('test_invoice', db_attrs=dict(
         implementation='sqlite',
-        dbname=os.path.join(SQLITE_TEMP_DIR, 'testing'),
+        dbname=os.path.join(sqlite_temp_dir, 'testing'),
     ))
     app.db.model.check(applyChanges=True)
     return app.db
