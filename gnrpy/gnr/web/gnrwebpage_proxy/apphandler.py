@@ -1940,6 +1940,19 @@ class GnrWebAppHandler(GnrBaseProxy):
 
 
     @public_method
+    def saveRecord(self,table=None,pkey=None,data=None,**kwargs):
+        tblobj = self.db.table(table)
+        if pkey == '*newrecord*':
+            tblobj.insert(tblobj.newrecord(**{k:v for k,v in data.items() if v is not None}))
+        else:
+            with tblobj.recordToUpdate(pkey) as recToUpd:
+                for k,v in data.items():
+                    recToUpd[k] = v
+        self.db.commit()
+        return dict(pkey=data[tblobj.pkey])
+    
+
+    @public_method
     def newRowsData(self,table=None,rows=None):
         result = Bag()
         tblobj = self.db.table(table)
