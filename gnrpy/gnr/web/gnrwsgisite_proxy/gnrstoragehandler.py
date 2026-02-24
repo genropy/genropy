@@ -50,13 +50,16 @@ class BaseStorageHandler:
         '_http_': {'implementation': 'http'},
     }
 
-    def __init__(self, site):
+    def __init__(self, site, domain=None):
         """Initialize the storage handler.
 
         Args:
             site: The GnrWsgiSite instance
+            domain: The domain this handler belongs to (for multidomain mode).
+                    If None, uses site.currentDomain at query time.
         """
         self.site = site
+        self.domain = domain
         self.storage_params = {}
         self._loadAllStorageParameters()
 
@@ -199,12 +202,18 @@ class BaseStorageHandler:
             return
 
         # Query all storage services from database
-        services = self.site.db.table('sys.service').query(
-            where='$service_type=:st',
-            st='storage',
-            order_by='$service_name',
-            bagFields=True
-        ).fetch()
+        # Use explicit domain if set, otherwise fall back to currentDomain
+        storename = False
+        domain = self.domain if self.domain else self.site.currentDomain
+        if self.site.multidomain and domain and domain != self.site.rootDomain:
+            storename = domain
+        with self.site.db.tempEnv(storename=storename):
+            services = self.site.db.table('sys.service').query(
+                where='$service_type=:st',
+                st='storage',
+                order_by='$service_name',
+                bagFields=True
+            ).fetch()
 
         for service_record in services:
             service_name = service_record['service_name']
@@ -263,11 +272,17 @@ class BaseStorageHandler:
             True if update was successful, False otherwise
         """
         # Query the specific service record
-        service_record = self.site.db.table('sys.service').record(
-            service_type='storage',
-            service_name=service_name,
-            ignoreMissing=True
-        ).output('dict')
+        # Use explicit domain if set, otherwise fall back to currentDomain
+        storename = False
+        domain = self.domain if self.domain else self.site.currentDomain
+        if self.site.multidomain and domain and domain != self.site.rootDomain:
+            storename = domain
+        with self.site.db.tempEnv(storename=storename):
+            service_record = self.site.db.table('sys.service').record(
+                service_type='storage',
+                service_name=service_name,
+                ignoreMissing=True
+            ).output('dict')
 
         if not service_record:
             # Service was deleted or doesn't exist, remove from params
