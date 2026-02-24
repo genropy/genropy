@@ -36,10 +36,6 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import boolean
 
 
-pysqlite.register_converter("timestamp", lambda val: datetime.datetime.fromisoformat(val.decode()))
-
-
-
 class GnrSqliteConnection(pysqlite.Connection):
     pass
 
@@ -527,7 +523,7 @@ class GnrSqliteCursor(pysqlite.Cursor):
             logger.exception(e)
             raise
 
-# ------------------------------------------------------------------------------------------------------- Add support for time fields to sqlite3 module
+# Add support for time fields to sqlite3 module
 
 def adapt_time(val):
     return val.isoformat()
@@ -538,12 +534,12 @@ def convert_time(val):
 pysqlite.register_adapter(datetime.time, adapt_time)
 pysqlite.register_converter("time", convert_time)
 
-# ------------------------------------------------------------------------------------------------------- Add support for decimal fields to sqlite3 module
+# Add support for decimal fields to sqlite3 module
 
 pysqlite.register_adapter(decimal.Decimal, lambda x: float(x))
 pysqlite.register_converter('numeric', lambda x: decimal.Decimal(x.decode()))
 
-# ------------------------------------------------------------------------------------------------------- Fix issues with datetimes and dates
+# Fix issues with datetimes and dates
 
 def convert_date(val):
     val = val.decode().partition(' ')[0] # take just the date part, if we received a datetime string
@@ -551,10 +547,46 @@ def convert_date(val):
 
 pysqlite.register_converter("date", convert_date)
 
+# date adapter/converters
 
+def adapt_date_iso(val):
+    """Adapt datetime.date to ISO 8601 date."""
+    return val.isoformat()
+
+pysqlite.register_adapter(datetime.date, adapt_date_iso)
+
+def convert_datetime(val):
+    """Convert ISO 8601 datetime to datetime.datetime object."""
+    return datetime.datetime.fromisoformat(val.decode())
+
+def adapt_datetime_iso(val):
+    """Adapt datetime.datetime to timezone-naive ISO 8601 date."""
+    return val.replace(tzinfo=None).isoformat()
+
+pysqlite.register_adapter(datetime.datetime, adapt_datetime_iso)
+pysqlite.register_converter("datetime", convert_datetime)
+
+
+# bool converter
 
 def convert_boolean(val):
     return boolean(val)
 
 pysqlite.register_converter("bool", convert_boolean)
 
+
+# unix timestamps
+def convert_timestamp(val):
+    """Convert timestamp to datetime.datetime object."""
+    if isinstance(val, (bytes, bytearray)):
+        val = val.decode()
+    try:
+        ts = int(val)
+    except ValueError:
+        dt = datetime.datetime.fromisoformat(val)
+    else:
+        dt = datetime.fromtimestamp(ts)
+
+    return dt
+
+pysqlite.register_converter("timestamp", convert_timestamp)
