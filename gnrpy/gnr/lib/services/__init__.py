@@ -33,8 +33,9 @@ from gnr.lib import logger
 
 class ServiceHandler(object):
     
-    def __init__(self, site):
+    def __init__(self, site, domain=None):
         self.site = site
+        self.domain = domain
         #cerco definizioni core
         service_types_factories = {}
         self.service_types = {}
@@ -65,11 +66,11 @@ class ServiceHandler(object):
                     continue
                 service_type_factory = service_types_factories.get(service_type) or default_service_type_factory
                 logger.debug("Found resource service %s in %s", service_type, service_root)
-                self.service_types[service_type] = service_type_factory(self.site,service_type=service_type)
+                self.service_types[service_type] = service_type_factory(self.site, service_type=service_type, domain=self.domain)
         
     def getService(self, service_type=None, service_name=None, **kwargs):
         if service_type not in self.service_types:
-            self.service_types[service_type] = BaseServiceType(site=self.site, service_type=service_type)
+            self.service_types[service_type] = BaseServiceType(site=self.site, service_type=service_type, domain=self.domain)
         return self(service_type)(service_name, **kwargs)
     
     def __call__(self, service_type):
@@ -77,9 +78,10 @@ class ServiceHandler(object):
 
 class BaseServiceType(object):
     
-    def __init__(self, site=None, service_type=None, **kwargs):
+    def __init__(self, site=None, service_type=None, domain=None, **kwargs):
         self.site = site
         self.service_type = service_type
+        self.domain = domain
         self.service_instances = {}   
         
     def addService(self, service_name=None, **kwargs):
@@ -113,15 +115,22 @@ class BaseServiceType(object):
 
     def getServiceConfigurationFromDb(self,service_name):
         if 'sys' in list(self.site.gnrapp.packages.keys()):
-            service_record = self.site.db.table('sys.service').record(service_type=self.service_type,
-                                                                      service_name=service_name,
-                                                                      ignoreMissing=True).output('dict')
-            if not service_record:
-                return
-            
-            conf =  Bag(service_record['parameters'])
-            conf['implementation'] = service_record['implementation']
-            return conf.asDict()
+            # Use explicit domain if set, otherwise fall back to currentDomain
+            storename = False
+            domain = self.domain if self.domain else self.site.currentDomain
+            if self.site.multidomain and domain and domain != self.site.rootDomain:
+                storename = domain
+
+            with self.site.db.tempEnv(storename=storename):
+                service_record = self.site.db.table('sys.service').record(service_type=self.service_type,
+                                                                          service_name=service_name,
+                                                                          ignoreMissing=True).output('dict')
+                if not service_record:
+                    return
+
+                conf =  Bag(service_record['parameters'])
+                conf['implementation'] = service_record['implementation']
+                return conf.asDict()
    
         
     def getServiceConfigurationFromSelf(self,service_name):

@@ -113,13 +113,19 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         Replace the ILIKE operator with LIKE: sqlite LIKE is case insensitive"""
         sql = self.adaptTupleListSet(sql,kwargs)
         sql = sql.replace('ILIKE', 'LIKE').replace('ilike', 'like').replace('~*', ' REGEXP ')
-        sql = re.sub(" +IS +(NOT +)?(TRUE|FALSE)",self._booleanSubCb,sql,flags=re.I)
+        sql = re.sub(r'(\(*)(["\w]["\w.]*) +IS +(NOT +)?(TRUE|FALSE)',self._booleanSubCb,sql,flags=re.I)
         return sql, kwargs
 
     def _booleanSubCb(self,m):
-        op = '!=' if m.group(1) else '='
-        val = '1' if m.group(2).lower() == 'true' else '0'
-        return ' %s%s ' %(op,val)
+        prefix = m.group(1)
+        expr = m.group(2)
+        is_not = bool(m.group(3))
+        is_true = m.group(4).upper() == 'TRUE'
+        val = '1' if is_true else '0'
+        if is_not:
+            return '%s(%s IS NULL OR %s !=%s)' % (prefix, expr, expr, val)
+        else:
+            return '%s(%s IS NOT NULL AND %s =%s)' % (prefix, expr, expr, val)
 
     @classmethod
     def adaptSqlName(self,name):
