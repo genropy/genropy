@@ -10,7 +10,11 @@ class GroupletHandler(BaseComponent):
     def gr_loadGrouplet(self, pane, resource=None, table=None,
                         handlername=None, valuepath=None, **kwargs):
         grouplet_module = None
-        if resource:
+        if not resource:
+            if not handlername:
+                raise self.exception('generic', msg='Missing resource or method for handling grouplet')
+            handler = self.getPublicMethod('remote', handlername)
+        else:
             handlername = handlername or 'grouplet_main'
             if ':' not in resource:
                 resource = f'{resource}:Grouplet'
@@ -19,10 +23,9 @@ class GroupletHandler(BaseComponent):
             else:
                 mixinedClass = self.mixinComponent(resource)
             grouplet_module = getattr(mixinedClass, '__top_mixined_module', None)
-        if not handlername:
-            raise self.exception('generic', msg='Missing resource or method for handling grouplet')
+            handler = getattr(self, handlername)
         box = pane.contentPane(datapath=valuepath, grouplet_module=grouplet_module)
-        return getattr(self, handlername)(box, **kwargs)
+        return handler(box, **kwargs)
 
     @public_method
     def gr_getGroupletMenu(self, table=None, **kwargs):
