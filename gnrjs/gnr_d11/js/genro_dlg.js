@@ -470,8 +470,10 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             genro.src.getNode()._('div',label);
             return genro.src.getNode(label).clearValue();
         }
+        const skipTags = new Set(['dataformula', 'datascript', 'datacontroller', 
+                                'datarpc', 'button', 'slotbutton', 'lightbutton']);
         let roottag = rootNode.attr.tag.toLowerCase();
-        while(roottag == 'dataformula' || roottag == 'datascript' || roottag == 'datacontroller' || roottag == 'datarpc' || roottag == 'button' || roottag == 'slotbutton'){
+        while(skipTags.has(roottag)){
             rootNode = rootNode.getParentNode();
             roottag = rootNode.attr.tag.toLowerCase();
         }
