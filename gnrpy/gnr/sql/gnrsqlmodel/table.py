@@ -288,7 +288,7 @@ class DbTableObj(DbModelObj):
         result = relations_dict.get(self.fullname)
         if result is not None:
             return result
-        result = self.newRelationResolver()()
+        result = self.newRelationResolver(cacheTime=-1)()
         relations_dict[self.fullname] = result
         return result
 
