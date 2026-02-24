@@ -2,7 +2,7 @@
 # --------------------------------------------------------------------------
 # package           : GenroPy web - see LICENSE for details
 # module apphandler.export : Export, print and PDF operations
-# Copyright (c)     : 2004 - 2007 Softwell sas - Milano
+# Copyright (c)     : 2004 - 2026 Softwell sas - Milano
 # Written by    : Giovanni Porcari, Michele Bertoldi
 #                 Saverio Porcari, Francesco Porcari, Francesco Cavazzana
 # --------------------------------------------------------------------------

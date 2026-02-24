@@ -2,7 +2,7 @@
 # --------------------------------------------------------------------------
 # package           : GenroPy web - see LICENSE for details
 # module apphandler.batch : Batch processing and thermo (progress tracking)
-# Copyright (c)     : 2004 - 2007 Softwell sas - Milano
+# Copyright (c)     : 2004 - 2026 Softwell sas - Milano
 # Written by    : Giovanni Porcari, Michele Bertoldi
 #                 Saverio Porcari, Francesco Porcari, Francesco Cavazzana
 # --------------------------------------------------------------------------
