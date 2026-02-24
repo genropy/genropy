@@ -1,9 +1,5 @@
-import os
-import tempfile
-
 import pytest
 import gnr.app.gnrlocalization as gl
-import gnr.app.gnrapp as ga
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
 from common import BaseGnrAppTest
 
