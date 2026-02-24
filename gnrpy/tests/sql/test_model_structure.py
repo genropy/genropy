@@ -13,14 +13,15 @@ Tests ALL public methods and properties of:
 Uses the test_invoice project (SQLite) as the real model.
 """
 
-import os
-import tempfile
-
 import pytest
-from gnr.app.gnrapp import GnrApp
+import sqlite3
+
 from gnr.core.gnrbag import Bag
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
 from gnr.sql.gnrsqlmodel.columns import AliasColumnWrapper
+from gnr.sql.gnrsqlmodel.helpers import bagItemFormula
+from gnr.sql.gnrsqlmodel.helpers import toolFormula
+
 from core.common import BaseGnrAppTest
 
 class TestModelStructure(BaseGnrAppTest):
@@ -261,7 +262,7 @@ class TestTableVirtualColumns(TestModelStructure):
     def test_full_virtual_columns(self):
         """full_virtual_columns requires PostgreSQL (customVirtualColumns uses string_to_array).
         On SQLite we verify it raises OperationalError."""
-        import sqlite3
+
         tbl = self.db.model.table('invc.customer')
         try:
             fvc = tbl.full_virtual_columns
@@ -902,7 +903,6 @@ class TestContainers(TestModelStructure):
 class TestHelpers(TestModelStructure):
 
     def test_bagItemFormula_text(self):
-        from gnr.sql.gnrsqlmodel.helpers import bagItemFormula
         kw = {}
         result = bagItemFormula(bagcolumn='$details', itempath='a.b', dtype='T', kwargs=kw)
         assert 'xpath' in result
@@ -910,32 +910,27 @@ class TestHelpers(TestModelStructure):
         assert kw['var_calculated_path'] == '/GenRoBag/a/b/text()'
 
     def test_bagItemFormula_numeric(self):
-        from gnr.sql.gnrsqlmodel.helpers import bagItemFormula
         kw = {}
         result = bagItemFormula(bagcolumn='$details', itempath='x.y', dtype='N', kwargs=kw)
         assert 'numeric' in result
 
     def test_bagItemFormula_positional_index(self):
-        from gnr.sql.gnrsqlmodel.helpers import bagItemFormula
         kw = {}
         bagItemFormula(bagcolumn='$col', itempath='#0.item', dtype='T', kwargs=kw)
         assert '*[1]' in kw['var_calculated_path']
 
     def test_bagItemFormula_xml_attribute(self):
-        from gnr.sql.gnrsqlmodel.helpers import bagItemFormula
         kw = {}
         bagItemFormula(bagcolumn='$col', itempath='a.b?myattr', dtype='T', kwargs=kw)
         assert '@myattr' in kw['var_calculated_path']
 
     def test_toolFormula(self):
-        from gnr.sql.gnrsqlmodel.helpers import toolFormula
         kw = {'name_long': 'My Tool'}
         result = toolFormula('mytool', dtype='T', kwargs=kw)
         assert '_tools/mytool' in result
         assert '<a' in result
 
     def test_toolFormula_image(self):
-        from gnr.sql.gnrsqlmodel.helpers import toolFormula
         kw = {}
         result = toolFormula('mytool', dtype='P', kwargs=kw)
         assert '<img' in result
