@@ -600,7 +600,7 @@ class TableBase(object):
         record[fldname] = root_record['id']
 
     def trigger_updateLinkedHierarchicalRoot(self,record,fldname,old_record=None,**kwargs):
-        htbl = self.column(fldname).relatedTable()
+        htbl = self.column(fldname).relatedTable().dbtable
         hierarchical = htbl.attributes.get('hierarchical')
         updater = {}
         if hierarchical is not True:
@@ -608,8 +608,7 @@ class TableBase(object):
                 if record.get(k) is not None:
                     updater[k] = record.get(k)
         if self.fieldsChanged(','.join(updater.keys()),record,old_record):
-            with self.db.table('srvy.question'
-                ).recordToUpdate(record[fldname]) as rec:
+            with htbl.recordToUpdate(record[fldname]) as rec:
                 rec.update(updater)
         
 
