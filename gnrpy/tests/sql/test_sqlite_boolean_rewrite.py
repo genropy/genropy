@@ -12,7 +12,7 @@ verify the fix end-to-end.
 
 import os
 import tempfile
-
+import shutil
 import pytest
 
 from gnr.app.gnrapp import GnrApp
@@ -21,23 +21,23 @@ from .common import get_pg_config
 
 DRAFT_MARKER = '__bool_rewrite_test__'
 
-_base_gnr_test_ready = False
 
+SQLITE_TEMP_DIR = None
 
-def _ensure_base_gnr_test():
-    global _base_gnr_test_ready
-    if not _base_gnr_test_ready:
-        BaseGnrTest.setup_class()
-        _base_gnr_test_ready = True
+def setup_module(module):
+    global SQLITE_TEMP_DIR
+    BaseGnrTest.setup_class()
+    SQLITE_TEMP_DIR = tempfile.mkdtemp()
 
-
+def teardown_module(module):
+    shutil.rmtree(SQLITE_TEMP_DIR)
+    BaseGnrTest.teardown_class()
+    
 @pytest.fixture(scope='module')
 def db_sqlite():
-    _ensure_base_gnr_test()
-    tempdir = tempfile.mkdtemp()
     app = GnrApp('test_invoice', db_attrs=dict(
         implementation='sqlite',
-        dbname=os.path.join(tempdir, 'testing'),
+        dbname=os.path.join(SQLITE_TEMP_DIR, 'testing'),
     ))
     app.db.model.check(applyChanges=True)
     return app.db
@@ -45,7 +45,6 @@ def db_sqlite():
 
 @pytest.fixture(scope='module')
 def db_pg():
-    _ensure_base_gnr_test()
     pg_conf, pg_instance = get_pg_config()
     dbname = pg_conf.pop('database', 'test_bool_rewrite')
     try:
