@@ -19,7 +19,7 @@ from gnr.lib.services.storage import StorageService, StorageNode
 from gnr.web.gnrbaseclasses import BaseComponent
 
 class S3LocalFile(object):
-    def __init__(self, mode='rb', bucket=None, key=None, s3_session=None):
+    def __init__(self, mode='rb', bucket=None, key=None, s3_client=None):
         self.bucket = bucket
         self.key = key
         self.mode = mode
@@ -27,8 +27,7 @@ class S3LocalFile(object):
         self.read_mode = not self.write_mode
         self.file = None
         self.close_called = False
-        self.session = s3_session
-        self.s3 = self.session.client('s3')
+        self.s3 = s3_client
 
     def __getattr__(self, name):
         local_file = self.__dict__['file']
@@ -73,7 +72,7 @@ class S3LocalFile(object):
         return self.close(exit_args=(exc, value, tb))
 
 class S3TemporaryFilename(object):
-    def __init__(self, bucket=None, key=None, s3_session=None, mode=None, keep=False):
+    def __init__(self, bucket=None, key=None, s3_client=None, mode=None, keep=False):
         self.bucket = bucket
         self.key = key
         self.mode = mode or 'r'
@@ -81,8 +80,7 @@ class S3TemporaryFilename(object):
         self.read_mode = not self.write_mode
         self.file = None
         self.close_called = False
-        self.session = s3_session
-        self.s3 = self.session.client('s3',config= boto3.session.Config(signature_version='s3v4'))
+        self.s3 = s3_client
         self.ext = os.path.splitext(self.key)[-1]
         self.keep = keep
 
@@ -243,7 +241,7 @@ class Service(StorageService):
             else:
                 mode='r'
         return S3TemporaryFilename(bucket=self.bucket, key=internalpath,
-            s3_session=self._session, mode=mode, keep=keep)
+            s3_client=self._client, mode=mode, keep=keep)
 
     def isdir(self, *args):
         internalpath = self.internal_path(*args)
