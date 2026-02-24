@@ -598,7 +598,7 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
                 s.schema_name,
                 t.table_name,
                 c.column_name,
-                c.data_type,
+                CASE WHEN c.data_type = 'USER-DEFINED' THEN c.udt_name ELSE c.data_type END AS data_type,
                 c.character_maximum_length,
                 c.is_nullable,
                 c.column_default,
