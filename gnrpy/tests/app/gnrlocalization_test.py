@@ -8,15 +8,8 @@ from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
 from common import BaseGnrAppTest
 
 class TestGnrLocalization(BaseGnrAppTest):
-
-    def setup_method(self, method):
-        self.app_name = 'gnr_it'
-        tempdir = tempfile.mkdtemp()
-        self.app = ga.GnrApp(self.app_name, db_attrs=dict(
-            implementation='sqlite',
-            dbname=os.path.join(tempdir, 'testing'),
-        ))
-
+    app_name = 'gnr_it'
+    
     def test_gnrlocstring(self):
         """
         Tests for GnrLocString class

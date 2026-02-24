@@ -14,14 +14,6 @@ class TestGnrApp(BaseGnrAppTest):
     """
     Tests class for gnr.app.gnrapp package
     """
-    def setup_method(self, method):
-        self.app_name = 'gnrdevelop'
-        tempdir = tempfile.mkdtemp()
-        self.app = ga.GnrApp(self.app_name, db_attrs=dict(
-            implementation='sqlite',
-            dbname=os.path.join(tempdir, 'testing'),
-        ))
-
     def test_nullloader(self):
         """
         Tests for NullLoader
