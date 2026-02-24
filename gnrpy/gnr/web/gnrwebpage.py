@@ -2457,7 +2457,7 @@ class GnrWebPage(GnrBaseWebPage):
         return result
 
     @public_method
-    def bagFieldDispatcher(self,pane,resource=None,module=None,table=None,
+    def bagFieldDispatcher(self,pane,resource=None,table=None,
                         bfhandler=None,field=None,version=None,valuepath=None,**kwargs):
         if bfhandler:
             handlername = bfhandler
@@ -2475,8 +2475,7 @@ class GnrWebPage(GnrBaseWebPage):
         box = pane.contentPane(datapath=valuepath,bagfieldmodule=bagfieldmodule)
         return getattr(self,handlername)(box,**kwargs)
         
-    
-    @public_method                                 
+    @public_method
     def remoteBuilder(self, handler=None,tag=None, py_requires=None,_inheritedAttributes=None,**kwargs):
         """TODO
         
