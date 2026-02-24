@@ -41,6 +41,7 @@ if hasattr(Pyro4.config, 'REQUIRE_EXPOSE'):
 
 OLD_HMAC_MODE = hasattr(Pyro4.config,'HMAC_KEY')
 DAEMON_TIMEOUT_START = 5
+DEFAULT_PAGE_MAX_AGE = 600
 PROCESS_SELFDESTROY_TIMEOUT = 600
 
 class GnrDaemonException(Exception):
@@ -641,7 +642,7 @@ class SiteRegister(BaseRemoteObject):
     def setConfiguration(self,cleanup=None):
         cleanup = cleanup or dict()
         self.cleanup_interval = int(cleanup.get('interval') or 120)
-        self.page_max_age = int(cleanup.get('page_max_age') or 120)
+        self.page_max_age = int(cleanup.get('page_max_age') or DEFAULT_PAGE_MAX_AGE)
         self.guest_connection_max_age = int(cleanup.get('guest_connection_max_age') or 40)
         self.connection_max_age = int(cleanup.get('connection_max_age')or 600)
 
