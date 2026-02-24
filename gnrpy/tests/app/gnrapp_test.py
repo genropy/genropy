@@ -1,7 +1,9 @@
 """
 Tests for gnr.app package
 """
+import os
 import sys
+import tempfile
 import _frozen_importlib
 import pytest
 
@@ -14,7 +16,11 @@ class TestGnrApp(BaseGnrAppTest):
     """
     def setup_method(self, method):
         self.app_name = 'gnrdevelop'
-        self.app = ga.GnrApp(self.app_name, forTesting=True)
+        tempdir = tempfile.mkdtemp()
+        self.app = ga.GnrApp(self.app_name, db_attrs=dict(
+            implementation='sqlite',
+            dbname=os.path.join(tempdir, 'testing'),
+        ))
 
     def test_nullloader(self):
         """
