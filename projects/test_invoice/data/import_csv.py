@@ -27,6 +27,8 @@ TABLES_ORDER = [
     'product_type',
     'product',
     'customer',
+    'price_year',
+    'price_year_note',
 ]
 
 INVOICE_TABLES = [

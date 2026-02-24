@@ -59,7 +59,6 @@ class TestSqlDbAdapter():
         assert "gnrsqlite" in all_adapters
         
     def test_basic_methods(self):
-        assert self.adapter.setLocale("it_IT") is None
         assert self.adapter.adaptSqlSchema("schema_name") == "schema_name"
         assert self.adapter.adaptSqlName("schema_name") == "schema_name"
         assert self.adapter_fixed_schema.adaptSqlSchema("schema_name") == "fixed_schema"

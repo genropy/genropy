@@ -8,3 +8,5 @@ class Table(object):
         self.sysFields(tbl,id=False)
         tbl.column('code' ,size=':5',name_long='!!Code')
         tbl.column('name' ,size=':100',name_long='!!Name')
+        tbl.column('region_code', size=':5', name_long='!!Region').relation(
+            'region.code', relation_name='states', mode='foreignkey', onDelete='raise')
