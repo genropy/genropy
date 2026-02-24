@@ -27,7 +27,7 @@ dependencies = [
 	     "babel",
 	     "boto3",
 	     "caldav",
-	     "chardet",
+	     "chardet==5.2.0",
 	     "dictdiffer", # for gnr.sql migration
 	     "docutils",
 	     "dulwich", # needed by gnrgit
@@ -188,6 +188,11 @@ packages = [
 "gnr.resources" = "../resources"
 "gnr.webtools" = "../webtools"
 
+
+# PYTEST
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
 
 # COVERAGE
 [tool.coverage.run]
