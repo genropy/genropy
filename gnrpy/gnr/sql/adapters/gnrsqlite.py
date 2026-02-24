@@ -577,7 +577,16 @@ pysqlite.register_converter("bool", convert_boolean)
 
 # unix timestamps
 def convert_timestamp(val):
-    """Convert Unix epoch timestamp to datetime.datetime object."""
-    return datetime.datetime.fromtimestamp(int(val))
+    """Convert timestamp to datetime.datetime object."""
+    if isinstance(val, (bytes, bytearray)):
+        val = val.decode()
+    try:
+        ts = int(val)
+    except ValueError:
+        dt = datetime.datetime.fromisoformat(val)
+    else:
+        dt = datetime.fromtimestamp(ts)
+
+    return dt
 
 pysqlite.register_converter("timestamp", convert_timestamp)
