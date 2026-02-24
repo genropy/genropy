@@ -992,11 +992,19 @@ class TableHandlerView(BaseComponent):
                    _onResult='FIRE .query.currentQuery="__newquery__";FIRE .query.refreshMenues;')
 
         #SOURCE MENUVIEWS
-        pane.dataController("""genro.grid_configurator.loadView(gridId, (currentView || favoriteView));
-                                """,
+        pane.dataController("""
+            if(genro.grid_configurator){
+                genro.grid_configurator.loadView(gridId, (currentView || favoriteView));
+                return;
+            }
+            this.watch('jsconf_loaded',function(){return genro.grid_configurator;},function(){
+                setTimeout(function(){
+                    genro.grid_configurator.loadView(gridId, (currentView || favoriteView));
+                },1);
+            });""",
                             currentView="^.grid.currViewPath",
                             favoriteView='^.grid.favoriteViewPath',
-                            _delay=1,gridId=gridId,_onBuilt=1)
+                            gridId=gridId,_onBuilt=1)
         q = Bag()
         pyviews = self._th_hook('struct',mangler=th_root,asDict=True)
         for k,v in list(pyviews.items()):

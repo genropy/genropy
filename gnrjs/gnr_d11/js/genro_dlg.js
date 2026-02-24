@@ -462,30 +462,141 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             {message: msg, type: level, duration: duration}
         ]);
     },
+    
 
-    remoteDialog:function(name,remote,remoteKw,dlgKw){
+
+    _resolveDialogRoot:function(rootNode, label){
+        if(!rootNode){
+            genro.src.getNode()._('div',label);
+            return genro.src.getNode(label).clearValue();
+        }
+        let roottag = rootNode.attr.tag.toLowerCase();
+        while(roottag == 'dataformula' || roottag == 'datascript' || roottag == 'datacontroller' || roottag == 'datarpc' || roottag == 'button' || roottag == 'slotbutton'){
+            rootNode = rootNode.getParentNode();
+            roottag = rootNode.attr.tag.toLowerCase();
+        }
+        rootNode._('div',label,{_attachTo:'mainWindow',parentForm:false});
+        return rootNode.getValue().getNode(label).clearValue();
+    },
+
+    _groupletForm:function(name, kw,rootNode){
+        kw = kw || {};
+        let dlgKw = objectExtract(kw,'dialog_*');
+        objectUpdate(dlgKw,objectExtract(kw,'title,closable,animateResize'));
+        const dlgId = 'grouplet_dlg_' + name;
+        const formId = 'grouplet_form_' + name;
+        const pkey = objectPop(kw,'pkey');
+        const table = kw.table;
+        kw.formId = formId;
+        kw.form_modalForm = true;
+        kw.grouplet_showOnFormLoaded = false; //built only one time
+        dlgKw.nodeId = dlgId;
+
+        // Check if dialog already exists to reuse it
+        let dlgNode = genro.nodeById(dlgKw.nodeId);
+
+        if(!dlgNode){
+            if(table && pkey){
+                kw.store_handler = kw.store_handler || 'record';
+            }
+            // Configure dialog defaults
+            dlgKw.autoSize = false;
+            dlgKw.closable = dlgKw.closable !== undefined ? dlgKw.closable : true;
+            dlgKw.animateResize = dlgKw.animateResize !== undefined ? dlgKw.animateResize : true;
+            const node = this._resolveDialogRoot(rootNode, 'root_'+dlgId);
+            const dlg = node._('dialog', dlgId,dlgKw);
+            const loadChunk = pkey ? `genro.formById("${formId}").goToRecord("${pkey}")` : `genro.formById("${formId}").load()`;
+            kw.grouplet__onRemote = `setTimeout(() => {genro.nodeById('${dlgId}').widget.adjustDialogSize();${loadChunk};}, 1);`;
+            const onSavedCb = objectPop(kw,'onSavedCb');
+            const confirmLabel = objectPop(kw, 'confirmLabel') || _T('Confirm');
+            const cancelLabel = objectPop(kw, 'cancelLabel') || _T('Cancel');
+            dlg._('GroupletForm', kw);
+            const hideDlg = function(){ genro.nodeById(dlgId).widget.hide(); };
+            genro.formById(formId).subscribe('onSaved',function(kw){
+                if(onSavedCb){ onSavedCb(kw); }
+                hideDlg();
+            });
+            genro.formById(formId).subscribe('onDismissed',hideDlg);
+            const bottom = dlg._('flexbox', {_class:'dialog_bottom',flex_direction:'row-reverse',padding_bottom:'5px'});
+            bottom._('Button', {'label':confirmLabel, action:function(){
+                genro.formById(formId).save();
+            }});
+            bottom._('Button', {'label':cancelLabel, action:function(){
+                genro.formById(formId).abort();
+            }});
+            dlgNode = dlg.getParentNode();
+            dlgNode.widget.show();
+        }else{
+            
+            dlgNode.widget.show();
+            genro.formById(formId).load(pkey ? {destPkey:pkey} : null);
+        }
+    },
+    
+
+
+
+    memoryDataEditor:function(name, kw,sourceNode){
+        kw = kw || {};
+        // memory + SubForm are GroupletForm defaults:
+        // load_memory copies fields from parent form, save_memory writes them back
+        this._groupletForm(name, kw,sourceNode);
+    },
+
+    documentDataEditor:function(name, kw,sourceNode){
+        kw = kw || {};
+        kw.pkey = objectPop(kw, 'path') || kw.pkey;
+        kw.store_handler = 'document';
+        kw.storeType = 'Item';
+        this._groupletForm(name, kw,sourceNode);
+    },
+
+    recordDataEditor:function(name, kw, sourceNode){
+        kw = kw || {};
+        kw.store_handler = 'record';
+        kw.storeType = 'Item';
+        this._groupletForm(name, kw,sourceNode);
+    },
+
+    // Creates and shows a dialog with remote content
+    // - name: unique identifier for the dialog
+    // - remote: the remote method to call for content
+    // - remoteKw: parameters passed to the remote call (prefixed with 'remote_')
+    // - dlgKw: dialog widget configuration options
+    remoteDialog:function(name, remote, remoteKw, dlgKw,remoteRootCb){
         remoteKw = remoteKw || {};
         dlgKw = dlgKw || {};
-        dlgKw.nodeId = 'remote_dlg_'+name;
+        dlgKw.nodeId = 'remote_dlg_' + name;
 
-        var dlgNode = genro.nodeById(dlgKw.nodeId);
+        // Check if dialog already exists to reuse it
+        let dlgNode = genro.nodeById(dlgKw.nodeId);
+
         if(!dlgNode){
+            // Configure dialog defaults
             dlgKw.autoSize = false;
-            dlgKw.closable = true;
-            var dlg = genro.src.create('dialog',dlgKw,'_rmt_dlg');
-            var kw = {};
-            for (var k in remoteKw){
-                kw['remote_'+k] = remoteKw[kw];
+            dlgKw.closable = dlgKw.closable !== undefined ? dlgKw.closable : true;
+
+            const dlg = genro.src.create('dialog', dlgKw, '_rmt_dlg');
+
+            // Build remote call parameters with 'remote_' prefix
+            let kw = {remote: remote};
+            for(const k in remoteKw){
+                kw['remote_' + k] = remoteKw[k];
             }
-            kw.min_height = '1px';
-            kw.min_width = '1px';
-            kw.remote__onRemote = function(){setTimeout(function(){
-                dlgNode.widget.adjustDialogSize();
-            },1)};
-            kw.remote = remote;
-            dlg._('div',kw);
+
+            // Adjust dialog size after remote content loads
+            kw.remote__onRemote = function(){
+                setTimeout(() => dlgNode.widget.adjustDialogSize(), 1);
+            };
+            remoteRootCb = remoteRootCb || function(dlg, content_remotekw){
+                content_remotekw.min_height = '1px';
+                content_remotekw.min_width = '1px';
+                dlg._('div', content_remotekw);
+            };
+            remoteRootCb(dlg,kw);
             dlgNode = dlg.getParentNode();
         }
+
         dlgNode.widget.show();
     },
     
@@ -756,19 +867,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
     quickDialog: function(title,kw,rootNode) {
         kw = objectUpdate({_class:'dlg_prompt'},kw);
         var quickRoot = '_dlg_quick_'+genro.getCounter();
-        var node;
-        if(!rootNode){
-            genro.src.getNode()._('div',quickRoot);
-            node = genro.src.getNode(quickRoot).clearValue();
-        }else{
-            let roottag = rootNode.attr.tag.toLowerCase();
-            while(roottag == 'dataformula' || roottag == 'datascript' || roottag == 'datacontroller' || roottag == 'datarpc'){
-                rootNode = rootNode.getParentNode();
-                roottag = rootNode.attr.tag.toLowerCase();
-            }
-            rootNode._('div',quickRoot,{_attachTo:'mainWindow',parentForm:false});
-            node = rootNode.getValue().getNode(quickRoot).clearValue();
-        }
+        var node = this._resolveDialogRoot(rootNode, quickRoot);
         node.freeze();
         let kwdimension = objectExtract(kw,'height,width,background,padding');
         let bottom_position_kw = {}
