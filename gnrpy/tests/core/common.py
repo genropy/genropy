@@ -126,10 +126,6 @@ class BaseGnrAppTest(BaseGnrTest):
         super().teardown_class()
         if cls._tempdir and os.path.exists(cls._tempdir):
             shutil.rmtree(cls._tempdir)
-        
-                    
-    
-    pass
 
 def checkInstance(instance_name):
     """Attempt to load a Genropy instance.
