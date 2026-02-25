@@ -10,6 +10,14 @@ Uses both PostgreSQL and SQLite instances of the test_invoice project.
 
 import pytest
 
+from core.common import BaseGnrTest
+
+def setup_module(module):
+    BaseGnrTest.setup_class()
+def teardown_module(module):
+    BaseGnrTest.teardown_class()
+
+
 CUSTOMER_COUNT = 3200
 INVOICE_COUNT = 256
 INVOICE_ROW_COUNT = 803
