@@ -48,7 +48,6 @@ dependencies = [
 	     "pytz",
 	     "pyyaml",
 	     "redbaron",
-	     "reportlab",
 	     "requests",
 	     "simpleeval",
 	     "six", # evaluate if needed
@@ -87,9 +86,6 @@ developer = [
 [project.scripts]
 # gnr.core
 gnr = 'gnr.core.cli.gnr:main'
-# gnr.xtnd
-gnrsync4d = 'gnr.xtnd.cli.gnrsync4d:main'
-gnrsync4dpyro = 'gnr.xtnd.cli.gnrsync4dpyro:main'
 # gnr.web
 gnrsyncstorage = 'gnr.web.cli.gnrsyncstorage:main'
 gnrtaskscheduler = 'gnr.web.cli.gnrtaskscheduler:main'
@@ -193,6 +189,7 @@ packages = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["tests"]
+asyncio_default_fixture_loop_scope = "function"
 
 # COVERAGE
 [tool.coverage.run]
