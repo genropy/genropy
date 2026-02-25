@@ -48,7 +48,6 @@ dependencies = [
 	     "pytz",
 	     "pyyaml",
 	     "redbaron",
-	     "reportlab",
 	     "requests",
 	     "simpleeval",
 	     "six", # evaluate if needed
