@@ -1054,6 +1054,7 @@ class GnrWsgiSite(object):
         """TODO
 
         :param params: TODO"""
+        request.get_data(cache=True)
         out_dict = dict()
         for source in (request.values, request.files):
             for name,value in source.lists():
