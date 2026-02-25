@@ -468,9 +468,9 @@ dojo.declare("gnr.GnrDlgHandler", null, {
     _resolveDialogRoot:function(rootNode, label){
         if(!rootNode){
             genro.src.getNode()._('div',label);
-            return genro.src.getNode(label).clearValue();
+            return genro.src.getNode();
         }
-        const skipTags = new Set(['dataformula', 'datascript', 'datacontroller', 
+        const skipTags = new Set(['dataformula', 'datascript', 'datacontroller',
                                 'datarpc', 'button', 'slotbutton', 'lightbutton']);
         let roottag = rootNode.attr.tag.toLowerCase();
         while(skipTags.has(roottag)){
@@ -478,7 +478,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             roottag = rootNode.attr.tag.toLowerCase();
         }
         rootNode._('div',label,{_attachTo:'mainWindow',parentForm:false});
-        return rootNode.getValue().getNode(label).clearValue();
+        return rootNode;
     },
 
     _groupletForm:function(name, kw,rootNode){
@@ -505,7 +505,8 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             dlgKw.autoSize = false;
             dlgKw.closable = dlgKw.closable !== undefined ? dlgKw.closable : true;
             dlgKw.animateResize = dlgKw.animateResize !== undefined ? dlgKw.animateResize : true;
-            const node = this._resolveDialogRoot(rootNode, 'root_'+dlgId);
+            rootNode = this._resolveDialogRoot(rootNode, 'root_'+dlgId);
+            const node = rootNode.getValue().getNode('root_'+dlgId).clearValue();
             const dlg = node._('dialog', dlgId,dlgKw);
             const loadChunk = pkey ? `genro.formById("${formId}").goToRecord("${pkey}")` : `genro.formById("${formId}").load()`;
             kw.grouplet__onRemote = `setTimeout(() => {genro.nodeById('${dlgId}').widget.adjustDialogSize();${loadChunk};}, 1);`;
@@ -869,7 +870,8 @@ dojo.declare("gnr.GnrDlgHandler", null, {
     quickDialog: function(title,kw,rootNode) {
         kw = objectUpdate({_class:'dlg_prompt'},kw);
         var quickRoot = '_dlg_quick_'+genro.getCounter();
-        var node = this._resolveDialogRoot(rootNode, quickRoot);
+        rootNode = this._resolveDialogRoot(rootNode, quickRoot);
+        var node = rootNode.getValue().getNode(quickRoot).clearValue();
         node.freeze();
         let kwdimension = objectExtract(kw,'height,width,background,padding');
         let bottom_position_kw = {}
