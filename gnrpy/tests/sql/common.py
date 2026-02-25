@@ -6,7 +6,6 @@ import pytest
 from testing.postgresql import Postgresql
 
 from gnr.core.gnrbag import Bag
-from gnr.core import gnrlocale
 
 class MockCache:
     """Mock cache for testing GnrSqlDb and GnrSqlAppDb"""
