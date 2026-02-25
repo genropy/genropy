@@ -1141,6 +1141,24 @@ class TableHandlerView(BaseComponent):
     def th_slotbar_pageHooksSelector(self,pane,**kwargs):
         pane.multiButton(items='^.viewPages',value='^.viewPage',identifier='pageName')
       
+    def _th_addRequiredColumns(self, tblobj, hiddencolumns):
+        if not hiddencolumns:
+            return hiddencolumns
+        columns = [c.strip() for c in hiddencolumns.split(',')]
+        for col in list(columns):
+            colname = col.lstrip('$')
+            colobj = tblobj.model.column(colname)
+            if colobj is None:
+                continue
+            req = colobj.attributes.get('required_columns')
+            if not req:
+                continue
+            for rc in req.split(','):
+                rc = rc.strip()
+                if rc and rc not in columns:
+                    columns.append(rc)
+        return ','.join(columns)
+
     @struct_method
     def th_gridPane(self, frame,table=None,th_pkey=None,
                         virtualStore=None,condition=None,unlinkdict=None,
@@ -1206,7 +1224,7 @@ class TableHandlerView(BaseComponent):
         gridattr.update(rowsPerPage=rowsPerPage,
                         dropTypes=None,dropTarget=True,
                         
-                        hiddencolumns=self._th_hook('hiddencolumns',mangler=th_root)(),
+                        hiddencolumns=self._th_addRequiredColumns(tblobj, self._th_hook('hiddencolumns',mangler=th_root)()),
                         dragClass='draggedItem',
                         selfsubscribe_runbtn="""
                             var currLinkedSelection = GET .#parent.linkedSelectionPars;
