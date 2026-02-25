@@ -52,6 +52,11 @@ def _select_paths(all_paths, per_depth=10):
         depths[d] = len(take)
     return selected, depths
 
+def setup_module(module):
+    BaseGnrTest.setup_class()
+
+def teardown_module(module):
+    BaseGnrTest.teardown_class()
 
 class TestCompilerSimulation(BaseGnrTest):
     """Simulate the compiler resolving paths from a single starting table."""

@@ -41,6 +41,10 @@ def _collect_real_paths(bag, prefix='', max_depth=4, depth=0):
             paths.append((current, depth))
     return paths
 
+def setup_module(module):
+    BaseGnrTest.setup_class()
+def teardown_module(module):
+    BaseGnrTest.teardown_class()
 
 class TestRelationPathsBenchmark(BaseGnrTest):
     """Benchmark: resolve N real dotted paths, first pass vs cached."""
