@@ -463,6 +463,23 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         ]);
     },
 
+
+    _resolveDialogRoot:function(rootNode, label){
+        if(!rootNode){
+            genro.src.getNode()._('div',label);
+            return genro.src.getNode();
+        }
+        const skipTags = new Set(['dataformula', 'datascript', 'datacontroller',
+                                'datarpc', 'button', 'slotbutton', 'lightbutton']);
+        let roottag = rootNode.attr.tag.toLowerCase();
+        while(skipTags.has(roottag)){
+            rootNode = rootNode.getParentNode();
+            roottag = rootNode.attr.tag.toLowerCase();
+        }
+        rootNode._('div',label,{_attachTo:'mainWindow',parentForm:false});
+        return rootNode;
+    },
+
     remoteDialog:function(name,remote,remoteKw,dlgKw){
         remoteKw = remoteKw || {};
         dlgKw = dlgKw || {};
@@ -756,19 +773,8 @@ dojo.declare("gnr.GnrDlgHandler", null, {
     quickDialog: function(title,kw,rootNode) {
         kw = objectUpdate({_class:'dlg_prompt'},kw);
         var quickRoot = '_dlg_quick_'+genro.getCounter();
-        var node;
-        if(!rootNode){
-            genro.src.getNode()._('div',quickRoot);
-            node = genro.src.getNode(quickRoot).clearValue();
-        }else{
-            let roottag = rootNode.attr.tag.toLowerCase();
-            while(roottag == 'dataformula' || roottag == 'datascript' || roottag == 'datacontroller' || roottag == 'datarpc'){
-                rootNode = rootNode.getParentNode();
-                roottag = rootNode.attr.tag.toLowerCase();
-            }
-            rootNode._('div',quickRoot,{_attachTo:'mainWindow',parentForm:false});
-            node = rootNode.getValue().getNode(quickRoot).clearValue();
-        }
+        rootNode = this._resolveDialogRoot(rootNode, quickRoot);
+        var node = rootNode.getValue().getNode(quickRoot).clearValue();
         node.freeze();
         let kwdimension = objectExtract(kw,'height,width,background,padding');
         let bottom_position_kw = {}
