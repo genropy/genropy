@@ -733,15 +733,12 @@ class GnrPackage(object):
         struct.package(self.id, **self.attributes)
         
         config_db_xml = os.path.join(self.packageFolder, 'model', 'config_db.xml')
+        
         if os.path.isfile(config_db_xml):
-            if hasattr(self, '_structFix4D'):
-                config_db_xml = self._structFix4D(struct, config_db_xml)
             struct.update(config_db_xml)
         
         config_db_xml = os.path.join(self.customFolder, 'model', 'config_db.xml')
         if os.path.isfile(config_db_xml):
-            if hasattr(self, '_structFix4D'):
-                config_db_xml = self._structFix4D(struct, config_db_xml)
             struct.update(config_db_xml)
         
     def onApplicationInited(self):
