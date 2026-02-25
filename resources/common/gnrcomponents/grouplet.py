@@ -1,7 +1,8 @@
-from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrdecorator import extract_kwargs, public_method
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlang import gnrImport
 from gnr.web.gnrbaseclasses import BaseComponent
+from gnr.web.gnrwebstruct import struct_method
 
 
 class GroupletHandler(BaseComponent):
@@ -10,7 +11,11 @@ class GroupletHandler(BaseComponent):
     def gr_loadGrouplet(self, pane, resource=None, table=None,
                         handlername=None, valuepath=None, **kwargs):
         grouplet_module = None
-        if resource:
+        if not resource:
+            if not handlername:
+                raise self.exception('generic', msg='Missing resource or method for handling grouplet')
+            handler = self.getPublicMethod('remote', handlername)
+        else:
             handlername = handlername or 'grouplet_main'
             if ':' not in resource:
                 resource = f'{resource}:Grouplet'
@@ -19,10 +24,47 @@ class GroupletHandler(BaseComponent):
             else:
                 mixinedClass = self.mixinComponent(resource)
             grouplet_module = getattr(mixinedClass, '__top_mixined_module', None)
-        if not handlername:
-            raise self.exception('generic', msg='Missing resource or method for handling grouplet')
+            handler = getattr(self, handlername)
         box = pane.contentPane(datapath=valuepath, grouplet_module=grouplet_module)
-        return getattr(self, handlername)(box, **kwargs)
+        return handler(box, **kwargs)
+
+    @extract_kwargs(grouplet=True,template=True,btn=True)
+    @struct_method
+    def gr_groupletChunk(self, pane, value=None, template=None, name=None,
+                         handler=None, resource=None, table=None,
+                         title=None,
+                         virtual_columns=None,
+                         grouplet_kwargs=None,template_kwargs=None,
+                         btn_kwargs=None, **kwargs):
+        root_kw = {}
+        if virtual_columns:
+            root_kw['_virtual_columns'] = virtual_columns
+        btn_kwargs.setdefault('_class','iconbox pencil')
+        btn_kwargs.setdefault('height','14px')
+        btn_kwargs.setdefault('position','absolute')
+        btn_kwargs.setdefault('bottom','2px')
+        btn_kwargs.setdefault('right','2px')
+        kwargs.setdefault('_class', 'grouplet_chunk_box')
+
+        root = pane.div(position='relative',**kwargs)
+        template_kwargs['template'] = template
+        template_kwargs['datasource'] = value
+        root.div(**template_kwargs) #templatechunk
+        btn = root.lightButton(**btn_kwargs)
+        grouplet_kwargs['value'] = value.replace('^','')
+        if resource:
+            grouplet_kwargs['resource'] = resource
+        if table:
+            grouplet_kwargs['table'] = table
+        if title:
+            grouplet_kwargs['title'] = title
+        if handler:
+            grouplet_kwargs['handler'] = handler
+        btn.dataController("""
+            let editor_kw = {..._kwargs};
+            genro.dlg.memoryDataEditor(name,editor_kw,this);
+        """,name=name, **grouplet_kwargs)
+        return root
 
     @public_method
     def gr_getGroupletMenu(self, table=None, **kwargs):

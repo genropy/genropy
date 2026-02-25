@@ -5,6 +5,7 @@ db_attrs overrides db connection attributes from instanceconfig.
 
 import os
 import tempfile
+import shutil
 
 from gnr.app.gnrapp import GnrApp
 from core.common import BaseGnrTest
@@ -21,7 +22,13 @@ class TestDbAttrs(BaseGnrTest):
             implementation='sqlite',
             dbname=os.path.join(cls.tempdir, 'test_db_attrs'),
         )
-
+        
+    @classmethod
+    def teardown_class(cls):
+        super().teardown_class()
+        if cls.tempdir and os.path.exists(cls.tempdir):
+            shutil.rmtree(cls.tempdir)
+            
     def test_db_created_with_db_attrs(self):
         app = GnrApp('test_invoice', db_attrs=self.db_attrs)
         assert app.db is not None

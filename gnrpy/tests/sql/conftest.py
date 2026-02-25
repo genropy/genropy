@@ -7,6 +7,7 @@ then imports CSV data from projects/test_invoice/data/export/.
 import csv
 import os
 import tempfile
+import shutil
 
 import pytest
 
@@ -14,15 +15,20 @@ from gnr.app.gnrapp import GnrApp
 from core.common import BaseGnrTest
 from .common import get_pg_config
 
-_base_gnr_test_ready = False
 
 
-def _ensure_base_gnr_test():
-    global _base_gnr_test_ready
-    if not _base_gnr_test_ready:
-        BaseGnrTest.setup_class()
-        _base_gnr_test_ready = True
+@pytest.fixture(scope="module", autouse=True)
+def sqlite_temp_dir():
+    tmpdir = tempfile.mkdtemp()
+    try:
+        yield tmpdir
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
+def setup_module(module):
+    BaseGnrTest.setup_class()
+def teardown_module(module):
+    BaseGnrTest.teardown_class()
 
 def _csv_dir():
     """Return the path to the CSV export directory."""
@@ -101,12 +107,10 @@ def _import_csv_data(db):
 
 
 @pytest.fixture(scope='module')
-def db_sqlite():
-    _ensure_base_gnr_test()
-    tempdir = tempfile.mkdtemp()
+def db_sqlite(sqlite_temp_dir):
     app = GnrApp('test_invoice', db_attrs=dict(
         implementation='sqlite',
-        dbname=os.path.join(tempdir, 'testing'),
+        dbname=os.path.join(sqlite_temp_dir, 'testing'),
     ))
     app.db.model.check(applyChanges=True)
     _import_csv_data(app.db)
@@ -115,7 +119,6 @@ def db_sqlite():
 
 @pytest.fixture(scope='module')
 def db_pg():
-    _ensure_base_gnr_test()
     pg_conf, pg_instance = get_pg_config()
     dbname = pg_conf.pop('database', 'test_compiler')
     try:
