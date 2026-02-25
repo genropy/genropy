@@ -13,6 +13,7 @@ The -s flag is needed to see the printed timing table.
 import time
 
 from gnr.core.gnrbag import Bag
+from core.common import BaseGnrTest
 
 
 def _collect_real_paths(bag, prefix='', max_depth=4, depth=0):
@@ -41,7 +42,7 @@ def _collect_real_paths(bag, prefix='', max_depth=4, depth=0):
     return paths
 
 
-class TestRelationPathsBenchmark:
+class TestRelationPathsBenchmark(BaseGnrTest):
     """Benchmark: resolve N real dotted paths, first pass vs cached."""
 
     def test_real_paths_build_vs_cached(self, db_sqlite):

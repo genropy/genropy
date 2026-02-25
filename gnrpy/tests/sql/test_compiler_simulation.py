@@ -15,7 +15,7 @@ Run with: pytest tests/sql/test_compiler_simulation.py -v -s
 import time
 
 from gnr.core.gnrbag import Bag
-
+from core.common import BaseGnrTest
 
 def _collect_real_paths(bag, prefix='', max_depth=4, depth=0):
     """Walk the relation tree collecting all reachable dotted paths.
@@ -53,7 +53,7 @@ def _select_paths(all_paths, per_depth=10):
     return selected, depths
 
 
-class TestCompilerSimulation:
+class TestCompilerSimulation(BaseGnrTest):
     """Simulate the compiler resolving paths from a single starting table."""
 
     def test_invoice_row_50_paths(self, db_sqlite):
