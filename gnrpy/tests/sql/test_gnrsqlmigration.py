@@ -189,6 +189,26 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         check_value = 'CREATE TABLE "alfa"."alfa_recipe_row" ("recipe_code" character varying(12) NOT NULL , "recipe_line" bigint NOT NULL , "description" text , "ingredient_id" bigint , PRIMARY KEY (recipe_code,recipe_line));'
         self.checkChanges(check_value)
 
+    def test_05c1_composite_pkey_with_unique_column(self):
+        """Columns in a composite PK should retain individual unique constraints (issue #576)."""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('test_composite_unique', pkey='composite_key')
+        tbl.compositeColumn('composite_key', columns='field_a,field_b')
+        tbl.column('field_a', size='5')
+        tbl.column('field_b', size='5', unique=True)
+        tbl.column('field_c', size='5', unique=True)
+        check_value = ('CREATE TABLE "alfa"."alfa_test_composite_unique"(\n'
+                       ' "field_a" character(5) NOT NULL,\n'
+                       ' "field_b" character(5) NOT NULL,\n'
+                       ' "field_c" character(5),\n'
+                       ' PRIMARY KEY (field_a,field_b)\n'
+                       ');\n'
+                       'ALTER TABLE "alfa"."alfa_test_composite_unique"\n'
+                       'ADD CONSTRAINT "cst_f65e94e4" UNIQUE ("field_b");\n'
+                       'ALTER TABLE "alfa"."alfa_test_composite_unique"\n'
+                       'ADD CONSTRAINT "cst_7db93e7e" UNIQUE ("field_c");')
+        self.checkChanges(check_value)
+
     def test_05d_create_table_with_pkey_explicit_unique(self):
         """Tests creating a table with a primary key column."""
         pkg = self.src.package('alfa')
