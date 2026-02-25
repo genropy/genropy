@@ -29,10 +29,11 @@ state such as ``workdate``, ``locale``, ``storename``, ``user``, etc.
 from __future__ import annotations
 
 import _thread
-import locale as locale_mod
+
 from datetime import date
 from typing import Any
 
+from gnr.core.gnrlocale import defaultLocale
 from gnr.sql.gnrsql.helpers import TempEnv
 
 
@@ -90,7 +91,7 @@ class EnvMixin:
 
         Falls back to the system locale if not explicitly set.
         """
-        return self.currentEnv.get('locale') or locale_mod.getlocale()[0]
+        return self.currentEnv.get('locale') or defaultLocale() 
 
     def _set_locale(self, locale: str) -> None:
         """Set the locale for the current thread."""

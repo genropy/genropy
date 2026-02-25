@@ -6,7 +6,7 @@ import pytest
 from testing.postgresql import Postgresql
 
 from gnr.core.gnrbag import Bag
-
+from gnr.core import gnrlocale
 
 class MockCache:
     """Mock cache for testing GnrSqlDb and GnrSqlAppDb"""
@@ -61,6 +61,8 @@ def get_pg_config():
             password=os.environ.get('GNR_TEST_PG_PASSWORD'),
         ), None
     subprocess.run(['pkill', '-f', 'postgres.*tmp'], capture_output=True)
+    # we need to ensure that a proper LANG is set, needed by postgresql's initdb
+    os.environ['LANG'] = "en_GB.UTF-8"
     pg_instance = Postgresql()
     return pg_instance.dsn(), pg_instance
 
