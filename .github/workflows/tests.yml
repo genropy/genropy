@@ -59,4 +59,4 @@ jobs:
         LC_ALL: en_GB
         LANG: en_GB
       run: |
-        cd gnrpy/tests &&  pytest core sql web app xtnd
+        cd gnrpy &&  pytest core sql web app xtnd
