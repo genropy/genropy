@@ -12,7 +12,6 @@ from collections import defaultdict
 from threading import RLock
 import warnings
 
-from packaging.version import LocalType
 import requests
 from werkzeug.wrappers import Request, Response
 from werkzeug.utils import redirect
