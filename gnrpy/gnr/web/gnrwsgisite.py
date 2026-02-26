@@ -1153,7 +1153,7 @@ class GnrWsgiSite(object):
             if self.debug and ((page and page.isDeveloper()) or self.force_debug):
                 raise
             self.writeException(exception=e,traceback=tracebackBag())
-            exc = InternalServerError(
+            exc = HTTPInternalServerError(
                 description='Internal server error; SCRIPT_NAME=%r; PATH_INFO=%r;'
                 % (environ.get('SCRIPT_NAME'), environ.get('PATH_INFO')))
             return exc(environ, start_response)
