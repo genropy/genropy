@@ -32,7 +32,7 @@ from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator as GnrWhereTrans
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
 
 #DBAPI.paramstyle = 'pyformat'
-RE_SQL_PARAMS = re.compile(r":(\w*)(\W|$)")
+RE_SQL_PARAMS = re.compile(r"(?<!:):(?!:)(\w*)(\W|$)")
 
 class DictCursorWrapper(object):
 
