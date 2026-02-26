@@ -14,8 +14,11 @@ class GroupletHandler(BaseComponent):
     @public_method
     def gr_loadGrouplet(self, pane, resource=None, table=None,
                         handlername=None, valuepath=None,
+                        nested_datapath=False,
                         grouplets_root=None, **kwargs):
         grouplets_root = grouplets_root or 'grouplets'
+        if nested_datapath and resource:
+            valuepath = f'{valuepath or "."}.{resource.replace("/", ".")}'
         if not resource:
             if not handlername:
                 raise self.exception('generic',
@@ -195,6 +198,7 @@ class GroupletHandler(BaseComponent):
     @struct_method
     def gr_groupletPanel(self, pane, table=None, topic=None, value=None,
                          frameCode=None, grouplets_root=None,
+                         nested_datapath=True,
                          grouplet_kwargs=None, **kwargs):
         frameCode = frameCode or 'grplt_panel'
         frame = pane.framePane(frameCode=frameCode, _anchor=True, **kwargs)
@@ -206,6 +210,8 @@ class GroupletHandler(BaseComponent):
             grouplet_kwargs['table'] = table
         if grouplets_root:
             grouplet_kwargs['grouplets_root'] = grouplets_root
+        if nested_datapath:
+            grouplet_kwargs['nested_datapath'] = nested_datapath
         if topic:
             bar = frame.top.slotBar('*,mb,*', _class='mobile_bar')
             bar.mb.multibutton(value='^.selected_code',
