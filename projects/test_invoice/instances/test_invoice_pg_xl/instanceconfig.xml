@@ -1,0 +1,14 @@
+<?xml version="1.0" ?>
+<GenRoBag>
+	<db dbname="test_invoice_pg_xl" implementation="postgres" host="localhost" port="5432"/>
+
+	<packages>
+		<gnrcore_sys pkgcode="gnrcore:sys"/>
+		<gnrcore_adm pkgcode="gnrcore:adm"/>
+		<invc/>
+	</packages>
+
+	<authentication pkg="gnrcore:sys">
+		<py_auth defaultTags="user" method="authenticate" pkg="adm"/>
+	</authentication>
+</GenRoBag>

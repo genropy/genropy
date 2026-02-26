@@ -34,6 +34,7 @@ from typing import Any, Callable, Generator
 from gnr.core.gnrbag import Bag
 from gnr.sql import logger
 from gnr.sql.gnrsql.helpers import GnrSqlException
+from gnr.sql.gnrsql.runtime_model import RuntimeModel
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
 
 
@@ -285,6 +286,7 @@ class QueryMixin:
         aliasPrefix: str | None = None,
         ignoreTableOrderBy: bool | None = None,
         subtable: str | None = None,
+        mainquery_kw: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> str:
         """Compile a query to raw SQL text.
@@ -316,6 +318,8 @@ class QueryMixin:
             aliasPrefix: Prefix for column aliases.
             ignoreTableOrderBy: If set, ignore the table's default ordering.
             subtable: Subtable filter name.
+            mainquery_kw: Optional dict of main query keyword arguments
+                (used by subqueries to access parent parameters).
             **kwargs: Extra parameter bindings injected into ``currentEnv``.
 
         Returns:
@@ -342,6 +346,7 @@ class QueryMixin:
             aliasPrefix=aliasPrefix,
             ignoreTableOrderBy=ignoreTableOrderBy,
             subtable=subtable,
+            mainquery_kw=mainquery_kw,
         )
         result = q.sqltext
         if kwargs:
@@ -413,6 +418,15 @@ class QueryMixin:
             table: The table name.
         """
         return None
+
+    def runtimeModel(self) -> Any:
+        """Create a new ``RuntimeModel`` container for this database.
+
+        Returns:
+            A :class:`RuntimeModel` instance ready for column and
+            relation definitions.
+        """
+        return RuntimeModel(self)
 
     def toJson(self, **kwargs: Any) -> list[Any]:
         """Return a JSON-serialisable representation of all packages.
