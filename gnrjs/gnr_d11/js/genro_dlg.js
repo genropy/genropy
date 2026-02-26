@@ -491,9 +491,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         const table = kw.table;
         kw.formId = formId;
         kw.form_modalForm = true;
-        kw.grouplet_showOnFormLoaded = false; //built only one time
         dlgKw.nodeId = dlgId;
-
         // Check if dialog already exists to reuse it
         let dlgNode = genro.nodeById(dlgKw.nodeId);
 

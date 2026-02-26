@@ -43,7 +43,7 @@ class GnrCustomWebPage(object):
         chunk_pane = fb.div(colspan=2, width='100%', lbl='Territorio',
                            height='60px')
         chunk_pane.groupletChunk(
-            value='^.record',
+            value='^#FORM.record',
             template="""
             <div style="color:#555;">
                 ${<span>Zona altimetrica: $zona_altimetrica</span>}
@@ -67,7 +67,7 @@ class GnrCustomWebPage(object):
         chunk_pane = fb.div(colspan=2, width='100%', lbl='Anagrafica',
                            height='50px')
         chunk_pane.groupletChunk(
-            value='^.record',
+            value='^#FORM.record',
             template="""
             <div style="font-weight:bold;">$denominazione</div>
             <div style="color:#555;">$sigla_provincia - $codice_comune</div>
@@ -89,7 +89,7 @@ class GnrCustomWebPage(object):
         chunk_pane = fb.div(colspan=2, width='100%', lbl='Dettagli',
                            height='70px')
         chunk_pane.groupletChunk(
-            value='^.record',
+            value='^#FORM.record',
             template="""
             <div>$sigla_provincia - $codice_comune</div>
             <div style="color:#555;">
@@ -104,6 +104,23 @@ class GnrCustomWebPage(object):
             box_padding='5px',
             box_background='#f9f9f9',
             box_border_radius='4px')
+
+    def test_4_chunk_with_resource_template(self, pane):
+        """groupletChunk auto-discovers template and virtual_columns from resource"""
+        form = self._comune_form(pane, 'chunk_res_tpl', '.res_tpl_form')
+        center = form.center.contentPane(padding='10px', datapath='.record')
+        fb = center.formlet(cols=2, border_spacing='3px',
+                               table='glbl.comune')
+        fb.field('denominazione', colspan=2, width='100%')
+        fb.field('capoluogo')
+        chunk_pane = fb.div(colspan=2, width='100%', lbl='Codici',
+                           height='50px')
+        chunk_pane.groupletChunk(
+            value='^#FORM.record',
+            name='edit_codici_auto',
+            resource='codici',
+            table='glbl.comune',
+            title='Edit Codici')
 
     @public_method
     def grp_territorio(self, pane, **kwargs):

@@ -959,8 +959,17 @@ dojo.declare("gnr.widgets.GroupletForm",gnr.widgets.gnrwdg,{
         let resource = objectPop(kw,'resource');
         let value = objectPop(kw,'value');
         let datapath = objectPop(kw,'datapath') || 'gnr.grouplet_'+genro.time36Id();
+        let loadOnBuilt = objectPop(kw,'loadOnBuilt');
+        let startKey = objectPop(kw,'startKey');
         if(value){
             kw.store_locationpath = sourceNode.absDatapath(value);
+        }
+        if(loadOnBuilt || startKey){
+            if(startKey){
+                grouplets_pars._onRemote = `this.form.load({destPkey:"${startKey}"});`;
+            }else{
+                grouplets_pars._onRemote = "this.form.load();";
+            }
         }
         kw.datapath = datapath;
         grouplets_pars.table = grouplets_pars.table || table;
@@ -3018,8 +3027,7 @@ dojo.declare("gnr.widgets.BagField",gnr.widgets.gnrwdg,{
 dojo.declare("gnr.widgets.Grouplet",gnr.widgets.gnrwdg,{
     createContent:function(sourceNode, kw,children,subTagItems) {
         const value = objectPop(kw,'value');
-        const parentFormHandler = sourceNode.getFormHandler();
-        const showOnFormLoaded = objectPop(kw,'showOnFormLoaded',parentFormHandler!=null);        
+        const showOnFormLoaded = objectPop(kw,'showOnFormLoaded');        
         const valuepath = value?sourceNode.absDatapath(value):null;
         const rootWidget = objectPop(kw,'rootWidget') || 'contentPane';
         let remote_if = objectPop(kw,'_if');
