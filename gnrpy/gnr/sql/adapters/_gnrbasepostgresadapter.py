@@ -31,6 +31,15 @@ class MacroExpander(BaseMacroExpander):
                 r"(?P<textfield>[\$\@][\w\.\@]+)\s*"  # Primo parametro: colonna con il testo
                 r"(?:,\s*'(?P<config>[^']+)')?\s*"  # Config opzionale tra apici singoli
                 r"\)"
+        ),
+        'VECQUERY': re.compile(
+                r"#VECQUERY(?:_(?P<querycode>\w+))?\s*\(\s*"
+                r"(?P<veccol>[\$\@][\w\.\@]+)\s*,\s*"
+                r"(?P<target>[:\$\@][\w\.\@]+)\s*"
+                r"\)"
+        ),
+        'VECRANK': re.compile(
+                r"#VECRANK(?:_(?P<code>\w+))?"
         )
     }
 
@@ -74,6 +83,29 @@ class MacroExpander(BaseMacroExpander):
         config = m.group("config") or "StartSel=<mark>, StopSel=</mark>, MaxWords=20, MinWords=5, MaxFragments=99, FragmentDelimiter=<hr/>"
         return f"ts_headline(CAST({language_param} AS regconfig), {text_field}, websearch_to_tsquery(CAST({language_param} AS regconfig), {query_param}), '{config}')"
 
+    def _expand_VECQUERY(self, m):
+        """Expands the #VECQUERY macro into a vector similarity filter condition.
+
+        Usage: #VECQUERY($table.embedding_col, :param_name)
+        Stores vector params in sqlparams and returns a NOT NULL check as filter."""
+        veccol = m.group("veccol").strip()
+        target = m.group("target")
+        channel_code = m.group('querycode') or 'current'
+        sqlparams = self.querycompiler.sqlparams
+        sqlparams[f'vecquery_{channel_code}'] = {'veccol': veccol, 'target': target}
+        return f"{veccol} IS NOT NULL"
+
+    def _expand_VECRANK(self, m):
+        """Expands the #VECRANK macro into a cosine similarity score.
+
+        Returns (1 - cosine_distance) so higher values = more similar.
+        Requires a prior #VECQUERY in the same query (same channel code)."""
+        channel_code = m.group('code') or 'current'
+        sqlparams = self.querycompiler.sqlparams
+        vecquery_params = sqlparams.get(f'vecquery_{channel_code}', {})
+        veccol = vecquery_params['veccol']
+        target = vecquery_params['target']
+        return f"(1 - ({veccol} <=> CAST({target} AS vector)))"
 
 
 class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):

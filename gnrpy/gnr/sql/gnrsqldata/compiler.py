@@ -417,7 +417,7 @@ class SqlQueryCompiler(object):
                         sql_text = self.db.queryCompile(table=sq_table,where=sq_where,aliasPrefix=aliasPrefix,addPkeyColumn=False,ignoreTableOrderBy=True,**sq_pars)
                         sql_formula = re.sub('#%s\\b' %susbselect, tpl %sql_text,sql_formula)
                 subreldict = {}
-                sql_formula = self.macro_expander.replace(sql_formula,'TSRANK,TSHEADLINE')
+                sql_formula = self.macro_expander.replace(sql_formula,'TSRANK,TSHEADLINE,VECRANK')
                 sql_formula = self.updateFieldDict(sql_formula, reldict=subreldict)
                 sql_formula = BETWEENFINDER.sub(self.expandBetween, sql_formula)
                 sql_formula = ENVFINDER.sub(expandEnv, sql_formula)
@@ -972,7 +972,7 @@ class SqlQueryCompiler(object):
         if where:
             where = BETWEENFINDER.sub(self.expandBetween, where)
             where = PERIODFINDER.sub(self.expandPeriod, where)
-            where = self.macro_expander.replace(where,'TSQUERY')
+            where = self.macro_expander.replace(where,'TSQUERY,VECQUERY')
 
         env_conditions = dictExtract(currentEnv,'env_%s_condition_' %self.tblobj.fullname.replace('.','_'))
         wherelist = [where]
@@ -1095,11 +1095,11 @@ class SqlQueryCompiler(object):
 
         # --- Store all compiled fragments into the SqlCompiledQuery ---
         self.cpl.distinct = distinct
-        self.cpl.columns = self.macro_expander.replace(columns,'TSRANK,TSHEADLINE')
+        self.cpl.columns = self.macro_expander.replace(columns,'TSRANK,TSHEADLINE,VECRANK')
         self.cpl.where = where
         self.cpl.group_by = group_by
         self.cpl.having = having
-        self.cpl.order_by = self.macro_expander.replace(order_by,'TSRANK')
+        self.cpl.order_by = self.macro_expander.replace(order_by,'TSRANK,VECRANK')
         self.cpl.limit = limit
         self.cpl.offset = offset
         self.cpl.for_update = for_update
