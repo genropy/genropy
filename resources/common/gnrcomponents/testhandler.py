@@ -4,28 +4,27 @@
 # Created by Giovanni Porcari on 2010-08-09.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
+import sys
 
 from gnr.web.gnrbaseclasses import BaseComponent
 
+
 class TestHandler(BaseComponent):
     #py_requires='gnrcomponents/source_viewer/source_viewer:SourceViewer'
-    testOnly=False
-    dojo_source=True
-
+    css_requires = 'gnrcomponents/testhandler'
+    testOnly = False
+    dojo_source = True
 
     def isDeveloper(self):
         return True
-        
+
     def testHandler(self, pane):
-        #self.testHandler_headers(pane)
-        
-        title = pane.div(width='900px', text_align='center', color='#ACACAC', font_size='20pt')
-        #TO BE FIXED: title.span(self.__module__.__doc__ or '...missing docline in module...') 
-        title.span('Test')
-        pane = pane.div(width='900px')
-        self.testHandler_loop(pane)
-        
-        
+        container = pane.div(_class='test_handler_container')
+        module_doc = getattr(sys.modules.get(self.__module__), '__doc__', None)
+        title_text = module_doc.strip().split('\n')[0] if module_doc else 'Test'
+        container.div(title_text, _class='test_handler_title')
+        self.testHandler_loop(container)
+
     def testHandler_loop(self, pane):
         def skip_test(test_name):
             if not self.testOnly:
@@ -42,39 +41,33 @@ class TestHandler(BaseComponent):
             if skip_test(test_name):
                 continue
             test_handler = getattr(self, test_name)
-            element = pane.div(border='1px solid gray', margin='5px',
-                               rounded=5, shadow='3px 3px 5px gray',
-                               datapath='test.%s' % test_name)
-            h = element.div()
+            card = pane.div(_class='test_handler_card',
+                            datapath='test.%s' % test_name)
+            card.div(test_name, _class='test_handler_card_header')
             doc = test_handler.__doc__ or ''
-            doctitle = doc.split('\n')[0]
-            if doctitle:
-                box = h.div()
-                box.div(doctitle,href='',float='right',style='cursor:pointer',
-                    color='white',font_size='11px',margin_right='5px',margin_top='3px')
-                box.tooltipPane(padding='4px').pre(doc)
-            h.div(test_name , background_color='#ACACAC',
-                  color='white', padding='3px')
-            element = element.div(padding='5px')
-            test_handler(element)
-            
+            if doc:
+                card.div(doc, _class='test_handler_card_doc')
+            body = card.div(_class='test_handler_card_body')
+            test_handler(body)
+
+
 class TestHandlerBase(TestHandler):
     def main_root(self, root, **kwargs):
-        root.css('#mainWindow{overflow:auto !important;}')
+        root.attributes['overflow'] = 'auto'
         if self._call_args:
             if '*' in self._call_args:
                 self.testOnly = False
             else:
                 self.testOnly = ['_%s_' % str(a) for a in self._call_args]
         self.testHandler(root)
-        
+
+
 class TestHandlerFull(TestHandler):
     def main(self, root, **kwargs):
-        root.css('#mainWindow{overflow:auto !important;}')
         if self._call_args:
             if '*' in self._call_args:
                 self.testOnly = False
             else:
                 self.testOnly = ['_%s_' % str(a) for a in self._call_args]
+        root.attributes['overflow'] = 'auto'
         self.testHandler(root)
-        
