@@ -35,7 +35,7 @@ class GnrCustomWebPage(object):
                 background: url(/_gnr/11/css/icons/base10/tinyCloseBranch.png) no-repeat center center;
             }
         """)
-        center=bc.contentPane(region='center',datapath='.current')
+        center=bc.contentPane(region='center',datapath='.current',overflow='hidden')
         left=bc.contentPane(region='left',width='200px',splitter=True,background='#eee',
                            datapath='.tree',overflow_y='auto')
         left.data('.store',DirectoryResolver(dirpath,cacheTime=10,
