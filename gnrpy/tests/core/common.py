@@ -107,7 +107,7 @@ class BaseGnrTest:
     def teardown_class(cls):
         """Teardown testing environment"""
         shutil.rmtree(cls.tmp_conf_dir)
-        os.environ.pop("GENRO_GNRFOLDER")
+        os.environ.pop("GENRO_GNRFOLDER", None)
 
 class BaseGnrAppTest(BaseGnrTest):
     app_name = 'gnrdevelop'

@@ -80,9 +80,6 @@ class DbTableObj(DbModelObj):
             indexname = "%s_%s_key" % (self.name, indexargs['columns'].replace(',', '_'))
             indexesobj.children[indexname] = objclassdict['index'](parent=self.indexes, attrs=indexargs)
 
-        if not self.relations:
-            self.children['relations'] = self.newRelationResolver(cacheTime=-1)
-
     def newRelationResolver(self, **kwargs: Any) -> RelationTreeResolver:
         """Create a new ``RelationTreeResolver`` for this table.
 
@@ -278,8 +275,22 @@ class DbTableObj(DbModelObj):
     indexes = property(_get_indexes)
 
     def _get_relations(self) -> Any:
-        """Return the relations resolver/container."""
-        return self['relations']
+        """Return the relations for this table.
+
+        Builds a fresh relation tree via ``newRelationResolver()``
+        and caches the result in ``currentEnv`` per-thread to avoid
+        repeated builds within the same request.
+        """
+        relations_dict = self.db.currentEnv.get('_relations')
+        if relations_dict is None:
+            relations_dict = {}
+            self.db.currentEnv['_relations'] = relations_dict
+        result = relations_dict.get(self.fullname)
+        if result is not None:
+            return result
+        result = self.newRelationResolver(cacheTime=-1)()
+        relations_dict[self.fullname] = result
+        return result
 
     relations = property(_get_relations)
 
