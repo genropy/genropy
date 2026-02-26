@@ -60,4 +60,4 @@ class GnrCustomWebPage(object):
         allowing infinite nesting: .field1, .nested.field1, .nested.nested.field1..."""
         bc = pane.borderContainer(height='400px')
         bc.contentPane(region='center').grouplet(value='^.recursive',
-                                                 resource='recursive_grouplet')
+                                                 resource='examples/recursive_grouplet')

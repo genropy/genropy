@@ -24,7 +24,6 @@ class Form(BaseComponent):
     def th_form(self, form):
         form.center.contentPane().groupletWizard(
             table='test.booking',
-            topic='booking',
             value='^.record',
             frameCode='booking_wizard',
             completeLabel='Complete Booking',

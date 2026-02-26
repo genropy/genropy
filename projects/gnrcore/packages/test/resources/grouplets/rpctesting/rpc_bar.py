@@ -7,7 +7,7 @@ info = dict(caption='RPC Bar', code='rpc_bar', priority=2)
 
 class Grouplet(object):
     def grouplet_main(self, pane, **kwargs):
-        fb = pane.formlet(cols=1, border_spacing='3px',datapath='.bar')
+        fb = pane.formlet(cols=1, border_spacing='3px')
         fb.button('Bar').dataRpc('.rpc_result', self.testRpc)
         fb.div(value='^.rpc_result', lbl='Result')
 

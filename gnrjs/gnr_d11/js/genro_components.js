@@ -975,6 +975,7 @@ dojo.declare("gnr.widgets.GroupletForm",gnr.widgets.gnrwdg,{
         grouplets_pars.table = grouplets_pars.table || table;
         grouplets_pars.handler = grouplets_pars.handler || handler;
         grouplets_pars.resource = grouplets_pars.resource || resource;
+        grouplets_pars.grouplets_root = grouplets_pars.grouplets_root || objectPop(kw,'grouplets_root');
         kw.store_handler = kw.store_handler || 'memory';
         kw.store_table = table;
         kw.storeType = kw.storeType || 'Item'; //available storeType 'SubForm,Item,Collection';
@@ -3038,6 +3039,7 @@ dojo.declare("gnr.widgets.Grouplet",gnr.widgets.gnrwdg,{
         kw.remote_handlername = objectPop(kw,'handler');
         kw.remote_resource = objectPop(kw,'resource');
         kw.remote_table = objectPop(kw,'table');
+        kw.remote_grouplets_root = objectPop(kw,'grouplets_root');
         kw.remote_valuepath = valuepath;
         kw.overflow = 'hidden';
         kw.remote = 'gr_loadGrouplet'

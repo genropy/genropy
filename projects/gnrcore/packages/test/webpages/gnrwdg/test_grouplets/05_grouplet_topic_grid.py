@@ -49,17 +49,7 @@ class GnrCustomWebPage(object):
                    lbl='Comune')
         return form
 
-    def test_1_topic_grid_default(self, pane):
-        """Topic as resource, default single column: all technical grouplets in one column"""
-        form = self._ticket_form(pane, 'topic_grid_1col', '.grid_1col')
-        form.center.contentPane(overflow='auto').grouplet(
-            resource='technical',
-            table='test.myticket',
-            value='^.record.extra_data',
-            remote_grid_columns=1,
-            remote_grid_collapsible=True)
-
-    def test_2_topic_grid_two_columns(self, pane):
+    def test_1_topic_grid_columns(self, pane):
         """Topic as resource with grid_columns=2: technical grouplets in two-column grid"""
         form = self._ticket_form(pane, 'topic_grid_2col', '.grid_2col')
         form.center.contentPane(overflow='auto').grouplet(
@@ -68,7 +58,7 @@ class GnrCustomWebPage(object):
             value='^.record.extra_data',
             remote_grid_columns=2)
 
-    def test_2b_topic_grid_collapsible(self, pane):
+    def test_2_topic_grid_collapsible(self, pane):
         """Topic as resource with collapsible cells: click caption to toggle"""
         form = self._ticket_form(pane, 'topic_grid_collapse', '.grid_collapse')
         form.center.contentPane(overflow='auto').grouplet(
@@ -106,7 +96,7 @@ class GnrCustomWebPage(object):
             remote_grid_columns=2,
             remote_grid_collapsible=True)
 
-    def test_6_dialog_topic_technical(self, pane):
+    def test_6_chunk_topic_technical(self, pane):
         """groupletChunk dialog with topic: click opens dialog with technical grouplets grid"""
         form = self._ticket_form(pane, 'dlg_topic_tech', '.dlg_tech')
         center = form.center.contentPane(padding='10px', datapath='.record')
@@ -130,7 +120,7 @@ class GnrCustomWebPage(object):
             title='Technical Details',
             remote_grid_columns=2)
 
-    def test_7_dialog_topic_commercial(self, pane):
+    def test_7_chunk_topic_commercial(self, pane):
         """groupletChunk dialog with topic: commercial grouplets in single-column dialog"""
         form = self._ticket_form(pane, 'dlg_topic_comm', '.dlg_comm')
         center = form.center.contentPane(padding='10px', datapath='.record')
@@ -153,7 +143,7 @@ class GnrCustomWebPage(object):
             table='test.myticket',
             title='Commercial Info')
 
-    def test_8_dialog_topic_no_table(self, pane):
+    def test_8_chunk_topic_no_table(self, pane):
         """groupletChunk dialog with topic, no table: app grouplets in dialog grid"""
         pane.borderContainer(height='500px', border='1px solid silver',
                          datapath='.dlg_app').contentPane(
@@ -186,12 +176,3 @@ class GnrCustomWebPage(object):
             table='test.myticket',
             title='Commercial Details',
             grid_columns=2)
-
-    def test_10_myprospect_topic_grid_form(self, pane):
-        """Full myprospect form with topic-grid: company/needs/budget as collapsible grids"""
-        pane.borderContainer(height='500px').contentPane(
-            region='center').dialogTableHandler(
-            table='test.myprospect',
-            datapath='.prospect_grid',
-            viewResource='View',
-            formResource='FormGrid')

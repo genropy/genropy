@@ -31,7 +31,7 @@ class GnrCustomWebPage(object):
 
     def test_4_resource(self, pane):
         """Grouplet loaded from resource file"""
-        pane.grouplet(value='^.address_in_res',resource='address_fields')
+        pane.grouplet(value='^.address_in_res',resource='examples/address_fields')
 
     @public_method
     def grp_address(self, pane,**kwargs):

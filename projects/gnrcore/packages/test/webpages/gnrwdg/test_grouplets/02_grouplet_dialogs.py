@@ -71,24 +71,6 @@ class GnrCustomWebPage(object):
             "genro.dlg.recordDataEditor('comune_terr', {table:'glbl.comune', pkey:comune_pkey, resource:'territorio/altimetria', title:'Edit Comune - Altimetria'}, this)",
             comune_pkey='=.selected_comune_3')
 
-    def test_6_custom_labels(self, pane):
-        """memoryDataEditor with custom confirm/cancel labels"""
-        pane.data('.item', Bag(dict(code='A001', description='Test item', qty=10)))
-        form = pane.frameForm(frameCode='label_form',
-                             height='300px', width='500px',
-                             datapath='.labelform',
-                             border='1px solid silver')
-        form.formStore(storeType='Item', handler='memory', locationpath='.#parent.item')
-        bar = form.top.slotToolbar('edit_btn,*,semaphore,formcommands')
-        bar.edit_btn.button('Edit Item').dataController(
-            "genro.dlg.memoryDataEditor('item_edit', {value:'^#FORM.record', handler:grp_handler, confirmLabel:'Save', cancelLabel:'Discard', title:'Edit Item'}, this)",
-            grp_handler=self.grp_item)
-        fb = form.record.formbuilder(cols=1, border_spacing='3px')
-        fb.textbox(value='^.code', lbl='Code', readOnly=True)
-        fb.textbox(value='^.description', lbl='Description', readOnly=True)
-        fb.numberTextBox(value='^.qty', lbl='Quantity', readOnly=True)
-        fb.dataController("this.form.load()", _onStart=True)
-
     @public_method
     def grp_address(self, pane, **kwargs):
         fb = pane.formbuilder(cols=1, border_spacing='3px')
@@ -111,10 +93,3 @@ class GnrCustomWebPage(object):
         fb.field('sigla_provincia')
         fb.field('codice_comune')
         fb.field('capoluogo')
-
-    @public_method
-    def grp_item(self, pane, **kwargs):
-        fb = pane.formbuilder(cols=1, border_spacing='3px')
-        fb.textbox(value='^.code', lbl='Code')
-        fb.textbox(value='^.description', lbl='Description')
-        fb.numberTextBox(value='^.qty', lbl='Quantity')

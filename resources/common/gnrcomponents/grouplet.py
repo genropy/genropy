@@ -1,3 +1,4 @@
+import math
 from gnr.core.gnrdecorator import extract_kwargs, public_method
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
@@ -12,36 +13,40 @@ class GroupletHandler(BaseComponent):
 
     @public_method
     def gr_loadGrouplet(self, pane, resource=None, table=None,
-                        handlername=None, valuepath=None, **kwargs):
-        grouplet_module = None
+                        handlername=None, valuepath=None,
+                        grouplets_root=None, **kwargs):
+        grouplets_root = grouplets_root or 'grouplets'
         if not resource:
             if not handlername:
-                raise self.exception('generic', msg='Missing resource or method for handling grouplet')
+                raise self.exception('generic',
+                                     msg='Missing resource or method for handling grouplet')
             handler = self.getPublicMethod('remote', handlername)
             box = pane.contentPane(datapath=valuepath)
             return handler(box, **kwargs)
         # Check if resource is a topic (folder with child grouplets)
-        topic_menu = self.gr_getGroupletMenu(table=table, topic=resource)
+        topic_menu = self.gr_getGroupletMenu(table=table, topic=resource,
+                                             grouplets_root=grouplets_root)
         if topic_menu:
             return self._loadGroupletTopic(pane, topic_menu,
                                            table=table, valuepath=valuepath,
+                                           grouplets_root=grouplets_root,
                                            **kwargs)
         # Single grouplet
         handlername = handlername or 'grouplet_main'
         if ':' not in resource:
             resource = f'{resource}:Grouplet'
         if table:
-            mixinedClass = self.mixinTableResource(table, f'grouplets/{resource}', safeMode=True)
+            mixinedClass = self.mixinTableResource(
+                table, f'{grouplets_root}/{resource}', safeMode=True)
         else:
-            mixinedClass = self.mixinComponent(f'grouplets/{resource}')
+            mixinedClass = self.mixinComponent(f'{grouplets_root}/{resource}')
         grouplet_module = getattr(mixinedClass, '__top_mixined_module', None)
         handler = getattr(self, handlername)
         box = pane.contentPane(datapath=valuepath, grouplet_module=grouplet_module)
         return handler(box, **kwargs)
 
     def _loadGroupletTopic(self, pane, topic_menu, table=None,
-                           valuepath=None, **kwargs):
-        import math
+                           valuepath=None, grouplets_root=None, **kwargs):
         grid_kwargs = dictExtract(kwargs, 'grid_', pop=True)
         columns = int(grid_kwargs.pop('columns', 1))
         template_columns = grid_kwargs.pop('template_columns', None)
@@ -73,7 +78,7 @@ class GroupletHandler(BaseComponent):
             if start_closed:
                 cell_class += ' collapsed'
             cell = grid.div(_class=cell_class)
-            caption_text = attr.get('grouplet_caption', '')
+            caption_text = attr.get('grouplet_caption') or attr.get('caption', '')
             if collapsible:
                 caption = cell.lightButton(
                     _class='grouplet_topic_cell_caption',
@@ -86,17 +91,29 @@ class GroupletHandler(BaseComponent):
             if start_closed:
                 content_kw['max_height'] = '0'
             content = cell.div(_class='grouplet_topic_cell_content', **content_kw)
-            self.gr_loadGrouplet(content, resource=attr['resource'],
-                                 table=table, **kwargs)
+            if node.value:
+                self._loadGroupletTopic(content, node.value,
+                                        table=table,
+                                        valuepath=f'.{attr.get("topic", node.label)}',
+                                        grouplets_root=grouplets_root,
+                                        **kwargs)
+            else:
+                self.gr_loadGrouplet(content, resource=attr['resource'],
+                                     table=table,
+                                     valuepath=f'.{attr.get("code", node.label)}',
+                                     grouplets_root=grouplets_root,
+                                     **kwargs)
 
-    def gr_getTemplatePars(self, resource=None, table=None):
+    def gr_getTemplatePars(self, resource=None, table=None,
+                           grouplets_root=None):
+        grouplets_root = grouplets_root or 'grouplets'
         clean_resource = resource.split(':')[0] if ':' in resource else resource
         if '/' in clean_resource:
             parent, name = clean_resource.rsplit('/', 1)
-            search_path = f'grouplets/{parent}'
+            search_path = f'{grouplets_root}/{parent}'
         else:
             name = clean_resource
-            search_path = 'grouplets'
+            search_path = grouplets_root
         resources = Bag()
         if table:
             pkg, tblname = table.split('.')
@@ -125,35 +142,37 @@ class GroupletHandler(BaseComponent):
             result['virtual_columns'] = info['template_virtual_columns']
         return result
 
-    @extract_kwargs(grouplet=True,template=True,btn=True)
+    @extract_kwargs(grouplet=True, template=True, btn=True)
     @struct_method
     def gr_groupletChunk(self, pane, value=None, template=None, name=None,
                          handler=None, resource=None, table=None,
                          title=None,
                          virtual_columns=None,
-                         grouplet_kwargs=None,template_kwargs=None,
+                         grouplets_root=None,
+                         grouplet_kwargs=None, template_kwargs=None,
                          btn_kwargs=None, **kwargs):
         if resource and not template:
-            tpars = self.gr_getTemplatePars(resource=resource, table=table)
+            tpars = self.gr_getTemplatePars(resource=resource, table=table,
+                                            grouplets_root=grouplets_root)
             template = tpars.get('template')
             virtual_columns = virtual_columns or tpars.get('virtual_columns')
         root_kw = {}
         if virtual_columns:
             root_kw['_virtual_columns'] = virtual_columns
-        btn_kwargs.setdefault('_class','iconbox pencil')
-        btn_kwargs.setdefault('height','14px')
-        btn_kwargs.setdefault('position','absolute')
-        btn_kwargs.setdefault('bottom','2px')
-        btn_kwargs.setdefault('right','2px')
+        btn_kwargs.setdefault('_class', 'iconbox pencil')
+        btn_kwargs.setdefault('height', '14px')
+        btn_kwargs.setdefault('position', 'absolute')
+        btn_kwargs.setdefault('bottom', '2px')
+        btn_kwargs.setdefault('right', '2px')
         kwargs.setdefault('_class', 'grouplet_chunk_box')
 
         grid_kw = dictExtract(kwargs, 'grid_', pop=True)
-        root = pane.div(position='relative',**kwargs)
+        root = pane.div(position='relative', **kwargs)
         template_kwargs['template'] = template
         template_kwargs['datasource'] = value
-        root.div(**template_kwargs) #templatechunk
+        root.div(**template_kwargs)  # templatechunk
         btn = root.lightButton(**btn_kwargs)
-        grouplet_kwargs['value'] = value.replace('^','')
+        grouplet_kwargs['value'] = value.replace('^', '')
         if resource:
             grouplet_kwargs['resource'] = resource
         if table:
@@ -162,25 +181,31 @@ class GroupletHandler(BaseComponent):
             grouplet_kwargs['title'] = title
         if handler:
             grouplet_kwargs['handler'] = handler
+        if grouplets_root:
+            grouplet_kwargs['grouplets_root'] = grouplets_root
         for k, v in grid_kw.items():
             grouplet_kwargs[f'grouplet_remote_grid_{k}'] = v
         btn.dataController("""
             let editor_kw = {..._kwargs};
             genro.dlg.memoryDataEditor(name,editor_kw,this);
-        """,name=name, **grouplet_kwargs)
+        """, name=name, **grouplet_kwargs)
         return root
-    
+
     @extract_kwargs(grouplet=True)
     @struct_method
     def gr_groupletPanel(self, pane, table=None, topic=None, value=None,
-                         frameCode=None,grouplet_kwargs=None, **kwargs):
+                         frameCode=None, grouplets_root=None,
+                         grouplet_kwargs=None, **kwargs):
         frameCode = frameCode or 'grplt_panel'
         frame = pane.framePane(frameCode=frameCode, _anchor=True, **kwargs)
         frame.data('.grouplet_menu',
-                   self.gr_getGroupletMenu(table=table, topic=topic))
-        grouplet_kwargs.update(resource='^.selected_resource',value=value)
+                   self.gr_getGroupletMenu(table=table, topic=topic,
+                                           grouplets_root=grouplets_root))
+        grouplet_kwargs.update(resource='^.selected_resource', value=value)
         if table:
             grouplet_kwargs['table'] = table
+        if grouplets_root:
+            grouplet_kwargs['grouplets_root'] = grouplets_root
         if topic:
             bar = frame.top.slotBar('*,mb,*', _class='mobile_bar')
             bar.mb.multibutton(value='^.selected_code',
@@ -209,7 +234,7 @@ class GroupletHandler(BaseComponent):
                     if(!node.attr.grouplet_caption){ return 'grouplet_topic'; }
                 """,
                 connect_onClick="""
-                    if($2.item.attr.resource){
+                    if($2.item.attr.resource && $2.item.attr.grouplet_caption){
                         SET .selected_resource = $2.item.attr.resource;
                         SET .selected_caption = $2.item.attr.grouplet_caption;
                     }
@@ -226,11 +251,19 @@ class GroupletHandler(BaseComponent):
     @struct_method
     def gr_groupletWizard(self, pane, table=None, topic=None, value=None,
                           frameCode=None, completeLabel=None,
-                          saveMainFormOnComplete=None, **kwargs):
+                          saveMainFormOnComplete=None,
+                          grouplets_root=None, **kwargs):
         frameCode = frameCode or 'grplt_wizard'
         completeLabel = completeLabel or 'Confirm'
         frame = pane.framePane(frameCode=frameCode, _anchor=True, **kwargs)
-        menu = self.gr_getGroupletMenu(table=table, topic=topic)
+        menu = self.gr_getGroupletMenu(table=table, topic=topic,
+                                       grouplets_root=grouplets_root)
+        wizard_steps = Bag()
+        for node in menu:
+            attrs = dict(node.attr)
+            attrs.setdefault('grouplet_caption', attrs.get('caption', node.label))
+            wizard_steps.setItem(node.label, None, **attrs)
+        menu = wizard_steps
         total_steps = len(menu)
         frame.data('.wizard_steps', menu)
         frame.data('.step_index', 0)
@@ -262,6 +295,8 @@ class GroupletHandler(BaseComponent):
                            form_modalForm=True)
         if table:
             grouplet_kw['table'] = table
+        if grouplets_root:
+            grouplet_kw['grouplets_root'] = grouplets_root
         frame.center.contentPane(overflow='auto').GroupletForm(**grouplet_kw)
         bottom = frame.bottom.contentPane(_class='wizard_bottom_bar')
         bottom.lightButton('^.next_label',
@@ -279,10 +314,12 @@ class GroupletHandler(BaseComponent):
         return frame
 
     @public_method
-    def gr_getGroupletMenu(self, table=None, topic=None, **kwargs):
+    def gr_getGroupletMenu(self, table=None, topic=None,
+                           grouplets_root=None, **kwargs):
         result = Bag()
         resources = Bag()
-        grouplets_path = 'grouplets'
+        grouplets_root = grouplets_root or 'grouplets'
+        grouplets_path = grouplets_root
         if topic:
             grouplets_path = f'{grouplets_path}/{topic}'
         if table:
@@ -296,36 +333,17 @@ class GroupletHandler(BaseComponent):
         else:
             resources.update(self.site.resource_loader.resourcesAtPath(
                 page=self, path=grouplets_path))
+        self._buildGroupletMenu(result, resources, table=table,
+                                parent_path=topic)
+        result.sort('#a.priority,#a.caption')
+        return result
+
+    def _buildGroupletMenu(self, result, resources, table=None,
+                           parent_path=None):
         for node in resources:
             if node.value:
-                topic_content = Bag()
-                children = Bag(node.value)
-                info_node = children.popNode('__info__')
-                topic_info = self._get_grouplet_info(info_node, table=table) if info_node else {}
-                if topic_info is False:
-                    continue
-                if not isinstance(topic_info, dict):
-                    topic_info = {}
-                topic_info.setdefault('caption', node.attr.get('caption', node.label))
-                topic_info.setdefault('topic', node.label)
-                children.popNode('__pycache__')
-                if not children:
-                    continue
-                result.addItem(node.label, topic_content, **topic_info)
-                for child_node in children:
-                    info = self._get_grouplet_info(child_node, table=table)
-                    if info is False:
-                        continue
-                    info['grouplet_caption'] = info['caption']
-                    resource_path = f'{node.label}/{child_node.label}'
-                    if topic:
-                        resource_path = f'{topic}/{resource_path}'
-                    topic_content.setItem(info['code'], None,
-                                          resource=resource_path,
-                                          topic_caption=topic_info.get('caption'),
-                                          topic=topic_info.get('topic'),
-                                          **info)
-                topic_content.sort('#a.priority,#a.caption')
+                self._processTopicNode(result, node, table=table,
+                                       parent_path=parent_path)
             else:
                 if node.label.startswith('__'):
                     continue
@@ -333,30 +351,56 @@ class GroupletHandler(BaseComponent):
                 if info is False:
                     continue
                 info['grouplet_caption'] = info['caption']
-                resource_path = f'{topic}/{node.label}' if topic else node.label
+                resource_path = (f'{parent_path}/{node.label}'
+                                 if parent_path else node.label)
                 result.setItem(info['code'], None,
                                resource=resource_path,
                                **info)
-        result.sort('#a.priority,#a.caption')
+
+    def _processTopicNode(self, result, node, table=None,
+                          parent_path=None):
+        topic_content = Bag()
+        children = Bag(node.value)
+        info_node = children.popNode('__info__')
+        topic_info = (self._get_grouplet_info(info_node, table=table)
+                      if info_node else {})
+        if topic_info is False:
+            return
+        if not isinstance(topic_info, dict):
+            topic_info = {}
+        topic_info.setdefault('caption',
+                              node.attr.get('caption', node.label))
+        topic_info.setdefault('topic', node.label)
+        children.popNode('__pycache__')
+        if not children:
+            return
+        current_path = (f'{parent_path}/{node.label}'
+                        if parent_path else node.label)
+        topic_info['resource'] = current_path
+        result.addItem(node.label, topic_content, **topic_info)
+        self._buildGroupletMenu(topic_content, children, table=table,
+                                parent_path=current_path)
+        topic_content.sort('#a.priority,#a.caption')
+
+    def gr_groupletAddrowMenu(self, table=None, field=None,
+                              grouplets_root=None):
+        menu = self.gr_getGroupletMenu(table=table,
+                                       grouplets_root=grouplets_root)
+        result = Bag()
+        self._buildAddrowMenu(result, menu, field=field)
         return result
 
-    def gr_groupletAddrowMenu(self, table=None, field=None):
-        menu = self.gr_getGroupletMenu(table=table)
-        result = Bag()
+    def _buildAddrowMenu(self, result, menu, field=None):
         for node in menu:
             if node.value:
                 group_bag = Bag()
-                for child in node.value:
-                    group_bag.setItem(child.label, None,
-                                      caption=child.attr.get('grouplet_caption'),
-                                      default_kw={field: child.attr.get('resource')})
+                self._buildAddrowMenu(group_bag, node.value, field=field)
                 result.setItem(node.label, group_bag,
                                caption=node.attr.get('caption'))
             else:
                 result.setItem(node.label, None,
                                caption=node.attr.get('grouplet_caption'),
                                default_kw={field: node.attr.get('resource')})
-        return result
 
     def _get_grouplet_info(self, node, table=None):
         resmodule = gnrImport(node.attr['abs_path'], avoid_module_cache=True)

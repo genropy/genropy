@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-info = dict(caption='Recursive Grouplet', code='recursive_grouplet', priority=1)
+info = dict(caption='Recursive Grouplet', code='recursive_grouplet', priority=2)
 
 
 class Grouplet(object):
@@ -11,4 +11,4 @@ class Grouplet(object):
         fb.textbox(value='^.field1', lbl='Field 1')
         fb.textbox(value='^.field2', lbl='Field 2')
         nested_tab = tc.contentPane(title='Nested')
-        nested_tab.grouplet(value='^.nested', resource='recursive_grouplet')
+        nested_tab.grouplet(value='^.nested', resource='examples/recursive_grouplet')
