@@ -59,7 +59,6 @@ dependencies = [
 	     "vobject",
 	     "watchgod", # used in asyncio for autoreload
 	     "weasyprint",
-	     "webob",
 	     "werkzeug>=2.3.8,!=3.1.4",
 	     "xlrd",
 	     "xlwt"

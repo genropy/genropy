@@ -12,11 +12,13 @@ from collections import defaultdict
 from threading import RLock
 import warnings
 
+from packaging.version import LocalType
 import requests
 from werkzeug.wrappers import Request, Response
-from webob.exc import (WSGIHTTPException, HTTPInternalServerError,
-                       HTTPNotFound, HTTPForbidden, HTTPPreconditionFailed,
-                       HTTPClientError, HTTPMovedPermanently,HTTPTemporaryRedirect )
+from werkzeug.utils import redirect
+from werkzeug.exceptions import (HTTPException, InternalServerError,
+                                  NotFound, Forbidden, PreconditionFailed,
+                                  BadRequest, Unauthorized)
 
 from gnr.core.gnrbag import Bag
 from gnr.core import gnrstring
@@ -259,7 +261,7 @@ class DbStoreRouter(object):
     Usage in dispatcher:
         router = DbStoreRouter(site, path_list, request_kwargs)
         if not router.route():
-            return HTTPNotFound()
+            return NotFound()
         router.register_aux_instance_stores()
         path_list = router.path_list
     """
@@ -1130,9 +1132,8 @@ class GnrWsgiSite(object):
             if self.debug and ((page and page.isDeveloper()) or self.force_debug):
                 raise
             self.writeException(exception=e,traceback=tracebackBag())
-            exc = HTTPInternalServerError(
-                'Internal server error',
-                comment='SCRIPT_NAME=%r; PATH_INFO=%r;'
+            exc = InternalServerError(
+                description='Internal server error; SCRIPT_NAME=%r; PATH_INFO=%r;'
                 % (environ.get('SCRIPT_NAME'), environ.get('PATH_INFO')))
             return exc(environ, start_response)
         finally:
@@ -1218,9 +1219,9 @@ class GnrWsgiSite(object):
         # Route the request: extract domain/dbstore from path
         router = DbStoreRouter(self, path_list, request_kwargs, request_path=request.path)
         if not router.route():
-            return HTTPNotFound()(environ, start_response)
+            return NotFound()(environ, start_response)
         if router.redirect_to:
-            return HTTPMovedPermanently(location=router.redirect_to)(environ, start_response)
+            return redirect(router.redirect_to,code=301)(environ, start_response)
         router.register_aux_instance_stores()
         # Sync currentDomain with database environment
         self.db.currentEnv['currentDomain'] = self.currentDomain
@@ -1301,7 +1302,7 @@ class GnrWsgiSite(object):
                 page = self.resource_loader(path_list, request, response, environ=environ,request_kwargs=request_kwargs)
                 if page:
                     page.download_name = download_name
-            except WSGIHTTPException as exc:
+            except HTTPException as exc:
                 return exc(environ, start_response)
             except Exception as exc:
                 logger.exception("wsgisite.dispatcher: self.resource_loader failed with non-HTTP exception.")
@@ -1329,7 +1330,7 @@ class GnrWsgiSite(object):
                     return self.statics.fileserve(result, environ, start_response,nocache=True,download_name=page.download_name)
             except GnrUnsupportedBrowserException:
                 return self.serve_htmlPage('html_pages/unsupported.html', environ, start_response)
-            except HTTPNotFound:
+            except NotFound:
                 return self.serve_htmlPage('html_pages/missing_result.html', environ, start_response)
             finally:
                 self.onServedPage(page)
@@ -1460,32 +1461,38 @@ class GnrWsgiSite(object):
         :param environ: TODO
         :param start_response: add??
         :param debug_message: TODO"""
-        exc = HTTPNotFound(
-                'The resource at %s could not be found'
-                % self.request_url(environ),
-                comment='SCRIPT_NAME=%r; PATH_INFO=%r; debug: %s'
-                % (environ.get('SCRIPT_NAME'), environ.get('PATH_INFO'),
-                   debug_message or '(none)'), )
+        exc = NotFound(
+                description='The resource at %s could not be found; SCRIPT_NAME=%r; PATH_INFO=%r; debug: %s'
+                % (self.request_url(environ), environ.get('SCRIPT_NAME'), environ.get('PATH_INFO'),
+                   debug_message or '(none)'))
         return exc(environ, start_response)
 
     def redirect(self, environ, start_response, location=None,temporary=False):
         if temporary:
-            exc = HTTPTemporaryRedirect(location=location)
+            exc = redirect(location, code=307)
         else:
-            exc = HTTPMovedPermanently(location=location)
+            exc = redirect(location, code=301)
+        return exc(environ, start_response)
+
+    def unauthorized_exception(self, environ, start_response, debug_message=None):
+        """Returns a 401 Unauthorized exception response
+        :param environ: WSGI environ dict
+        :param start_response: WSGI start_response callable
+        :param debug_message: Optional debug message to include in the exception description"""
+        exc = Unauthorized(
+                description='Authentication is required to access %s; SCRIPT_NAME=%r; PATH_INFO=%r; debug: %s'
+                % (self.request_url(environ), environ.get('SCRIPT_NAME'), environ.get('PATH_INFO'),
+                   debug_message or '(none)'))
         return exc(environ, start_response)
 
     def forbidden_exception(self, environ, start_response, debug_message=None):
-        """TODO
-
-        :param environ: TODO
-        :param start_response: add??
-        :param debug_message: TODO"""
-        exc = HTTPForbidden(
-                'The resource at %s could not be viewed'
-                % self.request_url(environ),
-                comment='SCRIPT_NAME=%r; PATH_INFO=%r; debug: %s'
-                % (environ.get('SCRIPT_NAME'), environ.get('PATH_INFO'),
+        """Returns a 403 Forbidden exception response
+        :param environ: WSGI environ dict
+        :param start_response: WSGI start_response callable
+        :param debug_message: Optional debug message to include in the exception description"""
+        exc = Forbidden(
+                description='The resource at %s could not be viewed; SCRIPT_NAME=%r; PATH_INFO=%r; debug: %s'
+                % (self.request_url(environ), environ.get('SCRIPT_NAME'), environ.get('PATH_INFO'),
                    debug_message or '(none)'))
         return exc(environ, start_response)
 
@@ -1498,10 +1505,10 @@ class GnrWsgiSite(object):
         :param debug_message: TODO"""
         if '%%s' in message:
             message = message % self.request_url(environ)
-        exc = HTTPPreconditionFailed(message,
-                                     comment='SCRIPT_NAME=%r; PATH_INFO=%r; debug: %s'
-                                     % (environ.get('SCRIPT_NAME'), environ.get('PATH_INFO'),
-                                        debug_message or '(none)'))
+        exc = PreconditionFailed(
+                description='%s; SCRIPT_NAME=%r; PATH_INFO=%r; debug: %s'
+                % (message, environ.get('SCRIPT_NAME'), environ.get('PATH_INFO'),
+                   debug_message or '(none)'))
         return exc(environ, start_response)
 
     def client_exception(self, message, environ):
@@ -1510,9 +1517,9 @@ class GnrWsgiSite(object):
         :param message: TODO
         :param environ: TODO"""
         message = 'ERROR REASON : %s' % message
-        exc = HTTPClientError(message,
-                              comment='SCRIPT_NAME=%r; PATH_INFO=%r'
-                              % (environ.get('SCRIPT_NAME'), environ.get('PATH_INFO')))
+        exc = BadRequest(
+                description='%s; SCRIPT_NAME=%r; PATH_INFO=%r'
+                % (message, environ.get('SCRIPT_NAME'), environ.get('PATH_INFO')))
         return exc
 
     def build_wsgiapp(self, options=None):
