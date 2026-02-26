@@ -8,9 +8,12 @@ from gnr.core.gnrsys import expandpath
 import random
 class Service(BaseLocalService):
 
-    def __init__(self, parent=None, base_path=None,**kwargs):
+
+    def __init__(self, parent=None, base_path=None, tags=None, public=None,**kwargs):
         self.parent = parent
         self.base_path =  'SYMBOLIC'
+        self.tags = tags
+        self.public = public
 
     @property
     def home_uri(self):
@@ -126,6 +129,26 @@ class Service(BaseLocalService):
         if path_getter:
             return path_getter(*(self.split_path(path)), **kwargs)
 
+    def auth_page(self, connection_id, *args, **kwargs):
+        return self.connection.connection_id==connection_id
+        
+    def auth_conn(self, connection_id, *args, **kwargs):
+        return self.connection.connection_id==connection_id
+    
+    def auth_user(self, user,*args, **kwargs):
+        print('auth_user', user, self.connection.user)
+        return self.connection.user==user
+        
+        
+    
+    def checkPermission(self, path, *args, **kwargs):
+        if not self.parent.config['wsgi?authenticate_storages'] or self.public:
+            return True
+        authgetter = getattr(self, 'auth_%s'%self.service_name, None)
+        if authgetter:
+            return authgetter(*(self.split_path(path)), **kwargs)
+        return False
+       
     def url(self, *args, **kwargs):
         path = '/'.join(args)
         url_getter = getattr(self, 'url_%s'%self.service_name, None)

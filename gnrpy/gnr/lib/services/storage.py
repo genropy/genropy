@@ -150,46 +150,46 @@ class LocalPath(object):
 class ServiceType(BaseServiceType):
     
     def conf_home(self):
-        return dict(implementation='local',base_path=self.site.site_static_dir)
+        return dict(implementation='local',base_path=self.site.site_static_dir, public=False)
 
     def conf_mail(self):
-        return dict(implementation='local',base_path='%s/mail' %self.site.site_static_dir)
+        return dict(implementation='local',base_path='%s/mail' %self.site.site_static_dir, public=False)
 
     def conf_site(self):
-        return dict(implementation='local',base_path=self.site.site_static_dir)
+        return dict(implementation='local',base_path=self.site.site_static_dir, public=False)
 
     def conf_rsrc(self):
-        return dict(implementation='symbolic')
+        return dict(implementation='symbolic', public=True)
 
     def conf_pkg(self):
-        return dict(implementation='symbolic')
+        return dict(implementation='symbolic', public=True)
 
     def conf_dojo(self):
-        return dict(implementation='symbolic')
+        return dict(implementation='symbolic', public=True)
 
     def conf_conn(self):
-        return dict(implementation='symbolic')
+        return dict(implementation='symbolic', public=False)
 
     def conf_page(self):
-        return dict(implementation='symbolic')
+        return dict(implementation='symbolic', public=False)
 
     def conf_temp(self):
-        return dict(implementation='symbolic')
+        return dict(implementation='symbolic', public=False)
 
     def conf_gnr(self):
-        return dict(implementation='symbolic')
+        return dict(implementation='symbolic', public=True)
 
     def conf_pages(self):
-        return dict(implementation='symbolic')
+        return dict(implementation='symbolic', public=False)
 
     def conf_user(self):
-        return dict(implementation='symbolic')
+        return dict(implementation='symbolic', public=False)
     
     def conf__raw_(self):
-        return dict(implementation='raw')
+        return dict(implementation='raw', public=False)
 
     def conf__http_(self):
-        return dict(implementation='http')
+        return dict(implementation='http', public=False)
 
     #def conf_vol(self):
     #    return dict(implementation='symbolic')
@@ -370,9 +370,77 @@ class StorageNode(object):
         with self.open('wb') as me:
             with urllib.request.urlopen(url) as response:
                 me.write(response.read())
+                
+    @property
+    def public(self):
+         """Returns True if the file is public"""
+         return self.service.public
+                
+    def checkPermission(self):
+        return self.service.checkPermission(self.path)
+
+class StorageConnection:
+    def __init__(self, parent, **kwargs):
+        self.parent = parent
+        self.ip = parent.currentGnrRequest.remote_addr or '0.0.0.0'
+        self.connection_id = None
+        self.user = None
+        self.user_tags = None
+        self.user_id = None
+        self.user_name = None
+        self.connection_item = None
+        self.avatar_extra = dict()
+        if self.cookie:
+            print('cookie found', self.cookie)
+            cv = dict(self.cookie)
+            self.validate_connection(connection_id=cv.get('connection_id'), user=cv.get('user'))
+
+    @property
+    def cookie(self):
+        if not getattr(self,'_cookie',None):
+            self._cookie = self.get_auth_cookie()
+        return self._cookie
+        
+       
+    def get_auth_cookie(self):
+        secret = self.parent.config['secret'] or self.parent.siteName
+        cookie_name = self.parent.siteName
+        path = self.parent.default_uri
+        return self.parent.currentGnrRequest.get_cookie(cookie_name, 'marshal', secret=secret, path=path)
+
+    def validate_connection(self, connection_id=None, user=None):
+        connection_item = self.parent.register.connection(connection_id)
+        if connection_item:
+            if (connection_item['user'] == user):
+                self.connection_id = connection_id
+                self.user = user
+                self.user_tags = connection_item['user_tags']
+                self.user_id = connection_item['user_id']
+                self.user_name = connection_item['user_name']
+                self.avatar_extra = connection_item.get('avatar_extra')
+                self.electron_static = connection_item.get('electron_static')
+                self.connection_item = connection_item
+
+    @property
+    def guestname(self):
+        """TODO"""
+        return 'guest_%s' % self.connection_id
+
+    @property
+    def loggedUser(self):
+        """TODO"""
+        return (self.user != self.guestname) and self.user
+
 
 class StorageService(GnrBaseService):
 
+    def __init__(self, parent, tags=None, public=None, *args, **kwargs):
+        self.parent = parent
+        self.tags = tags
+        self.public = public
+        
+        return super().__init__(*args, **kwargs)
+        
     def _getNode(self, node=None):
         return node if isinstance(node, StorageNode) else self.parent.storageNode(node)
 
@@ -672,6 +740,20 @@ class StorageService(GnrBaseService):
     def children(self, *args, **kwargs):
         """Return a list of storageNodes contained in a path"""
         pass
+  
+    @property
+    def connection(self):
+        if not hasattr(self,'_connection'):
+             self._connection = StorageConnection(self.parent)
+        return self._connection
+        
+    def checkPermission(self, path, *args, **kwargs):
+        if not self.parent.config['wsgi?authenticate_storages'] or self.public:
+            return True
+        if self.tags:
+            return self.parent.gnrapp.checkResourcePermission(self.tags, self.connection.user_tags)
+        else:
+            return self.connection.loggedUser
 
 class BaseLocalService(StorageService):
     def __init__(self, parent=None, base_path=None, tags=None,**kwargs):
