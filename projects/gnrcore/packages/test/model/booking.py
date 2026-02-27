@@ -8,7 +8,7 @@ class Table(object):
         tbl.column('check_in', dtype='D', name_long='Check-in')
         tbl.column('check_out', dtype='D', name_long='Check-out')
         tbl.column('room_type', name_long='Room Type')
-        tbl.column('num_guests', dtype='L', name_long='Guests')
+        tbl.column('num_guests', dtype='L', name_long='Guests',validate_notnul=True,validate_min=1,default=1)
         # Step 2: ospite
         tbl.column('guest_name', name_long='Guest Name')
         tbl.column('guest_email', name_long='Email')
@@ -24,3 +24,4 @@ class Table(object):
         tbl.column('payment_method', name_long='Payment Method')
         tbl.column('card_holder', name_long='Card Holder')
         tbl.column('total_amount', dtype='N', name_long='Total Amount')
+        tbl.column('other_guests',dtype='X',name_long='Other guests')

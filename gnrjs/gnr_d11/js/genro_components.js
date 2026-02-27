@@ -962,6 +962,7 @@ dojo.declare("gnr.widgets.GroupletForm",gnr.widgets.gnrwdg,{
         let datapath = objectPop(kw,'datapath') || 'gnr.grouplet_'+genro.time36Id();
         let loadOnBuilt = objectPop(kw,'loadOnBuilt');
         let startKey = objectPop(kw,'startKey');
+        let rootTag = objectPop(kw,'rootTag');
         if(value && !panelMode){
             kw.store_locationpath = sourceNode.absDatapath(value);
         }
@@ -993,6 +994,10 @@ dojo.declare("gnr.widgets.GroupletForm",gnr.widgets.gnrwdg,{
         grouplets_pars.handler = grouplets_pars.handler || handler;
         grouplets_pars.resource = grouplets_pars.resource || resource;
         grouplets_pars.grouplets_root = grouplets_pars.grouplets_root || objectPop(kw,'grouplets_root');
+        grouplets_pars.rootTag = grouplets_pars.rootTag || rootTag;
+        if(grouplets_pars.rootTag){
+            kw.widget = rootTag;
+        }
         kw.store_handler = kw.store_handler || 'memory';
         kw.store_table = table;
         kw.storeType = kw.storeType || 'Item';
@@ -3054,6 +3059,7 @@ dojo.declare("gnr.widgets.Grouplet",gnr.widgets.gnrwdg,{
         _onRemote = _onRemote ? [_onRemote] : [];
         _onRemote.push("const frm = this.form;if(frm){this.delayedCall(()=>{frm.checkInvalidFields()},1,'buildingDynamicForm');}");
         kw.remote_handlername = objectPop(kw,'handler');
+        kw.remote_rootTag = objectPop(kw,'rootTag') || 'div';
         kw.remote_resource = objectPop(kw,'resource');
         kw.remote_table = objectPop(kw,'table');
         kw.remote_grouplets_root = objectPop(kw,'grouplets_root');

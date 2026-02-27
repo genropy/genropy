@@ -14,7 +14,7 @@ class GroupletHandler(BaseComponent):
     @public_method
     def gr_loadGrouplet(self, pane, resource=None, table=None,
                         handlername=None, valuepath=None,
-                        grouplets_root=None, **kwargs):
+                        grouplets_root=None,rootTag='div', **kwargs):
         grouplets_root = grouplets_root or 'grouplets'
         if not resource:
             if not handlername:
@@ -48,7 +48,7 @@ class GroupletHandler(BaseComponent):
             grouplet_code = info_method().get('code')
             if grouplet_code:
                 box_kw['grouplet_code'] = grouplet_code
-        box = pane.div(_class='grouplet_box', **box_kw)
+        box = pane.child(rootTag,_class='grouplet_box', **box_kw)
         return handler(box, **kwargs)
 
     def _loadGroupletTopic(self, pane, topic_menu, table=None,
@@ -148,7 +148,7 @@ class GroupletHandler(BaseComponent):
             result['virtual_columns'] = info['template_virtual_columns']
         return result
 
-    @extract_kwargs(grouplet=True, template=True, btn=True)
+    @extract_kwargs(grouplet=dict(slice_prefix=False, pop=True), template=True, btn=True)
     @struct_method
     def gr_groupletChunk(self, pane, value=None, template=None, name=None,
                          handler=None, resource=None, table=None,
@@ -197,7 +197,7 @@ class GroupletHandler(BaseComponent):
         """, name=name, **grouplet_kwargs)
         return root
 
-    @extract_kwargs(grouplet=True)
+    @extract_kwargs(grouplet=dict(slice_prefix=False, pop=True))
     @struct_method
     def gr_groupletPanel(self, pane, table=None, topic=None, value=None,
                          frameCode=None, grouplets_root=None,
@@ -212,6 +212,7 @@ class GroupletHandler(BaseComponent):
             grouplet_kwargs['table'] = table
         if grouplets_root:
             grouplet_kwargs['grouplets_root'] = grouplets_root
+        grouplet_kwargs['rootTag'] = 'contentPane'
         menu = self.gr_getGroupletMenu(table=table, topic=topic,
                                        grouplets_root=grouplets_root)
         if topic:
@@ -301,11 +302,12 @@ class GroupletHandler(BaseComponent):
                 **grouplet_kwargs)
         return bc
 
+    @extract_kwargs(grouplet=dict(slice_prefix=False, pop=True))
     @struct_method
     def gr_groupletWizard(self, pane, table=None, topic=None, value=None,
                           frameCode=None, completeLabel=None,
                           saveMainFormOnComplete=None,
-                          grouplets_root=None, **kwargs):
+                          grouplets_root=None,grouplet_kwargs=True, **kwargs):
         frameCode = frameCode or 'grplt_wizard'
         completeLabel = completeLabel or 'Confirm'
         frame = pane.framePane(frameCode=frameCode, _anchor=True, **kwargs)
@@ -342,15 +344,16 @@ class GroupletHandler(BaseComponent):
             item.div(mnode.attr.get('grouplet_caption'),
                      _class='wizard_caption')
         step_form_id = f'{frameCode}_step_form'
-        grouplet_kw = dict(resource='^#ANCHOR.current_resource',
+        grouplet_kwargs.update(resource='^#ANCHOR.current_resource',
                            value=value,
                            loadOnBuilt=True, formId=step_form_id,
                            form_modalForm=True)
+        grouplet_kwargs['rootTag'] = 'contentPane'
         if table:
-            grouplet_kw['table'] = table
+            grouplet_kwargs['table'] = table
         if grouplets_root:
-            grouplet_kw['grouplets_root'] = grouplets_root
-        frame.center.contentPane(overflow='auto').GroupletForm(**grouplet_kw)
+            grouplet_kwargs['grouplets_root'] = grouplets_root
+        frame.center.contentPane(overflow='auto').GroupletForm(**grouplet_kwargs)
         bottom = frame.bottom.contentPane(_class='wizard_bottom_bar')
         bottom.lightButton('^.next_label',
                            _class='wizard_next_btn',
