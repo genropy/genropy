@@ -74,10 +74,20 @@ class MenuIframes(BaseComponent):
     def _menutree_getLabel(self):
         return """
             let label = node.attr.label;
-            let badgeContent =  node.attr.badgeContent;
+            let iconClass = node.attr.iconClass;
+            let badgeContent = node.attr.badgeContent;
             let badgeClass = node.attr.badgeClass || 'menuline_badge';
+            let useInnerHTML = false;
+            if(iconClass){
+                label = `<span class="menuline_icon ${iconClass}"></span>${label}`;
+                useInnerHTML = true;
+            }
             if(!isNullOrBlank(badgeContent)){
-                label = `innerHTML:${label} <span class="${badgeClass}">${badgeContent}</span>`
+                label = `${label} <span class="${badgeClass}">${badgeContent}</span>`;
+                useInnerHTML = true;
+            }
+            if(useInnerHTML){
+                label = `innerHTML:${label}`;
             }
             return label;
         """

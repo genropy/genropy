@@ -1,20 +1,46 @@
+/* Menutree layout */
+.menutree{
+    padding-left: 4px;
+}
+
+.menutree .dijitTreeContent{
+    display: flex;
+    align-items: center;
+}
+
+/* CSS triangles replacing pixelated PNG arrows */
+.menutree .dijitTreeIcon{
+    flex-shrink: 0;
+    width: 10px;
+}
+
+.menutree .closedir,
 .menutree .opendir{
-    width: 12px;
-    background: url(/_gnr/11/css/icons/base10/tinyOpenBranch.png) no-repeat center center;
-
-}
-.menutree .closedir{
-    width: 12px;
-    background: url(/_gnr/11/css/icons/base10/tinyCloseBranch.png) no-repeat center center;
-
+    background: none;
+    text-align: center;
+    padding-top: 2px;
 }
 
-.tundra .menutree .dijitTreeIcon{
-    height: 20px;
+.menutree .closedir::after,
+.menutree .opendir::after{
+    content: '';
+    display: inline-block;
+}
+
+.menutree .closedir::after{
+    border-style: solid;
+    border-width: 4px 0 4px 5px;
+    border-color: transparent transparent transparent #666;
+}
+
+.menutree .opendir::after{
+    border-style: solid;
+    border-width: 5px 4px 0 4px;
+    border-color: #666 transparent transparent transparent;
 }
 
 .menutree .treeNoIcon{
-    width: 12px;
+    /* same width as arrows inherited from .dijitTreeIcon */
 }
 .mode_mobile .menutree .treeNoIcon{
     display: none;
@@ -49,4 +75,15 @@
     padding-right: 5px;
     padding-left: 5px;
     font-weight: bold;
+}
+
+.menuline_icon{
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-right: 4px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center center;
+    flex-shrink: 0;
 }
