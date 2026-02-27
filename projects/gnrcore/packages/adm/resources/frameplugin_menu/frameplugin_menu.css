@@ -127,6 +127,7 @@
     background: var(--menutree-node-hover-background);
 }
 
+
 /* Chevron rotation transition */
 .menutree.menutree_branchiconright .closedir,
 .menutree.menutree_branchiconright .opendir{
@@ -158,10 +159,12 @@
     height: 22px;
 }
 
-/* Label stays on the left, fills space */
+/* Label stays on the left, fills space, aligns icon and text */
 .menutree.menutree_branchiconright .dijitTreeLabel{
     order: 1;
     flex: 1;
+    display: inline-flex;
+    align-items: center;
 }
 
 /* Leaf nodes: hide empty icon spacer */
