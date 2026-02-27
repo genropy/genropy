@@ -334,6 +334,48 @@ class TestPostgresAdapterMaskField:
         assert "4" in result
 
 
+class TestPrepareSqlTextDoubleColon:
+    """Ref #585 — PostgreSQL :: cast syntax must not be matched as a named parameter."""
+
+    @classmethod
+    def setup_class(cls):
+        from gnr.sql.adapters.gnrpostgres import SqlDbAdapter as PgAdapter
+        from gnr.sql.adapters.gnrmysql import SqlDbAdapter as MysqlAdapter
+        cls.pg = PgAdapter(FakeDbRoot(False))
+        cls.mysql = MysqlAdapter(FakeDbRoot(False))
+
+    @pytest.fixture(params=['pg', 'mysql'])
+    def adapter(self, request):
+        return getattr(self, request.param)
+
+    def test_double_colon_not_matched(self, adapter):
+        sql, _ = adapter.prepareSqlText("SELECT col::vector FROM t", {})
+        assert '::vector' in sql
+        assert '%(vector)s' not in sql
+
+    def test_param_still_matched(self, adapter):
+        sql, _ = adapter.prepareSqlText("WHERE id = :id", {})
+        assert '%(id)s' in sql
+
+    def test_cast_and_param_mixed(self, adapter):
+        sql, _ = adapter.prepareSqlText(
+            "SELECT (1 - (emb <=> :target::vector)) AS sim WHERE x::text = :val", {}
+        )
+        assert '%(target)s' in sql
+        assert '%(val)s' in sql
+        assert '::vector' in sql
+        assert '::text' in sql
+
+    def test_multiple_casts_and_params(self, adapter):
+        sql, _ = adapter.prepareSqlText(
+            "WHERE col::text ILIKE :pattern AND num::integer > :threshold", {}
+        )
+        assert '%(pattern)s' in sql
+        assert '%(threshold)s' in sql
+        assert '::text' in sql
+        assert '::integer' in sql
+
+
 class TestSqliteAdapterMaskField:
     """Test mask_field_sql for SQLite adapter."""
 
