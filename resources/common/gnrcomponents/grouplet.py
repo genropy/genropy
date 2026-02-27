@@ -206,7 +206,7 @@ class GroupletHandler(BaseComponent):
         formId = f'{frameCode}_grpform'
         grouplet_kwargs.update(resource='^#ANCHOR.selected_resource',
                                value=value,
-                               panelMode=True, formId=formId,
+                               dynamicLocationPath=True, formId=formId,
                                store_autoSave=1)
         if table:
             grouplet_kwargs['table'] = table
@@ -287,6 +287,7 @@ class GroupletHandler(BaseComponent):
                 if($2.item.attr.resource && $2.item.attr.grouplet_caption){
                     SET .selected_resource = $2.item.attr.resource;
                     SET .selected_caption = $2.item.attr.grouplet_caption;
+                    SET .selected_locationpath = $2.item.attr.locationpath || null;
                 }
             """)
         right = bc.borderContainer(region='center')

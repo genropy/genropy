@@ -100,6 +100,7 @@ var gnr_grouplet = {
             var node = menu.getNode(code);
             if (node) {
                 sourceNode.setRelativeData('.selected_resource', node.attr.resource);
+                sourceNode.setRelativeData('.selected_locationpath', node.attr.locationpath || null);
             }
         }
     }

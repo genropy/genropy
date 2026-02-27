@@ -958,24 +958,30 @@ dojo.declare("gnr.widgets.GroupletForm",gnr.widgets.gnrwdg,{
         let handler = objectPop(kw,'handler');
         let resource = objectPop(kw,'resource');
         let value = objectPop(kw,'value');
-        let panelMode = objectPop(kw,'panelMode');
+        let dynamicLocationPath = objectPop(kw,'dynamicLocationPath');
         let datapath = objectPop(kw,'datapath') || 'gnr.grouplet_'+genro.time36Id();
         let loadOnBuilt = objectPop(kw,'loadOnBuilt');
         let startKey = objectPop(kw,'startKey');
         let rootTag = objectPop(kw,'rootTag');
-        if(value && !panelMode){
+        if(value && !dynamicLocationPath){
             kw.store_locationpath = sourceNode.absDatapath(value);
         }
-        if(panelMode && value){
+        if(dynamicLocationPath && value){
             let basePath = sourceNode.absDatapath(value);
             grouplets_pars._onRemote = [
                 '{let _frm = this.form;',
                 'if(_frm && _frm.store){',
                 '  let _res = this.getAttributeFromDatasource("remote_resource");',
-                '  let _topic = this.attr.remote_topic;',
                 '  if(_res){',
-                '    let _dataKey = _topic ? _res.replace(_topic + "/", "") : _res;',
-                '    let _newPath = "' + basePath + '." + _dataKey.replace(/\\//g, ".");',
+                '    let _locpath = this.getRelativeData("#ANCHOR.selected_locationpath");',
+                '    let _newPath;',
+                '    if(_locpath){',
+                '      _newPath = "' + basePath + '." + _locpath.replace(/^\\./, "");',
+                '    }else{',
+                '      let _topic = this.attr.remote_topic;',
+                '      let _dataKey = _topic ? _res.replace(_topic + "/", "") : _res;',
+                '      _newPath = "' + basePath + '." + _dataKey.replace(/\\//g, ".");',
+                '    }',
                 '    _frm.store.setLocationPath(_newPath, "save");',
                 '    _frm.load();',
                 '  }',
