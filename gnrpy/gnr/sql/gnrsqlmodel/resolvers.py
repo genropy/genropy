@@ -182,6 +182,7 @@ class RelationTreeResolver(BagResolver):
                 result.setItem(lbl, child, col.attributes, joiner=relpars)
         for vcol in vcols:
             fullname = '%s_%s_%s' % (pkg_name, table, vcol.name)
+            result.setItem(vcol.name, None, vcol.attributes, prfx=prfx, table=table, pkg=pkg_name)
             lbl, relpars = onerels.get(fullname, (None, None))
             if lbl:
                 un_sch, un_tbl = relpars['one_relation'].split('.')[:2]
@@ -196,7 +197,7 @@ class RelationTreeResolver(BagResolver):
                 }
                 child = RelationTreeResolver(**child_kwargs)
                 child.setDbroot(self.dbroot)
-                result.setItem(lbl, child, col.attributes, joiner=relpars)
+                result.setItem(lbl, child, vcol.attributes, joiner=relpars)
         for label, relpars, relcol in manyrels:
             sch, tbl, col = relpars['many_relation'].split('.')
             schtbl = '%s_%s' % (sch, tbl)

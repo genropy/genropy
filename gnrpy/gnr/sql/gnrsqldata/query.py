@@ -44,7 +44,8 @@ import datetime
 from collections import OrderedDict
 
 from gnr.core.gnrbag import Bag, BagResolver
-from gnr.sql.gnrsqldata.compiler import SqlQueryCompiler
+from gnr.sql.gnrsqldata.compiler import SqlQueryCompiler as _SqlQueryCompiler
+from gnr.sql.gnrsqldata.compiler_new import SqlQueryCompiler as _SqlQueryCompilerNew
 from gnr.sql.gnrsqldata.selection import SqlSelection
 
 
@@ -223,7 +224,8 @@ class SqlQuery(object):
         """Return the :meth:`compiledQuery() <SqlQueryCompiler.compiledQuery()>` method.
 
         :param count: boolean. If ``True``, optimize the sql query to get the number of resulting rows (like count(*))"""
-        return SqlQueryCompiler(self.dbtable.model,
+        _CompilerClass = _SqlQueryCompilerNew if self.dbtable.db.currentEnv.get('use_new_compiler') else _SqlQueryCompiler
+        return _CompilerClass(self.dbtable.model,
                                 joinConditions=self.joinConditions,
                                 sqlContextName=self.sqlContextName,
                                 sqlparams=self.sqlparams,
