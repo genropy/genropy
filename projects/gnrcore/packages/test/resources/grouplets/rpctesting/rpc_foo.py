@@ -2,10 +2,11 @@
 
 from gnr.core.gnrdecorator import public_method
 
-info = dict(caption='RPC Foo', code='rpc_foo', priority=1)
-
 
 class Grouplet(object):
+    def __info__(self):
+        return dict(caption='RPC Foo', priority=1)
+
     def grouplet_main(self, pane, **kwargs):
         fb = pane.formlet(cols=1, border_spacing='3px')
         fb.button('Foo').dataRpc('.rpc_result', self.testRpc)

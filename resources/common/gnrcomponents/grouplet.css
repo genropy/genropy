@@ -218,3 +218,43 @@
 .grouplet_topic_cell.collapsed .grouplet_topic_cell_caption {
     border-bottom: none;
 }
+
+/* Panel semaphore (tree variant) */
+.grouplet_panel_semaphore {
+    height: 12px;
+    width: 12px;
+    border-radius: 50%;
+    margin-left: 8px;
+    display: none;
+    vertical-align: middle;
+    background-color: #9e9e9e;
+    transition: background-color 0.2s;
+}
+
+.grouplet_panel_semaphore.semaphore_ok {
+    display: inline-block;
+    background-color: #4caf50;
+}
+
+.grouplet_panel_semaphore.semaphore_error {
+    display: inline-block;
+    background-color: #f44336;
+}
+
+.grouplet_panel_semaphore.semaphore_changed {
+    display: inline-block;
+    background-color: #ff9800;
+}
+
+/* Topic panel: status color on selected multiButton */
+.grplt_status_ok .multibutton_selected.multibutton {
+    border-bottom-color: #4caf50;
+}
+
+.grplt_status_changed .multibutton_selected.multibutton {
+    border-bottom-color: #ff9800;
+}
+
+.grplt_status_error .multibutton_selected.multibutton {
+    border-bottom-color: #f44336;
+}

@@ -14,11 +14,8 @@ class GroupletHandler(BaseComponent):
     @public_method
     def gr_loadGrouplet(self, pane, resource=None, table=None,
                         handlername=None, valuepath=None,
-                        nested_datapath=False,
                         grouplets_root=None, **kwargs):
         grouplets_root = grouplets_root or 'grouplets'
-        if nested_datapath and resource:
-            valuepath = f'{valuepath or "."}.{resource.replace("/", ".")}'
         if not resource:
             if not handlername:
                 raise self.exception('generic',
@@ -45,7 +42,13 @@ class GroupletHandler(BaseComponent):
             mixinedClass = self.mixinComponent(f'{grouplets_root}/{resource}')
         grouplet_module = getattr(mixinedClass, '__top_mixined_module', None)
         handler = getattr(self, handlername)
-        box = pane.contentPane(datapath=valuepath, grouplet_module=grouplet_module)
+        box_kw = dict(datapath=valuepath, grouplet_module=grouplet_module)
+        info_method = getattr(self, '__info__', None)
+        if info_method:
+            grouplet_code = info_method().get('code')
+            if grouplet_code:
+                box_kw['grouplet_code'] = grouplet_code
+        box = pane.div(_class='grouplet_box', **box_kw)
         return handler(box, **kwargs)
 
     def _loadGroupletTopic(self, pane, topic_menu, table=None,
@@ -103,7 +106,7 @@ class GroupletHandler(BaseComponent):
             else:
                 self.gr_loadGrouplet(content, resource=attr['resource'],
                                      table=table,
-                                     valuepath=f'.{attr.get("code", node.label)}',
+                                     valuepath=f'.{node.label}',
                                      grouplets_root=grouplets_root,
                                      **kwargs)
 
@@ -137,7 +140,7 @@ class GroupletHandler(BaseComponent):
                 return {}
             node = info_node
         resmodule = gnrImport(node.attr['abs_path'], avoid_module_cache=True)
-        info = getattr(resmodule, 'info', {})
+        info = self._get_raw_info(resmodule)
         result = {}
         if info.get('template'):
             result['template'] = info['template']
@@ -198,61 +201,105 @@ class GroupletHandler(BaseComponent):
     @struct_method
     def gr_groupletPanel(self, pane, table=None, topic=None, value=None,
                          frameCode=None, grouplets_root=None,
-                         nested_datapath=True,
                          grouplet_kwargs=None, **kwargs):
         frameCode = frameCode or 'grplt_panel'
-        frame = pane.framePane(frameCode=frameCode, _anchor=True, **kwargs)
-        frame.data('.grouplet_menu',
-                   self.gr_getGroupletMenu(table=table, topic=topic,
-                                           grouplets_root=grouplets_root))
-        grouplet_kwargs.update(resource='^.selected_resource', value=value)
+        formId = f'{frameCode}_grpform'
+        grouplet_kwargs.update(resource='^#ANCHOR.selected_resource',
+                               value=value,
+                               panelMode=True, formId=formId,
+                               store_autoSave=1)
         if table:
             grouplet_kwargs['table'] = table
         if grouplets_root:
             grouplet_kwargs['grouplets_root'] = grouplets_root
-        if nested_datapath:
-            grouplet_kwargs['nested_datapath'] = nested_datapath
+        menu = self.gr_getGroupletMenu(table=table, topic=topic,
+                                       grouplets_root=grouplets_root)
         if topic:
-            bar = frame.top.slotBar('*,mb,*', _class='mobile_bar')
-            bar.mb.multibutton(value='^.selected_code',
-                               storepath='.grouplet_menu')
-            bar.dataController(
-                "gnr_grouplet.panelSelectFromCode(this, code);",
-                code='^.selected_code', _onBuilt=1)
-            frame.center.contentPane(overflow='auto').grouplet(**grouplet_kwargs)
-        else:
-            bc = frame.center.borderContainer()
-            tree_frame = bc.framePane(region='left', width='220px',
-                                      splitter=True,
-                                      _class='grouplet_panel_tree',
-                                      frameCode=f'{frameCode}_tree')
-            tree_frame.top.slotBar('5,searchOn,*,5',
-                                   _class='grouplet_panel_searchbar')
-            tree_frame.center.contentPane().div(padding='10px').tree(
-                storepath='.grouplet_menu',
-                hideValues=True,
-                labelAttribute='caption',
-                _class='branchtree noIcon grouplet_tree',
-                selectedLabelClass='selectedTreeNode',
-                openOnClick=True,
-                nodeId=f'{frameCode}_tree',
-                getLabelClass="""
-                    if(!node.attr.grouplet_caption){ return 'grouplet_topic'; }
-                """,
-                connect_onClick="""
-                    if($2.item.attr.resource && $2.item.attr.grouplet_caption){
-                        SET .selected_resource = $2.item.attr.resource;
-                        SET .selected_caption = $2.item.attr.grouplet_caption;
-                    }
-                """)
-            right = bc.borderContainer(region='center')
-            top = right.contentPane(region='top',
-                                    _class='grouplet_panel_title_bar')
-            top.div('^.selected_caption',
-                    _class='grouplet_panel_title')
-            right.contentPane(region='center', overflow='auto').grouplet(
-                **grouplet_kwargs)
+            grouplet_kwargs['grouplet_remote_topic'] = topic
+            return self._groupletPanel_topic(
+                pane, menu, frameCode=frameCode, formId=formId,
+                grouplet_kwargs=grouplet_kwargs, **kwargs)
+        return self._groupletPanel_tree(
+            pane, menu, frameCode=frameCode, formId=formId,
+            grouplet_kwargs=grouplet_kwargs, **kwargs)
+
+    def _groupletPanel_topic(self, pane, menu, frameCode=None,
+                             formId=None, grouplet_kwargs=None, **kwargs):
+        frame = pane.framePane(frameCode=frameCode, _anchor=True, **kwargs)
+        frame.data('.grouplet_menu', menu)
+        bar_id = f'{frameCode}_bar'
+        frame.dataController("""
+            var barNode = genro.nodeById(barId);
+            if(barNode){
+                ['ok','changed','error'].forEach(function(s){
+                    genro.dom.setClass(barNode, 'grplt_status_' + s, s == status);
+                });
+            }
+        """, barId=bar_id,
+            **{f'subscribe_form_{formId}_onStatusChange': True})
+        bar = frame.top.slotBar('*,mb,*', _class='mobile_bar',
+                                nodeId=bar_id)
+        bar.mb.multibutton(value='^.selected_code',
+                           storepath='.grouplet_menu')
+        bar.dataController(
+            "gnr_grouplet.panelSelectFromCode(this, code);",
+            code='^.selected_code', _onBuilt=1)
+        bar.dataController("genro.formById(innerFormId).reload()",innerFormId=formId,formsubscribe_onLoaded=True)
+
+        frame.center.contentPane(
+            overflow='auto').GroupletForm(**grouplet_kwargs)
         return frame
+
+    def _groupletPanel_tree(self, pane, menu, frameCode=None,
+                            formId=None, grouplet_kwargs=None, **kwargs):
+        bc = pane.borderContainer(_anchor=True, **kwargs)
+        bc.data('.grouplet_menu', menu)
+        semaphore_id = f'{frameCode}_semaphore'
+        bc.dataController("""
+            var semNode = genro.nodeById(semId);
+            if(semNode){
+                ['ok','changed','error'].forEach(function(s){
+                    genro.dom.setClass(semNode, 'semaphore_' + s,
+                        selectedResource && s == status);
+                });
+            }
+        """, semId=semaphore_id, selectedResource='=.selected_resource',
+            **{f'subscribe_form_{formId}_onStatusChange': True})
+        tree_frame = bc.framePane(region='left', width='220px',
+                                  splitter=True,
+                                  _class='grouplet_panel_tree',
+                                  frameCode=f'{frameCode}_tree')
+        tree_frame.top.slotBar('5,searchOn,*,5',
+                               _class='grouplet_panel_searchbar')
+        tree_frame.center.contentPane().div(padding='10px').tree(
+            storepath='.grouplet_menu',
+            hideValues=True,
+            labelAttribute='caption',
+            _class='branchtree noIcon grouplet_tree',
+            selectedLabelClass='selectedTreeNode',
+            openOnClick=True,
+            nodeId=f'{frameCode}_tree',
+            getLabelClass="""
+                if(!node.attr.grouplet_caption){ return 'grouplet_topic'; }
+            """,
+            connect_onClick="""
+                if($2.item.attr.resource && $2.item.attr.grouplet_caption){
+                    SET .selected_resource = $2.item.attr.resource;
+                    SET .selected_caption = $2.item.attr.grouplet_caption;
+                }
+            """)
+        right = bc.borderContainer(region='center')
+        top = right.contentPane(region='top',
+                                _class='grouplet_panel_title_bar')
+        top.div('^.selected_caption',
+                _class='grouplet_panel_title')
+        top.div(_class='grouplet_panel_semaphore',
+                nodeId=semaphore_id)
+        right.dataController("genro.formById(innerFormId).reload()",innerFormId=formId,formsubscribe_onLoaded=True)
+        right.contentPane(
+            region='center', overflow='auto').GroupletForm(
+                **grouplet_kwargs)
+        return bc
 
     @struct_method
     def gr_groupletWizard(self, pane, table=None, topic=None, value=None,
@@ -359,7 +406,7 @@ class GroupletHandler(BaseComponent):
                 info['grouplet_caption'] = info['caption']
                 resource_path = (f'{parent_path}/{node.label}'
                                  if parent_path else node.label)
-                result.setItem(info['code'], None,
+                result.setItem(node.label, None,
                                resource=resource_path,
                                **info)
 
@@ -408,9 +455,16 @@ class GroupletHandler(BaseComponent):
                                caption=node.attr.get('grouplet_caption'),
                                default_kw={field: node.attr.get('resource')})
 
+    def _get_raw_info(self, resmodule):
+        for cls_name in ('Grouplet', 'GroupletTopic'):
+            cls = getattr(resmodule, cls_name, None)
+            if cls and hasattr(cls, '__info__'):
+                return dict(cls.__info__(self))
+        return dict(getattr(resmodule, 'info', {}))
+
     def _get_grouplet_info(self, node, table=None):
         resmodule = gnrImport(node.attr['abs_path'], avoid_module_cache=True)
-        info = getattr(resmodule, 'info', {})
+        info = self._get_raw_info(resmodule)
         tags = info.get('tags')
         permissions = info.get('permissions')
         info['caption'] = info.get('caption') or node.attr.get('caption')

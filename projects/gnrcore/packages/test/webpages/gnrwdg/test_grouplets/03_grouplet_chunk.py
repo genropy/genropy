@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 
-"""Test page for groupletChunk struct_method - real DB record editing"""
+"""Test page for groupletChunk struct_method: inline summary template with
+click-to-edit dialog, using handlers and resource grouplets.
+Each test shows the chunk embedded in a comune form to demonstrate
+how editing in the dialog updates the surrounding form."""
 
 from gnr.core.gnrdecorator import public_method
 
@@ -121,6 +124,62 @@ class GnrCustomWebPage(object):
             resource='codici',
             table='glbl.comune',
             title='Edit Codici')
+
+    def _prospect_form(self, pane, frameCode, datapath):
+        """Shared form setup for myprospect table"""
+        form = pane.frameForm(frameCode=frameCode,
+                             height='500px', width='700px',
+                             datapath=datapath,
+                             border='1px solid silver',
+                             pkeyPath='.prospect_pkey',
+                             _anchor=True)
+        form.formStore(table='test.myprospect', storeType='Item',
+                      handler='recordCluster', startKey='*norecord*')
+        bar = form.top.slotToolbar('5,selector,*,semaphore,locker,5')
+        fb = bar.selector.formbuilder(cols=1, border_spacing='1px')
+        fb.dbselect(value='^.prospect_pkey', dbtable='test.myprospect',
+                   parentForm=False,
+                   validate_onAccept="""if(userChange){
+                       this.getParentNode().form.publish('load',{destPkey:value})
+                   }""",
+                   lbl='Prospect')
+        return form
+
+    def test_5_chunk_prospect_topics(self, pane):
+        """Prospect form with three topic chunks: company, needs, budget.
+        Each chunk uses the template from its topic __info__.py and
+        fills on record selection."""
+        form = self._prospect_form(pane, 'chunk_prospect', '.prospect_form')
+        center = form.center.contentPane(padding='10px', datapath='.record')
+        fb = center.formlet(cols=2, border_spacing='3px',
+                               table='test.myprospect')
+        fb.field('company_name', colspan=2, width='100%')
+        fb.field('contact_name')
+        fb.field('contact_email')
+        fb.groupletChunk(
+            value='^#FORM.record.extra_data.company',
+            name='edit_company_topic',
+            resource='company',
+            table='test.myprospect',
+            title='Company Profile',
+            remote_grid_columns=2,
+            colspan=2, lbl='Company Profile')
+        fb.groupletChunk(
+            value='^#FORM.record.extra_data.needs',
+            name='edit_needs_topic',
+            resource='needs',
+            table='test.myprospect',
+            title='Needs Assessment',
+            grid_columns=2,
+            colspan=2, lbl='Needs Assessment')
+        fb.groupletChunk(
+            value='^#FORM.record.extra_data.budget',
+            name='edit_budget_topic',
+            resource='budget',
+            table='test.myprospect',
+            title='Budget & Timeline',
+            grid_columns=2,
+            colspan=2, lbl='Budget & Timeline')
 
     @public_method
     def grp_territorio(self, pane, **kwargs):

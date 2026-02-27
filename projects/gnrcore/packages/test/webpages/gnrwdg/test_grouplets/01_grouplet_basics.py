@@ -17,7 +17,7 @@ class GnrCustomWebPage(object):
     def test_2_value_path(self, pane):
         """Grouplet bound to a data value path"""
         pane.data('.contact', Bag(dict(email='test@example.com', phone='123456')))
-        fb = pane.formbuilder(cols=1, border_spacing='3px')
+        fb = pane.formlet(cols=1, border_spacing='3px')
         fb.textbox(value='^.name', lbl='Name')
         pane.grouplet(value='^.contact', handler=self.grp_contact)
 
@@ -44,7 +44,7 @@ class GnrCustomWebPage(object):
 
     @public_method
     def grp_contact(self, pane, **kwargs):
-        fb = pane.formbuilder(cols=2, border_spacing='3px')
+        fb = pane.formlet(cols=2, border_spacing='3px')
         fb.textbox(value='^.email', lbl='Email')
         fb.textbox(value='^.phone', lbl='Phone')
         fb.dateTextBox(value='^.birthdate', lbl='Birth Date')

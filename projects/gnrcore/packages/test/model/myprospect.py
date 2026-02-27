@@ -1,10 +1,9 @@
 class Table(object):
     def config_db(self, pkg):
         tbl = pkg.table('myprospect', pkey='id', name_long='Prospect',
-                        name_plural='Prospects', caption_field='company_name',
-                        rowcaption='$company_name - $contact_name')
+                        name_plural='Prospects', caption_field='company_name')
         self.sysFields(tbl)
-        tbl.column('company_name', name_long='Company Name')
+        tbl.column('company_name', name_long='Company Name',validate_notnull=True)
         tbl.column('contact_name', name_long='Contact Name')
         tbl.column('contact_email', name_long='Email')
         tbl.column('contact_phone', name_long='Phone')

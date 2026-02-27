@@ -1,9 +1,10 @@
 from gnr.web.gnrbaseclasses import BaseComponent
 
-info = dict(caption='Licenses', code='licenses', priority=2)
-
 
 class Grouplet(BaseComponent):
+    def __info__(self):
+        return dict(caption='Licenses', priority=2)
+
     def grouplet_main(self, pane, **kwargs):
         fb = pane.formlet(cols=2, border_spacing='3px')
         fb.filteringSelect(value='^.license_type', lbl='License Type',

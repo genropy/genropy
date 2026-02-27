@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-info = dict(caption='Beta', code='beta', priority=2)
-
 
 class Grouplet(object):
+    def __info__(self):
+        return dict(caption='Beta', priority=2)
+
     def grouplet_main(self, pane, **kwargs):
         fb = pane.formlet(cols=1, border_spacing='3px')
         self.mainInfo(fb)

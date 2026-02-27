@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-info = dict(caption='Notifications', code='notifications', priority=1)
-
 
 class Grouplet(object):
+    def __info__(self):
+        return dict(caption='Notifications', priority=2)
+
     def grouplet_main(self, pane, **kwargs):
         fb = pane.formlet(cols=1, border_spacing='3px')
         fb.checkbox(value='^.email_notifications', label='Email notifications')

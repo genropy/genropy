@@ -1,9 +1,10 @@
 from gnr.web.gnrbaseclasses import BaseComponent
 
-info = dict(caption='Guest', code='guest', priority=2)
-
 
 class Grouplet(BaseComponent):
+    def __info__(self):
+        return dict(caption='Guest', priority=2)
+
     def grouplet_main(self, pane, **kwargs):
         fb = pane.formlet(cols=2, table='test.booking')
         fb.field('guest_name', lbl='Guest Name', colspan=2, width='100%',

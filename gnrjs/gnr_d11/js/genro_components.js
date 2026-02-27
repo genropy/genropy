@@ -958,13 +958,30 @@ dojo.declare("gnr.widgets.GroupletForm",gnr.widgets.gnrwdg,{
         let handler = objectPop(kw,'handler');
         let resource = objectPop(kw,'resource');
         let value = objectPop(kw,'value');
+        let panelMode = objectPop(kw,'panelMode');
         let datapath = objectPop(kw,'datapath') || 'gnr.grouplet_'+genro.time36Id();
         let loadOnBuilt = objectPop(kw,'loadOnBuilt');
         let startKey = objectPop(kw,'startKey');
-        if(value){
+        if(value && !panelMode){
             kw.store_locationpath = sourceNode.absDatapath(value);
         }
-        if(loadOnBuilt || startKey){
+        if(panelMode && value){
+            let basePath = sourceNode.absDatapath(value);
+            grouplets_pars._onRemote = [
+                '{let _frm = this.form;',
+                'if(_frm && _frm.store){',
+                '  let _res = this.getAttributeFromDatasource("remote_resource");',
+                '  let _topic = this.attr.remote_topic;',
+                '  if(_res){',
+                '    let _dataKey = _topic ? _res.replace(_topic + "/", "") : _res;',
+                '    let _newPath = "' + basePath + '." + _dataKey.replace(/\\//g, ".");',
+                '    _frm.store.setLocationPath(_newPath, "save");',
+                '    _frm.load();',
+                '  }',
+                '}}'
+            ].join('');
+            kw.autoSave = kw.autoSave || 500;
+        }else if(loadOnBuilt || startKey){
             if(startKey){
                 grouplets_pars._onRemote = `this.form.load({destPkey:"${startKey}"});`;
             }else{
@@ -976,10 +993,9 @@ dojo.declare("gnr.widgets.GroupletForm",gnr.widgets.gnrwdg,{
         grouplets_pars.handler = grouplets_pars.handler || handler;
         grouplets_pars.resource = grouplets_pars.resource || resource;
         grouplets_pars.grouplets_root = grouplets_pars.grouplets_root || objectPop(kw,'grouplets_root');
-        grouplets_pars.nested_datapath = grouplets_pars.nested_datapath || objectPop(kw,'nested_datapath');
         kw.store_handler = kw.store_handler || 'memory';
         kw.store_table = table;
-        kw.storeType = kw.storeType || 'Item'; //available storeType 'SubForm,Item,Collection';
+        kw.storeType = kw.storeType || 'Item';
         let formdiv = sourceNode._('BoxForm',kw);
         return formdiv._('grouplet',grouplets_pars);
     }
@@ -3041,7 +3057,6 @@ dojo.declare("gnr.widgets.Grouplet",gnr.widgets.gnrwdg,{
         kw.remote_resource = objectPop(kw,'resource');
         kw.remote_table = objectPop(kw,'table');
         kw.remote_grouplets_root = objectPop(kw,'grouplets_root');
-        kw.remote_nested_datapath = objectPop(kw,'nested_datapath');
         kw.remote_valuepath = valuepath;
         kw.overflow = 'hidden';
         kw.remote = 'gr_loadGrouplet'

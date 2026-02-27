@@ -1,9 +1,10 @@
 from gnr.web.gnrbaseclasses import BaseComponent
 
-info = dict(caption='Offer', code='offer', priority=2)
-
 
 class Grouplet(BaseComponent):
+    def __info__(self):
+        return dict(caption='Offer', priority=2)
+
     def grouplet_main(self, pane, **kwargs):
         fb = pane.formlet(cols=2, border_spacing='3px')
         fb.numberTextBox(value='^.estimated_budget', lbl='Estimated Budget')

@@ -54,6 +54,7 @@ class TestHandler(BaseComponent):
 class TestHandlerBase(TestHandler):
     def main_root(self, root, **kwargs):
         root.attributes['overflow'] = 'auto'
+        root.attributes['onCreated'] = 'genro.fakeResize()'
         if self._call_args:
             if '*' in self._call_args:
                 self.testOnly = False
@@ -70,4 +71,5 @@ class TestHandlerFull(TestHandler):
             else:
                 self.testOnly = ['_%s_' % str(a) for a in self._call_args]
         root.attributes['overflow'] = 'auto'
+        root.attributes['onCreated'] = 'genro.fakeResize()'
         self.testHandler(root)

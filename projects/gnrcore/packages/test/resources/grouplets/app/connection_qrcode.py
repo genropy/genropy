@@ -1,14 +1,10 @@
 from gnr.web.gnrbaseclasses import BaseComponent
 
 
-info = {
-    "code": 'connection_qrcode',
-    "caption": "!![en]Connection",
-    "priority": 3
-}
-
-
 class Grouplet(BaseComponent):
+    def __info__(self):
+        return dict(caption='!![en]Connection', priority=3)
+
     def grouplet_main(self, pane, **kwargs):
         fb = pane.formlet(cols=2, border_spacing='6px')
         fb.textbox(value='^.connection_name', lbl='Connection name',

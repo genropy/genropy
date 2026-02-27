@@ -26,7 +26,7 @@ class GnrCustomWebPage(object):
         bar.edit_btn.button('Edit Address').dataController(
             """genro.dlg.memoryDataEditor('address', {value:'^#FORM.record',handler:grp_handler,title:'Edit Address'},this)""",
             grp_handler=self.grp_address)
-        fb = form.record.formbuilder(cols=1, border_spacing='3px')
+        fb = form.record.formlet(cols=1)
         fb.textbox(value='^.name', lbl='Name')
         fb.textbox(value='^.surname', lbl='Surname')
         fb.textbox(value='^.street', lbl='Street', readOnly=True)
@@ -35,7 +35,7 @@ class GnrCustomWebPage(object):
 
     def test_2_documentDataEditor(self, pane):
         """documentDataEditor: edit a document by path"""
-        fb = pane.formbuilder(cols=1, border_spacing='3px')
+        fb = pane.formlet(cols=1)
         fb.textbox(value='^.doc_path', lbl='Document path',
                   default_value='pkg:test15/testdata/docstore/doc1.xml')
         fb.button('Edit Document').dataController(
@@ -45,8 +45,8 @@ class GnrCustomWebPage(object):
 
     def test_3_recordDataEditor(self, pane):
         """recordDataEditor: edit a database record with inline handler"""
-        fb = pane.formbuilder(cols=1, border_spacing='3px')
-        fb.dbselect(value='^.selected_comune', dbtable='glbl.comune',
+        fb = pane.formlet(cols=1)
+        fb.dbselect(value='^.selected_comune', table='glbl.comune',
                    lbl='Select Comune')
         fb.button('Edit Comune').dataController(
             "genro.dlg.recordDataEditor('comune_edit', {table:'glbl.comune', pkey:comune_pkey, handler:grp_handler,title:'Edit Comune'},this)",
@@ -55,8 +55,8 @@ class GnrCustomWebPage(object):
 
     def test_4_recordDataEditor_resource(self, pane):
         """recordDataEditor: edit using a table resource grouplet"""
-        fb = pane.formbuilder(cols=1, border_spacing='3px')
-        fb.dbselect(value='^.selected_comune_2', dbtable='glbl.comune',
+        fb = pane.formlet(cols=1)
+        fb.dbselect(value='^.selected_comune_2', table='glbl.comune',
                    lbl='Select Comune')
         fb.button('Edit Comune (resource)').dataController(
             "genro.dlg.recordDataEditor('comune_res', {table:'glbl.comune', pkey:comune_pkey, resource:'anagrafica', title:'Edit Comune - Anagrafica'}, this)",
@@ -64,8 +64,8 @@ class GnrCustomWebPage(object):
 
     def test_5_recordDataEditor_territorio(self, pane):
         """recordDataEditor: edit comune territorio using nested resource grouplet"""
-        fb = pane.formbuilder(cols=1, border_spacing='3px')
-        fb.dbselect(value='^.selected_comune_3', dbtable='glbl.comune',
+        fb = pane.formlet(cols=1)
+        fb.dbselect(value='^.selected_comune_3', table='glbl.comune',
                    lbl='Select Comune')
         fb.button('Edit Comune (territorio)').dataController(
             "genro.dlg.recordDataEditor('comune_terr', {table:'glbl.comune', pkey:comune_pkey, resource:'territorio/altimetria', title:'Edit Comune - Altimetria'}, this)",
@@ -73,7 +73,7 @@ class GnrCustomWebPage(object):
 
     @public_method
     def grp_address(self, pane, **kwargs):
-        fb = pane.formbuilder(cols=1, border_spacing='3px')
+        fb = pane.formlet(cols=3)
         fb.textbox(value='^.street', lbl='Street')
         fb.textbox(value='^.city', lbl='City')
         fb.textbox(value='^.zip', lbl='ZIP')
@@ -81,14 +81,14 @@ class GnrCustomWebPage(object):
 
     @public_method
     def grp_document(self, pane, **kwargs):
-        fb = pane.formbuilder(cols=1, border_spacing='3px')
+        fb = pane.formlet(cols=3)
         fb.textbox(value='^.name', lbl='Name')
         fb.textbox(value='^.description', lbl='Description')
         fb.dateTextBox(value='^.date', lbl='Date')
 
     @public_method
     def grp_comune(self, pane, **kwargs):
-        fb = pane.formbuilder(cols=2, border_spacing='3px', dbtable='glbl.comune')
+        fb = pane.formlet(cols=2, table='glbl.comune')
         fb.field('denominazione', colspan=2, width='100%')
         fb.field('sigla_provincia')
         fb.field('codice_comune')

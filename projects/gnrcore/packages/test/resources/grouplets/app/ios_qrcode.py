@@ -1,14 +1,10 @@
 from gnr.web.gnrbaseclasses import BaseComponent
 
 
-info = {
-    "code": 'ios_qrcode',
-    "caption": "!![en]Apple iOS",
-    "priority": 1
-}
-
-
 class Grouplet(BaseComponent):
+    def __info__(self):
+        return dict(caption='!![en]Apple iOS', priority=1)
+
     def grouplet_main(self, pane, **kwargs):
         fb = pane.formlet(cols=2, border_spacing='6px')
         fb.textbox(value='^.app_name', lbl='App name',
