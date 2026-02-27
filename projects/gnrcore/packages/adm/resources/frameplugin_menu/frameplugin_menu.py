@@ -28,6 +28,7 @@ from gnr.web.gnrbaseclasses import BaseComponent
 
 class MenuIframes(BaseComponent):
     css_requires='frameplugin_menu/frameplugin_menu'
+    iframemenu_brancharrow_right = True
 
     def mainLeft_iframemenu_plugin(self, tc):
         frame = tc.framePane(title="Menu", pageName='menu_plugin')
@@ -98,7 +99,7 @@ class MenuIframes(BaseComponent):
         tree = pane.tree(id="_gnr_main_menu_tree", storepath='gnr.appmenu.root', selected_file='gnr.filepath',
                   labelAttribute='label',
                   hideValues=True,
-                  _class='menutree',
+                  _class='menutree menutree_branchiconright' if self.iframemenu_brancharrow_right else 'menutree',
                   persist='site',
                   inspect='AltShift',
                   identifier='#p',
