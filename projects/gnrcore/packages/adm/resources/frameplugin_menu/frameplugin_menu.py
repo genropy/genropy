@@ -48,12 +48,12 @@ class MenuIframes(BaseComponent):
 
                  
     def _menutree_getIconClass(self):
-        if self.device_mode=='std':
+        if self.device_mode=='std' or self.iframemenu_brancharrow_right:
             return """function(item,opened){
                         if(!item.attr.isDir){
                             return "treeNoIcon";
                         }
-                        return opened? 'opendir':'closedir';                        
+                        return opened? 'opendir':'closedir';
                     }"""
         return  "return 'treeNoIcon';"
     

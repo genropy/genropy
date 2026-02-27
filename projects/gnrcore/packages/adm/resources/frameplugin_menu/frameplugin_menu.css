@@ -100,6 +100,12 @@
     --menutree-chevron-color: #bbb;
 }
 
+.mode_mobile .menutree.menutree_branchiconright{
+    --menutree-node-background: rgba(255, 255, 255, 0.08);
+    --menutree-node-hover-background: rgba(255, 255, 255, 0.15);
+    --menutree-chevron-color: rgba(255, 255, 255, 0.5);
+}
+
 /* Kill tundra tree-line background images on nodes */
 .menutree.menutree_branchiconright .dijitTreeNode,
 .menutree.menutree_branchiconright .dijitTreeIsLast{
