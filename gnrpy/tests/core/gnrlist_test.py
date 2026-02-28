@@ -1,6 +1,8 @@
 import os.path
 import datetime
-
+import tempfile
+import csv
+    
 import pytest
 from gnr.core import gnrlist as gl
 
@@ -156,7 +158,7 @@ def test_sortByItem():
     assert "Wayne" in res[0]['company']['name']
     
 def test_getReader():
-    import tempfile
+
     with tempfile.TemporaryDirectory() as tmpdir:
         filename = os.path.join(tmpdir, 'test.csv')
         with open(filename, "w") as wfp:
@@ -329,8 +331,6 @@ def test_sortByAttr():
 
 def test_CsvReader_duplicate_columns():
     """Test handling of duplicate column names in CSV files"""
-    import tempfile
-    import csv
 
     with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, newline='') as f:
         csv_file = f.name
@@ -381,8 +381,6 @@ def test_XlsxReader_duplicate_columns():
         from openpyxl import Workbook
     except ImportError:
         pytest.skip("openpyxl not available")
-
-    import tempfile
 
     with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as f:
         xlsx_file = f.name
@@ -436,8 +434,6 @@ def test_XlsReader_duplicate_columns():
         import xlwt
     except ImportError:
         pytest.skip("xlwt not available")
-
-    import tempfile
 
     with tempfile.NamedTemporaryFile(suffix='.xls', delete=False) as f:
         xls_file = f.name
@@ -530,8 +526,6 @@ def test_hGetAttr():
 
 def test_readTab():
     """Test tab-delimited file reading"""
-    import tempfile
-
     with tempfile.NamedTemporaryFile(mode='w', suffix='.tab', delete=False) as f:
         tab_file = f.name
         f.write("name\tage\tcity\n")
@@ -598,8 +592,6 @@ def test_GnrNamedList_dynamic_columns():
 
 def test_multiple_duplicate_columns():
     """Test handling of 3+ duplicate columns"""
-    import tempfile
-    import csv
 
     with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, newline='') as f:
         csv_file = f.name
@@ -670,8 +662,6 @@ def test_sortByItem_case_insensitive():
 
 def test_slugify_consistency_across_readers():
     """Test that CSV, XLS, and XLSX readers use consistent slugification"""
-    import tempfile
-    import csv
 
     # Headers with spaces and special characters
     headers = ['Transaction ID', 'User Name', 'Email-Address', 'Created At']

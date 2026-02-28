@@ -34,7 +34,7 @@ from gnr.core.gnrlist import GnrNamedList
 from gnr.sql.adapters._gnrbasepostgresadapter import PostgresSqlDbBaseAdapter
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
 
-RE_SQL_PARAMS = re.compile(r":(\S\w*)(\W|$)")
+RE_SQL_PARAMS = re.compile(r"(?<!:):(?!:)(\S\w*)(\W|$)")
 
 class SqlDbAdapter(PostgresSqlDbBaseAdapter):
 

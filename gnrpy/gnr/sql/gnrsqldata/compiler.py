@@ -1348,6 +1348,7 @@ class SqlQueryCompiler(object):
         columns = columns.replace('\n', '')
         columns = columns.replace(' as ', ' AS ')
         columns = columns.replace(' ,', ',')
+        storename = storename or self.db.currentEnv.get('storename')
         if storename and (storename=='*' or ',' in storename):
             columns = "%s, '_STORENAME_' AS _dbstore_" %columns
         if columns and not columns.endswith(','):
@@ -1388,7 +1389,7 @@ class SqlQueryCompiler(object):
         if where:
             where = BETWEENFINDER.sub(self.expandBetween, where)
             where = PERIODFINDER.sub(self.expandPeriod, where)
-            where = self.macro_expander.replace(where,'TSQUERY')
+            where = self.macro_expander.replace(where,'TSQUERY,VECQUERY')
 
         env_conditions = dictExtract(currentEnv,'env_%s_condition_' %self.tblobj.fullname.replace('.','_'))
         wherelist = [where]
@@ -1515,11 +1516,11 @@ class SqlQueryCompiler(object):
 
         # --- Store all compiled fragments into the SqlCompiledQuery ---
         self.cpl.distinct = distinct
-        self.cpl.columns = self.mangle(self.macro_expander.replace(columns,'TSRANK,TSHEADLINE'))
+        self.cpl.columns = self.mangle(self.macro_expander.replace(columns,'TSRANK,TSHEADLINE,VECRANK'))
         self.cpl.where = self.mangle(where)
         self.cpl.group_by = self.mangle(group_by)
         self.cpl.having = self.mangle(having)
-        self.cpl.order_by = self.mangle(self.macro_expander.replace(order_by,'TSRANK'))
+        self.cpl.order_by = self.mangle(self.macro_expander.replace(order_by,'TSRANK,VECRANK'))
         self.cpl.joins = [self.mangle(j) for j in self.cpl.joins]
         self.cpl.limit = limit
         self.cpl.offset = offset

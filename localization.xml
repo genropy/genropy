@@ -114,7 +114,7 @@
 <en_upper base="Upper" de="Obere" en="Upper" fr="Supérieur" it="Superiore"></en_upper>
 <en_lower base="Lower" de="Niedriger" en="Lower" fr="Inférieur" it="Inferiore"></en_lower>
 <en_largecapacity base="LargeCapacity" de="Largecapacity" en="LargeCapacity" fr="LargeCapacity" it="LargeCapacity"></en_largecapacity></gnrprinthandler>
-<gnrrlab path="gnrpy/gnr/core/gnrrlab.py" ext="py"><en_totals base="Totals" it="Totali"></en_totals></gnrrlab></core>
+</core>
 <dev><cli><gnrmkthresource path="gnrpy/gnr/dev/cli/gnrmkthresource.py" ext="py"><en_lookup_tables fr="Tables de recherche" de="Lookup Tables" en="Lookup Tables" it="Tabelle di configurazione" base="Lookup tables"></en_lookup_tables>
 <en_table_capitalize_ _tag="en__table_capitalize_" base="{table.capitalize()}"></en_table_capitalize_></gnrmkthresource>
 <gnrsql2py path="gnrpy/gnr/dev/cli/gnrsql2py.py" ext="py"><en_s _tag="en__s" fr="% S" en="[29]" de="% S" it="% S" base="%s"></en_s></gnrsql2py>

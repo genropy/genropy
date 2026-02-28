@@ -103,9 +103,9 @@ class UserPref(object):
 class MenuUserPreference(object):
     def appqrcode(self):
         'Show qrcode to connect your mobile app'
-        return dict(action=""" 
+        return dict(action="""
                               const qrcode_text = `GENRO:${owner_name || sitename}:${url}`;
-                              const qrcode_url = `/_tools/qrcode?text=${qrcode_text}`;
+                              const qrcode_url = `${url}_tools/qrcode?text=${qrcode_text}`;
                               genro.dlg.iframeDialog('app_qrcode_dlg',{src:qrcode_url,closable:true,height:'400px',width:'400px',
                                                                         title:'Scan qrcode to connect your mobile app'});
                                 """,

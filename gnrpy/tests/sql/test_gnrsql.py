@@ -1,9 +1,9 @@
 import datetime
 import tempfile
-import locale
 
 import pytest
 
+from gnr.core.gnrlocale import defaultLocale
 from gnr.sql import gnrsql as gs
 from .common import BaseGnrSqlTest, MockApplication
 
@@ -67,7 +67,7 @@ class TestGnrSql(BaseGnrSqlTest):
         assert db.workdate == datetime.date.today()
 
         # locale property
-        current_locale = locale.getlocale()[0]
+        current_locale = defaultLocale()
         assert db.locale == current_locale
         db.locale = "it_IT"
         assert db.locale == "it_IT"

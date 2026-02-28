@@ -159,7 +159,7 @@ class GnrRemoteProcess(object):
         if not hasattr(self, '_site'):
             self._makeSite()
         else:
-            last_start_ts = self._site.register.globalStore().getItem('RESTART_TS')
+            last_start_ts = self._site.main_register.globalStore().getItem('RESTART_TS')
             if last_start_ts and last_start_ts > self._site_ts:
                 self.logger.debug('Site restarted')
                 return None
@@ -375,7 +375,7 @@ class GnrCron(GnrRemoteProcess):
 
     @property
     def changesInTask(self):
-        last_task_ts = self.site.register.globalStore().getItem('TASK_TS')
+        last_task_ts = self.site.main_register.globalStore().getItem('TASK_TS')
         return last_task_ts and last_task_ts > self._task_ts
 
     @property

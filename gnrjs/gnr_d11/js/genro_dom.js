@@ -1502,7 +1502,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
             });
         }
         var tblclass = kw.tblclass;
-        let noHeader = headers.length==1 && headers[0]=='*'
+        let noHeader = headers && headers.length==1 && headers[0]=='*'
         let thead_style = noHeader? 'style="display:none;"':'';
         var thead = `<thead ${thead_style} onmouseup="dojo.stopEvent(event)"><tr>`;
         var autoWidth = true;

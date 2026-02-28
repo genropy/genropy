@@ -4,7 +4,6 @@
 # Created by Saverio Porcari on 2011-03-13.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
-import urllib
 import json
 
 from gnr.web.gnrbaseclasses import BaseComponent
@@ -156,7 +155,7 @@ class FormFrom2FaSettings(BaseComponent):
         previsioning_uri = service.getPrevisioningUri(name=self.user,secret=secret)
         result['secret'] = str(service.get2faSecret(secret))
         result['previsioning_uri'] = previsioning_uri
-        result['qrcode_url'] =f'/_tools/qrcode?{urllib.parse.urlencode({"url":previsioning_uri})}' 
+        result['qrcode_url'] = self.site.webtools_url('qrcode', url=previsioning_uri)
         self.db.commit()
         return result
 

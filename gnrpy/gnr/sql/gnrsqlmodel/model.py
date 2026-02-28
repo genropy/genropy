@@ -175,6 +175,7 @@ class DbModel:
             oneCol = relation.pop('related_column')
             self.addRelation(many_relation_tuple, oneCol, **relation)
         self._columnsWithRelations.clear()
+        self.db.currentEnv.pop('_relations', None)
 
     @extract_kwargs(resolver=True, meta=True)
     def addRelation(

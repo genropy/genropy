@@ -27,7 +27,7 @@ dependencies = [
 	     "babel",
 	     "boto3",
 	     "caldav",
-	     "chardet",
+	     "chardet==5.2.0",
 	     "dictdiffer", # for gnr.sql migration
 	     "docutils",
 	     "dulwich", # needed by gnrgit
@@ -48,7 +48,6 @@ dependencies = [
 	     "pytz",
 	     "pyyaml",
 	     "redbaron",
-	     "reportlab",
 	     "requests",
 	     "simpleeval",
 	     "six", # evaluate if needed
@@ -73,8 +72,10 @@ pgsql = [
 ]
 
 mysql = ["mysqlclient"]
+
 developer = [
-  "pytest", "pytest-cov", "graphviz", 
+  "pytest", "pytest-cov", "graphviz",
+  "pytest-aiohttp", "pytest-asyncio",
   "flake8",
   "debugpy",
   "build", "twine","ipython",
@@ -87,9 +88,6 @@ developer = [
 [project.scripts]
 # gnr.core
 gnr = 'gnr.core.cli.gnr:main'
-# gnr.xtnd
-gnrsync4d = 'gnr.xtnd.cli.gnrsync4d:main'
-gnrsync4dpyro = 'gnr.xtnd.cli.gnrsync4dpyro:main'
 # gnr.web
 gnrsyncstorage = 'gnr.web.cli.gnrsyncstorage:main'
 gnrtaskscheduler = 'gnr.web.cli.gnrtaskscheduler:main'
@@ -157,6 +155,7 @@ packages = [
 	    'gnr.web.components',
 	    'gnr.web.gnrwebpage_plugin',
 	    'gnr.web.gnrwebpage_proxy',
+	    'gnr.web.gnrwebpage_proxy.apphandler',
     	    'gnr.web.gnrwebpage_proxy.frontend',	
 	    'gnr.web.gnrwsgisite_proxy',
 	    'gnr.xtnd',
@@ -188,6 +187,12 @@ packages = [
 "gnr.resources" = "../resources"
 "gnr.webtools" = "../webtools"
 
+
+# PYTEST
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
+asyncio_default_fixture_loop_scope = "function"
 
 # COVERAGE
 [tool.coverage.run]

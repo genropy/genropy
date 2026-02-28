@@ -29,7 +29,6 @@ resolver for the model source Bag.
 
 from __future__ import annotations
 
-import threading
 from typing import Any
 
 from gnr.core.gnrbag import Bag, BagResolver
@@ -61,8 +60,6 @@ class RelationTreeResolver(BagResolver):
     }
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        self._lock = threading.RLock()
-        self.__fields = None
         super(RelationTreeResolver, self).__init__(*args, **kwargs)
 
     def resolverSerialize(self) -> Any:
@@ -85,32 +82,22 @@ class RelationTreeResolver(BagResolver):
         self.dbroot = dbroot
 
     def load(self) -> Bag | None:
-        """Load the relation tree, building it on first access.
+        """Load the relation tree.
 
         Returns:
             A :class:`Bag` tree of columns and relations, or ``None``
             if the target package is not loaded.
         """
         if self.dbroot.package(self.pkg_name) is None:
-            # Package not loaded - skip relation to avoid errors.
-            # This can happen when a table has relations to packages not enabled.
             logger.warning(
                 "Relation to unloaded package '%s' skipped (table: %s)",
                 self.pkg_name, self.tbl_name,
             )
             return None
         self.main_table_obj = self.dbroot.model.table(self.main_tbl)
-        if not self.__fields:
-            # REVIEW: lock acquire/release without try/finally — if
-            # _fields() raises, the lock stays held and causes deadlock.
-            # Should use ``with self._lock:`` instead.
-            self._lock.acquire()
-            if not self.__fields:  # repeat test after lock acquire
-                self.__fields = self._fields(
-                    self.tbl_name, self.pkg_name, self.path, self.parentpath
-                )
-            self._lock.release()
-        return self.__fields
+        return self._fields(
+            self.tbl_name, self.pkg_name, self.path, self.parentpath
+        )
 
     def _fields(
         self,

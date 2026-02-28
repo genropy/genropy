@@ -6072,6 +6072,13 @@ div[disabled='true'], div[disabled='disabled']{
     background-color:lightyellow;
 }
 
+.grouplet_chunk_box{
+    border: 1px solid silver;
+    border-radius: 4px;
+    padding: 4px 8px;
+    min-height: 14px;
+}
+
 .theme_variant_green .theme_background{
     background-color: #306227;
     color: white;

@@ -916,6 +916,12 @@ class GnrDomSrc(GnrStructData):
     
     def bagField(self,value=None,method=None,**kwargs):
         return self.child('bagField',value=value,methodname=method,**kwargs)
+    
+    def grouplet(self,value=None,handler=None,**kwargs):
+        return self.child('grouplet',value=value,handler=handler,**kwargs)
+
+    def groupletform(self,value=None,handler=None,**kwargs):
+        return self.child('groupletform',value=value,handler=handler,**kwargs)
 
     def remote(self, method=None, lazy=True, cachedRemote=None,**kwargs):
         """TODO

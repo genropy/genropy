@@ -968,7 +968,7 @@ class GnrAsyncServer(GnrBaseAsyncServer):
             from .tornado_wsgi import WSGIHandler
             wsgi_gnrsite=GnrWsgiSite(self.instance_name, tornado=True, websockets=True, **self.site_options)
             wsgi_gnrsite._local_mode=True
-            with wsgi_gnrsite.register.globalStore() as gs:
+            with wsgi_gnrsite.main_register.globalStore() as gs:
                 gs.setItem('RESTART_TS',datetime.now())
                 
             #wsgi_app = tornado.wsgi.WSGIContainer(wsgi_gnrsite)

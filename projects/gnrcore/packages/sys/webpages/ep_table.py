@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from gnr.sql.gnrsql import GnrSqlMissingTable
+from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
 from gnr.core.gnrstring import templateReplace
 from gnr.core.gnrbag import Bag
 AUTH_FORBIDDEN = -1

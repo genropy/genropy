@@ -29,7 +29,7 @@ from gnr.core.gnrbag import Bag
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
 from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator
 
-RE_SQL_PARAMS = re.compile(r":(\S\w*)(\W|$)")
+RE_SQL_PARAMS = re.compile(r"(?<!:):(?!:)(\S\w*)(\W|$)")
 
 class GnrFourDCursor(fourd.FourD_cursor):
     def __init__(self, *args, **kwargs):

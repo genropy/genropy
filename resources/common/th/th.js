@@ -228,9 +228,7 @@ dojo.declare("gnr.widgets.ThIframe", gnr.widgets.gnrwdg, {
         var dbstore = objectPop(kw,'dbstore');
 
         var url = objectPop(kw,'url') || '/sys/thpage/'+table.replace('.','/');
-        if(dbstore){
-            url = '/'+dbstore+url;
-        }
+        url = genro.buildContextUrl(url, {dbstore: dbstore});
         var urlPars = {'th_public':false,'th_from_package':genro.getData('gnr.package')};
         url = genro.addParamsToUrl(url,urlPars);
         var pkey = objectPop(kw,'pkey');
@@ -524,10 +522,9 @@ dojo.declare("gnr.IframeFormManager", null, {
             iframeAttr['onStarted'] = function(){that.onIframeStarted(this,kw)};
             iframeAttr['main_th_formId'] = this.fakeFormId;
             objectUpdate(iframeAttr,{height:'100%',width:'100%',border:0});
-            var dbstore = genro.getData('gnr.dbstore');
             iframeAttr.src = iframeAttr.src || '/sys/thpage/'+this.table.replace('.','/');
-            if(dbstore && isNullOrBlank(this.sourceNode.attr.context_dbstore)){
-                iframeAttr.src = '/'+dbstore+iframeAttr.src;
+            if(isNullOrBlank(this.sourceNode.attr.context_dbstore)){
+                iframeAttr.src = genro.buildContextUrl(iframeAttr.src);
             }
             if(this.formStoreKwargs.parentStore){
                 iframeAttr['main_th_navigation'] = true;

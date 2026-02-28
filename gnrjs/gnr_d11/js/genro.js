@@ -1966,6 +1966,23 @@ dojo.declare('gnr.GenroClient', null, {
         return url + sep + parameters.join('&');
     },
 
+    buildContextUrl: function(baseUrl, kw) {
+        kw = kw || {};
+        var multidomain = genro.getData('gnr.multidomain');
+        var currentDomain = genro.getData('gnr.currentDomain');
+        var dbstore = kw.dbstore || genro.getData('gnr.dbstore');
+
+        if (baseUrl && baseUrl.indexOf('/') === 0) {
+            var firstchunk = baseUrl.slice(1).split('/')[0];
+            if (multidomain && currentDomain && firstchunk !== currentDomain) {
+                baseUrl = '/' + currentDomain + baseUrl;
+            } else if (dbstore && firstchunk !== dbstore) {
+                baseUrl = '/' + dbstore + baseUrl;
+            }
+        }
+        return baseUrl;
+    },
+
     callWebTool:function(toolCode,params){  
         objectUpdate(params,genro.rpc.serializeParameters(genro.src.dynamicParameters(params)));
         let url = this.addParamsToUrl(`/_tools/${toolCode}`,params)

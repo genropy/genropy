@@ -41,7 +41,7 @@ from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator as GnrWhereTrans
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
 from gnr.sql import AdapterCapabilities as Capabilities
 
-RE_SQL_PARAMS = re.compile(r":(\w*)(\W|$)")
+RE_SQL_PARAMS = re.compile(r"(?<!:):(?!:)(\w*)(\W|$)")
 
 #psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
 

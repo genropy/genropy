@@ -20,24 +20,27 @@ class Table(object):
 
 
     def getMainStorePreference(self):
-        result = self.db.application.cache.getItem(MAIN_PREFERENCE)
+        result = self.db.application.cache.getItem(self.get_application_cache_key())
         if not result:
-            result = self.loadPreference()['data']
-            self.db.application.cache.setItem(MAIN_PREFERENCE, result)
+            with self.db.tempEnv(storename=self.db.rootstore):
+                result = self.loadPreference()['data']
+            self.db.application.cache.setItem(self.get_application_cache_key(), result)
         return result.deepcopy()
     
     def getStorePreferences(self):
         storename = self.db.currentEnv.get('storename')
         pref_cache_key = '_storepref_%s' %storename
         preference = None
-        if not self.db.application.cache.expiredItem(MAIN_PREFERENCE):
+        if not self.db.application.cache.expiredItem(self.get_application_cache_key()):
             preference = self.db.application.cache.getItem(pref_cache_key)
         if not preference:
             preference = self.getMainStorePreference()
-            store_preference =  self.db.package('multidb').getStorePreference()
-
+            if self.db.multidomain:
+                store_preference = self.record(MAIN_PREFERENCE).output('record')['data'] or Bag()
+            else:
+                store_preference = self.db.package('multidb').getStorePreference()
             for pkgid,pkgobj in self.db.application.packages.items():
-                multidb_pref = pkgobj.attributes.get('multidb_pref')
+                multidb_pref = pkgobj.attributes.get('multidb_pref') or self.db.multidomain
                 if multidb_pref:
                     pkgstorepref = store_preference[pkgid] or Bag()
                     if multidb_pref is True:
@@ -88,9 +91,15 @@ class Table(object):
         else:
             self.db.package('multidb').setStorePreference(pkg=pkg,value=pkgpref)
 
+    def get_storeargs(self):
+        storeargs = {}
+        if not self.db.multidomain:
+            storeargs = {'storename':self.db.rootstore}
+        return storeargs
+
     def setPreference(self, path=None, value=None, pkg='',_attributes=None,**kwargs):
-        with self.db.tempEnv(connectionName='system',storename=self.db.rootstore):
-            with self.recordToUpdate(code=MAIN_PREFERENCE, insertMissing=True) as record:
+        with self.db.tempEnv(connectionName='system',**self.get_storeargs()):
+            with self.recordToUpdate(MAIN_PREFERENCE) as record:
                 l = ['data',pkg]
                 if path:
                     l.append(path)
@@ -98,7 +107,7 @@ class Table(object):
             self.db.commit()
 
     def loadPreference(self, pkey=MAIN_PREFERENCE, for_update=False):
-        with self.db.tempEnv(connectionName='system',storename=self.db.rootstore):
+        with self.db.tempEnv(connectionName='system',**self.get_storeargs()):
             try:
                 record = self.record(pkey=pkey, for_update=for_update).output('bag')
             except RecordNotExistingError:
@@ -110,8 +119,12 @@ class Table(object):
     def trigger_onUpdated(self,record=None,old_record=None):
         if self.fieldsChanged('data',record,old_record):
             self.db.application.pkgBroadcast('onSavedPreferences',preferences=record['data'])
-            self.db.application.cache.updatedItem(MAIN_PREFERENCE)
+            self.db.application.cache.updatedItem(self.get_application_cache_key())
             site = getattr(self.db.application,'site',None)
             if site and site.currentPage:
                 site.currentPage.setInClientData('gnr.serverEvent.refreshNode', value='gnr.app_preference', filters='*',
                              fired=True, public=True)
+
+    def get_application_cache_key(self):
+        active_domain = self.db.currentEnv.get('currentDomain') if self.db.multidomain else None
+        return MAIN_PREFERENCE if not active_domain else f'{MAIN_PREFERENCE}_{active_domain}'

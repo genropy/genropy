@@ -416,7 +416,7 @@ class FrameIndex(BaseComponent):
     @struct_method
     def fi_slotbar_owner_name(self,slot,**kwargs):
         box = slot.div(_class='iframeroot_pref')
-        if not self.dbstore:
+        if self.db.usingRootstore() or self.site.multidomain:
             box.lightButton(innerHTML='==_owner_name?dataTemplate(_owner_name,envbag):"Preferences";',
                                     _owner_name=self.fi_get_owner_name(),
                                     action='PUBLISH app_preference;',envbag='=gnr.rootenv', display='inline-block')

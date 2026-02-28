@@ -209,10 +209,14 @@ class OrmExtractor:
         pkeys = table_json['attributes']['pkeys']
 
         # Primary key columns are automatically NOT NULL
-        # and don't need a separate index or UNIQUE constraint
+        # and don't need a separate index (PK already creates one).
+        # For single-column PKs, unique is also redundant (PK implies uniqueness).
+        # For composite PKs, individual columns may still need their own
+        # UNIQUE constraint (issue #576).
         if pkeys and (column_name in pkeys.split(',')):
             attributes['notnull'] = '_auto_'
-            attributes.pop('unique', None)
+            if ',' not in pkeys:
+                attributes.pop('unique', None)
             attributes.pop('indexed', None)
 
         column_entity = new_column_item(
