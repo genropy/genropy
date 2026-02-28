@@ -92,6 +92,10 @@ class Table(object):
                         name_long='Invoice Date Static')
         # aliasTable: shortcut for @invoice_id.@customer_id
         tbl.aliasTable('customer', relation_path='@invoice_id.@customer_id')
+        # formulaColumn with #PREF macro — uses default value when preference is not set
+        tbl.formulaColumn('adjusted_total',
+                          sql_formula='$line_total * #PREF(markup_rate,1)',
+                          dtype='N', name_long='Adjusted Total')
 
     def trigger_onInserted(self,record=None):
         self.db.table('invc.invoice').calculateTotals(record['invoice_id'])
