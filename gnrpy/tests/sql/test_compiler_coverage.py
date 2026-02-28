@@ -3083,3 +3083,55 @@ class TestHandleVirtualColumns:
                          virtual_columns='nonexistent_col,n_invoices')
         result = rec.output('bag')
         assert result is not None
+
+
+class TestJoinConditions:
+    """GAPs 4f, 5, 8i, 13: joinConditions mechanism.
+
+    Tests pinned to current behaviour ahead of planned redesign (issue #625).
+    Compiler output is adapter-independent, so only PG is tested.
+    """
+
+    def test_join_condition_owner_pg(self, db_pg):
+        """4f+5+13(O): extra condition appended to ON clause."""
+        tbl = db_pg.table('invc.customer')
+        q = tbl.query(columns='$id,@state.name')
+        q.setJoinCondition(relation='@state',
+                           condition="$tbl.code IS NOT NULL",
+                           one_one=True)
+        sql = q.sqltext
+        assert 'IS NOT NULL' in sql
+
+    def test_join_condition_many_one_one_pg(self, db_pg):
+        """4f+5+13(M)+656: one_one=True on many-side prevents DISTINCT."""
+        tbl = db_pg.table('invc.customer')
+        q = tbl.query(columns='$id,@invoices.total')
+        q.setJoinCondition(relation='@invoices',
+                           condition="TRUE",
+                           one_one=True)
+        sql = q.sqltext
+        assert 'DISTINCT' not in sql
+
+    def test_join_condition_global_where_pg(self, db_pg):
+        """8i: ('*','*') injects global WHERE clause (with existing where)."""
+        tbl = db_pg.table('invc.customer')
+        total = tbl.query(columns='$id').count()
+        q = tbl.query(columns='$id')
+        q.setJoinCondition(target_fld='*', from_fld='*',
+                           condition="t0.account_name IS NOT NULL")
+        filtered = q.count()
+        assert filtered <= total
+
+    def test_join_condition_global_where_no_base_where_pg(self, db_pg):
+        """8i line 1047: ('*','*') becomes sole WHERE when no other where exists."""
+        tbl = db_pg.table('invc.customer')
+        q = tbl.query(columns='$id',
+                       excludeLogicalDeleted=False,
+                       excludeDraft=False,
+                       ignorePartition=True)
+        q.setJoinCondition(target_fld='*', from_fld='*',
+                           condition="t0.account_name IS NOT NULL")
+        sql = q.sqltext
+        assert 'account_name IS NOT NULL' in sql
+        rows = q.fetch()
+        assert isinstance(rows, list)
