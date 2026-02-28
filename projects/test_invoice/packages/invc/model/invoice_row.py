@@ -90,6 +90,8 @@ class Table(object):
                         relation_path='@invoice_id.date',
                         static=True, dtype='D',
                         name_long='Invoice Date Static')
+        # aliasTable: shortcut for @invoice_id.@customer_id
+        tbl.aliasTable('customer', relation_path='@invoice_id.@customer_id')
 
     def trigger_onInserted(self,record=None):
         self.db.table('invc.invoice').calculateTotals(record['invoice_id'])

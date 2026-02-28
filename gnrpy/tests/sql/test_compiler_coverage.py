@@ -11,6 +11,7 @@ Uses both PostgreSQL and SQLite instances of the test_invoice project.
 import pytest
 
 from core.common import BaseGnrTest
+from gnr.sql.gnrsql_exceptions import GnrSqlMissingField
 
 def setup_module(module):
     BaseGnrTest.setup_class()
@@ -2459,3 +2460,204 @@ class TestStaffBasic:
             limit=1
         ).fetch()
         assert rows[0]['region_name'] == 'New South Wales'
+
+
+class TestEmbedFieldPars:
+    """Test sqlparams with symbolic field references ($col, @rel.col).
+
+    When a sqlparam value starts with @ or $ and the referenced field
+    exists, the compiler inlines it as a SQL field reference instead of
+    a bind parameter.
+    Covers compiler.py embedFieldPars (lines 837, 839, 841).
+    """
+
+    def test_relation_param_pg(self, db_pg):
+        """sqlparams value starting with @ is resolved as a relation path."""
+        tbl = db_pg.table('invc.invoice_row')
+        diff = tbl.query(
+            where='$unit_price != :list_price',
+            sqlparams={'list_price': '@product_id.unit_price'}
+        ).count()
+        same = tbl.query(
+            where='$unit_price = :list_price',
+            sqlparams={'list_price': '@product_id.unit_price'}
+        ).count()
+        assert diff + same == INVOICE_ROW_COUNT
+
+    def test_relation_param_sqlite(self, db_sqlite):
+        tbl = db_sqlite.table('invc.invoice_row')
+        diff = tbl.query(
+            where='$unit_price != :list_price',
+            sqlparams={'list_price': '@product_id.unit_price'}
+        ).count()
+        same = tbl.query(
+            where='$unit_price = :list_price',
+            sqlparams={'list_price': '@product_id.unit_price'}
+        ).count()
+        assert diff + same == INVOICE_ROW_COUNT
+
+    def test_column_param_pg(self, db_pg):
+        """sqlparams value starting with $ is resolved as a local column."""
+        tbl = db_pg.table('invc.invoice_row')
+        gt = tbl.query(
+            where='$quantity > :threshold',
+            sqlparams={'threshold': '$unit_price'}
+        ).count()
+        le = tbl.query(
+            where='$quantity <= :threshold',
+            sqlparams={'threshold': '$unit_price'}
+        ).count()
+        assert gt + le == INVOICE_ROW_COUNT
+
+    def test_column_param_sqlite(self, db_sqlite):
+        tbl = db_sqlite.table('invc.invoice_row')
+        gt = tbl.query(
+            where='$quantity > :threshold',
+            sqlparams={'threshold': '$unit_price'}
+        ).count()
+        le = tbl.query(
+            where='$quantity <= :threshold',
+            sqlparams={'threshold': '$unit_price'}
+        ).count()
+        assert gt + le == INVOICE_ROW_COUNT
+
+
+class TestExpandBag:
+    """Test #BAG() and #BAGCOLS() macros in column expressions.
+
+    #BAG($field) registers the column for post-query Bag deserialization.
+    #BAGCOLS($field) does the same but expands Bag keys into separate columns.
+    Covers compiler.py expandBag (lines 1278-1281) and expandBagcols (1296-1299).
+    """
+
+    def test_bag_macro_pg(self, db_pg):
+        """#BAG($details) registers column for Bag post-processing."""
+        rows = db_pg.table('invc.product').query(
+            columns='$description, #BAG($details) AS details_bag',
+            limit=5
+        ).fetch()
+        assert len(rows) == 5
+        for r in rows:
+            assert 'description' in r
+
+    def test_bag_macro_sqlite(self, db_sqlite):
+        rows = db_sqlite.table('invc.product').query(
+            columns='$description, #BAG($details) AS details_bag',
+            limit=5
+        ).fetch()
+        assert len(rows) == 5
+        for r in rows:
+            assert 'description' in r
+
+    def test_bagcols_macro_pg(self, db_pg):
+        """#BAGCOLS($details) registers column for Bag-to-columns expansion."""
+        rows = db_pg.table('invc.product').query(
+            columns='$description, #BAGCOLS($details) AS details_cols',
+            limit=5
+        ).fetch()
+        assert len(rows) == 5
+
+    def test_bagcols_macro_sqlite(self, db_sqlite):
+        rows = db_sqlite.table('invc.product').query(
+            columns='$description, #BAGCOLS($details) AS details_cols',
+            limit=5
+        ).fetch()
+        assert len(rows) == 5
+
+
+class TestCompiledRecordQuery:
+    """Test compiledRecordQuery paths: virtual_columns as string,
+    dtype='X' skip, and joinColumn with cnd.
+
+    Covers compiler.py lines 1147, 1155, 1161-1165, 1182.
+    """
+
+    def _first_pkey(self, db, table):
+        rows = db.table(table).query(columns='$id', limit=1).fetch()
+        return rows[0]['id']
+
+    def test_virtual_columns_as_string_pg(self, db_pg):
+        """virtual_columns passed as CSV string (line 1147)."""
+        pkey = self._first_pkey(db_pg, 'invc.product')
+        rec = db_pg.table('invc.product').record(
+            pkey=pkey, virtual_columns='price_range,code_and_desc'
+        ).output('dict')
+        assert 'price_range' in rec
+        assert 'code_and_desc' in rec
+
+    def test_virtual_columns_as_string_sqlite(self, db_sqlite):
+        pkey = self._first_pkey(db_sqlite, 'invc.product')
+        rec = db_sqlite.table('invc.product').record(
+            pkey=pkey, virtual_columns='price_range,code_and_desc'
+        ).output('dict')
+        assert 'price_range' in rec
+        assert 'code_and_desc' in rec
+
+    def test_bag_column_skipped_pg(self, db_pg):
+        """dtype='X' columns are skipped when bagFields=False (line 1155)."""
+        pkey = self._first_pkey(db_pg, 'invc.product')
+        rec = db_pg.table('invc.product').record(
+            pkey=pkey, bagFields=False
+        ).output('dict')
+        # 'details' (dtype='X') should not be in result
+        assert 'details' not in rec
+
+    def test_bag_column_skipped_sqlite(self, db_sqlite):
+        pkey = self._first_pkey(db_sqlite, 'invc.product')
+        rec = db_sqlite.table('invc.product').record(
+            pkey=pkey, bagFields=False
+        ).output('dict')
+        assert 'details' not in rec
+
+    def test_join_column_in_record_pg(self, db_pg):
+        """joinColumn with cnd triggers virtual relation handling (lines 1161-1165, 1182)."""
+        pkey = self._first_pkey(db_pg, 'invc.invoice')
+        rec = db_pg.table('invc.invoice').record(pkey=pkey).output('bag')
+        # The record should load without error; discount_tier_id
+        # is a joinColumn with a cnd condition
+        assert rec is not None
+
+    def test_join_column_in_record_sqlite(self, db_sqlite):
+        pkey = self._first_pkey(db_sqlite, 'invc.invoice')
+        rec = db_sqlite.table('invc.invoice').record(pkey=pkey).output('bag')
+        assert rec is not None
+
+
+class TestFindRelationAlias:
+    """Test _findRelationAlias error and table_alias expansion.
+
+    Covers compiler.py lines 485 (missing relation error)
+    and 491-503 (table_alias expansion).
+    """
+
+    def test_missing_relation_raises_pg(self, db_pg):
+        """A non-existent relation in a column path raises GnrSqlMissingField (line 485)."""
+        tbl = db_pg.table('invc.invoice_row')
+        with pytest.raises(GnrSqlMissingField):
+            tbl.query(columns='@nonexistent_relation.some_field').fetch()
+
+    def test_missing_relation_raises_sqlite(self, db_sqlite):
+        tbl = db_sqlite.table('invc.invoice_row')
+        with pytest.raises(GnrSqlMissingField):
+            tbl.query(columns='@nonexistent_relation.some_field').fetch()
+
+    def test_alias_table_expansion_pg(self, db_pg):
+        """aliasTable 'customer' on invoice_row expands to @invoice_id.@customer_id."""
+        tbl = db_pg.table('invc.invoice_row')
+        rows = tbl.query(
+            columns='$id, @customer.account_name',
+            limit=5
+        ).fetch()
+        assert len(rows) == 5
+        for r in rows:
+            assert r['_customer_account_name'] is not None
+
+    def test_alias_table_expansion_sqlite(self, db_sqlite):
+        tbl = db_sqlite.table('invc.invoice_row')
+        rows = tbl.query(
+            columns='$id, @customer.account_name',
+            limit=5
+        ).fetch()
+        assert len(rows) == 5
+        for r in rows:
+            assert r['_customer_account_name'] is not None

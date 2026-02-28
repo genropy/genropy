@@ -482,26 +482,10 @@ class SqlQueryCompiler(object):
         p = pathlist.pop(0)
         currNode = curr.getNode(p)
         if not currNode:
-            raise GnrSqlMissingField(f"Relation {p} not found")
-        joiner = currNode.attr['joiner']
-
-        if joiner == None:
-            # Branch: no joiner -- this segment is a table alias, not a relation.
-            # Expand the alias's relation_path and prepend to remaining segments.
             tblalias = self.db.table(curr.tbl_name, pkg=curr.pkg_name).model.table_aliases[p]
-            if tblalias == None:
-                # REVIEW: the original comment mentions GnrSqlBadRequest which
-                # no longer exists. Replaced with GnrSqlMissingField but the
-                # error message may not be entirely appropriate.
-                #DUBBIO: non esiste più GnrSqlBadRequest
-                #from gnr.sql.gnrsql import
-                #raise GnrSqlBadRequest('Missing field %s in requested field %s' % (p, fieldpath))
-                raise GnrSqlMissingField('Missing field %s in table %s.%s (requested field %s)' % (
-                p, curr.pkg_name, curr.tbl_name, '.'.join(newpath)))
-            else:
-                # Replace the alias with its underlying relation_path segments
-                pathlist = tblalias.relation_path.split(
-                        '.') + pathlist # set the alias table relation_path in the current path
+            if tblalias is None:
+                raise GnrSqlMissingField(f"Relation {p} not found")
+            pathlist = tblalias.relation_path.split('.') + pathlist
         else:
             # Branch: real relation -- build or reuse JOIN
             alias, newpath = self._getRelationAlias(currNode, newpath, basealias, parent=parent)
