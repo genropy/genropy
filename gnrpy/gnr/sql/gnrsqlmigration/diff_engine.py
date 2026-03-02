@@ -57,9 +57,10 @@ changes in a hierarchical way::
 import dictdiffer
 
 from gnr.core.gnrbag import Bag
+from gnr.sql._typing import SqlMigratorBaseMixin
 
 
-class DiffMixin:
+class DiffMixin(SqlMigratorBaseMixin):
     """Mixin providing the ORM vs DB comparison logic.
 
     This mixin is composed into the :class:`SqlMigrator` class and
