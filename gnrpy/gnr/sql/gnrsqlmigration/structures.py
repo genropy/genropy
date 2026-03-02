@@ -81,6 +81,15 @@ Some Genropy dtypes (X=XML, Z=compressed text, P=pickle) are normalized
 to 'T' (text) because at the database level they are all text columns.
 """
 
+DTYPE_INDEX_CONFIG = {
+    'TSV': dict(method='gin', required=True),
+}
+"""Per-dtype index configuration.
+
+- ``method``: index method to use (applied via setdefault, explicit wins)
+- ``required``: if True, the index is created even without explicit ``indexed=True``
+"""
+
 
 # ---------------------------------------------------------------------------
 # Factory functions for creating normalized JSON entities
