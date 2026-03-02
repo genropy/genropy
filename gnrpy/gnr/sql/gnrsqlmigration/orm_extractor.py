@@ -64,7 +64,7 @@ from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrstring import boolean
 
 from .structures import (
-    COL_JSON_KEYS, GNR_DTYPE_CONVERTER,
+    COL_JSON_KEYS, GNR_DTYPE_CONVERTER, DTYPE_INDEX_CONFIG,
     new_structure_root, new_schema_item, new_table_item,
     new_column_item, new_constraint_item, new_relation_item,
     new_index_item, new_extension_item,
@@ -243,6 +243,9 @@ class OrmExtractor:
         colattr = colobj.attributes
         joiner = colobj.relatedColumnJoiner()
         indexed = colattr.get('indexed') or colattr.get('unique')
+        dtype_index_config = DTYPE_INDEX_CONFIG.get(colattr.get('dtype'))
+        if not indexed and dtype_index_config and dtype_index_config.get('required'):
+            indexed = True
         table_name = colobj.table.sqlname
         schema_name = tenant_schema or colobj.table.pkg.sqlname
         table_json = self.schemas[schema_name]['tables'][table_name]
@@ -433,6 +436,9 @@ class OrmExtractor:
             tenant_schema: Alternative tenant schema.
         """
         indexed = {} if indexed is True else dict(indexed)
+        dtype_index_config = DTYPE_INDEX_CONFIG.get(colobj.attributes.get('dtype'))
+        if dtype_index_config:
+            indexed.setdefault('method', dtype_index_config.get('method'))
         if colobj.attributes.get('unique'):
             # The DB automatically creates an index for UNIQUE columns
             return
