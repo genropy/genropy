@@ -1,0 +1,4 @@
+This branch (py38-backports) contains urgent backports of feature to support
+migration from py38 installation to newer version.
+
+PLEASE DO NOT USE THIS IN ANY OTHER USE CASE.
