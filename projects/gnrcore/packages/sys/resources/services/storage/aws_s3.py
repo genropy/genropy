@@ -27,7 +27,7 @@ class S3LocalFile(object):
         self.read_mode = not self.write_mode
         self.file = None
         self.close_called = False
-        self.s3 = self.s3_client
+        self.s3 = s3_client
 
     def __getattr__(self, name):
         local_file = self.__dict__['file']
