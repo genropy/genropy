@@ -173,7 +173,7 @@
     order: 1;
     flex: 1;
     display: inline-flex;
-    align-items: baseline;
+    align-items: center;
 }
 
 /* Leaf nodes: hide empty icon spacer */
