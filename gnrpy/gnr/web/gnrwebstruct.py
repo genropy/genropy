@@ -1081,9 +1081,6 @@ class GnrDomSrc(GnrStructData):
         kwFormlet = kwargs.get('formlet')
         if kwFormlet is not False and defaultUseFormlet:
             kwargs.setdefault('item_lbl_side','left')
-            if 'lbl' not in kwargs:
-                kwargs['lbl'] = '&nbsp;'
-                kwargs['box__class'] = 'formlet_fakelabel'
             return self.formbuilder_formlet(*args,**kwargs)
         else:
             return self.formbuilder_table(*args,**kwargs)
