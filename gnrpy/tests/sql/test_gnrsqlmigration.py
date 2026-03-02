@@ -161,6 +161,31 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         check_value = 'ALTER TABLE "alfa"."alfa_recipe"\nADD COLUMN "testuniquecol" character varying(10);\nALTER TABLE "alfa"."alfa_recipe"\nADD CONSTRAINT "cst_f797d32c" UNIQUE ("testuniquecol");'
         self.checkChanges(check_value)
 
+    def test_04e_add_column_with_gin_index(self):
+        """Tests that indexed=dict(method='gin') generates USING gin.
+
+        Ref: https://github.com/genropy/genropy/issues/626
+        """
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('recipe')
+        tbl.column('search_tsv', dtype='TSV', indexed=dict(method='gin'))
+        check_value = 'ALTER TABLE "alfa"."alfa_recipe" \n ADD COLUMN "search_tsv" tsvector ;\nCREATE INDEX idx_1a420e6d ON "alfa"."alfa_recipe" USING gin ("search_tsv") ;'
+        self.checkChanges(check_value)
+
+    def test_04f_tsv_indexed_true_auto_gin(self):
+        """Tests that dtype='TSV' with indexed=True auto-generates GIN index.
+
+        A btree index on tsvector is never useful and fails on large documents.
+        The migration system should automatically use GIN for TSV columns.
+
+        Ref: https://github.com/genropy/genropy/issues/626
+        """
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('recipe')
+        tbl.column('content_tsv', dtype='TSV', indexed=True)
+        check_value = 'ALTER TABLE "alfa"."alfa_recipe" \n ADD COLUMN "content_tsv" tsvector ;\nCREATE INDEX idx_0ae87617 ON "alfa"."alfa_recipe" USING gin ("content_tsv") ;'
+        self.checkChanges(check_value)
+
 
     def test_05a_create_table_withpkey(self):
         """Tests creating a table with a primary key column."""
