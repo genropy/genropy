@@ -36,7 +36,7 @@ from gnr.sql import AdapterCapabilities as Capabilities
 
 
 #DBAPI.paramstyle = 'pyformat'
-RE_SQL_PARAMS = re.compile(r":(\w*)(\W|$)")
+RE_SQL_PARAMS = re.compile(r"(?<!:):(?!:)(\w*)(\W|$)")
 
 class DictCursorWrapper(Cursor):
     def __init__(self, *args, **kwargs):

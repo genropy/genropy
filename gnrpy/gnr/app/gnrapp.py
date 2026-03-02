@@ -20,7 +20,7 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-import locale
+
 import sys
 import re
 import types
@@ -39,6 +39,7 @@ from email.mime.text import MIMEText
 
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrbag import Bag
+from gnr.core.gnrlocale import defaultLocale
 from gnr.core.gnrdecorator import extract_kwargs, deprecated
 from gnr.core.gnrlang import  objectExtract,gnrImport, instanceMixin, GnrException
 from gnr.core.gnrstring import makeSet, toText, splitAndStrip, like, boolean
@@ -1217,11 +1218,8 @@ class GnrApp(object):
 
     @property
     def locale(self):
-        found_locale = self.config_locale or os.environ.get('GNR_LOCALE') or locale.getlocale()[0]
-        if not found_locale:
-            locale.setlocale(locale.LC_ALL, "")
-            found_locale = locale.getlocale(locale.LC_MESSAGES)[0]
-        return (found_locale or 'en-US').replace('_','-')
+        found_locale = self.config_locale or defaultLocale()
+        return (found_locale or 'en-GB').replace('_','-')
 
     def setPreference(self, path, data, pkg):
         if self.db.package('adm'):
