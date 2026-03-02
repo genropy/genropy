@@ -467,10 +467,19 @@ dojo.declare("gnr.widgets.Tree", gnr.widgets.baseDojo, {
                     if(!searchColumn){
                         var label = that.getLabel(item);
                         if(label){
-                            if(label.startsWith('innerHTML:')){
+                            var isHTML = label.startsWith('innerHTML:');
+                            if(isHTML){
                                 label = label.replace('innerHTML:','');
                             }
-                            tn.labelNode.innerHTML = label.replace(filterRegExp,"<span class='search_highlight'>$1</span>");
+                            if(search && isHTML){
+                                label = label.replace(/(<[^>]+>)/g, '\x00$1\x00').split('\x00')
+                                    .map(function(part){
+                                        return part.charAt(0)==='<' ? part : part.replace(filterRegExp,"<span class='search_highlight'>$1</span>");
+                                    }).join('');
+                            }else{
+                                label = label.replace(filterRegExp,"<span class='search_highlight'>$1</span>");
+                            }
+                            tn.labelNode.innerHTML = label;
                         }
                     }
                     while(parent&&dojo.hasClass(parent.domNode,'hidden')){
