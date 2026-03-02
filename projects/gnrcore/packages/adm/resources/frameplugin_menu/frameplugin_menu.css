@@ -83,6 +83,7 @@
     box-sizing: border-box;
     border: 1px solid #d4c820;
     vertical-align: middle;
+    margin-left: 4px;
 }
 
 .menuline_icon{
@@ -173,10 +174,6 @@
     flex: 1;
     display: inline-flex;
     align-items: baseline;
-}
-
-.menutree.menutree_branchiconright .menuline_badge{
-    margin-left: 4px;
 }
 
 /* Leaf nodes: hide empty icon spacer */
