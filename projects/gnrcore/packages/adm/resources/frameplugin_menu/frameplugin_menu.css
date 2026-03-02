@@ -75,13 +75,13 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 1.8em;
-    min-width: 1.8em;
-    padding: 0 0.4em;
-    border-radius: 1em;
+    height: 1.5em;
+    min-width: 1.5em;
+    padding: 0 0.35em;
+    border-radius: 0.75em;
     line-height: 1;
     box-sizing: border-box;
-    margin-left: 6px;
+    border: 1px solid #d4c820;
     vertical-align: middle;
 }
 
@@ -172,11 +172,11 @@
     order: 1;
     flex: 1;
     display: inline-flex;
-    align-items: center;
+    align-items: baseline;
 }
 
 .menutree.menutree_branchiconright .menuline_badge{
-    align-self: baseline;
+    margin-left: 4px;
 }
 
 /* Leaf nodes: hide empty icon spacer */
