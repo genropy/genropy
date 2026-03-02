@@ -211,3 +211,13 @@
 .menutree.menutree_branchiconright .opendir{
     transform: rotate(90deg);
 }
+
+/* Empty dir: disabled cursor, no hover effect */
+._common_d11 .menutree.menutree_branchiconright .dijitTreeContent:has(.label_emptydir),
+._common_d11 .menutree.menutree_branchiconright .dijitTreeContent:has(.label_emptydir) *{
+    cursor: not-allowed;
+}
+
+._common_d11 .menutree.menutree_branchiconright .dijitTreeContent:has(.label_emptydir):hover{
+    background: var(--menutree-node-background);
+}

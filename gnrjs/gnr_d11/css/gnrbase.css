@@ -292,6 +292,11 @@ cursorZoom_plus{
 	display: none;
 }
 
+.label_emptydir{
+    cursor: not-allowed;
+    opacity: .3;
+}
+
 .fieldsTree .dijitTreeContent {
     cursor: move;
     min-height: 0;
