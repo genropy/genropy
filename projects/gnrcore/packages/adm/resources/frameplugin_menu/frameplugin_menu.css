@@ -69,13 +69,20 @@
 
 .menuline_badge{
     background: #e7fa32;
-    border-radius: 30px;
-    font-size: 75%;
     color: #444;
-    padding: 2px 5px;
+    font-size: 70%;
     font-weight: bold;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 1.8em;
+    min-width: 1.8em;
+    padding: 0 0.4em;
+    border-radius: 1em;
     line-height: 1;
+    box-sizing: border-box;
     margin-left: 6px;
+    vertical-align: middle;
 }
 
 .menuline_icon{
@@ -166,6 +173,10 @@
     flex: 1;
     display: inline-flex;
     align-items: center;
+}
+
+.menutree.menutree_branchiconright .menuline_badge{
+    align-self: baseline;
 }
 
 /* Leaf nodes: hide empty icon spacer */
