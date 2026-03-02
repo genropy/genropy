@@ -27,6 +27,10 @@ COL_JSON_KEYS = ("dtype","notnull","sqldefault","size","unique","extra_sql","gen
 
 GNR_DTYPE_CONVERTER = {'X':'T', 'Z':'T', 'P':'T'}
 
+DTYPE_INDEX_CONFIG = {
+    'TSV': dict(method='gin', required=True),
+}
+
 def new_structure_root(dbname):
     return {'root':{
             'entity':'db',
@@ -262,6 +266,9 @@ class OrmExtractor:
         colattr = colobj.attributes
         joiner =  colobj.relatedColumnJoiner()
         indexed = colattr.get('indexed') or colattr.get('unique')
+        dtype_index_config = DTYPE_INDEX_CONFIG.get(colattr.get('dtype'))
+        if not indexed and dtype_index_config and dtype_index_config.get('required'):
+            indexed = True
         table_name = colobj.table.sqlname
         schema_name = tenant_schema or colobj.table.pkg.sqlname
         table_json = self.schemas[schema_name]['tables'][table_name]
@@ -337,7 +344,10 @@ class OrmExtractor:
         
     
     def fill_json_column_index(self,colobj,indexed=None,tenant_schema=None):
-        indexed =  {} if indexed is True else dict(indexed) 
+        indexed =  {} if indexed is True else dict(indexed)
+        dtype_index_config = DTYPE_INDEX_CONFIG.get(colobj.attributes.get('dtype'))
+        if dtype_index_config:
+            indexed.setdefault('method', dtype_index_config.get('method'))
         if colobj.attributes.get('unique'):
             #if there is an unique constraint the db add an automatic index
             return
