@@ -75,16 +75,15 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 1.8em;
-    min-width: 1.8em;
-    padding: 0 0.4em;
-    border-radius: 1em;
+    height: 1.5em;
+    min-width: 1.5em;
+    padding: 0 0.35em;
+    border-radius: 0.75em;
     line-height: 1;
     box-sizing: border-box;
+    border: 1px solid #d4c820;
     vertical-align: middle;
-    border:1px solid #fad232;
 }
-
 
 .menuline_icon{
     display: inline-block;
@@ -177,7 +176,6 @@
 }
 
 .menutree.menutree_branchiconright .menuline_badge{
-    align-self: baseline;
     margin-left: 4px;
 }
 
