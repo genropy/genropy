@@ -184,6 +184,11 @@ def main():
 
     
     app, storename = get_app(options)
+    if app.db.implementation in ('postgres', 'postgres3'):
+        logger.warning('gnrdbsetup is deprecated for Postgres. Redirecting to gnr db migrate.')
+        from gnr.db.cli.gnrmigrate import main as migrate_main
+        migrate_main()
+        return
     errordb = []
     if storename == '*':
         stores = [None] + sorted(app.db.dbstores.keys())
