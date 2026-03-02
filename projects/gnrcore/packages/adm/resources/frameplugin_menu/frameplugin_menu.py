@@ -84,7 +84,7 @@ class MenuIframes(BaseComponent):
                 useInnerHTML = true;
             }
             if(!isNullOrBlank(badgeContent)){
-                label = `${label} <span class="${badgeClass}">${badgeContent}</span>`;
+                label = `${label}<span class="${badgeClass}">${badgeContent}</span>`;
                 useInnerHTML = true;
             }
             if(useInnerHTML){
