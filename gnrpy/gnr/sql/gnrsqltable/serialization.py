@@ -35,9 +35,10 @@ from gnr.core import gnrstring
 from gnr.core.gnrlang import MinValue, uniquify
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import deprecated
+from gnr.sql._typing import SqlTableBaseMixin
 
 
-class SerializationMixin:
+class SerializationMixin(SqlTableBaseMixin):
     """JSON and XML record serialization."""
 
     # ------------------------------------------------------------------

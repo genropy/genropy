@@ -34,10 +34,11 @@ from datetime import date
 from typing import Any
 
 from gnr.core.gnrlocale import defaultLocale
+from gnr.sql._typing import GnrSqlDbBaseMixin
 from gnr.sql.gnrsql.helpers import TempEnv
 
 
-class EnvMixin:
+class EnvMixin(GnrSqlDbBaseMixin):
     """Thread-local environment, workdate, locale and store selection."""
 
     # -- TempEnv factory ----------------------------------------------------

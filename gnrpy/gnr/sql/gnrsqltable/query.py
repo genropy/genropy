@@ -33,10 +33,11 @@ from gnr.core import gnrstring
 from gnr.core.gnrdecorator import extract_kwargs
 from gnr.sql.gnrsqldata import SqlQuery
 
+from gnr.sql._typing import SqlTableBaseMixin
 from gnr.sql.gnrsqltable.helpers import add_sql_comment, orm_audit_log
 
 
-class QueryMixin:
+class QueryMixin(SqlTableBaseMixin):
     """Query building, WHERE translation and column helpers."""
 
     # ------------------------------------------------------------------
