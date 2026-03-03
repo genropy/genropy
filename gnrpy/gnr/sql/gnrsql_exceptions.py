@@ -90,6 +90,9 @@ class GnrSqlMissingTable(GnrException):
 class GnrSqlMissingColumn(GnrException):
     pass
         
+class GnrSqlInvalidVirtualColumn(GnrException):
+    pass
+
 class GnrSqlRelationError(GnrException):
     pass
         

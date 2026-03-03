@@ -207,6 +207,7 @@ class DbModel:
         onDuplicate: str | None = None,
         between: str | None = None,
         cnd: str | None = None,
+        join_on: str | None = None,
         virtual: bool | None = None,
         ignore_tenant: bool | None = None,
         **kwargs: Any,
@@ -282,7 +283,7 @@ class DbModel:
                 ignore_tenant=ignore_tenant,
                 one_group=one_group, many_group=many_group, storefield=storefield,
                 _storename=storename,
-                between=between, cnd=cnd, virtual=virtual,
+                between=between, cnd=cnd, join_on=join_on, virtual=virtual,
                 resolver_kwargs=resolver_kwargs,
             )
             one_relkey = '%s.%s.@%s' % (one_pkg, one_table, relation_name)
@@ -307,7 +308,7 @@ class DbModel:
                 ignore_tenant=ignore_tenant,
                 one_group=one_group, many_group=many_group, storefield=storefield,
                 _storename=storename,
-                between=between, cnd=cnd, virtual=virtual,
+                between=between, cnd=cnd, join_on=join_on, virtual=virtual,
                 inheritLock=inheritLock, inheritProtect=inheritProtect,
                 onDuplicate=onDuplicate, **meta_kwargs,
             )
