@@ -57,7 +57,7 @@ from gnr.core.gnrlang import uniquify
 from gnr.core.gnrdate import decodeDatePeriod
 from gnr.core import gnrstring
 from gnr.core.gnrbag import Bag
-from gnr.sql.gnrsql_exceptions import GnrSqlException, GnrSqlMissingField, GnrSqlMissingColumn
+from gnr.sql.gnrsql_exceptions import GnrSqlException, GnrSqlMissingField, GnrSqlInvalidVirtualColumn
 
 COLFINDER = re.compile(r"(\W|^)\$(\w+)")
 RELFINDER = re.compile(r"([^A-Za-z0-9_]|^)(\@(\w[\w.@:]+))")
@@ -443,9 +443,11 @@ class SqlQueryCompiler(object):
                 self.cpl.pyColumns.append((fld,getattr(fldalias.table.dbtable,fldalias.py_method,None)))
                 return 'NULL'
             else:
-                # Branch: virtual column has no usable definition
-                raise GnrSqlMissingColumn('Invalid column %s in table %s.%s (requested field %s)' % (
-                fld, curr.pkg_name, curr.tbl_name, '.'.join(newpath)))
+                # Branch: virtual column has no valid definition
+                raise GnrSqlInvalidVirtualColumn(
+                    'Virtual column %s in table %s.%s has no valid definition '
+                    '(no sql_formula, select, exists, relation_path or py_method). '
+                    'Requested field: %s' % (fld, curr.pkg_name, curr.tbl_name, '.'.join(newpath)))
 
         # --- Field is a physical column: return alias.sqlname ---
         return '%s.%s' % (self.db.adapter.asTranslator(alias), curr_tblobj.column(fld).adapted_sqlname)
@@ -482,26 +484,10 @@ class SqlQueryCompiler(object):
         p = pathlist.pop(0)
         currNode = curr.getNode(p)
         if not currNode:
-            raise GnrSqlMissingField(f"Relation {p} not found")
-        joiner = currNode.attr['joiner']
-
-        if joiner == None:
-            # Branch: no joiner -- this segment is a table alias, not a relation.
-            # Expand the alias's relation_path and prepend to remaining segments.
             tblalias = self.db.table(curr.tbl_name, pkg=curr.pkg_name).model.table_aliases[p]
-            if tblalias == None:
-                # REVIEW: the original comment mentions GnrSqlBadRequest which
-                # no longer exists. Replaced with GnrSqlMissingField but the
-                # error message may not be entirely appropriate.
-                #DUBBIO: non esiste più GnrSqlBadRequest
-                #from gnr.sql.gnrsql import
-                #raise GnrSqlBadRequest('Missing field %s in requested field %s' % (p, fieldpath))
-                raise GnrSqlMissingField('Missing field %s in table %s.%s (requested field %s)' % (
-                p, curr.pkg_name, curr.tbl_name, '.'.join(newpath)))
-            else:
-                # Replace the alias with its underlying relation_path segments
-                pathlist = tblalias.relation_path.split(
-                        '.') + pathlist # set the alias table relation_path in the current path
+            if tblalias is None:
+                raise GnrSqlMissingField(f"Relation {p} not found")
+            pathlist = tblalias.relation_path.split('.') + pathlist
         else:
             # Branch: real relation -- build or reuse JOIN
             alias, newpath = self._getRelationAlias(currNode, newpath, basealias, parent=parent)
@@ -1224,8 +1210,17 @@ class SqlQueryCompiler(object):
             virtual_columns: A list of virtual column names, a
                 comma-separated string, or ``False`` to skip entirely.
         """
+        # REVIEW: dead code -- the is-False guard was added in 9987248dc but was
+        # already unreachable: commit f437256c1 had earlier moved pre-processing
+        # (virtual_columns = virtual_columns or []) into compiledRecordQuery
+        # (line 1128), so False never reaches _handle_virtual_columns.
+        # Original 2010 code (c96bc13a2) had no pre-processing in the caller,
+        # so the guard in _handle_virtual_columns made sense back then.
         if virtual_columns is False:
             return
+        # REVIEW: dead code -- same reason: commit f437256c1 added
+        # isinstance(str) → splitAndStrip conversion in compiledRecordQuery
+        # (lines 1132-1133) before calling _handle_virtual_columns.
         if isinstance(virtual_columns, str):
             virtual_columns = gnrstring.splitAndStrip(virtual_columns, ',')
         virtual_columns = (virtual_columns or []) + list(self.tblobj.static_virtual_columns.keys())
@@ -1251,13 +1246,13 @@ class SqlQueryCompiler(object):
                 as_name = '%s_%s' % (self.aliasCode(0), column.name)
                 path_name = column.name
             else:
-                # REVIEW: the else branch contains only ``pass`` and does not
-                # assign as_name or path_name. If entered, variables retain
-                # values from the previous iteration (or are undefined on the
-                # first iteration), causing a potential NameError or silently
-                # wrong behaviour. Verify whether this branch is actually
-                # reachable and, if so, handle it explicitly.
-                pass
+                # All virtual columns (formulaColumn, pyColumn, aliasColumn)
+                # are registered via virtual_column() (model.py:1009) with
+                # tag='virtual_column'. No other tag value exists today.
+                raise ValueError(
+                    'Unexpected virtual column tag %r for column %r'
+                    % (column_attributes['tag'], col_name)
+                )
             xattrs['as'] = as_name
             self.fieldlist.append('%s AS %s' % (field, as_name))
             self.cpl.resultmap.setItem(path_name, None, xattrs)

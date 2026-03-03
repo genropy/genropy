@@ -11,6 +11,8 @@ Uses both PostgreSQL and SQLite instances of the test_invoice project.
 import pytest
 
 from core.common import BaseGnrTest
+from gnr.core.gnrbag import Bag
+from gnr.sql.gnrsql_exceptions import GnrSqlMissingField
 
 def setup_module(module):
     BaseGnrTest.setup_class()
@@ -2459,3 +2461,677 @@ class TestStaffBasic:
             limit=1
         ).fetch()
         assert rows[0]['region_name'] == 'New South Wales'
+
+
+class TestEmbedFieldPars:
+    """Test sqlparams with symbolic field references ($col, @rel.col).
+
+    When a sqlparam value starts with @ or $ and the referenced field
+    exists, the compiler inlines it as a SQL field reference instead of
+    a bind parameter.
+    Covers compiler.py embedFieldPars (lines 837, 839, 841).
+    """
+
+    def test_relation_param_pg(self, db_pg):
+        """sqlparams value starting with @ is resolved as a relation path."""
+        tbl = db_pg.table('invc.invoice_row')
+        diff = tbl.query(
+            where='$unit_price != :list_price',
+            sqlparams={'list_price': '@product_id.unit_price'}
+        ).count()
+        same = tbl.query(
+            where='$unit_price = :list_price',
+            sqlparams={'list_price': '@product_id.unit_price'}
+        ).count()
+        assert diff + same == INVOICE_ROW_COUNT
+
+    def test_relation_param_sqlite(self, db_sqlite):
+        tbl = db_sqlite.table('invc.invoice_row')
+        diff = tbl.query(
+            where='$unit_price != :list_price',
+            sqlparams={'list_price': '@product_id.unit_price'}
+        ).count()
+        same = tbl.query(
+            where='$unit_price = :list_price',
+            sqlparams={'list_price': '@product_id.unit_price'}
+        ).count()
+        assert diff + same == INVOICE_ROW_COUNT
+
+    def test_column_param_pg(self, db_pg):
+        """sqlparams value starting with $ is resolved as a local column."""
+        tbl = db_pg.table('invc.invoice_row')
+        gt = tbl.query(
+            where='$quantity > :threshold',
+            sqlparams={'threshold': '$unit_price'}
+        ).count()
+        le = tbl.query(
+            where='$quantity <= :threshold',
+            sqlparams={'threshold': '$unit_price'}
+        ).count()
+        assert gt + le == INVOICE_ROW_COUNT
+
+    def test_column_param_sqlite(self, db_sqlite):
+        tbl = db_sqlite.table('invc.invoice_row')
+        gt = tbl.query(
+            where='$quantity > :threshold',
+            sqlparams={'threshold': '$unit_price'}
+        ).count()
+        le = tbl.query(
+            where='$quantity <= :threshold',
+            sqlparams={'threshold': '$unit_price'}
+        ).count()
+        assert gt + le == INVOICE_ROW_COUNT
+
+
+class TestExpandBag:
+    """Test #BAG() and #BAGCOLS() macros in column expressions.
+
+    #BAG($field) registers the column for post-query Bag deserialization.
+    #BAGCOLS($field) does the same but expands Bag keys into separate columns.
+    Covers compiler.py expandBag (lines 1278-1281) and expandBagcols (1296-1299).
+    """
+
+    def test_bag_macro_pg(self, db_pg):
+        """#BAG($details) registers column for Bag post-processing."""
+        rows = db_pg.table('invc.product').query(
+            columns='$description, #BAG($details) AS details_bag',
+            limit=5
+        ).fetch()
+        assert len(rows) == 5
+        for r in rows:
+            assert 'description' in r
+
+    def test_bag_macro_sqlite(self, db_sqlite):
+        rows = db_sqlite.table('invc.product').query(
+            columns='$description, #BAG($details) AS details_bag',
+            limit=5
+        ).fetch()
+        assert len(rows) == 5
+        for r in rows:
+            assert 'description' in r
+
+    def test_bagcols_macro_pg(self, db_pg):
+        """#BAGCOLS($details) registers column for Bag-to-columns expansion."""
+        rows = db_pg.table('invc.product').query(
+            columns='$description, #BAGCOLS($details) AS details_cols',
+            limit=5
+        ).fetch()
+        assert len(rows) == 5
+
+    def test_bagcols_macro_sqlite(self, db_sqlite):
+        rows = db_sqlite.table('invc.product').query(
+            columns='$description, #BAGCOLS($details) AS details_cols',
+            limit=5
+        ).fetch()
+        assert len(rows) == 5
+
+
+class TestCompiledRecordQuery:
+    """Test compiledRecordQuery paths: virtual_columns as string,
+    dtype='X' skip, and joinColumn with cnd.
+
+    Covers compiler.py lines 1147, 1155, 1161-1165, 1182.
+    """
+
+    def _first_pkey(self, db, table):
+        rows = db.table(table).query(columns='$id', limit=1).fetch()
+        return rows[0]['id']
+
+    def test_virtual_columns_as_string_pg(self, db_pg):
+        """virtual_columns passed as CSV string (line 1147)."""
+        pkey = self._first_pkey(db_pg, 'invc.product')
+        rec = db_pg.table('invc.product').record(
+            pkey=pkey, virtual_columns='price_range,code_and_desc'
+        ).output('dict')
+        assert 'price_range' in rec
+        assert 'code_and_desc' in rec
+
+    def test_virtual_columns_as_string_sqlite(self, db_sqlite):
+        pkey = self._first_pkey(db_sqlite, 'invc.product')
+        rec = db_sqlite.table('invc.product').record(
+            pkey=pkey, virtual_columns='price_range,code_and_desc'
+        ).output('dict')
+        assert 'price_range' in rec
+        assert 'code_and_desc' in rec
+
+    def test_bag_column_skipped_pg(self, db_pg):
+        """dtype='X' columns are skipped when bagFields=False (line 1155)."""
+        pkey = self._first_pkey(db_pg, 'invc.product')
+        rec = db_pg.table('invc.product').record(
+            pkey=pkey, bagFields=False
+        ).output('dict')
+        # 'details' (dtype='X') should not be in result
+        assert 'details' not in rec
+
+    def test_bag_column_skipped_sqlite(self, db_sqlite):
+        pkey = self._first_pkey(db_sqlite, 'invc.product')
+        rec = db_sqlite.table('invc.product').record(
+            pkey=pkey, bagFields=False
+        ).output('dict')
+        assert 'details' not in rec
+
+    def test_join_column_in_record_pg(self, db_pg):
+        """joinColumn with cnd triggers virtual relation handling (lines 1161-1165, 1182)."""
+        pkey = self._first_pkey(db_pg, 'invc.invoice')
+        rec = db_pg.table('invc.invoice').record(pkey=pkey).output('bag')
+        # The record should load without error; discount_tier_id
+        # is a joinColumn with a cnd condition
+        assert rec is not None
+
+    def test_join_column_in_record_sqlite(self, db_sqlite):
+        pkey = self._first_pkey(db_sqlite, 'invc.invoice')
+        rec = db_sqlite.table('invc.invoice').record(pkey=pkey).output('bag')
+        assert rec is not None
+
+
+class TestFindRelationAlias:
+    """Test _findRelationAlias error and table_alias expansion.
+
+    Covers compiler.py lines 485 (missing relation error)
+    and 491-503 (table_alias expansion).
+    """
+
+    def test_missing_relation_raises_pg(self, db_pg):
+        """A non-existent relation in a column path raises GnrSqlMissingField (line 485)."""
+        tbl = db_pg.table('invc.invoice_row')
+        with pytest.raises(GnrSqlMissingField):
+            tbl.query(columns='@nonexistent_relation.some_field').fetch()
+
+    def test_missing_relation_raises_sqlite(self, db_sqlite):
+        tbl = db_sqlite.table('invc.invoice_row')
+        with pytest.raises(GnrSqlMissingField):
+            tbl.query(columns='@nonexistent_relation.some_field').fetch()
+
+    def test_alias_table_expansion_pg(self, db_pg):
+        """aliasTable 'customer' on invoice_row expands to @invoice_id.@customer_id."""
+        tbl = db_pg.table('invc.invoice_row')
+        rows = tbl.query(
+            columns='$id, @customer.account_name',
+            limit=5
+        ).fetch()
+        assert len(rows) == 5
+        for r in rows:
+            assert r['_customer_account_name'] is not None
+
+    def test_alias_table_expansion_sqlite(self, db_sqlite):
+        tbl = db_sqlite.table('invc.invoice_row')
+        rows = tbl.query(
+            columns='$id, @customer.account_name',
+            limit=5
+        ).fetch()
+        assert len(rows) == 5
+        for r in rows:
+            assert r['_customer_account_name'] is not None
+
+
+class TestExpandPref:
+    """GAP 2 — expandPref (compiler.py:317-319).
+
+    The #PREF(path, default) macro inside a sql_formula resolves a package
+    preference at compile time.  The formulaColumn 'adjusted_total' uses
+    #PREF(markup_rate, 1) — since no preference is configured the default
+    value 1 is inlined, making adjusted_total == line_total.
+    """
+
+    def test_pref_macro_pg(self, db_pg):
+        """#PREF resolves to default on PG — adjusted_total equals line_total."""
+        tbl = db_pg.table('invc.invoice_row')
+        rows = tbl.query(
+            columns='$id, $line_total, $adjusted_total',
+            where='$line_total IS NOT NULL',
+            limit=5
+        ).fetch()
+        assert len(rows) == 5
+        for r in rows:
+            assert r['adjusted_total'] == r['line_total']
+
+    def test_pref_macro_sqlite(self, db_sqlite):
+        """#PREF resolves to default on SQLite — adjusted_total equals line_total."""
+        tbl = db_sqlite.table('invc.invoice_row')
+        rows = tbl.query(
+            columns='$id, $line_total, $adjusted_total',
+            where='$line_total IS NOT NULL',
+            limit=5
+        ).fetch()
+        assert len(rows) == 5
+        for r in rows:
+            assert r['adjusted_total'] == r['line_total']
+
+
+class TestMissingVirtualColumn:
+    """GAP 3b — GnrSqlMissingField for non-existent virtual column (compiler.py:369).
+
+    Querying a field that is neither a physical column nor a virtual column
+    raises GnrSqlMissingField.
+    """
+
+    def test_missing_field_raises_pg(self, db_pg):
+        """Non-existent field on PG raises GnrSqlMissingField."""
+        tbl = db_pg.table('invc.invoice_row')
+        with pytest.raises(GnrSqlMissingField):
+            tbl.query(columns='$id, $campo_inesistente', limit=1).fetch()
+
+    def test_missing_field_raises_sqlite(self, db_sqlite):
+        """Non-existent field on SQLite raises GnrSqlMissingField."""
+        tbl = db_sqlite.table('invc.invoice_row')
+        with pytest.raises(GnrSqlMissingField):
+            tbl.query(columns='$id, $campo_inesistente', limit=1).fetch()
+
+
+class TestSqlFormulaTrueDelegate:
+    """GAP 3c — sql_formula=True delegate (compiler.py:396).
+
+    When a formulaColumn has sql_formula=True (boolean, not a string),
+    the compiler calls sql_formula_<fieldname>(attr) on the table object
+    to generate the SQL formula dynamically.
+
+    sysFields registers __protecting_reasons and __invalid_reasons with
+    sql_formula=True; the methods sql_formula___protecting_reasons and
+    sql_formula___invalid_reasons on TableBase build the formula at
+    compile time based on the table's protection/validation columns.
+    """
+
+    def test_protecting_reasons_pg(self, db_pg):
+        """sql_formula=True resolves via sql_formula___protecting_reasons on PG."""
+        tbl = db_pg.table('invc.customer')
+        rows = tbl.query(
+            columns='$id, $__protecting_reasons',
+            limit=3
+        ).fetch()
+        assert len(rows) == 3
+
+    def test_protecting_reasons_sqlite(self, db_sqlite):
+        """sql_formula=True resolves via sql_formula___protecting_reasons on SQLite."""
+        tbl = db_sqlite.table('invc.customer')
+        rows = tbl.query(
+            columns='$id, $__protecting_reasons',
+            limit=3
+        ).fetch()
+        assert len(rows) == 3
+
+
+class TestExplodingFastPath:
+    """GAP 4a: second column on same many-side relation reuses the existing JOIN.
+
+    When two columns navigate the same one-to-many relation, the first creates
+    the JOIN and registers it as exploding. The second finds it in self.aliases
+    and enters the fast path (lines 546-547), registering itself as exploding too.
+    The query result is aggregated: each parent row contains aggregated child values.
+    """
+
+    def test_exploding_fast_path_pg(self, db_pg):
+        """Two columns from @rows trigger exploding fast path on PG."""
+        tbl = db_pg.table('invc.invoice')
+        rows = tbl.query(
+            columns='$id, @rows.quantity, @rows.unit_price',
+            limit=3
+        ).fetch()
+        assert len(rows) == 3
+        for r in rows:
+            assert r['_rows_quantity'] is not None
+            assert r['_rows_unit_price'] is not None
+
+    def test_exploding_fast_path_sqlite(self, db_sqlite):
+        """Two columns from @rows trigger exploding fast path on SQLite."""
+        tbl = db_sqlite.table('invc.invoice')
+        rows = tbl.query(
+            columns='$id, @rows.quantity, @rows.unit_price',
+            limit=3
+        ).fetch()
+        assert len(rows) == 3
+        for r in rows:
+            assert r['_rows_quantity'] is not None
+            assert r['_rows_unit_price'] is not None
+
+
+class TestExpandInRange:
+    """GAP 11: #IN_RANGE macro expands into NULL-safe range check.
+
+    #IN_RANGE($field, :low, :high) generates a 4-branch OR expression
+    that handles NULLs on either bound. Used in real applications for
+    temporal validity ranges (e.g. valid_from/valid_to).
+    """
+
+    def test_in_range_in_where_pg(self, db_pg):
+        """#IN_RANGE filters invoices by total range on PG."""
+        tbl = db_pg.table('invc.invoice')
+        rows = tbl.query(
+            columns='$id, $total',
+            where='#IN_RANGE($total, :low, :high)',
+            sqlparams={'low': 100, 'high': 5000},
+            limit=10
+        ).fetch()
+        for r in rows:
+            assert 100 <= float(r['total']) <= 5000
+
+    def test_in_range_in_where_sqlite(self, db_sqlite):
+        """#IN_RANGE filters invoices by total range on SQLite."""
+        tbl = db_sqlite.table('invc.invoice')
+        rows = tbl.query(
+            columns='$id, $total',
+            where='#IN_RANGE($total, :low, :high)',
+            sqlparams={'low': 100, 'high': 5000},
+            limit=10
+        ).fetch()
+        for r in rows:
+            assert 100 <= float(r['total']) <= 5000
+
+
+# ---------------------------------------------------------------------------
+#  GAP 12 — expandPeriod  (righe 1346-1379)
+# ---------------------------------------------------------------------------
+
+class TestExpandPeriod:
+    """GAP 12: #PERIOD macro expands a period string into a date SQL filter.
+
+    Five branches:
+    (a) 'no period'              → true (no filter)
+    (b) '2024-01-15;2024-01-15'  → field = :param_from  (single day)
+    (c) '2024'                   → field BETWEEN :from AND :to
+    (d) 'from 2024-01-01'        → field >= :from
+    (e) 'to 2024-12-31'          → field <= :to
+    """
+
+    # db.locale follows LC_ALL (en_GB in CI) → English keywords
+    PERIOD_CASES = [
+        'no period',             # (a) no filtering → true
+        '15/01/2024;15/01/2024', # (b) single day → field = :from
+        '2024',                  # (c) range → field BETWEEN :from AND :to
+        'from 01/06/2024',       # (d) lower bound only → field >= :from
+        'to 30/06/2024',         # (e) upper bound only → field <= :to
+    ]
+
+    @pytest.mark.parametrize('period', PERIOD_CASES)
+    def test_period_branches_pg(self, db_pg, period):
+        tbl = db_pg.table('invc.invoice')
+        rows = tbl.query(
+            columns='$id, $date',
+            where='#PERIOD($date,:periodo)',
+            sqlparams={'periodo': period},
+            limit=5
+        ).fetch()
+        assert isinstance(rows, list)
+
+    @pytest.mark.parametrize('period', PERIOD_CASES)
+    def test_period_branches_sqlite(self, db_sqlite, period):
+        tbl = db_sqlite.table('invc.invoice')
+        rows = tbl.query(
+            columns='$id, $date',
+            where='#PERIOD($date,:periodo)',
+            sqlparams={'periodo': period},
+            limit=5
+        ).fetch()
+        assert isinstance(rows, list)
+
+
+# ---------------------------------------------------------------------------
+#  GAP 8a/8c/8d/8j — compiledQuery options
+# ---------------------------------------------------------------------------
+
+class TestCompiledQueryOptions:
+    """GAP 8: compiledQuery branches for group_by, distinct, count."""
+
+    # 8a — group_by='*' (riga 906)
+    def test_group_by_star_pg(self, db_pg):
+        tbl = db_pg.table('invc.invoice')
+        rows = tbl.query(
+            columns='SUM($total) AS sum_total, COUNT(*) AS cnt',
+            group_by='*'
+        ).fetch()
+        assert len(rows) == 1
+        assert int(rows[0]['cnt']) == INVOICE_COUNT
+
+    def test_group_by_star_sqlite(self, db_sqlite):
+        tbl = db_sqlite.table('invc.invoice')
+        rows = tbl.query(
+            columns='SUM($total) AS sum_total, COUNT(*) AS cnt',
+            group_by='*'
+        ).fetch()
+        assert len(rows) == 1
+        assert int(rows[0]['cnt']) == INVOICE_COUNT
+
+    # 8j — distinct=True (riga 1056)
+    def test_distinct_explicit_pg(self, db_pg):
+        tbl = db_pg.table('invc.invoice')
+        rows = tbl.query(
+            columns='$customer_id',
+            distinct=True
+        ).fetch()
+        assert len(rows) > 0
+        customer_ids = [r['customer_id'] for r in rows]
+        assert len(customer_ids) == len(set(customer_ids))
+
+    def test_distinct_explicit_sqlite(self, db_sqlite):
+        tbl = db_sqlite.table('invc.invoice')
+        rows = tbl.query(
+            columns='$customer_id',
+            distinct=True
+        ).fetch()
+        assert len(rows) > 0
+        customer_ids = [r['customer_id'] for r in rows]
+        assert len(customer_ids) == len(set(customer_ids))
+
+    # 8c — count + group_by (riga 941): .count() with group_by
+    # returns the number of groups.
+    def test_count_with_group_by_pg(self, db_pg):
+        tbl = db_pg.table('invc.invoice')
+        n = tbl.query(
+            columns='$customer_id, SUM($total) AS sum_total',
+            group_by='$customer_id',
+        ).count()
+        assert n > 1
+
+    def test_count_with_group_by_sqlite(self, db_sqlite):
+        tbl = db_sqlite.table('invc.invoice')
+        n = tbl.query(
+            columns='$customer_id, SUM($total) AS sum_total',
+            group_by='$customer_id',
+        ).count()
+        assert n > 1
+
+    # 8d — count + distinct (riga 943): .count() with distinct
+    # returns the number of distinct values.
+    def test_count_with_distinct_pg(self, db_pg):
+        tbl = db_pg.table('invc.invoice')
+        n = tbl.query(
+            columns='$customer_id',
+            distinct=True,
+        ).count()
+        assert n > 1
+
+    def test_count_with_distinct_sqlite(self, db_sqlite):
+        tbl = db_sqlite.table('invc.invoice')
+        n = tbl.query(
+            columns='$customer_id',
+            distinct=True,
+        ).count()
+        assert n > 1
+
+
+class TestExcludeLogicalDeletedMark:
+    """GAP 8h: excludeLogicalDeleted='mark' adds _isdeleted to SELECT."""
+
+    def test_mark_adds_isdeleted_column_pg(self, db_pg):
+        tbl = db_pg.table('invc.customer')
+        rows = tbl.query(
+            columns='$id, $account_name',
+            excludeLogicalDeleted='mark'
+        ).fetch()
+        assert isinstance(rows, list)
+        assert '_isdeleted' in rows[0]
+
+    def test_mark_adds_isdeleted_column_sqlite(self, db_sqlite):
+        tbl = db_sqlite.table('invc.customer')
+        rows = tbl.query(
+            columns='$id, $account_name',
+            excludeLogicalDeleted='mark'
+        ).fetch()
+        assert isinstance(rows, list)
+        assert '_isdeleted' in rows[0]
+
+
+class TestDistinctExploding:
+    """GAP 8k/8l: DISTINCT auto-injection with exploding (many-side) joins."""
+
+    def test_distinct_exploding_order_by_pg(self, db_pg):
+        """8k: order_by columns not in SELECT are added as __ord_col_N."""
+        tbl = db_pg.table('invc.customer')
+        rows = tbl.query(
+            columns='$id, @invoices.total',
+            order_by='$account_name',
+        ).fetch()
+        assert isinstance(rows, list)
+
+    def test_distinct_exploding_order_by_sqlite(self, db_sqlite):
+        tbl = db_sqlite.table('invc.customer')
+        rows = tbl.query(
+            columns='$id, @invoices.total',
+            order_by='$account_name',
+        ).fetch()
+        assert isinstance(rows, list)
+
+    def test_distinct_exploding_count_pg(self, db_pg):
+        """8l: count() with distinct + exploding replaces columns with pkey."""
+        tbl = db_pg.table('invc.customer')
+        n = tbl.query(
+            columns='$id, @invoices.total',
+            distinct=True,
+        ).count()
+        assert n > 0
+
+    def test_distinct_exploding_count_sqlite(self, db_sqlite):
+        tbl = db_sqlite.table('invc.customer')
+        n = tbl.query(
+            columns='$id, @invoices.total',
+            distinct=True,
+        ).count()
+        assert n > 0
+
+
+class TestContextSubtables:
+    """GAP 8e: context_subtables from currentEnv overrides subtable param."""
+
+    def test_context_subtables_pg(self, db_pg):
+        with db_pg.tempEnv(context_subtables=Bag({'invc.customer': 'residential'})):
+            tbl = db_pg.table('invc.customer')
+            count = tbl.query(columns='$id').count()
+            assert count == CUSTOMER_RES_COUNT
+
+    def test_context_subtables_sqlite(self, db_sqlite):
+        with db_sqlite.tempEnv(context_subtables=Bag({'invc.customer': 'residential'})):
+            tbl = db_sqlite.table('invc.customer')
+            count = tbl.query(columns='$id').count()
+            assert count == CUSTOMER_RES_COUNT
+
+
+class TestEnvConditions:
+    """GAP 8f: env_conditions — named WHERE conditions injected via environment."""
+
+    def test_env_condition_filters_pg(self, db_pg):
+        tbl = db_pg.table('invc.customer')
+        total = tbl.query(columns='$id').count()
+        with db_pg.tempEnv(env_invc_customer_condition_myfilter="$customer_type_code = 'RES'"):
+            filtered = tbl.query(columns='$id').count()
+        assert filtered < total
+        assert filtered > 0
+
+    def test_env_condition_filters_sqlite(self, db_sqlite):
+        tbl = db_sqlite.table('invc.customer')
+        total = tbl.query(columns='$id').count()
+        with db_sqlite.tempEnv(env_invc_customer_condition_myfilter="$customer_type_code = 'RES'"):
+            filtered = tbl.query(columns='$id').count()
+        assert filtered < total
+        assert filtered > 0
+
+
+class TestSubtableNegation:
+    """GAP 8g: subtable with ! negation prefix."""
+
+    def test_subtable_negation_pg(self, db_pg):
+        tbl = db_pg.table('invc.customer')
+        count_res = tbl.query(columns='$id', subtable='residential').count()
+        count_neg = tbl.query(columns='$id', subtable='!commercial').count()
+        total = tbl.query(columns='$id').count()
+        assert count_neg > count_res
+        assert count_neg <= total
+
+    def test_subtable_negation_sqlite(self, db_sqlite):
+        tbl = db_sqlite.table('invc.customer')
+        count_res = tbl.query(columns='$id', subtable='residential').count()
+        count_neg = tbl.query(columns='$id', subtable='!commercial').count()
+        total = tbl.query(columns='$id').count()
+        assert count_neg > count_res
+        assert count_neg <= total
+
+
+class TestHandleVirtualColumns:
+    """GAP 10: _handle_virtual_columns edge cases (via compiledRecordQuery)."""
+
+    def test_virtual_columns_unknown_ignored_pg(self, db_pg):
+        """1229: unknown virtual column name is silently skipped."""
+        tbl = db_pg.table('invc.customer')
+        pkey = tbl.query(columns='$id').fetch()[0]['id']
+        rec = tbl.record(pkey=pkey,
+                         virtual_columns='nonexistent_col,n_invoices')
+        result = rec.output('bag')
+        assert result is not None
+
+    def test_virtual_columns_unknown_ignored_sqlite(self, db_sqlite):
+        tbl = db_sqlite.table('invc.customer')
+        pkey = tbl.query(columns='$id').fetch()[0]['id']
+        rec = tbl.record(pkey=pkey,
+                         virtual_columns='nonexistent_col,n_invoices')
+        result = rec.output('bag')
+        assert result is not None
+
+
+class TestJoinConditions:
+    """GAPs 4f, 5, 8i, 13: joinConditions mechanism.
+
+    Tests pinned to current behaviour ahead of planned redesign (issue #625).
+    Compiler output is adapter-independent, so only PG is tested.
+    """
+
+    def test_join_condition_owner_pg(self, db_pg):
+        """4f+5+13(O): extra condition appended to ON clause."""
+        tbl = db_pg.table('invc.customer')
+        q = tbl.query(columns='$id,@state.name')
+        q.setJoinCondition(relation='@state',
+                           condition="$tbl.code IS NOT NULL",
+                           one_one=True)
+        sql = q.sqltext
+        assert 'IS NOT NULL' in sql
+
+    def test_join_condition_many_one_one_pg(self, db_pg):
+        """4f+5+13(M)+656: one_one=True on many-side prevents DISTINCT."""
+        tbl = db_pg.table('invc.customer')
+        q = tbl.query(columns='$id,@invoices.total')
+        q.setJoinCondition(relation='@invoices',
+                           condition="TRUE",
+                           one_one=True)
+        sql = q.sqltext
+        assert 'DISTINCT' not in sql
+
+    def test_join_condition_global_where_pg(self, db_pg):
+        """8i: ('*','*') injects global WHERE clause (with existing where)."""
+        tbl = db_pg.table('invc.customer')
+        total = tbl.query(columns='$id').count()
+        q = tbl.query(columns='$id')
+        q.setJoinCondition(target_fld='*', from_fld='*',
+                           condition="t0.account_name IS NOT NULL")
+        filtered = q.count()
+        assert filtered <= total
+
+    def test_join_condition_global_where_no_base_where_pg(self, db_pg):
+        """8i line 1047: ('*','*') becomes sole WHERE when no other where exists."""
+        tbl = db_pg.table('invc.customer')
+        q = tbl.query(columns='$id',
+                       excludeLogicalDeleted=False,
+                       excludeDraft=False,
+                       ignorePartition=True)
+        q.setJoinCondition(target_fld='*', from_fld='*',
+                           condition="t0.account_name IS NOT NULL")
+        sql = q.sqltext
+        assert 'account_name IS NOT NULL' in sql
+        rows = q.fetch()
+        assert isinstance(rows, list)
