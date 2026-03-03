@@ -9,7 +9,7 @@ from gnr.core.gnrdecorator import public_method
 
 class GnrCustomWebPage(object):
     py_requires = """gnrcomponents/testhandler:TestHandlerFull,
-                     gnrcomponents/grouplet:GroupletHandler"""
+                     gnrcomponents/grouplet/grouplet:GroupletHandler"""
 
     def test_1_nested_topic_grid(self, pane):
         """Topic grid with nested sub-topic: submethodtesting contains alfa, beta

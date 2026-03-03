@@ -3072,7 +3072,7 @@ dojo.declare("gnr.widgets.Grouplet",gnr.widgets.gnrwdg,{
         kw.remote_valuepath = valuepath;
         kw.overflow = 'hidden';
         kw.remote = 'gr_loadGrouplet'
-        kw.remote_py_requires = 'gnrcomponents/grouplet:GroupletHandler';
+        kw.remote_py_requires = 'gnrcomponents/grouplet/grouplet:GroupletHandler';
         kw.min_height= kw.min_height || '1px';
         kw.min_width = kw.min_width || '1px';
         kw.remote_async = true;

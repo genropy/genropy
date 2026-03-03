@@ -19,7 +19,7 @@ class View(BaseComponent):
 
 
 class Form(BaseComponent):
-    py_requires = 'gnrcomponents/grouplet:GroupletHandler'
+    py_requires = 'gnrcomponents/grouplet/grouplet:GroupletHandler'
 
     def th_form(self, form):
         bc = form.center.borderContainer()
@@ -47,7 +47,7 @@ class Form(BaseComponent):
 class FormGrid(BaseComponent):
     """Alternative form using topic-grid: each topic rendered as a collapsible
     grid of grouplets instead of tree navigation."""
-    py_requires = 'gnrcomponents/grouplet:GroupletHandler'
+    py_requires = 'gnrcomponents/grouplet/grouplet:GroupletHandler'
 
     def th_form(self, form):
         bc = form.center.borderContainer()
