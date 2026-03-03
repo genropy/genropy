@@ -3,10 +3,9 @@ from gnr.web.gnrbaseclasses import BaseComponent
 
 class Grouplet(BaseComponent):
     def __info__(self):
+        notEnabled = not self.site.is_mobile_app_enabled()
         return dict(code='connection_qrcode', caption='!![en]Connection', priority=3,
-                    tags=None if self.site.is_mobile_app_enabled()  else 'notEnabled')
-
-
+                    tags='notEnabled' if notEnabled else None)
 
     def grouplet_main(self, pane, **kwargs):
         pane.dataController(""" const qrcode_text = `GENRO:${owner_name || sitename}:${url}`;
