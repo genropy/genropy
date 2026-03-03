@@ -1,6 +1,10 @@
-info = dict(caption='Codici', code='codici', priority=2)
+from gnr.web.gnrbaseclasses import BaseComponent
 
-class Grouplet(object):
+info = dict(caption='Codici', code='codici', priority=2,
+            template='<div><b>$sigla_provincia</b> - $codice_comune</div>')
+
+
+class Grouplet(BaseComponent):
     def grouplet_main(self, pane, **kwargs):
         fb = pane.formlet(cols=2, border_spacing='3px', table='glbl.comune')
         fb.field('sigla_provincia')

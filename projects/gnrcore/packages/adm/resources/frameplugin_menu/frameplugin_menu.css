@@ -39,6 +39,10 @@
     border-color: #666 transparent transparent transparent;
 }
 
+.menutree .dijitTreeContent:has(.label_emptydir) .dijitTreeIcon{
+    opacity: .3;
+}
+
 .menutree .treeNoIcon{
     /* same width as arrows inherited from .dijitTreeIcon */
 }
@@ -83,6 +87,7 @@
     box-sizing: border-box;
     border: 1px solid #d4c820;
     vertical-align: middle;
+    margin-left: 4px;
 }
 
 .menuline_icon{
@@ -172,11 +177,7 @@
     order: 1;
     flex: 1;
     display: inline-flex;
-    align-items: baseline;
-}
-
-.menutree.menutree_branchiconright .menuline_badge{
-    margin-left: 4px;
+    align-items: center;
 }
 
 /* Leaf nodes: hide empty icon spacer */
@@ -213,4 +214,14 @@
 /* Open dir: chevron rotated down */
 .menutree.menutree_branchiconright .opendir{
     transform: rotate(90deg);
+}
+
+/* Empty dir: disabled cursor, no hover effect */
+._common_d11 .menutree.menutree_branchiconright .dijitTreeContent:has(.label_emptydir),
+._common_d11 .menutree.menutree_branchiconright .dijitTreeContent:has(.label_emptydir) *{
+    cursor: not-allowed;
+}
+
+._common_d11 .menutree.menutree_branchiconright .dijitTreeContent:has(.label_emptydir):hover{
+    background: var(--menutree-node-background);
 }
