@@ -31,9 +31,10 @@ and the ``touchRecords`` utility.
 from __future__ import annotations
 
 from gnr.sql import logger
+from gnr.sql._typing import SqlTableBaseMixin
 
 
-class TriggersMixin:
+class TriggersMixin(SqlTableBaseMixin):
     """Trigger hooks, protection, validation and DB events."""
 
     # ------------------------------------------------------------------

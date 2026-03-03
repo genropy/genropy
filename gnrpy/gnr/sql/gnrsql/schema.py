@@ -36,10 +36,11 @@ from typing import Any, Callable
 
 from gnr.core.gnrbag import Bag
 from gnr.sql import logger
+from gnr.sql._typing import GnrSqlDbBaseMixin
 from gnr.sql.gnrsqlmigration import SqlMigrator
 
 
-class SchemaMixin:
+class SchemaMixin(GnrSqlDbBaseMixin):
     """DDL, model persistence, dump/restore and data import."""
 
     # -- Model I/O ----------------------------------------------------------

@@ -35,9 +35,10 @@ from datetime import datetime
 from gnr.core import gnrstring
 from gnr.core.gnrlang import uniquify
 from gnr.core.gnrdict import dictExtract
+from gnr.sql._typing import SqlTableBaseMixin
 
 
-class ColumnsMixin:
+class ColumnsMixin(SqlTableBaseMixin):
     """Column access, model delegation and variant column generators."""
 
     # ------------------------------------------------------------------

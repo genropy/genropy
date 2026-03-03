@@ -35,6 +35,7 @@ import os
 from gnr.core import gnrstring
 from gnr.core.gnrbag import Bag
 
+from gnr.sql._typing import SqlTableBaseMixin
 from gnr.sql.gnrsqltable.helpers import (
     RecordUpdater,
     add_sql_comment,
@@ -42,7 +43,7 @@ from gnr.sql.gnrsqltable.helpers import (
 )
 
 
-class CrudMixin:
+class CrudMixin(SqlTableBaseMixin):
     """Insert, update, delete, batch and cluster operations."""
 
     # ------------------------------------------------------------------

@@ -34,10 +34,11 @@ from typing import Any, Callable, Generator
 from gnr.core.gnrbag import Bag
 from gnr.sql import logger
 from gnr.sql.gnrsql.helpers import GnrSqlException
+from gnr.sql._typing import GnrSqlDbBaseMixin
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
 
 
-class QueryMixin:
+class QueryMixin(GnrSqlDbBaseMixin):
     """High-level query API and model navigation."""
 
     def package(self, pkg: str) -> Any:

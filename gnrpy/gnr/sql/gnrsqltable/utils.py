@@ -40,9 +40,10 @@ from gnr.core.gnrlang import getUuid
 from gnr.core.gnrbag import Bag, BagCbResolver
 from gnr.core.gnrdict import dictExtract
 from gnr.sql import logger
+from gnr.sql._typing import SqlTableBaseMixin
 
 
-class UtilsMixin:
+class UtilsMixin(SqlTableBaseMixin):
     """Utility methods: pkey generation, data export, totalizers, retention."""
 
     # ------------------------------------------------------------------
