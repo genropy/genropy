@@ -123,11 +123,7 @@ class MenuIframes(BaseComponent):
                         var selectingPageKw = objectUpdate({name:node.label,pkg_menu:inattr.pkg_menu,"file":null,table:null,
                                                             formResource:null,viewResource:null,fullpath:$1.fullpath,
                                                             modifiers:$1.modifiers},node.attr);
-                        if (genro.isMobile && false){
-                            genro.framedIndexManager.makePageUrl(selectingPageKw);
-                            genro.openWindow(selectingPageKw.url,selectingPageKw.label);
-                        }
-                        else if (selectingPageKw.externalWindow==true || selectingPageKw.modifiers == 'Shift'){
+                        if (selectingPageKw.externalWindow==true || selectingPageKw.modifiers == 'Shift'){
                             genro.publish("newBrowserWindowPage",selectingPageKw);
                         }else{
                             if(labelClass.indexOf('menu_existing_page')<0 && !node.attr.branchPage){
@@ -157,8 +153,8 @@ class MenuIframes(BaseComponent):
                                         let content = n.getValue();
                                         let child_count = (content instanceof gnr.GnrBag)?content.len():0;
                                         let updater = {child_count:child_count};
-                                        if((titleCounter === true || menuLineBadge == '#') && child_count>0){
-                                            updater.badgeContent = child_count;
+                                        if(titleCounter === true || menuLineBadge == '#'){
+                                            updater.badgeContent = child_count || null;
                                         }
                                         n.updAttributes(updater);
                                         return;
