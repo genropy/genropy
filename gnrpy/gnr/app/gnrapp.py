@@ -358,7 +358,8 @@ class GnrSqlAppDb(GnrSqlDb):
         self.addMacro('THIS', THISFINDER, None)
         self.addMacro('BAG', BAGEXPFINDER, None)
         self.addMacro('BAGCOLS', BAGCOLSEXPFINDER, None)
-        self.application.pkgBroadcast('registerMacros', self)
+        if self.application:
+            self.application.pkgBroadcast('registerMacros', self)
 
     def checkTransactionWritable(self, tblobj):
         """TODO
