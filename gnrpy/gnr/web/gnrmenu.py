@@ -586,8 +586,6 @@ class MenuResolver(BagResolver):
                                 branchMethod=attributes.get('branchMethod'), tags=attributes.get('tags'),
                                 aux_instance=attributes.get('aux_instance') or self.aux_instance,
                                 externalSite= attributes.get('externalSite') or self.externalSite,
-                                table = attributes.get('table'),
-                                menuLineBadge = attributes.get('menuLineBadge'),
                                 _page=self._page,**dictExtract(attributes,'branch_',slice_prefix=False)),attributes
 
 
