@@ -1,0 +1,55 @@
+/* testhandler.css - Modern responsive test handler layout */
+
+
+
+/* Container */
+.test_handler_container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 20px 16px;
+}
+
+/* Title */
+.test_handler_title {
+    text-align: center;
+    color: #666;
+    font-size: 1.4em;
+    font-weight: 300;
+    padding: 10px 0 20px;
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 20px;
+}
+
+/* Test card */
+.test_handler_card {
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Card header */
+.test_handler_card_header {
+    background: #f8f9fa;
+    padding: 8px 12px;
+    border-bottom: 1px solid #e0e0e0;
+    font-weight: 600;
+    font-size: 0.9em;
+    color: #444;
+    border-radius: 6px 6px 0 0;
+}
+
+/* Docstring block */
+.test_handler_card_doc {
+    padding: 8px 12px;
+    font-size: 0.82em;
+    line-height: 1.5;
+    color: #666;
+    background: #fafbfc;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+/* Card body */
+.test_handler_card_body {
+    padding: 10px;
+}

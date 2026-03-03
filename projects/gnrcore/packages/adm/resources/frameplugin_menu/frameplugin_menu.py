@@ -58,13 +58,12 @@ class MenuIframes(BaseComponent):
         return  "return 'treeNoIcon';"
     
     def _menutree_getLabelClass(self):
-        if self.device_mode=='std':
-            return """return node.attr.labelClass;"""
         return """let labelClass = node.attr.labelClass;
                 if(node.attr.isDir){
                     let staticValue = node.getValue('static');
                     let resolver = node.getResolver();
-                    if((!resolver || resolver.lastUpdate) && (!staticValue || staticValue.len()==0)){
+                    let child_count = node.attr.child_count;
+                    if(child_count===0 || ((!resolver || resolver.lastUpdate) && (!staticValue || staticValue.len()==0))){
                         return `label_emptydir ${labelClass}`;
                     }
                     let diricon = opened? 'label_opendir':'label_closedir';
@@ -158,12 +157,13 @@ class MenuIframes(BaseComponent):
                                         let content = n.getValue();
                                         let child_count = (content instanceof gnr.GnrBag)?content.len():0;
                                         let updater = {child_count:child_count};
-                                        if(titleCounter || menuLineBadge === true){
+                                        if((titleCounter === true || menuLineBadge == '#') && child_count>0){
                                             updater.badgeContent = child_count;
                                         }
                                         n.updAttributes(updater);
                                         return;
                                     }
+   
                                     let menuLineBadgeKW = {};
                                     if(menuLineBadge){
                                         objectUpdate(menuLineBadgeKW,objectExtract(n.attr, 'menuLineBadge_*', true));
