@@ -336,6 +336,16 @@ class GnrSqlAppDb(GnrSqlDb):
             self._multidb_config = result
         return result
     
+    def registerMacros(self):
+        """Register SQL macros: base + adapter + package-level.
+
+        Passes ``self`` (the db) to pkgBroadcast so packages can call
+        ``db.addMacro()`` even though ``application.db`` is not yet
+        assigned at this point in the init sequence.
+        """
+        super().registerMacros()
+        self.application.pkgBroadcast('registerMacros', self)
+
     def checkTransactionWritable(self, tblobj):
         """TODO
         
