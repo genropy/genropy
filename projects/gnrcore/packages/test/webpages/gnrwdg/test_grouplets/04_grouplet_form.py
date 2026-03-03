@@ -9,7 +9,7 @@ from gnr.core.gnrbag import Bag
 class GnrCustomWebPage(object):
     py_requires = """gnrcomponents/testhandler:TestHandlerFull,
                      gnrcomponents/formhandler:FormHandler,
-                     gnrcomponents/grouplet:GroupletHandler"""
+                     gnrcomponents/grouplet/grouplet:GroupletHandler"""
 
     def test_1_groupletform_memory_handler(self, pane):
         """Inline GroupletForm with memory store and handler"""

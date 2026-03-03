@@ -11,7 +11,7 @@ from gnr.core.gnrdecorator import public_method
 class GnrCustomWebPage(object):
     py_requires = """gnrcomponents/testhandler:TestHandlerFull,
                      gnrcomponents/formhandler:FormHandler,
-                     gnrcomponents/grouplet:GroupletHandler"""
+                     gnrcomponents/grouplet/grouplet:GroupletHandler"""
 
     def _comune_form(self, pane, frameCode, datapath):
         """Shared form setup: frameForm + formStore + dbselect selector"""

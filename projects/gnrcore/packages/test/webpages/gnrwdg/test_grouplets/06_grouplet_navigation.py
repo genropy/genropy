@@ -7,7 +7,7 @@ groupletWizard, collapsible grid, and tree-based menu selection."""
 class GnrCustomWebPage(object):
     py_requires = """gnrcomponents/testhandler:TestHandlerFull,
                      gnrcomponents/formhandler:FormHandler,
-                     gnrcomponents/grouplet:GroupletHandler,
+                     gnrcomponents/grouplet/grouplet:GroupletHandler,
                      th/th:TableHandler"""
 
     # --- GroupletPanel ---
@@ -32,10 +32,11 @@ class GnrCustomWebPage(object):
             frameCode='mb_table_panel', region='center')
 
     def test_3_panel_multibutton_no_table(self, pane):
-        """groupletPanel with topic, no table: multiButton selector for app grouplets"""
+        """groupletPanel with topic, no table: multiButton selector for app grouplets, and no form"""
         pane.borderContainer(height='500px', border='1px solid silver',
                          datapath='.panel_app').groupletPanel(
             topic='app',
+            useForm=False,
             value='^.record',
             frameCode='mb_app_panel', region='center')
 
@@ -51,13 +52,6 @@ class GnrCustomWebPage(object):
             formResource='Form',
             view_store__onStart=True)
 
-    def test_5_wizard_standalone(self, pane):
-        """Standalone wizard with app topic, no external form"""
-        pane.borderContainer(height='500px', border='1px solid silver',
-                         datapath='.wizard_app').groupletWizard(
-            topic='app',
-            value='^.record',
-            frameCode='app_wizard', region='center')
 
     def test_6_collapsible_grid(self, pane):
         """myprospect with collapsible topic-grid form (FormGrid resource)"""

@@ -9,7 +9,7 @@ from gnr.core.gnrdecorator import public_method
 
 class GnrCustomWebPage(object):
     py_requires = """gnrcomponents/testhandler:TestHandlerFull,
-                     gnrcomponents/grouplet:GroupletHandler"""
+                     gnrcomponents/grouplet/grouplet:GroupletHandler"""
 
     def test_1_custom_root_resource(self, pane):
         """Single grouplet from custom root: loads contact_info from
