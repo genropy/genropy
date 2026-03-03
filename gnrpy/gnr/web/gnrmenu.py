@@ -559,9 +559,9 @@ class MenuResolver(BagResolver):
                             level_offset=self.level,
                             **kwargs)
         attributes['isDir'] = True
-        if menuLineBadge is True or titleCounter:
-            attributes['child_count'] =  len(sbresolver())
-            attributes['badgeContent'] = str(attributes['child_count'] or 0)
+        if menuLineBadge == '#' or titleCounter:
+            attributes['child_count'] = len(sbresolver())
+            attributes['badgeContent'] = attributes['child_count'] or None
         return sbresolver,attributes
 
     def nodeType_packageBranch(self,node):
