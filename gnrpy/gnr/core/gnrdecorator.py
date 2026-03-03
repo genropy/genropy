@@ -21,7 +21,41 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 import warnings
+from functools import wraps
 from gnr.core.gnrdict import dictExtract
+
+
+def capability(name):
+    """Decorator that delegates a method call to a registered capability provider.
+
+    The decorated method acts as an interface contract — its body is never
+    executed.  At call time, the decorator looks up ``self.application.capabilities[name]``
+    and calls the same-named method on the provider.
+
+    If no provider is registered, raises ``GnrException``.
+
+    Usage::
+
+        @capability('preference')
+        def getPreference(self, path, dflt=None):
+            ...
+    """
+    def decorator(method):
+        @wraps(method)
+        def wrapper(self, *args, **kwargs):
+            app = getattr(self, 'application', None) or getattr(self, 'app', None)
+            if app is None:
+                from gnr.core.gnrlang import GnrException
+                raise GnrException(f"Cannot resolve application for capability '{name}'")
+            provider = app.capabilities.get(name)
+            if provider is None:
+                from gnr.core.gnrlang import GnrException
+                raise GnrException(f"No provider registered for capability '{name}'")
+            return getattr(provider, method.__name__)(*args, **kwargs)
+        wrapper._capability = name
+        return wrapper
+    return decorator
+
 
 def metadata(**kwargs):
     """TODO"""

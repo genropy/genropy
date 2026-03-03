@@ -984,6 +984,8 @@ class GnrApp(object):
         #    self.config['menu']=self.instanceMenu
 
         self.localizer = AppLocalizer(self)
+        self.capabilities = {}
+        self.pkgBroadcast('registerCapabilities', self)
         self.onInited()
 
     def addPackage(self,pkgid,pkgattrs=None,pkgcontent=None):
@@ -1186,9 +1188,25 @@ class GnrApp(object):
         """Hook method called before the :ref:`instance <instances>` initialization"""
         pass
 
+    def addCapability(self, name, provider, replace=False):
+        """Register a capability provider.
+
+        Packages call this during ``registerCapabilities`` to declare
+        the services they provide (e.g. ``'preference'``, ``'userobject'``).
+        Packages are broadcast in load order — last one wins when
+        *replace* is ``True``.
+
+        :param name: capability identifier (e.g. ``'preference'``)
+        :param provider: the package instance that provides this capability
+        :param replace: if ``False`` (default), raise on duplicate
+        """
+        if name in self.capabilities and not replace:
+            raise KeyError(f"Capability '{name}' is already registered")
+        self.capabilities[name] = provider
+
     def onInited(self):
         """Hook method called after the instance initialization is complete.
-        
+
         By default, it will call the :meth:`onApplicationInited()
         <gnr.app.gnrapp.GnrPackage.onApplicationInited>` method of each package"""
         self.pkgBroadcast('onApplicationInited')

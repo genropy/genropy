@@ -40,6 +40,20 @@ def _add_localized_prefix(label, prefix):
 
 class GnrDboPackage(object):
     """Base class for packages"""
+
+    def registerCapabilities(self, app):
+        """Register capabilities provided by this package.
+
+        Override in subclasses to call ``app.addCapability()`` for each
+        service this package provides (e.g. ``'preference'``,
+        ``'userobject'``, ``'counter'``).
+
+        Called via ``pkgBroadcast`` during app initialization, in
+        package load order — last registered provider wins when
+        using ``replace=True``.
+        """
+        pass
+
     def updateFromExternalDb(self,externaldb,empty_before=None):
         """TODO
         
