@@ -1204,6 +1204,10 @@ class GnrApp(object):
             raise KeyError(f"Capability '{name}' is already registered")
         self.capabilities[name] = provider
 
+    def hasCapability(self, name):
+        """Return ``True`` if a provider is registered for *name*."""
+        return name in self.capabilities
+
     def onInited(self):
         """Hook method called after the instance initialization is complete.
 
@@ -1240,12 +1244,14 @@ class GnrApp(object):
         return (found_locale or 'en-GB').replace('_','-')
 
     def setPreference(self, path, data, pkg):
-        if self.db.package('adm'):
-            self.db.table('adm.preference').setPreference(path, data, pkg=pkg)
+        provider = self.capabilities.get('preference')
+        if provider:
+            provider.setPreference(self, path, data, pkg=pkg)
 
     def getPreference(self, path, pkg=None, dflt=None, mandatoryMsg=None):
-        if self.db.package('adm'):
-            return self.db.table('adm.preference').getPreference(path, pkg=pkg, dflt=dflt, mandatoryMsg=mandatoryMsg)
+        provider = self.capabilities.get('preference')
+        if provider:
+            return provider.getPreference(self, path, pkg=pkg, dflt=dflt, mandatoryMsg=mandatoryMsg)
     
     def getResource(self, path, pkg=None, locale=None):
         """TODO

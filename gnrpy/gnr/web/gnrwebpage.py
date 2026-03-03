@@ -2185,9 +2185,9 @@ class GnrWebPage(GnrBaseWebPage):
         rootenv = self.getStartRootenv()
         self._workdate = None #reset workdate
         prefenv = Bag()
-        has_adm = self.application.db.package('adm')
-        if has_adm:
-            prefenv = self.application.db.table('adm.preference').envPreferences(username=self.user)
+        if self.application.hasCapability('preference'):
+            provider = self.application.capabilities['preference']
+            prefenv = provider.envPreferences(self, username=self.user)
         data = Bag(dict(root_page_id=self.root_page_id,parent_page_id=self.parent_page_id,rootenv=rootenv,prefenv=prefenv))
         self.pageStore().update(data)
         self._db = None #resetting db property after setting dbenv
@@ -2247,7 +2247,7 @@ class GnrWebPage(GnrBaseWebPage):
             page.data('gnr.dbstore',self.dbstore)
         page.data('gnr.multidomain', self.multidomain)
         page.data('gnr.currentDomain', self.currentDomain)
-        if has_adm and not self.isGuest:
+        if self.application.hasCapability('preference') and not self.isGuest:
             page.dataRemote('gnr.user_preference', self.getUserPreference,username='^gnr.avatar.user',
                             _resolved=True,_resolved_username=self.user)
             page.dataRemote('gnr.app_preference', self.getAppPreference,_resolved=True)

@@ -30,7 +30,8 @@ def capability(name):
 
     The decorated method acts as an interface contract — its body is never
     executed.  At call time, the decorator looks up ``self.application.capabilities[name]``
-    and calls the same-named method on the provider.
+    and calls the same-named method on the provider, passing the original
+    ``self`` (the caller) as first argument.
 
     If no provider is registered, raises ``GnrException``.
 
@@ -39,11 +40,21 @@ def capability(name):
         @capability('preference')
         def getPreference(self, path, dflt=None):
             ...
+
+    The provider must implement the same method receiving the caller::
+
+        def getPreference(self, caller, path, dflt=None):
+            # self = provider package, caller = who called getPreference
+            ...
     """
     def decorator(method):
         @wraps(method)
         def wrapper(self, *args, **kwargs):
             app = getattr(self, 'application', None) or getattr(self, 'app', None)
+            if app is None:
+                db = getattr(self, 'db', None)
+                if db is not None:
+                    app = getattr(db, 'application', None)
             if app is None:
                 from gnr.core.gnrlang import GnrException
                 raise GnrException(f"Cannot resolve application for capability '{name}'")
@@ -51,7 +62,7 @@ def capability(name):
             if provider is None:
                 from gnr.core.gnrlang import GnrException
                 raise GnrException(f"No provider registered for capability '{name}'")
-            return getattr(provider, method.__name__)(*args, **kwargs)
+            return getattr(provider, method.__name__)(self, *args, **kwargs)
         wrapper._capability = name
         return wrapper
     return decorator

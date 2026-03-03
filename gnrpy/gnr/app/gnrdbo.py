@@ -12,7 +12,7 @@ from collections import defaultdict
 from gnr.core.gnrlang import boolean
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import splitAndStrip,templateReplace,fromJson,slugify
-from gnr.core.gnrdecorator import public_method,extract_kwargs
+from gnr.core.gnrdecorator import public_method,extract_kwargs,capability
 from gnr.core.gnrdict import dictExtract
 
 from gnr.app import logger
@@ -142,20 +142,22 @@ class GnrDboPackage(object):
         :param pkg: the :ref:`package <packages>` object"""
         return self.dbtable('userobject').listUserObject(pkg=pkg or self.name, **kwargs)
         
+    @capability('preference')
     def getPreference(self, path, dflt=None, mandatoryMsg=None):
         """Get a preference for the current package. Return the value of the specified
         preference, or *dflt* if it is missing
-        
+
         :param path: a dotted name of the preference item
         :param dflt: the default value"""
-        return self.db.table('adm.preference').getPreference(path, pkg=self.name, dflt=dflt, mandatoryMsg=mandatoryMsg)
-        
+        ...
+
+    @capability('preference')
     def setPreference(self, path, value):
         """Set a preference for the current package.
-        
+
         :param path: a dotted name of the preference item
         :param value: the new value"""
-        self.db.table('adm.preference').setPreference(path, value, pkg=self.name)
+        ...
          
     @public_method
     def loadStartupData(self,basepath=None,empty_before=None):
@@ -221,8 +223,9 @@ class GnrDboPackage(object):
                             )
                 tblobj.insertMany(recordsToInsert)
 
-        if s['preferences']:
-            self.db.table('adm.preference').initPkgPref(self.name,s['preferences'])
+        if s['preferences'] and self.application.hasCapability('preference'):
+            provider = self.application.capabilities['preference']
+            provider.initPkgPref(self, self.name, s['preferences'])
             
         db.commit()
         
@@ -318,7 +321,11 @@ class GnrDboPackage(object):
                     queryPars.update(qp_handler())
                 f = tblobj.dbtable.query(**queryPars).fetch()
             s[tname] = f
-        s['preferences'] = self.db.table('adm.preference').loadPreference()['data'][self.name]
+        if self.application.hasCapability('preference'):
+            provider = self.application.capabilities['preference']
+            s['preferences'] = provider.loadPreference(self)['data'][self.name]
+        else:
+            s['preferences'] = Bag()
         s.makePicklable()
         s.pickle('%s.pik' %bagpath)
         import gzip

@@ -676,7 +676,7 @@ class GnrWsgiSite(object):
     @property
     def connectionLogEnabled(self):
         if not hasattr(self,'_connectionLogEnabled'):
-            if not self.db.package('adm'):
+            if not self.gnrapp.hasCapability('preference'):
                 self._connectionLogEnabled = False
             else:
                 self._connectionLogEnabled = self.getPreference('dev.connection_log_enabled',pkg='adm')
@@ -1587,9 +1587,9 @@ class GnrWsgiSite(object):
         :param path: TODO
         :param data: TODO
         :param pkg: the :ref:`package <packages>` object"""
-        if self.db.package('adm'):
+        if self.gnrapp.hasCapability('preference'):
             pkg = pkg or self.currentPage.packageId
-            self.db.table('adm.preference').setPreference(path, data, pkg=pkg)
+            self.gnrapp.setPreference(path, data, pkg=pkg)
 
     def getPreference(self, path, pkg=None, dflt=None, mandatoryMsg=None):
         """TODO
@@ -1597,9 +1597,9 @@ class GnrWsgiSite(object):
         :param path: TODO
         :param pkg: the :ref:`package <packages>` object
         :param dflt: TODO"""
-        if self.db.package('adm'):
+        if self.gnrapp.hasCapability('preference'):
             pkg = pkg or self.currentPage.packageId
-            return self.db.table('adm.preference').getPreference(path, pkg=pkg, dflt=dflt, mandatoryMsg=mandatoryMsg)
+            return self.gnrapp.getPreference(path, pkg=pkg, dflt=dflt, mandatoryMsg=mandatoryMsg)
 
     def getUserPreference(self, path, pkg=None, dflt=None, username=None):
         """TODO
@@ -1608,10 +1608,11 @@ class GnrWsgiSite(object):
         :param pkg: the :ref:`package <packages>` object
         :param dflt: TODO
         :param username: TODO"""
-        if self.db.package('adm'):
+        if self.gnrapp.hasCapability('user_preference'):
             username = username or self.currentPage.user if self.currentPage else None
             pkg = pkg or self.currentPage.packageId if self.currentPage else None
-            return self.db.table('adm.user').getPreference(path=path, pkg=pkg, dflt=dflt, username=username)
+            provider = self.gnrapp.capabilities['user_preference']
+            return provider.getUserPreference(self, path=path, pkg=pkg, dflt=dflt, username=username)
 
     def setUserPreference(self, path, data, pkg=None, username=None):
         """TODO
@@ -1620,10 +1621,11 @@ class GnrWsgiSite(object):
         :param data: TODO
         :param pkg: the :ref:`package <packages>` object
         :param username: TODO"""
-        if self.db.package('adm'):
+        if self.gnrapp.hasCapability('user_preference'):
             pkg = pkg or self.currentPage.packageId
             username = username or self.currentPage.user if self.currentPage else None
-            self.db.table('adm.user').setPreference(path, data, pkg=pkg, username=username)
+            provider = self.gnrapp.capabilities['user_preference']
+            provider.setUserPreference(self, path, data, pkg=pkg, username=username)
 
     @property
     def ukeInstanceId(self):
