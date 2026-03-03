@@ -34,10 +34,11 @@ from datetime import datetime
 
 from gnr.core import gnrstring
 from gnr.core.gnrbag import Bag
+from gnr.sql._typing import SqlTableBaseMixin
 from gnr.sql.gnrsqldata import SqlRecord
 
 
-class RecordMixin:
+class RecordMixin(SqlTableBaseMixin):
     """Record construction, retrieval, caching and captions."""
 
     # ------------------------------------------------------------------

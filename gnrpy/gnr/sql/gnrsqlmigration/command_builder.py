@@ -80,10 +80,11 @@ import re
 
 from gnr.sql.gnrsql_exceptions import GnrSqlException
 
+from gnr.sql._typing import SqlMigratorBaseMixin
 from .structures import hashed_name
 
 
-class CommandBuilderMixin:
+class CommandBuilderMixin(SqlMigratorBaseMixin):
     """Mixin providing handlers for generating SQL migration commands.
 
     This mixin is composed into the :class:`SqlMigrator` class and

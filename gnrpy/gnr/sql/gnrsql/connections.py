@@ -31,10 +31,11 @@ from __future__ import annotations
 import _thread
 from typing import Any
 
+from gnr.sql._typing import GnrSqlDbBaseMixin
 from gnr.sql.gnrsql.helpers import GnrSqlException
 
 
-class ConnectionMixin:
+class ConnectionMixin(GnrSqlDbBaseMixin):
     """Database connection lifecycle and store-based routing."""
 
     def closeConnection(self) -> None:

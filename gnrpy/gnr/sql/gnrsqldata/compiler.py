@@ -31,7 +31,7 @@ Classes:
         SQL SELECT statement (columns, joins, where, group_by, etc.).
     SqlQueryCompiler: Stateful compiler that walks the relation tree of a
         table, resolves ``$column`` and ``@relation.column`` references,
-        builds JOIN clauses, expands macros (#BETWEEN, #PERIOD, #ENV, ...),
+        builds JOIN clauses, expands macros (#IN_RANGE, #PERIOD, #ENV, ...),
         and produces a fully populated ``SqlCompiledQuery``.
 
 The compiler is used internally by ``SqlQuery`` (selections) and
@@ -41,8 +41,8 @@ directly by application code.
 Module-level constants:
     COLFINDER, RELFINDER, COLRELFINDER: Regular expressions for detecting
         ``$column`` and ``@relation.column`` references in SQL fragments.
-    BETWEENFINDER, PERIODFINDER: Regular expressions for the ``#BETWEEN``
-        and ``#PERIOD`` macro syntax.
+    IN_RANGEFINDER: Regular expression for the ``#IN_RANGE`` macro syntax.
+    PERIODFINDER: Regular expression for the ``#PERIOD`` macro syntax.
     BAGEXPFINDER, BAGCOLSEXPFINDER: Regular expressions for the ``#BAG``
         and ``#BAGCOLS`` macro syntax.
     ENVFINDER, PREFFINDER, THISFINDER: Regular expressions for the
@@ -63,7 +63,7 @@ COLFINDER = re.compile(r"(\W|^)\$(\w+)")
 RELFINDER = re.compile(r"([^A-Za-z0-9_]|^)(\@(\w[\w.@:]+))")
 COLRELFINDER = re.compile(r"([@$]\w+(?:\.\w+)*)")
 
-BETWEENFINDER = re.compile(r"#BETWEEN\s*\(\s*((?:\$|@|\:)?[\w\.\@]+)\s*,\s*((?:\$|@|\:)?[\w\.\@]+)\s*,\s*((?:\$|@|\:)?[\w\.\@]+)\s*\)\s*",re.MULTILINE)
+IN_RANGEFINDER = re.compile(r"#IN_RANGE\s*\(\s*((?:\$|@|\:)?[\w\.\@]+)\s*,\s*((?:\$|@|\:)?[\w\.\@]+)\s*,\s*((?:\$|@|\:)?[\w\.\@]+)\s*\)\s*",re.MULTILINE)
 PERIODFINDER = re.compile(r"#PERIOD\s*\(\s*((?:\$|@)?[\w\.\@]+)\s*,\s*:?(\w+)\)")
 
 BAGEXPFINDER = re.compile(r"#BAG\s*\(\s*((?:\$|@)?[\w\.\@]+)\s*\)(\s*AS\s*(\w*))?")
@@ -175,7 +175,7 @@ class SqlQueryCompiler(object):
     ``SqlQueryCompiler`` is used internally by ``SqlQuery`` (for selections)
     and ``SqlRecord`` (for single-record fetches).  It walks the relation
     tree of a table, resolves ``$column`` / ``@relation.column`` references,
-    builds LEFT JOIN clauses, expands macros (``#BETWEEN``, ``#PERIOD``,
+    builds LEFT JOIN clauses, expands macros (``#IN_RANGE``, ``#PERIOD``,
     ``#ENV``, ``#PREF``, ``#THIS``, ``#BAG``, ``#BAGCOLS``), and fills a
     ``SqlCompiledQuery`` instance with all the SQL fragments.
 
@@ -419,7 +419,7 @@ class SqlQueryCompiler(object):
                 subreldict = {}
                 sql_formula = self.macro_expander.replace(sql_formula,'TSRANK,TSHEADLINE,VECRANK')
                 sql_formula = self.updateFieldDict(sql_formula, reldict=subreldict)
-                sql_formula = BETWEENFINDER.sub(self.expandBetween, sql_formula)
+                sql_formula = IN_RANGEFINDER.sub(self.expandInRange, sql_formula)
                 sql_formula = ENVFINDER.sub(expandEnv, sql_formula)
                 sql_formula = PREFFINDER.sub(expandPref, sql_formula)
                 sql_formula = THISFINDER.sub(expandThis,sql_formula)
@@ -518,7 +518,7 @@ class SqlQueryCompiler(object):
         - Case-insensitive joins.
         - Virtual joins (``joiner['virtual']``).
         - Custom ``cnd`` / ``join_on`` expressions.
-        - ``between`` range joins (deprecated in favour of ``#BETWEEN``).
+        - ``between`` range joins (deprecated in favour of ``#IN_RANGE``).
 
         Args:
             relNode: The relation resolver node carrying the ``joiner``
@@ -608,11 +608,11 @@ class SqlQueryCompiler(object):
         if joiner.get('cnd'):
             # Branch: explicit condition expression
             cnd = joiner.get('cnd')
-            cnd = BETWEENFINDER.sub(self.expandBetween, cnd)
+            cnd = IN_RANGEFINDER.sub(self.expandInRange, cnd)
             #cnd = self.updateFieldDict(joiner['cnd'], reldict=joindict)
         elif joiner.get('between'):
             # Branch: legacy ``between`` syntax
-            # REVIEW: TODO deprecate -- use #BETWEEN macro instead
+            # REVIEW: TODO deprecate -- use #IN_RANGE macro instead
             value_field,low_field,high_field = joiner.get('between').split(';')
             cnd = f"""
                 ({low_field} IS NULL AND {high_field} IS NOT NULL AND {value_field}<{high_field}) OR
@@ -843,7 +843,7 @@ class SqlQueryCompiler(object):
 
         1. Normalise and expand the *columns* specification (``*`` globs,
            ``#BAG`` / ``#BAGCOLS`` macros).
-        2. Expand macros in the *where* clause (``#BETWEEN``, ``#PERIOD``,
+        2. Expand macros in the *where* clause (``#IN_RANGE``, ``#PERIOD``,
            ``#TSQUERY``).
         3. Assemble additional WHERE predicates (env conditions, partition,
            subtable, logical deletion, draft exclusion).
@@ -956,7 +956,7 @@ class SqlQueryCompiler(object):
             subtable = context_subtables
         subtable = subtable or self.tblobj.attributes.get('default_subtable')
         if where:
-            where = BETWEENFINDER.sub(self.expandBetween, where)
+            where = IN_RANGEFINDER.sub(self.expandInRange, where)
             where = PERIODFINDER.sub(self.expandPeriod, where)
             where = self.macro_expander.replace(where,'TSQUERY,VECQUERY')
 
@@ -1293,8 +1293,8 @@ class SqlQueryCompiler(object):
         self.cpl.evaluateBagColumns.append(((asfld or fld).replace('$',''),True))
         return fld if not asfld else '{} AS {}'.format(fld, asfld)
 
-    def expandBetween(self, m):
-        """Regex callback: expand ``#BETWEEN(value, low, high)`` into SQL.
+    def expandInRange(self, m):
+        """Regex callback: expand ``#IN_RANGE(value, low, high)`` into SQL.
 
         Generates a four-branch OR expression that handles NULLs on either
         bound:
@@ -1311,7 +1311,7 @@ class SqlQueryCompiler(object):
         Returns:
             str: SQL fragment implementing the inclusive range check.
         """
-        # Example: #BETWEEN($dataLavoro,$dataInizioValidita,$dataFineValidita)
+        # Example: #IN_RANGE($dataLavoro,$dataInizioValidita,$dataFineValidita)
         value_field = m.group(1)
         low_field = m.group(2)
         high_field = m.group(3)
@@ -1323,10 +1323,6 @@ class SqlQueryCompiler(object):
                     {value_field} >= {low_field} AND {value_field} <= {high_field}) OR
                 ({low_field} IS NULL AND {high_field} IS NULL))
             """
-        # REVIEW: TODO -- verify whether the upper bound should be inclusive
-        # (<=) or exclusive (<). Currently inclusive, but the legacy between
-        # in _getRelationAlias uses < for the upper bound.
-        # Inconsistent behaviour between the two.
         return result
 
     def expandPeriod(self, m):
@@ -1478,8 +1474,8 @@ class SqlQueryCompiler(object):
 #    - ``#print 'not existing col:%s' % col_name`` is Python 2 syntax.
 #    - If a warning is needed, use logging.warning.
 #
-# 8. expandBetween -- interval inclusivity inconsistency
-#    - expandBetween uses ``<=`` (inclusive) on the upper bound.
+# 8. expandInRange -- interval inclusivity inconsistency
+#    - expandInRange uses ``<=`` (inclusive) on the upper bound.
 #    - The legacy between in _getRelationAlias uses ``<`` (exclusive).
 #    - Inconsistent behaviour: unify.
 #

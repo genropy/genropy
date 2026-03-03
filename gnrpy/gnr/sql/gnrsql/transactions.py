@@ -34,10 +34,11 @@ from typing import Any, Callable
 
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlang import GnrException, getUuid
+from gnr.sql._typing import GnrSqlDbBaseMixin
 from gnr.sql.gnrsql.helpers import GnrMissedCommitException
 
 
-class TransactionMixin:
+class TransactionMixin(GnrSqlDbBaseMixin):
     """Commit, rollback, deferred-callback queues and db maintenance."""
 
     # Queue identifiers are defined as class attributes on GnrSqlDb;

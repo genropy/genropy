@@ -2,6 +2,10 @@
 
 body {
     --primary-color: #1E3055;
+    --mainWindow-background: white;
+    --frameindexroot-background: white;
+    --frameindexcenter-background: white;
+    --frameindexroot-mobile-background: #4b525b;
 }
 
 body.tundra.mimi {
@@ -10,13 +14,13 @@ body.tundra.mimi {
 }
 
 .frameindexroot{
-    background:linear-gradient(to right, #ffffff, #bacbdf);    
+    background: var(--frameindexroot-background);
 }
 .frameindexcenter{
-    background:linear-gradient(to top, #f6f8fa, #ffffff);    
+    background: var(--frameindexcenter-background);
 }
 .mode_mobile .frameindexroot{
-    background:#4b525b;    
+    background: var(--frameindexroot-mobile-background);
 }
 
 
@@ -707,8 +711,7 @@ body.tundra.mimi {
 
 .menutree {
     margin-top: 5px;
-    margin-right:3px; /*font-weight: bold;*/
-    background-position: left;
+    margin-right:3px;
 }
 
 .menutree .dijitTreeContent {
@@ -733,7 +736,6 @@ body.tundra.mimi {
     margin-top: 0px;
     color: #444;
     padding-bottom: 4px;
-    background: linear-gradient(45deg, #1f345d26, transparent);
 }
 .menutree .menu_shape.branchPage{
     font-style: italic;
@@ -780,8 +782,9 @@ body.tundra.mimi {
 .mode_mobile .menutree .closedir{
     background: none;
 }
-.menutree .label_emptydir{
-    opacity: .5;
+.mode_mobile .menutree.menutree_branchiconright .opendir,
+.mode_mobile .menutree.menutree_branchiconright .closedir{
+    background-color: var(--menutree-chevron-color);
 }
 
 ._common_d11.mimi.mode_mobile .menutree .label_opendir{
@@ -789,6 +792,10 @@ body.tundra.mimi {
 }
 ._common_d11.mimi.mode_mobile .menutree .label_closedir{
     background: url(/_gnr/11/css/icons/base10/tinyCloseBranch_white.png) no-repeat 4px center;
+}
+._common_d11.mimi.mode_mobile .menutree.menutree_branchiconright .label_opendir,
+._common_d11.mimi.mode_mobile .menutree.menutree_branchiconright .label_closedir{
+    background: none;
 }
 
 .menutree .menu_current_page {

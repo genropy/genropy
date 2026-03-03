@@ -31,9 +31,10 @@ of related cascade records.
 from __future__ import annotations
 
 from gnr.core.gnrdecorator import public_method
+from gnr.sql._typing import SqlTableBaseMixin
 
 
-class CopyMixin:
+class CopyMixin(SqlTableBaseMixin):
     """Record copy, paste, duplicate and archive operations."""
 
     # ------------------------------------------------------------------

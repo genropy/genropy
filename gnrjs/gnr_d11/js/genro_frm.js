@@ -2655,6 +2655,50 @@ dojo.declare("gnr.formstores.Base", null, {
         return this._save_rpc(kw, onResult);
     },
 
+    load_rpc:function(kw){
+        const that = this;
+        const form = this.form;
+        kw = kw || {};
+        kw.rpcmethod = kw.rpcmethod || (this.handlers.load.kw && this.handlers.load.kw.rpcmethod);
+        kw.pkey = form.getCurrentPkey();
+        kw.table = this.table;
+
+        const onResult = function(result){
+            that.loaded(form.getCurrentPkey(), result);
+            return result;
+        };
+
+        return this._load_rpc(kw, onResult);
+    },
+
+    save_rpc:function(kw){
+        const that = this;
+        const form = this.form;
+        kw = kw || {};
+        kw.rpcmethod = kw.rpcmethod || (this.handlers.save.kw && this.handlers.save.kw.rpcmethod);
+        kw.pkey = form.getCurrentPkey();
+        kw.table = this.table;
+
+        const onResult = function(result, context){
+            result = result || {};
+            const resultDict = {};
+            resultDict.savedPkey = result.pkey || form.getCurrentPkey();
+            that.form.setCurrentPkey(resultDict.savedPkey);
+            that.saved(resultDict);
+            let deferredReload;
+            if(that.parentStore){
+                deferredReload = that.parentStore.loadData();
+            }
+            that.loaded(resultDict.savedPkey, context.data);
+            if(deferredReload instanceof dojo.Deferred){
+                deferredReload.addCallback(function(){that.setNavigationStatus(resultDict.savedPkey);})
+            }
+            return result;
+        };
+
+        return this._save_rpc(kw, onResult);
+    },
+
     load_document:function(kw){
         const that = this;
         const form = this.form;
