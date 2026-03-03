@@ -236,7 +236,7 @@ class SqlQueryCompiler(object):
         self.aliasPrefix = aliasPrefix or 't'
         self.locale = locale
         self.macro_expander = self.db.adapter.macroExpander(self)
-        for name, regex, callback in self.db._custom_macros:
+        for name, (regex, callback) in self.db._macro_registry.items():
             self.macro_expander.register(name, regex, callback)
 
     def aliasCode(self, n):

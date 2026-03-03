@@ -1,7 +1,7 @@
 """Tests for the db.addMacro() infrastructure (issue #617, Phase 1).
 
 Verifies that:
-- GnrSqlDb.registerMacros() populates _custom_macros with base macros
+- GnrSqlDb.registerMacros() populates _macro_registry with base macros
 - Postgres adapter adds its own macros via registerMacros()
 - MacroExpander.register() and replace() work correctly
 - The compiler copies registered macros into the expander
@@ -20,51 +20,67 @@ from gnr.sql.adapters._gnrbaseadapter import MacroExpander
 # -- GnrSqlDb macro registration -------------------------------------------
 
 class TestDbRegisterMacros:
-    """GnrSqlDb.registerMacros() must populate _custom_macros."""
+    """GnrSqlDb.registerMacros() must populate _macro_registry."""
 
     def test_sqlite_db_has_base_macros(self):
         """A plain SQLite db must have IN_RANGE and PERIOD registered."""
         db = GnrSqlDb(implementation='sqlite')
-        names = [name for name, regex, cb in db._custom_macros]
-        assert 'IN_RANGE' in names
-        assert 'PERIOD' in names
+        assert 'IN_RANGE' in db._macro_registry
+        assert 'PERIOD' in db._macro_registry
 
     def test_sqlite_db_has_no_adapter_macros(self):
         """SQLite adapter has no macros — only the 2 base ones."""
         db = GnrSqlDb(implementation='sqlite')
-        names = [name for name, regex, cb in db._custom_macros]
-        assert 'TSQUERY' not in names
-        assert 'VECQUERY' not in names
+        assert 'TSQUERY' not in db._macro_registry
+        assert 'VECQUERY' not in db._macro_registry
 
     def test_base_macros_have_regex(self):
         """Each registered macro must have a compiled regex, not None."""
         db = GnrSqlDb(implementation='sqlite')
-        for name, regex, cb in db._custom_macros:
+        for name, (regex, cb) in db._macro_registry.items():
             assert regex is not None, f'Macro {name} has no regex'
             assert hasattr(regex, 'pattern'), f'Macro {name} regex is not compiled'
 
     def test_in_range_regex_matches(self):
         """IN_RANGE regex must match the macro syntax."""
         db = GnrSqlDb(implementation='sqlite')
-        macros = {name: regex for name, regex, cb in db._custom_macros}
-        assert macros['IN_RANGE'].search('#IN_RANGE($value, $low, $high)')
+        regex, cb = db._macro_registry['IN_RANGE']
+        assert regex.search('#IN_RANGE($value, $low, $high)')
 
     def test_period_regex_matches(self):
         """PERIOD regex must match the macro syntax."""
         db = GnrSqlDb(implementation='sqlite')
-        macros = {name: regex for name, regex, cb in db._custom_macros}
-        assert macros['PERIOD'].search('#PERIOD($date_field, period_param)')
+        regex, cb = db._macro_registry['PERIOD']
+        assert regex.search('#PERIOD($date_field, period_param)')
 
-    def test_addMacro_appends(self):
-        """addMacro must append to _custom_macros."""
+    def test_addMacro_adds_to_registry(self):
+        """addMacro must add to _macro_registry."""
         db = GnrSqlDb(implementation='sqlite')
-        n_before = len(db._custom_macros)
+        n_before = len(db._macro_registry)
         dummy_re = re.compile(r'#DUMMY\(\)')
         db.addMacro('DUMMY', dummy_re, None)
-        assert len(db._custom_macros) == n_before + 1
-        last = db._custom_macros[-1]
-        assert last[0] == 'DUMMY'
-        assert last[1] is dummy_re
+        assert len(db._macro_registry) == n_before + 1
+        assert 'DUMMY' in db._macro_registry
+        regex, cb = db._macro_registry['DUMMY']
+        assert regex is dummy_re
+
+    def test_addMacro_duplicate_raises(self):
+        """addMacro must raise on duplicate name without replace=True."""
+        db = GnrSqlDb(implementation='sqlite')
+        dummy_re = re.compile(r'#DUMMY\(\)')
+        db.addMacro('DUMMY', dummy_re, None)
+        with pytest.raises(KeyError):
+            db.addMacro('DUMMY', dummy_re, None)
+
+    def test_addMacro_replace(self):
+        """addMacro with replace=True must overwrite."""
+        db = GnrSqlDb(implementation='sqlite')
+        dummy_re1 = re.compile(r'#DUMMY1\(\)')
+        dummy_re2 = re.compile(r'#DUMMY2\(\)')
+        db.addMacro('DUMMY', dummy_re1, None)
+        db.addMacro('DUMMY', dummy_re2, None, replace=True)
+        regex, cb = db._macro_registry['DUMMY']
+        assert regex is dummy_re2
 
 
 # -- Postgres adapter macro registration -----------------------------------
@@ -81,34 +97,25 @@ class TestPostgresAdapterRegisterMacros:
         return db
 
     def test_postgres_has_adapter_macros(self, pg_db):
-        names = [name for name, regex, cb in pg_db._custom_macros]
         for expected in ('TSQUERY', 'TSRANK', 'TSHEADLINE', 'VECQUERY', 'VECRANK'):
-            assert expected in names, f'{expected} not registered by Postgres adapter'
+            assert expected in pg_db._macro_registry, f'{expected} not registered by Postgres adapter'
 
     def test_postgres_has_base_macros_too(self, pg_db):
-        names = [name for name, regex, cb in pg_db._custom_macros]
-        assert 'IN_RANGE' in names
-        assert 'PERIOD' in names
+        assert 'IN_RANGE' in pg_db._macro_registry
+        assert 'PERIOD' in pg_db._macro_registry
 
     def test_postgres_macros_have_regex(self, pg_db):
-        for name, regex, cb in pg_db._custom_macros:
+        for name, (regex, cb) in pg_db._macro_registry.items():
             assert regex is not None, f'Macro {name} has no regex'
             assert hasattr(regex, 'pattern'), f'Macro {name} regex is not compiled'
 
     def test_postgres_tsquery_regex_matches(self, pg_db):
-        macros = {name: regex for name, regex, cb in pg_db._custom_macros}
-        assert macros['TSQUERY'].search('#TSQUERY($ts_vec, :search_text)')
+        regex, cb = pg_db._macro_registry['TSQUERY']
+        assert regex.search('#TSQUERY($ts_vec, :search_text)')
 
     def test_postgres_vecquery_regex_matches(self, pg_db):
-        macros = {name: regex for name, regex, cb in pg_db._custom_macros}
-        assert macros['VECQUERY'].search('#VECQUERY($embedding, :target)')
-
-    def test_base_macros_come_first(self, pg_db):
-        """Base macros (IN_RANGE, PERIOD) must be registered before adapter ones."""
-        names = [name for name, regex, cb in pg_db._custom_macros]
-        idx_in_range = names.index('IN_RANGE')
-        idx_tsquery = names.index('TSQUERY')
-        assert idx_in_range < idx_tsquery
+        regex, cb = pg_db._macro_registry['VECQUERY']
+        assert regex.search('#VECQUERY($embedding, :target)')
 
 
 # -- MacroExpander unit tests ----------------------------------------------
@@ -195,42 +202,49 @@ class TestPackageMacroRegistration:
 
     def test_package_macro_registered(self, app_db):
         """invc package must register #UPPERCASE via registerMacros."""
-        names = [name for name, regex, cb in app_db._custom_macros]
-        assert 'UPPERCASE' in names
+        assert 'UPPERCASE' in app_db._macro_registry
 
     def test_package_macro_has_regex(self, app_db):
         """Package macro must have a compiled regex."""
-        macros = {name: (regex, cb) for name, regex, cb in app_db._custom_macros}
-        regex, cb = macros['UPPERCASE']
+        regex, cb = app_db._macro_registry['UPPERCASE']
         assert regex is not None
         assert hasattr(regex, 'pattern')
         assert regex.search('#UPPERCASE($name)')
 
     def test_package_macro_has_callback(self, app_db):
         """Package macro must have a callback."""
-        macros = {name: (regex, cb) for name, regex, cb in app_db._custom_macros}
-        regex, cb = macros['UPPERCASE']
+        regex, cb = app_db._macro_registry['UPPERCASE']
         assert cb is not None
 
     def test_package_macro_callback_expands(self, app_db):
         """The #UPPERCASE callback must produce UPPER(...)."""
-        macros = {name: (regex, cb) for name, regex, cb in app_db._custom_macros}
-        regex, cb = macros['UPPERCASE']
+        regex, cb = app_db._macro_registry['UPPERCASE']
         m = regex.search('#UPPERCASE($name)')
         result = cb(m, None)
         assert result == 'UPPER($name)'
 
-    def test_package_macro_after_base_and_adapter(self, app_db):
-        """Package macros must come after base macros."""
-        names = [name for name, regex, cb in app_db._custom_macros]
-        idx_in_range = names.index('IN_RANGE')
-        idx_uppercase = names.index('UPPERCASE')
-        assert idx_in_range < idx_uppercase
+    def test_app_level_macros_registered(self, app_db):
+        """App-level macros (PREF, THIS, BAG, BAGCOLS) must be in registry."""
+        for name in ('PREF', 'THIS', 'BAG', 'BAGCOLS'):
+            assert name in app_db._macro_registry, f'{name} not registered'
+
+    def test_app_level_macros_have_regex(self, app_db):
+        """App-level macros must have a compiled regex."""
+        for name in ('PREF', 'THIS', 'BAG', 'BAGCOLS'):
+            regex, cb = app_db._macro_registry[name]
+            assert regex is not None, f'{name} has no regex'
+            assert hasattr(regex, 'pattern'), f'{name} regex is not compiled'
+
+    def test_app_level_macros_callback_is_none(self, app_db):
+        """App-level macros have None callback (registration only)."""
+        for name in ('PREF', 'THIS', 'BAG', 'BAGCOLS'):
+            regex, cb = app_db._macro_registry[name]
+            assert cb is None, f'{name} should have None callback'
 
     def test_package_macro_in_expander(self, app_db):
         """Package macros must be copied into the MacroExpander."""
         expander = MacroExpander(querycompiler=None)
-        for name, regex, callback in app_db._custom_macros:
+        for name, (regex, callback) in app_db._macro_registry.items():
             expander.register(name, regex, callback)
         result = expander.replace('SELECT #UPPERCASE($name)', 'UPPERCASE')
         assert result == 'SELECT UPPER($name)'

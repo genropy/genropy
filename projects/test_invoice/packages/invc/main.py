@@ -17,8 +17,8 @@ class Package(GnrDboPackage):
     def config_db(self, pkg):
         pass
 
-    def registerMacros(self):
-        self.application.db.addMacro(
+    def registerMacros(self, db):
+        db.addMacro(
             'UPPERCASE',
             re.compile(r'#UPPERCASE\(([^)]+)\)'),
             _expand_uppercase,
