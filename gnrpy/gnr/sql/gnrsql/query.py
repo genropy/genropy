@@ -34,6 +34,7 @@ from typing import Any, Callable, Generator
 from gnr.core.gnrbag import Bag
 from gnr.sql import logger
 from gnr.sql.gnrsql.helpers import GnrSqlException
+from gnr.sql.gnrsql.runtime_model import RuntimeModel
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
 
 
@@ -413,6 +414,15 @@ class QueryMixin:
             table: The table name.
         """
         return None
+
+    def runtimeModel(self) -> Any:
+        """Create a new ``RuntimeModel`` container for this database.
+
+        Returns:
+            A :class:`RuntimeModel` instance ready for column and
+            relation definitions.
+        """
+        return RuntimeModel(self)
 
     def toJson(self, **kwargs: Any) -> list[Any]:
         """Return a JSON-serialisable representation of all packages.
