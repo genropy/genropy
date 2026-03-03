@@ -1,6 +1,8 @@
+from gnr.web.gnrbaseclasses import BaseComponent
+
 info = dict(caption='Altimetria', code='altimetria', priority=1)
 
-class Grouplet(object):
+class Grouplet(BaseComponent):
     def grouplet_main(self, pane, **kwargs):
         fb = pane.formlet(cols=2, border_spacing='3px', table='glbl.comune')
         fb.field('zona_altimetrica')
