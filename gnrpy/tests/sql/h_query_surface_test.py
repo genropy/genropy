@@ -278,11 +278,12 @@ class BaseQuerySurface(BaseGnrSqlTest):
         cols = sel.allColumns
         assert '_movie_id_title' in cols
 
-    # --- BETWEEN in where ---
+    # --- IN_RANGE in where (renamed from BETWEEN, issue #622) ---
 
-    def test_between_in_where(self):
+    def test_in_range_in_where(self):
+        """Test #IN_RANGE macro in where clause."""
         q = self.db.query('video.movie', columns='$id,$title,$year',
-                          where='#BETWEEN($year,:y_low,:y_high)',
+                          where='#IN_RANGE($year,:y_low,:y_high)',
                           sqlparams={'y_low': 2004, 'y_high': 2006})
         sel = q.selection()
         assert len(sel) > 0

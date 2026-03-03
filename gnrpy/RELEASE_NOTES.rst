@@ -317,9 +317,9 @@ Enhancements
   * The `GNR_GLOBAL_DEBUG` flag was removed, and `gnr db migrate` now defaults to **INFO** log level instead of DEBUG.
   * Improved `checkRelationIndex()` to log more descriptive errors when an invalid relation is encountered.
   * Improved handling of deferred relations and indexing for tenant schemas.
-  * **New `#BETWEEN` syntax** added for SQL queries, supporting range
-    filtering (e.g., dates, integers), which include the **upper
-    bound** by default.
+  * **`#BETWEEN` renamed to `#IN_RANGE`** for SQL queries — the old name
+    caused confusion with the SQL ``BETWEEN`` operator (which is inclusive on
+    both ends, while this macro handles NULLs).  ``#BETWEEN`` has been removed.
   * Excluded unique constraints that overlap with primary keys.
   * Added support for PostgreSQL extensions in migrations, including:
     * Commands to create extensions.
@@ -430,7 +430,7 @@ Bug Fixes
 
 * **SQL Query Fixes**
   * Fixed incorrect **column width calculations** in `ThResourceMaker`. :contentReference[oaicite:33]{index=33}
-  * Ensured `#BETWEEN` syntax correctly handles **blank values**. :contentReference[oaicite:34]{index=34}
+  * Ensured `#IN_RANGE` (formerly ``#BETWEEN``) syntax correctly handles **blank values**. :contentReference[oaicite:34]{index=34}
   * SQL **range comparisons** now consistently include the **upper bound**. :contentReference[oaicite:35]{index=35}
 
 
@@ -447,7 +447,7 @@ Upgrade Instructions
 
 * Recommended for every upgrade, to reinstall the framework using the original installation method in order to
   have dependencies working correctly.
-* **Update your SQL queries** to properly utilize **`#BETWEEN`** syntax changes.
+* **Update your SQL queries**: replace **`#BETWEEN`** with **`#IN_RANGE`** — the old macro has been removed.
 - **Review migration logs**, as error handling for relations has changed.
 - **Reconfigure handbook settings**, as redundant preferences were removed.
 
