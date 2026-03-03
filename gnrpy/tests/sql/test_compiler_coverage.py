@@ -2784,32 +2784,32 @@ class TestExplodingFastPath:
             assert r['_rows_unit_price'] is not None
 
 
-class TestExpandBetween:
-    """GAP 11: #BETWEEN macro expands into NULL-safe range check.
+class TestExpandInRange:
+    """GAP 11: #IN_RANGE macro expands into NULL-safe range check.
 
-    #BETWEEN($field, :low, :high) generates a 4-branch OR expression
+    #IN_RANGE($field, :low, :high) generates a 4-branch OR expression
     that handles NULLs on either bound. Used in real applications for
     temporal validity ranges (e.g. valid_from/valid_to).
     """
 
-    def test_between_in_where_pg(self, db_pg):
-        """#BETWEEN filters invoices by total range on PG."""
+    def test_in_range_in_where_pg(self, db_pg):
+        """#IN_RANGE filters invoices by total range on PG."""
         tbl = db_pg.table('invc.invoice')
         rows = tbl.query(
             columns='$id, $total',
-            where='#BETWEEN($total, :low, :high)',
+            where='#IN_RANGE($total, :low, :high)',
             sqlparams={'low': 100, 'high': 5000},
             limit=10
         ).fetch()
         for r in rows:
             assert 100 <= float(r['total']) <= 5000
 
-    def test_between_in_where_sqlite(self, db_sqlite):
-        """#BETWEEN filters invoices by total range on SQLite."""
+    def test_in_range_in_where_sqlite(self, db_sqlite):
+        """#IN_RANGE filters invoices by total range on SQLite."""
         tbl = db_sqlite.table('invc.invoice')
         rows = tbl.query(
             columns='$id, $total',
-            where='#BETWEEN($total, :low, :high)',
+            where='#IN_RANGE($total, :low, :high)',
             sqlparams={'low': 100, 'high': 5000},
             limit=10
         ).fetch()
