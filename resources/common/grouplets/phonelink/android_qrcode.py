@@ -3,9 +3,9 @@ from gnr.web.gnrbaseclasses import BaseComponent
 
 class Grouplet(BaseComponent):
     def __info__(self):
-        notEnabled =  not self.site.get_mobile_app_config('android').get('store_url')
-        return dict(code='android_qrcode', caption='Android', 
-                    priority=2,tags='notEnabled' if notEnabled else None)
+        notEnabled = not self.site.get_mobile_app_config('android').get('store_url')
+        return dict(code='android_qrcode', caption='Android',
+                    priority=2, tags='notEnabled' if notEnabled else None)
 
     def grouplet_main(self, pane, **kwargs):
         plain_url = self.site.get_mobile_app_config('android').get('store_url')
