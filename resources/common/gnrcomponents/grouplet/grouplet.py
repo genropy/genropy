@@ -8,8 +8,8 @@ from gnr.web.gnrwebstruct import struct_method
 
 
 class GroupletHandler(BaseComponent):
-    css_requires = 'gnrcomponents/grouplet'
-    js_requires = 'gnrcomponents/grouplet'
+    css_requires = 'gnrcomponents/grouplet/grouplet'
+    js_requires = 'gnrcomponents/grouplet/grouplet'
 
     @public_method
     def gr_loadGrouplet(self, pane, resource=None, table=None,
@@ -201,13 +201,19 @@ class GroupletHandler(BaseComponent):
     @struct_method
     def gr_groupletPanel(self, pane, table=None, topic=None, value=None,
                          frameCode=None, grouplets_root=None,
+                         useForm=True,
                          grouplet_kwargs=None, **kwargs):
         frameCode = frameCode or 'grplt_panel'
-        formId = f'{frameCode}_grpform'
-        grouplet_kwargs.update(resource='^#ANCHOR.selected_resource',
-                               value=value,
-                               dynamicLocationPath=True, formId=formId,
-                               store_autoSave=1)
+        if useForm:
+            formId = f'{frameCode}_grpform'
+            grouplet_kwargs.update(resource='^#ANCHOR.selected_resource',
+                                   value=value,
+                                   dynamicLocationPath=True, formId=formId,
+                                   store_autoSave=1)
+        else:
+            formId = None
+            grouplet_kwargs.update(resource='^#ANCHOR.selected_resource',
+                                   value=value)
         if table:
             grouplet_kwargs['table'] = table
         if grouplets_root:
@@ -219,25 +225,19 @@ class GroupletHandler(BaseComponent):
             grouplet_kwargs['grouplet_remote_topic'] = topic
             return self._groupletPanel_topic(
                 pane, menu, frameCode=frameCode, formId=formId,
+                useForm=useForm,
                 grouplet_kwargs=grouplet_kwargs, **kwargs)
         return self._groupletPanel_tree(
             pane, menu, frameCode=frameCode, formId=formId,
+            useForm=useForm,
             grouplet_kwargs=grouplet_kwargs, **kwargs)
 
     def _groupletPanel_topic(self, pane, menu, frameCode=None,
-                             formId=None, grouplet_kwargs=None, **kwargs):
+                             formId=None, useForm=True,
+                             grouplet_kwargs=None, **kwargs):
         frame = pane.framePane(frameCode=frameCode, _anchor=True, **kwargs)
         frame.data('.grouplet_menu', menu)
         bar_id = f'{frameCode}_bar'
-        frame.dataController("""
-            var barNode = genro.nodeById(barId);
-            if(barNode){
-                ['ok','changed','error'].forEach(function(s){
-                    genro.dom.setClass(barNode, 'grplt_status_' + s, s == status);
-                });
-            }
-        """, barId=bar_id,
-            **{f'subscribe_form_{formId}_onStatusChange': True})
         bar = frame.top.slotBar('*,mb,*', _class='mobile_bar',
                                 nodeId=bar_id)
         bar.mb.multibutton(value='^.selected_code',
@@ -245,27 +245,30 @@ class GroupletHandler(BaseComponent):
         bar.dataController(
             "gnr_grouplet.panelSelectFromCode(this, code);",
             code='^.selected_code', _onBuilt=1)
-        bar.dataController("genro.formById(innerFormId).reload()",innerFormId=formId,formsubscribe_onLoaded=True)
-
-        frame.center.contentPane(
-            overflow='auto').GroupletForm(**grouplet_kwargs)
+        center = frame.center.contentPane(overflow='auto')
+        if useForm:
+            frame.dataController("""
+                var barNode = genro.nodeById(barId);
+                if(barNode){
+                    ['ok','changed','error'].forEach(function(s){
+                        genro.dom.setClass(barNode, 'grplt_status_' + s, s == status);
+                    });
+                }
+            """, barId=bar_id,
+                **{f'subscribe_form_{formId}_onStatusChange': True})
+            bar.dataController("genro.formById(innerFormId).reload()",
+                               innerFormId=formId,
+                               formsubscribe_onLoaded=True)
+            center.GroupletForm(**grouplet_kwargs)
+        else:
+            center.grouplet(**grouplet_kwargs)
         return frame
 
     def _groupletPanel_tree(self, pane, menu, frameCode=None,
-                            formId=None, grouplet_kwargs=None, **kwargs):
+                            formId=None, useForm=True,
+                            grouplet_kwargs=None, **kwargs):
         bc = pane.borderContainer(_anchor=True, **kwargs)
         bc.data('.grouplet_menu', menu)
-        semaphore_id = f'{frameCode}_semaphore'
-        bc.dataController("""
-            var semNode = genro.nodeById(semId);
-            if(semNode){
-                ['ok','changed','error'].forEach(function(s){
-                    genro.dom.setClass(semNode, 'semaphore_' + s,
-                        selectedResource && s == status);
-                });
-            }
-        """, semId=semaphore_id, selectedResource='=.selected_resource',
-            **{f'subscribe_form_{formId}_onStatusChange': True})
         tree_frame = bc.framePane(region='left', width='220px',
                                   splitter=True,
                                   _class='grouplet_panel_tree',
@@ -295,12 +298,28 @@ class GroupletHandler(BaseComponent):
                                 _class='grouplet_panel_title_bar')
         top.div('^.selected_caption',
                 _class='grouplet_panel_title')
-        top.div(_class='grouplet_panel_semaphore',
-                nodeId=semaphore_id)
-        right.dataController("genro.formById(innerFormId).reload()",innerFormId=formId,formsubscribe_onLoaded=True)
-        right.contentPane(
-            region='center', overflow='auto').GroupletForm(
-                **grouplet_kwargs)
+        center = right.contentPane(region='center', overflow='auto')
+        if useForm:
+            semaphore_id = f'{frameCode}_semaphore'
+            bc.dataController("""
+                var semNode = genro.nodeById(semId);
+                if(semNode){
+                    ['ok','changed','error'].forEach(function(s){
+                        genro.dom.setClass(semNode, 'semaphore_' + s,
+                            selectedResource && s == status);
+                    });
+                }
+            """, semId=semaphore_id,
+                selectedResource='=.selected_resource',
+                **{f'subscribe_form_{formId}_onStatusChange': True})
+            top.div(_class='grouplet_panel_semaphore',
+                    nodeId=semaphore_id)
+            right.dataController("genro.formById(innerFormId).reload()",
+                                 innerFormId=formId,
+                                 formsubscribe_onLoaded=True)
+            center.GroupletForm(**grouplet_kwargs)
+        else:
+            center.grouplet(**grouplet_kwargs)
         return bc
 
     @extract_kwargs(grouplet=dict(slice_prefix=False, pop=True))

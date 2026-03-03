@@ -8,7 +8,7 @@ with all child grouplets, each with a caption header."""
 class GnrCustomWebPage(object):
     py_requires = """gnrcomponents/testhandler:TestHandlerFull,
                      gnrcomponents/formhandler:FormHandler,
-                     gnrcomponents/grouplet:GroupletHandler,
+                     gnrcomponents/grouplet/grouplet:GroupletHandler,
                      th/th:TableHandler"""
 
     def _comune_form(self, pane, frameCode, datapath):

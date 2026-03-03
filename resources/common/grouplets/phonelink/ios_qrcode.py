@@ -1,0 +1,19 @@
+from gnr.web.gnrbaseclasses import BaseComponent
+
+
+class Grouplet(BaseComponent):
+    def __info__(self):
+        notEnabled =  not self.site.get_mobile_app_config('ios').get('store_url')
+        return dict(code='ios_qrcode', caption='Apple', 
+                    priority=2,tags='notEnabled' if notEnabled else None)
+
+    def grouplet_main(self, pane, **kwargs):
+        url = self.site.get_mobile_app_config('ios').get('store_url')
+        pane.dataController(""";
+            SET .qrcode_url = `${homeFolder}_tools/qrcode?text=${url}`;""",
+            url=url, homeFolder='=gnr.homeFolder', _onBuilt=True)
+        flex = pane.flexbox(justify_content='center', align_items='center',
+                           margin_top='50px', flex_direction='column')
+        link = flex.a(href=url, target="_blank")
+        link.img(src='/_rsrc/pkg_adm/app_stores/ios_badge.svg', height='40px')
+        flex.img(src='^.qrcode_url', height='200px', width='200px', border='0')
