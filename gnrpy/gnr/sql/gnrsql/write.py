@@ -30,10 +30,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from gnr.sql._typing import GnrSqlDbBaseMixin
 from gnr.sql.gnrsql.helpers import GnrSqlException, in_triggerstack
 
 
-class WriteMixin:
+class WriteMixin(GnrSqlDbBaseMixin):
     """Insert, update, delete and related change-tracking hooks."""
 
     def notifyDbEvent(self, tblobj: Any, **kwargs: Any) -> None:

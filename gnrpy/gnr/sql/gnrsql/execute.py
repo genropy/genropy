@@ -35,10 +35,11 @@ from typing import Any
 
 from gnr.core.gnrlang import getUuid
 from gnr.sql import logger
+from gnr.sql._typing import GnrSqlDbBaseMixin
 from gnr.sql.gnrsql.helpers import sql_audit
 
 
-class ExecuteMixin:
+class ExecuteMixin(GnrSqlDbBaseMixin):
     """Low-level SQL execution and cursor management."""
 
     @sql_audit

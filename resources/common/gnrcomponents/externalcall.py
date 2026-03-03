@@ -29,18 +29,22 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import TraceBackResolver
 
-def dump_decimal(self,value, write):
+
+def dump_decimal(self, value, write):
     write("<value><double>")
     write(str(value))
     write("</double></value>\n")
 
-def dump_date(self,value, write):
+
+def dump_date(self, value, write):
     write("<value><dateTime.iso8601>")
     write(value.isoformat())
     write("</dateTime.iso8601></value>\n")
 
+
 Marshaller.dispatch[Decimal] = dump_decimal
 Marshaller.dispatch[datetime.date] = dump_date
+
 
 class BaseRpc(BaseComponent):
     convert_result = True

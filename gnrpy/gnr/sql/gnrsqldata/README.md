@@ -28,7 +28,7 @@ Contains two classes:
 
 - **`SqlQueryCompiler`**: the actual compiler.  Receives a `tblobj`
   (table model), resolves relational paths (`@rel.column`), generates
-  JOIN clauses, expands macros (#BETWEEN, #PERIOD, #BAG, #ENV, #PREF,
+  JOIN clauses, expands macros (#IN_RANGE, #PERIOD, #BAG, #ENV, #PREF,
   #THIS), handles virtual columns (sql_formula, py_method, select/exists),
   and produces a `SqlCompiledQuery` instance.
 
@@ -37,7 +37,7 @@ Contains two classes:
   - `compiledRecordQuery()` for single-record loading
 
 Module-level regex constants:
-`COLFINDER`, `RELFINDER`, `COLRELFINDER`, `BETWEENFINDER`,
+`COLFINDER`, `RELFINDER`, `COLRELFINDER`, `IN_RANGEFINDER`,
 `PERIODFINDER`, `BAGEXPFINDER`, `BAGCOLSEXPFINDER`, `ENVFINDER`,
 `PREFFINDER`, `THISFINDER`.
 
@@ -139,7 +139,7 @@ Detailed notes are also appended at the end of each module.
 | 5 | `compiledQuery` — comment "It is the right behaviour ????" on distinct/count + exploding | Design |
 | 6 | `_handle_virtual_columns` — `else` branch with only `pass`, variables unassigned | Potential bug |
 | 7 | `_handle_virtual_columns` — commented-out Python 2 debug print | Dead code |
-| 8 | `expandBetween` vs legacy between — inconsistency `<=` vs `<` | Inconsistency |
+| 8 | `expandInRange` vs legacy between — inconsistency `<=` vs `<` | Inconsistency |
 | 9 | `expandPeriod` — native SQL BETWEEN, consider deprecating in favor of range | Deprecation |
 | 10 | `compiledRecordQuery` — duplicated `virtual_columns = ... or []` line | Copy-paste |
 | 11 | `_getRelationAlias` — `target_sqlcolumn` potentially `None` | Potential bug |

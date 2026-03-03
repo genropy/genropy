@@ -38,8 +38,8 @@ class Form(BaseComponent):
         fb.field('description', colspan=2, width='100%', tag='simpleTextArea',
                  height='60px')
         bc.contentPane(region='center', datapath='.record.extra_data').grouplet(
-            resource='^#FORM.record.ticket_type',
-            table='test.myticket')
+            resource='=#FORM.record.ticket_type',
+            table='test.myticket',showOnFormLoaded=True)
 
     def th_options(self):
         return dict(dialog_windowRatio=.9,

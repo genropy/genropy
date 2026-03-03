@@ -58,7 +58,10 @@ by comparing the converted column with the backup:
 """
 
 
-class ExecutorMixin:
+from gnr.sql._typing import SqlMigratorBaseMixin
+
+
+class ExecutorMixin(SqlMigratorBaseMixin):
     """Mixin providing assembly and execution of SQL commands.
 
     This mixin is composed into the :class:`SqlMigrator` class and
