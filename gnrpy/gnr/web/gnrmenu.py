@@ -320,6 +320,7 @@ class MenuResolver(BagResolver):
                     menuLineBadge_attr = dictExtract(attributes,'menuLineBadge_',pop=False)
                     menuLineBadge_attr['table'] = menuLineBadge_attr.get('table') or attributes.get('table')
                     menuLineBadge_attr['handler'] = menuLineBadge
+                    
                 else:
                     menuLineBadge_attr = dictExtract(attributes,'titleCounter_',pop=False)
                     if isinstance(titleCounter_val, dict):
@@ -328,6 +329,7 @@ class MenuResolver(BagResolver):
                 if menuLineBadge_attr.get('table'):
                     self._page.subscribeTable(menuLineBadge_attr.get('table'), True, subscribeMode=True)
                     attributes['badgeContent'] = self._page.menu.getMenuLineBadge(**menuLineBadge_attr)
+            
             result.setItem(node.label, value, attributes)
         return result
 
@@ -546,6 +548,7 @@ class MenuResolver(BagResolver):
         attributes.setdefault('branchIdentifier',getUuid())
         kwargs = dict(attributes)
         kwargs.pop('titleCounter',None)
+        kwargs.pop('menuLineBadge',None)
         kwargs.pop('tag')
         cacheTime = kwargs.pop('cacheTime',None)
         xmlresolved = kwargs.pop('resolved',False)
@@ -583,6 +586,8 @@ class MenuResolver(BagResolver):
                                 branchMethod=attributes.get('branchMethod'), tags=attributes.get('tags'),
                                 aux_instance=attributes.get('aux_instance') or self.aux_instance,
                                 externalSite= attributes.get('externalSite') or self.externalSite,
+                                table = attributes.get('table'),
+                                menuLineBadge = attributes.get('menuLineBadge'),
                                 _page=self._page,**dictExtract(attributes,'branch_',slice_prefix=False)),attributes
 
 
@@ -752,11 +757,12 @@ class LookupBranchResolver(MenuResolver):
 
 class PackageMenuResolver(MenuResolver):
     def __init__(self, pkg=None,branchMethod=None, **kwargs):
-       super().__init__(pkg=pkg,
+        super().__init__(pkg=pkg,
                             branchMethod=branchMethod,
                             **kwargs)
-       self.pkg = pkg
-       self.branchMethod = branchMethod
+
+        self.pkg = pkg
+        self.branchMethod = branchMethod
 
     @property
     def sourceBag(self):
@@ -766,9 +772,9 @@ class PackageMenuResolver(MenuResolver):
 
 class DirectoryMenuResolver(MenuResolver):
     def __init__(self, dirpath=None, **kwargs):
-       super().__init__(dirpath=dirpath,**kwargs)
-       self.dirpath = dirpath
-       self.xmlresolved = False
+        super().__init__(dirpath=dirpath,**kwargs)
+        self.dirpath = dirpath
+        self.xmlresolved = False
 
     @property
     def sourceBag(self):
