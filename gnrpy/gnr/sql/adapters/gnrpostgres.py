@@ -43,7 +43,7 @@ from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT, ISOLATION_LEVEL_READ
 
 from gnr.sql.adapters._gnrbasepostgresadapter import PostgresSqlDbBaseAdapter
 from gnr.sql.adapters._gnrbaseadapter import GnrDictRow
-from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
+from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException, GnrSqlConnectionException
 
 
 RE_SQL_PARAMS = re.compile(r"(?<!:):(?!:)(\S\w*)(\W|$)")
@@ -136,8 +136,10 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
             conn = psycopg2.connect(**kwargs)
             if autoCommit:
                 conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        except psycopg2.OperationalError:
-            raise GnrNonExistingDbException(self.dbroot.dbname)
+        except psycopg2.OperationalError as e:
+            if 'does not exist' in str(e).lower():
+                raise GnrNonExistingDbException(self.dbroot.dbname)
+            raise GnrSqlConnectionException(self.dbroot.dbname, original_error=e)
         finally:
             self._lock.release()
         return conn
