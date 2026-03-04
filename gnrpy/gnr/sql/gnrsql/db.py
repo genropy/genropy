@@ -187,7 +187,7 @@ class GnrSqlDb(
         self.addMacro('PERIOD', PERIODFINDER, None)
         self.adapter.registerMacros(self)
 
-    def addMacro(self, name, regex, callback, replace=False):
+    def addMacro(self, name, regex, callback, contexts=None, replace=False):
         """Register a SQL macro available in all query compilations.
 
         After registration, every new :class:`SqlQueryCompiler` will
@@ -197,12 +197,16 @@ class GnrSqlDb(
             name: Macro name without ``#`` (e.g. ``'IN_RANGE'``).
             regex: Compiled regex that matches the macro syntax in SQL text.
             callback: ``callback(match, expander) → str`` expansion function.
+            contexts: Comma-separated string of contexts where this macro
+                is valid (e.g. ``'where,columns'``). ``None`` means all
+                contexts.
             replace: If ``True``, overwrite an existing macro with the
                 same *name*.  If ``False`` (default), raise on duplicate.
         """
         if name in self._macro_registry and not replace:
             raise KeyError(f"SQL macro '{name}' is already registered")
-        self._macro_registry[name] = (regex, callback)
+        self._macro_registry[name] = dict(regex=regex, callback=callback,
+                                          contexts=contexts)
 
     # -- Configuration and startup ------------------------------------------
 

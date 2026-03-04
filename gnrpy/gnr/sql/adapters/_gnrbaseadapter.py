@@ -48,28 +48,45 @@ class MacroExpander(object):
         self._registered_macros = {}
         self.context = {}
 
-    def register(self, name, regex, callback):
+    def register(self, name, regex, callback, contexts=None):
         """Register a macro on this expander instance.
 
         Args:
             name: Macro name without ``#`` (e.g. ``'IN_RANGE'``).
             regex: Compiled regex matching the macro syntax.
             callback: ``callback(match, expander) → str`` replacement.
+            contexts: Comma-separated string of valid contexts
+                (e.g. ``'where,columns'``). ``None`` means all contexts.
         """
-        self._registered_macros[name] = (regex, callback)
+        self._registered_macros[name] = (regex, callback, contexts)
 
     def replace(self, sql_text, macro):
-        """Expand macros in the given SQL text.
+        """Expand named macros in the given SQL text.
 
         Registered macros (via :meth:`register`) take precedence over
         class-level macros inherited from the adapter.
         """
         for m in macro.split(','):
             if m in self._registered_macros:
-                regex, callback = self._registered_macros[m]
+                regex, callback, _contexts = self._registered_macros[m]
                 sql_text = regex.sub(lambda match: callback(match, self), sql_text)
             elif m in self.macros:
                 sql_text = self.macros[m].sub(getattr(self, f'_expand_{m}'), sql_text)
+        return sql_text
+
+    def replace_context(self, sql_text, context):
+        """Expand all macros valid for the given context.
+
+        Iterates registered macros whose ``contexts`` include *context*
+        (or whose contexts is ``None``, meaning all contexts) and applies
+        each one sequentially.
+        """
+        for name, (regex, callback, contexts) in self._registered_macros.items():
+            if callback is None:
+                continue
+            if contexts is not None and context not in contexts.split(','):
+                continue
+            sql_text = regex.sub(lambda match, cb=callback: cb(match, self), sql_text)
         return sql_text
     
 class SqlDbAdapter(object):

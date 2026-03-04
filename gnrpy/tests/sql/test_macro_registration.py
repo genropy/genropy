@@ -37,7 +37,7 @@ class TestDbRegisterMacros:
     def test_base_macros_have_regex(self):
         """Each registered macro must have a compiled regex, not None."""
         db = GnrSqlDb(implementation='sqlite')
-        for name, (regex, cb) in db._macro_registry.items():
+        for name, (regex, cb, contexts) in db._macro_registry.items():
             assert regex is not None, f'Macro {name} has no regex'
             assert hasattr(regex, 'pattern'), f'Macro {name} regex is not compiled'
 
