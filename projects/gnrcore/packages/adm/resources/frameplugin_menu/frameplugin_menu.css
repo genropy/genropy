@@ -1,20 +1,50 @@
+/* Menutree layout */
+.menutree{
+    padding-left: 4px;
+}
+
+.menutree .dijitTreeContent{
+    display: flex;
+    align-items: center;
+}
+
+/* CSS triangles replacing pixelated PNG arrows */
+.menutree .dijitTreeIcon{
+    flex-shrink: 0;
+    width: 10px;
+}
+
+.menutree .closedir,
 .menutree .opendir{
-    width: 12px;
-    background: url(/_gnr/11/css/icons/base10/tinyOpenBranch.png) no-repeat center center;
-
-}
-.menutree .closedir{
-    width: 12px;
-    background: url(/_gnr/11/css/icons/base10/tinyCloseBranch.png) no-repeat center center;
-
+    background: none;
+    text-align: center;
+    padding-top: 2px;
 }
 
-.tundra .menutree .dijitTreeIcon{
-    height: 20px;
+.menutree .closedir::after,
+.menutree .opendir::after{
+    content: '';
+    display: inline-block;
+}
+
+.menutree .closedir::after{
+    border-style: solid;
+    border-width: 4px 0 4px 5px;
+    border-color: transparent transparent transparent #666;
+}
+
+.menutree .opendir::after{
+    border-style: solid;
+    border-width: 5px 4px 0 4px;
+    border-color: #666 transparent transparent transparent;
+}
+
+.menutree .dijitTreeContent:has(.label_emptydir) .dijitTreeIcon{
+    opacity: .3;
 }
 
 .menutree .treeNoIcon{
-    width: 12px;
+    /* same width as arrows inherited from .dijitTreeIcon */
 }
 .mode_mobile .menutree .treeNoIcon{
     display: none;
@@ -39,4 +69,159 @@
 }
 .menutree .menu_page.menu_shape {
 
+}
+
+.menuline_badge{
+    background: #e7fa32;
+    color: #444;
+    font-size: 70%;
+    font-weight: bold;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 1.5em;
+    min-width: 1.5em;
+    padding: 0 0.35em;
+    border-radius: 0.75em;
+    line-height: 1;
+    box-sizing: border-box;
+    border: 1px solid #d4c820;
+    vertical-align: middle;
+    margin-left: 4px;
+}
+
+.menuline_icon{
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-right: 4px;
+    vertical-align: middle;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center center;
+    flex-shrink: 0;
+}
+
+/* ==========================================================================
+   Branch-icon-right layout mode
+   Activated by adding 'menutree_branchiconright' class alongside 'menutree'
+   ========================================================================== */
+
+.menutree.menutree_branchiconright{
+    --menutree-node-background: rgba(0, 0, 0, 0.03);
+    --menutree-node-hover-background: rgba(0, 0, 0, 0.07);
+    --menutree-chevron-color: #bbb;
+}
+
+.mode_mobile .menutree.menutree_branchiconright{
+    --menutree-node-background: none;
+    --menutree-node-hover-background: none;
+    --menutree-chevron-color: rgba(255, 255, 255, 0.5);
+}
+
+/* Kill tundra tree-line background images on nodes */
+.menutree.menutree_branchiconright .dijitTreeNode,
+.menutree.menutree_branchiconright .dijitTreeIsLast{
+    background-image: none !important;
+    background: none !important;
+}
+
+/* Content: tinted background, smooth hover */
+._common_d11 .menutree.menutree_branchiconright .dijitTreeContent{
+    border-radius: 4px;
+    margin: 3px 4px;
+    padding: 4px 8px;
+    background: var(--menutree-node-background);
+    transition: background 0.15s ease;
+}
+
+/* Content hover */
+._common_d11 .menutree.menutree_branchiconright .dijitTreeContent:hover{
+    background: var(--menutree-node-hover-background);
+}
+
+
+/* Chevron rotation transition */
+.menutree.menutree_branchiconright .closedir,
+.menutree.menutree_branchiconright .opendir{
+    transition: transform 0.2s ease;
+}
+
+/* Hide the default Dijit expando (+/- button) */
+.menutree.menutree_branchiconright .dijitTreeExpando,
+.menutree.menutree_branchiconright .dijitExpandoText{
+    display: none;
+}
+
+/* Content takes all available space */
+.menutree.menutree_branchiconright .dijitTreeContent{
+    flex: 1;
+}
+
+/* Branch icon moves to the right, padding keeps it from panel edge */
+.menutree.menutree_branchiconright .dijitTreeIcon{
+    order: 2;
+    margin-left: auto;
+    margin-right: 8px;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+.mode_mobile .menutree.menutree_branchiconright .dijitTreeIcon{
+    width: 22px;
+    height: 22px;
+}
+
+/* Label stays on the left, fills space, aligns icon and text */
+.menutree.menutree_branchiconright .dijitTreeLabel{
+    order: 1;
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Leaf nodes: hide empty icon spacer */
+.menutree.menutree_branchiconright .treeNoIcon{
+    display: none;
+}
+
+/* Hide CSS triangle pseudo-elements in this mode */
+.menutree.menutree_branchiconright .closedir::after,
+.menutree.menutree_branchiconright .opendir::after{
+    display: none;
+}
+
+/* Shared chevron SVG mask */
+.menutree.menutree_branchiconright .closedir,
+.menutree.menutree_branchiconright .opendir{
+    background: none;
+    -webkit-mask-image: url(/_rsrc/common/css_icons/svg/16/mobile_right_in_small.svg);
+    mask-image: url(/_rsrc/common/css_icons/svg/16/mobile_right_in_small.svg);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    background-color: var(--menutree-chevron-color);
+}
+
+/* Closed dir: chevron pointing right */
+.menutree.menutree_branchiconright .closedir{
+    transform: rotate(0deg);
+}
+
+/* Open dir: chevron rotated down */
+.menutree.menutree_branchiconright .opendir{
+    transform: rotate(90deg);
+}
+
+/* Empty dir: disabled cursor, no hover effect */
+._common_d11 .menutree.menutree_branchiconright .dijitTreeContent:has(.label_emptydir),
+._common_d11 .menutree.menutree_branchiconright .dijitTreeContent:has(.label_emptydir) *{
+    cursor: not-allowed;
+}
+
+._common_d11 .menutree.menutree_branchiconright .dijitTreeContent:has(.label_emptydir):hover{
+    background: var(--menutree-node-background);
 }

@@ -4,8 +4,6 @@
 
 from gnr.lib.services.storage import BaseLocalService
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrdecorator import public_method
-from gnr.core.gnrbag import Bag
 
 class Service(BaseLocalService):
     pass

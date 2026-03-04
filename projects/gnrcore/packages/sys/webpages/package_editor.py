@@ -7,10 +7,12 @@
 #
 
 import os
+
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrApp
-from gnr.app.gnrdeploy import ProjectMaker, InstanceMaker, SiteMaker,PackageMaker, PathResolver,ThPackageResourceMaker
+from gnr.app.gnrdeploy import ProjectMaker, InstanceMaker
+from gnr.app.gnrdeploy import PackageMaker, PathResolver, ThPackageResourceMaker
 
 class GnrCustomWebPage(object):
     py_requires="""public:Public,
@@ -174,7 +176,7 @@ class GnrCustomWebPage(object):
 
     @public_method
     def actionOnInstance(self,instance=None,action=None,package=None,selectedTables=None,**kwargs):
-        app = GnrApp(instance) #it does not work in uwsgi fix it
+        app = GnrApp(instance) 
         if action=='make_menu':
             ThPackageResourceMaker(app,package=package,tables=selectedTables).makeMenu()
         if action.startswith('make_resources'):

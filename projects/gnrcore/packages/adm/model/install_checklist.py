@@ -9,6 +9,8 @@ class Table(object):
                     name_long='!!Install checklist', 
                     name_plural='!!Install checklist',caption_field='description')
         self.sysFields(tbl,id=False,ins=False,upd=False)
+        tbl.column('__syscode',size=':20',unique=True,indexed=True,
+                _sysfield=True,name_long='!![en]Internal code')
         tbl.column('name', name_long = '!!Name')
         tbl.column('description', name_long = '!!Description')
         tbl.column('pkg',size = ':20', name_long = '!!Package')

@@ -1,1 +1,1 @@
-import gnr.web.gnrwebutils
+import gnr.web.gnrwebutils  # noqa: F401

@@ -5,16 +5,20 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 # Frameindex component
 
-
-from gnr.web.gnrwebpage import BaseComponent
-from gnr.core.gnrdecorator import public_method
-from gnr.web.gnrwebstruct import struct_method
 from datetime import date
-from gnr.core.gnrbag import Bag
-from gnr.app.gnrapp import GnrRestrictedAccessException
+
 from gnr.core.gnrdecorator import customizable
+from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrbag import Bag
+from gnr.app import pkglog as logger
+from gnr.app.gnrapp import GnrRestrictedAccessException
+from gnr.web.gnrwebpage import BaseComponent
+from gnr.web.gnrwebstruct import struct_method
+
+
         
 class LoginComponent(BaseComponent):
+    py_requires = 'public:PublicBase'
     css_requires = 'login'
     js_requires = 'login'
     login_error_msg = '!!Invalid login'
@@ -45,8 +49,8 @@ class LoginComponent(BaseComponent):
         login_title = self.loginPreference('login_title')
         new_window_title = self.loginPreference('new_window_title')
 
-       #login_title = login_title or '!!Login'
-       #new_window_title = new_window_title or '!!New Window'
+        #login_title = login_title or '!!Login'
+        #new_window_title = new_window_title or '!!New Window'
         wtitle =  login_title if doLogin else new_window_title
         self.login_commonHeader(box,title=wtitle,subtitle=self.loginPreference('login_subtitle'))
         self.loginDialog_center(box,doLogin=doLogin,gnrtoken=gnrtoken,dlg=dlg,closable_login=closable_login)
@@ -237,12 +241,15 @@ class LoginComponent(BaseComponent):
 
     @public_method
     def login_checkAvatar(self,password=None,user=None,group_code=None,serverTimeDelta=None,**kwargs):
+        logger.info("Checking login for user: %s", user)
         result = Bag()
         try:
             avatar = self.application.getAvatar(user, password=password,group_code=group_code,authenticate=True)
             if not avatar:
+                logger.error("Login failed for %s", user)
                 return result
         except GnrRestrictedAccessException as e:
+            logger.exception(e)
             return Bag(login_error_msg=e.description)
         status = getattr(avatar,'status',None)
         if not status:
@@ -253,12 +260,16 @@ class LoginComponent(BaseComponent):
         try:
             self.login_completeRootEnv(result,avatar=avatar,serverTimeDelta=serverTimeDelta)
         except GnrRestrictedAccessException as e:
+            logger.exception(e)
             return Bag(login_error_msg=e.description)
         if self.login_require2fa(avatar):
             result['waiting2fa'] = avatar.user_id
             with self.pageStore() as ps:
                 ps.setItem('waiting2fa',avatar.user_id)
                 ps.setItem('last_2fa_otp',avatar.last_2fa_otp)
+        # we should send to logger other informations, like IP address
+        # and browser/device id
+        logger.info("User %s logged in", user)
         return result
     
     def login_require2fa(self,avatar):
@@ -306,9 +317,13 @@ class LoginComponent(BaseComponent):
                     FIRE recover_password_ok;
                 }else{
                     FIRE recover_password_err;
-                }""")
+                }""",
+                _onError="""
+                    console.error('Password recovery error:', error);
+                    FIRE recover_password_err;
+                """)
         fb.dataController("""genro.dlg.floatingMessage(sn,{message:msg,messageType:'error',yRatio:.95})""",
-                            msg='!!Missing user for this email',_fired='^recover_password_err',sn=dlg)
+                            msg='!!Missing user for this email or user not confirmed',_fired='^recover_password_err',sn=dlg)
         fb.dataController("""genro.dlg.floatingMessage(sn,{message:msg,yRatio:.95})""",
                             msg='!!Check your email for instruction',_fired='^recover_password_ok',sn=dlg)
         footer = self.login_commonFooter(box)
@@ -564,14 +579,18 @@ class LoginComponent(BaseComponent):
             recordBag['link'] = self.externalUrlToken(self.site.homepage, userid=recordBag['id'],max_usages=1)
             recordBag['greetings'] = recordBag['firstname'] or recordBag['lastname']
             body = self.loginPreference('confirm_password_tpl') or 'Dear $greetings set your password $link'
-            if tpl_new_password_id:
-                mailservice.sendUserTemplateMail(record_id=recordBag,template_id=tpl_new_password_id,
-                                                 async_=False,html=True,scheduler=False)
-            else:
-                mailservice.sendmail_template(recordBag,to_address=email,
-                                        body=body, subject=self.loginPreference('confirm_password_subject') or 'Password recovery',
-                                        async_=False,html=True,scheduler=False)
-            self.db.commit()
+            try:
+                if tpl_new_password_id:
+                    mailservice.sendUserTemplateMail(record_id=recordBag,template_id=tpl_new_password_id,
+                                                     async_=False,html=True,scheduler=False)
+                else:
+                    mailservice.sendmail_template(recordBag,to_address=email,
+                                            body=body, subject=self.loginPreference('confirm_password_subject') or 'Password recovery',
+                                            async_=False,html=True,scheduler=False)
+                self.db.commit()
+            except Exception as e:
+                logger.error("Failed to send password recovery email to %s: %s", email, str(e))
+                return 'err'
 
         return 'ok'
             #self.sendMailTemplate('confirm_new_pwd.xml', recordBag['email'], recordBag)

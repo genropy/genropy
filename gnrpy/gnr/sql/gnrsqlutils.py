@@ -8,8 +8,9 @@
 
 from gnr.core import gnrlist
 from gnr.core.gnrbag import Bag
+from gnr.sql import logger
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException,GnrSqlException
-from psycopg2.errors import UndefinedTable
+
 class ModelExtractor(object):
     """TODO"""
     def __init__(self, dbroot):
@@ -104,7 +105,7 @@ class ModelExtractor(object):
             
             fld = root['packages.%s.tables.%s.columns.%s' % (many_schema, many_table, many_field)]
             if not fld:
-                print('missing field %s in table %s.%s' %(many_field,many_schema,many_table))
+                logger.warning('missing field %s in table %s.%s' , many_field, many_schema, many_table)
             else:
                 fld.relation('%s.%s.%s' % (one_schema, one_table, one_field))
 
@@ -138,7 +139,7 @@ class SqlModelChecker(object):
             f = tblobj.query(ignorePartition=True,subtable='*',
                             where=f'$tenant_schema IS NOT NULL',columns='$tenant_schema').fetch()
             self._tenantSchemas = [r['tenant_schema'] for r in f]
-        except UndefinedTable:
+        except Exception:
             self._tenantSchemas = []
         return self._tenantSchemas
         
@@ -172,9 +173,9 @@ class SqlModelChecker(object):
             self.unique_constraints = self.db.adapter.getTableConstraints()
 
         for pkg in self.db.packages.values():
-            if pkg.attributes.get('readOnly'):
+            if pkg.attributes.get('readOnly') or pkg.attributes.get('storename'):
                 continue
-            #print '----------checking %s----------'%pkg.name
+            logger.debug("Checking package %s", pkg.name)
             if not pkg.tables:
                 continue
             if self.tenantSchemas:
@@ -198,7 +199,7 @@ class SqlModelChecker(object):
         f = tblobj.query(ignorePartition=True,subtable='*',where=f'${field} IS NOT NULL',columns=f'${field}').fetch()
         return ','.join([r[field] for r in f])
 
-    def addExtesions(self):
+    def addExtensions(self):
         try:
             extensions = self.db.application.config['db?extensions']
             if extensions:
@@ -206,8 +207,7 @@ class SqlModelChecker(object):
                 if commit:
                     self.db.commit()
         except Exception as e:
-            print('Error in adding extensions',e)
-        
+            logger.exception("Error adding extensions")
 
         
     def _checkPackage(self, pkg):
@@ -217,7 +217,7 @@ class SqlModelChecker(object):
         :param pkg: the :ref:`package <packages>` object"""
         self._checkSqlSchema(pkg)
         for tbl in list(pkg.tables.values()):
-            #print '----------checking table %s----------'%tbl.name
+            logger.debug("Checking table %s", tbl.name)
             self._checkSqlSchema(tbl)
             if tbl.sqlname in self.actual_tables.get(tbl.sqlschema, []):
                 tablechanges = self._checkTable(tbl)
@@ -366,8 +366,19 @@ class SqlModelChecker(object):
             if pkg.attributes.get('readOnly'):
                 continue
             for tbl in pkg.tables.values():
+                if self.tenantSchemas:
+                    self._checkTblRelationsNew(tbl)
+                else:
+                    self._checkTblRelations(tbl)
+
+    def _checkTblRelationsNew(self, tbl):
+        self._checkTblRelations(tbl)
+        if not tbl.multi_tenant:
+            return
+        for schema in self.tenantSchemas:
+            with self.db.tempEnv(tenant_schema=schema):
                 self._checkTblRelations(tbl)
-                
+
     def _checkTblRelations(self, tbl):
         if not tbl.relations:
             return
@@ -480,7 +491,7 @@ class SqlModelChecker(object):
         change = self._sqlTable(tbl)
         self.changes.append(change)
         tablechanges.append(change)
-        if schema_code and schema_code!=tbl.pkg and tbl.attributes.get('multi_tenant'):
+        if schema_code and schema_code!=tbl.pkg.name and tbl.attributes.get('multi_tenant'):
             change_d =f"""ALTER TABLE {tbl.sqlfullname}
                         ALTER COLUMN _tenant_schema SET DEFAULT '{schema_code}';"""
             self.changes.append(change_d)
@@ -537,7 +548,7 @@ class SqlModelChecker(object):
     def _dropForeignKey(self, referencing_package, referencing_table, referencing_field, actual_name=None):
         """Prepare the sql statement for dropping the givent constraint from the given table and return it"""
         constraint_name = actual_name or 'fk_%s_%s' % (referencing_table, referencing_field)
-        statement = 'ALTER TABLE %s.%s DROP CONSTRAINT IF EXISTS %s' % (referencing_package, referencing_table, constraint_name)
+        statement = 'ALTER TABLE %s.%s DROP CONSTRAINT IF EXISTS %s' % (self.db.adapter.adaptSqlName(referencing_package), referencing_table, constraint_name)
         return statement
         
     def _sqlTable(self, tbl):
@@ -599,10 +610,10 @@ class SqlModelChecker(object):
                 if fldlist[2] == column:
                     try:
                         db.adapter.renameColumn(db.table(tblname).model.sqlfullname,old_colname,column)
-                        print(joiner['many_relation'],' fixed')
+                        logger.info("Fixed %s", joiner['many_relation'])
                         db.commit()
                     except Exception as e:
-                        #print joiner['many_relation'],' error'
+                        logger.exception("%s error", joiner['many_relation'])
                         db.rollback()
 
                                                    

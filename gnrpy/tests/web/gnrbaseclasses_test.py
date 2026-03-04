@@ -1,1 +1,1 @@
-import gnr.web.gnrbaseclasses
+import gnr.web.gnrbaseclasses # noqa: F401

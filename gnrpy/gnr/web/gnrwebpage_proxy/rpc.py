@@ -6,19 +6,15 @@
 #  Created by Giovanni Porcari on 2007-03-24.
 #  Copyright (c) 2007 Softwell. All rights reserved.
 
-from __future__ import print_function
 
-from gnr.core.gnrbag import Bag,BagNode
-from gnr.core import gnrstring
-from gnr.core.gnrdict import dictExtract
-from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
-from gnr.core.gnrlang import GnrException
 from time import time
 import os
-import base64
-import mimetypes
-import re
 
+from gnr.core.gnrbag import Bag,BagNode
+from gnr.core.gnrdict import dictExtract
+from gnr.core.gnrlang import GnrException
+from gnr.web import logger
+from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 
 
 AUTH_FORBIDDEN = -1
@@ -174,7 +170,7 @@ class GnrWebRpc(GnrBaseProxy):
         elif uploaderId:
             handler = getattr(self.page, 'onUploading_%s' % uploaderId,None)
             if handler:
-                print('deprecated use onUploaded_%s as name' %uploaderId)
+                logger.warning('deprecated use onUploaded_%s as name', uploaderId)
             else:
                 handler = getattr(self.page, 'onUploaded_%s' % uploaderId,None)
             if handler:

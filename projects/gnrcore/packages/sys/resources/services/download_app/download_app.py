@@ -4,13 +4,10 @@
 #  Created by Saverio Porcari on 2013-04-06.
 #  Copyright (c) 2013 Softwell. All rights reserved.
 
+import os
 
 from gnr.lib.services import GnrBaseService                                                  
-import urllib.request, urllib.error, urllib.parse
-import os
 from gnr.core.gnrbag import NetBag
-from gnr.core.gnrlang import GnrDebugException
-
 
 class Main(GnrBaseService):
     def __init__(self,parent,**kwargs):

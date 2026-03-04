@@ -21,17 +21,14 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 import _thread
-import os
 import datetime
 import time
-
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
 from email.mime.application import MIMEApplication
 from email.utils import formatdate
-
 import re, html.entities
 import mimetypes
 
@@ -40,8 +37,6 @@ from gnr.core.gnrbag import Bag
 from gnr.lib.services import GnrBaseService
 from gnr.core.gnrlang import GnrException
 from gnr.core.gnrstring import templateReplace
-
-
 from gnr.lib.services import GnrBaseService,BaseServiceType
 
 
@@ -249,7 +244,7 @@ class MailService(GnrBaseService):
                 mime_type = attachment_node.mimetype
             mime_family, mime_subtype = mime_type.split('/')
             with attachment_node.local_path() as attachment_path:
-                with open(attachment_path, mode='rb') as attachment_file:
+                with open(attachment_path, mode='text' in mime_family and 'r' or 'rb') as attachment_file:
                     email_attachment = mime_mapping[mime_family](attachment_file.read(), mime_subtype)
                     email_attachment.add_header('content-disposition', 'attachment', filename=attachment_node.basename)
                     msg.attach(email_attachment)
@@ -354,7 +349,12 @@ class MailService(GnrBaseService):
         from_address = account_params['from_address']
         msg = self.build_base_message(subject, body, attachments=attachments, html=html, charset=charset)
         msg['From'] = from_address
-        msg['To'] = to_address
+        if to_address:
+            # to_address could be None
+            msg['To'] = to_address
+            if ',' in to_address:
+                to_address = to_address.split(',')
+
         headers_kwargs = headers_kwargs or {}
         message_id = message_id or headers_kwargs.pop('message_id',None)
         reply_to = reply_to or headers_kwargs.pop('reply_to',None)
@@ -362,8 +362,7 @@ class MailService(GnrBaseService):
             if not v:
                 continue
             msg.add_header(k,str(v))
-        if ',' in to_address:
-            to_address = to_address.split(',')
+        
         message_date = datetime.datetime.now()
         if isinstance(message_date,datetime.datetime) or isinstance(message_date,datetime.date):
             message_date = formatdate(time.mktime(message_date.timetuple()))

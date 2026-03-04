@@ -4,7 +4,7 @@
 import sys
 from pdf2image import convert_from_path
 try:
-    from PIL import Image
+    from PIL import Image # noqa: F401
 except:
     raise Exception('PIL is missing. "pip install Pillow" is required')
 import zbarlight

@@ -19,15 +19,12 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 
-import hashlib
-import os
+import hashlib, os
 
 from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import public_method,extract_kwargs
-from gnr.core.gnrstring import slugify
-
 
 
 IMAGES_EXT = ('.png','.jpg','.jpeg','.gif','.webp')
@@ -39,6 +36,7 @@ class ViewAtcMobile(BaseComponent):
         r = struct.view().rows()
         r.fieldcell('fileurl',width='100%', 
                     template='<div class="atc_iframe_wrapper"><iframe src="#" width="100%" height="100%" class="atc_iframe_resizer" frameBorder="0"></iframe><div>')
+
 
 class ViewAtcMobileNoPreview(BaseComponent):
     def th_struct(self,struct):
@@ -62,7 +60,7 @@ class FormAtcMobile(BaseComponent):
 class AttachManagerViewBase(BaseComponent):
 
     def th_hiddencolumns(self):
-        return '$fileurl,$is_foreign_document'
+        return '$fileurl,$is_foreign_document,$external_url,$filepath'
 
     def th_struct(self,struct):
         r = struct.view().rows()
@@ -75,7 +73,7 @@ class AttachManagerViewBase(BaseComponent):
 class AttachManagerView(AttachManagerViewBase):
     def th_struct(self,struct):
         r = struct.view().rows()
-        r.fieldcell('full_external_url',hidden=True)
+        #r.fieldcell('full_external_url',hidden=True)
         r.fieldcell('_row_count',counter=True,hidden=True)
         #tbl.column('filepath' ,name_long='!!Filepath')
         r.fieldcell('description',edit=True,width='20em')
@@ -83,7 +81,10 @@ class AttachManagerView(AttachManagerViewBase):
         if hasattr(r.tblobj,'atc_types'):
             r.fieldcell('atc_type',edit=True,name='Type')
         if hasattr(r.tblobj,'atc_download'):
-            r.fieldcell('atc_download',edit=True,name='DL')
+            r.fieldcell('atc_download',edit=True,name='Open')
+        r.fieldcell('full_external_url', name='DL', width='2.5em',
+               template='<a href="$full_external_url" target="_blank"><img src="/_rsrc/common/css_icons/svg/16/link_connected.svg" height="13px" /></a>')
+        
         r.cell('copyurl',calculated=True,name='Copy url',cellClasses='cellbutton',
                     format_buttonclass='copy iconbox',
                     format_isbutton=True,
@@ -106,7 +107,7 @@ class AttachManagerView(AttachManagerViewBase):
 
 class AttachGalleryView(AttachManagerViewBase):
     def th_hiddencolumns(self):
-        return '$fileurl,$description'
+        return '$fileurl,$description,$external_url,$filepath'
 
     def th_struct(self,struct):
         r = struct.view().rows()
@@ -124,6 +125,7 @@ class AttachGalleryView(AttachManagerViewBase):
                 url = '/_gnr/11/css/icons/base256/empty_iframe.png'
             return dict(gallerycell='<div class="gallerybox"" ><div class="gallerybox_caption" >%s</div><img style="height:90px;max-width:100%%;" border=0 draggable="false" src="%s" /></div>' % (row['description'],url))
         selection.apply(apply_gallerycell)
+
 
 class Form(BaseComponent):
     
@@ -150,8 +152,8 @@ class Form(BaseComponent):
                      onUploadingMethod=None,onUploadedMethod=None,**kwargs):
         sc = parent.stackContainer(**kwargs)
         bc = sc.borderContainer(title='!![en]Viewer')
-        bc.attachmentPreviewViewer(src='^.fileurl',selectedPage='^#FORM.viewerMode',region='center',overflow='hidden',
-                                   currentPreviewZoom='^#FORM.currentPreviewZoom')
+        bc.attachmentPreviewViewer(src='^.fileurl',selectedPage='^#FORM.viewerMode',region='center',
+                                    currentPreviewZoom='^#FORM.currentPreviewZoom')
         da = sc.contentPane(title='!![en]Uploader').div(position='absolute',top='10px',left='10px',right='10px',bottom='10px',
             text_align='center',border='3px dotted #999',rounded=8)
         upload_message = '!!Drag here or double click to upload' if not self.isMobile else "!!Double click to upload"
@@ -182,6 +184,7 @@ class Form(BaseComponent):
         if newrecord:
             record['id'] = self.db.table(record.tablename).newPkeyValue()
 
+
 class FormPlaceholder(BaseComponent):
     py_requires = 'gnrcomponents/attachmanager/attachmanager:Form'
 
@@ -193,10 +196,10 @@ class FormPlaceholder(BaseComponent):
         fattr = form.attributes
         askMetadata = fattr.pop('askMetadata',None)
         self._atc_viewerStack(bc,region='center',askMetadata=askMetadata,
-                               attachment_table=fattr['table'],
-                            frameCode = fattr['frameCode'],
-                            onUploadingMethod=self.onUploadingAttachmentUpd,
-                            onUploadedMethod=self.onUploadedAttachment)
+                                attachment_table=fattr['table'],
+                                frameCode = fattr['frameCode'],
+                                onUploadingMethod=self.onUploadingAttachmentUpd,
+                                onUploadedMethod=self.onUploadedAttachment)
     
     def _atc_stackSwitcher(self,parent,sc):
         parent.dataController("sc.switchPage(fileurl?0:1)",fileurl='^#FORM.record.fileurl',sc=sc.js_widget)
@@ -207,8 +210,10 @@ class FormPlaceholder(BaseComponent):
 
  
 
-
 class ViewPalette(BaseComponent):
+    def th_hiddencolumns(self):
+        return '$filepath'
+        
     def th_struct(self,struct):
         r = struct.view().rows()
         r.fieldcell('description',width='100%',name='!!Attachment')
@@ -217,32 +222,14 @@ class ViewPalette(BaseComponent):
     def th_view(self,view):
         view.top.popNode('bar')
 
+
 class FormPalette(Form):
     pass
+
 
 class UploaderViewerPane(BaseComponent):
     js_requires='gnrcomponents/attachmanager/attachmanager'
     css_requires = 'gnrcomponents/attachmanager/attachmanager'
-
-    @struct_method
-    def upv_viewerStack(self,parent,src=None,currentPreviewZoom=None,**kwargs):
-        sc = parent.stackContainer(**kwargs)
-        sc.contentPane(pageName='document').iframe(src=src,height='100%',
-                                  avoidCache=True,width='100%',border='0px',documentClasses=True)
-        sc.contentPane(pageName='image').img(src=src,zoom=currentPreviewZoom)
-        sc.contentPane(pageName='video').video(src=src,height='100%',width='100%',
-                                    border=0,controls=True)
-        parent.dataController("""
-        let ext = src.split("?")[0].split('.').pop()
-        SET .$ext = src.split("?")[0].split('.').pop();
-        if(['jpg','jpeg','png','svg','webp'].includes(ext)){
-            sc.switchPage(1);
-        }else if(['mp4','avi','mpg','mpeg'].includes(ext)){
-            sc.switchPage(2);
-        }else{
-            sc.switchPage(0);
-        }
-        """,src=src,_if='src',sc=sc.js_widget)
 
     @extract_kwargs(uploader=True)
     @struct_method
@@ -263,6 +250,7 @@ class UploaderViewerPane(BaseComponent):
                         **uploader_kwargs)
         bc.dataController("""sc.switchPage(fileurl?0:1)""",fileurl=fileurl,sc=sc.js_widget)
 
+
 class AttachManager(BaseComponent):
     py_requires = 'gnrcomponents/attachmanager/attachmanager:UploaderViewerPane'
     js_requires='gnrcomponents/attachmanager/attachmanager'
@@ -275,7 +263,7 @@ class AttachManager(BaseComponent):
             height=height or '300px',
             closable_label=title,
             closable=closable or 'close', 
-            closable__class='drawer_allegati'
+            closable__class='attachment_drawer'
         )
         th = bottom.attachmentViewer(preview=False,margin='5px',margin_top=0,title=title,**kwargs)
         th.view.grid_envelope.attributes['border'] = '1px solid silver'
@@ -319,22 +307,32 @@ class AttachManager(BaseComponent):
     @struct_method
     def at_attachmentPreviewViewer(self,parent,src=None,currentPreviewZoom=None,**kwargs):
         sc = parent.stackContainer(_virtual_column='fileurl',**kwargs)
-        sc.contentPane(pageName='document').iframe(src=src,height='100%',
+        sc.contentPane(pageName='document', overflow='hidden').iframe(src=src,height='100%',
                                     avoidCache=True,width='100%',border='0px',documentClasses=True)
-        sc.contentPane(pageName='image').img(src=src,zoom=currentPreviewZoom)
-        sc.contentPane(pageName='video').video(src=src,height='100%',width='100%',
+        imgPane = sc.contentPane(pageName='image', overflow='auto')
+        img = imgPane.img(src=src, _class='atc_img_fit',
+                                    style='display:block;cursor:zoom-in;',
+                                    onclick="genro.openBrowserTab(this.src, {target:'_blank'})")
+        if currentPreviewZoom:
+            imgPane.dataController("""
+                genro.dom.setClass(imgDom,'atc_img_fit',!zoomValue);
+                imgDom.style.zoom = zoomValue || '';
+            """,zoomValue=currentPreviewZoom,imgDom=img.js_domNode)
+        sc.contentPane(pageName='video', overflow='hidden').video(src=src,height='100%',width='100%',
                                     border=0,controls=True)
-        parent.dataController("""
-        let ext = src.split("?")[0].split('.').pop()
-        SET .$ext = src.split("?")[0].split('.').pop();
-        if(['jpg','jpeg','png','svg','webp'].includes(ext)){
-            sc.switchPage(1);
-        }else if(['mp4','avi','mpg','mpeg'].includes(ext)){
-            sc.switchPage(2);
+        parent.dataController("""       
+        const parsedSrc = parseURL(src);
+        const ext = (parsedSrc.params.source_ext || parsedSrc.file.split('.').pop() || '').toLowerCase();
+        SET .$ext = ext;
+        if(IMAGES_EXT.includes(`.${ext}`)){
+            sc.switchPage('image');
+        }else if(VIDEOS_EXT.includes(`.${ext}`)){
+            sc.switchPage('video');
         }else{
-            sc.switchPage(0);
+            sc.switchPage('document');
         }
-        """,src=src,_if='src',sc=sc.js_widget)
+        """,src=src,_if='src',sc=sc.js_widget,
+            IMAGES_EXT=IMAGES_EXT, VIDEOS_EXT=VIDEOS_EXT)
 
     @extract_kwargs(default=True,vpane=True,fpane=True)
     @struct_method
@@ -450,18 +448,12 @@ class AttachManager(BaseComponent):
                                         **thkwargs)
         th.view.top.bar.replaceSlots('#','2,searchOn,*',toolbar=False,background='#DBDBDB',border_bottom='1px solid silver')
         readerpane = bc.contentPane(region='center',childname='atcviewer',overflow='hidden')
-        iframe = readerpane.iframe(src='^.reader_url',height='100%',width='100%',border=0,documentClasses=True,
-                        avoidCache=True,
-                        connect_onload="""
-                            if(this.domNode.getAttribute('src') && this.domNode.getAttribute('src').indexOf('.pdf')<0){
-                                var cw = this.domNode.contentWindow;
-                                cw.document.body.style.zoom = GET .currentPreviewZoom;
-                            }
-                            """)
         readerpane.dataController('SET .reader_url=fileurl',fileurl='^.th.view.grid.selectedId?fileurl')
+        readerpane.attachmentPreviewViewer(src='^.reader_url',
+                                    currentPreviewZoom='^.currentPreviewZoom')
         bar = frame.top.slotToolbar('2,vtitle,*,previewZoom,delrowbtn',vtitle=title or '!!Attachments')
         bar.previewZoom.horizontalSlider(value='^.currentPreviewZoom', minimum=0, maximum=1,
-                                 intermediateChanges=False, width='15em',default_value=.5)
+                                 intermediateChanges=False, width='15em',default_value=0)
         bar.delrowbtn.slotButton('!!Delete attachment',iconClass='iconbox delete_row',
                         action='gr.publish("delrow")',gr=th.view.grid)
 
@@ -485,13 +477,6 @@ class AttachManager(BaseComponent):
                                 totalrows='^.store?totalrows',
                                 table=th.view.grid.attributes['table'],
                                 maintable_id=maintable_id.replace('^','=') if maintable_id else '=#FORM.pkey')
-        readerpane.dataController("""
-                                    if(iframe.getAttribute('src') && iframe.getAttribute('src').indexOf('.pdf')<0){
-                                        iframe.contentWindow.document.body.style.zoom = currentPreviewZoom;
-                                    }
-                                    """,iframe=iframe.js_domNode,
-                        currentPreviewZoom='^.currentPreviewZoom')
-
         return frame
 
     @public_method
@@ -504,7 +489,7 @@ class AttachManager(BaseComponent):
 
     @struct_method
     def at_attachmentMultiButtonFrame(self,pane,datapath='.attachments',formResource=None,parentForm=True,ask=None,
-                                      toolbarPosition=None,itemsMaxWidth=None,**kwargs):   
+                                      toolbarPosition=None,itemsMaxWidth=None,singleFile=False,**kwargs):   
         toolbarPosition = toolbarPosition or 'top'
         frame = pane.multiButtonForm(frameCode='attachmentPane_#',datapath=datapath,
                             relation='@atc_attachments',
@@ -522,26 +507,32 @@ class AttachManager(BaseComponent):
                             multibutton_deleteSelectedOnly=True,
                             toolbarPosition=toolbarPosition,
                             store_order_by='$_row_count')
-        frame.multiButtonView.item(code='add_atc',caption='+',frm=frame.form.js_form,
+        if not singleFile:
+            frame.multiButtonView.item(code='add_atc',caption='+',frm=frame.form.js_form,
                                     action='frm.newrecord();',
                 parentForm=parentForm,deleteAction=False,
                 disabled='==!_store || _store.len()==0 || (this.form?this.form.isDisabled():false)',
                 _store='^.store',
                 _flock='^#FORM.controller.locked')
         table = frame.multiButtonView.itemsStore.attributes['table']
-        bar = getattr(frame,toolbarPosition).bar.replaceSlots('#','2,mbslot,15,changeName,*,previewZoom,externalUrl,2')
+        frame.form.store.handler("load", virtual_columns='$full_external_url')
+        bar = getattr(frame,toolbarPosition).bar.replaceSlots('#','2,mbslot,15,changeName,15,copyUrl,*,previewZoom,externalUrl,2')
         bar.previewZoom.horizontalSlider(value='^.form.currentPreviewZoom', minimum=0, maximum=1,
                                         hidden='^.form.viewerMode?=#v!="image"',
-                                        intermediateChanges=True, width='15em',default_value=1)
+                                        intermediateChanges=True, width='15em',default_value=0)
         fb = bar.changeName.div(_class='iconbox tag',hidden='^.form.controller.is_newrecord',tip='!!Change description').tooltipPane(
                 connect_onClose='FIRE .saveDescription;',
             ).div(padding='10px').formbuilder(cols=1,border_spacing='3px',datapath='.form.record')
         fb.textbox(value='^.description',lbl='!!Description')
+        bar.copyUrl.lightbutton(_class='iconbox copy', hidden='^.form.controller.is_newrecord',tip='!!Copy attachment url',
+                    action="""console.log(full_external_url);genro.textToClipboard(full_external_url,_T('!![en]Copy and paste attachment url'));""",
+                    full_external_url='^.form.record.full_external_url')
         frame.parametersForm = fb
         fb = bar.externalUrl.div(_class='iconbox globe',hidden='^.form.controller.filepath',tip='!!External url').tooltipPane(
                 connect_onClose='FIRE .saveDescription;',
             ).div(padding='10px').formbuilder(cols=1,border_spacing='3px')
         fb.textbox(value='^.form.record.external_url',lbl='!!External url')
+        # FIXME: the delay has a an arbitrary value
         frame.dataController("""
             if(parentForm && frm.getParentForm().isNewRecord()){
                 frame.setHiderLayer(true,{message:newrecordmessage,background_color:'white'});
@@ -549,7 +540,8 @@ class AttachManager(BaseComponent):
                 frame.setHiderLayer(false);
                 frm.newrecord();
             }
-            """,store='^.store',_delay=100,newrecordmessage="!!Save record before upload attachments",
+            """,store='^.store',_delay=500,
+            newrecordmessage="!!Save record before upload attachments",
             _fired='^#FORM.controller.loaded',
             _if='!store || store.len()==0',
             parentForm=parentForm,

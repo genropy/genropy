@@ -1,1 +1,0 @@
-import gnr.app.gnrtransactiond

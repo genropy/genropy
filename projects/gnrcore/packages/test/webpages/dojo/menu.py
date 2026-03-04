@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """Menu"""
-from __future__ import print_function
-import datetime
+
 from gnr.core.gnrbag import Bag,DirectoryResolver
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrsys import expandpath

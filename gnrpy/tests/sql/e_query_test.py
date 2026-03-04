@@ -25,10 +25,8 @@
 """
 this test module focus on SqlQuery's methods
 """
-import os
-import datetime
 
-import pytest
+import datetime
 import logging
 
 gnrlogger = logging.getLogger('gnr')
@@ -38,9 +36,8 @@ gnrlogger.addHandler(hdlr)
 from gnr.sql.gnrsql import GnrSqlDb
 from gnr.sql.gnrsqldata import SqlQuery, SqlSelection
 from gnr.sql import gnrsqldata as gsd
-from gnr.core.gnrbag import Bag
 
-from .common import BaseGnrSqlTest, configurePackage
+from .common import BaseGnrSqlTest, configureDb
 
 class BaseSql(BaseGnrSqlTest):
     @classmethod
@@ -50,8 +47,7 @@ class BaseSql(BaseGnrSqlTest):
         # create database (actually create the DB file or structure)
 
         cls.db.createDb(cls.dbname)
-        # read the structure of the db from xml file: this is the recipe only
-        cls.db.loadModel(cls.SAMPLE_XMLSTRUCT)
+        configureDb(cls.db)
 
         # build the python db structure from the recipe
         cls.db.startup()
@@ -134,9 +130,6 @@ class BaseSql(BaseGnrSqlTest):
         result = query.count()
         assert result == 9
 
-
-        
-
     def test_sqlparams_date(self):
         query = self.db.query('video.dvd',
                               columns='$purchasedate',
@@ -145,6 +138,94 @@ class BaseSql(BaseGnrSqlTest):
         result = query.selection().output('list')
         assert result[0][0] == datetime.date(2005, 4, 7)
 
+    def test_in_range_syntax(self):
+        """Test #IN_RANGE macro (renamed from #BETWEEN, issue #622)."""
+        # test blank handling
+        query = self.db.query('video.location',
+                              order_by="$rating",
+                              columns='$id',
+                              where='#IN_RANGE(  $rating  ,:lower, :upper     )',
+                              sqlparams={'lower': -1, 'upper': 0})
+        result = query.selection().output('list')
+        assert result[0][0] == 2
+        assert len(result) == 2
+
+        # test in_range using int
+        lower = -6
+        upper = 5
+        params_cases = [
+            {
+                "params": {"upper": None, "lower": None},
+                "expected": -8,
+                "n_records": 11
+            },
+            {
+                "params": {"upper": upper, "lower": None},
+                "expected": -8,
+                "n_records": 9
+            },
+            {
+                "params": {"upper": None, "lower": lower},
+                "expected": -6,
+                "n_records": 10
+            },
+            {
+                "params": {"upper": upper, "lower": lower},
+                "expected": -6,
+                "n_records": 8
+            }
+        ]
+        for params in params_cases:
+            query = self.db.query('video.location',
+                                  order_by="$rating",
+                                  columns='$rating',
+                                  where='#IN_RANGE($rating, :lower, :upper)',
+                                  sqlparams=params.get("params"))
+            result = query.selection().output('list')
+            print('PARAMS', params.get("params"))
+            print('RESULT', result)
+            assert result[0][0] == params.get("expected")
+            assert len(result) == params.get("n_records")
+
+        # test in_range using dates
+        lower = datetime.date(2005,4,1)
+        upper = datetime.date(2005,4,30)
+        params_cases = [
+            {
+                "params": {"upper": None, "lower": None},
+                "expected": datetime.date(2004,3,5),
+                "n_records": 17
+            },
+            {
+                "params": {"upper": upper, "lower": None},
+                "expected": datetime.date(2004,3,5),
+                "n_records": 3
+            },
+            {
+                "params": {"upper": None, "lower": lower},
+                "expected": datetime.date(2005,4,7),
+                "n_records": 15
+            },
+            {
+                "params": {"upper": upper, "lower": lower},
+                "expected": datetime.date(2005,4,7),
+                "n_records": 1
+            },
+            {
+                "params": {"upper": datetime.date(2005,5,8), "lower": lower},
+                "expected": datetime.date(2005,4,7),
+                "n_records": 2
+            }
+        ]
+        for params in params_cases:
+            query = self.db.query('video.dvd',
+                                  order_by="$purchasedate",
+                                  columns='$purchasedate',
+                                  where='#IN_RANGE($purchasedate, :lower, :upper)',
+                                  sqlparams=params.get("params"))
+            result = query.selection().output('list')
+            assert result[0][0] == params.get("expected")
+            assert len(result) == params.get("n_records")
 
     def test_joinSimple(self):
         tbl = self.db.table('video.dvd')
@@ -166,6 +247,19 @@ class BaseSql(BaseGnrSqlTest):
                                group_by='$nationality', order_by='$nationality').fetch()
         assert [(r[0], r[1]) for r in result] == [('UK', 6), ('USA', 6), ('USA,UK', 5)]
 
+    def test_query_subtables(self):
+        tbl = self.db.table("video.cast")
+        assert tbl.subtable('first_movie') is not None
+        assert tbl.subtable('accalla') is None
+        r = self.db.query("video.cast", columns='movie_id').fetch()
+        total_records = len(r)
+        r1 = self.db.query("video.cast", columns='movie_id', subtable="first_movie").fetch()
+        assert len(r1) == 3
+        r2 = self.db.query("video.cast", columns='movie_id', subtable="!first_movie").fetch()
+        assert len(r2) == (total_records-len(r1))
+        r3 = self.db.query("video.cast", columns='movie_id', subtable="first_movie|second_movie").fetch()
+        assert len(r3) < total_records
+        
     def test_query_limit(self):
         result = self.db.query('video.cast', columns='person_id',
                                where="@person_id.id=:id",

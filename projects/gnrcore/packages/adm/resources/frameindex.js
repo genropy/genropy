@@ -5,10 +5,12 @@ var loginManager = {
         var dlg = genro.dlg.quickDialog(notification_data['title'],{_showParent:true,max_width:'900px',datapath:'notification',background:'white'});
         var box = dlg.center._('div',{overflow:'auto',height:'500px',overflow:'auto',padding:'10px'});
         box._('div',{innerHTML:notification_data.notification,border:'1px solid transparent',padding:'10px'});
-        var bar = dlg.bottom._('slotBar',{slots:'cancel,*,confirm_checkbox,2,confirm',height:'22px'});
+        var bar = dlg.bottom._('slotBar',{slots:'cancel,*,'+(notification_data.confirm_label?'confirm_checkbox,2,':'')+',confirm',height:'22px'});
         bar._('button','cancel',{'label':'Cancel',command:'cancel',action:function(){genro.logout();}});
-        bar._('checkbox','confirm_checkbox',{value:'^.confirm',label:(notification_data.confirm_label || 'Confirm')})
-        bar._('button','confirm',{'label':'Confirm',command:'confirm',disabled:'^.confirm?=!#v',action:function(){
+        if(notification_data.confirm_label){
+            bar._('checkbox','confirm_checkbox',{value:'^.confirm',label:notification_data.confirm_label})
+        }
+        bar._('button','confirm',{'label':'Confirm',command:'confirm',disabled:notification_data.confirm_label?'^.confirm?=!#v':null,action:function(){
                                                     genro.serverCall('_table.adm.user_notification.confirmNotification',{pkey:notification_id},
                                                             function(n_id){
                                                                 dlg.close_action();
@@ -32,6 +34,8 @@ dojo.declare("gnr.FramedIndexManager", null, {
         genro.ping_classes = true;
         this.stackSourceNode = stackSourceNode;
         this.dbstore =  genro.getData('gnr.dbstore');
+        this.multidomain =  genro.getData('gnr.multidomain');
+        this.currentDomain =  genro.getData('gnr.currentDomain');
         this.default_uri =  genro.getData('gnr.defaultUrl')||'/';
         genro.externalWindowsObjects = {};
         var that = this;
@@ -259,12 +263,17 @@ dojo.declare("gnr.FramedIndexManager", null, {
     },
 
     newModalPanel:function(kw){
+        kw.url_modal_dialog = true;
         this.finalizePageUrl(kw);
-        let dlgNode = genro.dlg.iframeDialog(kw.rootPageName+'_dlg',
+        let startKw =  objectExtract(kw,'start_*');
+        let openKw = kw.openKw || {};
+        objectUpdate(openKw,startKw)
+        openKw.topic = openKw.topic || 'modal_page_open';
+        genro.dlg.iframeDialog(kw.rootPageName+'_dlg',
                                                 {src:kw.url,windowRatio:.8,title:kw.label,
                                                 closable:kw.closable,
                                                 iframe_subscribe_modal_page_close:'this.publish("close")',
-                                                openKw:{'topic':'modal_page_open'}
+                                                openKw:openKw,...objectExtract(kw,'dlg_*',true,true)
                                                 });
     },
 
@@ -341,6 +350,9 @@ dojo.declare("gnr.FramedIndexManager", null, {
         let backToPage = pageHistory.pop();
         genro.setData('pageHistory',pageHistory.length?pageHistory:null);
         this.stackSourceNode.setRelativeData('selectedFrame',backToPage);
+        if(backToPage=='indexpage' && genro.getData('splash_index')){
+            genro.publish('open_plugin',{plugin:'menu_plugin'});
+        }
     },
 
     onExternalWindowClosed:function(windowKey){
@@ -364,11 +376,10 @@ dojo.declare("gnr.FramedIndexManager", null, {
     finalizePageUrl:function(kw){
         let urlPars = {};
         let urlkw = objectExtract(kw,'url_*',true);
+        objectExtract(urlkw,'level_offset');
         let baseurl = kw.webpage || kw.file || kw.filepath;
-        if(this.dbstore && !kw.aux_instance && baseurl && baseurl.indexOf('/')===0){
-            if(baseurl.slice(1).split('/')[0]!=this.dbstore){
-                baseurl = `/${this.dbstore}${baseurl}`;
-            }
+        if(!kw.aux_instance){
+            baseurl = genro.buildContextUrl(baseurl);
         }
         if(kw.unique){
             urlPars.ts = new Date().getMilliseconds();
@@ -378,6 +389,9 @@ dojo.declare("gnr.FramedIndexManager", null, {
             urlPars.windowTitle = title;
         }
         urlPars = objectUpdate(urlPars,urlkw);
+        if(urlPars.newPanel){
+            objectExtract(urlPars,'newPanel,pageName,title');
+        }
         kw.url = genro.addParamsToUrl(baseurl,urlPars);
         kw.rootPageName = kw.pageName || kw.url.replace(/\W/g,'_');
     },
@@ -393,18 +407,27 @@ dojo.declare("gnr.FramedIndexManager", null, {
             finalizeCb();
         }
         var iframes = dojo.query('iframe',this.stackSourceNode.getValue().getNode(frameName).getWidget().domNode);
-        if(iframes.some(function(n){
-            if(n.sourceNode.attr.externalSite){return false;}
-            return n.contentWindow.genro.checkBeforeUnload();
-        })){
-            genro.dlg.ask(_T('Closing ')+title,_T("There is a pending operation in this tab"),{confirm:_T('Close anyway'),cancel:_T('Cancel')},
-                            {confirm:function(){ 
-                                iframes.forEach(function(f){
-                                    f.sourceNode._genro._checkedUnload = true;
-                                })
-                                finalizeCb();
-                            }})
-        }else{
+        if(iframes.some(function(n) {
+            if(n.sourceNode.attr.externalSite) {
+		return false;
+	    }
+	    if(n.contentWindow.genro) {
+		return n.contentWindow.genro.checkBeforeUnload();
+	    } else {
+		return false;
+	    }
+        }
+       )){
+            genro.dlg.ask(_T('Closing ')+title, _T("There is a pending operation in this tab"), {
+		confirm: _T('Close anyway'), cancel:_T('Cancel')
+	    },
+                          { confirm:function(){ 
+                              iframes.forEach(function(f){
+                                  f.sourceNode._genro._checkedUnload = true;
+                              })
+                              finalizeCb();
+                          }})
+        } else {
             finalizeCb();
         }
     },
@@ -529,11 +552,30 @@ dojo.declare("gnr.FramedIndexManager", null, {
         }
     },
     openUserPreferences:function(){
-        genro.selectIframePage({webpage:'/adm/user_preference'});
+        //old
+        this.newModalPanel({webpage:'/adm/user_preference',label:_T('User preference'),dlg_closable:true});
     },
 
-    openAppPreferences:function(){
-        genro.selectIframePage({webpage:'/adm/app_preference'});
+
+    openUserSettings:function(setting_path){
+        if(genro.isMobile){
+            genro.publish('setIndexLeftStatus',false);
+        }
+        openKw = {}
+        openKw.topic = 'user_setting_open'
+        openKw.setting_path = setting_path;
+        this.selectIframePage({webpage:'/adm/user_settings',label:_T('User settings'),closable:true,
+                            dlg_max_width:'600px',modal:!genro.isMobile,openKw:openKw});
+    },
+
+    openAppPreferences:function(openKw){
+        if(genro.isMobile){
+            genro.publish('setIndexLeftStatus',false);
+        }
+        
+        this.selectIframePage({webpage:'/adm/app_preference',label:_T('Application preference'),closable:true,modal:!genro.isMobile,
+            openKw:openKw
+        });
     },
 
     openHelpForCurrentIframe:function(){
@@ -697,6 +739,9 @@ dojo.declare("gnr.FramedIndexManager", null, {
         objectUpdate(kw.openKw,runKwargs);
         objectUpdate(kw.openKw,{topic:'frameindex_external'});
         genro.publish('selectIframePage',kw);
+        if(genro.isMobile){
+            genro.nodeById('standard_index').publish('hideLeft');
+        }
     },
 
     detachPage:function(attr,title,evt){

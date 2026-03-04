@@ -4,7 +4,7 @@
 # Created by Francesco Porcari on 2017-12-18.
 # Copyright (c) 2017 Softwell. All rights reserved.
 
-from gnr.core.gnrbag import Bag,DirectoryResolver
+from gnr.core.gnrbag import DirectoryResolver
 from gnr.core.gnrdecorator import public_method
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method

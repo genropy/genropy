@@ -16,6 +16,6 @@
 	<webtools>
 		<genropy path="/home/genro/genropy/webtools"/>
 	</webtools>
-	<gnrdaemon hmac_key="DOCKER" host="localhost" port="40407"/>
+	<gnrdaemon hmac_key="DOCKER" host="{GNR_DAEMON_HOST}" port="{GNR_DAEMON_PORT}"/>
 	<rms code="{GNR_RMS_CODE}" customer_code="{GNR_RMS_CUSTOMER_CODE}" url="{GNR_RMS_URL}" />
 </GenRoBag>

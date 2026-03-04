@@ -81,6 +81,7 @@ dojo.declare('gnr.GenroClient', null, {
         this.auto_polling = -1;
         this.user_polling = -1;
         this.isDeveloper = objectPop(this.startArgs,'isDeveloper');
+        this.debugpy = objectPop(this.startArgs,'debugpy');
         this.isMobile = objectPop(this.startArgs,'isMobile');
         this.isCordova = objectPop(this.startArgs,'isCordova');
         this.deviceScreenSize = objectPop(this.startArgs,'deviceScreenSize');
@@ -296,6 +297,13 @@ dojo.declare('gnr.GenroClient', null, {
         }
     },
 
+    plugin:async function(plugin){
+        if (!genro[plugin]){
+            await genro.dom.addPlugin(plugin)
+        }
+        return genro[plugin];
+    },
+
     safetry:function(cb){
         try{
             return cb();
@@ -349,8 +357,11 @@ dojo.declare('gnr.GenroClient', null, {
             }
         });
         if(!genro._reloading){
-            var url = genro.makeUrl('/_beacon', {'method':'onClosedPage'});
-            navigator.sendBeacon(url);
+            let urlObj = new URL(window.location.href);
+            if (!urlObj.searchParams.has("page_id")) {
+                var url = genro.makeUrl('/_beacon', {'method':'onClosedPage'});
+                navigator.sendBeacon(url);
+            }
         }
         genro.publish('onClosePage');
         if (genro._data) {
@@ -425,7 +436,7 @@ dojo.declare('gnr.GenroClient', null, {
         
         window.addEventListener("click", function(e){
             var parentGenro = genro.getParentGenro();
-            if(genro.isMobile && parentGenro){
+            if(genro.isMobile && parentGenro && !genro.startArgs.modal_dialog){
                 parentGenro.publish('setIndexLeftStatus',false);
             }
             e._clickDuration = genro._lastMouseEvent.duration;
@@ -1461,9 +1472,33 @@ dojo.declare('gnr.GenroClient', null, {
         let frm = node._('htmliframe', params);
         node.unfreeze();
         console.log('iframe download',frm.getParentNode().domNode)
-
-
     },
+
+    triggerDownload:function(url,args,onload_cb){
+        var args = args || {};
+        //args.download = true;
+        url = genro.makeUrl(url, args);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = ''; // lasciando vuoto forza il comportamento di download in alcuni browser
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    },
+
+    triggerPrint:function(url,args) {
+        url = genro.makeUrl(url, args);
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = url;
+        document.body.appendChild(iframe);
+        iframe.onload = function () {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+        };
+    },
+
     makeUrl: function(url, kwargs) {
         if (url.indexOf('://') == -1) {
             if (url.slice(0, 1) != '/') {
@@ -1931,6 +1966,23 @@ dojo.declare('gnr.GenroClient', null, {
         return url + sep + parameters.join('&');
     },
 
+    buildContextUrl: function(baseUrl, kw) {
+        kw = kw || {};
+        var multidomain = genro.getData('gnr.multidomain');
+        var currentDomain = genro.getData('gnr.currentDomain');
+        var dbstore = kw.dbstore || genro.getData('gnr.dbstore');
+
+        if (baseUrl && baseUrl.indexOf('/') === 0) {
+            var firstchunk = baseUrl.slice(1).split('/')[0];
+            if (multidomain && currentDomain && firstchunk !== currentDomain) {
+                baseUrl = '/' + currentDomain + baseUrl;
+            } else if (dbstore && firstchunk !== dbstore) {
+                baseUrl = '/' + dbstore + baseUrl;
+            }
+        }
+        return baseUrl;
+    },
+
     callWebTool:function(toolCode,params){  
         objectUpdate(params,genro.rpc.serializeParameters(genro.src.dynamicParameters(params)));
         let url = this.addParamsToUrl(`/_tools/${toolCode}`,params)
@@ -2077,7 +2129,7 @@ dojo.declare('gnr.GenroClient', null, {
     gotoURL:function(url, relative) {
         if (relative) {
             url = genro.constructUrl(url);
-        } else if (!url.startsWith('http')){
+        } else if (!url.includes('://')){
             url = genro.joinPath(genro.getData('gnr.homeUrl') || '', url);
         }
         window.location.assign(url);

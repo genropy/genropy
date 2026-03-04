@@ -27,7 +27,7 @@ def checklist(name=None, pkg=None, code=None, subcode=None,doc_url=None,**kwargs
     def decore(func):
         modulepkg = func.__code__.co_filename.split('packages%s' %sep)[1].split(sep)[0]
         checklist_dict = dict(pkg=pkg or modulepkg, name=name, subcode=subcode, code=code, doc_url=doc_url)
-        def newFunc(tbl):
+        def wrapper(tbl):
             description = func.__doc__
             pars = dict(checklist_dict)
             pars['pkg'] = pars['pkg']
@@ -35,8 +35,8 @@ def checklist(name=None, pkg=None, code=None, subcode=None,doc_url=None,**kwargs
             return tbl.newrecord(description=description,**pars)
        
         syscode = '_'.join([pkg or modulepkg, code, subcode])
-        newFunc.instance_mixin_as = 'sysRecord_%s' % syscode
-        newFunc.mandatory = True
-        return newFunc
+        wrapper.instance_mixin_as = 'sysRecord_%s' % syscode
+        wrapper.mandatory = True
+        return wrapper
     return decore
 

@@ -1,19 +1,16 @@
-from gnr.core.gnrlang import  GnrException
+import os.path
 
 try:
     import cups
-
     HAS_CUPS = True
 except ImportError:
     HAS_CUPS = False
     
-import os.path
-
+from gnr.core import logger
+from gnr.core.gnrlang import  GnrException
 from gnr.core.gnrbag import Bag
 from gnr.lib.services import GnrBaseService
 from gnr.core.gnrdecorator import extract_kwargs
-
-
 
 class PrintHandlerError(GnrException):
     pass
@@ -147,7 +144,7 @@ class PrintHandler(object):
                 printer.update(dict(name=printer_name))
                 printersBag.setItem('%s.%s' % (printer['printer-location'], printer_name.replace(':','_')), None, printer)
         else:
-            print('pyCups is not installed')
+            logger.error('pyCups is not installed')
         return printersBag
         
     def getPrinterAttributes(self, printer_name):

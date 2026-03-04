@@ -17,14 +17,12 @@ class GnrCustomWebPage(object):
 
     def main(self, root, **kwargs):
         """APPLICATION PREFERENCE BUILDER"""
-        root = root.rootContentPane(title='!![en]Application preference')
-        form = root.frameForm(frameCode='app_preferences',store_startKey='_mainpref_',
-                                table=self.maintable,datapath='main',store=True,**kwargs)
-        form.top.slotToolbar('2,stackButtons,*,form_revert,form_save,semaphore,2',stackButtons_stackNodeId='PREFROOT')
-        form.dataController("""
-            var tkw = _triggerpars.kw;
-            if(tkw.reason && tkw.reason.attr && tkw.reason.attr.livePreference){
-                genro.mainGenroWindow.genro.publish({topic:'externalSetData',
-                iframe:'*'},{path:'gnr.app_preference.'+tkw.pathlist.slice(4).join('.'),value:tkw.value});
-            }""",preference='^#FORM.record.data')
-        form.center.appPreferencesTabs(datapath='#FORM.record.data',margin='2px',wdg='stack')
+        form = root.appPreferencesForm(datapath='main',**kwargs)
+        form.dataController("""this.form.load({destPkey:'_mainpref_',discardChange:true});""",
+                            subscribe_changedStartArgs=True,
+                            subscribe_modal_page_open=True)
+        form.dataController("genro.dom.windowMessage('parent',{'topic':'modal_page_close'})",
+                            formsubscribe_onDismissed=True)
+        bar = form.bottom.bar
+        bar.cancel.button('!!Cancel',action='this.form.abort();')
+        bar.saveAndClose.button('!!Confirm',action='this.form.publish("save",{destPkey:"*dismiss*"})')

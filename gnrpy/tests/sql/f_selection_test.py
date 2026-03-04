@@ -28,18 +28,13 @@ this test module focus on SqlSelection's methods
 
 import os, os.path
 import datetime
-
-import pytest
+import tempfile
 
 from gnr.sql.gnrsql import GnrSqlDb
-from gnr.sql.gnrsqldata import SqlQuery
-from gnr.sql.gnrsqlmodel import DbPackageObj, DbModelObj, DbTableObj, DbColumnObj,\
-    DbTableListObj, DbColumnListObj, DbIndexListObj
-from gnr.sql.adapters._gnrbaseadapter import GnrDictRow
 from gnr.core.gnrbag import Bag
 from gnr.core import gnrstring
 
-from .common import BaseGnrSqlTest
+from .common import BaseGnrSqlTest, configureDb
 
 # this module test all the post-process methods on selection resolver
 
@@ -50,8 +45,7 @@ class BaseDb(BaseGnrSqlTest):
         cls.init()
         # create database (actually create the DB file or structure)
         cls.db.createDb(cls.dbname)
-        # read the structure of the db from xml file: this is the recipe only
-        cls.db.loadModel(cls.SAMPLE_XMLSTRUCT)
+        configureDb(cls.db)
         # build the python db structure from the recipe
         cls.db.startup()
         cls.db.checkDb(applyChanges=True)
@@ -94,10 +88,15 @@ class BaseDb(BaseGnrSqlTest):
         self.mysel.filter()
 
     def test_freeze(self):
-        freeze_fname = os.path.join(os.path.dirname(__file__), 'data/myselection')
+
+        freeze_dir = tempfile.mkdtemp(prefix='gnr_test_freeze_')
+        freeze_fname = os.path.join(freeze_dir, 'myselection')
         self.mysel.freeze(freeze_fname)
         sel = self.db.table('video.cast').frozenSelection(freeze_fname)
         assert self.mysel.data == sel.data
+        for f in os.listdir(freeze_dir):
+            os.remove(os.path.join(freeze_dir, f))
+        os.rmdir(freeze_dir)
 
     def xtest_formatSelection(self):
         sel = self.db.query('video.dvd', columns='$purchasedate, @movie_id.title AS title').selection()
@@ -108,7 +107,7 @@ class BaseDb(BaseGnrSqlTest):
         print(sel.output('bag', formats={'title': 'Titolo: - %s - '},
                          dfltFormats={datetime.date: 'full'},
                          locale='it')['#0.title'] == 'Title: - Match point - ')
-
+    @classmethod
     def teardown_class(cls):
         cls.db.closeConnection()
         cls.db.dropDb(cls.dbname)

@@ -9,7 +9,6 @@
 
 
 import os
-import datetime
 import urllib.parse
 from time import time
 
@@ -33,7 +32,6 @@ class GnrWebDeveloper(GnrBaseProxy):
     @property
     def db(self):
         return self.page.db
-
 
     def maintenanceServerUrl(self):
         helpdesk = self.page.getPreference('helpdesk',pkg='adm')

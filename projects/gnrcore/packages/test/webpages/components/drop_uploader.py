@@ -2,9 +2,9 @@
 
 """DropUploader"""
 
-from gnr.core.gnrbag import Bag, DirectoryResolver
-from gnr.core.gnrdecorator import public_method
 import os
+from gnr.core.gnrdecorator import public_method
+
 
 class GnrCustomWebPage(object):
     py_requires = """gnrcomponents/testhandler:TestHandlerFull,

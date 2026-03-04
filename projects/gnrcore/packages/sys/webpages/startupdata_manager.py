@@ -7,14 +7,6 @@
 #  Copyright (c) 2007 Softwell. All rights reserved.
 #
 
-import os
-import gzip
-from io import StringIO
-import pickle
-
-from gnr.core.gnrdecorator import public_method
-from gnr.core.gnrbag import Bag
-
 class GnrCustomWebPage(object):
     py_requires="""public:Public,startupdata_manager/startupdata_manager:StartupDataManager"""
     pageOptions={'openMenu':False,'enableZoom':False}

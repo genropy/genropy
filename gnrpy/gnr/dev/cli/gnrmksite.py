@@ -1,11 +1,9 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-import sys, os, shutil
+import os
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.core.gnrbag import Bag
-from gnr.app.gnrapp import GnrApp
 from gnr.app.gnrdeploy import SiteMaker, PathResolver
 
 description = "Create a new Genropy site"

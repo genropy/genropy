@@ -4,8 +4,6 @@
 from gnr.core.gnrdecorator import public_method
 from time import sleep
 
-from gnr.core.gnrbag import Bag
-
 class GnrCustomWebPage(object):
     py_requires="""gnrcomponents/testhandler:TestHandlerFull"""
 

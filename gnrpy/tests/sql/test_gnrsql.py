@@ -1,21 +1,13 @@
 import datetime
 import tempfile
-import locale
 
 import pytest
 
+from gnr.core.gnrlocale import defaultLocale
 from gnr.sql import gnrsql as gs
-from .common import BaseGnrSqlTest, configurePackage
+from .common import BaseGnrSqlTest, MockApplication
 
-class MockApplication(object):
-    debug = True
-    config = { "db?reuse_relation_tree": False,
-               "db?auto_static_enabled": False}
-    localizer = False
-    instanceFolder = None
-    def checkResourcePermission(self, deletable, tags, test=True):
-        return test
-    
+
 class TestGnrSql(BaseGnrSqlTest):
 
     def test_generic_attrs(self):
@@ -75,7 +67,7 @@ class TestGnrSql(BaseGnrSqlTest):
         assert db.workdate == datetime.date.today()
 
         # locale property
-        current_locale = locale.getlocale()[0]
+        current_locale = defaultLocale()
         assert db.locale == current_locale
         db.locale = "it_IT"
         assert db.locale == "it_IT"
@@ -102,9 +94,6 @@ class TestGnrSql(BaseGnrSqlTest):
         db.use_store("*")
         con = db.connection
         assert con is not None
-        db.use_store("_main_db,_main_connection")
-        con = db.connection
-        assert con is not None
         db.use_store()
         assert "_main_db" in db.connectionKey()
         assert "_main_connection" in db.connectionKey()
@@ -115,22 +104,17 @@ class TestGnrSql(BaseGnrSqlTest):
         assert p.get("database") == db.dbname
 
     def test_stores(self):
-        with tempfile.TemporaryDirectory() as tmp_instancefolder:
-            test_store = "mydb2"
-            application = MockApplication()
-            application.instanceFolder = tmp_instancefolder
-            db = gs.GnrSqlDb(application=application)
-            db.stores_handler.add_store(test_store, dbattr=dict(dbname=test_store))
-            p = db.get_connection_params(storename=test_store)
-            assert p.get("database") == test_store
-            # ensure it's not the default
-            assert db.dbname != test_store
-            db.use_store(test_store)
-            assert db.get_dbname() == test_store
+        # GnrSqlDb base class no longer has stores_handler
+        # stores are managed by GnrSqlAppDb in the application context
+        db = gs.GnrSqlDb()
+        assert db.stores_handler is None
+        assert db.dbstores == {}
+        assert db.auxstores == {}
         
     def test_properties_without_app(self):
         db = gs.GnrSqlDb()
-        assert db.debug is None
+        # debug defaults to False in base GnrSqlDb (overridden in GnrSqlAppDb)
+        assert db.debug is False
         assert not db.dbstores
         assert db.reuse_relation_tree is None
         assert db.auto_static_enabled is None
@@ -141,7 +125,8 @@ class TestGnrSql(BaseGnrSqlTest):
             application = MockApplication()
             application.instanceFolder = tmpdirname
             db = gs.GnrSqlDb(application=application)
-            assert db.debug is True
+            # debug is False in base GnrSqlDb, True only in GnrSqlAppDb
+            assert db.debug is False
             assert db.reuse_relation_tree is False
             assert db.auto_static_enabled is False
             assert db.localizer is False

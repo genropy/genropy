@@ -1,7 +1,5 @@
 # encoding: utf-8
 
-from datetime import datetime
-
 class Table(object):
     def config_db(self, pkg):
         tbl = pkg.table('external_token_use', pkey='id', name_long='!!External token usage',

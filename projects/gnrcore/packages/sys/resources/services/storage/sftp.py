@@ -3,17 +3,11 @@
 #  Copyright (c) 2013 Softwell. All rights reserved.
 
 import hashlib
-from collections import defaultdict
 import _thread
 from threading import RLock
-#from gnr.core.gnrlang import componentFactory
 import stat
 import os
 import tempfile
-import mimetypes
-from datetime import datetime
-from paste import fileapp
-from paste.httpheaders import ETAG
 import warnings
 
 try: 
@@ -21,10 +15,8 @@ try:
 except ImportError:
     paramiko = False
 
-from gnr.lib.services.storage import StorageService,StorageNode,StorageResolver
+from gnr.lib.services.storage import StorageService,StorageNode
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrdecorator import public_method
-from gnr.core.gnrbag import Bag
 from gnr.core.gnrlang import GnrException
 
 warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")

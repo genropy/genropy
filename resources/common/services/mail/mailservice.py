@@ -1,16 +1,11 @@
 #!/usr/bin/env pythonw
 # -*- coding: utf-8 -*-
 
-from gnr.core.gnrdecorator import extract_kwargs
 from gnr.web.gnrbaseclasses import BaseComponent
-
 from gnr.lib.services.mail import MailService
-
 
 class Service(MailService):
     pass
-
-
 
 class ServiceParameters(BaseComponent):
     def service_parameters(self,pane,datapath=None,**kwargs):

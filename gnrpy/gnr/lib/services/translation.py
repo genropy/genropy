@@ -1,7 +1,7 @@
 #!/usr/bin/env pythonw
 # -*- coding: utf-8 -*-
 
-from gnr.lib.services import GnrBaseService,BaseServiceType
+from gnr.lib.services import GnrBaseService
 
 class TranslationService(GnrBaseService):
     

@@ -5,7 +5,6 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 
 "Test page description"
-from __future__ import print_function
 
 class GnrCustomWebPage(object):
     auto_polling=0

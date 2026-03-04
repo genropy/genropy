@@ -5,8 +5,6 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 
 """Form Handler test"""
-from __future__ import print_function
-
 
 from gnr.web.gnrwebstruct import struct_method
 

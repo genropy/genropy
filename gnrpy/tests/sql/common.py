@@ -1,9 +1,77 @@
+import sys
 import os
 import os.path
+import subprocess
+import pytest
 from testing.postgresql import Postgresql
 
 from gnr.core.gnrbag import Bag
 
+class MockCache:
+    """Mock cache for testing GnrSqlDb and GnrSqlAppDb"""
+    def __init__(self):
+        self._cache = {}
+
+    def getItem(self, key, defaultFactory=None):
+        if key not in self._cache and defaultFactory:
+            self._cache[key] = defaultFactory()
+        return self._cache.get(key)
+
+    def updatedItem(self, key):
+        if key in self._cache:
+            del self._cache[key]
+
+
+class MockApplication:
+    """Mock application for testing GnrSqlDb and GnrSqlAppDb"""
+    debug = True
+    config = Bag({
+        'db?reuse_relation_tree': False,
+        'db?auto_static_enabled': False,
+        'dbstores': None,
+        'packages': Bag()
+    })
+    localizer = False
+    instanceFolder = None
+    cache = MockCache()
+
+    packages = {}
+
+    def checkResourcePermission(self, deletable, tags, test=True):
+        return test
+
+    def pkgBroadcast(self, method, *args, **kwargs):
+        return []
+
+excludewin32 = pytest.mark.skipif(sys.platform == "win32",
+                                  reason="testing.postgresl doesn't run on Windows")
+
+
+def get_pg_config():
+    """Determine PostgreSQL connection parameters for tests.
+
+    Returns (pg_conf, pg_instance) where pg_instance is not None
+    only when a temporary testing.postgresql was started.  The caller
+    must call pg_instance.stop() when done.
+    """
+    if 'GITHUB_WORKFLOW' in os.environ:
+        return dict(host='127.0.0.1', port='5432',
+                    user='postgres', password='postgres'), None
+    if 'GNR_TEST_PG_PASSWORD' in os.environ:
+        return dict(
+            host=os.environ.get('GNR_TEST_PG_HOST', '127.0.0.1'),
+            port=os.environ.get('GNR_TEST_PG_PORT', '5432'),
+            user=os.environ.get('GNR_TEST_PG_USER', 'postgres'),
+            password=os.environ.get('GNR_TEST_PG_PASSWORD'),
+        ), None
+    subprocess.run(['pkill', '-f', 'postgres.*tmp'], capture_output=True)
+    # we need to ensure that a proper LANG is set, needed by postgresql's initdb
+    os.environ['LANG'] = "en_GB.UTF-8"
+    pg_instance = Postgresql()
+    return pg_instance.dsn(), pg_instance
+
+
+@excludewin32
 class BaseGnrSqlTest:
     """
     Base class for grn.sql testing
@@ -15,34 +83,33 @@ class BaseGnrSqlTest:
         """
         base_path = os.path.join(os.path.dirname(__file__), "data")
         cls.CONFIG = Bag(os.path.join(base_path, 'configTest.xml'))
-        cls.SAMPLE_XMLSTRUCT = os.path.join(base_path, 'dbstructure_base.xml')
         cls.SAMPLE_XMLDATA = os.path.join(base_path, 'dbdata_base.xml')
-        cls.SAMPLE_XMLSTRUCT_FINAL = os.path.join(base_path, 'dbstructure_final.xml')
-        
-        if "GITHUB_WORKFLOW" in os.environ:
-            # we are running inside the Github CI
-            cls.pg_conf = dict(host="127.0.0.1",
-                               port="5432",
-                               user="postgres",
-                               password="postgres")
-            # no mysql in CI environment
+
+        cls.pg_conf, cls.pg_instance = get_pg_config()
+        if 'GITHUB_WORKFLOW' in os.environ or 'GNR_TEST_PG_PASSWORD' in os.environ:
             cls.mysql_conf = None
         else:
-            cls.pg_instance = Postgresql()
-            cls.pg_conf = cls.pg_instance.dsn()
             cls.mysql_conf = dict(host="localhost",
                                   port=3306,
                                   user="genrotest",
                                   password="genrotest")
         
-    @classmethod    
+    @classmethod
     def teardown_class(cls):
         """
         Teardown testing enviroment
         """
-        if not "GITHUB_WORKFLOW" in os.environ:
+        if hasattr(cls, 'dbname'):
+            cls.db.closeConnection()
+            cls.db.dropDb(cls.dbname)
+        if cls.pg_instance is not None:
             cls.pg_instance.stop()
 
+
+
+def configureDb(db, package_name='video'):
+    pkg = db.packageSrc(package_name)
+    configurePackage(pkg)
 
 def configurePackage(pkg):
     pkg.attributes.update(comment='video package', name_short='video', name_long='video', name_full='video')
@@ -57,6 +124,8 @@ def configurePackage(pkg):
     cast = pkg.table('cast', name_short='cast', name_long='Cast',
                      rowcaption='', pkey='id')
     cast.column('id', 'L')
+    cast.subtable("first_movie", condition="$movie_id=1")
+    cast.subtable("second_movie", condition="$movie_id=2")
     cast.column('movie_id', 'L', name_short='Mid',
                 name_long='Movie id').relation('movie.id')
     cast.column('person_id', 'L', name_short='Prs',
@@ -76,7 +145,27 @@ def configurePackage(pkg):
     movie.column('description', name_short='Dsc', name_long='Movie description')
 
     dvd = pkg.table('dvd', name_short='Dvd', name_long='Dvd', pkey='code')
-    dvd_id = dvd.column('code', 'L')
+    dvd.column('code', 'L')
     dvd.column('movie_id', 'L',name_short='Mid', name_long='Movie id').relation('movie.id')
     dvd.column('purchasedate', 'D', name_short='Pdt', name_long='Purchase date')
     dvd.column('available', name_short='Avl', name_long='Available')
+
+    location = pkg.table('location',
+                         name_short='Loc',
+                         name_long='Location',
+                         pkey='id')
+    location.column('id', 'L')
+    location.column('name', name_short='Name', name_long='Name')
+    location.column('rating', 'I', name_short='Rt', name_long='Rating')
+
+    # loc_allocation = pkg.table('loc_allocation',
+    #                            name_short='Loc. Alloc',
+    #                            name_long='Location Allocation',
+    #                            pkey='id')
+    # loc_allocation.column('id', 'L')
+    # loc_allocation.column('location_id', 'L', name_short='Loc', name_long='Location'
+    #                         ).relation('location.id')
+    # loc_allocation.column('movie_id', 'L', name_short='Movie', name_long='Movie ID'
+    #                         ).relation('movie.id')
+    # loc_allocation.column('from_date', 'D', name_short='From', name_long='From Date')
+    # loc_allocation.column('to_date', 'D', name_short='To', name_long='To Date')

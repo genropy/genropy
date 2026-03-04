@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 # 
-from __future__ import print_function
-
 from time import sleep
 from gnr.core.gnrdecorator import public_method
 """Registered users tester"""
@@ -31,7 +29,7 @@ class GnrCustomWebPage(object):
             if store is None:
                 return 'Locked'
             elif doError:
-                print(x)
+                raise Exception('x exception')
             elif seconds:
                 sleep(seconds)
                 return 'done %s %s' %(self.getUuid(),seconds)

@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from gnr.web.batch.btcaction import BaseResourceAction
-from gnr.core.gnrbag import Bag
+
 import os
 import sys
-import shutil
+
+from gnr.web.batch.btcaction import BaseResourceAction
 
 caption = 'Import pysource'
 tags = 'superadmin,_DEV_'

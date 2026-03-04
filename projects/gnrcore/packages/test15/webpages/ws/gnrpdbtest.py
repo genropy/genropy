@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
-from gnr.core.gnrdecorator import websocket_method, public_method
+from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
-import rpdb
 
 class GnrCustomWebPage(object):
     

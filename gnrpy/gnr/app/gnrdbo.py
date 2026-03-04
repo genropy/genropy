@@ -4,10 +4,9 @@
 import datetime
 import warnings as warnings_module
 import os
-import shutil
+import re
 import pytz
 import mimetypes
-
 from collections import defaultdict
 
 from gnr.core.gnrlang import boolean
@@ -16,8 +15,28 @@ from gnr.core.gnrstring import splitAndStrip,templateReplace,fromJson,slugify
 from gnr.core.gnrdecorator import public_method,extract_kwargs
 from gnr.core.gnrdict import dictExtract
 
+from gnr.app import logger
 
 mimetypes.init() # Required for python 2.6 (fixes a multithread bug)
+
+
+def _add_localized_prefix(label, prefix):
+    """Add a prefix to a localized label preserving the localization markers.
+
+    Handles labels with GenroPy localization format (starting with '!!'
+    and optional language code like '!![en]').
+
+    :param label: the original label, possibly with '!!' prefix
+    :param prefix: the prefix to insert after localization markers
+    :returns: the label with prefix inserted after localization markers
+
+    Example: _add_localized_prefix('!!My Label', 'Hierarchical') -> '!!Hierarchical My Label'
+    """
+    return re.sub(
+        r'^(!!(\[[a-z]{2}\])?)\s*(.*)$',
+        lambda m: f"{m.group(1)}{prefix} {m.group(3)}",
+        label
+    )
 
 class GnrDboPackage(object):
     """Base class for packages"""
@@ -182,48 +201,74 @@ class GnrDboPackage(object):
                         rec_to_insert[field] = None
                 recordsToInsert.append(rec_to_insert)
             if recordsToInsert:
-                print('inserisco record in',tblobj.name,tblobj.query().count())
+                logger.info('Inserting record into %s - %s',
+                            tblobj.name,
+                            tblobj.query().count()
+                            )
                 tblobj.insertMany(recordsToInsert)
-        db.commit()
 
-        self.db.table('adm.preference').initPkgPref(self.name,s['preferences'])
+        if s['preferences']:
+            self.db.table('adm.preference').initPkgPref(self.name,s['preferences'])
+            
         db.commit()
         
         os.remove('%s.pik' %bagpath)
 
 
-    def _createStartupData_do(self,basepath=None,btc=None):
-        pkgapp = self.db.application.packages[self.name]
-        tables = self.startupData_tables()
-        if not tables:
+    def handleLocalizedColumn(self, tblsrc, colname, colattr=None, languages=None, **kwargs):
+        """Create additional columns for each localized language variant.
+
+        When a column is marked as 'localized', this method creates additional
+        columns for each language (except the default/first one). It also handles
+        hierarchical tables by creating corresponding hierarchical columns for
+        each language.
+
+        :param tblsrc: the table source node
+        :param colname: the name of the column being localized
+        :param colattr: dictionary of column attributes (dtype, name_long, etc.)
+        :param languages: comma-separated string of language codes (e.g. 'en,it,fr')
+        """
+        languages = languages.split(',')
+        if len(languages) < 2:
             return
-        bagpath = basepath or os.path.join(pkgapp.packageFolder,'startup_data')
-        s = Bag()
-        s['tables'] = tables
-        tables = btc.thermo_wrapper(tables,'tables',message='Table') if btc else tables
-        for tname in tables:
-            tblobj = self.tables[tname]
-            handler = getattr(tblobj.dbtable,'startupData',None)
-            if handler:
-                f = handler()
-            else:
-                qp_handler = getattr(tblobj.dbtable,'startupDataQueryPars',None)
-                queryPars = dict(addPkeyColumn=False,bagFields=True)
-                if qp_handler:
-                    queryPars.update(qp_handler())
-                f = tblobj.dbtable.query(**queryPars).fetch()
-            s[tname] = f
-        s['preferences'] = self.db.table('adm.preference').loadPreference()['data'][self.name]
-        s.makePicklable()
-        s.pickle('%s.pik' %bagpath)
-        import gzip
-        zipPath = '%s.gz' %bagpath
-        with open('%s.pik' %bagpath,'rb') as sfile:
-            with gzip.open(zipPath, 'wb') as f_out:
-                f_out.writelines(sfile)
-        os.remove('%s.pik' %bagpath)
-        if os.path.isdir(bagpath):
-            os.removedirs(bagpath)
+        dtype = colattr.get('dtype') or 'T'
+        name_long = colattr.get('name_long')
+        name_short = colattr.get('name_short')
+        if dtype not in ('T', 'A'):
+            raise TypeError('You can localize only text')
+        group = tblsrc.colgroup(f'{colname}_language', name_long=f'{name_long} - loc')
+
+        # Check if this column is part of a hierarchical table structure
+        hierarchical_localization_needed = False
+        hierarchical_fields = tblsrc.attributes.get('hierarchical')
+        if hierarchical_fields:
+            hierarchical_fields = hierarchical_fields.split(',')
+            hierarchical_localization_needed = colname in hierarchical_fields
+            if hierarchical_localization_needed:
+                # Mark the base hierarchical column as localized too
+                tblsrc[f'columns.hierarchical_{colname}'].attributes['localized'] = colattr['localized']
+
+        # Create a column for each additional language (skip the first/default language)
+        for lang in languages[1:]:
+            loc_name = f'{colname}_{lang}'
+            loc_name_short = f'{name_short} ({lang})' if name_short else None
+            loc_name_long = f'{name_long} ({lang})' if name_long else loc_name
+            # Store localization metadata and set up placeholder trigger for empty translations
+            group.column(loc_name, dtype=dtype, size=colattr.get('size'), indexed=colattr.get('indexed'),
+                         name_short=loc_name_short, name_long=loc_name_long,
+                         localization_language=lang,
+                         localized_field=colname,
+                         onInserting='setLocalizationPlaceholder', onUpdating='setLocalizationPlaceholder')
+            if hierarchical_localization_needed:
+                # Create corresponding hierarchical column for this language
+                hfield = f'hierarchical_{loc_name}'
+                group.column(hfield, name_long=_add_localized_prefix(loc_name_long, 'Hierarchical'),
+                             hierarchical_field_of=loc_name)
+                hierarchical_fields.append(loc_name)
+
+        # Update hierarchical fields list with the new localized hierarchical columns
+        if hierarchical_fields:
+            tblsrc.attributes['hierarchical'] = ','.join(hierarchical_fields)
 
     def startupData_tables(self):
         return  [tbl for tbl in list(self.db.tablesMasterIndex()[self.name].keys()) if self.table(tbl).dbtable.isInStartupData()]
@@ -236,6 +281,7 @@ class GnrDboPackage(object):
         self._createStartupData_do(basepath=basepath,btc=btc)
         if btc:
             btc.batch_complete(result='ok', result_attr=dict())
+
 
     def _createStartupData_do(self,basepath=None,btc=None):
         pkgapp = self.db.application.packages[self.name]
@@ -272,13 +318,13 @@ class GnrDboPackage(object):
         
 class TableBase(object):
     """TODO"""
-
+    
     @extract_kwargs(counter=True)
     def sysFields(self, tbl, id=True, ins=True, upd=True, full_upd=False, ldel=True, user_ins=None, user_upd=None, 
                   draftField=False, invalidFields=None,invalidRelations=None,md5=False,
                   counter=None,relidx=None,hierarchical=None,hierarchical_virtual_roots=False,
                     hierarchical_root_id=False,hierarchical_linked_to=None,hdepth=None,useProtectionTag=None,
-                  group='zzz', group_name='!![en]System',
+                  group='zzz', group_name='!![en]System',sysrecords=None,
                   df=None,counter_kwargs=None,**kwargs):
         """Add some useful columns for tables management (first of all, the ``id`` column)
         
@@ -377,7 +423,7 @@ class TableBase(object):
                     fld_caption=hcol.attributes.get('name_long',fld).replace('!![en]','')  
                     hfields.append(fld)
                     hierarchical_col = tbl.column('hierarchical_%s'%fld,name_long='!![en]Hierarchical %s'%fld_caption,
-                                unique=unique)  
+                                unique=unique,hierarchical_field_of=fld)  
                     tbl.column('_parent_h_%s'%fld,name_long='!![en]Parent Hierarchical %s'%fld_caption,group=group,_sysfield=True)
                 if hdepth:
                     hcolattrs = hierarchical_col.attributes
@@ -438,7 +484,7 @@ class TableBase(object):
         if draftField:
             draftField = '__is_draft' if draftField is True else draftField
             tbl.attributes['draftField'] = draftField
-            tbl.column(draftField, dtype='B', name_long='!![en]Is Draft',group=group,_sysfield=True,_sendback=True)
+            tbl.column(draftField, dtype='B', name_long='!![en]Is Draft',group=group,_sysfield=True,_sendback=True,indexed=True)
         if invalidFields or invalidRelations:
             if invalidFields:
                 tbl.attributes['invalidFields'] = '__invalid_fields'
@@ -462,8 +508,10 @@ class TableBase(object):
 
         if [r for r in dir(self) if r!='_release_' and r.startswith('_release_')]:
             tbl.column('__release', dtype='L', name_long='Sys Version', group=group,_sysfield=True)
-            
-        if [r for r in dir(self) if r!='sysRecord_' and r.startswith('sysRecord_')]:
+        
+        if sysrecords is None:
+            sysrecords = [r for r in dir(self) if r!='sysRecord_' and r.startswith('sysRecord_')]
+        if sysrecords:
             tbl.column('__syscode',size=':20',unique=True,indexed=True,
                 _sysfield=True,group=group,name_long='!![en]Internal code')
             tbl.formulaColumn('__protected_by_syscode',
@@ -478,7 +526,7 @@ class TableBase(object):
         self.sysFields_extra(tbl,_sysfield=True,group=group)
         
         
-
+ 
     def _sysFields_defaults(self,user_ins=None,user_upd=None):
         if user_ins is None:
             default_user_ins = self.db.application.config['sysfield?user_ins']
@@ -552,7 +600,7 @@ class TableBase(object):
         record[fldname] = root_record['id']
 
     def trigger_updateLinkedHierarchicalRoot(self,record,fldname,old_record=None,**kwargs):
-        htbl = self.column(fldname).relatedTable()
+        htbl = self.column(fldname).relatedTable().dbtable
         hierarchical = htbl.attributes.get('hierarchical')
         updater = {}
         if hierarchical is not True:
@@ -560,8 +608,7 @@ class TableBase(object):
                 if record.get(k) is not None:
                     updater[k] = record.get(k)
         if self.fieldsChanged(','.join(updater.keys()),record,old_record):
-            with self.db.table('srvy.question'
-                ).recordToUpdate(record[fldname]) as rec:
+            with htbl.recordToUpdate(record[fldname]) as rec:
                 rec.update(updater)
         
 
@@ -680,6 +727,13 @@ class TableBase(object):
             raise Exception('hdepth variant only for hierarchical table')
         return self.hierarchicalHandler.variantColumn_hdepth(field,**kwargs)
 
+    def variantColumn_docurl(self,field,docurl=None,docext=None,name_long=None,**kwargs):
+        return dict(name=f'{field}_docurl', dtype='T',py_method='endpointColumn',
+                                endpoint='get',
+                                endpoint_source_ext=docext or 'pdf',
+                                endpoint_source=field,**kwargs)
+        
+
     def trigger_hierarchical_before(self,record,fldname,old_record=None,**kwargs):
         self.hierarchicalHandler.trigger_before(record,old_record=old_record)
 
@@ -780,6 +834,9 @@ class TableBase(object):
                     rec = f[syscode]
                     oldrecord = dict(rec)
                     for k,v in list(updated_version.items()):
+                        if self.pkey==k and v is None:
+                            #inside sysrecord definiton there is not pkey field because it is autogenerated
+                            continue
                         rec[k] = v
                     rec['__syscode'] = syscode
                     self.update(rec,oldrecord)
@@ -842,18 +899,7 @@ class TableBase(object):
             if k not in matched_cols:
                 errors.append(k)
         if errors:
-            return 'Missing %s' %','.join(errors)
-    
-    def importerInsertRow(self,row,import_mode=None):
-        record = self.importerRecordFromRow(row)
-        if import_mode=='insert_or_update':
-            self.insertOrUpdate(record)
-        else:
-            self.insert(record)
-    
-    def importerRecordFromRow(self,row):
-        return self.newrecord(**dict(row))
-
+            return 'Missing %s' %','.join(errors)        
 
     @public_method
     def pathFromPkey(self,pkey=None,dbstore=None,**kwargs):
@@ -912,6 +958,19 @@ class TableBase(object):
             xtd['main_id'] = record[relidx_fkey]
             xtd[keyrelidx] = (xtd[keyrelidx] or 0) + 1
         record[fldname] = xtd[keyrelidx]
+
+    def trigger_setLocalizationPlaceholder(self, record, fldname, **kwargs):
+        """Set a placeholder for empty localized fields using the default language value.
+
+        When a localized field is empty, this trigger prefixes the original field value
+        with '~' to indicate it needs translation. This helps identify untranslated content.
+
+        :param record: the record being inserted or updated
+        :param fldname: the localized field name (e.g. 'description_it')
+        """
+        original_value = record.get(self.column(fldname).attributes['localized_field'])
+        if original_value and not record[fldname]:
+            record[fldname] = f'~{original_value}'
 
     def trigger_setTSNow(self, record, fldname,**kwargs):
         """This method is triggered during the insertion (or a change) of a record. It returns
@@ -1194,41 +1253,186 @@ class TableBase(object):
         return templateReplace(tpl,r,**kwargs)
 
 
-    def hosting_copyToInstance(self,source_instance=None,dest_instance=None,_commit=False,logger=None,onSelectedSourceRows=None,**kwargs):
-        #attr = self.attributes
-        #logger.append('** START COPY %(name_long)s **'%attr)
-        source_db = self.db if not source_instance else self.db.application.getAuxInstance(source_instance).db 
-        dest_db = self.db if not dest_instance else self.db.application.getAuxInstance(dest_instance).db 
+
+
+    def endpointColumn(self,record=None,field=None,endpoint=None,**kwargs):
+        colattr = self.column(field).attributes
+        baseEndpoint = endpoint or colattr.get('endpoint') or 'get'
+        endpoint_pars = dictExtract(colattr,'endpoint_')
+        endpoint_pars.update(kwargs)
+        source = endpoint_pars.pop('source',None) or field
+        pkey = record.get('_pkey') or record.get(self.pkey) or record.get('pkey')
+        currentPage = self.db.currentPage
+        if currentPage:
+            endpoint_pars['_current_page_id'] = currentPage.page_id
+        return self.db.application.site.externalUrl(f"/sys/ep_table/{self.fullname.replace('.','/')}/{pkey}/{baseEndpoint}/{source}",**endpoint_pars)
+
+    def hosting_copyToInstance(self,
+                               source_instance=None,
+                               dest_instance=None,
+                               dest_package=None,
+                               dest_tblname=None,
+                               _commit=False,
+                               onSelectedSourceRows=None,
+                               skipMissingColumns=False,
+                               **kwargs):
+        """
+        Copy table data from a source instance to a destination instance
+
+        This method transfers data between different application instances,
+        copying records from the source table to the destination table. It
+        handles both insertions of new records and updates of existing ones
+        based on primary key matching.
+        The method compares records to determine if changes are needed before
+        updating in the destination table.
+
+        Parameters
+        ----------
+        :param source_instance: Name of the source instance.
+                                If None, uses the current AuxInstance
+        :param dest_instance: Name of the destination instance.
+                              If None, uses the current AuxInstance
+        :param dest_package: Name of the destination package.
+                             (Use only if copyng to a different package name)
+        :param dest_tblname: Name of the destination table.
+                             (Use only if copying to a different table name)
+        :param _commit: Whether to commit changes to the destination database 
+                        (default: False)
+        :param onSelectedSourceRows: Optional function to process source rows
+                                     before copying (can also be defined as a
+                                     method on the table class named 
+                                     'hosting_copyToInstance_onSelectedSourceRows')
+        :param skipMissingColumns: If True, ignore columns that don't exist 
+                                   in the destination table (default: False)
+        :param **kwargs: Additional parameters passed to query methods
+
+        Returns
+        -------
+        list
+            The fetched source rows that were processed for copying
+
+        Notes
+        -----
+        - The method excludes metadata fields (__ins_ts, __mod_ts, __ins_user, 
+          __mod_user) when checking for changes
+        - Records are only updated in the destination if field values have changed
+        - The method can handle logical deletion flags and draft records
+        """
+
+        source_db = (
+            self.db
+            if not source_instance
+            else self.db.application.getAuxInstance(source_instance).db
+        )
+        dest_db = (
+            self.db
+            if not dest_instance
+            else self.db.application.getAuxInstance(dest_instance).db
+        )
+
+        # Determine the full name of the destination table
+        # If dest_package and dest_tblname are not provided,
+        # use the same table name as source
+        if dest_package is None and dest_tblname is None:
+            destTblFullName = self.fullname
+        else:
+            destPkgName, destTblName = self.fullname.split('.')
+            destTblFullName = '.'.join(
+                [(dest_package or destPkgName),
+                 (dest_tblname or destTblName)]
+            )
+
         source_tbl = source_db.table(self.fullname)
-        dest_tbl = dest_db.table(self.fullname)
+        dest_tbl = dest_db.table(destTblFullName)
         kwargs.setdefault('bagFields',True)
         pkey = self.pkey
-        source_rows = source_tbl.query(addPkeyColumn=False,excludeLogicalDeleted=False,
-              excludeDraft=False,**kwargs).fetch()
-        onSelectedSourceRows = onSelectedSourceRows or getattr(self,'hosting_copyToInstance_onSelectedSourceRows',None)
+
+        # Fetch all rows from source table
+        # including logically deleted and draft records
+        logger.debug('Fetching source records')
+        source_rows = source_tbl.query(addPkeyColumn=False,
+                                       excludeLogicalDeleted=False,
+                                       excludeDraft=False,
+                                       **kwargs
+                                       ).fetch()
+
+        # Use the callback function for processing source rows if provided
+        onSelectedSourceRows = onSelectedSourceRows or getattr(
+            self,
+            'hosting_copyToInstance_onSelectedSourceRows',
+            None)
         if onSelectedSourceRows:
-            onSelectedSourceRows(source_instance=source_instance,dest_instance=dest_instance,source_rows=source_rows)
-        all_dest = dest_tbl.query(addPkeyColumn=False,for_update=True,excludeLogicalDeleted=False,
-              excludeDraft=False,**kwargs).fetchAsDict(pkey)
-        existing_dest = dest_tbl.query(addPkeyColumn=False,for_update=True,excludeLogicalDeleted=False,
-              excludeDraft=False,where='$%s IN :pk' %pkey,pk=[r[pkey] for r in source_rows]).fetchAsDict(pkey)
+            logger.debug('Calling onSelectedSourceRows method for table %s', self.fullname)
+            onSelectedSourceRows(source_instance=source_instance,
+                                 dest_instance=dest_instance,
+                                 source_rows=source_rows)
+
+        if not source_rows:
+            return []
+
+        # Fetch all destination records
+        logger.debug('Fetching destination records')
+        all_dest = dest_tbl.query(addPkeyColumn=False,
+                                  for_update=True,
+                                  excludeLogicalDeleted=False,
+                                  excludeDraft=False,
+                                  **kwargs
+                                  ).fetchAsDict(pkey)
+
+        # Fetch only the destination records that match source primary keys
+        logger.debug('Fetching destination records (to be updated only)')
+        existing_dest = dest_tbl.query(addPkeyColumn=False,
+                                       for_update=True,
+                                       excludeLogicalDeleted=False,
+                                       excludeDraft=False,
+                                       where='$%s IN :pk' %pkey,
+                                       pk=[r[pkey] for r in source_rows]
+                                       ).fetchAsDict(pkey)
+
+        # Merge the two destination dictionaries
         all_dest.update(existing_dest)
-        if source_rows:
-            fieldsToCheck = ','.join([c for c in list(source_rows[0].keys()) if c not in ('__ins_ts','__mod_ts','__ins_user','__mod_user')])
-            for r in source_rows:
-                r = dict(r)
-                if r[pkey] in all_dest:
-                    oldr = dict(all_dest[r[pkey]])
-                    if self.fieldsChanged(fieldsToCheck,r,oldr):
-                        #logger.append('\t\t ** UPDATING LINE %s **' %r['id'])
-                        dest_tbl.raw_update(r,oldr)
-                    all_dest.pop(r[pkey])
-                else:
-                    #logger.append('\t\t ** INSERTING LINE %s **' %r['id'])
-                    dest_tbl.raw_insert(r)  
-            #self.hosting_removeUnused(dest_db,all_dest.keys())
-            if _commit:
-                dest_db.commit()
+
+        # If ignoring missing columns, get the list of columns from the destination table
+        destColumns = None
+        if skipMissingColumns:
+            destColumns = set(dest_tbl.columns)
+
+        # Create a comma-separated list of fields to check for changes
+        # excluding metadata fields
+        fieldsToCheck = ",".join(
+            [
+                c
+                for c in list(source_rows[0].keys())
+                if c not in ("__ins_ts", "__mod_ts", "__ins_user", "__mod_user")
+            ]
+        )
+
+        for r in source_rows:
+            r = dict(r)
+
+            # If skipping missing columns, filter out from the record
+            if skipMissingColumns and destColumns:
+                filtered_r = {k: v for k, v in r.items() if k in destColumns}
+                r = filtered_r
+
+            # Check if the record exists in destination (by primary key)
+            if r[pkey] in all_dest:
+                oldr = dict(all_dest[r[pkey]])
+                # Compare source and destination records and
+                # only update if there are actual changes in values
+                if self.fieldsChanged(fieldsToCheck, r, oldr):
+                    logger.debug('Updating line %s'%r[pkey])
+                    dest_tbl.raw_update(r, oldr)
+                all_dest.pop(r[pkey])
+            else:
+                # Record doesn't exist in destination, so insert it
+                logger.debug('Inserting line %s'%r[pkey])
+                dest_tbl.raw_insert(r)  
+        #self.hosting_removeUnused(dest_db, all_dest.keys())
+        if _commit:
+            logger.debug('Commit on dest. DB')
+            dest_db.commit()
+
         return source_rows
 
     def hosting_removeUnused(self,dest_db,missing=None):
@@ -1336,7 +1540,9 @@ class GnrDboTable(TableBase):
 
 
     def populateFromMasterDb(self,master_db=None,from_table=None,**kwargs):
-        print('populating %s from %s' %(self.fullname,from_table or ''))
+        logger.info('Populating %s from %s',
+                    self.fullname,
+                    from_table or '')
         descendingRelations = self.model.manyRelationsList(cascadeOnly=True)
         ascendingRelations = self.model.oneRelationsList(foreignkeyOnly=True)
         onPopulatingFromMasterDb = getattr(self,'onPopulatingFromMasterDb',None)
@@ -1351,12 +1557,11 @@ class GnrDboTable(TableBase):
             if r[self.pkey] in valuesset:
                 continue
             self.raw_insert(r)
-            print('.', end=' ')
             valuesset.add(r[self.pkey])
             for tbl,fkey in descendingRelations:
                 if tbl!=from_table and tbl!=self.fullname:
                     self.db.table(tbl).populateFromMasterDb(master_db,where='$%s=:fkey' %fkey, fkey=r[self.pkey])
-        print('\n')
+        logger.info("Completed")
 
 
     def populateAscendingRelationsFromMasterDb(self,record,master_db=None,ascendingRelations=None,foreignkeyOnly=None):
@@ -1453,11 +1658,14 @@ class AttachmentTable(GnrDboTable):
     def use_dbstores(self, **kwargs):
         return self.db.table(tblname=self.fullname[0:-4]).use_dbstores()
 
+    def config_attributes(self):
+        return dict()
+        
     def config_db(self,pkg):
         tblname = self._tblname
         tbl = pkg.table(tblname,pkey='id')
         mastertbl = '%s.%s' %(pkg.parentNode.label,tblname.replace('_atc',''))
-
+        table_attributes = self.config_attributes() 
         pkgname,mastertblname = mastertbl.split('.')
         tblname = '%s_atc' %mastertblname
         assert tbl.parentNode.label == tblname,'table name must be %s' %tblname
@@ -1469,7 +1677,7 @@ class AttachmentTable(GnrDboTable):
         tbl.attributes.setdefault('rowcaption','$description')
         tbl.attributes.setdefault('name_long','%s  Attachment' %mastertbl_name_long)
         tbl.attributes.setdefault('name_plural','%s Attachments' %mastertbl_name_long)
-
+        tbl.attributes.update(table_attributes)
         self.sysFields(tbl, counter='maintable_id')
         #self.sysFields(tbl,id=True, ins=False, upd=False,counter='maintable_id')
         tbl.column('id',size='22',group='_',name_long='Id')
@@ -1499,8 +1707,10 @@ class AttachmentTable(GnrDboTable):
         tbl.formulaColumn('adapted_url',"""CASE WHEN position('\\:' in $filepath)>0 THEN '/'||$filepath
              ELSE '/_vol/' || $filepath
             END""",group='_')
-                    
-        tbl.formulaColumn('fileurl',"COALESCE($external_url,$adapted_url)",name_long='Fileurl',static=True)
+        tbl.pyColumn('fileurl',py_method='filepath_endpoint_url',name_long='Fileurl',
+                        outdatedWatermark = tbl.attributes.get('outdatedWatermark'),
+                        required_columns='$external_url,$filepath',
+                        static=True)
         if hasattr(self,'atc_types'):
             tbl.column('atc_type',values=self.atc_types())
         if hasattr(self,'atc_download'):
@@ -1510,10 +1720,33 @@ class AttachmentTable(GnrDboTable):
         tbl.pyColumn('missing_file',name_long='Missing file',dtype='B')
         tbl.pyColumn('full_external_url',name_long='Full external url')
 
-    def pyColumn_full_external_url(self,record,field):
-        if not record.get('fileurl'):
+    def atc_exposeEndpointUrl(self):
+        result = self.attributes.get('endpoint_url') or self.db.currentEnv.get('atc_endpoint_url',False)
+        if not result:
+            jsPdfViewerPref = self.db.application.getPreference('jsPdfViewer',pkg='sys') 
+            site =  self.db.application.site
+            if jsPdfViewerPref or site.currentPage.isMobile:
+                return True
+            main_pkg_obj = site.gnrapp.packages[site.mainpackage]
+            result = main_pkg_obj.attributes.get('atc_endpoint_url')
+        return result or False
+
+    def filepath_endpoint_url(self,record,field=None):
+        if record.get('external_url'):
+            return record['external_url']
+        filepath = record['filepath']
+        if not filepath:
             return
-        return self.db.application.site.externalUrl(record['fileurl'])
+        if ':' in filepath:
+            if self.atc_exposeEndpointUrl():
+                return self.endpointColumn(record=record,field='filepath',
+                            source_ext=self.db.application.site.storageNode(filepath).ext)
+            return self.db.application.site.externalUrl(f'/{filepath}')
+        return self.db.application.site.externalUrl(f'/_vol/{filepath}')
+
+    def pyColumn_full_external_url(self,record,field):
+        # Compute directly from filepath - no dependency on fileurl pyColumn
+        return self.filepath_endpoint_url(record)
     
     def pyColumn_missing_file(self,record,**kwargs):
         sn = self.db.application.site.storageNode(record['filepath'])
@@ -1849,7 +2082,7 @@ class Table_sync_event(TableBase):
         tsfield = tblobj.lastTs
         if tsfield and event != 'I':
             event_check_ts = old_record[tsfield] if event=='U' else record[tsfield]
-        print('TABLE TRIGGER SYNC')
+        logger.debug('Table trigger sync')
         event_record = dict(tablename=tblobj.fullname,event_type=event,
                     event_pkey=record[tblobj.pkey],
                     event_data=Bag(record),

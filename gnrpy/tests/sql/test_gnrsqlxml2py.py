@@ -1,9 +1,12 @@
-import os, os.path
 import tempfile
 import pytest
+
 from gnr.sql import gnrsqlxml2py as gx
 from gnr.core.gnrbag import BagException
 
+from .common import excludewin32
+
+@excludewin32
 class TestGnrSqlXml2Py():
     def test_structToPyFull(self):
         with tempfile.TemporaryDirectory() as tmpdir:

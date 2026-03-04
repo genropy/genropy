@@ -4,14 +4,12 @@
 # Created by Francesco Porcari on 2010-09-08.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
-from __future__ import division
-from __future__ import print_function
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.core.gnrdict import dictExtract
-from gnr.core.gnrdecorator import extract_kwargs,public_method
+from gnr.core.gnrdecorator import extract_kwargs
 from gnr.core.gnrbag import Bag
 from gnr.web.gnrwebstruct import struct_method
-import os
+
 try:
     from PIL import Image
 except:
@@ -33,7 +31,7 @@ class DropUploaderBase(BaseComponent):
                  width='100px', height='100px', _class="document_empty_64",
                  style="""border: 2px dashed #989898;border-radius: 3px;""")
         pane.data('.uploading_data', Bag())
-        pane.dataController("""
+        pane.dataController(r"""
                 dojo.forEach(files,
                             function(f){
                                 var row = objectUpdate({_name:f.name,_size:f.size,_type:f.type,_file:f,_uploaderId:uploaderId},external_params);
@@ -109,7 +107,7 @@ class DropUploaderBase(BaseComponent):
        #    gridEditor.child(_tag, gridcell=k)
         grid.dataController("""grid.editBagRow(null,fired);""", fired='^.on_drop',
                           grid=grid.js_widget)
-        grid.dataController("""
+        grid.dataController(r"""
                 if(!filebag){
                    filebag = new gnr.GnrBag();
                    SET .uploading_data = filebag;
@@ -297,7 +295,7 @@ class DropUploader(DropUploaderBase):
             gridEditor.child(_tag, gridcell=k)
         bc.dataController("""genro.wdgById(gridId).editBagRow(null,fired);""", fired='^.on_drop',
                           gridId=gridId, datapath=datapath)
-        bc.dataController("""
+        bc.dataController(r"""
                 dojo.forEach(files,
                             function(f){
                                 var row = objectUpdate({_name:f.name,_size:f.size,_type:f.type,_file:f,_uploaderId:uploaderId},external_params);

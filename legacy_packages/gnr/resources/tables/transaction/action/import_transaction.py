@@ -1,11 +1,15 @@
 # -*- coding: utf-8 -*-
 
-from gnr.web.batch.btcaction import BaseResourceAction
+
 import os
 import logging
+import time
+
 from logging.handlers import TimedRotatingFileHandler
 from logging import Formatter
 
+from gnr.web.batch.btcaction import BaseResourceAction
+from gnr.core.gnrlang import errorLog
 gnrlogger = logging.getLogger('gnr')
 
 
@@ -68,7 +72,7 @@ class Main(BaseResourceAction):
             self.db.package('admin').mailLog(self.processName)
 
     def checkTransactions(self, notify=None):
-        print "Checking -- [%i-%i-%i %02i:%02i:%02i]" % (time.localtime()[:6])
+        print("Checking -- [%i-%i-%i %02i:%02i:%02i]" % (time.localtime()[:6]))
         try:
             todo = True
             while todo:

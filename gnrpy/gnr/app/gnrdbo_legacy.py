@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
-from __future__ import print_function
+from gnr.app import logger
 from gnr.app.gnrdbo import GnrDboTable
 from gnr.core.gnrdecorator import public_method
          
@@ -26,7 +26,7 @@ class GnrHTable(GnrDboTable):
             tbl.column('description', name_long='!!Description', base_view=True)
             tbl.column('child_code', name_long='!!Child code', validate_notnull=True,
                         validate_notnull_error='!!Required', base_view=True,
-                        validate_regex=r'!\.', validate_regex_error='!!Invalid code: "." char is not allowed')"""
+                        validate_regex=r'!.', validate_regex_error='!!Invalid code: "." char is not allowed')"""
                         
         columns = tbl['columns'] or []
         broadcast = [] if 'broadcast' not in tbl.attributes else tbl.attributes['broadcast'].split(',')
@@ -205,7 +205,7 @@ class DynamicFieldsTable(GnrDboTable):
         mastertbl = self.fullname.replace('_df','')
         tblobj = self.db.table(mastertbl)
         if tblobj.column('df_fields') is not None:
-            print('IMPORTING DynamicFields FROM LEGACY',mastertbl)
+            logger.info('Importing DynamicFields from legacy: %s', mastertbl)
             tblobj.df_importLegacyScript()
             return True
             

@@ -21,16 +21,21 @@ const LoginComponent = {
             genro.publish('confirmUserDialog');
             return;
         }
-        var newenv = result.getItem('rootenv');
-        var rootenv = sourceNode.getRelativeData('gnr.rootenv');
+        let newenv = result.getItem('rootenv');
+        let rootenv = sourceNode.getRelativeData('gnr.rootenv');
         currenv = rootenv.deepCopy();
         currenv.update(newenv);
         sourceNode.setRelativeData('gnr.rootenv', currenv);
         sourceNode.setRelativeData('gnr.avatar',avatar);
+        let extraEditableFields = [];
+
         if(avatar.getItem('group_code')){
             sourceNode.setRelativeData('_login.group_code',avatar.getItem('group_code'))
         }
         sourceNode.getValue().walk(n=>{    
+            if(genro.dom.isVisible(n) && n.attr.value && n.attr.nodeId!="tb_login_pwd" &&  n.attr.nodeId!="tb_login_user"){
+                extraEditableFields.push(n);
+            }
             if(!n.hasValidations()){
                 return
             }        
@@ -40,10 +45,13 @@ const LoginComponent = {
             }
             n.setValidationError(validation);
             n.updateValidationStatus();
+
         })
         if(result.getItem('waiting2fa')){
             sourceNode.setRelativeData('waiting2fa',true);
             genro.publish('getOtpDialog');
+        }else if(extraEditableFields.length==0){
+            genro.fireEvent('do_login',true);
         }
     },
 
@@ -78,6 +86,7 @@ const LoginComponent = {
         genro.lockScreen(true,'login');
         let rpckw = {'rootenv':rootenv,login:login};
         genro.serverCall(rpcmethod,rpckw,function(result){
+            let rootenv = sourceNode.getRelativeData('gnr.rootenv');
             genro.lockScreen(false,'login');
             if (!result || result.error){
                 dlg.show();
@@ -100,16 +109,18 @@ const LoginComponent = {
                     genro.gotoURL(startPage);
                     return
                 }
+                let kwreload = {...genro.startArgs};
+                objectPop(kwreload,'gnrtoken');
                 if(doLogin){
-                    let avatar_rootpage = avatar.getItem('avatar_rootpage') || avatar.get('singlepage');
-                    if(avatar_rootpage && !standAlonePage){
-                        genro.gotoURL(genro.addParamsToUrl(avatar_rootpage,genro.startArgs));
+                    let singlepage = avatar.getItem('avatar_rootpage') || rootenv.getItem('singlepage');
+                    if(singlepage && !standAlonePage){
+                        genro.gotoURL(genro.addParamsToUrl(singlepage,kwreload));
                     }else{
                         genro.pageReload();
                     }
                 }else{
                     //different context page
-                    let kwreload = {page_id:genro.page_id,...genro.startArgs};
+                    kwreload.page_id = genro.page_id;
                     objectPop(kwreload,'new_window');
                     genro.pageReload(kwreload);
                 }

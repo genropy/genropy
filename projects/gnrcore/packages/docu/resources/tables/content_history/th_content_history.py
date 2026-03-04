@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrdecorator import public_method
-
 
 class View(BaseComponent):
     js_requires='docu_components'
@@ -28,6 +26,17 @@ class View(BaseComponent):
                             """, 
                             old_version='^.grid.selectedId?text', 
                             new_version='=#FORM.record.text', _if='old_version')
+        
+
+class ViewFromContent(View):
+    
+    def th_struct(self, struct):
+        r = struct.view().rows()
+        r.fieldcell('version', width='3em')
+        r.fieldcell('__ins_user', width='auto')
+        r.fieldcell('__ins_ts', width='9em')
+        r.fieldcell('text', hidden=True)
+
 
 class Form(BaseComponent):
 

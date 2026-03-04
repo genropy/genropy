@@ -1,1 +1,1 @@
-import gnr.web.gnrdaemonprocesses
+import gnr.web.gnrdaemonprocesses  # noqa: F401 

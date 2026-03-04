@@ -84,7 +84,7 @@ class TableHandler(BaseComponent):
         tableCode = table.replace('.','_')
         th_root = self._th_mangler(pane,table,nodeId=nodeId)
         if nodeId is None and th_root in pane.register_nodeId:
-            th_root = '{}_{}'.format(th_root,id(pane))
+            th_root = '{}_DUP_{}'.format(th_root,id(pane))
             datapath = datapath or '.{}'.format(th_root)
         viewCode='V_{}'.format(th_root)
         formCode='F_{}'.format(th_root)
@@ -129,23 +129,25 @@ class TableHandler(BaseComponent):
             if addrow is not True:
                 addrow_defaults = addrow
 
-        if picker or picker_kwargs:
+        # Normalize picker kwargs to a dict; avoid truthy non-dict defaults enabling the picker unintentionally
+        picker_kwargs = picker_kwargs if isinstance(picker_kwargs, dict) else {}
+        if bool(picker):
             top_slots.append('thpicker')
             if picker is True:
                 picker = tblobj.pkey
                 picker_kwargs['table'] = table
-                if picker_kwargs.pop('exclude_assigned',None):
-                    picker_base_condition = '$%(_fkey_name)s IS NULL' %condition_kwargs 
+                if picker_kwargs.pop('exclude_assigned', None):
+                    picker_base_condition = '$%(_fkey_name)s IS NULL' % condition_kwargs
                 else:
-                    picker_base_condition = '$%(_fkey_name)s IS NULL OR $%(_fkey_name)s!=:fkey' %condition_kwargs 
+                    picker_base_condition = '$%(_fkey_name)s IS NULL OR $%(_fkey_name)s!=:fkey' % condition_kwargs
                 picker_custom_condition = picker_kwargs.get('condition')
-                picker_kwargs['condition'] = picker_base_condition if not picker_custom_condition else '(%s) AND (%s)' %(picker_base_condition,picker_custom_condition)
-                for k,v in list(condition_kwargs.items()):
-                    picker_kwargs['condition_%s' %k] = v
+                picker_kwargs['condition'] = picker_base_condition if not picker_custom_condition else '(%s) AND (%s)' % (picker_base_condition, picker_custom_condition)
+                for k, v in condition_kwargs.items():
+                    picker_kwargs['condition_%s' % k] = v
                 if delrow:
                     tblname = tblattr.get('name_plural') or tblattr.get('name_one') or tblobj.name
-                    unlinkdict = dict(one_name=tblname.lower(),
-                                    field=condition_kwargs['_fkey_name'])
+                    unlinkdict = dict(one_name=tblname.lower(), field=condition_kwargs['_fkey_name'])
+            # Always set relation_field when picker is enabled
             picker_kwargs['relation_field'] = picker
 
         if addrowmenu:
@@ -434,7 +436,8 @@ class TableHandler(BaseComponent):
         
     @struct_method
     def th_plainTableHandler(self,pane,nodeId=None,table=None,th_pkey=None,datapath=None,viewResource=None,
-                            hider=False,picker=None,addrow=None,delrow=None,height=None,width=None,rowStatusColumn=None,**kwargs):
+                            hider=False,picker=None,addrow=None,delrow=None,height=None,width=None,rowStatusColumn=None,
+                            mobileTemplateGrid=None,**kwargs):
         kwargs['tag'] = 'ContentPane'
         if picker:
             hider=True
@@ -442,10 +445,15 @@ class TableHandler(BaseComponent):
             addrow = False if addrow is None else addrow
         if not delrow and rowStatusColumn is None:
             rowStatusColumn = False
+        if mobileTemplateGrid:
+            kwargs.setdefault('configurable',False)
+            kwargs.setdefault('grid_gridplugins',False)
         wdg = self.__commonTableHandler(pane,nodeId=nodeId,table=table,th_pkey=th_pkey,datapath=datapath,handlerType='plain',
                                         viewResource=viewResource,hider=hider,rowStatusColumn=rowStatusColumn,
                                         picker=picker,addrow=addrow,delrow=delrow,**kwargs)
         wdg.view.attributes.update(height=height,width=width)
+        if mobileTemplateGrid:
+            wdg.view.attributes['_class'] = f"{wdg.view.attributes['_class']} mobileTemplateGrid templateGrid"
         return wdg
 
     @extract_kwargs(default=True,page=True)     
@@ -737,11 +745,26 @@ class MultiButtonForm(BaseComponent):
                 """,
                 pkey='^.value',
                 frm=form,_if='pkey',caption_field=caption_field,store='=.store')
-            bar.dataController("""
-            if(_node.label=='store' && !(store && store.len()>0)){
-                SET .value = '*norecord*';
-            }
-            """,store='^.store',frm=form.js_form)
+            # DataController moved to frame scope to properly handle store updates and norecord state
+            frame.dataController("""
+                if(!_node || _node.label!='store'){
+                    return;
+                }
+                var hasRows = store && store.len()>0;
+                if(!hasRows){
+                    SET .value = '*norecord*';
+                    if(frm && frm.getCurrentPkey()!='*norecord*'){
+                        frm.norecord();
+                    }
+                }
+                if(emptyMessage){
+                    if(hasRows){
+                        frameWidget.setHiderLayer(false);
+                    }else{
+                        frameWidget.setHiderLayer(true,{message:emptyMessage,_class:'hiderMessage',text_align:'center',top:'25%',left:0,right:0});
+                    }
+                }
+            """,store='^.store',frm=form.js_form,frameWidget=frame,emptyMessage=emptyPageMessage)
             form.dataController("""
                 if(mb.form){
                     mb.form.childForms[this.form.formId] = this.form;
@@ -1024,5 +1047,10 @@ class THBusinessIntelligence(BaseComponent):
         if not self.db.package('orgn'):
             return
         self.mixinComponent('orgn_components:OrganizerComponent')
-        parent.contentPane(titleCounter=True,**kwargs).annotationTableHandler(linked_entity=linked_entity,user_kwargs=user_kwargs,configurable=configurable,
-                                        parentForm=parentForm,nodeId=nodeId,viewResource=viewResource,formResource=formResource)
+        parent.contentPane(titleCounter=True,**kwargs).annotationTableHandler(linked_entity=linked_entity,
+                                                                              user_kwargs=user_kwargs,
+                                                                              configurable=configurable,
+                                                                              parentForm=parentForm,
+                                                                              nodeId=nodeId,
+                                                                              viewResource=viewResource,
+                                                                              formResource=formResource)

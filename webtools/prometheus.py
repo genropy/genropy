@@ -6,7 +6,6 @@
 #  Copyright (c) 2024 Softwell. All rights reserved.
 #
 
-import json
 import datetime
 import time
 from gnr.web.gnrbaseclasses import BaseWebtool

@@ -10,7 +10,7 @@ import urllib.request, urllib.parse, urllib.error
 from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrsys import expandpath
-from gnr.app.gnrconfig import getGnrConfig
+from gnr.core.gnrconfig import getGnrConfig
 
 
 def site_name_to_path(gnr_config, site_name):
@@ -58,7 +58,7 @@ def get_site_url(site_name):
             site_config = get_site_config(site_path, gnr_config)
             return 'http://localhost:%s'%site_config['wsgi?port']
 
-description = "heartbeat"
+description = "Start heartbeat monitoring service"
 
 def main():
     parser = GnrCliArgParse(description=description)

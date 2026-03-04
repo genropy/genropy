@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 
 from gnr.web.batch.btcaction import BaseResourceAction
-from gnr.core.gnrbag import Bag
-
 
 caption = '!!Send messages'
 tags = 'admin'

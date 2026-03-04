@@ -5,9 +5,6 @@
 # Copyright (c) 2010 Softwell. All rights reserved.
 
 from gnr.web.batch.btcprint import BaseResourcePrint
-from gnr.web.gnrbaseclasses import TableScriptToHtml
-from gnr.core.gnrstring import templateReplace
-from gnr.core.gnrbag import Bag
 
 tags='system'
 class Main(BaseResourcePrint):

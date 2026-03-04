@@ -2,8 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrdecorator import public_method,metadata
-
+from gnr.core.gnrdecorator import metadata
 
 class View(BaseComponent):
 
@@ -131,6 +130,7 @@ class ViewFromMailbox(View):
         r.fieldcell('user_id',width='35em')
         r.fieldcell('account_id',width='35em')
 
+
 class ViewFromDashboard(View):
     
     def th_struct(self,struct):
@@ -144,6 +144,7 @@ class ViewFromDashboard(View):
 
     def th_order(self):
         return 'send_date:d'
+    
 
 class Form(BaseComponent):
     py_requires = "gnrcomponents/attachmanager/attachmanager:AttachManager"
@@ -167,6 +168,7 @@ class Form(BaseComponent):
         fb.field('from_address',colspan=2)
         fb.field('cc_address',colspan=2)
         fb.field('bcc_address',colspan=2)
+        fb.field('reply_to',colspan=2)
         fb.field('send_date', tag='div')
         fb.field('html',html_label=True)
         fb.field('__is_draft', lbl='!![en]Draft')
@@ -193,6 +195,7 @@ class Form(BaseComponent):
         bar.send_button.slotButton('Send message', hidden='^#FORM.record.send_date').dataRpc(
                     self.db.table('email.message').sendMessage, pkey='=#FORM.record.id')
 
+
 class FormFromDashboard(Form):
 
     def th_form(self, form):
@@ -201,6 +204,3 @@ class FormFromDashboard(Form):
     
     def th_options(self):
         return dict(showtoolbar=False)
-
-
-

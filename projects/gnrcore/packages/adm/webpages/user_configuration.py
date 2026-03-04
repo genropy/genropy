@@ -4,16 +4,12 @@
 #  index.py
 
 
-""" index.py """
-
-from gnr.core.gnrdecorator import public_method
-# --------------------------- GnrWebPage subclass ---------------------------
 class GnrCustomWebPage(object):
-    dojo_source=True
+    dojo_source = True
     py_requires = """public:Public,th/th:TableHandler"""
-    auth_page='_DEV_,superadmin'
+    auth_page = '_DEV_,superadmin'
     auth_main = '_DEV_,superadmin'
-    pageOptions={'openMenu':False,'liveUpdate':True,'userConfig':False}
+    pageOptions = {'openMenu':False,'liveUpdate':True,'userConfig':False}
 
     def main(self, root,**kwargs):
         frame = root.rootBorderContainer(datapath='main',design='sidebar',title='!![it]Admin Configurator') 

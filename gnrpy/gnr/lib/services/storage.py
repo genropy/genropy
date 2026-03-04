@@ -5,20 +5,18 @@
 import os
 import re
 import random
-from datetime import datetime
 import os
 import shutil
-
 import mimetypes
 from paste import fileapp
 from paste.httpheaders import ETAG
-from subprocess import call,check_call, check_output
+from subprocess import check_call, check_output
 import stat
 
 from gnr.core.gnrsys import expandpath
 from gnr.core import gnrstring
-from gnr.core.gnrbag import Bag,DirectoryResolver,BagResolver
-from gnr.lib.services import GnrBaseService,BaseServiceType
+from gnr.core.gnrbag import Bag, BagResolver
+from gnr.lib.services import GnrBaseService, BaseServiceType
 
 class NotExistingStorageNode(Exception):
     pass
@@ -202,7 +200,7 @@ class StorageNode(object):
     def __str__(self):
         return 'StorageNode %s <%s>' %(self.service.service_implementation,self.internal_path)
 
-    def __init__(self, parent=None, path=None, service=None, autocreate=None,must_exist=False, mode='r'):
+    def __init__(self, parent=None, path=None, service=None, autocreate=None,must_exist=False, version=None,mode='r'):
         self.service = service
         self.parent = parent
         self.path = self.service.expandpath(path)
@@ -210,6 +208,11 @@ class StorageNode(object):
             raise NotExistingStorageNode
         self.mode = mode
         self.autocreate = autocreate
+        self.version = version
+
+    @property
+    def versions(self):
+        return self.service.versions(self.path)
 
     @property
     def md5hash(self):
@@ -305,7 +308,10 @@ class StorageNode(object):
     def open(self, mode='rb'):
         """Is a context manager that returns the open file pointed"""
         self.service.autocreate(self.path, autocreate=-1)
-        return self.service.open(self.path, mode=mode)
+        kwargs = {'mode':mode}
+        if self.version and self.service.is_versioned:
+            kwargs['version_id'] = self.version
+        return self.service.open(self.path,**kwargs)
 
     def url(self, **kwargs):
         """Returns the external url of this file"""
@@ -376,6 +382,9 @@ class StorageService(GnrBaseService):
     def md5hash(self,*args):
         """Returns the md5 hash of a given path"""
         pass
+
+    def versions(self,*args):
+        return []
 
     def fullpath(self, path):
         """Returns the fullpath (comprending self.service_name) of a path"""
@@ -473,6 +482,10 @@ class StorageService(GnrBaseService):
         return url
 
     @property
+    def is_versioned(self):
+        return False
+
+    @property
     def location_identifier(self):
         pass
 
@@ -526,6 +539,7 @@ class StorageService(GnrBaseService):
         """Copies the content of a node to another node, its used only
         if copying between different service types"""
         with sourceNode.open(mode='rb') as sourceFile:
+            destNode.service.autocreate(destNode.path, autocreate=-1)
             with destNode.open(mode='wb') as destFile:
                 destFile.write(sourceFile.read())
 
@@ -568,7 +582,7 @@ class StorageService(GnrBaseService):
             return self._move_file(sourceNode, destNode)
         elif sourceNode.isdir:
             return self._move_dir(sourceNode, destNode)
-
+        
 
     def _move_file(self, sourceNode, destNode):
         """Moves the content of a node file to another node file, 
@@ -660,9 +674,10 @@ class StorageService(GnrBaseService):
         pass
 
 class BaseLocalService(StorageService):
-    def __init__(self, parent=None, base_path=None,**kwargs):
+    def __init__(self, parent=None, base_path=None, tags=None,**kwargs):
         self.parent = parent
         self.base_path =  expandpath(base_path) if base_path else None
+        self.tags = tags
 
     @property
     def location_identifier(self):

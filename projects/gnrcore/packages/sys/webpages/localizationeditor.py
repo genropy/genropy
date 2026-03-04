@@ -170,9 +170,9 @@ class GnrCustomWebPage(object):
 
     def localizationGrid(self,pane):
         frame = pane.bagGrid(storepath='=#FORM.record.griddata',datapath='#FORM.localizationGrid',pbl_classes=True,
-                               margin='2px',struct=self.locGridStruct,
-                                addrow=False,delrow=False,title='!!Localization',
-                               grid_excludeListCb="""
+                             margin='2px',struct=self.locGridStruct,
+                             addrow=False,delrow=False,title='!!Localization',
+                             grid_excludeListCb=r"""
                                    var result = [];
                                    var selectedModule= this.getRelativeData('#FORM.selectedModule');
                                    if (selectedModule){

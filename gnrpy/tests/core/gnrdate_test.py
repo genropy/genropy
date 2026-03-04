@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from gnr.core import gnrdate
+
 import pytest
 import datetime
 
 from gnr.core import gnrdate
-from gnr.core.gnrlang import GnrException
-
 
 def test_relativeDay():
     workdate = datetime.date(2008, 4, 25)

@@ -7,8 +7,6 @@
 """Test drop uploader"""
 
 
-from gnr.core.gnrlist import XlsReader
-from gnr.core.gnrbag import Bag, DirectoryResolver
 
 class GnrCustomWebPage(object):
     py_requires = """gnrcomponents/testhandler:TestHandlerFull,

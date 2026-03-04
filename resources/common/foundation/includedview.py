@@ -20,7 +20,6 @@
 
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdict import dictExtract
-from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import extract_kwargs
 
 class IncludedView(BaseComponent):
@@ -150,7 +149,7 @@ class IncludedView(BaseComponent):
                                          columns of the many to many table.
         :param fromPicker_nodup_field: if this column value is present in the includedView it allows to
                                        replace that row instead of adding a duplicate row
-        :param \*\*kwargs: **autowidth**, **storepath**, etc"""
+        :param **kwargs: **autowidth**, **storepath**, etc"""
         if storepath:
             assert not storepath.startswith('^') and not storepath.startswith('='),\
             "storepath should be a plain datapath, no ^ or ="

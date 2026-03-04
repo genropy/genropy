@@ -1,8 +1,11 @@
 import sys
-from gnr.core.gnrbag import Bag
-from gnr.core.gnrdict import dictExtract
-from gnr.web.gnrwsgisite import GnrWsgiSite
-from werkzeug.serving import run_simple, make_server, is_running_from_reloader
+import time
+from datetime import datetime
+import os
+import atexit
+import re
+
+from werkzeug.serving import make_server, is_running_from_reloader
 from werkzeug._reloader import run_with_reloader
 from werkzeug.debug.tbtools import render_console_html
 try:
@@ -27,22 +30,18 @@ except ImportError:
 
 from werkzeug.debug import DebuggedApplication,_ConsoleFrame
 from werkzeug.wrappers import Response, Request
-import glob
-from datetime import datetime
-import os
-import atexit
-import logging
+
 from gnr.core.cli import GnrCliArgParse
-from gnr.core.gnrsys import expandpath
-from gnr.core.gnrlog import enable_colored_logging, log_styles
-from gnr.app.gnrconfig import getGnrConfig, gnrConfigPath
+from gnr.core.gnrconfig import getGnrConfig, gnrConfigPath
+from gnr.core.gnrbag import Bag
+from gnr.core.gnrdict import dictExtract
 from gnr.app.gnrdeploy import PathResolver
-import re
+from gnr.web.gnrwsgisite import GnrWsgiSite
+from gnr.web import logger
+from gnr.web.gnrwsgisite_proxy.gnrsiteregister import GnrSiteRegisterServer
+
 CONN_STRING_RE=r"(?P<ssh_user>\w*)\:?(?P<ssh_password>\w*)\@(?P<ssh_host>(\w|\.)*)\:?(?P<ssh_port>\w*)(\/?(?P<db_user>\w*)\:?(?P<db_password>\w*)\@(?P<db_host>(\w|\.)*)\:?(?P<db_port>\w*))?"
 CONN_STRING = re.compile(CONN_STRING_RE)
-
-log = logging.getLogger('werkzeug')
-log.setLevel(logging.ERROR)
 
 wsgi_options = dict(
         port=8080,
@@ -67,9 +66,6 @@ DNS_SD_PID = None
 
 
 def run_sitedaemon(sitename=None, sitepath=None, debug=None, storage_path=None, host=None, port=None, socket=None, hmac_key=None):
-    from gnr.web.gnrwsgisite_proxy.gnrsiteregister import GnrSiteRegisterServer
-    import os
-    from gnr.core.gnrbag import Bag
     sitedaemon = GnrSiteRegisterServer(sitename=sitename,debug=debug, storage_path=storage_path)
     sitedaemon.start(host=host,socket=socket,hmac_key=hmac_key,port=port, run_now=False)
     sitedaemon_xml_path = os.path.join(sitepath,'sitedaemon.xml')
@@ -109,8 +105,7 @@ class GnrDebuggedApplication(DebuggedApplication):
             frm=''
             debug_url = '%sconsole?error=%i'%(request.host_url, traceback_id)
 
-            print('{color_blue}Error occurred, debug on: {style_underlined}{debug_url}{nostyle}'.format(
-                                                                    debug_url=debug_url, **log_styles()))
+            logger.error(f"Error occurred, debug on {debug_url}")
 
             try:
                 start_response('500 INTERNAL SERVER ERROR', [
@@ -170,21 +165,9 @@ class Server(object):
     min_args = 0
     description = "This command serves a genropy web application."
 
-    LOGGING_LEVELS = {'notset': logging.NOTSET,
-                    'debug': logging.DEBUG,
-                    'info': logging.INFO,
-                    'warning': logging.WARNING,
-                    'error': logging.ERROR,
-                    'critical': logging.CRITICAL}
-
-
 
     def __init__(self, site_script=None, server_name='Genro Server', server_description='Development'):
         parser = GnrCliArgParse(description=self.description)
-        parser.add_argument('-L', '--log-level', dest="log_level", metavar="LOG_LEVEL",
-                            help="Logging level",
-                            choices=list(self.LOGGING_LEVELS.keys()),
-                            default="warning")
         parser.add_argument('--log-file',
                             dest='log_file',
                             metavar='LOG_FILE',
@@ -197,14 +180,10 @@ class Server(object):
                             dest='reload',
                             action='store_false',
                             help="Do not use auto-restart file monitor")
-        parser.add_argument('--debug',
-                            dest='debug',
-                            action='store_true',
-                            help="Use weberror debugger")
         parser.add_argument('--nodebug',
                             dest='debug',
                             action='store_false',
-                            help="Don't use weberror debugger")
+                            help="Don't use werkzeug debugger")
         parser.add_argument('--profile',
                             dest='profile',
                             action='store_true',
@@ -217,12 +196,7 @@ class Server(object):
                             dest='tornado',
                             action='store_true',
                             help="Serve using tornado")
-
-        parser.add_argument('--reload-interval',
-                            dest='reload_interval',
-                            default=1,
-                            help="Seconds between checking files (low number can cause significant CPU usage)")
-
+        
         parser.add_argument('-c', '--config',
                             dest='config_path',
                             help="gnrserve directory path")
@@ -250,7 +224,12 @@ class Server(object):
                             dest='gzip',
                             action='store_true',
                             help="Enable gzip compressions")
-
+        parser.add_argument('--remotedb',
+                            nargs="?",
+                            const=True,
+                            default=None,
+                            dest='remotedb',
+                            help="Use a remote db")
         parser.add_argument('--verbose',
                             dest='verbose',
                             action='store_true',
@@ -282,13 +261,23 @@ class Server(object):
                             dest='ssl',
                             action='store_true',
                             help="SSL")
+        
+        parser.add_argument('--debugpy',
+                    dest='debugpy',
+                    action='store_true',
+                    help="Enable Debugpy for remote debugging on port 5678, change port with --debugpy-port")
+        
+        parser.add_argument('--debugpy-port',
+                dest='debugpy_port',
+                type=int,
+                help="Debugpy port (defaults to 5678)")
 
         self.site_script = site_script
         self.server_description = server_description
         self.server_name = server_name
-        #self.remotesshdb = None
+
+        parser.set_defaults(loglevel="info")
         self.options = parser.parse_args()
-        enable_colored_logging(level=self.LOGGING_LEVELS[self.options.log_level])
         if hasattr(self.options, 'config_path') and self.options.config_path:
             self.config_path = self.options.config_path
         else:
@@ -297,14 +286,27 @@ class Server(object):
 
         self.site_name = self.options.site_name_opt or self.options.site_name or os.getenv('GNR_CURRENT_SITE')
         if not self.site_name and not self.site_script:
-            print("site name is required")
+            logger.error("site name is required")
             sys.exit(1)
+
         if not self.site_name:
             self.site_name = os.path.basename(os.path.dirname(site_script))
+            
+        # the use --remotedb options is defined, use the instance name
+        # as a default remotedb name, if a value is provided, use it
+
+        if self.options.remotedb:
+            if self.options.remotedb is True:
+                self.site_name = f"{self.site_name}:{self.site_name}"
+            else:
+                self.site_name = f"{self.site_name}:{self.options.remotedb}"
+            
         self.remote_db = ''
         if self.site_name:
             if ':' in self.site_name:
                 self.site_name,self.remote_db  = self.site_name.split(':',1)
+
+
             if not self.gnr_config:
                 raise ServerException(
                         'Error: no ~/.gnr/ or /etc/gnr/ found')
@@ -371,9 +373,20 @@ class Server(object):
         return instance_config
 
     def run(self):
-        self.reloader = not (self.options.reload == 'false' or self.options.reload == 'False' or self.options.reload == False or self.options.reload == None)
+        try:
+            import debugpy
+            self.debugpy = self.options.debugpy or self.options.debugpy_port is not None
+            self.debugpy_port = self.options.debugpy_port or 5678
+        except ImportError:
+            logger.error(f"Failed to import debugpy: {sys.exc_info()[1]}. Install debugpy or genropy's developer profile.")
+            self.debugpy = False
+            self.debugpy_port = None
+            
+        self.reloader = not self.debugpy and not (self.options.reload == 'false' or self.options.reload == 'False' or self.options.reload == False or self.options.reload == None)
         self.debug = not (self.options.debug == 'false' or self.options.debug == 'False' or self.options.debug == False or self.options.debug == None)
-        self.start_sitedaemon()
+        if self.debugpy:
+            logger.debug("Starting debugpy service on port localhost:%s", self.debugpy_port)
+            debugpy.listen(("localhost", self.debugpy_port))
         self.serve()
 
     def start_sitedaemon(self):
@@ -400,15 +413,14 @@ class Server(object):
                         target=run_sitedaemon, kwargs=sitedaemon_attr)
         sitedaemon_process.daemon = True
         sitedaemon_process.start()
-        print('sitedaemon started')
-        import time
+        logger.info('sitedaemon started')
         time.sleep(1)
 
     def serve(self):
         port = int(self.options.port)
         now = datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')
         host = self.options.host
-        site_name='%s:%s' %(self.site_name,self.remote_db) if self.remote_db else self.site_name
+        site_name= f'{self.site_name}:{self.remote_db}' if self.remote_db else self.site_name
         if self.options.tornado:
             host = '127.0.0.1' if self.options.host == '0.0.0.0' else self.options.host
 
@@ -416,24 +428,29 @@ class Server(object):
             site_options= dict(_config=self.siteconfig,_gnrconfig=self.gnr_config,
                 counter=getattr(self.options, 'counter', None),
                 noclean=self.options.noclean, options=self.options)
-            print('[{now}]\t{color_blue}Starting Tornado server - listening on {style_underlined}http://{host}:{port}{nostyle}'.format(
-                                host=host, port=port, now=now, **log_styles()))
+            logger.info(f"Starting Tornado server - listening on {host}:{port}")
             server=GnrAsyncServer(port=port,instance=site_name,
                 web=True, autoreload=self.options.reload, site_options=site_options)
             server.start()
         else:
             ssl_context = None
-            if self.reloader and not is_running_from_reloader():
+            if not self.debugpy and self.reloader and not is_running_from_reloader():
                 gnrServer='FakeApp'
             else:
-                gnrServer = GnrWsgiSite(self.site_script, site_name=site_name, _config=self.siteconfig,
-                                    _gnrconfig=self.gnr_config,
-                                    counter=getattr(self.options, 'counter', None), noclean=self.options.noclean,
-                                    options=self.options)
+                gnrServer = GnrWsgiSite(self.site_script,
+                                        site_name=site_name,
+                                        _config=self.siteconfig,
+                                        _gnrconfig=self.gnr_config,
+                                        counter=getattr(self.options, 'counter', None),
+                                        noclean=self.options.noclean,
+                                        options=self.options,
+                                        debugpy=self.debugpy)
                 gnrServer._local_mode=True
                 atexit.register(gnrServer.on_site_stop)
                 extra_info = []
-                if self.debug:
+                if self.debugpy:
+                    extra_info.append(f'Debugpy on port {self.debugpy_port} on loopback interface')
+                elif self.debug:
                     gnrServer = GnrDebuggedApplication(gnrServer, evalex=True, pin_security=False)
                     extra_info.append('Debug mode: On')
                 localhost = 'http://127.0.0.1'
@@ -448,8 +465,9 @@ class Server(object):
                     ssl_context=(self.options.ssl_cert,self.options.ssl_key)
                     extra_info.append(f'SSL mode: On {ssl_context}')
                     localhost = 'https://{host}'.format(host=self.options.ssl_cert.split('/')[-1].split('.pem')[0])
-                print('[{now}]\t{color_blue}Starting server - listening on {style_underlined}{localhost}:{port}{nostyle}\t{color_yellow}{extra_info}{nostyle}'.format(
-                            localhost=localhost, port=port, now=now, extra_info=', '.join(extra_info), **log_styles()))
+
+                logger.info(f"Starting server - listening on {localhost}:{port}\t%s", ",".join(extra_info))
+
             if not is_running_from_reloader():
                 fd = None
             else:
@@ -467,12 +485,19 @@ class Server(object):
             os.environ["WERKZEUG_SERVER_FD"] = str(srv.fileno())
 
             if self.reloader:
+                
+                # werkzeug reloader expects sys.argv without
+                # spaces for the reloader on python3.8
+                if " " in sys.argv[0]:
+                    cmd_name = sys.argv.pop(0).split()
+                    sys.argv = cmd_name + sys.argv
+
                 run_with_reloader(
                     srv.serve_forever,
                     #extra_files=extra_files,
                     #exclude_patterns=exclude_patterns,
                     interval=1,
-                    reloader_type="stat",
+                    reloader_type="auto",
                 )
             else:
                 try:
@@ -480,5 +505,5 @@ class Server(object):
                 finally:
                     srv.server_close()
             if not is_running_from_reloader():
-                print('[{now}]\t{color_yellow}{style_underlined}Shutting down{nostyle}'.format(
-                                host=host, port=port, now=now, **log_styles()))
+                logger.info("Shutting down")
+

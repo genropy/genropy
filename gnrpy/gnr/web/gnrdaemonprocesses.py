@@ -2,12 +2,12 @@
 # encoding: utf-8
 #
 
-from datetime import datetime
-from multiprocessing import Process, get_logger, cpu_count
-import threading
 import os
 import time
+import threading
 
+from datetime import datetime
+from multiprocessing import Process, get_logger, cpu_count
 class GnrCronHandler(object):
     def __init__(self, parent, sitename=None, interval=None, 
         batch_queue=None, batch_pars=None, monitor_interval=None):
@@ -61,7 +61,6 @@ class GnrCronHandler(object):
             counter = 0
             if self.cron_process and not self.cron_process.is_alive():
                 self.startCronProcess()
-
 
 class GnrWorkerPool(object):
     def __init__(self, parent, sitename=None, workers=None, interval=None,loglevel=None, 
@@ -160,7 +159,7 @@ class GnrRemoteProcess(object):
         if not hasattr(self, '_site'):
             self._makeSite()
         else:
-            last_start_ts = self._site.register.globalStore().getItem('RESTART_TS')
+            last_start_ts = self._site.main_register.globalStore().getItem('RESTART_TS')
             if last_start_ts and last_start_ts > self._site_ts:
                 self.logger.debug('Site restarted')
                 return None
@@ -300,7 +299,7 @@ class GnrDaemonService(object):
     def start(self):
         if hasattr(self.service,'run'):
             self.service.run(running=self._running)
-        
+
 
 class GnrWorker(GnrRemoteProcess):
     def __init__(self,sitename=None,interval=None,loglevel=None, 
@@ -376,7 +375,7 @@ class GnrCron(GnrRemoteProcess):
 
     @property
     def changesInTask(self):
-        last_task_ts = self.site.register.globalStore().getItem('TASK_TS')
+        last_task_ts = self.site.main_register.globalStore().getItem('TASK_TS')
         return last_task_ts and last_task_ts > self._task_ts
 
     @property
@@ -402,3 +401,5 @@ class GnrCron(GnrRemoteProcess):
                 else:
                     break
             time.sleep(self.interval)
+        
+

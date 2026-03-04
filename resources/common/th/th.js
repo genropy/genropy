@@ -136,14 +136,14 @@ var th_sections_manager = {
             }
             variable_struct = sectionsbag.getItem('variable_struct');
             if(variable_struct){
-                structToSet = sectionsbag.getNode('data.'+current).attr.struct || '__baseView__';
+                structToSet = sectionsbag.getNode('data.'+current).attr.struct || '__baseview__';
             }
             current.split(',').forEach(function(curr){
                 dojo.addClass(viewDomNode,'sections_' + sections_name+'_' + curr);
             });
         });
         if(structToSet){
-            viewNode.setRelativeData('.grid.currViewPath',structToSet || '__baseView__');
+            viewNode.setRelativeData('.grid.currViewPath',structToSet || '__baseview__');
         }
     },
 
@@ -228,9 +228,7 @@ dojo.declare("gnr.widgets.ThIframe", gnr.widgets.gnrwdg, {
         var dbstore = objectPop(kw,'dbstore');
 
         var url = objectPop(kw,'url') || '/sys/thpage/'+table.replace('.','/');
-        if(dbstore){
-            url = '/'+dbstore+url;
-        }
+        url = genro.buildContextUrl(url, {dbstore: dbstore});
         var urlPars = {'th_public':false,'th_from_package':genro.getData('gnr.package')};
         url = genro.addParamsToUrl(url,urlPars);
         var pkey = objectPop(kw,'pkey');
@@ -387,6 +385,13 @@ dojo.declare("gnr.LinkerManager", null, {
             }
             that.setCurrentPkey(kw.pkey);
         });
+        this.linkerform.subscribe('setLinkerPkey',function(kw){
+            if(!kw.pkey){
+                throw new Error('Missing primary key to set');
+            }
+            that.setCurrentPkey(kw.pkey);
+            that.linkerform.load({destPkey:'*dismiss*',discardChanges:true});
+        });
         this.linkerform.subscribe('onDismissed',function(kw){
             genro.publish('changeInTable',{pkey:that.getCurrentPkey(),table:that.table})
             that.thdialog.hide();
@@ -517,10 +522,9 @@ dojo.declare("gnr.IframeFormManager", null, {
             iframeAttr['onStarted'] = function(){that.onIframeStarted(this,kw)};
             iframeAttr['main_th_formId'] = this.fakeFormId;
             objectUpdate(iframeAttr,{height:'100%',width:'100%',border:0});
-            var dbstore = genro.getData('gnr.dbstore');
             iframeAttr.src = iframeAttr.src || '/sys/thpage/'+this.table.replace('.','/');
-            if(dbstore && isNullOrBlank(this.sourceNode.attr.context_dbstore)){
-                iframeAttr.src = '/'+dbstore+iframeAttr.src;
+            if(isNullOrBlank(this.sourceNode.attr.context_dbstore)){
+                iframeAttr.src = genro.buildContextUrl(iframeAttr.src);
             }
             if(this.formStoreKwargs.parentStore){
                 iframeAttr['main_th_navigation'] = true;

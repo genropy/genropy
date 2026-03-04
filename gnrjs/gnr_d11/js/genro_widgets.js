@@ -596,6 +596,16 @@ dojo.declare("gnr.widgets.flexbox", gnr.widgets.baseHtml, {
 
         let wrap = objectPop(attributes,'wrap');
         let direction = objectPop(attributes,'direction');
+        let fitContent = objectPop(attributes,'fitContent');
+        if(fitContent){
+            let margin = fitContent===true?0:fitContent;
+            attributes.position = 'absolute'
+            attributes.top = margin;
+            attributes.bottom = margin;
+            attributes.left = margin;
+            attributes.right = margin;
+
+        }
         if(wrap){
             attributes.flex_wrap = 'wrap';
         }
@@ -640,9 +650,9 @@ dojo.declare("gnr.widgets.gridbox", gnr.widgets.baseHtml, {
     creating:function(attributes, sourceNode) {
         let savedAttrs = {}
         savedAttrs.columns = objectPop(attributes,'columns') || objectPop(attributes,'cols');
-        let fitContent = objectPop(attributes,'fitContent');
         let _class = attributes._class || ''
         attributes._class = _class + ' gnrgridbox';
+        let fitContent = objectPop(attributes,'fitContent');
         if(fitContent){
             let margin = fitContent===true?0:fitContent;
             attributes.position = 'absolute'
@@ -700,7 +710,6 @@ dojo.declare("gnr.widgets.gridbox", gnr.widgets.baseHtml, {
         if(!kw.node){
             return;
         }
-        console.log('items',parent_lv)
         let nodeToUpdate = kw.node;
         while (parent_lv>1){
             nodeToUpdate = nodeToUpdate.getParentNode();
@@ -989,9 +998,29 @@ dojo.declare("gnr.widgets.iframe", gnr.widgets.baseHtml, {
                 src_kwargs._nocache = genro.time36Id();
             }
             v = genro.addParamsToUrl(v,src_kwargs);   
-            if(sourceNode.attr.documentClasses){
-                v = genro.dom.detectPdfViewer(v,sourceNode.attr.jsPdfViewer);
-            }
+                if(sourceNode.attr.documentClasses){
+                    let useViewer = false;
+                    let ext = '';
+                    genro.dom.removeClass(domnode,'emptyIframe');
+                    genro.dom.addClass(domnode,'waiting');
+                    try {
+                        let parsed = parseURL(v);
+                        if (parsed.file && parsed.file.includes('.')) {
+                            ext = parsed.file.split('.').pop().toLowerCase();
+                        }
+                    } catch(e) {}
+                    let extList = (this._default_ext || '').toLowerCase().split(',').filter(e => e !== 'pdf');
+                    useViewer = !ext || !extList.includes(ext);
+                    if (useViewer) {
+                        v = genro.dom.detectPdfViewer(v, sourceNode.attr.jsPdfViewer);
+                    } else if (ext && ext.match(/^(jpe?g|png|gif)$/)) {
+                        domnode.removeAttribute('src');
+                        domnode.setAttribute('srcdoc', `<html><body style="margin:0;padding:0;display:flex;align-items:center;justify-content:center;background:#f9f9f9;">
+                            <img src="${v}" style="max-width:100%;display:block;cursor:zoom-in;" onclick="genro.openBrowserTab(this.src, {target:'_blank'})" />
+                        </body></html>`);
+                        return;
+                    }
+                }
             var doset = this.initContentHtml(domnode,v);
             if (doset){
                 sourceNode.watch('absurlUpdating',function(){
@@ -1183,7 +1212,15 @@ dojo.declare("gnr.widgets.video", gnr.widgets.baseHtml, {
     startCapture:function(sourceNode,capture_kw){
         var onErrorGetUserMedia = objectPop(capture_kw,'onReject');
         var onAccept = objectPop(capture_kw,'onAccept');
-        navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        // Get capture value from datasource if it's a reactive binding (^)
+        let captureMode = sourceNode.getAttributeFromDatasource('capture') || sourceNode.attr.capture;
+        let video = true;
+        if (captureMode === 'environment') {
+            video = {facingMode: "environment"};
+        } else if (captureMode === 'user') {
+            video = {facingMode: "user"};
+        }
+        navigator.mediaDevices.getUserMedia({ video: video, audio: false })
         .then(function(stream) {
             if(onAccept){
                 funcApply(onAccept,{},sourceNode);
@@ -1593,7 +1630,33 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
         if(doResize){
             this.resize(c);
         }
-        this.layout(); 
+        this.layout();
+        var animate = this.sourceNode.attr.animateResize;
+        if(animate && !this._animateResizeDone){
+            this._animateResizeDone = true;
+            this._animateDialogAppear(animate === true ? 400 : animate);
+        }
+    },
+
+    mixin__animateDialogAppear:function(duration){
+        var dn = this.domNode;
+        dn.style.willChange = 'transform, opacity';
+        dn.style.transition = 'none';
+        dn.style.transform = 'scale(0.92)';
+        dn.style.opacity = '0';
+        requestAnimationFrame(function(){
+            dn.style.transition = 'transform ' + duration + 'ms ease-in, opacity ' + Math.round(duration * 0.6) + 'ms ease-in';
+            dn.style.transform = 'scale(1)';
+            dn.style.opacity = '1';
+            function onEnd(){
+                dn.style.transition = '';
+                dn.style.transform = '';
+                dn.style.opacity = '';
+                dn.style.willChange = '';
+                dn.removeEventListener('transitionend', onEnd);
+            }
+            dn.addEventListener('transitionend', onEnd);
+        });
     },
 
     creating:function(attributes, sourceNode) {
@@ -1666,7 +1729,7 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
                                 var parentDialog = ds.length>0?ds[ds.length-1]:null;
                                 if (parentDialog) {
                                     parentDialog._modalconnects.push(dojo.connect(window, "onscroll", parentDialog, "layout"));
-                                    parentDialog._modalconnects.push(dojo.connect(dojo.doc.documentElement, "onkeypress", parentDialog, "_onKey"));
+                                    parentDialog._modalconnects.push(dojo.connect(dojo.doc.documentElement, "onkeydown", parentDialog, "_onKey"));
                                 }                   
                             }
                             if(this._windowConnectionResize){
@@ -3258,6 +3321,9 @@ dojo.declare("gnr.widgets.LightButton", [gnr.widgets.baseHtml,gnr.widgets._Butto
         var savedAttrs = objectExtract(attributes, 'fire_*');
         var label = objectPop(attributes,'label');
         attributes.innerHTML = attributes.innerHTML || label;
+        if(!attributes.tabindex){
+            attributes.tabindex = "0"
+        }
         savedAttrs['action'] = objectPop(attributes, 'action');
         savedAttrs['fire'] = objectPop(attributes, 'fire');
         savedAttrs['publish'] = objectPop(attributes, 'publish');
@@ -3267,6 +3333,9 @@ dojo.declare("gnr.widgets.LightButton", [gnr.widgets.baseHtml,gnr.widgets._Butto
     
     created: function(widget, savedAttrs, sourceNode) {
         var that = this;
+        widget.addEventListener("mousedown", function(event) {
+            event.stopPropagation(); 
+        });
         dojo.connect(widget, 'onclick', function(e){
             that.clickHandler(sourceNode,e);
         });
@@ -3604,7 +3673,7 @@ dojo.declare("gnr.widgets._BaseTextBox", gnr.widgets.baseDojo, {
         switches = objectNotEmpty(switches)?switches:null;
         if(switches){
             widget._switches = switches;
-            dojo.connect(widget.focusNode,'onkeydown',widget,'checkSwitchKey');
+            dojo.connect(widget.focusNode,'input',widget,'checkSwitchKey');
         }
         
     },
@@ -4458,26 +4527,33 @@ dojo.declare("gnr.widgets.GeoCoderField", gnr.widgets.BaseCombo, {
     mixin_handleGeocodeResults: function(results, status){
         this.store.mainbag = new gnr.GnrBag();
         if (status == google.maps.GeocoderStatus.OK) {
-             for (var i = 0; i < results.length; i++){
-                 var formatted_address = results[i].formatted_address;
-                 var details = {id:i,caption:formatted_address,formatted_address:formatted_address};
-                 var address_components=results[i].address_components;
-                 for (var a in address_components){
-                     var address_component=address_components[a];
-                     details[address_component.types[0]]=address_component.short_name;
-                     details[address_component.types[0]+'_long']=address_component.long_name;
-                 }
-                 
-                 details['street_address'] = details['route_long']+', '+(details['street_number']||'??');
-                 var street_number = details['street_number']||'??'; //subpremise
-                 if(details['subpremise']){
-                    street_number = details['subpremise']+'/'+street_number;
-                 }
-                 details['street_address_eng'] = street_number+' '+details['route_long'];
-                 var position=results[i].geometry.location;
-                 details['position']=position.lat()+','+position.lng();
+             for (let i = 0; i < results.length; i++){
+                let formatted_address = results[i].formatted_address;
+                let details = {id:i,caption:formatted_address,formatted_address:formatted_address};
+                let address_components=results[i].address_components;
+                for (let a in address_components){
+                    let address_component=address_components[a];
+                    details[address_component.types[0]]=address_component.short_name;
+                    details[address_component.types[0]+'_long']=address_component.long_name;
+                }
+                let street_number = details.street_number || '';
+                let street_number_eng = street_number;
+                let route_long = details.route_long || '';
+                let subpremise = details.subpremise;
+                if(subpremise){
+                    street_number_eng = subpremise + (street_number ? `/${street_number}` : '');
+                    street_number =  (street_number ? `${street_number}/` : '') + subpremise ;
+                }
+                if (!route_long) {
+                    details.street_address = '';
+                    details.street_address_eng = '';
+                } else {
+                    details.street_address = route_long + (street_number ? ` ${street_number}` : '');
+                    details.street_address_eng = (street_number_eng ? `${street_number_eng} ` : '') + route_long;
+                }
+                const position=results[i].geometry.location;
+                details['position']=position.lat()+','+position.lng();
                 this.store.mainbag.setItem('root.r_' + i, null, details);
-
              }
          }else if (status == google.maps.GeocoderStatus.ZERO_RESULTS){
              //this._updateSelect(this.store.mainbag);
@@ -5085,7 +5161,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
         var that = this;
         if(objectNotEmpty(crop)){
             crop = objectUpdate({text_align:'center',overflow:'hidden'},crop);
-            var innerImage=objectExtract(attr,'src,src_back,placeholder,height,width,edit,upload_maxsize,upload_folder,upload_filename,upload_ext,zoomWindow,format,mask,border,takePicture,nodeId');
+            var innerImage=objectExtract(attr,'src,src_back,placeholder,height,width,edit,upload_maxsize,upload_folder,upload_filename,upload_ext,zoomWindow,format,mask,border,takePicture,nodeId,capture');
             if (innerImage.placeholder===true){
                 innerImage.placeholder = '/_gnr/11/css/icons/placeholder_img_dflt.png'
             }
@@ -5168,7 +5244,8 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                         this.domNode.value = null;
                     }
                 });
-                var uploadhandler_key = genro.isMobile? 'selfsubscribe_press':'connect_ondblclick';
+                if (attr.capture){sourceNode.attr.capture=attr.capture};
+                var uploadhandler_key = genro.isMobile? 'connect_onclick':'connect_ondblclick';
 
                 attr[uploadhandler_key] = function(){
                     var elem = sourceNode;
@@ -5223,6 +5300,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
         var slotbar = dlg.bottom._('slotBar',{slots:'5,emptyValue,*,takePicture,editCanvas,upload,5',
         action:function(){
             dlg.close_action();
+            console.log(this.attr.command)
             if(this.attr.command=='upload'){
                  uploadCb();
             }else if(this.attr.command=='takePicture'){
@@ -5288,7 +5366,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                                                     }});
         let cropPage = dlg.center._('div',{width:boundaryWidth+'px',height:(boundaryHeight+40)+'px',position:'relative',margin:'10px'})._('div',{nodeId:frameCode+'_cropper',position:'absolute',top:0,bottom:0,left:0,right:0});
         var slotbar = dlg.bottom._('slotBar',{slots:'*,5,confirmImage,5'});
-        slotbar._('button','confirmImage',{label:'Confirm',
+        slotbar._('button','confirmImage',{label:_T('Confirm'),
         action:function(){
             cropPage.getParentNode()._croppie.result({
                     'type':'base64'
@@ -5313,7 +5391,11 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
         let clientHeight = sourceNode.domNode.clientHeight;
         var dlg = genro.dlg.quickDialog(_T('Take picture'),{_showParent:true,_workspace:true,closable:true,width:videoWidth+22+'px',
                         connect_show:function(){
-                            genro.nodeById(videoNodeId).publish('startCapture');
+                            let videoNode = genro.nodeById(videoNodeId);
+                            // Get capture value from img datasource if reactive binding
+                            let captureValue = sourceNode.getAttributeFromDatasource('capture') || sourceNode.attr.capture;
+                            if (captureValue){videoNode.attr.capture=captureValue};
+                            videoNode.publish('startCapture');
                         }});
         var sc = dlg.center._('StackContainer',{height:videoHeight+42+'px',nodeId:frameCode,selectedPage:'^#WORKSPACE.selectedPage'});
         let video = sc._('contentPane',{pageName:'video'});
@@ -5355,7 +5437,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                 genro.nodeById(videoNodeId).publish('takePicture');
             }
         }});
-        slotbar._('button','confirmImage',{label:'Confirm',
+        slotbar._('button','confirmImage',{label:_T('Confirm'),
                         action:function(){
                             cropPage.getParentNode()._croppie.result({
                                     'type':'base64'

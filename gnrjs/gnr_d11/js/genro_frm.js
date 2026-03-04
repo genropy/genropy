@@ -86,6 +86,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             'datetextbox':null,
             'geocoderfield':null,
             'ckeditor':null,
+            'tinymce':null,
             'mdeditor':null,
             'datetimetextbox':null
         };
@@ -105,13 +106,12 @@ dojo.declare("gnr.GnrFrmHandler", null, {
 
 
         var tblname = this.getControllerData('table?name_long');
-        var pref = tblname?tblname+' record':'Record';
-        this.msg_saved = pref +' saved ';
-        this.msg_deleted = pref +' deleted';
+        var pref = tblname?tblname+' '+_T('record'):_T('Record');
+        this.msg_saved = pref +' '+_T('saved');
+        this.msg_deleted = pref +' '+_T('deleted');
         this.table_name = tblname || formId;
-
-        this.msg_unsaved_changes ="Current record has been modified.";
-        this.msg_confirm_delete ="You are going to delete the current record.";
+        this.msg_unsaved_changes = _T("Current record has been modified.");
+        this.msg_confirm_delete = _T("You are going to delete the current record.");
 
     },
     getParentForm:function(){
@@ -172,7 +172,12 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             this.getFormData().walk(function(n){
                 delete n.attr._loadedValue;
             },'static');
-            d.addCallback(onSavedCb);
+            if(d instanceof dojo.Deferred){
+                d.addCallback(onSavedCb);
+            }else{
+                onSavedCb();
+            }
+           
             return d;
         }else if(errorCb){
             errorCb.call(this);
@@ -699,7 +704,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     
     deleteConfirmDlg:function(kw){
          var dlg = genro.dlg.quickDialog('Alert',{_showParent:true,width:'280px'});
-         dlg.center._('div',{innerHTML:this.msg_confirm_delete, text_align:'center',_class:'alertBodyMessage'});
+         dlg.center._('div',{innerHTML:_T("You are going to delete the current record."), text_align:'center',_class:'alertBodyMessage'});
          var form = this;
          var slotbar = dlg.bottom._('slotBar',{slots:'*,cancel,delete',
                                                 action:function(){
@@ -707,8 +712,8 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                                                     kw.command = this.attr.command;
                                                     form.publish('deleteConfirmAnswer',kw);
                                                 }});
-         slotbar._('button','cancel',{label:'Cancel',command:'cancel'});
-         slotbar._('button','delete',{label:'Delete',command:'deleteItem'});
+         slotbar._('button','cancel',{label:_T('Cancel'),command:'cancel'});
+         slotbar._('button','delete',{label:_T('Delete'),command:'deleteItem'});
          dlg.show_action();
      },
      
@@ -849,8 +854,8 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             return;
         }
         saveSlot = saveSlot===undefined? true:saveSlot;
-        var dlg = genro.dlg.quickDialog('Pending changes in '+this.table_name.toLowerCase(),{_showParent:true,width:'280px'});
-        dlg.center._('div',{innerHTML:this.msg_unsaved_changes, text_align:'center',_class:'alertBodyMessage'});
+        var dlg = genro.dlg.quickDialog(_T('Pending changes in ')+this.table_name.toLowerCase(),{_showParent:true,width:'280px'});
+        dlg.center._('div',{innerHTML:_T("Current record has been modified."), text_align:'center',_class:'alertBodyMessage'});
         var form = this;
         var slotbar = dlg.bottom._('slotBar',{slots:saveSlot?'discard,*,cancel,save':'discard,*,cancel',
                                                action:function(){
@@ -858,10 +863,10 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                                                    kw.command = this.attr.command;
                                                    form.publish('pendingChangesAnswer',kw);
                                                }});
-        slotbar._('button','discard',{label:'Discard changes',command:'discard'});
-        slotbar._('button','cancel',{label:'Cancel',command:'cancel'});
+        slotbar._('button','discard',{label:_T('Discard changes'),command:'discard'});
+        slotbar._('button','cancel',{label:_T('Cancel'),command:'cancel'});
         if(saveSlot){
-            slotbar._('button','save',{label:'Save',command:'save'});
+            slotbar._('button','save',{label:_T('Save'),command:'save'});
         }
         dlg.show_action();
      },
@@ -1465,7 +1470,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             savedPkey = result.savedPkey;
         }
         this.publish('onSaved',{pkey:savedPkey,saveResult:result});
-        if(!(this.autoSave || this.lazySaving)){
+        if(!(this.autoSave || this.lazySaving || this.modalForm)){
             var savedAttr = (result?result.savedAttr:null) || {};
             this.publish('message',savedAttr.saved_message || {message:this.msg_saved,sound:'$onsaved'});
         }
@@ -1694,7 +1699,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             if (((data.len() > 0) && (data.__isRealChange)) || (!result)) {
                 var result = result || new gnr.GnrBag();
                 var recordNode = record.getParentNode();
-                var resultattr = objectExtract(recordNode.attr, '_pkey,_newrecord,lastTS,mode,one_one,_invalidFields', true);
+                var resultattr = objectExtract(recordNode.attr, '_pkey,_newrecord,lastTS,mode,one_one,_invalidFields,table', true);
                 result.setItem(recordNode.label, data, resultattr);
                 result.__isRealChange = data.__isRealChange;
             }
@@ -2524,85 +2529,229 @@ dojo.declare("gnr.formstores.Base", null, {
     },
     save_dummy:function(loadkw){},
 
-    load_document:function(kw){
-        /*
-        pkey=discpath; it can use the static shortcut syntax;
-        */
-        var default_kw = kw.default_kw;
-        var form=this.form;
-        var that = this;
-        var currPkey = this.form.getCurrentPkey();
-        var data;
-        var loader = this.handlers.load;
-        var kw = loader.kw || {};
-        var maincb = kw._onResult? funcCreate(kw._onResult,'result',form.sourceNode):function(){};
-        kw = form.sourceNode.evaluateOnNode(kw);
-        var envelope = new gnr.GnrBag();
-        var path = currPkey;
-        this.prepareDefaults(null,default_kw,kw);
-        this.handlers.load.rpcmethod = loader.rpcmethod  || 'getSiteDocument';
-        var deferred = genro.rpc.remoteCall(loader.rpcmethod ,
-                                       objectUpdate({'path':path},kw),null,'POST',null,maincb);
-        deferred.addCallback(function(result){
-                var contentNode = result.popNode('content');
-                var content = contentNode.getValue();
-                var rec;
-                if (content instanceof gnr.GnrBag){
-                    rec = contentNode;
-                }else{
-                    rec = new gnr.GnrBag({'content':content})
-                }
-                that.loaded(path,rec);
-                return result;
-            }
-        )
-        if(loader.callbacks){
-            this.handle_deferredCallBacks(deferred,loader.callbacks,kw);
+    _load_rpc:function(kw, onResult){
+        // Base RPC loading method
+        // kw: RPC parameters (pkey/path, table, rpcmethod, default_kw, etc.)
+        // onResult(result, context): callback to process result
+        const that = this;
+        const form = this.form;
+        const loader = this.handlers.load;
+
+        const rpcmethod = objectPop(kw,'rpcmethod') || loader.rpcmethod;
+        const default_kw = objectPop(kw,'default_kw');
+
+        let loaderkw = loader.kw || {};
+        const maincb = loaderkw._onResult? funcCreate(loaderkw._onResult,'result',form.sourceNode):function(){};
+        loaderkw = form.sourceNode.evaluateOnNode(loaderkw);
+
+        if(default_kw){
+            this.prepareDefaults(null, default_kw, loaderkw);
         }
+
+        this.handlers.load.rpcmethod = rpcmethod;
+
+        const rpckw = objectUpdate(kw, loaderkw);
+
+        const deferred = genro.rpc.remoteCall(rpcmethod, rpckw, null, 'POST', null, maincb);
+
+        if(onResult){
+            deferred.addCallback(function(result){
+                return onResult.call(that, result, {kw: kw, loaderkw: loaderkw});
+            });
+        }
+
+        if (loader.callbacks) {
+            this.handle_deferredCallBacks(deferred, loader.callbacks, loaderkw);
+        }
+
         return deferred;
     },
 
-    save_document:function(kw){
-        var data = this.form.getFormData();
-        if(this.handlers.save.stripLoadedValue){
+
+    _save_rpc:function(kw, onResult){
+        // Base RPC saving method
+        // kw: RPC parameters (pkey/path, table, rpcmethod, etc.)
+        // onResult(result, context): callback to process result
+        const that = this;
+        const form = this.form;
+        const saver = this.handlers.save;
+
+        const rpcmethod = objectPop(kw,'rpcmethod') || saver.rpcmethod;
+
+        let data = form.getFormData();
+
+        const stripLoadedValue = saver.stripLoadedValue;
+        if(stripLoadedValue){
             data.walk(function(n){
                 delete n.attr._loadedValue;
             });
         }
-        this.handlers.save.rpcmethod = this.handlers.save.rpcmethod  || 'saveSiteDocument';
-        var saver = this.handlers.save;
-        var that = this;
-        var path = this.form.getCurrentPkey();
-        var rpc_kw = this.form.sourceNode.evaluateOnNode(this.handlers.save.kw);
-        rpc_kw.path = path;
-        if(path=='*newrecord*' && this.getNewPath){
-            path = funcApply(this.getNewPath,{record:formData},form);
-        }
-        var data = data.deepCopy();
+
+        let savekw = form.sourceNode.evaluateOnNode(saver.kw);
+
+        this.handlers.save.rpcmethod = rpcmethod;
+        data = data.deepCopy();
+
+        const rpc_kw = objectUpdate(kw, savekw);
         rpc_kw.data = data;
-        var deferred = genro.rpc.remoteCall(saver.rpcmethod ,rpc_kw,null,'POST',null,function(){});
-        deferred.addCallback(function(result){
-                    result = result || {};
-                    var resultDict = {};
-                    var pkeyNode=result;
-                    resultDict.savedPkey = result.path || path;
-                    that.form.setCurrentPkey(resultDict.savedPkey);
-                    that.saved(resultDict);
-                    var deferred;
-                    if(that.parentStore){
-                        deferred = that.parentStore.loadData();
-                    }
-                    that.loaded(resultDict.savedPkey,data);
-                    if(deferred instanceof dojo.Deferred){
-                        deferred.addCallback(function(){that.setNavigationStatus(resultDict.savedPkey);})
-                    }
-                    return result;
-                }
-            )
-        if(saver.callbacks){
-            this.handle_deferredCallBacks(deferred,saver.callbacks,kw);
+
+        const deferred = genro.rpc.remoteCall(rpcmethod, rpc_kw, null, 'POST', null, function(){});
+
+        if(onResult){
+            deferred.addCallback(function(result){
+                return onResult.call(that, result, {kw: kw, data: data, savekw: savekw});
+            });
         }
+
+        if (saver.callbacks) {
+            this.handle_deferredCallBacks(deferred, saver.callbacks, rpc_kw);
+        }
+
         return deferred;
+    },
+
+
+    load_record:function(kw){
+        const that = this;
+        const form = this.form;
+        kw = kw || {};
+        kw.rpcmethod = kw.rpcmethod || 'app.getRecord';
+        kw.pkey = form.getCurrentPkey();
+        kw.table = this.table;
+
+        const onResult = function(result){
+            that.loaded(form.getCurrentPkey(), result);
+            return result;
+        };
+
+        return this._load_rpc(kw, onResult);
+    },
+
+    save_record:function(kw){
+        const that = this;
+        const form = this.form;
+        kw = kw || {};
+        kw.rpcmethod = kw.rpcmethod || 'app.saveRecord';
+        kw.pkey = form.getCurrentPkey();
+        kw.table = this.table;
+
+        const onResult = function(result, context){
+            result = result || {};
+            const resultDict = {};
+            resultDict.savedPkey = result.pkey || form.getCurrentPkey();
+            that.form.setCurrentPkey(resultDict.savedPkey);
+            that.saved(resultDict);
+            let deferredReload;
+            if(that.parentStore){
+                deferredReload = that.parentStore.loadData();
+            }
+            that.loaded(resultDict.savedPkey, context.data);
+            if(deferredReload instanceof dojo.Deferred){
+                deferredReload.addCallback(function(){that.setNavigationStatus(resultDict.savedPkey);})
+            }
+            return result;
+        };
+
+        return this._save_rpc(kw, onResult);
+    },
+
+    load_rpc:function(kw){
+        const that = this;
+        const form = this.form;
+        kw = kw || {};
+        kw.rpcmethod = kw.rpcmethod || (this.handlers.load.kw && this.handlers.load.kw.rpcmethod);
+        kw.pkey = form.getCurrentPkey();
+        kw.table = this.table;
+
+        const onResult = function(result){
+            that.loaded(form.getCurrentPkey(), result);
+            return result;
+        };
+
+        return this._load_rpc(kw, onResult);
+    },
+
+    save_rpc:function(kw){
+        const that = this;
+        const form = this.form;
+        kw = kw || {};
+        kw.rpcmethod = kw.rpcmethod || (this.handlers.save.kw && this.handlers.save.kw.rpcmethod);
+        kw.pkey = form.getCurrentPkey();
+        kw.table = this.table;
+
+        const onResult = function(result, context){
+            result = result || {};
+            const resultDict = {};
+            resultDict.savedPkey = result.pkey || form.getCurrentPkey();
+            that.form.setCurrentPkey(resultDict.savedPkey);
+            that.saved(resultDict);
+            let deferredReload;
+            if(that.parentStore){
+                deferredReload = that.parentStore.loadData();
+            }
+            that.loaded(resultDict.savedPkey, context.data);
+            if(deferredReload instanceof dojo.Deferred){
+                deferredReload.addCallback(function(){that.setNavigationStatus(resultDict.savedPkey);})
+            }
+            return result;
+        };
+
+        return this._save_rpc(kw, onResult);
+    },
+
+    load_document:function(kw){
+        const that = this;
+        const form = this.form;
+        kw = kw || {};
+        kw.rpcmethod = kw.rpcmethod || 'getSiteDocument';
+        kw.path = form.getCurrentPkey();
+
+        const onResult = function(result){
+            const path = form.getCurrentPkey();
+            const contentNode = result.popNode('content');
+            const content = contentNode.getValue();
+            let rec;
+            if (content instanceof gnr.GnrBag){
+                rec = contentNode;
+            }else{
+                rec = new gnr.GnrBag({'content':content})
+            }
+            that.loaded(path, rec);
+            return result;
+        };
+
+        return this._load_rpc(kw, onResult);
+    },
+
+    save_document:function(kw){
+        const that = this;
+        const form = this.form;
+        kw = kw || {};
+        kw.rpcmethod = kw.rpcmethod || 'saveSiteDocument';
+        let path = form.getCurrentPkey();
+        if(path=='*newrecord*' && this.getNewPath){
+            path = funcApply(this.getNewPath, {record:form.getFormData()}, form);
+        }
+        kw.path = path;
+
+        const onResult = function(result, context){
+            result = result || {};
+            const resultDict = {};
+            resultDict.savedPkey = result.path || form.getCurrentPkey();
+            that.form.setCurrentPkey(resultDict.savedPkey);
+            that.saved(resultDict);
+            let deferredReload;
+            if(that.parentStore){
+                deferredReload = that.parentStore.loadData();
+            }
+            that.loaded(resultDict.savedPkey, context.data);
+            if(deferredReload instanceof dojo.Deferred){
+                deferredReload.addCallback(function(){that.setNavigationStatus(resultDict.savedPkey);})
+            }
+            return result;
+        };
+
+        return this._save_rpc(kw, onResult);
     },
     
     del_document:function(pkey,callkw){

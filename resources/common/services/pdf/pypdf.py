@@ -1,10 +1,11 @@
 #!/usr/bin/env pythonw
 # -*- coding: utf-8 -*-
 
+from io import BytesIO
+# re-add when fitz porting is completed
+#import warnings
 
 from gnr.lib.services.pdf import PdfService
-import os
-from io import BytesIO
 from gnr.core.gnrdecorator import extract_kwargs
 
 try:
@@ -29,11 +30,16 @@ class Service(PdfService):
         :param output_filepath: TODO"""
         
         if HAS_PYPDF:
+            # TO BE RE-ADDED WHEN FITZ IS COMPLETED
+            #warnings.warn("PyPDF is deprecated, please update your codebase")
             return self.joinPdf_PYPDF(pdf_list, output_filepath)
-        
+
         if HAS_FITZ:
             return self.joinPdf_FITZ(pdf_list, output_filepath)
-        raise self.parent.exception('Missing pyPdf in this installation')
+        
+        raise self.parent.exception(
+            "Missing PDF library in this installation. Please install either 'PyPDF2' or 'PyMuPDF (fitz)' via pip."
+        )
     
     def joinPdf_PYPDF(self,pdf_list, output_filepath):
         output_pdf = PdfWriter()

@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 
 #--------------------------------------------------------------------------
 # package       : GenroPy web - see LICENSE for details
@@ -22,14 +22,13 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
+from copy import copy
 
-import os
 from gnr.core.gnrbag import Bag,BagCbResolver,DirectoryResolver
 from gnr.core.gnrstructures import GnrStructData
 from gnr.core import gnrstring
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrdecorator import extract_kwargs,deprecated
-from copy import copy
 
 def _selected_defaultFrom(fieldobj=None,result=None):
     for c in fieldobj.table.columns.values():
@@ -90,11 +89,10 @@ def cellFromField(field,tableobj,checkPermissions=None):
     kwargs['dtype'] =  fldobj.dtype
     
     kwargs['dfltwidth'] = '%iem' % int(fldobj.print_width*.6) if fldobj.print_width else None
-    if fldattr.get('caption_field'):
-        kwargs['caption_field'] = fldattr['caption_field']
-    if fldattr.get('_owner_package'):
-        kwargs['_owner_package'] = fldattr['_owner_package']
-
+    for attr in ['caption_field', '_owner_package', 'required_columns']:
+        if fldattr.get(attr):
+            kwargs[attr] = fldattr[attr]
+        
     relfldlst = tableobj.fullRelationPath(field).split('.')
     validations = dictExtract(fldobj.attributes,'validate_',slice_prefix=False)
     if fldattr.get('user_readonly'):
@@ -612,12 +610,178 @@ class GnrDomSrc(GnrStructData):
     def flexbox(self,direction=None,wrap=None,align_content=None,
                 justify_content=None,align_items=None,
                 justify_items=None,**kwargs):
+        """Create a flexbox container for flexible layout of child elements.
+
+        The flexbox container uses CSS Flexbox layout to arrange child elements in a flexible,
+        responsive manner. It provides powerful alignment and distribution capabilities.
+
+        Args:
+            direction (str): Main axis direction for flex items.
+                           - 'row': Left to right (default)
+                           - 'column': Top to bottom
+                           - 'row-reverse': Right to left
+                           - 'column-reverse': Bottom to top
+
+            wrap (bool or str): Whether flex items should wrap to next line.
+                              - True/'wrap': Items wrap onto multiple lines
+                              - False/'nowrap': Items stay on single line (default)
+                              - 'wrap-reverse': Items wrap in reverse order
+
+            align_content (str): Aligns lines when there is extra space on cross axis.
+                               - 'flex-start': Lines packed to start
+                               - 'flex-end': Lines packed to end
+                               - 'center': Lines centered
+                               - 'space-between': Lines evenly distributed
+                               - 'space-around': Lines with equal space around
+                               - 'stretch': Lines stretch to fill container (default)
+
+            justify_content (str): Aligns items along main axis.
+                                 - 'flex-start': Items packed to start (default)
+                                 - 'flex-end': Items packed to end
+                                 - 'center': Items centered
+                                 - 'space-between': Items evenly distributed
+                                 - 'space-around': Items with equal space around
+                                 - 'space-evenly': Items with equal space between
+
+            align_items (str): Aligns items along cross axis.
+                             - 'flex-start': Items aligned to start
+                             - 'flex-end': Items aligned to end
+                             - 'center': Items centered
+                             - 'baseline': Items aligned to baseline
+                             - 'stretch': Items stretch to fill (default)
+
+            justify_items (str): Justifies items within their area (grid-specific).
+
+            **kwargs: Additional HTML/CSS attributes (e.g., height, width, border, padding)
+
+        Returns:
+            GnrDomSrcNode: The flexbox container node
+
+        Example:
+            # Simple horizontal flexbox
+            box = pane.flexbox(direction='row', justify_content='space-between')
+            box.div('Item 1')
+            box.div('Item 2')
+            box.div('Item 3')
+
+            # Vertical flexbox with wrapping
+            box = pane.flexbox(direction='column', wrap=True, height='200px')
+            for i in range(10):
+                box.div(f'Item {i}', height='30px')
+
+            # Centered content
+            box = pane.flexbox(justify_content='center', align_items='center',
+                              height='100%')
+            box.div('Centered content')
+
+        See Also:
+            - gridbox(): For grid-based layouts
+            - borderContainer(): For region-based layouts
+        """
         return self.child('flexbox',direction=direction, wrap=wrap,
                           align_content=align_content,justify_content=justify_content,
                           align_items=align_items,justify_items=justify_items,**kwargs)
     
     def gridbox(self,columns=None,align_content=None,justify_content=None,
                 align_items=None,justify_items=None,table=None,**kwargs):
+        """Create a gridbox container for two-dimensional grid-based layouts.
+
+        The gridbox container uses CSS Grid layout to arrange child elements in a two-dimensional
+        grid system with rows and columns. It provides powerful control over item positioning,
+        sizing, and alignment, making it ideal for complex layouts, forms, and dashboards.
+
+        Args:
+            columns (int or str): Number of columns or explicit column definition.
+                                - int: Number of equal-width columns (e.g., 3)
+                                - str: CSS grid-template-columns value (e.g., '1fr 2fr 1fr')
+                                If not specified, uses auto-placement.
+
+            align_content (str): Aligns the grid within the container when there's extra space.
+                               - 'start': Grid aligned to start
+                               - 'end': Grid aligned to end
+                               - 'center': Grid centered
+                               - 'stretch': Grid stretches to fill (default)
+                               - 'space-between': Space distributed between rows
+                               - 'space-around': Space around each row
+                               - 'space-evenly': Equal space between all rows
+
+            justify_content (str): Aligns the grid horizontally within the container.
+                                 - 'start': Grid aligned to start
+                                 - 'end': Grid aligned to end
+                                 - 'center': Grid centered
+                                 - 'stretch': Grid stretches to fill (default)
+                                 - 'space-between': Space distributed between columns
+                                 - 'space-around': Space around each column
+                                 - 'space-evenly': Equal space between all columns
+
+            align_items (str): Aligns items vertically within their grid cell.
+                             - 'start': Items aligned to cell start
+                             - 'end': Items aligned to cell end
+                             - 'center': Items centered in cell
+                             - 'stretch': Items stretch to fill cell (default)
+
+            justify_items (str): Aligns items horizontally within their grid cell.
+                               - 'start': Items aligned to cell start
+                               - 'end': Items aligned to cell end
+                               - 'center': Items centered in cell
+                               - 'stretch': Items stretch to fill cell (default)
+
+            table (str): Optional table name for integration with Genro data handling.
+                        Defaults to page.maintable if not specified.
+
+            **kwargs: Additional attributes:
+                     - gap (str): Spacing between grid items (e.g., '10px', '1em')
+                     - column_gap (str): Horizontal spacing between columns
+                     - row_gap (str): Vertical spacing between rows
+                     - item_height (str): Default height for grid items
+                     - item_border (str): Border applied to all items
+                     - item_side (str): Label position for labledBox items ('top', 'left', etc.)
+
+        Returns:
+            GnrDomSrcNode: The gridbox container node
+
+        Grid Item Attributes:
+            Child elements can use these attributes for positioning:
+            - colspan (int): Number of columns the item spans
+            - rowspan (int): Number of rows the item spans
+
+        Example:
+            # Simple 3-column grid
+            grid = pane.gridbox(columns=3, gap='10px')
+            grid.div('Item 1')
+            grid.div('Item 2')
+            grid.div('Item 3', colspan=2)  # Spans 2 columns
+            grid.div('Item 4')
+
+            # Explicit column widths
+            grid = pane.gridbox(columns='200px 1fr 2fr', row_gap='15px')
+            grid.div('Sidebar', height='100%')
+            grid.div('Content')
+            grid.div('Main area')
+
+            # Form layout with gridbox
+            form = pane.gridbox(columns=2, gap='10px')
+            form.textbox(value='^.name', lbl='Name')
+            form.textbox(value='^.surname', lbl='Surname')
+            form.textbox(value='^.email', lbl='Email', colspan=2)
+
+            # Dashboard with different sized sections
+            dashboard = pane.gridbox(columns=3, gap='20px', height='100%')
+            dashboard.labledBox('Stats', colspan=2).borderContainer()
+            dashboard.labledBox('Quick Actions')
+            dashboard.labledBox('Recent Activity', colspan=3)
+
+            # Centered grid
+            grid = pane.gridbox(columns=4, justify_content='center',
+                               align_items='center', height='400px')
+            for i in range(8):
+                grid.div(f'Cell {i}', border='1px solid #ccc')
+
+        See Also:
+            - flexbox(): For one-dimensional flexible layouts
+            - formbuilder(): For traditional form layouts
+            - labledBox(): For labeled containers within gridbox
+        """
         return self.child('gridbox',columns=columns,table=table or self.page.maintable,
                           align_content=align_content,justify_content=justify_content,
                           align_items=align_items,justify_items=justify_items
@@ -709,8 +873,8 @@ class GnrDomSrc(GnrStructData):
         """Create a :ref:`data` and returns it. ``data`` allows to define
         variables from server to client
         
-        :param \*args: args[0] includes the path of the value, args[1] includes the value
-        :param \*\*kwargs: in the kwargs you can insert the ``_serverpath`` attribute. For more
+        :param *args: args[0] includes the path of the value, args[1] includes the value
+        :param **kwargs: in the kwargs you can insert the ``_serverpath`` attribute. For more
                            information, check the :ref:`data_serverpath` example"""
         value = None
         className = None
@@ -752,6 +916,12 @@ class GnrDomSrc(GnrStructData):
     
     def bagField(self,value=None,method=None,**kwargs):
         return self.child('bagField',value=value,methodname=method,**kwargs)
+    
+    def grouplet(self,value=None,handler=None,**kwargs):
+        return self.child('grouplet',value=value,handler=handler,**kwargs)
+
+    def groupletform(self,value=None,handler=None,**kwargs):
+        return self.child('groupletform',value=value,handler=handler,**kwargs)
 
     def remote(self, method=None, lazy=True, cachedRemote=None,**kwargs):
         """TODO
@@ -911,9 +1081,6 @@ class GnrDomSrc(GnrStructData):
         kwFormlet = kwargs.get('formlet')
         if kwFormlet is not False and defaultUseFormlet:
             kwargs.setdefault('item_lbl_side','left')
-            if 'lbl' not in kwargs:
-                kwargs['lbl'] = '&nbsp;'
-                kwargs['box__class'] = 'formlet_fakelabel'
             return self.formbuilder_formlet(*args,**kwargs)
         else:
             return self.formbuilder_table(*args,**kwargs)
@@ -926,6 +1093,13 @@ class GnrDomSrc(GnrStructData):
             raise NotImplementedError('Not implemented in formlet')
         if formNode:
             table = table or formNode.attr.get('table')
+
+        # Extract ALL item_* parameters and propagate them to child items
+        item_params = dictExtract(kwargs, 'item_', pop=False, slice_prefix=True)
+        for param_name, value in item_params.items():
+            if param_name not in kwargs:  # Don't override explicit params
+                kwargs[param_name] = value
+
         result =  self.gridbox(columns=columns,
                                table=table,
                             formletCode=formletCode,
@@ -935,22 +1109,33 @@ class GnrDomSrc(GnrStructData):
                 formNode._mainformbuilder = result
         return result
         
-    def formbuilder_formlet(self, cols=1, table=None, formlet=None,
-                    lblclass='gnrfieldlabel', lblpos='L',byColumn=None,
-                    _class='', fieldclass='gnrfield',
-                    colswidth=None,
-                    lblalign=None, lblvalign='top',
-                    fldalign=None, fldvalign='top', disabled=False,
-                    rowdatapath=None, head_rows=None,spacing=None,boxMode=None,border_spacing=None,**kwargs):
+    def formbuilder_formlet(self, cols=1, table=None, formlet=None, lblpos='L', **kwargs):
+        """Formlet-based backend for :meth:`formbuilder` when the *use_formlets* preference is active.
+
+        Translates legacy ``formbuilder`` parameters into the :meth:`formlet` / gridbox
+        attribute convention (``item_lbl_*``, ``item_fld_*``, …) and delegates to
+        :meth:`formlet`.
+
+        :param cols: number of grid columns (default 1)
+        :param table: dotted table name (e.g. ``'myapp.mytable'``); falls back to page maintable
+        :param formlet: formlet code to load a pre-defined formlet definition
+        :param lblpos: legacy label-position shorthand – ``'L'`` (left), ``'T'`` (top),
+                       ``'R'`` (right), ``'B'`` (bottom).  Converted to ``item_lbl_side``
+                       unless that kwarg is already present.
+        :param kwargs: forwarded to :meth:`formlet`; any ``lbl_*`` / ``fld_*`` / ``row_*``
+                       prefixed keys are automatically promoted to their ``item_*`` equivalents.
+        """
         commonPrefix = ('lbl_', 'fld_', 'row_', 'tdf_', 'tdl_')
-        commonKwargs = {f'item_{k}':kwargs.pop(k) for k in list(kwargs.keys()) if len(k) > 4 and k[0:4] in commonPrefix}
-        commonKwargs.update(dictExtract(kwargs,'item_',pop=False,slice_prefix=False))
-        commonKwargs.pop('item_lbl_width',None)
-        commonKwargs.pop('item_lbl_min_width',None)
+        commonKwargs = {f'item_{k}': kwargs.pop(k) for k in list(kwargs.keys()) if len(k) > 4 and k[0:4] in commonPrefix}
+        commonKwargs.update(dictExtract(kwargs, 'item_', pop=False, slice_prefix=False))
         kwargs.update(commonKwargs)
-        result =  self.formlet(columns=cols,table=table or self.page.maintable,
-                            formletCode=formlet,**kwargs)
-        return result
+
+        if lblpos and 'item_lbl_side' not in kwargs:
+            lblpos_map = {'L': 'left', 'T': 'top', 'R': 'right', 'B': 'bottom'}
+            kwargs['item_lbl_side'] = lblpos_map.get(lblpos, 'left')
+
+        return self.formlet(columns=cols, table=table or self.page.maintable,
+                            formletCode=formlet, **kwargs)
 
 
         
@@ -985,7 +1170,7 @@ class GnrDomSrc(GnrStructData):
                          check the :ref:`disabled` attribute
         :param rowdatapath: TODO
         :param head_rows: TODO
-        :param \*\*kwargs: for the complete list of the ``**kwargs``, check the :ref:`fb_kwargs` section"""
+        :param **kwargs: for the complete list of the ``**kwargs``, check the :ref:`fb_kwargs` section"""
         if spacing:
             h_padding = float((kwargs.get('border_spacing') or '6px').replace('px',''))/2
             kwargs['border_spacing'] = '0px'
@@ -1147,7 +1332,8 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
              'tinyMCE', 'protovis','codemirror','mdeditor','qrscanner','fullcalendar','dygraph','chartjs','MultiButton','PaletteGroup','DocumentFrame','DownloadButton','bagEditor','PagedHtml',
              'DocItem','UserObjectLayout','UserObjectBar', 'PalettePane','PasswordTextBox','PaletteMap','PaletteImporter','DropUploader','ModalUploader','DropUploaderGrid','VideoPickerPalette','GeoCoderField','StaticMap','ImgUploader','TooltipPane','MenuDiv', 'BagNodeEditor','FlatBagEditor',
              'PaletteBagNodeEditor','StackButtons', 'Palette', 'PaletteTree','TreeFrame','CheckBoxText','RadioButtonText','GeoSearch','ComboArrow','ComboMenu','ChartPane','PaletteChart','ColorTextBox','ColorFiltering', 'SearchBox', 'FormStore',
-             'FramePane', 'FrameForm','BoxForm','QuickEditor','ExtendedCkeditor','CodeEditor','TreeGrid','QuickGrid',"GridGallery","VideoPlayer",'MultiValueEditor','TextboxMenu','MultiLineTextbox','QuickTree','SharedObject','IframeDiv','FieldsTree', 'SlotButton','TemplateChunk','LightButton','Semaphore']
+             'FramePane', 'FrameForm','BoxForm','QuickEditor','ExtendedCkeditor','ExtendedTinyMCE','CodeEditor','TreeGrid','QuickGrid',
+            "GridGallery","VideoPlayer",'MultiValueEditor','MultiLanguageTextBox','TextboxMenu','MultiLineTextbox','QuickTree','SharedObject','IframeDiv','FieldsTree', 'SlotButton','TemplateChunk','LightButton','Semaphore','CharCounterTextarea']
     genroNameSpace = dict([(name.lower(), name) for name in htmlNS])
     genroNameSpace.update(dict([(name.lower(), name) for name in dijitNS]))
     genroNameSpace.update(dict([(name.lower(), name) for name in dojoxNS]))
@@ -1162,7 +1348,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         
         :param path: the dataFormula's path
         :param formula: the dataFormula's formula
-        :param \*\*kwargs: formula parameters and other ones (:ref:`css`, etc)
+        :param **kwargs: formula parameters and other ones (:ref:`css`, etc)
         """
         return self.child('dataFormula', path=path, formula=formula, **kwargs)
         
@@ -1177,8 +1363,8 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         execute Javascript code
         
         :param script: the Javascript code that ``datacontroller`` has to execute. 
-        :param \*\*kwargs: *_init*, *_onStart*, *_timing*. For more information,
-                       check the controllers' :ref:`controllers_attributes` section
+        :param **kwargs: *_init*, *_onStart*, *_timing*. For more information,
+                      check the controllers' :ref:`controllers_attributes` section
         """
         return self.child('dataController', script=script, **kwargs)
         
@@ -1190,7 +1376,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                      you have to write it even if you don't return any value in the ``dataRpc``
                      (in this situation it will become a "mandatory but dummy" parameter)
         :param method: the name of your ``dataRpc`` method
-        :param \*\*kwargs: *_onCalling*, *_onResult*, *sync*. For more information,
+        :param **kwargs: *_onCalling*, *_onResult*, *sync*. For more information,
                            check the :ref:`rpc_attributes` section
         """
         if not method and callable(pathOrMethod):
@@ -1208,7 +1394,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         """TODO
         
         :param cb: TODO
-        :param \*\*kwargs: TODO"""
+        :param **kwargs: TODO"""
         self.child('callBack',childcontent=cb,**kwargs)
         return self
         
@@ -1438,7 +1624,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                          :ref:`sql_group_by` section
         :param having: the sql "HAVING" clause. For more information check the :ref:`sql_having`
         :param columnsFromView: TODO
-        :param \*\*kwargs: *_onCalling*, *_onResult*, *sync*. For more information,
+        :param **kwargs: *_onCalling*, *_onResult*, *sync*. For more information,
                            check the :ref:`rpc_attributes` section
         """
         if 'name' in kwargs:
@@ -1447,7 +1633,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             kwargs['_content'] = kwargs.pop('content')
         if not columns:
             if columnsFromView:
-                print('columnsFromView is deprecated')
+                raise DeprecationWarning('columnsFromView is deprecated')
                 columns = '=grids.%s.columns' % columnsFromView #it is the view id
             else:
                 columns = '*'
@@ -1489,7 +1675,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                       :ref:`package <packages>` to which the table belongs to)
         :param pkey: the record :ref:`primary key <pkey>`
         :param method: TODO
-        :param \*\*kwargs: *_onCalling*, *_onResult*, *sync*. For more information,
+        :param **kwargs: *_onCalling*, *_onResult*, *sync*. For more information,
                            check the :ref:`rpc_attributes` section
         """
         return self.child('dataRpc', path=path, table=table, pkey=pkey, method=method, **kwargs)
@@ -1502,7 +1688,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         
         :param path: the path where the dataRemote will save the result of the rpc
         :param method: the rpc name that has to be executed
-        :param \*\*kwargs: *cacheTime=NUMBER*: The cache stores the retrieved value and keeps
+        :param **kwargs: *cacheTime=NUMBER*: The cache stores the retrieved value and keeps
                            it for a number of seconds equal to ``NUMBER``
         """
         childcontent =None
@@ -1897,7 +2083,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
     def checkbox(self, value=None, label=None,lbl=None,**kwargs):
         """Return a :ref:`checkbox`: setting the value to true will check the box
         while false will uncheck it
-        
+
         :param label: the checkbox label
         :param value: the checkbox path for value. For more information, check the
                       :ref:`datapath` section
@@ -1905,6 +2091,9 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         if lbl and not label and not getattr(self,'fbuilder',None):
             label = lbl
             lbl = '&nbsp;'
+            # Auto-add formlet_fakelabel class to hide empty label row in formlet
+            if 'box__class' not in kwargs:
+                kwargs['box__class'] = 'formlet_fakelabel'
         return self.child('checkbox', value=value, label=label,lbl=lbl, **kwargs)
         
     def dropdownbutton(self, label=None, **kwargs):
@@ -2182,6 +2371,9 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                 kwargs['colspan'] = kwargs.pop('autospan')
                 kwargs['width'] = '99%'
             result.update(kwargs)
+        if result['tag']=='textBox' and fldattr.get('localized'):
+            result['tag'] = 'MultiLanguageTextBox'
+            result['languages'] = fldattr.get('localized')
         return result
         
 class GnrFormBuilder(object):
@@ -2936,4 +3128,3 @@ if __name__ == '__main__':
     fb.field('@card_id.name')
     fb.field('.address')
     a = root.toXml()
-    print(a)

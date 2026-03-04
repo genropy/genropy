@@ -45,6 +45,8 @@ dojo.declare("gnr.GnrRemoteResolver", gnr.GnrBagResolver, {
         this.httpMethod = objectPop(kwargs, 'httpMethod') || 'POST';
         this.onloading = null;
         this.onResult = objectPop(kwargs,'_onResult');
+        this.onCalling = objectPop(kwargs,'_onCalling');
+
     },
     load: function (kwargs) {
         if (this.onloading) {
@@ -58,6 +60,7 @@ dojo.declare("gnr.GnrRemoteResolver", gnr.GnrBagResolver, {
         }
         var kw = objectUpdate({},kwargs);
         var onResult = this.onResult;
+        var onCalling = this.onCalling;
         var result;
         if (this.httpMethod=='WSK'){
             result = genro.wsk.call(kw);
@@ -71,17 +74,21 @@ dojo.declare("gnr.GnrRemoteResolver", gnr.GnrBagResolver, {
             }
             return result;
         }else{
+            if(onCalling){
+                funcApply(onCalling,kwargs,kwargs._sourceNode);
+            }
+            var sourceNode = kwargs._sourceNode;
             result = genro.rpc._serverCall(kwargs, xhrKwargs, this.httpMethod);
             if (sync) {
                 result.addCallback(function(value) {
                     result = value;
                     if(onResult){
-                        funcApply(onResult,{result:result},kwargs._sourceNode);
+                        funcApply(onResult,{result:result},sourceNode);
                     }
                 });
             }else if(onResult){
                 result.addCallback(function(value){
-                    funcApply(onResult,{result:value},kwargs._sourceNode);
+                    funcApply(onResult,{result:value},sourceNode);
                 });
             }
         }
@@ -442,6 +449,9 @@ dojo.declare("gnr.GnrRpcHandler", null, {
             }
             return result;
         }else{
+            if(genro.debugpy){
+                xhrKwargs.timeout = 0;
+            }
             var deferred = this._serverCall(callKwargs, xhrKwargs, httpMethod);     
             if(sync){
                 genro.dom.removeClass(dojo.body(),'gnr_sync_rpc');
@@ -527,8 +537,6 @@ dojo.declare("gnr.GnrRpcHandler", null, {
     resultHandler: function(response, ioArgs, currentAttr) {
         genro._last_rpc = {response:response,ioArgs:ioArgs};
         this.unregister_call(ioArgs);
-        var siteMaintenance = ioArgs.xhr.getResponseHeader('X-GnrSiteMaintenance');
-        genro.dev.siteLockedStatus(siteMaintenance!=null);
         var envelope = new gnr.GnrBag();
         try {
             envelope.fromXmlDoc(response, genro.clsdict);

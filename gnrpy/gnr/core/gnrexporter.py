@@ -21,7 +21,7 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 try:
-    import openpyxl
+    import openpyxl  # noqa: F401
     from gnr.core.gnrxls import XlsxWriter as ExcelWriter
 except:
     from gnr.core.gnrxls import XlsWriter as ExcelWriter

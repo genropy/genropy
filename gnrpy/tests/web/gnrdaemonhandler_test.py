@@ -1,1 +1,1 @@
-import gnr.web.gnrdaemonhandler
+import gnr.web.gnrdaemonhandler  # noqa: F401

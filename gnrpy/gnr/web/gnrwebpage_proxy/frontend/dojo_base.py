@@ -10,7 +10,6 @@
 
 from gnr.web.gnrwebpage_proxy.frontend.gnrbasefrontend import GnrBaseFrontend
 from gnr.core.gnrlang import boolean
-import os.path
 
 class GnrBaseDojoFrontend(GnrBaseFrontend):
     def importer(self):
@@ -35,7 +34,7 @@ class GnrBaseDojoFrontend(GnrBaseFrontend):
         self.dojofolder = dojofolder
         self.dojolib = dojolib
         self.djConfig = "parseOnLoad: false, isDebug: %s, locale: '%s' ,noFirebugLite:true" % (
-                   self.page.isDeveloper() and 'true' or 'false', self.page.locale.lower())
+                   self.page.isDeveloper() and 'true' or 'false', self.page.locale.lower().replace('_', '-'))
         
     def _get_theme(self):
         return self._theme

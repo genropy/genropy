@@ -6,9 +6,6 @@
 
 
 from gnr.lib.services import GnrBaseService
-from subprocess import call
-import os
-
 
 class Main(GnrBaseService):
     def __init__(self, parent=None):

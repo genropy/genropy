@@ -1,5 +1,4 @@
 # encoding: utf-8
-import os
 
 class Table(object):
     def config_db(self,pkg):

@@ -2,7 +2,7 @@
 #--------------------------------------------------------------------------
 # package       : GenroPy sql - see LICENSE for details
 # module gnrsqlclass : Genro sqlite connection
-# Copyright (c) : 2004 - 2007 Softwell sas - Milano 
+# Copyright (c) : 2004 - 2007 Softwell sas - Milano
 # Written by    : Giovanni Porcari, Michele Bertoldi
 #                 Saverio Porcari, Francesco Porcari , Francesco Cavazzana
 #--------------------------------------------------------------------------
@@ -25,31 +25,27 @@ import os, re, time
 import datetime
 import pprint
 import decimal
-import logging
 
-try:
-    import sqlite3 as pysqlite
-except:
-    from pysqlite2 import dbapi2 as pysqlite
+import sqlite3 as pysqlite
 
-from gnr.sql.adapters._gnrbaseadapter import GnrDictRow, GnrWhereTranslator
+from gnr.sql import logger
+from gnr.sql.adapters._gnrbaseadapter import GnrDictRow
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
+from gnr.sql import AdapterCapabilities as Capabilities
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import boolean
 
-
-logger = logging.getLogger(__name__)
 
 class GnrSqliteConnection(pysqlite.Connection):
     pass
 
 class SqlDbAdapter(SqlDbBaseAdapter):
     typesDict = {'charactervarying': 'A','nvarchar':'A', 'character varying': 'A', 'character': 'C','char': 'C', 'text': 'T','varchar':'A', 'blob': 'X',
-                 'boolean': 'B','bool':'B', 'date': 'D', 'time': 'H',
-                 'datetime':'DH','timestamp': 'DH','timestamp with time zone':'DHZ','datetime with time zone':'DHZ', 'numeric': 'N',
-                 'integer': 'I','int': 'I', 'bigint': 'L', 'smallint': 'I', 'double precision': 'R', 'real': 'R', 'smallint unsigned':'I',
-                 'integer unsigned':'L',
-                 'decimal':'N','serial8': 'L'}
+                'boolean': 'B','bool':'B', 'date': 'D', 'time': 'H',
+                'datetime':'DH','timestamp': 'DH','timestamp with time zone':'DHZ','datetime with time zone':'DHZ', 'numeric': 'N',
+                'integer': 'I','int': 'I', 'bigint': 'L', 'smallint': 'I', 'double precision': 'R', 'real': 'R', 'smallint unsigned':'I',
+                'integer unsigned':'L',
+                'decimal':'N','serial8': 'L'}
 
     revTypesDict = {'A': 'character varying', 'T': 'text', 'C': 'character',
                     'X': 'blob', 'P': 'text', 'Z': 'text','DHZ':'timestamp with time zone',
@@ -57,44 +53,49 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                     'I': 'integer', 'L': 'bigint', 'R': 'real', 'N': 'numeric',
                     'serial': 'serial8'}
 
-    support_multiple_connections = False
+    CAPABILITIES = {
+        Capabilities.SCHEMAS
+        }
+    
     paramstyle = 'named'
     allowAlterColumn=False
 
     def defaultMainSchema(self):
         return 'main'
 
-    def regexp(self, expr, item):
+    def _regexp(self, expr, item):
         r = re.compile(expr, re.U)
         return r.match(item) is not None
 
-    def connect(self,*args,**kwargs):
+    def connect(self,storename=None, **kwargs):
         """Return a new connection object: provides cursors accessible by col number or col name
         @return: a new connection object"""
-        dbpath = self.dbroot.dbname
+        connection_parameters = self.get_connection_params(storename=storename)
+        connection_parameters.pop('implementation',None)
+        dbpath = connection_parameters.get('database')
         if not os.path.exists(dbpath):
             dbdir = os.path.dirname(dbpath) or os.path.join('..','data')
             if not os.path.isdir(dbdir):
                 os.makedirs(dbdir)
         conn = pysqlite.connect(dbpath, detect_types=pysqlite.PARSE_DECLTYPES | pysqlite.PARSE_COLNAMES, timeout=20.0,factory=GnrSqliteConnection)
-        conn.create_function("regexp", 2, self.regexp)
+        conn.create_function("regexp", 2, self._regexp)
         conn.row_factory = GnrDictRow
         curs = conn.cursor(GnrSqliteCursor)
         attached = [self.defaultMainSchema()]
         if self.dbroot.packages:
-            for schema, pkg in list(self.dbroot.packages.items()):
+            for _, pkg in list(self.dbroot.packages.items()):
                 sqlschema = pkg.sqlschema
                 if sqlschema:
                     if not sqlschema in attached:
                         attached.append(sqlschema)
-                        self.attach('%s.db' % os.path.join(os.path.dirname(dbpath), sqlschema), sqlschema, cursor=curs)
+                        self._attach('%s.db' % os.path.join(os.path.dirname(dbpath), sqlschema), sqlschema, cursor=curs)
         curs.close()
         return conn
 
     def cursor(self, connection, cursorname=None):
         return connection.cursor(GnrSqliteCursor)
 
-    def attach(self, filepath, name, cursor=None):
+    def _attach(self, filepath, name, cursor=None):
         """A special sqlite only method for attach external database file as a schema for the current one
         @param filepath: external sqlite db file
         @param name: name of the schema containing the external db
@@ -112,17 +113,30 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         Replace the ILIKE operator with LIKE: sqlite LIKE is case insensitive"""
         sql = self.adaptTupleListSet(sql,kwargs)
         sql = sql.replace('ILIKE', 'LIKE').replace('ilike', 'like').replace('~*', ' REGEXP ')
-        sql = re.sub(" +IS +(NOT +)?(TRUE|FALSE)",self._booleanSubCb,sql,flags=re.I)
+        sql = re.sub(r'(\(*)(["\w]["\w.]*) +IS +(NOT +)?(TRUE|FALSE)',self._booleanSubCb,sql,flags=re.I)
         return sql, kwargs
 
     def _booleanSubCb(self,m):
-        op = '!=' if m.group(1) else '='
-        val = '1' if m.group(2).lower() == 'true' else '0'
-        return ' %s%s ' %(op,val)
+        prefix = m.group(1)
+        expr = m.group(2)
+        is_not = bool(m.group(3))
+        is_true = m.group(4).upper() == 'TRUE'
+        val = '1' if is_true else '0'
+        if is_not:
+            return '%s(%s IS NULL OR %s !=%s)' % (prefix, expr, expr, val)
+        else:
+            return '%s(%s IS NOT NULL AND %s =%s)' % (prefix, expr, expr, val)
 
+    @classmethod
     def adaptSqlName(self,name):
         return '"%s"' %name
 
+    def setLocale(self, locale):
+        """
+        Ignore the locale change, no meaning for this adapter
+        """
+        pass
+    
     def _selectForUpdate(self,maintable_as=None,**kwargs):
         return ''
 
@@ -133,29 +147,85 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         @return: list of object names"""
         return getattr(self, '_list_%s' % elType)(**kwargs)
 
+    def execute(self, sql, sqlargs=None, manager=False, autoCommit=False):
+        """
+        Execute a sql statement on a new cursor from the connection of the selected
+        connection manager if provided, otherwise through a new connection.
+        sqlargs will be used for query params substitutions.
+
+        Returns None
+        """
+        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit,
+                                                                            storename=self.dbroot.currentStorename)
+        cursor = connection.cursor(GnrSqliteCursor)
+        try:
+            if isinstance(sqlargs, dict):
+                sql, sqlargs = self.prepareSqlText(sql, sqlargs)
+            if sqlargs is None:
+                cursor.execute(sql)
+            else:
+                cursor.execute(sql, sqlargs)
+        finally:
+            cursor.close()
+            connection.close()
+
+    def raw_fetch(self, sql, sqlargs=None, manager=False, autoCommit=False):
+        """
+        Execute a sql statement on a new cursor from the connection of the selected
+        connection manager if provided, otherwise through a new connection.
+        sqlargs will be used for query params substitutions.
+
+        Returns all records returned by the SQL statement.
+        """
+        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit, storename=self.dbroot.currentStorename)
+        cursor = connection.cursor(GnrSqliteCursor)
+        try:
+            if isinstance(sqlargs, dict):
+                sql, sqlargs = self.prepareSqlText(sql, sqlargs)
+            if sqlargs is None:
+                cursor.execute(sql)
+            else:
+                cursor.execute(sql, sqlargs)
+            result = cursor.fetchall()
+        finally:
+            cursor.close()
+            connection.close()
+        return result
 
     def _list_enabled_extensions(self):
         return []
 
 
-    def _list_schemata(self):
-        return [r[1] for r in self.dbroot.execute("PRAGMA database_list;").fetchall()]
+    def _list_schemata(self, comment=None):
+        result = self.dbroot.execute("PRAGMA database_list;").fetchall()
+        if comment:
+            return [(r[1],None) for r in result]
+        return [r[1] for r in result]
 
-    def _list_tables(self, schema):
+    def _list_tables(self, schema=None, comment=None):
         query = "SELECT name FROM %s.sqlite_master WHERE type='table';" % (schema,)
-        return [r[0] for r in self.dbroot.execute(query).fetchall()]
+        result = self.raw_fetch(query)
+        if comment:
+            return [(r[0],None) for r in result]
+        return [r[0] for r in result]
 
-    def _list_views(self, schema):
+    def _list_views(self, schema=None, comment=None):
         query = "SELECT name FROM %s.sqlite_master WHERE type='view';" % (schema,)
-        return [r[0] for r in self.dbroot.execute(query).fetchall()]
+        result = self.raw_fetch(query)
+        if comment:
+            return [(r[0],None) for r in result]
+        return [r[0] for r in result]
 
-    def _list_columns(self, schema, table):
+    def _list_columns(self, schema=None, table=None, comment=None):
         """cid|name|type|notnull|dflt_value|pk"""
         query = "PRAGMA %s.table_info(%s);" % (schema, table)
-        return [r[1] for r in self.dbroot.execute(query).fetchall()]
+        result = self.raw_fetch(query)
+        if comment:
+            return [(r[1],None) for r in result]
+        return [r[1] for r in result]
 
     def relations(self):
-        """Get a list of all relations in the db. 
+        """Get a list of all relations in the db.
         Each element of the list is a list (or tuple) with this elements:
         [foreign_constraint_name, many_schema, many_tbl, [many_col, ...], unique_constraint_name, one_schema, one_tbl, [one_col, ...]]
         @return: list of relation's details
@@ -168,7 +238,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         for schema in self._list_schemata():
             for tbl in self._list_tables(schema=schema):
                 query = "PRAGMA %s.foreign_key_list(%s);" % (schema, tbl)
-                l = self.dbroot.execute(query).fetchall()
+                l = self.raw_fetch(query)
 
                 for r in l:
                     un_tbl = r[2]
@@ -186,7 +256,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         @param schema: schema name
         @return: list of columns wich are the primary key for the table"""
         query = "PRAGMA %s.table_info(%s);" % (schema, table)
-        l = self.dbroot.execute(query).fetchall()
+        l = self.raw_fetch(query)
         return [r[1] for r in l if r[5] > 0]
 
 
@@ -211,7 +281,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                 colType = colType[:colType.find('(')]
             colType = colType.strip()
             col['dtype'] = self.typesDict[colType] if colType else 'T'
-            col['notnull'] = (col['notnull'] == 'NO')
+            col['notnull'] = bool(col['notnull'])
             col = self._filterColInfo(col, '_sl_')
             if col['dtype'] in ('A','C') and col.get('length'):
                 col['size'] = col['_sl_size'] if col['dtype']=='C' else '0:%s' %col['_sl_size']
@@ -257,7 +327,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         conn.close()
 
     def dropDb(self, name):
-        """Drop an existing database file (actually delete the file) 
+        """Drop an existing database file (actually delete the file)
         @param name: db name
         """
         os.remove(name)
@@ -269,11 +339,11 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         @param schema: schema name
         @return: list of index infos"""
         query = "PRAGMA %s.index_list(%s);" % (schema, table)
-        idxs = self.dbroot.execute(query).fetchall()
+        idxs = self.raw_fetch(query)
         result = []
         for idx in idxs:
             query = "PRAGMA %s.index_info(%s);" % (schema, idx['name'])
-            cols = self.dbroot.execute(query).fetchall()
+            cols = self.raw_fetch(query)
             cols = [c['name'] for c in cols]
             result.append(dict(name=idx['name'], primary=None, unique=idx['unique'], columns=','.join(cols)))
         return result
@@ -281,11 +351,11 @@ class SqlDbAdapter(SqlDbBaseAdapter):
     def getTableConstraints(self, table=None, schema=None):
         """Get a (list of) dict containing details about a column or all the columns of a table.
         Each dict has those info: name, position, default, dtype, length, notnull
-        
+
         Other info may be present with an adapter-specific prefix."""
         # TODO: implement getTableConstraints
         return Bag()
-        
+
 
     def addForeignKeySql(self, c_name, o_pkg, o_tbl, o_fld, m_pkg, m_tbl, m_fld, on_up, on_del, init_deferred):
         """Sqlite cannot add foreign keys, only define them in CREATE TABLE. However they are not enforced."""
@@ -298,11 +368,11 @@ class SqlDbAdapter(SqlDbBaseAdapter):
     def createSchema(self, sqlschema):
         """Create a new database schema.
         sqlite specific implementation actually attach an external db file."""
-        self.attach(sqlschema + '.db', sqlschema)
+        self._attach(sqlschema + '.db', sqlschema)
 
     def createIndex(self, index_name, columns, table_sql, sqlschema=None, unique=None):
         """create a new index
-        sqlite specific implementation fix a naming difference: 
+        sqlite specific implementation fix a naming difference:
         schema must be prepended to index name and not to table name.
         @param index_name: name of the index (unique in schema)
         @param columns: comma separated list of columns to include in the index
@@ -324,6 +394,88 @@ class SqlDbAdapter(SqlDbBaseAdapter):
     def string_agg(self,fieldpath,separator):
         return f"group_concat({fieldpath},'{separator}')"
 
+    def mask_field_sql(self, field, mode='2-4', placeholder='*'):
+        """
+        Returns a SQLite SQL expression for masking a field value.
+
+        Args:
+            field: The field expression to mask (with $ prefix for gnr substitution)
+            mode: Masking mode - 'email', 'creditcard', 'phone', or 'N-M' format
+            placeholder: Character to use for masking (default: '*')
+
+        Returns:
+            str: SQLite SQL expression for the masked field
+        """
+        # Helper to generate repeat pattern in SQLite (which lacks repeat())
+        # We use substr with replace: replace(substr('**********...', 1, n), '*', placeholder)
+        # But simpler: we generate placeholder characters inline using printf or just hardcoded pattern
+        # SQLite approach: use printf('%.*c', length, char) - but this doesn't work in SQLite
+        # Alternative: use replace(substr('************************************', 1, n), '*', placeholder)
+        # We'll use a long string of asterisks and substr it
+        max_mask_chars = 100  # Maximum mask length supported
+        mask_base = '*' * max_mask_chars
+
+        if mode == 'email':
+            # Mask local part of email, keep domain visible (default 2 chars visible at start)
+            # SQLite uses instr() instead of position(), substr() instead of substring()
+            # SQLite doesn't have split_part, so we use substr with instr
+            sql_formula = f"""
+                CASE
+                    WHEN instr({field}, '@') > 0 THEN
+                        substr({field}, 1, 2) ||
+                        replace(substr('{mask_base}', 1, max(instr({field}, '@') - 1 - 2, 0)), '*', '{placeholder}') ||
+                        substr({field}, instr({field}, '@'))
+                    ELSE
+                        {field}
+                END
+            """.strip()
+
+        elif mode == 'creditcard':
+            # Show only last 4 digits
+            sql_formula = f"""
+                CASE
+                    WHEN length({field}) > 4 THEN
+                        replace(substr('{mask_base}', 1, length({field}) - 4), '*', '{placeholder}') ||
+                        substr({field}, -4)
+                    ELSE
+                        {field}
+                END
+            """.strip()
+
+        elif mode == 'phone':
+            # Keep country code (3 chars) and last 3 digits visible
+            sql_formula = f"""
+                CASE
+                    WHEN length({field}) > 6 THEN
+                        substr({field}, 1, 3) ||
+                        replace(substr('{mask_base}', 1, length({field}) - 6), '*', '{placeholder}') ||
+                        substr({field}, -3)
+                    ELSE
+                        {field}
+                END
+            """.strip()
+
+        else:
+            # Generic masking with N-M format
+            try:
+                visible_start, visible_end = map(int, mode.split('-'))
+            except (ValueError, AttributeError):
+                # Fallback to default if mode is invalid
+                visible_start, visible_end = 2, 4
+
+            sql_formula = f"""
+                CASE
+                    WHEN length({field}) > {visible_start + visible_end} THEN
+                        substr({field}, 1, {visible_start}) ||
+                        replace(substr('{mask_base}', 1, length({field}) - {visible_start} - {visible_end}), '*', '{placeholder}') ||
+                        substr({field}, -{visible_end})
+                    ELSE
+                        {field}
+                END
+            """.strip()
+
+        return sql_formula
+
 
 class GnrSqliteCursor(pysqlite.Cursor):
     def _get_index(self):
@@ -336,7 +488,6 @@ class GnrSqliteCursor(pysqlite.Cursor):
     index = property(_get_index)
 
     def execute(self, sql, params=None, *args, **kwargs):
-        global logger
         if params:
             if isinstance(params, str):
                 params = str(params)
@@ -360,7 +511,7 @@ class GnrSqliteCursor(pysqlite.Cursor):
             if str(e)=='disk I/O error':
                 count = 0
                 while count<5:
-                    print('retry sql read',count)
+                    logger.info('retry sql read %s', count)
                     time.sleep(1)
                     try:
                         c = pysqlite.Cursor.execute(self, sql, *args, **kwargs)
@@ -372,7 +523,7 @@ class GnrSqliteCursor(pysqlite.Cursor):
             logger.exception(e)
             raise
 
-# ------------------------------------------------------------------------------------------------------- Add support for time fields to sqlite3 module
+# Add support for time fields to sqlite3 module
 
 def adapt_time(val):
     return val.isoformat()
@@ -383,12 +534,12 @@ def convert_time(val):
 pysqlite.register_adapter(datetime.time, adapt_time)
 pysqlite.register_converter("time", convert_time)
 
-# ------------------------------------------------------------------------------------------------------- Add support for decimal fields to sqlite3 module
+# Add support for decimal fields to sqlite3 module
 
 pysqlite.register_adapter(decimal.Decimal, lambda x: float(x))
 pysqlite.register_converter('numeric', lambda x: decimal.Decimal(x.decode()))
 
-# ------------------------------------------------------------------------------------------------------- Fix issues with datetimes and dates
+# Fix issues with datetimes and dates
 
 def convert_date(val):
     val = val.decode().partition(' ')[0] # take just the date part, if we received a datetime string
@@ -396,10 +547,46 @@ def convert_date(val):
 
 pysqlite.register_converter("date", convert_date)
 
+# date adapter/converters
 
+def adapt_date_iso(val):
+    """Adapt datetime.date to ISO 8601 date."""
+    return val.isoformat()
+
+pysqlite.register_adapter(datetime.date, adapt_date_iso)
+
+def convert_datetime(val):
+    """Convert ISO 8601 datetime to datetime.datetime object."""
+    return datetime.datetime.fromisoformat(val.decode())
+
+def adapt_datetime_iso(val):
+    """Adapt datetime.datetime to timezone-naive ISO 8601 date."""
+    return val.replace(tzinfo=None).isoformat()
+
+pysqlite.register_adapter(datetime.datetime, adapt_datetime_iso)
+pysqlite.register_converter("datetime", convert_datetime)
+
+
+# bool converter
 
 def convert_boolean(val):
     return boolean(val)
 
 pysqlite.register_converter("bool", convert_boolean)
 
+
+# unix timestamps
+def convert_timestamp(val):
+    """Convert timestamp to datetime.datetime object."""
+    if isinstance(val, (bytes, bytearray)):
+        val = val.decode()
+    try:
+        ts = int(val)
+    except ValueError:
+        dt = datetime.datetime.fromisoformat(val)
+    else:
+        dt = datetime.fromtimestamp(ts)
+
+    return dt
+
+pysqlite.register_converter("timestamp", convert_timestamp)

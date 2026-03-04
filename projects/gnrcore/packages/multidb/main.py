@@ -1,15 +1,11 @@
-#!/usr/bin/env python
-# encoding: utf-8
-from __future__ import print_function
+import os
+import datetime
 
 from gnr.app.gnrdbo import GnrDboTable, GnrDboPackage
-from gnr.core.gnrdecorator import metadata
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlang import instanceMixin
 #from gnrpkg.multidb.multidbtable import MultidbTable
 from gnr.sql.gnrsql import GnrSqlException
-import os
-import datetime
 
 FIELD_BLACKLIST = ('__ins_ts','__mod_ts','__version','__del_ts','__moved_related')
 
@@ -25,16 +21,16 @@ class Package(GnrDboPackage):
         pass
 
     def getStorePreference(self):
-        if not self.attributes.get('storetable'):
+        if not self.db.storetable:
             return Bag()
         storename = self.db.currentEnv.get('storename')
-        store_record = self.db.table(self.attributes['storetable']).record(dbstore=storename).output('record')
+        store_record = self.db.table(self.db.storetable).record(dbstore=storename).output('record')
         return store_record['preferences'] or Bag()
 
     def setStorePreference(self,pkg=None,value=None):
         storename = self.db.currentEnv.get('storename')
         with self.db.tempEnv(connectionName='system',storename=self.db.rootstore):
-            with self.db.table(self.attributes['storetable']).recordToUpdate(dbstore=storename) as rec:
+            with self.db.table(self.db.storetable).recordToUpdate(dbstore=storename) as rec:
                 rec['preferences'][pkg] = value
             self.db.commit()
 
@@ -150,9 +146,21 @@ class Package(GnrDboPackage):
 
 
     def onAuthentication(self,avatar):
-        """dbstore user check"""
-        dbstorepage = self.db.application.site.currentPage.dbstore
-        if avatar.user_record['dbstore'] and dbstorepage!=avatar.user_record['dbstore']:
+        """dbstore user check.
+
+        In multidomain mode, users are completely isolated per domain (each workspace
+        has its own user table), so no cross-domain check is needed.
+        In non-multidomain mode, users are centralized but marked with a dbstore field,
+        so we need to verify the user is accessing their assigned dbstore.
+        """
+        if self.db.multidomain:
+            return
+        currentPage = self.db.application.site.currentPage
+        if not currentPage:
+            return
+        dbstorepage = currentPage.dbstore
+        user_record = getattr(avatar,'user_record',None)
+        if user_record and user_record.get('dbstore') and dbstorepage != user_record['dbstore']:
             avatar.user_tags = ''
 
 class Table(GnrDboTable):

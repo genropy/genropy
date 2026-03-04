@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 
-# untitled.py
 # Created by Francesco Porcari on 2011-04-07.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
 "Test page description"
-from __future__ import division
+from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrbag import Bag
+from gnr.core.gnrstring import fromJson
 
-
-from past.utils import old_div
 class GnrCustomWebPage(object):
     css_requires='csstest'
     def windowTitle(self):
@@ -222,7 +221,7 @@ class GnrCustomWebPage(object):
                 color = 'orange'
             else:
                 color = 'red'
-            c = dict(height=1+old_div(n['nc'],4),color=color)
+            c = dict(height=1+int(n['nc']/4),color=color)
             result.append('<div style="background:%(color)s;height:%(height)ipx; width:3px; display:inline-block;margin-right:1px;"></div>' %c)
         item['page_profile'] = '<div>%s</div>'  %''.join(result)
 

@@ -6,12 +6,11 @@ import os
 import email
 import base64
 from datetime import datetime
-from smtplib import SMTPException,SMTPConnectError
+from smtplib import SMTPConnectError
 from mailparser import parse_from_bytes
 
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrstring import templateReplace
 from gnr.core.gnrstring import slugify
 from gnr.core.gnrlang import gnrImport
 
@@ -22,18 +21,20 @@ class Table(object):
     def config_db(self, pkg):
         tbl =  pkg.table('message', rowcaption='$to_address,$subject', pkey='id',
                      name_long='!!Message', name_plural='!!Messages')
-        self.sysFields(tbl,draftField=True)
+        self.sysFields(tbl,draftField=True,ldel=False)
+        
         tbl.column('in_out', size='1', name_long='!!I/O', name_short='!!I/O',values='I:Input,O:Output')
         tbl.column('to_address',name_long='!!To',_sendback=True)
         tbl.column('from_address',name_long='!!From',_sendback=True)
         tbl.column('cc_address',name_long='!!Cc',_sendback=True)
         tbl.column('bcc_address',name_long='!!Bcc',_sendback=True)
+        tbl.column('reply_to',name_long='!!Reply to',_sendback=True)
         tbl.column('uid',name_long='!!UID')
         tbl.column('body',name_long='!!Body')
         tbl.column('body_plain',name_long='!!Plain Body')
         tbl.column('html','B',name_long='!!Html')
         tbl.column('subject',name_long='!!Subject')
-        tbl.column('send_date','DH',name_long='!!Send date')
+        tbl.column('send_date','DH',name_long='!!Send date',indexed=True)
         tbl.column('user_id',size='22',name_long='!!User id').relation('adm.user.id', mode='foreignkey', relation_name='messages')
         tbl.column('account_id',size='22',name_long='!!Account id').relation('email.account.id', mode='foreignkey', relation_name='messages')
         tbl.column('mailbox_id',size='22',name_long='!!Mailbox id').relation('email.mailbox.id', mode='foreignkey', relation_name='messages')
@@ -51,12 +52,26 @@ class Table(object):
         tbl.column('error_msg', name_long='Error message')
         tbl.column('error_ts', name_long='Error Timestamp')
         tbl.column('connection_retry', dtype='L')
+        tbl.column('priority', name_long='!![en]Priority',
+                   values='9:[!![en]No send],3:[!![en]Low],2:[!![en]Standard],1:[!![en]High],-1:[!![en]Immediate]')
+        tbl.column('read', dtype='B', name_long='!!Read',indexed=True)
+        tbl.column('deferred_ts', dtype='DHZ', name_long='!!Deferred send',
+                   name_short='!!Deferred', indexed=True)
 
         tbl.formulaColumn('sent','$send_date IS NOT NULL', name_long='!!Sent')
+        tbl.formulaColumn('message_to_send', "$in_out=:out AND $send_date IS NULL AND $error_msg IS NULL AND ($deferred_ts IS NULL OR $deferred_ts <= NOW())", var_out='O',
+                            name_long='!!Message to send', dtype='B')
         tbl.formulaColumn('plain_text', """regexp_replace($body, '<[^>]*>', '', 'g')""")
         tbl.formulaColumn('abstract', """LEFT(REPLACE($plain_text,'&nbsp;', ''),300)""", name_long='!![en]Abstract')
         tbl.formulaColumn('delta_send',"CAST( EXTRACT(EPOCH FROM ($send_date-$__ins_ts)) AS INTEGER)",dtype='L')
-
+        tbl.formulaColumn('show_read', """CASE WHEN $read IS NOT TRUE THEN '<div style="border-radius\\:10px;background\\:var(--primary-color);height\\:10px;width\\:10px"></div>'
+                                                ELSE NULL END""", name_long='!!Show read')
+        tbl.pyColumn('full_external_url', name_long='Full external url')
+        tbl.pyColumn('compiled_body', py_method='getBody')
+        
+    def pyColumn_full_external_url(self,record,field):
+        return self.db.application.site.externalUrl('/index', menucode='messages')
+        
     def defaultValues(self):
         return dict(account_id=self.db.currentEnv.get('current_account_id'))
 
@@ -75,9 +90,6 @@ class Table(object):
     def trigger_onUpdating(self, record_data, old_record):
         self.deleteAddressRelations(record_data)
         self.explodeAddressRelations(record_data)
-    
-    def trigger_onDeleting(self, record_data):
-        self.deleteAddressRelations(record_data)
         
     def extractAddresses(self,addresses):
         if not addresses:
@@ -94,9 +106,16 @@ class Table(object):
         self.db.table('email.message_address').deleteSelection('message_id',record['id'])
         
     def explodeAddressRelations(self,record):
+        prefs = self.db.application.getPreference('', pkg='email') or {}
+        if not prefs.get('collect_addresses'):
+            return
+        exclude_from = prefs.get('exclude_from_address')
         tblmsgaddres = self.db.table('email.message_address')
         message_id = record['id']
-        for address_type in ('to','from','bcc','cc'):
+        address_types = ['to', 'bcc', 'cc']
+        if not exclude_from:
+            address_types.append('from')
+        for address_type in address_types:
             addresslist = self.extractAddresses(record['%s_address' %address_type])
             for address in addresslist:
                 tblmsgaddres.insert(dict(address=address,message_id=message_id,reason=address_type))
@@ -206,19 +225,32 @@ class Table(object):
 
     @public_method
     def newMessage(self, account_id=None,to_address=None,from_address=None,
-                  subject=None, body=None, cc_address=None, 
+                  subject=None, body=None, cc_address=None,
                   reply_to=None, bcc_address=None, attachments=None,weak_attachments=None,
                  message_id=None,message_date=None,message_type=None,
                  html=False,doCommit=False,headers_kwargs=None,**kwargs):
-        
+
         message_date = message_date or self.db.workdate
-        extra_headers = Bag(dict(message_id=message_id,message_date=str(message_date),reply_to=reply_to))
+        # Fix debug address - if system_debug_address in kwargs, use it instead of to_address
+        to_address = kwargs.get('system_debug_address') or to_address
+        # Reply-to default from preferences
+        reply_to = reply_to or self.db.application.getPreference('dflt_reply_to',pkg='email')
+        extra_headers = Bag(dict(message_id=message_id,message_date=str(message_date)))
         if headers_kwargs:
             extra_headers.update(headers_kwargs)
         account_id = account_id or self.db.application.getPreference('mail', pkg='adm')['email_account_id']
-        if weak_attachments and isinstance(weak_attachments,list):
+        
+        if not weak_attachments:
+            weak_attachments = None
+        elif isinstance(weak_attachments, (str, bytes)):
+            pass
+        elif isinstance(weak_attachments, (list, tuple, set)):
             site = self.db.application.site
-            weak_attachments = ','.join([site.storageNode(p).fullpath for p in weak_attachments])
+            weak_paths = [site.storageNode(p).fullpath for p in weak_attachments]
+            weak_attachments = ','.join(weak_paths) if weak_paths else None
+        else:
+            weak_attachments = str(weak_attachments)
+
         use_dbstores = self.use_dbstores()
         dbstore = self.db.currentEnv.get('storename')
         envkw = {}
@@ -234,7 +266,8 @@ class Table(object):
                             extra_headers=extra_headers,
                             message_type=message_type,
                             weak_attachments=weak_attachments,
-                            html=html,dbstore=dbstore,**kwargs)
+                            html=html,dbstore=dbstore,
+                            reply_to=reply_to,**kwargs)
         message_atc = self.db.table('email.message_atc')
         with self.db.tempEnv(autoCommit=True,**envkw):
             self.insert(message_to_dispatch)
@@ -279,7 +312,9 @@ class Table(object):
             extra_headers['message_id'] = extra_headers['message_id'] or 'GNR_%(id)s' %message
             account_id = message['account_id']
             mp = self.db.table('email.account').getSmtpAccountPref(account_id)
-            bcc_address = message['bcc_address'] 
+            bcc_address = message['bcc_address']
+            # Fix debug address - if debug_address is set in account, use it instead
+            to_address = mp['system_debug_address'] or message['to_address']
             attachments = self.db.table('email.message_atc').query(where='$maintable_id=:mid',mid=message['id']).fetch()
             attachments = [r['filepath'] or r['external_url'] for r in attachments]
             if message['weak_attachments']:
@@ -287,9 +322,9 @@ class Table(object):
             if mp['system_bcc']:
                 bcc_address = '%s,%s' %(bcc_address,mp['system_bcc']) if bcc_address else mp['system_bcc']
             try:
-                mail_handler.sendmail(to_address = message['to_address'],
+                mail_handler.sendmail(to_address=to_address,
                                 account_id = account_id,
-                                body=message['body'], subject=message['subject'],
+                                body=self.getBody(message), subject=message['subject'],
                                 cc_address=message['cc_address'], bcc_address=bcc_address,
                                 from_address=message['from_address'] or mp['from_address'],
                                 attachments=attachments, 
@@ -314,6 +349,12 @@ class Table(object):
         self.db.commit()
         return message
     
+    def getBody(self, message=None, **kwargs):
+        "Customizable method to return the body of the email. Default is to return the actual 'body' field."
+        if not message:
+            return ""
+        return message['body']
+    
     @public_method
     def clearErrors(self, pkey):
         with self.recordToUpdate(pkey) as message:
@@ -323,6 +364,12 @@ class Table(object):
         self.db.commit()
         return 
 
+    @public_method
+    def markAsRead(self, pkey):
+        with self.recordToUpdate(pkey) as message_rec:
+            message_rec['read'] = True
+        self.db.commit()
+        
     def atc_getAttachmentPath(self,pkey):
         return self.folderPath(self.recordAs(pkey))
 

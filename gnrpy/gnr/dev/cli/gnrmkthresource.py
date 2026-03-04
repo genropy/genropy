@@ -1,13 +1,16 @@
 #!/usr/bin/env python
 # encoding: utf-8
 import os
+import ast
+from pathlib import Path
 from collections import defaultdict
 
 from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrbag import Bag
-from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrlang import uniquify
+from gnr.app.gnrapp import GnrApp
 from gnr.web.gnrmenu import MenuStruct
+from gnr.dev import logger
 
 class ThResourceMaker(object):
     def __init__(self, options, args):
@@ -44,6 +47,10 @@ class ThResourceMaker(object):
     def makeResources(self):
         hasLookups=False
         tables=[]
+
+        if self.option_guess_size:
+            logger.debug('Guessing column width by data size: ACTIVE')
+
         for pkg, tbl_names in list(self.pkg_tables.items()):
             for tbl_name in tbl_names:
                 if tbl_name=='*':
@@ -54,32 +61,103 @@ class ThResourceMaker(object):
         tables = uniquify(tables)
         if len(tables)>1 and (self.option_output or self.option_name):
             if self.option_name:
-                print('-n/--name option is incompatible with multiple table mode')
+                logger.error('-n/--name option is incompatible with multiple table mode')
             if self.option_name:
-                print('-o/--output option is incompatible with multiple table mode')
+                logger.error('-o/--output option is incompatible with multiple table mode')
             exit(-1)
+            
         for pkg in list(self.pkg_tables.keys()):
             packageFolder = self.app.packages(pkg).packageFolder
             path = os.path.join(packageFolder,'menu.xml')
             self.packageMenus[pkg] = Bag(path) if os.path.exists(path) else Bag()
 
         for package,table in tables:
-            if 'lookup' in self.app.db.table('%s.%s'%(package,table)).attributes:
-                hasLookups=True
-                continue
-            else:
-                self.createResourceFile(pkg, table)
+            logger.debug('Processing table %s.%s'%(package,table))
+            try:
+                if 'lookup' in self.app.db.table('%s.%s'%(package,table)).attributes:
+                    logger.debug('Skipping lookup table %s.%s'%(package,table))
+                    hasLookups=True
+                    continue
+                else:
+                    self.createResourceFile(pkg, table)
+            except Exception as e:
+                logger.exception(str(e))
+                
         if self.option_menu:
             for pkg in list(self.pkg_tables.keys()):
                 packageFolder = self.app.packages(pkg).packageFolder
                 xmlmenupath = os.path.join(packageFolder,'menu.xml')
+
                 if hasLookups:
-                    self.packageMenus[package].setItem('auto.lookups', None, label="!!Lookup tables", 
-                                                                    pkg=pkg, tag='lookupBranch')
-                self.packageMenus[pkg].toXml(xmlmenupath)
-                ms = MenuStruct(xmlmenupath)
-                ms.toPython(os.path.join(packageFolder,'menu.py'))
-                os.remove(xmlmenupath)
+                    self.packageMenus[package].setItem('auto.lookups', None,
+                                                       label="!!Lookup tables", 
+                                                       pkg=pkg, tag='lookupBranch')
+
+                pymenupath = Path(os.path.join(packageFolder, "menu.py"))
+
+                
+                if pymenupath.exists():
+                    logger.info("Menu file %s exists, appending", pymenupath)
+                    source = pymenupath.read_text(encoding="utf-8")
+                    tree = ast.parse(source)
+                    lines = source.splitlines(keepends=True)
+                    class Finder(ast.NodeVisitor):
+                        """
+                        Simple AST visitor to search for the root branch assignment
+                        and add a new page to such branch
+                        """
+                        def __init__(self):
+                            self.config_func = None
+                            self.branch_var = None
+                        def visit_ClassDef(self, node):
+                            if node.name != "Menu":
+                                return
+                            for item in node.body:
+                                if isinstance(item, ast.FunctionDef) and item.name == "config":
+                                    self.config_func = item
+                                    self._find_branch_assignment(item)
+                                    return
+                        def _find_branch_assignment(self, func):
+                            for stmt in func.body:
+                                if not isinstance(stmt, ast.Assign):
+                                    continue
+                                if len(stmt.targets) != 1:
+                                    continue
+                                target = stmt.targets[0]
+                                if not isinstance(target, ast.Name):
+                                    continue
+                                value = stmt.value
+                                if not isinstance(value, ast.Call):
+                                    continue
+                                func_attr = value.func
+                                if (
+                                        isinstance(func_attr, ast.Attribute)
+                                        and isinstance(func_attr.value, ast.Name)
+                                        and func_attr.value.id == "root"
+                                        and func_attr.attr == "branch"
+                                ):
+                                    self.branch_var = target.id
+                                    return
+
+                    finder = Finder()
+                    finder.visit(tree)
+                    if not finder.config_func:
+                        raise RuntimeError("Menu.config not found")
+                    if finder.branch_var is None:
+                        raise RuntimeError("Root branch not found")
+                    insert_at = finder.config_func.end_lineno
+                    for item in self.packageMenus[package]['auto']:
+                        new_line = f"\n        {finder.branch_var}.thpage(u'{item.attr['label']}', table='{item.attr['table']}')"
+                        lines.insert(insert_at, new_line)
+                        insert_at += 1
+                    pymenupath.write_text("".join(lines), encoding="utf-8")
+
+                else:
+                    logger.info("Menu file %s doesn't exists, creating", pymenupath)
+                    self.packageMenus[pkg].toXml(xmlmenupath)
+                    ms = MenuStruct(xmlmenupath)
+                    ms.toPython(pymenupath)
+                    os.remove(xmlmenupath)
         
     def write(self, out_file, line=None, indent=0):
         line = line or ''
@@ -92,19 +170,28 @@ class ThResourceMaker(object):
     
     def writeImports(self, out_file):
         self.write(out_file, "from gnr.web.gnrbaseclasses import BaseComponent")
-        self.write(out_file, "from gnr.core.gnrdecorator import public_method")
         self.write(out_file)
     
-    def writeViewClass(self, out_file, columns):
+    def writeViewClass(self, out_file, column_groups):
         self.write(out_file, "class View(BaseComponent):")
         self.write(out_file)
         self.write(out_file, "def th_struct(self,struct):", indent=1)
         self.write(out_file, 'r = struct.view().rows()', indent=2)
-        for column, size in columns:
-            if self.option_guess_size:
-                self.write(out_file, "r.fieldcell('%s', width='%iem')"%(column,size), indent=2)
+        for group, columns in column_groups.items():
+            if group:
+                self.write(out_file, f"{group[0]}_col_group = r.columnset('{group[0]}', name='{group[1]}')", indent = 2)
+                for column, size in columns:
+                    if self.option_guess_size:
+                        self.write(out_file, "%s_col_group.fieldcell('%s', width='%iem')" % (group[0], column, size), indent=2)
+                    else:
+                        self.write(out_file, "%s_col_group.fieldcell('%s')" % (group[0], column), indent=2)
             else:
-                self.write(out_file, "r.fieldcell('%s')"%column, indent=2)
+                for column, size in columns:
+                    if self.option_guess_size:
+                        self.write(out_file, "r.fieldcell('%s', width='%iem')"%(column,size), indent=2)
+                    else:
+                        self.write(out_file, "r.fieldcell('%s')"%column, indent=2)
+                    
         self.write(out_file)
         self.write(out_file, "def th_order(self):", indent=1)
         self.write(out_file, "return '%s'"%columns[0][0], indent=2)
@@ -128,6 +215,139 @@ class ThResourceMaker(object):
         self.write(out_file, "def th_options(self):", indent=1)
         self.write(out_file, "return dict(dialog_height='400px', dialog_width='600px')", indent=2)
 
+    def columnWidthEstimate(self, column):
+        """
+        Estimates the width of a column based on its data type (dtype) and specified size attributes.
+        
+        Description
+        -----------
+        For text columns ('A' or 'T'), it uses a conversion map
+        to determine the appropriate width. For date ('D') and datetime ('DH') columns, it returns
+        fixed widths. If the data type is not recognized, it returns a default width.
+
+        Parameters
+        ----------
+        column : Column
+            The column object containing attributes such as dtype and size.
+
+        Returns
+        -------
+        int
+            The calculated width of the column. 
+        """
+        # TODO: Review the LUT and evaluate the use of a formula.
+        # Note that the commented formulae seems to be less accurate than the LUT
+
+        MIN_WIDTH = 2
+        MAX_SIZE = 50
+        DEFAULT_WIDTH = 7
+
+        sizeWidthMap = {
+            1: 2,
+            2: 2,
+            3: 3,
+            4: 4,
+            5: 4,
+            6: 5,
+            7: 5,
+            8: 6,
+            9: 6,
+            10: 6,
+            11: 6,
+            12: 7,
+            13: 7,
+            14: 8,
+            15: 8,
+            16: 9,
+            17: 9,
+            18: 10,
+            19: 10,
+            20: 10,
+            21: 11,
+            22: 11,
+            23: 11,
+            24: 12,
+            25: 12,
+            26: 12,
+            27: 13,
+            28: 13,
+            29: 14,
+            30: 14,
+            31: 15,
+            32: 15,
+            33: 15,
+            34: 16,
+            35: 17,
+            36: 17,
+            37: 18,
+            38: 18,
+            39: 18,
+            40: 19,
+            41: 19,
+            42: 20,
+            43: 20,
+            44: 21,
+            45: 21,
+            46: 22,
+            47: 22,
+            48: 23,
+            49: 23,
+            50: 24
+        }
+
+        def handleTextColumn(column):
+            try:
+                sizeTxt = column.attributes.get('size', '')
+            except Exception as e:
+                logger.warning(f'Unable to get size attribute for column {column.name}: {e}. Using default width.')
+                return DEFAULT_WIDTH
+            
+            if not sizeTxt:
+                logger.warning(f'No size attribute found for column {column.name}. Using default width.')
+                return DEFAULT_WIDTH
+
+            if ':' in sizeTxt:
+                size = int(sizeTxt.split(':')[1])
+            else:
+                size = int(sizeTxt)
+
+            if size > max(sizeWidthMap):
+                logger.info(f'Column {column.name} has a size greater than the maximum. Topping to max handled value.')
+                return sizeWidthMap[MAX_SIZE]
+            # LUT conversion
+            return sizeWidthMap[size]
+            
+            # ChatGPT 4o conversion
+            # return round(0.429 * size + 1.709)
+
+            # ChatGPT o3-mini-high conversion
+            # return round(0.45 * size + 1.55)
+
+            # Deepseek conversion
+            # return round(0.44 * size + 1.56)
+
+            # Claude conversion
+            # return floor(2.8 * size^0.45)
+
+        typesHandler = {
+            'A': handleTextColumn,  # Varchar
+            'T': handleTextColumn,  # Text
+            'C': handleTextColumn,  # Chars
+            'D': 6,       # Date
+            'H': 4,       # Time
+            'DH': 9,      # DateTime
+            'DHZ': 12,    # DateTime + TimeZone
+            'B': 3,       # Boolean
+            'N': 7,       # Numeric
+            'L': 7,       # Numeric (long)
+            'I': 7,       # Numeric (int)
+            'R': 7,       # Numeric (float)
+            'X': 10,      # Bag
+        }
+        handler = typesHandler.get(column.dtype, 7)
+        if callable(handler):
+            return handler(column)
+        return handler
 
     def createResourceFile(self, package, table):
         packageFolder = self.app.packages(package).packageFolder
@@ -135,43 +355,68 @@ class ThResourceMaker(object):
 
         # populate the menu anyway, even if the resource already exists
         if self.option_menu:
-            self.packageMenus[package].setItem('auto.%s' %table,None,label='!!%s' %table.capitalize(),
-                                                            table='%s.%s' %(package,table), tag='thpage')
-
+            self.packageMenus[package].setItem(f'auto.{table}',
+                                               None,
+                                               label=f'!!{table.capitalize()}',
+                                               table=f'{package}.{table}',
+                                               tag='thpage')
         if not os.path.exists(resourceFolder) and not self.option_output:
             os.makedirs(resourceFolder)
+
         if self.option_name and not self.option_name.endswith('.py'):
-            self.option_name = '%s.py'%self.option_name
-        name = self.option_name or 'th_%s.py'%table
+            self.option_name = f'{self.option_name}.py'
+            
+        name = self.option_name or f'th_{table}.py'
         path = os.path.join(resourceFolder, name) if not self.option_output else self.option_output
         if os.path.exists(path) and not self.option_force:
-            print('%s exist: will be skipped, use -f/--force to force replace' % name)
+            logger.warning('%s exist: will be skipped, use -f/--force to force replace', name)
             return
+
+        column_groups = defaultdict(list)
         columns = []
-        max_size = 35
-        tbl_obj =  self.app.db.table('%s.%s'%(package,table))
+
+        tbl_obj =  self.app.db.table(f'{package}.{table}')
         for col_name in tbl_obj.columns:
+
+            # Skip id and internal columns
             if col_name=='id' or col_name.startswith('__'):
                 continue
-            column = tbl_obj.columns[col_name]
-            if column.dtype=='A':
-                size = column.attributes.get('size','')
-                if size:
-                    if ':' in size:
-                        size =size.split(':')[1]
-                else:
-                    size=max_size
-                size = max(int(size),max_size)
-            else:
-                size = 7
-            columns.append((column.name,size))
 
-        with open(path,'w') as out_file:
-            self.writeHeaders(out_file)
-            self.writeImports(out_file)
-            self.writeViewClass(out_file, columns)
-            self.writeFormClass(out_file, columns)
-            print(f'{name} created, columns:', ', '.join([f'{x[0]} ({x[1]})' for x in columns]))
+            # Get column attributes
+            column = tbl_obj.columns[col_name]
+            logger.debug(f'Processing column {column.name}')
+            if self.option_guess_size:
+                width = self.columnWidthEstimate(column)
+                logger.debug(f'Estimated width for column {column.name}: {width}em')
+            else:
+                width = 7
+
+            col_group_label = column.attributes.get("colgroup_label", None)
+
+            if col_group_label is None:
+                col_group = ""
+            else:
+                col_group = (
+                    col_group_label,
+                    column.attributes.get("colgroup_name_long")
+                )
+
+            column_groups[col_group].append((column.name,width))
+            columns.append((column.name, width))
+
+        if not columns:
+            logger.error("Table %s does not contain any valid column", table)
+            return
+
+        try:
+            with open(path,'w') as out_file:
+                self.writeHeaders(out_file)
+                self.writeImports(out_file)
+                self.writeViewClass(out_file, column_groups)
+                self.writeFormClass(out_file, columns)
+                logger.info(f'{name} created, columns: %s', ', '.join([f'{x[0]} ({x[1]})' for x in columns]))
+        except Exception as e:
+            logger.exception(f'Error creating output file: {path}. Error: {e}')
 
 description = "create TableHandler resources automatically from model"
 
@@ -207,9 +452,10 @@ def main():
     parser.add_argument("-c", "--columns", dest="columns", default=2,
                         help="number of columns in Form")
 
-    parser.add_argument("args", nargs="*")
+    parser.add_argument("models", nargs="+",
+                        help="list of models in the form of packagename.modelname or project:packagename.modelname")
     options = parser.parse_args()
-    thresourcemaker = ThResourceMaker(options, options.args)
+    thresourcemaker = ThResourceMaker(options, options.models)
     thresourcemaker.makeResources()
         
 if __name__ == '__main__':

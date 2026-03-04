@@ -1,13 +1,9 @@
+import urllib.parse
 
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import public_method,extract_kwargs
 from gnr.core.gnrbag import Bag,NetBag
-from datetime import datetime
-import os
-import shutil
-import urllib.parse
-
 
 class TicketHandler(BaseComponent):
     py_requires ='gnrcomponents/framegrid:FrameGrid,gnrcomponents/formhandler:FormHandler,public:Public'

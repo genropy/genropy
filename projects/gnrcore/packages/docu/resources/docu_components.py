@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import warnings
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import public_method,customizable
@@ -257,7 +258,7 @@ class DocumentationViewer(BaseComponent):
                             _delay=1)
         bar = frame.top.slotBar('doccaption,*,editrst,nav_up,nav_down,3,nav_left,nav_right,10,searchSelect,5',height='24px',
                                 border_bottom='1px solid #3A4D65',toolbar=True,background='#DBDBDB')
-        bar.dataController("""
+        bar.dataController(r"""
             var n = tocroot.getNode(hierarchical_pkey.replace(/\//g, '.'));   
             var next_sibling_hname,prev_sibling_hname,parent_hname,first_child_hname;
             var parentNode = n.getParentNode();
@@ -494,10 +495,68 @@ class DocumentationViewer(BaseComponent):
 class ContentsComponent(BaseComponent):
     js_requires='docu_components'
     
-    def contentEditor(self, pane, value=None,htmlpath=None,initialEditType='wysiwyg',**kwargs):
-        pane.MDEditor(value=value,htmlpath=htmlpath, nodeId='contentMd', height='100%', previewStyle='vertical',
-                        initialEditType=initialEditType, **kwargs)
+    @struct_method
+    def contentEditor(self, pane, mode=None, **kwargs):
+        """
+        Unified content editor supporting multiple editor types.
+
+        Supported modes:
+        - 'html': WYSIWYG HTML editor (tinyMce or ckeditor based on sys stylingPreferences)
+            Edits .html field, optionally saves plain text to .text
+        - 'md': Markdown editor with preview (MDEditor)
+            Edits .text field, optionally renders HTML to .html
+        - 'text': Simple textarea fallback
+            Edits .text field
+        - 'template': Template chunk editor
+            Edits .tplbag field
+
+        Args:
+            pane: Container pane for the editor
+            mode: Editor mode ('html', 'md', 'text', 'template')
+            **kwargs: Additional arguments passed to underlying editor
+                     (e.g., initialEditType for MDEditor)
+        """
+        getattr(self, f"contentEditor_{mode}", self.contentEditor_text)(pane, **kwargs)
+
+    @struct_method
+    def contentText(self, pane, mode=None, **kwargs):
+        """
+        DEPRECATED: Use contentEditor() instead.
+
+        This method is deprecated and will be removed in a future release.
+        Please update your code to use contentEditor() with the appropriate mode parameter.
+        """
+        warnings.warn(
+            "contentText() is deprecated and will be removed in a future release. "
+            "Please use contentEditor() instead.",
+            FutureWarning,
+            stacklevel=2
+        )
+        self.contentEditor(pane, mode=mode, **kwargs)
+
+    def contentEditor_html(self, pane, **kwargs):
+        "Chooses html editor after checking sys stylingPreferences for tinymce_beta (True=tinyMce, False=ckeditor)"
+        use_tinymce = self.getPreference('theme.tinymce_beta', pkg='sys') 
+        if use_tinymce:
+            pane.tinyMce(value='^.html', textpath='.text', nodeId='contentHtml',
+                        height='100%', **kwargs)
+        else:
+            pane.ckeditor(value='^.html', nodeId='contentHtml', height='100%', **kwargs)
+    
+    def contentEditor_md(self, pane, initialEditType='wysiwyg', previewStyle='vertical', **kwargs):
+        "Markdown editor with preview. Default initialEditType to 'wysiwyg' if not provided"
+        pane.MDEditor(value='^.text', htmlpath='.html', nodeId='contentMd_',
+                        height='100%', initialEditType=initialEditType, previewStyle=previewStyle, **kwargs)
         
+    def contentEditor_text(self, pane, **kwargs):
+        "Simple textarea fallback"
+        pane.simpleTextArea(value='^.text', nodeId='contentText', height='100%', **kwargs)
+        
+    def contentEditor_template(self, pane, **kwargs):
+        "Simple template chunk editor"
+        pane.templateChunk(template='^.tplbag', editable=True, height='100%', margin='5px', overflow='hidden',
+                                                table='docu.content', selfsubscribe_onChunkEdit='this.form.save();')
+                
     @customizable    
     def contentData(self, pane, **kwargs):
         fb = pane.formbuilder(cols=1, width='600px', border_spacing='4px', **kwargs)
@@ -529,19 +588,26 @@ class ContentsComponent(BaseComponent):
                                                     delrow=True,
                                                     configurable=False, 
                                                     **kwargs)
-    
-    def contentText(self, pane, **kwargs):
-        self.contentEditor(pane, value='^.text',htmlpath='.html', **kwargs)
-
-    def contentTemplate(self, pane):
-        pane.templateChunk(template='^.tplbag', editable=True, height='100%', margin='5px', overflow='hidden',
-                                                table='docu.content', selfsubscribe_onChunkEdit='this.form.save();')
 
     def contentAttachments(self, pane):
         pane.attachmentMultiButtonFrame()
 
-    def contentVersions(self, bc, **kwargs):
-        bc.contentPane(region='center').plainTableHandler(relation='@versions', formResource='FormDiff', configurable=False)
-        bc.contentPane(region='bottom', closable='close', closable_label='!![en]Differences', height='50%').simpleTextArea(
-                                                    '^.diff', overflow='hidden', height='100%', width='100%', 
+    def contentVersions(self, bc, table=None, condition=None, relation=None, **kwargs):
+        "Please provide either table or relation"
+        historyth_params = dict(formResource='FormDiff' or kwargs.pop('formResource', None),
+                                viewResource='ViewFromContent' or kwargs.pop('viewResource', None),
+                                configurable=False or kwargs.pop('configurable', False))
+        if table:
+            historyth_params['table'] = table 
+        elif relation:
+            historyth_params['relation'] = relation
+        else:
+            raise GnrException('Please provide either table or relation to contentVersions')
+        if condition:
+            historyth_params['condition'] = condition
+        bc.contentPane(region='center').plainTableHandler(**historyth_params, **kwargs)
+        bc.contentPane(region='bottom', closable='close', closable_label='!![en]Differences', 
+                                                    height='50%').simpleTextArea(
+                                                    '^.diff', overflow='hidden', 
+                                                    height='100%', width='100%', 
                                                     editor=True, readOnly=True)

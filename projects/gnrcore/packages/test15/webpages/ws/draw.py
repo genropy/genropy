@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from gnr.core.gnrdecorator import websocket_method, public_method
 from gnr.core.gnrbag import Bag
+
 class GnrCustomWebPage(object):
     
     def isDeveloper(self):

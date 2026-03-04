@@ -4,7 +4,10 @@
 # Created by Francesco Porcari on 2011-05-04.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
-from xml.sax import handler
+from dateutil import rrule
+from dateutil.relativedelta import relativedelta
+
+
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import public_method,extract_kwargs,metadata
@@ -150,11 +153,11 @@ class TableHandlerView(BaseComponent):
 
     @public_method
     def th_dependingRelationExplorerStore(self,table=None,sourcePkey=None):
+        if not sourcePkey:
+            return Bag()
+        result = Bag()
         tblobj = self.db.table(table)
         sourceRecord,sourceRecordAttr = self.app.getRecord(pkey=sourcePkey,table=table)
-        result = Bag()
-        if not sourcePkey:
-            return result
         i = 0
         for n in tblobj.model.relations:
             joiner =  n.attr.get('joiner')
@@ -449,6 +452,8 @@ class TableHandlerView(BaseComponent):
         table = frame.grid.attributes['table']
 
         b.rowchild(label='!!Reload',action="$2.widget.reload();")
+        if self.isDeveloper():
+            b.rowchild(label='!!Touch selected records',action="$2.widget.touchSelectedRows();")
         b.rowchild(label='-')
         b.rowchild(label='!!Show Archived Records',checked='^.#parent.showLogicalDeleted',
                                 action="""SET .#parent.showLogicalDeleted= !GET .#parent.showLogicalDeleted;
@@ -848,9 +853,6 @@ class TableHandlerView(BaseComponent):
                             allPosition=None, 
                             **kwargs):
         sections = []
-        import datetime
-        from dateutil import rrule
-        from dateutil.relativedelta import relativedelta
         dtstart = dtstart or self.workdate
         dtstart = dtstart.replace(day=1)
         default_date = dtstart
@@ -990,8 +992,16 @@ class TableHandlerView(BaseComponent):
                    _onResult='FIRE .query.currentQuery="__newquery__";FIRE .query.refreshMenues;')
 
         #SOURCE MENUVIEWS
-        pane.dataController("""genro.grid_configurator.loadView(gridId, (currentView || favoriteView));
-                                """,
+        pane.dataController("""
+            if(genro.grid_configurator){
+                genro.grid_configurator.loadView(gridId, (currentView || favoriteView));
+                return;
+            }
+            this.watch('jsconf_loaded',function(){return genro.grid_configurator;},function(){
+                setTimeout(function(){
+                    genro.grid_configurator.loadView(gridId, (currentView || favoriteView));
+                },1);
+            });""",
                             currentView="^.grid.currViewPath",
                             favoriteView='^.grid.favoriteViewPath',
                             gridId=gridId,_onBuilt=1)
@@ -1001,8 +1011,14 @@ class TableHandlerView(BaseComponent):
             prefix,name=k.split('_struct_')
             q.setItem(name,self._prepareGridStruct(v,table=table),caption=v.__doc__)
         pane.data('.grid.resource_structs',q)
-        pane.dataRemote('.grid.structMenuBag',self.th_menuViews,pyviews=q.digest('#k,#a.caption'),baseViewName=baseViewName,currentView="^.grid.currViewPath",
-                        table=table,th_root=th_root,favoriteViewPath='^.grid.favoriteViewPath',cacheTime=30)
+        pane.data('.grid.userobject_structs',self.th_userObjectViews(table=table,th_root=th_root))
+        pane.dataRpc('.grid.userobject_structs',self.th_userObjectViews,
+                        table=table,th_root=th_root,
+                        _loadAfter='^.grid.reload_userobjects_struct',
+                        _onResult="""if(kwargs._loadAfter!==true){
+                            PUT .grid.currViewPath = null;
+                            SET .grid.currViewPath = kwargs._loadAfter;
+                        }""")
 
         options = self._th_getOptions(pane)
         #SOURCE MENUPRINT
@@ -1125,6 +1141,24 @@ class TableHandlerView(BaseComponent):
     def th_slotbar_pageHooksSelector(self,pane,**kwargs):
         pane.multiButton(items='^.viewPages',value='^.viewPage',identifier='pageName')
       
+    def _th_addRequiredColumns(self, tblobj, hiddencolumns):
+        if not hiddencolumns:
+            return hiddencolumns
+        columns = [c.strip() for c in hiddencolumns.split(',')]
+        for col in list(columns):
+            colname = col.lstrip('$')
+            colobj = tblobj.model.column(colname)
+            if colobj is None:
+                continue
+            req = colobj.attributes.get('required_columns')
+            if not req:
+                continue
+            for rc in req.split(','):
+                rc = rc.strip()
+                if rc and rc not in columns:
+                    columns.append(rc)
+        return ','.join(columns)
+
     @struct_method
     def th_gridPane(self, frame,table=None,th_pkey=None,
                         virtualStore=None,condition=None,unlinkdict=None,
@@ -1190,7 +1224,7 @@ class TableHandlerView(BaseComponent):
         gridattr.update(rowsPerPage=rowsPerPage,
                         dropTypes=None,dropTarget=True,
                         
-                        hiddencolumns=self._th_hook('hiddencolumns',mangler=th_root)(),
+                        hiddencolumns=self._th_addRequiredColumns(tblobj, self._th_hook('hiddencolumns',mangler=th_root)()),
                         dragClass='draggedItem',
                         selfsubscribe_runbtn="""
                             var currLinkedSelection = GET .#parent.linkedSelectionPars;
@@ -1456,6 +1490,14 @@ class TableHandlerView(BaseComponent):
         pane.menudiv(iconClass='iconbox heart',tip='!!User sets',storepath='.usersets.menu')
        
     @struct_method
+    def thbtn_batchButton(self,pane,label=None,resource=None,res_type='action',iconClass=None,disabled='^.grid.selectedId?=!#v',**kwargs):
+        pane.slotButton(label,disabled=disabled,iconClass=iconClass).dataController("""
+            objectExtract(_kwargs,'_evt,_filterEvent');
+            FIRE .th_batch_run=_kwargs;
+        """,res_type=res_type,resource=resource,**kwargs)
+
+
+    @struct_method
     def th_slotbar_fastQueryBox(self, pane,**kwargs):
         inattr = pane.getInheritedAttributes()
         table = inattr['table'] 
@@ -1483,7 +1525,7 @@ class TableHandlerView(BaseComponent):
                                genro.dlg.alert(alertmsg,dlgtitle);
                                  """, _fired="^.showQueryCountDlg", waitmsg='!!Working.....',
                               dlgtitle='!!Current query record count',alertmsg='=.currentQueryCountAsString')
-        box = pane.div(datapath='.query.where',onEnter='genro.nodeById(this.getInheritedAttributes().target).publish("runbtn",{"modifiers":null});')
+        box = pane.div(datapath='.query.where',onEnter='genro.nodeById(this.getInheritedAttributes().target).publish("runbtn",{"modifiers":null});',parentForm=False)
         box.data('.#parent.queryMode','S',caption='!!Search')
         box.div('^.#parent.queryMode?caption',_class='gnrfieldlabel th_searchlabel',
                 nodeId='%s_searchMenu_a' %th_root)
@@ -1578,35 +1620,15 @@ class THViewUtils(BaseComponent):
         return menu
 
     @public_method
-    def th_menuViews(self,table=None,th_root=None,pyviews=None,objtype=None,favoriteViewPath=None,currentView=None,baseViewName=None,**kwargs):
-        result = Bag()
+    def th_userObjectViews(self,table=None,th_root=None,objtype=None,**kwargs):
         objtype = objtype or 'view'
-        currentView = currentView or favoriteViewPath or '__baseview__'
-        gridId = '%s_grid' %th_root
-        result.setItem('__baseview__', None,caption=baseViewName or 'Base View',gridId=gridId,checked = currentView=='__baseview__',isBaseView=True)
-        if pyviews:
-            for k,caption in pyviews:
-                result.setItem(k.replace('_','.'),None,description=caption,caption=caption,viewkey=k,gridId=gridId)
-        userobjects = self.db.table('adm.userobject').userObjectMenu(objtype=objtype,flags='%s_%s' % (self.pagename, gridId),table=table)
+        flagCode = '%s_grid' %th_root.split('_DUP_')[0]
+        userobjects = self.db.table('adm.userobject').userObjectMenu(objtype=objtype,flags='%s_%s' % (self.pagename, flagCode),table=table)
         if self.pagename.startswith('thpage'):
             #compatibility old saved views
-            userobjects.update(self.db.table('adm.userobject').userObjectMenu(objtype='view',flags='thpage_%s' % gridId,table=table))
-        if len(userobjects)>0:
-            result.update(userobjects)
-        result.walk(self._th_checkFavoriteLine,favPath=favoriteViewPath,currentView=currentView,gridId=gridId)
-        return result
-    
-    def _th_checkFavoriteLine(self,node,favPath=None,currentView=None,gridId=None):
-        if node.attr.get('code'):
-            if gridId:
-                node.attr['gridId'] = gridId
-            if node.attr['code'] == currentView:
-                node.attr['checked'] = True
-            elif node.attr['code'] == favPath:
-                node.attr['favorite'] = True
-            
-        else:
-            node.attr['favorite'] = None
+            userobjects.update(self.db.table('adm.userobject').userObjectMenu(objtype='view',flags='thpage_%s' % flagCode,table=table))
+        return userobjects
+
     
     @public_method
     def th_menuQueries(self,table=None,th_root=None,pyqueries=None,editor=True,bySample=False,**kwargs):
@@ -1630,9 +1652,6 @@ class THViewUtils(BaseComponent):
         else:
             querymenu.setItem('__newquery__',None,caption='!!New query',description='',
                                 extended=True)
-        #if self.application.checkResourcePermission('_DEV_,dbadmin', self.userTags):
-        #    querymenu.setItem('__custom_columns__',None,caption='!!Custom columns',action="""FIRE .handle_custom_column;""")
-        #querymenu.walk(self._th_checkFavoriteLine,favPath=favoriteQueryPath)
         return querymenu
             
     @public_method
@@ -1643,13 +1662,12 @@ class THViewUtils(BaseComponent):
         optype_dict = dict(alpha=['contains', 'startswith', 'equal', 'wordstart',
                                   'startswithchars', 'isnull', 'nullorempty', 'in', 'regex',
                                   'greater', 'greatereq', 'less', 'lesseq', 'between'],
-                           alpha_phonetic = ['contains','similar', 'startswith', 'equal', 'wordstart',
-                                  'startswithchars', 'isnull', 'nullorempty', 'in', 'regex',
-                                  'greater', 'greatereq', 'less', 'lesseq', 'between'],
                            date=['equal', 'in', 'isnull', 'greater', 'greatereq', 'less', 'lesseq', 'between'],
                            number=['equal', 'greater', 'greatereq', 'less', 'lesseq', 'isnull', 'in'],
                            boolean=['istrue', 'isfalse', 'isnull'],
                            others=['equal', 'greater', 'greatereq', 'less', 'lesseq', 'in'])
+        optype_dict['alpha_phonetic'] = ['similar'] + optype_dict['alpha']
+        optype_dict['alpha_fulltext'] = ['fulltext'] + optype_dict['alpha']
         queryModes = (('S','!!Search'),('U','!!Union'),('I','!!Intersect'),('D','!!Difference'))
         wt = self.db.whereTranslator
         for op,caption in queryModes:

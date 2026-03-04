@@ -6,12 +6,6 @@
 
 """genrodlg"""
 
-
-import os
-from gnr.core.gnrbag import Bag
-import random
-import time
-
 cli_max = 12
 invoice_max = 20
 row_max = 100

@@ -1,3 +1,4 @@
+import sys
 import os, os.path
 import tempfile
 import uuid
@@ -15,7 +16,10 @@ def test_progress():
     assert "="*30 in res
 
 def test_mkdir():
-    perms = [493, 511, 448, 509, 457, 449]
+    if sys.platform == 'win32':
+        perms = [511]
+    else:
+        perms = [493, 448, 509, 457, 449]
     tests_dir = [(str(uuid.uuid4()), perm) for perm in perms]
     with tempfile.TemporaryDirectory(dir=os.getenv("HOME")) as dname:
         for path, privileges in tests_dir:

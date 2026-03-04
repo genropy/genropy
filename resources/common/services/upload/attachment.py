@@ -1,13 +1,11 @@
 #!/usr/bin/env pythonw
-# -*- coding: UTF-8 -*-
+# -*- coding: utf-8 -*-
 #
 #  Created by Saverio Porcari on 2013-04-06.
 #  Copyright (c) 2013 Softwell. All rights reserved.
 
 
 from gnr.core.gnrbaseservice import GnrBaseService
-import urllib2
-import os
 import json
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
 
@@ -36,5 +34,5 @@ class Main(GnrBaseService):
         f = attachment.file
         content = f.read()
         if pkg and tbl and attachment:
-            print(x)
+            raise Exception("X exception!")
         return json.dumps(kwargs)

@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from gnr.core.gnrdecorator import websocket_method, public_method
-from gnr.core.gnrbag import Bag
-
 "Collaborative rooms with shared Object. Please use websockets=True in siteconfig and gnrwsgiserve --tornado for testing"
 
 class GnrCustomWebPage(object):

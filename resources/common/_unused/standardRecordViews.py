@@ -7,7 +7,6 @@
 #  Copyright (c) 2007 Softwell. All rights reserved.
 #
 
-from gnr.core.gnrbag import Bag
 from gnr.web.gnrbaseclasses import BaseComponent
 
 class RecordAndViews(BaseComponent):

@@ -5,8 +5,6 @@ from hashlib import sha1 as _default_hash
 from time import time
 import sys
 from datetime import date, datetime
-from werkzeug.urls import url_quote_plus
-from werkzeug.urls import url_unquote_plus
 import urllib
 import  marshal
 import hmac

@@ -24,12 +24,12 @@
 import os
 import urllib.parse
 
-from gnr.app.gnrconfig import gnrConfigPath
+from gnr.core.gnrconfig import gnrConfigPath,getRmsOptions,setRmsOptions
 from gnr.core.gnrbag import Bag,NetBag
 from gnr.app.gnrapp import GnrApp
 from gnr.app.gnrdeploy import PathResolver
-from gnr.app.gnrconfig import getRmsOptions,setRmsOptions
 from gnr.lib.services import BaseServiceType
+from gnr.lib import logger
 
 class ServiceType(BaseServiceType):
     def conf_rms(self):
@@ -55,8 +55,7 @@ class RMS(object):
             if result and result.get('client_token'):
                 setRmsOptions(token=result['client_token'])
             else:
-                print(result)
-    
+                logger.info(result)
 
     @property
     def authenticatedUrl(self):
@@ -101,19 +100,19 @@ class RMS(object):
 
     def ping(self):
         result =  NetBag(self.url,'ping')()
-        print(result)
+        logger.info(result)
     
     def authping(self):
         result =  NetBag(self.authenticatedUrl,'authping')()
-        print(result)
+        logger.info(result)
 
     def ping(self):
         result =  NetBag(self.url,'ping')()
-        print(result)
+        logger.info(result)
     
     def authping(self):
         result =  NetBag(self.authenticatedUrl,'authping')()
-        print(result)
+        logger.info(result)
 
     def registerInstance(self,name,customer_code=None,domain=None):
         if not (self.url and self.token):
@@ -134,6 +133,6 @@ class RMS(object):
                             instance_token= rms_instance_attr['token'],
                             description=rms_instance_attr.get('description'),
                             customer_code=customer_code)()
-        print(result)
+        logger.info(result)
         return result
 

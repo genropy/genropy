@@ -6,8 +6,6 @@ create a new deploy gunicorn nginx websocket environment for a site
 usage: gnrdeploybuilder site
 
 """
-import os
-import sys
 
 from gnr.core.cli import GnrCliArgParse
 from gnr.app.gnrapp import GnrApp

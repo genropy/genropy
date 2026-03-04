@@ -1,10 +1,11 @@
 # encoding: utf-8
 
-from past.utils import old_div
 import re
+from datetime import datetime
+
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
-from datetime import datetime
+
 BASE = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
 
 class Table(object):
@@ -44,7 +45,10 @@ class Table(object):
             self.initializePackageSequences(pkg,thermo_wrapper=thermo_wrapper)
 
     def initializePackageSequences(self,pkgobj,thermo_wrapper=None):
-        tables = thermo_wrapper(list(pkgobj['tables'].values()),message=lambda t,n,m: 'Sequences for table %s' %t.name,line_code='tbl') if thermo_wrapper else list(pkgobj['tables'].values())
+        tables = pkgobj['tables']
+        if not tables:
+            return
+        tables = thermo_wrapper(tables.values(),message=lambda t,n,m: 'Sequences for table %s' %t.name,line_code='tbl') if thermo_wrapper else tables.values()
         for tblobj in tables:
             self.initializeTableSequences(tblobj.dbtable,thermo_wrapper=thermo_wrapper)
 
@@ -240,7 +244,7 @@ class Table(object):
         b = len(base)
         while counter !=0:
             r = counter % b
-            counter = old_div(counter, b)
+            counter = int(counter/b)
             result.append(base[r])
         result.reverse()
         return ''.join(result)

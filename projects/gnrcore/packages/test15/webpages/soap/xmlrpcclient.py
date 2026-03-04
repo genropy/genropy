@@ -5,9 +5,7 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 
 """bageditor"""
-from __future__ import print_function
 
-from gnr.core.gnrbag import Bag
 import xmlrpc.client
 
 class GnrCustomWebPage(object):

@@ -1,6 +1,5 @@
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import toText
-import time
 
 class TotalizeSelection(object):
     def fillFilter(self, params, dpath, fltquery, keyfield='_pkey'):

@@ -5,8 +5,6 @@
 # Copyright (c) 2012 Softwell. All rights reserved.
 
 
-from __future__ import print_function
-
 from gnr.core.gnrdecorator import websocket_method, public_method
 
 

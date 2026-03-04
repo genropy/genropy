@@ -4,13 +4,8 @@
 order_page.py
 
 Created by Saverio Porcari on 2012-06-21.
-Copyright (c) 2012 __MyCompanyName__. All rights reserved.
+Copyright (c) 2012 Softwell. All rights reserved.
 """
-
-
-from gnr.core.gnrdecorator import public_method
-from gnr.core.gnrbag import Bag
-
 
 class GnrCustomWebPage(object):
     maintable='uke.ticket'

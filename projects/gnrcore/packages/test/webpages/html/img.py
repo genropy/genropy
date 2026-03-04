@@ -19,29 +19,42 @@ class GnrCustomWebPage(object):
                     width='180px', height='40px', padding='10px')
 
     def test_1_uploadImage(self,pane):
-        "Upload image or take picture and display it. Keep shift+clic pressed after upload to adjust cropping"
-        pane.div(border='2px dotted silver', width='150px', height='150px').img(
-                    src='^.image', 
-                    crop_width='150px',
-                    crop_height='150px',
-                    edit=True, 
-                    takePicture=True,
-                    placeholder=True,
-                    upload_filename='test_image', 
-                    upload_folder='site:tests/image')
-
-    def test_2_uploadCamera(self,pane):
-        "Upload image from camera and advanced cropping procedure"
+        "Upload image and advanced cropping procedure (upload_folder='*')"
         pane.div(border='2px dotted silver', width='150px', height='150px').img(
                     src='^.image', 
                     crop_width='150px',
                     crop_height='150px',
                     edit=True,
                     placeholder=True,
-                    upload_filename='test_image', 
                     upload_folder='*')
-
-    def test_3_uploadImageAndRemove(self, pane):
+        
+    def test_2_uploadCamera(self,pane):
+        """Upload image or take picture and display it. Keep shift+clic pressed after upload to adjust cropping
+            To enable camera mode image must be in dataurl mode, so upload_filename and upload_folder are disabled"""
+        pane.div(border='2px dotted silver', width='150px', height='150px').img(
+                    src='^.image', 
+                    crop_width='150px',
+                    crop_height='150px',
+                    edit=True, 
+                    takePicture=True,
+                    placeholder=True)
+        
+    def test_3_uploadCameraWithCapture(self,pane):
+        """Take picture with front or rear camera (if available). 
+            Use capture='environment' for rear camera, capture='user' for front camera."""
+        fb = pane.formbuilder(cols=1)
+        fb.radioButtonText('^.capture', lbl='Capture mode', 
+                           values='environment:Rear camera,user:Front camera', default='environment')
+        fb.div(border='2px dotted silver', width='150px', height='150px').img(
+                    src='^.image', 
+                    crop_width='150px',
+                    crop_height='150px',
+                    capture='^.capture',
+                    edit=True, 
+                    takePicture=True,
+                    placeholder=True)
+    
+    def test_4_uploadImageAndRemove(self, pane):
         "Upload image and display it, but with possibility to remove data and file on server"
         pane.div('Double click or drag image and video here to upload')
         fb = pane.formbuilder(cols=1, margin_top='10px')
@@ -52,7 +65,7 @@ class GnrCustomWebPage(object):
                     edit=True, 
                     placeholder='https://www.genropy.org/img/placeholder_image.jpg',
                     upload_filename='^.filename', 
-                    upload_folder='site:tests/image')
+                    upload_folder='site:tests/image') #or storage service name
         remove_img = fb.button('Remove', hidden='^.image?=!#v')
         #remove_img.dataController('SET .image = null;') 
         #this removes stored value but doesn't delete file on server
@@ -65,17 +78,6 @@ class GnrCustomWebPage(object):
         fileSn.delete()
         print('**DELETED IMAGE: ', file_url)
         return 'Image deleted'
-
-    def test_4_s3Storage(self,pane):
-        """Store img on S3 bucket. Please create a "s3_test" named aws_s3 storage service first"""
-        pane.div(border='2px dotted silver', width='150px', height='150px').img(
-                    src='^.image', 
-                    crop_width='150px',
-                    crop_height='150px',
-                    edit=True, 
-                    placeholder=True,
-                    upload_filename='test_image', 
-                    upload_folder='s3_test:img_test')
 
     def test_5_dataUrl(self, pane):
         """Here you can convert an image saved to filesystem to a bytestring."""

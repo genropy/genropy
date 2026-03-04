@@ -61,7 +61,7 @@ class SourceViewer(BaseComponent):
             else:
                 bar.readOnlyEditor.div()
         sc = frame.center.stackContainer(nodeId='source_viewer_stack')
-        frame.dataController("""
+        frame.dataController(r"""
             var label = docname.replace(/\./g, '_').replace(/\//g, '_');
             if(sc._value.getNode(label)){
                 return;

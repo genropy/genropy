@@ -46,7 +46,8 @@ class AppPref(object):
         fb.filteringSelect(value='^.theme_variant',values='blue,red,green,yellow,orange,',lbl='!![en]Theme variant')       
         fb.textbox(value='^.palette_colors',lbl='!![en]Default color palette')
         fb.textbox(value='^.palette_steps',lbl='!![en]Default color steps')
-        fb.checkBox(value='^.use_formlets',label='Use formlets')
+        fb.checkBox(value='^.use_formlets',label='!!Use formlets')
+        fb.checkBox(value='^.tinymce_beta',label='!!Use TinyMCE (beta)')
 
     def printPreferences(self, pane):
         fb = pane.roundedGroup(title='!![en]Print Modes',
@@ -81,7 +82,8 @@ class AppPref(object):
                                     scrollPage:[!![en]Scroll page],scrollVertical:[!![en]Scroll vertical],scrollHorizontal:[!![en]Scroll Horizontal],\
                                     spreadModeButtons:[!![en]Spread mode buttons],documentProperties:[!![en]Document properties]""",
                          cols=3,hidden='^.jsPdfViewer?=!#v',lbl_hidden='^.jsPdfViewer?=!#v')
-        
+        fbv.textbox(value='^.external_document_url',lbl='External document url')
+
     def developerPreferences(self, pane):
         fb = pane.formbuilder()
         fb.comboBox(value='^.experimental.remoteForm',lbl='!![en]Remote forms',values='onEnter,delayed')
@@ -128,8 +130,6 @@ class UserPref(object):
         self.pref_sound(tc.contentPane(title='!![en]Sounds', padding='10px', datapath='.sounds'))
         self.pref_shortcuts(tc.contentPane(title='!![en]Shortcuts', padding='10px', datapath='.shortcuts'))
         self.pref_theme(tc.contentPane(title='!![en]Theme', padding='10px', datapath='.theme'))
-
-
 
     def pref_theme(self, pane):
         fb = pane.formbuilder(cols=1, border_spacing='4px')

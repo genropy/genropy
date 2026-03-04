@@ -28,6 +28,7 @@ from gnr.web.gnrbaseclasses import BaseComponent
 
 class MenuIframes(BaseComponent):
     css_requires='frameplugin_menu/frameplugin_menu'
+    iframemenu_brancharrow_right = True
 
     def mainLeft_iframemenu_plugin(self, tc):
         frame = tc.framePane(title="Menu", pageName='menu_plugin')
@@ -47,23 +48,22 @@ class MenuIframes(BaseComponent):
 
                  
     def _menutree_getIconClass(self):
-        if self.device_mode=='std':
+        if self.device_mode=='std' or self.iframemenu_brancharrow_right:
             return """function(item,opened){
                         if(!item.attr.isDir){
                             return "treeNoIcon";
                         }
-                        return opened? 'opendir':'closedir';                        
+                        return opened? 'opendir':'closedir';
                     }"""
         return  "return 'treeNoIcon';"
     
     def _menutree_getLabelClass(self):
-        if self.device_mode=='std':
-            return """return node.attr.labelClass;"""
         return """let labelClass = node.attr.labelClass;
                 if(node.attr.isDir){
                     let staticValue = node.getValue('static');
                     let resolver = node.getResolver();
-                    if((!resolver || resolver.lastUpdate) && (!staticValue || staticValue.len()==0)){
+                    let child_count = node.attr.child_count;
+                    if(child_count===0 || ((!resolver || resolver.lastUpdate) && (!staticValue || staticValue.len()==0))){
                         return `label_emptydir ${labelClass}`;
                     }
                     let diricon = opened? 'label_opendir':'label_closedir';
@@ -74,16 +74,20 @@ class MenuIframes(BaseComponent):
     def _menutree_getLabel(self):
         return """
             let label = node.attr.label;
-            if(node.attr.titleCounter && node.attr.isDir){
-                let v = node.getValue();
-                let count = 0;
-                if(v && v instanceof gnr.GnrBag){
-                    count = v.len();
-                }
-                if(count && node.attr.tag=="tableBranch" && node.attr.add_label){
-                    count-=1;
-                }
-                label = `${label} (${count})`
+            let iconClass = node.attr.iconClass;
+            let badgeContent = node.attr.badgeContent;
+            let badgeClass = node.attr.badgeClass || 'menuline_badge';
+            let useInnerHTML = false;
+            if(iconClass){
+                label = `<span class="menuline_icon ${iconClass}"></span>${label}`;
+                useInnerHTML = true;
+            }
+            if(!isNullOrBlank(badgeContent)){
+                label = `${label}<span class="${badgeClass}">${badgeContent}</span>`;
+                useInnerHTML = true;
+            }
+            if(useInnerHTML){
+                label = `innerHTML:${label}`;
             }
             return label;
         """
@@ -94,7 +98,7 @@ class MenuIframes(BaseComponent):
         tree = pane.tree(id="_gnr_main_menu_tree", storepath='gnr.appmenu.root', selected_file='gnr.filepath',
                   labelAttribute='label',
                   hideValues=True,
-                  _class='menutree',
+                  _class='menutree menutree_branchiconright' if self.iframemenu_brancharrow_right else 'menutree',
                   persist='site',
                   inspect='AltShift',
                   identifier='#p',
@@ -119,11 +123,7 @@ class MenuIframes(BaseComponent):
                         var selectingPageKw = objectUpdate({name:node.label,pkg_menu:inattr.pkg_menu,"file":null,table:null,
                                                             formResource:null,viewResource:null,fullpath:$1.fullpath,
                                                             modifiers:$1.modifiers},node.attr);
-                        if (genro.isMobile && false){
-                            genro.framedIndexManager.makePageUrl(selectingPageKw);
-                            genro.openWindow(selectingPageKw.url,selectingPageKw.label);
-                        }
-                        else if (selectingPageKw.externalWindow==true || selectingPageKw.modifiers == 'Shift'){
+                        if (selectingPageKw.externalWindow==true || selectingPageKw.modifiers == 'Shift'){
                             genro.publish("newBrowserWindowPage",selectingPageKw);
                         }else{
                             if(labelClass.indexOf('menu_existing_page')<0 && !node.attr.branchPage){
@@ -143,11 +143,42 @@ class MenuIframes(BaseComponent):
         pane.dataController("""var flat_tblname = _node.label;
                                 let store = treeNode.widget.storebag();
                                 store.walk(function(n){
-                                    if(n.attr.tag == "tableBranch" && n.attr.table.replace('.','_') == flat_tblname){
-                                        n.refresh(true)
-                                        let content = n.getValue();
-                                        let child_count = (content instanceof gnr.GnrBag)?content.len():0;
-                                        n.updAttributes({'child_count':child_count});
+                                    const titleCounter = n.attr.titleCounter;
+                                    const menuLineBadge = n.attr.menuLineBadge;
+                                    if(titleCounter){
+                                        console.warn('titleCounter is deprecated. Use menuLineBadge instead of it')
+                                    }
+                                    if(n.attr.tag == "tableBranch"){
+                                        if(n.attr.table.replace('.','_') == flat_tblname){
+                                            n.refresh(true);
+                                            let content = n.getValue();
+                                            let child_count = (content instanceof gnr.GnrBag)?content.len():0;
+                                            let updater = {child_count:child_count};
+                                            if(titleCounter === true || menuLineBadge == '#'){
+                                                updater.badgeContent = child_count || null;
+                                            }
+                                            n.updAttributes(updater);
+                                        }
+                                        return;
+                                    }
+   
+                                    let menuLineBadgeKW = {};
+                                    if(menuLineBadge){
+                                        objectUpdate(menuLineBadgeKW,objectExtract(n.attr, 'menuLineBadge_*', true));
+                                        menuLineBadgeKW.handler = menuLineBadge
+                                    }
+                                    else if(titleCounter){
+                                        objectUpdate(menuLineBadgeKW,objectExtract(n.attr, 'titleCounter_*', true));
+                                        if(n.attr.titleCounter!==true){
+                                            objectUpdate(menuLineBadgeKW, n.attr.titleCounter);
+                                        }
+                                    }
+                                    if(objectNotEmpty(menuLineBadgeKW)){
+                                        menuLineBadgeKW.table = menuLineBadgeKW.table || n.attr.table;
+                                        genro.serverCall('menu.getMenuLineBadge',menuLineBadgeKW,
+                                                            function(result){
+                                                                n.updAttributes({badgeContent:result});
+                                                            })
                                     }
                                 },'static');
                                """,treeNode=tree,

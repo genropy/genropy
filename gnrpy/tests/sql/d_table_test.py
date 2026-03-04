@@ -25,7 +25,6 @@
 """
 this test module focus on SqlTable's methods
 """
-import os
 import datetime
 import tempfile
 
@@ -38,10 +37,7 @@ gnrlogger.addHandler(hdlr)
 
 from gnr.sql.gnrsql import GnrSqlDb
 
-from gnr.core.gnrbag import Bag
-
-
-from .common import BaseGnrSqlTest, configurePackage
+from .common import BaseGnrSqlTest, configureDb
 
 class BaseSql(BaseGnrSqlTest):
     @classmethod
@@ -50,9 +46,8 @@ class BaseSql(BaseGnrSqlTest):
         cls.init()
         # create database (actually create the DB file or structure)
         cls.db.createDb(cls.dbname)
-        
-        # read the structure of the db from xml file: this is the recipe only
-        cls.db.loadModel(cls.SAMPLE_XMLSTRUCT)
+
+        configureDb(cls.db)
 
         # build the python db structure from the recipe
         cls.db.startup()
@@ -105,7 +100,27 @@ class BaseSql(BaseGnrSqlTest):
                             dbtable="video.people",
                             sqlargs=dict(a=b'ciao', b=r"\$hello"))
         assert len(r) == 2
-        
+
+    def test_deferred(self):
+
+        results = []
+        def update_res(item):
+            results.append(item)
+            
+        PRE_OP = "pre_op_result"
+        POST_OP = "post_op_result"
+        # WARNING: we need to execute a query in the current
+        # connection otherwise the deferToCommit callback is not executed
+        # due to the lack of an active connection.
+        qs = self.db.query('video.movie', columns='$title').fetch()
+        self.db.deferToCommit(update_res, PRE_OP)
+        self.db.deferAfterCommit(update_res, POST_OP)
+        self.db.commit()
+        assert len(results) == 2
+        assert PRE_OP in results
+        assert POST_OP in results
+        assert results.index(PRE_OP) < results.index(POST_OP)
+
     #------------table test-----------------------------------------
     def test_insert(self):
         tbl = self.db.table('video.movie')
@@ -173,7 +188,7 @@ class BaseSql(BaseGnrSqlTest):
         assert isinstance(result, dict)
 
     def test_createStructureFromCode(self):
-        configurePackage(self.db.packageSrc('video'))
+        configureDb(self.db)
         with tempfile.NamedTemporaryFile(delete=True) as tmpdbfile:
             self.db.saveModel(tmpdbfile.name)
         assert self.db.model.src['packages.video.tables.people?pkey'] == 'id'

@@ -453,9 +453,9 @@ class TableHandlerMain(BaseComponent):
         self.th_mainUserSettings(kwargs=kwargs)
         thwidget = kwargs.pop('widget','stack')
         if thwidget=='inline':
-            kwargs['saveButton'] = True
-            kwargs['autoSave'] = False
-            kwargs['semaphore'] = True
+            kwargs.setdefault('saveButton', True)
+            kwargs.setdefault('autoSave',False)
+            kwargs.setdefault('semaphore',True)
             lockable = False
         kwargs.setdefault('preview_tpl',True)
         kwargs.setdefault('form_form_isRootForm',True)

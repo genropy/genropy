@@ -196,6 +196,7 @@ dojo.declare("gnr.GnrWdgHandler", null, {
             'GoogleChart':'',
             'GoogleVisualization':'',
             'CkEditor':'',
+            'TinyMce':'',
             'dygraph':'',
             'protovis':'',
             'codemirror':'',
@@ -825,6 +826,7 @@ dojo.declare("gnr.GridEditor", null, {
             this.autoSave = 3000;
         }
         this.remoteRowController = sourceNode.attr.remoteRowController;
+        this.remoteRowController_onEmptyRow = sourceNode.attr.remoteRowController_onEmptyRow;
         this.remoteRowController_default = sourceNode.attr.remoteRowController_default;
         if(this.remoteRowController_default){
             var caller_kw = {'script':"this.getParentNode().widget.gridEditor.callRemoteControllerBatch('*',null,true)",'_delay':500,
@@ -2299,8 +2301,14 @@ dojo.declare("gnr.GridChangeManager", null, {
             if(!rowEditor){
                 rowEditor = gridEditor.newRowEditor(kw.node);
                 let rowSelectedQueries = gridEditor.rowSelectedQueries(rowEditor.data);
-                if((gridEditor.remoteRowController || rowSelectedQueries.len(rowEditor.data)>0) && rowEditor.data.getItem(this.grid.masterEditColumn())!==null ){
-                    gridEditor.callRemoteController(kw.node,null,null,true);
+
+                const hasRemoteController = gridEditor.remoteRowController || rowSelectedQueries.len(rowEditor.data) > 0;
+                const hasMasterEditValue = rowEditor.data.getItem(this.grid.masterEditColumn()) !== null;
+                const hasDefaultController = gridEditor.remoteRowController_default;
+                const onEmptyRow = gridEditor.remoteRowController_onEmptyRow;
+
+                if (hasRemoteController && (hasMasterEditValue || (hasDefaultController && onEmptyRow))) {
+                    gridEditor.callRemoteController(kw.node, null, null, true);
                 }
             }
         }

@@ -5,17 +5,19 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 # Frameindex component
 
+from gnr.core.gnrbag import Bag
+from gnr.core.gnrdecorator import customizable
+from gnr.core.gnrconfig import getRmsOptions
 from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
-from gnr.core.gnrbag import Bag
-from gnr.core.gnrdecorator import customizable
-from gnr.app.gnrconfig import getRmsOptions
 
 class FrameIndex(BaseComponent):
     py_requires="""frameplugin_menu/frameplugin_menu:MenuIframes,
                    login:LoginComponent,
                    th/th:TableHandler,
+                   prefhandler/prefhandler:UserPrefMenu,
+                   gnrcomponents/grouplet/grouplet:GroupletHandler,
                    gnrcomponents/batch_handler/batch_handler:TableScriptRunner,
                    gnrcomponents/batch_handler/batch_handler:BatchMonitor,
                    gnrcomponents/chat_component/chat_component,
@@ -129,6 +131,7 @@ class FrameIndex(BaseComponent):
                                 persist=True,
                                 selfsubscribe_toggleLeft="""this.getWidget().setRegionVisible("left",'toggle');""",
                                 selfsubscribe_hideLeft="""this.getWidget().setRegionVisible("left",false);""",
+                                subscribe_openUserSettings="genro.framedIndexManager.openUserSettings($1)",
                                 subscribe_setIndexLeftStatus="""var delay = $1===true?0: 500;
                                                                 var set = $1;                           
                                                                 if(typeof($1)=='number'){
@@ -257,15 +260,15 @@ class FrameIndex(BaseComponent):
     @customizable
     def prepareBottom_std(self,bc):
         pane = bc.contentPane(region='bottom',overflow='hidden')
-        sb = pane.slotToolbar("""5,genrologo,helpdesk,settings,refresh,count_errors,left_placeholder,*,
-                                    right_placeholder,owner_name,user_name,logout,debugping,5""",
-                                    _class='slotbar_toolbar framefooter',height='22px', background='#EEEEEE',border_top='1px solid silver')    
+        sb = pane.slotToolbar("""5,genrologo,1,helpdesk,1,settings,10,refresh,10,phonelink,left_placeholder,*,
+                                    right_placeholder,count_errors,10,owner_name,user_name,logout,debugping,5""",
+                                    _class='slotbar_toolbar framefooter',height='22px', background='#EEEEEE',border_top='1px solid silver')
         return sb
-    
+
     @customizable
     def prepareBottom_mobile(self,bc):
         pane = bc.contentPane(region='bottom',overflow='hidden')
-        sb = pane.slotToolbar("""5,genrologo,helpdesk,settings,refresh,left_placeholder,*,
+        sb = pane.slotToolbar("""5,genrologo,2,helpdesk,2,settings,5,refresh,5,left_placeholder,*,
                                 right_placeholder,user_name,logout,debugping,5""",
                                 _class='slotbar_toolbar framefooter',height='25px', background='#EEEEEE',border_top='1px solid silver')
         pane.div(height='10px',background='black')
@@ -330,10 +333,17 @@ class FrameIndex(BaseComponent):
         return dlg
 
     @struct_method
-    def fi_slotbar_userpref(self,slot,**kwargs):
-        slot.lightbutton(_class='iframeroot_userpref', tip='!!%s preference' % (
-            self.user if not self.isGuest else 'guest')).dataController(
-                        'genro.framedIndexManager.openUserPreferences()')
+    def fi_slotbar_phonelink(self,slot,**kwargs):
+        if not self.site.is_mobile_app_enabled():
+            return
+        btn = slot.lightButton(_class='google_innericonbox phonelink_dark',
+                         tip='!!Mobile app connection',
+                         height='18px',width='18px')
+        dlg = slot.dialog(title='!![en]Mobile app connection',
+                          datapath='gnr.phonelink_dialog',closable=True)
+        dlg.groupletPanel(topic='phonelink',useForm=False,
+                          height='450px',width='350px')
+        btn.dataController("dlg.show()",dlg=dlg.js_widget)
 
     @struct_method
     def fi_slotbar_helpdesk(self,slot,**kwargs):
@@ -366,7 +376,7 @@ class FrameIndex(BaseComponent):
         return
 
     def helpdesk_help(self):
-        return 
+        return None
     
     @struct_method
     def fi_slotbar_openGnrIDE(self,slot,**kwargs):
@@ -391,7 +401,9 @@ class FrameIndex(BaseComponent):
     
     @struct_method
     def fi_slotbar_settings(self,slot,**kwargs):
-        slot.lightButton(_class='iconbox gear').dataController('genro.framedIndexManager.openUserPreferences()')
+        if self.isGuest:
+            return
+        slot.userSettings()
 
     @struct_method
     def fi_slotbar_refresh(self,slot,**kwargs):
@@ -412,7 +424,7 @@ class FrameIndex(BaseComponent):
     @struct_method
     def fi_slotbar_owner_name(self,slot,**kwargs):
         box = slot.div(_class='iframeroot_pref')
-        if not self.dbstore:
+        if self.db.usingRootstore() or self.site.multidomain:
             box.lightButton(innerHTML='==_owner_name?dataTemplate(_owner_name,envbag):"Preferences";',
                                     _owner_name=self.fi_get_owner_name(),
                                     action='PUBLISH app_preference;',envbag='=gnr.rootenv', display='inline-block')
@@ -460,7 +472,7 @@ class FrameIndex(BaseComponent):
             self.index_dashboard(sc.contentPane(pageName='indexpage',title=self.index_title))
         else:
             indexpane = sc.contentPane(pageName='indexpage',title=self.index_title,overflow='hidden')
-            
+            page.data('splash_index',True,url=self.index_url)
             if self.index_url:
                 src = self.getResourceUri(self.index_url,add_mtime=self.isDeveloper())
                 indexpane.htmliframe(height='100%', width='100%', src=src, border='0px',shield=True)         
@@ -576,7 +588,11 @@ class FrameIndex(BaseComponent):
     
     @struct_method
     def fi_slotbar_newWindow(self,pane,**kwargs):
-        pane.div(_class='windowaddIcon iconbox',tip='!!New Window',connect_onclick='genro.openBrowserTab(genro.addParamsToUrl(window.location.href,{new_window:true}));')
+        pane.div(_class='windowaddIcon iconbox',tip='!!New Window',
+                 connect_onclick="""
+                 let urlObj = new URL(window.location.href);
+                 urlObj.searchParams.delete("page_id");
+                 genro.openBrowserTab(urlObj.toString(),{new_window:true});""")
         
     @struct_method
     def fi_pluginButton(self,pane,name,caption=None,iconClass=None,defaultWidth=None,**kwargs):

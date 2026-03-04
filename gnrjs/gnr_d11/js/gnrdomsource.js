@@ -69,7 +69,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if (this.widget) {
             return  this.widget.focusNode || this.widget.containerNode || this.widget.domNode;
         }
-        return this.getParentNode().getDomNode();
+        return this.getParentNode()?this.getParentNode().getDomNode():null;
 
     },
     
@@ -177,6 +177,38 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
     },
     fireNode: function(runKwargs,kw, trigger_reason) {
         return this.setDataNodeValue(runKwargs,kw,trigger_reason);
+    },
+
+    pasteFromClipboard: async function(path,mode){
+        path = path || this.attr.value || this.attr.storepath || this.attr.innerHTML
+        const clipboardText = await navigator.clipboard.readText();
+        if(!clipboardText){
+            return;
+        }
+        let value = clipboardText;
+        if(mode=='xlsx'){
+            let sheetjs = await genro.plugin('sheetjs');
+            value = sheetjs.bagFromXLSXText(clipboardText);
+        }else if(mode=='bag' && clipboardText[0]=='<'){
+            value = new gnr.GnrBag(clipboardText);
+        }
+        this.setRelativeData(path,value);
+    },
+    
+    copyInClipboard:function(path){
+        let value;
+        if(path){
+            value = this.getRelativeData(path);
+        }else{
+            let attribute = this.attr.value && 'value' 
+            || this.attr.storepath && 'storepath' 
+            || 'innerHTML';
+            value = this.getAttributeFromDatasource(attribute);
+        }
+        if(value instanceof gnr.GnrBag){
+            value = value.toXml();
+        }
+        navigator.clipboard.writeText(value);
     },
     setDataNodeValue:function(nodeOrRunKwargs, kw, trigger_reason, subscription_args) {
         if(nodeOrRunKwargs===null){
@@ -2065,3 +2097,4 @@ dojo.declare("gnr.GnrDomSource", gnr.GnrStructData, {
         return node===true?null:node;
     }
 });
+

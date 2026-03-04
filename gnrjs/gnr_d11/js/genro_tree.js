@@ -467,7 +467,22 @@ dojo.declare("gnr.widgets.Tree", gnr.widgets.baseDojo, {
                     if(!searchColumn){
                         var label = that.getLabel(item);
                         if(label){
-                            tn.labelNode.innerHTML = label.replace(filterRegExp,"<span class='search_highlight'>$1</span>");
+                            var isHTML = label.startsWith('innerHTML:');
+                            if(isHTML){
+                                label = label.replace('innerHTML:','');
+                            }
+                            if(search && isHTML){
+                                label = label.replace(/(<[^>]+>)/g, '\x00$1\x00').split('\x00')
+                                    .map(function(part){
+                                        if(part.charAt(0)==='<') return part;
+                                        if(!part) return part;
+                                        var highlighted = part.replace(filterRegExp,"<span class='search_highlight'>$1</span>");
+                                        return '<span>' + highlighted + '</span>';
+                                    }).join('');
+                            }else if(search){
+                                label = '<span>' + label.replace(filterRegExp,"<span class='search_highlight'>$1</span>") + '</span>';
+                            }
+                            tn.labelNode.innerHTML = label;
                         }
                     }
                     while(parent&&dojo.hasClass(parent.domNode,'hidden')){
@@ -714,13 +729,16 @@ dojo.declare("gnr.widgets.Tree", gnr.widgets.baseDojo, {
         }
         delete this.sourceNode._savedExpandedStatus;
     },
-    mixin_expandAll:function(rootNode){
+    mixin_expandAll:function(rootNode, recurse){
         var that = this;
         var nodes = dojo.query('.dijitTreeExpando.dijitTreeExpandoClosed',rootNode.domNode);
         nodes.forEach(function(n){
-                var n = that.model.store.getIdentity(dijit.getEnclosingWidget(n).item);
-                var tn = that._itemNodeMap[n];
-                that._expandNode(tn);
+            var n = that.model.store.getIdentity(dijit.getEnclosingWidget(n).item);
+            var tn = that._itemNodeMap[n];
+            that._expandNode(tn);
+	    if(recurse) {
+		that.expandAll(n, recurse);
+	    }
         });
     },
 

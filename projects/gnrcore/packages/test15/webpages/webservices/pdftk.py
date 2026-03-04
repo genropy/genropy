@@ -2,7 +2,6 @@
 # 
 
 from gnr.core.gnrdecorator import public_method
-from gnr.core.gnrbag import Bag
 from time import time
 
 class GnrCustomWebPage(object):

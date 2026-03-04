@@ -116,4 +116,4 @@ class ServiceParameters(BaseComponent):
     def testShorten(self,service_name=None,longUrl=None,expireHours=None,customDomain=None,customKey=None):
         service = self.getService('shortener',service_name)
         result = service.shorten(longUrl=longUrl,expireHours=expireHours,customDomain=customDomain,customKey=customKey)
-        print(x)
+        raise Exception("x exception")

@@ -5,7 +5,6 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrdecorator import public_method
 
 class View(BaseComponent):
     def th_struct(self,struct):
@@ -31,7 +30,7 @@ class Form(BaseComponent):
         fb.field('isreserved', lbl='',label='Is reserved')
         fb.field('require_2fa')
         fb.field('note')
-        fb.field('linked_table')
+        fb.field('linked_table', readOnly=True)
         self.usersPane(bc.contentPane(region='center',datapath='#FORM'))
 
     def usersPane(self,pane):

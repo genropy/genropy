@@ -1,4 +1,4 @@
-from gnr.core import gnrgit as gg
+from gnr.core import gnrgit as gg  # noqa: F401
 
 def test_GnrGit():
     # we only test the import of the module,

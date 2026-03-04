@@ -5,7 +5,6 @@
 #  Copyright (c) 2013 Softwell. All rights reserved.
 
 
-from __future__ import print_function
 from gnrpkg.sys.services.translation import TranslationService
 
 from gnr.core.gnrlang import GnrException

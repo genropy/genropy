@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
+
 from datetime import datetime, timedelta
-from gnr.core.gnrdecorator import public_method, extract_kwargs
-from gnr.core.gnrdict import dictExtract
-import urllib
 from ics import Calendar, Event
 from datetime import datetime
+
+from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrdict import dictExtract
 
 class GnrCustomWebPage(object):
     py_requires = "gnrcomponents/testhandler:TestHandlerFull"

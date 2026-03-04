@@ -36,9 +36,16 @@ from base64 import b64decode
 import re
 import datetime
 
-from gnr.web._gnrbasewebpage import GnrBaseWebPage
+
 from gnr.core.gnrstring import toText, toJson, concat, jsquote,splitAndStrip,boolean,asDict
 from gnr.core.gnrdict import dictExtract
+from gnr.core.gnrlang import getUuid,gnrImport, GnrException, GnrSilentException, tracebackBag
+from gnr.core.gnrbag import Bag, BagResolver
+from gnr.core.gnrdecorator import public_method,deprecated
+from gnr.core.gnrclasses import GnrMixinNotFound
+
+from gnr.web import logger
+from gnr.web._gnrbasewebpage import GnrBaseWebPage
 from gnr.web.gnrwebreqresp import GnrWebRequest, GnrWebResponse
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 from gnr.web.gnrwebpage_proxy.menuproxy import GnrMenuProxy
@@ -52,11 +59,11 @@ from gnr.web.gnrwebpage_proxy.utils import GnrWebUtils
 from gnr.web.gnrwebpage_proxy.pluginhandler import GnrWebPluginHandler
 from gnr.web.gnrwebpage_proxy.jstools import GnrWebJSTools
 from gnr.web.gnrwebstruct import GnrGridStruct
-from gnr.core.gnrlang import getUuid,gnrImport, GnrException, GnrSilentException, MandatoryException,tracebackBag
-from gnr.core.gnrbag import Bag, BagResolver
-from gnr.core.gnrdecorator import public_method,deprecated
-from gnr.core.gnrclasses import GnrMixinNotFound
-from gnr.web.gnrbaseclasses import BaseComponent # DO NOT REMOVE, old code relies on BaseComponent being defined in this file
+
+ # DO NOT REMOVE, old code relies on BaseComponent being defined in this file
+from gnr.web.gnrbaseclasses import BaseComponent # noqa: F401
+
+
 from gnr.app.gnrlocalization import GnrLocString
 
 AUTH_OK = 0
@@ -85,9 +92,6 @@ class GnrWebPageException(GnrException):
 class GnrUnsupportedBrowserException(GnrException):
     pass
 
-class GnrMaintenanceException(GnrException):
-    pass
-
 class GnrSignedTokenException(GnrException):
     pass
 
@@ -102,12 +106,13 @@ class GnrUserNotAllowed(GnrException):
 class GnrBasicAuthenticationError(GnrException):
     code = 'AUTH-901'
 
-EXCEPTIONS = {'user_not_allowed': GnrUserNotAllowed,
-              'missing_resource': GnrMissingResourceException,
-              'unsupported_browser': GnrUnsupportedBrowserException,
-              'generic': GnrWebPageException,
-              'basic_authentication':GnrBasicAuthenticationError,
-              'maintenance': GnrMaintenanceException}
+EXCEPTIONS = {
+    'user_not_allowed': GnrUserNotAllowed,
+    'missing_resource': GnrMissingResourceException,
+    'unsupported_browser': GnrUnsupportedBrowserException,
+    'generic': GnrWebPageException,
+    'basic_authentication':GnrBasicAuthenticationError
+}
 
 class GnrWebPage(GnrBaseWebPage):
     """Standard class for :ref:`webpages <webpage>`
@@ -125,7 +130,8 @@ class GnrWebPage(GnrBaseWebPage):
     proxy_class = GnrBaseProxy
     
     def __init__(self, site=None, request=None, response=None, request_kwargs=None, request_args=None,
-                 filepath=None, packageId=None, pluginId=None, basename=None, environ=None, class_info=None,_avoid_module_cache=None):
+                 filepath=None, packageId=None, pluginId=None, basename=None, environ=None, class_info=None,
+                 _avoid_module_cache=None):
         self._inited = False
         self._start_time = time()
         self._thread = _thread.get_ident()
@@ -146,7 +152,7 @@ class GnrWebPage(GnrBaseWebPage):
         dbstore = self.temp_dbstore or self.base_dbstore
         self.dbstore = dbstore if dbstore != self.application.db.rootstore else None
         self.aux_instance =  request_kwargs.pop('_aux_instance',None) or None
-        self.user_agent = request.user_agent.string or []
+        self.user_agent = getattr(request.user_agent, "string", [])
         self._environ = environ
         self._event_subscribers = {}
         self.forked = False # maybe redefine as _forked
@@ -159,7 +165,10 @@ class GnrWebPage(GnrBaseWebPage):
         self.called_url = request.url
         self.path_url = request.url_root
         self.request = GnrWebRequest(request)
+
+        # FIXME: strange default here - the whole ipv4 address space?
         self.user_ip = self.request.remote_addr or '0.0.0.0'
+        
         self.response = GnrWebResponse(response)
         self._request = self.request._request
         self._response = self.response._response
@@ -202,7 +211,6 @@ class GnrWebPage(GnrBaseWebPage):
                                            connection_id=request_kwargs.pop('_connection_id', None),
                                            user=request_kwargs.pop('_user', None))
         page_id = request_kwargs.pop('page_id', None)
-        self.subdomain = request_kwargs.pop('_subdomain',None) if page_id else request_kwargs.get('_subdomain')        
         self.root_page_id = None
         self.parent_page_id = None
         self.sourcepage_id = request_kwargs.pop('sourcepage_id', None)
@@ -344,12 +352,31 @@ class GnrWebPage(GnrBaseWebPage):
         
     frontend = property(_get_frontend)
             
-    @property 
+    @property
     def wsk(self):
         if hasattr(self,'asyncServer'):
             return self.asyncServer.wsk
         return self.site.wsk
-    
+
+    @property
+    def currentDomain(self):
+        """Returns the current domain/workspace from site."""
+        return self.site.currentDomain
+
+    @property
+    def multidomain(self):
+        """Returns True if multidomain mode is enabled."""
+        return self.site.multidomain
+
+    @property
+    def currentDomainIdentifier(self):
+        """Returns the unique identifier for the current domain.
+
+        In multidomain: {site_name}_{domain}
+        In single-domain: {site_name}
+        """
+        return self.site.currentDomainIdentifier
+
     @property
     def wsk_enabled(self):
         if not hasattr(self, '_wsk_enabled'):
@@ -413,19 +440,40 @@ class GnrWebPage(GnrBaseWebPage):
     def modulePath(self):
         return  '%s.py' %os.path.splitext(sys.modules[self.__module__].__file__)[0]
 
-     
-        
-    @property 
+    @property
+    def default_language(self):
+        """Return the default language for database localization.
+
+        :returns: the first language code from db languages config, or None
+        """
+        db_languages = self._db.extra_kw.get('languages')
+        db_languages = db_languages.split(',') if db_languages else []
+        return db_languages[0].lower() if db_languages else None
+
+    @property
+    def locale_language(self):
+        """Return the language code extracted from the user's locale.
+
+        :returns: the language part of the locale (e.g. 'it' from 'it_IT'), or None
+        """
+        return self.locale[0:2].lower() if self.locale else None
+
+    @property
     def db(self):
-        if not getattr(self, '_db',None):
+        if not getattr(self, '_db', None):
             self._db = self.application.db
             self._db.clearCurrentEnv()
             expirebag = self.globalStore().getItem('tables_user_conf_expire_ts')
-            self._db.updateEnv(storename=self.dbstore, workdate=self.workdate, locale=self.locale,
-                                maxdate=datetime.date.max,mindate=datetime.date.min,
+            self._db.updateEnv(storename=self.dbstore,
+                               dbbranch=self._call_kwargs.get("dbbranch", None),
+                               workdate=self.workdate, locale=self.locale,
+                               default_language=self.default_language,
+                               current_language=self.language,
+                               maxdate=datetime.date.max, mindate=datetime.date.min,
                                user=self.user, userTags=self.userTags, pagename=self.pagename,
-                               mainpackage=self.mainpackage,_user_conf_expirebag=expirebag,
-                               external_host=self.external_host)
+                               mainpackage=self.mainpackage, _user_conf_expirebag=expirebag,
+                               external_host=self.external_host,
+                               currentDomain=self.currentDomain)
             
             self._db.setLocale()
             avatar = self.avatar
@@ -476,15 +524,14 @@ class GnrWebPage(GnrBaseWebPage):
         self.db.workdate = workdate
     workdate = property(_get_workdate, _set_workdate)
 
-    def _get_language(self):
+    @property
+    def language(self):
         if not getattr(self,'_language',None):
-            self._language = self.pageStore().getItem('rootenv.language') or self.locale.split('-')[0].upper()
+            avatar_language = getattr(self.avatar,'language',None) if self.avatar else None
+            language = avatar_language or self.locale_language
+            self._language = language.lower() if language else None
+            self.pageStore().setItem('rootenv.language', self._language)
         return self._language
-
-    def _set_language(self, language):
-        self.pageStore().setItem('rootenv.language', language)
-        self._language = language
-    language = property(_get_language, _set_language)
 
     def _set_locale(self, val):
         self._locale = val
@@ -492,8 +539,20 @@ class GnrWebPage(GnrBaseWebPage):
     def _get_locale(self):
         if not getattr(self,'_locale',None):
             headers_locale = self.request.headers.get('Accept-Language', 'en').split(',')[0]
-            self._locale = (self.avatar.locale if self.avatar and getattr(self.avatar,'locale',None) else headers_locale) or 'en' #to check
-            #self._locale = headers_locale or 'en'
+            headers_locale = headers_locale.split(';')[0].replace('-', '_')
+            avatar_locale = None
+            if self.avatar:
+                avatar_locale = getattr(self.avatar,'locale',None)
+                if not avatar_locale:
+                    avatar_language = getattr(self.avatar,'language',None)
+                    avatar_locale = avatar_language
+            locale = avatar_locale or headers_locale or 'en'
+            if '_' in locale:
+                lang, territory = locale.split('_', 1)
+                locale = f'{lang.lower()}_{territory.upper()}'
+            else:
+                locale = locale.lower()
+            self._locale = locale
         return self._locale
     locale = property(_get_locale, _set_locale)
     
@@ -566,13 +625,6 @@ class GnrWebPage(GnrBaseWebPage):
                 raise
             else:
                 exception_record = self.site.writeException(exception=e, traceback=tracebackBag())
-                if self.site.error_smtp_kwargs:
-                    import sys
-                    from weberror.errormiddleware import handle_exception
-                    error_handler_kwargs = self.site.error_smtp_kwargs
-                    error_handler_kwargs['debug_mode'] = True
-                    error_handler_kwargs['simple_html_error'] = False
-                    handle_exception(sys.exc_info(), self._environ['wsgi.errors'], **error_handler_kwargs)
                 self.rpc.error = 'server_exception'
                 result = '<div>%s</div>' %str(e)
                 if exception_record:
@@ -593,12 +645,22 @@ class GnrWebPage(GnrBaseWebPage):
             return AUTH_FORBIDDEN
         return AUTH_OK
     
+    @property
+    def avatar_rootpage(self):
+        if not self.avatar:
+            return
+        avatar_rootpage = self.avatar.avatar_rootpage or self.rootenv['singlepage'] if self.avatar else None
+        if avatar_rootpage and avatar_rootpage.startswith('/') and self.multidomain:
+            return f'/{self.currentDomain}{avatar_rootpage}'
+        return avatar_rootpage
+    
     def _checkRootPage(self):
+        avatar_rootpage = self.avatar_rootpage
         if self.pageOptions.get('standAlonePage') \
             or self.root_page_id or not self.avatar \
-                or not self.avatar.avatar_rootpage:
+                or not avatar_rootpage:
             return AUTH_OK
-        result =  AUTH_FORBIDDEN if self.avatar.avatar_rootpage != self.request.path_info else AUTH_OK
+        result =  AUTH_FORBIDDEN if avatar_rootpage != self.request.path_info else AUTH_OK
         return result
         
     def pageAuthTags(self,method=None,**kwargs):
@@ -663,16 +725,17 @@ class GnrWebPage(GnrBaseWebPage):
         return self._helpers[path],{'path':path,'in_cache':False}
 
 
-    def mixinTableResource(self, table, path,**kwargs):
+    def mixinTableResource(self, table, path,safeMode=False,**kwargs):
         """TODO
-        
+
         :param table: the :ref:`database table <table>` name on which the query will be executed,
                       in the form ``packageName.tableName`` (packageName is the name of the
                       :ref:`package <packages>` to which the table belongs to)
-        :param path: the table resource path"""
+        :param path: the table resource path
+        :param safeMode: if True, missing resources will not raise exceptions. Defaults to False"""
         pkg,table = table.split('.')
-        result = self.mixinComponent('tables/%s/%s' %(table,path),**kwargs)
-        self.mixinComponent('tables/_packages/%s/%s/%s' %(pkg,table,path),safeMode=True,**kwargs)
+        result = self.mixinComponent('tables/%s/%s' %(table,path),safeMode=safeMode,**kwargs)
+        self.mixinComponent('tables/_packages/%s/%s/%s' %(pkg,table,path),safeMode=True,**kwargs) #customization always safe mode
         return result
 
         
@@ -863,10 +926,12 @@ class GnrWebPage(GnrBaseWebPage):
             errdict = self.callPackageHooks('onAuthenticating',avatar,rootenv=rootenv)
             err = [err for err in errdict.values() if err is not None]
             if err:
+                logger.error("Invalid login for user %s", login['user'])
                 login['error'] = ', '.join(err)
                 return (login, loginPars)
             self.site.onAuthenticated(avatar)
             self.connection.change_user(avatar)
+            logger.info("User %s login", login['user'])
             self.site.connectionLog('open')
             login['message'] = ''
             loginPars = avatar.loginPars
@@ -876,6 +941,7 @@ class GnrWebPage(GnrBaseWebPage):
             except self.site.register.locked_exception:
                 pass
         else:
+            logger.error("Invalid login for user %s", login['user'])
             login['message'] = 'invalid login'
         return (login, loginPars)
 
@@ -1177,22 +1243,21 @@ class GnrWebPage(GnrBaseWebPage):
         return handler
 
     def exception(self, exception, **kwargs):
-         """TODO
+        """TODO
 
-         :param exception: the exception raised.
-         :param record: TODO.
-         :param msg: TODO."""
-         if isinstance(exception, str):
-             exception = EXCEPTIONS.get(exception)
-             if not exception:
-                 raise exception
-         return exception(user=self.user,localizer=self.application.localizer,**kwargs)
+        :param exception: the exception raised.
+        :param record: TODO.
+        :param msg: TODO."""
+        if isinstance(exception, str):
+            exception = EXCEPTIONS.get(exception)
+            if not exception:
+                raise exception
+        return exception(user=self.user,localizer=self.application.localizer,**kwargs)
 
-    def build_arg_dict(self, _nodebug=False, _clocomp=False, **kwargs):
+    def build_arg_dict(self, _nodebug=False, **kwargs):
         """TODO
         
         :param _nodebug: no debug mode
-        :param _clocomp: enable closure compile
         """
         gnr_static_handler = self.site.storage('gnr')
         gnrModulePath = gnr_static_handler.url(self.gnrjsversion)
@@ -1215,6 +1280,8 @@ class GnrWebPage(GnrBaseWebPage):
             kwargs['debug_sql'] = self.debug_sql
         if self.debug_py:
             kwargs['debug_py'] = self.debug_py
+        if self.site.debugpy:
+            kwargs['debugpy'] = self.site.debugpy
 
         if self.isDeveloper():
             kwargs['isDeveloper'] = True
@@ -1241,14 +1308,10 @@ class GnrWebPage(GnrBaseWebPage):
         arg_dict['bodyclasses'] = self.get_bodyclasses()
         arg_dict['gnrModulePath'] = gnrModulePath
         gnrimports = self.frontend.gnrjs_frontend()
-        #if _nodebug is False and _clocomp is False and (self.site.debug or self.isDeveloper()):
         if localroot:
             arg_dict['genroJsImport'] = [gnr_static_handler.url(self.gnrjsversion, 'js', '%s.js' % f, _localroot=localroot) for f in gnrimports]
-        elif _nodebug is False and _clocomp is False and (self.isDeveloper()):
+        elif _nodebug is False and (self.isDeveloper()):
             arg_dict['genroJsImport'] = [self.mtimeurl(self.gnrjsversion, 'js', '%s.js' % f) for f in gnrimports]
-        elif _clocomp or self.site.config['closure_compiler']:
-            jsfiles = [gnr_static_handler.internal_path(self.gnrjsversion, 'js', '%s.js' % f) for f in gnrimports]
-            arg_dict['genroJsImport'] = [self.jstools.closurecompile(jsfiles)]
         else:
             if not self.site.compressedJsPath or self.site.debug:
                 jsfiles = [gnr_static_handler.internal_path(self.gnrjsversion, 'js', '%s.js' % f) for f in gnrimports]
@@ -1997,13 +2060,13 @@ class GnrWebPage(GnrBaseWebPage):
                 value['parent'] = parent
             self.setInClientData('gnr.publisher',value=value,page_id=page_id,fired=True)
 
-    def setInClientRecord(self,tblobj=None,record=None,fields=None,silent=True):
+    def setInClientRecord(self,tblobj=None,record=None,fields=None,silent=True, **kwargs):
         updater = Bag()
         for field in fields.split(','):
             updater[field] = record[field]
         self.clientPublish('setInClientRecord',table=tblobj.fullname,
                             pkey=record[tblobj.pkey],silent=silent,
-                            updater=updater)
+                            updater=updater, **kwargs)
         
     def setInClientData(self, path, value=None, attributes=None, page_id=None, filters=None,
                         fired=False, reason=None, replace=False,public=None,**kwargs):
@@ -2160,8 +2223,8 @@ class GnrWebPage(GnrBaseWebPage):
                                 })
                                 genro.publish('dbevent_'+_node.label,{'changelist':changelist,'changeattr':_node.attr});""",
                                 changes="^gnr.dbchanges")
-        page.data('gnr.homepage', self.externalUrl(self.site.homepage))
-        page.data('gnr.homeFolder', self.externalUrl(self.site.home_uri).rstrip('/'))
+        page.data('gnr.homepage', self.externalUrl(f"{self.site.default_uri.rstrip('/')}{self.site.indexpage}"))
+        page.data('gnr.homeFolder', f"{self.externalUrl(self.site.default_uri).rstrip('/')}/")
         page.data('gnr.homeUrl', self.site.home_uri)
         page.data('gnr.defaultUrl', self.site.default_uri)
         page.data('gnr.siteName',self.siteName)
@@ -2182,6 +2245,8 @@ class GnrWebPage(GnrBaseWebPage):
         page.data('gnr.remote_db',self.site.remote_db)
         if self.dbstore:
             page.data('gnr.dbstore',self.dbstore)
+        page.data('gnr.multidomain', self.multidomain)
+        page.data('gnr.currentDomain', self.currentDomain)
         if has_adm and not self.isGuest:
             page.dataRemote('gnr.user_preference', self.getUserPreference,username='^gnr.avatar.user',
                             _resolved=True,_resolved_username=self.user)
@@ -2423,7 +2488,7 @@ class GnrWebPage(GnrBaseWebPage):
         return result
 
     @public_method
-    def bagFieldDispatcher(self,pane,resource=None,module=None,table=None,
+    def bagFieldDispatcher(self,pane,resource=None,table=None,
                         bfhandler=None,field=None,version=None,valuepath=None,**kwargs):
         if bfhandler:
             handlername = bfhandler
@@ -2434,15 +2499,14 @@ class GnrWebPage(GnrBaseWebPage):
                 resource = '{resource}:BagField_{field}'.format(resource=resource,field=field)
                 handlername = 'bf_main'
             if table:
-                mixinedClass = self.mixinTableResource(table,'bagfields/{resource}'.format(resource=resource))
+                mixinedClass = self.mixinTableResource(table,'bagfields/{resource}'.format(resource=resource),safeMode=True)
             else:
                 mixinedClass = self.mixinComponent(resource)
         bagfieldmodule = getattr(mixinedClass,'__top_mixined_module',None)
         box = pane.contentPane(datapath=valuepath,bagfieldmodule=bagfieldmodule)
         return getattr(self,handlername)(box,**kwargs)
         
-    
-    @public_method                                 
+    @public_method
     def remoteBuilder(self, handler=None,tag=None, py_requires=None,_inheritedAttributes=None,**kwargs):
         """TODO
         
@@ -2744,8 +2808,8 @@ class GnrWebPage(GnrBaseWebPage):
     def forbiddenRedirectPage(self):
         if hasattr(self,'forbidden_redirect'):
             return self.forbidden_redirect()
-        if self.avatar and self.avatar.avatar_rootpage:
-            return self.avatar.avatar_rootpage
+        if self.avatar_rootpage:
+            return self.avatar_rootpage
 
     def isLocalizer(self):
         """TODO"""
@@ -2902,8 +2966,10 @@ class GnrWebPage(GnrBaseWebPage):
         mode = kwargs.pop('mode',None)
         mode = mode or 'log'
         self.clientPublish('gnrServerLog',msg=msg,args=args,kwargs=kwargs)
-        print(f'pagename:{self.pagename}-:page_id:{self.page_id} >>\n{msg}',
-                                    args,kwargs)
+        logger.info(
+            f'pagename:{self.pagename}-:page_id:{self.page_id} >>\n{msg} %s %s',
+            args, kwargs
+        )
 
     ##### BEGIN: DEPRECATED METHODS ###
     @deprecated
@@ -2967,7 +3033,6 @@ class GnrGenshiPage(GnrWebPage):
     """TODO"""
     def onPreIniting(self, request_args, request_kwargs):
         """TODO"""
-        from genshi.template import TemplateLoader
         request_kwargs['_plugin'] = 'genshi'
         request_kwargs['genshi_path'] = self.genshi_template()
         

@@ -20,21 +20,10 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-try:
-    from gnr.xtnd.gnrrml import GnrPdf
-    
-    class GnrWebPDF(GnrPdf):
-        def getPdf(self, table, record, filename=None, folder=None):
-            record = self.db.table(table).recordAs(record, mode='bag')
-            self.filename = filename or self.getFilename(record)
-            self.filePath = self.page.temporaryDocument(folder, self.filename)
-            self.fileUrl = self.page.temporaryDocumentUrl(folder, self.filename)
-            self.createStory(record)
-except ImportError:
-    class GnrWebPDF(object):
-        """TODO"""
-        def getPdf(self, *args, **kwargs):
-            pass
+class GnrWebPDF(object):
+    """TODO"""
+    def getPdf(self, *args, **kwargs):
+        pass
             
 def plain_redirect (page, params):
     """Return the following string::

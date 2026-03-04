@@ -1,0 +1,38 @@
+.branchtree .branchtree_selected.dijitTreeLabel{
+    background-color: #3A4D65;
+    color: white;
+    padding-right: 15px;
+    border-radius: 0px 10px 10px 0px;
+}
+.settings_tree.branchtree .dijitTreeLabel {
+    padding-left: 2px;
+    white-space: nowrap;
+    line-height:20px;
+    font-size: 1.2em;
+}
+
+.mode_mobile .settings_tree.branchtree .dijitTreeLabel {
+    padding-left: 2px;
+    white-space: nowrap;
+    line-height:30px;
+    font-size: 1.5em;
+
+}
+
+
+.settings_tree.branchtree .dijitTreeExpando{
+    height: 20px;
+    width: 16px;
+    cursor: pointer;
+}
+
+
+.mode_mobile .settings_tree.branchtree .dijitTreeExpando{
+    height: 28px;
+    width: 16px;
+    cursor: pointer;
+}
+
+.setting_group.selectedTreeNode{
+    font-weight: normal !important;
+}

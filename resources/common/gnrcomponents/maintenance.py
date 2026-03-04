@@ -4,21 +4,19 @@
 # Created by Francesco Porcari on 2010-09-08.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
-from __future__ import division
-from __future__ import print_function
+import os
+import re
+from datetime import datetime
 
-from past.utils import old_div
-from gnr.web.gnrbaseclasses import BaseComponent
+
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import fromJson
 from gnr.core.gnrlang import uniquify
-from datetime import datetime
-import httplib2
-import urllib.request, urllib.parse, urllib.error
-import os
-import re
+from gnr.sql import AdapterCapabilities as Capabilities
+from gnr.web.gnrbaseclasses import BaseComponent
 SH_ENABLED = False
+
 try:
     from sh import cd,ls,git
     SH_ENABLED = True
@@ -32,7 +30,10 @@ class MaintenancePlugin(BaseComponent):
         """!!Maintenance"""
         frame = pane.framePane(datapath='gnr.maintenance')
         tc = frame.center.tabContainer(margin='2px')
-        self.maintenance_admin(tc.framePane(title='Administration',margin='2px',rounded=4,border='1px solid #efefef',datapath='.administration'))
+        # disable db administration if the adapter doesn't have the tools to
+        # execute operations
+        if self.site.gnrapp.db.adapter.has_capability(Capabilities.ADMINISTER):
+            self.maintenance_admin(tc.framePane(title='Administration',margin='2px',rounded=4,border='1px solid #efefef',datapath='.administration'))
         self.maintenance_register(tc.framePane(title='!!Users & Connections',margin='2px',rounded=4,border='1px solid #efefef'))
 
     def maintenance_admin(self,frame):
@@ -344,7 +345,7 @@ class MaintenancePlugin(BaseComponent):
                 color = 'orange'
             else:
                 color = 'red'
-            c = dict(height=1+old_div(n['nc'],4),color=color)
+            c = dict(height=1+int(n['nc']/4),color=color)
             result.append('<div style="background:%(color)s;height:%(height)ipx; width:3px; display:inline-block;margin-right:1px;"></div>' %c)
         item['page_profile'] = '<div>%s</div>'  %''.join(result)
 

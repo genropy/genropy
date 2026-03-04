@@ -5,13 +5,10 @@
 #  Copyright (c) 2013 Softwell. All rights reserved.
 
 
+from subprocess import call
 
 from gnr.lib.services import GnrBaseService
-from subprocess import call
 from gnr.core.gnrlang import getUuid
-
-import os
-
 
 class Main(GnrBaseService):
     def __init__(self, parent=None,logfile=None,format=None,log_line_prefix=None,output_folder=None,default_core=None):
@@ -37,29 +34,6 @@ class Main(GnrBaseService):
         if result !=0:
             return None
         return self.parent.getStaticUrl(self.output_folder,'pgbadger',filename)
-
-
-
-
-
-
-        #name,ext = os.path.splitext(dest_path)
-        #counter = 0
-        #while os.path.exists(dest_path):
-        #    dest_path = '%s_%i%s'%(name,counter,ext)
-        #    counter +=1
-        #return_path = dest_path
-        #if not os.path.isabs(src_path):
-        #    src_path = self.parent.getStaticPath('site:%s'%src_path, autocreate=-1)
-        #    dest_path = self.parent.getStaticPath('site:%s'%dest_path, autocreate=-1)
-        #call_list = ['abiword', '--to=pdf', src_path, '-o', dest_path]
-        #print call_list
-        #result = call(call_list)
-        #if result !=0:
-        #    return None
-        #return return_path
-
-
 
 """
 pgbadger [options] logfile [...]

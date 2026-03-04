@@ -4,11 +4,10 @@
 #  Created by Saverio Porcari on 2013-04-06.
 #  Copyright (c) 2013 Softwell. All rights reserved.
 
-from __future__ import print_function
 import os
 from gnr.web.gnrbaseclasses import BaseComponent
 
-from gnrpkg.sys.services.ftp import SftpService,SftpDirectoryResolver
+from gnrpkg.sys.services.ftp import SftpService
 from gnr.core.gnrlang import GnrException
 
 

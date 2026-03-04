@@ -1,7 +1,5 @@
 # encoding: utf-8
 
-from gnr.core.gnrbag import Bag
-
 class Table(object):
     def config_db(self,pkg):
         tbl =  pkg.table('lg_relation',

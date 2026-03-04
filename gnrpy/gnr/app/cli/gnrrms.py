@@ -2,9 +2,8 @@
 # encoding: utf-8
 
 from gnr.core.cli import GnrCliArgParse
+from gnr.core.gnrconfig import setRmsOptions
 from gnr.lib.services.rms import RMS
-from gnr.app.gnrconfig import setRmsOptions
-
 
 def register_instance(instance,**kwargs):
     rms = RMS()
@@ -15,7 +14,7 @@ def register_pod(pod=None, service_url=None,customer_code=None,rebuild=None):
     rms = RMS()
     rms.registerPod()
 
-description = ""
+description = "Remote Management System tool"
 
 def main():
     parser = GnrCliArgParse(description=description)

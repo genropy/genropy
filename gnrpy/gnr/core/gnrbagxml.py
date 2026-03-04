@@ -21,8 +21,6 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 from collections import defaultdict
-
-import time
 import io
 import re, os
 import datetime
@@ -185,9 +183,6 @@ class _SaxImporter(sax.handler.ContentHandler):
                     try:
                         value = self.catalog.fromText(value, self.currType)
                     except:
-                        import sys
-                        #print sys.exc_info()[1]
-                        #print value
                         value = None
         if self.currArray: #handles an array
             if self.currArray != tagLabel: # array's content
@@ -281,25 +276,6 @@ class BagToXml(object):
         elif isinstance(nodeValue, BagAsXml):
             result = self.buildTag(node.label, nodeValue, nodeattr, '', xmlMode=True,namespaces=current_namespaces)
 
-        #elif ((isinstance(nodeValue, list) or isinstance(nodeValue, dict))):
-        #    nodeValue = gnrstring.toJson(nodeValue)
-        #    result = self.buildTag(node.label, nodeValue, node.attr)
-        #elif nodeValue and (isinstance(nodeValue, list) or isinstance(nodeValue, tuple)):
-        #    result = self.buildTag(node.label,
-        #                           '\n'.join([self.buildTag('C', c) for c in nodeValue]),
-        #                           node.attr, cls='A%s' % self.catalog.getClassKey(nodeValue[0]),
-        #                           xmlMode=True)
-
-        elif self.mode4d and (nodeValue and (isinstance(nodeValue, list) or isinstance(nodeValue, tuple))):
-            if node.label[:3] in ('AR_','AL_','AT_','AD_','AH_','AB_'):
-                cls4d = node.label[:2] # if variable name specify array type, use it
-            else:
-                cls4d = 'A%s' % self.catalog.getClassKey(nodeValue[0])
-            result = self.buildTag(node.label,
-                       '\n'.join([self.buildTag('C', c,namespaces=current_namespaces) for c in nodeValue]),
-                       node.attr, cls=cls4d,
-                       xmlMode=True,namespaces=namespaces)
-
         else:
             result = self.buildTag(node.label, nodeValue, node.attr,namespaces=namespaces)
         return result
@@ -321,10 +297,12 @@ class BagToXml(object):
         return '\n'.join([self.nodeToXmlBlock(node,namespaces=namespaces) for node in bag.nodes])
 
     #-------------------- toXml --------------------------------
-    def build(self, bag, filename=None, encoding='UTF-8', catalog=None, typeattrs=True, typevalue=True,
+    def build(self, bag, filename=None, encoding='UTF-8', catalog=None,
+              typeattrs=True, typevalue=True,
               addBagTypeAttr=True, output_encoding=None,
               unresolved=False, autocreate=False, docHeader=None, self_closed_tags=None,
-              translate_cb=None, omitUnknownTypes=False, omitRoot=False, forcedTagAttr=None,mode4d=False,pretty=None):
+              translate_cb=None, omitUnknownTypes=False, omitRoot=False, forcedTagAttr=None,
+              pretty=None):
         """Return a complete standard XML version of the Bag, including the encoding tag
         ``<?xml version=\'1.0\' encoding=\'UTF-8\'?>``; the Bag's content is hierarchically represented
         as an XML block sub-element of the ``<GenRoBag>`` node.
@@ -365,7 +343,6 @@ class BagToXml(object):
         self.self_closed_tags = self_closed_tags or []
         self.forcedTagAttr = forcedTagAttr
         self.addBagTypeAttr = addBagTypeAttr
-        self.mode4d = mode4d
         if not typeattrs:
             self.catalog.addSerializer("asText", bool, lambda b: 'y' * int(b))
 
@@ -415,8 +392,6 @@ class BagToXml(object):
                 elif isinstance(value, BagAsXml):
                     value = value.value
                 else:
-                    if self.mode4d and isinstance(value, Decimal):
-                        value = float(value)
                     value, t = self.catalog.asTextAndType(value, translate_cb=self.translate_cb if localize else None,nestedTyping=True)
                 if isinstance(value, BagAsXml):
                     # FIXME - raise the proper exception with description!

@@ -116,24 +116,6 @@ dojo.declare("gnr.GnrDevHandler", null, {
         return;
     },
 
-    siteLockedStatus:function(set){
-        var maingenro = genro.mainGenroWindow.genro;
-        var sn = maingenro.nodeById('_gnrRoot');
-        if(!sn){
-            return;
-        }
-        if(set){
-            if(!maingenro.site_locked){
-                maingenro.site_locked = true;
-                sn.setHiderLayer(true,{message:'Site temporary unavailable',z_index:999998,message_color:'white',message_font_size:'30pt',
-                                    message_background:'red',message_padding:'20px',message_margin:'20%'});
-            }
-        }else if (maingenro.site_locked){
-            maingenro.site_locked = false;
-            sn.setHiderLayer(false);
-        }
-    },
-
     debugMessage: function(msg, level, duration) {
         level = level || 'MESSAGE';
         duration = duration || 50;

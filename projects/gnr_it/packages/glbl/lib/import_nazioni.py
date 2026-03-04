@@ -6,14 +6,7 @@ import_data.py
 Created by Saverio Porcari on 2007-08-27.
 Copyright (c) 2007 __MyCompanyName__. All rights reserved.
 """
-from __future__ import print_function
-
-import sys
-import os
-import random, datetime
 from gnr.app.gnrapp import GnrApp
-
-import md5
 
 def importSigleNaz(db, filepath):
     tbl = db.table('glbl.nazione')

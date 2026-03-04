@@ -15,7 +15,7 @@ maintainers = [
   {name = "Michele Bertoldi", email = "michele.bertoldi@softwell.it" }
 ]
 description = "GenroPy Web Framework"
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 keywords = ["web", "framework", "SPA applications"]
 license = {file = "LICENSE" }
 classifiers = [
@@ -23,62 +23,70 @@ classifiers = [
     "License :: OSI Approved :: GNU Lesser General Public License v2 or later (LGPLv2+)",
 ]
 dependencies = [
-	     "tornado", # used for async
-	     "python-dateutil",
-	     "paste",
-	     "mako",
-	     "vobject",
-	     "pytz",
+	     "aiohttp",
 	     "babel",
-	     "httplib2",
-#	     "selectors34", #apparently abandoned
-#	     "serpent<1.30", #it's a pyro dependencies, so it seem
-                             #not necessary to list it here
-	     "pyro4",
-	     #"argparse",# it's parte of the stdlib
-	     "xlrd",
-	     "xlwt",
-	     "docutils",
-	     "redbaron",
-	     "future", # evaluate if needed
 	     "boto3",
-	     "smart_open",
-	     "gunicorn",
-	     "supervisor",
-	     "lxml",
-	     "openpyxl",
-	     "psutil",
-	     "simpleeval",
-	     "webob",
-	     "werkzeug==2.3.8",
-	     "six", # evaluate if needed
-	     "tzlocal",
-	     "pyyaml",
-	     "chardet",
-	     "jsmin",
-	     "paramiko", # gnr.core.gnrssh
-	     "dulwich", # needed by gnrgit
-	     "reportlab",
 	     "caldav",
+	     "chardet==5.2.0",
+	     "dictdiffer", # for gnr.sql migration
+	     "docutils",
+	     "dulwich", # needed by gnrgit
+	     "gunicorn",
+	     "jsmin",
+	     "lxml",
+	     "mako",
+	     "openpyxl",
+	     "packaging",
+	     "paramiko", # gnr.core.gnrssh
+	     "paste",
+	     "psutil",
+	     "pymupdf",
+	     "pypdftk",
+	     "PyPDF2",
+	     "pyro4",
+	     "python-dateutil",
+	     "pytz",
+	     "pyyaml",
+	     "redbaron",
+	     "requests",
+	     "simpleeval",
+	     "six", # evaluate if needed
+	     "smart_open",
+	     "supervisor",
+	     "tornado", # used for async
+	     "tzlocal",
+	     "unidecode",
+	     "vobject",
+	     "watchgod", # used in asyncio for autoreload
 	     "weasyprint",
+	     "werkzeug>=2.3.8,!=3.1.4",
+	     "xlrd",
+	     "xlwt"
 	     ]
 
 [project.optional-dependencies]
-pgsql = ["psycopg2-binary","psycopg"]
+pgsql = [
+  "psycopg2-binary",
+  "psycopg"
+]
+
 mysql = ["mysqlclient"]
+
 developer = [
-	  "pytest", "pytest-cov", "graphviz",
-	  "build", "twine","ipython",
-	  "psycopg2-binary","psycopg",
-   	  "testing.postgresql" # needed for tests, assuming developers runs tests
-	    ]
+  "pytest", "pytest-cov", "graphviz",
+  "pytest-aiohttp", "pytest-asyncio",
+  "flake8",
+  "debugpy",
+  "build", "twine","ipython",
+  "psycopg2-binary",
+  "psycopg",
+  "pymysql",
+  "testing.postgresql" # needed for tests, assuming developers runs tests
+]
 
 [project.scripts]
 # gnr.core
 gnr = 'gnr.core.cli.gnr:main'
-# gnr.xtnd
-gnrsync4d = 'gnr.xtnd.cli.gnrsync4d:main'
-gnrsync4dpyro = 'gnr.xtnd.cli.gnrsync4dpyro:main'
 # gnr.web
 gnrsyncstorage = 'gnr.web.cli.gnrsyncstorage:main'
 gnrtaskscheduler = 'gnr.web.cli.gnrtaskscheduler:main'
@@ -97,7 +105,6 @@ gnrrms = 'gnr.app.cli.gnrrms:main'
 gnrsendmail = 'gnr.app.cli.gnrsendmail:main'
 gnrserviceworker = 'gnr.app.cli.gnrserviceworker:main'
 gnrtrdaemon = 'gnr.app.cli.gnrtrdaemon:main'
-gnrupdate = 'gnr.app.cli.gnrupdate:main'
 initgenropy = 'gnr.app.cli.initgenropy:main'
 # gnr.dev
 gnrnotes = 'gnr.dev.cli.gnrnotes:main'
@@ -135,6 +142,7 @@ packages = [
 	    'gnr.app.cli',
 	    'gnr.core',
 	    'gnr.core.cli',
+    	    'gnr.core.loghandlers',
 	    'gnr.db',
 	    'gnr.db.cli',
 	    'gnr.dev',
@@ -146,6 +154,7 @@ packages = [
 	    'gnr.web.components',
 	    'gnr.web.gnrwebpage_plugin',
 	    'gnr.web.gnrwebpage_proxy',
+	    'gnr.web.gnrwebpage_proxy.apphandler',
     	    'gnr.web.gnrwebpage_proxy.frontend',	
 	    'gnr.web.gnrwsgisite_proxy',
 	    'gnr.xtnd',
@@ -153,7 +162,12 @@ packages = [
    	    'gnr.lib',
    	    'gnr.sql.adapters',
     	    'gnr.sql',
+   	    'gnr.sql.gnrsql',	
     	    'gnr.sql.gnrsqltable_proxy',
+	    'gnr.sql.gnrsqldata',
+	    'gnr.sql.gnrsqlmigration',
+	    'gnr.sql.gnrsqlmodel',
+    	    'gnr.sql.gnrsqltable',
       	    'gnr.lib.services',	
       	    'gnr.web',
 	    'gnr.gnrjs',
@@ -173,10 +187,15 @@ packages = [
 "gnr.webtools" = "../webtools"
 
 
+# PYTEST
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
+asyncio_default_fixture_loop_scope = "function"
+
 # COVERAGE
 [tool.coverage.run]
 omit = [
-     "*/cli/*",
 ]
 
 # LINTERS
@@ -209,8 +228,8 @@ indent-width = 4
 target-version = "py38"
 
 [tool.ruff.lint]
-select = ["E4", "E7", "E9", "F"]
-ignore = ["F401"]
+select = ["F401", "E4", "E7", "E9", "F"]
+ignore = []
 fixable = ["ALL"]
 unfixable = []
 

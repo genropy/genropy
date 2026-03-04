@@ -7,12 +7,13 @@
 #  Copyright (c) 2007 Softwell. All rights reserved.
 
 # --------------------------- GnrWebPage subclass ---------------------------
-from __future__ import absolute_import
-from gnr.web.gnrwebpage_plugin.gnrbaseplugin import GnrBasePlugin
-from mako.lookup import TemplateLookup
 import itertools
 import os
-from gnr.web.gnrwsgisite import WSGIHTTPException
+
+from mako.lookup import TemplateLookup
+
+from gnr.web.gnrwebpage_plugin.gnrbaseplugin import GnrBasePlugin
+from gnr.web.gnrwsgisite import HTTPException
 
 AUTH_OK = 0
 AUTH_NOT_LOGGED = 1
@@ -46,7 +47,7 @@ class Plugin(GnrBasePlugin):
         arg_dict.update(kwargs)
         try:
             output = template.render(**arg_dict)
-        except WSGIHTTPException as exc:
+        except HTTPException as exc:
             return exc
         if not pdf:
             page.response.content_type = 'text/html'

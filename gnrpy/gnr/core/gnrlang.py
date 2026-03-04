@@ -29,8 +29,11 @@ import uuid
 import base64
 from types import MethodType
 from io import IOBase
+from functools import total_ordering
+from chardet.universaldetector import UniversalDetector
 
-from gnr.core.gnrdecorator import deprecated,extract_kwargs # keep for compatibility
+from gnr.core import logger
+from gnr.core.gnrdecorator import extract_kwargs # keep for compatibility
 
 try:
     file_types = (file, IOBase)
@@ -39,9 +42,6 @@ except NameError:
 
 thread_ws = dict()
 _mixincount = 0
-
-from functools import total_ordering
-import time
 
 @total_ordering
 class MinType(object):
@@ -102,6 +102,34 @@ def tracebackBag(limit=None):
     return Bag(root=result)
 
 
+def get_caller_info():
+    """
+    Get information about the actual caller, skipping decorator frames.
+    """
+    frame = sys._getframe(2)  # Start two levels up
+    while frame:
+        function_name = frame.f_code.co_name
+        module_name = frame.f_globals["__name__"]
+        if sys.platform == 'win32':
+            # the "C:/" in the module path causes trouble in the
+            # template, remove the semicolon accordingly
+            module_name = module_name.replace(':', '_')
+        
+        # Check if the frame is a decorator
+        # Skip frames where the function name is 'wrapper' (commonly used in decorators)
+        if function_name != "wrapper":
+            line_number = frame.f_lineno
+            return {
+                "line_number": line_number,
+                "function_name": function_name,
+                "module_name": module_name
+            }
+        
+        # Move up the stack
+        frame = frame.f_back
+
+    return None  
+
 class BaseProxy(object):
     def __init__(self, main):
         self.main=main
@@ -145,7 +173,7 @@ def objectExtract(myobj, f,slicePrefix=True):
     :param myobj: TODO
     :param f: TODO"""
     lf = len(f)
-    return dict([(k[lf:] if slicePrefix else k, getattr(myobj, k)) for k in dir(myobj) if k.startswith(f)])
+    return {k[lf:] if slicePrefix else k: getattr(myobj, k) for k in dir(myobj) if k.startswith(f)}
 
 def importModule(module):
     """TODO
@@ -155,6 +183,27 @@ def importModule(module):
         __import__(module)
     return sys.modules[module]
 
+def getEncoding(docname):
+    """Detect the encoding of a file using chardet.
+
+    :param docname: path to the file to analyze
+
+    :returns: encoding name as string, or None if not detectable
+    """
+    
+    detector = UniversalDetector()
+    detector.reset()
+    finalChunk = False
+    blockSize = 64 * 1024
+    with open(docname, 'rb') as f:
+        while (not finalChunk) and (not detector.done):
+            chunk = f.read(blockSize)
+            if len(chunk) < blockSize:
+                finalChunk = True
+            detector.feed(chunk)
+    detector.close()
+    return detector.result.get('encoding', None)
+    
 def getUuid():
     """Return a Python Universally Unique IDentifier 3 (UUID3) through the Python \'base64.urlsafe_b64encode\' method"""
     t_id = _thread.get_ident()
@@ -656,9 +705,9 @@ def errorLog(proc_name, host=None, from_address='', to_address=None, user=None, 
 
     ts = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S: ')
     title = '%s - Error in %s' % (ts, proc_name)
-    print(title)
+    logger.error(title)
     tb_text = errorTxt()
-    print(tb_text.encode('ascii', 'ignore'))
+    logger.error(tb_text.encode('ascii', 'ignore'))
 
     if (host and to_address):
         try:
@@ -671,8 +720,35 @@ def errorLog(proc_name, host=None, from_address='', to_address=None, user=None, 
                      password=password
                      )
         except:
-            pass
+            logger.exception("While sending errroLog email")
+            
     return tb_text
 
-if __name__ == '__main__':
-    pass
+
+
+class ThreadedDict:
+    """
+    A dictionary-like object with automatic keys
+    based on the current thread ident
+    """
+    def __init__(self):
+        self._data = {}
+        
+    def get(self):
+        """
+        Retrieve the value associated to the current thread ident
+        """
+        return self._data.get(_thread.get_ident(), None)
+    
+    def set(self, value=None):
+        """
+        Set a value using the thred ident as hash
+        """
+        tid = _thread.get_ident()
+        if value is None:
+            self._data.pop(tid, None)
+        else:
+            self._data[tid] = value
+        
+
+    
