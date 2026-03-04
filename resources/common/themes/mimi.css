@@ -2,15 +2,82 @@
 
 body {
     --primary-color: #1E3055;
+    --primary-dark: #152340;
+    --primary-light: #e8ecf4;
+    --primary-lighter: #f2f4f8;
     --mainWindow-background: white;
-    --frameindexroot-background: white;
-    --frameindexcenter-background: white;
+    --frameindexroot-background: #f5f6f8;
+    --frameindexcenter-background: #f5f6f8;
     --frameindexroot-mobile-background: #4b525b;
 }
 
+/* Color variants: override full palette
+   --primary-color: main brand color (top bar, dialog titles, buttons)
+   --primary-dark: darker shade (iframe tablist - distinguishes from top bar)
+   --primary-light: soft tint (roundedgroup headers, tab borders)
+   --primary-lighter: very soft tint (backgrounds)
+*/
+._common_d11.tundra.theme_variant_green {
+    --primary-color: #2a9d6e;
+    --primary-dark: #1f7a54;
+    --primary-light: #d4f0e4;
+    --primary-lighter: #eef8f3;
+    --root-top-background: #2a9d6e;
+    --dialogtitlebar-background: #2a9d6e;
+    --frameindex-tablist-background: #1f7a54;
+    --roundedgroup-bar: #d4f0e4;
+    --roundedgroup-bar-color: #1a6b4a;
+}
+._common_d11.tundra.theme_variant_blue {
+    --primary-color: #3b6fb6;
+    --primary-dark: #2c5490;
+    --primary-light: #dce6f5;
+    --primary-lighter: #eef3fa;
+    --root-top-background: #3b6fb6;
+    --dialogtitlebar-background: #3b6fb6;
+    --frameindex-tablist-background: #2c5490;
+    --roundedgroup-bar: #dce6f5;
+    --roundedgroup-bar-color: #2a5080;
+}
+._common_d11.tundra.theme_variant_red {
+    --primary-color: #d94452;
+    --primary-dark: #b5313e;
+    --primary-light: #f8dde0;
+    --primary-lighter: #fdf1f2;
+    --root-top-background: #d94452;
+    --dialogtitlebar-background: #d94452;
+    --frameindex-tablist-background: #b5313e;
+    --roundedgroup-bar: #f8dde0;
+    --roundedgroup-bar-color: #a03040;
+}
+._common_d11.tundra.theme_variant_orange {
+    --primary-color: #e8833a;
+    --primary-dark: #c46a28;
+    --primary-light: #fae3cf;
+    --primary-lighter: #fdf3ea;
+    --root-top-background: #e8833a;
+    --dialogtitlebar-background: #e8833a;
+    --frameindex-tablist-background: #c46a28;
+    --roundedgroup-bar: #fae3cf;
+    --roundedgroup-bar-color: #a05a20;
+}
+._common_d11.tundra.theme_variant_yellow {
+    --primary-color: #c9960e;
+    --primary-dark: #a57a0a;
+    --primary-light: #f5eacc;
+    --primary-lighter: #fbf5e8;
+    --root-top-background: #c9960e;
+    --root-top-color: #3a3226;
+    --dialogtitlebar-background: #c9960e;
+    --frameindex-tablist-background: #a57a0a;
+    --roundedgroup-bar: #f5eacc;
+    --roundedgroup-bar-color: #6b5010;
+}
+
 body.tundra.mimi {
-    font:14px "SF Pro Text","Myriad Set Pro","SF Pro Icons","Apple Legacy Chevron","Helvetica Neue","Helvetica","Arial",sans-serif;
+    font:14px 'Inter',-apple-system,"Helvetica Neue","Helvetica","Arial",sans-serif;
     color:#555;
+    accent-color: var(--primary-color, #1E3055);
 }
 
 .frameindexroot{
@@ -77,35 +144,9 @@ body.tundra.mimi {
     border:0;
 }
 .slotbar_toolbar_standard{
-    background-color:#E4E4E4;
-    background-image:linear-gradient(to bottom,rgba(220, 222, 224, 0.7), #eff1f3bf, #f3f4f5da);
+    background-color: #f0f1f3;
 }
 
-._common_d11.tundra.theme_variant_green .dojoxFloatingPaneTitle{
-    background-color: #50c9c3;
-    background: linear-gradient(to bottom, #1d976c, #37ce99);  /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
-    color:white;
-}
-
-._common_d11.tundra.theme_variant_blue .dojoxFloatingPaneTitle{
-    background-color: #182848;
-    background: linear-gradient(to bottom, #4b6cb7, #3b6391);
-}
-
-._common_d11.tundra.theme_variant_red .dojoxFloatingPaneTitle{
-    background-color: #d31027;
-    background:linear-gradient(to bottom, #d31027, #ea384d);
-}
-
-._common_d11.tundra.theme_variant_orange .dojoxFloatingPaneTitle{
-    background-color:#e65c00;
-    background: linear-gradient(to bottom, #fa8435, #f96723);
-}
-
-._common_d11.tundra.theme_variant_yellow .dojoxFloatingPaneTitle{
-    background-color:rgba(234, 203, 110, 1);
-    color:rgba(30, 48, 85, 1);
-}
 
 
 
@@ -143,53 +184,7 @@ body.tundra.mimi {
     background:var(--root-top-background);
 }
 .mimi .pbl_root_top .gnrfieldlabel{
-    color:rgba(30, 48, 85, 1);
-}
-
-.mimi.theme_variant_green .pbl_root_top{
-    background-color: #50c9c3;
-    background: linear-gradient(to bottom, #1d976c, #37ce99);  /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
-
-    color:white;
-
-}
-.mimi.theme_variant_green .pbl_root_top .gnrfieldlabel{
-    color:white;
-}
-.mimi.theme_variant_red .pbl_root_top{
-    background-color:#d31027;
-    background: linear-gradient(to bottom, #d31027, #ea384d);
-    color:white;
-
-}
-.mimi.theme_variant_red .pbl_root_top .gnrfieldlabel{
-    color:white;
-}
-
-.mimi.theme_variant_blue .pbl_root_top{
-    background-color: #182848;
-    background: linear-gradient(to bottom, #4b6cb7, #3b6391);
-    color:white;
-}
-.mimi.theme_variant_blue .pbl_root_top .gnrfieldlabel{
-    color:white;
-}
-
-.mimi.theme_variant_orange .pbl_root_top{
-    background-color:#e65c00;
-    background: linear-gradient(to bottom, #fa8435, #f96723);
-    color:white;
-}
-.mimi.theme_variant_orange .pbl_root_top .gnrfieldlabel{
-    color:white;
-}
-
-.mimi.theme_variant_yellow .pbl_root_top{
-    background-color:rgba(234, 203, 110, 1);
-    color:rgba(30, 48, 85, 1);
-}
-.mimi.theme_variant_yellow .pbl_root_top .gnrfieldlabel{
-    color:rgba(30, 48, 85, 1);
+    color: var(--root-top-color, #fff);
 }
 
 
@@ -302,7 +297,7 @@ body.tundra.mimi {
 
 .pbl_roundedGroup {
     border-radius: 6px;
-    border:1px solid #ddd;
+    border: 1px solid #ddd;
 }
 
 .pbl_roundedGroupLabel {
@@ -315,13 +310,14 @@ body.tundra.mimi {
     border-top-left-radius: 4px;
     border-top-right-radius: 4px;
     font-size: 1em;
-    background:var(--roundedgroup-bar);
-    color:var(--roundedgroup-bar-color);
+    background: var(--primary-light, #e8ecf4);
+    color: var(--primary-color, #1E3055);
+    font-weight: 500;
 	text-indent: 2px;
 }
 
 .pbl_roundedGroupVertical {
-    background:var(--roundedgroup-bar);
+    background: var(--primary-light, #e8ecf4);
 }
 
 
@@ -358,7 +354,7 @@ body.tundra.mimi {
     height: 18px;
     padding-left: 10px;
     font-size: 0.9em;
-    background-color:#B4BECB;
+    background-color: var(--primary-light, #e8ecf4);
 }
 
 /* @end */
@@ -375,9 +371,9 @@ body.tundra.mimi {
     padding-left: 10px;
     font-size: 0.9em;
     padding-top: 5px;
-    background:#c2d0e9;
-    background:linear-gradient(to bottom, #c2d0e9,  #d6dfee);
-    color: #444;
+    background: var(--primary-light, #e8ecf4);
+    color: var(--primary-color, #1E3055);
+    font-weight: 500;
 }
 
 .pbl_rectGroupBottom {
@@ -385,8 +381,7 @@ body.tundra.mimi {
     padding-left: 10px;
     font-size: 0.9em;
     padding-bottom: 5px;
-    background:#c2d0e9;
-    background:linear-gradient(to bottom, #c2d0e9,  #d6dfee);
+    background: var(--primary-light, #e8ecf4);
 }
 
 /* @end */
@@ -445,31 +440,7 @@ body.tundra.mimi {
     padding-bottom: 2px;
 }
 
-.tundra._common_d11.theme_variant_green .dijitDialogTitleBar,.tundra._common_d11.theme_variant_green .commonTitleBar{
-    background-color: #50c9c3;
-      background: linear-gradient(to bottom, #1d976c, #37ce99);  /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
-
-    color:white;
-}
-
-.tundra._common_d11.theme_variant_red .dijitDialogTitleBar, .tundra._common_d11.theme_variant_red .commonTitleBar{
-    background-color:#d31027;
-    background:linear-gradient(to bottom, #d31027, #ea384d);
-}
-.tundra._common_d11.theme_variant_blue .dijitDialogTitleBar, .tundra._common_d11.theme_variant_blue .commonTitleBar{
-    background-color: #182848;
-    background: linear-gradient(to bottom, #4b6cb7, #3b6391);
-}
-
-.tundra._common_d11.theme_variant_orange .dijitDialogTitleBar, .tundra._common_d11.theme_variant_orange .commonTitleBar{
-    background-color:#e65c00;
-    background: linear-gradient(to bottom, #fa8435, #f96723);
-}
-
-.tundra._common_d11.theme_variant_yellow .dijitDialogTitleBar, .tundra._common_d11.theme_variant_yellow .commonTitleBar{
-    background-color:rgba(234, 203, 110, 1);
-    color:rgba(30, 48, 85, 1);
-}
+/* Dialog title bars pick up --primary-color from each variant */
 
 
 
@@ -494,14 +465,55 @@ body.tundra.mimi {
 }
 
 .dialog_bottom {
-    height: 22px;
-    border-top:1px solid silver;
-    padding-top: 3px;
-    padding-left: 2px;
-    padding-right: 2px;
-
+    height: 28px;
+    border-top: 1px solid #e0e0e0;
+    padding-top: 4px;
+    padding-left: 6px;
+    padding-right: 6px;
+    padding-bottom: 4px;
     border-bottom-left-radius: 6px;
     border-bottom-right-radius: 6px;
+    background: #fafafa;
+}
+
+/* Secondary action button (Applica) - default for dialog bottom */
+.tundra .dialog_bottom .dijitButton .dijitButtonNode {
+    background-color: var(--primary-color, #1E3055);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 2px 10px;
+    font-weight: 500;
+}
+.tundra .dialog_bottom .dijitButton .dijitButtonNode .dijitButtonText{
+    color: white;
+}
+
+/* Primary action button (Conferma/Save) - last button, slightly bolder */
+.tundra .dialog_bottom .dijitButton:last-child .dijitButtonNode {
+    padding: 2px 12px;
+    font-weight: 600;
+}
+.tundra .dialog_bottom .dijitButton:last-child .dijitButtonHover .dijitButtonNode,
+.tundra .dialog_bottom .dijitButton:last-child.dijitButtonHover .dijitButtonNode {
+    opacity: 0.85;
+}
+
+/* Cancel/ghost button (Annulla) - first button in dialog bottom */
+.tundra .dialog_bottom .dijitButton:first-child .dijitButtonNode {
+    background: white;
+    border: 1px solid var(--primary-color, #1E3055);
+    color: var(--primary-color, #1E3055);
+    border-radius: 5px;
+    padding: 2px 10px;
+}
+.tundra .dialog_bottom .dijitButton:first-child .dijitButtonNode .dijitButtonText{
+    color: var(--primary-color, #1E3055);
+}
+.tundra .dialog_bottom .dijitButton:first-child .dijitButtonHover .dijitButtonNode,
+.tundra .dialog_bottom .dijitButton:first-child.dijitButtonHover .dijitButtonNode {
+    background: var(--primary-lighter, #f2f4f8);
+    border-color: var(--primary-color, #1E3055);
 }
 
 
@@ -544,121 +556,168 @@ body.tundra.mimi {
 
 /* @group Tabcontainer */
 
+/* Default: modern card tabs — unselected in primary color (negative) */
 ._common_d11 .dijitTab {
-    font-size: .9em;
-    border-top-left-radius: 4px;
-    border-top-right-radius: 4px;
-    background:var(--tab-background);
-    color:var(--tab-text-color);
+    font-size: .85em;
+    border-radius: 6px 6px 0 0;
+    background: var(--primary-color, #1E3055);
+    color: rgba(255,255,255,0.75);
+    border: none;
+    border-bottom: none;
     margin-right: 2px;
-    font-weight: plain;
-    /*background-image:-webkit-gradient(linear, 0% 0%, 0% 90%, from(rgba(104,133,142,0.99)), to(rgba(223,223,223,0.99)));
-  background-image:-moz-linear-gradient(top, bottom,from(rgba(104,133,142,0.99)), to(rgba(223,223,223,0.99)));*/
-
+    margin-bottom: -1px;
+    position: relative;
+    font-weight: 400;
+    box-shadow: inset 0 -4px 6px -2px rgba(0,0,0,0.15);
+    transition: color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 ._common_d11 .dijitTabHover {
-    opacity: 0.8;
+    opacity: 1;
+    background: var(--primary-color, #1E3055);
+    color: white;
+    border: none;
+    border-bottom: none;
+    box-shadow: inset 0 -2px 4px -2px rgba(0,0,0,0.1);
 }
 
 ._common_d11 .dijitTabInnerDiv {
     border-left: 0;
     border-bottom: 0;
-    padding:3px 5px 3px 5px;
+    padding: 4px 10px;
 }
 ._common_d11 .dijitTabLabels-left-h .dijitTabInnerDiv {
-    padding:4px 5px 4px 10px;
-
+    padding: 4px 5px 4px 10px;
 }
 ._common_d11 .dijitTabCheckedHover {
     opacity: 1;
 }
 
 ._common_d11 .dijitTabChecked {
-    border-bottom-color: transparent;
-    color: var(--tab-selected-text-color);;
-    background: var(--tab-selected-background);
+    background: white;
+    color: var(--primary-color, #1E3055);
+    font-weight: 600;
+    border: 1px solid #aab4c4;
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    box-shadow: none;
 }
 
-._common_d11 .dijitAlignTop .dijitTabChecked, ._common_d11 .dijitAlignTop .dijitTabCloseButtonChecked {
-    background:white;
-    border-bottom-color: transparent;
-    color: #555;
+._common_d11 .dijitAlignTop .dijitTabChecked,
+._common_d11 .dijitAlignTop .dijitTabCloseButtonChecked {
+    background: white;
+    color: var(--primary-color, #1E3055);
+    font-weight: 600;
+    border: 1px solid #aab4c4;
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    box-shadow: none;
 }
 
 ._common_d11 .dijitTabPaneWrapper {
-    border-radius: 6px;
-    border-top-left-radius: 0px;
+    border: 1px solid #aab4c4;
+    border-radius: 0 0 4px 4px;
+    background: white;
+}
+
+/* Underline tab variant - add class 'underline_tabs' to the tab container */
+.underline_tabs ._common_d11 .dijitTab,
+._common_d11 .underline_tabs .dijitTab {
+    border-radius: 0;
+    background: transparent;
+    color: #888;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-right: 0;
+    margin-bottom: 0;
+    position: static;
+}
+.underline_tabs ._common_d11 .dijitTabHover,
+._common_d11 .underline_tabs .dijitTabHover {
+    background: transparent;
+    color: #555;
+    border-bottom-color: #ccc;
+}
+.underline_tabs ._common_d11 .dijitTabChecked,
+._common_d11 .underline_tabs .dijitTabChecked,
+.underline_tabs ._common_d11 .dijitAlignTop .dijitTabChecked,
+._common_d11 .underline_tabs .dijitAlignTop .dijitTabChecked {
+    background: transparent;
+    color: var(--primary-color, #1E3055);
+    font-weight: 600;
+    border: none;
+    border-bottom: 2px solid var(--primary-color, #1E3055);
+    border-radius: 0;
+    z-index: auto;
+}
+.underline_tabs ._common_d11 .dijitTabPaneWrapper,
+._common_d11 .underline_tabs .dijitTabPaneWrapper {
+    border: none;
+    border-top: 1px solid #e0e0e0;
+    border-radius: 0;
+    background: transparent;
 }
 
 /* @group righttab */
 
-._common_d11 .dijitTabLabels-right-h .dijitTab {
-
-    /*border-bottom-right-radius: 4px;
-    border-top-right-radius: 4px;
-    border-bottom-left-radius: 0px;
-    border-top-left-radius: 0px;*/
-    margin-bottom: 1px;
-    border-width: 0;
-}
-
-._common_d11 .dijitTabLabels-right-h.dijitAlignRight,._common_d11 .dijitTabLabels-left-h.dijitAlignLeft{
+._common_d11 .dijitTabLabels-right-h.dijitAlignRight {
+    border: none;
+    border-left: 1px solid #e0e0e0;
     padding-top: 3px;
+    padding-left: 2px;
+}
 
-}
-._common_d11 .dijitTabLabels-left-h.dijitAlignLeft{
-    border-top:1px solid #ccc;
-    border-left:1px solid #ccc;
-    border-bottom:1px solid #ccc;
-    padding-right: 2px;
-}
-._common_d11 .dijitTabLabels-right-h.dijitAlignRight{
-    border-top:1px solid #ccc;
-    border-right:1px solid #ccc;
-    border-bottom:1px solid #ccc;  
-    padding-left: 2px;  
+._common_d11 .dijitTabLabels-right-h .dijitTab {
+    margin-bottom: 1px;
+    border: none;
+    background: transparent;
+    color: #888;
+    border-radius: 0;
+    border-left: 2px solid transparent;
+    transition: color 0.15s ease, border-color 0.15s ease;
 }
 
 ._common_d11 .dijitTabLabels-right-h .dijitTabInnerDiv {
-    border: 0; /*padding: 2px 3px;*/
+    border: 0;
 }
 
-._common_d11 .dijitTabLabels-right-h.dijitAlignTop .dijitTabChecked, ._common_d11 .dijitAlignTop .dijitTabCloseButtonChecked {
-    border-left-color: whitesmoke;
+._common_d11 .dijitTabLabels-right-h .dijitTab.dijitTabChecked {
+    background: transparent;
+    color: var(--primary-color, #1E3055);
+    font-weight: 600;
+    border-radius: 0;
+    border-left: 2px solid var(--primary-color, #1E3055);
 }
 
 /* @end */
 
 /* @group lefttab */
 
+._common_d11 .dijitTabLabels-left-h.dijitAlignLeft {
+    border: none;
+    border-right: 1px solid #e0e0e0;
+    padding-top: 3px;
+    padding-right: 2px;
+}
+
 ._common_d11 .dijitTabLabels-left-h .dijitTab {
-
-    /*border-bottom-right-radius: 0px;
-    border-top-right-radius: 0px;
-    border-bottom-left-radius: 0px;
-    border-top-left-radius: 0px;*/
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
-    border-top-left-radius:4px;
-    border-bottom-left-radius:4px;
-    border:1px solid #ccc;
-    margin-left: 3px;
+    border: none;
+    border-radius: 0;
+    border-right: 2px solid transparent;
+    margin-left: 0;
     text-align: right;
-    margin-bottom: 2px;
-    color:#444;
+    margin-bottom: 1px;
+    color: #888;
+    background: transparent;
+    transition: color 0.15s ease, border-color 0.15s ease;
 }
+
 ._common_d11 .dijitTabLabels-left-h .dijitTab.dijitTabChecked {
-    color:#444;
-    background:linear-gradient(to bottom, #fffff3,  #fcf8c5);
-
-}
-
-
-._common_d11 .dijitTabLabels-left-h  .dijitAlignTop .dijitTabChecked, ._common_d11 .dijitAlignTop .dijitTabCloseButtonChecked {
-    border-right-color: transparent;
-    background:white;
-    border-bottom-color: #ccc;
+    color: var(--primary-color, #1E3055);
+    background: transparent;
+    font-weight: 600;
+    border-radius: 0;
+    border-right: 2px solid var(--primary-color, #1E3055);
 }
 
 /* @end */
@@ -788,10 +847,36 @@ body.tundra.mimi {
 }
 
 ._common_d11.mimi.mode_mobile .menutree .label_opendir{
-    background: url(/_gnr/11/css/icons/base10/tinyOpenBranch_white.png) no-repeat 4px center;
+    background: none;
+    padding-left: 16px;
+    position: relative;
+}
+._common_d11.mimi.mode_mobile .menutree .label_opendir::before{
+    content: '';
+    display: block;
+    position: absolute;
+    left: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    border-style: solid;
+    border-width: 5px 4px 0 4px;
+    border-color: white transparent transparent transparent;
 }
 ._common_d11.mimi.mode_mobile .menutree .label_closedir{
-    background: url(/_gnr/11/css/icons/base10/tinyCloseBranch_white.png) no-repeat 4px center;
+    background: none;
+    padding-left: 16px;
+    position: relative;
+}
+._common_d11.mimi.mode_mobile .menutree .label_closedir::before{
+    content: '';
+    display: block;
+    position: absolute;
+    left: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    border-style: solid;
+    border-width: 4px 0 4px 5px;
+    border-color: transparent transparent transparent white;
 }
 ._common_d11.mimi.mode_mobile .menutree.menutree_branchiconright .label_opendir,
 ._common_d11.mimi.mode_mobile .menutree.menutree_branchiconright .label_closedir{
@@ -1221,9 +1306,7 @@ body.tundra.mimi {
     opacity: 1;
 }
 .frameindex_left{
-    background: #ECE9E6;  /* fallback for old browsers */
-    background: -webkit-linear-gradient(to right, #FFFFFF, #ECE9E6);  /* Chrome 10-25, Safari 5.1-6 */
-    background: linear-gradient(to right, #FFFFFF, #ECE9E6); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */         
+    background: var(--frameindexroot-background, #f5f6f8);
 }
 
 .framedindex_tablist{
@@ -1297,7 +1380,6 @@ body.tundra.mimi {
 .iframesubtab.iframetab{
     background-image: none;
     background-color: #A6CAEE;
-    background-image: -moz-linear-gradient(-90deg, #A6CAEE, #467399);
 }
 
 .mimi.mode_mobile .iframetab_selected.iframetab{
@@ -1345,22 +1427,36 @@ body.tundra.mimi {
 
 
 .tundra .dijitButtonNode {
-    /* enabled state - inner */
-    background-color: #E4E4E4;
+    background-color: #e4e4e4;
     background-image: none;
-    border-radius: 2px;
-    padding:0 2px;
-    border-color:#666;
+    border-radius: 5px;
+    padding: 1px 4px;
+    border: 1px solid #b0b0b0;
+    color: #333;
+    font-weight: 500;
+    transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Reset for arrow buttons inside textbox/combobox/select/spinner */
+.tundra .dijitComboBox .dijitButtonNode,
+.tundra .dijitSelect .dijitButtonNode,
+.tundra .dijitSpinner .dijitButtonNode {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    color: inherit;
 }
 
 .slotbar_toolbar .dijitButtonNode {
-    color: #444;
-    border: 1px solid #777;
+    color: #333;
+    border: 1px solid #999;
     font-variant: normal;
     border-radius: 5px;
-    padding: 1px 2px;
+    padding: 2px 4px;
     box-shadow: none;
-    font-weight: bold;
+    font-weight: 500;
+    background-color: #e4e4e4;
 }
 
 ._common_d11.mimi .dijitSpinnerButtonContainer .dijitArrowButton .dijitArrowButtonInner{
@@ -1381,11 +1477,9 @@ body.tundra.mimi {
 .tundra .dijitDropDownButtonHover .dijitButtonNode,
 .tundra .dijitComboButton .dijitButtonContentsHover,
 .tundra .dijitComboButton .dijitDownArrowButtonHover {
-    /* hover state - inner */
-    /* TODO: change from Hover to Selected so that button is still highlighted while drop down is being used */
-    border-color: #666;
+    border-color: #888;
     background-image: none;
-    background-color:#E4E4E4;
+    background-color: #d8d8d8;
 }
 
 
@@ -1395,13 +1489,9 @@ body.tundra.mimi {
 .tundra .dijitDropDownButtonActive .dijitButtonNode,
 .tundra .dijitComboButton .dijitButtonContentsActive,
 .tundra .dijitComboButton .dijitDownArrowButtonActive{
-    /* hover state - inner */
-    /* TODO: change from Hover to Selected so that button is still highlighted while drop down is being used */
-    /*background-image: -webkit-gradient(linear, 0% 0%, 0% 90%,  from(rgba(182, 182, 182, 0.75)),to(rgba(239, 239, 239, 0.9)));
-    background-image: -moz-linear-gradient(-90deg, rgba(182, 182, 182, 0.75),rgba(239, 239, 239, 0.9));*/
-    background:#888;
-    box-shadow: inset 1px 1px 2px #222;
-    border-color: silver;
+    background: #ccc;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.2);
+    border-color: #888;
 }
 .tundra .dijitDisabled.dijitTextBoxReadOnly,
 .tundra .dijitDisabled.dijitTextBoxReadOnly .dijitButtonNode,
@@ -1429,8 +1519,6 @@ body.tundra.mimi {
 
 .darktoolbar{
     background-color: #444;
-    background-image: linear-gradient(to bottom,#f5f8fa46, #eff1f344, #f3f4f531);
-
 }
 .mimi .slotbar_toolbar {
     padding-top: 2px;

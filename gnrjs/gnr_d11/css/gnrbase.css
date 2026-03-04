@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Fira Sans Condensed&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Roboto Condensed&display=swap');
 
@@ -80,7 +81,7 @@ div,span{
 *:focus { outline:none; }
 
 body.tundra{
-    font:13px '-apple-system','HelveticaNeue','Arial';
+    font:13px 'Inter',-apple-system,'Helvetica Neue','Arial',sans-serif;
 }
 body.touchDevice{
     -webkit-text-size-adjust:none;
@@ -249,7 +250,7 @@ cursorZoom_plus{
 	right: 0;
 	color: #555;
 
-	font-family: helvetica;
+	font-family: inherit;
 	overflow: auto;
 	font-size: 9px;
 	background: white;
@@ -326,10 +327,27 @@ cursorZoom_plus{
 	text-decoration: underline;
 	cursor: pointer;
 	font-weight: bold;
-	background: url(icons/base10/tinyCloseBranch.png) no-repeat left center;
+	background: none;
+	padding-left: 12px;
+	position: relative;
+}
+.fieldsTree_folder::before{
+	content: '';
+	display: inline-block;
+	position: absolute;
+	left: 2px;
+	top: 50%;
+	transform: translateY(-50%);
+	border-style: solid;
+	border-width: 4px 0 4px 5px;
+	border-color: transparent transparent transparent #666;
 }
 .dijitTreeContentExpanded .fieldsTree_folder{
-	background: url(icons/base10/tinyOpenBranch.png) no-repeat left center;
+	background: none;
+}
+.dijitTreeContentExpanded .fieldsTree_folder::before{
+	border-width: 5px 4px 0 4px;
+	border-color: #666 transparent transparent transparent;
 }
 .fieldsTree_RM {
 	color: navy;
@@ -362,16 +380,16 @@ cursorZoom_plus{
 
 .tundra .dijitButtonNode {
 	/* enabled state - inner */
-	border: 1px solid silver;
-	border-bottom: 1px solid silver;
-    padding: 0px 2px;
-    background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, from(rgba(239, 239, 239, 0.9)), to(rgba(182, 182, 182, 0.75)));
-    background-image: -moz-linear-gradient(-90deg, rgba(239, 239, 239, 0.9), rgba(182, 182, 182, 0.75));
-    border-radius: 4px;
+	border: 1px solid #b0b0b0;
+    padding: 1px 4px;
+    background-image: none;
+    background-color: #e4e4e4;
+    border-radius: 5px;
     cursor: pointer;
     opacity: 1;
-    color: #494949;
+    color: #333;
     font-weight: normal;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 .tundra .dijitButtonText {
 
@@ -515,8 +533,8 @@ cursorZoom_plus{
 
 /* @end */
 .slotbar_toolbar_standard{
-    background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, from(silver), to(whitesmoke));
-    background-image: -moz-linear-gradient(-90deg, silver, whitesmoke);
+    background-color: #f5f5f5;
+    background-image: none;
 }
 .slotbar_toolbar_side_left{
     border-right:1px solid silver;
@@ -532,30 +550,27 @@ cursorZoom_plus{
 }
 
 .slotbar_toolbar .dijitButtonNode{
-
-    color:#333;
-    background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, from(#EDEDEE), to(#CDCDCD));
-    background-image: -moz-linear-gradient(-90deg, #EDEDEE, #CDCDCD);
-    border: 1px solid #666;
+    color: #333;
+    background-image: none;
+    background-color: #e4e4e4;
+    border: 1px solid #999;
     font-size: .9em;
     padding-top: 2px;
     padding-bottom: 2px;
-    font-variant:small-caps;
-    /*box-shadow: 1px 2px 1px #666;*/
+    font-variant: normal;
+    border-radius: 5px;
 }
 .slotbar_toolbar .dijitButtonHover .dijitButtonNode{
-    color:#333;
-    background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, from(#EDEDEE), to(#CDCDCD));
-    background-image: -moz-linear-gradient(-90deg, #EDEDEE, #CDCDCD);
-    border: 1px solid #666;
+    color: #222;
+    background-image: none;
+    background-color: #d8d8d8;
+    border: 1px solid #888;
 }
 
 .slotbar_toolbar .dijitButtonActive .dijitButtonNode{
-    background:#888;
-    -moz-box-shadow: inset 1px 1px 2px #222;
-    -webkit-box-shadow:inset 1px 1px 2px #222;
-    border: 1px solid #666;
-
+    background: #ccc;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.2);
+    border: 1px solid #888;
 }
 .slotbar_toolbar .dijitButtonActive .dijitButtonNode .dijitButtonText{
     color:white !important;
@@ -3443,7 +3458,7 @@ body *{
 	font-size: 9px;
 	color: white;
 	font-weight: bold;
-	font-family: helvetica;
+	font-family: inherit;
 	position: absolute;
 	z-index: 20;
 	background: #555;
@@ -4135,7 +4150,7 @@ table.draggedItem {
     font-size: 0.9em;
     line-height: 1.3em;
     margin: 0;
-    font-family: '-apple-system','HelveticaNeue','Arial';
+    font-family: inherit;
     color: #333;
 }
 
@@ -4144,7 +4159,7 @@ table.draggedItem {
     font-size: 1em;
     line-height: 1.5em;
     margin: 0;
-    font-family: '-apple-system','HelveticaNeue','Arial';
+    font-family: inherit;
     color: #333;
 }
 .tundra.touchDevice .dijitMenuItem:active {
@@ -4916,10 +4931,36 @@ div[disabled='true'], div[disabled='disabled']{
 
 /* @end */
 .tinyCloseBranch{
-    background: url(icons/base10/tinyCloseBranch.png) no-repeat right center;
+    background: none;
+    position: relative;
+    padding-right: 12px;
+}
+.tinyCloseBranch::after{
+    content: '';
+    display: inline-block;
+    position: absolute;
+    right: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+    border-style: solid;
+    border-width: 4px 0 4px 5px;
+    border-color: transparent transparent transparent #666;
 }
 .tinyOpenBranch{
-    background: url(icons/base10/tinyOpenBranch.png) no-repeat right 4px;
+    background: none;
+    position: relative;
+    padding-right: 12px;
+}
+.tinyOpenBranch::after{
+    content: '';
+    display: inline-block;
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    border-style: solid;
+    border-width: 5px 4px 0 4px;
+    border-color: #666 transparent transparent transparent;
 }
 .tunerUp{
     background: url(icons/base10/tuner_up.png) no-repeat center center;
@@ -5260,10 +5301,34 @@ div[disabled='true'], div[disabled='disabled']{
 }
 
 .branchtree .dijitTreeExpando.dijitTreeExpandoClosed{
-    background: url(icons/base10/tinyCloseBranch.png) no-repeat center center;
+    background: none;
+    position: relative;
+}
+.branchtree .dijitTreeExpando.dijitTreeExpandoClosed::after{
+    content: '';
+    display: block;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    border-style: solid;
+    border-width: 4px 0 4px 5px;
+    border-color: transparent transparent transparent #666;
 }
 .branchtree .dijitTreeExpando.dijitTreeExpandoOpened{
-    background: url(icons/base10/tinyOpenBranch.png) no-repeat center center;
+    background: none;
+    position: relative;
+}
+.branchtree .dijitTreeExpando.dijitTreeExpandoOpened::after{
+    content: '';
+    display: block;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    border-style: solid;
+    border-width: 5px 4px 0 4px;
+    border-color: #666 transparent transparent transparent;
 }
 
 .branchtree .dijitTreeExpandoLeaf{
@@ -5743,7 +5808,7 @@ div[disabled='true'], div[disabled='disabled']{
 }
 
 .bodySize_phone .dojoxGrid{
-    font-family: 'PT Sans Narrow'
+    font-family: inherit;
 }
 
 .bodySize_phone .templateGrid .dojoxGrid{
