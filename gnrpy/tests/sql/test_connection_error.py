@@ -23,6 +23,7 @@ from gnr.sql.gnrsql_exceptions import (
     GnrNonExistingDbException,
     GnrSqlConnectionException,
 )
+from gnr.sql.gnrsqlmigration.migrator import SqlMigrator
 
 
 class TestPsycopg2ConnectionError:
@@ -123,3 +124,22 @@ class TestPsycopg3ConnectionError:
                 SqlDbAdapter.connect(adapter)
             assert exc_info.value.dbname == 'test_db'
             assert exc_info.value.original_error is error
+
+
+class TestMigratorConnectionError:
+    """Test that the migrator catches GnrSqlConnectionException and exits cleanly."""
+
+    def test_migrator_exits_on_connection_error(self):
+        """prepareMigrationCommands should raise SystemExit with a clear message
+        when the DB server is unreachable."""
+        migrator = MagicMock(spec=SqlMigrator)
+        migrator.prepareMigrationCommands = SqlMigrator.prepareMigrationCommands.__get__(migrator)
+        conn_error = GnrSqlConnectionException('mydb', original_error=Exception('No route to host'))
+        migrator.prepareStructures.side_effect = conn_error
+
+        with pytest.raises(SystemExit) as exc_info:
+            migrator.prepareMigrationCommands()
+        msg = str(exc_info.value)
+        assert 'mydb' in msg
+        assert 'No route to host' in msg
+        assert 'Migration aborted' in msg
