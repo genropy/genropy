@@ -336,6 +336,31 @@ class GnrSqlAppDb(GnrSqlDb):
             self._multidb_config = result
         return result
     
+    def registerMacros(self):
+        """Register SQL macros: base + adapter + app-level + package-level.
+
+        Registration order:
+            1. Base macros (IN_RANGE, PERIOD) via super()
+            2. Adapter macros (TSQUERY, TSRANK, etc.) via super()
+            3. App-level macros (PREF, THIS, BAG, BAGCOLS) — here
+            4. Package macros via pkgBroadcast
+
+        Passes ``self`` (the db) to pkgBroadcast so packages can call
+        ``db.addMacro()`` even though ``application.db`` is not yet
+        assigned at this point in the init sequence.
+        """
+        super().registerMacros()
+        from gnr.sql.gnrsqldata.compiler import (
+            PREFFINDER, THISFINDER,
+            BAGEXPFINDER, BAGCOLSEXPFINDER
+        )
+        self.addMacro('PREF', PREFFINDER, None)
+        self.addMacro('THIS', THISFINDER, None)
+        self.addMacro('BAG', BAGEXPFINDER, None)
+        self.addMacro('BAGCOLS', BAGCOLSEXPFINDER, None)
+        if self.application:
+            self.application.pkgBroadcast('registerMacros', self)
+
     def checkTransactionWritable(self, tblobj):
         """TODO
         

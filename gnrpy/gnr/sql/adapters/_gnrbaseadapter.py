@@ -40,24 +40,36 @@ FLDMASK = dict(qmark='%s=?',named=':%s',pyformat='%%(%s)s')
 
 
 class MacroExpander(object):
-    # Regex patterns for each macro with improved support for quoted identifiers
-    
+    # Class-level regex patterns — used by adapter subclasses (e.g. Postgres)
     macros = {}
 
-    def __init__(self,querycompiler):
+    def __init__(self, querycompiler):
         self.querycompiler = querycompiler
-        
-    def replace(self, sql_text, macro):
-        """Expands macros in the given SQL text.
+        self._registered_macros = {}
+        self.context = {}
 
-        :param sql_text: The SQL string containing macros.
-        :param finder: The macro type to expand (e.g., 'tsquery', 'tsrank', 'tsheadline').
-        :return: The SQL string with macros expanded.
+    def register(self, name, regex, callback):
+        """Register a macro on this expander instance.
+
+        Args:
+            name: Macro name without ``#`` (e.g. ``'IN_RANGE'``).
+            regex: Compiled regex matching the macro syntax.
+            callback: ``callback(match, expander) → str`` replacement.
+        """
+        self._registered_macros[name] = (regex, callback)
+
+    def replace(self, sql_text, macro):
+        """Expand macros in the given SQL text.
+
+        Registered macros (via :meth:`register`) take precedence over
+        class-level macros inherited from the adapter.
         """
         for m in macro.split(','):
-            if m not in self.macros:
-                continue
-            sql_text = self.macros[m].sub(getattr(self, f'_expand_{m}'), sql_text)
+            if m in self._registered_macros:
+                regex, callback = self._registered_macros[m]
+                sql_text = regex.sub(lambda match: callback(match, self), sql_text)
+            elif m in self.macros:
+                sql_text = self.macros[m].sub(getattr(self, f'_expand_{m}'), sql_text)
         return sql_text
     
 class SqlDbAdapter(object):
@@ -165,15 +177,27 @@ class SqlDbAdapter(object):
             
         return not missing
 
+    # -- Macro support -------------------------------------------------------
+
+    def registerMacros(self, db):
+        """Register adapter-specific macros via ``db.addMacro()``.
+
+        Override in subclasses to register macros that depend on the
+        database engine (e.g. full-text search, vector similarity).
+        """
+        pass
+
+    @property
+    def macroExpander(self):
+        return MacroExpander
+
+    # -- SQL name adaptation -------------------------------------------------
+
     def adaptSqlName(self,name):
         """
         Adapt/fix a name if needed in a specific adapter/driver
         """
         return name
-    
-    @property
-    def macroExpander(self):
-        return MacroExpander
 
     def adaptSqlSchema(self,name):
         """
