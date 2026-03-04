@@ -148,15 +148,17 @@ class MenuIframes(BaseComponent):
                                     if(titleCounter){
                                         console.warn('titleCounter is deprecated. Use menuLineBadge instead of it')
                                     }
-                                    if(n.attr.tag == "tableBranch" && n.attr.table.replace('.','_') == flat_tblname){
-                                        n.refresh(true)
-                                        let content = n.getValue();
-                                        let child_count = (content instanceof gnr.GnrBag)?content.len():0;
-                                        let updater = {child_count:child_count};
-                                        if(titleCounter === true || menuLineBadge == '#'){
-                                            updater.badgeContent = child_count || null;
+                                    if(n.attr.tag == "tableBranch"){
+                                        if(n.attr.table.replace('.','_') == flat_tblname){
+                                            n.refresh(true);
+                                            let content = n.getValue();
+                                            let child_count = (content instanceof gnr.GnrBag)?content.len():0;
+                                            let updater = {child_count:child_count};
+                                            if(titleCounter === true || menuLineBadge == '#'){
+                                                updater.badgeContent = child_count || null;
+                                            }
+                                            n.updAttributes(updater);
                                         }
-                                        n.updAttributes(updater);
                                         return;
                                     }
    
