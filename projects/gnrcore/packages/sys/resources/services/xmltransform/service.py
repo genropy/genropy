@@ -1,8 +1,8 @@
 #!/usr/bin/env pythonw
 # -*- coding: utf-8 -*-
 #
-#  Created by Davide Paci on 2024-10-21.
-#  Copyright (c) 2024 Softwell. All rights reserved.
+#  Created by Davide Paci on 2026.
+#  Copyright (c) 2026 Softwell. All rights reserved.
 
 import lxml.etree as ET
 from io import BytesIO
