@@ -32,7 +32,7 @@ from psycopg import sql
 
 from gnr.core.gnrlist import GnrNamedList
 from gnr.sql.adapters._gnrbasepostgresadapter import PostgresSqlDbBaseAdapter
-from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
+from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException, GnrSqlConnectionException
 
 RE_SQL_PARAMS = re.compile(r"(?<!:):(?!:)(\S\w*)(\W|$)")
 
@@ -55,8 +55,10 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         
         try:
             conn = psycopg.connect(**kwargs)
-        except psycopg.OperationalError:
-            raise GnrNonExistingDbException(self.dbroot.dbname)
+        except psycopg.OperationalError as e:
+            if 'does not exist' in str(e).lower():
+                raise GnrNonExistingDbException(self.dbroot.dbname)
+            raise GnrSqlConnectionException(self.dbroot.dbname, original_error=e)
         conn.cursor_factory = GnrDictCursor
         return conn
 

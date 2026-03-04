@@ -17,6 +17,7 @@ class FrameIndex(BaseComponent):
                    login:LoginComponent,
                    th/th:TableHandler,
                    prefhandler/prefhandler:UserPrefMenu,
+                   gnrcomponents/grouplet/grouplet:GroupletHandler,
                    gnrcomponents/batch_handler/batch_handler:TableScriptRunner,
                    gnrcomponents/batch_handler/batch_handler:BatchMonitor,
                    gnrcomponents/chat_component/chat_component,
@@ -259,15 +260,15 @@ class FrameIndex(BaseComponent):
     @customizable
     def prepareBottom_std(self,bc):
         pane = bc.contentPane(region='bottom',overflow='hidden')
-        sb = pane.slotToolbar("""5,genrologo,helpdesk,settings,refresh,count_errors,left_placeholder,*,
-                                    right_placeholder,owner_name,user_name,logout,debugping,5""",
-                                    _class='slotbar_toolbar framefooter',height='22px', background='#EEEEEE',border_top='1px solid silver')    
+        sb = pane.slotToolbar("""5,genrologo,1,helpdesk,1,settings,10,refresh,10,phonelink,left_placeholder,*,
+                                    right_placeholder,count_errors,10,owner_name,user_name,logout,debugping,5""",
+                                    _class='slotbar_toolbar framefooter',height='22px', background='#EEEEEE',border_top='1px solid silver')
         return sb
-    
+
     @customizable
     def prepareBottom_mobile(self,bc):
         pane = bc.contentPane(region='bottom',overflow='hidden')
-        sb = pane.slotToolbar("""5,genrologo,helpdesk,settings,refresh,left_placeholder,*,
+        sb = pane.slotToolbar("""5,genrologo,2,helpdesk,2,settings,5,refresh,5,left_placeholder,*,
                                 right_placeholder,user_name,logout,debugping,5""",
                                 _class='slotbar_toolbar framefooter',height='25px', background='#EEEEEE',border_top='1px solid silver')
         pane.div(height='10px',background='black')
@@ -332,10 +333,17 @@ class FrameIndex(BaseComponent):
         return dlg
 
     @struct_method
-    def fi_slotbar_userpref(self,slot,**kwargs):
-        slot.lightbutton(_class='iframeroot_userpref', tip='!!%s preference' % (
-            self.user if not self.isGuest else 'guest')).dataController(
-                        'genro.framedIndexManager.openUserPreferences()')
+    def fi_slotbar_phonelink(self,slot,**kwargs):
+        if not self.site.is_mobile_app_enabled():
+            return
+        btn = slot.lightButton(_class='google_innericonbox phonelink_dark',
+                         tip='!!Mobile app connection',
+                         height='18px',width='18px')
+        dlg = slot.dialog(title='!![en]Mobile app connection',
+                          datapath='gnr.phonelink_dialog',closable=True)
+        dlg.groupletPanel(topic='phonelink',useForm=False,
+                          height='450px',width='350px')
+        btn.dataController("dlg.show()",dlg=dlg.js_widget)
 
     @struct_method
     def fi_slotbar_helpdesk(self,slot,**kwargs):
@@ -368,7 +376,7 @@ class FrameIndex(BaseComponent):
         return
 
     def helpdesk_help(self):
-        return 
+        return None
     
     @struct_method
     def fi_slotbar_openGnrIDE(self,slot,**kwargs):

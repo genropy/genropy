@@ -35,8 +35,13 @@ class MockApplication:
     instanceFolder = None
     cache = MockCache()
 
+    packages = {}
+
     def checkResourcePermission(self, deletable, tags, test=True):
         return test
+
+    def pkgBroadcast(self, method, *args, **kwargs):
+        return []
 
 excludewin32 = pytest.mark.skipif(sys.platform == "win32",
                                   reason="testing.postgresl doesn't run on Windows")

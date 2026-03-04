@@ -6568,6 +6568,28 @@ div[disabled='true'], div[disabled='disabled']{
     height: 35px;
 }
 
+.phonelink{
+    mask: url('/_rsrc/common/css_icons/google_icons/phonelink.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/phonelink.svg') center center no-repeat;
+    mask-size: contain;
+    -webkit-mask-size: contain;
+}
+
+.phonelink_white{
+    mask: url('/_rsrc/common/css_icons/google_icons/phonelink.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/phonelink.svg') center center no-repeat;
+    mask-size: contain;
+    -webkit-mask-size: contain;
+    background-color: #ffffff;
+}
+
+.phonelink_dark{
+    mask: url('/_rsrc/common/css_icons/google_icons/phonelink.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/phonelink.svg') center center no-repeat;
+    mask-size: contain;
+    -webkit-mask-size: contain;
+    background-color: #515151;
+}
 
 .largeCell{
     padding:5px;

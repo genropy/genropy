@@ -100,7 +100,7 @@ Typical usage example::
 """
 
 from gnr.core.gnrbag import Bag
-from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
+from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException, GnrSqlConnectionException
 
 from .structures import nested_defaultdict, json_to_tree
 from .orm_extractor import OrmExtractor
@@ -176,7 +176,13 @@ class SqlMigrator(DiffMixin, CommandBuilderMixin, ExecutorMixin):
         'removed' events are skipped if ``removeDisabled`` is True.
         Entities in readOnly schemas are ignored.
         """
-        self.prepareStructures()
+        try:
+            self.prepareStructures()
+        except GnrSqlConnectionException as e:
+            raise SystemExit(
+                f'ERROR: {e}\n'
+                'Migration aborted. Please check your database connection settings.'
+            ) from e
         self.commands = nested_defaultdict()
         for evt, kw in self.dictDifferChanges():
             if evt == 'removed' and self.removeDisabled:

@@ -152,6 +152,8 @@ class GnrSqlDb(
             adapter_module = f'gnr.sql.adapters.gnr{self.implementation}'
 
         self.adapters[self.implementation] = importModule(adapter_module).SqlDbAdapter(self)
+        self._macro_registry = {}
+        self.registerMacros()
 
         if main_schema is None:
             main_schema = self.adapter.defaultMainSchema()
@@ -168,6 +170,39 @@ class GnrSqlDb(
             'exec': GnrSqlExecException,
             'missedCommit': GnrMissedCommitException,
         }
+
+    # -- Macro registration --------------------------------------------------
+
+    def registerMacros(self):
+        """Register all SQL macros for this database.
+
+        Called during ``__init__``.  Registers base macros (pure SQL)
+        and then delegates to the adapter for engine-specific ones.
+
+        Subclasses (e.g. ``GnrSqlAppDb``) override this to add
+        application-level macros via ``pkgBroadcast``.
+        """
+        from gnr.sql.gnrsqldata.compiler import IN_RANGEFINDER, PERIODFINDER
+        self.addMacro('IN_RANGE', IN_RANGEFINDER, None)
+        self.addMacro('PERIOD', PERIODFINDER, None)
+        self.adapter.registerMacros(self)
+
+    def addMacro(self, name, regex, callback, replace=False):
+        """Register a SQL macro available in all query compilations.
+
+        After registration, every new :class:`SqlQueryCompiler` will
+        include this macro in its :class:`MacroExpander`.
+
+        Args:
+            name: Macro name without ``#`` (e.g. ``'IN_RANGE'``).
+            regex: Compiled regex that matches the macro syntax in SQL text.
+            callback: ``callback(match, expander) → str`` expansion function.
+            replace: If ``True``, overwrite an existing macro with the
+                same *name*.  If ``False`` (default), raise on duplicate.
+        """
+        if name in self._macro_registry and not replace:
+            raise KeyError(f"SQL macro '{name}' is already registered")
+        self._macro_registry[name] = (regex, callback)
 
     # -- Configuration and startup ------------------------------------------
 

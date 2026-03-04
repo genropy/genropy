@@ -217,10 +217,19 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
     }
 
 
+    # -- Macro support -------------------------------------------------------
+
+    def registerMacros(self, db):
+        """Register PostgreSQL-specific macros."""
+        for name, regex in MacroExpander.macros.items():
+            db.addMacro(name, regex, None)
+
     @property
     def macroExpander(self):
         return MacroExpander
-    
+
+    # -- Schema and naming ---------------------------------------------------
+
     def defaultMainSchema(self):
         return 'public'
 

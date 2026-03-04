@@ -221,6 +221,8 @@ stderr_logfile_maxbytes=0
             build_command = ['docker', 'build', '--platform', self.options.architecture,
                              '-t', f'{self.image_name}:{version_tag}',
                              self.build_context_dir]
+            if self.options.no_pull:
+                build_command.insert(2, '--pull=false')
             subprocess.run(build_command, check=True)
             logger.info("Docker image built successfully.")
             os.chdir(entry_dir)
@@ -358,6 +360,10 @@ def main():
                         action="store_true",
                         dest="keep_temp",
                         help="Keep intermediate data for debugging the image build")
+    parser.add_argument('--no-pull',
+                        action="store_true",
+                        dest="no_pull",
+                        help="Avoid pulling remote image, useful for local development")
     parser.add_argument('--router',
                         dest='router',
                         type=str,
