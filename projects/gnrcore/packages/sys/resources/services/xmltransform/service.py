@@ -11,14 +11,19 @@ from gnr.lib.services import GnrBaseService
 from gnr.core.gnrlang import GnrException
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method
+from gnrpkg.sys.services.xmltransform import XmlTransformService
 
 
-class Main(GnrBaseService):
+class Service(XmlTransformService):
     def __init__(self,parent,xsl_path=None, xsl_content=None, **kwargs):
         self.parent = parent
         self.xsl_path = xsl_path
-        self.xsl_content = self.xml_transformer()
+        #self.xsl_content = self.xml_transformer()
 
+    @property
+    def xsl_content(self):
+        return self.xml_transformer()
+    
     def xml_transformer(self):
         with self.parent.storageNode(self.xsl_path).open() as xslt_file:
             xsl_file_content = xslt_file.read()
