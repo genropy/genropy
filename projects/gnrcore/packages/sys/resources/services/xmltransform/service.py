@@ -7,7 +7,6 @@
 import lxml.etree as ET
 from io import BytesIO
 
-from gnr.lib.services import GnrBaseService
 from gnr.core.gnrlang import GnrException
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method

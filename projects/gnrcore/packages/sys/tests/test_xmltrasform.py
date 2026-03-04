@@ -1,4 +1,3 @@
-import os
 from io import BytesIO
 import pytest
 from unittest.mock import MagicMock
@@ -41,7 +40,7 @@ class TestXmlTransform(PackageTester):
     def test_service_type_not_in_framework_lib(self):
         """Confirm the file was removed from the framework lib path."""
         with pytest.raises(ImportError):
-            from gnr.lib.services import xmltransform
+            from gnr.lib.services import xmltransform # noqa
 
     def test_xml_to_html_returns_bytes(self):
         main = self.get_service(SIMPLE_XSL)
