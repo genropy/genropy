@@ -1,0 +1,18 @@
+:root {
+    --root-dark:#444;
+    --root-top-background: #1E3055;
+    --root-top-color: #fff;
+    --frameindex-tablist-background: #152340;
+    --frameindex-tablist-color:#ffffff;
+    --roundedgroup-bar: #e8ecf4;
+    --roundedgroup-bar-color: #1E3055;
+    --gnrfieldlabel-color:#707070;
+
+    --tab-background: #f2f4f8;
+    --tab-text-color:#444;
+    --tab-selected-background:white;
+    --tab-selected-color:#ccc;
+    --mainWindow-background: #f8f9fb;
+    --mainWindow-color:#444;
+    --dialogtitlebar-background: #1E3055;
+}

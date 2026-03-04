@@ -1,19 +1,25 @@
 :root {
     --root-dark:#444;
-    --root-top-background: #1E3055;
-    --root-top-color: #fff;
-    --frameindex-tablist-background: #152340;
+    --root-top-background: rgba(234, 203, 110, 1);
+    --root-top-color:rgba(30, 48, 85, 1);
+    --frameindex-tablist-background:linear-gradient(to right top, #172b51, #1b3058, #20345e, #243965, #293e6c);
     --frameindex-tablist-color:#ffffff;
-    --roundedgroup-bar: #e8ecf4;
-    --roundedgroup-bar-color: #1E3055;
+    --roundedgroup-bar:linear-gradient(to bottom, #c2d0e9,  #d6dfee);
+    --roundedgroup-bar-color:#444;
     --gnrfieldlabel-color:#707070;
 
-    --tab-background: #f2f4f8;
+    --tab-background:linear-gradient(to bottom, #c2d0e9,  #d6dfee);
     --tab-text-color:#444;
     --tab-selected-background:white;
     --tab-selected-color:#ccc;
-    --mainWindow-background: #f8f9fb;
-    --mainWindow-font-size:12px;
+    --mainWindow-background:linear-gradient(to top, #f6f8fa, #ffffff);
     --mainWindow-color:#444;
-    --dialogtitlebar-background: #1E3055;
+    --dialogtitlebar-background: linear-gradient(to right top, #172b51, #1b3058, #20345e, #243965, #293e6c);
+
+    /* M3 color system */
+    --m3-primary: #7C5CBF;
+    --m3-on-primary: #fff;
+    --m3-secondary-container: #EDE7F6;
+    --m3-on-secondary-container: #3B2D5E;
+    --m3-outline: #8E8893;
 }
