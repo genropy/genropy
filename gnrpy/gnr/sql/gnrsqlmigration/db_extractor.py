@@ -77,7 +77,7 @@ produce commands for the complete database creation.
 """
 
 from gnr.dev.decorator import time_measure
-from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
+from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException, GnrSqlConnectionException
 
 from .structures import (
     COL_JSON_KEYS,
@@ -201,6 +201,8 @@ class DbExtractor(object):  # REVIEW: old-style (object) base class — unnecess
                 result['event_triggers'] = adapter.struct_get_event_triggers()
         except GnrNonExistingDbException:
             result = False
+        except GnrSqlConnectionException:
+            raise
         finally:
             self.close_connection()
         return result
