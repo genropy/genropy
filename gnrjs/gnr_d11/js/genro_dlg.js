@@ -891,6 +891,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             }
             dlg.center = bc._('contentPane', 'center',{_class:'pbl_dialog_center',region:'center'});
         }else{
+            kwdimension['_class'] = 'dlg_body';
             let box = dlg._('div',kwdimension);
             let center = box._('div', {_class:'pbl_dialog_center'});
             if(kw.dialog_bottom!==false){

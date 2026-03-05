@@ -703,7 +703,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     
     
     deleteConfirmDlg:function(kw){
-         var dlg = genro.dlg.quickDialog('Alert',{_showParent:true,width:'280px'});
+         var dlg = genro.dlg.quickDialog('Alert',{_showParent:true,width:'24em'});
          dlg.center._('div',{innerHTML:_T("You are going to delete the current record."),_class:'alertBodyMessage'});
          var form = this;
          var slotbar = dlg.bottom._('slotBar',{slots:'*,cancel,delete',
@@ -854,7 +854,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             return;
         }
         saveSlot = saveSlot===undefined? true:saveSlot;
-        var dlg = genro.dlg.quickDialog(_T('Pending changes in ')+this.table_name.toLowerCase(),{_showParent:true,width:'380px'});
+        var dlg = genro.dlg.quickDialog(_T('Pending changes in ')+this.table_name.toLowerCase(),{_showParent:true,width:'26em'});
         dlg.center._('div',{innerHTML:_T("Current record has been modified."),_class:'alertBodyMessage'});
         var form = this;
         var slotbar = dlg.bottom._('slotBar',{slots:saveSlot?'discard,*,cancel,save':'discard,*,cancel',

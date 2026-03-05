@@ -1046,12 +1046,16 @@ label.ghostlabel span {
     width: 100%;
 }
 .alertBodyMessage{
-    padding: 0.4em 0.8em;
     color: var(--dlg-msg-color, #444);
+    line-height: 1.35;
+    display: flex;
 }
 
 .pbl_dialog_center{
-    padding: 0.5em 0.6em;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em;
+    padding: 0.8em 1em;
 }
 
 /* @end */
@@ -7072,7 +7076,6 @@ div[disabled='true'], div[disabled='disabled']{
 .dialog_bottom {
     border-top: 1px solid rgba(0,0,0,0.08);
     padding: 0.5em 0.8em;
-    margin-top: 0.3em;
     border-bottom-left-radius: 6px;
     border-bottom-right-radius: 6px;
     --m3-secondary-container: var(--m3-primary, #1976D2);

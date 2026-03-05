@@ -476,7 +476,7 @@ dojo.declare("gnr.widgets.TooltipMultivalue", gnr.widgets.TooltipPane, {
             editedRow = data.getItem('#'+r).deepCopy();
         }
         genro.setData('gnr.multivalue.data',editedRow);
-        var dlg = genro.dlg.quickDialog(title,{_showParent:true,width:'280px',datapath:'gnr.multivalue.data'});
+        var dlg = genro.dlg.quickDialog(title,{_showParent:true,width:'18em',datapath:'gnr.multivalue.data'});
         var bar = dlg.bottom._('slotBar',{slots:'2,deletebtn,*,cancel,confirm,2',action:function(){
                                                     dlg.close_action();
                                                     var result = genro.getData('gnr.multivalue').popNode('data').getValue();
@@ -6666,7 +6666,7 @@ dojo.declare("gnr.stores._Collection",null,{
         if(count==0){
             return;
         }
-        var dlg = genro.dlg.quickDialog('Alert',{_showParent:true,width:'280px'});
+        var dlg = genro.dlg.quickDialog('Alert',{_showParent:true,width:'28em'});
         var msg = count==1?'one':'many';
         dlg.center._('div',{innerHTML:_T(this.messages['archive_'+msg]).replace('$count',count),
                             _class:'alertBodyMessage'});
@@ -6680,12 +6680,12 @@ dojo.declare("gnr.stores._Collection",null,{
                                                 }});
         slotbar._('button','cancel',{label:_T('Cancel'),command:'cancel'});
         var btnattr = {label:_T('Confirm'),command:'archiveRows'};
-        var fb = genro.dev.formbuilder(dlg.center,1,{border_spacing:'1px',width:'100%',margin_bottom:'12px'});
+        var fb = genro.dev.formbuilder(dlg.center,1,{border_spacing:'1px',width:'100%'});
         genro.setData('gnr._dev.archiveAsk.date',genro.getData('gnr.workdate'));
-        fb.addField('dateTextBox',{value:'^gnr._dev.archiveAsk.date',width:'8em',lbl_text_align:'right',
+        fb.addField('dateTextBox',{value:'^gnr._dev.archiveAsk.date',width:'8em',
                                         lbl:_T('Date'),lbl_color:'#444',parentForm:false});
         if(count>1){
-            fb.addField('numberTextBox',{value:'^gnr._dev.archiveAsk.count',width:'5em',lbl_text_align:'right',
+            fb.addField('numberTextBox',{value:'^gnr._dev.archiveAsk.count',width:'5em',
                                         lbl:_T('N.Records'),lbl_color:'#444',parentForm:false});
             btnattr['disabled']='==_count!=_tot;';
             btnattr['_tot'] = count;
@@ -6702,7 +6702,7 @@ dojo.declare("gnr.stores._Collection",null,{
         if(count==0){
             return;
         }
-        var dlg = genro.dlg.quickDialog('Alert',{_showParent:true,width:'280px'});
+        var dlg = genro.dlg.quickDialog('Alert',{_showParent:true,width:'24em'});
         var msg = count==1?'one':'many';
         var del_type,master;
         if(this.unlinkdict){
@@ -6728,8 +6728,8 @@ dojo.declare("gnr.stores._Collection",null,{
         slotbar._('button','cancel',{label:_T('Cancel'),command:'cancel'});
         var btnattr = {label:_T('Confirm'),command:'deleteRows'};
         if(count>1){
-            var fb = genro.dev.formbuilder(dlg.center,1,{border_spacing:'1px',width:'100%',margin_bottom:'12px'});
-            fb.addField('numberTextBox',{value:'^gnr._dev.deleteask.count',width:'5em',lbl_text_align:'right',
+            var fb = genro.dev.formbuilder(dlg.center._('div',{display:'flex','flex_direction':'row-reverse'}),1,{border_spacing:'1px'});
+            fb.addField('numberTextBox',{value:'^gnr._dev.deleteask.count',width:'5em',
                                         lbl:_T('Records to delete'),lbl_color:'#444',parentForm:false});
             btnattr['disabled']='==_count!=_tot;';
             btnattr['_tot'] = count;
