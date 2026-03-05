@@ -1,77 +1,118 @@
 /*joanna*/
 
 body {
-    --primary-color: #1E3055;
-    --primary-dark: #152340;
-    --primary-light: #e8ecf4;
-    --primary-lighter: #f2f4f8;
+    --primary-color: #636366;
+    --primary-dark: #3A3A3C;
+    --primary-light: #D8D8DC;
+    --primary-lighter: #F2F2F7;
+    --accent-color: #007AFF;
+    --m3-primary: var(--primary-dark);
+    --m3-on-primary: #fff;
+    --m3-secondary-container: var(--primary-light);
+    --m3-on-secondary-container: var(--primary-dark);
     --mainWindow-background: white;
-    --frameindexroot-background: #f5f6f8;
-    --frameindexcenter-background: #f5f6f8;
-    --frameindexroot-mobile-background: #4b525b;
+    --frameindexroot-background: #F2F2F7;
+    --frameindexcenter-background: #F2F2F7;
+    --frameindexroot-mobile-background: #48484A;
+    --roundedgroup-bar: transparent;
+    --roundedgroup-bar-color: var(--primary-color);
+    --roundedgroup-border: #D1D1D6;
+    --card-surface: #F2F2F7;
+    --roundedgroup-surface: var(--card-surface);
+    --roundedgroup-outline: transparent;
+    --roundedgroup-shadow: rgba(0,0,0,0.06);
+    --topLabelTable-border-top: 2px solid var(--primary-light);
+    --topLabelTable-separator: var(--primary-light);
 }
 
-/* Color variants: override full palette
-   --primary-color: main brand color (top bar, dialog titles, buttons)
-   --primary-dark: darker shade (iframe tablist - distinguishes from top bar)
-   --primary-light: soft tint (roundedgroup headers, tab borders)
-   --primary-lighter: very soft tint (backgrounds)
+/* Color variants
+   3 key areas per variant:
+   1. frameindex tablist bar (--frameindex-tablist-background) - darkest accent
+   2. pbl_top bar = dialog titlebar (--root-top-background, --dialogtitlebar-background) - primary
+   3. card-surface - very light, almost white with thematic tint
 */
+
+/* Green - green/fuchsia */
 ._common_d11.tundra.theme_variant_green {
-    --primary-color: #2a9d6e;
-    --primary-dark: #1f7a54;
-    --primary-light: #d4f0e4;
-    --primary-lighter: #eef8f3;
-    --root-top-background: #2a9d6e;
-    --dialogtitlebar-background: #2a9d6e;
-    --frameindex-tablist-background: #1f7a54;
-    --roundedgroup-bar: #d4f0e4;
-    --roundedgroup-bar-color: #1a6b4a;
+    --primary-color: #1d7d55;
+    --primary-dark: #8b1a6b;
+    --accent-color: #8b1a6b;
+    --primary-light: #c0dece;
+    --primary-lighter: #edf7f2;
+    --root-top-background: #1d7d55;
+    --dialogtitlebar-background: #1d7d55;
+    --frameindex-tablist-background: #8b1a6b;
+    --card-surface: #f6faf8;
+    --roundedgroup-surface: var(--card-surface);
+    --roundedgroup-bar: #d0eddf;
+    --roundedgroup-bar-color: #134a32;
 }
+
+/* Blue - ocean */
 ._common_d11.tundra.theme_variant_blue {
-    --primary-color: #3b6fb6;
-    --primary-dark: #2c5490;
-    --primary-light: #dce6f5;
-    --primary-lighter: #eef3fa;
-    --root-top-background: #3b6fb6;
-    --dialogtitlebar-background: #3b6fb6;
-    --frameindex-tablist-background: #2c5490;
-    --roundedgroup-bar: #dce6f5;
-    --roundedgroup-bar-color: #2a5080;
+    --primary-color: #2a62a8;
+    --primary-dark: #1e4a80;
+    --accent-color: #0a84ff;
+    --primary-light: #c4d4e8;
+    --primary-lighter: #edf2fa;
+    --root-top-background: #2a62a8;
+    --dialogtitlebar-background: #2a62a8;
+    --frameindex-tablist-background: #1a3d6b;
+    --card-surface: #f7f9fd;
+    --roundedgroup-surface: var(--card-surface);
+    --roundedgroup-bar: #d4e2f5;
+    --roundedgroup-bar-color: #1a3d6b;
 }
+
+/* Red - ruby */
 ._common_d11.tundra.theme_variant_red {
-    --primary-color: #d94452;
-    --primary-dark: #b5313e;
-    --primary-light: #f8dde0;
-    --primary-lighter: #fdf1f2;
-    --root-top-background: #d94452;
-    --dialogtitlebar-background: #d94452;
-    --frameindex-tablist-background: #b5313e;
-    --roundedgroup-bar: #f8dde0;
-    --roundedgroup-bar-color: #a03040;
+    --primary-color: #c53040;
+    --primary-dark: #9a2232;
+    --accent-color: #e8364a;
+    --primary-light: #e8c8cc;
+    --primary-lighter: #fbeff1;
+    --root-top-background: #c53040;
+    --dialogtitlebar-background: #c53040;
+    --frameindex-tablist-background: #7a1a28;
+    --card-surface: #fdf8f8;
+    --roundedgroup-surface: var(--card-surface);
+    --roundedgroup-bar: #f5d5d9;
+    --roundedgroup-bar-color: #7a1a28;
 }
+
+/* Orange - orange top / plum frameindex */
 ._common_d11.tundra.theme_variant_orange {
-    --primary-color: #e8833a;
-    --primary-dark: #c46a28;
-    --primary-light: #fae3cf;
-    --primary-lighter: #fdf3ea;
-    --root-top-background: #e8833a;
-    --dialogtitlebar-background: #e8833a;
-    --frameindex-tablist-background: #c46a28;
-    --roundedgroup-bar: #fae3cf;
-    --roundedgroup-bar-color: #a05a20;
+    --primary-color: #d4650a;
+    --primary-dark: #6a2058;
+    --accent-color: #6a2058;
+    --primary-light: #e8cddb;
+    --primary-lighter: #faf3f7;
+    --root-top-background: #d4650a;
+    --dialogtitlebar-background: #d4650a;
+    --frameindex-tablist-background: #6a2058;
+    --card-surface: #fcf8fa;
+    --roundedgroup-surface: var(--card-surface);
+    --roundedgroup-bar: #f5dce8;
+    --roundedgroup-bar-color: #6a2058;
 }
+
+/* Yellow - calabrone (hornet: vivid wasp yellow / black) */
 ._common_d11.tundra.theme_variant_yellow {
-    --primary-color: #c9960e;
-    --primary-dark: #a57a0a;
-    --primary-light: #f5eacc;
-    --primary-lighter: #fbf5e8;
-    --root-top-background: #c9960e;
-    --root-top-color: #3a3226;
-    --dialogtitlebar-background: #c9960e;
-    --frameindex-tablist-background: #a57a0a;
-    --roundedgroup-bar: #f5eacc;
-    --roundedgroup-bar-color: #6b5010;
+    --primary-color: #1a1a1a;
+    --primary-dark: #1a1a1a;
+    --accent-color: #b8960a;
+    --primary-light: #fde68a;
+    --primary-lighter: #fef9e7;
+    --root-top-background: #f5c800;
+    --root-top-color: #1a1a1a;
+    --dialogtitlebar-background: #f5c800;
+    --dialogtitlebar-color: #1a1a1a;
+    --frameindex-tablist-background: #1a1a1a;
+    --frameindex-tablist-color: #f5c800;
+    --card-surface: #f5f5f4;
+    --roundedgroup-surface: var(--card-surface);
+    --roundedgroup-bar: #fde68a;
+    --roundedgroup-bar-color: #1a1a1a;
 }
 
 body.tundra.joanna {
@@ -136,7 +177,7 @@ body.tundra.joanna {
     background: var(--dialogtitlebar-background);
     vertical-align: middle;
     text-align: center;
-    color: #f6f6f6;
+    color: var(--dialogtitlebar-color, #f6f6f6);
     border-top-left-radius: 4px;
     border-top-right-radius: 4px;
     padding-top: 2px;
@@ -283,64 +324,95 @@ body.tundra.joanna {
 
 /* @group Form group */
 .gnr_footer{
-    background-color: rgb(217, 227, 233);
+    background-color: var(--roundedgroup-bar);
 }
 .pbl_roundedBlock{
-    border-radius: 6px;
     position: absolute;
-    top:2px;
-    bottom:2px;
-    left:2px;
+    top: 2px;
+    bottom: 2px;
+    left: 2px;
     right: 2px;
-    border:1px solid #ddd;
+    border: 1px solid #aab4c4;
+    background: var(--roundedgroup-surface);
+    border-radius: 8px;
+    box-shadow: 0 1px 3px 0 var(--roundedgroup-shadow);
 }
 
+.pbl_roundedBlock > .pbl_roundedGroupLabel {
+    background: none;
+    color: var(--roundedgroup-bar-color);
+    font-weight: bold;
+    border: none;
+    padding: 0.3em 0 0.2em 0.5em;
+    font-size: 0.9em;
+}
+
+.pbl_roundedBlock > .pbl_roundedGroupContent {
+    position: absolute;
+    top: 1.7em;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: none;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    overflow: auto;
+}
+
+/* roundedGroup: sfondo panna uniforme su tutto il blocco, ombra leggera */
 .pbl_roundedGroup {
-    border-radius: 6px;
-    border: 1px solid #ddd;
+    border: 1px solid #aab4c4;
+    background: var(--roundedgroup-surface);
+    border-radius: 8px;
+    box-shadow: 0 1px 3px 0 var(--roundedgroup-shadow);
 }
 
+/* roundedGroup center: trasparente, lo sfondo è sul wrapper */
+.pbl_roundedGroupContent {
+    background: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.pbl_roundedGroup .framegrid_center {
+    background: var(--roundedgroup-surface);
+    border: 1px solid #aab4c4;
+    box-shadow: 0 1px 3px 0 var(--roundedgroup-shadow);
+}
+
+/* Label: inside the card, no own background */
 .pbl_roundedGroupLabel {
-    min-height: 22px;
-    line-height:19px;
-    padding-bottom: 0;
-    padding-top:2px;
-    padding-left: 4px;
-    padding-right: 4px;
-    border-top-left-radius: 4px;
-    border-top-right-radius: 4px;
-    font-size: 1em;
-    background: var(--primary-light, #e8ecf4);
-    color: var(--primary-color, #1E3055);
-    font-weight: 500;
-	text-indent: 2px;
+    min-height: 1.2em;
+    line-height: 1.2em;
+    padding: 0.3em 0 0.2em 0.1em;
+    font-size: 0.9em;
+    background: none;
+    color: var(--roundedgroup-bar-color);
+    font-weight: bold;
+    border: none;
 }
 
 .pbl_roundedGroupVertical {
-    background: var(--primary-light, #e8ecf4);
+    background: var(--roundedgroup-bar);
 }
-
-
 
 .pbl_roundedGroupLabel.slotbar_horizontal{
-    padding-left:0;
-    padding-right:0;
-    vertical-align: middle;
+    padding-left: 0;
+    padding-right: 0;
 }
 .pbl_roundedGroupLabel.slotbar_horizontal .slotbar_cell{
-    height:20px;
-    line-height:14px;
+    line-height: 1.5em;
 }
-
 
 .pbl_roundedGroupLabel .dijitButton{
 }
 
 .pbl_roundedGroupBottom {
-    height: 18px;
-    padding-left: 10px;
+    padding-left: 0.5em;
     font-size: 0.9em;
-    background-color: var(--primary-light, #e8ecf4);
+    background-color: var(--roundedgroup-bar);
 }
 
 /* @end */
@@ -407,7 +479,7 @@ body.tundra.joanna {
 
 .tundra._common_d11 .dijitDialogTitleBar {
     background: var(--dialogtitlebar-background);
-    color: #ffffff;
+    color: var(--dialogtitlebar-color, #ffffff);
     vertical-align: middle;
     border-top-left-radius: 6px;
     border-top-right-radius: 6px;
@@ -419,7 +491,7 @@ body.tundra.joanna {
 
 .tundra._common_d11 .commonTitleBar {
     background: var(--dialogtitlebar-background);
-    color: #ffffff;
+    color: var(--dialogtitlebar-color, #ffffff);
     text-align: center;
     font-weight:normal;
     padding-top: 2px;
@@ -528,7 +600,7 @@ body.tundra.joanna {
 }
 
 ._common_d11 .dijitTabChecked {
-    background: white;
+    background: var(--card-surface);
     color: var(--primary-color, #1E3055);
     font-weight: 600;
     border: 1px solid #aab4c4;
@@ -539,7 +611,7 @@ body.tundra.joanna {
 
 ._common_d11 .dijitAlignTop .dijitTabChecked,
 ._common_d11 .dijitAlignTop .dijitTabCloseButtonChecked {
-    background: white;
+    background: var(--card-surface);
     color: var(--primary-color, #1E3055);
     font-weight: 600;
     border: 1px solid #aab4c4;
@@ -551,7 +623,7 @@ body.tundra.joanna {
 ._common_d11 .dijitTabPaneWrapper {
     border: 1px solid #aab4c4;
     border-radius: 0 0 4px 4px;
-    background: white;
+    background: var(--card-surface);
 }
 
 /* Underline tab variant - add class 'underline_tabs' to the tab container */
@@ -833,19 +905,20 @@ body.tundra.joanna {
 
 
 .joanna.mode_mobile .menutree .menu_shape.menutreeSelected{
-    color:rgba(255, 210, 0, 1.00);
+    color: var(--frameindex-tablist-color, #fff);
 }
 
 .joanna .menutree .menu_shape.menutreeSelected{
-    color:rgb(255, 0, 111);
+    color: var(--accent-color, #007AFF);
+    font-weight: 600;
 }
 
 .joanna.mode_mobile .menu_branch.menu_shape.menutreeSelected{
-    color:white;
+    color: var(--frameindex-tablist-color, #fff);
 }
 
 .joanna .menu_branch.menu_shape.menutreeSelected{
-    color: #444;
+    color: var(--primary-dark, #3A3A3C);
 }
 .menutree .menu_shape.menu_level_2.addTableItem{
     font-style: italic;
@@ -1343,11 +1416,9 @@ body.tundra.joanna {
 }
 
 
-.dlg_alert.dijitDialog .dijitDialogPaneContent{
-    background:linear-gradient(to top, #e4e4e4,white);
-}
+.dlg_alert.dijitDialog .dijitDialogPaneContent,
 .dlg_prompt.dijitDialog .dijitDialogPaneContent{
-    background:linear-gradient(to top, #e4e4e4,white);
+    background: white;
 }
 
 

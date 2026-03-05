@@ -385,7 +385,7 @@ cursorZoom_plus{
 .tundra .dijitButtonNode {
 	/* M3 Filled Tonal Button */
 	border: 1px solid var(--m3-btn-border-color, var(--m3-outline, #ccc));
-    padding: calc(0.25em - 1px) calc(0.6em - 1px);
+    padding: calc(0.35em - 1px) calc(0.9em - 1px);
     background-image: none;
     background-color: var(--m3-secondary-container, #EDE7F6);
     border-radius: 1em;
@@ -609,6 +609,9 @@ cursorZoom_plus{
 /* Arrow in dropdown buttons - toolbar */
 .slotbar_toolbar .dijitDropDownButton .dijitArrowButtonInner {
     margin-left: 0.4em;
+}
+.slotbar_toolbar .dijitDropDownButton:not(.slotButtonIconOnly) .dijitArrowButtonInner {
+    filter: brightness(0) invert(1);
 }
 
 .slotbar_toolbar .slotButtonIconOnly .dijitButtonNode, .pbl_roundedGroupLabel .slotButtonIconOnly .dijitButtonNode, .iconOnly.slotButtonIconOnly .dijitButtonNode, .iconOnly .dijitButtonNode{
@@ -1110,10 +1113,13 @@ label{
     border-collapse: collapse;
     border-width:0px;
     width:100%;
+    border-top: var(--topLabelTable-border-top, none);
+    background: var(--topLabelTable-background, transparent);
+    color: var(--topLabelTable-color, inherit);
 }
 
 .topLabelTable td{
-    border-right:1px solid silver;
+    border-right: 1px solid var(--topLabelTable-separator, silver);
     padding-top:2px;
     padding-bottom:2px;
     min-width:5em;

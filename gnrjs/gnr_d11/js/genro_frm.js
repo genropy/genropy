@@ -854,7 +854,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             return;
         }
         saveSlot = saveSlot===undefined? true:saveSlot;
-        var dlg = genro.dlg.quickDialog(_T('Pending changes in ')+this.table_name.toLowerCase(),{_showParent:true,width:'280px'});
+        var dlg = genro.dlg.quickDialog(_T('Pending changes in ')+this.table_name.toLowerCase(),{_showParent:true,width:'380px'});
         dlg.center._('div',{innerHTML:_T("Current record has been modified."), text_align:'center',_class:'alertBodyMessage'});
         var form = this;
         var slotbar = dlg.bottom._('slotBar',{slots:saveSlot?'discard,*,cancel,save':'discard,*,cancel',

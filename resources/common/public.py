@@ -102,7 +102,7 @@ class PublicBase(BaseComponent):
         rb = pane.div(_class='pbl_roundedBlock',top=top,bottom=bottom,left=left,right=right)
         if title:
             rb.div(title,_class='pbl_roundedGroupLabel')
-        return rb
+        return rb.div(_class='pbl_roundedGroupContent')
 
     @struct_method
     def public_roundedGroupFrame(self, container, title=None,frameCode=None,**kwargs):
@@ -110,7 +110,8 @@ class PublicBase(BaseComponent):
         if container.attributes['tag'].lower() in ('tabcontainer','stackcontainer'):
             kwargs['title'] = title
         pane = container.contentPane(**kwargs)
-        frame = pane.framePane(frameCode=frameCode,margin='2px',_class='pbl_roundedGroup')
+        frame = pane.framePane(frameCode=frameCode,margin='2px',_class='pbl_roundedGroup',
+                               center_class='pbl_roundedGroupContent')
         if title:
             frame.top.slotBar('5,blocktitle,*',_class='pbl_roundedGroupLabel',blocktitle=title)
         return frame

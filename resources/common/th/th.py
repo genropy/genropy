@@ -943,7 +943,8 @@ class ThLinker(BaseComponent):
         frameCode= frameCode or 'linker_%s' %field.replace('.','_')
         if pane.attributes.get('tag') == 'ContentPane':
             pane.attributes['overflow'] = 'hidden'
-        frame = pane.framePane(frameCode=frameCode,_class=_class,margin=margin)
+        frame = pane.framePane(frameCode=frameCode,_class=_class,margin=margin,
+                               center_class='pbl_roundedGroupContent')
         linkerBar = frame.top.linkerBar(field=field,
                                         formResource=formResource,
                                         formUrl=formUrl,

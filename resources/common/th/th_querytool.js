@@ -828,7 +828,7 @@ dojo.declare("gnr.QueryManager", null, {
             dlg.close_action();
         };
         var center = dlg.center._('div',{padding:'10px'});
-        var bottom = dlg.bottom._('slotBar',{'slots':'cancel,*,confirm'});
+        var bottom = dlg.bottom._('slotBar',{'slots':'cancel,*,confirm',_class:'dialog_bottom'});
         genro.dev.dynamicQueryParsFb(center,sourceNode.getRelativeData(this.wherepath),parslist,1);
         bottom._('button', 'cancel',{label:'Cancel',baseClass:'bottom_btn',action:cancel});
         bottom._('button', 'confirm',{label:'Confirm',baseClass:'bottom_btn',action:confirm});

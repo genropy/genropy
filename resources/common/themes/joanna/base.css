@@ -1,18 +1,18 @@
 :root {
     --root-dark:#444;
-    --root-top-background: #1E3055;
+    --root-top-background: #636366;
     --root-top-color: #fff;
-    --frameindex-tablist-background: #152340;
+    --frameindex-tablist-background: #3A3A3C;
     --frameindex-tablist-color:#ffffff;
-    --roundedgroup-bar: #e8ecf4;
-    --roundedgroup-bar-color: #1E3055;
-    --gnrfieldlabel-color:#707070;
+    --roundedgroup-bar: #E5E5EA;
+    --roundedgroup-bar-color: #3A3A3C;
+    --gnrfieldlabel-color:#8E8E93;
 
-    --tab-background: #f2f4f8;
-    --tab-text-color:#444;
+    --tab-background: #F2F2F7;
+    --tab-text-color:#3A3A3C;
     --tab-selected-background:white;
     --tab-selected-color:#ccc;
-    --mainWindow-background: #f8f9fb;
-    --mainWindow-color:#444;
-    --dialogtitlebar-background: #1E3055;
+    --mainWindow-background: #F9F9FB;
+    --mainWindow-color:#1C1C1E;
+    --dialogtitlebar-background: #636366;
 }

@@ -348,8 +348,9 @@ dojo.declare("gnr.GnrDlgHandler", null, {
 
         });
         dlg._('div', {'innerHTML':msg,'_class':'selectable dlg_ask_msg'});
+        var btnBox = dlg._('div', {'_class':'dialog_bottom dlg_ask_btnBox'});
         for (var btn in buttons) {
-            dlg._('button', {'_class':'dlg_ask_btn','label':buttons[btn],'actCode':btn});
+            btnBox._('button', {'_class':'dlg_ask_btn','label':buttons[btn],'actCode':btn});
         }
         node.unfreeze();
         genro.wdgById(alertCode).show();
@@ -392,9 +393,9 @@ dojo.declare("gnr.GnrDlgHandler", null, {
                                         that.alert_count-=1;
                                     },centerOn:'_pageRoot'})._('div', {_class:'dlg_ask','action':action});
         dlg._('div', {'content':_T(msg),'_class':'selectable dlg_ask_msg',width:kw.width});
-        //var buttonBox = dlg._('div', {'_class':'dlg_ask_btnBox'});
+        var btnBox = dlg._('div', {'_class':'dialog_bottom dlg_ask_btnBox'});
         objectKeys(buttons).sort().reverse().forEach(function(btn){
-            dlg._('button', {'_class':'dlg_ask_btn','label':buttons[btn],'actCode':btn,'act':actions[btn]});
+            btnBox._('button', {'_class':'dlg_ask_btn','label':buttons[btn],'actCode':btn,'act':actions[btn]});
         });
         node.unfreeze();
         genro.wdgById(alertCode).show();
@@ -810,8 +811,9 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             'action':"genro.wdgById('_dlg_request').hide();genro.setData('" + resultPath + "',this.attr.actCode);"});
         dlg._('div', {'content':msg,'_class':'selectable dlg_ask_msg'});
         dlg._('textBox', {'value':'^' + valuePath});
+        var btnBox = dlg._('div', {'_class':'dialog_bottom dlg_ask_btnBox'});
         for (var btn in buttons) {
-            dlg._('button', {'_class':'dlg_ask_btn','label':buttons[btn],'actCode':btn});
+            btnBox._('button', {'_class':'dlg_ask_btn','label':buttons[btn],'actCode':btn});
         }
         node.unfreeze();
         genro.wdgById('_dlg_request').show();
@@ -1277,9 +1279,9 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             'action':"genro.wdgById('_dlg_listChoice').hide();genro.setData('" + resultPath + "',this.attr.actCode);"});
         dlg._('div', {'content':msg,'_class':'selectable dlg_ask_msg'});
         dlg._('filteringSelect', {'value':'^' + valuePath, 'storepath':storePath, 'ignoreCase':true});
-
+        var btnBox = dlg._('div', {'_class':'dialog_bottom dlg_ask_btnBox'});
         for (var btn in buttons) {
-            dlg._('button', {'_class':'dlg_ask_btn','label':buttons[btn],'actCode':btn});
+            btnBox._('button', {'_class':'dlg_ask_btn','label':buttons[btn],'actCode':btn});
         }
         node.unfreeze();
         genro.wdgById('_dlg_listChoice').show();
