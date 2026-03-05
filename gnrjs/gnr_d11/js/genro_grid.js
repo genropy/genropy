@@ -1811,12 +1811,6 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                 cell.cellClasses = (cell.cellClasses || '') + ' cell_' + dtype;
             }                       
             var zoomAttr = objectExtract(cell,'zoom_*',true,true);
-            if (!cell.min_width && cell.width) {
-                var w = cell.width;
-                if (w == 'auto' || (typeof w === 'string' && w.indexOf('%') >= 0)) {
-                    cell.min_width = sourceNode.attr.autoMinWidth || '20em';
-                }
-            }
             cell.cellStyles = objectAsStyle(objectUpdate(objectFromStyle(cell.cellStyles),
                                             genro.dom.getStyleDict(cell, [ 'width'])));
             var formats = objectExtract(cell, 'format_*');
