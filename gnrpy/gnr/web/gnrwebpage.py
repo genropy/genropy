@@ -1479,7 +1479,8 @@ class GnrWebPage(GnrBaseWebPage):
                     for name in sorted(os.listdir(dir_path)):
                         if name.endswith('.css'):
                             expanded.append(self.mtimeurl(self.gnrjsversion, 'css', css_dir, name))
-                expanded.append(self.mtimeurl(self.gnrjsversion, 'css', '%s.css' % f))
+                else:
+                    expanded.append(self.mtimeurl(self.gnrjsversion, 'css', '%s.css' % f))
             css_genro[media] = expanded
         return css_genro
         
