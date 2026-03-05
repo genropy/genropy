@@ -396,83 +396,28 @@ body.tundra.mimi {
     border-radius: 4px;
 }
 
-.alertBodyMessage{
-    color:#555;
-    margin:12px;
-}
 /* @end */
 
-._common_d11 .hideDialogTitle .dijitDialogPaneContent{
-    border-radius: 6px;
-}
-
-.tundra._common_d11 .dijitDialogTitleBar {
-    background: var(--dialogtitlebar-background);
-    color: #ffffff;
-    vertical-align: middle;
-    border-top-left-radius: 6px;
-    border-top-right-radius: 6px;
-    text-align: center;
-    font-weight:normal;
-    border-bottom:1px solid #ccc;
-    font-size: .9em;
-}
-
-.tundra._common_d11 .commonTitleBar {
-    background: var(--dialogtitlebar-background);
-    color: #ffffff;
-    text-align: center;
-    font-weight:normal;
-    padding-top: 2px;
-    padding-bottom: 2px;
-}
-
+/* theme_variant color overrides for dialog titlebars */
 .tundra._common_d11.theme_variant_green .dijitDialogTitleBar,.tundra._common_d11.theme_variant_green .commonTitleBar{
-    background-color: #50c9c3;
-      background: linear-gradient(to bottom, #1d976c, #37ce99);  /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
-
-    color:white;
+    background: linear-gradient(to bottom, #1d976c, #37ce99);
+    color: white;
 }
 
 .tundra._common_d11.theme_variant_red .dijitDialogTitleBar, .tundra._common_d11.theme_variant_red .commonTitleBar{
-    background-color:#d31027;
-    background:linear-gradient(to bottom, #d31027, #ea384d);
+    background: linear-gradient(to bottom, #d31027, #ea384d);
 }
 .tundra._common_d11.theme_variant_blue .dijitDialogTitleBar, .tundra._common_d11.theme_variant_blue .commonTitleBar{
-    background-color: #182848;
     background: linear-gradient(to bottom, #4b6cb7, #3b6391);
 }
 
 .tundra._common_d11.theme_variant_orange .dijitDialogTitleBar, .tundra._common_d11.theme_variant_orange .commonTitleBar{
-    background-color:#e65c00;
     background: linear-gradient(to bottom, #fa8435, #f96723);
 }
 
 .tundra._common_d11.theme_variant_yellow .dijitDialogTitleBar, .tundra._common_d11.theme_variant_yellow .commonTitleBar{
-    background-color:rgba(234, 203, 110, 1);
-    color:rgba(30, 48, 85, 1);
-}
-
-
-
-/*._common_d11 .dijitDialogCloseIcon {
-    display: none;
-}*/
-
-._common_d11 .dijitDialog {
-    border-radius: 6px;
-    background-color: #f6f6f6;
-    box-shadow: 3px 3px 5px #403b3b;
-    border:1px solid silver;
-}
-
-._common_d11 .dijitDialog .dijitDialogPaneContent {
-    border-bottom-right-radius: 6px;
-    border-bottom-left-radius: 6px;
-    border: 0px;
-    background-color: #f6f6f6;
-    /*background-image: -moz-linear-gradient(-90deg, rgba(170, 190, 201, 0.2), #FFFFFF);
-    background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, rgba(170, 190, 201, 0.2), to(#FFFFFF));*/
+    background-color: rgba(234, 203, 110, 1);
+    color: rgba(30, 48, 85, 1);
 }
 
 /* @end */
@@ -1284,14 +1229,6 @@ body.tundra.mimi {
     border-top-right-radius: 6px;
     border-bottom-left-radius: 6px;
     border-bottom-right-radius: 6px;
-}
-
-
-.dlg_alert.dijitDialog .dijitDialogPaneContent{
-    background:linear-gradient(to top, #e4e4e4,white);
-}
-.dlg_prompt.dijitDialog .dijitDialogPaneContent{
-    background:linear-gradient(to top, #e4e4e4,white);
 }
 
 

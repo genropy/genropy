@@ -6668,8 +6668,8 @@ dojo.declare("gnr.stores._Collection",null,{
         }
         var dlg = genro.dlg.quickDialog('Alert',{_showParent:true,width:'280px'});
         var msg = count==1?'one':'many';
-        dlg.center._('div',{innerHTML:_T(this.messages['archive_'+msg]).replace('$count',count), 
-                            text_align:'center',_class:'alertBodyMessage'});
+        dlg.center._('div',{innerHTML:_T(this.messages['archive_'+msg]).replace('$count',count),
+                            _class:'alertBodyMessage'});
         var that = this;
         var slotbar = dlg.bottom._('slotBar',{slots:'*,cancel,archive',
                                                 action:function(){
@@ -6715,8 +6715,8 @@ dojo.declare("gnr.stores._Collection",null,{
                 del_type = 'delete_logical';
             }
         }
-        dlg.center._('div',{innerHTML:_T(this.messages[del_type+'_'+msg]).replace('$count',count).replace('$master',master), 
-                            text_align:'center',_class:'alertBodyMessage'});
+        dlg.center._('div',{innerHTML:_T(this.messages[del_type+'_'+msg]).replace('$count',count).replace('$master',master),
+                            _class:'alertBodyMessage'});
         var that = this;
         var slotbar = dlg.bottom._('slotBar',{slots:'*,cancel,delete',
                                                 action:function(){

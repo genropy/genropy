@@ -1001,23 +1001,27 @@ label.ghostlabel span {
 
 /* @group dialog */
 .dlg_ask {
-    padding: 1.5em 2em;
     display: flex;
     flex-direction: column;
-    gap: 1em;
     min-width: 25em;
 }
 
 .dlg_ask_msg {
     max-width: 40em;
-    padding: 0.5em 0;
+    padding: 1em 1.2em;
     font-size: 0.9em;
     line-height: 1.5;
     color: var(--dlg-msg-color, #333);
+    text-align: left;
 }
 
 .dlg_alert {
     font-size: .9em;
+}
+
+.dlg_alert.dijitDialog .dijitDialogPaneContent,
+.dlg_prompt.dijitDialog .dijitDialogPaneContent{
+    background: var(--dlg-pane-bg, #fff);
 }
 
 .dlg_alert_msg {
@@ -1025,11 +1029,14 @@ label.ghostlabel span {
     padding: 0.5em 0;
     line-height: 1.5;
     color: var(--dlg-msg-color, #333);
+    text-align: left;
 }
 .dlg_ask_btnBox{
     display: flex;
+    flex-direction: row-reverse;
     gap: 0.5em;
     align-items: center;
+    padding: 0.8em 1.2em;
 }
 .dlg_ask_btnBox .dijitButton{
     flex: 1;
@@ -1037,11 +1044,14 @@ label.ghostlabel span {
 }
 .dlg_ask_btnBox .dijitButtonNode{
     width: 100%;
-    background-color: var(--dlg-btn-bg, var(--m3-secondary-container, #BBDEFB));
-    color: var(--dlg-btn-color, var(--m3-on-secondary-container, #1565C0));
 }
 .alertBodyMessage{
-    padding: 1em 1.2em;
+    padding: 0.4em 0.8em;
+    color: var(--dlg-msg-color, #444);
+}
+
+.pbl_dialog_center{
+    padding: 0.5em 0.6em;
 }
 
 /* @end */
@@ -2661,8 +2671,43 @@ div.dojoxDock {
     color: red !important;
 }
 
+._common_d11 .dijitDialog {
+    border-radius: 6px;
+    background-color: var(--dlg-bg, #f6f6f6);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.10);
+    border: 1px solid var(--dlg-border-color, silver);
+}
+
+._common_d11 .dijitDialog .dijitDialogPaneContent {
+    border-bottom-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+    border: 0px;
+    background-color: var(--dlg-pane-bg, #fff);
+}
+
+.tundra._common_d11 .dijitDialogTitleBar {
+    background: var(--dialogtitlebar-background, linear-gradient(to right, #3b6391, #4b6cb7));
+    color: var(--dialogtitlebar-color, #ffffff);
+    vertical-align: middle;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    text-align: center;
+    font-weight: normal;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    font-size: .9em;
+}
+
+.tundra._common_d11 .commonTitleBar {
+    background: var(--dialogtitlebar-background, linear-gradient(to right, #3b6391, #4b6cb7));
+    color: var(--dialogtitlebar-color, #ffffff);
+    text-align: center;
+    font-weight: normal;
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
 .tundra .dijitDialog .dijitDialogPaneContent {
-    font-size: 12px;
+    font-size: 0.92em;
     padding: 0px;
     overflow: hidden;
 }
@@ -5161,6 +5206,7 @@ div[disabled='true'], div[disabled='disabled']{
 }
 .dlg_prompt{
     background:white;
+    min-width: 20em;
 }
 
 .dlg_closebtn{
@@ -7024,19 +7070,15 @@ div[disabled='true'], div[disabled='disabled']{
 
 /* Dialog bottom bar */
 .dialog_bottom {
-    border-top: 1px solid #e0e0e0;
-    padding: 8px 12px;
+    border-top: 1px solid rgba(0,0,0,0.08);
+    padding: 0.5em 0.8em;
+    margin-top: 0.3em;
     border-bottom-left-radius: 6px;
     border-bottom-right-radius: 6px;
-    background: #fafafa;
     --m3-secondary-container: var(--m3-primary, #1976D2);
     --m3-on-secondary-container: var(--m3-on-primary, #fff);
 }
 
-.dialog_bottom .dijitButtonNode {
-    padding: calc(0.45em - 1px) calc(1.2em - 1px);
-    min-height: 28px;
-}
 
 /* M3 Button style modifiers via CSS variable inheritance */
 .btn_filled {

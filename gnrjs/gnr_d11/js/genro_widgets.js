@@ -5292,7 +5292,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
     },
     uploadOptionsDialog:function(sourceNode,uploadCb,takePictureDialog,cropkw){
         var dlg = genro.dlg.quickDialog(_T('Upload options'),{_showParent:true,width:'280px',closable:true});
-        dlg.center._('div',{innerHTML:_T('Choose upload option'), text_align:'center',_class:'alertBodyMessage'});
+        dlg.center._('div',{innerHTML:_T('Choose upload option'),_class:'alertBodyMessage'});
         this.loadCroppie();
         let src = sourceNode.getAttributeFromDatasource('src');
 
