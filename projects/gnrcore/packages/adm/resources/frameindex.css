@@ -1,3 +1,8 @@
+/* --- Application menu icon --- */
+.application_menu {
+    background: url(/_rsrc/common/icons/sidemenu.png) no-repeat center center;
+}
+
 .isDeveloper .thpage{
     border:1px solid yellow;
 }

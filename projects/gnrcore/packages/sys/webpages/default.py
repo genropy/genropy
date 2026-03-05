@@ -10,7 +10,6 @@ from gnr.core.gnrbag import DirectoryResolver
 from werkzeug.exceptions import NotFound
 
 class GnrCustomWebPage(object):
-    css_requires='public'
 
     def pageAuthTags(self, method=None, **kwargs):
         return ''

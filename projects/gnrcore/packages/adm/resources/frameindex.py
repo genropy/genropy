@@ -25,7 +25,7 @@ class FrameIndex(BaseComponent):
                    """
     #gnrcomponents/datamover:MoverPlugin, removed
     js_requires='frameindex'
-    css_requires='frameindex,public'
+    css_requires='frameindex'
     
     custom_plugin_list = None
     index_page = False

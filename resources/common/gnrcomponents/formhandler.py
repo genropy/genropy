@@ -26,7 +26,6 @@ from gnr.core.gnrbag import Bag
 
 
 class FormHandler(BaseComponent):
-    css_requires='public'
 
     @extract_kwargs(palette=True,dialog=True,default=True,tree=True,link=True)
     @struct_method

@@ -389,6 +389,45 @@
     padding-top:0;
 }
 
+/* --- Zoom cell (grid hyperlinks) --- */
+.gnrzoomcell {
+    text-decoration: none;
+    padding-left: 3px;
+    padding-right: 3px;
+    color: inherit;
+}
+
+.gnrzoomcell:hover {
+    border-radius: 7px;
+    background: yellow;
+}
+
+/* --- Search input width --- */
+.searchWidth {
+    width: 6em;
+}
+
+/* --- MenuStack navigator --- */
+.menuStackNavigator .dijitButtonNode {
+    background-color: transparent;
+    border-width: 0;
+}
+
+/* --- No record selected placeholder --- */
+.noRecordSelected {
+    margin: 50px auto;
+    width: 300px;
+    height: 198px;
+    background: url(/_rsrc/common/icons/norecord.png) no-repeat;
+}
+
+/* --- Toolbar button base (navigation icons) --- */
+.tb_button {
+    height: 16px;
+    width: 16px;
+    cursor: pointer;
+}
+
 .dijitError.dijitFocused{
     background-image: none;
 }
