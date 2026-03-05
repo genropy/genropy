@@ -1,0 +1,370 @@
+/* @group DojoxGrid*/
+.fillernode{
+    overflow: hidden;
+}
+
+.tundra .filteredGrid .dojoxGrid-cell{
+}
+
+.gnrDraftRow{
+    font-style: italic;
+    color: rgba(64, 128, 180, 1.00);
+}
+
+.tundra ._gnrReadOnlyRow ._statusIcon{
+    background:url(../icons/base16/locked.gif) no-repeat center center;
+}
+
+.tundra ._gnrInvalidRow ._statusIcon, .tundra ._gnrInvalidRow._gnrReadOnlyRow ._statusIcon ,
+.tundra ._gnrInvalidRow._gnrProtectionPass ._statusIcon{
+    background: url(../icons/base16/semaphore_red.png) no-repeat center center;
+}
+
+.tundra ._gnrProtectionPass ._statusIcon{
+}
+
+._statusIcon{
+    height: 16px;
+    width: 100%;
+}
+
+.logicalDeleted .dojoxGrid-cell {
+    color: #b50000;
+}
+
+.logicalDeleted .dojoxGrid-row-selected .dojoxGrid-cell {
+    color: #b50000;
+}
+
+.tundra .dojoxGrid-cell {
+	border: 1px dotted #D5CDB5;
+	border-top: 0px;
+	padding: 1px;
+	text-align: left;
+	overflow: hidden;
+}
+
+div.cellContent{
+    border-radius:3px;
+    margin:1px;
+    padding:1px;
+    padding-bottom: 2px;
+    padding-top: 3px;
+    -moz-transition-duration:0;
+    -webkit-transition-duration:0;
+    transition-duration:0;
+    line-height:15px;
+    min-height: 15px;
+    border:1px solid transparent;
+}
+
+.cell_editable .cellContent:hover{
+    background: #F8FFD9;
+    cursor: text;
+}
+
+.cell_editable.cell_editLazy .cellContent:hover{
+    background: #E6F9FF;
+}
+
+.cell_editable.cell_disabled .cellContent:hover{
+    background: #FFE7DD;
+    cursor: not-allowed;
+}
+
+.externalChangedCell .cellContent{
+    background-color:#C7FFB4;
+}
+
+.onExternalChanged .externalChangedCell .cellContent{
+    -moz-transition-property:background-color;
+    -webkit-transition-property:background-color;
+    -moz-transition-duration:5s;
+    -webkit-transition-duration:5s;
+    transition-duration:5s;
+    transition-property:background-color;
+    background-color:transparent;
+}
+.copyingContent{
+    -moz-transition-property:background-color;
+    -webkit-transition-property:background-color;
+    -moz-transition-duration:1s;
+    -webkit-transition-duration:1s;
+    transition-duration:1s;
+    transition-property:background-color;
+    background-color:rgba(241, 145, 53, 0.50);
+}
+.currentContextTarget.cellContent{
+    background-color:#C7FFB4;
+}
+
+.dj_ie6 .tundra .dojoxGrid-cell {
+	border: 1px solid white;
+	border-right: 1px solid #D5CDB5;
+}
+.tundra .dojoxGrid-cell-focus {
+	border: 1px solid #949494;
+	border-top:0px;
+	border-left:0px;
+
+}
+.tundra .dojoxGrid-cell-over {
+	border: 1px dotted #a6a6a6;
+	border-top: 0px;
+
+}
+
+.tundra .dojoxGrid-cell-focus.dojoxGrid-cell-over {
+	border: 1px solid #949494;
+	border-top:0px;
+	border-left:0px;
+}
+body *{
+    outline:none !important;
+
+}
+.tundra .dijitTextBoxFocused, .tundra .dijitTextAreaFocused,.tundra .dijitComboBoxFocused {
+    border-color: var(--m3-primary, #1976D2);
+    box-shadow: 0 0 0 1px rgba(124, 92, 191, 0.2);
+}
+
+.tundra .formattedTextBox input{
+    width:1px !important;
+    opacity:0;
+}
+.tundra .comboArrowTextbox{
+    margin-right:22px;
+    background: none;
+}
+
+/*
+.dijitTextBoxReadOnly.dijitReadOnly .comboArrow{
+    display: none;
+}
+*/
+
+.tundra .dijitTextBoxFocused .formattedTextBox input, .tundra .dijitTextBoxActive .formattedTextBox input{
+    min-width:90% !important;
+    opacity:1;
+}
+.tundra .formattedViewer{
+    white-space: nowrap;
+}
+
+.tundra .dijitTextBoxFocused .formattedViewer, .tundra .dijitTextBoxActive .formattedViewer{
+    display:none;
+}
+
+
+.textAreaWrapper{
+    position: relative;
+    display: inline-block;
+}
+
+.dojoxFloatingPane.dijitContentPane{
+    overflow: hidden;
+}
+.dijitContentPane>.textAreaWrapper{
+    position: absolute;
+    display: block;
+    top:0px;
+    left:0px;
+    right:0px;
+    bottom:0px;
+}
+
+.dijitContentPane>.textAreaWrapper .textAreaWrapperArea{
+    position: absolute;
+    top:2px;
+    left:2px;
+    right:2px;
+    bottom:20px;
+}
+.quickTooltipContainer{
+    padding: 10px;
+}
+.quickEditorWrapper{
+    position: relative;
+}
+.widgetInCell.quickEditorWrapper{
+    margin-left: 2px;
+}
+.quickEditor{
+    position: absolute;
+    top:0;
+    bottom: 0;
+    left:1px;
+    right:18px;
+    border:1px solid silver;
+    border-radius: 2px;
+}
+.widgetInCell .quickEditor{
+    border-width: 0;
+    border-bottom: 1px solid #efefef;
+}
+
+.quickEditorButton{
+    width: 18px;
+    height: 17px;
+    border-top:1px solid silver;
+    border-right:1px solid silver;
+    border-bottom:1px solid silver;
+    position: absolute;
+    border-radius: 2px;
+    top:0;
+    right:0;
+}
+.widgetInCell .quickEditorButton{
+    border-top:0px;
+    border-right:0px;
+    border-bottom:1px solid #efefef;
+}
+
+.textAreaWrapperInTable{
+    width:100%;
+}
+
+.textAreaWrapperInTable .textAreaWrapperArea{
+}
+
+.textAreaWrapperArea{
+    position:relative;
+    /*width:100%;*/
+}
+.textAreaWrapperButtons{
+    position: relative;
+    display: inline-block;
+    border-bottom: 1px solid silver;
+    border-left: 1px solid silver;
+    border-right: 1px solid silver;
+    border-top:1px solid silver;
+    border-bottom-right-radius: 4px;
+    border-bottom-left-radius: 4px;
+    left: 10px;
+    background: #F2F2F2;
+}
+
+
+
+.textAreaWrapperInTable .textAreaWrapperButtons{
+    opacity: 0;
+    top: -1px;
+}
+.textAreaWrapperInTable .textAreaWrapperButtons{
+    top: -4px;
+}
+
+.textAreaWrapperInTable.textAreaIsEditor .textAreaWrapperButtons{
+    top: -1px;
+}
+
+.dijitContentPane>.textAreaWrapper .textAreaWrapperButtons{
+    position: absolute;
+    display: block;
+    bottom:1px;
+    height:18px;
+    border-top:0;
+}
+
+
+.textAreaWrapper:hover .textAreaWrapperButtons{
+    opacity:1;
+}
+
+
+.TAspeechInputBox{
+    position:relative;
+    left:2px;
+    cursor: pointer;
+    display:inline-block;
+    width:34px;
+    height:14px;
+    overflow: hidden;
+}
+.TAspeechInput{
+    width:14px;
+    border:0;
+    color:transparent;
+    font-size:13px;
+    background:transparent;
+    position: relative;
+    left:8px;
+    top:0;
+}
+.ckBody{
+    margin:2px;
+}
+
+.TAeditorPalette{
+    background: transparent url(../icons/base12/editorpalette.png) no-repeat center center;
+    height:1px;
+    width:34px;
+    height:14px;
+    top:1px;
+    display:inline-block;
+    position:relative;
+    cursor: pointer;
+}
+
+._common_d11 .cke_skin_kama iframe {
+    border:0px;
+    vertical-align: inherit;
+    box-shadow:none;
+    width:100%!important;
+}
+._common_d11 .cke_skin_kama .cke_wrapper{
+    border:0px;
+}
+._common_d11 .cke_top{
+    background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, from(#F6F6F6), to(#E9E9E9));
+    background-image: -moz-linear-gradient(-90deg, #F6F6F6, #E9E9E9);
+}
+
+
+
+.tundra .dijitTextBoxFocused .cls_DbSelect, .tundra .dijitComboBoxFocused .cls_DbSelect{
+    background-color: var(--field-focus-bg, #fff);
+}
+.tundra .slotbar_toolbar .dijitTextAreaFocused,.tundra .slotbar_toolbar .dijitTextBoxFocused,.tundra .slotbar_toolbar .dijitComboBoxFocused{
+    box-shadow: 0px 0px 1px #488fd7;
+}
+
+.tundra .hideInnerToolbars .slotbar_toolbar{
+    display: none;
+}
+
+.tundra .hideInnerToolbars .showInnerToolbar .slotbar_toolbar{
+    display: block;
+}
+
+.slotbar_toolbar .gnrfieldlabel {
+    /*vertical-align: middle;*/
+    color: #555;
+    margin-top:2px;
+    white-space: nowrap;
+    padding-left:4px;
+}
+/* @end */
+
+
+
+/* @group PatchDojox */
+.tundra .dojoxDockNode {
+	border: 1px solid #adadad;
+	border-radius: 2px;
+	cursor:pointer;
+	list-style: none;
+	padding: 2px;
+	margin: 0px;
+	height: 16px;
+	width: auto;
+	float: left;
+    background-color: #EDEDEE;
+    background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, from(#EDEDEE), to(#CDCDCD));
+    background-image: -moz-linear-gradient(-90deg, #EDEDEE, #CDCDCD);}
+/* @end */
+/* @group PatchDojox */
+
+/* @end */
+
+/* @end */

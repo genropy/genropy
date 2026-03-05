@@ -1,0 +1,289 @@
+/* @group SlotBar */
+
+.openerPane{
+
+}
+.openerButton{
+    background: gray;
+    -moz-transition:all .5s;
+    -webkit-transition:all .5s;
+    opacity: .5;
+
+}
+.openerPane:hover .openerButton{
+    opacity: 1;
+}
+.openerButton_left{
+    border-top-right-radius: 5px;
+    border-bottom-right-radius: 5px;
+    position: absolute;
+    top: 50%;
+    margin-top: -20px;
+    border-left: 0;
+    width: 8px;
+    height: 40px;
+    cursor: pointer;
+}
+
+/* @group Opener */
+.closableSide_horizontal{
+	overflow: visible;
+}
+.closableSide_vertical{
+	overflow: visible;
+}
+
+
+.closedSide .slotbar{
+	display: none;
+}
+
+.slotbarOpener{
+	/*display: none;*/
+	font-size: 9px;
+	color: white;
+	font-weight: bold;
+	font-family: inherit;
+	position: absolute;
+	z-index: 20;
+	background: #555;
+	opacity: .2;
+	cursor: pointer;
+	border: 1px solid gray;
+	-moz-transition:all .5s;
+}
+.slotbarOpener:hover{
+	opacity: 1;
+}
+
+.slotbarOpener_horizontal{
+	height: 10px;
+	width: 10px;
+}
+
+
+.slotbarOpener_top{
+	border-bottom-right-radius: 5px;
+	border-bottom-left-radius: 5px;
+	bottom: -9px;
+	border-top: 0;
+	left: 50%;
+	margin-left: -20px;
+	height: 8px;
+	width: 40px;
+}
+.slotbarOpener_bottom{
+	border-top-right-radius: 5px;
+	border-top-left-radius: 5px;
+	top: -9px;
+	left: 50%;
+	margin-left: -20px;
+	height: 8px;
+	width: 40px;
+	border-bottom: 0;
+
+}
+.slotbarOpener_left{
+	border-top-right-radius: 5px;
+	border-bottom-right-radius: 5px;
+	right: -9px;
+	top: 50%;
+	margin-top: -20px;
+	border-left: 0;
+	width: 8px;
+	height: 40px;
+}
+
+.slotbarOpener_right{
+	border-top-left-radius: 5px;
+	border-bottom-left-radius: 5px;
+	left: -9px;
+	top: 50%;
+	margin-top: -20px;
+	border-right: 0;
+	width: 8px;
+	height: 40px;
+}
+
+.slotCaption {
+    border-radius:12px;
+    background:#555;
+    border:1px solid gray;
+    padding-left:1em;
+    padding-right:1em;
+    padding-top:1px;
+    overflow:hidden;
+    font-weight:bold;
+    color:white;
+}
+
+/* @end */
+.slotbar .dojoxDock{
+    top:1px;
+}
+
+.slotbar_group{
+    white-space:nowrap;
+}
+
+.slotbar_dialog_footer{
+    padding: 0.4em 0.6em 0.5em;
+    border-top: 1px solid rgba(0,0,0,0.08);
+    --m3-secondary-container: var(--m3-primary, #1976D2);
+    --m3-on-secondary-container: var(--m3-on-primary, #fff);
+}
+.slotbar .slotbar_cell{
+    overflow:hidden;
+    text-align:center;
+    vertical-align:middle;
+
+}
+.slotbar .slotbar_cell>*{
+	margin: auto;
+
+}
+.slotbar_vertical{
+    height:100%;
+}
+.slotbar_horizontal{
+    position:relative;
+    white-space:nowrap;
+    overflow:hidden;
+}
+
+/* @group Toolbar Selector */
+.slotbar_toolbar {
+	padding-top: 1px;
+	padding-bottom: 1px;
+}
+
+.slotbar_vertical.slotbar_toolbar{
+    padding-top: 0px;
+    padding-bottom: 0px;
+    padding-left: 1px;
+    padding-right: 1px;
+}
+
+/*.slotbar_toolbar .dijitButtonNode {
+	background: none;
+	margin: 0px !important;
+	padding: 0px !important;
+	border: none;
+	font-size: 12px;
+}*/
+
+/*.slotbar_toolbar .dijitButton,
+.slotbar_toolbar .dijitToggleButton,
+.slotbar_toolbar .dijitDropDownButton {
+	background: none;
+	margin: 1px;
+	padding: 0px;
+	border: 1px solid transparent;
+}
+.slotbar_toolbar .dijitButtonChecked,
+.slotbar_toolbar.dijitToggleButtonChecked {
+	background-color:#d4dff2;
+	border:1px solid #316ac5;
+	margin: 1px !important;
+	padding: 0px !important;
+}*/
+
+
+/*.slotbar_toolbar .dijitButtonCheckedHover,
+.slotbar_toolbar .dijitToggleButtonCheckedHover
+ {
+	background-color:#abc1e5;
+	border:1px solid #316ac5;
+	margin: 1px !important;
+	padding: 0px !important;
+}
+.slotbar_toolbar .dijitButtonHover,
+.slotbar_toolbar .dijitToggleButtonHover,
+.slotbar_toolbar .dijitDropDownButtonHover {
+
+	border: 1px solid #316ac5;
+	background-color:#abc1e5;
+}*/
+/*.slotbar_toolbar label {
+	padding: 3px 3px 0 6px;
+}*/
+
+
+.slotbar_vertical.slotbar_toolbar{
+
+}
+
+.slotbar_horizontal.slotbar_toolbar {
+
+	/*z-index:1;*/
+}
+/* @end */
+
+
+
+.slotbar_horizontal .slotbar_row{
+}
+.slotbar_lbl{
+    font-size:10px;
+}
+.slotbar_horizontal .slotbar_cell{
+	vertical-align: middle;
+	height: 100%;
+	width:1px;
+	padding-left: 2px;
+	padding-right:2px ;
+}
+.slotbar .slotbar_table{
+	border-spacing:0px;
+	border-collapse:collapse;
+}
+.slotbar_horizontal .slotbar_table{
+	width:100%;
+}
+.slotbar_vertical .slotbar_table{
+    height:100% ;
+    width:100%;
+}
+
+.slotbar_horizontal .slotbar_spacer{
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    background: #CECECE;
+    width: 1px;
+    border-right: 1px solid #E3E3E3;
+}
+.slotbar_vertical .slotbar_spacer{
+    height: 100%;
+    background: gray;
+}
+.slotbar_vertical .slotbar_row{
+    height: 1px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
+/* @end */
+
+
+
+
+.ping_semaphore{
+    height: 16px;
+    width: 16px;
+    background: url(../icons/base16/semaphore_gray.png) no-repeat center center;
+
+    -webkit-transition-duration: 1s;
+    -moz-transition-duration: 1s;
+}
+.ping_start .ping_semaphore{
+    background: url(../icons/base16/semaphore_green.png) no-repeat center center;
+}
+
+.ping_error .ping_semaphore{
+    background: url(../icons/base16/semaphore_red.png) no-repeat center center;
+}
+
+
+
+

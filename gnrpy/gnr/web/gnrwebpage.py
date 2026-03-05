@@ -1469,8 +1469,18 @@ class GnrWebPage(GnrBaseWebPage):
     def get_css_genro(self):
         """TODO"""
         css_genro = self.frontend.css_genro_frontend()
+        gnr_static_handler = self.site.storage('gnr')
         for media in list(css_genro.keys()):
-            css_genro[media] = [self.mtimeurl(self.gnrjsversion, 'css', '%s.css' % f) for f in css_genro[media]]
+            expanded = []
+            for f in css_genro[media]:
+                css_dir = f + '_css'
+                dir_path = gnr_static_handler.internal_path(self.gnrjsversion, 'css', css_dir)
+                if os.path.isdir(dir_path):
+                    for name in sorted(os.listdir(dir_path)):
+                        if name.endswith('.css'):
+                            expanded.append(self.mtimeurl(self.gnrjsversion, 'css', css_dir, name))
+                expanded.append(self.mtimeurl(self.gnrjsversion, 'css', '%s.css' % f))
+            css_genro[media] = expanded
         return css_genro
         
     def _get_domSrcFactory(self):

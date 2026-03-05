@@ -1,0 +1,196 @@
+/* @group validation */
+
+.ghostpartial {
+    opacity: .42;
+}
+
+.ghosthidden {
+    opacity: 0;
+    z-index: 0;
+}
+
+.tundra .dijitTextBox, .tundra .dijitComboBox, .tundra .dijitSpinner, .tundra .dijitInlineEditor input ,.tundra .dijitTextArea{
+    background: var(--field-bg, white);
+    border: 1px solid var(--field-border, #B3B3B3);
+    line-height: normal;
+    border-radius:3px;
+    position: relative;
+    padding-left: 3px;
+    padding-top: 1px;
+}
+.tundra .dijitInputField input{
+    padding-right: 3px;
+}
+.tundra .mobilefields .dijitInputField{
+    font-size:11pt;
+    padding:1px;
+}
+.gnrfield.tag_checkbox label{
+    color: #707070;
+}
+
+.tundra .mobilefields .dijitButtonNode.dijitArrowButton{
+    background: none;
+}
+
+.gnrfield label{
+    color: #707070;
+    padding-right: 10px;
+}
+
+.fakeTextBox,.smallFakeTextBox, .gnrfield.tag_div>div.fakeTextBox{
+	background: var(--field-bg, white);
+    border: 1px solid var(--field-border, #B3B3B3);
+    line-height: normal;
+    border-radius:3px;
+    position: relative;
+    padding-left: 4px;
+    padding-top: 1px;
+    min-height: 13px;
+    display: inline-block;
+    -webkit-touch-callout: auto;
+    -webkit-user-select: auto;
+    -khtml-user-select: auto;
+    -moz-user-select: auto;
+    -ms-user-select: auto;
+    user-select: auto;
+}
+
+.fakeNumberTextBox ,.gnrfield.tag_div>div.fakeNumberTextBox{
+	background: var(--field-bg, white);
+    border: 1px solid var(--field-border, #B3B3B3);
+    line-height: normal;
+    border-radius:3px;
+    position: relative;
+    padding-right: 2px;
+    padding-top: 1px;
+    min-height: 13px;
+    text-align: right;
+    -webkit-touch-callout: auto;
+    -webkit-user-select: auto;
+    -khtml-user-select: auto;
+    -moz-user-select: auto;
+    -ms-user-select: auto;
+    user-select: auto;
+}
+
+
+.tundra .dijitError {
+    border-color: var(--field-error-border, silver);
+    background: white url(../icons/invalid_small.png) no-repeat top left;
+
+}
+
+.tundra .dijitTextBoxErrorDisabled {
+    border-color: transparent;
+}
+
+.dijitComboBox.dijitError, .dijitSpinner.dijitError{
+	border-color: silver;
+    background: white url(../icons/invalid_small.png) no-repeat top left;
+}
+
+.tundra .dijitComboBoxErrorDisabled {
+    border-color: transparent;
+}
+
+label.ghostlabel span {
+    opacity: 1;
+    z-index: 5;
+    position: absolute;
+    padding-left: 5px;
+    padding-top: 1px;
+    color: #808080;
+}
+
+.dijitReset .dijitValidationIcon {
+    display: none;
+}
+
+/* @end */
+
+/* @group print */
+
+.only_print {
+    display: none;
+}
+
+/* @end */
+
+/* @group SystemCss */
+
+/* @group FormGrid */
+
+._common_d11 .bagEditor .dojoxGrid-header {
+	display: none;
+}
+._common_d11 .bagEditor .dojoxGrid-cell{
+    height:17px;
+}
+.pasteOnGrid .dojoxGrid-cell{
+    caret-color: rgb(146, 140, 140);
+}
+.pasteOnGrid{
+    caret-color: transparent;
+}
+/* @end */
+
+/* @group palette */
+
+.basePalette{
+	/*font-size: 11px;*/
+}
+
+/* @end */
+
+
+/* @group Plugin */
+.plugin_block {
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
+    width: 27px;
+    height: 20px;
+    cursor: pointer;
+}
+
+
+.selected_plugin.plugin_block {
+    -moz-box-shadow: 0 -1px 1px #005555 inset;
+     -webkit-box-shadow: 0 -1px 1px #005555 inset;
+    background-color: white;
+}
+/*.detachable{
+    background:orange;
+    -moz-box-shadow: 0px 0px 6px #999 inset;
+    -webkit-box-shadow: 0px 0px 6px #999  inset;
+}*/
+
+.detacher{
+    position:absolute;
+    top:0;
+    bottom:0;
+    left:0;
+    right:0;
+    -moz-transition-property: all;
+    -webkit-transition-duration: 1s;
+    -moz-transition-duration: 1s;
+}
+.gnrTransition{
+     -moz-transition-property: all;
+    -webkit-transition-duration: .5s;
+    -moz-transition-duration: .5s;
+}
+
+.detachable .detacher{
+    top:20px;
+    bottom:20px;
+    left:20px;
+    right:20px;
+}
+
+#gnr_plugin_dock {
+    position: absolute;
+    display: inline-block;
+}
+
+/* @end */

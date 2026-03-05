@@ -1,0 +1,486 @@
+/* @group Dijit custom */
+
+/* @group colorpalettemenu */
+
+.colorPaletteMenu .dijitMenuItemHover {
+    background-color: transparent;
+}
+
+.colorPaletteMenu .dijitMenuItem td {
+    padding: 0;
+}
+
+.colorPaletteMenu .dijitMenuItemIcon {
+    display: none;
+}
+
+/* @end */
+
+/* @group Editor */
+
+.RichTextEditable .dijitComboBox {
+    font-size: .9em;
+    width: 8em;
+}
+
+.RichTextEditable label {
+    font-size: .9em;
+}
+
+/* @end */
+
+/* @group Toaster */
+
+.dijitToasterContent {
+    padding: 1em;
+    padding-top: 0.25em;
+    background: #73c74a;
+}
+
+.dijitToasterMessage {
+    color: #fff;
+}
+
+.dijitToasterWarning {
+}
+
+.dijitToasterError,
+.dijitToasterFatal {
+    font-weight: bold;
+    color: #fff;
+}
+
+.dijitToasterWarning .dijitToasterContent {
+    padding: 5px;
+    background: #d4d943;
+}
+
+.dijitToasterError .dijitToasterContent {
+    padding: 5px;
+    background: darkred;
+}
+
+.dijitToasterClip {
+    position: absolute;
+    z-index: 5000;
+    overflow: hidden;
+}
+
+.dijitToasterContainer {
+    display: inline-block;
+    position: absolute;
+    margin: 0px;
+    font: 0.9em Tahoma, Helvetica, Verdana, Arial;
+}
+
+/* @end */
+
+.gnrfield .dijitButtonDisabled .dijitButtonNode, .tundra .dijitToggleButtonDisabled .dijitButtonNode, .tundra .dijitDropDownButtonDisabled .dijitButtonNode, .tundra .dijitComboButtonDisabled .dijitButtonNode, .tundra .dijitComboBoxDisabled, .tundra .dijitSpinnerDisabled, .tundra .dijitSpinnerDisabled .dijitButtonNode {
+    opacity: 1;
+}
+
+.warningForm .saving_btn .dijitButtonNode {
+    color: red !important;
+}
+
+._common_d11 .dijitDialog {
+    border-radius: 6px;
+    background-color: var(--dlg-bg, #f6f6f6);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.10);
+    border: 1px solid var(--dlg-border-color, silver);
+}
+
+._common_d11 .dijitDialog .dijitDialogPaneContent {
+    border-bottom-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+    border: 0px;
+    background-color: var(--dlg-pane-bg, #fff);
+}
+
+.tundra._common_d11 .dijitDialogTitleBar {
+    background: var(--dialogtitlebar-background, linear-gradient(to right, #3b6391, #4b6cb7));
+    color: var(--dialogtitlebar-color, #ffffff);
+    vertical-align: middle;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    text-align: center;
+    font-weight: normal;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    font-size: .9em;
+}
+
+.tundra._common_d11 .commonTitleBar {
+    background: var(--dialogtitlebar-background, linear-gradient(to right, #3b6391, #4b6cb7));
+    color: var(--dialogtitlebar-color, #ffffff);
+    text-align: center;
+    font-weight: normal;
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
+.tundra .dijitDialog .dijitDialogPaneContent {
+    font-size: 0.92em;
+    padding: 0px;
+    overflow: hidden;
+}
+
+
+._common_d11 .lightboxDialog.dijitDialog {
+    padding: 2px;
+    background:white;
+    border: 1px solid #ddd;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
+}
+.index_loginbox{
+    font-size:1.2em;
+    color:#555;
+}
+.index_loginbox .index_logintitle{
+    font-variant:small-caps;
+    font-size:1.2em;
+    padding-top:4px;
+    text-align: center;
+}
+
+.index_loginbox .index_loginsubtitle{
+    font-size: .9em;
+    font-style: italic;
+    text-align: center;
+}
+
+.login_option_btn{
+    color:gray;
+    font-size:12px;
+    height:15px;
+    cursor:pointer;
+    text-align:left;
+}
+.login_confirm_btn{
+    padding: 0;
+}
+.login_confirm_btn .dijitButtonNode{
+    /* M3 Filled for login primary action */
+    background-color: var(--m3-primary, #1976D2);
+    color: var(--m3-on-primary, #fff);
+    font-size: 0.85em;
+    padding: 0.35em 1.2em;
+    letter-spacing: 0.3px;
+    font-weight: 400;
+}
+.login_confirm_btn .dijitButtonNode .dijitButtonText{
+    color: var(--m3-on-primary, #fff);
+}
+._common_d11 .lightboxDialog.dijitDialog .dijitDialogPaneContent {
+    background: transparent;
+    border: 0px;
+    padding:5px;
+    /*background-image: -moz-linear-gradient(-90deg, rgba(170, 190, 201, 0.2), #FFFFFF);
+    background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, rgba(170, 190, 201, 0.2), to(#FFFFFF));*/
+}
+.tundra._common_d11 .fullscreenDialog.dijitDialog{
+    border-radius: 0;
+    border-width: 0;
+    box-shadow:none;
+}
+
+._common_d11 .fullscreenDialog.dijitDialog .dijitDialogPaneContent {
+    background: transparent;
+    border: 0px;
+    padding:0;
+    /*background-image: -moz-linear-gradient(-90deg, rgba(170, 190, 201, 0.2), #FFFFFF);
+    background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, rgba(170, 190, 201, 0.2), to(#FFFFFF));*/
+}
+
+.tundra._common_d11 .dijitDialogPaneContent{
+    overflow: hidden !important;
+}
+
+.tundra._common_d11 .dijitDialog.dijitContentPane{
+    overflow: hidden;
+}
+
+._common_d11 .lightboxDialog .dijitDialogTitleBar, ._common_d11 .fullscreenDialog .dijitDialogTitleBar, ._common_d11 .hideDialogTitle .dijitDialogTitleBar{
+    display:none;
+}
+
+._common_d11 .hideDialogTitle .dijitDialogPaneContent{
+    border-radius: 6px;
+}
+
+._common_d11  .dijitTooltipFocusNode{
+    padding:0px;
+}
+
+.tundra .dijitDialog {
+    z-index: 499;
+}
+
+.tundra .dijitDialogUnderlayWrapper {
+    z-index: 498;
+}
+.tundra .dijitDialogUnderlay.fullscreenDialog_underlay{
+    display: none;
+}
+
+
+/* @group FileInput */
+
+/* quickthermo*/
+.quickthermo_box{
+    background: white;
+    border-radius: 4px;
+    border-left: 1px solid #efefef;
+    box-shadow: 2px 2px 3px #666;
+    min-width: 360px;
+}
+.quickthermo_box.thermo_message .form_waiting{
+    width: 100%;
+    border-width: 0;
+    box-shadow: none;
+}
+
+.quickthermo_title{
+    font-variant: normal;
+    font-size: 14px;
+    text-align: center;
+    background: #666;
+    color: white;
+    border-top-right-radius: 4px;
+    border-top-left-radius: 4px;
+}
+
+
+.quickthermo_caption{
+    font-variant: normal;
+    font-size: 12px;
+    color:#555;
+}
+
+.dijitFileInput {
+    position: relative;
+    height: 1.3em;
+    padding: 2px;
+}
+
+.dijitFileInputReal {
+    position: absolute;
+    z-index: 2;
+    opacity: 0;
+    left: 0;
+    top: 0;
+    filter: alpha(opacity:0);
+}
+
+.dijitFileInputRealBlind {
+    right: 0;
+}
+
+.dijitFileInputReal:hover {
+    cursor: pointer;
+}
+
+.dijitFileInputButton,
+.dijitFileInputText {
+    border: 1px solid #333;
+    padding: 2px 12px 2px 12px;
+    cursor: pointer;
+}
+
+.dijitFileInputButton {
+    opacity: 0;
+    filter: alpha(opacity:0);
+    z-index: 3;
+    visibility: hidden;
+}
+
+.dijitFakeInput {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+}
+
+.dijitProgressOverlay {
+    display: none;
+    width: 250px;
+    height: 1em;
+    position: absolute;
+    top: 0;
+    left: 0;
+    border: 1px solid #333;
+    background: #cad2de url('../../../dijit/themes/tundra/images/dijitProgressBarAnim.gif') repeat-x top left;
+    padding: 2px;
+}
+
+/* tundra */
+
+.tundra .dijitProgressOverlay {
+    border: 1px solid #84a3d1;
+    background-color: #cad2de;
+}
+
+.tundra .dijitFakeInput input {
+    font-size: inherit;
+    background: #fff url("../../../dijit/themes/tundra/images/validationInputBg.png") repeat-x top left;
+    border: 1px solid #9b9b9b;
+    line-height: normal;
+    padding: 0.2em 0.3em;
+}
+
+.tundra .dijitFileInputButton,
+.tundra .dijitFileInputText {
+    border: 1px solid #9b9b9b;
+    padding: 2px 12px 2px 12px; /* .3em .4em .2em .4em; */
+    background: #e9e9e9 url("../../../dijit/themes/tundra/images/buttonEnabled.png") repeat-x top;
+}
+
+/* @end */
+
+/* @end */
+
+.waiting {
+    height: 100%;
+    height: 100%;
+    background: url(../icons/pageWaiting.gif) no-repeat center center;
+
+}
+
+/* @group Dojox */
+.dojoxScrollWindow {
+    position: relative;
+}
+
+.dojoxScrollHelper .helperInner {
+    visibility: hidden;
+}
+
+.dojoxScrollHelper {
+    border: 1px solid #b7b7b7;
+    width: 4px;
+    background: #ededed;
+    height: 4px;
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    border-radius: 3px;
+}
+
+.dojoxScrollWrapper {
+    width: 100%;
+}
+
+/* @end */
+
+.notvisible {
+    visibility: hidden;
+}
+
+#_gnrRoot {
+    opacity: 0;
+}
+
+textarea {
+    border: 1px solid silver;
+    font-family: inherit;
+    font-size: inherit;
+}
+
+textarea:disabled {
+    border: 1px solid silver;
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+}
+
+.countBox {
+    cursor: default;
+    font-variant: small-caps;
+    visibility: hidden;
+	border-collapse: collapse;
+}
+
+.countBoxVisible {
+    visibility: visible;
+}
+.countBoxPartial {
+    border: 1px solid #AEB6BD;
+    border-right: 0px;
+    border-top-left-radius: 12px;
+    border-bottom-left-radius: 12px;
+    text-align: right;
+    padding-right: 3px;
+    padding-left: 5px;
+    background: #D5E5F6;
+    color: #7791AB;
+}
+.unfilteredCount .countBoxPartial {
+    display: none;
+
+}
+.countBoxTotal {
+    border: 1px solid #AEB6BD;
+    border-top-right-radius: 12px;
+    border-bottom-right-radius: 12px;
+    text-align: left;
+    padding-left: 4px;
+    padding-right: 5px;
+    background: #F2ECD4;
+    color: #9C9474;
+}
+.unfilteredCount .countBoxTotal {
+    border-top-left-radius: 12px;
+    border-bottom-left-radius: 12px;
+    text-align: center;
+    padding-right: 5px;
+}
+
+.countBoxErrors{
+    border-radius: 12px;
+    border: 1px solid #AEB6BD;
+    background: darkred;
+    color:white;
+    padding-left: 5px;
+    padding-right: 5px;
+    font-size: .9em;
+    cursor: pointer;
+}
+
+.searchInputBox {
+    border-radius: 12px;
+    padding-left: 5px;
+    padding-right: 20px;
+    border: 1px solid #AEB6BD;
+    background: white url(../icons/base10/lens.gif) no-repeat 95%;
+}
+
+.searchInputBox.activeSearch{
+    background: white url(../icons/base10/frametabclose.png) no-repeat 95%;
+    cursor: pointer;
+}
+
+.searchInputBox>input{
+    width:100%;
+    border:0;
+}
+
+
+.searchInput {
+    border-radius: 12px;
+    padding-left: 5px;
+    padding-right: 15px;
+    border: 1px solid gray;
+    background: white url(../icons/base10/lens.gif) no-repeat 95%;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.dimmed {
+    opacity: 0.5;
+}
+
+/* @end */

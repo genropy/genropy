@@ -1,0 +1,1180 @@
+/* @group Icons */
+
+/* @group Base 48 */
+.trash_icon48 {
+    background: url(../icons/base48/trash_icon.png) no-repeat center center;
+    width: 40px;
+    height: 40px;
+}
+
+.key_icon48 {
+    background: url(../icons/base48/keyicon.png) no-repeat center center;
+    width: 48px;
+    height: 48px;
+}
+
+.money_icon48 {
+    background: url(../icons/base48/money.png) no-repeat center center;
+    width: 48px;
+    height: 48px;
+}
+
+.drawer_icon48 {
+    background: url(../icons/base48/drawer.png) no-repeat center center;
+    width: 48px;
+    height: 48px;
+}
+
+.keyboard_icon48 {
+    background: url(../icons/base48/keyboard.png) no-repeat center center;
+    width: 48px;
+    height: 48px;
+}
+
+.creditcard_icon48 {
+    background: url(../icons/base48/creditcard.png) no-repeat center center;
+    width: 48px;
+    height: 48px;
+}
+
+.confirm_icon48 {
+    background: url(../icons/base48/confirm.png) no-repeat center center;
+    width: 48px;
+    height: 48px;
+}
+
+.back_icon48 {
+    background: url(../icons/base48/backarrow.png) no-repeat center center;
+    width: 48px;
+    height: 48px;
+}
+
+.cancel_icon48 {
+    background: url(../icons/base48/cancel.png) no-repeat center center;
+    width: 48px;
+    height: 48px;
+}
+
+/* @end */
+
+/* @group base32 */
+
+.logout_icon32 {
+    background: url(../icons/base32/logout.png) no-repeat center center;
+    width: 32px;
+    height: 32px;
+}
+
+.refresh_icon32 {
+    background: url(../icons/base32/refresh.png) no-repeat center center;
+    width: 32px;
+    height: 32px;
+}
+
+.tools_icon32 {
+    background: url(../icons/base32/tools.png) no-repeat center center;
+    width: 32px;
+    height: 32px;
+}
+
+/* @end */
+
+.lockedContainer .rowEditorStatus{
+    display: none;
+}
+
+
+.editGrid_semaphore{
+    height: 16px;
+    width: 16px;
+    background: url(../icons/base16/semaphore_gray.png) no-repeat center center;
+}
+
+.editGrid_error .editGrid_semaphore{
+    background: url(../icons/base16/semaphore_red.png) no-repeat center center;
+}
+
+.editGrid_changed .editGrid_semaphore{
+    background: url(../icons/base16/semaphore_yellow.png) no-repeat center center;
+}
+
+._common_d11 .rowEditorStatus.dojoxGrid-cell{
+    border-right:0px !important;
+}
+
+.buttonInGrid{
+    border-radius:4px;
+    margin:1px;
+    display:inline-block;
+    font-size:1.1em;
+    padding-bottom:2px;
+    padding-top:1px;
+    padding-left:4px;
+    padding-right:4px;
+    color:white;
+    cursor:pointer;
+    line-height:10px;
+    background-color:#488fd7;
+}
+
+
+
+
+.icnWarning {
+    background: url(../icons/iconWarning.gif) no-repeat;
+    width: 20px;
+    height: 16px;
+}
+
+.icnTag {
+    background: url(../icons/iconTag.png) no-repeat;
+    width: 18px;
+    height: 16px;
+}
+
+/* @group base14 */
+
+
+.vieselectorIcn {
+    background: url(../icons/viewselector.png) no-repeat center center;
+    height: 16px;
+    width: 18px;
+}
+
+
+.greenLight, .semaphoreCheck{
+    background: url(../icons/base16/semaphore_green.png) no-repeat center center;
+    width: 14px;
+    height: 14px;
+}
+.grayLight , .graySemaphore.semaphoreCheck {
+    background: url(../icons/base16/semaphore_gray.png) no-repeat center center;
+    width: 14px;
+    height: 14px;
+}
+
+.redLight ,.invalidSemaphore.semaphoreCheck{
+    background: url(../icons/base16/semaphore_red.png) no-repeat center center;
+    width: 14px;
+    height: 14px;
+}
+
+.yellowLight {
+    background: url(../icons/base16/semaphore_yellow.png) no-repeat center center;
+    width: 14px;
+    height: 14px;
+}
+
+.blueLed {
+    background: url(../icons/base16/blueled.png) no-repeat center center;
+    width: 14px;
+    height: 14px;
+}
+
+.waiting16{
+    background: url(../icons/wait16trans.gif) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+/* @end */
+
+.buttonIcon {
+    opacity: 0.8;
+    margin-left: 2px;
+    margin-right: 2px;
+}
+
+.buttonIcon:hover {
+    cursor: pointer;
+    opacity: 1;
+}
+
+/* @group Navigation */
+
+.icnNavFirst {
+    background: url(../icons/nav/first.gif) no-repeat;
+    width: 16px;
+    height: 16px;
+}
+
+.icnNavLast {
+    background: url(../icons/nav/last.gif) no-repeat;
+    width: 16px;
+    height: 16px;
+}
+
+.icnNavNext {
+    background: url(../icons/nav/next.gif) no-repeat;
+    width: 16px;
+    height: 16px;
+}
+
+.icnNavPrev {
+    background: url(../icons/nav/prev.gif) no-repeat;
+    width: 16px;
+    height: 16px;
+}
+
+/* @end */
+
+/* @group International */
+
+.icnIntlEn {
+    background: url(../icons/intl/en.gif) no-repeat;
+    width: 14px;
+    height: 11px;
+}
+
+.icnIntlIt {
+    background: url(../icons/intl/it.gif) no-repeat;
+    width: 14px;
+    height: 11px;
+}
+
+/* @end */
+
+/* @group Flag */
+
+.icnFlagBlue {
+    background: url(../icons/flag/blue.gif) no-repeat;
+    width: 16px;
+    height: 16px;
+}
+
+.icnFlaGreen {
+    background: url(../icons/flag/green.gif) no-repeat;
+    width: 16px;
+    height: 16px;
+}
+
+.icnFlagOrange {
+    background: url(../icons/flag/orange.gif) no-repeat;
+    width: 16px;
+    height: 16px;
+}
+
+.icnFlagPink {
+    background: url(../icons/flag/pink.gif) no-repeat;
+    width: 16px;
+    height: 16px;
+}
+
+.icnFlagPurple {
+    background: url(../icons/flag/purple.gif) no-repeat;
+    width: 16px;
+    height: 16px;
+}
+
+.icnFlagRed {
+    background: url(../icons/flag/red.gif) no-repeat;
+    width: 16px;
+    height: 16px;
+}
+
+.icnFlagYellow {
+    background: url(../icons/flag/yellow.gif) no-repeat;
+    width: 16px;
+    height: 16px;
+}
+
+/* @end */
+
+.isRootItem .add_sibling {
+    display: none;
+}
+
+.tableTreeNode {
+    font-weight: bold;
+}
+
+.aliasColumnTreeNode {
+    background-color: #feffe2
+}
+.siblingSorting .hview .canBeDropped{
+    padding-bottom:18px;
+    background-color: transparent !important;
+    background: linear-gradient(to bottom, transparent 50%, rgba(0, 255, 0, 0.3) 50%); 
+
+}
+
+.siblingSorting .hview .cannotBeDropped {
+    background-color: transparent !important;
+}
+
+.formulaColumnTreeNode {
+    background-color: #d1ffeb;
+    font-style: italic;
+    border-radius: 4px;
+}
+
+/* @group Dtype */
+
+.icnDtype_A {
+    background: url(../icons/dtype/alpha.gif) center center no-repeat;
+    width: 10px;
+    height: 10px;
+}
+
+.icnDtype_DH {
+    background: url(../icons/dtype/datetime.gif) center center no-repeat;
+    width: 10px;
+    height: 10px;
+}
+
+.icnDtype_B {
+    background: url(../icons/dtype/bool.gif) center center no-repeat;
+    width: 10px;
+    height: 10px;
+}
+
+.icnDtype_D {
+    background: url(../icons/dtype/date.gif) center center no-repeat;
+    width: 10px;
+    height: 10px;
+}
+
+.icnDtype_L {
+    background: url(../icons/dtype/long.gif) center center no-repeat;
+    width: 10px;
+    height: 10px;
+}
+
+.icnDtype_R {
+    background: url(../icons/dtype/real.gif) center center no-repeat;
+    width: 10px;
+    height: 10px;
+}
+
+.icnDtype_N {
+    background: url(../icons/dtype/numeric.gif) center center no-repeat;
+    width: 10px;
+    height: 10px;
+}
+
+.icnDtype_T {
+    background: url(../icons/dtype/text.gif) center center no-repeat;
+    width: 10px;
+    height: 10px;
+}
+
+.icnDtype_X {
+    background: url(../icons/dtype/xml.gif) center center no-repeat;
+    width: 10px;
+    height: 10px;
+}
+
+.icnDtype_RO {
+    background: url(../icons/dtype/relate_one.gif) center center no-repeat;
+    width: 10px;
+    height: 10px;
+}
+
+.icnDtype_RM {
+    background: url(../icons/dtype/relate_many.gif) center center no-repeat;
+    width: 10px;
+    height: 10px;
+}
+
+.icnDtype_SQL_F {
+    background: url(../icons/dtype/sql_formula.gif) center center no-repeat;
+    width: 10px;
+    height: 10px;
+}
+
+/* @end */
+
+/* @group Base12 */
+
+.dijitTextBoxDisabled .dateTextBoxCal{
+    visibility: hidden;
+}
+.dateTextBoxCal{
+    background: url(../icons/base12/calsmall.png) no-repeat center center;
+    opacity:.6;
+}
+
+.timeTextBoxWatch{
+    background: url(../icons/base12/timesmall.png) no-repeat center center;
+}
+
+.icnTabClose {
+    background: url(../icons/base12/tabClose.gif) no-repeat center center;
+    width: 12px;
+    height: 12px;
+}
+.tundra .smallTabs .dijitTabInnerDiv {
+    padding: 2px 5px;
+    font-size:11px;
+}
+
+.fakeTabContainer .dijitTabPaneWrapper {
+    display: none !important;
+}
+
+.icnTabCloseHover {
+    background: url(../icons/base12/tabCloseHover.gif) no-repeat center center;
+    width: 12px;
+    height: 12px;
+}
+
+.icnBaseArrowDown {
+    background: url(../icons/base12/arrowdown.gif) no-repeat;
+    width: 12px;
+    height: 12px;
+}
+
+.icnBaseSmallPopup {
+    background: url(../icons/base12/smallpopup.gif) no-repeat;
+    width: 7px;
+    height: 12px;
+}
+
+.searchtree_container{
+    position: relative;
+    /* display:'inline-block'; — invalid CSS, quoted value */
+}
+.tree_searchbox{
+    height: 21px;
+    background-color: #444;
+    position: absolute;
+    top:0;
+    left:0;
+    right:0;
+}
+.tree_scrollbox{
+    position: absolute;
+    top:21px;
+    left:0;
+    right:0;
+    bottom:0;
+    overflow:auto;
+}
+.tree_searchbox .searchboxLabel{
+    color:white;
+    margin-top: 2px;
+}
+
+
+.largemenu .dijitMenuItem td{
+    font-size: 1.2em;
+    padding:5px;
+}
+
+.largemenu.dijitMenu.dijitMenuTable{
+    border-collapse: collapse;
+}
+
+.smallmenu .dijitMenuItem {
+    font-size: 0.9em;
+}
+.noIconMenu .dijitMenuItemIcon{
+    display: none;
+}
+.menupane .dijitMenuItemIcon{
+    display: none;
+}
+.menupane .dijitMenuItemHover{
+    background-color: var(--menu-item-hover-bg, rgba(0,0,0,0.06));
+    color: var(--menu-item-hover-color, var(--mainWindow-color, #333));
+}
+
+.tundra .menupane .dijitMenuItem td{
+    padding: 0;
+}
+
+.tundra .menupane.colormenu .dijitMenuExpandEnabled{
+    width: 2px;
+    background: none;
+}
+
+
+
+.tundra .smallmenu .dijitMenuItem td {
+    padding-top: 0.2em !important;
+    padding-bottom: 0.2em !important;
+    padding-right: .40em;
+}
+
+
+div.dojoxDock {
+	background: none;
+	border: none;
+}
+._common_d11 .hiddenDock li.dojoxDockNode{
+    cursor: pointer;
+    height: 100%;
+    width: 100%;
+    color:transparent;
+    background:transparent;
+    list-style: none;
+    margin: 0px;
+    padding: 0;
+    border:0;
+    border-radius: 0px 0px 0px 0px;
+    float: none;
+}
+
+._common_d11 .hiddenDock .dojoxDockRestoreButton {
+    background: transparent;
+    float: none;
+    height: 100%;
+    margin-top: 0px;
+    width:100%;
+}
+
+.tundra._common_d11 .commonTitleBar {
+    background-color:#711B2A;
+    color: #ffffff;
+    text-align: center;
+    font-weight:normal;
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
+.hiddenBcPane{
+    display:none;
+}
+
+.visibleBcPane.hiddenBcPane{
+    display:block;
+}
+
+.floatingPopup {
+    padding-right: 15px;
+    cursor: pointer;
+}
+/*.menuButtonDiv{
+    padding-right: 9px;
+    background: transparent url(../icons/base12/smallpopup.gif) no-repeat right 4px;
+}
+*/
+
+
+
+.iframereload{
+    background: url(../icons/base10/iframereload.gif) no-repeat center center;
+}
+.iframeclose{
+	background: url(../icons/base10/iframeclose.gif) no-repeat center center;
+}
+/*._common_d11.tundra .dijitDialogCloseIcon{
+    background: transparent url(../icons/base16/closeicn.png) no-repeat scroll center center;
+    cursor: pointer;
+    float: right;
+    height: 16px;
+    position: absolute;
+    right: 6px;
+    top: 4px;
+    vertical-align: middle;
+    width: 16px;
+
+}*/
+
+.close_svg {
+    background: transparent url(../icons/base16/close.svg) no-repeat scroll center center;
+    height: 16px;
+    width: 16px;
+}
+
+
+
+
+._common_d11 .dojoxFloatingPaneContent {
+    overflow:hidden !important;
+}
+
+._common_d11.tundra .dojoxFloatingMinimizeIcon {
+    background: transparent url(../icons/base16/close.svg) no-repeat scroll center center;
+    float: right;
+    height: 16px;
+    overflow: hidden;
+    width: 16px;
+    margin-right: 4px;
+}
+
+
+._common_d11.tundra .dojoxFloatingCloseIcon{
+    background: transparent url(../icons/base16/close.svg) no-repeat scroll center center;
+    height: 16px;
+    width: 16px;
+}
+
+
+._common_d11.tundra .dijitDialogCloseIcon{
+    background: transparent url(../icons/base16/close.svg) no-repeat scroll center center;
+    height: 16px;
+    width: 16px;
+}
+
+.tundra._common_d11 .dijitDialogTitle{
+    font-weight: normal;
+}
+
+._common_d11.tundra .dojoxFloatingMaximizeIcon{
+    background: transparent url(../icons/base16/expand.png) no-repeat scroll center center;
+    margin-right: 6px;
+}
+
+._common_d11.tundra .dijitMenu {
+    border: 1px solid var(--menu-border-color, rgba(0,0,0,0.18));
+    border-top: 1px solid var(--menu-border-top-color, rgba(0,0,0,0.25));
+    border-radius: 0.5em;
+    background-color: var(--menu-bg, #fff);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08);
+    padding: 0.3em 0;
+    overflow: hidden;
+    min-width: 10em;
+}
+
+._common_d11.tundra .dijitMenuTable {
+    border-collapse: collapse;
+    border-width: 0;
+    width: 100%;
+}
+
+._common_d11.tundra .dijitMenuSeparatorTop {
+    border-bottom: 1px solid var(--menu-separator-color, rgba(0,0,0,0.08));
+    box-shadow: none;
+    height: 0;
+    margin: 0.3em 0.6em;
+}
+
+._common_d11.tundra .dijitMenuSeparatorBottom {
+    display: none;
+}
+
+/* Submenu expand arrow */
+.tundra .dijitMenuExpandEnabled {
+    display: block;
+    background-image: none;
+    width: auto;
+    height: auto;
+    padding: 0 0.25em;
+    color: var(--mainWindow-color, #444);
+    opacity: 0.5;
+}
+.tundra .dijitMenuExpandEnabled .dijitMenuExpandInner {
+    display: none;
+}
+.tundra .dijitMenuExpandEnabled::after {
+    content: '›';
+    font-size: 1.2em;
+    font-weight: bold;
+    line-height: 1;
+}
+
+._common_d11.tundra .dijitMenuSeparator {
+    background: transparent;
+}
+
+._common_d11.tundra .dijitPopup > div, .tundra .dijitPopup > table{
+    opacity: 1;
+}
+
+.floatingTooltipPane{
+
+}
+.floatingTooltipPane:hover{
+    background-color: #feffb4;
+}
+.floatingPopup:hover {
+    background: #feffb4 url(../icons/base12/smallpopup.gif) no-repeat right !important;
+}
+
+.floatingPopupFixed {
+    background: url(../icons/base12/smallpopup.gif) no-repeat right !important;
+}
+
+
+.helperField {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #feffb4 url(../icons/base12/smallpopup.gif) no-repeat right;
+    z-index: 10;
+    cursor: pointer;
+    padding-left: 2px;
+    padding-top: 1px;
+    padding-right: 15px;
+    overflow: hidden;
+    white-space: pre;
+}
+.templateGrid .cellContent{
+    padding-top:0;
+    padding-bottom:0;
+    padding-left:0;
+    padding-right:0;
+    margin:0;
+    line-height: normal;
+}
+
+._common_d11.tundra .templateGrid .dojoxGrid-row .dojoxGrid-cell, 
+._common_d11.tundra .templateGrid .dojoxGrid-row-odd .dojoxGrid-cell, 
+._common_d11.tundra .templateGrid .dojoxGrid-row.dojoxGrid-row-selected .dojoxGrid-cell{
+    border-right: 0;
+}
+
+.plainTextChunk{
+    white-space: pre;
+}
+
+.formbuilder .plainTextChunk{
+    padding:2px;
+    padding-left: 5px;
+    padding-right: 5px;
+    border-radius: 4px;
+    border:1px solid silver;
+    margin-bottom: 10px;
+}
+/* @end */
+
+/*@group template*/
+
+.preview .tplfieldpath {
+    display: inline;
+}
+
+.preview .tplfieldcaption {
+    display: none;
+}
+.drawerLeftArrow{
+    width:16px;
+     height:24px;
+    background: url(../icons/base24/drawerLeftArrow.png) no-repeat center center;
+
+}
+.drawerRightArrow{
+    width:16px;
+     height:24px;
+    background: url(../icons/base24/drawerRightArrow.png) no-repeat center center;
+
+}
+
+
+/* @end */
+
+.box16{
+    height:16px;
+    width:16px;
+}
+.box24{
+    height:24px;
+    width:24px;
+}
+.box32{
+     height:32px;
+    width:32px;
+}
+/* @group Base16 */
+.iconCreditWarning{
+    background: url(../icons/base16/credit_warning.png) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+.icnBaseActivity{
+    background: url(../icons/base16/activity_icon.png) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+.icnSavedQuery{
+    background: url(../icons/base16/saved_query.png) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+.icnSavedViews{
+    background: url(../icons/base16/saved_views.png) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseAdd {
+    background: url(../icons/base16/add.gif) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+.icnBuilding{
+    background: url(../icons/base16/building.png) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseCalendar {
+    background: url(../icons/base16/calendar.png) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+.icnBuddy {
+    background: url(../icons/base16/buddy.png) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+.queryMenu{
+    background: url(../icons/base16/queryMenu16.png) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+.icnBuddyChat {
+    background: url(../icons/base16/buddy_chat.png) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseCancel {
+    background: url(../icons/base16/cancel.gif) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnRefresh {
+    width: 16px;
+    height: 16px;
+    background-image: url(../icons/base16/refresh.png) center center;
+}
+
+.icnFrameRefresh {
+	background: url(../icons/base16/refresh.png) no-repeat center center;
+}
+
+.icnFrameDelete {
+	background: url(../icons/base16/delete.png) no-repeat center center;
+}
+
+.icnBaseEmail {
+    background: url(../icons/base16/email.gif) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseExport {
+    background: url(../icons/base16/export.gif) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseAction {
+    background: url(../icons/base16/action.gif) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBasePref {
+    background: url(../icons/base16/application_pref.png) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseView {
+    background: url(../icons/base16/view.gif) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseDelete {
+    background: url(../icons/base16/delete.gif) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseEdit {
+    background: url(../icons/base16/edit.gif) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+.gridConfigurator{
+    background: url(../icons/base16/gridconfigurator.png) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseEditUser {
+    background: url(../icons/base16/edituser.gif) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseLens {
+    background: url(../icons/base16/lens.gif) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnOpenPalette {
+    background: url(../icons/base16/list.png) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+/* multirow.gif was the original, now replaced with list.png */
+
+
+.icnBaseEye {
+    background: url(../icons/base16/eye.gif) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseLocked {
+    background: url(../icons/base16/locked.gif) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseLogout {
+    background: url(../icons/base16/logout.gif) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseUserLogout {
+    background: url(../icons/base16/user_logout.png) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+.icnBaseUserPause {
+    background: url(../icons/base16/user_pause.png) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseOk {
+    background: url(../icons/base16/ok.gif) no-repeat center center;
+    width: 17px;
+    height: 17px;
+}
+
+.icnBaseGenroLogo {
+    background: transparent url(/_rsrc/common/css_icons/svg/16/genrologo.svg) no-repeat center center;
+    background-size: contain;
+    width: 16px;
+    height: 16px;
+}
+
+.disabled_row {
+    opacity: .6;
+}
+.tickOn {
+    background: url(../icons/base10/tick.gif) no-repeat center center;
+    width: 15px;
+    height: 15px;
+}
+
+.checkboxOn {
+    background: url(../icons/checkMarkOn.png) no-repeat center center;
+    width: 15px;
+    height: 15px;
+}
+
+.checkboxOff {
+    background: url(../icons/checkMarkOff.png) no-repeat center center;
+    width: 15px;
+    height: 15px;
+}
+
+.checkboxOnOff {
+    background: url(../icons/checkMarkOnOff.png) no-repeat center center;
+    width: 15px;
+    height: 15px;
+}
+
+.radioOn {    
+
+    background: url(/_rsrc/common/css_icons/google_icons/radio_button_checked.svg) no-repeat center center;
+    width: 15px;
+    height: 15px;
+    background-size: contain;
+}
+
+.radioOff {
+    background: url(/_rsrc/common/css_icons/google_icons/radio_button_unchecked.svg) no-repeat center center;
+    width: 15px;
+    height: 15px;
+    background-size: contain;
+}
+
+/* @group boole */
+.icnTrue {
+    background: url(../icons/base16/ok.gif) no-repeat center center;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.icnFalse {
+    background: url(../icons/base16/cancel.gif) no-repeat center center;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+/* @end */
+
+.icnBaseOneWay {
+    background: url(../icons/base16/oneway.gif) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseSave {
+    background: url(../icons/base16/save.gif) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseFolder {
+    background: url(../icons/base16/folder.gif) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBasePowerOff {
+    background: url(../icons/base16/poweroff.gif) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBasePrinter {
+    background: url(../icons/base16/printer.gif) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBasePdf {
+    background: url(../icons/base16/pdf_icon.gif) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseReadOnly {
+    background: url(../icons/base16/readonly.gif) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseWrite {
+    background: url(../icons/base16/pencil.gif) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseTrash {
+    background: url(../icons/base16/trash.gif) no-repeat center center;
+}
+.icnBasePalette {
+    background: url(../icons/base16/palette.png) no-repeat center center;
+}
+
+.icnBaseTableEdit {
+    background: url(../icons/base16/table_edit.png) no-repeat center center;
+}
+.icnBaseUnlocked {
+    background: url(../icons/base16/unlocked.gif) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseUpBlue {
+    background: url(../icons/base16/upblue.gif) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseUpYellow {
+    background: url(../icons/base16/upyellow.gif) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+
+.icnBottomDocumentation {
+    background: url(../icons/base16/bottom_documentation.png) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+.icnBottomTicket {
+    background: url(../icons/base16/bottom_ticket.png) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+.icnBottomViewer {
+    background: url(../icons/base16/bottom_viewer.png) no-repeat center 3px;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBottomEditor {
+    background: url(../icons/base16/bottom_editor.png) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+/* @end */
+
+/* @group Base10 */
+
+.icnBase10_Save {
+    background: url(../icons/base10/save.gif) no-repeat center center;
+    width: 10px;
+    height: 10px;
+}
+
+.icnBase10_Trash {
+    background: url(../icons/base10/trash.gif) no-repeat center center;
+    width: 10px;
+    height: 10px;
+}
+
+.icnBase10_Doc {
+    background: url(../icons/base10/document.gif) no-repeat center center;
+    width: 10px;
+    height: 10px;
+}
+
+.icnBase10_Lens {
+    background: url(../icons/base10/lens.gif) no-repeat center center;
+    width: 10px;
+    height: 10px;
+}
+
+.tick_icon10 {
+    background: url(../icons/base10/tick.gif) no-repeat center center;
+    width: 10px;
+    height: 10px;
+}
+
+.check_icon10 {
+    background: url(../icons/base10/check.gif) no-repeat center center;
+    width: 10px;
+    height: 10px;
+}
+
+/* @end */
+
+/* @end */
+
+.back_icon24 {
+    background: url(../icons/base24/backarrow.png) no-repeat center center;
+    width: 24px;
+    height: 24px;
+}
+
+.cash_icon64 {
+    background: url(../icons/base64/cashbox.png) no-repeat center center;
+    width: 64px;
+    height: 64px;
+}
+
+/* @end */
+
+.money_icon64 {
+    background: url(../icons/base64/money.png) no-repeat center center;
+    width: 64px;
+    height: 64px;
+}
+
+.creditcard_icon64 {
+    background: url(../icons/base64/creditcard.png) no-repeat center center;
+    width: 64px;
+    height: 64px;
+}
