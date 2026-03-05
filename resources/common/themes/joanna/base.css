@@ -15,4 +15,7 @@
     --mainWindow-background: #F9F9FB;
     --mainWindow-color:#1C1C1E;
     --dialogtitlebar-background: #636366;
+    --field-border: #AEAEB2;
+    --field-disabled-border: #C7C7CC;
+    --field-readonly-border: #C7C7CC;
 }

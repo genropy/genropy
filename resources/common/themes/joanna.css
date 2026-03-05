@@ -6,10 +6,6 @@ body {
     --primary-light: #D8D8DC;
     --primary-lighter: #F2F2F7;
     --accent-color: #007AFF;
-    --m3-primary: var(--primary-dark);
-    --m3-on-primary: #fff;
-    --m3-secondary-container: var(--primary-light);
-    --m3-on-secondary-container: var(--primary-dark);
     --mainWindow-background: white;
     --frameindexroot-background: #F2F2F7;
     --frameindexcenter-background: #F2F2F7;
@@ -23,6 +19,12 @@ body {
     --roundedgroup-shadow: rgba(0,0,0,0.06);
     --topLabelTable-border-top: 2px solid var(--primary-light);
     --topLabelTable-separator: var(--primary-light);
+    --field-border: #AEAEB2;
+    --field-bg: white;
+    --field-disabled-border: #C7C7CC;
+    --field-disabled-bg: #F2F2F7;
+    --field-readonly-border: #C7C7CC;
+    --field-readonly-bg: #F2F2F7;
 }
 
 /* Color variants
@@ -46,6 +48,8 @@ body {
     --roundedgroup-surface: var(--card-surface);
     --roundedgroup-bar: #d0eddf;
     --roundedgroup-bar-color: #134a32;
+    --field-disabled-border: #a8c4b4;
+    --field-readonly-border: #a8c4b4;
 }
 
 /* Blue - ocean */
@@ -62,6 +66,8 @@ body {
     --roundedgroup-surface: var(--card-surface);
     --roundedgroup-bar: #d4e2f5;
     --roundedgroup-bar-color: #1a3d6b;
+    --field-disabled-border: #a8bcd4;
+    --field-readonly-border: #a8bcd4;
 }
 
 /* Red - ruby */
@@ -78,6 +84,8 @@ body {
     --roundedgroup-surface: var(--card-surface);
     --roundedgroup-bar: #f5d5d9;
     --roundedgroup-bar-color: #7a1a28;
+    --field-disabled-border: #c4a8ad;
+    --field-readonly-border: #c4a8ad;
 }
 
 /* Orange - orange top / plum frameindex */
@@ -94,6 +102,8 @@ body {
     --roundedgroup-surface: var(--card-surface);
     --roundedgroup-bar: #f5dce8;
     --roundedgroup-bar-color: #6a2058;
+    --field-disabled-border: #c4a8ba;
+    --field-readonly-border: #c4a8ba;
 }
 
 /* Yellow - calabrone (hornet: vivid wasp yellow / black) */
@@ -113,6 +123,8 @@ body {
     --roundedgroup-surface: var(--card-surface);
     --roundedgroup-bar: #fde68a;
     --roundedgroup-bar-color: #1a1a1a;
+    --field-disabled-border: #b0b0a8;
+    --field-readonly-border: #b0b0a8;
 }
 
 body.tundra.joanna {

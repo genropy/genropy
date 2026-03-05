@@ -686,8 +686,8 @@ cursorZoom_plus{
 }
 
 .tundra .dijitTextBox, .tundra .dijitComboBox, .tundra .dijitSpinner, .tundra .dijitInlineEditor input ,.tundra .dijitTextArea{
-    background: white;
-    border: 1px solid #B3B3B3;
+    background: var(--field-bg, white);
+    border: 1px solid var(--field-border, #B3B3B3);
     line-height: normal;
     border-radius:3px;
     position: relative;
@@ -715,8 +715,8 @@ cursorZoom_plus{
 }
 
 .fakeTextBox,.smallFakeTextBox, .gnrfield.tag_div>div.fakeTextBox{
-	background: white;
-    border: 1px solid #B3B3B3;
+	background: var(--field-bg, white);
+    border: 1px solid var(--field-border, #B3B3B3);
     line-height: normal;
     border-radius:3px;
     position: relative;
@@ -733,8 +733,8 @@ cursorZoom_plus{
 }
 
 .fakeNumberTextBox ,.gnrfield.tag_div>div.fakeNumberTextBox{
-	background: white;
-    border: 1px solid #B3B3B3;
+	background: var(--field-bg, white);
+    border: 1px solid var(--field-border, #B3B3B3);
     line-height: normal;
     border-radius:3px;
     position: relative;
@@ -752,7 +752,7 @@ cursorZoom_plus{
 
 
 .tundra .dijitError {
-    border-color: silver;
+    border-color: var(--field-error-border, silver);
     background: white url(icons/invalid_small.png) no-repeat top left;
 
 }
