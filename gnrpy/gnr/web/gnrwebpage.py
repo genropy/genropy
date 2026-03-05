@@ -1719,6 +1719,7 @@ class GnrWebPage(GnrBaseWebPage):
         css_icons = self.get_css_icons()
         css_theme_variant =  self.get_css_theme_variant()
         requires.append('themes/gnr_iconset')
+        requires.append('themes/theme_shared')
         if css_theme:
             requires.append('themes/%s' %css_theme)
         requires.append('themes/{css_theme}/{css_theme_variant}'.format(css_theme=css_theme,css_theme_variant=css_theme_variant))
