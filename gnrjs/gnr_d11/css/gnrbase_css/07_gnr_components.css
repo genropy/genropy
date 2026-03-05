@@ -1,0 +1,286 @@
+/* ==========================================================================
+   07_gnr_components.css — Specific UI components
+   FieldsTree, MultiColumnSelect, BagAttributesTable, Dev utilities
+   ========================================================================== */
+
+/* @group FieldsTree */
+
+.fieldsTreeBox{
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	color: #555;
+
+	font-family: inherit;
+	overflow: auto;
+	font-size: 9px;
+	background: white;
+}
+.treeShowTrash .treeTrash,.treeShowTrash.treeTrash{
+    display:block;
+}
+.treeTrash.canBeDropped{
+    background-color: #e5e5e5 !important;
+    opacity:.8;
+}
+
+.treeTrash{
+    display:none;
+    position: absolute;
+	top: 2px;
+	bottom: 2px;
+	left: 2px;
+	right: 2px;
+	opacity: .5;
+	background: #e5e5e5 url(../icons/base64/trash_64.png) no-repeat center center;
+}
+.selectedTreeNode {
+    font-weight: bold;
+}
+
+.search_highlight{
+    background: yellow;
+}
+
+
+.noExpando .dijitTreeExpando {
+    display: none;
+}
+
+.fieldsTree .dijitTreeIcon {
+    padding-right: 0;
+}
+.noIcon .dijitTreeIcon{
+	display: none;
+}
+
+.label_emptydir{
+    cursor: not-allowed;
+    opacity: .3;
+}
+
+.fieldsTree .dijitTreeContent {
+    cursor: move;
+    min-height: 0;
+    padding-bottom: 2px;
+    padding-top: 0;
+    margin-left: 0px;
+}
+.fieldsTree .dijitTreeNode {
+    background: none;
+    margin-left: 10px;
+}
+.fieldsTree .dijitTreeLabel{
+	padding-left: 10px;
+	white-space: nowrap;
+}
+.fieldsTree .dijitTreeIsRoot{
+	margin-left: 0px;
+}
+.fieldsTree_root{
+	text-decoration: underline;
+}
+.fieldsTree_group{
+	color: #777;
+}
+
+.fieldsTree_folder{
+	text-decoration: underline;
+	cursor: pointer;
+	font-weight: bold;
+	background: none;
+	padding-left: 12px;
+	position: relative;
+}
+.fieldsTree_folder::before{
+	content: '';
+	display: inline-block;
+	position: absolute;
+	left: 2px;
+	top: 50%;
+	transform: translateY(-50%);
+	border-style: solid;
+	border-width: 4px 0 4px 5px;
+	border-color: transparent transparent transparent #666;
+}
+.dijitTreeContentExpanded .fieldsTree_folder{
+	background: none;
+}
+.dijitTreeContentExpanded .fieldsTree_folder::before{
+	border-width: 5px 4px 0 4px;
+	border-color: #666 transparent transparent transparent;
+}
+.fieldsTree_RM {
+	color: navy;
+}
+.fieldsTree_RO{
+	color: green;
+}
+
+/* @end */
+
+/* --- Misc header utilities --- */
+
+.tpl_nocontent .tpl_content {
+    visibility: hidden;
+}
+
+.gnrdebugger {
+    z-index: 1000 !important;
+}
+.pbl_title_caption {
+    font-size: 11pt;
+    padding-top: 1px;
+    text-align: center;
+}
+.pbl_avatar{
+    padding-top: 3px;
+}
+.gnroutofdate .pbl_avatar,.gnroutofdate .pbl_slotbar_label{
+    color:red !important;
+}
+
+/* @group MultiColumnSelect */
+
+.multiColumnSelect {
+    background-color: var(--card-surface, #f9f9f9);
+    overflow: hidden;
+    color: var(--primary-dark, #3A3A3C);
+    border-radius: 0.375em;
+}
+
+.multiColumnSelect table {
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+    background-color: var(--card-surface, #f9f9f9);
+    width: 100%;
+}
+
+.multiColumnSelect th {
+    padding: 0.375em 0.5em;
+    border-bottom: 1px solid var(--roundedgroup-border, #D1D1D6);
+    background-color: var(--primary-lighter, #F2F2F7);
+    text-align: center;
+    color: var(--primary-dark, #3A3A3C);
+    white-space: nowrap;
+    font-weight: 600;
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.multiColumnSelect tbody tr {
+    transition: background-color 0.15s ease;
+    cursor: pointer;
+}
+
+.multiColumnSelect td {
+    padding: 0.375em 0.5em;
+    border-bottom: 1px solid var(--roundedgroup-border, rgba(0,0,0,0.06));
+    white-space: nowrap;
+}
+
+.multiColumnSelect tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.relaxedCondition tr {
+    background-color: var(--relaxed-condition-bg, #FFF3CD) !important;
+    font-style: italic;
+}
+
+.multiColumnSelect tr.not_preferred_row {
+    opacity: 0.5;
+    font-style: italic;
+}
+
+.multiColumnSelect tr[_is_valid_item='false'] {
+    color: var(--error-color, #E53935);
+    cursor: not-allowed;
+}
+
+.multiColumnSelect tr.linked_row {
+    font-weight: bold;
+}
+
+.multiColumnSelect.templateAuxColumns table {
+    background-color: var(--mainWindow-background, #fff);
+    max-width: min(30em, 90vw);
+    width: auto;
+}
+
+.multiColumnSelect.templateAuxColumns td {
+    white-space: normal;
+    padding: 0.5em;
+    border-bottom: 1px solid var(--roundedgroup-border, rgba(0,0,0,0.06));
+}
+
+.touchDevice .multiColumnSelect td {
+    padding: 0.5em 0.625em;
+    line-height: 1.6;
+}
+
+tr[_is_valid_item='true'].multiColumnSelectHover td {
+    background-color: var(--accent-color, #007AFF);
+    color: var(--m3-on-primary, #fff);
+    transition: background-color 0.15s ease;
+}
+
+.multiColumnSelect div[style*="overflow-y"] {
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-light, #ccc) transparent;
+}
+
+.multiColumnSelect div[style*="overflow-y"]::-webkit-scrollbar {
+    width: 6px;
+}
+
+.multiColumnSelect div[style*="overflow-y"]::-webkit-scrollbar-thumb {
+    background-color: var(--primary-light, #ccc);
+    border-radius: 3px;
+}
+
+/* @end */
+
+
+/* @group BagAttributesTable */
+
+.bagAttributesTable {
+    border-collapse: collapse;
+    color: #3a3a3a;
+    font-size: xx-small;
+}
+
+.bagAttributesTable th {
+    padding: 2px;
+    border: thin solid #c8c8c8;
+    background-color: #a1a1a1;
+    font-weight: bold;
+    text-align: center;
+}
+
+.bagAttributesTable td {
+    padding: 2px;
+    border: thin solid #c8c8c8;
+    background-color: #b6e2ff;
+}
+
+.bagAttributesTable tr > td:first-child {
+    padding: 2px;
+    color: white;
+    border: thin solid #c8c8c8;
+    background-color: #4f4f4f;
+    text-align: right;
+}
+
+/* @end */
+
+/* @group Dev */
+
+.gnrhighlight {
+    box-shadow:inset 0px 0px 6px red;
+}
+
+/* @end */

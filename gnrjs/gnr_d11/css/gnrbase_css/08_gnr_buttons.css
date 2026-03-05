@@ -1,0 +1,291 @@
+/* ==========================================================================
+   08_gnr_buttons.css — Dijit buttons, toolbar buttons, form semaphores
+   ========================================================================== */
+
+/* @group BUTTONS */
+
+.tundra .dijitButtonNode {
+	/* M3 Filled Tonal Button */
+	border: 1px solid var(--m3-btn-border-color, var(--m3-outline, #ccc));
+    padding: calc(0.35em - 1px) calc(0.9em - 1px);
+    background-image: none;
+    background-color: var(--m3-secondary-container, #E3F2FD);
+    border-radius: 1em;
+    cursor: pointer;
+    opacity: 1;
+    color: var(--m3-on-secondary-container, #1565C0);
+    font-weight: 500;
+    font-size: inherit;
+    letter-spacing: 0.1px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+.tundra .dijitButtonText {
+	text-align: center;
+	padding: 0;
+	color: var(--m3-on-secondary-container, #1565C0);
+}
+.dijitButtonNode .fh_semaphore{
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #9e9e9e;
+    transition: background-color 0.2s;
+    margin-right: 6px;
+}
+
+.formside_ok .dijitButtonNode .fh_semaphore {
+    background-color: #4caf50;
+    background-image: none;
+}
+
+.formside_error .dijitButtonNode .fh_semaphore {
+    background-color: #f44336;
+    background-image: none;
+}
+
+.formside_changed .dijitButtonNode .fh_semaphore {
+    background-color: #ff9800;
+    background-image: none;
+}
+
+.formside_readOnly .dijitButtonNode .fh_semaphore {
+    background-color: #9e9e9e;
+    background-image: none;
+}
+
+.formside_noItem .dijitButtonNode .fh_semaphore {
+    background-color: #bdbdbd;
+    background-image: none;
+}
+
+.tundra .dijitDisabled .dijitButtonText {
+	color: #7F7F7F;
+}
+
+.tundra .dijitArrowButton {
+	color: #111;
+	background: none;
+	padding: 0;
+}
+
+.tundra .dijitComboButton .dijitDownArrowButton {
+	padding-right:4px;
+}
+
+.tundra .dijitDisabled.dijitButtonDisabled .dijitButtonNode,
+.tundra .dijitDisabled.dijitToggleButtonDisabled .dijitButtonNode,
+.tundra .dijitDisabled.dijitDropDownButtonDisabled .dijitButtonNode,
+.tundra .dijitDisabled.dijitComboButtonDisabled .dijitButtonNode{
+	/* disabled buttons */
+    opacity: 0.38;
+    cursor: not-allowed;
+}
+
+.tundra .dijitDisabled.dijitTextBoxDisabled,
+.tundra .dijitDisabled.dijitComboBoxDisabled,
+.tundra .dijitDisabled.dijitTextBoxDisabled .dijitButtonNode,
+.dijitTextArea.dijitTextAreaDisabled.dijitDisabled{
+	/* disabled: readable, not interactive */
+    border-color: var(--field-disabled-border, #e0e0e0);
+    background-color: var(--field-disabled-bg, #f5f5f5);
+    color: var(--field-disabled-color, inherit);
+    cursor: not-allowed;
+}
+
+.tundra .dijitReadOnly.dijitTextBox,
+.tundra .dijitReadOnly.dijitTextArea,
+.tundra .dijitReadOnly.dijitComboBox,
+.tundra .dijitDisabled.dijitTextBoxReadOnly,
+.tundra .dijitDisabled.dijitTextBoxReadOnly .dijitButtonNode{
+    /* readonly: readable, not editable */
+    background-color: var(--field-readonly-bg, #F8F8F8);
+    border-style: solid;
+    border-color: var(--field-readonly-border, #e0e0e0);
+    color: var(--field-readonly-color, inherit);
+    opacity: 1;
+    cursor: default;
+}
+
+
+.tundra .dijitButtonHover .dijitButtonNode,
+.tundra .dijitButtonNodeHover,
+.tundra .dijitToggleButtonHover .dijitButtonNode,
+.tundra .dijitDropDownButtonHover .dijitButtonNode,
+.tundra .dijitComboButton .dijitButtonContentsHover,
+.tundra .dijitComboButton .dijitDownArrowButtonHover {
+	/* M3 Tonal hover - state layer 8% */
+    background-image: none;
+    background-color: var(--m3-secondary-container, #BBDEFB);
+    filter: brightness(0.95);
+    box-shadow: none;
+}
+
+.tundra .dijitButton.dijitButtonActive .dijitButtonNode,
+.tundra .dijitButtonNodeActive,
+.tundra .dijitToggleButtonActive .dijitButtonNode,
+.tundra .dijitDropDownButtonActive .dijitButtonNode,
+.tundra .dijitComboButton .dijitButtonContentsActive,
+.tundra .dijitComboButton .dijitDownArrowButtonActive{
+    /* M3 Tonal pressed - state layer 10% */
+    background-image: none;
+    background-color: var(--m3-secondary-container, #BBDEFB);
+    filter: brightness(0.90);
+    box-shadow: none;
+}
+
+.tundra .dijitButton.dijitButtonActive .dijitButtonText{
+    color: var(--m3-on-secondary-container, #1565C0);
+}
+
+.fakeButton{
+    background-image: none;
+    background-color: var(--m3-secondary-container, #BBDEFB);
+    border: none;
+    border-radius: 0.5em;
+    cursor:pointer;
+    color: var(--m3-on-secondary-container, #1565C0);
+}
+
+.fakeButton.comboArrow{
+    background: none;
+}
+
+.tundra .dijitDisabled.dijitComboBoxDisabled .dijitArrowButton{
+    display:none;
+}
+.dijitDisabled .fakeButton{
+    display:none;
+}
+
+/* Buttons inside textbox widgets: pure icon, like mimi theme */
+.tundra .dijitArrowButton.dijitButtonNode{
+    border-radius: 0;
+    background-color: transparent;
+    background-image: none;
+    padding: 0;
+    border-color: transparent;
+    box-shadow: none;
+    filter: none;
+}
+
+.tundra .dijitComboBox .dijitArrowButton .dijitArrowButtonInner {
+	height: 100%;
+}
+
+.tundra .dijitUpArrowButtonActive,
+.tundra .dijitDownArrowButtonActive,
+.tundra .dijitButtonActive .dijitButtonNode,
+.tundra .dijitToggleButtonActive .dijitButtonNode,
+.tundra .dijitDropDownButtonActive .dijitButtonNode,
+.tundra .dijitButtonContentsActive,
+.tundra .dijitStackController .dijitToggleButtonChecked .dijitButtonNode {
+	/* M3 Tonal active/checked state */
+    background-image: none;
+    background-color: var(--m3-secondary-container, #BBDEFB);
+    filter: brightness(0.90);
+    box-shadow: none;
+}
+
+
+.tundra .no_background .dijitButtonNode {
+    padding: 0;
+    background: none;
+    background-color: transparent;
+    border-width: 0 !important;
+    border-color: transparent;
+}
+
+/* @group ddb */
+.dropDownNoArrow .dijitArrowButtonInner {
+    display: none;
+}
+
+/* @end */
+
+/* --- Toolbar buttons --- */
+
+.slotbar_toolbar_standard{
+    background-color: #f5f5f5;
+    background-image: none;
+    border-top: 1px solid rgba(0,0,0,0.08);
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+.slotbar_toolbar_side_left{
+    border-right:1px solid silver;
+}
+.slotbar_toolbar_side_right{
+    border-left:1px solid silver;
+}
+.slotbar_toolbar_side_top{
+    border-bottom:1px solid silver;
+}
+.slotbar_toolbar_side_bottom{
+    border-top:1px solid silver;
+}
+
+/* Arrow in dropdown buttons - toolbar */
+.slotbar_toolbar .dijitDropDownButton .dijitArrowButtonInner {
+    margin-left: 0.4em;
+}
+.slotbar_toolbar .dijitDropDownButton:not(.slotButtonIconOnly) .dijitArrowButtonInner {
+    filter: brightness(0) invert(1);
+}
+
+.slotbar_toolbar .slotButtonIconOnly .dijitButtonNode, .pbl_roundedGroupLabel .slotButtonIconOnly .dijitButtonNode, .iconOnly.slotButtonIconOnly .dijitButtonNode, .iconOnly .dijitButtonNode{
+    border:0;
+    background:transparent;
+    padding: 0px 0px;
+    box-shadow: none;
+    color: var(--mainWindow-color, #444);
+}
+.slotbar_toolbar .slotButtonIconOnly .dijitButtonNode .dijitButtonText,
+.iconOnly.slotButtonIconOnly .dijitButtonNode .dijitButtonText,
+.iconOnly .dijitButtonNode .dijitButtonText{
+    color: var(--mainWindow-color, #444);
+}
+/* Slot toolbar buttons: filled style (exclude combobox/spinner internal buttons) */
+.slotbar_toolbar .dijitButton:not(.slotButtonIconOnly) .dijitButtonNode,
+.slotbar_toolbar .dijitDropDownButton:not(.slotButtonIconOnly) .dijitButtonNode,
+.slotbar_toolbar .dijitComboButton:not(.slotButtonIconOnly) .dijitButtonNode{
+    --m3-secondary-container: var(--m3-primary, #1976D2);
+    --m3-on-secondary-container: var(--m3-on-primary, #fff);
+    --m3-btn-border-color: var(--m3-primary, #1976D2);
+}
+.slotbar_toolbar .dijitDisabled:not(.slotButtonIconOnly) .dijitButtonNode{
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.slotbar_toolbar .dijitButton, .slotbar_toolbar .dijitDropDownButton, .slotbar_toolbar .dijitComboButton{
+    margin:0;
+}
+
+.bottom_btnDisabled .dijitButtonNode {
+    opacity: .6;
+    cursor: not-allowed !important;
+}
+
+.bottom_btnHover .dijitButtonNode {
+    opacity: 1;
+}
+
+.listbottompane .dijitButtonNode {
+    box-shadow: 1px 1px 2px #403b3b;
+}
+
+.listbottompane .dijitButtonNode:hover {
+    box-shadow: 2px 2px 4px #403b3b;
+}
+
+.emptyIframe{
+	background: transparent url(../icons/base256/empty_iframe.png) no-repeat center center;
+}
+
+.loadingIframe{
+    background: transparent url(../icons/base128/big_loader.gif) no-repeat center center;
+}
+
+/* @end */

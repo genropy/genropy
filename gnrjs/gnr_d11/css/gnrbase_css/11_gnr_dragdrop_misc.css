@@ -1,0 +1,435 @@
+/* ==========================================================================
+   11_gnr_dragdrop_misc.css — Drag & drop, table cells, folderIndex,
+   validation, dbselect/dropdown, beautiful buttons, menu, video HTML5,
+   fonts, general HTML, effects (css3)
+   ========================================================================== */
+
+/* @group drag drop */
+
+.canBeDropped {
+    background-color: rgba(0, 255, 0, 0.15) !important;
+}
+
+.cannotBeDropped {
+    background-color: rgba(255, 60, 0, 0.15) !important;
+}
+
+img.canBeDropped {
+    opacity:0.5;
+    background-color: inherit !important;
+}
+
+img.cannotBeDropped {
+    background-color: #ffa997 !important;
+}
+
+
+.dojoxGrid-header .canBeDropped {
+    background: #8fff9d !important;
+}
+
+.dojoxGrid-header .cannotBeDropped {
+    background: #ffa997 !important;
+}
+
+.rowsetdragging {
+    /*font-size: 0.8em;*/
+    border:1px solid silver;
+    border-radius: 6px;
+    box-shadow:3px 3px 6px #333;
+    background-color:white;
+    padding:5px;
+    display:inline-block;
+
+
+    /**/
+}
+
+
+.rowsetdragging .dojoxGrid-cell{
+    border-right:1px solid silver !important;
+    border-bottom:1px solid silver !important;
+}
+
+.rowsetdragging_background{
+    -webkit-transform: scale(.75,.75);
+    -webkit-transform-origin:0px 0px;
+    display:inline-block;
+}
+
+/*
+.draggedItem {
+    border: 2px solid yellow;
+}
+.draggedItem>*{
+    -webkit-transform: scale(.9,.9);
+}*/
+
+.draggedItem {
+    background: rgba(255, 255, 255, 0.2);
+    box-shadow: 2px 2px 3px #333;
+    /*border-radius: 8px;
+    display: block;
+    border: 3px solid yellow !important;
+    padding-left: 5px !important;
+    padding-right: 5px !important;
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+    min-height: 16px;*/
+}
+
+
+.draggedItem .dojoxGrid {
+    display: none;
+}
+
+table.draggedItem {
+    display: table;
+}
+
+.droppableColumn {
+    border-right: 4px solid lime !important;
+    background: rgba(0, 255, 0, 0.23) !important;
+}
+
+.undroppableColumn {
+    border-left: 2px solid red !important;
+    border-right: 2px solid red !important;
+    background: url(../icons/base16/oneway.gif) no-repeat 50% 50% !important;
+}
+
+
+/* @end */
+
+/* @group Table */
+
+.treeCellContent{
+    -webkit-touch-callout: auto;
+    -webkit-user-select: auto;
+    -khtml-user-select: auto;
+    -moz-user-select: text;
+    -ms-user-select: auto;
+    user-select: auto;
+}
+
+.selectedTreeRow .treeCellContent{
+    font-weight: bold;
+}
+
+.dojoxGrid td.cell_R .cellContent, .treecell.cell_R .treeCellContent, .dynamicTable td.cell_R,
+.dojoxGrid td.cell_I .cellContent, .treecell.cell_I .treeCellContent, .dynamicTable td.cell_I,
+.dojoxGrid td.cell_N .cellContent, .treecell.cell_N .treeCellContent, .dynamicTable td.cell_N,
+.dojoxGrid td.cell_L .cellContent, .treecell.cell_L .treeCellContent, .dynamicTable td.cell_L{
+    text-align: right;
+}
+
+._common_d11.tundra .dojoxGrid-row td.invalidCell.dojoxGrid-cell{
+    background-image:url(../icons/invalid_small.png);
+    background-repeat:no-repeat;
+    background-position:0px 0px;
+}
+._common_d11.tundra .dojoxGrid-row .newRowCell.dojoxGrid-cell{
+    font-style:italic;
+}
+
+.dojoxGrid-cell.hiddenColumn {
+    display: none;
+}
+
+.dtype_L, .dtype_R, .dtype_I, .dtype_N {
+    text-align: right;
+}
+
+.highlight_negative .negative_number {
+    color: red !important;
+}
+
+.mover_imported .dojoxGrid-cell{
+    color:green;
+}
+.mover_db .dojoxGrid-cell{
+
+}
+.mover_xml .dojoxGrid-cell{
+    color:gray;
+}
+.mover_both .dojoxGrid-cell{
+    color:navy;
+}
+
+/* @end */
+
+
+/* @group folderIndex */
+
+.index_td {
+    text-align: center;
+    padding: 3px;
+    cursor: pointer;
+}
+
+.index_td:hover {
+    opacity: .8;
+}
+
+.index_header {
+    background-color: #4457b7;
+    color: white;
+    font-weight: bold;
+    padding: 5px;
+}
+
+#folderIndexTable {
+    background-color: #d3eaff;
+}
+
+.index_file {
+    background-color: #ff866a;
+    border-radius: 8px;
+    border: 1px solid #c36652;
+}
+
+.index_folder {
+    background-color: #ffe78f;
+    border: 1px solid #ecd785;
+}
+
+/* @end */
+
+/* @group Validation */
+
+.gnrValidError {
+    background-color: orange;
+}
+
+/* @end */
+
+
+
+/* @group dbselect / dropdown menus */
+.tundra .dijitMenuItem {
+    border-bottom: none;
+    font-size: inherit;
+    line-height: 1.4em;
+    margin: 0;
+    padding: 0.3em 0.8em;
+    font-family: inherit;
+    color: var(--menu-item-color, var(--mainWindow-color, #444));
+    background: transparent;
+    transition: background-color 0.12s ease, color 0.12s ease;
+    cursor: default;
+}
+
+.tundra .dijitMenuItemHover,
+.tundra .dijitMenuItemSelected {
+    background-color: var(--menu-item-hover-bg, rgba(0,0,0,0.06));
+    background-image: none;
+    color: var(--menu-item-hover-color, var(--mainWindow-color, #333));
+}
+
+.tundra .dijitMenuItemActive {
+    background-color: var(--menu-item-active-bg, rgba(0,0,0,0.10));
+}
+
+.tundra.touchDevice .dijitMenuItem {
+    font-size: 1em;
+    line-height: 1.6em;
+    padding: 0.35em 0.8em;
+}
+.tundra.touchDevice .dijitMenuItem:active {
+    background-color: var(--menu-item-hover-bg, rgba(0,0,0,0.06));
+    background-image: none;
+}
+
+
+/* @end */
+
+/* @group beautiful buttons */
+.rounded-button {
+    position: relative;
+    display: inline-block;
+    width: 8em;
+    padding: 0.25em 0.5em 0.3em 0.5em;
+    text-align: center;
+    cursor: pointer;
+    border: 2px solid #999;
+    background-color: #666;
+    background-color: rgba(128, 128, 128, 0.75);
+    border-radius: 16px;
+    font-size: 1.1em;
+    color: #fff;
+    font-weight: bold;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+    background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, from(rgba(64, 64, 64, 0.75)), to(rgba(192, 192, 192, 0.9)));
+    background-image: -moz-linear-gradient(top, bottom, from(rgba(64, 64, 64, 0.75)), to(rgba(192, 192, 192, 0.9)));
+    -khtml-box-shadow: rgba(192, 192, 192, 0.75) 0px 8px 24px;
+    -moz-box-shadow: rgba(192, 192, 192, 0.75) 0px 8px 24px;
+    box-shadow: rgba(192, 192, 192, 0.75) 0px 8px 24px;
+}
+
+.rounded-button span {
+    position: absolute;
+    display: block;
+    width: 94%;
+    left: 3.5%;
+    top: 0px;
+    height: 50%;
+    border-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.25);
+    background-image: -webkit-gradient(linear, 0% 0%, 0% 100%, from(rgba(255, 255, 255, 0.75)), to(rgba(255, 255, 255, 0)));
+    background-image: -moz-linear-gradient(top, bottom, from(rgba(255, 255, 255, 0.75)), to(rgba(255, 255, 255, 0)));
+}
+
+.shiny-blue {
+    border-color: #999;
+    background-color: rgba(128, 128, 128, 0.75);
+    background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, from(rgba(64, 64, 64, 0.75)), to(rgba(192, 192, 192, 0.9)));
+    background-image: -moz-linear-gradient(top, bottom, from(rgba(64, 64, 64, 0.75)), to(rgba(192, 192, 192, 0.9)));
+    -khtml-box-shadow: rgba(192, 192, 192, 0.75) 0px 8px 24px;
+    -moz-box-shadow: rgba(192, 192, 192, 0.75) 0px 8px 24px;
+    box-shadow: rgba(192, 192, 192, 0.75) 0px 8px 24px;
+}
+
+.shiny-blue:hover {
+    border-color: #6699cc;
+    background-color: rgba(64, 128, 192, 0.75);
+    background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, from(rgba(16, 96, 192, 0.75)), to(rgba(96, 192, 255, 0.9)));
+    background-image: -moz-linear-gradient(top, bottom, from(rgba(16, 96, 192, 0.75)), to(rgba(96, 192, 255, 0.9)));
+    -khtml-box-shadow: rgba(128, 192, 255, 0.75) 0px 8px 24px;
+    -moz-box-shadow: rgba(128, 192, 255, 0.75) 0px 8px 24px;
+    box-shadow: rgba(128, 192, 255, 0.75) 0px 8px 24px;
+}
+
+/* @end */
+
+/* @group menu */
+
+.browsemenu .tundra .dijitMenuItemIcon {
+    width: 4px;
+    height: 14px;
+}
+
+/* @end */
+
+/* @group Video HTML5 */
+#videoelem {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+}
+
+#videocontainer {
+    position: relative;
+    width: 400px;
+    height: 225px;
+    -webkit-user-select: none;
+    -webkit-transition-duration: 0.2s
+}
+
+.videobutton {
+    line-height: 40pt;
+    border: 3px solid white;
+    -webkit-border-radius: 20px;
+    opacity: 0.5;
+    position: absolute;
+    font-size: 40pt;
+    color: white;
+    background-color: gray;
+    cursor: pointer;
+    text-align: center;
+    z-index: 1;
+}
+
+.videozoombutton {
+    bottom: 10px;
+    right: 10px;
+    width: 1.1em;
+    height: 1.1em;
+    font-size: 15pt;
+    line-height: 15pt;
+    border: 2px solid white;
+    -webkit-border-radius: 8px;
+}
+
+.videoloading {
+    top: 0;
+    bottom: 0;
+    margin: auto;
+    left: 0;
+    right: 0;
+    width: 7em;
+    height: 1.2em;
+    cursor: default;
+}
+
+videofadeout {
+    -webkit-transition: 1.5s;
+    opacity: 0;
+}
+
+#videocontainer:hover .videofadeout {
+    opacity: 0.5;
+}
+
+.videoplay {
+    top: 0;
+    bottom: 0;
+    margin: auto;
+    left: 0;
+    right: 0;
+    width: 1.2em;
+    height: 1.2em;
+}
+
+/* @end */
+
+/* @group Fonts */
+@font-face {
+    font-family: 'Abadi';
+    font-weight: normal;
+    src: url('/_gnr/11/fonts/abadi/Abadi_MT_Condensed_Light.ttf');
+}
+
+/* @end */
+
+/* @group General HTML */
+
+p {
+    font-size: inherit;
+    line-height: inherit;
+    margin-bottom: inherit;
+    margin-top: inherit;
+}
+
+/* @end */
+
+/* @group Effects (css3) */
+
+.shadow_4 {
+    -moz-box-shadow: 4px 4px 4px #403b3b;
+    -webkit-box-shadow: 4px 4px 4px #403b3b;
+}
+
+.shadow_2 {
+    -moz-box-shadow: 2px 2px 2px #403b3b;
+    -webkit-box-shadow: 2px 2px 2px #403b3b;
+}
+
+.shadow_6 {
+    -moz-box-shadow: 6px 6px 5px #403b3b;
+    -webkit-box-shadow: 6px 6px 5px #403b3b;
+}
+
+.rounded_min {
+    border-radius: 6px;
+}
+
+.rounded_medium {
+    border-radius: 8px;
+}
+
+.rounded_max {
+    border-radius: 12px;
+}
+
+/* @end */

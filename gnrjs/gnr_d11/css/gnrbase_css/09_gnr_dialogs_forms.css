@@ -1,0 +1,404 @@
+/* ==========================================================================
+   09_gnr_dialogs_forms.css — Splitters, drawers, dialogs, standard form,
+   loading classes, form builder, localizer
+   ========================================================================== */
+
+/* --- Splitters & Drawers --- */
+
+.tinySplitter.dijitSplitter{
+    background: transparent;
+}
+.tinySplitter .dijitSplitterThumb{
+    visibility: hidden;
+}
+
+
+.hideSplitter >.dijitSplitter.dijitSplitterV {
+    background: transparent;
+    width:4px;
+}
+
+.hideSplitter >.dijitSplitter.dijitSplitterH {
+    background: transparent;
+    height:4px;
+}
+
+.hideSplitter>.dijitSplitter:hover{
+    background:silver;
+    opacity:.5;
+}
+
+
+.hideSplitter >.dijitSplitter .dijitSplitterThumb {
+    visibility: hidden;
+}
+
+
+._common_d11.tundra .dijitSplitter:active{
+    background: #777;
+}
+
+.attachment_drawer.slotbarOpener_horizontal{
+    top: -18px;
+    margin-left: -37px;
+    padding-top: 3px;
+    background: #888;
+    color: white;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    height: 15px;
+    text-align: center;
+    font-size: 1em;
+    width: 74px;
+    opacity: 1;
+    border: none;
+}
+
+.tundra .drawerFixed.dijitSplitter.dijitSplitterV{
+    width: 0;
+}
+.tundra .drawerFixed.dijitSplitter.dijitSplitterV:hover{
+    width: 0;
+    background: transparent;
+}
+
+.tundra .drawerFixed.dijitSplitter.dijitSplitterH{
+    height: 0;
+}
+.tundra .drawerFixed.dijitSplitter.dijitSplitter:hover{
+    height: 0;
+    background: transparent;
+}
+
+.drawerSplitter.dijitSplitter{
+    overflow: visible;
+    background: transparent;
+}
+
+.drawerSplitter.dijitSplitter.dijitSplitterV  .drawerHandle{
+    top:50%;
+    margin-top: -20px;
+    height: 40px;
+    width:8px;
+}
+.tundra .dijitSplitter.drawerHandle {
+    z-index: 2;
+}
+.tundra .dijitSplitter.drawerSplitter .dijitSplitterThumb{
+    background: transparent;
+}
+.drawerSplitter.dijitSplitter.dijitSplitterH  .drawerHandle{
+    left:50%;
+    margin-left:-20px;
+    width: 40px;
+    height:8px;
+}
+.drawerSplitter.dijitSplitter.dijitSplitterH.drawer_region_bottom .drawerHandle{
+    border-top-right-radius: 5px;
+    border-top-left-radius: 5px;
+    top: -8px;
+    border-bottom: 0;
+}
+.drawerSplitter.dijitSplitter.dijitSplitterH.drawer_region_top .drawerHandle{
+    border-bottom-right-radius: 5px;
+    border-bottom-left-radius: 5px;
+    top: 0;
+    border-bottom: 0;
+}
+
+.drawerSplitter.dijitSplitter.dijitSplitterV.drawer_region_left .drawerHandle{
+    border-top-right-radius: 5px;
+    border-bottom-right-radius: 5px;
+    left:0px;
+    border-left: 0;
+}
+.drawerSplitter.dijitSplitter.dijitSplitterV.drawer_region_right .drawerHandle{
+    border-top-left-radius: 5px;
+    border-bottom-left-radius: 5px;
+    left:-8px;
+    border-right: 0;
+
+}
+
+.drawerHandle{
+    background: gray;
+    -moz-transition:all .5s;
+    -webkit-transition:all .5s;
+    opacity: .5;
+    cursor: pointer;
+    position: absolute;
+}
+.tundra._common_d11 .drawerSplitter.dijitSplitter .drawerHandle:hover{
+    opacity: 1;
+}
+
+
+/* @group dialog */
+.dlg_ask {
+    display: flex;
+    flex-direction: column;
+    min-width: 25em;
+}
+
+.dlg_ask_msg {
+    max-width: 40em;
+    padding: 1em 1.2em;
+    font-size: 0.9em;
+    line-height: 1.5;
+    color: var(--dlg-msg-color, #333);
+    text-align: left;
+}
+
+.dlg_alert {
+    font-size: .9em;
+}
+
+.dlg_alert.dijitDialog .dijitDialogPaneContent,
+.dlg_prompt.dijitDialog .dijitDialogPaneContent{
+    background: var(--dlg-pane-bg, #fff);
+}
+
+.dlg_alert_msg {
+    max-width: 40em;
+    padding: 0.5em 0;
+    line-height: 1.5;
+    color: var(--dlg-msg-color, #333);
+    text-align: left;
+}
+.dlg_ask_btnBox{
+    display: flex;
+    flex-direction: row-reverse;
+    gap: 0.5em;
+    align-items: center;
+    padding: 0.8em 1.2em;
+}
+.dlg_ask_btnBox .dijitButton{
+    flex: 1;
+    margin: 0;
+}
+.dlg_ask_btnBox .dijitButtonNode{
+    width: 100%;
+}
+.alertBodyMessage{
+    color: var(--dlg-msg-color, #444);
+    line-height: 1.35;
+    display: flex;
+}
+
+.pbl_dialog_center{
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em;
+    padding: 0.8em 1em;
+}
+
+.dlg_flexbody .dijitDialogPaneContent {
+    display: flex;
+    flex-direction: column;
+    min-width: 26em;
+}
+
+.dlg_flexbody .fh_content {
+    flex: 1;
+    overflow: auto;
+}
+
+/* @end */
+
+/* @group Standard form */
+
+.numberTextBox input, .dijitDisabled.numberTextBox input:focus, .dijitReadOnly.numberTextBox input:focus {
+    text-align: right;
+    /*padding-right: 2px;*/
+}
+
+.numberTextBox input:focus {
+    text-align: left;
+    /*padding-left: 2px;*/
+}
+
+
+.gnrfieldlabel {
+    color: var(--gnrfieldlabel-color);
+    margin-top:2px;
+    white-space: nowrap;
+    padding-left:4px;
+}
+label{
+    vertical-align:middle;
+}
+
+.floatRight {
+    float: right
+}
+
+.floatLeft {
+    float: left
+}
+
+.borderRadius {
+    border-radius: 12px;
+}
+
+.gnrfield {
+
+}
+/*.gnrfield.tag_div{
+    padding-top:2px;
+}*/
+
+.gnrfieldlabel.gnrzoomlabel{
+    /*padding-left: 15px;*/
+    cursor: pointer;
+}
+.gnrzoomlabel{
+    display: inline-flex;
+}
+
+
+.gnrzoomicon{
+    width:15px;
+}
+.gnrzoomlabel:hover .gnrzoomicon{
+    background: transparent url(../icons/base14/linkto.gif) no-repeat center center;
+}
+
+/* @group loading classes */
+
+/*topLabelTable css for toplabel forbuilders*/
+
+.topLabelTable {
+    border-spacing: 0px;
+    border-collapse: collapse;
+    border-width:0px;
+    width:100%;
+    border-top: var(--topLabelTable-border-top, none);
+    background: var(--topLabelTable-background, transparent);
+    color: var(--topLabelTable-color, inherit);
+}
+
+.topLabelTable td{
+    border-right: 1px solid var(--topLabelTable-separator, silver);
+    padding-top:2px;
+    padding-bottom:2px;
+    min-width:5em;
+    text-align:right;
+    padding-right:2px;
+}
+
+.topLabelTable td:last-child{
+    border-right:0px;
+}
+
+.topLabelTable td.gnrfieldlabel{
+    border-bottom:1px solid silver;
+    font-size:.9em;
+    font-weight:bold;
+    text-align:center;
+}
+/*topLabelTable css for toplabel forbuilders*/
+
+.loadingForm .gnrfield input {
+    opacity: .3;
+}
+
+.loadingForm .dojoxGrid-content {
+    opacity: .3;
+}
+
+.loadingForm textarea {
+    color: transparent;
+}
+
+.loadingForm gnrfield >div {
+    opacity: .3;
+}
+
+.formHider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 100;
+    opacity: .3;
+    background: white;
+}
+
+.hiderMessage{
+    text-align:center;
+    font-size:24pt;
+    color:rgba(80, 80, 80, 0.2);
+    display:inline-block;
+}
+
+/* @end */
+
+/* @end */
+
+/* @group Form Builder */
+
+table.formbuilder {
+    border-collapse: separate;
+    border-spacing: 6px;
+}
+
+table.formbuilder td.gnrfield {
+    flex: 1;
+}
+
+/* @end */
+
+/* @group Localizer */
+
+.localizer_hidden {
+    display: none;
+}
+
+.localizer_ok {
+    background: url(../icons/flag/green.gif) no-repeat center center;
+    height: 100%;
+    width: 18px;
+    display: block;
+    float: right;
+    margin-right: 5px;
+}
+
+.localizer_missingLoc {
+    background: url(../icons/flag/red.gif) no-repeat center center;
+    height: 100%;
+    width: 18px;
+    display: block;
+    float: right;
+    margin-right: 5px;
+}
+
+.localizationTable {
+    border-collapse: collapse;
+    color: #3a3a3a;
+    font-size: .9em;
+}
+
+.localizationTable th {
+    padding: 2px;
+    border: thin solid #c8c8c8;
+    background-color: #a1a1a1;
+    font-weight: bold;
+    text-align: center;
+}
+
+.localizationTable td {
+    padding: 2px;
+    border: thin solid #c8c8c8;
+    background-color: #b6e2ff;
+}
+
+.localizationTable tr > td:first-child {
+    padding: 2px;
+    color: white;
+    border: thin solid #c8c8c8;
+    background-color: #4f4f4f;
+    text-align: right;
+}
+
+/* @end */
