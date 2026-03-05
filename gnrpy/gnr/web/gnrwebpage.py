@@ -1463,7 +1463,7 @@ class GnrWebPage(GnrBaseWebPage):
         if theme_variant:
             theme_variant = 'theme_variant_%s' %theme_variant
         theme_variant = '%s mode_%s' %(theme_variant,self.device_mode)
-        return '%s %s %s _common_d11 pkg_%s page_%s %s ' % ((self.site.config['gui?css_theme'] or ''),
+        return '%s %s %s _common_d11 pkg_%s page_%s %s ' % ((self.get_css_theme() or 'joanna'),
         self.frontend.theme or '',theme_variant, self.packageId, self.pagename, getattr(self, 'bodyclasses', ''))
         
     def get_css_genro(self):
@@ -1685,8 +1685,13 @@ class GnrWebPage(GnrBaseWebPage):
     def get_css_theme(self):
         """Get the css_theme and return it. The css_theme get is the one defined the :ref:`siteconfig_gui`
         tag of your :ref:`sites_siteconfig` or in a single :ref:`webpage` through the
-        :ref:`webpages_css_theme` webpage variable"""
-        return self.css_theme
+        :ref:`webpages_css_theme` webpage variable.
+        If the configured theme does not exist on disk, falls back to 'joanna'."""
+        css_theme = self.css_theme
+        if css_theme and not self.site.resource_loader.getResourceList(
+                self.resourceDirs, 'themes/%s' % css_theme, 'css'):
+            css_theme = 'joanna'
+        return css_theme
 
         
     def get_css_theme_variant(self):
@@ -1711,8 +1716,6 @@ class GnrWebPage(GnrBaseWebPage):
         :param requires: TODO If None, get the css_requires string included in a :ref:`webpage`"""
         requires = [r for r in (requires or self.css_requires) if r]
         css_theme = self.get_css_theme() or 'joanna'
-        if not self.site.resource_loader.getResourceList(self.resourceDirs, 'themes/%s' % css_theme, 'css'):
-            css_theme = 'joanna'
         css_icons = self.get_css_icons()
         css_theme_variant =  self.get_css_theme_variant()
         requires.append('themes/gnr_iconset')
