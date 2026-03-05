@@ -5,17 +5,12 @@
 
 /* @group 2011-Paolo*/
 
-/* --- Standard toolbar (moved from theme_shared) --- */
-.slotbar_toolbar_standard{
-    background-color: #f0f1f3;
-}
-
 /* @group Toolbar */
  .dijitToolbar {
     background: none;
-    background-color: #EDEDEE;
-    background-image: linear-gradient(to bottom, #EDEDEE, #CDCDCD);
-    color: #383838;
+    background-color: var(--toolbar-bg);
+    background-image: var(--toolbar-gradient);
+    color: var(--toolbar-color);
     /*-moz-linear-gradient(-90deg, #EDEDEE, #CDCDCD) repeat scroll 0 0 #E1E9E9*/
 }
 /* @end */
@@ -24,8 +19,8 @@
 .tundra .dijitToolbar :is(.dijitButton, .dijitToggleButton, .dijitDropDownButton) {
     border-top: 1px solid #E3E3E3;
     background-color:#F8F8F8;
-    border-radius: 4px;
-	background-image: linear-gradient(to bottom, #EDEDEE, #CDCDCD);
+    border-radius: var(--radius-controls);
+	background-image: var(--toolbar-gradient);
 }
 .tundra .dijitToolbar :is(.dijitButtonChecked, .dijitToggleButtonChecked) {
     background-color:#d4dff2;
@@ -42,8 +37,8 @@
 .tundra .dijitToolbar :is(.dijitButtonHover, .dijitToggleButtonHover, .dijitDropDownButtonHover) {
     border: 1px solid #CECECE;
     background-color:#CECECE;
-    border-radius: 4px;
-	background-image: linear-gradient(to bottom, #E3E3E3, #CDCDCD);
+    border-radius: var(--radius-controls);
+	background-image: linear-gradient(to bottom, #E3E3E3, #CDCDCD); /* toolbar hover variant */
 }
 
 .tundra .dijitToolbar label {
@@ -56,9 +51,9 @@
 .fh_bottom_message{
     height: 16px;
     line-height: 16px;
-    border-top: 1px solid silver;
-    background-color: lightblue;
-    color: navy;
+    border-top: 1px solid var(--border-color);
+    background-color: #e6e6e6;
+    color: var(--text-muted);
     text-align: center;
     font-weight: bold;
 }
@@ -69,10 +64,10 @@
 .form_waiting{
     height: 30px;
     width:230px;
-    background: white url(../icons/form_waiting.gif) center center no-repeat;
-    border-radius:4px;
-    border:1px solid silver;
-    box-shadow:2px 2px 3px #666;
+    background: var(--surface-bg) url(../icons/form_waiting.gif) center center no-repeat;
+    border-radius: var(--radius-controls);
+    border:1px solid var(--border-color);
+    box-shadow:2px 2px 3px var(--text-muted);
 }
 .form_draft{
     background: url(../icons/drafts_stamp_small.png);
@@ -131,17 +126,17 @@
     margin-top:6px;
 }
 .form_contentlogger .formattedBagTable tr td {
-    color: #666;
+    color: var(--text-muted);
     font-size: 1em;
     padding: 2px;
     padding-left: 6px;
     padding-right: 6px;
-    border:1px dotted silver;
+    border:1px dotted var(--border-color);
 }
 
 .nestedBagTable{
     border-collapse: collapse;
-    color:#555;
+    color:var(--text-muted);
     width: 100%;
     font-size: 98%;
     -webkit-touch-callout: auto;
@@ -152,7 +147,7 @@
 }
 .nestedBagTable td{
     padding: 3px;
-    border:1px solid #efefef;
+    border:1px solid var(--border-light);
 
 }
 .nestedBagTable td._bagformat_lbl{
@@ -168,24 +163,24 @@
     box-shadow: none;
 }
 
-.formside_ok .fh_semaphore {
-    background: url(../icons/base16/semaphore_green.png) no-repeat center center;
+._common_d11 .formside_ok .fh_semaphore {
+    background: url(/_rsrc/common/css_icons/svg/16/form_status_green.svg) no-repeat center center;
 }
 
-.formside_error .fh_semaphore{
-    background: url(../icons/base16/semaphore_red.png) no-repeat center center;
+._common_d11 .formside_error .fh_semaphore{
+    background: url(/_rsrc/common/css_icons/svg/16/form_status_red.svg) no-repeat center center;
 }
 
-.formside_changed .fh_semaphore{
-    background: url(../icons/base16/semaphore_yellow.png) no-repeat center center;
+._common_d11 .formside_changed .fh_semaphore{
+    background: url(/_rsrc/common/css_icons/svg/16/form_status_yellow.svg) no-repeat center center;
 }
 
-.formside_readOnly .fh_semaphore{
-    background: url(../icons/base16/readonly.gif) no-repeat center center;
+._common_d11 .formside_readOnly .fh_semaphore{
+    background: url(/_rsrc/common/css_icons/svg/16/read_only_status.svg) no-repeat center center;
 }
 
-.formside_noItem .fh_semaphore{
-    background: url(../icons/base16/semaphore_gray.png) no-repeat center center;
+._common_d11 .formside_noItem .fh_semaphore{
+    background: url(/_rsrc/common/css_icons/svg/16/form_status_grey.svg) no-repeat center center;
 }
 
 .fh_content{
@@ -205,3 +200,43 @@
     z-index: 0;
 }
 /* @end */
+
+/* --- Standard table / toolbar (from theme_shared) --- */
+.button_placeholder {
+    width: 25px;
+}
+
+.st_editor_bar {
+    background-color: #49637c !important;
+}
+
+.st_editor_body {
+    background-color: rgba(124,151,179,0.8) !important;
+}
+
+.listbottompane {
+    background-color: rgba(168, 181, 182, 0.8);
+}
+
+.darktoolbar {
+    background-color: var(--text-color);
+}
+
+._common_d11 .slotbar_toolbar {
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
+._common_d11 .menudiv_text {
+    cursor: pointer;
+    padding-right: 12px;
+    display: inline-block;
+    font-size: .9em;
+    background: url(/_rsrc/common/css_icons/svg/16/popup.svg) no-repeat right 70%;
+    background-size: 10px;
+}
+._common_d11 .menudiv_text.menudiv_text_white {
+    color: white;
+    background: url(/_rsrc/common/css_icons/svg/16/popup_white.svg) no-repeat right 70%;
+    background-size: 10px;
+}

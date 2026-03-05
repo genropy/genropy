@@ -11,12 +11,12 @@
 	bottom: 0;
 	left: 0;
 	right: 0;
-	color: #555;
+	color: var(--text-muted);
 
 	font-family: inherit;
 	overflow: auto;
 	font-size: 9px;
-	background: white;
+	background: var(--surface-bg);
 }
 .treeShowTrash .treeTrash,.treeShowTrash.treeTrash{
     display:block;
@@ -82,7 +82,7 @@
 	text-decoration: underline;
 }
 .fieldsTree_group{
-	color: #777;
+	color: var(--text-secondary);
 }
 
 .fieldsTree_folder{
@@ -102,14 +102,14 @@
 	transform: translateY(-50%);
 	border-style: solid;
 	border-width: 4px 0 4px 5px;
-	border-color: transparent transparent transparent #666;
+	border-color: transparent transparent transparent var(--text-muted);
 }
 .dijitTreeContentExpanded .fieldsTree_folder{
 	background: none;
 }
 .dijitTreeContentExpanded .fieldsTree_folder::before{
 	border-width: 5px 4px 0 4px;
-	border-color: #666 transparent transparent transparent;
+	border-color: var(--text-muted) transparent transparent transparent;
 }
 .fieldsTree_RM {
 	color: navy;
@@ -223,7 +223,7 @@
 
 tr[_is_valid_item='true'].multiColumnSelectHover td {
     background-color: var(--accent-color, #007AFF);
-    color: var(--m3-on-primary, #fff);
+    color: var(--btn-filled-color);
     transition: background-color 0.15s ease;
 }
 
@@ -238,7 +238,7 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
 
 .multiColumnSelect div[style*="overflow-y"]::-webkit-scrollbar-thumb {
     background-color: var(--primary-light, #ccc);
-    border-radius: 3px;
+    border-radius: var(--radius-controls);
 }
 
 /* @end */

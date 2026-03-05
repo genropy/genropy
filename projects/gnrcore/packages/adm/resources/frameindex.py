@@ -168,7 +168,7 @@ class FrameIndex(BaseComponent):
     def prepareTop_mobile(self,bc,onCreatingTablist=None,**kwargs):
         top = bc.contentPane(region='top',overflow='hidden')
         bar = top.slotBar('5,pluginSwitch,*,pageTitle,*,35',
-                          _class='framedindex_tablist showcase_dark',height='34px',childname='upperbar')
+                          _class='framedindex_tablist showcase_dark',height='2.5em',childname='upperbar')
         bar.pluginSwitch.lightButton(_class='showcase_toggle',tip='!!Show/Hide the left pane',height='30px',width='30px',
                                                       action="""genro.nodeById('standard_index').publish('toggleLeft');""")
         self.pageTitle_mobile(bar.pageTitle)
@@ -178,18 +178,19 @@ class FrameIndex(BaseComponent):
 
     
     def prepareTop_std(self,bc,onCreatingTablist=None):
-        bc = bc.borderContainer(region='top',height='30px',overflow='hidden',_class='framedindex_tablist')
-        leftbar = bc.contentPane(region='left',overflow='hidden').div(display='inline-block', margin_left='10px',margin_top='4px')  
+        top = bc.contentPane(region='top',height='2.8em',overflow='hidden',
+                             _class='framedindex_tablist')
+        leftbar = top.div(_class='framedindex_tablist_left')
         if self.plugin_list or self.custom_plugin_list:
             plugins_standard = ['menuToggle']+self.plugin_list.split(',') if self.plugin_list else ['menuToggle']
             for btn in plugins_standard:
                 getattr(self,'btn_%s' %btn)(leftbar)
-                
+
             if self.custom_plugin_list:
                 for btn in self.custom_plugin_list.split(','):
                     getattr(self,'btn_%s' %btn)(leftbar)
-        
-        self.prepareTablist(bc.contentPane(region='center',margin_top='4px'),onCreatingTablist=onCreatingTablist)
+
+        self.prepareTablist(top.div(_class='framedindex_tablist_center'),onCreatingTablist=onCreatingTablist)
         
     def prepareTablist(self,pane,onCreatingTablist=False):
 

@@ -1,14 +1,48 @@
 /* ==========================================================================
-   01_gnr_variables.css — CSS custom properties, resets, body defaults,
-   Google Fonts @import, z-index scale
+   01_gnr_variables.css — CSS custom properties (single source of truth).
+   Themes override these in :root to customize appearance.
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Fira Sans Condensed&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Roboto Condensed&display=swap');
-
 :root {
+    /* --- Typography --- */
     --mainWindow-font-size: 0.8125rem;
+
+    /* --- Brand / Primary --- */
+    --primary-color: #1E3055;
+    --root-dark: #444;
+    --accent-color: #007AFF;
+
+    /* --- Surfaces --- */
+    --mainWindow-background: white;
+    --mainWindow-color: #1C1C1E;
+    --surface-light: #f6f6f6;
+    --surface-bg: #fff;
+
+    /* --- Borders --- */
+    --border-color: #ddd;
+    --border-light: #efefef;
+    --border-strong: #aab4c4;
+
+    /* --- Text --- */
+    --text-color: #444;
+    --text-muted: #666;
+    --text-secondary: #888;
+    --text-placeholder: #bbb;
+
+    /* --- Shadows --- */
+    --shadow-color: rgba(0,0,0,0.2);
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+    --shadow-md: 2px 2px 3px rgba(0,0,0,0.2);
+    --shadow-lg: 3px 3px 5px rgba(0,0,0,0.3);
+    --shadow-dialog: 0 4px 24px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.10);
+    --shadow-menu: 0 4px 16px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08);
+
+    /* --- Border radius --- */
+    --radius-controls:   4px;    /* buttons, inputs, grid cells, small interactive elements */
+    --radius-panels:     8px;    /* dialogs, menus, tooltips, dropdowns, medium containers */
+    --radius-containers: 12px;   /* layout sections, cards, search boxes, large wrappers */
+    --radius-pill:       9999px; /* pill shapes: tags, badges, semaphores, mobile bars */
+    --radius-full:       50%;    /* circles: status indicators */
 
     /* --- Z-index scale --- */
     --z-local:      10;
@@ -19,245 +53,106 @@
     --z-flash:      99999;
     --z-shield:     10000000;
 
-    /* --- Grid colors --- */
+    /* --- Grid --- */
     --grid-border-color: #DDDDDD;
     --grid-header-bg: #f6f6f6;
     --grid-header-color: #555;
     --grid-row-bg: rgba(255,255,255,.5);
     --grid-row-odd-bg: rgba(243,246,250,.5);
     --grid-row-selected-bg: rgba(175, 203, 236, .8);
+    --grid-row-deleted-color: #b50000;
+    --grid-cell-hover-bg: #F8FFD9;
 
     /* --- Toolbar --- */
     --toolbar-bg: #EDEDEE;
     --toolbar-gradient: linear-gradient(to bottom, #EDEDEE, #CDCDCD);
     --toolbar-color: #383838;
-}
+    --toolbar-dark-bg: #636366;
 
-*:focus, *:active {outline:none;}
-input:focus { outline: none; }
+    /* --- Layout: frameindex --- */
+    --frameindexroot-background: #F2F2F7;
+    --frameindexcenter-background: #F2F2F7;
+    --frameindexroot-mobile-background: #48484A;
+    --frameindex-tablist-background: #3A3A3C;
+    --frameindex-tablist-color: #ffffff;
+    --frameindex-tab-bg: #566A78;
+    --frameindex-tab-bg-hover: #6E8494;
+    --frameindex-tab-border: #6E8494;
+    --frameindex-subtab-bg: #4A5A66;
+    --frameindex-subtab-selected-bg: #7AACCC;
+    --frameindex-closer-hover-bg: #5A7A8A;
+    --root-top-background: #636366;
+    --root-top-color: #fff;
 
-* a{
-    text-decoration:none !important;
-}
+    /* --- Dialogs --- */
+    --dialogtitlebar-background: #636366;
+    --dialogtitlebar-color: #ffffff;
+    --dlg-bg: #f6f6f6;
+    --dlg-pane-bg: #fff;
+    --dlg-border-color: silver;
 
-* a:hover{
-    text-decoration:underline !important;
-}
+    /* --- Tabs --- */
+    --tab-background: #F2F2F7;
+    --tab-text-color: #3A3A3C;
+    --tab-selected-background: white;
+    --tab-selected-color: #ccc;
 
-body {
-    --primary-color: #1E3055;
-}
+    /* --- Rounded groups --- */
+    --roundedgroup-bar: #E5E5EA;
+    --roundedgroup-bar-color: #3A3A3C;
+    --roundedgroup-border: #D1D1D6;
+    --roundedgroup-shadow: rgba(0,0,0,0.06);
 
-#protection_shield{
-    background: rgba(200, 200, 200, 0.4) url(../icons/pageWaiting.gif) no-repeat center center;
-    z-index: var(--z-shield);
-    display: none;
-    position: fixed;
-    top:0;
-    bottom:0;
-    left: 0;
-    right:0;
-}
+    /* --- Form fields --- */
+    --field-bg: white;
+    --field-border: #AEAEB2;
+    --field-error-border: silver;
+    --field-disabled-border: #C7C7CC;
+    --field-disabled-bg: #F2F2F7;
+    --field-readonly-border: #C7C7CC;
+    --field-readonly-bg: #F2F2F7;
+    --field-focus-bg: #fff;
+    --gnrfieldlabel-color: #8E8E93;
 
-.startingPage #protection_shield{
-    display: block;
-}
+    /* --- topLabelTable --- */
+    --topLabelTable-border-top: none;
+    --topLabelTable-separator: silver;
 
-.shield_layer{
-    display: none;
-}
-.active_click_palette .shield_layer{
-    display: block;
-}
+    /* --- Status --- */
+    --status-ok: #4caf50;
+    --status-error: #E53935;
+    --status-warning: #ff9800;
+    --status-idle: #9e9e9e;
 
-div,span{
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-}
+    /* --- Toaster --- */
+    --toaster-success-bg: #73c74a;
+    --toaster-error-bg: darkred;
+    --toaster-warning-bg: #d4d943;
 
-.selectable, .selectable div, .selectable span, .selectable *{
-    -webkit-touch-callout: text !important;
-    -webkit-user-select: text !important;
-    -moz-user-select: text !important;
-    -ms-user-select: text !important;
-    user-select: text !important;
-}
-.unselectable div, .unselectable span, .unselectable{
-    -webkit-touch-callout: none!important;
-    -webkit-user-select: none!important;
-    -moz-user-select: none!important;
-    -ms-user-select: none!important;
-    user-select: none!important;
-}
+    /* --- Accordion --- */
+    --accordion-title-bg: #E0CEBE;
+    --accordion-selected-bg: #4D5962;
 
-*::-moz-focus-inner {border:0;}
+    /* --- Menu --- */
+    --menu-text-color: #444;
+    --menutree-chevron-color: currentColor;
 
-::-webkit-input-placeholder {
-   opacity: .5;
-   font-style:normal;
-   color:#bbb;
-}
+    /* --- Buttons: filled --- */
+    --btn-filled-bg: #1976D2;
+    --btn-filled-color: #fff;
+    --btn-filled-hover-bg: #1565C0;
+    --btn-filled-pressed-bg: #0D47A1;
+    --btn-filled-selected-bg: #0D47A1;
+    --btn-filled-disabled-bg: #90B4D9;
+    --btn-filled-disabled-color: rgba(255,255,255,0.7);
 
-:-moz-placeholder {
-   opacity: .5;
-   font-style:normal;
-   color:#bbb;
-}
-*:focus { outline:none; }
+    /* --- Buttons: tonal --- */
+    --btn-tonal-bg: #E3F2FD;
+    --btn-tonal-color: #1565C0;
+    --btn-tonal-hover-bg: #BBDEFB;
+    --btn-tonal-pressed-bg: #90CAF9;
+    --btn-tonal-selected-bg: #90CAF9;
 
-body.tundra{
-    font:13px 'Inter',-apple-system,'Helvetica Neue','Arial',sans-serif;
-}
-body.touchDevice{
-    -webkit-text-size-adjust:none;
-}
-.progressCell .cellContent{
-    height: 1px;
-    padding-bottom: 0;
-    padding-top:0;
-}
-.progressCell progress{
-    height:16px;
-}
-
-body.workInProgress{
-    border-left:2px solid red;
-}
-.cursorZoom_plus{
-	cursor: url(../icons/base10/lens.gif);
-}
-.workInProgress #mainWindow{
-	background: red;
-}
-.hiddenSplitter.dijitSplitter{
-	display: none;
-}
-
-.player_pause {
-    background: url(../icons/player/player_pause.png) center center no-repeat;
-    height: 18px;
-    width: 20px;
-    cursor: pointer;
-}
-.player_play {
-    background: url(../icons/player/player_play.png) center center no-repeat;
-    height: 18px;
-    width: 20px;
-    cursor: pointer;
-}
-
-.detatched_placeholder {
-    background: gray url(../icons/base128/no_entry.png) center center no-repeat;
-    height: 100%;
-    width: 100%;
-    opacity: .1;
-
-}
-
-.tundra .dijitTabPaneWrapper{
-    background: none;
-}
-
-.gnr_blurred_field{
-    filter:blur(3px);
-}
-
-.gnr_blurred_cell{
-    filter:blur(3px);
-}
-
-.FragmentDelimiter{
-    border:0;
-    height:1px;
-    background: #ddd;
-}
-
-.keeper_on .iskeepable{
-    font-weight: bold;
-}
-
-.gnrinlinewidget_container{
-    display: inline-block;
-}
-
-.tundra .gnrinlinewidget_container .dijitTextBox,
-.tundra .gnrinlinewidget_container .dijitComboBox,
-.tundra .gnrinlinewidget_container .dijitSpinner,
-.tundra .gnrinlinewidget_container .dijitInlineEditor input,
-.tundra .gnrinlinewidget_container .dijitTextArea{
-    border: 0;
-    vertical-align: bottom;
-    padding-top: 0;
-    outline: none;
-    padding-left: 1px;
-    padding-right: 1px;
-}
-.gnreditabletext{
-    display: inline-block;
-    min-width: 40px;
-    /*border-bottom: 1px dotted silver;*/
-    line-height: 1;
-}
-
-.gnreditabletext:hover{
-    background: yellow;
-}
-
-.inlineediting .gnreditabletext{
-    display: none;
-}
-
-.fieldkeeper{
-    position:absolute;
-    right:-10px;
-    bottom:0px;
-    height:6px;
-    width:6px;
-    border:1px solid silver;
-    border-radius:2px;
-    cursor:pointer;
-}
-
-.fieldkeeper div{
-    position:absolute;
-    top:1px;
-    bottom:1px;
-    left:1px;
-    right:1px;
-    background: white;
-}
-
-.gnrcheckbox_wrapper{
-    position: relative;
-    padding-right: 2px;
-    display: inline-block;
-    white-space: nowrap;
-}
-
-.cell_editable .gnrcheckbox_wrapper{
-    left: 25%;
-    position: relative;
-    margin-left: -10px;
-    margin-top: 3px;
-    padding-right: 0;
-}
-.keeper_on .fieldkeeper div{
-    background: #666;
-}
-
-.pickerCheckboxTree .dijitTreeContent{
-    min-height: 0;
-    padding-bottom: 2px;
-    padding-top: 0;
-    margin-left: 0px;
-    white-space: nowrap;
-    font-size: .9em;
-}
-.pickerCheckboxTree .dijitTreeLabel{
-    display: inline-block;
-    white-space: nowrap;
-    font-size: .9em;
+    /* --- Buttons: shared --- */
+    --btn-border-color: #ccc;
 }

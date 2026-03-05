@@ -16,8 +16,8 @@
 .mode_std .mobileSizer{
     max-width: 700px;
     margin: auto;
-    border-left: 1px solid silver;
-    border-right: 1px solid silver;
+    border-left: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
 }
 
 .touchDevice .scroll-wrapper{
@@ -45,7 +45,7 @@
     right: 10px;
     bottom: 10px;
     border: 10px solid rgba(99, 136, 195, 0.1);
-    border-radius: 10px;
+    border-radius: var(--radius-containers);
 }
 .detached_placeholder_title{
     font-size: 30px;
@@ -57,10 +57,10 @@
 /* --- Drop uploader --- */
 .dropUploaderBox{
     width:150px;
-    border: 1px solid silver;
-    border-radius: 2px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-controls);
     font-size: 20px;
-    color: #666;
+    color: var(--text-muted);
     text-align: center;
     height: 30px;
     cursor: pointer;
@@ -92,8 +92,8 @@
     left: 0;
     right:0;
     bottom: 0;
-    border-top:1px solid silver;
-    background: white;
+    border-top:1px solid var(--border-color);
+    background: var(--surface-bg);
 }
 
 .expanded_gallery_iframe.gallery_iframe_container{
@@ -189,7 +189,7 @@
 .right_in_cell .cellContent{
     -webkit-mask: url(/_rsrc/common/css_icons/svg/16/mobile_right_in_small.svg) no-repeat center center;
     mask: url(/_rsrc/common/css_icons/svg/16/mobile_right_in_small.svg) no-repeat center center;
-    background-color: #888;
+    background-color: var(--text-secondary);
 }
 
 .mobileTemplateGridTop{
@@ -205,7 +205,7 @@
 }
 
 ._common_d11 .mobileTemplateGrid .dojoxGrid-row{
-    border-bottom: 1px solid #ddd;
+    border-bottom: 1px solid var(--border-color);
 }
 
 ._common_d11.tundra .mobileTemplateGrid .dojoxGrid-header {
@@ -214,7 +214,7 @@
 .mobile_left_out{
     -webkit-mask: url(/_rsrc/common/css_icons/svg/16/mobile_left_out_small.svg) no-repeat center center;
     mask: url(/_rsrc/common/css_icons/svg/16/mobile_left_out_small.svg) no-repeat center center;
-    background-color: #888;
+    background-color: var(--text-secondary);
 }
 
 .leftOut{
@@ -235,7 +235,7 @@
 .formCaption{
     font-weight: bold;
     text-align: center;
-    color:#888;
+    color:var(--text-secondary);
     font-size:1.2em;
     padding-top: 2px;
     padding-left: 10px;
@@ -269,13 +269,13 @@
     width: 100%;
 }
 .dynamicTable thead th{
-    background: #444;
+    background: var(--text-color);
     color:white;
     font-weight: bold;
-    border: 1px solid silver;
+    border: 1px solid var(--border-color);
 }
 
 .dynamicTable tbody td{
-    color:#444;
-    border: 1px solid silver;
+    color:var(--text-color);
+    border: 1px solid var(--border-color);
 }

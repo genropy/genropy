@@ -5,11 +5,11 @@
 
 /* --- Logical deleted rows --- */
 .logicalDeleted .dojoxGrid-cell {
-    color: #b50000;
+    color: var(--grid-row-deleted-color);
 }
 
 .logicalDeleted .dojoxGrid-row-selected .dojoxGrid-cell {
-    color: #b50000;
+    color: var(--grid-row-deleted-color);
 }
 
 ._logical_delete.delete_row{
@@ -18,7 +18,7 @@
 
 /* --- Grid base --- */
 ._common_d11 .dojoxGrid {
-    background-color: white;
+    background-color: var(--surface-bg);
     margin-left: -1px;
     font-family: inherit;
     font-size: inherit;
@@ -60,15 +60,15 @@
 ._common_d11 .cell_B .widgetInCell {
     width: 16px;
     margin: auto;
-    box-shadow: 2px 2px 3px #777 inset;
+    box-shadow: 2px 2px 3px var(--text-secondary) inset;
 }
 
 ._common_d11 .widgetInCell {
-    color: #444;
+    color: var(--text-color);
     margin-top: 2px;
-    border-color: #efefef;
-    border-radius: 2px;
-    box-shadow: 1px 1px 1px #777 inset;
+    border-color: var(--border-light);
+    border-radius: var(--radius-controls);
+    box-shadow: 1px 1px 1px var(--text-secondary) inset;
 }
 
 /* --- Row colors --- */
@@ -127,7 +127,7 @@
     border-left: 0px;
     border-top: 0;
     border-right: 0px;
-    border-bottom: 1px solid white;
+    border-bottom: 1px solid var(--surface-bg);
     height:0px;
     background:none;
     vertical-align:top;
@@ -135,7 +135,7 @@
 
 /* --- Frame grid title --- */
 .slotbar_toolbar .frameGridTitle{
-    color:#666;
+    color:var(--text-muted);
     font-weight: bold;
     font-size: .9em;
     line-height:20px;
@@ -155,7 +155,7 @@
 }
 .grid_gallery_grid{
     width: 130px;
-    border-right: 1px solid silver;
+    border-right: 1px solid var(--border-color);
 }
 .grid_gallery_grid .dojoxGrid-cell {
     border-left: 0px !important;
@@ -199,25 +199,25 @@
 }
 
 .ig_top{
-    color:#555;
+    color:var(--text-muted);
     font-size: 1.3em;
 }
 .ig_bottom{
-    border-top:1px solid #efefef;
+    border-top:1px solid var(--border-light);
 }
 
 /* --- Grid reporting (gr_*) --- */
 .gr_table td{
     height: 14px;
     padding-top: 2px;
-    color: #555 !important;
+    color: var(--text-muted) !important;
     font-size: .9em;
 }
 .gr_scrollbox{
     overflow: hidden;
 }
 .gr_columnset{
-    border-bottom: 1px solid silver;
+    border-bottom: 1px solid var(--border-color);
     margin-top: 1px;
 }
 
@@ -229,8 +229,8 @@
 }
 
 .gr_columnset .groupcontent{
-    border-top-left-radius: 6px;
-    border-top-right-radius: 6px;
+    border-top-left-radius: var(--radius-panels);
+    border-top-right-radius: var(--radius-panels);
     background: #114E88;
     color:white;
     padding-bottom: 1px;
@@ -246,14 +246,14 @@
 }
 
 .gr_footer tr.columnsets_footers_row{
-    border-bottom:1px solid #DDDDDD;
+    border-bottom:1px solid var(--grid-border-color);
 }
 .gr_footer tr.columnsets_footers_row:last-child{
     border-bottom:0;
 }
 
 .gr_footer td{
-    border-right: 1px solid #DDDDDD;
+    border-right: 1px solid var(--grid-border-color);
 }
 
 .gr_footer td div{
@@ -261,7 +261,7 @@
 }
 .gr_footer.gr_scrollbox{
     overflow: auto;
-    border-top:1px solid #DDDDDD;
+    border-top:1px solid var(--grid-border-color);
     background: whitesmoke;
 }
 .gr_footer.gr_scrollbox .gr_itemcontainer{
@@ -292,7 +292,7 @@
     margin-left: 1px;
 }
 .grid_filler td{
-    border-right:1px solid #DDDDDD;
+    border-right:1px solid var(--grid-border-color);
 }
 
 /* --- Grid line number --- */
@@ -325,7 +325,7 @@
 }
 
 .buttons_grid .cellContent{
-    border-radius:2px;
+    border-radius: var(--radius-controls);
     margin-top:0;
     margin-right:0px;
     text-align:center;
@@ -334,9 +334,9 @@
     line-height:16px;
     font-size: 8pt;
     font-variant:small-caps;
-    color:#555;
+    color:var(--text-muted);
     background-color: #CDCDCD;
-    border: 1px solid #666;
+    border: 1px solid var(--text-muted);
     cursor:pointer;
     margin-top:2px;
 }
@@ -348,7 +348,7 @@
 }
 
 .grouper_buttons.buttons_grid .cellContent{
-    border-radius:6px;
+    border-radius: var(--radius-panels);
     margin-top:0;
     margin-right:0px;
     text-align:center;
@@ -357,8 +357,8 @@
     line-height:16px;
     font-size: inherit;
     font-variant:normal;
-    color:#555;
-    background-color: #ffffff;
+    color:var(--text-muted);
+    background-color: var(--surface-bg);
     border: 1px solid #aaa;
     cursor:pointer;
     margin-top:5px;
@@ -367,4 +367,113 @@
 .grouper_buttons.buttons_grid .dojoxGrid-row-selected .cellContent{
     background:#888;
     color: #fff;
+}
+
+/* --- Grid rows/header (from theme_shared) --- */
+._common_d11.tundra .dojoxGrid-row .dojoxGrid-cell,
+._common_d11.tundra .dojoxGrid-row-odd .dojoxGrid-cell,
+._common_d11.tundra .dojoxGrid-row.dojoxGrid-row-selected .dojoxGrid-cell {
+    border-left: 0px;
+    border-top: 0;
+    border-right: 1px solid var(--grid-border-color);
+    border-bottom: 0px;
+    height: 0px;
+    background: none;
+    vertical-align: top;
+}
+
+.mode_mobile._common_d11 .dojoxGrid-row .dojoxGrid-cell,
+.mode_mobile._common_d11 .dojoxGrid-row-odd .dojoxGrid-cell,
+.mode_mobile._common_d11 .dojoxGrid-row-selected .dojoxGrid-cell {
+    border-left: 0px !important;
+    border-top: 0 !important;
+    border-right: 1px solid var(--grid-border-color);
+    border-bottom: 0px !important;
+    height: 0px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    background: none;
+    vertical-align: top;
+}
+
+.mode_mobile._common_d11 .templateGrid .dojoxGrid-row .dojoxGrid-cell,
+.mode_mobile._common_d11 .templateGrid .dojoxGrid-row-odd .dojoxGrid-cell,
+.mode_mobile._common_d11 .templateGrid .dojoxGrid-row-selected .dojoxGrid-cell {
+    border-left: 0px !important;
+    border-top: 0 !important;
+    border-right: 0px solid var(--grid-border-color);
+    border-bottom: 0px !important;
+    height: 0px;
+    padding-top: 0px;
+    padding-bottom: 0px;
+    background: var(--surface-bg);
+    vertical-align: top;
+}
+
+.tundra._common_d11 .dojoxGrid-content > div {
+    border-bottom: 1px solid var(--grid-border-color);
+}
+
+.tundra._common_d11 .templateGrid .dojoxGrid-content > div,
+.tundra._common_d11 .mobileTemplateGrid .dojoxGrid-content > div {
+    border-bottom: 1px solid transparent;
+}
+
+._common_d11.tundra .templateGrid .dojoxGrid-row .dojoxGrid-cell:last-child {
+    border-right-width: 0px;
+}
+
+.tundra._common_d11 .editingGrid .dojoxGrid-row-odd.dojoxGrid-row-selected,
+.tundra._common_d11 .noselect .dojoxGrid-row-odd.dojoxGrid-row-selected {
+    background-color: #F3F6FA;
+}
+
+.tundra._common_d11 .editingGrid .dojoxGrid-row.dojoxGrid-row-selected,
+.tundra._common_d11 .noselect .dojoxGrid-row.dojoxGrid-row-selected {
+    background-color: rgba(255,255,255,.5);
+}
+
+.tundra._common_d11 .dojoxGrid-row {
+    background-color: var(--grid-row-bg);
+}
+
+.tundra._common_d11 .dojoxGrid-row-odd {
+    background-color: var(--grid-row-odd-bg);
+}
+
+.tundra._common_d11 .dojoxGrid-row.dojoxGrid-row-selected {
+    background-color: var(--grid-row-selected-bg);
+}
+.tundra._common_d11 .dojoxGrid-row-selected.dojoxGrid-row-odd {
+    background-color: var(--grid-row-selected-bg);
+}
+
+._common_d11 .canBeDropped .dojoxGrid-row.dojoxGrid-row-odd {
+    background-color: rgba(243, 246, 250, 0.5);
+}
+._common_d11 .canBeDropped .dojoxGrid-row {
+    background-color: rgba(255, 255, 255, 0.5);
+}
+
+._common_d11.tundra .noheader .dojoxGrid-header {
+    display: none;
+}
+
+._common_d11.tundra .dojoxGrid-header {
+    background-color: var(--grid-header-bg);
+    border-color: var(--text-muted) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+}
+
+._common_d11.tundra .dojoxGrid-header .dojoxGrid-cell {
+    background: none !important;
+    height: 14px;
+    padding-top: 2px;
+    color: var(--grid-header-color) !important;
+    border-bottom: 0 !important;
+    border-color: var(--border-color) !important;
+}
+
+._common_d11 .dojoxGrid-scrollbox {
+    overflow: auto;
 }

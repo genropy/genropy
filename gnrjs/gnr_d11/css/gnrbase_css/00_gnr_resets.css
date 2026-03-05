@@ -1,0 +1,105 @@
+/* ==========================================================================
+   00_gnr_resets.css — Global resets, body defaults, Google Fonts @import,
+   protection shield, user-select, focus/placeholder
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fira Sans Condensed&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto Condensed&display=swap');
+
+/* --- Focus resets --- */
+*:focus, *:active { outline: none; }
+input:focus { outline: none; }
+*::-moz-focus-inner { border: 0; }
+*:focus { outline: none; }
+body * { outline: none !important; }
+
+/* --- Link defaults --- */
+* a {
+    text-decoration: none !important;
+}
+* a:hover {
+    text-decoration: underline !important;
+}
+
+/* --- User-select --- */
+div, span {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+.selectable, .selectable div, .selectable span, .selectable * {
+    -webkit-touch-callout: text !important;
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    -ms-user-select: text !important;
+    user-select: text !important;
+}
+
+.unselectable div, .unselectable span, .unselectable {
+    -webkit-touch-callout: none !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    user-select: none !important;
+}
+
+/* --- Placeholder styling --- */
+::-webkit-input-placeholder {
+    opacity: .5;
+    font-style: normal;
+    color: var(--text-placeholder);
+}
+:-moz-placeholder {
+    opacity: .5;
+    font-style: normal;
+    color: var(--text-placeholder);
+}
+
+/* --- Body defaults --- */
+body.tundra {
+    font: 13px 'Inter', -apple-system, 'Helvetica Neue', 'Arial', sans-serif;
+}
+body.touchDevice {
+    -webkit-text-size-adjust: none;
+}
+
+/* --- Protection shield --- */
+#protection_shield {
+    background: rgba(200, 200, 200, 0.4) url(../icons/pageWaiting.gif) no-repeat center center;
+    z-index: var(--z-shield);
+    display: none;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+.startingPage #protection_shield {
+    display: block;
+}
+
+.shield_layer {
+    display: none;
+}
+.active_click_palette .shield_layer {
+    display: block;
+}
+
+/* --- Dev/debug states --- */
+body.workInProgress {
+    border-left: 2px solid red;
+}
+.cursorZoom_plus {
+    cursor: url(../icons/base10/lens.gif);
+}
+.workInProgress #mainWindow {
+    background: red;
+}
+.hiddenSplitter.dijitSplitter {
+    display: none;
+}

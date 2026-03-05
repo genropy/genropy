@@ -23,8 +23,8 @@
     padding-right: 45px;
     padding-left: 35px;
     position:absolute;
-    border-radius: 4px;
-    box-shadow: 3px 3px 4px #888;
+    border-radius: var(--radius-controls);
+    box-shadow: 3px 3px 4px var(--text-secondary);
     z-index: var(--z-flash);
 }
 
@@ -46,7 +46,7 @@
 
 /* --- Dialog prompt & close button --- */
 .dlg_prompt{
-    background:white;
+    background:var(--surface-bg);
     min-width: 20em;
 }
 
@@ -99,20 +99,7 @@
     background: rgba(255,255,255,0.8);
     padding-left: 4px;
     padding-right: 4px;
-    border-radius: 4px;
-}
-
-/* --- Menu div --- */
-.menudiv_text{
-    cursor: pointer;
-    padding-right: 12px;
-    display: inline-block;
-    font-size: .9em;
-    background: url(../icons/base12/smallpopup.gif) no-repeat right;
-}
-
-.menudiv_text.menudiv_text_white{
-    color:white;
+    border-radius: var(--radius-controls);
 }
 
 /* --- Misc utility classes --- */
@@ -133,8 +120,8 @@
 }
 
 .grouplet_chunk_box{
-    border: 1px solid silver;
-    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-controls);
     padding: 4px 8px;
     min-height: 14px;
 }
@@ -162,7 +149,7 @@
 
 .theme_variant_yellow .theme_background{
     background-color:#86770E;
-    color:#666;
+    color:var(--text-muted);
 }
 
 .clientlogo{
@@ -178,12 +165,12 @@
     padding:3px;
     padding-left:10px;
     padding-right:10px;
-    border-radius: 4px;
+    border-radius: var(--radius-controls);
     margin: 5px;
     text-align: center;
-    background-color: silver;
-    color:#444;
-    border:1px solid #ddd;
+    background-color: var(--border-color);
+    color:var(--text-color);
+    border:1px solid var(--border-color);
 }
 
 .helpdesk_btn.helpdesk_footer{
@@ -192,19 +179,19 @@
 
 .helpdesk_ticket_box{
     display: block;
-    border:1px solid silver;
-    border-radius: 4px;
-    color:#444;
+    border:1px solid var(--border-color);
+    border-radius: var(--radius-controls);
+    color:var(--text-color);
     font-size:.9em;
     margin:2px;
-    background: white;
+    background: var(--surface-bg);
 }
 .helpdesk_ticket_top{
     background:#711B2A;
     color:white;
     font-weight: bold;
-    border-top-left-radius: 4px;
-    border-top-right-radius: 4px;
+    border-top-left-radius: var(--radius-controls);
+    border-top-right-radius: var(--radius-controls);
     position: relative;
     height: 16px;
 }
@@ -231,7 +218,7 @@
 }
 
 .helpdesk_ticket_summary{
-    color:#888;
+    color:var(--text-secondary);
     font-style: italic;
     text-align: justify;
     padding:5px;
@@ -314,8 +301,8 @@
 }
 
 .gridRoundedEnvelope{
-    border:1px solid #ddd;
-    border-radius: 10px;
+    border:1px solid var(--border-color);
+    border-radius: var(--radius-containers);
     margin:10px;
     margin-top:0;
     margin-bottom: 20px;
@@ -351,37 +338,26 @@
 .dialog_bottom {
     border-top: 1px solid rgba(0,0,0,0.08);
     padding: 0.5em 0.8em;
-    border-bottom-left-radius: 6px;
-    border-bottom-right-radius: 6px;
-    --m3-secondary-container: var(--m3-primary, #1976D2);
-    --m3-on-secondary-container: var(--m3-on-primary, #fff);
+    border-bottom-left-radius: var(--radius-panels);
+    border-bottom-right-radius: var(--radius-panels);
+    --btn-tonal-bg: var(--btn-filled-bg);
+    --btn-tonal-color: var(--btn-filled-color);
 }
 
-/* --- M3 Button style modifiers --- */
+/* --- Button style modifiers --- */
 .btn_filled {
-    --m3-secondary-container: var(--m3-primary, #1976D2);
-    --m3-on-secondary-container: var(--m3-on-primary, #fff);
-    --m3-btn-border-color: var(--m3-primary, #1976D2);
+    --btn-tonal-bg: var(--btn-filled-bg);
+    --btn-tonal-color: var(--btn-filled-color);
+    --btn-border-color: var(--btn-filled-bg);
 }
 
 .btn_tonal {
-    --m3-secondary-container: #BBDEFB;
-    --m3-on-secondary-container: #1565C0;
-    --m3-btn-border-color: var(--m3-outline, #ccc);
+    --btn-tonal-bg: #BBDEFB;
+    --btn-tonal-color: #1565C0;
+    --btn-border-color: #ccc;
 }
 
-/* --- Linker box & login dialog --- */
-._common_d11 .loginDialog.lightboxDialog.dijitDialog{
-    box-shadow:none;
-    padding:0;
-}
-
-._common_d11 .loginDialog.lightboxDialog.dijitDialog .dijitDialogPaneContent {
-    background: transparent;
-    border: 0px;
-    padding:0;
-}
-
+/* --- Linker --- */
 .th_enableLinker .th_linkerField, .th_linkerAlwaysOpen .th_linkerField{
     display:block;
     width:12em;
@@ -398,7 +374,7 @@
 }
 
 .gnrzoomcell:hover {
-    border-radius: 7px;
+    border-radius: var(--radius-panels);
     background: yellow;
 }
 
@@ -442,7 +418,7 @@
     font-size:8pt;
     width:0;
     display:none;
-    background:white !important;
+    background:var(--surface-bg) !important;
 }
 
 /* Linker combobox: hide arrow and clean field */
@@ -458,8 +434,8 @@
 
 .th_enableLinker.th_linker,.th_linkerAlwaysOpen .th_linker{
     opacity:1;
-    border:1px solid gray;
-	background: white url(../icons/base12/linker.png) no-repeat 3px center;
+    border:1px solid var(--border-color);
+	background: var(--surface-bg) url(../icons/base12/linker.png) no-repeat 3px center;
     padding-left:15px;
     padding-right:18px;
     width:auto;
@@ -488,4 +464,51 @@
 	top: 0px;
 	bottom: 0;
 	display: block;
+}
+
+/* --- Utility colors (from theme_shared) --- */
+.mycolor {
+    color: #68858e;
+}
+.mycolor2 {
+    color: rgba(245, 245, 245, 0.99);
+}
+
+.color_darkest {
+    color: rgba(57, 82, 112, 0.99);
+}
+.color_dark {
+    color: #bfb6ae;
+}
+.color_medium {
+    color: #97AEA9;
+}
+.color_bright {
+    color: #eef2fb;
+}
+.color_brightest {
+    color: var(--surface-light);
+}
+
+.bgcolor_darkest {
+    background-color: rgba(57, 82, 112, 0.99);
+}
+.bgcolor_dark {
+    background-color: #bfb6ae;
+}
+.bgcolor_medium {
+    background-color: #97AEA9;
+}
+.bgcolor_bright {
+    background-color: #eef2fb;
+}
+.bgcolor_brightest {
+    background-color: var(--surface-light);
+}
+
+.linkerCenter {
+    background: var(--surface-bg);
+    margin: 2px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-controls);
 }

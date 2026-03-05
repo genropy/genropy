@@ -1,88 +1,9 @@
 /* ==========================================================================
-   02_gnr_icons_base.css — Icon sprites (base10-64, dtype, nav, flag),
+   02_gnr_icons_base.css — Icon sprites (dtype, nav, base16),
    cursor icons
    ========================================================================== */
 
 /* @group Icons */
-
-/* @group Base 48 */
-.trash_icon48 {
-    background: url(../icons/base48/trash_icon.png) no-repeat center center;
-    width: 40px;
-    height: 40px;
-}
-
-.key_icon48 {
-    background: url(../icons/base48/keyicon.png) no-repeat center center;
-    width: 48px;
-    height: 48px;
-}
-
-.money_icon48 {
-    background: url(../icons/base48/money.png) no-repeat center center;
-    width: 48px;
-    height: 48px;
-}
-
-.drawer_icon48 {
-    background: url(../icons/base48/drawer.png) no-repeat center center;
-    width: 48px;
-    height: 48px;
-}
-
-.keyboard_icon48 {
-    background: url(../icons/base48/keyboard.png) no-repeat center center;
-    width: 48px;
-    height: 48px;
-}
-
-.creditcard_icon48 {
-    background: url(../icons/base48/creditcard.png) no-repeat center center;
-    width: 48px;
-    height: 48px;
-}
-
-.confirm_icon48 {
-    background: url(../icons/base48/confirm.png) no-repeat center center;
-    width: 48px;
-    height: 48px;
-}
-
-.back_icon48 {
-    background: url(../icons/base48/backarrow.png) no-repeat center center;
-    width: 48px;
-    height: 48px;
-}
-
-.cancel_icon48 {
-    background: url(../icons/base48/cancel.png) no-repeat center center;
-    width: 48px;
-    height: 48px;
-}
-
-/* @end */
-
-/* @group base32 */
-
-.logout_icon32 {
-    background: url(../icons/base32/logout.png) no-repeat center center;
-    width: 32px;
-    height: 32px;
-}
-
-.refresh_icon32 {
-    background: url(../icons/base32/refresh.png) no-repeat center center;
-    width: 32px;
-    height: 32px;
-}
-
-.tools_icon32 {
-    background: url(../icons/base32/tools.png) no-repeat center center;
-    width: 32px;
-    height: 32px;
-}
-
-/* @end */
 
 .lockedContainer .rowEditorStatus{
     display: none;
@@ -107,7 +28,7 @@
 }
 
 .buttonInGrid{
-    border-radius:4px;
+    border-radius: var(--radius-controls);
     margin:1px;
     display:inline-block;
     font-size:1.1em;
@@ -160,12 +81,6 @@
 
 .yellowLight {
     background: url(../icons/base16/semaphore_yellow.png) no-repeat center center;
-    width: 14px;
-    height: 14px;
-}
-
-.blueLed {
-    background: url(../icons/base16/blueled.png) no-repeat center center;
     width: 14px;
     height: 14px;
 }
@@ -233,49 +148,6 @@
 
 /* @end */
 
-/* @group Flag */
-
-.icnFlagBlue {
-    background: url(../icons/flag/blue.gif) no-repeat;
-    width: 16px;
-    height: 16px;
-}
-
-.icnFlaGreen {
-    background: url(../icons/flag/green.gif) no-repeat;
-    width: 16px;
-    height: 16px;
-}
-
-.icnFlagOrange {
-    background: url(../icons/flag/orange.gif) no-repeat;
-    width: 16px;
-    height: 16px;
-}
-
-.icnFlagPink {
-    background: url(../icons/flag/pink.gif) no-repeat;
-    width: 16px;
-    height: 16px;
-}
-
-.icnFlagPurple {
-    background: url(../icons/flag/purple.gif) no-repeat;
-    width: 16px;
-    height: 16px;
-}
-
-.icnFlagRed {
-    background: url(../icons/flag/red.gif) no-repeat;
-    width: 16px;
-    height: 16px;
-}
-
-.icnFlagYellow {
-    background: url(../icons/flag/yellow.gif) no-repeat;
-    width: 16px;
-    height: 16px;
-}
 
 /* @end */
 
@@ -304,7 +176,7 @@
 .formulaColumnTreeNode {
     background-color: #d1ffeb;
     font-style: italic;
-    border-radius: 4px;
+    border-radius: var(--radius-controls);
 }
 
 /* @group Dtype */
@@ -702,7 +574,7 @@ div.dojoxDock {
     padding:2px;
     padding-left: 5px;
     padding-right: 5px;
-    border-radius: 4px;
+    border-radius: var(--radius-controls);
     border:1px solid silver;
     margin-bottom: 10px;
 }
@@ -717,19 +589,6 @@ div.dojoxDock {
 .preview .tplfieldcaption {
     display: none;
 }
-.drawerLeftArrow{
-    width:16px;
-     height:24px;
-    background: url(../icons/base24/drawerLeftArrow.png) no-repeat center center;
-
-}
-.drawerRightArrow{
-    width:16px;
-     height:24px;
-    background: url(../icons/base24/drawerRightArrow.png) no-repeat center center;
-
-}
-
 /* @end */
 
 .box16{
@@ -1049,12 +908,6 @@ div.dojoxDock {
     height: 16px;
 }
 
-.icnBaseUpBlue {
-    background: url(../icons/base16/upblue.gif) no-repeat center center;
-    width: 16px;
-    height: 16px;
-}
-
 .icnBaseUpYellow {
     background: url(../icons/base16/upyellow.gif) no-repeat center center;
     width: 16px;
@@ -1085,31 +938,17 @@ div.dojoxDock {
 
 /* @end */
 
+/* @group Flag */
+
+.icnFlagRed {
+    background: url(../icons/flag/red.gif) no-repeat;
+    width: 16px;
+    height: 16px;
+}
+
+/* @end */
+
 /* @group Base10 */
-
-.icnBase10_Save {
-    background: url(../icons/base10/save.gif) no-repeat center center;
-    width: 10px;
-    height: 10px;
-}
-
-.icnBase10_Trash {
-    background: url(../icons/base10/trash.gif) no-repeat center center;
-    width: 10px;
-    height: 10px;
-}
-
-.icnBase10_Doc {
-    background: url(../icons/base10/document.gif) no-repeat center center;
-    width: 10px;
-    height: 10px;
-}
-
-.icnBase10_Lens {
-    background: url(../icons/base10/lens.gif) no-repeat center center;
-    width: 10px;
-    height: 10px;
-}
 
 .tick_icon10 {
     background: url(../icons/base10/tick.gif) no-repeat center center;
@@ -1117,38 +956,58 @@ div.dojoxDock {
     height: 10px;
 }
 
-.check_icon10 {
-    background: url(../icons/base10/check.gif) no-repeat center center;
-    width: 10px;
-    height: 10px;
-}
-
 /* @end */
 
 /* @end */
 
-.back_icon24 {
-    background: url(../icons/base24/backarrow.png) no-repeat center center;
-    width: 24px;
-    height: 24px;
+/* --- Icon utilities (from theme_shared) --- */
+.placeholder_profile {
+    background: url(/_rsrc/common/css_icons/svg/16/user_profile.svg) no-repeat center center;
+}
+.user_icon {
+    background: url(/_rsrc/common/css_icons/svg/16/user_profile.svg) no-repeat center center;
 }
 
-.cash_icon64 {
-    background: url(../icons/base64/cashbox.png) no-repeat center center;
-    width: 64px;
-    height: 64px;
+.popupLabel {
+    padding-right: 15px;
+    cursor: pointer;
+    background: url(/_rsrc/common/css_icons/svg/16/popup.svg) no-repeat right !important;
+}
+.popup {
+    background: url(/_rsrc/common/css_icons/svg/16/popup.svg) no-repeat center center;
 }
 
-/* @end */
-
-.money_icon64 {
-    background: url(../icons/base64/money.png) no-repeat center center;
-    width: 64px;
-    height: 64px;
+.threedots {
+    background: url(/_rsrc/common/css_icons/svg/16/3dots.svg) no-repeat center center;
+}
+.threedots_white {
+    background: url(/_rsrc/common/css_icons/svg/16/3dots_white.svg) no-repeat center center;
+}
+.threedots_h_white {
+    background: url(/_rsrc/common/css_icons/svg/16/3dots_h_white.svg) no-repeat center center;
 }
 
-.creditcard_icon64 {
-    background: url(../icons/base64/creditcard.png) no-repeat center center;
-    width: 64px;
-    height: 64px;
+.greenLight, .semaphoreCheck {
+    background: url(/_rsrc/common/css_icons/svg/16/form_status_green.svg) no-repeat center center;
+    width: 14px;
+    height: 14px;
+}
+.grayLight, .graySemaphore.semaphoreCheck {
+    background: url(/_rsrc/common/css_icons/svg/16/form_status_grey.svg) no-repeat center center;
+    width: 14px;
+    height: 14px;
+}
+.redLight, .invalidSemaphore.semaphoreCheck {
+    background: url(/_rsrc/common/css_icons/svg/16/form_status_red.svg) no-repeat center center;
+    width: 14px;
+    height: 14px;
+}
+.yellowLight {
+    background: url(/_rsrc/common/css_icons/svg/16/form_status_yellow.svg) no-repeat center center;
+    width: 14px;
+    height: 14px;
+}
+
+.popupLabel:hover {
+    background: rgba(234, 203, 110, 1.00);
 }

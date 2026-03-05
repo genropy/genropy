@@ -12,7 +12,7 @@
     mask-size: 100%;
     -webkit-mask: url('/_rsrc/common/css_icons/google_icons/toggle_off.svg') center center no-repeat;
     -webkit-mask-size: 100%;
-    background-color: #666;
+    background-color: var(--text-muted);
 }
 .toggle .dijitCheckBoxChecked{
     mask: url('/_rsrc/common/css_icons/google_icons/toggle_on.svg') center center no-repeat;
@@ -52,7 +52,7 @@
 
 /* --- Icon colors --- */
 .google_iconcolor_gray{
-    background-color: #666666;
+    background-color: var(--text-muted);
 }
 
 .google_iconcolor_white{

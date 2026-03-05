@@ -27,14 +27,6 @@
     width: 100%;
 }
 
-.logicalDeleted .dojoxGrid-cell {
-    color: #b50000;
-}
-
-.logicalDeleted .dojoxGrid-row-selected .dojoxGrid-cell {
-    color: #b50000;
-}
-
 .tundra .dojoxGrid-cell {
 	border: 1px dotted #D5CDB5;
 	border-top: 0px;
@@ -44,7 +36,7 @@
 }
 
 div.cellContent{
-    border-radius:3px;
+    border-radius: var(--radius-controls);
     margin:1px;
     padding:1px;
     padding-bottom: 2px;
@@ -58,7 +50,7 @@ div.cellContent{
 }
 
 .cell_editable .cellContent:hover{
-    background: #F8FFD9;
+    background: var(--grid-cell-hover-bg);
     cursor: text;
 }
 
@@ -118,12 +110,8 @@ div.cellContent{
 	border-top:0px;
 	border-left:0px;
 }
-body *{
-    outline:none !important;
-
-}
 .tundra .dijitTextBoxFocused, .tundra .dijitTextAreaFocused,.tundra .dijitComboBoxFocused {
-    border-color: var(--m3-primary, #1976D2);
+    border-color: var(--btn-filled-bg);
     box-shadow: 0 0 0 1px rgba(124, 92, 191, 0.2);
 }
 
@@ -193,29 +181,29 @@ body *{
     bottom: 0;
     left:1px;
     right:18px;
-    border:1px solid silver;
-    border-radius: 2px;
+    border:1px solid var(--border-color);
+    border-radius: var(--radius-controls);
 }
 .widgetInCell .quickEditor{
     border-width: 0;
-    border-bottom: 1px solid #efefef;
+    border-bottom: 1px solid var(--border-light);
 }
 
 .quickEditorButton{
     width: 18px;
     height: 17px;
-    border-top:1px solid silver;
-    border-right:1px solid silver;
-    border-bottom:1px solid silver;
+    border-top:1px solid var(--border-color);
+    border-right:1px solid var(--border-color);
+    border-bottom:1px solid var(--border-color);
     position: absolute;
-    border-radius: 2px;
+    border-radius: var(--radius-controls);
     top:0;
     right:0;
 }
 .widgetInCell .quickEditorButton{
     border-top:0px;
     border-right:0px;
-    border-bottom:1px solid #efefef;
+    border-bottom:1px solid var(--border-light);
 }
 
 .textAreaWrapperInTable{
@@ -229,14 +217,14 @@ body *{
 .textAreaWrapperButtons{
     position: relative;
     display: inline-block;
-    border-bottom: 1px solid silver;
-    border-left: 1px solid silver;
-    border-right: 1px solid silver;
-    border-top:1px solid silver;
-    border-bottom-right-radius: 4px;
-    border-bottom-left-radius: 4px;
+    border-bottom: 1px solid var(--border-color);
+    border-left: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+    border-top:1px solid var(--border-color);
+    border-bottom-right-radius: var(--radius-controls);
+    border-bottom-left-radius: var(--radius-controls);
     left: 10px;
-    background: #F2F2F2;
+    background: var(--surface-light);
 }
 
 .textAreaWrapperInTable .textAreaWrapperButtons{
@@ -307,7 +295,7 @@ body *{
     border:0px;
 }
 ._common_d11 .cke_top{
-    background-image: linear-gradient(to bottom, #F6F6F6, #E9E9E9);
+    background-image: linear-gradient(to bottom, var(--surface-light), #E9E9E9);
 }
 
 .tundra .dijitTextBoxFocused .cls_DbSelect, .tundra .dijitComboBoxFocused .cls_DbSelect{
@@ -327,7 +315,7 @@ body *{
 
 .slotbar_toolbar .gnrfieldlabel {
     /*vertical-align: middle;*/
-    color: #555;
+    color: var(--text-muted);
     margin-top:2px;
     white-space: nowrap;
     padding-left:4px;
@@ -337,7 +325,7 @@ body *{
 /* @group PatchDojox */
 .tundra .dojoxDockNode {
 	border: 1px solid #adadad;
-	border-radius: 2px;
+	border-radius: var(--radius-controls);
 	cursor:pointer;
 	list-style: none;
 	padding: 2px;
@@ -345,12 +333,35 @@ body *{
 	height: 16px;
 	width: auto;
 	float: left;
-    background-color: #EDEDEE;
-    background-image: linear-gradient(to bottom, #EDEDEE, #CDCDCD);
+    background-color: var(--toolbar-bg);
+    background-image: var(--toolbar-gradient);
 }
 /* @end */
 /* @group PatchDojox */
 
 /* @end */
+
+/* --- Progress cell / Player (moved from 01_gnr_variables) --- */
+.progressCell .cellContent {
+    height: 1px;
+    padding-bottom: 0;
+    padding-top: 0;
+}
+.progressCell progress {
+    height: 16px;
+}
+
+.player_pause {
+    background: url(../icons/player/player_pause.png) center center no-repeat;
+    height: 18px;
+    width: 20px;
+    cursor: pointer;
+}
+.player_play {
+    background: url(../icons/player/player_play.png) center center no-repeat;
+    height: 18px;
+    width: 20px;
+    cursor: pointer;
+}
 
 /* @end */

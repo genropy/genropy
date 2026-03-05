@@ -18,7 +18,7 @@
     background: var(--field-bg, white);
     border: 1px solid var(--field-border, #B3B3B3);
     line-height: normal;
-    border-radius:3px;
+    border-radius: var(--radius-controls);
     position: relative;
     padding-left: 3px;
     padding-top: 1px;
@@ -31,7 +31,7 @@
     padding:1px;
 }
 .gnrfield.tag_checkbox label{
-    color: #707070;
+    color: var(--gnrfieldlabel-color);
 }
 
 .tundra .mobilefields .dijitButtonNode.dijitArrowButton{
@@ -39,7 +39,7 @@
 }
 
 .gnrfield label{
-    color: #707070;
+    color: var(--gnrfieldlabel-color);
     padding-right: 10px;
 }
 
@@ -47,7 +47,7 @@
 	background: var(--field-bg, white);
     border: 1px solid var(--field-border, #B3B3B3);
     line-height: normal;
-    border-radius:3px;
+    border-radius: var(--radius-controls);
     position: relative;
     padding-left: 4px;
     padding-top: 1px;
@@ -64,7 +64,7 @@
 	background: var(--field-bg, white);
     border: 1px solid var(--field-border, #B3B3B3);
     line-height: normal;
-    border-radius:3px;
+    border-radius: var(--radius-controls);
     position: relative;
     padding-right: 2px;
     padding-top: 1px;
@@ -147,8 +147,8 @@ label.ghostlabel span {
 
 /* @group Plugin */
 .plugin_block {
-    border-bottom-left-radius: 5px;
-    border-bottom-right-radius: 5px;
+    border-bottom-left-radius: var(--radius-controls);
+    border-bottom-right-radius: var(--radius-controls);
     width: 27px;
     height: 20px;
     cursor: pointer;
@@ -156,7 +156,7 @@ label.ghostlabel span {
 
 .selected_plugin.plugin_block {
     box-shadow: 0 -1px 1px #005555 inset;
-    background-color: white;
+    background-color: var(--surface-bg);
 }
 /*.detachable{
     background:orange;
@@ -190,4 +190,113 @@ label.ghostlabel span {
     display: inline-block;
 }
 
+/* --- Moved from 01_gnr_variables --- */
+.gnr_blurred_field {
+    filter: blur(3px);
+}
+.gnr_blurred_cell {
+    filter: blur(3px);
+}
+
+.FragmentDelimiter {
+    border: 0;
+    height: 1px;
+    background: var(--border-color);
+}
+
+.keeper_on .iskeepable {
+    font-weight: bold;
+}
+
+.gnrinlinewidget_container {
+    display: inline-block;
+}
+
+.tundra .gnrinlinewidget_container .dijitTextBox,
+.tundra .gnrinlinewidget_container .dijitComboBox,
+.tundra .gnrinlinewidget_container .dijitSpinner,
+.tundra .gnrinlinewidget_container .dijitInlineEditor input,
+.tundra .gnrinlinewidget_container .dijitTextArea {
+    border: 0;
+    vertical-align: bottom;
+    padding-top: 0;
+    outline: none;
+    padding-left: 1px;
+    padding-right: 1px;
+}
+
+.gnreditabletext {
+    display: inline-block;
+    min-width: 40px;
+    line-height: 1;
+}
+.gnreditabletext:hover {
+    background: yellow;
+}
+.inlineediting .gnreditabletext {
+    display: none;
+}
+
+.fieldkeeper {
+    position: absolute;
+    right: -10px;
+    bottom: 0px;
+    height: 6px;
+    width: 6px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-controls);
+    cursor: pointer;
+}
+.fieldkeeper div {
+    position: absolute;
+    top: 1px;
+    bottom: 1px;
+    left: 1px;
+    right: 1px;
+    background: var(--surface-bg);
+}
+.keeper_on .fieldkeeper div {
+    background: var(--text-muted);
+}
+
+.gnrcheckbox_wrapper {
+    position: relative;
+    padding-right: 2px;
+    display: inline-block;
+    white-space: nowrap;
+}
+.cell_editable .gnrcheckbox_wrapper {
+    left: 25%;
+    position: relative;
+    margin-left: -10px;
+    margin-top: 3px;
+    padding-right: 0;
+}
+
 /* @end */
+
+/* --- Form labels (from theme_shared) --- */
+.sectionLabel {
+    color: var(--gnrfieldlabel-color) !important;
+    opacity: 0.7 !important;
+    text-align: left;
+    font-style: italic;
+    font-weight: bold;
+    text-decoration: underline;
+    margin-left: 3px;
+}
+
+.label {
+    color: rgba(95, 75, 66, 0.7);
+}
+
+.gnr_recordinfo {
+    padding: 5px;
+    background-color: var(--surface-light);
+    box-shadow: rgb(158, 133, 111) 2px 2px 2px;
+    border-radius: var(--radius-controls);
+}
+
+.pbl_rectGroup {
+    background-color: rgba(170,190,201,0.2);
+}

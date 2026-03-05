@@ -16,8 +16,8 @@
     opacity: 1;
 }
 .openerButton_left{
-    border-top-right-radius: 5px;
-    border-bottom-right-radius: 5px;
+    border-top-right-radius: var(--radius-controls);
+    border-bottom-right-radius: var(--radius-controls);
     position: absolute;
     top: 50%;
     margin-top: -20px;
@@ -42,12 +42,12 @@
 .slotbarOpener{
 	/*display: none;*/
 	font-size: 9px;
-	color: white;
+	color: var(--surface-bg);
 	font-weight: bold;
 	font-family: inherit;
 	position: absolute;
 	z-index: 20;
-	background: #555;
+	background: var(--text-muted);
 	opacity: .2;
 	cursor: pointer;
 	border: 1px solid gray;
@@ -63,8 +63,8 @@
 }
 
 .slotbarOpener_top{
-	border-bottom-right-radius: 5px;
-	border-bottom-left-radius: 5px;
+	border-bottom-right-radius: var(--radius-controls);
+	border-bottom-left-radius: var(--radius-controls);
 	bottom: -9px;
 	border-top: 0;
 	left: 50%;
@@ -73,8 +73,8 @@
 	width: 40px;
 }
 .slotbarOpener_bottom{
-	border-top-right-radius: 5px;
-	border-top-left-radius: 5px;
+	border-top-right-radius: var(--radius-controls);
+	border-top-left-radius: var(--radius-controls);
 	top: -9px;
 	left: 50%;
 	margin-left: -20px;
@@ -84,8 +84,8 @@
 
 }
 .slotbarOpener_left{
-	border-top-right-radius: 5px;
-	border-bottom-right-radius: 5px;
+	border-top-right-radius: var(--radius-controls);
+	border-bottom-right-radius: var(--radius-controls);
 	right: -9px;
 	top: 50%;
 	margin-top: -20px;
@@ -95,8 +95,8 @@
 }
 
 .slotbarOpener_right{
-	border-top-left-radius: 5px;
-	border-bottom-left-radius: 5px;
+	border-top-left-radius: var(--radius-controls);
+	border-bottom-left-radius: var(--radius-controls);
 	left: -9px;
 	top: 50%;
 	margin-top: -20px;
@@ -106,15 +106,15 @@
 }
 
 .slotCaption {
-    border-radius:12px;
-    background:#555;
+    border-radius: var(--radius-containers);
+    background:var(--text-muted);
     border:1px solid gray;
     padding-left:1em;
     padding-right:1em;
     padding-top:1px;
     overflow:hidden;
     font-weight:bold;
-    color:white;
+    color:var(--surface-bg);
 }
 
 /* @end */
@@ -129,8 +129,8 @@
 .slotbar_dialog_footer{
     padding: 0.4em 0.6em 0.5em;
     border-top: 1px solid rgba(0,0,0,0.08);
-    --m3-secondary-container: var(--m3-primary, #1976D2);
-    --m3-on-secondary-container: var(--m3-on-primary, #fff);
+    --btn-tonal-bg: var(--btn-filled-bg);
+    --btn-tonal-color: var(--btn-filled-color);
 }
 .slotbar .slotbar_cell{
     overflow:hidden;
@@ -255,19 +255,101 @@
 
 /* @end */
 
-.ping_semaphore{
+/* --- Detached placeholder (moved from 01_gnr_variables) --- */
+.detatched_placeholder {
+    background: gray url(../icons/base128/no_entry.png) center center no-repeat;
+    height: 100%;
+    width: 100%;
+    opacity: .1;
+}
+
+._common_d11 .ping_semaphore{
     height: 16px;
     width: 16px;
-    background: url(../icons/base16/semaphore_gray.png) no-repeat center center;
-
-    -webkit-transition-duration: 1s;
-    -moz-transition-duration: 1s;
-}
-.ping_start .ping_semaphore{
-    background: url(../icons/base16/semaphore_green.png) no-repeat center center;
+    background: url(/_rsrc/common/css_icons/svg/16/socket_transmitting.svg) no-repeat center center;
+    opacity: 0;
 }
 
-.ping_error .ping_semaphore{
-    background: url(../icons/base16/semaphore_red.png) no-repeat center center;
+._common_d11.ping_start .ping_semaphore{
+    background: url(/_rsrc/common/css_icons/svg/16/socket_transmitting.svg) no-repeat center center;
+    transition: opacity 200ms, visibility 200ms;
+    opacity: 1;
 }
+
+._common_d11.ping_error .ping_semaphore{
+    background: url(/_rsrc/common/css_icons/svg/16/sockets_disconnected.svg) no-repeat center center;
+    transition: opacity 200ms, visibility 200ms;
+    opacity: 1;
+}
+
+/* --- PBL elements (from theme_shared) --- */
+.pbl_username {
+    border-radius: var(--radius-controls);
+    background-color: #bfb6ae;
+    color: #403b3b;
+    font-size: 0.9em;
+    font-weight: bold;
+    padding-left: 6px;
+    padding-right: 6px;
+    padding-top: 1px;
+    padding-bottom: 1px;
+    margin-right: 6px;
+}
+
+.pbl_slotbar_label {
+    background-color: transparent;
+    color: white !important;
+}
+
+.pbl_background {
+    background-color: var(--surface-bg);
+}
+
+.pbl_logo_caption {
+    font-size: 8.5pt;
+    font-weight: bold;
+    text-align: left;
+    margin-top: 6px;
+}
+
+.pbl_messageBottom {
+    text-align: center;
+    padding-top: 2px;
+}
+
+.pbl_root_bottom {
+    vertical-align: middle;
+    background-color: #711B2A;
+}
+
+.pbl_viewBox {
+    padding: 5px;
+    border-bottom-left-radius: var(--radius-controls);
+    border-bottom-right-radius: var(--radius-controls);
+    background-color: rgba(170, 190, 201, 0.2);
+}
+
+.pbl_viewBoxLabel {
+    height: 18px;
+    border-top-left-radius: var(--radius-controls);
+    border-top-right-radius: var(--radius-controls);
+    padding-left: 10px;
+    font-size: 0.9em;
+    padding-top: 3px;
+    padding-bottom: 2px;
+    background-color: rgba(177,191,206,0.9);
+    color: #000;
+}
+
+/* --- Main window (from theme_shared) --- */
+#mainWindow {
+    background: var(--mainWindow-background);
+    font-size: var(--mainWindow-font-size);
+    color: var(--mainWindow-color);
+}
+.mainWindowBG {
+    background: var(--mainWindow-background);
+}
+
+
 

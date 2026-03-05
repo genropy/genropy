@@ -1,20 +1,22 @@
-/*----------------------------------------- icone svg -------------------------------------*/
+/* ==========================================================================
+   02b_gnr_icons_svg.css — SVG icon definitions for d11 framework
+   Migrated from resources/common/themes/gnr_iconset.css
+   ========================================================================== */
+
+/* @group SVG Icons */
 
 .tundra ._gnrInvalidRow ._statusIcon, .tundra ._gnrInvalidRow._gnrReadOnlyRow ._statusIcon ,
 .tundra ._gnrInvalidRow._gnrProtectionPass ._statusIcon{
     background: url(/_rsrc/common/css_icons/svg/16/form_status_red.svg) no-repeat center center;
 }
 
-
 ._common_d11 .archive_record, ._common_d11 .box{
     background: url(/_rsrc/common/css_icons/svg/16/archive_record.svg) no-repeat center center;
 }
 
-
 ._common_d11 .alarm, ._common_d11 .bell{
     background: url(/_rsrc/common/css_icons/svg/16/alarm.svg) no-repeat center center;
 }
-
 
 ._common_d11 .delete_row{
     background: url(/_rsrc/common/css_icons/svg/16/delete_row.svg) no-repeat center center;
@@ -31,11 +33,9 @@
     background: url(/_rsrc/common/css_icons/svg/16/address_book.svg) no-repeat center center;
 }
 
-
 ._common_d11 .gear{
     background: url(/_rsrc/common/css_icons/svg/16/gear.svg) no-repeat center center;
 }
-
 
 ._common_d11 .create_edit_html_template {
     background: url(/_rsrc/common/css_icons/svg/16/create_edit_html_template.svg) no-repeat center center;
@@ -166,7 +166,6 @@
     background: url(/_rsrc/common/css_icons/svg/16/plus_white.svg) no-repeat center center;
 }
 
-
 ._common_d11 .minus_grey{
     background: url(/_rsrc/common/css_icons/svg/16/minus_grey.svg) no-repeat center center;
 }
@@ -174,7 +173,6 @@
 ._common_d11 .back_gray{
     background: url(/_rsrc/common/css_icons/svg/16/back.svg) no-repeat center center;
 }
-
 
 ._common_d11 .previous_record, ._common_d11 .previous{
     background: url(/_rsrc/common/css_icons/svg/16/previous_record.svg) no-repeat center center;
@@ -195,7 +193,6 @@
 ._common_d11 .reset_record, ._common_d11 .revert{
     background: url(/_rsrc/common/css_icons/svg/16/reset_record.svg) no-repeat center center;
 }
-
 
 ._common_d11 .search{
     background: url(/_rsrc/common/css_icons/svg/16/search.svg) no-repeat center center;
@@ -230,32 +227,9 @@
 }
 /* @end */
 
-
-
-._common_d11 .formside_ok .fh_semaphore {
-    background: url(/_rsrc/common/css_icons/svg/16/form_status_green.svg) no-repeat center center;
-}
-
-._common_d11 .formside_error .fh_semaphore{
-    background: url(/_rsrc/common/css_icons/svg/16/form_status_red.svg) no-repeat center center;
-}
-
-._common_d11 .formside_changed .fh_semaphore{
-    background: url(/_rsrc/common/css_icons/svg/16/form_status_yellow.svg) no-repeat center center;
-}
-
-._common_d11 .formside_readOnly .fh_semaphore{
-    background: url(/_rsrc/common/css_icons/svg/16/read_only_status.svg) no-repeat center center;
-}
-
-._common_d11 .formside_noItem .fh_semaphore{
-    background: url(/_rsrc/common/css_icons/svg/16/form_status_grey.svg) no-repeat center center;
-}
-
 ._common_d11 .switch_off, ._common_d11 .iconbox.icnBaseUserLogout.switch_off{
     background: url(/_rsrc/common/css_icons/svg/16/switch_off.svg) no-repeat center center;
 }
-
 
 ._common_d11 .wrench{
     background: url(/_rsrc/common/css_icons/svg/16/wrench.svg) no-repeat center center;
@@ -300,7 +274,6 @@
     background: url(/_rsrc/common/css_icons/svg/16/sorting_tb.svg) no-repeat center center;
 }
 
-
 ._common_d11 .sortTree{
     background: url(/_rsrc/common/css_icons/svg/16/sorting_lr.svg) no-repeat center center;
 }
@@ -308,7 +281,6 @@
 ._common_d11 .siblingSorting .sortTree{
     background: url(/_rsrc/common/css_icons/svg/16/sorting_tb.svg) no-repeat center center;
 }
-
 
 ._common_d11 .application_menu{
     background: url(/_rsrc/common/css_icons/svg/16/menu_icon.svg) no-repeat center center;
@@ -331,38 +303,10 @@
     background: url(/_rsrc/common/css_icons/svg/16/edit.svg) no-repeat center center;
 }
 
-
 ._common_d11 .folder{
     background: url(/_rsrc/common/css_icons/svg/16/folder.svg) no-repeat center center;
 }
 
 ._common_d11 .calendar{
     background: url(/_rsrc/common/css_icons/svg/16/calendar.svg) no-repeat center center;
-}
-
-
-
-
-._common_d11 .ping_semaphore{
-    height: 16px;
-    width: 16px;
-    background: url(/_rsrc/common/css_icons/svg/16/socket_transmitting.svg) no-repeat center center;
-    opacity: 0;
-}
-
-._common_d11.ping_start .ping_semaphore{
-    background: url(/_rsrc/common/css_icons/svg/16/socket_transmitting.svg) no-repeat center center;
-    transition: opacity 200ms, visibility 200ms;
-    opacity:1;
-}
-
-._common_d11.ping_error .ping_semaphore{
-    background: url(/_rsrc/common/css_icons/svg/16/sockets_disconnected.svg) no-repeat center center;
-    transition: opacity 200ms, visibility 200ms;
-    opacity:1;
-}
-
-
-.floatingPopupFixed {
-    background: url(/_rsrc/common/css_icons/svg/16/popup.svg) no-repeat right;
 }

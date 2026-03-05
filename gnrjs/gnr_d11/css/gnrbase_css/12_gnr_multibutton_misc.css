@@ -14,7 +14,7 @@
 
 .quickgrid_toolsbox{
     display: inline-block;
-    border:1px solid silver;
+    border:1px solid var(--border-color);
     height: 19px;
 }
 
@@ -28,18 +28,18 @@
 }
 
 .quickgrid_toolsbox:hover{
-    border:1px solid silver;
+    border:1px solid var(--border-color);
 }
 
 .quickgrid_toolsbox.quickgrid_toolsbox_top{
-    border-top-left-radius: 4px;
-    border-top-right-radius: 4px;
+    border-top-left-radius: var(--radius-controls);
+    border-top-right-radius: var(--radius-controls);
     border-bottom: 0px;
     bottom:0;
 }
 .quickgrid_toolsbox.quickgrid_toolsbox_bottom{
-    border-bottom-left-radius: 4px;
-    border-bottom-right-radius: 4px;
+    border-bottom-left-radius: var(--radius-controls);
+    border-bottom-right-radius: var(--radius-controls);
     border-top: 0px;
     top:0;
 }
@@ -147,8 +147,8 @@
 }
 
 .multibutton_itemsContainer .multibutton:first-child{
-    border-top-left-radius: 6px;
-    border-bottom-left-radius: 6px;
+    border-top-left-radius: var(--radius-panels);
+    border-bottom-left-radius: var(--radius-panels);
 }
 
 .multibutton_itemsContainerHasOverflow .multibutton_itemsContainer .multibutton:first-child{
@@ -160,8 +160,8 @@
     border-bottom-right-radius: 0;
 }
 .multibutton_itemsContainer .multibutton:last-child{
-    border-top-right-radius: 6px;
-    border-bottom-right-radius: 6px;
+    border-top-right-radius: var(--radius-panels);
+    border-bottom-right-radius: var(--radius-panels);
     border-right: 1px solid;
 }
 .multibutton_extraItemsPost .multibutton_itemsContainer .multibutton:last-child{
@@ -181,19 +181,19 @@
 }
 
 .multibutton:last-child{
-    border-top-right-radius: 6px;
-    border-bottom-right-radius: 6px;
-    border-right: 1px solid;
+    border-top-right-radius: var(--radius-controls);
+    border-bottom-right-radius: var(--radius-controls);
+    border-right: 1px solid var(--text-muted);
 }
 .multibutton:first-child{
-    border-top-left-radius: 6px;
-    border-bottom-left-radius: 6px;
+    border-top-left-radius: var(--radius-controls);
+    border-bottom-left-radius: var(--radius-controls);
 }
 
 .multibutton_selected.multibutton, .multibutton:active{
     color: #fff;
-	 background:#888;
-    box-shadow: inset 1px 1px 2px #222;
+    background:#888;
+    box-shadow: none;
 }
 .multibutton_selected.multibutton:hover{
 	text-decoration:none;
@@ -205,7 +205,8 @@
 .multibutton_container .multibutton:active[disabled='true'],.multibutton_container .multibutton:active[disabled='disabled']{
     color:#333;
     cursor: not-allowed;
-    background-image: linear-gradient(to bottom, #EDEDEE, #CDCDCD);
+    background-image: none;
+    background-color: var(--toolbar-bg);
     opacity: .3;
     box-shadow: none;
 }
@@ -216,12 +217,10 @@
     padding-right:12px;
     cursor:pointer;
     color:#333;
-    background-image: linear-gradient(to bottom, #EDEDEE, #CDCDCD);
-    border: 1px solid #666;
+    background-image: none;
+    background-color: var(--toolbar-bg);
+    border: 1px solid var(--text-muted);
     border-right: 0px;
-    /*line-height:20px;
-    font-size: 9pt;
-    font-variant:small-caps;*/
 }
 
 .multibutton.multibutton_closable{
@@ -236,7 +235,7 @@
     position: absolute;
     top:4px;
     right:2px;
-    border-radius: 3px;
+    border-radius: var(--radius-controls);
 
 }
 .multibutton_closer:hover{
@@ -272,7 +271,7 @@
 
 /*Mobile bar styles*/
 .mobile_bar.slotbar_toolbar_standard{
-    background:white;
+    background:var(--surface-bg);
 }
 
 .mobile_bar .multibutton_container{
@@ -346,7 +345,7 @@
     cursor: pointer;
     padding:10px;
     margin:5px;
-    border-radius: 20px;
+    border-radius: var(--radius-pill);
 }
 
 /* @end */
@@ -371,7 +370,7 @@
 .chunkeditor_emptytemplate{
     cursor:pointer;
     text-align:center;
-    color:#999;
+    color:var(--text-placeholder);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -379,8 +378,8 @@
     height: 100%;
 }
 .chunkeditor_varplaceholder{
-    background:#555;
-    color:white;
+    background:var(--text-muted);
+    color:var(--surface-bg);
 }
 
 .mv_table{
@@ -391,7 +390,7 @@
 }
 .mv_table tr{
     opacity:1!important;
-    border:1px solid #ccc;
+    border:1px solid var(--border-color);
 }
 .mv_table tr td{
     height:13px;
@@ -427,7 +426,7 @@
     cursor: pointer;
 }
 .mv_mask{
-    color: #999;
+    color: var(--text-placeholder);
     position: absolute;
     right: 13px;
     top: 2px;
@@ -453,8 +452,8 @@ div[disabled='true'], div[disabled='disabled']{
 }
 .slotbar_toolbar .buttonDiv:hover{
     cursor:pointer;
-    background-color:#bbb;
-    border-radius: 4px;
+    background-color:var(--text-placeholder);
+    border-radius: var(--radius-controls);
 }
 .buttonDiv{
     display: inline-block;
@@ -466,7 +465,7 @@ div[disabled='true'], div[disabled='disabled']{
     cursor:not-allowed;
 }
 .buttonDivLabel{
-    color:#666;
+    color:var(--text-muted);
 }
 
 .formattedBagTable{
@@ -478,15 +477,15 @@ div[disabled='true'], div[disabled='disabled']{
 }
 .formattedBagTable th{
     font-size: .9em;
-    border:1px dotted silver;
-    color:#555;
+    border:1px dotted var(--border-color);
+    color:var(--text-muted);
     text-align: center;
     padding-left:2px;
     padding-right:2px;
-    background-image: linear-gradient(to bottom, rgba(239, 239, 239, 0.9, rgba(182, 182, 182, 0.75);
+    background-image: linear-gradient(to bottom, rgba(239, 239, 239, 0.9), rgba(182, 182, 182, 0.75));
 }
 .debug_params{
-    background:#EFEFEF;
+    background:var(--border-light);
 }
 
 .debug_params .formattedBagTable{
@@ -498,22 +497,23 @@ div[disabled='true'], div[disabled='disabled']{
     padding-bottom:1px;
     padding-left:3px;
     padding-right:3px;
-    border: 1px solid #666;
-    background: white;
+    border: 1px solid var(--text-muted);
+    background: var(--surface-bg);
 }
 
 .debug_params .formattedBagTable td:first-child{
-    background: #666;
-    color:white;
-    border: 1px solid white;
+    background: var(--text-muted);
+    color:var(--surface-bg);
+    border: 1px solid var(--surface-bg);
 }
 
 .formattedBagTable tr td{
     padding-left:2px;
     padding-right:2px;
-    color:#666;
+    color:var(--text-muted);
     font-size: .9em;
 }
 .dojoxGrid-cell .formattedBagTable tr td{
-    border:1px dotted silver;
+    border:1px dotted var(--border-color);
 }
+

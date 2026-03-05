@@ -11,8 +11,8 @@
 }
 
 .sqlvalue{
-	background: white;
-    border:1px solid silver;
+	background: var(--surface-bg);
+    border:1px solid var(--border-color);
     padding-left: 4px;
     padding-right: 4px;
 }
@@ -48,7 +48,7 @@
     transform: translateY(-50%);
     border-style: solid;
     border-width: 4px 0 4px 5px;
-    border-color: transparent transparent transparent #666;
+    border-color: transparent transparent transparent var(--text-muted);
 }
 .tinyOpenBranch{
     background: none;
@@ -64,7 +64,7 @@
     transform: translateY(-50%);
     border-style: solid;
     border-width: 5px 4px 0 4px;
-    border-color: #666 transparent transparent transparent;
+    border-color: var(--text-muted) transparent transparent transparent;
 }
 .tunerUp{
     background: url(../icons/base10/tuner_up.png) no-repeat center center;
@@ -86,12 +86,12 @@
     font-variant: small-caps;
     font-size: 15px;
     font-weight: bold;
-    color:#888;
+    color:var(--text-secondary);
 }
 .tinytree .foldernode{
     font-variant: small-caps;
     font-size: 13px;
-    color:#888;
+    color:var(--text-secondary);
     font-weight: bold;
 }
 
@@ -118,7 +118,7 @@
     bottom:0;
     right:0;
     left:0;
-    color:#666;
+    color:var(--text-muted);
     overflow: hidden;
 }
 .treeGridHeader{
@@ -150,8 +150,8 @@
 
 .treeGridLayout .treecell{
     display: inline-block;
-    border-bottom: 1px solid #ddd;
-    border-left: 1px solid #ddd;
+    border-bottom: 1px solid var(--border-color);
+    border-left: 1px solid var(--border-color);
 }
 
 .treeGridCenter .selectedTreeNode .treecell{
@@ -160,7 +160,7 @@
 }
 
 .treeGridLayout .treecell:last-child{
-    border-right:1px solid #ddd;
+    border-right:1px solid var(--border-color);
 }
 .treeGridLayout .treegrid .maincell.treecell{
     border-left: 1px solid transparent;
@@ -169,9 +169,9 @@
 .treeGridLayout .treeGridHeader .treecell{
     display: inline-block;
     border-bottom: 0px;
-    border-left: 1px solid #ddd;
+    border-left: 1px solid var(--border-color);
     background: #204174;
-    color:#efefef;
+    color:var(--border-light);
     white-space: nowrap;
     text-align: center;
     padding-top:1px;
@@ -179,7 +179,7 @@
 .treeGridLayout .treeGridFooter .treecell{
     display: inline-block;
     border-bottom: 0px solid black;
-    border-left: 1px solid #ddd;
+    border-left: 1px solid var(--border-color);
     background: #F8CF00;
     color:#204174;
     padding-top:1px;
@@ -187,7 +187,7 @@
 }
 
 .treeGridLayout .treeGridHeader .treecell:last-child{
-    border-right:1px solid #ddd;
+    border-right:1px solid var(--border-color);
 }
 
 .treeCellContent{
@@ -235,16 +235,16 @@
 
 /* --- GroupBy tree --- */
 .groupby_tree .dijitTreeContainer .treecell  {
-    color:#444;
+    color:var(--text-color);
     font-style: italic;
 }
 .groupby_tree .treerow_folder .treecell  {
-    color:#444;
+    color:var(--text-color);
     font-style: normal;
 }
 .groupby_tree .treerow_folder.treerow_level_0 .treecell  {
     background-color: rgba(255, 253, 123, 0.20);
-    color:#444;
+    color:var(--text-color);
 }
 .groupby_tree .treerow_folder.treerow_level_1 .treecell  {
     color:navy;
@@ -262,9 +262,9 @@
 
 .groupby_tree.treeGridLayout .treeGridHeader .treecell{
     background: none;
-    color: #555;
-    border-bottom: 1px solid #ddd;
-    background: rgb(246, 246, 246);
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-color);
+    background: var(--surface-light);
 }
 
 /* --- TreeGrid checkbox --- */
@@ -323,7 +323,7 @@
     transform: translate(-50%, -50%);
     border-style: solid;
     border-width: 4px 0 4px 5px;
-    border-color: transparent transparent transparent #666;
+    border-color: transparent transparent transparent var(--text-muted);
 }
 .branchtree .dijitTreeExpando.dijitTreeExpandoOpened{
     background: none;
@@ -338,7 +338,7 @@
     transform: translate(-50%, -50%);
     border-style: solid;
     border-width: 5px 4px 0 4px;
-    border-color: #666 transparent transparent transparent;
+    border-color: var(--text-muted) transparent transparent transparent;
 }
 
 .branchtree .dijitTreeExpandoLeaf{
@@ -367,15 +367,138 @@
 }
 
 .tree_captionvalue{
-    border: 1px solid silver;
+    border: 1px solid var(--border-color);
     display: inline-block;
 }
 .tree_captionvalue_label{
-    background-color: #efefef;
+    background-color: var(--border-light);
     width:150px;
     display: inline-block;
 }
 .tree_captionvalue_value{
     width:250px;
     display: inline-block;
+}
+
+/* --- Picker checkbox tree (moved from 01_gnr_variables) --- */
+.pickerCheckboxTree .dijitTreeContent {
+    min-height: 0;
+    padding-bottom: 2px;
+    padding-top: 0;
+    margin-left: 0px;
+    white-space: nowrap;
+    font-size: .9em;
+}
+.pickerCheckboxTree .dijitTreeLabel {
+    display: inline-block;
+    white-space: nowrap;
+    font-size: .9em;
+}
+
+/* --- Menu tree (from theme_shared) --- */
+.menu_page > a {
+    color: #FFFFFF;
+    text-decoration: none;
+}
+.menu_page > a:hover {
+    text-decoration: underline;
+}
+
+.menupane {
+    background-color: rgba(168, 181, 182, 0.8);
+    background-image: linear-gradient(to bottom, rgba(176, 189, 195, 0.20), rgba(176, 189, 195, 0.9));
+    margin-right: 8px;
+    margin-top: 8px;
+    margin-bottom: 8px;
+    border-bottom-right-radius: var(--radius-panels);
+    border-top-right-radius: var(--radius-panels);
+    box-shadow: 4px 4px 4px #403b3b;
+    border-left: 0px;
+}
+
+.menutree {
+    margin-top: 5px;
+    margin-right: 3px;
+}
+.menutree .dijitTreeContent {
+    margin-left: 0px;
+    min-height: 10px;
+    padding-bottom: 4px;
+    padding-top: 0px;
+}
+.mode_mobile .menutree .dijitTreeContent {
+    margin-left: 0px;
+    min-height: 10px;
+    padding-bottom: 0px;
+    padding-top: 0px;
+}
+
+.menutree .menu_shape {
+    padding-top: 6px;
+    line-height: 11px;
+    margin-right: 8px;
+    margin-top: 0px;
+    color: var(--text-color);
+    padding-bottom: 4px;
+}
+.menutree .menu_shape.branchPage {
+    font-style: italic;
+}
+
+.open_pages_branch.menu_shape {
+    background: rgba(94, 255, 150, 1.00);
+}
+
+.mode_mobile .menutree {
+    margin: 10px;
+}
+.mode_mobile .menutree .menu_shape {
+    border-radius: var(--radius-controls);
+    margin-left: 0px;
+    font-size: 16px;
+    padding-left: 12px;
+    background: none;
+    padding-top: 0;
+    padding-bottom: 0;
+    line-height: 30px;
+    color: white;
+}
+.plugin_mobile_footer {
+    background: var(--border-light);
+}
+
+.mode_mobile .menutree .menu_existing_page.menu_shape {
+    padding-top: 3px;
+    padding-bottom: 3px;
+}
+.mode_mobile .menutree .menu_shape.menu_level_1 {
+    font-size: 18px;
+    line-height: 35px;
+}
+.mode_mobile .menutree .opendir {
+    background: none;
+}
+.mode_mobile .menutree .closedir {
+    background: none;
+}
+.mode_mobile .menutree.menutree_branchiconright .opendir,
+.mode_mobile .menutree.menutree_branchiconright .closedir {
+    background-color: var(--menutree-chevron-color);
+}
+
+.menutree .menu_current_page {
+    color: var(--text-color);
+}
+.menutree .menu_existing_page.menu_shape {
+    font-weight: bold;
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+.mode_mobile .menutree .menu_existing_page.menu_shape {
+    font-weight: normal;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+.menutree .menu_shape.menu_level_2.addTableItem {
+    font-style: italic;
 }

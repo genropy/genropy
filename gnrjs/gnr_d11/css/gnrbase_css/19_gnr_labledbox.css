@@ -10,8 +10,8 @@
     display: flex;
 }
 .labledBoxBordered.labledBox, .labledBoxBordered .labledBox{
-    border:1px solid silver;
-    border-radius: 3px;
+    border:1px solid var(--border-color);
+    border-radius: var(--radius-controls);
 }
 .labledBox, .labledBox.labledBox_top, .labledBoxes_top .labledBox{
     flex-direction: column;
@@ -19,7 +19,7 @@
 
 /* --- Gridbox variant --- */
 .labledBox.labledBox_top.labledBox_gridbox{
-    border:1px solid #efefef;
+    border:1px solid var(--border-light);
 }
 
 .formlet_fakelabel.labledBox.labledBox_top.labledBox_gridbox{

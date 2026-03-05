@@ -23,7 +23,7 @@
 }
 
 .hideSplitter>.dijitSplitter:hover{
-    background:silver;
+    background:var(--border-color);
     opacity:.5;
 }
 
@@ -32,17 +32,17 @@
 }
 
 ._common_d11.tundra .dijitSplitter:active{
-    background: #777;
+    background: var(--text-secondary);
 }
 
 .attachment_drawer.slotbarOpener_horizontal{
     top: -18px;
     margin-left: -37px;
     padding-top: 3px;
-    background: #888;
+    background: var(--text-secondary);
     color: white;
-    border-top-left-radius: 8px;
-    border-top-right-radius: 8px;
+    border-top-left-radius: var(--radius-panels);
+    border-top-right-radius: var(--radius-panels);
     height: 15px;
     text-align: center;
     font-size: 1em;
@@ -91,34 +91,34 @@
     height:8px;
 }
 .drawerSplitter.dijitSplitter.dijitSplitterH.drawer_region_bottom .drawerHandle{
-    border-top-right-radius: 5px;
-    border-top-left-radius: 5px;
+    border-top-right-radius: var(--radius-controls);
+    border-top-left-radius: var(--radius-controls);
     top: -8px;
     border-bottom: 0;
 }
 .drawerSplitter.dijitSplitter.dijitSplitterH.drawer_region_top .drawerHandle{
-    border-bottom-right-radius: 5px;
-    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: var(--radius-controls);
+    border-bottom-left-radius: var(--radius-controls);
     top: 0;
     border-bottom: 0;
 }
 
 .drawerSplitter.dijitSplitter.dijitSplitterV.drawer_region_left .drawerHandle{
-    border-top-right-radius: 5px;
-    border-bottom-right-radius: 5px;
+    border-top-right-radius: var(--radius-controls);
+    border-bottom-right-radius: var(--radius-controls);
     left:0px;
     border-left: 0;
 }
 .drawerSplitter.dijitSplitter.dijitSplitterV.drawer_region_right .drawerHandle{
-    border-top-left-radius: 5px;
-    border-bottom-left-radius: 5px;
+    border-top-left-radius: var(--radius-controls);
+    border-bottom-left-radius: var(--radius-controls);
     left:-8px;
     border-right: 0;
 
 }
 
 .drawerHandle{
-    background: gray;
+    background: var(--text-secondary);
     -moz-transition:all .5s;
     -webkit-transition:all .5s;
     opacity: .5;
@@ -232,7 +232,7 @@ label{
 }
 
 .borderRadius {
-    border-radius: 12px;
+    border-radius: var(--radius-containers);
 }
 
 /*.gnrfield.tag_div{
@@ -282,7 +282,7 @@ label{
 }
 
 .topLabelTable td.gnrfieldlabel{
-    border-bottom:1px solid silver;
+    border-bottom:1px solid var(--border-color);
     font-size:.9em;
     font-weight:bold;
     text-align:center;
@@ -313,7 +313,7 @@ label{
     bottom: 0;
     z-index: var(--z-overlay);
     opacity: .3;
-    background: white;
+    background: var(--surface-bg);
 }
 
 .hiderMessage{
@@ -367,3 +367,19 @@ table.formbuilder td.gnrfield {
 /* localizationTable: consolidated with bagAttributesTable in 07_gnr_components.css */
 
 /* @end */
+
+/* --- Dialog message box (from theme_shared) --- */
+.dlg_msgbox {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    bottom: 5px;
+    right: 5px;
+    border: 0px;
+    background-color: rgba(170, 190, 201, 0.2);
+    text-align: center;
+    vertical-align: middle;
+    font-size: 1em;
+    padding-top: 2em;
+    border-radius: var(--radius-controls);
+}

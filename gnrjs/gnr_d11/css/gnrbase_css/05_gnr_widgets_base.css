@@ -39,27 +39,27 @@
 .dijitToasterContent {
     padding: 1em;
     padding-top: 0.25em;
-    background: #73c74a;
+    background: var(--toaster-success-bg);
 }
 
 .dijitToasterMessage {
-    color: #fff;
+    color: var(--surface-bg);
 }
 
 .dijitToasterError,
 .dijitToasterFatal {
     font-weight: bold;
-    color: #fff;
+    color: var(--surface-bg);
 }
 
 .dijitToasterWarning .dijitToasterContent {
     padding: 5px;
-    background: #d4d943;
+    background: var(--toaster-warning-bg);
 }
 
 .dijitToasterError .dijitToasterContent {
     padding: 5px;
-    background: darkred;
+    background: var(--toaster-error-bg);
 }
 
 .dijitToasterClip {
@@ -90,15 +90,15 @@
 }
 
 ._common_d11 .dijitDialog {
-    border-radius: 6px;
+    border-radius: var(--radius-panels);
     background-color: var(--dlg-bg, #f6f6f6);
-    box-shadow: 0 4px 24px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.10);
+    box-shadow: var(--shadow-dialog);
     border: 1px solid var(--dlg-border-color, silver);
 }
 
 ._common_d11 .dijitDialog .dijitDialogPaneContent {
-    border-bottom-right-radius: 6px;
-    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: var(--radius-panels);
+    border-bottom-left-radius: var(--radius-panels);
     border: 0px;
     background-color: var(--dlg-pane-bg, #fff);
 }
@@ -107,8 +107,8 @@
     background: var(--dialogtitlebar-background, linear-gradient(to right, #3b6391, #4b6cb7));
     color: var(--dialogtitlebar-color, #ffffff);
     vertical-align: middle;
-    border-top-left-radius: 6px;
-    border-top-right-radius: 6px;
+    border-top-left-radius: var(--radius-panels);
+    border-top-right-radius: var(--radius-panels);
     text-align: center;
     font-weight: normal;
     border-bottom: 1px solid rgba(0,0,0,0.1);
@@ -132,16 +132,16 @@
 
 ._common_d11 .lightboxDialog.dijitDialog {
     padding: 2px;
-    background:white;
-    border: 1px solid #ddd;
-    border-top-left-radius: 6px;
-    border-top-right-radius: 6px;
-    border-bottom-left-radius: 6px;
-    border-bottom-right-radius: 6px;
+    background:var(--surface-bg);
+    border: 1px solid var(--border-color);
+    border-top-left-radius: var(--radius-panels);
+    border-top-right-radius: var(--radius-panels);
+    border-bottom-left-radius: var(--radius-panels);
+    border-bottom-right-radius: var(--radius-panels);
 }
 .index_loginbox{
     font-size:1.2em;
-    color:#555;
+    color:var(--text-muted);
 }
 .index_loginbox .index_logintitle{
     font-variant:small-caps;
@@ -162,21 +162,6 @@
     height:15px;
     cursor:pointer;
     text-align:left;
-}
-.login_confirm_btn{
-    padding: 0;
-}
-.login_confirm_btn .dijitButtonNode{
-    /* M3 Filled for login primary action */
-    background-color: var(--m3-primary, #1976D2);
-    color: var(--m3-on-primary, #fff);
-    font-size: 0.85em;
-    padding: 0.35em 1.2em;
-    letter-spacing: 0.3px;
-    font-weight: 400;
-}
-.login_confirm_btn .dijitButtonNode .dijitButtonText{
-    color: var(--m3-on-primary, #fff);
 }
 ._common_d11 .lightboxDialog.dijitDialog .dijitDialogPaneContent {
     background: transparent;
@@ -212,7 +197,7 @@
 }
 
 ._common_d11 .hideDialogTitle .dijitDialogPaneContent{
-    border-radius: 6px;
+    border-radius: var(--radius-panels);
 }
 
 ._common_d11  .dijitTooltipFocusNode{
@@ -234,10 +219,10 @@
 
 /* quickthermo*/
 .quickthermo_box{
-    background: white;
-    border-radius: 4px;
-    border-left: 1px solid #efefef;
-    box-shadow: 2px 2px 3px #666;
+    background: var(--surface-bg);
+    border-radius: var(--radius-controls);
+    border-left: 1px solid var(--border-light);
+    box-shadow: 2px 2px 3px var(--text-muted);
     min-width: 360px;
 }
 .quickthermo_box.thermo_message .form_waiting{
@@ -250,16 +235,16 @@
     font-variant: normal;
     font-size: 14px;
     text-align: center;
-    background: #666;
-    color: white;
-    border-top-right-radius: 4px;
-    border-top-left-radius: 4px;
+    background: var(--text-muted);
+    color: var(--surface-bg);
+    border-top-right-radius: var(--radius-controls);
+    border-top-left-radius: var(--radius-controls);
 }
 
 .quickthermo_caption{
     font-variant: normal;
     font-size: 12px;
-    color:#555;
+    color:var(--text-muted);
 }
 
 .dijitFileInput {
@@ -368,7 +353,7 @@
     position: absolute;
     top: 4px;
     left: 4px;
-    border-radius: 3px;
+    border-radius: var(--radius-controls);
 }
 
 .dojoxScrollWrapper {
@@ -386,13 +371,13 @@
 }
 
 textarea {
-    border: 1px solid silver;
+    border: 1px solid var(--border-color);
     font-family: inherit;
     font-size: inherit;
 }
 
 textarea:disabled {
-    border: 1px solid silver;
+    border: 1px solid var(--border-color);
     font-family: inherit;
     font-size: inherit;
     color: inherit;
@@ -409,10 +394,10 @@ textarea:disabled {
     visibility: visible;
 }
 .countBoxPartial {
-    border: 1px solid #AEB6BD;
+    border: 1px solid var(--border-strong);
     border-right: 0px;
-    border-top-left-radius: 12px;
-    border-bottom-left-radius: 12px;
+    border-top-left-radius: var(--radius-containers);
+    border-bottom-left-radius: var(--radius-containers);
     text-align: right;
     padding-right: 3px;
     padding-left: 5px;
@@ -424,9 +409,9 @@ textarea:disabled {
 
 }
 .countBoxTotal {
-    border: 1px solid #AEB6BD;
-    border-top-right-radius: 12px;
-    border-bottom-right-radius: 12px;
+    border: 1px solid var(--border-strong);
+    border-top-right-radius: var(--radius-containers);
+    border-bottom-right-radius: var(--radius-containers);
     text-align: left;
     padding-left: 4px;
     padding-right: 5px;
@@ -434,17 +419,17 @@ textarea:disabled {
     color: #9C9474;
 }
 .unfilteredCount .countBoxTotal {
-    border-top-left-radius: 12px;
-    border-bottom-left-radius: 12px;
+    border-top-left-radius: var(--radius-containers);
+    border-bottom-left-radius: var(--radius-containers);
     text-align: center;
     padding-right: 5px;
 }
 
 .countBoxErrors{
-    border-radius: 12px;
-    border: 1px solid #AEB6BD;
+    border-radius: var(--radius-containers);
+    border: 1px solid var(--border-strong);
     background: darkred;
-    color:white;
+    color:var(--surface-bg);
     padding-left: 5px;
     padding-right: 5px;
     font-size: .9em;
@@ -452,15 +437,15 @@ textarea:disabled {
 }
 
 .searchInputBox {
-    border-radius: 12px;
+    border-radius: var(--radius-containers);
     padding-left: 5px;
     padding-right: 20px;
-    border: 1px solid #AEB6BD;
-    background: white url(../icons/base10/lens.gif) no-repeat 95%;
+    border: 1px solid var(--border-strong);
+    background: var(--surface-bg) url(../icons/base10/lens.gif) no-repeat 95%;
 }
 
 .searchInputBox.activeSearch{
-    background: white url(../icons/base10/frametabclose.png) no-repeat 95%;
+    background: var(--surface-bg) url(../icons/base10/frametabclose.png) no-repeat 95%;
     cursor: pointer;
 }
 
@@ -470,11 +455,11 @@ textarea:disabled {
 }
 
 .searchInput {
-    border-radius: 12px;
+    border-radius: var(--radius-containers);
     padding-left: 5px;
     padding-right: 15px;
     border: 1px solid gray;
-    background: white url(../icons/base10/lens.gif) no-repeat 95%;
+    background: var(--surface-bg) url(../icons/base10/lens.gif) no-repeat 95%;
 }
 
 .hidden {
@@ -488,26 +473,106 @@ textarea:disabled {
 /* --- Accordion (structural, moved from theme_shared) --- */
 ._common_d11 .dijitAccordionContainer {
     border: 1px solid gray;
-    border-top-left-radius: 7px;
-    border-top-right-radius: 7px;
+    border-top-left-radius: var(--radius-panels);
+    border-top-right-radius: var(--radius-panels);
 }
 
 ._common_d11 .dijitAccordionTitle {
-    background: #E0CEBE;
+    background: var(--accordion-title-bg);
     padding: 4px 4px 4px 8px;
-    border-top-left-radius: 8px;
-    border-top-right-radius: 8px;
+    border-top-left-radius: var(--radius-panels);
+    border-top-right-radius: var(--radius-panels);
     font-size: .9em;
 }
 
 ._common_d11 .dijitAccordionTitle-selected {
-    background: #4D5962;
-    color: white;
+    background: var(--accordion-selected-bg);
+    color: var(--surface-bg);
     padding: 5px 4px 5px 8px;
 }
 
 ._common_d11 .dijitAccordionArrow {
     display: none;
+}
+
+/* --- Tab pane wrapper (moved from 01_gnr_variables) --- */
+.tundra .dijitTabPaneWrapper {
+    background: none;
+}
+
+/* --- Floating pane (from theme_shared) --- */
+._common_d11 .dojoxDockRestoreButton {
+    float: left;
+    height: 13px;
+    margin-top: 1px;
+}
+
+._common_d11 .dojoxDockNode {
+    border-radius: var(--radius-controls);
+    border: 1px solid #ADADAD;
+    cursor: pointer;
+    float: left;
+    height: 13px;
+    list-style: none outside none;
+    margin-top: 3px;
+    padding: 0 7px 3px 0;
+    width: auto;
+    font-size: .9em;
+    background-color: rgba(170, 190, 201, 0.2);
+}
+
+.tundra .dojoxFloatingPane .dijitTabInnerDiv {
+    padding: 2px 9px;
+}
+
+.tundra .smallTabs .dijitTabInnerDiv {
+    padding: 2px 9px;
+}
+
+._common_d11 .dojoxFloatingPane {
+    border-radius: var(--radius-controls);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--border-color);
+}
+
+._common_d11.tundra .dojoxFloatingPaneTitle {
+    background: var(--dialogtitlebar-background);
+    vertical-align: middle;
+    text-align: center;
+    color: var(--dialogtitlebar-color, #f6f6f6);
+    border-top-left-radius: var(--radius-controls);
+    border-top-right-radius: var(--radius-controls);
+    padding-top: 2px;
+    padding-bottom: 3px;
+    border: 0;
+}
+
+/* --- Layout container (from theme_shared) --- */
+._common_d11 .dijitLayoutContainer {
+    background: transparent;
+}
+
+/* --- Lightbox login dialog (from theme_shared) --- */
+._common_d11 .lightboxDialog.loginDialog.dijitDialog {
+    padding: 0;
+    border: 1px solid var(--border-color);
+    background: var(--surface-bg);
+    box-shadow: none;
+}
+._common_d11 .lightboxDialog.loginDialog.dijitDialog .dijitDialogPaneContent {
+    background: transparent;
+    border: 0px;
+    padding: 0;
+}
+
+/* --- Spinner button (from theme_shared) --- */
+._common_d11 .dijitSpinnerButtonContainer .dijitArrowButton .dijitArrowButtonInner {
+    background: url(/_rsrc/common/css_icons/svg/16/popup.svg) no-repeat center center;
+    transform: rotate(0) scale(1.5);
+}
+._common_d11 .dijitSpinnerButtonContainer .dijitUpArrowButton .dijitArrowButtonInner {
+    background: url(/_rsrc/common/css_icons/svg/16/popup.svg) no-repeat center center;
+    transform: rotate(180deg) scale(1.5);
 }
 
 /* @end */

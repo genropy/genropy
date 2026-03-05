@@ -9,7 +9,7 @@
     box-shadow: 4px 4px 4px #403b3b;
 }
 ._common_d11.tundra .dijitTooltipContainer{
-    background: white;
+    background: var(--surface-bg);
 }
 
 ._common_d11 .dijitTooltipDialog.dijitTooltipBelow[connector='none']{
@@ -22,7 +22,7 @@
 
 /* --- Pure tooltip --- */
 ._common_d11 .dijitTooltip .dijitTooltipContainer {
-    color:#555;
+    color:var(--text-muted);
     font-size:.9em;
 }
 
@@ -41,4 +41,14 @@
 
 ._common_d11 .dijitTooltipBelow .dijitTooltipConnector {
     background-color:transparent;
+}
+
+/* --- Tooltip dialog (from theme_shared) --- */
+._common_d11 .dijitTooltipDialog .dijitTooltipContainer {
+    border-radius: var(--radius-panels);
+    padding: 0px;
+    border: 1px solid var(--border-color);
+    font-size: inherit;
+    box-shadow: var(--shadow-lg) !important;
+    background-color: var(--surface-light);
 }
