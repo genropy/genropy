@@ -1,3 +1,8 @@
+/* ==========================================================================
+   05_gnr_widgets_base.css — Dijit custom widgets, Toaster, Dialog,
+   ColorPalette, Editor, FileInput, Accordion, Dojox scroll
+   ========================================================================== */
+
 /* @group Dijit custom */
 
 /* @group colorpalettemenu */
@@ -41,9 +46,6 @@
     color: #fff;
 }
 
-.dijitToasterWarning {
-}
-
 .dijitToasterError,
 .dijitToasterFatal {
     font-weight: bold;
@@ -62,7 +64,7 @@
 
 .dijitToasterClip {
     position: absolute;
-    z-index: 5000;
+    z-index: var(--z-tooltip);
     overflow: hidden;
 }
 
@@ -75,7 +77,11 @@
 
 /* @end */
 
-.gnrfield .dijitButtonDisabled .dijitButtonNode, .tundra .dijitToggleButtonDisabled .dijitButtonNode, .tundra .dijitDropDownButtonDisabled .dijitButtonNode, .tundra .dijitComboButtonDisabled .dijitButtonNode, .tundra .dijitComboBoxDisabled, .tundra .dijitSpinnerDisabled, .tundra .dijitSpinnerDisabled .dijitButtonNode {
+.gnrfield .dijitButtonDisabled .dijitButtonNode,
+.tundra :is(.dijitToggleButtonDisabled, .dijitDropDownButtonDisabled, .dijitComboButtonDisabled) .dijitButtonNode,
+.tundra .dijitComboBoxDisabled,
+.tundra .dijitSpinnerDisabled,
+.tundra .dijitSpinnerDisabled .dijitButtonNode {
     opacity: 1;
 }
 
@@ -123,7 +129,6 @@
     padding: 0px;
     overflow: hidden;
 }
-
 
 ._common_d11 .lightboxDialog.dijitDialog {
     padding: 2px;
@@ -177,7 +182,7 @@
     background: transparent;
     border: 0px;
     padding:5px;
-    /*background-image: -moz-linear-gradient(-90deg, rgba(170, 190, 201, 0.2), #FFFFFF);
+    /*
     background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, rgba(170, 190, 201, 0.2), to(#FFFFFF));*/
 }
 .tundra._common_d11 .fullscreenDialog.dijitDialog{
@@ -190,7 +195,7 @@
     background: transparent;
     border: 0px;
     padding:0;
-    /*background-image: -moz-linear-gradient(-90deg, rgba(170, 190, 201, 0.2), #FFFFFF);
+    /*
     background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, rgba(170, 190, 201, 0.2), to(#FFFFFF));*/
 }
 
@@ -225,7 +230,6 @@
     display: none;
 }
 
-
 /* @group FileInput */
 
 /* quickthermo*/
@@ -251,7 +255,6 @@
     border-top-right-radius: 4px;
     border-top-left-radius: 4px;
 }
-
 
 .quickthermo_caption{
     font-variant: normal;
@@ -466,7 +469,6 @@ textarea:disabled {
     border:0;
 }
 
-
 .searchInput {
     border-radius: 12px;
     padding-left: 5px;
@@ -481,6 +483,31 @@ textarea:disabled {
 
 .dimmed {
     opacity: 0.5;
+}
+
+/* --- Accordion (structural, moved from theme_shared) --- */
+._common_d11 .dijitAccordionContainer {
+    border: 1px solid gray;
+    border-top-left-radius: 7px;
+    border-top-right-radius: 7px;
+}
+
+._common_d11 .dijitAccordionTitle {
+    background: #E0CEBE;
+    padding: 4px 4px 4px 8px;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    font-size: .9em;
+}
+
+._common_d11 .dijitAccordionTitle-selected {
+    background: #4D5962;
+    color: white;
+    padding: 5px 4px 5px 8px;
+}
+
+._common_d11 .dijitAccordionArrow {
+    display: none;
 }
 
 /* @end */

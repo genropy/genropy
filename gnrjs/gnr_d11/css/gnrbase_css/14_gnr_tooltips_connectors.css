@@ -1,0 +1,44 @@
+/* ==========================================================================
+   14_gnr_tooltips_connectors.css — Tooltip dialog, pure tooltip, connectors
+   ========================================================================== */
+
+/* --- Tooltip dialog --- */
+._common_d11 .dijitTooltipDialog .dijitTooltipContainer {
+    padding: 0px;
+    border: 0;
+    box-shadow: 4px 4px 4px #403b3b;
+}
+._common_d11.tundra .dijitTooltipContainer{
+    background: white;
+}
+
+._common_d11 .dijitTooltipDialog.dijitTooltipBelow[connector='none']{
+    padding-top: 0px;
+    margin-top: -1px;
+}
+._common_d11 .dijitTooltipDialog.dijitTooltipBelow[connector='none'] .dijitTooltipConnector{
+    display: none;
+}
+
+/* --- Pure tooltip --- */
+._common_d11 .dijitTooltip .dijitTooltipContainer {
+    color:#555;
+    font-size:.9em;
+}
+
+/* --- Connectors (common for tooltip and tooltipdialog) --- */
+._common_d11 .dijitTooltipLeft .dijitTooltipConnector {
+    background-color:transparent;
+}
+
+._common_d11 .dijitTooltipRight .dijitTooltipConnector {
+    background-color:transparent;
+}
+
+._common_d11 .dijitTooltipUp .dijitTooltipConnector {
+    background-color:transparent;
+}
+
+._common_d11 .dijitTooltipBelow .dijitTooltipConnector {
+    background-color:transparent;
+}

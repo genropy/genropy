@@ -1,0 +1,281 @@
+/* ==========================================================================
+   17_gnr_mobile_gallery.css — Mobile templates, scroll wrapper, gallery,
+   showcase, detached placeholder, dropUploader
+   ========================================================================== */
+
+/* --- Scroll wrapper (mobile fix) --- */
+.scroll-wrapper{
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    overflow: hidden;
+}
+
+.mode_std .mobileSizer{
+    max-width: 700px;
+    margin: auto;
+    border-left: 1px solid silver;
+    border-right: 1px solid silver;
+}
+
+.touchDevice .scroll-wrapper{
+    overflow-y:scroll !important;
+    -webkit-overflow-scrolling:touch !important;
+}
+
+.bodySize_phone .dojoxGrid{
+    font-family: inherit;
+}
+
+.bodySize_phone .templateGrid .dojoxGrid{
+    font-family: inherit;
+}
+
+/* --- Detached placeholder --- */
+.detached_placeholder{
+    position: relative;
+}
+
+.detached_placeholder_content{
+    position: absolute;
+    top:10px;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    border: 10px solid rgba(99, 136, 195, 0.1);
+    border-radius: 10px;
+}
+.detached_placeholder_title{
+    font-size: 30px;
+    color:rgba(99, 136, 195, 0.25);
+    text-align: center;
+    margin-top: 20px;
+}
+
+/* --- Drop uploader --- */
+.dropUploaderBox{
+    width:150px;
+    border: 1px solid silver;
+    border-radius: 2px;
+    font-size: 20px;
+    color: #666;
+    text-align: center;
+    height: 30px;
+    cursor: pointer;
+    position: relative;
+}
+
+.dropUploaderBoxInner{
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    line-height: 30px;
+}
+
+/* --- Inner label toggle --- */
+.slotbar_cell .innerLbl{
+    display: none;
+}
+
+.showInnerLabel .slotbar_cell .innerLbl{
+    display: block;
+}
+
+/* --- Gallery iframe --- */
+.gallery_iframe_container{
+    position: absolute;
+    top:0;
+    left: 0;
+    right:0;
+    bottom: 0;
+    border-top:1px solid silver;
+    background: white;
+}
+
+.expanded_gallery_iframe.gallery_iframe_container{
+    position: fixed;
+    z-index: 998;
+}
+
+/* --- Showcase --- */
+.slotbar_cell .showcase_button{
+    cursor: pointer;
+    height: 30px;
+    width: 30px;
+    margin: 5px;
+    background-size: contain;
+}
+.showcase_bar{
+    min-height: 26px;
+    font-size: 1.5em;
+}
+.showcase_dark .showcase_bar{
+    color:white;
+}
+
+.grid_gallery_grid_showcase{
+    width: 180px;
+}
+
+.showcase_light .showcase_prev{
+    background: url(../icons/svg/left_arrow.svg) center center no-repeat;
+    background-size: contain;
+}
+
+.showcase_dark .showcase_prev{
+    background: url(../icons/svg/left_arrow_white.svg) center center no-repeat;
+    background-size: contain;
+}
+
+.showcase_light .showcase_next{
+    background: url(../icons/svg/right_arrow.svg) center center no-repeat;
+    background-size: contain;
+}
+
+.showcase_dark .showcase_next{
+    background: url(../icons/svg/right_arrow_white.svg) center center no-repeat;
+    background-size: contain;
+}
+
+.showcase_light .showcase_toggle{
+    background: url(../icons/svg/menu.svg) center center no-repeat;
+    background-size: contain;
+}
+
+.showcase_dark .showcase_toggle{
+    background: url(../icons/svg/menu_white.svg) center center no-repeat;
+    background-size: contain;
+}
+
+.showcase_light .showcase_zoom{
+    background: url(../icons/svg/zoom.svg) center center no-repeat;
+    background-size: contain;
+}
+
+.showcase_dark .showcase_zoom{
+    background: url(../icons/svg/zoom_white.svg) center center no-repeat;
+    background-size: contain;
+}
+
+.menu_white_svg{
+    background: url(../icons/svg/menu_white.svg) center center no-repeat;
+    background-size: contain;
+}
+
+.menu_gray_svg{
+    background: url(../icons/svg/menu_gray.svg) center center no-repeat;
+    background-size: contain;
+}
+
+.line_chart_white_svg{
+    background: url(../icons/svg/line_chart_white.svg) center center no-repeat;
+    background-size: contain;
+}
+.excel_white_svg{
+    background: url(../icons/svg/excel_white.svg) center center no-repeat;
+    background-size: contain;
+}
+
+/* --- Mobile grid cell navigation --- */
+.tundra._common_d11 .dojoxGrid-cell.right_in_cell {
+    vertical-align: middle;
+    border-left: 0;
+}
+
+.right_in_cell .cellContent{
+    -webkit-mask: url(/_rsrc/common/css_icons/svg/16/mobile_right_in_small.svg) no-repeat center center;
+    mask: url(/_rsrc/common/css_icons/svg/16/mobile_right_in_small.svg) no-repeat center center;
+    background-color: #888;
+}
+
+.mobileTemplateGridTop{
+    font-weight: bold;
+    font-size: 1.2em;
+    line-height: 35px;
+}
+.mobileTemplateGridTop .searchInputBox{
+    line-height: normal;
+}
+.mobileTemplateGridTop .searchboxLabel{
+    display: none;
+}
+
+._common_d11 .mobileTemplateGrid .dojoxGrid-row{
+    border-bottom: 1px solid #ddd;
+}
+
+._common_d11.tundra .mobileTemplateGrid .dojoxGrid-header {
+    display:none;
+}
+.mobile_left_out{
+    -webkit-mask: url(/_rsrc/common/css_icons/svg/16/mobile_left_out_small.svg) no-repeat center center;
+    mask: url(/_rsrc/common/css_icons/svg/16/mobile_left_out_small.svg) no-repeat center center;
+    background-color: #888;
+}
+
+.leftOut{
+    -webkit-mask: url(/_rsrc/common/css_icons/svg/16/mobile_left_out_small.svg) no-repeat center center;
+    mask: url(/_rsrc/common/css_icons/svg/16/mobile_left_out_small.svg) no-repeat center center;
+}
+
+.prevUp{
+    -webkit-mask: url(/_rsrc/common/css_icons/svg/16/prevUp.svg) no-repeat center center;
+    mask: url(/_rsrc/common/css_icons/svg/16/prevUp.svg) no-repeat center center;
+}
+
+.nextDown{
+    -webkit-mask: url(/_rsrc/common/css_icons/svg/16/nextDown.svg) no-repeat center center;
+    mask: url(/_rsrc/common/css_icons/svg/16/nextDown.svg) no-repeat center center;
+}
+
+.formCaption{
+    font-weight: bold;
+    text-align: center;
+    color:#888;
+    font-size:1.2em;
+    padding-top: 2px;
+    padding-left: 10px;
+    padding-right: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mobileTemplateGrid .cellContent {
+    padding:5px;
+}
+
+.mobileTemplateGrid .cellContent>div{
+    margin-left: 5px;
+    margin-right: 5px;
+}
+
+/* --- Dynamic table --- */
+.fixTableHead{
+    overflow-y: auto;
+}
+
+.fixTableHead thead th {
+    position: sticky;
+    top: 0;
+}
+
+.dynamicTable table{
+    border-collapse: collapse;
+    width: 100%;
+}
+.dynamicTable thead th{
+    background: #444;
+    color:white;
+    font-weight: bold;
+    border: 1px solid silver;
+}
+
+.dynamicTable tbody td{
+    color:#444;
+    border: 1px solid silver;
+}

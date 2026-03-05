@@ -109,7 +109,6 @@
     cursor: default;
 }
 
-
 .tundra .dijitButtonHover .dijitButtonNode,
 .tundra .dijitButtonNodeHover,
 .tundra .dijitToggleButtonHover .dijitButtonNode,
@@ -189,7 +188,6 @@
     box-shadow: none;
 }
 
-
 .tundra .no_background .dijitButtonNode {
     padding: 0;
     background: none;
@@ -234,14 +232,16 @@
     filter: brightness(0) invert(1);
 }
 
-.slotbar_toolbar .slotButtonIconOnly .dijitButtonNode, .pbl_roundedGroupLabel .slotButtonIconOnly .dijitButtonNode, .iconOnly.slotButtonIconOnly .dijitButtonNode, .iconOnly .dijitButtonNode{
+:is(.slotbar_toolbar, .pbl_roundedGroupLabel) .slotButtonIconOnly .dijitButtonNode,
+.iconOnly.slotButtonIconOnly .dijitButtonNode,
+.iconOnly .dijitButtonNode{
     border:0;
     background:transparent;
     padding: 0px 0px;
     box-shadow: none;
     color: var(--mainWindow-color, #444);
 }
-.slotbar_toolbar .slotButtonIconOnly .dijitButtonNode .dijitButtonText,
+:is(.slotbar_toolbar, .pbl_roundedGroupLabel) .slotButtonIconOnly .dijitButtonNode .dijitButtonText,
 .iconOnly.slotButtonIconOnly .dijitButtonNode .dijitButtonText,
 .iconOnly .dijitButtonNode .dijitButtonText{
     color: var(--mainWindow-color, #444);

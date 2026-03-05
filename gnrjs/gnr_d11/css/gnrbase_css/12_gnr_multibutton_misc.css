@@ -44,7 +44,6 @@
     top:0;
 }
 
-
 .quickgrid_container .multibutton_container {
     padding-top: 0px;
     padding-bottom: 0px;
@@ -61,7 +60,6 @@
 .iconbox.iconbox_short{
     height: 12px;
 }
-
 
 .quickgrid_container .iconbox:hover {
     opacity:1;
@@ -85,8 +83,7 @@
 .quickgrid_container .multibutton_selected.multibutton,
 .quickgrid_container .multibutton:active
 {
-	-moz-box-shadow: none;
-    -webkit-box-shadow:none;
+    box-shadow: none;
     background: #eee;
     opacity:1;
 }
@@ -173,7 +170,6 @@
     border-right: 0px;
 }
 
-
 .multibutton_itemsContainerHasOverflow .multibutton_itemsContainer .multibutton:last-child{
     border-top-right-radius: unset;
     border-bottom-right-radius: unset;
@@ -197,8 +193,7 @@
 .multibutton_selected.multibutton, .multibutton:active{
     color: #fff;
 	 background:#888;
-	-moz-box-shadow: inset 1px 1px 2px #222;
-    -webkit-box-shadow:inset 1px 1px 2px #222;
+    box-shadow: inset 1px 1px 2px #222;
 }
 .multibutton_selected.multibutton:hover{
 	text-decoration:none;
@@ -210,14 +205,10 @@
 .multibutton_container .multibutton:active[disabled='true'],.multibutton_container .multibutton:active[disabled='disabled']{
     color:#333;
     cursor: not-allowed;
-    background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, from(#EDEDEE), to(#CDCDCD));
-    background-image: -moz-linear-gradient(-90deg, #EDEDEE, #CDCDCD);
+    background-image: linear-gradient(to bottom, #EDEDEE, #CDCDCD);
     opacity: .3;
     box-shadow: none;
 }
-
-
-
 
 .multibutton{
     position:relative;
@@ -225,8 +216,7 @@
     padding-right:12px;
     cursor:pointer;
     color:#333;
-    background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, from(#EDEDEE), to(#CDCDCD));
-    background-image: -moz-linear-gradient(-90deg, #EDEDEE, #CDCDCD);
+    background-image: linear-gradient(to bottom, #EDEDEE, #CDCDCD);
     border: 1px solid #666;
     border-right: 0px;
     /*line-height:20px;
@@ -239,8 +229,7 @@
 }
 
 .multibuttonsub.multibutton{
-    background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, from(#A6CAEE), to(#467399));
-    background-image: -moz-linear-gradient(-90deg, #A6CAEE, #467399);
+    background-image: linear-gradient(to bottom, #A6CAEE, #467399);
 }
 
 .multibutton_closer{
@@ -394,7 +383,6 @@
     color:white;
 }
 
-
 .mv_table{
     cursor:pointer;
     border-collapse: collapse;
@@ -495,8 +483,7 @@ div[disabled='true'], div[disabled='disabled']{
     text-align: center;
     padding-left:2px;
     padding-right:2px;
-    background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, from(rgba(239, 239, 239, 0.9)), to(rgba(182, 182, 182, 0.75)));
-    background-image: -moz-linear-gradient(-90deg, rgba(239, 239, 239, 0.9), rgba(182, 182, 182, 0.75));
+    background-image: linear-gradient(to bottom, rgba(239, 239, 239, 0.9, rgba(182, 182, 182, 0.75);
 }
 .debug_params{
     background:#EFEFEF;

@@ -44,7 +44,6 @@
     background: yellow;
 }
 
-
 .noExpando .dijitTreeExpando {
     display: none;
 }
@@ -128,7 +127,7 @@
 }
 
 .gnrdebugger {
-    z-index: 1000 !important;
+    z-index: var(--z-modal) !important;
 }
 .pbl_title_caption {
     font-size: 11pt;
@@ -244,16 +243,16 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
 
 /* @end */
 
+/* --- Data tables (shared base for bagAttributes and localization) --- */
 
-/* @group BagAttributesTable */
-
-.bagAttributesTable {
+.bagAttributesTable,
+.localizationTable {
     border-collapse: collapse;
     color: #3a3a3a;
-    font-size: xx-small;
 }
 
-.bagAttributesTable th {
+.bagAttributesTable th,
+.localizationTable th {
     padding: 2px;
     border: thin solid #c8c8c8;
     background-color: #a1a1a1;
@@ -261,19 +260,25 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
     text-align: center;
 }
 
-.bagAttributesTable td {
+.bagAttributesTable td,
+.localizationTable td {
     padding: 2px;
     border: thin solid #c8c8c8;
     background-color: #b6e2ff;
 }
 
-.bagAttributesTable tr > td:first-child {
+.bagAttributesTable tr > td:first-child,
+.localizationTable tr > td:first-child {
     padding: 2px;
     color: white;
     border: thin solid #c8c8c8;
     background-color: #4f4f4f;
     text-align: right;
 }
+
+/* Size variants */
+.bagAttributesTable { font-size: xx-small; }
+.localizationTable { font-size: .9em; }
 
 /* @end */
 

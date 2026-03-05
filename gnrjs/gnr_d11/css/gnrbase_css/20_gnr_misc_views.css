@@ -1,0 +1,452 @@
+/* ==========================================================================
+   20_gnr_misc_views.css — Flash messages, misc utilities, buttons,
+   helpdesk, theme variants, M3 buttons, MDEditor, linker box
+   ========================================================================== */
+
+/* --- Layout utilities --- */
+.gnrlayout{
+    position: absolute;
+}
+.backgroundLetterhead{
+    opacity: .5;
+}
+
+.invisible{
+    opacity: 0;
+}
+
+/* --- Flash messages (fm_*) --- */
+.fm_box{
+    font-size: 1.5em;
+    color:white;
+    padding: 12px;
+    padding-right: 45px;
+    padding-left: 35px;
+    position:absolute;
+    border-radius: 4px;
+    box-shadow: 3px 3px 4px #888;
+    z-index: var(--z-flash);
+}
+
+.fm_message{
+    background:rgba(23, 163, 28, 1);
+}
+
+.fm_error{
+    background:rgba(201, 17, 17, 1);
+}
+
+.fm_warning{
+    background:rgba(250, 120, 0, 1);
+}
+
+.fm_close{
+    background: url(../icons/fm_close.gif) no-repeat center center;
+}
+
+/* --- Dialog prompt & close button --- */
+.dlg_prompt{
+    background:white;
+    min-width: 20em;
+}
+
+.dlg_closebtn{
+    height: 18px;
+    width: 18px;
+    cursor: pointer;
+    mask: url('/_rsrc/common/css_icons/google_icons/close.svg') center center no-repeat;
+    mask-size: 100%;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/close.svg') center center no-repeat;
+    -webkit-mask-size: 100%;
+    background-color: var(--root-dark);
+    position: absolute;
+    right:2px;
+    top:4px;
+}
+
+/* --- Genropy logo --- */
+.genropylogo{
+	background: url(../icons/genropy.png) no-repeat center center;
+    height: 60px;
+    width: 252px;
+}
+
+.made_with_genropy{
+    height: 21px;
+    width:78px;
+    background: url(../icons/made_with_genropy_small.png) no-repeat center center;
+}
+
+/* --- Dropdown & button misc --- */
+.dropDownNoArrow .dijitArrowButtonInner {
+    display: none;
+}
+
+.bottom_btnDisabled .dijitButtonNode {
+    opacity: .6;
+    cursor: not-allowed !important;
+}
+
+.bottom_btnHover .dijitButtonNode {
+    opacity: 1;
+}
+
+.doc_version_menu_wrapper{
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 2;
+    background: rgba(255,255,255,0.8);
+    padding-left: 4px;
+    padding-right: 4px;
+    border-radius: 4px;
+}
+
+/* --- Menu div --- */
+.menudiv_text{
+    cursor: pointer;
+    padding-right: 12px;
+    display: inline-block;
+    font-size: .9em;
+    background: url(../icons/base12/smallpopup.gif) no-repeat right;
+}
+
+.menudiv_text.menudiv_text_white{
+    color:white;
+}
+
+/* --- Misc utility classes --- */
+.jslink, .jslink:visited{
+    color:#3C1416;
+}
+
+.multidb_local_change{
+    color:blue;
+}
+
+.iconbox{
+    filter: none;
+}
+
+.highlighted .highlightable.iconbox {
+    background-color:lightyellow;
+}
+
+.grouplet_chunk_box{
+    border: 1px solid silver;
+    border-radius: 4px;
+    padding: 4px 8px;
+    min-height: 14px;
+}
+
+/* --- Theme variant backgrounds --- */
+.theme_variant_green .theme_background{
+    background-color: #306227;
+    color: white;
+}
+
+.theme_background, .theme_variant_red .theme_background{
+    background-color: #711B2A;
+    color:white;
+}
+
+.theme_variant_blue .theme_background{
+    background-color: #1A415E;
+    color:white;
+}
+
+.theme_variant_orange .theme_background{
+    background-color:#FF5226;
+    color: white;
+}
+
+.theme_variant_yellow .theme_background{
+    background-color:#86770E;
+    color:#666;
+}
+
+.clientlogo{
+    background: var(--client-logo);
+    background-size: contain;
+}
+
+/* --- Helpdesk --- */
+.helpdesk_btn{
+    font-size:12pt;
+    cursor:pointer;
+    min-width: 80px;
+    padding:3px;
+    padding-left:10px;
+    padding-right:10px;
+    border-radius: 4px;
+    margin: 5px;
+    text-align: center;
+    background-color: silver;
+    color:#444;
+    border:1px solid #ddd;
+}
+
+.helpdesk_btn.helpdesk_footer{
+    display: inline-block;
+}
+
+.helpdesk_ticket_box{
+    display: block;
+    border:1px solid silver;
+    border-radius: 4px;
+    color:#444;
+    font-size:.9em;
+    margin:2px;
+    background: white;
+}
+.helpdesk_ticket_top{
+    background:#711B2A;
+    color:white;
+    font-weight: bold;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    position: relative;
+    height: 16px;
+}
+.helpdesk_ticket_subject{
+    position: absolute;
+    left:5px;
+    top:1px;
+    right:5px;
+    text-align: center;
+}
+
+.helpdesk_ticket_date{
+    position: absolute;
+    top:1px;
+    left:5px;
+    text-align: left;
+}
+
+.helpdesk_ticket_status{
+    position: absolute;
+    top:1px;
+    right:5px;
+    text-align: left;
+}
+
+.helpdesk_ticket_summary{
+    color:#888;
+    font-style: italic;
+    text-align: justify;
+    padding:5px;
+}
+
+/* --- Icon box sizes --- */
+.smalliconbox{
+	height:14px;
+    width: 14px;
+    cursor: pointer;
+}
+
+.innericonbox.iconbox{
+    height:13px;
+    width: 13px;
+    margin:auto;
+    background-size: contain;
+}
+
+/* --- Flex/center utilities --- */
+.center_box{
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+    align-items: center;
+}
+
+.mc_bar{
+    z-index: 10;
+}
+
+.mc_positive{
+    background:lightgreen;
+}
+.mc_negative{
+    background: red;
+}
+
+.mc_positive.mc_ovf{
+    background: green;
+}
+
+.mc_negative.mc_ovf{
+    background: darkred;
+}
+
+.flex_centered_wrapper{
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top:0;
+    left:0;
+    bottom:0;
+    right:0;
+    justify-content: center;
+    align-items: center;
+}
+
+/* --- SVG icon utilities --- */
+.visibility_lock{
+    background: url(/_rsrc/common/css_icons/svg/16/visibility_lock.svg) no-repeat center center;
+    background-size: contain;
+    margin: 2px;
+    cursor: pointer;
+}
+
+.white_refresh{
+    background: url(/_rsrc/common/css_icons/svg/16/white_refresh.svg) no-repeat center center;
+}
+
+.refresh{
+    background: url(/_rsrc/common/css_icons/svg/16/reset_record.svg) no-repeat center center;
+}
+
+/* --- Large cell & rounded envelope --- */
+.largeCell{
+    padding:5px;
+    font-size:1.2em;
+}
+
+.gridRoundedEnvelope{
+    border:1px solid #ddd;
+    border-radius: 10px;
+    margin:10px;
+    margin-top:0;
+    margin-bottom: 20px;
+}
+
+/* --- Developer tools --- */
+.developerToolElement{
+    display: none;
+}
+
+.developerToolElementsVisible .developerToolElement{
+    display: block;
+}
+
+/* --- MDEditor custom toolbar --- */
+.toastui-editor-toolbar-icons.custom-toolbar-button {
+    margin: 0 !important;
+    background: none !important;
+    font-size: 16px;
+    line-height: normal;
+    vertical-align: middle;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+}
+.toastui-editor-toolbar-icons.custom-toolbar-button svg {
+    display: block;
+    width: 17px;
+    height: 17px;
+}
+
+/* --- Dialog bottom bar --- */
+.dialog_bottom {
+    border-top: 1px solid rgba(0,0,0,0.08);
+    padding: 0.5em 0.8em;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
+    --m3-secondary-container: var(--m3-primary, #1976D2);
+    --m3-on-secondary-container: var(--m3-on-primary, #fff);
+}
+
+/* --- M3 Button style modifiers --- */
+.btn_filled {
+    --m3-secondary-container: var(--m3-primary, #1976D2);
+    --m3-on-secondary-container: var(--m3-on-primary, #fff);
+    --m3-btn-border-color: var(--m3-primary, #1976D2);
+}
+
+.btn_tonal {
+    --m3-secondary-container: #BBDEFB;
+    --m3-on-secondary-container: #1565C0;
+    --m3-btn-border-color: var(--m3-outline, #ccc);
+}
+
+/* --- Linker box & login dialog --- */
+._common_d11 .loginDialog.lightboxDialog.dijitDialog{
+    box-shadow:none;
+    padding:0;
+}
+
+._common_d11 .loginDialog.lightboxDialog.dijitDialog .dijitDialogPaneContent {
+    background: transparent;
+    border: 0px;
+    padding:0;
+}
+
+.th_enableLinker .th_linkerField, .th_linkerAlwaysOpen .th_linkerField{
+    display:block;
+    width:12em;
+    box-shadow:none;
+    padding-top:0;
+}
+
+.dijitError.dijitFocused{
+    background-image: none;
+}
+.dijitError.th_linkerField{
+	background: transparent url(../icons/base12/invalid.png) no-repeat right center !important;
+}
+
+.th_linkerField{
+    top:0px;
+    bottom:0px;
+    border:0 !important;
+    font-size:8pt;
+    width:0;
+    display:none;
+    background:white !important;
+}
+
+/* Linker combobox: hide arrow and clean field */
+.th_linker .dijitArrowButton {
+    display: none;
+}
+.th_linker .dijitComboBox,
+.th_linker .dijitTextBox {
+    border: none;
+    background: transparent;
+    box-shadow: none;
+}
+
+.th_enableLinker.th_linker,.th_linkerAlwaysOpen .th_linker{
+    opacity:1;
+    border:1px solid gray;
+	background: white url(../icons/base12/linker.png) no-repeat 3px center;
+    padding-left:15px;
+    padding-right:18px;
+    width:auto;
+}
+
+.th_linker{
+    height:14px;
+	background: transparent url(../icons/base12/linker.png) no-repeat 3px center;
+	cursor:pointer;
+    opacity:.7;
+    position:relative;
+    width:12px;
+}
+
+.th_linker:hover{
+    opacity:1;
+}
+.th_linkerAdd, .th_enableLinker .hidden.th_linkerAdd{
+	display: none;
+}
+.th_enableLinker .th_linkerAdd{
+	background: url(../icons/base14/linkeradd.png) no-repeat center center;
+	width: 14px;
+	position: absolute;
+	right: 1px;
+	top: 0px;
+	bottom: 0;
+	display: block;
+}

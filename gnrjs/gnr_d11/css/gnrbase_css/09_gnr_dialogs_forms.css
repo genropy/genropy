@@ -12,7 +12,6 @@
     visibility: hidden;
 }
 
-
 .hideSplitter >.dijitSplitter.dijitSplitterV {
     background: transparent;
     width:4px;
@@ -28,11 +27,9 @@
     opacity:.5;
 }
 
-
 .hideSplitter >.dijitSplitter .dijitSplitterThumb {
     visibility: hidden;
 }
-
 
 ._common_d11.tundra .dijitSplitter:active{
     background: #777;
@@ -132,7 +129,6 @@
     opacity: 1;
 }
 
-
 /* @group dialog */
 .dlg_ask {
     display: flex;
@@ -217,7 +213,6 @@
     /*padding-left: 2px;*/
 }
 
-
 .gnrfieldlabel {
     color: var(--gnrfieldlabel-color);
     margin-top:2px;
@@ -240,9 +235,6 @@ label{
     border-radius: 12px;
 }
 
-.gnrfield {
-
-}
 /*.gnrfield.tag_div{
     padding-top:2px;
 }*/
@@ -254,7 +246,6 @@ label{
 .gnrzoomlabel{
     display: inline-flex;
 }
-
 
 .gnrzoomicon{
     width:15px;
@@ -320,7 +311,7 @@ label{
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 100;
+    z-index: var(--z-overlay);
     opacity: .3;
     background: white;
 }
@@ -373,32 +364,6 @@ table.formbuilder td.gnrfield {
     margin-right: 5px;
 }
 
-.localizationTable {
-    border-collapse: collapse;
-    color: #3a3a3a;
-    font-size: .9em;
-}
-
-.localizationTable th {
-    padding: 2px;
-    border: thin solid #c8c8c8;
-    background-color: #a1a1a1;
-    font-weight: bold;
-    text-align: center;
-}
-
-.localizationTable td {
-    padding: 2px;
-    border: thin solid #c8c8c8;
-    background-color: #b6e2ff;
-}
-
-.localizationTable tr > td:first-child {
-    padding: 2px;
-    color: white;
-    border: thin solid #c8c8c8;
-    background-color: #4f4f4f;
-    text-align: right;
-}
+/* localizationTable: consolidated with bagAttributesTable in 07_gnr_components.css */
 
 /* @end */

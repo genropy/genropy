@@ -1,3 +1,8 @@
+/* ==========================================================================
+   02_gnr_icons_base.css — Icon sprites (base10-64, dtype, nav, flag),
+   cursor icons
+   ========================================================================== */
+
 /* @group Icons */
 
 /* @group Base 48 */
@@ -83,7 +88,6 @@
     display: none;
 }
 
-
 .editGrid_semaphore{
     height: 16px;
     width: 16px;
@@ -117,9 +121,6 @@
     background-color:#488fd7;
 }
 
-
-
-
 .icnWarning {
     background: url(../icons/iconWarning.gif) no-repeat;
     width: 20px;
@@ -134,13 +135,11 @@
 
 /* @group base14 */
 
-
 .vieselectorIcn {
     background: url(../icons/viewselector.png) no-repeat center center;
     height: 16px;
     width: 18px;
 }
-
 
 .greenLight, .semaphoreCheck{
     background: url(../icons/base16/semaphore_green.png) no-repeat center center;
@@ -455,7 +454,6 @@
     margin-top: 2px;
 }
 
-
 .largemenu .dijitMenuItem td{
     font-size: 1.2em;
     padding:5px;
@@ -488,14 +486,11 @@
     background: none;
 }
 
-
-
 .tundra .smallmenu .dijitMenuItem td {
     padding-top: 0.2em !important;
     padding-bottom: 0.2em !important;
     padding-right: .40em;
 }
-
 
 div.dojoxDock {
 	background: none;
@@ -523,14 +518,7 @@ div.dojoxDock {
     width:100%;
 }
 
-.tundra._common_d11 .commonTitleBar {
-    background-color:#711B2A;
-    color: #ffffff;
-    text-align: center;
-    font-weight:normal;
-    padding-top: 2px;
-    padding-bottom: 2px;
-}
+/* commonTitleBar: canonical definition in 05_gnr_widgets_base.css (uses CSS vars) */
 
 .hiddenBcPane{
     display:none;
@@ -549,8 +537,6 @@ div.dojoxDock {
     background: transparent url(../icons/base12/smallpopup.gif) no-repeat right 4px;
 }
 */
-
-
 
 .iframereload{
     background: url(../icons/base10/iframereload.gif) no-repeat center center;
@@ -577,9 +563,6 @@ div.dojoxDock {
     width: 16px;
 }
 
-
-
-
 ._common_d11 .dojoxFloatingPaneContent {
     overflow:hidden !important;
 }
@@ -593,13 +576,11 @@ div.dojoxDock {
     margin-right: 4px;
 }
 
-
 ._common_d11.tundra .dojoxFloatingCloseIcon{
     background: transparent url(../icons/base16/close.svg) no-repeat scroll center center;
     height: 16px;
     width: 16px;
 }
-
 
 ._common_d11.tundra .dijitDialogCloseIcon{
     background: transparent url(../icons/base16/close.svg) no-repeat scroll center center;
@@ -672,9 +653,6 @@ div.dojoxDock {
     opacity: 1;
 }
 
-.floatingTooltipPane{
-
-}
 .floatingTooltipPane:hover{
     background-color: #feffb4;
 }
@@ -685,7 +663,6 @@ div.dojoxDock {
 .floatingPopupFixed {
     background: url(../icons/base12/smallpopup.gif) no-repeat right !important;
 }
-
 
 .helperField {
     position: absolute;
@@ -752,7 +729,6 @@ div.dojoxDock {
     background: url(../icons/base24/drawerRightArrow.png) no-repeat center center;
 
 }
-
 
 /* @end */
 
@@ -907,7 +883,6 @@ div.dojoxDock {
     height: 16px;
 }
 /* multirow.gif was the original, now replaced with list.png */
-
 
 .icnBaseEye {
     background: url(../icons/base16/eye.gif) no-repeat center center;
@@ -1085,7 +1060,6 @@ div.dojoxDock {
     width: 16px;
     height: 16px;
 }
-
 
 .icnBottomDocumentation {
     background: url(../icons/base16/bottom_documentation.png) no-repeat center center;

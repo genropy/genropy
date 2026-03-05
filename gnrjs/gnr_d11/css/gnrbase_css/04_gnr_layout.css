@@ -1,8 +1,10 @@
+/* ==========================================================================
+   04_gnr_layout.css — SlotBar, opener buttons, toolbar selector,
+   ping semaphore, pbl_roundedGroup, tab containers
+   ========================================================================== */
+
 /* @group SlotBar */
 
-.openerPane{
-
-}
 .openerButton{
     background: gray;
     -moz-transition:all .5s;
@@ -33,7 +35,6 @@
 	overflow: visible;
 }
 
-
 .closedSide .slotbar{
 	display: none;
 }
@@ -60,7 +61,6 @@
 	height: 10px;
 	width: 10px;
 }
-
 
 .slotbarOpener_top{
 	border-bottom-right-radius: 5px;
@@ -188,7 +188,6 @@
 	padding: 0px !important;
 }*/
 
-
 /*.slotbar_toolbar .dijitButtonCheckedHover,
 .slotbar_toolbar .dijitToggleButtonCheckedHover
  {
@@ -208,21 +207,12 @@
 	padding: 3px 3px 0 6px;
 }*/
 
-
-.slotbar_vertical.slotbar_toolbar{
-
-}
-
 .slotbar_horizontal.slotbar_toolbar {
 
 	/*z-index:1;*/
 }
 /* @end */
 
-
-
-.slotbar_horizontal .slotbar_row{
-}
 .slotbar_lbl{
     font-size:10px;
 }
@@ -265,9 +255,6 @@
 
 /* @end */
 
-
-
-
 .ping_semaphore{
     height: 16px;
     width: 16px;
@@ -283,7 +270,4 @@
 .ping_error .ping_semaphore{
     background: url(../icons/base16/semaphore_red.png) no-repeat center center;
 }
-
-
-
 

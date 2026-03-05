@@ -1,0 +1,381 @@
+/* ==========================================================================
+   13_gnr_tree_treegrid.css — SQL descriptor, tree branches, treeGrid layout
+   ========================================================================== */
+
+/* --- SQL Descriptor HTML --- */
+.sqlcol{
+	font-weight: bold;
+}
+.sqlop{
+    font-style: italic;
+}
+
+.sqlvalue{
+	background: white;
+    border:1px solid silver;
+    padding-left: 4px;
+    padding-right: 4px;
+}
+
+.slqnested{
+	margin-left: 25px;
+}
+
+.windowmenuIcon{
+    background: url(../icons/base16/windowmenu.png) no-repeat center center;
+    height: 16px;
+    width: 16px;
+}
+
+.windowaddIcon{
+    background: url(../icons/base16/windowadd.png) no-repeat center center;
+    height: 16px;
+    width: 16px;
+}
+
+/* --- Tree branch expando (CSS arrows) --- */
+.tinyCloseBranch{
+    background: none;
+    position: relative;
+    padding-right: 12px;
+}
+.tinyCloseBranch::after{
+    content: '';
+    display: inline-block;
+    position: absolute;
+    right: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+    border-style: solid;
+    border-width: 4px 0 4px 5px;
+    border-color: transparent transparent transparent #666;
+}
+.tinyOpenBranch{
+    background: none;
+    position: relative;
+    padding-right: 12px;
+}
+.tinyOpenBranch::after{
+    content: '';
+    display: inline-block;
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    border-style: solid;
+    border-width: 5px 4px 0 4px;
+    border-color: #666 transparent transparent transparent;
+}
+.tunerUp{
+    background: url(../icons/base10/tuner_up.png) no-repeat center center;
+}
+.tunerDown{
+    background: url(../icons/base10/tuner_down.png) no-repeat center center;
+}
+
+/* --- Tiny tree --- */
+.tinytree .dijitTreeExpando{
+    display: none;
+}
+
+.tinytree .dijitTreeIcon{
+    padding-right: 0;
+    width: 10px;
+}
+.tinytree .mainfolder{
+    font-variant: small-caps;
+    font-size: 15px;
+    font-weight: bold;
+    color:#888;
+}
+.tinytree .foldernode{
+    font-variant: small-caps;
+    font-size: 13px;
+    color:#888;
+    font-weight: bold;
+}
+
+.tundra .tinytree .dijitTreeNode{
+    background: none;
+    margin-left: 12px;
+}
+.tundra .tinytree .dijitTreeContent{
+    font-size: 11px;
+    padding-top: 0;
+    min-height: none;
+    margin-left: 0;
+    padding-left: 0;
+}
+
+.tundra .tinytree .dijitTreeIsRoot.dijitTreeNode{
+    margin-left: 0;
+}
+
+/* --- TreeGrid layout --- */
+.treeGridLayout{
+    position:absolute;
+    top:0;
+    bottom:0;
+    right:0;
+    left:0;
+    color:#666;
+    overflow: hidden;
+}
+.treeGridHeader{
+    position:absolute;
+    top:0;
+    left:0;
+    right:0;
+}
+.treeGridFooter{
+    position:absolute;
+    bottom:0;
+    left:0;
+    right:0;
+}
+.treeGridCenter{
+    position:absolute;
+    left:0;
+    right:0;
+    overflow:auto;
+}
+.treeGridScroller{
+    position: absolute;
+    height:16px;
+    bottom:0;
+    left:0;
+    right:0;
+    overflow: hidden;
+}
+
+.treeGridLayout .treecell{
+    display: inline-block;
+    border-bottom: 1px solid #ddd;
+    border-left: 1px solid #ddd;
+}
+
+.treeGridCenter .selectedTreeNode .treecell{
+    font-weight: normal;
+    background-color: #AFCBEC !important;
+}
+
+.treeGridLayout .treecell:last-child{
+    border-right:1px solid #ddd;
+}
+.treeGridLayout .treegrid .maincell.treecell{
+    border-left: 1px solid transparent;
+}
+
+.treeGridLayout .treeGridHeader .treecell{
+    display: inline-block;
+    border-bottom: 0px;
+    border-left: 1px solid #ddd;
+    background: #204174;
+    color:#efefef;
+    white-space: nowrap;
+    text-align: center;
+    padding-top:1px;
+}
+.treeGridLayout .treeGridFooter .treecell{
+    display: inline-block;
+    border-bottom: 0px solid black;
+    border-left: 1px solid #ddd;
+    background: #F8CF00;
+    color:#204174;
+    padding-top:1px;
+    white-space: nowrap;
+}
+
+.treeGridLayout .treeGridHeader .treecell:last-child{
+    border-right:1px solid #ddd;
+}
+
+.treeCellContent{
+    padding-left: 0px;
+    padding-right: 3px;
+}
+
+.treegrid .dijitTreeContent{
+    position: relative;
+    height: 15px;
+}
+
+.treegrid.branchtree .dijitTreeContent{
+    margin-left: 20px;
+}
+
+.treegrid .dijitTreeLabel{
+    display: inline-block;
+    position: absolute;
+    right: 0;
+    top:0;
+    bottom:0;
+    left: 0;
+}
+.treeHeaderRow{
+    position: absolute;
+    top:0px;
+    right:2px;
+    left:1px;
+}
+
+.treegrid .treerow{
+    position: absolute;
+    top:0px;
+    right:2px;
+    left:0px;
+    bottom: -1px;
+}
+.treegrid .treerow_columns{
+    display: inline-block;
+}
+.treeerow_viewport{
+    display: inline-block;
+}
+
+/* --- GroupBy tree --- */
+.groupby_tree .dijitTreeContainer .treecell  {
+    color:#444;
+    font-style: italic;
+}
+.groupby_tree .treerow_folder .treecell  {
+    color:#444;
+    font-style: normal;
+}
+.groupby_tree .treerow_folder.treerow_level_0 .treecell  {
+    background-color: rgba(255, 253, 123, 0.20);
+    color:#444;
+}
+.groupby_tree .treerow_folder.treerow_level_1 .treecell  {
+    color:navy;
+}
+.groupby_tree .treerow_folder.treerow_level_2 .treecell  {
+    color:darkgreen;
+}
+.groupby_tree .treerow_folder.treerow_level_3 .treecell  {
+    color:darkgreen;
+}
+
+.groupby_tree .treerow_folder.treerow_level_4 .treecell  {
+    color:darkgreen;
+}
+
+.groupby_tree.treeGridLayout .treeGridHeader .treecell{
+    background: none;
+    color: #555;
+    border-bottom: 1px solid #ddd;
+    background: rgb(246, 246, 246);
+}
+
+/* --- TreeGrid checkbox --- */
+.treegridcheckbox .treegrid .dijitTreeLabel{
+    left:22px;
+}
+.treegridcheckbox .treerow_header{
+    margin-left: 22px;
+}
+
+/* --- Branch tree --- */
+.branchtree .branchtree_selected.dijitTreeLabel{
+    background-color: #3A4D65;
+    color: white;
+    padding-right: 15px;
+    border-radius: 0px 10px 10px 0px;
+}
+.branchtree{
+    line-height: 15px;
+}
+
+.branchtree .dijitTreeLabel {
+    padding-left: 2px;
+    white-space: nowrap;
+}
+.treeGridCenter .branchtree .dijitTreeLabel {
+    padding-left: 0;
+}
+
+.branchtree .dijitTreeExpando{
+    height: 15px;
+    width: 16px;
+    cursor: pointer;
+}
+.treeGridCenter .branchtree .dijitTreeExpando{
+    width: 14px;
+}
+.treeGridCenter .treegrid.branchtree .dijitTreeContent{
+    margin-left: 15px;
+}
+
+.treegridcheckbox .treeGridCenter .treegrid.branchtree .dijitTreeContent{
+    margin-left: 30px;
+}
+
+.branchtree .dijitTreeExpando.dijitTreeExpandoClosed{
+    background: none;
+    position: relative;
+}
+.branchtree .dijitTreeExpando.dijitTreeExpandoClosed::after{
+    content: '';
+    display: block;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    border-style: solid;
+    border-width: 4px 0 4px 5px;
+    border-color: transparent transparent transparent #666;
+}
+.branchtree .dijitTreeExpando.dijitTreeExpandoOpened{
+    background: none;
+    position: relative;
+}
+.branchtree .dijitTreeExpando.dijitTreeExpandoOpened::after{
+    content: '';
+    display: block;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    border-style: solid;
+    border-width: 5px 4px 0 4px;
+    border-color: #666 transparent transparent transparent;
+}
+
+.branchtree .dijitTreeExpandoLeaf{
+    background: none;
+}
+
+.branchtree.treeLongLabels .dijitTreeLabel {
+    padding-left: 2px;
+    white-space: normal;
+}
+
+.branchtree .dijitTreeContent {
+    min-height: 0;
+    padding-bottom: 2px;
+    padding-top: 0;
+    margin-left: 0;
+}
+
+.branchtree .dijitTreeNode {
+    background: none;
+    margin-left: 10px;
+}
+
+.branchtree .dijitTreeIsRoot{
+    margin-left: 0px;
+}
+
+.tree_captionvalue{
+    border: 1px solid silver;
+    display: inline-block;
+}
+.tree_captionvalue_label{
+    background-color: #efefef;
+    width:150px;
+    display: inline-block;
+}
+.tree_captionvalue_value{
+    width:250px;
+    display: inline-block;
+}

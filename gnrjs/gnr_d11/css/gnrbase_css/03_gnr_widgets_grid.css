@@ -1,9 +1,11 @@
+/* ==========================================================================
+   03_gnr_widgets_grid.css — DojoxGrid base, treegrid, PatchDojox,
+   grid header, cell formatting, row templates
+   ========================================================================== */
+
 /* @group DojoxGrid*/
 .fillernode{
     overflow: hidden;
-}
-
-.tundra .filteredGrid .dojoxGrid-cell{
 }
 
 .gnrDraftRow{
@@ -18,9 +20,6 @@
 .tundra ._gnrInvalidRow ._statusIcon, .tundra ._gnrInvalidRow._gnrReadOnlyRow ._statusIcon ,
 .tundra ._gnrInvalidRow._gnrProtectionPass ._statusIcon{
     background: url(../icons/base16/semaphore_red.png) no-repeat center center;
-}
-
-.tundra ._gnrProtectionPass ._statusIcon{
 }
 
 ._statusIcon{
@@ -155,7 +154,6 @@ body *{
     display:none;
 }
 
-
 .textAreaWrapper{
     position: relative;
     display: inline-block;
@@ -224,9 +222,6 @@ body *{
     width:100%;
 }
 
-.textAreaWrapperInTable .textAreaWrapperArea{
-}
-
 .textAreaWrapperArea{
     position:relative;
     /*width:100%;*/
@@ -243,8 +238,6 @@ body *{
     left: 10px;
     background: #F2F2F2;
 }
-
-
 
 .textAreaWrapperInTable .textAreaWrapperButtons{
     opacity: 0;
@@ -266,11 +259,9 @@ body *{
     border-top:0;
 }
 
-
 .textAreaWrapper:hover .textAreaWrapperButtons{
     opacity:1;
 }
-
 
 .TAspeechInputBox{
     position:relative;
@@ -316,11 +307,8 @@ body *{
     border:0px;
 }
 ._common_d11 .cke_top{
-    background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, from(#F6F6F6), to(#E9E9E9));
-    background-image: -moz-linear-gradient(-90deg, #F6F6F6, #E9E9E9);
+    background-image: linear-gradient(to bottom, #F6F6F6, #E9E9E9);
 }
-
-
 
 .tundra .dijitTextBoxFocused .cls_DbSelect, .tundra .dijitComboBoxFocused .cls_DbSelect{
     background-color: var(--field-focus-bg, #fff);
@@ -346,8 +334,6 @@ body *{
 }
 /* @end */
 
-
-
 /* @group PatchDojox */
 .tundra .dojoxDockNode {
 	border: 1px solid #adadad;
@@ -360,8 +346,8 @@ body *{
 	width: auto;
 	float: left;
     background-color: #EDEDEE;
-    background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, from(#EDEDEE), to(#CDCDCD));
-    background-image: -moz-linear-gradient(-90deg, #EDEDEE, #CDCDCD);}
+    background-image: linear-gradient(to bottom, #EDEDEE, #CDCDCD);
+}
 /* @end */
 /* @group PatchDojox */
 
