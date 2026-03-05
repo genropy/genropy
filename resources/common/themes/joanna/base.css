@@ -1,33 +1,8 @@
-/* joanna/base.css — Default color palette + user color variants
-   This file serves as template: copy to acme.css, corporate.css etc.
-   to create custom corporate palettes with approved color variants.
+/* joanna/base.css — User color variants
+   This file is loaded when css_theme_variant='base' (default).
+   Copy to acme.css to create a corporate palette with approved variants,
+   or leave empty to disable user color choice.
 */
-
-body {
-    --primary-color: #636366;
-    --primary-dark: #3A3A3C;
-    --primary-light: #D8D8DC;
-    --primary-lighter: #F2F2F7;
-    --accent-color: #007AFF;
-    --mainWindow-background: white;
-    --frameindexroot-background: #F2F2F7;
-    --frameindexcenter-background: #F2F2F7;
-    --frameindexroot-mobile-background: #48484A;
-    --roundedgroup-bar: transparent;
-    --roundedgroup-bar-color: var(--primary-color);
-    --roundedgroup-border: #D1D1D6;
-    --card-surface: #F2F2F7;
-    --roundedgroup-surface: var(--card-surface);
-    --roundedgroup-shadow: rgba(0,0,0,0.06);
-    --topLabelTable-border-top: 2px solid var(--primary-light);
-    --topLabelTable-separator: var(--primary-light);
-    --field-border: #AEAEB2;
-    --field-bg: white;
-    --field-disabled-border: #C7C7CC;
-    --field-disabled-bg: #F2F2F7;
-    --field-readonly-border: #C7C7CC;
-    --field-readonly-bg: #F2F2F7;
-}
 
 /* Color variants
    3 key areas per variant:
@@ -37,7 +12,7 @@ body {
 */
 
 /* Green - green/fuchsia */
-._common_d11.tundra.theme_variant_green {
+.theme_variant_green {
     --primary-color: #1d7d55;
     --primary-dark: #8b1a6b;
     --accent-color: #8b1a6b;
@@ -54,7 +29,7 @@ body {
 }
 
 /* Blue - ocean */
-._common_d11.tundra.theme_variant_blue {
+.theme_variant_blue {
     --primary-color: #2a62a8;
     --primary-dark: #1e4a80;
     --accent-color: #0a84ff;
@@ -71,7 +46,7 @@ body {
 }
 
 /* Red - ruby */
-._common_d11.tundra.theme_variant_red {
+.theme_variant_red {
     --primary-color: #c53040;
     --primary-dark: #9a2232;
     --accent-color: #e8364a;
@@ -88,7 +63,7 @@ body {
 }
 
 /* Orange - orange top / plum frameindex */
-._common_d11.tundra.theme_variant_orange {
+.theme_variant_orange {
     --primary-color: #d4650a;
     --primary-dark: #6a2058;
     --accent-color: #6a2058;
@@ -105,7 +80,7 @@ body {
 }
 
 /* Yellow - calabrone (hornet: vivid wasp yellow / black) */
-._common_d11.tundra.theme_variant_yellow {
+.theme_variant_yellow {
     --primary-color: #1a1a1a;
     --primary-dark: #1a1a1a;
     --accent-color: #b8960a;

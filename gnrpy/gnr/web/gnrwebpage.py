@@ -1731,9 +1731,7 @@ class GnrWebPage(GnrBaseWebPage):
         css_theme_variant =  self.get_css_theme_variant()
         if css_theme:
             requires.append('themes/%s' %css_theme)
-        requires.append('themes/{css_theme}/base'.format(css_theme=css_theme))
-        if css_theme_variant != 'base':
-            requires.append('themes/{css_theme}/{css_theme_variant}'.format(css_theme=css_theme, css_theme_variant=css_theme_variant))
+        requires.append('themes/{css_theme}/{css_theme_variant}'.format(css_theme=css_theme, css_theme_variant=css_theme_variant))
         if self.dbstore:
             requires.append('multidb_{dbstore}/theme_variant'.format(dbstore=self.dbstore))
         if css_icons:

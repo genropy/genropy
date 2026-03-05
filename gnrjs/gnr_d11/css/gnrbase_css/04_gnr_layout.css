@@ -149,12 +149,15 @@
     position:relative;
     white-space:nowrap;
     overflow:hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content:center;
 }
 
 /* @group Toolbar Selector */
 .slotbar_toolbar {
-	padding-top: 1px;
-	padding-bottom: 1px;
+	padding-top: var(--toolbar-padding);
+	padding-bottom: var(--toolbar-padding);
 }
 
 .slotbar_vertical.slotbar_toolbar{
@@ -330,7 +333,7 @@
 }
 
 .pbl_viewBoxLabel {
-    height: 18px;
+    height: var(--toolbar-height);
     border-top-left-radius: var(--radius-controls);
     border-top-right-radius: var(--radius-controls);
     padding-left: 10px;

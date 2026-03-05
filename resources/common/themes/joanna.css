@@ -1,71 +1,29 @@
 /*joanna*/
 
-/* @group pbl_root_top */
-.joanna .pbl_root_top {
-    height: 24px;
-    vertical-align: middle;
-    color:var(--root-top-color);
-    background:var(--root-top-background);
+/* @group Default color palette */
+body {
+    --primary-color: #636366;
+    --primary-dark: #3A3A3C;
+    --primary-light: #D8D8DC;
+    --primary-lighter: #F2F2F7;
+    --accent-color: #007AFF;
+    --mainWindow-background: white;
+    --frameindexroot-background: #F2F2F7;
+    --frameindexcenter-background: #F2F2F7;
+    --frameindexroot-mobile-background: #48484A;
+    --roundedgroup-bar: transparent;
+    --roundedgroup-bar-color: var(--primary-color);
+    --roundedgroup-border: #D1D1D6;
+    --card-surface: #F2F2F7;
+    --roundedgroup-surface: var(--card-surface);
+    --roundedgroup-shadow: rgba(0,0,0,0.06);
+    --topLabelTable-border-top: 2px solid var(--primary-light);
+    --topLabelTable-separator: var(--primary-light);
+    --field-border: #AEAEB2;
+    --field-bg: white;
+    --field-disabled-border: #C7C7CC;
+    --field-disabled-bg: #F2F2F7;
+    --field-readonly-border: #C7C7CC;
+    --field-readonly-bg: #F2F2F7;
 }
-.joanna .pbl_root_top .gnrfieldlabel{
-    color: var(--root-top-color, #fff);
-}
-/* @end */
-
-/* @group MenuTree - joanna specific */
-
-._common_d11.joanna.mode_mobile .menutree .label_opendir{
-    background: none;
-    padding-left: 16px;
-    position: relative;
-}
-._common_d11.joanna.mode_mobile .menutree .label_opendir::before{
-    content: '';
-    display: block;
-    position: absolute;
-    left: 4px;
-    top: 50%;
-    transform: translateY(-50%);
-    border-style: solid;
-    border-width: 5px 4px 0 4px;
-    border-color: white transparent transparent transparent;
-}
-._common_d11.joanna.mode_mobile .menutree .label_closedir{
-    background: none;
-    padding-left: 16px;
-    position: relative;
-}
-._common_d11.joanna.mode_mobile .menutree .label_closedir::before{
-    content: '';
-    display: block;
-    position: absolute;
-    left: 4px;
-    top: 50%;
-    transform: translateY(-50%);
-    border-style: solid;
-    border-width: 4px 0 4px 5px;
-    border-color: transparent transparent transparent white;
-}
-._common_d11.joanna.mode_mobile .menutree.menutree_branchiconright .label_opendir,
-._common_d11.joanna.mode_mobile .menutree.menutree_branchiconright .label_closedir{
-    background: none;
-}
-
-.joanna.mode_mobile .menutree .menu_shape.menutreeSelected{
-    color: var(--frameindex-tablist-color, #fff);
-}
-
-.joanna .menutree .menu_shape.menutreeSelected{
-    color: var(--accent-color, #007AFF);
-    font-weight: 600;
-}
-
-.joanna.mode_mobile .menu_branch.menu_shape.menutreeSelected{
-    color: var(--frameindex-tablist-color, #fff);
-}
-
-.joanna .menu_branch.menu_shape.menutreeSelected{
-    color: var(--primary-dark, #3A3A3C);
-}
-
 /* @end */

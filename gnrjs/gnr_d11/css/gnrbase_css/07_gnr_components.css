@@ -390,21 +390,35 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
 
 /* @group pbl_rectGroup */
 .pbl_rectGroupLabel {
-    height: 22px;
+    height: var(--toolbar-height);
     padding-left: 10px;
     font-size: 0.9em;
     padding-top: 5px;
-    background: var(--primary-light, #e8ecf4);
+    background: var(--rectgroup-bar-background);
     color: var(--primary-color, #1E3055);
     font-weight: 500;
 }
 
 .pbl_rectGroupBottom {
-    height: 18px;
+    height: var(--toolbar-height);
     padding-left: 10px;
     font-size: 0.9em;
     padding-bottom: 5px;
-    background: var(--primary-light, #e8ecf4);
+    background: var(--rectgroup-bar-background);
+}
+/* @end */
+
+/* @group pbl_root_top */
+.pbl_root_top {
+    height: 2em;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    color: var(--root-top-color);
+    background: var(--root-top-background);
+}
+.pbl_root_top .gnrfieldlabel {
+    color: var(--root-top-color);
 }
 /* @end */
 

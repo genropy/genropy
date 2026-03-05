@@ -49,8 +49,8 @@
 /* @group Formhandler */
 
 .fh_bottom_message{
-    height: 16px;
-    line-height: 16px;
+    height: var(--toolbar-height);
+    line-height: var(--toolbar-height);
     border-top: 1px solid var(--border-color);
     background-color: #e6e6e6;
     color: var(--text-muted);
@@ -223,8 +223,8 @@
 }
 
 ._common_d11 .slotbar_toolbar {
-    padding-top: 2px;
-    padding-bottom: 2px;
+    padding-top: var(--toolbar-padding);
+    padding-bottom: var(--toolbar-padding);
 }
 
 ._common_d11 .menudiv_text {

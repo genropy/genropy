@@ -1,221 +1,41 @@
 /*mimi*/
 
-/* @group pbl_root_top */
-.mimi .pbl_root_top {
-    height: 24px;
-    vertical-align: middle;
-    color:var(--root-top-color);
-    background:var(--root-top-background);
-}
-.mimi .pbl_root_top .gnrfieldlabel{
-    color:rgba(30, 48, 85, 1);
-}
-/* @end */
+/* @group Default color palette */
+body {
+    --font-family: "SF Pro Text", "Myriad Set Pro", "SF Pro Icons", "Apple Legacy Chevron", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
+    --primary-color: #1E3055;
+    --mainWindow-background: linear-gradient(to top, #f6f8fa, #ffffff);
+    --mainWindow-color: #444;
+    --frameindexroot-background: linear-gradient(to right, #FFFFFF, #ECE9E6);
+    --frameindexcenter-background: white;
+    --frameindexroot-mobile-background: #4b525b;
+    --root-top-background: rgba(234, 203, 110, 1);
+    --root-top-color: rgba(30, 48, 85, 1);
+    --frameindex-tablist-background: linear-gradient(to right top, #172b51, #1b3058, #20345e, #243965, #293e6c);
+    --frameindex-tablist-color: #ffffff;
+    --frameindex-subtab-bg: linear-gradient(-90deg, #A6CAEE, #467399);
+    --dialogtitlebar-background: linear-gradient(to right top, #172b51, #1b3058, #20345e, #243965, #293e6c);
+    --gnrfieldlabel-color: #707070;
 
-/* @group Form group — mimi overrides */
-.mimi .gnr_footer{
-    background-color: var(--roundedgroup-bar);
-}
-.mimi .pbl_roundedBlock{
-    border-radius: 6px;
-    border: 1px solid var(--border-color, #ddd);
-    background: none;
-    box-shadow: none;
-}
+    /* Tabs */
+    --tab-background: linear-gradient(to bottom, #c2d0e9, #d6dfee);
+    --tab-text-color: #444;
+    --tab-selected-background: white;
+    --tab-selected-color: #ccc;
 
-.mimi .pbl_roundedGroup {
-    border-radius: 6px;
-    border: 1px solid var(--border-color, #ddd);
-    background: none;
-    box-shadow: none;
-}
+    /* Rounded/Rect groups — flat style, no card shadows */
+    --roundedgroup-bar: linear-gradient(to bottom, #c2d0e9, #d6dfee);
+    --roundedgroup-bar-color: #444;
+    --roundedgroup-surface: transparent;
+    --shadow-sm: none;
+    --border-strong: var(--border-color, #ddd);
+    --radius-panels: 6px;
+    --rectgroup-bar-background: linear-gradient(to bottom, #c2d0e9, #d6dfee);
 
-.mimi .pbl_roundedGroupLabel {
-    min-height: 22px;
-    line-height: 19px;
-    padding: 2px 4px 0 4px;
-    border-top-left-radius: 4px;
-    border-top-right-radius: 4px;
-    font-size: 1em;
-    background: var(--roundedgroup-bar);
-    color: var(--roundedgroup-bar-color);
-    text-indent: 2px;
-}
-
-.mimi .pbl_roundedGroupLabel.slotbar_horizontal{
-    padding-left: 0;
-    padding-right: 0;
-    vertical-align: middle;
-}
-.mimi .pbl_roundedGroupLabel.slotbar_horizontal .slotbar_cell{
-    height: 20px;
-    line-height: 14px;
-}
-
-.mimi .pbl_roundedGroupBottom {
-    height: 18px;
-    padding-left: 10px;
-    font-size: 0.9em;
-    background-color: #B4BECB;
-}
-/* @end */
-
-/* @group Form group rect — mimi overrides */
-.mimi .pbl_rectGroupLabel {
-    background: linear-gradient(to bottom, #c2d0e9, #d6dfee);
-    color: #444;
-}
-
-.mimi .pbl_rectGroupBottom {
-    background: linear-gradient(to bottom, #c2d0e9, #d6dfee);
-}
-/* @end */
-
-/* @group Tabcontainer — mimi overrides */
-
-.mimi ._common_d11 .dijitTab {
-    font-size: .9em;
-    border-radius: 4px 4px 0 0;
-    background: var(--tab-background);
-    color: var(--tab-text-color);
-    margin-right: 2px;
-    font-weight: normal;
-    border: none;
-    box-shadow: none;
-}
-
-.mimi ._common_d11 .dijitTabHover {
-    opacity: 0.8;
-}
-
-.mimi ._common_d11 .dijitTabInnerDiv {
-    padding: 3px 5px;
-}
-
-.mimi ._common_d11 .dijitTabChecked {
-    border-bottom-color: transparent;
-    color: var(--tab-text-color);
-    background: var(--tab-selected-background);
-}
-
-.mimi ._common_d11 .dijitAlignTop .dijitTabChecked,
-.mimi ._common_d11 .dijitAlignTop .dijitTabCloseButtonChecked {
-    background: white;
-    border-bottom-color: transparent;
-    color: #555;
-}
-
-.mimi ._common_d11 .dijitTabPaneWrapper {
-    border-radius: 6px;
-    border-top-left-radius: 0;
-}
-
-/* @group righttab */
-
-.mimi ._common_d11 .dijitTabLabels-right-h .dijitTab {
-    margin-bottom: 1px;
-    border-width: 0;
-}
-
-.mimi ._common_d11 .dijitTabLabels-right-h.dijitAlignRight,
-.mimi ._common_d11 .dijitTabLabels-left-h.dijitAlignLeft{
-    padding-top: 3px;
-}
-.mimi ._common_d11 .dijitTabLabels-left-h.dijitAlignLeft{
-    border-top: 1px solid #ccc;
-    border-left: 1px solid #ccc;
-    border-bottom: 1px solid #ccc;
-    padding-right: 2px;
-}
-.mimi ._common_d11 .dijitTabLabels-right-h.dijitAlignRight{
-    border-top: 1px solid #ccc;
-    border-right: 1px solid #ccc;
-    border-bottom: 1px solid #ccc;
-    padding-left: 2px;
-}
-
-.mimi ._common_d11 .dijitTabLabels-right-h .dijitTabInnerDiv {
-    border: 0;
-}
-
-.mimi ._common_d11 .dijitTabLabels-right-h.dijitAlignTop .dijitTabChecked {
-    border-left-color: #f5f5f5;
-}
-
-/* @end */
-
-/* @group lefttab */
-
-.mimi ._common_d11 .dijitTabLabels-left-h .dijitTab {
-    border-top-left-radius: 4px;
-    border-bottom-left-radius: 4px;
-    border: 1px solid #ccc;
-    margin-left: 3px;
-    text-align: right;
-    margin-bottom: 2px;
-    color: #444;
-}
-.mimi ._common_d11 .dijitTabLabels-left-h .dijitTab.dijitTabChecked {
-    color: #444;
-    background: linear-gradient(to bottom, #fffff3, #fcf8c5);
-}
-
-.mimi ._common_d11 .dijitTabLabels-left-h .dijitAlignTop .dijitTabChecked,
-.mimi ._common_d11 .dijitAlignTop .dijitTabCloseButtonChecked {
-    border-right-color: transparent;
-    background: white;
-    border-bottom-color: #ccc;
-}
-
-/* @end */
-
-/* @end */
-
-/* @group MenuTree - mimi specific */
-
-._common_d11.mimi.mode_mobile .menutree .label_opendir{
-    background: url(/_gnr/11/css/icons/base10/tinyOpenBranch_white.png) no-repeat 4px center;
-}
-._common_d11.mimi.mode_mobile .menutree .label_closedir{
-    background: url(/_gnr/11/css/icons/base10/tinyCloseBranch_white.png) no-repeat 4px center;
-}
-._common_d11.mimi.mode_mobile .menutree.menutree_branchiconright .label_opendir,
-._common_d11.mimi.mode_mobile .menutree.menutree_branchiconright .label_closedir{
-    background: none;
-}
-
-.mimi.mode_mobile .menutree .menu_shape.menutreeSelected{
-    color:rgba(255, 210, 0, 1.00);
-}
-
-.mimi .menutree .menu_shape.menutreeSelected{
-    color:rgb(255, 0, 111);
-}
-
-.mimi.mode_mobile .menu_branch.menu_shape.menutreeSelected{
-    color:white;
-}
-
-.mimi .menu_branch.menu_shape.menutreeSelected{
-    color: #444;
-}
-
-/* @end */
-
-/* @group frameindex_left — mimi override */
-.mimi .frameindex_left{
-    background: linear-gradient(to right, #FFFFFF, #ECE9E6);
-}
-/* @end */
-
-/* @group darktoolbar - mimi adds gradient */
-.mimi .darktoolbar{
-    background-image: linear-gradient(to bottom, #f5f8fa46, #eff1f344, #f3f4f531);
-}
-/* @end */
-
-/* @group iframesubtab - mimi adds gradient */
-.mimi .iframesubtab.iframetab{
-    background-image: linear-gradient(-90deg, #A6CAEE, #467399);
+    /* Menutree selected states */
+    --menutree-selected-color: rgb(255, 0, 111);
+    --menutree-branch-selected-color: #444;
+    --menutree-mobile-selected-color: rgba(255, 210, 0, 1.00);
+    --menutree-mobile-branch-selected-color: white;
 }
 /* @end */

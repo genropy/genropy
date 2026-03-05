@@ -72,6 +72,9 @@
     --grid-cell-hover-bg: #F8FFD9;
 
     /* --- Toolbar --- */
+    --toolbar-height: 1.75em;
+    --toolbar-height-lg: 2em;
+    --toolbar-padding: 0.15em;
     --toolbar-bg: #EDEDEE;
     --toolbar-gradient: linear-gradient(to bottom, #EDEDEE, #CDCDCD);
     --toolbar-color: #383838;
@@ -110,6 +113,7 @@
     --roundedgroup-bar-color: #3A3A3C;
     --roundedgroup-border: #D1D1D6;
     --roundedgroup-shadow: rgba(0,0,0,0.06);
+    --rectgroup-bar-background: var(--primary-light, #e8ecf4);
 
     /* --- Form fields --- */
     --field-bg: white;
@@ -144,6 +148,11 @@
     /* --- Menu --- */
     --menu-text-color: #444;
     --menutree-chevron-color: currentColor;
+    --menutree-selected-color: var(--accent-color);
+    --menutree-selected-weight: 600;
+    --menutree-mobile-selected-color: var(--frameindex-tablist-color);
+    --menutree-branch-selected-color: var(--primary-dark);
+    --menutree-mobile-branch-selected-color: var(--frameindex-tablist-color);
 
     /* --- Buttons: filled --- */
     --btn-filled-bg: #1976D2;

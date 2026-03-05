@@ -1,128 +1,45 @@
-/* mimi/base.css — Default color palette + user color variants
-   This file serves as template: copy to acme.css, corporate.css etc.
-   to create custom corporate palettes with approved color variants.
+/* mimi/base.css — User color variants
+   This file is loaded when css_theme_variant='base' (default).
+   Copy to acme.css to create a corporate palette with approved variants,
+   or leave empty to disable user color choice.
 */
 
-body {
-    --font-family: "SF Pro Text", "Myriad Set Pro", "SF Pro Icons", "Apple Legacy Chevron", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
-    --primary-color: #1E3055;
-    --mainWindow-background: white;
-    --frameindexroot-background: white;
-    --frameindexcenter-background: white;
-    --frameindexroot-mobile-background: #4b525b;
+/* Green */
+.theme_variant_green {
+    --root-top-background: linear-gradient(to bottom, #1d976c, #37ce99);
+    --root-top-color: white;
+    --dialogtitlebar-background: linear-gradient(to bottom, #1d976c, #37ce99);
+    --dialogtitlebar-color: white;
+}
+
+/* Blue */
+.theme_variant_blue {
+    --root-top-background: linear-gradient(to bottom, #4b6cb7, #3b6391);
+    --root-top-color: white;
+    --dialogtitlebar-background: linear-gradient(to bottom, #4b6cb7, #3b6391);
+    --dialogtitlebar-color: white;
+}
+
+/* Red */
+.theme_variant_red {
+    --root-top-background: linear-gradient(to bottom, #d31027, #ea384d);
+    --root-top-color: white;
+    --dialogtitlebar-background: linear-gradient(to bottom, #d31027, #ea384d);
+    --dialogtitlebar-color: white;
+}
+
+/* Orange */
+.theme_variant_orange {
+    --root-top-background: linear-gradient(to bottom, #fa8435, #f96723);
+    --root-top-color: white;
+    --dialogtitlebar-background: linear-gradient(to bottom, #fa8435, #f96723);
+    --dialogtitlebar-color: white;
+}
+
+/* Yellow */
+.theme_variant_yellow {
     --root-top-background: rgba(234, 203, 110, 1);
     --root-top-color: rgba(30, 48, 85, 1);
-    --frameindex-tablist-background: linear-gradient(to right top, #172b51, #1b3058, #20345e, #243965, #293e6c);
-    --frameindex-tablist-color: #ffffff;
-    --roundedgroup-bar: linear-gradient(to bottom, #c2d0e9, #d6dfee);
-    --roundedgroup-bar-color: #444;
-    --gnrfieldlabel-color: #707070;
-    --tab-background: linear-gradient(to bottom, #c2d0e9, #d6dfee);
-    --tab-text-color: #444;
-    --tab-selected-background: white;
-    --tab-selected-color: #ccc;
-    --mainWindow-background: linear-gradient(to top, #f6f8fa, #ffffff);
-    --mainWindow-color: #444;
-    --dialogtitlebar-background: linear-gradient(to right top, #172b51, #1b3058, #20345e, #243965, #293e6c);
+    --dialogtitlebar-background: rgba(234, 203, 110, 1);
+    --dialogtitlebar-color: rgba(30, 48, 85, 1);
 }
-
-/* @group FloatingPaneTitle variant overrides */
-._common_d11.tundra.theme_variant_green .dojoxFloatingPaneTitle{
-    background-color: #50c9c3;
-    background: linear-gradient(to bottom, #1d976c, #37ce99);
-    color:white;
-}
-
-._common_d11.tundra.theme_variant_blue .dojoxFloatingPaneTitle{
-    background-color: #182848;
-    background: linear-gradient(to bottom, #4b6cb7, #3b6391);
-}
-
-._common_d11.tundra.theme_variant_red .dojoxFloatingPaneTitle{
-    background-color: #d31027;
-    background: linear-gradient(to bottom, #d31027, #ea384d);
-}
-
-._common_d11.tundra.theme_variant_orange .dojoxFloatingPaneTitle{
-    background-color:#e65c00;
-    background: linear-gradient(to bottom, #fa8435, #f96723);
-}
-
-._common_d11.tundra.theme_variant_yellow .dojoxFloatingPaneTitle{
-    background-color:rgba(234, 203, 110, 1);
-    color:rgba(30, 48, 85, 1);
-}
-/* @end */
-
-/* @group pbl_root_top variant overrides */
-.mimi.theme_variant_green .pbl_root_top{
-    background-color: #50c9c3;
-    background: linear-gradient(to bottom, #1d976c, #37ce99);
-    color:white;
-}
-.mimi.theme_variant_green .pbl_root_top .gnrfieldlabel{
-    color:white;
-}
-.mimi.theme_variant_red .pbl_root_top{
-    background-color:#d31027;
-    background: linear-gradient(to bottom, #d31027, #ea384d);
-    color:white;
-}
-.mimi.theme_variant_red .pbl_root_top .gnrfieldlabel{
-    color:white;
-}
-
-.mimi.theme_variant_blue .pbl_root_top{
-    background-color: #182848;
-    background: linear-gradient(to bottom, #4b6cb7, #3b6391);
-    color:white;
-}
-.mimi.theme_variant_blue .pbl_root_top .gnrfieldlabel{
-    color:white;
-}
-
-.mimi.theme_variant_orange .pbl_root_top{
-    background-color:#e65c00;
-    background: linear-gradient(to bottom, #fa8435, #f96723);
-    color:white;
-}
-.mimi.theme_variant_orange .pbl_root_top .gnrfieldlabel{
-    color:white;
-}
-
-.mimi.theme_variant_yellow .pbl_root_top{
-    background-color:rgba(234, 203, 110, 1);
-    color:rgba(30, 48, 85, 1);
-}
-.mimi.theme_variant_yellow .pbl_root_top .gnrfieldlabel{
-    color:rgba(30, 48, 85, 1);
-}
-/* @end */
-
-/* @group Dialog titlebar variant overrides */
-.tundra._common_d11.theme_variant_green .dijitDialogTitleBar,
-.tundra._common_d11.theme_variant_green .commonTitleBar{
-    background: linear-gradient(to bottom, #1d976c, #37ce99);
-    color: white;
-}
-
-.tundra._common_d11.theme_variant_red .dijitDialogTitleBar,
-.tundra._common_d11.theme_variant_red .commonTitleBar{
-    background: linear-gradient(to bottom, #d31027, #ea384d);
-}
-.tundra._common_d11.theme_variant_blue .dijitDialogTitleBar,
-.tundra._common_d11.theme_variant_blue .commonTitleBar{
-    background: linear-gradient(to bottom, #4b6cb7, #3b6391);
-}
-
-.tundra._common_d11.theme_variant_orange .dijitDialogTitleBar,
-.tundra._common_d11.theme_variant_orange .commonTitleBar{
-    background: linear-gradient(to bottom, #fa8435, #f96723);
-}
-
-.tundra._common_d11.theme_variant_yellow .dijitDialogTitleBar,
-.tundra._common_d11.theme_variant_yellow .commonTitleBar{
-    background-color: rgba(234, 203, 110, 1);
-    color: rgba(30, 48, 85, 1);
-}
-/* @end */

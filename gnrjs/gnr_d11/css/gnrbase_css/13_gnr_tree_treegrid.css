@@ -486,6 +486,45 @@
     background-color: var(--menutree-chevron-color);
 }
 
+/* @group mobile menutree branch icons — CSS triangles with currentColor */
+.mode_mobile .menutree .label_opendir {
+    background: none;
+    padding-left: 1em;
+    position: relative;
+}
+.mode_mobile .menutree .label_opendir::before {
+    content: '';
+    display: block;
+    position: absolute;
+    left: 0.25em;
+    top: 50%;
+    transform: translateY(-50%);
+    border-style: solid;
+    border-width: 0.35em 0.25em 0 0.25em;
+    border-color: currentColor transparent transparent transparent;
+}
+.mode_mobile .menutree .label_closedir {
+    background: none;
+    padding-left: 1em;
+    position: relative;
+}
+.mode_mobile .menutree .label_closedir::before {
+    content: '';
+    display: block;
+    position: absolute;
+    left: 0.25em;
+    top: 50%;
+    transform: translateY(-50%);
+    border-style: solid;
+    border-width: 0.25em 0 0.25em 0.35em;
+    border-color: transparent transparent transparent currentColor;
+}
+.mode_mobile .menutree.menutree_branchiconright .label_opendir,
+.mode_mobile .menutree.menutree_branchiconright .label_closedir {
+    background: none;
+}
+/* @end */
+
 .menutree .menu_current_page {
     color: var(--text-color);
 }
@@ -502,3 +541,19 @@
 .menutree .menu_shape.menu_level_2.addTableItem {
     font-style: italic;
 }
+
+/* @group menutreeSelected — shared across themes */
+.menutree .menu_shape.menutreeSelected {
+    color: var(--menutree-selected-color);
+    font-weight: var(--menutree-selected-weight, 600);
+}
+.mode_mobile .menutree .menu_shape.menutreeSelected {
+    color: var(--menutree-mobile-selected-color);
+}
+.menu_branch.menu_shape.menutreeSelected {
+    color: var(--menutree-branch-selected-color);
+}
+.mode_mobile .menu_branch.menu_shape.menutreeSelected {
+    color: var(--menutree-mobile-branch-selected-color);
+}
+/* @end */
