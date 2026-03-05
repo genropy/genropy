@@ -318,7 +318,6 @@ genropatches.comboBox = function() {
             var tplRow = this.params.auxColumns_template;
             var max_height = null;
             if(tplRow){
-                console.log('tplRow',tplRow)
                 results.forEach(n=>{
                     n.attr._template_value = dataTemplate(tplRow,n.attr);
                 });
@@ -340,10 +339,7 @@ genropatches.comboBox = function() {
         },
 
         clearResultList:function() {
-            // keep the previous and next buttons of course
-            while (this.domNode.childNodes.length > 2) {
-                this.domNode.innerHtml = '';
-            }
+            this.domNode.innerHTML = '';
         },
         getItems:function() {
             return this.tblrows();
@@ -368,9 +364,6 @@ genropatches.comboBox = function() {
         },
 
         onmouseover:function(/*Event*/ evt) {
-            if (dojo.isIE > 0) {
-                return;
-            }
             if (evt.target === this.domNode) {
                 return;
             }
@@ -411,30 +404,17 @@ genropatches.comboBox = function() {
             }
         },
         _highlightNextOption:function() {
-            // because each press of a button clears the menu,
-            // the highlighted option sometimes becomes detached from the menu!
-            // test to see if the option has a parent to see if this is the case.
-            var domnode_bottom = this.domNode.getBoundingClientRect().bottom;
             var nextNode;
             var hop = this.getHighlightedOption();
-            if (!this.getHighlightedOption()) {
+            if (!hop) {
                 nextNode = this.tblrows()[0];
-            } else if (hop.nextSibling && hop.style.display != "none") {
+            } else if (hop.nextSibling && hop.nextSibling.style.display != "none") {
                 nextNode = hop.nextSibling;
             }
             if (nextNode) {
-                brect = nextNode.getBoundingClientRect();
                 this._focusOptionNode(nextNode);
-
-                if (brect.bottom > domnode_bottom) {
-                    var delta = brect.bottom - brect.top;
-                    var scrollTop = this.domNode.children[0].children[1].scrollTop;
-                    this.domNode.children[0].children[1].scrollTop = scrollTop + 20;
-                }
+                nextNode.scrollIntoView({block:'nearest'});
             }
-
-            // scrollIntoView is called outside of _focusOptionNode because in IE putting it inside causes the menu to scroll up on mouseover
-            //  dijit.scrollIntoView(this._highlighted_option);
         },
 
         highlightFirstOption:function() {
@@ -452,16 +432,15 @@ genropatches.comboBox = function() {
         },
 
         _highlightPrevOption:function() {
-
-            // if nothing selected, highlight last option
-            // makes sense if you select Previous and try to keep scrolling up the list
             if (!this.getHighlightedOption()) {
                 var rows = this.tblrows();
                 this._focusOptionNode(rows[rows.length - 1]);
             } else if (this._highlighted_option.previousSibling && this._highlighted_option.previousSibling.style.display != "none") {
                 this._focusOptionNode(this._highlighted_option.previousSibling);
             }
-            //  dijit.scrollIntoView(this._highlighted_option);
+            if (this._highlighted_option) {
+                this._highlighted_option.scrollIntoView({block:'nearest'});
+            }
         },
         
 

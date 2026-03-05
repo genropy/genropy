@@ -1058,6 +1058,17 @@ label.ghostlabel span {
     padding: 0.8em 1em;
 }
 
+.dlg_flexbody .dijitDialogPaneContent {
+    display: flex;
+    flex-direction: column;
+    min-width: 26em;
+}
+
+.dlg_flexbody .fh_content {
+    flex: 1;
+    overflow: auto;
+}
+
 /* @end */
 
 /* @group Standard form */
@@ -1261,111 +1272,102 @@ table.formbuilder td.gnrfield {
 
 /* @group MultiColumnSelect */
 
+.multiColumnSelect {
+    background-color: var(--card-surface, #f9f9f9);
+    overflow: hidden;
+    color: var(--primary-dark, #3A3A3C);
+    border-radius: 0.375em;
+}
+
 .multiColumnSelect table {
     border-collapse: collapse;
-    font-size: 10px;
-    background-color: #f3f3f3; /*width: 100%;*/
-}
-
-.multiColumnSelect.templateAuxColumns{
-}
-
-.multiColumnSelect.templateAuxColumns table{
-    background-color: white;
-    width:30em;
-}
-.multiColumnSelect.templateAuxColumns td{
-    white-space: normal;
-    padding: 4px;
-    border: 1px solid #efefef;
-
-}
-
-.multiColumnSelect {
-    background-color: #f3f3f3;
-    overflow:hidden;
-    color:#444;
+    font-size: 0.8125rem;
+    background-color: var(--card-surface, #f9f9f9);
+    width: 100%;
 }
 
 .multiColumnSelect th {
-    padding: 2px;
-    border-bottom: 0px solid #c8c8c8;
-    background-color: #ddd; /*font-weight: bold;*/
+    padding: 0.375em 0.5em;
+    border-bottom: 1px solid var(--roundedgroup-border, #D1D1D6);
+    background-color: var(--primary-lighter, #F2F2F7);
     text-align: center;
-    color: #333;
+    color: var(--primary-dark, #3A3A3C);
     white-space: nowrap;
-    border-right: 1px solid white;
-}
-.multiColumnSelect th:last-child{
-    border-right: 0px solid white;
+    font-weight: 600;
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
 }
 
-.multiColumnSelect tr {
-    padding: 2px; /*border: 1px solid #c8c8c8;*/
+.multiColumnSelect tbody tr {
+    transition: background-color 0.15s ease;
+    cursor: pointer;
 }
 
 .multiColumnSelect td {
-    padding: 2px;
-    border: 1px solid #c8c8c8;
+    padding: 0.375em 0.5em;
+    border-bottom: 1px solid var(--roundedgroup-border, rgba(0,0,0,0.06));
     white-space: nowrap;
 }
 
+.multiColumnSelect tbody tr:last-child td {
+    border-bottom: none;
+}
 
 .relaxedCondition tr {
-    background-color: #ffce98 !important;
+    background-color: var(--relaxed-condition-bg, #FFF3CD) !important;
     font-style: italic;
 }
 
-.multiColumnSelect tr.not_preferred_row{
-    opacity: .5;
+.multiColumnSelect tr.not_preferred_row {
+    opacity: 0.5;
     font-style: italic;
 }
-.multiColumnSelect tr[_is_valid_item='false']{
-    color: red;
+
+.multiColumnSelect tr[_is_valid_item='false'] {
+    color: var(--error-color, #E53935);
     cursor: not-allowed;
 }
 
-.multiColumnSelect tr.linked_row{
+.multiColumnSelect tr.linked_row {
     font-weight: bold;
 }
-.tundra.touchDevice .multiColumnSelect tr{
-    line-height: 1.6em;
-}
-.tundra.touchDevice .multiColumnSelect td {
-    padding: 2px;
-    border: 1px solid #c8c8c8;
-    white-space: nowrap;
-    cursor: pointer;
-    font-size: 1em;
-}
-.tundra.touchDevice .multiColumnSelect tr:active{
-    background-color: #60a1ea;
-    background: #60a1ea;
-    color:#fff;
+
+.multiColumnSelect.templateAuxColumns table {
+    background-color: var(--mainWindow-background, #fff);
+    max-width: min(30em, 90vw);
+    width: auto;
 }
 
-.tundra.touchDevice .multiColumnSelect table {
-    border-collapse: collapse;
-    font-size: 10px;
-    background-color: #f3f3f3; /*width: 100%;*/
-}
-
-.tundra.touchDevice .multiColumnSelect.templateAuxColumns table{
-    background-color: white;
-    width:30em;
-}
-.tundra.touchDevice .multiColumnSelect.templateAuxColumns td{
+.multiColumnSelect.templateAuxColumns td {
     white-space: normal;
-    padding: 4px;
-    border: 1px solid #efefef;
-
+    padding: 0.5em;
+    border-bottom: 1px solid var(--roundedgroup-border, rgba(0,0,0,0.06));
 }
 
+.touchDevice .multiColumnSelect td {
+    padding: 0.5em 0.625em;
+    line-height: 1.6;
+}
 
 tr[_is_valid_item='true'].multiColumnSelectHover td {
-    background-color: #60a1ea;
-    background: #60a1ea;
-    color:#fff;
+    background-color: var(--accent-color, #007AFF);
+    color: var(--m3-on-primary, #fff);
+    transition: background-color 0.15s ease;
+}
+
+.multiColumnSelect div[style*="overflow-y"] {
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-light, #ccc) transparent;
+}
+
+.multiColumnSelect div[style*="overflow-y"]::-webkit-scrollbar {
+    width: 6px;
+}
+
+.multiColumnSelect div[style*="overflow-y"]::-webkit-scrollbar-thumb {
+    background-color: var(--primary-light, #ccc);
+    border-radius: 3px;
 }
 
 /* @end */
@@ -2052,17 +2054,22 @@ div.dojoxDock {
 }
 
 /* Submenu expand arrow */
-.tundra .dijitMenuExpand {
-    background-image: none !important;
+.tundra .dijitMenuExpandEnabled {
+    display: block;
+    background-image: none;
     width: auto;
     height: auto;
-    font-size: 0.75em;
+    padding: 0 0.25em;
     color: var(--mainWindow-color, #444);
     opacity: 0.5;
 }
-.tundra .dijitMenuExpand::after {
+.tundra .dijitMenuExpandEnabled .dijitMenuExpandInner {
+    display: none;
+}
+.tundra .dijitMenuExpandEnabled::after {
     content: '›';
-    font-size: 1.3em;
+    font-size: 1.2em;
+    font-weight: bold;
     line-height: 1;
 }
 
@@ -3681,9 +3688,8 @@ body *{
 }
 
 .slotbar_dialog_footer{
-    padding:2px;
-    padding-top:3px;
-    border-top:1px solid silver;
+    padding: 0.4em 0.6em 0.5em;
+    border-top: 1px solid rgba(0,0,0,0.08);
     --m3-secondary-container: var(--m3-primary, #1976D2);
     --m3-on-secondary-container: var(--m3-on-primary, #fff);
 }

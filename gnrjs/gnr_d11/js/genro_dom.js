@@ -1490,7 +1490,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
 
     scrollableTable:function(where, gridbag, kw) {
         var domnode = this.getDomNode(where);
-        var max_height = kw.max_height || '180px';
+        var max_height = kw.max_height || 'clamp(180px, 40vh, 400px)';
         var cols = [];
         var columns = kw.columns;
         var headers = kw.headers;
