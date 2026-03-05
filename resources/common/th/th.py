@@ -971,7 +971,7 @@ class ThLinker(BaseComponent):
         
         forbudden_dbstore = self.dbstore and (related_tblobj.attributes.get('multidb') or related_tblobj.use_dbstores() is False)
         if editEnabled and formResource or formUrl:
-            footer = frame.bottom.slotBar('*,linker_edit',height='20px')
+            footer = frame.bottom.slotBar('*,linker_edit',padding='2px')
             footer.linker_edit.slotButton('Edit',baseClass='no_background',iconClass='iconbox pencil',
                                             action='linker.publish("loadrecord");',linker=linker,
                                             forbudden_dbstore=forbudden_dbstore,hidden=forbudden_dbstore,
