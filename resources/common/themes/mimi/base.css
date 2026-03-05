@@ -16,10 +16,4 @@
     --mainWindow-color:#444;
     --dialogtitlebar-background: linear-gradient(to right top, #172b51, #1b3058, #20345e, #243965, #293e6c);
 
-    /* M3 color system */
-    --m3-primary: #7C5CBF;
-    --m3-on-primary: #fff;
-    --m3-secondary-container: #EDE7F6;
-    --m3-on-secondary-container: #3B2D5E;
-    --m3-outline: #8E8893;
 }

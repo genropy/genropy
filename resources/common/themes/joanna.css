@@ -1293,16 +1293,6 @@ body.tundra.joanna {
 
 
 
-._common_d11.tundra .dijitMenuSeparator {
-    background: transparent;
-}
-
-._common_d11.tundra .dijitMenuSeparatorBottom {
-    display: none;
-}
-._common_d11.tundra .dijitPopup > div, .tundra .dijitPopup > table{
-    opacity: 1;
-}
 .frameindex_left{
     background: var(--frameindexroot-background, #f5f6f8);
 }

@@ -994,17 +994,6 @@
 
 
 
-._common_d11.tundra .dijitMenuSeparator {
-    background: transparent;
-}
-
-._common_d11.tundra .dijitMenuSeparatorBottom {
-    display: none;
-}
-._common_d11.tundra .dijitPopup > div, .tundra .dijitPopup > table{
-    opacity: 1;
-}
-
 .framedindex_tablist{
     background-image: none;
     background-color: #555;
@@ -1064,62 +1053,7 @@
 }
 
 
-.tundra .dijitButtonNode {
-    /* enabled state - inner */
-    background-color: #E4E4E4;
-    background-image: none;
-    border-radius: 2px;
-}
-
-.tundra .dijitButtonHover .dijitButtonNode,
-.tundra .dijitButtonNodeHover,
-.tundra .dijitToggleButtonHover .dijitButtonNode,
-.tundra .dijitDropDownButtonHover .dijitButtonNode,
-.tundra .dijitComboButton .dijitButtonContentsHover,
-.tundra .dijitComboButton .dijitDownArrowButtonHover {
-    /* hover state - inner */
-    /* TODO: change from Hover to Selected so that button is still highlighted while drop down is being used */
-    border-color: #666;
-    background-image: none;
-    background-color:#E4E4E4;
-}
-
-.tundra .dijitButton.dijitButtonActive .dijitButtonNode,
-.tundra .dijitButtonNodeActive,
-.tundra .dijitToggleButtonActive .dijitButtonNode,
-.tundra .dijitDropDownButtonActive .dijitButtonNode,
-.tundra .dijitComboButton .dijitButtonContentsActive,
-.tundra .dijitComboButton .dijitDownArrowButtonActive{
-    /* hover state - inner */
-    /* TODO: change from Hover to Selected so that button is still highlighted while drop down is being used */
-    /*background-image: -webkit-gradient(linear, 0% 0%, 0% 90%,  from(rgba(182, 182, 182, 0.75)),to(rgba(239, 239, 239, 0.9)));
-    background-image: -moz-linear-gradient(-90deg, rgba(182, 182, 182, 0.75),rgba(239, 239, 239, 0.9));*/
-    background:#888;
-    box-shadow: inset 1px 1px 2px #222;
-    border-color: silver;
-}
-.tundra .dijitDisabled.dijitTextBoxReadOnly,
-.tundra .dijitDisabled.dijitTextBoxReadOnly .dijitButtonNode,
-.tundra .dijitDisabled.dijitButtonDisabled .dijitButtonNode,
-.tundra .dijitDisabled.dijitToggleButtonDisabled .dijitButtonNode,
-.tundra .dijitDisabled.dijitDropDownButtonDisabled .dijitButtonNode,
-.tundra .dijitDisabled.dijitComboButtonDisabled .dijitButtonNode,
-.tundra .dijitDisabled.dijitTextBoxDisabled,
-.tundra .dijitDisabled.dijitComboBoxDisabled,
-.tundra .dijitDisabled.dijitTextBoxDisabled .dijitButtonNode ,
-.dijitTextArea.dijitTextAreaDisabled.dijitDisabled{
-    /* disabled state - inner */
-    border-color: #dedede;
-    background-image: none;
-    opacity: .8;
-    /*background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, from(#EEEEEE), to(#EDEDEE));
-    background-image: -moz-linear-gradient(-90deg, #EEEEEE, #EDEDEE);*/
-}
-.fakeButton{
-    background-image: none;
-    background-color: #E4E4E4;
-    cursor:pointer;
-}
+/* button overrides removed — now in gnrbase.css */
 
 .darktoolbar{
     background-color: #666;

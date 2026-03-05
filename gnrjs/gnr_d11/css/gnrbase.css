@@ -387,11 +387,11 @@ cursorZoom_plus{
 	border: 1px solid var(--m3-btn-border-color, var(--m3-outline, #ccc));
     padding: calc(0.35em - 1px) calc(0.9em - 1px);
     background-image: none;
-    background-color: var(--m3-secondary-container, #EDE7F6);
+    background-color: var(--m3-secondary-container, #E3F2FD);
     border-radius: 1em;
     cursor: pointer;
     opacity: 1;
-    color: var(--m3-on-secondary-container, #3B2D5E);
+    color: var(--m3-on-secondary-container, #1565C0);
     font-weight: 500;
     font-size: inherit;
     letter-spacing: 0.1px;
@@ -403,7 +403,7 @@ cursorZoom_plus{
 .tundra .dijitButtonText {
 	text-align: center;
 	padding: 0;
-	color: var(--m3-on-secondary-container, #1D192B);
+	color: var(--m3-on-secondary-container, #1565C0);
 }
 .dijitButtonNode .fh_semaphore{
     width: 10px;
@@ -496,7 +496,7 @@ cursorZoom_plus{
 .tundra .dijitComboButton .dijitDownArrowButtonHover {
 	/* M3 Tonal hover - state layer 8% */
     background-image: none;
-    background-color: var(--m3-secondary-container, #E8DEF8);
+    background-color: var(--m3-secondary-container, #BBDEFB);
     filter: brightness(0.95);
     box-shadow: none;
 }
@@ -509,22 +509,22 @@ cursorZoom_plus{
 .tundra .dijitComboButton .dijitDownArrowButtonActive{
     /* M3 Tonal pressed - state layer 10% */
     background-image: none;
-    background-color: var(--m3-secondary-container, #E8DEF8);
+    background-color: var(--m3-secondary-container, #BBDEFB);
     filter: brightness(0.90);
     box-shadow: none;
 }
 
 .tundra .dijitButton.dijitButtonActive .dijitButtonText{
-    color: var(--m3-on-secondary-container, #1D192B);
+    color: var(--m3-on-secondary-container, #1565C0);
 }
 
 .fakeButton{
     background-image: none;
-    background-color: var(--m3-secondary-container, #E8DEF8);
+    background-color: var(--m3-secondary-container, #BBDEFB);
     border: none;
     border-radius: 0.5em;
     cursor:pointer;
-    color: var(--m3-on-secondary-container, #1D192B);
+    color: var(--m3-on-secondary-container, #1565C0);
 }
 
 .fakeButton.comboArrow{
@@ -562,7 +562,7 @@ cursorZoom_plus{
 .tundra .dijitStackController .dijitToggleButtonChecked .dijitButtonNode {
 	/* M3 Tonal active/checked state */
     background-image: none;
-    background-color: var(--m3-secondary-container, #E8DEF8);
+    background-color: var(--m3-secondary-container, #BBDEFB);
     filter: brightness(0.90);
     box-shadow: none;
 }
@@ -630,9 +630,9 @@ cursorZoom_plus{
 .slotbar_toolbar .dijitButton:not(.slotButtonIconOnly) .dijitButtonNode,
 .slotbar_toolbar .dijitDropDownButton:not(.slotButtonIconOnly) .dijitButtonNode,
 .slotbar_toolbar .dijitComboButton:not(.slotButtonIconOnly) .dijitButtonNode{
-    --m3-secondary-container: var(--m3-primary, #7C5CBF);
+    --m3-secondary-container: var(--m3-primary, #1976D2);
     --m3-on-secondary-container: var(--m3-on-primary, #fff);
-    --m3-btn-border-color: var(--m3-primary, #7C5CBF);
+    --m3-btn-border-color: var(--m3-primary, #1976D2);
 }
 .slotbar_toolbar .dijitDisabled:not(.slotButtonIconOnly) .dijitButtonNode{
     opacity: 0.6;
@@ -1037,8 +1037,8 @@ label.ghostlabel span {
 }
 .dlg_ask_btnBox .dijitButtonNode{
     width: 100%;
-    background-color: var(--dlg-btn-bg, var(--m3-secondary-container, #E8DEF8));
-    color: var(--dlg-btn-color, var(--m3-on-secondary-container, #1D192B));
+    background-color: var(--dlg-btn-bg, var(--m3-secondary-container, #BBDEFB));
+    color: var(--dlg-btn-color, var(--m3-on-secondary-container, #1565C0));
 }
 .alertBodyMessage{
     padding: 1em 1.2em;
@@ -1855,7 +1855,6 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
 }
 
 .largemenu.dijitMenu.dijitMenuTable{
-    border:1px solid silver;
     border-collapse: collapse;
 }
 
@@ -1869,9 +1868,8 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
     display: none;
 }
 .menupane .dijitMenuItemHover{
-    color: var(--m3-on-secondary-container, #3B2D5E);
-    background-color: var(--m3-secondary-container, #EDE7F6);
-    background: var(--m3-secondary-container, #EDE7F6);
+    background-color: var(--menu-item-hover-bg, rgba(0,0,0,0.06));
+    color: var(--menu-item-hover-color, var(--mainWindow-color, #333));
 }
 
 .tundra .menupane .dijitMenuItem td{
@@ -2012,38 +2010,54 @@ div.dojoxDock {
 }
 
 ._common_d11.tundra .dijitMenu {
-    border: 1px solid #E0E0E0;
+    border: 1px solid var(--menu-border-color, rgba(0,0,0,0.18));
+    border-top: 1px solid var(--menu-border-top-color, rgba(0,0,0,0.25));
     border-radius: 0.5em;
-    background-color: #fff;
-    box-shadow: 0 0.12em 0.5em rgba(0,0,0,0.15), 0 0.06em 0.12em rgba(0,0,0,0.1);
-    padding: 0.4em 0;
+    background-color: var(--menu-bg, #fff);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08);
+    padding: 0.3em 0;
     overflow: hidden;
+    min-width: 10em;
 }
 
-/*._common_d11.tundra .dijitPopup{
-    border:1px solid #ccc;
-}*/
+._common_d11.tundra .dijitMenuTable {
+    border-collapse: collapse;
+    border-width: 0;
+    width: 100%;
+}
 
 ._common_d11.tundra .dijitMenuSeparatorTop {
-    border-bottom: 1px solid #C8C8C8;
+    border-bottom: 1px solid var(--menu-separator-color, rgba(0,0,0,0.08));
     box-shadow: none;
     height: 0;
-    margin: 0.4em 0.5em;
+    margin: 0.3em 0.6em;
 }
 
-/* Submenu expand arrow - replace PNG sprite with Unicode chevron */
+._common_d11.tundra .dijitMenuSeparatorBottom {
+    display: none;
+}
+
+/* Submenu expand arrow */
 .tundra .dijitMenuExpand {
     background-image: none !important;
     width: auto;
     height: auto;
     font-size: 0.75em;
     color: var(--mainWindow-color, #444);
-    opacity: 0.6;
+    opacity: 0.5;
 }
 .tundra .dijitMenuExpand::after {
     content: '›';
     font-size: 1.3em;
     line-height: 1;
+}
+
+._common_d11.tundra .dijitMenuSeparator {
+    background: transparent;
+}
+
+._common_d11.tundra .dijitPopup > div, .tundra .dijitPopup > table{
+    opacity: 1;
 }
 
 .floatingTooltipPane{
@@ -2692,7 +2706,7 @@ div.dojoxDock {
 }
 .login_confirm_btn .dijitButtonNode{
     /* M3 Filled for login primary action */
-    background-color: var(--m3-primary, #7C5CBF);
+    background-color: var(--m3-primary, #1976D2);
     color: var(--m3-on-primary, #fff);
     font-size: 0.85em;
     padding: 0.35em 1.2em;
@@ -3243,7 +3257,7 @@ body *{
 
 }
 .tundra .dijitTextBoxFocused, .tundra .dijitTextAreaFocused,.tundra .dijitComboBoxFocused {
-    border-color: var(--m3-primary, #7C5CBF);
+    border-color: var(--m3-primary, #1976D2);
     box-shadow: 0 0 0 1px rgba(124, 92, 191, 0.2);
 }
 
@@ -3442,8 +3456,7 @@ body *{
 
 
 .tundra .dijitTextBoxFocused .cls_DbSelect, .tundra .dijitComboBoxFocused .cls_DbSelect{
-    background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, from(white), to(#FFFFAD));
-    background-image: -moz-linear-gradient(-90deg, white, #FFFFAD);
+    background-color: var(--field-focus-bg, #fff);
 }
 .tundra .slotbar_toolbar .dijitTextAreaFocused,.tundra .slotbar_toolbar .dijitTextBoxFocused,.tundra .slotbar_toolbar .dijitComboBoxFocused{
     box-shadow: 0px 0px 1px #488fd7;
@@ -3622,7 +3635,7 @@ body *{
     padding:2px;
     padding-top:3px;
     border-top:1px solid silver;
-    --m3-secondary-container: var(--m3-primary, #7C5CBF);
+    --m3-secondary-container: var(--m3-primary, #1976D2);
     --m3-on-secondary-container: var(--m3-on-primary, #fff);
 }
 .slotbar .slotbar_cell{
@@ -4234,39 +4247,39 @@ table.draggedItem {
 
 
 
-/* @group dbselect */
+/* @group dbselect / dropdown menus */
 .tundra .dijitMenuItem {
-    border-bottom: 1px solid rgba(0,0,0,0.06);
+    border-bottom: none;
     font-size: inherit;
-    line-height: 1.3em;
+    line-height: 1.4em;
     margin: 0;
-    padding: 0.15em 0.8em 0.15em 0.6em;
+    padding: 0.3em 0.8em;
     font-family: inherit;
-    color: var(--mainWindow-color, #444);
-    transition: background-color 0.12s ease;
+    color: var(--menu-item-color, var(--mainWindow-color, #444));
+    background: transparent;
+    transition: background-color 0.12s ease, color 0.12s ease;
+    cursor: default;
 }
 
 .tundra .dijitMenuItemHover,
 .tundra .dijitMenuItemSelected {
-    background-color: var(--m3-secondary-container, #EDE7F6);
+    background-color: var(--menu-item-hover-bg, rgba(0,0,0,0.06));
     background-image: none;
-    color: var(--m3-on-secondary-container, #3B2D5E);
+    color: var(--menu-item-hover-color, var(--mainWindow-color, #333));
+}
+
+.tundra .dijitMenuItemActive {
+    background-color: var(--menu-item-active-bg, rgba(0,0,0,0.10));
 }
 
 .tundra.touchDevice .dijitMenuItem {
-    border-bottom: 1px solid rgba(0,0,0,0.06);
     font-size: 1em;
-    line-height: 1.5em;
-    margin: 0;
-    padding: 0.2em 0;
-    font-family: inherit;
-    color: var(--mainWindow-color, #444);
-    transition: background-color 0.12s ease;
+    line-height: 1.6em;
+    padding: 0.35em 0.8em;
 }
 .tundra.touchDevice .dijitMenuItem:active {
-    background-color: var(--m3-secondary-container, #EDE7F6);
-    background: var(--m3-secondary-container, #EDE7F6);
-    color: var(--m3-on-secondary-container, #3B2D5E);
+    background-color: var(--menu-item-hover-bg, rgba(0,0,0,0.06));
+    background-image: none;
 }
 
 
@@ -5581,31 +5594,7 @@ div[disabled='true'], div[disabled='disabled']{
 .menudiv_text.menudiv_text_white{
     color:white;
 }
-._common_d11__ .dijitMenu {
-    border: 1px solid gray;
-    background-color: whitesmoke;
-    position: relative;
-    top: 3px;
-    left: 4px;
-    border-top: 0px;
-    padding-bottom: 6px;
-    padding-left: 3px;
-    padding-right: 3px;
-}
-
-._common_d11__ .dijitMenuTable {
-    margin: 1px 0;
-    border-collapse: collapse;
-    border-width: 0;
-    background-color: whitesmoke;
-}
-
-._common_d11__ .dijitMenuItem {
-    white-space: nowrap;
-    font-size: .9em;
-    padding: 0em 0em;
-    border-bottom: 1px solid white;
-}
+/* legacy ._common_d11__ menu rules removed — now handled by ._common_d11 selectors */
 
 /* @end */
 
@@ -7040,7 +7029,7 @@ div[disabled='true'], div[disabled='disabled']{
     border-bottom-left-radius: 6px;
     border-bottom-right-radius: 6px;
     background: #fafafa;
-    --m3-secondary-container: var(--m3-primary, #7C5CBF);
+    --m3-secondary-container: var(--m3-primary, #1976D2);
     --m3-on-secondary-container: var(--m3-on-primary, #fff);
 }
 
@@ -7051,14 +7040,14 @@ div[disabled='true'], div[disabled='disabled']{
 
 /* M3 Button style modifiers via CSS variable inheritance */
 .btn_filled {
-    --m3-secondary-container: var(--m3-primary, #7C5CBF);
+    --m3-secondary-container: var(--m3-primary, #1976D2);
     --m3-on-secondary-container: var(--m3-on-primary, #fff);
-    --m3-btn-border-color: var(--m3-primary, #7C5CBF);
+    --m3-btn-border-color: var(--m3-primary, #1976D2);
 }
 
 .btn_tonal {
-    --m3-secondary-container: #E8DEF8;
-    --m3-on-secondary-container: #1D192B;
+    --m3-secondary-container: #BBDEFB;
+    --m3-on-secondary-container: #1565C0;
     --m3-btn-border-color: var(--m3-outline, #ccc);
 }
 

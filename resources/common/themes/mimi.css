@@ -1171,16 +1171,6 @@ body.tundra.mimi {
 
 
 
-._common_d11.tundra .dijitMenuSeparator {
-    background: transparent;
-}
-
-._common_d11.tundra .dijitMenuSeparatorBottom {
-    display: none;
-}
-._common_d11.tundra .dijitPopup > div, .tundra .dijitPopup > table{
-    opacity: 1;
-}
 .frameindex_left{
     background: #ECE9E6;  /* fallback for old browsers */
     background: -webkit-linear-gradient(to right, #FFFFFF, #ECE9E6);  /* Chrome 10-25, Safari 5.1-6 */
