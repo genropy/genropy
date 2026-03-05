@@ -341,22 +341,7 @@
 .noIconMenu .dijitMenuItemIcon{
     display: none;
 }
-.menupane .dijitMenuItemIcon{
-    display: none;
-}
-.menupane .dijitMenuItemHover{
-    background-color: var(--menu-item-hover-bg, rgba(0,0,0,0.06));
-    color: var(--menu-item-hover-color, var(--mainWindow-color, #333));
-}
-
-.tundra .menupane .dijitMenuItem td{
-    padding: 0;
-}
-
-.tundra .menupane.colormenu .dijitMenuExpandEnabled{
-    width: 2px;
-    background: none;
-}
+/* .menupane rules consolidated in 13_gnr_tree_treegrid.css */
 
 .tundra .smallmenu .dijitMenuItem td {
     padding-top: 0.2em !important;

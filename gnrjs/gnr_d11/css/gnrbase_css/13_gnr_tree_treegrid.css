@@ -404,40 +404,74 @@
     text-decoration: underline;
 }
 
+/* --- Tree Popup Dialog (.menupane) ---
+   Degenerate menus that contain trees instead of menu items.
+   Used for field selectors, hdbselect, comboMenu popups.
+   Behaves like a tooltipDialog, not a real menu. */
+
 .menupane {
-    background-color: rgba(168, 181, 182, 0.8);
-    background-image: linear-gradient(to bottom, rgba(176, 189, 195, 0.20), rgba(176, 189, 195, 0.9));
-    margin-right: 8px;
-    margin-top: 8px;
-    margin-bottom: 8px;
-    border-bottom-right-radius: var(--radius-panels);
-    border-top-right-radius: var(--radius-panels);
-    box-shadow: 4px 4px 4px #403b3b;
-    border-left: 0px;
+    background-color: var(--surface-bg);
+    border-radius: var(--radius-panels);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08);
+    border: 1px solid var(--border-color);
+    padding: 0;
 }
 
+/* Neutralize dijitMenu table layout inside menupane */
+.menupane .dijitMenuItemIcon {
+    display: none;
+}
+.menupane .dijitMenuItem td {
+    padding: 0;
+}
+.menupane .dijitMenuItemHover {
+    background-color: transparent;
+}
+
+/* Colormenu variant */
+.menupane.colormenu .dijitMenuExpandEnabled {
+    width: 2px;
+    background: none;
+}
+
+/* Tree node hover & selection inside menupane */
+.menupane .dijitTreeContent:hover {
+    background-color: var(--menu-item-hover-bg, rgba(0,0,0,0.06));
+    border-radius: var(--radius-controls);
+}
+
+.menupane .selectedFieldTreeNode,
+.menupane .selectedTreeNode {
+    background-color: var(--accent-color);
+    color: #fff;
+    display: inline-block;
+    width: 100%;
+    padding: 0.15em 0.5em;
+    border-radius: var(--radius-controls);
+}
+
+/* --- Tree inside menu popup (.menutree) --- */
 .menutree {
-    margin-top: 5px;
-    margin-right: 3px;
+    margin-top: 0.3em;
+    margin-right: 0.2em;
 }
 .menutree .dijitTreeContent {
-    margin-left: 0px;
+    margin-left: 0;
     min-height: 10px;
     padding-bottom: 4px;
-    padding-top: 0px;
+    padding-top: 0;
 }
 .mode_mobile .menutree .dijitTreeContent {
-    margin-left: 0px;
+    margin-left: 0;
     min-height: 10px;
-    padding-bottom: 0px;
-    padding-top: 0px;
+    padding-bottom: 0;
+    padding-top: 0;
 }
-
 .menutree .menu_shape {
     padding-top: 6px;
     line-height: 11px;
     margin-right: 8px;
-    margin-top: 0px;
+    margin-top: 0;
     color: var(--text-color);
     padding-bottom: 4px;
 }
