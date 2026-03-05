@@ -5,10 +5,16 @@
 
 :root {
     /* --- Typography --- */
+    --font-family: 'Inter', -apple-system, 'Helvetica Neue', 'Arial', sans-serif;
+    --font-size: 14px;
+    --text-color: #555;
     --mainWindow-font-size: 0.8125rem;
 
     /* --- Brand / Primary --- */
     --primary-color: #1E3055;
+    --primary-dark: #3A3A3C;
+    --primary-light: #D8D8DC;
+    --primary-lighter: #F2F2F7;
     --root-dark: #444;
     --accent-color: #007AFF;
 
@@ -17,6 +23,8 @@
     --mainWindow-color: #1C1C1E;
     --surface-light: #f6f6f6;
     --surface-bg: #fff;
+    --card-surface: #F2F2F7;
+    --roundedgroup-surface: var(--card-surface);
 
     /* --- Borders --- */
     --border-color: #ddd;

@@ -61,7 +61,9 @@ div, span {
 
 /* --- Body defaults --- */
 body.tundra {
-    font: 13px 'Inter', -apple-system, 'Helvetica Neue', 'Arial', sans-serif;
+    font: var(--font-size) var(--font-family);
+    color: var(--text-color);
+    accent-color: var(--primary-color);
 }
 body.touchDevice {
     -webkit-text-size-adjust: none;

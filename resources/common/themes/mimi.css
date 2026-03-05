@@ -1,45 +1,4 @@
-/*vico*/
-
-body {
-    --primary-color: #1E3055;
-    --mainWindow-background: white;
-    --frameindexroot-background: white;
-    --frameindexcenter-background: white;
-    --frameindexroot-mobile-background: #4b525b;
-}
-
-body.tundra.mimi {
-    font:14px "SF Pro Text","Myriad Set Pro","SF Pro Icons","Apple Legacy Chevron","Helvetica Neue","Helvetica","Arial",sans-serif;
-    color:#555;
-}
-
-/* @group FloatingPaneTitle variant overrides */
-._common_d11.tundra.theme_variant_green .dojoxFloatingPaneTitle{
-    background-color: #50c9c3;
-    background: linear-gradient(to bottom, #1d976c, #37ce99);  /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
-    color:white;
-}
-
-._common_d11.tundra.theme_variant_blue .dojoxFloatingPaneTitle{
-    background-color: #182848;
-    background: linear-gradient(to bottom, #4b6cb7, #3b6391);
-}
-
-._common_d11.tundra.theme_variant_red .dojoxFloatingPaneTitle{
-    background-color: #d31027;
-    background:linear-gradient(to bottom, #d31027, #ea384d);
-}
-
-._common_d11.tundra.theme_variant_orange .dojoxFloatingPaneTitle{
-    background-color:#e65c00;
-    background: linear-gradient(to bottom, #fa8435, #f96723);
-}
-
-._common_d11.tundra.theme_variant_yellow .dojoxFloatingPaneTitle{
-    background-color:rgba(234, 203, 110, 1);
-    color:rgba(30, 48, 85, 1);
-}
-/* @end */
+/*mimi*/
 
 /* @group pbl_root_top */
 .mimi .pbl_root_top {
@@ -51,277 +10,160 @@ body.tundra.mimi {
 .mimi .pbl_root_top .gnrfieldlabel{
     color:rgba(30, 48, 85, 1);
 }
-
-.mimi.theme_variant_green .pbl_root_top{
-    background-color: #50c9c3;
-    background: linear-gradient(to bottom, #1d976c, #37ce99);  /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
-
-    color:white;
-
-}
-.mimi.theme_variant_green .pbl_root_top .gnrfieldlabel{
-    color:white;
-}
-.mimi.theme_variant_red .pbl_root_top{
-    background-color:#d31027;
-    background: linear-gradient(to bottom, #d31027, #ea384d);
-    color:white;
-
-}
-.mimi.theme_variant_red .pbl_root_top .gnrfieldlabel{
-    color:white;
-}
-
-.mimi.theme_variant_blue .pbl_root_top{
-    background-color: #182848;
-    background: linear-gradient(to bottom, #4b6cb7, #3b6391);
-    color:white;
-}
-.mimi.theme_variant_blue .pbl_root_top .gnrfieldlabel{
-    color:white;
-}
-
-.mimi.theme_variant_orange .pbl_root_top{
-    background-color:#e65c00;
-    background: linear-gradient(to bottom, #fa8435, #f96723);
-    color:white;
-}
-.mimi.theme_variant_orange .pbl_root_top .gnrfieldlabel{
-    color:white;
-}
-
-.mimi.theme_variant_yellow .pbl_root_top{
-    background-color:rgba(234, 203, 110, 1);
-    color:rgba(30, 48, 85, 1);
-}
-.mimi.theme_variant_yellow .pbl_root_top .gnrfieldlabel{
-    color:rgba(30, 48, 85, 1);
-}
 /* @end */
 
-/* @group Form group */
-.gnr_footer{
-    background-color: rgb(217, 227, 233);
+/* @group Form group — mimi overrides */
+.mimi .gnr_footer{
+    background-color: var(--roundedgroup-bar);
 }
-.pbl_roundedBlock{
+.mimi .pbl_roundedBlock{
     border-radius: 6px;
-    position: absolute;
-    top:2px;
-    bottom:2px;
-    left:2px;
-    right: 2px;
-    border:1px solid #ddd;
+    border: 1px solid var(--border-color, #ddd);
+    background: none;
+    box-shadow: none;
 }
 
-.pbl_roundedGroup {
+.mimi .pbl_roundedGroup {
     border-radius: 6px;
-    border:1px solid #ddd;
+    border: 1px solid var(--border-color, #ddd);
+    background: none;
+    box-shadow: none;
 }
 
-.pbl_roundedGroupLabel {
+.mimi .pbl_roundedGroupLabel {
     min-height: 22px;
-    line-height:19px;
-    padding-bottom: 0;
-    padding-top:2px;
-    padding-left: 4px;
-    padding-right: 4px;
+    line-height: 19px;
+    padding: 2px 4px 0 4px;
     border-top-left-radius: 4px;
     border-top-right-radius: 4px;
     font-size: 1em;
-    background:var(--roundedgroup-bar);
-    color:var(--roundedgroup-bar-color);
-	text-indent: 2px;
+    background: var(--roundedgroup-bar);
+    color: var(--roundedgroup-bar-color);
+    text-indent: 2px;
 }
 
-.pbl_roundedGroupVertical {
-    background:var(--roundedgroup-bar);
-}
-
-
-
-.pbl_roundedGroupLabel.slotbar_horizontal{
-    padding-left:0;
-    padding-right:0;
+.mimi .pbl_roundedGroupLabel.slotbar_horizontal{
+    padding-left: 0;
+    padding-right: 0;
     vertical-align: middle;
 }
-.pbl_roundedGroupLabel.slotbar_horizontal .slotbar_cell{
-    height:20px;
-    line-height:14px;
+.mimi .pbl_roundedGroupLabel.slotbar_horizontal .slotbar_cell{
+    height: 20px;
+    line-height: 14px;
 }
 
-
-.pbl_roundedGroupLabel .dijitButton{
-}
-
-.pbl_roundedGroupBottom {
+.mimi .pbl_roundedGroupBottom {
     height: 18px;
     padding-left: 10px;
     font-size: 0.9em;
-    background-color:#B4BECB;
+    background-color: #B4BECB;
 }
-
 /* @end */
 
-/* @group Form group rect */
-.pbl_rectGroupLabel {
-    height: 22px;
-    padding-left: 10px;
-    font-size: 0.9em;
-    padding-top: 5px;
-    background:#c2d0e9;
-    background:linear-gradient(to bottom, #c2d0e9,  #d6dfee);
+/* @group Form group rect — mimi overrides */
+.mimi .pbl_rectGroupLabel {
+    background: linear-gradient(to bottom, #c2d0e9, #d6dfee);
     color: #444;
 }
 
-.pbl_rectGroupBottom {
-    height: 18px;
-    padding-left: 10px;
-    font-size: 0.9em;
-    padding-bottom: 5px;
-    background:#c2d0e9;
-    background:linear-gradient(to bottom, #c2d0e9,  #d6dfee);
+.mimi .pbl_rectGroupBottom {
+    background: linear-gradient(to bottom, #c2d0e9, #d6dfee);
 }
 /* @end */
 
-/* @group Dialog titlebar variant overrides */
-.tundra._common_d11.theme_variant_green .dijitDialogTitleBar,.tundra._common_d11.theme_variant_green .commonTitleBar{
-    background: linear-gradient(to bottom, #1d976c, #37ce99);
-    color: white;
-}
+/* @group Tabcontainer — mimi overrides */
 
-.tundra._common_d11.theme_variant_red .dijitDialogTitleBar, .tundra._common_d11.theme_variant_red .commonTitleBar{
-    background: linear-gradient(to bottom, #d31027, #ea384d);
-}
-.tundra._common_d11.theme_variant_blue .dijitDialogTitleBar, .tundra._common_d11.theme_variant_blue .commonTitleBar{
-    background: linear-gradient(to bottom, #4b6cb7, #3b6391);
-}
-
-.tundra._common_d11.theme_variant_orange .dijitDialogTitleBar, .tundra._common_d11.theme_variant_orange .commonTitleBar{
-    background: linear-gradient(to bottom, #fa8435, #f96723);
-}
-
-.tundra._common_d11.theme_variant_yellow .dijitDialogTitleBar, .tundra._common_d11.theme_variant_yellow .commonTitleBar{
-    background-color: rgba(234, 203, 110, 1);
-    color: rgba(30, 48, 85, 1);
-}
-/* @end */
-
-/* @group Tabcontainer */
-
-._common_d11 .dijitTab {
+.mimi ._common_d11 .dijitTab {
     font-size: .9em;
-    border-top-left-radius: 4px;
-    border-top-right-radius: 4px;
-    background:var(--tab-background);
-    color:var(--tab-text-color);
+    border-radius: 4px 4px 0 0;
+    background: var(--tab-background);
+    color: var(--tab-text-color);
     margin-right: 2px;
-    font-weight: plain;
-    /*background-image:-webkit-gradient(linear, 0% 0%, 0% 90%, from(rgba(104,133,142,0.99)), to(rgba(223,223,223,0.99)));
-  background-image:-moz-linear-gradient(top, bottom,from(rgba(104,133,142,0.99)), to(rgba(223,223,223,0.99)));*/
-
+    font-weight: normal;
+    border: none;
+    box-shadow: none;
 }
 
-._common_d11 .dijitTabHover {
+.mimi ._common_d11 .dijitTabHover {
     opacity: 0.8;
 }
 
-._common_d11 .dijitTabInnerDiv {
-    border-left: 0;
-    border-bottom: 0;
-    padding:3px 5px 3px 5px;
-}
-._common_d11 .dijitTabLabels-left-h .dijitTabInnerDiv {
-    padding:4px 5px 4px 10px;
-
-}
-._common_d11 .dijitTabCheckedHover {
-    opacity: 1;
+.mimi ._common_d11 .dijitTabInnerDiv {
+    padding: 3px 5px;
 }
 
-._common_d11 .dijitTabChecked {
+.mimi ._common_d11 .dijitTabChecked {
     border-bottom-color: transparent;
-    color: var(--tab-selected-text-color);;
+    color: var(--tab-text-color);
     background: var(--tab-selected-background);
 }
 
-._common_d11 .dijitAlignTop .dijitTabChecked, ._common_d11 .dijitAlignTop .dijitTabCloseButtonChecked {
-    background:white;
+.mimi ._common_d11 .dijitAlignTop .dijitTabChecked,
+.mimi ._common_d11 .dijitAlignTop .dijitTabCloseButtonChecked {
+    background: white;
     border-bottom-color: transparent;
     color: #555;
 }
 
-._common_d11 .dijitTabPaneWrapper {
+.mimi ._common_d11 .dijitTabPaneWrapper {
     border-radius: 6px;
-    border-top-left-radius: 0px;
+    border-top-left-radius: 0;
 }
 
 /* @group righttab */
 
-._common_d11 .dijitTabLabels-right-h .dijitTab {
-
-    /*border-bottom-right-radius: 4px;
-    border-top-right-radius: 4px;
-    border-bottom-left-radius: 0px;
-    border-top-left-radius: 0px;*/
+.mimi ._common_d11 .dijitTabLabels-right-h .dijitTab {
     margin-bottom: 1px;
     border-width: 0;
 }
 
-._common_d11 .dijitTabLabels-right-h.dijitAlignRight,._common_d11 .dijitTabLabels-left-h.dijitAlignLeft{
+.mimi ._common_d11 .dijitTabLabels-right-h.dijitAlignRight,
+.mimi ._common_d11 .dijitTabLabels-left-h.dijitAlignLeft{
     padding-top: 3px;
-
 }
-._common_d11 .dijitTabLabels-left-h.dijitAlignLeft{
-    border-top:1px solid #ccc;
-    border-left:1px solid #ccc;
-    border-bottom:1px solid #ccc;
+.mimi ._common_d11 .dijitTabLabels-left-h.dijitAlignLeft{
+    border-top: 1px solid #ccc;
+    border-left: 1px solid #ccc;
+    border-bottom: 1px solid #ccc;
     padding-right: 2px;
 }
-._common_d11 .dijitTabLabels-right-h.dijitAlignRight{
-    border-top:1px solid #ccc;
-    border-right:1px solid #ccc;
-    border-bottom:1px solid #ccc;
+.mimi ._common_d11 .dijitTabLabels-right-h.dijitAlignRight{
+    border-top: 1px solid #ccc;
+    border-right: 1px solid #ccc;
+    border-bottom: 1px solid #ccc;
     padding-left: 2px;
 }
 
-._common_d11 .dijitTabLabels-right-h .dijitTabInnerDiv {
-    border: 0; /*padding: 2px 3px;*/
+.mimi ._common_d11 .dijitTabLabels-right-h .dijitTabInnerDiv {
+    border: 0;
 }
 
-._common_d11 .dijitTabLabels-right-h.dijitAlignTop .dijitTabChecked, ._common_d11 .dijitAlignTop .dijitTabCloseButtonChecked {
-    border-left-color: whitesmoke;
+.mimi ._common_d11 .dijitTabLabels-right-h.dijitAlignTop .dijitTabChecked {
+    border-left-color: #f5f5f5;
 }
 
 /* @end */
 
 /* @group lefttab */
 
-._common_d11 .dijitTabLabels-left-h .dijitTab {
-
-    /*border-bottom-right-radius: 0px;
-    border-top-right-radius: 0px;
-    border-bottom-left-radius: 0px;
-    border-top-left-radius: 0px;*/
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
-    border-top-left-radius:4px;
-    border-bottom-left-radius:4px;
-    border:1px solid #ccc;
+.mimi ._common_d11 .dijitTabLabels-left-h .dijitTab {
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 4px;
+    border: 1px solid #ccc;
     margin-left: 3px;
     text-align: right;
     margin-bottom: 2px;
-    color:#444;
+    color: #444;
 }
-._common_d11 .dijitTabLabels-left-h .dijitTab.dijitTabChecked {
-    color:#444;
-    background:linear-gradient(to bottom, #fffff3,  #fcf8c5);
-
+.mimi ._common_d11 .dijitTabLabels-left-h .dijitTab.dijitTabChecked {
+    color: #444;
+    background: linear-gradient(to bottom, #fffff3, #fcf8c5);
 }
 
-
-._common_d11 .dijitTabLabels-left-h  .dijitAlignTop .dijitTabChecked, ._common_d11 .dijitAlignTop .dijitTabCloseButtonChecked {
+.mimi ._common_d11 .dijitTabLabels-left-h .dijitAlignTop .dijitTabChecked,
+.mimi ._common_d11 .dijitAlignTop .dijitTabCloseButtonChecked {
     border-right-color: transparent;
-    background:white;
+    background: white;
     border-bottom-color: #ccc;
 }
 
@@ -360,22 +202,20 @@ body.tundra.mimi {
 
 /* @end */
 
-/* @group frameindex_left */
-.frameindex_left{
-    background: #ECE9E6;  /* fallback for old browsers */
-    background: -webkit-linear-gradient(to right, #FFFFFF, #ECE9E6);  /* Chrome 10-25, Safari 5.1-6 */
-    background: linear-gradient(to right, #FFFFFF, #ECE9E6); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+/* @group frameindex_left — mimi override */
+.mimi .frameindex_left{
+    background: linear-gradient(to right, #FFFFFF, #ECE9E6);
 }
 /* @end */
 
 /* @group darktoolbar - mimi adds gradient */
-.darktoolbar{
-    background-image: linear-gradient(to bottom,#f5f8fa46, #eff1f344, #f3f4f531);
+.mimi .darktoolbar{
+    background-image: linear-gradient(to bottom, #f5f8fa46, #eff1f344, #f3f4f531);
 }
 /* @end */
 
 /* @group iframesubtab - mimi adds gradient */
-.iframesubtab.iframetab{
-    background-image: -moz-linear-gradient(-90deg, #A6CAEE, #467399);
+.mimi .iframesubtab.iframetab{
+    background-image: linear-gradient(-90deg, #A6CAEE, #467399);
 }
 /* @end */

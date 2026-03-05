@@ -1,21 +1,125 @@
-:root {
-    --root-dark:#444;
-    --root-top-background: #636366;
-    --root-top-color: #fff;
-    --frameindex-tablist-background: #3A3A3C;
-    --frameindex-tablist-color:#ffffff;
-    --roundedgroup-bar: #E5E5EA;
-    --roundedgroup-bar-color: #3A3A3C;
-    --gnrfieldlabel-color:#8E8E93;
+/* joanna/base.css — Default color palette + user color variants
+   This file serves as template: copy to acme.css, corporate.css etc.
+   to create custom corporate palettes with approved color variants.
+*/
 
-    --tab-background: #F2F2F7;
-    --tab-text-color:#3A3A3C;
-    --tab-selected-background:white;
-    --tab-selected-color:#ccc;
-    --mainWindow-background: #F9F9FB;
-    --mainWindow-color:#1C1C1E;
-    --dialogtitlebar-background: #636366;
+body {
+    --primary-color: #636366;
+    --primary-dark: #3A3A3C;
+    --primary-light: #D8D8DC;
+    --primary-lighter: #F2F2F7;
+    --accent-color: #007AFF;
+    --mainWindow-background: white;
+    --frameindexroot-background: #F2F2F7;
+    --frameindexcenter-background: #F2F2F7;
+    --frameindexroot-mobile-background: #48484A;
+    --roundedgroup-bar: transparent;
+    --roundedgroup-bar-color: var(--primary-color);
+    --roundedgroup-border: #D1D1D6;
+    --card-surface: #F2F2F7;
+    --roundedgroup-surface: var(--card-surface);
+    --roundedgroup-shadow: rgba(0,0,0,0.06);
+    --topLabelTable-border-top: 2px solid var(--primary-light);
+    --topLabelTable-separator: var(--primary-light);
     --field-border: #AEAEB2;
+    --field-bg: white;
     --field-disabled-border: #C7C7CC;
+    --field-disabled-bg: #F2F2F7;
     --field-readonly-border: #C7C7CC;
+    --field-readonly-bg: #F2F2F7;
+}
+
+/* Color variants
+   3 key areas per variant:
+   1. frameindex tablist bar (--frameindex-tablist-background) - darkest accent
+   2. pbl_top bar = dialog titlebar (--root-top-background, --dialogtitlebar-background) - primary
+   3. card-surface - very light, almost white with thematic tint
+*/
+
+/* Green - green/fuchsia */
+._common_d11.tundra.theme_variant_green {
+    --primary-color: #1d7d55;
+    --primary-dark: #8b1a6b;
+    --accent-color: #8b1a6b;
+    --primary-light: #c0dece;
+    --primary-lighter: #edf7f2;
+    --root-top-background: #1d7d55;
+    --dialogtitlebar-background: #1d7d55;
+    --frameindex-tablist-background: #8b1a6b;
+    --card-surface: #f6faf8;
+    --roundedgroup-bar: #d0eddf;
+    --roundedgroup-bar-color: #134a32;
+    --field-disabled-border: #a8c4b4;
+    --field-readonly-border: #a8c4b4;
+}
+
+/* Blue - ocean */
+._common_d11.tundra.theme_variant_blue {
+    --primary-color: #2a62a8;
+    --primary-dark: #1e4a80;
+    --accent-color: #0a84ff;
+    --primary-light: #c4d4e8;
+    --primary-lighter: #edf2fa;
+    --root-top-background: #2a62a8;
+    --dialogtitlebar-background: #2a62a8;
+    --frameindex-tablist-background: #1a3d6b;
+    --card-surface: #f7f9fd;
+    --roundedgroup-bar: #d4e2f5;
+    --roundedgroup-bar-color: #1a3d6b;
+    --field-disabled-border: #a8bcd4;
+    --field-readonly-border: #a8bcd4;
+}
+
+/* Red - ruby */
+._common_d11.tundra.theme_variant_red {
+    --primary-color: #c53040;
+    --primary-dark: #9a2232;
+    --accent-color: #e8364a;
+    --primary-light: #e8c8cc;
+    --primary-lighter: #fbeff1;
+    --root-top-background: #c53040;
+    --dialogtitlebar-background: #c53040;
+    --frameindex-tablist-background: #7a1a28;
+    --card-surface: #fdf8f8;
+    --roundedgroup-bar: #f5d5d9;
+    --roundedgroup-bar-color: #7a1a28;
+    --field-disabled-border: #c4a8ad;
+    --field-readonly-border: #c4a8ad;
+}
+
+/* Orange - orange top / plum frameindex */
+._common_d11.tundra.theme_variant_orange {
+    --primary-color: #d4650a;
+    --primary-dark: #6a2058;
+    --accent-color: #6a2058;
+    --primary-light: #e8cddb;
+    --primary-lighter: #faf3f7;
+    --root-top-background: #d4650a;
+    --dialogtitlebar-background: #d4650a;
+    --frameindex-tablist-background: #6a2058;
+    --card-surface: #fcf8fa;
+    --roundedgroup-bar: #f5dce8;
+    --roundedgroup-bar-color: #6a2058;
+    --field-disabled-border: #c4a8ba;
+    --field-readonly-border: #c4a8ba;
+}
+
+/* Yellow - calabrone (hornet: vivid wasp yellow / black) */
+._common_d11.tundra.theme_variant_yellow {
+    --primary-color: #1a1a1a;
+    --primary-dark: #1a1a1a;
+    --accent-color: #b8960a;
+    --primary-light: #fde68a;
+    --primary-lighter: #fef9e7;
+    --root-top-background: #f5c800;
+    --root-top-color: #1a1a1a;
+    --dialogtitlebar-background: #f5c800;
+    --dialogtitlebar-color: #1a1a1a;
+    --frameindex-tablist-background: #1a1a1a;
+    --frameindex-tablist-color: #f5c800;
+    --card-surface: #f5f5f4;
+    --roundedgroup-bar: #fde68a;
+    --roundedgroup-bar-color: #1a1a1a;
+    --field-disabled-border: #b0b0a8;
+    --field-readonly-border: #b0b0a8;
 }

@@ -289,3 +289,127 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
 }
 
 /* @end */
+
+/* ==========================================================================
+   Rounded groups / Form groups / Footer — base defaults
+   (moved from theme files, themeable via CSS variables)
+   ========================================================================== */
+
+/* @group gnr_footer */
+.gnr_footer {
+    background-color: var(--roundedgroup-bar);
+}
+/* @end */
+
+/* @group pbl_roundedBlock */
+.pbl_roundedBlock {
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    left: 2px;
+    right: 2px;
+    border: 1px solid var(--border-strong, #aab4c4);
+    background: var(--roundedgroup-surface);
+    border-radius: var(--radius-panels, 8px);
+    box-shadow: var(--shadow-sm);
+}
+
+.pbl_roundedBlock > .pbl_roundedGroupLabel {
+    background: none;
+    color: var(--roundedgroup-bar-color);
+    font-weight: bold;
+    border: none;
+    padding: 0.5em 0 0.2em 0.5em;
+    font-size: 0.9em;
+}
+
+.pbl_roundedBlock > .pbl_roundedGroupContent {
+    position: absolute;
+    top: 1.7em;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: none;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    overflow: auto;
+}
+/* @end */
+
+/* @group pbl_roundedGroup */
+.pbl_roundedGroup {
+    border: 1px solid var(--border-strong, #aab4c4);
+    background: var(--roundedgroup-surface);
+    border-radius: var(--radius-panels, 8px);
+    box-shadow: var(--shadow-sm);
+}
+
+.pbl_roundedGroupContent {
+    background: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.pbl_roundedGroup .framegrid_center {
+    background: var(--roundedgroup-surface);
+    border: 1px solid var(--border-strong, #aab4c4);
+    box-shadow: var(--shadow-sm);
+}
+
+.pbl_roundedGroupLabel {
+    min-height: 1.2em;
+    line-height: 1.2em;
+    padding: 0.3em 0 0.2em 0.1em;
+    font-size: 0.9em;
+    background: none;
+    color: var(--roundedgroup-bar-color);
+    font-weight: bold;
+    border: none;
+}
+
+.pbl_roundedGroupVertical {
+    background: var(--roundedgroup-bar);
+}
+
+.pbl_roundedGroupLabel.slotbar_horizontal {
+    padding-left: .5em;
+    padding-right: .5em;
+}
+.pbl_roundedGroupLabel.slotbar_horizontal .slotbar_cell {
+    line-height: 1.5em;
+}
+
+.pbl_roundedGroupBottom {
+    padding-left: 0.5em;
+    font-size: 0.9em;
+    background-color: var(--roundedgroup-bar);
+}
+/* @end */
+
+/* @group pbl_rectGroup */
+.pbl_rectGroupLabel {
+    height: 22px;
+    padding-left: 10px;
+    font-size: 0.9em;
+    padding-top: 5px;
+    background: var(--primary-light, #e8ecf4);
+    color: var(--primary-color, #1E3055);
+    font-weight: 500;
+}
+
+.pbl_rectGroupBottom {
+    height: 18px;
+    padding-left: 10px;
+    font-size: 0.9em;
+    padding-bottom: 5px;
+    background: var(--primary-light, #e8ecf4);
+}
+/* @end */
+
+/* @group frameindex_left */
+.frameindex_left {
+    background: var(--frameindexroot-background, #f5f6f8);
+}
+/* @end */

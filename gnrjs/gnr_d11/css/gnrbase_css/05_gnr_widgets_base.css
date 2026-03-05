@@ -576,3 +576,180 @@ textarea:disabled {
 }
 
 /* @end */
+
+/* ==========================================================================
+   Tab container — base defaults
+   (moved from theme files, themeable via CSS variables)
+   ========================================================================== */
+
+/* @group dijitTab defaults */
+
+._common_d11 .dijitTab {
+    font-size: .85em;
+    border-radius: 6px 6px 0 0;
+    background: var(--primary-color, #1E3055);
+    color: rgba(255,255,255,0.75);
+    border: none;
+    border-bottom: none;
+    margin-right: 2px;
+    margin-bottom: -1px;
+    position: relative;
+    font-weight: 400;
+    box-shadow: inset 0 -4px 6px -2px rgba(0,0,0,0.15);
+    transition: color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+._common_d11 .dijitTabHover {
+    opacity: 1;
+    background: var(--primary-color, #1E3055);
+    color: white;
+    border: none;
+    border-bottom: none;
+    box-shadow: inset 0 -2px 4px -2px rgba(0,0,0,0.1);
+}
+
+._common_d11 .dijitTabInnerDiv {
+    border-left: 0;
+    border-bottom: 0;
+    padding: 4px 10px;
+}
+._common_d11 .dijitTabLabels-left-h .dijitTabInnerDiv {
+    padding: 4px 5px 4px 10px;
+}
+._common_d11 .dijitTabCheckedHover {
+    opacity: 1;
+}
+
+._common_d11 .dijitTabChecked {
+    background: var(--card-surface);
+    color: var(--primary-color, #1E3055);
+    font-weight: 600;
+    border: 1px solid var(--border-strong, #aab4c4);
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    box-shadow: none;
+}
+
+._common_d11 .dijitAlignTop .dijitTabChecked,
+._common_d11 .dijitAlignTop .dijitTabCloseButtonChecked {
+    background: var(--card-surface);
+    color: var(--primary-color, #1E3055);
+    font-weight: 600;
+    border: 1px solid var(--border-strong, #aab4c4);
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    box-shadow: none;
+}
+
+._common_d11 .dijitTabPaneWrapper {
+    border: 1px solid var(--border-strong, #aab4c4);
+    border-radius: 0 0 4px 4px;
+    background: var(--card-surface);
+}
+
+/* @end */
+
+/* @group underline_tabs variant */
+
+.underline_tabs ._common_d11 .dijitTab,
+._common_d11 .underline_tabs .dijitTab {
+    border-radius: 0;
+    background: transparent;
+    color: #888;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-right: 0;
+    margin-bottom: 0;
+    position: static;
+}
+.underline_tabs ._common_d11 .dijitTabHover,
+._common_d11 .underline_tabs .dijitTabHover {
+    background: transparent;
+    color: #555;
+    border-bottom-color: #ccc;
+}
+.underline_tabs ._common_d11 .dijitTabChecked,
+._common_d11 .underline_tabs .dijitTabChecked,
+.underline_tabs ._common_d11 .dijitAlignTop .dijitTabChecked,
+._common_d11 .underline_tabs .dijitAlignTop .dijitTabChecked {
+    background: transparent;
+    color: var(--primary-color, #1E3055);
+    font-weight: 600;
+    border: none;
+    border-bottom: 2px solid var(--primary-color, #1E3055);
+    border-radius: 0;
+    z-index: auto;
+}
+.underline_tabs ._common_d11 .dijitTabPaneWrapper,
+._common_d11 .underline_tabs .dijitTabPaneWrapper {
+    border: none;
+    border-top: 1px solid #e0e0e0;
+    border-radius: 0;
+    background: transparent;
+}
+
+/* @end */
+
+/* @group righttab */
+
+._common_d11 .dijitTabLabels-right-h.dijitAlignRight {
+    border: none;
+    border-left: 1px solid #e0e0e0;
+    padding-top: 3px;
+    padding-left: 2px;
+}
+
+._common_d11 .dijitTabLabels-right-h .dijitTab {
+    margin-bottom: 1px;
+    border: none;
+    background: transparent;
+    color: #888;
+    border-radius: 0;
+    border-left: 2px solid transparent;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+._common_d11 .dijitTabLabels-right-h .dijitTabInnerDiv {
+    border: 0;
+}
+
+._common_d11 .dijitTabLabels-right-h .dijitTab.dijitTabChecked {
+    background: transparent;
+    color: var(--primary-color, #1E3055);
+    font-weight: 600;
+    border-radius: 0;
+    border-left: 2px solid var(--primary-color, #1E3055);
+}
+
+/* @end */
+
+/* @group lefttab */
+
+._common_d11 .dijitTabLabels-left-h.dijitAlignLeft {
+    border: none;
+    border-right: 1px solid #e0e0e0;
+    padding-top: 3px;
+    padding-right: 2px;
+}
+
+._common_d11 .dijitTabLabels-left-h .dijitTab {
+    border: none;
+    border-radius: 0;
+    border-right: 2px solid transparent;
+    margin-left: 0;
+    text-align: right;
+    margin-bottom: 1px;
+    color: #888;
+    background: transparent;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+._common_d11 .dijitTabLabels-left-h .dijitTab.dijitTabChecked {
+    color: var(--primary-color, #1E3055);
+    background: transparent;
+    font-weight: 600;
+    border-radius: 0;
+    border-right: 2px solid var(--primary-color, #1E3055);
+}
+
+/* @end */

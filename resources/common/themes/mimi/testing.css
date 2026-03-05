@@ -1,14 +1,13 @@
-:root{
-    --root-top-background: linear-gradient(to bottom, #7474bf, #348ac7);
-    --root-top-color: #ffffff;
-    --frameindex-tablist-background:linear-gradient(to bottom, #a73737, #7a2828);
-    --frameindex-tablist-color:#ffffff;
-    --roundedgroup-bar:linear-gradient(to bottom, #c2d0e9,  #d6dfee);
-    --roundedgroup-bar-color:#444;
-    --tab-background:linear-gradient(to bottom, #c2d0e9,  #d6dfee);
-    --tab-text-color:#444;
-    --tab-selected-background:white;
-    --tab-selected-color:#ccc;
-    --mainWindow-background:linear-gradient(to top, #f6f8fa, #ffffff);
-    --mainWindow-color:#444;
+/* Environment watermark: repeating "TESTING" text, diagonal, semitransparent */
+body.tundra.mimi::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 50;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200'%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' transform='rotate(-30 150 100)' font-family='Helvetica,sans-serif' font-size='28' font-weight='700' letter-spacing='8' fill='%23000' opacity='0.04'%3ETESTING%3C/text%3E%3C/svg%3E");
+    background-repeat: repeat;
 }
