@@ -1294,6 +1294,22 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
         return 'unaccent({prefix}{field})'.format(field=field,
                                                   prefix = '' if field[0] in ('@','$') else '$')
 
+    def listen_connection(self, channels):
+        """Open a dedicated AUTOCOMMIT connection and LISTEN on the given channels.
+
+        Args:
+            channels: Iterable of channel names to LISTEN on.
+
+        Returns:
+            A connection ready for ``select()`` polling.
+        """
+        conn = self.connect(autoCommit=True)
+        cursor = conn.cursor()
+        for channel in channels:
+            cursor.execute('LISTEN %s;' % channel)
+        cursor.close()
+        return conn
+
 
 class GnrWhereTranslatorPG(GnrWhereTranslator):
     def op_similar(self, column, value, dtype, sqlArgs,tblobj):

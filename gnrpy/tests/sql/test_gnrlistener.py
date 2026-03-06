@@ -10,6 +10,10 @@ Covers:
 import json
 import select
 
+import psycopg2
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+import psycopg
+
 from gnr.core.gnrdecorator import listen
 from gnr.app.gnrlistener import GnrListener
 
@@ -164,9 +168,6 @@ class TestTableNotify:
     """tblobj.notify() sends NOTIFY with table and kwargs in payload."""
 
     def test_notify_sends_payload(self, db_pg):
-        import psycopg2
-        from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-
         dsn = db_pg.adapter.dbroot.connection.dsn
         conn = psycopg2.connect(dsn)
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
@@ -213,4 +214,49 @@ class TestAutodiscovery:
 
         # At minimum, the scan completes without error.
         # If no tables have @listen yet, that's fine — the mechanism works.
+        assert isinstance(listener._handlers, dict)
+
+
+# -- psycopg3 tests ---------------------------------------------------------
+
+class TestTableNotifyPsycopg3:
+    """tblobj.notify() via psycopg3 adapter."""
+
+    def test_notify_sends_payload(self, db_pg3):
+        conninfo = db_pg3.adapter.dbroot.connection.info.dsn
+        conn = psycopg.connect(conninfo, autocommit=True)
+        conn.execute('LISTEN fatturona;')
+
+        tbl = db_pg3.table('invc.invoice')
+        tbl.notify('fatturona', pkey='inv_big_1', total='99999')
+        db_pg3.commit()
+
+        gen = conn.notifies(timeout=5)
+        notify = next(gen)
+        payload = json.loads(notify.payload)
+        assert payload['table'] == 'invc.invoice'
+        assert payload['pkey'] == 'inv_big_1'
+        assert payload['total'] == '99999'
+
+        conn.close()
+
+
+class TestAutodiscoveryPsycopg3:
+    """Autodiscovery via psycopg3 adapter."""
+
+    def test_discover_listen_methods(self, db_pg3):
+        listener = GnrListener.__new__(GnrListener)
+        listener._handlers = {}
+
+        for dbtable in db_pg3.tables:
+            for attr_name in dir(dbtable):
+                try:
+                    method = getattr(dbtable, attr_name)
+                except Exception:
+                    continue
+                channel = getattr(method, '_listen_channel', None)
+                if channel is None:
+                    continue
+                listener.register(channel, method, table=dbtable.fullname)
+
         assert isinstance(listener._handlers, dict)
