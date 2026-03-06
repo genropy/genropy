@@ -14,7 +14,8 @@
 
 /* --- Dialog title bar (flat, no PNG gradient) --- */
 .gnr_dojotheme .dijitDialogTitleBar {
-    background: var(--primary-color, #1E3055);
+    background: var(--dialogtitlebar-background, var(--primary-color, #1E3055));
+    color: var(--dialogtitlebar-color, #fff);
     background-image: none;
     padding: 0.4em 0.5em 0.3em 0.2em;
     cursor: move;
@@ -145,6 +146,14 @@
     right: 0.2em;
 }
 
+/* Override tundra's unscoped padding-top:13px / padding-bottom:13px */
+.gnr_dojotheme .dijitTooltipBelow {
+    padding-top: 0.5em;
+}
+.gnr_dojotheme .dijitTooltipAbove {
+    padding-bottom: 0.5em;
+}
+
 /* Arrow above (tooltip below element) */
 .gnr_dojotheme .dijitTooltipBelow .dijitTooltipConnector {
     top: 0;
@@ -239,6 +248,14 @@
     border-style: solid;
     border-width: 0.5em 0.5em 0.5em 0;
     border-color: transparent var(--border-color, #ddd) transparent transparent;
+}
+
+/* --- FloatingPane title: override tundra's .tundra .dojoxFloatingPaneTitle --- */
+.tundra.gnr_dojotheme .dojoxFloatingPaneTitle {
+    background: var(--dialogtitlebar-background, var(--primary-color, #1E3055));
+    background-image: none;
+    color: var(--dialogtitlebar-color, #fff);
+    border: 0;
 }
 
 /* --- Popup opacity --- */

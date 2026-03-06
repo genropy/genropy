@@ -2410,7 +2410,7 @@ dojo.declare("gnr.widgets.TreeGrid", gnr.widgets.gnrwdg, {
 
     gnrwdg_updateScroll:function(){
         var that = this;
-        dojo.query('.treeerow_viewport',this.layoutNode.domNode).forEach(function(n){
+        dojo.query('.treerow_viewport',this.layoutNode.domNode).forEach(function(n){
                             n.style.overflow = 'scroll'
                             n.scrollLeft = that.currentScroll;
                             n.style.overflow = 'hidden'
@@ -2486,7 +2486,7 @@ dojo.declare("gnr.widgets.TreeGrid", gnr.widgets.gnrwdg, {
         this.cellsWidth = currx;
         this.viewPortWidth = colswidth;
         tplpars['maincell'] = '<div class="treecell maincell'+(mainCell.cellClass || '')+' " style="'+cellstyle+'"><div class="treeCellContent">'+(mainCell[contentKey] || '&nbsp;')+'</div></div>';
-        tplpars['columns'] = '<div class="treeerow_viewport" style="width:'+colswidth+'px;margin-left:-3px;"><div class="treerow_columns" style="width:'+(currx+1)+'px;">'+l.join('')+'</div></div>'
+        tplpars['columns'] = '<div class="treerow_viewport" style="width:'+colswidth+'px;margin-left:-3px;"><div class="treerow_columns" style="width:'+(currx+1)+'px;">'+l.join('')+'</div></div>'
         
         var elem = document.createElement('div');
         elem.innerHTML = dataTemplate('<div class="treerow treerow_'+mode+'" style="width:'+rowwidth+'px;">$maincell $columns</div>',tplpars);
@@ -2546,7 +2546,7 @@ dojo.declare("gnr.widgets.TreeGrid", gnr.widgets.gnrwdg, {
         this.cellsWidth = currx;
         this.viewPortWidth = colswidth;
         tplpars['maincell'] = '<div class="treecell maincell cell_'+(mainCell.dtype || 'T')+' '+(mainCell.cellClass || '')+' " style="'+cellstyle+'">'+htmlCellContent(item,mainCell)+'</div>';
-        tplpars['columns'] = '<div class="treeerow_viewport" style="width:'+colswidth+'px;"><div class="treerow_columns" style="width:'+currx+'px;">'+l.join('')+'</div></div>'
+        tplpars['columns'] = '<div class="treerow_viewport" style="width:'+colswidth+'px;"><div class="treerow_columns" style="width:'+currx+'px;">'+l.join('')+'</div></div>'
         return dataTemplate('innerHTML:<div class="treerow treerow_level_'+level+ folder+ " " +_customClasses+ '">$maincell $columns</div>',tplpars)
         
         //return "innerHTML:<div class='treerow treerow_level_"+level+"' style='width:"+rowwidth+"px;'>"+l.join('')+"</div>";

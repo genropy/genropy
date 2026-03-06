@@ -71,6 +71,15 @@
     --grid-row-deleted-color: #b50000;
     --grid-cell-hover-bg: #F8FFD9;
 
+    /* --- TreeGrid --- */
+    --treegrid-header-bg: #204174;
+    --treegrid-header-color: var(--border-light);
+    --treegrid-footer-bg: #F8CF00;
+    --treegrid-footer-color: #204174;
+    --treegrid-groupby-folder-bg: rgba(255, 253, 123, 0.20);
+    --treegrid-groupby-level-color: darkgreen;
+    --treegrid-open-pages-bg: rgba(94, 255, 150, 1.00);
+
     /* --- Toolbar --- */
     --toolbar-height: 1.75em;
     --toolbar-height-lg: 2em;
