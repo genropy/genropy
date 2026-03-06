@@ -1,41 +1,81 @@
 /*mimi*/
 
-/* @group Default color palette */
+/* @group Default color palette — Titanium metallic gray */
 body {
     --font-family: "SF Pro Text", "Myriad Set Pro", "SF Pro Icons", "Apple Legacy Chevron", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
-    --primary-color: #1E3055;
-    --mainWindow-background: linear-gradient(to top, #f6f8fa, #ffffff);
-    --mainWindow-color: #444;
-    --frameindexroot-background: linear-gradient(to right, #FFFFFF, #ECE9E6);
-    --frameindexcenter-background: white;
-    --frameindexroot-mobile-background: #4b525b;
-    --root-top-background: rgba(234, 203, 110, 1);
-    --root-top-color: rgba(30, 48, 85, 1);
-    --frameindex-tablist-background: linear-gradient(to right top, #172b51, #1b3058, #20345e, #243965, #293e6c);
+
+    /* --- Brand / Primary --- */
+    --primary-color: #6B6E72;
+    --primary-dark: #48494C;
+    --primary-light: #BDBFC2;
+    --primary-lighter: #EDEEF0;
+    --accent-color: #0277BD;
+
+    /* --- Surfaces --- */
+    --mainWindow-background: #F5F5F6;
+    --mainWindow-color: #3C3D40;
+    --surface-light: #EDEDEE;
+    --card-surface: #F5F5F6;
+    --roundedgroup-surface: var(--card-surface);
+
+    /* --- Layout: frameindex --- */
+    --frameindexroot-background: #EDEEF0;
+    --frameindexcenter-background: #EDEEF0;
+    --frameindexroot-mobile-background: #48494C;
+    --frameindex-tablist-background: #48494C;
     --frameindex-tablist-color: #ffffff;
-    --frameindex-subtab-bg: linear-gradient(-90deg, #A6CAEE, #467399);
-    --dialogtitlebar-background: linear-gradient(to right top, #172b51, #1b3058, #20345e, #243965, #293e6c);
-    --gnrfieldlabel-color: #707070;
+    --frameindex-subtab-bg: #5A5C60;
+    --root-top-background: #6B6E72;
+    --root-top-color: #ffffff;
 
-    /* Tabs */
-    --tab-background: linear-gradient(to bottom, #c2d0e9, #d6dfee);
-    --tab-text-color: #444;
+    /* --- Dialogs --- */
+    --dialogtitlebar-background: #6B6E72;
+    --dialogtitlebar-color: #ffffff;
+
+    /* --- Form fields --- */
+    --field-border: #9EA0A3;
+    --field-bg: white;
+    --field-disabled-border: #BDBFC2;
+    --field-disabled-bg: #EDEEF0;
+    --field-readonly-border: #BDBFC2;
+    --field-readonly-bg: #EDEEF0;
+    --gnrfieldlabel-color: #8A8C8F;
+
+    /* --- Tabs --- */
+    --tab-background: #EDEEF0;
+    --tab-text-color: #48494C;
     --tab-selected-background: white;
-    --tab-selected-color: #ccc;
+    --tab-selected-color: #BDBFC2;
 
-    /* Rounded/Rect groups — flat style, no card shadows */
-    --roundedgroup-bar: linear-gradient(to bottom, #c2d0e9, #d6dfee);
-    --roundedgroup-bar-color: #444;
-    --roundedgroup-surface: transparent;
-    --shadow-sm: none;
-    --border-strong: var(--border-color, #ddd);
-    --radius-panels: 6px;
-    --rectgroup-bar-background: linear-gradient(to bottom, #c2d0e9, #d6dfee);
+    /* --- Rounded/Rect groups (visible but soft bar, unlike joanna) --- */
+    --roundedgroup-bar: #E0E1E3;
+    --roundedgroup-bar-color: #5A5C60;
+    --roundedgroup-border: #D8D9DC;
+    --roundedgroup-shadow: rgba(0,0,0,0.04);
+    --rectgroup-bar-background: #E0E1E3;
 
-    /* Menutree selected states */
-    --menutree-selected-color: rgb(255, 0, 111);
-    --menutree-branch-selected-color: #444;
-    --menutree-mobile-selected-color: rgba(255, 210, 0, 1.00);
+    /* --- topLabelTable --- */
+    --topLabelTable-border-top: 2px solid var(--primary-light);
+    --topLabelTable-separator: var(--primary-light);
+
+    /* --- Buttons: Apple blue --- */
+    --btn-filled-bg: #0071E3;
+    --btn-filled-color: #fff;
+    --btn-filled-hover-bg: #0077ED;
+    --btn-filled-pressed-bg: #005BBB;
+    --btn-filled-selected-bg: #005BBB;
+    --btn-filled-disabled-bg: #7ABAEF;
+    --btn-filled-disabled-color: rgba(255,255,255,0.7);
+    --btn-tonal-bg: #E8F1FC;
+    --btn-tonal-color: #0071E3;
+    --btn-tonal-hover-bg: #D0E3F8;
+    --btn-tonal-pressed-bg: #B8D5F4;
+    --btn-tonal-selected-bg: #B8D5F4;
+
+    /* --- Menutree --- */
+    --menutree-selected-color: var(--accent-color);
+    --menutree-branch-selected-color: #48494C;
+    --menutree-mobile-selected-color: #FFD54F;
     --menutree-mobile-branch-selected-color: white;
 }
 

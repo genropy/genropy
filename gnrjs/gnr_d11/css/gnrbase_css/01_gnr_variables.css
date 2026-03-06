@@ -147,6 +147,12 @@
 
     /* --- Menu --- */
     --menu-text-color: #444;
+    --menu-bg: #fff;
+    --menu-border-color: rgba(0,0,0,0.18);
+    --menu-border-top-color: rgba(0,0,0,0.25);
+    --menu-separator-color: rgba(0,0,0,0.08);
+    --menu-item-hover-bg: rgba(0,0,0,0.06);
+    --menu-item-hover-color: var(--mainWindow-color);
     --menutree-chevron-color: currentColor;
     --menutree-selected-color: var(--accent-color);
     --menutree-selected-weight: 600;
