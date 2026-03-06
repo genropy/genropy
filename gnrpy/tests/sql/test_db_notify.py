@@ -10,9 +10,10 @@ Verifies that:
 - LISTEN receives the notification with correct payload
 """
 
-import json
+import datetime
 import select
 
+from gnr.core.gnrstring import fromTypedJSON, toTypedJSON
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter
 
 
@@ -62,12 +63,12 @@ class TestPostgresNotify:
         db_pg.commit()
 
     def test_notify_with_json_payload(self, db_pg):
-        payload = json.dumps({'table': 'invc.invoice', 'pkey': '123', 'event': 'I'})
+        payload = toTypedJSON({'table': 'invc.invoice', 'pkey': '123', 'event': 'I'})
         db_pg.adapter.notify('dbevent', payload=payload)
         db_pg.commit()
 
     def test_notify_escapes_quotes(self, db_pg):
-        payload = json.dumps({'note': "it's a test"})
+        payload = toTypedJSON({'note': "it's a test"})
         db_pg.adapter.notify('dbevent', payload=payload)
         db_pg.commit()
 
@@ -88,7 +89,7 @@ class TestListenNotify:
         cur = listener.cursor()
         cur.execute('LISTEN test_listen;')
 
-        expected_payload = json.dumps({'table': 'invc.invoice', 'event': 'I', 'pkey': 'x1'})
+        expected_payload = toTypedJSON({'table': 'invc.invoice', 'event': 'I', 'pkey': 'x1'})
         db_pg.adapter.notify('test_listen', payload=expected_payload)
         db_pg.commit()
 
@@ -97,7 +98,7 @@ class TestListenNotify:
         listener.poll()
         notifications = list(listener.notifies)
         assert len(notifications) >= 1
-        received = json.loads(notifications[0].payload)
+        received = fromTypedJSON(notifications[0].payload)
         assert received['table'] == 'invc.invoice'
         assert received['event'] == 'I'
         assert received['pkey'] == 'x1'
@@ -148,10 +149,13 @@ class TestDbNotifyPayload:
             listener.poll()
             notifications = list(listener.notifies)
             assert len(notifications) >= 1
-            payload = json.loads(notifications[-1].payload)
+            payload = fromTypedJSON(notifications[-1].payload)
             assert payload['table'] == 'invc.product'
             assert payload['pkey'] == 'notify_test_1'
             assert payload['event'] == 'I'
+            assert payload['user'] is None
+            assert payload['page_id'] is None
+            assert isinstance(payload['ts'], datetime.datetime)
             assert 'fields' not in payload
         finally:
             self._clear_notify(tbl)
@@ -179,8 +183,11 @@ class TestDbNotifyPayload:
             assert ready[0], 'No notification received'
             listener.poll()
             notifications = list(listener.notifies)
-            payload = json.loads(notifications[-1].payload)
+            payload = fromTypedJSON(notifications[-1].payload)
             assert payload['event'] == 'D'
+            assert payload['user'] is None
+            assert payload['page_id'] is None
+            assert isinstance(payload['ts'], datetime.datetime)
             assert payload['fields']['invoice_id'] == 'inv_001'
             assert payload['fields']['product_id'] == 'prod_42'
         finally:
@@ -210,8 +217,11 @@ class TestDbNotifyPayload:
             assert ready[0], 'No notification received'
             listener.poll()
             notifications = list(listener.notifies)
-            payload = json.loads(notifications[-1].payload)
+            payload = fromTypedJSON(notifications[-1].payload)
             assert payload['event'] == 'U'
+            assert payload['user'] is None
+            assert payload['page_id'] is None
+            assert isinstance(payload['ts'], datetime.datetime)
             assert 'invoice_id' in payload['fields']
             assert payload['fields']['invoice_id']['old'] == 'inv_001'
             assert payload['fields']['invoice_id']['new'] == 'inv_002'
@@ -243,8 +253,11 @@ class TestDbNotifyPayload:
             assert ready[0], 'No notification received'
             listener.poll()
             notifications = list(listener.notifies)
-            payload = json.loads(notifications[-1].payload)
+            payload = fromTypedJSON(notifications[-1].payload)
             assert payload['event'] == 'U'
+            assert payload['user'] is None
+            assert payload['page_id'] is None
+            assert isinstance(payload['ts'], datetime.datetime)
             assert 'fields' not in payload
         finally:
             self._clear_notify(tbl)

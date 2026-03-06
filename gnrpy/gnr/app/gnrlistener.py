@@ -30,12 +30,13 @@ Usage::
 
 from __future__ import annotations
 
-import json
 import logging
 import select
 import signal
 import time
 from concurrent.futures import ThreadPoolExecutor
+
+from gnr.core.gnrstring import fromTypedJSON
 
 log = logging.getLogger('gnr.listener')
 
@@ -142,8 +143,8 @@ class GnrListener:
         if not handlers:
             return
         try:
-            payload = json.loads(notify.payload) if notify.payload else {}
-        except (json.JSONDecodeError, TypeError):
+            payload = fromTypedJSON(notify.payload) if notify.payload else {}
+        except (ValueError, TypeError):
             payload = {'raw': notify.payload}
 
         for handler, filters in handlers:
