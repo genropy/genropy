@@ -75,24 +75,80 @@ class BasePreferenceTabs(BaseComponent):
 
 
 class AppPrefHandler(BasePreferenceTabs):
-    py_requires='preference:AppPref,foundation/tools'
+    py_requires='preference:AppPref,foundation/tools,gnrcomponents/grouplet/grouplet:GroupletHandler'
 
     @struct_method
-    def ph_appPreferencesForm(self,parent,datapath=None,**kwargs):
-        form = parent.frameForm(frameCode='app_preferences',store_startKey='_mainpref_',
-                                table='adm.preference',datapath=datapath,store=True,modal=True,**kwargs)
-        form.top.slotToolbar('*,stackButtons,*',
-                             stackButtons_stackNodeId='PREFROOT')
+    def ph_appPreferencesForm(self, parent, datapath=None, **kwargs):
+        form = parent.frameForm(frameCode='app_preferences',
+                                store_startKey='_mainpref_',
+                                table='adm.preference', datapath=datapath,
+                                store=True, modal=True, **kwargs)
         form.dataController("""
             var tkw = _triggerpars.kw;
             if(tkw.reason && tkw.reason.attr && tkw.reason.attr.livePreference){
                 genro.mainGenroWindow.genro.publish({topic:'externalSetData',
                 iframe:'*'},{path:'gnr.app_preference.'+tkw.pathlist.slice(4).join('.'),value:tkw.value});
-            }""",preference='^#FORM.record.data')
-        form.center.appPreferencesTabs(datapath='#FORM.record.data',wdg='stack')
-        bar = form.bottom.slotBar('5,cancel,*,revertbtn,10,savebtn,saveAndClose,5',margin_bottom='2px',_class='slotbar_dialog_footer')
-        bar.savebtn.button('!!Apply',action='this.form.publish("save")')
+            }""", preference='^#FORM.record.data')
+        form.dataController(nodeId='PREFROOT', datapath='#FORM.record.data')
+        form.center.groupletPanel(
+            grouplets_root='app_preferences',
+            value='^#FORM.record.data',
+            frameCode='app_pref_grplt',
+            menuCallback=self._ph_preferenceMenu
+        )
+        bar = form.bottom.slotBar('5,cancel,*,revertbtn,10,savebtn,saveAndClose,5',
+                                   margin_bottom='2px', _class='slotbar_dialog_footer')
+        bar.savebtn.button('!!Apply', action='this.form.publish("save")')
         return form
+
+    def _ph_preferenceMenu(self, **kwargs):
+        menu = self.gr_getGroupletMenu(grouplets_root='app_preferences')
+        existing_locationpaths = set()
+        for node in menu:
+            lp = node.attr.get('locationpath')
+            if lp:
+                existing_locationpaths.add(lp)
+        menu.popNode('legacy_pref')
+        grouped = defaultdict(list)
+        for pkgId, pkgObj in self.application.packages.items():
+            if pkgObj.disabled or pkgId in existing_locationpaths:
+                continue
+            panecb = getattr(self, f'prefpane_{pkgId}', None)
+            if not panecb:
+                continue
+            permcb = getattr(self, f'permission_{pkgId}', None)
+            if permcb and not self.application.checkResourcePermission(
+                    permcb(), self.userTags):
+                continue
+            prefgroup = (pkgObj.attributes.get('prefgroup')
+                         or pkgObj.projectInfo.get('project?prefgroup')
+                         or pkgObj.projectInfo.get('project?name')
+                         or pkgId)
+            caption = (pkgObj.attributes.get('name_full')
+                       or pkgObj.attributes.get('name_long') or pkgId)
+            grouped[prefgroup].append(dict(pkgId=pkgId, caption=caption))
+        for group, pkglist in grouped.items():
+            if len(pkglist) == 1:
+                pkg = pkglist[0]
+                menu.setItem(pkg['pkgId'], None,
+                             caption=pkg['caption'],
+                             grouplet_caption=pkg['caption'],
+                             resource='legacy_pref',
+                             locationpath=pkg['pkgId'],
+                             priority=50)
+            else:
+                group_key = group.split(']', 1)[-1] if ']' in group else group
+                group_caption = self._(group)
+                for pkg in pkglist:
+                    menu.setItem(f"{group_key}.{pkg['pkgId']}", None,
+                                 caption=pkg['caption'],
+                                 grouplet_caption=pkg['caption'],
+                                 resource='legacy_pref',
+                                 locationpath=pkg['pkgId'],
+                                 priority=50)
+                menu.setAttr(group_key, dict(caption=group_caption, priority=50))
+        menu.sort('#a.priority,#a.caption')
+        return menu
 
 
 
