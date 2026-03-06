@@ -401,6 +401,17 @@ class SqlDbAdapter(object):
         """
         return None
 
+    def poll_notifications(self, conn):
+        """Poll for pending notifications on a listen connection.
+
+        Args:
+            conn: The connection returned by :meth:`listen_connection`.
+
+        Returns:
+            A list of notification objects (each with ``.channel`` and ``.payload``).
+        """
+        return []
+
     def listRemoteDatabases(self, source_ssh_host=None, source_ssh_user=None,
                             source_ssh_dbuser=None, source_ssh_dbpassword=None,
                             source_ssh_dbhost=None):

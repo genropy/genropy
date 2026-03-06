@@ -30,15 +30,13 @@ Usage::
 
 from __future__ import annotations
 
-import logging
 import select
 import signal
 import time
 from concurrent.futures import ThreadPoolExecutor
 
+from gnr.app import logger
 from gnr.core.gnrstring import fromTypedJSON
-
-log = logging.getLogger('gnr.listener')
 
 
 class GnrListener:
@@ -88,13 +86,13 @@ class GnrListener:
         When ``workers > 1``, handlers run in a thread pool.
         """
         if not self._handlers:
-            log.warning('No handlers registered — nothing to listen for')
+            logger.warning('No handlers registered — nothing to listen for')
             return
 
         self._running = True
         if self.workers > 1:
             self._executor = ThreadPoolExecutor(max_workers=self.workers)
-            log.info('Thread pool started with %d workers', self.workers)
+            logger.info('Thread pool started with %d workers', self.workers)
 
         original_sigterm = signal.getsignal(signal.SIGTERM)
         original_sigint = signal.getsignal(signal.SIGINT)
@@ -102,29 +100,26 @@ class GnrListener:
         signal.signal(signal.SIGINT, self._signal_handler)
 
         conn = self._listen_connection()
-        log.info('GnrListener started — channels: %s', ', '.join(sorted(self.channels)))
+        logger.info('GnrListener started — channels: %s', ', '.join(sorted(self.channels)))
 
         try:
             while self._running:
                 if select.select([conn], [], [], self.timeout) != ([], [], []):
-                    conn.poll()
-                    processed = 0
-                    while conn.notifies:
-                        notify = conn.notifies.pop(0)
+                    notifications = self.db.adapter.poll_notifications(conn)
+                    for notify in notifications:
                         self._dispatch(notify)
-                        processed += 1
-                    if processed and self.coalesce:
+                    if notifications and self.coalesce:
                         time.sleep(self.coalesce)
         except Exception:
-            log.exception('GnrListener error')
+            logger.exception('GnrListener error')
             raise
         finally:
             if self._executor:
                 self._executor.shutdown(wait=True)
-                log.info('Thread pool shut down')
+                logger.info('Thread pool shut down')
             signal.signal(signal.SIGTERM, original_sigterm)
             signal.signal(signal.SIGINT, original_sigint)
-            log.info('GnrListener shutting down')
+            logger.info('GnrListener shutting down')
             conn.close()
 
     def _listen_connection(self):
@@ -133,7 +128,7 @@ class GnrListener:
         if conn is None:
             raise RuntimeError('The current database adapter does not support LISTEN/NOTIFY')
         for channel in sorted(self.channels):
-            log.debug('LISTEN %s', channel)
+            logger.debug('LISTEN %s', channel)
         return conn
 
     def _dispatch(self, notify):
@@ -160,7 +155,7 @@ class GnrListener:
         try:
             handler(payload)
         except Exception:
-            log.exception('Handler %s failed for %s',
+            logger.exception('Handler %s failed for %s',
                           handler.__qualname__, payload)
 
     def _matches(self, payload, filters):
@@ -172,5 +167,5 @@ class GnrListener:
 
     def _signal_handler(self, signum, _frame):
         """Handle SIGTERM/SIGINT for clean shutdown."""
-        log.info('Received signal %s — stopping', signum)
+        logger.info('Received signal %s — stopping', signum)
         self._running = False
