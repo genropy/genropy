@@ -114,15 +114,12 @@ class GnrListener:
             conn.close()
 
     def _listen_connection(self):
-        """Open a dedicated connection and issue LISTEN for each channel."""
-        from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-        conn = self.db.adapter.connect()
-        conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        cursor = conn.cursor()
+        """Open a dedicated AUTOCOMMIT connection via the adapter."""
+        conn = self.db.adapter.listen_connection(sorted(self.channels))
+        if conn is None:
+            raise RuntimeError('The current database adapter does not support LISTEN/NOTIFY')
         for channel in sorted(self.channels):
-            cursor.execute('LISTEN %s;' % channel)
             log.debug('LISTEN %s', channel)
-        cursor.close()
         return conn
 
     def _dispatch(self, notify):

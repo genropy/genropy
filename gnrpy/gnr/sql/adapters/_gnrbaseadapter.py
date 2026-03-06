@@ -390,6 +390,17 @@ class SqlDbAdapter(object):
         """
         raise AdapterMethodNotImplemented()
 
+    def listen_connection(self, channels):
+        """Open a dedicated AUTOCOMMIT connection and LISTEN on the given channels.
+
+        Returns a connection ready for ``select()`` polling, or ``None``
+        for adapters that do not support notifications.
+
+        Args:
+            channels: Iterable of channel names to LISTEN on.
+        """
+        return None
+
     def listRemoteDatabases(self, source_ssh_host=None, source_ssh_user=None,
                             source_ssh_dbuser=None, source_ssh_dbpassword=None,
                             source_ssh_dbhost=None):
