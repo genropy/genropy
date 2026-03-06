@@ -30,12 +30,8 @@ Usage::
 
 from __future__ import annotations
 
-import logging
-
 from gnr.app.gnrapp import GnrApp
 from gnr.app.gnrlistener import GnrListener
-
-log = logging.getLogger('gnr.listener')
 
 
 class GnrAppListener:

@@ -1310,6 +1310,20 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
         cursor.close()
         return conn
 
+    def poll_notifications(self, conn):
+        """Poll for pending notifications on a psycopg2/psycopg3 connection.
+
+        Args:
+            conn: The connection returned by :meth:`listen_connection`.
+
+        Returns:
+            A list of notification objects (each with ``.channel`` and ``.payload``).
+        """
+        conn.poll()
+        notifications = list(conn.notifies)
+        conn.notifies.clear()
+        return notifications
+
 
 class GnrWhereTranslatorPG(GnrWhereTranslator):
     def op_similar(self, column, value, dtype, sqlArgs,tblobj):
