@@ -42,7 +42,6 @@ def get_gnrdaemon_port(set_last=False):
 
 def build_environment_xml(path=None, gnrpy_path=None, gnrdaemon_password=None, gnrdaemon_port=None):
     genropy_home = gnrpy_path
-    print(genropy_home)
 
     # hack to understand if we're running genropy from a checkout
     # or from an installation
@@ -868,9 +867,13 @@ class ResourceMaker(object):
                 os.makedirs(path, exist_ok=True)
         
 class ThPackageResourceMaker(object):
-    def __init__(self,application,package=None,tables=None,force=False,menu=False,columns=2,guess_size=False,indent=4, bag_columns=None):
+    def __init__(self, application, package=None, tables=None, force=False,
+                 menu=False, columns=2, guess_size=False, indent=4,
+                 bag_columns=None,
+                 filename=None, output=None):
         self.option_force = force
         self.option_menu = menu
+        logger.debug("Guessing column width by data size: ACTIVE")
         self.option_columns = columns
         self.option_guess_size = guess_size
         self.option_indent = indent
@@ -878,9 +881,11 @@ class ThPackageResourceMaker(object):
         self.app = application 
         self.package = package
         self.bag_columns=bag_columns or dict(view=False, form=False)
-        self.tables = tables if tables else list(self.app.db.packages[self.package].tables.keys()) 
+        self.tables = tables if tables else list(self.app.db.packages[self.package].tables.keys())
+        if not self.app.packages(package):
+            raise ModuleNotFoundError(f"Package {package} was not found")
+        
         self.packageFolder = self.app.packages(package).packageFolder
-
     
     def makeResources(self):
         for table in self.tables:
@@ -902,25 +907,6 @@ class ThPackageResourceMaker(object):
             m.lookupBranch("Lookup tables", pkg=self.package)
         m.toPython(menupath)
 
-
-        #with open(os.path.join(self.packageFolder,'menu.py'),'w') as out_file:
-        #    self.out_file = out_file
-        #    self.writeHeaders()
-        #    self.write('def config(root,application=None):')
-        #    pkgobj =  self.app.db.package(self.package)
-        #    self.write("%s = root.branch('%s')"%(self.package,(pkgobj.name_long or self.package.capitalize())),indent=1) 
-        #    hasLookups = False
-        #    for t in self.tables:
-        #        tblobj = self.app.db.table('%s.%s' %(self.package,t))
-        #        if tblobj.attributes.get('lookup'):
-        #            hasLookups = True
-        #        else:
-        #            self.write("%s.thpage('%s',table='%s')" %(self.package,(tblobj.name_plural or tblobj.name_long or tblobj.name.capitalize()),
-        #                    tblobj.fullname),indent=1)
-        #    if hasLookups:
-        #        self.write("%s.lookups('Lookup tables',lookup_manager='%s')" %(self.package,self.package),indent=1)
-
-
     def write(self,line=None, indent=0):
         line = line or ''
         self.out_file.write('%s%s\n'%(self.option_indent*indent*' ',line))
@@ -932,7 +918,6 @@ class ThPackageResourceMaker(object):
     
     def writeImports(self):
         self.write("from gnr.web.gnrbaseclasses import BaseComponent")
-        self.write("from gnr.core.gnrdecorator import public_method")
         self.write()
     
     def writeViewClass(self, tblobj, columns):
@@ -942,12 +927,12 @@ class ThPackageResourceMaker(object):
         self.write('r = struct.view().rows()', indent=2)
         for column, size, dtype in columns:
             if self.option_guess_size:
-                self.write("r.fieldcell('%s', width='%iem')"%(column,size), indent=2)
+                self.write(f"r.fieldcell('{column}', width='{size}em')", indent=2)
             else:
-                self.write("r.fieldcell('%s')"%column, indent=2)
+                self.write(f"r.fieldcell('{column}')", indent=2)
         self.write()
         self.write("def th_order(self):", indent=1)
-        self.write("return '%s'"%columns[0][0], indent=2)
+        self.write("return '%s'" % columns[0][0], indent=2)
         self.write()
         self.write("def th_query(self):", indent=1)
         searchcol = tblobj.attributes.get('caption_field') 
