@@ -176,9 +176,11 @@ dojo.declare("gnr.widgets.Tree", gnr.widgets.baseDojo, {
                     return iconGetter(node, opened);
                 }
             };
+            attributes._hasCustomIcon = true;
         }
         attributes.onChecked=attributes.onChecked || ('checkedPaths' in attributes) || ('checked' in attributes) || objectNotEmpty(objectExtract(sourceNode.attr,'checked_*',true))
         if (attributes.onChecked) {
+            attributes._hasCustomIcon = true;
             attributes.getIconClass = function(node, opened) {
                 if (!(node instanceof gnr.GnrBagNode)) {
                     return;
@@ -207,7 +209,7 @@ dojo.declare("gnr.widgets.Tree", gnr.widgets.baseDojo, {
             sourceNode.registerDynAttr('selectedPath');
         }
         var tooltipAttrs = objectExtract(attributes, 'tooltip_*');
-        var savedAttrs = objectExtract(attributes, 'inspect,autoCollapse,onChecked,editable');
+        var savedAttrs = objectExtract(attributes, 'inspect,autoCollapse,onChecked,editable,_hasCustomIcon');
         if (objectNotEmpty(tooltipAttrs)) {
             savedAttrs['tooltipAttrs'] = tooltipAttrs;
         }
@@ -250,7 +252,7 @@ dojo.declare("gnr.widgets.Tree", gnr.widgets.baseDojo, {
         else {
             sourceNode.registerDynAttr('storepath');
         }
-        if (widget.getIconClass) {
+        if (savedAttrs._hasCustomIcon) {
             dojo.addClass(widget.domNode, 'treeWithIcon');
         }
         if (savedAttrs.onChecked) {
