@@ -36,6 +36,7 @@ import logging
 import select
 import signal
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 log = logging.getLogger('gnr.listener')
 
@@ -47,15 +48,20 @@ class GnrListener:
         app: The :class:`GnrApp` instance.
         timeout: Seconds to wait on ``select()`` before cycling.
         coalesce: Seconds to sleep after processing a batch of notifications.
+        workers: Number of thread-pool workers for handler execution.
+            ``1`` (default) runs handlers synchronously in the main loop.
+            ``N > 1`` submits handlers to a ``ThreadPoolExecutor(N)``.
     """
 
-    def __init__(self, app, timeout=5, coalesce=1):
+    def __init__(self, app, timeout=5, coalesce=1, workers=1):
         self.app = app
         self.db = app.db
         self.timeout = timeout
         self.coalesce = coalesce
+        self.workers = workers
         self._handlers = {}
         self._running = False
+        self._executor = None
 
     def register(self, channel, handler, **filters):
         """Register a handler for a NOTIFY channel.
@@ -79,12 +85,17 @@ class GnrListener:
         """Blocking event loop: LISTEN on all channels, dispatch forever.
 
         Handles SIGTERM and SIGINT for clean shutdown.
+        When ``workers > 1``, handlers run in a thread pool.
         """
         if not self._handlers:
             log.warning('No handlers registered — nothing to listen for')
             return
 
         self._running = True
+        if self.workers > 1:
+            self._executor = ThreadPoolExecutor(max_workers=self.workers)
+            log.info('Thread pool started with %d workers', self.workers)
+
         original_sigterm = signal.getsignal(signal.SIGTERM)
         original_sigint = signal.getsignal(signal.SIGINT)
         signal.signal(signal.SIGTERM, self._signal_handler)
@@ -108,6 +119,9 @@ class GnrListener:
             log.exception('GnrListener error')
             raise
         finally:
+            if self._executor:
+                self._executor.shutdown(wait=True)
+                log.info('Thread pool shut down')
             signal.signal(signal.SIGTERM, original_sigterm)
             signal.signal(signal.SIGINT, original_sigint)
             log.info('GnrListener shutting down')
@@ -135,11 +149,19 @@ class GnrListener:
 
         for handler, filters in handlers:
             if self._matches(payload, filters):
-                try:
-                    handler(payload)
-                except Exception:
-                    log.exception('Handler %s failed for %s',
-                                  handler.__qualname__, payload)
+                if self._executor:
+                    self._executor.submit(self._safe_call, handler, payload)
+                else:
+                    self._safe_call(handler, payload)
+
+    @staticmethod
+    def _safe_call(handler, payload):
+        """Call handler with error logging."""
+        try:
+            handler(payload)
+        except Exception:
+            log.exception('Handler %s failed for %s',
+                          handler.__qualname__, payload)
 
     def _matches(self, payload, filters):
         """Check if payload matches all filter criteria."""
