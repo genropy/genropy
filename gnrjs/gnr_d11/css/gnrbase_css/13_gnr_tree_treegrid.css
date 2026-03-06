@@ -144,8 +144,8 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    vertical-align: middle;
-    line-height: 1.4;
+    vertical-align: top;
+    line-height: 1.5em;
 }
 
 .treeGridCenter .selectedTreeNode .treecell{
@@ -194,14 +194,10 @@
 .treegrid .dijitTreeContent{
     position: relative;
     height: 1.5em;
-}
-.treegrid.branchtree .dijitTreeExpando{
-    height: 1.5em;
-    width: 1.2em;
-}
-
-.treegrid.branchtree .dijitTreeContent{
-    margin-left: 1.25em;
+    line-height: 1.5em;
+    padding-top: 0;
+    padding-bottom: 0;
+    overflow: hidden;
 }
 
 .treegrid .dijitTreeLabel{
@@ -236,7 +232,7 @@
 }
 .treerow_viewport{
     display: inline-block;
-    vertical-align: middle;
+    vertical-align: top;
 }
 
 /* --- GroupBy tree --- */
@@ -274,51 +270,11 @@
     margin-left: 1.4em;
 }
 
-/* --- Branch tree --- */
-.branchtree {
-    line-height: 1.2em;
-}
-.branchtree .dijitTreeNode {
-    background: none;
-    margin-left: 0.7em;
-}
-.branchtree .dijitTreeIsRoot {
-    margin-left: 0;
-}
-.branchtree .dijitTreeContent {
-    padding-bottom: 0.15em;
-    padding-top: 0;
-}
-.branchtree .dijitTreeExpando {
-    height: 1em;
-    width: 1em;
-}
-.branchtree .dijitTreeLabel {
-    padding-left: 0.15em;
-    white-space: nowrap;
-}
-.branchtree.treeLongLabels .dijitTreeLabel {
-    padding-left: 0.15em;
-    white-space: normal;
-}
-.branchtree .branchtree_selected.dijitTreeLabel {
-    background-color: var(--primary-dark);
-    color: white;
-    padding-right: 1em;
-    border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
-}
-
-/* Branch tree inside treeGrid */
-.treeGridCenter .branchtree .dijitTreeLabel {
+/* --- TreeGrid inside treeGridCenter --- */
+.treeGridCenter .treegrid .dijitTreeLabel {
     padding-left: 0;
 }
-.treeGridCenter .branchtree .dijitTreeExpando {
-    width: 0.9em;
-}
-.treeGridCenter .treegrid.branchtree .dijitTreeContent {
-    margin-left: 1em;
-}
-.treegridcheckbox .treeGridCenter .treegrid.branchtree .dijitTreeContent {
+.treegridcheckbox .treeGridCenter .treegrid .dijitTreeContent {
     margin-left: 2em;
 }
 

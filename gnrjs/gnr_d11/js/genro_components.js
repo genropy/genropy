@@ -2328,7 +2328,7 @@ dojo.declare("gnr.widgets.TreeGrid", gnr.widgets.gnrwdg, {
             background:'white',
             searchColumn:searchColumn,
             selectedLabelClass:'selectedTreeNode',
-            _class:hasCheckbox?'treegrid branchtree' :'treegrid branchtree noIcon',
+            _class:hasCheckbox?'treegrid' :'treegrid noIcon',
             connect__expandNode:function(){
                 gnrwdg.updateScroll();
             },
