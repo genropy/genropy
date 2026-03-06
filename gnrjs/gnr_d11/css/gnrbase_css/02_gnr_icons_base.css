@@ -338,9 +338,28 @@
 .smallmenu .dijitMenuItem {
     font-size: 0.9em;
 }
-.noIconMenu .dijitMenuItemIcon{
+.noIconMenu .dijitMenuItem td:first-child {
     display: none;
 }
+
+/* Compact menu: small font, balanced columns, auto width */
+._common_d11.tundra .minimenu.dijitMenu {
+    min-width: 0;
+}
+
+.minimenu .dijitMenuItem {
+    font-size: 0.85em;
+}
+
+.minimenu .dijitMenuItemIcon {
+    width: 0;
+    height: 0;
+}
+
+.minimenu .dijitMenuItem td {
+    padding: 0.1em 0.2em;
+}
+
 /* .menupane rules consolidated in 13_gnr_tree_treegrid.css */
 
 .tundra .smallmenu .dijitMenuItem td {
@@ -386,8 +405,26 @@ div.dojoxDock {
 }
 
 .floatingPopup {
-    padding-right: 15px;
+    position: relative;
+    padding-right: 2em;
     cursor: pointer;
+}
+
+.floatingPopup::after {
+    content: '';
+    position: absolute;
+    right: 0.3em;
+    top: 50%;
+    transform: translateY(-50%);
+    border-style: solid;
+    border-width: 0.45em 0.35em 0;
+    border-color: currentColor transparent transparent;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.floatingPopup:hover::after {
+    opacity: 1;
 }
 /*.menuButtonDiv{
     padding-right: 9px;
@@ -514,11 +551,23 @@ div.dojoxDock {
     background-color: #feffb4;
 }
 .floatingPopup:hover {
-    background: #feffb4 url(../icons/base12/smallpopup.gif) no-repeat right !important;
+    background-color: #feffb4;
 }
 
 .floatingPopupFixed {
-    background: url(../icons/base12/smallpopup.gif) no-repeat right !important;
+    position: relative;
+    padding-right: 1em;
+}
+
+.floatingPopupFixed::after {
+    content: '';
+    position: absolute;
+    right: 0.25em;
+    top: 50%;
+    transform: translateY(-50%);
+    border-style: solid;
+    border-width: 0.25em 0.2em 0;
+    border-color: currentColor transparent transparent;
 }
 
 .helperField {
