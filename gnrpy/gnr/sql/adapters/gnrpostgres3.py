@@ -192,10 +192,10 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         :param msg: channel name to notify
         :param payload: optional payload string (max 8000 bytes)
         :param autocommit: if False (default) the message is sent on commit"""
-        if payload:
-            self.dbroot.execute("NOTIFY %s, '%s';" % (msg, payload.replace("'", "''")))
+        if payload is None:
+            self.dbroot.execute("NOTIFY %s;" % msg)
         else:
-            self.dbroot.execute('NOTIFY %s;' % msg)
+            self.dbroot.execute("NOTIFY %s, :payload;" % msg, sqlargs={'payload': payload})
         if autocommit:
             self.dbroot.commit()
 

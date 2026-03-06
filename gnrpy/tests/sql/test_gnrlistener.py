@@ -7,7 +7,7 @@ Covers:
 - GnrListener dispatch with table filtering
 """
 
-import json
+import datetime
 import select
 
 import psycopg2
@@ -15,6 +15,7 @@ from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 import psycopg
 
 from gnr.core.gnrdecorator import listen
+from gnr.core.gnrstring import fromTypedJSON, toTypedJSON
 from gnr.app.gnrlistener import GnrListener
 
 
@@ -104,7 +105,7 @@ class TestGnrListenerDispatch:
 
         class FakeNotify:
             channel = 'dbevent'
-            payload = json.dumps({'table': 'invc.invoice', 'pkey': '123', 'event': 'I'})
+            payload = toTypedJSON({'table': 'invc.invoice', 'pkey': '123', 'event': 'I'})
 
         listener._dispatch(FakeNotify())
         assert len(received) == 1
@@ -118,7 +119,7 @@ class TestGnrListenerDispatch:
 
         class FakeNotify:
             channel = 'dbevent'
-            payload = json.dumps({'table': 'invc.product', 'pkey': '456', 'event': 'I'})
+            payload = toTypedJSON({'table': 'invc.product', 'pkey': '456', 'event': 'I'})
 
         listener._dispatch(FakeNotify())
         assert len(received) == 0
@@ -131,12 +132,11 @@ class TestGnrListenerDispatch:
 
         class FakeNotify:
             channel = 'dbevent'
-            payload = json.dumps({'table': 'invc.invoice', 'pkey': '1', 'event': 'I'})
+            payload = toTypedJSON({'table': 'invc.invoice', 'pkey': '1', 'event': 'I'})
 
         listener._dispatch(FakeNotify())
         assert len(r1) == 1
         assert len(r2) == 0
-
 
     def test_dispatch_with_thread_pool(self):
         """With workers > 1, handlers run in threads."""
@@ -153,7 +153,7 @@ class TestGnrListenerDispatch:
 
         class FakeNotify:
             channel = 'dbevent'
-            payload = json.dumps({'table': 'invc.invoice', 'pkey': '1', 'event': 'I'})
+            payload = toTypedJSON({'table': 'invc.invoice', 'pkey': '1', 'event': 'I'})
 
         listener._dispatch(FakeNotify())
         listener._executor.shutdown(wait=True)
@@ -183,10 +183,13 @@ class TestTableNotify:
         conn.poll()
         notifications = list(conn.notifies)
         assert len(notifications) >= 1
-        payload = json.loads(notifications[-1].payload)
+        payload = fromTypedJSON(notifications[-1].payload)
         assert payload['table'] == 'invc.invoice'
         assert payload['pkey'] == 'inv_big_1'
         assert payload['total'] == '99999'
+        assert payload['user'] is None
+        assert payload['page_id'] is None
+        assert isinstance(payload['ts'], datetime.datetime)
 
         conn.close()
 
@@ -233,10 +236,13 @@ class TestTableNotifyPsycopg3:
 
         gen = conn.notifies(timeout=5)
         notify = next(gen)
-        payload = json.loads(notify.payload)
+        payload = fromTypedJSON(notify.payload)
         assert payload['table'] == 'invc.invoice'
         assert payload['pkey'] == 'inv_big_1'
         assert payload['total'] == '99999'
+        assert payload['user'] is None
+        assert payload['page_id'] is None
+        assert isinstance(payload['ts'], datetime.datetime)
 
         conn.close()
 
@@ -260,3 +266,69 @@ class TestAutodiscoveryPsycopg3:
                 listener.register(channel, method, table=dbtable.fullname)
 
         assert isinstance(listener._handlers, dict)
+
+
+# -- GnrAppListener ---------------------------------------------------------
+
+class TestGnrAppListener:
+    """GnrAppListener wraps GnrApp and performs autodiscovery."""
+
+    def test_init_with_app_instance(self, db_pg):
+        from gnr.app.gnrapplistener import GnrAppListener
+        app_listener = GnrAppListener(db_pg.application, timeout=2, coalesce=0, workers=3)
+        assert app_listener.app is db_pg.application
+        assert app_listener.timeout == 2
+        assert app_listener.coalesce == 0
+        assert app_listener.workers == 3
+
+    def test_init_stores_defaults(self, db_pg):
+        from gnr.app.gnrapplistener import GnrAppListener
+        app_listener = GnrAppListener(db_pg.application)
+        assert app_listener.timeout == 5
+        assert app_listener.coalesce == 1
+        assert app_listener.workers == 1
+
+
+# -- CLI gnrapplisten --------------------------------------------------------
+
+class TestGnrAppListenCli:
+    """CLI parser for gnrapplisten exposes the correct arguments."""
+
+    def test_parser_arguments(self):
+        from gnr.core.cli import GnrCliArgParse
+        import gnr.app.cli.gnrapplisten as cli_mod
+
+        parser = GnrCliArgParse(description=cli_mod.description)
+        parser.add_argument('instance')
+        parser.add_argument('-w', '--workers', type=int, default=1)
+        parser.add_argument('-t', '--timeout', type=int, default=5)
+        parser.add_argument('-c', '--coalesce', type=int, default=1)
+
+        args = parser.parse_args(['myapp', '-w', '4', '-t', '10', '-c', '2'])
+        assert args.instance == 'myapp'
+        assert args.workers == 4
+        assert args.timeout == 10
+        assert args.coalesce == 2
+
+    def test_parser_defaults(self):
+        from gnr.core.cli import GnrCliArgParse
+        import gnr.app.cli.gnrapplisten as cli_mod
+
+        parser = GnrCliArgParse(description=cli_mod.description)
+        parser.add_argument('instance')
+        parser.add_argument('-w', '--workers', type=int, default=1)
+        parser.add_argument('-t', '--timeout', type=int, default=5)
+        parser.add_argument('-c', '--coalesce', type=int, default=1)
+
+        args = parser.parse_args(['myapp'])
+        assert args.instance == 'myapp'
+        assert args.workers == 1
+        assert args.timeout == 5
+        assert args.coalesce == 1
+
+    def test_entry_point_registered(self):
+        """gnrapplisten entry point is registered in pyproject.toml."""
+        import importlib
+        mod = importlib.import_module('gnr.app.cli.gnrapplisten')
+        assert hasattr(mod, 'main')
+        assert callable(mod.main)

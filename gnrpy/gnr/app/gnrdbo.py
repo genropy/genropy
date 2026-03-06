@@ -2,7 +2,6 @@
 # encoding: utf-8
 
 import datetime
-import json
 import warnings as warnings_module
 import os
 import re
@@ -12,7 +11,7 @@ from collections import defaultdict
 
 from gnr.core.gnrlang import boolean
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrstring import splitAndStrip,templateReplace,fromJson,slugify
+from gnr.core.gnrstring import splitAndStrip,templateReplace,fromJson,slugify,toTypedJSON
 from gnr.core.gnrdecorator import public_method,extract_kwargs
 from gnr.core.gnrdict import dictExtract
 
@@ -1546,8 +1545,20 @@ class GnrDboTable(TableBase):
             channel: The PostgreSQL NOTIFY channel name.
             **kwargs: Additional key-value pairs for the JSON payload.
         """
-        payload = dict(table=self.fullname, **kwargs)
-        self.db.adapter.notify(channel, payload=json.dumps(payload, default=str))
+        currentPage = self.db.currentPage
+        user = None
+        page_id = None
+        if currentPage:
+            user = currentPage.user
+            page_id = currentPage.page_id
+        payload = dict(
+            table=self.fullname,
+            user=user,
+            page_id=page_id,
+            ts=datetime.datetime.now(datetime.timezone.utc),
+            **kwargs,
+        )
+        self.db.adapter.notify(channel, payload=toTypedJSON(payload))
 
     def use_dbstores(self,**kwargs):
         """TODO"""
