@@ -89,7 +89,6 @@ class PublicBase(BaseComponent):
 
         #if self.isMobile:
         #    baseslots = '15,captionslot,10,testmobile,*,dock,avatar,countErrors'
-        kwargs['margin_top'] ='2px'
         slots = slots or self.public_frameTopBarSlots(baseslots)
         if 'captionslot' in slots:
             kwargs['captionslot_title'] = title

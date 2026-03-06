@@ -148,15 +148,16 @@
     background: none;
 }
 
-.tundra .dijitDisabled.dijitComboBoxDisabled .dijitArrowButton{
+._common_d11.tundra .dijitDisabled.dijitComboBoxDisabled .dijitArrowButton .dijitArrowButtonInner{
     display:none;
+    background:none;
 }
 .dijitDisabled .fakeButton{
     display:none;
 }
 
-/* Buttons inside textbox widgets: pure icon, like mimi theme */
-.tundra .dijitArrowButton.dijitButtonNode{
+/* Buttons inside textbox widgets: no border, no background */
+.tundra .dijitTextBox .dijitButtonNode{
     border-radius: 0;
     background-color: transparent;
     background-image: none;

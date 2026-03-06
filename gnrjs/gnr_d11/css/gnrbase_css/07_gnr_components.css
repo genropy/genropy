@@ -130,12 +130,9 @@
     z-index: var(--z-modal) !important;
 }
 .pbl_title_caption {
-    font-size: 11pt;
-    padding-top: 1px;
     text-align: center;
 }
 .pbl_avatar{
-    padding-top: 3px;
 }
 .gnroutofdate .pbl_avatar,.gnroutofdate .pbl_slotbar_label{
     color:red !important;
@@ -314,14 +311,7 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
     box-shadow: var(--shadow-sm);
 }
 
-.pbl_roundedBlock > .pbl_roundedGroupLabel {
-    background: none;
-    color: var(--roundedgroup-bar-color);
-    font-weight: bold;
-    border: none;
-    padding: 0.5em 0 0.2em 0.5em;
-    font-size: 0.9em;
-}
+
 
 .pbl_roundedBlock > .pbl_roundedGroupContent {
     position: absolute;
@@ -359,14 +349,23 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
 }
 
 .pbl_roundedGroupLabel {
-    min-height: 1.2em;
-    line-height: 1.2em;
-    padding: 0.3em 0 0.2em 0.1em;
+    min-height: 2.4em;
     font-size: 0.9em;
-    background: none;
+    background: var(--roundedgroup-bar);
     color: var(--roundedgroup-bar-color);
     font-weight: bold;
     border: none;
+    border-radius: var(--radius-panels) var(--radius-panels) 0 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-left: 0.5em;
+    padding-right: 0.5em;
+}
+
+.pbl_roundedBlock > .pbl_roundedGroupLabel {
+    padding-left: 0.8em;
+    padding-right: 0.8em;
 }
 
 .pbl_roundedGroupVertical {
@@ -385,6 +384,7 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
     padding-left: 0.5em;
     font-size: 0.9em;
     background-color: var(--roundedgroup-bar);
+    border-radius: 0 0 var(--radius-panels) var(--radius-panels);
 }
 /* @end */
 

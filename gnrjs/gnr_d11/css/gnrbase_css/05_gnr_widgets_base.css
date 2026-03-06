@@ -586,7 +586,7 @@ textarea:disabled {
 
 ._common_d11 .dijitTab {
     font-size: .85em;
-    border-radius: 6px 6px 0 0;
+    border-radius: var(--radius-panels) var(--radius-panels) 0 0;
     background: var(--primary-color, #1E3055);
     color: rgba(255,255,255,0.75);
     border: none;
@@ -626,7 +626,7 @@ textarea:disabled {
     font-weight: 600;
     border: 1px solid var(--border-strong, #aab4c4);
     border-bottom: none;
-    border-radius: 6px 6px 0 0;
+    border-radius: var(--radius-panels) var(--radius-panels) 0 0;
     box-shadow: none;
 }
 
@@ -637,13 +637,13 @@ textarea:disabled {
     font-weight: 600;
     border: 1px solid var(--border-strong, #aab4c4);
     border-bottom: none;
-    border-radius: 6px 6px 0 0;
+    border-radius: var(--radius-panels) var(--radius-panels) 0 0;
     box-shadow: none;
 }
 
 ._common_d11 .dijitTabPaneWrapper {
     border: 1px solid var(--border-strong, #aab4c4);
-    border-radius: 0 0 4px 4px;
+    border-radius: 0 0 var(--radius-panels) var(--radius-panels);
     background: var(--card-surface);
 }
 
@@ -693,32 +693,63 @@ textarea:disabled {
 /* @group righttab */
 
 ._common_d11 .dijitTabLabels-right-h.dijitAlignRight {
-    border: none;
-    border-left: 1px solid #e0e0e0;
-    padding-top: 3px;
-    padding-left: 2px;
+    background: transparent;
+    padding: 1em 0.5em 1em 0;
 }
 
 ._common_d11 .dijitTabLabels-right-h .dijitTab {
-    margin-bottom: 1px;
     border: none;
-    background: transparent;
-    color: #888;
     border-radius: 0;
-    border-left: 2px solid transparent;
-    transition: color 0.15s ease, border-color 0.15s ease;
+    margin: 0;
+    padding: 0;
+    color: white;
+    background: var(--primary-color, #636366);
+    box-shadow: none;
+    text-align: left;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+._common_d11 .dijitTabLabels-right-h .dijitTab:first-child {
+    border-radius: 0 0.5em 0 0;
+}
+
+._common_d11 .dijitTabLabels-right-h .dijitTab:last-child {
+    border-radius: 0 0 0.5em 0;
+}
+
+._common_d11 .dijitTabLabels-right-h .dijitTab:only-child {
+    border-radius: 0 0.5em 0.5em 0;
+}
+
+._common_d11 .dijitTabLabels-right-h .dijitTab:hover {
+    opacity: 0.85;
 }
 
 ._common_d11 .dijitTabLabels-right-h .dijitTabInnerDiv {
     border: 0;
+    padding: 0.4em 0.8em;
 }
 
 ._common_d11 .dijitTabLabels-right-h .dijitTab.dijitTabChecked {
-    background: transparent;
-    color: var(--primary-color, #1E3055);
+    background: white;
+    color: var(--primary-dark, #3A3A3C);
     font-weight: 600;
     border-radius: 0;
-    border-left: 2px solid var(--primary-color, #1E3055);
+    border-right: 0.2em solid var(--primary-color, #636366);
+    border-top: 0.2em solid var(--primary-color, #636366);
+    border-bottom: 0.2em solid var(--primary-color, #636366);
+}
+
+._common_d11 .dijitTabLabels-right-h .dijitTab.dijitTabChecked:first-child {
+    border-radius: 0 0.5em 0 0;
+}
+
+._common_d11 .dijitTabLabels-right-h .dijitTab.dijitTabChecked:last-child {
+    border-radius: 0 0 0.5em 0;
+}
+
+._common_d11 .dijitTabLabels-right-h .dijitTab.dijitTabChecked:only-child {
+    border-radius: 0 0.5em 0.5em 0;
 }
 
 /* @end */
@@ -726,30 +757,63 @@ textarea:disabled {
 /* @group lefttab */
 
 ._common_d11 .dijitTabLabels-left-h.dijitAlignLeft {
-    border: none;
-    border-right: 1px solid #e0e0e0;
-    padding-top: 3px;
-    padding-right: 2px;
+    background: transparent;
+    padding: 1em 0 1em 0.5em;
 }
 
 ._common_d11 .dijitTabLabels-left-h .dijitTab {
     border: none;
     border-radius: 0;
-    border-right: 2px solid transparent;
-    margin-left: 0;
+    margin: 0;
+    padding: 0;
+    color: white;
+    background: var(--primary-color, #636366);
+    box-shadow: none;
     text-align: right;
-    margin-bottom: 1px;
-    color: #888;
-    background: transparent;
-    transition: color 0.15s ease, border-color 0.15s ease;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+._common_d11 .dijitTabLabels-left-h .dijitTab:first-child {
+    border-radius: 0.5em 0 0 0;
+}
+
+._common_d11 .dijitTabLabels-left-h .dijitTab:last-child {
+    border-radius: 0 0 0 0.5em;
+}
+
+._common_d11 .dijitTabLabels-left-h .dijitTab:only-child {
+    border-radius: 0.5em 0 0 0.5em;
+}
+
+._common_d11 .dijitTabLabels-left-h .dijitTab:hover {
+    opacity: 0.85;
+}
+
+._common_d11 .dijitTabLabels-left-h .dijitTabInnerDiv {
+    border: 0;
+    padding: 0.4em 0.8em;
 }
 
 ._common_d11 .dijitTabLabels-left-h .dijitTab.dijitTabChecked {
-    color: var(--primary-color, #1E3055);
-    background: transparent;
+    color: var(--primary-dark, #3A3A3C);
+    background: white;
     font-weight: 600;
     border-radius: 0;
-    border-right: 2px solid var(--primary-color, #1E3055);
+    border-left: 0.2em solid var(--primary-color, #636366);
+    border-top: 0.2em solid var(--primary-color, #636366);
+    border-bottom: 0.2em solid var(--primary-color, #636366);
+}
+
+._common_d11 .dijitTabLabels-left-h .dijitTab.dijitTabChecked:first-child {
+    border-radius: 0.5em 0 0 0;
+}
+
+._common_d11 .dijitTabLabels-left-h .dijitTab.dijitTabChecked:last-child {
+    border-radius: 0 0 0 0.5em;
+}
+
+._common_d11 .dijitTabLabels-left-h .dijitTab.dijitTabChecked:only-child {
+    border-radius: 0.5em 0 0 0.5em;
 }
 
 /* @end */

@@ -22,8 +22,7 @@
     --dialogtitlebar-background: #1d7d55;
     --frameindex-tablist-background: #8b1a6b;
     --card-surface: #f6faf8;
-    --roundedgroup-bar: #d0eddf;
-    --roundedgroup-bar-color: #134a32;
+
     --field-disabled-border: #a8c4b4;
     --field-readonly-border: #a8c4b4;
 }
@@ -39,8 +38,7 @@
     --dialogtitlebar-background: #2a62a8;
     --frameindex-tablist-background: #1a3d6b;
     --card-surface: #f7f9fd;
-    --roundedgroup-bar: #d4e2f5;
-    --roundedgroup-bar-color: #1a3d6b;
+
     --field-disabled-border: #a8bcd4;
     --field-readonly-border: #a8bcd4;
 }
@@ -56,8 +54,7 @@
     --dialogtitlebar-background: #c53040;
     --frameindex-tablist-background: #7a1a28;
     --card-surface: #fdf8f8;
-    --roundedgroup-bar: #f5d5d9;
-    --roundedgroup-bar-color: #7a1a28;
+
     --field-disabled-border: #c4a8ad;
     --field-readonly-border: #c4a8ad;
 }
@@ -73,8 +70,7 @@
     --dialogtitlebar-background: #d4650a;
     --frameindex-tablist-background: #6a2058;
     --card-surface: #fcf8fa;
-    --roundedgroup-bar: #f5dce8;
-    --roundedgroup-bar-color: #6a2058;
+
     --field-disabled-border: #c4a8ba;
     --field-readonly-border: #c4a8ba;
 }
@@ -93,8 +89,7 @@
     --frameindex-tablist-background: #1a1a1a;
     --frameindex-tablist-color: #f5c800;
     --card-surface: #f5f5f4;
-    --roundedgroup-bar: #fde68a;
-    --roundedgroup-bar-color: #1a1a1a;
+
     --field-disabled-border: #b0b0a8;
     --field-readonly-border: #b0b0a8;
 }
