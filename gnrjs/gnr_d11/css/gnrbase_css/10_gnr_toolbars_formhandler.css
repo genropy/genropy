@@ -54,18 +54,22 @@
 }
 
 .form_logical_deleted .form_deleter .deleter_icon{
-    background: var(--icon-checkbox-checked) no-repeat center center;
-    background-size: contain;
-    height:16px;
-    width:16px;
-    cursor:pointer;
+    -webkit-mask: var(--icon-checkbox-checked) no-repeat center / contain;
+    mask: var(--icon-checkbox-checked) no-repeat center / contain;
+    background-color: currentColor;
+    background-image: none;
+    height: 1.4em;
+    width: 1.4em;
+    cursor: pointer;
 }
 .form_deleter .deleter_icon{
-    background: var(--icon-checkbox-unchecked) no-repeat center center;
-    background-size: contain;
-    height:16px;
-    width:16px;
-    cursor:pointer;
+    -webkit-mask: var(--icon-checkbox-unchecked) no-repeat center / contain;
+    mask: var(--icon-checkbox-unchecked) no-repeat center / contain;
+    background-color: currentColor;
+    background-image: none;
+    height: 1.4em;
+    width: 1.4em;
+    cursor: pointer;
 }
 
 .form_errorslogger{

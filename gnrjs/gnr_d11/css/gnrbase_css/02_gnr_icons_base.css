@@ -773,38 +773,48 @@ div.dojoxDock {
 }
 
 .checkboxOn {
-    background: var(--icon-checkbox-checked) no-repeat center center;
-    width: 15px;
-    height: 15px;
-    background-size: contain;
+    -webkit-mask: var(--icon-checkbox-checked) no-repeat center / contain;
+    mask: var(--icon-checkbox-checked) no-repeat center / contain;
+    background-color: currentColor;
+    background-image: none;
+    width: 1.4em;
+    height: 1.4em;
 }
 
 .checkboxOff {
-    background: var(--icon-checkbox-unchecked) no-repeat center center;
-    width: 15px;
-    height: 15px;
-    background-size: contain;
+    -webkit-mask: var(--icon-checkbox-unchecked) no-repeat center / contain;
+    mask: var(--icon-checkbox-unchecked) no-repeat center / contain;
+    background-color: currentColor;
+    background-image: none;
+    width: 1.4em;
+    height: 1.4em;
 }
 
 .checkboxOnOff {
-    background: var(--icon-checkbox-indeterminate) no-repeat center center;
-    width: 15px;
-    height: 15px;
-    background-size: contain;
+    -webkit-mask: var(--icon-checkbox-indeterminate) no-repeat center / contain;
+    mask: var(--icon-checkbox-indeterminate) no-repeat center / contain;
+    background-color: currentColor;
+    background-image: none;
+    width: 1.4em;
+    height: 1.4em;
 }
 
 .radioOn {
-    background: var(--icon-radio-checked) no-repeat center center;
-    width: 15px;
-    height: 15px;
-    background-size: contain;
+    -webkit-mask: var(--icon-radio-checked) no-repeat center / contain;
+    mask: var(--icon-radio-checked) no-repeat center / contain;
+    background-color: currentColor;
+    background-image: none;
+    width: 1.4em;
+    height: 1.4em;
 }
 
 .radioOff {
-    background: var(--icon-radio-unchecked) no-repeat center center;
-    width: 15px;
-    height: 15px;
-    background-size: contain;
+    -webkit-mask: var(--icon-radio-unchecked) no-repeat center / contain;
+    mask: var(--icon-radio-unchecked) no-repeat center / contain;
+    background-color: currentColor;
+    background-image: none;
+    width: 1.4em;
+    height: 1.4em;
 }
 
 /* @group boole */

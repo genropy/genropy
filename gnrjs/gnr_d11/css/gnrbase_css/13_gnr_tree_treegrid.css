@@ -126,6 +126,7 @@
     left:0;
     right:0;
     overflow:auto;
+    border-bottom: 1px solid var(--border-color);
 }
 .treeGridScroller{
     position: absolute;
@@ -143,7 +144,8 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    vertical-align: top;
+    vertical-align: middle;
+    line-height: 1.4;
 }
 
 .treeGridCenter .selectedTreeNode .treecell{
@@ -191,7 +193,11 @@
 
 .treegrid .dijitTreeContent{
     position: relative;
-    height: 1.4em;
+    height: 1.5em;
+}
+.treegrid.branchtree .dijitTreeExpando{
+    height: 1.5em;
+    width: 1.2em;
 }
 
 .treegrid.branchtree .dijitTreeContent{
@@ -219,12 +225,18 @@
     right: 2px;
     left: 0;
     bottom: -1px;
+    font-size: 0;
+}
+.treegrid .treerow > .treecell,
+.treegrid .treerow .treerow_viewport{
+    font-size: var(--font-size, 14px);
 }
 .treegrid .treerow_columns{
     display: inline-block;
 }
 .treerow_viewport{
     display: inline-block;
+    vertical-align: middle;
 }
 
 /* --- GroupBy tree --- */

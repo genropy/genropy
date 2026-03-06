@@ -1,13 +1,15 @@
 /* ==========================================================================
-   gnr_dojotheme/form/Checkbox.css — SVG checkbox icons.
-   Uses var(--icon-checkbox-checked/unchecked) as background-image.
+   gnr_dojotheme/form/Checkbox.css — SVG checkbox icons (mask-image).
+   Uses mask-image so the icon inherits color from background-color.
    ========================================================================== */
 
 /* --- Base checkbox — unchecked box --- */
 .gnr_dojotheme .dijitCheckBox,
 .gnr_dojotheme .dijitCheckBoxIcon {
-    background: var(--icon-checkbox-unchecked) no-repeat center center;
-    background-size: contain;
+    -webkit-mask: var(--icon-checkbox-unchecked) no-repeat center / contain;
+    mask: var(--icon-checkbox-unchecked) no-repeat center / contain;
+    background-color: currentColor;
+    background-image: none;
     width: 1.4em;
     height: 1.4em;
     margin: 0;
@@ -21,15 +23,15 @@
 
 /* --- Toggle button context --- */
 .gnr_dojotheme .dijitToggleButton .dijitCheckBoxIcon {
-    background: var(--icon-checkbox-unchecked) no-repeat center center;
-    background-size: contain;
+    -webkit-mask-image: var(--icon-checkbox-unchecked);
+    mask-image: var(--icon-checkbox-unchecked);
 }
 
 /* --- Checked --- */
 .gnr_dojotheme .dijitCheckBoxChecked,
 .gnr_dojotheme .dijitToggleButtonChecked .dijitCheckBoxIcon {
-    background: var(--icon-checkbox-checked) no-repeat center center;
-    background-size: contain;
+    -webkit-mask-image: var(--icon-checkbox-checked);
+    mask-image: var(--icon-checkbox-checked);
 }
 
 /* --- Disabled --- */
