@@ -21,18 +21,6 @@
 	margin-left: 25px;
 }
 
-.windowmenuIcon{
-    background: url(../icons/base16/windowmenu.png) no-repeat center center;
-    height: 16px;
-    width: 16px;
-}
-
-.windowaddIcon{
-    background: url(../icons/base16/windowadd.png) no-repeat center center;
-    height: 16px;
-    width: 16px;
-}
-
 /* --- Tree branch expando (CSS arrows) --- */
 .tinyCloseBranch{
     background: none;
@@ -276,94 +264,51 @@
 }
 
 /* --- Branch tree --- */
-.branchtree .branchtree_selected.dijitTreeLabel{
-    background-color: #3A4D65;
-    color: white;
-    padding-right: 15px;
-    border-radius: 0px 10px 10px 0px;
+.branchtree {
+    line-height: 1.2em;
 }
-.branchtree{
-    line-height: 15px;
+.branchtree .dijitTreeNode {
+    background: none;
+    margin-left: 0.7em;
 }
-
+.branchtree .dijitTreeIsRoot {
+    margin-left: 0;
+}
+.branchtree .dijitTreeContent {
+    padding-bottom: 0.15em;
+    padding-top: 0;
+}
+.branchtree .dijitTreeExpando {
+    height: 1em;
+    width: 1em;
+}
 .branchtree .dijitTreeLabel {
-    padding-left: 2px;
+    padding-left: 0.15em;
     white-space: nowrap;
 }
+.branchtree.treeLongLabels .dijitTreeLabel {
+    padding-left: 0.15em;
+    white-space: normal;
+}
+.branchtree .branchtree_selected.dijitTreeLabel {
+    background-color: var(--primary-dark);
+    color: white;
+    padding-right: 1em;
+    border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+}
+
+/* Branch tree inside treeGrid */
 .treeGridCenter .branchtree .dijitTreeLabel {
     padding-left: 0;
 }
-
-.branchtree .dijitTreeExpando{
-    height: 15px;
-    width: 16px;
-    cursor: pointer;
+.treeGridCenter .branchtree .dijitTreeExpando {
+    width: 0.9em;
 }
-.treeGridCenter .branchtree .dijitTreeExpando{
-    width: 14px;
+.treeGridCenter .treegrid.branchtree .dijitTreeContent {
+    margin-left: 1em;
 }
-.treeGridCenter .treegrid.branchtree .dijitTreeContent{
-    margin-left: 15px;
-}
-
-.treegridcheckbox .treeGridCenter .treegrid.branchtree .dijitTreeContent{
-    margin-left: 30px;
-}
-
-.branchtree .dijitTreeExpando.dijitTreeExpandoClosed{
-    background: none;
-    position: relative;
-}
-.branchtree .dijitTreeExpando.dijitTreeExpandoClosed::after{
-    content: '';
-    display: block;
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    border-style: solid;
-    border-width: 4px 0 4px 5px;
-    border-color: transparent transparent transparent var(--text-muted);
-}
-.branchtree .dijitTreeExpando.dijitTreeExpandoOpened{
-    background: none;
-    position: relative;
-}
-.branchtree .dijitTreeExpando.dijitTreeExpandoOpened::after{
-    content: '';
-    display: block;
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    border-style: solid;
-    border-width: 5px 4px 0 4px;
-    border-color: var(--text-muted) transparent transparent transparent;
-}
-
-.branchtree .dijitTreeExpandoLeaf{
-    background: none;
-}
-
-.branchtree.treeLongLabels .dijitTreeLabel {
-    padding-left: 2px;
-    white-space: normal;
-}
-
-.branchtree .dijitTreeContent {
-    min-height: 0;
-    padding-bottom: 2px;
-    padding-top: 0;
-    margin-left: 0;
-}
-
-.branchtree .dijitTreeNode {
-    background: none;
-    margin-left: 10px;
-}
-
-.branchtree .dijitTreeIsRoot{
-    margin-left: 0px;
+.treegridcheckbox .treeGridCenter .treegrid.branchtree .dijitTreeContent {
+    margin-left: 2em;
 }
 
 .tree_captionvalue{
@@ -444,10 +389,8 @@
 .menupane .selectedTreeNode {
     background-color: var(--accent-color);
     color: #fff;
-    display: inline-block;
-    width: 100%;
-    padding: 0.15em 0.5em;
     border-radius: var(--radius-controls);
+    transition: background-color 0.15s;
 }
 
 /* --- Tree inside menu popup (.menutree) --- */

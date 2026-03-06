@@ -8,7 +8,7 @@
 .gnr_dojotheme .dijitTreeNode {
     background-image: none;
     background-repeat: no-repeat;
-    margin-left: 19px;
+    margin-left: 1.2em;
 }
 
 .gnr_dojotheme .dijitTreeIsLast {
@@ -22,8 +22,8 @@
 
 /* --- Expando control --- */
 .gnr_dojotheme .dijitTreeExpando {
-    width: 18px;
-    height: 18px;
+    width: 1.4em;
+    height: 1.5em;
     background: none;
     background-image: none;
     cursor: pointer;
@@ -97,43 +97,22 @@
 
 /* --- Tree content area --- */
 .gnr_dojotheme .dijitTreeContent {
-    min-height: 18px;
-    min-width: 18px;
-    margin-left: 18px;
-    padding-top: 3px;
-    padding-left: 1px;
+    min-height: 0;
+    min-width: 0;
+    margin-left: 0;
+    padding: 0;
+    line-height: 1.5;
 }
 
-/* --- Tree icon (folder / leaf) --- */
-.gnr_dojotheme .dijitTreeIcon {
-    width: 16px;
-    height: 16px;
-    padding-right: 4px;
-    background: none;
-    background-image: none;
-}
-
-/* Folder/leaf: no icons in base theme — override in app CSS if needed */
+/* --- Tree icon — hidden by default, override with display:inline-block if needed --- */
+.gnr_dojotheme .dijitTreeIcon,
 .gnr_dojotheme .dijitFolderOpened,
 .gnr_dojotheme .dijitFolderClosed,
 .gnr_dojotheme .dijitLeaf {
-    background: none;
-    background-image: none;
+    display: none;
 }
 
 /* --- Label states --- */
 .gnr_dojotheme .dijitTreeLabel {
     cursor: pointer;
-}
-
-.gnr_dojotheme .dijitTreeLabelFocused {
-    outline: 1px dotted;
-    background: var(--card-surface, #F2F2F7);
-}
-
-/* --- Emphasized / selected node --- */
-.gnr_dojotheme .dijitTreeNodeEmphasized {
-    background-color: var(--accent-color, #369);
-    color: #fff;
-    border-radius: var(--radius-controls, 4px);
 }

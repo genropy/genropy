@@ -38,6 +38,7 @@
     border: 1px solid var(--btn-border-color);
     border-radius: var(--radius-pill);
     margin-left: 0.5em;
+    overflow: hidden;
 }
 
 .button_block.iframetab,
@@ -121,7 +122,7 @@
 }
 
 .iframetab_selected.iframetab {
-    font-weight: var(--menutree-selected-weight);
+    -webkit-text-stroke: 0.03em currentColor;
     background: var(--frameindex-tab-bg);
     color: var(--accent-color);
     box-shadow: none;
@@ -150,9 +151,6 @@
 }
 .windowmenu.iframetab:hover {
     text-decoration: none;
-}
-.windowmenuIcon {
-    height: 100%;
 }
 
 .framecloser {

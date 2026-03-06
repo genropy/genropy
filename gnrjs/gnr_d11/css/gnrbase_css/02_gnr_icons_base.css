@@ -869,6 +869,15 @@ div.dojoxDock {
     height: 16px;
 }
 
+.windowmenuIcon{
+    background: url(../icons/base16/windowmenu.png) no-repeat center center;
+}
+
+.windowaddIcon{
+    background: url(../icons/base16/windowadd.png) no-repeat center center;
+}
+
+
 .icnBaseTrash {
     background: url(../icons/base16/trash.gif) no-repeat center center;
 }
