@@ -54,13 +54,15 @@
 }
 
 .form_logical_deleted .form_deleter .deleter_icon{
-    background: url(../icons/checkMarkOn.png) no-repeat center center;
+    background: var(--icon-checkbox-checked) no-repeat center center;
+    background-size: contain;
     height:16px;
     width:16px;
     cursor:pointer;
 }
 .form_deleter .deleter_icon{
-    background: url(../icons/checkMarkOff.png) no-repeat center center;
+    background: var(--icon-checkbox-unchecked) no-repeat center center;
+    background-size: contain;
     height:16px;
     width:16px;
     cursor:pointer;

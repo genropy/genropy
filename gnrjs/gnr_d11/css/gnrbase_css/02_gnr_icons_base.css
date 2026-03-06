@@ -773,21 +773,24 @@ div.dojoxDock {
 }
 
 .checkboxOn {
-    background: url(../icons/checkMarkOn.png) no-repeat center center;
+    background: var(--icon-checkbox-checked) no-repeat center center;
     width: 15px;
     height: 15px;
+    background-size: contain;
 }
 
 .checkboxOff {
-    background: url(../icons/checkMarkOff.png) no-repeat center center;
+    background: var(--icon-checkbox-unchecked) no-repeat center center;
     width: 15px;
     height: 15px;
+    background-size: contain;
 }
 
 .checkboxOnOff {
-    background: url(../icons/checkMarkOnOff.png) no-repeat center center;
+    background: var(--icon-checkbox-indeterminate) no-repeat center center;
     width: 15px;
     height: 15px;
+    background-size: contain;
 }
 
 .radioOn {

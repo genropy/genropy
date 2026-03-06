@@ -1,21 +1,18 @@
 /* ==========================================================================
-   gnr_dojotheme/form/Checkbox.css — Neutral checkbox with checkMarkOn.png.
-   gnrbase_css/18_gnr_google_icons.css overrides .toggle checkboxes with
-   SVG toggle icons; this file covers standard (non-toggle) checkboxes.
+   gnr_dojotheme/form/Checkbox.css — SVG checkbox icons.
+   Uses var(--icon-checkbox-checked/unchecked) as background-image.
    ========================================================================== */
 
-/* --- Base checkbox box --- */
+/* --- Base checkbox — unchecked box --- */
 .gnr_dojotheme .dijitCheckBox,
 .gnr_dojotheme .dijitCheckBoxIcon {
-    background-image: none;
-    background-repeat: no-repeat;
-    width: 1em;
-    height: 1em;
+    background: var(--icon-checkbox-unchecked) no-repeat center center;
+    background-size: contain;
+    width: 1.4em;
+    height: 1.4em;
     margin: 0;
     padding: 0;
-    border: 1px solid #999;
-    border-radius: 2px;
-    background-color: #fff;
+    border: none;
     position: relative;
     display: inline-block;
     vertical-align: middle;
@@ -24,46 +21,33 @@
 
 /* --- Toggle button context --- */
 .gnr_dojotheme .dijitToggleButton .dijitCheckBoxIcon {
-    border-color: #999;
+    background: var(--icon-checkbox-unchecked) no-repeat center center;
+    background-size: contain;
 }
 
-/* --- Unchecked: empty box --- */
-.gnr_dojotheme .dijitCheckBox,
-.gnr_dojotheme .dijitToggleButton .dijitCheckBoxIcon {
-    background-position: unset;
-}
-
-/* --- Checked: checkMarkOn.png --- */
+/* --- Checked --- */
 .gnr_dojotheme .dijitCheckBoxChecked,
 .gnr_dojotheme .dijitToggleButtonChecked .dijitCheckBoxIcon {
-    background: url(../../icons/checkMarkOn.png) no-repeat center center;
+    background: var(--icon-checkbox-checked) no-repeat center center;
     background-size: contain;
-    border-color: #555;
 }
 
 /* --- Disabled --- */
 .gnr_dojotheme .dijitCheckBoxDisabled {
-    background-image: none;
-    background-color: #f0f0f0;
-    border-color: #ccc;
-    opacity: 0.6;
+    opacity: 0.5;
 }
 
 .gnr_dojotheme .dijitCheckBoxCheckedDisabled {
-    background: url(../../icons/checkMarkOn.png) no-repeat center center #f0f0f0;
-    background-size: contain;
-    border-color: #ccc;
-    opacity: 0.6;
+    opacity: 0.5;
 }
 
 /* --- Hover --- */
 .gnr_dojotheme .dijitCheckBoxHover,
 .gnr_dojotheme .dijitCheckBoxFocused {
-    background-image: none;
-    border-color: #666;
+    opacity: 0.8;
 }
 
 .gnr_dojotheme .dijitCheckBoxCheckedHover,
 .gnr_dojotheme .dijitCheckBoxCheckedFocused {
-    border-color: #444;
+    opacity: 0.8;
 }

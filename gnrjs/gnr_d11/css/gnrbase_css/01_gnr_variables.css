@@ -182,4 +182,7 @@
     /* --- Icon paths (absolute only — relative urls don't work in CSS variables) --- */
     --icon-radio-checked: url(/_rsrc/common/css_icons/google_icons/radio_button_checked.svg);
     --icon-radio-unchecked: url(/_rsrc/common/css_icons/google_icons/radio_button_unchecked.svg);
+    --icon-checkbox-checked: url(/_rsrc/common/css_icons/svg/16/checkbox_checked.svg);
+    --icon-checkbox-unchecked: url(/_rsrc/common/css_icons/svg/16/checkbox_unchecked.svg);
+    --icon-checkbox-indeterminate: url(/_rsrc/common/css_icons/svg/16/checkbox_indeterminate.svg);
 }

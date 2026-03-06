@@ -104,12 +104,21 @@
     line-height: 1.5;
 }
 
-/* --- Tree icon — hidden by default, override with display:inline-block if needed --- */
+/* --- Tree icon — hidden by default --- */
 .gnr_dojotheme .dijitTreeIcon,
 .gnr_dojotheme .dijitFolderOpened,
 .gnr_dojotheme .dijitFolderClosed,
 .gnr_dojotheme .dijitLeaf {
     display: none;
+}
+
+/* --- Show icon when tree has getIconClass (checkBoxTree, custom icons) --- */
+.gnr_dojotheme .treeWithIcon .dijitTreeIcon {
+    display: inline-block;
+    background-size: contain;
+    width: 1.2em;
+    height: 1.2em;
+    vertical-align: middle;
 }
 
 /* --- Label states --- */

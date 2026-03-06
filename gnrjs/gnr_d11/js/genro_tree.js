@@ -250,6 +250,9 @@ dojo.declare("gnr.widgets.Tree", gnr.widgets.baseDojo, {
         else {
             sourceNode.registerDynAttr('storepath');
         }
+        if (widget.getIconClass) {
+            dojo.addClass(widget.domNode, 'treeWithIcon');
+        }
         if (savedAttrs.onChecked) {
             widget.checkBoxTree = true;
             if (savedAttrs.onChecked !== true) {
