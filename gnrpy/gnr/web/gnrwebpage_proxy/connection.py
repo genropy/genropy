@@ -36,7 +36,7 @@ class GnrWebConnection(GnrBaseProxy):
         self.ip = self.page.user_ip or '0.0.0.0'
         self.connection_name = '%s_%s' % (self.ip.replace('.', '_'), self.browser_name)
         self.secret = page.site.config['secret'] or self.page.siteName
-        self.cookie_name = self.page.siteName
+        self.cookie_name = self.page.currentDomainIdentifier
         self.electron_static = electron_static
         self.connection_id = None
         self.user = None
@@ -107,10 +107,11 @@ class GnrWebConnection(GnrBaseProxy):
         self.cookie = self.page.newMarshalCookie(self.cookie_name, {'user': self.user,
                                                                     'connection_id': self.connection_id,
                                                                     'data': self.cookie_data,
-                                                                    'locale': None}, 
+                                                                    'locale': None},
                                                                     secret=self.secret)
         self.cookie.expires = expires
-        self.cookie.path = self.page.site.default_uri
+        # In multidomain, restrict cookie to workspace path
+        self.cookie.path = self.page.site.home_uri if self.page.site.multidomain else self.page.site.default_uri
         cookieattrs = self.page.site.config.getAttr('cookies') or {}
         self.page.add_cookie(self.cookie, **cookieattrs)
 

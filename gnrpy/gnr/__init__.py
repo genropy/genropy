@@ -1,5 +1,4 @@
 import sys
-import warnings
 import logging
 
 from gnr.core import gnrlog

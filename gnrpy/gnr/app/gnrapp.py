@@ -20,10 +20,7 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-import tempfile
-import atexit
-import shutil
-import locale
+
 import sys
 import re
 import types
@@ -42,6 +39,7 @@ from email.mime.text import MIMEText
 
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrbag import Bag
+from gnr.core.gnrlocale import defaultLocale
 from gnr.core.gnrdecorator import extract_kwargs, deprecated
 from gnr.core.gnrlang import  objectExtract,gnrImport, instanceMixin, GnrException
 from gnr.core.gnrstring import makeSet, toText, splitAndStrip, like, boolean
@@ -338,6 +336,31 @@ class GnrSqlAppDb(GnrSqlDb):
             self._multidb_config = result
         return result
     
+    def registerMacros(self):
+        """Register SQL macros: base + adapter + app-level + package-level.
+
+        Registration order:
+            1. Base macros (IN_RANGE, PERIOD) via super()
+            2. Adapter macros (TSQUERY, TSRANK, etc.) via super()
+            3. App-level macros (PREF, THIS, BAG, BAGCOLS) — here
+            4. Package macros via pkgBroadcast
+
+        Passes ``self`` (the db) to pkgBroadcast so packages can call
+        ``db.addMacro()`` even though ``application.db`` is not yet
+        assigned at this point in the init sequence.
+        """
+        super().registerMacros()
+        from gnr.sql.gnrsqldata.compiler import (
+            PREFFINDER, THISFINDER,
+            BAGEXPFINDER, BAGCOLSEXPFINDER
+        )
+        self.addMacro('PREF', PREFFINDER, None)
+        self.addMacro('THIS', THISFINDER, None)
+        self.addMacro('BAG', BAGEXPFINDER, None)
+        self.addMacro('BAGCOLS', BAGCOLSEXPFINDER, None)
+        if self.application:
+            self.application.pkgBroadcast('registerMacros', self)
+
     def checkTransactionWritable(self, tblobj):
         """TODO
         
@@ -736,15 +759,12 @@ class GnrPackage(object):
         struct.package(self.id, **self.attributes)
         
         config_db_xml = os.path.join(self.packageFolder, 'model', 'config_db.xml')
+        
         if os.path.isfile(config_db_xml):
-            if hasattr(self, '_structFix4D'):
-                config_db_xml = self._structFix4D(struct, config_db_xml)
             struct.update(config_db_xml)
         
         config_db_xml = os.path.join(self.customFolder, 'model', 'config_db.xml')
         if os.path.isfile(config_db_xml):
-            if hasattr(self, '_structFix4D'):
-                config_db_xml = self._structFix4D(struct, config_db_xml)
             struct.update(config_db_xml)
         
     def onApplicationInited(self):
@@ -790,10 +810,8 @@ class GnrApp(object):
     
     :param instanceFolder: instance folder or name
     :param custom_config:  a :ref:`bag` or dictionary that will override configuration value
-    :param forTesting:  if ``False``, setup the application normally.
-                        if ``True``, setup the application for testing with a temporary sqlite database.
-                        If it's a bag, setup the application for testing and import test data from this bag.
-                        (see :meth:`loadTestingData()`)
+    :param db_attrs:    a dict of db connection attributes that override
+                        the ones read from instanceconfig.
     
     If you want to interact with a Genro instance from your own python script, you can use this class directly.
     
@@ -803,8 +821,8 @@ class GnrApp(object):
     >>> testgarden.db.table('showcase.person').query().count()
     12"""
     def __init__(self, instanceFolder=None, custom_config=None,
-                 forTesting=False, debug=False, restorepath=None,
-                 enabled_packages=None, **kwargs):
+                 debug=False, restorepath=None,
+                 enabled_packages=None, db_attrs=None, **kwargs):
         self.aux_instances = {}
         self.gnr_config = getGnrConfig(set_environment=True)
         self.debug=debug
@@ -870,7 +888,7 @@ class GnrApp(object):
             self.main_module = gnrImport(os.path.join(self.customFolder, 'custom.py'),avoidDup=True, silent=False)
             instanceMixin(self, getattr(self.main_module, 'Application', None))
             self.webPageCustom = getattr(self.main_module, 'WebPage', None)
-        self.init(forTesting=forTesting,restorepath=restorepath)
+        self.init(restorepath=restorepath, db_attrs=db_attrs)
         self.creationTime = time.time()
 
     def get_modulefinder(self):
@@ -933,20 +951,16 @@ class GnrApp(object):
         instance_config.update(base_instance_config, preservePattern=re.compile(r'^[\$\{]'))
         return instance_config
         
-    def init(self, forTesting=False,restorepath=None):
+    def init(self, db_attrs=None, restorepath=None):
         """Initiate a :class:`GnrApp`
-        
-        :param forTesting:  if ``False``, setup the application normally.
-                            if ``True``, setup the application for testing with a temporary sqlite database.
-                            If it's a :ref:`bag`, setup the application for testing and import test data from this bag.
-                            (see :meth:`loadTestingData()`)"""
+
+        :param db_attrs:    a dict of db connection attributes that override
+                            the ones read from instanceconfig.
+        """
         self.onIniting()
         self.base_lang = self.config['i18n?base_lang'] or 'en'
         self.catalog = GnrClassCatalog()
         self.localization = {}
-
-
-
 
         # load the packages
         for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
@@ -956,44 +970,31 @@ class GnrApp(object):
         self.check_package_dependencies()
         if 'checkdepcli' in self.kwargs:
             return
-        
-        if not forTesting:
-            dbattrs = dict(self.config.getAttr('db') or {}) 
-            dbattrs['implementation'] = dbattrs.get('implementation') or 'sqlite'
-            if dbattrs.get('dbname') == '_dummydb':
-                pass
-            elif self.remote_db:
-                rdb = self.config.get(f"remote_db")#.{self.remote_db}")
-                if rdb:
-                    rconf = rdb.getAttr(self.remote_db)
-                    if rconf:
-                        logger.info("Using remote db: %s", self.remote_db)
-                        dbattrs.update(rconf)
-                    else:
-                        logger.error("Remote db %s does not exists", self.remote_db)
-            elif dbattrs and dbattrs.get('implementation') == 'sqlite':
-                dbname = dbattrs.pop('filename',None) or dbattrs['dbname']
-                if not os.path.isabs(dbname):
-                    dbname = self.realPath(os.path.join('..','data',dbname))
-                dbattrs['dbname'] = dbname
-        else:
-            # Setup for testing with a temporary sqlite database
-            tempdir = tempfile.mkdtemp()
-            dbattrs = {}
-            dbattrs['implementation'] = 'sqlite'
-            dbattrs['dbname'] = os.path.join(tempdir, 'testing')
 
-            # We have to use a directory, because genro sqlite adapter
-            # will create a sqlite file for each package
-            logger.info('Testing database dir: %s', tempdir)
+        dbattrs = dict(self.config.getAttr('db') or {})
+        dbattrs['implementation'] = dbattrs.get('implementation') or 'sqlite'
+        if db_attrs:
+            dbattrs.update(db_attrs)
+        elif dbattrs.get('dbname') == '_dummydb':
+            pass
+        elif self.remote_db:
+            rdb = self.config.get(f"remote_db")#.{self.remote_db}")
+            if rdb:
+                rconf = rdb.getAttr(self.remote_db)
+                if rconf:
+                    logger.info("Using remote db: %s", self.remote_db)
+                    dbattrs.update(rconf)
+                else:
+                    logger.error("Remote db %s does not exists", self.remote_db)
+        elif dbattrs and dbattrs.get('implementation') == 'sqlite':
+            dbname = dbattrs.pop('filename',None) or dbattrs['dbname']
+            if not os.path.isabs(dbname):
+                dbname = self.realPath(os.path.join('..','data',dbname))
+            dbattrs['dbname'] = dbname
 
-            @atexit.register
-            def removeTemporaryDirectory():
-                shutil.rmtree(tempdir)
-                
         dbattrs['application'] = self
         self.db = GnrSqlAppDb(debugger=getattr(self, 'sqlDebugger', None), **dbattrs)
-        
+
         for pkgid, apppkg in list(self.packages.items()):
             apppkg.initTableMixinDict()
             self.db.packageMixin('%s' % (pkgid), apppkg.pkgMixin)
@@ -1006,14 +1007,8 @@ class GnrApp(object):
             self.config['menu'] = self.config['menu']['#0']
         #if self.instanceMenu:
         #    self.config['menu']=self.instanceMenu
-            
+
         self.localizer = AppLocalizer(self)
-        if forTesting:
-            # Create tables in temporary database
-            self.db.model.check(applyChanges=True)
-                
-            if isinstance(forTesting, Bag):
-                self.loadTestingData(forTesting)
         self.onInited()
 
     def addPackage(self,pkgid,pkgattrs=None,pkgcontent=None):
@@ -1153,32 +1148,6 @@ class GnrApp(object):
                 tables_to_import.append(tbl)
         
 
-    def loadTestingData(self, bag):
-        """Load data used for testing in the database.
-        
-        Called by the constructor when you pass a :ref:`bag` into the *forTesting* parameter
-        
-        :param bag: a :ref:`bag` your test data
-        
-        Use this format in your test data::
-        
-            <?xml version="1.0" encoding="UTF-8"?>
-            <GenRoBag>
-                <table name="package.table">
-                    <some_name>
-                        <field1>ABCDEFG</field2>
-                        <field2>1235</field2>
-                        <!-- ... more fields ... -->
-                    </some_name>
-                    <!-- ... more records ... -->
-                </table>
-                <!-- ... more tables ... -->
-            </GenRoBag>"""
-        for table_name, records in bag.digest('#a.name,#v'):
-            tbl = self.db.table(table_name)
-            for r in list(records.values()):
-                tbl.insert(r)
-        self.db.commit()
 
     def instance_name_to_path(self, instance_name):
         """TODO
@@ -1274,11 +1243,8 @@ class GnrApp(object):
 
     @property
     def locale(self):
-        found_locale = self.config_locale or os.environ.get('GNR_LOCALE') or locale.getlocale()[0]
-        if not found_locale:
-            locale.setlocale(locale.LC_ALL, "")
-            found_locale = locale.getlocale(locale.LC_MESSAGES)[0]
-        return (found_locale or 'en-US').replace('_','-')
+        found_locale = self.config_locale or defaultLocale()
+        return (found_locale or 'en-GB').replace('_','-')
 
     def setPreference(self, path, data, pkg):
         if self.db.package('adm'):

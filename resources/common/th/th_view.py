@@ -992,11 +992,19 @@ class TableHandlerView(BaseComponent):
                    _onResult='FIRE .query.currentQuery="__newquery__";FIRE .query.refreshMenues;')
 
         #SOURCE MENUVIEWS
-        pane.dataController("""genro.grid_configurator.loadView(gridId, (currentView || favoriteView));
-                                """,
+        pane.dataController("""
+            if(genro.grid_configurator){
+                genro.grid_configurator.loadView(gridId, (currentView || favoriteView));
+                return;
+            }
+            this.watch('jsconf_loaded',function(){return genro.grid_configurator;},function(){
+                setTimeout(function(){
+                    genro.grid_configurator.loadView(gridId, (currentView || favoriteView));
+                },1);
+            });""",
                             currentView="^.grid.currViewPath",
                             favoriteView='^.grid.favoriteViewPath',
-                            _delay=1,gridId=gridId,_onBuilt=1)
+                            gridId=gridId,_onBuilt=1)
         q = Bag()
         pyviews = self._th_hook('struct',mangler=th_root,asDict=True)
         for k,v in list(pyviews.items()):
@@ -1133,6 +1141,24 @@ class TableHandlerView(BaseComponent):
     def th_slotbar_pageHooksSelector(self,pane,**kwargs):
         pane.multiButton(items='^.viewPages',value='^.viewPage',identifier='pageName')
       
+    def _th_addRequiredColumns(self, tblobj, hiddencolumns):
+        if not hiddencolumns:
+            return hiddencolumns
+        columns = [c.strip() for c in hiddencolumns.split(',')]
+        for col in list(columns):
+            colname = col.lstrip('$')
+            colobj = tblobj.model.column(colname)
+            if colobj is None:
+                continue
+            req = colobj.attributes.get('required_columns')
+            if not req:
+                continue
+            for rc in req.split(','):
+                rc = rc.strip()
+                if rc and rc not in columns:
+                    columns.append(rc)
+        return ','.join(columns)
+
     @struct_method
     def th_gridPane(self, frame,table=None,th_pkey=None,
                         virtualStore=None,condition=None,unlinkdict=None,
@@ -1198,7 +1224,7 @@ class TableHandlerView(BaseComponent):
         gridattr.update(rowsPerPage=rowsPerPage,
                         dropTypes=None,dropTarget=True,
                         
-                        hiddencolumns=self._th_hook('hiddencolumns',mangler=th_root)(),
+                        hiddencolumns=self._th_addRequiredColumns(tblobj, self._th_hook('hiddencolumns',mangler=th_root)()),
                         dragClass='draggedItem',
                         selfsubscribe_runbtn="""
                             var currLinkedSelection = GET .#parent.linkedSelectionPars;
@@ -1499,7 +1525,7 @@ class TableHandlerView(BaseComponent):
                                genro.dlg.alert(alertmsg,dlgtitle);
                                  """, _fired="^.showQueryCountDlg", waitmsg='!!Working.....',
                               dlgtitle='!!Current query record count',alertmsg='=.currentQueryCountAsString')
-        box = pane.div(datapath='.query.where',onEnter='genro.nodeById(this.getInheritedAttributes().target).publish("runbtn",{"modifiers":null});')
+        box = pane.div(datapath='.query.where',onEnter='genro.nodeById(this.getInheritedAttributes().target).publish("runbtn",{"modifiers":null});',parentForm=False)
         box.data('.#parent.queryMode','S',caption='!!Search')
         box.div('^.#parent.queryMode?caption',_class='gnrfieldlabel th_searchlabel',
                 nodeId='%s_searchMenu_a' %th_root)

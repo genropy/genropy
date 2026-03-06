@@ -7,7 +7,7 @@
 import os
 
 from gnr.core.gnrbag import DirectoryResolver
-from webob.exc import HTTPNotFound
+from werkzeug.exceptions import NotFound
 
 class GnrCustomWebPage(object):
     css_requires='public'
@@ -24,7 +24,7 @@ class GnrCustomWebPage(object):
         url_info = self.site.getUrlInfo(self.getCallArgs())
         dirpath=os.path.join(url_info.basepath,*url_info.request_args)
         if not os.path.isdir(dirpath):
-            raise HTTPNotFound('Missing page')
+            return NotFound('Missing page')
         bc=root.borderContainer(datapath='main')
         bc.style(""".menutree .opendir{
                 width: 12px;
@@ -35,7 +35,7 @@ class GnrCustomWebPage(object):
                 background: url(/_gnr/11/css/icons/base10/tinyCloseBranch.png) no-repeat center center;
             }
         """)
-        center=bc.contentPane(region='center',datapath='.current')
+        center=bc.contentPane(region='center',datapath='.current',overflow='hidden')
         left=bc.contentPane(region='left',width='200px',splitter=True,background='#eee',
                            datapath='.tree',overflow_y='auto')
         left.data('.store',DirectoryResolver(dirpath,cacheTime=10,

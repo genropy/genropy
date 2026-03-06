@@ -916,6 +916,12 @@ class GnrDomSrc(GnrStructData):
     
     def bagField(self,value=None,method=None,**kwargs):
         return self.child('bagField',value=value,methodname=method,**kwargs)
+    
+    def grouplet(self,value=None,handler=None,**kwargs):
+        return self.child('grouplet',value=value,handler=handler,**kwargs)
+
+    def groupletform(self,value=None,handler=None,**kwargs):
+        return self.child('groupletform',value=value,handler=handler,**kwargs)
 
     def remote(self, method=None, lazy=True, cachedRemote=None,**kwargs):
         """TODO
@@ -1075,9 +1081,6 @@ class GnrDomSrc(GnrStructData):
         kwFormlet = kwargs.get('formlet')
         if kwFormlet is not False and defaultUseFormlet:
             kwargs.setdefault('item_lbl_side','left')
-            if 'lbl' not in kwargs:
-                kwargs['lbl'] = '&nbsp;'
-                kwargs['box__class'] = 'formlet_fakelabel'
             return self.formbuilder_formlet(*args,**kwargs)
         else:
             return self.formbuilder_table(*args,**kwargs)
@@ -1106,28 +1109,33 @@ class GnrDomSrc(GnrStructData):
                 formNode._mainformbuilder = result
         return result
         
-    def formbuilder_formlet(self, cols=1, table=None, formlet=None,
-                    lblclass='gnrfieldlabel', lblpos='L',byColumn=None,
-                    _class='', fieldclass='gnrfield',
-                    colswidth=None,
-                    lblalign=None, lblvalign='top',
-                    fldalign=None, fldvalign='top', disabled=False,
-                    rowdatapath=None, head_rows=None,spacing=None,boxMode=None,border_spacing=None,**kwargs):
+    def formbuilder_formlet(self, cols=1, table=None, formlet=None, lblpos='L', **kwargs):
+        """Formlet-based backend for :meth:`formbuilder` when the *use_formlets* preference is active.
+
+        Translates legacy ``formbuilder`` parameters into the :meth:`formlet` / gridbox
+        attribute convention (``item_lbl_*``, ``item_fld_*``, …) and delegates to
+        :meth:`formlet`.
+
+        :param cols: number of grid columns (default 1)
+        :param table: dotted table name (e.g. ``'myapp.mytable'``); falls back to page maintable
+        :param formlet: formlet code to load a pre-defined formlet definition
+        :param lblpos: legacy label-position shorthand – ``'L'`` (left), ``'T'`` (top),
+                       ``'R'`` (right), ``'B'`` (bottom).  Converted to ``item_lbl_side``
+                       unless that kwarg is already present.
+        :param kwargs: forwarded to :meth:`formlet`; any ``lbl_*`` / ``fld_*`` / ``row_*``
+                       prefixed keys are automatically promoted to their ``item_*`` equivalents.
+        """
         commonPrefix = ('lbl_', 'fld_', 'row_', 'tdf_', 'tdl_')
-        commonKwargs = {f'item_{k}':kwargs.pop(k) for k in list(kwargs.keys()) if len(k) > 4 and k[0:4] in commonPrefix}
-        commonKwargs.update(dictExtract(kwargs,'item_',pop=False,slice_prefix=False))
-        commonKwargs.pop('item_lbl_width',None)
-        commonKwargs.pop('item_lbl_min_width',None)
+        commonKwargs = {f'item_{k}': kwargs.pop(k) for k in list(kwargs.keys()) if len(k) > 4 and k[0:4] in commonPrefix}
+        commonKwargs.update(dictExtract(kwargs, 'item_', pop=False, slice_prefix=False))
         kwargs.update(commonKwargs)
 
-        # Convert lblpos to item_lbl_side for formlet compatibility
         if lblpos and 'item_lbl_side' not in kwargs:
             lblpos_map = {'L': 'left', 'T': 'top', 'R': 'right', 'B': 'bottom'}
             kwargs['item_lbl_side'] = lblpos_map.get(lblpos, 'left')
 
-        result =  self.formlet(columns=cols,table=table or self.page.maintable,
-                            formletCode=formlet,**kwargs)
-        return result
+        return self.formlet(columns=cols, table=table or self.page.maintable,
+                            formletCode=formlet, **kwargs)
 
 
         

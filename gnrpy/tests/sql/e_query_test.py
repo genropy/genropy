@@ -138,18 +138,19 @@ class BaseSql(BaseGnrSqlTest):
         result = query.selection().output('list')
         assert result[0][0] == datetime.date(2005, 4, 7)
 
-    def test_between_syntax(self):
+    def test_in_range_syntax(self):
+        """Test #IN_RANGE macro (renamed from #BETWEEN, issue #622)."""
         # test blank handling
         query = self.db.query('video.location',
                               order_by="$rating",
                               columns='$id',
-                              where='#BETWEEN(  $rating  ,:lower, :upper     )',
+                              where='#IN_RANGE(  $rating  ,:lower, :upper     )',
                               sqlparams={'lower': -1, 'upper': 0})
         result = query.selection().output('list')
         assert result[0][0] == 2
         assert len(result) == 2
 
-        # test between using int
+        # test in_range using int
         lower = -6
         upper = 5
         params_cases = [
@@ -178,7 +179,7 @@ class BaseSql(BaseGnrSqlTest):
             query = self.db.query('video.location',
                                   order_by="$rating",
                                   columns='$rating',
-                                  where='#BETWEEN($rating, :lower, :upper)',
+                                  where='#IN_RANGE($rating, :lower, :upper)',
                                   sqlparams=params.get("params"))
             result = query.selection().output('list')
             print('PARAMS', params.get("params"))
@@ -186,7 +187,7 @@ class BaseSql(BaseGnrSqlTest):
             assert result[0][0] == params.get("expected")
             assert len(result) == params.get("n_records")
 
-        # test between using dates
+        # test in_range using dates
         lower = datetime.date(2005,4,1)
         upper = datetime.date(2005,4,30)
         params_cases = [
@@ -220,12 +221,11 @@ class BaseSql(BaseGnrSqlTest):
             query = self.db.query('video.dvd',
                                   order_by="$purchasedate",
                                   columns='$purchasedate',
-                                  where='#BETWEEN($purchasedate, :lower, :upper)',
+                                  where='#IN_RANGE($purchasedate, :lower, :upper)',
                                   sqlparams=params.get("params"))
             result = query.selection().output('list')
             assert result[0][0] == params.get("expected")
             assert len(result) == params.get("n_records")
-
 
     def test_joinSimple(self):
         tbl = self.db.table('video.dvd')

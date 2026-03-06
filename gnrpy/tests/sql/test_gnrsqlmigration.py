@@ -1,5 +1,9 @@
 import pytest
-from gnr.sql.gnrsqlmigration import SqlMigrator
+from unittest.mock import MagicMock, patch
+
+from gnr.sql.gnrsqlmigration import SqlMigrator, DbExtractor
+from gnr.sql.gnrsqlmigration import new_relation_item, new_index_item, nested_defaultdict
+from gnr.sql.gnrsqlmigration.command_builder import CommandBuilderMixin
 from gnr.sql.gnrsql import GnrSqlDb
 from gnr.sql.adapters import gnrpostgres, gnrpostgres3
 from gnr.sql import AdapterCapabilities as Capabilities
@@ -157,6 +161,31 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         check_value = 'ALTER TABLE "alfa"."alfa_recipe"\nADD COLUMN "testuniquecol" character varying(10);\nALTER TABLE "alfa"."alfa_recipe"\nADD CONSTRAINT "cst_f797d32c" UNIQUE ("testuniquecol");'
         self.checkChanges(check_value)
 
+    def test_04e_add_column_with_gin_index(self):
+        """Tests that indexed=dict(method='gin') generates USING gin.
+
+        Ref: https://github.com/genropy/genropy/issues/626
+        """
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('recipe')
+        tbl.column('search_tsv', dtype='TSV', indexed=dict(method='gin'))
+        check_value = 'ALTER TABLE "alfa"."alfa_recipe" \n ADD COLUMN "search_tsv" tsvector ;\nCREATE INDEX idx_1a420e6d ON "alfa"."alfa_recipe" USING gin ("search_tsv") ;'
+        self.checkChanges(check_value)
+
+    def test_04f_tsv_indexed_true_auto_gin(self):
+        """Tests that dtype='TSV' with indexed=True auto-generates GIN index.
+
+        A btree index on tsvector is never useful and fails on large documents.
+        The migration system should automatically use GIN for TSV columns.
+
+        Ref: https://github.com/genropy/genropy/issues/626
+        """
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('recipe')
+        tbl.column('content_tsv', dtype='TSV', indexed=True)
+        check_value = 'ALTER TABLE "alfa"."alfa_recipe" \n ADD COLUMN "content_tsv" tsvector ;\nCREATE INDEX idx_0ae87617 ON "alfa"."alfa_recipe" USING gin ("content_tsv") ;'
+        self.checkChanges(check_value)
+
 
     def test_05a_create_table_withpkey(self):
         """Tests creating a table with a primary key column."""
@@ -183,6 +212,26 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         tbl.column('description')
         tbl.column('ingredient_id',dtype='L')
         check_value = 'CREATE TABLE "alfa"."alfa_recipe_row" ("recipe_code" character varying(12) NOT NULL , "recipe_line" bigint NOT NULL , "description" text , "ingredient_id" bigint , PRIMARY KEY (recipe_code,recipe_line));'
+        self.checkChanges(check_value)
+
+    def test_05c1_composite_pkey_with_unique_column(self):
+        """Columns in a composite PK should retain individual unique constraints (issue #576)."""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('test_composite_unique', pkey='composite_key')
+        tbl.compositeColumn('composite_key', columns='field_a,field_b')
+        tbl.column('field_a', size='5')
+        tbl.column('field_b', size='5', unique=True)
+        tbl.column('field_c', size='5', unique=True)
+        check_value = ('CREATE TABLE "alfa"."alfa_test_composite_unique"(\n'
+                       ' "field_a" character(5) NOT NULL,\n'
+                       ' "field_b" character(5) NOT NULL,\n'
+                       ' "field_c" character(5),\n'
+                       ' PRIMARY KEY (field_a,field_b)\n'
+                       ');\n'
+                       'ALTER TABLE "alfa"."alfa_test_composite_unique"\n'
+                       'ADD CONSTRAINT "cst_f65e94e4" UNIQUE ("field_b");\n'
+                       'ALTER TABLE "alfa"."alfa_test_composite_unique"\n'
+                       'ADD CONSTRAINT "cst_7db93e7e" UNIQUE ("field_c");')
         self.checkChanges(check_value)
 
     def test_05d_create_table_with_pkey_explicit_unique(self):
@@ -1350,3 +1399,181 @@ class ToDo:
         pass
 
 
+class GeneralSqlMigrationCode:
+    def test_caller_dict_unchanged_after_new_relation_item(self):
+        caller_attrs = {
+            'related_table': 'other_table',
+            'related_schema': 'public',
+            'related_columns': 'id',
+        }
+        original_keys = set(caller_attrs.keys())
+
+        new_relation_item(
+            schema_name='public',
+            table_name='my_table',
+            columns=['fk_id'],
+            attributes=caller_attrs,
+        )
+
+        assert set(caller_attrs.keys()) == original_keys, (
+            "new_relation_item() should not add keys to the caller's dict; "
+            f"found extra keys: {set(caller_attrs.keys()) - original_keys}"
+        )
+
+    def test_caller_dict_unchanged_after_new_index_item(self):
+        caller_attrs = {
+            'unique': True,
+            'method': 'btree',
+        }
+        original_keys = set(caller_attrs.keys())
+
+        new_index_item(
+            schema_name='public',
+            table_name='my_table',
+            columns=['col_a', 'col_b'],
+            attributes=caller_attrs,
+        )
+
+        assert set(caller_attrs.keys()) == original_keys, (
+            "new_index_item() should not add keys to the caller's dict; "
+            f"found extra keys: {set(caller_attrs.keys()) - original_keys}"
+        )
+
+    def test_multi_unique_constraint_uses_own_constraint_name(self):
+        """When two multi-column UNIQUE constraints exist, each should use
+        its own constraint_name — not the last value of ``v`` from the
+        previous loop."""
+
+
+        extractor = DbExtractor.__new__(DbExtractor)
+
+        extractor.json_schemas = {
+            'myschema': {
+                'tables': {
+                    'mytable': {
+                        'attributes': {'pkeys': 'id'},
+                        'columns': {
+                            'id': {'attributes': {}},
+                            'a': {'attributes': {}},
+                            'b': {'attributes': {}},
+                            'c': {'attributes': {}},
+                            'd': {'attributes': {}},
+                        },
+                        'constraints': {},
+                        'indexes': {},
+                        'relations': {},
+                    }
+                }
+            }
+        }
+
+        constraints_dict = {
+            ('myschema', 'mytable'): {
+                'UNIQUE': {
+                    'uq_ab': {
+                        'columns': ['a', 'b'],
+                        'constraint_name': 'uq_ab',
+                    },
+                    'uq_cd': {
+                        'columns': ['c', 'd'],
+                        'constraint_name': 'uq_cd',
+                    },
+                },
+            }
+        }
+
+        extractor.process_constraints(constraints_dict, schemas=['myschema'])
+
+        table_constraints = extractor.json_schemas['myschema']['tables']['mytable']['constraints']
+
+        constraint_names = [
+            c['attributes']['constraint_name']
+            for c in table_constraints.values()
+        ]
+        assert 'uq_ab' in constraint_names, (
+            f"Expected 'uq_ab' in constraint names, got {constraint_names}. "
+            "Bug: stale loop variable 'v' overwrites constraint_name."
+        )
+        assert 'uq_cd' in constraint_names, (
+            f"Expected 'uq_cd' in constraint names, got {constraint_names}."
+        )
+
+    def test_changed_constraint_uses_entity_attributes(self):
+        """changed_constraint() should read constraint_name from
+        item['attributes'], not from the commands nested_defaultdict
+        (which auto-creates empty entries on access)."""
+
+        builder = CommandBuilderMixin.__new__(CommandBuilderMixin)
+
+        mock_db = MagicMock()
+        mock_db.adapter.struct_constraint_sql.return_value = (
+            'CONSTRAINT uq_real UNIQUE("a", "b")'
+        )
+        builder.db = mock_db
+        builder.ignore_constraint_name = False
+
+        commands = nested_defaultdict()
+        commands['db']['schemas']['myschema']['tables']['mytable'] = {
+            'constraints': nested_defaultdict(),
+        }
+
+        builder.commands = commands
+
+        item = {
+            'entity_name': 'cst_hash_abc',
+            'schema_name': 'myschema',
+            'table_name': 'mytable',
+            'attributes': {
+                'constraint_name': 'uq_real',
+                'constraint_type': 'UNIQUE',
+                'columns': ['a', 'b'],
+            },
+        }
+
+        builder.changed_constraint(
+            item=item,
+            entity_name='cst_hash_abc',
+            changed_attribute='columns',
+            oldvalue=['a'],
+            newvalue=['a', 'b'],
+        )
+
+        call_kwargs = mock_db.adapter.struct_constraint_sql.call_args
+        passed_name = call_kwargs.kwargs.get(
+            'constraint_name',
+            call_kwargs[1].get('constraint_name') if len(call_kwargs) > 1 else None
+        )
+        assert passed_name == 'uq_real', (
+            f"Expected constraint_name='uq_real' from entity attributes, "
+            f"got '{passed_name}'. Bug: reads from commands dict instead."
+        )
+
+    def test_empty_dict_structures_not_reextracted(self):
+        """After prepareStructures() sets sqlStructure={} (empty DB) and
+        ormStructure={} (empty model), jsonModelWithoutMeta() should NOT
+        call prepareStructures() again — but the falsy check ``not ({} or {})``
+        evaluates to True, triggering a redundant extraction."""
+
+
+        migrator = SqlMigrator.__new__(SqlMigrator)
+        migrator.sqlStructure = {}
+        migrator.ormStructure = {}
+
+        prepare_called = False
+        original_prepare = SqlMigrator.prepareStructures
+
+        def tracking_prepare(self_inner):
+            nonlocal prepare_called
+            prepare_called = True
+            original_prepare(self_inner)
+
+        with patch.object(SqlMigrator, 'prepareStructures', tracking_prepare):
+            try:
+                migrator.jsonModelWithoutMeta()
+            except Exception:
+                pass
+
+        assert not prepare_called, (
+            "prepareStructures() was called again even though structures "
+            "were already set (to {}). Bug: 'not ({} or {})' is True."
+        )

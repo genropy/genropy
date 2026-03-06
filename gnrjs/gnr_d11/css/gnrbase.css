@@ -292,6 +292,11 @@ cursorZoom_plus{
 	display: none;
 }
 
+.label_emptydir{
+    cursor: not-allowed;
+    opacity: .3;
+}
+
 .fieldsTree .dijitTreeContent {
     cursor: move;
     min-height: 0;
@@ -6072,6 +6077,13 @@ div[disabled='true'], div[disabled='disabled']{
     background-color:lightyellow;
 }
 
+.grouplet_chunk_box{
+    border: 1px solid silver;
+    border-radius: 4px;
+    padding: 4px 8px;
+    min-height: 14px;
+}
+
 .theme_variant_green .theme_background{
     background-color: #306227;
     color: white;
@@ -6556,6 +6568,28 @@ div[disabled='true'], div[disabled='disabled']{
     height: 35px;
 }
 
+.phonelink{
+    mask: url('/_rsrc/common/css_icons/google_icons/phonelink.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/phonelink.svg') center center no-repeat;
+    mask-size: contain;
+    -webkit-mask-size: contain;
+}
+
+.phonelink_white{
+    mask: url('/_rsrc/common/css_icons/google_icons/phonelink.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/phonelink.svg') center center no-repeat;
+    mask-size: contain;
+    -webkit-mask-size: contain;
+    background-color: #ffffff;
+}
+
+.phonelink_dark{
+    mask: url('/_rsrc/common/css_icons/google_icons/phonelink.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/phonelink.svg') center center no-repeat;
+    mask-size: contain;
+    -webkit-mask-size: contain;
+    background-color: #515151;
+}
 
 .largeCell{
     padding:5px;
