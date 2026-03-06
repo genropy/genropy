@@ -28,6 +28,7 @@ These methods are the primary override points for ``GnrSqlAppDb``.
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from gnr.sql._typing import GnrSqlDbBaseMixin
@@ -80,6 +81,41 @@ class WriteMixin(GnrSqlDbBaseMixin):
                 self.table(self.changeLogTable).logChange(
                     tblobj, evt=evt, record=record
                 )
+        self._dbNotify(tblobj, evt, record, old_record=old_record)
+
+    def _dbNotify(self, tblobj, evt, record, old_record=None):
+        """Send a notification if the table has the ``notify`` attribute.
+
+        The ``notify`` attribute can be:
+        - ``True``: notify with ``{table, pkey, event}`` only
+        - a comma-separated string of field names: include those fields
+          in the payload (changed fields for update, values for delete)
+
+        Delegates to ``adapter.notify()`` which is a no-op on adapters
+        that do not support notifications (e.g. SQLite).
+        """
+        notify = tblobj.attributes.get('notify')
+        if not notify:
+            return
+        payload = {
+            'table': tblobj.fullname,
+            'pkey': str(record.get(tblobj.pkey)),
+            'event': evt,
+        }
+        if isinstance(notify, str):
+            fields = [f.strip() for f in notify.split(',')]
+            if evt == 'D':
+                payload['fields'] = {f: record.get(f) for f in fields if f in record}
+            elif evt == 'U' and old_record:
+                changed = {}
+                for f in fields:
+                    old_val = old_record.get(f)
+                    new_val = record.get(f)
+                    if old_val != new_val:
+                        changed[f] = {'old': old_val, 'new': new_val}
+                if changed:
+                    payload['fields'] = changed
+        self.adapter.notify('dbevent', json.dumps(payload, default=str))
 
     @in_triggerstack
     def insert(self, tblobj: Any, record: dict[str, Any], **kwargs: Any) -> None:
