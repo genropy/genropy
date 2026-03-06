@@ -94,6 +94,10 @@
 .slotbar_toolbar_side_bottom{
     border-top:1px solid var(--border-color);
 }
+.slotbar_toolbar_standard + .slotbar_toolbar_standard{
+    border-top: none;
+}
+
 
 /* Arrow in dropdown buttons - toolbar */
 .slotbar_toolbar .dijitDropDownButton .dijitArrowButtonInner {
