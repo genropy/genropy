@@ -326,10 +326,27 @@ cursorZoom_plus{
 	text-decoration: underline;
 	cursor: pointer;
 	font-weight: bold;
-	background: url(icons/base10/tinyCloseBranch.png) no-repeat left center;
+	background: none;
+	padding-left: 12px;
+	position: relative;
+}
+.fieldsTree_folder::before{
+	content: '';
+	display: inline-block;
+	position: absolute;
+	left: 2px;
+	top: 50%;
+	transform: translateY(-50%);
+	border-style: solid;
+	border-width: 4px 0 4px 5px;
+	border-color: transparent transparent transparent #666;
 }
 .dijitTreeContentExpanded .fieldsTree_folder{
-	background: url(icons/base10/tinyOpenBranch.png) no-repeat left center;
+	background: none;
+}
+.dijitTreeContentExpanded .fieldsTree_folder::before{
+	border-width: 5px 4px 0 4px;
+	border-color: #666 transparent transparent transparent;
 }
 .fieldsTree_RM {
 	color: navy;
@@ -4916,10 +4933,36 @@ div[disabled='true'], div[disabled='disabled']{
 
 /* @end */
 .tinyCloseBranch{
-    background: url(icons/base10/tinyCloseBranch.png) no-repeat right center;
+    background: none;
+    position: relative;
+    padding-right: 12px;
+}
+.tinyCloseBranch::after{
+    content: '';
+    display: inline-block;
+    position: absolute;
+    right: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+    border-style: solid;
+    border-width: 4px 0 4px 5px;
+    border-color: transparent transparent transparent #666;
 }
 .tinyOpenBranch{
-    background: url(icons/base10/tinyOpenBranch.png) no-repeat right 4px;
+    background: none;
+    position: relative;
+    padding-right: 12px;
+}
+.tinyOpenBranch::after{
+    content: '';
+    display: inline-block;
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    border-style: solid;
+    border-width: 5px 4px 0 4px;
+    border-color: #666 transparent transparent transparent;
 }
 .tunerUp{
     background: url(icons/base10/tuner_up.png) no-repeat center center;
@@ -5260,10 +5303,34 @@ div[disabled='true'], div[disabled='disabled']{
 }
 
 .branchtree .dijitTreeExpando.dijitTreeExpandoClosed{
-    background: url(icons/base10/tinyCloseBranch.png) no-repeat center center;
+    background: none;
+    position: relative;
+}
+.branchtree .dijitTreeExpando.dijitTreeExpandoClosed::after{
+    content: '';
+    display: block;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    border-style: solid;
+    border-width: 4px 0 4px 5px;
+    border-color: transparent transparent transparent #666;
 }
 .branchtree .dijitTreeExpando.dijitTreeExpandoOpened{
-    background: url(icons/base10/tinyOpenBranch.png) no-repeat center center;
+    background: none;
+    position: relative;
+}
+.branchtree .dijitTreeExpando.dijitTreeExpandoOpened::after{
+    content: '';
+    display: block;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    border-style: solid;
+    border-width: 5px 4px 0 4px;
+    border-color: #666 transparent transparent transparent;
 }
 
 .branchtree .dijitTreeExpandoLeaf{
