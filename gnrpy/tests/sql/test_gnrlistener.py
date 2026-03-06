@@ -134,6 +134,30 @@ class TestGnrListenerDispatch:
         assert len(r2) == 0
 
 
+    def test_dispatch_with_thread_pool(self):
+        """With workers > 1, handlers run in threads."""
+        import threading
+
+        class FakeApp:
+            db = None
+        listener = GnrListener(FakeApp(), timeout=1, coalesce=0, workers=2)
+        listener._executor = __import__('concurrent.futures', fromlist=['ThreadPoolExecutor']).ThreadPoolExecutor(max_workers=2)
+
+        results = []
+        listener.register('dbevent', lambda p: results.append(threading.current_thread().name),
+                          table='invc.invoice')
+
+        class FakeNotify:
+            channel = 'dbevent'
+            payload = json.dumps({'table': 'invc.invoice', 'pkey': '1', 'event': 'I'})
+
+        listener._dispatch(FakeNotify())
+        listener._executor.shutdown(wait=True)
+
+        assert len(results) == 1
+        assert results[0] != threading.current_thread().name
+
+
 # -- tblobj.notify() on Postgres ----------------------------------------------
 
 class TestTableNotify:

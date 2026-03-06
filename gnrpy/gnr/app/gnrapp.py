@@ -1841,7 +1841,7 @@ class GnrApp(object):
             self._gnrdaemon = GnrDaemonProxy(use_environment=True).proxy()
         return self._gnrdaemon
 
-    def listen(self, timeout=5, coalesce=1):
+    def listen(self, timeout=5, coalesce=1, workers=1):
         """Start a blocking GnrListener that auto-discovers @listen handlers.
 
         Scans all table classes for methods decorated with @listen,
@@ -1851,10 +1851,11 @@ class GnrApp(object):
         Args:
             timeout: Seconds to wait on select() before cycling.
             coalesce: Seconds to sleep after processing a batch.
+            workers: Number of thread-pool workers (1 = synchronous).
         """
         from gnr.app.gnrlistener import GnrListener
 
-        listener = GnrListener(self, timeout=timeout, coalesce=coalesce)
+        listener = GnrListener(self, timeout=timeout, coalesce=coalesce, workers=workers)
         for dbtable in self.db.tables:
             for attr_name in dir(dbtable):
                 try:
