@@ -26,33 +26,42 @@
 
 /* --- button_block icons (single group) --- */
 .button_block div {
-    width: 1.8em;
-    height: 1.6em;
+    width: 1.5em;
+    height: 1.4em;
 }
 
 .framedindex_tablist_left {
     display: inline-flex;
-    align-items: center;
+    align-items: stretch;
+    height: 1.9em;
     background: var(--btn-tonal-bg);
+    border: 1px solid var(--btn-border-color);
     border-radius: var(--radius-pill);
     margin-left: 0.5em;
 }
 
-.button_block.iframetab {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.35em 0.5em;
+.button_block.iframetab,
+.button_block.iframetab:first-child,
+.button_block.iframetab:last-child {
+    padding: 0;
     border: none;
+    border-radius: 0;
     background: transparent;
-    border-radius: var(--radius-pill);
     margin: 0;
     transition: background 0.18s;
 }
+.button_block.iframetab div {
+    width: 2.6em;
+    height: 100%;
+    background-size: 1.4em 1.4em;
+    background-repeat: no-repeat;
+    background-position: center;
+}
 .button_block.iframetab:hover {
-    background: rgba(0,0,0,0.1);
+    background: var(--frameindex-tab-bg-hover);
 }
 .iframetab_selected.button_block.iframetab {
-    background: rgba(0,0,0,0.2);
+    background: var(--frameindex-tab-bg);
 }
 
 .menuToggle_icon {
@@ -65,9 +74,10 @@
     position: relative;
     display: inline-flex;
     align-items: center;
-    padding: 0.45em 1.1em;
+    height: 1.9em;
+    padding: 0 0.9em;
     cursor: pointer;
-    color: var(--btn-tonal-color);
+    color: var(--menu-text-color);
     background: var(--btn-tonal-bg);
     border: 1px solid var(--btn-border-color);
     border-right: 0;
@@ -111,9 +121,9 @@
 }
 
 .iframetab_selected.iframetab {
-    font-weight: 600;
+    font-weight: var(--menutree-selected-weight);
     background: var(--frameindex-tab-bg);
-    color: var(--frameindex-tablist-color);
+    color: var(--accent-color);
     box-shadow: none;
 }
 .iframetab_selected.iframetab:hover {
@@ -147,19 +157,18 @@
 
 .framecloser {
     position: absolute;
-    top: 0.15em;
-    right: 0.1em;
+    top: 0em;
+    right: 0.15em;
     width: 1em;
     height: 1em;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: var(--radius-full);
-    border: 1px solid transparent;
+    border: none;
     background: none;
     cursor: pointer;
     opacity: 0;
-    transition: opacity 0.2s, border-color 0.15s;
+    transition: opacity 0.2s;
     z-index: 1;
 }
 .iframetab:hover > .framecloser {
@@ -167,7 +176,6 @@
 }
 .framecloser:hover {
     opacity: 1 !important;
-    border-color: currentColor;
 }
 .framecloser.framecloserIcon {
     background-image: none;
