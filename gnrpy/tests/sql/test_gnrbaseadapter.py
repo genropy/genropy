@@ -92,7 +92,7 @@ class TestSqlDbAdapter():
             (): ['defaultMainSchema', 'relations',
                  'getTableConstraints'],
             ('arg1',): ['connect', 'listen',
-                        'notify', 'createDb',
+                        'createDb',
                         'dropDb', 'dump', 'restore',
                         'importRemoteDb', 'listRemoteDatabases',
                         'listElements'],
