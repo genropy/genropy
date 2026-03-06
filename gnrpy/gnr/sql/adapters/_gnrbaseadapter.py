@@ -404,12 +404,18 @@ class SqlDbAdapter(object):
         """
         raise AdapterMethodNotImplemented()
 
-    def notify(self, msg, autocommit=False):
-        """-- IMPLEMENT THIS --
-        Notify a message to listener processes.
-        @param msg: name of the message to notify
-        @param autocommit: dafault False, if specific implementation of notify uses transactions, commit the current transaction"""
-        raise AdapterMethodNotImplemented()
+    def notify(self, msg, payload=None, autocommit=False):
+        """Notify a message to listener processes.
+
+        Base implementation is a no-op for adapters that do not support
+        notifications (e.g. SQLite).  Override in subclasses.
+
+        Args:
+            msg: Channel name to notify.
+            payload: Optional payload string (JSON or plain text).
+            autocommit: If True, commit the notification immediately.
+        """
+        pass
 
     def prepareSqlText(self, sql, kwargs):
         """Subclass in adapter if you want to change some sql syntax or params types.

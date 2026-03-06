@@ -312,8 +312,8 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             if onTimeout != None:
                 listening = onTimeout()
 
-    def notify(self, msg, autocommit=False):
-        """Actually sqlite has no message comunications: so simply pass"""
+    def notify(self, msg, payload=None, autocommit=False):
+        """SQLite has no notification mechanism: no-op."""
         pass
 
     def createDb(self, name, encoding='unicode'):
