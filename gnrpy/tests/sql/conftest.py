@@ -135,3 +135,23 @@ def db_pg():
     finally:
         if pg_instance is not None:
             pg_instance.stop()
+
+
+@pytest.fixture(scope='module')
+def db_pg3():
+    pg_conf, pg_instance = get_pg_config()
+    dbname = pg_conf.pop('database', 'test_compiler')
+    try:
+        app = GnrApp('test_invoice', db_attrs=dict(
+            implementation='postgres3',
+            dbname=dbname,
+            **pg_conf,
+        ))
+        app.db.model.check(applyChanges=True)
+        _import_csv_data(app.db)
+        yield app.db
+    except Exception:
+        pytest.skip('PostgreSQL (psycopg3) not available')
+    finally:
+        if pg_instance is not None:
+            pg_instance.stop()

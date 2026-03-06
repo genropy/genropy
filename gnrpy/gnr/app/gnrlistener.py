@@ -24,9 +24,8 @@
 
 Usage::
 
-    from gnr.app.gnrapp import GnrApp
-    app = GnrApp('myapp')
-    app.listen()
+    from gnr.app.gnrapplistener import GnrAppListener
+    GnrAppListener('myapp').run()
 """
 
 from __future__ import annotations

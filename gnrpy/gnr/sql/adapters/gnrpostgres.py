@@ -228,22 +228,6 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
             password=self.dbroot.password)
 
 
-    def listen_connection(self, channels):
-        """Open a dedicated AUTOCOMMIT connection and LISTEN on the given channels.
-
-        Args:
-            channels: Iterable of channel names to LISTEN on.
-
-        Returns:
-            A connection ready for ``select()`` polling.
-        """
-        conn = self.connect(autoCommit=True)
-        cursor = conn.cursor()
-        for channel in channels:
-            cursor.execute('LISTEN %s;' % channel)
-        cursor.close()
-        return conn
-
     def listen(self, msg, timeout=10, onNotify=None, onTimeout=None):
         """Listen for message 'msg' on the current connection using the Postgres LISTEN - NOTIFY method.
         onTimeout callbacks are executed on every timeout, onNotify on messages.

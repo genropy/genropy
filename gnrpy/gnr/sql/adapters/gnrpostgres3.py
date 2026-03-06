@@ -186,12 +186,16 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
                 
         self.dbroot.connection.isolation_level=IsolationLevel.READ_COMMITTED
         
-    def notify(self, msg, autocommit=False):
+    def notify(self, msg, payload=None, autocommit=False):
         """Notify a message to listener processes using the Postgres LISTEN - NOTIFY method.
-        
-        :param msg: name of the message to notify
-        :param autocommit: if False (default) you have to commit transaction, and the message is actually sent on commit"""
-        self.dbroot.execute('NOTIFY %s;' % msg)
+
+        :param msg: channel name to notify
+        :param payload: optional payload string (max 8000 bytes)
+        :param autocommit: if False (default) the message is sent on commit"""
+        if payload:
+            self.dbroot.execute("NOTIFY %s, '%s';" % (msg, payload.replace("'", "''")))
+        else:
+            self.dbroot.execute('NOTIFY %s;' % msg)
         if autocommit:
             self.dbroot.commit()
 

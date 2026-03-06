@@ -2,6 +2,7 @@
 # encoding: utf-8
 
 import datetime
+import json
 import warnings as warnings_module
 import os
 import re
@@ -1545,7 +1546,6 @@ class GnrDboTable(TableBase):
             channel: The PostgreSQL NOTIFY channel name.
             **kwargs: Additional key-value pairs for the JSON payload.
         """
-        import json
         payload = dict(table=self.fullname, **kwargs)
         self.db.adapter.notify(channel, payload=json.dumps(payload, default=str))
 
