@@ -31,10 +31,6 @@
     visibility: hidden;
 }
 
-._common_d11.tundra .dijitSplitter:active{
-    background: var(--text-secondary);
-}
-
 .attachment_drawer.slotbarOpener_horizontal{
     top: -18px;
     margin-left: -37px;
@@ -51,18 +47,18 @@
     border: none;
 }
 
-.tundra .drawerFixed.dijitSplitter.dijitSplitterV{
+._common_d11 .drawerFixed.dijitSplitter.dijitSplitterV{
     width: 0;
 }
-.tundra .drawerFixed.dijitSplitter.dijitSplitterV:hover{
+._common_d11 .drawerFixed.dijitSplitter.dijitSplitterV:hover{
     width: 0;
     background: transparent;
 }
 
-.tundra .drawerFixed.dijitSplitter.dijitSplitterH{
+._common_d11 .drawerFixed.dijitSplitter.dijitSplitterH{
     height: 0;
 }
-.tundra .drawerFixed.dijitSplitter.dijitSplitter:hover{
+._common_d11 .drawerFixed.dijitSplitter.dijitSplitter:hover{
     height: 0;
     background: transparent;
 }
@@ -78,10 +74,10 @@
     height: 40px;
     width:8px;
 }
-.tundra .dijitSplitter.drawerHandle {
+._common_d11 .dijitSplitter.drawerHandle {
     z-index: 2;
 }
-.tundra .dijitSplitter.drawerSplitter .dijitSplitterThumb{
+._common_d11 .dijitSplitter.drawerSplitter .dijitSplitterThumb{
     background: transparent;
 }
 .drawerSplitter.dijitSplitter.dijitSplitterH  .drawerHandle{
@@ -125,7 +121,7 @@
     cursor: pointer;
     position: absolute;
 }
-.tundra._common_d11 .drawerSplitter.dijitSplitter .drawerHandle:hover{
+._common_d11 .drawerSplitter.dijitSplitter .drawerHandle:hover{
     opacity: 1;
 }
 

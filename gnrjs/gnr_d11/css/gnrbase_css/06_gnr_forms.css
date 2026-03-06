@@ -14,28 +14,8 @@
     z-index: 0;
 }
 
-.tundra .dijitTextBox, .tundra .dijitComboBox, .tundra .dijitSpinner, .tundra .dijitInlineEditor input ,.tundra .dijitTextArea{
-    background: var(--field-bg, white);
-    border: 1px solid var(--field-border, #B3B3B3);
-    line-height: normal;
-    border-radius: var(--radius-controls);
-    position: relative;
-    padding-left: 3px;
-    padding-top: 1px;
-}
-.tundra .dijitInputField input{
-    padding-right: 3px;
-}
-.tundra .mobilefields .dijitInputField{
-    font-size:11pt;
-    padding:1px;
-}
 .gnrfield.tag_checkbox label{
     color: var(--gnrfieldlabel-color);
-}
-
-.tundra .mobilefields .dijitButtonNode.dijitArrowButton{
-    background: none;
 }
 
 .gnrfield label{
@@ -75,25 +55,6 @@
     -moz-user-select: auto;
     -ms-user-select: auto;
     user-select: auto;
-}
-
-.tundra .dijitError {
-    border-color: var(--field-error-border, silver);
-    background: white url(../icons/invalid_small.png) no-repeat top left;
-
-}
-
-.tundra .dijitTextBoxErrorDisabled {
-    border-color: transparent;
-}
-
-.dijitComboBox.dijitError, .dijitSpinner.dijitError{
-	border-color: silver;
-    background: white url(../icons/invalid_small.png) no-repeat top left;
-}
-
-.tundra .dijitComboBoxErrorDisabled {
-    border-color: transparent;
 }
 
 label.ghostlabel span {
@@ -212,11 +173,11 @@ label.ghostlabel span {
     display: inline-block;
 }
 
-.tundra .gnrinlinewidget_container .dijitTextBox,
-.tundra .gnrinlinewidget_container .dijitComboBox,
-.tundra .gnrinlinewidget_container .dijitSpinner,
-.tundra .gnrinlinewidget_container .dijitInlineEditor input,
-.tundra .gnrinlinewidget_container .dijitTextArea {
+._common_d11 .gnrinlinewidget_container .dijitTextBox,
+._common_d11 .gnrinlinewidget_container .dijitComboBox,
+._common_d11 .gnrinlinewidget_container .dijitSpinner,
+._common_d11 .gnrinlinewidget_container .dijitInlineEditor input,
+._common_d11 .gnrinlinewidget_container .dijitTextArea {
     border: 0;
     vertical-align: bottom;
     padding-top: 0;

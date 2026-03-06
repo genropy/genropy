@@ -95,11 +95,11 @@
     font-weight: bold;
 }
 
-.tundra .tinytree .dijitTreeNode{
+._common_d11 .tinytree .dijitTreeNode{
     background: none;
     margin-left: 12px;
 }
-.tundra .tinytree .dijitTreeContent{
+._common_d11 .tinytree .dijitTreeContent{
     font-size: 11px;
     padding-top: 0;
     min-height: none;
@@ -107,7 +107,7 @@
     padding-left: 0;
 }
 
-.tundra .tinytree .dijitTreeIsRoot.dijitTreeNode{
+._common_d11 .tinytree .dijitTreeIsRoot.dijitTreeNode{
     margin-left: 0;
 }
 

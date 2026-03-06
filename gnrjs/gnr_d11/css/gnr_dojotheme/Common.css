@@ -1,0 +1,82 @@
+/* ==========================================================================
+   gnr_dojotheme/Common.css — Disabled cursors, DnD basics, content pane states.
+   Replaces tundra/Common.css without PNG images.
+   ========================================================================== */
+
+/* --- Disabled cursor --- */
+.gnr_dojotheme .dijitSliderDisabled *,
+.gnr_dojotheme .dijitDisabledClickableRegion,
+.gnr_dojotheme .dijitSpinnerDisabled *,
+.gnr_dojotheme .dijitButtonDisabled *,
+.gnr_dojotheme .dijitDropDownButtonDisabled *,
+.gnr_dojotheme .dijitComboButtonDisabled *,
+.gnr_dojotheme .dijitComboBoxDisabled * {
+    cursor: not-allowed !important;
+}
+
+/* --- DnD drop indicators --- */
+.gnr_dojotheme .dojoDndItemBefore {
+    border-top: 2px solid var(--accent-color, #369);
+}
+
+.gnr_dojotheme .dojoDndItemAfter {
+    border-bottom: 2px solid var(--accent-color, #369);
+}
+
+.gnr_dojotheme .dojoDndItemOver {
+    cursor: pointer;
+}
+
+/* --- DnD avatar (flat, no PNG) --- */
+.gnr_dojotheme table.dojoDndAvatar {
+    border: 1px solid var(--border-color, #ccc);
+    border-collapse: collapse;
+    background-color: var(--surface-bg, #fff);
+    font-size: 75%;
+    color: var(--text-color, #444);
+    border-radius: var(--radius-controls, 4px);
+}
+
+.gnr_dojotheme .dojoDndAvatar td {
+    border: none;
+}
+
+.gnr_dojotheme .dojoDndAvatar tr {
+    border: none;
+}
+
+.gnr_dojotheme .dojoDndAvatarHeader td {
+    height: 1.25em;
+    padding: 0 0 0 0.5em;
+}
+
+.gnr_dojotheme .dojoDndAvatarItem td {
+    padding: 0.125em;
+}
+
+.gnr_dojotheme.dojoDndMove .dojoDndAvatarHeader {
+    background-color: #f58383;
+}
+
+.gnr_dojotheme.dojoDndCopy .dojoDndAvatarHeader {
+    background-color: #f58383;
+}
+
+.gnr_dojotheme.dojoDndMove .dojoDndAvatarCanDrop .dojoDndAvatarHeader {
+    background-color: #97e68d;
+}
+
+.gnr_dojotheme.dojoDndCopy .dojoDndAvatarCanDrop .dojoDndAvatarHeader {
+    background-color: #97e68d;
+}
+
+/* --- Content pane loading/error (text-only, no GIF) --- */
+.gnr_dojotheme .dijitContentPaneLoading {
+    padding-left: 1.5em;
+    color: var(--text-muted, #666);
+}
+
+.gnr_dojotheme .dijitContentPaneError {
+    padding-left: 1.5em;
+    color: var(--status-error, #E53935);
+}

@@ -161,19 +161,19 @@
     margin-left:6px;
 }
 
-.tundra .labledBoxInputBorderless .dijitTextBox,
-.tundra .labledBoxInputBorderless .dijitComboBox,
-.tundra .labledBoxInputBorderless .dijitSpinner,
-.tundra .labledBoxInputBorderless .dijitInlineEditor input,
-.tundra .labledBoxInputBorderless .dijitTextArea,
-.tundra .labledBoxInputBorderless .gnrcheckbox_wrapper,
+._common_d11 .labledBoxInputBorderless .dijitTextBox,
+._common_d11 .labledBoxInputBorderless .dijitComboBox,
+._common_d11 .labledBoxInputBorderless .dijitSpinner,
+._common_d11 .labledBoxInputBorderless .dijitInlineEditor input,
+._common_d11 .labledBoxInputBorderless .dijitTextArea,
+._common_d11 .labledBoxInputBorderless .gnrcheckbox_wrapper,
 
-.tundra .labledBoxBordered .dijitTextBox,
-.tundra .labledBoxBordered .dijitComboBox,
-.tundra .labledBoxBordered .dijitSpinner,
-.tundra .labledBoxBordered .dijitInlineEditor input,
-.tundra .labledBoxBordered .dijitTextArea,
-.tundra .labledBoxBordered .gnrcheckbox_wrapper{
+._common_d11 .labledBoxBordered .dijitTextBox,
+._common_d11 .labledBoxBordered .dijitComboBox,
+._common_d11 .labledBoxBordered .dijitSpinner,
+._common_d11 .labledBoxBordered .dijitInlineEditor input,
+._common_d11 .labledBoxBordered .dijitTextArea,
+._common_d11 .labledBoxBordered .gnrcheckbox_wrapper{
     border-width: 0;
     background: #f5f5f5;
     padding-right: 5px;
@@ -184,19 +184,19 @@
 }
 
 /* --- Error state --- */
-.tundra .labledBoxInputBorderless .dijitError.dijitTextBox,
-.tundra .labledBoxInputBorderless .dijitError.dijitComboBox,
-.tundra .labledBoxInputBorderless .dijitError.dijitSpinner,
-.tundra .labledBoxInputBorderless .dijitError.dijitInlineEditor input,
-.tundra .labledBoxInputBorderless .dijitError.dijitTextArea,
-.tundra .labledBoxInputBorderless .dijitError.gnrcheckbox_wrapper,
+._common_d11 .labledBoxInputBorderless .dijitError.dijitTextBox,
+._common_d11 .labledBoxInputBorderless .dijitError.dijitComboBox,
+._common_d11 .labledBoxInputBorderless .dijitError.dijitSpinner,
+._common_d11 .labledBoxInputBorderless .dijitError.dijitInlineEditor input,
+._common_d11 .labledBoxInputBorderless .dijitError.dijitTextArea,
+._common_d11 .labledBoxInputBorderless .dijitError.gnrcheckbox_wrapper,
 
-.tundra .labledBoxBordered .dijitError.dijitTextBox,
-.tundra .labledBoxBordered .dijitError.dijitComboBox,
-.tundra .labledBoxBordered .dijitError.dijitSpinner,
-.tundra .labledBoxBordered .dijitError.dijitInlineEditor input,
-.tundra .labledBoxBordered .dijitError.dijitTextArea,
-.tundra .labledBoxBordered .dijitError.gnrcheckbox_wrapper{
+._common_d11 .labledBoxBordered .dijitError.dijitTextBox,
+._common_d11 .labledBoxBordered .dijitError.dijitComboBox,
+._common_d11 .labledBoxBordered .dijitError.dijitSpinner,
+._common_d11 .labledBoxBordered .dijitError.dijitInlineEditor input,
+._common_d11 .labledBoxBordered .dijitError.dijitTextArea,
+._common_d11 .labledBoxBordered .dijitError.gnrcheckbox_wrapper{
     background: #ffe0e0;
 }
 
@@ -217,7 +217,7 @@
     padding-right: 2px;
 }
 
-.tundra .gnrgridbox .dijitTextBox,.tundra .gnrgridbox .dijitComboBox,.tundra .gnrgridbox .dijitSpinner{
+._common_d11 .gnrgridbox .dijitTextBox,._common_d11 .gnrgridbox .dijitComboBox,._common_d11 .gnrgridbox .dijitSpinner{
     width:unset;
 }
 
@@ -226,6 +226,6 @@
     gap: 3px;
 }
 
-.tundra .slotbar_cell .gnrgridbox .dijitTextBox,.tundra .slotbar_cell .gnrgridbox .dijitComboBox,.tundra .slotbar_cell .gnrgridbox .dijitSpinner{
+._common_d11 .slotbar_cell .gnrgridbox .dijitTextBox,._common_d11 .slotbar_cell .gnrgridbox .dijitComboBox,._common_d11 .slotbar_cell .gnrgridbox .dijitSpinner{
     width:15em;
 }

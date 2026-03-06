@@ -121,9 +121,9 @@
     padding-left: 5px;
 }
 
-._common_d11.tundra .multiValueEditor .dojoxGrid-row .dojoxGrid-cell,
-._common_d11.tundra .multiValueEditor .dojoxGrid-row-odd .dojoxGrid-cell,
-._common_d11.tundra .multiValueEditor .dojoxGrid-row.dojoxGrid-row-selected .dojoxGrid-cell{
+._common_d11 .multiValueEditor .dojoxGrid-row .dojoxGrid-cell,
+._common_d11 .multiValueEditor .dojoxGrid-row-odd .dojoxGrid-cell,
+._common_d11 .multiValueEditor .dojoxGrid-row.dojoxGrid-row-selected .dojoxGrid-cell{
     border-left: 0px;
     border-top: 0;
     border-right: 0px;
@@ -165,21 +165,21 @@
     background: transparent !important;
 }
 
-.tundra._common_d11 .grid_gallery_grid .dojoxGrid-row-selected{
+._common_d11 .grid_gallery_grid .dojoxGrid-row-selected{
     background: transparent !important;
     background-image:none !important;
 }
-.tundra._common_d11 .grid_gallery_grid .dojoxGrid-row{
+._common_d11 .grid_gallery_grid .dojoxGrid-row{
     background-image:none !important;
     background: transparent !important;
 }
-.tundra._common_d11 .grid_gallery_grid .dojoxGrid-cell{
+._common_d11 .grid_gallery_grid .dojoxGrid-cell{
     padding-top:0px !important;
 }
-.tundra._common_d11 .grid_gallery_grid .dojoxGrid-content>div {
+._common_d11 .grid_gallery_grid .dojoxGrid-content>div {
     border-bottom: 0;
 }
-.tundra .grid_gallery_grid .cellContent{
+._common_d11 .grid_gallery_grid .cellContent{
     margin-top:0;
     margin-right:0px;
     text-align:right;
@@ -268,7 +268,7 @@
     background: rgba(255, 227, 60, .2);
 }
 
-._common_d11.tundra .gr_wrap_footers .dojoxGrid-scrollbox{
+._common_d11 .gr_wrap_footers .dojoxGrid-scrollbox{
     overflow-x:hidden !important;
 }
 .gr_noFooter .gr_footer.gr_scrollbox .gr_itemcontainer{
@@ -296,7 +296,7 @@
 }
 
 /* --- Grid line number --- */
-._common_d11.tundra .dojoxGrid-row .gnrgridlineno.dojoxGrid-cell{
+._common_d11 .dojoxGrid-row .gnrgridlineno.dojoxGrid-cell{
     color:rgba(64, 128, 180, 1.00);
 }
 
@@ -312,15 +312,15 @@
     background: transparent !important;
 }
 
-.tundra._common_d11 .buttons_grid .dojoxGrid-row-selected{
+._common_d11 .buttons_grid .dojoxGrid-row-selected{
     background: transparent !important;
     background-image:none !important;
 }
-.tundra._common_d11 .buttons_grid .dojoxGrid-row{
+._common_d11 .buttons_grid .dojoxGrid-row{
     background-image:none !important;
     background: transparent !important;
 }
-.tundra._common_d11 .buttons_grid .dojoxGrid-cell{
+._common_d11 .buttons_grid .dojoxGrid-cell{
     padding-top:0px !important;
 }
 
@@ -370,9 +370,9 @@
 }
 
 /* --- Grid rows/header (from theme_shared) --- */
-._common_d11.tundra .dojoxGrid-row .dojoxGrid-cell,
-._common_d11.tundra .dojoxGrid-row-odd .dojoxGrid-cell,
-._common_d11.tundra .dojoxGrid-row.dojoxGrid-row-selected .dojoxGrid-cell {
+._common_d11 .dojoxGrid-row .dojoxGrid-cell,
+._common_d11 .dojoxGrid-row-odd .dojoxGrid-cell,
+._common_d11 .dojoxGrid-row.dojoxGrid-row-selected .dojoxGrid-cell {
     border-left: 0px;
     border-top: 0;
     border-right: 1px solid var(--grid-border-color);
@@ -410,41 +410,41 @@
     vertical-align: top;
 }
 
-.tundra._common_d11 .dojoxGrid-content > div {
+._common_d11 .dojoxGrid-content > div {
     border-bottom: 1px solid var(--grid-border-color);
 }
 
-.tundra._common_d11 .templateGrid .dojoxGrid-content > div,
-.tundra._common_d11 .mobileTemplateGrid .dojoxGrid-content > div {
+._common_d11 .templateGrid .dojoxGrid-content > div,
+._common_d11 .mobileTemplateGrid .dojoxGrid-content > div {
     border-bottom: 1px solid transparent;
 }
 
-._common_d11.tundra .templateGrid .dojoxGrid-row .dojoxGrid-cell:last-child {
+._common_d11 .templateGrid .dojoxGrid-row .dojoxGrid-cell:last-child {
     border-right-width: 0px;
 }
 
-.tundra._common_d11 .editingGrid .dojoxGrid-row-odd.dojoxGrid-row-selected,
-.tundra._common_d11 .noselect .dojoxGrid-row-odd.dojoxGrid-row-selected {
+._common_d11 .editingGrid .dojoxGrid-row-odd.dojoxGrid-row-selected,
+._common_d11 .noselect .dojoxGrid-row-odd.dojoxGrid-row-selected {
     background-color: #F3F6FA;
 }
 
-.tundra._common_d11 .editingGrid .dojoxGrid-row.dojoxGrid-row-selected,
-.tundra._common_d11 .noselect .dojoxGrid-row.dojoxGrid-row-selected {
+._common_d11 .editingGrid .dojoxGrid-row.dojoxGrid-row-selected,
+._common_d11 .noselect .dojoxGrid-row.dojoxGrid-row-selected {
     background-color: rgba(255,255,255,.5);
 }
 
-.tundra._common_d11 .dojoxGrid-row {
+._common_d11 .dojoxGrid-row {
     background-color: var(--grid-row-bg);
 }
 
-.tundra._common_d11 .dojoxGrid-row-odd {
+._common_d11 .dojoxGrid-row-odd {
     background-color: var(--grid-row-odd-bg);
 }
 
-.tundra._common_d11 .dojoxGrid-row.dojoxGrid-row-selected {
+._common_d11 .dojoxGrid-row.dojoxGrid-row-selected {
     background-color: var(--grid-row-selected-bg);
 }
-.tundra._common_d11 .dojoxGrid-row-selected.dojoxGrid-row-odd {
+._common_d11 .dojoxGrid-row-selected.dojoxGrid-row-odd {
     background-color: var(--grid-row-selected-bg);
 }
 
@@ -455,17 +455,17 @@
     background-color: rgba(255, 255, 255, 0.5);
 }
 
-._common_d11.tundra .noheader .dojoxGrid-header {
+._common_d11 .noheader .dojoxGrid-header {
     display: none;
 }
 
-._common_d11.tundra .dojoxGrid-header {
+._common_d11 .dojoxGrid-header {
     background-color: var(--grid-header-bg);
     border-color: var(--text-muted) !important;
     border-bottom: 1px solid var(--border-color) !important;
 }
 
-._common_d11.tundra .dojoxGrid-header .dojoxGrid-cell {
+._common_d11 .dojoxGrid-header .dojoxGrid-cell {
     background: none !important;
     height: 14px;
     padding-top: 2px;

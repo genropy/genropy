@@ -1,0 +1,56 @@
+/* ==========================================================================
+   gnr_dojotheme/ProgressBar.css — Complete progress bar widget.
+   Replaces tundra PNG tiles with flat colors and CSS animation.
+   ========================================================================== */
+
+/* --- Container --- */
+.gnr_dojotheme .dijitProgressBar {
+    margin: 0.15em 0;
+}
+
+/* --- Empty track (unfilled portion) --- */
+.gnr_dojotheme .dijitProgressBarEmpty {
+    background: var(--surface-light, #f6f6f6);
+    background-image: none;
+    border: 1px solid var(--border-color, #ddd);
+    border-radius: var(--radius-pill, 9999px);
+    overflow: hidden;
+}
+
+/* --- Filled portion --- */
+.gnr_dojotheme .dijitProgressBarTile {
+    background: var(--accent-color, #369);
+    background-image: none;
+    border-radius: var(--radius-pill, 9999px);
+    transition: width 0.3s ease;
+}
+
+.gnr_dojotheme .dijitProgressBarFull {
+    border-right: none;
+}
+
+/* --- Label text --- */
+.gnr_dojotheme .dijitProgressBarLabel {
+    color: var(--text-color, #444);
+    font-size: 0.85em;
+    font-weight: 600;
+}
+
+/* --- Indeterminate: CSS animation (no GIF) --- */
+.gnr_dojotheme .dijitProgressBarIndeterminate .dijitProgressBarTile {
+    background: var(--accent-color, #369);
+    background-image: repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 0.6em,
+        rgba(255, 255, 255, 0.25) 0.6em,
+        rgba(255, 255, 255, 0.25) 1.2em
+    );
+    background-size: 1.7em 1.7em;
+    animation: gnr-progress-stripe 0.6s linear infinite;
+}
+
+@keyframes gnr-progress-stripe {
+    from { background-position: 0 0; }
+    to { background-position: 1.7em 0; }
+}

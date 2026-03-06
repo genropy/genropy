@@ -14,37 +14,6 @@
     /*-moz-linear-gradient(-90deg, #EDEDEE, #CDCDCD) repeat scroll 0 0 #E1E9E9*/
 }
 /* @end */
-/* @group Buttons */
-
-.tundra .dijitToolbar :is(.dijitButton, .dijitToggleButton, .dijitDropDownButton) {
-    border-top: 1px solid #E3E3E3;
-    background-color:#F8F8F8;
-    border-radius: var(--radius-controls);
-	background-image: var(--toolbar-gradient);
-}
-.tundra .dijitToolbar :is(.dijitButtonChecked, .dijitToggleButtonChecked) {
-    background-color:#d4dff2;
-    border:1px solid #316ac5;
-    margin: 1px !important;
-    padding: 0px !important;
-}
-.tundra .dijitToolbar :is(.dijitButtonCheckedHover, .dijitToggleButtonCheckedHover) {
-    background-color:#abc1e5;
-    border:1px solid #316ac5;
-    margin: 1px !important;
-    padding: 0px !important;
-}
-.tundra .dijitToolbar :is(.dijitButtonHover, .dijitToggleButtonHover, .dijitDropDownButtonHover) {
-    border: 1px solid #CECECE;
-    background-color:#CECECE;
-    border-radius: var(--radius-controls);
-	background-image: linear-gradient(to bottom, #E3E3E3, #CDCDCD); /* toolbar hover variant */
-}
-
-.tundra .dijitToolbar label {
-    padding: 3px 3px 0 6px;
-}
-/* @end */
 
 /* @group Formhandler */
 

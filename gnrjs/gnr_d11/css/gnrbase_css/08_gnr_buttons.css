@@ -4,29 +4,6 @@
 
 /* @group BUTTONS */
 
-/* Default style: tonal */
-.tundra .dijitButtonNode {
-    border: 1px solid var(--btn-border-color);
-    padding: calc(0.25rem - 1px) calc(0.7rem - 1px);
-    background-image: none;
-    background-color: var(--btn-tonal-bg);
-    border-radius: 1rem;
-    cursor: pointer;
-    opacity: 1;
-    color: var(--btn-tonal-color);
-    font-weight: 500;
-    font-size: var(--mainWindow-font-size);
-    letter-spacing: 0.1px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color 0.15s ease, box-shadow 0.15s ease;
-}
-.tundra .dijitButtonText {
-    text-align: center;
-    padding: 0;
-    color: var(--btn-tonal-color);
-}
 .dijitButtonNode .fh_semaphore{
     width: 10px;
     height: 10px;
@@ -61,80 +38,6 @@
     background-image: none;
 }
 
-.tundra .dijitDisabled .dijitButtonText {
-	color: var(--text-secondary);
-}
-
-.tundra .dijitArrowButton {
-	color: var(--text-color);
-	background: none;
-	padding: 0;
-}
-
-.tundra .dijitComboButton .dijitDownArrowButton {
-	padding-right:4px;
-}
-
-.tundra .dijitDisabled.dijitButtonDisabled .dijitButtonNode,
-.tundra .dijitDisabled.dijitToggleButtonDisabled .dijitButtonNode,
-.tundra .dijitDisabled.dijitDropDownButtonDisabled .dijitButtonNode,
-.tundra .dijitDisabled.dijitComboButtonDisabled .dijitButtonNode{
-	/* disabled buttons */
-    opacity: 0.38;
-    cursor: not-allowed;
-}
-
-.tundra .dijitDisabled.dijitTextBoxDisabled,
-.tundra .dijitDisabled.dijitComboBoxDisabled,
-.tundra .dijitDisabled.dijitTextBoxDisabled .dijitButtonNode,
-.dijitTextArea.dijitTextAreaDisabled.dijitDisabled{
-	/* disabled: readable, not interactive */
-    border-color: var(--field-disabled-border, #e0e0e0);
-    background-color: var(--field-disabled-bg, #f5f5f5);
-    color: var(--field-disabled-color, inherit);
-    cursor: not-allowed;
-}
-
-.tundra .dijitReadOnly.dijitTextBox,
-.tundra .dijitReadOnly.dijitTextArea,
-.tundra .dijitReadOnly.dijitComboBox,
-.tundra .dijitDisabled.dijitTextBoxReadOnly,
-.tundra .dijitDisabled.dijitTextBoxReadOnly .dijitButtonNode{
-    /* readonly: readable, not editable */
-    background-color: var(--field-readonly-bg, #F8F8F8);
-    border-style: solid;
-    border-color: var(--field-readonly-border, #e0e0e0);
-    color: var(--field-readonly-color, inherit);
-    opacity: 1;
-    cursor: default;
-}
-
-.tundra .dijitButtonHover .dijitButtonNode,
-.tundra .dijitButtonNodeHover,
-.tundra .dijitToggleButtonHover .dijitButtonNode,
-.tundra .dijitDropDownButtonHover .dijitButtonNode,
-.tundra .dijitComboButton .dijitButtonContentsHover,
-.tundra .dijitComboButton .dijitDownArrowButtonHover {
-    background-image: none;
-    background-color: var(--btn-tonal-hover-bg);
-    box-shadow: none;
-}
-
-.tundra .dijitButton.dijitButtonActive .dijitButtonNode,
-.tundra .dijitButtonNodeActive,
-.tundra .dijitToggleButtonActive .dijitButtonNode,
-.tundra .dijitDropDownButtonActive .dijitButtonNode,
-.tundra .dijitComboButton .dijitButtonContentsActive,
-.tundra .dijitComboButton .dijitDownArrowButtonActive{
-    background-image: none;
-    background-color: var(--btn-tonal-pressed-bg);
-    box-shadow: none;
-}
-
-.tundra .dijitButton.dijitButtonActive .dijitButtonText{
-    color: var(--btn-tonal-color);
-}
-
 .fakeButton{
     background-image: none;
     background-color: var(--btn-tonal-bg);
@@ -148,7 +51,7 @@
     background: none;
 }
 
-._common_d11.tundra .dijitDisabled.dijitComboBoxDisabled .dijitArrowButton .dijitArrowButtonInner{
+._common_d11 .dijitDisabled.dijitComboBoxDisabled .dijitArrowButton .dijitArrowButtonInner{
     display:none;
     background:none;
 }
@@ -156,34 +59,7 @@
     display:none;
 }
 
-/* Buttons inside textbox widgets: no border, no background */
-.tundra .dijitTextBox .dijitButtonNode{
-    border-radius: 0;
-    background-color: transparent;
-    background-image: none;
-    padding: 0;
-    border-color: transparent;
-    box-shadow: none;
-    filter: none;
-}
-
-.tundra .dijitComboBox .dijitArrowButton .dijitArrowButtonInner {
-	height: 100%;
-}
-
-.tundra .dijitUpArrowButtonActive,
-.tundra .dijitDownArrowButtonActive,
-.tundra .dijitButtonActive .dijitButtonNode,
-.tundra .dijitToggleButtonActive .dijitButtonNode,
-.tundra .dijitDropDownButtonActive .dijitButtonNode,
-.tundra .dijitButtonContentsActive,
-.tundra .dijitStackController .dijitToggleButtonChecked .dijitButtonNode {
-    background-image: none;
-    background-color: var(--btn-tonal-selected-bg);
-    box-shadow: none;
-}
-
-.tundra .no_background .dijitButtonNode {
+._common_d11 .no_background .dijitButtonNode {
     padding: 0;
     background: none;
     background-color: transparent;

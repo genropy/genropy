@@ -1,0 +1,278 @@
+/* ==========================================================================
+   gnr_dojotheme/layout/TabContainer.css — Complete tab container styling.
+   Replaces tundra/TabContainer.css with modern flat design.
+   Tab strip uses primary color, selected tab uses card surface.
+   All PNG images removed, CSS variables for full theme customization.
+   ========================================================================== */
+
+/* --- Tab base --- */
+.gnr_dojotheme .dijitTab {
+    font-size: 0.85em;
+    line-height: normal;
+    border-radius: var(--radius-panels, 8px) var(--radius-panels, 8px) 0 0;
+    background: var(--primary-color, #1E3055);
+    color: rgba(255,255,255,0.75);
+    border: none;
+    margin-right: 2px;
+    margin-bottom: -1px;
+    padding: 0;
+    position: relative;
+    font-weight: 400;
+    box-shadow: inset 0 -4px 6px -2px rgba(0,0,0,0.15);
+    transition: color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* --- Tab inner --- */
+.gnr_dojotheme .dijitTabInnerDiv {
+    border-left: 0;
+    border-bottom: 0;
+    padding: 4px 10px;
+}
+
+/* --- Tab hover --- */
+.gnr_dojotheme .dijitTabHover {
+    opacity: 1;
+    background: var(--primary-color, #1E3055);
+    color: white;
+    border: none;
+    box-shadow: inset 0 -2px 4px -2px rgba(0,0,0,0.1);
+}
+
+.gnr_dojotheme .dijitTabCheckedHover {
+    opacity: 1;
+}
+
+/* --- Tab selected (checked) --- */
+.gnr_dojotheme .dijitTabChecked {
+    background: var(--card-surface, #F2F2F7);
+    color: var(--primary-color, #1E3055);
+    font-weight: 600;
+    border: 1px solid var(--border-strong, #aab4c4);
+    border-bottom: none;
+    border-radius: var(--radius-panels, 8px) var(--radius-panels, 8px) 0 0;
+    box-shadow: none;
+}
+
+.gnr_dojotheme .dijitAlignTop .dijitTabChecked,
+.gnr_dojotheme .dijitAlignTop .dijitTabCloseButtonChecked {
+    background: var(--card-surface, #F2F2F7);
+    color: var(--primary-color, #1E3055);
+    font-weight: 600;
+    border: 1px solid var(--border-strong, #aab4c4);
+    border-bottom: none;
+    border-radius: var(--radius-panels, 8px) var(--radius-panels, 8px) 0 0;
+    box-shadow: none;
+}
+
+.gnr_dojotheme .dijitAlignBottom .dijitTabChecked,
+.gnr_dojotheme .dijitAlignBottom .dijitTabCloseButtonChecked {
+    background: var(--card-surface, #F2F2F7);
+    color: var(--primary-color, #1E3055);
+    border-top: none;
+    border-radius: 0 0 var(--radius-panels, 8px) var(--radius-panels, 8px);
+}
+
+/* --- Tab pane wrapper --- */
+.gnr_dojotheme .dijitTabPaneWrapper {
+    border: 1px solid var(--border-strong, #aab4c4);
+    border-radius: 0 0 var(--radius-panels, 8px) var(--radius-panels, 8px);
+    background: var(--card-surface, #F2F2F7);
+}
+
+/* --- Left/Right alignment: vertical margin --- */
+.gnr_dojotheme .dijitAlignLeft .dijitTab,
+.gnr_dojotheme .dijitAlignRight .dijitTab {
+    margin-right: 0;
+    margin-bottom: 0;
+}
+
+/* ==========================================================================
+   Right tabs — vertical tab strip on right side
+   ========================================================================== */
+
+.gnr_dojotheme .dijitTabLabels-right-h.dijitAlignRight {
+    background: transparent;
+    padding: 1em 0.5em 1em 0;
+}
+
+.gnr_dojotheme .dijitTabLabels-right-h .dijitTab {
+    border: none;
+    border-radius: 0;
+    margin: 0;
+    padding: 0;
+    color: white;
+    background: var(--primary-color, #636366);
+    box-shadow: none;
+    text-align: left;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.gnr_dojotheme .dijitTabLabels-right-h .dijitTab:first-child {
+    border-radius: 0 0.5em 0 0;
+}
+
+.gnr_dojotheme .dijitTabLabels-right-h .dijitTab:last-child {
+    border-radius: 0 0 0.5em 0;
+}
+
+.gnr_dojotheme .dijitTabLabels-right-h .dijitTab:only-child {
+    border-radius: 0 0.5em 0.5em 0;
+}
+
+.gnr_dojotheme .dijitTabLabels-right-h .dijitTab:hover {
+    opacity: 0.85;
+}
+
+.gnr_dojotheme .dijitTabLabels-right-h .dijitTabInnerDiv {
+    border: 0;
+    padding: 0.4em 0.8em;
+}
+
+.gnr_dojotheme .dijitTabLabels-right-h .dijitTab.dijitTabChecked {
+    background: white;
+    color: var(--primary-dark, #3A3A3C);
+    font-weight: 600;
+    border-radius: 0;
+    border-right: 0.2em solid var(--primary-color, #636366);
+    border-top: 0.2em solid var(--primary-color, #636366);
+    border-bottom: 0.2em solid var(--primary-color, #636366);
+}
+
+.gnr_dojotheme .dijitTabLabels-right-h .dijitTab.dijitTabChecked:first-child {
+    border-radius: 0 0.5em 0 0;
+}
+
+.gnr_dojotheme .dijitTabLabels-right-h .dijitTab.dijitTabChecked:last-child {
+    border-radius: 0 0 0.5em 0;
+}
+
+.gnr_dojotheme .dijitTabLabels-right-h .dijitTab.dijitTabChecked:only-child {
+    border-radius: 0 0.5em 0.5em 0;
+}
+
+/* ==========================================================================
+   Left tabs — vertical tab strip on left side
+   ========================================================================== */
+
+.gnr_dojotheme .dijitTabLabels-left-h.dijitAlignLeft {
+    background: transparent;
+    padding: 1em 0 1em 0.5em;
+}
+
+.gnr_dojotheme .dijitTabLabels-left-h .dijitTab {
+    border: none;
+    border-radius: 0;
+    margin: 0;
+    padding: 0;
+    color: white;
+    background: var(--primary-color, #636366);
+    box-shadow: none;
+    text-align: right;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.gnr_dojotheme .dijitTabLabels-left-h .dijitTab:first-child {
+    border-radius: 0.5em 0 0 0;
+}
+
+.gnr_dojotheme .dijitTabLabels-left-h .dijitTab:last-child {
+    border-radius: 0 0 0 0.5em;
+}
+
+.gnr_dojotheme .dijitTabLabels-left-h .dijitTab:only-child {
+    border-radius: 0.5em 0 0 0.5em;
+}
+
+.gnr_dojotheme .dijitTabLabels-left-h .dijitTab:hover {
+    opacity: 0.85;
+}
+
+.gnr_dojotheme .dijitTabLabels-left-h .dijitTabInnerDiv {
+    border: 0;
+    padding: 0.4em 0.8em;
+}
+
+.gnr_dojotheme .dijitTabLabels-left-h .dijitTab.dijitTabChecked {
+    color: var(--primary-dark, #3A3A3C);
+    background: white;
+    font-weight: 600;
+    border-radius: 0;
+    border-left: 0.2em solid var(--primary-color, #636366);
+    border-top: 0.2em solid var(--primary-color, #636366);
+    border-bottom: 0.2em solid var(--primary-color, #636366);
+}
+
+.gnr_dojotheme .dijitTabLabels-left-h .dijitTab.dijitTabChecked:first-child {
+    border-radius: 0.5em 0 0 0;
+}
+
+.gnr_dojotheme .dijitTabLabels-left-h .dijitTab.dijitTabChecked:last-child {
+    border-radius: 0 0 0 0.5em;
+}
+
+.gnr_dojotheme .dijitTabLabels-left-h .dijitTab.dijitTabChecked:only-child {
+    border-radius: 0.5em 0 0 0.5em;
+}
+
+.gnr_dojotheme .dijitTabLabels-left-h .dijitTabInnerDiv {
+    padding: 4px 5px 4px 10px;
+}
+
+/* ==========================================================================
+   Closable tabs — CSS close button replacing PNG
+   ========================================================================== */
+
+.gnr_dojotheme .dijitTab .dijitClosable {
+    position: relative;
+    padding: 0.375em 1.25em 0.25em 0.625em;
+}
+
+.gnr_dojotheme .dijitTab .dijitClosable .closeImage {
+    position: absolute;
+    top: 0.45em;
+    right: 0.2em;
+    height: 0.75em;
+    width: 0.75em;
+    padding: 0;
+    margin: 0;
+    background: none;
+    cursor: pointer;
+}
+
+.gnr_dojotheme .dijitTab .dijitClosable .closeImage::before {
+    content: "\00d7";
+    display: block;
+    text-align: center;
+    line-height: 0.75em;
+    font-size: 0.875em;
+    color: var(--text-secondary, #888);
+}
+
+.gnr_dojotheme .dijitTab .dijitClosable .closeImage:hover::before {
+    color: var(--status-error, #E53935);
+}
+
+.gnr_dojotheme .dijitAlignLeft .dijitTab .dijitClosable {
+    padding: 0.375em 0.625em 0.25em 1.25em;
+}
+
+.gnr_dojotheme .dijitAlignLeft .dijitTab .dijitClosable .closeImage {
+    top: 0.45em;
+    left: 0.2em;
+    right: auto;
+}
+
+.gnr_dojotheme .dijitAlignBottom .dijitTab .dijitClosable .closeImage {
+    top: auto;
+    bottom: 0.45em;
+    right: 0.2em;
+}
+
+/* --- Floating pane tabs --- */
+.gnr_dojotheme .dojoxFloatingPane .dijitTabInnerDiv {
+    padding: 2px 9px;
+}
+
+.gnr_dojotheme .smallTabs .dijitTabInnerDiv {
+    padding: 2px 9px;
+}

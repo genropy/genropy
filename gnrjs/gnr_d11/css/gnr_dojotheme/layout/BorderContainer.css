@@ -1,0 +1,56 @@
+/* ==========================================================================
+   gnr_dojotheme/layout/BorderContainer.css — Minimal splitters.
+   Visible 1px border line with generous drag area (5px).
+   Hover/active feedback. dijit.css provides cursor and positioning.
+   ========================================================================== */
+
+/* --- Layout container --- */
+.gnr_dojotheme .dijitLayoutContainer {
+    background: transparent;
+}
+
+/* --- Horizontal splitter --- */
+.gnr_dojotheme .dijitSplitterH {
+    background: transparent;
+    border: 0;
+    border-top: 1px solid var(--border-light, #efefef);
+    height: 5px;
+}
+
+.gnr_dojotheme .dijitSplitterH .dijitSplitterThumb {
+    display: none;
+}
+
+/* --- Vertical splitter --- */
+.gnr_dojotheme .dijitSplitterV {
+    background: transparent;
+    border: 0;
+    border-left: 1px solid var(--border-light, #efefef);
+    width: 5px;
+}
+
+.gnr_dojotheme .dijitSplitterV .dijitSplitterThumb {
+    display: none;
+}
+
+/* --- Hover: line becomes more visible --- */
+.gnr_dojotheme .dijitSplitterH:hover {
+    border-top-color: var(--border-color, #ddd);
+    border-top-width: 2px;
+}
+
+.gnr_dojotheme .dijitSplitterV:hover {
+    border-left-color: var(--border-color, #ddd);
+    border-left-width: 2px;
+}
+
+/* --- Active/dragging: accent feedback --- */
+.gnr_dojotheme .dijitSplitterH:active {
+    border-top-color: var(--accent-color, #369);
+    border-top-width: 2px;
+}
+
+.gnr_dojotheme .dijitSplitterV:active {
+    border-left-color: var(--accent-color, #369);
+    border-left-width: 2px;
+}

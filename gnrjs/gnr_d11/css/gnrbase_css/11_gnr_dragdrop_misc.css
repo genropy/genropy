@@ -117,12 +117,12 @@ table.draggedItem {
     text-align: right;
 }
 
-._common_d11.tundra .dojoxGrid-row td.invalidCell.dojoxGrid-cell{
+._common_d11 .dojoxGrid-row td.invalidCell.dojoxGrid-cell{
     background-image:url(../icons/invalid_small.png);
     background-repeat:no-repeat;
     background-position:0px 0px;
 }
-._common_d11.tundra .dojoxGrid-row .newRowCell.dojoxGrid-cell{
+._common_d11 .dojoxGrid-row .newRowCell.dojoxGrid-cell{
     font-style:italic;
 }
 
@@ -195,36 +195,12 @@ table.draggedItem {
 /* @end */
 
 /* @group dbselect / dropdown menus */
-.tundra .dijitMenuItem {
-    border-bottom: none;
-    font-size: inherit;
-    line-height: 1.4em;
-    margin: 0;
-    padding: 0.3em 0.8em;
-    font-family: inherit;
-    color: var(--menu-item-color, var(--mainWindow-color, #444));
-    background: transparent;
-    transition: background-color 0.12s ease, color 0.12s ease;
-    cursor: default;
-}
-
-.tundra .dijitMenuItemHover,
-.tundra .dijitMenuItemSelected {
-    background-color: var(--menu-item-hover-bg, rgba(0,0,0,0.06));
-    background-image: none;
-    color: var(--menu-item-hover-color, var(--mainWindow-color, #333));
-}
-
-.tundra .dijitMenuItemActive {
-    background-color: var(--menu-item-active-bg, rgba(0,0,0,0.10));
-}
-
-.tundra.touchDevice .dijitMenuItem {
+._common_d11.touchDevice .dijitMenuItem {
     font-size: 1em;
     line-height: 1.6em;
     padding: 0.35em 0.8em;
 }
-.tundra.touchDevice .dijitMenuItem:active {
+._common_d11.touchDevice .dijitMenuItem:active {
     background-color: var(--menu-item-hover-bg, rgba(0,0,0,0.06));
     background-image: none;
 }
@@ -281,7 +257,7 @@ table.draggedItem {
 
 /* @group menu */
 
-.browsemenu .tundra .dijitMenuItemIcon {
+.browsemenu ._common_d11 .dijitMenuItemIcon {
     width: 4px;
     height: 14px;
 }

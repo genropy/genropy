@@ -1,0 +1,108 @@
+/* ==========================================================================
+   gnr_dojotheme/Menu.css — Complete menu styling.
+   Replaces tundra menu + gnrbase menu overrides with unified rules.
+   ========================================================================== */
+
+/* --- Menu container --- */
+.gnr_dojotheme .dijitMenu {
+    border: 1px solid var(--menu-border-color, rgba(0,0,0,0.18));
+    border-top: 1px solid var(--menu-border-top-color, rgba(0,0,0,0.25));
+    border-radius: 0.5em;
+    margin: 0;
+    padding: 0.3em 0;
+    background-color: var(--menu-bg, #fff);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08);
+    overflow: hidden;
+    min-width: 10em;
+}
+
+.gnr_dojotheme .dijitMenuTable {
+    border-collapse: collapse;
+    border-width: 0;
+    width: 100%;
+}
+
+/* --- Menu item --- */
+.gnr_dojotheme .dijitMenuItem {
+    border-bottom: none;
+    font-size: inherit;
+    line-height: 1.4em;
+    margin: 0;
+    padding: 0.3em 0.8em;
+    font-family: inherit;
+    color: var(--menu-item-color, var(--mainWindow-color, #444));
+    background: transparent;
+    transition: background-color 0.12s ease, color 0.12s ease;
+    cursor: default;
+}
+
+.gnr_dojotheme .dijitMenuItem td {
+    padding: 0.3em 0.6em;
+}
+
+/* --- Previous / Next buttons --- */
+.gnr_dojotheme .dijitMenuPreviousButton,
+.gnr_dojotheme .dijitMenuNextButton {
+    font-style: italic;
+}
+
+/* --- Hover / Selected state --- */
+.gnr_dojotheme .dijitMenuItemHover,
+.gnr_dojotheme .dijitMenuItemSelected {
+    background-color: var(--menu-item-hover-bg, rgba(0,0,0,0.06));
+    background-image: none;
+    color: var(--menu-item-hover-color, var(--mainWindow-color, #333));
+}
+
+/* --- Active state --- */
+.gnr_dojotheme .dijitMenuItemActive {
+    background-color: var(--menu-item-active-bg, rgba(0,0,0,0.10));
+}
+
+/* --- Menu item icon --- */
+.gnr_dojotheme .dijitMenuItemIcon {
+    width: 1em;
+    height: 1em;
+}
+
+/* --- Submenu expand arrow: CSS character › --- */
+.gnr_dojotheme .dijitMenuExpand {
+    display: none;
+}
+
+.gnr_dojotheme .dijitMenuExpandEnabled {
+    display: block;
+    background-image: none;
+    width: auto;
+    height: auto;
+    padding: 0 0.25em;
+    color: var(--mainWindow-color, #444);
+    opacity: 0.5;
+}
+
+.gnr_dojotheme .dijitMenuExpandEnabled .dijitMenuExpandInner {
+    display: none;
+}
+
+.gnr_dojotheme .dijitMenuExpandEnabled::after {
+    content: '\203A';  /* › */
+    font-size: 1.2em;
+    font-weight: bold;
+    line-height: 1;
+}
+
+/* --- Separator --- */
+.gnr_dojotheme .dijitMenuSeparator {
+    background: transparent;
+}
+
+.gnr_dojotheme .dijitMenuSeparatorTop {
+    border-bottom: 1px solid var(--menu-separator-color, rgba(0,0,0,0.08));
+    box-shadow: none;
+    height: 0;
+    margin: 0.3em 0.6em;
+}
+
+.gnr_dojotheme .dijitMenuSeparatorBottom {
+    display: none;
+}

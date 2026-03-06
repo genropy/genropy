@@ -181,7 +181,7 @@
 }
 
 /* --- Mobile grid cell navigation --- */
-.tundra._common_d11 .dojoxGrid-cell.right_in_cell {
+._common_d11 .dojoxGrid-cell.right_in_cell {
     vertical-align: middle;
     border-left: 0;
 }
@@ -208,7 +208,7 @@
     border-bottom: 1px solid var(--border-color);
 }
 
-._common_d11.tundra .mobileTemplateGrid .dojoxGrid-header {
+._common_d11 .mobileTemplateGrid .dojoxGrid-header {
     display:none;
 }
 .mobile_left_out{

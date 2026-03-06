@@ -1,0 +1,189 @@
+/* ==========================================================================
+   gnr_dojotheme/form/Slider.css — Modern flat slider styling.
+   Replaces tundra/form/Slider.css: removes all PNG backgrounds
+   (sliderFull, sliderEmpty, preciseSliderThumb, arrows, etc.).
+   Uses flat colors and CSS variables. No gnrbase coverage for sliders.
+   ========================================================================== */
+
+/* --- Track bars (horizontal) --- */
+.gnr_dojotheme .dijitSliderProgressBarH {
+    border-color: var(--accent-color, #aab0bb);
+    background: var(--accent-color, #6B8DAF);
+    background-image: none;
+}
+
+.gnr_dojotheme .dijitSliderRemainingBarH {
+    border-color: var(--border-color, #b4b4b4);
+    background: var(--surface-light, #e8e8e8);
+    background-image: none;
+}
+
+/* --- Track bars (vertical) --- */
+.gnr_dojotheme .dijitSliderProgressBarV {
+    border-color: var(--accent-color, #aab0bb);
+    background: var(--accent-color, #6B8DAF);
+    background-image: none;
+}
+
+.gnr_dojotheme .dijitSliderRemainingBarV {
+    border-color: var(--border-color, #b4b4b4);
+    background: var(--surface-light, #e8e8e8);
+    background-image: none;
+}
+
+/* --- Bar common --- */
+.gnr_dojotheme .dijitSliderBar {
+    border-style: solid;
+    border-width: 1px;
+    border-radius: 2px;
+}
+
+.gnr_dojotheme .dijitSliderFocused .dijitSliderBar {
+    border-color: var(--text-color, #333);
+}
+
+/* --- Focused track colors --- */
+.gnr_dojotheme .dijitSliderFocused .dijitSliderProgressBarH,
+.gnr_dojotheme .dijitSliderFocused .dijitSliderLeftBumper {
+    background: var(--accent-color, #5A7D9F);
+    background-image: none;
+}
+
+.gnr_dojotheme .dijitSliderFocused .dijitSliderProgressBarV,
+.gnr_dojotheme .dijitSliderFocused .dijitSliderBottomBumper {
+    background: var(--accent-color, #5A7D9F);
+    background-image: none;
+}
+
+/* --- Bumpers (horizontal) --- */
+.gnr_dojotheme .dijitSliderLeftBumper {
+    border-left-width: 1px;
+    border-color: var(--accent-color, #aab0bb);
+    background: var(--accent-color, #6B8DAF);
+    background-image: none;
+    border-radius: 2px 0 0 2px;
+}
+
+.gnr_dojotheme .dijitSliderRightBumper {
+    background: var(--surface-light, #e8e8e8);
+    background-image: none;
+    border-color: var(--border-color, #b4b4b4);
+    border-right-width: 1px;
+    border-radius: 0 2px 2px 0;
+}
+
+/* --- Bumpers (vertical) --- */
+.gnr_dojotheme .dijitSliderBottomBumper {
+    border-bottom-width: 1px;
+    border-color: var(--accent-color, #aab0bb);
+    background: var(--accent-color, #6B8DAF);
+    background-image: none;
+    border-radius: 0 0 2px 2px;
+}
+
+.gnr_dojotheme .dijitSliderTopBumper {
+    background: var(--surface-light, #e8e8e8);
+    background-image: none;
+    border-color: var(--border-color, #b4b4b4);
+    border-top-width: 1px;
+    border-radius: 2px 2px 0 0;
+}
+
+/* --- Thumb handles (CSS circle, no PNG) --- */
+.gnr_dojotheme .dijitSliderImageHandleH {
+    border: 0;
+    width: 1em;
+    height: 1em;
+    background: var(--accent-color, #6B8DAF);
+    background-image: none;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.gnr_dojotheme .dijitSliderFocused .dijitSliderImageHandleH {
+    background: var(--accent-color, #5A7D9F);
+    background-image: none;
+    box-shadow: 0 0 0 2px rgba(0,122,255,0.3);
+}
+
+.gnr_dojotheme .dijitSliderImageHandleV {
+    border: 0;
+    width: 1em;
+    height: 1em;
+    background: var(--accent-color, #6B8DAF);
+    background-image: none;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.gnr_dojotheme .dijitSliderFocused .dijitSliderImageHandleV {
+    background: var(--accent-color, #5A7D9F);
+    background-image: none;
+    box-shadow: 0 0 0 2px rgba(0,122,255,0.3);
+}
+
+/* --- Increment/decrement buttons (CSS triangles, no PNG) --- */
+.gnr_dojotheme .dijitSliderIncrementIconH,
+.gnr_dojotheme .dijitSliderIncrementIconV,
+.gnr_dojotheme .dijitSliderDecrementIconH,
+.gnr_dojotheme .dijitSliderDecrementIconV {
+    width: 1em;
+    height: 1em;
+    cursor: pointer;
+    background-image: none;
+    background-color: var(--surface-light, #e8e8e8);
+    border: 1px solid var(--border-color, #ccc);
+    border-radius: 2px;
+    position: relative;
+}
+
+/* Arrow indicators via pseudo-elements */
+.gnr_dojotheme .dijitSliderIncrementIconV::after,
+.gnr_dojotheme .dijitSliderDecrementIconV::after,
+.gnr_dojotheme .dijitSliderIncrementIconH::after,
+.gnr_dojotheme .dijitSliderDecrementIconH::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    border: solid var(--text-color, #555);
+    border-width: 0 2px 2px 0;
+    padding: 2px;
+    display: inline-block;
+}
+
+/* Up arrow */
+.gnr_dojotheme .dijitSliderIncrementIconV::after {
+    transform: translate(-50%, -30%) rotate(-135deg);
+}
+
+/* Down arrow */
+.gnr_dojotheme .dijitSliderDecrementIconV::after {
+    transform: translate(-50%, -70%) rotate(45deg);
+}
+
+/* Right arrow */
+.gnr_dojotheme .dijitSliderIncrementIconH::after {
+    transform: translate(-70%, -50%) rotate(-45deg);
+}
+
+/* Left arrow */
+.gnr_dojotheme .dijitSliderDecrementIconH::after {
+    transform: translate(-30%, -50%) rotate(135deg);
+}
+
+.gnr_dojotheme .dijitSliderButtonInner {
+    visibility: hidden;
+}
+
+/* --- Disabled --- */
+.gnr_dojotheme .dijitSliderDisabled {
+    opacity: 0.6;
+}
+
+/* --- Accessibility --- */
+.dijit_a11y .dijitSliderProgressBar {
+    background-color: #333 !important;
+}

@@ -5,8 +5,8 @@
 
 /* @group SVG Icons */
 
-.tundra ._gnrInvalidRow ._statusIcon, .tundra ._gnrInvalidRow._gnrReadOnlyRow ._statusIcon ,
-.tundra ._gnrInvalidRow._gnrProtectionPass ._statusIcon{
+._common_d11 ._gnrInvalidRow ._statusIcon, ._common_d11 ._gnrInvalidRow._gnrReadOnlyRow ._statusIcon ,
+._common_d11 ._gnrInvalidRow._gnrProtectionPass ._statusIcon{
     background: url(/_rsrc/common/css_icons/svg/16/form_status_red.svg) no-repeat center center;
 }
 
@@ -259,11 +259,11 @@
 ._common_d11 .trash{
     background: url(/_rsrc/common/css_icons/svg/16/trash.svg) no-repeat center center;
 }
-._common_d11.tundra .dijitComboBox .dijitArrowButton .dijitArrowButtonInner,._common_d11.tundra .dijitArrowButtonInner{
+._common_d11 .dijitComboBox .dijitArrowButton .dijitArrowButtonInner,._common_d11 .dijitArrowButtonInner{
     background: url(/_rsrc/common/css_icons/svg/16/popup.svg) no-repeat center center;
     transform:rotate(0deg) scale(0.8);
 }
-._common_d11.tundra .dijitDropDownButton .dijitArrowButtonInner{
+._common_d11 .dijitDropDownButton .dijitArrowButtonInner{
     transform:rotate(0deg) scale(1);
 }
 ._common_d11 .todolist{

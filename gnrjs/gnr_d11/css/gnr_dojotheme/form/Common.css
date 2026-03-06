@@ -1,0 +1,139 @@
+/* ==========================================================================
+   gnr_dojotheme/form/Common.css — TextBox, ValidationTextBox, ComboBox,
+   Spinner, InlineEditor complete styling.
+   Replaces tundra/form/Common.css: removes PNG backgrounds, provides
+   the definitive modern appearance with CSS variables for theme customization.
+   ========================================================================== */
+
+/* --- TextBox / ComboBox / Spinner base --- */
+.gnr_dojotheme .dijitInputField INPUT,
+.gnr_dojotheme .dijitTextBox,
+.gnr_dojotheme .dijitComboBox,
+.gnr_dojotheme .dijitSpinner {
+    margin: 0;
+}
+
+.gnr_dojotheme .dijitTextBox,
+.gnr_dojotheme .dijitComboBox,
+.gnr_dojotheme .dijitSpinner,
+.gnr_dojotheme .dijitInlineEditor input {
+    background: var(--field-bg, #fff);
+    background-image: none;
+    border: 1px solid var(--field-border, #AEAEB2);
+    border-radius: var(--radius-controls, 4px);
+    line-height: normal;
+    position: relative;
+    padding-left: 3px;
+    padding-top: 1px;
+    box-sizing: border-box;
+}
+
+.gnr_dojotheme .dijitInputField input {
+    padding-right: 3px;
+}
+
+/* --- Mobile fields --- */
+.gnr_dojotheme .mobilefields .dijitInputField {
+    font-size: 11pt;
+    padding: 1px;
+}
+
+.gnr_dojotheme .mobilefields .dijitButtonNode.dijitArrowButton {
+    background: none;
+}
+
+/* --- ComboBox / Spinner button area --- */
+.gnr_dojotheme .dijitComboBox .dijitButtonNode {
+    padding: 0 0.2em;
+}
+
+.gnr_dojotheme .dijitComboBox .dijitButtonNode,
+.gnr_dojotheme .dijitSpinner .dijitButtonNode {
+    border-color: var(--border-color, #9b9b9b);
+}
+
+/* --- Focus state --- */
+.gnr_dojotheme .dijitTextBoxFocused,
+.gnr_dojotheme .dijitTextAreaFocused,
+.gnr_dojotheme .dijitComboBoxFocused,
+.gnr_dojotheme .dijitSpinnerFocused {
+    border-color: var(--btn-filled-bg, #406b9b);
+    background-color: var(--field-focus-bg, #fff);
+    box-shadow: 0 0 0 1px rgba(124, 92, 191, 0.2);
+}
+
+.gnr_dojotheme .dijitComboBoxFocused .dijitButtonNode,
+.gnr_dojotheme .dijitSpinnerFocused .dijitButtonNode {
+    border-left-color: var(--accent-color, #366dba);
+}
+
+.gnr_dojotheme .dijitSpinnerFocused .dijitDownArrowButton {
+    border-top-color: var(--accent-color, #366dba);
+}
+
+/* --- Disabled state --- */
+.gnr_dojotheme .dijitDisabled.dijitTextBoxDisabled,
+.gnr_dojotheme .dijitDisabled.dijitComboBoxDisabled,
+.gnr_dojotheme .dijitDisabled.dijitTextBoxDisabled .dijitButtonNode,
+.gnr_dojotheme .dijitTextArea.dijitTextAreaDisabled.dijitDisabled {
+    border-color: var(--field-disabled-border, #C7C7CC);
+    background-color: var(--field-disabled-bg, #F2F2F7);
+    background-image: none;
+    color: var(--field-disabled-color, inherit);
+    cursor: not-allowed;
+}
+
+/* --- ReadOnly state --- */
+.gnr_dojotheme .dijitReadOnly.dijitTextBox,
+.gnr_dojotheme .dijitReadOnly.dijitTextArea,
+.gnr_dojotheme .dijitReadOnly.dijitComboBox,
+.gnr_dojotheme .dijitDisabled.dijitTextBoxReadOnly,
+.gnr_dojotheme .dijitDisabled.dijitTextBoxReadOnly .dijitButtonNode {
+    background-color: var(--field-readonly-bg, #F2F2F7);
+    background-image: none;
+    border-style: solid;
+    border-color: var(--field-readonly-border, #C7C7CC);
+    color: var(--field-readonly-color, inherit);
+    opacity: 1;
+    cursor: default;
+}
+
+/* --- Error state (flat, no PNG) --- */
+.gnr_dojotheme .dijitError {
+    border-color: var(--field-error-border, silver);
+    background-image: none;
+}
+
+.gnr_dojotheme .dijitTextBoxErrorDisabled {
+    border-color: transparent;
+}
+
+.gnr_dojotheme .dijitErrorFocused {
+    background-image: none;
+}
+
+.gnr_dojotheme .dijitComboBoxErrorDisabled {
+    border-color: transparent;
+}
+
+/* --- Validation icon (hidden — GenroPy uses its own error indicators) --- */
+.gnr_dojotheme .dijitValidationIcon {
+    width: 0;
+    display: none;
+    background: none;
+}
+
+/* --- Inline editor --- */
+.gnr_dojotheme .dijitInlineValue {
+    padding: 0.2em;
+    margin: 0.25em;
+}
+
+.gnr_dojotheme .dijitInlineEditor {
+    display: inline-block;
+}
+
+.dijitInlineEditor .saveButton,
+.dijitInlineEditor .cancelButton {
+    margin: 0.2em 0.2em 0.2em 0;
+}

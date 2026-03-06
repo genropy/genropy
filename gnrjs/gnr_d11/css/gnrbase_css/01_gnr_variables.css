@@ -178,4 +178,8 @@
 
     /* --- Buttons: shared --- */
     --btn-border-color: #ccc;
+
+    /* --- Icon paths (absolute only — relative urls don't work in CSS variables) --- */
+    --icon-radio-checked: url(/_rsrc/common/css_icons/google_icons/radio_button_checked.svg);
+    --icon-radio-unchecked: url(/_rsrc/common/css_icons/google_icons/radio_button_unchecked.svg);
 }

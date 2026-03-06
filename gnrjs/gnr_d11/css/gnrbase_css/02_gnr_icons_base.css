@@ -274,7 +274,7 @@
     width: 12px;
     height: 12px;
 }
-.tundra .smallTabs .dijitTabInnerDiv {
+._common_d11 .smallTabs .dijitTabInnerDiv {
     padding: 2px 5px;
     font-size:11px;
 }
@@ -343,7 +343,7 @@
 }
 
 /* Compact menu: small font, balanced columns, auto width */
-._common_d11.tundra .minimenu.dijitMenu {
+._common_d11 .minimenu.dijitMenu {
     min-width: 0;
 }
 
@@ -362,7 +362,7 @@
 
 /* .menupane rules consolidated in 13_gnr_tree_treegrid.css */
 
-.tundra .smallmenu .dijitMenuItem td {
+._common_d11 .smallmenu .dijitMenuItem td {
     padding-top: 0.2em !important;
     padding-bottom: 0.2em !important;
     padding-right: .40em;
@@ -438,7 +438,7 @@ div.dojoxDock {
 .iframeclose{
 	background: url(../icons/base10/iframeclose.gif) no-repeat center center;
 }
-/*._common_d11.tundra .dijitDialogCloseIcon{
+/*._common_d11 .dijitDialogCloseIcon{
     background: transparent url(../icons/base16/closeicn.png) no-repeat scroll center center;
     cursor: pointer;
     float: right;
@@ -461,7 +461,7 @@ div.dojoxDock {
     overflow:hidden !important;
 }
 
-._common_d11.tundra .dojoxFloatingMinimizeIcon {
+._common_d11 .dojoxFloatingMinimizeIcon {
     background: transparent url(../icons/base16/close.svg) no-repeat scroll center center;
     float: right;
     height: 16px;
@@ -470,81 +470,25 @@ div.dojoxDock {
     margin-right: 4px;
 }
 
-._common_d11.tundra .dojoxFloatingCloseIcon{
+._common_d11 .dojoxFloatingCloseIcon{
     background: transparent url(../icons/base16/close.svg) no-repeat scroll center center;
     height: 16px;
     width: 16px;
 }
 
-._common_d11.tundra .dijitDialogCloseIcon{
+._common_d11 .dijitDialogCloseIcon{
     background: transparent url(../icons/base16/close.svg) no-repeat scroll center center;
     height: 16px;
     width: 16px;
 }
 
-.tundra._common_d11 .dijitDialogTitle{
+._common_d11 .dijitDialogTitle{
     font-weight: normal;
 }
 
-._common_d11.tundra .dojoxFloatingMaximizeIcon{
+._common_d11 .dojoxFloatingMaximizeIcon{
     background: transparent url(../icons/base16/expand.png) no-repeat scroll center center;
     margin-right: 6px;
-}
-
-._common_d11.tundra .dijitMenu {
-    border: 1px solid var(--menu-border-color, rgba(0,0,0,0.18));
-    border-top: 1px solid var(--menu-border-top-color, rgba(0,0,0,0.25));
-    border-radius: 0.5em;
-    background-color: var(--menu-bg, #fff);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08);
-    padding: 0.3em 0;
-    overflow: hidden;
-    min-width: 10em;
-}
-
-._common_d11.tundra .dijitMenuTable {
-    border-collapse: collapse;
-    border-width: 0;
-    width: 100%;
-}
-
-._common_d11.tundra .dijitMenuSeparatorTop {
-    border-bottom: 1px solid var(--menu-separator-color, rgba(0,0,0,0.08));
-    box-shadow: none;
-    height: 0;
-    margin: 0.3em 0.6em;
-}
-
-._common_d11.tundra .dijitMenuSeparatorBottom {
-    display: none;
-}
-
-/* Submenu expand arrow */
-.tundra .dijitMenuExpandEnabled {
-    display: block;
-    background-image: none;
-    width: auto;
-    height: auto;
-    padding: 0 0.25em;
-    color: var(--mainWindow-color, #444);
-    opacity: 0.5;
-}
-.tundra .dijitMenuExpandEnabled .dijitMenuExpandInner {
-    display: none;
-}
-.tundra .dijitMenuExpandEnabled::after {
-    content: '›';
-    font-size: 1.2em;
-    font-weight: bold;
-    line-height: 1;
-}
-
-._common_d11.tundra .dijitMenuSeparator {
-    background: transparent;
-}
-
-._common_d11.tundra .dijitPopup > div, .tundra .dijitPopup > table{
-    opacity: 1;
 }
 
 .floatingTooltipPane:hover{
@@ -594,9 +538,9 @@ div.dojoxDock {
     line-height: normal;
 }
 
-._common_d11.tundra .templateGrid .dojoxGrid-row .dojoxGrid-cell, 
-._common_d11.tundra .templateGrid .dojoxGrid-row-odd .dojoxGrid-cell, 
-._common_d11.tundra .templateGrid .dojoxGrid-row.dojoxGrid-row-selected .dojoxGrid-cell{
+._common_d11 .templateGrid .dojoxGrid-row .dojoxGrid-cell, 
+._common_d11 .templateGrid .dojoxGrid-row-odd .dojoxGrid-cell, 
+._common_d11 .templateGrid .dojoxGrid-row.dojoxGrid-row-selected .dojoxGrid-cell{
     border-right: 0;
 }
 
@@ -846,16 +790,15 @@ div.dojoxDock {
     height: 15px;
 }
 
-.radioOn {    
-
-    background: url(/_rsrc/common/css_icons/google_icons/radio_button_checked.svg) no-repeat center center;
+.radioOn {
+    background: var(--icon-radio-checked) no-repeat center center;
     width: 15px;
     height: 15px;
     background-size: contain;
 }
 
 .radioOff {
-    background: url(/_rsrc/common/css_icons/google_icons/radio_button_unchecked.svg) no-repeat center center;
+    background: var(--icon-radio-unchecked) no-repeat center center;
     width: 15px;
     height: 15px;
     background-size: contain;
