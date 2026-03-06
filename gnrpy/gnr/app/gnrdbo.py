@@ -1534,6 +1534,21 @@ class TableBase(object):
 
 class GnrDboTable(TableBase):
     """TODO"""
+
+    def notify(self, channel, **kwargs):
+        """Send a custom NOTIFY on the given channel.
+
+        The payload always includes ``table`` (this table's fullname).
+        Any extra keyword arguments are merged into the payload.
+
+        Args:
+            channel: The PostgreSQL NOTIFY channel name.
+            **kwargs: Additional key-value pairs for the JSON payload.
+        """
+        import json
+        payload = dict(table=self.fullname, **kwargs)
+        self.db.adapter.notify(channel, payload=json.dumps(payload, default=str))
+
     def use_dbstores(self,**kwargs):
         """TODO"""
         return self.attributes.get('multidb')
