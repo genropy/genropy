@@ -1838,8 +1838,34 @@ class GnrApp(object):
     def gnrdaemon(self):
         if not getattr(self,'_gnrdaemon',None):
             from gnr.web.gnrdaemonhandler import GnrDaemonProxy
-            self._gnrdaemon = GnrDaemonProxy(use_environment=True).proxy() 
+            self._gnrdaemon = GnrDaemonProxy(use_environment=True).proxy()
         return self._gnrdaemon
+
+    def listen(self, timeout=5, coalesce=1):
+        """Start a blocking GnrListener that auto-discovers @listen handlers.
+
+        Scans all table classes for methods decorated with @listen,
+        registers them on the appropriate channel with table-based
+        filtering, then enters the event loop.
+
+        Args:
+            timeout: Seconds to wait on select() before cycling.
+            coalesce: Seconds to sleep after processing a batch.
+        """
+        from gnr.app.gnrlistener import GnrListener
+
+        listener = GnrListener(self, timeout=timeout, coalesce=coalesce)
+        for dbtable in self.db.tables:
+            for attr_name in dir(dbtable):
+                try:
+                    method = getattr(dbtable, attr_name)
+                except Exception:
+                    continue
+                channel = getattr(method, '_listen_channel', None)
+                if channel is None:
+                    continue
+                listener.register(channel, method, table=dbtable.fullname)
+        listener.run()
 
 class AuthTagStruct(GnrStructData):
     """A class for hierarchical auth tag structure definition.
