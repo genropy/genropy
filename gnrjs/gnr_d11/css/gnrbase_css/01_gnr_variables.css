@@ -83,6 +83,8 @@
     /* --- Toolbar --- */
     --toolbar-height: 1.75em;
     --toolbar-height-lg: 2em;
+    --toolbar-min-height: 2em;
+    --toolbar-min-height-lg: 2.5em;
     --toolbar-padding: 0.15em;
     --toolbar-bg: #DCDCDE;
     --toolbar-gradient: linear-gradient(to bottom, #EDEDEE, #CDCDCD);

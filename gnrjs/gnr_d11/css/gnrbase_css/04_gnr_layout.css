@@ -152,6 +152,10 @@
     display: flex;
     flex-direction: column;
     justify-content:center;
+    min-height: var(--toolbar-min-height);
+}
+.slotbar_toolbar_lg{
+    min-height: var(--toolbar-min-height-lg);
 }
 
 /* @group Toolbar Selector */

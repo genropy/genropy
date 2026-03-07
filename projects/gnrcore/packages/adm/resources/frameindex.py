@@ -168,7 +168,7 @@ class FrameIndex(BaseComponent):
     def prepareTop_mobile(self,bc,onCreatingTablist=None,**kwargs):
         top = bc.contentPane(region='top',overflow='hidden')
         bar = top.slotBar('5,pluginSwitch,*,pageTitle,*,35',
-                          _class='framedindex_tablist showcase_dark',height='2.5em',childname='upperbar')
+                          _class='framedindex_tablist showcase_dark',childname='upperbar')
         bar.pluginSwitch.lightButton(_class='showcase_toggle',tip='!!Show/Hide the left pane',height='30px',width='30px',
                                                       action="""genro.nodeById('standard_index').publish('toggleLeft');""")
         self.pageTitle_mobile(bar.pageTitle)
@@ -263,7 +263,7 @@ class FrameIndex(BaseComponent):
         pane = bc.contentPane(region='bottom',overflow='hidden')
         sb = pane.slotToolbar("""5,genrologo,1,helpdesk,1,settings,10,refresh,10,phonelink,left_placeholder,*,
                                     right_placeholder,count_errors,10,owner_name,user_name,logout,debugping,5""",
-                                    _class='slotbar_toolbar framefooter',height='22px', background='#EEEEEE',border_top='1px solid silver')
+                                    _class='slotbar_toolbar framefooter', background='#EEEEEE',border_top='1px solid silver')
         return sb
 
     @customizable
@@ -271,7 +271,7 @@ class FrameIndex(BaseComponent):
         pane = bc.contentPane(region='bottom',overflow='hidden')
         sb = pane.slotToolbar("""5,genrologo,2,helpdesk,2,settings,5,refresh,5,left_placeholder,*,
                                 right_placeholder,user_name,logout,debugping,5""",
-                                _class='slotbar_toolbar framefooter',height='25px', background='#EEEEEE',border_top='1px solid silver')
+                                _class='slotbar_toolbar framefooter', background='#EEEEEE',border_top='1px solid silver')
         pane.div(height='10px',background='black')
         return sb
     
@@ -544,7 +544,7 @@ class FrameIndex(BaseComponent):
     def prepareLeft_mobile(self,bc):
         frame = bc.framePane(region='left',width='100%',datapath='left',
                                 overflow='hidden',hidden=self.hideLeftPlugins)
-        frame.top.slotBar('*,close_icon,5',height='22px'
+        frame.top.slotBar('*,close_icon,5'
                           ).close_icon.lightButton(_class='google_icon google_cancel',height='30px',width='30px',background_color='white',
                                                    ).dataController("genro.nodeById('standard_index').publish('hideLeft');")
         sc = frame.center.stackContainer(selectedPage='^.selected',nodeId='gnr_main_left_center',

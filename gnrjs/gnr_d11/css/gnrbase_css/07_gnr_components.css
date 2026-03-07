@@ -349,7 +349,7 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
 }
 
 .pbl_roundedGroupLabel {
-    min-height: 2.4em;
+    min-height: var(--toolbar-min-height);
     font-size: 0.9em;
     background: var(--roundedgroup-bar);
     color: var(--roundedgroup-bar-color);

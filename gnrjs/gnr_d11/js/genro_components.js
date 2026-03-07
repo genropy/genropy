@@ -2632,7 +2632,7 @@ dojo.declare("gnr.widgets.VideoPlayer", gnr.widgets.gnrwdg, {
         if(manageCue){
             slots = slots+',cuebutton,10';
         }        
-        var bar = frame._('SlotBar','bar',{slots:slots,side:controllerSide,height:'21px',toolbar:true,playerslider_width:'100%'});
+        var bar = frame._('SlotBar','bar',{slots:slots,side:controllerSide,toolbar:true,playerslider_width:'100%'});
         var slotsKw = {};
         var videoNodeId = this.videoNodeId;
         slotsKw.playbutton = {tag:'slotButton',
@@ -3198,7 +3198,7 @@ dojo.declare("gnr.widgets.QuickGrid", gnr.widgets.gnrwdg, {
 
         var bc = sourceNode._('borderContainer',bckw);
         
-        var tpane = bc._('contentPane',{region:tool_region,height:'22px',overflow:'hidden',datapath:'#WORKSPACE.tools',
+        var tpane = bc._('contentPane',{region:tool_region,overflow:'hidden',datapath:'#WORKSPACE.tools',
                                         _class:tools_bar_class});
         if(tools_kw.title){
             tpane._('div',{innerHTML:tools_kw.title,position:'absolute',left:'5px',top:'3px',
@@ -3485,7 +3485,7 @@ dojo.declare("gnr.widgets.PagedHtml", gnr.widgets.gnrwdg, {
 
         kw['style'] = pagingKw.bodyStyle;
         var container = sourceNode._('div',kw);
-        var top = container._('div',{position:'absolute',top:'0',left:0,right:0,height:'20px',gradient_from:'silver',gradient_to:'whitesmoke',gradient_deg:-90,border_bottom:'1px solid silver'})
+        var top = container._('div',{position:'absolute',top:'0',left:0,right:0,min_height:'var(--toolbar-min-height)',gradient_from:'silver',gradient_to:'whitesmoke',gradient_deg:-90,border_bottom:'1px solid silver'})
         top._('horizontalSlider',{value:'^#WORKSPACE.zoom','default':0.3,minimum:0.3, maximum:1,intermediateChanges:true, width:'15em',margin_top:'2px'})
         if(pagingKw.printAction){
             top._('div',{_class:'iconbox print',connect_onclick:pagingKw.printAction,position:'absolute',right:'2px',top:'0px'})
@@ -4306,7 +4306,7 @@ dojo.declare("gnr.widgets.ModalUploader", gnr.widgets.gnrwdg, {
         boxkwargs._workspace = true;
         let wrapper = sourceNode._('div','mu_wrapper',boxkwargs);
         let label = objectPop(kw,'label') || 'Document';
-        let mu_bar = wrapper._('div','mu_bar',{display:'flex',height:'20px',
+        let mu_bar = wrapper._('div','mu_bar',{display:'flex',
                             style:'justify-content:space-between;align-items:center;',
                             width:'100%',border_bottom:'1px solid silver'});
         mu_bar._('div','label',{innerHTML:label,font_weight:'bold',padding_left:'5px',padding_right:'5px',
@@ -6266,7 +6266,6 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
         pane._('StackButtons',objectUpdate({stack:scNode},slotKw));
     },
     slot_parentStackButtons:function(pane,slotValue,slotKw,frameCode){
-        slotKw['min_height'] = slotKw['min_height'] || '20px'
         pane._('StackButtons',objectUpdate(objectUpdate({stack:pane.getParentNode().attributeOwnerNode('tag','StackContainer')},slotKw)));
     },
     

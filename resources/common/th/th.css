@@ -126,21 +126,6 @@
     padding-left: 1em;
 }
 
-/* --- View / form toolbars --- */
-
-.th_view_toolbar {
-    min-height: var(--toolbar-height);
-}
-
-.th_view_toolbar.pbl_roundedGroupLabel {
-    min-height: var(--toolbar-height);
-}
-
-.th_form_toolbar {
-    min-height: var(--toolbar-height);
-    padding-top: 0.0625em;
-}
-
 /* --- Tree rows --- */
 
 ._alias_row .cellContent {

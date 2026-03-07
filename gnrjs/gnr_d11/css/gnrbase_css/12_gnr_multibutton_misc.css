@@ -4,7 +4,6 @@
    ========================================================================== */
 
 .pbl_roundedGroupLabel.slotbar_horizontal .multibutton_container{
-    min-height: 18px;
     font-variant:normal;
     font-size: .9em;
     display: flex;
@@ -15,7 +14,7 @@
 .quickgrid_toolsbox{
     display: inline-block;
     border:1px solid var(--border-color);
-    height: 19px;
+    height: 1.4em;
 }
 
 .slotbar_toolbar_standard .quickgrid_toolsbox.quickgrid_toolsbox_top{
@@ -45,14 +44,13 @@
 }
 
 .quickgrid_container .multibutton_container {
-    padding-top: 0px;
-    padding-bottom: 0px;
-    height: 18px;
+    padding-top: 0;
+    padding-bottom: 0;
 }
 
 .quickgrid_container .iconbox {
-    height: 17px;
-    width: 16px;
+    height: 1.2em;
+    width: 1.2em;
     cursor: pointer;
     opacity:.6;
 }
@@ -98,7 +96,6 @@
     line-height:3ex;
     font-size: .9em;
     font-variant:small-caps;
-    min-height: 19px;
     display: flex;
     flex-direction: row;
 }
