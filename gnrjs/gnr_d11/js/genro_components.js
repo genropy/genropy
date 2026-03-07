@@ -2303,26 +2303,23 @@ dojo.declare("gnr.widgets.TreeGrid", gnr.widgets.gnrwdg, {
 
     createContent:function(sourceNode, kw,children,subTagItems) {
         sourceNode.attr._workspace = true;
-        var gnrwdg = sourceNode.gnrwdg;
-        var that = this;
-        var columns = objectPop(kw,'columns');
-        var boxpars = objectExtract(kw,'box_*');
+        const gnrwdg = sourceNode.gnrwdg;
+        let columns = objectPop(kw,'columns');
+        const boxpars = objectExtract(kw,'box_*');
         gnrwdg.width = 0;
         gnrwdg.labelAttribute = objectPop(kw,'labelAttribute');
         gnrwdg.headers=objectPop(kw,'headers');
         gnrwdg.footers=objectPop(kw,'footers');
         gnrwdg.headers_footers_kw = objectExtract(kw,'headers_*',false,true);
         objectUpdate(gnrwdg.headers_footers_kw,objectExtract(kw,'footers_*',false,true));
-
-        if(!columns){ 
+        if(!columns){
             columns = '^#WORKSPACE.columns';
             sourceNode.registerDynAttr('columns');
         }
         gnrwdg.columns_bag = this._getColumnsBag(sourceNode,columns,subTagItems['column']);
-        var searchColumn = gnrwdg.columns_bag.getNode('#0').attr.field;
-        var checked_attr = objectExtract(kw,'checked_*',true);
-        var hasCheckbox = objectNotEmpty(checked_attr) || kw.onChecked;
-        var defaultKw = {
+        const searchColumn = gnrwdg.columns_bag.getNode('#0').attr.field;
+        const hasCheckbox = objectNotEmpty(objectExtract(kw,'checked_*',true)) || kw.onChecked;
+        const defaultKw = {
             autoCollapse:true,
             hideValues:true,
             background:'white',
@@ -2334,12 +2331,12 @@ dojo.declare("gnr.widgets.TreeGrid", gnr.widgets.gnrwdg, {
             },
             labelCb:function(store){return gnrwdg.labelCb(this,store)}
         };
-        var boxclass = hasCheckbox?'treegridcheckbox treeGridLayout ':'treeGridLayout ';
-        var box = sourceNode._('div',objectUpdate({_class:boxclass+(objectPop(kw,'_class') || ''),
+        const boxclass = hasCheckbox?'treegridcheckbox treeGridLayout ':'treeGridLayout ';
+        const box = sourceNode._('div',objectUpdate({_class:boxclass+(objectPop(kw,'_class') || ''),
             onCreated:function(){
             var that = this;
             this.watch('setWidth',function(){
-                var currentWidth = that.domNode.clientWidth;
+                const currentWidth = that.domNode.clientWidth;
                 if(!that._isBuilding && currentWidth!=gnrwdg.width){
                     gnrwdg.width = currentWidth;
                     gnrwdg.refresh();
@@ -2347,15 +2344,15 @@ dojo.declare("gnr.widgets.TreeGrid", gnr.widgets.gnrwdg, {
             },function(){});
         }},boxpars));
         gnrwdg.layoutNode = box.getParentNode();
-        if (gnrwdg.headers){
+        if(gnrwdg.headers){
             gnrwdg.headerNode = box._('div',{_class:'treeGridHeader'}).getParentNode();
         }
         if(gnrwdg.footers){
             gnrwdg.footerNode = box._('div',{_class:'treeGridFooter selectable'}).getParentNode();
         }
-        var center = box._('div',{_class:'treeGridCenter'});
+        const center = box._('div',{_class:'treeGridCenter'});
         gnrwdg.scrollerNode = box._('div',{_class:'treeGridScroller'}).getParentNode();
-        var tree = center._('tree',objectUpdate(defaultKw,kw));
+        const tree = center._('tree',objectUpdate(defaultKw,kw));
         gnrwdg.centerNode = center.getParentNode();
         gnrwdg.treeNode = tree.getParentNode();
         gnrwdg.absStorepath = gnrwdg.treeNode.absDatapath(kw.storepath);
@@ -2364,26 +2361,20 @@ dojo.declare("gnr.widgets.TreeGrid", gnr.widgets.gnrwdg, {
     },
 
     gnrwdg_footersHeadersHandler:function(w){
-        var ws = w+'s';
+        const ws = w+'s';
         if(this[ws]){
             this[w+'Node'].domNode.innerHTML = null;
-            var hf = this[ws]==true? ['']:this[ws].split(',');
-            var that = this;
+            const hf = this[ws]==true? ['']:this[ws].split(',');
+            const that = this;
             hf.forEach(function(h){
-                var pars = objectExtract(that.headers_footers_kw,h?ws+'_'+h+'_*':ws+'_*',true);
+                const pars = objectExtract(that.headers_footers_kw,h?ws+'_'+h+'_*':ws+'_*',true);
                 that.setHeaderFooter(h?w+'_'+h:w,pars,w);
             });
         }
     },
 
     gnrwdg_refresh:function(){
-        var that = this;
-        this.mainCellSize = parseInt(this.columns_bag.getAttr('#0').size);
-        if(!this.mainCellSize){
-            var otherSize = 0;
-            this.columns_bag.getNodes().slice(1).forEach(n=>otherSize+=parseInt(n.attr.size));
-            this.mainCellSize = Math.max((this.centerNode.domNode.clientWidth-70-otherSize),100);
-        }
+        const that = this;
         this.treeNode.widget.updateLabels();
         this.footersHeadersHandler('header');
         this.footersHeadersHandler('footer');
@@ -2393,14 +2384,24 @@ dojo.declare("gnr.widgets.TreeGrid", gnr.widgets.gnrwdg, {
         this.setScroller();
         setTimeout(function(){
             that.updateScroll();
+            const cn = that.centerNode.domNode;
+            const scrollbarWidth = cn.offsetWidth - cn.clientWidth;
+            if(that.headerNode){
+                that.headerNode.domNode.style.paddingRight = scrollbarWidth+'px';
+            }
+            if(that.footerNode){
+                that.footerNode.domNode.style.paddingRight = scrollbarWidth+'px';
+            }
         },1);
     },
 
     gnrwdg_setScroller:function(){
         this.scrollerNode._value.popNode('viewport');
-        var layoutDomNode = this.layoutNode.domNode;
-        var gnrwdg = this;
-        var viewport = this.scrollerNode._('div','viewport',{position:'absolute',right:0,bottom:0,top:0,width:this.viewPortWidth+'px',overflow:'auto',
+        const firstViewport = this.layoutNode.domNode.querySelector('.treerow_viewport');
+        if(!firstViewport) return;
+        const viewPortWidth = firstViewport.clientWidth;
+        const gnrwdg = this;
+        const viewport = this.scrollerNode._('div','viewport',{position:'absolute',right:0,bottom:0,top:0,width:viewPortWidth+'px',overflow:'auto',
                         connect_onscroll:function(evt){
                             gnrwdg.currentScroll = evt.target.scrollLeft;
                             gnrwdg.updateScroll();
@@ -2409,12 +2410,12 @@ dojo.declare("gnr.widgets.TreeGrid", gnr.widgets.gnrwdg, {
     },
 
     gnrwdg_updateScroll:function(){
-        var that = this;
+        const that = this;
         dojo.query('.treerow_viewport',this.layoutNode.domNode).forEach(function(n){
-                            n.style.overflow = 'scroll'
-                            n.scrollLeft = that.currentScroll;
-                            n.style.overflow = 'hidden'
-                        });
+            n.style.overflow = 'scroll';
+            n.scrollLeft = that.currentScroll;
+            n.style.overflow = 'hidden';
+        });
     },
 
     htmlCellContent:function(content,cell){
@@ -2422,77 +2423,57 @@ dojo.declare("gnr.widgets.TreeGrid", gnr.widgets.gnrwdg, {
             content = cell.contentCb? funcApply(cell.contentCb,{field:cell['field']},content):content.attr[cell['field']];
         }
         content = content || cell.emptyValue;
-        var format = cell['format'];
-        var dtype = cell['dtype'] || 'T';
+        const format = cell['format'];
+        const dtype = cell['dtype'] || 'T';
         content = _F(content,format,dtype) || '&nbsp;';
         return '<div class="treeCellContent">'+content+'</div>'
     },
 
     gnrwdg_setHeaderFooter:function(contentKey,pars,mode){
-        if(!this.width){
+        if(!this.width || pars.hidden){
             return;
         }
-        if(pars.hidden){
-            return
-        }
-        var columns_bag = this.columns_bag;
-        var mainCell = columns_bag.getAttr('#0');
+        const columns_bag = this.columns_bag;
+        let mainCell = columns_bag.getAttr('#0');
         mainCell = this.sourceNode.evaluateOnNode(mainCell);
-        var maxwidth = this.width;        
-        var currx = 0;
-        var cell;
-        var l = [];
-        var htmlCellContent = this.gnr.htmlCellContent;
-        var n;
-        var sn = this.sourceNode;
-        var colkeys = this.columns_bag.keys().slice(1);
-        var tplpars = {};
-        var mainCellSize = this.mainCellSize+18;//tree margin
-        var colswidth = maxwidth-this.mainCellSize-35;//border
-        var customKw,cellstyle,objStyle;
+        let currx = 0;
+        const l = [];
+        const htmlCellContent = this.gnr.htmlCellContent;
+        const sn = this.sourceNode;
+        const colkeys = this.columns_bag.keys().slice(1);
+        const tplpars = {};
         colkeys.forEach(function(key){
-            n = columns_bag.getNode(key);
-            cell = sn.evaluateOnNode(n.attr);
+            const n = columns_bag.getNode(key);
+            const cell = sn.evaluateOnNode(n.attr);
             objectUpdate(cell,pars);
-            customKw = objectExtract(cell,contentKey+'_*');
-
+            const customKw = objectExtract(cell,contentKey+'_*');
             objectExtract(cell,'dtype,format,style,cellClass');
             objectUpdate(cell,customKw);
             if(!cell.hidden){
-                var size=parseInt(cell.size);
-                if ( stringEndsWith((size+''),'%') ){
-                    size=Math.round(maxwidth*parseInt(size)/100)
-                }
-                objStyle=objectUpdate(objectFromStyle(cell._style),
-                                         sn.evaluateOnNode(genro.dom.getStyleDict(objectUpdate({},cell), [ 'width'])))
-                objStyle['width']=size+'px'
-                cellstyle=objectAsStyle(objStyle)
-                var content = cell[contentKey];
+                const size = parseInt(cell.size);
+                const objStyle = objectUpdate(objectFromStyle(cell._style),
+                                         sn.evaluateOnNode(genro.dom.getStyleDict(objectUpdate({},cell), ['width'])));
+                objStyle['width'] = size+'px';
+                const cellstyle = objectAsStyle(objStyle);
+                const content = cell[contentKey];
                 cell.dtype = cell.dtype || guessDtype(content);
-                l.push('<div class="treecell cell_'+(cell.dtype || 'T') +' '+(cell.cellClass || '')+' " style="'+cellstyle+'">'+htmlCellContent(content,cell)+'</div>');
+                l.push('<div class="treecell cell_'+(cell.dtype || 'T')+' '+(cell.cellClass || '')+'" style="'+cellstyle+'">'+htmlCellContent(content,cell)+'</div>');
                 currx += size+1 || 0;
             }
-        })
-        var rowwidth = maxwidth;
+        });
         objectExtract(mainCell,'dtype,format,style,cellClass');
         objectUpdate(mainCell,pars);
-        customKw = objectExtract(mainCell,contentKey+'_*');
-        objectUpdate(mainCell,customKw);
-        objStyle=objectUpdate(objectFromStyle(mainCell._style),
-        sn.evaluateOnNode(genro.dom.getStyleDict(objectUpdate({},mainCell), [ 'width'])))
-        objStyle['width']=mainCellSize+'px';
-        objStyle['overflow'] = 'hidden';
-        cellstyle=objectAsStyle(objStyle)
+        const mainCustomKw = objectExtract(mainCell,contentKey+'_*');
+        objectUpdate(mainCell,mainCustomKw);
+        const mainObjStyle = objectUpdate(objectFromStyle(mainCell._style),
+            sn.evaluateOnNode(genro.dom.getStyleDict(objectUpdate({},mainCell), ['width'])));
+        const mainCellstyle = objectAsStyle(mainObjStyle);
         this.cellsWidth = currx;
-        this.viewPortWidth = colswidth;
-        tplpars['maincell'] = '<div class="treecell maincell'+(mainCell.cellClass || '')+' " style="'+cellstyle+'"><div class="treeCellContent">'+(mainCell[contentKey] || '&nbsp;')+'</div></div>';
-        tplpars['columns'] = '<div class="treerow_viewport" style="width:'+colswidth+'px;margin-left:-3px;"><div class="treerow_columns" style="width:'+(currx+1)+'px;">'+l.join('')+'</div></div>'
-        
-        var elem = document.createElement('div');
-        elem.innerHTML = dataTemplate('<div class="treerow treerow_'+mode+'" style="width:'+rowwidth+'px;">$maincell $columns</div>',tplpars);
-        this[mode+'Node'].domNode.appendChild(elem.removeChild(elem.firstChild)); 
-        
-        //return "innerHTML:<div class='treerow treerow_level_"+level+"' style='width:"+rowwidth+"px;'>"+l.join('')+"</div>";
+        tplpars['maincell'] = '<div class="treecell maincell'+(mainCell.cellClass || '')+'" style="'+mainCellstyle+'"><div class="treeCellContent">'+(mainCell[contentKey] || '&nbsp;')+'</div></div>';
+        tplpars['columns'] = '<div class="treerow_viewport"><div class="treerow_columns" style="width:'+currx+'px;">'+l.join('')+'</div></div>';
+        const elem = document.createElement('div');
+        elem.innerHTML = dataTemplate('<div class="treerow treerow_'+mode+'">$maincell $columns</div>',tplpars);
+        this[mode+'Node'].domNode.appendChild(elem.removeChild(elem.firstChild));
     },
 
 
@@ -2501,64 +2482,47 @@ dojo.declare("gnr.widgets.TreeGrid", gnr.widgets.gnrwdg, {
         if(!this.width){
             return;
         }
-        
-        var k = 10;
-        var mainLabel = item.label;
-        var columns_bag = this.columns_bag;
-        var mainCell = columns_bag.getAttr('#0');
-        var maxwidth = this.width-35;
-        var colswidth = maxwidth-this.mainCellSize ;
-        var currx = 0;
-        var cell;
-        var l = [];
-        var htmlCellContent = this.gnr.htmlCellContent;
-        var n;
-        var sn = this.sourceNode;
-        var colkeys = this.columns_bag.keys().slice(1);
-        var tplpars = {};
-
+        const columns_bag = this.columns_bag;
+        const mainCell = columns_bag.getAttr('#0');
+        let currx = 0;
+        const l = [];
+        const htmlCellContent = this.gnr.htmlCellContent;
+        const sn = this.sourceNode;
+        const colkeys = this.columns_bag.keys().slice(1);
+        const tplpars = {};
         colkeys.forEach(function(key){
-            n = columns_bag.getNode(key);
-            cell = sn.evaluateOnNode(n.attr);
+            const n = columns_bag.getNode(key);
+            const cell = sn.evaluateOnNode(n.attr);
             if(!cell.hidden){
-                var size=parseInt(cell.size);
-                if ( stringEndsWith((size+''),'%') ){
-                    size=Math.round(maxwidth*parseInt(size)/100)
-                }
-                var objStyle=objectUpdate(objectFromStyle(cell._style),
-                                         sn.evaluateOnNode(genro.dom.getStyleDict(objectUpdate({},cell), [ 'width'])))
-                objStyle['width']=size+'px'
-                var cellstyle=objectAsStyle(objStyle)       
-                l.push('<div class="treecell cell_'+(cell.dtype || 'T') +' '+(cell.cellClass || '')+' " style="'+cellstyle+'">'+htmlCellContent(item,cell)+'</div>');
+                const size = parseInt(cell.size);
+                const objStyle = objectUpdate(objectFromStyle(cell._style),
+                                         sn.evaluateOnNode(genro.dom.getStyleDict(objectUpdate({},cell), ['width'])));
+                objStyle['width'] = size+'px';
+                const cellstyle = objectAsStyle(objStyle);
+                l.push('<div class="treecell cell_'+(cell.dtype || 'T')+' '+(cell.cellClass || '')+'" style="'+cellstyle+'">'+htmlCellContent(item,cell)+'</div>');
                 currx += size+1 || 0;
             }
-        })
-        var storeNode = genro.getDataNode(this.absStorepath);
-        var level = (item.parentshipLevel(storeNode)-1);
-        var folder = store.hasAttribute(item,'#v')?' treerow_folder ':'';
-        var _customClasses = item.attr._customClasses || '';
-        var rowwidth = maxwidth-level*k;
-        var objStyle=objectUpdate(objectFromStyle(mainCell._style),
-        sn.evaluateOnNode(genro.dom.getStyleDict(objectUpdate({},mainCell), [ 'width'])))
-        objStyle['width']=(this.mainCellSize-level*k)+'px';
-        objStyle['overflow'] = 'hidden';
-        var cellstyle=objectAsStyle(objStyle)
+        });
+        const storeNode = genro.getDataNode(this.absStorepath);
+        const level = (item.parentshipLevel(storeNode)-1);
+        const folder = store.hasAttribute(item,'#v')?' treerow_folder ':'';
+        const customClasses = item.attr._customClasses || '';
+        const mainObjStyle = objectUpdate(objectFromStyle(mainCell._style),
+            sn.evaluateOnNode(genro.dom.getStyleDict(objectUpdate({},mainCell), ['width'])));
+        const mainCellstyle = objectAsStyle(mainObjStyle);
         this.cellsWidth = currx;
-        this.viewPortWidth = colswidth;
-        tplpars['maincell'] = '<div class="treecell maincell cell_'+(mainCell.dtype || 'T')+' '+(mainCell.cellClass || '')+' " style="'+cellstyle+'">'+htmlCellContent(item,mainCell)+'</div>';
-        tplpars['columns'] = '<div class="treerow_viewport" style="width:'+colswidth+'px;"><div class="treerow_columns" style="width:'+currx+'px;">'+l.join('')+'</div></div>'
-        return dataTemplate('innerHTML:<div class="treerow treerow_level_'+level+ folder+ " " +_customClasses+ '">$maincell $columns</div>',tplpars)
-        
-        //return "innerHTML:<div class='treerow treerow_level_"+level+"' style='width:"+rowwidth+"px;'>"+l.join('')+"</div>";
+        tplpars['maincell'] = '<div class="treecell maincell cell_'+(mainCell.dtype || 'T')+' '+(mainCell.cellClass || '')+'" style="'+mainCellstyle+'">'+htmlCellContent(item,mainCell)+'</div>';
+        tplpars['columns'] = '<div class="treerow_viewport"><div class="treerow_columns" style="width:'+currx+'px;">'+l.join('')+'</div></div>';
+        return dataTemplate('innerHTML:<div class="treerow treerow_level_'+level+folder+' '+customClasses+'">$maincell $columns</div>',tplpars)
     },
 
     _getColumnsBag:function(sourceNode,columns,childrenColumns){
-        var columns_bag = sourceNode.getRelativeData(columns) || new gnr.GnrBag();;
+        const columns_bag = sourceNode.getRelativeData(columns) || new gnr.GnrBag();
         childrenColumns.forEach(function(n){
-            var attr = n.attr;
+            const attr = n.attr;
             attr.field = attr.field || n.label;
             columns_bag.setItem(attr.field,null,attr);
-        })
+        });
         return columns_bag;
     }
 

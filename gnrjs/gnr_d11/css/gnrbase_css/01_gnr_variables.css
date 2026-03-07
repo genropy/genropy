@@ -27,7 +27,7 @@
     --roundedgroup-surface: var(--card-surface);
 
     /* --- Borders --- */
-    --border-color: #ddd;
+    --border-color: #ccc;
     --border-light: #efefef;
     --border-strong: #aab4c4;
 
@@ -84,7 +84,7 @@
     --toolbar-height: 1.75em;
     --toolbar-height-lg: 2em;
     --toolbar-padding: 0.15em;
-    --toolbar-bg: #EDEDEE;
+    --toolbar-bg: #DCDCDE;
     --toolbar-gradient: linear-gradient(to bottom, #EDEDEE, #CDCDCD);
     --toolbar-color: #383838;
     --toolbar-dark-bg: #636366;
