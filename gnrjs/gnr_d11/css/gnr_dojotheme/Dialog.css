@@ -10,64 +10,64 @@
     border-radius: var(--radius-panels, 8px);
     box-shadow: var(--shadow-dialog, 0 4px 24px rgba(0,0,0,0.18));
     padding: 0;
+    overflow: hidden;
 }
 
-/* --- Dialog title bar (flat, no PNG gradient) --- */
+/* --- Dialog title bar: flex row for vertical centering --- */
 .gnr_dojotheme .dijitDialogTitleBar {
+    display: flex;
+    align-items: center;
     background: var(--dialogtitlebar-background, var(--primary-color, #1E3055));
     color: var(--dialogtitlebar-color, #fff);
     background-image: none;
-    padding: 0.4em 0.5em 0.3em 0.2em;
+    padding: 0.3em 0.4em;
     cursor: move;
     outline: 0;
-    border-top-left-radius: var(--radius-panels, 8px);
-    border-top-right-radius: var(--radius-panels, 8px);
 }
 
 /* --- Dialog title text --- */
 .gnr_dojotheme .dijitDialogTitle {
+    flex: 1;
     font-weight: 600;
-    color: #fff;
-    padding: 0.3em 0.6em;
+    color: inherit;
+    padding: 0.1em 0.4em;
     outline: 0;
-}
-
-.gnr_dojotheme .dijitDialog .dijitDialogTitle {
     border: none;
 }
 
-/* --- Close button: CSS × character (no PNG sprite) --- */
+/* --- Close button: mask-image icon, circular, centered via flex --- */
 .gnr_dojotheme .dijitDialogCloseIcon {
     background: none;
     background-image: none;
-    float: right;
-    position: absolute;
-    right: 0.5em;
-    top: 0.4em;
-    width: 1.4em;
-    height: 1.4em;
+    position: relative;
+    width: 1.3em;
+    height: 1.3em;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--radius-controls, 4px);
+    border-radius: 50%;
+    border: none;
     transition: background-color 0.12s ease;
+    color: transparent;
+    overflow: hidden;
+    flex-shrink: 0;
 }
 
 .gnr_dojotheme .dijitDialogCloseIcon::after {
-    content: '\00D7';  /* × */
-    font-size: 1.2em;
-    font-weight: bold;
-    color: rgba(255, 255, 255, 0.7);
-    line-height: 1;
+    content: '';
+    position: absolute;
+    inset: 10%;
+    background-color: var(--dialogtitlebar-color, #fff);
+    -webkit-mask-image: var(--icon-wnd-close);
+    mask-image: var(--icon-wnd-close);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
 }
 
 .gnr_dojotheme .dijitDialogCloseIcon:hover {
     background-color: rgba(255, 255, 255, 0.15);
-}
-
-.gnr_dojotheme .dijitDialogCloseIcon:hover::after {
-    color: #fff;
 }
 
 /* --- Dialog pane content --- */
@@ -76,8 +76,6 @@
     border: none;
     border-top: 1px solid var(--border-color, #ddd);
     padding: 0.6em;
-    border-bottom-left-radius: var(--radius-panels, 8px);
-    border-bottom-right-radius: var(--radius-panels, 8px);
 }
 
 /* --- Dialog content body --- */
@@ -115,6 +113,7 @@
     font-size: inherit;
     box-shadow: var(--shadow-lg, 0 4px 24px rgba(0,0,0,0.18)) !important;
     background-color: var(--surface-light, #f6f6f6);
+    overflow: hidden;
 }
 
 /* --- Pure tooltip container --- */
@@ -250,12 +249,21 @@
     border-color: transparent var(--border-color, #ddd) transparent transparent;
 }
 
-/* --- FloatingPane title: override tundra's .tundra .dojoxFloatingPaneTitle --- */
+/* --- FloatingPane title: flex row, override tundra's .tundra .dojoxFloatingPaneTitle --- */
 .tundra.gnr_dojotheme .dojoxFloatingPaneTitle {
+    display: flex;
+    align-items: center;
     background: var(--dialogtitlebar-background, var(--primary-color, #1E3055));
     background-image: none;
     color: var(--dialogtitlebar-color, #fff);
+    padding: 0.3em 0.4em;
     border: 0;
+}
+
+.tundra.gnr_dojotheme .dojoxFloatingPaneTitle .dijitTitleNode {
+    flex: 1;
+    order: -1;
+    color: inherit;
 }
 
 /* --- Popup opacity --- */

@@ -195,6 +195,11 @@
     --icon-checkbox-unchecked: url(/_rsrc/common/css_icons/svg/16/checkbox_unchecked.svg);
     --icon-checkbox-indeterminate: url(/_rsrc/common/css_icons/svg/16/checkbox_indeterminate.svg);
 
+    /* --- Window controls --- */
+    --icon-wnd-close: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M7 7l10 10M17 7L7 17'/%3E%3C/svg%3E");
+    --icon-wnd-minimize: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='5' y='11' width='14' height='2' rx='1'/%3E%3C/svg%3E");
+    --icon-wnd-maximize: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 5h14v14H5V5zm2 2v10h10V7H7z'/%3E%3C/svg%3E");
+
     /* --- Splitters --- */
     --splitter-size: 5px;
     --splitter-bg: var(--surface-light);

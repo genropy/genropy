@@ -74,10 +74,7 @@
 .gnr_dojotheme .dijitToggleButtonHover .dijitButtonNode,
 .gnr_dojotheme .dijitDropDownButtonHover .dijitButtonNode,
 .gnr_dojotheme .dijitComboButton .dijitButtonContentsHover,
-.gnr_dojotheme .dijitComboButton .dijitDownArrowButtonHover,
-.gnr_dojotheme .dijitComboBoxHover .dijitDownArrowButton,
-.gnr_dojotheme .dijitSpinnerUpArrowHover .dijitUpArrowButton,
-.gnr_dojotheme .dijitSpinnerDownArrowHover .dijitDownArrowButton {
+.gnr_dojotheme .dijitComboButton .dijitDownArrowButtonHover {
     background-image: none;
     background-color: var(--btn-tonal-hover-bg, #BBDEFB);
     box-shadow: none;
@@ -89,11 +86,7 @@
 .gnr_dojotheme .dijitToggleButtonActive .dijitButtonNode,
 .gnr_dojotheme .dijitDropDownButtonActive .dijitButtonNode,
 .gnr_dojotheme .dijitComboButton .dijitButtonContentsActive,
-.gnr_dojotheme .dijitComboButton .dijitDownArrowButtonActive,
-.gnr_dojotheme .dijitSpinnerUpArrowActive .dijitUpArrowButton,
-.gnr_dojotheme .dijitSpinnerDownArrowActive .dijitDownArrowButton,
-.gnr_dojotheme .dijitDownArrowActive .dijitDownArrowButton,
-.gnr_dojotheme .dijitComboBoxActive .dijitDownArrowButton {
+.gnr_dojotheme .dijitComboButton .dijitDownArrowButtonActive {
     background-image: none;
     background-color: var(--btn-tonal-pressed-bg, #90CAF9);
     box-shadow: none;
@@ -104,8 +97,6 @@
 }
 
 /* --- Selected (toggle checked) --- */
-.gnr_dojotheme .dijitUpArrowButtonActive,
-.gnr_dojotheme .dijitDownArrowButtonActive,
 .gnr_dojotheme .dijitButtonActive .dijitButtonNode,
 .gnr_dojotheme .dijitButtonContentsActive,
 .gnr_dojotheme .dijitStackController .dijitToggleButtonChecked .dijitButtonNode {
@@ -114,15 +105,22 @@
     box-shadow: none;
 }
 
-/* --- Buttons inside textbox widgets: invisible --- */
-.gnr_dojotheme .dijitTextBox .dijitButtonNode {
+/* --- Form-widget arrow buttons: pure icon, no chrome in any state --- */
+.gnr_dojotheme .dijitTextBox .dijitButtonNode,
+.gnr_dojotheme .dijitComboBox .dijitArrowButton,
+.gnr_dojotheme .dijitSpinner .dijitArrowButton {
     border-radius: 0;
+    background: none;
     background-color: transparent;
     background-image: none;
     padding: 0;
     border-color: transparent;
     box-shadow: none;
     filter: none;
+}
+
+.gnr_dojotheme .dijitDisabled .dijitArrowButton {
+    visibility: hidden;
 }
 
 /* --- Arrow button inner (no PNG, SVG provided by gnrbase icons) --- */

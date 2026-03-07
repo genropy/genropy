@@ -94,23 +94,20 @@
     background-color: var(--dlg-bg, #f6f6f6);
     box-shadow: var(--shadow-dialog);
     border: 1px solid var(--dlg-border-color, silver);
+    overflow: hidden;
 }
 
 ._common_d11 .dijitDialog .dijitDialogPaneContent {
-    border-bottom-right-radius: var(--radius-panels);
-    border-bottom-left-radius: var(--radius-panels);
     border: 0px;
     background-color: var(--dlg-pane-bg, #fff);
 }
 
 ._common_d11 .dijitDialogTitleBar {
+    display: flex;
+    align-items: center;
     background: var(--dialogtitlebar-background, linear-gradient(to right, #3b6391, #4b6cb7));
     color: var(--dialogtitlebar-color, #ffffff);
-    vertical-align: middle;
-    border-top-left-radius: var(--radius-panels);
-    border-top-right-radius: var(--radius-panels);
     text-align: center;
-    font-weight: normal;
     border-bottom: 1px solid rgba(0,0,0,0.1);
     font-size: .9em;
 }
@@ -196,9 +193,6 @@
     display:none;
 }
 
-._common_d11 .hideDialogTitle .dijitDialogPaneContent{
-    border-radius: var(--radius-panels);
-}
 
 ._common_d11  .dijitTooltipFocusNode{
     padding:0px;
@@ -498,15 +492,20 @@ textarea:disabled {
 }
 
 ._common_d11 .dojoxFloatingPaneTitle {
+    display: flex;
+    align-items: center;
     background: var(--dialogtitlebar-background);
-    vertical-align: middle;
-    text-align: center;
     color: var(--dialogtitlebar-color, #f6f6f6);
-    border-top-left-radius: var(--radius-controls);
-    border-top-right-radius: var(--radius-controls);
-    padding-top: 2px;
-    padding-bottom: 3px;
+    border-top-left-radius: calc(var(--radius-controls) - 1px);
+    border-top-right-radius: calc(var(--radius-controls) - 1px);
+    padding: 0.3em 0.4em;
     border: 0;
+}
+._common_d11 .dojoxFloatingPaneTitle .dijitTitleNode {
+    flex: 1;
+    order: -1;
+    padding: 0.1em 0.4em;
+    font-weight: 600;
 }
 
 /* --- Lightbox login dialog (from theme_shared) --- */
