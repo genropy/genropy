@@ -1,6 +1,6 @@
 /* ==========================================================================
    gnr_dojotheme/layout/BorderContainer.css — Modern splitter styling.
-   Opaque background, always-visible grip dots, accent on drag.
+   Opaque background, SVG grip dots via mask-image, accent on drag.
    dijit.css provides cursor, positioning, z-index, and overflow.
    ========================================================================== */
 
@@ -15,107 +15,67 @@
 .gnr_dojotheme .dijitSplitterH,
 .gnr_dojotheme .dijitSplitterV {
     border: 0;
-    background: var(--splitter-bg, var(--bg-primary, #fff));
+    background: var(--splitter-bg, #f6f6f6);
 }
 
 /* ==========================================================================
    Horizontal splitter (between top/bottom regions)
    ========================================================================== */
 .gnr_dojotheme .dijitSplitterH {
-    height: 5px;
+    height: var(--splitter-size);
 }
 
 /* ==========================================================================
    Vertical splitter (between left/right regions)
    ========================================================================== */
 .gnr_dojotheme .dijitSplitterV {
-    width: 5px;
+    width: var(--splitter-size);
 }
 
 /* ==========================================================================
-   Thumb — grip handle (3 dots, centered, always visible)
+   Thumb — SVG grip handle via mask-image (3-dot pattern)
+   Same technique as Checkbox.css: mask clips background-color to dot shape.
    ========================================================================== */
 .gnr_dojotheme .dijitSplitterThumb {
     display: block;
     position: absolute;
+    background-color: var(--splitter-grip, #999);
 }
 
-/* H thumb: centered horizontally */
+/* H thumb: 3 horizontal dots, centered */
 .gnr_dojotheme .dijitSplitterH .dijitSplitterThumb {
+    -webkit-mask: var(--icon-grip-h) no-repeat center / contain;
+    mask: var(--icon-grip-h) no-repeat center / contain;
     left: 50%;
     top: 0;
     transform: translateX(-50%);
-    width: 1.5em;
+    width: 3em;
     height: 100%;
 }
 
-/* V thumb: centered vertically */
+/* V thumb: 3 vertical dots, centered */
 .gnr_dojotheme .dijitSplitterV .dijitSplitterThumb {
+    -webkit-mask: var(--icon-grip-v) no-repeat center / contain;
+    mask: var(--icon-grip-v) no-repeat center / contain;
     top: 50%;
     left: 0;
     transform: translateY(-50%);
-    height: 1.5em;
+    height: 3em;
     width: 100%;
 }
 
-/* Dot pattern via ::after — center dot + 2 box-shadow copies */
-.gnr_dojotheme .dijitSplitterThumb::after {
-    content: '';
-    position: absolute;
-    border-radius: 50%;
-    width: 0.15em;
-    height: 0.15em;
-    background: var(--splitter-grip, #bbb);
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-}
-
-/* H splitter: 3 horizontal dots */
-.gnr_dojotheme .dijitSplitterH .dijitSplitterThumb::after {
-    box-shadow:
-        -0.35em 0 0 var(--splitter-grip, #bbb),
-         0.35em 0 0 var(--splitter-grip, #bbb);
-}
-
-/* V splitter: 3 vertical dots */
-.gnr_dojotheme .dijitSplitterV .dijitSplitterThumb::after {
-    box-shadow:
-        0 -0.35em 0 var(--splitter-grip, #bbb),
-        0  0.35em 0 var(--splitter-grip, #bbb);
-}
-
 /* ==========================================================================
-   Hover — dots become more prominent
+   Hover — dots become darker
    ========================================================================== */
-.gnr_dojotheme .dijitSplitterH:hover .dijitSplitterThumb::after {
-    background: var(--splitter-grip-hover, #888);
-    box-shadow:
-        -0.35em 0 0 var(--splitter-grip-hover, #888),
-         0.35em 0 0 var(--splitter-grip-hover, #888);
-}
-
-.gnr_dojotheme .dijitSplitterV:hover .dijitSplitterThumb::after {
-    background: var(--splitter-grip-hover, #888);
-    box-shadow:
-        0 -0.35em 0 var(--splitter-grip-hover, #888),
-        0  0.35em 0 var(--splitter-grip-hover, #888);
+.gnr_dojotheme .dijitSplitterH:hover .dijitSplitterThumb,
+.gnr_dojotheme .dijitSplitterV:hover .dijitSplitterThumb {
+    background-color: var(--splitter-grip-hover, #666);
 }
 
 /* ==========================================================================
    Active/dragging — accent color grip
    JS adds .dijitSplitterActive on drag start, removes on drag end.
    ========================================================================== */
-.gnr_dojotheme .dijitSplitterH.dijitSplitterActive .dijitSplitterThumb::after {
-    background: var(--splitter-line-active, #369);
-    box-shadow:
-        -0.35em 0 0 var(--splitter-line-active, #369),
-         0.35em 0 0 var(--splitter-line-active, #369);
-}
-
-.gnr_dojotheme .dijitSplitterV.dijitSplitterActive .dijitSplitterThumb::after {
-    background: var(--splitter-line-active, #369);
-    box-shadow:
-        0 -0.35em 0 var(--splitter-line-active, #369),
-        0  0.35em 0 var(--splitter-line-active, #369);
+.gnr_dojotheme .dijitSplitterActive .dijitSplitterThumb {
+    background-color: var(--splitter-line-active, #369);
 }

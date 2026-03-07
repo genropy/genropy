@@ -196,8 +196,11 @@
     --icon-checkbox-indeterminate: url(/_rsrc/common/css_icons/svg/16/checkbox_indeterminate.svg);
 
     /* --- Splitters --- */
-    --splitter-bg: var(--bg-primary);
+    --splitter-size: 5px;
+    --splitter-bg: var(--surface-light);
     --splitter-line-active: var(--accent-color);
     --splitter-grip: var(--text-placeholder);
     --splitter-grip-hover: var(--text-secondary);
+    --icon-grip-h: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 8'%3E%3Ccircle cx='4' cy='4' r='2.5'/%3E%3Ccircle cx='12' cy='4' r='2.5'/%3E%3Ccircle cx='20' cy='4' r='2.5'/%3E%3C/svg%3E");
+    --icon-grip-v: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 24'%3E%3Ccircle cx='4' cy='4' r='2.5'/%3E%3Ccircle cx='4' cy='12' r='2.5'/%3E%3Ccircle cx='4' cy='20' r='2.5'/%3E%3C/svg%3E");
 }
