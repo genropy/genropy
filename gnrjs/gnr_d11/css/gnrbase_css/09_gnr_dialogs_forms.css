@@ -9,7 +9,7 @@
     background: transparent;
 }
 .tinySplitter .dijitSplitterThumb{
-    visibility: hidden;
+    display: none;
 }
 
 .hideSplitter >.dijitSplitter.dijitSplitterV {
@@ -28,7 +28,7 @@
 }
 
 .hideSplitter >.dijitSplitter .dijitSplitterThumb {
-    visibility: hidden;
+    display: none;
 }
 
 .attachment_drawer.slotbarOpener_horizontal{
