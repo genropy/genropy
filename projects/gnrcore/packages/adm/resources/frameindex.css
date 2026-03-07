@@ -237,19 +237,13 @@
 }
 
 /* --- iframeroot bar (top bar) --- */
-.iframeroot_bar {
-    padding-top: 0.1em;
-}
-
 .iframeroot_bar,
 .iframeroot_bar.slotbar_toolbar_standard {
     background: var(--toolbar-dark-bg);
 }
 
 .iframeroot_bar .multibutton_container {
-    padding: 0.15em 0;
     font-size: 0.85em;
-    line-height: 1.6;
 }
 .iframeroot_bar .multibutton_closer {
     position: absolute;

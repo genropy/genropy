@@ -49,12 +49,10 @@
 }
 
 .slotbar_toolbar .th_querybox {
-    padding-top: 0.125em;
-    padding-bottom: 0.0625em;
-    line-height: 3ex;
+    line-height: 1.5em;
     font-size: 0.9em;
-    height: 1.2em;
-    display: inline-block;
+    display: inline-flex;
+    align-items: stretch;
 }
 
 .slotbar_toolbar .th_querybox_extended {
@@ -76,14 +74,35 @@
 
 .slotbar_toolbar .th_querybox_item {
     position: relative;
-    display: inline-block;
+    display: flex;
+    align-items: center;
     padding-left: 0.5em;
-    padding-right: 0.8em;
+    padding-right: 1.5em;
     cursor: pointer;
     background-color: var(--text-muted);
     color: whitesmoke;
     border-right: 1px solid var(--border-color);
-    background: var(--text-muted) url(icons/smallpopup_white.png) no-repeat right;
+}
+
+.slotbar_toolbar .th_querybox_item::after {
+    content: '';
+    position: absolute;
+    right: 0.4em;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0.6em;
+    height: 0.4em;
+    background-color: currentColor;
+    -webkit-mask-image: var(--icon-dropdown);
+    mask-image: var(--icon-dropdown);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+}
+
+.slotbar_toolbar .th_querybox_item.th_queryboxfield::after {
+    display: none;
 }
 
 .th_querybox_item.run {
@@ -91,6 +110,8 @@
 }
 
 .slotbar_toolbar .th_querybox_item.th_queryboxfield {
+    display: flex;
+    align-items: center;
     background: var(--surface-bg);
     color: var(--text-color);
     cursor: text;
@@ -99,19 +120,14 @@
     box-shadow: inset 0 0.0625em 0.0625em var(--btn-border-color);
 }
 
-.slotbar_cell .formbuilder.th_querysampleform {
-    margin-top: 0.125em;
-}
-
-.th_queryboxfield .dijitInputField,
 .th_queryboxfield .dijitTextBox {
     border: 0;
-    padding-top: 0 !important;
-    vertical-align: middle;
-    border-left: 0 !important;
-    border-top: 0 !important;
-    border-bottom: 0 !important;
-    top: -0.0625em;
+    width: 100%;
+}
+
+.th_queryboxfield .dijitInputField {
+    border: 0 !important;
+    padding: 0 !important;
 }
 
 .slotbar_toolbar .th_querybox_item:last-child {

@@ -19,7 +19,6 @@
 
 .slotbar_toolbar_standard .quickgrid_toolsbox.quickgrid_toolsbox_top{
     border-color: transparent;
-    top:-1px;
 }
 
 .pbl_roundedGroupLabel .quickgrid_toolsbox{
@@ -91,13 +90,12 @@
 /* @group multibutton */
 
 .multibutton_container{
-    padding-top:1px;
-    padding-bottom:1px;
-    line-height:3ex;
     font-size: .9em;
+    line-height: 1.5em;
     font-variant:small-caps;
     display: flex;
     flex-direction: row;
+    align-items: center;
 }
 
 .multibutton_container.hidden{
@@ -107,9 +105,6 @@
     overflow: hidden;
 }
 .multibutton_container.multibutton_itemsContainer{
-    padding-top:0;
-    padding-bottom:0;
-    line-height:unset;
     font-size:unset;
 }
 .multibutton_scrollNext{

@@ -309,9 +309,7 @@ div.cellContent{
 }
 
 .slotbar_toolbar .gnrfieldlabel {
-    /*vertical-align: middle;*/
     color: var(--text-muted);
-    margin-top:2px;
     white-space: nowrap;
     padding-left:4px;
 }

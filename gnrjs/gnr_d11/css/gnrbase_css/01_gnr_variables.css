@@ -202,6 +202,9 @@
     --icon-wnd-minimize: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='5' y='11' width='14' height='2' rx='1'/%3E%3C/svg%3E");
     --icon-wnd-maximize: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 5h14v14H5V5zm2 2v10h10V7H7z'/%3E%3C/svg%3E");
 
+    /* --- Dropdown indicators --- */
+    --icon-dropdown: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+
     /* --- Splitters --- */
     --splitter-size: 5px;
     --splitter-bg: var(--surface-light);
