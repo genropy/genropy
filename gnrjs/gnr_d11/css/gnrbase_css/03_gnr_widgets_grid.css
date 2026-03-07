@@ -139,27 +139,39 @@ div.cellContent{
 
 .textAreaWrapper{
     position: relative;
-    display: inline-block;
+    display: flex;
+    flex-direction: column;
 }
 
 .dojoxFloatingPane.dijitContentPane{
     overflow: hidden;
 }
-.dijitContentPane>.textAreaWrapper{
+.dijitContentPane>.textAreaWrapper,
+.pbl_roundedGroupContent>.textAreaWrapper{
     position: absolute;
     display: block;
-    top:0px;
-    left:0px;
-    right:0px;
-    bottom:0px;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
 }
 
-.dijitContentPane>.textAreaWrapper .textAreaWrapperArea{
+.dijitContentPane>.textAreaWrapper .textAreaWrapperArea,
+.pbl_roundedGroupContent>.textAreaWrapper .textAreaWrapperArea{
     position: absolute;
-    top:2px;
-    left:2px;
-    right:2px;
-    bottom:20px;
+    top: 2px;
+    left: 2px;
+    right: 2px;
+    bottom: 20px;
+}
+
+.dijitContentPane>.textAreaWrapper .textAreaWrapperButtons,
+.pbl_roundedGroupContent>.textAreaWrapper .textAreaWrapperButtons{
+    position: absolute;
+    display: block;
+    bottom: 1px;
+    height: 18px;
+    border-top: 0;
 }
 .quickTooltipContainer{
     padding: 10px;
@@ -206,40 +218,21 @@ div.cellContent{
 }
 
 .textAreaWrapperArea{
-    position:relative;
-    /*width:100%;*/
+    flex: 1;
+    min-height: 0;
+    position: relative;
 }
 .textAreaWrapperButtons{
-    position: relative;
-    display: inline-block;
-    border-bottom: 1px solid var(--border-color);
-    border-left: 1px solid var(--border-color);
-    border-right: 1px solid var(--border-color);
-    border-top:1px solid var(--border-color);
+    flex-shrink: 0;
+    border: 1px solid var(--border-color);
     border-bottom-right-radius: var(--radius-controls);
     border-bottom-left-radius: var(--radius-controls);
-    left: 10px;
+    margin-left: 0.6em;
     background: var(--surface-light);
 }
 
 .textAreaWrapperInTable .textAreaWrapperButtons{
     opacity: 0;
-    top: -1px;
-}
-.textAreaWrapperInTable .textAreaWrapperButtons{
-    top: -4px;
-}
-
-.textAreaWrapperInTable.textAreaIsEditor .textAreaWrapperButtons{
-    top: -1px;
-}
-
-.dijitContentPane>.textAreaWrapper .textAreaWrapperButtons{
-    position: absolute;
-    display: block;
-    bottom:1px;
-    height:18px;
-    border-top:0;
 }
 
 .textAreaWrapper:hover .textAreaWrapperButtons{

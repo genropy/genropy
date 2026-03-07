@@ -342,10 +342,8 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
     box-shadow: none;
 }
 
-.pbl_roundedGroup .framegrid_center {
-    background: var(--roundedgroup-surface);
-    border: 1px solid var(--border-strong, #aab4c4);
-    box-shadow: var(--shadow-sm);
+.framegrid_center {
+    border-top: 1px solid var(--border-strong, #aab4c4);
 }
 
 .pbl_roundedGroupLabel {
