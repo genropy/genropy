@@ -162,14 +162,11 @@
     flex-direction: row-reverse;
     gap: 0.5em;
     align-items: center;
+    justify-content: flex-start;
     padding: 0.8em 1.2em;
 }
 .dlg_ask_btnBox .dijitButton{
-    flex: 1;
     margin: 0;
-}
-.dlg_ask_btnBox .dijitButtonNode{
-    width: 100%;
 }
 .alertBodyMessage{
     color: var(--dlg-msg-color, #444);
