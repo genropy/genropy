@@ -70,6 +70,29 @@
     --grid-row-selected-bg: rgba(175, 203, 236, .8);
     --grid-row-deleted-color: #b50000;
     --grid-cell-hover-bg: #F8FFD9;
+    --grid-cell-border-color: #D5CDB5;
+    --grid-cell-hover-bg-lazy: #E6F9FF;
+    --grid-cell-hover-bg-disabled: #FFE7DD;
+    --grid-cell-changed-bg: #C7FFB4;
+    --grid-cell-copy-bg: rgba(241, 145, 53, 0.50);
+    --grid-cell-focus-border: #949494;
+    --grid-cell-over-border: #a6a6a6;
+    --grid-draft-color: rgba(64, 128, 180, 1.00);
+    --grid-lineno-color: rgba(64, 128, 180, 1.00);
+    --grid-paste-bg: rgba(58, 84, 186, 0.05);
+    --grid-reporting-header-bg: #114E88;
+    --grid-reporting-header-color: white;
+    --grid-footer-item-bg: rgba(255, 227, 60, .2);
+    --grid-footer-filter-bg: rgba(221, 150, 90, 0.20);
+    --grid-btn-bg: #CDCDCD;
+    --grid-btn-selected-bg: #888;
+    --grid-btn-selected-shadow: inset 1px 1px 2px #222;
+
+    /* --- Drag & Drop --- */
+    --drop-valid-bg: rgba(0, 255, 0, 0.15);
+    --drop-invalid-bg: rgba(255, 60, 0, 0.15);
+    --drop-header-valid-bg: #8fff9d;
+    --drop-header-invalid-bg: #ffa997;
 
     /* --- TreeGrid --- */
     --treegrid-header-bg: #204174;
@@ -136,6 +159,14 @@
     --field-readonly-bg: #F2F2F7;
     --field-focus-bg: #fff;
     --gnrfieldlabel-color: #8E8E93;
+
+    /* --- Formlet fields (theme-overridable) --- */
+    --formlet-field-border: var(--field-border);
+    --formlet-field-bg: var(--field-bg);
+    --formlet-field-border-width: 1px;
+    --formlet-field-radius: var(--radius-controls);
+    --formlet-label-font-weight: bold;
+    --formlet-label-font-size: .9em;
 
     /* --- topLabelTable --- */
     --topLabelTable-border-top: none;

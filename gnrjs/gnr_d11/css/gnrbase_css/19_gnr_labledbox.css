@@ -229,3 +229,27 @@
 ._common_d11 .slotbar_cell .gnrgridbox .dijitTextBox,._common_d11 .slotbar_cell .gnrgridbox .dijitComboBox,._common_d11 .slotbar_cell .gnrgridbox .dijitSpinner{
     width:15em;
 }
+
+/* --- Formlet field overrides (theme-dependent) --- */
+.gnrgridbox.formlet .dijitTextBox,
+.gnrgridbox.formlet .dijitComboBox,
+.gnrgridbox.formlet .dijitSpinner,
+.gnrgridbox.formlet .dijitTextArea{
+    border-width: var(--formlet-field-border-width);
+    border-color: var(--formlet-field-border);
+    border-style: solid;
+    background: var(--formlet-field-bg);
+    border-radius: var(--formlet-field-radius);
+    padding: 0.3em 0.5em;
+}
+
+.gnrgridbox.formlet .dijitTextBox.dijitFocused,
+.gnrgridbox.formlet .dijitComboBox.dijitFocused{
+    border-color: var(--accent-color);
+}
+
+/* Formlet label (theme-dependent) */
+.gnrgridbox.formlet .labledBox_top > .labledBox_label{
+    font-weight: var(--formlet-label-font-weight);
+    font-size: var(--formlet-label-font-size);
+}

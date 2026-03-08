@@ -261,8 +261,16 @@
     visibility: hidden;
 }
 .dateTextBoxCal{
-    background: url(../icons/base12/calsmall.png) no-repeat center center;
-    opacity:.6;
+    background-color: var(--text-secondary, #636366);
+    -webkit-mask-image: url(/_rsrc/common/css_icons/svg/16/calendar.svg);
+    mask-image: url(/_rsrc/common/css_icons/svg/16/calendar.svg);
+    -webkit-mask-size: 0.85em 0.85em;
+    mask-size: 0.85em 0.85em;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    opacity: .7;
 }
 
 .timeTextBoxWatch{

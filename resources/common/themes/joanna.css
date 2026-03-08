@@ -25,5 +25,13 @@ body {
     --field-disabled-bg: #F2F2F7;
     --field-readonly-border: #C7C7CC;
     --field-readonly-bg: #F2F2F7;
+
+    /* --- Formlet fields: Light outlined style --- */
+    --formlet-field-border: var(--primary-light);
+    --formlet-field-bg: white;
+    --formlet-field-border-width: 1px;
+    --formlet-field-radius: var(--radius-controls);
+    --formlet-label-font-weight: normal;
+    --formlet-label-font-size: .8em;
 }
 /* @end */
