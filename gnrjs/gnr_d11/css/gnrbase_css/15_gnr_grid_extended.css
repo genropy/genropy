@@ -25,7 +25,7 @@
 }
 
 ._common_d11 .dojoxGrid.pasteOnGrid.focusedGrid{
-    background: rgba(58, 84, 186, 0.05);
+    background: var(--grid-paste-bg);
 }
 
 ._common_d11 .dojoxGrid-scrollbox {
@@ -73,11 +73,11 @@
 
 /* --- Row colors --- */
 ._common_d11 .dojoxGrid-row .dojoxGrid-cell {
-    background-color: whitesmoke;
+    background-color: var(--grid-row-bg);
 }
 
 ._common_d11 .dojoxGrid-row-odd .dojoxGrid-cell {
-    background-color: #e4e4e4;
+    background-color: var(--grid-row-odd-bg);
 }
 
 ._common_d11 .dojoxGrid-row-odd {
@@ -89,7 +89,7 @@
 }
 
 ._common_d11 .dojoxGrid-row-selected .dojoxGrid-cell {
-    background-color: #AEC7E3;
+    background-color: var(--grid-row-selected-bg);
 }
 
 ._common_d11 .dojoxGrid-row-over .dojoxGrid-cell-focus {
@@ -98,22 +98,22 @@
 
 /* --- No-over and no-select variants --- */
 ._common_d11 .no_over .dojoxGrid-row .dojoxGrid-cell {
-    background-color: whitesmoke;
+    background-color: var(--grid-row-bg);
 }
 
 ._common_d11 .no_over .dojoxGrid-row-over .dojoxGrid-cell {
-    background-color: whitesmoke;
+    background-color: var(--grid-row-bg);
 }
 ._common_d11 .no_over .dojoxGrid-row-selected .dojoxGrid-cell {
-    background-color: #AEC7E3;
+    background-color: var(--grid-row-selected-bg);
 }
 
 ._common_d11 .noselect .dojoxGrid-row .dojoxGrid-cell {
-    background-color: whitesmoke;
+    background-color: var(--grid-row-bg);
 }
 
 ._common_d11 .noselect .dojoxGrid-row-selected .dojoxGrid-cell {
-    background-color: whitesmoke;
+    background-color: var(--grid-row-bg);
 }
 
 /* --- MultiValueEditor --- */
@@ -231,8 +231,8 @@
 .gr_columnset .groupcontent{
     border-top-left-radius: var(--radius-panels);
     border-top-right-radius: var(--radius-panels);
-    background: #114E88;
-    color:white;
+    background: var(--grid-reporting-header-bg);
+    color: var(--grid-reporting-header-color);
     padding-bottom: 1px;
     padding-top: 1px;
     text-align: center;
@@ -262,10 +262,10 @@
 .gr_footer.gr_scrollbox{
     overflow: auto;
     border-top:1px solid var(--grid-border-color);
-    background: whitesmoke;
+    background: var(--grid-row-bg);
 }
 .gr_footer.gr_scrollbox .gr_itemcontainer{
-    background: rgba(255, 227, 60, .2);
+    background: var(--grid-footer-item-bg);
 }
 
 ._common_d11 .gr_wrap_footers .dojoxGrid-scrollbox{
@@ -277,11 +277,11 @@
 }
 
 .gridFilterActive .gr_footer.gr_scrollbox .gr_itemcontainer{
-    background: rgba(221, 150, 90, 0.20);
+    background: var(--grid-footer-filter-bg);
 }
 
 .multiSelectionActive .gr_footer.gr_scrollbox .gr_itemcontainer{
-    background: rgba(221, 150, 90, 0.20);
+    background: var(--grid-footer-filter-bg);
 }
 
 .grid_filler{
@@ -297,7 +297,7 @@
 
 /* --- Grid line number --- */
 ._common_d11 .dojoxGrid-row .gnrgridlineno.dojoxGrid-cell{
-    color:rgba(64, 128, 180, 1.00);
+    color: var(--grid-lineno-color);
 }
 
 /* --- Buttons grid (moved from theme_shared) --- */
@@ -335,16 +335,16 @@
     font-size: 8pt;
     font-variant:small-caps;
     color:var(--text-muted);
-    background-color: #CDCDCD;
+    background-color: var(--grid-btn-bg);
     border: 1px solid var(--text-muted);
     cursor:pointer;
     margin-top:2px;
 }
 
 .buttons_grid .dojoxGrid-row-selected .cellContent{
-    background:#888;
-    color: #fff;
-    box-shadow: inset 1px 1px 2px #222;
+    background: var(--grid-btn-selected-bg);
+    color: var(--surface-bg);
+    box-shadow: var(--grid-btn-selected-shadow);
 }
 
 .grouper_buttons.buttons_grid .cellContent{
@@ -359,14 +359,14 @@
     font-variant:normal;
     color:var(--text-muted);
     background-color: var(--surface-bg);
-    border: 1px solid #aaa;
+    border: 1px solid var(--border-color);
     cursor:pointer;
     margin-top:5px;
 }
 
 .grouper_buttons.buttons_grid .dojoxGrid-row-selected .cellContent{
-    background:#888;
-    color: #fff;
+    background: var(--grid-btn-selected-bg);
+    color: var(--surface-bg);
 }
 
 /* --- Grid rows/header (from theme_shared) --- */
@@ -425,12 +425,12 @@
 
 ._common_d11 .editingGrid .dojoxGrid-row-odd.dojoxGrid-row-selected,
 ._common_d11 .noselect .dojoxGrid-row-odd.dojoxGrid-row-selected {
-    background-color: #F3F6FA;
+    background-color: var(--grid-row-odd-bg);
 }
 
 ._common_d11 .editingGrid .dojoxGrid-row.dojoxGrid-row-selected,
 ._common_d11 .noselect .dojoxGrid-row.dojoxGrid-row-selected {
-    background-color: rgba(255,255,255,.5);
+    background-color: var(--grid-row-bg);
 }
 
 ._common_d11 .dojoxGrid-row {
@@ -449,10 +449,10 @@
 }
 
 ._common_d11 .canBeDropped .dojoxGrid-row.dojoxGrid-row-odd {
-    background-color: rgba(243, 246, 250, 0.5);
+    background-color: var(--grid-row-odd-bg);
 }
 ._common_d11 .canBeDropped .dojoxGrid-row {
-    background-color: rgba(255, 255, 255, 0.5);
+    background-color: var(--grid-row-bg);
 }
 
 ._common_d11 .noheader .dojoxGrid-header {

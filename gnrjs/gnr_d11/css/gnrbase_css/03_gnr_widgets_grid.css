@@ -10,7 +10,7 @@
 
 .gnrDraftRow{
     font-style: italic;
-    color: rgba(64, 128, 180, 1.00);
+    color: var(--grid-draft-color);
 }
 
 ._common_d11 ._gnrReadOnlyRow ._statusIcon{
@@ -28,7 +28,7 @@
 }
 
 ._common_d11 .dojoxGrid-cell {
-	border: 1px dotted #D5CDB5;
+	border: 1px dotted var(--grid-cell-border-color);
 	border-top: 0px;
 	padding: 1px;
 	text-align: left;
@@ -44,8 +44,8 @@ div.cellContent{
     -moz-transition-duration:0;
     -webkit-transition-duration:0;
     transition-duration:0;
-    line-height:15px;
-    min-height: 15px;
+    line-height: 1.1em;
+    min-height: 1.1em;
     border:1px solid transparent;
 }
 
@@ -55,16 +55,16 @@ div.cellContent{
 }
 
 .cell_editable.cell_editLazy .cellContent:hover{
-    background: #E6F9FF;
+    background: var(--grid-cell-hover-bg-lazy);
 }
 
 .cell_editable.cell_disabled .cellContent:hover{
-    background: #FFE7DD;
+    background: var(--grid-cell-hover-bg-disabled);
     cursor: not-allowed;
 }
 
 .externalChangedCell .cellContent{
-    background-color:#C7FFB4;
+    background-color: var(--grid-cell-changed-bg);
 }
 
 .onExternalChanged .externalChangedCell .cellContent{
@@ -83,30 +83,30 @@ div.cellContent{
     -webkit-transition-duration:1s;
     transition-duration:1s;
     transition-property:background-color;
-    background-color:rgba(241, 145, 53, 0.50);
+    background-color: var(--grid-cell-copy-bg);
 }
 .currentContextTarget.cellContent{
-    background-color:#C7FFB4;
+    background-color: var(--grid-cell-changed-bg);
 }
 
 .dj_ie6 ._common_d11 .dojoxGrid-cell {
 	border: 1px solid white;
-	border-right: 1px solid #D5CDB5;
+	border-right: 1px solid var(--grid-cell-border-color);
 }
 ._common_d11 .dojoxGrid-cell-focus {
-	border: 1px solid #949494;
+	border: 1px solid var(--grid-cell-focus-border);
 	border-top:0px;
 	border-left:0px;
 
 }
 ._common_d11 .dojoxGrid-cell-over {
-	border: 1px dotted #a6a6a6;
+	border: 1px dotted var(--grid-cell-over-border);
 	border-top: 0px;
 
 }
 
 ._common_d11 .dojoxGrid-cell-focus.dojoxGrid-cell-over {
-	border: 1px solid #949494;
+	border: 1px solid var(--grid-cell-focus-border);
 	border-top:0px;
 	border-left:0px;
 }
@@ -283,14 +283,14 @@ div.cellContent{
     border:0px;
 }
 ._common_d11 .cke_top{
-    background-image: linear-gradient(to bottom, var(--surface-light), #E9E9E9);
+    background: var(--surface-light);
 }
 
 ._common_d11 .dijitTextBoxFocused .cls_DbSelect, ._common_d11 .dijitComboBoxFocused .cls_DbSelect{
     background-color: var(--field-focus-bg, #fff);
 }
 ._common_d11 .slotbar_toolbar .dijitTextAreaFocused,._common_d11 .slotbar_toolbar .dijitTextBoxFocused,._common_d11 .slotbar_toolbar .dijitComboBoxFocused{
-    box-shadow: 0px 0px 1px #488fd7;
+    box-shadow: 0 0 1px var(--accent-color);
 }
 
 ._common_d11 .hideInnerToolbars .slotbar_toolbar{

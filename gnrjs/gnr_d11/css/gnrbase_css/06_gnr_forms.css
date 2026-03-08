@@ -88,7 +88,7 @@ label.ghostlabel span {
 	display: none;
 }
 ._common_d11 .bagEditor .dojoxGrid-cell{
-    height:17px;
+    height: 1.2em;
 }
 .pasteOnGrid .dojoxGrid-cell{
     caret-color: rgb(146, 140, 140);

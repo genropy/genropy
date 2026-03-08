@@ -7,11 +7,11 @@
 /* @group drag drop */
 
 .canBeDropped {
-    background-color: rgba(0, 255, 0, 0.15) !important;
+    background-color: var(--drop-valid-bg) !important;
 }
 
 .cannotBeDropped {
-    background-color: rgba(255, 60, 0, 0.15) !important;
+    background-color: var(--drop-invalid-bg) !important;
 }
 
 img.canBeDropped {
@@ -20,15 +20,15 @@ img.canBeDropped {
 }
 
 img.cannotBeDropped {
-    background-color: #ffa997 !important;
+    background-color: var(--drop-header-invalid-bg) !important;
 }
 
 .dojoxGrid-header .canBeDropped {
-    background: #8fff9d !important;
+    background: var(--drop-header-valid-bg) !important;
 }
 
 .dojoxGrid-header .cannotBeDropped {
-    background: #ffa997 !important;
+    background: var(--drop-header-invalid-bg) !important;
 }
 
 .rowsetdragging {
