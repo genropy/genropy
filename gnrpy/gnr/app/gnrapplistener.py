@@ -67,4 +67,14 @@ class GnrAppListener:
                 if channel is None:
                     continue
                 listener.register(channel, method, table=dbtable.fullname)
+        for pkg_name, pkg in self.app.packages.items():
+            for attr_name in dir(pkg):
+                try:
+                    method = getattr(pkg, attr_name)
+                except Exception:
+                    continue
+                channel = getattr(method, '_listen_channel', None)
+                if channel is None:
+                    continue
+                listener.register(channel, method, package=pkg_name)
         listener.run()

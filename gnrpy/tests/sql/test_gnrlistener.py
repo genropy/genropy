@@ -4,7 +4,7 @@ Covers:
 - @listen with and without arguments
 - tblobj.notify() sends NOTIFY with correct payload
 - GnrListener autodiscovery of decorated methods
-- GnrListener dispatch with table filtering
+- GnrListener dispatch with table and package filtering
 """
 
 import datetime
@@ -85,6 +85,49 @@ class TestGnrListenerRegister:
     def test_matches_empty_filters(self):
         listener = self._make_listener()
         assert listener._matches({'table': 'invc.invoice'}, {})
+
+
+class TestGnrListenerPackageFilter:
+    """_matches with package filter requires a real db to resolve table pkg."""
+
+    def test_matches_package_filter(self, db_pg):
+        listener = GnrListener(db_pg.application, timeout=1, coalesce=0)
+        assert listener._matches({'table': 'invc.invoice', 'event': 'I'},
+                                  {'package': 'invc'})
+
+    def test_matches_package_filter_rejects(self, db_pg):
+        listener = GnrListener(db_pg.application, timeout=1, coalesce=0)
+        assert not listener._matches({'table': 'invc.invoice', 'event': 'I'},
+                                      {'package': 'adm'})
+
+    def test_matches_package_filter_no_table(self, db_pg):
+        listener = GnrListener(db_pg.application, timeout=1, coalesce=0)
+        assert not listener._matches({'event': 'I'}, {'package': 'invc'})
+
+    def test_dispatch_with_package_filter(self, db_pg):
+        listener = GnrListener(db_pg.application, timeout=1, coalesce=0)
+        received = []
+        listener.register('dbevent', lambda p: received.append(p), package='invc')
+
+        class FakeNotify:
+            channel = 'dbevent'
+            payload = toTypedJSON({'table': 'invc.invoice', 'pkey': '1', 'event': 'I'})
+
+        listener._dispatch(FakeNotify())
+        assert len(received) == 1
+        assert received[0]['table'] == 'invc.invoice'
+
+    def test_dispatch_package_filter_skips_other_pkg(self, db_pg):
+        listener = GnrListener(db_pg.application, timeout=1, coalesce=0)
+        received = []
+        listener.register('dbevent', lambda p: received.append(p), package='adm')
+
+        class FakeNotify:
+            channel = 'dbevent'
+            payload = toTypedJSON({'table': 'invc.invoice', 'pkey': '1', 'event': 'I'})
+
+        listener._dispatch(FakeNotify())
+        assert len(received) == 0
 
 
 # -- GnrListener dispatch ----------------------------------------------------
@@ -197,10 +240,10 @@ class TestTableNotify:
 # -- Autodiscovery integration -----------------------------------------------
 
 class TestAutodiscovery:
-    """GnrApp.listen() autodiscovery of @listen methods on table classes."""
+    """GnrApp.listen() autodiscovery of @listen methods on table classes and packages."""
 
     def test_discover_listen_methods(self, db_pg):
-        """Manually simulate what GnrApp.listen() does: scan tables for @listen."""
+        """Manually simulate what GnrAppListener does: scan tables for @listen."""
         listener = GnrListener.__new__(GnrListener)
         listener._handlers = {}
 
@@ -215,8 +258,24 @@ class TestAutodiscovery:
                     continue
                 listener.register(channel, method, table=dbtable.fullname)
 
-        # At minimum, the scan completes without error.
-        # If no tables have @listen yet, that's fine — the mechanism works.
+        assert isinstance(listener._handlers, dict)
+
+    def test_discover_package_methods(self, db_pg):
+        """Scan packages for @listen methods and register with package filter."""
+        listener = GnrListener.__new__(GnrListener)
+        listener._handlers = {}
+
+        for pkg_name, pkg in db_pg.application.packages.items():
+            for attr_name in dir(pkg):
+                try:
+                    method = getattr(pkg, attr_name)
+                except Exception:
+                    continue
+                channel = getattr(method, '_listen_channel', None)
+                if channel is None:
+                    continue
+                listener.register(channel, method, package=pkg_name)
+
         assert isinstance(listener._handlers, dict)
 
 
