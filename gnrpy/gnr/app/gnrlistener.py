@@ -161,7 +161,14 @@ class GnrListener:
     def _matches(self, payload, filters):
         """Check if payload matches all filter criteria."""
         for key, value in filters.items():
-            if payload.get(key) != value:
+            if key == 'package':
+                table_name = payload.get('table')
+                if not table_name:
+                    return False
+                tblobj = self.db.table(table_name)
+                if tblobj.pkg.name != value:
+                    return False
+            elif payload.get(key) != value:
                 return False
         return True
 
