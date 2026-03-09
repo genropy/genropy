@@ -21,7 +21,6 @@
 
 
 from gnr.core.gnrdecorator import public_method
-from gnr.core.gnrbag import Bag
 
 FONTFAMILIES = """Arial, Helvetica, sans-serif
 Verdana, Geneva, sans-serif
@@ -48,14 +47,16 @@ class AppPref(object):
         fb = pane.formlet(cols=1, border_spacing='4px', datapath='.theme')
         current_theme = (self.css_theme or 'joanna').capitalize()
         current_variant = (self.css_theme_variant or 'base').capitalize()
-        fb.remoteSelect(value='^.css_theme', lbl='!![en]Theme',
-                        _tags='_DEV_', hasDownArrow=True,
-                        method=self.getThemesForPref,
-                        placeholder=current_theme,
-                        validate_onAccept="""if(userChange){
-                                                SET .css_theme_variant = null;
-                                                SET .color_variant = null;
-                                             }""")
+        fb.dataRpc('#FORM.theme_available_themes', self.getAvailableThemes,
+                   _onBuilt=True)
+        fb.filteringSelect(value='^.css_theme',
+                           values='^#FORM.theme_available_themes',
+                           lbl='!![en]Theme', _tags='_DEV_',
+                           placeholder=current_theme,
+                           validate_onAccept="""if(userChange){
+                                                   SET .css_theme_variant = null;
+                                                   SET .color_variant = null;
+                                                }""")
         fb.dataRpc('#FORM.theme_available_variants', self.getAvailableThemeVariants,
                    theme='^.css_theme', _onBuilt=True)
         fb.filteringSelect(value='^.css_theme_variant',
@@ -75,36 +76,6 @@ class AppPref(object):
         fb.textbox(value='^.palette_steps', lbl='!![en]Default color steps', _tags='_DEV_')
         fb.checkBox(value='^.use_formlets', label='!!Use formlets')
         fb.checkBox(value='^.tinymce_beta', label='!!Use TinyMCE (beta)')
-
-    @public_method
-    def getThemesForPref(self, **kwargs):
-        themes_str = self.getAvailableThemes()
-        result = Bag()
-        for v in themes_str.split(','):
-            v = v.strip()
-            if v:
-                result.setItem(v, None, caption=v.capitalize(), _pkey=v)
-        return result, dict(columns='caption', headers='Theme')
-
-    @public_method
-    def getThemeVariantsForPref(self, theme=None, **kwargs):
-        variants_str = self.getAvailableThemeVariants(theme=theme)
-        result = Bag()
-        for v in variants_str.split(','):
-            v = v.strip()
-            if v:
-                result.setItem(v, None, caption=v.capitalize(), _pkey=v)
-        return result, dict(columns='caption', headers='Variant')
-
-    @public_method
-    def getColorVariantsForPref(self, theme=None, theme_variant=None, **kwargs):
-        variants_str = self.getAvailableColorVariants(theme=theme, theme_variant=theme_variant)
-        result = Bag()
-        for v in variants_str.split(','):
-            v = v.strip()
-            if v:
-                result.setItem(v, None, caption=v.capitalize(), _pkey=v)
-        return result, dict(columns='caption', headers='Color variant')
 
     def printPreferences(self, pane):
         fb = pane.roundedGroup(title='!![en]Print Modes',
