@@ -8,15 +8,21 @@ Covers:
 """
 
 import datetime
+import importlib
 import select
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 import psycopg
 
+from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrdecorator import listen
 from gnr.core.gnrstring import fromTypedJSON, toTypedJSON
+from gnr.app.gnrapplistener import GnrAppListener
 from gnr.app.gnrlistener import GnrListener
+import gnr.app.cli.gnrlisten as cli_mod
 
 
 # -- @listen decorator -------------------------------------------------------
@@ -183,12 +189,10 @@ class TestGnrListenerDispatch:
 
     def test_dispatch_with_thread_pool(self):
         """With workers > 1, handlers run in threads."""
-        import threading
-
         class FakeApp:
             db = None
         listener = GnrListener(FakeApp(), timeout=1, coalesce=0, workers=2)
-        listener._executor = __import__('concurrent.futures', fromlist=['ThreadPoolExecutor']).ThreadPoolExecutor(max_workers=2)
+        listener._executor = ThreadPoolExecutor(max_workers=2)
 
         results = []
         listener.register('dbevent', lambda p: results.append(threading.current_thread().name),
@@ -333,7 +337,6 @@ class TestGnrAppListener:
     """GnrAppListener wraps GnrApp and performs autodiscovery."""
 
     def test_init_with_app_instance(self, db_pg):
-        from gnr.app.gnrapplistener import GnrAppListener
         app_listener = GnrAppListener(db_pg.application, timeout=2, coalesce=0, workers=3)
         assert app_listener.app is db_pg.application
         assert app_listener.timeout == 2
@@ -341,22 +344,18 @@ class TestGnrAppListener:
         assert app_listener.workers == 3
 
     def test_init_stores_defaults(self, db_pg):
-        from gnr.app.gnrapplistener import GnrAppListener
         app_listener = GnrAppListener(db_pg.application)
         assert app_listener.timeout == 5
         assert app_listener.coalesce == 1
         assert app_listener.workers == 1
 
 
-# -- CLI gnrapplisten --------------------------------------------------------
+# -- CLI gnrlisten -----------------------------------------------------------
 
-class TestGnrAppListenCli:
-    """CLI parser for gnrapplisten exposes the correct arguments."""
+class TestGnrListenCli:
+    """CLI parser for gnrlisten exposes the correct arguments."""
 
     def test_parser_arguments(self):
-        from gnr.core.cli import GnrCliArgParse
-        import gnr.app.cli.gnrapplisten as cli_mod
-
         parser = GnrCliArgParse(description=cli_mod.description)
         parser.add_argument('instance')
         parser.add_argument('-w', '--workers', type=int, default=1)
@@ -370,9 +369,6 @@ class TestGnrAppListenCli:
         assert args.coalesce == 2
 
     def test_parser_defaults(self):
-        from gnr.core.cli import GnrCliArgParse
-        import gnr.app.cli.gnrapplisten as cli_mod
-
         parser = GnrCliArgParse(description=cli_mod.description)
         parser.add_argument('instance')
         parser.add_argument('-w', '--workers', type=int, default=1)
@@ -386,8 +382,7 @@ class TestGnrAppListenCli:
         assert args.coalesce == 1
 
     def test_entry_point_registered(self):
-        """gnrapplisten entry point is registered in pyproject.toml."""
-        import importlib
-        mod = importlib.import_module('gnr.app.cli.gnrapplisten')
+        """gnrlisten is importable and has a main function."""
+        mod = importlib.import_module('gnr.app.cli.gnrlisten')
         assert hasattr(mod, 'main')
         assert callable(mod.main)
