@@ -1,11 +1,13 @@
 import os
 import sys
+import ast
 import site
 import glob
 import pathlib
 import shutil
 import random
 import string
+from pathlib import Path
 from collections import defaultdict
 from venv import EnvBuilder
 
@@ -873,9 +875,11 @@ class ThPackageResourceMaker(object):
                  filename=None, output=None):
         self.option_force = force
         self.option_menu = menu
-        logger.debug("Guessing column width by data size: ACTIVE")
+        self.option_output = filename or output
         self.option_columns = columns
         self.option_guess_size = guess_size
+        if self.options_guess_size:
+            logger.debug("Guessing column width by data size: ACTIVE")
         self.option_indent = indent
         self.pkg_tables = defaultdict(list)
         self.app = application 
@@ -895,17 +899,74 @@ class ThPackageResourceMaker(object):
 
     def makeMenu(self):
         hasLookups = False
-        menupath = os.path.join(self.packageFolder,'menu.py')
-        m = MenuStruct()
-        for t in self.tables:
-            tblobj = self.app.db.table('%s.%s' %(self.package,t))
-            if tblobj.attributes.get('lookup'):
-                hasLookups = True
-            else:
-                m.thpage(tblobj.name_plural or tblobj.name_long, table=tblobj.fullname)
-        if hasLookups:
-            m.lookupBranch("Lookup tables", pkg=self.package)
-        m.toPython(menupath)
+        menupath = Path(self.packageFolder) / 'menu.py'
+        if menupath.exists():
+            logger.info("Menu file %s exists, appending", menupath)
+            source = menupath.read_text(encoding="utf-8")
+            tree = ast.parse(source)
+            lines = source.splitlines(keepends=True)
+            class Finder(ast.NodeVisitor):
+                """
+                Simple AST visitor to search for the root branch assignment
+                and add a new page to such branch
+                """
+                def __init__(self):
+                    self.config_func = None
+                    self.branch_var = None
+                def visit_ClassDef(self, node):
+                    if node.name != "Menu":
+                        return
+                    for item in node.body:
+                        if isinstance(item, ast.FunctionDef) and item.name == "config":
+                            self.config_func = item
+                            self._find_branch_assignment(item)
+                            return
+                def _find_branch_assignment(self, func):
+                    for stmt in func.body:
+                        if not isinstance(stmt, ast.Assign):
+                            continue
+                        if len(stmt.targets) != 1:
+                            continue
+                        target = stmt.targets[0]
+                        if not isinstance(target, ast.Name):
+                            continue
+                        value = stmt.value
+                        if not isinstance(value, ast.Call):
+                            continue
+                        func_attr = value.func
+                        if (
+                                isinstance(func_attr, ast.Attribute)
+                                and isinstance(func_attr.value, ast.Name)
+                                and func_attr.value.id == "root"
+                                and func_attr.attr == "branch"
+                        ):
+                            self.branch_var = target.id
+                            return
+
+            finder = Finder()
+            finder.visit(tree)
+            if not finder.config_func:
+                raise RuntimeError("Menu.config not found")
+            if finder.branch_var is None:
+                raise RuntimeError("Root branch not found")
+            insert_at = finder.config_func.end_lineno
+            for item in self.packageMenus[package]['auto']:
+                new_line = f"\n        {finder.branch_var}.thpage(u'{item.attr['label']}', table='{item.attr['table']}')"
+                lines.insert(insert_at, new_line)
+                insert_at += 1
+            menupath.write_text("".join(lines), encoding="utf-8")
+
+        else:
+            m = MenuStruct()
+            for t in self.tables:
+                tblobj = self.app.db.table('%s.%s' %(self.package,t))
+                if tblobj.attributes.get('lookup'):
+                    hasLookups = True
+                else:
+                    m.thpage(tblobj.name_plural or tblobj.name_long, table=tblobj.fullname)
+            if hasLookups:
+                m.lookupBranch("Lookup tables", pkg=self.package)
+            m.toPython(menupath)
 
     def write(self,line=None, indent=0):
         line = line or ''
@@ -998,10 +1059,13 @@ class ThPackageResourceMaker(object):
         if not os.path.exists(resourceFolder):
             os.makedirs(resourceFolder, exist_ok=True)
         name = 'th_%s.py'%table
-        path = os.path.join(resourceFolder, name)
+        path = os.path.join(resourceFolder, name) if not self.option_output else self.option_output
         if os.path.exists(path) and not self.option_force:
             logger.warning('%s exist: will be skipped, use -f/--force to force replace', name)
             return
+        
+        column_groups = defaultdict(list)
+        columns = []
         view_columns=[]
         form_columns=[]
         max_size = 35
