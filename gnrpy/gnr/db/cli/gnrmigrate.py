@@ -210,6 +210,10 @@ def main():
                         dest='instance',
                         help="Use command on instance")
     parser.add_argument("instance")
+    parser.add_argument('-e', '--extensions',
+                        dest='extensions',
+                        choices=['txt','json','sql'],
+                        help="List the needed extension in the provided format")
     parser.add_argument('-D', '--directory',
                         dest='directory',
                         help="Use command on supplied directory")
@@ -252,12 +256,24 @@ def main():
                                force=options.force,
                                backup=options.backup)
         migrator.prepareMigrationCommands()
+
+        if options.extensions:
+            # we only need the needed extensions
+            # as defined in the application.
+            needed_extensions = migrator.ormExtractor.get_json_struct().get('root', {}).get('extensions', {})
+            if options.extensions == 'json':
+                print(json.dumps(needed_extensions))
+            if options.extensions == 'sql':
+                print("\n".join([f"CREATE EXTENSION IF NOT EXISTS {x};" for x in needed_extensions]))
+            if options.extensions == 'txt':
+                print(",".join(needed_extensions))
+            sys.exit(1)
+            
         if options.check:
             check_db(migrator, options)
         elif options.import_file:
             import_db(options.import_file, options)
         elif options.inspect:
-
             inspect(migrator, options)
         else:
             changes = check_db(migrator, options)
