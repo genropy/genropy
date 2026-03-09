@@ -43,7 +43,7 @@
 }
 
 .form_logical_deleted .gnrfieldlabel{
-    color:red;
+    color: var(--status-error);
 }
 .form_deleter{
     display:none;
@@ -76,7 +76,7 @@
     text-align: center;
     font-size: 1.2em;
     font-weight: bold;
-    color:red;
+    color: var(--status-error);
     font-variant: small-caps;
 }
 .form_changeslogger{

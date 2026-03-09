@@ -29,9 +29,9 @@
     line-height: normal;
     border-radius: var(--radius-controls);
     position: relative;
-    padding-left: 4px;
-    padding-top: 1px;
-    min-height: 13px;
+    padding-left: var(--fakebox-padding-x);
+    padding-top: var(--fakebox-padding-top);
+    min-height: var(--fakebox-min-height);
     display: inline-block;
     -webkit-touch-callout: auto;
     -webkit-user-select: auto;
@@ -46,9 +46,9 @@
     line-height: normal;
     border-radius: var(--radius-controls);
     position: relative;
-    padding-right: 2px;
-    padding-top: 1px;
-    min-height: 13px;
+    padding-right: var(--fakebox-padding-x);
+    padding-top: var(--fakebox-padding-top);
+    min-height: var(--fakebox-min-height);
     text-align: right;
     -webkit-touch-callout: auto;
     -webkit-user-select: auto;

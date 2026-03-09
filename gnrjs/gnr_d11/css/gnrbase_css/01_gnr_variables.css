@@ -160,6 +160,23 @@
     --field-focus-bg: #fff;
     --gnrfieldlabel-color: #8E8E93;
 
+    /* --- Formbuilder (table-layout forms) --- */
+    --formbuilder-spacing: 6px;
+    --formbuilder-label-margin-top: 2px;
+    --formbuilder-label-padding-left: 4px;
+    --formbuilder-plaintext-border: var(--field-border);
+
+    /* --- Fake textbox (read-only field display) --- */
+    --fakebox-padding-x: 4px;
+    --fakebox-padding-top: 1px;
+    --fakebox-min-height: 13px;
+
+    /* --- topLabelTable (top-label formbuilders) --- */
+    --topLabelTable-td-padding-y: 2px;
+    --topLabelTable-td-padding-right: 2px;
+    --topLabelTable-label-font-size: .9em;
+    --topLabelTable-label-font-weight: bold;
+
     /* --- Formlet fields (theme-overridable) --- */
     --formlet-field-border: var(--field-border);
     --formlet-field-bg: var(--field-bg);

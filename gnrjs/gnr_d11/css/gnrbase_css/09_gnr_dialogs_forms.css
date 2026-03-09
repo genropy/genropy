@@ -215,9 +215,9 @@
 
 .gnrfieldlabel {
     color: var(--gnrfieldlabel-color);
-    margin-top:2px;
+    margin-top: var(--formbuilder-label-margin-top);
     white-space: nowrap;
-    padding-left:4px;
+    padding-left: var(--formbuilder-label-padding-left);
 }
 label{
     vertical-align:middle;
@@ -270,11 +270,11 @@ label{
 
 .topLabelTable td{
     border-right: 1px solid var(--topLabelTable-separator, silver);
-    padding-top:2px;
-    padding-bottom:2px;
+    padding-top: var(--topLabelTable-td-padding-y);
+    padding-bottom: var(--topLabelTable-td-padding-y);
     min-width:5em;
     text-align:right;
-    padding-right:2px;
+    padding-right: var(--topLabelTable-td-padding-right);
 }
 
 .topLabelTable td:last-child{
@@ -283,8 +283,8 @@ label{
 
 .topLabelTable td.gnrfieldlabel{
     border-bottom:1px solid var(--border-color);
-    font-size:.9em;
-    font-weight:bold;
+    font-size: var(--topLabelTable-label-font-size);
+    font-weight: var(--topLabelTable-label-font-weight);
     text-align:center;
 }
 /*topLabelTable css for toplabel forbuilders*/
@@ -331,7 +331,7 @@ label{
 
 table.formbuilder {
     border-collapse: separate;
-    border-spacing: 6px;
+    border-spacing: var(--formbuilder-spacing);
 }
 
 table.formbuilder td.gnrfield {

@@ -580,7 +580,7 @@ div.dojoxDock {
     padding-left: 5px;
     padding-right: 5px;
     border-radius: var(--radius-controls);
-    border:1px solid silver;
+    border: 1px solid var(--formbuilder-plaintext-border);
     margin-bottom: 10px;
 }
 /* @end */
