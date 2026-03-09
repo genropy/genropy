@@ -126,31 +126,6 @@
     min-height: 14px;
 }
 
-/* --- Theme variant backgrounds --- */
-.theme_variant_green .theme_background{
-    background-color: #306227;
-    color: white;
-}
-
-.theme_background, .theme_variant_red .theme_background{
-    background-color: #711B2A;
-    color:white;
-}
-
-.theme_variant_blue .theme_background{
-    background-color: #1A415E;
-    color:white;
-}
-
-.theme_variant_orange .theme_background{
-    background-color:#FF5226;
-    color: white;
-}
-
-.theme_variant_yellow .theme_background{
-    background-color:#86770E;
-    color:var(--text-muted);
-}
 
 .clientlogo{
     background: var(--client-logo);

@@ -12,7 +12,7 @@
 */
 
 /* Green - forest emerald */
-.theme_variant_green {
+.color_variant_green {
     --primary-color: #2E7D5B;
     --primary-dark: #1B5E43;
     --accent-color: #2E7D5B;
@@ -31,7 +31,7 @@
 }
 
 /* Blue - deep ocean */
-.theme_variant_blue {
+.color_variant_blue {
     --primary-color: #2962A8;
     --primary-dark: #1C4678;
     --accent-color: #0071E3;
@@ -50,7 +50,7 @@
 }
 
 /* Red - cherry lipstick / fuchsia fashion */
-.theme_variant_red {
+.color_variant_red {
     --primary-color: #6B6E72;
     --primary-dark: #48494C;
     --accent-color: #C2185B;
@@ -69,7 +69,7 @@
 }
 
 /* Orange - Apple Watch Ultra / plum + international orange */
-.theme_variant_orange {
+.color_variant_orange {
     --primary-color: #4A2040;
     --primary-dark: #3A1830;
     --accent-color: #FF5722;
@@ -88,7 +88,7 @@
 }
 
 /* Yellow - gold on dark titanium */
-.theme_variant_yellow {
+.color_variant_yellow {
     --primary-color: #3C3D40;
     --primary-dark: #3C3D40;
     --accent-color: #0071E3;

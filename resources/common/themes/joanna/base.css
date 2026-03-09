@@ -12,7 +12,7 @@
 */
 
 /* Green - green/fuchsia */
-.theme_variant_green {
+.color_variant_green {
     --primary-color: #1d7d55;
     --primary-dark: #8b1a6b;
     --accent-color: #8b1a6b;
@@ -28,7 +28,7 @@
 }
 
 /* Blue - ocean */
-.theme_variant_blue {
+.color_variant_blue {
     --primary-color: #2a62a8;
     --primary-dark: #1e4a80;
     --accent-color: #0a84ff;
@@ -44,7 +44,7 @@
 }
 
 /* Red - ruby */
-.theme_variant_red {
+.color_variant_red {
     --primary-color: #c53040;
     --primary-dark: #9a2232;
     --accent-color: #e8364a;
@@ -60,7 +60,7 @@
 }
 
 /* Orange - orange top / plum frameindex */
-.theme_variant_orange {
+.color_variant_orange {
     --primary-color: #d4650a;
     --primary-dark: #6a2058;
     --accent-color: #6a2058;
@@ -76,7 +76,7 @@
 }
 
 /* Yellow - calabrone (hornet: vivid wasp yellow / black) */
-.theme_variant_yellow {
+.color_variant_yellow {
     --primary-color: #1a1a1a;
     --primary-dark: #1a1a1a;
     --accent-color: #f5c800;

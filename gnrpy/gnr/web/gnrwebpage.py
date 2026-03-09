@@ -1458,16 +1458,16 @@ class GnrWebPage(GnrBaseWebPage):
         return self.getUserPreference('theme.device_mode',pkg='sys') or 'std'
 
     def get_bodyclasses(self):
-        theme_variant = self.getPreference('theme.theme_variant',pkg='sys') or ''
-        if theme_variant:
-            theme_variant = f'theme_variant_{theme_variant}'
-        theme_variant = f'{theme_variant} mode_{self.device_mode}'
+        color_variant = self.getPreference('theme.color_variant',pkg='sys') or ''
+        if color_variant:
+            color_variant = f'color_variant_{color_variant}'
+        color_variant = f'{color_variant} mode_{self.device_mode}'
         css_theme = self.get_css_theme() or 'joanna'
         # 'tundra' (frontend.theme) and '_common_d11' are kept for backward
         # compatibility with deployed application CSS that references them.
         frontend_theme = self.frontend.theme or ''
         extra_classes = getattr(self, 'bodyclasses', '')
-        return f'{css_theme} {frontend_theme} gnr_dojotheme {theme_variant} _common_d11 pkg_{self.packageId} page_{self.pagename} {extra_classes} '
+        return f'{css_theme} {frontend_theme} gnr_dojotheme {color_variant} _common_d11 pkg_{self.packageId} page_{self.pagename} {extra_classes} '
         
     def get_css_genro(self):
         """TODO"""
