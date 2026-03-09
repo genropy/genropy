@@ -4,6 +4,7 @@
 body {
     --primary-color: #636366;
     --primary-dark: #3A3A3C;
+    --login-underlay-bg: #1D1D1F;
     --primary-light: #D8D8DC;
     --primary-lighter: #F2F2F7;
     --accent-color: #007AFF;

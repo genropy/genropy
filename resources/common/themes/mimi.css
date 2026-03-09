@@ -7,6 +7,7 @@ body {
     /* --- Brand / Primary --- */
     --primary-color: #6B6E72;
     --primary-dark: #48494C;
+    --login-underlay-bg: #1D1D1F;
     --primary-light: #BDBFC2;
     --primary-lighter: #EDEEF0;
     --accent-color: #0277BD;

@@ -79,7 +79,7 @@
 .color_variant_hornette {
     --primary-color: #1a1a1a;
     --primary-dark: #1a1a1a;
-    --accent-color: #f5c800;
+    --accent-color: #4B0082;
     --primary-light: #fde68a;
     --primary-lighter: #fef9e7;
     --root-top-background: #f5c800;
@@ -87,10 +87,25 @@
     --dialogtitlebar-background: #f5c800;
     --dialogtitlebar-color: #1a1a1a;
     --frameindex-tablist-background: #1a1a1a;
-    --frameindex-tablist-color:#1a1a1a;
+    --frameindex-tablist-color: #f5c800;
     --card-surface: #f5f5f4;
     --field-disabled-border: #b0b0a8;
     --field-readonly-border: #b0b0a8;
+
+    --menutree-selected-color: #4B0082;
+
+    --btn-filled-bg: #4B0082;
+    --btn-filled-color: #ffffff;
+    --btn-filled-hover-bg: #5C0A9E;
+    --btn-filled-pressed-bg: #3A0066;
+    --btn-filled-selected-bg: #3A0066;
+    --btn-filled-disabled-bg: #9B7DB8;
+    --btn-filled-disabled-color: rgba(255,255,255,0.7);
+    --btn-tonal-bg: #EDE4F5;
+    --btn-tonal-color: #4B0082;
+    --btn-tonal-hover-bg: #DDD0EC;
+    --btn-tonal-pressed-bg: #CDBCE3;
+    --btn-tonal-selected-bg: #CDBCE3;
 }
 
 /* Business - corporate navy / charcoal */
@@ -109,18 +124,18 @@
     --field-readonly-border: #adb5bd;
 }
 
-/* Aurora - teal / magenta borealis */
-.color_variant_aurora {
-    --primary-color: #0d9488;
-    --primary-dark: #831843;
-    --accent-color: #db2777;
-    --primary-light: #b2dfdb;
-    --primary-lighter: #f0fdfa;
-    --root-top-background: #0d9488;
-    --dialogtitlebar-background: #0d9488;
-    --frameindex-tablist-background: #831843;
-    --card-surface: #f7fdfb;
+/* Terra - warm terracotta / dark walnut */
+.color_variant_terra {
+    --primary-color: #b45309;
+    --primary-dark: #3e2723;
+    --accent-color: #d97706;
+    --primary-light: #e8c9a0;
+    --primary-lighter: #fdf6ee;
+    --root-top-background: #b45309;
+    --dialogtitlebar-background: #b45309;
+    --frameindex-tablist-background: #3e2723;
+    --card-surface: #fdfaf6;
 
-    --field-disabled-border: #a0c4c0;
-    --field-readonly-border: #a0c4c0;
+    --field-disabled-border: #c4a882;
+    --field-readonly-border: #c4a882;
 }

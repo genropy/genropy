@@ -193,6 +193,7 @@ class GnrWebPage(GnrBaseWebPage):
                         or self.site.config['gui?css_theme_variant'] or 'base'
         self.css_icons = request_kwargs.pop('css_icons', None) or getattr(self, 'css_icons', None)\
                         or self.site.config['gui?css_icons'] or 'retina/gray'
+        self.color_variant = self.site.config['gui?color_variant']
         self.dojo_theme = request_kwargs.pop('dojo_theme', None) or getattr(self, 'dojo_theme', None)
         self.dojo_version = request_kwargs.pop('dojo_version', None) or getattr(self, 'dojo_version', None)
         self.envelope_js_requires= {}
@@ -1458,7 +1459,9 @@ class GnrWebPage(GnrBaseWebPage):
         return self.getUserPreference('theme.device_mode',pkg='sys') or 'std'
 
     def get_bodyclasses(self):
-        color_variant = self.getPreference('theme.color_variant',pkg='sys') or ''
+        color_variant = self.getUserPreference('theme.color_variant',pkg='sys') \
+                        or self.getPreference('theme.color_variant',pkg='sys') \
+                        or self.color_variant or ''
         if color_variant:
             color_variant = f'color_variant_{color_variant}'
         color_variant = f'{color_variant} mode_{self.device_mode}'
@@ -1697,11 +1700,9 @@ class GnrWebPage(GnrBaseWebPage):
         return self.application.checkResourcePermission(self.auth_tags, self.userTags)
         
     def get_css_theme(self):
-        """Get the css_theme and return it. The css_theme get is the one defined the :ref:`siteconfig_gui`
-        tag of your :ref:`sites_siteconfig` or in a single :ref:`webpage` through the
-        :ref:`webpages_css_theme` webpage variable.
+        """Get the css_theme with fallback chain: app_pref → siteconfig → 'joanna'.
         If the configured theme does not exist on disk, falls back to 'joanna'."""
-        css_theme = self.css_theme
+        css_theme = self.getPreference('theme.css_theme', pkg='sys') or self.css_theme
         if css_theme and not self.site.resource_loader.getResourceList(
                 self.resourceDirs, 'themes/%s' % css_theme, 'css'):
             css_theme = 'joanna'
@@ -1709,10 +1710,8 @@ class GnrWebPage(GnrBaseWebPage):
 
         
     def get_css_theme_variant(self):
-        """Get the css_theme and return it. The css_theme get is the one defined the :ref:`siteconfig_gui`
-        tag of your :ref:`sites_siteconfig` or in a single :ref:`webpage` through the
-        :ref:`webpages_css_theme` webpage variable"""
-        return self.css_theme_variant
+        """Get css_theme_variant with fallback chain: app_pref → siteconfig → 'base'."""
+        return self.getPreference('theme.css_theme_variant', pkg='sys') or self.css_theme_variant
 
     @public_method
     def getAvailableThemes(self):
@@ -1722,8 +1721,9 @@ class GnrWebPage(GnrBaseWebPage):
             snode = self.site.storageNode(os.path.join(rdir, 'themes'))
             if snode.exists and snode.isdir:
                 for name in snode.listdir():
-                    if name.endswith('.css') and not name.startswith('.'):
-                        themes.add(name[:-4])
+                    basename = os.path.basename(name)
+                    if basename.endswith('.css') and not basename.startswith('.'):
+                        themes.add(basename[:-4])
         return ','.join(sorted(themes))
 
     @public_method
@@ -1735,8 +1735,9 @@ class GnrWebPage(GnrBaseWebPage):
             snode = self.site.storageNode(os.path.join(rdir, 'themes', theme))
             if snode.exists and snode.isdir:
                 for name in snode.listdir():
-                    if name.endswith('.css') and not name.startswith('.'):
-                        variants.add(name[:-4])
+                    basename = os.path.basename(name)
+                    if basename.endswith('.css') and not basename.startswith('.'):
+                        variants.add(basename[:-4])
         return ','.join(sorted(variants))
 
     @public_method

@@ -51,7 +51,7 @@
 }
 
 .dijitDialogUnderlay.lightboxDialog_underlay{
-    background: var(--primary-dark);
+    background: var(--login-underlay-bg);
     opacity: 1;
 }
 

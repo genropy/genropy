@@ -21,6 +21,7 @@
 
 
 from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrbag import Bag
 
 FONTFAMILIES = """Arial, Helvetica, sans-serif
 Verdana, Geneva, sans-serif
@@ -42,13 +43,68 @@ class AppPref(object):
         self.notificationPreferences(tc.contentPane(title='!![en]Notification'))
         
     def stylingPreferences(self, pane):
-        fb = pane.formbuilder(cols=1, border_spacing='4px',datapath='.theme')
-        color_variants = self.getAvailableColorVariants()
-        fb.filteringSelect(value='^.color_variant',values=color_variants,lbl='!![en]Color variant')       
-        fb.textbox(value='^.palette_colors',lbl='!![en]Default color palette')
-        fb.textbox(value='^.palette_steps',lbl='!![en]Default color steps')
-        fb.checkBox(value='^.use_formlets',label='!!Use formlets')
-        fb.checkBox(value='^.tinymce_beta',label='!!Use TinyMCE (beta)')
+        pane.div('!![en]Theme changes will take effect after page reload',
+                 font_size='.85em', color='var(--text-secondary)', padding='4px 0 8px')
+        fb = pane.formlet(cols=1, border_spacing='4px', datapath='.theme')
+        current_theme = (self.css_theme or 'joanna').capitalize()
+        current_variant = (self.css_theme_variant or 'base').capitalize()
+        fb.remoteSelect(value='^.css_theme', lbl='!![en]Theme',
+                        _tags='_DEV_', hasDownArrow=True,
+                        method=self.getThemesForPref,
+                        placeholder=current_theme,
+                        validate_onAccept="""if(userChange){
+                                                SET .css_theme_variant = null;
+                                                SET .color_variant = null;
+                                             }""")
+        fb.dataRpc('#FORM.theme_available_variants', self.getAvailableThemeVariants,
+                   theme='^.css_theme', _onBuilt=True)
+        fb.filteringSelect(value='^.css_theme_variant',
+                           values='^#FORM.theme_available_variants',
+                           lbl='!![en]Theme variant', _tags='_DEV_',
+                           placeholder=current_variant,
+                           validate_onAccept="""if(userChange){
+                                                   SET .color_variant = null;
+                                                }""")
+        fb.dataRpc('#FORM.theme_available_colors', self.getAvailableColorVariants,
+                   theme='^.css_theme', theme_variant='^.css_theme_variant',
+                   _onBuilt=True)
+        fb.filteringSelect(value='^.color_variant',
+                           values='^#FORM.theme_available_colors',
+                           lbl='!![en]Color variant', _tags='_DEV_')
+        fb.textbox(value='^.palette_colors', lbl='!![en]Default color palette', _tags='_DEV_')
+        fb.textbox(value='^.palette_steps', lbl='!![en]Default color steps', _tags='_DEV_')
+        fb.checkBox(value='^.use_formlets', label='!!Use formlets')
+        fb.checkBox(value='^.tinymce_beta', label='!!Use TinyMCE (beta)')
+
+    @public_method
+    def getThemesForPref(self, **kwargs):
+        themes_str = self.getAvailableThemes()
+        result = Bag()
+        for v in themes_str.split(','):
+            v = v.strip()
+            if v:
+                result.setItem(v, None, caption=v.capitalize(), _pkey=v)
+        return result, dict(columns='caption', headers='Theme')
+
+    @public_method
+    def getThemeVariantsForPref(self, theme=None, **kwargs):
+        variants_str = self.getAvailableThemeVariants(theme=theme)
+        result = Bag()
+        for v in variants_str.split(','):
+            v = v.strip()
+            if v:
+                result.setItem(v, None, caption=v.capitalize(), _pkey=v)
+        return result, dict(columns='caption', headers='Variant')
+
+    @public_method
+    def getColorVariantsForPref(self, theme=None, theme_variant=None, **kwargs):
+        variants_str = self.getAvailableColorVariants(theme=theme, theme_variant=theme_variant)
+        result = Bag()
+        for v in variants_str.split(','):
+            v = v.strip()
+            if v:
+                result.setItem(v, None, caption=v.capitalize(), _pkey=v)
+        return result, dict(columns='caption', headers='Color variant')
 
     def printPreferences(self, pane):
         fb = pane.roundedGroup(title='!![en]Print Modes',
