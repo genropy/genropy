@@ -162,9 +162,16 @@
 
     /* --- Formbuilder (table-layout forms) --- */
     --formbuilder-spacing: 6px;
-    --formbuilder-label-margin-top: 2px;
     --formbuilder-label-padding-left: 4px;
+    --formbuilder-label-font-weight: normal;
+    --formbuilder-label-font-size: .9em;
     --formbuilder-plaintext-border: var(--field-border);
+    --formbuilder-field-border: var(--field-border);
+    --formbuilder-field-bg: var(--field-bg);
+    --formbuilder-field-border-width: 1px;
+    --formbuilder-field-radius: var(--radius-controls);
+    --formbuilder-field-padding-y: 1px;
+    --formbuilder-field-padding-x: 3px;
 
     /* --- Fake textbox (read-only field display) --- */
     --fakebox-padding-x: 4px;

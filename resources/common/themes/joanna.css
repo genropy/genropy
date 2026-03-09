@@ -34,5 +34,12 @@ body {
     --formlet-field-radius: var(--radius-panels);
     --formlet-label-font-weight: normal;
     --formlet-label-font-size: .8em;
+
+    /* --- Formbuilder fields: harmonized with formlet --- */
+    --formbuilder-field-border: var(--primary-light);
+    --formbuilder-field-radius: var(--radius-panels);
+    --formbuilder-field-padding-y: 2px;
+    --formbuilder-field-padding-x: 4px;
+    --formbuilder-label-font-size: .8em;
 }
 /* @end */

@@ -78,6 +78,9 @@ body {
     --menutree-branch-selected-color: #48494C;
     --menutree-mobile-selected-color: #FFD54F;
     --menutree-mobile-branch-selected-color: white;
+
+    /* --- Formbuilder fields: harmonized with formlet --- */
+    --formbuilder-field-border: var(--primary-light);
 }
 
 /* @end */
