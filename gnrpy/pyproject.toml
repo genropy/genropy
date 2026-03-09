@@ -94,7 +94,6 @@ gnrtaskworker = 'gnr.web.cli.gnrtaskworker:main'
 gnrwsgiserve = 'gnr.web.cli.gnrwsgiserve:main'
 gnrdaemon = 'gnr.web.cli.gnrdaemon:main'
 # gnr.app
-gnrapplisten = 'gnr.app.cli.gnrapplisten:main'
 gnrasync = 'gnr.app.cli.gnrasync:main'
 gnrdbsetup = 'gnr.app.cli.gnrdbsetup:main'
 gnrdbsetupparallel = 'gnr.app.cli.gnrdbsetupparallel:main'
