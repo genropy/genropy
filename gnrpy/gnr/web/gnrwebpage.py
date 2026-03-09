@@ -1714,6 +1714,50 @@ class GnrWebPage(GnrBaseWebPage):
         :ref:`webpages_css_theme` webpage variable"""
         return self.css_theme_variant
 
+    @public_method
+    def getAvailableThemes(self):
+        """Discover available themes by scanning resourceDirs for themes/*.css files."""
+        themes = set()
+        for rdir in self.resourceDirs:
+            snode = self.site.storageNode(os.path.join(rdir, 'themes'))
+            if snode.exists and snode.isdir:
+                for name in snode.listdir():
+                    if name.endswith('.css') and not name.startswith('.'):
+                        themes.add(name[:-4])
+        return ','.join(sorted(themes))
+
+    @public_method
+    def getAvailableThemeVariants(self, theme=None):
+        """Discover available theme variants (CSS files inside themes/{theme}/)."""
+        theme = theme or self.get_css_theme() or 'joanna'
+        variants = set()
+        for rdir in self.resourceDirs:
+            snode = self.site.storageNode(os.path.join(rdir, 'themes', theme))
+            if snode.exists and snode.isdir:
+                for name in snode.listdir():
+                    if name.endswith('.css') and not name.startswith('.'):
+                        variants.add(name[:-4])
+        return ','.join(sorted(variants))
+
+    @public_method
+    def getAvailableColorVariants(self, theme=None, theme_variant=None):
+        """Discover available color variants by parsing .color_variant_* classes
+        from the active theme variant CSS file."""
+        theme = theme or self.get_css_theme() or 'joanna'
+        theme_variant = theme_variant or self.get_css_theme_variant() or 'base'
+        color_variants = set()
+        css_path = 'themes/%s/%s' % (theme, theme_variant)
+        css_files = self.site.resource_loader.getResourceList(
+            self.resourceDirs, css_path, 'css')
+        for fpath in css_files:
+            snode = self.site.storageNode(fpath)
+            if snode.exists:
+                with snode.open('r') as f:
+                    content = f.read()
+                for match in re.finditer(r'\.color_variant_(\w+)\s*\{', content):
+                    color_variants.add(match.group(1))
+        return ','.join(sorted(color_variants))
+
     def get_css_icons(self):
         """Get the css_icons and return it. The css_icons get is the one defined the :ref:`siteconfig_gui`
         tag of your :ref:`sites_siteconfig` or in a single :ref:`webpage` through the

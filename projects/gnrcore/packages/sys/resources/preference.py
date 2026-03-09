@@ -43,7 +43,8 @@ class AppPref(object):
         
     def stylingPreferences(self, pane):
         fb = pane.formbuilder(cols=1, border_spacing='4px',datapath='.theme')
-        fb.filteringSelect(value='^.color_variant',values='blue,red,green,yellow,orange,',lbl='!![en]Color variant')       
+        color_variants = self.getAvailableColorVariants()
+        fb.filteringSelect(value='^.color_variant',values=color_variants,lbl='!![en]Color variant')       
         fb.textbox(value='^.palette_colors',lbl='!![en]Default color palette')
         fb.textbox(value='^.palette_steps',lbl='!![en]Default color steps')
         fb.checkBox(value='^.use_formlets',label='!!Use formlets')
