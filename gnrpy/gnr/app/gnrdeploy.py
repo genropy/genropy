@@ -878,10 +878,11 @@ class ThPackageResourceMaker(object):
         self.option_output = filename or output
         self.option_columns = columns
         self.option_guess_size = guess_size
-        if self.options_guess_size:
+        if self.option_guess_size:
             logger.debug("Guessing column width by data size: ACTIVE")
         self.option_indent = indent
         self.pkg_tables = defaultdict(list)
+        self.pkg_menus = dict()
         self.app = application 
         self.package = package
         self.bag_columns=bag_columns or dict(view=False, form=False)
@@ -890,10 +891,21 @@ class ThPackageResourceMaker(object):
             raise ModuleNotFoundError(f"Package {package} was not found")
         
         self.packageFolder = self.app.packages(package).packageFolder
-    
+        self.has_lookups = False
+        
     def makeResources(self):
+        menu_xml_path = os.path.join(self.packageFolder, 'menu.xml')
+        self.pkg_menus[self.package] = Bag(menu_xml_path) if os.path.exists(menu_xml_path) else Bag()
+        print("BAU")
         for table in self.tables:
+            table_full_name = f"{self.package}.{table}"
+            logger.debug("Processing table %s", table_full_name)
+            if 'lookup' in self.app.db.table(table_full_name).attributes:
+                logger.debug("Skipping lookup table %s", table_full_name)
+                self.has_lookup = True
+                continue
             self.createResourceFile(table)
+
         if self.option_menu:
             self.makeMenu()
 
@@ -950,13 +962,15 @@ class ThPackageResourceMaker(object):
             if finder.branch_var is None:
                 raise RuntimeError("Root branch not found")
             insert_at = finder.config_func.end_lineno
-            for item in self.packageMenus[package]['auto']:
+            for item in self.pkg_menus[self.package]['auto'] or []:
                 new_line = f"\n        {finder.branch_var}.thpage(u'{item.attr['label']}', table='{item.attr['table']}')"
                 lines.insert(insert_at, new_line)
                 insert_at += 1
+
             menupath.write_text("".join(lines), encoding="utf-8")
 
         else:
+            logger.info("Menu file %s does not exist, creating", menupath)
             m = MenuStruct()
             for t in self.tables:
                 tblobj = self.app.db.table('%s.%s' %(self.package,t))

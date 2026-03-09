@@ -481,7 +481,7 @@ def main():
     parser.add_argument("models", nargs="+",
                         help="list of models in the form of packagename.modelname or project:packagename.modelname")
     options = parser.parse_args()
-
+    print(options)
     if len(options.models) > 1:
         err_mesg = "{option_name} is incompatible with multiple table mode"
         if options.output:
