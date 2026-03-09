@@ -160,18 +160,23 @@
     --field-focus-bg: #fff;
     --gnrfieldlabel-color: #8E8E93;
 
+    /* --- Form-context field defaults (shared by formbuilder & formlet) --- */
+    --form-field-border: var(--field-border);
+    --form-field-bg: var(--field-bg);
+    --form-field-border-width: 1px;
+    --form-field-radius: var(--radius-controls);
+    --form-label-font-size: .9em;
+
     /* --- Formbuilder (table-layout forms) --- */
     --formbuilder-spacing: 6px;
     --formbuilder-label-padding-left: 4px;
     --formbuilder-label-font-weight: normal;
-    --formbuilder-label-font-size: .9em;
-    --formbuilder-plaintext-border: var(--field-border);
-    --formbuilder-field-border: var(--field-border);
-    --formbuilder-field-bg: var(--field-bg);
-    --formbuilder-field-border-width: 1px;
-    --formbuilder-field-radius: var(--radius-controls);
-    --formbuilder-field-padding-y: 1px;
-    --formbuilder-field-padding-x: 3px;
+    --formbuilder-label-font-size: var(--form-label-font-size);
+    --formbuilder-plaintext-border: var(--form-field-border);
+    --formbuilder-field-border: var(--form-field-border);
+    --formbuilder-field-bg: var(--form-field-bg);
+    --formbuilder-field-border-width: var(--form-field-border-width);
+    --formbuilder-field-radius: var(--form-field-radius);
 
     /* --- Fake textbox (read-only field display) --- */
     --fakebox-padding-x: 4px;
@@ -184,13 +189,17 @@
     --topLabelTable-label-font-size: .9em;
     --topLabelTable-label-font-weight: bold;
 
-    /* --- Formlet fields (theme-overridable) --- */
-    --formlet-field-border: var(--field-border);
-    --formlet-field-bg: var(--field-bg);
-    --formlet-field-border-width: 1px;
-    --formlet-field-radius: var(--radius-controls);
+    /* --- Formlet (grid-layout forms) --- */
+    --formlet-gap: 7px 20px;
+    --formlet-padding: 7px;
+    --formlet-field-border: var(--form-field-border);
+    --formlet-field-bg: var(--form-field-bg);
+    --formlet-field-border-width: var(--form-field-border-width);
+    --formlet-field-radius: var(--form-field-radius);
+    --formlet-field-padding-y: 0.3em;
+    --formlet-field-padding-x: 0.5em;
     --formlet-label-font-weight: bold;
-    --formlet-label-font-size: .9em;
+    --formlet-label-font-size: var(--form-label-font-size);
 
     /* --- topLabelTable --- */
     --topLabelTable-border-top: none;

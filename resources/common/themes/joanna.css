@@ -27,19 +27,13 @@ body {
     --field-readonly-border: #C7C7CC;
     --field-readonly-bg: #F2F2F7;
 
-    /* --- Formlet fields: Light outlined style --- */
-    --formlet-field-border: var(--primary-light);
-    --formlet-field-bg: white;
-    --formlet-field-border-width: 1px;
-    --formlet-field-radius: var(--radius-panels);
-    --formlet-label-font-weight: normal;
-    --formlet-label-font-size: .8em;
+    /* --- Form-context shared overrides (formbuilder + formlet) --- */
+    --form-field-border: var(--primary-light);
+    --form-field-radius: var(--radius-panels);
+    --form-label-font-size: .8em;
 
-    /* --- Formbuilder fields: harmonized with formlet --- */
-    --formbuilder-field-border: var(--primary-light);
-    --formbuilder-field-radius: var(--radius-panels);
-    --formbuilder-field-padding-y: 2px;
-    --formbuilder-field-padding-x: 4px;
-    --formbuilder-label-font-size: .8em;
+    /* --- Formlet-specific overrides --- */
+    --formlet-label-font-weight: normal;
+
 }
 /* @end */

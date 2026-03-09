@@ -24,8 +24,8 @@
 }
 
 .fakeTextBox,.smallFakeTextBox, .gnrfield.tag_div>div.fakeTextBox{
-	background: var(--field-bg, white);
-    border: 1px solid var(--field-border, #B3B3B3);
+	background: var(--formbuilder-field-bg, var(--field-bg, white));
+    border: 1px solid var(--formbuilder-field-border, var(--field-border, #B3B3B3));
     line-height: normal;
     border-radius: var(--radius-controls);
     position: relative;
@@ -41,8 +41,8 @@
 }
 
 .fakeNumberTextBox ,.gnrfield.tag_div>div.fakeNumberTextBox{
-	background: var(--field-bg, white);
-    border: 1px solid var(--field-border, #B3B3B3);
+	background: var(--formbuilder-field-bg, var(--field-bg, white));
+    border: 1px solid var(--formbuilder-field-border, var(--field-border, #B3B3B3));
     line-height: normal;
     border-radius: var(--radius-controls);
     position: relative;

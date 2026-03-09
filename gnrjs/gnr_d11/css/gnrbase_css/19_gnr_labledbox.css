@@ -209,8 +209,8 @@
 }
 
 .gnrgridbox.formlet{
-    gap: 7px 20px;
-    padding: 7px;
+    gap: var(--formlet-gap);
+    padding: var(--formlet-padding);
 }
 
 .gnrgridbox.formlet .labledBox_left>.labledBox_label{
@@ -240,7 +240,7 @@
     border-style: solid;
     background: var(--formlet-field-bg);
     border-radius: var(--formlet-field-radius);
-    padding: 0.3em 0.5em;
+    padding: var(--formlet-field-padding-y) var(--formlet-field-padding-x);
 }
 
 .gnrgridbox.formlet .dijitTextBox.dijitFocused,

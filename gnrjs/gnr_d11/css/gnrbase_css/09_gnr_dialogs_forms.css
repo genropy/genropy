@@ -224,13 +224,13 @@ table.formbuilder .gnrfieldlabel {
     font-size: var(--formbuilder-label-font-size);
 }
 
-/* Label vertical alignment: padding on td.fb_lbl (1em context) ensures
-   calc resolves at same scale as field padding, regardless of label font-size.
-   The last term compensates for the baseline shift between the field font (1em)
-   and the smaller label font, using ~0.35 as half the typical cap-height ratio. */
+/* Label vertical alignment: padding on td.fb_lbl (1em context).
+   1px matches the field's default padding-top from form/Common.css,
+   border-width accounts for the field border, and the last term
+   compensates for the baseline shift when label font-size < 1em. */
 table.formbuilder td.fb_lbl {
     padding-top: calc(
-        var(--formbuilder-field-padding-y)
+        1px
         + var(--formbuilder-field-border-width)
         + (1em - var(--formbuilder-label-font-size)) * 0.45
     );
@@ -354,30 +354,6 @@ table.formbuilder td.gnrfield {
     flex: 1;
 }
 
-/* --- Formbuilder field styling (harmonized with formlet) --- */
-table.formbuilder .dijitTextBox,
-table.formbuilder .dijitComboBox,
-table.formbuilder .dijitSpinner,
-table.formbuilder .dijitTextArea {
-    border-width: var(--formbuilder-field-border-width);
-    border-color: var(--formbuilder-field-border);
-    border-style: solid;
-    background: var(--formbuilder-field-bg);
-    border-radius: var(--formbuilder-field-radius);
-    padding: var(--formbuilder-field-padding-y) var(--formbuilder-field-padding-x);
-}
-
-table.formbuilder .dijitTextBoxFocused,
-table.formbuilder .dijitComboBoxFocused,
-table.formbuilder .dijitSpinnerFocused {
-    border-color: var(--accent-color);
-}
-
-table.formbuilder .fakeTextBox,
-table.formbuilder .fakeNumberTextBox {
-    border-color: var(--formbuilder-field-border);
-    border-radius: var(--formbuilder-field-radius);
-}
 
 /* @end */
 
