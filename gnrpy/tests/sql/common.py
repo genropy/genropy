@@ -1,6 +1,7 @@
 import sys
 import os
 import os.path
+import subprocess
 import pytest
 from testing.postgresql import Postgresql
 
