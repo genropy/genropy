@@ -45,9 +45,14 @@
     padding-bottom: 0.15em;
 }
 
-/* --- Dialog rounding --- */
+/* --- Dialog shell --- */
 .loginDialog.dijitDialog{
-    border-radius: 1em;
+    border-radius: var(--radius-containers);
+}
+
+.dijitDialogUnderlay.lightboxDialog_underlay{
+    background: var(--primary-dark);
+    opacity: 1;
 }
 
 /* --- Footer (buttons area) --- */

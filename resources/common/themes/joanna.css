@@ -30,7 +30,7 @@ body {
     --formlet-field-border: var(--primary-light);
     --formlet-field-bg: white;
     --formlet-field-border-width: 1px;
-    --formlet-field-radius: var(--radius-controls);
+    --formlet-field-radius: var(--radius-panels);
     --formlet-label-font-weight: normal;
     --formlet-label-font-size: .8em;
 }

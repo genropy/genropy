@@ -5391,7 +5391,7 @@ dojo.declare("gnr.widgets.PasswordTextBox", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode,kw,childSourceNode){
         kw.type = 'password'
         let tb = sourceNode._('textbox',kw);
-        tb._('comboArrow',{_class:'visibility_lock',action:function(){
+        tb._('comboArrow',{iconClass:'visibility_lock',action:function(){
             let input = this.getParentNode().getParentNode().getDomNode();
             let currType = input.type;
             input.setAttribute('type',currType=='password'?'text':'password');
