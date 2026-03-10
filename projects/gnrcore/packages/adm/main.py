@@ -16,6 +16,38 @@ class Package(GnrDboPackage):
     def config_db(self, pkg):
         pass
 
+    def registerCapabilities(self, app):
+        app.addCapability('preference', self)
+        app.addCapability('user_preference', self)
+
+    # --- capability: preference ---
+
+    def getPreference(self, caller, path, dflt=None, mandatoryMsg=None, pkg=None):
+        pkg = pkg or getattr(caller, 'name', None)
+        return self.db.table('adm.preference').getPreference(path, pkg=pkg, dflt=dflt, mandatoryMsg=mandatoryMsg)
+
+    def setPreference(self, caller, path, value=None, data=None, pkg=None):
+        pkg = pkg or getattr(caller, 'name', None)
+        value = value if data is None else data
+        self.db.table('adm.preference').setPreference(path, value, pkg=pkg)
+
+    def envPreferences(self, caller, username=None):
+        return self.db.table('adm.preference').envPreferences(username=username)
+
+    def initPkgPref(self, caller, pkg_name, preferences):
+        self.db.table('adm.preference').initPkgPref(pkg_name, preferences)
+
+    def loadPreference(self, caller):
+        return self.db.table('adm.preference').loadPreference()
+
+    # --- capability: user_preference ---
+
+    def getUserPreference(self, caller, path=None, pkg=None, dflt=None, username=None):
+        return self.db.table('adm.user').getPreference(path=path, pkg=pkg, dflt=dflt, username=username)
+
+    def setUserPreference(self, caller, path, data, pkg=None, username=None):
+        self.db.table('adm.user').setPreference(path, data, pkg=pkg, username=username)
+
     def required_packages(self):
         return ['gnrcore:sys']
 
