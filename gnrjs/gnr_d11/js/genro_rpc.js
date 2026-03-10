@@ -542,8 +542,12 @@ dojo.declare("gnr.GnrRpcHandler", null, {
             envelope.fromXmlDoc(response, genro.clsdict);
         }
         catch(e) {
-            console.log('error in fromXmlDoc',e);
-            console.log(response);
+            genro.publish('client_error', {
+                errorType: 'xml_parse',
+                description: 'Error parsing RPC response',
+                error: e.toString(),
+                url: ioArgs.url
+            });
             return;
         }
         this.profileTime(ioArgs.xhr);

@@ -67,6 +67,12 @@ dojo.declare('gnr.GenroClient', null, {
         dojo.subscribe('externalSetData', this, function(kw){
             genro.setData(kw.path,kw.value,kw.attr,{doTrigger:'externalSetData'});
         });
+        dojo.subscribe('client_error', function(errorInfo){
+            console.error('[client_error]', errorInfo.errorType, errorInfo.description, errorInfo);
+            if(genro.isDeveloper){
+                genro.dev.addError(errorInfo.description + ' (' + errorInfo.errorType + ')', 'CLIENT', true);
+            }
+        });
         //this.debug_py = kwargs.startArgs.debug_py;
         this.websockets_url = objectPop(kwargs.startArgs,'websockets_url');
         this.pageMode = kwargs.pageMode;
@@ -213,6 +219,7 @@ dojo.declare('gnr.GenroClient', null, {
         this.wdg = new gnr.GnrWdgHandler(this);
         this.dev = new gnr.GnrDevHandler(this);
         this.dlg = new gnr.GnrDlgHandler(this); //da implementare
+        this.toast = new gnr.GnrToast();
 
         this.dom = new gnr.GnrDomHandler(this);
         this.vld = new gnr.GnrValidator(this);
