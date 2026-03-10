@@ -57,7 +57,7 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         super().setup_class()
         cls.init()
         cls.src = cls.db.model.src
-        cls.migrator = SqlMigrator(cls.db,removeDisabled=False)
+        cls.migrator = SqlMigrator(cls.db, removeDisabled=False)
         cls.db.dropDb(cls.dbname)
             
     def checkChanges(self, expected_value=None,apply_only=False):
@@ -1337,6 +1337,84 @@ class TestGnrSqlMigration_postgres_backup(BaseGnrSqlMigration_BackupMode):
         cls.dbname = 'test_gnrsqlmigration_backup'
         cls.db = GnrSqlDb(
             implementation='postgres',
+            host=cls.pg_conf.get("host"),
+            port=cls.pg_conf.get("port"),
+            dbname=cls.dbname,
+            user=cls.pg_conf.get("user"),
+            password=cls.pg_conf.get("password")
+        )
+
+
+class BaseGnrSqlMigration_Extension(BaseGnrSqlTest):
+    """
+    Test for PostgreSQL EXTENSION creation in the migrator.
+
+    Verifies that configured extensions generate CREATE EXTENSION IF NOT EXISTS
+    (not DROP + CREATE), and that subsequent migrations do not recreate an
+    already-installed extension.
+    """
+
+    @classmethod
+    def setup_class(cls):
+        super().setup_class()
+        cls.init()
+        cls.src = cls.db.model.src
+        cls.migrator = SqlMigrator(cls.db, extensions='pg_trgm', removeDisabled=False)
+        cls.db.dropDb(cls.dbname)
+
+    def test_ext_00_create_db(self):
+        self.db.startup()
+        self.migrator.prepareMigrationCommands()
+        changes = self.migrator.getChanges()
+        assert 'CREATE DATABASE "test_gnrsqlmigration_ext"' in changes
+        self.migrator.applyChanges()
+        
+    def test_ext_01_create_db_and_extension(self):
+        """First migration includes CREATE EXTENSION IF NOT EXISTS, never DROP EXTENSION."""
+        self.db.startup()
+        self.migrator.prepareMigrationCommands()
+        changes = self.migrator.getChanges()
+        assert 'DROP EXTENSION' not in changes
+        assert 'CREATE EXTENSION IF NOT EXISTS pg_trgm;' in changes
+        self.migrator.applyChanges()
+
+    def test_ext_02_extension_not_recreated(self):
+        """After initial install, subsequent migrations do not re-issue CREATE EXTENSION."""
+        self.src.package('ext_pkg', sqlschema='ext_pkg')
+        self.db.startup()
+        self.migrator.prepareMigrationCommands()
+        changes = self.migrator.getChanges()
+        assert 'CREATE EXTENSION' not in changes, 'Already-installed extension must not be recreated'
+        assert 'DROP EXTENSION' not in changes
+        self.migrator.applyChanges()
+
+
+@pytest.mark.skipif(gnrpostgres.SqlDbAdapter.not_capable(Capabilities.MIGRATIONS),
+                    reason="Adapter doesn't support migrations")
+class TestGnrSqlMigration_postgres_extension(BaseGnrSqlMigration_Extension):
+    @classmethod
+    def init(cls):
+        cls.name = 'postgres_extension'
+        cls.dbname = 'test_gnrsqlmigration_ext'
+        cls.db = GnrSqlDb(
+            implementation='postgres',
+            host=cls.pg_conf.get("host"),
+            port=cls.pg_conf.get("port"),
+            dbname=cls.dbname,
+            user=cls.pg_conf.get("user"),
+            password=cls.pg_conf.get("password")
+        )
+
+
+@pytest.mark.skipif(gnrpostgres3.SqlDbAdapter.not_capable(Capabilities.MIGRATIONS),
+                    reason="Adapter doesn't support migrations")
+class TestGnrSqlMigration_postgres3_extension(BaseGnrSqlMigration_Extension):
+    @classmethod
+    def init(cls):
+        cls.name = 'postgres3_extension'
+        cls.dbname = 'test_gnrsqlmigration_ext'
+        cls.db = GnrSqlDb(
+            implementation='postgres3',
             host=cls.pg_conf.get("host"),
             port=cls.pg_conf.get("port"),
             dbname=cls.dbname,

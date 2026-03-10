@@ -1034,3 +1034,24 @@ def weightedLen(mystring, narrow_coeff=None, upper_coeff=None):
     return math.ceil(narrow * narrow_coeff + normal + upper*upper_coeff)
 
 
+def cleanRst(text):
+    """Clean RST/Markdown text for plain-text display, removing images, HTML tags,
+    backslash escapes and formatting markers.
+
+    :param text: RST or Markdown text to clean
+    :returns: plain text string"""
+    if not text:
+        return ''
+    # remove markdown inline images (including base64 data URIs): ![alt](url)
+    text = re.sub(r'!\[[^\]]*\]\([^)]*\)', '', text)
+    # strip HTML tags but keep their text content
+    text = re.sub(r'<[^>]+>', '', text)
+    # unescape backslash-escaped markdown/RST chars e.g. \- \( \) \[ \]
+    text = re.sub(r'\\(.)', r'\1', text)
+    # remove bold/italic markers ** and *
+    text = re.sub(r'\*+', '', text)
+    # collapse excess whitespace
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
+
+
