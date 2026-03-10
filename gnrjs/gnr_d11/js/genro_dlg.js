@@ -450,17 +450,21 @@ dojo.declare("gnr.GnrDlgHandler", null, {
     },
 
     message: function(msg, position, level, duration) {
-        this.messanger.forcedPos = position;
         var level = level || 'message';
         var duration = duration || 4000;
-        if(level=='error'){
-            if(!dojo.query('.countBoxErrors').length){
-                return;
+        if(genro.toast){
+            genro.toast.show({message: msg, level: level, duration: duration});
+        }else{
+            this.messanger.forcedPos = position;
+            if(level=='error'){
+                if(!dojo.query('.countBoxErrors').length){
+                    return;
+                }
             }
+            dojo.publish("standardMsg", [
+                {message: msg, type: level, duration: duration}
+            ]);
         }
-        dojo.publish("standardMsg", [
-            {message: msg, type: level, duration: duration}
-        ]);
     },
     
 
