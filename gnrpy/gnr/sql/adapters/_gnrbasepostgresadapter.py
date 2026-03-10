@@ -1294,6 +1294,36 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
         return 'unaccent({prefix}{field})'.format(field=field,
                                                   prefix = '' if field[0] in ('@','$') else '$')
 
+    def listen_connection(self, channels):
+        """Open a dedicated AUTOCOMMIT connection and LISTEN on the given channels.
+
+        Args:
+            channels: Iterable of channel names to LISTEN on.
+
+        Returns:
+            A connection ready for ``select()`` polling.
+        """
+        conn = self.connect(autoCommit=True)
+        cursor = conn.cursor()
+        for channel in channels:
+            cursor.execute('LISTEN %s;' % channel)
+        cursor.close()
+        return conn
+
+    def poll_notifications(self, conn):
+        """Poll for pending notifications on a psycopg2/psycopg3 connection.
+
+        Args:
+            conn: The connection returned by :meth:`listen_connection`.
+
+        Returns:
+            A list of notification objects (each with ``.channel`` and ``.payload``).
+        """
+        conn.poll()
+        notifications = list(conn.notifies)
+        conn.notifies.clear()
+        return notifications
+
 
 class GnrWhereTranslatorPG(GnrWhereTranslator):
     def op_similar(self, column, value, dtype, sqlArgs,tblobj):
