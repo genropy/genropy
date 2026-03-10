@@ -20,7 +20,17 @@ class TableHandlerForm(BaseComponent):
     def th_tableEditor(self,pane,frameCode=None,table=None,th_pkey=None,formResource=None,
                         formInIframe=False,dfltoption_kwargs=None,**kwargs):
         table = table or pane.attributes.get('table')
-        resourcePath = self._th_mixinResource(frameCode,table=table,resourceName=formResource,defaultClass='Form') 
+        resourcePath = self._th_mixinResource(frameCode,table=table,resourceName=formResource,defaultClass='Form')
+        form_hook = self._th_hook('form',mangler=frameCode,defaultCb=False)
+        if form_hook is None and not formResource:
+            table_short = table.split('.')[1] if table else '?'
+            msg = ("Form resource not found for table '%s' in th_%s.py. "
+                   "Define a Form class or use plainTableHandler." % (table, table_short))
+            import logging
+            logging.getLogger('gnr.th').error('dialogTableHandler: %s', msg)
+            pane.dataController("genro.publish('client_error',{message:msg})",
+                               msg=msg, _onStart=True)
+            return
         options = dfltoption_kwargs
         options.update(self._th_getOptions(frameCode))
         options.update(kwargs)
