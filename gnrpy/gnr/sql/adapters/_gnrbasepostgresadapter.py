@@ -1116,11 +1116,9 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
     
     def struct_create_extension_sql(self, extension_name):
         """
-        Generates the SQL to create an extension with optional schema, version, and cascade options.
+        Generates the SQL to create an extension.
         """
-        return f"""DROP EXTENSION IF EXISTS {extension_name};
-                    CREATE EXTENSION {extension_name};"""
-        
+        return f"CREATE EXTENSION IF NOT EXISTS {extension_name};"
 
 
     def struct_get_event_triggers_sql(self):
