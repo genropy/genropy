@@ -9,6 +9,7 @@ import sys
 import os.path
 from gnr.web import logger
 
+
 class GnrK8SGenerator(object):
     def __init__(self, instance_name, image,
                  fqdns,
@@ -17,7 +18,8 @@ class GnrK8SGenerator(object):
                  container_port=8000,
                  secret_name=None,
                  replicas=1,
-                 extra_labels=None):
+                 extra_labels=None,
+                 extra_initContainers: list | None = None):
         
         self.instance_name = instance_name
         self.image = image
@@ -45,6 +47,36 @@ class GnrK8SGenerator(object):
                             self.env.append(dict(name=k, value=v))
                             
         self.extra_labels = extra_labels if isinstance(extra_labels, dict) else {}
+
+        volume_init_containers = {
+            "name": "volume-permissions",
+            "image": "busybox",
+            "command": ["sh", "-c", f"chown -R 100:100 /mnt/data/{self.stack_name}-site"],
+            "volumeMounts": [
+                {
+                    "name": f"{self.stack_name}-site-volume",
+                    "mountPath": f"/mnt/data/{self.stack_name}-site",
+                    
+                }
+            ]
+        }
+        
+        self.extra_initContainers = [volume_init_containers]
+        if extra_initContainers is not None:
+            self.extra_initContainers.extend(extra_initContainers)
+        
+        # validate initContainers
+        for eic in self.extra_initContainers:
+            if not isinstance(eic, dict):
+                raise TypeError(f"Extra init container {eic} must be a dict instance")
+            for key in ['name','image','command']:
+                if key not in eic:
+                    raise ValueError(f"Missing required {key} in initContainer {eic}")
+        # ensure name uniqueness
+        initContainers_names = [x.get("name") for x in self.extra_initContainers]
+        if len(initContainers_names) != len(set(initContainers_names)):
+            raise ValueError("initContainers list has duplicates names!")
+
         
         self.GNR_DAEMON_PORT = 40407
         self.services = [
@@ -204,7 +236,7 @@ class GnrK8SGenerator(object):
                 }
 
             else:
-                deployment['spec']['template']['spec']['initContainers'] = [
+                self.extra_initContainers.append(
                     {
                         "name": "wait-for-daemon",
                         "image": "busybox",
@@ -213,7 +245,9 @@ class GnrK8SGenerator(object):
                             f"until nc -z {self.stack_name}-daemon {self.GNR_DAEMON_PORT}; do echo \"Waiting for {self.stack_name}-daemon...\"; sleep 2; done"
                         ]
                     }
-                ]
+                )
+                deployment['spec']['template']['spec']['initContainers'] = self.extra_initContainers
+                
             if self.secret_name:
                 deployment['spec']['template']['spec']['imagePullSecrets'] = [{"name": self.secret_name}]
             deployments.append(deployment)
@@ -321,20 +355,7 @@ class GnrK8SGenerator(object):
                         'securityContext': {
                             'fsGroup': 100
                         },
-                        'initContainers': [
-                            {
-                                "name": "volume-permissions",
-                                "image": "busybox",
-                                "command": ["sh", "-c", f"chown -R 100:100 /mnt/data/{self.stack_name}-site"],
-                                "volumeMounts": [
-                                    {
-                                        "name": f"{self.stack_name}-site-volume",
-                                        "mountPath": f"/mnt/data/{self.stack_name}-site",
-                                        
-                                    }
-                                ]
-                            }
-                        ],
+                        'initContainers': [],
                         'containers':containers,
                         'volumes': [
                             {
@@ -349,6 +370,10 @@ class GnrK8SGenerator(object):
                 }
             }
         }
+        
+        if self.extra_initContainers:
+            deployment['spec']['template']['spec']['initContainers'].extend(self.extra_initContainers)
+            
         deployment['metadata']['labels'].update(self.extra_labels)
         deployment['spec']['template']['metadata']['labels'].update(self.extra_labels)
         
