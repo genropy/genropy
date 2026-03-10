@@ -9,7 +9,7 @@ import mimetypes
 import functools
 from time import time
 from collections import defaultdict
-from threading import RLock
+from threading import RLock, Thread
 import warnings
 
 import requests
@@ -1023,7 +1023,23 @@ class GnrWsgiSite(object):
                     page.setInClientData('gnr.server_error', msg, fired=True)
                 except Exception:
                     pass
+        if error_id:
+            self._sendToErrorEndpoints(error_id, kwargs)
         return error_id
+
+    def _sendToErrorEndpoints(self, error_id, error_info):
+        endpoint = self.config['error_handler?error_endpoint']
+        if not endpoint:
+            return
+        error_info['error_id'] = error_id
+        Thread(target=self._postToEndpoint,
+               args=(endpoint, error_info), daemon=True).start()
+
+    def _postToEndpoint(self, endpoint, error_info):
+        try:
+            requests.post(endpoint, json=error_info, timeout=5)
+        except Exception:
+            logger.warning('Failed to send error to endpoint %s', endpoint)
 
     def writeException(self, exception=None, traceback=None):
         try:

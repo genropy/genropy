@@ -1284,11 +1284,7 @@ class GnrApp(object):
             **kwargs
         )
         self.pkgBroadcast('onError', error_info)
-        self._sendToErrorEndpoints(error_info)
         return error_id
-
-    def _sendToErrorEndpoints(self, error_info):
-        pass
 
     @property
     def locale(self):
