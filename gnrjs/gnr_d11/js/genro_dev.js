@@ -143,13 +143,13 @@ dojo.declare("gnr.GnrDevHandler", null, {
             mainGenroWindow.dlg.alert('No longer existing page','Error',null,null,{confirmCb:genro.pageReload});
             return;
         } else if (status === 0) {
-            //genro.dlg.alert('Site temporary un available. Retry later');
-
-            var msg = 'status: ' + xhr.status + ' - statusText:' + xhr.statusText + ' - readyState:' + xhr.readyState + ' - responseText:' + responseText;
-            console.log(ioArgs.url);
-            console.log(msg);
-            console.log(ioArgs);
-
+            genro.publish('client_error', {
+                errorType: 'network',
+                description: 'Connection lost or server unavailable',
+                status: xhr.status,
+                statusText: xhr.statusText,
+                url: ioArgs.url
+            });
         }
         else {
             console.log('handleRpcHttpError');
@@ -1154,7 +1154,9 @@ dojo.declare("gnr.GnrDevHandler", null, {
 
     addError:function(error,error_type,show){
         var msg = "<div style='text-align:center;font-size:1em;font-weight:bold;'>"+error_type.toUpperCase()+" Error "+_F(new Date(),'short')+"</div>"+error;
-        if(show){
+        if(show && genro.toast){
+            genro.toast.show({title: error_type.toUpperCase() + ' Error', message: error, level: 'error'});
+        }else if(show){
             genro.dlg.message(msg,null,'error',3000);
         }
         var errorbag = genro.getData('gnr.errors');
