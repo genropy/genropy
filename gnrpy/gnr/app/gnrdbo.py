@@ -11,7 +11,7 @@ from collections import defaultdict
 
 from gnr.core.gnrlang import boolean
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrstring import splitAndStrip,templateReplace,fromJson,slugify
+from gnr.core.gnrstring import splitAndStrip,templateReplace,fromJson,slugify,toTypedJSON
 from gnr.core.gnrdecorator import public_method,extract_kwargs
 from gnr.core.gnrdict import dictExtract
 
@@ -1534,6 +1534,32 @@ class TableBase(object):
 
 class GnrDboTable(TableBase):
     """TODO"""
+
+    def notify(self, channel, **kwargs):
+        """Send a custom NOTIFY on the given channel.
+
+        The payload always includes ``table`` (this table's fullname).
+        Any extra keyword arguments are merged into the payload.
+
+        Args:
+            channel: The PostgreSQL NOTIFY channel name.
+            **kwargs: Additional key-value pairs for the JSON payload.
+        """
+        currentPage = self.db.currentPage
+        user = None
+        page_id = None
+        if currentPage:
+            user = currentPage.user
+            page_id = currentPage.page_id
+        payload = dict(
+            table=self.fullname,
+            user=user,
+            page_id=page_id,
+            ts=datetime.datetime.now(datetime.timezone.utc),
+            **kwargs,
+        )
+        self.db.adapter.notify(channel, payload=toTypedJSON(payload))
+
     def use_dbstores(self,**kwargs):
         """TODO"""
         return self.attributes.get('multidb')

@@ -201,7 +201,7 @@ class GroupletHandler(BaseComponent):
     @struct_method
     def gr_groupletPanel(self, pane, table=None, topic=None, value=None,
                          frameCode=None, grouplets_root=None,
-                         useForm=True,
+                         useForm=True, menuCallback=None,
                          grouplet_kwargs=None, **kwargs):
         frameCode = frameCode or 'grplt_panel'
         if useForm:
@@ -210,6 +210,7 @@ class GroupletHandler(BaseComponent):
                                    value=value,
                                    dynamicLocationPath=True, formId=formId,
                                    store_autoSave=1)
+            grouplet_kwargs['grouplet_remote_locationpath'] = '^#ANCHOR.selected_locationpath'
         else:
             formId = None
             grouplet_kwargs.update(resource='^#ANCHOR.selected_resource',
@@ -219,8 +220,12 @@ class GroupletHandler(BaseComponent):
         if grouplets_root:
             grouplet_kwargs['grouplets_root'] = grouplets_root
         grouplet_kwargs['rootTag'] = 'contentPane'
-        menu = self.gr_getGroupletMenu(table=table, topic=topic,
-                                       grouplets_root=grouplets_root)
+        if menuCallback:
+            menu = menuCallback(table=table, topic=topic,
+                                grouplets_root=grouplets_root)
+        else:
+            menu = self.gr_getGroupletMenu(table=table, topic=topic,
+                                           grouplets_root=grouplets_root)
         if topic:
             grouplet_kwargs['grouplet_remote_topic'] = topic
             return self._groupletPanel_topic(
@@ -288,9 +293,9 @@ class GroupletHandler(BaseComponent):
             """,
             connect_onClick="""
                 if($2.item.attr.resource && $2.item.attr.grouplet_caption){
-                    SET .selected_resource = $2.item.attr.resource;
-                    SET .selected_caption = $2.item.attr.grouplet_caption;
                     SET .selected_locationpath = $2.item.attr.locationpath || null;
+                    SET .selected_caption = $2.item.attr.grouplet_caption;
+                    SET .selected_resource = $2.item.attr.resource;
                 }
             """)
         right = bc.borderContainer(region='center')
