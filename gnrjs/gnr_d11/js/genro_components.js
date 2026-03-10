@@ -998,7 +998,6 @@ dojo.declare("gnr.widgets.GroupletForm",gnr.widgets.gnrwdg,{
                 grouplets_pars._onRemote = "this.form.load();";
             }
         }
-        kw.datapath = datapath;
         grouplets_pars.table = grouplets_pars.table || table;
         grouplets_pars.handler = grouplets_pars.handler || handler;
         grouplets_pars.resource = grouplets_pars.resource || resource;
