@@ -80,35 +80,41 @@ class Table(object):
     def defaultValues(self):
         return dict(account_id=self.db.currentEnv.get('current_account_id'))
 
+    def _manageOutputMessage(self, record_data):
+        account_record = self.db.table('email.account').cachedRecord(
+            record_data['account_id'],
+            cacheInPage=True
+        )
+
+        # Set from_address if missing
+        if not record_data['from_address']:
+            record_data['from_address'] = account_record['smtp_from_address']
+
+        # Handle BCC addresses
+        bcc_address = record_data['bcc_address'] or account_record['system_bcc'] or ''
+        system_bcc = account_record['system_bcc']
+
+        if system_bcc and system_bcc not in bcc_address:
+            bcc_address = f'{bcc_address},{system_bcc}' if bcc_address else system_bcc
+
+        record_data['bcc_address'] = bcc_address or None
+
+    def _manageInputMessage(self, record_data):
+        email_bag = Bag(record_data['email_bag'])
+        rif_id = email_bag.get('In-Reply-To')
+        if rif_id:
+            rif_id = rif_id.strip('<>')
+            if rif_id and rif_id.startswith('GNR_'):
+                reply_message_id = rif_id[4:26]
+                if self.existsRecord(reply_message_id):
+                    record_data['reply_message_id'] = reply_message_id
+
     def trigger_onInserting(self, record_data):
         if record_data['account_id'] and record_data['in_out'] == 'O':
-            account_record = self.db.table('email.account').cachedRecord(
-                record_data['account_id'], 
-                cacheInPage=True
-            )
-            
-            # Set from_address if missing
-            if not record_data['from_address']:
-                record_data['from_address'] = account_record['smtp_from_address']
-            
-            # Handle BCC addresses
-            bcc_address = record_data['bcc_address'] or account_record['system_bcc'] or ''
-            system_bcc = account_record['system_bcc']
-            
-            if system_bcc and system_bcc not in bcc_address:
-                bcc_address = f'{bcc_address},{system_bcc}' if bcc_address else system_bcc
-            
-            record_data['bcc_address'] = bcc_address or None
+            self._manageOutputMessage(record_data)
         self.explodeAddressRelations(record_data)
         if record_data['in_out']=='I':
-            email_bag = Bag(record_data['email_bag'])
-            rif_id = email_bag.get('In-Reply-To')
-            if rif_id:
-                rif_id = rif_id.strip('<>')
-                if rif_id and rif_id.startswith('GNR_'):
-                    reply_message_id = rif_id[4:26]
-                    if self.existsRecord(reply_message_id):
-                        record_data['reply_message_id'] = reply_message_id
+            self._manageInputMessage(record_data)
 
     def trigger_onInserted(self, record_data):
         if record_data['in_out']=='O' and record_data['send_date'] is None:
