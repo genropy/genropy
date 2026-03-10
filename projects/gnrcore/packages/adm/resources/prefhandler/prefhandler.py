@@ -69,7 +69,7 @@ class BasePreferenceTabs(BaseComponent):
             auth = self.application.checkResourcePermission(permmissioncb(), self.userTags)
         panecb = getattr(self, 'prefpane_%s' % pkg.id, None)
         if panecb and auth:
-            panecb(tc, title=pkg.attributes.get('name_full') or pkg.attributes.get('name_long') or pkg.id, datapath='.%s' % pkg.id, nodeId=pkg.id,
+            panecb(tc, title=pkg.attributes.get('name_long') or pkg.id, datapath='.%s' % pkg.id, nodeId=pkg.id,
                     pkgId=pkg.id,_anchor=True,sqlContextRoot='%s.%s' % (datapath,pkg.id))
 
 
@@ -124,8 +124,7 @@ class AppPrefHandler(BasePreferenceTabs):
                          or pkgObj.projectInfo.get('project?prefgroup')
                          or pkgObj.projectInfo.get('project?name')
                          or pkgId)
-            caption = (pkgObj.attributes.get('name_full')
-                       or pkgObj.attributes.get('name_long') or pkgId)
+            caption = pkgObj.attributes.get('name_long') or pkgId
             grouped[prefgroup].append(dict(pkgId=pkgId, caption=caption))
         for group, pkglist in grouped.items():
             if len(pkglist) == 1:
