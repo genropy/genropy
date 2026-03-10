@@ -114,7 +114,8 @@ dojo.declare("gnr.GnrToast", null, {
             opts = {message: opts};
         }
         var level = this.LEVEL_MAP[opts.level] || opts.level || 'info';
-        var duration = opts.duration || this.DURATIONS[level] || 4000;
+        var duration = opts.duration !== undefined ? opts.duration : (this.DURATIONS[level] || 4000);
+        var persistent = duration === 0;
 
         var el = document.createElement('div');
         el.className = 'gnr-toast';
@@ -126,31 +127,38 @@ dojo.declare("gnr.GnrToast", null, {
         }
         bodyHtml += '<p class="gnr-toast-message">' + (opts.message || '') + '</p>';
 
+        var progressHtml = persistent ? '' : '<div class="gnr-toast-progress" style="animation-duration:' + duration + 'ms"></div>';
         el.innerHTML =
             '<span class="gnr-toast-icon">' + (this.ICONS[level] || this.ICONS.info) + '</span>' +
             '<div class="gnr-toast-body">' + bodyHtml + '</div>' +
             '<span class="gnr-toast-close">' + this.CLOSE_ICON + '</span>' +
-            '<div class="gnr-toast-progress" style="animation-duration:' + duration + 'ms"></div>';
+            progressHtml;
 
         this.container.appendChild(el);
 
         var self = this;
-        var timer = setTimeout(function(){ self.dismiss(el); }, duration);
-
-        el.addEventListener('click', function(){
-            clearTimeout(timer);
-            self.dismiss(el);
-        });
-        el.addEventListener('mouseenter', function(){
-            clearTimeout(timer);
-            var bar = el.querySelector('.gnr-toast-progress');
-            if(bar){ bar.style.animationPlayState = 'paused'; }
-        });
-        el.addEventListener('mouseleave', function(){
-            var bar = el.querySelector('.gnr-toast-progress');
-            if(bar){ bar.style.animationPlayState = 'running'; }
-            timer = setTimeout(function(){ self.dismiss(el); }, 2000);
-        });
+        if(persistent){
+            el.querySelector('.gnr-toast-close').addEventListener('click', function(e){
+                e.stopPropagation();
+                self.dismiss(el);
+            });
+        }else{
+            var timer = setTimeout(function(){ self.dismiss(el); }, duration);
+            el.addEventListener('click', function(){
+                clearTimeout(timer);
+                self.dismiss(el);
+            });
+            el.addEventListener('mouseenter', function(){
+                clearTimeout(timer);
+                var bar = el.querySelector('.gnr-toast-progress');
+                if(bar){ bar.style.animationPlayState = 'paused'; }
+            });
+            el.addEventListener('mouseleave', function(){
+                var bar = el.querySelector('.gnr-toast-progress');
+                if(bar){ bar.style.animationPlayState = 'running'; }
+                timer = setTimeout(function(){ self.dismiss(el); }, 2000);
+            });
+        }
         return el;
     },
 

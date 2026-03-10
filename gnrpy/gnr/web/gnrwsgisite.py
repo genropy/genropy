@@ -1019,6 +1019,8 @@ class GnrWsgiSite(object):
             notify_user = kwargs.get('notify_user')
             if notify_user:
                 try:
+                    if notify_user is True:
+                        notify_user = str(exception)
                     msg = '%s (ref: %s)' % (notify_user, error_id)
                     page.setInClientData('gnr.server_error', msg, fired=True)
                 except Exception:

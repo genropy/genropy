@@ -1260,7 +1260,8 @@ class GnrApp(object):
     def errorHandler(self, exception=None, description=None,
                      error_type=None, traceback=None,
                      action='ignore', loglevel='error',
-                     origin=None, notify_user=None, **kwargs):
+                     origin=None, notify_user=None,
+                     **kwargs):
         if exception and not description:
             description = str(exception)
         log_fn = getattr(logger, loglevel, logger.error)
@@ -1269,9 +1270,13 @@ class GnrApp(object):
         if not should_broadcast:
             return None
         error_id = self._make_error_id()
-        if exception and not traceback:
+        if traceback is None:
+            traceback = loglevel in ('error', 'critical')
+        if traceback and exception:
             traceback = tracebackBag()
-        error_type = error_type or ('EXC' if exception else 'ERR')
+        else:
+            traceback = None
+        error_type = error_type or (type(exception).__name__ if exception else 'ERR')
         error_info = dict(
             error_id=error_id,
             description=description,

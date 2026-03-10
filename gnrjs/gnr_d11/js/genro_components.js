@@ -41,7 +41,10 @@ dojo.declare("gnr.widgets.gnrwdg", null, {
         sourceNode._value = null; // remove content that will be used in the inner construction
         var subTagItems = this.subtags?this.popSubTagItems(sourceNode.attr.tag,children):{};
         var content = this.createContent(sourceNode, contentKwargs,children,subTagItems);
-        genro.assert(content,'create content must return');
+        if(!content){
+            sourceNode.unfreeze(true);
+            return false;
+        }
         content.concat(children);
         sourceNode._isComponentNode=true;
         genro.src.stripData(sourceNode);
@@ -937,9 +940,9 @@ dojo.declare("gnr.widgets.FrameForm", gnr.widgets._BaseForm, {
         let contentNode = children.getNode('center');
         if(!contentNode){
             let table = kw.table || '';
-            let msg = 'FrameForm: missing Form resource for table ' + table + '. Define a Form class in th_' + table.split('.').pop() + '.py or use plainTableHandler.';
+            let msg = 'Missing Form resource for table ' + table;
             console.error(msg);
-            genro.publish('client_error', {message: msg});
+            genro.publish('client_error', {errorType: 'missing_resource', description: msg});
             return;
         }
         if(contentNode.attr.tag == 'autoslot'){

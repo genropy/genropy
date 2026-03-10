@@ -9,6 +9,7 @@ from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import extract_kwargs,public_method
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import boolean
+from gnr.core.gnrclasses import GnrMixinNotFound
 from gnr.core.gnrdict import dictExtract
 
 
@@ -20,16 +21,10 @@ class TableHandlerForm(BaseComponent):
     def th_tableEditor(self,pane,frameCode=None,table=None,th_pkey=None,formResource=None,
                         formInIframe=False,dfltoption_kwargs=None,**kwargs):
         table = table or pane.attributes.get('table')
-        resourcePath = self._th_mixinResource(frameCode,table=table,resourceName=formResource,defaultClass='Form')
-        form_hook = self._th_hook('form',mangler=frameCode,defaultCb=False)
-        if form_hook is None and not formResource:
-            table_short = table.split('.')[1] if table else '?'
-            msg = ("Form resource not found for table '%s' in th_%s.py. "
-                   "Define a Form class or use plainTableHandler." % (table, table_short))
-            import logging
-            logging.getLogger('gnr.th').error('dialogTableHandler: %s', msg)
-            pane.dataController("genro.publish('client_error',{message:msg})",
-                               msg=msg, _onStart=True)
+        try:
+            resourcePath = self._th_mixinResource(frameCode,table=table,resourceName=formResource,defaultClass='Form')
+        except GnrMixinNotFound as e:
+            self._th_missingResource(pane, e)
             return
         options = dfltoption_kwargs
         options.update(self._th_getOptions(frameCode))
@@ -141,7 +136,11 @@ class TableHandlerForm(BaseComponent):
                         store='recordCluster',handlerType=None,tree_kwargs=None,**kwargs):
         tableCode = table.replace('.','_')
         formId = formId or tableCode
-        resourcePath = self._th_mixinResource(formId,table=table,resourceName=formResource,defaultClass='Form')
+        try:
+            resourcePath = self._th_mixinResource(formId,table=table,resourceName=formResource,defaultClass='Form')
+        except GnrMixinNotFound as e:
+            self._th_missingResource(pane, e)
+            return
         resource_options = self._th_getOptions(formId)
         resource_options.update(kwargs)
         resource_options.update(tree_kwargs)

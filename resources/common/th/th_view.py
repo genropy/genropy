@@ -15,6 +15,7 @@ from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import slugify
 from gnr.core.gnrdate import nextMonth
+from gnr.core.gnrclasses import GnrMixinNotFound
 
 
 class TableHandlerView(BaseComponent):
@@ -33,7 +34,11 @@ class TableHandlerView(BaseComponent):
                        virtualStore=None,condition=None,condition_kwargs=None,
                        structure_field=None,structure_field_kwargs=None,sections_kwargs=None,
                        store_kwargs=None,extendedQuery=None,**kwargs):
-        self._th_mixinResource(frameCode,table=table,resourceName=viewResource,defaultClass='View')
+        try:
+            self._th_mixinResource(frameCode,table=table,resourceName=viewResource,defaultClass='View')
+        except GnrMixinNotFound as e:
+            self._th_missingResource(pane, e)
+            return
         options = self._th_getOptions(frameCode)
         if extendedQuery is None:
             extendedQuery = options.get('extendedQuery')

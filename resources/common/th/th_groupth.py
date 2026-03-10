@@ -23,6 +23,7 @@ from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import public_method,extract_kwargs
 from gnr.core.gnrbag import Bag
+from gnr.core.gnrclasses import GnrMixinNotFound
 
 
 def flatCol(c):
@@ -56,7 +57,11 @@ class TableHandlerGroupBy(BaseComponent):
         datapath = datapath or '.%s' %frameCode
         rootNodeId = frameCode
         if not struct and viewResource:
-            self._th_mixinResource(frameCode,table=table,resourceName=viewResource,defaultClass='View')
+            try:
+                self._th_mixinResource(frameCode,table=table,resourceName=viewResource,defaultClass='View')
+            except GnrMixinNotFound as e:
+                self._th_missingResource(pane, e)
+                return
             struct = self._th_hook('groupedStruct',mangler=frameCode)
             store_kwargs['applymethod'] = store_kwargs.get('applymethod') or self._th_hook('groupedApplymethod',mangler=frameCode)
         bc = pane.borderContainer(datapath=datapath,_class='group_by_th',_anchor=True,**kwargs)
