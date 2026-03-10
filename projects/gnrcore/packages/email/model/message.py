@@ -23,7 +23,7 @@ class Table(object):
         self.sysFields(tbl,draftField=True,ldel=False)
         
         tbl.column('in_out', size='1', name_long='!!I/O', name_short='!!I/O',values='I:Input,O:Output')
-        tbl.column('to_address',name_long='!!To',indexed=True,_sendback=True)
+        tbl.column('to_address',name_long='!!To',_sendback=True)
         tbl.column('from_address',name_long='!!From',_sendback=True)
         tbl.column('cc_address',name_long='!!Cc',_sendback=True)
         tbl.column('bcc_address',name_long='!!Bcc',_sendback=True)
@@ -117,7 +117,7 @@ class Table(object):
     def trigger_onUpdating(self, record_data, old_record):
         self.deleteAddressRelations(record_data)
         self.explodeAddressRelations(record_data)
-    
+
     def trigger_onUpdated(self, record_data,old_record=None):
         error_in_sending = record_data['error_msg'] and not old_record['error_msg']
         just_sent = record_data['send_date'] and not old_record['send_date']

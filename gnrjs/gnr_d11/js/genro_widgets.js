@@ -1630,7 +1630,33 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
         if(doResize){
             this.resize(c);
         }
-        this.layout(); 
+        this.layout();
+        var animate = this.sourceNode.attr.animateResize;
+        if(animate && !this._animateResizeDone){
+            this._animateResizeDone = true;
+            this._animateDialogAppear(animate === true ? 400 : animate);
+        }
+    },
+
+    mixin__animateDialogAppear:function(duration){
+        var dn = this.domNode;
+        dn.style.willChange = 'transform, opacity';
+        dn.style.transition = 'none';
+        dn.style.transform = 'scale(0.92)';
+        dn.style.opacity = '0';
+        requestAnimationFrame(function(){
+            dn.style.transition = 'transform ' + duration + 'ms ease-in, opacity ' + Math.round(duration * 0.6) + 'ms ease-in';
+            dn.style.transform = 'scale(1)';
+            dn.style.opacity = '1';
+            function onEnd(){
+                dn.style.transition = '';
+                dn.style.transform = '';
+                dn.style.opacity = '';
+                dn.style.willChange = '';
+                dn.removeEventListener('transitionend', onEnd);
+            }
+            dn.addEventListener('transitionend', onEnd);
+        });
     },
 
     creating:function(attributes, sourceNode) {

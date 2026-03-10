@@ -146,10 +146,21 @@ class Package(GnrDboPackage):
 
 
     def onAuthentication(self,avatar):
-        """dbstore user check"""
-        dbstorepage = self.db.application.site.currentPage.dbstore
+        """dbstore user check.
+
+        In multidomain mode, users are completely isolated per domain (each workspace
+        has its own user table), so no cross-domain check is needed.
+        In non-multidomain mode, users are centralized but marked with a dbstore field,
+        so we need to verify the user is accessing their assigned dbstore.
+        """
+        if self.db.multidomain:
+            return
+        currentPage = self.db.application.site.currentPage
+        if not currentPage:
+            return
+        dbstorepage = currentPage.dbstore
         user_record = getattr(avatar,'user_record',None)
-        if user_record and avatar.user_record['dbstore'] and dbstorepage!=avatar.user_record['dbstore']:
+        if user_record and user_record.get('dbstore') and dbstorepage != user_record['dbstore']:
             avatar.user_tags = ''
 
 class Table(GnrDboTable):

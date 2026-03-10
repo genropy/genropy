@@ -43,10 +43,10 @@ from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT, ISOLATION_LEVEL_READ
 
 from gnr.sql.adapters._gnrbasepostgresadapter import PostgresSqlDbBaseAdapter
 from gnr.sql.adapters._gnrbaseadapter import GnrDictRow
-from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
+from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException, GnrSqlConnectionException
 
 
-RE_SQL_PARAMS = re.compile(r":(\S\w*)(\W|$)")
+RE_SQL_PARAMS = re.compile(r"(?<!:):(?!:)(\S\w*)(\W|$)")
 
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
 
@@ -136,8 +136,10 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
             conn = psycopg2.connect(**kwargs)
             if autoCommit:
                 conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        except psycopg2.OperationalError:
-            raise GnrNonExistingDbException(self.dbroot.dbname)
+        except psycopg2.OperationalError as e:
+            if 'does not exist' in str(e).lower():
+                raise GnrNonExistingDbException(self.dbroot.dbname)
+            raise GnrSqlConnectionException(self.dbroot.dbname, original_error=e)
         finally:
             self._lock.release()
         return conn
@@ -260,12 +262,16 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
                         listening = onNotify(conn.notifies.pop())
         self.dbroot.connection.set_isolation_level(ISOLATION_LEVEL_READ_COMMITTED)
 
-    def notify(self, msg, autocommit=False):
+    def notify(self, msg, payload=None, autocommit=False):
         """Notify a message to listener processes using the Postgres LISTEN - NOTIFY method.
 
-        :param msg: name of the message to notify
-        :param autocommit: if False (default) you have to commit transaction, and the message is actually sent on commit"""
-        self.dbroot.execute('NOTIFY %s;' % msg)
+        :param msg: channel name to notify
+        :param payload: optional payload string (max 8000 bytes)
+        :param autocommit: if False (default) the message is sent on commit"""
+        if payload is None:
+            self.dbroot.execute("NOTIFY %s;" % msg)
+        else:
+            self.dbroot.execute("NOTIFY %s, :payload;" % msg, sqlargs={'payload': payload})
         if autocommit:
             self.dbroot.commit()
 

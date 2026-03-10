@@ -5,18 +5,32 @@
 Generates a k8s deployment file
 
 """
-
+import argparse
 from gnr.core.cli import GnrCliArgParse
 from gnr.web.gnrk8s import GnrK8SGenerator
 
 description = "Create a K8S deployment file for selected instance"
                     
 def main():
+
+    def kv_pair(s):
+        # split only on the first colon, so values may contain ':' if needed
+        k, sep, v = s.partition(":")
+        if not sep or not k:
+            raise argparse.ArgumentTypeError("expected LABELNAME:VALUE")
+        return k, v
+    
     parser = GnrCliArgParse(description=description)
     parser.add_argument('-i', '--image',
                         required=True,
                         dest="image",
                         help="Image name to be deployed")
+    parser.add_argument('-l', '--labels',
+                        action="append",
+                        type=kv_pair,
+                        default=[],
+                        metavar = "LABELNAME:VALUE",
+                        help="May be repeated. Ex: -l customer:myself -l price:10")
     parser.add_argument('-f', '--fqdn',
                         action="append",
                         required=True,
@@ -55,6 +69,7 @@ def main():
     parser.add_argument('instance_name')
     
     options = parser.parse_args()
+    extra_labels = dict(options.labels) if options.labels else None
     generator = GnrK8SGenerator(options.instance_name, options.image,
                                 options.fqdns,
                                 deployment_name=options.name,
@@ -63,6 +78,7 @@ def main():
                                 env_secrets=options.env_secrets,
                                 container_port=options.container_port,
                                 secret_name=options.secret_name,
-                                replicas=options.replicas)
+                                replicas=options.replicas,
+                                extra_labels=extra_labels)
 
     generator.generate_conf()

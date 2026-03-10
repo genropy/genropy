@@ -219,3 +219,26 @@ def deprecated(message=None):
         wrapper.__dict__.update(func.__dict__)
         return wrapper
     return decore
+
+
+def listen(channel=None):
+    """Mark a table method as a NOTIFY event handler.
+
+    The decorated method will be auto-discovered by GnrListener
+    and registered on the given channel.  The listener automatically
+    filters by the table's fullname.
+
+    Always use with parentheses::
+
+        @listen()
+        def on_change(self, payload):
+            ...  # listens on 'dbevent' (default)
+
+        @listen('fatturona')
+        def alert_big(self, payload):
+            ...  # listens on 'fatturona'
+    """
+    def decorator(func):
+        func._listen_channel = channel or 'dbevent'
+        return func
+    return decorator

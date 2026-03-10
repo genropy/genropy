@@ -1,54 +1,25 @@
+import pytest
 import os
-import time
 import tempfile
 import shutil
 
-import gnr.web.gnrwsgisite as gws
 from gnr.core.gnrbag import Bag
 
-from webcommon import BaseGnrTest
-from utils import WSGITestClient, ExternalProcess
+from webcommon import BaseGnrDaemonTest
 
-def get_waited_wsgisite(site_name):
-    max_attempts = 3
-    attempt = 0
-    timeout = 2
-
-    while attempt < max_attempts:
-        try:
-            site = gws.GnrWsgiSite(site_name, site_name=site_name)
-            return site
-        except Exception as e:
-            time.sleep(timeout)
-            attempt += 1
-    raise Exception(f"Can't connect to local daemon after {attempt} attempts")
-
-
-class TestStorageHandler(BaseGnrTest):
+class TestStorageHandler(BaseGnrDaemonTest):
     """Comprehensive tests for storage handler, storage services, and storage nodes."""
 
     @classmethod
     def setup_class(cls):
         super().setup_class()
-        cls.external = ExternalProcess(['gnr','web','daemon'], cwd=None)
 
-        try:
-            cls.external.start()
-            cls.site_name = 'gnrdevelop'
-            cls.site = get_waited_wsgisite(cls.site_name)
-            cls.client = WSGITestClient(cls.site)
-            cls.storage_handler = cls.site.storage_handler
 
-            # Create temporary directory for test storage
-            cls.test_dir = tempfile.mkdtemp(prefix='gnr_storage_test_')
-
-        except Exception as e:
-            cls.teardown_class()
-            raise
+        cls.storage_handler = cls.site.storage_handler
+        cls.test_dir = tempfile.mkdtemp(prefix='gnr_storage_test_')
 
     @classmethod
     def teardown_class(cls):
-        cls.external.stop()
         # Clean up temporary directory
         if hasattr(cls, 'test_dir') and os.path.exists(cls.test_dir):
             shutil.rmtree(cls.test_dir)
@@ -382,10 +353,11 @@ class TestStorageHandler(BaseGnrTest):
 
     def test_deprecated_get_volume_service(self):
         """Test that deprecated getVolumeService still works but is deprecated."""
-        # Should still work for backward compatibility
-        result = self.storage_handler.getVolumeService('gnr')
-        # May return None or a service, but should not raise exception
-        assert result is None or hasattr(result, 'url')
+        # Should still work for backward compatibility, but raises a deprecation warning
+        with pytest.warns(DeprecationWarning):
+            result = self.storage_handler.getVolumeService('gnr')
+            # May return None or a service, but should not raise exception
+            assert result is None or hasattr(result, 'url')
 
     # ========================================================================
     # Edge Cases and Error Handling

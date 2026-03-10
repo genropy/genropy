@@ -27,7 +27,7 @@ dependencies = [
 	     "babel",
 	     "boto3",
 	     "caldav",
-	     "chardet",
+	     "chardet==5.2.0",
 	     "dictdiffer", # for gnr.sql migration
 	     "docutils",
 	     "dulwich", # needed by gnrgit
@@ -48,7 +48,6 @@ dependencies = [
 	     "pytz",
 	     "pyyaml",
 	     "redbaron",
-	     "reportlab",
 	     "requests",
 	     "simpleeval",
 	     "six", # evaluate if needed
@@ -60,7 +59,6 @@ dependencies = [
 	     "vobject",
 	     "watchgod", # used in asyncio for autoreload
 	     "weasyprint",
-	     "webob",
 	     "werkzeug>=2.3.8,!=3.1.4",
 	     "xlrd",
 	     "xlwt"
@@ -73,8 +71,10 @@ pgsql = [
 ]
 
 mysql = ["mysqlclient"]
+
 developer = [
-  "pytest", "pytest-cov", "graphviz", 
+  "pytest", "pytest-cov", "graphviz",
+  "pytest-aiohttp", "pytest-asyncio",
   "flake8",
   "debugpy",
   "build", "twine","ipython",
@@ -87,9 +87,6 @@ developer = [
 [project.scripts]
 # gnr.core
 gnr = 'gnr.core.cli.gnr:main'
-# gnr.xtnd
-gnrsync4d = 'gnr.xtnd.cli.gnrsync4d:main'
-gnrsync4dpyro = 'gnr.xtnd.cli.gnrsync4dpyro:main'
 # gnr.web
 gnrsyncstorage = 'gnr.web.cli.gnrsyncstorage:main'
 gnrtaskscheduler = 'gnr.web.cli.gnrtaskscheduler:main'
@@ -108,7 +105,6 @@ gnrrms = 'gnr.app.cli.gnrrms:main'
 gnrsendmail = 'gnr.app.cli.gnrsendmail:main'
 gnrserviceworker = 'gnr.app.cli.gnrserviceworker:main'
 gnrtrdaemon = 'gnr.app.cli.gnrtrdaemon:main'
-gnrupdate = 'gnr.app.cli.gnrupdate:main'
 initgenropy = 'gnr.app.cli.initgenropy:main'
 # gnr.dev
 gnrnotes = 'gnr.dev.cli.gnrnotes:main'
@@ -158,6 +154,7 @@ packages = [
 	    'gnr.web.components',
 	    'gnr.web.gnrwebpage_plugin',
 	    'gnr.web.gnrwebpage_proxy',
+	    'gnr.web.gnrwebpage_proxy.apphandler',
     	    'gnr.web.gnrwebpage_proxy.frontend',	
 	    'gnr.web.gnrwsgisite_proxy',
 	    'gnr.xtnd',
@@ -165,7 +162,12 @@ packages = [
    	    'gnr.lib',
    	    'gnr.sql.adapters',
     	    'gnr.sql',
+   	    'gnr.sql.gnrsql',	
     	    'gnr.sql.gnrsqltable_proxy',
+	    'gnr.sql.gnrsqldata',
+	    'gnr.sql.gnrsqlmigration',
+	    'gnr.sql.gnrsqlmodel',
+    	    'gnr.sql.gnrsqltable',
       	    'gnr.lib.services',	
       	    'gnr.web',
 	    'gnr.gnrjs',
@@ -184,6 +186,12 @@ packages = [
 "gnr.resources" = "../resources"
 "gnr.webtools" = "../webtools"
 
+
+# PYTEST
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
+asyncio_default_fixture_loop_scope = "function"
 
 # COVERAGE
 [tool.coverage.run]

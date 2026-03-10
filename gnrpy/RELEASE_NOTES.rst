@@ -1,11 +1,172 @@
-Upcoming Release
+Release 26.03.09
 ================
 
-  
+This release includes significant refactor in code organization,
+removal and/or deprecation of old modules, and visual enhancement in
+the user interface regarding menus and modular form fragments. It also
+includes new PGVector related macros, with a newly organized macro
+registry. 
+
+New Features
+~~~~~~~~~~~~
+
+- **SQL — Automatic NOTIFY on table changes**: ``adapter.notify()``
+  now automatically triggers PostgreSQL NOTIFY on table
+  modifications. (#663, #664)
+- **gnrstring — cleanRst() utility**: New ``cleanRst()`` function
+  added to the gnrstring module for cleaning RST-formatted
+  strings. (#665)
+- **XML Transform service**: New ``xmltransform`` service for
+  converting XML to HTML via XSLT stylesheets. (#656)
+- **SQL — Complete addMacro registry**: All SQL macros are now
+  registered in the addMacro registry. (#617, #650)
+- **SQL — pgvector macros**: Added ``VECQUERY`` and ``VECRANK`` macros
+  for pgvector similarity search. (#584)
+- **Menu — iconClass support and improved tree arrows**: Menu
+  component now supports ``iconClass`` and has improved tree arrow
+  rendering. (#615)
+- **Menu — empty branch visual feedback and badge improvements**:
+  Visual feedback for empty menu branches and enhanced badge
+  display. (#641)
+- **Grouplet system**: New grouplet system for modular form fragments,
+  including topic grids, wizard, panel and template auto-discovery,
+  and mobile app connection. (#560, #587)
+- **Grouplet — dedicated folder and mobile app connection**: Component
+  moved to dedicated folder with mobile app support added.
+- **Multidomain Workspace Mode**: Isolated tenant support under a
+  single instance. (#426)
+- **Dependencies — replace webob with werkzeug exceptions**: Migrated
+  from ``webob`` to ``werkzeug`` for HTTP exception handling. (#612)
+- **Web — apphandler split into sub-package**: ``apphandler.py``
+  refactored into a class-based sub-package. (#543)
+- **GnrApp — db_attrs parameter**: New ``db_attrs`` parameter added to
+  ``GnrApp.init()``. (#553)
+- **Auto-GIN index for TSV columns**: Migration system now
+  automatically creates GIN indexes for TSV (full-text search)
+  columns. (#629)
+
+Bug Fixes
+~~~~~~~~~
+
+- **Migration — clear error on unreachable DB server**: Error state is
+  now cleared when the database server becomes reachable again. (#654,
+  #655)
+- **Migration packages bugs**: Applied fixes for bugs in migration
+  packages. (#508, #534)
+- **SQL — macro registry premature copy**: Removed premature copy of
+  macro registry to expander. (#617)
+- **SQLite adapter**: Suppressed deprecation warnings via timestamp
+  converter; added no-op ``setLocale`` method.
+- **SQL — RE_SQL_PARAMS skips PostgreSQL cast syntax**: Parameter
+  regex no longer incorrectly matches ``::`` cast notation. (#586)
+- **SQL — BETWEEN macro renamed to IN_RANGE**: ``#BETWEEN`` macro
+  renamed to ``#IN_RANGE`` for clarity. (#644)
+- **SQL — guessPkey method restored**: Method lost during
+  ``gnrsqltable`` split has been restored. (#568)
+- **SQLite — IS NOT TRUE rewrite**: NULL values are now handled
+  correctly. (#550)
+- **Formbuilder — spurious labeledbox wrapper**: Removed unwanted
+  labeledbox wrapper in formlet mode. (#639)
+- **phonelink — cosmetic fixes**: Style and ``__info__`` pattern
+  alignment improvements.
+- **Menu — tableBranch badge fallthrough**: Prevented badge from
+  falling through to RPC path on dbchanges. (#657)
+- **Menu — whitespace preservation in tree search highlight**: Fixed
+  inline-flex labels losing whitespace in highlighted search
+  results. (#646)
+- **Menu — menuLineBadge propagation**: Badge now correctly propagates
+  to package branches. (#645)
+- **Menu — badge sizing, alignment and shape**: Multiple fixes for
+  circular badge rendering, spacing, border, and vertical stretching
+  on mobile. (#various)
+- **Thread-safe relation tree**: Relation tree now uses ``currentEnv``
+  cache for thread safety. (#578)
+- **Locale handling**: Unknown or invalid locales are now handled
+  gracefully. (#566, #581)
+- **quickDialog — rootNode scoping issue**: Fixed scoping issue in
+  ``close_action``. (#582)
+- **Unique constraint on composite primary key columns**: Unique
+  constraint is now correctly preserved. (#576, #580)
+- **required_columns for pyColumns**: Resolved resolution of required
+  columns for ``th_hiddencolumns``. (#577, #579)
+- **CKEditor — disabled when no layout area selected**: CKEditor is
+  now properly disabled in this scenario. (#10, #573)
+- **Page max age increased**: Default ``page_max_age`` increased from
+  120s to 600s. (#569, #570)
+- **dbo — hardcoded table reference removed**: Removed hardcoded
+  ``srvy.question`` reference in hierarchical update trigger. (#561)
+- **USER-DEFINED type mapping in migrator**: Resolved mapping error
+  for USER-DEFINED column types. (#556, #558)
+- **adm — email formlet hidden from user preferences**. (#559)
+
+- **S3 — inject client instead of session**. (#554)
+- **DOM — guard against undefined headers in scrollableTable**. (#555)
+- **attachmanager — fit-to-container mode for image preview**. (#545)
+- **Parametric query dialog interference in nested forms**: Fixed
+  dialog interfering with nested form state. (#505)
+- **Email message column**: Removed incorrect ``indexed=True`` from
+  ``email.message`` ``to_address`` column. (#503)
+
+Refactoring
+~~~~~~~~~~~
+
+- **SQL sub-packages**: Split ``gnrsql.py``, ``gnrsqlmodel.py``,
+  ``gnrsqltable.py``, ``gnrsqldata.py``, and ``gnrsqlmigration.py``
+  into class-based sub-packages for improved maintainability. (#490,
+  #501, #502, #506, #528)
+- **Typing — TYPE_CHECKING base classes**: Added ``TYPE_CHECKING``
+  base classes for mixin modules. (#635, #637)
+- **Removed legacy modules**: Removed modules related to ``suds``,
+  ``gnrpdf``, ``reportlab``, and ``platypus``. (#574)
+- **Removed 4D references**: All references to the 4D database system
+  have been removed from the framework. (#562, #575)
+- **Removed uWSGI support**: uWSGI support has been deprecated and
+  removed. (#423, #500)
+- **btcmail — dead code removed**: Removed dead code referencing
+  non-existing ``adm.doctemplate``. (#640)
+- **Test code duplication refactor**: Reduced duplication across test
+  modules. (#571)
+
+Tests
+~~~~~
+
+- **SQL compiler coverage**: Coverage raised to 92% with dead code
+  annotations. (#647)
+- **SQL model structural tests**: 162 exhaustive tests for gnrsqlmodel
+  structure. (#552)
+- **SQL compiler coverage suite**: 252-test suite covering partition,
+  subtable, and staff scenarios. (#551)
+- **Test teardown improvements**: Improved test teardown and pytest
+  configuration. (#533)
+- **pytest plugins**: Added missing pytest plugins and configured
+  ``asyncio_default_fixture_loop_scope``.
+
+Project / Infrastructure
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+- **chardet pinned**: Pinned ``chardet`` to version 5.2.0 to avoid
+  test breakage.
+
+
+Release 26.02.16
+================
+
+This release includes significant improvements to the task scheduling
+system, email handling, database administration tools, and migration
+utilities. Notable additions include deferred email sending, enhanced
+dbadmin functionality with unused element detection, and improved
+locale/language handling throughout the codebase.
+
+This release removes support for Python < 3.11. Please upgrade to
+Python 3.11 or later before upgrading to this release.
+
 Breaking changes
 ----------------
 
 * REMOVED SUPPORT FOR PYTHON < 3.11
+* Removed SOAP functionality from test15 package
+* Removed ``dest_user_id`` concept and ``ViewMobile`` class from email.message
+
   
 Enhancements
 ------------
@@ -15,18 +176,52 @@ Enhancements
 * DbAdmin now can show the orphaned entities in the databases and
   offer a cleanup method (#319)
 * Generalized use of '{}' to support environment variables in bags
-* Added 'insertToolbarItems' parameters for TinyMCE widget (#418)  
-
+* Added 'insertToolbarItems' parameters for TinyMCE widget (#418)
+* K8S extensive metadata labeling for custom resource tagging
+* Deferred email sending support, backward compatible.
+* Opt-in preference for collecting message_address to reduce database
+  size, including a new retention policy to help keeping the db tidy.
+* Implementend smart type conversion in migration for Postgres,
+  supporting 3 distinct modes to handle conversion. Added support for
+  missing DHZ type conversions (timestamp with timezone)
+* New test invoice sample application provided (#467, #468), to
+  support more complex tests related to complex database structures.
+* Removed XML LoadModel from sql tests, structures are now Python-based.
+* Added support for empty to_address in email, allowing sending email
+  just using BCC recipients.
+  
 Fixes
 -----
 
-* Extension creation on managed postgresql services now works correctly (#415)
-* Fixed regression for task scheduling due to timezone-aware comparisons (#434)
-* Locale detection for localized columns fixes
+* Sqlite structure creation fixes (#478) upon ALTER COLUMN SET NOT NULL.
+* pyColumn_full_external_url now always computes URL directly via
+  'filepath_endpoint_url()', simplifying logic and eliminating
+  inter-column dependencies. (#443)
+* DbModelObj (column, table, relation) wrappers now always evalute to
+  truthy when they exist, to fix logical bug where empty Bag are
+  evaluated. (#453)
+* Fixed Excel export with DHZ content as string (#419)
+* remoteRowController on empty rows is no longer triggered
+  automatically, need to opt-in via 'remoteRowController_onEmptyRow'
+  attribute.
+* menuLineBadge fixes using virtual columns, including edge case
+  handling for undefined or empty string content. (#444)
+* Extension creation on managed postgresql services now works
+  correctly (#415)
+* Fixed regression for task scheduling due to timezone-aware
+  comparisons (#434)
+* Task scheduling and execution tracking fixes.
+* Locale detection for localized columns fixes, and added a global
+  default for non-compliant environments.
+* File encoding detection improvements, with test coverage.
 * Docker image build fixes when cleaning up cloned git repositories
 * Fixed to handle correctly empty to_address in mail service (#406)
 * Minor fixes on storage parameters
 * Fix with tz-aware timestamp in XLSX export (#419)
+* Stale test-based Postgresql instances cleanup in test infrastructure.
+* Centralized mobile app config access, improviing code organization
+  for mobile app configuration (#439)
+  
 
   
 Release 26.01.15

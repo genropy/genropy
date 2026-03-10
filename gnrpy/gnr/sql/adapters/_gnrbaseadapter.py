@@ -40,24 +40,36 @@ FLDMASK = dict(qmark='%s=?',named=':%s',pyformat='%%(%s)s')
 
 
 class MacroExpander(object):
-    # Regex patterns for each macro with improved support for quoted identifiers
-    
+    # Class-level regex patterns — used by adapter subclasses (e.g. Postgres)
     macros = {}
 
-    def __init__(self,querycompiler):
+    def __init__(self, querycompiler):
         self.querycompiler = querycompiler
-        
-    def replace(self, sql_text, macro):
-        """Expands macros in the given SQL text.
+        self._registered_macros = {}
+        self.context = {}
 
-        :param sql_text: The SQL string containing macros.
-        :param finder: The macro type to expand (e.g., 'tsquery', 'tsrank', 'tsheadline').
-        :return: The SQL string with macros expanded.
+    def register(self, name, regex, callback):
+        """Register a macro on this expander instance.
+
+        Args:
+            name: Macro name without ``#`` (e.g. ``'IN_RANGE'``).
+            regex: Compiled regex matching the macro syntax.
+            callback: ``callback(match, expander) → str`` replacement.
+        """
+        self._registered_macros[name] = (regex, callback)
+
+    def replace(self, sql_text, macro):
+        """Expand macros in the given SQL text.
+
+        Registered macros (via :meth:`register`) take precedence over
+        class-level macros inherited from the adapter.
         """
         for m in macro.split(','):
-            if m not in self.macros:
-                continue
-            sql_text = self.macros[m].sub(getattr(self, f'_expand_{m}'), sql_text)
+            if m in self._registered_macros:
+                regex, callback = self._registered_macros[m]
+                sql_text = regex.sub(lambda match: callback(match, self), sql_text)
+            elif m in self.macros:
+                sql_text = self.macros[m].sub(getattr(self, f'_expand_{m}'), sql_text)
         return sql_text
     
 class SqlDbAdapter(object):
@@ -165,15 +177,27 @@ class SqlDbAdapter(object):
             
         return not missing
 
+    # -- Macro support -------------------------------------------------------
+
+    def registerMacros(self, db):
+        """Register adapter-specific macros via ``db.addMacro()``.
+
+        Override in subclasses to register macros that depend on the
+        database engine (e.g. full-text search, vector similarity).
+        """
+        pass
+
+    @property
+    def macroExpander(self):
+        return MacroExpander
+
+    # -- SQL name adaptation -------------------------------------------------
+
     def adaptSqlName(self,name):
         """
         Adapt/fix a name if needed in a specific adapter/driver
         """
         return name
-    
-    @property
-    def macroExpander(self):
-        return MacroExpander
 
     def adaptSqlSchema(self,name):
         """
@@ -366,6 +390,28 @@ class SqlDbAdapter(object):
         """
         raise AdapterMethodNotImplemented()
 
+    def listen_connection(self, channels):
+        """Open a dedicated AUTOCOMMIT connection and LISTEN on the given channels.
+
+        Returns a connection ready for ``select()`` polling, or ``None``
+        for adapters that do not support notifications.
+
+        Args:
+            channels: Iterable of channel names to LISTEN on.
+        """
+        return None
+
+    def poll_notifications(self, conn):
+        """Poll for pending notifications on a listen connection.
+
+        Args:
+            conn: The connection returned by :meth:`listen_connection`.
+
+        Returns:
+            A list of notification objects (each with ``.channel`` and ``.payload``).
+        """
+        return []
+
     def listRemoteDatabases(self, source_ssh_host=None, source_ssh_user=None,
                             source_ssh_dbuser=None, source_ssh_dbpassword=None,
                             source_ssh_dbhost=None):
@@ -380,12 +426,18 @@ class SqlDbAdapter(object):
         """
         raise AdapterMethodNotImplemented()
 
-    def notify(self, msg, autocommit=False):
-        """-- IMPLEMENT THIS --
-        Notify a message to listener processes.
-        @param msg: name of the message to notify
-        @param autocommit: dafault False, if specific implementation of notify uses transactions, commit the current transaction"""
-        raise AdapterMethodNotImplemented()
+    def notify(self, msg, payload=None, autocommit=False):
+        """Notify a message to listener processes.
+
+        Base implementation is a no-op for adapters that do not support
+        notifications (e.g. SQLite).  Override in subclasses.
+
+        Args:
+            msg: Channel name to notify.
+            payload: Optional payload string (JSON or plain text).
+            autocommit: If True, commit the notification immediately.
+        """
+        pass
 
     def prepareSqlText(self, sql, kwargs):
         """Subclass in adapter if you want to change some sql syntax or params types.
@@ -620,7 +672,7 @@ class SqlDbAdapter(object):
         result = """'<a %s >%s</a>'""" % (' '.join(['%s="%s"' %(k,v) for k,v in list(kw.items())]), link_txt)
         return result
 
-    def setLocale(self, locale):
+    def setLocale(self, locale): # pragma: no cover
         """-- IMPLEMENT THIS --
         Set the locale in the database connection
         """
