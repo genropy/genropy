@@ -1001,6 +1001,29 @@ class GnrWsgiSite(object):
         response = requests.post(url, headers=headers, data=kwargs)
         return self.gnrapp.catalog.fromTypedText(response.text)
 
+    def errorHandler(self, exception=None, **kwargs):
+        page = self.currentPage
+        if page:
+            kwargs.setdefault('user', page.user)
+            kwargs.setdefault('user_ip', page.user_ip)
+            kwargs.setdefault('user_agent', page.user_agent)
+            kwargs.setdefault('page_id', getattr(page, 'page_id', None))
+            kwargs.setdefault('is_developer', page.isDeveloper() if hasattr(page, 'isDeveloper') else False)
+            if hasattr(page, '_lastRpc'):
+                kwargs.setdefault('rpc_method', page._lastRpc)
+            request = getattr(page, 'request', None)
+            if request:
+                kwargs.setdefault('request_uri', request.url)
+            notify_user = kwargs.get('notify_user')
+            if notify_user:
+                try:
+                    error_id = kwargs.get('_preliminary_error_id', '')
+                    page.setInClientData('gnr.server_error',
+                                         notify_user, fired=True)
+                except Exception:
+                    pass
+        return self.gnrapp.errorHandler(exception=exception, **kwargs)
+
     def writeException(self, exception=None, traceback=None):
         try:
             page = self.currentPage
