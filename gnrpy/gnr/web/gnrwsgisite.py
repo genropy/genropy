@@ -1014,15 +1014,16 @@ class GnrWsgiSite(object):
             request = getattr(page, 'request', None)
             if request:
                 kwargs.setdefault('request_uri', request.url)
+        error_id = self.gnrapp.errorHandler(exception=exception, **kwargs)
+        if error_id and page:
             notify_user = kwargs.get('notify_user')
             if notify_user:
                 try:
-                    error_id = kwargs.get('_preliminary_error_id', '')
-                    page.setInClientData('gnr.server_error',
-                                         notify_user, fired=True)
+                    msg = '%s (ref: %s)' % (notify_user, error_id)
+                    page.setInClientData('gnr.server_error', msg, fired=True)
                 except Exception:
                     pass
-        return self.gnrapp.errorHandler(exception=exception, **kwargs)
+        return error_id
 
     def writeException(self, exception=None, traceback=None):
         try:
