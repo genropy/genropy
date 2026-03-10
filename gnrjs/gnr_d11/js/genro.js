@@ -68,7 +68,6 @@ dojo.declare('gnr.GenroClient', null, {
             genro.setData(kw.path,kw.value,kw.attr,{doTrigger:'externalSetData'});
         });
         dojo.subscribe('client_error', function(errorInfo){
-            console.error('[client_error]', errorInfo.errorType, errorInfo.description, errorInfo);
             if(genro.isDeveloper){
                 genro.dev.addError(errorInfo.description + ' (' + errorInfo.errorType + ')', 'CLIENT', true);
             }

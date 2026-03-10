@@ -10,6 +10,7 @@ from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import extract_kwargs,public_method
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrbag import Bag
+from gnr.core.gnrclasses import GnrMixinNotFound
 
 class FrameGridTools(BaseComponent):
 
@@ -250,7 +251,11 @@ class FrameGridTools(BaseComponent):
     @public_method
     def fg_remoteGrouper(self,pane,table=None,groupedTh=None,groupedThViewResource=None,static=False,
                         grid_configurable=True,configurable=False,margin=None,pbl_classes=True,**kwargs):
-        self._th_mixinResource(groupedTh,table=table,resourceName=groupedThViewResource,defaultClass='View')
+        try:
+            self._th_mixinResource(groupedTh,table=table,resourceName=groupedThViewResource,defaultClass='View')
+        except GnrMixinNotFound as e:
+            self._th_missingResource(pane, e)
+            return
         tree_nodeId = f'{groupedTh}_grouper_tree'
         static_kwargs = dictExtract(kwargs,'static_',pop=True)
         gth = pane.groupByTableHandler(table=table,frameCode=f'{groupedTh}_grouper',

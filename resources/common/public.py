@@ -9,6 +9,7 @@
 """ public common11 """
 
 from gnr.web.gnrbaseclasses import BaseComponent
+from gnr.web.gnrwebpage import GnrMissingResourceException
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import extract_kwargs,public_method,customizable
 from gnr.core.gnrstring import boolean
@@ -397,7 +398,11 @@ class TableHandlerMain(BaseComponent):
         th_options = dict(formResource=None,viewResource=None,formInIframe=False,widget=thRootWidget,
                         readOnly=False,virtualStore=True,public=True,archive=archive,partitioned=False)
         viewResource = th_kwargs.get('viewResource',None) or self.th_options().get('viewResource',None)
-        resource = self._th_getResClass(table=self.maintable,resourceName=viewResource,defaultClass='View')()
+        try:
+            resource = self._th_getResClass(table=self.maintable,resourceName=viewResource,defaultClass='View')()
+        except GnrMissingResourceException as e:
+            self._th_missingResource(root, e)
+            return
         resource.db = self.db
         resource_options = resource.th_options() if hasattr(resource,'th_options') else dict()
         th_options.update(self.th_options())

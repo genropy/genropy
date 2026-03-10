@@ -8,9 +8,21 @@
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrclasses import GnrMixinNotFound
 
 
 class TableHandlerCommon(BaseComponent):
+
+    def _th_missingResource(self, pane, exception):
+        self.site.errorHandler(exception=exception, error_type='missing_resource',
+            notify_user=True, loglevel='error', action='ignore')
+        cp = pane.contentPane(overflow='hidden',
+            style='display:flex; align-items:center; justify-content:center; flex-direction:column; height:100%;')
+        cp.img(src='/_rsrc/common/css_icons/svg/16/genrologo_sad.svg',
+               height='64px', opacity='.5', margin_bottom='12px')
+        cp.div(str(exception),
+               style='color:#888; font-size:13px; text-align:center; max-width:400px; line-height:1.5;')
+
     def onLoadingRelatedMethod(self,table,sqlContextName=None):
         return 'onLoading_%s' % table.replace('.', '_')
     
@@ -107,21 +119,23 @@ class TableHandlerCommon(BaseComponent):
         resourcePath = self._th_getResourceName(resourceName,defaultModule,defaultClass)
         tableObj = self.db.table(table)
         pluginId = getattr(tableObj, '_pluginId', None)
-        self.mixinComponent(resourcePath,mangling_th=rootCode,safeMode=True)
-        self.mixinComponent('tables',tablename,resourcePath,pkg=pkg,mangling_th=rootCode, pluginId=pluginId, pkgOnly=True,safeMode=True)
+        found = self.mixinComponent(resourcePath,mangling_th=rootCode,safeMode=True)
+        found = self.mixinComponent('tables',tablename,resourcePath,pkg=pkg,mangling_th=rootCode, pluginId=pluginId, pkgOnly=True,safeMode=True) or found
         project_mainpackage = self.package.attributes.get('mainpkg')
         if project_mainpackage:
-            self.mixinComponent('tables','_packages',pkg,tablename,resourcePath,pkg=project_mainpackage,mangling_th=rootCode, pkgOnly=True,safeMode=True)
-        
+            found = self.mixinComponent('tables','_packages',pkg,tablename,resourcePath,pkg=project_mainpackage,mangling_th=rootCode, pkgOnly=True,safeMode=True) or found
+
         enabled_packages = self._call_kwargs.get('enabled_packages','*')
         if enabled_packages=='*':
-            enabled_packages = list(self.application.packages.keys()) 
+            enabled_packages = list(self.application.packages.keys())
         else:
             enabled_packages = enabled_packages.split(',')
         for refpkg in enabled_packages:
             if refpkg!=self.package.name:
-                self.mixinComponent('tables','_packages',pkg,tablename,resourcePath,pkg=refpkg,mangling_th=rootCode, pkgOnly=True,safeMode=True)
-        self.mixinComponent('tables','_packages',pkg,tablename,resourcePath,pkg=self.package.name,mangling_th=rootCode, pkgOnly=True,safeMode=True)
+                found = self.mixinComponent('tables','_packages',pkg,tablename,resourcePath,pkg=refpkg,mangling_th=rootCode, pkgOnly=True,safeMode=True) or found
+        found = self.mixinComponent('tables','_packages',pkg,tablename,resourcePath,pkg=self.package.name,mangling_th=rootCode, pkgOnly=True,safeMode=True) or found
+        if not found:
+            raise GnrMixinNotFound("Missing resource '%s' for table '%s'" % (defaultClass or '?', table))
         return resourcePath
     
     def _th_getResClass(self,table=None,resourceName=None,defaultClass=None):
