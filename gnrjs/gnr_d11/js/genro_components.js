@@ -935,7 +935,13 @@ dojo.declare("gnr.widgets.FrameForm", gnr.widgets._BaseForm, {
     createContent:function(sourceNode, kw, children) {
         let formId = objectPop(kw,'formId');
         let contentNode = children.getNode('center');
-        genro.assert(contentNode,'missing contentNode: attach to form.center a layout widget');
+        if(!contentNode){
+            let table = kw.table || '';
+            let msg = 'FrameForm: missing Form resource for table ' + table + '. Define a Form class in th_' + table.split('.').pop() + '.py or use plainTableHandler.';
+            console.error(msg);
+            genro.publish('client_error', {message: msg});
+            return;
+        }
         if(contentNode.attr.tag == 'autoslot'){
             contentNode = children.getNode('center.#0');
             genro.assert(contentNode,'missing contentNode: attach to form.center a layout widget');
