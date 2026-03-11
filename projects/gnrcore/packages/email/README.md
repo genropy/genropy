@@ -310,7 +310,8 @@ In the Genropy admin interface, go to **System → Services** and add a new serv
 | `client_base_url` | External URL of this Genropy instance, e.g. `https://app.example.com` |
 | `tenant_id` | Identifier for this instance on the proxy (defaults to the database name) |
 | `batch_size` | Number of messages per sync batch (default: 50) |
-| `db_max_waiting` | Max messages fetched from DB per sync cycle |
+| `max_retry_hours` | How long to keep retrying errored messages — RFC 5321 recommends 4-5 days (default: 120) |
+| `retry_interval_hours` | Minimum hours between retries for the same message (default: 4) |
 
 ### Step 3 — register the tenant
 

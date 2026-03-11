@@ -62,7 +62,7 @@ For protocol details see:
 https://github.com/genropy/gnr-async-mail-service/blob/main/docs/protocol.rst
 """
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from gnr.web import logger
 from gnr.core.gnrbag import Bag
@@ -130,25 +130,54 @@ class GnrCustomWebPage(object):
                            len(report_result.get('error', [])),
                            len(report_result.get('not_found', [])))
 
-        # Fetch and submit pending outgoing messages to proxy (with batch limit)
+        # Fetch pending + retryable messages in one query on email.message
+        # Pending: outgoing, not sent, no error, not yet dispatched
+        # Retryable: outgoing, not sent, error older than retry_interval, within max_retry window
         batch_size = proxy_service.batch_size or 1000
-        outgoing_messages = self.db.table('email.message_to_send').query(
-            limit=batch_size,
+        now = datetime.now(timezone.utc)
+        retry_cutoff = now - timedelta(hours=proxy_service.retry_interval_hours)
+        max_age_cutoff = now - timedelta(hours=proxy_service.max_retry_hours)
+
+        message_tbl = self.db.table('email.message')
+        outgoing = message_tbl.query(
+            columns='$id,$error_ts,$connection_retry',
+            where="""$in_out='O' AND $send_date IS NULL AND (
+                ($error_ts IS NULL AND $proxy_ts IS NULL)
+                OR ($error_ts IS NOT NULL AND $error_ts < :retry_cutoff
+                    AND $__ins_ts > :max_age_cutoff)
+            )""",
+            retry_cutoff=retry_cutoff,
+            max_age_cutoff=max_age_cutoff,
             order_by=f'COALESCE($proxy_priority,{MEDIUM_PRIORITY}),$__ins_ts',
+            limit=batch_size
         ).fetch()
 
+        # Clear error state for retryable messages so they can be re-dispatched
+        message_pkeys = []
+        retry_count = 0
+        for msg in outgoing:
+            if msg['error_ts']:
+                old_record = dict(msg)
+                msg['connection_retry'] = (msg['connection_retry'] or 0) + 1
+                msg['error_msg'] = None
+                msg['error_ts'] = None
+                msg['proxy_ts'] = None
+                message_tbl.update(msg, old_record)
+                retry_count += 1
+            message_pkeys.append(msg['id'])
+
         queued_count = 0
-        if outgoing_messages:
-            logger.info('proxy_sync: fetched %d pending messages to submit (limit=%d)',
-                       len(outgoing_messages), batch_size)
-            message_pkeys = [m['message_id'] for m in outgoing_messages]
+        if message_pkeys:
+            logger.info('proxy_sync: %d pending + %d retry messages to submit',
+                       len(message_pkeys) - retry_count, retry_count)
             queued_count = self._add_messages_to_proxy_queue(proxy_service, message_pkeys) or 0
             self.db.commit()
             logger.info('proxy_sync: queued %d messages to proxy', queued_count)
 
-        # Include queued count in response for proxy polling optimization
         response = dict(report_result)
         response['queued'] = queued_count
+        if retry_count:
+            response['retried'] = retry_count
 
         return self._json_response(response)
         

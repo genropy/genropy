@@ -12,7 +12,8 @@ class Table(object):
         tbl.aliasColumn('batch_code', '@message_id.batch_code')  
 
     def addMessageToQueue(self, message_id):
-        self.insert(self.newrecord(message_id=message_id))
+        if not self.existsRecord(message_id):
+            self.insert(self.newrecord(message_id=message_id))
 
     def removeMessageFromQueue(self, message_id):
         self.deleteSelection('message_id', message_id)

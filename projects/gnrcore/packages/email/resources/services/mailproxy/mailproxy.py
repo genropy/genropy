@@ -17,14 +17,16 @@ import secrets
 
 
 class Main(GnrBaseService):
-    def __init__(self, parent=None, proxy_url=None, tenant_token=None, db_max_waiting=None, batch_size=None,
-                 tenant_id=None, tenant_registered=None, client_base_url=None, **kwargs):
+    def __init__(self, parent=None, proxy_url=None, tenant_token=None, batch_size=None,
+                 tenant_id=None, tenant_registered=None, client_base_url=None,
+                 max_retry_hours=None, retry_interval_hours=None, **kwargs):
         super().__init__(parent, **kwargs)
         self.proxy_url = proxy_url
         self.admin_token = self.parent.db.application.config['api_keys.private.genro_mail_proxy?token'] if parent else None
         self.tenant_token = tenant_token
-        self.db_max_waiting = db_max_waiting
         self.batch_size = batch_size
+        self.max_retry_hours = max_retry_hours or 120
+        self.retry_interval_hours = retry_interval_hours or 4
         self.tenant_id = tenant_id or self.parent.db.dbname
         self.tenant_registered = tenant_registered or False
         self.client_base_url = client_base_url or self.parent.externalUrl('/email/mailproxy/mp_endpoint')
@@ -488,10 +490,11 @@ class ServiceParameters(BaseComponent):
                    placeholder=self.externalUrl('/email/mailproxy/mp_endpoint'),
                    disabled='^.tenant_registered')
 
-        fb.numberTextbox('^.db_max_waiting', lbl='Db max waiting',
-                         disabled='^.tenant_registered')
-        fb.numberTextBox('^.batch_size', lbl='Batch size',
-                         disabled='^.tenant_registered')
+        fb.numberTextBox('^.batch_size', lbl='!![en]Batch size')
+        fb.numberTextBox('^.max_retry_hours', lbl='!![en]Max retry hours',
+                         placeholder='120')
+        fb.numberTextBox('^.retry_interval_hours', lbl='!![en]Retry interval hours',
+                         placeholder='4')
 
         status_box = fb.div(lbl='!![en]Proxy reachable')
         status_box.div('^#FORM.proxy_status', dtype='B', format='semaphore')

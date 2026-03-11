@@ -125,12 +125,12 @@ class Table(object):
         self.explodeAddressRelations(record_data)
 
     def trigger_onUpdated(self, record_data,old_record=None):
-        error_in_sending = record_data['error_msg'] and not old_record['error_msg']
         just_sent = record_data['send_date'] and not old_record['send_date']
         just_dispatched_to_proxy = record_data['proxy_ts'] and not old_record['proxy_ts']
-        if just_sent or error_in_sending or just_dispatched_to_proxy:
+        has_error = bool(record_data['error_ts'])
+        if just_sent or has_error or just_dispatched_to_proxy:
             self.db.table('email.message_to_send').removeMessageFromQueue(record_data['id'])
-        elif record_data['in_out']=='O' and not (record_data['send_date'] or record_data['proxy_ts']):
+        elif record_data['in_out']=='O' and not (record_data['send_date'] or record_data['proxy_ts'] or record_data['error_ts']):
             self.db.table('email.message_to_send').addMessageToQueue(record_data['id'])
 
     def trigger_onDeleting(self, record_data):
