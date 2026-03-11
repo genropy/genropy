@@ -37,10 +37,8 @@ class Package(GnrDboPackage):
         service = self.db.application.site.getService('mailproxy')
         if not service:
             return
-        if service and service.disabled:
-            return None
 
-        if not service or not service.proxy_url:
+        if not service.proxy_url:
             if raise_if_missing:
                 raise Exception('Mailproxy service is not configured')
             return None

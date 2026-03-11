@@ -270,7 +270,7 @@ This approach avoids storing attachments externally and handles token rotation a
 
 ### Fallback mode
 
-When the proxy is not configured or is disabled:
+When the proxy is not configured or not registered:
 
 - `send_mail` batch action iterates accounts with `save_output_message=true` and sends messages directly via SMTP.
 - This can be triggered manually from the account table or scheduled as a daemon task.
@@ -311,7 +311,6 @@ In the Genropy admin interface, go to **System → Services** and add a new serv
 | `tenant_id` | Identifier for this instance on the proxy (defaults to the database name) |
 | `batch_size` | Number of messages per sync batch (default: 50) |
 | `db_max_waiting` | Max messages fetched from DB per sync cycle |
-| `disabled` | Check to temporarily suspend proxy use without removing the configuration |
 
 ### Step 3 — register the tenant
 

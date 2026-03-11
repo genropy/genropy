@@ -18,7 +18,7 @@ import secrets
 
 class Main(GnrBaseService):
     def __init__(self, parent=None, proxy_url=None, tenant_token=None, db_max_waiting=None, batch_size=None,
-                 tenant_id=None, tenant_registered=None, disabled=None, client_base_url=None, **kwargs):
+                 tenant_id=None, tenant_registered=None, client_base_url=None, **kwargs):
         super().__init__(parent, **kwargs)
         self.proxy_url = proxy_url
         self.admin_token = self.parent.db.application.config['api_keys.private.genro_mail_proxy?token'] if parent else None
@@ -27,7 +27,6 @@ class Main(GnrBaseService):
         self.batch_size = batch_size
         self.tenant_id = tenant_id or self.parent.db.dbname
         self.tenant_registered = tenant_registered or False
-        self.disabled = disabled or False
         self.client_base_url = client_base_url or self.parent.externalUrl('/email/mailproxy/mp_endpoint')
 
     # Command helpers
@@ -498,8 +497,6 @@ class ServiceParameters(BaseComponent):
         status_box.div('^#FORM.proxy_status', dtype='B', format='semaphore')
         status_box.dataRpc('#FORM.proxy_status', self.rpc_check_proxy_status,
                            proxy_url='^.proxy_url', _onBuilt=1)
-
-        fb.checkbox('^.disabled', lbl='&nbsp;', label='!![en]Disable mail proxy connection')
 
         register_btn = fb.button('!![en]Register',
                                  hidden='^.tenant_registered',
