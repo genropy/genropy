@@ -156,8 +156,8 @@
     --frameindexroot-mobile-background: var(--gray-800); /* @theme */
     --frameindex-tablist-background: var(--gray-800); /* @theme */
     --frameindex-tablist-color: var(--text-on-dark); /* @theme */
-    --frameindex-tab-bg: color-mix(in srgb, var(--gray-300) 40%, var(--color-bg)); /* @theme */
-    --frameindex-tab-bg-hover: color-mix(in srgb, var(--gray-300) 20%, var(--color-bg)); /* @theme */
+    --frameindex-tab-bg: color-mix(in srgb, white 80%, var(--frameindex-tablist-background)); /* @theme */
+    --frameindex-tab-bg-hover: color-mix(in srgb, white 20%, var(--frameindex-tablist-background)); /* @theme */
     --frameindex-tab-border: var(--gray-300); /* @theme */
     --frameindex-subtab-bg: color-mix(in srgb, var(--gray-800) 60%, var(--gray-600)); /* @theme */
     --frameindex-subtab-selected-bg: color-mix(in srgb, var(--gray-600) 55%, var(--color-bg)); /* @theme */

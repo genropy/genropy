@@ -173,7 +173,7 @@
 .qb_div {
     border: 1px solid var(--field-border);
     color: var(--text-color);
-    border-radius: var(--radius-controls);
+    border-radius: var(--radius-sm);
     padding: 0.3em 0.5em;
     margin: 0 0.1em;
     line-height: 1.2;

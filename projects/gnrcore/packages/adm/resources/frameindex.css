@@ -14,7 +14,7 @@
 }
 .remote_db_msg {
     padding: 0.1em 0.8em;
-    border-radius: var(--radius-panels);
+    border-radius: var(--radius-md);
     background: darkred;
     color: white;
     font-weight: bold;
@@ -36,7 +36,7 @@
     height: 1.9em;
     background: var(--btn-tonal-bg);
     border: 1px solid var(--btn-border-color);
-    border-radius: var(--radius-buttons);
+    border-radius: var(--radius-md);
     margin-left: 0.5em;
     overflow: hidden;
 }
@@ -98,14 +98,14 @@
 }
 
 .iframetab:first-child {
-    border-radius: var(--radius-buttons) 0 0 var(--radius-buttons);
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
 }
 .iframetab:last-child {
-    border-radius: 0 var(--radius-buttons) var(--radius-buttons) 0;
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
     border-right: 1px solid var(--btn-border-color);
 }
 .iframetab:first-child:last-child {
-    border-radius: var(--radius-buttons);
+    border-radius: var(--radius-md);
     border-right: 1px solid var(--btn-border-color);
 }
 

@@ -47,7 +47,7 @@
 
 /* --- Dialog shell --- */
 .loginDialog.dijitDialog{
-    border-radius: var(--radius-containers);
+    border-radius: var(--radius-lg);
 }
 
 .dijitDialogUnderlay.lightboxDialog_underlay{

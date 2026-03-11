@@ -3,7 +3,7 @@
 .atc_gallerygrid .cellContent{
     border:1px solid var(--border-color, #ccc);
     margin: 2px;
-    border-radius: var(--radius-controls, 4px);
+    border-radius: var(--radius-sm);
 }
 
 .gallerybox{
@@ -59,8 +59,8 @@
     padding-top: 3px;
     background: var(--text-secondary, #888);
     color: var(--accent-on-color, #fff);
-    border-top-left-radius: var(--radius-panels, 8px);
-    border-top-right-radius: var(--radius-panels, 8px);
+    border-top-left-radius: var(--radius-md);
+    border-top-right-radius: var(--radius-md);
     height: 15px;
     text-align: center;
     font-size: 1em;
