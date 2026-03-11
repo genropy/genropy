@@ -29,7 +29,7 @@
 .form_waiting{
     height: 6px;
     width: 200px;
-    border-radius: var(--radius-controls, 8px);
+    border-radius: var(--radius-sm);
     overflow: hidden;
     background: var(--border-color, #e0e0e0);
     position: relative;

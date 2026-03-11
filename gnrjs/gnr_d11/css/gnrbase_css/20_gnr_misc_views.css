@@ -23,7 +23,7 @@
     align-items: center;
     gap: 8px;
     padding: 10px 36px 10px 14px;
-    border-radius: var(--radius-controls, 8px);
+    border-radius: var(--radius-sm);
     box-shadow: var(--shadow-dialog, 0 4px 24px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.10));
     z-index: var(--z-flash);
     -webkit-backdrop-filter: blur(8px);
@@ -153,7 +153,7 @@
     background: rgba(255,255,255,0.8);
     padding-left: 4px;
     padding-right: 4px;
-    border-radius: var(--radius-controls);
+    border-radius: var(--radius-sm);
 }
 
 /* --- Misc utility classes --- */
@@ -175,7 +175,7 @@
 
 .grouplet_chunk_box{
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-controls);
+    border-radius: var(--radius-sm);
     padding: 4px 8px;
     min-height: 14px;
 }
@@ -194,7 +194,7 @@
     padding:3px;
     padding-left:10px;
     padding-right:10px;
-    border-radius: var(--radius-controls);
+    border-radius: var(--radius-sm);
     margin: 5px;
     text-align: center;
     background-color: var(--border-color);
@@ -209,7 +209,7 @@
 .helpdesk_ticket_box{
     display: block;
     border:1px solid var(--border-color);
-    border-radius: var(--radius-controls);
+    border-radius: var(--radius-sm);
     color:var(--text-color);
     font-size:.9em;
     margin:2px;
@@ -219,8 +219,8 @@
     background:#711B2A;
     color:var(--text-on-dark);
     font-weight: bold;
-    border-top-left-radius: var(--radius-controls);
-    border-top-right-radius: var(--radius-controls);
+    border-top-left-radius: var(--radius-sm);
+    border-top-right-radius: var(--radius-sm);
     position: relative;
     height: 16px;
 }
@@ -331,7 +331,7 @@
 
 .gridRoundedEnvelope{
     border:1px solid var(--border-color);
-    border-radius: var(--radius-containers);
+    border-radius: var(--radius-lg);
     margin:10px;
     margin-top:0;
     margin-bottom: 20px;
@@ -368,8 +368,8 @@
     min-height: var(--toolbar-min-height);
     border-top: 1px solid rgba(0,0,0,0.08);
     padding: 0.5em 0.8em;
-    border-bottom-left-radius: var(--radius-panels);
-    border-bottom-right-radius: var(--radius-panels);
+    border-bottom-left-radius: var(--radius-md);
+    border-bottom-right-radius: var(--radius-md);
     --btn-tonal-bg: var(--btn-filled-bg);
     --btn-tonal-color: var(--btn-filled-color);
 }
@@ -404,7 +404,7 @@
 }
 
 .gnrzoomcell:hover {
-    border-radius: var(--radius-panels);
+    border-radius: var(--radius-md);
     background: yellow;
 }
 
@@ -554,7 +554,7 @@
     background: rgba(255, 255, 255, 0.75);
     margin: 2px 6px;
     border: 1px solid rgba(0, 0, 0, 0.08);
-    border-radius: var(--radius-controls);
+    border-radius: var(--radius-sm);
     padding: 4px 8px;
     overflow: hidden;
     text-overflow: ellipsis;

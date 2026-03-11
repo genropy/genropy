@@ -11,7 +11,7 @@
 }
 .labledBoxBordered.labledBox, .labledBoxBordered .labledBox{
     border:1px solid var(--border-color);
-    border-radius: var(--radius-controls);
+    border-radius: var(--radius-sm);
 }
 .labledBox, .labledBox.labledBox_top, .labledBoxes_top .labledBox{
     flex-direction: column;

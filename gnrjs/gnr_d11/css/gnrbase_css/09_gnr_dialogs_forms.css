@@ -37,8 +37,8 @@
     padding-top: 3px;
     background: var(--text-secondary);
     color: var(--text-on-dark);
-    border-top-left-radius: var(--radius-panels);
-    border-top-right-radius: var(--radius-panels);
+    border-top-left-radius: var(--radius-md);
+    border-top-right-radius: var(--radius-md);
     height: 15px;
     text-align: center;
     font-size: 1em;
@@ -87,27 +87,27 @@
     height:8px;
 }
 .drawerSplitter.dijitSplitter.dijitSplitterH.drawer_region_bottom .drawerHandle{
-    border-top-right-radius: var(--radius-controls);
-    border-top-left-radius: var(--radius-controls);
+    border-top-right-radius: var(--radius-sm);
+    border-top-left-radius: var(--radius-sm);
     top: -8px;
     border-bottom: 0;
 }
 .drawerSplitter.dijitSplitter.dijitSplitterH.drawer_region_top .drawerHandle{
-    border-bottom-right-radius: var(--radius-controls);
-    border-bottom-left-radius: var(--radius-controls);
+    border-bottom-right-radius: var(--radius-sm);
+    border-bottom-left-radius: var(--radius-sm);
     top: 0;
     border-bottom: 0;
 }
 
 .drawerSplitter.dijitSplitter.dijitSplitterV.drawer_region_left .drawerHandle{
-    border-top-right-radius: var(--radius-controls);
-    border-bottom-right-radius: var(--radius-controls);
+    border-top-right-radius: var(--radius-sm);
+    border-bottom-right-radius: var(--radius-sm);
     left:0px;
     border-left: 0;
 }
 .drawerSplitter.dijitSplitter.dijitSplitterV.drawer_region_right .drawerHandle{
-    border-top-left-radius: var(--radius-controls);
-    border-bottom-left-radius: var(--radius-controls);
+    border-top-left-radius: var(--radius-sm);
+    border-bottom-left-radius: var(--radius-sm);
     left:-8px;
     border-right: 0;
 
@@ -247,7 +247,7 @@ label{
 }
 
 .borderRadius {
-    border-radius: var(--radius-containers);
+    border-radius: var(--radius-lg);
 }
 
 /*.gnrfield.tag_div{
@@ -349,7 +349,7 @@ label{
     text-align: center;
     font-size: 1.05em;
     font-weight: 600;
-    color: var(--color-1);
+    color: var(--gray-900);
     background: rgba(255,255,255,0.75);
     padding: 0.4em 1.2em;
     border-radius: var(--radius-pill, 9999px);
@@ -415,5 +415,5 @@ table.formbuilder td.gnrfield {
     vertical-align: middle;
     font-size: 1em;
     padding-top: 2em;
-    border-radius: var(--radius-controls);
+    border-radius: var(--radius-sm);
 }

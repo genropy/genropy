@@ -9,7 +9,7 @@
     border-spacing: 0;
     border-collapse: separate;
     border: 1px solid var(--border-color, #ddd);
-    border-radius: var(--radius-panels, 8px);
+    border-radius: var(--radius-md);
     margin: 0;
     overflow: hidden;
     background-color: var(--surface-bg, #fff);
@@ -38,7 +38,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: var(--radius-controls, 4px);
+    border-radius: var(--radius-sm);
     transition: background-color 0.15s ease;
 }
 
@@ -109,7 +109,7 @@
     text-align: center;
     padding: 0.35em;
     cursor: pointer;
-    border-radius: var(--radius-controls, 4px);
+    border-radius: var(--radius-sm);
     transition: background-color 0.12s ease;
 }
 
@@ -162,7 +162,7 @@
 .gnr_dojotheme .dijitCalendarSelectedDate {
     background-color: var(--accent-color, #369);
     color: #fff;
-    border-radius: var(--radius-controls, 4px);
+    border-radius: var(--radius-sm);
 }
 
 .gnr_dojotheme .dijitCalendarSelectedDate:hover {

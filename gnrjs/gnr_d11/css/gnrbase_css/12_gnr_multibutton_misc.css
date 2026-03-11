@@ -30,14 +30,14 @@
 }
 
 .quickgrid_toolsbox.quickgrid_toolsbox_top{
-    border-top-left-radius: var(--radius-controls);
-    border-top-right-radius: var(--radius-controls);
+    border-top-left-radius: var(--radius-sm);
+    border-top-right-radius: var(--radius-sm);
     border-bottom: 0px;
     bottom:0;
 }
 .quickgrid_toolsbox.quickgrid_toolsbox_bottom{
-    border-bottom-left-radius: var(--radius-controls);
-    border-bottom-right-radius: var(--radius-controls);
+    border-bottom-left-radius: var(--radius-sm);
+    border-bottom-right-radius: var(--radius-sm);
     border-top: 0px;
     top:0;
 }
@@ -140,8 +140,8 @@
 }
 
 .multibutton_itemsContainer .multibutton:first-child{
-    border-top-left-radius: var(--radius-panels);
-    border-bottom-left-radius: var(--radius-panels);
+    border-top-left-radius: var(--radius-md);
+    border-bottom-left-radius: var(--radius-md);
 }
 
 .multibutton_itemsContainerHasOverflow .multibutton_itemsContainer .multibutton:first-child{
@@ -149,8 +149,8 @@
     border-bottom-left-radius: unset;
 }
 .multibutton_itemsContainer .multibutton:last-child{
-    border-top-right-radius: var(--radius-panels);
-    border-bottom-right-radius: var(--radius-panels);
+    border-top-right-radius: var(--radius-md);
+    border-bottom-right-radius: var(--radius-md);
     border-right: 1px solid var(--border-strong, #aab4c4);
 }
 .multibutton_extraItemsPost .multibutton_itemsContainer .multibutton:last-child{
@@ -171,12 +171,12 @@
 
 .multibutton:last-child{
     border-right: 1px solid var(--border-strong, #aab4c4);
-    border-top-right-radius: var(--radius-panels);
-    border-bottom-right-radius: var(--radius-panels);
+    border-top-right-radius: var(--radius-md);
+    border-bottom-right-radius: var(--radius-md);
 }
 .multibutton:first-child{
-    border-top-left-radius: var(--radius-panels);
-    border-bottom-left-radius: var(--radius-panels);
+    border-top-left-radius: var(--radius-md);
+    border-bottom-left-radius: var(--radius-md);
 }
 
 .multibutton_selected.multibutton, .multibutton:active{
@@ -228,7 +228,7 @@
     position: absolute;
     top:4px;
     right:2px;
-    border-radius: var(--radius-buttons);
+    border-radius: var(--radius-sm);
 
 }
 .multibutton_closer:hover{
@@ -454,7 +454,7 @@ div[disabled='true'], div[disabled='disabled']{
 .slotbar_toolbar .buttonDiv:hover{
     cursor:pointer;
     background-color:var(--text-placeholder);
-    border-radius: var(--radius-buttons);
+    border-radius: var(--radius-sm);
 }
 .buttonDiv{
     display: inline-block;

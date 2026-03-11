@@ -7,7 +7,7 @@
 .gnr_dojotheme .dijitDialog {
     background: var(--dlg-bg, var(--surface-bg, #f6f6f6));
     border: 1px solid var(--dlg-border-color, var(--border-strong, silver));
-    border-radius: var(--radius-panels, 8px);
+    border-radius: var(--radius-md);
     box-shadow: var(--shadow-dialog, 0 4px 24px rgba(0,0,0,0.18));
     padding: 0;
     overflow: hidden;
@@ -98,7 +98,7 @@
     background: var(--surface-bg, #fff);
     background-image: none;
     border: 1px solid var(--border-color, #ddd);
-    border-radius: var(--radius-panels, 8px);
+    border-radius: var(--radius-md);
     padding: 0.5em;
     box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.06));
     color: var(--text-color, #444);
@@ -107,7 +107,7 @@
 
 /* --- Tooltip dialog container (overrides for tooltip dialog specifically) --- */
 .gnr_dojotheme .dijitTooltipDialog .dijitTooltipContainer {
-    border-radius: var(--radius-panels, 8px);
+    border-radius: var(--radius-md);
     padding: 0;
     border: 1px solid var(--border-color, #ddd);
     font-size: inherit;

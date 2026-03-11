@@ -6,7 +6,7 @@
 /* --- Palette container --- */
 .gnr_dojotheme .dijitColorPalette {
     border: 1px solid var(--border-color, #ddd);
-    border-radius: var(--radius-controls, 4px);
+    border-radius: var(--radius-sm);
     background: var(--surface-bg, #fff);
     padding: 0.2em;
 }

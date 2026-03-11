@@ -2,11 +2,11 @@
 
 /* @group Default color palette */
 body {
-    /* --- Palette (numbered scale) --- */
-    --color-3: #636366;
-    --color-4: #007AFF;
-    --color-5: #D8D8DC;
-    --color-7: #F2F2F7;
+    /* --- Palette (gray scale + accent) --- */
+    --gray-600: #636366;
+    --accent-500: #007AFF;
+    --gray-300: #D8D8DC;
+    --gray-100: #F2F2F7;
 
     /* --- Brand / Primary --- */
     --primary-color: #636366;
@@ -44,7 +44,7 @@ body {
 
     /* --- Form-context shared overrides (formbuilder + formlet) --- */
     --form-field-border: var(--primary-light);
-    --form-field-radius: var(--radius-panels);
+    --form-field-radius: var(--radius-sm);
     --form-label-font-size: .8em;
 
     /* --- Formlet-specific overrides --- */

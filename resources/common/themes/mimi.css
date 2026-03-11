@@ -2,14 +2,14 @@
 
 /* @group Default color palette — Titanium metallic gray */
 body {
-    /* --- Palette (numbered scale) --- */
-    --color-1: #3C3D40;
-    --color-2: #48494C;
-    --color-3: #6B6E72;
-    --color-4: #0277BD;
-    --color-5: #9EA0A3;
-    --color-6: #E0E1E3;
-    --color-7: #EDEEF0;
+    /* --- Palette (gray scale + accent) --- */
+    --gray-900: #3C3D40;
+    --gray-800: #48494C;
+    --gray-600: #6B6E72;
+    --accent-500: #0277BD;
+    --gray-300: #9EA0A3;
+    --gray-200: #E0E1E3;
+    --gray-100: #EDEEF0;
 
     --font-family: "SF Pro Text", "Myriad Set Pro", "SF Pro Icons", "Apple Legacy Chevron", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
 

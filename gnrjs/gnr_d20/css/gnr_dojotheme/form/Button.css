@@ -12,7 +12,7 @@
     padding: calc(0.25rem - 1px) calc(0.7rem - 1px);
     background-color: var(--btn-tonal-bg, #E3F2FD);
     background-image: none;
-    border-radius: var(--radius-buttons);
+    border-radius: var(--radius-md);
     cursor: pointer;
     opacity: 1;
     color: var(--btn-tonal-color, #1565C0);

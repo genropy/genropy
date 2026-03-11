@@ -4,18 +4,18 @@
    or leave empty to disable user color choice.
 */
 
-/* Color variants — numbered palette + semantic overrides:
-   Each variant sets --color-1..7 palette AND explicit semantic vars.
+/* Color variants — gray scale + accent overrides:
+   Each variant sets --gray-N / --accent-500 palette AND explicit semantic vars.
    This ensures both derived and directly-referenced vars are correct.
 */
 
 /* Joker - green/fuchsia */
 .color_variant_joker {
-    --color-2: #8b1a6b;
-    --color-3: #1d7d55;
-    --color-4: #8b1a6b;
-    --color-5: #c0dece;
-    --color-7: #edf7f2;
+    --gray-800: #8b1a6b;
+    --gray-600: #1d7d55;
+    --accent-500: #8b1a6b;
+    --gray-300: #c0dece;
+    --gray-100: #edf7f2;
 
     --primary-color: #1d7d55;
     --primary-dark: #8b1a6b;
@@ -33,12 +33,12 @@
 
 /* Ocean - blue depths */
 .color_variant_ocean {
-    --color-1: #1A2840;
-    --color-2: #1e4a80;
-    --color-3: #2a62a8;
-    --color-4: #0a84ff;
-    --color-5: #c4d4e8;
-    --color-7: #edf2fa;
+    --gray-900: #1A2840;
+    --gray-800: #1e4a80;
+    --gray-600: #2a62a8;
+    --accent-500: #0a84ff;
+    --gray-300: #c4d4e8;
+    --gray-100: #edf2fa;
 
     --primary-color: #2a62a8;
     --primary-dark: #1e4a80;
@@ -56,11 +56,11 @@
 
 /* Ruby - warm red */
 .color_variant_ruby {
-    --color-2: #9a2232;
-    --color-3: #c53040;
-    --color-4: #e8364a;
-    --color-5: #e8c8cc;
-    --color-7: #fbeff1;
+    --gray-800: #9a2232;
+    --gray-600: #c53040;
+    --accent-500: #e8364a;
+    --gray-300: #e8c8cc;
+    --gray-100: #fbeff1;
 
     --primary-color: #c53040;
     --primary-dark: #9a2232;
@@ -78,11 +78,11 @@
 
 /* Sunset - orange top / plum frameindex */
 .color_variant_sunset {
-    --color-2: #6a2058;
-    --color-3: #d4650a;
-    --color-4: #6a2058;
-    --color-5: #e8cddb;
-    --color-7: #faf3f7;
+    --gray-800: #6a2058;
+    --gray-600: #d4650a;
+    --accent-500: #6a2058;
+    --gray-300: #e8cddb;
+    --gray-100: #faf3f7;
 
     --primary-color: #d4650a;
     --primary-dark: #6a2058;
@@ -100,12 +100,12 @@
 
 /* Hornette - vivid wasp yellow / black */
 .color_variant_hornette {
-    --color-1: #1a1a1a;
-    --color-2: #1a1a1a;
-    --color-3: #f5c800;
-    --color-4: #4B0082;
-    --color-5: #fde68a;
-    --color-7: #fef9e7;
+    --gray-900: #1a1a1a;
+    --gray-800: #1a1a1a;
+    --gray-600: #f5c800;
+    --accent-500: #4B0082;
+    --gray-300: #fde68a;
+    --gray-100: #fef9e7;
     --text-on-dark: #1a1a1a;
 
     --primary-color: #1a1a1a;
@@ -141,12 +141,12 @@
 
 /* Business - corporate navy / charcoal */
 .color_variant_business {
-    --color-1: #1a252f;
-    --color-2: #1a252f;
-    --color-3: #2c3e50;
-    --color-4: #34495e;
-    --color-5: #bdc3c7;
-    --color-7: #ecf0f1;
+    --gray-900: #1a252f;
+    --gray-800: #1a252f;
+    --gray-600: #2c3e50;
+    --accent-500: #34495e;
+    --gray-300: #bdc3c7;
+    --gray-100: #ecf0f1;
 
     --primary-color: #2c3e50;
     --primary-dark: #1a252f;
@@ -164,12 +164,12 @@
 
 /* Terra - warm terracotta / dark walnut */
 .color_variant_terra {
-    --color-1: #3e2723;
-    --color-2: #3e2723;
-    --color-3: #b45309;
-    --color-4: #d97706;
-    --color-5: #e8c9a0;
-    --color-7: #fdf6ee;
+    --gray-900: #3e2723;
+    --gray-800: #3e2723;
+    --gray-600: #b45309;
+    --accent-500: #d97706;
+    --gray-300: #e8c9a0;
+    --gray-100: #fdf6ee;
 
     --primary-color: #b45309;
     --primary-dark: #3e2723;
