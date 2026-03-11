@@ -172,6 +172,15 @@
     opacity: 1;
 }
 
+/* Deleting button — error background (must come after btn_filled to win cascade) */
+.gnr_dojotheme .deletingButton .dijitButtonNode,
+.slotbar_toolbar .deletingButton .dijitButtonNode,
+.slotbar_toolbar .deletingButton:not(.slotButtonIconOnly) .dijitButtonNode {
+    background-color: var(--color-error);
+    color: var(--btn-filled-color);
+    border-color: var(--color-error);
+}
+
 .slotbar_toolbar .dijitButton, .slotbar_toolbar .dijitDropDownButton, .slotbar_toolbar .dijitComboButton{
     margin:0;
 }

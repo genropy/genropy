@@ -1,8 +1,8 @@
 /* public.css — styles specific to public.py components */
 
 /* Fields in top bar: rounded, compact, dark text on white field */
-.pbl_root_top .dijitTextBox,
-.pbl_root_top .dijitComboBox {
+.pbl_root_top .dijitTextBox input,
+.pbl_root_top .dijitComboBox input{
     color: var(--text-color, #444);
     font-size: .85em;
 }

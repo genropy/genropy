@@ -11,6 +11,14 @@ body {
     --gray-200: #E0E1E3;
     --gray-100: #EDEEF0;
 
+    /* --- Gray scale extensions (computed from mimi palette) --- */
+    --gray-700: #67686A;   /* gray-900 #3C3D40 78% + white */
+    --gray-500: #949496;   /* gray-900 55% + white */
+    --gray-400: #BBBBBC;   /* gray-900 35% + white */
+    --gray-250: #BDBFC2;   /* gray-300 #9EA0A3 70% + white ≈ primary-light */
+    --gray-150: #EFF0F1;   /* gray-200 #E0E1E3 50% + white */
+    --gray-50:  #F4F5F6;   /* gray-100 #EDEEF0 60% + white */
+
     --font-family: "SF Pro Text", "Myriad Set Pro", "SF Pro Icons", "Apple Legacy Chevron", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
 
     /* --- Brand / Primary --- */
@@ -35,12 +43,17 @@ body {
     --frameindex-tablist-background: #48494C;
     --frameindex-tablist-color: #ffffff;
     --frameindex-subtab-bg: #5A5C60;
+    --frameindex-subtab-selected-bg: #ADAEB1; /* gray-600 #6B6E72 55% + white */
+    --frameindex-closer-hover-bg: #66686B;
+    --frameindex-tab-bg: #DADBDB;
+    --frameindex-tab-bg-hover: #88898B;
     --root-top-background: #6B6E72;
     --root-top-color: #ffffff;
 
     /* --- Dialogs --- */
     --dialogtitlebar-background: #6B6E72;
     --dialogtitlebar-color: #ffffff;
+    --dlg-border-color: #BDBFC2; /* gray-300 #9EA0A3 70% + white */
 
     /* --- Form fields --- */
     --field-border: #9EA0A3;
@@ -87,6 +100,28 @@ body {
     --menutree-branch-selected-color: #48494C;
     --menutree-mobile-selected-color: #FFD54F;
     --menutree-mobile-branch-selected-color: white;
+
+    /* --- Toolbar --- */
+    --toolbar-gradient: linear-gradient(to bottom, var(--gray-150), var(--gray-200));
+
+    /* --- Grid draft/lineno --- */
+    --grid-draft-color: #3C7294;
+    --grid-lineno-color: #3C7294;
+
+    /* --- Grid (gray-800 derived) --- */
+    --grid-reporting-header-bg: #3D3E41; /* gray-800 #48494C 85% + black */
+
+    /* --- TreeGrid (gray-800 derived) --- */
+    --treegrid-header-bg: #414244; /* gray-800 90% + black */
+
+    /* --- Accordion --- */
+    --accordion-title-bg: #E5E6E8; /* gray-200 60% + gray-100 */
+
+    /* --- FieldsTree --- */
+    --fieldsTree-rm-color: #3A3A3D; /* gray-800 80% + black */
+
+    /* --- Field errors (uses mimi gray-300 #9EA0A3) --- */
+    --field-error-border: #BD7172; /* color-error 45% + gray-300 #9EA0A3 */
 
     /* --- Form-context shared overrides (formbuilder + formlet) --- */
     --form-field-border: var(--primary-light);
