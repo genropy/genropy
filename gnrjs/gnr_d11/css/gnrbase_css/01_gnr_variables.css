@@ -251,6 +251,8 @@
     --form-field-border-width: 1px;
     --form-field-radius: var(--radius-controls);
     --form-label-font-size: .9em;
+    --form-draft-label: 'DRAFT';
+    --form-draft-background: var(--status-warning, #ff9800);
 
     /* --- Formbuilder (table-layout forms) --- */
     --formbuilder-spacing: 6px;
@@ -437,6 +439,7 @@
     --icon-small-del: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2 5h6' stroke='%23515151' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
     --icon-genropy-logo: url(/_rsrc/common/css_icons/svg/16/genrologo.svg);
     --icon-download-file: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 6v36M20 30l12 12 12-12' fill='none' stroke='%23888' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M12 48h40' fill='none' stroke='%23888' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E");
+    --icon-draft-stamp: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='32'%3E%3Ctext x='20' y='20' text-anchor='middle' font-size='11' font-weight='bold' letter-spacing='2' fill='%23aaa' opacity='0.4' font-family='sans-serif' transform='rotate(-25 20 16)'%3EDRAFT%3C/text%3E%3C/svg%3E");
     --icon-placeholder-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 90'%3E%3Crect width='120' height='90' fill='%23f0f0f0'/%3E%3Crect x='35' y='20' width='50' height='40' rx='3' fill='none' stroke='%23ccc' stroke-width='2'/%3E%3Ccircle cx='48' cy='33' r='5' fill='%23ccc'/%3E%3Cpath d='M35 52l15-12 10 8 8-5 17 12' fill='none' stroke='%23ccc' stroke-width='2' stroke-linejoin='round'/%3E%3Ctext x='60' y='78' text-anchor='middle' font-size='10' fill='%23bbb' font-family='sans-serif'%3Eplaceholder%3C/text%3E%3C/svg%3E");
 
     /* --- Window controls --- */
