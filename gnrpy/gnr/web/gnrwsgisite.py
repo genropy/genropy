@@ -1043,27 +1043,6 @@ class GnrWsgiSite(object):
         except Exception:
             logger.warning('Failed to send error to endpoint %s', endpoint)
 
-    def writeException(self, exception=None, traceback=None):
-        try:
-            page = self.currentPage
-            user, user_ip, user_agent = (page.user, page.user_ip, page.user_agent) if page else (None, None, None)
-            return self.db.table('sys.error').writeException(description=str(exception),
-                                                      traceback=traceback,
-                                                      user=user,
-                                                      user_ip=user_ip,
-                                                      user_agent=user_agent)
-        except Exception as writingErrorException:
-            logger.exception('\n ####writingErrorException %s for exception %s' %(str(writingErrorException),str(exception)))
-
-    @public_method
-    def writeError(self, description=None,error_type=None, **kwargs):
-        try:
-            page = self.currentPage
-            user, user_ip, user_agent = (page.user, page.user_ip, page.user_agent) if page else (None, None, None)
-            self.db.table('sys.error').writeError(description=description,error_type=error_type,user=user,user_ip=user_ip,user_agent=user_agent,**kwargs)
-        except Exception as e:
-            logger.exception(str(e))
-            pass
 
     def loadResource(self, pkg, *path):
         """TODO
@@ -1107,7 +1086,10 @@ class GnrWsgiSite(object):
                     else:
                         out_dict[name] = value
                 except UnicodeDecodeError:
-                    pass
+                    self.errorHandler(
+                        description='UnicodeDecodeError parsing request parameter',
+                        loglevel='warning', origin='data'
+                    )
         return out_dict
 
     @property
@@ -1172,7 +1154,7 @@ class GnrWsgiSite(object):
             page = self.currentPage
             if self.debug and ((page and page.isDeveloper()) or self.force_debug):
                 raise
-            self.writeException(exception=e,traceback=tracebackBag())
+            self.errorHandler(exception=e, traceback=True)
             exc = InternalServerError(
                 description='Internal server error; SCRIPT_NAME=%r; PATH_INFO=%r;'
                 % (environ.get('SCRIPT_NAME'), environ.get('PATH_INFO')))

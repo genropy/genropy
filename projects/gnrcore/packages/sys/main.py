@@ -17,28 +17,21 @@ class Package(GnrDboPackage):
     def onDbStarting(self):
         self.db.changeLogTable = 'sys.dbchange'
 
-    def onError(self, error_info):
+    def errorHandler(self, error_id=None, description=None, traceback=None,
+                     error_type=None, user=None, user_ip=None,
+                     user_agent=None, **kwargs):
         try:
-            tbl = self.db.table('sys.error')
-            error_id = error_info.get('error_id', '')
-            record_id = error_id.ljust(22, '_') if error_id else None
-            error_type = error_info.get('error_type', 'ERR')
-            rec = dict(
-                description=error_info.get('description'),
-                error_data=error_info.get('traceback'),
-                username=error_info.get('user'),
-                user_ip=error_info.get('user_ip'),
-                user_agent=error_info.get('user_agent'),
-                error_type=error_type
+            self.db.table('sys.error').errorHandler(
+                error_id=error_id,
+                description=description,
+                traceback=traceback,
+                error_type=error_type,
+                user=user,
+                user_ip=user_ip,
+                user_agent=user_agent
             )
-            if record_id:
-                rec['id'] = record_id
-            with self.db.tempEnv(connectionName='system',
-                                 storename=self.db.rootstore):
-                tbl.insert(rec)
-                self.db.commit()
         except Exception:
-            logger.exception('sys.onError: failed to write to sys.error')
+            logger.exception('sys.errorHandler: failed to write to sys.error')
 
 
 class Table(GnrDboTable):
