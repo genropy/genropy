@@ -19,7 +19,9 @@ class Package(GnrDboPackage):
 
     def errorHandler(self, error_id=None, description=None, traceback=None,
                      error_type=None, user=None, user_ip=None,
-                     user_agent=None, **kwargs):
+                     user_agent=None, domain=None,
+                     request_uri=None, rpc_method=None, page_id=None,
+                     **kwargs):
         try:
             self.db.table('sys.error').errorHandler(
                 error_id=error_id,
@@ -28,7 +30,11 @@ class Package(GnrDboPackage):
                 error_type=error_type,
                 user=user,
                 user_ip=user_ip,
-                user_agent=user_agent
+                user_agent=user_agent,
+                domain=domain,
+                request_uri=request_uri,
+                rpc_method=rpc_method,
+                page_id=page_id
             )
         except Exception:
             logger.exception('sys.errorHandler: failed to write to sys.error')

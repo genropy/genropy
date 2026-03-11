@@ -28,17 +28,19 @@ class Table(object):
         tbl.column('request_uri',name_long='!!Request URI')
         tbl.column('rpc_method',name_long='!!RPC Method')
         tbl.column('page_id',name_long='!!Page ID',size='22')
+        tbl.column('domain',name_long='!!Domain')
 
 
     def errorHandler(self, error_id=None, description=None, traceback=None,
                      error_type=None, user=None, user_ip=None,
                      user_agent=None, request_uri=None,
-                     rpc_method=None, page_id=None, **kwargs):
+                     rpc_method=None, page_id=None, domain=None, **kwargs):
         rec = dict(error_code=error_id, description=description,
                    error_data=traceback, error_type=error_type,
                    username=user, user_ip=user_ip,
                    user_agent=user_agent, request_uri=request_uri,
-                   rpc_method=rpc_method, page_id=page_id)
+                   rpc_method=rpc_method, page_id=page_id,
+                   domain=domain)
         with self.db.tempEnv(connectionName='system',
                              storename=self.db.rootstore):
             self.insert(rec)
