@@ -90,8 +90,8 @@
 
     /* --- Border radius --- */
     --radius-sm:   4px;    /* @theme @palette inputs, grid cells, buttons, small interactive elements */
-    --radius-md:   8px;    /* @theme @palette dialogs, menus, tooltips, dropdowns, medium containers */
-    --radius-lg:   12px;   /* @theme @palette layout sections, cards, search boxes, large wrappers */
+    --radius-md:   10px;    /* @theme @palette dialogs, menus, tooltips, dropdowns, medium containers */
+    --radius-lg:   14px;   /* @theme @palette layout sections, cards, search boxes, large wrappers */
     --radius-pill: 9999px; /* @theme @palette pill shapes: tags, badges, semaphores, mobile bars */
     --radius-full: 50%;    /* @theme @palette circles: status indicators */
 
@@ -209,7 +209,7 @@
     --field-readonly-border: var(--field-border);
     --field-readonly-bg: var(--field-bg);
     --field-focus-bg: var(--color-bg);
-    --gnrfieldlabel-color: #C8C8CC; /* @theme — gray-300 #D8D8DC 90% + gray-900 #606060 */
+    --gnrfieldlabel-color: var(--gray-700); /* @theme — readable on light form surfaces */
 
     /* --- Form-context field defaults (shared by formbuilder & formlet) --- */
     --form-field-border: var(--field-border);

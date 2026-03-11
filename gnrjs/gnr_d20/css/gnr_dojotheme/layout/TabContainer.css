@@ -9,7 +9,7 @@
 .gnr_dojotheme .dijitTab {
     font-size: 0.85em;
     line-height: normal;
-    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
     background: var(--primary-color, #1E3055);
     color: rgba(255,255,255,0.75);
     border: none;
@@ -26,7 +26,7 @@
 .gnr_dojotheme .dijitTabInnerDiv {
     border-left: 0;
     border-bottom: 0;
-    padding: 4px 10px;
+    padding: 6px 10px 4px;
 }
 
 /* --- Tab hover --- */
@@ -49,7 +49,7 @@
     font-weight: 600;
     border: 1px solid var(--border-strong, #aab4c4);
     border-bottom: none;
-    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
     box-shadow: none;
 }
 
@@ -60,7 +60,7 @@
     font-weight: 600;
     border: 1px solid var(--border-strong, #aab4c4);
     border-bottom: none;
-    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
     box-shadow: none;
 }
 
@@ -75,7 +75,7 @@
 /* --- Tab pane wrapper --- */
 .gnr_dojotheme .dijitTabPaneWrapper {
     border: 1px solid var(--border-strong, #aab4c4);
-    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    border-radius: 0 var(--radius-md) var(--radius-md) var(--radius-md);
     background: var(--card-surface, #F2F2F7);
 }
 

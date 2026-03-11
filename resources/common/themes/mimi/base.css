@@ -51,7 +51,7 @@
     --gray-400: #AFBAB5;
     --gray-500: #82938B;
     --gray-700: #4D655A;
-    --gnrfieldlabel-color: #A8C8BA;
+    --gnrfieldlabel-color: var(--gray-700);
     --accordion-title-bg: #DCE7E1;
     --frameindex-subtab-bg: #236A4D;
     --frameindex-subtab-selected-bg: #8CB8A5;
@@ -107,7 +107,7 @@
     --gray-400: #AFB4BC;
     --gray-500: #818996;
     --gray-700: #4C576A;
-    --gnrfieldlabel-color: #A8BCD4;
+    --gnrfieldlabel-color: var(--gray-700);
     --accordion-title-bg: #D9E1EC;
     --frameindex-subtab-bg: #21518B;
     --frameindex-subtab-selected-bg: #89A9CF;
@@ -157,7 +157,7 @@
 
     --gray-50: #FBF6F8;
     --gray-250: #E4CDD8;
-    --gnrfieldlabel-color: #C8ACBA;
+    --gnrfieldlabel-color: var(--gray-700);
     --accordion-title-bg: #EAE7EA;
     --frameindex-subtab-bg: #9F1254;
     --frameindex-subtab-selected-bg: #DD80A5;
@@ -213,7 +213,7 @@
     --gray-400: #BAAEB7;
     --gray-500: #93808D;
     --gray-700: #654B5E;
-    --gnrfieldlabel-color: #C8AFC0;
+    --gnrfieldlabel-color: var(--gray-700);
     --accordion-title-bg: #E9E2E7;
     --frameindex-subtab-bg: #923E26;
     --frameindex-subtab-selected-bg: #FFAE73;
@@ -265,7 +265,7 @@
     --gray-50: #FFFBE6;
     --gray-150: #FFF8DC;
     --gray-250: #FFED94;
-    --gnrfieldlabel-color: #ECD462;
+    --gnrfieldlabel-color: var(--gray-700);
     --accordion-title-bg: #FFF3C4;
     --frameindex-subtab-bg: #917F2E;
     --frameindex-subtab-selected-bg: #FFE673;

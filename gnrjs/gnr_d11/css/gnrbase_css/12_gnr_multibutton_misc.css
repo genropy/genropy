@@ -185,6 +185,7 @@
     border-color: var(--gray-700, #656567);
     box-shadow: none;
 }
+
 .multibutton:active:not(.multibutton_selected){
     background: rgba(0, 0, 0, 0.12);
     box-shadow: none;
