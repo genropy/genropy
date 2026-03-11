@@ -331,7 +331,7 @@
 
 .mobile_button{
     background: var(--primary-color);
-    color: var(--palette-white);
+    color: var(--text-on-dark);
     width:80%;
     font-size: 1.1em;
     text-align: center;

@@ -217,7 +217,7 @@
 }
 .helpdesk_ticket_top{
     background:#711B2A;
-    color:var(--palette-white);
+    color:var(--text-on-dark);
     font-weight: bold;
     border-top-left-radius: var(--radius-controls);
     border-top-right-radius: var(--radius-controls);
@@ -292,7 +292,7 @@
 }
 
 .mc_negative.mc_ovf{
-    background: var(--palette-error);
+    background: var(--color-error);
 }
 
 .flex_centered_wrapper{

@@ -2,15 +2,45 @@
 
 /* @group Default color palette */
 body {
-    /* --- Palette (only brand differs from default) --- */
-    --palette-brand: #636366;
+    /* --- Palette (numbered scale) --- */
+    --color-3: #636366;
+    --color-4: #007AFF;
+    --color-5: #D8D8DC;
+    --color-7: #F2F2F7;
 
-    /* --- Theme-specific overrides --- */
+    /* --- Brand / Primary --- */
+    --primary-color: #636366;
+    --primary-dark: #3A3A3C;
     --login-underlay-bg: #1D1D1F;
+    --primary-light: #D8D8DC;
+    --primary-lighter: #F2F2F7;
+    --accent-color: #007AFF;
+    --mainWindow-background: white;
+
+    /* --- Layout: frameindex --- */
+    --frameindexroot-background: #F2F2F7;
+    --frameindexcenter-background: #F2F2F7;
+    --frameindexroot-mobile-background: #48484A;
+
+    /* --- Rounded groups (transparent bar — joanna signature) --- */
     --roundedgroup-bar: transparent;
-    --roundedgroup-bar-color: var(--palette-brand);
+    --roundedgroup-bar-color: var(--primary-color);
+    --roundedgroup-border: #D1D1D6;
+    --card-surface: #F2F2F7;
+    --roundedgroup-surface: var(--card-surface);
+    --roundedgroup-shadow: rgba(0,0,0,0.06);
+
+    /* --- topLabelTable --- */
     --topLabelTable-border-top: 2px solid var(--primary-light);
     --topLabelTable-separator: var(--primary-light);
+
+    /* --- Form fields --- */
+    --field-border: #AEAEB2;
+    --field-bg: white;
+    --field-disabled-border: #C7C7CC;
+    --field-disabled-bg: #F2F2F7;
+    --field-readonly-border: #C7C7CC;
+    --field-readonly-bg: #F2F2F7;
 
     /* --- Form-context shared overrides (formbuilder + formlet) --- */
     --form-field-border: var(--primary-light);

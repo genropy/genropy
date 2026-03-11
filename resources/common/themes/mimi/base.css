@@ -4,84 +4,139 @@
    or leave empty to disable user color choice.
 */
 
-/* Color variants — palette-first approach:
-   Each variant sets palette vars (including --palette-chrome for top bars),
-   then only non-derivable overrides. Button vars derive automatically
-   from --palette-accent via color-mix() in 01_gnr_variables.css.
+/* Color variants — numbered palette + semantic overrides:
+   Each variant sets --color-1..7 palette AND explicit semantic vars.
+   This ensures both derived and directly-referenced vars are correct.
 */
 
 /* Green - forest emerald */
 .color_variant_green {
-    --palette-brand: #2E7D5B;
-    --palette-neutral: #1B5E43;
-    --palette-accent: #2E7D5B;
-    --palette-surface: #EDF5F1;
-    --palette-chrome: var(--palette-brand);
+    --color-1: #1B3A2C;
+    --color-2: #1B5E43;
+    --color-3: #2E7D5B;
+    --color-4: #2E7D5B;
+    --color-5: #B8D8CA;
+    --color-6: #D0DED6;
+    --color-7: #EDF5F1;
 
-    --card-surface: #F5FAF7;
+    --primary-color: #2E7D5B;
+    --primary-dark: #1B5E43;
+    --accent-color: #2E7D5B;
     --primary-light: #B8D8CA;
+    --primary-lighter: #EDF5F1;
+    --root-top-background: #2E7D5B;
+    --dialogtitlebar-background: #2E7D5B;
+    --frameindex-tablist-background: #1B5E43;
+    --card-surface: #F5FAF7;
     --roundedgroup-bar: #D0DED6;
-    --menu-item-hover-bg: #C8E6D6;
-    --menu-item-hover-color: var(--palette-neutral);
+    --menu-item-hover-bg: #DCF0E6;
+    --menu-item-hover-color: #1B5E43;
+
     --field-disabled-border: #A8C4B4;
+    --field-readonly-border: #A8C4B4;
 }
 
 /* Blue - deep ocean */
 .color_variant_blue {
-    --palette-brand: #2962A8;
-    --palette-neutral: #1C4678;
-    --palette-accent: #0071E3;
-    --palette-surface: #ECF1F9;
-    --palette-chrome: var(--palette-brand);
+    --color-1: #1A2840;
+    --color-2: #1C4678;
+    --color-3: #2962A8;
+    --color-4: #0071E3;
+    --color-5: #B8CCE4;
+    --color-6: #CDD6E4;
+    --color-7: #ECF1F9;
 
-    --card-surface: #F6F8FC;
+    --primary-color: #2962A8;
+    --primary-dark: #1C4678;
+    --accent-color: #0071E3;
     --primary-light: #B8CCE4;
+    --primary-lighter: #ECF1F9;
+    --root-top-background: #2962A8;
+    --dialogtitlebar-background: #2962A8;
+    --frameindex-tablist-background: #1C4678;
+    --card-surface: #F6F8FC;
     --roundedgroup-bar: #CDD6E4;
-    --menu-item-hover-bg: #C4D8EE;
-    --menu-item-hover-color: var(--palette-neutral);
+    --menu-item-hover-bg: #D8E4F4;
+    --menu-item-hover-color: #1C4678;
+
     --field-disabled-border: #A8BCD4;
+    --field-readonly-border: #A8BCD4;
 }
 
 /* Red - cherry lipstick / fuchsia fashion */
 .color_variant_red {
-    --palette-accent: #C2185B;
-    --palette-surface: #F8F0F4;
-    --palette-chrome: var(--palette-accent);
+    --color-2: #880E4F;
+    --color-3: #C2185B;
+    --color-4: #C2185B;
+    --color-5: #D8B8C8;
+    --color-7: #F8F0F4;
 
+    --primary-color: #6B6E72;
+    --primary-dark: #48494C;
+    --accent-color: #C2185B;
+    --primary-light: #D8B8C8;
+    --primary-lighter: #F8F0F4;
+    --root-top-background: #C2185B;
+    --dialogtitlebar-background: #C2185B;
     --frameindex-tablist-background: #880E4F;
     --card-surface: #FBF6F8;
-    --primary-light: #D8B8C8;
-    --menu-item-hover-bg: #EACADE;
+    --roundedgroup-bar: #E0E1E3;
+    --menu-item-hover-bg: #F4DCE8;
     --menu-item-hover-color: #880E4F;
+
+    --field-disabled-border: #BDBFC2;
+    --field-readonly-border: #BDBFC2;
 }
 
-/* Orange - Apple Watch Ultra / plum + international orange (light-chrome) */
+/* Orange - Apple Watch Ultra / plum + international orange */
 .color_variant_orange {
-    --palette-brand: #4A2040;
-    --palette-neutral: #3A1830;
-    --palette-accent: #FF5722;
-    --palette-surface: #F6F0F4;
-    --palette-chrome: #FF6C00;
+    --color-1: #3A1830;
+    --color-2: #4A2040;
+    --color-3: #FF6C00;
+    --color-4: #FF5722;
+    --color-5: #D8C0D0;
+    --color-6: #E0D8DE;
+    --color-7: #F6F0F4;
 
-    --card-surface: #FAF8F6;
+    --primary-color: #4A2040;
+    --primary-dark: #3A1830;
+    --accent-color: #FF5722;
     --primary-light: #D8C0D0;
+    --primary-lighter: #F6F0F4;
+    --root-top-background: #FF6C00;
+    --dialogtitlebar-background: #FF6C00;
+    --frameindex-tablist-background: #3A1830;
+    --card-surface: #FAF8F6;
     --roundedgroup-bar: #E0D8DE;
-    --menu-item-hover-bg: #FFD0B5;
-    --menu-item-hover-color: var(--palette-neutral);
+    --menu-item-hover-bg: #FFE0CC;
+    --menu-item-hover-color: #3A1830;
+
     --field-disabled-border: #C4B0BC;
+    --field-readonly-border: #C4B0BC;
 }
 
-/* Yellow - gold on dark titanium (light-chrome) */
+/* Yellow - gold on dark titanium */
 .color_variant_yellow {
-    --palette-neutral: #3C3D40;
-    --palette-surface: #FFF8D6;
-    --palette-chrome: #FFD100;
-    --palette-chrome-color: var(--palette-neutral);
+    --color-3: #FFD100;
+    --color-5: #FFE566;
+    --color-6: #FFF0B8;
+    --color-7: #FFF8D6;
 
-    --card-surface: #FAFAF6;
+    --primary-color: #3C3D40;
+    --primary-dark: #3C3D40;
+    --accent-color: #0071E3;
     --primary-light: #FFE566;
+    --primary-lighter: #FFF8D6;
+    --root-top-background: #FFD100;
+    --root-top-color: #3C3D40;
+    --dialogtitlebar-background: #FFD100;
+    --dialogtitlebar-color: #3C3D40;
+    --frameindex-tablist-background: #3C3D40;
+    --card-surface: #FAFAF6;
     --roundedgroup-bar: #FFF0B8;
-    --menu-item-hover-bg: #FFE899;
-    --menu-item-hover-color: var(--palette-neutral);
+    --menu-item-hover-bg: #FFF0B8;
+    --menu-item-hover-color: #3C3D40;
+
     --field-disabled-border: #B0B0A8;
+    --field-readonly-border: #B0B0A8;
 }
