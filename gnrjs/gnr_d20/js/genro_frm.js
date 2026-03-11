@@ -464,8 +464,10 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             var items = [];
             this.getChangesLogger().forEach(function(n){
                 if(n.attr.from != n.attr.to){
+                    var sn = genro.src.nodeBySourceNodeId(n.label);
+                    var label = (sn && sn.getElementLabel()) || n.attr._valuelabel || '?';
                     items.push('<div class="fh_status_item">' +
-                        '<span class="fh_status_field">' + (n.attr._valuelabel || '?') + '</span>' +
+                        '<span class="fh_status_field">' + label + '</span>' +
                         '<span class="fh_status_from">' + (n.attr.from || '') + '</span>' +
                         '<span class="fh_status_arrow">\u2192</span>' +
                         '<span class="fh_status_to">' + (n.attr.to || '') + '</span>' +
@@ -991,7 +993,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         this.protect_write = this.isProtectWrite();
         genro.dom.setClass(this.sourceNode,'form_logical_deleted',this.isLogicalDeleted());
         genro.dom.setClass(this.sourceNode,'form_protect_write',this.protect_write);
-        genro.dom.setClass(this.sourceNode,'form_draft',this.isDraft());
+        this.updateDraftMarker(this.isDraft());
         this.protect_delete = this.isProtectDelete();
         genro.dom.setClass(this.sourceNode,'form_protect_delete',this.protect_delete);
 
@@ -1588,7 +1590,16 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     setDraft:function(set){
         this.sourceNode.setRelativeData('.record.__is_draft',set);
         this.getDataNodeAttributes()._draft = set;
-        genro.dom.setClass(this.sourceNode,'form_draft',set);
+        this.updateDraftMarker(set);
+    },
+
+    updateDraftMarker:function(isDraft){
+        var dm = this.draftMarker;
+        var dmPos = (dm === true || dm === undefined) ? 'tr' : dm;
+        genro.dom.setClass(this.sourceNode,'form_draft',isDraft);
+        ['tr','tl','br','bl'].forEach(function(pos){
+            genro.dom.setClass(this.sourceNode,'draft_marker_' + pos, isDraft && dmPos === pos);
+        }, this);
     },
 
 
