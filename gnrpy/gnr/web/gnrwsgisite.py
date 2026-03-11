@@ -1014,6 +1014,7 @@ class GnrWsgiSite(object):
             request = getattr(page, 'request', None)
             if request:
                 kwargs.setdefault('request_uri', request.url)
+        kwargs.setdefault('domain', self.currentDomain)
         error_id = self.gnrapp.errorHandler(exception=exception, **kwargs)
         if error_id and page:
             notify_user = kwargs.get('notify_user')

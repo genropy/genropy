@@ -218,7 +218,10 @@ class GnrWebPage(GnrBaseWebPage):
         self.onPreIniting(request_args, request_kwargs)
         self._call_handler = self.get_call_handler(request_args, request_kwargs)
         
-        self.onIniting(request_args, request_kwargs)
+        try:
+            self.onIniting(request_args, request_kwargs)
+        except Exception as e:
+            self._page_init_error = str(e)
         self._call_args = request_args or tuple()
         self._call_kwargs = dict(request_kwargs)
         if getattr(self,'skip_connection', False) or self._call_kwargs.get('method') == 'onClosePage':
