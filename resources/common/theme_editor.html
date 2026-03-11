@@ -170,7 +170,8 @@ var state = {
 /* ===== Helpers ===== */
 function getOpener(){ return window.opener || window.parent; }
 function getParentRoot(){ try { var o = getOpener(); return o.document.documentElement; } catch(e){ return null; } }
-function getParentComputed(){ var r = getParentRoot(); try { return getOpener().getComputedStyle(r); } catch(e){ return null; } }
+function getParentBody(){ try { var o = getOpener(); return o.document.body; } catch(e){ return null; } }
+function getParentComputed(){ var b = getParentBody(); try { return getOpener().getComputedStyle(b); } catch(e){ return null; } }
 
 function showToast(msg){
     var t = document.getElementById('toast');
@@ -221,7 +222,7 @@ function collectVarsFromCSS(){
             if(isImportRule(r) && r.styleSheet){ try { walk(r.styleSheet.cssRules); } catch(e){} continue; }
             if(isStyleRule(r)){
                 var sel = r.selectorText;
-                if(sel !== ':root' && sel !== ':root, :host') continue;
+                if(sel !== ':root' && sel !== ':root, :host' && sel !== 'body') continue;
                 for(var p=0; p<r.style.length; p++){
                     var prop = r.style[p];
                     if(!prop.startsWith('--') || seen.has(prop)) continue;

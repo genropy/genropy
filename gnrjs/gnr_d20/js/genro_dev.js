@@ -687,14 +687,17 @@ dojo.declare("gnr.GnrDevHandler", null, {
         var allDocs = this._themeGetAllDocs();
         allDocs.forEach(function(doc){
             try {
-                var el = doc.documentElement;
-                if(isSet){
-                    el.style.setProperty(d.name, d.value);
-                }else{
-                    for(var name in vars){
-                        el.style.removeProperty(name);
+                var targets = [doc.documentElement];
+                if(doc.body) targets.push(doc.body);
+                targets.forEach(function(el){
+                    if(isSet){
+                        el.style.setProperty(d.name, d.value);
+                    }else{
+                        for(var name in vars){
+                            el.style.removeProperty(name);
+                        }
                     }
-                }
+                });
             } catch(ex){}
         });
     },
