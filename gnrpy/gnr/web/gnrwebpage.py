@@ -39,7 +39,7 @@ import datetime
 
 from gnr.core.gnrstring import toText, toJson, concat, jsquote,splitAndStrip,boolean,asDict
 from gnr.core.gnrdict import dictExtract
-from gnr.core.gnrlang import getUuid,gnrImport, GnrException, GnrSilentException, tracebackBag
+from gnr.core.gnrlang import getUuid,gnrImport, GnrException, GnrSilentException
 from gnr.core.gnrbag import Bag, BagResolver
 from gnr.core.gnrdecorator import public_method,deprecated
 from gnr.core.gnrclasses import GnrMixinNotFound
