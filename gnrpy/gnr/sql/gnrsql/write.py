@@ -28,8 +28,10 @@ These methods are the primary override points for ``GnrSqlAppDb``.
 
 from __future__ import annotations
 
+import datetime
 from typing import Any
 
+from gnr.core.gnrstring import toTypedJSON
 from gnr.sql._typing import GnrSqlDbBaseMixin
 from gnr.sql.gnrsql.helpers import GnrSqlException, in_triggerstack
 
@@ -80,6 +82,53 @@ class WriteMixin(GnrSqlDbBaseMixin):
                 self.table(self.changeLogTable).logChange(
                     tblobj, evt=evt, record=record
                 )
+        self._dbNotify(tblobj, evt, record, old_record=old_record)
+
+    def _dbNotify(self, tblobj, evt, record, old_record=None, **kwargs):
+        """Send a notification if the table has the ``notify`` attribute.
+
+        The ``notify`` attribute can be:
+        - ``True``: notify with ``{table, pkey, event}`` only
+        - a comma-separated string of field names: include those fields
+          in the payload (changed fields for update, values for delete)
+
+        Extra ``kwargs`` are merged into the payload.
+
+        Delegates to ``adapter.notify()`` which is a no-op on adapters
+        that do not support notifications (e.g. SQLite).
+        """
+        notify = tblobj.attributes.get('notify')
+        if not notify:
+            return
+        currentPage = self.currentPage
+        user = None
+        page_id = None
+        if currentPage:
+            user = currentPage.user
+            page_id = currentPage.page_id
+        payload = {
+            'table': tblobj.fullname,
+            'pkey': record.get(tblobj.pkey),
+            'event': evt,
+            'user': user,
+            'page_id': page_id,
+            'ts': datetime.datetime.now(datetime.timezone.utc),
+        }
+        payload.update(kwargs)
+        if isinstance(notify, str):
+            fields = [f.strip() for f in notify.split(',')]
+            if evt == 'D':
+                payload['fields'] = {f: record.get(f) for f in fields if f in record}
+            elif evt == 'U' and old_record:
+                changed = {}
+                for f in fields:
+                    old_val = old_record.get(f)
+                    new_val = record.get(f)
+                    if old_val != new_val:
+                        changed[f] = {'old': old_val, 'new': new_val}
+                if changed:
+                    payload['fields'] = changed
+        self.adapter.notify('dbevent', toTypedJSON(payload))
 
     @in_triggerstack
     def insert(self, tblobj: Any, record: dict[str, Any], **kwargs: Any) -> None:

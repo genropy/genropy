@@ -390,6 +390,28 @@ class SqlDbAdapter(object):
         """
         raise AdapterMethodNotImplemented()
 
+    def listen_connection(self, channels):
+        """Open a dedicated AUTOCOMMIT connection and LISTEN on the given channels.
+
+        Returns a connection ready for ``select()`` polling, or ``None``
+        for adapters that do not support notifications.
+
+        Args:
+            channels: Iterable of channel names to LISTEN on.
+        """
+        return None
+
+    def poll_notifications(self, conn):
+        """Poll for pending notifications on a listen connection.
+
+        Args:
+            conn: The connection returned by :meth:`listen_connection`.
+
+        Returns:
+            A list of notification objects (each with ``.channel`` and ``.payload``).
+        """
+        return []
+
     def listRemoteDatabases(self, source_ssh_host=None, source_ssh_user=None,
                             source_ssh_dbuser=None, source_ssh_dbpassword=None,
                             source_ssh_dbhost=None):
@@ -404,12 +426,18 @@ class SqlDbAdapter(object):
         """
         raise AdapterMethodNotImplemented()
 
-    def notify(self, msg, autocommit=False):
-        """-- IMPLEMENT THIS --
-        Notify a message to listener processes.
-        @param msg: name of the message to notify
-        @param autocommit: dafault False, if specific implementation of notify uses transactions, commit the current transaction"""
-        raise AdapterMethodNotImplemented()
+    def notify(self, msg, payload=None, autocommit=False):
+        """Notify a message to listener processes.
+
+        Base implementation is a no-op for adapters that do not support
+        notifications (e.g. SQLite).  Override in subclasses.
+
+        Args:
+            msg: Channel name to notify.
+            payload: Optional payload string (JSON or plain text).
+            autocommit: If True, commit the notification immediately.
+        """
+        pass
 
     def prepareSqlText(self, sql, kwargs):
         """Subclass in adapter if you want to change some sql syntax or params types.

@@ -1838,7 +1838,7 @@ class GnrApp(object):
     def gnrdaemon(self):
         if not getattr(self,'_gnrdaemon',None):
             from gnr.web.gnrdaemonhandler import GnrDaemonProxy
-            self._gnrdaemon = GnrDaemonProxy(use_environment=True).proxy() 
+            self._gnrdaemon = GnrDaemonProxy(use_environment=True).proxy()
         return self._gnrdaemon
 
 class AuthTagStruct(GnrStructData):

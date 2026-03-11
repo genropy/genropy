@@ -11,7 +11,6 @@ class Package(GnrDboPackage):
                     comment='Admin',
                     name_short='Adm',
                     name_long='!!Administration',
-                    name_full='!!Administration Tool',
                     )
 
     def config_db(self, pkg):
