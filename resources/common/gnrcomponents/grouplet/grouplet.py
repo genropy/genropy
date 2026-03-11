@@ -201,9 +201,12 @@ class GroupletHandler(BaseComponent):
     @struct_method
     def gr_groupletPanel(self, pane, table=None, topic=None, value=None,
                          frameCode=None, grouplets_root=None,
-                         useForm=True, menuCallback=None,
+                         useForm=True, useRecordPath=False,
+                         menuCallback=None,
                          grouplet_kwargs=None, **kwargs):
         frameCode = frameCode or 'grplt_panel'
+        if useRecordPath:
+            grouplet_kwargs['formDatapath'] = '.record'
         if useForm:
             formId = f'{frameCode}_grpform'
             grouplet_kwargs.update(resource='^#ANCHOR.selected_resource',
@@ -284,7 +287,7 @@ class GroupletHandler(BaseComponent):
             storepath='.grouplet_menu',
             hideValues=True,
             labelAttribute='caption',
-            _class='branchtree noIcon grouplet_tree',
+            _class='grouplet_tree',
             selectedLabelClass='selectedTreeNode',
             openOnClick=True,
             nodeId=f'{frameCode}_tree',
@@ -301,24 +304,21 @@ class GroupletHandler(BaseComponent):
         right = bc.borderContainer(region='center')
         top = right.contentPane(region='top',
                                 _class='grouplet_panel_title_bar')
+        title_id = f'{frameCode}_title'
         top.div('^.selected_caption',
-                _class='grouplet_panel_title')
+                _class='grouplet_panel_title',
+                nodeId=title_id)
         center = right.contentPane(region='center', overflow='auto')
         if useForm:
-            semaphore_id = f'{frameCode}_semaphore'
             bc.dataController("""
-                var semNode = genro.nodeById(semId);
-                if(semNode){
-                    ['ok','changed','error'].forEach(function(s){
-                        genro.dom.setClass(semNode, 'semaphore_' + s,
-                            selectedResource && s == status);
-                    });
+                var titleNode = genro.nodeById(titleId);
+                if(titleNode){
+                    genro.dom.setClass(titleNode, 'grplt_status_error',
+                        selectedResource && status == 'error');
                 }
-            """, semId=semaphore_id,
+            """, titleId=title_id,
                 selectedResource='=.selected_resource',
                 **{f'subscribe_form_{formId}_onStatusChange': True})
-            top.div(_class='grouplet_panel_semaphore',
-                    nodeId=semaphore_id)
             right.dataController("genro.formById(innerFormId).reload()",
                                  innerFormId=formId,
                                  formsubscribe_onLoaded=True)

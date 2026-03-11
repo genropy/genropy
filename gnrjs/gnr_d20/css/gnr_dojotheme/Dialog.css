@@ -1,0 +1,280 @@
+/* ==========================================================================
+   gnr_dojotheme/Dialog.css — Dialog, Tooltip, TooltipDialog baseline.
+   Replaces tundra PNGs with CSS. gnrbase ._common_d11 rules override most.
+   ========================================================================== */
+
+/* --- Dialog frame --- */
+.gnr_dojotheme .dijitDialog {
+    background: var(--dlg-bg, var(--surface-bg, #f6f6f6));
+    border: 1px solid var(--dlg-border-color, var(--border-strong, silver));
+    border-radius: var(--radius-panels, 8px);
+    box-shadow: var(--shadow-dialog, 0 4px 24px rgba(0,0,0,0.18));
+    padding: 0;
+    overflow: hidden;
+}
+
+/* --- Dialog title bar: flex row for vertical centering --- */
+.gnr_dojotheme .dijitDialogTitleBar {
+    display: flex;
+    align-items: center;
+    background: var(--dialogtitlebar-background, var(--primary-color, #1E3055));
+    color: var(--dialogtitlebar-color, #fff);
+    background-image: none;
+    padding: 0.3em 0.4em;
+    cursor: move;
+    outline: 0;
+}
+
+/* --- Dialog title text --- */
+.gnr_dojotheme .dijitDialogTitle {
+    flex: 1;
+    font-weight: 600;
+    color: inherit;
+    padding: 0.1em 0.4em;
+    outline: 0;
+    border: none;
+}
+
+/* --- Close button: mask-image icon, circular, centered via flex --- */
+.gnr_dojotheme .dijitDialogCloseIcon {
+    background: none;
+    background-image: none;
+    position: relative;
+    width: 1.3em;
+    height: 1.3em;
+    cursor: pointer;
+    border-radius: 50%;
+    border: none;
+    transition: background-color 0.12s ease;
+    color: transparent;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.gnr_dojotheme .dijitDialogCloseIcon::after {
+    content: '';
+    position: absolute;
+    inset: 10%;
+    background-color: var(--dialogtitlebar-color, #fff);
+    -webkit-mask-image: var(--icon-wnd-close);
+    mask-image: var(--icon-wnd-close);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+}
+
+.gnr_dojotheme .dijitDialogCloseIcon:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* --- Dialog pane content --- */
+.gnr_dojotheme .dijitDialog .dijitDialogPaneContent {
+    background: var(--dlg-pane-bg, var(--surface-bg, #fff));
+    border: none;
+    border-top: 1px solid var(--border-color, #ddd);
+    padding: 0.6em;
+}
+
+/* --- Dialog content body --- */
+.gnr_dojotheme .dijitDialogContent {
+    padding: 0.5em;
+}
+
+/* ==========================================================================
+   Tooltip
+   ========================================================================== */
+
+/* --- Tooltip outer --- */
+.gnr_dojotheme .dijitTooltip,
+.gnr_dojotheme .dijitTooltipDialog {
+    background: transparent;
+}
+
+/* --- Tooltip container --- */
+.gnr_dojotheme .dijitTooltipContainer {
+    background: var(--surface-bg, #fff);
+    background-image: none;
+    border: 1px solid var(--border-color, #ddd);
+    border-radius: var(--radius-panels, 8px);
+    padding: 0.5em;
+    box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.06));
+    color: var(--text-color, #444);
+    font-size: 0.9em;
+}
+
+/* --- Tooltip dialog container (overrides for tooltip dialog specifically) --- */
+.gnr_dojotheme .dijitTooltipDialog .dijitTooltipContainer {
+    border-radius: var(--radius-panels, 8px);
+    padding: 0;
+    border: 1px solid var(--border-color, #ddd);
+    font-size: inherit;
+    box-shadow: var(--shadow-lg, 0 4px 24px rgba(0,0,0,0.18)) !important;
+    background-color: var(--surface-light, #f6f6f6);
+    overflow: hidden;
+}
+
+/* --- Pure tooltip container --- */
+.gnr_dojotheme .dijitTooltip .dijitTooltipContainer {
+    color: var(--text-muted, #666);
+    font-size: 0.9em;
+}
+
+/* --- Tooltip dialog: connector='none' (no connector arrow) --- */
+.gnr_dojotheme .dijitTooltipDialog.dijitTooltipBelow[connector='none'] {
+    padding-top: 0;
+    margin-top: -1px;
+}
+
+.gnr_dojotheme .dijitTooltipDialog.dijitTooltipBelow[connector='none'] .dijitTooltipConnector {
+    display: none;
+}
+
+/* --- Tooltip connectors (CSS triangles, no PNG) --- */
+.gnr_dojotheme .dijitTooltipConnector {
+    border: 0;
+    z-index: 2;
+    background: none;
+    background-image: none;
+}
+
+.gnr_dojotheme .dijitTooltipABRight .dijitTooltipConnector {
+    left: auto;
+    right: 0.2em;
+}
+
+/* Override tundra's unscoped padding-top:13px / padding-bottom:13px */
+.gnr_dojotheme .dijitTooltipBelow {
+    padding-top: 0.5em;
+}
+.gnr_dojotheme .dijitTooltipAbove {
+    padding-bottom: 0.5em;
+}
+
+/* Arrow above (tooltip below element) */
+.gnr_dojotheme .dijitTooltipBelow .dijitTooltipConnector {
+    top: 0;
+    left: 0.2em;
+    width: 1em;
+    height: 0.8em;
+    background: none;
+    background-image: none;
+    overflow: hidden;
+}
+
+.gnr_dojotheme .dijitTooltipBelow .dijitTooltipConnector::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    border-style: solid;
+    border-width: 0 0.5em 0.5em 0.5em;
+    border-color: transparent transparent var(--border-color, #ddd) transparent;
+}
+
+/* Arrow below (tooltip above element) */
+.gnr_dojotheme .dijitTooltipAbove .dijitTooltipConnector {
+    bottom: 0;
+    left: 0.2em;
+    width: 1em;
+    height: 0.8em;
+    background: none;
+    background-image: none;
+    overflow: hidden;
+}
+
+.gnr_dojotheme .dijitTooltipAbove .dijitTooltipConnector::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    border-style: solid;
+    border-width: 0.5em 0.5em 0 0.5em;
+    border-color: var(--border-color, #ddd) transparent transparent transparent;
+}
+
+/* Arrow right (tooltip left of element) */
+.gnr_dojotheme .dijitTooltipLeft {
+    padding-right: 0.8em;
+}
+
+.gnr_dojotheme .dijitTooltipLeft .dijitTooltipConnector {
+    right: 0;
+    bottom: 0.4em;
+    width: 0.8em;
+    height: 1em;
+    background: none;
+    background-image: none;
+    overflow: hidden;
+}
+
+.gnr_dojotheme .dijitTooltipLeft .dijitTooltipConnector::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    border-style: solid;
+    border-width: 0.5em 0 0.5em 0.5em;
+    border-color: transparent transparent transparent var(--border-color, #ddd);
+}
+
+/* Arrow left (tooltip right of element) */
+.gnr_dojotheme .dijitTooltipRight {
+    padding-left: 0.8em;
+}
+
+.gnr_dojotheme .dijitTooltipRight .dijitTooltipConnector {
+    left: 0;
+    bottom: 0.4em;
+    width: 0.8em;
+    height: 1em;
+    background: none;
+    background-image: none;
+    overflow: hidden;
+}
+
+.gnr_dojotheme .dijitTooltipRight .dijitTooltipConnector::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    border-style: solid;
+    border-width: 0.5em 0.5em 0.5em 0;
+    border-color: transparent var(--border-color, #ddd) transparent transparent;
+}
+
+/* --- FloatingPane title: flex row, override tundra's .tundra .dojoxFloatingPaneTitle --- */
+.tundra.gnr_dojotheme .dojoxFloatingPaneTitle {
+    display: flex;
+    align-items: center;
+    background: var(--dialogtitlebar-background, var(--primary-color, #1E3055));
+    background-image: none;
+    color: var(--dialogtitlebar-color, #fff);
+    padding: 0.3em 0.4em;
+    border: 0;
+}
+
+.tundra.gnr_dojotheme .dojoxFloatingPaneTitle .dijitTitleNode {
+    flex: 1;
+    order: -1;
+    color: inherit;
+}
+
+/* --- FloatingPane icons: override tundra's PNG background --- */
+.tundra.gnr_dojotheme .dojoxFloatingCloseIcon,
+.tundra.gnr_dojotheme .dojoxFloatingMinimizeIcon,
+.tundra.gnr_dojotheme .dojoxFloatingMaximizeIcon {
+    background: none;
+}
+
+/* --- Popup opacity --- */
+.gnr_dojotheme .dijitPopup > div,
+.gnr_dojotheme .dijitPopup > table {
+    opacity: 1;
+}

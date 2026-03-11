@@ -94,11 +94,15 @@ class AppPrefHandler(BasePreferenceTabs):
             grouplets_root='app_preferences',
             value='^#FORM.record.data',
             frameCode='app_pref_grplt',
-            menuCallback=self._ph_preferenceMenu
+            menuCallback=self._ph_preferenceMenu,
+            grouplet_datapath='.app_grouplet_form',
+            grouplet_formDatapath='.record',
+            grouplet_formControllerPath='.controller'
         )
         bar = form.bottom.slotBar('5,cancel,*,revertbtn,10,savebtn,saveAndClose,5',
                                    margin_bottom='2px', _class='slotbar_dialog_footer')
-        bar.savebtn.button('!!Apply', action='this.form.publish("save")')
+        bar.savebtn.button('!!Save', action='this.form.publish("save")',
+                           iconClass='fh_semaphore')
         return form
 
     def _ph_preferenceMenu(self, **kwargs):

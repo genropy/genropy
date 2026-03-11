@@ -1,0 +1,40 @@
+/* ==========================================================================
+   gnr_dojotheme/layout/SplitContainer.css — Deprecated widget, minimal styling.
+   SplitContainer is not used in GenroPy but kept for safety.
+   ========================================================================== */
+
+.gnr_dojotheme .dijitSplitContainerSizerH {
+    background: var(--border-light, #efefef);
+    border: 0;
+    border-left: 1px solid var(--border-color, #bfbfbf);
+    border-right: 1px solid var(--border-color, #bfbfbf);
+    width: 7px;
+}
+
+.gnr_dojotheme .dijitSplitContainerSizerH .thumb {
+    background: var(--text-placeholder, #ccc);
+    left: 1px;
+    width: 3px;
+    height: 1.2em;
+    overflow: hidden;
+}
+
+.gnr_dojotheme .dijitSplitContainerSizerV {
+    background: var(--border-light, #efefef);
+    border: 0;
+    border-top: 1px solid var(--border-color, #bfbfbf);
+    border-bottom: 1px solid var(--border-color, #bfbfbf);
+    height: 7px;
+}
+
+.gnr_dojotheme .dijitSplitContainerSizerV .thumb {
+    background: var(--text-placeholder, #ccc);
+    top: 1px;
+    width: 1.2em;
+    height: 3px;
+    overflow: hidden;
+}
+
+.gnr_dojotheme .dijitSplitter {
+    border-color: var(--border-color, #bfbfbf);
+}

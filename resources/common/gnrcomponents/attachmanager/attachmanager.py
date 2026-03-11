@@ -122,7 +122,7 @@ class AttachGalleryView(AttachManagerViewBase):
                 return dict(gallerycell="<div class='gallerybox_caption'>%s</div>" %row['description'])
             n,ext = os.path.splitext(url)
             if ext not in IMAGES_EXT:
-                url = '/_gnr/11/css/icons/base256/empty_iframe.png'
+                url = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 80'%3E%3Crect x='8' y='4' width='48' height='72' rx='4' fill='none' stroke='%23ccc' stroke-width='2'/%3E%3Cpath d='M20 24h24M20 34h24M20 44h16' stroke='%23ddd' stroke-width='2' stroke-linecap='round'/%3E%3Ctext x='32' y='66' text-anchor='middle' font-size='8' fill='%23bbb' font-family='sans-serif'%3E{ext}%3C/text%3E%3C/svg%3E".format(ext=ext.replace('.','').upper())
             return dict(gallerycell='<div class="gallerybox"" ><div class="gallerybox_caption" >%s</div><img style="height:90px;max-width:100%%;" border=0 draggable="false" src="%s" /></div>' % (row['description'],url))
         selection.apply(apply_gallerycell)
 

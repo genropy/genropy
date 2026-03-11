@@ -1,19 +1,87 @@
-:root {
-    --root-dark:#444;
-    --root-top-background: rgba(234, 203, 110, 1);
-    --root-top-color:rgba(30, 48, 85, 1);
-    --frameindex-tablist-background:linear-gradient(to right top, #172b51, #1b3058, #20345e, #243965, #293e6c);
-    --frameindex-tablist-color:#ffffff;
-    --roundedgroup-bar:linear-gradient(to bottom, #c2d0e9,  #d6dfee);
-    --roundedgroup-bar-color:#444;
-    --gnrfieldlabel-color:#707070;
+/* mimi/base.css — User color variants
+   This file is loaded when css_theme_variant='base' (default).
+   Copy to acme.css to create a corporate palette with approved variants,
+   or leave empty to disable user color choice.
+*/
 
-    --tab-background:linear-gradient(to bottom, #c2d0e9,  #d6dfee);
-    --tab-text-color:#444;
-    --tab-selected-background:white;
-    --tab-selected-color:#ccc;
-    --mainWindow-background:linear-gradient(to top, #f6f8fa, #ffffff);
-    --mainWindow-font-size:12px;
-    --mainWindow-color:#444;
-    --dialogtitlebar-background: linear-gradient(to right top, #172b51, #1b3058, #20345e, #243965, #293e6c);
+/* Color variants — palette-first approach:
+   Each variant sets palette vars (including --palette-chrome for top bars),
+   then only non-derivable overrides. Button vars derive automatically
+   from --palette-accent via color-mix() in 01_gnr_variables.css.
+*/
+
+/* Green - forest emerald */
+.color_variant_green {
+    --palette-brand: #2E7D5B;
+    --palette-neutral: #1B5E43;
+    --palette-accent: #2E7D5B;
+    --palette-surface: #EDF5F1;
+    --palette-chrome: var(--palette-brand);
+
+    --card-surface: #F5FAF7;
+    --primary-light: #B8D8CA;
+    --roundedgroup-bar: #D0DED6;
+    --menu-item-hover-bg: #C8E6D6;
+    --menu-item-hover-color: var(--palette-neutral);
+    --field-disabled-border: #A8C4B4;
+}
+
+/* Blue - deep ocean */
+.color_variant_blue {
+    --palette-brand: #2962A8;
+    --palette-neutral: #1C4678;
+    --palette-accent: #0071E3;
+    --palette-surface: #ECF1F9;
+    --palette-chrome: var(--palette-brand);
+
+    --card-surface: #F6F8FC;
+    --primary-light: #B8CCE4;
+    --roundedgroup-bar: #CDD6E4;
+    --menu-item-hover-bg: #C4D8EE;
+    --menu-item-hover-color: var(--palette-neutral);
+    --field-disabled-border: #A8BCD4;
+}
+
+/* Red - cherry lipstick / fuchsia fashion */
+.color_variant_red {
+    --palette-accent: #C2185B;
+    --palette-surface: #F8F0F4;
+    --palette-chrome: var(--palette-accent);
+
+    --frameindex-tablist-background: #880E4F;
+    --card-surface: #FBF6F8;
+    --primary-light: #D8B8C8;
+    --menu-item-hover-bg: #EACADE;
+    --menu-item-hover-color: #880E4F;
+}
+
+/* Orange - Apple Watch Ultra / plum + international orange (light-chrome) */
+.color_variant_orange {
+    --palette-brand: #4A2040;
+    --palette-neutral: #3A1830;
+    --palette-accent: #FF5722;
+    --palette-surface: #F6F0F4;
+    --palette-chrome: #FF6C00;
+
+    --card-surface: #FAF8F6;
+    --primary-light: #D8C0D0;
+    --roundedgroup-bar: #E0D8DE;
+    --menu-item-hover-bg: #FFD0B5;
+    --menu-item-hover-color: var(--palette-neutral);
+    --field-disabled-border: #C4B0BC;
+}
+
+/* Yellow - gold on dark titanium (light-chrome) */
+.color_variant_yellow {
+    --palette-neutral: #3C3D40;
+    --palette-surface: #FFF8D6;
+    --palette-chrome: #FFD100;
+    --palette-chrome-color: var(--palette-neutral);
+
+    --card-surface: #FAFAF6;
+    --primary-light: #FFE566;
+    --roundedgroup-bar: #FFF0B8;
+    --menu-item-hover-bg: #FFE899;
+    --menu-item-hover-color: var(--palette-neutral);
+    --field-disabled-border: #B0B0A8;
 }

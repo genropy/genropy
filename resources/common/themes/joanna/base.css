@@ -1,0 +1,107 @@
+/* joanna/base.css — User color variants
+   This file is loaded when css_theme_variant='base' (default).
+   Copy to acme.css to create a corporate palette with approved variants,
+   or leave empty to disable user color choice.
+*/
+
+/* Color variants — palette-first approach:
+   Each variant sets palette vars (including --palette-chrome for top bars),
+   then only non-derivable overrides. Button vars derive automatically
+   from --palette-accent via color-mix() in 01_gnr_variables.css.
+*/
+
+/* Joker - green/fuchsia */
+.color_variant_joker {
+    --palette-brand: #1d7d55;
+    --palette-neutral: #8b1a6b;
+    --palette-accent: #8b1a6b;
+    --palette-surface: #edf7f2;
+    --palette-chrome: var(--palette-brand);
+
+    --card-surface: #f6faf8;
+    --primary-light: #c0dece;
+    --field-disabled-border: #a8c4b4;
+}
+
+/* Ocean - blue depths */
+.color_variant_ocean {
+    --palette-brand: #2a62a8;
+    --palette-neutral: #1e4a80;
+    --palette-accent: #0a84ff;
+    --palette-surface: #edf2fa;
+    --palette-chrome: var(--palette-brand);
+
+    --frameindex-tablist-background: #1a3d6b;
+    --card-surface: #f7f9fd;
+    --primary-light: #c4d4e8;
+    --field-disabled-border: #a8bcd4;
+}
+
+/* Ruby - warm red */
+.color_variant_ruby {
+    --palette-brand: #c53040;
+    --palette-neutral: #9a2232;
+    --palette-accent: #e8364a;
+    --palette-surface: #fbeff1;
+    --palette-chrome: var(--palette-brand);
+
+    --frameindex-tablist-background: #7a1a28;
+    --card-surface: #fdf8f8;
+    --primary-light: #e8c8cc;
+    --field-disabled-border: #c4a8ad;
+}
+
+/* Sunset - orange top / plum frameindex */
+.color_variant_sunset {
+    --palette-brand: #d4650a;
+    --palette-neutral: #6a2058;
+    --palette-accent: #6a2058;
+    --palette-surface: #faf3f7;
+    --palette-chrome: var(--palette-brand);
+
+    --card-surface: #fcf8fa;
+    --primary-light: #e8cddb;
+    --field-disabled-border: #c4a8ba;
+}
+
+/* Hornette - vivid wasp yellow / black (light-chrome) */
+.color_variant_hornette {
+    --palette-brand: #1a1a1a;
+    --palette-neutral: #1a1a1a;
+    --palette-accent: #4B0082;
+    --palette-surface: #fef9e7;
+    --palette-chrome: #f5c800;
+    --palette-chrome-color: #1a1a1a;
+
+    --primary-light: #fde68a;
+    --frameindex-tablist-color: #f5c800;
+    --card-surface: #f5f5f4;
+    --field-disabled-border: #b0b0a8;
+    --menutree-selected-color: var(--palette-accent);
+}
+
+/* Business - corporate navy / charcoal */
+.color_variant_business {
+    --palette-brand: #2c3e50;
+    --palette-neutral: #1a252f;
+    --palette-accent: #34495e;
+    --palette-surface: #ecf0f1;
+    --palette-chrome: var(--palette-brand);
+
+    --card-surface: #f8f9fa;
+    --primary-light: #bdc3c7;
+    --field-disabled-border: #adb5bd;
+}
+
+/* Terra - warm terracotta / dark walnut */
+.color_variant_terra {
+    --palette-brand: #b45309;
+    --palette-neutral: #3e2723;
+    --palette-accent: #d97706;
+    --palette-surface: #fdf6ee;
+    --palette-chrome: var(--palette-brand);
+
+    --card-surface: #fdfaf6;
+    --primary-light: #e8c9a0;
+    --field-disabled-border: #c4a882;
+}

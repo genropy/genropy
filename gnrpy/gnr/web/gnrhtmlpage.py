@@ -157,9 +157,9 @@ class GnrHtmlPage(GnrWebPage):
         
     def gnr_css(self):
         css_genro = self.get_css_genro()
-        for css_media, css_link in list(css_genro.items()):
-            import_statements = ';\n'.join(css_link)
-            self.builder.head.style(import_statements + ';', type="text/css", media=css_media)
+        for css_media, css_links in list(css_genro.items()):
+            import_statements = ';\n    '.join(['@import url("%s")' % url for url in css_links])
+            self.builder.head.style(import_statements + ';\n', type="text/css", media=css_media)
 
     def gnr_js(self):
         pass

@@ -1,18 +1,14 @@
 
 
-.atc_gallerygrid 
-
-
 .atc_gallerygrid .cellContent{
-    border:1px solid silver;
+    border:1px solid var(--border-color, #ccc);
     margin: 2px;
-    border-radius: 3px;
+    border-radius: var(--radius-controls, 4px);
 }
 
 .gallerybox{
     height: 110px;
     text-align: center;
-
 }
 
 .gallerybox_caption{
@@ -21,21 +17,20 @@
     text-align: center;
     font-size: .9em;
     padding-left: 3px;
-    background:#BF1129;
-    color: white;
+    background: var(--primary-color, #636366);
+    color: var(--accent-on-color, #fff);
 }
 .gallerybox_img{
     margin: 2px;
 }
-
 
 .atc_galleryDropArea{
     margin: 3px;
     padding: 2px;
     line-height: 12px;
     text-align: center;
-    border:2px dotted #efefef;
-    color:#666;
+    border:2px dotted var(--border-light, #efefef);
+    color: var(--text-muted, #666);
     font-size: .9em;
 }
 
@@ -46,7 +41,7 @@
     width:100%;
     transform: scale(0.8);
     transform-origin: 50% 50%;
-    border:1px solid silver;
+    border:1px solid var(--border-color, #ccc);
 }
 .atc_img_fit{
     max-width: 100%;
@@ -58,15 +53,14 @@
     font-size:1.2em;
 }
 
-
 .drawer_attachments.slotbarOpener_horizontal{
     top: -18px;
     margin-left: -37px;
     padding-top: 3px;
-    background: #888;
-    color: white;
-    border-top-left-radius: 8px;
-    border-top-right-radius: 8px;
+    background: var(--text-secondary, #888);
+    color: var(--accent-on-color, #fff);
+    border-top-left-radius: var(--radius-panels, 8px);
+    border-top-right-radius: var(--radius-panels, 8px);
     height: 15px;
     text-align: center;
     font-size: 1em;
