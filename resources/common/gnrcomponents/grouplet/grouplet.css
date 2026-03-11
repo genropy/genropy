@@ -165,7 +165,7 @@
 
 .grouplet_topic_cell {
     border: 1px solid var(--border-color, #ccc);
-    border-radius: var(--radius-controls, 4px);
+    border-radius: var(--radius-sm);
     overflow: hidden;
 }
 
