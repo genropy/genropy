@@ -991,7 +991,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         this.protect_write = this.isProtectWrite();
         genro.dom.setClass(this.sourceNode,'form_logical_deleted',this.isLogicalDeleted());
         genro.dom.setClass(this.sourceNode,'form_protect_write',this.protect_write);
-        genro.dom.setClass(this.sourceNode,'form_draft',this.isDraft());
+        this.updateDraftMarker(this.isDraft());
         this.protect_delete = this.isProtectDelete();
         genro.dom.setClass(this.sourceNode,'form_protect_delete',this.protect_delete);
 
@@ -1588,7 +1588,16 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     setDraft:function(set){
         this.sourceNode.setRelativeData('.record.__is_draft',set);
         this.getDataNodeAttributes()._draft = set;
-        genro.dom.setClass(this.sourceNode,'form_draft',set);
+        this.updateDraftMarker(set);
+    },
+
+    updateDraftMarker:function(isDraft){
+        var dm = this.draftMarker;
+        var dmPos = (dm === true || dm === undefined) ? 'tr' : dm;
+        genro.dom.setClass(this.sourceNode,'form_draft',isDraft);
+        ['tr','tl','br','bl'].forEach(function(pos){
+            genro.dom.setClass(this.sourceNode,'draft_marker_' + pos, isDraft && dmPos === pos);
+        }, this);
     },
 
 
