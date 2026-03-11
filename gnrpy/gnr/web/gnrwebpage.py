@@ -1765,7 +1765,7 @@ class GnrWebPage(GnrBaseWebPage):
             if snode.exists:
                 with snode.open('r') as f:
                     content = f.read()
-                for match in re.finditer(r'\.color_variant_(\w+)\s*\{', content):
+                for match in re.finditer(r'\.color_variant_([\w-]+)\s*\{', content):
                     color_variants.add(match.group(1))
         return ','.join(sorted(color_variants))
 

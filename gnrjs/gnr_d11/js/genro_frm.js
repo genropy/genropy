@@ -464,8 +464,10 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             var items = [];
             this.getChangesLogger().forEach(function(n){
                 if(n.attr.from != n.attr.to){
+                    var sn = genro.src.nodeBySourceNodeId(n.label);
+                    var label = (sn && sn.getElementLabel()) || n.attr._valuelabel || '?';
                     items.push('<div class="fh_status_item">' +
-                        '<span class="fh_status_field">' + (n.attr._valuelabel || '?') + '</span>' +
+                        '<span class="fh_status_field">' + label + '</span>' +
                         '<span class="fh_status_from">' + (n.attr.from || '') + '</span>' +
                         '<span class="fh_status_arrow">\u2192</span>' +
                         '<span class="fh_status_to">' + (n.attr.to || '') + '</span>' +
