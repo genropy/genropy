@@ -1,0 +1,187 @@
+/* ==========================================================================
+   gnr_dojotheme/Common.css — Disabled cursors, DnD basics, content pane states.
+   Replaces tundra/Common.css without PNG images.
+   ========================================================================== */
+
+/* --- Disabled cursor --- */
+.gnr_dojotheme .dijitSliderDisabled *,
+.gnr_dojotheme .dijitDisabledClickableRegion,
+.gnr_dojotheme .dijitSpinnerDisabled *,
+.gnr_dojotheme .dijitButtonDisabled *,
+.gnr_dojotheme .dijitDropDownButtonDisabled *,
+.gnr_dojotheme .dijitComboButtonDisabled *,
+.gnr_dojotheme .dijitComboBoxDisabled * {
+    cursor: not-allowed !important;
+}
+
+/* --- DnD drop indicators --- */
+.gnr_dojotheme .dojoDndItemBefore {
+    border-top: 2px solid var(--accent-color, #369);
+}
+
+.gnr_dojotheme .dojoDndItemAfter {
+    border-bottom: 2px solid var(--accent-color, #369);
+}
+
+.gnr_dojotheme .dojoDndItemOver {
+    cursor: pointer;
+}
+
+/* --- DnD avatar (flat, no PNG) --- */
+.gnr_dojotheme table.dojoDndAvatar {
+    border: 1px solid var(--border-color, #ccc);
+    border-collapse: collapse;
+    background-color: var(--surface-bg, #fff);
+    font-size: 75%;
+    color: var(--text-color, #444);
+    border-radius: var(--radius-controls, 4px);
+}
+
+.gnr_dojotheme .dojoDndAvatar td {
+    border: none;
+}
+
+.gnr_dojotheme .dojoDndAvatar tr {
+    border: none;
+}
+
+.gnr_dojotheme .dojoDndAvatarHeader td {
+    height: 1.25em;
+    padding: 0 0 0 0.5em;
+}
+
+.gnr_dojotheme .dojoDndAvatarItem td {
+    padding: 0.125em;
+}
+
+.gnr_dojotheme.dojoDndMove .dojoDndAvatarHeader {
+    background-color: #f58383;
+}
+
+.gnr_dojotheme.dojoDndCopy .dojoDndAvatarHeader {
+    background-color: #f58383;
+}
+
+.gnr_dojotheme.dojoDndMove .dojoDndAvatarCanDrop .dojoDndAvatarHeader {
+    background-color: #97e68d;
+}
+
+.gnr_dojotheme.dojoDndCopy .dojoDndAvatarCanDrop .dojoDndAvatarHeader {
+    background-color: #97e68d;
+}
+
+/* --- Toaster (Dojo dijitToaster baseline) --- */
+.gnr_dojotheme .dijitToasterContent {
+    padding: 1em;
+    padding-top: 0.25em;
+    background: var(--toaster-success-bg);
+}
+
+.gnr_dojotheme .dijitToasterMessage {
+    color: var(--surface-bg);
+}
+
+.gnr_dojotheme .dijitToasterError,
+.gnr_dojotheme .dijitToasterFatal {
+    font-weight: bold;
+    color: var(--surface-bg);
+}
+
+.gnr_dojotheme .dijitToasterWarning .dijitToasterContent {
+    padding: 5px;
+    background: var(--toaster-warning-bg);
+}
+
+.gnr_dojotheme .dijitToasterError .dijitToasterContent {
+    padding: 5px;
+    background: var(--toaster-error-bg);
+}
+
+.gnr_dojotheme .dijitToasterClip {
+    position: absolute;
+    z-index: var(--z-tooltip);
+    overflow: hidden;
+}
+
+.gnr_dojotheme .dijitToasterContainer {
+    display: inline-block;
+    position: absolute;
+    margin: 0px;
+    font: 0.9em Tahoma, Helvetica, Verdana, Arial;
+}
+
+/* --- FileInput (Dojo dijitFileInput baseline) --- */
+.gnr_dojotheme .dijitFileInput {
+    position: relative;
+    height: 1.3em;
+    padding: 2px;
+}
+
+.gnr_dojotheme .dijitFileInputReal {
+    position: absolute;
+    z-index: 2;
+    opacity: 0;
+    left: 0;
+    top: 0;
+}
+
+.gnr_dojotheme .dijitFileInputRealBlind {
+    right: 0;
+}
+
+.gnr_dojotheme .dijitFileInputReal:hover {
+    cursor: pointer;
+}
+
+.gnr_dojotheme .dijitFileInputButton,
+.gnr_dojotheme .dijitFileInputText {
+    border: 1px solid #333;
+    padding: 2px 12px 2px 12px;
+    cursor: pointer;
+}
+
+.gnr_dojotheme .dijitFileInputButton {
+    opacity: 0;
+    z-index: 3;
+    visibility: hidden;
+}
+
+.gnr_dojotheme .dijitFakeInput {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+}
+
+.gnr_dojotheme .dijitProgressOverlay {
+    display: none;
+    width: 250px;
+    height: 1em;
+    position: absolute;
+    top: 0;
+    left: 0;
+    border: 1px solid #333;
+    background: #cad2de;
+    padding: 2px;
+}
+
+/* --- Validation icon (hidden in GenroPy) --- */
+.gnr_dojotheme .dijitReset .dijitValidationIcon {
+    display: none;
+}
+
+/* --- Error focused state (suppress background-image) --- */
+.gnr_dojotheme .dijitError.dijitFocused {
+    background-image: none;
+}
+
+/* --- Content pane loading/error (text-only, no GIF) --- */
+.gnr_dojotheme .dijitContentPaneLoading {
+    padding-left: 1.5em;
+    color: var(--text-muted, #666);
+}
+
+.gnr_dojotheme .dijitContentPaneError {
+    padding-left: 1.5em;
+    color: var(--status-error, #E53935);
+}

@@ -1,6 +1,6 @@
 
 class GnrCustomWebPage(object):
-    css_theme = 'textmate'
+    css_theme = 'joanna'
     
     def main_root(self, root, bpath='', **kwargs):
         self.createCss(root)

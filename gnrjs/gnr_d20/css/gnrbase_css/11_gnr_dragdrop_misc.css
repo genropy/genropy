@@ -1,0 +1,383 @@
+/* ==========================================================================
+   11_gnr_dragdrop_misc.css — Drag & drop, table cells, folderIndex,
+   validation, dbselect/dropdown, beautiful buttons, menu, video HTML5,
+   fonts, general HTML, effects (css3)
+   ========================================================================== */
+
+/* @group drag drop */
+
+.canBeDropped {
+    background-color: var(--drop-valid-bg) !important;
+}
+
+.cannotBeDropped {
+    background-color: var(--drop-invalid-bg) !important;
+}
+
+img.canBeDropped {
+    opacity:0.5;
+    background-color: inherit !important;
+}
+
+img.cannotBeDropped {
+    background-color: var(--drop-header-invalid-bg) !important;
+}
+
+.dojoxGrid-header .canBeDropped {
+    background: var(--drop-header-valid-bg) !important;
+}
+
+.dojoxGrid-header .cannotBeDropped {
+    background: var(--drop-header-invalid-bg) !important;
+}
+
+.rowsetdragging {
+    /*font-size: 0.8em;*/
+    border:1px solid var(--border-color);
+    border-radius: var(--radius-panels);
+    box-shadow: var(--shadow-lg);
+    background-color:var(--surface-bg);
+    padding:5px;
+    display:inline-block;
+
+    /**/
+}
+
+.rowsetdragging .dojoxGrid-cell{
+    border-right:1px solid var(--border-color) !important;
+    border-bottom:1px solid var(--border-color) !important;
+}
+
+.rowsetdragging_background{
+    transform: scale(.75,.75);
+    transform-origin:0px 0px;
+    display:inline-block;
+}
+
+.draggedItem {
+    background: rgba(255, 255, 255, 0.2);
+    box-shadow: var(--shadow-md);
+    /*border-radius: 8px;
+    display: block;
+    border: 3px solid yellow !important;
+    padding-left: 5px !important;
+    padding-right: 5px !important;
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+    min-height: 16px;*/
+}
+
+.draggedItem .dojoxGrid {
+    display: none;
+}
+
+table.draggedItem {
+    display: table;
+}
+
+.droppableColumn {
+    border-right: 4px solid var(--status-ok) !important;
+    background: var(--drop-valid-bg) !important;
+}
+
+.undroppableColumn {
+    border-left: 2px solid var(--status-error) !important;
+    border-right: 2px solid var(--status-error) !important;
+    background: var(--icon-oneway) no-repeat 50% 50% !important;
+}
+
+/* @end */
+
+/* @group Table */
+
+.treeCellContent{
+    -webkit-user-select: auto;
+    user-select: auto;
+}
+
+.selectedTreeRow .treeCellContent{
+    font-weight: bold;
+}
+
+.dojoxGrid td.cell_R .cellContent, .treecell.cell_R .treeCellContent, .dynamicTable td.cell_R,
+.dojoxGrid td.cell_I .cellContent, .treecell.cell_I .treeCellContent, .dynamicTable td.cell_I,
+.dojoxGrid td.cell_N .cellContent, .treecell.cell_N .treeCellContent, .dynamicTable td.cell_N,
+.dojoxGrid td.cell_L .cellContent, .treecell.cell_L .treeCellContent, .dynamicTable td.cell_L{
+    text-align: right;
+}
+
+._common_d11 .dojoxGrid-row td.invalidCell.dojoxGrid-cell{
+    background-image: var(--icon-invalid);
+    background-repeat:no-repeat;
+    background-position:0px 0px;
+}
+._common_d11 .dojoxGrid-row .newRowCell.dojoxGrid-cell{
+    font-style:italic;
+}
+
+.dojoxGrid-cell.hiddenColumn {
+    display: none;
+}
+
+.dtype_L, .dtype_R, .dtype_I, .dtype_N {
+    text-align: right;
+}
+
+.highlight_negative .negative_number {
+    color: var(--status-error) !important;
+}
+
+.mover_imported .dojoxGrid-cell{
+    color: var(--status-ok);
+}
+.mover_xml .dojoxGrid-cell{
+    color:var(--text-secondary);
+}
+.mover_both .dojoxGrid-cell{
+    color: var(--primary-color);
+}
+
+/* @end */
+
+/* @group folderIndex */
+
+.index_td {
+    text-align: center;
+    padding: 3px;
+    cursor: pointer;
+}
+
+.index_td:hover {
+    opacity: .8;
+}
+
+.index_header {
+    background-color: var(--accent-color);
+    color: var(--palette-white);
+    font-weight: bold;
+    padding: 5px;
+}
+
+#folderIndexTable {
+    background-color: #d3eaff;
+}
+
+.index_file {
+    background-color: #ff866a;
+    border-radius: var(--radius-panels);
+    border: 1px solid #c36652;
+}
+
+.index_folder {
+    background-color: #ffe78f;
+    border: 1px solid #ecd785;
+}
+
+/* @end */
+
+/* @group Validation */
+
+.gnrValidError {
+    background-color: var(--status-warning);
+}
+
+/* @end */
+
+/* @group dbselect / dropdown menus */
+._common_d11.touchDevice .dijitMenuItem {
+    font-size: 1em;
+    line-height: 1.6em;
+    padding: 0.35em 0.8em;
+}
+._common_d11.touchDevice .dijitMenuItem:active {
+    background-color: var(--menu-item-hover-bg, rgba(0,0,0,0.10));
+    background-image: none;
+}
+
+/* @end */
+
+/* @group beautiful buttons */
+.rounded-button {
+    position: relative;
+    display: inline-block;
+    width: 8em;
+    padding: 0.25em 0.5em 0.3em 0.5em;
+    text-align: center;
+    cursor: pointer;
+    border: 2px solid var(--border-color);
+    background-color: var(--text-muted);
+    background-color: rgba(128, 128, 128, 0.75);
+    border-radius: var(--radius-pill);
+    font-size: 1.1em;
+    color: var(--palette-white);
+    font-weight: bold;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+    background-image: linear-gradient(to bottom, rgba(64, 64, 64, 0.75), rgba(192, 192, 192, 0.9));
+    box-shadow: rgba(192, 192, 192, 0.75) 0px 8px 24px;
+}
+
+.rounded-button span {
+    position: absolute;
+    display: block;
+    width: 94%;
+    left: 3.5%;
+    top: 0px;
+    height: 50%;
+    border-radius: var(--radius-panels);
+    background-color: rgba(255, 255, 255, 0.25);
+    background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0));
+}
+
+.shiny-blue {
+    border-color: #999;
+    background-color: rgba(128, 128, 128, 0.75);
+    background-image: linear-gradient(to bottom, rgba(64, 64, 64, 0.75), rgba(192, 192, 192, 0.9));
+    box-shadow: rgba(192, 192, 192, 0.75) 0px 8px 24px;
+}
+
+.shiny-blue:hover {
+    border-color: #6699cc;
+    background-color: rgba(64, 128, 192, 0.75);
+    background-image: linear-gradient(to bottom, rgba(16, 96, 192, 0.75), rgba(96, 192, 255, 0.9));
+    box-shadow: rgba(128, 192, 255, 0.75) 0px 8px 24px;
+}
+
+/* @end */
+
+/* @group menu */
+
+.browsemenu ._common_d11 .dijitMenuItemIcon {
+    width: 4px;
+    height: 14px;
+}
+
+/* @end */
+
+/* @group Video HTML5 */
+#videoelem {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+}
+
+#videocontainer {
+    position: relative;
+    width: 400px;
+    height: 225px;
+    -webkit-user-select: none;
+    user-select: none;
+    transition-duration: 0.2s;
+}
+
+.videobutton {
+    line-height: 40pt;
+    border: 3px solid white;
+    opacity: 0.5;
+    position: absolute;
+    font-size: 40pt;
+    color: white;
+    background-color: var(--text-secondary);
+    cursor: pointer;
+    text-align: center;
+    z-index: 1;
+}
+
+.videozoombutton {
+    bottom: 10px;
+    right: 10px;
+    width: 1.1em;
+    height: 1.1em;
+    font-size: 15pt;
+    line-height: 15pt;
+    border: 2px solid white;
+}
+
+.videoloading {
+    top: 0;
+    bottom: 0;
+    margin: auto;
+    left: 0;
+    right: 0;
+    width: 7em;
+    height: 1.2em;
+    cursor: default;
+}
+
+videofadeout {
+    transition: 1.5s;
+    opacity: 0;
+}
+
+#videocontainer:hover .videofadeout {
+    opacity: 0.5;
+}
+
+.videoplay {
+    top: 0;
+    bottom: 0;
+    margin: auto;
+    left: 0;
+    right: 0;
+    width: 1.2em;
+    height: 1.2em;
+}
+
+/* @end */
+
+/* @group Fonts */
+@font-face {
+    font-family: 'Abadi';
+    font-weight: normal;
+    src: url('/_gnr/11/fonts/abadi/Abadi_MT_Condensed_Light.ttf');
+}
+
+/* @end */
+
+/* @group General HTML */
+
+p {
+    font-size: inherit;
+    line-height: inherit;
+    margin-bottom: inherit;
+    margin-top: inherit;
+}
+
+/* @end */
+
+/* --- Dragged item grid (from theme_shared) --- */
+.draggedItem .dojoxGrid-row {
+    border-bottom: 1px solid var(--text-muted);
+}
+
+.common_d11 .draggedItem .dojoxGrid-cell, .common_d11 .draggedItem.dojoxGrid-cell {
+    border: 0px solid yellow !important;
+    opacity: .8;
+}
+
+/* @group Effects (css3) */
+
+.shadow_4 {
+    box-shadow: var(--shadow-lg);
+}
+
+.shadow_2 {
+    box-shadow: var(--shadow-md);
+}
+
+.shadow_6 {
+    box-shadow: var(--shadow-lg);
+}
+
+.rounded_min {
+    border-radius: var(--radius-panels);
+}
+
+.rounded_medium {
+    border-radius: var(--radius-panels);
+}
+
+.rounded_max {
+    border-radius: var(--radius-containers);
+}
+
+/* @end */
