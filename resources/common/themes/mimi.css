@@ -2,28 +2,59 @@
 
 /* @group Default color palette — Titanium metallic gray */
 body {
-    /* --- Palette overrides --- */
-    --palette-neutral: #48494C;
-    --palette-surface: #EDEEF0;
-    --palette-brand: #6B6E72;
-    --palette-accent: #0277BD;
-    --palette-border: #9EA0A3;
+    /* --- Palette (numbered scale) --- */
+    --color-1: #3C3D40;
+    --color-2: #48494C;
+    --color-3: #6B6E72;
+    --color-4: #0277BD;
+    --color-5: #9EA0A3;
+    --color-6: #E0E1E3;
+    --color-7: #EDEEF0;
 
     --font-family: "SF Pro Text", "Myriad Set Pro", "SF Pro Icons", "Apple Legacy Chevron", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
 
-    /* --- Surfaces (non-derivable from palette) --- */
+    /* --- Brand / Primary --- */
+    --primary-color: #6B6E72;
+    --primary-dark: #48494C;
     --login-underlay-bg: #1D1D1F;
+    --primary-light: #BDBFC2;
+    --primary-lighter: #EDEEF0;
+    --accent-color: #0277BD;
+
+    /* --- Surfaces --- */
     --mainWindow-background: #F5F5F6;
     --mainWindow-color: #3C3D40;
     --surface-light: #EDEDEE;
     --card-surface: #F5F5F6;
-    --primary-light: #BDBFC2;
+    --roundedgroup-surface: var(--card-surface);
 
     /* --- Layout: frameindex --- */
-    --frameindexroot-mobile-background: var(--palette-neutral);
+    --frameindexroot-background: #EDEEF0;
+    --frameindexcenter-background: #EDEEF0;
+    --frameindexroot-mobile-background: #48494C;
+    --frameindex-tablist-background: #48494C;
+    --frameindex-tablist-color: #ffffff;
     --frameindex-subtab-bg: #5A5C60;
+    --root-top-background: #6B6E72;
+    --root-top-color: #ffffff;
+
+    /* --- Dialogs --- */
+    --dialogtitlebar-background: #6B6E72;
+    --dialogtitlebar-color: #ffffff;
+
+    /* --- Form fields --- */
+    --field-border: #9EA0A3;
+    --field-bg: white;
+    --field-disabled-border: #BDBFC2;
+    --field-disabled-bg: #EDEEF0;
+    --field-readonly-border: #BDBFC2;
+    --field-readonly-bg: #EDEEF0;
+    --gnrfieldlabel-color: #8A8C8F;
 
     /* --- Tabs --- */
+    --tab-background: #EDEEF0;
+    --tab-text-color: #48494C;
+    --tab-selected-background: white;
     --tab-selected-color: #BDBFC2;
 
     /* --- Rounded/Rect groups (visible but soft bar, unlike joanna) --- */
@@ -33,15 +64,11 @@ body {
     --roundedgroup-shadow: rgba(0,0,0,0.04);
     --rectgroup-bar-background: #E0E1E3;
 
-    /* --- Form fields (non-derivable from palette) --- */
-    --field-disabled-border: #BDBFC2;
-    --gnrfieldlabel-color: #8A8C8F;
-
     /* --- topLabelTable --- */
     --topLabelTable-border-top: 2px solid var(--primary-light);
     --topLabelTable-separator: var(--primary-light);
 
-    /* --- Buttons: Apple blue (differs from accent) --- */
+    /* --- Buttons: Apple blue --- */
     --btn-filled-bg: #0071E3;
     --btn-filled-color: #fff;
     --btn-filled-hover-bg: #0077ED;
@@ -56,8 +83,10 @@ body {
     --btn-tonal-selected-bg: #B8D5F4;
 
     /* --- Menutree --- */
-    --menutree-selected-color: var(--palette-accent);
+    --menutree-selected-color: var(--accent-color);
+    --menutree-branch-selected-color: #48494C;
     --menutree-mobile-selected-color: #FFD54F;
+    --menutree-mobile-branch-selected-color: white;
 
     /* --- Form-context shared overrides (formbuilder + formlet) --- */
     --form-field-border: var(--primary-light);

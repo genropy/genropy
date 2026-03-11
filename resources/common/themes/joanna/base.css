@@ -4,104 +4,183 @@
    or leave empty to disable user color choice.
 */
 
-/* Color variants — palette-first approach:
-   Each variant sets palette vars (including --palette-chrome for top bars),
-   then only non-derivable overrides. Button vars derive automatically
-   from --palette-accent via color-mix() in 01_gnr_variables.css.
+/* Color variants — numbered palette + semantic overrides:
+   Each variant sets --color-1..7 palette AND explicit semantic vars.
+   This ensures both derived and directly-referenced vars are correct.
 */
 
 /* Joker - green/fuchsia */
 .color_variant_joker {
-    --palette-brand: #1d7d55;
-    --palette-neutral: #8b1a6b;
-    --palette-accent: #8b1a6b;
-    --palette-surface: #edf7f2;
-    --palette-chrome: var(--palette-brand);
+    --color-2: #8b1a6b;
+    --color-3: #1d7d55;
+    --color-4: #8b1a6b;
+    --color-5: #c0dece;
+    --color-7: #edf7f2;
 
-    --card-surface: #f6faf8;
+    --primary-color: #1d7d55;
+    --primary-dark: #8b1a6b;
+    --accent-color: #8b1a6b;
     --primary-light: #c0dece;
+    --primary-lighter: #edf7f2;
+    --root-top-background: #1d7d55;
+    --dialogtitlebar-background: #1d7d55;
+    --frameindex-tablist-background: #8b1a6b;
+    --card-surface: #f6faf8;
+
     --field-disabled-border: #a8c4b4;
+    --field-readonly-border: #a8c4b4;
 }
 
 /* Ocean - blue depths */
 .color_variant_ocean {
-    --palette-brand: #2a62a8;
-    --palette-neutral: #1e4a80;
-    --palette-accent: #0a84ff;
-    --palette-surface: #edf2fa;
-    --palette-chrome: var(--palette-brand);
+    --color-1: #1A2840;
+    --color-2: #1e4a80;
+    --color-3: #2a62a8;
+    --color-4: #0a84ff;
+    --color-5: #c4d4e8;
+    --color-7: #edf2fa;
 
+    --primary-color: #2a62a8;
+    --primary-dark: #1e4a80;
+    --accent-color: #0a84ff;
+    --primary-light: #c4d4e8;
+    --primary-lighter: #edf2fa;
+    --root-top-background: #2a62a8;
+    --dialogtitlebar-background: #2a62a8;
     --frameindex-tablist-background: #1a3d6b;
     --card-surface: #f7f9fd;
-    --primary-light: #c4d4e8;
+
     --field-disabled-border: #a8bcd4;
+    --field-readonly-border: #a8bcd4;
 }
 
 /* Ruby - warm red */
 .color_variant_ruby {
-    --palette-brand: #c53040;
-    --palette-neutral: #9a2232;
-    --palette-accent: #e8364a;
-    --palette-surface: #fbeff1;
-    --palette-chrome: var(--palette-brand);
+    --color-2: #9a2232;
+    --color-3: #c53040;
+    --color-4: #e8364a;
+    --color-5: #e8c8cc;
+    --color-7: #fbeff1;
 
+    --primary-color: #c53040;
+    --primary-dark: #9a2232;
+    --accent-color: #e8364a;
+    --primary-light: #e8c8cc;
+    --primary-lighter: #fbeff1;
+    --root-top-background: #c53040;
+    --dialogtitlebar-background: #c53040;
     --frameindex-tablist-background: #7a1a28;
     --card-surface: #fdf8f8;
-    --primary-light: #e8c8cc;
+
     --field-disabled-border: #c4a8ad;
+    --field-readonly-border: #c4a8ad;
 }
 
 /* Sunset - orange top / plum frameindex */
 .color_variant_sunset {
-    --palette-brand: #d4650a;
-    --palette-neutral: #6a2058;
-    --palette-accent: #6a2058;
-    --palette-surface: #faf3f7;
-    --palette-chrome: var(--palette-brand);
+    --color-2: #6a2058;
+    --color-3: #d4650a;
+    --color-4: #6a2058;
+    --color-5: #e8cddb;
+    --color-7: #faf3f7;
 
-    --card-surface: #fcf8fa;
+    --primary-color: #d4650a;
+    --primary-dark: #6a2058;
+    --accent-color: #6a2058;
     --primary-light: #e8cddb;
+    --primary-lighter: #faf3f7;
+    --root-top-background: #d4650a;
+    --dialogtitlebar-background: #d4650a;
+    --frameindex-tablist-background: #6a2058;
+    --card-surface: #fcf8fa;
+
     --field-disabled-border: #c4a8ba;
+    --field-readonly-border: #c4a8ba;
 }
 
-/* Hornette - vivid wasp yellow / black (light-chrome) */
+/* Hornette - vivid wasp yellow / black */
 .color_variant_hornette {
-    --palette-brand: #1a1a1a;
-    --palette-neutral: #1a1a1a;
-    --palette-accent: #4B0082;
-    --palette-surface: #fef9e7;
-    --palette-chrome: #f5c800;
-    --palette-chrome-color: #1a1a1a;
+    --color-1: #1a1a1a;
+    --color-2: #1a1a1a;
+    --color-3: #f5c800;
+    --color-4: #4B0082;
+    --color-5: #fde68a;
+    --color-7: #fef9e7;
+    --text-on-dark: #1a1a1a;
 
+    --primary-color: #1a1a1a;
+    --primary-dark: #1a1a1a;
+    --accent-color: #4B0082;
     --primary-light: #fde68a;
+    --primary-lighter: #fef9e7;
+    --root-top-background: #f5c800;
+    --root-top-color: #1a1a1a;
+    --dialogtitlebar-background: #f5c800;
+    --dialogtitlebar-color: #1a1a1a;
+    --frameindex-tablist-background: #1a1a1a;
     --frameindex-tablist-color: #f5c800;
     --card-surface: #f5f5f4;
     --field-disabled-border: #b0b0a8;
-    --menutree-selected-color: var(--palette-accent);
+    --field-readonly-border: #b0b0a8;
+
+    --menutree-selected-color: #4B0082;
+
+    --btn-filled-bg: #4B0082;
+    --btn-filled-color: #ffffff;
+    --btn-filled-hover-bg: #5C0A9E;
+    --btn-filled-pressed-bg: #3A0066;
+    --btn-filled-selected-bg: #3A0066;
+    --btn-filled-disabled-bg: #9B7DB8;
+    --btn-filled-disabled-color: rgba(255,255,255,0.7);
+    --btn-tonal-bg: #EDE4F5;
+    --btn-tonal-color: #4B0082;
+    --btn-tonal-hover-bg: #DDD0EC;
+    --btn-tonal-pressed-bg: #CDBCE3;
+    --btn-tonal-selected-bg: #CDBCE3;
 }
 
 /* Business - corporate navy / charcoal */
 .color_variant_business {
-    --palette-brand: #2c3e50;
-    --palette-neutral: #1a252f;
-    --palette-accent: #34495e;
-    --palette-surface: #ecf0f1;
-    --palette-chrome: var(--palette-brand);
+    --color-1: #1a252f;
+    --color-2: #1a252f;
+    --color-3: #2c3e50;
+    --color-4: #34495e;
+    --color-5: #bdc3c7;
+    --color-7: #ecf0f1;
 
-    --card-surface: #f8f9fa;
+    --primary-color: #2c3e50;
+    --primary-dark: #1a252f;
+    --accent-color: #34495e;
     --primary-light: #bdc3c7;
+    --primary-lighter: #ecf0f1;
+    --root-top-background: #2c3e50;
+    --dialogtitlebar-background: #2c3e50;
+    --frameindex-tablist-background: #1a252f;
+    --card-surface: #f8f9fa;
+
     --field-disabled-border: #adb5bd;
+    --field-readonly-border: #adb5bd;
 }
 
 /* Terra - warm terracotta / dark walnut */
 .color_variant_terra {
-    --palette-brand: #b45309;
-    --palette-neutral: #3e2723;
-    --palette-accent: #d97706;
-    --palette-surface: #fdf6ee;
-    --palette-chrome: var(--palette-brand);
+    --color-1: #3e2723;
+    --color-2: #3e2723;
+    --color-3: #b45309;
+    --color-4: #d97706;
+    --color-5: #e8c9a0;
+    --color-7: #fdf6ee;
 
-    --card-surface: #fdfaf6;
+    --primary-color: #b45309;
+    --primary-dark: #3e2723;
+    --accent-color: #d97706;
     --primary-light: #e8c9a0;
+    --primary-lighter: #fdf6ee;
+    --root-top-background: #b45309;
+    --dialogtitlebar-background: #b45309;
+    --frameindex-tablist-background: #3e2723;
+    --card-surface: #fdfaf6;
+
     --field-disabled-border: #c4a882;
+    --field-readonly-border: #c4a882;
 }

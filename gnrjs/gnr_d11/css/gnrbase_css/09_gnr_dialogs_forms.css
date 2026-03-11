@@ -36,7 +36,7 @@
     margin-left: -37px;
     padding-top: 3px;
     background: var(--text-secondary);
-    color: var(--palette-white);
+    color: var(--text-on-dark);
     border-top-left-radius: var(--radius-panels);
     border-top-right-radius: var(--radius-panels);
     height: 15px;
@@ -349,11 +349,10 @@ label{
     text-align: center;
     font-size: 1.05em;
     font-weight: 600;
-    color: var(--palette-neutral, #3A3A3C);
+    color: var(--color-1);
     background: rgba(255,255,255,0.75);
     padding: 0.4em 1.2em;
     border-radius: var(--radius-pill, 9999px);
-    border: 1px solid var(--border-color, #ccc);
     box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.06));
 }
 

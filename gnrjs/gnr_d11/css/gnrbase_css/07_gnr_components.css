@@ -238,7 +238,7 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
 .bagAttributesTable tr > td:first-child,
 .localizationTable tr > td:first-child {
     padding: 2px;
-    color: var(--palette-white);
+    color: var(--text-on-dark);
     border: thin solid var(--border-color);
     background-color: var(--text-muted);
     text-align: right;

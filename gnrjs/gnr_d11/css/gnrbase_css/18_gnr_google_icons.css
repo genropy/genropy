@@ -56,7 +56,7 @@
 }
 
 .google_iconcolor_white{
-    background-color: var(--palette-white);
+    background-color: var(--color-bg);
 }
 
 /* --- Individual icon masks --- */
@@ -221,7 +221,7 @@
     -webkit-mask: url('/_rsrc/common/css_icons/google_icons/phonelink.svg') center center no-repeat;
     mask-size: contain;
     -webkit-mask-size: contain;
-    background-color: var(--palette-white);
+    background-color: var(--color-bg);
 }
 
 .phonelink_dark{

@@ -318,7 +318,7 @@
 
 /* --- Menu tree (from theme_shared) --- */
 .menu_page > a {
-    color: var(--palette-white);
+    color: var(--text-on-dark);
     text-decoration: none;
 }
 .menu_page > a:hover {
@@ -413,7 +413,7 @@
     padding-top: 0;
     padding-bottom: 0;
     line-height: 30px;
-    color: var(--palette-white);
+    color: var(--text-on-dark);
 }
 .plugin_mobile_footer {
     background: var(--border-light);

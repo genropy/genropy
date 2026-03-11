@@ -6,25 +6,29 @@
 :root {
 
     /* ====================================================================
-       PALETTE — Change these 11 variables to re-theme the entire application.
-       All other color variables derive from these via direct reference
-       or color-mix(). Each color-mix() line is preceded by a static hex
-       fallback for older browsers.
+       PALETTE — 7-color scale (dark → light) + background + status.
+       Convention: low numbers = dark, high numbers = light.
+       Change these 12 variables to re-theme the entire application.
+       Themes and color variants override these to customize appearance.
        ==================================================================== */
 
-    /* --- Palette --- */
-    --palette-neutral:  #3A3A3C;  /* @theme @palette dark neutral (text, chrome, titlebars) */
-    --palette-surface:  #F2F2F7;  /* @theme @palette light backgrounds (cards, panels) */
-    --palette-brand:    #1E3055;  /* @theme @palette brand identity */
-    --palette-accent:   #007AFF;  /* @theme @palette action color (buttons, links) */
-    --palette-border:   #AEAEB2;  /* @theme @palette borders and field outlines */
-    --palette-white:    #FFFFFF;  /* @theme @palette base white */
-    --palette-error:    #E53935;  /* @theme @palette error/danger */
-    --palette-success:  #4CAF50;  /* @theme @palette success */
-    --palette-warning:  #FF9800;  /* @theme @palette warning */
-    --palette-chrome:   #636366;  /* @theme @palette chrome surfaces (top bars, dialog titlebars) — fallback */
-    --palette-chrome:   color-mix(in srgb, var(--palette-neutral) 80%, var(--palette-white)); /* @theme @palette chrome surfaces (top bars, dialog titlebars) */
-    --palette-chrome-color: var(--palette-white); /* @theme @palette text on chrome surfaces */
+    /* --- Color scale (dark → light) --- */
+    --color-1: #3C3D40;   /* @theme @palette text, darkest shade */
+    --color-2: #48494C;   /* @theme @palette sidebar nav, frameindex tablist, dark surfaces */
+    --color-3: #6B6E72;   /* @theme @palette chrome — root-top, dialog titlebar */
+    --color-4: #0277BD;   /* @theme @palette accent — buttons, links, focus */
+    --color-5: #BDBFC2;   /* @theme @palette borders, separators, primary-light */
+    --color-6: #E0E1E3;   /* @theme @palette toolbar bg, roundedgroup bar, light UI elements */
+    --color-7: #F5F5F6;   /* @theme @palette card surface, panels, very light backgrounds */
+    --color-bg: #FFFFFF;   /* @theme @palette main background */
+
+    /* --- Text on dark surfaces --- */
+    --text-on-dark: #FFFFFF; /* @theme @palette text on dark/chrome surfaces */
+
+    /* --- Status colors --- */
+    --color-error:   #E53935; /* @theme @palette error/danger */
+    --color-success: #4CAF50; /* @theme @palette success */
+    --color-warning: #FF9800; /* @theme @palette warning */
 
     /* === Base === */
 
@@ -34,47 +38,35 @@
     --mainWindow-font-size: 0.8125rem;
 
     /* --- Brand / Primary --- */
-    --primary-color: var(--palette-brand); /* @theme */
-    --primary-dark: var(--palette-neutral); /* @theme */
-    --primary-light: #D8D8DC; /* fallback */
-    --primary-light: color-mix(in srgb, var(--palette-neutral) 20%, var(--palette-white)); /* @theme */
-    --primary-lighter: var(--palette-surface); /* @theme */
-    --root-dark: #444; /* fallback */
-    --root-dark: color-mix(in srgb, var(--palette-neutral) 95%, var(--palette-white));
-    --accent-color: var(--palette-accent); /* @theme */
-    --accent-on-color: var(--palette-white); /* @theme */
+    --primary-color: var(--color-3); /* @theme */
+    --primary-dark: var(--color-2); /* @theme */
+    --primary-light: var(--color-5); /* @theme */
+    --primary-lighter: var(--color-7); /* @theme */
+    --root-dark: var(--color-2);
+    --accent-color: var(--color-4); /* @theme */
+    --accent-on-color: var(--color-bg); /* @theme */
 
     /* --- Surfaces --- */
-    --mainWindow-background: var(--palette-white); /* @theme */
-    --mainWindow-color: #1C1C1E; /* fallback */
-    --mainWindow-color: color-mix(in srgb, var(--palette-neutral) 48%, black); /* @theme */
-    --surface-light: #f6f6f6; /* fallback */
-    --surface-light: color-mix(in srgb, var(--palette-surface) 60%, var(--palette-white)); /* @theme */
-    --surface-bg: var(--palette-white); /* @theme */
-    --surface-dark: #444; /* fallback */
-    --surface-dark: color-mix(in srgb, var(--palette-neutral) 95%, var(--palette-white)); /* @theme */
-    --surface-dark-color: var(--palette-white); /* @theme */
-    --card-surface: var(--palette-surface); /* @theme */
+    --mainWindow-background: var(--color-bg); /* @theme */
+    --mainWindow-color: var(--color-1); /* @theme */
+    --surface-light: color-mix(in srgb, var(--color-7) 60%, var(--color-bg)); /* @theme */
+    --surface-bg: var(--color-bg); /* @theme */
+    --surface-dark: var(--color-2); /* @theme */
+    --surface-dark-color: var(--text-on-dark); /* @theme */
+    --card-surface: var(--color-7); /* @theme */
     --roundedgroup-surface: var(--card-surface);
 
     /* --- Borders --- */
-    --border-color: #ccc; /* fallback */
-    --border-color: color-mix(in srgb, var(--palette-neutral) 26%, var(--palette-white)); /* @theme */
-    --border-light: #efefef; /* fallback */
-    --border-light: color-mix(in srgb, var(--palette-neutral) 8%, var(--palette-white)); /* @theme */
-    --border-strong: #aab4c4; /* fallback */
-    --border-strong: color-mix(in srgb, var(--palette-brand) 35%, var(--palette-white)); /* @theme */
+    --border-color: var(--color-5); /* @theme */
+    --border-light: color-mix(in srgb, var(--color-6) 50%, var(--color-bg)); /* @theme */
+    --border-strong: var(--color-5); /* @theme */
 
     /* --- Text --- */
-    --text-color: #444; /* fallback */
-    --text-color: color-mix(in srgb, var(--palette-neutral) 95%, var(--palette-white)); /* @theme */
-    --text-muted: #666; /* fallback */
-    --text-muted: color-mix(in srgb, var(--palette-neutral) 78%, var(--palette-white)); /* @theme */
-    --text-secondary: #888; /* fallback */
-    --text-secondary: color-mix(in srgb, var(--palette-neutral) 60%, var(--palette-white)); /* @theme */
-    --text-placeholder: #bbb; /* fallback */
-    --text-placeholder: color-mix(in srgb, var(--palette-neutral) 35%, var(--palette-white)); /* @theme */
-    --danger-color: var(--palette-error); /* @theme */
+    --text-color: var(--color-1); /* @theme */
+    --text-muted: color-mix(in srgb, var(--color-1) 78%, var(--color-bg)); /* @theme */
+    --text-secondary: color-mix(in srgb, var(--color-1) 55%, var(--color-bg)); /* @theme */
+    --text-placeholder: color-mix(in srgb, var(--color-1) 35%, var(--color-bg)); /* @theme */
+    --danger-color: var(--color-error); /* @theme */
 
     /* --- Shadows --- */
     --shadow-color: rgba(0,0,0,0.2); /* @theme */
@@ -105,145 +97,111 @@
     /* === Components === */
 
     /* --- Grid --- */
-    --grid-border-color: #DDDDDD; /* fallback */
-    --grid-border-color: color-mix(in srgb, var(--palette-neutral) 17%, var(--palette-white)); /* @theme */
+    --grid-border-color: color-mix(in srgb, var(--color-6) 60%, var(--color-bg)); /* @theme */
     --grid-header-bg: var(--surface-light); /* @theme */
     --grid-header-color: var(--text-color); /* @theme */
     --grid-row-bg: rgba(255,255,255,.5); /* @theme */
     --grid-row-odd-bg: rgba(243,246,250,.5); /* @theme */
     --grid-row-selected-bg: rgba(175, 203, 236, .8); /* @theme */
-    --grid-row-deleted-color: #b50000; /* fallback */
-    --grid-row-deleted-color: color-mix(in srgb, var(--palette-error) 75%, black);
+    --grid-row-deleted-color: color-mix(in srgb, var(--color-error) 75%, black);
     --grid-cell-hover-bg: #F8FFD9;
     --grid-cell-border-color: #D5CDB5;
     --grid-cell-hover-bg-lazy: #E6F9FF;
     --grid-cell-hover-bg-disabled: #FFE7DD;
-    --grid-cell-changed-bg: #C7FFB4; /* fallback */
-    --grid-cell-changed-bg: color-mix(in srgb, var(--palette-success) 30%, var(--palette-white));
+    --grid-cell-changed-bg: color-mix(in srgb, var(--color-success) 30%, var(--color-bg));
     --grid-cell-copy-bg: rgba(241, 145, 53, 0.50);
-    --grid-cell-focus-border: #949494; /* fallback */
-    --grid-cell-focus-border: color-mix(in srgb, var(--palette-neutral) 54%, var(--palette-white));
-    --grid-cell-over-border: #a6a6a6; /* fallback */
-    --grid-cell-over-border: color-mix(in srgb, var(--palette-neutral) 45%, var(--palette-white));
-    --grid-draft-color: rgba(64, 128, 180, 1.00); /* fallback */
-    --grid-draft-color: color-mix(in srgb, var(--palette-brand) 55%, var(--palette-accent));
-    --grid-lineno-color: rgba(64, 128, 180, 1.00); /* fallback */
-    --grid-lineno-color: color-mix(in srgb, var(--palette-brand) 55%, var(--palette-accent));
-    --grid-paste-bg: rgba(58, 84, 186, 0.05); /* fallback */
-    --grid-paste-bg: color-mix(in srgb, var(--palette-brand) 5%, transparent);
-    --grid-reporting-header-bg: #114E88; /* fallback */
-    --grid-reporting-header-bg: color-mix(in srgb, var(--palette-brand) 85%, black);
-    --grid-reporting-header-color: var(--palette-white);
+    --grid-cell-focus-border: var(--color-5);
+    --grid-cell-over-border: color-mix(in srgb, var(--color-5) 80%, var(--color-bg));
+    --grid-draft-color: color-mix(in srgb, var(--color-3) 55%, var(--color-4));
+    --grid-lineno-color: color-mix(in srgb, var(--color-3) 55%, var(--color-4));
+    --grid-paste-bg: color-mix(in srgb, var(--color-3) 5%, transparent);
+    --grid-reporting-header-bg: color-mix(in srgb, var(--color-2) 85%, black);
+    --grid-reporting-header-color: var(--text-on-dark);
     --grid-footer-item-bg: rgba(255, 227, 60, .2);
     --grid-footer-filter-bg: rgba(221, 150, 90, 0.20);
-    --grid-btn-bg: #CDCDCD; /* fallback */
-    --grid-btn-bg: color-mix(in srgb, var(--palette-neutral) 25%, var(--palette-white));
+    --grid-btn-bg: var(--color-6);
     --grid-btn-selected-bg: var(--text-secondary);
     --grid-btn-selected-shadow: inset 1px 1px 2px #222;
 
     /* --- Drag & Drop --- */
-    --drop-valid-bg: rgba(0, 255, 0, 0.15); /* fallback */
-    --drop-valid-bg: color-mix(in srgb, var(--palette-success) 15%, transparent);
-    --drop-invalid-bg: rgba(255, 60, 0, 0.15); /* fallback */
-    --drop-invalid-bg: color-mix(in srgb, var(--palette-error) 15%, transparent);
-    --drop-header-valid-bg: #8fff9d; /* fallback */
-    --drop-header-valid-bg: color-mix(in srgb, var(--palette-success) 40%, var(--palette-white));
-    --drop-header-invalid-bg: #ffa997; /* fallback */
-    --drop-header-invalid-bg: color-mix(in srgb, var(--palette-error) 40%, var(--palette-white));
+    --drop-valid-bg: color-mix(in srgb, var(--color-success) 15%, transparent);
+    --drop-invalid-bg: color-mix(in srgb, var(--color-error) 15%, transparent);
+    --drop-header-valid-bg: color-mix(in srgb, var(--color-success) 40%, var(--color-bg));
+    --drop-header-invalid-bg: color-mix(in srgb, var(--color-error) 40%, var(--color-bg));
 
     /* --- TreeGrid --- */
-    --treegrid-header-bg: #204174; /* fallback */
-    --treegrid-header-bg: color-mix(in srgb, var(--palette-brand) 90%, black);
-    --treegrid-header-color: var(--border-light);
+    --treegrid-header-bg: color-mix(in srgb, var(--color-2) 90%, black);
+    --treegrid-header-color: var(--text-on-dark);
     --treegrid-footer-bg: #F8CF00;
-    --treegrid-footer-color: #204174; /* fallback */
-    --treegrid-footer-color: color-mix(in srgb, var(--palette-brand) 90%, black);
+    --treegrid-footer-color: var(--color-2);
     --treegrid-groupby-folder-bg: rgba(255, 253, 123, 0.20);
-    --treegrid-groupby-level-color: darkgreen; /* fallback */
-    --treegrid-groupby-level-color: color-mix(in srgb, var(--palette-success) 60%, black);
-    --treegrid-open-pages-bg: rgba(94, 255, 150, 1.00); /* fallback */
-    --treegrid-open-pages-bg: color-mix(in srgb, var(--palette-success) 50%, var(--palette-white));
+    --treegrid-groupby-level-color: color-mix(in srgb, var(--color-success) 60%, black);
+    --treegrid-open-pages-bg: color-mix(in srgb, var(--color-success) 50%, var(--color-bg));
 
     /* --- Toolbar --- */
     --toolbar-height: 1.75em;
     --toolbar-height-lg: 2em;
     --toolbar-min-height: 2.3em;
     --toolbar-min-height-lg: 2.8em;
-    --toolbar-bg: #DCDCDE; /* fallback */
-    --toolbar-bg: color-mix(in srgb, var(--palette-neutral) 18%, var(--palette-white)); /* @theme */
-    --toolbar-gradient: linear-gradient(to bottom, #EDEDEE, #CDCDCD); /* fallback */
+    --toolbar-bg: var(--color-6); /* @theme */
     --toolbar-gradient: linear-gradient(to bottom,
-        color-mix(in srgb, var(--palette-neutral) 10%, var(--palette-white)),
-        color-mix(in srgb, var(--palette-neutral) 25%, var(--palette-white))); /* @theme */
-    --toolbar-color: var(--palette-neutral); /* @theme */
-    --toolbar-dark-bg: #636366; /* fallback */
-    --toolbar-dark-bg: color-mix(in srgb, var(--palette-neutral) 80%, var(--palette-white)); /* @theme */
+        color-mix(in srgb, var(--color-6) 70%, var(--color-bg)),
+        var(--color-6)); /* @theme */
+    --toolbar-color: var(--color-1); /* @theme */
+    --toolbar-dark-bg: var(--color-3); /* @theme */
 
     /* --- Layout: frameindex --- */
-    --frameindexroot-background: var(--palette-surface); /* @theme */
-    --frameindexcenter-background: var(--palette-surface); /* @theme */
-    --frameindexroot-mobile-background: #48484A; /* fallback */
-    --frameindexroot-mobile-background: color-mix(in srgb, var(--palette-neutral) 93%, var(--palette-white)); /* @theme */
-    --frameindex-tablist-background: var(--palette-neutral); /* @theme */
-    --frameindex-tablist-color: var(--palette-white); /* @theme */
-    --frameindex-tab-bg: #B8CAD6; /* fallback */
-    --frameindex-tab-bg: color-mix(in srgb, var(--palette-brand) 32%, var(--palette-white)); /* @theme */
-    --frameindex-tab-bg-hover: #D9E4EC; /* fallback */
-    --frameindex-tab-bg-hover: color-mix(in srgb, var(--palette-brand) 17%, var(--palette-white)); /* @theme */
-    --frameindex-tab-border: #6E8494; /* fallback */
-    --frameindex-tab-border: color-mix(in srgb, var(--palette-brand) 64%, var(--palette-white)); /* @theme */
-    --frameindex-subtab-bg: #4A5A66; /* fallback */
-    --frameindex-subtab-bg: color-mix(in srgb, var(--palette-brand) 80%, var(--palette-white)); /* @theme */
-    --frameindex-subtab-selected-bg: #7AACCC; /* fallback */
-    --frameindex-subtab-selected-bg: color-mix(in srgb, var(--palette-brand) 45%, var(--palette-white)); /* @theme */
-    --frameindex-closer-hover-bg: #5A7A8A; /* fallback */
-    --frameindex-closer-hover-bg: color-mix(in srgb, var(--palette-brand) 65%, var(--palette-white)); /* @theme */
-    --root-top-background: var(--palette-chrome); /* @theme */
-    --root-top-color: var(--palette-chrome-color); /* @theme */
+    --frameindexroot-background: var(--color-7); /* @theme */
+    --frameindexcenter-background: var(--color-7); /* @theme */
+    --frameindexroot-mobile-background: var(--color-2); /* @theme */
+    --frameindex-tablist-background: var(--color-2); /* @theme */
+    --frameindex-tablist-color: var(--text-on-dark); /* @theme */
+    --frameindex-tab-bg: color-mix(in srgb, var(--color-5) 40%, var(--color-bg)); /* @theme */
+    --frameindex-tab-bg-hover: color-mix(in srgb, var(--color-5) 20%, var(--color-bg)); /* @theme */
+    --frameindex-tab-border: var(--color-5); /* @theme */
+    --frameindex-subtab-bg: color-mix(in srgb, var(--color-2) 60%, var(--color-3)); /* @theme */
+    --frameindex-subtab-selected-bg: color-mix(in srgb, var(--color-3) 55%, var(--color-bg)); /* @theme */
+    --frameindex-closer-hover-bg: color-mix(in srgb, var(--color-2) 65%, var(--color-3)); /* @theme */
+    --root-top-background: var(--color-3); /* @theme */
+    --root-top-color: var(--text-on-dark); /* @theme */
 
     /* --- Dialogs --- */
-    --dialogtitlebar-background: var(--palette-chrome); /* @theme */
-    --dialogtitlebar-color: var(--palette-chrome-color); /* @theme */
+    --dialogtitlebar-background: var(--color-3); /* @theme */
+    --dialogtitlebar-color: var(--text-on-dark); /* @theme */
     --dlg-bg: var(--surface-light); /* @theme */
-    --dlg-pane-bg: var(--palette-white); /* @theme */
-    --dlg-border-color: silver; /* fallback */
-    --dlg-border-color: color-mix(in srgb, var(--palette-border) 70%, var(--palette-white)); /* @theme */
+    --dlg-pane-bg: var(--color-bg); /* @theme */
+    --dlg-border-color: color-mix(in srgb, var(--color-5) 70%, var(--color-bg)); /* @theme */
 
     /* --- Tabs --- */
-    --tab-background: var(--palette-surface); /* @theme */
-    --tab-text-color: var(--palette-neutral); /* @theme */
-    --tab-selected-background: var(--palette-white); /* @theme */
+    --tab-background: var(--color-7); /* @theme */
+    --tab-text-color: var(--color-1); /* @theme */
+    --tab-selected-background: var(--color-bg); /* @theme */
     --tab-selected-color: var(--border-color); /* @theme */
     --tab-vertical-max-width: 12em;
     --tab-vertical-height: 2em;
 
     /* --- Rounded groups --- */
-    --roundedgroup-bar: #E5E5EA; /* fallback */
-    --roundedgroup-bar: color-mix(in srgb, var(--palette-neutral) 14%, var(--palette-white)); /* @theme */
-    --roundedgroup-bar-color: var(--palette-neutral); /* @theme */
-    --roundedgroup-border: #D1D1D6; /* fallback */
-    --roundedgroup-border: color-mix(in srgb, var(--palette-neutral) 24%, var(--palette-white)); /* @theme */
+    --roundedgroup-bar: var(--color-6); /* @theme */
+    --roundedgroup-bar-color: var(--color-1); /* @theme */
+    --roundedgroup-border: color-mix(in srgb, var(--color-6) 70%, var(--color-bg)); /* @theme */
     --roundedgroup-shadow: rgba(0,0,0,0.06); /* @theme */
-    --rectgroup-bar-background: var(--primary-light, #e8ecf4); /* @theme */
+    --rectgroup-bar-background: var(--color-6); /* @theme */
 
     /* === Forms === */
 
     /* --- Form fields --- */
-    --field-bg: var(--palette-white); /* @theme */
-    --field-border: var(--palette-border); /* @theme */
-    --field-error-border: #c97070; /* fallback */
-    --field-error-border: color-mix(in srgb, var(--palette-error) 45%, var(--palette-border));
+    --field-bg: var(--color-bg); /* @theme */
+    --field-border: var(--color-5); /* @theme */
+    --field-error-border: color-mix(in srgb, var(--color-error) 45%, var(--color-5));
     --field-error-dot-size: 8px; /* @theme */
-    --field-error-dot-color: var(--palette-error); /* @theme */
+    --field-error-dot-color: var(--color-error); /* @theme */
     --field-error-dot-ring: var(--surface-color, white); /* @theme */
-    --field-disabled-border: #C7C7CC; /* fallback */
-    --field-disabled-border: color-mix(in srgb, var(--palette-border) 60%, var(--palette-white));
-    --field-disabled-bg: var(--palette-surface);
+    --field-disabled-border: color-mix(in srgb, var(--color-5) 60%, var(--color-bg));
+    --field-disabled-bg: var(--color-7);
     --field-readonly-border: var(--field-border);
     --field-readonly-bg: var(--field-bg);
-    --field-focus-bg: var(--palette-white);
-    --gnrfieldlabel-color: #8E8E93; /* fallback */
-    --gnrfieldlabel-color: color-mix(in srgb, var(--palette-border) 90%, var(--palette-neutral)); /* @theme */
+    --field-focus-bg: var(--color-bg);
+    --gnrfieldlabel-color: color-mix(in srgb, var(--color-5) 90%, var(--color-1)); /* @theme */
 
     /* --- Form-context field defaults (shared by formbuilder & formlet) --- */
     --form-field-border: var(--field-border);
@@ -290,35 +248,28 @@
 
     /* --- topLabelTable --- */
     --topLabelTable-border-top: none;
-    --topLabelTable-separator: silver; /* fallback */
-    --topLabelTable-separator: color-mix(in srgb, var(--palette-border) 70%, var(--palette-white));
+    --topLabelTable-separator: color-mix(in srgb, var(--color-5) 70%, var(--color-bg));
 
     /* === Status & Feedback === */
 
     /* --- Status --- */
-    --status-ok: var(--palette-success); /* @theme */
-    --status-error: var(--palette-error); /* @theme */
-    --status-warning: var(--palette-warning); /* @theme */
-    --status-idle: #9e9e9e; /* fallback */
-    --status-idle: color-mix(in srgb, var(--palette-neutral) 49%, var(--palette-white)); /* @theme */
+    --status-ok: var(--color-success); /* @theme */
+    --status-error: var(--color-error); /* @theme */
+    --status-warning: var(--color-warning); /* @theme */
+    --status-idle: var(--color-5); /* @theme */
 
     /* --- Toaster --- */
-    --toaster-success-bg: #73c74a; /* fallback */
-    --toaster-success-bg: color-mix(in srgb, var(--palette-success) 80%, var(--palette-white)); /* @theme */
-    --toaster-error-bg: darkred; /* fallback */
-    --toaster-error-bg: color-mix(in srgb, var(--palette-error) 60%, black); /* @theme */
-    --toaster-warning-bg: #d4d943; /* fallback */
-    --toaster-warning-bg: color-mix(in srgb, var(--palette-warning) 85%, var(--palette-white)); /* @theme */
+    --toaster-success-bg: color-mix(in srgb, var(--color-success) 80%, var(--color-bg)); /* @theme */
+    --toaster-error-bg: color-mix(in srgb, var(--color-error) 60%, black); /* @theme */
+    --toaster-warning-bg: color-mix(in srgb, var(--color-warning) 85%, var(--color-bg)); /* @theme */
 
     /* --- Accordion --- */
-    --accordion-title-bg: #E0CEBE; /* fallback */
-    --accordion-title-bg: color-mix(in srgb, var(--palette-neutral) 15%, var(--palette-surface)); /* @theme */
-    --accordion-selected-bg: #4D5962; /* fallback */
-    --accordion-selected-bg: color-mix(in srgb, var(--palette-neutral) 75%, var(--palette-white)); /* @theme */
+    --accordion-title-bg: color-mix(in srgb, var(--color-6) 60%, var(--color-7)); /* @theme */
+    --accordion-selected-bg: var(--color-3); /* @theme */
 
     /* --- Menu --- */
     --menu-text-color: var(--text-color); /* @theme */
-    --menu-bg: var(--palette-white); /* @theme */
+    --menu-bg: var(--color-bg); /* @theme */
     --menu-border-color: rgba(0,0,0,0.18); /* @theme */
     --menu-border-top-color: rgba(0,0,0,0.25);
     --menu-separator-color: rgba(0,0,0,0.08);
@@ -332,21 +283,19 @@
     --menutree-mobile-branch-selected-color: var(--frameindex-tablist-color);
 
     /* --- FieldsTree (relation explorer) --- */
-    --fieldsTree-rm-color: navy; /* fallback */
-    --fieldsTree-rm-color: color-mix(in srgb, var(--palette-brand) 80%, black);
-    --fieldsTree-ro-color: green; /* fallback */
-    --fieldsTree-ro-color: color-mix(in srgb, var(--palette-success) 70%, black);
+    --fieldsTree-rm-color: color-mix(in srgb, var(--color-2) 80%, black);
+    --fieldsTree-ro-color: color-mix(in srgb, var(--color-success) 70%, black);
 
     /* === Buttons === */
 
     /* --- Buttons: filled (derived from accent-color) --- */
     --btn-filled-bg: var(--accent-color, #007AFF); /* @theme */
-    --btn-filled-color: var(--palette-white); /* @theme */
+    --btn-filled-color: var(--color-bg); /* @theme */
     --btn-filled-hover-bg: color-mix(in srgb, var(--accent-color, #007AFF) 80%, black);
     --btn-filled-pressed-bg: color-mix(in srgb, var(--accent-color, #007AFF) 65%, black);
     --btn-filled-selected-bg: color-mix(in srgb, var(--accent-color, #007AFF) 65%, black);
     --btn-filled-disabled-bg: var(--accent-color, #007AFF);
-    --btn-filled-disabled-color: var(--palette-white);
+    --btn-filled-disabled-color: var(--color-bg);
 
     /* --- Buttons: tonal (light version of accent-color) --- */
     --btn-tonal-bg: color-mix(in srgb, var(--accent-color, #007AFF) 12%, white);
@@ -469,4 +418,17 @@
     --splitter-grip-hover: var(--text-secondary); /* @theme */
     --icon-grip-h: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 8'%3E%3Ccircle cx='4' cy='4' r='2.5'/%3E%3Ccircle cx='12' cy='4' r='2.5'/%3E%3Ccircle cx='20' cy='4' r='2.5'/%3E%3C/svg%3E");
     --icon-grip-v: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 24'%3E%3Ccircle cx='4' cy='4' r='2.5'/%3E%3Ccircle cx='4' cy='12' r='2.5'/%3E%3Ccircle cx='4' cy='20' r='2.5'/%3E%3C/svg%3E");
+
+    /* === Backward compatibility — deprecated, remove in next major === */
+    --palette-neutral: var(--color-2);
+    --palette-brand: var(--color-3);
+    --palette-accent: var(--color-4);
+    --palette-surface: var(--color-7);
+    --palette-border: var(--color-5);
+    --palette-white: var(--color-bg);
+    --palette-chrome: var(--color-3);
+    --palette-chrome-color: var(--text-on-dark);
+    --palette-error: var(--color-error);
+    --palette-success: var(--color-success);
+    --palette-warning: var(--color-warning);
 }
