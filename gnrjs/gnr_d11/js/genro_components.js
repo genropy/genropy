@@ -968,7 +968,10 @@ dojo.declare("gnr.widgets.GroupletForm",gnr.widgets.gnrwdg,{
         let resource = objectPop(kw,'resource');
         let value = objectPop(kw,'value');
         let dynamicLocationPath = objectPop(kw,'dynamicLocationPath');
-        let datapath = objectPop(kw,'datapath') || 'gnr.grouplet_'+genro.time36Id();
+        let formId = kw.formId;
+        let datapath = objectPop(grouplets_pars,'datapath') || objectPop(kw,'datapath') || 'gnr.grouplet_'+(formId || genro.time36Id());
+        let formDatapath = objectPop(grouplets_pars,'formDatapath') || objectPop(kw,'formDatapath');
+        let formControllerPath = objectPop(grouplets_pars,'formControllerPath') || objectPop(kw,'formControllerPath');
         let loadOnBuilt = objectPop(kw,'loadOnBuilt');
         let startKey = objectPop(kw,'startKey');
         let rootTag = objectPop(kw,'rootTag');
@@ -1004,7 +1007,6 @@ dojo.declare("gnr.widgets.GroupletForm",gnr.widgets.gnrwdg,{
                 grouplets_pars._onRemote = "this.form.load();";
             }
         }
-        kw.datapath = datapath;
         grouplets_pars.table = grouplets_pars.table || table;
         grouplets_pars.handler = grouplets_pars.handler || handler;
         grouplets_pars.resource = grouplets_pars.resource || resource;
@@ -1016,6 +1018,9 @@ dojo.declare("gnr.widgets.GroupletForm",gnr.widgets.gnrwdg,{
         kw.store_handler = kw.store_handler || 'memory';
         kw.store_table = table;
         kw.storeType = kw.storeType || 'Item';
+        kw.datapath = datapath;
+        kw.formDatapath = formDatapath;
+        kw.controllerPath = formControllerPath;
         let formdiv = sourceNode._('BoxForm',kw);
         return formdiv._('grouplet',grouplets_pars);
     }

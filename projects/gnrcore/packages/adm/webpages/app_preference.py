@@ -25,4 +25,4 @@ class GnrCustomWebPage(object):
                             formsubscribe_onDismissed=True)
         bar = form.bottom.bar
         bar.cancel.button('!!Cancel',action='this.form.abort();')
-        bar.saveAndClose.button('!!Confirm',action='this.form.publish("save",{destPkey:"*dismiss*"})')
+        bar.saveAndClose.button('!!Save and Close',action='this.form.publish("save",{destPkey:"*dismiss*"})')
