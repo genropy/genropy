@@ -1,0 +1,399 @@
+/* ==========================================================================
+   07_gnr_components.css — Specific UI components
+   FieldsTree, MultiColumnSelect, BagAttributesTable, Dev utilities
+   ========================================================================== */
+
+/* @group FieldsTree */
+
+.fieldsTreeBox{
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	color: var(--text-muted);
+
+	font-family: inherit;
+	overflow: auto;
+	font-size: .9em;
+	background: var(--surface-bg);
+}
+.treeShowTrash .treeTrash,.treeShowTrash.treeTrash{
+    display:block;
+}
+.treeTrash.canBeDropped{
+    background-color: var(--surface-light) !important;
+    opacity:.8;
+}
+
+.treeTrash{
+    display:none;
+    position: absolute;
+	top: 2px;
+	bottom: 2px;
+	left: 2px;
+	right: 2px;
+	opacity: .5;
+	background: var(--surface-light) url(/_rsrc/common/css_icons/svg/16/trash.svg) no-repeat center center;
+	background-size: 3em;
+}
+.selectedTreeNode {
+    font-weight: bold;
+}
+
+.search_highlight{
+    background: yellow;
+}
+
+
+.fieldsTree .dijitTreeIcon {
+    padding-right: 0;
+}
+.noIcon .dijitTreeIcon{
+	display: none;
+}
+
+.label_emptydir{
+    cursor: not-allowed;
+    opacity: .3;
+}
+
+.fieldsTree .dijitTreeContent {
+    cursor: move;
+    min-height: 0;
+    padding-bottom: 2px;
+    padding-top: 0;
+    margin-left: 0px;
+}
+
+.fieldsTree .dijitTreeLabel{
+	white-space: nowrap;
+}
+.fieldsTree_root{
+	text-decoration: underline;
+}
+.fieldsTree_group{
+	color: var(--text-secondary);
+}
+
+.fieldsTree_folder{
+	text-decoration: underline;
+	cursor: pointer;
+	font-weight: bold;
+	background: none;
+}
+.fieldsTree_RM {
+	color: var(--fieldsTree-rm-color, navy);
+}
+.fieldsTree_RO{
+	color: var(--fieldsTree-ro-color, green);
+}
+
+/* @end */
+
+/* --- Misc header utilities --- */
+
+.tpl_nocontent .tpl_content {
+    visibility: hidden;
+}
+
+.gnrdebugger {
+    z-index: var(--z-modal) !important;
+}
+.pbl_title_caption {
+    text-align: center;
+}
+.pbl_avatar{
+}
+.gnroutofdate .pbl_avatar,.gnroutofdate .pbl_slotbar_label{
+    color: var(--status-error) !important;
+}
+
+/* @group MultiColumnSelect */
+
+.multiColumnSelect {
+    background-color: var(--card-surface, #f9f9f9);
+    overflow: hidden;
+    color: var(--primary-dark, #3A3A3C);
+    border-radius: 0.375em;
+}
+
+.multiColumnSelect table {
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+    background-color: var(--card-surface, #f9f9f9);
+    width: 100%;
+}
+
+.multiColumnSelect th {
+    padding: 0.375em 0.5em;
+    border-bottom: 1px solid var(--roundedgroup-border, #D1D1D6);
+    background-color: var(--primary-lighter, #F2F2F7);
+    text-align: center;
+    color: var(--primary-dark, #3A3A3C);
+    white-space: nowrap;
+    font-weight: 600;
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.multiColumnSelect tbody tr {
+    transition: background-color 0.15s ease;
+    cursor: pointer;
+}
+
+.multiColumnSelect td {
+    padding: 0.375em 0.5em;
+    border-bottom: 1px solid var(--roundedgroup-border, rgba(0,0,0,0.06));
+    white-space: nowrap;
+}
+
+.multiColumnSelect tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.relaxedCondition tr {
+    background-color: var(--relaxed-condition-bg, #FFF3CD) !important;
+    font-style: italic;
+}
+
+.multiColumnSelect tr.not_preferred_row {
+    opacity: 0.5;
+    font-style: italic;
+}
+
+.multiColumnSelect tr[_is_valid_item='false'] {
+    color: var(--error-color, #E53935);
+    cursor: not-allowed;
+}
+
+.multiColumnSelect tr.linked_row {
+    font-weight: bold;
+}
+
+.multiColumnSelect.templateAuxColumns table {
+    background-color: var(--mainWindow-background, #fff);
+    max-width: min(30em, 90vw);
+    width: auto;
+}
+
+.multiColumnSelect.templateAuxColumns td {
+    white-space: normal;
+    padding: 0.5em;
+    border-bottom: 1px solid var(--roundedgroup-border, rgba(0,0,0,0.06));
+}
+
+.touchDevice .multiColumnSelect td {
+    padding: 0.5em 0.625em;
+    line-height: 1.6;
+}
+
+tr[_is_valid_item='true'].multiColumnSelectHover td {
+    background-color: var(--accent-color, #007AFF);
+    color: var(--btn-filled-color);
+    transition: background-color 0.15s ease;
+}
+
+.multiColumnSelect div[style*="overflow-y"] {
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-light, #ccc) transparent;
+}
+
+.multiColumnSelect div[style*="overflow-y"]::-webkit-scrollbar {
+    width: 6px;
+}
+
+.multiColumnSelect div[style*="overflow-y"]::-webkit-scrollbar-thumb {
+    background-color: var(--primary-light, #ccc);
+    border-radius: var(--radius-controls);
+}
+
+/* @end */
+
+/* --- Data tables (shared base for bagAttributes and localization) --- */
+
+.bagAttributesTable,
+.localizationTable {
+    border-collapse: collapse;
+    color: var(--text-color);
+}
+
+.bagAttributesTable th,
+.localizationTable th {
+    padding: 2px;
+    border: thin solid var(--border-color);
+    background-color: var(--text-secondary);
+    font-weight: bold;
+    text-align: center;
+}
+
+.bagAttributesTable td,
+.localizationTable td {
+    padding: 2px;
+    border: thin solid var(--border-color);
+    background-color: var(--surface-light);
+}
+
+.bagAttributesTable tr > td:first-child,
+.localizationTable tr > td:first-child {
+    padding: 2px;
+    color: var(--palette-white);
+    border: thin solid var(--border-color);
+    background-color: var(--text-muted);
+    text-align: right;
+}
+
+/* Size variants */
+.bagAttributesTable { font-size: xx-small; }
+.localizationTable { font-size: .9em; }
+
+/* @end */
+
+/* @group Dev */
+
+.gnrhighlight {
+    box-shadow: inset 0px 0px 6px var(--status-error);
+}
+
+/* @end */
+
+/* ==========================================================================
+   Rounded groups / Form groups / Footer — base defaults
+   (moved from theme files, themeable via CSS variables)
+   ========================================================================== */
+
+/* @group gnr_footer */
+.gnr_footer {
+    background-color: var(--roundedgroup-bar);
+}
+/* @end */
+
+/* @group pbl_roundedBlock */
+.pbl_roundedBlock {
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    left: 2px;
+    right: 2px;
+    border: 1px solid var(--border-strong, #aab4c4);
+    background: var(--roundedgroup-surface);
+    border-radius: var(--radius-panels, 8px);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+}
+
+.pbl_roundedBlock > .pbl_roundedGroupContent {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    border: none;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    overflow: auto;
+}
+/* @end */
+
+/* @group pbl_roundedGroup */
+.pbl_roundedGroup {
+    border: 1px solid var(--border-strong, #aab4c4);
+    background: var(--roundedgroup-surface);
+    border-radius: var(--radius-panels, 8px);
+    box-shadow: var(--shadow-sm);
+}
+
+.pbl_roundedGroupContent {
+    background: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.pbl_roundedGroup .framegrid_center {
+    border-top: 1px solid var(--border-strong, #aab4c4);
+}
+
+.pbl_roundedGroupLabel {
+    min-height: var(--toolbar-min-height);
+    font-size: 0.9em;
+    background: var(--roundedgroup-bar);
+    color: var(--roundedgroup-bar-color);
+    font-weight: bold;
+    border: none;
+    border-radius: var(--radius-panels) var(--radius-panels) 0 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-left: 0.5em;
+    padding-right: 0.5em;
+}
+
+.pbl_roundedBlock > .pbl_roundedGroupLabel {
+    flex-shrink: 0;
+    position: relative;
+    padding-left: 0.8em;
+    padding-right: 0.8em;
+}
+
+.pbl_roundedGroupVertical {
+    background: var(--roundedgroup-bar);
+}
+
+.pbl_roundedGroupLabel.slotbar_horizontal {
+    padding-left: .5em;
+    padding-right: .5em;
+}
+.pbl_roundedGroupLabel.slotbar_horizontal .slotbar_cell {
+    line-height: 1.5em;
+}
+
+.pbl_roundedGroupBottom {
+    padding-left: 0.5em;
+    font-size: 0.9em;
+    background-color: var(--roundedgroup-bar);
+    border-radius: 0 0 var(--radius-panels) var(--radius-panels);
+}
+/* @end */
+
+/* @group pbl_rectGroup */
+.pbl_rectGroupLabel {
+    height: var(--toolbar-height);
+    padding-left: 10px;
+    font-size: 0.9em;
+    padding-top: 5px;
+    background: var(--rectgroup-bar-background);
+    color: var(--primary-color, #1E3055);
+    font-weight: 500;
+}
+
+.pbl_rectGroupBottom {
+    height: var(--toolbar-height);
+    padding-left: 10px;
+    font-size: 0.9em;
+    padding-bottom: 5px;
+    background: var(--rectgroup-bar-background);
+}
+/* @end */
+
+/* @group pbl_root_top */
+.pbl_root_top {
+    height: 2em;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    color: var(--root-top-color);
+    background: var(--root-top-background);
+}
+.pbl_root_top .gnrfieldlabel {
+    color: var(--root-top-color);
+    font-size: .8em;
+}
+/* @end */
+
+/* @group frameindex_left */
+.frameindex_left {
+    background: var(--frameindexroot-background, #f5f6f8);
+}
+/* @end */

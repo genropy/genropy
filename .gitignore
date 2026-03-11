@@ -43,3 +43,8 @@ projects/test_invoice/test_invoice_db.zip
 projects/test_invoice/data/invoice_data.zip
 projects/test_invoice/data/export/invoice.csv
 projects/test_invoice/data/export/invoice_row.csv
+gnrpy/tests/core/*/gnr/environment.xml
+gnrpy/tests/core/*/gnr/instanceconfig/default.xml
+gnrpy/tests/core/*/gnr/siteconfig/default.xml
+gnrpy/tests/core/*/gnrtest/instances/gnrtest/config/instanceconfig.xml
+gnrpy/tests/core/*/gnrtest/instances/gnrtest/root.py

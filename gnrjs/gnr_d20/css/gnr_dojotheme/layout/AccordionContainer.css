@@ -1,0 +1,46 @@
+/* ==========================================================================
+   gnr_dojotheme/layout/AccordionContainer.css — Complete accordion styling.
+   Replaces tundra/AccordionContainer.css with modern flat design.
+   CSS variables for full theme customization.
+   ========================================================================== */
+
+/* --- Accordion container --- */
+.gnr_dojotheme .dijitAccordionContainer {
+    border: 1px solid var(--border-color, gray);
+    border-top-left-radius: var(--radius-panels, 8px);
+    border-top-right-radius: var(--radius-panels, 8px);
+}
+
+/* --- Accordion pane --- */
+.gnr_dojotheme .dijitAccordionPane {
+    background-color: var(--surface-light, #f6f6f6);
+}
+
+/* --- Accordion title --- */
+.gnr_dojotheme .dijitAccordionTitle {
+    background: var(--accordion-title-bg, #E0CEBE);
+    padding: 4px 4px 4px 8px;
+    border-top-left-radius: var(--radius-panels, 8px);
+    border-top-right-radius: var(--radius-panels, 8px);
+    font-size: 0.9em;
+    cursor: pointer;
+}
+
+/* --- Selected title --- */
+.gnr_dojotheme .dijitAccordionTitle-selected {
+    background: var(--accordion-selected-bg, #4D5962);
+    color: var(--surface-bg, #fff);
+    padding: 5px 4px 5px 8px;
+    cursor: default;
+}
+
+/* --- Arrow icon (hidden — GenroPy uses its own) --- */
+.gnr_dojotheme .dijitAccordionArrow {
+    display: none;
+    background: none;
+}
+
+/* --- Accordion body --- */
+.gnr_dojotheme .dijitAccordionBody {
+    background: var(--surface-bg, #fff);
+}

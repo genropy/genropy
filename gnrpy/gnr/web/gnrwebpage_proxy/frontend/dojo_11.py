@@ -18,20 +18,19 @@ class GnrWebFrontend(GnrBaseDojoFrontend):
         theme = theme or self.theme
         return ['dojo/resources/dojo.css',
                 'dijit/themes/dijit.css',
-                'dijit/themes/%s/%s.css' % (theme, theme),
                 'dojox/widget/ColorPicker/ColorPicker.css',
                 'dojox/grid/_grid/Grid.css',
-                'dojox/grid/_grid/%sGrid.css' % theme
+                f'dojox/grid/_grid/{theme}Grid.css'
         ]
 
     def gnrjs_frontend(self):
         return ['gnrbag','gnrdomsource','gnrlang', 'gnrstores', 
                 'genro','genro_patch','genro_rpc','genro_wdg', 'genro_src',
                 'genro_widgets','genro_tree','genro_grid','genro_components','genro_frm',
-                'genro_dev','genro_dlg', 'genro_dom','genro_extra','genro_google','genro_mobile','genro_cordova','gnrwebsocket','gnrsharedobjects']
+                'genro_dev','genro_dlg','genro_toast', 'genro_dom','genro_extra','genro_google','genro_mobile','genro_cordova','gnrwebsocket','gnrsharedobjects']
 
     def css_genro_frontend(self):
-        return {'all': ['gnrbase'], 'print': ['gnrprint']}
+        return {'all': ['gnr_dojotheme/gnr_dojotheme', 'gnrbase'], 'print': ['gnrprint']}
 
     def dojo_release_imports(self):
         return ['dojo_release.js']
