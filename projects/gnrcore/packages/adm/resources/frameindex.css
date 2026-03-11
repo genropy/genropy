@@ -228,7 +228,8 @@
     align-items: center;
     background: var(--frameindex-tablist-background);
     color: var(--frameindex-tablist-color);
-    padding: 0.3em 0.6em;
+    min-height: 3em;
+    padding: 0 0.6em;
 }
 .framedindex_tablist_center {
     flex: 1;
