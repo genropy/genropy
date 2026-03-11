@@ -155,7 +155,7 @@ class Table(object):
                     tasks_to_run.append((task['id'],reason))
             except Exception as e:
                 logger.exception("Error checking for tasks: %s", e)
-                self.db.table('sys.error').writeException(description='Scheduling Error task %s %s :%s' %(task['table_name'],task['command'],str(e)))
+                self.db.application.errorHandler(exception=e, description='Scheduling Error task %s %s :%s' %(task['table_name'],task['command'],str(e)))
         return tasks_to_run
 
     def getBtcClass(self, table=None, page=None, command=None):
@@ -190,7 +190,7 @@ class Table(object):
             else:
                 result=Bag(result=tmp_result)
         except Exception as e:
-            self.db.table('sys.error').writeException(description='Error in task %s %s :%s' %(task['table_name'],task['command'],str(e)))
+            self.db.application.errorHandler(exception=e, description='Error in task %s %s :%s' %(task['table_name'],task['command'],str(e)))
             result = Bag(error=str(e))
             log_result = True
         if log_result:

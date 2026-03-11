@@ -621,14 +621,20 @@ class GnrWebPage(GnrBaseWebPage):
             self.rpc.error = 'gnrexception'
             result = str(e)
         except Exception as e:
-            if self.site.debug and (self.isDeveloper() or self.site.force_debug):
-                raise
-            else:
-                exception_record = self.site.writeException(exception=e, traceback=tracebackBag())
-                self.rpc.error = 'server_exception'
-                result = '<div>%s</div>' %str(e)
-                if exception_record:
-                    result = '%s <br/> Check Exception Id: %s' %(result,exception_record['id'])
+            error_id = self.site.errorHandler(
+                exception=e,
+                error_type='server_exception',
+                notify_user=True,
+                traceback=True
+            )
+            self.rpc.error = 'server_exception'
+            result = '<div>%s</div>' %str(e)
+            if error_id:
+                if self.isDeveloper():
+                    detail_url = '/sys/ep_error?error_code=%s' % error_id
+                    result = '%s <br/> Exception Id: <a href="%s" target="_blank">%s</a>' % (result, detail_url, error_id)
+                else:
+                    result = '%s <br/> Check Exception Id: %s' % (result, error_id)
         result_handler = getattr(self.rpc, 'result_%s' % mode.lower())
         return_result = result_handler(result)
         return return_result

@@ -59,6 +59,7 @@ def getmixincount():
     return '%015i' %_mixincount
 
 def tracebackBag(limit=None):
+    import hashlib
     import linecache
     from gnr.core.gnrstructures import GnrStructData
     from gnr.core.gnrbag import Bag
@@ -67,6 +68,7 @@ def tracebackBag(limit=None):
         if hasattr(sys, 'tracebacklimit'):
             limit = sys.tracebacklimit
     n = 0
+    hash_cache = {}
     tb = sys.exc_info()[2]
     while tb is not None and (limit is None or n < limit):
         tb_bag = Bag()
@@ -79,8 +81,15 @@ def tracebackBag(limit=None):
         line = linecache.getline(filename, lineno)
         if line: line = line.strip()
         else: line = None
+        if filename not in hash_cache:
+            try:
+                with open(filename, 'rb') as fh:
+                    hash_cache[filename] = hashlib.sha256(fh.read()).hexdigest()[:12]
+            except Exception:
+                hash_cache[filename] = None
         tb_bag['module'] = os.path.basename(os.path.splitext(filename)[0])
         tb_bag['filename'] = filename
+        tb_bag['file_hash'] = hash_cache[filename]
         tb_bag['lineno'] = lineno
         tb_bag['name'] = name
         tb_bag['line'] = line

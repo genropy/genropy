@@ -5,11 +5,18 @@ from gnr.web.gnrbaseclasses import BaseComponent
 
 class View(BaseComponent):
 
+    def th_groupedStruct(self,struct):
+        "By type and date"
+        r = struct.view().rows()
+        r.fieldcell('error_type', width='15em')
+        r.fieldcell('__ins_ts', name='Date', width='10em', format='ymd')
+        r.cell('_grp_count', name='Cnt', width='4em', group_aggr='sum')
+
     def th_struct(self,struct):
         r = struct.view().rows()
+        r.fieldcell('error_code')
         r.fieldcell('__ins_ts',name='Datetime')
         r.fieldcell('error_type')
-
         r.fieldcell('description')
         r.fieldcell('username')
         r.fieldcell('user_ip')
@@ -21,14 +28,10 @@ class View(BaseComponent):
         return '__ins_ts:d'
 
     def th_query(self):
-        return dict(column='description', op='contains', val='')
+        return dict(column='error_code', op='contains', val='')
 
     def th_bottom_custom(self,bar):
-        bar.slotToolbar('sections@error_type,*')
-
-    def th_sections_error_type(self):
-        return [dict(code='exc',caption='!!Exceptions',condition="$error_type=:c",condition_c='EXC'),
-                dict(code='err',caption='!!Errors',condition="$error_type=:c",condition_c='ERR')]
+        bar.slotToolbar('*')
 
 
 class Form(BaseComponent):
@@ -42,8 +45,8 @@ class Form(BaseComponent):
         width='35em'
         pane.div('Error Data',_class='pbl_roundedGroupLabel')
         fb = pane.formbuilder(cols=2, border_spacing='4px')
-        fb.field('error_type',colspan=2,width=width)
-        fb.field('description',colspan=2,width=width)
+        fb.field('error_type',width='15em')
+        fb.field('description',width='15em')
         fb.field('username',width='15em')
         fb.field('user_ip',width='15em')
         fb.field('fixed',colspan=2,width=width)

@@ -18,8 +18,10 @@ dojo.declare("gnr.GnrToast", null, {
         info:    '<svg viewBox="0 0 20 20" fill="currentColor"><circle cx="10" cy="10" r="9" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="6.5" r="1.2"/><rect x="9" y="9" width="2" height="5.5" rx="1"/></svg>',
         success: '<svg viewBox="0 0 20 20" fill="currentColor"><circle cx="10" cy="10" r="9" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6 10.5l2.5 2.5 5.5-5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
         warning: '<svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 1.5L0.5 17.5h19L10 1.5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><rect x="9" y="7" width="2" height="5" rx="1"/><circle cx="10" cy="14.5" r="1.2"/></svg>',
-        error:   '<svg viewBox="0 0 20 20" fill="currentColor"><circle cx="10" cy="10" r="9" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M7 7l6 6M13 7l-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'
+        error:   '<svg viewBox="0 0 20 20" fill="currentColor"><circle cx="10" cy="10" r="9" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="5.5" width="2" height="6" rx="1"/><circle cx="10" cy="14" r="1.2"/></svg>'
     },
+
+    COPY_ICON: '<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="10" height="10" rx="1.5"/><path d="M6 12H3.5A1.5 1.5 0 0 1 2 10.5V3.5A1.5 1.5 0 0 1 3.5 2h7A1.5 1.5 0 0 1 12 3.5V6"/></svg>',
 
     CLOSE_ICON: '<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M5 5l8 8M13 5l-8 8"/></svg>',
 
@@ -78,11 +80,13 @@ dojo.declare("gnr.GnrToast", null, {
             '  font-size: 13px; color: #555; margin: 0;',
             '  line-height: 1.4; word-break: break-word;',
             '}',
-            '.gnr-toast-close {',
+            '.gnr-toast-actions { display: flex; flex-direction: column; justify-content: space-between; align-items: center; flex-shrink: 0; align-self: stretch; }',
+            '.gnr-toast-copy, .gnr-toast-close {',
             '  flex-shrink: 0; width: 18px; height: 18px;',
-            '  opacity: 0.35; transition: opacity 0.15s; margin-top: 1px;',
+            '  opacity: 0.35; transition: opacity 0.15s; cursor: pointer;',
             '}',
-            '.gnr-toast:hover .gnr-toast-close { opacity: 0.7; }',
+            '.gnr-toast:hover .gnr-toast-copy, .gnr-toast:hover .gnr-toast-close { opacity: 0.7; }',
+            '.gnr-toast-copy:hover, .gnr-toast-close:hover { opacity: 1 !important; }',
             '.gnr-toast-progress {',
             '  position: absolute; bottom: 0; left: 0; height: 3px;',
             '  border-radius: 0 0 10px 10px;',
@@ -128,16 +132,28 @@ dojo.declare("gnr.GnrToast", null, {
         bodyHtml += '<p class="gnr-toast-message">' + (opts.message || '') + '</p>';
 
         var progressHtml = persistent ? '' : '<div class="gnr-toast-progress" style="animation-duration:' + duration + 'ms"></div>';
+        var actionsHtml = persistent
+            ? '<div class="gnr-toast-actions">' +
+              '<span class="gnr-toast-close" title="Close">' + this.CLOSE_ICON + '</span>' +
+              '<span class="gnr-toast-copy" title="Copy">' + this.COPY_ICON + '</span>' +
+              '</div>'
+            : '<span class="gnr-toast-close">' + this.CLOSE_ICON + '</span>';
         el.innerHTML =
             '<span class="gnr-toast-icon">' + (this.ICONS[level] || this.ICONS.info) + '</span>' +
             '<div class="gnr-toast-body">' + bodyHtml + '</div>' +
-            '<span class="gnr-toast-close">' + this.CLOSE_ICON + '</span>' +
+            actionsHtml +
             progressHtml;
 
         this.container.appendChild(el);
 
         var self = this;
+        var _stripHtml = function(s){ var d = document.createElement('div'); d.innerHTML = s; return d.textContent || d.innerText || ''; };
+        var copyText = (opts.title ? _stripHtml(opts.title) + ': ' : '') + _stripHtml(opts.message || '');
         if(persistent){
+            el.querySelector('.gnr-toast-copy').addEventListener('click', function(e){
+                e.stopPropagation();
+                navigator.clipboard.writeText(copyText);
+            });
             el.querySelector('.gnr-toast-close').addEventListener('click', function(e){
                 e.stopPropagation();
                 self.dismiss(el);

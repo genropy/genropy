@@ -1247,15 +1247,15 @@ class GnrApp(object):
 
     def _make_error_id(self):
         now = datetime.now()
-        prefix = now.strftime('%y%m')
-        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        ms = int((now - month_start).total_seconds() * 1000)
+        prefix = now.strftime('%y%m%d')
+        day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        ms = int((now - day_start).total_seconds() * 1000)
         chars = self._ERROR_ID_CHARS
         result = ''
         while ms:
             result = chars[ms % 36] + result
             ms //= 36
-        return f"{prefix}-{result}"
+        return f"{prefix}-{result.rjust(5, '0')}"
 
     def errorHandler(self, exception=None, description=None,
                      error_type=None, traceback=None,
@@ -1288,7 +1288,7 @@ class GnrApp(object):
             notify_user=notify_user,
             **kwargs
         )
-        self.pkgBroadcast('onError', error_info)
+        self.pkgBroadcast('errorHandler', **error_info)
         return error_id
 
     @property
