@@ -201,7 +201,7 @@ class GroupletHandler(BaseComponent):
     @struct_method
     def gr_groupletPanel(self, pane, table=None, topic=None, value=None,
                          frameCode=None, grouplets_root=None,
-                         useForm=True,
+                         useForm=True, menuCallback=None,
                          grouplet_kwargs=None, **kwargs):
         frameCode = frameCode or 'grplt_panel'
         if useForm:
@@ -210,6 +210,7 @@ class GroupletHandler(BaseComponent):
                                    value=value,
                                    dynamicLocationPath=True, formId=formId,
                                    store_autoSave=1)
+            grouplet_kwargs['grouplet_remote_locationpath'] = '^#ANCHOR.selected_locationpath'
         else:
             formId = None
             grouplet_kwargs.update(resource='^#ANCHOR.selected_resource',
@@ -219,8 +220,12 @@ class GroupletHandler(BaseComponent):
         if grouplets_root:
             grouplet_kwargs['grouplets_root'] = grouplets_root
         grouplet_kwargs['rootTag'] = 'contentPane'
-        menu = self.gr_getGroupletMenu(table=table, topic=topic,
-                                       grouplets_root=grouplets_root)
+        if menuCallback:
+            menu = menuCallback(table=table, topic=topic,
+                                grouplets_root=grouplets_root)
+        else:
+            menu = self.gr_getGroupletMenu(table=table, topic=topic,
+                                           grouplets_root=grouplets_root)
         if topic:
             grouplet_kwargs['grouplet_remote_topic'] = topic
             return self._groupletPanel_topic(
@@ -288,32 +293,29 @@ class GroupletHandler(BaseComponent):
             """,
             connect_onClick="""
                 if($2.item.attr.resource && $2.item.attr.grouplet_caption){
-                    SET .selected_resource = $2.item.attr.resource;
-                    SET .selected_caption = $2.item.attr.grouplet_caption;
                     SET .selected_locationpath = $2.item.attr.locationpath || null;
+                    SET .selected_caption = $2.item.attr.grouplet_caption;
+                    SET .selected_resource = $2.item.attr.resource;
                 }
             """)
         right = bc.borderContainer(region='center')
         top = right.contentPane(region='top',
                                 _class='grouplet_panel_title_bar')
+        title_id = f'{frameCode}_title'
         top.div('^.selected_caption',
-                _class='grouplet_panel_title')
+                _class='grouplet_panel_title',
+                nodeId=title_id)
         center = right.contentPane(region='center', overflow='auto')
         if useForm:
-            semaphore_id = f'{frameCode}_semaphore'
             bc.dataController("""
-                var semNode = genro.nodeById(semId);
-                if(semNode){
-                    ['ok','changed','error'].forEach(function(s){
-                        genro.dom.setClass(semNode, 'semaphore_' + s,
-                            selectedResource && s == status);
-                    });
+                var titleNode = genro.nodeById(titleId);
+                if(titleNode){
+                    genro.dom.setClass(titleNode, 'grplt_status_error',
+                        selectedResource && status == 'error');
                 }
-            """, semId=semaphore_id,
+            """, titleId=title_id,
                 selectedResource='=.selected_resource',
                 **{f'subscribe_form_{formId}_onStatusChange': True})
-            top.div(_class='grouplet_panel_semaphore',
-                    nodeId=semaphore_id)
             right.dataController("genro.formById(innerFormId).reload()",
                                  innerFormId=formId,
                                  formsubscribe_onLoaded=True)

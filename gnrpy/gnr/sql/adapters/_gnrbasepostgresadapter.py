@@ -1116,11 +1116,9 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
     
     def struct_create_extension_sql(self, extension_name):
         """
-        Generates the SQL to create an extension with optional schema, version, and cascade options.
+        Generates the SQL to create an extension.
         """
-        return f"""DROP EXTENSION IF EXISTS {extension_name};
-                    CREATE EXTENSION {extension_name};"""
-        
+        return f"CREATE EXTENSION IF NOT EXISTS {extension_name};"
 
 
     def struct_get_event_triggers_sql(self):
@@ -1295,6 +1293,36 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
     def unaccentFormula(self, field):
         return 'unaccent({prefix}{field})'.format(field=field,
                                                   prefix = '' if field[0] in ('@','$') else '$')
+
+    def listen_connection(self, channels):
+        """Open a dedicated AUTOCOMMIT connection and LISTEN on the given channels.
+
+        Args:
+            channels: Iterable of channel names to LISTEN on.
+
+        Returns:
+            A connection ready for ``select()`` polling.
+        """
+        conn = self.connect(autoCommit=True)
+        cursor = conn.cursor()
+        for channel in channels:
+            cursor.execute('LISTEN %s;' % channel)
+        cursor.close()
+        return conn
+
+    def poll_notifications(self, conn):
+        """Poll for pending notifications on a psycopg2/psycopg3 connection.
+
+        Args:
+            conn: The connection returned by :meth:`listen_connection`.
+
+        Returns:
+            A list of notification objects (each with ``.channel`` and ``.payload``).
+        """
+        conn.poll()
+        notifications = list(conn.notifies)
+        conn.notifies.clear()
+        return notifications
 
 
 class GnrWhereTranslatorPG(GnrWhereTranslator):

@@ -28,11 +28,11 @@ class GnrCustomWebPage(object):
         bc=root.borderContainer(datapath='main')
         bc.style(""".menutree .opendir{
                 width: 12px;
-                background: url(/_gnr/11/css/icons/base10/tinyOpenBranch.png) no-repeat center center;
+                background: none;
             }
             .menutree .closedir{
                 width: 12px;
-                background: url(/_gnr/11/css/icons/base10/tinyCloseBranch.png) no-repeat center center;
+                background: none;
             }
         """)
         center=bc.contentPane(region='center',datapath='.current',overflow='hidden')

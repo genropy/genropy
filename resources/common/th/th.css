@@ -550,11 +550,35 @@
 
 .branchtree.stattree .stat_fieldsgroup .dijitTreeExpando.dijitTreeExpandoOpened{
     width: 14px;
-    background: url(/_gnr/11/css/icons/base10/tinyOpenBranch.png) no-repeat center center;
+    background: none;
+    position: relative;
+}
+.branchtree.stattree .stat_fieldsgroup .dijitTreeExpando.dijitTreeExpandoOpened::after{
+    content: '';
+    display: block;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    border-style: solid;
+    border-width: 5px 4px 0 4px;
+    border-color: #666 transparent transparent transparent;
 }
 .branchtree.stattree .stat_fieldsgroup .dijitTreeExpando.dijitTreeExpandoClosed{
     width: 14px;
-    background: url(/_gnr/11/css/icons/base10/tinyCloseBranch.png) no-repeat center center;
+    background: none;
+    position: relative;
+}
+.branchtree.stattree .stat_fieldsgroup .dijitTreeExpando.dijitTreeExpandoClosed::after{
+    content: '';
+    display: block;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    border-style: solid;
+    border-width: 4px 0 4px 5px;
+    border-color: transparent transparent transparent #666;
 }
 
 
