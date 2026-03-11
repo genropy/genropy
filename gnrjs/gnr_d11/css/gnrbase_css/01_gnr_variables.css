@@ -6,21 +6,23 @@
 :root {
 
     /* ====================================================================
-       PALETTE — 7-color scale (dark → light) + background + status.
-       Convention: low numbers = dark, high numbers = light.
-       Change these 12 variables to re-theme the entire application.
+       PALETTE — Primitive color tokens (standard naming: luminance 100–900).
+       Convention: 900 = darkest, 100 = lightest.
+       Change these variables to re-theme the entire application.
        Themes and color variants override these to customize appearance.
        ==================================================================== */
 
-    /* --- Color scale (dark → light) --- */
-    --color-1: #3C3D40;   /* @theme @palette text, darkest shade */
-    --color-2: #48494C;   /* @theme @palette sidebar nav, frameindex tablist, dark surfaces */
-    --color-3: #6B6E72;   /* @theme @palette chrome — root-top, dialog titlebar */
-    --color-4: #0277BD;   /* @theme @palette accent — buttons, links, focus */
-    --color-5: #BDBFC2;   /* @theme @palette borders, separators, primary-light */
-    --color-6: #E0E1E3;   /* @theme @palette toolbar bg, roundedgroup bar, light UI elements */
-    --color-7: #F5F5F6;   /* @theme @palette card surface, panels, very light backgrounds */
+    /* --- Neutral gray scale --- */
+    --gray-900: #3A3A3C;   /* @theme @palette text, darkest shade */
+    --gray-800: #3A3A3C;   /* @theme @palette sidebar nav, frameindex tablist, dark surfaces */
+    --gray-600: #636366;   /* @theme @palette chrome — root-top, dialog titlebar */
+    --gray-300: #D8D8DC;   /* @theme @palette borders, separators */
+    --gray-200: #E5E5EA;   /* @theme @palette toolbar bg, roundedgroup bar, light UI elements */
+    --gray-100: #F2F2F7;   /* @theme @palette card surface, panels, very light backgrounds */
     --color-bg: #FFFFFF;   /* @theme @palette main background */
+
+    /* --- Accent --- */
+    --accent-500: #007AFF; /* @theme @palette accent — buttons, links, focus */
 
     /* --- Text on dark surfaces --- */
     --text-on-dark: #FFFFFF; /* @theme @palette text on dark/chrome surfaces */
@@ -38,34 +40,34 @@
     --mainWindow-font-size: 0.8125rem;
 
     /* --- Brand / Primary --- */
-    --primary-color: var(--color-3); /* @theme */
-    --primary-dark: var(--color-2); /* @theme */
-    --primary-light: var(--color-5); /* @theme */
-    --primary-lighter: var(--color-7); /* @theme */
-    --root-dark: var(--color-2);
-    --accent-color: var(--color-4); /* @theme */
+    --primary-color: var(--gray-600); /* @theme */
+    --primary-dark: var(--gray-800); /* @theme */
+    --primary-light: var(--gray-300); /* @theme */
+    --primary-lighter: var(--gray-100); /* @theme */
+    --root-dark: var(--gray-800);
+    --accent-color: var(--accent-500); /* @theme */
     --accent-on-color: var(--color-bg); /* @theme */
 
     /* --- Surfaces --- */
     --mainWindow-background: var(--color-bg); /* @theme */
-    --mainWindow-color: var(--color-1); /* @theme */
-    --surface-light: color-mix(in srgb, var(--color-7) 60%, var(--color-bg)); /* @theme */
+    --mainWindow-color: var(--gray-900); /* @theme */
+    --surface-light: color-mix(in srgb, var(--gray-100) 60%, var(--color-bg)); /* @theme */
     --surface-bg: var(--color-bg); /* @theme */
-    --surface-dark: var(--color-2); /* @theme */
+    --surface-dark: var(--gray-800); /* @theme */
     --surface-dark-color: var(--text-on-dark); /* @theme */
-    --card-surface: var(--color-7); /* @theme */
+    --card-surface: var(--gray-100); /* @theme */
     --roundedgroup-surface: var(--card-surface);
 
     /* --- Borders --- */
-    --border-color: var(--color-5); /* @theme */
-    --border-light: color-mix(in srgb, var(--color-6) 50%, var(--color-bg)); /* @theme */
-    --border-strong: var(--color-5); /* @theme */
+    --border-color: var(--gray-300); /* @theme */
+    --border-light: color-mix(in srgb, var(--gray-200) 50%, var(--color-bg)); /* @theme */
+    --border-strong: var(--gray-300); /* @theme */
 
     /* --- Text --- */
-    --text-color: var(--color-1); /* @theme */
-    --text-muted: color-mix(in srgb, var(--color-1) 78%, var(--color-bg)); /* @theme */
-    --text-secondary: color-mix(in srgb, var(--color-1) 55%, var(--color-bg)); /* @theme */
-    --text-placeholder: color-mix(in srgb, var(--color-1) 35%, var(--color-bg)); /* @theme */
+    --text-color: var(--gray-900); /* @theme */
+    --text-muted: color-mix(in srgb, var(--gray-900) 78%, var(--color-bg)); /* @theme */
+    --text-secondary: color-mix(in srgb, var(--gray-900) 55%, var(--color-bg)); /* @theme */
+    --text-placeholder: color-mix(in srgb, var(--gray-900) 35%, var(--color-bg)); /* @theme */
     --danger-color: var(--color-error); /* @theme */
 
     /* --- Shadows --- */
@@ -77,13 +79,11 @@
     --shadow-menu: 0 4px 16px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08);
 
     /* --- Border radius --- */
-    --radius-controls:   4px;    /* @theme @palette inputs, grid cells, small interactive elements */
-    --radius-buttons:    10px;    /* @theme @palette buttons, multibuttons, frameindex action buttons */
-    --radius-tabs:       4px;    /* @theme @palette tab rounding */
-    --radius-panels:     8px;    /* @theme @palette dialogs, menus, tooltips, dropdowns, medium containers */
-    --radius-containers: 12px;   /* @theme @palette layout sections, cards, search boxes, large wrappers */
-    --radius-pill:       9999px; /* @theme @palette pill shapes: tags, badges, semaphores, mobile bars */
-    --radius-full:       50%;    /* @theme @palette circles: status indicators */
+    --radius-sm:   4px;    /* @theme @palette inputs, grid cells, buttons, small interactive elements */
+    --radius-md:   8px;    /* @theme @palette dialogs, menus, tooltips, dropdowns, medium containers */
+    --radius-lg:   12px;   /* @theme @palette layout sections, cards, search boxes, large wrappers */
+    --radius-pill: 9999px; /* @theme @palette pill shapes: tags, badges, semaphores, mobile bars */
+    --radius-full: 50%;    /* @theme @palette circles: status indicators */
 
     /* --- Z-index scale --- */
     --z-local:      10;
@@ -97,7 +97,7 @@
     /* === Components === */
 
     /* --- Grid --- */
-    --grid-border-color: color-mix(in srgb, var(--color-6) 60%, var(--color-bg)); /* @theme */
+    --grid-border-color: color-mix(in srgb, var(--gray-200) 60%, var(--color-bg)); /* @theme */
     --grid-header-bg: var(--surface-light); /* @theme */
     --grid-header-color: var(--text-color); /* @theme */
     --grid-row-bg: rgba(255,255,255,.5); /* @theme */
@@ -110,16 +110,16 @@
     --grid-cell-hover-bg-disabled: #FFE7DD;
     --grid-cell-changed-bg: color-mix(in srgb, var(--color-success) 30%, var(--color-bg));
     --grid-cell-copy-bg: rgba(241, 145, 53, 0.50);
-    --grid-cell-focus-border: var(--color-5);
-    --grid-cell-over-border: color-mix(in srgb, var(--color-5) 80%, var(--color-bg));
-    --grid-draft-color: color-mix(in srgb, var(--color-3) 55%, var(--color-4));
-    --grid-lineno-color: color-mix(in srgb, var(--color-3) 55%, var(--color-4));
-    --grid-paste-bg: color-mix(in srgb, var(--color-3) 5%, transparent);
-    --grid-reporting-header-bg: color-mix(in srgb, var(--color-2) 85%, black);
+    --grid-cell-focus-border: var(--gray-300);
+    --grid-cell-over-border: color-mix(in srgb, var(--gray-300) 80%, var(--color-bg));
+    --grid-draft-color: color-mix(in srgb, var(--gray-600) 55%, var(--accent-500));
+    --grid-lineno-color: color-mix(in srgb, var(--gray-600) 55%, var(--accent-500));
+    --grid-paste-bg: color-mix(in srgb, var(--gray-600) 5%, transparent);
+    --grid-reporting-header-bg: color-mix(in srgb, var(--gray-800) 85%, black);
     --grid-reporting-header-color: var(--text-on-dark);
     --grid-footer-item-bg: rgba(255, 227, 60, .2);
     --grid-footer-filter-bg: rgba(221, 150, 90, 0.20);
-    --grid-btn-bg: var(--color-6);
+    --grid-btn-bg: var(--gray-200);
     --grid-btn-selected-bg: var(--text-secondary);
     --grid-btn-selected-shadow: inset 1px 1px 2px #222;
 
@@ -130,10 +130,10 @@
     --drop-header-invalid-bg: color-mix(in srgb, var(--color-error) 40%, var(--color-bg));
 
     /* --- TreeGrid --- */
-    --treegrid-header-bg: color-mix(in srgb, var(--color-2) 90%, black);
+    --treegrid-header-bg: color-mix(in srgb, var(--gray-800) 90%, black);
     --treegrid-header-color: var(--text-on-dark);
     --treegrid-footer-bg: #F8CF00;
-    --treegrid-footer-color: var(--color-2);
+    --treegrid-footer-color: var(--gray-800);
     --treegrid-groupby-folder-bg: rgba(255, 253, 123, 0.20);
     --treegrid-groupby-level-color: color-mix(in srgb, var(--color-success) 60%, black);
     --treegrid-open-pages-bg: color-mix(in srgb, var(--color-success) 50%, var(--color-bg));
@@ -143,71 +143,71 @@
     --toolbar-height-lg: 2em;
     --toolbar-min-height: 2.3em;
     --toolbar-min-height-lg: 2.8em;
-    --toolbar-bg: var(--color-6); /* @theme */
+    --toolbar-bg: var(--gray-200); /* @theme */
     --toolbar-gradient: linear-gradient(to bottom,
-        color-mix(in srgb, var(--color-6) 70%, var(--color-bg)),
-        var(--color-6)); /* @theme */
-    --toolbar-color: var(--color-1); /* @theme */
-    --toolbar-dark-bg: var(--color-3); /* @theme */
+        color-mix(in srgb, var(--gray-200) 70%, var(--color-bg)),
+        var(--gray-200)); /* @theme */
+    --toolbar-color: var(--gray-900); /* @theme */
+    --toolbar-dark-bg: var(--gray-600); /* @theme */
 
     /* --- Layout: frameindex --- */
-    --frameindexroot-background: var(--color-7); /* @theme */
-    --frameindexcenter-background: var(--color-7); /* @theme */
-    --frameindexroot-mobile-background: var(--color-2); /* @theme */
-    --frameindex-tablist-background: var(--color-2); /* @theme */
+    --frameindexroot-background: var(--gray-100); /* @theme */
+    --frameindexcenter-background: var(--gray-100); /* @theme */
+    --frameindexroot-mobile-background: var(--gray-800); /* @theme */
+    --frameindex-tablist-background: var(--gray-800); /* @theme */
     --frameindex-tablist-color: var(--text-on-dark); /* @theme */
-    --frameindex-tab-bg: color-mix(in srgb, var(--color-5) 40%, var(--color-bg)); /* @theme */
-    --frameindex-tab-bg-hover: color-mix(in srgb, var(--color-5) 20%, var(--color-bg)); /* @theme */
-    --frameindex-tab-border: var(--color-5); /* @theme */
-    --frameindex-subtab-bg: color-mix(in srgb, var(--color-2) 60%, var(--color-3)); /* @theme */
-    --frameindex-subtab-selected-bg: color-mix(in srgb, var(--color-3) 55%, var(--color-bg)); /* @theme */
-    --frameindex-closer-hover-bg: color-mix(in srgb, var(--color-2) 65%, var(--color-3)); /* @theme */
-    --root-top-background: var(--color-3); /* @theme */
+    --frameindex-tab-bg: color-mix(in srgb, var(--gray-300) 40%, var(--color-bg)); /* @theme */
+    --frameindex-tab-bg-hover: color-mix(in srgb, var(--gray-300) 20%, var(--color-bg)); /* @theme */
+    --frameindex-tab-border: var(--gray-300); /* @theme */
+    --frameindex-subtab-bg: color-mix(in srgb, var(--gray-800) 60%, var(--gray-600)); /* @theme */
+    --frameindex-subtab-selected-bg: color-mix(in srgb, var(--gray-600) 55%, var(--color-bg)); /* @theme */
+    --frameindex-closer-hover-bg: color-mix(in srgb, var(--gray-800) 65%, var(--gray-600)); /* @theme */
+    --root-top-background: var(--gray-600); /* @theme */
     --root-top-color: var(--text-on-dark); /* @theme */
 
     /* --- Dialogs --- */
-    --dialogtitlebar-background: var(--color-3); /* @theme */
+    --dialogtitlebar-background: var(--gray-600); /* @theme */
     --dialogtitlebar-color: var(--text-on-dark); /* @theme */
     --dlg-bg: var(--surface-light); /* @theme */
     --dlg-pane-bg: var(--color-bg); /* @theme */
-    --dlg-border-color: color-mix(in srgb, var(--color-5) 70%, var(--color-bg)); /* @theme */
+    --dlg-border-color: color-mix(in srgb, var(--gray-300) 70%, var(--color-bg)); /* @theme */
 
     /* --- Tabs --- */
-    --tab-background: var(--color-7); /* @theme */
-    --tab-text-color: var(--color-1); /* @theme */
+    --tab-background: var(--gray-100); /* @theme */
+    --tab-text-color: var(--gray-900); /* @theme */
     --tab-selected-background: var(--color-bg); /* @theme */
     --tab-selected-color: var(--border-color); /* @theme */
     --tab-vertical-max-width: 12em;
     --tab-vertical-height: 2em;
 
     /* --- Rounded groups --- */
-    --roundedgroup-bar: var(--color-6); /* @theme */
-    --roundedgroup-bar-color: var(--color-1); /* @theme */
-    --roundedgroup-border: color-mix(in srgb, var(--color-6) 70%, var(--color-bg)); /* @theme */
+    --roundedgroup-bar: var(--gray-200); /* @theme */
+    --roundedgroup-bar-color: var(--gray-900); /* @theme */
+    --roundedgroup-border: color-mix(in srgb, var(--gray-200) 70%, var(--color-bg)); /* @theme */
     --roundedgroup-shadow: rgba(0,0,0,0.06); /* @theme */
-    --rectgroup-bar-background: var(--color-6); /* @theme */
+    --rectgroup-bar-background: var(--gray-200); /* @theme */
 
     /* === Forms === */
 
     /* --- Form fields --- */
     --field-bg: var(--color-bg); /* @theme */
-    --field-border: var(--color-5); /* @theme */
-    --field-error-border: color-mix(in srgb, var(--color-error) 45%, var(--color-5));
+    --field-border: var(--gray-300); /* @theme */
+    --field-error-border: color-mix(in srgb, var(--color-error) 45%, var(--gray-300));
     --field-error-dot-size: 8px; /* @theme */
     --field-error-dot-color: var(--color-error); /* @theme */
     --field-error-dot-ring: var(--surface-color, white); /* @theme */
-    --field-disabled-border: color-mix(in srgb, var(--color-5) 60%, var(--color-bg));
-    --field-disabled-bg: var(--color-7);
+    --field-disabled-border: color-mix(in srgb, var(--gray-300) 60%, var(--color-bg));
+    --field-disabled-bg: var(--gray-100);
     --field-readonly-border: var(--field-border);
     --field-readonly-bg: var(--field-bg);
     --field-focus-bg: var(--color-bg);
-    --gnrfieldlabel-color: color-mix(in srgb, var(--color-5) 90%, var(--color-1)); /* @theme */
+    --gnrfieldlabel-color: color-mix(in srgb, var(--gray-300) 90%, var(--gray-900)); /* @theme */
 
     /* --- Form-context field defaults (shared by formbuilder & formlet) --- */
     --form-field-border: var(--field-border);
     --form-field-bg: var(--field-bg);
     --form-field-border-width: 1px;
-    --form-field-radius: var(--radius-controls);
+    --form-field-radius: var(--radius-sm);
     --form-label-font-size: .9em;
     --form-draft-label: 'DRAFT';
     --form-draft-background: var(--status-warning, #ff9800);
@@ -248,7 +248,7 @@
 
     /* --- topLabelTable --- */
     --topLabelTable-border-top: none;
-    --topLabelTable-separator: color-mix(in srgb, var(--color-5) 70%, var(--color-bg));
+    --topLabelTable-separator: color-mix(in srgb, var(--gray-300) 70%, var(--color-bg));
 
     /* === Status & Feedback === */
 
@@ -256,7 +256,7 @@
     --status-ok: var(--color-success); /* @theme */
     --status-error: var(--color-error); /* @theme */
     --status-warning: var(--color-warning); /* @theme */
-    --status-idle: var(--color-5); /* @theme */
+    --status-idle: var(--gray-300); /* @theme */
 
     /* --- Toaster --- */
     --toaster-success-bg: color-mix(in srgb, var(--color-success) 80%, var(--color-bg)); /* @theme */
@@ -264,8 +264,8 @@
     --toaster-warning-bg: color-mix(in srgb, var(--color-warning) 85%, var(--color-bg)); /* @theme */
 
     /* --- Accordion --- */
-    --accordion-title-bg: color-mix(in srgb, var(--color-6) 60%, var(--color-7)); /* @theme */
-    --accordion-selected-bg: var(--color-3); /* @theme */
+    --accordion-title-bg: color-mix(in srgb, var(--gray-200) 60%, var(--gray-100)); /* @theme */
+    --accordion-selected-bg: var(--gray-600); /* @theme */
 
     /* --- Menu --- */
     --menu-text-color: var(--text-color); /* @theme */
@@ -283,7 +283,7 @@
     --menutree-mobile-branch-selected-color: var(--frameindex-tablist-color);
 
     /* --- FieldsTree (relation explorer) --- */
-    --fieldsTree-rm-color: color-mix(in srgb, var(--color-2) 80%, black);
+    --fieldsTree-rm-color: color-mix(in srgb, var(--gray-800) 80%, black);
     --fieldsTree-ro-color: color-mix(in srgb, var(--color-success) 70%, black);
 
     /* === Buttons === */
@@ -419,16 +419,4 @@
     --icon-grip-h: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 8'%3E%3Ccircle cx='4' cy='4' r='2.5'/%3E%3Ccircle cx='12' cy='4' r='2.5'/%3E%3Ccircle cx='20' cy='4' r='2.5'/%3E%3C/svg%3E");
     --icon-grip-v: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 24'%3E%3Ccircle cx='4' cy='4' r='2.5'/%3E%3Ccircle cx='4' cy='12' r='2.5'/%3E%3Ccircle cx='4' cy='20' r='2.5'/%3E%3C/svg%3E");
 
-    /* === Backward compatibility — deprecated, remove in next major === */
-    --palette-neutral: var(--color-2);
-    --palette-brand: var(--color-3);
-    --palette-accent: var(--color-4);
-    --palette-surface: var(--color-7);
-    --palette-border: var(--color-5);
-    --palette-white: var(--color-bg);
-    --palette-chrome: var(--color-3);
-    --palette-chrome-color: var(--text-on-dark);
-    --palette-error: var(--color-error);
-    --palette-success: var(--color-success);
-    --palette-warning: var(--color-warning);
 }

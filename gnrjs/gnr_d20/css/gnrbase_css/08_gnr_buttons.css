@@ -44,7 +44,7 @@
     background-image: none;
     background-color: var(--btn-tonal-bg);
     border: none;
-    border-radius: var(--radius-buttons);
+    border-radius: var(--radius-md);
     cursor:pointer;
     color: var(--btn-tonal-color);
 }

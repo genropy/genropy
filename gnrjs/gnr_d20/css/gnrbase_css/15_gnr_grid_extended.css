@@ -67,7 +67,7 @@
     color: var(--text-color);
     margin-top: 2px;
     border-color: var(--border-light);
-    border-radius: var(--radius-controls);
+    border-radius: var(--radius-sm);
     box-shadow: 1px 1px 1px var(--text-secondary) inset;
 }
 
@@ -229,8 +229,8 @@
 }
 
 .gr_columnset .groupcontent{
-    border-top-left-radius: var(--radius-panels);
-    border-top-right-radius: var(--radius-panels);
+    border-top-left-radius: var(--radius-md);
+    border-top-right-radius: var(--radius-md);
     background: var(--grid-reporting-header-bg);
     color: var(--grid-reporting-header-color);
     padding-bottom: 1px;
@@ -325,7 +325,7 @@
 }
 
 .buttons_grid .cellContent{
-    border-radius: var(--radius-controls);
+    border-radius: var(--radius-sm);
     margin-top:0;
     margin-right:0px;
     text-align:center;
@@ -348,7 +348,7 @@
 }
 
 .grouper_buttons.buttons_grid .cellContent{
-    border-radius: var(--radius-panels);
+    border-radius: var(--radius-md);
     margin-top:0;
     margin-right:0px;
     text-align:center;

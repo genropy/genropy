@@ -4,20 +4,20 @@
    or leave empty to disable user color choice.
 */
 
-/* Color variants — numbered palette + semantic overrides:
-   Each variant sets --color-1..7 palette AND explicit semantic vars.
+/* Color variants — gray scale + accent overrides:
+   Each variant sets --gray-N / --accent-500 palette AND explicit semantic vars.
    This ensures both derived and directly-referenced vars are correct.
 */
 
 /* Green - forest emerald */
 .color_variant_green {
-    --color-1: #1B3A2C;
-    --color-2: #1B5E43;
-    --color-3: #2E7D5B;
-    --color-4: #2E7D5B;
-    --color-5: #B8D8CA;
-    --color-6: #D0DED6;
-    --color-7: #EDF5F1;
+    --gray-900: #1B3A2C;
+    --gray-800: #1B5E43;
+    --gray-600: #2E7D5B;
+    --accent-500: #2E7D5B;
+    --gray-300: #B8D8CA;
+    --gray-200: #D0DED6;
+    --gray-100: #EDF5F1;
 
     --primary-color: #2E7D5B;
     --primary-dark: #1B5E43;
@@ -38,13 +38,13 @@
 
 /* Blue - deep ocean */
 .color_variant_blue {
-    --color-1: #1A2840;
-    --color-2: #1C4678;
-    --color-3: #2962A8;
-    --color-4: #0071E3;
-    --color-5: #B8CCE4;
-    --color-6: #CDD6E4;
-    --color-7: #ECF1F9;
+    --gray-900: #1A2840;
+    --gray-800: #1C4678;
+    --gray-600: #2962A8;
+    --accent-500: #0071E3;
+    --gray-300: #B8CCE4;
+    --gray-200: #CDD6E4;
+    --gray-100: #ECF1F9;
 
     --primary-color: #2962A8;
     --primary-dark: #1C4678;
@@ -65,11 +65,11 @@
 
 /* Red - cherry lipstick / fuchsia fashion */
 .color_variant_red {
-    --color-2: #880E4F;
-    --color-3: #C2185B;
-    --color-4: #C2185B;
-    --color-5: #D8B8C8;
-    --color-7: #F8F0F4;
+    --gray-800: #880E4F;
+    --gray-600: #C2185B;
+    --accent-500: #C2185B;
+    --gray-300: #D8B8C8;
+    --gray-100: #F8F0F4;
 
     --primary-color: #6B6E72;
     --primary-dark: #48494C;
@@ -90,13 +90,13 @@
 
 /* Orange - Apple Watch Ultra / plum + international orange */
 .color_variant_orange {
-    --color-1: #3A1830;
-    --color-2: #4A2040;
-    --color-3: #FF6C00;
-    --color-4: #FF5722;
-    --color-5: #D8C0D0;
-    --color-6: #E0D8DE;
-    --color-7: #F6F0F4;
+    --gray-900: #3A1830;
+    --gray-800: #4A2040;
+    --gray-600: #FF6C00;
+    --accent-500: #FF5722;
+    --gray-300: #D8C0D0;
+    --gray-200: #E0D8DE;
+    --gray-100: #F6F0F4;
 
     --primary-color: #4A2040;
     --primary-dark: #3A1830;
@@ -117,10 +117,10 @@
 
 /* Yellow - gold on dark titanium */
 .color_variant_yellow {
-    --color-3: #FFD100;
-    --color-5: #FFE566;
-    --color-6: #FFF0B8;
-    --color-7: #FFF8D6;
+    --gray-600: #FFD100;
+    --gray-300: #FFE566;
+    --gray-200: #FFF0B8;
+    --gray-100: #FFF8D6;
 
     --primary-color: #3C3D40;
     --primary-dark: #3C3D40;

@@ -7,8 +7,8 @@
 /* --- Accordion container --- */
 .gnr_dojotheme .dijitAccordionContainer {
     border: 1px solid var(--border-color, gray);
-    border-top-left-radius: var(--radius-panels, 8px);
-    border-top-right-radius: var(--radius-panels, 8px);
+    border-top-left-radius: var(--radius-md);
+    border-top-right-radius: var(--radius-md);
 }
 
 /* --- Accordion pane --- */
@@ -20,8 +20,8 @@
 .gnr_dojotheme .dijitAccordionTitle {
     background: var(--accordion-title-bg, #E0CEBE);
     padding: 4px 4px 4px 8px;
-    border-top-left-radius: var(--radius-panels, 8px);
-    border-top-right-radius: var(--radius-panels, 8px);
+    border-top-left-radius: var(--radius-md);
+    border-top-right-radius: var(--radius-md);
     font-size: 0.9em;
     cursor: pointer;
 }

@@ -332,7 +332,7 @@
 
 .menupane {
     background-color: var(--surface-bg);
-    border-radius: var(--radius-panels);
+    border-radius: var(--radius-md);
     box-shadow: 0 4px 16px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08);
     border: 1px solid var(--border-color);
     padding: 0;
@@ -358,7 +358,7 @@
 /* Tree node hover & selection inside menupane */
 .menupane .dijitTreeContent:hover {
     background-color: var(--menu-item-hover-bg, rgba(0,0,0,0.10));
-    border-radius: var(--radius-controls);
+    border-radius: var(--radius-sm);
 }
 
 .menupane .selectedFieldTreeNode,
@@ -405,7 +405,7 @@
     margin: 10px;
 }
 .mode_mobile .menutree .menu_shape {
-    border-radius: var(--radius-controls);
+    border-radius: var(--radius-sm);
     margin-left: 0px;
     font-size: 16px;
     padding-left: 12px;

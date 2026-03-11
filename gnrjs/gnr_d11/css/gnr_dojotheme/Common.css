@@ -34,7 +34,7 @@
     background-color: var(--surface-bg, #fff);
     font-size: 75%;
     color: var(--text-color, #444);
-    border-radius: var(--radius-controls, 4px);
+    border-radius: var(--radius-sm);
 }
 
 .gnr_dojotheme .dojoDndAvatar td {

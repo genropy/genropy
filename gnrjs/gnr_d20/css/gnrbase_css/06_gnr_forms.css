@@ -27,7 +27,7 @@
 	background: var(--formbuilder-field-bg, var(--field-bg, white));
     border: 1px solid var(--formbuilder-field-border, var(--field-border, #B3B3B3));
     line-height: normal;
-    border-radius: var(--radius-controls);
+    border-radius: var(--radius-sm);
     position: relative;
     padding-left: var(--fakebox-padding-x);
     padding-top: var(--fakebox-padding-top);
@@ -41,7 +41,7 @@
 	background: var(--formbuilder-field-bg, var(--field-bg, white));
     border: 1px solid var(--formbuilder-field-border, var(--field-border, #B3B3B3));
     line-height: normal;
-    border-radius: var(--radius-controls);
+    border-radius: var(--radius-sm);
     position: relative;
     padding-right: var(--fakebox-padding-x);
     padding-top: var(--fakebox-padding-top);
@@ -100,8 +100,8 @@ label.ghostlabel span {
 
 /* @group Plugin */
 .plugin_block {
-    border-bottom-left-radius: var(--radius-controls);
-    border-bottom-right-radius: var(--radius-controls);
+    border-bottom-left-radius: var(--radius-sm);
+    border-bottom-right-radius: var(--radius-sm);
     width: 27px;
     height: 20px;
     cursor: pointer;
@@ -195,7 +195,7 @@ label.ghostlabel span {
     height: 6px;
     width: 6px;
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-controls);
+    border-radius: var(--radius-sm);
     cursor: pointer;
 }
 .fieldkeeper div {
@@ -245,7 +245,7 @@ label.ghostlabel span {
     padding: 5px;
     background-color: var(--surface-light);
     box-shadow: rgb(158, 133, 111) 2px 2px 2px;
-    border-radius: var(--radius-controls);
+    border-radius: var(--radius-sm);
 }
 
 .pbl_rectGroup {

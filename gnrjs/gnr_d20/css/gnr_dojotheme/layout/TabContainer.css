@@ -9,7 +9,7 @@
 .gnr_dojotheme .dijitTab {
     font-size: 0.85em;
     line-height: normal;
-    border-radius: var(--radius-tabs, 4px) var(--radius-tabs, 4px) 0 0;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
     background: var(--primary-color, #1E3055);
     color: rgba(255,255,255,0.75);
     border: none;
@@ -49,7 +49,7 @@
     font-weight: 600;
     border: 1px solid var(--border-strong, #aab4c4);
     border-bottom: none;
-    border-radius: var(--radius-tabs, 4px) var(--radius-tabs, 4px) 0 0;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
     box-shadow: none;
 }
 
@@ -60,7 +60,7 @@
     font-weight: 600;
     border: 1px solid var(--border-strong, #aab4c4);
     border-bottom: none;
-    border-radius: var(--radius-tabs, 4px) var(--radius-tabs, 4px) 0 0;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
     box-shadow: none;
 }
 
@@ -69,13 +69,13 @@
     background: var(--card-surface, #F2F2F7);
     color: var(--primary-color, #1E3055);
     border-top: none;
-    border-radius: 0 0 var(--radius-tabs, 4px) var(--radius-tabs, 4px);
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
 }
 
 /* --- Tab pane wrapper --- */
 .gnr_dojotheme .dijitTabPaneWrapper {
     border: 1px solid var(--border-strong, #aab4c4);
-    border-radius: 0 0 var(--radius-tabs, 4px) var(--radius-tabs, 4px);
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
     background: var(--card-surface, #F2F2F7);
 }
 
@@ -95,7 +95,7 @@
 .gnr_dojotheme .dijitTabLabels-right-h .dijitTab,
 .gnr_dojotheme .dijitTabLabels-left-h .dijitTab {
     border: none;
-    border-radius: var(--radius-controls, 4px) 0 0 var(--radius-controls, 4px);
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
     margin: 1px 0;
     padding: 0;
     width: var(--tab-vertical-max-width, 12em);
@@ -112,7 +112,7 @@
 .gnr_dojotheme .dijitTabLabels-right-h .dijitTab {
     border-right: none;
     border-left: 2px solid transparent;
-    border-radius: 0 var(--radius-controls, 4px) var(--radius-controls, 4px) 0;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
 /* Tab label */

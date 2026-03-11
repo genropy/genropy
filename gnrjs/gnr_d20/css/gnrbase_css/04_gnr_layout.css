@@ -14,8 +14,8 @@
     opacity: 1;
 }
 .openerButton_left{
-    border-top-right-radius: var(--radius-controls);
-    border-bottom-right-radius: var(--radius-controls);
+    border-top-right-radius: var(--radius-sm);
+    border-bottom-right-radius: var(--radius-sm);
     position: absolute;
     top: 50%;
     margin-top: -20px;
@@ -61,8 +61,8 @@
 }
 
 .slotbarOpener_top{
-	border-bottom-right-radius: var(--radius-controls);
-	border-bottom-left-radius: var(--radius-controls);
+	border-bottom-right-radius: var(--radius-sm);
+	border-bottom-left-radius: var(--radius-sm);
 	bottom: -9px;
 	border-top: 0;
 	left: 50%;
@@ -71,8 +71,8 @@
 	width: 40px;
 }
 .slotbarOpener_bottom{
-	border-top-right-radius: var(--radius-controls);
-	border-top-left-radius: var(--radius-controls);
+	border-top-right-radius: var(--radius-sm);
+	border-top-left-radius: var(--radius-sm);
 	top: -9px;
 	left: 50%;
 	margin-left: -20px;
@@ -82,8 +82,8 @@
 
 }
 .slotbarOpener_left{
-	border-top-right-radius: var(--radius-controls);
-	border-bottom-right-radius: var(--radius-controls);
+	border-top-right-radius: var(--radius-sm);
+	border-bottom-right-radius: var(--radius-sm);
 	right: -9px;
 	top: 50%;
 	margin-top: -20px;
@@ -93,8 +93,8 @@
 }
 
 .slotbarOpener_right{
-	border-top-left-radius: var(--radius-controls);
-	border-bottom-left-radius: var(--radius-controls);
+	border-top-left-radius: var(--radius-sm);
+	border-bottom-left-radius: var(--radius-sm);
 	left: -9px;
 	top: 50%;
 	margin-top: -20px;
@@ -104,7 +104,7 @@
 }
 
 .slotCaption {
-    border-radius: var(--radius-containers);
+    border-radius: var(--radius-lg);
     background:var(--text-muted);
     border:1px solid gray;
     padding-left:1em;
@@ -287,7 +287,7 @@
 
 /* --- PBL elements (from theme_shared) --- */
 .pbl_username {
-    border-radius: var(--radius-buttons);
+    border-radius: var(--radius-sm);
     background-color: #bfb6ae;
     color: #403b3b;
     font-size: 0.9em;
@@ -327,15 +327,15 @@
 
 .pbl_viewBox {
     padding: 5px;
-    border-bottom-left-radius: var(--radius-controls);
-    border-bottom-right-radius: var(--radius-controls);
+    border-bottom-left-radius: var(--radius-sm);
+    border-bottom-right-radius: var(--radius-sm);
     background-color: rgba(170, 190, 201, 0.2);
 }
 
 .pbl_viewBoxLabel {
     height: var(--toolbar-height);
-    border-top-left-radius: var(--radius-controls);
-    border-top-right-radius: var(--radius-controls);
+    border-top-left-radius: var(--radius-sm);
+    border-top-right-radius: var(--radius-sm);
     padding-left: 10px;
     font-size: 0.9em;
     padding-top: 3px;

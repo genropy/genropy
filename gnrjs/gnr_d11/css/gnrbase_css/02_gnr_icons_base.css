@@ -29,7 +29,7 @@
 }
 
 .buttonInGrid{
-    border-radius: var(--radius-controls);
+    border-radius: var(--radius-sm);
     margin:1px;
     display:inline-block;
     font-size:1.1em;
@@ -187,7 +187,7 @@
 .formulaColumnTreeNode {
     background-color: #d1ffeb;
     font-style: italic;
-    border-radius: var(--radius-controls);
+    border-radius: var(--radius-sm);
 }
 
 /* @group Dtype */
@@ -558,7 +558,7 @@ div.dojoxDock {
     padding:2px;
     padding-left: 5px;
     padding-right: 5px;
-    border-radius: var(--radius-controls);
+    border-radius: var(--radius-sm);
     border: 1px solid var(--formbuilder-plaintext-border);
     margin-bottom: 10px;
 }

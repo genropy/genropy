@@ -20,7 +20,7 @@
     background: var(--formbuilder-field-bg, var(--field-bg, #fff));
     background-image: none;
     border: var(--formbuilder-field-border-width, 1px) solid var(--formbuilder-field-border, var(--field-border, #AEAEB2));
-    border-radius: var(--formbuilder-field-radius, var(--radius-controls, 4px));
+    border-radius: var(--formbuilder-field-radius, var(--radius-sm));
     line-height: normal;
     position: relative;
     padding-left: 3px;
@@ -150,7 +150,7 @@
     top: calc(100% + 4px);
     max-width: 280px;
     padding: 5px 9px;
-    border-radius: var(--radius-controls, 4px);
+    border-radius: var(--radius-sm);
     background: var(--field-error-tooltip-bg, color-mix(in srgb, var(--status-error, #E53935) 12%, var(--surface-color, white)));
     color: var(--field-error-tooltip-color, var(--status-error, #E53935));
     border: 1px solid color-mix(in srgb, var(--status-error, #E53935) 30%, transparent);

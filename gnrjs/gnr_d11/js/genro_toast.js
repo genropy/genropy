@@ -51,7 +51,7 @@ dojo.declare("gnr.GnrToast", null, {
             '.gnr-toast {',
             '  display: flex; align-items: flex-start; gap: 10px;',
             '  min-width: 300px; max-width: 420px;',
-            '  padding: 14px 16px; border-radius: var(--radius-controls, 8px);',
+            '  padding: 14px 16px; border-radius: var(--radius-sm);',
             '  background: var(--surface-color, white); position: relative; overflow: hidden;',
             '  box-shadow: var(--shadow-dialog, 0 4px 24px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.10));',
             '  pointer-events: auto; cursor: pointer;',

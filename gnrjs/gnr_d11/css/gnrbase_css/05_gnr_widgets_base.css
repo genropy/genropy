@@ -74,7 +74,7 @@
     padding: 2px;
     background: var(--surface-bg);
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-panels);
+    border-radius: var(--radius-md);
 }
 .index_loginbox{
     font-size:1em;
@@ -150,7 +150,7 @@
 /* quickthermo*/
 .quickthermo_box{
     background: var(--surface-bg);
-    border-radius: var(--radius-controls);
+    border-radius: var(--radius-sm);
     border-left: 1px solid var(--border-light);
     box-shadow: 2px 2px 3px var(--text-muted);
     min-width: 360px;
@@ -167,8 +167,8 @@
     text-align: center;
     background: var(--text-muted);
     color: var(--surface-bg);
-    border-top-right-radius: var(--radius-controls);
-    border-top-left-radius: var(--radius-controls);
+    border-top-right-radius: var(--radius-sm);
+    border-top-left-radius: var(--radius-sm);
 }
 
 .quickthermo_caption{
@@ -238,7 +238,7 @@
     position: absolute;
     top: 4px;
     left: 4px;
-    border-radius: var(--radius-controls);
+    border-radius: var(--radius-sm);
 }
 
 .dojoxScrollWrapper {
@@ -281,8 +281,8 @@ textarea:disabled {
 .countBoxPartial {
     border: 1px solid var(--border-strong);
     border-right: 0px;
-    border-top-left-radius: var(--radius-containers);
-    border-bottom-left-radius: var(--radius-containers);
+    border-top-left-radius: var(--radius-lg);
+    border-bottom-left-radius: var(--radius-lg);
     text-align: right;
     padding-right: 3px;
     padding-left: 5px;
@@ -295,8 +295,8 @@ textarea:disabled {
 }
 .countBoxTotal {
     border: 1px solid var(--border-strong);
-    border-top-right-radius: var(--radius-containers);
-    border-bottom-right-radius: var(--radius-containers);
+    border-top-right-radius: var(--radius-lg);
+    border-bottom-right-radius: var(--radius-lg);
     text-align: left;
     padding-left: 4px;
     padding-right: 5px;
@@ -304,14 +304,14 @@ textarea:disabled {
     color: #9C9474;
 }
 .unfilteredCount .countBoxTotal {
-    border-top-left-radius: var(--radius-containers);
-    border-bottom-left-radius: var(--radius-containers);
+    border-top-left-radius: var(--radius-lg);
+    border-bottom-left-radius: var(--radius-lg);
     text-align: center;
     padding-right: 5px;
 }
 
 .countBoxErrors{
-    border-radius: var(--radius-containers);
+    border-radius: var(--radius-lg);
     border: 1px solid var(--border-strong);
     background: var(--color-error);
     color: var(--text-on-dark);
@@ -322,7 +322,7 @@ textarea:disabled {
 }
 
 .searchInputBox {
-    border-radius: var(--radius-containers);
+    border-radius: var(--radius-lg);
     padding-left: 0.4em;
     padding-right: 1.6em;
     border: 1px solid var(--border-strong);
@@ -357,7 +357,7 @@ textarea:disabled {
 }
 
 .searchInput {
-    border-radius: var(--radius-containers);
+    border-radius: var(--radius-lg);
     padding-left: 0.4em;
     padding-right: 1.6em;
     border: 1px solid var(--border-color);
@@ -394,7 +394,7 @@ textarea:disabled {
 }
 
 ._common_d11 .dojoxDockNode {
-    border-radius: var(--radius-controls);
+    border-radius: var(--radius-sm);
     border: 1px solid var(--border-color);
     cursor: pointer;
     float: left;
@@ -408,7 +408,7 @@ textarea:disabled {
 }
 
 ._common_d11 .dojoxFloatingPane {
-    border-radius: var(--radius-controls);
+    border-radius: var(--radius-sm);
     box-shadow: var(--shadow-lg);
     border-color: var(--border-color);
 }
@@ -418,8 +418,8 @@ textarea:disabled {
     align-items: center;
     background: var(--dialogtitlebar-background);
     color: var(--dialogtitlebar-color, #f6f6f6);
-    border-top-left-radius: calc(var(--radius-controls) - 1px);
-    border-top-right-radius: calc(var(--radius-controls) - 1px);
+    border-top-left-radius: calc(var(--radius-sm) - 1px);
+    border-top-right-radius: calc(var(--radius-sm) - 1px);
     padding: 0.3em 0.4em;
     border: 0;
 }

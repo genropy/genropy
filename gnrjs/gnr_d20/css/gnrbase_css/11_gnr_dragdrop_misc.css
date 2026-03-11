@@ -34,7 +34,7 @@ img.cannotBeDropped {
 .rowsetdragging {
     /*font-size: 0.8em;*/
     border:1px solid var(--border-color);
-    border-radius: var(--radius-panels);
+    border-radius: var(--radius-md);
     box-shadow: var(--shadow-lg);
     background-color:var(--surface-bg);
     padding:5px;
@@ -164,7 +164,7 @@ table.draggedItem {
 
 .index_file {
     background-color: #ff866a;
-    border-radius: var(--radius-panels);
+    border-radius: var(--radius-md);
     border: 1px solid #c36652;
 }
 
@@ -223,7 +223,7 @@ table.draggedItem {
     left: 3.5%;
     top: 0px;
     height: 50%;
-    border-radius: var(--radius-panels);
+    border-radius: var(--radius-md);
     background-color: rgba(255, 255, 255, 0.25);
     background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0));
 }
@@ -369,15 +369,15 @@ p {
 }
 
 .rounded_min {
-    border-radius: var(--radius-panels);
+    border-radius: var(--radius-md);
 }
 
 .rounded_medium {
-    border-radius: var(--radius-panels);
+    border-radius: var(--radius-md);
 }
 
 .rounded_max {
-    border-radius: var(--radius-containers);
+    border-radius: var(--radius-lg);
 }
 
 /* @end */
