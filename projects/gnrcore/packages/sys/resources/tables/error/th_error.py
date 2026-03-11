@@ -15,6 +15,8 @@ class View(BaseComponent):
     def th_struct(self,struct):
         r = struct.view().rows()
         r.fieldcell('error_code')
+        r.fieldcell('detail_url', name='Detail', width='5em',
+                    format_anchor=True, format_anchor_target='_blank')
         r.fieldcell('__ins_ts',name='Datetime')
         r.fieldcell('error_type')
         r.fieldcell('description')
