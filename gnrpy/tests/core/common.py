@@ -80,7 +80,7 @@ class BaseGnrTest:
             fp.write(f"""<?xml version="1.0" ?>
 <GenRoBag>
         <wsgi debug="True::B" reload="True::B" port="8080"/>
-        <gui css_theme="modern"/>
+        <gui css_theme="{os.environ.get('GNR_CSS_THEME', 'mimi')}"/>
         <jslib dojo_version="11" gnr_version="11"/>
         <resources>
                 <common/>

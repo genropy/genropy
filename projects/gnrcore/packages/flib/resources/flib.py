@@ -10,7 +10,6 @@ from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import extract_kwargs
 class FlibBase(BaseComponent):
     py_requires = 'th/th:TableHandler'
-    css_requires = 'public'
     
     @struct_method
     def flib_flibSavedFilesGrid(self, pane, checked_categories=None, reloader=None, label=None,

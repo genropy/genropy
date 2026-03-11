@@ -1,0 +1,23 @@
+/*joanna*/
+
+/* @group Default color palette */
+body {
+    /* --- Palette (only brand differs from default) --- */
+    --palette-brand: #636366;
+
+    /* --- Theme-specific overrides --- */
+    --login-underlay-bg: #1D1D1F;
+    --roundedgroup-bar: transparent;
+    --roundedgroup-bar-color: var(--palette-brand);
+    --topLabelTable-border-top: 2px solid var(--primary-light);
+    --topLabelTable-separator: var(--primary-light);
+
+    /* --- Form-context shared overrides (formbuilder + formlet) --- */
+    --form-field-border: var(--primary-light);
+    --form-field-radius: var(--radius-panels);
+    --form-label-font-size: .8em;
+
+    /* --- Formlet-specific overrides --- */
+    --formlet-label-font-weight: normal;
+}
+/* @end */

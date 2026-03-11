@@ -297,7 +297,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
         genro.setData(path,genro.rpc.remoteResolver('relationExplorer', {'table':table,'currRecordPath':objectPop(kw,'currRecordPath'),omit:'_',item_type:'FTREE',checkPermissions:checkPermissions}));
         var treeattr = objectUpdate({storepath:path,margin:'4px'},kw);
         treeattr.labelAttribute = 'caption';
-        treeattr._class = 'fieldsTree noIcon noExpando';
+        treeattr._class = 'fieldsTree';
         treeattr.hideValues = true;
         treeattr.autoCollapse=true;
         treeattr.openOnClick = true;
@@ -341,8 +341,6 @@ dojo.declare("gnr.GnrDevHandler", null, {
             dragValues[dragCode] = fldinfo;
         };
         treeattr.draggable = true;
-        //treeattr.getIconClass = 'if(node.attr.dtype){return "icnDtype_"+node.attr.dtype}';
-        treeattr.getIconClass = 'return "treeNoIcon";';
         pane._('tree', treeattr);
     },
     startDebug:function(callcounter){
@@ -654,6 +652,193 @@ dojo.declare("gnr.GnrDevHandler", null, {
         tc._('contentPane',{title:'Arguments'})._('div',{innerHTML:'^gnr.debugger.sqlquery_grid.output.params',height:'100%',overflow:'auto',_class:'debug_params'});
 
         
+    },
+
+    openThemeEditor:function(){
+        if(genro._themeEditorWin && !genro._themeEditorWin.closed){
+            genro._themeEditorWin.focus();
+            return;
+        }
+        var w = 540, h = screen.availHeight;
+        var left = screen.availWidth - w;
+        var top = 0;
+        genro._themeEditorWin = window.open(
+            '/_rsrc/common/theme_editor.html?v=' + Date.now(),
+            'gnrThemeEditor',
+            'width='+w+',height='+h+',left='+left+',top='+top+',menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=no'
+        );
+        if(!genro._themeEditorListener){
+            genro._themeEditorListener = true;
+            window.addEventListener('message', function(e){
+                var d = e.data;
+                if(!d || !d.type) return;
+                genro.dev._handleThemeEditorMessage(d);
+            });
+        }
+    },
+
+    _handleThemeEditorMessage:function(d){
+        if(d.type === 'themeEditorSetVar' || d.type === 'themeEditorResetAll'){
+            this._themeApplyToAll(d);
+        }
+    },
+
+    _themeApplyToAll:function(d){
+        var isSet = (d.type === 'themeEditorSetVar');
+        var vars = isSet ? null : (d.vars || {});
+        var allDocs = this._themeGetAllDocs();
+        allDocs.forEach(function(doc){
+            try {
+                var el = doc.documentElement;
+                if(isSet){
+                    el.style.setProperty(d.name, d.value);
+                }else{
+                    for(var name in vars){
+                        el.style.removeProperty(name);
+                    }
+                }
+            } catch(ex){}
+        });
+    },
+
+    _themeGetAllDocs:function(){
+        var docs = [document];
+        var frames = document.querySelectorAll('iframe');
+        for(var i=0; i<frames.length; i++){
+            try {
+                var fdoc = frames[i].contentDocument;
+                if(fdoc && fdoc.body){
+                    docs.push(fdoc);
+                }
+            } catch(ex){}
+        }
+        return docs;
+    },
+
+    _themeStartPicker:function(){
+        this._themeStopPicker();
+        var overlays = [];
+        var docs = this._themeGetAllDocs();
+        var editorWin = genro._themeEditorWin;
+        var overlayCSS = 'position:fixed;pointer-events:none;z-index:99999999;' +
+            'border:2px solid #e91e63;background:rgba(233,30,99,0.08);transition:all .1s;display:none;';
+
+        var onMove = function(e){
+            var el = e.target;
+            if(el.id === '_te_picker_overlay') return;
+            if(el.tagName === 'IFRAME') {
+                overlays.forEach(function(ov){ ov.style.display = 'none'; });
+                return;
+            }
+            var rect = el.getBoundingClientRect();
+            var doc = el.ownerDocument;
+            overlays.forEach(function(ov){
+                if(ov.ownerDocument === doc){
+                    ov.style.display = 'block';
+                    ov.style.top = rect.top + 'px';
+                    ov.style.left = rect.left + 'px';
+                    ov.style.width = rect.width + 'px';
+                    ov.style.height = rect.height + 'px';
+                }else{
+                    ov.style.display = 'none';
+                }
+            });
+        };
+
+        var onClick = function(e){
+            e.preventDefault();
+            e.stopPropagation();
+            var el = e.target;
+            if(el.id === '_te_picker_overlay' || el.tagName === 'IFRAME') return;
+            var varNames = genro.dev._themeFindVarsForElement(el);
+            genro.dev._themeStopPicker();
+            if(editorWin && !editorWin.closed && editorWin.themeEditorPickerResult){
+                editorWin.themeEditorPickerResult(Array.from(varNames));
+            }
+        };
+
+        docs.forEach(function(doc){
+            try {
+                var ov = doc.createElement('div');
+                ov.id = '_te_picker_overlay';
+                ov.style.cssText = overlayCSS;
+                doc.body.appendChild(ov);
+                overlays.push(ov);
+                doc.addEventListener('mousemove', onMove, true);
+                doc.addEventListener('click', onClick, true);
+                doc._tePickerMove = onMove;
+                doc._tePickerClick = onClick;
+            } catch(ex){}
+        });
+
+        genro._themePickerOverlays = overlays;
+        genro._themePickerDocs = docs;
+    },
+
+    _themeStopPicker:function(){
+        var docs = genro._themePickerDocs || [];
+        var overlays = genro._themePickerOverlays || [];
+        docs.forEach(function(doc){
+            try {
+                if(doc._tePickerMove) doc.removeEventListener('mousemove', doc._tePickerMove, true);
+                if(doc._tePickerClick) doc.removeEventListener('click', doc._tePickerClick, true);
+                delete doc._tePickerMove;
+                delete doc._tePickerClick;
+            } catch(ex){}
+        });
+        overlays.forEach(function(ov){
+            try { if(ov && ov.parentNode) ov.parentNode.removeChild(ov); } catch(ex){}
+        });
+        genro._themePickerOverlays = [];
+        genro._themePickerDocs = [];
+    },
+
+    _themeFindVarsForElement:function(el){
+        var varRefPattern = /var\(\s*(--[\w-]+)/g;
+        var varNames = new Set();
+        var elDoc = el.ownerDocument;
+        var current = el;
+        var depth = 0;
+        while(current && current.nodeType === 1 && depth < 8){
+            var sheets = elDoc.styleSheets;
+            for(var si=0; si<sheets.length; si++){
+                try {
+                    var rules = sheets[si].cssRules;
+                    if(rules) this._themeFindVarsInRules(rules, current, varNames, varRefPattern);
+                } catch(ex){}
+            }
+            if(current.style && current.style.cssText){
+                this._themeExtractVarRefs(current.style.cssText, varNames, varRefPattern);
+            }
+            current = current.parentElement;
+            depth++;
+        }
+        return varNames;
+    },
+
+    _themeFindVarsInRules:function(rules, el, varNames, pat){
+        for(var i=0; i<rules.length; i++){
+            var r = rules[i];
+            if(r.href !== undefined && r.styleSheet !== undefined && r.styleSheet){
+                try { this._themeFindVarsInRules(r.styleSheet.cssRules, el, varNames, pat); } catch(ex){}
+                continue;
+            }
+            if(r.selectorText !== undefined && r.style !== undefined){
+                try {
+                    if(el.matches(r.selectorText)){
+                        this._themeExtractVarRefs(r.cssText, varNames, pat);
+                    }
+                } catch(ex){}
+            }
+        }
+    },
+
+    _themeExtractVarRefs:function(cssText, varNames, pat){
+        var m;
+        pat.lastIndex = 0;
+        while((m = pat.exec(cssText)) !== null){
+            varNames.add(m[1]);
+        }
     },
 
     devUtilsPalette:function(parent){

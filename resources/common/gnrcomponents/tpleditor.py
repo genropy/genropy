@@ -215,7 +215,6 @@ class TemplateEditorBase(BaseComponent):
 
 class TemplateEditor(TemplateEditorBase):
     py_requires='gnrcomponents/framegrid:FrameGrid,public:Public'
-    css_requires='public'
     @struct_method
     def te_templateEditor(self,pane,storepath=None,maintable=None,editorConstrain=None,plainText=False,datasourcepath=None,**kwargs):
         sc = self._te_mainstack(pane,table=maintable)

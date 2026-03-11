@@ -9,7 +9,6 @@ import os
 from gnr.core.gnrbag import DirectoryResolver
 
 class GnrCustomWebPage(object):
-    css_requires='public'
 
     def pageAuthTags(self, method=None, **kwargs):
         return ''
@@ -32,15 +31,7 @@ class GnrCustomWebPage(object):
                    style='color:#888; font-size:13px; text-align:center; max-width:400px; line-height:1.5;')
             return
         bc=root.borderContainer(datapath='main')
-        bc.style(""".menutree .opendir{
-                width: 12px;
-                background: none;
-            }
-            .menutree .closedir{
-                width: 12px;
-                background: none;
-            }
-        """)
+        bc.style("")
         center=bc.contentPane(region='center',datapath='.current',overflow='hidden')
         left=bc.contentPane(region='left',width='200px',splitter=True,background='#eee',
                            datapath='.tree',overflow_y='auto')
@@ -53,14 +44,6 @@ class GnrCustomWebPage(object):
             rel_path='^.rel_path',file_ext='=.file_ext',_delay=1)                   
         left.tree(storepath='.store', hideValues=True, inspect='shift', 
               labelAttribute='caption',
-               getIconClass="""
-               function(item,opened){
-                        console.log('item.attr',item.attr);
-                        if(item.attr.file_ext!='directory'){
-                            return "treeNoIcon";
-                        }
-                        return opened? 'opendir':'closedir';                        
-                    }""",
               getLabelClass="""var _class= (node._resolver || node._value) ? 'menu_shape menu_level_0' :  'menu_shape menu_level_2';
                                             return _class""",
               isTree=False, selected_rel_path='main.current.rel_path',  _class='menutree',

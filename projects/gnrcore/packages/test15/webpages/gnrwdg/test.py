@@ -12,7 +12,6 @@ from gnr.core.gnrbag import Bag
 class GnrCustomWebPage(object):
     testOnly='_3_'
     py_requires="gnrcomponents/testhandler:TestHandlerFull"#,gnrcomponents/palette_manager"
-    css_requires='public'
     
     def windowTitle(self):
         return 'test'

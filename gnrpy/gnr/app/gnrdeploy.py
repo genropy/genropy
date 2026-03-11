@@ -53,14 +53,18 @@ def build_environment_xml(path=None, gnrpy_path=None, gnrdaemon_password=None, g
         genropy_resources = os.path.join(genropy_home,'resources')
         genropy_webtools = os.path.join(genropy_home,'webtools')
         dojo_11_path = os.path.join(genropy_home, 'dojo_libs', 'dojo_11')
+        dojo_20_path = os.path.join(genropy_home, 'dojo_libs', 'dojo_20')
         gnr_d11_path = os.path.join(genropy_home,'gnrjs', 'gnr_d11')
+        gnr_d20_path = os.path.join(genropy_home,'gnrjs', 'gnr_d20')
     else:
         genropy_projects = os.path.join(genropy_home,'projects')
         genropy_packages = os.path.join(genropy_home,'packages')
         genropy_resources = os.path.join(genropy_home,'resources')
         genropy_webtools = os.path.join(genropy_home,'webtools')
         dojo_11_path = os.path.join(genropy_home, 'dojo_libs', 'dojo_11')
+        dojo_20_path = os.path.join(genropy_home, 'dojo_libs', 'dojo_20')
         gnr_d11_path = os.path.join(genropy_home,'gnrjs', 'gnr_d11')
+        gnr_d20_path = os.path.join(genropy_home,'gnrjs', 'gnr_d20')
 
     # FIXME: this needs to be handled differently when we're installing the package
     # otherwise genropy_project will be helded inside {dist,site}-packages dir
@@ -73,7 +77,9 @@ def build_environment_xml(path=None, gnrpy_path=None, gnrdaemon_password=None, g
     environment_bag.setItem('projects.custom', None, dict(path=custom_projects))
     environment_bag.setItem('packages.genropy', None, dict(path=genropy_packages))
     environment_bag.setItem('static.js.dojo_11',None, dict(path=dojo_11_path, cdn=""))
+    environment_bag.setItem('static.js.dojo_20',None, dict(path=dojo_20_path, cdn=""))
     environment_bag.setItem('static.js.gnr_11', None, dict(path=gnr_d11_path))
+    environment_bag.setItem('static.js.gnr_20', None, dict(path=gnr_d20_path))
     environment_bag.setItem('resources.genropy', None, dict(path=genropy_resources))
     environment_bag.setItem('webtools.genropy', None, dict(path=genropy_webtools))
     gnrdaemon_port = gnrdaemon_port or get_gnrdaemon_port(set_last=True)
@@ -93,7 +99,7 @@ def build_instanceconfig_xml(path=None,avoid_baseuser=None):
 def build_siteconfig_xml(path=None, gnrdaemon_password=None, gnrdaemon_port=None):
     siteconfig_bag = Bag()
     siteconfig_bag.setItem('wsgi', None, dict(debug=True, reload=True, port='8080'))
-    siteconfig_bag.setItem('gui', None, dict(css_theme='mimi'))
+    siteconfig_bag.setItem('gui', None, dict(css_theme=os.environ.get('GNR_CSS_THEME', 'mimi')))
     siteconfig_bag.setItem('jslib', None, dict(dojo_version='11', gnr_version='11'))
     siteconfig_bag.setItem('resources.common', None)
     siteconfig_bag.setItem('resources.js_libs', None)

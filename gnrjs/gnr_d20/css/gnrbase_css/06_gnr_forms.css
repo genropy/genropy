@@ -1,0 +1,253 @@
+/* ==========================================================================
+   06_gnr_forms.css — Validation, print layout, SystemCss, FormGrid,
+   palette, plugin blocks
+   ========================================================================== */
+
+/* @group validation */
+
+.ghostpartial {
+    opacity: .42;
+}
+
+.ghosthidden {
+    opacity: 0;
+    z-index: 0;
+}
+
+.gnrfield.tag_checkbox label{
+    color: var(--gnrfieldlabel-color);
+}
+
+.gnrfield label{
+    color: var(--gnrfieldlabel-color);
+    padding-right: 10px;
+}
+
+.fakeTextBox,.smallFakeTextBox, .gnrfield.tag_div>div.fakeTextBox{
+	background: var(--formbuilder-field-bg, var(--field-bg, white));
+    border: 1px solid var(--formbuilder-field-border, var(--field-border, #B3B3B3));
+    line-height: normal;
+    border-radius: var(--radius-controls);
+    position: relative;
+    padding-left: var(--fakebox-padding-x);
+    padding-top: var(--fakebox-padding-top);
+    min-height: var(--fakebox-min-height);
+    display: inline-block;
+    -webkit-user-select: auto;
+    user-select: auto;
+}
+
+.fakeNumberTextBox ,.gnrfield.tag_div>div.fakeNumberTextBox{
+	background: var(--formbuilder-field-bg, var(--field-bg, white));
+    border: 1px solid var(--formbuilder-field-border, var(--field-border, #B3B3B3));
+    line-height: normal;
+    border-radius: var(--radius-controls);
+    position: relative;
+    padding-right: var(--fakebox-padding-x);
+    padding-top: var(--fakebox-padding-top);
+    min-height: var(--fakebox-min-height);
+    text-align: right;
+    -webkit-user-select: auto;
+    user-select: auto;
+}
+
+label.ghostlabel span {
+    opacity: 1;
+    z-index: 5;
+    position: absolute;
+    padding-left: 5px;
+    padding-top: 1px;
+    color: var(--text-secondary);
+}
+
+/* Validation icon hiding moved to gnr_dojotheme/Common.css */
+
+/* @end */
+
+/* @group print */
+
+.only_print {
+    display: none;
+}
+
+/* @end */
+
+/* @group SystemCss */
+
+/* @group FormGrid */
+
+._common_d11 .bagEditor .dojoxGrid-header {
+	display: none;
+}
+._common_d11 .bagEditor .dojoxGrid-cell{
+    height: 1.2em;
+}
+.pasteOnGrid .dojoxGrid-cell{
+    caret-color: rgb(146, 140, 140);
+}
+.pasteOnGrid{
+    caret-color: transparent;
+}
+/* @end */
+
+/* @group palette */
+
+.basePalette{
+	/*font-size: 11px;*/
+}
+
+/* @end */
+
+/* @group Plugin */
+.plugin_block {
+    border-bottom-left-radius: var(--radius-controls);
+    border-bottom-right-radius: var(--radius-controls);
+    width: 27px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.selected_plugin.plugin_block {
+    box-shadow: 0 -1px 1px #005555 inset;
+    background-color: var(--surface-bg);
+}
+/*.detachable{
+    background:orange;
+}*/
+
+.detacher{
+    position:absolute;
+    top:0;
+    bottom:0;
+    left:0;
+    right:0;
+    transition-property: all;
+    transition-duration: 1s;
+}
+.gnrTransition{
+    transition-property: all;
+    transition-duration: .5s;
+}
+
+.detachable .detacher{
+    top:20px;
+    bottom:20px;
+    left:20px;
+    right:20px;
+}
+
+#gnr_plugin_dock {
+    position: absolute;
+    display: inline-block;
+}
+
+/* --- Moved from 01_gnr_variables --- */
+.gnr_blurred_field {
+    filter: blur(3px);
+}
+.gnr_blurred_cell {
+    filter: blur(3px);
+}
+
+.FragmentDelimiter {
+    border: 0;
+    height: 1px;
+    background: var(--border-color);
+}
+
+.keeper_on .iskeepable {
+    font-weight: bold;
+}
+
+.gnrinlinewidget_container {
+    display: inline-block;
+}
+
+._common_d11 .gnrinlinewidget_container .dijitTextBox,
+._common_d11 .gnrinlinewidget_container .dijitComboBox,
+._common_d11 .gnrinlinewidget_container .dijitSpinner,
+._common_d11 .gnrinlinewidget_container .dijitInlineEditor input,
+._common_d11 .gnrinlinewidget_container .dijitTextArea {
+    border: 0;
+    vertical-align: bottom;
+    padding-top: 0;
+    outline: none;
+    padding-left: 1px;
+    padding-right: 1px;
+}
+
+.gnreditabletext {
+    display: inline-block;
+    min-width: 40px;
+    line-height: 1;
+}
+.gnreditabletext:hover {
+    background: yellow;
+}
+.inlineediting .gnreditabletext {
+    display: none;
+}
+
+.fieldkeeper {
+    position: absolute;
+    right: -10px;
+    bottom: 0px;
+    height: 6px;
+    width: 6px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-controls);
+    cursor: pointer;
+}
+.fieldkeeper div {
+    position: absolute;
+    top: 1px;
+    bottom: 1px;
+    left: 1px;
+    right: 1px;
+    background: var(--surface-bg);
+}
+.keeper_on .fieldkeeper div {
+    background: var(--text-muted);
+}
+
+.gnrcheckbox_wrapper {
+    position: relative;
+    padding-right: 2px;
+    display: inline-block;
+    white-space: nowrap;
+}
+.cell_editable .gnrcheckbox_wrapper {
+    left: 25%;
+    position: relative;
+    margin-left: -10px;
+    margin-top: 3px;
+    padding-right: 0;
+}
+
+/* @end */
+
+/* --- Form labels (from theme_shared) --- */
+.sectionLabel {
+    color: var(--gnrfieldlabel-color) !important;
+    opacity: 0.7 !important;
+    text-align: left;
+    font-style: italic;
+    font-weight: bold;
+    text-decoration: underline;
+    margin-left: 3px;
+}
+
+.label {
+    color: rgba(95, 75, 66, 0.7);
+}
+
+.gnr_recordinfo {
+    padding: 5px;
+    background-color: var(--surface-light);
+    box-shadow: rgb(158, 133, 111) 2px 2px 2px;
+    border-radius: var(--radius-controls);
+}
+
+.pbl_rectGroup {
+    background-color: rgba(170,190,201,0.2);
+}
