@@ -49,5 +49,15 @@ body {
 
     /* --- Formlet-specific overrides --- */
     --formlet-label-font-weight: normal;
+
+    /* --- Buttons: filled and tonal (accent-color #007AFF) --- */
+    --btn-filled-hover-bg:    #0061CC; /* #007AFF 80% + black */
+    --btn-filled-pressed-bg:  #004FA6; /* #007AFF 65% + black */
+    --btn-filled-selected-bg: #004FA6;
+    --btn-tonal-bg:           #E0EFFF; /* #007AFF 12% + white */
+    --btn-tonal-color:        #007AFF;
+    --btn-tonal-hover-bg:     #CCE4FF; /* #007AFF 20% + white */
+    --btn-tonal-pressed-bg:   #B7D9FF; /* #007AFF 28% + white */
+    --btn-tonal-selected-bg:  #B7D9FF;
 }
 /* @end */

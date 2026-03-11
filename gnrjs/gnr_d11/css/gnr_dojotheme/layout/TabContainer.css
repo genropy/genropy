@@ -9,7 +9,7 @@
 .gnr_dojotheme .dijitTab {
     font-size: 0.85em;
     line-height: normal;
-    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
     background: var(--primary-color, #1E3055);
     color: rgba(255,255,255,0.75);
     border: none;

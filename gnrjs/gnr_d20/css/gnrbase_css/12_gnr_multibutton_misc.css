@@ -180,9 +180,9 @@
 }
 
 .multibutton_selected.multibutton, .multibutton:active{
-    color: var(--surface-dark-color, #fff);
-    background: var(--surface-dark, #444);
-    border-color: var(--surface-dark, #444);
+    color: white;
+    background: var(--gray-700, #656567);
+    border-color: var(--gray-700, #656567);
     box-shadow: none;
 }
 .multibutton_selected.multibutton:hover{

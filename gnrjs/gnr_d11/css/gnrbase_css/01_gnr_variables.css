@@ -21,6 +21,16 @@
     --gray-100: #F2F2F7;   /* @theme @palette card surface, panels, very light backgrounds */
     --color-bg: #FFFFFF;   /* @theme @palette main background */
 
+    /* --- Gray scale extensions (base defaults — variants must also override for correct tinting)
+       These are computed from the base palette. Theme files override them for their palette.
+       All semantic tokens use explicit hex or var(--gray-N) — no color-mix() in this file. --- */
+    --gray-50:  #F7F7FA;   /* gray-100 60% + white */
+    --gray-150: #F2F2F5;   /* gray-200 50% + white */
+    --gray-250: #E4E4E7;   /* gray-300 70% + white */
+    --gray-400: #BABABB;   /* gray-900 35% + white */
+    --gray-500: #929394;   /* gray-900 55% + white */
+    --gray-700: #656567;   /* gray-900 78% + white */
+
     /* --- Accent --- */
     --accent-500: #007AFF; /* @theme @palette accent — buttons, links, focus */
 
@@ -51,7 +61,7 @@
     /* --- Surfaces --- */
     --mainWindow-background: var(--color-bg); /* @theme */
     --mainWindow-color: var(--gray-900); /* @theme */
-    --surface-light: color-mix(in srgb, var(--gray-100) 60%, var(--color-bg)); /* @theme */
+    --surface-light: var(--gray-50); /* @theme */
     --surface-bg: var(--color-bg); /* @theme */
     --surface-dark: var(--gray-800); /* @theme */
     --surface-dark-color: var(--text-on-dark); /* @theme */
@@ -60,14 +70,14 @@
 
     /* --- Borders --- */
     --border-color: var(--gray-300); /* @theme */
-    --border-light: color-mix(in srgb, var(--gray-200) 50%, var(--color-bg)); /* @theme */
+    --border-light: var(--gray-150); /* @theme */
     --border-strong: var(--gray-300); /* @theme */
 
     /* --- Text --- */
     --text-color: var(--gray-900); /* @theme */
-    --text-muted: color-mix(in srgb, var(--gray-900) 78%, var(--color-bg)); /* @theme */
-    --text-secondary: color-mix(in srgb, var(--gray-900) 55%, var(--color-bg)); /* @theme */
-    --text-placeholder: color-mix(in srgb, var(--gray-900) 35%, var(--color-bg)); /* @theme */
+    --text-muted: var(--gray-700); /* @theme */
+    --text-secondary: var(--gray-500); /* @theme */
+    --text-placeholder: var(--gray-400); /* @theme */
     --danger-color: var(--color-error); /* @theme */
 
     /* --- Shadows --- */
@@ -80,8 +90,8 @@
 
     /* --- Border radius --- */
     --radius-sm:   4px;    /* @theme @palette inputs, grid cells, buttons, small interactive elements */
-    --radius-md:   8px;    /* @theme @palette dialogs, menus, tooltips, dropdowns, medium containers */
-    --radius-lg:   12px;   /* @theme @palette layout sections, cards, search boxes, large wrappers */
+    --radius-md:   10px;    /* @theme @palette dialogs, menus, tooltips, dropdowns, medium containers */
+    --radius-lg:   14px;   /* @theme @palette layout sections, cards, search boxes, large wrappers */
     --radius-pill: 9999px; /* @theme @palette pill shapes: tags, badges, semaphores, mobile bars */
     --radius-full: 50%;    /* @theme @palette circles: status indicators */
 
@@ -97,25 +107,25 @@
     /* === Components === */
 
     /* --- Grid --- */
-    --grid-border-color: color-mix(in srgb, var(--gray-200) 60%, var(--color-bg)); /* @theme */
+    --grid-border-color: var(--gray-150); /* @theme */
     --grid-header-bg: var(--surface-light); /* @theme */
     --grid-header-color: var(--text-color); /* @theme */
     --grid-row-bg: rgba(255,255,255,.5); /* @theme */
     --grid-row-odd-bg: rgba(243,246,250,.5); /* @theme */
     --grid-row-selected-bg: rgba(175, 203, 236, .8); /* @theme */
-    --grid-row-deleted-color: color-mix(in srgb, var(--color-error) 75%, black);
+    --grid-row-deleted-color: #AB2B28; /* color-error #E53935 75% + black */
     --grid-cell-hover-bg: #F8FFD9;
     --grid-cell-border-color: #D5CDB5;
     --grid-cell-hover-bg-lazy: #E6F9FF;
     --grid-cell-hover-bg-disabled: #FFE7DD;
-    --grid-cell-changed-bg: color-mix(in srgb, var(--color-success) 30%, var(--color-bg));
+    --grid-cell-changed-bg: #C9E7CA; /* color-success #4CAF50 30% + white */
     --grid-cell-copy-bg: rgba(241, 145, 53, 0.50);
     --grid-cell-focus-border: var(--gray-300);
-    --grid-cell-over-border: color-mix(in srgb, var(--gray-300) 80%, var(--color-bg));
-    --grid-draft-color: color-mix(in srgb, var(--gray-600) 55%, var(--accent-500));
-    --grid-lineno-color: color-mix(in srgb, var(--gray-600) 55%, var(--accent-500));
-    --grid-paste-bg: color-mix(in srgb, var(--gray-600) 5%, transparent);
-    --grid-reporting-header-bg: color-mix(in srgb, var(--gray-800) 85%, black);
+    --grid-cell-over-border: var(--gray-250);
+    --grid-draft-color: #366DAB; /* gray-600 #636366 55% + accent-500 #007AFF — override in theme/variant files */
+    --grid-lineno-color: #366DAB; /* gray-600 #636366 55% + accent-500 #007AFF — override in theme/variant files */
+    --grid-paste-bg: rgba(99, 99, 102, 0.05); /* gray-600 #636366 5% + transparent */
+    --grid-reporting-header-bg: #313133; /* gray-800 #3A3A3C 85% + black — override in theme/variant files */
     --grid-reporting-header-color: var(--text-on-dark);
     --grid-footer-item-bg: rgba(255, 227, 60, .2);
     --grid-footer-filter-bg: rgba(221, 150, 90, 0.20);
@@ -124,19 +134,19 @@
     --grid-btn-selected-shadow: inset 1px 1px 2px #222;
 
     /* --- Drag & Drop --- */
-    --drop-valid-bg: color-mix(in srgb, var(--color-success) 15%, transparent);
-    --drop-invalid-bg: color-mix(in srgb, var(--color-error) 15%, transparent);
-    --drop-header-valid-bg: color-mix(in srgb, var(--color-success) 40%, var(--color-bg));
-    --drop-header-invalid-bg: color-mix(in srgb, var(--color-error) 40%, var(--color-bg));
+    --drop-valid-bg: rgba(76, 175, 80, 0.15);    /* color-success #4CAF50 15% + transparent */
+    --drop-invalid-bg: rgba(229, 57, 53, 0.15);  /* color-error #E53935 15% + transparent */
+    --drop-header-valid-bg: #B7DFB9;             /* color-success 40% + white */
+    --drop-header-invalid-bg: #F5AFAE;           /* color-error 40% + white */
 
     /* --- TreeGrid --- */
-    --treegrid-header-bg: color-mix(in srgb, var(--gray-800) 90%, black);
+    --treegrid-header-bg: #343436; /* gray-800 #3A3A3C 90% + black — override in theme/variant files */
     --treegrid-header-color: var(--text-on-dark);
     --treegrid-footer-bg: #F8CF00;
     --treegrid-footer-color: var(--gray-800);
     --treegrid-groupby-folder-bg: rgba(255, 253, 123, 0.20);
-    --treegrid-groupby-level-color: color-mix(in srgb, var(--color-success) 60%, black);
-    --treegrid-open-pages-bg: color-mix(in srgb, var(--color-success) 50%, var(--color-bg));
+    --treegrid-groupby-level-color: #2D6930; /* color-success #4CAF50 60% + black */
+    --treegrid-open-pages-bg: #A5D7A7;      /* color-success 50% + white */
 
     /* --- Toolbar --- */
     --toolbar-height: 1.75em;
@@ -144,9 +154,7 @@
     --toolbar-min-height: 2.3em;
     --toolbar-min-height-lg: 2.8em;
     --toolbar-bg: var(--gray-200); /* @theme */
-    --toolbar-gradient: linear-gradient(to bottom,
-        color-mix(in srgb, var(--gray-200) 70%, var(--color-bg)),
-        var(--gray-200)); /* @theme */
+    --toolbar-gradient: linear-gradient(to bottom, var(--gray-150), var(--gray-200)); /* @theme */
     --toolbar-color: var(--gray-900); /* @theme */
     --toolbar-dark-bg: var(--gray-600); /* @theme */
 
@@ -156,12 +164,12 @@
     --frameindexroot-mobile-background: var(--gray-800); /* @theme */
     --frameindex-tablist-background: var(--gray-800); /* @theme */
     --frameindex-tablist-color: var(--text-on-dark); /* @theme */
-    --frameindex-tab-bg: color-mix(in srgb, white 80%, var(--frameindex-tablist-background)); /* @theme */
-    --frameindex-tab-bg-hover: color-mix(in srgb, white 20%, var(--frameindex-tablist-background)); /* @theme */
-    --frameindex-tab-border: var(--gray-300); /* @theme */
-    --frameindex-subtab-bg: color-mix(in srgb, var(--gray-800) 60%, var(--gray-600)); /* @theme */
-    --frameindex-subtab-selected-bg: color-mix(in srgb, var(--gray-600) 55%, var(--color-bg)); /* @theme */
-    --frameindex-closer-hover-bg: color-mix(in srgb, var(--gray-800) 65%, var(--gray-600)); /* @theme */
+    --frameindex-tab-bg: #D8D8D8; /* white 80% + gray-800 #3A3A3C — override in theme/variant files */
+    --frameindex-tab-bg-hover: var(--gray-700); /* override in theme/variant files */
+    --frameindex-tab-border: var(--gray-200); /* @theme */
+    --frameindex-subtab-bg: #4A4A4D; /* gray-800 60% + gray-600 — override in theme/variant files */
+    --frameindex-subtab-selected-bg: var(--gray-500); /* gray-600 55% + white — override in theme/variant files */
+    --frameindex-closer-hover-bg: #5A5A5C; /* gray-800 #3A3A3C 65% + white — override in theme/variant files */
     --root-top-background: var(--gray-600); /* @theme */
     --root-top-color: var(--text-on-dark); /* @theme */
 
@@ -170,7 +178,7 @@
     --dialogtitlebar-color: var(--text-on-dark); /* @theme */
     --dlg-bg: var(--surface-light); /* @theme */
     --dlg-pane-bg: var(--color-bg); /* @theme */
-    --dlg-border-color: color-mix(in srgb, var(--gray-300) 70%, var(--color-bg)); /* @theme */
+    --dlg-border-color: var(--gray-250); /* @theme */
 
     /* --- Tabs --- */
     --tab-background: var(--gray-100); /* @theme */
@@ -183,7 +191,7 @@
     /* --- Rounded groups --- */
     --roundedgroup-bar: var(--gray-200); /* @theme */
     --roundedgroup-bar-color: var(--gray-900); /* @theme */
-    --roundedgroup-border: color-mix(in srgb, var(--gray-200) 70%, var(--color-bg)); /* @theme */
+    --roundedgroup-border: var(--gray-200); /* @theme */
     --roundedgroup-shadow: rgba(0,0,0,0.06); /* @theme */
     --rectgroup-bar-background: var(--gray-200); /* @theme */
 
@@ -192,16 +200,16 @@
     /* --- Form fields --- */
     --field-bg: var(--color-bg); /* @theme */
     --field-border: var(--gray-300); /* @theme */
-    --field-error-border: color-mix(in srgb, var(--color-error) 45%, var(--gray-300));
+    --field-error-border: #DE9091; /* color-error #E53935 45% + gray-300 #D8D8DC */
     --field-error-dot-size: 8px; /* @theme */
     --field-error-dot-color: var(--color-error); /* @theme */
     --field-error-dot-ring: var(--surface-color, white); /* @theme */
-    --field-disabled-border: color-mix(in srgb, var(--gray-300) 60%, var(--color-bg));
+    --field-disabled-border: var(--gray-250); /* @theme */
     --field-disabled-bg: var(--gray-100);
     --field-readonly-border: var(--field-border);
     --field-readonly-bg: var(--field-bg);
     --field-focus-bg: var(--color-bg);
-    --gnrfieldlabel-color: color-mix(in srgb, var(--gray-300) 90%, var(--gray-900)); /* @theme */
+    --gnrfieldlabel-color: #C8C8CC; /* @theme — gray-300 #D8D8DC 90% + gray-900 #606060 */
 
     /* --- Form-context field defaults (shared by formbuilder & formlet) --- */
     --form-field-border: var(--field-border);
@@ -248,7 +256,7 @@
 
     /* --- topLabelTable --- */
     --topLabelTable-border-top: none;
-    --topLabelTable-separator: color-mix(in srgb, var(--gray-300) 70%, var(--color-bg));
+    --topLabelTable-separator: var(--gray-250); /* @theme */
 
     /* === Status & Feedback === */
 
@@ -259,12 +267,12 @@
     --status-idle: var(--gray-300); /* @theme */
 
     /* --- Toaster --- */
-    --toaster-success-bg: color-mix(in srgb, var(--color-success) 80%, var(--color-bg)); /* @theme */
-    --toaster-error-bg: color-mix(in srgb, var(--color-error) 60%, black); /* @theme */
-    --toaster-warning-bg: color-mix(in srgb, var(--color-warning) 85%, var(--color-bg)); /* @theme */
+    --toaster-success-bg: #70BF73; /* @theme — color-success #4CAF50 80% + white */
+    --toaster-error-bg: #8C2320;   /* @theme — color-error #E53935 60% + black */
+    --toaster-warning-bg: #FFA726; /* @theme — color-warning #FF9800 85% + white */
 
     /* --- Accordion --- */
-    --accordion-title-bg: color-mix(in srgb, var(--gray-200) 60%, var(--gray-100)); /* @theme */
+    --accordion-title-bg: #EAEAEF; /* @theme — gray-200 #D8D8DC 60% + gray-100 #F0F0F4 */
     --accordion-selected-bg: var(--gray-600); /* @theme */
 
     /* --- Menu --- */
@@ -283,26 +291,26 @@
     --menutree-mobile-branch-selected-color: var(--frameindex-tablist-color);
 
     /* --- FieldsTree (relation explorer) --- */
-    --fieldsTree-rm-color: color-mix(in srgb, var(--gray-800) 80%, black);
-    --fieldsTree-ro-color: color-mix(in srgb, var(--color-success) 70%, black);
+    --fieldsTree-rm-color: #2E2E30; /* @theme — gray-800 #3A3A3C 80% + black */
+    --fieldsTree-ro-color: #357A38; /* color-success #4CAF50 70% + black */
 
     /* === Buttons === */
 
     /* --- Buttons: filled (derived from accent-color) --- */
     --btn-filled-bg: var(--accent-color, #007AFF); /* @theme */
     --btn-filled-color: var(--color-bg); /* @theme */
-    --btn-filled-hover-bg: color-mix(in srgb, var(--accent-color, #007AFF) 80%, black);
-    --btn-filled-pressed-bg: color-mix(in srgb, var(--accent-color, #007AFF) 65%, black);
-    --btn-filled-selected-bg: color-mix(in srgb, var(--accent-color, #007AFF) 65%, black);
+    --btn-filled-hover-bg: #0061CC; /* @theme — accent-color #007AFF 80% + black — override in theme/variant */
+    --btn-filled-pressed-bg: #004FA6; /* @theme — accent-color #007AFF 65% + black */
+    --btn-filled-selected-bg: #004FA6; /* @theme — accent-color #007AFF 65% + black */
     --btn-filled-disabled-bg: var(--accent-color, #007AFF);
     --btn-filled-disabled-color: var(--color-bg);
 
     /* --- Buttons: tonal (light version of accent-color) --- */
-    --btn-tonal-bg: color-mix(in srgb, var(--accent-color, #007AFF) 12%, white);
+    --btn-tonal-bg: #E0EFFF; /* @theme — accent-color #007AFF 12% + white — override in theme/variant */
     --btn-tonal-color: var(--accent-color, #007AFF);
-    --btn-tonal-hover-bg: color-mix(in srgb, var(--accent-color, #007AFF) 20%, white);
-    --btn-tonal-pressed-bg: color-mix(in srgb, var(--accent-color, #007AFF) 28%, white);
-    --btn-tonal-selected-bg: color-mix(in srgb, var(--accent-color, #007AFF) 28%, white);
+    --btn-tonal-hover-bg: #CCE4FF; /* @theme — accent-color #007AFF 20% + white */
+    --btn-tonal-pressed-bg: #B7D9FF; /* @theme — accent-color #007AFF 28% + white */
+    --btn-tonal-selected-bg: #B7D9FF; /* @theme — accent-color #007AFF 28% + white */
 
     /* --- Buttons: shared --- */
     --btn-border-color: var(--border-color); /* @theme */

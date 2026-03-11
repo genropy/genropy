@@ -34,6 +34,35 @@
 
     --field-disabled-border: #A8C4B4;
     --field-readonly-border: #A8C4B4;
+
+    --btn-filled-bg: #2E7D5B;
+    --btn-filled-hover-bg: #256449;    /* #2E7D5B 80% + black */
+    --btn-filled-pressed-bg: #1E513B;  /* 65% + black */
+    --btn-filled-selected-bg: #1E513B;
+    --btn-tonal-bg: #E5EFEB;           /* 12% + white */
+    --btn-tonal-color: #2E7D5B;
+    --btn-tonal-hover-bg: #D5E5DE;     /* 20% + white */
+    --btn-tonal-pressed-bg: #C4DBD1;   /* 28% + white */
+    --btn-tonal-selected-bg: #C4DBD1;
+
+    --gray-50: #F4F9F7;
+    --gray-150: #E8EEEA;
+    --gray-250: #CDE4DA;
+    --gray-400: #AFBAB5;
+    --gray-500: #82938B;
+    --gray-700: #4D655A;
+    --gnrfieldlabel-color: #A8C8BA;
+    --accordion-title-bg: #DCE7E1;
+    --frameindex-subtab-bg: #236A4D;
+    --frameindex-subtab-selected-bg: #8CB8A5;
+    --frameindex-closer-hover-bg: #347B5D;
+    --frameindex-tab-bg: #D1DFD9;
+    --frameindex-tab-bg-hover: #6B9685;
+    --grid-reporting-header-bg: #175039;
+    --treegrid-header-bg: #18553C;
+    --fieldsTree-rm-color: #164B36;
+    --grid-draft-color: #2E7D5B;
+    --grid-lineno-color: #2E7D5B;
 }
 
 /* Blue - deep ocean */
@@ -61,6 +90,35 @@
 
     --field-disabled-border: #A8BCD4;
     --field-readonly-border: #A8BCD4;
+
+    --btn-filled-bg: #0071E3;
+    --btn-filled-hover-bg: #005AB6;    /* #0071E3 80% + black */
+    --btn-filled-pressed-bg: #004994;  /* 65% + black */
+    --btn-filled-selected-bg: #004994;
+    --btn-tonal-bg: #E0EEFC;           /* 12% + white */
+    --btn-tonal-color: #0071E3;
+    --btn-tonal-hover-bg: #CCE3F9;     /* 20% + white */
+    --btn-tonal-pressed-bg: #B8D7F7;   /* 28% + white */
+    --btn-tonal-selected-bg: #B8D7F7;
+
+    --gray-50: #F4F7FB;
+    --gray-150: #E6EAF2;
+    --gray-250: #CDDBEC;
+    --gray-400: #AFB4BC;
+    --gray-500: #818996;
+    --gray-700: #4C576A;
+    --gnrfieldlabel-color: #A8BCD4;
+    --accordion-title-bg: #D9E1EC;
+    --frameindex-subtab-bg: #21518B;
+    --frameindex-subtab-selected-bg: #89A9CF;
+    --frameindex-closer-hover-bg: #33629B;
+    --frameindex-tab-bg: #D2DAE4;
+    --frameindex-tab-bg-hover: #6B87A7;
+    --grid-reporting-header-bg: #183C66;
+    --treegrid-header-bg: #193F6C;
+    --fieldsTree-rm-color: #163860;
+    --grid-draft-color: #1769C3;
+    --grid-lineno-color: #1769C3;
 }
 
 /* Red - cherry lipstick / fuchsia fashion */
@@ -86,6 +144,31 @@
 
     --field-disabled-border: #BDBFC2;
     --field-readonly-border: #BDBFC2;
+
+    --btn-filled-bg: #C2185B;
+    --btn-filled-hover-bg: #9B1349;    /* #C2185B 80% + black */
+    --btn-filled-pressed-bg: #7E103B;  /* 65% + black */
+    --btn-filled-selected-bg: #7E103B;
+    --btn-tonal-bg: #F8E3EB;           /* 12% + white */
+    --btn-tonal-color: #C2185B;
+    --btn-tonal-hover-bg: #F3D1DE;     /* 20% + white */
+    --btn-tonal-pressed-bg: #EEBFD1;   /* 28% + white */
+    --btn-tonal-selected-bg: #EEBFD1;
+
+    --gray-50: #FBF6F8;
+    --gray-250: #E4CDD8;
+    --gnrfieldlabel-color: #C8ACBA;
+    --accordion-title-bg: #EAE7EA;
+    --frameindex-subtab-bg: #9F1254;
+    --frameindex-subtab-selected-bg: #DD80A5;
+    --frameindex-closer-hover-bg: #AE2465;
+    --frameindex-tab-bg: #E7CFDC;
+    --frameindex-tab-bg-hover: #B2628D;
+    --grid-reporting-header-bg: #740C43;
+    --treegrid-header-bg: #7A0D47;
+    --fieldsTree-rm-color: #6D0B3F;
+    --grid-draft-color: #C2185B;
+    --grid-lineno-color: #C2185B;
 }
 
 /* Orange - Apple Watch Ultra / plum + international orange */
@@ -113,6 +196,35 @@
 
     --field-disabled-border: #C4B0BC;
     --field-readonly-border: #C4B0BC;
+
+    --btn-filled-bg: #FF5722;
+    --btn-filled-hover-bg: #CC461B;    /* #FF5722 80% + black */
+    --btn-filled-pressed-bg: #A63916;  /* 65% + black */
+    --btn-filled-selected-bg: #A63916;
+    --btn-tonal-bg: #FFEBE4;           /* 12% + white */
+    --btn-tonal-color: #FF5722;
+    --btn-tonal-hover-bg: #FFDDD3;     /* 20% + white */
+    --btn-tonal-pressed-bg: #FFD0C1;   /* 28% + white */
+    --btn-tonal-selected-bg: #FFD0C1;
+
+    --gray-50: #FAF6F8;
+    --gray-150: #F0ECEE;
+    --gray-250: #E4D3DE;
+    --gray-400: #BAAEB7;
+    --gray-500: #93808D;
+    --gray-700: #654B5E;
+    --gnrfieldlabel-color: #C8AFC0;
+    --accordion-title-bg: #E9E2E7;
+    --frameindex-subtab-bg: #923E26;
+    --frameindex-subtab-selected-bg: #FFAE73;
+    --frameindex-closer-hover-bg: #9B4D3C;
+    --frameindex-tab-bg: #D8D1D6;
+    --frameindex-tab-bg-hover: #7F6978;
+    --grid-reporting-header-bg: #3F1B36;
+    --treegrid-header-bg: #431D3A;
+    --fieldsTree-rm-color: #3B1A33;
+    --grid-draft-color: #FF630F;
+    --grid-lineno-color: #FF630F;
 }
 
 /* Yellow - gold on dark titanium */
@@ -139,4 +251,30 @@
 
     --field-disabled-border: #B0B0A8;
     --field-readonly-border: #B0B0A8;
+
+    --btn-filled-bg: #0071E3;
+    --btn-filled-hover-bg: #005AB6;    /* #0071E3 80% + black (accent-color same as blue variant) */
+    --btn-filled-pressed-bg: #004994;
+    --btn-filled-selected-bg: #004994;
+    --btn-tonal-bg: #E0EEFC;
+    --btn-tonal-color: #0071E3;
+    --btn-tonal-hover-bg: #CCE3F9;
+    --btn-tonal-pressed-bg: #B8D7F7;
+    --btn-tonal-selected-bg: #B8D7F7;
+
+    --gray-50: #FFFBE6;
+    --gray-150: #FFF8DC;
+    --gray-250: #FFED94;
+    --gnrfieldlabel-color: #ECD462;
+    --accordion-title-bg: #FFF3C4;
+    --frameindex-subtab-bg: #917F2E;
+    --frameindex-subtab-selected-bg: #FFE673;
+    --frameindex-closer-hover-bg: #9A8B43;
+    --frameindex-tab-bg: #D8D8D9;
+    --frameindex-tab-bg-hover: #808183;
+    --grid-reporting-header-bg: #3D3E41;
+    --treegrid-header-bg: #414244;
+    --fieldsTree-rm-color: #3A3A3D;
+    --grid-draft-color: #8CA666;
+    --grid-lineno-color: #8CA666;
 }
