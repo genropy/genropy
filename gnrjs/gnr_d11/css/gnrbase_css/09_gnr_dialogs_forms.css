@@ -338,7 +338,7 @@ label{
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255,255,255,0.35);
+    background: rgba(255,255,255,0.55);
 }
 
 .hiderLayer.hiderLocked{
@@ -347,8 +347,14 @@ label{
 
 .hiderMessage{
     text-align: center;
-    font-size: 1.1em;
-    color: var(--text-muted, rgba(80, 80, 80, 0.5));
+    font-size: 1.05em;
+    font-weight: 600;
+    color: var(--palette-neutral, #3A3A3C);
+    background: rgba(255,255,255,0.75);
+    padding: 0.4em 1.2em;
+    border-radius: var(--radius-pill, 9999px);
+    border: 1px solid var(--border-color, #ccc);
+    box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.06));
 }
 
 /* @end */
