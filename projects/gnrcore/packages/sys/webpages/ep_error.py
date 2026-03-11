@@ -7,16 +7,20 @@ class GnrCustomWebPage(object):
     auth_tags = '_DEV_,admin'
     skip_connection = False
 
-    def rootPage(self, error_code=None, *args, **kwargs):
+    def rootPage(self, error_code=None, error_id=None, *args, **kwargs):
         self.response.content_type = 'text/html; charset=utf-8'
-        if not error_code:
-            return self._render_page('Missing parameter', '<p>No error_code provided.</p>')
+        if not error_code and not error_id:
+            return self._render_page('Missing parameter', '<p>No error_code or error_id provided.</p>')
         tblobj = self.db.table('sys.error')
-        rec = tblobj.record(where='$error_code = :ec', ec=error_code,
-                            ignoreMissing=True).output('bag')
+        if error_code:
+            rec = tblobj.record(where='$error_code = :ec', ec=error_code,
+                                ignoreMissing=True).output('bag')
+        else:
+            rec = tblobj.record(error_id, ignoreMissing=True).output('bag')
         if not rec:
+            lookup_value = error_code or error_id
             return self._render_page('Not Found',
-                '<p>No error found with code: <strong>%s</strong></p>' % escape(error_code))
+                '<p>No error found with code: <strong>%s</strong></p>' % escape(str(lookup_value)))
         return self._render_record(rec)
 
     def _render_record(self, rec):
@@ -26,6 +30,9 @@ class GnrCustomWebPage(object):
         username = rec['username'] or ''
         user_ip = rec['user_ip'] or ''
         user_agent = rec['user_agent'] or ''
+        request_uri = rec['request_uri'] or ''
+        rpc_method = rec['rpc_method'] or ''
+        page_id = rec['page_id'] or ''
         ins_ts = rec['__ins_ts'] or ''
         error_data = rec['error_data']
         traceback_html = self._render_traceback(error_data)
@@ -55,6 +62,11 @@ class GnrCustomWebPage(object):
             <div class="info-item"><span class="label">Date</span><span class="value">{ins_ts}</span></div>
             <div class="info-item"><span class="label">User</span><span class="value">{username}</span></div>
             <div class="info-item"><span class="label">IP</span><span class="value">{user_ip}</span></div>
+            <div class="info-item"><span class="label">RPC Method</span><span class="value">{rpc_method}</span></div>
+            <div class="info-item"><span class="label">Page ID</span><span class="value">{page_id}</span></div>
+        </div>
+        <div class="info-row">
+            <span class="label">Request URI</span><span class="value">{request_uri}</span>
         </div>
         <div class="info-row">
             <span class="label">User Agent</span><span class="value">{user_agent}</span>
@@ -77,6 +89,9 @@ class GnrCustomWebPage(object):
             ins_ts=escape(str(ins_ts)),
             username=escape(str(username)),
             user_ip=escape(str(user_ip)),
+            request_uri=escape(str(request_uri)),
+            rpc_method=escape(str(rpc_method)),
+            page_id=escape(str(page_id)),
             user_agent=escape(str(user_agent)),
             traceback_html=traceback_html,
             ask_btn=ask_btn
