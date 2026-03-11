@@ -209,7 +209,7 @@
     --field-readonly-border: var(--field-border);
     --field-readonly-bg: var(--field-bg);
     --field-focus-bg: var(--color-bg);
-    --gnrfieldlabel-color: #C8C8CC; /* @theme — gray-300 #D8D8DC 90% + gray-900 #606060 */
+    --gnrfieldlabel-color: var(--gray-700); /* @theme — readable on light form surfaces */
 
     /* --- Form-context field defaults (shared by formbuilder & formlet) --- */
     --form-field-border: var(--field-border);

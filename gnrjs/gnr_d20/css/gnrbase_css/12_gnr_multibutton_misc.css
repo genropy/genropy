@@ -179,14 +179,19 @@
     border-bottom-left-radius: var(--radius-md);
 }
 
-.multibutton_selected.multibutton, .multibutton:active{
+.multibutton_selected.multibutton{
     color: white;
     background: var(--gray-700, #656567);
     border-color: var(--gray-700, #656567);
     box-shadow: none;
 }
+
+.multibutton:active:not(.multibutton_selected){
+    background: rgba(0, 0, 0, 0.12);
+    box-shadow: none;
+}
 .multibutton_selected.multibutton:hover{
-	text-decoration:none;
+    text-decoration: none;
 }
 .multibutton_selected.multibutton[disabled='true']{
     opacity: 1;
