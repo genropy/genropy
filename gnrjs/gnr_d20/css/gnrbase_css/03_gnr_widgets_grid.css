@@ -1,0 +1,347 @@
+/* ==========================================================================
+   03_gnr_widgets_grid.css — DojoxGrid base, treegrid, PatchDojox,
+   grid header, cell formatting, row templates
+   ========================================================================== */
+
+/* @group DojoxGrid*/
+.fillernode{
+    overflow: hidden;
+}
+
+.gnrDraftRow{
+    font-style: italic;
+    color: var(--grid-draft-color);
+}
+
+._common_d11 ._gnrReadOnlyRow ._statusIcon{
+    background: var(--icon-locked) no-repeat center center;
+}
+
+._common_d11 ._gnrInvalidRow ._statusIcon, ._common_d11 ._gnrInvalidRow._gnrReadOnlyRow ._statusIcon ,
+._common_d11 ._gnrInvalidRow._gnrProtectionPass ._statusIcon{
+    background-color: var(--status-error, #E53935);
+    border-radius: var(--radius-full, 50%);
+    width: 14px;
+    height: 14px;
+    margin: 0 auto;
+}
+
+._statusIcon{
+    height: 16px;
+    width: 100%;
+}
+
+._common_d11 .dojoxGrid-cell {
+	border: 1px dotted var(--grid-cell-border-color);
+	border-top: 0px;
+	padding: 1px;
+	text-align: left;
+	overflow: hidden;
+}
+
+div.cellContent{
+    border-radius: var(--radius-sm);
+    margin:1px;
+    padding:1px;
+    padding-bottom: 2px;
+    padding-top: 3px;
+    transition-duration:0;
+    line-height: 1.1em;
+    min-height: 1.1em;
+    border:1px solid transparent;
+}
+
+.cell_editable .cellContent:hover{
+    background: var(--grid-cell-hover-bg);
+    cursor: text;
+}
+
+.cell_editable.cell_editLazy .cellContent:hover{
+    background: var(--grid-cell-hover-bg-lazy);
+}
+
+.cell_editable.cell_disabled .cellContent:hover{
+    background: var(--grid-cell-hover-bg-disabled);
+    cursor: not-allowed;
+}
+
+.externalChangedCell .cellContent{
+    background-color: var(--grid-cell-changed-bg);
+}
+
+.onExternalChanged .externalChangedCell .cellContent{
+    transition-duration:5s;
+    transition-property:background-color;
+    background-color:transparent;
+}
+.copyingContent{
+    transition-duration:1s;
+    transition-property:background-color;
+    background-color: var(--grid-cell-copy-bg);
+}
+.currentContextTarget.cellContent{
+    background-color: var(--grid-cell-changed-bg);
+}
+
+.dj_ie6 ._common_d11 .dojoxGrid-cell {
+	border: 1px solid white;
+	border-right: 1px solid var(--grid-cell-border-color);
+}
+._common_d11 .dojoxGrid-cell-focus {
+	border: 1px solid var(--grid-cell-focus-border);
+	border-top:0px;
+	border-left:0px;
+
+}
+._common_d11 .dojoxGrid-cell-over {
+	border: 1px dotted var(--grid-cell-over-border);
+	border-top: 0px;
+
+}
+
+._common_d11 .dojoxGrid-cell-focus.dojoxGrid-cell-over {
+	border: 1px solid var(--grid-cell-focus-border);
+	border-top:0px;
+	border-left:0px;
+}
+._common_d11 .formattedTextBox input{
+    width:1px !important;
+    opacity:0;
+}
+._common_d11 .comboArrowTextbox{
+    margin-right:22px;
+    background: none;
+}
+
+/*
+.dijitTextBoxReadOnly.dijitReadOnly .comboArrow{
+    display: none;
+}
+*/
+
+._common_d11 .dijitTextBoxFocused .formattedTextBox input, ._common_d11 .dijitTextBoxActive .formattedTextBox input{
+    min-width:90% !important;
+    opacity:1;
+}
+._common_d11 .formattedViewer{
+    white-space: nowrap;
+}
+
+._common_d11 .dijitTextBoxFocused .formattedViewer, ._common_d11 .dijitTextBoxActive .formattedViewer{
+    display:none;
+}
+
+.textAreaWrapper{
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.dojoxFloatingPane.dijitContentPane{
+    overflow: hidden;
+}
+._common_d11 .dijitContentPane>.textAreaWrapper,
+._common_d11 .pbl_roundedGroupContent>.textAreaWrapper{
+    position: absolute;
+    display: block;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+._common_d11 .dijitContentPane>.textAreaWrapper .textAreaWrapperArea,
+._common_d11 .pbl_roundedGroupContent>.textAreaWrapper .textAreaWrapperArea{
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    right: 2px;
+    bottom: 20px;
+}
+
+._common_d11 .dijitContentPane>.textAreaWrapper .textAreaWrapperButtons,
+._common_d11 .pbl_roundedGroupContent>.textAreaWrapper .textAreaWrapperButtons{
+    position: absolute;
+    display: block;
+    bottom: 1px;
+    height: 18px;
+    border-top: 0;
+}
+.quickTooltipContainer{
+    padding: 10px;
+}
+.quickEditorWrapper{
+    position: relative;
+}
+.widgetInCell.quickEditorWrapper{
+    margin-left: 2px;
+}
+.quickEditor{
+    position: absolute;
+    top:0;
+    bottom: 0;
+    left:1px;
+    right:18px;
+    border:1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+}
+.widgetInCell .quickEditor{
+    border-width: 0;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.quickEditorButton{
+    width: 18px;
+    height: 17px;
+    border-top:1px solid var(--border-color);
+    border-right:1px solid var(--border-color);
+    border-bottom:1px solid var(--border-color);
+    position: absolute;
+    border-radius: var(--radius-sm);
+    top:0;
+    right:0;
+}
+.widgetInCell .quickEditorButton{
+    border-top:0px;
+    border-right:0px;
+    border-bottom:1px solid var(--border-light);
+}
+
+.textAreaWrapperInTable{
+    width:100%;
+}
+
+.textAreaWrapperArea{
+    flex: 1;
+    min-height: 0;
+    position: relative;
+}
+.textAreaWrapperButtons{
+    flex-shrink: 0;
+    border: 1px solid var(--border-color);
+    border-bottom-right-radius: var(--radius-sm);
+    border-bottom-left-radius: var(--radius-sm);
+    margin-left: 0.6em;
+    background: var(--surface-light);
+}
+
+.textAreaWrapperInTable .textAreaWrapperButtons{
+    opacity: 0;
+}
+
+.textAreaWrapper:hover .textAreaWrapperButtons{
+    opacity:1;
+}
+
+.TAspeechInputBox{
+    position:relative;
+    left:2px;
+    cursor: pointer;
+    display:inline-block;
+    width:34px;
+    height:14px;
+    overflow: hidden;
+}
+.TAspeechInput{
+    width:14px;
+    border:0;
+    color:transparent;
+    font-size:13px;
+    background:transparent;
+    position: relative;
+    left:8px;
+    top:0;
+}
+.ckBody{
+    margin:2px;
+}
+
+.TAeditorPalette{
+    background: transparent var(--icon-editor-palette) no-repeat center center;
+    height:1px;
+    width:34px;
+    height:14px;
+    top:1px;
+    display:inline-block;
+    position:relative;
+    cursor: pointer;
+}
+
+._common_d11 .cke_skin_kama iframe {
+    border:0px;
+    vertical-align: inherit;
+    box-shadow:none;
+    width:100%!important;
+}
+._common_d11 .cke_skin_kama .cke_wrapper{
+    border:0px;
+}
+._common_d11 .cke_top{
+    background: var(--surface-light);
+}
+
+._common_d11 .dijitTextBoxFocused .cls_DbSelect, ._common_d11 .dijitComboBoxFocused .cls_DbSelect{
+    background-color: var(--field-focus-bg, #fff);
+}
+._common_d11 .slotbar_toolbar .dijitTextAreaFocused,._common_d11 .slotbar_toolbar .dijitTextBoxFocused,._common_d11 .slotbar_toolbar .dijitComboBoxFocused{
+    box-shadow: 0 0 1px var(--accent-color);
+}
+
+._common_d11 .hideInnerToolbars .slotbar_toolbar{
+    display: none;
+}
+
+._common_d11 .hideInnerToolbars .showInnerToolbar .slotbar_toolbar{
+    display: block;
+}
+
+.slotbar_toolbar .gnrfieldlabel {
+    color: var(--text-muted);
+    white-space: nowrap;
+    padding-left:4px;
+}
+/* @end */
+
+/* @group PatchDojox */
+._common_d11 .dojoxDockNode {
+	border: 1px solid var(--border-color);
+	border-radius: var(--radius-sm);
+	cursor:pointer;
+	list-style: none;
+	padding: 2px;
+	margin: 0px;
+	height: 16px;
+	width: auto;
+	float: left;
+    background-color: var(--toolbar-bg);
+    background-image: var(--toolbar-gradient);
+}
+/* @end */
+/* @group PatchDojox */
+
+/* @end */
+
+/* --- Progress cell / Player (moved from 01_gnr_variables) --- */
+.progressCell .cellContent {
+    height: 1px;
+    padding-bottom: 0;
+    padding-top: 0;
+}
+.progressCell progress {
+    height: 16px;
+}
+
+.player_pause {
+    background: var(--icon-pause) center center no-repeat;
+    height: 18px;
+    width: 20px;
+    cursor: pointer;
+}
+.player_play {
+    background: var(--icon-play) center center no-repeat;
+    height: 18px;
+    width: 20px;
+    cursor: pointer;
+}
+
+/* @end */

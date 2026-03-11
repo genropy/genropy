@@ -1,21 +1,29 @@
+/* --- Batch monitor root --- */
 .bm_rootnode {
-    padding: 2px;
+    padding: 4px;
     position: absolute;
-    top:0;
+    top: 0;
     bottom: 0;
     left: 0;
     right: 0;
     overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* --- Progress bar (thermoline) --- */
+.bm_thermoline {
+    width: 100%;
+    height: 14px;
+    font-size: 0.7em;
+    margin-top: 4px;
 }
 
 .bm_thermoline.dijitProgressBarEmpty {
-    -moz-border-radius: 6px;
-    -webkit-border-radius: 6px;
-    background: white;
-    border: 1px solid gray;
-    -moz-box-shadow: inset 1px 1px 2px gray;
-    -webkit-box-shadow: inset 1px 1px 2px gray;
-
+    border-radius: var(--radius-pill, 9999px);
+    background: var(--surface-light, #f6f6f6);
+    border: 1px solid var(--border-color, #ccc);
 }
 
 .bm_thermoline .dijitProgressBarFull {
@@ -25,34 +33,7 @@
     top: 0;
     width: 100%;
     height: 100%;
-    border: 0px;
-}
-
-.bm_thermoline_box {
-    padding-bottom: 2px;
-    padding-right: 2px;
-}
-.bm_resulttd{
-    padding-left:5px;
-    padding-right:5px;
-}
-.bm_resultlink{
-    width:100%;
-}
-.bm_resultlink:link>div{
-    background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, from(#EDEDEE), to(#CDCDCD));
-    background-image: -moz-linear-gradient(-90deg, #EDEDEE, #CDCDCD);
-    border:1px solid silver;
-    border-radius:6px;
-}
-
-.bm_resultlink:visited>div{
-    border:1px navy;
-}
-
-.bm_resultlink .iconbox{
-    width:100%;
-    height:20px;
+    border: 0;
 }
 
 .bm_thermoline div.dijitProgressBarTile {
@@ -66,146 +47,157 @@
     padding: 0;
     width: auto;
     height: auto;
-
-    background-attachment: fixed;
-    -moz-border-radius: 6px;
-    -webkit-border-radius: 6px;
+    border-radius: var(--radius-pill, 9999px);
 }
 
 .bm_thermoline.bm_line_1 div.dijitProgressBarTile {
-    background: #ff8d00;
+    background: var(--batch-line1-color, #ff8d00);
 }
 
 .bm_thermoline.bm_line_2 div.dijitProgressBarTile {
-    background: #d1fb00;
+    background: var(--batch-line2-color, #d1fb00);
 }
 
 .bm_thermoline.bm_line_3 div.dijitProgressBarTile {
-    background: #59d6ff;
+    background: var(--batch-line3-color, #59d6ff);
 }
 
 .bm_thermoline.bm_line_4 div.dijitProgressBarTile {
-    background: #59ffff;
+    background: var(--batch-line4-color, #59ffff);
 }
 
-.bm_thermoline {
-    width: 100%;
-    height: 12px;
-    font-size: 9px;
-    margin-top: 3px;
+.bm_thermoline_box {
+    padding-bottom: 3px;
+    padding-right: 4px;
 }
 
 .bm_thermomsg {
-    font-size: 8px;
+    font-size: 0.72em;
     text-align: center;
-    color: black;
+    color: var(--text-muted, #666);
+    min-height: 1.4em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-
+/* --- Batch pane card --- */
 .bm_batchpane {
     opacity: .5;
     position: relative;
-    border: 1px solid gray;
-    margin: 4px;
-    background: white;
-    -moz-border-radius-bottomleft: 6px;
-    -webkit-border-bottom-left-radius: 6px;
-    -moz-border-radius-bottomright: 6px;
-    -webkit-border-bottom-right-radius: 6px;
-    -moz-box-shadow: 2px 2px 3px gray;
-    -webkit-box-shadow: 2px 2px 3px gray;
-
+    border: 1px solid var(--border-color, #ccc);
+    margin: 6px;
+    background: var(--surface-bg, #fff);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.06));
+    overflow: hidden;
 }
 
-.fast_polling .bm_batchpane{
+.fast_polling .bm_batchpane {
     opacity: 1;
 }
 
+/* --- Batch label (title bar) --- */
 .bm_batchlabel {
-    background: gray;
-    font-size: 10px;
-    padding-left: 4px;
-    padding-bottom: 4px;
-    padding-right: 2px;
-    height: 10px;
-    color: white;
-    position:relative;
+    background: var(--primary-color, #636366);
+    font-size: 0.75em;
+    min-height: 1.8em;
+    padding: 0 8px;
+    color: var(--accent-on-color, #fff);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .bm_batchtitle {
-    position:absolute;
-    top:1px;
-    left:2px;
-}
-
-.bm_thermoline div.dijitProgressBarLabel {
-}
-
-.bm_label_action_link {
-    position:absolute;
-    top:1px;
-    right:2px;
+    font-weight: 600;
 }
 
 .bm_label_action_link a {
-    color: white;
+    color: var(--accent-on-color, #fff);
     text-decoration: none;
+    opacity: 0.8;
 }
 
 .bm_label_action_link a:hover {
-    color: yellow;
+    opacity: 1;
+    color: var(--accent-on-color, #fff);
 }
 
+/* --- Batch content --- */
 .bm_contentpane {
-    padding: 2px;
-    font-size: .9em;
-    color: #555;
-    background-color:whitesmoke;
+    min-height: 2em;
+    padding: 6px 8px;
+    font-size: .85em;
+    color: var(--text-color, #444);
+    background-color: var(--surface-bg, #fff);
 }
 
+/* --- Batch bottom (info bar) --- */
 .bm_batchbottom {
-    background: none repeat scroll 0 0 darkred;
-    bottom: 0;
-    color: white;
+    background: var(--surface-light, #f6f6f6);
+    color: var(--text-muted, #666);
     font-size: 0.7em;
-    left: 0;
-    right: 0;
-    text-align: center;
-    -moz-border-radius-bottomleft: 6px;
-    -webkit-border-bottom-left-radius: 6px;
-    -moz-border-radius-bottomright: 6px;
-    -webkit-border-bottom-right-radius: 6px;
+    min-height: 1.6em;
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-top: 1px solid var(--border-light, #efefef);
 }
 
+/* --- Result links --- */
+.bm_resulttd {
+    padding: 4px 6px;
+}
+
+.bm_resultlink {
+    width: 100%;
+}
+
+.bm_resultlink:link > div {
+    background: var(--surface-light, #f6f6f6);
+    border: 1px solid var(--border-color, #ccc);
+    border-radius: var(--radius-sm);
+    padding: 4px 8px;
+}
+
+.bm_resultlink:visited > div {
+    border-color: var(--primary-light, #D8D8DC);
+}
+
+.bm_resultlink .iconbox {
+    width: 100%;
+    height: 20px;
+}
+
+/* --- Task/script panes --- */
 .ts_optionsPane {
-    background-color: rgba(168, 181, 182, 0.8);
+    background-color: var(--surface-light, #f6f6f6);
 }
 
 .ts_parametersPane {
-    -moz-box-shadow: 1px 1px 2px 1px gray inset;
-    -webkit-box-shadow: 1px 2px 2px 2px gray inset;
-    background: none repeat scroll 0 0 white;
+    background: var(--surface-bg, #fff);
     height: 100%;
+    border: 1px solid var(--border-light, #efefef);
 }
 
 .ts_printMode {
-    background: whitesmoke;
+    background: var(--surface-light, #f6f6f6);
     margin: 2px;
-    -moz-border-radius: 6px;
-    -moz-box-shadow: inset 2px 2px 2px gray;
-    -webkit-box-shadow: inset 2px 2px 2px gray;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-light, #efefef);
 }
 
+/* --- Batch monitor icon --- */
 .batch_monitor_icon {
     background: url(images/batch_monitor.png) no-repeat center center;
-    /*width: 16px;
-    height: 16px;*/
 }
-.runningBatch .batch_monitor_icon{
-    background: url(images/batch_running.gif) no-repeat center center;                
 
+.runningBatch .batch_monitor_icon {
+    background: url(images/batch_running.gif) no-repeat center center;
 }
-.runningBatch .iframetab_selected .batch_monitor_icon{
+
+.runningBatch .iframetab_selected .batch_monitor_icon {
     background: url(images/batch_monitor.png) no-repeat center center;
 }
-

@@ -10,7 +10,7 @@ from gnr.core.gnrdecorator import public_method
 
 class GnrCustomWebPage(object):
     py_requires = """gnrcomponents/testhandler:TestHandlerFull"""
-    css_requires='public,bgfield'
+    css_requires='bgfield'
 
     def test_1_pane(self, pane):
         bc = pane.borderContainer(height='400px',_class='mum')

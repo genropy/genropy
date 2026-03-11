@@ -32,13 +32,13 @@ const LoginComponent = {
         if(avatar.getItem('group_code')){
             sourceNode.setRelativeData('_login.group_code',avatar.getItem('group_code'))
         }
-        sourceNode.getValue().walk(n=>{    
+        sourceNode.getValue().walk(n=>{
             if(genro.dom.isVisible(n) && n.attr.value && n.attr.nodeId!="tb_login_pwd" &&  n.attr.nodeId!="tb_login_user"){
                 extraEditableFields.push(n);
             }
             if(!n.hasValidations()){
                 return
-            }        
+            }
             let validation = n.validationsOnChange(n,n.getAttributeFromDatasource('value'));;
             if (validation.modified) {
                 n.widget.setValue(validation.value);

@@ -416,7 +416,7 @@ class FrameGrid(BaseComponent):
                     editor_kwargs=None,**kwargs):
         pane.attributes.update(overflow='hidden')
         frame = pane.framePane(frameCode=frameCode,center_overflow='hidden',**kwargs)
-        frame.center.stackContainer(selectedPage=selectedPage)
+        frame.center.stackContainer(selectedPage=selectedPage, _class='framegrid_center')
         grid_kwargs.setdefault('fillDown', fillDown)
         grid_kwargs.update(footer_kwargs)
         grid_kwargs.update(columnset_kwargs)

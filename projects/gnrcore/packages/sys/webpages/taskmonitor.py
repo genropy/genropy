@@ -16,7 +16,6 @@ from gnr.web.gnrtask_new import GNR_SCHEDULER_URL
 
 
 class GnrCustomWebPage(object):
-    css_requires='public'
     py_requires='gnrcomponents/framegrid:FrameGrid'
     auth_main = 'superadmin,_DEV_'
 

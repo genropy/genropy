@@ -201,9 +201,12 @@ class GroupletHandler(BaseComponent):
     @struct_method
     def gr_groupletPanel(self, pane, table=None, topic=None, value=None,
                          frameCode=None, grouplets_root=None,
-                         useForm=True, menuCallback=None,
+                         useForm=True, useRecordPath=False,
+                         menuCallback=None,
                          grouplet_kwargs=None, **kwargs):
         frameCode = frameCode or 'grplt_panel'
+        if useRecordPath:
+            grouplet_kwargs['formDatapath'] = '.record'
         if useForm:
             formId = f'{frameCode}_grpform'
             grouplet_kwargs.update(resource='^#ANCHOR.selected_resource',
@@ -284,7 +287,7 @@ class GroupletHandler(BaseComponent):
             storepath='.grouplet_menu',
             hideValues=True,
             labelAttribute='caption',
-            _class='branchtree noIcon grouplet_tree',
+            _class='grouplet_tree',
             selectedLabelClass='selectedTreeNode',
             openOnClick=True,
             nodeId=f'{frameCode}_tree',

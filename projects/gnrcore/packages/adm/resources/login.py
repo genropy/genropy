@@ -61,12 +61,12 @@ class LoginComponent(BaseComponent):
         return box
 
     def login_commonFooter(self,pane):
-        return pane.slotBar('15,leftbox,*,rightbox,15',height='45px')
+        return pane.slotBar('leftbox,*,rightbox',height='3em',padding='0.5em 0')
 
 
     def login_commonHeader(self,pane,title=None,subtitle=None):
-        pane = pane.div(margin_top='10px')
-        pane.div(text_align='center').cover_logo(height='30px')
+        pane = pane.div(margin_top='0.5em')
+        pane.div(text_align='center',_class='login_logo').cover_logo()
         if title:
             pane.div(title,_class='index_logintitle')
         if subtitle:
@@ -87,18 +87,16 @@ class LoginComponent(BaseComponent):
         pane.button('!!Enter',action='FIRE do_login_check',_class='login_confirm_btn')
 
     def loginDialog_center(self,pane,doLogin=None,gnrtoken=None,dlg=None,closable_login=None):
-        fb = pane.div(_class='login_form_container').htmlform().formbuilder(cols=1,formlet=False, border_spacing='4px',onEnter='FIRE do_login_check;',
-                                datapath='gnr.rootenv',width='100%',
-                                fld_width='100%',row_height='3ex',keeplabel=True
-                                ,fld_attr_editable=True)
+        fb = pane.div(_class='login_form_container').formlet(cols=1,onEnter='FIRE do_login_check;',
+                                datapath='gnr.rootenv',width='100%')
         rpcmethod = self.login_newWindow
         start = 0
         if doLogin:
             start = 3
-            tbuser = fb.textbox(value='^_login.user',lbl='!!Username',row_hidden=False,
+            tbuser = fb.textbox(value='^_login.user',lbl='!!Username',
                                 nodeId='tb_login_user',autocomplete='username',disabled=self.external_verified_user,
                                 validate_onAccept="""genro.publish('onUserEntered',{username:value})""")
-            tbpwd = fb.PasswordTextBox(value='^_login.password',lbl='!!Password',row_hidden=self.external_verified_user,
+            tbpwd = fb.PasswordTextBox(value='^_login.password',lbl='!!Password',hidden=self.external_verified_user,
                                     nodeId='tb_login_pwd',autocomplete='current-password')
             fb.dbSelect(value='^_login.group_code',table='adm.group',
                         condition="""$code IN :all_groups 
@@ -107,7 +105,7 @@ class LoginComponent(BaseComponent):
                     condition_all_groups='^.all_groups?=#v || []',
                     validate_notnull='^.group_selector_mandatory',
                     disabled='^.group_selector?=!#v',
-                    row_hidden='^.group_selector?=!#v',
+                    hidden='^.group_selector?=!#v',
                     lbl='!![en]Group',hasDownArrow=True,
                     validate_onAccept="""
                     if(userChange){
@@ -163,11 +161,17 @@ class LoginComponent(BaseComponent):
         if gnrtoken:
             valid_token = self.db.table('sys.external_token').check_token(gnrtoken)
         self.callPackageHooks('rootenvForm',fb)
-        for fbnode in fb.getNodes()[start:]:
-            if fbnode.attr['tag']=='tr':
-                fbnode.attr['hidden'] = '==!_avatar || _hide '
-                fbnode.attr['_avatar'] = '^gnr.avatar.user'
-                fbnode.attr['_hide'] = '%s?hidden' %fbnode.value['#1.#0?value']
+        for flnode in fb.getNodes()[start:]:
+            node_value = flnode.attr.get('value')
+            if node_value:
+                original_hidden = flnode.attr.get('hidden')
+                if original_hidden:
+                    flnode.attr['hidden'] = '==!_avatar || _hide || _orig_hide'
+                    flnode.attr['_orig_hide'] = original_hidden
+                else:
+                    flnode.attr['hidden'] = '==!_avatar || _hide '
+                flnode.attr['_avatar'] = '^gnr.avatar.user'
+                flnode.attr['_hide'] = '%s?hidden' % node_value
         if gnrtoken or not closable_login:
             pane.dataController("""
                             var href = window.location.href;
@@ -199,7 +203,7 @@ class LoginComponent(BaseComponent):
                             fb=fb)
 
 
-        dlg.dataController("genro.dlg.floatingMessage(sn,{message:message,messageType:'error',yRatio:1.85})",subscribe_failed_login_msg=True,sn=dlg)
+        dlg.dataController("genro.dlg.floatingMessage(genro.src.getNode(),{message:message,messageType:'error',yRatio:0.4})",subscribe_failed_login_msg=True)
 
         pane.dataController("dlg_login.hide();dlg_cu.show();",dlg_login=dlg.js_widget,
                     dlg_cu=self.login_confirmUserDialog(pane,dlg).js_widget,subscribe_confirmUserDialog=True)
@@ -302,15 +306,14 @@ class LoginComponent(BaseComponent):
         return result
 
     def loginboxPars(self):
-        return dict(width='320px',_class='index_loginbox')
+        return dict(_class='index_loginbox')
 
     def login_lostPassword(self,pane,dlg_login):
         dlg = pane.dialog(_class='lightboxDialog loginDialog')
         box = dlg.div(**self.loginboxPars())
         self.login_commonHeader(box,'!!Lost password')
-        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1,formlet=False, border_spacing='4px',onEnter='FIRE recover_password;',
-                                datapath='lost_password',width='100%',
-                                fld_width='100%',row_height='3ex')
+        fb = box.div(_class='login_form_container').formlet(cols=1,onEnter='FIRE recover_password;',
+                                datapath='lost_password',width='100%')
         fb.textbox(value='^.email',lbl='!!Email')
         fb.dataRpc(self.login_confirmNewPassword, _fired='^recover_password',_if='email',email='=.email',
                 _onResult="""if(result=="ok"){
@@ -338,9 +341,8 @@ class LoginComponent(BaseComponent):
         dlg = pane.dialog(_class='lightboxDialog loginDialog',subscribe_closeNewPwd='this.widget.hide();',subscribe_openNewPwd='this.widget.show();')
         box = dlg.div(**self.loginboxPars())
         self.login_commonHeader(box,'!!New password')
-        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1,formlet=False, border_spacing='4px',onEnter='FIRE set_new_password;',
-                                datapath='new_password',width='100%',
-                                fld_width='100%',row_height='3ex')
+        fb = box.div(_class='login_form_container').formlet(cols=1,onEnter='FIRE set_new_password;',
+                                datapath='new_password',width='100%')
         if not gnrtoken:
             #change password by a logged user
             dlg.div(_class='dlg_closebtn',connect_onclick="genro.publish('closeNewPwd');")
@@ -398,9 +400,8 @@ class LoginComponent(BaseComponent):
                 padding='10px 10px 0px 10px',
                 color='#777',font_style='italic',
                 font_size='.9em',text_align='center')
-        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1,formlet=False, border_spacing='4px',onEnter='FIRE otp_confirm;',
-                                datapath='new_password',width='100%',
-                                fld_width='100%',row_height='3ex')
+        fb = box.div(_class='login_form_container').formlet(cols=1,onEnter='FIRE otp_confirm;',
+                                datapath='new_password',width='100%')
         fb.textbox(value='^.otp_code',lbl='!![en]Code',font_size='1.2em',font_weight='bold')
         fb.checkbox(value='^.otp_remember',label='!![en]Remember this client')
         footer = self.login_commonFooter(box)
@@ -455,12 +456,11 @@ class LoginComponent(BaseComponent):
         self.login_commonHeader(box,confirmUserTitle)
         self.login_commonHeader(sc.contentPane(),confirmUserTitle,self.loginPreference('check_email') or 'Please check your email')
         box.div(self.loginPreference('confirm_user_message'),padding='10px 10px 0px 10px',color='#777',font_style='italic',font_size='.9em',text_align='center')
-        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1,formlet=False, border_spacing='4px',onEnter='FIRE confirm_email;',
-                                datapath='new_password',width='100%',
-                                fld_width='100%',row_height='3ex')
+        fb = box.div(_class='login_form_container').formlet(cols=1,onEnter='FIRE confirm_email;',
+                                datapath='new_password',width='100%')
         fb.textbox(value='^.email',lbl='!!Email')
         fb.dataController("SET .email = avatar_email;",avatar_email='^gnr.avatar.email')
-        fb.div(width='100%',position='relative',row_hidden=False).button('!!Send Email',action='FIRE confirm_email',position='absolute',right='-5px',top='8px')
+        fb.div(width='100%',position='relative').button('!!Send Email',action='FIRE confirm_email',position='absolute',right='-5px',top='8px')
         fb.dataRpc(self.login_confirmUser,_fired='^confirm_email',email='=.email',user_id='=gnr.avatar.user_id',
                     _if='email',
                     _onCalling='_sc.switchPage(1);',
@@ -476,8 +476,8 @@ class LoginComponent(BaseComponent):
                             subscribe_closeNewUser='this.widget.hide();')
 
         kw = self.loginboxPars()
-        kw['width'] = '400px'
-        kw['height'] = '280px'
+        kw['width'] = '26em'
+        kw['height'] = '20em'
         kw.update(kwargs)
         form = dlg.frameForm(frameCode='newUser',datapath='new_user',store='memory',**kw)
         if closable:
@@ -506,8 +506,8 @@ class LoginComponent(BaseComponent):
         return dlg
 
     def login_newUser_form(self,form):
-        fb = form.record.div(margin='10px',_class='login_form_container').formbuilder(cols=1,formlet=False, border_spacing='6px',onEnter='SET creating_new_user = true;',
-                                width='100%',tdl_width='6em',fld_width='100%',row_height='3ex')
+        fb = form.record.div(_class='login_form_container').formlet(cols=1,onEnter='SET creating_new_user = true;',
+                                width='100%')
         fb.textbox(value='^.firstname',lbl='!!First name',validate_notnull=True,validate_case='c',validate_len='2:')
         fb.textbox(value='^.lastname',lbl='!!Last name',validate_notnull=True,validate_case='c',validate_len='2:')
         fb.textbox(value='^.email',lbl='!!Email',validate_notnull=True)
@@ -630,16 +630,15 @@ class LoginComponent(BaseComponent):
     def login_screenLockDialog(self,pane):
         dlg = pane.dialog(_class='lightboxDialog loginDialog',subscribe_screenlock="this.widget.show();this.setRelativeData('.password',null);",datapath='_screenlock')
         box = dlg.div(**self.loginboxPars())
-        box.div(text_align='center').cover_logo(height='40px')
+        box.div(text_align='center',_class='login_logo').cover_logo()
 
         wtitle = '!!Screenlock'
         box.div(wtitle,_class='index_logintitle')  
         box.div('!!Insert password',text_align='center',font_size='.9em',font_style='italic')
-        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1,formlet=False, border_spacing='4px',onEnter='FIRE .checkPwd;',
-                                width='100%',
-                                fld_width='100%',row_height='3ex')
-        fb.passwordTextBox(value='^.password',lbl='!!Password',row_hidden=False)
-        btn=fb.div(width='100%',position='relative',row_hidden=False).button('!!Enter',action='FIRE .checkPwd;this.widget.setAttribute("disabled",true);',position='absolute',right='-5px',top='8px')
+        fb = box.div(_class='login_form_container').formlet(cols=1,onEnter='FIRE .checkPwd;',
+                                width='100%')
+        fb.passwordTextBox(value='^.password',lbl='!!Password')
+        btn=fb.div(width='100%',position='relative').button('!!Enter',action='FIRE .checkPwd;this.widget.setAttribute("disabled",true);',position='absolute',right='-5px',top='8px')
         box.div().slotBar('*,messageBox,*',messageBox_subscribeTo='failed_screenout',height='18px',width='100%',tdl_width='6em')
         fb.dataRpc('.result',self.login_checkPwd,password='=.password',user='=gnr.avatar.user',_fired='^.checkPwd')
         fb.dataController("""if(!authResult){
