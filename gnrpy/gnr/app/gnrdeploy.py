@@ -1008,18 +1008,18 @@ class ThPackageResourceMaker(object):
         self.write('r = struct.view().rows()', indent=2)
         for group, columns in column_groups.items():
             if group:
-                self.write(out_file, f"{group[0]}_col_group = r.columnset('{group[0]}', name='{group[1]}')", indent = 2)
+                self.write(f"{group[0]}_col_group = r.columnset('{group[0]}', name='{group[1]}')", indent = 2)
                 for column, size in columns:
                     if self.option_guess_size:
-                        self.write(out_file, "%s_col_group.fieldcell('%s', width='%iem')" % (group[0], column, size), indent=2)
+                        self.write("%s_col_group.fieldcell('%s', width='%iem')" % (group[0], column, size), indent=2)
                     else:
-                        self.write(out_file, "%s_col_group.fieldcell('%s')" % (group[0], column), indent=2)
+                        self.write("%s_col_group.fieldcell('%s')" % (group[0], column), indent=2)
             else:
                 for column, size in columns:
                     if self.option_guess_size:
-                        self.write(out_file, "r.fieldcell('%s', width='%iem')"%(column,size), indent=2)
+                        self.write("r.fieldcell('%s', width='%iem')"%(column,size), indent=2)
                     else:
-                        self.write(out_file, "r.fieldcell('%s')"%column, indent=2)
+                        self.write("r.fieldcell('%s')"%column, indent=2)
         self.write()
         self.write("def th_order(self):", indent=1)
         self.write("return '%s'" % columns[0][0], indent=2)

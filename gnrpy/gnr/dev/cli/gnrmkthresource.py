@@ -1,17 +1,13 @@
 #!/usr/bin/env python
 # encoding: utf-8
-import os
+
 import sys
-import ast
-from pathlib import Path
+
 from collections import defaultdict
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.core.gnrbag import Bag
-from gnr.core.gnrlang import uniquify
 from gnr.app.gnrapp import GnrApp
 from gnr.app.gnrdeploy import ThPackageResourceMaker
-from gnr.web.gnrmenu import MenuStruct
 from gnr.dev import logger
 
 
