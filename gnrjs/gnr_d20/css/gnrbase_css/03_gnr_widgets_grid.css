@@ -42,10 +42,11 @@
 div.cellContent{
     border-radius: var(--radius-sm);
     margin:1px;
-    padding:1px;
-    padding-bottom: 2px;
-    padding-top: 3px;
+    padding: 0 1px;
     transition-duration:0;
+    display: flex;
+    align-items: center;
+    height: 100%;
     line-height: 1.1em;
     min-height: 1.1em;
     border:1px solid transparent;
