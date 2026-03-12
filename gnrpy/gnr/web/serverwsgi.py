@@ -333,9 +333,17 @@ class Server(object):
         options = self.options.__dict__
         envopt = dictExtract(os.environ,'GNR_WSGI_OPT_')
         for option in list(options.keys()):
+
             if not options.get(option, None): # not specified on the command-line
-                site_option = self.siteconfig['wsgi?%s' % option]
-                self.options.__dict__[option] = site_option or wsgi_options.get(option) or envopt.get(option)
+                option_value = wsgi_options.get(option)
+
+                site_option_value = self.siteconfig['wsgi?%s' % option]
+                if site_option_value is not None:
+                    option_value = site_option_value
+                if option in envopt:
+                    option_value = envopt.get(option)
+
+                self.options.__dict__[option] = option_value
 
     def get_config(self):
         return PathResolver().get_siteconfig(self.site_name)
