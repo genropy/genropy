@@ -8094,16 +8094,16 @@ dojo.declare("gnr.widgets.TracebackViewer", gnr.widgets.gnrwdg, {
         var viewerNode = sourceNode._('div', {_class: 'gnr-tb-viewer'});
         var startValue = sourceNode.getAttributeFromDatasource('value');
         if (startValue) {
-            var self = this;
+            var that = this;
             setTimeout(function() {
-                self._doRender(sourceNode, startValue);
+                that._doRender(sourceNode, startValue);
             }, 1);
         }
         return viewerNode;
     },
 
     gnrwdg_setValue: function(value) {
-        this._doRender(this.sourceNode, value);
+        this.gnr._doRender(this.sourceNode, value);
     },
 
     _doRender: function(sourceNode, bag) {
