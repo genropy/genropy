@@ -21,11 +21,7 @@ class GnrCustomWebPage(object):
 
     def main(self, root, **kwargs):
         bc = root.rootBorderContainer(datapath='main', title='!!Mail proxy dashboard')
-        bc.css('.mp-status-error', 'color:#c00000; font-weight:bold;')
-
-        status_pane = bc.contentPane(region='top', height='160px', datapath='.status', padding='6px')
-        bar = status_pane.slotToolbar('run_now,*,cleanup_messages,refresh,proxy_status')
-
+        status_pane = bc.contentPane(region='top', height='40px', datapath='.status', padding='6px')
         shared_on_result = """
             var status = result && result.getItem ? result.getItem('status') : (result ? result.status : null);
             if(!status && result){
@@ -54,12 +50,24 @@ class GnrCustomWebPage(object):
             }
         """
 
-        bar.run_now.slotButton('!!Run now').dataRpc(
-            'main.status.last_command',
-            self.rpc_run_now,
-            _onResult=shared_on_result
-        )
-        bar.cleanup_messages.slotButton('!!Cleanup sent').dataRpc(
+        controls = status_pane.div(style='display:flex; gap:10px; align-items:center;')
+        for lbl, val_path in [
+            ('!!Last refresh', '.last_refresh'),
+            ('!!Accounts', '.account_count'),
+            ('!!Pending', '.pending_count'),
+            ('!!Deferred', '.deferred_count'),
+            ('!!Errors', '.error_count'),
+        ]:
+            block = controls.div(style='padding:4px 10px; background:#f4f4f4; border-radius:3px; text-align:center; min-width:80px;')
+            block.div(lbl, style='font-size:0.75em; color:#888; white-space:nowrap;')
+            block.div('^%s' % val_path, style='font-size:1.3em; font-weight:bold;')
+        controls.div(style='flex:1;')
+        proxy_status = controls.div()
+        proxy_status.div('^.proxy_reachable', dtype='B', format='semaphore')
+        proxy_status.dataRpc('.proxy_reachable', self.rpc_check_proxy_status, _onBuilt=1)
+        controls.slotButton('!!Run now').dataRpc(
+            'main.status.last_command', self.rpc_run_now, _onResult=shared_on_result)
+        controls.slotButton('!!Cleanup sent').dataRpc(
             'main.status.last_command',
             self.rpc_cleanup_messages,
             older_than_seconds='=_ask.older_than_seconds',
@@ -78,15 +86,8 @@ class GnrCustomWebPage(object):
             ),
             _onResult=shared_on_result
         )
-        bar.refresh.slotButton('!!Refresh').dataRpc(
-            'main.data',
-            self.rpc_proxy_overview,
-            _onResult=shared_on_result,
-            _onStart=True
-        )
-        proxy_status = bar.proxy_status.div()
-        proxy_status.div('^.proxy_reachable', dtype='B', format='semaphore')
-        proxy_status.dataRpc('.proxy_reachable', self.rpc_check_proxy_status, _onBuilt=1)
+        controls.slotButton('!!Refresh').dataRpc(
+            'main.data', self.rpc_proxy_overview, _onResult=shared_on_result, _onStart=True)
 
         status_pane.dataController("""
             if(!overview){
@@ -99,14 +100,7 @@ class GnrCustomWebPage(object):
             SET .last_refresh = overview.getItem('status.last_refresh') || null;
             SET .error = overview.getItem('status.error') || null;
         """, overview='^main.data')
-
-        fb = status_pane.formlet(cols=5, margin_top='10px', fld_readOnly=True)
-        fb.textbox(value='^.last_refresh', lbl='!!Last refresh')
-        fb.numberTextbox(value='^.account_count', lbl='!!Accounts')
-        fb.numberTextbox(value='^.pending_count', lbl='!!Pending')
-        fb.numberTextbox(value='^.deferred_count', lbl='!!Deferred')
-        fb.numberTextbox(value='^.error_count', lbl='!!Errors')
-        fb.div('^.error', colspan=4, _class='mp-status-error', hidden='^.error?=!#v')
+        status_pane.div('^.error', margin_top='6px', style='color:#c00000; font-weight:bold;', hidden='^.error?=!#v')
 
         left_bc = bc.borderContainer(region='left', width='38%', splitter=True)
         left_bc.contentPane(region='center').bagGrid(
@@ -138,29 +132,29 @@ class GnrCustomWebPage(object):
     def accounts_struct(self, struct):
         rows = struct.view().rows()
         rows.cell('id', name='!!Account', width='12em')
-        rows.cell('host', name='!!Host', width='12em')
-        rows.cell('port', name='!!Port', width='6em', dtype='I')
-        rows.cell('use_tls', name='!!TLS', width='6em', dtype='B')
-        rows.cell('limit_per_minute', name='!!Per minute', width='7em', dtype='I')
-        rows.cell('limit_per_hour', name='!!Per hour', width='7em', dtype='I')
-        rows.cell('limit_per_day', name='!!Per day', width='7em', dtype='I')
-        rows.cell('created_at', name='!!Created at', width='12em')
+        rows.cell('host', name='!!Host', width='18em')
+        rows.cell('port', name='!!Port', width='4em', dtype='I')
+        rows.cell('use_tls', name='!!TLS', width='4em', dtype='B')
+        rows.cell('limit_per_minute', name='!!/ min', width='5em', dtype='I')
+        rows.cell('limit_per_hour', name='!!/ hour', width='5em', dtype='I')
+        rows.cell('limit_per_day', name='!!/ day', width='5em', dtype='I')
+        rows.cell('created_at', name='!!Created at', width='11em')
 
     def messages_struct(self, struct):
         rows = struct.view().rows()
-        rows.cell('id', name='!!Message ID', width='14em')
+        rows.cell('id', name='!!ID', width='8em')
         rows.cell('account_id', name='!!Account', width='12em')
-        rows.cell('status', name='!!Status', width='10em')
-        rows.cell('priority_label', name='!!Priority', width='10em')
-        rows.cell('to_addr', name='!!Recipient', width='16em')
-        rows.cell('subject', name='!!Subject', width='18em')
-        rows.cell('created_at', name='!!Queued at', width='16em')
-        rows.cell('deferred_time', name='!!Deferred until', width='16em')
-        rows.cell('sent_ts', name='!!Sent at', width='16em')
-        rows.cell('error_ts', name='!!Error at', width='16em')
-        rows.cell('reported_ts', name='!!Reported at', width='16em')
-        rows.cell('error', name='!!Error message', width='24em')
-        rows.cell('retry_count', name='!!Retries', width='8em', dtype='I')
+        rows.cell('status', name='!!Status', width='6em')
+        rows.cell('priority_label', name='!!Priority', width='6em')
+        rows.cell('to_addr', name='!!Recipient', width='14em')
+        rows.cell('subject', name='!!Subject', width='16em')
+        rows.cell('created_at', name='!!Queued at', width='11em')
+        rows.cell('deferred_time', name='!!Deferred until', width='11em')
+        rows.cell('sent_ts', name='!!Sent at', width='11em')
+        rows.cell('error_ts', name='!!Error at', width='11em')
+        rows.cell('reported_ts', name='!!Reported at', width='11em')
+        rows.cell('error', name='!!Error message', width='18em')
+        rows.cell('retry_count', name='!!Retries', width='5em', dtype='I')
 
     # -------------------------------------------------------------------------
     # RPC helpers
