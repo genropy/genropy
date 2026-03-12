@@ -138,11 +138,6 @@
     vertical-align:middle;
 
 }
-/* Allow error tooltips to escape overflow clipping */
-.slotbar .slotbar_cell:has(.th_linker[data-error]),
-.slotbar_horizontal:has(.th_linker[data-error]) {
-    overflow: visible;
-}
 .slotbar .slotbar_cell>*{
 	margin: auto;
 

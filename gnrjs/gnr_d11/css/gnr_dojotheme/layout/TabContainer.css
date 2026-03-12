@@ -46,7 +46,7 @@
 .gnr_dojotheme .dijitTabChecked {
     background: var(--card-surface, #F2F2F7);
     color: var(--primary-color, #1E3055);
-    font-weight: 600;
+    font-weight: 400;
     border: 1px solid var(--border-strong, #aab4c4);
     border-bottom: none;
     border-radius: var(--radius-md) var(--radius-md) 0 0;
@@ -57,7 +57,7 @@
 .gnr_dojotheme .dijitAlignTop .dijitTabCloseButtonChecked {
     background: var(--card-surface, #F2F2F7);
     color: var(--primary-color, #1E3055);
-    font-weight: 600;
+    font-weight: 400;
     border: 1px solid var(--border-strong, #aab4c4);
     border-bottom: none;
     border-radius: var(--radius-md) var(--radius-md) 0 0;
@@ -75,7 +75,7 @@
 /* --- Tab pane wrapper --- */
 .gnr_dojotheme .dijitTabPaneWrapper {
     border: 1px solid var(--border-strong, #aab4c4);
-    border-radius: 0 var(--radius-md) var(--radius-md) var(--radius-md);
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
     background: var(--card-surface, #F2F2F7);
 }
 
@@ -150,7 +150,7 @@
     background: rgba(0, 122, 255, 0.10);
     background: color-mix(in srgb, var(--accent-color, #007AFF) 10%, transparent);
     color: var(--primary-dark, #3A3A3C);
-    font-weight: 600;
+    font-weight: 400;
     border-right-color: var(--accent-color, #007AFF);
 }
 
@@ -158,7 +158,7 @@
     background: rgba(0, 122, 255, 0.10);
     background: color-mix(in srgb, var(--accent-color, #007AFF) 10%, transparent);
     color: var(--primary-dark, #3A3A3C);
-    font-weight: 600;
+    font-weight: 400;
     border-left-color: var(--accent-color, #007AFF);
 }
 

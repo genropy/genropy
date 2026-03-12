@@ -109,7 +109,8 @@ table.draggedItem {
 ._common_d11 .dojoxGrid-row td.invalidCell.dojoxGrid-cell{
     background-image: var(--icon-invalid);
     background-repeat:no-repeat;
-    background-position:0px 0px;
+    background-position:right top;
+    background-size:8px 8px;
 }
 ._common_d11 .dojoxGrid-row .newRowCell.dojoxGrid-cell{
     font-style:italic;
