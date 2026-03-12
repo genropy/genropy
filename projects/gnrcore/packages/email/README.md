@@ -15,11 +15,13 @@ The `email` package provides full email capabilities for Genropy applications: I
    - [Message lifecycle](#message-lifecycle)
    - [Attachment delivery](#attachment-delivery)
    - [Fallback mode](#fallback-mode)
+   - [Scheduled tasks and proxy mode](#scheduled-tasks-and-proxy-mode)
 5. [Configuration guide](#configuration-guide)
    - [Prerequisites](#prerequisites)
    - [Step 1 — instance config](#step-1--instance-config)
    - [Step 2 — add the service in the application](#step-2--add-the-service-in-the-application)
    - [Step 3 — register the tenant](#step-3--register-the-tenant)
+   - [Step 3b — disable direct-send scheduled tasks](#step-3b--disable-direct-send-scheduled-tasks)
    - [Step 4 — configure email accounts](#step-4--configure-email-accounts)
 6. [Operations dashboard](#operations-dashboard)
 7. [Troubleshooting](#troubleshooting)
@@ -270,11 +272,27 @@ This approach avoids storing attachments externally and handles token rotation a
 
 ### Fallback mode
 
-When the proxy is not configured or not registered:
+When the proxy is not configured or not registered, direct SMTP delivery is handled by three batch actions:
 
-- `send_mail` batch action iterates accounts with `save_output_message=true` and sends messages directly via SMTP.
-- This can be triggered manually from the account table or scheduled as a daemon task.
-- No changes to `newMessage()` are needed — the code path is transparent.
+| Batch action | Table | Behaviour |
+|---|---|---|
+| `send_mail` | `email.account` | Iterates accounts with `save_output_message=true` and sends pending messages directly via SMTP. Typically scheduled as a daemon task. |
+| `send_messages` | `email.message` | Sends a user-selected set of messages directly via SMTP. |
+| `send_messages` | `email.message_to_send` | Sends all currently queued messages directly via SMTP. |
+
+No changes to `newMessage()` are needed — the code path is transparent.
+
+### Scheduled tasks and proxy mode
+
+The three batch actions behave differently depending on whether the proxy is active:
+
+| Batch action | Without proxy | With proxy |
+|---|---|---|
+| `email.account / send_mail` | Sends directly per account | **No-op** — returns immediately, harmless |
+| `email.message / send_messages` | Sends selected messages directly | **Raises a business error** |
+| `email.message_to_send / send_messages` | Sends all queued messages directly | **No proxy check** — sends directly, bypassing the proxy |
+
+> **Important:** when activating the proxy, any scheduled task running `email.message_to_send / send_messages` **must be disabled**. If left running, it will send messages directly via SMTP before the proxy can process them — bypassing rate limiting, retry logic, and deferred delivery. The messages will be marked as sent (`send_date` set) and removed from the queue, so the proxy will never see them. The `email.account / send_mail` task is safe to leave in place (it becomes a no-op), but there is no reason to keep it active.
 
 ---
 
@@ -327,6 +345,12 @@ Click **Register** in the service configuration panel. Genropy will:
 The tenant status indicator in the toolbar will turn green when registration is successful.
 
 To undo, click **Unregister** — this removes the tenant from the proxy and deletes the local system user.
+
+### Step 3b — disable direct-send scheduled tasks
+
+Before the proxy goes live, disable any scheduled (daemon) task that runs `email.message_to_send / send_messages`. Leaving it active will cause messages to be delivered directly via SMTP, bypassing the proxy completely (see [Scheduled tasks and proxy mode](#scheduled-tasks-and-proxy-mode)).
+
+The `email.account / send_mail` scheduled task can be left in place — it becomes a no-op when the proxy is active — but disabling it keeps the configuration clean.
 
 ### Step 4 — configure email accounts
 
