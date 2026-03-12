@@ -1873,21 +1873,6 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             }else{
                 wdgDom.removeAttribute('data-error');
             }
-            // Propagate data-error to the linker container so its ::after tooltip can show.
-            // Use position:fixed coordinates to escape any overflow:hidden ancestor.
-            let linkerContainer = wdgDom.closest('.th_linker');
-            if(linkerContainer){
-                if(errText){
-                    let rect = linkerContainer.getBoundingClientRect();
-                    linkerContainer.style.setProperty('--_tooltip-x', rect.left + 'px');
-                    linkerContainer.style.setProperty('--_tooltip-y', (rect.bottom + 4) + 'px');
-                    linkerContainer.setAttribute('data-error', errText);
-                }else{
-                    linkerContainer.removeAttribute('data-error');
-                    linkerContainer.style.removeProperty('--_tooltip-x');
-                    linkerContainer.style.removeProperty('--_tooltip-y');
-                }
-            }
         }
     },
 
