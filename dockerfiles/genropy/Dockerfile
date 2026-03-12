@@ -29,7 +29,6 @@ RUN pip install --no-cache-dir .[developer,pgsql]
 
 WORKDIR /home/genro
 ENV GNRLOCAL_PROJECTS=/etc/workspaces
-ENV GNR_CSS_THEME=mimi
 
 EXPOSE 8080
 ENTRYPOINT []

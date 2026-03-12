@@ -1867,10 +1867,26 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         let wdgDom = this.widget.domNode;
         if(wdgDom){
             let errMsg = this._validations && this._validations.error;
-            if(errMsg){
-                wdgDom.setAttribute('data-error', this._resolveErrorMessage(errMsg));
+            let errText = errMsg ? this._resolveErrorMessage(errMsg) : null;
+            if(errText){
+                wdgDom.setAttribute('data-error', errText);
             }else{
                 wdgDom.removeAttribute('data-error');
+            }
+            // Propagate data-error to the linker container so its ::after tooltip can show.
+            // Use position:fixed coordinates to escape any overflow:hidden ancestor.
+            let linkerContainer = wdgDom.closest('.th_linker');
+            if(linkerContainer){
+                if(errText){
+                    let rect = linkerContainer.getBoundingClientRect();
+                    linkerContainer.style.setProperty('--_tooltip-x', rect.left + 'px');
+                    linkerContainer.style.setProperty('--_tooltip-y', (rect.bottom + 4) + 'px');
+                    linkerContainer.setAttribute('data-error', errText);
+                }else{
+                    linkerContainer.removeAttribute('data-error');
+                    linkerContainer.style.removeProperty('--_tooltip-x');
+                    linkerContainer.style.removeProperty('--_tooltip-y');
+                }
             }
         }
     },
