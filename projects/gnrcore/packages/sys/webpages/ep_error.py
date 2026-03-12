@@ -75,6 +75,7 @@ class GnrCustomWebPage(object):
             <div class="traceback-header">
                 <h2>Traceback</h2>
                 <div class="traceback-actions">
+                    <button onclick="copyTracebackXml()" class="tb-btn" title="Copy traceback XML to clipboard">&#128203; Copy XML</button>
                     <button onclick="expandAll()" class="tb-btn">Expand All</button>
                     <button onclick="collapseAll()" class="tb-btn">Collapse All</button>
                 </div>
@@ -426,6 +427,16 @@ class GnrCustomWebPage(object):
 <body>
     {body}
     <script>
+    function copyTracebackXml() {{
+        var xml = TRACEBACK_XML;
+        if (!xml) {{ return; }}
+        navigator.clipboard.writeText(xml).then(function() {{
+            var btn = event.target.closest('.tb-btn');
+            var orig = btn.innerHTML;
+            btn.innerHTML = '&#10003; Copied';
+            setTimeout(function() {{ btn.innerHTML = orig; }}, 1500);
+        }});
+    }}
     function expandAll() {{
         document.querySelectorAll('.tb-frame').forEach(function(d){{ d.open = true; }});
         document.querySelectorAll('.tb-locals').forEach(function(d){{ d.classList.add('expanded'); }});

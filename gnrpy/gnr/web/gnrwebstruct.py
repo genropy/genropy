@@ -1342,7 +1342,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
              'DocItem','UserObjectLayout','UserObjectBar', 'PalettePane','PasswordTextBox','PaletteMap','PaletteImporter','DropUploader','ModalUploader','DropUploaderGrid','VideoPickerPalette','GeoCoderField','StaticMap','ImgUploader','TooltipPane','MenuDiv', 'BagNodeEditor','FlatBagEditor',
              'PaletteBagNodeEditor','StackButtons', 'Palette', 'PaletteTree','TreeFrame','CheckBoxText','RadioButtonText','GeoSearch','ComboArrow','ComboMenu','ChartPane','PaletteChart','ColorTextBox','ColorFiltering', 'SearchBox', 'FormStore',
              'FramePane', 'FrameForm','BoxForm','QuickEditor','ExtendedCkeditor','ExtendedTinyMCE','CodeEditor','TreeGrid','QuickGrid',
-            "GridGallery","VideoPlayer",'MultiValueEditor','MultiLanguageTextBox','TextboxMenu','MultiLineTextbox','QuickTree','SharedObject','IframeDiv','FieldsTree', 'SlotButton','TemplateChunk','LightButton','Semaphore','CharCounterTextarea']
+            "GridGallery","VideoPlayer",'MultiValueEditor','MultiLanguageTextBox','TextboxMenu','MultiLineTextbox','QuickTree','SharedObject','IframeDiv','FieldsTree', 'SlotButton','TemplateChunk','LightButton','Semaphore','CharCounterTextarea','TracebackViewer']
     genroNameSpace = dict([(name.lower(), name) for name in htmlNS])
     genroNameSpace.update(dict([(name.lower(), name) for name in dijitNS]))
     genroNameSpace.update(dict([(name.lower(), name) for name in dojoxNS]))

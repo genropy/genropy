@@ -8085,5 +8085,40 @@ dojo.declare("gnr.stores.VirtualSelection",gnr.stores.Selection,{
             return storeattr['sum_'+field];
         }
     }
-    
+
+});
+
+
+dojo.declare("gnr.widgets.TracebackViewer", gnr.widgets.gnrwdg, {
+    createContent: function(sourceNode, kw) {
+        var viewerNode = sourceNode._('div', {_class: 'gnr-tb-viewer'});
+        var startValue = sourceNode.getAttributeFromDatasource('value');
+        if (startValue) {
+            var self = this;
+            setTimeout(function() {
+                self._doRender(sourceNode, startValue);
+            }, 1);
+        }
+        return viewerNode;
+    },
+
+    gnrwdg_setValue: function(value) {
+        this._doRender(this.sourceNode, value);
+    },
+
+    _doRender: function(sourceNode, bag) {
+        var domNode = sourceNode.getDomNode();
+        if (!domNode) { return; }
+        if (!bag) {
+            domNode.innerHTML = '<p style="color:#888; font-style:italic;">No traceback available.</p>';
+            return;
+        }
+        if (!gnr.tracebackViewer) {
+            genro.dom.loadJs('/_gnr/11/js/gnr_tracebackviewer.js', function() {
+                gnr.tracebackViewer.render(bag, domNode);
+            });
+        } else {
+            gnr.tracebackViewer.render(bag, domNode);
+        }
+    }
 });

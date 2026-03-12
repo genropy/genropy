@@ -55,10 +55,8 @@ class Form(BaseComponent):
         fb.field('user_agent',colspan=2,width=width,tag='simpleTextArea',height='2.5em')
 
     def right(self,pane):
-        width='35em'
-        pane.div('TraceBack Tree',_class='pbl_roundedGroupLabel')
-        fb = pane.formbuilder(cols=1, border_spacing='4px')
-        fb.field('error_data',width=width)
+        pane.div('Traceback',_class='pbl_roundedGroupLabel')
+        pane.tracebackViewer(value='^#FORM.record.error_data')
 
 
 
