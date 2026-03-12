@@ -380,4 +380,9 @@ p {
     border-radius: var(--radius-lg);
 }
 
+/* --- iframe: white background to prevent parent container color from bleeding through --- */
+._common_d11 iframe {
+    background: white;
+}
+
 /* @end */

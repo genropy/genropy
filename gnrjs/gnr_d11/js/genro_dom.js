@@ -1503,7 +1503,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
         }
         var tblclass = kw.tblclass;
         let noHeader = headers && headers.length==1 && headers[0]=='*'
-        let thead_style = noHeader? 'style="display:none;"':'';
+        let thead_style = noHeader? 'style="display:none;"':'style="position:sticky;top:0;z-index:2;background:white;"';
         var thead = `<thead ${thead_style} onmouseup="dojo.stopEvent(event)"><tr>`;
         var autoWidth = true;
         cols.forEach(function(cell){
@@ -1515,7 +1515,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
             thead += `<th style="${style}">${cell.name}</th>`;
         });
         if(autoWidth){
-            thead = thead + "<th style='width:13px;'>&nbsp</th></thead>";
+            thead = thead + "</thead>";
         }
         var nodes = gridbag.getNodes();
         var item,r, value,v,_customClasses,rowvalidation;
@@ -1574,10 +1574,8 @@ dojo.declare("gnr.GnrDomHandler", null, {
         tbl.push("</tbody>");
         var tbody = tbl.join('');
         var cbf = function(cgr) {
-
-            var cgr_h = cgr ? '<colgroup>' + cgr + '<col width=11 /></colgroup>' : '';
             var cgr_b = cgr ? '<colgroup>' + cgr + '</colgroup>' : '';
-            return '<div class="' + tblclass + '"><div><table>' + cgr_h + '' + thead + '</table></div><div onmouseup="if(event.target===event.currentTarget){dojo.stopEvent(event)};" style="overflow-y:auto;overflow-x:hidden;max-height:'+max_height+';"><table>' + cgr_b + tbody + '</table></div></div>';
+            return '<div class="' + tblclass + '" style="max-width:min(calc(100vw - 40px), 900px); overflow-x:auto;"><div onmouseup="if(event.target===event.currentTarget){dojo.stopEvent(event)};" style="overflow-y:auto;max-height:'+max_height+';"><table>' + cgr_b + thead + tbody + '</table></div></div>';
         };
         domnode.innerHTML = cbf('');
         var cb = function() {
@@ -1592,7 +1590,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
                 colgroup = colgroup + '<col width="' + wt + '"/>';
             }
             domnode.innerHTML = cbf(colgroup);
-            dojo.style(domnode, {width:'auto'});
+            dojo.style(domnode, {width:'auto', maxWidth:'min(calc(100vw - 40px), 900px)'});
             var rows = dojo.query('tbody tr', domnode);
             for (let i = 0; i < rows.length; i++) {
                 rows[i].item = nodes[i];

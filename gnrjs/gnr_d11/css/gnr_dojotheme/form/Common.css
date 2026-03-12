@@ -167,18 +167,11 @@
 
 .gnr_dojotheme .dijitError[data-error]:hover::before {
     opacity: 1;
+    transition-delay: 0.4s;
 }
 
-/* --- Mobile: show dot as tap target, tooltip on :active (tap) --- */
+/* --- Mobile: tooltip on :active (tap), dot stays hidden --- */
 @media (hover: none) {
-    .gnr_dojotheme .dijitError[data-error]::after {
-        display: block;
-        pointer-events: auto;
-        cursor: pointer;
-        /* slightly larger tap target */
-        width: 12px;
-        height: 12px;
-    }
     .gnr_dojotheme .dijitError[data-error]:active::before {
         opacity: 1;
     }
