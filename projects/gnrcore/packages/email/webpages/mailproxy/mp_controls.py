@@ -175,7 +175,7 @@ class GnrCustomWebPage(object):
         status['pending_count'] = len([msg for msg in decorated_messages if msg.get('status') == 'pending'])
         status['deferred_count'] = len([msg for msg in decorated_messages if msg.get('status') == 'deferred'])
         status['error_count'] = len([msg for msg in decorated_messages if msg.get('status') == 'error'])
-        status['last_refresh'] = self.db.table('email.account').newUTCDatetime()
+        status['last_refresh'] = self.db.table('email.account').newUTCDatetime().strftime('%Y-%m-%d %H:%M:%S')
         if errors:
             status['error'] = '\n'.join(errors)
         result['status'] = status
