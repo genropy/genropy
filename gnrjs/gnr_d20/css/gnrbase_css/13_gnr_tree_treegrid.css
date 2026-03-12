@@ -474,6 +474,11 @@
 .mode_mobile .menutree.menutree_branchiconright .label_opendir,
 .mode_mobile .menutree.menutree_branchiconright .label_closedir {
     background: none;
+    padding-left: 0;
+}
+.mode_mobile .menutree.menutree_branchiconright .label_opendir::before,
+.mode_mobile .menutree.menutree_branchiconright .label_closedir::before {
+    display: none;
 }
 /* @end */
 
