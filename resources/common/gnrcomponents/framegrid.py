@@ -148,7 +148,7 @@ class FrameGridTools(BaseComponent):
                                 **kwargs)
     @struct_method
     def fgr_slotbar_gridsemaphore(self,pane,**kwargs):
-        return pane.div(_class='editGrid_semaphore',padding_left='4px')
+        return pane.div(width='1.5em').div(_class='editGrid_semaphore')
 
     @extract_kwargs(cb=True,lbl=dict(slice_prefix=False))
     @struct_method

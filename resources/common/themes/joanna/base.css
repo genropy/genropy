@@ -34,6 +34,7 @@
     --btn-filled-hover-bg: #6F1556;    /* #8b1a6b 80% + black */
     --btn-filled-pressed-bg: #5A1146;  /* 65% + black */
     --btn-filled-selected-bg: #5A1146;
+    --btn-filled-disabled-bg: #C58CB5;  /* #8b1a6b 50% + white */
     --btn-tonal-bg: #F1E4ED;           /* 12% + white */
     --btn-tonal-color: #8b1a6b;
     --btn-tonal-hover-bg: #E8D1E1;     /* 20% + white */
@@ -54,6 +55,11 @@
     --fieldsTree-rm-color: #6F1556;
     --grid-draft-color: #4E505F;
     --grid-lineno-color: #4E505F;
+    --grid-row-odd-bg: rgba(237, 247, 242, .5);
+    --grid-row-selected-bg: rgba(192, 222, 206, .8);
+    --grid-cell-hover-bg: #FFF5D9;
+    --grid-cell-hover-bg-lazy: #E0EEFF;
+    --grid-cell-hover-bg-disabled: #FFE0D0;
 }
 
 /* Ocean - blue depths */
@@ -82,6 +88,7 @@
     --btn-filled-hover-bg: #086ACC;    /* #0a84ff 80% + black */
     --btn-filled-pressed-bg: #0756A6;  /* 65% + black */
     --btn-filled-selected-bg: #0756A6;
+    --btn-filled-disabled-bg: #84C1FF;  /* #0a84ff 50% + white */
     --btn-tonal-bg: #E2F0FF;           /* 12% + white */
     --btn-tonal-color: #0a84ff;
     --btn-tonal-hover-bg: #CEE6FF;     /* 20% + white */
@@ -105,6 +112,11 @@
     --fieldsTree-rm-color: #183B66;
     --grid-draft-color: #1C71CF;
     --grid-lineno-color: #1C71CF;
+    --grid-row-odd-bg: rgba(237, 242, 250, .5);
+    --grid-row-selected-bg: rgba(196, 212, 232, .8);
+    --grid-cell-hover-bg: #F8FFD9;
+    --grid-cell-hover-bg-lazy: #E0FFEE;
+    --grid-cell-hover-bg-disabled: #FFE7DD;
 }
 
 /* Ruby - warm red */
@@ -132,6 +144,7 @@
     --btn-filled-hover-bg: #BA2B3B;    /* #e8364a 80% + black */
     --btn-filled-pressed-bg: #972330;  /* 65% + black */
     --btn-filled-selected-bg: #972330;
+    --btn-filled-disabled-bg: #F39AA4;  /* #e8364a 50% + white */
     --btn-tonal-bg: #FCE7E9;           /* 12% + white */
     --btn-tonal-color: #e8364a;
     --btn-tonal-hover-bg: #FAD7DB;     /* 20% + white */
@@ -152,6 +165,11 @@
     --fieldsTree-rm-color: #7B1B28;
     --grid-draft-color: #D53344;
     --grid-lineno-color: #D53344;
+    --grid-row-odd-bg: rgba(251, 239, 241, .5);
+    --grid-row-selected-bg: rgba(232, 200, 204, .8);
+    --grid-cell-hover-bg: #F8FFD9;
+    --grid-cell-hover-bg-lazy: #E6F9FF;
+    --grid-cell-hover-bg-disabled: #FFEDB8;
 }
 
 /* Sunset - orange top / plum frameindex */
@@ -179,6 +197,7 @@
     --btn-filled-hover-bg: #551A46;    /* #6a2058 80% + black */
     --btn-filled-pressed-bg: #451539;  /* 65% + black */
     --btn-filled-selected-bg: #451539;
+    --btn-filled-disabled-bg: #B48FAB;  /* #6a2058 50% + white */
     --btn-tonal-bg: #EDE4EB;           /* 12% + white */
     --btn-tonal-color: #6a2058;
     --btn-tonal-hover-bg: #E1D2DE;     /* 20% + white */
@@ -199,6 +218,11 @@
     --fieldsTree-rm-color: #551A46;
     --grid-draft-color: #A4462D;
     --grid-lineno-color: #A4462D;
+    --grid-row-odd-bg: rgba(250, 243, 247, .5);
+    --grid-row-selected-bg: rgba(232, 205, 219, .8);
+    --grid-cell-hover-bg: #F8FFD9;
+    --grid-cell-hover-bg-lazy: #E6F9FF;
+    --grid-cell-hover-bg-disabled: #FFE7DD;
 }
 
 /* Hornette - vivid wasp yellow / black */
@@ -258,6 +282,11 @@
     --fieldsTree-rm-color: #151515;
     --grid-draft-color: #A86E3A;
     --grid-lineno-color: #A86E3A;
+    --grid-row-odd-bg: rgba(254, 249, 231, .5);
+    --grid-row-selected-bg: rgba(253, 230, 138, .8);
+    --grid-cell-hover-bg: #E6EEFF;
+    --grid-cell-hover-bg-lazy: #E0FFE8;
+    --grid-cell-hover-bg-disabled: #FFE0D0;
 }
 
 /* Business - corporate navy / charcoal */
@@ -286,6 +315,7 @@
     --btn-filled-hover-bg: #2A3A4B;    /* #34495e 80% + black */
     --btn-filled-pressed-bg: #222F3D;  /* 65% + black */
     --btn-filled-selected-bg: #222F3D;
+    --btn-filled-disabled-bg: #99A4AE;  /* #34495e 50% + white */
     --btn-tonal-bg: #E7E9EC;           /* 12% + white */
     --btn-tonal-color: #34495e;
     --btn-tonal-hover-bg: #D6DBDF;     /* 20% + white */
@@ -309,6 +339,11 @@
     --fieldsTree-rm-color: #151E26;
     --grid-draft-color: #304356;
     --grid-lineno-color: #304356;
+    --grid-row-odd-bg: rgba(236, 240, 241, .5);
+    --grid-row-selected-bg: rgba(189, 195, 199, .8);
+    --grid-cell-hover-bg: #F8FFD9;
+    --grid-cell-hover-bg-lazy: #E0FFEE;
+    --grid-cell-hover-bg-disabled: #FFE7DD;
 }
 
 /* Terra - warm terracotta / dark walnut */
@@ -337,6 +372,7 @@
     --btn-filled-hover-bg: #AE5F05;    /* #d97706 80% + black */
     --btn-filled-pressed-bg: #8D4D04;  /* 65% + black */
     --btn-filled-selected-bg: #8D4D04;
+    --btn-filled-disabled-bg: #ECBB82;  /* #d97706 50% + white */
     --btn-tonal-bg: #FAEFE1;           /* 12% + white */
     --btn-tonal-color: #d97706;
     --btn-tonal-hover-bg: #F7E4CD;     /* 20% + white */
@@ -360,4 +396,9 @@
     --fieldsTree-rm-color: #321F1C;
     --grid-draft-color: #C56308;
     --grid-lineno-color: #C56308;
+    --grid-row-odd-bg: rgba(253, 246, 238, .5);
+    --grid-row-selected-bg: rgba(232, 201, 160, .8);
+    --grid-cell-hover-bg: #F8FFD9;
+    --grid-cell-hover-bg-lazy: #E6F9FF;
+    --grid-cell-hover-bg-disabled: #FFEDB8;
 }

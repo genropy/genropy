@@ -90,8 +90,8 @@
 
     /* --- Border radius --- */
     --radius-sm:   4px;    /* @theme @palette inputs, grid cells, buttons, small interactive elements */
-    --radius-md:   10px;    /* @theme @palette dialogs, menus, tooltips, dropdowns, medium containers */
-    --radius-lg:   14px;   /* @theme @palette layout sections, cards, search boxes, large wrappers */
+    --radius-md:   8px;    /* @theme @palette dialogs, menus, tooltips, dropdowns, medium containers */
+    --radius-lg:   12px;   /* @theme @palette layout sections, cards, search boxes, large wrappers */
     --radius-pill: 9999px; /* @theme @palette pill shapes: tags, badges, semaphores, mobile bars */
     --radius-full: 50%;    /* @theme @palette circles: status indicators */
 
@@ -129,10 +129,6 @@
     --grid-reporting-header-color: var(--text-on-dark);
     --grid-footer-item-bg: rgba(255, 227, 60, .2);
     --grid-footer-filter-bg: rgba(221, 150, 90, 0.20);
-    --grid-btn-bg: var(--gray-200);
-    --grid-btn-selected-bg: var(--text-secondary);
-    --grid-btn-selected-shadow: inset 1px 1px 2px #222;
-
     /* --- Drag & Drop --- */
     --drop-valid-bg: rgba(76, 175, 80, 0.15);    /* color-success #4CAF50 15% + transparent */
     --drop-invalid-bg: rgba(229, 57, 53, 0.15);  /* color-error #E53935 15% + transparent */
@@ -289,6 +285,10 @@
     --menutree-mobile-selected-color: var(--frameindex-tablist-color);
     --menutree-branch-selected-color: var(--primary-dark);
     --menutree-mobile-branch-selected-color: var(--frameindex-tablist-color);
+    --menutree-mobile-font-size: 1.15em;     /* @theme menu item font size */
+    --menutree-mobile-font-size-l1: 1.3em;   /* @theme level-1 (top) items */
+    --menutree-mobile-line-height: 2em;      /* @theme touch-friendly row height */
+    --menutree-mobile-margin: 0.6em;         /* @theme outer spacing */
 
     /* --- FieldsTree (relation explorer) --- */
     --fieldsTree-rm-color: #2E2E30; /* @theme — gray-800 #3A3A3C 80% + black */

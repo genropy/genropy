@@ -402,17 +402,15 @@
 }
 
 .mode_mobile .menutree {
-    margin: 10px;
+    margin: var(--menutree-mobile-margin);
 }
 .mode_mobile .menutree .menu_shape {
     border-radius: var(--radius-sm);
-    margin-left: 0px;
-    font-size: 16px;
-    padding-left: 12px;
+    margin-left: 0;
+    font-size: var(--menutree-mobile-font-size);
     background: none;
-    padding-top: 0;
-    padding-bottom: 0;
-    line-height: 30px;
+    padding: 0;
+    line-height: var(--menutree-mobile-line-height);
     color: var(--text-on-dark);
 }
 .plugin_mobile_footer {
@@ -420,26 +418,16 @@
 }
 
 .mode_mobile .menutree .menu_existing_page.menu_shape {
-    padding-top: 3px;
-    padding-bottom: 3px;
+    padding: 0.2em 0;
 }
 .mode_mobile .menutree .menu_shape.menu_level_1 {
-    font-size: 18px;
-    line-height: 35px;
-}
-.mode_mobile .menutree .opendir {
-    background: none;
-}
-.mode_mobile .menutree .closedir {
-    background: none;
-}
-.mode_mobile .menutree.menutree_branchiconright .opendir,
-.mode_mobile .menutree.menutree_branchiconright .closedir {
-    background-color: var(--menutree-chevron-color);
+    font-size: var(--menutree-mobile-font-size-l1);
+    line-height: var(--menutree-mobile-line-height);
 }
 
 /* @group mobile menutree branch icons — CSS triangles with currentColor */
-.mode_mobile .menutree .label_opendir {
+.mode_mobile .menutree .label_opendir,
+.mode_mobile .menutree .label_closedir {
     background: none;
     padding-left: 1em;
     position: relative;
@@ -455,11 +443,6 @@
     border-width: 0.35em 0.25em 0 0.25em;
     border-color: currentColor transparent transparent transparent;
 }
-.mode_mobile .menutree .label_closedir {
-    background: none;
-    padding-left: 1em;
-    position: relative;
-}
 .mode_mobile .menutree .label_closedir::before {
     content: '';
     display: block;
@@ -473,7 +456,6 @@
 }
 .mode_mobile .menutree.menutree_branchiconright .label_opendir,
 .mode_mobile .menutree.menutree_branchiconright .label_closedir {
-    background: none;
     padding-left: 0;
 }
 .mode_mobile .menutree.menutree_branchiconright .label_opendir::before,
@@ -487,13 +469,11 @@
 }
 .menutree .menu_existing_page.menu_shape {
     font-weight: bold;
-    padding-top: 5px;
-    padding-bottom: 5px;
+    padding: 0.3em 0;
 }
 .mode_mobile .menutree .menu_existing_page.menu_shape {
     font-weight: normal;
-    padding-top: 0;
-    padding-bottom: 0;
+    padding: 0;
 }
 .menutree .menu_shape.menu_level_2.addTableItem {
     font-style: italic;

@@ -39,6 +39,7 @@
     --btn-filled-hover-bg: #256449;    /* #2E7D5B 80% + black */
     --btn-filled-pressed-bg: #1E513B;  /* 65% + black */
     --btn-filled-selected-bg: #1E513B;
+    --btn-filled-disabled-bg: #96BEAD;  /* #2E7D5B 50% + white */
     --btn-tonal-bg: #E5EFEB;           /* 12% + white */
     --btn-tonal-color: #2E7D5B;
     --btn-tonal-hover-bg: #D5E5DE;     /* 20% + white */
@@ -63,6 +64,11 @@
     --fieldsTree-rm-color: #164B36;
     --grid-draft-color: #2E7D5B;
     --grid-lineno-color: #2E7D5B;
+    --grid-row-odd-bg: rgba(237, 245, 241, .5);
+    --grid-row-selected-bg: rgba(184, 216, 202, .8);
+    --grid-cell-hover-bg: #FFF5D9;
+    --grid-cell-hover-bg-lazy: #E0EEFF;
+    --grid-cell-hover-bg-disabled: #FFE0D0;
 }
 
 /* Blue - deep ocean */
@@ -95,6 +101,7 @@
     --btn-filled-hover-bg: #005AB6;    /* #0071E3 80% + black */
     --btn-filled-pressed-bg: #004994;  /* 65% + black */
     --btn-filled-selected-bg: #004994;
+    --btn-filled-disabled-bg: #7FB8F1;  /* #0071E3 50% + white */
     --btn-tonal-bg: #E0EEFC;           /* 12% + white */
     --btn-tonal-color: #0071E3;
     --btn-tonal-hover-bg: #CCE3F9;     /* 20% + white */
@@ -119,6 +126,11 @@
     --fieldsTree-rm-color: #163860;
     --grid-draft-color: #1769C3;
     --grid-lineno-color: #1769C3;
+    --grid-row-odd-bg: rgba(236, 241, 249, .5);
+    --grid-row-selected-bg: rgba(184, 204, 228, .8);
+    --grid-cell-hover-bg: #F8FFD9;
+    --grid-cell-hover-bg-lazy: #E0FFEE;
+    --grid-cell-hover-bg-disabled: #FFE7DD;
 }
 
 /* Red - cherry lipstick / fuchsia fashion */
@@ -149,6 +161,7 @@
     --btn-filled-hover-bg: #9B1349;    /* #C2185B 80% + black */
     --btn-filled-pressed-bg: #7E103B;  /* 65% + black */
     --btn-filled-selected-bg: #7E103B;
+    --btn-filled-disabled-bg: #E08BAD;  /* #C2185B 50% + white */
     --btn-tonal-bg: #F8E3EB;           /* 12% + white */
     --btn-tonal-color: #C2185B;
     --btn-tonal-hover-bg: #F3D1DE;     /* 20% + white */
@@ -169,43 +182,49 @@
     --fieldsTree-rm-color: #6D0B3F;
     --grid-draft-color: #C2185B;
     --grid-lineno-color: #C2185B;
+    --grid-row-odd-bg: rgba(248, 240, 244, .5);
+    --grid-row-selected-bg: rgba(216, 184, 200, .8);
+    --grid-cell-hover-bg: #F8FFD9;
+    --grid-cell-hover-bg-lazy: #E6F9FF;
+    --grid-cell-hover-bg-disabled: #FFEDB8;
 }
 
-/* Orange - Apple Watch Ultra / plum + international orange */
+/* Orange - warm terracotta / plum buttons */
 .color_variant_orange {
     --gray-900: #3A1830;
     --gray-800: #4A2040;
-    --gray-600: #FF6C00;
-    --accent-500: #FF5722;
+    --gray-600: #D97020;
+    --accent-500: #D4650A;
     --gray-300: #D8C0D0;
     --gray-200: #E0D8DE;
     --gray-100: #F6F0F4;
 
     --primary-color: #4A2040;
     --primary-dark: #3A1830;
-    --accent-color: #FF5722;
+    --accent-color: #4A2040;
     --primary-light: #D8C0D0;
     --primary-lighter: #F6F0F4;
-    --root-top-background: #FF6C00;
-    --dialogtitlebar-background: #FF6C00;
+    --root-top-background: #D97020;
+    --dialogtitlebar-background: #D97020;
     --frameindex-tablist-background: #3A1830;
     --card-surface: #FAF8F6;
     --roundedgroup-bar: #E0D8DE;
-    --menu-item-hover-bg: #FFE0CC;
+    --menu-item-hover-bg: #F5DFD0;
     --menu-item-hover-color: #3A1830;
 
     --field-disabled-border: #C4B0BC;
     --field-readonly-border: #C4B0BC;
 
-    --btn-filled-bg: #FF5722;
-    --btn-filled-hover-bg: #CC461B;    /* #FF5722 80% + black */
-    --btn-filled-pressed-bg: #A63916;  /* 65% + black */
-    --btn-filled-selected-bg: #A63916;
-    --btn-tonal-bg: #FFEBE4;           /* 12% + white */
-    --btn-tonal-color: #FF5722;
-    --btn-tonal-hover-bg: #FFDDD3;     /* 20% + white */
-    --btn-tonal-pressed-bg: #FFD0C1;   /* 28% + white */
-    --btn-tonal-selected-bg: #FFD0C1;
+    --btn-filled-bg: #4A2040;
+    --btn-filled-hover-bg: #3B1A33;    /* #4A2040 80% + black */
+    --btn-filled-pressed-bg: #301529;  /* 65% + black */
+    --btn-filled-selected-bg: #301529;
+    --btn-filled-disabled-bg: #A48F9F;  /* #4A2040 50% + white */
+    --btn-tonal-bg: #EDE4EB;           /* #4A2040 12% + white */
+    --btn-tonal-color: #4A2040;
+    --btn-tonal-hover-bg: #E1D1DD;     /* 20% + white */
+    --btn-tonal-pressed-bg: #D5BFD0;   /* 28% + white */
+    --btn-tonal-selected-bg: #D5BFD0;
 
     --gray-50: #FAF6F8;
     --gray-150: #F0ECEE;
@@ -215,16 +234,21 @@
     --gray-700: #654B5E;
     --gnrfieldlabel-color: var(--gray-700);
     --accordion-title-bg: #E9E2E7;
-    --frameindex-subtab-bg: #923E26;
-    --frameindex-subtab-selected-bg: #FFAE73;
-    --frameindex-closer-hover-bg: #9B4D3C;
+    --frameindex-subtab-bg: #5E2A4E;
+    --frameindex-subtab-selected-bg: #D9A070;
+    --frameindex-closer-hover-bg: #6B3858;
     --frameindex-tab-bg: #D8D1D6;
     --frameindex-tab-bg-hover: #7F6978;
     --grid-reporting-header-bg: #3F1B36;
     --treegrid-header-bg: #431D3A;
     --fieldsTree-rm-color: #3B1A33;
-    --grid-draft-color: #FF630F;
-    --grid-lineno-color: #FF630F;
+    --grid-draft-color: #C06010;
+    --grid-lineno-color: #C06010;
+    --grid-row-odd-bg: rgba(246, 240, 244, .5);
+    --grid-row-selected-bg: rgba(216, 192, 208, .8);
+    --grid-cell-hover-bg: #F8FFD9;
+    --grid-cell-hover-bg-lazy: #E6F9FF;
+    --grid-cell-hover-bg-disabled: #FFE7DD;
 }
 
 /* Yellow - gold on dark titanium */
@@ -256,6 +280,7 @@
     --btn-filled-hover-bg: #005AB6;    /* #0071E3 80% + black (accent-color same as blue variant) */
     --btn-filled-pressed-bg: #004994;
     --btn-filled-selected-bg: #004994;
+    --btn-filled-disabled-bg: #7FB8F1;  /* #0071E3 50% + white */
     --btn-tonal-bg: #E0EEFC;
     --btn-tonal-color: #0071E3;
     --btn-tonal-hover-bg: #CCE3F9;
@@ -277,4 +302,9 @@
     --fieldsTree-rm-color: #3A3A3D;
     --grid-draft-color: #8CA666;
     --grid-lineno-color: #8CA666;
+    --grid-row-odd-bg: rgba(255, 248, 214, .5);
+    --grid-row-selected-bg: rgba(255, 240, 184, .8);
+    --grid-cell-hover-bg: #E6EEFF;
+    --grid-cell-hover-bg-lazy: #E0FFE8;
+    --grid-cell-hover-bg-disabled: #FFE0D0;
 }
