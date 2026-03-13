@@ -354,6 +354,11 @@ label{
     padding: 0.4em 1.2em;
     border-radius: var(--radius-pill, 9999px);
 }
+.hiderMessage:has(.waiting){
+    background: none;
+    padding: 0;
+    border-radius: 0;
+}
 
 /* @end */
 

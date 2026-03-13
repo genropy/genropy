@@ -5,12 +5,14 @@
  * notification component.
  *
  * API:
- *   genro.toast.show({message, title, level, duration, target, onClose})
+ *   genro.toast.show({message, title, level, duration, target, onClose, copyable})
  *   genro.toast.dismiss(el)
  *
  * Levels: info, success, warning, error
+ * duration: ms before auto-dismiss. 0 = persistent (manual close only).
  * target: optional sourceNode or DOM element — toast appears centered on it.
  *         When omitted, toast goes to the global top-right container.
+ * copyable: if true, adds a copy-to-clipboard button.
  * Listens to dojo topic 'gnrToast' for pub/sub integration.
  */
 
@@ -22,6 +24,8 @@ dojo.declare("gnr.GnrToast", null, {
         warning: '<svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 1.5L0.5 17.5h19L10 1.5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><rect x="9" y="7" width="2" height="5" rx="1"/><circle cx="10" cy="14.5" r="1.2"/></svg>',
         error:   '<svg viewBox="0 0 20 20" fill="currentColor"><circle cx="10" cy="10" r="9" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M7 7l6 6M13 7l-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'
     },
+
+    COPY_ICON: '<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="10" height="10" rx="1.5"/><path d="M6 12H3.5A1.5 1.5 0 0 1 2 10.5V3.5A1.5 1.5 0 0 1 3.5 2h7A1.5 1.5 0 0 1 12 3.5V6"/></svg>',
 
     CLOSE_ICON: '<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M5 5l8 8M13 5l-8 8"/></svg>',
 
@@ -96,11 +100,13 @@ dojo.declare("gnr.GnrToast", null, {
             '  font-size: 0.93em; color: var(--text-secondary, #555); margin: 0;',
             '  line-height: 1.4; word-break: break-word;',
             '}',
-            '.gnr-toast-close {',
+            '.gnr-toast-actions { display: flex; flex-direction: column; justify-content: space-between; align-items: center; flex-shrink: 0; align-self: stretch; }',
+            '.gnr-toast-copy, .gnr-toast-close {',
             '  flex-shrink: 0; width: 18px; height: 18px;',
-            '  opacity: 0.35; transition: opacity 0.15s; margin-top: 1px;',
+            '  opacity: 0.35; transition: opacity 0.15s; cursor: pointer;',
             '}',
-            '.gnr-toast:hover .gnr-toast-close { opacity: 0.7; }',
+            '.gnr-toast:hover .gnr-toast-copy, .gnr-toast:hover .gnr-toast-close { opacity: 0.7; }',
+            '.gnr-toast-copy:hover, .gnr-toast-close:hover { opacity: 1 !important; }',
             '.gnr-toast-progress {',
             '  position: absolute; bottom: 0; left: 0; height: 3px;',
             '  animation: gnr-toast-progress linear forwards;',
@@ -149,7 +155,9 @@ dojo.declare("gnr.GnrToast", null, {
             opts = {message: opts};
         }
         var level = this.LEVEL_MAP[opts.level] || opts.level || 'info';
-        var duration = opts.duration || this.DURATIONS[level] || 4000;
+        var duration = opts.duration !== undefined ? opts.duration : (this.DURATIONS[level] || 4000);
+        var persistent = duration === 0;
+        var copyable = !!opts.copyable;
         var targetDom = this._resolveTarget(opts.target);
 
         var el = document.createElement('div');
@@ -162,11 +170,21 @@ dojo.declare("gnr.GnrToast", null, {
         }
         bodyHtml += '<p class="gnr-toast-message">' + (opts.message || '') + '</p>';
 
+        var progressHtml = persistent ? '' : '<div class="gnr-toast-progress" style="animation-duration:' + duration + 'ms"></div>';
+        var actionsHtml;
+        if(copyable){
+            actionsHtml = '<div class="gnr-toast-actions">' +
+              '<span class="gnr-toast-close" title="Close">' + this.CLOSE_ICON + '</span>' +
+              '<span class="gnr-toast-copy" title="Copy">' + this.COPY_ICON + '</span>' +
+              '</div>';
+        }else{
+            actionsHtml = '<span class="gnr-toast-close">' + this.CLOSE_ICON + '</span>';
+        }
         el.innerHTML =
             '<span class="gnr-toast-icon">' + (this.ICONS[level] || this.ICONS.info) + '</span>' +
             '<div class="gnr-toast-body">' + bodyHtml + '</div>' +
-            '<span class="gnr-toast-close">' + this.CLOSE_ICON + '</span>' +
-            '<div class="gnr-toast-progress" style="animation-duration:' + duration + 'ms"></div>';
+            actionsHtml +
+            progressHtml;
 
         if(opts.onClose){
             el._gnrToastOnClose = opts.onClose;
@@ -180,22 +198,37 @@ dojo.declare("gnr.GnrToast", null, {
         }
 
         var self = this;
-        var timer = setTimeout(function(){ self.dismiss(el); }, duration);
+        var _stripHtml = function(s){ var d = document.createElement('div'); d.innerHTML = s; return d.textContent || d.innerText || ''; };
+        var copyText = (opts.title ? _stripHtml(opts.title) + ': ' : '') + _stripHtml(opts.message || '');
 
-        el.addEventListener('click', function(){
-            clearTimeout(timer);
+        if(copyable){
+            el.querySelector('.gnr-toast-copy').addEventListener('click', function(e){
+                e.stopPropagation();
+                navigator.clipboard.writeText(copyText);
+            });
+        }
+        el.querySelector('.gnr-toast-close').addEventListener('click', function(e){
+            e.stopPropagation();
             self.dismiss(el);
         });
-        el.addEventListener('mouseenter', function(){
-            clearTimeout(timer);
-            var bar = el.querySelector('.gnr-toast-progress');
-            if(bar){ bar.style.animationPlayState = 'paused'; }
-        });
-        el.addEventListener('mouseleave', function(){
-            var bar = el.querySelector('.gnr-toast-progress');
-            if(bar){ bar.style.animationPlayState = 'running'; }
-            timer = setTimeout(function(){ self.dismiss(el); }, 2000);
-        });
+
+        if(!persistent){
+            var timer = setTimeout(function(){ self.dismiss(el); }, duration);
+            el.addEventListener('click', function(){
+                clearTimeout(timer);
+                self.dismiss(el);
+            });
+            el.addEventListener('mouseenter', function(){
+                clearTimeout(timer);
+                var bar = el.querySelector('.gnr-toast-progress');
+                if(bar){ bar.style.animationPlayState = 'paused'; }
+            });
+            el.addEventListener('mouseleave', function(){
+                var bar = el.querySelector('.gnr-toast-progress');
+                if(bar){ bar.style.animationPlayState = 'running'; }
+                timer = setTimeout(function(){ self.dismiss(el); }, 2000);
+            });
+        }
         return el;
     },
 
