@@ -347,13 +347,17 @@ label{
 
 .hiderMessage{
     text-align: center;
-    font-size: 1.05em;
+    font-size: 2em;
     font-weight: 600;
-    color: var(--color-1);
+    color: var(--gray-200);
     background: rgba(255,255,255,0.75);
     padding: 0.4em 1.2em;
     border-radius: var(--radius-pill, 9999px);
-    box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.06));
+}
+.hiderMessage:has(.waiting){
+    background: none;
+    padding: 0;
+    border-radius: 0;
 }
 
 /* @end */
