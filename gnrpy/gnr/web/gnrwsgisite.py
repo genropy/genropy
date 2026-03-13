@@ -51,6 +51,18 @@ mimetypes.init()
 
 IS_MOBILE = re.compile(r'iPhone|iPad|Android')
 
+# Patterns used to detect/strip common XSS injection vectors from request params.
+# Applied only when wsgi?sanitize_params is enabled in siteconfig.
+_XSS_PATTERNS = [
+    re.compile(r'<\s*script[\s\S]*?<\s*/\s*script\s*>', re.IGNORECASE),
+    re.compile(r'<\s*script[^>]*>', re.IGNORECASE),
+    re.compile(r'javascript\s*:', re.IGNORECASE),
+    re.compile(r'vbscript\s*:', re.IGNORECASE),
+    re.compile(r'on\w+\s*=\s*(?:"[^"]*"|\'[^\']*\'|\S+)', re.IGNORECASE),
+    re.compile(r'<\s*iframe[\s\S]*?>', re.IGNORECASE),
+    re.compile(r'<\s*/\s*iframe\s*>', re.IGNORECASE),
+]
+
 STORAGE_TYPES = ['_storage']
 STATIC_HANDLER_TYPES = ['_site','_dojo','_gnr','_conn',
                         '_rsrc','_pkg','_user','_vol',
@@ -446,6 +458,7 @@ class GnrWsgiSite(object):
 
         self.config = self.load_site_config()
         self.cache_max_age = int(self.config['wsgi?cache_max_age'] or 5356800)
+        self.sanitize_params = boolean(self.config['wsgi?sanitize_params'])
         self.default_uri = self.config['wsgi?home_uri'] or '/'
 
         # FIXME: ???
@@ -1187,7 +1200,9 @@ class GnrWsgiSite(object):
         # default mime type
         response.mimetype = 'text/html'
         request_kwargs = self.parse_kwargs(self.parse_request_params(request))
-        
+        if self.sanitize_params:
+            request_kwargs = self.sanitize_request_params(request_kwargs)
+
         # Url parsing start
         path_list = self.get_path_list(request.path)
 
@@ -1822,6 +1837,32 @@ class GnrWsgiSite(object):
                     result[k] = v
                 except Exception as e:
                     raise
+            else:
+                result[k] = v
+        return result
+
+    def _sanitize_string(self, value):
+        """Strip known XSS injection patterns from a string value.
+
+        Removes script tags, javascript:/vbscript: URIs, inline event handlers
+        and iframe tags. Called only when sanitize_params is enabled.
+        """
+        for pattern in _XSS_PATTERNS:
+            value = pattern.sub('', value)
+        return value
+
+    def sanitize_request_params(self, params):
+        """Return a copy of *params* with XSS patterns stripped from string values.
+
+        Only string values are processed; other types (int, Bag, …) are left
+        unchanged. List values are sanitized element by element.
+        """
+        result = {}
+        for k, v in params.items():
+            if isinstance(v, str):
+                result[k] = self._sanitize_string(v)
+            elif isinstance(v, list):
+                result[k] = [self._sanitize_string(i) if isinstance(i, str) else i for i in v]
             else:
                 result[k] = v
         return result
