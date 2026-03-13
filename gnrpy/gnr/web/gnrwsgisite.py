@@ -41,6 +41,8 @@ from gnr.web.gnrwsgisite_proxy.gnrstatichandler import StaticHandlerManager
 from gnr.web.gnrwsgisite_proxy.gnrpwahandler import PWAHandler
 from gnr.web.gnrwsgisite_proxy.gnrsiteregister import SiteRegisterClient, DEFAULT_PAGE_MAX_AGE
 from gnr.web.gnrwsgisite_proxy.gnrwebsockethandler import WsgiWebSocketHandler
+from gnr.web.gnrwsgisite_proxy.datacollector import DataCollector
+
 from gnr.web.gnrwebreqresp import GnrWebRequest
 try:
     from werkzeug import EnvironBuilder
@@ -505,6 +507,8 @@ class GnrWsgiSite(object):
         # is not initialized, since self.register is a property
         # and it initialze the register itself.
         self.register
+        
+        self.datacollector = DataCollector(self.register.siteregister)
         
         if counter == 0 and self.debug:
             self.onInited(clean=not noclean)
