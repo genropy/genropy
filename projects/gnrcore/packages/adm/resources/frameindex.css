@@ -71,6 +71,10 @@
 
 /* --- iframetab (M3 segmented button) --- */
 
+.iframetab_caption{
+    padding-left:2px;
+    padding-right: 2px;
+}
 .iframetab {
     position: relative;
     display: inline-flex;

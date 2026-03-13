@@ -3,7 +3,7 @@
 
 from gnr.core.cli import GnrCliArgParse
 
-from gnr.web.gnrdaemonhandler import GnrDaemon,GnrDaemonProxy
+from gnr.web.daemon.handler import GnrDaemon,GnrDaemonProxy
 
 description = "Main Genropy Daemon for request handling"
 
