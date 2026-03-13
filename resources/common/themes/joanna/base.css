@@ -1,0 +1,363 @@
+/* joanna/base.css — User color variants
+   This file is loaded when css_theme_variant='base' (default).
+   Copy to acme.css to create a corporate palette with approved variants,
+   or leave empty to disable user color choice.
+*/
+
+/* Color variants — gray scale + accent overrides:
+   Each variant sets --gray-N / --accent-500 palette AND explicit semantic vars.
+   This ensures both derived and directly-referenced vars are correct.
+*/
+
+/* Joker - green/fuchsia */
+.color_variant_joker {
+    --gray-800: #8b1a6b;
+    --gray-600: #1d7d55;
+    --accent-500: #8b1a6b;
+    --gray-300: #c0dece;
+    --gray-100: #edf7f2;
+
+    --primary-color: #1d7d55;
+    --primary-dark: #8b1a6b;
+    --accent-color: #8b1a6b;
+    --primary-light: #c0dece;
+    --primary-lighter: #edf7f2;
+    --root-top-background: #1d7d55;
+    --dialogtitlebar-background: #1d7d55;
+    --frameindex-tablist-background: #8b1a6b;
+    --card-surface: #f6faf8;
+
+    --field-disabled-border: #a8c4b4;
+    --field-readonly-border: #a8c4b4;
+
+    --btn-filled-bg: #8b1a6b;
+    --btn-filled-hover-bg: #6F1556;    /* #8b1a6b 80% + black */
+    --btn-filled-pressed-bg: #5A1146;  /* 65% + black */
+    --btn-filled-selected-bg: #5A1146;
+    --btn-tonal-bg: #F1E4ED;           /* 12% + white */
+    --btn-tonal-color: #8b1a6b;
+    --btn-tonal-hover-bg: #E8D1E1;     /* 20% + white */
+    --btn-tonal-pressed-bg: #DFBFD6;   /* 28% + white */
+    --btn-tonal-selected-bg: #DFBFD6;
+
+    --gray-50: #F4FAF7;
+    --gray-250: #D3E8DD;
+    --gnrfieldlabel-color: var(--gray-700);
+    --accordion-title-bg: #E8ECED;
+    --frameindex-subtab-bg: #5F4262;
+    --frameindex-subtab-selected-bg: #83B8A2;
+    --frameindex-closer-hover-bg: #764F75;
+    --frameindex-tab-bg: #E8D1E1;
+    --frameindex-tab-bg-hover: #B46A9F;
+    --grid-reporting-header-bg: #76165B;
+    --treegrid-header-bg: #7D1760;
+    --fieldsTree-rm-color: #6F1556;
+    --grid-draft-color: #4E505F;
+    --grid-lineno-color: #4E505F;
+}
+
+/* Ocean - blue depths */
+.color_variant_ocean {
+    --gray-900: #1A2840;
+    --gray-800: #1e4a80;
+    --gray-600: #2a62a8;
+    --accent-500: #0a84ff;
+    --gray-300: #c4d4e8;
+    --gray-100: #edf2fa;
+
+    --primary-color: #2a62a8;
+    --primary-dark: #1e4a80;
+    --accent-color: #0a84ff;
+    --primary-light: #c4d4e8;
+    --primary-lighter: #edf2fa;
+    --root-top-background: #2a62a8;
+    --dialogtitlebar-background: #2a62a8;
+    --frameindex-tablist-background: #1a3d6b;
+    --card-surface: #f7f9fd;
+
+    --field-disabled-border: #a8bcd4;
+    --field-readonly-border: #a8bcd4;
+
+    --btn-filled-bg: #0a84ff;
+    --btn-filled-hover-bg: #086ACC;    /* #0a84ff 80% + black */
+    --btn-filled-pressed-bg: #0756A6;  /* 65% + black */
+    --btn-filled-selected-bg: #0756A6;
+    --btn-tonal-bg: #E2F0FF;           /* 12% + white */
+    --btn-tonal-color: #0a84ff;
+    --btn-tonal-hover-bg: #CEE6FF;     /* 20% + white */
+    --btn-tonal-pressed-bg: #BADDFF;   /* 28% + white */
+    --btn-tonal-selected-bg: #BADDFF;
+
+    --gray-50: #F4F7FC;
+    --gray-250: #D6E1EF;
+    --gray-400: #AFB4BC;
+    --gray-500: #818996;
+    --gray-700: #4C576A;
+    --gnrfieldlabel-color: var(--gray-700);
+    --accordion-title-bg: #E8EAF0;
+    --frameindex-subtab-bg: #235490;
+    --frameindex-subtab-selected-bg: #8AA9CF;
+    --frameindex-closer-hover-bg: #3464A0;
+    --frameindex-tab-bg: #D1D8E1;
+    --frameindex-tab-bg-hover: #6A819F;
+    --grid-reporting-header-bg: #1A3F6D;
+    --treegrid-header-bg: #1B4373;
+    --fieldsTree-rm-color: #183B66;
+    --grid-draft-color: #1C71CF;
+    --grid-lineno-color: #1C71CF;
+}
+
+/* Ruby - warm red */
+.color_variant_ruby {
+    --gray-800: #9a2232;
+    --gray-600: #c53040;
+    --accent-500: #e8364a;
+    --gray-300: #e8c8cc;
+    --gray-100: #fbeff1;
+
+    --primary-color: #c53040;
+    --primary-dark: #9a2232;
+    --accent-color: #e8364a;
+    --primary-light: #e8c8cc;
+    --primary-lighter: #fbeff1;
+    --root-top-background: #c53040;
+    --dialogtitlebar-background: #c53040;
+    --frameindex-tablist-background: #7a1a28;
+    --card-surface: #fdf8f8;
+
+    --field-disabled-border: #c4a8ad;
+    --field-readonly-border: #c4a8ad;
+
+    --btn-filled-bg: #e8364a;
+    --btn-filled-hover-bg: #BA2B3B;    /* #e8364a 80% + black */
+    --btn-filled-pressed-bg: #972330;  /* 65% + black */
+    --btn-filled-selected-bg: #972330;
+    --btn-tonal-bg: #FCE7E9;           /* 12% + white */
+    --btn-tonal-color: #e8364a;
+    --btn-tonal-hover-bg: #FAD7DB;     /* 20% + white */
+    --btn-tonal-pressed-bg: #F9C7CC;   /* 28% + white */
+    --btn-tonal-selected-bg: #F9C7CC;
+
+    --gray-50: #FDF5F7;
+    --gray-250: #EFD8DB;
+    --gnrfieldlabel-color: var(--gray-700);
+    --accordion-title-bg: #EEE9ED;
+    --frameindex-subtab-bg: #AB2838;
+    --frameindex-subtab-selected-bg: #DF8D96;
+    --frameindex-closer-hover-bg: #BB3949;
+    --frameindex-tab-bg: #E4D1D4;
+    --frameindex-tab-bg-hover: #A96A73;
+    --grid-reporting-header-bg: #831D2A;
+    --treegrid-header-bg: #8B1F2D;
+    --fieldsTree-rm-color: #7B1B28;
+    --grid-draft-color: #D53344;
+    --grid-lineno-color: #D53344;
+}
+
+/* Sunset - orange top / plum frameindex */
+.color_variant_sunset {
+    --gray-800: #6a2058;
+    --gray-600: #d4650a;
+    --accent-500: #6a2058;
+    --gray-300: #e8cddb;
+    --gray-100: #faf3f7;
+
+    --primary-color: #d4650a;
+    --primary-dark: #6a2058;
+    --accent-color: #6a2058;
+    --primary-light: #e8cddb;
+    --primary-lighter: #faf3f7;
+    --root-top-background: #d4650a;
+    --dialogtitlebar-background: #d4650a;
+    --frameindex-tablist-background: #6a2058;
+    --card-surface: #fcf8fa;
+
+    --field-disabled-border: #c4a8ba;
+    --field-readonly-border: #c4a8ba;
+
+    --btn-filled-bg: #6a2058;
+    --btn-filled-hover-bg: #551A46;    /* #6a2058 80% + black */
+    --btn-filled-pressed-bg: #451539;  /* 65% + black */
+    --btn-filled-selected-bg: #451539;
+    --btn-tonal-bg: #EDE4EB;           /* 12% + white */
+    --btn-tonal-color: #6a2058;
+    --btn-tonal-hover-bg: #E1D2DE;     /* 20% + white */
+    --btn-tonal-pressed-bg: #D5C1D0;   /* 28% + white */
+    --btn-tonal-selected-bg: #D5C1D0;
+
+    --gray-50: #FCF8FA;
+    --gray-250: #EFDCE6;
+    --gnrfieldlabel-color: var(--gray-700);
+    --accordion-title-bg: #EDEBEF;
+    --frameindex-subtab-bg: #943C39;
+    --frameindex-subtab-selected-bg: #E7AA78;
+    --frameindex-closer-hover-bg: #A14A4F;
+    --frameindex-tab-bg: #E1D2DE;
+    --frameindex-tab-bg-hover: #9E6E92;
+    --grid-reporting-header-bg: #5A1B4B;
+    --treegrid-header-bg: #5F1D4F;
+    --fieldsTree-rm-color: #551A46;
+    --grid-draft-color: #A4462D;
+    --grid-lineno-color: #A4462D;
+}
+
+/* Hornette - vivid wasp yellow / black */
+.color_variant_hornette {
+    --gray-900: #1a1a1a;
+    --gray-800: #1a1a1a;
+    --gray-600: #f5c800;
+    --accent-500: #4B0082;
+    --gray-300: #fde68a;
+    --gray-100: #fef9e7;
+    --text-on-dark: #1a1a1a;
+
+    --primary-color: #1a1a1a;
+    --primary-dark: #1a1a1a;
+    --accent-color: #4B0082;
+    --primary-light: #fde68a;
+    --primary-lighter: #fef9e7;
+    --root-top-background: #f5c800;
+    --root-top-color: #1a1a1a;
+    --dialogtitlebar-background: #f5c800;
+    --dialogtitlebar-color: #1a1a1a;
+    --frameindex-tablist-background: #1a1a1a;
+    --frameindex-tablist-color: #f5c800;
+    --card-surface: #f5f5f4;
+    --field-disabled-border: #b0b0a8;
+    --field-readonly-border: #b0b0a8;
+
+    --menutree-selected-color: #4B0082;
+
+    --btn-filled-bg: #4B0082;
+    --btn-filled-color: #ffffff;
+    --btn-filled-hover-bg: #5C0A9E;
+    --btn-filled-pressed-bg: #3A0066;
+    --btn-filled-selected-bg: #3A0066;
+    --btn-filled-disabled-bg: #9B7DB8;
+    --btn-filled-disabled-color: rgba(255,255,255,0.7);
+    --btn-tonal-bg: #EDE4F5;
+    --btn-tonal-color: #4B0082;
+    --btn-tonal-hover-bg: #DDD0EC;
+    --btn-tonal-pressed-bg: #CDBCE3;
+    --btn-tonal-selected-bg: #CDBCE3;
+
+    --gray-50: #FEFBF1;
+    --gray-250: #FEEEAD;
+    --gray-400: #AFAFAF;
+    --gray-500: #818181;
+    --gray-700: #4C4C4C;
+    --gnrfieldlabel-color: var(--gray-700);
+    --accordion-title-bg: #EFEDE9;
+    --frameindex-subtab-bg: #726010;
+    --frameindex-subtab-selected-bg: #FAE173;
+    --frameindex-closer-hover-bg: #796923;
+    --frameindex-tab-bg: #D1D1D1;
+    --frameindex-tab-bg-hover: #6A6A6A;
+    --grid-reporting-header-bg: #161616;
+    --treegrid-header-bg: #171717;
+    --fieldsTree-rm-color: #151515;
+    --grid-draft-color: #A86E3A;
+    --grid-lineno-color: #A86E3A;
+}
+
+/* Business - corporate navy / charcoal */
+.color_variant_business {
+    --gray-900: #1a252f;
+    --gray-800: #1a252f;
+    --gray-600: #2c3e50;
+    --accent-500: #34495e;
+    --gray-300: #bdc3c7;
+    --gray-100: #ecf0f1;
+
+    --primary-color: #2c3e50;
+    --primary-dark: #1a252f;
+    --accent-color: #34495e;
+    --primary-light: #bdc3c7;
+    --primary-lighter: #ecf0f1;
+    --root-top-background: #2c3e50;
+    --dialogtitlebar-background: #2c3e50;
+    --frameindex-tablist-background: #1a252f;
+    --card-surface: #f8f9fa;
+
+    --field-disabled-border: #adb5bd;
+    --field-readonly-border: #adb5bd;
+
+    --btn-filled-bg: #34495e;
+    --btn-filled-hover-bg: #2A3A4B;    /* #34495e 80% + black */
+    --btn-filled-pressed-bg: #222F3D;  /* 65% + black */
+    --btn-filled-selected-bg: #222F3D;
+    --btn-tonal-bg: #E7E9EC;           /* 12% + white */
+    --btn-tonal-color: #34495e;
+    --btn-tonal-hover-bg: #D6DBDF;     /* 20% + white */
+    --btn-tonal-pressed-bg: #C6CCD2;   /* 28% + white */
+    --btn-tonal-selected-bg: #C6CCD2;
+
+    --gray-50: #F4F6F7;
+    --gray-250: #D1D5D8;
+    --gray-400: #AFB3B6;
+    --gray-500: #81878D;
+    --gray-700: #4C555D;
+    --gnrfieldlabel-color: var(--gray-700);
+    --accordion-title-bg: #E8E9ED;
+    --frameindex-subtab-bg: #212F3C;
+    --frameindex-subtab-selected-bg: #8B959F;
+    --frameindex-closer-hover-bg: #32404D;
+    --frameindex-tab-bg: #D1D3D5;
+    --frameindex-tab-bg-hover: #6A7178;
+    --grid-reporting-header-bg: #161F28;
+    --treegrid-header-bg: #17212A;
+    --fieldsTree-rm-color: #151E26;
+    --grid-draft-color: #304356;
+    --grid-lineno-color: #304356;
+}
+
+/* Terra - warm terracotta / dark walnut */
+.color_variant_terra {
+    --gray-900: #3e2723;
+    --gray-800: #3e2723;
+    --gray-600: #b45309;
+    --accent-500: #d97706;
+    --gray-300: #e8c9a0;
+    --gray-100: #fdf6ee;
+
+    --primary-color: #b45309;
+    --primary-dark: #3e2723;
+    --accent-color: #d97706;
+    --primary-light: #e8c9a0;
+    --primary-lighter: #fdf6ee;
+    --root-top-background: #b45309;
+    --dialogtitlebar-background: #b45309;
+    --frameindex-tablist-background: #3e2723;
+    --card-surface: #fdfaf6;
+
+    --field-disabled-border: #c4a882;
+    --field-readonly-border: #c4a882;
+
+    --btn-filled-bg: #d97706;
+    --btn-filled-hover-bg: #AE5F05;    /* #d97706 80% + black */
+    --btn-filled-pressed-bg: #8D4D04;  /* 65% + black */
+    --btn-filled-selected-bg: #8D4D04;
+    --btn-tonal-bg: #FAEFE1;           /* 12% + white */
+    --btn-tonal-color: #d97706;
+    --btn-tonal-hover-bg: #F7E4CD;     /* 20% + white */
+    --btn-tonal-pressed-bg: #F4D9B9;   /* 28% + white */
+    --btn-tonal-selected-bg: #F4D9B9;
+
+    --gray-50: #FEFAF5;
+    --gray-250: #EFD9BC;
+    --gray-400: #BBB3B2;
+    --gray-500: #958886;
+    --gray-700: #685753;
+    --gnrfieldlabel-color: var(--gray-700);
+    --accordion-title-bg: #EFECEC;
+    --frameindex-subtab-bg: #6D3919;
+    --frameindex-subtab-selected-bg: #D6A078;
+    --frameindex-closer-hover-bg: #79482C;
+    --frameindex-tab-bg: #D8D4D3;
+    --frameindex-tab-bg-hover: #827370;
+    --grid-reporting-header-bg: #35211E;
+    --treegrid-header-bg: #382320;
+    --fieldsTree-rm-color: #321F1C;
+    --grid-draft-color: #C56308;
+    --grid-lineno-color: #C56308;
+}

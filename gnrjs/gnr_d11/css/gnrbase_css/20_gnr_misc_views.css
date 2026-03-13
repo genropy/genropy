@@ -1,0 +1,582 @@
+/* ==========================================================================
+   20_gnr_misc_views.css — Flash messages, misc utilities, buttons,
+   helpdesk, theme variants, M3 buttons, MDEditor, linker box
+   ========================================================================== */
+
+/* --- Layout utilities --- */
+.gnrlayout{
+    position: absolute;
+}
+.backgroundLetterhead{
+    opacity: .5;
+}
+
+.invisible{
+    opacity: 0;
+}
+
+/* --- Flash messages (fm_*) --- */
+.fm_box{
+    font-size: 1em;
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 36px 10px 14px;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-dialog, 0 4px 24px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.10));
+    z-index: var(--z-flash);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+}
+
+/* --- Slide-down variant (from top of parent) --- */
+.fm_box.fm_slidedown{
+    left: 50%;
+    top: 8px;
+    transform: translateX(-50%) translateY(-120%);
+    opacity: 0;
+    transition: transform 0.35s cubic-bezier(0.21, 1.02, 0.73, 1),
+                opacity 0.35s cubic-bezier(0.21, 1.02, 0.73, 1);
+}
+
+.fm_box.fm_slidedown.fm_visible{
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+.fm_box.fm_slidedown.fm_hiding{
+    transform: translateX(-50%) translateY(-120%);
+    opacity: 0;
+}
+
+.fm_content{
+    line-height: 1.4;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.fm_message{
+    background: color-mix(in srgb, var(--status-ok, #4caf50) 18%, var(--surface-color, white));
+    color: var(--text-primary, #1a1a1a);
+    border: 1px solid color-mix(in srgb, var(--status-ok, #4caf50) 40%, transparent);
+    border-left: 4px solid var(--status-ok, #4caf50);
+}
+
+.fm_error{
+    background: color-mix(in srgb, var(--status-error, #E53935) 16%, var(--surface-color, white));
+    color: var(--text-primary, #1a1a1a);
+    border: 1px solid color-mix(in srgb, var(--status-error, #E53935) 40%, transparent);
+    border-left: 4px solid var(--status-error, #E53935);
+}
+
+.fm_warning{
+    background: color-mix(in srgb, var(--status-warning, #ff9800) 16%, var(--surface-color, white));
+    color: var(--text-primary, #1a1a1a);
+    border: 1px solid color-mix(in srgb, var(--status-warning, #ff9800) 40%, transparent);
+    border-left: 4px solid var(--status-warning, #ff9800);
+}
+
+.fm_closebtn{
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    opacity: 0.4;
+    transition: opacity 0.15s;
+    background-color: var(--text-primary, #333);
+    mask: var(--icon-wnd-close) no-repeat center / contain;
+    -webkit-mask: var(--icon-wnd-close) no-repeat center / contain;
+}
+
+.fm_closebtn:hover{
+    opacity: 0.8;
+}
+
+/* --- Dialog prompt & close button --- */
+.dlg_prompt{
+    background:var(--surface-bg);
+    min-width: 20em;
+}
+
+.dlg_closebtn{
+    height: 18px;
+    width: 18px;
+    cursor: pointer;
+    mask: url('/_rsrc/common/css_icons/google_icons/close.svg') center center no-repeat;
+    mask-size: 100%;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/close.svg') center center no-repeat;
+    -webkit-mask-size: 100%;
+    background-color: var(--root-dark);
+    position: absolute;
+    right:2px;
+    top:4px;
+}
+
+/* --- Genropy logo --- */
+.genropylogo{
+	background: var(--icon-genropy-logo) no-repeat center center;
+    background-size: contain;
+    height: 60px;
+    width: 252px;
+}
+
+.made_with_genropy{
+    height: 21px;
+    width:78px;
+    background: var(--icon-genropy-logo) no-repeat center center;
+    background-size: contain;
+}
+
+/* --- Dropdown & button misc --- */
+.dropDownNoArrow .dijitArrowButtonInner {
+    display: none;
+}
+
+.bottom_btnDisabled .dijitButtonNode {
+    opacity: .6;
+    cursor: not-allowed !important;
+}
+
+.bottom_btnHover .dijitButtonNode {
+    opacity: 1;
+}
+
+.doc_version_menu_wrapper{
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 2;
+    background: rgba(255,255,255,0.8);
+    padding-left: 4px;
+    padding-right: 4px;
+    border-radius: var(--radius-sm);
+}
+
+/* --- Misc utility classes --- */
+.jslink, .jslink:visited{
+    color:#3C1416;
+}
+
+.multidb_local_change{
+    color:var(--accent-color);
+}
+
+.iconbox{
+    filter: none;
+}
+
+.highlighted .highlightable.iconbox {
+    background-color:lightyellow;
+}
+
+.grouplet_chunk_box{
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 4px 8px;
+    min-height: 14px;
+}
+
+
+.clientlogo{
+    background: var(--client-logo);
+    background-size: contain;
+}
+
+/* --- Helpdesk --- */
+.helpdesk_btn{
+    font-size:12pt;
+    cursor:pointer;
+    min-width: 80px;
+    padding:3px;
+    padding-left:10px;
+    padding-right:10px;
+    border-radius: var(--radius-sm);
+    margin: 5px;
+    text-align: center;
+    background-color: var(--border-color);
+    color:var(--text-color);
+    border:1px solid var(--border-color);
+}
+
+.helpdesk_btn.helpdesk_footer{
+    display: inline-block;
+}
+
+.helpdesk_ticket_box{
+    display: block;
+    border:1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color:var(--text-color);
+    font-size:.9em;
+    margin:2px;
+    background: var(--surface-bg);
+}
+.helpdesk_ticket_top{
+    background:#711B2A;
+    color:var(--text-on-dark);
+    font-weight: bold;
+    border-top-left-radius: var(--radius-sm);
+    border-top-right-radius: var(--radius-sm);
+    position: relative;
+    height: 16px;
+}
+.helpdesk_ticket_subject{
+    position: absolute;
+    left:5px;
+    top:1px;
+    right:5px;
+    text-align: center;
+}
+
+.helpdesk_ticket_date{
+    position: absolute;
+    top:1px;
+    left:5px;
+    text-align: left;
+}
+
+.helpdesk_ticket_status{
+    position: absolute;
+    top:1px;
+    right:5px;
+    text-align: left;
+}
+
+.helpdesk_ticket_summary{
+    color:var(--text-secondary);
+    font-style: italic;
+    text-align: justify;
+    padding:5px;
+}
+
+/* --- Icon box sizes --- */
+.smalliconbox{
+	height:14px;
+    width: 14px;
+    cursor: pointer;
+}
+
+.innericonbox.iconbox{
+    height:13px;
+    width: 13px;
+    margin:auto;
+    background-size: contain;
+}
+
+/* --- Flex/center utilities --- */
+.center_box{
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+    align-items: center;
+}
+
+.mc_bar{
+    z-index: 10;
+}
+
+.mc_positive{
+    background:color-mix(in srgb, var(--status-ok) 40%, white);
+}
+.mc_negative{
+    background: var(--status-error);
+}
+
+.mc_positive.mc_ovf{
+    background: var(--status-ok);
+}
+
+.mc_negative.mc_ovf{
+    background: var(--color-error);
+}
+
+.flex_centered_wrapper{
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top:0;
+    left:0;
+    bottom:0;
+    right:0;
+    justify-content: center;
+    align-items: center;
+}
+
+/* --- SVG icon utilities --- */
+.visibility_lock{
+    background: url(/_rsrc/common/css_icons/svg/16/visibility_lock.svg) no-repeat center center;
+    background-size: contain;
+    margin: 2px;
+    cursor: pointer;
+}
+
+.white_refresh{
+    background: url(/_rsrc/common/css_icons/svg/16/white_refresh.svg) no-repeat center center;
+}
+
+.refresh{
+    background: url(/_rsrc/common/css_icons/svg/16/reset_record.svg) no-repeat center center;
+}
+
+/* --- Large cell & rounded envelope --- */
+.largeCell{
+    padding:5px;
+    font-size:1.2em;
+}
+
+.gridRoundedEnvelope{
+    border:1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    margin:10px;
+    margin-top:0;
+    margin-bottom: 20px;
+}
+
+/* --- Developer tools --- */
+.developerToolElement{
+    display: none;
+}
+
+.developerToolElementsVisible .developerToolElement{
+    display: block;
+}
+
+/* --- MDEditor custom toolbar --- */
+.toastui-editor-toolbar-icons.custom-toolbar-button {
+    margin: 0 !important;
+    background: none !important;
+    font-size: 16px;
+    line-height: normal;
+    vertical-align: middle;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+}
+.toastui-editor-toolbar-icons.custom-toolbar-button svg {
+    display: block;
+    width: 17px;
+    height: 17px;
+}
+
+/* --- Dialog bottom bar --- */
+.dialog_bottom {
+    min-height: var(--toolbar-min-height);
+    border-top: 1px solid rgba(0,0,0,0.08);
+    padding: 0.5em 0.8em;
+    border-bottom-left-radius: var(--radius-md);
+    border-bottom-right-radius: var(--radius-md);
+    --btn-tonal-bg: var(--btn-filled-bg);
+    --btn-tonal-color: var(--btn-filled-color);
+}
+
+/* --- Button style modifiers --- */
+.btn_filled {
+    --btn-tonal-bg: var(--btn-filled-bg);
+    --btn-tonal-color: var(--btn-filled-color);
+    --btn-border-color: var(--btn-filled-bg);
+}
+
+.btn_tonal {
+    --btn-tonal-bg: color-mix(in srgb, var(--accent-color) 25%, white);
+    --btn-tonal-color: var(--accent-color);
+    --btn-border-color: var(--border-color);
+}
+
+/* --- Linker --- */
+.th_enableLinker .th_linkerField, .th_linkerAlwaysOpen .th_linkerField{
+    display:block;
+    width:12em;
+    box-shadow:none;
+    padding-top:0;
+}
+
+/* --- Zoom cell (grid hyperlinks) --- */
+.gnrzoomcell {
+    text-decoration: none;
+    padding-left: 3px;
+    padding-right: 3px;
+    color: inherit;
+}
+
+.gnrzoomcell:hover {
+    border-radius: var(--radius-md);
+    background: yellow;
+}
+
+/* --- Search input width --- */
+.searchWidth {
+    width: 6em;
+}
+
+/* --- MenuStack navigator --- */
+.menuStackNavigator .dijitButtonNode {
+    background-color: transparent;
+    border-width: 0;
+}
+
+/* --- No record selected placeholder --- */
+.noRecordSelected {
+    margin: 50px auto;
+    width: 300px;
+    height: 198px;
+    background: none;
+}
+
+/* --- Toolbar button base (navigation icons) --- */
+.tb_button {
+    height: 16px;
+    width: 16px;
+    cursor: pointer;
+}
+
+/* Error focused state moved to gnr_dojotheme/Common.css */
+
+.th_linkerField{
+    top:0px;
+    bottom:0px;
+    border:0 !important;
+    font-size:8pt;
+    width:0;
+    display:none;
+    background:var(--surface-bg) !important;
+}
+
+/* Linker combobox: hide arrow and clean field */
+.th_linker .dijitArrowButton {
+    display: none;
+}
+.th_linker .dijitComboBox,
+.th_linker .dijitTextBox,
+.th_linker .dijitComboBoxFocused,
+.th_linker .dijitTextBoxFocused,
+.th_linker .dijitError,
+.th_linker .dijitError.dijitFocused {
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    color: var(--text-color, #1c1c1e);
+}
+
+.th_linker .dijitComboBox input,
+.th_linker .dijitTextBox input {
+    color: var(--text-color, #1c1c1e);
+}
+
+.th_enableLinker.th_linker,.th_linkerAlwaysOpen .th_linker{
+    opacity:1;
+    border:1px solid var(--border-color);
+    background: var(--surface-bg);
+    -webkit-mask: none;
+    mask: none;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    padding-left:3px;
+    padding-right:18px;
+    width:auto;
+    height:auto;
+}
+
+.th_enableLinker.th_linker:has(.dijitError),
+.th_linkerAlwaysOpen .th_linker:has(.dijitError) {
+    border-color: #c06060;
+    border-color: color-mix(in srgb, var(--status-error, #E53935) 60%, var(--field-border, #AEAEB2));
+    background-color: #fdf0f0;
+    background-color: color-mix(in srgb, var(--status-error, #E53935) 7%, var(--field-bg, white));
+    overflow: visible;
+}
+
+
+.th_enableLinker.th_linker::before,.th_linkerAlwaysOpen .th_linker::before{
+    content: '';
+    flex-shrink: 0;
+    width: 12px;
+    height: 12px;
+    background-color: var(--accent-color, #007AFF);
+    -webkit-mask: var(--icon-link) no-repeat center / contain;
+    mask: var(--icon-link) no-repeat center / contain;
+    margin-right: 3px;
+}
+
+.th_linker{
+    height:14px;
+    width:12px;
+    background-color: var(--text-color, #444);
+    -webkit-mask: var(--icon-link) no-repeat center / contain;
+    mask: var(--icon-link) no-repeat center / contain;
+    cursor:pointer;
+    opacity:.7;
+    position:relative;
+}
+
+.th_linker:hover{
+    opacity:1;
+}
+.th_linkerAdd, .th_enableLinker .hidden.th_linkerAdd{
+	display: none;
+}
+.th_enableLinker .th_linkerAdd{
+	background: var(--icon-add) no-repeat center center;
+	width: 14px;
+	position: absolute;
+	right: 1px;
+	top: 0px;
+	bottom: 0;
+	display: block;
+}
+
+/* --- Utility colors (from theme_shared) --- */
+.mycolor {
+    color: #68858e;
+}
+.mycolor2 {
+    color: rgba(245, 245, 245, 0.99);
+}
+
+.color_darkest {
+    color: rgba(57, 82, 112, 0.99);
+}
+.color_dark {
+    color: #bfb6ae;
+}
+.color_medium {
+    color: #97AEA9;
+}
+.color_bright {
+    color: #eef2fb;
+}
+.color_brightest {
+    color: var(--surface-light);
+}
+
+.bgcolor_darkest {
+    background-color: rgba(57, 82, 112, 0.99);
+}
+.bgcolor_dark {
+    background-color: #bfb6ae;
+}
+.bgcolor_medium {
+    background-color: #97AEA9;
+}
+.bgcolor_bright {
+    background-color: #eef2fb;
+}
+.bgcolor_brightest {
+    background-color: var(--surface-light);
+}
+
+.linkerCenter {
+    background: rgba(255, 255, 255, 0.75);
+    margin: 2px 6px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: var(--radius-sm);
+    padding: 4px 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

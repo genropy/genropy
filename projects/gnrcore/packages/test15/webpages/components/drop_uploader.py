@@ -13,7 +13,6 @@ from gnr.core.gnrdecorator import public_method
 class GnrCustomWebPage(object):
     py_requires = """gnrcomponents/testhandler:TestHandlerFull,
                    gnrcomponents/drop_uploader"""
-    css_requires='public'
 
     def test_0_img_uploader(self, pane):
         #pane.img(src='^.avatar_url')

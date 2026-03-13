@@ -896,7 +896,7 @@ class ThLinker(BaseComponent):
         linkerpath = '#FORM.linker_%s' %field
         forbudden_dbstore = self.dbstore and (related_tblobj.attributes.get('multidb') or related_tblobj.dbtable.use_dbstores() is False)
         linker = pane.div(_class='th_linker',childname='linker',datapath=linkerpath,
-                         rounded=8,tip='!!Select %s' %self._(related_tblobj.name_long),
+                         rounded=8,
                          onCreated='this.linkerManager = new gnr.LinkerManager(this);',
                          connect_onclick='this.linkerManager.openLinker();',
                          selfsubscribe_disable='this.linkerManager.closeLinker();',
@@ -909,7 +909,7 @@ class ThLinker(BaseComponent):
         if kwargs.get('validate_notnull'):
             openIfEmpty = True
         if (formResource or formUrl) and addEnabled is not False:
-            add = linker.div(_class='th_linkerAdd',tip=related_tblobj.dbtable.newRecordCaption(),childname='addbutton',
+            add = linker.div(_class='th_linkerAdd',childname='addbutton',
                         connect_onclick="this.getParentNode().publish('newrecord')",hidden=forbudden_dbstore)
             if addEnabled and not forbudden_dbstore:
                 pane.dataController("genro.dom.toggleVisible(add,addEnabled);",addEnabled=addEnabled,add=add)
@@ -929,7 +929,7 @@ class ThLinker(BaseComponent):
             linker.attributes.update(visible=selectvisible)
         linker.field('%s.%s' %(table,field),childname='selector',datapath='#FORM.record',
                     connect_onBlur='this.getParentNode().publish("disable");',
-                    _class='th_linkerField',background='white',auxColumns=auxColumns,hiddenColumns=hiddenColumns,
+                    _class='th_linkerField',auxColumns=auxColumns,hiddenColumns=hiddenColumns,
                     lbl=False,**kwargs)
         return linker
         
@@ -943,7 +943,8 @@ class ThLinker(BaseComponent):
         frameCode= frameCode or 'linker_%s' %field.replace('.','_')
         if pane.attributes.get('tag') == 'ContentPane':
             pane.attributes['overflow'] = 'hidden'
-        frame = pane.framePane(frameCode=frameCode,_class=_class,margin=margin)
+        frame = pane.framePane(frameCode=frameCode,_class=_class,margin=margin,
+                               center_class='pbl_roundedGroupContent')
         linkerBar = frame.top.linkerBar(field=field,
                                         formResource=formResource,
                                         formUrl=formUrl,
@@ -970,7 +971,7 @@ class ThLinker(BaseComponent):
         
         forbudden_dbstore = self.dbstore and (related_tblobj.attributes.get('multidb') or related_tblobj.use_dbstores() is False)
         if editEnabled and formResource or formUrl:
-            footer = frame.bottom.slotBar('*,linker_edit',height='20px')
+            footer = frame.bottom.slotBar('*,linker_edit',padding='2px')
             footer.linker_edit.slotButton('Edit',baseClass='no_background',iconClass='iconbox pencil',
                                             action='linker.publish("loadrecord");',linker=linker,
                                             forbudden_dbstore=forbudden_dbstore,hidden=forbudden_dbstore,

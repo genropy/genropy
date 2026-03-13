@@ -11,7 +11,6 @@ from gnr.dev.mobilechecks import MobileAppChecks
 from gnr.core.gnrbag import Bag
 
 class GnrCustomWebPage(object):
-    css_requires='public'
     py_requires='gnrcomponents/framegrid:FrameGrid'
     auth_main = 'superadmin,_DEV_,sysadmin'
 

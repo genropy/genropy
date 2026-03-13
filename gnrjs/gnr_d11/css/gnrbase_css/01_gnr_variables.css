@@ -1,0 +1,430 @@
+/* ==========================================================================
+   01_gnr_variables.css — CSS custom properties (single source of truth).
+   Themes override these in :root to customize appearance.
+   ========================================================================== */
+
+:root {
+
+    /* ====================================================================
+       PALETTE — Primitive color tokens (standard naming: luminance 100–900).
+       Convention: 900 = darkest, 100 = lightest.
+       Change these variables to re-theme the entire application.
+       Themes and color variants override these to customize appearance.
+       ==================================================================== */
+
+    /* --- Neutral gray scale --- */
+    --gray-900: #3A3A3C;   /* @theme @palette text, darkest shade */
+    --gray-800: #3A3A3C;   /* @theme @palette sidebar nav, frameindex tablist, dark surfaces */
+    --gray-600: #636366;   /* @theme @palette chrome — root-top, dialog titlebar */
+    --gray-300: #D8D8DC;   /* @theme @palette borders, separators */
+    --gray-200: #E5E5EA;   /* @theme @palette toolbar bg, roundedgroup bar, light UI elements */
+    --gray-100: #F2F2F7;   /* @theme @palette card surface, panels, very light backgrounds */
+    --color-bg: #FFFFFF;   /* @theme @palette main background */
+
+    /* --- Gray scale extensions (base defaults — variants must also override for correct tinting)
+       These are computed from the base palette. Theme files override them for their palette.
+       All semantic tokens use explicit hex or var(--gray-N) — no color-mix() in this file. --- */
+    --gray-50:  #F7F7FA;   /* gray-100 60% + white */
+    --gray-150: #F2F2F5;   /* gray-200 50% + white */
+    --gray-250: #E4E4E7;   /* gray-300 70% + white */
+    --gray-400: #BABABB;   /* gray-900 35% + white */
+    --gray-500: #929394;   /* gray-900 55% + white */
+    --gray-700: #656567;   /* gray-900 78% + white */
+
+    /* --- Accent --- */
+    --accent-500: #007AFF; /* @theme @palette accent — buttons, links, focus */
+
+    /* --- Text on dark surfaces --- */
+    --text-on-dark: #FFFFFF; /* @theme @palette text on dark/chrome surfaces */
+
+    /* --- Status colors --- */
+    --color-error:   #E53935; /* @theme @palette error/danger */
+    --color-success: #4CAF50; /* @theme @palette success */
+    --color-warning: #FF9800; /* @theme @palette warning */
+
+    /* === Base === */
+
+    /* --- Typography --- */
+    --font-family: 'Inter', -apple-system, 'Helvetica Neue', 'Arial', sans-serif; /* @theme @palette */
+    --font-size: 14px; /* @theme @palette */
+    --mainWindow-font-size: 0.81rem;
+
+    /* --- Brand / Primary --- */
+    --primary-color: var(--gray-600); /* @theme */
+    --primary-dark: var(--gray-800); /* @theme */
+    --primary-light: var(--gray-300); /* @theme */
+    --primary-lighter: var(--gray-100); /* @theme */
+    --root-dark: var(--gray-800);
+    --accent-color: var(--accent-500); /* @theme */
+    --accent-on-color: var(--color-bg); /* @theme */
+
+    /* --- Surfaces --- */
+    --mainWindow-background: var(--color-bg); /* @theme */
+    --mainWindow-color: var(--gray-900); /* @theme */
+    --surface-light: var(--gray-50); /* @theme */
+    --surface-bg: var(--color-bg); /* @theme */
+    --surface-dark: var(--gray-800); /* @theme */
+    --surface-dark-color: var(--text-on-dark); /* @theme */
+    --card-surface: var(--gray-100); /* @theme */
+    --roundedgroup-surface: var(--card-surface);
+
+    /* --- Borders --- */
+    --border-color: var(--gray-300); /* @theme */
+    --border-light: var(--gray-150); /* @theme */
+    --border-strong: var(--gray-300); /* @theme */
+
+    /* --- Text --- */
+    --text-color: var(--gray-900); /* @theme */
+    --text-muted: var(--gray-700); /* @theme */
+    --text-secondary: var(--gray-500); /* @theme */
+    --text-placeholder: var(--gray-400); /* @theme */
+    --danger-color: var(--color-error); /* @theme */
+
+    /* --- Shadows --- */
+    --shadow-color: rgba(0,0,0,0.2); /* @theme */
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06); /* @theme */
+    --shadow-md: 2px 2px 3px rgba(0,0,0,0.2); /* @theme */
+    --shadow-lg: 3px 3px 5px rgba(0,0,0,0.3); /* @theme */
+    --shadow-dialog: 0 4px 24px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.10);
+    --shadow-menu: 0 4px 16px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08);
+
+    /* --- Border radius --- */
+    --radius-sm:   4px;    /* @theme @palette inputs, grid cells, buttons, small interactive elements */
+    --radius-md:   10px;    /* @theme @palette dialogs, menus, tooltips, dropdowns, medium containers */
+    --radius-lg:   14px;   /* @theme @palette layout sections, cards, search boxes, large wrappers */
+    --radius-pill: 9999px; /* @theme @palette pill shapes: tags, badges, semaphores, mobile bars */
+    --radius-full: 50%;    /* @theme @palette circles: status indicators */
+
+    /* --- Z-index scale --- */
+    --z-local:      10;
+    --z-overlay:    100;
+    --z-dialog:     499;
+    --z-modal:      1000;
+    --z-tooltip:    5000;
+    --z-flash:      99999;
+    --z-shield:     10000000;
+
+    /* === Components === */
+
+    /* --- Grid --- */
+    --grid-border-color: var(--gray-150); /* @theme */
+    --grid-header-bg: var(--surface-light); /* @theme */
+    --grid-header-color: var(--text-color); /* @theme */
+    --grid-row-bg: rgba(255,255,255,.5); /* @theme */
+    --grid-row-odd-bg: rgba(243,246,250,.5); /* @theme */
+    --grid-row-selected-bg: rgba(175, 203, 236, .8); /* @theme */
+    --grid-row-deleted-color: #AB2B28; /* color-error #E53935 75% + black */
+    --grid-cell-hover-bg: #F8FFD9;
+    --grid-cell-border-color: #D5CDB5;
+    --grid-cell-hover-bg-lazy: #E6F9FF;
+    --grid-cell-hover-bg-disabled: #FFE7DD;
+    --grid-cell-changed-bg: #C9E7CA; /* color-success #4CAF50 30% + white */
+    --grid-cell-copy-bg: rgba(241, 145, 53, 0.50);
+    --grid-cell-focus-border: var(--gray-300);
+    --grid-cell-over-border: var(--gray-250);
+    --grid-draft-color: #366DAB; /* gray-600 #636366 55% + accent-500 #007AFF — override in theme/variant files */
+    --grid-lineno-color: #366DAB; /* gray-600 #636366 55% + accent-500 #007AFF — override in theme/variant files */
+    --grid-paste-bg: rgba(99, 99, 102, 0.05); /* gray-600 #636366 5% + transparent */
+    --grid-reporting-header-bg: #313133; /* gray-800 #3A3A3C 85% + black — override in theme/variant files */
+    --grid-reporting-header-color: var(--text-on-dark);
+    --grid-footer-item-bg: rgba(255, 227, 60, .2);
+    --grid-footer-filter-bg: rgba(221, 150, 90, 0.20);
+    --grid-btn-bg: var(--gray-200);
+    --grid-btn-selected-bg: var(--text-secondary);
+    --grid-btn-selected-shadow: inset 1px 1px 2px #222;
+
+    /* --- Drag & Drop --- */
+    --drop-valid-bg: rgba(76, 175, 80, 0.15);    /* color-success #4CAF50 15% + transparent */
+    --drop-invalid-bg: rgba(229, 57, 53, 0.15);  /* color-error #E53935 15% + transparent */
+    --drop-header-valid-bg: #B7DFB9;             /* color-success 40% + white */
+    --drop-header-invalid-bg: #F5AFAE;           /* color-error 40% + white */
+
+    /* --- TreeGrid --- */
+    --treegrid-header-bg: #343436; /* gray-800 #3A3A3C 90% + black — override in theme/variant files */
+    --treegrid-header-color: var(--text-on-dark);
+    --treegrid-footer-bg: #F8CF00;
+    --treegrid-footer-color: var(--gray-800);
+    --treegrid-groupby-folder-bg: rgba(255, 253, 123, 0.20);
+    --treegrid-groupby-level-color: #2D6930; /* color-success #4CAF50 60% + black */
+    --treegrid-open-pages-bg: #A5D7A7;      /* color-success 50% + white */
+
+    /* --- Toolbar --- */
+    --toolbar-height: 1.75em;
+    --toolbar-height-lg: 2em;
+    --toolbar-min-height: 2.3em;
+    --toolbar-min-height-lg: 2.8em;
+    --toolbar-bg: var(--gray-200); /* @theme */
+    --toolbar-gradient: linear-gradient(to bottom, var(--gray-150), var(--gray-200)); /* @theme */
+    --toolbar-color: var(--gray-900); /* @theme */
+    --toolbar-dark-bg: var(--gray-600); /* @theme */
+
+    /* --- Layout: frameindex --- */
+    --frameindexroot-background: var(--gray-100); /* @theme */
+    --frameindexcenter-background: var(--gray-100); /* @theme */
+    --frameindexroot-mobile-background: var(--gray-800); /* @theme */
+    --frameindex-tablist-background: var(--gray-800); /* @theme */
+    --frameindex-tablist-color: var(--text-on-dark); /* @theme */
+    --frameindex-tab-bg: #D8D8D8; /* white 80% + gray-800 #3A3A3C — override in theme/variant files */
+    --frameindex-tab-bg-hover: var(--gray-700); /* override in theme/variant files */
+    --frameindex-tab-border: var(--gray-200); /* @theme */
+    --frameindex-subtab-bg: #4A4A4D; /* gray-800 60% + gray-600 — override in theme/variant files */
+    --frameindex-subtab-selected-bg: var(--gray-500); /* gray-600 55% + white — override in theme/variant files */
+    --frameindex-closer-hover-bg: #5A5A5C; /* gray-800 #3A3A3C 65% + white — override in theme/variant files */
+    --root-top-background: var(--gray-600); /* @theme */
+    --root-top-color: var(--text-on-dark); /* @theme */
+
+    /* --- Dialogs --- */
+    --dialogtitlebar-background: var(--gray-600); /* @theme */
+    --dialogtitlebar-color: var(--text-on-dark); /* @theme */
+    --dlg-bg: var(--surface-light); /* @theme */
+    --dlg-pane-bg: var(--color-bg); /* @theme */
+    --dlg-border-color: var(--gray-250); /* @theme */
+
+    /* --- Tabs --- */
+    --tab-background: var(--gray-100); /* @theme */
+    --tab-text-color: var(--gray-900); /* @theme */
+    --tab-selected-background: var(--color-bg); /* @theme */
+    --tab-selected-color: var(--border-color); /* @theme */
+    --tab-vertical-max-width: 12em;
+    --tab-vertical-height: 2em;
+
+    /* --- Rounded groups --- */
+    --roundedgroup-bar: var(--gray-200); /* @theme */
+    --roundedgroup-bar-color: var(--gray-900); /* @theme */
+    --roundedgroup-border: var(--gray-200); /* @theme */
+    --roundedgroup-shadow: rgba(0,0,0,0.06); /* @theme */
+    --rectgroup-bar-background: var(--gray-200); /* @theme */
+
+    /* === Forms === */
+
+    /* --- Form fields --- */
+    --field-bg: var(--color-bg); /* @theme */
+    --field-border: var(--gray-300); /* @theme */
+    --field-error-border: #DE9091; /* color-error #E53935 45% + gray-300 #D8D8DC */
+    --field-error-dot-size: 8px; /* @theme */
+    --field-error-dot-color: var(--color-error); /* @theme */
+    --field-error-dot-ring: var(--surface-color, white); /* @theme */
+    --field-disabled-border: var(--gray-250); /* @theme */
+    --field-disabled-bg: var(--gray-100);
+    --field-readonly-border: var(--field-border);
+    --field-readonly-bg: var(--field-bg);
+    --field-focus-bg: var(--color-bg);
+    --gnrfieldlabel-color: var(--gray-700); /* @theme — readable on light form surfaces */
+
+    /* --- Form-context field defaults (shared by formbuilder & formlet) --- */
+    --form-field-border: var(--field-border);
+    --form-field-bg: var(--field-bg);
+    --form-field-border-width: 1px;
+    --form-field-radius: var(--radius-sm);
+    --form-label-font-size: .9em;
+    --form-draft-label: 'DRAFT';
+    --form-draft-background: var(--status-warning, #ff9800);
+
+    /* --- Formbuilder (table-layout forms) --- */
+    --formbuilder-spacing: 6px;
+    --formbuilder-label-padding-left: 4px;
+    --formbuilder-label-font-weight: normal;
+    --formbuilder-label-font-size: var(--form-label-font-size);
+    --formbuilder-plaintext-border: var(--form-field-border);
+    --formbuilder-field-border: var(--form-field-border);
+    --formbuilder-field-bg: var(--form-field-bg);
+    --formbuilder-field-border-width: var(--form-field-border-width);
+    --formbuilder-field-radius: var(--form-field-radius);
+
+    /* --- Fake textbox (read-only field display) --- */
+    --fakebox-padding-x: 4px;
+    --fakebox-padding-top: 1px;
+    --fakebox-min-height: 13px;
+
+    /* --- topLabelTable (top-label formbuilders) --- */
+    --topLabelTable-td-padding-y: 2px;
+    --topLabelTable-td-padding-right: 2px;
+    --topLabelTable-label-font-size: .9em;
+    --topLabelTable-label-font-weight: bold;
+
+    /* --- Formlet (grid-layout forms) --- */
+    --formlet-gap: 7px 20px;
+    --formlet-padding: 7px;
+    --formlet-field-border: var(--form-field-border);
+    --formlet-field-bg: var(--form-field-bg);
+    --formlet-field-border-width: var(--form-field-border-width);
+    --formlet-field-radius: var(--form-field-radius);
+    --formlet-field-padding-y: 0.3em;
+    --formlet-field-padding-x: 0.5em;
+    --formlet-label-font-weight: bold;
+    --formlet-label-font-size: var(--form-label-font-size);
+
+    /* --- topLabelTable --- */
+    --topLabelTable-border-top: none;
+    --topLabelTable-separator: var(--gray-250); /* @theme */
+
+    /* === Status & Feedback === */
+
+    /* --- Status --- */
+    --status-ok: var(--color-success); /* @theme */
+    --status-error: var(--color-error); /* @theme */
+    --status-warning: var(--color-warning); /* @theme */
+    --status-idle: var(--gray-300); /* @theme */
+
+    /* --- Toaster --- */
+    --toaster-success-bg: #70BF73; /* @theme — color-success #4CAF50 80% + white */
+    --toaster-error-bg: #8C2320;   /* @theme — color-error #E53935 60% + black */
+    --toaster-warning-bg: #FFA726; /* @theme — color-warning #FF9800 85% + white */
+
+    /* --- Accordion --- */
+    --accordion-title-bg: #EAEAEF; /* @theme — gray-200 #D8D8DC 60% + gray-100 #F0F0F4 */
+    --accordion-selected-bg: var(--gray-600); /* @theme */
+
+    /* --- Menu --- */
+    --menu-text-color: var(--text-color); /* @theme */
+    --menu-bg: var(--color-bg); /* @theme */
+    --menu-border-color: rgba(0,0,0,0.18); /* @theme */
+    --menu-border-top-color: rgba(0,0,0,0.25);
+    --menu-separator-color: rgba(0,0,0,0.08);
+    --menu-item-hover-bg: rgba(0,0,0,0.10);
+    --menu-item-hover-color: var(--mainWindow-color);
+    --menutree-chevron-color: currentColor;
+    --menutree-selected-color: var(--primary-dark);
+    --menutree-selected-weight: 600;
+    --menutree-mobile-selected-color: var(--frameindex-tablist-color);
+    --menutree-branch-selected-color: var(--primary-dark);
+    --menutree-mobile-branch-selected-color: var(--frameindex-tablist-color);
+
+    /* --- FieldsTree (relation explorer) --- */
+    --fieldsTree-rm-color: #2E2E30; /* @theme — gray-800 #3A3A3C 80% + black */
+    --fieldsTree-ro-color: #357A38; /* color-success #4CAF50 70% + black */
+
+    /* === Buttons === */
+
+    /* --- Buttons: filled (derived from accent-color) --- */
+    --btn-filled-bg: var(--accent-color, #007AFF); /* @theme */
+    --btn-filled-color: var(--color-bg); /* @theme */
+    --btn-filled-hover-bg: #0061CC; /* @theme — accent-color #007AFF 80% + black — override in theme/variant */
+    --btn-filled-pressed-bg: #004FA6; /* @theme — accent-color #007AFF 65% + black */
+    --btn-filled-selected-bg: #004FA6; /* @theme — accent-color #007AFF 65% + black */
+    --btn-filled-disabled-bg: var(--accent-color, #007AFF);
+    --btn-filled-disabled-color: var(--color-bg);
+
+    /* --- Buttons: tonal (light version of accent-color) --- */
+    --btn-tonal-bg: #E0EFFF; /* @theme — accent-color #007AFF 12% + white — override in theme/variant */
+    --btn-tonal-color: var(--accent-color, #007AFF);
+    --btn-tonal-hover-bg: #CCE4FF; /* @theme — accent-color #007AFF 20% + white */
+    --btn-tonal-pressed-bg: #B7D9FF; /* @theme — accent-color #007AFF 28% + white */
+    --btn-tonal-selected-bg: #B7D9FF; /* @theme — accent-color #007AFF 28% + white */
+
+    /* --- Buttons: shared --- */
+    --btn-border-color: var(--border-color); /* @theme */
+
+    /* === Icons === */
+
+    /* --- Icon paths (absolute only — relative urls don't work in CSS variables) --- */
+    --icon-radio-checked: url(/_rsrc/common/css_icons/google_icons/radio_button_checked.svg);
+    --icon-radio-unchecked: url(/_rsrc/common/css_icons/google_icons/radio_button_unchecked.svg);
+    --icon-checkbox-checked: url(/_rsrc/common/css_icons/svg/16/checkbox_checked.svg);
+    --icon-checkbox-unchecked: url(/_rsrc/common/css_icons/svg/16/checkbox_unchecked.svg);
+    --icon-checkbox-indeterminate: url(/_rsrc/common/css_icons/svg/16/checkbox_indeterminate.svg);
+
+    /* --- Navigation icons --- */
+    --icon-nav-first: url(/_rsrc/common/css_icons/svg/16/go_to_first_record.svg);
+    --icon-nav-last: url(/_rsrc/common/css_icons/svg/16/go_to_last_record.svg);
+    --icon-nav-next: url(/_rsrc/common/css_icons/svg/16/next_record.svg);
+    --icon-nav-prev: url(/_rsrc/common/css_icons/svg/16/previous_record.svg);
+
+    /* --- Base utility icons --- */
+    --icon-calendar: url(/_rsrc/common/css_icons/svg/16/calendar.svg);
+    --icon-email: url(/_rsrc/common/css_icons/svg/16/send_email.svg);
+    --icon-export: url(/_rsrc/common/css_icons/svg/16/export_to_excel.svg);
+    --icon-view: url(/_rsrc/common/css_icons/svg/16/select_view.svg);
+    --icon-delete: url(/_rsrc/common/css_icons/svg/16/delete_record.svg);
+    --icon-edit: url(/_rsrc/common/css_icons/svg/16/edit.svg);
+    --icon-locked: url(/_rsrc/common/css_icons/svg/16/locked_padlock.svg);
+    --icon-unlocked: url(/_rsrc/common/css_icons/svg/16/unlocked_padlock.svg);
+    --icon-save: url(/_rsrc/common/css_icons/svg/16/save.svg);
+    --icon-folder: url(/_rsrc/common/css_icons/svg/16/folder.svg);
+    --icon-print: url(/_rsrc/common/css_icons/svg/16/print.svg);
+    --icon-trash: url(/_rsrc/common/css_icons/svg/16/trash.svg);
+    --icon-readonly: url(/_rsrc/common/css_icons/svg/16/read_only_status.svg);
+    --icon-query: url(/_rsrc/common/css_icons/svg/16/select_query.svg);
+    --icon-menu: url(/_rsrc/common/css_icons/svg/16/menu_icon.svg);
+    --icon-grid-options: url(/_rsrc/common/css_icons/svg/16/grid_options.svg);
+    --icon-chat: url(/_rsrc/common/css_icons/svg/16/chat.svg);
+    --icon-user: url(/_rsrc/common/css_icons/svg/16/user_profile.svg);
+    --icon-alarm: url(/_rsrc/common/css_icons/svg/16/alarm.svg);
+    --icon-refresh: url(/_rsrc/common/css_icons/svg/16/white_refresh.svg);
+
+    /* --- Inline SVG icons (no external file needed) --- */
+    --icon-warning: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 18'%3E%3Cpath d='M10 0L0 18h20L10 0z' fill='%23f5a623'/%3E%3Ctext x='10' y='15' text-anchor='middle' font-size='12' font-weight='bold' fill='%23333' font-family='sans-serif'%3E!%3C/text%3E%3C/svg%3E");
+    --icon-tag: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1 1h6.6l7.4 7.4-6.6 6.6L1 7.6V1z' fill='%23515151'/%3E%3Ccircle cx='5' cy='5' r='1.5' fill='%23fff'/%3E%3C/svg%3E");
+    --icon-cancel: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%23d32f2f'/%3E%3Cpath d='M5 5l6 6M11 5l-6 6' stroke='%23fff' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+    --icon-ok: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%234caf50'/%3E%3Cpath d='M4.5 8l2.5 2.5 4.5-5' fill='none' stroke='%23fff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    --icon-action: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M9 1L4 9h4l-1 6 5-8H8l1-6z' fill='%23515151'/%3E%3C/svg%3E");
+    --icon-oneway: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1 8h12M10 4l4 4-4 4' fill='none' stroke='%23515151' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    --icon-poweroff: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 1v6' stroke='%23515151' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M4.2 3.8A6 6 0 1 0 11.8 3.8' fill='none' stroke='%23515151' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+    --icon-pdf: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='0' width='14' height='16' rx='1.5' fill='%23d32f2f'/%3E%3Ctext x='8' y='11.5' text-anchor='middle' font-size='7' font-weight='bold' fill='%23fff' font-family='sans-serif'%3EPDF%3C/text%3E%3C/svg%3E");
+    --icon-buddy: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='5' r='3' fill='%23515151'/%3E%3Cpath d='M2 15c0-3.3 2.7-6 6-6s6 2.7 6 6' fill='%23515151'/%3E%3C/svg%3E");
+    --icon-building: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='2' y='1' width='12' height='15' rx='1' fill='%23515151'/%3E%3Crect x='4' y='3' width='2' height='2' fill='%23fff'/%3E%3Crect x='7' y='3' width='2' height='2' fill='%23fff'/%3E%3Crect x='10' y='3' width='2' height='2' fill='%23fff'/%3E%3Crect x='4' y='7' width='2' height='2' fill='%23fff'/%3E%3Crect x='7' y='7' width='2' height='2' fill='%23fff'/%3E%3Crect x='10' y='7' width='2' height='2' fill='%23fff'/%3E%3Crect x='6' y='11' width='4' height='5' fill='%23fff'/%3E%3C/svg%3E");
+    --icon-up-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 2l5 8H3z' fill='%23f5a623'/%3E%3C/svg%3E");
+    --icon-credit-warning: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='3' width='14' height='10' rx='1.5' fill='%23515151'/%3E%3Crect x='1' y='5' width='14' height='3' fill='%23888'/%3E%3Ccircle cx='13' cy='13' r='3' fill='%23f5a623'/%3E%3Ctext x='13' y='15' text-anchor='middle' font-size='5' font-weight='bold' fill='%23333' font-family='sans-serif'%3E!%3C/text%3E%3C/svg%3E");
+    --icon-palette: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 1C4.1 1 1 4.1 1 8s3.1 7 7 7c.6 0 1-.4 1-1 0-.3-.1-.5-.2-.7-.2-.2-.3-.4-.3-.7 0-.6.4-1 1-1h1.2c2.3 0 4.3-1.9 4.3-4.3C15 3.7 11.9 1 8 1z' fill='%23515151'/%3E%3Ccircle cx='5' cy='6' r='1.2' fill='%23d32f2f'/%3E%3Ccircle cx='8' cy='4.5' r='1.2' fill='%234caf50'/%3E%3Ccircle cx='11' cy='6' r='1.2' fill='%231976d2'/%3E%3Ccircle cx='5' cy='9.5' r='1.2' fill='%23f5a623'/%3E%3C/svg%3E");
+    --icon-table-edit: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='1' width='10' height='14' rx='1' fill='none' stroke='%23515151' stroke-width='1.5'/%3E%3Cline x1='1' y1='5' x2='11' y2='5' stroke='%23515151' stroke-width='1'/%3E%3Cline x1='1' y1='9' x2='11' y2='9' stroke='%23515151' stroke-width='1'/%3E%3Cline x1='5' y1='1' x2='5' y2='14' stroke='%23515151' stroke-width='1'/%3E%3Cpath d='M11 10l3.5-3.5 1.5 1.5-3.5 3.5H11v-1.5z' fill='%23515151'/%3E%3C/svg%3E");
+    --icon-flag-red: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='2' y='1' width='1.5' height='14' fill='%23515151'/%3E%3Cpath d='M3.5 1.5h10l-3 4 3 4h-10z' fill='%23d32f2f'/%3E%3C/svg%3E");
+    --icon-add: url(/_rsrc/common/css_icons/svg/16/plus_square.svg);
+    --icon-pref: url(/_rsrc/common/css_icons/svg/16/gear.svg);
+    --icon-logout: url(/_rsrc/common/css_icons/svg/16/switch_off.svg);
+    --icon-eye: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 3C3 3 0.5 8 0.5 8s2.5 5 7.5 5 7.5-5 7.5-5S13 3 8 3z' fill='none' stroke='%23515151' stroke-width='1.5'/%3E%3Ccircle cx='8' cy='8' r='2.5' fill='%23515151'/%3E%3C/svg%3E");
+    --icon-time: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23515151' stroke-width='1.5'/%3E%3Cpath d='M8 4v4.5l3 1.5' fill='none' stroke='%23515151' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+    --icon-iframe-reload: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M5 1A4 4 0 1 0 9 5' fill='none' stroke='%23515151' stroke-width='1.5'/%3E%3Cpolygon points='7 1 9 5 9 1' fill='%23515151'/%3E%3C/svg%3E");
+    --icon-iframe-close: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2 2l6 6M8 2l-6 6' stroke='%23515151' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+
+    /* --- Bottom panel icons (dev tools) --- */
+    --icon-bottom-docs: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='2' y='1' width='12' height='14' rx='1' fill='none' stroke='%23515151' stroke-width='1.5'/%3E%3Cline x1='5' y1='5' x2='11' y2='5' stroke='%23515151' stroke-width='1'/%3E%3Cline x1='5' y1='8' x2='11' y2='8' stroke='%23515151' stroke-width='1'/%3E%3Cline x1='5' y1='11' x2='9' y2='11' stroke='%23515151' stroke-width='1'/%3E%3C/svg%3E");
+    --icon-bottom-ticket: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1 4h14v2a2 2 0 0 0 0 4v2H1v-2a2 2 0 0 0 0-4V4z' fill='%23515151'/%3E%3C/svg%3E");
+    --icon-bottom-viewer: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='2' width='14' height='11' rx='1' fill='none' stroke='%23515151' stroke-width='1.5'/%3E%3Cline x1='5' y1='15' x2='11' y2='15' stroke='%23515151' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+    --icon-bottom-editor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='1' width='14' height='14' rx='1' fill='none' stroke='%23515151' stroke-width='1.5'/%3E%3Cline x1='1' y1='4' x2='15' y2='4' stroke='%23515151' stroke-width='1'/%3E%3Cline x1='4' y1='7' x2='12' y2='7' stroke='%23515151' stroke-width='0.8'/%3E%3Cline x1='4' y1='10' x2='10' y2='10' stroke='%23515151' stroke-width='0.8'/%3E%3C/svg%3E");
+
+    /* --- Misc icons --- */
+    --icon-no-entry: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Ccircle cx='64' cy='64' r='58' fill='none' stroke='%23d32f2f' stroke-width='8'/%3E%3Cline x1='24' y1='64' x2='104' y2='64' stroke='%23d32f2f' stroke-width='8' stroke-linecap='round'/%3E%3C/svg%3E");
+    --icon-link-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M2 7h9M8 3.5L11.5 7 8 10.5' fill='none' stroke='%23515151' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    --icon-flag-green: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='2' y='1' width='1.5' height='14' fill='%23515151'/%3E%3Cpath d='M3.5 1.5h10l-3 4 3 4h-10z' fill='%234caf50'/%3E%3C/svg%3E");
+    --icon-play: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 2l10 6-10 6z' fill='%23515151'/%3E%3C/svg%3E");
+    --icon-pause: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='3' y='2' width='3.5' height='12' rx='0.5' fill='%23515151'/%3E%3Crect x='9.5' y='2' width='3.5' height='12' rx='0.5' fill='%23515151'/%3E%3C/svg%3E");
+    --icon-invalid: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M0 0h8v8z' fill='%23d32f2f'/%3E%3C/svg%3E");
+    --icon-editor-palette: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 14'%3E%3Crect x='1' y='1' width='32' height='12' rx='2' fill='none' stroke='%23888' stroke-width='1'/%3E%3Crect x='4' y='4' width='6' height='6' fill='%23515151'/%3E%3Crect x='14' y='4' width='6' height='6' fill='%23888'/%3E%3Crect x='24' y='4' width='6' height='6' fill='%23bbb'/%3E%3C/svg%3E");
+    --icon-tuner-up: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2 7l3-4 3 4' fill='none' stroke='%23515151' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    --icon-tuner-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2 3l3 4 3-4' fill='none' stroke='%23515151' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    --icon-small-add: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M5 2v6M2 5h6' stroke='%23515151' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+    --icon-small-del: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2 5h6' stroke='%23515151' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+    --icon-genropy-logo: url(/_rsrc/common/css_icons/svg/16/genrologo.svg);
+    --icon-download-file: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 6v36M20 30l12 12 12-12' fill='none' stroke='%23888' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M12 48h40' fill='none' stroke='%23888' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E");
+    --icon-draft-stamp: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='32'%3E%3Ctext x='20' y='20' text-anchor='middle' font-size='11' font-weight='bold' letter-spacing='2' fill='%23aaa' opacity='0.4' font-family='sans-serif' transform='rotate(-25 20 16)'%3EDRAFT%3C/text%3E%3C/svg%3E");
+    --icon-placeholder-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 90'%3E%3Crect width='120' height='90' fill='%23f0f0f0'/%3E%3Crect x='35' y='20' width='50' height='40' rx='3' fill='none' stroke='%23ccc' stroke-width='2'/%3E%3Ccircle cx='48' cy='33' r='5' fill='%23ccc'/%3E%3Cpath d='M35 52l15-12 10 8 8-5 17 12' fill='none' stroke='%23ccc' stroke-width='2' stroke-linejoin='round'/%3E%3Ctext x='60' y='78' text-anchor='middle' font-size='10' fill='%23bbb' font-family='sans-serif'%3Eplaceholder%3C/text%3E%3C/svg%3E");
+
+    /* --- Window controls --- */
+    --icon-wnd-close: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M7 7l10 10M17 7L7 17'/%3E%3C/svg%3E");
+    --icon-wnd-minimize: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='5' y='11' width='14' height='2' rx='1'/%3E%3C/svg%3E");
+    --icon-wnd-maximize: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='9 5 19 5 19 15'/%3E%3Cline x1='19' y1='5' x2='5' y2='19'/%3E%3C/svg%3E");
+    --icon-wnd-add: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 6A2 2 0 0 0 1 8v11a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2'/%3E%3Crect x='6' y='3' width='15' height='14' rx='2'/%3E%3Cpath d='M13.5 7v6'/%3E%3Cpath d='M10.5 10h6'/%3E%3C/svg%3E");
+    --icon-link: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71'/%3E%3Cpath d='M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'/%3E%3C/svg%3E");
+
+    /* --- Search icon --- */
+    --icon-search: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 -960 960 960'%3E%3Cpath d='M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z'/%3E%3C/svg%3E");
+
+    /* --- Dropdown indicators --- */
+    --icon-dropdown: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+
+    /* --- Tree chevrons --- */
+    --icon-chevron-right: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M3 1l4 4-4 4' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    --icon-chevron-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1 3l4 4 4-4' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+
+    /* === Layout Controls === */
+
+    /* --- Splitters --- */
+    --splitter-size: 5px;
+    --splitter-bg: var(--surface-light); /* @theme */
+    --splitter-line-active: var(--accent-color); /* @theme */
+    --splitter-grip: var(--text-placeholder); /* @theme */
+    --splitter-grip-hover: var(--text-secondary); /* @theme */
+    --icon-grip-h: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 8'%3E%3Ccircle cx='4' cy='4' r='2.5'/%3E%3Ccircle cx='12' cy='4' r='2.5'/%3E%3Ccircle cx='20' cy='4' r='2.5'/%3E%3C/svg%3E");
+    --icon-grip-v: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 24'%3E%3Ccircle cx='4' cy='4' r='2.5'/%3E%3Ccircle cx='4' cy='12' r='2.5'/%3E%3Ccircle cx='4' cy='20' r='2.5'/%3E%3C/svg%3E");
+
+}

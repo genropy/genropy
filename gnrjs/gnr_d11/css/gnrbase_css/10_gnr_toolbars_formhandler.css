@@ -1,0 +1,311 @@
+/* ==========================================================================
+   10_gnr_toolbars_formhandler.css — Toolbar legacy, toolbar buttons,
+   formhandler states and semaphores
+   ========================================================================== */
+
+/* @group 2011-Paolo*/
+
+/* @group Toolbar */
+/* @end */
+
+/* @group Formhandler */
+
+.fh_bottom_message{
+    height: var(--toolbar-height);
+    line-height: var(--toolbar-height);
+    border-top: 1px solid var(--border-color);
+    background-color: var(--toolbar-bg);
+    color: var(--text-muted);
+    text-align: center;
+    font-weight: bold;
+}
+.fh_semaphore{
+    height: 14px;
+    width: 14px;
+    border-radius: var(--radius-full, 50%);
+    background-color: var(--text-secondary, #888);
+    cursor: pointer;
+}
+.form_waiting{
+    height: 6px;
+    width: 200px;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background: var(--border-color, #e0e0e0);
+    position: relative;
+}
+.form_waiting::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+        -45deg,
+        var(--accent-color, #007AFF) 0,
+        var(--accent-color, #007AFF) 8px,
+        transparent 8px,
+        transparent 16px
+    );
+    background-size: 22.6px 100%; /* 16px * sqrt(2) for 45deg alignment */
+    animation: barber-pole 0.6s linear infinite;
+}
+@keyframes barber-pole {
+    to { background-position: 22.6px 0; }
+}
+.form_draft[class*="draft_marker_"] .fh_content{
+    position: relative;
+    overflow: hidden;
+}
+.form_draft[class*="draft_marker_"] .fh_content::before{
+    content: var(--form-draft-label, 'DRAFT');
+    position: absolute;
+    width: 140px;
+    text-align: center;
+    padding: 4px 0;
+    font-size: 0.75em;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: #fff;
+    background: var(--form-draft-background, #ff9800);
+    z-index: 999;
+    pointer-events: none;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.form_draft.draft_marker_tr .fh_content::before{
+    top: 12px; right: -35px;
+    transform: rotate(45deg);
+}
+.form_draft.draft_marker_tl .fh_content::before{
+    top: 12px; left: -35px;
+    transform: rotate(-45deg);
+}
+.form_draft.draft_marker_br .fh_content::before{
+    bottom: 12px; right: -35px;
+    transform: rotate(-45deg);
+}
+.form_draft.draft_marker_bl .fh_content::before{
+    bottom: 12px; left: -35px;
+    transform: rotate(45deg);
+}
+
+.form_logical_deleted .gnrfieldlabel{
+    color: var(--status-error);
+}
+.form_deleter{
+    display:none;
+}
+
+.th_showLogicalDeleted .form_deleter{
+    display:block;
+}
+
+.form_logical_deleted .form_deleter .deleter_icon{
+    -webkit-mask: var(--icon-checkbox-checked) no-repeat center / contain;
+    mask: var(--icon-checkbox-checked) no-repeat center / contain;
+    background-color: currentColor;
+    background-image: none;
+    height: 1.4em;
+    width: 1.4em;
+    cursor: pointer;
+}
+.form_deleter .deleter_icon{
+    -webkit-mask: var(--icon-checkbox-unchecked) no-repeat center / contain;
+    mask: var(--icon-checkbox-unchecked) no-repeat center / contain;
+    background-color: currentColor;
+    background-image: none;
+    height: 1.4em;
+    width: 1.4em;
+    cursor: pointer;
+}
+
+/* --- Semaphore status panel (click-triggered) --- */
+.fh_status_title {
+    font-size: 0.85em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding-bottom: 4px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid var(--border-light, #e0e0e0);
+}
+
+.fh_status_title.fh_status_error {
+    color: var(--status-error, #E53935);
+}
+
+.fh_status_title.fh_status_changed {
+    color: var(--status-warning, #ff9800);
+}
+
+.fh_status_title.fh_status_ok {
+    color: var(--status-ok, #4caf50);
+}
+
+.fh_status_title.fh_status_readonly,
+.fh_status_title.fh_status_noitem {
+    color: var(--text-muted, #888);
+}
+
+.fh_status_items {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    white-space: normal;
+}
+
+.fh_status_item {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 0.9em;
+    line-height: 1.5;
+}
+
+.fh_status_field {
+    font-weight: 600;
+    color: var(--text-primary, #1a1a1a);
+    white-space: nowrap;
+}
+
+.fh_status_error {
+    color: var(--status-error, #E53935);
+}
+
+.fh_status_from,
+.fh_status_to {
+    color: var(--text-muted, #888);
+}
+
+.fh_status_arrow {
+    color: var(--text-secondary, #666);
+    font-size: 0.85em;
+}
+
+/* --- Legacy logger classes (kept for backward compat) --- */
+.form_errorslogger{
+    text-align: center;
+    font-size: 1.1em;
+    font-weight: 700;
+    color: var(--status-error);
+}
+.form_changeslogger{
+    text-align: center;
+    font-size: 1.1em;
+    font-weight: 700;
+    color: var(--status-warning, orange);
+}
+.form_okmessage{
+    text-align: center;
+    font-size: 1.1em;
+    font-weight: 700;
+    color: var(--status-ok, green);
+}
+.form_contentlogger{
+    margin-top:6px;
+}
+.form_contentlogger .formattedBagTable tr td {
+    color: var(--text-muted);
+    font-size: 1em;
+    padding: 2px 6px;
+    border: 1px dotted var(--border-color);
+}
+
+.nestedBagTable{
+    border-collapse: collapse;
+    color:var(--text-muted);
+    width: 100%;
+    font-size: 98%;
+    -webkit-user-select: auto;
+    user-select: auto;
+}
+.nestedBagTable td{
+    padding: 3px;
+    border:1px solid var(--border-light);
+
+}
+.nestedBagTable td._bagformat_lbl{
+    font-weight: bold;
+    vertical-align: top;
+    text-align: right;
+}
+.nestedBagTable td._bagformat_value{
+    width: 100%;
+}
+
+._common_d11 .dijitDialog .form_activeForm{
+    box-shadow: none;
+}
+
+._common_d11 .formside_ok .fh_semaphore {
+    background-color: var(--status-ok, #4caf50);
+}
+
+._common_d11 .formside_error .fh_semaphore{
+    background-color: var(--status-error, #E53935);
+}
+
+._common_d11 .formside_changed .fh_semaphore{
+    background-color: var(--status-warning, #ff9800);
+}
+
+._common_d11 .formside_readOnly .fh_semaphore{
+    background: var(--icon-readonly) no-repeat center center;
+    background-size: contain;
+    border-radius: 0;
+}
+
+._common_d11 .formside_noItem .fh_semaphore{
+    background-color: var(--status-idle, #9e9e9e);
+}
+
+.fh_content{
+    overflow: hidden;
+}
+.form_noItem .fh_content > *{
+    opacity: .5;
+}
+
+.form_noItem .fh_content .fh_external{
+    opacity: 1;
+}
+
+.draggingElement{
+    /*chrome 106 bug it will be fixed in 108 */
+    transform: translate(0, 0);
+    z-index: 0;
+}
+/* @end */
+
+/* --- Standard table / toolbar (from theme_shared) --- */
+.button_placeholder {
+    width: 25px;
+}
+
+.st_editor_bar {
+    background-color: #49637c !important;
+}
+
+.st_editor_body {
+    background-color: rgba(124,151,179,0.8) !important;
+}
+
+.listbottompane {
+    background-color: rgba(168, 181, 182, 0.8);
+}
+
+.darktoolbar {
+    background-color: var(--text-color);
+}
+
+._common_d11 .menudiv_text {
+    cursor: pointer;
+    padding-right: 12px;
+    display: inline-block;
+    font-size: .9em;
+    background: url(/_rsrc/common/css_icons/svg/16/popup.svg) no-repeat right 70%;
+    background-size: 10px;
+}
+._common_d11 .menudiv_text.menudiv_text_white {
+    color: var(--text-on-dark);
+    background: url(/_rsrc/common/css_icons/svg/16/popup_white.svg) no-repeat right 70%;
+    background-size: 10px;
+}

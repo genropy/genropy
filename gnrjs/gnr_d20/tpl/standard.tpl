@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="${charset}"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=${charset}" />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+      
+      <!-- Prevent iPad/iPhone resize and enable full screen mode (if you bookmark the app on the home screen) -->
+      <meta name="mobile-web-app-capable" content="yes"/>
+      <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
+      <meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1"/>
+
+      <link rel="apple-touch-icon" href="_rsrc/mobile/ios/images/app_icon.png"/>
+      <link rel="apple-touch-startup-image" href="_rsrc/mobile/ios/images/startup_image.jpg"/>
+      <%include file="gnr_header.tpl" />
+      <style type="text/css" title="localcss">
+	html, body, #mainWindow{width: 100%;height: 100%; overflow:hidden;}
+      </style>
+    </head>
+    <body class="${bodyclasses}" >
+      <div id="mainWindow" class='waiting'></div>
+      <div id="pdb_root"></div>
+      <div id="protection_shield"></div>
+    </body>
+  </html>

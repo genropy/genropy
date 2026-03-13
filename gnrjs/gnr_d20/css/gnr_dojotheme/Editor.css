@@ -1,0 +1,71 @@
+/* ==========================================================================
+   gnr_dojotheme/Editor.css — Editor toolbar separator and icon base.
+   Replaces editor.gif sprite for separator with CSS border.
+   Editor icon sprite positions are kept (functional, not theme).
+   ========================================================================== */
+
+/* --- IE fixed toolbar (legacy) --- */
+.dijitIEFixedToolbar {
+    position: absolute;
+}
+
+/* --- Toolbar separator: CSS border instead of editor.gif --- */
+.gnr_dojotheme .dijitToolbar .dijitToolbarSeparator {
+    background: none;
+    background-image: none;
+    width: 0;
+    border-left: 1px solid var(--border-color, #ddd);
+    margin: 0.2em 0.3em;
+    height: 1.2em;
+}
+
+/* --- Editor icon base --- */
+.gnr_dojotheme .dijitEditorIcon {
+    background-image: url('../../../dojo_libs/dojo_11/dojo_release/dijit/themes/tundra/images/editor.gif');
+    background-repeat: no-repeat;
+    width: 1.1em;
+    height: 1.1em;
+    text-align: center;
+}
+
+/* --- Editor icon sprite positions (functional, retained from tundra) --- */
+.gnr_dojotheme .dijitEditorIconSep { background-position: 0px; }
+.gnr_dojotheme .dijitEditorIconBackColor { background-position: -18px; }
+.gnr_dojotheme .dijitEditorIconBold { background-position: -36px; }
+.gnr_dojotheme .dijitEditorIconCancel { background-position: -54px; }
+.gnr_dojotheme .dijitEditorIconCopy { background-position: -72px; }
+.gnr_dojotheme .dijitEditorIconCreateLink { background-position: -90px; }
+.gnr_dojotheme .dijitEditorIconCut { background-position: -108px; }
+.gnr_dojotheme .dijitEditorIconDelete { background-position: -126px; }
+.gnr_dojotheme .dijitEditorIconForeColor { background-position: -144px; }
+.gnr_dojotheme .dijitEditorIconHiliteColor { background-position: -162px; }
+.gnr_dojotheme .dijitEditorIconIndent { background-position: -180px; }
+.gnr_dojotheme .dijitEditorIconInsertHorizontalRule { background-position: -198px; }
+.gnr_dojotheme .dijitEditorIconInsertImage { background-position: -216px; }
+.gnr_dojotheme .dijitEditorIconInsertOrderedList { background-position: -234px; }
+.gnr_dojotheme .dijitEditorIconInsertTable { background-position: -252px; }
+.gnr_dojotheme .dijitEditorIconInsertUnorderedList { background-position: -270px; }
+.gnr_dojotheme .dijitEditorIconItalic { background-position: -288px; }
+.gnr_dojotheme .dijitEditorIconJustifyCenter { background-position: -306px; }
+.gnr_dojotheme .dijitEditorIconJustifyFull { background-position: -324px; }
+.gnr_dojotheme .dijitEditorIconJustifyLeft { background-position: -342px; }
+.gnr_dojotheme .dijitEditorIconJustifyRight { background-position: -360px; }
+.gnr_dojotheme .dijitEditorIconLeftToRight { background-position: -378px; }
+.gnr_dojotheme .dijitEditorIconListBulletIndent { background-position: -396px; }
+.gnr_dojotheme .dijitEditorIconListBulletOutdent { background-position: -414px; }
+.gnr_dojotheme .dijitEditorIconListNumIndent { background-position: -432px; }
+.gnr_dojotheme .dijitEditorIconListNumOutdent { background-position: -450px; }
+.gnr_dojotheme .dijitEditorIconOutdent { background-position: -468px; }
+.gnr_dojotheme .dijitEditorIconPaste { background-position: -486px; }
+.gnr_dojotheme .dijitEditorIconRedo { background-position: -504px; }
+.gnr_dojotheme .dijitEditorIconRemoveFormat { background-position: -522px; }
+.gnr_dojotheme .dijitEditorIconRightToLeft { background-position: -540px; }
+.gnr_dojotheme .dijitEditorIconSave { background-position: -558px; }
+.gnr_dojotheme .dijitEditorIconSpace { background-position: -576px; }
+.gnr_dojotheme .dijitEditorIconStrikethrough { background-position: -594px; }
+.gnr_dojotheme .dijitEditorIconSubscript { background-position: -612px; }
+.gnr_dojotheme .dijitEditorIconSuperscript { background-position: -630px; }
+.gnr_dojotheme .dijitEditorIconUnderline { background-position: -648px; }
+.gnr_dojotheme .dijitEditorIconUndo { background-position: -666px; }
+.gnr_dojotheme .dijitEditorIconWikiword { background-position: -684px; }
+.gnr_dojotheme .dijitEditorIconToggleDir { background-position: -540px; }

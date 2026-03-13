@@ -1,0 +1,104 @@
+/* ==========================================================================
+   gnride.css — GnrIDE component styles (includes PDB debugger)
+   ========================================================================== */
+
+/* --- PDB breakpoints, stepping, tree --- */
+
+.pdb_breakpoints{
+    width:.8em;
+}
+
+.pdb_breakpoint{
+    color:red;
+}
+.pdb_conditional_breakpoint{
+    color:orange;
+}
+
+.pdb_currentLine_wrap{
+    background: yellow;
+}
+
+.pdb_caption_module{
+    font-weight: bold;
+}
+
+.pdb_caption_function{
+    font-style: italic;
+}
+
+.pdb_current_stack{
+    background-color: yellow;
+    display: inline-flex;
+}
+
+.pdb_pane .treegrid .treecell, .pdb_pane .treegrid .treecell:last-child{
+    border-bottom: 0;
+    border-left: 0;
+    border-right:0;
+}
+#pdb_root{
+    position: fixed;
+    bottom: 0;
+    z-index: var(--z-modal);
+}
+
+.pdb_debugger_step{
+    height: 85px;
+    width: 250px;
+    padding: 10px;
+    padding-top: 5px;
+    background-color: #9B1E00;
+    border-radius: var(--radius-lg);
+    position: relative;
+    box-shadow: 3px 3px 4px var(--text-secondary);
+    margin: 3px;
+    color:yellow;
+    display: inline-block;
+    font-family: Courier;
+}
+
+.pdb_debugger_step.pdb_running{
+    opacity: .5;
+}
+
+.pdb_debugger_step_footer{
+    position: absolute;
+    bottom:0;
+    left: 0;
+    right:0;
+    height: 20px;
+    padding-right: 10px;
+    border-top: 1px solid yellow;
+}
+
+.pdb_label{
+    text-align: right;
+    color:white;
+}
+.pdb_footer_button {
+    display: block;
+    position: absolute;
+    font-weight: bold;
+    bottom: 3px;
+    cursor: pointer;
+    color:yellow;
+    font-family: Courier;
+}
+.pdb_footer_button:hover{
+    text-decoration: underline;
+}
+.pdb_footer_button_left{
+    left: 10px;
+}
+.pdb_footer_button_right{
+    right: 10px;
+}
+
+.pdb_tree .dijitTreeLabel:hover{
+    text-decoration: underline;
+}
+.pdb_tree .dijitTreeLabel:focus{
+    text-decoration: underline;
+    font-weight: bold;
+}
