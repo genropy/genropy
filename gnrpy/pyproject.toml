@@ -152,6 +152,7 @@ packages = [
 	    'gnr.web.batch',
 	    'gnr.web.cli',
 	    'gnr.web.components',
+	    'gnr.web.daemon',
 	    'gnr.web.gnrwebpage_plugin',
 	    'gnr.web.gnrwebpage_proxy',
 	    'gnr.web.gnrwebpage_proxy.apphandler',
