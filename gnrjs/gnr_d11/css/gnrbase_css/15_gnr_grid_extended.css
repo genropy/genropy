@@ -337,47 +337,25 @@
 
 .buttons_grid .cellContent{
     border-radius: var(--radius-sm);
-    margin-top:0;
-    margin-right:0px;
-    text-align:center;
-    padding-top:2px;
-    padding-bottom:1px;
-    line-height:16px;
-    font-size: 8pt;
-    font-variant:small-caps;
-    color:var(--text-muted);
-    background-color: var(--grid-btn-bg);
-    border: 1px solid var(--text-muted);
-    cursor:pointer;
-    margin-top:2px;
+    margin: 0.3em 0 0.3em 1em;
+    padding: 0.3em 0.5em;
+    justify-content: center;
+    line-height: normal;
+    font-size: 0.85em;
+    font-variant: small-caps;
+    color: var(--text-color);
+    background: transparent;
+    border: none;
+    cursor: pointer;
 }
 
 .buttons_grid .dojoxGrid-row-selected .cellContent{
-    background: var(--grid-btn-selected-bg);
-    color: var(--surface-bg);
-    box-shadow: var(--grid-btn-selected-shadow);
+    background: var(--gray-200);
 }
 
 .grouper_buttons.buttons_grid .cellContent{
-    border-radius: var(--radius-md);
-    margin-top:0;
-    margin-right:0px;
-    text-align:center;
-    padding-top:2px;
-    padding-bottom:1px;
-    line-height:16px;
     font-size: inherit;
-    font-variant:normal;
-    color:var(--text-muted);
-    background-color: var(--surface-bg);
-    border: 1px solid var(--border-color);
-    cursor:pointer;
-    margin-top:5px;
-}
-
-.grouper_buttons.buttons_grid .dojoxGrid-row-selected .cellContent{
-    background: var(--grid-btn-selected-bg);
-    color: var(--surface-bg);
+    font-variant: normal;
 }
 
 /* --- Grid rows/header (from theme_shared) --- */
