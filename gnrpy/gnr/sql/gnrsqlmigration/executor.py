@@ -227,13 +227,13 @@ class ExecutorMixin(SqlMigratorBaseMixin):
         if db_creation:
             self.db.adapter.execute(db_creation, manager=True)
 
-        build_commands = self.sql_commands.pop('build_commands', None)
-        if build_commands:
-            self.db.adapter.execute(build_commands, autoCommit=True)
-
         extensions_commands = self.sql_commands.pop('extensions_commands', None)
         if extensions_commands:
             self.db.adapter.execute(extensions_commands, autoCommit=True)
+
+        build_commands = self.sql_commands.pop('build_commands', None)
+        if build_commands:
+            self.db.adapter.execute(build_commands, autoCommit=True)
 
     def verifyConversionBackups(self):
         """Verify backup columns after type conversions.

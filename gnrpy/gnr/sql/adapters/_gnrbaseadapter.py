@@ -487,6 +487,10 @@ class SqlDbAdapter(object):
         """
         return []
 
+    def struct_dtype_required_extensions(self):
+        """Return a mapping of dtype -> required PostgreSQL extension name."""
+        return {}
+
     def struct_create_extension_sql(self):
         """
         Generates the SQL to create an extension with optional schema, version, and cascade options.

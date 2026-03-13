@@ -1009,12 +1009,11 @@ class GnrWsgiSite(object):
             kwargs.setdefault('user_agent', page.user_agent)
             kwargs.setdefault('page_id', getattr(page, 'page_id', None))
             kwargs.setdefault('is_developer', page.isDeveloper() if hasattr(page, 'isDeveloper') else False)
-            if hasattr(page, '_lastRpc'):
-                kwargs.setdefault('rpc_method', page._lastRpc)
             request = getattr(page, 'request', None)
             if request:
                 kwargs.setdefault('request_uri', request.url)
-        kwargs.setdefault('domain', self.currentDomain)
+                kwargs.setdefault('request_host',request.host_url)
+        kwargs.setdefault('current_domain', self.currentDomain)
         error_id = self.gnrapp.errorHandler(exception=exception, **kwargs)
         if error_id and page:
             notify_user = kwargs.get('notify_user')
@@ -1152,9 +1151,9 @@ class GnrWsgiSite(object):
         try:
             return self._dispatcher(environ, start_response)
         except Exception as e:
-            page = self.currentPage
-            if self.debug and ((page and page.isDeveloper()) or self.force_debug):
-                raise
+            #page = self.currentPage
+           #if self.debug and ((page and page.isDeveloper()) or self.force_debug):
+           #    raise
             self.errorHandler(exception=e, traceback=True)
             exc = InternalServerError(
                 description='Internal server error; SCRIPT_NAME=%r; PATH_INFO=%r;'
@@ -1338,14 +1337,13 @@ class GnrWsgiSite(object):
             self.currentPage = page
             self.onServingPage(page)
             try:
-                result = page()
+                result = page() #call della page--
                 if page.download_name:
                     download_name = str(page.download_name)
                     content_type = getattr(page,'forced_mimetype',None) or mimetypes.guess_type(download_name)[0]
                     if content_type:
                         page.response.content_type = content_type
                     page.response.add_header("Content-Disposition", str("attachment; filename=%s" %download_name))
-
                 try:
                     file_types = file, io.IOBase
                 except NameError:
@@ -1356,6 +1354,10 @@ class GnrWsgiSite(object):
                 return self.serve_htmlPage('html_pages/unsupported.html', environ, start_response)
             except NotFound:
                 return self.serve_htmlPage('html_pages/missing_result.html', environ, start_response)
+            except Exception:
+                print('eccezziunale')
+                raise
+
             finally:
                 self.onServedPage(page)
                 self.cleanup()

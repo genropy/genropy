@@ -6,7 +6,7 @@ class Table(object):
         tbl = pkg.table('product', pkey='id', name_long='!!Product', name_plural='!!Prodocts',caption_field='description')
         self.sysFields(tbl)
         tbl.column('code' ,size=':10',name_long='!!Code')
-        tbl.column('description' ,size=':80',name_long='!!Description')
+        tbl.column('description' ,size=':80',name_long='!!Description',ext_emb=dict(emb_type='text'))
         tbl.column('presentation_txt',name_long='!!Presentation')
         tbl.column('vat_type_code',size=':5' ,group='_',name_long='!![it]VAT type').relation('vat_type.code',relation_name='products',mode='foreignkey',onDelete='raise')
 

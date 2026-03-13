@@ -7,7 +7,8 @@ class Table(object):
                         caption_field='account_name',
                         partition_state='invc_state')
         self.sysFields(tbl, draftField=True)
-        tbl.column('account_name', name_long='!!Account name',name_short='Account name', validate_notnull=True, validate_len='2:40')
+        tbl.column('account_name', name_long='!!Account name',name_short='Account name',
+                    validate_notnull=True, validate_len='2:40',ext_emb=True)
         tbl.column('street_address',name_long='!!Street Address', name_short='St.Address')
         tbl.column('suburb', name_long='!!Suburb', name_short='!!Suburb')
         tbl.column('state',size=':5',name_long='!!State',name_short='Pr.').relation('invc.state.code',relation_name='clients',mode='foreignkey',onDelete='raise')

@@ -626,9 +626,11 @@ class GnrWebPage(GnrBaseWebPage):
         except Exception as e:
             error_id = self.site.errorHandler(
                 exception=e,
-                error_type='server_exception',
+                error_type='rpc_exception',
                 notify_user=True,
-                traceback=True
+                traceback=True,
+                rpc_method = method,
+                rpc_kwargs = Bag(kwargs)
             )
             self.rpc.error = 'server_exception'
             result = '<div>%s</div>' %str(e)

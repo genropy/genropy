@@ -195,6 +195,14 @@ class OrmExtractor:
             if colattr.get(auto_ext_attribute) and auto_ext_attribute not in self.extensions:
                 self.extensions.append(auto_ext_attribute)
 
+        # Detect required PostgreSQL extensions from column dtype
+        dtype_extensions = self.db.adapter.struct_dtype_required_extensions()
+        col_dtype = colattr.get('dtype', '')
+        if col_dtype in dtype_extensions:
+            ext_name = dtype_extensions[col_dtype]
+            if ext_name not in self.extensions:
+                self.extensions.append(ext_name)
+
         attributes = self.convert_colattr(colattr)
 
         # Normalize size with min:max format.

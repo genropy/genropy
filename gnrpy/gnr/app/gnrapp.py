@@ -1258,15 +1258,14 @@ class GnrApp(object):
         return f"{prefix}-{result.rjust(5, '0')}"
 
     def errorHandler(self, exception=None, description=None,
-                     error_type=None, traceback=None,
-                     action='ignore', loglevel='error',
+                     error_type=None, traceback=None, loglevel='error',
                      origin=None, notify_user=None,
                      **kwargs):
         if exception and not description:
             description = str(exception)
         log_fn = getattr(logger, loglevel, logger.error)
         log_fn(description)
-        should_broadcast = loglevel in ('error', 'critical') or action == 'block'
+        should_broadcast = loglevel in ('error', 'critical') 
         if not should_broadcast:
             return None
         error_id = self._make_error_id()
@@ -1283,7 +1282,6 @@ class GnrApp(object):
             error_type=error_type,
             traceback=traceback,
             origin=origin,
-            action=action,
             loglevel=loglevel,
             notify_user=notify_user,
             **kwargs

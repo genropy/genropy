@@ -14,26 +14,25 @@ class View(BaseComponent):
 
     def th_struct(self,struct):
         r = struct.view().rows()
-        r.fieldcell('error_code')
-        r.fieldcell('detail_url', name='Detail', width='5em',
-                    format_anchor=True, format_anchor_target='_blank')
-        r.fieldcell('__ins_ts',name='Datetime')
-        r.fieldcell('error_type')
-        r.fieldcell('description')
-        r.fieldcell('username')
-        r.fieldcell('user_ip')
-        r.fieldcell('user_agent')
-        r.fieldcell('fixed')
-        r.fieldcell('notes')
+        r.fieldcell('__ins_ts', name='Datetime', width='8em')
+        r.fieldcell('error_code', name='Error code', width='8em')
+        r.fieldcell('id', name='Id', width='15em')
+        r.fieldcell('error_type', name='Tipo di errore', width='10em')
+        r.fieldcell('description', name='Descrizione', width='20em')
+        r.fieldcell('request_host', name='Request Host', width='8em')
+        r.fieldcell('request_uri', name='Request URI', width='8em')
+        r.fieldcell('rpc_method', name='RPC Method', width='8em')
+        r.fieldcell('rpc_kwargs', name='RPC kwargs', width='15em')
+        r.fieldcell('username', name='User')
+        r.fieldcell('user_ip', name='User ip')
+        r.fieldcell('user_agent', name='User agent')
+
 
     def th_order(self):
         return '__ins_ts:d'
 
     def th_query(self):
-        return dict(column='error_code', op='contains', val='')
-
-    def th_bottom_custom(self,bar):
-        bar.slotToolbar('*')
+        return dict(column='__ins_ts', op='equal', val='')
 
 
 class Form(BaseComponent):

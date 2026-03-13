@@ -23,12 +23,18 @@ class Table(object):
         tbl.column('error_type',name_long='!!Error type')
         tbl.column('error_code',name_long='!!Error code',indexed=True)
         tbl.formulaColumn('detail_url',
-                          "'/sys/ep_error?error_code=' || $error_code",
+                          """(CASE WHEN $request_host IS NULL THEN '/sys/ep_error?error_id=' || $id 
+                                ELSE $request_host || '/sys/ep_error?error_id=' || $id
+                             END)
+                            """,
                           name_long='!!Detail')
         tbl.column('request_uri',name_long='!!Request URI')
+        tbl.column('request_host',name_long='!!Request Host')
+
         tbl.column('rpc_method',name_long='!!RPC Method')
+        tbl.column('rpc_kwargs',dtype='X',name_long='!!RPC kwargs')
         tbl.column('page_id',name_long='!!Page ID',size='22')
-        tbl.column('domain',name_long='!!Domain')
+        tbl.column('current_domain',name_long='!!Current domain')
 
 
     def errorHandler(self, error_id=None, description=None, traceback=None,

@@ -670,6 +670,9 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
     def struct_auto_extension_attributes(self):
         return ['unaccent']
 
+    def struct_dtype_required_extensions(self):
+        return {'VEC': 'vector'}
+
     def struct_table_fullname_sql(self,schema_name,table_name):
         return  f'"{schema_name}"."{table_name}"'
     
