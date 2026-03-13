@@ -47,7 +47,7 @@
     /* --- Typography --- */
     --font-family: 'Inter', -apple-system, 'Helvetica Neue', 'Arial', sans-serif; /* @theme @palette */
     --font-size: 14px; /* @theme @palette */
-    --mainWindow-font-size: 0.8125rem;
+    --mainWindow-font-size: 0.81rem;
 
     /* --- Brand / Primary --- */
     --primary-color: var(--gray-600); /* @theme */
