@@ -79,6 +79,13 @@
     background: var(--card-surface, #F2F2F7);
 }
 
+/* --- Top tab strip: flex wrap --- */
+.gnr_dojotheme .dijitAlignTop {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 0;
+}
+
 /* --- Left/Right alignment: vertical margin --- */
 .gnr_dojotheme .dijitAlignLeft .dijitTab,
 .gnr_dojotheme .dijitAlignRight .dijitTab {
