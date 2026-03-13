@@ -58,7 +58,20 @@ def getmixincount():
     _mixincount+=1
     return '%015i' %_mixincount
 
-def tracebackBag(limit=None):
+def _is_library_frame(filename):
+    if filename.startswith('<'):
+        return True
+    _library_markers = (
+        os.sep + 'site-packages' + os.sep,
+        os.sep + 'lib' + os.sep + 'python',
+        os.sep + 'Lib' + os.sep,
+    )
+    for marker in _library_markers:
+        if marker in filename:
+            return True
+    return False
+
+def tracebackBag(limit=None, full_stack=False):
     import hashlib
     import linecache
     from gnr.core.gnrstructures import GnrStructData
@@ -70,6 +83,8 @@ def tracebackBag(limit=None):
     n = 0
     hash_cache = {}
     tb = sys.exc_info()[2]
+    frames = []
+    last_own_idx = 0
     while tb is not None and (limit is None or n < limit):
         tb_bag = Bag()
         f = tb.tb_frame
@@ -93,7 +108,6 @@ def tracebackBag(limit=None):
         tb_bag['lineno'] = lineno
         tb_bag['name'] = name
         tb_bag['line'] = line
-        #tb_bag['locals'] = Bag(f.f_locals.items())
         loc = Bag()
         for k,v in list(f.f_locals.items()):
             try:
@@ -105,9 +119,16 @@ def tracebackBag(limit=None):
             except Exception:
                 loc[k] = '*UNSERIALIZABLE* %s' %v.__class__
         tb_bag['locals'] = loc
+        label = '%s method %s line %s' % (tb_bag['module'], name, lineno)
+        frames.append((label, tb_bag, filename))
+        if not _is_library_frame(filename):
+            last_own_idx = n
         tb = tb.tb_next
         n = n + 1
-        result['%s method %s line %s' % (tb_bag['module'], name, lineno)] = tb_bag
+    if not full_stack:
+        frames = frames[:last_own_idx + 1]
+    for label, tb_bag, _filename in frames:
+        result[label] = tb_bag
     return Bag(root=result)
 
 

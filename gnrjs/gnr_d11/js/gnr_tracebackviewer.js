@@ -20,7 +20,7 @@
     var CSS_INJECTED = false;
 
     var CSS = [
-        '.gnr-tb { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; }',
+        '.gnr-tb { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; display: flex; flex-direction: column; height: 100%; }',
 
         '.gnr-tb-frame { margin-bottom: 6px; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }',
         '.gnr-tb-frame:last-of-type { border-color: #f87171; }',
@@ -119,8 +119,10 @@
         '  border: 1px solid #fecaca; line-height: 1.5;',
         '}',
 
+        '.gnr-tb-frames { flex: 1; overflow-y: auto; }',
+
         '.gnr-tb-toolbar {',
-        '  display: flex; justify-content: flex-end; gap: 6px; margin-bottom: 10px;',
+        '  display: flex; justify-content: flex-end; gap: 6px; padding-bottom: 10px; flex-shrink: 0;',
         '}',
         '.gnr-tb-btn {',
         '  padding: 4px 10px; border: 1px solid #ddd; border-radius: 6px;',
@@ -229,17 +231,46 @@
         var parts = [];
 
         parts.push('<div class="gnr-tb-toolbar">' +
-            '<button class="gnr-tb-btn" onclick="this.closest(\'.gnr-tb\').querySelectorAll(\'.gnr-tb-frame\').forEach(function(d){d.open=true;})">Expand All</button>' +
-            '<button class="gnr-tb-btn" onclick="this.closest(\'.gnr-tb\').querySelectorAll(\'.gnr-tb-frame\').forEach(function(d){d.open=false;})">Collapse All</button>' +
+            '<button class="gnr-tb-btn gnr-tb-btn-copy">Copy All</button>' +
+            '<button class="gnr-tb-btn gnr-tb-btn-expand">Expand All</button>' +
+            '<button class="gnr-tb-btn gnr-tb-btn-collapse">Collapse All</button>' +
             '</div>');
 
+        parts.push('<div class="gnr-tb-frames">');
         for(var i = 0; i < frames.length; i++){
             parts.push(renderFrame(frames[i], i, i === frames.length - 1));
         }
         for(var j = 0; j < errors.length; j++){
             parts.push('<div class="gnr-tb-errmsg">' + esc(errors[j]) + '</div>');
         }
+        parts.push('</div>');
         return parts.join('\n');
+    }
+
+    function bindToolbar(container, bag){
+        var expandBtn = container.querySelector('.gnr-tb-btn-expand');
+        var collapseBtn = container.querySelector('.gnr-tb-btn-collapse');
+        var copyBtn = container.querySelector('.gnr-tb-btn-copy');
+        if(expandBtn){
+            expandBtn.onclick = function(){
+                container.querySelectorAll('.gnr-tb-frame').forEach(function(d){ d.open = true; });
+            };
+        }
+        if(collapseBtn){
+            collapseBtn.onclick = function(){
+                container.querySelectorAll('.gnr-tb-frame').forEach(function(d){ d.open = false; });
+            };
+        }
+        if(copyBtn){
+            copyBtn.onclick = function(){
+                if(!bag){ return; }
+                var xml = bag.toXml();
+                navigator.clipboard.writeText(xml).then(function(){
+                    copyBtn.textContent = 'Copied!';
+                    setTimeout(function(){ copyBtn.textContent = 'Copy All'; }, 1500);
+                });
+            };
+        }
     }
 
     function render(bag, targetNode){
@@ -249,6 +280,7 @@
         }
         targetNode.className = (targetNode.className || '') + ' gnr-tb';
         targetNode.innerHTML = toHtml(bag);
+        bindToolbar(targetNode, bag);
     }
 
     // Export

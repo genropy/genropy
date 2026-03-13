@@ -15,8 +15,6 @@ class GnrCustomWebPage(object):
 
     def windowTitle(self):
         return ''
-    def isDeveloper(self):
-        return True
 
     def main(self, root, **kwargs):
         url_info = self.site.getUrlInfo(self.getCallArgs())
@@ -27,7 +25,7 @@ class GnrCustomWebPage(object):
                 style='display:flex; align-items:center; justify-content:center; flex-direction:column; height:100%;')
             cp.img(src='/_rsrc/common/css_icons/svg/16/genrologo_sad.svg',
                    height='64px', opacity='.5', margin_bottom='12px')
-            cp.div('Page /%s not found' % requested_path,
+            cp.div('Page /%s not found' % requested_path,_class='selectable',
                    style='color:#888; font-size:13px; text-align:center; max-width:400px; line-height:1.5;')
             return
         bc=root.borderContainer(datapath='main')

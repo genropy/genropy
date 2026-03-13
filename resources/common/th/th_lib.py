@@ -14,13 +14,14 @@ from gnr.core.gnrclasses import GnrMixinNotFound
 class TableHandlerCommon(BaseComponent):
 
     def _th_missingResource(self, pane, exception):
+        self.site.raiseIfDeveloper() # TODO: review - the try/except GnrMixinNotFound pattern is repetitive
         self.site.errorHandler(exception=exception, error_type='missing_resource',
             notify_user=True, loglevel='error', action='ignore')
         cp = pane.contentPane(overflow='hidden',
             style='display:flex; align-items:center; justify-content:center; flex-direction:column; height:100%;')
         cp.img(src='/_rsrc/common/css_icons/svg/16/genrologo_sad.svg',
                height='64px', opacity='.5', margin_bottom='12px')
-        cp.div(str(exception),
+        cp.div(str(exception),_class='selectable',
                style='color:#888; font-size:13px; text-align:center; max-width:400px; line-height:1.5;')
 
     def onLoadingRelatedMethod(self,table,sqlContextName=None):

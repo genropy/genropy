@@ -1009,12 +1009,12 @@ class GnrWsgiSite(object):
             kwargs.setdefault('user_agent', page.user_agent)
             kwargs.setdefault('page_id', getattr(page, 'page_id', None))
             kwargs.setdefault('is_developer', page.isDeveloper() if hasattr(page, 'isDeveloper') else False)
-            if hasattr(page, '_lastRpc'):
-                kwargs.setdefault('rpc_method', page._lastRpc)
             request = getattr(page, 'request', None)
             if request:
-                kwargs.setdefault('request_uri', request.url)
-        kwargs.setdefault('domain', self.currentDomain)
+                kwargs['request_uri'] = request.url
+                kwargs['request_host'] = request.host_url
+
+        kwargs.setdefault('current_domain', self.currentDomain)
         error_id = self.gnrapp.errorHandler(exception=exception, **kwargs)
         if error_id and page:
             notify_user = kwargs.get('notify_user')
@@ -1152,9 +1152,7 @@ class GnrWsgiSite(object):
         try:
             return self._dispatcher(environ, start_response)
         except Exception as e:
-            page = self.currentPage
-            if self.debug and ((page and page.isDeveloper()) or self.force_debug):
-                raise
+            self.raiseIfDeveloper()
             self.errorHandler(exception=e, traceback=True)
             exc = InternalServerError(
                 description='Internal server error; SCRIPT_NAME=%r; PATH_INFO=%r;'
@@ -1162,6 +1160,11 @@ class GnrWsgiSite(object):
             return exc(environ, start_response)
         finally:
             self.currentDomain = self.rootDomain
+
+    def raiseIfDeveloper(self):
+        page = self.currentPage
+        if self.debug and ((page and page.isDeveloper()) or self.force_debug):
+            raise
 
     @property
     def external_host(self):

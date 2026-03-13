@@ -224,6 +224,7 @@ class GnrWebPage(GnrBaseWebPage):
         try:
             self.onIniting(request_args, request_kwargs)
         except Exception as e:
+            #self.site.raiseIfDeveloper() # TODO: decide if we should raise here
             self._page_init_error = str(e)
         self._call_args = request_args or tuple()
         self._call_kwargs = dict(request_kwargs)
@@ -622,16 +623,18 @@ class GnrWebPage(GnrBaseWebPage):
             self.rpc.error = 'gnrsilent'
             result = Bag(topic=e.topic,parameters=e.parameters)
         except GnrException as e:
-            if self.site.debug and (self.isDeveloper() or self.site.force_debug):
-                raise
+            self.site.raiseIfDeveloper()
             self.rpc.error = 'gnrexception'
             result = str(e)
         except Exception as e:
+            self.site.raiseIfDeveloper()
             error_id = self.site.errorHandler(
                 exception=e,
-                error_type='server_exception',
+                error_type='rpc_exception',
                 notify_user=True,
-                traceback=True
+                traceback=True,
+                rpc_method=method,
+                rpc_kwargs=Bag(kwargs)
             )
             self.rpc.error = 'server_exception'
             result = '<div>%s</div>' %str(e)
