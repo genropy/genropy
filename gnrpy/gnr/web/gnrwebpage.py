@@ -37,6 +37,8 @@ import re
 import datetime
 
 
+DEFAULT_CSS_THEME = os.environ.get('GNR_CSS_THEME', 'mimi')
+
 from gnr.core.gnrstring import toText, toJson, concat, jsquote,splitAndStrip,boolean,asDict
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrlang import getUuid,gnrImport, GnrException, GnrSilentException
@@ -193,6 +195,7 @@ class GnrWebPage(GnrBaseWebPage):
                         or self.site.config['gui?css_theme_variant'] or 'base'
         self.css_icons = request_kwargs.pop('css_icons', None) or getattr(self, 'css_icons', None)\
                         or self.site.config['gui?css_icons'] or 'retina/gray'
+        self.color_variant = self.site.config['gui?color_variant']
         self.dojo_theme = request_kwargs.pop('dojo_theme', None) or getattr(self, 'dojo_theme', None)
         self.dojo_version = request_kwargs.pop('dojo_version', None) or getattr(self, 'dojo_version', None)
         self.envelope_js_requires= {}
@@ -1466,20 +1469,41 @@ class GnrWebPage(GnrBaseWebPage):
             return 'mobile'
         return self.getUserPreference('theme.device_mode',pkg='sys') or 'std'
 
-    def get_bodyclasses(self):   #  is still necessary _common_d11?
-        """TODO"""
-        theme_variant = self.getPreference('theme.theme_variant',pkg='sys') or ''
-        if theme_variant:
-            theme_variant = 'theme_variant_%s' %theme_variant
-        theme_variant = '%s mode_%s' %(theme_variant,self.device_mode)
-        return '%s %s %s _common_d11 pkg_%s page_%s %s ' % ((self.site.config['gui?css_theme'] or ''),
-        self.frontend.theme or '',theme_variant, self.packageId, self.pagename, getattr(self, 'bodyclasses', ''))
+    def get_bodyclasses(self):
+        color_variant = self.getUserPreference('theme.color_variant',pkg='sys') \
+                        or self.getPreference('theme.color_variant',pkg='sys') \
+                        or self.color_variant or ''
+        if color_variant:
+            color_variant = f'color_variant_{color_variant}'
+        color_variant = f'{color_variant} mode_{self.device_mode}'
+        css_theme = self.get_css_theme() or DEFAULT_CSS_THEME
+        # '_common_d11' is always included for backward compatibility.
+        # When using a different dojo version (e.g. '20'), its class is added
+        # so that version-specific CSS can override the base styles.
+        frontend_theme = self.frontend.theme or ''
+        extra_classes = getattr(self, 'bodyclasses', '')
+        dojo_ver = getattr(self, 'dojo_version', '11') or '11'
+        common_classes = '_common_d11'
+        if dojo_ver != '11':
+            common_classes = f'_common_d11 _common_d{dojo_ver}'
+        return f'{css_theme} {frontend_theme} gnr_dojotheme {color_variant} {common_classes} pkg_{self.packageId} page_{self.pagename} {extra_classes} '
         
     def get_css_genro(self):
         """TODO"""
         css_genro = self.frontend.css_genro_frontend()
+        gnr_static_handler = self.site.storage('gnr')
         for media in list(css_genro.keys()):
-            css_genro[media] = [self.mtimeurl(self.gnrjsversion, 'css', '%s.css' % f) for f in css_genro[media]]
+            expanded = []
+            for f in css_genro[media]:
+                css_dir = f + '_css'
+                dir_path = gnr_static_handler.internal_path(self.gnrjsversion, 'css', css_dir)
+                if os.path.isdir(dir_path):
+                    for name in sorted(os.listdir(dir_path)):
+                        if name.endswith('.css'):
+                            expanded.append(self.mtimeurl(self.gnrjsversion, 'css', css_dir, name))
+                else:
+                    expanded.append(self.mtimeurl(self.gnrjsversion, 'css', '%s.css' % f))
+            css_genro[media] = expanded
         return css_genro
         
     def _get_domSrcFactory(self):
@@ -1692,17 +1716,67 @@ class GnrWebPage(GnrBaseWebPage):
         return self.application.checkResourcePermission(self.auth_tags, self.userTags)
         
     def get_css_theme(self):
-        """Get the css_theme and return it. The css_theme get is the one defined the :ref:`siteconfig_gui`
-        tag of your :ref:`sites_siteconfig` or in a single :ref:`webpage` through the
-        :ref:`webpages_css_theme` webpage variable"""
-        return self.css_theme
+        """Get the css_theme with fallback chain: app_pref → siteconfig → DEFAULT_CSS_THEME.
+        If the configured theme does not exist on disk, falls back to DEFAULT_CSS_THEME."""
+        pref_theme = self.getPreference('theme.css_theme', pkg='sys')
+        css_theme = pref_theme or self.css_theme
+        if css_theme and not self.site.resource_loader.getResourceList(
+                self.resourceDirs, 'themes/%s' % css_theme, 'css'):
+            css_theme = DEFAULT_CSS_THEME
+        return css_theme
 
         
     def get_css_theme_variant(self):
-        """Get the css_theme and return it. The css_theme get is the one defined the :ref:`siteconfig_gui`
-        tag of your :ref:`sites_siteconfig` or in a single :ref:`webpage` through the
-        :ref:`webpages_css_theme` webpage variable"""
-        return self.css_theme_variant
+        """Get css_theme_variant with fallback chain: app_pref → siteconfig → 'base'."""
+        return self.getPreference('theme.css_theme_variant', pkg='sys') or self.css_theme_variant
+
+    @public_method
+    def getAvailableThemes(self):
+        """Discover available themes by scanning resourceDirs for themes/*.css files."""
+        themes = set()
+        for rdir in self.resourceDirs:
+            themes_path = os.path.join(rdir, 'themes')
+            snode = self.site.storageNode(themes_path)
+            if snode.exists and snode.isdir:
+                entries = snode.listdir()
+                for name in entries:
+                    basename = os.path.basename(name)
+                    if basename.endswith('.css') and not basename.startswith('.'):
+                        themes.add(basename[:-4])
+        return ','.join(sorted(themes))
+
+    @public_method
+    def getAvailableThemeVariants(self, theme=None):
+        """Discover available theme variants (CSS files inside themes/{theme}/)."""
+        theme = theme or self.get_css_theme() or DEFAULT_CSS_THEME
+        variants = set()
+        for rdir in self.resourceDirs:
+            snode = self.site.storageNode(os.path.join(rdir, 'themes', theme))
+            if snode.exists and snode.isdir:
+                for name in snode.listdir():
+                    basename = os.path.basename(name)
+                    if basename.endswith('.css') and not basename.startswith('.'):
+                        variants.add(basename[:-4])
+        return ','.join(sorted(variants))
+
+    @public_method
+    def getAvailableColorVariants(self, theme=None, theme_variant=None):
+        """Discover available color variants by parsing .color_variant_* classes
+        from the active theme variant CSS file."""
+        theme = theme or self.get_css_theme() or DEFAULT_CSS_THEME
+        theme_variant = theme_variant or self.get_css_theme_variant() or 'base'
+        color_variants = set()
+        css_path = 'themes/%s/%s' % (theme, theme_variant)
+        css_files = self.site.resource_loader.getResourceList(
+            self.resourceDirs, css_path, 'css')
+        for fpath in css_files:
+            snode = self.site.storageNode(fpath)
+            if snode.exists:
+                with snode.open('r') as f:
+                    content = f.read()
+                for match in re.finditer(r'\.color_variant_([\w-]+)\s*\{', content):
+                    color_variants.add(match.group(1))
+        return ','.join(sorted(color_variants))
 
     def get_css_icons(self):
         """Get the css_icons and return it. The css_icons get is the one defined the :ref:`siteconfig_gui`
@@ -1719,12 +1793,12 @@ class GnrWebPage(GnrBaseWebPage):
         
         :param requires: TODO If None, get the css_requires string included in a :ref:`webpage`"""
         requires = [r for r in (requires or self.css_requires) if r]
-        css_theme = self.get_css_theme() or 'ludo'
+        css_theme = self.get_css_theme() or DEFAULT_CSS_THEME
         css_icons = self.get_css_icons()
         css_theme_variant =  self.get_css_theme_variant()
         if css_theme:
             requires.append('themes/%s' %css_theme)
-        requires.append('themes/{css_theme}/{css_theme_variant}'.format(css_theme=css_theme,css_theme_variant=css_theme_variant))
+        requires.append('themes/{css_theme}/{css_theme_variant}'.format(css_theme=css_theme, css_theme_variant=css_theme_variant))
         if self.dbstore:
             requires.append('multidb_{dbstore}/theme_variant'.format(dbstore=self.dbstore))
         if css_icons:

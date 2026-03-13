@@ -10,7 +10,6 @@ import xmlrpc.client
 
 class GnrCustomWebPage(object):
     py_requires="gnrcomponents/testhandler:TestHandlerFull"
-    css_requires='public'
     
     def windowTitle(self):
         return 'bageditor'

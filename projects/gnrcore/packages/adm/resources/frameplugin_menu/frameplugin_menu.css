@@ -30,13 +30,13 @@
 .menutree .closedir::after{
     border-style: solid;
     border-width: 4px 0 4px 5px;
-    border-color: transparent transparent transparent #666;
+    border-color: transparent transparent transparent var(--primary-color, #666);
 }
 
 .menutree .opendir::after{
     border-style: solid;
     border-width: 5px 4px 0 4px;
-    border-color: #666 transparent transparent transparent;
+    border-color: var(--primary-color, #666) transparent transparent transparent;
 }
 
 .menutree .dijitTreeContent:has(.label_emptydir) .dijitTreeIcon{
@@ -44,7 +44,7 @@
 }
 
 .menutree .treeNoIcon{
-    /* same width as arrows inherited from .dijitTreeIcon */
+    /* same width as arrows inhecrited from .dijitTreeIcon */
 }
 .mode_mobile .menutree .treeNoIcon{
     display: none;
@@ -108,15 +108,15 @@
    ========================================================================== */
 
 .menutree.menutree_branchiconright{
-    --menutree-node-background: rgba(0, 0, 0, 0.03);
-    --menutree-node-hover-background: rgba(0, 0, 0, 0.07);
-    --menutree-chevron-color: #bbb;
+    --menutree-node-background: rgba(0, 0, 0, 0.04);
+    --menutree-node-hover-background: rgba(0, 0, 0, 0.08);
+    --menutree-chevron-color: var(--primary-color, #bbb);
 }
 
 .mode_mobile .menutree.menutree_branchiconright{
     --menutree-node-background: none;
     --menutree-node-hover-background: none;
-    --menutree-chevron-color: rgba(255, 255, 255, 0.5);
+    --menutree-chevron-color: var(--frameindex-tablist-color, rgba(255, 255, 255, 0.5));
 }
 
 /* Kill tundra tree-line background images on nodes */

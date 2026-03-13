@@ -1,0 +1,358 @@
+/* ==========================================================================
+   04_gnr_layout.css — SlotBar, opener buttons, toolbar selector,
+   ping semaphore, pbl_roundedGroup, tab containers
+   ========================================================================== */
+
+/* @group SlotBar */
+
+.openerButton{
+    background: var(--text-secondary);
+    transition:all .5s;
+    opacity: .5;
+}
+.openerPane:hover .openerButton{
+    opacity: 1;
+}
+.openerButton_left{
+    border-top-right-radius: var(--radius-sm);
+    border-bottom-right-radius: var(--radius-sm);
+    position: absolute;
+    top: 50%;
+    margin-top: -20px;
+    border-left: 0;
+    width: 8px;
+    height: 40px;
+    cursor: pointer;
+}
+
+/* @group Opener */
+.closableSide_horizontal{
+	overflow: visible;
+}
+.closableSide_vertical{
+	overflow: visible;
+}
+
+.closedSide .slotbar{
+	display: none;
+}
+
+.slotbarOpener{
+	/*display: none;*/
+	font-size: 9px;
+	color: var(--surface-bg);
+	font-weight: bold;
+	font-family: inherit;
+	position: absolute;
+	z-index: 20;
+	background: var(--text-muted);
+	opacity: .2;
+	cursor: pointer;
+	border: 1px solid var(--border-color);
+	transition:all .5s;
+}
+.slotbarOpener:hover{
+	opacity: 1;
+}
+
+.slotbarOpener_horizontal{
+	height: 10px;
+	width: 10px;
+}
+
+.slotbarOpener_top{
+	border-bottom-right-radius: var(--radius-sm);
+	border-bottom-left-radius: var(--radius-sm);
+	bottom: -9px;
+	border-top: 0;
+	left: 50%;
+	margin-left: -20px;
+	height: 8px;
+	width: 40px;
+}
+.slotbarOpener_bottom{
+	border-top-right-radius: var(--radius-sm);
+	border-top-left-radius: var(--radius-sm);
+	top: -9px;
+	left: 50%;
+	margin-left: -20px;
+	height: 8px;
+	width: 40px;
+	border-bottom: 0;
+
+}
+.slotbarOpener_left{
+	border-top-right-radius: var(--radius-sm);
+	border-bottom-right-radius: var(--radius-sm);
+	right: -9px;
+	top: 50%;
+	margin-top: -20px;
+	border-left: 0;
+	width: 8px;
+	height: 40px;
+}
+
+.slotbarOpener_right{
+	border-top-left-radius: var(--radius-sm);
+	border-bottom-left-radius: var(--radius-sm);
+	left: -9px;
+	top: 50%;
+	margin-top: -20px;
+	border-right: 0;
+	width: 8px;
+	height: 40px;
+}
+
+.slotCaption {
+    border-radius: var(--radius-lg);
+    background:var(--text-muted);
+    border:1px solid gray;
+    padding-left:1em;
+    padding-right:1em;
+    padding-top:1px;
+    overflow:hidden;
+    font-weight:bold;
+    color:var(--surface-bg);
+}
+
+/* @end */
+.slotbar .dojoxDock{
+    top:1px;
+}
+
+.slotbar_group{
+    white-space:nowrap;
+}
+
+.slotbar_dialog_footer{
+    padding: 0 0.6em;
+    border-top: 1px solid rgba(0,0,0,0.08);
+    --btn-tonal-bg: var(--btn-filled-bg);
+    --btn-tonal-color: var(--btn-filled-color);
+    --btn-tonal-hover-bg: var(--btn-filled-hover-bg);
+    --btn-tonal-pressed-bg: var(--btn-filled-pressed-bg);
+}
+.slotbar .slotbar_cell{
+    overflow:hidden;
+    text-align:center;
+    vertical-align:middle;
+
+}
+.slotbar .slotbar_cell>*{
+	margin: auto;
+
+}
+.slotbar_vertical{
+    height:100%;
+}
+.slotbar_horizontal{
+    position:relative;
+    white-space:nowrap;
+    overflow:hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content:center;
+    min-height: var(--toolbar-min-height);
+}
+.slotbar_toolbar_lg{
+    min-height: var(--toolbar-min-height-lg);
+}
+
+/* @group Toolbar Selector */
+
+.slotbar_vertical.slotbar_toolbar{
+    padding-top: 0px;
+    padding-bottom: 0px;
+    padding-left: 1px;
+    padding-right: 1px;
+}
+
+/*.slotbar_toolbar .dijitButtonNode {
+	background: none;
+	margin: 0px !important;
+	padding: 0px !important;
+	border: none;
+	font-size: 12px;
+}*/
+
+/*.slotbar_toolbar .dijitButton,
+.slotbar_toolbar .dijitToggleButton,
+.slotbar_toolbar .dijitDropDownButton {
+	background: none;
+	margin: 1px;
+	padding: 0px;
+	border: 1px solid transparent;
+}
+.slotbar_toolbar .dijitButtonChecked,
+.slotbar_toolbar.dijitToggleButtonChecked {
+	background-color:#d4dff2;
+	border:1px solid #316ac5;
+	margin: 1px !important;
+	padding: 0px !important;
+}*/
+
+/*.slotbar_toolbar .dijitButtonCheckedHover,
+.slotbar_toolbar .dijitToggleButtonCheckedHover
+ {
+	background-color:#abc1e5;
+	border:1px solid #316ac5;
+	margin: 1px !important;
+	padding: 0px !important;
+}
+.slotbar_toolbar .dijitButtonHover,
+.slotbar_toolbar .dijitToggleButtonHover,
+.slotbar_toolbar .dijitDropDownButtonHover {
+
+	border: 1px solid #316ac5;
+	background-color:#abc1e5;
+}*/
+/*.slotbar_toolbar label {
+	padding: 3px 3px 0 6px;
+}*/
+
+.slotbar_horizontal.slotbar_toolbar {
+
+	/*z-index:1;*/
+}
+/* @end */
+
+.slotbar_lbl{
+    font-size:10px;
+}
+.slotbar_horizontal .slotbar_cell{
+	vertical-align: middle;
+	height: 100%;
+	width:1px;
+	padding-left: 2px;
+	padding-right:2px ;
+}
+.slotbar .slotbar_table{
+	border-spacing:0px;
+	border-collapse:collapse;
+}
+.slotbar_horizontal .slotbar_table{
+	width:100%;
+}
+.slotbar_vertical .slotbar_table{
+    height:100% ;
+    width:100%;
+}
+
+.slotbar_horizontal .slotbar_spacer{
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    background: var(--border-color);
+    width: 1px;
+    border-right: 1px solid var(--border-light);
+}
+.slotbar_vertical .slotbar_spacer{
+    height: 100%;
+    background: var(--text-secondary);
+}
+.slotbar_vertical .slotbar_row{
+    height: 1px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
+/* @end */
+
+/* --- Detached placeholder (moved from 01_gnr_variables) --- */
+.detatched_placeholder {
+    background: var(--text-secondary) var(--icon-no-entry) center center no-repeat;
+    height: 100%;
+    width: 100%;
+    opacity: .1;
+}
+
+._common_d11 .ping_semaphore{
+    height: 16px;
+    width: 16px;
+    background: url(/_rsrc/common/css_icons/svg/16/socket_transmitting.svg) no-repeat center center;
+    opacity: 0;
+}
+
+._common_d11 .ping_start .ping_semaphore{
+    background: url(/_rsrc/common/css_icons/svg/16/socket_transmitting.svg) no-repeat center center;
+    transition: opacity 200ms, visibility 200ms;
+    opacity: 1;
+}
+
+._common_d11 .ping_error .ping_semaphore{
+    background: url(/_rsrc/common/css_icons/svg/16/sockets_disconnected.svg) no-repeat center center;
+    transition: opacity 200ms, visibility 200ms;
+    opacity: 1;
+}
+
+/* --- PBL elements (from theme_shared) --- */
+.pbl_username {
+    border-radius: var(--radius-sm);
+    background-color: #bfb6ae;
+    color: #403b3b;
+    font-size: 0.9em;
+    font-weight: bold;
+    padding-left: 6px;
+    padding-right: 6px;
+    padding-top: 1px;
+    padding-bottom: 1px;
+    margin-right: 6px;
+}
+
+.pbl_slotbar_label {
+    background-color: transparent;
+    color: white !important;
+}
+
+.pbl_background {
+    background-color: var(--surface-bg);
+}
+
+.pbl_logo_caption {
+    font-size: 8.5pt;
+    font-weight: bold;
+    text-align: left;
+    margin-top: 6px;
+}
+
+.pbl_messageBottom {
+    text-align: center;
+    padding-top: 2px;
+}
+
+.pbl_root_bottom {
+    vertical-align: middle;
+    background-color: #711B2A;
+}
+
+.pbl_viewBox {
+    padding: 5px;
+    border-bottom-left-radius: var(--radius-sm);
+    border-bottom-right-radius: var(--radius-sm);
+    background-color: rgba(170, 190, 201, 0.2);
+}
+
+.pbl_viewBoxLabel {
+    height: var(--toolbar-height);
+    border-top-left-radius: var(--radius-sm);
+    border-top-right-radius: var(--radius-sm);
+    padding-left: 10px;
+    font-size: 0.9em;
+    padding-top: 3px;
+    padding-bottom: 2px;
+    background-color: rgba(177,191,206,0.9);
+    color: var(--text-color);
+}
+
+/* --- Main window (from theme_shared) --- */
+#mainWindow {
+    background: var(--mainWindow-background);
+    font-size: var(--mainWindow-font-size);
+    color: var(--mainWindow-color);
+}
+.mainWindowBG {
+    background: var(--mainWindow-background);
+}
+
+
+

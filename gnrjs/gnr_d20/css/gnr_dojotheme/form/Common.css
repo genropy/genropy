@@ -1,0 +1,214 @@
+/* ==========================================================================
+   gnr_dojotheme/form/Common.css — TextBox, ValidationTextBox, ComboBox,
+   Spinner, InlineEditor complete styling.
+   Replaces tundra/form/Common.css: removes PNG backgrounds, provides
+   the definitive modern appearance with CSS variables for theme customization.
+   ========================================================================== */
+
+/* --- TextBox / ComboBox / Spinner base --- */
+.gnr_dojotheme .dijitInputField INPUT,
+.gnr_dojotheme .dijitTextBox,
+.gnr_dojotheme .dijitComboBox,
+.gnr_dojotheme .dijitSpinner {
+    margin: 0;
+}
+
+.gnr_dojotheme .dijitTextBox,
+.gnr_dojotheme .dijitComboBox,
+.gnr_dojotheme .dijitSpinner,
+.gnr_dojotheme .dijitInlineEditor input {
+    background: var(--formbuilder-field-bg, var(--field-bg, #fff));
+    background-image: none;
+    border: var(--formbuilder-field-border-width, 1px) solid var(--formbuilder-field-border, var(--field-border, #AEAEB2));
+    border-radius: var(--formbuilder-field-radius, var(--radius-sm));
+    line-height: normal;
+    position: relative;
+    padding-left: 3px;
+    padding-top: 1px;
+    box-sizing: border-box;
+}
+
+.gnr_dojotheme .dijitInputField input {
+    padding-right: 3px;
+    background: transparent;
+}
+
+/* --- Mobile fields --- */
+.gnr_dojotheme .mobilefields .dijitInputField {
+    font-size: 11pt;
+    padding: 1px;
+}
+
+.gnr_dojotheme .mobilefields .dijitButtonNode.dijitArrowButton {
+    background: none;
+}
+
+/* --- ComboBox / Spinner button area --- */
+.gnr_dojotheme .dijitComboBox .dijitButtonNode {
+    padding: 0 0.2em;
+}
+
+.gnr_dojotheme .dijitComboBox .dijitButtonNode,
+.gnr_dojotheme .dijitSpinner .dijitButtonNode {
+    border-color: var(--border-color, #9b9b9b);
+}
+
+/* --- Focus state --- */
+.gnr_dojotheme .dijitTextBoxFocused,
+.gnr_dojotheme .dijitTextAreaFocused,
+.gnr_dojotheme .dijitComboBoxFocused,
+.gnr_dojotheme .dijitSpinnerFocused {
+    border-color: var(--btn-filled-bg, #406b9b);
+    background-color: var(--field-focus-bg, #fff);
+    box-shadow: 0 0 0 1px rgba(124, 92, 191, 0.2);
+}
+
+.gnr_dojotheme .dijitComboBoxFocused .dijitButtonNode,
+.gnr_dojotheme .dijitSpinnerFocused .dijitButtonNode {
+    border-left-color: var(--accent-color, #366dba);
+}
+
+.gnr_dojotheme .dijitSpinnerFocused .dijitDownArrowButton {
+    border-top-color: var(--accent-color, #366dba);
+}
+
+/* --- Disabled state --- */
+.gnr_dojotheme .dijitDisabled.dijitTextBoxDisabled,
+.gnr_dojotheme .dijitDisabled.dijitComboBoxDisabled,
+.gnr_dojotheme .dijitDisabled.dijitTextBoxDisabled .dijitButtonNode,
+.gnr_dojotheme .dijitTextArea.dijitTextAreaDisabled.dijitDisabled {
+    border-color: var(--field-disabled-border, #E0E0E3);
+    background-color: var(--field-disabled-bg, #F7F7FA);
+    background-image: none;
+    color: var(--field-disabled-color, inherit);
+    cursor: not-allowed;
+}
+
+/* --- ReadOnly state: normal appearance, not grayed out --- */
+.gnr_dojotheme .dijitReadOnly.dijitTextBox,
+.gnr_dojotheme .dijitReadOnly.dijitTextArea,
+.gnr_dojotheme .dijitReadOnly.dijitComboBox,
+.gnr_dojotheme .dijitDisabled.dijitTextBoxReadOnly {
+    background-color: var(--field-bg, #fff);
+    background-image: none;
+    border-color: var(--field-border, #AEAEB2);
+    color: inherit;
+    cursor: default;
+}
+.gnr_dojotheme .dijitDisabled.dijitTextBoxReadOnly .dijitButtonNode {
+    background-color: transparent;
+    color: inherit;
+    cursor: pointer;
+}
+
+/* --- Error state — red dot indicator --- */
+.gnr_dojotheme .dijitError {
+    border-color: #c06060; /* fallback for older browsers */
+    border-color: color-mix(in srgb, var(--status-error, #E53935) 60%, var(--field-border, #AEAEB2));
+    background-color: #fdf0f0; /* fallback */
+    background-color: color-mix(in srgb, var(--status-error, #E53935) 7%, var(--field-bg, white));
+    background-image: none;
+    overflow: visible;
+}
+
+.gnr_dojotheme .dijitError::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translate(calc(100% + 4px), -50%);
+    width: var(--field-error-dot-size, 8px);
+    height: var(--field-error-dot-size, 8px);
+    border-radius: 50%;
+    background: var(--field-error-dot-color, var(--status-error, #E53935));
+    box-shadow: none;
+    animation: gnr-error-dot-pop 0.3s ease-out;
+    pointer-events: none;
+    z-index: 1;
+    display: none; /* disabled for now — enable via --field-error-dot-size or theme override */
+}
+
+@keyframes gnr-error-dot-pop {
+    0% { transform: translate(calc(100% + 4px), -50%) scale(0); opacity: 0; }
+    60% { transform: translate(calc(100% + 4px), -50%) scale(1.3); }
+    100% { transform: translate(calc(100% + 4px), -50%) scale(1); opacity: 1; }
+}
+
+.gnr_dojotheme .dijitError.dijitFocused {
+    border-color: var(--status-error, #E53935);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--status-error, #E53935) 20%, transparent);
+    background-image: none;
+}
+
+/* --- Error tooltip (pure CSS, uses data-error attribute) ---
+ * Shows on hover only (desktop). On mobile, the form floating
+ * message at save time provides the error details. */
+.gnr_dojotheme .dijitError[data-error]::before {
+    content: attr(data-error);
+    position: absolute;
+    left: 0;
+    top: calc(100% + 4px);
+    max-width: 280px;
+    padding: 5px 9px;
+    border-radius: var(--radius-sm);
+    background: var(--field-error-tooltip-bg, color-mix(in srgb, var(--status-error, #E53935) 12%, var(--surface-color, white)));
+    color: var(--field-error-tooltip-color, var(--status-error, #E53935));
+    border: 1px solid color-mix(in srgb, var(--status-error, #E53935) 30%, transparent);
+    font-size: 0.82em;
+    font-weight: 500;
+    line-height: 1.35;
+    white-space: pre-wrap;
+    pointer-events: none;
+    z-index: var(--z-flash, 99999);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+    opacity: 0;
+    transition: opacity 0.2s ease-out;
+}
+
+.gnr_dojotheme .dijitError[data-error]:hover::before {
+    opacity: 1;
+    transition-delay: 0.4s;
+}
+
+/* --- Mobile: tooltip on :active (tap), dot stays hidden --- */
+@media (hover: none) {
+    .gnr_dojotheme .dijitError[data-error]:active::before {
+        opacity: 1;
+    }
+}
+
+.gnr_dojotheme .dijitTextBoxErrorDisabled {
+    border-color: transparent;
+}
+.gnr_dojotheme .dijitTextBoxErrorDisabled::after {
+    display: none;
+}
+
+.gnr_dojotheme .dijitComboBoxErrorDisabled {
+    border-color: transparent;
+}
+.gnr_dojotheme .dijitComboBoxErrorDisabled::after {
+    display: none;
+}
+
+/* --- Validation icon (hidden — GenroPy uses its own error indicators) --- */
+.gnr_dojotheme .dijitValidationIcon {
+    width: 0;
+    display: none;
+    background: none;
+}
+
+/* --- Inline editor --- */
+.gnr_dojotheme .dijitInlineValue {
+    padding: 0.2em;
+    margin: 0.25em;
+}
+
+.gnr_dojotheme .dijitInlineEditor {
+    display: inline-block;
+}
+
+.dijitInlineEditor .saveButton,
+.dijitInlineEditor .cancelButton {
+    margin: 0.2em 0.2em 0.2em 0;
+}

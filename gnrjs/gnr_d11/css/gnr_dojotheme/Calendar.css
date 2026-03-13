@@ -1,0 +1,205 @@
+/* ==========================================================================
+   gnr_dojotheme/Calendar.css — Complete calendar widget styling.
+   Replaces tundra sprite arrows with CSS chevrons. Flat design, no gradients.
+   ========================================================================== */
+
+/* --- Calendar container --- */
+.gnr_dojotheme table.dijitCalendarContainer {
+    font-size: 100%;
+    border-spacing: 0;
+    border-collapse: separate;
+    border: 1px solid var(--border-color, #ddd);
+    border-radius: var(--radius-md);
+    margin: 0;
+    overflow: hidden;
+    background-color: var(--surface-bg, #fff);
+}
+
+/* --- Month header --- */
+.gnr_dojotheme .dijitCalendarMonthContainer th {
+    background-color: var(--primary-color, #1E3055);
+    color: #fff;
+    padding: 0.5em 0.3em;
+    text-align: center;
+    font-weight: 600;
+}
+
+.gnr_dojotheme .dijitCalendarMonthLabel {
+    color: #fff;
+    font-weight: 600;
+    font-size: 1em;
+}
+
+/* --- Month navigation arrows --- */
+.gnr_dojotheme .dijitCalendarIncrementControl {
+    width: 1.5em;
+    height: 1.5em;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    transition: background-color 0.15s ease;
+}
+
+.gnr_dojotheme .dijitCalendarIncrementControl:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Hide inner text nodes */
+.gnr_dojotheme .dijitCalendarIncreaseInner,
+.gnr_dojotheme .dijitCalendarDecreaseInner {
+    visibility: hidden;
+    display: none;
+}
+
+/* Previous month: left chevron ‹ */
+.gnr_dojotheme .dijitCalendarDecrease {
+    background: none;
+    background-image: none;
+}
+
+.gnr_dojotheme .dijitCalendarDecrease::after {
+    content: '\2039';  /* ‹ */
+    font-size: 1.4em;
+    font-weight: bold;
+    color: #fff;
+    line-height: 1;
+    visibility: visible;
+}
+
+/* Next month: right chevron › */
+.gnr_dojotheme .dijitCalendarIncrease {
+    background: none;
+    background-image: none;
+}
+
+.gnr_dojotheme .dijitCalendarIncrease::after {
+    content: '\203A';  /* › */
+    font-size: 1.4em;
+    font-weight: bold;
+    color: #fff;
+    line-height: 1;
+    visibility: visible;
+}
+
+/* --- Day-of-week labels --- */
+.gnr_dojotheme .dijitCalendarDayLabelTemplate {
+    background: var(--surface-light, #f6f6f6);
+    background-image: none;
+    font-weight: 600;
+    font-size: 0.8em;
+    padding: 0.4em 0;
+    border-top: none;
+    color: var(--text-muted, #666);
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* --- Calendar body --- */
+.gnr_dojotheme .dijitCalendarBodyContainer {
+    border-bottom: none;
+}
+
+/* --- Date cell --- */
+.gnr_dojotheme .dijitCalendarDateTemplate {
+    font-size: 0.85em;
+    font-weight: 500;
+    text-align: center;
+    padding: 0.35em;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: background-color 0.12s ease;
+}
+
+.gnr_dojotheme .dijitCalendarDateTemplate:hover {
+    background-color: var(--card-surface, #F2F2F7);
+}
+
+/* --- Current month days --- */
+.gnr_dojotheme .dijitCalendarCurrentMonth {
+    background-color: var(--surface-bg, #fff);
+    color: var(--text-color, #444);
+}
+
+.gnr_dojotheme .dijitCalendarCurrentMonthDisabled {
+    background-color: var(--surface-light, #f6f6f6);
+    color: var(--text-secondary, #888);
+}
+
+/* --- Previous / next month days (muted) --- */
+.gnr_dojotheme .dijitCalendarPreviousMonth,
+.gnr_dojotheme .dijitCalendarNextMonth {
+    color: var(--text-placeholder, #bbb);
+    background-color: var(--surface-bg, #fff);
+}
+
+.gnr_dojotheme .dijitCalendarPreviousMonthDisabled,
+.gnr_dojotheme .dijitCalendarNextMonthDisabled {
+    background-color: var(--surface-light, #f6f6f6);
+    color: var(--text-placeholder, #bbb);
+}
+
+/* --- Today marker --- */
+.gnr_dojotheme .dijitCalendarCurrentDate {
+    font-weight: 700;
+    text-decoration: none;
+    position: relative;
+}
+
+.gnr_dojotheme .dijitCalendarCurrentDate::after {
+    content: '';
+    display: block;
+    width: 0.3em;
+    height: 0.3em;
+    background-color: var(--accent-color, #369);
+    border-radius: 50%;
+    margin: 0.1em auto 0;
+}
+
+/* --- Selected date --- */
+.gnr_dojotheme .dijitCalendarSelectedDate {
+    background-color: var(--accent-color, #369);
+    color: #fff;
+    border-radius: var(--radius-sm);
+}
+
+.gnr_dojotheme .dijitCalendarSelectedDate:hover {
+    background-color: var(--accent-color, #369);
+}
+
+/* --- Year container (footer) --- */
+.gnr_dojotheme .dijitCalendarYearContainer {
+    background: var(--surface-light, #f6f6f6);
+    background-image: none;
+    border-top: 1px solid var(--border-color, #ddd);
+}
+
+.gnr_dojotheme .dijitCalendarYearLabel {
+    margin: 0;
+    padding: 0.4em 0 0.3em 0;
+    text-align: center;
+}
+
+/* --- Selected year --- */
+.gnr_dojotheme .dijitCalendarSelectedYear {
+    color: var(--surface-bg, #fff);
+    background-color: var(--accent-color, #369);
+    padding: 0.15em 0.5em;
+    border-radius: var(--radius-pill, 9999px);
+    font-weight: 600;
+}
+
+/* --- Adjacent years --- */
+.gnr_dojotheme .dijitCalendarNextYear,
+.gnr_dojotheme .dijitCalendarPreviousYear {
+    color: var(--text-muted, #666);
+    font-weight: normal;
+    cursor: pointer;
+}
+
+.gnr_dojotheme .dijitCalendarNextYear:hover,
+.gnr_dojotheme .dijitCalendarPreviousYear:hover {
+    color: var(--accent-color, #369);
+}

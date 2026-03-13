@@ -1,0 +1,538 @@
+/* ==========================================================================
+   05_gnr_widgets_base.css — Dijit custom widgets, Toaster, Dialog,
+   ColorPalette, Editor, FileInput, Accordion, Dojox scroll
+   ========================================================================== */
+
+/* @group Dijit custom */
+
+/* @group colorpalettemenu */
+
+.colorPaletteMenu .dijitMenuItemHover {
+    background-color: transparent;
+}
+
+.colorPaletteMenu .dijitMenuItem td {
+    padding: 0;
+}
+
+.colorPaletteMenu .dijitMenuItemIcon {
+    display: none;
+}
+
+/* @end */
+
+/* @group Editor */
+
+.RichTextEditable .dijitComboBox {
+    font-size: .9em;
+    width: 8em;
+}
+
+.RichTextEditable label {
+    font-size: .9em;
+}
+
+/* @end */
+
+/* Toaster styling moved to gnr_dojotheme/Common.css */
+
+.gnrfield .dijitButtonDisabled .dijitButtonNode,
+._common_d11 :is(.dijitToggleButtonDisabled, .dijitDropDownButtonDisabled, .dijitComboButtonDisabled) .dijitButtonNode,
+._common_d11 .dijitComboBoxDisabled,
+._common_d11 .dijitSpinnerDisabled,
+._common_d11 .dijitSpinnerDisabled .dijitButtonNode {
+    opacity: 1;
+}
+
+.warningForm .saving_btn .dijitButtonNode {
+    color: var(--status-error) !important;
+}
+
+._common_d11 .dijitDialog .dijitDialogPaneContent {
+    border: 0;
+    padding: 0;
+    font-size: 0.92em;
+    overflow: hidden;
+}
+
+._common_d11 .dijitDialogTitleBar {
+    text-align: center;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    font-size: .9em;
+}
+
+._common_d11 .commonTitleBar {
+    background: var(--dialogtitlebar-background, linear-gradient(to right, #3b6391, #4b6cb7));
+    color: var(--dialogtitlebar-color, #ffffff);
+    text-align: center;
+    font-weight: normal;
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
+._common_d11 .lightboxDialog.dijitDialog {
+    padding: 2px;
+    background: var(--surface-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+}
+.index_loginbox{
+    font-size:1em;
+    color:var(--text-muted);
+}
+.index_loginbox .index_logintitle{
+    font-variant:small-caps;
+    font-size:1.05em;
+    padding-top:4px;
+    text-align: center;
+}
+
+.index_loginbox .index_loginsubtitle{
+    font-size: .9em;
+    font-style: italic;
+    text-align: center;
+}
+
+.login_option_btn{
+    color: var(--text-secondary);
+    font-size:12px;
+    height:15px;
+    cursor:pointer;
+    text-align:left;
+}
+._common_d11 .lightboxDialog.dijitDialog .dijitDialogPaneContent {
+    background: transparent;
+    border: 0px;
+    padding:5px;
+}
+._common_d11 .fullscreenDialog.dijitDialog{
+    border-radius: 0;
+    border-width: 0;
+    box-shadow:none;
+}
+
+._common_d11 .fullscreenDialog.dijitDialog .dijitDialogPaneContent {
+    background: transparent;
+    border: 0px;
+    padding:0;
+}
+
+._common_d11 .dijitDialogPaneContent{
+    overflow: hidden !important;
+}
+
+._common_d11 .dijitDialog.dijitContentPane{
+    overflow: hidden;
+}
+
+._common_d11 .lightboxDialog .dijitDialogTitleBar, ._common_d11 .fullscreenDialog .dijitDialogTitleBar, ._common_d11 .hideDialogTitle .dijitDialogTitleBar{
+    display:none;
+}
+
+
+._common_d11  .dijitTooltipFocusNode{
+    padding:0px;
+}
+
+._common_d11 .dijitDialog {
+    z-index: 499;
+}
+
+._common_d11 .dijitDialogUnderlayWrapper {
+    z-index: 498;
+}
+._common_d11 .dijitDialogUnderlay.fullscreenDialog_underlay{
+    display: none;
+}
+
+/* @group FileInput */
+
+/* quickthermo*/
+.quickthermo_box{
+    background: var(--surface-bg);
+    border-radius: var(--radius-sm);
+    border-left: 1px solid var(--border-light);
+    box-shadow: 2px 2px 3px var(--text-muted);
+    min-width: 360px;
+}
+.quickthermo_box.thermo_message .form_waiting{
+    width: 100%;
+    border-width: 0;
+    box-shadow: none;
+}
+
+.quickthermo_title{
+    font-variant: normal;
+    font-size: 14px;
+    text-align: center;
+    background: var(--text-muted);
+    color: var(--surface-bg);
+    border-top-right-radius: var(--radius-sm);
+    border-top-left-radius: var(--radius-sm);
+}
+
+.quickthermo_caption{
+    font-variant: normal;
+    font-size: 12px;
+    color:var(--text-muted);
+}
+
+/* FileInput/ProgressOverlay base styling moved to gnr_dojotheme/Common.css */
+
+._common_d11 .dijitProgressOverlay {
+    border: 1px solid #84a3d1;
+    background-color: #cad2de;
+}
+
+._common_d11 .dijitFakeInput input {
+    font-size: inherit;
+    background: #fff linear-gradient(to bottom, #f4f4f4, #fff);
+    border: 1px solid #9b9b9b;
+    line-height: normal;
+    padding: 0.2em 0.3em;
+}
+
+._common_d11 .dijitFileInputButton,
+._common_d11 .dijitFileInputText {
+    border: 1px solid #9b9b9b;
+    padding: 2px 12px 2px 12px; /* .3em .4em .2em .4em; */
+    background: #e9e9e9 linear-gradient(to bottom, #f6f6f6, #e0e0e0);
+}
+
+/* @end */
+
+/* @end */
+
+.waiting {
+    height: 100%;
+    position: relative;
+}
+.waiting::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 2rem;
+    height: 2rem;
+    margin: -1rem 0 0 -1rem;
+    border: 3px solid var(--text-secondary, #888);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: gnr-spin 0.8s linear infinite;
+}
+
+/* @group Dojox */
+.dojoxScrollWindow {
+    position: relative;
+}
+
+.dojoxScrollHelper .helperInner {
+    visibility: hidden;
+}
+
+.dojoxScrollHelper {
+    border: 1px solid var(--border-color);
+    width: 4px;
+    background: var(--surface-light);
+    height: 4px;
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    border-radius: var(--radius-sm);
+}
+
+.dojoxScrollWrapper {
+    width: 100%;
+}
+
+/* @end */
+
+.notvisible {
+    visibility: hidden;
+}
+
+#_gnrRoot {
+    opacity: 0;
+}
+
+textarea {
+    border: 1px solid var(--border-color);
+    font-family: inherit;
+    font-size: inherit;
+}
+
+textarea:disabled {
+    border: 1px solid var(--border-color);
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+}
+
+.countBox {
+    cursor: default;
+    font-variant: small-caps;
+    visibility: hidden;
+	border-collapse: collapse;
+}
+
+.countBoxVisible {
+    visibility: visible;
+}
+.countBoxPartial {
+    border: 1px solid var(--border-strong);
+    border-right: 0px;
+    border-top-left-radius: var(--radius-lg);
+    border-bottom-left-radius: var(--radius-lg);
+    text-align: right;
+    padding-right: 3px;
+    padding-left: 5px;
+    background: #D5E5F6;
+    color: #7791AB;
+}
+.unfilteredCount .countBoxPartial {
+    display: none;
+
+}
+.countBoxTotal {
+    border: 1px solid var(--border-strong);
+    border-top-right-radius: var(--radius-lg);
+    border-bottom-right-radius: var(--radius-lg);
+    text-align: left;
+    padding-left: 4px;
+    padding-right: 5px;
+    background: #F2ECD4;
+    color: #9C9474;
+}
+.unfilteredCount .countBoxTotal {
+    border-top-left-radius: var(--radius-lg);
+    border-bottom-left-radius: var(--radius-lg);
+    text-align: center;
+    padding-right: 5px;
+}
+
+.countBoxErrors{
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-strong);
+    background: var(--color-error);
+    color: var(--text-on-dark);
+    padding-left: 5px;
+    padding-right: 5px;
+    font-size: .9em;
+    cursor: pointer;
+}
+
+.searchInputBox {
+    border-radius: var(--radius-lg);
+    padding-left: 0.4em;
+    padding-right: 1.6em;
+    border: 1px solid var(--border-strong);
+    background: var(--surface-bg);
+    position: relative;
+}
+.searchInputBox::after {
+    content: '';
+    position: absolute;
+    right: 0.4em;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0.9em;
+    height: 0.9em;
+    background-color: var(--text-muted, #666);
+    -webkit-mask: var(--icon-search) no-repeat center / contain;
+    mask: var(--icon-search) no-repeat center / contain;
+    pointer-events: none;
+}
+
+.searchInputBox.activeSearch{
+    cursor: pointer;
+}
+.searchInputBox.activeSearch::after {
+    -webkit-mask-image: var(--icon-wnd-close);
+    mask-image: var(--icon-wnd-close);
+}
+
+.searchInputBox>input{
+    width:100%;
+    border:0;
+}
+
+.searchInput {
+    border-radius: var(--radius-lg);
+    padding-left: 0.4em;
+    padding-right: 1.6em;
+    border: 1px solid var(--border-color);
+    background: var(--surface-bg);
+    position: relative;
+}
+.searchInput::after {
+    content: '';
+    position: absolute;
+    right: 0.4em;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0.9em;
+    height: 0.9em;
+    background-color: var(--text-muted, #666);
+    -webkit-mask: var(--icon-search) no-repeat center / contain;
+    mask: var(--icon-search) no-repeat center / contain;
+    pointer-events: none;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.dimmed {
+    opacity: 0.5;
+}
+
+/* --- Floating pane (from theme_shared) --- */
+._common_d11 .dojoxDockRestoreButton {
+    float: left;
+    height: 13px;
+    margin-top: 1px;
+}
+
+._common_d11 .dojoxDockNode {
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    float: left;
+    height: 13px;
+    list-style: none outside none;
+    margin-top: 3px;
+    padding: 0 7px 3px 0;
+    width: auto;
+    font-size: .9em;
+    background-color: rgba(170, 190, 201, 0.2);
+}
+
+._common_d11 .dojoxFloatingPane {
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--border-color);
+}
+
+._common_d11 .dojoxFloatingPaneTitle {
+    display: flex;
+    align-items: center;
+    background: var(--dialogtitlebar-background);
+    color: var(--dialogtitlebar-color, #f6f6f6);
+    border-top-left-radius: calc(var(--radius-sm) - 1px);
+    border-top-right-radius: calc(var(--radius-sm) - 1px);
+    padding: 0.3em 0.4em;
+    border: 0;
+}
+._common_d11 .dojoxFloatingPaneTitle .dijitTitleNode {
+    flex: 1;
+    order: -1;
+    padding: 0.1em 0.4em;
+    font-weight: 600;
+}
+
+/* --- Lightbox login dialog (from theme_shared) --- */
+._common_d11 .lightboxDialog.loginDialog.dijitDialog {
+    padding: 0;
+    border: 1px solid var(--border-color);
+    background: var(--surface-bg);
+    box-shadow: none;
+}
+._common_d11 .lightboxDialog.loginDialog.dijitDialog .dijitDialogPaneContent {
+    background: transparent;
+    border: 0px;
+    padding: 0;
+}
+
+/* --- Spinner button (from theme_shared) --- */
+._common_d11 .dijitSpinnerButtonContainer .dijitArrowButton .dijitArrowButtonInner {
+    background: url(/_rsrc/common/css_icons/svg/16/popup.svg) no-repeat center center;
+    transform: rotate(0) scale(1.5);
+}
+._common_d11 .dijitSpinnerButtonContainer .dijitUpArrowButton .dijitArrowButtonInner {
+    background: url(/_rsrc/common/css_icons/svg/16/popup.svg) no-repeat center center;
+    transform: rotate(180deg) scale(1.5);
+}
+
+/* @end */
+
+/* ==========================================================================
+   Tab container — base defaults
+   (moved from theme files, themeable via CSS variables)
+   ========================================================================== */
+
+/* @end */
+
+/* @group underline_tabs variant */
+
+.underline_tabs ._common_d11 .dijitTab,
+._common_d11 .underline_tabs .dijitTab {
+    border-radius: 0;
+    background: transparent;
+    color: var(--text-secondary);
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-right: 0;
+    margin-bottom: 0;
+    position: static;
+}
+.underline_tabs ._common_d11 .dijitTabHover,
+._common_d11 .underline_tabs .dijitTabHover {
+    background: transparent;
+    color: var(--text-muted);
+    border-bottom-color: var(--border-color);
+}
+.underline_tabs ._common_d11 .dijitTabChecked,
+._common_d11 .underline_tabs .dijitTabChecked,
+.underline_tabs ._common_d11 .dijitAlignTop .dijitTabChecked,
+._common_d11 .underline_tabs .dijitAlignTop .dijitTabChecked {
+    background: transparent;
+    color: var(--primary-color, #1E3055);
+    font-weight: 600;
+    border: none;
+    border-bottom: 2px solid var(--primary-color, #1E3055);
+    border-radius: 0;
+    z-index: auto;
+}
+.underline_tabs ._common_d11 .dijitTabPaneWrapper,
+._common_d11 .underline_tabs .dijitTabPaneWrapper {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    border-radius: 0;
+    background: transparent;
+}
+
+/* @end */
+
+/* @group borderlessFields — transparent inputs with bottom underline only.
+   Inherits text color from parent container. Apply via _class on a container (e.g. formbuilder). */
+.gnr_dojotheme .borderlessFields .dijitTextBox,
+.gnr_dojotheme .borderlessFields .dijitComboBox {
+    background: transparent;
+    border-color: transparent;
+    border-bottom: 1px solid currentColor;
+    border-radius: 0;
+    box-shadow: none;
+    color: inherit;
+}
+.gnr_dojotheme .borderlessFields .dijitTextBoxFocused.dijitTextBox,
+.gnr_dojotheme .borderlessFields .dijitComboBoxFocused.dijitTextBox,
+.gnr_dojotheme .borderlessFields .dijitSpinnerFocused.dijitTextBox,
+.gnr_dojotheme .borderlessFields .dijitTextBoxHover.dijitTextBox,
+.gnr_dojotheme .borderlessFields .dijitComboBoxHover.dijitTextBox {
+    background: transparent;
+    border-color: transparent;
+    border-bottom: 1px solid currentColor;
+    box-shadow: none;
+}
+.gnr_dojotheme .borderlessFields .dijitInputContainer input {
+    color: inherit;
+}
+.gnr_dojotheme .borderlessFields .dijitButtonNode,
+.gnr_dojotheme .borderlessFields .dijitComboBoxFocused .dijitButtonNode,
+.gnr_dojotheme .borderlessFields .dijitSpinnerFocused .dijitButtonNode {
+    background: transparent;
+    border-color: transparent;
+}
+/* @end */
+
+/* @end */

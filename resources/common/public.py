@@ -17,7 +17,7 @@ from gnr.core.gnrbag import Bag
 import os
 
 class PublicBase(BaseComponent):
-    #css_requires = 'public'
+    css_requires = 'public'
     py_requires = """public:PublicSlots"""
                      
     def userRecord(self, path=None):
@@ -90,7 +90,6 @@ class PublicBase(BaseComponent):
 
         #if self.isMobile:
         #    baseslots = '15,captionslot,10,testmobile,*,dock,avatar,countErrors'
-        kwargs['margin_top'] ='2px'
         slots = slots or self.public_frameTopBarSlots(baseslots)
         if 'captionslot' in slots:
             kwargs['captionslot_title'] = title
@@ -103,7 +102,7 @@ class PublicBase(BaseComponent):
         rb = pane.div(_class='pbl_roundedBlock',top=top,bottom=bottom,left=left,right=right)
         if title:
             rb.div(title,_class='pbl_roundedGroupLabel')
-        return rb
+        return rb.div(_class='pbl_roundedGroupContent')
 
     @struct_method
     def public_roundedGroupFrame(self, container, title=None,frameCode=None,**kwargs):
@@ -111,7 +110,8 @@ class PublicBase(BaseComponent):
         if container.attributes['tag'].lower() in ('tabcontainer','stackcontainer'):
             kwargs['title'] = title
         pane = container.contentPane(**kwargs)
-        frame = pane.framePane(frameCode=frameCode,margin='2px',_class='pbl_roundedGroup')
+        frame = pane.framePane(frameCode=frameCode,margin='2px',_class='pbl_roundedGroup',
+                               center_class='pbl_roundedGroupContent')
         if title:
             frame.top.slotBar('5,blocktitle,*',_class='pbl_roundedGroupLabel',blocktitle=title)
         return frame
@@ -199,7 +199,6 @@ class PublicBase(BaseComponent):
     
 class Public(PublicBase):
     """docstring for Public for common_d11: a complete restyling of Public of common_d10"""
-    css_requires = 'public'
     js_requires = 'public'
     py_requires = """public:PublicSlots,foundation/macrowidgets"""
 
@@ -240,11 +239,11 @@ class PublicSlots(BaseComponent):
     @struct_method
     def public_publicRoot_countErrors(self,pane,**kwargs):
         pane.div(width='15px').div('^gnr.errors?counter',hidden='==!_error_count',_error_count='^gnr.errors?counter',
-                    _msg='!!Errors:',_class='countBoxErrors',connect_onclick='genro.dev.errorPalette();',padding_right='3px',padding_left='3px',margin_top='3px')
+                    _msg='!!Errors:',_class='countBoxErrors',connect_onclick='genro.dev.errorPalette();')
 
     @struct_method
     def public_publicRoot_partition_selector(self,pane, **kwargs):
-        box = pane.div(margin_top='2px') 
+        box = pane.div(_class='pbl_partitionField')
         self.public_partitioned = self.tblobj.partitionParameters if self.public_partitioned is True else self.public_partitioned
         kw = self.public_partitioned
         partition_field = kw['field']
@@ -281,8 +280,8 @@ class PublicSlots(BaseComponent):
                             readOnly=readOnly,
                             disabled='^gnr.partition_selector.disabled',
                             dbtable=related_tblobj.fullname,lbl=related_tblobj.name_long,
-                            hasDownArrow=True,font_size='.8em',
-                            color='#666',lbl_font_size='.8em',nodeId='pbl_partition_selector')
+                            hasDownArrow=True,nodeId='pbl_partition_selector',
+                            _class='pbl_partitionField')
         #else:
         #    fb.div('!!Partition not allowed',color='orange',font_size='.8em',font_weight='bold') 
         fb.dataController("""SET current.%s = currentValue || null;
@@ -512,10 +511,10 @@ class TableHandlerMain(BaseComponent):
 
         if publicCollapse:
             th.view.attributes.update(_class='pbl_root')
-            viewbar.attributes.update(toolbar=False,_class='slotbar_toolbar pbl_root_top',height='22px')
+            viewbar.attributes.update(toolbar=False,_class='slotbar_toolbar pbl_root_top')
             viewbar.replaceSlots('#','#,avatarslot,10')
             viewbar.replaceSlots('5,searchOn','10,captionslot,searchOn')
-            viewbar.avatarslot.publicRoot_avatar(margin_top='-2px')
+            viewbar.avatarslot.publicRoot_avatar()
             viewbar.captionslot.publicRoot_captionslot()
 
         storeupd = dict(startLocked=lockable)
@@ -524,7 +523,7 @@ class TableHandlerMain(BaseComponent):
             viewbar.replaceSlots('resourceMails','resourceMails,5,%s' %','.join(extras))  
         if insidePublic and hasattr(self,'customizePublicFrame'):
             self.customizePublicFrame(root)
-        th.view.attributes.update(dict(border='0',margin='0', rounded=0))
+        th.view.attributes.update(dict(rounded=0))
         self.__th_title(th,thwidget,insidePublic or publicCollapse,extendedQuery=extendedQuery)
         self.__th_moverdrop(th)
         if th_options.get('filterSlot'):
@@ -653,7 +652,7 @@ class TableHandlerMain(BaseComponent):
                     title = formtitle;
                 }else{
                     title = viewtitle;
-                    totalrows = hardQueryLimitOver?'<span style="color:#FF3519;">'+totalrows+'</span>' :totalrows;
+                    totalrows = hardQueryLimitOver?'<span class="pbl_danger_text">'+totalrows+'</span>' :totalrows;
                     if(totalRowCount!==null){
                         title = title +' ('+totalrows+'/'+totalRowCount+')';                    
                     }
@@ -662,7 +661,7 @@ class TableHandlerMain(BaseComponent):
                     }
                 }
                 if(title){
-                    whereAsPlainText = whereAsPlainText? '<div style="zoom:.8;">'+whereAsPlainText+'</div>' :'';
+                    whereAsPlainText = whereAsPlainText? '<div class="pbl_title_desc">'+whereAsPlainText+'</div>' :'';
                     genro.setData("gnr.publicTitle",title,{selectionName:selectionName,table:table,objtype:'record',titleFullDesc:whereAsPlainText});
                 }
                         """,

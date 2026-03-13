@@ -1887,7 +1887,7 @@ class GnrApp(object):
     @property
     def gnrdaemon(self):
         if not getattr(self,'_gnrdaemon',None):
-            from gnr.web.gnrdaemonhandler import GnrDaemonProxy
+            from gnr.web.daemon.handler import GnrDaemonProxy
             self._gnrdaemon = GnrDaemonProxy(use_environment=True).proxy()
         return self._gnrdaemon
 

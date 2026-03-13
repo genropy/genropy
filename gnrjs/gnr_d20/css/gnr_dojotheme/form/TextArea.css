@@ -1,0 +1,56 @@
+/* ==========================================================================
+   gnr_dojotheme/form/TextArea.css — Complete textarea styling.
+   Replaces tundra/form/TextArea.css: removes validationInputBg PNG.
+   Provides proper sizing, border-radius, and responsive behavior.
+   ========================================================================== */
+
+.gnr_dojotheme .dijitTextArea {
+    background: var(--field-bg, #fff);
+    background-image: none;
+    border: 1px solid var(--field-border, #AEAEB2);
+    border-radius: var(--radius-sm);
+    line-height: normal;
+    position: relative;
+    padding: 0.3em;
+    box-sizing: border-box;
+    resize: vertical;
+    min-height: 2.5em;
+    font-family: inherit;
+    font-size: inherit;
+}
+
+/* --- Focus --- */
+.gnr_dojotheme .dijitTextArea.dijitTextAreaFocused,
+.gnr_dojotheme .dijitTextArea:focus {
+    border-color: var(--accent-color, #406b9b);
+    background-color: var(--field-focus-bg, #fff);
+    outline: none;
+}
+
+/* --- Disabled --- */
+.gnr_dojotheme .dijitTextArea.dijitTextAreaDisabled,
+.dijitTextArea.dijitTextAreaDisabled.dijitDisabled {
+    border-color: var(--field-disabled-border, #C7C7CC);
+    background-color: var(--field-disabled-bg, #F2F2F7);
+    background-image: none;
+    color: var(--field-disabled-color, inherit);
+    cursor: not-allowed;
+    resize: none;
+}
+
+/* --- ReadOnly --- */
+.gnr_dojotheme .dijitReadOnly.dijitTextArea {
+    background-color: var(--field-readonly-bg, #F2F2F7);
+    background-image: none;
+    border-color: var(--field-readonly-border, #C7C7CC);
+    color: var(--field-readonly-color, inherit);
+    opacity: 1;
+    cursor: default;
+    resize: none;
+}
+
+/* --- Error --- */
+.gnr_dojotheme .dijitTextArea.dijitError {
+    border-color: var(--field-error-border, silver);
+    background-image: none;
+}

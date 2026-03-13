@@ -429,7 +429,7 @@ class GnrDomSrc(GnrStructData):
     def fullScreenDialog(self,backTitle='!!Back',**kwargs):
         dlg = self.dialog(fullScreen=True,**kwargs)
         frame = dlg.framePane(childname='center')
-        bar = frame.top.slotBar('backTitle,*',height='30px',font_weight='bold',
+        bar = frame.top.slotBar('backTitle,*',_class='slotbar_toolbar_lg',font_weight='bold',
                              color='var(--mainWindow-color)',border_bottom='1px solid silver')
         btn = bar.backTitle.lightButton(action="_dlg.hide();",_dlg=dlg.js_widget,style='display:flex;align-items:center;',cursor='pointer')
         btn.div(_class="iconbox leftOut",height='25px',background_color='var(--mainWindow-color)')
@@ -2698,8 +2698,9 @@ class GnrFormBuilder(object):
                 lbl_kwargs['_class'] = self.lblclass + ' ' + lbl_kwargs['_class']
             else:
                 lbl_kwargs['_class'] = self.lblclass
+            _tdl_cls = ('fb_lbl ' + td_lbl_attr.pop('_class', '')).strip()
             if lblhref:
-                cell = row.td(childname='c_%i_l' % c, childcontent=lbl, align=lblalign, vertical_align=lblvalign, **td_lbl_attr)
+                cell = row.td(childname='c_%i_l' % c, _class=_tdl_cls, childcontent=lbl, align=lblalign, vertical_align=lblvalign, **td_lbl_attr)
                 if lblvalue:
                     lbl_kwargs['tabindex'] = -1 # prevent tab navigation to the zoom link
                     cell.a(childcontent=lblvalue, href=lblhref, **lbl_kwargs)
@@ -2710,7 +2711,7 @@ class GnrFormBuilder(object):
                         kwargs[f'lbl_{k}'] = v
                     row.td(childname='c_%i_l' % c, hidden=True)
                 else:
-                    cell = row.td(childname='c_%i_l' % c, align=lblalign, vertical_align=lblvalign, **td_lbl_attr)
+                    cell = row.td(childname='c_%i_l' % c, _class=_tdl_cls, align=lblalign, vertical_align=lblvalign, **td_lbl_attr)
                     if lbl:
                         cell.div(childcontent=lbl, **lbl_kwargs)
             for k, v in list(row_attributes.items()):
@@ -2761,16 +2762,10 @@ class GnrFormBuilder(object):
                 field['tabindex'] = (c+1)*100+r+1
             obj = td.child(tag, **field)
             return obj
-                
-class GnrDomSrc_dojo_14(GnrDomSrc_dojo_11):
+
+class GnrDomSrc_dojo_20(GnrDomSrc_dojo_11):
     pass
-    
-class GnrDomSrc_dojo_15(GnrDomSrc_dojo_11):
-    pass
-    
-class GnrDomSrc_dojo_18(GnrDomSrc_dojo_11):
-    pass
-    
+
 class GnrGridStruct(GnrStructData):
     """This class handles the creation of a :ref:`struct`"""
     
