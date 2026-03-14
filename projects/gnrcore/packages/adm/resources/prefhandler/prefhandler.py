@@ -273,16 +273,23 @@ class AppPrefHandler(BasePreferenceTabs):
         mailservice = self.getService('mail')
         if template_id:
             mailservice.sendUserTemplateMail(record_id=user_record, template_id=template_id,
-                                                async_=False, html=True, scheduler=False)
+                                                html=True, **self._immediate_message_parameters())
         else:
             mailservice.sendmail_template(user_record, to_address=user_record['email'],
-                                    body=body or 'Dear $greetings to confirm click $link', 
+                                    body=body or 'Dear $greetings to confirm click $link',
                                     subject=subject or 'Confirm user',
-                                    async_=False, html=True, scheduler=False)
+                                    html=True, **self._immediate_message_parameters())
 
 
     def _ph_appGuiCustomization_splashscreen(self,pane):
         pass
+
+
+    def _immediate_message_parameters(self):
+        email_package = self.db.package('email')
+        if email_package and email_package.getMailProxy(raise_if_missing=False):
+            return dict()
+        return dict(async_=False, scheduler=False)
  
 
 class UserPrefHandler(BasePreferenceTabs):

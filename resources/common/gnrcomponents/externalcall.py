@@ -18,6 +18,7 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
+import json
 import datetime
 from decimal import Decimal
 
@@ -72,7 +73,10 @@ class BaseRpc(BaseComponent):
             try:
                 method = self.getPublicMethod('rpc',args[0])
             except (GnrUserNotAllowed, GnrBasicAuthenticationError) as err:
-                return Bag(dict(error=str(err))).toXml()
+                if self.convert_result:
+                    return Bag(dict(error=str(err))).toXml()
+                self.response.content_type = 'application/json'
+                return json.dumps({'error': str(err)})
             if not method:
                 return self.rpc_error(*args, **kwargs)
             args = list(args)
