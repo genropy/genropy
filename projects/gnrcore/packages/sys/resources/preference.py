@@ -20,7 +20,14 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 
+import secrets
+import urllib.request
+import urllib.error
+import json
+
 from gnr.core.gnrdecorator import public_method
+
+SOURCERER_URL = 'https://sourcerer.genropy.net'
 
 FONTFAMILIES = """Arial, Helvetica, sans-serif
 Verdana, Geneva, sans-serif
@@ -40,6 +47,7 @@ class AppPref(object):
         self.site_config_override(tc.contentPane(title='!![en]Site config',datapath='.site_config'))
         self.tablesConfiguration(tc.contentPane(title='!![en]Tables Configuration'))
         self.notificationPreferences(tc.contentPane(title='!![en]Notification'))
+        self.sourcererPreferences(tc.contentPane(title='Sourcerer', datapath='.sourcerer'))
         
     def stylingPreferences(self, pane):
         pane.div('!![en]Theme changes will take effect after page reload',
@@ -149,6 +157,70 @@ class AppPref(object):
         fb.numberTextBox(value='^.cleanup?interval',lbl='!![en]Cleanup interval',placeholder=self.site.config['cleanup?interval'])
         fb.numberTextBox(value='^.cleanup?page_max_age',lbl='!![en]Page max age',placeholder=self.site.config['cleanup?page_max_age'])
         fb.numberTextBox(value='^.cleanup?connection_max_age',lbl='!![en]Connection max age',placeholder=self.site.config['cleanup?connection_max_age'])
+
+    def sourcererPreferences(self, pane):
+        pane.dataRpc('.status', self.checkSourcererStatus, _onStart=True)
+        # State 1: idle — show connect button
+        pane.button('!![en]Connect to Sourcerer',
+                    action='FIRE .request_registration',
+                    visible='^.status?=#v=="idle"')
+        # State 2: pending — waiting for Sourcerer callback
+        pane.div('!![en]Request sent: waiting for registration',
+                 visible='^.status?=#v=="pending"',
+                 font_size='.9em', color='var(--text-secondary)', padding='8px 0')
+        # State 3: enabled
+        pane.div('!![en]Sourcerer enabled',
+                 visible='^.status?=#v=="enabled"',
+                 font_size='.9em', color='var(--color-success)',
+                 font_weight='bold', padding='8px 0')
+        pane.dataRpc('.callback_token', self.requestSourcererRegistration,
+                     _fired='^.request_registration',
+                     _onResult='SET .status = "pending"')
+
+    @public_method
+    def checkSourcererStatus(self):
+        callback_token = self.getPreference('sourcerer.callback_token', pkg='sys')
+        if not callback_token:
+            return 'idle'
+        req = urllib.request.Request(
+            f'{SOURCERER_URL}/api/srv/status',
+            headers={'Authorization': f'Bearer {callback_token}'},
+            method='GET'
+        )
+        try:
+            urllib.request.urlopen(req, timeout=5)
+            return 'enabled'
+        except urllib.error.HTTPError as e:
+            if e.code == 403:
+                return 'pending'
+            return 'idle'
+        except Exception:
+            return 'pending'
+
+    @public_method
+    def requestSourcererRegistration(self):
+        callback_token = secrets.token_urlsafe(22)
+        host = self.site.externalUrl('')
+        callback_url = self.site.externalUrl('/sys/ep_sourcerer/register')
+        site_name = self.site.site_name or host
+        self.setPreference('sourcerer.callback_token', callback_token, pkg='sys')
+        payload = json.dumps({
+            'host': host,
+            'name': site_name,
+            'callback_url': callback_url,
+            'callback_token': callback_token
+        }).encode('utf-8')
+        req = urllib.request.Request(
+            f'{SOURCERER_URL}/api/srv/request_server_registration',
+            data=payload,
+            headers={'Content-Type': 'application/json'},
+            method='POST'
+        )
+        try:
+            urllib.request.urlopen(req, timeout=10)
+        except Exception:
+            pass
+        return callback_token
 
     @public_method
     def _resetMemcached(self):
