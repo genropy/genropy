@@ -287,6 +287,8 @@
     --grid-cell-hover-bg: #E6EEFF;
     --grid-cell-hover-bg-lazy: #E0FFE8;
     --grid-cell-hover-bg-disabled: #FFE0D0;
+    --multibutton-selected-bg: #1a1a1a;
+    --button-in-grid-bg: #fde68a;
 }
 
 /* Business - corporate navy / charcoal */

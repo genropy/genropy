@@ -181,8 +181,8 @@
 
 .multibutton_selected.multibutton{
     color: white;
-    background: var(--gray-700, #656567);
-    border-color: var(--gray-700, #656567);
+    background: var(--multibutton-selected-bg, #656567);
+    border-color: var(--multibutton-selected-bg, #656567);
     box-shadow: none;
 }
 
