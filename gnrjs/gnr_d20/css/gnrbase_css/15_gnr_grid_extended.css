@@ -350,7 +350,7 @@
 }
 
 .buttons_grid .dojoxGrid-row-selected .cellContent{
-    background: var(--gray-200);
+    background: var(--button-in-grid-bg);
 }
 
 .grouper_buttons.buttons_grid .cellContent{
