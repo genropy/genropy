@@ -312,6 +312,10 @@
     --btn-tonal-pressed-bg: #B7D9FF; /* @theme — accent-color #007AFF 28% + white */
     --btn-tonal-selected-bg: #B7D9FF; /* @theme — accent-color #007AFF 28% + white */
 
+    /* --- Buttons: multibutton & button-in-grid --- */
+    --multibutton-selected-bg: var(--gray-700, #656567); /* @theme */
+    --button-in-grid-bg: var(--gray-200); /* @theme */
+
     /* --- Buttons: shared --- */
     --btn-border-color: var(--border-color); /* @theme */
 
