@@ -13,6 +13,7 @@ from paste.httpheaders import ETAG
 from subprocess import check_call, check_output
 import stat
 
+from gnr.core.gnrstring import boolean
 from gnr.core.gnrsys import expandpath
 from gnr.core import gnrstring
 from gnr.core.gnrbag import Bag, BagResolver
@@ -748,7 +749,7 @@ class StorageService(GnrBaseService):
         return self._connection
         
     def checkPermission(self, path, *args, **kwargs):
-        if not self.parent.config['wsgi?authenticate_storages'] or self.public:
+        if not boolean(self.parent.config['wsgi?authenticate_storages']) or self.public:
             return True
         if self.tags:
             return self.parent.gnrapp.checkResourcePermission(self.tags, self.connection.user_tags)
