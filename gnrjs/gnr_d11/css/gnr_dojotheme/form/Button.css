@@ -17,7 +17,7 @@
     opacity: 1;
     color: var(--btn-tonal-color, #1565C0);
     font-weight: 500;
-    font-size: var(--mainWindow-font-size, 0.8125rem);
+    font-size: var(--font-size);
     letter-spacing: 0.1px;
     display: inline-flex;
     align-items: center;

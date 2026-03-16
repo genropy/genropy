@@ -128,7 +128,8 @@
 .login_confirm_btn .dijitButtonNode,
 .slotbar_toolbar .dijitButton:not(.slotButtonIconOnly) .dijitButtonNode,
 .slotbar_toolbar .dijitDropDownButton:not(.slotButtonIconOnly) .dijitButtonNode,
-.slotbar_toolbar .dijitComboButton:not(.slotButtonIconOnly) .dijitButtonNode{
+.slotbar_toolbar .dijitComboButton:not(.slotButtonIconOnly) .dijitButtonNode,
+.dialog_bottom .dijitButtonNode{
     background-color: var(--btn-filled-bg);
     color: var(--btn-filled-color);
     border-color: var(--btn-filled-bg);
@@ -137,7 +138,8 @@
 .login_confirm_btn .dijitButtonNode .dijitButtonText,
 .slotbar_toolbar .dijitButton:not(.slotButtonIconOnly) .dijitButtonNode .dijitButtonText,
 .slotbar_toolbar .dijitDropDownButton:not(.slotButtonIconOnly) .dijitButtonNode .dijitButtonText,
-.slotbar_toolbar .dijitComboButton:not(.slotButtonIconOnly) .dijitButtonNode .dijitButtonText{
+.slotbar_toolbar .dijitComboButton:not(.slotButtonIconOnly) .dijitButtonNode .dijitButtonText,
+.dialog_bottom .dijitButtonNode .dijitButtonText{
     color: var(--btn-filled-color);
 }
 /* Filled hover */
@@ -145,7 +147,8 @@
 .login_confirm_btn.dijitButtonHover .dijitButtonNode,
 .slotbar_toolbar .dijitButtonHover:not(.slotButtonIconOnly) .dijitButtonNode,
 .slotbar_toolbar .dijitToggleButtonHover:not(.slotButtonIconOnly) .dijitButtonNode,
-.slotbar_toolbar .dijitDropDownButtonHover:not(.slotButtonIconOnly) .dijitButtonNode{
+.slotbar_toolbar .dijitDropDownButtonHover:not(.slotButtonIconOnly) .dijitButtonNode,
+.dialog_bottom .dijitButtonHover .dijitButtonNode{
     background-color: var(--btn-filled-hover-bg);
 }
 /* Filled pressed */
@@ -153,17 +156,20 @@
 .login_confirm_btn.dijitButtonActive .dijitButtonNode,
 .slotbar_toolbar .dijitButtonActive:not(.slotButtonIconOnly) .dijitButtonNode,
 .slotbar_toolbar .dijitToggleButtonActive:not(.slotButtonIconOnly) .dijitButtonNode,
-.slotbar_toolbar .dijitDropDownButtonActive:not(.slotButtonIconOnly) .dijitButtonNode{
+.slotbar_toolbar .dijitDropDownButtonActive:not(.slotButtonIconOnly) .dijitButtonNode,
+.dialog_bottom .dijitButtonActive .dijitButtonNode{
     background-color: var(--btn-filled-pressed-bg);
 }
 /* Filled selected */
-.slotbar_toolbar .dijitToggleButtonChecked:not(.slotButtonIconOnly) .dijitButtonNode{
+.slotbar_toolbar .dijitToggleButtonChecked:not(.slotButtonIconOnly) .dijitButtonNode,
+.dialog_bottom .dijitToggleButtonChecked .dijitButtonNode{
     background-color: var(--btn-filled-selected-bg);
 }
 /* Filled disabled */
 .btn_filled .dijitDisabled .dijitButtonNode,
 .login_confirm_btn.dijitDisabled .dijitButtonNode,
-.slotbar_toolbar .dijitDisabled:not(.slotButtonIconOnly) .dijitButtonNode{
+.slotbar_toolbar .dijitDisabled:not(.slotButtonIconOnly) .dijitButtonNode,
+.dialog_bottom .dijitDisabled .dijitButtonNode{
     background-color: var(--btn-filled-disabled-bg);
     background-image: none;
     color: var(--btn-filled-disabled-color);

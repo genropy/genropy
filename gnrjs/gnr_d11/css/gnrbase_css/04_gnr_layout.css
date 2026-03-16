@@ -347,7 +347,6 @@
 /* --- Main window (from theme_shared) --- */
 #mainWindow {
     background: var(--mainWindow-background);
-    font-size: var(--mainWindow-font-size);
     color: var(--mainWindow-color);
 }
 .mainWindowBG {
