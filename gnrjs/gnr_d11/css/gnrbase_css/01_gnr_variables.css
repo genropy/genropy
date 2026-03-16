@@ -307,6 +307,20 @@
     --btn-filled-disabled-bg: var(--accent-color, #007AFF);
     --btn-filled-disabled-color: var(--color-bg);
 
+    /* --- Buttons: deleting — filled specialization (destructive action) --- */
+    --btn-deleting-bg: var(--color-error, #D32F2F); /* @theme */
+    --btn-deleting-color: #ffffff; /* @theme */
+    --btn-deleting-hover-bg: #B71C1C; /* @theme — color-error 80% + black */
+    --btn-deleting-pressed-bg: #951A1A; /* @theme — color-error 65% + black */
+    --btn-deleting-disabled-bg: var(--color-error, #D32F2F); /* @theme */
+    --btn-deleting-disabled-color: var(--btn-deleting-color); /* @theme */
+
+    /* --- Buttons: deleting — tonal specialization --- */
+    --btn-deleting-tonal-bg: #FDECEA; /* @theme — color-error 12% + white */
+    --btn-deleting-tonal-color: var(--color-error, #D32F2F); /* @theme */
+    --btn-deleting-tonal-hover-bg: #F9D6D2; /* @theme — color-error 20% + white */
+    --btn-deleting-tonal-pressed-bg: #F5C0BA; /* @theme — color-error 28% + white */
+
     /* --- Buttons: tonal (light version of accent-color) --- */
     --btn-tonal-bg: #E0EFFF; /* @theme — accent-color #007AFF 12% + white — override in theme/variant */
     --btn-tonal-color: var(--accent-color, #007AFF);

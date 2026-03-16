@@ -178,13 +178,72 @@
     opacity: 1;
 }
 
-/* Deleting button — error background (must come after btn_filled to win cascade) */
-.gnr_dojotheme .deletingButton .dijitButtonNode,
-.slotbar_toolbar .deletingButton .dijitButtonNode,
-.slotbar_toolbar .deletingButton:not(.slotButtonIconOnly) .dijitButtonNode {
-    background-color: var(--color-error);
-    color: var(--btn-filled-color);
-    border-color: var(--color-error);
+/* ---- deletingButton — filled specialization ---- */
+.btn_filled.deletingButton .dijitButtonNode,
+.slotbar_toolbar .deletingButton:not(.slotButtonIconOnly) .dijitButtonNode,
+.dialog_bottom .deletingButton .dijitButtonNode {
+    background-color: var(--btn-deleting-bg);
+    color: var(--btn-deleting-color);
+    border-color: var(--btn-deleting-bg);
+}
+.btn_filled.deletingButton .dijitButtonNode .dijitButtonText,
+.slotbar_toolbar .deletingButton:not(.slotButtonIconOnly) .dijitButtonNode .dijitButtonText,
+.dialog_bottom .deletingButton .dijitButtonNode .dijitButtonText {
+    color: var(--btn-deleting-color);
+}
+/* filled deletingButton hover */
+.btn_filled.deletingButton .dijitButtonHover .dijitButtonNode,
+.slotbar_toolbar .deletingButton.dijitButtonHover:not(.slotButtonIconOnly) .dijitButtonNode,
+.dialog_bottom .deletingButton.dijitButtonHover .dijitButtonNode {
+    background-color: var(--btn-deleting-hover-bg);
+    border-color: var(--btn-deleting-hover-bg);
+}
+/* filled deletingButton pressed */
+.btn_filled.deletingButton .dijitButtonActive .dijitButtonNode,
+.slotbar_toolbar .deletingButton.dijitButtonActive:not(.slotButtonIconOnly) .dijitButtonNode,
+.dialog_bottom .deletingButton.dijitButtonActive .dijitButtonNode {
+    background-color: var(--btn-deleting-pressed-bg);
+    border-color: var(--btn-deleting-pressed-bg);
+}
+/* filled deletingButton disabled */
+.btn_filled.deletingButton .dijitDisabled .dijitButtonNode,
+.slotbar_toolbar .deletingButton.dijitDisabled:not(.slotButtonIconOnly) .dijitButtonNode,
+.dialog_bottom .deletingButton.dijitDisabled .dijitButtonNode {
+    background-color: var(--btn-deleting-disabled-bg);
+    color: var(--btn-deleting-disabled-color);
+    border-color: var(--btn-deleting-disabled-bg);
+    background-image: none;
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+/* ---- deletingButton — tonal specialization ---- */
+.deletingButton .dijitButtonNode {
+    background-color: var(--btn-deleting-tonal-bg);
+    color: var(--btn-deleting-tonal-color);
+    border-color: var(--btn-deleting-tonal-bg);
+}
+.deletingButton .dijitButtonNode .dijitButtonText {
+    color: var(--btn-deleting-tonal-color);
+}
+/* tonal deletingButton hover */
+.deletingButton.dijitButtonHover .dijitButtonNode {
+    background-color: var(--btn-deleting-tonal-hover-bg);
+    border-color: var(--btn-deleting-tonal-hover-bg);
+}
+/* tonal deletingButton pressed */
+.deletingButton.dijitButtonActive .dijitButtonNode {
+    background-color: var(--btn-deleting-tonal-pressed-bg);
+    border-color: var(--btn-deleting-tonal-pressed-bg);
+}
+/* tonal deletingButton disabled */
+.deletingButton.dijitDisabled .dijitButtonNode {
+    background-color: var(--btn-deleting-tonal-bg);
+    color: var(--btn-deleting-tonal-color);
+    border-color: var(--btn-deleting-tonal-bg);
+    background-image: none;
+    cursor: not-allowed;
+    opacity: 0.5;
 }
 
 .slotbar_toolbar .dijitButton, .slotbar_toolbar .dijitDropDownButton, .slotbar_toolbar .dijitComboButton{
