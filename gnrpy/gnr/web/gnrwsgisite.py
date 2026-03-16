@@ -43,6 +43,7 @@ from gnr.web.gnrwsgisite_proxy.gnrsiteregister import SiteRegisterClient, DEFAUL
 from gnr.web.gnrwsgisite_proxy.gnrwebsockethandler import WsgiWebSocketHandler
 from gnr.web.gnrwsgisite_proxy.datacollector import DataCollector
 
+from gnr.web.gnrwebreqresp import GnrWebRequest
 try:
     from werkzeug import EnvironBuilder
 except ImportError:
@@ -414,6 +415,7 @@ class GnrWsgiSite(object):
         self._currentAuxInstanceNames = ThreadedDict()
         self._currentPages = ThreadedDict()
         self._currentRequests = ThreadedDict()
+        self._currentGnrRequests = ThreadedDict()
         self._currentDomains = ThreadedDict()
         self.domains = GnrDomainHandler(self)
         self.rootDomain = '_main_'
@@ -783,6 +785,7 @@ class GnrWsgiSite(object):
         return self.storageNode('%s:%s'%(storage_name,path),_adapt=False)
     
     def storageDispatcher(self,path_list,environ,start_response,storageType=None,**kwargs):
+        logger.info("Storage request for path: %s", '/'.join(path_list))
         storageNode = self.storageNodeFromPathList(path_list, storageType)
         exists = storageNode and storageNode.exists
         if not exists and '_lazydoc' in kwargs:
@@ -792,6 +795,12 @@ class GnrWsgiSite(object):
 
         # WHY THIS?
         self.db.closeConnection()
+        logger.info("Authentication check for storage access: %s", self.config['wsgi?authenticate_storages'])
+        if self.config['wsgi?authenticate_storages'] and not storageNode.public:
+            logger.debug("Authenticating storage access for path: %s", '/'.join(path_list))
+            if not storageNode.checkPermission():
+                return self.forbidden_exception(environ, start_response)
+                
         if not exists:
             if kwargs.get('_lazydoc'):
                 headers = []
@@ -1122,9 +1131,24 @@ class GnrWsgiSite(object):
                 page.mixinComponent(path)
         return page
 
+    @property
+    def siteName(self):
+        if not getattr(self,'_siteName',None):
+            if os.path.exists(os.path.join(self.site_path,'siteconfig.xml')):
+                #legacymode
+                self._siteName = os.path.basename(self.site_path.rstrip('/'))
+            else:
+                self._siteName = os.path.basename(os.path.dirname(self.site_path))
+        return self._siteName
+    
+    @siteName.setter
+    def siteName(self,siteName):
+        self._siteName = siteName
+    
     def dispatcher(self, environ, start_response):
         self.currentRequest = Request(environ)
         self.currentRequest.max_form_memory_size = 100_000_000
+        self.currentGnrRequest = GnrWebRequest(self.currentRequest)
         self.currentDomain = self.rootDomain
 
         try:
@@ -1140,6 +1164,7 @@ class GnrWsgiSite(object):
             return exc(environ, start_response)
         finally:
             self.currentDomain = self.rootDomain
+            self.currentGnrRequest = None
 
     @property
     def external_host(self):
@@ -1727,6 +1752,17 @@ class GnrWsgiSite(object):
 
     currentRequest = property(_get_currentRequest, _set_currentRequest)
 
+    @property
+    def currentGnrRequest(self):
+        """property currentRequest it returns the request currently used in this thread"""
+        return self._currentGnrRequests.get()
+    
+    @currentGnrRequest.setter
+    def currentGnrRequest(self, request):
+        """set currentRequest for this thread"""
+        self._currentGnrRequests.set(request)
+
+    currentRequest = property(_get_currentRequest, _set_currentRequest)
     def _get_currentDomain(self):
         """property currentDomain - returns the domain currently used in this thread.
 

@@ -14,6 +14,8 @@ class ServiceParameters(BaseComponent):
         bc = pane.borderContainer()
         fb = bc.contentPane(region='top').formbuilder(datapath=datapath)
         fb.textbox(value='^.base_path',lbl='Base path')
+        fb.textbox(value='^.tags',lbl='Tags')
+        fb.checkbox(value='^.public',lbl='Public')
         bc.storageTreeFrame(frameCode='localStorage',storagepath='^#FORM.record.service_name?=#v+":"',
                                 border='1px solid silver',margin='2px',rounded=4,
                                 region='center',preview_region='right',

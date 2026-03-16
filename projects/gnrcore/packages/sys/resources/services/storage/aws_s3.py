@@ -416,6 +416,8 @@ class ServiceParameters(BaseComponent):
     def service_parameters(self,pane,datapath=None,**kwargs):
         bc = pane.borderContainer()
         fb = bc.contentPane(region='top').formbuilder(datapath=datapath)
+        fb.checkbox(value='^.tags',lbl='Tags')
+        fb.checkbox(value='^.public',lbl='Public')
         fb.checkbox(value='^.readonly',lbl='Read Only')
         fb.checkbox(value='^.write_in_local',lbl='Write enabled on local/secondary machine')
         fb.textbox(value='^.bucket',lbl='Bucket')
