@@ -21,6 +21,7 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 import warnings
+from functools import wraps
 from gnr.core.gnrdict import dictExtract
 
 def metadata(**kwargs):
@@ -179,6 +180,7 @@ def customizable(func):
             if result is False:
                 return result
 
+    @wraps(func)
     def wrapper(page,*args,**kwargs):
         oncalling_result = customize(page,'%s_oncalling_' %func.__name__,*args,**kwargs)
         if oncalling_result is False:
