@@ -38,16 +38,16 @@ class BaseStorageHandler:
     # Default configurations for built-in storage services
     DEFAULT_STORAGE_CONFIGS = {
         'user': {'implementation': 'symbolic'},
-        'conn': {'implementation': 'symbolic','public':'False'},
-        'page': {'implementation': 'symbolic','public':'False'},
-        'temp': {'implementation': 'symbolic','public':'True'},
-        'rsrc': {'implementation': 'symbolic', 'public':'True'},
-        'pkg': {'implementation': 'symbolic','public':'True'},
-        'dojo': {'implementation': 'symbolic','public':'True'},
-        'gnr': {'implementation': 'symbolic','public':'True'},
-        'pages': {'implementation': 'symbolic','public':'True'},
-        '_raw_': {'implementation': 'raw','public':'False'},
-        '_http_': {'implementation': 'http','public':'False'},
+        'conn': {'implementation': 'symbolic','public':False},
+        'page': {'implementation': 'symbolic','public':False},
+        'temp': {'implementation': 'symbolic','public':True},
+        'rsrc': {'implementation': 'symbolic', 'public':True},
+        'pkg': {'implementation': 'symbolic','public':True},
+        'dojo': {'implementation': 'symbolic','public':True},
+        'gnr': {'implementation': 'symbolic','public':True},
+        'pages': {'implementation': 'symbolic','public':True},
+        '_raw_': {'implementation': 'raw','public':False},
+        '_http_': {'implementation': 'http','public':False},
     }
 
     def __init__(self, site, domain=None):
@@ -121,11 +121,11 @@ class BaseStorageHandler:
         # Add dynamic defaults that depend on site properties
         if hasattr(self.site, 'site_static_dir'):
             self._setStorageParams('home',
-                parameters={'base_path': self.site.site_static_dir},
+                parameters={'base_path': self.site.site_static_dir, 'public':True},
                 implementation='local'
             )
             self._setStorageParams('site',
-                parameters={'base_path': self.site.site_static_dir},
+                parameters={'base_path': self.site.site_static_dir,'public':True},
                 implementation='local'
             )
             self._setStorageParams('mail',
