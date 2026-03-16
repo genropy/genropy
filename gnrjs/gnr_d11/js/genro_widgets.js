@@ -3813,6 +3813,14 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
 
     patch_parse:function(value,constraints){
         if(value && !this._focused){
+            // Check if the displayed value matches the formatted current value (no change case)
+            let latestValue = this.sourceNode.getRelativeData(this.sourceNode.attr.value);
+            if(latestValue instanceof Date && !isNaN(latestValue)){
+                let formattedLatest = dojo.date.locale.format(latestValue, constraints);
+                if(formattedLatest === value){
+                    return latestValue; // No change, return existing value
+                }
+            }
             var r,y;
             var info = dojo.date.locale._parseInfo(constraints);
             var tokens = info.tokens;
@@ -3825,6 +3833,7 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
 
             if(match){
                 datesplit[0] = match[1]+'/'+match[2]+'/'+match[3];
+                value = datesplit.join(' ');
                 doSetValue = canSetValue;
             }
             var re = new RegExp("^" + info.regexp + "$");
@@ -3881,6 +3890,12 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
                     hours = 0;
                     minutes = 0;
                     seconds =0;
+                    if(latestValue instanceof Date && !isNaN(latestValue)){
+                        // preserve the old time value
+                        hours = latestValue.getHours();
+                        minutes = latestValue.getMinutes();
+                        seconds = latestValue.getSeconds();
+                    }
                 }
                 if(y<100){
                     var pivotYear ='pivotYear' in this.sourceNode.attr?this.sourceNode.attr.pivotYear:20;
@@ -3889,8 +3904,7 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
                     var cutoff = Math.min(Number(year.substring(2, 4)) + pivotYear, 99);
                     y = (y < cutoff) ? century + y : century - 100 + y;
                 }
-                r = new Date(y,m,d,hours,minutes,seconds);  
-                let latestValue = this.sourceNode.getRelativeData(this.sourceNode.attr.value);
+                r = new Date(y,m,d,hours,minutes,seconds);
                 if(doSetValue && !isEqual(r,latestValue)){
                     setTimeout(function(){
                         r._gnrdtype = that.gnr._dtype;
