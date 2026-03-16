@@ -41,7 +41,6 @@ from gnr.web.gnrwsgisite_proxy.gnrstatichandler import StaticHandlerManager
 from gnr.web.gnrwsgisite_proxy.gnrpwahandler import PWAHandler
 from gnr.web.gnrwsgisite_proxy.gnrsiteregister import SiteRegisterClient, DEFAULT_PAGE_MAX_AGE
 from gnr.web.gnrwsgisite_proxy.gnrwebsockethandler import WsgiWebSocketHandler
-from gnr.web.gnrwebreqresp import GnrWebRequest
 from gnr.web.gnrwsgisite_proxy.datacollector import DataCollector
 
 from gnr.web.gnrwebreqresp import GnrWebRequest
