@@ -38,16 +38,16 @@ class BaseStorageHandler:
     # Default configurations for built-in storage services
     DEFAULT_STORAGE_CONFIGS = {
         'user': {'implementation': 'symbolic'},
-        'conn': {'implementation': 'symbolic'},
-        'page': {'implementation': 'symbolic'},
-        'temp': {'implementation': 'symbolic'},
-        'rsrc': {'implementation': 'symbolic'},
-        'pkg': {'implementation': 'symbolic'},
-        'dojo': {'implementation': 'symbolic'},
-        'gnr': {'implementation': 'symbolic'},
-        'pages': {'implementation': 'symbolic'},
-        '_raw_': {'implementation': 'raw'},
-        '_http_': {'implementation': 'http'},
+        'conn': {'implementation': 'symbolic','public':'False'},
+        'page': {'implementation': 'symbolic','public':'False'},
+        'temp': {'implementation': 'symbolic','public':'True'},
+        'rsrc': {'implementation': 'symbolic', 'public':'True'},
+        'pkg': {'implementation': 'symbolic','public':'True'},
+        'dojo': {'implementation': 'symbolic','public':'True'},
+        'gnr': {'implementation': 'symbolic','public':'True'},
+        'pages': {'implementation': 'symbolic','public':'True'},
+        '_raw_': {'implementation': 'raw','public':'False'},
+        '_http_': {'implementation': 'http','public':'False'},
     }
 
     def __init__(self, site, domain=None):

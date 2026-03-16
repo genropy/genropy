@@ -757,10 +757,11 @@ class StorageService(GnrBaseService):
             return self.connection.loggedUser
 
 class BaseLocalService(StorageService):
-    def __init__(self, parent=None, base_path=None, tags=None,**kwargs):
+    def __init__(self, parent=None, base_path=None, tags=None, public=None,**kwargs):
         self.parent = parent
         self.base_path =  expandpath(base_path) if base_path else None
         self.tags = tags
+        self.public = public
 
     @property
     def location_identifier(self):
