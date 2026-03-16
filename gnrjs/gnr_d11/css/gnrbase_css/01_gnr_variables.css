@@ -160,6 +160,8 @@
     --frameindexroot-mobile-background: var(--gray-800); /* @theme */
     --frameindex-tablist-background: var(--gray-800); /* @theme */
     --frameindex-tablist-color: var(--text-on-dark); /* @theme */
+    --frameindex-tablist-min-height: 3em;
+    --frameindex-tab-height: 1.9em;
     --frameindex-tab-bg: #D8D8D8; /* white 80% + gray-800 #3A3A3C — override in theme/variant files */
     --frameindex-tab-bg-hover: var(--gray-700); /* override in theme/variant files */
     --frameindex-tab-border: var(--gray-200); /* @theme */

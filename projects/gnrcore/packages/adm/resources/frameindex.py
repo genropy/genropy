@@ -181,8 +181,7 @@ class FrameIndex(BaseComponent):
 
     @customizable
     def prepareTop_std(self,bc,onCreatingTablist=None):
-        top = bc.contentPane(region='top',height='2.8em',overflow='hidden',
-                             _class='framedindex_tablist')
+        top = bc.contentPane(region='top',overflow='hidden',_class='framedindex_tablist')
         leftbar = top.div(_class='framedindex_tablist_left')
         if self.plugin_list or self.custom_plugin_list:
             plugins_standard = ['menuToggle']+self.plugin_list.split(',') if self.plugin_list else ['menuToggle']
