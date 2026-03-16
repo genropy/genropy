@@ -54,6 +54,25 @@ class TestSanitizeString:
         result = site._sanitize_string(payload)
         assert '<script' not in result.lower()
 
+    def test_removes_closing_script_tag(self, site):
+        payload = 'foo</script>bar'
+        result = site._sanitize_string(payload)
+        assert '</script>' not in result.lower()
+        assert result == 'foobar'
+
+    def test_removes_img_tag(self, site):
+        payload = '<img src=a onerror=alert(1)>'
+        result = site._sanitize_string(payload)
+        assert '<img' not in result.lower()
+
+    def test_real_world_param_xss(self, site):
+        payload = "epojp</script><img src=a onerror=alert('XSS')>p0ew9"
+        result = site._sanitize_string(payload)
+        assert '</script>' not in result.lower()
+        assert '<img' not in result.lower()
+        assert 'onerror' not in result.lower()
+        assert result == 'epojpp0ew9'
+
     def test_removes_javascript_uri(self, site):
         payload = 'javascript:alert(1)'
         result = site._sanitize_string(payload)

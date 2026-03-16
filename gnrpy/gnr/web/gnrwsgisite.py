@@ -57,12 +57,18 @@ IS_MOBILE = re.compile(r'iPhone|iPad|Android')
 # Applied only when wsgi?sanitize_params is enabled in siteconfig.
 _XSS_PATTERNS = [
     re.compile(r'<\s*script[\s\S]*?<\s*/\s*script\s*>', re.IGNORECASE),
-    re.compile(r'<\s*script[^>]*>', re.IGNORECASE),
+    re.compile(r'<\s*/?\s*script[^>]*>', re.IGNORECASE),
+    re.compile(r'<\s*iframe[\s\S]*?<\s*/\s*iframe\s*>', re.IGNORECASE),
+    re.compile(r'<\s*iframe[^>]*>', re.IGNORECASE),
+    re.compile(r'<\s*/\s*iframe\s*>', re.IGNORECASE),
+    re.compile(r'<\s*img[^>]*>', re.IGNORECASE),
+    re.compile(r'<\s*svg[\s\S]*?>', re.IGNORECASE),
+    re.compile(r'<\s*body[^>]*>', re.IGNORECASE),
+    re.compile(r'<\s*link[^>]*>', re.IGNORECASE),
+    re.compile(r'<\s*meta[^>]*>', re.IGNORECASE),
     re.compile(r'javascript\s*:', re.IGNORECASE),
     re.compile(r'vbscript\s*:', re.IGNORECASE),
     re.compile(r'on\w+\s*=\s*(?:"[^"]*"|\'[^\']*\'|\S+)', re.IGNORECASE),
-    re.compile(r'<\s*iframe[\s\S]*?>', re.IGNORECASE),
-    re.compile(r'<\s*/\s*iframe\s*>', re.IGNORECASE),
 ]
 
 STORAGE_TYPES = ['_storage']
@@ -1899,12 +1905,17 @@ class GnrWsgiSite(object):
         result = {}
         for k, v in params.items():
             if isinstance(v, str):
-                result[k] = self._sanitize_string(v)
+                v_pre = v
+                result[self._sanitize_string(k)] = self._sanitize_string(v)
+                print(f"Sanitized parameter '{k}' '{self._sanitize_string(k)}': '{v_pre}' -> '{result[k]}'")
             elif isinstance(v, list):
-                result[k] = [self._sanitize_string(i) if isinstance(i, str) else i for i in v]
+                v_pre = v
+                result[self._sanitize_string(k)] = [self._sanitize_string(i) if isinstance(i, str) else i for i in v]
+                print(f"Sanitized parameter '{k}': '{v_pre}' -> '{result[k]}'")
             else:
-                result[k] = v
+                result[self._sanitize_string(k)] = v
         return result
+
 
     @deprecated('deprecated since version 0.7')
     def site_static_path(self, *args):
