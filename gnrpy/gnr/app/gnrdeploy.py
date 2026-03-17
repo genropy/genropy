@@ -1,23 +1,20 @@
 import warnings
 import os
 import sys
-import ast
 import site
 import pathlib
 import shutil
 import random
 import string
-from pathlib import Path
-from collections import defaultdict
 from venv import EnvBuilder
 
 import gnr as gnrbase
-from gnr.core.gnrbag import Bag,DirectoryResolver
+from gnr.core.gnrbag import Bag, DirectoryResolver
 from gnr.core.gnrconfig import IniConfStruct
 from gnr.core.gnrconfig import getGnrConfig,gnrConfigPath
 from gnr.app.pathresolver import PathResolver as _PathResolver
 from gnr.app import logger
-from gnr.web.gnrmenu import MenuStruct
+
 
 # PathResolver has been moved.
 def __getattr__(name):
@@ -216,12 +213,10 @@ def gnrsiterunnerServiceBuilder():
     current_username = pwd.getpwuid(os.getuid())[0]
     daemon_path = shutil.which('supervisord')
     ctl_binpath = shutil.which('supervisorctl')
-    binroot = ''
     service_name = 'gnrsiterunner'
     if 'VIRTUAL_ENV' in os.environ or hasattr(sys, 'real_prefix'):
         pyprefix = os.environ.get('VIRTUAL_ENV', sys.prefix)
         environments = f"Environment=VIRTUAL_ENV={pyprefix}"
-        binroot = os.path.join(pyprefix,'bin')
         service_name = '%s_%s' % (service_name, os.path.basename(pyprefix))
     else:
         environments = ''
@@ -329,7 +324,6 @@ def createVirtualEnv(name=None, copy_genropy=False, copy_projects=None,
             paver_path = os.path.join(venv_path,'bin', 'paver')
             os.chdir(gnrpy_path)
             subprocess.check_call([paver_path, 'develop'])
-            venv_exec_path = os.path.join(venv_path,'bin', 'python')
             initgenropy(gnrpy_path=gnrpy_path)
             os.chdir(curr_cwd)
     

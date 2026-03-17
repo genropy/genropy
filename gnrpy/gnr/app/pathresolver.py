@@ -86,8 +86,6 @@ class PathResolver(object):
     
     def get_instanceconfig(self, instance_name):
         instanceFolder = self.instance_name_to_path(instance_name)
-        instanceName = os.path.basename(instanceFolder)
-
         project_packages_path = os.path.normpath(os.path.join(instanceFolder, '..', '..', 'packages'))
         if os.path.isdir(project_packages_path):
             project_packages_path = project_packages_path

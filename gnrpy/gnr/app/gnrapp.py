@@ -825,6 +825,7 @@ class GnrApp(object):
                  enabled_packages=None, db_attrs=None, **kwargs):
         self.aux_instances = {}
         self.gnr_config = getGnrConfig(set_environment=True)
+        self.path_resolver = PathResolver(gnr_config=self.gnr_config)
         self.debug=debug
         self.remote_db = None
         self.instanceFolder = ''
@@ -978,7 +979,7 @@ class GnrApp(object):
         elif dbattrs.get('dbname') == '_dummydb':
             pass
         elif self.remote_db:
-            rdb = self.config.get(f"remote_db")#.{self.remote_db}")
+            rdb = self.config.get("remote_db")
             if rdb:
                 rconf = rdb.getAttr(self.remote_db)
                 if rconf:
@@ -1050,7 +1051,7 @@ class GnrApp(object):
             if missing:
                 logger.error(f"ERROR: missing dependencies: {', '.join(missing)}")
             if wrong:
-                logger.error(f"ERROR: wrong dependencies:")
+                logger.error("ERROR: wrong dependencies:")
                 for requested, installed in wrong:
                     logger.error(f"{requested} is requested, but {installed} found")
             
@@ -1148,12 +1149,11 @@ class GnrApp(object):
                 tables_to_import.append(tbl)
         
 
-
     def instance_name_to_path(self, instance_name):
         """TODO
 
         :param instance_name: the name of the :ref:`instance <instances>`"""
-        return PathResolver(gnr_config=self.gnr_config).instance_name_to_path(instance_name)
+        return self.path_resolver.instance_name_to_path(instance_name)
 
     def build_package_path(self):
         """Build the path of the :ref:`package <packages>`"""

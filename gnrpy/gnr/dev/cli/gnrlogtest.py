@@ -31,5 +31,5 @@ def main():
 
     try:
         raise Exception("This is a text exception")
-    except Exception as e:
+    except Exception:
         logger.exception("Something wrong happened")

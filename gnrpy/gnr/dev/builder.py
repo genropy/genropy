@@ -47,10 +47,10 @@ class GnrProjectBuilder(object):
         """
         if not os.path.exists(self.config_file):
             # generate a build configuration analyzing the instance
-            logger.warning(f"Build file configuration not found, creating one from current status")
+            logger.warning("Build file configuration not found, creating one from current status")
             config = self.create_config()
         elif generate:
-            logger.warning(f"Build file configuration found, but forcing autogeneration")
+            logger.warning("Build file configuration found, but forcing autogeneration")
             config = self.create_config()
         else:
             logger.info("Found build configuration in instance folder")

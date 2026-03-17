@@ -331,7 +331,6 @@ class ThPackageResourceMaker(object):
         # TODO: Review the LUT and evaluate the use of a formula.
         # Note that the commented formulae seems to be less accurate than the LUT
 
-        MIN_WIDTH = 2
         MAX_SIZE = 50
         DEFAULT_WIDTH = 7
 

@@ -121,7 +121,6 @@ class MultiStageDockerImageBuilder:
                 # go back to original build directory
                 os.chdir(self.build_context_dir)
                 
-                docker_clone_dir = f"/home/genro/genropy_project/{repo_name}"
                 dockerfile.write(f"# {repo['description']}\n")
                 site_folder = f"/home/genro/genropy_projects/{repo_name}/instances/{self.instance_name}/site"
                 if repo['subfolder']:
@@ -154,7 +153,7 @@ graceful_timeout = 600
             with open("gunicorn.py", "w") as wfp:
                 wfp.write(gunicorn_template.format(instanceName=self.instance_name,
                                                        main_repo_name=self.main_repo_name))
-            dockerfile.write(f"COPY --chown=genro:genro gunicorn.py /home/genro/gunicorn.py\n")
+            dockerfile.write("COPY --chown=genro:genro gunicorn.py /home/genro/gunicorn.py\n")
                 
             supervisor_template = """
 [supervisord]

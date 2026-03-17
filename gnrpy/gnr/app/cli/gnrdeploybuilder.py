@@ -8,6 +8,7 @@ usage: gnrdeploybuilder site
 """
 
 from gnr.core.cli import GnrCliArgParse
+from gnr.app import logger
 from gnr.app.gnrapp import GnrApp
 from gnr.app.gnrdeploy import GunicornDeployBuilder, gnrdaemonServiceBuilder
 from gnr.app.gnrdeploy import gnrsiterunnerServiceBuilder,createVirtualEnv
@@ -51,6 +52,7 @@ def main():
         # check for missing dependencies
         app = GnrApp(site, checkdepcli=True)
         instance_deps = app.instance_packages_dependencies
+        logger.debug("Instance deps: %s", instance_deps)
         missing, wrong = app.check_package_missing_dependencies()
         if missing:
             print("WARNING: the following dependencies are missing:", " ".join(missing))
