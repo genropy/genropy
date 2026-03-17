@@ -7,9 +7,8 @@ from collections import defaultdict
 
 from gnr.core.cli import GnrCliArgParse
 from gnr.app.gnrapp import GnrApp
-from gnr.app.gnrdeploy import ThPackageResourceMaker
 from gnr.dev import logger
-
+from gnr.dev.makers.resource import ThPackageResourceMaker
 
 class CliResourceMaker(object):
     def __init__(self, options, models):

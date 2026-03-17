@@ -4,10 +4,11 @@
 import os
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.app.gnrdeploy import SiteMaker
 from gnr.app.pathresolver import PathResolver
+from gnr.dev.makers.site import SiteMaker
 
 description = "Create a new Genropy site"
+
 def main():
     parser = GnrCliArgParse(description=description)
     parser.add_argument("-b", "--base-path", dest="base_path",

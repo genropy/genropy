@@ -7,8 +7,8 @@ create a new genroproject
 import os
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.app.gnrdeploy import InstanceMaker
 from gnr.app.pathresolver import PathResolver
+from gnr.dev.makers.instance import InstanceMaker
 
 description = """Create a new Genropy istance"""
 def main():
