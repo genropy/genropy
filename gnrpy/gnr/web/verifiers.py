@@ -1,7 +1,7 @@
 """Verifier classes for GnrWebPage public method authentication.
 
 Each verifier is instantiated with a page reference and called by
-getPublicMethod before dispatching the handler. The __call__ contract is:
+getPublicMethod before dispatching the handler. The verify() contract is:
 
 - Return None on success (verification passed).
 - Return an exception instance on failure (caller will raise it).
@@ -11,20 +11,23 @@ on the @public_method decorator, or applied automatically when the
 handler declares ``tags`` (falls back to AuthorizationBaseTagsVerifier).
 """
 
+from abc import ABC, abstractmethod
 from base64 import b64decode
 
 
-class GnrVerifier():
-    """Base verifier. Subclasses must override __call__ to implement
+class GnrVerifier(ABC):
+    """Base verifier. Subclasses must override verify() to implement
     their authentication logic."""
 
     def __init__(self,page):
         self.page = page
 
-    def __call__(self,**kwargs):
+    @abstractmethod
+    def verify(self,**kwargs):
         pass
 
-    verify = __call__
+    def __call__(self,**kwargs):
+        return self.verify(**kwargs)
 
 
 class AuthorizationBearerVerifier(GnrVerifier):
@@ -35,7 +38,7 @@ class AuthorizationBearerVerifier(GnrVerifier):
     Subclasses must override get_token_to_verify() to provide the
     expected token."""
 
-    def __call__(self,**kwargs):
+    def verify(self,**kwargs):
         bearer = self.get_bearer()
         if not bearer:
             return self.page.exception('user_not_allowed', method='bearer_auth')
@@ -51,9 +54,9 @@ class AuthorizationBearerVerifier(GnrVerifier):
             return None
         return auth_header[7:]
 
+    @abstractmethod
     def get_token_to_verify(self):
         """Return the expected token. Must be overridden by subclasses."""
-        return
 
 
 class AuthorizationBaseTagsVerifier(GnrVerifier):
@@ -62,7 +65,7 @@ class AuthorizationBaseTagsVerifier(GnrVerifier):
     Decodes Basic Auth credentials, authenticates the user via getAvatar,
     and checks resource permissions against the handler's required tags."""
 
-    def __call__(self,tags=None,**kwargs):
+    def verify(self,tags=None,**kwargs):
         authorization = self.page.request.headers.get('Authorization')
         if not authorization:
             return self.page.exception('basic_authentication',msg='Missing Basic Authorization')
