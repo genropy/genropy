@@ -181,8 +181,8 @@ class Server(object):
                             action='store_false',
                             help="Do not use auto-restart file monitor")
         parser.add_argument('--nodebug',
-                            dest='debug',
-                            action='store_false',
+                            dest='nodebug',
+                            action='store_true',
                             help="Don't use werkzeug debugger")
         parser.add_argument('--profile',
                             dest='profile',
@@ -344,7 +344,7 @@ class Server(object):
                     option_value = envopt.get(option)
 
                 self.options.__dict__[option] = option_value
-
+        print(self.options)
     def get_config(self):
         return PathResolver().get_siteconfig(self.site_name)
 
@@ -391,7 +391,7 @@ class Server(object):
             self.debugpy_port = None
             
         self.reloader = not self.debugpy and not (self.options.reload == 'false' or self.options.reload == 'False' or self.options.reload == False or self.options.reload == None)
-        self.debug = not (self.options.debug == 'false' or self.options.debug == 'False' or self.options.debug == False or self.options.debug == None)
+        self.debug = not (self.options.debug == 'false' or self.options.debug == 'False' or self.options.debug == False or self.options.debug == None or self.options.nodebug)
         if self.debugpy:
             logger.debug("Starting debugpy service on port localhost:%s", self.debugpy_port)
             debugpy.listen(("localhost", self.debugpy_port))
@@ -456,6 +456,7 @@ class Server(object):
                 gnrServer._local_mode=True
                 atexit.register(gnrServer.on_site_stop)
                 extra_info = []
+                print("DEBUG IS", self.debug)
                 if self.debugpy:
                     extra_info.append(f'Debugpy on port {self.debugpy_port} on loopback interface')
                 elif self.debug:
