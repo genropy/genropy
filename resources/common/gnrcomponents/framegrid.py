@@ -250,7 +250,8 @@ class FrameGridTools(BaseComponent):
     @public_method
     def fg_remoteGrouper(self,pane,table=None,groupedTh=None,groupedThViewResource=None,static=False,
                         grid_configurable=True,configurable=False,margin=None,pbl_classes=True,**kwargs):
-        self._th_mixinResource(groupedTh,table=table,resourceName=groupedThViewResource,defaultClass='View')
+        if not self._th_mixinResource(groupedTh,table=table,resourceName=groupedThViewResource,defaultClass='View',pane=pane):
+            return
         tree_nodeId = f'{groupedTh}_grouper_tree'
         static_kwargs = dictExtract(kwargs,'static_',pop=True)
         gth = pane.groupByTableHandler(table=table,frameCode=f'{groupedTh}_grouper',

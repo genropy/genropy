@@ -41,7 +41,10 @@ dojo.declare("gnr.widgets.gnrwdg", null, {
         sourceNode._value = null; // remove content that will be used in the inner construction
         var subTagItems = this.subtags?this.popSubTagItems(sourceNode.attr.tag,children):{};
         var content = this.createContent(sourceNode, contentKwargs,children,subTagItems);
-        genro.assert(content,'create content must return');
+        if(!content){
+            sourceNode.unfreeze(true);
+            return false;
+        }
         content.concat(children);
         sourceNode._isComponentNode=true;
         genro.src.stripData(sourceNode);
@@ -935,7 +938,13 @@ dojo.declare("gnr.widgets.FrameForm", gnr.widgets._BaseForm, {
     createContent:function(sourceNode, kw, children) {
         let formId = objectPop(kw,'formId');
         let contentNode = children.getNode('center');
-        genro.assert(contentNode,'missing contentNode: attach to form.center a layout widget');
+        if(!contentNode){
+            let table = kw.table || '';
+            let msg = 'Missing Form resource for table ' + table;
+            console.error(msg);
+            genro.publish('client_error', {errorType: 'missing_resource', description: msg});
+            return;
+        }
         if(contentNode.attr.tag == 'autoslot'){
             contentNode = children.getNode('center.#0');
             genro.assert(contentNode,'missing contentNode: attach to form.center a layout widget');
@@ -8039,5 +8048,41 @@ dojo.declare("gnr.stores.VirtualSelection",gnr.stores.Selection,{
             return storeattr['sum_'+field];
         }
     }
-    
+
+});
+
+
+dojo.declare("gnr.widgets.TracebackViewer", gnr.widgets.gnrwdg, {
+    createContent: function(sourceNode, kw) {
+        var viewerNode = sourceNode._('div', {_class: 'gnr-tb-viewer'});
+        var startValue = sourceNode.getAttributeFromDatasource('value');
+        sourceNode.attr.title = objectPop(kw,'title');
+        if (startValue) {
+            var that = this;
+            setTimeout(function() {
+                that._doRender(sourceNode, startValue);
+            }, 1);
+        }
+        return viewerNode;
+    },
+
+    gnrwdg_setValue: function(value) {
+        this.gnr._doRender(this.sourceNode, value);
+    },
+
+    _doRender: async function(sourceNode, bag) {
+        var domNode = sourceNode.getDomNode();
+        if (!domNode) { return; }
+        if (!bag) {
+            domNode.innerHTML = '<p style="color:#888; font-style:italic;">No traceback available.</p>';
+            return;
+        }
+        var options = {};
+        var title = sourceNode.getAttributeFromDatasource('title');
+        if (title) { options.title = title; }
+        if (!gnr.tracebackViewer) {
+            await genro.dom.loadResource('/_gnr/11/js/gnr_tracebackviewer.js', true);
+        }
+        gnr.tracebackViewer.render(bag, domNode, options);
+    }
 });

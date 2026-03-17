@@ -40,7 +40,7 @@ DEFAULT_CSS_THEME = os.environ.get('GNR_CSS_THEME', 'mimi')
 
 from gnr.core.gnrstring import toText, toJson, concat, jsquote,splitAndStrip,boolean,asDict
 from gnr.core.gnrdict import dictExtract
-from gnr.core.gnrlang import getUuid,gnrImport, GnrException, GnrSilentException, tracebackBag
+from gnr.core.gnrlang import getUuid,gnrImport, GnrException, GnrSilentException
 from gnr.core.gnrbag import Bag, BagResolver
 from gnr.core.gnrdecorator import public_method,deprecated
 from gnr.core.gnrclasses import GnrMixinNotFound
@@ -221,7 +221,11 @@ class GnrWebPage(GnrBaseWebPage):
         self.onPreIniting(request_args, request_kwargs)
         self._call_handler = self.get_call_handler(request_args, request_kwargs)
         
-        self.onIniting(request_args, request_kwargs)
+        try:
+            self.onIniting(request_args, request_kwargs)
+        except Exception as e:
+            self.site.raiseIfDeveloper()
+            self._page_init_error = str(e)
         self._call_args = request_args or tuple()
         self._call_kwargs = dict(request_kwargs)
         if getattr(self,'skip_connection', False) or self._call_kwargs.get('method') == 'onClosePage':
@@ -619,19 +623,27 @@ class GnrWebPage(GnrBaseWebPage):
             self.rpc.error = 'gnrsilent'
             result = Bag(topic=e.topic,parameters=e.parameters)
         except GnrException as e:
-            if self.site.debug and (self.isDeveloper() or self.site.force_debug):
-                raise
+            self.site.raiseIfDeveloper()
             self.rpc.error = 'gnrexception'
             result = str(e)
         except Exception as e:
-            if self.site.debug and (self.isDeveloper() or self.site.force_debug):
-                raise
-            else:
-                exception_record = self.site.writeException(exception=e, traceback=tracebackBag())
-                self.rpc.error = 'server_exception'
-                result = '<div>%s</div>' %str(e)
-                if exception_record:
-                    result = '%s <br/> Check Exception Id: %s' %(result,exception_record['id'])
+            self.site.raiseIfDeveloper()
+            error_id = self.site.errorHandler(
+                exception=e,
+                error_type='rpc_exception',
+                notify_user=True,
+                traceback=True,
+                rpc_method=method,
+                rpc_kwargs=Bag(kwargs)
+            )
+            self.rpc.error = 'server_exception'
+            result = '<div>%s</div>' %str(e)
+            if error_id:
+                if self.isDeveloper():
+                    detail_url = '/sys/ep_error?error_code=%s' % error_id
+                    result = '%s <br/> Exception Id: <a href="%s" target="_blank">%s</a>' % (result, detail_url, error_id)
+                else:
+                    result = '%s <br/> Check Exception Id: %s' % (result, error_id)
         result_handler = getattr(self.rpc, 'result_%s' % mode.lower())
         return_result = result_handler(result)
         return return_result

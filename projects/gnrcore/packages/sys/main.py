@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 # encoding: utf-8
+import logging
+
 from gnr.app.gnrdbo import GnrDboTable, GnrDboPackage
+
+logger = logging.getLogger('gnr.pkg.sys')
 
 class Package(GnrDboPackage):
     def config_attributes(self):
@@ -9,9 +13,16 @@ class Package(GnrDboPackage):
                     name_short='System',
                     name_long='System',
                     name_full='System',_syspackage=True)
-    
+
     def onDbStarting(self):
         self.db.changeLogTable = 'sys.dbchange'
+
+    def errorHandler(self, **kwargs):
+        try:
+            self.db.table('sys.error').errorHandler(**kwargs)
+        except Exception:
+            logger.exception('sys.errorHandler: failed to write to sys.error')
+
 
 class Table(GnrDboTable):
     def isInStartupData(self):

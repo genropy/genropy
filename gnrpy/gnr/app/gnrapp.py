@@ -32,6 +32,7 @@ import os
 import hashlib
 import smtplib
 import time
+from datetime import datetime
 import glob
 import subprocess
 from collections import defaultdict
@@ -41,7 +42,7 @@ from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlocale import defaultLocale
 from gnr.core.gnrdecorator import extract_kwargs, deprecated
-from gnr.core.gnrlang import  objectExtract,gnrImport, instanceMixin, GnrException
+from gnr.core.gnrlang import  objectExtract,gnrImport, instanceMixin, GnrException, tracebackBag
 from gnr.core.gnrstring import makeSet, toText, splitAndStrip, like, boolean
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrconfig import getGnrConfig
@@ -1240,6 +1241,54 @@ class GnrApp(object):
                 if r is not None:
                     result.append((pkgId,r))
         return result
+
+    _ERROR_ID_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+
+    def _make_error_id(self):
+        now = datetime.now()
+        prefix = now.strftime('%y%m%d')
+        day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        ms = int((now - day_start).total_seconds() * 1000)
+        chars = self._ERROR_ID_CHARS
+        result = ''
+        while ms:
+            result = chars[ms % 36] + result
+            ms //= 36
+        return f"{prefix}-{result.rjust(5, '0')}"
+
+    def errorHandler(self, exception=None, description=None,
+                     error_type=None, traceback=None,
+                     action='ignore', loglevel='error',
+                     origin=None, notify_user=None,
+                     **kwargs):
+        if exception and not description:
+            description = str(exception)
+        log_fn = getattr(logger, loglevel, logger.error)
+        log_fn(description)
+        should_broadcast = loglevel in ('error', 'critical') or action == 'block'
+        if not should_broadcast:
+            return None
+        error_id = self._make_error_id()
+        if traceback is None:
+            traceback = loglevel in ('error', 'critical')
+        if traceback and exception:
+            traceback = tracebackBag()
+        else:
+            traceback = None
+        error_type = error_type or (type(exception).__name__ if exception else 'ERR')
+        error_info = dict(
+            error_id=error_id,
+            description=description,
+            error_type=error_type,
+            traceback=traceback,
+            origin=origin,
+            action=action,
+            loglevel=loglevel,
+            notify_user=notify_user,
+            **kwargs
+        )
+        self.pkgBroadcast('errorHandler', **error_info)
+        return error_id
 
     @property
     def locale(self):

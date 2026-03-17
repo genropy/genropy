@@ -22,6 +22,7 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
+import os
 from copy import copy
 
 from gnr.core.gnrbag import Bag,BagCbResolver,DirectoryResolver
@@ -313,7 +314,13 @@ class GnrDomSrc(GnrStructData):
         if fnamelower in self.genroNameSpace:
             return GnrDomElem(self, '%s' % (self.genroNameSpace[fnamelower]))
         if fname in self._external_methods:
-            handler = getattr(self.page, self._external_methods[fname])
+            method_name = self._external_methods[fname]
+            handler = getattr(self.page, method_name, None)
+            if handler is None:
+                page_name = os.path.basename(getattr(self.page, 'filepath', '') or '')
+                raise AttributeError(
+                    "Struct method '%s' not found in page '%s'"
+                    " — check py_requires" % (method_name, page_name))
             return lambda *args, **kwargs: handler(self, *args,**kwargs)
         attachnode = self.getNode(fname)
         if attachnode:
@@ -328,7 +335,9 @@ class GnrDomSrc(GnrStructData):
             subtag = ('%s_%s' %(parentTag,fname)).lower()
             if hasattr(self,subtag):
                 return getattr(self,subtag)
-        raise AttributeError("%s has no attribute '%s' " % (parentTag or repr(self), fname))
+        page_name = os.path.basename(getattr(self.page, 'filepath', '') or '')
+        raise AttributeError("'%s' is not defined in page '%s'"
+                    " — check py_requires" % (fname, page_name))
     
     @deprecated
     def getAttach(self, childname):
@@ -853,7 +862,18 @@ class GnrDomSrc(GnrStructData):
 
     def semaphore(self, value=None,  **kwargs):
         return self.child('div', innerHTML=value, dtype='B', format='semaphore', **kwargs)
-        
+
+    def errorPane(self, message, **kwargs):
+        """Render a centered error pane with sad logo and message."""
+        cp = self.contentPane(overflow='hidden',
+            style='display:flex; align-items:center; justify-content:center; flex-direction:column; height:100%;',
+            **kwargs)
+        cp.img(src='/_rsrc/common/css_icons/svg/16/genrologo_sad.svg',
+               height='64px', opacity='.5', margin_bottom='12px')
+        cp.div(message, _class='selectable',
+               style='color:#888; font-size:13px; text-align:center; max-width:400px; line-height:1.5;')
+        return cp
+
    #def column(self, label='', field='', expr='', name='', **kwargs):
    #    if not 'columns' in self:
    #        self['columns'] = Bag()
@@ -1333,7 +1353,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
              'DocItem','UserObjectLayout','UserObjectBar', 'PalettePane','PasswordTextBox','PaletteMap','PaletteImporter','DropUploader','ModalUploader','DropUploaderGrid','VideoPickerPalette','GeoCoderField','StaticMap','ImgUploader','TooltipPane','MenuDiv', 'BagNodeEditor','FlatBagEditor',
              'PaletteBagNodeEditor','StackButtons', 'Palette', 'PaletteTree','TreeFrame','CheckBoxText','RadioButtonText','GeoSearch','ComboArrow','ComboMenu','ChartPane','PaletteChart','ColorTextBox','ColorFiltering', 'SearchBox', 'FormStore',
              'FramePane', 'FrameForm','BoxForm','QuickEditor','ExtendedCkeditor','ExtendedTinyMCE','CodeEditor','TreeGrid','QuickGrid',
-            "GridGallery","VideoPlayer",'MultiValueEditor','MultiLanguageTextBox','TextboxMenu','MultiLineTextbox','QuickTree','SharedObject','IframeDiv','FieldsTree', 'SlotButton','TemplateChunk','LightButton','Semaphore','CharCounterTextarea']
+            "GridGallery","VideoPlayer",'MultiValueEditor','MultiLanguageTextBox','TextboxMenu','MultiLineTextbox','QuickTree','SharedObject','IframeDiv','FieldsTree', 'SlotButton','TemplateChunk','LightButton','Semaphore','CharCounterTextarea','TracebackViewer']
     genroNameSpace = dict([(name.lower(), name) for name in htmlNS])
     genroNameSpace.update(dict([(name.lower(), name) for name in dijitNS]))
     genroNameSpace.update(dict([(name.lower(), name) for name in dojoxNS]))

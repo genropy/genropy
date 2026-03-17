@@ -396,7 +396,10 @@ class TableHandlerMain(BaseComponent):
         th_options = dict(formResource=None,viewResource=None,formInIframe=False,widget=thRootWidget,
                         readOnly=False,virtualStore=True,public=True,archive=archive,partitioned=False)
         viewResource = th_kwargs.get('viewResource',None) or self.th_options().get('viewResource',None)
-        resource = self._th_getResClass(table=self.maintable,resourceName=viewResource,defaultClass='View')()
+        resource_class = self._th_getResClass(table=self.maintable,resourceName=viewResource,defaultClass='View',pane=root)
+        if not resource_class:
+            return
+        resource = resource_class()
         resource.db = self.db
         resource_options = resource.th_options() if hasattr(resource,'th_options') else dict()
         th_options.update(self.th_options())

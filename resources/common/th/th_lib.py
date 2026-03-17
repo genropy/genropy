@@ -5,12 +5,20 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 
 
-from gnr.web.gnrwebpage import BaseComponent
+from gnr.web.gnrwebpage import BaseComponent, GnrMissingResourceException
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrclasses import GnrMixinNotFound
 
 
 class TableHandlerCommon(BaseComponent):
+
+    def _th_missingResource(self, pane, exception):
+        self.site.raiseIfDeveloper(exception=exception)
+        self.site.errorHandler(exception=exception, error_type='missing_resource',
+            notify_user=True, loglevel='error', action='ignore')
+        pane.errorPane(str(exception))
+
     def onLoadingRelatedMethod(self,table,sqlContextName=None):
         return 'onLoading_%s' % table.replace('.', '_')
     
@@ -101,34 +109,46 @@ class TableHandlerCommon(BaseComponent):
         rootCode = rootCode or table.replace('.','_')
         self._th_mixinResource(rootCode=rootCode,table=table,resourceName=resourceName)
 
-    def _th_mixinResource(self,rootCode=None,table=None,resourceName=None,defaultClass=None):
+    def _th_mixinResource(self,rootCode=None,table=None,resourceName=None,defaultClass=None,pane=None):
         pkg,tablename = table.split('.')
         defaultModule = 'th_%s' %tablename
         resourcePath = self._th_getResourceName(resourceName,defaultModule,defaultClass)
         tableObj = self.db.table(table)
         pluginId = getattr(tableObj, '_pluginId', None)
-        self.mixinComponent(resourcePath,mangling_th=rootCode,safeMode=True)
-        self.mixinComponent('tables',tablename,resourcePath,pkg=pkg,mangling_th=rootCode, pluginId=pluginId, pkgOnly=True,safeMode=True)
+        found = self.mixinComponent(resourcePath,mangling_th=rootCode,safeMode=True)
+        found = self.mixinComponent('tables',tablename,resourcePath,pkg=pkg,mangling_th=rootCode, pluginId=pluginId, pkgOnly=True,safeMode=True) or found
         project_mainpackage = self.package.attributes.get('mainpkg')
         if project_mainpackage:
-            self.mixinComponent('tables','_packages',pkg,tablename,resourcePath,pkg=project_mainpackage,mangling_th=rootCode, pkgOnly=True,safeMode=True)
-        
+            found = self.mixinComponent('tables','_packages',pkg,tablename,resourcePath,pkg=project_mainpackage,mangling_th=rootCode, pkgOnly=True,safeMode=True) or found
+
         enabled_packages = self._call_kwargs.get('enabled_packages','*')
         if enabled_packages=='*':
-            enabled_packages = list(self.application.packages.keys()) 
+            enabled_packages = list(self.application.packages.keys())
         else:
             enabled_packages = enabled_packages.split(',')
         for refpkg in enabled_packages:
             if refpkg!=self.package.name:
-                self.mixinComponent('tables','_packages',pkg,tablename,resourcePath,pkg=refpkg,mangling_th=rootCode, pkgOnly=True,safeMode=True)
-        self.mixinComponent('tables','_packages',pkg,tablename,resourcePath,pkg=self.package.name,mangling_th=rootCode, pkgOnly=True,safeMode=True)
+                found = self.mixinComponent('tables','_packages',pkg,tablename,resourcePath,pkg=refpkg,mangling_th=rootCode, pkgOnly=True,safeMode=True) or found
+        found = self.mixinComponent('tables','_packages',pkg,tablename,resourcePath,pkg=self.package.name,mangling_th=rootCode, pkgOnly=True,safeMode=True) or found
+        if not found:
+            exc = GnrMixinNotFound("Missing resource '%s' for table '%s'" % (defaultClass or '?', table))
+            if pane is not None:
+                self._th_missingResource(pane, exc)
+                return None
+            raise exc
         return resourcePath
     
-    def _th_getResClass(self,table=None,resourceName=None,defaultClass=None):
+    def _th_getResClass(self,table=None,resourceName=None,defaultClass=None,pane=None):
         pkg,tablename = table.split('.')
         defaultModule = 'th_%s' %tablename
         resourceName = self._th_getResourceName(resourceName,defaultModule,defaultClass)
-        return self.importTableResource(table,resourceName)
+        try:
+            return self.importTableResource(table,resourceName)
+        except GnrMissingResourceException as e:
+            if pane is not None:
+                self._th_missingResource(pane, e)
+                return None
+            raise
             
     def _th_getOptions(self,mangler=None):
         if isinstance(mangler,Bag):
