@@ -344,7 +344,7 @@ class Server(object):
                     option_value = envopt.get(option)
 
                 self.options.__dict__[option] = option_value
-        print(self.options)
+
     def get_config(self):
         return PathResolver().get_siteconfig(self.site_name)
 
@@ -456,12 +456,14 @@ class Server(object):
                 gnrServer._local_mode=True
                 atexit.register(gnrServer.on_site_stop)
                 extra_info = []
-                print("DEBUG IS", self.debug)
                 if self.debugpy:
                     extra_info.append(f'Debugpy on port {self.debugpy_port} on loopback interface')
                 elif self.debug:
                     gnrServer = GnrDebuggedApplication(gnrServer, evalex=True, pin_security=False)
                     extra_info.append('Debug mode: On')
+                else:
+                    extra_info.append('Debug mode: Off')
+
                 localhost = 'http://127.0.0.1'
                 if self.options.ssl:
                     cert_path = os.path.join(self.config_path,'localhost.pem')
