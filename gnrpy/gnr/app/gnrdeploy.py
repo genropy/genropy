@@ -1,8 +1,8 @@
+import warnings
 import os
 import sys
 import ast
 import site
-import glob
 import pathlib
 import shutil
 import random
@@ -13,14 +13,22 @@ from venv import EnvBuilder
 
 import gnr as gnrbase
 from gnr.core.gnrbag import Bag,DirectoryResolver
-from gnr.core.gnrsys import expandpath
-from gnr.core.gnrlang import GnrException
 from gnr.core.gnrconfig import IniConfStruct
-from gnr.core.gnrconfig import getGnrConfig,gnrConfigPath, setEnvironment
-from gnr.app.pathresolver import PathResolver
+from gnr.core.gnrconfig import getGnrConfig,gnrConfigPath
+from gnr.app.pathresolver import PathResolver as _PathResolver
 from gnr.app import logger
-
 from gnr.web.gnrmenu import MenuStruct
+
+# PathResolver has been moved.
+def __getattr__(name):
+    if name == "PathResolver":
+        warnings.warn(
+            "PathResolver has moved to gnr.app.pathresolver. Import from there instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return _PathResolver
+    raise AttributeError(f"module {__name__} has no attribute {name}")
 
 
 class GnrConfigException(Exception):
@@ -280,7 +288,7 @@ def createVirtualEnv(name=None, copy_genropy=False, copy_projects=None,
     gitrepos_path = os.path.join(venv_path, 'gitrepos')
     if not os.path.exists(gitrepos_path):
         os.makedirs(gitrepos_path, exist_ok=True)
-    base_path_resolver = PathResolver()
+    base_path_resolver = _PathResolver()
     base_gnr_config = getGnrConfig()
     activateVirtualEnv(venv_path)
     if copy_projects:
@@ -288,7 +296,6 @@ def createVirtualEnv(name=None, copy_genropy=False, copy_projects=None,
         if not os.path.exists(projects_path):
             os.makedirs(projects_path, exist_ok=True)
         projects = copy_projects.split(',')
-        #path_resolver = PathResolver()
         for project in projects:
             prj_path = base_path_resolver.project_name_to_path(project)
             if prj_path:
@@ -328,7 +335,7 @@ def createVirtualEnv(name=None, copy_genropy=False, copy_projects=None,
     
 
 def projectBag(project_name,packages=None,branches=None,exclude_branches=None):
-    p=PathResolver()
+    p=_PathResolver()
     result = Bag()
     branches = branches.split(',') if isinstance(branches, str) else (branches or [])
     packages = packages.split(',') if isinstance(packages, str) else (packages or [])
@@ -1156,7 +1163,7 @@ class GunicornDeployBuilder(object):
 
     def __init__(self, site_name, **kwargs):
         self.site_name = site_name
-        self.path_resolver = PathResolver()
+        self.path_resolver = _PathResolver()
         self.site_path = self.path_resolver.site_name_to_path(site_name)
         self.instance_path = self.path_resolver.instance_name_to_path(site_name)
         self.site_config = self.path_resolver.get_siteconfig(site_name)

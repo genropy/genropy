@@ -10,7 +10,7 @@ import os
 
 from gnr.core.cli import GnrCliArgParse
 from gnr.app.gnrdeploy import ProjectMaker, InstanceMaker, PackageMaker
-from gnr.app.pathresolver import Pathresolver
+from gnr.app.pathresolver import PathResolver
 
 description = "Bootstrap a new project folder and subfolders"
 

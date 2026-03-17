@@ -23,10 +23,10 @@ class TestGnrAppDeployPathResolver(BaseGnrAppTest):
         r = self.resolver.entity_name_to_path("sys", "package")
         assert "gnrcore/packages/sys" in r
 
-        with pytest.raises(gd.EntityNotFoundException):
+        with pytest.raises(pr.EntityNotFoundException):
             r = self.resolver.entity_name_to_path("goober", "package")
         
-        with pytest.raises(gd.UnknownEntityTypeException):
+        with pytest.raises(pr.UnknownEntityTypeException):
             r = self.resolver.entity_name_to_path("goober", "skirtsteak")
 
         os.environ['GNR_LOCAL_PROJECTS'] = "."
