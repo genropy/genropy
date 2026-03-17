@@ -181,8 +181,8 @@ class Server(object):
                             action='store_false',
                             help="Do not use auto-restart file monitor")
         parser.add_argument('--nodebug',
-                            dest='debug',
-                            action='store_false',
+                            dest='nodebug',
+                            action='store_true',
                             help="Don't use werkzeug debugger")
         parser.add_argument('--profile',
                             dest='profile',
@@ -391,7 +391,7 @@ class Server(object):
             self.debugpy_port = None
             
         self.reloader = not self.debugpy and not (self.options.reload == 'false' or self.options.reload == 'False' or self.options.reload == False or self.options.reload == None)
-        self.debug = not (self.options.debug == 'false' or self.options.debug == 'False' or self.options.debug == False or self.options.debug == None)
+        self.debug = not (self.options.debug == 'false' or self.options.debug == 'False' or self.options.debug == False or self.options.debug == None or self.options.nodebug)
         if self.debugpy:
             logger.debug("Starting debugpy service on port localhost:%s", self.debugpy_port)
             debugpy.listen(("localhost", self.debugpy_port))
@@ -461,6 +461,9 @@ class Server(object):
                 elif self.debug:
                     gnrServer = GnrDebuggedApplication(gnrServer, evalex=True, pin_security=False)
                     extra_info.append('Debug mode: On')
+                else:
+                    extra_info.append('Debug mode: Off')
+
                 localhost = 'http://127.0.0.1'
                 if self.options.ssl:
                     cert_path = os.path.join(self.config_path,'localhost.pem')
