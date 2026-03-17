@@ -2,7 +2,7 @@
 
 /* @group Default color palette — Titanium metallic gray */
 body {
-    --mainWindow-font-size: 0.75rem;
+    --font-size: 0.75rem;
 
     /* --- Palette (gray scale + accent) --- */
     --gray-900: #3C3D40;

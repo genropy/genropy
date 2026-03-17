@@ -33,7 +33,7 @@
 .framedindex_tablist_left {
     display: inline-flex;
     align-items: stretch;
-    height: 1.9em;
+    height: var(--frameindex-tab-height);
     background: var(--btn-tonal-bg);
     border: 1px solid var(--btn-border-color);
     border-radius: var(--radius-md);
@@ -79,7 +79,7 @@
     position: relative;
     display: inline-flex;
     align-items: center;
-    height: 1.9em;
+    height: var(--frameindex-tab-height);
     padding: 0 0.9em;
     cursor: pointer;
     color: var(--menu-text-color);
@@ -232,7 +232,7 @@
     align-items: center;
     background: var(--frameindex-tablist-background);
     color: var(--frameindex-tablist-color);
-    min-height: 3em;
+    min-height: var(--frameindex-tablist-min-height);
     padding: 0 0.6em;
 }
 .framedindex_tablist_center {

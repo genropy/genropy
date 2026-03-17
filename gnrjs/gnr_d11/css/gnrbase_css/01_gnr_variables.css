@@ -46,8 +46,8 @@
 
     /* --- Typography --- */
     --font-family: 'Inter', -apple-system, 'Helvetica Neue', 'Arial', sans-serif; /* @theme @palette */
-    --font-size: 14px; /* @theme @palette */
-    --mainWindow-font-size: 0.81rem;
+    --font-size: 0.81rem; /* @theme @palette */
+    --dialog-content-font-size: inherit;
 
     /* --- Brand / Primary --- */
     --primary-color: var(--gray-600); /* @theme */
@@ -160,6 +160,8 @@
     --frameindexroot-mobile-background: var(--gray-800); /* @theme */
     --frameindex-tablist-background: var(--gray-800); /* @theme */
     --frameindex-tablist-color: var(--text-on-dark); /* @theme */
+    --frameindex-tablist-min-height: 3em;
+    --frameindex-tab-height: 1.9em;
     --frameindex-tab-bg: #D8D8D8; /* white 80% + gray-800 #3A3A3C — override in theme/variant files */
     --frameindex-tab-bg-hover: var(--gray-700); /* override in theme/variant files */
     --frameindex-tab-border: var(--gray-200); /* @theme */
@@ -304,6 +306,20 @@
     --btn-filled-selected-bg: #004FA6; /* @theme — accent-color #007AFF 65% + black */
     --btn-filled-disabled-bg: var(--accent-color, #007AFF);
     --btn-filled-disabled-color: var(--color-bg);
+
+    /* --- Buttons: deleting — filled specialization (destructive action) --- */
+    --btn-deleting-bg: var(--color-error, #D32F2F); /* @theme */
+    --btn-deleting-color: #ffffff; /* @theme */
+    --btn-deleting-hover-bg: #B71C1C; /* @theme — color-error 80% + black */
+    --btn-deleting-pressed-bg: #951A1A; /* @theme — color-error 65% + black */
+    --btn-deleting-disabled-bg: var(--color-error, #D32F2F); /* @theme */
+    --btn-deleting-disabled-color: var(--btn-deleting-color); /* @theme */
+
+    /* --- Buttons: deleting — tonal specialization --- */
+    --btn-deleting-tonal-bg: #FDECEA; /* @theme — color-error 12% + white */
+    --btn-deleting-tonal-color: var(--color-error, #D32F2F); /* @theme */
+    --btn-deleting-tonal-hover-bg: #F9D6D2; /* @theme — color-error 20% + white */
+    --btn-deleting-tonal-pressed-bg: #F5C0BA; /* @theme — color-error 28% + white */
 
     /* --- Buttons: tonal (light version of accent-color) --- */
     --btn-tonal-bg: #E0EFFF; /* @theme — accent-color #007AFF 12% + white — override in theme/variant */

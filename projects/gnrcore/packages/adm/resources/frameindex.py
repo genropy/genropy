@@ -164,7 +164,8 @@ class FrameIndex(BaseComponent):
     def prepareBottom(self,bc):
         return self.prepareBottom_std(bc)
         
-    
+
+    @customizable
     def prepareTop_mobile(self,bc,onCreatingTablist=None,**kwargs):
         top = bc.contentPane(region='top',overflow='hidden')
         bar = top.slotBar('5,pluginSwitch,*,pageTitle,*,35',
@@ -172,14 +173,15 @@ class FrameIndex(BaseComponent):
         bar.pluginSwitch.lightButton(_class='showcase_toggle',tip='!!Show/Hide the left pane',height='30px',width='30px',
                                                       action="""genro.nodeById('standard_index').publish('toggleLeft');""")
         self.pageTitle_mobile(bar.pageTitle)
-        
+        return top
+    
+
     def pageTitle_mobile(self,pane):
         pane.div('^gnr.windowTitle',color='white',font_size='15px',font_weight='bold',caption_path='selectedPageTitle')
 
-    
+    @customizable
     def prepareTop_std(self,bc,onCreatingTablist=None):
-        top = bc.contentPane(region='top',height='2.8em',overflow='hidden',
-                             _class='framedindex_tablist')
+        top = bc.contentPane(region='top',overflow='hidden',_class='framedindex_tablist')
         leftbar = top.div(_class='framedindex_tablist_left')
         if self.plugin_list or self.custom_plugin_list:
             plugins_standard = ['menuToggle']+self.plugin_list.split(',') if self.plugin_list else ['menuToggle']
@@ -191,6 +193,7 @@ class FrameIndex(BaseComponent):
                     getattr(self,'btn_%s' %btn)(leftbar)
 
         self.prepareTablist(top.div(_class='framedindex_tablist_center'),onCreatingTablist=onCreatingTablist)
+        return top
         
     def prepareTablist(self,pane,onCreatingTablist=False):
 
