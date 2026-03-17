@@ -370,8 +370,6 @@
     padding: 0.5em 0.8em;
     border-bottom-left-radius: var(--radius-md);
     border-bottom-right-radius: var(--radius-md);
-    --btn-tonal-bg: var(--btn-filled-bg);
-    --btn-tonal-color: var(--btn-filled-color);
 }
 
 /* --- Button style modifiers --- */
