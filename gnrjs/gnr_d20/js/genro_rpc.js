@@ -219,7 +219,7 @@ dojo.declare("gnr.GnrRpcHandler", null, {
         this._server_unavailable = true;
         genro.lockScreen(true, '_server_unavailable', {
             delay: 0,
-            message: '<div>Server not responding...</div>'
+            message: 'Server not responding...'
         });
         genro.setFastPolling(true);
     },
@@ -228,8 +228,8 @@ dojo.declare("gnr.GnrRpcHandler", null, {
         this._server_unavailable = false;
         genro.lockScreen(false, '_server_unavailable');
         genro.setFastPolling(false);
-        genro.dlg.alert('Server connection restored. You can resume your operations.',
-                        'Connection restored');
+        genro.dlg.alert(_T('Server connection restored. You can resume your operations.'),
+                        _T('Connection restored'));
     },
 
 
