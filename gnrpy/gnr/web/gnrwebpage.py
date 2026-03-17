@@ -32,7 +32,6 @@ import copy
 from time import time
 from datetime import timedelta
 from mako.lookup import TemplateLookup
-from base64 import b64decode
 import re
 import datetime
 
@@ -61,6 +60,7 @@ from gnr.web.gnrwebpage_proxy.utils import GnrWebUtils
 from gnr.web.gnrwebpage_proxy.pluginhandler import GnrWebPluginHandler
 from gnr.web.gnrwebpage_proxy.jstools import GnrWebJSTools
 from gnr.web.gnrwebstruct import GnrGridStruct
+from gnr.web.verifiers import GnrVerifier,AuthorizationBaseTagsVerifier
 
  # DO NOT REMOVE, old code relies on BaseComponent being defined in this file
 from gnr.web.gnrbaseclasses import BaseComponent # noqa: F401
@@ -1190,33 +1190,29 @@ class GnrWebPage(GnrBaseWebPage):
         handler = getattr(proxy_object, submethod, None)
         if not handler or not getattr(handler, 'is_rpc', False):
             handler = getattr(proxy_object, '%s_%s' % (prefix, submethod),None)
-        
-        if handler and getattr(handler,'signed',None):
+    
+        if not handler:
+            self.clientPublish('floating_message',message='missing public method %s' %method,messageType='error')
+            return
+        if getattr(handler,'signed',None):
             error = self.site.auth_token_generator.verify_url(self.request._request.url)
             if error:
                 raise GnrSignedTokenException(error)
-            
-        if handler and getattr(handler, 'tags',None):
-            userTags = self.userTags or self.basicAuthenticationTags()
-            if not self.application.checkResourcePermission(handler.tags, userTags):
-                raise self.exception(GnrUserNotAllowed,method=method)
-        if not handler:
-            self.clientPublish('floating_message',message='missing public method %s' %method,messageType='error')
+        verifier_error = None
+        if getattr(handler,'verifier',None):
+            verifier_class = handler.verifier
+            if issubclass(verifier_class,GnrVerifier):
+                verifier_error = verifier_class(self)()
+            else:
+                raise GnrException('Verifier wrong class')
+        elif getattr(handler, 'tags',None):
+            verifier = AuthorizationBaseTagsVerifier(self)
+            verifier_error = verifier(tags=handler.tags)
+        if verifier_error:
+            raise verifier_error                
         return handler
 
-    def basicAuthenticationTags(self):
-        authorization = self.request.headers.get('Authorization')
-        if not authorization:
-            raise GnrBasicAuthenticationError('Missing Basic Authorization')
-        authmode,login = authorization.split(' ')
-        if authmode!='Basic':
-            raise GnrBasicAuthenticationError('Wrong Authorization Mode')
-        user,pwd = b64decode(login).decode().split(':')
-        self.avatar = self.application.getAvatar(user,pwd,authenticate=True)
-        if not self.avatar:
-            raise GnrBasicAuthenticationError('Wrong Authorization Login')
-        return self.avatar.user_tags
-        
+
     def getWsMethod(self, method):
         """TODO
         
