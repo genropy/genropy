@@ -57,9 +57,10 @@ class PackageMaker(object):
             if not os.path.isdir(path):
                 os.makedirs(path, exist_ok=True)
 
-        # create an emptydir file allowing an empty cli directory to be
+        # create an emptydir file allowing an empty directory to be
         # pushed to repository
-        open(os.path.join(self.cli_path, ".emptydir"), "w").close()
+        for p in [self.cli_path, self.lib_path, self.resources_path, self.model_path]:
+            open(os.path.join(p, ".emptydir"), "w").close()
 
         # create an empty requirements.txt file, hopefully developers
         # will be reminded by its presence that dependencies can be added
