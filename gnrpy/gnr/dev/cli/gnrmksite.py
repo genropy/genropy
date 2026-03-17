@@ -4,7 +4,8 @@
 import os
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.app.gnrdeploy import SiteMaker, PathResolver
+from gnr.app.gnrdeploy import SiteMaker
+from gnr.app.pathresolver import PathResolver
 
 description = "Create a new Genropy site"
 def main():

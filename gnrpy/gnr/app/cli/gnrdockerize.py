@@ -16,7 +16,7 @@ import subprocess
 from mako.template import Template
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.app.gnrdeploy import PathResolver
+from gnr.app.pathresolver import PathResolver
 from gnr.dev.builder import GnrProjectBuilder
 from gnr.app import logger
 

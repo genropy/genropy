@@ -47,7 +47,7 @@ from gnr.core.gnrsys import expandpath
 from gnr.core.gnrconfig import getGnrConfig
 from gnr.core import gnrlog
 from gnr.utils import ssmtplib
-from gnr.app.gnrdeploy import PathResolver
+from gnr.app.pathresolver import PathResolver
 from gnr.app import logger
 from gnr.app.gnrlocalization import AppLocalizer
 from gnr.sql.gnrsql import GnrSqlDb

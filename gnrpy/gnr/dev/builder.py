@@ -13,7 +13,7 @@ import shutil
 from pathlib import Path
 
 from gnr.app.gnrapp import GnrApp
-from gnr.app.gnrdeploy import PathResolver
+from gnr.app.pathresolver import PathResolver
 from gnr.app import logger
 
 class GnrProjectBuilder(object):

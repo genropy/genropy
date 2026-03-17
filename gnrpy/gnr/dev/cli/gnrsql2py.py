@@ -5,7 +5,8 @@ import os
 import re
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.app.gnrdeploy import PackageMaker, PathResolver
+from gnr.app.gnrdeploy import PackageMaker
+from gnr.app.pathresolver import  PathResolver
 from gnr.sql.gnrsql import GnrSqlDb
 
 CONN_STRING_RE=r"(?P<user>\w*)\:?(?P<password>\w*)\@(?P<host>(\w|\.)*)\:?(?P<port>\w*)\/(?P<database>(\w|\.)*)"

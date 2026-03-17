@@ -4,7 +4,8 @@
 import os
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.app.gnrdeploy import PackageMaker, PathResolver
+from gnr.app.gnrdeploy import PackageMaker
+from gnr.app.pathresolver import PathResolver
 
 description = """Create a new Genropy package"""
 
