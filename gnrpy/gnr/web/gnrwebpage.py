@@ -1635,9 +1635,10 @@ class GnrWebPage(GnrBaseWebPage):
     
     @property
     def userLocalTags(self):
-        if not hasattr(self,'_rootenv'):
-             return
-        return self.rootenv['user_local_tags']
+        rootenv = self.rootenv
+        if not rootenv:
+            return
+        return rootenv['user_local_tags']
     
     @property
     def userMenu(self):
