@@ -1,3 +1,4 @@
+import os
 import urllib.request
 import urllib.error
 import json
@@ -11,7 +12,7 @@ class SourcererClient:
     """HTTP client for Sourcerer API communication."""
 
     def __init__(self, url=None, sourcerer_token=None):
-        self.url = (url or DEFAULT_SOURCERER_URL).rstrip('/')
+        self.url = (url or os.environ.get('GNR_SOURCERER_URL', DEFAULT_SOURCERER_URL)).rstrip('/')
         self.sourcerer_token = sourcerer_token
 
     def _request(self, endpoint, payload=None, method='POST',
