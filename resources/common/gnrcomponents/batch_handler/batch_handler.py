@@ -101,21 +101,21 @@ class TableScriptHandler(BaseComponent):
         hasParameters = hasattr(self, 'table_script_parameters_pane')
         hasOptions = hasattr(self, 'table_script_option_pane')
         showParametersDialog = hasParameters or bool(schedulable)
-        dlgpars = pane.dialog(title='^.title',position='relative',
-                            datapath='.dialog_pars',
-                            connect_show="setTimeout(function(){genro.formById('_ts_parameters_').newrecord()},1)",
-                            connect_hide="setTimeout(function(){genro.formById('_ts_parameters_').abort()},1)",
-
-                            childname='parametersDialog',padding_bottom='28px')
+        dlgpars = pane.dialog(title='^.title',
+                              datapath='.dialog_pars',
+                              connect_show="setTimeout(function(){genro.formById('_ts_parameters_').newrecord()},1)",
+                              connect_hide="setTimeout(function(){genro.formById('_ts_parameters_').abort()},1)",
+                              childname='parametersDialog',
+                              _class='dlg_flexbody')
         parsform = dlgpars.boxForm(formId='_ts_parameters_',store='dummy',
-                                 formDatapath='#table_script_runner.data')
+                                   formDatapath='#table_script_runner.data')
         dlgoptions = pane.dialog(title='^.title',datapath='.dialog_options',
-                                position='relative',
-                                connect_show="setTimeout(function(){genro.formById('_ts_options_').newrecord()},1)",
-                                connect_dismiss="setTimeout(function(){genro.formById('_ts_options_').abort()},1)",
-                                childname='optionsDialog')
+                                 position='relative',
+                                 connect_show="setTimeout(function(){genro.formById('_ts_options_').newrecord()},1)",
+                                 connect_dismiss="setTimeout(function(){genro.formById('_ts_options_').abort()},1)",
+                                 childname='optionsDialog')
         optionsform = dlgoptions.boxForm(formId='_ts_options_',store='dummy',
-                                 formDatapath='#table_script_runner.data.batch_options')
+                                         formDatapath='#table_script_runner.data.batch_options')
         pane = pane.div(datapath='#table_script_runner')
         askOptions = batch_dict.get('ask_options')
         if askOptions is None:
@@ -124,16 +124,15 @@ class TableScriptHandler(BaseComponent):
             askOptions = self.db.application.allowedByPreference(askOptions)
         if showParametersDialog:
             parsbox = parsform.div(datapath='#table_script_runner.data',
-                            min_width='300px',childname='contentNode',position='relative',top='0',
-                            bottom='28px',padding='10px')
+                            min_width='300px',childname='contentNode',
+                            padding='10px')
             if batch_dict.get('title'):
                 record_count = batch_dict.get('record_count')
                 dlgtitle = "!!%s (%i)" %(batch_dict['title'],record_count) if record_count else batch_dict['title']
                 parsform.dataFormula('.title','dlgtitle',dlgtitle=dlgtitle,_onBuilt=True)
             if hasParameters:
                 self.table_script_parameters_pane(parsbox,extra_parameters=extra_parameters,**batch_dict)
-            self.table_script_parameters_footer(dlgpars.div(left=0,right=0,position='absolute',bottom=0,
-                                                         childname='footerNode',height='28px'),**batch_dict)  
+            self.table_script_parameters_footer(dlgpars.div(childname='footerNode'),**batch_dict)  
             dlgpars.dataController("""
                 var frm = genro.formById('_ts_parameters_');
                 if(frm.isValid()){
@@ -152,7 +151,7 @@ class TableScriptHandler(BaseComponent):
 
         if hasOptions and askOptions:
             self.table_script_option_pane(optionsform.div(datapath='#table_script_runner.data.batch_options',childname='contentNode'),**batch_dict)
-            self.table_script_option_footer(dlgoptions.div(left=0,right=0,position='absolute',bottom=0,childname='footerNode'),**batch_dict) 
+            self.table_script_option_footer(dlgoptions.div(childname='footerNode'),**batch_dict) 
             dlgoptions.dataController("""
                 var frm = genro.formById('_ts_options_');
                 if(frm.isValid()){

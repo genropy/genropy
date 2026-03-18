@@ -7,7 +7,9 @@
 	<static>
 		<js>
 			<dojo_11 cdn="" path="/home/genro/genropy/dojo_libs/dojo_11"/>
+			<dojo_20 cdn="" path="/home/genro/genropy/dojo_libs/dojo_20"/>
 			<gnr_11 path="/home/genro/genropy/gnrjs/gnr_d11"/>
+			<gnr_20 path="/home/genro/genropy/gnrjs/gnr_d20"/>
 		</js>
 	</static>
 	<resources>

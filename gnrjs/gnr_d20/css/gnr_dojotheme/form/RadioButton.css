@@ -1,0 +1,56 @@
+/* ==========================================================================
+   gnr_dojotheme/form/RadioButton.css — Radio button with SVG icons (mask-image).
+   Uses mask-image so the icon inherits color from background-color.
+   ========================================================================== */
+
+/* --- Base radio — unchecked circle --- */
+.gnr_dojotheme .dijitRadio,
+.gnr_dojotheme .dijitRadioIcon {
+    -webkit-mask: var(--icon-radio-unchecked) no-repeat center / contain;
+    mask: var(--icon-radio-unchecked) no-repeat center / contain;
+    background-color: currentColor;
+    background-image: none;
+    width: 1.4em;
+    height: 1.4em;
+    margin: 0;
+    padding: 0;
+    border: none;
+    position: relative;
+    display: inline-block;
+    vertical-align: middle;
+    box-sizing: border-box;
+}
+
+/* --- Toggle button context --- */
+.gnr_dojotheme .dijitToggleButton .dijitRadio,
+.gnr_dojotheme .dijitToggleButton .dijitRadioIcon {
+    -webkit-mask-image: var(--icon-radio-unchecked);
+    mask-image: var(--icon-radio-unchecked);
+}
+
+/* --- Selected: filled radio --- */
+.gnr_dojotheme .dijitRadioChecked,
+.gnr_dojotheme .dijitToggleButtonChecked .dijitRadioIcon {
+    -webkit-mask-image: var(--icon-radio-checked);
+    mask-image: var(--icon-radio-checked);
+}
+
+/* --- Disabled --- */
+.gnr_dojotheme .dijitRadioDisabled {
+    opacity: 0.5;
+}
+
+.gnr_dojotheme .dijitRadioCheckedDisabled {
+    opacity: 0.5;
+}
+
+/* --- Hover --- */
+.gnr_dojotheme .dijitRadioHover,
+.gnr_dojotheme .dijitRadioFocused {
+    opacity: 0.8;
+}
+
+.gnr_dojotheme .dijitRadioCheckedHover,
+.gnr_dojotheme .dijitRadioCheckedFocused {
+    opacity: 0.8;
+}

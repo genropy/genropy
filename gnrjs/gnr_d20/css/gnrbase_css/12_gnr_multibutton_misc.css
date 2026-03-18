@@ -1,0 +1,527 @@
+/* ==========================================================================
+   12_gnr_multibutton_misc.css — Quickgrid, multibutton, mobile bar/buttons,
+   multivalue, buttonDiv, formattedBagTable, chunkeditor, debug
+   ========================================================================== */
+
+.pbl_roundedGroupLabel.slotbar_horizontal .multibutton_container{
+    font-variant:normal;
+    font-size: .9em;
+    display: flex;
+    align-items: center;
+}
+/* @group quickgrid_container_multibutton */
+
+.quickgrid_toolsbox{
+    display: inline-block;
+    border:1px solid var(--border-color);
+    height: 1.4em;
+}
+
+.slotbar_toolbar_standard .quickgrid_toolsbox.quickgrid_toolsbox_top{
+    border-color: transparent;
+}
+
+.pbl_roundedGroupLabel .quickgrid_toolsbox{
+    border-color: transparent;
+}
+
+.quickgrid_toolsbox:hover{
+    border:1px solid var(--border-color);
+}
+
+.quickgrid_toolsbox.quickgrid_toolsbox_top{
+    border-top-left-radius: var(--radius-sm);
+    border-top-right-radius: var(--radius-sm);
+    border-bottom: 0px;
+    bottom:0;
+}
+.quickgrid_toolsbox.quickgrid_toolsbox_bottom{
+    border-bottom-left-radius: var(--radius-sm);
+    border-bottom-right-radius: var(--radius-sm);
+    border-top: 0px;
+    top:0;
+}
+
+.quickgrid_container .multibutton_container {
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.quickgrid_container .iconbox {
+    height: 1.2em;
+    width: 1.2em;
+    cursor: pointer;
+    opacity:.6;
+}
+
+.iconbox.iconbox_short{
+    height: 12px;
+}
+
+.quickgrid_container .iconbox:hover {
+    opacity:1;
+}
+
+.quickgrid_container .multibutton,
+.quickgrid_container .multibutton:last-child,
+.quickgrid_container .multibutton:first-child
+{
+    background:none;
+    border:0px;
+    border-top-right-radius: 0px;
+    border-bottom-right-radius: 0px;
+    border-top-left-radius: 0px;
+    border-bottom-left-radius: 0px;
+    padding-left:4px;
+    padding-right:4px;
+}
+.quickgrid_container .multibutton_selected.multibutton,
+.quickgrid_container .multibutton:active
+.quickgrid_container .multibutton_selected.multibutton,
+.quickgrid_container .multibutton:active
+{
+    box-shadow: none;
+    background: var(--surface-light);
+    opacity:1;
+}
+
+/* @end */
+
+/* @group multibutton */
+
+.multibutton_container{
+    font-size: .9em;
+    line-height: 1.5em;
+    font-variant:small-caps;
+    font-weight: 600;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.multibutton_container.hidden{
+    display: none;
+}
+.multibutton_itemsContainer{
+    overflow: hidden;
+}
+.multibutton_container.multibutton_itemsContainer{
+    font-size:unset;
+}
+.multibutton_scrollNext{
+    display: none;
+}
+.multibutton_scrollPrev{
+    display: none;
+}
+
+.multibutton_itemsContainerHasOverflow .multibutton_scrollNext{
+    display: block;
+    box-shadow:-3px 0 3px -3px;
+    z-index: 1;
+}
+
+.multibutton_itemsContainerHasOverflow.multibutton_itemsContainerScrollAtEnd .multibutton_scrollNext{
+    box-shadow:unset;
+    border-left:0;
+}
+
+.multibutton_itemsContainerHasOverflow .multibutton_scrollPrev{
+    display: block;
+    box-shadow:3px 0 3px -3px;
+    z-index: 1;
+}
+.multibutton_itemsContainerHasOverflow.multibutton_itemsContainerScrollAtStart .multibutton_scrollPrev{
+    box-shadow:unset;
+}
+
+.multibutton_container .hidden.multibutton{
+    display: none;
+}
+
+.multibutton_itemsContainer .multibutton:first-child{
+    border-top-left-radius: var(--radius-md);
+    border-bottom-left-radius: var(--radius-md);
+}
+
+.multibutton_itemsContainerHasOverflow .multibutton_itemsContainer .multibutton:first-child{
+    border-top-left-radius: unset;
+    border-bottom-left-radius: unset;
+}
+.multibutton_itemsContainer .multibutton:last-child{
+    border-top-right-radius: var(--radius-md);
+    border-bottom-right-radius: var(--radius-md);
+    border-right: 1px solid var(--border-strong, #aab4c4);
+}
+.multibutton_extraItemsPost .multibutton_itemsContainer .multibutton:last-child{
+    border-top-right-radius: unset;
+    border-bottom-right-radius: unset;
+    border-right: 0px;
+}
+
+.multibutton_itemsContainerHasOverflow .multibutton_itemsContainer .multibutton:last-child{
+    border-top-right-radius: unset;
+    border-bottom-right-radius: unset;
+    /*border-right: unset;*/
+}
+
+.multibutton_itemsContainerHasOverflow .multibutton_itemsContainer{
+    box-shadow: inset -5px 0 5px -5px rgba(0, 0, 0, 0.5) ;
+}
+
+.multibutton:last-child{
+    border-right: 1px solid var(--border-strong, #aab4c4);
+    border-top-right-radius: var(--radius-md);
+    border-bottom-right-radius: var(--radius-md);
+}
+.multibutton:first-child{
+    border-top-left-radius: var(--radius-md);
+    border-bottom-left-radius: var(--radius-md);
+}
+
+.multibutton_selected.multibutton{
+    color: white;
+    background: var(--multibutton-selected-bg, #656567);
+    border-color: var(--multibutton-selected-bg, #656567);
+    box-shadow: none;
+}
+
+.multibutton:active:not(.multibutton_selected){
+    background: rgba(0, 0, 0, 0.12);
+    box-shadow: none;
+}
+.multibutton_selected.multibutton:hover{
+    text-decoration: none;
+}
+.multibutton_selected.multibutton[disabled='true']{
+    opacity: 1;
+    cursor: not-allowed;
+}
+.multibutton:hover:not(.multibutton_selected){
+    background: rgba(0, 0, 0, 0.06);
+}
+.multibutton_container .multibutton:active[disabled='true'],.multibutton_container .multibutton:active[disabled='disabled']{
+    color: var(--text-color, #333);
+    cursor: not-allowed;
+    background: transparent;
+    opacity: .3;
+    box-shadow: none;
+}
+
+.multibutton{
+    position:relative;
+    padding: 2px 12px;
+    cursor:pointer;
+    color: var(--text-color, #444);
+    background: var(--surface-light, #f6f6f6);
+    border: 1px solid var(--border-strong, #aab4c4);
+    border-right: 0;
+    border-radius: 0;
+    transition: background-color 0.15s ease;
+}
+
+.multibutton.multibutton_closable{
+    padding-right: 18px;
+}
+
+.multibuttonsub.multibutton{
+    background: rgba(0, 122, 255, 0.15);
+    background: color-mix(in srgb, var(--accent-color, #007AFF) 15%, transparent);
+}
+
+.multibutton_closer{
+    position: absolute;
+    top:4px;
+    right:2px;
+    border-radius: var(--radius-sm);
+
+}
+.multibutton_closer:hover{
+    background-color: var(--surface-light);
+}
+
+._is_readonly_row .multibutton_closer, .multibutton_selected._is_readonly_row .multibutton_closer.deleteSelectedOnly{
+    visibility: hidden;
+}
+
+.multibutton_closer.deleteSelectedOnly{
+    position: absolute;
+    top:4px;
+    right:2px;
+    visibility: hidden;
+}
+
+.multibutton_selected .multibutton_closer.deleteSelectedOnly{
+    visibility: visible;
+}
+
+.multipage_add{
+    background: var(--icon-small-add) no-repeat center center;
+    opacity: .5;
+    width: 10px;
+}
+
+.multipage_del{
+    background: var(--icon-small-del) no-repeat center center;
+    opacity: .5;
+    width: 10px;
+}
+
+/*Mobile bar styles*/
+.mobile_bar.slotbar_toolbar_standard{
+    background:var(--surface-bg);
+}
+
+.mobile_bar .multibutton_container{
+    color:var(--root-dark);
+}
+
+.mobile_bar .multibutton_selected.multibutton, .mobile_bar .multibutton:active{
+    background: none;
+    font-weight: bold;
+    border-bottom:2px solid var(--root-dark);
+}
+
+.mobile_bar .multibutton {
+    position: relative;
+    font-variant: normal;
+    font-size: 1em;
+    padding-left: 12px;
+    padding-right: 12px;
+    cursor: pointer;
+    color: var(--root-dark);
+    background-image: none;
+    border: 0;
+    border-right: 0px;
+    background-color: transparent;
+}
+
+.mobile_bar .multibutton:first-child{
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-left: 0px;
+    margin-left:10px;
+}
+
+.mobile_bar .multibutton:last-child {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-left: 0px;
+    border-right: 0px;
+    margin-right: 10px;
+}
+
+.mobile_bar .multibutton_container.singleChildMultibutton{
+    display: none;
+}
+
+@media screen and (orientation:portrait) and (max-width:600px){
+    .mobile_bar .multibutton_container{
+        font-size: 1.2em;
+    }
+    .mobile_bar .multibutton {
+        padding-left: 6px;
+        padding-right: 6px;
+    }
+}
+
+/*Mobile button styles*/
+.mobile_button_container{
+    display: flex;
+    flex-flow: column;
+    justify-content: space-around;
+    align-content: center;
+    align-items: center;
+}
+
+.mobile_button{
+    background: var(--primary-color);
+    color: var(--text-on-dark);
+    width:80%;
+    font-size: 1.1em;
+    text-align: center;
+    cursor: pointer;
+    padding:10px;
+    margin:5px;
+    border-radius: var(--radius-pill);
+}
+
+/* @end */
+
+.framecloserIcon{
+    height: 10px;
+    width: 10px;
+    background-color: currentColor;
+    -webkit-mask: var(--icon-wnd-close) no-repeat center / contain;
+    mask: var(--icon-wnd-close) no-repeat center / contain;
+}
+
+/* --- Misc: footer, chunkeditor, multivalue, buttonDiv, formattedBagTable --- */
+
+.footer_block {
+    font-weight: 1.1;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+.footer_block:hover{
+    text-decoration: underline;
+}
+
+.chunkeditor_emptytemplate{
+    cursor:pointer;
+    text-align:center;
+    color:var(--text-placeholder);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    height: 100%;
+}
+.chunkeditor_varplaceholder{
+    background:var(--text-muted);
+    color:var(--surface-bg);
+}
+
+.mv_table{
+    cursor:pointer;
+    border-collapse: collapse;
+    border-spacing: 0px;
+    min-width: 10em;
+}
+.mv_table tr{
+    opacity:1!important;
+    border:1px solid var(--border-color);
+}
+.mv_table tr td{
+    height:13px;
+    padding:1px;
+    padding-left: 2px;
+    padding-right: 2px;
+    font-size:.8em;
+    color: var(--text-color);
+}
+.mv_table tr:hover{
+    background-color: var(--toolbar-bg);
+    color: var(--text-color);
+}
+
+.mv_table td[mv_main="true"]{
+    background: var(--icon-ok) no-repeat center center;
+    background-size: 10px 10px;
+    width: 10px;
+    height: 10px;
+}
+
+.mv_table td[mv_main="false"]{
+    width: 10px;
+    height: 10px;
+}
+.mv_table tr td[mv_main="false"]:hover{
+    width: 10px;
+    height: 10px;
+    background:lightyellow;
+}
+.mv_labels{
+    padding-left: 2px;
+    background: var(--icon-chevron-down) no-repeat center left;
+    background-size: 7px;
+    cursor: pointer;
+}
+.mv_mask{
+    color: var(--text-placeholder);
+    position: absolute;
+    right: 13px;
+    top: 2px;
+    font-size: .8em;
+}
+.mv_iconbox{
+    cursor: pointer;
+    height: 15px;
+    width: 12px;
+    opacity: .8;
+    background: var(--icon-chevron-down) no-repeat center center;
+    background-size: 7px;
+    opacity: 0.3;
+}
+._common_d11 .dijitDisabled .mv_iconbox{
+    opacity: .5;
+}
+.mv_is_multi.mv_iconbox{
+    background: var(--icon-chevron-down) no-repeat center center;
+    background-size: 7px;
+    opacity: 0.8;
+}
+
+div[disabled='true'], div[disabled='disabled']{
+    opacity: .4;
+    cursor:not-allowed;
+}
+.slotbar_toolbar .buttonDiv:hover{
+    cursor:pointer;
+    background-color:var(--text-placeholder);
+    border-radius: var(--radius-sm);
+}
+.buttonDiv{
+    display: inline-block;
+}
+.slotbar .buttonDiv{
+    display: block;
+}
+.buttonDiv[disabled='true'], .buttonDiv[disabled='disabled']{
+    cursor:not-allowed;
+}
+.buttonDivLabel{
+    color:var(--text-muted);
+}
+
+.formattedBagTable{
+    border-collapse: collapse;
+}
+
+.dojoxGrid-cell .formattedBagTable{
+    width: 100%;
+}
+.formattedBagTable th{
+    font-size: .85em;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 2px 6px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--surface-alt, rgba(0,0,0,0.04));
+}
+.debug_params{
+    background:var(--border-light);
+}
+
+.debug_params .formattedBagTable{
+    margin: 2px;
+}
+
+.debug_params .formattedBagTable td{
+    padding-top:1px;
+    padding-bottom:1px;
+    padding-left:3px;
+    padding-right:3px;
+    border: 1px solid var(--text-muted);
+    background: var(--surface-bg);
+}
+
+.debug_params .formattedBagTable td:first-child{
+    background: var(--text-muted);
+    color:var(--surface-bg);
+    border: 1px solid var(--surface-bg);
+}
+
+.formattedBagTable tr td{
+    padding: 2px 6px;
+    color: var(--text-muted);
+    font-size: .9em;
+}
+.formattedBagTable tr td.num{
+    text-align: right;
+}
+.dojoxGrid-cell .formattedBagTable tr td{
+    border:1px dotted var(--border-color);
+}
+

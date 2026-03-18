@@ -1,0 +1,423 @@
+/* ==========================================================================
+   09_gnr_dialogs_forms.css — Splitters, drawers, dialogs, standard form,
+   loading classes, form builder, localizer
+   ========================================================================== */
+
+/* --- Splitters & Drawers --- */
+
+.tinySplitter.dijitSplitter{
+    background: transparent;
+}
+.tinySplitter .dijitSplitterThumb{
+    display: none;
+}
+
+.hideSplitter >.dijitSplitter.dijitSplitterV {
+    background: transparent;
+    width:4px;
+}
+
+.hideSplitter >.dijitSplitter.dijitSplitterH {
+    background: transparent;
+    height:4px;
+}
+
+.hideSplitter>.dijitSplitter:hover{
+    background:var(--border-color);
+    opacity:.5;
+}
+
+.hideSplitter >.dijitSplitter .dijitSplitterThumb {
+    display: none;
+}
+
+.attachment_drawer.slotbarOpener_horizontal{
+    top: -18px;
+    margin-left: -37px;
+    padding-top: 3px;
+    background: var(--text-secondary);
+    color: var(--text-on-dark);
+    border-top-left-radius: var(--radius-md);
+    border-top-right-radius: var(--radius-md);
+    height: 15px;
+    text-align: center;
+    font-size: 1em;
+    width: 74px;
+    opacity: 1;
+    border: none;
+}
+
+._common_d11 .drawerFixed.dijitSplitter.dijitSplitterV{
+    width: 0;
+}
+._common_d11 .drawerFixed.dijitSplitter.dijitSplitterV:hover{
+    width: 0;
+    background: transparent;
+}
+
+._common_d11 .drawerFixed.dijitSplitter.dijitSplitterH{
+    height: 0;
+}
+._common_d11 .drawerFixed.dijitSplitter.dijitSplitter:hover{
+    height: 0;
+    background: transparent;
+}
+
+.drawerSplitter.dijitSplitter{
+    overflow: visible;
+    background: transparent;
+}
+
+.drawerSplitter.dijitSplitter.dijitSplitterV  .drawerHandle{
+    top:50%;
+    margin-top: -20px;
+    height: 40px;
+    width:8px;
+}
+._common_d11 .dijitSplitter.drawerHandle {
+    z-index: 2;
+}
+._common_d11 .dijitSplitter.drawerSplitter .dijitSplitterThumb{
+    background: transparent;
+}
+.drawerSplitter.dijitSplitter.dijitSplitterH  .drawerHandle{
+    left:50%;
+    margin-left:-20px;
+    width: 40px;
+    height:8px;
+}
+.drawerSplitter.dijitSplitter.dijitSplitterH.drawer_region_bottom .drawerHandle{
+    border-top-right-radius: var(--radius-sm);
+    border-top-left-radius: var(--radius-sm);
+    top: -8px;
+    border-bottom: 0;
+}
+.drawerSplitter.dijitSplitter.dijitSplitterH.drawer_region_top .drawerHandle{
+    border-bottom-right-radius: var(--radius-sm);
+    border-bottom-left-radius: var(--radius-sm);
+    top: 0;
+    border-bottom: 0;
+}
+
+.drawerSplitter.dijitSplitter.dijitSplitterV.drawer_region_left .drawerHandle{
+    border-top-right-radius: var(--radius-sm);
+    border-bottom-right-radius: var(--radius-sm);
+    left:0px;
+    border-left: 0;
+}
+.drawerSplitter.dijitSplitter.dijitSplitterV.drawer_region_right .drawerHandle{
+    border-top-left-radius: var(--radius-sm);
+    border-bottom-left-radius: var(--radius-sm);
+    left:-8px;
+    border-right: 0;
+
+}
+
+.drawerHandle{
+    background: var(--text-secondary);
+    transition:all .5s;
+    opacity: .5;
+    cursor: pointer;
+    position: absolute;
+}
+._common_d11 .drawerSplitter.dijitSplitter .drawerHandle:hover{
+    opacity: 1;
+}
+
+/* @group dialog */
+.dlg_ask {
+    display: flex;
+    flex-direction: column;
+    min-width: 25em;
+}
+
+.dlg_ask_msg {
+    max-width: 40em;
+    padding: 1em 1.2em;
+    font-size: 0.9em;
+    line-height: 1.5;
+    color: var(--dlg-msg-color, #333);
+    text-align: left;
+}
+
+.dlg_alert {
+    font-size: .9em;
+}
+
+.dlg_alert.dijitDialog .dijitDialogPaneContent,
+.dlg_prompt.dijitDialog .dijitDialogPaneContent{
+    background: var(--dlg-pane-bg, #fff);
+}
+
+.dlg_alert_msg {
+    max-width: 40em;
+    padding: 0.5em 0;
+    line-height: 1.5;
+    color: var(--dlg-msg-color, #333);
+    text-align: left;
+}
+.dlg_ask_btnBox{
+    display: flex;
+    flex-direction: row-reverse;
+    gap: 0.5em;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0.8em 1.2em;
+}
+.dlg_ask_btnBox .dijitButton{
+    margin: 0;
+}
+.alertBodyMessage{
+    color: var(--dlg-msg-color, #444);
+    line-height: 1.35;
+    display: flex;
+}
+
+.pbl_dialog_center{
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em;
+    padding: 0.8em 1em;
+}
+
+.dlg_flexbody .dijitDialogPaneContent {
+    display: flex;
+    flex-direction: column;
+    min-width: 26em;
+}
+
+.dlg_flexbody .fh_content {
+    flex: 1;
+    overflow: auto;
+}
+
+/* @end */
+
+/* --- Icon-only buttons: remove button chrome --- */
+.slotButtonIconOnly .dijitButtonNode{
+    background-color: transparent;
+    border-color: transparent;
+    padding: 0px 0px;
+}
+
+/* @group Standard form */
+
+.numberTextBox input, .dijitDisabled.numberTextBox input:focus, .dijitReadOnly.numberTextBox input:focus {
+    text-align: right;
+    /*padding-right: 2px;*/
+}
+
+.numberTextBox input:focus {
+    text-align: left;
+    /*padding-left: 2px;*/
+}
+
+.gnrfieldlabel {
+    color: var(--gnrfieldlabel-color);
+    white-space: nowrap;
+    padding-left: var(--formbuilder-label-padding-left);
+}
+
+table.formbuilder .gnrfieldlabel {
+    font-weight: var(--formbuilder-label-font-weight);
+    font-size: var(--formbuilder-label-font-size);
+}
+
+/* Label vertical alignment: padding on td.fb_lbl (1em context).
+   1px matches the field's default padding-top from form/Common.css,
+   border-width accounts for the field border, and the last term
+   compensates for the baseline shift when label font-size < 1em. */
+table.formbuilder td.fb_lbl {
+    padding-top: calc(
+        1px
+        + var(--formbuilder-field-border-width)
+        + (1em - var(--formbuilder-label-font-size)) * 0.45
+    );
+}
+label{
+    vertical-align:middle;
+}
+
+.floatRight {
+    float: right
+}
+
+.floatLeft {
+    float: left
+}
+
+.borderRadius {
+    border-radius: var(--radius-lg);
+}
+
+/*.gnrfield.tag_div{
+    padding-top:2px;
+}*/
+
+.gnrfieldlabel.gnrzoomlabel{
+    /*padding-left: 15px;*/
+    cursor: pointer;
+}
+.gnrzoomlabel{
+    display: inline-flex;
+}
+
+.gnrzoomicon{
+    width:15px;
+}
+.gnrzoomlabel:hover .gnrzoomicon{
+    background: transparent var(--icon-link-arrow) no-repeat center center;
+}
+
+/* @group loading classes */
+
+/*topLabelTable css for toplabel forbuilders*/
+
+.topLabelTable {
+    border-spacing: 0px;
+    border-collapse: collapse;
+    border-width:0px;
+    width:100%;
+    border-top: var(--topLabelTable-border-top, none);
+    background: var(--topLabelTable-background, transparent);
+    color: var(--topLabelTable-color, inherit);
+}
+
+.topLabelTable td{
+    border-right: 1px solid var(--topLabelTable-separator, silver);
+    padding-top: var(--topLabelTable-td-padding-y);
+    padding-bottom: var(--topLabelTable-td-padding-y);
+    min-width:5em;
+    text-align:right;
+    padding-right: var(--topLabelTable-td-padding-right);
+}
+
+.topLabelTable td:last-child{
+    border-right:0px;
+}
+
+.topLabelTable td.gnrfieldlabel{
+    border-bottom:1px solid var(--border-color);
+    font-size: var(--topLabelTable-label-font-size);
+    font-weight: var(--topLabelTable-label-font-weight);
+    text-align:center;
+}
+/*topLabelTable css for toplabel forbuilders*/
+
+.loadingForm .gnrfield input {
+    opacity: .3;
+}
+
+.loadingForm .dojoxGrid-content {
+    opacity: .3;
+}
+
+.loadingForm textarea {
+    color: transparent;
+}
+
+.loadingForm gnrfield >div {
+    opacity: .3;
+}
+
+.formHider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: var(--z-overlay);
+    opacity: .3;
+    background: var(--surface-bg);
+}
+
+.hiderLayer{
+    position: absolute;
+    inset: 0;
+    z-index: 399;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.55);
+}
+
+.hiderLayer.hiderLocked{
+    cursor: not-allowed;
+}
+
+.hiderMessage{
+    text-align: center;
+    font-size: 2em;
+    font-weight: 600;
+    color: var(--gray-200);
+    background: rgba(255,255,255,0.75);
+    padding: 0.4em 1.2em;
+    border-radius: var(--radius-pill, 9999px);
+}
+.hiderMessage:has(.waiting){
+    background: none;
+    padding: 0;
+    border-radius: 0;
+}
+
+/* @end */
+
+/* @end */
+
+/* @group Form Builder */
+
+table.formbuilder {
+    border-collapse: separate;
+    border-spacing: var(--formbuilder-spacing);
+}
+
+table.formbuilder td.gnrfield {
+    flex: 1;
+}
+
+
+/* @end */
+
+/* @group Localizer */
+
+.localizer_hidden {
+    display: none;
+}
+
+.localizer_ok {
+    background: var(--icon-flag-green) no-repeat center center;
+    height: 100%;
+    width: 18px;
+    display: block;
+    float: right;
+    margin-right: 5px;
+}
+
+.localizer_missingLoc {
+    background: var(--icon-flag-red) no-repeat center center;
+    height: 100%;
+    width: 18px;
+    display: block;
+    float: right;
+    margin-right: 5px;
+}
+
+/* localizationTable: consolidated with bagAttributesTable in 07_gnr_components.css */
+
+/* @end */
+
+/* --- Dialog message box (from theme_shared) --- */
+.dlg_msgbox {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    bottom: 5px;
+    right: 5px;
+    border: 0px;
+    background-color: rgba(170, 190, 201, 0.2);
+    text-align: center;
+    vertical-align: middle;
+    font-size: 1em;
+    padding-top: 2em;
+    border-radius: var(--radius-sm);
+}

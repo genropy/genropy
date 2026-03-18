@@ -1,0 +1,496 @@
+/* ==========================================================================
+   13_gnr_tree_treegrid.css — SQL descriptor, tree branches, treeGrid layout
+   ========================================================================== */
+
+/* --- SQL Descriptor HTML --- */
+.sqlcol{
+	font-weight: bold;
+}
+.sqlop{
+    font-style: italic;
+}
+
+.sqlvalue{
+	background: var(--surface-bg);
+    border:1px solid var(--border-color);
+    padding-left: 4px;
+    padding-right: 4px;
+}
+
+.slqnested{
+	margin-left: 1.8em;
+}
+
+/* --- Tree branch expando (CSS arrows) --- */
+.tinyCloseBranch{
+    background: none;
+    position: relative;
+    padding-right: 12px;
+}
+.tinyCloseBranch::after{
+    content: '';
+    display: inline-block;
+    position: absolute;
+    right: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+    border-style: solid;
+    border-width: 4px 0 4px 5px;
+    border-color: transparent transparent transparent var(--text-muted);
+}
+.tinyOpenBranch{
+    background: none;
+    position: relative;
+    padding-right: 12px;
+}
+.tinyOpenBranch::after{
+    content: '';
+    display: inline-block;
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    border-style: solid;
+    border-width: 5px 4px 0 4px;
+    border-color: var(--text-muted) transparent transparent transparent;
+}
+.tunerUp{
+    background: var(--icon-tuner-up) no-repeat center center;
+}
+.tunerDown{
+    background: var(--icon-tuner-down) no-repeat center center;
+}
+
+/* --- Hide Dojo expando in tiny trees (they use tinyCloseBranch/tinyOpenBranch instead) --- */
+.tinytree .dijitTreeExpando {
+    display: none;
+}
+
+/* --- Tiny tree --- */
+
+.tinytree .dijitTreeIcon{
+    padding-right: 0;
+    width: 0.7em;
+}
+.tinytree .mainfolder{
+    font-variant: small-caps;
+    font-size: 15px;
+    font-weight: bold;
+    color:var(--text-secondary);
+}
+.tinytree .foldernode{
+    font-variant: small-caps;
+    font-size: 13px;
+    color:var(--text-secondary);
+    font-weight: bold;
+}
+
+._common_d11 .tinytree .dijitTreeNode{
+    background: none;
+    margin-left: 0.75em;
+}
+._common_d11 .tinytree .dijitTreeContent{
+    font-size: 11px;
+    padding-top: 0;
+    min-height: 0;
+    margin-left: 0;
+    padding-left: 0;
+}
+
+._common_d11 .tinytree .dijitTreeIsRoot.dijitTreeNode{
+    margin-left: 0;
+}
+
+/* --- TreeGrid layout --- */
+.treeGridLayout{
+    position:absolute;
+    top:0;
+    bottom:0;
+    right:0;
+    left:0;
+    color:var(--text-muted);
+    overflow: hidden;
+}
+.treeGridHeader{
+    position:absolute;
+    top:0;
+    left:0;
+    right:0;
+}
+.treeGridFooter{
+    position:absolute;
+    bottom:0;
+    left:0;
+    right:0;
+}
+.treeGridCenter{
+    position:absolute;
+    left:0;
+    right:0;
+    overflow:auto;
+    border-bottom: 1px solid var(--border-color);
+}
+.treeGridScroller{
+    position: absolute;
+    height:16px;
+    bottom:0;
+    left:0;
+    right:0;
+    overflow: hidden;
+}
+
+.treeGridLayout .treecell{
+    border-bottom: 1px solid var(--border-color);
+    border-left: 1px solid var(--border-color);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.5em;
+}
+
+.treeGridCenter .selectedTreeNode .treecell{
+    font-weight: normal;
+    background-color: var(--grid-row-selected-bg);
+}
+
+.treeGridLayout .treecell:last-child{
+    border-right:1px solid var(--border-color);
+}
+.treeGridLayout .maincell.treecell{
+    flex: 1;
+    min-width: 0;
+}
+.treeGridLayout .treegrid .maincell.treecell{
+    border-left: 1px solid transparent;
+}
+
+.treeGridLayout .treeGridHeader .treecell{
+    border-bottom: 0;
+    border-left: 1px solid var(--border-color);
+    background: var(--treegrid-header-bg);
+    color: var(--treegrid-header-color);
+    white-space: nowrap;
+    text-align: center;
+    padding: 0.15em 0;
+    line-height: 1.3;
+}
+.treeGridLayout .treeGridFooter .treecell{
+    border-bottom: 0;
+    border-left: 1px solid var(--border-color);
+    background: var(--treegrid-footer-bg);
+    color: var(--treegrid-footer-color);
+    padding: 0.15em 0;
+    white-space: nowrap;
+    line-height: 1.3;
+}
+
+.treeGridLayout .treeGridHeader .treecell:last-child{
+    border-right:1px solid var(--border-color);
+}
+
+.treeCellContent{
+    padding-left: 0.25em;
+    padding-right: 0.35em;
+}
+
+.treegrid .dijitTreeContent{
+    position: relative;
+    height: 1.5em;
+    line-height: 1.5em;
+    padding-top: 0;
+    padding-bottom: 0;
+    overflow: hidden;
+}
+
+.treegrid .dijitTreeLabel{
+    display: inline-block;
+    position: absolute;
+    right: 0;
+    top:0;
+    bottom:0;
+    left: 0;
+}
+.treeHeaderRow{
+    position: absolute;
+    top: 0;
+    right: 2px;
+    left: 1px;
+}
+
+/* All treerows in treegrid layout use flexbox */
+.treeGridLayout .treerow{
+    display: flex;
+    align-items: stretch;
+    overflow: hidden;
+}
+
+/* Body treerow: absolutely positioned inside dijitTreeLabel */
+.treegrid .treerow{
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    bottom: -1px;
+}
+.treeGridLayout .treerow_columns{
+    display: flex;
+    min-width: 100%;
+}
+.treeGridLayout .treerow_columns > .treecell:last-child{
+    flex: 1;
+}
+.treerow_viewport{
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+/* --- GroupBy tree --- */
+.groupby_tree .dijitTreeContainer .treecell  {
+    color:var(--text-color);
+    font-style: italic;
+}
+.groupby_tree .treerow_folder .treecell  {
+    color:var(--text-color);
+    font-style: normal;
+}
+.groupby_tree .treerow_folder.treerow_level_0 .treecell  {
+    background-color: var(--treegrid-groupby-folder-bg);
+    color: var(--text-color);
+}
+.groupby_tree .treerow_folder.treerow_level_1 .treecell  {
+    color: var(--treegrid-groupby-level-color);
+}
+.groupby_tree .treerow_folder:is(.treerow_level_2, .treerow_level_3, .treerow_level_4) .treecell  {
+    color: var(--treegrid-groupby-level-color);
+}
+
+.groupby_tree.treeGridLayout .treeGridHeader .treecell{
+    background: none;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-color);
+    background: var(--surface-light);
+}
+
+/* --- TreeGrid checkbox --- */
+.treegridcheckbox .treegrid .dijitTreeLabel{
+    left: 1.4em;
+}
+.treegridcheckbox .treerow_header{
+    margin-left: 1.4em;
+}
+
+/* --- TreeGrid inside treeGridCenter --- */
+.treeGridCenter .treegrid .dijitTreeLabel {
+    padding-left: 0;
+}
+.treegridcheckbox .treeGridCenter .treegrid .dijitTreeContent {
+    margin-left: 2em;
+}
+
+.tree_captionvalue{
+    border: 1px solid var(--border-color);
+    display: inline-block;
+}
+.tree_captionvalue_label{
+    background-color: var(--border-light);
+    width:150px;
+    display: inline-block;
+}
+.tree_captionvalue_value{
+    width:250px;
+    display: inline-block;
+}
+
+/* --- Picker checkbox tree (moved from 01_gnr_variables) --- */
+.pickerCheckboxTree .dijitTreeContent {
+    min-height: 0;
+    padding-bottom: 2px;
+    padding-top: 0;
+    margin-left: 0px;
+    white-space: nowrap;
+    font-size: .9em;
+}
+.pickerCheckboxTree .dijitTreeLabel {
+    display: inline-block;
+    white-space: nowrap;
+    font-size: .9em;
+}
+
+/* --- Menu tree (from theme_shared) --- */
+.menu_page > a {
+    color: var(--text-on-dark);
+    text-decoration: none;
+}
+.menu_page > a:hover {
+    text-decoration: underline;
+}
+
+/* --- Tree Popup Dialog (.menupane) ---
+   Degenerate menus that contain trees instead of menu items.
+   Used for field selectors, hdbselect, comboMenu popups.
+   Behaves like a tooltipDialog, not a real menu. */
+
+.menupane {
+    background-color: var(--surface-bg);
+    border-radius: var(--radius-md);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08);
+    border: 1px solid var(--border-color);
+    padding: 0;
+}
+
+/* Neutralize dijitMenu table layout inside menupane */
+.menupane .dijitMenuItemIcon {
+    display: none;
+}
+.menupane .dijitMenuItem td {
+    padding: 0;
+}
+.menupane .dijitMenuItemHover {
+    background-color: transparent;
+}
+
+/* Colormenu variant */
+.menupane.colormenu .dijitMenuExpandEnabled {
+    width: 2px;
+    background: none;
+}
+
+/* Tree node hover & selection inside menupane */
+.menupane .dijitTreeContent:hover {
+    background-color: var(--menu-item-hover-bg, rgba(0,0,0,0.10));
+    border-radius: var(--radius-sm);
+}
+
+.menupane .selectedFieldTreeNode,
+.menupane .selectedTreeNode {
+    color: var(--accent-color);
+    border-bottom: 2px solid var(--accent-color);
+    font-weight: bold;
+}
+
+/* --- Tree inside menu popup (.menutree) --- */
+.menutree {
+    margin-top: 0.3em;
+    margin-right: 0.2em;
+}
+.menutree .dijitTreeContent {
+    margin-left: 0;
+    min-height: 10px;
+    padding-bottom: 4px;
+    padding-top: 0;
+}
+.mode_mobile .menutree .dijitTreeContent {
+    margin-left: 0;
+    min-height: 10px;
+    padding-bottom: 0;
+    padding-top: 0;
+}
+.menutree .menu_shape {
+    padding-top: 6px;
+    line-height: 11px;
+    margin-right: 8px;
+    margin-top: 0;
+    color: var(--text-color);
+    padding-bottom: 4px;
+}
+.menutree .menu_shape.branchPage {
+    font-style: italic;
+}
+
+.open_pages_branch.menu_shape {
+    background: var(--treegrid-open-pages-bg);
+}
+
+.mode_mobile .menutree {
+    margin: var(--menutree-mobile-margin);
+}
+.mode_mobile .menutree .menu_shape {
+    border-radius: var(--radius-sm);
+    margin-left: 0;
+    font-size: var(--menutree-mobile-font-size);
+    background: none;
+    padding: 0;
+    line-height: var(--menutree-mobile-line-height);
+    color: var(--text-on-dark);
+}
+.plugin_mobile_footer {
+    background: var(--border-light);
+}
+
+.mode_mobile .menutree .menu_existing_page.menu_shape {
+    padding: 0.2em 0;
+}
+.mode_mobile .menutree .menu_shape.menu_level_1 {
+    font-size: var(--menutree-mobile-font-size-l1);
+    line-height: var(--menutree-mobile-line-height);
+}
+
+/* @group mobile menutree branch icons — CSS triangles with currentColor */
+.mode_mobile .menutree .label_opendir,
+.mode_mobile .menutree .label_closedir {
+    background: none;
+    padding-left: 1em;
+    position: relative;
+}
+.mode_mobile .menutree .label_opendir::before {
+    content: '';
+    display: block;
+    position: absolute;
+    left: 0.25em;
+    top: 50%;
+    transform: translateY(-50%);
+    border-style: solid;
+    border-width: 0.35em 0.25em 0 0.25em;
+    border-color: currentColor transparent transparent transparent;
+}
+.mode_mobile .menutree .label_closedir::before {
+    content: '';
+    display: block;
+    position: absolute;
+    left: 0.25em;
+    top: 50%;
+    transform: translateY(-50%);
+    border-style: solid;
+    border-width: 0.25em 0 0.25em 0.35em;
+    border-color: transparent transparent transparent currentColor;
+}
+.mode_mobile .menutree.menutree_branchiconright .label_opendir,
+.mode_mobile .menutree.menutree_branchiconright .label_closedir {
+    padding-left: 0;
+}
+.mode_mobile .menutree.menutree_branchiconright .label_opendir::before,
+.mode_mobile .menutree.menutree_branchiconright .label_closedir::before {
+    display: none;
+}
+/* @end */
+
+.menutree .menu_current_page {
+    color: var(--text-color);
+}
+.menutree .menu_existing_page.menu_shape {
+    font-weight: bold;
+    padding: 0.3em 0;
+}
+.mode_mobile .menutree .menu_existing_page.menu_shape {
+    font-weight: normal;
+    padding: 0;
+}
+.menutree .menu_shape.menu_level_2.addTableItem {
+    font-style: italic;
+}
+
+/* @group menutreeSelected — shared across themes */
+.menutree .menu_shape.menutreeSelected {
+    color: var(--menutree-selected-color);
+    font-weight: var(--menutree-selected-weight, 600);
+}
+.mode_mobile .menutree .menu_shape.menutreeSelected {
+    color: var(--menutree-mobile-selected-color);
+}
+.menu_branch.menu_shape.menutreeSelected {
+    color: var(--menutree-branch-selected-color);
+}
+.mode_mobile .menu_branch.menu_shape.menutreeSelected {
+    color: var(--menutree-mobile-branch-selected-color);
+}
+/* @end */

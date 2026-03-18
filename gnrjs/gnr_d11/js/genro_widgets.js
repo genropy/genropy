@@ -1042,8 +1042,8 @@ dojo.declare("gnr.widgets.iframe", gnr.widgets.baseHtml, {
         var parsedSrc = parseURL(src);
         var loadingpath;
         if(parsedSrc.file && parsedSrc.file.split('.')[1] && this._default_ext.indexOf(parsedSrc.file.split('.')[1].toLowerCase())<0){
-            loadingpath = document.location.protocol + '//' + document.location.host +'/_gnr/11/css/icons/download_file.png';
-            domnode.contentWindow.document.body.innerHTML = '<a href="'+src+'"><div style="height:100%;width:100%;background:#F6F6F6 url('+loadingpath+') no-repeat center center;"></div></a>'; 
+            loadingpath = getComputedStyle(document.documentElement).getPropertyValue('--icon-download-file').trim().slice(4, -1).replace(/["']/g, '');
+            domnode.contentWindow.document.body.innerHTML = '<a href="'+src+'"><div style="height:100%;width:100%;background:#F6F6F6 url('+loadingpath+') no-repeat center center;background-size:64px 64px;"></div></a>'; 
             return false;
         }else if(!parsedSrc.file){
             domnode.src = '';
@@ -1370,24 +1370,25 @@ dojo.declare("gnr.widgets.baseDojo", gnr.widgets.baseHtml, {
             validateresult = sourceNode.validationsOnChange(sourceNode, value);
             value = validateresult['value'];
             objectExtract(valueAttr, '_validation*');
-            var formHandler = sourceNode.getFormHandler();
-            var fldname = sourceNode.attr._valuelabel || datanode.attr.name_long || datanode.label;
+            let formHandler = sourceNode.getFormHandler();
+            let fldname = (sourceNode.getElementLabel() || '').trim();
             if (validateresult['error']) {
                 valueAttr._validationError = validateresult['error'];
-                if(validateresult.error && formHandler){
-                    formHandler.publish('message',{message:fldname+': '+validateresult.error,sound:'$onerror',messageType:'error'});
+                let resolvedErr = fldname + ': ' + sourceNode._resolveErrorMessage(validateresult.error);
+                if(formHandler){
+                    formHandler.publish('message',{message:resolvedErr,sound:'$onerror',messageType:'error'});
                 }else{
-                    genro.publish('floating_message',{message:fldname+': '+validateresult.error,sound:'$onerror',messageType:'error'});
-                    return
+                    genro.publish('floating_message',{message:resolvedErr,sound:'$onerror',messageType:'error'});
+                    return;
                 }
             }
             if (validateresult['warnings'].length) {
-                if(validateresult.warnings && formHandler){
-                    formHandler.publish('message',{message:fldname+': '+validateresult.warnings.join(','),sound:'$onwarning',messageType:'warning',font_size:'1.1em',font_weight:'bold'});
+                if(formHandler){
+                    let resolvedWarn = fldname + ': ' + sourceNode._resolveErrorMessage(validateresult.warnings.join(','));
+                    formHandler.publish('message',{message:resolvedWarn,sound:'$onwarning',messageType:'warning'});
                 }
                 valueAttr._validationWarnings = validateresult['warnings'];
             }
-
         }
 
         
@@ -1686,14 +1687,7 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
     
     
     created:function(widget, savedAttrs, sourceNode) {
-        if (dojo_version == '1.5') {
-            var position = sourceNode.attr.position;
-            if (position) {
-                position = position.split(',');
-                widget._relativePosition = {x:position[0],y:position[1]};
-            }
-        }
-        if (dojo_version == '1.1') {
+        if (dojo_version == '1.1' || dojo_version == '2.0') {
             var startZindex = 800;
             if(sourceNode.attr.noModal){
                 startZindex = 500;
@@ -2196,15 +2190,12 @@ dojo.declare("gnr.widgets.TabContainer", gnr.widgets.StackContainer, {
 });
 dojo.declare("gnr.widgets.BorderContainer", gnr.widgets.baseDojo, {
     creating: function(attributes, sourceNode) {
-        if (dojo_version != '1.1') {
-            attributes.gutters = attributes.gutters || false;
-        }
         this.setControllerTitle(attributes, sourceNode);
     },
     created: function(widget, savedAttrs, sourceNode) {
         widget._saved_size = {};
         dojo.connect(widget, 'startup', dojo.hitch(this, 'afterStartup', widget));
-        if (dojo_version == '1.1') {
+        if (dojo_version == '1.1' || dojo_version == '2.0') {
             dojo.connect(widget, 'addChild', dojo.hitch(this, 'onAddChild', widget));
             dojo.connect(widget, 'removeChild', dojo.hitch(this, 'onRemoveChild', widget));
         }
@@ -2317,15 +2308,13 @@ dojo.declare("gnr.widgets.BorderContainer", gnr.widgets.baseDojo, {
 
     afterStartup:function(widget) {
         var sourceNode = widget.sourceNode;
-        if (dojo_version != '1.7') {
-            widget._splitterConnections = {};
-            var region,splitter;
-            for (region in widget._splitters) {
-                if (!widget._splitterConnections[region]) {
-                    //splitter=widget.getSplitter(region);
-                    splitter = dijit.byNode(widget._splitters[region]);
-                    widget._splitterConnections[region] = dojo.connect(splitter, '_stopDrag', dojo.hitch(this, 'onSplitterStopDrag', widget, splitter));
-                }
+        widget._splitterConnections = {};
+        var region,splitter;
+        for (region in widget._splitters) {
+            if (!widget._splitterConnections[region]) {
+                //splitter=widget.getSplitter(region);
+                splitter = dijit.byNode(widget._splitters[region]);
+                widget._splitterConnections[region] = dojo.connect(splitter, '_stopDrag', dojo.hitch(this, 'onSplitterStopDrag', widget, splitter));
             }
         }
         if (sourceNode.attr.regions) {
@@ -3182,7 +3171,7 @@ dojo.declare("gnr.widgets.Tooltip", gnr.widgets.baseDojo, {
    //},
 
     attributes_mixin_postCreate: function() {
-        if (dojo_version == '1.1') {
+        if (dojo_version == '1.1' || dojo_version == '2.0') {
             if (this.srcNodeRef) {
                 this.srcNodeRef.style.display = "none";
             }
@@ -3204,11 +3193,8 @@ dojo.declare("gnr.widgets.Tooltip", gnr.widgets.baseDojo, {
     mixin_connectOneNode:function(node) {
         this._connectNodes.push(node);
         var eventlist;
-        if (dojo_version == '1.1') {
+        if (dojo_version == '1.1' || dojo_version == '2.0') {
             eventlist = ["onMouseOver", "onMouseOut", "onFocus", "onBlur", "onHover", "onUnHover"];
-        }
-        else if (dojo_version == '1.5') {
-            eventlist = ["onTargetMouseEnter", "onTargetMouseLeave", "onTargetFocus", "onTargetBlur", "onHover", "onUnHover"];
         }
         else {
             eventlist = ["onMouseEnter", "onMouseLeave", "onFocus", "onBlur"];
@@ -3827,6 +3813,14 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
 
     patch_parse:function(value,constraints){
         if(value && !this._focused){
+            // Check if the displayed value matches the formatted current value (no change case)
+            let latestValue = this.sourceNode.getRelativeData(this.sourceNode.attr.value);
+            if(latestValue instanceof Date && !isNaN(latestValue)){
+                let formattedLatest = dojo.date.locale.format(latestValue, constraints);
+                if(formattedLatest === value){
+                    return latestValue; // No change, return existing value
+                }
+            }
             var r,y;
             var info = dojo.date.locale._parseInfo(constraints);
             var tokens = info.tokens;
@@ -3839,6 +3833,7 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
 
             if(match){
                 datesplit[0] = match[1]+'/'+match[2]+'/'+match[3];
+                value = datesplit.join(' ');
                 doSetValue = canSetValue;
             }
             var re = new RegExp("^" + info.regexp + "$");
@@ -3895,6 +3890,12 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
                     hours = 0;
                     minutes = 0;
                     seconds =0;
+                    if(latestValue instanceof Date && !isNaN(latestValue)){
+                        // preserve the old time value
+                        hours = latestValue.getHours();
+                        minutes = latestValue.getMinutes();
+                        seconds = latestValue.getSeconds();
+                    }
                 }
                 if(y<100){
                     var pivotYear ='pivotYear' in this.sourceNode.attr?this.sourceNode.attr.pivotYear:20;
@@ -3903,8 +3904,7 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
                     var cutoff = Math.min(Number(year.substring(2, 4)) + pivotYear, 99);
                     y = (y < cutoff) ? century + y : century - 100 + y;
                 }
-                r = new Date(y,m,d,hours,minutes,seconds);  
-                let latestValue = this.sourceNode.getRelativeData(this.sourceNode.attr.value);
+                r = new Date(y,m,d,hours,minutes,seconds);
                 if(doSetValue && !isEqual(r,latestValue)){
                     setTimeout(function(){
                         r._gnrdtype = that.gnr._dtype;
@@ -5163,7 +5163,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
             crop = objectUpdate({text_align:'center',overflow:'hidden'},crop);
             var innerImage=objectExtract(attr,'src,src_back,placeholder,height,width,edit,upload_maxsize,upload_folder,upload_filename,upload_ext,zoomWindow,format,mask,border,takePicture,nodeId,capture');
             if (innerImage.placeholder===true){
-                innerImage.placeholder = '/_gnr/11/css/icons/placeholder_img_dflt.png'
+                innerImage.placeholder = getComputedStyle(document.documentElement).getPropertyValue('--icon-placeholder-img').trim().slice(4, -1).replace(/["']/g, '')
             }
             innerImage.cr_width=crop.width;
             innerImage.cr_height=crop.height;
@@ -5291,8 +5291,8 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
         });
     },
     uploadOptionsDialog:function(sourceNode,uploadCb,takePictureDialog,cropkw){
-        var dlg = genro.dlg.quickDialog(_T('Upload options'),{_showParent:true,width:'280px',closable:true});
-        dlg.center._('div',{innerHTML:_T('Choose upload option'), text_align:'center',_class:'alertBodyMessage'});
+        var dlg = genro.dlg.quickDialog(_T('Upload options'),{_showParent:true,width:'18em',closable:true});
+        dlg.center._('div',{innerHTML:_T('Choose upload option'),_class:'alertBodyMessage'});
         this.loadCroppie();
         let src = sourceNode.getAttributeFromDatasource('src');
 

@@ -33,10 +33,11 @@ class GnrCustomWebPage(object):
         "Basic treegrid with directories, with styles"
         resolver= DirectoryResolver('/users')
         pane.data('.root.genropy',resolver())
-        bc = pane.borderContainer(height='300px',width='600px')
-        tg = bc.contentPane(region='center').treeGrid(storepath='.root.genropy',headers=True)
+        bc = pane.borderContainer(height='300px',width='800px')
+        bc.contentPane(region='right',width='50px',splitter=True,background='lime')
+        tg = bc.contentPane(region='center',border='1px solid silver').treeGrid(storepath='.root.genropy',headers=True)
         tg.column('nodecaption',header='Name')
-        tg.column('file_ext',size=50,header='Ext')
+        tg.column('file_ext',size=80,header='Ext')
         tg.column('size',size=50,header='Size',dtype='L')
 
     def test_3_treegrid(self,pane):
