@@ -27,13 +27,21 @@ import os.path
 import _thread
 import uuid
 import base64
+import hashlib
+import linecache
+import json
+import inspect
 from types import MethodType
 from io import IOBase
 from functools import total_ordering
 from chardet.universaldetector import UniversalDetector
 
 from gnr.core import logger
+from gnr.core.gnrstring import toText
+from gnr.core.gnrstructures import GnrStructData
+from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import extract_kwargs # keep for compatibility
+from gnr.utils.gnrmail import sendmail
 
 try:
     file_types = (file, IOBase)
@@ -72,10 +80,6 @@ def _is_library_frame(filename):
     return False
 
 def tracebackBag(limit=None, full_stack=False):
-    import hashlib
-    import linecache
-    from gnr.core.gnrstructures import GnrStructData
-    from gnr.core.gnrbag import Bag
     result = Bag()
     if limit is None:
         if hasattr(sys, 'tracebacklimit'):
@@ -116,7 +120,7 @@ def tracebackBag(limit=None, full_stack=False):
                 elif isinstance(v,Bag):
                     v = '*BAG*'
                 elif isinstance(v,(dict,list,tuple)):
-                    import json
+
                     json.dumps(v)
                 loc[k] = v
             except Exception:
@@ -335,7 +339,6 @@ class GnrException(Exception):
 
     def __init__(self, description=None, localizer=None,**kwargs):
         if not description:
-            import inspect
             st = inspect.stack()
             description = "%s:%i"%(st[1][1],st[1][2])
         self.description = description
@@ -718,7 +721,7 @@ def errorTxt():
     locals_list = []
     for k, v in list(e.tb_frame.f_locals.items()):
         try:
-            from gnr.core.gnrstring import toText
+
             strvalue = toText(v)
         except:
             strvalue = 'unicode error'
@@ -734,7 +737,7 @@ def errorLog(proc_name, host=None, from_address='', to_address=None, user=None, 
     :param to_address: the email receiver
     :param user: the username
     :param password: the username's password"""
-    from gnr.utils.gnrmail import sendmail
+
 
     ts = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S: ')
     title = '%s - Error in %s' % (ts, proc_name)
