@@ -243,8 +243,6 @@
     /* --- Formlet (grid-layout forms) --- */
     --formlet-gap: 7px 20px;
     --formlet-padding: 7px;
-    --formlet-field-border: var(--form-field-border);
-    --formlet-field-bg: var(--form-field-bg);
     --formlet-field-border-width: var(--form-field-border-width);
     --formlet-field-radius: var(--form-field-radius);
     --formlet-field-padding-y: 0.3em;
