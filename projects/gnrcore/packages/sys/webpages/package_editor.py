@@ -11,8 +11,11 @@ import os
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrApp
-from gnr.app.gnrdeploy import ProjectMaker, InstanceMaker
-from gnr.app.gnrdeploy import PackageMaker, PathResolver, ThPackageResourceMaker
+from gnr.app.pathresolver import  PathResolver
+from gnr.dev.makers.project import ProjectMaker
+from gnr.dev.makers.instance import InstanceMaker
+from gnr.dev.makers.package import PackageMaker
+from gnr.dev.makers.resource import  ThPackageResourceMaker
 
 class GnrCustomWebPage(object):
     py_requires="""public:Public,

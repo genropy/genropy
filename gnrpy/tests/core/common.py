@@ -7,8 +7,8 @@ import tempfile
 import shutil
 import random
 
-from gnr.app.gnrdeploy import InstanceMaker
 import gnr.app.gnrapp as ga
+from gnr.dev.makers.instance import InstanceMaker
 
 class BaseGnrTest:
     """
