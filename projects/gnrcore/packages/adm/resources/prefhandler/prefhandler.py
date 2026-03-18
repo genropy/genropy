@@ -80,7 +80,7 @@ class AppPrefHandler(BasePreferenceTabs):
     @struct_method
     def ph_appPreferencesForm(self, parent, datapath=None, **kwargs):
         form = parent.frameForm(frameCode='app_preferences',
-                                store_startKey='_mainpref_',
+                                #store_startKey='_mainpref_',
                                 table='adm.preference', datapath=datapath,
                                 store=True, modal=True, **kwargs)
         form.dataController("""
