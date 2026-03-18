@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 # encoding: utf-8
-import logging
 
 from gnr.app.gnrdbo import GnrDboTable, GnrDboPackage
-
-logger = logging.getLogger('gnr.pkg.sys')
+from gnr.app import pkglog as logger
 
 class Package(GnrDboPackage):
     def config_attributes(self):
