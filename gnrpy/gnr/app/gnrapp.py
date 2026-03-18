@@ -42,7 +42,8 @@ from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlocale import defaultLocale
 from gnr.core.gnrdecorator import extract_kwargs, deprecated
-from gnr.core.gnrlang import  objectExtract,gnrImport, instanceMixin, GnrException, tracebackBag
+from gnr.core.gnrlang import  objectExtract,gnrImport, instanceMixin, GnrException
+from gnr.core.gnrlog import tracebackBag
 from gnr.core.gnrstring import makeSet, toText, splitAndStrip, like, boolean
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrconfig import getGnrConfig
