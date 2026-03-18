@@ -1,3 +1,10 @@
+Release 26.03.18
+================
+
+This is a bugfix release to address a regression on the task scheduler
+time computing, introduced with the tz-aware timestamp in the relative model.
+
+
 Release 26.03.09
 ================
 
