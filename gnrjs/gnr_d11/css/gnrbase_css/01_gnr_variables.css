@@ -264,7 +264,51 @@
     --status-warning: var(--color-warning); /* @theme */
     --status-idle: var(--gray-300); /* @theme */
 
-    /* --- Toaster --- */
+    /* --- Toast (gnr-toast notification cards) --- */
+    --toast-container-gap: 8px;
+    --toast-container-top: 16px;
+    --toast-container-right: 16px;
+    --toast-min-width: 300px;
+    --toast-max-width: 420px;
+    --toast-padding: 14px 16px;
+    --toast-gap: 10px;
+    --toast-border-width: 4px;
+    --toast-icon-size: 20px;
+    --toast-btn-size: 18px;
+    --toast-progress-height: 3px;
+
+    /* --- Traceback viewer (gnr-tb) --- */
+    --tb-font-size: 13px;
+    --tb-mono-font: "SF Mono", Menlo, monospace;
+    --tb-frame-border: var(--gray-200);
+    --tb-frame-border-open: var(--gray-300);
+    --tb-frame-border-error: #f87171;
+    --tb-frame-radius: 8px;
+    --tb-summary-bg: #fafbfc;
+    --tb-summary-hover: #f0f4f8;
+    --tb-num-bg: var(--gray-200);
+    --tb-num-color: #666;
+    --tb-num-error-bg: #fee2e2;
+    --tb-module-color: var(--accent-color);
+    --tb-func-color: #7c3aed;
+    --tb-muted-color: #999;
+    --tb-hash-color: #9ca3af;
+    --tb-hash-bg: var(--gray-100);
+    --tb-locals-badge-bg: #dbeafe;
+    --tb-locals-hdr-bg: #f8fafc;
+    --tb-locals-th-bg: #f1f5f9;
+    --tb-code-bg: #1e293b;
+    --tb-code-color: #e2e8f0;
+    --tb-error-bg: #fef2f2;
+    --tb-error-color: #dc2626;
+    --tb-error-border: #fecaca;
+    --tb-btn-bg: #f8f9fa;
+    --tb-btn-border: #ddd;
+    --tb-btn-color: #555;
+    --tb-btn-hover-bg: #e9ecef;
+    --tb-btn-hover-border: #ccc;
+
+    /* --- Toaster (legacy dojox.widget.Toaster) --- */
     --toaster-success-bg: #70BF73; /* @theme — color-success #4CAF50 80% + white */
     --toaster-error-bg: #8C2320;   /* @theme — color-error #E53935 60% + black */
     --toaster-warning-bg: #FFA726; /* @theme — color-warning #FF9800 85% + white */

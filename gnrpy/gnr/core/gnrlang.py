@@ -27,6 +27,10 @@ import os.path
 import _thread
 import uuid
 import base64
+import hashlib
+import linecache
+import json
+import inspect
 from types import MethodType
 from io import IOBase
 from functools import total_ordering
@@ -58,8 +62,20 @@ def getmixincount():
     _mixincount+=1
     return '%015i' %_mixincount
 
-def tracebackBag(limit=None):
-    import linecache
+def _is_library_frame(filename):
+    if filename.startswith('<'):
+        return True
+    _library_markers = (
+        os.sep + 'site-packages' + os.sep,
+        os.sep + 'lib' + os.sep + 'python',
+        os.sep + 'Lib' + os.sep,
+    )
+    for marker in _library_markers:
+        if marker in filename:
+            return True
+    return False
+
+def tracebackBag(limit=None, full_stack=False):
     from gnr.core.gnrstructures import GnrStructData
     from gnr.core.gnrbag import Bag
     result = Bag()
@@ -67,7 +83,10 @@ def tracebackBag(limit=None):
         if hasattr(sys, 'tracebacklimit'):
             limit = sys.tracebacklimit
     n = 0
+    hash_cache = {}
     tb = sys.exc_info()[2]
+    frames = []
+    last_own_idx = 0
     while tb is not None and (limit is None or n < limit):
         tb_bag = Bag()
         f = tb.tb_frame
@@ -79,12 +98,18 @@ def tracebackBag(limit=None):
         line = linecache.getline(filename, lineno)
         if line: line = line.strip()
         else: line = None
+        if filename not in hash_cache:
+            try:
+                with open(filename, 'rb') as fh:
+                    hash_cache[filename] = hashlib.sha256(fh.read()).hexdigest()[:12]
+            except Exception:
+                hash_cache[filename] = None
         tb_bag['module'] = os.path.basename(os.path.splitext(filename)[0])
         tb_bag['filename'] = filename
+        tb_bag['file_hash'] = hash_cache[filename]
         tb_bag['lineno'] = lineno
         tb_bag['name'] = name
         tb_bag['line'] = line
-        #tb_bag['locals'] = Bag(f.f_locals.items())
         loc = Bag()
         for k,v in list(f.f_locals.items()):
             try:
@@ -92,13 +117,23 @@ def tracebackBag(limit=None):
                     v = '*STRUCTURE*'
                 elif isinstance(v,Bag):
                     v = '*BAG*'
+                elif isinstance(v,(dict,list,tuple)):
+
+                    json.dumps(v)
                 loc[k] = v
             except Exception:
                 loc[k] = '*UNSERIALIZABLE* %s' %v.__class__
         tb_bag['locals'] = loc
+        label = '%s method %s line %s' % (tb_bag['module'], name, lineno)
+        frames.append((label, tb_bag, filename))
+        if not _is_library_frame(filename):
+            last_own_idx = n
         tb = tb.tb_next
         n = n + 1
-        result['%s method %s line %s' % (tb_bag['module'], name, lineno)] = tb_bag
+    if not full_stack:
+        frames = frames[:last_own_idx + 1]
+    for label, tb_bag, _filename in frames:
+        result[label] = tb_bag
     return Bag(root=result)
 
 
@@ -302,7 +337,6 @@ class GnrException(Exception):
 
     def __init__(self, description=None, localizer=None,**kwargs):
         if not description:
-            import inspect
             st = inspect.stack()
             description = "%s:%i"%(st[1][1],st[1][2])
         self.description = description
