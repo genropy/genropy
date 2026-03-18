@@ -159,6 +159,7 @@ packages = [
 	    'gnr.web.gnrwebpage_proxy.apphandler',
     	    'gnr.web.gnrwebpage_proxy.frontend',	
 	    'gnr.web.gnrwsgisite_proxy',
+	    'gnr.web.widgets',
 	    'gnr.xtnd',
 	    'gnr.xtnd.cli',
    	    'gnr.lib',
