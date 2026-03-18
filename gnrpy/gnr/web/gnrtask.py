@@ -24,7 +24,7 @@
 
 import os
 from psutil import pid_exists
-from datetime import datetime
+from datetime import datetime, timezone
 from time import sleep
 from random import randrange
 from gnr.core.gnrconfig import getGnrConfig
@@ -74,7 +74,7 @@ class GnrTaskScheduler(object):
             sleep(self.interval)
     
     def writeTaskExecutions(self):
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         logger.info("Checking for new tasks")
         task_to_schedule = self.tasktbl.findTasks()
         logger.debug("Found tasks to schedule: %s", task_to_schedule)
@@ -126,7 +126,7 @@ class GnrTaskWorker(object):
             if f:
                 rec = f[0]
                 oldrec = dict(rec)
-                rec['start_ts'] = datetime.now()
+                rec['start_ts'] = datetime.now(timezone.utc)
                 rec['pid'] = self.pid
                 self.tblobj.update(rec,oldrec)
                 self.db.commit()
@@ -138,7 +138,7 @@ class GnrTaskWorker(object):
         page._db = None
         page.db
         log_record = Bag()
-        start_time = datetime.now()
+        start_time = datetime.now(timezone.utc)
         log_record['start_time'] = start_time
         log_record['task_id'] =task_execution['id']
         table = task_execution['task_table']
@@ -168,7 +168,7 @@ class GnrTaskWorker(object):
                                                                     $task_command,
                                                                     $task_saved_query""") as task_execution:
                     self.runTask(task_execution)
-                    task_execution['end_ts'] = datetime.now()
+                    task_execution['end_ts'] = datetime.now(timezone.utc)
                 self.db.commit()
             self.db.closeConnection()
             sleep(randrange(self.interval-10,self.interval+10))
