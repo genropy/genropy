@@ -940,7 +940,6 @@ class DbModelSrc(GnrStructData):
                 if handler:
                     extKwargs = extKwargs if isinstance(extKwargs, dict) else {pkgExt: extKwargs}
                     handler(tblsrc, colname=name, colattr=result.attributes, **extKwargs)
-                    return result
 
         if localized:
             currpkgobj = self.root._dbmodel.db.application.packages[tblsrc.attributes['pkg']]

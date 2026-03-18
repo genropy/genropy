@@ -21,7 +21,7 @@ def send_to_paste_service(message):
             response = client_socket.recv(4096)  # Adjust buffer size as needed
             return response.decode('utf-8')
 
-    except (socket.timeout, ConnectionRefusedError) as e:
+    except (socket.timeout, ConnectionRefusedError):
         raise
 
 
@@ -32,7 +32,7 @@ def git_command(path, cmd):
                                 text=True,
                                 check=True)
         return result.stdout.strip()
-    except subprocess.CalledProcessError as e:
+    except subprocess.CalledProcessError:
         return None
     
 def main():

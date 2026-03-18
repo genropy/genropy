@@ -1,6 +1,6 @@
 import os
 from gnr.core.gnrbag import Bag
-from gnr.app.gnrdeploy import PathResolver
+from gnr.app.pathresolver import PathResolver
 from gnr.web.daemon.handler import GnrDaemon, GnrDaemonProxy
 from gnr.web.gnrwsgisite_proxy.gnrsiteregister import GnrSiteRegisterServer
 

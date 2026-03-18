@@ -888,7 +888,6 @@ class TableBase(object):
 
     def importerCheck(self,reader):
         importerStructure = self.importerStructure() or dict()
-        checkfields = importerStructure.get('fields')
         mandatories = importerStructure.get('mandatories')
         if not mandatories:
             return
@@ -1779,8 +1778,7 @@ class AttachmentTable(GnrDboTable):
         return not sn.exists
     
 
-    def onArchiveExport(self,records,files=None):
-        site = self.db.application.site
+    def onArchiveExport(self, records, files=None):
         for r in records:
             filepath = r['filepath']
             if  ':' not in filepath:

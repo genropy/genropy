@@ -147,6 +147,7 @@ packages = [
 	    'gnr.db.cli',
 	    'gnr.dev',
 	    'gnr.dev.cli',
+	    'gnr.dev.makers',
 	    'gnr.prj',
 	    'gnr.utils',
 	    'gnr.web.batch',

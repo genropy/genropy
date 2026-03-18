@@ -4,6 +4,7 @@ from datetime import datetime
 import os
 import atexit
 import re
+from multiprocessing import Process
 
 from werkzeug.serving import make_server, is_running_from_reloader
 from werkzeug._reloader import run_with_reloader
@@ -35,7 +36,7 @@ from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrconfig import getGnrConfig, gnrConfigPath
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
-from gnr.app.gnrdeploy import PathResolver
+from gnr.app.pathresolver import PathResolver
 from gnr.web.gnrwsgisite import GnrWsgiSite
 from gnr.web import logger
 from gnr.web.gnrwsgisite_proxy.gnrsiteregister import GnrSiteRegisterServer
@@ -398,9 +399,6 @@ class Server(object):
         self.serve()
 
     def start_sitedaemon(self):
-        from gnr.app.gnrdeploy import PathResolver
-        import os
-        from multiprocessing import Process
         path_resolver = PathResolver()
         siteconfig = path_resolver.get_siteconfig(self.site_name)
         daemonconfig = siteconfig.getAttr('gnrdaemon')

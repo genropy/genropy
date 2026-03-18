@@ -70,7 +70,7 @@
     /* --- Borders --- */
     --border-color: var(--gray-300); /* @theme */
     --border-light: var(--gray-150); /* @theme */
-    --border-strong: var(--gray-300); /* @theme */
+    --border-strong: var(--gray-400); /* @theme */
 
     /* --- Text --- */
     --text-color: var(--gray-900); /* @theme */
@@ -148,8 +148,8 @@
     --toolbar-height-lg: 2em;
     --toolbar-min-height: 2.3em;
     --toolbar-min-height-lg: 2.8em;
-    --toolbar-bg: var(--gray-200); /* @theme */
-    --toolbar-gradient: linear-gradient(to bottom, var(--gray-150), var(--gray-200)); /* @theme */
+    --toolbar-bg: var(--gray-300); /* @theme */
+    --toolbar-gradient: linear-gradient(to bottom, var(--gray-200), var(--gray-300)); /* @theme */
     --toolbar-color: var(--gray-900); /* @theme */
     --toolbar-dark-bg: var(--gray-600); /* @theme */
 
