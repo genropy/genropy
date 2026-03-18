@@ -211,9 +211,12 @@ class GroupletHandler(BaseComponent):
             formId = f'{frameCode}_grpform'
             grouplet_kwargs.update(resource='^#ANCHOR.selected_resource',
                                    value=value,
-                                   dynamicLocationPath=True, formId=formId,
+                                   dynamicLocationPath=True,
+                                   loadingGrouplet_locationpath='=#ANCHOR.grouplet_info.locationpath',
+                                   loadingGrouplet_onSaving='=#ANCHOR.grouplet_info.onSaving',
+                                   loadingGrouplet_onLoading='=#ANCHOR.grouplet_info.onLoading',
+                                   formId=formId,
                                    store_autoSave=1)
-            grouplet_kwargs['grouplet_remote_locationpath'] = '^#ANCHOR.selected_locationpath'
         else:
             formId = None
             grouplet_kwargs.update(resource='^#ANCHOR.selected_resource',
@@ -296,11 +299,14 @@ class GroupletHandler(BaseComponent):
             """,
             connect_onClick="""
                 if($2.item.attr.resource && $2.item.attr.grouplet_caption){
-                    SET .selected_locationpath = $2.item.attr.locationpath || null;
-                    SET .selected_caption = $2.item.attr.grouplet_caption;
-                    SET .selected_resource = $2.item.attr.resource;
+                    let itemInfo = $2.item.attr;
+                    PUT .grouplet_info = new gnr.GnrBag(itemInfo);
+                    PUT .selected_resource = itemInfo.resource;
+                    SET .selected_caption = itemInfo.grouplet_caption;
+                    SET .selected_fullpath = $2.item.getFullpath()
                 }
             """)
+        grouplet_kwargs['grouplet_remote__reloader'] = '^#ANCHOR.selected_fullpath'
         right = bc.borderContainer(region='center')
         top = right.contentPane(region='top',
                                 _class='grouplet_panel_title_bar')
@@ -319,7 +325,11 @@ class GroupletHandler(BaseComponent):
             """, titleId=title_id,
                 selectedResource='=.selected_resource',
                 **{f'subscribe_form_{formId}_onStatusChange': True})
-            right.dataController("genro.formById(innerFormId).reload()",
+            right.dataController("""
+                                 if(genro.formById(innerFormId).status!='noItem'){
+                                    genro.formById(innerFormId).reload()
+                                 }
+                                 """,
                                  innerFormId=formId,
                                  formsubscribe_onLoaded=True)
             center.GroupletForm(**grouplet_kwargs)
