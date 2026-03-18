@@ -267,9 +267,13 @@ class GroupletHandler(BaseComponent):
                 }
             """, barId=bar_id,
                 **{f'subscribe_form_{formId}_onStatusChange': True})
-            bar.dataController("genro.formById(innerFormId).reload()",
-                               innerFormId=formId,
-                               formsubscribe_onLoaded=True)
+            bar.dataController("""
+                                 if(genro.formById(innerFormId).status!='noItem'){
+                                    genro.formById(innerFormId).reload()
+                                 }
+                                 """,
+                                 innerFormId=formId,
+                                 formsubscribe_onLoaded=True)
             center.GroupletForm(**grouplet_kwargs)
         else:
             center.grouplet(**grouplet_kwargs)
@@ -379,6 +383,12 @@ class GroupletHandler(BaseComponent):
             item.div(mnode.attr.get('grouplet_caption'),
                      _class='wizard_caption')
         step_form_id = f'{frameCode}_step_form'
+        pane.dataController("""
+                                gnr_grouplet.wizardGoTo(this, 0,frameCode);
+                                 """,
+                                 innerFormId=step_form_id,
+                                 frameCode=frameCode,
+                                 formsubscribe_onLoaded=True)
         grouplet_kwargs.update(resource='^#ANCHOR.current_resource',
                            value=value,
                            loadOnBuilt=True, formId=step_form_id,
@@ -388,6 +398,7 @@ class GroupletHandler(BaseComponent):
             grouplet_kwargs['table'] = table
         if grouplets_root:
             grouplet_kwargs['grouplets_root'] = grouplets_root
+
         frame.center.contentPane(overflow='auto').GroupletForm(**grouplet_kwargs)
         bottom = frame.bottom.contentPane(_class='wizard_bottom_bar')
         bottom.lightButton('^.next_label',
