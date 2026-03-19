@@ -366,8 +366,9 @@
 /* --- Dialog bottom bar --- */
 .dialog_bottom {
     min-height: var(--toolbar-min-height);
-    border-top: 1px solid rgba(0,0,0,0.08);
-    padding: 0.5em 0.8em;
+    border-top: 1px solid var(--border-color);
+    padding-left:0.5em;
+    padding-right: 0.5em;
     border-bottom-left-radius: var(--radius-md);
     border-bottom-right-radius: var(--radius-md);
 }
