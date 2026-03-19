@@ -20,7 +20,9 @@ class TableHandlerForm(BaseComponent):
     def th_tableEditor(self,pane,frameCode=None,table=None,th_pkey=None,formResource=None,
                         formInIframe=False,dfltoption_kwargs=None,**kwargs):
         table = table or pane.attributes.get('table')
-        resourcePath = self._th_mixinResource(frameCode,table=table,resourceName=formResource,defaultClass='Form') 
+        resourcePath = self._th_mixinResource(frameCode,table=table,resourceName=formResource,defaultClass='Form',pane=pane)
+        if not resourcePath:
+            return
         options = dfltoption_kwargs
         options.update(self._th_getOptions(frameCode))
         options.update(kwargs)
@@ -131,7 +133,9 @@ class TableHandlerForm(BaseComponent):
                         store='recordCluster',handlerType=None,tree_kwargs=None,**kwargs):
         tableCode = table.replace('.','_')
         formId = formId or tableCode
-        resourcePath = self._th_mixinResource(formId,table=table,resourceName=formResource,defaultClass='Form')
+        resourcePath = self._th_mixinResource(formId,table=table,resourceName=formResource,defaultClass='Form',pane=pane)
+        if not resourcePath:
+            return
         resource_options = self._th_getOptions(formId)
         resource_options.update(kwargs)
         resource_options.update(tree_kwargs)

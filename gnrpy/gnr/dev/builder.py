@@ -13,7 +13,7 @@ import shutil
 from pathlib import Path
 
 from gnr.app.gnrapp import GnrApp
-from gnr.app.gnrdeploy import PathResolver
+from gnr.app.pathresolver import PathResolver
 from gnr.app import logger
 
 class GnrProjectBuilder(object):
@@ -47,10 +47,10 @@ class GnrProjectBuilder(object):
         """
         if not os.path.exists(self.config_file):
             # generate a build configuration analyzing the instance
-            logger.warning(f"Build file configuration not found, creating one from current status")
+            logger.warning("Build file configuration not found, creating one from current status")
             config = self.create_config()
         elif generate:
-            logger.warning(f"Build file configuration found, but forcing autogeneration")
+            logger.warning("Build file configuration found, but forcing autogeneration")
             config = self.create_config()
         else:
             logger.info("Found build configuration in instance folder")

@@ -4,6 +4,7 @@ from datetime import datetime
 import os
 import atexit
 import re
+from multiprocessing import Process
 
 from werkzeug.serving import make_server, is_running_from_reloader
 from werkzeug._reloader import run_with_reloader
@@ -35,7 +36,7 @@ from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrconfig import getGnrConfig, gnrConfigPath
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
-from gnr.app.gnrdeploy import PathResolver
+from gnr.app.pathresolver import PathResolver
 from gnr.web.gnrwsgisite import GnrWsgiSite
 from gnr.web import logger
 from gnr.web.gnrwsgisite_proxy.gnrsiteregister import GnrSiteRegisterServer
@@ -181,8 +182,8 @@ class Server(object):
                             action='store_false',
                             help="Do not use auto-restart file monitor")
         parser.add_argument('--nodebug',
-                            dest='debug',
-                            action='store_false',
+                            dest='nodebug',
+                            action='store_true',
                             help="Don't use werkzeug debugger")
         parser.add_argument('--profile',
                             dest='profile',
@@ -391,16 +392,13 @@ class Server(object):
             self.debugpy_port = None
             
         self.reloader = not self.debugpy and not (self.options.reload == 'false' or self.options.reload == 'False' or self.options.reload == False or self.options.reload == None)
-        self.debug = not (self.options.debug == 'false' or self.options.debug == 'False' or self.options.debug == False or self.options.debug == None)
+        self.debug = not (self.options.debug == 'false' or self.options.debug == 'False' or self.options.debug == False or self.options.debug == None or self.options.nodebug)
         if self.debugpy:
             logger.debug("Starting debugpy service on port localhost:%s", self.debugpy_port)
             debugpy.listen(("localhost", self.debugpy_port))
         self.serve()
 
     def start_sitedaemon(self):
-        from gnr.app.gnrdeploy import PathResolver
-        import os
-        from multiprocessing import Process
         path_resolver = PathResolver()
         siteconfig = path_resolver.get_siteconfig(self.site_name)
         daemonconfig = siteconfig.getAttr('gnrdaemon')
@@ -461,6 +459,9 @@ class Server(object):
                 elif self.debug:
                     gnrServer = GnrDebuggedApplication(gnrServer, evalex=True, pin_security=False)
                     extra_info.append('Debug mode: On')
+                else:
+                    extra_info.append('Debug mode: Off')
+
                 localhost = 'http://127.0.0.1'
                 if self.options.ssl:
                     cert_path = os.path.join(self.config_path,'localhost.pem')

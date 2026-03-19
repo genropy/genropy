@@ -33,7 +33,8 @@ class TableHandlerView(BaseComponent):
                        virtualStore=None,condition=None,condition_kwargs=None,
                        structure_field=None,structure_field_kwargs=None,sections_kwargs=None,
                        store_kwargs=None,extendedQuery=None,**kwargs):
-        self._th_mixinResource(frameCode,table=table,resourceName=viewResource,defaultClass='View')
+        if not self._th_mixinResource(frameCode,table=table,resourceName=viewResource,defaultClass='View',pane=pane):
+            return
         options = self._th_getOptions(frameCode)
         if extendedQuery is None:
             extendedQuery = options.get('extendedQuery')
@@ -228,9 +229,8 @@ class TableHandlerView(BaseComponent):
 
     def _th_handleQueryBySample(self,view,table=None,pars=None):
         fields = pars.pop('fields')
-        pars['dbtable'] = table
+        pars['table'] = table
         pars['datapath'] = '.queryBySample'
-        pars['border_spacing'] = '2px'
         pars.setdefault('_class','th_querysampleform')
         view.data('.query.bySampleIsDefault',pars.pop('isDefault',False))
         bar = view.top.slotToolbar('fb,*',childname='queryBySample')

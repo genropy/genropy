@@ -57,14 +57,27 @@
     padding: 0px 0px;
 }
 
-._common_d11 .cell_B .widgetInCell {
-    width: 16px;
-    margin: auto;
-    box-shadow: 2px 2px 3px var(--text-secondary) inset;
-}
-
-._common_d11 .dojoxGrid-cell:has(> .widgetInCell) {
+._common_d11 .dojoxGrid-cell:has(> .widgetInCell),
+._common_d11 .dojoxGrid-cell:has(> .gnrcheckbox_wrapper) {
     position: relative;
+}
+._common_d11 .cell_B > .gnrcheckbox_wrapper {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 1px 1px 2px var(--text-secondary) inset;
+    border-radius: var(--radius-sm);
+}
+._common_d11 .cell_B .gnrcheckbox_wrapper > .widgetInCell {
+    position: static;
+    box-shadow: none;
+    padding: 0;
+    margin: 0 !important;
 }
 
 ._common_d11 .widgetInCell {
@@ -77,9 +90,13 @@
     display: flex;
     align-items: center;
     padding-left: 0.3em;
+    padding-right: 0.3em;
     border-color: var(--border-light);
     border-radius: var(--radius-sm);
     box-shadow: 1px 1px 2px var(--text-secondary) inset;
+}
+._common_d11 .widgetInCell > *{
+    flex:1;
 }
 
 /* --- Row colors --- */

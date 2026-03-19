@@ -3,7 +3,7 @@
 import os
 
 from gnr.core.gnrbag import Bag
-from gnr.app.gnrdeploy import PackageMaker
+from gnr.dev.makers.package import PackageMaker
 
 # FIXME: this code seems unused as of 2024-04-05 CRG
 

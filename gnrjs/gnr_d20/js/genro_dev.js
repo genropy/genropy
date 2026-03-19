@@ -142,16 +142,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
             mainGenroWindow.polling_enabled = false;
             mainGenroWindow.dlg.alert('No longer existing page','Error',null,null,{confirmCb:genro.pageReload});
             return;
-        } else if (status === 0) {
-            genro.publish('client_error', {
-                errorType: 'network',
-                description: 'Connection lost or server unavailable',
-                status: xhr.status,
-                statusText: xhr.statusText,
-                url: ioArgs.url
-            });
-        }
-        else {
+        } else {
             console.log('handleRpcHttpError');
             debug_url = ioArgs.xhr.getResponseHeader('X-Debug-Url');
             if (!debug_url) {

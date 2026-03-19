@@ -290,7 +290,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             }
         }
         var slideDown = this.slideDownMessage !== false;
-        msgKw = objectUpdate({duration_in:3,duration_out:4,slideDown:slideDown},msgKw);
+        msgKw = objectUpdate({duration_in:1,duration_out:2,duration:1,slideDown:slideDown},msgKw);
         genro.dlg.floatingMessage(this.sourceNode,msgKw);
     },
 
