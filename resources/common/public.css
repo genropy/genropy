@@ -24,9 +24,13 @@
     padding-left: 0.6em;
     padding-right: 0.6em;
     margin-left: .4em;
+    display: flex;
+    padding-top: 2px;
+    padding-bottom: 2px;
 }
 
 /* Where filter description shown below title */
 .pbl_title_desc {
     zoom: .8;
 }
+
