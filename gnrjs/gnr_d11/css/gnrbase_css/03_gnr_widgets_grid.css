@@ -292,11 +292,22 @@ div.cellContent{
     display: block;
 }
 
+/*forbuilder inside toolbars*/
+
+.slotbar_row td.gnrfield,.slotbar_row td.fb_lbl{
+    display: inline-flex;
+}
+
+
 .slotbar_toolbar .gnrfieldlabel {
     color: var(--text-muted);
     white-space: nowrap;
     padding-left:4px;
+    padding-right: 2px;
 }
+
+/*end forbuilder inside toolbars*/
+
 /* @end */
 
 /* @group PatchDojox */

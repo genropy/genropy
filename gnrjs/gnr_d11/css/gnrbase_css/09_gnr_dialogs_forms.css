@@ -359,11 +359,6 @@ table.formbuilder {
     border-spacing: var(--formbuilder-spacing);
 }
 
-table.formbuilder td.gnrfield {
-    flex: 1;
-}
-
-
 /* @end */
 
 /* @group Localizer */

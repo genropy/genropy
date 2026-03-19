@@ -229,9 +229,8 @@ class TableHandlerView(BaseComponent):
 
     def _th_handleQueryBySample(self,view,table=None,pars=None):
         fields = pars.pop('fields')
-        pars['dbtable'] = table
+        pars['table'] = table
         pars['datapath'] = '.queryBySample'
-        pars['border_spacing'] = '2px'
         pars.setdefault('_class','th_querysampleform')
         view.data('.query.bySampleIsDefault',pars.pop('isDefault',False))
         bar = view.top.slotToolbar('fb,*',childname='queryBySample')

@@ -72,6 +72,7 @@
     cursor: pointer;
 }
 
+
 .slotbar_toolbar .th_querybox_item {
     position: relative;
     display: flex;
@@ -253,3 +254,6 @@
     transform: translateY(-0.1em);
 }
 
+.th_querysampleform .gnrfieldlabel{
+    padding-left:1em;
+}

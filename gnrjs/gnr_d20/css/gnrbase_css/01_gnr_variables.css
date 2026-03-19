@@ -194,7 +194,7 @@
 
     /* --- Form fields --- */
     --field-bg: var(--color-bg); /* @theme */
-    --field-border: var(--gray-300); /* @theme */
+    --field-border: var(--gray-400); /* @theme */
     --field-error-border: #DE9091; /* color-error #E53935 45% + gray-300 #D8D8DC */
     --field-error-dot-size: 8px; /* @theme */
     --field-error-dot-color: var(--color-error); /* @theme */
