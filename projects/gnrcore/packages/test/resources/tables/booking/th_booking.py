@@ -31,4 +31,4 @@ class Form(BaseComponent):
             saveMainFormOnComplete=True)
 
     def th_options(self):
-        return dict(dialog_height='300px',dialog_width='500px',showtoolbar=False)
+        return dict(dialog_height='300px',dialog_width='400px',showtoolbar=False)

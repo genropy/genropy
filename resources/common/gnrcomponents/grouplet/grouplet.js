@@ -99,11 +99,8 @@ var gnr_grouplet = {
             var menu = sourceNode.getRelativeData('.grouplet_menu');
             var node = menu.getNode(code);
             if (node) {
-                var meta = new gnr.GnrBag();
-                meta.setItem('locationpath', node.attr.locationpath || null);
-                meta.setItem('resource', node.attr.resource);
-                sourceNode.setRelativeData('.grouplet_meta', meta);
                 sourceNode.setRelativeData('.selected_resource', node.attr.resource);
+                sourceNode.setRelativeData('.selected_locationpath', node.attr.locationpath || null);
             }
         }
     }

@@ -211,12 +211,9 @@ class GroupletHandler(BaseComponent):
             formId = f'{frameCode}_grpform'
             grouplet_kwargs.update(resource='^#ANCHOR.selected_resource',
                                    value=value,
-                                   dynamicLocationPath=True,
-                                   loadingGrouplet_locationpath='=#ANCHOR.grouplet_info.locationpath',
-                                   loadingGrouplet_onSaving='=#ANCHOR.grouplet_info.onSaving',
-                                   loadingGrouplet_onLoading='=#ANCHOR.grouplet_info.onLoading',
-                                   formId=formId,
+                                   dynamicLocationPath=True, formId=formId,
                                    store_autoSave=1)
+            grouplet_kwargs['grouplet_remote_locationpath'] = '^#ANCHOR.selected_locationpath'
         else:
             formId = None
             grouplet_kwargs.update(resource='^#ANCHOR.selected_resource',
@@ -267,13 +264,9 @@ class GroupletHandler(BaseComponent):
                 }
             """, barId=bar_id,
                 **{f'subscribe_form_{formId}_onStatusChange': True})
-            bar.dataController("""
-                                 if(genro.formById(innerFormId).status!='noItem'){
-                                    genro.formById(innerFormId).reload()
-                                 }
-                                 """,
-                                 innerFormId=formId,
-                                 formsubscribe_onLoaded=True)
+            bar.dataController("genro.formById(innerFormId).reload()",
+                               innerFormId=formId,
+                               formsubscribe_onLoaded=True)
             center.GroupletForm(**grouplet_kwargs)
         else:
             center.grouplet(**grouplet_kwargs)
@@ -303,14 +296,11 @@ class GroupletHandler(BaseComponent):
             """,
             connect_onClick="""
                 if($2.item.attr.resource && $2.item.attr.grouplet_caption){
-                    let itemInfo = $2.item.attr;
-                    PUT .grouplet_info = new gnr.GnrBag(itemInfo);
-                    PUT .selected_resource = itemInfo.resource;
-                    SET .selected_caption = itemInfo.grouplet_caption;
-                    SET .selected_fullpath = $2.item.getFullpath()
+                    SET .selected_locationpath = $2.item.attr.locationpath || null;
+                    SET .selected_caption = $2.item.attr.grouplet_caption;
+                    SET .selected_resource = $2.item.attr.resource;
                 }
             """)
-        grouplet_kwargs['grouplet_remote__reloader'] = '^#ANCHOR.selected_fullpath'
         right = bc.borderContainer(region='center')
         top = right.contentPane(region='top',
                                 _class='grouplet_panel_title_bar')
@@ -329,11 +319,7 @@ class GroupletHandler(BaseComponent):
             """, titleId=title_id,
                 selectedResource='=.selected_resource',
                 **{f'subscribe_form_{formId}_onStatusChange': True})
-            right.dataController("""
-                                 if(genro.formById(innerFormId).status!='noItem'){
-                                    genro.formById(innerFormId).reload()
-                                 }
-                                 """,
+            right.dataController("genro.formById(innerFormId).reload()",
                                  innerFormId=formId,
                                  formsubscribe_onLoaded=True)
             center.GroupletForm(**grouplet_kwargs)
@@ -383,12 +369,6 @@ class GroupletHandler(BaseComponent):
             item.div(mnode.attr.get('grouplet_caption'),
                      _class='wizard_caption')
         step_form_id = f'{frameCode}_step_form'
-        pane.dataController("""
-                                gnr_grouplet.wizardGoTo(this, 0,frameCode);
-                                 """,
-                                 innerFormId=step_form_id,
-                                 frameCode=frameCode,
-                                 formsubscribe_onLoaded=True)
         grouplet_kwargs.update(resource='^#ANCHOR.current_resource',
                            value=value,
                            loadOnBuilt=True, formId=step_form_id,
@@ -398,7 +378,6 @@ class GroupletHandler(BaseComponent):
             grouplet_kwargs['table'] = table
         if grouplets_root:
             grouplet_kwargs['grouplets_root'] = grouplets_root
-
         frame.center.contentPane(overflow='auto').GroupletForm(**grouplet_kwargs)
         bottom = frame.bottom.contentPane(_class='wizard_bottom_bar')
         bottom.lightButton('^.next_label',
