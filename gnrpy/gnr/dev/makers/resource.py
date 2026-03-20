@@ -474,7 +474,7 @@ class ThPackageResourceMaker(object):
                 col_name == "id"
                 or column.attributes.get("_sysfield")
                 or col_name.startswith("__")
-                or column.type == "O"
+                or column.dtype == "O"
             ):
                 continue
 
