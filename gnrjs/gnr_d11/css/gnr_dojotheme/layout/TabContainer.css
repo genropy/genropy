@@ -75,7 +75,7 @@
 /* --- Tab pane wrapper --- */
 .gnr_dojotheme .dijitTabPaneWrapper {
     border: 1px solid var(--border-strong, #aab4c4);
-    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    border-radius: var(--radius-md);
     background: var(--card-surface, #F2F2F7);
 }
 

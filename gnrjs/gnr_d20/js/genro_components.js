@@ -969,6 +969,16 @@ dojo.declare("gnr.widgets.GroupletForm",gnr.widgets.gnrwdg,{
             const dataKey = topic ? res.replace(topic + '/', '') : res;
             newPath = basePath + '.' + dataKey.replace(/\//g, '.');
         }
+        const loadKw = frm.store.handlers.load.kw;
+        const saveKw = frm.store.handlers.save.kw;
+        delete loadKw.onLoading;
+        delete saveKw.onSaving;
+        if(loadingGrouplet_info.onLoading){
+            loadKw.onLoading = loadingGrouplet_info.onLoading;
+        }
+        if(loadingGrouplet_info.onSaving){
+            saveKw.onSaving = loadingGrouplet_info.onSaving;
+        }
         frm.store.setLocationPath(newPath, 'save');
         frm.load();
     },
@@ -1038,6 +1048,9 @@ dojo.declare("gnr.widgets.GroupletForm",gnr.widgets.gnrwdg,{
         kw.storeType = kw.storeType || 'Item';
         kw.datapath = datapath;
         kw.formDatapath = formDatapath;
+        if(kw.formDatapath){
+            grouplets_pars['value'] =  kw.formDatapath ;
+        }
         kw.controllerPath = formControllerPath;
         sourceNode.gnrwdg.formId = formId;
         let formdiv = sourceNode._('BoxForm',kw);

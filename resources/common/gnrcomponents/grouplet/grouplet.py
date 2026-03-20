@@ -57,7 +57,7 @@ class GroupletHandler(BaseComponent):
         grid_kwargs = dictExtract(kwargs, 'grid_', pop=True)
         columns = int(grid_kwargs.pop('columns', 1))
         template_columns = grid_kwargs.pop('template_columns', None)
-        collapsible = grid_kwargs.pop('collapsible', True)
+        collapsible = grid_kwargs.pop('collapsible', columns <= 1)
         locked = (collapsible is False)
         start_open = (collapsible != 'closed')
         direction = grid_kwargs.pop('direction', None)
