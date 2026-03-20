@@ -630,6 +630,95 @@ dojo.declare("gnr.widgets.flexbox", gnr.widgets.baseHtml, {
     },
 });
 
+dojo.declare("gnr.widgets.expandbox", gnr.widgets.baseHtml, {
+    constructor:function(){
+        this._domtag = 'details';
+    },
+    creating:function(attributes, sourceNode) {
+        let savedAttrs = {};
+        let _class = attributes._class || '';
+        attributes._class = _class + ' gnrexpandbox';
+        let animate = objectPop(attributes, 'animate');
+        if(animate){
+            attributes._class += ' gnrexpandbox_animated';
+        }
+        let minimal = objectPop(attributes, 'minimal');
+        if(minimal){
+            attributes._class += ' gnrexpandbox_minimal';
+        }
+        let locked = objectPop(attributes, 'locked');
+        if(locked){
+            savedAttrs.locked = true;
+        }
+        let open = objectPop(attributes, 'open');
+        if(open){
+            savedAttrs.open = true;
+        }
+        let title = objectPop(attributes, 'title');
+        savedAttrs.title = title || '';
+        savedAttrs.title_kw = objectExtract(attributes, 'title_*') || {};
+        savedAttrs.content_kw = objectExtract(attributes, 'content_*') || {};
+        return savedAttrs;
+    },
+    created:function(newobj, savedAttrs, sourceNode){
+        if(savedAttrs.open){
+            newobj.setAttribute('open', '');
+        }
+        var summaryEl = document.createElement('summary');
+        summaryEl.className = 'gnrexpandbox_header';
+        var titleKw = savedAttrs.title_kw;
+        var titleSpan = document.createElement('span');
+        titleSpan.className = 'gnrexpandbox_title';
+        if(titleKw._class){
+            titleSpan.className += ' ' + titleKw._class;
+        }
+        titleSpan.textContent = savedAttrs.title;
+        summaryEl.appendChild(titleSpan);
+        newobj.insertBefore(summaryEl, newobj.firstChild);
+        sourceNode._expandbox_summary = summaryEl;
+        var contentKw = savedAttrs.content_kw;
+        if(contentKw._class){
+            newobj.className += ' ' + contentKw._class;
+        }
+        if(savedAttrs.locked){
+            this._setLocked(newobj, true);
+        }
+    },
+    _setLocked:function(domNode, value){
+        if(value){
+            domNode.classList.add('gnrexpandbox_locked');
+            domNode._expandbox_toggle_handler = function(e){ e.preventDefault(); };
+            domNode.querySelector('summary').addEventListener('click',
+                domNode._expandbox_toggle_handler);
+        } else {
+            domNode.classList.remove('gnrexpandbox_locked');
+            if(domNode._expandbox_toggle_handler){
+                domNode.querySelector('summary').removeEventListener('click',
+                    domNode._expandbox_toggle_handler);
+                delete domNode._expandbox_toggle_handler;
+            }
+        }
+    },
+    setLocked:function(domNode, value, kw){
+        this._setLocked(domNode, value);
+    },
+    setOpen:function(domNode, value, kw){
+        if(value){
+            domNode.setAttribute('open', '');
+        } else {
+            domNode.removeAttribute('open');
+        }
+    },
+    setTitle:function(domNode, value, kw){
+        var titleSpan = domNode.querySelector('.gnrexpandbox_title');
+        if(titleSpan){
+            titleSpan.textContent = value;
+        }
+    },
+    mixin_getSummary:function(){
+        return this.sourceNode._expandbox_summary;
+    }
+});
 
 dojo.declare("gnr.widgets.gridbox", gnr.widgets.baseHtml, {
     constructor:function(){

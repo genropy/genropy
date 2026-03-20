@@ -75,32 +75,13 @@ var gnr_grouplet = {
         }
     },
 
-    toggleGroupletCell: function(cellEl) {
-        var content = cellEl.querySelector('.grouplet_topic_cell_content');
-        if (!content) { return; }
-        if (cellEl.classList.contains('collapsed')) {
-            cellEl.classList.remove('collapsed');
-            content.style.maxHeight = content.scrollHeight + 'px';
-            var onExpanded = function() {
-                content.style.maxHeight = '';
-                content.removeEventListener('transitionend', onExpanded);
-            };
-            content.addEventListener('transitionend', onExpanded);
-        } else {
-            content.style.maxHeight = content.scrollHeight + 'px';
-            content.offsetHeight; // force reflow
-            content.style.maxHeight = '0';
-            cellEl.classList.add('collapsed');
-        }
-    },
-
     panelSelectFromCode: function(sourceNode, code) {
         if (code) {
             var menu = sourceNode.getRelativeData('.grouplet_menu');
             var node = menu.getNode(code);
             if (node) {
+                sourceNode.setRelativeData('.grouplet_info', new gnr.GnrBag(node.attr));
                 sourceNode.setRelativeData('.selected_resource', node.attr.resource);
-                sourceNode.setRelativeData('.selected_locationpath', node.attr.locationpath || null);
             }
         }
     }
