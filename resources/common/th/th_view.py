@@ -33,7 +33,7 @@ class TableHandlerView(BaseComponent):
                        virtualStore=None,condition=None,condition_kwargs=None,
                        structure_field=None,structure_field_kwargs=None,sections_kwargs=None,
                        store_kwargs=None,extendedQuery=None,**kwargs):
-        if not self._th_mixinResource(frameCode,table=table,resourceName=viewResource,defaultClass='View',pane=pane):
+        if not self._th_mixinResource(frameCode,table=table,resourceName=viewResource,defaultClass='View',pane=pane,safeMode=True):
             return
         options = self._th_getOptions(frameCode)
         if extendedQuery is None:
