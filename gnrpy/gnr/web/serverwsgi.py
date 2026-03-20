@@ -39,7 +39,7 @@ from gnr.core.gnrdict import dictExtract
 from gnr.app.pathresolver import PathResolver
 from gnr.web.gnrwsgisite import GnrWsgiSite
 from gnr.web import logger
-from gnr.web.gnrwsgisite_proxy.gnrsiteregister import GnrSiteRegisterServer
+from gnr.web.daemon.siteregister import GnrSiteRegisterServer
 
 CONN_STRING_RE=r"(?P<ssh_user>\w*)\:?(?P<ssh_password>\w*)\@(?P<ssh_host>(\w|\.)*)\:?(?P<ssh_port>\w*)(\/?(?P<db_user>\w*)\:?(?P<db_password>\w*)\@(?P<db_host>(\w|\.)*)\:?(?P<db_port>\w*))?"
 CONN_STRING = re.compile(CONN_STRING_RE)
