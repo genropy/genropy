@@ -70,7 +70,7 @@
 
     /* --- Borders --- */
     --border-color: var(--gray-300); /* @theme */
-    --border-light: var(--gray-150); /* @theme */
+    --border-light: var(--gray-200); /* @theme */
     --border-strong: var(--gray-400); /* @theme */
 
     /* --- Text --- */

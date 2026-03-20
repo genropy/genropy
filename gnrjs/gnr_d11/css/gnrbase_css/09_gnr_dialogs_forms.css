@@ -158,7 +158,6 @@
     gap: 0.5em;
     align-items: center;
     justify-content: flex-start;
-    padding: 0.8em 1.2em;
 }
 .dlg_ask_btnBox .dijitButton{
     margin: 0;
