@@ -984,8 +984,8 @@ dojo.declare("gnr.widgets.GroupletForm",gnr.widgets.gnrwdg,{
         sourceNode.attr.nodeId = sourceNode.attr.nodeId || `${formId}_handler`;
         sourceNode._registerNodeId();
         let datapath = objectPop(grouplets_pars,'datapath') || objectPop(kw,'datapath') || 'gnr.grouplet_'+(formId || genro.time36Id());
-        let formDatapath = objectPop(grouplets_pars,'formDatapath') || objectPop(kw,'formDatapath');
-        let formControllerPath = objectPop(grouplets_pars,'formControllerPath') || objectPop(kw,'formControllerPath');
+        let formDatapath = objectPop(grouplets_pars,'formDatapath') || objectPop(kw,'formDatapath') || '.record';
+        let formControllerPath = objectPop(grouplets_pars,'formControllerPath') || objectPop(kw,'formControllerPath') || '.controller';
         let loadOnBuilt = objectPop(kw,'loadOnBuilt');
         let startKey = objectPop(kw,'startKey');
         let rootTag = objectPop(kw,'rootTag');

@@ -215,7 +215,7 @@ class GnrCustomWebPage(object):
                  'for two-way binding or = for one-way. Changes propagate '
                  'automatically through the UI.', padding='8px', color='#555')
 
-        det3 = container.details(open='open', margin_bottom='8px')
+        det3 = container.details(open=True, margin_bottom='8px')
         det3.summary('Can I nest details elements?', font_weight='bold',
                      cursor='pointer')
         inner_det = det3.details(margin='8px')

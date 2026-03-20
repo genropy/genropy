@@ -676,6 +676,10 @@ dojo.declare("gnr.widgets.expandbox", gnr.widgets.baseHtml, {
         summaryEl.appendChild(titleSpan);
         newobj.insertBefore(summaryEl, newobj.firstChild);
         sourceNode._expandbox_summary = summaryEl;
+        var contentKw = savedAttrs.content_kw;
+        if(contentKw._class){
+            newobj.className += ' ' + contentKw._class;
+        }
         if(savedAttrs.locked){
             this._setLocked(newobj, true);
         }
