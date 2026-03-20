@@ -52,11 +52,14 @@ class GroupletHandler(BaseComponent):
         return handler(box, **kwargs)
 
     def _loadGroupletTopic(self, pane, topic_menu, table=None,
-                           valuepath=None, grouplets_root=None, **kwargs):
+                           valuepath=None, grouplets_root=None,
+                           _depth=0, **kwargs):
         grid_kwargs = dictExtract(kwargs, 'grid_', pop=True)
         columns = int(grid_kwargs.pop('columns', 1))
         template_columns = grid_kwargs.pop('template_columns', None)
-        collapsible = grid_kwargs.pop('collapsible', False)
+        collapsible = grid_kwargs.pop('collapsible', True)
+        locked = (collapsible is False)
+        start_open = (collapsible != 'closed')
         direction = grid_kwargs.pop('direction', None)
         if direction is None:
             direction = 'columns' if columns > 1 else 'rows'
@@ -77,31 +80,24 @@ class GroupletHandler(BaseComponent):
             _class=grid_class,
             **grid_style,
             **grid_kwargs)
-        start_closed = (collapsible == 'closed')
+        minimal = (_depth > 0)
         for node in topic_menu:
             attr = node.attr
-            cell_class = 'grouplet_topic_cell'
-            if start_closed:
-                cell_class += ' collapsed'
-            cell = grid.div(_class=cell_class)
-            caption_text = attr.get('grouplet_caption') or attr.get('caption', '')
-            if collapsible:
-                caption = cell.lightButton(
-                    _class='grouplet_topic_cell_caption',
-                    action='gnr_grouplet.toggleGroupletCell(this.domNode.parentNode);')
-                caption.span(_class='grouplet_topic_toggle')
-                caption.span(caption_text)
-            else:
-                cell.div(caption_text, _class='grouplet_topic_cell_caption')
-            content_kw = {}
-            if start_closed:
-                content_kw['max_height'] = '0'
-            content = cell.div(_class='grouplet_topic_cell_content', **content_kw)
+            caption_text = (attr.get('grouplet_caption')
+                            or attr.get('caption', ''))
+            cell = grid.expandbox(
+                title=caption_text,
+                open=start_open,
+                animate=not locked,
+                locked=locked or None,
+                minimal=minimal or None)
+            content = cell.div(_class='grouplet_topic_cell_content')
             if node.value:
                 self._loadGroupletTopic(content, node.value,
                                         table=table,
                                         valuepath=f'.{attr.get("topic", node.label)}',
                                         grouplets_root=grouplets_root,
+                                        _depth=_depth + 1,
                                         **kwargs)
             else:
                 self.gr_loadGrouplet(content, resource=attr['resource'],
@@ -211,9 +207,12 @@ class GroupletHandler(BaseComponent):
             formId = f'{frameCode}_grpform'
             grouplet_kwargs.update(resource='^#ANCHOR.selected_resource',
                                    value=value,
-                                   dynamicLocationPath=True, formId=formId,
+                                   dynamicLocationPath=True,
+                                   loadingGrouplet_locationpath='=#ANCHOR.grouplet_info.locationpath',
+                                   loadingGrouplet_onSaving='=#ANCHOR.grouplet_info.onSaving',
+                                   loadingGrouplet_onLoading='=#ANCHOR.grouplet_info.onLoading',
+                                   formId=formId,
                                    store_autoSave=1)
-            grouplet_kwargs['grouplet_remote_locationpath'] = '^#ANCHOR.selected_locationpath'
         else:
             formId = None
             grouplet_kwargs.update(resource='^#ANCHOR.selected_resource',
@@ -264,9 +263,13 @@ class GroupletHandler(BaseComponent):
                 }
             """, barId=bar_id,
                 **{f'subscribe_form_{formId}_onStatusChange': True})
-            bar.dataController("genro.formById(innerFormId).reload()",
-                               innerFormId=formId,
-                               formsubscribe_onLoaded=True)
+            bar.dataController("""
+                                 if(genro.formById(innerFormId).status!='noItem'){
+                                    genro.formById(innerFormId).reload()
+                                 }
+                                 """,
+                                 innerFormId=formId,
+                                 formsubscribe_onLoaded=True)
             center.GroupletForm(**grouplet_kwargs)
         else:
             center.grouplet(**grouplet_kwargs)
@@ -296,11 +299,14 @@ class GroupletHandler(BaseComponent):
             """,
             connect_onClick="""
                 if($2.item.attr.resource && $2.item.attr.grouplet_caption){
-                    SET .selected_locationpath = $2.item.attr.locationpath || null;
-                    SET .selected_caption = $2.item.attr.grouplet_caption;
-                    SET .selected_resource = $2.item.attr.resource;
+                    let itemInfo = $2.item.attr;
+                    PUT .grouplet_info = new gnr.GnrBag(itemInfo);
+                    PUT .selected_resource = itemInfo.resource;
+                    SET .selected_caption = itemInfo.grouplet_caption;
+                    SET .selected_fullpath = $2.item.getFullpath()
                 }
             """)
+        grouplet_kwargs['grouplet_remote__reloader'] = '^#ANCHOR.selected_fullpath'
         right = bc.borderContainer(region='center')
         top = right.contentPane(region='top',
                                 _class='grouplet_panel_title_bar')
@@ -319,7 +325,11 @@ class GroupletHandler(BaseComponent):
             """, titleId=title_id,
                 selectedResource='=.selected_resource',
                 **{f'subscribe_form_{formId}_onStatusChange': True})
-            right.dataController("genro.formById(innerFormId).reload()",
+            right.dataController("""
+                                 if(genro.formById(innerFormId).status!='noItem'){
+                                    genro.formById(innerFormId).reload()
+                                 }
+                                 """,
                                  innerFormId=formId,
                                  formsubscribe_onLoaded=True)
             center.GroupletForm(**grouplet_kwargs)
@@ -369,6 +379,12 @@ class GroupletHandler(BaseComponent):
             item.div(mnode.attr.get('grouplet_caption'),
                      _class='wizard_caption')
         step_form_id = f'{frameCode}_step_form'
+        pane.dataController("""
+                                gnr_grouplet.wizardGoTo(this, 0,frameCode);
+                                 """,
+                                 innerFormId=step_form_id,
+                                 frameCode=frameCode,
+                                 formsubscribe_onLoaded=True)
         grouplet_kwargs.update(resource='^#ANCHOR.current_resource',
                            value=value,
                            loadOnBuilt=True, formId=step_form_id,
@@ -378,6 +394,7 @@ class GroupletHandler(BaseComponent):
             grouplet_kwargs['table'] = table
         if grouplets_root:
             grouplet_kwargs['grouplets_root'] = grouplets_root
+
         frame.center.contentPane(overflow='auto').GroupletForm(**grouplet_kwargs)
         bottom = frame.bottom.contentPane(_class='wizard_bottom_bar')
         bottom.lightButton('^.next_label',

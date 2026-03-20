@@ -12,14 +12,18 @@ class GnrCustomWebPage(object):
     def test_0_bordercontainer_cb_splitter(self, pane):
         "Use remote to define content in a separate method"
         bc = pane.borderContainer(height='150px')
-        bc.contentPane(region='left',width='500px',splitter=True,background='lime').remote(self.remoteMethod)
-        bc.contentPane(region='center')
-        
+        bc.contentPane(region='left',width='500px',
+                       splitter=True,background='lime').remote(self.remoteMethod,
+                                                       datapath='.dati_remoti')
+
+
     @public_method
-    def remoteMethod(self,pane,**kwargs):
-        fb = pane.formbuilder(cols=2, border_spacing='3px')
-        fb.textbox(lbl='aaa')
-        fb.textbox(lbl='bbb')
+    def remoteMethod(self,pane,datapath=None,**kwargs):
+        pane.dataController("SET .result = new Date();",_timing=2)
+        pane.div('^.result')
+        fb = pane.formbuilder(cols=2, border_spacing='3px',datapath=datapath)
+        fb.textbox(value='^.aaa',lbl='aaa')
+        fb.textbox(value='^.bbb',lbl='bbb')
     
     def test_1_jsremote(self,pane,**kwargs):
         "Dynamic content area using a dataController"

@@ -190,6 +190,17 @@
     --roundedgroup-shadow: rgba(0,0,0,0.06); /* @theme */
     --rectgroup-bar-background: var(--gray-200); /* @theme */
 
+    /* --- Expandbox (details/summary disclosure widget) --- */
+    --expandbox-border: var(--border-light); /* @theme */
+    --expandbox-radius: var(--radius-sm); /* @theme */
+    --expandbox-header-bg: var(--roundedgroup-bar); /* @theme */
+    --expandbox-header-color: var(--roundedgroup-bar-color); /* @theme */
+    --expandbox-header-padding: 4px 8px; /* @theme */
+    --expandbox-header-font-size: var(--form-label-font-size); /* @theme */
+    --expandbox-header-font-weight: bold; /* @theme */
+    --expandbox-content-padding: 8px; /* @theme */
+    --expandbox-transition-duration: 0.3s; /* @theme */
+
     /* === Forms === */
 
     /* --- Form fields --- */

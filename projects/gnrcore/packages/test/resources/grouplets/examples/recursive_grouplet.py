@@ -6,7 +6,7 @@ class Grouplet(object):
         return dict(caption='Recursive Grouplet', priority=2)
 
     def grouplet_main(self, pane, **kwargs):
-        tc = pane.tabContainer(height='300px', width='400px')
+        tc = pane.tabContainer(height='300px', width='400px',margin_top='5px',margin_left='5px')
         data_tab = tc.contentPane(title='Data')
         fb = data_tab.formlet(cols=1, border_spacing='3px')
         fb.textbox(value='^.field1', lbl='Field 1')

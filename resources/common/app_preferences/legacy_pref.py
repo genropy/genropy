@@ -9,4 +9,4 @@ class Grouplet(object):
             return
         panecb = getattr(self, f'prefpane_{locationpath}', None)
         if panecb:
-            panecb(pane, nodeId=locationpath, datapath='.record',_anchor=True)
+            panecb(pane, nodeId=locationpath,_anchor=True)
