@@ -628,6 +628,8 @@ class GnrWebPage(GnrBaseWebPage):
             result = str(e)
         except Exception as e:
             self.site.raiseIfDeveloper()
+            import traceback as _tb
+            tb_text = _tb.format_exc()
             error_id = self.site.errorHandler(
                 exception=e,
                 error_type='rpc_exception',
@@ -637,6 +639,7 @@ class GnrWebPage(GnrBaseWebPage):
                 rpc_kwargs=Bag(kwargs)
             )
             self.rpc.error = 'server_exception'
+            self.envelope_error_traceback = tb_text
             result = '<div>%s</div>' %str(e)
             if error_id:
                 if self.isDeveloper():
@@ -1485,7 +1488,8 @@ class GnrWebPage(GnrBaseWebPage):
         common_classes = '_common_d11'
         if dojo_ver != '11':
             common_classes = f'_common_d11 _common_d{dojo_ver}'
-        return f'{css_theme} {frontend_theme} gnr_dojotheme {color_variant} {common_classes} pkg_{self.packageId} page_{self.pagename} {extra_classes} '
+        debug_class = 'gnr_debug' if self.site.debug else ''
+        return f'{css_theme} {frontend_theme} gnr_dojotheme {color_variant} {common_classes} pkg_{self.packageId} page_{self.pagename} {extra_classes} {debug_class}'
         
     def get_css_genro(self):
         """TODO"""

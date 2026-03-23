@@ -542,15 +542,11 @@ class GnrWsgiSite(object):
         logger.debug('%s: %s', code, msg)
 
     def setDebugAttribute(self, options):
-        self.force_debug = False
         if options:
             self.debug = boolean(options.debug)
-            if self.debug:
-                self.force_debug = True
         else:
             if boolean(self.config['wsgi?debug']) is not True and (self.config['wsgi?debug'] or '').lower()=='force':
                 self.debug = True
-                self.force_debug = True
             else:
                 self.debug = boolean(self.config['wsgi?debug'])
 
@@ -1162,11 +1158,12 @@ class GnrWsgiSite(object):
                 % (environ.get('SCRIPT_NAME'), environ.get('PATH_INFO')))
             return exc(environ, start_response)
         finally:
+            self.cleanup()
             self.currentDomain = self.rootDomain
 
     def raiseIfDeveloper(self, exception=None):
         page = self.currentPage
-        if self.debug and ((page and page.isDeveloper()) or self.force_debug):
+        if self.debug and page and page.isDeveloper():
             if exception is not None:
                 raise exception
             raise
@@ -1366,7 +1363,6 @@ class GnrWsgiSite(object):
                 return self.serve_htmlPage('html_pages/missing_result.html', environ, start_response)
             finally:
                 self.onServedPage(page)
-                self.cleanup()
                 
             response = self.setResultInResponse(
                 result, response, info_GnrTime=time() - t,
