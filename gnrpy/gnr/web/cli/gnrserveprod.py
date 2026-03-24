@@ -125,7 +125,8 @@ def main():
     app = get_gnr_wsgi_application(cli_config.get("instance_name"), cli_config)
 
     file_config = {}
-    
+
+    # always load the default docker image when running in k8s
     if os.environ.get("KUBERNETES_SERVICE_HOST", None):
         default_docker_gunicorn_conf = "/home/genro/gunicorn.py"
         if os.path.exists(default_docker_gunicorn_conf):
