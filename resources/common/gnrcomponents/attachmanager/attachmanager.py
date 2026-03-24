@@ -576,7 +576,7 @@ class AttachManager(BaseComponent):
         attachment_tblobj =  self.db.table(attachment_table)
         uploaderId = kwargs.get('uploaderId')
         pkey = kwargs.get('pkey')
-        if pkey:
+        if pkey and pkey != '*newrecord*':
             with attachment_tblobj.recordToUpdate(pkey) as record:
                 record['filepath'] = kwargs.get('_atc_filepath')
                 for k,v in kwargs.items():
