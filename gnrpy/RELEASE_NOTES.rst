@@ -1,3 +1,9 @@
+Release 26.03.24
+================
+
+This is a bugfix release to provide in docker image the needed
+fonts for default printing templates.
+
 Release 26.03.18
 ================
 
