@@ -1,3 +1,10 @@
+Release 26.03.24.1
+==================
+
+Backport release for handling reverse-proxy/ssl termination correctly
+in a K8S enviroment, and to provide an easy way (with default path or
+env-var provided path) custom configuration for gunicorn backend.
+
 Release 26.03.24
 ================
 
