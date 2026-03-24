@@ -34,6 +34,7 @@ from datetime import timedelta
 from mako.lookup import TemplateLookup
 import re
 import datetime
+import traceback
 
 
 DEFAULT_CSS_THEME = os.environ.get('GNR_CSS_THEME', 'mimi')
@@ -628,8 +629,7 @@ class GnrWebPage(GnrBaseWebPage):
             result = str(e)
         except Exception as e:
             self.site.raiseIfDeveloper()
-            import traceback as _tb
-            tb_text = _tb.format_exc()
+            tb_text = traceback.format_exc()
             error_id = self.site.errorHandler(
                 exception=e,
                 error_type='rpc_exception',
