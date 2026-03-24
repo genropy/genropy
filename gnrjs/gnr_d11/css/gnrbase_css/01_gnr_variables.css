@@ -107,6 +107,7 @@
     /* === Components === */
 
     /* --- Grid --- */
+    --grid-cell-inset-top: 3px; /* top offset from cell edge to content — keeps text, widgets and checkboxes aligned */
     --grid-border-color: var(--gray-150); /* @theme */
     --grid-header-bg: var(--surface-light); /* @theme */
     --grid-header-color: var(--text-color); /* @theme */
