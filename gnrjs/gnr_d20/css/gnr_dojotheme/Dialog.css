@@ -249,6 +249,23 @@
     border-color: transparent var(--border-color, #ddd) transparent transparent;
 }
 
+/* --- Error validation tooltip (via dijit.showTooltip on invalid fields) --- */
+.gnr_dojotheme .dijitTooltipContainer .gnrErrorTooltip {
+    color: var(--field-error-tooltip-color, var(--status-error, #E53935));
+    font-size: 0.85em;
+    font-weight: 500;
+    line-height: 1.35;
+}
+
+.gnr_dojotheme .dijitTooltip:has(.gnrErrorTooltip) .dijitTooltipContainer {
+    background: var(--field-error-tooltip-bg, #fdf3f3);
+    border-color: var(--field-error-tooltip-border, rgba(229, 57, 53, 0.30));
+}
+
+.gnr_dojotheme .dijitTooltip:has(.gnrErrorTooltip) .dijitTooltipConnector {
+    display: none;
+}
+
 /* --- FloatingPane title: flex row, override tundra's .tundra .dojoxFloatingPaneTitle --- */
 .tundra.gnr_dojotheme .dojoxFloatingPaneTitle {
     display: flex;

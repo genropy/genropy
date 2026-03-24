@@ -23,8 +23,13 @@ class Table(object):
         tbl.column('error_type',name_long='!!Error type')
         tbl.column('error_code',name_long='!!Error code',indexed=True)
         tbl.formulaColumn('detail_url',
-                          """(CASE WHEN $request_host IS NULL THEN '/sys/ep_error?error_id=' || $id
-                                ELSE $request_host || '/sys/ep_error?error_id=' || $id
+                          """(CASE WHEN $request_host IS NULL
+                                THEN CASE WHEN $current_domain IS NOT NULL
+                                    THEN '/_main_/sys/ep_error?error_id=' || $id
+                                    ELSE '/sys/ep_error?error_id=' || $id END
+                                ELSE $request_host || CASE WHEN $current_domain IS NOT NULL
+                                    THEN '/_main_/sys/ep_error?error_id=' || $id
+                                    ELSE '/sys/ep_error?error_id=' || $id END
                              END)
                             """,
                           name_long='!!Detail')

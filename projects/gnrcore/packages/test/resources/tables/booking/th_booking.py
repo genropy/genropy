@@ -27,8 +27,8 @@ class Form(BaseComponent):
             value='^.record',
             frameCode='booking_wizard',
             completeLabel='Complete Booking',
-            grouplet_remote_num_guests="=.num_guests",
+            grouplet_remote_num_guests="=#FORM.record.num_guests",
             saveMainFormOnComplete=True)
 
     def th_options(self):
-        return dict(dialog_height='300px',dialog_width='400px',showtoolbar=False)
+        return dict(dialog_height='300px',dialog_width='500px',showtoolbar=False)

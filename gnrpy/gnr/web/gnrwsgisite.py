@@ -18,6 +18,7 @@ from werkzeug.utils import redirect
 from werkzeug.exceptions import (HTTPException, InternalServerError,
                                   NotFound, Forbidden, PreconditionFailed,
                                   BadRequest, Unauthorized)
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from gnr.core.gnrbag import Bag
 from gnr.core import gnrstring
@@ -1016,7 +1017,8 @@ class GnrWsgiSite(object):
                 kwargs['request_uri'] = request.url
                 kwargs['request_host'] = request.host_url
 
-        kwargs.setdefault('current_domain', self.currentDomain)
+        if self.multidomain:
+            kwargs.setdefault('current_domain', self.currentDomain)
         error_id = self.gnrapp.errorHandler(exception=exception, **kwargs)
         if error_id and page:
             notify_user = kwargs.get('notify_user')
@@ -1569,6 +1571,14 @@ class GnrWsgiSite(object):
                 wsgiapp = SentryWsgiMiddleware(wsgiapp)
             except Exception as e:
                 logger.error(f"Sentry support has been disabled due to configuration errors: {e}")
+
+        # when the application is executed being a reverse proxy / ssl terminator,
+        # werkzeug needs this middleware to compute the correct external host
+        # which is used by externalUrl in the Site object when the value is
+        # computed using the request data.
+        # Limited to Kubernetes environment for initial staging testing
+        if os.environ.get("KUBERNETES_SERVICE_HOST", None):
+            wsgiapp = ProxyFix(wsgiapp, x_for=1, x_proto=1, x_host=1)
         return wsgiapp
 
     def build_gnrapp(self, options=None):

@@ -690,7 +690,36 @@ class GnrDomSrc(GnrStructData):
         return self.child('flexbox',direction=direction, wrap=wrap,
                           align_content=align_content,justify_content=justify_content,
                           align_items=align_items,justify_items=justify_items,**kwargs)
-    
+
+    def expandbox(self, title=None, open=None, animate=None,
+                  minimal=None, locked=None, **kwargs):
+        """Create an expandable/collapsible container based on HTML5 details/summary.
+
+        The expandbox widget wraps content in a native <details> element with a
+        <summary> header. It supports CSS animations and reactive open/close binding.
+
+        Args:
+            title (str): The text displayed in the summary header.
+            open (bool): Whether the box starts expanded. Default False.
+            animate (bool): Enable smooth CSS transition on open/close.
+            minimal (bool): Use minimal style (no border, no header background).
+            locked (bool): Disable toggle — keeps current open/close state.
+                           The marker is hidden and the header is not clickable.
+            **kwargs: Additional attributes. Prefix with title_* for summary
+                      styling and content_* for content div styling.
+
+        Returns:
+            GnrDomSrcNode: The expandbox container node.
+
+        Example:
+            box = pane.expandbox(title='Details', open=True, animate=True)
+            fb = box.formbuilder(cols=2)
+            fb.textbox(value='^.name', lbl='Name')
+        """
+        return self.child('expandbox', title=title, open=open,
+                          animate=animate, minimal=minimal,
+                          locked=locked, **kwargs)
+
     def gridbox(self,columns=None,align_content=None,justify_content=None,
                 align_items=None,justify_items=None,table=None,**kwargs):
         """Create a gridbox container for two-dimensional grid-based layouts.
@@ -841,6 +870,12 @@ class GnrDomSrc(GnrStructData):
         
     def style(self,childcontent=None,**kwargs):
         return self.htmlChild('style', childcontent=childcontent, **kwargs)
+
+    def details(self, childcontent=None, **kwargs):
+        return self.htmlChild('details', childcontent=childcontent, **kwargs)
+
+    def summary(self, childcontent=None, **kwargs):
+        return self.htmlChild('summary', childcontent=childcontent, **kwargs)
 
     def a(self, childcontent=None, **kwargs):
         return self.htmlChild('a', childcontent=childcontent, **kwargs)

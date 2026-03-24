@@ -109,7 +109,7 @@ class TableHandlerCommon(BaseComponent):
         rootCode = rootCode or table.replace('.','_')
         self._th_mixinResource(rootCode=rootCode,table=table,resourceName=resourceName)
 
-    def _th_mixinResource(self,rootCode=None,table=None,resourceName=None,defaultClass=None,pane=None):
+    def _th_mixinResource(self,rootCode=None,table=None,resourceName=None,defaultClass=None,pane=None,safeMode=False):
         pkg,tablename = table.split('.')
         defaultModule = 'th_%s' %tablename
         resourcePath = self._th_getResourceName(resourceName,defaultModule,defaultClass)
@@ -131,6 +131,8 @@ class TableHandlerCommon(BaseComponent):
                 found = self.mixinComponent('tables','_packages',pkg,tablename,resourcePath,pkg=refpkg,mangling_th=rootCode, pkgOnly=True,safeMode=True) or found
         found = self.mixinComponent('tables','_packages',pkg,tablename,resourcePath,pkg=self.package.name,mangling_th=rootCode, pkgOnly=True,safeMode=True) or found
         if not found:
+            if safeMode:
+                return resourcePath
             exc = GnrMixinNotFound("Missing resource '%s' for table '%s'" % (defaultClass or '?', table))
             if pane is not None:
                 self._th_missingResource(pane, exc)
@@ -149,7 +151,7 @@ class TableHandlerCommon(BaseComponent):
                 self._th_missingResource(pane, e)
                 return None
             raise
-            
+
     def _th_getOptions(self,mangler=None):
         if isinstance(mangler,Bag):
             inattr = mangler.getInheritedAttributes()

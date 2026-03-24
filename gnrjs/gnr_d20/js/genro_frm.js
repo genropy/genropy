@@ -1297,7 +1297,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         var pendingEditor = this.checkPendingGridEditor(kw,modifiers);
         if(pendingEditor){
             var that = this;
-            this.sourceNode.watch('pendingEditor',function(){return pendingEditor._exitCellTimeout==null;},
+            this.sourceNode.watch('pendingEditor',function(){return !pendingEditor.grid.gnrediting;},
                                     function(){
                                         that.save(kw,modifiers);
                                     });
@@ -3134,6 +3134,7 @@ dojo.declare("gnr.formstores.Item", gnr.formstores.Base, {
         var kw = loader.kw || {};
         var maincb = kw._onResult? funcCreate(kw._onResult,'result',form.sourceNode):function(){};
         kw = form.sourceNode.evaluateOnNode(kw);
+        var onLoading = objectPop(kw,'onLoading');
         var envelope = new gnr.GnrBag();
         var recordLoaded = new gnr.GnrBag();
         var sourceBag = form.sourceNode.getRelativeData(this.locationpath);
@@ -3149,27 +3150,42 @@ dojo.declare("gnr.formstores.Item", gnr.formstores.Base, {
             var d = sourceBag.deepCopy();
             d.walk(function(n){n.attr = {}})
                 d.forEach(function(n){
-                    recordLoaded.setItem(n.label,n.getValue());
+                    recordLoaded.addItem(n.label,n.getValue());
                 });
         }
-
+        if(onLoading){
+            var loadResult = funcApply(onLoading,{data:recordLoaded},this);
+            if(loadResult instanceof gnr.GnrBag){
+                recordLoaded = loadResult;
+            }
+        }
         envelope.setItem('record',recordLoaded,kw);
-        var result = envelope.getNode('record');    
+        var result = envelope.getNode('record');
         this.loaded('',result);
-        return result;        
+        return result;
     },
     
 
     save_memory:function(kw){
         //ITEM
-        var saveKw = objectUpdate({},kw);
         var form = this.form;
+        var saveKw = form.sourceNode.evaluateOnNode(this.handlers.save.kw || {});
+        saveKw = objectUpdate(saveKw,kw);
         var sourceBag = form.sourceNode.getRelativeData(this.locationpath);
         if(!sourceBag){
             sourceBag = new gnr.GnrBag();
             form.sourceNode.setRelativeData(this.locationpath,sourceBag);
         }
         var formData = form.getFormData();
+        var onSaving = objectPop(saveKw,'onSaving');
+        if(onSaving){
+            formData = formData.deepCopy();
+            var dosave = funcApply(onSaving,{data:formData,sourceBag:sourceBag},this);
+            if(dosave===false){
+                this.form.setOpStatus(null);
+                return;
+            }
+        }
         var oldsubbag,path;
         formData.walk(function(n){
             var v = n.getValue();
@@ -3293,7 +3309,7 @@ dojo.declare("gnr.formstores.Collection", gnr.formstores.Base, {
             var d = dataNode.getValue().deepCopy();
             d.walk(function(n){n.attr = {}})
             d.forEach(function(n){
-                recordLoaded.setItem(n.label,n.getValue());
+                recordLoaded.addItem(n.label,n.getValue());
             });
             envelope.setItem('record',recordLoaded,kw);
         }

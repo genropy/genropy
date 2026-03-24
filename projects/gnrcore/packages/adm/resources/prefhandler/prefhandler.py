@@ -96,8 +96,6 @@ class AppPrefHandler(BasePreferenceTabs):
             frameCode='app_pref_grplt',
             menuCallback=self._ph_preferenceMenu,
             grouplet_datapath='.app_grouplet_form',
-            grouplet_formDatapath='.record',
-            grouplet_formControllerPath='.controller'
         )
         bar = form.bottom.slotBar('5,cancel,*,revertbtn,10,savebtn,saveAndClose,5',
                                    margin_bottom='2px', _class='slotbar_dialog_footer')
