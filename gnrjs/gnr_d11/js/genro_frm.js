@@ -2759,7 +2759,7 @@ dojo.declare("gnr.formstores.Base", null, {
         const that = this;
         const form = this.form;
         kw = kw || {};
-        kw.rpcmethod = kw.rpcmethod || 'getSiteDocument';
+        kw.rpcmethod = kw.rpcmethod || this.handlers.load.rpcmethod || 'getSiteDocument';
         kw.path = form.getCurrentPkey();
 
         const onResult = function(result){
