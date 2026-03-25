@@ -502,6 +502,8 @@ class GnrWsgiSite(object):
             if alias_url:
                 self.webtools_static_routes[alias_url] = tool_name
 
+        self._pre_dispatchers = []
+
         # this is needed, don't remove - if removed, the register
         # is not initialized, since self.register is a property
         # and it initialze the register itself.
@@ -531,6 +533,16 @@ class GnrWsgiSite(object):
         # this construct seems to be unused
         self._guest_counter += 1
         return self._guest_counter
+
+    def register_pre_dispatcher(self, handler):
+        """Register a callable to be tried before the standard dispatch chain.
+
+        The handler receives (path_list, request_kwargs, environ, start_response)
+        and must return a WSGI response if it handles the request, or None to
+        let the standard dispatcher continue.
+
+        :param handler: a callable(path_list, request_kwargs, environ, start_response) -> response or None"""
+        self._pre_dispatchers.append(handler)
 
     def log_print(self, msg, code=None):
         """
@@ -1266,6 +1278,12 @@ class GnrWsgiSite(object):
             self.connectionLog('close',expiredConnections)
         first_segment = path_list[0]
         last_segment = path_list[-1]
+
+        for pre_dispatcher in self._pre_dispatchers:
+            result = pre_dispatcher(path_list, request_kwargs, environ, start_response)
+            if result is not None:
+                return result
+
         # this can be moved.
         if first_segment == '_ping':
             try:
