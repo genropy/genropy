@@ -265,6 +265,8 @@ class GnrK8SGenerator(object):
                     "spec": {
                         "ports": [
                             {
+                                "name": "http",
+                                "protocol": "TCP",
                                 "port": self.services_port.get(service),
                                 "targetPort": self.services_port.get(service),
                             }
@@ -392,6 +394,8 @@ class GnrK8SGenerator(object):
             "spec": {
                 "ports": [
                     {
+                        "name": "http",
+                        "protocol": "TCP",
                         "port": self.container_port,
                         "targetPort": self.container_port,
                     }
