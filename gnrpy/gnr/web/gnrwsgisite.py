@@ -9,7 +9,7 @@ import mimetypes
 import functools
 from time import time
 from collections import defaultdict
-from threading import RLock
+from threading import RLock, Thread
 import warnings
 
 import requests
@@ -18,19 +18,20 @@ from werkzeug.utils import redirect
 from werkzeug.exceptions import (HTTPException, InternalServerError,
                                   NotFound, Forbidden, PreconditionFailed,
                                   BadRequest, Unauthorized)
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from gnr.core.gnrbag import Bag
 from gnr.core import gnrstring
 from gnr.core.gnrlang import GnrException, GnrDebugException
-from gnr.core.gnrlang import tracebackBag, getUuid, ThreadedDict
-from gnr.core.gnrdecorator import public_method, deprecated
+from gnr.core.gnrlang import getUuid, ThreadedDict
+from gnr.core.gnrdecorator import deprecated
 from gnr.core.gnrconfig import getGnrConfig,getEnvironmentItem
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrstring import boolean
 from gnr.core.gnrdecorator import extract_kwargs,metadata
 from gnr.core.gnrcrypto import AuthTokenGenerator
 from gnr.lib.services import ServiceHandler
-from gnr.app.gnrdeploy import PathResolver
+from gnr.app.pathresolver import PathResolver
 from gnr.app.gnrapp import GnrPackage
 from gnr.web import logger
 from gnr.web.gnrwebapp import GnrWsgiWebApp
@@ -1004,27 +1005,49 @@ class GnrWsgiSite(object):
         response = requests.post(url, headers=headers, data=kwargs)
         return self.gnrapp.catalog.fromTypedText(response.text)
 
-    def writeException(self, exception=None, traceback=None):
-        try:
-            page = self.currentPage
-            user, user_ip, user_agent = (page.user, page.user_ip, page.user_agent) if page else (None, None, None)
-            return self.db.table('sys.error').writeException(description=str(exception),
-                                                      traceback=traceback,
-                                                      user=user,
-                                                      user_ip=user_ip,
-                                                      user_agent=user_agent)
-        except Exception as writingErrorException:
-            logger.exception('\n ####writingErrorException %s for exception %s' %(str(writingErrorException),str(exception)))
+    def errorHandler(self, exception=None, **kwargs):
+        page = self.currentPage
+        if page:
+            kwargs.setdefault('user', page.user)
+            kwargs.setdefault('user_ip', page.user_ip)
+            kwargs.setdefault('user_agent', page.user_agent)
+            kwargs.setdefault('page_id', getattr(page, 'page_id', None))
+            request = getattr(page, 'request', None)
+            if request:
+                kwargs['request_uri'] = request.url
+                kwargs['request_host'] = request.host_url
 
-    @public_method
-    def writeError(self, description=None,error_type=None, **kwargs):
+        if self.multidomain:
+            kwargs.setdefault('current_domain', self.currentDomain)
+        error_id = self.gnrapp.errorHandler(exception=exception, **kwargs)
+        if error_id and page:
+            notify_user = kwargs.get('notify_user')
+            if notify_user:
+                try:
+                    if notify_user is True:
+                        notify_user = str(exception)
+                    msg = '%s (ref: %s)' % (notify_user, error_id)
+                    page.setInClientData('gnr.server_error', msg, fired=True)
+                except Exception:
+                    logger.debug('Failed to notify user of error %s', error_id)
+        if error_id:
+            self._sendToErrorEndpoints(error_id, kwargs)
+        return error_id
+
+    def _sendToErrorEndpoints(self, error_id, error_info):
+        endpoint = self.config['error_handler?error_endpoint']
+        if not endpoint:
+            return
+        error_info['error_id'] = error_id
+        Thread(target=self._postToEndpoint,
+               args=(endpoint, error_info), daemon=True).start()
+
+    def _postToEndpoint(self, endpoint, error_info):
         try:
-            page = self.currentPage
-            user, user_ip, user_agent = (page.user, page.user_ip, page.user_agent) if page else (None, None, None)
-            self.db.table('sys.error').writeError(description=description,error_type=error_type,user=user,user_ip=user_ip,user_agent=user_agent,**kwargs)
-        except Exception as e:
-            logger.exception(str(e))
-            pass
+            requests.post(endpoint, json=error_info, timeout=5)
+        except Exception:
+            logger.warning('Failed to send error to endpoint %s', endpoint)
+
 
     def loadResource(self, pkg, *path):
         """TODO
@@ -1068,7 +1091,10 @@ class GnrWsgiSite(object):
                     else:
                         out_dict[name] = value
                 except UnicodeDecodeError:
-                    pass
+                    self.errorHandler(
+                        description='UnicodeDecodeError parsing request parameter',
+                        loglevel='warning', origin='data'
+                    )
         return out_dict
 
     @property
@@ -1130,16 +1156,21 @@ class GnrWsgiSite(object):
         try:
             return self._dispatcher(environ, start_response)
         except Exception as e:
-            page = self.currentPage
-            if self.debug and ((page and page.isDeveloper()) or self.force_debug):
-                raise
-            self.writeException(exception=e,traceback=tracebackBag())
+            self.raiseIfDeveloper()
+            self.errorHandler(exception=e, traceback=True)
             exc = InternalServerError(
                 description='Internal server error; SCRIPT_NAME=%r; PATH_INFO=%r;'
                 % (environ.get('SCRIPT_NAME'), environ.get('PATH_INFO')))
             return exc(environ, start_response)
         finally:
             self.currentDomain = self.rootDomain
+
+    def raiseIfDeveloper(self, exception=None):
+        page = self.currentPage
+        if self.debug and ((page and page.isDeveloper()) or self.force_debug):
+            if exception is not None:
+                raise exception
+            raise
 
     @property
     def external_host(self):
@@ -1540,6 +1571,14 @@ class GnrWsgiSite(object):
                 wsgiapp = SentryWsgiMiddleware(wsgiapp)
             except Exception as e:
                 logger.error(f"Sentry support has been disabled due to configuration errors: {e}")
+
+        # when the application is executed being a reverse proxy / ssl terminator,
+        # werkzeug needs this middleware to compute the correct external host
+        # which is used by externalUrl in the Site object when the value is
+        # computed using the request data.
+        # Limited to Kubernetes environment for initial staging testing
+        if os.environ.get("KUBERNETES_SERVICE_HOST", None):
+            wsgiapp = ProxyFix(wsgiapp, x_for=1, x_proto=1, x_host=1)
         return wsgiapp
 
     def build_gnrapp(self, options=None):

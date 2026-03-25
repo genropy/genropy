@@ -142,16 +142,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
             mainGenroWindow.polling_enabled = false;
             mainGenroWindow.dlg.alert('No longer existing page','Error',null,null,{confirmCb:genro.pageReload});
             return;
-        } else if (status === 0) {
-            genro.publish('client_error', {
-                errorType: 'network',
-                description: 'Connection lost or server unavailable',
-                status: xhr.status,
-                statusText: xhr.statusText,
-                url: ioArgs.url
-            });
-        }
-        else {
+        } else {
             console.log('handleRpcHttpError');
             debug_url = ioArgs.xhr.getResponseHeader('X-Debug-Url');
             if (!debug_url) {
@@ -185,18 +176,22 @@ dojo.declare("gnr.GnrDevHandler", null, {
             return;
         }
         if (error=='gnrexception'){
-            if(genro.src.getNode()){
-                genro.dlg.alert('<h2 align="center">'+envNode.getValue()+'</h2> <br/>','Warning');
-            }else{
-                dojo.byId('mainWindow').innerHTML = '<h2 class="selectable" style="color:red;" align="center">'+envNode.getValue()+'</h2> <br/>';
-            }
+            genro.toast.show({
+                title: 'Warning',
+                message: envNode.getValue(),
+                level: 'error',
+                centered: true,
+                duration:3000
+            });
             return;
         }else if (error=='server_exception'){
-            if(genro.src.getNode()){
-                genro.dlg.alert('<h3 align="center">'+envNode.getValue()+'</h3> <br/>','Error');
-            }else{
-                dojo.byId('mainWindow').innerHTML = '<h2 class="selectable" style="color:red;" align="center">'+envNode.getValue()+'</h2> <br/>';
-            }
+            genro.toast.show({
+                title: 'Server Error',
+                message: envNode.getValue(),
+                level: 'error',
+                duration: 0,
+                copyable: true
+            });
             return;
         }
         if (error == 'expired') {

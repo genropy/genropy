@@ -65,8 +65,14 @@
 }
 
 /* ==========================================================================
-   Hover — dots become darker
+   Hover — background tints, dots become darker
    ========================================================================== */
+.gnr_dojotheme .dijitSplitterH:hover,
+.gnr_dojotheme .dijitSplitterV:hover {
+    background: var(--border-light);
+    transition: background 0.15s ease;
+}
+
 .gnr_dojotheme .dijitSplitterH:hover .dijitSplitterThumb,
 .gnr_dojotheme .dijitSplitterV:hover .dijitSplitterThumb {
     background-color: var(--splitter-grip-hover, #666);

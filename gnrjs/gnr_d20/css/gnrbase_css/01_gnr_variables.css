@@ -46,8 +46,7 @@
 
     /* --- Typography --- */
     --font-family: 'Inter', -apple-system, 'Helvetica Neue', 'Arial', sans-serif; /* @theme @palette */
-    --font-size: 14px; /* @theme @palette */
-    --mainWindow-font-size: 0.81rem;
+    --font-size: 0.875rem; /* @theme @palette */
 
     /* --- Brand / Primary --- */
     --primary-color: var(--gray-600); /* @theme */
@@ -71,7 +70,7 @@
     /* --- Borders --- */
     --border-color: var(--gray-300); /* @theme */
     --border-light: var(--gray-150); /* @theme */
-    --border-strong: var(--gray-300); /* @theme */
+    --border-strong: var(--gray-400); /* @theme */
 
     /* --- Text --- */
     --text-color: var(--gray-900); /* @theme */
@@ -107,6 +106,7 @@
     /* === Components === */
 
     /* --- Grid --- */
+    --grid-cell-inset-top: 3px; /* top offset from cell edge to content — keeps text, widgets and checkboxes aligned */
     --grid-border-color: var(--gray-150); /* @theme */
     --grid-header-bg: var(--surface-light); /* @theme */
     --grid-header-color: var(--text-color); /* @theme */
@@ -149,8 +149,8 @@
     --toolbar-height-lg: 2em;
     --toolbar-min-height: 2.3em;
     --toolbar-min-height-lg: 2.8em;
-    --toolbar-bg: var(--gray-200); /* @theme */
-    --toolbar-gradient: linear-gradient(to bottom, var(--gray-150), var(--gray-200)); /* @theme */
+    --toolbar-bg: var(--gray-300); /* @theme */
+    --toolbar-gradient: linear-gradient(to bottom, var(--gray-200), var(--gray-300)); /* @theme */
     --toolbar-color: var(--gray-900); /* @theme */
     --toolbar-dark-bg: var(--gray-600); /* @theme */
 
@@ -191,11 +191,22 @@
     --roundedgroup-shadow: rgba(0,0,0,0.06); /* @theme */
     --rectgroup-bar-background: var(--gray-200); /* @theme */
 
+    /* --- Expandbox (details/summary disclosure widget) --- */
+    --expandbox-border: var(--border-light); /* @theme */
+    --expandbox-radius: var(--radius-sm); /* @theme */
+    --expandbox-header-bg: var(--roundedgroup-bar); /* @theme */
+    --expandbox-header-color: var(--roundedgroup-bar-color); /* @theme */
+    --expandbox-header-padding: 4px 8px; /* @theme */
+    --expandbox-header-font-size: var(--form-label-font-size); /* @theme */
+    --expandbox-header-font-weight: bold; /* @theme */
+    --expandbox-content-padding: 8px; /* @theme */
+    --expandbox-transition-duration: 0.3s; /* @theme */
+
     /* === Forms === */
 
     /* --- Form fields --- */
     --field-bg: var(--color-bg); /* @theme */
-    --field-border: var(--gray-300); /* @theme */
+    --field-border: var(--gray-400); /* @theme */
     --field-error-border: #DE9091; /* color-error #E53935 45% + gray-300 #D8D8DC */
     --field-error-dot-size: 8px; /* @theme */
     --field-error-dot-color: var(--color-error); /* @theme */
@@ -241,8 +252,6 @@
     /* --- Formlet (grid-layout forms) --- */
     --formlet-gap: 7px 20px;
     --formlet-padding: 7px;
-    --formlet-field-border: var(--form-field-border);
-    --formlet-field-bg: var(--form-field-bg);
     --formlet-field-border-width: var(--form-field-border-width);
     --formlet-field-radius: var(--form-field-radius);
     --formlet-field-padding-y: 0.3em;
@@ -262,7 +271,51 @@
     --status-warning: var(--color-warning); /* @theme */
     --status-idle: var(--gray-300); /* @theme */
 
-    /* --- Toaster --- */
+    /* --- Toast (gnr-toast notification cards) --- */
+    --toast-container-gap: 8px;
+    --toast-container-top: 16px;
+    --toast-container-right: 16px;
+    --toast-min-width: 300px;
+    --toast-max-width: 420px;
+    --toast-padding: 14px 16px;
+    --toast-gap: 10px;
+    --toast-border-width: 4px;
+    --toast-icon-size: 20px;
+    --toast-btn-size: 18px;
+    --toast-progress-height: 3px;
+
+    /* --- Traceback viewer (gnr-tb) --- */
+    --tb-font-size: 13px;
+    --tb-mono-font: "SF Mono", Menlo, monospace;
+    --tb-frame-border: var(--gray-200);
+    --tb-frame-border-open: var(--gray-300);
+    --tb-frame-border-error: #f87171;
+    --tb-frame-radius: 8px;
+    --tb-summary-bg: #fafbfc;
+    --tb-summary-hover: #f0f4f8;
+    --tb-num-bg: var(--gray-200);
+    --tb-num-color: #666;
+    --tb-num-error-bg: #fee2e2;
+    --tb-module-color: var(--accent-color);
+    --tb-func-color: #7c3aed;
+    --tb-muted-color: #999;
+    --tb-hash-color: #9ca3af;
+    --tb-hash-bg: var(--gray-100);
+    --tb-locals-badge-bg: #dbeafe;
+    --tb-locals-hdr-bg: #f8fafc;
+    --tb-locals-th-bg: #f1f5f9;
+    --tb-code-bg: #1e293b;
+    --tb-code-color: #e2e8f0;
+    --tb-error-bg: #fef2f2;
+    --tb-error-color: #dc2626;
+    --tb-error-border: #fecaca;
+    --tb-btn-bg: #f8f9fa;
+    --tb-btn-border: #ddd;
+    --tb-btn-color: #555;
+    --tb-btn-hover-bg: #e9ecef;
+    --tb-btn-hover-border: #ccc;
+
+    /* --- Toaster (legacy dojox.widget.Toaster) --- */
     --toaster-success-bg: #70BF73; /* @theme — color-success #4CAF50 80% + white */
     --toaster-error-bg: #8C2320;   /* @theme — color-error #E53935 60% + black */
     --toaster-warning-bg: #FFA726; /* @theme — color-warning #FF9800 85% + white */

@@ -163,48 +163,6 @@
     grid-auto-flow: column;
 }
 
-.grouplet_topic_cell {
-    border: 1px solid var(--border-color, #ccc);
-    border-radius: var(--radius-sm);
-    overflow: hidden;
-}
-
-.grouplet_topic_cell_caption {
-    font-weight: 600;
-    font-size: 0.9em;
-    padding: 6px 10px;
-    background: var(--surface-light, #f6f6f6);
-    border-bottom: 1px solid var(--border-color, #ccc);
-    color: var(--text-color, #444);
-    cursor: pointer;
-    -webkit-user-select: none;
-    user-select: none;
-}
-
-.grouplet_topic_cell_content {
-    overflow: hidden;
-    transition: max-height 0.3s ease-out;
-}
-
-.grouplet_topic_toggle {
-    display: inline-block;
-    width: 1em;
-    text-align: center;
-    transition: transform 0.3s ease;
-}
-
-.grouplet_topic_toggle::before {
-    content: '\25BE';
-}
-
-.grouplet_topic_cell.collapsed .grouplet_topic_toggle {
-    transform: rotate(-90deg);
-}
-
-.grouplet_topic_cell.collapsed .grouplet_topic_cell_caption {
-    border-bottom: none;
-}
-
 /* Tree panel: error state on title label */
 .grouplet_panel_title.grplt_status_error {
     color: #f44336;

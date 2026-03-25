@@ -91,7 +91,6 @@ class GnrAppInsightGitMetrics(GnrAppInsightDataset):
         project_folder = self.app.instanceFolder.split("instances")[0]
 
         framework_base_dir = os.path.abspath(os.path.join(os.path.dirname(gnr.__file__), "..", ".."))+os.path.sep
-        framework_name = "genropy"
         framework_data = self._analyze_git_repo(framework_base_dir)
         
         extra_packages = dict()
@@ -197,7 +196,6 @@ class GnrAppInsightProjectComposition(GnrAppInsightDataset):
         
         total_lines = sum(project_counters.values()) +\
             sum(extra_counters.values()) + framework_lines
-        total_percentage = 100.0
 
         def compute_percentage(lines):
             return dict(lines=lines, percentage=(lines/total_lines)*100)

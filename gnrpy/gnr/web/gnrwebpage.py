@@ -32,7 +32,6 @@ import copy
 from time import time
 from datetime import timedelta
 from mako.lookup import TemplateLookup
-from base64 import b64decode
 import re
 import datetime
 
@@ -41,7 +40,7 @@ DEFAULT_CSS_THEME = os.environ.get('GNR_CSS_THEME', 'mimi')
 
 from gnr.core.gnrstring import toText, toJson, concat, jsquote,splitAndStrip,boolean,asDict
 from gnr.core.gnrdict import dictExtract
-from gnr.core.gnrlang import getUuid,gnrImport, GnrException, GnrSilentException, tracebackBag
+from gnr.core.gnrlang import getUuid,gnrImport, GnrException, GnrSilentException
 from gnr.core.gnrbag import Bag, BagResolver
 from gnr.core.gnrdecorator import public_method,deprecated
 from gnr.core.gnrclasses import GnrMixinNotFound
@@ -61,6 +60,7 @@ from gnr.web.gnrwebpage_proxy.utils import GnrWebUtils
 from gnr.web.gnrwebpage_proxy.pluginhandler import GnrWebPluginHandler
 from gnr.web.gnrwebpage_proxy.jstools import GnrWebJSTools
 from gnr.web.gnrwebstruct import GnrGridStruct
+from gnr.web.verifiers import GnrVerifier,AuthorizationBaseTagsVerifier
 
  # DO NOT REMOVE, old code relies on BaseComponent being defined in this file
 from gnr.web.gnrbaseclasses import BaseComponent # noqa: F401
@@ -221,7 +221,11 @@ class GnrWebPage(GnrBaseWebPage):
         self.onPreIniting(request_args, request_kwargs)
         self._call_handler = self.get_call_handler(request_args, request_kwargs)
         
-        self.onIniting(request_args, request_kwargs)
+        try:
+            self.onIniting(request_args, request_kwargs)
+        except Exception as e:
+            self.site.raiseIfDeveloper()
+            self._page_init_error = str(e)
         self._call_args = request_args or tuple()
         self._call_kwargs = dict(request_kwargs)
         if getattr(self,'skip_connection', False) or self._call_kwargs.get('method') == 'onClosePage':
@@ -619,19 +623,27 @@ class GnrWebPage(GnrBaseWebPage):
             self.rpc.error = 'gnrsilent'
             result = Bag(topic=e.topic,parameters=e.parameters)
         except GnrException as e:
-            if self.site.debug and (self.isDeveloper() or self.site.force_debug):
-                raise
+            self.site.raiseIfDeveloper()
             self.rpc.error = 'gnrexception'
             result = str(e)
         except Exception as e:
-            if self.site.debug and (self.isDeveloper() or self.site.force_debug):
-                raise
-            else:
-                exception_record = self.site.writeException(exception=e, traceback=tracebackBag())
-                self.rpc.error = 'server_exception'
-                result = '<div>%s</div>' %str(e)
-                if exception_record:
-                    result = '%s <br/> Check Exception Id: %s' %(result,exception_record['id'])
+            self.site.raiseIfDeveloper()
+            error_id = self.site.errorHandler(
+                exception=e,
+                error_type='rpc_exception',
+                notify_user=True,
+                traceback=True,
+                rpc_method=method,
+                rpc_kwargs=Bag(kwargs)
+            )
+            self.rpc.error = 'server_exception'
+            result = '<div>%s</div>' %str(e)
+            if error_id:
+                if self.isDeveloper():
+                    detail_url = '/sys/ep_error?error_code=%s' % error_id
+                    result = '%s <br/> Exception Id: <a href="%s" target="_blank">%s</a>' % (result, detail_url, error_id)
+                else:
+                    result = '%s <br/> Check Exception Id: %s' % (result, error_id)
         result_handler = getattr(self.rpc, 'result_%s' % mode.lower())
         return_result = result_handler(result)
         return return_result
@@ -1190,33 +1202,29 @@ class GnrWebPage(GnrBaseWebPage):
         handler = getattr(proxy_object, submethod, None)
         if not handler or not getattr(handler, 'is_rpc', False):
             handler = getattr(proxy_object, '%s_%s' % (prefix, submethod),None)
-        
-        if handler and getattr(handler,'signed',None):
+    
+        if not handler:
+            self.clientPublish('floating_message',message='missing public method %s' %method,messageType='error')
+            return
+        if getattr(handler,'signed',None):
             error = self.site.auth_token_generator.verify_url(self.request._request.url)
             if error:
                 raise GnrSignedTokenException(error)
-            
-        if handler and getattr(handler, 'tags',None):
-            userTags = self.userTags or self.basicAuthenticationTags()
-            if not self.application.checkResourcePermission(handler.tags, userTags):
-                raise self.exception(GnrUserNotAllowed,method=method)
-        if not handler:
-            self.clientPublish('floating_message',message='missing public method %s' %method,messageType='error')
+        verifier_error = None
+        if getattr(handler,'verifier',None):
+            verifier_class = handler.verifier
+            if issubclass(verifier_class,GnrVerifier):
+                verifier_error = verifier_class(self)()
+            else:
+                raise GnrException('Verifier wrong class')
+        elif getattr(handler, 'tags',None):
+            verifier = AuthorizationBaseTagsVerifier(self)
+            verifier_error = verifier(tags=handler.tags)
+        if verifier_error:
+            raise verifier_error                
         return handler
 
-    def basicAuthenticationTags(self):
-        authorization = self.request.headers.get('Authorization')
-        if not authorization:
-            raise GnrBasicAuthenticationError('Missing Basic Authorization')
-        authmode,login = authorization.split(' ')
-        if authmode!='Basic':
-            raise GnrBasicAuthenticationError('Wrong Authorization Mode')
-        user,pwd = b64decode(login).decode().split(':')
-        self.avatar = self.application.getAvatar(user,pwd,authenticate=True)
-        if not self.avatar:
-            raise GnrBasicAuthenticationError('Wrong Authorization Login')
-        return self.avatar.user_tags
-        
+
     def getWsMethod(self, method):
         """TODO
         
@@ -1639,9 +1647,10 @@ class GnrWebPage(GnrBaseWebPage):
     
     @property
     def userLocalTags(self):
-        if not hasattr(self,'_rootenv'):
-             return
-        return self.rootenv['user_local_tags']
+        rootenv = self.rootenv
+        if not rootenv:
+            return
+        return rootenv['user_local_tags']
     
     @property
     def userMenu(self):

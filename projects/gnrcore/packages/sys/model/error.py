@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-from gnr.core.gnrbag import Bag
 
 class Table(object):
     def config_db(self, pkg):
@@ -21,21 +20,44 @@ class Table(object):
 
         tbl.column('fixed',name_long='Fixed')
         tbl.column('notes',name_long='Notes')
-        tbl.column('error_type',name_long='!!Error type',values='ERR:Error,EXC:Exception')
+        tbl.column('error_type',name_long='!!Error type')
+        tbl.column('error_code',name_long='!!Error code',indexed=True)
+        tbl.formulaColumn('detail_url',
+                          """(CASE WHEN $request_host IS NULL
+                                THEN CASE WHEN $current_domain IS NOT NULL
+                                    THEN '/_main_/sys/ep_error?error_id=' || $id
+                                    ELSE '/sys/ep_error?error_id=' || $id END
+                                ELSE $request_host || CASE WHEN $current_domain IS NOT NULL
+                                    THEN '/_main_/sys/ep_error?error_id=' || $id
+                                    ELSE '/sys/ep_error?error_id=' || $id END
+                             END)
+                            """,
+                          name_long='!!Detail')
+        tbl.column('request_uri',name_long='!!Request URI')
+        tbl.column('request_host',name_long='!!Request Host')
+
+        tbl.column('rpc_method',name_long='!!RPC Method')
+        tbl.column('rpc_kwargs',dtype='X',name_long='!!RPC kwargs')
+        tbl.column('page_id',name_long='!!Page ID',size='22')
+        tbl.column('current_domain',name_long='!!Current domain')
 
 
-    def writeException(self,description=None,traceback=None,user=None,user_ip=None,user_agent=None):
-        rec = dict(description=description,error_data=traceback,username=user,user_ip=user_ip,user_agent=user_agent,error_type='EXC')
-        with self.db.tempEnv(connectionName='system',storename=self.db.rootstore):
+    def errorHandler(self, error_id=None, description=None, traceback=None,
+                     error_type=None, user=None, user_ip=None,
+                     user_agent=None, request_uri=None,
+                     rpc_method=None, rpc_kwargs=None, page_id=None,
+                     request_host=None, current_domain=None, **kwargs):
+        rec = dict(error_code=error_id, description=description,
+                   error_data=traceback, error_type=error_type,
+                   username=user, user_ip=user_ip,
+                   user_agent=user_agent, request_uri=request_uri,
+                   request_host=request_host,
+                   rpc_method=rpc_method, rpc_kwargs=rpc_kwargs,
+                   page_id=page_id,
+                   current_domain=current_domain)
+        with self.db.tempEnv(connectionName='system',
+                             storename=self.db.rootstore):
             self.insert(rec)
             self.db.commit()
         return rec
 
-    def writeError(self,description=None,error_type=None,user=None,user_ip=None,user_agent=None,**kwargs):
-        error_data = Bag(self.db.currentEnv)
-        error_data.update(kwargs)
-        rec = dict(description=description,error_data=error_data,username=user,user_ip=user_ip,user_agent=user_agent,error_type=error_type or 'ERR')
-        with self.db.tempEnv(connectionName='system',storename=self.db.rootstore):
-            self.insert(rec)
-            self.db.commit()
-        return rec

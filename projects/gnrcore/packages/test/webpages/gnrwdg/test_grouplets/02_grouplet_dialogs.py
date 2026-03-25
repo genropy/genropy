@@ -15,7 +15,7 @@ class GnrCustomWebPage(object):
         pane.data('.mydata', Bag(dict(
             name='Mario', surname='Rossi',
             street='Via Roma 1', city='Milano',
-            zip='20100', country='Italia'
+            zip='20100', country='Italy'
         )))
         form = pane.frameForm(frameCode='mem_form',
                              height='400px', width='600px',

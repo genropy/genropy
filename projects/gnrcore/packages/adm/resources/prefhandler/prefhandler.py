@@ -80,7 +80,7 @@ class AppPrefHandler(BasePreferenceTabs):
     @struct_method
     def ph_appPreferencesForm(self, parent, datapath=None, **kwargs):
         form = parent.frameForm(frameCode='app_preferences',
-                                store_startKey='_mainpref_',
+                                #store_startKey='_mainpref_',
                                 table='adm.preference', datapath=datapath,
                                 store=True, modal=True, **kwargs)
         form.dataController("""
@@ -96,8 +96,6 @@ class AppPrefHandler(BasePreferenceTabs):
             frameCode='app_pref_grplt',
             menuCallback=self._ph_preferenceMenu,
             grouplet_datapath='.app_grouplet_form',
-            grouplet_formDatapath='.record',
-            grouplet_formControllerPath='.controller'
         )
         bar = form.bottom.slotBar('5,cancel,*,revertbtn,10,savebtn,saveAndClose,5',
                                    margin_bottom='2px', _class='slotbar_dialog_footer')

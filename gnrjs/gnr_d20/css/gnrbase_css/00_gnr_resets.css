@@ -45,8 +45,9 @@ div, span {
 }
 
 /* --- Body defaults --- */
-body.tundra {
-    font: var(--font-size) var(--font-family);
+body.gnr_dojotheme {
+    font-size: var(--font-size);
+    font-family: var(--font-family);
     color: var(--text-color);
     accent-color: var(--primary-color);
 }

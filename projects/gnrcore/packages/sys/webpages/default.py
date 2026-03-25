@@ -7,7 +7,6 @@
 import os
 
 from gnr.core.gnrbag import DirectoryResolver
-from werkzeug.exceptions import NotFound
 
 class GnrCustomWebPage(object):
 
@@ -16,14 +15,14 @@ class GnrCustomWebPage(object):
 
     def windowTitle(self):
         return ''
-    def isDeveloper(self):
-        return True
 
     def main(self, root, **kwargs):
         url_info = self.site.getUrlInfo(self.getCallArgs())
         dirpath=os.path.join(url_info.basepath,*url_info.request_args)
         if not os.path.isdir(dirpath):
-            return NotFound('Missing page')
+            requested_path = '/'.join(url_info.request_args)
+            root.errorPane(f'Page /{requested_path} not found')
+            return
         bc=root.borderContainer(datapath='main')
         bc.style("")
         center=bc.contentPane(region='center',datapath='.current',overflow='hidden')

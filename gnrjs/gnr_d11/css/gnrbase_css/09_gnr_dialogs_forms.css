@@ -134,15 +134,11 @@
 .dlg_ask_msg {
     max-width: 40em;
     padding: 1em 1.2em;
-    font-size: 0.9em;
     line-height: 1.5;
     color: var(--dlg-msg-color, #333);
     text-align: left;
 }
 
-.dlg_alert {
-    font-size: .9em;
-}
 
 .dlg_alert.dijitDialog .dijitDialogPaneContent,
 .dlg_prompt.dijitDialog .dijitDialogPaneContent{
@@ -162,7 +158,6 @@
     gap: 0.5em;
     align-items: center;
     justify-content: flex-start;
-    padding: 0.8em 1.2em;
 }
 .dlg_ask_btnBox .dijitButton{
     margin: 0;
@@ -349,15 +344,7 @@ label{
     text-align: center;
     font-size: 2em;
     font-weight: 600;
-    color: var(--gray-200);
-    background: rgba(255,255,255,0.75);
-    padding: 0.4em 1.2em;
-    border-radius: var(--radius-pill, 9999px);
-}
-.hiderMessage:has(.waiting){
-    background: none;
-    padding: 0;
-    border-radius: 0;
+    color: var(--gray-500, #555);
 }
 
 /* @end */
@@ -370,11 +357,6 @@ table.formbuilder {
     border-collapse: separate;
     border-spacing: var(--formbuilder-spacing);
 }
-
-table.formbuilder td.gnrfield {
-    flex: 1;
-}
-
 
 /* @end */
 
@@ -417,7 +399,6 @@ table.formbuilder td.gnrfield {
     background-color: rgba(170, 190, 201, 0.2);
     text-align: center;
     vertical-align: middle;
-    font-size: 1em;
     padding-top: 2em;
     border-radius: var(--radius-sm);
 }
