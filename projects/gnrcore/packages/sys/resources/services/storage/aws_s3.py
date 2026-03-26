@@ -176,7 +176,10 @@ class Service(StorageService):
     def md5hash(self,*args):
         bucket = self._head_object(*args)
         if bucket:
-            return bucket['ETag'][1:-1]
+            etag = bucket['ETag'][1:-1]
+            if len(etag) == 32:
+                return etag
+        return None
 
     def exists(self, *args):
         return self.isfile(*args) or self.isdir(*args)
