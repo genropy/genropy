@@ -431,6 +431,14 @@ class RecordToHtmlNew(RecordToHtmlPage):
         """
         return None
 
+    def calcRowsNumber(self, text, width_mm=None, font_name=None, font_size=None):
+        """Delegate to :meth:`GnrHtmlBuilder.calcRowsNumber`.
+
+        Kept for backward compatibility with report subclasses that call
+        ``self.calcRowsNumber(...)`` directly.
+        """
+        return self.builder.calcRowsNumber(text, width_mm=width_mm, font_name=font_name, font_size=font_size)
+
     def calcRowHeight(self):
         """override for special needs"""
         if self.font_family:
