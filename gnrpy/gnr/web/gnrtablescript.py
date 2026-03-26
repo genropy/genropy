@@ -12,7 +12,7 @@ import tempfile
 
 from gnr.core.gnrbag import Bag, BagCbResolver
 from gnr.core.gnrhtml import GnrHtmlBuilder
-from gnr.core.gnrstring import toText, slugify, stringWidth
+from gnr.core.gnrstring import toText, slugify
 from gnr.core.gnrlang import NotImplementedException
 from gnr.web import logger
 
@@ -431,40 +431,12 @@ class RecordToHtmlNew(RecordToHtmlPage):
         """
         return None
 
-    def calcRowsNumber(self, text, width_mm=None, font_name=None, font_size=10):
-        """Return the number of wrapped lines for *text* using exact AFM font metrics.
-
-        :param text: plain text to measure (use :func:`gnr.core.gnrstring.cleanRst` if needed)
-        :param width_mm: available width in mm; defaults to ``self.text_width_mm`` or page width minus margins
-        :param font_name: font name for AFM lookup; defaults to ``self.font_family`` or ``'Helvetica'``
-        :param font_size: font size in points (default 10)
-        """
-        if not text:
-            return 0
-        if width_mm is None:
-            width_mm = self.text_width_mm or (self.page_width - self.page_margin_left - self.page_margin_right - 2)
-        if font_name is None:
-            font_name = self.font_family or 'Helvetica'
-        avail_pt = width_mm * 2.8346
-        space_pt = stringWidth(' ', font_name, font_size)
-        lines, current = 0, 0.0
-        for word in text.split():
-            w = stringWidth(word, font_name, font_size)
-            if current == 0:
-                current = w
-            elif current + space_pt + w <= avail_pt:
-                current += space_pt + w
-            else:
-                lines += 1
-                current = w
-        return lines + (1 if current > 0 else 0)
-
     def calcRowHeight(self):
         """override for special needs"""
         if self.font_family:
             text = self.getRowWrapField()
             if text:
-                return max(1, self.calcRowsNumber(text)) * self.grid_row_height
+                return max(1, self.builder.calcRowsNumber(text, width_mm=self.text_width_mm)) * self.grid_row_height
         return self.grid_row_height
 
     def calcGridHeaderHeight(self):
@@ -533,6 +505,7 @@ class RecordToHtmlNew(RecordToHtmlPage):
                          """)
 
         if self.font_family:
+            self.builder.font_family = self.font_family
             self.body.style('body {{ font-family: {f}; }}'.format(f=self.font_family))
 
 

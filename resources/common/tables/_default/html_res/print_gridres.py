@@ -167,7 +167,7 @@ class Main(TableScriptToHtml):
         if self.font_family:
             text = self.getRowWrapField()
             if text:
-                return max(1, self.calcRowsNumber(text)) * self.grid_row_height
+                return max(1, self.builder.calcRowsNumber(text, width_mm=self.text_width_mm)) * self.grid_row_height
         if not self.cell_characters_limit:
             return self.grid_row_height
         l = []

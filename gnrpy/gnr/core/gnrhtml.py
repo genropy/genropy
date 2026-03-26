@@ -9,7 +9,7 @@
 
 
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrstring import splitAndStrip
+from gnr.core.gnrstring import splitAndStrip, stringWidth
 from gnr.core.gnrstructures import GnrStructData
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrdecorator import extract_kwargs
@@ -269,6 +269,8 @@ class GnrHtmlBuilder(object):
                       'z_index', 'border', 'position', 'padding', 'margin',
                       'color', 'white_space', 'vertical_align', 'background', 'text',
                       'font'];
+    font_family = None
+    font_size = 10
     @extract_kwargs(default=True)
     def __init__(self, page_height=None, page_width=None, page_margin_top=None,
                  page_margin_left=None, page_margin_right=None, page_margin_bottom=None,
@@ -732,9 +734,39 @@ class GnrHtmlBuilder(object):
             self.calculate_style(content_attr, um, position='absolute')
             cell.child('div', content=cur_content_value, **content_attr)
                     
+    def calcRowsNumber(self, text, width_mm=None, font_name=None, font_size=None):
+        """Return the number of wrapped lines for *text* using exact AFM font metrics.
+
+        :param text: plain text to measure
+        :param width_mm: available width in mm; defaults to page width minus margins
+        :param font_name: font for AFM lookup; defaults to ``self.font_family`` or ``'Helvetica'``
+        :param font_size: font size in points; defaults to ``self.font_size``
+        """
+        if not text:
+            return 0
+        if width_mm is None:
+            width_mm = self.page_width - self.page_margin_left - self.page_margin_right - 2
+        if font_name is None:
+            font_name = self.font_family or 'Helvetica'
+        if font_size is None:
+            font_size = self.font_size
+        avail_pt = width_mm * 2.8346
+        space_pt = stringWidth(' ', font_name, font_size)
+        lines, current = 0, 0.0
+        for word in text.split():
+            w = stringWidth(word, font_name, font_size)
+            if current == 0:
+                current = w
+            elif current + space_pt + w <= avail_pt:
+                current += space_pt + w
+            else:
+                lines += 1
+                current = w
+        return lines + (1 if current > 0 else 0)
+
     def finalize_pass(self, src, attr, value):
         """TODO
-        
+
         :param src: TODO
         :param attr: TODO
         :param value: TODO"""
