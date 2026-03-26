@@ -347,7 +347,6 @@ class Server(object):
                 else:
                     extra_info.append('Debug mode: Off')
 
-                app_host = '127.0.0.1'
                 app_scheme = 'http'
                 if self.options.ssl:
                     cert_path = os.path.join(self.config_path,'localhost.pem')
@@ -360,9 +359,9 @@ class Server(object):
                     ssl_context=(self.options.ssl_cert,self.options.ssl_key)
                     extra_info.append(f'SSL mode: On {ssl_context}')
                     app_scheme = 'https'
-                    app_host = self.options.ssl_cert.split('/')[-1].split('.pem')[0]
+                    host = self.options.ssl_cert.split('/')[-1].split('.pem')[0]
                     
-                app_url = f'{app_scheme}://{app_host}:{port}'
+                app_url = f'{app_scheme}://{host}:{port}'
                 logger.info(f"Starting server - listening on {app_url}\t%s", ",".join(extra_info))
                 if self.options.open_browser:
                     logger.info(f'Opening browser to application on {app_url}')
