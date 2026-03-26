@@ -29,7 +29,7 @@ from gnr.core.gnrbaghtml import BagToHtml
 from gnr.core.gnrhtml import GnrHtmlSrc
 from gnr.core.gnrdecorator import extract_kwargs
 from gnr.core.gnrdict import dictExtract
-from gnr.core.gnrstring import  splitAndStrip, slugify,templateReplace
+from gnr.core.gnrstring import splitAndStrip, slugify, templateReplace, stringWidth
 from gnr.core.gnrlang import GnrObject
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlang import getUuid
@@ -326,6 +326,8 @@ class TableScriptToHtml(BagToHtmlWeb):
     row_relation = None
     subtotal_caption_prefix = '!![en]Totals'
     record_template = None
+    font_family = None    # set to a mapped font name (e.g. 'Helvetica') to apply it to body and enable exact row-height calculation
+    text_width_mm = None  # available text width in mm; if None, computed from page_width - margins
 
     def __init__(self, page=None, resource_table=None, parent=None, **kwargs):
         super(TableScriptToHtml, self).__init__(srcfactory=GnrTableScriptHtmlSrc,page=page,table=resource_table,parent=parent,**kwargs)
@@ -729,6 +731,49 @@ class TableScriptToHtml(BagToHtmlWeb):
         return self.site.storageNode(self.pdf_folder, *args).url(**kwargs)
         
         
+    def defineStandardStyles(self):
+        """Injects font_family into body if set, then delegates to the base implementation."""
+        if self.font_family:
+            self.body.style('body {{ font-family: {f}; }}'.format(f=self.font_family))
+        super(TableScriptToHtml, self).defineStandardStyles()
+
+    def getRowWrapField(self):
+        """Override to return the text of the main wrapping field for the current row.
+
+        When *font_family* is set to a mapped font and this returns a non-empty string,
+        :meth:`calcRowsNumber` is used by :meth:`calcRowHeight` for exact height calculation.
+        Return ``None`` (default) to fall back to ``grid_row_height``.
+        """
+        return None
+
+    def calcRowsNumber(self, text, width_mm=None, font_name=None, font_size=10):
+        """Return the number of wrapped lines for *text* using exact AFM font metrics.
+
+        :param text: plain text to measure (apply :func:`gnr.core.gnrstring.cleanRst` first if needed)
+        :param width_mm: available width in mm; defaults to ``self.text_width_mm`` or page width minus margins
+        :param font_name: font for AFM lookup; defaults to ``self.font_family`` or ``'Helvetica'``
+        :param font_size: font size in points (default 10)
+        """
+        if not text:
+            return 0
+        if width_mm is None:
+            width_mm = self.text_width_mm or (self.page_width - self.page_margin_left - self.page_margin_right - 2)
+        if font_name is None:
+            font_name = self.font_family or 'Helvetica'
+        avail_pt = width_mm * 2.8346
+        space_pt = stringWidth(' ', font_name, font_size)
+        lines, current = 0, 0.0
+        for word in text.split():
+            w = stringWidth(word, font_name, font_size)
+            if current == 0:
+                current = w
+            elif current + space_pt + w <= avail_pt:
+                current += space_pt + w
+            else:
+                lines += 1
+                current = w
+        return lines + (1 if current > 0 else 0)
+
     def outputDocName(self, ext=''):
         """TODO
         :param ext: TODO"""

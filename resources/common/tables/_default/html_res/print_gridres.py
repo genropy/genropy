@@ -164,12 +164,16 @@ class Main(TableScriptToHtml):
 
 
     def calcRowHeight(self):
+        if self.font_family:
+            text = self.getRowWrapField()
+            if text:
+                return max(1, self.calcRowsNumber(text)) * self.grid_row_height
         if not self.cell_characters_limit:
             return self.grid_row_height
         l = []
         for k,v in self.cell_characters_limit.items():
             txt = (self.rowData.get(k) or '')
-            l.append(math.ceil(len(txt)/float(v))) 
+            l.append(math.ceil(len(txt)/float(v)))
         return max(l) * self.grid_row_height
 
     def outputDocName(self, ext=''):

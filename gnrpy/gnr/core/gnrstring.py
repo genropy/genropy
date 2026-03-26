@@ -31,6 +31,7 @@ import math
 import unicodedata
 from decimal import Decimal
 from string import Template
+from gnr.utils.fonts import string_width as _font_string_width
 
 import unidecode
 
@@ -1032,6 +1033,15 @@ def weightedLen(mystring, narrow_coeff=None, upper_coeff=None):
         else:
             normal=normal+1
     return math.ceil(narrow * narrow_coeff + normal + upper*upper_coeff)
+
+
+def stringWidth(text, fontName='Helvetica', fontSize=10):
+    """Return the width in points of *text* rendered in *fontName* at *fontSize* pt.
+
+    Uses embedded AFM metrics from gnr.utils.fonts — no font files or external
+    dependencies needed. Same signature as reportlab.pdfbase.pdfmetrics.stringWidth.
+    """
+    return _font_string_width(text, fontName, fontSize)
 
 
 def cleanRst(text):

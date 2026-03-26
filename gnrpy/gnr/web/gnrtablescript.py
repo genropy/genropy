@@ -12,9 +12,8 @@ import tempfile
 
 from gnr.core.gnrbag import Bag, BagCbResolver
 from gnr.core.gnrhtml import GnrHtmlBuilder
-from gnr.core.gnrstring import toText
+from gnr.core.gnrstring import toText, slugify, stringWidth
 from gnr.core.gnrlang import NotImplementedException
-from gnr.core.gnrstring import slugify
 from gnr.web import logger
 
 class TableScript(object):
@@ -125,6 +124,8 @@ class RecordToHtmlPage(TableScriptOnRecord):
     grid_footer_height = 0
     grid_col_widths = [0, 0, 0]
     grid_row_height = 5
+    font_family = None    # set to a mapped font name (e.g. 'Helvetica') to apply it to the whole document and enable exact row-height calculation
+    text_width_mm = None  # available text width in mm; if None, computed from page_width - margins
     copies_per_page = 1
     copy_extra_height = 0
     starting_page_number = 0
@@ -421,8 +422,49 @@ class RecordToHtmlNew(RecordToHtmlPage):
     def copyValue(self, valuename):
         return self.copies[self.copy][valuename]
 
+    def getRowWrapField(self):
+        """Override to return the text content of the main wrapping field for this row.
+
+        When *font_family* is set to a mapped font and this method returns a non-empty string,
+        :meth:`calcRowHeight` will use exact AFM-based word-wrap to compute the row height.
+        Return ``None`` (default) to fall back to ``grid_row_height``.
+        """
+        return None
+
+    def calcRowsNumber(self, text, width_mm=None, font_name=None, font_size=10):
+        """Return the number of wrapped lines for *text* using exact AFM font metrics.
+
+        :param text: plain text to measure (use :func:`gnr.core.gnrstring.cleanRst` if needed)
+        :param width_mm: available width in mm; defaults to ``self.text_width_mm`` or page width minus margins
+        :param font_name: font name for AFM lookup; defaults to ``self.font_family`` or ``'Helvetica'``
+        :param font_size: font size in points (default 10)
+        """
+        if not text:
+            return 0
+        if width_mm is None:
+            width_mm = self.text_width_mm or (self.page_width - self.page_margin_left - self.page_margin_right - 2)
+        if font_name is None:
+            font_name = self.font_family or 'Helvetica'
+        avail_pt = width_mm * 2.8346
+        space_pt = stringWidth(' ', font_name, font_size)
+        lines, current = 0, 0.0
+        for word in text.split():
+            w = stringWidth(word, font_name, font_size)
+            if current == 0:
+                current = w
+            elif current + space_pt + w <= avail_pt:
+                current += space_pt + w
+            else:
+                lines += 1
+                current = w
+        return lines + (1 if current > 0 else 0)
+
     def calcRowHeight(self):
         """override for special needs"""
+        if self.font_family:
+            text = self.getRowWrapField()
+            if text:
+                return max(1, self.calcRowsNumber(text)) * self.grid_row_height
         return self.grid_row_height
 
     def calcGridHeaderHeight(self):
@@ -489,6 +531,9 @@ class RecordToHtmlNew(RecordToHtmlPage):
                             text-align:center;
                         }
                          """)
+
+        if self.font_family:
+            self.body.style('body {{ font-family: {f}; }}'.format(f=self.font_family))
 
 
 class RecordToHtml(TableScriptOnRecord):
