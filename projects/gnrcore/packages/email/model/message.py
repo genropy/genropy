@@ -56,6 +56,9 @@ class Table(object):
         tbl.column('read', dtype='B', name_long='!!Read',indexed=True)
         tbl.column('deferred_ts', dtype='DHZ', name_long='!!Deferred send',
                    name_short='!!Deferred', indexed=True)
+        tbl.column('proxy_ts', dtype='DHZ', name_long='!!Dispatched to mail proxy')
+        tbl.column('proxy_priority', dtype='L', name_long='!!Proxy priority')
+        tbl.column('batch_code', size=':22', name_long='!!Batch code for circular mails')
 
         tbl.formulaColumn('sent','$send_date IS NOT NULL', name_long='!!Sent')
         tbl.formulaColumn('message_to_send', "$in_out=:out AND $send_date IS NULL AND $error_msg IS NULL AND ($deferred_ts IS NULL OR $deferred_ts <= NOW())", var_out='O',
@@ -79,7 +82,7 @@ class Table(object):
             'CASE WHEN $error_ts IS NOT NULL THEN 1 ELSE 0 END',
             dtype='L', name_long='!!Is error')
         tbl.formulaColumn('queue_mismatch',
-            "$in_queue - CASE WHEN $in_out=:qm_out AND $send_date IS NULL AND $error_ts IS NULL THEN 1 ELSE 0 END",
+            "$in_queue - CASE WHEN $in_out=:qm_out AND $send_date IS NULL AND $proxy_ts IS NULL AND $error_ts IS NULL THEN 1 ELSE 0 END",
             var_qm_out='O', dtype='L', name_long='!!Queue mismatch')
 
         tbl.pyColumn('full_external_url', name_long='Full external url')
@@ -128,7 +131,7 @@ class Table(object):
     def trigger_onUpdating(self, record_data, old_record):
         self.deleteAddressRelations(record_data)
         self.explodeAddressRelations(record_data)
-        
+
     def extractAddresses(self,addresses):
         if not addresses:
             return []
@@ -263,6 +266,7 @@ class Table(object):
                   subject=None, body=None, cc_address=None,
                   reply_to=None, bcc_address=None, attachments=None,weak_attachments=None,
                  message_id=None,message_date=None,message_type=None,
+                 batch_code=None,
                  html=False,doCommit=False,headers_kwargs=None,**kwargs):
 
         message_date = message_date or self.db.workdate
@@ -301,6 +305,7 @@ class Table(object):
                             extra_headers=extra_headers,
                             message_type=message_type,
                             weak_attachments=weak_attachments,
+                            batch_code=batch_code,
                             html=html,dbstore=dbstore,
                             reply_to=reply_to,**kwargs)
         message_atc = self.db.table('email.message_atc')
@@ -395,6 +400,7 @@ class Table(object):
     def retrySendMessage(self, message_id=None):
         with self.recordToUpdate(message_id) as message:
             message['send_date'] = None
+            message['proxy_ts'] = None
             message['error_ts'] = None
             message['error_msg'] = None
             message['sending_attempt'] = None

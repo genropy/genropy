@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+#
+#  Mail proxy dashboard page
+#
 
 from datetime import datetime
 
@@ -10,56 +13,14 @@ from gnr.core.gnrstring import fromJson
 
 
 class GnrCustomWebPage(object):
-    maintable = 'email.message'
-    py_requires = "public:Public,th/th:TableHandler,gnrcomponents/framegrid:FrameGrid"
+    py_requires = 'public:Public,gnrcomponents/framegrid:FrameGrid'
+    auth_main = 'admin'
 
-    def pageAuthTags(self, method=None, **kwargs):
-        return 'admin'
+    def windowTitle(self):
+        return '!!Mail Proxy Dashboard'
 
     def main(self, root, **kwargs):
-        has_proxy = bool(self.db.package('email').getMailProxy(raise_if_missing=False))
-        bc = root.rootBorderContainer(datapath='main', title='!!Sending Dashboard')
-        if has_proxy:
-            self._proxy_layout(bc)
-        else:
-            self._queue_layout(bc)
-
-    # -------------------------------------------------------------------------
-    # Queue layout (no proxy)
-    # -------------------------------------------------------------------------
-    def _queue_layout(self, bc):
-        frame = bc.contentPane(region='top', height='40%', splitter=True).groupByTableHandler(
-            table='email.message',
-            title='Account sending status',
-            frameCode='sending_dashboard',
-            struct=self._queue_dashboard_struct,
-            condition='$in_out=:io',
-            condition_io='O',
-            condition__onStart=True,
-            condition__reloader='^main.reloadAccountSendingStatus',
-            static=True,
-            pbl_classes=False,
-        )
-        frame.top.bar.replaceSlots('#', '#,reload,5')
-        frame.top.bar.reload.slotButton('!!Reload', iconClass='iconbox reload',
-                                        action='FIRE main.reloadAccountSendingStatus;')
-        bc.contentPane(region='center').plainTableHandler(
-            table='email.message_to_send', view_store__onStart=True,
-        )
-
-    def _queue_dashboard_struct(self, struct):
-        r = struct.view().rows()
-        r.fieldcell('@account_id.account_name', name='!!Account', width='20em')
-        r.cell('_grp_count', name='!!Total', width='6em', group_aggr='sum')
-        r.fieldcell('in_queue', name='!!In queue', width='8em', group_aggr='sum')
-        r.fieldcell('is_sent', name='!!Sent', width='8em', group_aggr='sum')
-        r.fieldcell('is_error', name='!!Errors', width='8em', group_aggr='sum')
-        r.fieldcell('queue_mismatch', name='!!Mismatch', width='8em', group_aggr='sum')
-
-    # -------------------------------------------------------------------------
-    # Proxy layout (with mail proxy)
-    # -------------------------------------------------------------------------
-    def _proxy_layout(self, bc):
+        bc = root.rootBorderContainer(datapath='main', title='!!Mail proxy dashboard')
         status_pane = bc.contentPane(region='top', height='40px', datapath='.status', padding='6px')
         shared_on_result = """
             var status = result && result.getItem ? result.getItem('status') : (result ? result.status : null);
@@ -146,7 +107,7 @@ class GnrCustomWebPage(object):
             frameCode='mp_accounts',
             title='!!Accounts',
             storepath='main.data.accounts',
-            struct=self._proxy_accounts_struct,
+            struct=self.accounts_struct,
             pbl_classes=True,
             addrow=False,
             delrow=False,
@@ -158,14 +119,17 @@ class GnrCustomWebPage(object):
             frameCode='mp_messages',
             title='!!Messages',
             storepath='main.data.messages',
-            struct=self._proxy_messages_struct,
+            struct=self.messages_struct,
             pbl_classes=True,
             addrow=False,
             delrow=False,
             margin='6px',
         )
 
-    def _proxy_accounts_struct(self, struct):
+    # -------------------------------------------------------------------------
+    # Grid structures
+    # -------------------------------------------------------------------------
+    def accounts_struct(self, struct):
         rows = struct.view().rows()
         rows.cell('id', name='!!Account', width='12em')
         rows.cell('host', name='!!Host', width='18em')
@@ -176,7 +140,7 @@ class GnrCustomWebPage(object):
         rows.cell('limit_per_day', name='!!/ day', width='5em', dtype='I')
         rows.cell('created_at', name='!!Created at', width='11em')
 
-    def _proxy_messages_struct(self, struct):
+    def messages_struct(self, struct):
         rows = struct.view().rows()
         rows.cell('id', name='!!ID', width='8em')
         rows.cell('account_id', name='!!Account', width='12em')
@@ -193,7 +157,7 @@ class GnrCustomWebPage(object):
         rows.cell('retry_count', name='!!Retries', width='5em', dtype='I')
 
     # -------------------------------------------------------------------------
-    # Proxy RPC methods
+    # RPC helpers
     # -------------------------------------------------------------------------
     @public_method
     def rpc_proxy_overview(self):
@@ -235,6 +199,7 @@ class GnrCustomWebPage(object):
 
     @public_method
     def rpc_check_proxy_status(self):
+        """Check if proxy server is reachable."""
         try:
             service = self._mailproxy_service()
             proxy_url = service.proxy_url
@@ -246,10 +211,10 @@ class GnrCustomWebPage(object):
             return None
 
     # -------------------------------------------------------------------------
-    # Proxy utilities
+    # Internal utilities
     # -------------------------------------------------------------------------
     def _mailproxy_service(self):
-        service = self.getService('mailproxy', 'mailproxy')
+        service = self.getService('mailproxy','mailproxy')
         if service is None:
             raise RuntimeError('Mail proxy service is not configured')
         return service
