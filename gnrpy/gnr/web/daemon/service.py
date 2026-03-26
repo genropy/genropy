@@ -2,7 +2,7 @@ import os
 from gnr.core.gnrbag import Bag
 from gnr.app.pathresolver import PathResolver
 from gnr.web.daemon.handler import GnrDaemon, GnrDaemonProxy
-from gnr.web.gnrwsgisite_proxy.gnrsiteregister import GnrSiteRegisterServer
+from gnr.web.daemon.siteregister import GnrSiteRegisterServer
 
 
 class DaemonService(object):

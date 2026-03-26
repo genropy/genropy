@@ -14,7 +14,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning,
                         module="Pyro4.core")
 import Pyro4
 
-from gnr.web.gnrwsgisite_proxy.gnrsiteregister import GnrSiteRegisterServer
+from gnr.web.daemon.siteregister import GnrSiteRegisterServer
 from gnr.core.gnrlang import gnrImport
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrsys import expandpath
