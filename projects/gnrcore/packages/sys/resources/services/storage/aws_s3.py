@@ -177,7 +177,7 @@ class Service(StorageService):
         bucket = self._head_object(*args)
         if bucket:
             etag = bucket['ETag'][1:-1]
-            if '-' not in etag:
+            if len(etag) == 32:
                 return etag
         return None
 
