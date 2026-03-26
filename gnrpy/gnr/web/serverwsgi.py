@@ -1,6 +1,7 @@
 import sys
 import os
 import atexit
+import webbrowser
 
 from werkzeug.serving import make_server, is_running_from_reloader
 from werkzeug._reloader import run_with_reloader
@@ -147,6 +148,11 @@ class Server(object):
                             dest='tornado',
                             action='store_true',
                             help="Serve using tornado")
+        
+        parser.add_argument('-o','--open',
+                            dest='open_browser',
+                            action='store_true',
+                            help="Automatically open the browser to this application")
         
         parser.add_argument('-c', '--config',
                             dest='config_path',
@@ -341,20 +347,26 @@ class Server(object):
                 else:
                     extra_info.append('Debug mode: Off')
 
-                localhost = 'http://127.0.0.1'
+                app_host = '127.0.0.1'
+                app_scheme = 'http'
                 if self.options.ssl:
                     cert_path = os.path.join(self.config_path,'localhost.pem')
                     key_path = os.path.join(self.config_path,'localhost-key.pem')
                     if os.path.exists(cert_path) and os.path.exists(key_path):
                         ssl_context = (cert_path, key_path)
                     extra_info.append('SSL mode: On')
-                    localhost = 'https://localhost'
+                    app_scheme = 'https'
                 if self.options.ssl_cert and self.options.ssl_key:
                     ssl_context=(self.options.ssl_cert,self.options.ssl_key)
                     extra_info.append(f'SSL mode: On {ssl_context}')
-                    localhost = 'https://{host}'.format(host=self.options.ssl_cert.split('/')[-1].split('.pem')[0])
-
-                logger.info(f"Starting server - listening on {localhost}:{port}\t%s", ",".join(extra_info))
+                    app_scheme = 'https'
+                    app_host = self.options.ssl_cert.split('/')[-1].split('.pem')[0]
+                    
+                app_url = f'{app_scheme}://{app_host}:{port}'
+                logger.info(f"Starting server - listening on {app_url}\t%s", ",".join(extra_info))
+                if self.options.open_browser:
+                    logger.info(f'Opening browser to application on {app_url}')
+                    webbrowser.open(app_url)
 
             if not is_running_from_reloader():
                 fd = None
