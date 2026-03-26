@@ -262,6 +262,9 @@ class GnrHtmlSrc(GnrStructData):
         row.cellborder_total_width += row.last_cell_border_width
         return cell
             
+MM_TO_PT = 72 / 25.4
+
+
 class GnrHtmlBuilder(object):
     """TODO"""
     styleAttrNames = ['height', 'width', 'top', 'left', 'right', 'bottom',
@@ -752,7 +755,7 @@ class GnrHtmlBuilder(object):
             font_name = self.font_family or 'Helvetica'
         if font_size is None:
             font_size = self.font_size
-        avail_pt = width_mm * 2.8346
+        avail_pt = width_mm * MM_TO_PT
         space_pt = stringWidth(' ', font_name, font_size)
         count = 0
         for hard_line in text.split('\n'):
