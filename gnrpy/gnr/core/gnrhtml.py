@@ -737,6 +737,8 @@ class GnrHtmlBuilder(object):
     def calcRowsNumber(self, text, width_mm=None, font_name=None, font_size=None):
         """Return the number of wrapped lines for *text* using exact AFM font metrics.
 
+        Handles both explicit newlines (``\\n``) and word-wrap overflow.
+
         :param text: plain text to measure
         :param width_mm: available width in mm; defaults to page width minus margins
         :param font_name: font for AFM lookup; defaults to ``self.font_family`` or ``'Helvetica'``
@@ -752,17 +754,22 @@ class GnrHtmlBuilder(object):
             font_size = self.font_size
         avail_pt = width_mm * 2.8346
         space_pt = stringWidth(' ', font_name, font_size)
-        lines, current = 0, 0.0
-        for word in text.split():
-            w = stringWidth(word, font_name, font_size)
-            if current == 0:
-                current = w
-            elif current + space_pt + w <= avail_pt:
-                current += space_pt + w
-            else:
-                lines += 1
-                current = w
-        return lines + (1 if current > 0 else 0)
+        count = 0
+        for hard_line in text.split('\n'):
+            current = 0.0
+            has_words = False
+            for word in hard_line.split():
+                w = stringWidth(word, font_name, font_size)
+                if not has_words:
+                    current = w
+                    has_words = True
+                elif current + space_pt + w <= avail_pt:
+                    current += space_pt + w
+                else:
+                    count += 1
+                    current = w
+            count += 1
+        return count
 
     def finalize_pass(self, src, attr, value):
         """TODO
