@@ -25,6 +25,17 @@ def enc_db(db_sqlite):
     return db_sqlite
 
 
+def setup_module(module):
+    """Configure genro environment for GnrApp-based fixtures."""
+    from core.common import BaseGnrTest
+    BaseGnrTest.setup_class()
+
+
+def teardown_module(module):
+    from core.common import BaseGnrTest
+    BaseGnrTest.teardown_class()
+
+
 # ---------------------------------------------------------------------------
 #  1. ColumnEncryptor unit tests
 # ---------------------------------------------------------------------------
