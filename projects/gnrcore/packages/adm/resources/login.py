@@ -475,39 +475,39 @@ class LoginComponent(BaseComponent):
                             subscribe_openNewUser='this.widget.show(); genro.formById("newUser_form").newrecord($1);',
                             subscribe_closeNewUser='this.widget.hide();')
 
-        kw = self.loginboxPars()
-        kw['width'] = '26em'
-        kw['height'] = '20em'
-        kw.update(kwargs)
-        form = dlg.frameForm(frameCode='newUser',datapath='new_user',store='memory',**kw)
+        box = dlg.div(**self.loginboxPars())
         if closable:
             dlg.div(_class='dlg_closebtn',connect_onclick="genro.publish('closeNewUser')")
+        self.login_commonHeader(box,'!!New User')
+        form = box.boxForm(formId='newUser_form',store='memory',datapath='new_user',
+                           formDatapath='.record')
         form.dataController("PUT creating_new_user = false;",_fired='^#FORM.controller.loaded')
-        top = form.top
-        self.login_commonHeader(top,'!!New User')
         self.login_newUser_form(form)
         form.dataRpc(self.login_createNewUser,data='=#FORM.record',
                     _do='^creating_new_user',_if='_do && this.form.isValid()',
-                    _else='this.form.publish("message",{message:_error_message,messageType:"error"})',
+                    _else="genro.dlg.floatingMessage(_box,{message:_error_message,messageType:'error',yRatio:.95})",
                     _error_message='!!Missing data',
+                    _box=box,
                     _onError="""
-                    this.form.publish("message",{message:error,messageType:"error"});
+                    genro.dlg.floatingMessage(kwargs._box,{message:error,messageType:'error',yRatio:.95});
                     PUT creating_new_user = false;
                     """,
                     _onResult="""if(result.ok){
                         genro.publish('closeNewUser');
-                        genro.publish('floating_message',{message:result.ok,duration_out:6})
+                        genro.dlg.floatingMessage(genro.src.getNode(),{message:result.ok,duration_out:6,
+                            onClosedCb:'genro.pageReload();'});
+                    }else if(result.error){
+                        genro.dlg.floatingMessage(kwargs._box,{message:result.error,messageType:'error',yRatio:.95});
                     }
                     """,_lockScreen=True)
-        footer = self.login_commonFooter(form.bottom)
+        footer = self.login_commonFooter(box)
         if not closable:
             footer.leftbox.lightButton('!!Login',action="genro.publish('closeNewUser');genro.publish('openLogin');",_class='login_option_btn')
         footer.rightbox.button('!!Send',action='SET creating_new_user = true;',_class='login_confirm_btn')
         return dlg
 
     def login_newUser_form(self,form):
-        fb = form.record.div(_class='login_form_container').formlet(cols=1,onEnter='SET creating_new_user = true;',
-                                width='100%')
+        fb = form.div(_class='login_form_container',datapath='.record').formlet(cols=1,onEnter='SET creating_new_user = true;')
         fb.textbox(value='^.firstname',lbl='!!First name',validate_notnull=True,validate_case='c',validate_len='2:')
         fb.textbox(value='^.lastname',lbl='!!Last name',validate_notnull=True,validate_case='c',validate_len='2:')
         fb.textbox(value='^.email',lbl='!!Email',validate_notnull=True)
@@ -521,7 +521,7 @@ class LoginComponent(BaseComponent):
         try:
             usertbl.sendInvitationEmail(user_record=data,html=True,**self._immediate_message_parameters())
         except Exception as e:
-            return  dict(error=str(e))
+            return  dict(error='!!Error in user invitation')
         self.db.commit()
         return dict(ok=self.loginPreference('new_user_ok_message') or 'Check your email to confirm')
 
