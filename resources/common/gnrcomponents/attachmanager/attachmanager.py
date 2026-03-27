@@ -562,34 +562,47 @@ class AttachManager(BaseComponent):
         filename = kwargs.get('filename')
         self._handleFileHash(kwargs)
         attachment_tblobj =  self.db.table(attachment_table)
-        uploaderId = kwargs.get('uploaderId')
         atcNode = attachment_tblobj._getDestAttachmentNode(maintable_id=maintable_id,filename=filename)
         kwargs['uploadPath'] = atcNode.dirname
         kwargs['filename'] = atcNode.basename
-        record = attachment_tblobj.newrecord(maintable_id=maintable_id,mimetype=kwargs.get('mimetype'),
-                    description=atcNode.cleanbasename,filepath=atcNode.fullpath)
-        for k,v in kwargs.items():
-            if v is not None and attachment_tblobj.column(k) is not None:
-                record[k] = v
-        attachment_tblobj.insert(record)
-        kwargs['attachment_id'] = record['id']
-        self.db.commit()        
-        self.clientPublish('inserted_attachment',nodeId=uploaderId,record_id=record['id'])
+        kwargs['_atc_description'] = atcNode.cleanbasename
+        kwargs['_atc_filepath'] = atcNode.fullpath
 
     @public_method
     def onUploadedAttachment(self,file_url=None, file_path=None, file_ext=None, action_results=None,
                                 attachment_id=None, **kwargs):
         attachment_table = kwargs.get('attachment_table')
         maintable_id = kwargs.get('maintable_id')
-        filename = kwargs.get('filename')
         attachment_tblobj =  self.db.table(attachment_table)
-        attachment_tblobj.onUploadedAttachment(attachment_id)
+        uploaderId = kwargs.get('uploaderId')
+        pkey = kwargs.get('pkey')
+        if pkey and pkey != '*newrecord*':
+            with attachment_tblobj.recordToUpdate(pkey) as record:
+                record['filepath'] = kwargs.get('_atc_filepath')
+                for k,v in kwargs.items():
+                    if k.startswith('_'):
+                        continue
+                    if v is not None and attachment_tblobj.column(k) is not None:
+                        record[k] = v
+            self.db.commit()
+            attachment_tblobj.onUploadedAttachment(record['id'])
+            return
+        record = attachment_tblobj.newrecord(maintable_id=maintable_id,mimetype=kwargs.get('mimetype'),
+                    description=kwargs.get('_atc_description'),filepath=kwargs.get('_atc_filepath'))
+        for k,v in kwargs.items():
+            if k.startswith('_'):
+                continue
+            if v is not None and attachment_tblobj.column(k) is not None:
+                record[k] = v
+        attachment_tblobj.insert(record)
+        self.db.commit()
+        attachment_tblobj.onUploadedAttachment(record['id'])
+        self.clientPublish('inserted_attachment',nodeId=uploaderId,record_id=record['id'])
         
         
     @public_method
     def onUploadingAttachmentUpd(self,kwargs):
         attachment_table = kwargs.get('attachment_table')
-        pkey = kwargs.get('pkey')
         maintable_id = kwargs.get('maintable_id')
         filename = kwargs.get('filename')
         self._handleFileHash(kwargs)
@@ -597,10 +610,4 @@ class AttachManager(BaseComponent):
         atcNode = attachment_tblobj._getDestAttachmentNode(maintable_id=maintable_id,filename=filename)
         kwargs['uploadPath'] = atcNode.dirname
         kwargs['filename'] = atcNode.basename
-        with attachment_tblobj.recordToUpdate(pkey) as record:
-            record['filepath'] = atcNode.fullpath
-            for k,v in kwargs.items():
-                if v is not None and attachment_tblobj.column(k) is not None:
-                    record[k] = v
-        kwargs['attachment_id'] = record['id']
-        self.db.commit()        
+        kwargs['_atc_filepath'] = atcNode.fullpath
