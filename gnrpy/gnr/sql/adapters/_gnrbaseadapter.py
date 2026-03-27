@@ -736,6 +736,7 @@ class SqlDbAdapter(object):
         """
         data_out = {}
         tbl_virtual_columns = tblobj.virtual_columns
+        encryptor = getattr(self.dbroot, 'encryption', None)
         for k in list(record_data.keys()):
             if not (k.startswith('@') or k=='pkey' or  k in tbl_virtual_columns):
                 v = record_data[k]
@@ -746,6 +747,12 @@ class SqlDbAdapter(object):
                                 innernode.attr.pop(blackattr,None)
                     v = v.toXml() if v else None
                     #data_out[str(k.lower())] = v
+                if encryptor and v is not None:
+                    col = tblobj.columns.get(k)
+                    if col:
+                        enc_mode = col.attributes.get('encrypted')
+                        if enc_mode:
+                            v = encryptor.encrypt(v, enc_mode)
                 data_out[str(k)] = v
         sql_value_cols = [k for k,v in list(tblobj.columns.items()) if 'sql_value' in v.attributes and not k in data_out]
         for k in sql_value_cols:
@@ -1400,6 +1407,14 @@ class GnrWhereTranslator(object):
 
                 if value is None and attr.get('value_caption'):
                     value = sqlArgs.pop(attr['value_caption'],'')
+                enc_mode = attr.get('encrypted') or colobj.attributes.get('encrypted')
+                if enc_mode == 'Q' and value is not None:
+                    encryptor = getattr(self.db, 'encryption', None)
+                    if encryptor:
+                        if isinstance(value, list):
+                            value = [encryptor.encrypt(v, 'Q') for v in value]
+                        else:
+                            value = encryptor.encrypt(value, 'Q')
                 onecondition = self.prepareCondition(column, op, value, dtype, sqlArgs,tblobj=tblobj,parname=parname)
 
             if onecondition:
