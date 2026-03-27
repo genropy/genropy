@@ -178,7 +178,7 @@ class TestTableColumns(TestModelStructure):
         tbl = self.db.model.table('invc.customer')
         stars = tbl.starColumns()
         assert isinstance(stars, list)
-        assert len(stars) == 16
+        assert len(stars) == 19
         assert all(s.startswith('$') for s in stars)
 
     def test_pluggedColumns(self):
