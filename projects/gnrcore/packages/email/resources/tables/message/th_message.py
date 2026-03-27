@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrdecorator import metadata
+from gnr.core.gnrdecorator import metadata, public_method
 
 class View(BaseComponent):
 
@@ -64,9 +64,10 @@ class View(BaseComponent):
     @metadata(isMain=True,_if='inout=="O"',_if_inout='^.in_out.current', variable_struct=True)
     def th_sections_sendingstatus(self):
         return [dict(code='drafts',caption='!!Drafts',condition="$__is_draft IS TRUE",includeDraft=True),
-                dict(code='to_send',caption='!!Ready to send',isDefault=True,condition='$send_date IS NULL AND $error_msg IS NULL'),
-                dict(code='sending_error',caption='!!Sending error',condition='$error_msg IS NOT NULL', struct='sending_error'),
+                dict(code='to_send',caption='!!Ready to send',isDefault=True,condition='$in_queue = 1'),
+                dict(code='sending_error',caption='!!Sending error',condition='$error_ts IS NOT NULL', struct='sending_error'),
                 dict(code='sent',caption='!!Sent',includeDraft=False,condition='$send_date IS NOT NULL', struct='sent'),
+                dict(code='queue_issues',caption='!!Queue issues',condition='$queue_mismatch <> 0'),
                 dict(code='all',caption='!!All',includeDraft=True)]
 
     def th_options(self):
@@ -82,9 +83,10 @@ class ViewOutOnly(View):
     @metadata(isMain=True, variable_struct=True)
     def th_sections_sendingstatus(self):
         return [dict(code='drafts',caption='!!Drafts',condition="$__is_draft IS TRUE",includeDraft=True),
-                dict(code='to_send',caption='!!Ready to send',isDefault=True,condition='$send_date IS NULL AND $error_msg IS NULL'),
-                dict(code='sending_error',caption='!!Sending error',condition='$error_msg IS NOT NULL', struct='sending_error'),
+                dict(code='to_send',caption='!!Ready to send',isDefault=True,condition='$in_queue = 1'),
+                dict(code='sending_error',caption='!!Sending error',condition='$error_ts IS NOT NULL', struct='sending_error'),
                 dict(code='sent',caption='!!Sent',includeDraft=False,condition='$send_date IS NOT NULL'),
+                dict(code='queue_issues',caption='!!Queue issues',condition='$queue_mismatch <> 0'),
                 dict(code='all',caption='!!All',includeDraft=True)]
 
 
@@ -186,9 +188,14 @@ class Form(BaseComponent):
                                                             storepath='#FORM.record.sending_attempt',
                                                             pbl_classes=True,margin='2px',
                                                             delrow=False,datamode='attr')
-        errors_bg.top.bar.replaceSlots('addrow','clearerr,2')
-        errors_bg.top.bar.clearerr.slotButton('Clear errors').dataRpc(
-                    self.db.table('email.message').clearErrors, pkey='=#FORM.record.id', _onResult='this.form.reload();')
+        errors_bg.top.bar.replaceSlots('addrow','retryerr,2')
+        errors_bg.top.bar.retryerr.slotButton('Retry send').dataRpc(
+                    self.retrySendMessage, message_id='=#FORM.record.id', _onResult='this.form.reload();')
+
+    @public_method
+    def retrySendMessage(self, message_id=None):
+        self.db.table('email.message').retrySendMessage(message_id=message_id)
+        self.db.commit()
 
     def th_top_custom(self,top):
         bar = top.bar.replaceSlots('form_delete','send_button,5,form_delete')
