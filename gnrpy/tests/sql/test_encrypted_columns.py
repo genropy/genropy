@@ -14,16 +14,15 @@ import pytest
 
 from gnr.sql.gnrsql.encryption import ColumnEncryptor
 
-# Ensure encryption key is set and db fixtures get an encryptor
-os.environ['GENROPY_ENCRYPTION_KEY'] = 'test_key_encrypted_columns_747'
+TEST_ENCRYPTION_KEY = 'gnr_test_encryption_key_747'
 
 
-@pytest.fixture(autouse=True, scope='module')
-def _ensure_encryption(db_sqlite):
-    """Reset the lazy encryption property so the db picks up the env var."""
-    db_sqlite._encryption_initialized = False
-    db_sqlite._encryption = None
-    assert db_sqlite.encryption is not None
+@pytest.fixture(scope='module')
+def enc_db(db_sqlite):
+    """Ensure the db_sqlite fixture has encryption enabled."""
+    db_sqlite._encryption = ColumnEncryptor(TEST_ENCRYPTION_KEY)
+    db_sqlite._encryption_initialized = True
+    return db_sqlite
 
 
 # ---------------------------------------------------------------------------
@@ -246,9 +245,9 @@ class TestDbEncryptionProperty:
 class TestEncryptedColumnsSqlite:
     """End-to-end encrypted columns on customer table (SQLite)."""
 
-    def _insert_encrypted_customer(self, db):
+    def _insert_encrypted_customer(self, enc_db):
         """Insert a customer with encrypted fields and return the pkey."""
-        tbl = db.table('invc.customer')
+        tbl = enc_db.table('invc.customer')
         rec = dict(
             id=tbl.newPkeyValue(),
             account_name='Encrypted Test Customer',
@@ -260,12 +259,12 @@ class TestEncryptedColumnsSqlite:
             access_token='tok_live_secret_9876',
         )
         tbl.insert(rec)
-        db.commit()
+        enc_db.commit()
         return rec['id']
 
-    def test_insert_and_fetch_decrypted(self, db_sqlite):
-        pkey = self._insert_encrypted_customer(db_sqlite)
-        tbl = db_sqlite.table('invc.customer')
+    def test_insert_and_fetch_decrypted(self, enc_db):
+        pkey = self._insert_encrypted_customer(enc_db)
+        tbl = enc_db.table('invc.customer')
         rows = tbl.query(
             columns='$account_name, $bank_account, $registration_id, $access_token',
             where='$id = :pk', pk=pkey,
@@ -277,9 +276,9 @@ class TestEncryptedColumnsSqlite:
         assert row['registration_id'] == 'REG-2024-00042'
         assert row['access_token'] is None  # mode X: not reversible
 
-    def test_raw_db_stores_encrypted(self, db_sqlite):
-        pkey = self._insert_encrypted_customer(db_sqlite)
-        raw_conn = db_sqlite.adapter.connect()
+    def test_raw_db_stores_encrypted(self, enc_db):
+        pkey = self._insert_encrypted_customer(enc_db)
+        raw_conn = enc_db.adapter.connect()
         raw_conn.row_factory = None
         raw_cur = raw_conn.cursor()
         raw_cur.execute(
@@ -293,10 +292,10 @@ class TestEncryptedColumnsSqlite:
         assert row[1].startswith('$Q$')
         assert row[2].startswith('$X$')
 
-    def test_mode_q_searchable_with_encrypt(self, db_sqlite):
-        pkey = self._insert_encrypted_customer(db_sqlite)
-        tbl = db_sqlite.table('invc.customer')
-        encryptor = db_sqlite.encryption
+    def test_mode_q_searchable_with_encrypt(self, enc_db):
+        pkey = self._insert_encrypted_customer(enc_db)
+        tbl = enc_db.table('invc.customer')
+        encryptor = enc_db.encryption
         encrypted_reg = encryptor.encrypt('REG-2024-00042', 'Q')
         rows = tbl.query(
             columns='$account_name',
@@ -305,9 +304,9 @@ class TestEncryptedColumnsSqlite:
         assert len(rows) >= 1
         assert any(r['account_name'] == 'Encrypted Test Customer' for r in rows)
 
-    def test_mode_x_verify(self, db_sqlite):
-        pkey = self._insert_encrypted_customer(db_sqlite)
-        raw_conn = db_sqlite.adapter.connect()
+    def test_mode_x_verify(self, enc_db):
+        pkey = self._insert_encrypted_customer(enc_db)
+        raw_conn = enc_db.adapter.connect()
         raw_conn.row_factory = None
         raw_cur = raw_conn.cursor()
         raw_cur.execute(
@@ -316,33 +315,33 @@ class TestEncryptedColumnsSqlite:
         )
         stored = raw_cur.fetchone()[0]
         raw_cur.close()
-        assert db_sqlite.encryption.verify('tok_live_secret_9876', stored)
-        assert not db_sqlite.encryption.verify('wrong', stored)
+        assert enc_db.encryption.verify('tok_live_secret_9876', stored)
+        assert not enc_db.encryption.verify('wrong', stored)
 
-    def test_record_output_bag(self, db_sqlite):
-        pkey = self._insert_encrypted_customer(db_sqlite)
-        tbl = db_sqlite.table('invc.customer')
+    def test_record_output_bag(self, enc_db):
+        pkey = self._insert_encrypted_customer(enc_db)
+        tbl = enc_db.table('invc.customer')
         record = tbl.record(pkey).output('bag')
         assert record['bank_account'] == 'IT60X0542811101000000123456'
         assert record['registration_id'] == 'REG-2024-00042'
         assert record['access_token'] is None
 
-    def test_record_output_dict(self, db_sqlite):
-        pkey = self._insert_encrypted_customer(db_sqlite)
-        tbl = db_sqlite.table('invc.customer')
+    def test_record_output_dict(self, enc_db):
+        pkey = self._insert_encrypted_customer(enc_db)
+        tbl = enc_db.table('invc.customer')
         record = tbl.record(pkey).output('dict')
         assert record['bank_account'] == 'IT60X0542811101000000123456'
         assert record['registration_id'] == 'REG-2024-00042'
 
-    def test_update_preserves_encryption(self, db_sqlite):
-        pkey = self._insert_encrypted_customer(db_sqlite)
-        tbl = db_sqlite.table('invc.customer')
+    def test_update_preserves_encryption(self, enc_db):
+        pkey = self._insert_encrypted_customer(enc_db)
+        tbl = enc_db.table('invc.customer')
         rec = tbl.record(pkey).output('dict')
         rec['bank_account'] = 'DE89370400440532013000'
         tbl.update(rec)
-        db_sqlite.commit()
+        enc_db.commit()
         # Verify encrypted in raw DB
-        raw_conn = db_sqlite.adapter.connect()
+        raw_conn = enc_db.adapter.connect()
         raw_conn.row_factory = None
         raw_cur = raw_conn.cursor()
         raw_cur.execute(
@@ -356,8 +355,8 @@ class TestEncryptedColumnsSqlite:
         reloaded = tbl.record(pkey).output('dict')
         assert reloaded['bank_account'] == 'DE89370400440532013000'
 
-    def test_null_values_preserved(self, db_sqlite):
-        tbl = db_sqlite.table('invc.customer')
+    def test_null_values_preserved(self, enc_db):
+        tbl = enc_db.table('invc.customer')
         rec = dict(
             id=tbl.newPkeyValue(),
             account_name='Null Encrypted Test',
@@ -369,15 +368,15 @@ class TestEncryptedColumnsSqlite:
             access_token=None,
         )
         tbl.insert(rec)
-        db_sqlite.commit()
+        enc_db.commit()
         reloaded = tbl.record(rec['id']).output('dict')
         assert reloaded['bank_account'] is None
         assert reloaded['registration_id'] is None
         assert reloaded['access_token'] is None
 
-    def test_selection_output_decrypts(self, db_sqlite):
-        pkey = self._insert_encrypted_customer(db_sqlite)
-        tbl = db_sqlite.table('invc.customer')
+    def test_selection_output_decrypts(self, enc_db):
+        pkey = self._insert_encrypted_customer(enc_db)
+        tbl = enc_db.table('invc.customer')
         sel = tbl.query(
             columns='$account_name, $bank_account, $registration_id',
             where='$id = :pk', pk=pkey,
@@ -388,11 +387,11 @@ class TestEncryptedColumnsSqlite:
         assert row['bank_account'] == 'IT60X0542811101000000123456'
         assert row['registration_id'] == 'REG-2024-00042'
 
-    def test_column_model_attributes(self, db_sqlite):
-        col_bank = db_sqlite.model.column('invc.customer.bank_account')
-        col_reg = db_sqlite.model.column('invc.customer.registration_id')
-        col_tok = db_sqlite.model.column('invc.customer.access_token')
-        col_name = db_sqlite.model.column('invc.customer.account_name')
+    def test_column_model_attributes(self, enc_db):
+        col_bank = enc_db.model.column('invc.customer.bank_account')
+        col_reg = enc_db.model.column('invc.customer.registration_id')
+        col_tok = enc_db.model.column('invc.customer.access_token')
+        col_name = enc_db.model.column('invc.customer.account_name')
         assert col_bank.encrypted == 'R'
         assert col_reg.encrypted == 'Q'
         assert col_tok.encrypted == 'X'
