@@ -1349,7 +1349,14 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
     },
     
     creating: function(attributes, sourceNode) {
-
+        if('disabled' in attributes){
+            if(!('readOnly' in attributes)){
+                attributes.readOnly = attributes.disabled;
+                sourceNode.attr.readOnly = sourceNode.attr.disabled;
+            }
+            delete attributes.disabled;
+            delete sourceNode.attr.disabled;
+        }
         attributes.id = attributes.id || 'ckedit_' + sourceNode.getStringId();
         var toolbar = objectPop(attributes, 'toolbar', 'standard');
         var config = objectExtract(attributes, 'config_*');
@@ -1746,6 +1753,16 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
             isReadOnly ? command.disable() : command[ command.modes[ mode ] ? 'enable' : 'disable' ]();
             this[ isReadOnly ? 'on' : 'removeListener' ]('state', this.gnr_cancelEvent, null, null, 0);
         }
+        this[ isReadOnly ? 'on' : 'removeListener' ]('doubleclick', this.gnr_cancelEvent, null, null, 0);
+        var toolbarEl = this.container.$.querySelector('.cke_top');
+        if(toolbarEl){
+            toolbarEl.style.opacity = isReadOnly ? '0.4' : '';
+            toolbarEl.style.pointerEvents = isReadOnly ? 'none' : '';
+        }
+        var body = this.document.getBody().$;
+        body.style.opacity = isReadOnly ? '0.5' : '';
+        body.style.cursor = isReadOnly ? 'default' : '';
+        body.style.caretColor = isReadOnly ? 'transparent' : '';
     }
 
 });
