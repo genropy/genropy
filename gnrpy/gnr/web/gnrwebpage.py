@@ -50,6 +50,7 @@ from gnr.web._gnrbasewebpage import GnrBaseWebPage
 from gnr.web.gnrwebreqresp import GnrWebRequest, GnrWebResponse
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 from gnr.web.gnrwebpage_proxy.menuproxy import GnrMenuProxy
+from gnr.web.gnrwebpage_proxy.badgeproxy import GnrBadgeProxy
 from gnr.web.gnrwebpage_proxy.apphandler import GnrWebAppHandler
 from gnr.web.gnrwebpage_proxy.connection import GnrWebConnection
 from gnr.web.gnrwebpage_proxy.serverbatch import GnrWebBatch
@@ -1616,6 +1617,12 @@ class GnrWebPage(GnrBaseWebPage):
         if not hasattr(self, '_menu'):
             self._menu = GnrMenuProxy(self)
         return self._menu
+
+    @property
+    def badge(self):
+        if not hasattr(self, '_badge'):
+            self._badge = GnrBadgeProxy(self)
+        return self._badge
 
     @property
     def btc(self):

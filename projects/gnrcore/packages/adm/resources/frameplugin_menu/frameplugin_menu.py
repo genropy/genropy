@@ -175,7 +175,7 @@ class MenuIframes(BaseComponent):
                                     }
                                     if(objectNotEmpty(menuLineBadgeKW)){
                                         menuLineBadgeKW.table = menuLineBadgeKW.table || n.attr.table;
-                                        genro.serverCall('menu.getMenuLineBadge',menuLineBadgeKW,
+                                        genro.serverCall('badge.getBadgeHandler',menuLineBadgeKW,
                                                             function(result){
                                                                 n.updAttributes({badgeContent:result});
                                                             })
