@@ -72,6 +72,8 @@ pgsql = [
 
 mysql = ["mysqlclient"]
 
+encryption = ["cryptography"]
+
 developer = [
   "pytest", "pytest-cov", "graphviz",
   "pytest-aiohttp", "pytest-asyncio",
