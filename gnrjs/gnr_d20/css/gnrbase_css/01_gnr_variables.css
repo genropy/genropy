@@ -237,6 +237,7 @@
     --formbuilder-field-bg: var(--form-field-bg);
     --formbuilder-field-border-width: var(--form-field-border-width);
     --formbuilder-field-radius: var(--form-field-radius);
+    --formbuilder-field-padding-x: 3px;
 
     /* --- Fake textbox (read-only field display) --- */
     --fakebox-padding-x: 4px;
