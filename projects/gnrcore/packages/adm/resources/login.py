@@ -496,7 +496,7 @@ class LoginComponent(BaseComponent):
         return dlg
 
     def login_newUser_form(self,form):
-        fb = form.div(_class='login_form_container',datapath='.record').formlet(cols=1,onEnter='SET creating_new_user = true;')
+        fb = form.record.div(_class='login_form_container').formlet(cols=1,onEnter='SET creating_new_user = true;')
         fb.textbox(value='^.firstname',lbl='!!First name',validate_notnull=True,validate_case='c',validate_len='2:')
         fb.textbox(value='^.lastname',lbl='!!Last name',validate_notnull=True,validate_case='c',validate_len='2:')
         fb.textbox(value='^.email',lbl='!!Email',validate_notnull=True)
