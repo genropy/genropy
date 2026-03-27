@@ -359,7 +359,7 @@ class Table(object):
             attachments = [r['filepath'] or r['external_url'] for r in attachments]
             if message['weak_attachments']:
                 attachments.extend(message['weak_attachments'].split(','))
-            if mp['system_bcc']:
+            if mp['system_bcc'] and mp['system_bcc'] not in (bcc_address or ''):
                 bcc_address = f'{bcc_address},{mp["system_bcc"]}' if bcc_address else mp['system_bcc']
             try:
                 mail_handler.sendmail(to_address=to_address,

@@ -17,7 +17,10 @@ class Table(object):
             self.insert(self.newrecord(message_id=message_id))
 
     def removeMessageFromQueue(self, message_id):
-        self.deleteSelection('message_id', message_id)
+        if isinstance(message_id, list):
+            self.deleteSelection(where='$message_id IN :pkeys', pkeys=message_id)
+        else:
+            self.deleteSelection('message_id', message_id)
 
     def sendMessages(self):
         """Send messages without proxy. One-by-one. Called by batch action."""
