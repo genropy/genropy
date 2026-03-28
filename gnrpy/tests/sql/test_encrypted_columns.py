@@ -1,50 +1,48 @@
 """Tests for encrypted columns feature (issue #747).
 
 Tests cover:
-1. ColumnEncryptor — encrypt/decrypt/verify for all three modes (R, Q, X)
+1. Encryptor — encrypt/decrypt/verify for all three modes (R, Q, X)
 2. Column model — encrypted attribute and normalization
 3. prepareRecordData — encryption on write
 4. decrypt_row — decryption on read
 5. Integration with test_invoice DB (customer table with encrypted columns)
 """
 
-import os
-
 import pytest
 
-from gnr.sql.gnrsql.encryption import ColumnEncryptor
+from gnr.sql.gnrsql.encryption import Encryptor
+from gnr.sql.gnrsqldata.compiler import SqlCompiledQuery
+
+from core.common import BaseGnrTest
 
 TEST_ENCRYPTION_KEY = 'gnr_test_encryption_key_747'
 
 
 @pytest.fixture(scope='module')
 def enc_db(db_sqlite):
-    """Ensure the db_sqlite fixture has encryption enabled."""
-    db_sqlite._encryption = ColumnEncryptor(TEST_ENCRYPTION_KEY)
-    db_sqlite._encryption_initialized = True
+    """Ensure the db_sqlite fixture has an encryptor on the application."""
+    db_sqlite.application._encryptor = Encryptor(TEST_ENCRYPTION_KEY)
     return db_sqlite
 
 
 def setup_module(module):
     """Configure genro environment for GnrApp-based fixtures."""
-    from core.common import BaseGnrTest
     BaseGnrTest.setup_class()
 
 
 def teardown_module(module):
-    from core.common import BaseGnrTest
     BaseGnrTest.teardown_class()
 
 
 # ---------------------------------------------------------------------------
-#  1. ColumnEncryptor unit tests
+#  1. Encryptor unit tests
 # ---------------------------------------------------------------------------
 
-class TestColumnEncryptorModeR:
+class TestEncryptorModeR:
     """Mode R (Reversible): Fernet, non-deterministic."""
 
     def setup_method(self):
-        self.enc = ColumnEncryptor('test_secret_key_747')
+        self.enc = Encryptor('test_secret_key_747')
 
     def test_encrypt_returns_prefixed_string(self):
         result = self.enc.encrypt('hello', 'R')
@@ -77,11 +75,11 @@ class TestColumnEncryptorModeR:
         assert self.enc.decrypt(encrypted) == text
 
 
-class TestColumnEncryptorModeQ:
+class TestEncryptorModeQ:
     """Mode Q (Querable): AES-SIV, deterministic."""
 
     def setup_method(self):
-        self.enc = ColumnEncryptor('test_secret_key_747')
+        self.enc = Encryptor('test_secret_key_747')
 
     def test_encrypt_returns_prefixed_string(self):
         result = self.enc.encrypt('PRCGNN51P14F205K', 'Q')
@@ -102,17 +100,17 @@ class TestColumnEncryptorModeQ:
         assert e1 != e2
 
     def test_different_keys_different_ciphertext(self):
-        enc2 = ColumnEncryptor('different_key')
+        enc2 = Encryptor('different_key')
         e1 = self.enc.encrypt('same', 'Q')
         e2 = enc2.encrypt('same', 'Q')
         assert e1 != e2
 
 
-class TestColumnEncryptorModeX:
+class TestEncryptorModeX:
     """Mode X (one-shot): SHA-256, irreversible."""
 
     def setup_method(self):
-        self.enc = ColumnEncryptor('test_secret_key_747')
+        self.enc = Encryptor('test_secret_key_747')
 
     def test_encrypt_returns_prefixed_string(self):
         result = self.enc.encrypt('auth_token_abc', 'X')
@@ -145,11 +143,11 @@ class TestColumnEncryptorModeX:
         assert self.enc.verify('same_token', e2) is True
 
 
-class TestColumnEncryptorPlainFallback:
+class TestEncryptorPlainFallback:
     """Plain text values without prefix are returned as-is."""
 
     def setup_method(self):
-        self.enc = ColumnEncryptor('test_secret_key_747')
+        self.enc = Encryptor('test_secret_key_747')
 
     def test_plain_string(self):
         assert self.enc.decrypt('plain_value') == 'plain_value'
@@ -162,11 +160,11 @@ class TestColumnEncryptorPlainFallback:
             self.enc.encrypt('value', 'Z')
 
 
-class TestColumnEncryptorDecryptRow:
+class TestEncryptorDecryptRow:
     """decrypt_row modifies a dict in place."""
 
     def setup_method(self):
-        self.enc = ColumnEncryptor('test_secret_key_747')
+        self.enc = Encryptor('test_secret_key_747')
 
     def test_dict_row(self):
         row = {
@@ -203,54 +201,12 @@ class TestCompiledQueryEncryptedColumns:
     """encryptedColumns dict on SqlCompiledQuery."""
 
     def test_initial_empty(self):
-        from gnr.sql.gnrsqldata.compiler import SqlCompiledQuery
         cpl = SqlCompiledQuery('test_table')
         assert cpl.encryptedColumns == {}
 
 
 # ---------------------------------------------------------------------------
-#  3. db.encryption lazy property
-# ---------------------------------------------------------------------------
-
-class TestDbEncryptionProperty:
-    """db.encryption lazy property."""
-
-    def test_no_key_returns_none(self):
-        from gnr.sql.gnrsql.db import GnrSqlDb
-        saved = os.environ.pop('GENROPY_ENCRYPTION_KEY', None)
-        try:
-            db = GnrSqlDb(implementation='sqlite')
-            assert db.encryption is None
-        finally:
-            if saved:
-                os.environ['GENROPY_ENCRYPTION_KEY'] = saved
-
-    def test_env_key_creates_encryptor(self):
-        from gnr.sql.gnrsql.db import GnrSqlDb
-        os.environ['GENROPY_ENCRYPTION_KEY'] = 'test_key_for_pytest'
-        try:
-            db = GnrSqlDb(implementation='sqlite')
-            db._encryption_initialized = False
-            assert db.encryption is not None
-            assert isinstance(db.encryption, ColumnEncryptor)
-        finally:
-            del os.environ['GENROPY_ENCRYPTION_KEY']
-
-    def test_lazy_initialized_once(self):
-        from gnr.sql.gnrsql.db import GnrSqlDb
-        os.environ['GENROPY_ENCRYPTION_KEY'] = 'test_key_for_pytest'
-        try:
-            db = GnrSqlDb(implementation='sqlite')
-            db._encryption_initialized = False
-            enc1 = db.encryption
-            enc2 = db.encryption
-            assert enc1 is enc2
-        finally:
-            del os.environ['GENROPY_ENCRYPTION_KEY']
-
-
-# ---------------------------------------------------------------------------
-#  4. Integration tests with test_invoice DB (SQLite)
+#  3. Integration tests with test_invoice DB (SQLite)
 # ---------------------------------------------------------------------------
 
 class TestEncryptedColumnsSqlite:
@@ -304,9 +260,9 @@ class TestEncryptedColumnsSqlite:
         assert row[2].startswith('$X$')
 
     def test_mode_q_searchable_with_encrypt(self, enc_db):
-        pkey = self._insert_encrypted_customer(enc_db)
+        self._insert_encrypted_customer(enc_db)
         tbl = enc_db.table('invc.customer')
-        encryptor = enc_db.encryption
+        encryptor = enc_db.application.encryptor
         encrypted_reg = encryptor.encrypt('REG-2024-00042', 'Q')
         rows = tbl.query(
             columns='$account_name',
@@ -326,8 +282,8 @@ class TestEncryptedColumnsSqlite:
         )
         stored = raw_cur.fetchone()[0]
         raw_cur.close()
-        assert enc_db.encryption.verify('tok_live_secret_9876', stored)
-        assert not enc_db.encryption.verify('wrong', stored)
+        assert enc_db.application.encryptor.verify('tok_live_secret_9876', stored)
+        assert not enc_db.application.encryptor.verify('wrong', stored)
 
     def test_record_output_bag(self, enc_db):
         pkey = self._insert_encrypted_customer(enc_db)
@@ -351,7 +307,6 @@ class TestEncryptedColumnsSqlite:
         rec['bank_account'] = 'DE89370400440532013000'
         tbl.update(rec)
         enc_db.commit()
-        # Verify encrypted in raw DB
         raw_conn = enc_db.adapter.connect()
         raw_conn.row_factory = None
         raw_cur = raw_conn.cursor()
@@ -362,7 +317,6 @@ class TestEncryptedColumnsSqlite:
         raw = raw_cur.fetchone()[0]
         raw_cur.close()
         assert raw.startswith('$R$')
-        # Verify decrypted on read
         reloaded = tbl.record(pkey).output('dict')
         assert reloaded['bank_account'] == 'DE89370400440532013000'
 

@@ -551,7 +551,8 @@ class SqlRecord(object):
         encrypted = self.compiled.encryptedColumns
         if not encrypted:
             return
-        encryptor = getattr(self.db, 'encryption', None)
+        app = getattr(self.db, 'application', None)
+        encryptor = getattr(app, 'encryptor', None) if app else None
         if not encryptor:
             return
         encryptor.decrypt_row(row, encrypted)
