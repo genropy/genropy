@@ -306,7 +306,13 @@
 }
 
 ._common_d11 .gr_wrap_footers .dojoxGrid-scrollbox{
-    overflow-x:hidden !important;
+    overflow-x:auto !important;
+    -ms-overflow-style:none;
+    scrollbar-width:none;
+}
+._common_d11 .gr_wrap_footers .dojoxGrid-scrollbox::-webkit-scrollbar:horizontal{
+    height:0;
+    display:none;
 }
 .gr_noFooter .gr_footer.gr_scrollbox .gr_itemcontainer{
     background: transparent;
