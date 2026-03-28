@@ -897,6 +897,42 @@ class GnrApp(object):
         """TODO"""
         return GnrModuleFinder(self)
 
+    @property
+    def encryptor(self):
+        """Lazy-initialized :class:`Encryptor` instance.
+
+        Created on first access by reading the encryption key from:
+        1. Application config: ``<encryption secret_key="..."/>``
+        2. Environment variable: ``GNR_ENCRYPTION_KEY``
+
+        If the key value starts with ``env:``, it is resolved from the
+        named environment variable.
+
+        Requires the ``cryptography`` optional dependency (checked via pantry).
+        Returns ``None`` if no key is configured or cryptography is not installed.
+        """
+        if hasattr(self, '_encryptor'):
+            return self._encryptor
+        self._encryptor = None
+        secret_key = None
+        enc_attrs = self.config.getAttr('encryption') or {}
+        if isinstance(enc_attrs, dict):
+            secret_key = enc_attrs.get('secret_key')
+        if not secret_key:
+            secret_key = os.environ.get('GNR_ENCRYPTION_KEY')
+        if not secret_key:
+            return None
+        if secret_key.startswith('env:'):
+            secret_key = os.environ.get(secret_key[4:], '')
+        if not secret_key:
+            return None
+        import pantry
+        if not pantry.has('cryptography'):
+            return None
+        from gnr.sql.gnrsql.encryption import Encryptor
+        self._encryptor = Encryptor(secret_key)
+        return self._encryptor
+
     def save_logging_conf(self, conf_bag, apply=False):
         logger.debug("Saving new logging configuration")
         log_conf = os.path.join(self.instanceFolder, "logging.xml")

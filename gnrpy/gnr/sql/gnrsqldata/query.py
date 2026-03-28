@@ -250,6 +250,7 @@ class SqlQuery(object):
         result = cursor.fetchall()
         cursor.close()
         self.handlePyColumns(result)
+        self._decryptRows(result)
         self.handleBagColumns(result)
         return result
 
@@ -299,6 +300,26 @@ class SqlQuery(object):
                 else:
                     d[field] = val
 
+
+    def _decryptRows(self, data):
+        """Decrypt encrypted columns in fetched rows.
+
+        Uses ``compiled.encryptedColumns`` dict and delegates to
+        ``ColumnEncryptor.decrypt_row()``. Must run before
+        ``handleBagColumns`` so that encrypted Bag columns are
+        decrypted before XML parsing.
+
+        Args:
+            data: List of row dicts (modified in place).
+        """
+        if not self.compiled.encryptedColumns:
+            return
+        app = getattr(self.db, 'application', None)
+        encryptor = getattr(app, 'encryptor', None) if app else None
+        if not encryptor:
+            return
+        for d in data:
+            encryptor.decrypt_row(d, self.compiled.encryptedColumns)
 
     def fetchPkeys(self):
         """Fetch and return only the primary key values.
@@ -422,6 +443,7 @@ class SqlQuery(object):
             data = cursor.fetchall() or []
             index = cursor.index
         self.handlePyColumns(data)
+        self._decryptRows(data)
         self.handleBagColumns(data)
         return index, data
 
