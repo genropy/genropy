@@ -31,7 +31,7 @@ dependencies = [
 	     "dictdiffer", # for gnr.sql migration
 	     "docutils",
 	     "dulwich", # needed by gnrgit
-	     "genro-pantry",
+	     "mypantry",
 	     "gunicorn",
 	     "jsmin",
 	     "lxml",
