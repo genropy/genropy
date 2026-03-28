@@ -154,8 +154,6 @@ class GnrSqlDb(
         self.adapters[self.implementation] = importModule(adapter_module).SqlDbAdapter(self)
         self._macro_registry = {}
         self.registerMacros()
-        self._encryption = None
-        self._encryption_initialized = False
 
         if main_schema is None:
             main_schema = self.adapter.defaultMainSchema()
@@ -172,42 +170,6 @@ class GnrSqlDb(
             'exec': GnrSqlExecException,
             'missedCommit': GnrMissedCommitException,
         }
-
-    # -- Encryption ----------------------------------------------------------
-
-    @property
-    def encryption(self):
-        """Lazy-initialized :class:`ColumnEncryptor` instance.
-
-        Created on first access by reading the encryption key from:
-        1. Application config: ``<encryption secret_key="..."/>``
-        2. Environment variable: ``GENROPY_ENCRYPTION_KEY``
-
-        If the key value starts with ``env:``, it is resolved from the
-        named environment variable.
-
-        Returns ``None`` if no key is configured.
-        """
-        if self._encryption_initialized:
-            return self._encryption
-        self._encryption_initialized = True
-        secret_key = None
-        if self.application:
-            config = getattr(self.application, 'config', None)
-            if config:
-                enc_attrs = config.getAttr('encryption') or {}
-                secret_key = enc_attrs.get('secret_key') if isinstance(enc_attrs, dict) else None
-        if not secret_key:
-            secret_key = os.environ.get('GENROPY_ENCRYPTION_KEY')
-        if not secret_key:
-            return None
-        if secret_key.startswith('env:'):
-            secret_key = os.environ.get(secret_key[4:], '')
-        if not secret_key:
-            return None
-        from gnr.sql.gnrsql.encryption import ColumnEncryptor
-        self._encryption = ColumnEncryptor(secret_key)
-        return self._encryption
 
     # -- Macro registration --------------------------------------------------
 

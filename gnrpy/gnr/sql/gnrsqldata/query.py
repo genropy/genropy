@@ -314,7 +314,8 @@ class SqlQuery(object):
         """
         if not self.compiled.encryptedColumns:
             return
-        encryptor = getattr(self.db, 'encryption', None)
+        app = getattr(self.db, 'application', None)
+        encryptor = getattr(app, 'encryptor', None) if app else None
         if not encryptor:
             return
         for d in data:

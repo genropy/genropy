@@ -1,4 +1,4 @@
-"""Column-level encryption engine for GenroPy.
+"""Encryption engine for GenroPy.
 
 Provides three encryption modes:
 
@@ -16,20 +16,15 @@ Provides three encryption modes:
 
 Encrypted values are stored with a prefix to identify the mode:
 ``$R$<base64>``, ``$Q$<base64>``, ``$X$<hex_salt>$<hex_hash>``.
+
+Requires the ``cryptography`` package (optional dependency).
+Import of ``cryptography`` is deferred to ``Encryptor.__init__``
+so that this module can be imported without it installed.
 """
 
 import hashlib
 import os
 import base64
-
-try:
-    from cryptography.fernet import Fernet
-    from cryptography.hazmat.primitives.ciphers.aead import AESSIV
-except ImportError:
-    raise ImportError(
-        "The 'cryptography' package is required for encrypted columns. "
-        "Install it with: pip install genropy[encryption]"
-    )
 
 
 SALT_LENGTH = 16
@@ -53,16 +48,20 @@ def _derive_siv_key(secret_key):
     return dk
 
 
-class ColumnEncryptor:
-    """Encrypt and decrypt column values using one of the three modes.
+class Encryptor:
+    """Encrypt and decrypt values using one of the three modes.
 
     Args:
         secret_key: The master secret key string.
     """
 
     def __init__(self, secret_key):
+        from cryptography.fernet import Fernet
+        from cryptography.hazmat.primitives.ciphers.aead import AESSIV
+
         self._fernet = Fernet(_derive_fernet_key(secret_key))
         self._siv_key = _derive_siv_key(secret_key)
+        self._aessiv_cls = AESSIV
 
     def encrypt(self, value, mode='R'):
         """Encrypt a value according to the specified mode.
@@ -80,7 +79,7 @@ class ColumnEncryptor:
         if mode == 'R':
             return PREFIX_R + self._fernet.encrypt(text).decode('ascii')
         if mode == 'Q':
-            ct = AESSIV(self._siv_key).encrypt(text, None)
+            ct = self._aessiv_cls(self._siv_key).encrypt(text, None)
             return PREFIX_Q + base64.b64encode(ct).decode('ascii')
         if mode == 'X':
             salt = os.urandom(SALT_LENGTH)
@@ -111,7 +110,7 @@ class ColumnEncryptor:
             return self._fernet.decrypt(token).decode('utf-8')
         if value.startswith(PREFIX_Q):
             ct = base64.b64decode(value[len(PREFIX_Q):])
-            return AESSIV(self._siv_key).decrypt(ct, None).decode('utf-8')
+            return self._aessiv_cls(self._siv_key).decrypt(ct, None).decode('utf-8')
         if value.startswith(PREFIX_X):
             return None
         return value
