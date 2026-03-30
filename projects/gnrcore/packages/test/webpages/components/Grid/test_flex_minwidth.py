@@ -118,3 +118,25 @@ class GnrCustomWebPage(object):
         center.bagGrid(frameCode='minwidth', datapath='.grid_2',
                                struct=struct, storepath='.store_2',
                                height='100%', fillDown=True)
+
+    def test_3_all_fixed_em(self, pane):
+        """All columns with fixed em widths and fillDown. The filler columns
+        must align with the header — regression test for PR #749."""
+        bc = pane.borderContainer(height='500px')
+        center = bc.contentPane(region='center')
+
+        def struct(struct):
+            r = struct.view().rows()
+            r.cell('code', width='8em', name='Codice')
+            r.cell('description', width='20em', name='Cliente')
+            r.cell('supplier', width='25em', name='Indirizzo')
+            r.cell('quantity', width='5em', dtype='L', name='Cap')
+            r.cell('category', width='12em', name='Localita')
+
+        center.data('.sample_data', self.getSampleData())
+        center.dataFormula('.grid_3.store_3', 'sample_data',
+                           sample_data='=.sample_data', _onStart=True)
+
+        center.bagGrid(frameCode='fixedem', datapath='.grid_3',
+                               struct=struct, storepath='.store_3',
+                               height='100%', fillDown=True)

@@ -543,13 +543,9 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             return;
         }
 
-        /* Use the wider of header table and content node to cover
-           the full scrollable area when adaptFlexMinWidths enforces
-           a content width wider than the viewport */
-        const contentWidth = this.views.views[0].contentNode.offsetWidth;
-        const totalWidth = Math.max(vn.clientWidth, contentWidth) - 1;
         filler.style.height = delta+'px';
-        filler.style.width = totalWidth+'px';
+        /* -1 prevents filler table from triggering horizontal scrollbar */
+        const tableWidth = vn.clientWidth - 1;
         const tdlist = [];
         const colinfo = this.getColumnInfo();
         dojo.query('th',this.viewsHeaderNode).forEach(function(n,idx){
@@ -565,7 +561,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             }
             return tdlist.push('<td style="'+style+'"></td>');
         });
-        filler.innerHTML = '<table class="grid_filler" style="width:'+totalWidth+'px;"><tbody><tr>'+tdlist.join('')+'</tr></tbody></table>';
+        filler.innerHTML = '<table class="grid_filler" style="width:'+tableWidth+'px;"><tbody><tr>'+tdlist.join('')+'</tr></tbody></table>';
     },
 
     mixin__emPixels:function(){

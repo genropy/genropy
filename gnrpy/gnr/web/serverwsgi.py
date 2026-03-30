@@ -47,6 +47,7 @@ wsgi_options = dict(
         tornado=None
         )
 
+
 class GnrDebuggedApplication(DebuggedApplication):
 
     def debug_application(self, environ, start_response):
@@ -221,7 +222,10 @@ class Server(object):
                 help="Debugpy port (defaults to 5678)")
 
         self.site_script = site_script
-
+        self.app_scheme = 'http'
+        self.app_host = '127.0.0.1'
+        self.app_port = '8080'
+        
         parser.set_defaults(loglevel="info")
         self.options = parser.parse_args()
         if hasattr(self.options, 'config_path') and self.options.config_path:
@@ -308,20 +312,26 @@ class Server(object):
             debugpy.listen(("localhost", self.debugpy_port))
         self.serve()
 
+    @property
+    def app_url(self):
+        return f'{self.app_scheme}://{self.app_host}:{self.app_port}'
+    
     def serve(self):
-        port = int(self.options.port)
-        host = self.options.host
+        self.app_port = int(self.options.port)
+        self.app_host = self.options.host
         site_name= f'{self.site_name}:{self.remote_db}' if self.remote_db else self.site_name
+
         if self.options.tornado:
-            host = '127.0.0.1' if self.options.host == '0.0.0.0' else self.options.host
+            self.app_host = '127.0.0.1' if self.options.host == '0.0.0.0' else self.options.host
 
             from gnr.web.gnrasync import GnrAsyncServer
             site_options= dict(_config=self.siteconfig,_gnrconfig=self.gnr_config,
                 counter=getattr(self.options, 'counter', None),
                 noclean=self.options.noclean, options=self.options)
-            logger.info(f"Starting Tornado server - listening on {host}:{port}")
-            server=GnrAsyncServer(port=port,instance=site_name,
-                web=True, autoreload=self.options.reload, site_options=site_options)
+            logger.info(f"Starting Tornado server - listening on {self.app_host}:{self.app_port}")
+            server=GnrAsyncServer(port=self.app_port, instance=site_name,
+                                  web=True, autoreload=self.options.reload,
+                                  site_options=site_options)
             server.start()
         else:
             ssl_context = None
@@ -347,7 +357,6 @@ class Server(object):
                 else:
                     extra_info.append('Debug mode: Off')
 
-                app_scheme = 'http'
                 if self.options.ssl:
                     cert_path = os.path.join(self.config_path,'localhost.pem')
                     key_path = os.path.join(self.config_path,'localhost-key.pem')
@@ -359,13 +368,13 @@ class Server(object):
                     ssl_context=(self.options.ssl_cert,self.options.ssl_key)
                     extra_info.append(f'SSL mode: On {ssl_context}')
                     app_scheme = 'https'
-                    host = self.options.ssl_cert.split('/')[-1].split('.pem')[0]
+                    self.app_host = self.options.ssl_cert.split('/')[-1].split('.pem')[0]
                     
-                app_url = f'{app_scheme}://{host}:{port}'
-                logger.info(f"Starting server - listening on {app_url}\t%s", ",".join(extra_info))
-                if self.options.open_browser:
-                    logger.info(f'Opening browser to application on {app_url}')
-                    webbrowser.open(app_url)
+                logger.info(f"Starting server - listening on {self.app_url}\t%s", ",".join(extra_info))
+
+            if self.options.open_browser and not os.environ.get("WERKZEUG_RUN_MAIN", None):
+                logger.info(f'Opening browser to application on {self.app_url}')
+                webbrowser.open(self.app_url)
 
             if not is_running_from_reloader():
                 fd = None
@@ -373,8 +382,8 @@ class Server(object):
                 fd = int(os.environ["WERKZEUG_SERVER_FD"])
 
             srv = make_server(
-                host,
-                port,
+                self.app_host,
+                self.app_port,
                 gnrServer,
                 threaded=True,
                 processes=1,
