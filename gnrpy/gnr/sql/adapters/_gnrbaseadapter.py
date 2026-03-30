@@ -149,6 +149,8 @@ class SqlDbAdapter(object):
         ('DH', 'DHZ'): None,
         ('DHZ', 'D'): None,
         ('DHZ', 'DH'): None,
+        ('H', 'HZ'): None,
+        ('HZ', 'H'): None,
     }
 
 
