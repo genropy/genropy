@@ -551,11 +551,7 @@ class SqlRecord(object):
         encrypted = self.compiled.encryptedColumns
         if not encrypted:
             return
-        app = getattr(self.db, 'application', None)
-        encryptor = getattr(app, 'encryptor', None) if app else None
-        if not encryptor:
-            return
-        encryptor.decrypt_row(row, encrypted)
+        self.db.encryptor.decrypt_row(row, encrypted)
 
 
     def _loadRecord_DynItemMany(self, joiner, info, sqlresult,

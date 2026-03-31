@@ -10,7 +10,7 @@ Tests cover:
 
 import pytest
 
-from gnr.sql.gnrsql.encryption import Encryptor
+from gnr.core.gnrcrypto import Encryptor
 from gnr.sql.gnrsqldata.compiler import SqlCompiledQuery
 
 from core.common import BaseGnrTest
@@ -20,8 +20,10 @@ TEST_ENCRYPTION_KEY = 'gnr_test_encryption_key_747'
 
 @pytest.fixture(scope='module')
 def enc_db(db_sqlite):
-    """Ensure the db_sqlite fixture has an encryptor on the application."""
-    db_sqlite.application._encryptor = Encryptor(TEST_ENCRYPTION_KEY)
+    """Ensure the db_sqlite fixture has encryption configured."""
+    db_sqlite.encryption_key = TEST_ENCRYPTION_KEY
+    if hasattr(db_sqlite, '_encryptor'):
+        del db_sqlite._encryptor
     return db_sqlite
 
 
@@ -262,7 +264,7 @@ class TestEncryptedColumnsSqlite:
     def test_mode_q_searchable_with_encrypt(self, enc_db):
         self._insert_encrypted_customer(enc_db)
         tbl = enc_db.table('invc.customer')
-        encryptor = enc_db.application.encryptor
+        encryptor = enc_db.encryptor
         encrypted_reg = encryptor.encrypt('REG-2024-00042', 'Q')
         rows = tbl.query(
             columns='$account_name',
@@ -282,8 +284,8 @@ class TestEncryptedColumnsSqlite:
         )
         stored = raw_cur.fetchone()[0]
         raw_cur.close()
-        assert enc_db.application.encryptor.verify('tok_live_secret_9876', stored)
-        assert not enc_db.application.encryptor.verify('wrong', stored)
+        assert enc_db.encryptor.verify('tok_live_secret_9876', stored)
+        assert not enc_db.encryptor.verify('wrong', stored)
 
     def test_record_output_bag(self, enc_db):
         pkey = self._insert_encrypted_customer(enc_db)
