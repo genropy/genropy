@@ -7,6 +7,7 @@ import os
 import datetime
 from urllib.parse import parse_qs, urlparse
 
+import pantry
 from gnr.core import logger
 
 
@@ -18,6 +19,10 @@ SALT_LENGTH = 16
 PREFIX_R = '$R$'
 PREFIX_Q = '$Q$'
 PREFIX_X = '$X$'
+
+if pantry.has('cryptography'):
+    from cryptography.fernet import Fernet
+    from cryptography.hazmat.primitives.ciphers.aead import AESSIV
 
 
 def _derive_fernet_key(secret_key):
@@ -51,8 +56,8 @@ class Encryptor:
     Encrypted values are stored with a prefix: ``$R$``, ``$Q$``, ``$X$``.
 
     The instance is always created (even without a key or without
-    ``cryptography`` installed). Errors are raised only when you actually
-    call ``encrypt()`` or ``decrypt()``.
+    ``cryptography`` installed). Methods guarded by ``@pantry('cryptography')``
+    raise ``RuntimeError`` at call-time if the package is missing.
 
     Args:
         secret_key: The master secret key string, or ``None``.
@@ -60,34 +65,25 @@ class Encryptor:
 
     def __init__(self, secret_key=None):
         self._secret_key = secret_key
-        self._initialized = False
         self._fernet = None
         self._siv_key = None
-        self._aessiv_cls = None
 
-    def _ensure_initialized(self):
-        """Initialize crypto primitives on first use. Raises if key or
-        cryptography package is missing."""
-        if self._initialized:
-            return
+    def _ensure_key(self):
         if not self._secret_key:
             raise ValueError(
                 "No encryption key configured. "
                 "Set encryption_key in db config or GNR_ENCRYPTION_KEY env var."
             )
-        from cryptography.fernet import Fernet
-        from cryptography.hazmat.primitives.ciphers.aead import AESSIV
-
-        self._fernet = Fernet(_derive_fernet_key(self._secret_key))
-        self._siv_key = _derive_siv_key(self._secret_key)
-        self._aessiv_cls = AESSIV
-        self._initialized = True
+        if self._fernet is None:
+            self._fernet = Fernet(_derive_fernet_key(self._secret_key))
+            self._siv_key = _derive_siv_key(self._secret_key)
 
     @property
     def has_key(self):
         """Return ``True`` if an encryption key is configured."""
         return bool(self._secret_key)
 
+    @pantry('cryptography')
     def encrypt(self, value, mode='R'):
         """Encrypt a value according to the specified mode.
 
@@ -97,19 +93,15 @@ class Encryptor:
 
         Returns:
             The encrypted string with mode prefix.
-
-        Raises:
-            ValueError: If no encryption key is configured.
-            ImportError: If ``cryptography`` is not installed.
         """
         if value is None:
             return None
-        self._ensure_initialized()
+        self._ensure_key()
         text = str(value).encode('utf-8')
         if mode == 'R':
             return PREFIX_R + self._fernet.encrypt(text).decode('ascii')
         if mode == 'Q':
-            ct = self._aessiv_cls(self._siv_key).encrypt(text, None)
+            ct = AESSIV(self._siv_key).encrypt(text, None)
             return PREFIX_Q + base64.b64encode(ct).decode('ascii')
         if mode == 'X':
             salt = os.urandom(SALT_LENGTH)
@@ -117,15 +109,12 @@ class Encryptor:
             return PREFIX_X + salt.hex() + '$' + h
         raise ValueError(f"Unknown encryption mode: {mode!r}")
 
+    @pantry('cryptography')
     def decrypt(self, value):
         """Decrypt an encrypted value, detecting the mode from its prefix.
 
         For mode ``'X'``, returns ``None`` (irreversible).
         Values without a recognized prefix are returned as-is (migration fallback).
-
-        Raises:
-            ValueError: If no encryption key is configured.
-            ImportError: If ``cryptography`` is not installed.
         """
         if value is None:
             return None
@@ -135,18 +124,19 @@ class Encryptor:
             return None
         if not (value.startswith(PREFIX_R) or value.startswith(PREFIX_Q)):
             return value
-        self._ensure_initialized()
+        self._ensure_key()
         if value.startswith(PREFIX_R):
             token = value[len(PREFIX_R):].encode('ascii')
             return self._fernet.decrypt(token).decode('utf-8')
         if value.startswith(PREFIX_Q):
             ct = base64.b64decode(value[len(PREFIX_Q):])
-            return self._aessiv_cls(self._siv_key).decrypt(ct, None).decode('utf-8')
+            return AESSIV(self._siv_key).decrypt(ct, None).decode('utf-8')
 
     def verify(self, plain_value, stored_hash):
         """Verify a plain value against a stored mode-X hash.
 
         Returns ``True`` if the plain value matches.
+        Does not require ``cryptography`` (uses only hashlib).
         """
         if not stored_hash or not isinstance(stored_hash, str):
             return False
