@@ -43,6 +43,7 @@ import os
 from typing import Any
 
 from gnr.core.gnrclasses import GnrClassCatalog
+from gnr.core.gnrcrypto import Encryptor
 from gnr.core.gnrlang import GnrObject, importModule
 from gnr.core.gnrstring import boolean
 
@@ -141,6 +142,7 @@ class GnrSqlDb(
         # checks this flag.  Consider adding a guard in WriteMixin.insert/
         # update/delete or removing the parameter if unused.
         self.read_only = read_only
+        self.encryption_key = self.dbpar(kwargs.pop('encryption_key', None))
         self.typeConverter = GnrClassCatalog()
         self.debugger = debugger
         self.application = application
@@ -170,6 +172,29 @@ class GnrSqlDb(
             'exec': GnrSqlExecException,
             'missedCommit': GnrMissedCommitException,
         }
+
+    # -- Encryption ----------------------------------------------------------
+
+    @property
+    def encryptor(self):
+        """Lazy-initialized :class:`Encryptor` for column encryption.
+
+        Uses ``encryption_key`` (passed as db attribute or resolved from
+        ``GNR_ENCRYPTION_KEY`` env var).
+
+        Always returns an ``Encryptor`` instance. If no key is configured,
+        calling ``encrypt()``/``decrypt()`` on it will raise ``ValueError``.
+        If ``cryptography`` is not installed, they will raise ``ImportError``.
+        """
+        if hasattr(self, '_encryptor'):
+            return self._encryptor
+        secret_key = self.encryption_key
+        if not secret_key:
+            secret_key = os.environ.get('GNR_ENCRYPTION_KEY')
+        if secret_key and secret_key.startswith('env:'):
+            secret_key = os.environ.get(secret_key[4:], '')
+        self._encryptor = Encryptor(secret_key)
+        return self._encryptor
 
     # -- Macro registration --------------------------------------------------
 
