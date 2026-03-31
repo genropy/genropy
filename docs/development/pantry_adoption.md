@@ -289,11 +289,13 @@ the type checker sees a regular import under a branch condition.
 The current patterns (`paramiko = False`, `pyotp = None`, `HAS_CUPS`) are
 equally or more opaque to static analyzers.
 
-### 4. "Expanded surface for SCA/APTs"
+### 4. "Expanded surface for SCA (Software Composition Analysis) / APTs (supply chain attacks)"
 
-mypantry is ~200 lines of code, zero external dependencies, hosted in the
-genropy GitHub org. The attack surface is minimal compared to the dozens of
-dependencies already in the tree.
+mypantry is ~200 lines of code with zero external dependencies. It is published
+under the genropy GitHub org, maintained by the same team, with the same review
+process and access controls as all other genro-* libraries (genro-bag,
+genro-storage, genro-office, genro-routes, etc.). It carries no more risk than
+any other internal library already in the dependency tree.
 
 ## Decision requested
 
