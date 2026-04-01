@@ -22,15 +22,6 @@ class Table(object):
         else:
             self.deleteSelection('message_id', message_id)
 
-    def sendMessages(self):
-        """Send messages without proxy. One-by-one. Called by batch action."""
-        results = []
-        dispatch_cb = self.db.table('email.message').sendMessage
-        messages_to_send = self.query().fetch()
-        for row in messages_to_send:
-            results.append(dispatch_cb(row['message_id']))
-        return results
-
     def trigger_onInserted(self, record=None):
         self.db.deferAfterCommit(self.proxyRunNow, _deferredId='_proxy_communication_')
 

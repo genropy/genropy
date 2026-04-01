@@ -278,101 +278,80 @@ class GnrCustomWebPage(object):
             logger.error('Error reading attachment %s: %s', storage_path, str(e))
             raise IOError(f'Error reading attachment {storage_path}: {str(e)}')
 
+    def _mark_message_error(self, message_tbl, message, error_msg):
+        """Mark a message record with an error timestamp and message."""
+        oldrec = dict(message)
+        message['error_ts'] = message_tbl.newUTCDatetime()
+        message['error_msg'] = error_msg
+        message_tbl.update(message, oldrec)
+
     def _add_messages_to_proxy_queue(self, proxy_service, message_pkeys):
         """
-        Fetch pending messages and submit them to async-mail-service.
-
-        This method:
-        1. Queries messages ordered by priority and insertion time
-        2. Converts each message to async-mail-service format
-        3. Submits batch to proxy service
-        4. Updates local records based on response (queued/rejected/error)
-
-        Args:
-            proxy_service: The mailproxy service instance
-            message_pkeys: List of message IDs to process
+        Fetch pending messages, convert and submit to async-mail-service.
+        All messages are always dequeued — the proxy owns the lifecycle from here.
         """
         message_tbl = self.db.table('email.message')
         messages = message_tbl.query(where='$id IN :message_pkeys',
-                                    message_pkeys=message_pkeys,for_update=True,bagFields=True,
+                                    message_pkeys=message_pkeys, for_update=True, bagFields=True,
                                     order_by=f'COALESCE($proxy_priority,{MEDIUM_PRIORITY}),$__ins_ts',
                                     ).fetchAsDict('id')
+
+        # Convert to proxy format
         payload = []
         proxy_ids = {}
-
-        # Convert messages to proxy format
         for message in messages.values():
-            payload_chunk = self._convert_to_proxy_message(message, proxy_service.tenant_id)
-            # If conversion returns a string, it's an error message
-            if isinstance(payload_chunk,str):
-                oldrec = dict(message)
-                message['error_ts'] = message_tbl.newUTCDatetime()
-                message['error_msg'] = payload_chunk
-                message_tbl.update(message, oldrec)
-            elif payload_chunk:
-                payload.append(payload_chunk)
-                proxy_ids[message['id']] = payload_chunk.get('id')
+            result = self._convert_to_proxy_message(message, proxy_service.tenant_id)
+            if isinstance(result, str):
+                self._mark_message_error(message_tbl, message, result)
+            elif result:
+                payload.append(result)
+                proxy_ids[message['id']] = result.get('id')
 
-        if not payload:
-            return 0
+        # Submit to proxy and process response
+        queued_count = 0
+        if payload:
+            queued_count = self._submit_to_proxy(
+                proxy_service, message_tbl, messages, payload, proxy_ids)
 
-        # Submit batch to async-mail-service
+        # Always dequeue — proxy owns the lifecycle from here
+        self.db.table('email.message_to_send').removeMessageFromQueue(message_pkeys)
+        return queued_count
+
+    def _submit_to_proxy(self, proxy_service, message_tbl, messages, payload, proxy_ids):
+        """Submit payload to proxy and update message records based on response."""
         try:
             response_data = proxy_service.add_messages(payload) or {}
         except Exception as e:
-            # Proxy not reachable or returned error - mark all messages as failed
-            error_msg = f"Proxy communication error: {e}"
-            logger.error('proxy_sync: %s', error_msg)
-            timestamp = message_tbl.newUTCDatetime()
-            for message_id, message_to_update in messages.items():
-                if proxy_ids.get(message_id):  # Only messages that would have been sent
-                    oldrec = dict(message_to_update)
-                    message_to_update['error_ts'] = timestamp
-                    message_to_update['error_msg'] = error_msg
-                    message_tbl.update(message_to_update, oldrec)
+            logger.error('proxy_sync: Proxy communication error: %s', e)
+            for message_id in proxy_ids:
+                self._mark_message_error(
+                    message_tbl, messages[message_id], f"Proxy communication error: {e}")
             return 0
 
         if isinstance(response_data, list):
-            # Backwards compatibility in case the proxy still returns the legacy format
             response_data = {'ok': True, 'legacy': response_data}
 
-        # Extract rejected message IDs and reasons
         rejected = {
             item.get('id'): item.get('reason')
             for item in response_data.get('rejected') or []
             if item
         }
 
-        # Update local message records based on response
-        timestamp = message_tbl.newUTCDatetime()
         general_error = response_data.get('error')
-        queued_ids = []
-        for message_id, message_to_update in messages.items():
-            proxy_message_id = proxy_ids.get(message_id)
-            if not proxy_message_id:
-                continue
-            oldrec = dict(message_to_update)
+        for message_id in proxy_ids:
+            message = messages[message_id]
+            proxy_message_id = proxy_ids[message_id]
             rejection_reason = rejected.get(proxy_message_id)
-            if rejection_reason:
-                # Message was rejected by proxy service
-                message_to_update['error_ts'] = timestamp
-                message_to_update['error_msg'] = rejection_reason
-            elif general_error:
-                # General failure affecting all messages
-                message_to_update['error_ts'] = timestamp
-                message_to_update['error_msg'] = general_error
+            if rejection_reason or general_error:
+                self._mark_message_error(
+                    message_tbl, message, rejection_reason or general_error)
             else:
-                # Message successfully queued in proxy
-                message_to_update['proxy_ts'] = timestamp
-                message_to_update['error_ts'] = None
-                message_to_update['error_msg'] = None
-                queued_ids.append(message_id)
-            message_tbl.update(message_to_update, oldrec)
+                oldrec = dict(message)
+                message['proxy_ts'] = message_tbl.newUTCDatetime()
+                message['error_ts'] = None
+                message['error_msg'] = None
+                message_tbl.update(message, oldrec)
 
-        if queued_ids:
-            self.db.table('email.message_to_send').removeMessageFromQueue(queued_ids)
-
-        # Return the count of successfully queued messages from proxy response
         return response_data.get('queued', 0)
 
     def _convert_to_proxy_message(self, record, tenant_id):

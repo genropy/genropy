@@ -24,16 +24,13 @@ class Main(BaseResourceAction):
         mts_tbl = self.db.table('email.message_to_send')
         messages_to_send = mts_tbl.query(
             columns='$message_id',
-            where='@message_id.account_id=:acid AND @message_id.message_to_send IS TRUE',
+            where='@message_id.account_id=:acid',
             acid=account['id'],
             order_by='$__ins_ts',
             limit=account['send_limit']
         ).fetch()
         for row in messages_to_send:
-            try:
-                self.message_tbl.sendMessage(pkey=row['message_id'])
-            except Exception:
-                raise
+            self.message_tbl.sendMessage(pkey=row['message_id'])
 
     def table_script_parameters_pane(self, pane, **kwargs):
         pass
