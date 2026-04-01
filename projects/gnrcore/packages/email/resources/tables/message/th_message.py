@@ -67,7 +67,6 @@ class View(BaseComponent):
                 dict(code='to_send',caption='!!Ready to send',isDefault=True,condition='$in_queue = 1'),
                 dict(code='sending_error',caption='!!Sending error',condition='$error_ts IS NOT NULL', struct='sending_error'),
                 dict(code='sent',caption='!!Sent',includeDraft=False,condition='$send_date IS NOT NULL', struct='sent'),
-                dict(code='queue_issues',caption='!!Queue issues',condition='$queue_mismatch <> 0'),
                 dict(code='all',caption='!!All',includeDraft=True)]
 
     def th_options(self):
@@ -86,7 +85,6 @@ class ViewOutOnly(View):
                 dict(code='to_send',caption='!!Ready to send',isDefault=True,condition='$in_queue = 1'),
                 dict(code='sending_error',caption='!!Sending error',condition='$error_ts IS NOT NULL', struct='sending_error'),
                 dict(code='sent',caption='!!Sent',includeDraft=False,condition='$send_date IS NOT NULL'),
-                dict(code='queue_issues',caption='!!Queue issues',condition='$queue_mismatch <> 0'),
                 dict(code='all',caption='!!All',includeDraft=True)]
 
 

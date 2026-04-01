@@ -28,10 +28,7 @@ class Main(BaseResourceAction):
             limit=account['send_limit']
         ).fetch()
         for row in messages_to_send:
-            try:
-                self.message_tbl.sendMessage(pkey=row['message_id'])
-            except Exception:
-                raise
+            self.message_tbl.sendMessage(pkey=row['message_id'])
 
     def table_script_parameters_pane(self, pane, **kwargs):
         pass
