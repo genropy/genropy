@@ -1,6 +1,7 @@
 import importlib.util
 import os
 
+import botocore.exceptions
 import pytest
 
 # S3TemporaryFilename lives under projects/gnrcore/ which is not on the
@@ -40,7 +41,6 @@ class FakeS3Client:
 
     def download_file(self, bucket, key, dest):
         if self.fail_download:
-            import botocore.exceptions
             raise botocore.exceptions.ClientError(
                 {'Error': {'Code': '404', 'Message': 'Not Found'}},
                 'GetObject',
