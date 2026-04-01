@@ -108,6 +108,10 @@ class TestS3TemporaryFilenameFdLeak:
                 fd = ctx.fd
                 with open(local_path, 'wb') as f:
                     f.write(b'modified')
+                # Force mtime change so __exit__ triggers upload_file,
+                # even on filesystems with 1-second mtime resolution.
+                future_mtime = ctx.enter_mtime + 2
+                os.utime(local_path, (future_mtime, future_mtime))
 
         with pytest.raises(OSError):
             os.fstat(fd)
