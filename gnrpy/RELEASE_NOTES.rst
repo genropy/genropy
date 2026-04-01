@@ -1,3 +1,9 @@
+Release 26.04.01
+================
+
+Bugfix release: FDs leaking in S3 storage node, causing easily reach of
+upper limits for open files in batches. (#760)
+
 Release 26.03.24.1
 ==================
 
