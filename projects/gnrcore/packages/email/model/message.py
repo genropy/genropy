@@ -337,10 +337,14 @@ class Table(object):
     def sendMessage(self, pkey=None):
         site = self.db.application.site
         mail_handler = site.getService('mail')
+        mts_tbl = self.db.table('email.message_to_send')
+        check = self.record(pkey, columns='$message_to_send',
+                            ignoreMissing=True).output('dict')
+        if not check or not check['message_to_send']:
+            mts_tbl.removeMessageFromQueue(pkey)
+            return
         with self.recordToUpdate(pkey, for_update='SKIP LOCKED', ignoreMissing=True) as message:
             if not message:
-                return
-            if message['send_date']:
                 return
             message['extra_headers'] = Bag(message['extra_headers'])
             extra_headers = message['extra_headers']
