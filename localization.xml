@@ -379,13 +379,13 @@
 <en_date fr="Date" de="Datum" en="Date" it="Data" base="Date"></en_date>
 <en_time base="Time" en="Time" it="Ora"></en_time>
 <en_formula base="Formula" de="Formel" en="Formula" fr="Formule" it="Formula"></en_formula>
-<en_upload_options base="Upload options"></en_upload_options>
-<en_choose_upload_option base="Choose upload option"></en_choose_upload_option>
+<en_upload_options base="Upload options" it="Opzioni caricamento"></en_upload_options>
+<en_choose_upload_option base="Choose upload option" it="Scegli modalità di caricamento"></en_choose_upload_option>
 <en_upload base="Upload" de="Hochladen" en="Upload" fr="Télécharger" it="Carica"></en_upload>
 <en_photo base="Photo" en="Photo" it="Foto"></en_photo>
 <en_edit base="Edit" de="Bearbeiten" en="Edit" fr="Éditer" it="Modifica"></en_edit>
 <en_delete base="Delete" de="Löschen" en="Delete" fr="Effacer" it="Cancellare"></en_delete>
-<en_edit_image base="Edit image"></en_edit_image>
+<en_edit_image base="Edit image" it="Modifica immagine"></en_edit_image>
 <en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm" zh="确认"></en_confirm>
 <en_take_picture base="Take picture"></en_take_picture></genro_widgets>
 <gnrdomsource path="gnrjs/gnr_d11/js/gnrdomsource.js" ext="js"><en_edit_help base="Edit help"></en_edit_help>

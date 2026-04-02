@@ -352,6 +352,11 @@ label{
     font-size: 2em;
     font-weight: 600;
     color: var(--gray-500, #555);
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    transform: translateY(-50%);
 }
 
 /* @end */
