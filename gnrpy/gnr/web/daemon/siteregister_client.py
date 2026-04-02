@@ -285,6 +285,21 @@ class SiteRegisterClient(object):
     def make_store(self, register_name, register_item_id, triggered=None):
         return ServerStore(self, register_name, register_item_id=register_item_id, triggered=triggered)
 
+    def localPageStore(self, page_id):
+        return self.make_local_store('page', page_id)
+
+    def localConnectionStore(self, connection_id):
+        return self.make_local_store('connection', connection_id)
+
+    def localUserStore(self, user):
+        return self.make_local_store('user', user)
+
+    def localGlobalStore(self):
+        return self.make_local_store('global', '*')
+
+    def make_local_store(self, register_name, register_item_id):
+        return LocalServerStore(self, register_name, register_item_id=register_item_id)
+
     def get_item(self, register_item_id, include_data=False, register_name=None):
         lazy_data = include_data == 'lazy'
         if include_data == 'lazy':
@@ -414,6 +429,114 @@ class ServerStore(object):
             return decore
         else:
             raise AttributeError("register_item has no attribute '%s'" % fname)
+
+
+class LocalServerStore(object):
+    """A context manager that fetches the entire store data in __enter__,
+    works on a local Bag copy (zero RPC for reads/writes), and applies
+    only the collected changes back to the daemon in __exit__.
+
+    Usage:
+        with register.localPageStore(page_id) as store:
+            val = store['rootenv.workdate']      # local read, no RPC
+            store.setItem('mypath', myvalue)      # local write, no RPC
+        # __exit__: changes are sent to daemon in a single RPC
+
+    RPC cost: lock(1) + get_item_with_data(1) + apply_changes(0 or 1) + unlock(1) = 3-4 RPC
+    vs current ServerStore: lock(1) + N*(get_item + RemoteData.op) + unlock(1) = 2 + 2N RPC
+    """
+    def __init__(self, parent, register_name=None, register_item_id=None,
+                 max_retry=None, retry_delay=None):
+        self.siteregister = parent
+        self.register_name = register_name
+        self.register_item_id = register_item_id
+        self.max_retry = max_retry or LOCK_MAX_RETRY
+        self.retry_delay = retry_delay or RETRY_DELAY
+        self.thread_id = _thread.get_ident()
+        self._local_data = None
+        self._changes = []
+
+    def __enter__(self):
+        # Lock (1 RPC)
+        k = 0
+        while not self.siteregister.lock_item(self.register_item_id, reason=self.thread_id,
+                                               register_name=self.register_name):
+            time.sleep(self.retry_delay)
+            k += 1
+            if k > self.max_retry:
+                logger.error("Unable to lock store: %s item %s", self.register_name, self.register_item_id)
+                raise GnrDaemonLocked()
+        # Fetch entire Bag (1 RPC)
+        register_item = self.siteregister.get_item(self.register_item_id,
+                                                    include_data=True,
+                                                    register_name=self.register_name)
+        self._local_data = register_item.get('data') if register_item else Bag()
+        if self._local_data is None:
+            self._local_data = Bag()
+        # Rebuild backref chain on deserialized Bag, then subscribe
+        self._changes = []
+        self._local_data.clearBackRef()
+        self._local_data.setBackRef()
+        self._local_data.subscribe('_local_changes',
+                                    any=self._on_local_change)
+        return self
+
+    def _on_local_change(self, node=None, evt=None, pathlist=None, **kwargs):
+        pathlist = list(pathlist or [])
+        if evt == 'ins':
+            pathlist.append(node.label)
+        path = '.'.join(pathlist)
+        change = dict(path=path, evt=evt)
+        if evt != 'del':
+            change['value'] = node.value
+            if node.attr:
+                change['attr'] = dict(node.attr)
+        self._changes.append(change)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        try:
+            # Send changes back (1 RPC, only if there are changes)
+            if self._changes and exc_type is None:
+                self.siteregister.apply_changes(self.register_item_id,
+                                                 self._changes,
+                                                 register_name=self.register_name)
+        finally:
+            # Cleanup subscription
+            if self._local_data is not None:
+                self._local_data.unsubscribe('_local_changes', any=True)
+            # Unlock (1 RPC)
+            self.siteregister.unlock_item(self.register_item_id, reason=self.thread_id,
+                                           register_name=self.register_name)
+        return False
+
+    # --- Bag-like interface for convenience ---
+
+    def getItem(self, path, *args, **kwargs):
+        return self._local_data.getItem(path, *args, **kwargs)
+
+    def setItem(self, path, value, *args, **kwargs):
+        self._local_data.setItem(path, value, *args, **kwargs)
+
+    def delItem(self, path):
+        self._local_data.delItem(path)
+
+    def __getitem__(self, path):
+        return self._local_data[path]
+
+    def __setitem__(self, path, value):
+        self._local_data[path] = value
+
+    def __contains__(self, path):
+        return path in self._local_data
+
+    def __getattr__(self, fname):
+        if fname.startswith('_') or fname in ('siteregister', 'register_name',
+                                               'register_item_id', 'max_retry',
+                                               'retry_delay', 'thread_id'):
+            raise AttributeError(fname)
+        if hasattr(BAG_INSTANCE, fname):
+            return getattr(self._local_data, fname)
+        raise AttributeError("LocalServerStore has no attribute '%s'" % fname)
 
 
 #################################### UTILS ####################################################################

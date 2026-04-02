@@ -282,6 +282,28 @@ class BaseRegister(BaseRemoteObject):
         data.walk(addToDbEnv, _pathlist=_pathlist)
         return dbenvbag
 
+    def apply_changes(self, register_item_id, changes):
+        """Apply a list of changes to the item data Bag.
+
+        Each change is a dict with keys: path, value, evt.
+        evt can be 'ins' or 'upd' (setItem) or 'del' (delItem).
+        Changes are applied on the server-side Bag, so triggers
+        (_on_data_trigger for subscribed_paths, _caching_table) fire correctly.
+
+        :param register_item_id: the id of the register item
+        :param changes: list of dicts [{path, value, attr, evt}, ...]
+        """
+        data = self.get_item_data(register_item_id)
+        if data is None:
+            return
+        for change in changes:
+            evt = change.get('evt', 'upd')
+            path = change['path']
+            if evt == 'del':
+                data.delItem(path)
+            else:
+                data.setItem(path, change.get('value'), change.get('attr'))
+
     def dump(self, storagefile):
         pickle.dump(self.registerItems, storagefile)
         pickle.dump(self.itemsData, storagefile)
