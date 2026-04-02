@@ -65,8 +65,10 @@ class View(BaseComponent):
     def th_sections_sendingstatus(self):
         return [dict(code='drafts',caption='!!Drafts',condition="$__is_draft IS TRUE",includeDraft=True),
                 dict(code='to_send',caption='!!Ready to send',isDefault=True,condition='$in_queue = 1'),
+                dict(code='dispatched_to_proxy',caption='!!Dispatched',condition='$proxy_ts IS NOT NULL AND $send_date IS NULL AND $error_ts IS NULL'),
                 dict(code='sending_error',caption='!!Sending error',condition='$error_ts IS NOT NULL', struct='sending_error'),
                 dict(code='sent',caption='!!Sent',includeDraft=False,condition='$send_date IS NOT NULL', struct='sent'),
+                dict(code='queue_issues',caption='!!Queue issues',condition='$queue_mismatch <> 0'),
                 dict(code='all',caption='!!All',includeDraft=True)]
 
     def th_options(self):
@@ -85,6 +87,7 @@ class ViewOutOnly(View):
                 dict(code='to_send',caption='!!Ready to send',isDefault=True,condition='$in_queue = 1'),
                 dict(code='sending_error',caption='!!Sending error',condition='$error_ts IS NOT NULL', struct='sending_error'),
                 dict(code='sent',caption='!!Sent',includeDraft=False,condition='$send_date IS NOT NULL'),
+                dict(code='queue_issues',caption='!!Queue issues',condition='$queue_mismatch <> 0'),
                 dict(code='all',caption='!!All',includeDraft=True)]
 
 
@@ -163,7 +166,10 @@ class Form(BaseComponent):
                                                     width='100%',
                                                     colswidth='auto')
         fb.field('in_out')
-        fb.field('subject', colspan=3)
+        fb.field('account_id',unmodifiable=True)
+        fb.field('proxy_priority')
+        fb.br()
+        fb.field('subject', colspan=4)
         fb.field('to_address',colspan=2)
         fb.field('from_address',colspan=2)
         fb.field('cc_address',colspan=2)
