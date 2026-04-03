@@ -88,6 +88,7 @@ class MultiStageDockerImageBuilder:
             base_image_tag = self.options.bleeding and "develop" or "latest"
             dockerfile.write(f"FROM ghcr.io/genropy/genropy:{base_image_tag} as build_stage\n")
             dockerfile.write("WORKDIR /home/genro/genropy_projects\n")
+
             dockerfile.write("USER genro\n\n")
             dockerfile.write('ENV PATH="/home/genro/.local/bin:$PATH"\n')
             dockerfile.write('ENV GENRO_GNRFOLDER="/home/genro/.gnr/"\n')
@@ -208,7 +209,7 @@ stderr_logfile_maxbytes=0
                     
             dockerfile.write(f"COPY --chown=genro:genro supervisord.conf /etc/supervisor/conf.d/{self.instance_name}-supervisor.conf\n")
 
-            dockerfile.write(f"RUN gnr app checkdep -n -i {self.instance_name}\n")
+            dockerfile.write(f"RUN gnr app checkdep --loglevel=debug -v -n -i {self.instance_name}\n")
 
             dockerfile.write("LABEL {}\n".format(
                 " \\ \n\t ".join([f'{k}="{v}"' for k,v in image_labels.items()])
@@ -218,6 +219,7 @@ stderr_logfile_maxbytes=0
             logger.info(f"Dockerfile generated at: {self.dockerfile_path}")
             # Ensure to have Docker installed and running
             build_command = ['docker', 'build', '--platform', self.options.architecture,
+                             '--progress', self.options.build_progress,
                              '-t', f'{self.image_name}:{version_tag}',
                              self.build_context_dir]
             if self.options.no_pull:
@@ -337,6 +339,12 @@ def main():
                         type=str,
                         default="linux/amd64",
                         help="The image architecture/platform to be built for")
+    parser.add_argument('--progress',
+                        dest='build_progress',
+                        type=str,
+                        default='auto',
+                        choices=['auto','plain'],
+                        help='Docker builder progress')
     parser.add_argument('-t', '--tag',
                         dest="version_tag",
                         help="The image version tag",
