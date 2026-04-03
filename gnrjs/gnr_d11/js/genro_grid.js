@@ -494,6 +494,14 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                     sourceNode._columnsetsNode._value.getNode('scrollbox').domNode.scrollLeft = e.target.scrollLeft;
                 }
             });
+            var footerScrollDom = scrollbox.domNode;
+            var mainScrollbox = that.views.views[0].scrollboxNode;
+            genro.dom.setEventListener(mainScrollbox,'scroll',function(e){
+                footerScrollDom.scrollLeft = mainScrollbox.scrollLeft;
+                if(sourceNode._columnsetsNode){
+                    sourceNode._columnsetsNode._value.getNode('scrollbox').domNode.scrollLeft = mainScrollbox.scrollLeft;
+                }
+            });
         }else{
             genro.dom.setEventListener(sourceNode.widget.domNode,'scroll',function(e){
                 if(e.target===that.views.views[0].scrollboxNode){
@@ -537,7 +545,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
 
         filler.style.height = delta+'px';
         /* -1 prevents filler table from triggering horizontal scrollbar */
-        const totalWidth = vn.clientWidth-1;
+        const tableWidth = vn.clientWidth - 1;
         const tdlist = [];
         const colinfo = this.getColumnInfo();
         dojo.query('th',this.viewsHeaderNode).forEach(function(n,idx){
@@ -553,7 +561,51 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             }
             return tdlist.push('<td style="'+style+'"></td>');
         });
-        filler.innerHTML = '<table class="grid_filler" style="width:'+totalWidth+'px;"><tbody><tr>'+tdlist.join('')+'</tr></tbody></table>';
+        filler.innerHTML = '<table class="grid_filler" style="width:'+tableWidth+'px;"><tbody><tr>'+tdlist.join('')+'</tr></tbody></table>';
+    },
+
+    mixin__emPixels:function(){
+        if(!this._emPixelsCache){
+            var probe = document.createElement('div');
+            probe.style.cssText = 'width:1em;position:absolute;visibility:hidden;';
+            this.domNode.appendChild(probe);
+            this._emPixelsCache = probe.offsetWidth || 14;
+            this.domNode.removeChild(probe);
+        }
+        return this._emPixelsCache;
+    },
+
+    mixin_adaptFlexMinWidths:function(){
+        var view = this.views.views[0];
+        if(!view || !view.flexCells){
+            return;
+        }
+        var cells = view.structure.rows[0];
+        var emPx = this._emPixels();
+        var fixedTotal = 0;
+        var flexMinTotal = 0;
+        for(var i = 0; i < cells.length; i++){
+            var cell = cells[i];
+            if(cell.isFlex()){
+                flexMinTotal += (cell._minWidthEm || 10) * emPx;
+            }else{
+                var th = dojo.query('th', this.viewsHeaderNode)[cell.index];
+                if(th){
+                    fixedTotal += th.offsetWidth;
+                }
+            }
+        }
+        if(!flexMinTotal){
+            return;
+        }
+        var contentWidth = parseInt(view.contentWidth) || 0;
+        var availableFlex = contentWidth - fixedTotal;
+        if(availableFlex < flexMinTotal){
+            var enforced = fixedTotal + flexMinTotal + 'px';
+            view.contentWidth = enforced;
+            view.headerContentNode.firstChild.style.width = enforced;
+            view.contentNode.style.width = enforced;
+        }
     },
 
     mixin_setDraggable_row:function(draggable, view) {
@@ -921,6 +973,13 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                 });
             }
         }
+
+        dojo.connect(widget,'adaptWidth',function(){
+            this.adaptFlexMinWidths();
+            if(this.sourceNode.attr.fillDown){
+                this.drawFiller();
+            }
+        });
 
         dojo.connect(widget,'onKeyEvent',function(e){
             if(e.type=='keydown' && !widget.gnrediting){
@@ -1809,8 +1868,19 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                 cell.cellClasses = (cell.cellClasses || '') + ' cell_' + dtype;
             }                       
             var zoomAttr = objectExtract(cell,'zoom_*',true,true);
-            cell.cellStyles = objectAsStyle(objectUpdate(objectFromStyle(cell.cellStyles),
-                                            genro.dom.getStyleDict(cell, [ 'width'])));
+            var cellStyleDict = objectUpdate(objectFromStyle(cell.cellStyles),
+                                            genro.dom.getStyleDict(cell, [ 'width']));
+            var cellWidth = cell.width;
+            if(!cellWidth || cellWidth == 'auto' || (typeof cellWidth == 'string' && cellWidth.endsWith('%'))){
+                if(cellStyleDict['min-width']){
+                    cell._minWidthEm = parseFloat(cellStyleDict['min-width']) || 5;
+                }else{
+                    var headerLen = (cell_name || '').length;
+                    cell._minWidthEm = Math.min(15, Math.max(10, Math.ceil(headerLen * 0.7)));
+                }
+                delete cellStyleDict['min-width'];
+            }
+            cell.cellStyles = objectAsStyle(cellStyleDict);
             var formats = objectExtract(cell, 'format_*');
             var format = objectPop(cell, 'format');
             format = sourceNode.currentFromDatasource(format);
@@ -1991,6 +2061,19 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                             cellsort.push(`${field_sorter}:${cell.sort}`);
                         }
                     },'static');
+                    var flexMinTotal = 0;
+                    var flexAutoRow = [];
+                    for(var fi = 0; fi < row.length; fi++){
+                        if(row[fi]._minWidthEm && row[fi].width === 'auto'){
+                            flexMinTotal += row[fi]._minWidthEm;
+                            flexAutoRow.push(row[fi]);
+                        }
+                    }
+                    if(flexAutoRow.length){
+                        for(var fj = 0; fj < flexAutoRow.length; fj++){
+                            flexAutoRow[fj].width = (flexAutoRow[fj]._minWidthEm / flexMinTotal * 100).toFixed(2) + '%';
+                        }
+                    }
                     rows.push(row);
                 }
                 if(sourceNode.attr.sortedBy && cellsort.length){

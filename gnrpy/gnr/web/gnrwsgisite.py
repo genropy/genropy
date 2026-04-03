@@ -32,6 +32,7 @@ from gnr.core.gnrdecorator import extract_kwargs,metadata
 from gnr.core.gnrcrypto import AuthTokenGenerator
 from gnr.lib.services import ServiceHandler
 from gnr.app.pathresolver import PathResolver
+from gnr.web.gnrwsgisite_proxy.gnrapidispatcher import ApiDispatcher
 from gnr.app.gnrapp import GnrPackage
 from gnr.web import logger
 from gnr.web.gnrwebapp import GnrWsgiWebApp
@@ -40,7 +41,8 @@ from gnr.web.gnrwsgisite_proxy.gnrresourceloader import ResourceLoader
 from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import LegacyStorageHandler
 from gnr.web.gnrwsgisite_proxy.gnrstatichandler import StaticHandlerManager
 from gnr.web.gnrwsgisite_proxy.gnrpwahandler import PWAHandler
-from gnr.web.gnrwsgisite_proxy.gnrsiteregister import SiteRegisterClient, DEFAULT_PAGE_MAX_AGE
+from gnr.web.daemon.siteregister_client import SiteRegisterClient
+from gnr.web.daemon.siteregister import DEFAULT_PAGE_MAX_AGE
 from gnr.web.gnrwsgisite_proxy.gnrwebsockethandler import WsgiWebSocketHandler
 from gnr.web.gnrwsgisite_proxy.datacollector import DataCollector
 
@@ -486,6 +488,7 @@ class GnrWsgiSite(object):
         self.find_gnrjs_and_dojo()
         self._remote_edit = options.remote_edit if options else None
         self._main_gnrapp = self.build_gnrapp(options=options)
+        self.api_dispatcher = ApiDispatcher(self)
         self.server_locale = self.gnrapp.locale
         self.wsgiapp = self.build_wsgiapp(options=options)
         self.debugpy = debugpy
@@ -1307,6 +1310,8 @@ class GnrWsgiSite(object):
             finally:
                 self.cleanup()
             return response(environ, start_response)
+        if first_segment == '_api':
+            return self.serve_api(path_list, environ, start_response, **request_kwargs)
 
         #static elements that doesn't have .py extension in self.root_static
         if self.root_static and not first_segment.startswith('_') and '.' in last_segment and not (':' in first_segment):
@@ -1837,6 +1842,9 @@ class GnrWsgiSite(object):
         :param tool: TODO"""
         kwargs_string = '&'.join(['%s=%s' % (k, v) for k, v in list(kwargs.items())])
         return '%s%s_tools/%s?%s' % (self.external_host, self.home_uri, tool, kwargs_string)
+
+    def serve_api(self, path_list, environ, start_response, **kwargs):
+        return self.api_dispatcher.dispatch(path_list, environ, start_response, **kwargs)
 
     def serve_ping(self, response, environ, start_response, page_id=None, reason=None, **kwargs):
         response.content_type = "text/xml"

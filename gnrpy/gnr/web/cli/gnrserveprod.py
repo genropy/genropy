@@ -2,11 +2,16 @@
 # encoding: utf-8
 
 import os
-    
+import os.path
+
 from gunicorn.app.base import BaseApplication
 from gunicorn.config import Config as GunicornConfig
 
 from gnr.web.gnrwsgisite import GnrWsgiSite
+
+# this is the default path for gunicorn configuration
+# created in the base genropy docker image
+DEFAULT_DOCKER_GUNICORN_CONF_PATH = "/home/genro/gunicorn.py"
 
 description = """Start production server for site"""
 
@@ -124,8 +129,18 @@ def main():
     app = get_gnr_wsgi_application(cli_config.get("instance_name"), cli_config)
 
     file_config = {}
+    # always load the default docker image when running in k8s
+    if os.environ.get("KUBERNETES_SERVICE_HOST", None):
+        if os.path.exists(DEFAULT_DOCKER_GUNICORN_CONF_PATH):
+            file_config.update(load_config_file(DEFAULT_DOCKER_GUNICORN_CONF_PATH))
+            
     if "config" in cli_config:
-        file_config = load_config_file(cli_config["config"])
+        if os.path.exists(cli_config["config"]):
+            file_config.update(load_config_file(cli_config["config"]))
+
+    if custom_conf_file := os.environ.get("GNR_CUSTOM_GUNICORN_CONF", None):
+        if os.path.exists(custom_conf_file):
+            file_config.update(load_config_file(custom_conf_file))
     
     # precedence order: command line options, environment, configuration file
     combined_config = {**file_config, **env_config, **cli_config}        

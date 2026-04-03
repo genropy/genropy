@@ -13,6 +13,9 @@ class Main(BaseResourceAction):
     batch_immediate = True
     
     def do(self):
+        if self.db.package('email').getMailProxy(raise_if_missing=False):
+            raise self.tblobj.exception('business_logic',
+                msg='Mailproxy enabled: you cannot send directly email message')
         for message_id in self.get_selection_pkeys():
             try:
                 self.tblobj.sendMessage(pkey=message_id)
