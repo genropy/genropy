@@ -343,7 +343,7 @@ class Table(object):
         site = self.db.application.site
         mail_handler = site.getService('mail')
         mts_tbl = self.db.table('email.message_to_send')
-        check = self.record(pkey, columns='$message_to_send',
+        check = self.record(pkey, virtual_columns='$message_to_send',
                             ignoreMissing=True).output('dict')
         if not check or not check['message_to_send']:
             mts_tbl.removeMessageFromQueue(pkey)
