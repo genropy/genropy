@@ -294,6 +294,7 @@ class AttachManager(BaseComponent):
                             height='40px',
                             ask=ask,
                             onUploadingMethod=self.onUploadingAttachment,
+                            onUploadedMethod=self.onUploadedAttachment,
                             rpc_maintable_id= maintable_id.replace('^','=') if maintable_id else '=#FORM.pkey',
                             rpc_attachment_table= th.view.grid.attributes['table'],
                             _class='importerPaletteDropUploaderBox',
@@ -359,6 +360,7 @@ class AttachManager(BaseComponent):
                             height='40px',
                             ask=ask,
                             onUploadingMethod=self.onUploadingAttachment,
+                            onUploadedMethod=self.onUploadedAttachment,
                             rpc_maintable_id= maintable_id.replace('^','=') if maintable_id else '=#FORM.pkey',
                             rpc_attachment_table= th.view.grid.attributes['table'],
                             _class='importerPaletteDropUploaderBox',
@@ -462,6 +464,7 @@ class AttachManager(BaseComponent):
                             label='<div class="atc_galleryDropArea"><div>Drop document here</div><div>or double click</div></div>',
                             height='40px',
                             onUploadingMethod=self.onUploadingAttachment,
+                            onUploadedMethod=self.onUploadedAttachment,
                             rpc_maintable_id= maintable_id.replace('^','=') if maintable_id else '=#FORM.pkey' ,
                             rpc_attachment_table= th.view.grid.attributes['table'],
                             _class='importerPaletteDropUploaderBox',
@@ -570,7 +573,7 @@ class AttachManager(BaseComponent):
 
     @public_method
     def onUploadedAttachment(self,file_url=None, file_path=None, file_ext=None, action_results=None,
-                                attachment_id=None, **kwargs):
+                                **kwargs):
         attachment_table = kwargs.get('attachment_table')
         maintable_id = kwargs.get('maintable_id')
         attachment_tblobj =  self.db.table(attachment_table)
@@ -610,4 +613,5 @@ class AttachManager(BaseComponent):
         atcNode = attachment_tblobj._getDestAttachmentNode(maintable_id=maintable_id,filename=filename)
         kwargs['uploadPath'] = atcNode.dirname
         kwargs['filename'] = atcNode.basename
+        kwargs['_atc_description'] = atcNode.cleanbasename
         kwargs['_atc_filepath'] = atcNode.fullpath
