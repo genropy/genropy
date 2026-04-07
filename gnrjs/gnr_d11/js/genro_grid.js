@@ -1657,6 +1657,11 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         if (cellClassCB) {
             cellClassFunc = funcCreate(cellClassCB, 'cell,v,inRowIndex,originalValue',this);
         }
+        var _sanitize = genro.getData('gnr.switches?sanitize_js')
+            && !formatOptions.template && !formatOptions.js && !formatOptions.apply
+            && !formatOptions.isbutton && !formatOptions.showlinks
+            && !formatOptions._hasCustomGetter
+            && formatOptions.dtype!=='B' && formatOptions.dtype!=='P';
         return function(v, inRowIndex) {
             var opt = objectUpdate({}, formatOptions);
             var renderedRow = this.grid.currRenderedRow;
@@ -1755,12 +1760,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             if (opt.js) {
                 v = opt.js(v, this.grid.storebag().getNodes()[inRowIndex]);
             }
-            if(genro.getData('gnr.switches?sanitize_js')
-                && typeof(v)==='string'
-                && !template && !opt.js && !opt.apply
-                && !opt.isbutton && !opt.showlinks
-                && !opt._hasCustomGetter
-                && opt.dtype!=='B' && opt.dtype!=='P'){
+            if(_sanitize && typeof(v)==='string'){
                 v = stripJsFromHtml(v);
             }
             var zoomAttr = objectExtract(opt,'zoom_*',true);

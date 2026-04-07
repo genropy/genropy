@@ -272,6 +272,7 @@ function stringCapitalize(str,firstOnly) {
 function dataTemplate(str, data, path, showAlways,kw) {
     var kw = kw || {};
     var defaults = kw.defaults || {};
+    var _sanitize = genro.getData('gnr.switches?sanitize_js');
     if (!str) {
         return '';
     }
@@ -382,6 +383,9 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                         value = dataTemplate(data.getItem(df_templates[as_name]),value);
                                     }else{
                                         value = value.getFormattedValue();
+                                        if(_sanitize && typeof(value)==='string'){
+                                            value = stripJsFromHtml(value);
+                                        }
                                     }
                                 }else{
                                     if(editpars){
@@ -395,7 +399,7 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                         value = gnrformatter.asText(value,{format:formats[as_name],dtype:dtype});
                                     }
                                     if(editpars){
-                                        if(genro.getData('gnr.switches?sanitize_js') && typeof(value)==='string'){
+                                        if(_sanitize && typeof(value)==='string'){
                                             value = stripJsFromHtml(value);
                                         }
                                         value = '<div class="gnrinlinewidget_container"><div class="gnreditabletext" ondblclick="inlineWidget(event)" varname="'+as_name+'" >'+(isNullOrBlank(value)?'&nbsp':value)+'</div></div>';
@@ -406,14 +410,14 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                     }else if(valueattr._formattedValue){
                                         value = valueattr._formattedValue;
                                     }
+                                    if(!editpars && _sanitize && typeof(value)==='string'){
+                                        value = stripJsFromHtml(value);
+                                    }
                                 }
                                 if (value != null) {
                                     is_empty = false;
                                     if (value instanceof Date) {
                                         value = dojo.date.locale.format(value, {selector:dtype=='H'?'time':'date', format:'short'});
-                                    }
-                                    if(genro.getData('gnr.switches?sanitize_js') && typeof(value)==='string'){
-                                        value = stripJsFromHtml(value);
                                     }
                                     return value;
                                 } else if(showAlways){
@@ -436,10 +440,14 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                     is_empty = false;
                                     sub = plist.slice(1);
                                     if(sub.length && value instanceof gnr.GnrBag){
-                                        return gnrformatter.asText(value.getItem(sub));
+                                        var sv = gnrformatter.asText(value.getItem(sub));
+                                        if(_sanitize && typeof(sv)==='string'){
+                                            sv = stripJsFromHtml(sv);
+                                        }
+                                        return sv;
                                     }
                                     var fv = gnrformatter.asText(value,formats[p]);
-                                    if(genro.getData('gnr.switches?sanitize_js') && typeof(fv)==='string'){
+                                    if(_sanitize && typeof(fv)==='string'){
                                         fv = stripJsFromHtml(fv);
                                     }
                                     return fv;
