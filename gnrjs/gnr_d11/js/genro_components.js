@@ -3254,7 +3254,7 @@ dojo.declare("gnr.widgets.QuickGrid", gnr.widgets.gnrwdg, {
         var bc = sourceNode._('borderContainer',bckw);
         
         var tpane = bc._('contentPane',{region:tool_region,overflow:'hidden',datapath:'#WORKSPACE.tools',
-                                        _class:tools_bar_class});
+                                        height:'1.5em',_class:tools_bar_class});
         if(tools_kw.title){
             tpane._('div',{innerHTML:tools_kw.title,position:'absolute',left:'5px',top:'3px',
                         font_weight:'bold',font_size:'.9em',color:'#444'});

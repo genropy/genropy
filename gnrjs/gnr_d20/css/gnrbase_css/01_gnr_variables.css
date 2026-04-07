@@ -106,6 +106,7 @@
     /* === Components === */
 
     /* --- Grid --- */
+    --grid-cell-inset-top: 3px; /* top offset from cell edge to content — keeps text, widgets and checkboxes aligned */
     --grid-border-color: var(--gray-150); /* @theme */
     --grid-header-bg: var(--surface-light); /* @theme */
     --grid-header-color: var(--text-color); /* @theme */
@@ -236,6 +237,7 @@
     --formbuilder-field-bg: var(--form-field-bg);
     --formbuilder-field-border-width: var(--form-field-border-width);
     --formbuilder-field-radius: var(--form-field-radius);
+    --formbuilder-field-padding-x: 3px;
 
     /* --- Fake textbox (read-only field display) --- */
     --fakebox-padding-x: 4px;

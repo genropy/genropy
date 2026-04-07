@@ -27,8 +27,8 @@ class Prometheus(BaseWebtool):
         now = datetime.datetime.now()
         stale = 0
         for c in collector.connections:
-            if c['last_refresh_ts']:
-                if(now - c['last_refresh_ts']).seconds > 60*5:
+            if last_ts := c.get('last_refresh_ts', None):
+                if(now - last_ts).seconds > 60*5:
                     stale +=1 
         payload.append(f'{METRIC_PREFIX}{{counter="stale_connections_5min"}} {stale}')
         return "\n".join(payload)

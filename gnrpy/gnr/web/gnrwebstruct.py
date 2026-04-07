@@ -453,9 +453,15 @@ class GnrDomSrc(GnrStructData):
         
     @property
     def record(self):
-        """TODO"""
-        assert self.attributes['tag'] == 'FrameForm','only on FrameForm'
-        return self.center.contentPane(datapath='.record')
+        tag = self.attributes.get('tag')
+        if tag == 'FrameForm':
+            return self.center.contentPane(datapath='.record')
+        if tag == 'BoxForm':
+            node = self.getNode('recordbox')
+            if node:
+                return node._value
+            return self.child('div', childname='recordbox', datapath='.record')
+        assert False, 'only on FrameForm or BoxForm'
 
     def chartpane(self,**kwargs):
         self.page.mixinComponent('js_plugins/chartjs/chartjs:ChartPane')

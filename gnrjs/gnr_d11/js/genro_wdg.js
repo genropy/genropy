@@ -1700,11 +1700,8 @@ dojo.declare("gnr.GridEditor", null, {
         grid.currRenderedRowIndex = lastRenderedRowIndex;
         grid.selection.select(grid.currRenderedRowIndex);
         attr.datapath = this.widgetRootNode.absDatapath('.' + rowLabel);
-        attr.width = attr.width || cellNode.clientWidth+'px';
-        if(attr.tag.toLowerCase()=='checkbox'){
-            attr.margin_left = ( (cellNode.clientWidth-10-16)/2)+'px';
-            attr.margin_top ='1px';
-        }
+        objectPop(attr, 'width'); /* width is managed by CSS via .widgetInCell absolute positioning */
+        /* checkbox centering is handled by CSS via .gnrcheckbox_wrapper flexbox */
         //attr.preventChangeIfIvalid = true;
         if ('value' in attr) {
             if (attr.tag.toLowerCase() == 'dbselect') {

@@ -1864,16 +1864,42 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         } else {
             genro.dom.removeClass(domnode, 'gnrrequired');
         }
-        let wdgDom = this.widget.domNode;
-        if(wdgDom){
-            let errMsg = this._validations && this._validations.error;
-            let errText = errMsg ? this._resolveErrorMessage(errMsg) : null;
-            if(errText){
-                wdgDom.setAttribute('data-error', errText);
-            }else{
-                wdgDom.removeAttribute('data-error');
-            }
+        this._updateErrorTooltip();
+    },
+
+    _updateErrorTooltip: function(){
+        var domNode = this.widget.domNode;
+        if(!domNode){
+            return;
         }
+        var errMsg = this._validations && this._validations.error;
+        var errText = errMsg ? this._resolveErrorMessage(errMsg) : null;
+        domNode._gnrErrorText = errText || null;
+        if(errText){
+            domNode.setAttribute('data-error', errText);
+            this._bindErrorTooltipEvents(domNode);
+        }else{
+            domNode.removeAttribute('data-error');
+            dijit.hideTooltip(domNode);
+        }
+    },
+
+    _bindErrorTooltipEvents: function(domNode){
+        if(domNode._gnrErrorTooltipBound){
+            return;
+        }
+        domNode.addEventListener('mouseenter', function(){
+            if(domNode._gnrErrorText){
+                dijit.showTooltip(
+                    '<span class="gnrErrorTooltip">' + domNode._gnrErrorText + '</span>',
+                    domNode
+                );
+            }
+        });
+        domNode.addEventListener('mouseleave', function(){
+            dijit.hideTooltip(domNode);
+        });
+        domNode._gnrErrorTooltipBound = true;
     },
 
     _errorFallbacks: {

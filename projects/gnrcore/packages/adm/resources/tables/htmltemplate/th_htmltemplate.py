@@ -29,7 +29,7 @@ class Form(BaseComponent):
         bc.data('zoomFactor', .5)
         #self.editorDialog(bc)
         self.htmltemplate_controllers(bc)
-        self.htmltemplate_mainInfo(bc.borderContainer(region='left', width='55em', splitter=True,datapath='.record'))
+        self.htmltemplate_mainInfo(bc.borderContainer(region='left', width='60em', splitter=True,datapath='.record'))
         bc.borderContainer(region='center', overflow='auto', datapath='#FORM._temp.data').remote(self.htmltemplate_printLayout,
                                                                                            design='^#FORM.record.data.main.design')
 
@@ -107,7 +107,7 @@ class Form(BaseComponent):
                             datapath='#FORM.record.data')
 
     def htmltemplate_mainInfo(self, bc):
-        self.htmltemplate_form(bc.borderContainer(region='top', height='230px',splitter=True))
+        self.htmltemplate_form(bc.borderContainer(region='top', height='250px',splitter=True))
         
         center = bc.roundedGroupFrame(region='center',datapath='^#FORM.currentEditedArea',overflow='hidden')
         center.center.contentPane(overflow='hidden').ckEditor(value='^.html',nodeId='htmlEditor',
@@ -126,8 +126,8 @@ class Form(BaseComponent):
                                 intermediateChanges=True, width='15em', float='right')
 
     def htmltemplate_form(self,bc):
-        left = bc.borderContainer(region='left', width='23em')
-        self.htmltemplate_tplInfo(left.roundedGroup(region='top',title='!!Info',height='115px'))        
+        left = bc.borderContainer(region='left', width='25em')
+        self.htmltemplate_tplInfo(left.roundedGroup(region='top',title='!!Info',height='135px'))        
         self.htmltemplate_basePageParams(left.roundedGroup(region='center', datapath='.data.main.page',title='!!Page sizing'))
         tc = bc.tabContainer(region='center', selectedPage='^.data.main.design',margin='2px')
         self.htmltemplate_headLineOpt(tc.contentPane(title='Headline', pageName='headline'))

@@ -167,9 +167,8 @@ class GroupletHandler(BaseComponent):
         btn_kwargs.setdefault('bottom', '2px')
         btn_kwargs.setdefault('right', '2px')
         kwargs.setdefault('_class', 'grouplet_chunk_box')
-
         grid_kw = dictExtract(kwargs, 'grid_', pop=True)
-        root = pane.div(position='relative', **kwargs)
+        root = pane.div(**kwargs)
         template_kwargs['template'] = template
         template_kwargs['datasource'] = value
         root.div(**template_kwargs)  # templatechunk
