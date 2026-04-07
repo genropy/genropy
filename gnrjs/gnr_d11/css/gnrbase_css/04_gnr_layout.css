@@ -325,6 +325,10 @@
     background-color: #711B2A;
 }
 
+.gnr_debug .pbl_root_bottom {
+    background-color: #CC0000 !important;
+}
+
 .pbl_viewBox {
     padding: 5px;
     border-bottom-left-radius: var(--radius-sm);

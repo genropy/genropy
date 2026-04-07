@@ -1105,9 +1105,27 @@ dojo.declare("gnr.GnrRpcHandler", null, {
             content.append('file_handle',file);
         }
         sender.open("POST", genro.rpc.pageIndexUrl(), true);
-        if(onResult){
-            dojo.connect(sender,'onload',onResult);
-        }
+        var onError = kw.onError;
+        sender.onload = function() {
+            var responseXML = sender.responseXML;
+            if (responseXML) {
+                var envelope = new gnr.GnrBag();
+                try {
+                    envelope.fromXmlDoc(responseXML, genro.clsdict);
+                } catch(e) {
+                    if (onResult) onResult(sender);
+                    return;
+                }
+                var error = envelope.getItem('error');
+                if (error) {
+                    var envNode = envelope.getNode('result');
+                    genro.dev.handleRpcError(error, envNode);
+                    if (onError) onError(error);
+                    return;
+                }
+            }
+            if (onResult) onResult(sender);
+        };
         sender.send(content);
         return sender;
     }

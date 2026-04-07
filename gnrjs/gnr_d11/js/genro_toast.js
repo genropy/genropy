@@ -127,9 +127,11 @@ dojo.declare("gnr.GnrToast", null, {
         var copyText = (opts.title ? _stripHtml(opts.title) + ': ' : '') + _stripHtml(opts.message || '');
 
         if(copyable){
+            var copyDetail = opts.copyDetail || null;
             el.querySelector('.gnr-toast-copy').addEventListener('click', function(e){
                 e.stopPropagation();
-                navigator.clipboard.writeText(copyText);
+                var text = (e.shiftKey && copyDetail) ? copyDetail : copyText;
+                navigator.clipboard.writeText(text);
             });
         }
         el.querySelector('.gnr-toast-close').addEventListener('click', function(e){
