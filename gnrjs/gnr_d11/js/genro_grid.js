@@ -1755,6 +1755,14 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             if (opt.js) {
                 v = opt.js(v, this.grid.storebag().getNodes()[inRowIndex]);
             }
+            if(genro.getData('gnr.switches?sanitize_js')
+                && typeof(v)==='string'
+                && !template && !opt.js && !opt.apply
+                && !opt.isbutton && !opt.showlinks
+                && !opt._hasCustomGetter
+                && opt.dtype!=='B' && opt.dtype!=='P'){
+                v = stripJsFromHtml(v);
+            }
             var zoomAttr = objectExtract(opt,'zoom_*',true);
             var draggable = this.draggable ? ' draggable=true ' : '';
 
@@ -1916,6 +1924,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             var _customGetter = objectPop(cell,'_customGetter');
             if(_customGetter){
                 cell._customGetter = funcCreate(_customGetter);
+                formats['_hasCustomGetter'] = true;
             }
             if(dtype=='B'){
                 formats['trueclass']= formats['trueclass'] || "checkboxOn";
