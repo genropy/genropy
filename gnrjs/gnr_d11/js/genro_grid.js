@@ -1760,7 +1760,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                 v = opt.js(v, this.grid.storebag().getNodes()[inRowIndex]);
             }
             if(!_skipSanitize){
-                v = safeHtmlContent(v);
+                v = genro.safeHtmlContent(v);
             }
             var zoomAttr = objectExtract(opt,'zoom_*',true);
             var draggable = this.draggable ? ' draggable=true ' : '';

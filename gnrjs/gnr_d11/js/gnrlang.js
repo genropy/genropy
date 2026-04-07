@@ -46,10 +46,6 @@ function stripJsFromHtml(str) {
     return str;
 }
 
-function safeHtmlContent(str) {
-    if (typeof str !== 'string' || !genro.getData('gnr.switches?sanitize_js')) return str;
-    return stripJsFromHtml(str);
-}
 
 function _px(v){
     v+='';
@@ -386,7 +382,7 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                     }else if(as_name in df_templates){
                                         value = dataTemplate(data.getItem(df_templates[as_name]),value);
                                     }else{
-                                        value = safeHtmlContent(value.getFormattedValue());
+                                        value = genro.safeHtmlContent(value.getFormattedValue());
                                     }
                                 }else{
                                     if(editpars){
@@ -400,7 +396,7 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                         value = gnrformatter.asText(value,{format:formats[as_name],dtype:dtype});
                                     }
                                     if(editpars){
-                                        value = safeHtmlContent(value);
+                                        value = genro.safeHtmlContent(value);
                                         value = '<div class="gnrinlinewidget_container"><div class="gnreditabletext" ondblclick="inlineWidget(event)" varname="'+as_name+'" >'+(isNullOrBlank(value)?'&nbsp':value)+'</div></div>';
                                     }
               
@@ -410,7 +406,7 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                         value = valueattr._formattedValue;
                                     }
                                     if(!editpars){
-                                        value = safeHtmlContent(value);
+                                        value = genro.safeHtmlContent(value);
                                     }
                                 }
                                 if (value != null) {
@@ -439,9 +435,9 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                     is_empty = false;
                                     sub = plist.slice(1);
                                     if(sub.length && value instanceof gnr.GnrBag){
-                                        return safeHtmlContent(gnrformatter.asText(value.getItem(sub)));
+                                        return genro.safeHtmlContent(gnrformatter.asText(value.getItem(sub)));
                                     }
-                                    return safeHtmlContent(gnrformatter.asText(value,formats[p]));
+                                    return genro.safeHtmlContent(gnrformatter.asText(value,formats[p]));
                               }else{
                                     return '';
                               }
