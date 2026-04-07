@@ -1113,7 +1113,7 @@ dojo.declare("gnr.GnrRpcHandler", null, {
                 try {
                     envelope.fromXmlDoc(responseXML, genro.clsdict);
                 } catch(e) {
-                    if (onResult) onResult(sender);
+                    if (onResult) onResult.call(sender, {currentTarget: sender, target: sender});
                     return;
                 }
                 var error = envelope.getItem('error');
@@ -1124,7 +1124,7 @@ dojo.declare("gnr.GnrRpcHandler", null, {
                     return;
                 }
             }
-            if (onResult) onResult(sender);
+            if (onResult) onResult.call(sender, {currentTarget: sender, target: sender});
         };
         sender.send(content);
         return sender;
