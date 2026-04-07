@@ -2,8 +2,7 @@ import sys
 import os
 import atexit
 import webbrowser
-import ipaddress
-import argparse
+import socket
 
 from werkzeug.serving import make_server, is_running_from_reloader
 from werkzeug._reloader import run_with_reloader
@@ -129,15 +128,15 @@ class GnrDebuggedApplication(DebuggedApplication):
 class ServerException(Exception):
     pass
 
-def ip_address(value):
+def host_binding_address(host):
     """
     Type validator for command line
     """
     try:
-        ipaddress.ip_address(value)
-        return value
-    except ValueError:
-        raise argparse.ArgumentTypeError(f"Invalid IP address: {value}")
+        socket.getaddrinfo(host, 1)
+        return host
+    except:
+        raise ValueError(f"Invalid address: {host}")
     
 class Server(object):
     description = "This command serves a genropy web application."
@@ -174,7 +173,7 @@ class Server(object):
                             help="Sets server listening port (Default: 8080)")
         parser.add_argument('-H', '--host',
                             dest='host',
-                            type=ip_address,
+                            type=host_binding_address,
                             help="Sets server listening address (Default: 0.0.0.0)")
         parser.add_argument('--restore',
                             dest='restore',
