@@ -2,6 +2,7 @@ import pytest
 import os
 from gnr.core import gnrlang as gl
 from gnr.core.gnrbag import Bag
+from gnr.core.gnrerror import tracebackBag
 
 class TestGnrLang():
     def test_getUuid(self):
@@ -126,7 +127,7 @@ class TestGnrLang():
         assert e.main == 1
 
     def test_tracebackBag(self):
-        r = gl.tracebackBag()
+        r = tracebackBag()
         #FIXME: how to test this properly?
 
     def test_thlocal(self):

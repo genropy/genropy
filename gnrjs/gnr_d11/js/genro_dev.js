@@ -185,12 +185,15 @@ dojo.declare("gnr.GnrDevHandler", null, {
             });
             return;
         }else if (error=='server_exception'){
+            var envelope = envNode.getParentBag ? envNode.getParentBag() : null;
+            var tbText = envelope ? envelope.getItem('error_traceback') : null;
             genro.toast.show({
                 title: 'Server Error',
                 message: envNode.getValue(),
                 level: 'error',
                 duration: 0,
-                copyable: true
+                copyable: true,
+                copyDetail: tbText
             });
             return;
         }

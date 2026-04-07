@@ -2,6 +2,7 @@ import sys
 import os
 import atexit
 import webbrowser
+import socket
 
 from werkzeug.serving import make_server, is_running_from_reloader
 from werkzeug._reloader import run_with_reloader
@@ -127,6 +128,16 @@ class GnrDebuggedApplication(DebuggedApplication):
 class ServerException(Exception):
     pass
 
+def host_binding_address(host):
+    """
+    Type validator for command line
+    """
+    try:
+        socket.getaddrinfo(host, 1)
+        return host
+    except:
+        raise ValueError(f"Invalid address: {host}")
+    
 class Server(object):
     description = "This command serves a genropy web application."
 
@@ -154,19 +165,16 @@ class Server(object):
                             dest='open_browser',
                             action='store_true',
                             help="Automatically open the browser to this application")
-        
         parser.add_argument('-c', '--config',
                             dest='config_path',
                             help="gnrserve directory path")
-
         parser.add_argument('-p', '--port',
                             dest='port',
                             help="Sets server listening port (Default: 8080)")
-
         parser.add_argument('-H', '--host',
                             dest='host',
+                            type=host_binding_address,
                             help="Sets server listening address (Default: 0.0.0.0)")
-
         parser.add_argument('--restore',
                             dest='restore',
                             help="Restore from path")
@@ -314,8 +322,9 @@ class Server(object):
 
     @property
     def app_url(self):
-        return f'{self.app_scheme}://{self.app_host}:{self.app_port}'
-    
+        connect_host = '127.0.0.1' if self.app_host == '0.0.0.0' else self.app_host
+        return f'{self.app_scheme}://{connect_host}:{self.app_port}'
+        
     def serve(self):
         self.app_port = int(self.options.port)
         self.app_host = self.options.host
@@ -370,8 +379,9 @@ class Server(object):
                     app_scheme = 'https'
                     self.app_host = self.options.ssl_cert.split('/')[-1].split('.pem')[0]
                     
-                logger.info(f"Starting server - listening on {self.app_url}\t%s", ",".join(extra_info))
-
+                logger.info(f"Started server on {self.app_host}:{self.app_port}\t%s", ",".join(extra_info))
+                logger.info(f"Connect at {self.app_url}")
+                
             if self.options.open_browser and not os.environ.get("WERKZEUG_RUN_MAIN", None):
                 logger.info(f'Opening browser to application on {self.app_url}')
                 webbrowser.open(self.app_url)
