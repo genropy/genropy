@@ -398,14 +398,12 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                     if(editpars){
                                         value = genro.safeHtmlContent(value);
                                         value = '<div class="gnrinlinewidget_container"><div class="gnreditabletext" ondblclick="inlineWidget(event)" varname="'+as_name+'" >'+(isNullOrBlank(value)?'&nbsp':value)+'</div></div>';
-                                    }
-              
-                                    if(masks[as_name]){
-                                        value = gnrformatter.asText(value,{mask:masks[as_name]});
-                                    }else if(valueattr._formattedValue){
-                                        value = valueattr._formattedValue;
-                                    }
-                                    if(!editpars){
+                                    }else{
+                                        if(masks[as_name]){
+                                            value = gnrformatter.asText(value,{mask:masks[as_name]});
+                                        }else if(valueattr._formattedValue){
+                                            value = valueattr._formattedValue;
+                                        }
                                         value = genro.safeHtmlContent(value);
                                     }
                                 }
