@@ -537,6 +537,7 @@ class TableScriptToHtml(BagToHtmlWeb):
                         subtotal_order_by=attr.get('subtotal_order_by'),
                         style=attr.get('style'), content_class = content_class, lbl_class=lbl_class,
                         sqlcolumn=attr.get('sqlcolumn'),dtype=attr.get('dtype'),
+                        required_columns=attr.get('required_columns'),
                         columnset=attr.get('columnset'),sheet=attr.get('sheet','*'),
                         totalize=attr.get('totalize'),formula=attr.get('formula'),
                         background=attr.get('background'),color=attr.get('color'),
@@ -709,7 +710,16 @@ class TableScriptToHtml(BagToHtmlWeb):
 
     @property
     def grid_sqlcolumns(self):
-        return ','.join(set([c['sqlcolumn'] for c in self.gridColumnsInfo()['columns'] if c.get('sqlcolumn')]))
+        columns_info = self.gridColumnsInfo()['columns']
+        sqlcolumns = set([c['sqlcolumn'] for c in columns_info if c.get('sqlcolumn')])
+        for c in columns_info:
+            required_columns = c.get('required_columns')
+            if required_columns:
+                for rc in required_columns.split(','):
+                    rc = rc.strip()
+                    if rc:
+                        sqlcolumns.add(rc)
+        return ','.join(sqlcolumns)
 
     @property
     def grid_subtotal_order_by(self):

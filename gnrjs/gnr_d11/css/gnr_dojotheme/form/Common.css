@@ -23,13 +23,13 @@
     border-radius: var(--formbuilder-field-radius, var(--radius-sm));
     line-height: normal;
     position: relative;
-    padding-left: 3px;
+    padding-left: var(--formbuilder-field-padding-x);
     padding-top: 1px;
     box-sizing: border-box;
 }
 
 .gnr_dojotheme .dijitInputField input {
-    padding-right: 3px;
+    padding-right: var(--formbuilder-field-padding-x);
     background: transparent;
 }
 

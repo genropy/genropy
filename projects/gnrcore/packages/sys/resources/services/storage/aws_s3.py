@@ -94,10 +94,13 @@ class S3TemporaryFilename(object):
         return self.name
 
     def __exit__(self, exc, value, tb):
-        if os.stat(self.name).st_mtime != self.enter_mtime:
-            self.s3.upload_file(self.name, self.bucket,self.key)
-        if not self.keep:
-            os.unlink(self.name)
+        try:
+            if os.stat(self.name).st_mtime != self.enter_mtime:
+                self.s3.upload_file(self.name, self.bucket, self.key)
+        finally:
+            os.close(self.fd)
+            if not self.keep:
+                os.unlink(self.name)
 
 class Service(StorageService):
 
@@ -176,7 +179,10 @@ class Service(StorageService):
     def md5hash(self,*args):
         bucket = self._head_object(*args)
         if bucket:
-            return bucket['ETag'][1:-1]
+            etag = bucket['ETag'][1:-1]
+            if len(etag) == 32:
+                return etag
+        return None
 
     def exists(self, *args):
         return self.isfile(*args) or self.isdir(*args)
