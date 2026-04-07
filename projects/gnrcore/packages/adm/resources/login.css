@@ -65,6 +65,18 @@
     font-size: .95em;
 }
 
+.login_confirm_btn.dijitFocused .dijitButtonNode{
+    outline: 2px solid var(--accent-color, #4a90d9);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color, #4a90d9) 25%, transparent);
+}
+
+.login_option_btn:focus{
+    outline: 2px solid var(--accent-color, #4a90d9);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
 .login_option_btn{
     color: var(--text-secondary);
     font-size: .8em;
