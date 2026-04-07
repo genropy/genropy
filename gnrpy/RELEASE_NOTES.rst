@@ -1,3 +1,9 @@
+Release 26.04.07.1
+==================
+
+Bugfix release, fixed regression in upload procedure (#776)
+
+
 Release 26.04.07
 ================
 
