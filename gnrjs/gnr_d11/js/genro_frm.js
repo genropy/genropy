@@ -2671,7 +2671,7 @@ dojo.declare("gnr.formstores.Base", null, {
         const that = this;
         const form = this.form;
         kw = kw || {};
-        kw.rpcmethod = kw.rpcmethod || 'app.getRecord';
+        kw.rpcmethod = kw.rpcmethod || this.handlers.load.rpcmethod || 'app.getRecord';
         kw.pkey = form.getCurrentPkey();
         kw.table = this.table;
 
@@ -2687,7 +2687,7 @@ dojo.declare("gnr.formstores.Base", null, {
         const that = this;
         const form = this.form;
         kw = kw || {};
-        kw.rpcmethod = kw.rpcmethod || 'app.saveRecord';
+        kw.rpcmethod = kw.rpcmethod || this.handlers.save.rpcmethod || 'app.saveRecord';
         kw.pkey = form.getCurrentPkey();
         kw.table = this.table;
 
@@ -2783,7 +2783,7 @@ dojo.declare("gnr.formstores.Base", null, {
         const that = this;
         const form = this.form;
         kw = kw || {};
-        kw.rpcmethod = kw.rpcmethod || 'saveSiteDocument';
+        kw.rpcmethod = kw.rpcmethod || this.handlers.save.rpcmethod || 'saveSiteDocument';
         let path = form.getCurrentPkey();
         if(path=='*newrecord*' && this.getNewPath){
             path = funcApply(this.getNewPath, {record:form.getFormData()}, form);

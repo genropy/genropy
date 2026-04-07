@@ -94,10 +94,13 @@ class S3TemporaryFilename(object):
         return self.name
 
     def __exit__(self, exc, value, tb):
-        if os.stat(self.name).st_mtime != self.enter_mtime:
-            self.s3.upload_file(self.name, self.bucket,self.key)
-        if not self.keep:
-            os.unlink(self.name)
+        try:
+            if os.stat(self.name).st_mtime != self.enter_mtime:
+                self.s3.upload_file(self.name, self.bucket, self.key)
+        finally:
+            os.close(self.fd)
+            if not self.keep:
+                os.unlink(self.name)
 
 class Service(StorageService):
 

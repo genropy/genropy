@@ -46,7 +46,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 16px 24px 10px;
+    padding: 8px 24px 6px;
     border-bottom: 1px solid var(--border-color, #ccc);
 }
 
@@ -135,7 +135,8 @@
     border-top: 1px solid var(--border-color, #ccc);
 }
 
-.wizard_next_btn {
+.wizard_next_btn,
+.wizard_close_btn {
     background: none;
     border: none;
     padding: 6px 12px;
@@ -146,12 +147,23 @@
     white-space: nowrap;
 }
 
-.wizard_next_btn:hover {
+.wizard_next_btn:hover,
+.wizard_close_btn:hover {
     color: var(--primary-dark, #3A3A3C);
 }
 
 .wizard_next_btn::after {
     content: '\00a0\2192';
+}
+
+.wizard_summary {
+    padding: 10px 16px;
+}
+
+.wizard_summary_title {
+    font-weight: 600;
+    font-size: 1.3em;
+    text-align: center;
 }
 
 /* --- Topic grid layout --- */

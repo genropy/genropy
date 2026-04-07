@@ -340,10 +340,17 @@ class GroupletHandler(BaseComponent):
     @struct_method
     def gr_groupletWizard(self, pane, table=None, topic=None, value=None,
                           frameCode=None, completeLabel=None,
+                          closeLabel=None,
                           saveMainFormOnComplete=None,
                           grouplets_root=None,grouplet_kwargs=True, **kwargs):
         frameCode = frameCode or 'grplt_wizard'
         completeLabel = completeLabel or 'Confirm'
+        closeLabel = closeLabel or 'Close'
+        root_info = self._getGroupletsRootInfo(table=table, topic=topic,
+                                               grouplets_root=grouplets_root)
+        summary_template = root_info.get('summary_template')
+        summary_editable = root_info.get('summary_editable', False)
+        has_summary = bool(summary_template)
         frame = pane.framePane(frameCode=frameCode, _anchor=True, **kwargs)
         menu = self.gr_getGroupletMenu(table=table, topic=topic,
                                        grouplets_root=grouplets_root)
@@ -356,6 +363,8 @@ class GroupletHandler(BaseComponent):
         total_steps = len(menu)
         frame.data('.wizard_steps', menu)
         frame.data('.step_index', 0)
+        if has_summary:
+            frame.data('.summary_editable', summary_editable)
         menu_nodes = menu.getNodes()
         first_node = menu_nodes[0] if menu_nodes else None
         if first_node:
@@ -363,8 +372,17 @@ class GroupletHandler(BaseComponent):
             frame.data('.next_label',
                        menu_nodes[1].attr.get('grouplet_caption')
                        if total_steps > 1 else completeLabel)
-        stepper = frame.top.contentPane(_class='wizard_stepper_bar').div(
-            _class='wizard_stepper')
+        stepper_bar = frame.top.contentPane(_class='wizard_stepper_bar')
+        if has_summary:
+            summary_caption = root_info.get('summary_caption', 'Summary')
+            stepper_bar.div(summary_caption,
+                            _class='wizard_summary_title',
+                            hidden='==!_showing',
+                            _showing='^.wizard_showing_summary')
+        stepper_kw = dict(_class='wizard_stepper')
+        if has_summary:
+            stepper_kw['hidden'] = '^.wizard_showing_summary'
+        stepper = stepper_bar.div(**stepper_kw)
         for i, mnode in enumerate(menu_nodes):
             if i > 0:
                 stepper.div(_class='wizard_connector',
@@ -378,12 +396,21 @@ class GroupletHandler(BaseComponent):
             item.div(mnode.attr.get('grouplet_caption'),
                      _class='wizard_caption')
         step_form_id = f'{frameCode}_step_form'
-        pane.dataController("""
-                                gnr_grouplet.wizardGoTo(this, 0,frameCode);
-                                 """,
-                                 innerFormId=step_form_id,
-                                 frameCode=frameCode,
-                                 formsubscribe_onLoaded=True)
+        on_loaded_js = "gnr_grouplet.wizardGoTo(this, 0, frameCode);"
+        if has_summary:
+            on_loaded_js = """
+                SET .wizard_showing_summary = false;
+                SET .wizard_page = 'steps';
+                if(this.form.isNewRecord()){
+                    FIRE .step_index = 0;
+                }else{
+                    genro.publish(frameCode + '_show_summary');
+                }
+            """
+        pane.dataController(on_loaded_js,
+                            innerFormId=step_form_id,
+                            frameCode=frameCode,
+                            formsubscribe_onLoaded=True)
         grouplet_kwargs.update(resource='^#ANCHOR.current_resource',
                            value=value,
                            loadOnBuilt=True, formId=step_form_id,
@@ -394,42 +421,100 @@ class GroupletHandler(BaseComponent):
         if grouplets_root:
             grouplet_kwargs['grouplets_root'] = grouplets_root
 
-        frame.center.contentPane(overflow='auto').GroupletForm(**grouplet_kwargs)
+        if has_summary:
+            frame.data('.wizard_page', 'steps')
+            frame.data('.wizard_showing_summary', False)
+            sc = frame.center.stackContainer(selectedPage='^.wizard_page')
+            sc.contentPane(pageName='steps', overflow='auto').GroupletForm(
+                **grouplet_kwargs)
+            sc.contentPane(pageName='summary', overflow='auto',
+                           _class='wizard_summary').div(
+                template=summary_template, datasource=value)
+        else:
+            frame.center.contentPane(overflow='auto').GroupletForm(
+                **grouplet_kwargs)
         bottom = frame.bottom.contentPane(_class='wizard_bottom_bar')
-        bottom.lightButton('^.next_label',
-                           _class='wizard_next_btn',
-                           action="gnr_grouplet.wizardNext(this, _frameCode);",
-                           _frameCode=frameCode)
+        if has_summary:
+            bottom.lightButton('^.next_label',
+                               _class='wizard_next_btn',
+                               action="gnr_grouplet.wizardNext(this, _frameCode);",
+                               _frameCode=frameCode,
+                               hidden='==_showing',
+                               _showing='^.wizard_showing_summary')
+            bottom.lightButton(closeLabel,
+                               _class='wizard_close_btn',
+                               action="this.form.dismiss();",
+                               hidden='==!_showing',
+                               _showing='^.wizard_showing_summary')
+        else:
+            bottom.lightButton('^.next_label',
+                               _class='wizard_next_btn',
+                               action="gnr_grouplet.wizardNext(this, _frameCode);",
+                               _frameCode=frameCode)
         frame.dataController(
             "gnr_grouplet.wizardUpdateStep(this, idx, _completeLabel, _frameCode);",
             idx='^.step_index',
             _completeLabel=completeLabel, _frameCode=frameCode, _onBuilt=True)
         if saveMainFormOnComplete:
+            if has_summary:
+                frame.data('.wizard_pending_summary', False)
+                frame.dataController("""
+                    SET .wizard_pending_summary = true;
+                    this.form.save();
+                """, **{f'subscribe_{frameCode}_complete': True})
+                frame.dataController("""
+                    if(pending){
+                        SET .wizard_pending_summary = false;
+                        genro.publish(_frameCode + '_show_summary');
+                    }
+                """, formsubscribe_onSaved=True,
+                     pending='=.wizard_pending_summary',
+                     _frameCode=frameCode)
+            else:
+                frame.dataController("""
+                    this.form.save({destPkey:'*dismiss*'});
+                """, **{f'subscribe_{frameCode}_complete': True})
+        elif has_summary:
             frame.dataController("""
-                this.form.save({destPkey:'*dismiss*'});
-            """, **{f'subscribe_{frameCode}_complete': True})
+                genro.publish(_frameCode + '_show_summary');
+            """, **{f'subscribe_{frameCode}_complete': True},
+                 _frameCode=frameCode)
+        if has_summary:
+            frame.dataController("""
+                SET .wizard_page = 'summary';
+                SET .wizard_showing_summary = true;
+            """, **{f'subscribe_{frameCode}_show_summary': True})
         return frame
+
+    def _getGroupletResources(self, table=None, topic=None,
+                              grouplets_root=None):
+        grouplets_root = grouplets_root or 'grouplets'
+        grouplets_path = grouplets_root
+        if topic:
+            grouplets_path = f'{grouplets_path}/{topic}'
+        resources = Bag()
+        if table:
+            pkg, tblname = table.split('.')
+            resources.update(
+                self.site.resource_loader.resourcesAtPath(
+                    page=self, pkg=pkg,
+                    path=f'tables/{tblname}/{grouplets_path}'))
+            resources.update(
+                self.site.resource_loader.resourcesAtPath(
+                    page=self,
+                    path=f'tables/_packages/{pkg}/{tblname}/{grouplets_path}'))
+        else:
+            resources.update(
+                self.site.resource_loader.resourcesAtPath(
+                    page=self, path=grouplets_path))
+        return resources
 
     @public_method
     def gr_getGroupletMenu(self, table=None, topic=None,
                            grouplets_root=None, **kwargs):
         result = Bag()
-        resources = Bag()
-        grouplets_root = grouplets_root or 'grouplets'
-        grouplets_path = grouplets_root
-        if topic:
-            grouplets_path = f'{grouplets_path}/{topic}'
-        if table:
-            pkg, tblname = table.split('.')
-            resources_pkg = self.site.resource_loader.resourcesAtPath(
-                page=self, pkg=pkg, path=f'tables/{tblname}/{grouplets_path}')
-            resources_custom = self.site.resource_loader.resourcesAtPath(
-                page=self, path=f'tables/_packages/{pkg}/{tblname}/{grouplets_path}')
-            resources.update(resources_pkg)
-            resources.update(resources_custom)
-        else:
-            resources.update(self.site.resource_loader.resourcesAtPath(
-                page=self, path=grouplets_path))
+        resources = self._getGroupletResources(table=table, topic=topic,
+                                               grouplets_root=grouplets_root)
         self._buildGroupletMenu(result, resources, table=table,
                                 parent_path=topic)
         result.sort('#a.priority,#a.caption')
@@ -521,3 +606,14 @@ class GroupletHandler(BaseComponent):
         if is_enabled_cb and is_enabled_cb(self) is False:
             return False
         return info
+
+    def _getGroupletsRootInfo(self, table=None, topic=None,
+                              grouplets_root=None):
+        resources = self._getGroupletResources(table=table, topic=topic,
+                                               grouplets_root=grouplets_root)
+        info_node = resources.getNode('__info__')
+        if not info_node:
+            return {}
+        resmodule = gnrImport(info_node.attr['abs_path'],
+                              avoid_module_cache=True)
+        return self._get_raw_info(resmodule)

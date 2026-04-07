@@ -29,7 +29,7 @@ class LoginComponent(BaseComponent):
     closable_login = False
     loginBox_kwargs = dict()
     external_verified_user = None
-    
+
     @customizable
     def loginDialog(self,pane,gnrtoken=None,closable_login=None,**kwargs):
         closable_login = self.closable_login if closable_login is None else closable_login
@@ -356,22 +356,33 @@ class LoginComponent(BaseComponent):
             fb.data('.gnrtoken',gnrtoken)
 
         fb.passwordTextBox(value='^.password',lbl='!!New password',
-                    validate_remote=self.db.table('adm.user').validateNewPassword)
+                    validate_remote=self.db.table('adm.user').validateNewPassword,validate_notnull=True)
         fb.passwordTextBox(value='^.password_confirm',lbl='!!Confirm password',
-                    validate_call='return value==GET .password;',validate_call_message='!!Passwords must be equal')
+                    validate_call='return value==GET .password;',validate_call_message='!!Passwords must be equal',
+                    validate_notnull=True)
         fb.dataRpc(self.login_changePassword,_fired='^set_new_password',
                     current_password='=.current_password',
                     newusername='=.newusername',
                     password='=.password',password_confirm='=.password_confirm',
-                    _if='password==password_confirm',_box=box,
-                    _else="genro.dlg.floatingMessage(_box,{message:'Passwords must be equal',messageType:'error',yRatio:.95})",
+                    _onCalling="""
+                    if(!password){
+                        genro.dlg.floatingMessage(_box,{message:_missing_password_error,messageType:'error',yRatio:.95})
+                        return false;
+                    }if(password!=password_confirm){
+                        genro.dlg.floatingMessage(_box,{message:_different_password_error,messageType:'error',yRatio:.95})
+                        return false;
+                    }
+                    """,
+                    _box=box,
+                    _missing_password_error="!![en]You must set a new password",
+                    _different_password_error="!![en]Passwords must be equal",
                     gnrtoken=gnrtoken,_onResult="""if(result){
                         genro.dlg.floatingMessage(kwargs._box,{message:'Wrong password',messageType:'error',yRatio:.95});
                         return;
                     }
                     genro.publish("closeNewPwd");genro.publish("openLogin")""")
         footer = self.login_commonFooter(box)
-        footer.rightbox.button('!!Send',action='FIRE set_new_password',_class='login_confirm_btn')
+        footer.rightbox.button('!!Send',action='FIRE set_new_password',_class='login_confirm_btn',disabled='^new_password.password?=!#v')
         return dlg
     
     @public_method
@@ -508,7 +519,7 @@ class LoginComponent(BaseComponent):
         usertbl = self.db.table('adm.user')
         usertbl.insert(data)
         try:
-            usertbl.sendInvitationEmail(user_record=data,async_=False,html=True,scheduler=False)
+            usertbl.sendInvitationEmail(user_record=data,html=True,**self._immediate_message_parameters())
         except Exception as e:
             return  dict(error='!!Error in user invitation')
         self.db.commit()
@@ -551,12 +562,12 @@ class LoginComponent(BaseComponent):
         mailservice = self.getService('mail')
         if tpl_userconfirm_id:
             mailservice.sendUserTemplateMail(record_id=recordBag,template_id=tpl_userconfirm_id,
-                                             async_=False,html=True,scheduler=False)
+                                             html=True,**self._immediate_message_parameters())
         else:
             body = self.loginPreference('confirm_user_tpl') or 'Dear $greetings to confirm click $link'
             mailservice.sendmail_template(recordBag,to_address=email,
                                     body=body, subject=self.loginPreference('subject') or 'Confirm user',
-                                    async_=False,html=True,scheduler=False)
+                                    html=True,**self._immediate_message_parameters())
         self.db.commit()
         return 'ok'
         
@@ -582,11 +593,11 @@ class LoginComponent(BaseComponent):
             try:
                 if tpl_new_password_id:
                     mailservice.sendUserTemplateMail(record_id=recordBag,template_id=tpl_new_password_id,
-                                                     async_=False,html=True,scheduler=False)
+                                                     html=True,**self._immediate_message_parameters())
                 else:
                     mailservice.sendmail_template(recordBag,to_address=email,
                                             body=body, subject=self.loginPreference('confirm_password_subject') or 'Password recovery',
-                                            async_=False,html=True,scheduler=False)
+                                            html=True,**self._immediate_message_parameters())
                 self.db.commit()
             except Exception as e:
                 logger.error("Failed to send password recovery email to %s: %s", email, str(e))
@@ -639,10 +650,17 @@ class LoginComponent(BaseComponent):
                             
                             """,authResult='^.result',btn=btn,dlg=dlg.js_widget,error_msg='!!Wrong password')
 
-    @public_method  
+    @public_method
     def login_checkPwd(self,user=None,password=None):
         validpwd = self.application.getAvatar(user, password=password,authenticate=True)
         if not validpwd:
             return False
         return True
+
+
+    def _immediate_message_parameters(self):
+        email_package = self.db.package('email')
+        if email_package and email_package.getMailProxy(raise_if_missing=False):
+            return dict()
+        return dict(async_=False, scheduler=False)
 

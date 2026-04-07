@@ -273,13 +273,13 @@
     opacity: 0;
 }
 
-._common_d11 .ping_start .ping_semaphore{
+._common_d11.ping_start .ping_semaphore{
     background: url(/_rsrc/common/css_icons/svg/16/socket_transmitting.svg) no-repeat center center;
     transition: opacity 200ms, visibility 200ms;
     opacity: 1;
 }
 
-._common_d11 .ping_error .ping_semaphore{
+._common_d11.ping_error .ping_semaphore{
     background: url(/_rsrc/common/css_icons/svg/16/sockets_disconnected.svg) no-repeat center center;
     transition: opacity 200ms, visibility 200ms;
     opacity: 1;
@@ -323,6 +323,10 @@
 .pbl_root_bottom {
     vertical-align: middle;
     background-color: #711B2A;
+}
+
+.gnr_debug .pbl_root_bottom {
+    background-color: #CC0000 !important;
 }
 
 .pbl_viewBox {
