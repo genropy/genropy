@@ -249,10 +249,15 @@ class MenuResolver(BagResolver):
         instanceMenu = self.getInstanceMenu()
         if instanceMenu:
             return instanceMenu
-        pkgMenus = self.app.config['menu?package']
-        if pkgMenus:
-            return self.legacyMenuFromPkgList(pkgMenus)
-        return self.mainPackageMenu(self._page.package.name)
+
+        pkgMenus = self.app.config.get('menu?package')
+        if pkgMenus is None:
+            # Try mainPackage first, fallback to all packages
+            mainPkgMenu = self.mainPackageMenu(self._page.package.name)
+            if mainPkgMenu and len(mainPkgMenu) > 0:
+                return mainPkgMenu
+            pkgMenus = '*'
+        return self.legacyMenuFromPkgList(pkgMenus)
     
     def mainPackageMenu(self,pkg):
         result = self.pkgMenu(pkg,className=getattr(self._page,'menuClass',None))
