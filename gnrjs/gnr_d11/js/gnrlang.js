@@ -46,6 +46,11 @@ function stripJsFromHtml(str) {
     return str;
 }
 
+function safeHtmlContent(str) {
+    if (typeof str !== 'string' || !genro.getData('gnr.switches?sanitize_js')) return str;
+    return stripJsFromHtml(str);
+}
+
 function _px(v){
     v+='';
     if(v.indexOf('px')<0){
@@ -272,7 +277,6 @@ function stringCapitalize(str,firstOnly) {
 function dataTemplate(str, data, path, showAlways,kw) {
     var kw = kw || {};
     var defaults = kw.defaults || {};
-    var _sanitize = genro.getData('gnr.switches?sanitize_js');
     if (!str) {
         return '';
     }
@@ -382,10 +386,7 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                     }else if(as_name in df_templates){
                                         value = dataTemplate(data.getItem(df_templates[as_name]),value);
                                     }else{
-                                        value = value.getFormattedValue();
-                                        if(_sanitize && typeof(value)==='string'){
-                                            value = stripJsFromHtml(value);
-                                        }
+                                        value = safeHtmlContent(value.getFormattedValue());
                                     }
                                 }else{
                                     if(editpars){
@@ -399,9 +400,7 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                         value = gnrformatter.asText(value,{format:formats[as_name],dtype:dtype});
                                     }
                                     if(editpars){
-                                        if(_sanitize && typeof(value)==='string'){
-                                            value = stripJsFromHtml(value);
-                                        }
+                                        value = safeHtmlContent(value);
                                         value = '<div class="gnrinlinewidget_container"><div class="gnreditabletext" ondblclick="inlineWidget(event)" varname="'+as_name+'" >'+(isNullOrBlank(value)?'&nbsp':value)+'</div></div>';
                                     }
               
@@ -410,8 +409,8 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                     }else if(valueattr._formattedValue){
                                         value = valueattr._formattedValue;
                                     }
-                                    if(!editpars && _sanitize && typeof(value)==='string'){
-                                        value = stripJsFromHtml(value);
+                                    if(!editpars){
+                                        value = safeHtmlContent(value);
                                     }
                                 }
                                 if (value != null) {
@@ -440,17 +439,9 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                     is_empty = false;
                                     sub = plist.slice(1);
                                     if(sub.length && value instanceof gnr.GnrBag){
-                                        var sv = gnrformatter.asText(value.getItem(sub));
-                                        if(_sanitize && typeof(sv)==='string'){
-                                            sv = stripJsFromHtml(sv);
-                                        }
-                                        return sv;
+                                        return safeHtmlContent(gnrformatter.asText(value.getItem(sub)));
                                     }
-                                    var fv = gnrformatter.asText(value,formats[p]);
-                                    if(_sanitize && typeof(fv)==='string'){
-                                        fv = stripJsFromHtml(fv);
-                                    }
-                                    return fv;
+                                    return safeHtmlContent(gnrformatter.asText(value,formats[p]));
                               }else{
                                     return '';
                               }
