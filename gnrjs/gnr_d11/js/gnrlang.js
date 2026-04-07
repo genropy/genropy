@@ -31,6 +31,22 @@ const _lf = '\n';
 const _crlf = '\r\n';
 const _tab = '\t';
 
+var _JS_EXEC_PATTERNS = [
+    [/<script[^>]*>[\s\S]*?<\/script>/gi, ''],
+    [/\bon\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]*)/gi, ''],
+    [/href\s*=\s*(?:"[^"]*javascript:[^"]*"|'[^']*javascript:[^']*'|\s*javascript:[^\s>]*)/gi, 'href="#"'],
+    [/src\s*=\s*(?:"[^"]*javascript:[^"]*"|'[^']*javascript:[^']*'|\s*javascript:[^\s>]*)/gi, 'src=""']
+];
+
+function stripJsFromHtml(str) {
+    if (typeof str !== 'string') return str;
+    for (var i = 0; i < _JS_EXEC_PATTERNS.length; i++) {
+        str = str.replace(_JS_EXEC_PATTERNS[i][0], _JS_EXEC_PATTERNS[i][1]);
+    }
+    return str;
+}
+
+
 function _px(v){
     v+='';
     if(v.indexOf('px')<0){
@@ -366,7 +382,7 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                     }else if(as_name in df_templates){
                                         value = dataTemplate(data.getItem(df_templates[as_name]),value);
                                     }else{
-                                        value = value.getFormattedValue();
+                                        value = genro.safeHtmlContent(value.getFormattedValue());
                                     }
                                 }else{
                                     if(editpars){
@@ -379,14 +395,16 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                     if(formats[as_name]){
                                         value = gnrformatter.asText(value,{format:formats[as_name],dtype:dtype});
                                     }
-                                    if(editpars){                                  
+                                    if(editpars){
+                                        value = genro.safeHtmlContent(value);
                                         value = '<div class="gnrinlinewidget_container"><div class="gnreditabletext" ondblclick="inlineWidget(event)" varname="'+as_name+'" >'+(isNullOrBlank(value)?'&nbsp':value)+'</div></div>';
-                                    }
-              
-                                    if(masks[as_name]){
-                                        value = gnrformatter.asText(value,{mask:masks[as_name]});
-                                    }else if(valueattr._formattedValue){
-                                        value = valueattr._formattedValue;
+                                    }else{
+                                        if(masks[as_name]){
+                                            value = gnrformatter.asText(value,{mask:masks[as_name]});
+                                        }else if(valueattr._formattedValue){
+                                            value = valueattr._formattedValue;
+                                        }
+                                        value = genro.safeHtmlContent(value);
                                     }
                                 }
                                 if (value != null) {
@@ -415,9 +433,9 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                     is_empty = false;
                                     sub = plist.slice(1);
                                     if(sub.length && value instanceof gnr.GnrBag){
-                                        return gnrformatter.asText(value.getItem(sub));
+                                        return genro.safeHtmlContent(gnrformatter.asText(value.getItem(sub)));
                                     }
-                                    return gnrformatter.asText(value,formats[p]);
+                                    return genro.safeHtmlContent(gnrformatter.asText(value,formats[p]));
                               }else{
                                     return '';
                               }
