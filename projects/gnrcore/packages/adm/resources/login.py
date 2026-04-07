@@ -75,16 +75,16 @@ class LoginComponent(BaseComponent):
     def loginDialog_bottom_left(self,pane,dlg):
         if self.loginPreference('forgot_password'):
             pane.lightbutton('!!Lost password',action='FIRE lost_password_dlg;',
-                            _class='login_option_btn')
+                            _class='login_option_btn',tabindex=-1)
             pane.dataController("dlg_login.hide();dlg_lp.show();",_fired='^lost_password_dlg',
             dlg_login=dlg.js_widget,dlg_lp=self.login_lostPassword(pane,dlg).js_widget)
         if self.loginPreference('new_user'):
             self.login_newUser(pane)
             pane.lightbutton('!!New User',action='genro.publish("closeLogin");genro.publish("openNewUser");',
-                            _class='login_option_btn')
+                            _class='login_option_btn',tabindex=-1)
 
     def loginDialog_bottom_right(self,pane,dlg):
-        pane.button('!!Enter',action='FIRE do_login_check',_class='login_confirm_btn')
+        pane.button('!!Enter',action='FIRE do_login_check',_class='login_confirm_btn',focusOnTab=True)
 
     def loginDialog_center(self,pane,doLogin=None,gnrtoken=None,dlg=None,closable_login=None):
         fb = pane.div(_class='login_form_container').formlet(cols=1,onEnter='FIRE do_login_check;',
@@ -331,7 +331,7 @@ class LoginComponent(BaseComponent):
                             msg='!!Check your email for instruction',_fired='^recover_password_ok',sn=dlg)
         footer = self.login_commonFooter(box)
         footer.leftbox.lightButton('!!Login',action='FIRE back_login;',_class='login_option_btn')
-        footer.rightbox.button('!!Recover',action='FIRE recover_password',_class='login_confirm_btn')
+        footer.rightbox.button('!!Recover',action='FIRE recover_password',_class='login_confirm_btn',focusOnTab=True)
 
         footer.dataController("dlg_lp.hide();dlg_login.show();",_fired='^back_login',
                         dlg_login=dlg_login.js_widget,dlg_lp=dlg.js_widget)
@@ -382,7 +382,7 @@ class LoginComponent(BaseComponent):
                     }
                     genro.publish("closeNewPwd");genro.publish("openLogin")""")
         footer = self.login_commonFooter(box)
-        footer.rightbox.button('!!Send',action='FIRE set_new_password',_class='login_confirm_btn',disabled='^new_password.password?=!#v')
+        footer.rightbox.button('!!Send',action='FIRE set_new_password',_class='login_confirm_btn',disabled='^new_password.password?=!#v',focusOnTab=True)
         return dlg
     
     @public_method
@@ -406,7 +406,7 @@ class LoginComponent(BaseComponent):
         fb.checkbox(value='^.otp_remember',label='!![en]Remember this client')
         footer = self.login_commonFooter(box)
         #footer.leftbox.lightButton('!!Login',action="genro.publish('closeNewUser');genro.publish('openLogin');",_class='login_option_btn')
-        footer.rightbox.button('!![en]Confirm',_class='login_confirm_btn',action='FIRE otp_confirm')
+        footer.rightbox.button('!![en]Confirm',_class='login_confirm_btn',action='FIRE otp_confirm',focusOnTab=True)
         rpc = fb.dataRpc(self.login_checkOTPCode,
             _fired='^otp_confirm',
             otp_code='=.otp_code',
@@ -460,7 +460,7 @@ class LoginComponent(BaseComponent):
                                 datapath='new_password',width='100%')
         fb.textbox(value='^.email',lbl='!!Email')
         fb.dataController("SET .email = avatar_email;",avatar_email='^gnr.avatar.email')
-        fb.div(width='100%',position='relative').button('!!Send Email',action='FIRE confirm_email',position='absolute',right='-5px',top='8px')
+        fb.div(width='100%',position='relative').button('!!Send Email',action='FIRE confirm_email',position='absolute',right='-5px',top='8px',focusOnTab=True)
         fb.dataRpc(self.login_confirmUser,_fired='^confirm_email',email='=.email',user_id='=gnr.avatar.user_id',
                     _if='email',
                     _onCalling='_sc.switchPage(1);',
@@ -503,7 +503,7 @@ class LoginComponent(BaseComponent):
         footer = self.login_commonFooter(box)
         if not closable:
             footer.leftbox.lightButton('!!Login',action="genro.publish('closeNewUser');genro.publish('openLogin');",_class='login_option_btn')
-        footer.rightbox.button('!!Send',action='SET creating_new_user = true;',_class='login_confirm_btn')
+        footer.rightbox.button('!!Send',action='SET creating_new_user = true;',_class='login_confirm_btn',focusOnTab=True)
         return dlg
 
     def login_newUser_form(self,form):
@@ -638,7 +638,7 @@ class LoginComponent(BaseComponent):
         fb = box.div(_class='login_form_container').formlet(cols=1,onEnter='FIRE .checkPwd;',
                                 width='100%')
         fb.passwordTextBox(value='^.password',lbl='!!Password')
-        btn=fb.div(width='100%',position='relative').button('!!Enter',action='FIRE .checkPwd;this.widget.setAttribute("disabled",true);',position='absolute',right='-5px',top='8px')
+        btn=fb.div(width='100%',position='relative').button('!!Enter',action='FIRE .checkPwd;this.widget.setAttribute("disabled",true);',position='absolute',right='-5px',top='8px',focusOnTab=True)
         box.div().slotBar('*,messageBox,*',messageBox_subscribeTo='failed_screenout',height='18px',width='100%',tdl_width='6em')
         fb.dataRpc('.result',self.login_checkPwd,password='=.password',user='=gnr.avatar.user',_fired='^.checkPwd')
         fb.dataController("""if(!authResult){
