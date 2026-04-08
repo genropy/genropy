@@ -214,6 +214,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
     },
     setControllerTitle:function(attributes, sourceNode) {
         var iconClass = objectPop(attributes, 'iconClass');
+        var tabBadgeContent = attributes['tabBadgeContent'];
         var title = attributes['title'];
         if (iconClass) {
             if (attributes['title']) {
@@ -229,6 +230,9 @@ dojo.declare("gnr.widgets.baseHtml", null, {
         if (attributes.title) {
             var tip = objectPop(attributes, 'tip') || title || '';
             attributes.title = '<span title="' + tip + '">' + attributes.title + '</span>';
+        }
+        if (tabBadgeContent) {
+            attributes.title = (attributes.title || '') + tabBadgeContent;
         }
     },
     setDraggable:function(domNode, value) {
@@ -376,6 +380,23 @@ dojo.declare("gnr.widgets.baseHtml", null, {
                     }
                     parentNode.publish('onChangedChildTitle',{title:title,child:this})
                 });
+                if (savedAttrs.tabBadge) {
+                    var _tabBadgeKW = objectExtract(sourceNode.attr, 'tabBadge_*', false);
+                    _tabBadgeKW.handler = savedAttrs.tabBadge;
+                    _tabBadgeKW.table = _tabBadgeKW.table || savedAttrs.table;
+                    var _tabBaseTitle = savedAttrs._tabBaseTitle || '';
+                    var _tabTipTitle = '<span title="' + _tabBaseTitle + '">' + _tabBaseTitle + '</span>';
+                    var _tabWidget = newobj;
+                    if (_tabBadgeKW.table) {
+                        var _refreshTabBadge = function() {
+                            genro.serverCall('badge.getBadgeHandler', _tabBadgeKW, function(result) {
+                                _tabWidget.setTitle(_tabTipTitle + (result || ''));
+                            });
+                        };
+                        _refreshTabBadge();
+                        dojo.subscribe(_tabBadgeKW.table.replace('.', '_'), _refreshTabBadge);
+                    }
+                }
             }
             else if (parentTagLower == 'accordioncontainer') {
                 objectFuncReplace(newobj, 'setTitle', function(title) {
@@ -2904,7 +2925,13 @@ dojo.declare("gnr.widgets.ContentPane", gnr.widgets.baseDojo, {
     },
     creating:function(attributes, sourceNode) {
         attributes.isLoaded = true;
+        var savedAttrs = {};
+        if (attributes.tabBadge) {
+            savedAttrs.tabBadge = attributes.tabBadge;
+            savedAttrs._tabBaseTitle = attributes.title || '';
+        }
         this.setControllerTitle(attributes, sourceNode);
+        return savedAttrs;
     },
     created: function(widget, savedAttrs, sourceNode) {
         dojo.connect(widget, 'startup', dojo.hitch(this, 'afterStartup', widget));

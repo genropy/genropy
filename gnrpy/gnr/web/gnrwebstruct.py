@@ -390,6 +390,14 @@ class GnrDomSrc(GnrStructData):
                 kwargs[k]=v.js_sourceNode()
         if kwargs.get('nodeId'):
             self.checkNodeId(kwargs['nodeId'])
+        tabBadge = kwargs.get('tabBadge')
+        if tabBadge and tag.lower() == 'contentpane':
+            tabBadge_kw = dictExtract(kwargs, 'tabBadge_', pop=False)
+            tabBadge_kw['handler'] = tabBadge
+            tabBadge_kw['table'] = tabBadge_kw.get('table') or kwargs.get('table')
+            if tabBadge_kw.get('table'):
+                self.page.subscribeTable(tabBadge_kw['table'], True, subscribeMode=True)
+            kwargs['tabBadgeContent'] = self.page.badge.getBadgeHandler(**tabBadge_kw)
         sourceNodeValueAttr = dictExtract(kwargs,'attr_')
         serverpath = sourceNodeValueAttr.get('serverpath')
        # dbenv = sourceNodeValueAttr.get('dbenv')

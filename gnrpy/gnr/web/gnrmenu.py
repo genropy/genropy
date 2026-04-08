@@ -328,7 +328,7 @@ class MenuResolver(BagResolver):
                     menuLineBadge_attr['table'] = attributes.get('table') or menuLineBadge_attr.get('table')
                 if menuLineBadge_attr.get('table'):
                     self._page.subscribeTable(menuLineBadge_attr.get('table'), True, subscribeMode=True)
-                    attributes['badgeContent'] = self._page.menu.getMenuLineBadge(**menuLineBadge_attr)
+                    attributes['badgeContent'] = self._page.badge.getBadgeHandler(**menuLineBadge_attr)
             
             result.setItem(node.label, value, attributes)
         return result
