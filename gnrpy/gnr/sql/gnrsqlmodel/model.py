@@ -1073,6 +1073,8 @@ class DbModelSrc(GnrStructData):
                 val = f""" '"' ||  ${column} || '"' """
             elif dtype not in ('L', 'F', 'R', 'B'):
                 val = rf""" '"' ||  ${column} || '\:\:{dtype}"' """
+            if column in self['virtual_columns']:
+                logger.error("Composite column %s use virtual column %s, a real column is required", name, column)
             composed_of.append(column)
             chunks.append(val)
         composed_of_str = ','.join(composed_of)
