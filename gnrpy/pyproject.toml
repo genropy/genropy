@@ -31,6 +31,7 @@ dependencies = [
 	     "dictdiffer", # for gnr.sql migration
 	     "docutils",
 	     "dulwich", # needed by gnrgit
+	     "mypantry",
 	     "gunicorn",
 	     "jsmin",
 	     "lxml",
@@ -71,6 +72,8 @@ pgsql = [
 ]
 
 mysql = ["mysqlclient"]
+
+encryption = ["cryptography"]
 
 developer = [
   "pytest", "pytest-cov", "graphviz",
