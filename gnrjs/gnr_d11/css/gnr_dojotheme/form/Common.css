@@ -101,6 +101,17 @@
     cursor: pointer;
 }
 
+/* --- ReadOnly + Error state: error indicators must override readonly appearance --- */
+.gnr_dojotheme .dijitReadOnly.dijitTextBox.dijitError,
+.gnr_dojotheme .dijitReadOnly.dijitTextArea.dijitError,
+.gnr_dojotheme .dijitReadOnly.dijitComboBox.dijitError,
+.gnr_dojotheme .dijitDisabled.dijitTextBoxReadOnly.dijitError {
+    border-color: #c06060;
+    border-color: color-mix(in srgb, var(--status-error, #E53935) 60%, var(--field-border, #AEAEB2));
+    background-color: #fdf0f0;
+    background-color: color-mix(in srgb, var(--status-error, #E53935) 7%, var(--field-bg, white));
+}
+
 /* --- Error state — red dot indicator --- */
 .gnr_dojotheme .dijitError {
     border-color: #c06060; /* fallback for older browsers */
