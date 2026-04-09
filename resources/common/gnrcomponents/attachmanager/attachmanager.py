@@ -492,10 +492,22 @@ class AttachManager(BaseComponent):
 
     @struct_method
     def at_attachmentMultiButtonFrame(self,pane,datapath='.attachments',formResource=None,parentForm=True,ask=None,
-                                      toolbarPosition=None,itemsMaxWidth=None,singleFile=False,**kwargs):   
+                                      toolbarPosition=None,itemsMaxWidth=None,singleFile=False,
+                                      table=None,maintable_id=None,**kwargs):
         toolbarPosition = toolbarPosition or 'top'
+        store_kwargs = dict()
+        if not table:
+            store_kwargs['relation'] = '@atc_attachments'
+        else:
+            store_kwargs['table'] = table
+            store_kwargs['condition'] = '$maintable_id=:maintable_id'
+            store_kwargs['condition_maintable_id'] = maintable_id
+            if maintable_id and '#FORM' in maintable_id:
+                suffix = maintable_id.lstrip('^=').split('#FORM', 1)[1]
+                store_kwargs['default_maintable_id'] = '=#FORM/parent/#FORM%s' % suffix
+            else:
+                store_kwargs['default_maintable_id'] = '=#FORM/parent/#FORM.pkey'
         frame = pane.multiButtonForm(frameCode='attachmentPane_#',datapath=datapath,
-                            relation='@atc_attachments',
                             caption='description',parentForm=parentForm,
                             multibutton_itemsMaxWidth=itemsMaxWidth,
                             form_askMetadata=ask,
@@ -509,7 +521,8 @@ class AttachManager(BaseComponent):
                             """,
                             multibutton_deleteSelectedOnly=True,
                             toolbarPosition=toolbarPosition,
-                            store_order_by='$_row_count')
+                            store_order_by='$_row_count',
+                            **store_kwargs)
         if not singleFile:
             frame.multiButtonView.item(code='add_atc',caption='+',frm=frame.form.js_form,
                                     action='frm.newrecord();',
