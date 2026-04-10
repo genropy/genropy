@@ -5684,7 +5684,7 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
         var table_kw = objectExtract(kw,'table_*');
         if(popup){
             var textBoxId = 'placingTextbox_'+genro.getCounter();
-            var tbkw = {'value':has_code?value+'?_displayedValue':value,position:'relative',readOnly:true,nodeId:textBoxId};
+            var tbkw = {'value':has_code?value+'?_displayedValue':value,position:'relative',readOnly:true,nodeId:textBoxId,'_class':'checkBoxTextField'};
             objectExtract(originalKwargs,'table,values,cols,identifier,labelAttribute,popup') //belongs to cbtext
             objectUpdate(tbkw,originalKwargs);
             tb = sourceNode._('textbox',tbkw);

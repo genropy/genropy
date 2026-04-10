@@ -216,7 +216,9 @@
     --field-error-dot-ring: var(--surface-color, white); /* @theme */
     --field-disabled-border: var(--gray-250); /* @theme */
     --field-disabled-bg: var(--gray-100);
-    --field-readonly-border: var(--field-border);
+    --field-disabled-color: var(--gray-500);
+    --field-disabled-opacity: 0.85;
+    --field-readonly-border: var(--gray-200);
     --field-readonly-bg: var(--field-bg);
     --field-focus-bg: var(--color-bg);
     --gnrfieldlabel-color: var(--gray-700); /* @theme — readable on light form surfaces */
