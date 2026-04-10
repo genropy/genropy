@@ -27,6 +27,7 @@ COMPRESSIBLE_TYPES = (
     'application/javascript',
     'application/xml',
     'application/xhtml+xml',
+    'image/svg+xml',
 )
 
 
@@ -98,18 +99,23 @@ class GzipMiddleware:
         status, headers, exc_info = status_and_headers[0]
         body = b''.join(write_parts + iter_parts)
 
-        # Find content type from response headers
+        # Inspect response headers
         content_type = None
         already_encoded = False
+        no_transform = False
         for name, value in headers:
             lower_name = name.lower()
             if lower_name == 'content-type':
                 content_type = value
             elif lower_name == 'content-encoding':
                 already_encoded = True
+            elif lower_name == 'cache-control':
+                if 'no-transform' in value.lower():
+                    no_transform = True
 
         should_compress = (
             not already_encoded
+            and not no_transform
             and len(body) >= self.minimum_size
             and self._is_compressible(content_type)
         )
@@ -118,7 +124,8 @@ class GzipMiddleware:
             compressed = self._compress(body)
             if len(compressed) < len(body):
                 body = compressed
-                # Rebuild headers: update content-length, add gzip headers
+                # Rebuild headers: update content-length, add gzip headers,
+                # convert strong ETag to weak (RFC 9110 sec. 8.8.1)
                 has_vary = False
                 new_headers = []
                 for name, value in headers:
@@ -132,6 +139,8 @@ class GzipMiddleware:
                         if 'accept-encoding' not in value.lower():
                             value = value + ', Accept-Encoding'
                         new_headers.append((name, value))
+                    elif lower_name == 'etag' and value and not value.startswith('W/'):
+                        new_headers.append((name, 'W/' + value))
                     else:
                         new_headers.append((name, value))
                 new_headers.append(('Content-Encoding', 'gzip'))
