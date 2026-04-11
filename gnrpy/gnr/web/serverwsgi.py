@@ -403,7 +403,6 @@ class Server(object):
             os.environ["WERKZEUG_SERVER_FD"] = str(srv.fileno())
 
             if self.reloader:
-
                 # werkzeug reloader expects sys.argv without
                 # spaces for the reloader on python3.8
                 if " " in sys.argv[0]:
