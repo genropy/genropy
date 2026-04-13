@@ -154,131 +154,111 @@ class GnrK8SGenerator(object):
         resources.extend(deployments)
         resources.extend(services)
         resources.extend(ingress)
-        
-        # Output YAML to stdout or write to file
-        yaml.dump_all(resources, fp, sort_keys=False)
+
+        class _NoAliasDumper(yaml.Dumper):
+            def ignore_aliases(self, data):  # noqa: ARG002
+                return True
+
+        yaml.dump_all(resources, fp, Dumper=_NoAliasDumper, sort_keys=False)
 
     def get_splitted_conf(self):
+        """One deployment per service. daemon and taskscheduler are always replicas=1;
+        application and taskworker scale with self.replicas."""
         deployments = []
         services = []
         services_default_parms = {
-            # if in split, the daemon should listen on public interface
-            # to expose its port
-            'daemon': ['-H','0.0.0.0', '-P', str(self.GNR_DAEMON_PORT)]
+            # daemon must listen on all interfaces to be reachable by other pods
+            'daemon': ['-H', '0.0.0.0', '-P', str(self.GNR_DAEMON_PORT)]
         }
         self.env.append(dict(name='GNR_DAEMON_HOST', value=f'{self.stack_name}-daemon'))
-        
+
+        # Built once, reused as a value (not a reference) per non-daemon deployment
+        wait_for_daemon = {
+            "name": "wait-for-daemon",
+            "image": "busybox",
+            "command": [
+                "sh", "-c",
+                f"until nc -z {self.stack_name}-daemon {self.GNR_DAEMON_PORT}; "
+                f"do echo \"Waiting for {self.stack_name}-daemon...\"; sleep 2; done"
+            ]
+        }
+
+        site_volume = {
+            'name': f'{self.stack_name}-site-volume',
+            'persistentVolumeClaim': {'claimName': f'{self.stack_name}-site-pvc'}
+        }
+
         for service in self.services:
             name = f'{self.stack_name}-{service}'
-            args = [self.instance_name, f'--{service}']
             container = {
                 'name': f'{name}-container',
                 'image': self.image,
-                'imagePullPolicy': "Always",
+                'imagePullPolicy': 'Always',
                 'command': ['gnr'],
-                'args': ['web','stack'] + args,
-                'env': self.env
+                'args': ['web', 'stack', self.instance_name, f'--{service}'],
+                'env': self.env,
             }
-            
-            if self.env_secrets:
-                container['envFrom'] = []
-                for env_s in self.env_secrets:
-                    container['envFrom'].append({'secretRef': {'name': env_s}})
 
-            if self.services_port.get(service, None):
-                container['ports'] = [
-                    {'containerPort': self.services_port.get(service) }
-                ]
-                
-            if services_default_parms.get(service, None):
-                container['args'].extend(services_default_parms.get(service))
-                    
+            if self.env_secrets:
+                container['envFrom'] = [{'secretRef': {'name': s}} for s in self.env_secrets]
+
+            if self.services_port.get(service):
+                container['ports'] = [{'containerPort': self.services_port[service]}]
+
+            if services_default_parms.get(service):
+                container['args'].extend(services_default_parms[service])
+
+            pod_spec = {'containers': [container]}
+
+            if service == 'daemon':
+                container['readinessProbe'] = {
+                    'tcpSocket': {'port': self.GNR_DAEMON_PORT},
+                    'initialDelaySeconds': 5,
+                    'periodSeconds': 5,
+                }
+            else:
+                # Fresh list per deployment — avoids shared-list mutation across iterations
+                pod_spec['initContainers'] = list(self.extra_initContainers) + [wait_for_daemon]
+                pod_spec['volumes'] = [site_volume]
+
+            if self.secret_name:
+                pod_spec['imagePullSecrets'] = [{'name': self.secret_name}]
 
             deployment = {
                 'apiVersion': 'apps/v1',
                 'kind': 'Deployment',
                 'metadata': {
                     'name': f'{name}-deployment',
-                    'labels': {
-                        'app': f'{name}'
-                    }
+                    'labels': {'app': name, **self.extra_labels},
                 },
                 'spec': {
-                    'replicas': self.replicas if service in ['application','taskworker'] else 1,
-                    'selector': {
-                        'matchLabels': {
-                            'app': name
-                        }
-                    },
+                    'replicas': self.replicas if service in ('application', 'taskworker') else 1,
+                    'selector': {'matchLabels': {'app': name}},
                     'template': {
-                        'metadata': {
-                            'labels': {
-                                'app': name
-                            }
-                        },
-                        'spec': {
-                            'containers': [container]
-                        }
-                    }
-                }
-            }
-            
-            deployment['metadata']['labels'].update(self.extra_labels)
-            deployment['spec']['template']['metadata']['labels'].update(self.extra_labels)
-            
-            if service == "daemon":
-                container['readinessProbe'] = {
-                    "tcpSocket": {
-                        "port": self.GNR_DAEMON_PORT
+                        'metadata': {'labels': {'app': name, **self.extra_labels}},
+                        'spec': pod_spec,
                     },
-                    "initialDelaySeconds": 5,
-                    "periodSeconds": 5
-                }
-
-            else:
-                self.extra_initContainers.append(
-                    {
-                        "name": "wait-for-daemon",
-                        "image": "busybox",
-                        "command": [
-                            "sh", "-c",
-                            f"until nc -z {self.stack_name}-daemon {self.GNR_DAEMON_PORT}; do echo \"Waiting for {self.stack_name}-daemon...\"; sleep 2; done"
-                        ]
-                    }
-                )
-                deployment['spec']['template']['spec']['initContainers'] = self.extra_initContainers
-                
-            if self.secret_name:
-                deployment['spec']['template']['spec']['imagePullSecrets'] = [{"name": self.secret_name}]
+                },
+            }
             deployments.append(deployment)
 
             if service != 'taskworker':
-                service =   {
-                    "apiVersion": "v1",
-                    "kind": "Service",
-                    "metadata": {
-                        "name": name,
-                        "labels": {
-                            "app": name
-                        }
+                service_port = self.services_port.get(service)
+                service_obj = {
+                    'apiVersion': 'v1',
+                    'kind': 'Service',
+                    'metadata': {
+                        'name': name,
+                        'labels': {'app': name, **self.extra_labels},
                     },
-                    "spec": {
-                        "ports": [
-                            {
-                                "name": "http",
-                                "protocol": "TCP",
-                                "port": self.services_port.get(service),
-                                "targetPort": self.services_port.get(service),
-                            }
-                        ],
-                        "selector": {
-                            "app": name
-                        }
-                    }
+                    'spec': {
+                        'ports': [{'name': 'http', 'protocol': 'TCP',
+                                   'port': service_port, 'targetPort': service_port}],
+                        'selector': {'app': name},
+                    },
                 }
-                service['metadata']['labels'].update(self.extra_labels)
-                services.append(service)
-                
+                services.append(service_obj)
+
         return deployments, services, self.get_ingress()
     
     def get_monolithic_conf(self):
