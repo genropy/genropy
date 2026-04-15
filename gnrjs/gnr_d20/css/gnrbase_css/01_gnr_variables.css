@@ -153,6 +153,7 @@
     --toolbar-gradient: linear-gradient(to bottom, var(--gray-200), var(--gray-300)); /* @theme */
     --toolbar-color: var(--gray-900); /* @theme */
     --toolbar-dark-bg: var(--gray-600); /* @theme */
+    --quickgrid-toolbar-min-height: 1.8em;
 
     /* --- Layout: frameindex --- */
     --frameindexroot-background: var(--gray-100); /* @theme */
