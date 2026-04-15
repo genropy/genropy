@@ -965,14 +965,15 @@ class GnrApp(object):
         self.catalog = GnrClassCatalog()
         self.localization = {}
 
-        # load the packages
-        for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
-            self.addPackage(pkgid,pkgattrs=pkgattrs,pkgcontent=pkgcontent)
 
         # check for packages python dependencies
         self.check_package_dependencies()
         if 'checkdepcli' in self.kwargs:
             return
+
+        # load the packages
+        for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
+            self.addPackage(pkgid,pkgattrs=pkgattrs,pkgcontent=pkgcontent)
 
         dbattrs = dict(self.config.getAttr('db') or {})
         dbattrs['implementation'] = dbattrs.get('implementation') or 'sqlite'
@@ -1037,14 +1038,21 @@ class GnrApp(object):
     def check_package_dependencies(self):
         logger.debug("Checking python dependencies")
         instance_deps = defaultdict(list)
-        for package in [x.getValue() for x in self.packages]:
-            requirements_file = os.path.join(package.packageFolder, "requirements.txt")
+        # find all packages deps
+        for package,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
+            if ":" in package:
+                project, package = package.split(":")
+            else:
+                project = None
+                
+            packageFolder = self.pkg_name_to_path(package, project)
+            requirements_file = os.path.join(packageFolder, package, "requirements.txt")
             if os.path.isfile(requirements_file):
                 with open(requirements_file) as fp:
                     for line in fp:
                         dep_name = line.strip()
                         if dep_name:
-                            instance_deps[dep_name].append(package.id)
+                            instance_deps[dep_name].append(package)
 
         self.instance_packages_dependencies = instance_deps
 
