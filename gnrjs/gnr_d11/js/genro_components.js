@@ -1329,8 +1329,8 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
                                                   nodeId:gnrwdg.uploaderId
                                                  },dropAreaKw))
         var confirmPane = sc._('ContentPane',{});
-        var footerbar = confirmPane._('slotBar',{slots:'5,resetButton,*,importButton,5',margin_top:'5px'});
-        footerbar._('slotButton','resetButton',{label:'Clear',width:'8em',font_size:'1em',padding:'2px',
+        var footerbar = confirmPane._('slotBar',{slots:'5,resetButton,*,importButton,5'});
+        footerbar._('slotButton','resetButton',{label:'Clear',width:'8em',font_size:'1em',
                                             action:function(){gnrwdg.resetImporter();}});
         var importButtonKw = objectUpdate({label:'Import',width:'8em',font_size:'1em',padding:'2px',
                                         imported_file_path:'=.imported_file_path',
