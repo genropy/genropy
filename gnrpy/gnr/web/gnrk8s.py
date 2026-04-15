@@ -18,6 +18,7 @@ class GnrK8SGenerator(object):
                  container_port=8000,
                  secret_name=None,
                  replicas=1,
+                 resource_profile=None,
                  extra_labels=None,
                  extra_initContainers: list | None = None):
         
@@ -27,6 +28,7 @@ class GnrK8SGenerator(object):
             self.image = f'{self.image}:latest'
         self.secret_name = secret_name
         self.fqdns = fqdns
+        self.resource_profile = resource_profile or {}
         self.container_port = container_port
         self.stack_name = deployment_name or instance_name
         self.application_name = f'{self.stack_name}-application'
@@ -198,7 +200,9 @@ class GnrK8SGenerator(object):
                 'args': ['web', 'stack', self.instance_name, f'--{service}'],
                 'env': self.env,
             }
-
+            if self.resource_profile:
+                container['resources'] = self.resource_profile
+                
             if self.env_secrets:
                 container['envFrom'] = [{'secretRef': {'name': s}} for s in self.env_secrets]
 
@@ -291,7 +295,9 @@ class GnrK8SGenerator(object):
             ]
                 
         }
-
+        if self.resource_profile:
+            service_def['resources'] = self.resource_profile
+            
         if self.env_secrets:
             service_def['envFrom'] = []
             for env_s in self.env_secrets:
