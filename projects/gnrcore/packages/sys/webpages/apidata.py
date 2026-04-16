@@ -48,7 +48,7 @@ class GnrCustomWebPage(object):
             })
 
         adapter = GnrSqlDataApiAdapter(self.db)
-        handler = ODataRequestHandler(adapter, service_root='/sys/apidata')
+        handler = ODataRequestHandler(adapter, service_root='')
 
         method = self.request.method
         odata_path = '/' + '/'.join(args) if args else '/'
@@ -56,7 +56,19 @@ class GnrCustomWebPage(object):
         for k, v in self.request.args.items():
             query_params[k] = v
 
-        status_code, headers, body = handler.handle(method, odata_path, query_params)
+        try:
+            status_code, headers, body = handler.handle(method, odata_path, query_params)
+        except Exception as exc:
+            import traceback
+            self.response.content_type = 'application/json'
+            self.response.status_code = 500
+            return json.dumps({
+                'error': {
+                    'code': '500',
+                    'message': str(exc),
+                    'traceback': traceback.format_exc(),
+                }
+            })
 
         self.response.status_code = status_code
         for header_name, header_value in headers.items():
