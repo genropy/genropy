@@ -1469,7 +1469,7 @@ class GnrWsgiSite(object):
         headers = getattr(tool, 'headers', [])
         download_name = getattr(tool, 'download_name', None)
         if download_name:
-            headers.append(("Content-Disposition", f"attachment; filename={download_name}"))
+            headers.append(("Content-Disposition", '''attachment; filename*=UTF-8''%s'''%urllib.parse.quote(download_name)))
         for header_name, header_value in headers:
             response.headers[header_name] = header_value
         if isinstance(result, Response):
