@@ -157,8 +157,7 @@ class Table(object):
         def checkUserObj(r):
             if r['code'].startswith('__'):
                 return False
-            is_private = r['private'] is True or (isinstance(r['private'], str) and r['private'].lower() in ('true', 'y', 'yes', '1'))
-            condition = (not is_private) or (r['userid'] == userid)
+            condition = (not r['private']) or (r['userid'] == userid)
             if onlyQuicklist:
                 condition = condition and r['quicklist']
             if self.db.application.checkResourcePermission(r['authtags'], authtags):
@@ -248,15 +247,9 @@ class Table(object):
         pkey = metadata['pkey'] or metadata['id']
         if not metadata or not (metadata['code'] or pkey):
             return
-        private_value = metadata['private']
-        if isinstance(private_value, str):
-            private_value = private_value.lower() in ('true', 'y', 'yes', '1')
-        else:
-            private_value = bool(private_value)
         record = dict(data=data,objtype=objtype,
                     pkg=pkg,tbl=table,userid=self.db.currentPage.user,id=pkey,
-                    code= metadata['code'],description=metadata['description'],private=private_value,
-                    authtags=metadata['authtags'],
+                    code= metadata['code'],description=metadata['description'],private=metadata['private'] or False,
                     notes=metadata['notes'],flags=metadata['flags'],preview=metadata['preview'])
         self.insertOrUpdate(record)
         self.db.commit()
