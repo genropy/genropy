@@ -5,7 +5,7 @@ import os
 import sys
 import random
 import tempfile
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote
 
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrbag import Bag
@@ -134,7 +134,7 @@ class StaticHandler(object):
         file_args = dict()
         if download or download_name:
             download_name = download_name or os.path.basename(fullpath)
-            file_args['content_disposition'] = "attachment; filename=%s" % download_name
+            file_args['content_disposition'] = '''attachment; filename*=UTF-8''%s'''%quote(download_name)
         file_responder = _SimpleFileApp(fullpath, **file_args)
         if self.site.cache_max_age:
             file_responder.cache_control(max_age=self.site.cache_max_age)
