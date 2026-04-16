@@ -313,7 +313,6 @@ class GnrWebPage(GnrBaseWebPage):
         self.page_id = page_id or getUuid()
         page_info = dict([(k,getattr(self,k,None)) for k in ATTRIBUTES_SIMPLEWEBPAGE])
         data = Bag()
-        data['rootenv'] = Bag()
         data['pageArgs'] = kwargs
         data['class_info'] = class_info
         data['init_info'] = init_info
@@ -430,7 +429,7 @@ class GnrWebPage(GnrBaseWebPage):
         
     @property
     def rootenv(self):
-        if not hasattr(self,'_rootenv'):
+        if not hasattr(self,'_rootenv') or self._rootenv is None:
             self._rootenv = self.pageStore().getItem('rootenv')
         return self._rootenv
     
