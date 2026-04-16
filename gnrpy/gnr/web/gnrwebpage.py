@@ -2283,6 +2283,7 @@ class GnrWebPage(GnrBaseWebPage):
         if 'google' not in api_keys and google_mapkey:
             api_keys.setItem('google',None,mapkey = google_mapkey)
         page.data('gnr.api_keys',api_keys)
+        page.data('gnr.switches', Bag(self.application.config['switches']))
         if hasattr(self, 'main_root'):
             self.main_root(page, **kwargs)
             return (page, pageattr)

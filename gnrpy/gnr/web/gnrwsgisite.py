@@ -19,6 +19,7 @@ from werkzeug.exceptions import (HTTPException, InternalServerError,
                                   NotFound, Forbidden, PreconditionFailed,
                                   BadRequest, Unauthorized)
 from werkzeug.middleware.proxy_fix import ProxyFix
+from gnr.web.compression import GzipMiddleware
 
 from gnr.core.gnrbag import Bag
 from gnr.core import gnrstring
@@ -1572,6 +1573,12 @@ class GnrWsgiSite(object):
                 wsgiapp = SentryWsgiMiddleware(wsgiapp)
             except Exception as e:
                 logger.error(f"Sentry support has been disabled due to configuration errors: {e}")
+
+        if boolean(self.config['wsgi?compression']):
+            min_size = int(self.config['wsgi?compression_min_size'] or 500)
+            level = int(self.config['wsgi?compression_level'] or 6)
+            wsgiapp = GzipMiddleware(wsgiapp, minimum_size=min_size, compression_level=level)
+            logger.info(f"Gzip compression enabled (min_size={min_size}, level={level})")
 
         # when the application is executed being a reverse proxy / ssl terminator,
         # werkzeug needs this middleware to compute the correct external host

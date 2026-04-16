@@ -2058,7 +2058,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         self.attributes.update(kwargs)
         toolbarArgs = self.attributes
         slotstr = toolbarArgs['slots']
-        slots = slotstr.split(',')
+        slots = gnrstring.splitAndStrip(slotstr)
         slotbarCode= toolbarArgs.get('slotbarCode')
         inattr = self.getInheritedAttributes()
         frameCode = inattr.get('frameCode')
@@ -2087,7 +2087,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         replaceStr = replaceStr.replace('#',slotstr)
         slotstr = slotstr.replace(toReplace,replaceStr)
         toolbarArgs['slots'] = slotstr
-        slots = slotstr.split(',')
+        slots = gnrstring.splitAndStrip(slotstr)
         inattr = self.getInheritedAttributes()
         frameCode = inattr.get('frameCode')
         namespace = inattr.get('namespace')

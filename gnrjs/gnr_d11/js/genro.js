@@ -320,6 +320,13 @@ dojo.declare('gnr.GenroClient', null, {
         }
 
     },
+    safeHtmlContent:function(str){
+        if(typeof str !== 'string') return str;
+        if(this._sanitize_js === undefined){
+            this._sanitize_js = !!this.getData('gnr.switches?sanitize_js');
+        }
+        return this._sanitize_js ? stripJsFromHtml(str) : str;
+    },
     locale:function(){
         if(!this._locale){
             this._locale = genro.getData('gnr.locale');

@@ -1657,6 +1657,10 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         if (cellClassCB) {
             cellClassFunc = funcCreate(cellClassCB, 'cell,v,inRowIndex,originalValue',this);
         }
+        var _skipSanitize = formatOptions.template || formatOptions.js || formatOptions.apply
+            || formatOptions.isbutton || formatOptions.showlinks
+            || formatOptions._hasCustomGetter
+            || formatOptions.dtype==='B' || formatOptions.dtype==='P';
         return function(v, inRowIndex) {
             var opt = objectUpdate({}, formatOptions);
             var renderedRow = this.grid.currRenderedRow;
@@ -1754,6 +1758,9 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             }
             if (opt.js) {
                 v = opt.js(v, this.grid.storebag().getNodes()[inRowIndex]);
+            }
+            if(!_skipSanitize){
+                v = genro.safeHtmlContent(v);
             }
             var zoomAttr = objectExtract(opt,'zoom_*',true);
             var draggable = this.draggable ? ' draggable=true ' : '';
@@ -1916,6 +1923,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             var _customGetter = objectPop(cell,'_customGetter');
             if(_customGetter){
                 cell._customGetter = funcCreate(_customGetter);
+                formats['_hasCustomGetter'] = true;
             }
             if(dtype=='B'){
                 formats['trueclass']= formats['trueclass'] || "checkboxOn";
