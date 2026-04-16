@@ -87,7 +87,8 @@ class GnrPdb(pdb.Pdb):
     def onClosePage(self):
         for bpinstance in self.mybp:
             bpinstance.deleteMe()
-        self.page.wsk.sendCommandToPage(self.debugger_page_id,'close_debugger',self.pdb_id)
+        if self.page.wsk:
+            self.page.wsk.sendCommandToPage(self.debugger_page_id,'close_debugger',self.pdb_id)
             
     def getStackBag(self,frame):
         result = Bag()
@@ -126,8 +127,9 @@ class GnrPdb(pdb.Pdb):
                                     lineno = result['current.lineno'],
                                     functionName=result['functionName'],
                                     pdb_counter=result['pdb_counter']))
-        self.page.wsk.publishToClient(self.page.page_id,'debugstep',
-                data=Bag(dict(current=result['current'],pdb_id=self.pdb_id,methodname=self.methodname,
+        if self.page.wsk:
+            self.page.wsk.publishToClient(self.page.page_id,'debugstep',
+                                          data=Bag(dict(current=result['current'],pdb_id=self.pdb_id,methodname=self.methodname,
                                                         functionName=result['current.functionName'],
                                                         lineno=result['current.lineno'],
                                                         debugger_page_id=self.debugger_page_id,
