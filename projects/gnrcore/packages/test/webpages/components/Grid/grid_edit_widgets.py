@@ -103,3 +103,41 @@ class GnrCustomWebPage(object):
                dtype='B', edit=True)
         r.cell('number_field', width='4em', name='Num',
                dtype='N', edit=True)
+
+    def test_2_single_column(self, pane):
+        """Single editable column: row must not disappear on double-click (#805)"""
+        pane.data('.store_single', self._sample_data())
+        frame = pane.bagGrid(
+            frameCode='single',
+            title='Single column (row height regression test)',
+            struct=self._single_column_struct,
+            storepath='.store_single',
+            datapath='.grid_single',
+            height='300px',
+            addrow=True
+        )
+
+    def _single_column_struct(self, struct):
+        r = struct.view().rows()
+        r.cell('text_field', width='20em', name='Text',
+               edit=True)
+
+    def test_3_mixed_width(self, pane):
+        """Two columns, one without explicit width: row must not shrink on edit (#805)"""
+        pane.data('.store_mixed', self._sample_data())
+        frame = pane.bagGrid(
+            frameCode='mixed',
+            title='Mixed width columns (row height regression test)',
+            struct=self._mixed_width_struct,
+            storepath='.store_mixed',
+            datapath='.grid_mixed',
+            height='300px',
+            addrow=True
+        )
+
+    def _mixed_width_struct(self, struct):
+        r = struct.view().rows()
+        r.cell('text_field', width='20em', name='Text',
+               edit=True)
+        r.cell('number_field', name='Number',
+               dtype='N', edit=True)

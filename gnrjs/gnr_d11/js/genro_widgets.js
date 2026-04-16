@@ -528,6 +528,10 @@ dojo.declare("gnr.widgets.baseHtml", null, {
         //pass
     },
 
+    cell_onStartEdit:function(cellNode,editingInfo,attr,editWidgetNode){
+        //pass
+    },
+
     cell_onDestroying:function(sourceNode,gridEditor,editingInfo){
         //pass
     }
@@ -2009,8 +2013,37 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
 
     cell_onCreating:function(gridEditor,colname,colattr){
         colattr['z_index']= 1;
-        //colattr['position'] = 'fixed';
         colattr['height'] = colattr['height'] || '100px';
+    },
+
+    cell_onStartEdit:function(cellNode,editingInfo,attr,editWidgetNode){
+        var domNode = editWidgetNode.widget ? editWidgetNode.widget.domNode : editWidgetNode.domNode;
+        if(!domNode){
+            return;
+        }
+        var h = parseInt(attr.height) || 100;
+        domNode.classList.add('cellEditFixed');
+        domNode.style.position = 'fixed';
+        domNode.style.height = h + 'px';
+        domNode.style.zIndex = '10';
+        domNode.style.margin = '0';
+        var positionTextarea = function(){
+            var rect = cellNode.getBoundingClientRect();
+            domNode.style.left = (rect.left + 1) + 'px';
+            domNode.style.top = (rect.top + 1) + 'px';
+            domNode.style.width = (rect.width - 2) + 'px';
+        };
+        positionTextarea();
+        var scrollNode = cellNode.closest('.dojoxGrid-scrollbox');
+        if(scrollNode){
+            editingInfo._scrollHandler = dojo.connect(scrollNode, 'onscroll', positionTextarea);
+        }
+    },
+
+    cell_onDestroying:function(sourceNode,gridEditor,editingInfo){
+        if(editingInfo._scrollHandler){
+            dojo.disconnect(editingInfo._scrollHandler);
+        }
     },
 
     onChanged:function(widget) {
