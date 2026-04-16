@@ -55,7 +55,7 @@
     position: relative;
     overflow: hidden;
 }
-.form_draft[class*="draft_marker_"] .fh_content::before{
+.form_draft[class*="draft_marker_"] .fh_content::after{
     content: var(--form-draft-label, 'DRAFT');
     position: absolute;
     width: 140px;
@@ -70,19 +70,19 @@
     pointer-events: none;
     box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
-.form_draft.draft_marker_tr .fh_content::before{
+.form_draft.draft_marker_tr .fh_content::after{
     top: 12px; right: -35px;
     transform: rotate(45deg);
 }
-.form_draft.draft_marker_tl .fh_content::before{
+.form_draft.draft_marker_tl .fh_content::after{
     top: 12px; left: -35px;
     transform: rotate(-45deg);
 }
-.form_draft.draft_marker_br .fh_content::before{
+.form_draft.draft_marker_br .fh_content::after{
     bottom: 12px; right: -35px;
     transform: rotate(-45deg);
 }
-.form_draft.draft_marker_bl .fh_content::before{
+.form_draft.draft_marker_bl .fh_content::after{
     bottom: 12px; left: -35px;
     transform: rotate(45deg);
 }
