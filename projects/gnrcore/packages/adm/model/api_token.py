@@ -15,6 +15,8 @@ class Table(object):
         tbl.column('token', size='64', unique=True, indexed=True,
                    name_long='!!Token', _sendback=True)
         tbl.column('description', name_long='!!Description')
+        tbl.column('group_code', size=':15', name_long='!!Group').relation(
+                   'group.code', relation_name='api_tokens', mode='foreignkey')
         tbl.column('is_active', dtype='B', default=True, name_long='!!Active')
         tbl.column('expires_ts', dtype='DHZ', name_long='!!Expires')
         tbl.column('last_used_ts', dtype='DHZ', name_long='!!Last Used')
@@ -61,7 +63,7 @@ class Table(object):
         Returns None if invalid, expired, or inactive.
         """
         records = self.query(
-            columns='$id,$description,$expires_ts,$is_active,$all_tags',
+            columns='$id,$description,$expires_ts,$is_active,$all_tags,$group_code',
             where='$token=:t AND $is_active=:a',
             t=token_value, a=True
         ).fetch()
@@ -76,5 +78,6 @@ class Table(object):
         return {
             'token_id': record['id'],
             'auth_tags': record.get('all_tags', ''),
+            'group_code': record.get('group_code', ''),
             'description': record['description']
         }

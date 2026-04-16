@@ -9,6 +9,7 @@ class View(BaseComponent):
     def th_struct(self, struct):
         r = struct.view().rows()
         r.fieldcell('description', width='20em')
+        r.fieldcell('group_code', name='!!Group', width='10em')
         r.fieldcell('is_active', name='!!Active', width='5em')
         r.fieldcell('token_hint', name='!!Token', width='8em')
         r.fieldcell('all_tags', name='!!Tags', width='20em')
@@ -41,6 +42,7 @@ class Form(BaseComponent):
         fb = top.div(margin='10px').formbuilder(cols=2, border_spacing='4px',
                                                 colswidth='20em', fld_width='100%')
         fb.field('description', colspan=2)
+        fb.field('group_code', hasDownArrow=True)
         fb.field('is_active')
         fb.field('expires_ts')
         fb.field('token_hint', readOnly=True)
