@@ -1,3 +1,13 @@
+Release 26.04.13
+================
+
+Bugfix release.
+
+Introduce distinct visual styling for readonly fields (subtle border,
+white background) to clearly differentiate them from normal editable
+and disabled fields (#790)
+
+
 Release 26.04.09
 ================
 
