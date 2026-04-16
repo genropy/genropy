@@ -9,12 +9,12 @@ class Table(object):
     def config_db(self, pkg):
         tbl = pkg.table('api_token', pkey='id',
                         name_long='!!API Token',
-                        name_plural='!!API Tokens')
+                        name_plural='!!API Tokens',
+                        rowcaption='$description')
         self.sysFields(tbl)
         tbl.column('token', size='64', unique=True, indexed=True,
                    name_long='!!Token', _sendback=True)
         tbl.column('description', name_long='!!Description')
-        tbl.column('auth_tags', name_long='!!Auth Tags')
         tbl.column('is_active', dtype='B', default=True, name_long='!!Active')
         tbl.column('expires_ts', dtype='DHZ', name_long='!!Expires')
         tbl.column('last_used_ts', dtype='DHZ', name_long='!!Last Used')
@@ -23,14 +23,19 @@ class Table(object):
                    relation_name='api_tokens', onDelete='cascade')
         tbl.column('notes', dtype='T', name_long='!!Notes')
         tbl.column('token_hint', size='8', name_long='!!Token Hint')
+        tbl.formulaColumn('all_tags',
+                          select=dict(table='adm.api_token_tag',
+                                      columns='@tag_id.authorization_tag',
+                                      where='$api_token_id=#THIS.id'),
+                          dtype='A', name_long='!!Tags')
 
     def generate_token(self):
         """Generate a new secure token and return the full value."""
         return secrets.token_urlsafe(48)
 
     @public_method
-    def create_api_token(self, description=None, auth_tags=None,
-                         expires_ts=None, notes=None, created_by=None):
+    def create_api_token(self, description=None, expires_ts=None,
+                         notes=None, created_by=None):
         """Create a new API token. Returns (record_id, full_token).
 
         The full token is returned ONLY at creation time.
@@ -39,7 +44,6 @@ class Table(object):
         record = self.newrecord(
             token=token_value,
             description=description or '',
-            auth_tags=auth_tags or '',
             is_active=True,
             expires_ts=expires_ts,
             notes=notes or '',
@@ -57,7 +61,7 @@ class Table(object):
         Returns None if invalid, expired, or inactive.
         """
         records = self.query(
-            columns='$id,$auth_tags,$description,$expires_ts,$is_active',
+            columns='$id,$description,$expires_ts,$is_active,$all_tags',
             where='$token=:t AND $is_active=:a',
             t=token_value, a=True
         ).fetch()
@@ -71,6 +75,6 @@ class Table(object):
         self.db.commit()
         return {
             'token_id': record['id'],
-            'auth_tags': record['auth_tags'],
+            'auth_tags': record.get('all_tags', ''),
             'description': record['description']
         }

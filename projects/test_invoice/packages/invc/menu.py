@@ -10,3 +10,6 @@ def config(root,application=None):
     invc.thpage('!!Product types',table='invc.product_type')
     invc.thpage('!!Postcodes',table='invc.postcode')
     invc.lookups('Lookup tables',lookup_manager='invc')
+    root.packageBranch('Administration', tags='admin', pkg='adm')
+    root.packageBranch('System', tags='admin,_DEV_', pkg='sys')
+    root.packageBranch('Data API', tags='admin,_DEV_', pkg='data_api')
