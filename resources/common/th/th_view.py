@@ -1627,7 +1627,7 @@ class THViewUtils(BaseComponent):
         uoTable = self.db.table('adm.userobject')
         userobjects = Bag()
         if viewResource:
-            userobjects.update(uoTable.userObjectMenu(objtype=objtype,flags='%s_RES_%s' % (self.pagename, viewResource),table=table))
+            userobjects.update(uoTable.userObjectMenu(objtype=objtype,flags='RES_%s' % viewResource,table=table))
         #backward compatibility: old gridId-based flags
         flagCode = '%s_grid' %th_root.split('_DUP_')[0]
         userobjects.update(uoTable.userObjectMenu(objtype=objtype,flags='%s_%s' % (self.pagename, flagCode),table=table))
