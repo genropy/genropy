@@ -788,7 +788,7 @@ dojo.declare("gnr.widgets.FramePane", gnr.widgets.gnrwdg, {
         var frameCode = kw.frameCode;
         genro.assert(frameCode,'Missing frameCode');
         if(frameCode.indexOf('#')>=0){
-            kw.frameCode = frameCode = frameCode.replace('#',sourceNode.getStringId()); 
+            kw.frameCode = frameCode = frameCode.replace('#','_DUP_' + sourceNode.getStringId());
         }
         var frameId = frameCode+'_frame';
         genro.assert(!genro.nodeById(frameId),'existing frame');

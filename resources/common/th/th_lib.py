@@ -25,7 +25,7 @@ class TableHandlerCommon(BaseComponent):
     def _th_mangler(self,pane,table,nodeId=None):
         tableCode = table.replace('.','_')
         if nodeId and nodeId.endswith('#'):
-            nodeId = nodeId.replace('#',str(id(pane)))
+            nodeId = nodeId.replace('#','_DUP_%s' % id(pane))
         th_root = nodeId or tableCode #'%s_%i' %(tableCode,id(pane.parentNode))
         return th_root
         

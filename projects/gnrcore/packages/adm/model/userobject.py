@@ -1,10 +1,13 @@
 # encoding: utf-8
 
 import os
+import re
 
 from gnr.core.gnrbag import Bag,DirectoryResolver
 from gnr.core.gnrdecorator import public_method,extract_kwargs
 from gnr.app import logger
+
+DUP_RE = re.compile(r'_DUP_(?:n_)?\d+')
 
 class Table(object):
     def config_db(self, pkg):
@@ -52,9 +55,17 @@ class Table(object):
         
     def trigger_onUpdating(self,record=None,old_record=None):
         self.updateRequiredPkg(record)
+        self._normalizeRecordFlags(record)
 
     def trigger_onInserting(self,record=None):
         self.updateRequiredPkg(record)
+        self._normalizeRecordFlags(record)
+
+    def _normalizeRecordFlags(self, record, pattern=None):
+        flags = record.get('flags')
+        if flags:
+            dup_re = pattern or DUP_RE
+            record['flags'] = ','.join(dup_re.sub('', f.strip()) for f in flags.split(','))
     
 
     def resourceStatus(self,record):
@@ -220,6 +231,20 @@ class Table(object):
     def deleteUserObject(self, pkey):
         self.delete(pkey)
         self.db.commit()
+
+    @public_method
+    def normalizeAllFlags(self):
+        """One-time cleanup: strip dynamic _DUP_ components from all userobject flags."""
+        records = self.query(where='$flags IS NOT NULL', columns='$id,$flags').fetch()
+        count = 0
+        for r in records:
+            old_flags = r['flags']
+            new_flags = ','.join(DUP_RE.sub('', f.strip()) for f in old_flags.split(','))
+            if new_flags != old_flags:
+                self.batchUpdate(dict(flags=new_flags), where='$id=:pk', pk=r['id'])
+                count += 1
+        self.db.commit()
+        return count
 
     @public_method
     @extract_kwargs(menuline=True)
