@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 58" fill="none" stroke="#bbb" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="22" cy="22" r="12" stroke-width="1.5"/>
+  <line x1="31" y1="31" x2="40" y2="40" stroke-width="2.5"/>
+  <line x1="18" y1="18" x2="26" y2="26" opacity="0.5" stroke-width="1.5"/>
+  <line x1="26" y1="18" x2="18" y2="26" opacity="0.5" stroke-width="1.5"/>
+  <text x="24" y="55" text-anchor="middle" fill="#aaa" stroke="none" font-family="system-ui, sans-serif" font-size="7" font-weight="500">No results</text>
+</svg>
