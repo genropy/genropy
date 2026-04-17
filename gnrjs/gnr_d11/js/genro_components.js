@@ -3193,6 +3193,7 @@ dojo.declare("gnr.widgets.QuickGrid", gnr.widgets.gnrwdg, {
                         nodeId:kw.nodeId+'_store',datapath:kw.controllerPath,
                         storeType:kw.datamode=='bag'?'ValuesBagRows':'AttributesBagRows'},store_kwargs));
         var tools = subTagItems.tools;
+        kw._class = (kw._class ? kw._class + ' ' : '') + 'quickgrid_container';
         var gridRoot= tools.len()? this.toolsGridRoot(sourceNode,kw,tools.getAttr('#0')) : sourceNode;
         kw.datapath = kw.controllerPath;
         if(!('gridplugins' in kw)){
