@@ -81,24 +81,44 @@
     background-color: var(--field-disabled-bg, #F7F7FA);
     background-image: none;
     color: var(--field-disabled-color, inherit);
+    opacity: var(--field-disabled-opacity, 0.7);
     cursor: not-allowed;
 }
 
-/* --- ReadOnly state: normal appearance, not grayed out --- */
+/* --- ReadOnly state: subtle border, white background --- */
 .gnr_dojotheme .dijitReadOnly.dijitTextBox,
 .gnr_dojotheme .dijitReadOnly.dijitTextArea,
 .gnr_dojotheme .dijitReadOnly.dijitComboBox,
 .gnr_dojotheme .dijitDisabled.dijitTextBoxReadOnly {
-    background-color: var(--field-bg, #fff);
+    background-color: var(--field-readonly-bg, #fff);
     background-image: none;
-    border-color: var(--field-border, #AEAEB2);
-    color: inherit;
+    border-color: var(--field-readonly-border, #E5E5EA);
+    color: var(--field-readonly-color, inherit);
     cursor: default;
 }
 .gnr_dojotheme .dijitDisabled.dijitTextBoxReadOnly .dijitButtonNode {
     background-color: transparent;
     color: inherit;
     cursor: pointer;
+}
+
+/* --- CheckBoxText: interactive widget, restore normal border --- */
+.gnr_dojotheme .dijitReadOnly.dijitTextBox.checkBoxTextField {
+    border-color: var(--field-border, #AEAEB2);
+    background-color: var(--field-bg, #fff);
+    cursor: pointer;
+}
+
+/* --- ReadOnly + Error state: error indicators must override readonly appearance --- */
+.gnr_dojotheme .dijitReadOnly.dijitTextBox.dijitError,
+.gnr_dojotheme .dijitReadOnly.dijitTextArea.dijitError,
+.gnr_dojotheme .dijitReadOnly.dijitComboBox.dijitError,
+.gnr_dojotheme .dijitDisabled.dijitTextBoxReadOnly.dijitError {
+    border-color: #c06060;
+    border-color: color-mix(in srgb, var(--status-error, #E53935) 60%, var(--field-border, #AEAEB2));
+    background-color: #fdf0f0;
+    background-color: color-mix(in srgb, var(--status-error, #E53935) 7%, var(--field-bg, white));
+    background-image: none;
 }
 
 /* --- Error state — red dot indicator --- */

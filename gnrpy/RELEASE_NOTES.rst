@@ -1,3 +1,23 @@
+Release 26.04.13
+================
+
+Bugfix release.
+
+Introduce distinct visual styling for readonly fields (subtle border,
+white background) to clearly differentiate them from normal editable
+and disabled fields (#790)
+
+
+Release 26.04.09
+================
+
+Bugfix release.
+
+* guard against showHider race condition in lockScreen (#785)
+* fix validation error indicator not showing on readonly fields (#783)
+* allow textarea resize in both directions (#784)
+
+
 Release 26.04.07.1
 ==================
 

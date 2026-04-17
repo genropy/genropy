@@ -137,10 +137,35 @@ class MultiStageDockerImageBuilder:
             dockerfile.write("\n# Final customizations\n")
             gunicorn_template = """
 import multiprocessing
+            
+def get_cpu_limit():
+    # cgroup v2
+    try:
+        with open("/sys/fs/cgroup/cpu.max") as f:
+            quota, period = f.read().strip().split()
+            if quota != "max":
+                return max(1, int(int(quota) / int(period)))
+    except FileNotFoundError:
+        pass
+
+    # cgroup v1 fallback
+    try:
+        with open("/sys/fs/cgroup/cpu/cpu.cfs_quota_us") as q:
+            quota = int(q.read())
+        with open("/sys/fs/cgroup/cpu/cpu.cfs_period_us") as p:
+            period = int(p.read())
+        if quota > 0:
+            return max(1, int(quota / period))
+    except FileNotFoundError:
+        pass
+
+    # fallback (not in k8s or no limits)
+    return multiprocessing.cpu_count() or 1
+
 bind = '0.0.0.0:8888'
 pidfile = '/home/genro/gunicorn_{instanceName}.pid'
 daemon = False
-workers = multiprocessing.cpu_count()
+workers = get_cpu_limit()
 threads = 8
 loglevel = 'error'
 chdir = '/home/genro/genropy_projects/{main_repo_name}/instances/{instanceName}'

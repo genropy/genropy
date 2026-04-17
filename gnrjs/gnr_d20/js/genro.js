@@ -2445,7 +2445,7 @@ dojo.declare('gnr.GenroClient', null, {
             sourceNode._lockingElements[reason] = reason;
             var showHider = function(){
                 delete sourceNode._lockTimers[reason];
-                if(!sourceNode._lockingElements[reason]){ return; }
+                if(!sourceNode._lockingElements || !sourceNode._lockingElements[reason]){ return; }
                 var message = '<div class="form_waiting"></div>';
                 if(options.thermo){
                     genro.setData('gnr.lockScreen.thermo',message);

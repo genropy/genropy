@@ -1329,8 +1329,8 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
                                                   nodeId:gnrwdg.uploaderId
                                                  },dropAreaKw))
         var confirmPane = sc._('ContentPane',{});
-        var footerbar = confirmPane._('slotBar',{slots:'5,resetButton,*,importButton,5',margin_top:'5px'});
-        footerbar._('slotButton','resetButton',{label:'Clear',width:'8em',font_size:'1em',padding:'2px',
+        var footerbar = confirmPane._('slotBar',{slots:'5,resetButton,*,importButton,5'});
+        footerbar._('slotButton','resetButton',{label:'Clear',width:'8em',font_size:'1em',
                                             action:function(){gnrwdg.resetImporter();}});
         var importButtonKw = objectUpdate({label:'Import',width:'8em',font_size:'1em',padding:'2px',
                                         imported_file_path:'=.imported_file_path',
@@ -3193,6 +3193,7 @@ dojo.declare("gnr.widgets.QuickGrid", gnr.widgets.gnrwdg, {
                         nodeId:kw.nodeId+'_store',datapath:kw.controllerPath,
                         storeType:kw.datamode=='bag'?'ValuesBagRows':'AttributesBagRows'},store_kwargs));
         var tools = subTagItems.tools;
+        kw._class = (kw._class ? kw._class + ' ' : '') + 'quickgrid_container';
         var gridRoot= tools.len()? this.toolsGridRoot(sourceNode,kw,tools.getAttr('#0')) : sourceNode;
         kw.datapath = kw.controllerPath;
         if(!('gridplugins' in kw)){
@@ -3223,7 +3224,6 @@ dojo.declare("gnr.widgets.QuickGrid", gnr.widgets.gnrwdg, {
         if(tools_kw.title){
             tools_bar_class = 'slotbar_toolbar_standard';
             tools_kw.position = 'TR';
-            centerkw.border_top = '1px solid silver';
         }
         var bckw = {height: objectPop(kw,'height'),
             width: objectPop(kw,'width'),_class:'quickgrid_container'}
@@ -3252,19 +3252,23 @@ dojo.declare("gnr.widgets.QuickGrid", gnr.widgets.gnrwdg, {
         var tool_region=(tools_position[0]=='T') ? 'top':'bottom';
 
         var bc = sourceNode._('borderContainer',bckw);
-        
-        var tpane = bc._('contentPane',{region:tool_region,overflow:'hidden',datapath:'#WORKSPACE.tools',
-                                        height:'1.5em',_class:tools_bar_class});
-        if(tools_kw.title){
-            tpane._('div',{innerHTML:tools_kw.title,position:'absolute',left:'5px',top:'3px',
-                        font_weight:'bold',font_size:'.9em',color:'#444'});
+        var align_class = tools_kw.title ? 'quickgrid_toolbar_titled' :
+                          (tools_position[1] === 'R' ? 'quickgrid_toolbar_right' : 'quickgrid_toolbar_left');
+        var toolbar_class = 'quickgrid_toolbar ' + align_class;
+        if(tools_bar_class){
+            toolbar_class += ' ' + tools_bar_class;
         }
-        var posdict = {'TR':{right:'0',_class:'quickgrid_toolsbox_top quickgrid_toolsbox'},
-                       'TL':{left:'0',_class:'quickgrid_toolsbox_top quickgrid_toolsbox'},
-                        'BR':{right:'0',_class:'quickgrid_toolsbox_bottom quickgrid_toolsbox'},
-                        'BL':{left:'0',_class:'quickgrid_toolsbox_bottom quickgrid_toolsbox'}}   
+        var tpane = bc._('contentPane',{region:tool_region,overflow:'hidden',datapath:'#WORKSPACE.tools',
+                                        _class:toolbar_class});
+        if(tools_kw.title){
+            tpane._('div',{innerHTML:tools_kw.title,_class:'quickgrid_toolbar_title'});
+        }
+        var posdict = {'TR':{_class:'quickgrid_toolsbox_top quickgrid_toolsbox'},
+                       'TL':{_class:'quickgrid_toolsbox_top quickgrid_toolsbox'},
+                        'BR':{_class:'quickgrid_toolsbox_bottom quickgrid_toolsbox'},
+                        'BL':{_class:'quickgrid_toolsbox_bottom quickgrid_toolsbox'}};
         if(tools){
-            var mb = tpane._('div',objectUpdate(posdict[tools_position],{position:'absolute'}))._('multibutton',{value:'^.command',sticky:false});
+            var mb = tpane._('div',posdict[tools_position])._('multibutton',{value:'^.command',sticky:false});
             tools.split(',').forEach(function(t){
                 mb._('item',t,default_tools[t]);
             });
@@ -5693,7 +5697,7 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
         var table_kw = objectExtract(kw,'table_*');
         if(popup){
             var textBoxId = 'placingTextbox_'+genro.getCounter();
-            var tbkw = {'value':has_code?value+'?_displayedValue':value,position:'relative',readOnly:true,nodeId:textBoxId};
+            var tbkw = {'value':has_code?value+'?_displayedValue':value,position:'relative',readOnly:true,nodeId:textBoxId,'_class':'checkBoxTextField'};
             objectExtract(originalKwargs,'table,values,cols,identifier,labelAttribute,popup') //belongs to cbtext
             objectUpdate(tbkw,originalKwargs);
             tb = sourceNode._('textbox',tbkw);
