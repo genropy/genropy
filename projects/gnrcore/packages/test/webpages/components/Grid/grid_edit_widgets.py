@@ -107,7 +107,7 @@ class GnrCustomWebPage(object):
     def test_2_single_column(self, pane):
         """Single editable column: row must not disappear on double-click (#805)"""
         pane.data('.store_single', self._sample_data())
-        frame = pane.bagGrid(
+        pane.bagGrid(
             frameCode='single',
             title='Single column (row height regression test)',
             struct=self._single_column_struct,
@@ -125,7 +125,7 @@ class GnrCustomWebPage(object):
     def test_3_mixed_width(self, pane):
         """Two columns, one without explicit width: row must not shrink on edit (#805)"""
         pane.data('.store_mixed', self._sample_data())
-        frame = pane.bagGrid(
+        pane.bagGrid(
             frameCode='mixed',
             title='Mixed width columns (row height regression test)',
             struct=self._mixed_width_struct,
