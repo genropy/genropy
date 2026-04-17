@@ -1627,12 +1627,12 @@ class THViewUtils(BaseComponent):
         uoTable = self.db.table('adm.userobject')
         userobjects = Bag()
         if viewResource:
-            userobjects.update(uoTable.userObjectMenu(objtype=objtype,flags='RES_%s' % viewResource,table=table))
+            userobjects.update(uoTable.userObjectMenu(objtype=objtype,flags=f'RES_{viewResource}',table=table))
         #backward compatibility: old gridId-based flags
-        flagCode = '%s_grid' %th_root.split('_DUP_')[0]
-        userobjects.update(uoTable.userObjectMenu(objtype=objtype,flags='%s_%s' % (self.pagename, flagCode),table=table))
+        flagCode = f'{th_root.split("_DUP_")[0]}_grid'
+        userobjects.update(uoTable.userObjectMenu(objtype=objtype,flags=f'{self.pagename}_{flagCode}',table=table))
         if self.pagename.startswith('thpage'):
-            userobjects.update(uoTable.userObjectMenu(objtype='view',flags='thpage_%s' % flagCode,table=table))
+            userobjects.update(uoTable.userObjectMenu(objtype='view',flags=f'thpage_{flagCode}',table=table))
         return userobjects
 
     
