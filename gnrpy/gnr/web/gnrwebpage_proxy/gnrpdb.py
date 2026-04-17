@@ -45,7 +45,7 @@ class GnrPdbClient(GnrBaseProxy):
             debugger_page_id = connectionStore.getItem('_dev.gnride_page_id')
         except Exception as e:
             pass
-        if not debugger_page_id or self.page.page_id==debugger_page_id:
+        if not debugger_page_id or self.page.page_id==debugger_page_id or not self.page.wsk:
             return
         breakpoints = connectionStore.getItem('_pdb.breakpoints')
         bp = 0
@@ -87,8 +87,7 @@ class GnrPdb(pdb.Pdb):
     def onClosePage(self):
         for bpinstance in self.mybp:
             bpinstance.deleteMe()
-        if self.page.wsk:
-            self.page.wsk.sendCommandToPage(self.debugger_page_id,'close_debugger',self.pdb_id)
+        self.page.wsk.sendCommandToPage(self.debugger_page_id,'close_debugger',self.pdb_id)
             
     def getStackBag(self,frame):
         result = Bag()
@@ -127,14 +126,13 @@ class GnrPdb(pdb.Pdb):
                                     lineno = result['current.lineno'],
                                     functionName=result['functionName'],
                                     pdb_counter=result['pdb_counter']))
-        if self.page.wsk:
-            self.page.wsk.publishToClient(self.page.page_id,'debugstep',
-                                          data=Bag(dict(current=result['current'],pdb_id=self.pdb_id,methodname=self.methodname,
-                                                        functionName=result['current.functionName'],
-                                                        lineno=result['current.lineno'],
-                                                        debugger_page_id=self.debugger_page_id,
-                                                        filename=os.path.basename(result['current.filename']),
-                                                        callcounter=self.callcounter)))
+        self.page.wsk.publishToClient(self.page.page_id,'debugstep',
+                                      data=Bag(dict(current=result['current'],pdb_id=self.pdb_id,methodname=self.methodname,
+                                                    functionName=result['current.functionName'],
+                                                    lineno=result['current.lineno'],
+                                                    debugger_page_id=self.debugger_page_id,
+                                                    filename=os.path.basename(result['current.filename']),
+                                                    callcounter=self.callcounter)))
         self.pdb_counter +=1
         return self.makeEnvelope(result)
 
