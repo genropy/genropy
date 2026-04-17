@@ -946,6 +946,7 @@ class TableHandlerView(BaseComponent):
         inattr = pane.getInheritedAttributes()
         th_root = inattr['th_root']
         table = inattr['table']
+        viewResource = inattr.get('th_viewResource', '')
         gridId = '%s_grid' %th_root
 
         #SOURCE MENUQUERIES
@@ -1011,9 +1012,10 @@ class TableHandlerView(BaseComponent):
             prefix,name=k.split('_struct_')
             q.setItem(name,self._prepareGridStruct(v,table=table),caption=v.__doc__)
         pane.data('.grid.resource_structs',q)
-        pane.data('.grid.userobject_structs',self.th_userObjectViews(table=table,th_root=th_root))
+        pane.data('.grid.viewResource',viewResource)
+        pane.data('.grid.userobject_structs',self.th_userObjectViews(table=table,th_root=th_root,viewResource=viewResource))
         pane.dataRpc('.grid.userobject_structs',self.th_userObjectViews,
-                        table=table,th_root=th_root,
+                        table=table,th_root=th_root,viewResource=viewResource,
                         _loadAfter='^.grid.reload_userobjects_struct',
                         _onResult="""if(kwargs._loadAfter!==true){
                             PUT .grid.currViewPath = null;
@@ -1620,13 +1622,17 @@ class THViewUtils(BaseComponent):
         return menu
 
     @public_method
-    def th_userObjectViews(self,table=None,th_root=None,objtype=None,**kwargs):
+    def th_userObjectViews(self,table=None,th_root=None,objtype=None,viewResource=None,**kwargs):
         objtype = objtype or 'view'
+        uoTable = self.db.table('adm.userobject')
+        userobjects = Bag()
+        if viewResource:
+            userobjects.update(uoTable.userObjectMenu(objtype=objtype,flags='%s_RES_%s' % (self.pagename, viewResource),table=table))
+        #backward compatibility: old gridId-based flags
         flagCode = '%s_grid' %th_root.split('_DUP_')[0]
-        userobjects = self.db.table('adm.userobject').userObjectMenu(objtype=objtype,flags='%s_%s' % (self.pagename, flagCode),table=table)
+        userobjects.update(uoTable.userObjectMenu(objtype=objtype,flags='%s_%s' % (self.pagename, flagCode),table=table))
         if self.pagename.startswith('thpage'):
-            #compatibility old saved views
-            userobjects.update(self.db.table('adm.userobject').userObjectMenu(objtype='view',flags='thpage_%s' % flagCode,table=table))
+            userobjects.update(uoTable.userObjectMenu(objtype='view',flags='thpage_%s' % flagCode,table=table))
         return userobjects
 
     

@@ -45,7 +45,13 @@ var genro_plugin_grid_configurator = {
         var that = this;
         var saveCb = function(dlg) {
             var pagename = genro.getData('gnr.pagename');
-            var flag =  pagename+'_'+gridId.replace(/_DUP_.*?(?=_grid)/, "");
+            var viewResource = gridSourceNode.getRelativeData('.viewResource');
+            var flag;
+            if(viewResource){
+                flag = pagename+'_RES_'+viewResource;
+            }else{
+                flag = pagename+'_'+gridId.replace(/_DUP_.*?(?=_grid)/, "");
+            }
             var metadata = genro.getData(datapath);
             var flags = metadata.getItem('flags');
             if(flags){
