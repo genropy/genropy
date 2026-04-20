@@ -68,7 +68,9 @@ _XSS_PATTERNS = [
     re.compile(r'<\s*meta[^>]*>', re.IGNORECASE),
     re.compile(r'javascript\s*:', re.IGNORECASE),
     re.compile(r'vbscript\s*:', re.IGNORECASE),
-    re.compile(r'on\w+\s*=\s*(?:"[^"]*"|\'[^\']*\'|\S+)', re.IGNORECASE),
+    #re.compile(r'on\w+\s*=\s*(?:"[^"]*"|\'[^\']*\'|\S+)', re.IGNORECASE),
+    re.compile(r'<\s*iframe[\s\S]*?>', re.IGNORECASE),
+    re.compile(r'<\s*/\s*iframe\s*>', re.IGNORECASE),
 ]
 
 STORAGE_TYPES = ['_storage']
