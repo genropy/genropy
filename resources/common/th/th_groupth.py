@@ -56,7 +56,8 @@ class TableHandlerGroupBy(BaseComponent):
         datapath = datapath or '.%s' %frameCode
         rootNodeId = frameCode
         if not struct and viewResource:
-            self._th_mixinResource(frameCode,table=table,resourceName=viewResource,defaultClass='View')
+            if not self._th_mixinResource(frameCode,table=table,resourceName=viewResource,defaultClass='View',pane=pane):
+                return
             struct = self._th_hook('groupedStruct',mangler=frameCode)
             store_kwargs['applymethod'] = store_kwargs.get('applymethod') or self._th_hook('groupedApplymethod',mangler=frameCode)
         bc = pane.borderContainer(datapath=datapath,_class='group_by_th',_anchor=True,**kwargs)

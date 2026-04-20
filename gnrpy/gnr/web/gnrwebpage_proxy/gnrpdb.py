@@ -45,7 +45,7 @@ class GnrPdbClient(GnrBaseProxy):
             debugger_page_id = connectionStore.getItem('_dev.gnride_page_id')
         except Exception as e:
             pass
-        if not debugger_page_id or self.page.page_id==debugger_page_id:
+        if not debugger_page_id or self.page.page_id==debugger_page_id or not self.page.wsk:
             return
         breakpoints = connectionStore.getItem('_pdb.breakpoints')
         bp = 0
@@ -127,12 +127,12 @@ class GnrPdb(pdb.Pdb):
                                     functionName=result['functionName'],
                                     pdb_counter=result['pdb_counter']))
         self.page.wsk.publishToClient(self.page.page_id,'debugstep',
-                data=Bag(dict(current=result['current'],pdb_id=self.pdb_id,methodname=self.methodname,
-                                                        functionName=result['current.functionName'],
-                                                        lineno=result['current.lineno'],
-                                                        debugger_page_id=self.debugger_page_id,
-                                                        filename=os.path.basename(result['current.filename']),
-                                                        callcounter=self.callcounter)))
+                                      data=Bag(dict(current=result['current'],pdb_id=self.pdb_id,methodname=self.methodname,
+                                                    functionName=result['current.functionName'],
+                                                    lineno=result['current.lineno'],
+                                                    debugger_page_id=self.debugger_page_id,
+                                                    filename=os.path.basename(result['current.filename']),
+                                                    callcounter=self.callcounter)))
         self.pdb_counter +=1
         return self.makeEnvelope(result)
 

@@ -46,8 +46,8 @@
 
     /* --- Typography --- */
     --font-family: 'Inter', -apple-system, 'Helvetica Neue', 'Arial', sans-serif; /* @theme @palette */
-    --font-size: 14px; /* @theme @palette */
-    --mainWindow-font-size: 0.81rem;
+    --font-size: 0.81rem; /* @theme @palette */
+    --dialog-content-font-size: inherit;
 
     /* --- Brand / Primary --- */
     --primary-color: var(--gray-600); /* @theme */
@@ -70,8 +70,8 @@
 
     /* --- Borders --- */
     --border-color: var(--gray-300); /* @theme */
-    --border-light: var(--gray-150); /* @theme */
-    --border-strong: var(--gray-300); /* @theme */
+    --border-light: var(--gray-200); /* @theme */
+    --border-strong: var(--gray-400); /* @theme */
 
     /* --- Text --- */
     --text-color: var(--gray-900); /* @theme */
@@ -107,6 +107,7 @@
     /* === Components === */
 
     /* --- Grid --- */
+    --grid-cell-inset-top: 3px; /* top offset from cell edge to content — keeps text, widgets and checkboxes aligned */
     --grid-border-color: var(--gray-150); /* @theme */
     --grid-header-bg: var(--surface-light); /* @theme */
     --grid-header-color: var(--text-color); /* @theme */
@@ -149,10 +150,11 @@
     --toolbar-height-lg: 2em;
     --toolbar-min-height: 2.3em;
     --toolbar-min-height-lg: 2.8em;
-    --toolbar-bg: var(--gray-200); /* @theme */
-    --toolbar-gradient: linear-gradient(to bottom, var(--gray-150), var(--gray-200)); /* @theme */
+    --toolbar-bg: var(--gray-300); /* @theme */
+    --toolbar-gradient: linear-gradient(to bottom, var(--gray-200), var(--gray-300)); /* @theme */
     --toolbar-color: var(--gray-900); /* @theme */
     --toolbar-dark-bg: var(--gray-600); /* @theme */
+    --quickgrid-toolbar-min-height: 1.8em;
 
     /* --- Layout: frameindex --- */
     --frameindexroot-background: var(--gray-100); /* @theme */
@@ -160,6 +162,8 @@
     --frameindexroot-mobile-background: var(--gray-800); /* @theme */
     --frameindex-tablist-background: var(--gray-800); /* @theme */
     --frameindex-tablist-color: var(--text-on-dark); /* @theme */
+    --frameindex-tablist-min-height: 3em;
+    --frameindex-tab-height: 1.9em;
     --frameindex-tab-bg: #D8D8D8; /* white 80% + gray-800 #3A3A3C — override in theme/variant files */
     --frameindex-tab-bg-hover: var(--gray-700); /* override in theme/variant files */
     --frameindex-tab-border: var(--gray-200); /* @theme */
@@ -191,18 +195,31 @@
     --roundedgroup-shadow: rgba(0,0,0,0.06); /* @theme */
     --rectgroup-bar-background: var(--gray-200); /* @theme */
 
+    /* --- Expandbox (details/summary disclosure widget) --- */
+    --expandbox-border: var(--border-light); /* @theme */
+    --expandbox-radius: var(--radius-sm); /* @theme */
+    --expandbox-header-bg: var(--roundedgroup-bar); /* @theme */
+    --expandbox-header-color: var(--roundedgroup-bar-color); /* @theme */
+    --expandbox-header-padding: 4px 8px; /* @theme */
+    --expandbox-header-font-size: var(--form-label-font-size); /* @theme */
+    --expandbox-header-font-weight: bold; /* @theme */
+    --expandbox-content-padding: 8px; /* @theme */
+    --expandbox-transition-duration: 0.3s; /* @theme */
+
     /* === Forms === */
 
     /* --- Form fields --- */
     --field-bg: var(--color-bg); /* @theme */
-    --field-border: var(--gray-300); /* @theme */
+    --field-border: var(--gray-400); /* @theme */
     --field-error-border: #DE9091; /* color-error #E53935 45% + gray-300 #D8D8DC */
     --field-error-dot-size: 8px; /* @theme */
     --field-error-dot-color: var(--color-error); /* @theme */
     --field-error-dot-ring: var(--surface-color, white); /* @theme */
     --field-disabled-border: var(--gray-250); /* @theme */
     --field-disabled-bg: var(--gray-100);
-    --field-readonly-border: var(--field-border);
+    --field-disabled-color: var(--gray-500);
+    --field-disabled-opacity: 0.85;
+    --field-readonly-border: var(--gray-200);
     --field-readonly-bg: var(--field-bg);
     --field-focus-bg: var(--color-bg);
     --gnrfieldlabel-color: var(--gray-700); /* @theme — readable on light form surfaces */
@@ -226,6 +243,7 @@
     --formbuilder-field-bg: var(--form-field-bg);
     --formbuilder-field-border-width: var(--form-field-border-width);
     --formbuilder-field-radius: var(--form-field-radius);
+    --formbuilder-field-padding-x: 3px;
 
     /* --- Fake textbox (read-only field display) --- */
     --fakebox-padding-x: 4px;
@@ -241,8 +259,6 @@
     /* --- Formlet (grid-layout forms) --- */
     --formlet-gap: 7px 20px;
     --formlet-padding: 7px;
-    --formlet-field-border: var(--form-field-border);
-    --formlet-field-bg: var(--form-field-bg);
     --formlet-field-border-width: var(--form-field-border-width);
     --formlet-field-radius: var(--form-field-radius);
     --formlet-field-padding-y: 0.3em;
@@ -262,7 +278,51 @@
     --status-warning: var(--color-warning); /* @theme */
     --status-idle: var(--gray-300); /* @theme */
 
-    /* --- Toaster --- */
+    /* --- Toast (gnr-toast notification cards) --- */
+    --toast-container-gap: 8px;
+    --toast-container-top: 16px;
+    --toast-container-right: 16px;
+    --toast-min-width: 300px;
+    --toast-max-width: 420px;
+    --toast-padding: 14px 16px;
+    --toast-gap: 10px;
+    --toast-border-width: 4px;
+    --toast-icon-size: 20px;
+    --toast-btn-size: 18px;
+    --toast-progress-height: 3px;
+
+    /* --- Traceback viewer (gnr-tb) --- */
+    --tb-font-size: 13px;
+    --tb-mono-font: "SF Mono", Menlo, monospace;
+    --tb-frame-border: var(--gray-200);
+    --tb-frame-border-open: var(--gray-300);
+    --tb-frame-border-error: #f87171;
+    --tb-frame-radius: 8px;
+    --tb-summary-bg: #fafbfc;
+    --tb-summary-hover: #f0f4f8;
+    --tb-num-bg: var(--gray-200);
+    --tb-num-color: #666;
+    --tb-num-error-bg: #fee2e2;
+    --tb-module-color: var(--accent-color);
+    --tb-func-color: #7c3aed;
+    --tb-muted-color: #999;
+    --tb-hash-color: #9ca3af;
+    --tb-hash-bg: var(--gray-100);
+    --tb-locals-badge-bg: #dbeafe;
+    --tb-locals-hdr-bg: #f8fafc;
+    --tb-locals-th-bg: #f1f5f9;
+    --tb-code-bg: #1e293b;
+    --tb-code-color: #e2e8f0;
+    --tb-error-bg: #fef2f2;
+    --tb-error-color: #dc2626;
+    --tb-error-border: #fecaca;
+    --tb-btn-bg: #f8f9fa;
+    --tb-btn-border: #ddd;
+    --tb-btn-color: #555;
+    --tb-btn-hover-bg: #e9ecef;
+    --tb-btn-hover-border: #ccc;
+
+    /* --- Toaster (legacy dojox.widget.Toaster) --- */
     --toaster-success-bg: #70BF73; /* @theme — color-success #4CAF50 80% + white */
     --toaster-error-bg: #8C2320;   /* @theme — color-error #E53935 60% + black */
     --toaster-warning-bg: #FFA726; /* @theme — color-warning #FF9800 85% + white */
@@ -304,6 +364,20 @@
     --btn-filled-selected-bg: #004FA6; /* @theme — accent-color #007AFF 65% + black */
     --btn-filled-disabled-bg: var(--accent-color, #007AFF);
     --btn-filled-disabled-color: var(--color-bg);
+
+    /* --- Buttons: deleting — filled specialization (destructive action) --- */
+    --btn-deleting-bg: var(--color-error, #D32F2F); /* @theme */
+    --btn-deleting-color: #ffffff; /* @theme */
+    --btn-deleting-hover-bg: #B71C1C; /* @theme — color-error 80% + black */
+    --btn-deleting-pressed-bg: #951A1A; /* @theme — color-error 65% + black */
+    --btn-deleting-disabled-bg: var(--color-error, #D32F2F); /* @theme */
+    --btn-deleting-disabled-color: var(--btn-deleting-color); /* @theme */
+
+    /* --- Buttons: deleting — tonal specialization --- */
+    --btn-deleting-tonal-bg: #FDECEA; /* @theme — color-error 12% + white */
+    --btn-deleting-tonal-color: var(--color-error, #D32F2F); /* @theme */
+    --btn-deleting-tonal-hover-bg: #F9D6D2; /* @theme — color-error 20% + white */
+    --btn-deleting-tonal-pressed-bg: #F5C0BA; /* @theme — color-error 28% + white */
 
     /* --- Buttons: tonal (light version of accent-color) --- */
     --btn-tonal-bg: #E0EFFF; /* @theme — accent-color #007AFF 12% + white — override in theme/variant */

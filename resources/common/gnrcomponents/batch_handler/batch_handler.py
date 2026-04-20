@@ -95,30 +95,34 @@ class TableScriptHandler(BaseComponent):
         pane.data('#table_script_runner.dialog_pars',Bag())
         pane.data('#table_script_runner.dialog_options',Bag())
 
+        schedulable = batch_dict.get('schedulable')
+        if isinstance(schedulable, str):
+            schedulable = self.application.checkResourcePermission(schedulable, self.userTags)
         hasParameters = hasattr(self, 'table_script_parameters_pane')
         hasOptions = hasattr(self, 'table_script_option_pane')
+        showParametersDialog = hasParameters or bool(schedulable)
         dlgpars = pane.dialog(title='^.title',
-                            datapath='.dialog_pars',
-                            connect_show="setTimeout(function(){genro.formById('_ts_parameters_').newrecord()},1)",
-                            connect_hide="setTimeout(function(){genro.formById('_ts_parameters_').abort()},1)",
-                            childname='parametersDialog',
-                            _class='dlg_flexbody')
+                              datapath='.dialog_pars',
+                              connect_show="setTimeout(function(){genro.formById('_ts_parameters_').newrecord()},1)",
+                              connect_hide="setTimeout(function(){genro.formById('_ts_parameters_').abort()},1)",
+                              childname='parametersDialog',
+                              _class='dlg_flexbody')
         parsform = dlgpars.boxForm(formId='_ts_parameters_',store='dummy',
-                                 formDatapath='#table_script_runner.data')
+                                   formDatapath='#table_script_runner.data')
         dlgoptions = pane.dialog(title='^.title',datapath='.dialog_options',
-                                position='relative',
-                                connect_show="setTimeout(function(){genro.formById('_ts_options_').newrecord()},1)",
-                                connect_dismiss="setTimeout(function(){genro.formById('_ts_options_').abort()},1)",
-                                childname='optionsDialog')
+                                 position='relative',
+                                 connect_show="setTimeout(function(){genro.formById('_ts_options_').newrecord()},1)",
+                                 connect_dismiss="setTimeout(function(){genro.formById('_ts_options_').abort()},1)",
+                                 childname='optionsDialog')
         optionsform = dlgoptions.boxForm(formId='_ts_options_',store='dummy',
-                                 formDatapath='#table_script_runner.data.batch_options')
+                                         formDatapath='#table_script_runner.data.batch_options')
         pane = pane.div(datapath='#table_script_runner')
         askOptions = batch_dict.get('ask_options')
         if askOptions is None:
             askOptions = True
         elif isinstance(askOptions,str):
             askOptions = self.db.application.allowedByPreference(askOptions)
-        if hasParameters:
+        if showParametersDialog:
             parsbox = parsform.div(datapath='#table_script_runner.data',
                             min_width='300px',childname='contentNode',
                             padding='10px')
@@ -126,7 +130,8 @@ class TableScriptHandler(BaseComponent):
                 record_count = batch_dict.get('record_count')
                 dlgtitle = "!!%s (%i)" %(batch_dict['title'],record_count) if record_count else batch_dict['title']
                 parsform.dataFormula('.title','dlgtitle',dlgtitle=dlgtitle,_onBuilt=True)
-            self.table_script_parameters_pane(parsbox,extra_parameters=extra_parameters,**batch_dict)
+            if hasParameters:
+                self.table_script_parameters_pane(parsbox,extra_parameters=extra_parameters,**batch_dict)
             self.table_script_parameters_footer(dlgpars.div(childname='footerNode'),**batch_dict)  
             dlgpars.dataController("""
                 var frm = genro.formById('_ts_parameters_');
@@ -173,16 +178,16 @@ class TableScriptHandler(BaseComponent):
                                 }else{
                                     if(modifier!='Shift'){
                                         genro.mainGenroWindow.genro.publish('open_batch');
-                                    }                                
+                                    }
                                 }
                                 that.fireEvent('.run',true);
                             });
                             """,
                            _fired="^.confirm", pars='=.data',
                            immediate=immediate or False,
-                           dlgpars=dlgpars.js_widget,dlgoptions=dlgoptions.js_widget) 
+                           dlgpars=dlgpars.js_widget,dlgoptions=dlgoptions.js_widget)
         pane.dataController(
-        """if(hasParameters){
+        """if(showParametersDialog){
                 dlgpars.show();
             }else if(hasOptions && askOptions){
                 dlgoptions.show();
@@ -192,7 +197,7 @@ class TableScriptHandler(BaseComponent):
         """,_onBuilt=True,askOptions=askOptions,
             dlgpars=dlgpars.js_widget,
             dlgoptions=dlgoptions.js_widget,
-            hasParameters=hasParameters,hasOptions=hasOptions)
+            showParametersDialog=showParametersDialog,hasOptions=hasOptions)
 
     @public_method
     def table_script_run(self, table=None, resource=None, res_type=None, selectionName=None, selectedPkeys=None,selectionFilterCb=None,

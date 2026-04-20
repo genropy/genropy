@@ -23,13 +23,13 @@
     border-radius: var(--formbuilder-field-radius, var(--radius-sm));
     line-height: normal;
     position: relative;
-    padding-left: 3px;
+    padding-left: var(--formbuilder-field-padding-x);
     padding-top: 1px;
     box-sizing: border-box;
 }
 
 .gnr_dojotheme .dijitInputField input {
-    padding-right: 3px;
+    padding-right: var(--formbuilder-field-padding-x);
     background: transparent;
 }
 
@@ -81,24 +81,44 @@
     background-color: var(--field-disabled-bg, #F7F7FA);
     background-image: none;
     color: var(--field-disabled-color, inherit);
+    opacity: var(--field-disabled-opacity, 0.7);
     cursor: not-allowed;
 }
 
-/* --- ReadOnly state: normal appearance, not grayed out --- */
+/* --- ReadOnly state: subtle border, white background --- */
 .gnr_dojotheme .dijitReadOnly.dijitTextBox,
 .gnr_dojotheme .dijitReadOnly.dijitTextArea,
 .gnr_dojotheme .dijitReadOnly.dijitComboBox,
 .gnr_dojotheme .dijitDisabled.dijitTextBoxReadOnly {
-    background-color: var(--field-bg, #fff);
+    background-color: var(--field-readonly-bg, #fff);
     background-image: none;
-    border-color: var(--field-border, #AEAEB2);
-    color: inherit;
+    border-color: var(--field-readonly-border, #E5E5EA);
+    color: var(--field-readonly-color, inherit);
     cursor: default;
 }
 .gnr_dojotheme .dijitDisabled.dijitTextBoxReadOnly .dijitButtonNode {
     background-color: transparent;
     color: inherit;
     cursor: pointer;
+}
+
+/* --- CheckBoxText: interactive widget, restore normal border --- */
+.gnr_dojotheme .dijitReadOnly.dijitTextBox.checkBoxTextField {
+    border-color: var(--field-border, #AEAEB2);
+    background-color: var(--field-bg, #fff);
+    cursor: pointer;
+}
+
+/* --- ReadOnly + Error state: error indicators must override readonly appearance --- */
+.gnr_dojotheme .dijitReadOnly.dijitTextBox.dijitError,
+.gnr_dojotheme .dijitReadOnly.dijitTextArea.dijitError,
+.gnr_dojotheme .dijitReadOnly.dijitComboBox.dijitError,
+.gnr_dojotheme .dijitDisabled.dijitTextBoxReadOnly.dijitError {
+    border-color: #c06060;
+    border-color: color-mix(in srgb, var(--status-error, #E53935) 60%, var(--field-border, #AEAEB2));
+    background-color: #fdf0f0;
+    background-color: color-mix(in srgb, var(--status-error, #E53935) 7%, var(--field-bg, white));
+    background-image: none;
 }
 
 /* --- Error state — red dot indicator --- */
@@ -108,7 +128,6 @@
     background-color: #fdf0f0; /* fallback */
     background-color: color-mix(in srgb, var(--status-error, #E53935) 7%, var(--field-bg, white));
     background-image: none;
-    overflow: visible;
 }
 
 .gnr_dojotheme .dijitError::after {
@@ -140,42 +159,6 @@
     background-image: none;
 }
 
-/* --- Error tooltip (pure CSS, uses data-error attribute) ---
- * Shows on hover only (desktop). On mobile, the form floating
- * message at save time provides the error details. */
-.gnr_dojotheme .dijitError[data-error]::before {
-    content: attr(data-error);
-    position: absolute;
-    left: 0;
-    top: calc(100% + 4px);
-    max-width: 280px;
-    padding: 5px 9px;
-    border-radius: var(--radius-sm);
-    background: var(--field-error-tooltip-bg, color-mix(in srgb, var(--status-error, #E53935) 12%, var(--surface-color, white)));
-    color: var(--field-error-tooltip-color, var(--status-error, #E53935));
-    border: 1px solid color-mix(in srgb, var(--status-error, #E53935) 30%, transparent);
-    font-size: 0.82em;
-    font-weight: 500;
-    line-height: 1.35;
-    white-space: pre-wrap;
-    pointer-events: none;
-    z-index: var(--z-flash, 99999);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.10);
-    opacity: 0;
-    transition: opacity 0.2s ease-out;
-}
-
-.gnr_dojotheme .dijitError[data-error]:hover::before {
-    opacity: 1;
-    transition-delay: 0.4s;
-}
-
-/* --- Mobile: tooltip on :active (tap), dot stays hidden --- */
-@media (hover: none) {
-    .gnr_dojotheme .dijitError[data-error]:active::before {
-        opacity: 1;
-    }
-}
 
 .gnr_dojotheme .dijitTextBoxErrorDisabled {
     border-color: transparent;

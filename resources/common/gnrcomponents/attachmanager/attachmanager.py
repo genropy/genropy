@@ -294,6 +294,7 @@ class AttachManager(BaseComponent):
                             height='40px',
                             ask=ask,
                             onUploadingMethod=self.onUploadingAttachment,
+                            onUploadedMethod=self.onUploadedAttachment,
                             rpc_maintable_id= maintable_id.replace('^','=') if maintable_id else '=#FORM.pkey',
                             rpc_attachment_table= th.view.grid.attributes['table'],
                             _class='importerPaletteDropUploaderBox',
@@ -359,6 +360,7 @@ class AttachManager(BaseComponent):
                             height='40px',
                             ask=ask,
                             onUploadingMethod=self.onUploadingAttachment,
+                            onUploadedMethod=self.onUploadedAttachment,
                             rpc_maintable_id= maintable_id.replace('^','=') if maintable_id else '=#FORM.pkey',
                             rpc_attachment_table= th.view.grid.attributes['table'],
                             _class='importerPaletteDropUploaderBox',
@@ -462,6 +464,7 @@ class AttachManager(BaseComponent):
                             label='<div class="atc_galleryDropArea"><div>Drop document here</div><div>or double click</div></div>',
                             height='40px',
                             onUploadingMethod=self.onUploadingAttachment,
+                            onUploadedMethod=self.onUploadedAttachment,
                             rpc_maintable_id= maintable_id.replace('^','=') if maintable_id else '=#FORM.pkey' ,
                             rpc_attachment_table= th.view.grid.attributes['table'],
                             _class='importerPaletteDropUploaderBox',
@@ -489,10 +492,22 @@ class AttachManager(BaseComponent):
 
     @struct_method
     def at_attachmentMultiButtonFrame(self,pane,datapath='.attachments',formResource=None,parentForm=True,ask=None,
-                                      toolbarPosition=None,itemsMaxWidth=None,singleFile=False,**kwargs):   
+                                      toolbarPosition=None,itemsMaxWidth=None,singleFile=False,
+                                      table=None,maintable_id=None,**kwargs):
         toolbarPosition = toolbarPosition or 'top'
+        store_kwargs = dict()
+        if not table:
+            store_kwargs['relation'] = '@atc_attachments'
+        else:
+            store_kwargs['table'] = table
+            store_kwargs['condition'] = '$maintable_id=:maintable_id'
+            store_kwargs['condition_maintable_id'] = maintable_id
+            if maintable_id and '#FORM' in maintable_id:
+                suffix = maintable_id.lstrip('^=').split('#FORM', 1)[1]
+                store_kwargs['default_maintable_id'] = '=#FORM/parent/#FORM%s' % suffix
+            else:
+                store_kwargs['default_maintable_id'] = '=#FORM/parent/#FORM.pkey'
         frame = pane.multiButtonForm(frameCode='attachmentPane_#',datapath=datapath,
-                            relation='@atc_attachments',
                             caption='description',parentForm=parentForm,
                             multibutton_itemsMaxWidth=itemsMaxWidth,
                             form_askMetadata=ask,
@@ -506,7 +521,8 @@ class AttachManager(BaseComponent):
                             """,
                             multibutton_deleteSelectedOnly=True,
                             toolbarPosition=toolbarPosition,
-                            store_order_by='$_row_count')
+                            store_order_by='$_row_count',
+                            **store_kwargs)
         if not singleFile:
             frame.multiButtonView.item(code='add_atc',caption='+',frm=frame.form.js_form,
                                     action='frm.newrecord();',
@@ -562,34 +578,47 @@ class AttachManager(BaseComponent):
         filename = kwargs.get('filename')
         self._handleFileHash(kwargs)
         attachment_tblobj =  self.db.table(attachment_table)
-        uploaderId = kwargs.get('uploaderId')
         atcNode = attachment_tblobj._getDestAttachmentNode(maintable_id=maintable_id,filename=filename)
         kwargs['uploadPath'] = atcNode.dirname
         kwargs['filename'] = atcNode.basename
-        record = attachment_tblobj.newrecord(maintable_id=maintable_id,mimetype=kwargs.get('mimetype'),
-                    description=atcNode.cleanbasename,filepath=atcNode.fullpath)
-        for k,v in kwargs.items():
-            if v is not None and attachment_tblobj.column(k) is not None:
-                record[k] = v
-        attachment_tblobj.insert(record)
-        kwargs['attachment_id'] = record['id']
-        self.db.commit()        
-        self.clientPublish('inserted_attachment',nodeId=uploaderId,record_id=record['id'])
+        kwargs['_atc_description'] = atcNode.cleanbasename
+        kwargs['_atc_filepath'] = atcNode.fullpath
 
     @public_method
     def onUploadedAttachment(self,file_url=None, file_path=None, file_ext=None, action_results=None,
-                                attachment_id=None, **kwargs):
+                                **kwargs):
         attachment_table = kwargs.get('attachment_table')
         maintable_id = kwargs.get('maintable_id')
-        filename = kwargs.get('filename')
         attachment_tblobj =  self.db.table(attachment_table)
-        attachment_tblobj.onUploadedAttachment(attachment_id)
+        uploaderId = kwargs.get('uploaderId')
+        pkey = kwargs.get('pkey')
+        if pkey and pkey != '*newrecord*':
+            with attachment_tblobj.recordToUpdate(pkey) as record:
+                record['filepath'] = kwargs.get('_atc_filepath')
+                for k,v in kwargs.items():
+                    if k.startswith('_'):
+                        continue
+                    if v is not None and attachment_tblobj.column(k) is not None:
+                        record[k] = v
+            self.db.commit()
+            attachment_tblobj.onUploadedAttachment(record['id'])
+            return
+        record = attachment_tblobj.newrecord(maintable_id=maintable_id,mimetype=kwargs.get('mimetype'),
+                    description=kwargs.get('_atc_description'),filepath=kwargs.get('_atc_filepath'))
+        for k,v in kwargs.items():
+            if k.startswith('_'):
+                continue
+            if v is not None and attachment_tblobj.column(k) is not None:
+                record[k] = v
+        attachment_tblobj.insert(record)
+        self.db.commit()
+        attachment_tblobj.onUploadedAttachment(record['id'])
+        self.clientPublish('inserted_attachment',nodeId=uploaderId,record_id=record['id'])
         
         
     @public_method
     def onUploadingAttachmentUpd(self,kwargs):
         attachment_table = kwargs.get('attachment_table')
-        pkey = kwargs.get('pkey')
         maintable_id = kwargs.get('maintable_id')
         filename = kwargs.get('filename')
         self._handleFileHash(kwargs)
@@ -597,10 +626,5 @@ class AttachManager(BaseComponent):
         atcNode = attachment_tblobj._getDestAttachmentNode(maintable_id=maintable_id,filename=filename)
         kwargs['uploadPath'] = atcNode.dirname
         kwargs['filename'] = atcNode.basename
-        with attachment_tblobj.recordToUpdate(pkey) as record:
-            record['filepath'] = atcNode.fullpath
-            for k,v in kwargs.items():
-                if v is not None and attachment_tblobj.column(k) is not None:
-                    record[k] = v
-        kwargs['attachment_id'] = record['id']
-        self.db.commit()        
+        kwargs['_atc_description'] = atcNode.cleanbasename
+        kwargs['_atc_filepath'] = atcNode.fullpath

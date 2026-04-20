@@ -662,7 +662,7 @@ class MultiButtonForm(BaseComponent):
                 """)
             sc = frame.center.stackContainer(selectedPage='^.selectedForm')
             emptyPageMessage = emptyPageMessage or '!!No Record Selected'
-            sc.contentPane(pageName='emptypage').div(emptyPageMessage,_class='hiderMessage',height='50px',position='absolute',top='25%',left=0,right=0,text_align='center')
+            sc.contentPane(pageName='emptypage').div(emptyPageMessage, _class='emptyRecordMessage')
             columnslist.append('$%s' %switch)
             switchdict = dict()
             for formId,pars in list(formhandler_kwargs.items()):
@@ -761,7 +761,7 @@ class MultiButtonForm(BaseComponent):
                     if(hasRows){
                         frameWidget.setHiderLayer(false);
                     }else{
-                        frameWidget.setHiderLayer(true,{message:emptyMessage,_class:'hiderMessage',text_align:'center',top:'25%',left:0,right:0});
+                        frameWidget.setHiderLayer(true,{message:emptyMessage});
                     }
                 }
             """,store='^.store',frm=form.js_form,frameWidget=frame,emptyMessage=emptyPageMessage)

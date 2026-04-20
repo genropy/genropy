@@ -1,6 +1,21 @@
+/* --- Batch handler custom properties --- */
+.bm_rootnode {
+    --bm-gap: 0.25em;
+    --bm-padding: 0.25em;
+    --bm-card-margin: 0.4em;
+    --bm-card-padding-x: 0.5em;
+    --bm-card-padding-y: 0.4em;
+    --bm-thermoline-height: 1.6em;
+    --bm-thermoline-font: 0.85em;
+    --bm-label-font: 0.8em;
+    --bm-content-font: 0.85em;
+    --bm-bottom-font: 0.75em;
+    --bm-msg-font: 0.8em;
+}
+
 /* --- Batch monitor root --- */
 .bm_rootnode {
-    padding: 4px;
+    padding: var(--bm-padding);
     position: absolute;
     top: 0;
     bottom: 0;
@@ -9,15 +24,31 @@
     overflow: auto;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--bm-gap);
 }
 
 /* --- Progress bar (thermoline) --- */
 .bm_thermoline {
     width: 100%;
-    height: 14px;
-    font-size: 0.7em;
-    margin-top: 4px;
+    height: var(--bm-thermoline-height);
+    font-size: var(--bm-thermoline-font);
+    margin-top: var(--bm-gap);
+    position: relative;
+}
+
+.bm_thermoline .dijitProgressBarLabel {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1em;
+    line-height: 1;
+    color: var(--text-color, #333);
+    z-index: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .bm_thermoline.dijitProgressBarEmpty {
@@ -51,7 +82,7 @@
 }
 
 .bm_thermoline.bm_line_1 div.dijitProgressBarTile {
-    background: var(--batch-line1-color, #ff8d00);
+    background: var(--batch-line1-color, #ffb347);
 }
 
 .bm_thermoline.bm_line_2 div.dijitProgressBarTile {
@@ -67,12 +98,12 @@
 }
 
 .bm_thermoline_box {
-    padding-bottom: 3px;
-    padding-right: 4px;
+    padding-bottom: 0.2em;
+    padding-right: var(--bm-card-padding-x);
 }
 
 .bm_thermomsg {
-    font-size: 0.72em;
+    font-size: var(--bm-msg-font);
     text-align: center;
     color: var(--text-muted, #666);
     min-height: 1.4em;
@@ -86,7 +117,7 @@
     opacity: .5;
     position: relative;
     border: 1px solid var(--border-color, #ccc);
-    margin: 6px;
+    margin: var(--bm-card-margin);
     background: var(--surface-bg, #fff);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.06));
@@ -100,9 +131,9 @@
 /* --- Batch label (title bar) --- */
 .bm_batchlabel {
     background: var(--primary-color, #636366);
-    font-size: 0.75em;
+    font-size: var(--bm-label-font);
     min-height: 1.8em;
-    padding: 0 8px;
+    padding: 0 var(--bm-card-padding-x);
     color: var(--accent-on-color, #fff);
     display: flex;
     align-items: center;
@@ -127,8 +158,8 @@
 /* --- Batch content --- */
 .bm_contentpane {
     min-height: 2em;
-    padding: 6px 8px;
-    font-size: .85em;
+    padding: var(--bm-card-padding-y) var(--bm-card-padding-x);
+    font-size: var(--bm-content-font);
     color: var(--text-color, #444);
     background-color: var(--surface-bg, #fff);
 }
@@ -137,9 +168,9 @@
 .bm_batchbottom {
     background: var(--surface-light, #f6f6f6);
     color: var(--text-muted, #666);
-    font-size: 0.7em;
+    font-size: var(--bm-bottom-font);
     min-height: 1.6em;
-    padding: 0 8px;
+    padding: 0 var(--bm-card-padding-x);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -148,7 +179,7 @@
 
 /* --- Result links --- */
 .bm_resulttd {
-    padding: 4px 6px;
+    padding: var(--bm-gap) var(--bm-card-padding-y);
 }
 
 .bm_resultlink {
@@ -159,7 +190,7 @@
     background: var(--surface-light, #f6f6f6);
     border: 1px solid var(--border-color, #ccc);
     border-radius: var(--radius-sm);
-    padding: 4px 8px;
+    padding: var(--bm-gap) var(--bm-card-padding-x);
 }
 
 .bm_resultlink:visited > div {
@@ -168,7 +199,7 @@
 
 .bm_resultlink .iconbox {
     width: 100%;
-    height: 20px;
+    height: 1.4em;
 }
 
 /* --- Task/script panes --- */
@@ -184,7 +215,7 @@
 
 .ts_printMode {
     background: var(--surface-light, #f6f6f6);
-    margin: 2px;
+    margin: 0.15em;
     border-radius: var(--radius-sm);
     border: 1px solid var(--border-light, #efefef);
 }

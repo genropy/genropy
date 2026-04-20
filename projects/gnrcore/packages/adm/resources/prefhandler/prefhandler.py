@@ -80,7 +80,7 @@ class AppPrefHandler(BasePreferenceTabs):
     @struct_method
     def ph_appPreferencesForm(self, parent, datapath=None, **kwargs):
         form = parent.frameForm(frameCode='app_preferences',
-                                store_startKey='_mainpref_',
+                                #store_startKey='_mainpref_',
                                 table='adm.preference', datapath=datapath,
                                 store=True, modal=True, **kwargs)
         form.dataController("""
@@ -96,8 +96,6 @@ class AppPrefHandler(BasePreferenceTabs):
             frameCode='app_pref_grplt',
             menuCallback=self._ph_preferenceMenu,
             grouplet_datapath='.app_grouplet_form',
-            grouplet_formDatapath='.record',
-            grouplet_formControllerPath='.controller'
         )
         bar = form.bottom.slotBar('5,cancel,*,revertbtn,10,savebtn,saveAndClose,5',
                                    margin_bottom='2px', _class='slotbar_dialog_footer')
@@ -273,16 +271,23 @@ class AppPrefHandler(BasePreferenceTabs):
         mailservice = self.getService('mail')
         if template_id:
             mailservice.sendUserTemplateMail(record_id=user_record, template_id=template_id,
-                                                async_=False, html=True, scheduler=False)
+                                                html=True, **self._immediate_message_parameters())
         else:
             mailservice.sendmail_template(user_record, to_address=user_record['email'],
-                                    body=body or 'Dear $greetings to confirm click $link', 
+                                    body=body or 'Dear $greetings to confirm click $link',
                                     subject=subject or 'Confirm user',
-                                    async_=False, html=True, scheduler=False)
+                                    html=True, **self._immediate_message_parameters())
 
 
     def _ph_appGuiCustomization_splashscreen(self,pane):
         pass
+
+
+    def _immediate_message_parameters(self):
+        email_package = self.db.package('email')
+        if email_package and email_package.getMailProxy(raise_if_missing=False):
+            return dict()
+        return dict(async_=False, scheduler=False)
  
 
 class UserPrefHandler(BasePreferenceTabs):

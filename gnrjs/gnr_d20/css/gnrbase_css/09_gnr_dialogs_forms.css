@@ -202,14 +202,16 @@
 
 /* @group Standard form */
 
+.gnr_dojotheme .dijitTextBox.numberTextBox {
+    padding-right: var(--formbuilder-field-padding-x);
+}
+
 .numberTextBox input, .dijitDisabled.numberTextBox input:focus, .dijitReadOnly.numberTextBox input:focus {
     text-align: right;
-    /*padding-right: 2px;*/
 }
 
 .numberTextBox input:focus {
     text-align: left;
-    /*padding-left: 2px;*/
 }
 
 .gnrfieldlabel {
@@ -349,15 +351,7 @@ label{
     text-align: center;
     font-size: 2em;
     font-weight: 600;
-    color: var(--gray-200);
-    background: rgba(255,255,255,0.75);
-    padding: 0.4em 1.2em;
-    border-radius: var(--radius-pill, 9999px);
-}
-.hiderMessage:has(.waiting){
-    background: none;
-    padding: 0;
-    border-radius: 0;
+    color: var(--gray-500, #555);
 }
 
 /* @end */
@@ -370,11 +364,6 @@ table.formbuilder {
     border-collapse: separate;
     border-spacing: var(--formbuilder-spacing);
 }
-
-table.formbuilder td.gnrfield {
-    flex: 1;
-}
-
 
 /* @end */
 

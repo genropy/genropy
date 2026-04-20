@@ -9,7 +9,7 @@ import mimetypes
 import functools
 from time import time
 from collections import defaultdict
-from threading import RLock
+from threading import RLock, Thread
 import warnings
 
 import requests
@@ -18,19 +18,22 @@ from werkzeug.utils import redirect
 from werkzeug.exceptions import (HTTPException, InternalServerError,
                                   NotFound, Forbidden, PreconditionFailed,
                                   BadRequest, Unauthorized)
+from werkzeug.middleware.proxy_fix import ProxyFix
+from gnr.web.compression import GzipMiddleware
 
 from gnr.core.gnrbag import Bag
 from gnr.core import gnrstring
 from gnr.core.gnrlang import GnrException, GnrDebugException
-from gnr.core.gnrlang import tracebackBag, getUuid, ThreadedDict
-from gnr.core.gnrdecorator import public_method, deprecated
+from gnr.core.gnrlang import getUuid, ThreadedDict
+from gnr.core.gnrdecorator import deprecated
 from gnr.core.gnrconfig import getGnrConfig,getEnvironmentItem
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrstring import boolean
 from gnr.core.gnrdecorator import extract_kwargs,metadata
 from gnr.core.gnrcrypto import AuthTokenGenerator
 from gnr.lib.services import ServiceHandler
-from gnr.app.gnrdeploy import PathResolver
+from gnr.app.pathresolver import PathResolver
+from gnr.web.gnrwsgisite_proxy.gnrapidispatcher import ApiDispatcher
 from gnr.app.gnrapp import GnrPackage
 from gnr.web import logger
 from gnr.web.gnrwebapp import GnrWsgiWebApp
@@ -39,7 +42,8 @@ from gnr.web.gnrwsgisite_proxy.gnrresourceloader import ResourceLoader
 from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import LegacyStorageHandler
 from gnr.web.gnrwsgisite_proxy.gnrstatichandler import StaticHandlerManager
 from gnr.web.gnrwsgisite_proxy.gnrpwahandler import PWAHandler
-from gnr.web.gnrwsgisite_proxy.gnrsiteregister import SiteRegisterClient, DEFAULT_PAGE_MAX_AGE
+from gnr.web.daemon.siteregister_client import SiteRegisterClient
+from gnr.web.daemon.siteregister import DEFAULT_PAGE_MAX_AGE
 from gnr.web.gnrwsgisite_proxy.gnrwebsockethandler import WsgiWebSocketHandler
 from gnr.web.gnrwsgisite_proxy.datacollector import DataCollector
 
@@ -508,6 +512,7 @@ class GnrWsgiSite(object):
         self.find_gnrjs_and_dojo()
         self._remote_edit = options.remote_edit if options else None
         self._main_gnrapp = self.build_gnrapp(options=options)
+        self.api_dispatcher = ApiDispatcher(self)
         self.server_locale = self.gnrapp.locale
         self.wsgiapp = self.build_wsgiapp(options=options)
         self.debugpy = debugpy
@@ -565,15 +570,11 @@ class GnrWsgiSite(object):
         logger.debug('%s: %s', code, msg)
 
     def setDebugAttribute(self, options):
-        self.force_debug = False
         if options:
             self.debug = boolean(options.debug)
-            if self.debug:
-                self.force_debug = True
         else:
             if boolean(self.config['wsgi?debug']) is not True and (self.config['wsgi?debug'] or '').lower()=='force':
                 self.debug = True
-                self.force_debug = True
             else:
                 self.debug = boolean(self.config['wsgi?debug'])
 
@@ -1034,27 +1035,49 @@ class GnrWsgiSite(object):
         response = requests.post(url, headers=headers, data=kwargs)
         return self.gnrapp.catalog.fromTypedText(response.text)
 
-    def writeException(self, exception=None, traceback=None):
-        try:
-            page = self.currentPage
-            user, user_ip, user_agent = (page.user, page.user_ip, page.user_agent) if page else (None, None, None)
-            return self.db.table('sys.error').writeException(description=str(exception),
-                                                      traceback=traceback,
-                                                      user=user,
-                                                      user_ip=user_ip,
-                                                      user_agent=user_agent)
-        except Exception as writingErrorException:
-            logger.exception('\n ####writingErrorException %s for exception %s' %(str(writingErrorException),str(exception)))
+    def errorHandler(self, exception=None, **kwargs):
+        page = self.currentPage
+        if page:
+            kwargs.setdefault('user', page.user)
+            kwargs.setdefault('user_ip', page.user_ip)
+            kwargs.setdefault('user_agent', page.user_agent)
+            kwargs.setdefault('page_id', getattr(page, 'page_id', None))
+            request = getattr(page, 'request', None)
+            if request:
+                kwargs['request_uri'] = request.url
+                kwargs['request_host'] = request.host_url
 
-    @public_method
-    def writeError(self, description=None,error_type=None, **kwargs):
+        if self.multidomain:
+            kwargs.setdefault('current_domain', self.currentDomain)
+        error_id = self.gnrapp.errorHandler(exception=exception, **kwargs)
+        if error_id and page:
+            notify_user = kwargs.get('notify_user')
+            if notify_user:
+                try:
+                    if notify_user is True:
+                        notify_user = str(exception)
+                    msg = '%s (ref: %s)' % (notify_user, error_id)
+                    page.setInClientData('gnr.server_error', msg, fired=True)
+                except Exception:
+                    logger.debug('Failed to notify user of error %s', error_id)
+        if error_id:
+            self._sendToErrorEndpoints(error_id, kwargs)
+        return error_id
+
+    def _sendToErrorEndpoints(self, error_id, error_info):
+        endpoint = self.config['error_handler?error_endpoint']
+        if not endpoint:
+            return
+        error_info['error_id'] = error_id
+        Thread(target=self._postToEndpoint,
+               args=(endpoint, error_info), daemon=True).start()
+
+    def _postToEndpoint(self, endpoint, error_info):
         try:
-            page = self.currentPage
-            user, user_ip, user_agent = (page.user, page.user_ip, page.user_agent) if page else (None, None, None)
-            self.db.table('sys.error').writeError(description=description,error_type=error_type,user=user,user_ip=user_ip,user_agent=user_agent,**kwargs)
-        except Exception as e:
-            logger.exception(str(e))
-            pass
+            requests.post(endpoint, json=error_info, timeout=5)
+        except Exception:
+            logger.warning('Failed to send error to endpoint %s', endpoint)
+
 
     def loadResource(self, pkg, *path):
         """TODO
@@ -1098,7 +1121,10 @@ class GnrWsgiSite(object):
                     else:
                         out_dict[name] = value
                 except UnicodeDecodeError:
-                    pass
+                    self.errorHandler(
+                        description='UnicodeDecodeError parsing request parameter',
+                        loglevel='warning', origin='data'
+                    )
         return out_dict
 
     @property
@@ -1175,17 +1201,23 @@ class GnrWsgiSite(object):
         try:
             return self._dispatcher(environ, start_response)
         except Exception as e:
-            page = self.currentPage
-            if self.debug and ((page and page.isDeveloper()) or self.force_debug):
-                raise
-            self.writeException(exception=e,traceback=tracebackBag())
+            self.raiseIfDeveloper()
+            self.errorHandler(exception=e, traceback=True)
             exc = InternalServerError(
                 description='Internal server error; SCRIPT_NAME=%r; PATH_INFO=%r;'
                 % (environ.get('SCRIPT_NAME'), environ.get('PATH_INFO')))
             return exc(environ, start_response)
         finally:
+            self.cleanup()
             self.currentDomain = self.rootDomain
             self.currentGnrRequest = None
+
+    def raiseIfDeveloper(self, exception=None):
+        page = self.currentPage
+        if self.debug and page and page.isDeveloper():
+            if exception is not None:
+                raise exception
+            raise
 
     @property
     def external_host(self):
@@ -1324,6 +1356,8 @@ class GnrWsgiSite(object):
             finally:
                 self.cleanup()
             return response(environ, start_response)
+        if first_segment == '_api':
+            return self.serve_api(path_list, environ, start_response, **request_kwargs)
 
         #static elements that doesn't have .py extension in self.root_static
         if self.root_static and not first_segment.startswith('_') and '.' in last_segment and not (':' in first_segment):
@@ -1384,7 +1418,6 @@ class GnrWsgiSite(object):
                 return self.serve_htmlPage('html_pages/missing_result.html', environ, start_response)
             finally:
                 self.onServedPage(page)
-                self.cleanup()
                 
             response = self.setResultInResponse(
                 result, response, info_GnrTime=time() - t,
@@ -1588,6 +1621,20 @@ class GnrWsgiSite(object):
                 wsgiapp = SentryWsgiMiddleware(wsgiapp)
             except Exception as e:
                 logger.error(f"Sentry support has been disabled due to configuration errors: {e}")
+
+        if boolean(self.config['wsgi?compression']):
+            min_size = int(self.config['wsgi?compression_min_size'] or 500)
+            level = int(self.config['wsgi?compression_level'] or 6)
+            wsgiapp = GzipMiddleware(wsgiapp, minimum_size=min_size, compression_level=level)
+            logger.info(f"Gzip compression enabled (min_size={min_size}, level={level})")
+
+        # when the application is executed being a reverse proxy / ssl terminator,
+        # werkzeug needs this middleware to compute the correct external host
+        # which is used by externalUrl in the Site object when the value is
+        # computed using the request data.
+        # Limited to Kubernetes environment for initial staging testing
+        if os.environ.get("KUBERNETES_SERVICE_HOST", None):
+            wsgiapp = ProxyFix(wsgiapp, x_for=1, x_proto=1, x_host=1)
         return wsgiapp
 
     def build_gnrapp(self, options=None):
@@ -1857,6 +1904,9 @@ class GnrWsgiSite(object):
         :param tool: TODO"""
         kwargs_string = '&'.join(['%s=%s' % (k, v) for k, v in list(kwargs.items())])
         return '%s%s_tools/%s?%s' % (self.external_host, self.home_uri, tool, kwargs_string)
+
+    def serve_api(self, path_list, environ, start_response, **kwargs):
+        return self.api_dispatcher.dispatch(path_list, environ, start_response, **kwargs)
 
     def serve_ping(self, response, environ, start_response, page_id=None, reason=None, **kwargs):
         response.content_type = "text/xml"

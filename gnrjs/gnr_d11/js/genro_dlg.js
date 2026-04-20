@@ -390,7 +390,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         genro.src.getNode()._('div', alertCode);
         kw = kw || {};
         let closable = objectPop(kw,'closable');
-        buttons = buttons || {confirm:'Confirm',cancel:'Cancel'};
+        buttons = buttons || {confirm:_T('Confirm'),cancel:_T('Cancel')};
         var action,actions;
         var that = this;
         var node = genro.src.getNode(alertCode).clearValue().freeze();
@@ -826,7 +826,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
     
     request: function(title, msg, buttons, resultPath, valuePath) {
         genro.src.getNode()._('div', '_dlg_request');
-        var buttons = buttons || {confirm:'Confirm',cancel:'Cancel'};
+        var buttons = buttons || {confirm:_T('Confirm'),cancel:_T('Cancel')};
         var node = genro.src.getNode('_dlg_request').clearValue().freeze();
         var dlg = node._('dialog', {nodeId:'_dlg_request',title:title})._('div', {_class:'dlg_ask',
             'action':"genro.wdgById('_dlg_request').hide();genro.setData('" + resultPath + "',this.attr.actCode);"});
@@ -1295,7 +1295,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
 
     listChoice: function(title, msg, buttons, resultPath, valuePath, storePath) {
         genro.src.getNode()._('div', '_dlg_listChoice');
-        var buttons = buttons || {confirm:'Confirm',cancel:'Cancel'};
+        var buttons = buttons || {confirm:_T('Confirm'),cancel:_T('Cancel')};
         var node = genro.src.getNode('_dlg_listChoice').clearValue().freeze();
         var dlg = node._('dialog', {nodeId:'_dlg_listChoice',title:title})._('div', {_class:'dlg_ask',
             'action':"genro.wdgById('_dlg_listChoice').hide();genro.setData('" + resultPath + "',this.attr.actCode);"});

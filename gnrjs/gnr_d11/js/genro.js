@@ -320,6 +320,13 @@ dojo.declare('gnr.GenroClient', null, {
         }
 
     },
+    safeHtmlContent:function(str){
+        if(typeof str !== 'string') return str;
+        if(this._sanitize_js === undefined){
+            this._sanitize_js = !!this.getData('gnr.switches?sanitize_js');
+        }
+        return this._sanitize_js ? stripJsFromHtml(str) : str;
+    },
     locale:function(){
         if(!this._locale){
             this._locale = genro.getData('gnr.locale');
@@ -2445,7 +2452,7 @@ dojo.declare('gnr.GenroClient', null, {
             sourceNode._lockingElements[reason] = reason;
             var showHider = function(){
                 delete sourceNode._lockTimers[reason];
-                if(!sourceNode._lockingElements[reason]){ return; }
+                if(!sourceNode._lockingElements || !sourceNode._lockingElements[reason]){ return; }
                 var message = '<div class="form_waiting"></div>';
                 if(options.thermo){
                     genro.setData('gnr.lockScreen.thermo',message);

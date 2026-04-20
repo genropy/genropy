@@ -16,7 +16,7 @@ import subprocess
 from mako.template import Template
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.app.gnrdeploy import PathResolver
+from gnr.app.pathresolver import PathResolver
 from gnr.dev.builder import GnrProjectBuilder
 from gnr.app import logger
 
@@ -88,6 +88,7 @@ class MultiStageDockerImageBuilder:
             base_image_tag = self.options.bleeding and "develop" or "latest"
             dockerfile.write(f"FROM ghcr.io/genropy/genropy:{base_image_tag} as build_stage\n")
             dockerfile.write("WORKDIR /home/genro/genropy_projects\n")
+
             dockerfile.write("USER genro\n\n")
             dockerfile.write('ENV PATH="/home/genro/.local/bin:$PATH"\n')
             dockerfile.write('ENV GENRO_GNRFOLDER="/home/genro/.gnr/"\n')
@@ -121,7 +122,6 @@ class MultiStageDockerImageBuilder:
                 # go back to original build directory
                 os.chdir(self.build_context_dir)
                 
-                docker_clone_dir = f"/home/genro/genropy_project/{repo_name}"
                 dockerfile.write(f"# {repo['description']}\n")
                 site_folder = f"/home/genro/genropy_projects/{repo_name}/instances/{self.instance_name}/site"
                 if repo['subfolder']:
@@ -137,10 +137,35 @@ class MultiStageDockerImageBuilder:
             dockerfile.write("\n# Final customizations\n")
             gunicorn_template = """
 import multiprocessing
+            
+def get_cpu_limit():
+    # cgroup v2
+    try:
+        with open("/sys/fs/cgroup/cpu.max") as f:
+            quota, period = f.read().strip().split()
+            if quota != "max":
+                return max(1, int(int(quota) / int(period)))
+    except FileNotFoundError:
+        pass
+
+    # cgroup v1 fallback
+    try:
+        with open("/sys/fs/cgroup/cpu/cpu.cfs_quota_us") as q:
+            quota = int(q.read())
+        with open("/sys/fs/cgroup/cpu/cpu.cfs_period_us") as p:
+            period = int(p.read())
+        if quota > 0:
+            return max(1, int(quota / period))
+    except FileNotFoundError:
+        pass
+
+    # fallback (not in k8s or no limits)
+    return multiprocessing.cpu_count() or 1
+
 bind = '0.0.0.0:8888'
 pidfile = '/home/genro/gunicorn_{instanceName}.pid'
 daemon = False
-workers = multiprocessing.cpu_count()
+workers = get_cpu_limit()
 threads = 8
 loglevel = 'error'
 chdir = '/home/genro/genropy_projects/{main_repo_name}/instances/{instanceName}'
@@ -154,7 +179,7 @@ graceful_timeout = 600
             with open("gunicorn.py", "w") as wfp:
                 wfp.write(gunicorn_template.format(instanceName=self.instance_name,
                                                        main_repo_name=self.main_repo_name))
-            dockerfile.write(f"COPY --chown=genro:genro gunicorn.py /home/genro/gunicorn.py\n")
+            dockerfile.write("COPY --chown=genro:genro gunicorn.py /home/genro/gunicorn.py\n")
                 
             supervisor_template = """
 [supervisord]
@@ -209,7 +234,7 @@ stderr_logfile_maxbytes=0
                     
             dockerfile.write(f"COPY --chown=genro:genro supervisord.conf /etc/supervisor/conf.d/{self.instance_name}-supervisor.conf\n")
 
-            dockerfile.write(f"RUN gnr app checkdep -n -i {self.instance_name}\n")
+            dockerfile.write(f"RUN gnr app checkdep --loglevel=debug -v -n -i {self.instance_name}\n")
 
             dockerfile.write("LABEL {}\n".format(
                 " \\ \n\t ".join([f'{k}="{v}"' for k,v in image_labels.items()])
@@ -219,6 +244,7 @@ stderr_logfile_maxbytes=0
             logger.info(f"Dockerfile generated at: {self.dockerfile_path}")
             # Ensure to have Docker installed and running
             build_command = ['docker', 'build', '--platform', self.options.architecture,
+                             '--progress', self.options.build_progress,
                              '-t', f'{self.image_name}:{version_tag}',
                              self.build_context_dir]
             if self.options.no_pull:
@@ -338,6 +364,12 @@ def main():
                         type=str,
                         default="linux/amd64",
                         help="The image architecture/platform to be built for")
+    parser.add_argument('--progress',
+                        dest='build_progress',
+                        type=str,
+                        default='auto',
+                        choices=['auto','plain'],
+                        help='Docker builder progress')
     parser.add_argument('-t', '--tag',
                         dest="version_tag",
                         help="The image version tag",

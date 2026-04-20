@@ -120,7 +120,8 @@ dojo.declare("gnr.GnrWdgHandler", null, {
             'ins', 'kbd', 'label', 'legend', 'li', 'link', 'map', 'meta', 'noframes', 'noscript',
             'object', 'ol', 'optgroup', 'option', 'p', 'param', 'pre', 'q', 'samp', 'script',
             'select', 'small', 'span', 'strong', 'style', 'sub', 'sup', 'table', 'tbody', 'td',
-            'textarea', 'tfoot', 'th', 'thead', 'title', 'tr', 'tt', 'ul', 'var','embed','audio','video','canvas','progress'];
+            'textarea', 'tfoot', 'th', 'thead', 'title', 'tr', 'tt', 'ul', 'var','embed','audio','video','canvas','progress',
+            'details','summary'];
         for (let tag of htmlspace) {
             this.namespace[tag.toLowerCase()] = ['html',tag];
         }
@@ -1699,11 +1700,8 @@ dojo.declare("gnr.GridEditor", null, {
         grid.currRenderedRowIndex = lastRenderedRowIndex;
         grid.selection.select(grid.currRenderedRowIndex);
         attr.datapath = this.widgetRootNode.absDatapath('.' + rowLabel);
-        attr.width = attr.width || cellNode.clientWidth+'px';
-        if(attr.tag.toLowerCase()=='checkbox'){
-            attr.margin_left = ( (cellNode.clientWidth-10-16)/2)+'px';
-            attr.margin_top ='1px';
-        }
+        objectPop(attr, 'width'); /* width is managed by CSS via .widgetInCell absolute positioning */
+        /* checkbox centering is handled by CSS via .gnrcheckbox_wrapper flexbox */
         //attr.preventChangeIfIvalid = true;
         if ('value' in attr) {
             if (attr.tag.toLowerCase() == 'dbselect') {

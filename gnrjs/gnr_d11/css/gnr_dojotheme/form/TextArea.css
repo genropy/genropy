@@ -13,7 +13,7 @@
     position: relative;
     padding: 0.3em;
     box-sizing: border-box;
-    resize: vertical;
+    resize: both;
     min-height: 2.5em;
     font-family: inherit;
     font-size: inherit;
@@ -34,15 +34,16 @@
     background-color: var(--field-disabled-bg, #F2F2F7);
     background-image: none;
     color: var(--field-disabled-color, inherit);
+    opacity: var(--field-disabled-opacity, 0.7);
     cursor: not-allowed;
     resize: none;
 }
 
 /* --- ReadOnly --- */
 .gnr_dojotheme .dijitReadOnly.dijitTextArea {
-    background-color: var(--field-readonly-bg, #F2F2F7);
+    background-color: var(--field-readonly-bg, #fff);
     background-image: none;
-    border-color: var(--field-readonly-border, #C7C7CC);
+    border-color: var(--field-readonly-border, #E5E5EA);
     color: var(--field-readonly-color, inherit);
     opacity: 1;
     cursor: default;

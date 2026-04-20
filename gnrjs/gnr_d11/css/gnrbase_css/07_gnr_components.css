@@ -315,6 +315,10 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
     border-top: 1px solid var(--border-strong, #aab4c4);
 }
 
+.pbl_roundedGroup:has(.quickgrid_container) .pbl_roundedGroupLabel {
+    border-bottom: 1px solid var(--roundedgroup-border);
+}
+
 .pbl_roundedGroupLabel {
     min-height: var(--toolbar-min-height);
     font-size: 0.9em;

@@ -952,6 +952,37 @@ dojo.declare("gnr.widgets.FrameForm", gnr.widgets._BaseForm, {
 
 
 dojo.declare("gnr.widgets.GroupletForm",gnr.widgets.gnrwdg,{
+    gnrwdg_updateFormFromGroupletMeta:function(groupletNode) {
+        const frm = groupletNode.form;
+        if (!frm || !frm.store) { return; }
+        const res = groupletNode.getAttributeFromDatasource('remote_resource');
+        if (!res) { return; }
+        const basePath = this.basePath;
+        if (!basePath) { return; }
+        const loadingGrouplet_info = this.sourceNode.evaluateOnNode(this.loadingGrouplet_info);
+        let newPath;
+        if (loadingGrouplet_info.locationpath) {
+            newPath = basePath + '.' + loadingGrouplet_info.locationpath;
+        }
+        if (!newPath) {
+            const topic = groupletNode.attr.remote_topic;
+            const dataKey = topic ? res.replace(topic + '/', '') : res;
+            newPath = basePath + '.' + dataKey.replace(/\//g, '.');
+        }
+        const loadKw = frm.store.handlers.load.kw;
+        const saveKw = frm.store.handlers.save.kw;
+        delete loadKw.onLoading;
+        delete saveKw.onSaving;
+        if(loadingGrouplet_info.onLoading){
+            loadKw.onLoading = loadingGrouplet_info.onLoading;
+        }
+        if(loadingGrouplet_info.onSaving){
+            saveKw.onSaving = loadingGrouplet_info.onSaving;
+        }
+        frm.store.setLocationPath(newPath, 'save');
+        frm.load();
+    },
+
     createContent:function(sourceNode, kw,children,subTagItems) {
         let grouplets_pars = objectExtract(kw,'grouplet_*');
         let table = kw.table;
@@ -959,44 +990,50 @@ dojo.declare("gnr.widgets.GroupletForm",gnr.widgets.gnrwdg,{
         let resource = objectPop(kw,'resource');
         let value = objectPop(kw,'value');
         let dynamicLocationPath = objectPop(kw,'dynamicLocationPath');
-        let formId = kw.formId;
+        let formId = kw.formId || 'grouplet_form_'+genro.time36Id();
+        sourceNode.attr.nodeId = sourceNode.attr.nodeId || `${formId}_handler`;
+        sourceNode._registerNodeId();
         let datapath = objectPop(grouplets_pars,'datapath') || objectPop(kw,'datapath') || 'gnr.grouplet_'+(formId || genro.time36Id());
-        let formDatapath = objectPop(grouplets_pars,'formDatapath') || objectPop(kw,'formDatapath');
-        let formControllerPath = objectPop(grouplets_pars,'formControllerPath') || objectPop(kw,'formControllerPath');
+        let formDatapath = objectPop(grouplets_pars,'formDatapath') || objectPop(kw,'formDatapath') || '.record';
+        let formControllerPath = objectPop(grouplets_pars,'formControllerPath') || objectPop(kw,'formControllerPath') || '.controller';
         let loadOnBuilt = objectPop(kw,'loadOnBuilt');
         let startKey = objectPop(kw,'startKey');
         let rootTag = objectPop(kw,'rootTag');
+        let onRemote = objectPop(kw,'_onRemote');
         if(value && !dynamicLocationPath){
             kw.store_locationpath = sourceNode.absDatapath(value);
         }
+        const onRemoteItems = [];
+        if (onRemote){
+            onRemoteItems.push(onRemote);
+        }
+
         if(dynamicLocationPath && value){
-            let basePath = sourceNode.absDatapath(value);
-            grouplets_pars._onRemote = [
-                '{let _frm = this.form;',
-                'if(_frm && _frm.store){',
-                '  let _res = this.getAttributeFromDatasource("remote_resource");',
-                '  if(_res){',
-                '    let _locpath = this.getRelativeData("#ANCHOR.selected_locationpath");',
-                '    let _newPath;',
-                '    if(_locpath){',
-                '      _newPath = "' + basePath + '." + _locpath.replace(/^\\./, "");',
-                '    }else{',
-                '      let _topic = this.attr.remote_topic;',
-                '      let _dataKey = _topic ? _res.replace(_topic + "/", "") : _res;',
-                '      _newPath = "' + basePath + '." + _dataKey.replace(/\\//g, ".");',
-                '    }',
-                '    _frm.store.setLocationPath(_newPath, "save");',
-                '    _frm.load();',
-                '  }',
-                '}}'
-            ].join('');
+            let loadingGrouplet_info = objectExtract(kw,'loadingGrouplet_*');
+            for(let k in loadingGrouplet_info){
+                if(loadingGrouplet_info[k]){
+                    loadingGrouplet_info[k] = '='+sourceNode.absDatapath(loadingGrouplet_info[k]);
+                }else{
+                    delete loadingGrouplet_info[k];
+                }
+            }
+            if(loadingGrouplet_info.locationpath){
+                grouplets_pars.remote_locationpath = loadingGrouplet_info.locationpath;
+            }
+            sourceNode.gnrwdg.loadingGrouplet_info = loadingGrouplet_info;
+            sourceNode.gnrwdg.groupletFormStoreExtra = objectExtract(kw,'formstore_*');
+            sourceNode.gnrwdg.basePath = sourceNode.absDatapath(value);
+            onRemoteItems.push(`genro.nodeById("${sourceNode.attr.nodeId}").gnrwdg.updateFormFromGroupletMeta(this);`);
             kw.autoSave = kw.autoSave || 500;
         }else if(loadOnBuilt || startKey){
             if(startKey){
-                grouplets_pars._onRemote = `this.form.load({destPkey:"${startKey}"});`;
+                onRemoteItems.push(`this.form.load({destPkey:"${startKey}"});`);
             }else{
-                grouplets_pars._onRemote = "this.form.load();";
+                onRemoteItems.push("this.form.load();");
             }
+        }
+        if(onRemoteItems.length){
+            grouplets_pars._onRemote = onRemoteItems.join(' ');
         }
         grouplets_pars.table = grouplets_pars.table || table;
         grouplets_pars.handler = grouplets_pars.handler || handler;
@@ -1011,7 +1048,11 @@ dojo.declare("gnr.widgets.GroupletForm",gnr.widgets.gnrwdg,{
         kw.storeType = kw.storeType || 'Item';
         kw.datapath = datapath;
         kw.formDatapath = formDatapath;
+        if(kw.formDatapath){
+            grouplets_pars['value'] =  kw.formDatapath ;
+        }
         kw.controllerPath = formControllerPath;
+        sourceNode.gnrwdg.formId = formId;
         let formdiv = sourceNode._('BoxForm',kw);
         return formdiv._('grouplet',grouplets_pars);
     }
@@ -1279,8 +1320,8 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
                                                   nodeId:gnrwdg.uploaderId
                                                  },dropAreaKw))
         var confirmPane = sc._('ContentPane',{});
-        var footerbar = confirmPane._('slotBar',{slots:'5,resetButton,*,importButton,5',margin_top:'5px'});
-        footerbar._('slotButton','resetButton',{label:'Clear',width:'8em',font_size:'1em',padding:'2px',
+        var footerbar = confirmPane._('slotBar',{slots:'5,resetButton,*,importButton,5'});
+        footerbar._('slotButton','resetButton',{label:'Clear',width:'8em',font_size:'1em',
                                             action:function(){gnrwdg.resetImporter();}});
         var importButtonKw = objectUpdate({label:'Import',width:'8em',font_size:'1em',padding:'2px',
                                         imported_file_path:'=.imported_file_path',
@@ -3143,6 +3184,7 @@ dojo.declare("gnr.widgets.QuickGrid", gnr.widgets.gnrwdg, {
                         nodeId:kw.nodeId+'_store',datapath:kw.controllerPath,
                         storeType:kw.datamode=='bag'?'ValuesBagRows':'AttributesBagRows'},store_kwargs));
         var tools = subTagItems.tools;
+        kw._class = (kw._class ? kw._class + ' ' : '') + 'quickgrid_container';
         var gridRoot= tools.len()? this.toolsGridRoot(sourceNode,kw,tools.getAttr('#0')) : sourceNode;
         kw.datapath = kw.controllerPath;
         if(!('gridplugins' in kw)){
@@ -3173,7 +3215,6 @@ dojo.declare("gnr.widgets.QuickGrid", gnr.widgets.gnrwdg, {
         if(tools_kw.title){
             tools_bar_class = 'slotbar_toolbar_standard';
             tools_kw.position = 'TR';
-            centerkw.border_top = '1px solid silver';
         }
         var bckw = {height: objectPop(kw,'height'),
             width: objectPop(kw,'width'),_class:'quickgrid_container'}
@@ -3202,19 +3243,23 @@ dojo.declare("gnr.widgets.QuickGrid", gnr.widgets.gnrwdg, {
         var tool_region=(tools_position[0]=='T') ? 'top':'bottom';
 
         var bc = sourceNode._('borderContainer',bckw);
-        
-        var tpane = bc._('contentPane',{region:tool_region,overflow:'hidden',datapath:'#WORKSPACE.tools',
-                                        _class:tools_bar_class});
-        if(tools_kw.title){
-            tpane._('div',{innerHTML:tools_kw.title,position:'absolute',left:'5px',top:'3px',
-                        font_weight:'bold',font_size:'.9em',color:'#444'});
+        var align_class = tools_kw.title ? 'quickgrid_toolbar_titled' :
+                          (tools_position[1] === 'R' ? 'quickgrid_toolbar_right' : 'quickgrid_toolbar_left');
+        var toolbar_class = 'quickgrid_toolbar ' + align_class;
+        if(tools_bar_class){
+            toolbar_class += ' ' + tools_bar_class;
         }
-        var posdict = {'TR':{right:'0',_class:'quickgrid_toolsbox_top quickgrid_toolsbox'},
-                       'TL':{left:'0',_class:'quickgrid_toolsbox_top quickgrid_toolsbox'},
-                        'BR':{right:'0',_class:'quickgrid_toolsbox_bottom quickgrid_toolsbox'},
-                        'BL':{left:'0',_class:'quickgrid_toolsbox_bottom quickgrid_toolsbox'}}   
+        var tpane = bc._('contentPane',{region:tool_region,overflow:'hidden',datapath:'#WORKSPACE.tools',
+                                        _class:toolbar_class});
+        if(tools_kw.title){
+            tpane._('div',{innerHTML:tools_kw.title,_class:'quickgrid_toolbar_title'});
+        }
+        var posdict = {'TR':{_class:'quickgrid_toolsbox_top quickgrid_toolsbox'},
+                       'TL':{_class:'quickgrid_toolsbox_top quickgrid_toolsbox'},
+                        'BR':{_class:'quickgrid_toolsbox_bottom quickgrid_toolsbox'},
+                        'BL':{_class:'quickgrid_toolsbox_bottom quickgrid_toolsbox'}};
         if(tools){
-            var mb = tpane._('div',objectUpdate(posdict[tools_position],{position:'absolute'}))._('multibutton',{value:'^.command',sticky:false});
+            var mb = tpane._('div',posdict[tools_position])._('multibutton',{value:'^.command',sticky:false});
             tools.split(',').forEach(function(t){
                 mb._('item',t,default_tools[t]);
             });
@@ -3696,7 +3741,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                     remote_paletteId:paletteId,
                     remote_plainText:chunkNode.attr.plainText,
                     remote_emailChunk : componentNode.getAttributeFromDatasource('emailChunk'),
-                    remote_resource_mode:!table || (templateHandler.dataInfo.respath!=null),
+                    remote_resource_mode:!table || (templateHandler.dataInfo && templateHandler.dataInfo.respath!=null),
                     remote_datasourcepath:remote_datasourcepath,
                     remote_showLetterhead:showLetterhead,
                     remote_editorConstrain: editorConstrain
@@ -5643,7 +5688,7 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
         var table_kw = objectExtract(kw,'table_*');
         if(popup){
             var textBoxId = 'placingTextbox_'+genro.getCounter();
-            var tbkw = {'value':has_code?value+'?_displayedValue':value,position:'relative',readOnly:true,nodeId:textBoxId};
+            var tbkw = {'value':has_code?value+'?_displayedValue':value,position:'relative',readOnly:true,nodeId:textBoxId,'_class':'checkBoxTextField'};
             objectExtract(originalKwargs,'table,values,cols,identifier,labelAttribute,popup') //belongs to cbtext
             objectUpdate(tbkw,originalKwargs);
             tb = sourceNode._('textbox',tbkw);

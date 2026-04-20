@@ -230,22 +230,15 @@
     width:15em;
 }
 
-/* --- Formlet field overrides (theme-dependent) --- */
+/* --- Formlet field overrides (structural only — colors come from theme state rules) --- */
 .gnrgridbox.formlet .dijitTextBox,
 .gnrgridbox.formlet .dijitComboBox,
 .gnrgridbox.formlet .dijitSpinner,
 .gnrgridbox.formlet .dijitTextArea{
     border-width: var(--formlet-field-border-width);
-    border-color: var(--formlet-field-border);
     border-style: solid;
-    background: var(--formlet-field-bg);
     border-radius: var(--formlet-field-radius);
     padding: var(--formlet-field-padding-y) var(--formlet-field-padding-x);
-}
-
-.gnrgridbox.formlet .dijitTextBox.dijitFocused,
-.gnrgridbox.formlet .dijitComboBox.dijitFocused{
-    border-color: var(--accent-color);
 }
 
 /* Formlet label (theme-dependent) */

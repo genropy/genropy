@@ -145,6 +145,9 @@ dojo.declare("gnr.GnrRpcHandler", null, {
         this.rpc_counter = 0;
         this.rpc_level = 0;
         this.dynRequires = {js:{},css:{}};
+        this._server_error_since = null;
+        this._server_unavailable = false;
+        this.SERVER_UNAVAILABLE_THRESHOLD = 5000;
     },
 
     hasPendingCall:function(){
@@ -174,6 +177,59 @@ dojo.declare("gnr.GnrRpcHandler", null, {
         if(c && c._deferred_){
             c._deferred_.ioArgs.args.timeout = 3600*1000;
         }
+    },
+
+    classifyHttpError: function(response, ioArgs) {
+        if (response.dojoType === 'cancel') {
+            return 'cancel';
+        }
+        const status = ioArgs.xhr.status;
+        if (status === 502 || status === 503 || status === 504) {
+            return 'server_unavailable';
+        }
+        if (status === 0) {
+            return 'server_unavailable';
+        }
+        if (response.dojoType === 'timeout') {
+            return 'server_unavailable';
+        }
+        return 'application_error';
+    },
+
+    _onServerError: function() {
+        if (!this._server_error_since) {
+            this._server_error_since = new Date();
+        }
+        const elapsed = new Date() - this._server_error_since;
+        if (elapsed >= this.SERVER_UNAVAILABLE_THRESHOLD && !this._server_unavailable) {
+            this._showServerUnavailable();
+        }
+    },
+
+    _onServerSuccess: function() {
+        if (this._server_error_since) {
+            this._server_error_since = null;
+            if (this._server_unavailable) {
+                this._hideServerUnavailable();
+            }
+        }
+    },
+
+    _showServerUnavailable: function() {
+        this._server_unavailable = true;
+        genro.lockScreen(true, '_server_unavailable', {
+            delay: 0,
+            message: 'Server not responding...'
+        });
+        genro.setFastPolling(true);
+    },
+
+    _hideServerUnavailable: function() {
+        this._server_unavailable = false;
+        genro.lockScreen(false, '_server_unavailable');
+        genro.setFastPolling(false);
+        genro.dlg.alert(_T('Server connection restored. You can resume your operations.'),
+                        _T('Connection restored'));
     },
 
 
@@ -462,6 +518,14 @@ dojo.declare("gnr.GnrRpcHandler", null, {
     },
     errorHandler: function(response, ioArgs) {
         this.unregister_call(ioArgs);
+        const classification = this.classifyHttpError(response, ioArgs);
+        if (classification === 'cancel') {
+            return;
+        }
+        if (classification === 'server_unavailable') {
+            this._onServerError();
+            return;
+        }
         genro.dev.handleRpcHttpError(response, ioArgs);
     },
     setDatachangesInData:function (datachanges) {
@@ -537,6 +601,7 @@ dojo.declare("gnr.GnrRpcHandler", null, {
     resultHandler: function(response, ioArgs, currentAttr) {
         genro._last_rpc = {response:response,ioArgs:ioArgs};
         this.unregister_call(ioArgs);
+        this._onServerSuccess();
         var envelope = new gnr.GnrBag();
         try {
             envelope.fromXmlDoc(response, genro.clsdict);
@@ -751,14 +816,15 @@ dojo.declare("gnr.GnrRpcHandler", null, {
             'url' :document.location.protocol+ '//' + document.location.host + genro.baseUrl + '_ping',
             'timeout': 10000,
             'load': dojo.hitch(this, function(response, ioArgs) {
-                var result = genro.rpc.resultHandler(response, ioArgs);
+                const result = genro.rpc.resultHandler(response, ioArgs);
+                genro._ping_error = false;
                 if(genro.ping_classes){
                     genro.callAfter(function(){
                         genro.dom.removeClass(dojo.body(),'ping_start');
+                        genro.dom.removeClass(dojo.body(),'ping_error');
                     },1000);
                 }
                 genro.rpc.setPollingStatus(false);
-               
                 return result;
             }),
             'error': dojo.hitch(this, function(response, ioArgs) {
@@ -767,15 +833,13 @@ dojo.declare("gnr.GnrRpcHandler", null, {
                     genro.dom.removeClass(dojo.body(),'ping_start');
                     genro.dom.addClass(dojo.body(),'ping_error');
                 }
-                //genro.playSound('ping');
-                
-                if(!genro._ping_error){
-                    genro._ping_error = true;
-                    //genro.dlg.alert('This page generate a server error during a ping call. <br/> Please inform developers as soon as possible. <br/> Be ready to report any details to help bugfixing,','Error',null,null,{confirmCb:function(){genro.ping_error=false;}})
+                var classification = genro.rpc.classifyHttpError(response, ioArgs);
+                if (classification === 'server_unavailable') {
+                    genro.rpc.unregister_call(ioArgs);
+                    genro.rpc._onServerError();
+                } else {
+                    genro.rpc.errorHandler(response, ioArgs);
                 }
-                
-                genro.rpc.errorHandler(response, ioArgs);
-
             }),
             'sync': false,
             'preventCache': false
@@ -1041,9 +1105,27 @@ dojo.declare("gnr.GnrRpcHandler", null, {
             content.append('file_handle',file);
         }
         sender.open("POST", genro.rpc.pageIndexUrl(), true);
-        if(onResult){
-            dojo.connect(sender,'onload',onResult);
-        }
+        var onError = kw.onError;
+        sender.onload = function() {
+            var responseXML = sender.responseXML;
+            if (responseXML) {
+                var envelope = new gnr.GnrBag();
+                try {
+                    envelope.fromXmlDoc(responseXML, genro.clsdict);
+                } catch(e) {
+                    if (onResult) onResult.call(sender, {currentTarget: sender, target: sender});
+                    return;
+                }
+                var error = envelope.getItem('error');
+                if (error) {
+                    var envNode = envelope.getNode('result');
+                    genro.dev.handleRpcError(error, envNode);
+                    if (onError) onError(error);
+                    return;
+                }
+            }
+            if (onResult) onResult.call(sender, {currentTarget: sender, target: sender});
+        };
         sender.send(content);
         return sender;
     }

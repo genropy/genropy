@@ -31,11 +31,20 @@ var gnr_grouplet = {
     wizardGoTo: function(sourceNode, targetIdx, frameCode) {
         var frameNode = genro.getFrameNode(frameCode);
         var idx = frameNode.getRelativeData('.step_index');
-        if (targetIdx < idx) {
-            var formId = frameCode + '_step_form';
-            var form = genro.formById(formId);
-            if (form) {
-                form.save();
+        var showingSummary = frameNode.getRelativeData('.wizard_showing_summary');
+        if (showingSummary) {
+            var editable = frameNode.getRelativeData('.summary_editable');
+            if (!editable) { return; }
+            frameNode.setRelativeData('.wizard_page', 'steps');
+            frameNode.setRelativeData('.wizard_showing_summary', false);
+        }
+        if (targetIdx !== idx) {
+            if (targetIdx < idx) {
+                var formId = frameCode + '_step_form';
+                var form = genro.formById(formId);
+                if (form) {
+                    form.save();
+                }
             }
             frameNode.setRelativeData('.step_index', targetIdx);
         }
@@ -50,16 +59,20 @@ var gnr_grouplet = {
         var isLast = (idx >= nodes.length - 1);
         sourceNode.setRelativeData('.next_label',
             isLast ? completeLabel : nodes[idx + 1].attr.grouplet_caption);
+        this._updateStepperUI(nodes, idx, frameCode);
+    },
+
+    _updateStepperUI: function(nodes, activeIdx, frameCode) {
         for (var i = 0; i < nodes.length; i++) {
             var stepNode = genro.nodeById(frameCode + '_step_' + i);
             if (!stepNode) { continue; }
             var el = stepNode.domNode;
             el.classList.remove('completed', 'active', 'pending');
             var circle = el.querySelector('.wizard_circle');
-            if (i < idx) {
+            if (i < activeIdx) {
                 el.classList.add('completed');
                 circle.innerHTML = '&#10003;';
-            } else if (i === idx) {
+            } else if (i === activeIdx) {
                 el.classList.add('active');
                 circle.textContent = String(i + 1);
             } else {
@@ -69,28 +82,9 @@ var gnr_grouplet = {
             if (i > 0) {
                 var connNode = genro.nodeById(frameCode + '_conn_' + i);
                 if (connNode) {
-                    connNode.domNode.classList.toggle('completed', i <= idx);
+                    connNode.domNode.classList.toggle('completed', i <= activeIdx);
                 }
             }
-        }
-    },
-
-    toggleGroupletCell: function(cellEl) {
-        var content = cellEl.querySelector('.grouplet_topic_cell_content');
-        if (!content) { return; }
-        if (cellEl.classList.contains('collapsed')) {
-            cellEl.classList.remove('collapsed');
-            content.style.maxHeight = content.scrollHeight + 'px';
-            var onExpanded = function() {
-                content.style.maxHeight = '';
-                content.removeEventListener('transitionend', onExpanded);
-            };
-            content.addEventListener('transitionend', onExpanded);
-        } else {
-            content.style.maxHeight = content.scrollHeight + 'px';
-            content.offsetHeight; // force reflow
-            content.style.maxHeight = '0';
-            cellEl.classList.add('collapsed');
         }
     },
 
@@ -99,8 +93,8 @@ var gnr_grouplet = {
             var menu = sourceNode.getRelativeData('.grouplet_menu');
             var node = menu.getNode(code);
             if (node) {
+                sourceNode.setRelativeData('.grouplet_info', new gnr.GnrBag(node.attr));
                 sourceNode.setRelativeData('.selected_resource', node.attr.resource);
-                sourceNode.setRelativeData('.selected_locationpath', node.attr.locationpath || null);
             }
         }
     }

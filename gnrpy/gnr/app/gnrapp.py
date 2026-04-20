@@ -32,6 +32,7 @@ import os
 import hashlib
 import smtplib
 import time
+from datetime import datetime
 import glob
 import subprocess
 from collections import defaultdict
@@ -42,12 +43,13 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrlocale import defaultLocale
 from gnr.core.gnrdecorator import extract_kwargs, deprecated
 from gnr.core.gnrlang import  objectExtract,gnrImport, instanceMixin, GnrException
+from gnr.core.gnrerror import tracebackBag
 from gnr.core.gnrstring import makeSet, toText, splitAndStrip, like, boolean
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrconfig import getGnrConfig
 from gnr.core import gnrlog
 from gnr.utils import ssmtplib
-from gnr.app.gnrdeploy import PathResolver
+from gnr.app.pathresolver import PathResolver
 from gnr.app import logger
 from gnr.app.gnrlocalization import AppLocalizer
 from gnr.sql.gnrsql import GnrSqlDb
@@ -825,6 +827,7 @@ class GnrApp(object):
                  enabled_packages=None, db_attrs=None, **kwargs):
         self.aux_instances = {}
         self.gnr_config = getGnrConfig(set_environment=True)
+        self.path_resolver = PathResolver(gnr_config=self.gnr_config)
         self.debug=debug
         self.remote_db = None
         self.instanceFolder = ''
@@ -962,14 +965,15 @@ class GnrApp(object):
         self.catalog = GnrClassCatalog()
         self.localization = {}
 
-        # load the packages
-        for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
-            self.addPackage(pkgid,pkgattrs=pkgattrs,pkgcontent=pkgcontent)
 
         # check for packages python dependencies
         self.check_package_dependencies()
         if 'checkdepcli' in self.kwargs:
             return
+
+        # load the packages
+        for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
+            self.addPackage(pkgid,pkgattrs=pkgattrs,pkgcontent=pkgcontent)
 
         dbattrs = dict(self.config.getAttr('db') or {})
         dbattrs['implementation'] = dbattrs.get('implementation') or 'sqlite'
@@ -978,7 +982,7 @@ class GnrApp(object):
         elif dbattrs.get('dbname') == '_dummydb':
             pass
         elif self.remote_db:
-            rdb = self.config.get(f"remote_db")#.{self.remote_db}")
+            rdb = self.config.get("remote_db")
             if rdb:
                 rconf = rdb.getAttr(self.remote_db)
                 if rconf:
@@ -1034,14 +1038,21 @@ class GnrApp(object):
     def check_package_dependencies(self):
         logger.debug("Checking python dependencies")
         instance_deps = defaultdict(list)
-        for package in [x.getValue() for x in self.packages]:
-            requirements_file = os.path.join(package.packageFolder, "requirements.txt")
+        # find all packages deps
+        for package,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
+            if ":" in package:
+                project, package = package.split(":")
+            else:
+                project = None
+                
+            packageFolder = self.pkg_name_to_path(package, project)
+            requirements_file = os.path.join(packageFolder, package, "requirements.txt")
             if os.path.isfile(requirements_file):
                 with open(requirements_file) as fp:
                     for line in fp:
                         dep_name = line.strip()
                         if dep_name:
-                            instance_deps[dep_name].append(package.id)
+                            instance_deps[dep_name].append(package)
 
         self.instance_packages_dependencies = instance_deps
 
@@ -1050,7 +1061,7 @@ class GnrApp(object):
             if missing:
                 logger.error(f"ERROR: missing dependencies: {', '.join(missing)}")
             if wrong:
-                logger.error(f"ERROR: wrong dependencies:")
+                logger.error("ERROR: wrong dependencies:")
                 for requested, installed in wrong:
                     logger.error(f"{requested} is requested, but {installed} found")
             
@@ -1148,12 +1159,11 @@ class GnrApp(object):
                 tables_to_import.append(tbl)
         
 
-
     def instance_name_to_path(self, instance_name):
         """TODO
 
         :param instance_name: the name of the :ref:`instance <instances>`"""
-        return PathResolver(gnr_config=self.gnr_config).instance_name_to_path(instance_name)
+        return self.path_resolver.instance_name_to_path(instance_name)
 
     def build_package_path(self):
         """Build the path of the :ref:`package <packages>`"""
@@ -1240,6 +1250,54 @@ class GnrApp(object):
                 if r is not None:
                     result.append((pkgId,r))
         return result
+
+    _ERROR_ID_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+
+    def _make_error_id(self):
+        now = datetime.now()
+        prefix = now.strftime('%y%m%d')
+        day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        ms = int((now - day_start).total_seconds() * 1000)
+        chars = self._ERROR_ID_CHARS
+        result = ''
+        while ms:
+            result = chars[ms % 36] + result
+            ms //= 36
+        return f"{prefix}-{result.rjust(5, '0')}"
+
+    def errorHandler(self, exception=None, description=None,
+                     error_type=None, traceback=None,
+                     action='ignore', loglevel='error',
+                     origin=None, notify_user=None,
+                     **kwargs):
+        if exception and not description:
+            description = str(exception)
+        log_fn = getattr(logger, loglevel, logger.error)
+        log_fn(description)
+        should_broadcast = loglevel in ('error', 'critical') or action == 'block'
+        if not should_broadcast:
+            return None
+        error_id = self._make_error_id()
+        if traceback is None:
+            traceback = loglevel in ('error', 'critical')
+        if traceback and exception:
+            traceback = tracebackBag()
+        else:
+            traceback = None
+        error_type = error_type or (type(exception).__name__ if exception else 'ERR')
+        error_info = dict(
+            error_id=error_id,
+            description=description,
+            error_type=error_type,
+            traceback=traceback,
+            origin=origin,
+            action=action,
+            loglevel=loglevel,
+            notify_user=notify_user,
+            **kwargs
+        )
+        self.pkgBroadcast('errorHandler', **error_info)
+        return error_id
 
     @property
     def locale(self):

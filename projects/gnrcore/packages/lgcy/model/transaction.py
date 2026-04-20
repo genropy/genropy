@@ -1,7 +1,8 @@
 # encoding: utf-8
 
 from datetime import datetime
-from gnr.core.gnrlang import GnrException,tracebackBag
+from gnr.core.gnrlang import GnrException
+from gnr.core.gnrerror import tracebackBag
 
 
 class Table(object):
