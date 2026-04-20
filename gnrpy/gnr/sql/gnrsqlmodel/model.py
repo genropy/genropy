@@ -1054,6 +1054,12 @@ class DbModelSrc(GnrStructData):
         Builds a SQL formula that concatenates the given columns into a
         JSON-style array string (``[val1, val2, ...]``).
 
+        The SQL formula and source-column validation are deferred to the
+        building phase (:meth:`DbModel.runOnBuildingCb`) so that source
+        columns can be declared in any order relative to this call, and
+        so that missing or virtual source columns raise at build time
+        rather than producing a broken SQL formula.
+
         Args:
             name: Column name.
             columns: Comma-separated list of source column names
@@ -1063,31 +1069,63 @@ class DbModelSrc(GnrStructData):
         Returns:
             The virtual-column source node.
         """
-        chunks: list[str] = []
-        composed_of: list[str] = []
-        for column in columns.split(','):
-            if column.startswith('$'):
-                column = column[1:]
-            dtype, val = self.column(column).attributes.get('dtype', 'T'), f'${column}'
-            if dtype in ('A', 'C', 'T'):
-                val = f""" '"' ||  ${column} || '"' """
-            elif dtype not in ('L', 'F', 'R', 'B'):
-                val = rf""" '"' ||  ${column} || '\:\:{dtype}"' """
-            composed_of.append(column)
-            chunks.append(val)
+        composed_of: list[str] = [
+            c[1:] if c.startswith('$') else c for c in columns.split(',')
+        ]
         composed_of_str = ','.join(composed_of)
         if columns != composed_of_str:
             logger.warning(
                 f"compositeColumn {name} has columns='{columns}'. "
                 f"It should be '{composed_of_str}'."
             )
+        vcsrc = self.virtual_column(
+            name, composed_of=composed_of_str, static=static,
+            sql_formula=None, dtype='JS', **kwargs,
+        )
+        self.root._dbmodel.deferOnBuilding(
+            self._buildCompositeColumnFormula,
+            name=name, composed_of=composed_of,
+        )
+        return vcsrc
 
+    def _buildCompositeColumnFormula(
+        self, name: str, composed_of: list[str],
+    ) -> None:
+        """Build and assign the SQL formula for a compositeColumn.
+
+        Runs during :meth:`DbModel.runOnBuildingCb`, when all
+        ``config_db`` methods have populated the source tree. Each
+        source column is validated against the (now complete) table
+        definition: a virtual or missing source column raises
+        :class:`GnrSqlException` immediately.
+        """
+        tblname = self.attributes.get('fullname') or self.attributes.get('name') or ''
+        chunks: list[str] = []
+        for column in composed_of:
+            colnode = self.getNode(f'columns.{column}')
+            if colnode is None:
+                if self.getNode(f'virtual_columns.{column}') is not None:
+                    raise GnrSqlException(
+                        f"compositeColumn '{name}' in table {tblname}: "
+                        f"source column '{column}' is a virtual column; "
+                        f"a physical column is required"
+                    )
+                raise GnrSqlException(
+                    f"compositeColumn '{name}' in table {tblname}: "
+                    f"source column '{column}' does not exist"
+                )
+            dtype = colnode.attr.get('dtype', 'T')
+            if dtype in ('A', 'C', 'T'):
+                val = f""" '"' ||  ${column} || '"' """
+            elif dtype in ('L', 'F', 'R', 'B'):
+                val = f'${column}'
+            else:
+                val = rf""" '"' ||  ${column} || '\:\:{dtype}"' """
+            chunks.append(val)
         sql_formula = " ||', '||".join(chunks)
         sql_formula = f"'[' || {sql_formula} || ']' "
-        return self.virtual_column(
-            name, composed_of=composed_of_str, static=static,
-            sql_formula=sql_formula, dtype='JS', **kwargs,
-        )
+        vcnode = self.getNode(f'virtual_columns.{name}')
+        vcnode.attr['sql_formula'] = sql_formula
 
     def bagItemColumn(
         self,
