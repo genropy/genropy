@@ -54,6 +54,7 @@
 .form_draft[class*="draft_marker_"] .fh_content{
     position: relative;
     overflow: hidden;
+    isolation: isolate;
 }
 .form_draft[class*="draft_marker_"] .fh_content::after{
     content: var(--form-draft-label, 'DRAFT');

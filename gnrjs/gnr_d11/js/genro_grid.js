@@ -1744,7 +1744,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                 opt[k] = vopt;
             }
             v = genro.format(v, opt);
-            if (v == null) {
+            if (isNullOrBlank(v)) {
                 v = '&nbsp;';
             }
             var template = opt.template;
