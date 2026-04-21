@@ -129,7 +129,7 @@ textarea.cellEditFixed {
 ._common_d11 .widgetInCell.quickEditorCell > .quickEditorButton {
     position: absolute;
     top: 0;
-    right: 18px;
+    right: 0;
     width: 14px;
     height: 14px;
     display: flex;
