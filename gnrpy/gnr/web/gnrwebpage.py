@@ -312,7 +312,8 @@ class GnrWebPage(GnrBaseWebPage):
             
         self.page_id = page_id or getUuid()
         page_info = dict([(k,getattr(self,k,None)) for k in ATTRIBUTES_SIMPLEWEBPAGE])
-        data = Bag()   
+        data = Bag()
+        data['rootenv'] = Bag()
         data['pageArgs'] = kwargs
         data['class_info'] = class_info
         data['init_info'] = init_info
