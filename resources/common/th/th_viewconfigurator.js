@@ -45,19 +45,23 @@ var genro_plugin_grid_configurator = {
         var that = this;
         var saveCb = function(dlg) {
             var pagename = genro.getData('gnr.pagename');
-            var flag =  pagename+'_'+gridId.replace(/_DUP_.*?(?=_grid)/, "");
+            var viewResource = gridSourceNode.getRelativeData('.viewResource');
             var metadata = genro.getData(datapath);
-            var flags = metadata.getItem('flags');
-            if(flags){
-                if(flags.indexOf(flag)<0){
-                    flags = flags.split(',');
-                    flags.push(flag);
-                }
+            if(viewResource){
+                metadata.setItem('flags', 'RES_'+viewResource);
             }else{
-                flags = flag;
+                var flag = pagename+'_'+gridId.replace(/_DUP_.*?(?=_grid)/, "");
+                var flags = metadata.getItem('flags');
+                if(flags){
+                    if(flags.indexOf(flag)<0){
+                        flags = flags.split(',');
+                        flags.push(flag);
+                    }
+                }else{
+                    flags = flag;
+                }
+                metadata.setItem('flags', flags);
             }
-
-            metadata.setItem('flags',flags);
             genro.serverCall('_table.adm.userobject.saveUserObject',
                             {'objtype':objtype,'metadata':metadata,'data':gridSourceNode.widget.structBag,
                             table:gridSourceNode.attr.table},
