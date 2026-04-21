@@ -1700,7 +1700,7 @@ dojo.declare("gnr.GridEditor", null, {
         grid.currRenderedRowIndex = lastRenderedRowIndex;
         grid.selection.select(grid.currRenderedRowIndex);
         attr.datapath = this.widgetRootNode.absDatapath('.' + rowLabel);
-        objectPop(attr, 'width'); /* width is managed by CSS via .widgetInCell absolute positioning */
+        attr.width = 'auto';
         /* checkbox centering is handled by CSS via .gnrcheckbox_wrapper flexbox */
         //attr.preventChangeIfIvalid = true;
         if ('value' in attr) {
@@ -1811,6 +1811,10 @@ dojo.declare("gnr.GridEditor", null, {
             editWidgetNode.widget.focus();
         }
         editWidgetNode.grid = gridEditor.grid;
+        var wdghandler = genro.wdg.getHandler(wdgtag);
+        if(wdghandler.cell_onStartEdit){
+            wdghandler.cell_onStartEdit(cellNode,editingInfo,fldDict.attr,editWidgetNode);
+        }
 
     },
 
