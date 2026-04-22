@@ -2172,6 +2172,10 @@ dojo.declare("gnr.widgets.IframeDiv", gnr.widgets.gnrwdg, {
 
 dojo.declare("gnr.widgets.QuickEditor", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode, kw,children) {
+        var inCell = kw['_inGridEditor'];
+        if(inCell){
+            return this._createCellContent(sourceNode, kw);
+        }
         kw['constrain_margin'] = '1px';
         kw['toolbar'] = kw['toolbar'] || false;
         var boxpars = objectExtract(kw,'height,width,z_index,position,top,left,right,bottom,_class');
@@ -2187,12 +2191,63 @@ dojo.declare("gnr.widgets.QuickEditor", gnr.widgets.gnrwdg, {
                                                         }})
         return editor;
     },
-    
+
+    _createCellContent:function(sourceNode, kw) {
+        var valuePath = kw['value'];
+        var cbBlur = objectPop(kw, 'connect_onBlur');
+        var cbKeydown = objectPop(kw, 'connect_keydown');
+        var boxpars = objectExtract(kw,'height,width,z_index,position,top,left,right,bottom,_class');
+        boxpars._class = (boxpars._class || '') + ' quickEditorWrapper quickEditorCell';
+        var box = sourceNode._('div',boxpars);
+        var cellWidgetNode = sourceNode.getParentNode();
+        var fakeWidget = {
+            cellNext: null,
+            focusNode: null,
+            focus: function(){ if(this.focusNode) this.focusNode.focus(); },
+            blur: function(){ if(this.focusNode) this.focusNode.blur(); }
+        };
+        cellWidgetNode.externalWidget = fakeWidget;
+        var cleanPath = valuePath.replace('^','');
+        var currentValue = sourceNode.getRelativeData(cleanPath) || '';
+        var editAreaNode = box._('div',{_class:'quickEditorArea',
+            contentEditable:true,
+            innerHTML:currentValue,
+            connect_input:function(){
+                sourceNode.setRelativeData(cleanPath, this.domNode.innerHTML);
+            },
+            connect_onblur:function(e){
+                sourceNode.setRelativeData(cleanPath, this.domNode.innerHTML);
+                if(cbBlur){
+                    cbBlur.call(cellWidgetNode, e);
+                }
+            },
+            connect_onkeydown:function(e){
+                if(e.keyCode === 13){
+                    return;
+                }
+                if(cbKeydown){
+                    cbKeydown.call(cellWidgetNode, e);
+                }
+            },
+            onCreated:function(){
+                fakeWidget.focusNode = this.domNode;
+                this.domNode.focus();
+            }
+        });
+        box._('div',{_class:'quickEditorButton fakeButton',
+            connect_onmousedown:function(e){
+                e.preventDefault();
+            },
+            connect_onclick:function(){
+                genro.dlg.dialogEditor(editAreaNode.getParentNode(),{valuepath:cleanPath});
+            }
+        })._('div',{_class:'dijitArrowButtonInner',
+            height:'100%',width:'18px',cursor:'pointer'});
+        return editAreaNode;
+    },
+
     cell_onCreating:function(gridEditor,colname,colattr) {
         colattr['z_index']= 1;
-        //colattr['position'] = 'fixed';
-        colattr['constrain_overflow'] = 'hidden'
-        colattr['height'] = colattr['height'] || '18px';
     }
 
 });

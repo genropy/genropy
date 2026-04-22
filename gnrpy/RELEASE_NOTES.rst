@@ -1,3 +1,20 @@
+Release 26.04.22
+================
+
+Bugfix release.
+
+* fix: Allow the iframe form handler to forward the table attribute to
+the form page (#822)
+
+Release 26.04.21
+================
+
+Bugfix release.
+
+* fix: initialize rootenv in pageStore at page registration (#806)
+* fix(#805): restore normal flow for grid edit widgets (#808)
+* fix: use viewResource instead of gridId in userobject view flags (#814)
+
 Release 26.04.13
 ================
 
