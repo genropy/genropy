@@ -405,7 +405,7 @@ class StorageConnection:
        
     def get_auth_cookie(self):
         secret = self.parent.config['secret'] or self.parent.siteName
-        cookie_name = self.parent.siteName
+        cookie_name = self.parent.currentDomainIdentifier
         path = self.parent.default_uri
         return self.parent.currentGnrRequest.get_cookie(cookie_name, 'marshal', secret=secret, path=path)
 
