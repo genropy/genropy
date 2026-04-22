@@ -1,3 +1,11 @@
+Release 26.04.22
+================
+
+Bugfix release.
+
+* fix: Allow the iframe form handler to forward the table attribute to
+the form page (#822)
+
 Release 26.04.21
 ================
 
