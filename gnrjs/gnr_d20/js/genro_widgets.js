@@ -4306,7 +4306,7 @@ dojo.declare("gnr.widgets.BaseCombo", gnr.widgets.baseDojo, {
             if (val.indexOf(':') > 0) {
                 val = val.split(':');
                 xval['id'] = val[0];
-                xval['caption'] = val[1];
+                xval['caption'] = _T(val[1]);
             } else {
                 xval['id'] = val;
                 xval['caption'] = val;
