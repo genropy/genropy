@@ -394,9 +394,9 @@ server {
 
         error_log %(logs_path)s/nginx_error.log;
         proxy_connect_timeout       1800;
-	    proxy_send_timeout          1800;
-	    proxy_read_timeout          1800;
-	    send_timeout                1800;
+        proxy_send_timeout          1800;
+        proxy_read_timeout          1800;
+        send_timeout                1800;
         location /websocket {
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
@@ -418,6 +418,71 @@ server {
 
 """
 
+TRAEFIK_TEMPLATE = """
+http:
+  routers:
+    {site_name}-main:
+      rule: "Host(`{domain}`) && PathPrefix(`/`)"
+      entryPoints:
+        - websecure
+      service: gunicorn-service
+      middlewares:
+        - common-headers
+      tls:
+        certResolver: letsencrypt
+
+    {site_name}-websocket:
+      rule: "Host(`{domain}`) && PathPrefix(`/websocket`)"
+      entryPoints:
+        - websecure
+      service: websocket-service
+      middlewares:
+        - websocket-headers
+      tls:
+        certResolver: letsencrypt
+
+    {site_name}-http-redirect:
+      rule: "Host(`{domain}`)"
+      entryPoints:
+        - web
+      middlewares:
+        - redirect-to-https
+      service: noop
+
+  services:
+    gunicorn-service:
+      loadBalancer:
+        servers:
+          - url: "http://unix//{gunicorn_socket_path}"
+
+    websocket-service:
+      loadBalancer:
+        servers:
+          - url: "http://unix//{gnrasync_socket_path}"
+
+    noop:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1"
+
+  middlewares:
+    redirect-to-https:
+      redirectScheme:
+        scheme: https
+        permanent: true
+
+    common-headers:
+      headers:
+        customRequestHeaders:
+          X-Forwarded-Proto: "https"
+
+    websocket-headers:
+      headers:
+        customRequestHeaders:
+          Connection: "Upgrade"
+          Upgrade: "websocket"
+          X-Forwarded-Proto: "https"
+"""
 
 class GunicornDeployBuilder(object):
     default_port = 8080
@@ -625,6 +690,23 @@ class GunicornDeployBuilder(object):
         pars['gnrasync_socket_path'] = self.gnrasync_socket_path
         pars['gunicorn_socket_path'] = self.gunicorn_socket_path
         pars['supervisord_location'] = self.supervisord_monitor_location()
-        conf_content = NGINX_TEMPLATE %pars
-        with open('%s.conf' %self.site_name,'w') as conf_file:
+        conf_content = NGINX_TEMPLATE % pars
+        filename = f"{self.site_name}.conf"
+        with open(filename,'w') as conf_file:
             conf_file.write(conf_content)
+        return filename
+    
+    def write_traefik_conf(self,domain=None):
+        pars = {}
+        pars['domain'] = domain
+        pars['site_name'] = self.site_name
+        pars['site_path'] = self.site_path
+        pars['logs_path'] = self.logs_path
+        pars['gnrasync_socket_path'] = self.gnrasync_socket_path
+        pars['gunicorn_socket_path'] = self.gunicorn_socket_path
+        pars['supervisord_location'] = self.supervisord_monitor_location()
+        conf_content = TRAEFIK_TEMPLATE.format(**pars)
+        filename = f"{self.site_name}-traefik.yaml"
+        with open(filename,'w') as conf_file:
+            conf_file.write(conf_content)
+        return filename
