@@ -279,6 +279,7 @@ div.cellContent{
 
 ._common_d11 .dijitTextBoxFocused .cls_DbSelect, ._common_d11 .dijitComboBoxFocused .cls_DbSelect{
     background-color: var(--field-focus-bg, #fff);
+    border-radius: inherit;
 }
 ._common_d11 .slotbar_toolbar .dijitTextAreaFocused,._common_d11 .slotbar_toolbar .dijitTextBoxFocused,._common_d11 .slotbar_toolbar .dijitComboBoxFocused{
     box-shadow: 0 0 1px var(--accent-color);
