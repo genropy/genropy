@@ -78,17 +78,13 @@ class StorageMover(object):
         local_path = os.path.join(self.site.site_static_dir, storage_name)
         if os.path.isdir(local_path):
             return
-        logger.error("Storage '%s' does not exist (not configured and no local directory found at %s)",
-                     storage_name, local_path)
+        self._log('ERROR', "Storage '%s' does not exist (not configured and no local directory found at %s)",
+                  storage_name, local_path)
         raise SystemExit(1)
 
     def run(self):
         from_storage = self.options.from_storage
         to_storage = self.options.to_storage
-        self._validate_storage(to_storage)
-        if from_storage == to_storage:
-            logger.error("'from' and 'to' storage are the same: '%s'", from_storage)
-            raise SystemExit(1)
         column = self.options.column
         dry_run = self.options.dry_run
         candidates = 0
@@ -96,58 +92,67 @@ class StorageMover(object):
         errors = 0
         started_at = datetime.now()
 
-        for table_name in self.options.tables:
-            self._log('INFO', "Processing %s table: %s",
-                      self.options.site_name, table_name)
-            try:
-                tbl = self.site.db.table(table_name)
-            except GnrSqlMissingTable:
-                logger.error("Table '%s' does not exist", table_name)
-                raise SystemExit(1)
-            try:
-                records = tbl.query(
-                    subtable='*',
-                    where='$%s IS NOT NULL AND $%s LIKE :prefix' % (column, column),
-                    prefix='%s:%%' % from_storage,
-                    excludeLogicalDeleted=False,
-                    excludeDraft=False
-                ).fetch()
-            except (GnrSqlMissingColumn, GnrSqlMissingField):
-                logger.error("Column '%s' does not exist in table '%s'", column, table_name)
+        try:
+            self._validate_storage(to_storage)
+            if from_storage == to_storage:
+                self._log('ERROR', "'from' and 'to' storage are the same: '%s'", from_storage)
                 raise SystemExit(1)
 
-            for record in records:
-                filepath = record[column]
-                relative_path = filepath.split(':', 1)[1]
-                dest_path = '%s:%s' % (to_storage, relative_path)
+            for table_name in self.options.tables:
+                self._log('INFO', "Processing %s table: %s",
+                          self.options.site_name, table_name)
+                try:
+                    tbl = self.site.db.table(table_name)
+                except GnrSqlMissingTable:
+                    self._log('ERROR', "Table '%s' does not exist", table_name)
+                    raise SystemExit(1)
+                try:
+                    records = tbl.query(
+                        subtable='*',
+                        where='$%s IS NOT NULL AND $%s LIKE :prefix' % (column, column),
+                        prefix='%s:%%' % from_storage,
+                        excludeLogicalDeleted=False,
+                        excludeDraft=False
+                    ).fetch()
+                except (GnrSqlMissingColumn, GnrSqlMissingField):
+                    self._log('ERROR', "Column '%s' does not exist in table '%s'", column, table_name)
+                    raise SystemExit(1)
 
-                src_node = self.site.storageNode(filepath)
-                if not src_node.isfile:
-                    self._log('ERROR', "Source file not found: %s", filepath)
-                    errors += 1
-                    continue
+                for record in records:
+                    filepath = record[column]
+                    relative_path = filepath.split(':', 1)[1]
+                    # dest_path is constructed deterministically; matches dest_node.path
+                    dest_path = '%s:%s' % (to_storage, relative_path)
 
-                candidates += 1
-                if dry_run:
-                    self._log('INFO', "[DRY] Would move: %s -> %s", filepath, dest_path)
-                    continue
+                    src_node = self.site.storageNode(filepath)
+                    if not src_node.isfile:
+                        self._log('ERROR', "Source file not found: %s", filepath)
+                        errors += 1
+                        continue
 
-                self._log('INFO', "Moving: %s -> %s", filepath, dest_path)
-                dest_node = self.site.storageNode(dest_path)
-                src_node.move(dest_node)
+                    candidates += 1
+                    if dry_run:
+                        self._log('INFO', "[DRY] Would move: %s -> %s", filepath, dest_path)
+                        continue
 
-                new_record = dict(record)
-                new_record[column] = dest_path
-                tbl.raw_update(new_record, record)
-                self.site.db.commit()
-                moved += 1
+                    self._log('INFO', "Moving: %s -> %s", filepath, dest_path)
+                    dest_node = self.site.storageNode(dest_path)
+                    # Copy first so source stays intact if the commit below fails.
+                    # Delete source only after the DB record is safely committed.
+                    src_node.copy(dest_node)
+                    new_record = dict(record)
+                    new_record[column] = dest_path
+                    tbl.raw_update(new_record, record)
+                    self.site.db.commit()
+                    src_node.delete()
+                    moved += 1
 
-        if dry_run:
-            logger.info("Dry run complete. %d file(s) to move, %d not found.", candidates, errors)
-        else:
-            logger.info("Done. Moved %d file(s), %d error(s).", moved, errors)
-
-        self._write_report(started_at, candidates, moved, errors)
+            if dry_run:
+                logger.info("Dry run complete. %d file(s) to move, %d not found.", candidates, errors)
+            else:
+                logger.info("Done. Moved %d file(s), %d error(s).", moved, errors)
+        finally:
+            self._write_report(started_at, candidates, moved, errors)
 
 
 def main():
