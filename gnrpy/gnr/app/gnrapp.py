@@ -298,7 +298,12 @@ class DbStoresHandler(object):
 
 class GnrSqlAppDb(GnrSqlDb):
     """TODO"""
-
+    def __init__(self, *args, **kwargs):
+        if not kwargs.get("application", None):
+            raise TypeError("'application' is mandatory for GnrSqlAppDb")
+        
+        super().__init__(*args, **kwargs)
+        
     @property
     def stores_handler(self):
         handler = getattr(self, '_stores_handler', None)
