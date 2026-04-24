@@ -3699,7 +3699,7 @@ dojo.declare("gnr.widgets.CheckBox", gnr.widgets.baseDojo, {
     },
     mixin_setHidden: function(hidden) {
         if(!this.sourceNode._hiddenTargets){
-            this.sourceNode._hiddenTargets = [this.sourceNode._gnrcheckbox_wrapper];
+            this.sourceNode._hiddenTargets = [this.sourceNode._gnrcheckbox_wrapper, this.domNode];
         }
         this.sourceNode.setHidden(hidden);
     },
