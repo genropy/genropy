@@ -6616,22 +6616,15 @@ dojo.declare("gnr.stores._Collection",null,{
     runQuery:function(cb,runKwargs){
         var that = this;
         this.runningQuery = true;
-        var wrappedCb = function(r){
-            cb(r);
-            var empty = r && r.attr && r.attr.totalrows === 0;
-            that.gridBroadcast(function(grid){
-                grid.domNode.classList.toggle('gnr_empty_grid', empty);
-            });
-        };
-        var result = this.storeNode.fireNode(runKwargs);
+        var result =  this.storeNode.fireNode(runKwargs);
         if(result instanceof dojo.Deferred){
             result.addCallback(function(r){
                 that.runningQuery = false;
-                wrappedCb(r);
+                cb(r)
             });
         }else{
             that.runningQuery = false;
-            result = wrappedCb(result);
+            result = cb(result);
         }
         return result;
     },

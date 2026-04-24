@@ -492,3 +492,11 @@
 ._common_d11 .dojoxGrid-scrollbox {
     overflow: auto;
 }
+
+/* --- Empty grid state --- */
+._common_d11 .gnr_empty_grid .dojoxGrid-scrollbox {
+    background-image: url('/_rsrc/common/css_icons/google_icons/no_results.svg');
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: 80px 80px;
+}

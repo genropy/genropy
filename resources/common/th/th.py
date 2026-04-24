@@ -178,6 +178,7 @@ class TableHandler(BaseComponent):
 
         rowStatusColumn = hasInvalidCheck or hasProtectionColumns if rowStatusColumn is None else rowStatusColumn
         grid_kwargs.setdefault('rowStatusColumn',rowStatusColumn)
+        grid_kwargs.setdefault('emptyIndicator',True)
         if fkeyfield:
             grid_kwargs.setdefault('excludeCols',fkeyfield)
             
