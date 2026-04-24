@@ -3698,11 +3698,10 @@ dojo.declare("gnr.widgets.CheckBox", gnr.widgets.baseDojo, {
         }
     },
     mixin_setHidden: function(hidden) {
-        if(this.sourceNode._hiddenTargets){
-            this.sourceNode.setHidden(hidden);
-        }else{
-            dojo.style(this.sourceNode._gnrcheckbox_wrapper, 'display', (hidden ? 'none' : ''));
+        if(!this.sourceNode._hiddenTargets){
+            this.sourceNode._hiddenTargets = [this.sourceNode._gnrcheckbox_wrapper];
         }
+        this.sourceNode.setHidden(hidden);
     },
 
     _getKeeperRoot:function(sourceNode){
