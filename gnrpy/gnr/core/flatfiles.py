@@ -438,7 +438,8 @@ class XmlReader(BaseReader):
 
     def __call__(self):
         for r in self.rows:
-            yield GnrNamedList(self.index, r)
+            # rows are dicts; extract values in header order
+            yield GnrNamedList(self.index, [r.get(k) for k in self.headers])
 
 
 # ===========================================================================
@@ -473,16 +474,15 @@ def getReader(file_path, filetype=None, **kwargs):
         _, ext = os.path.splitext(file_path)
     else:
         _, ext = os.path.splitext(getattr(file_path, 'name', '') or '')
-    if filetype == 'excel' or not filetype and ext in ('.xls', '.xlsx'):
-        if ext == '.xls':
+    if filetype == 'excel' or (not filetype and ext == '.xls'):
+        reader = XlsReader(file_path, **kwargs)
+    elif not filetype and ext == '.xlsx':
+        try:
+            import openpyxl  # noqa: F401
+            reader = XlsxReader(file_path, **kwargs)
+        except ImportError:  # pragma: no cover
+            logger.exception("\n**ERROR Missing openpyxl: 'xlsx' import may not work properly\n")
             reader = XlsReader(file_path, **kwargs)
-        else:  # .xlsx
-            try:
-                import openpyxl  # noqa: F401
-                reader = XlsxReader(file_path, **kwargs)
-            except ImportError:  # pragma: no cover
-                logger.exception("\n**ERROR Missing openpyxl: 'xlsx' import may not work properly\n")
-                reader = XlsReader(file_path, **kwargs)
     elif ext == '.xml':
         reader = XmlReader(file_path, **kwargs)
     else:
