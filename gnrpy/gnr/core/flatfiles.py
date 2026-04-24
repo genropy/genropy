@@ -50,12 +50,23 @@ except Exception:
 # ===========================================================================
 
 class BaseReader(object):
-    """Common base for all flat-file readers providing path decomposition and index building."""
+    """Common base for all flat-file readers providing path decomposition and index building.
+
+    *docname* may be a filesystem path (str) or any file-like object.  When a
+    file-like is passed its ``.name`` attribute is used for extension detection
+    and logging; readers that cannot operate without a real path (e.g. for
+    encoding detection) fall back gracefully.
+    """
 
     def __init__(self, docname, **kwargs):
         self.docname = docname
-        self.dirname = os.path.dirname(docname)
-        self.basename, self.ext = os.path.splitext(os.path.basename(docname))
+        if isinstance(docname, str):
+            self.dirname = os.path.dirname(docname)
+            self.basename, self.ext = os.path.splitext(os.path.basename(docname))
+        else:
+            name = getattr(docname, 'name', '') or ''
+            self.dirname = os.path.dirname(name)
+            self.basename, self.ext = os.path.splitext(os.path.basename(name))
         self.ext = self.ext.replace('.', '')
 
     def _build_index(self, headers, context=''):
@@ -193,7 +204,7 @@ class XlsReader(BaseSheetReader):
     Supports multiple sheets, automatic column header slugification, and
     handling of duplicate column names. Date cells are converted to datetime.
 
-    :param docname: path to the XLS file
+    :param docname: path to the XLS file, or a binary file-like object
     :param mainsheet: name or index of the main sheet (default: first sheet)
     :param compressEmptyRows: if True, compress consecutive empty rows into one
     :param allEmptyRows: if True, yield all empty rows
@@ -203,7 +214,10 @@ class XlsReader(BaseSheetReader):
         import xlrd
         self.XL_CELL_DATE = xlrd.XL_CELL_DATE
         self.xldate_as_tuple = xlrd.xldate_as_tuple
-        self.book = xlrd.open_workbook(filename=self.docname)
+        if isinstance(self.docname, str):
+            self.book = xlrd.open_workbook(filename=self.docname)
+        else:
+            self.book = xlrd.open_workbook(file_contents=self.docname.read())
 
     def _sheet_names(self):
         return self.book.sheet_names()
@@ -258,7 +272,7 @@ class XlsxReader(BaseSheetReader):
     handling of duplicate column names. Uses read-only mode with lazy loading.
     Empty column headers are renamed to 'gnr_emptycol_N'.
 
-    :param docname: path to the XLSX file
+    :param docname: path to the XLSX file, or a binary file-like object
     :param mainsheet: name or index of the main sheet (default: active sheet)
     :param compressEmptyRows: if True, compress consecutive empty rows into one
     :param allEmptyRows: if True, yield all empty rows
@@ -329,36 +343,45 @@ class CsvReader(BaseReader):
     Supports custom delimiters, encoding detection, and automatic handling of
     duplicate column names. The first row is treated as headers.
 
-    :param docname: path to the CSV file
+    :param docname: path to the CSV file, or a text-mode file-like object.
+                   When a file-like is passed it is used directly and will NOT
+                   be closed automatically after iteration.
     :param dialect: CSV dialect (e.g., 'excel', 'excel-tab')
     :param delimiter: field delimiter character (default: ',')
     :param detect_encoding: if True, automatically detect file encoding using chardet
+                            (ignored when *docname* is a file-like object)
     :param encoding: explicit encoding (currently overridden by detect_encoding logic)
     """
 
     def __init__(self, docname, dialect=None, delimiter=None, detect_encoding=False,
                  encoding=None, **kwargs):
         super().__init__(docname, **kwargs)
-        # FIXME: why an explicit "encoding" parameter for the constructor but ignoring its value?
-        encoding = None
-        if detect_encoding and not encoding:
-            encoding = self.detect_encoding()
-        if encoding:
-            self.filecsv = open(docname, 'r', encoding=encoding)
+        if isinstance(docname, str):
+            # FIXME: why an explicit "encoding" parameter for the constructor but ignoring its value?
+            encoding = None
+            if detect_encoding:
+                encoding = self.detect_encoding()
+            self.filecsv = open(docname, 'r', encoding=encoding) if encoding else open(docname, 'r')
+            self._owns_filecsv = True
         else:
-            self.filecsv = open(docname, 'r')
+            self.filecsv = docname
+            self._owns_filecsv = False
         self.rows = csv.reader(self.filecsv, dialect=dialect, delimiter=delimiter or ',')
         self.headers = next(self.rows)
-        index, _ = self._build_index(self.headers, f"CSV file '{docname}'")
+        name = docname if isinstance(docname, str) else (getattr(docname, 'name', None) or '<file-like>')
+        index, _ = self._build_index(self.headers, f"CSV file '{name}'")
         self.index = index
         self.ncols = len(self.headers)
 
     def __call__(self):
         for r in self.rows:
             yield GnrNamedList(self.index, r)
-        self.filecsv.close()
+        if self._owns_filecsv:
+            self.filecsv.close()
 
     def detect_encoding(self):
+        if not isinstance(self.docname, str):
+            return None
         try:
             import cchardet as chardet  # noqa: F401
         except ImportError:
@@ -385,7 +408,8 @@ class XmlReader(BaseReader):
     Parses XML via Bag and extracts rows based on a collection path or row tag.
     Automatically detects the most common tag as row separator if not specified.
 
-    :param docname: path to the XML file
+    :param docname: path to the XML file, or a file-like object whose content
+                   is read once at construction time
     :param collection_path: optional path to the collection in the Bag structure
     :param row_tag: optional tag name to use as row separator
     """
@@ -393,7 +417,8 @@ class XmlReader(BaseReader):
     def __init__(self, docname, collection_path=None, row_tag=None, **kwargs):
         super().__init__(docname, **kwargs)
         from gnr.core.gnrbag import Bag
-        self.source = Bag(docname)
+        source = docname if isinstance(docname, str) else docname.read()
+        self.source = Bag(source)
         if collection_path:
             rows = [n.value.asDict(ascii=True) if n.value else n.attr for n in self.source[collection_path]]
         else:
@@ -406,7 +431,8 @@ class XmlReader(BaseReader):
         self.rows = rows
         r0 = rows[0]
         self.headers = list(r0.keys())
-        index, _ = self._build_index(self.headers, f"XML file '{docname}'")
+        name = docname if isinstance(docname, str) else (getattr(docname, 'name', None) or '<file-like>')
+        index, _ = self._build_index(self.headers, f"XML file '{name}'")
         self.index = index
         self.ncols = len(self.headers)
 
@@ -424,7 +450,10 @@ def getReader(file_path, filetype=None, **kwargs):
 
     Auto-detects file type from extension, or uses the explicit *filetype*.
 
-    :param file_path: path to the file
+    :param file_path: path string **or** a file-like object.  When a file-like
+                     is passed its ``.name`` attribute is used for extension
+                     detection; supply an explicit *filetype* when the object
+                     has no meaningful name.
     :param filetype: optional override — 'excel', 'tab', 'csv_auto', or None
     :param kwargs: passed to the reader constructor
 
@@ -440,7 +469,10 @@ def getReader(file_path, filetype=None, **kwargs):
         >>> for row in reader():
         ...     print(row['column_name'])
     """
-    filename, ext = os.path.splitext(file_path)
+    if isinstance(file_path, str):
+        _, ext = os.path.splitext(file_path)
+    else:
+        _, ext = os.path.splitext(getattr(file_path, 'name', '') or '')
     if filetype == 'excel' or not filetype and ext in ('.xls', '.xlsx'):
         if ext == '.xls':
             reader = XlsReader(file_path, **kwargs)
