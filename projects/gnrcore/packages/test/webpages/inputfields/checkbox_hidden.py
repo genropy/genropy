@@ -49,7 +49,7 @@ class GnrCustomWebPage(object):
                     _ask=dict(title='Test ask with checkbox',
                               fields=[
                                   dict(name='reason', tag='textbox', lbl='Reason'),
-                                  dict(name='confirm', tag='checkbox', lbl='Confirm',
+                                  dict(name='confirm', tag='checkbox', label='Confirm',
                                        hidden="^.reason?=!#v")
                               ]))
         fb.div('^.result', lbl='Result')
@@ -66,7 +66,7 @@ class GnrCustomWebPage(object):
                     _ask=dict(title='Test ask checkbox always visible',
                               fields=[
                                   dict(name='note', tag='textbox', lbl='Note'),
-                                  dict(name='flag', tag='checkbox', lbl='Flag')
+                                  dict(name='flag', tag='checkbox', label='Flag')
                               ]))
         fb.div('^.result2', lbl='Result')
 
