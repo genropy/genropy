@@ -33,6 +33,7 @@ import os
 import pickle
 import shutil
 from typing import Any, Callable
+import zipfile
 
 from gnr.core.gnrbag import Bag
 from gnr.sql import logger
@@ -196,9 +197,11 @@ class SchemaMixin(GnrSqlDbBaseMixin):
         extractpath = path.replace('.zip', '')
         destroyFolder = False
         if not os.path.isdir(path):
-            from zipfile import ZipFile
-
-            myzip = ZipFile(path, 'r')
+            try:
+                myzip = zipfile.ZipFile(path, 'r')
+            except zipfile.BadZipFile as e:
+                logger.error("Can't use %s: %s", path, e)
+                return
             myzip.extractall(extractpath)
             destroyFolder = True
         stores: dict[str, str] = {}
