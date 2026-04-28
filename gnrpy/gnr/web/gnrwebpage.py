@@ -1059,6 +1059,7 @@ class GnrWebPage(GnrBaseWebPage):
         if 'MSIE' in user_agent and not 'chromeframe' in user_agent:
             raise GnrUnsupportedBrowserException
         self.charset = 'utf-8'
+        self.db  # ensure db env (storename, currentDomain) is set before reading preferences
         arg_dict = self.build_arg_dict(**kwargs)
         tpl = self.pagetemplate
         if not isinstance(tpl, str):
