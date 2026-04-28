@@ -63,32 +63,45 @@ dojo.declare("gnr.GnrSpeech", null, {
 
     start: function(opts){
         opts = opts || {};
-        var Recognition = this._Recognition();
+        const Recognition = this._Recognition();
         if(!Recognition){
             if(opts.onError){ opts.onError({error: 'not-supported'}); }
             return null;
         }
-        var recognition = new Recognition();
+        const recognition = new Recognition();
         recognition.continuous = opts.continuous !== false;
         recognition.interimResults = !!opts.interimResults;
-        var lang = this._resolveLang(opts.lang);
+        const lang = this._resolveLang(opts.lang);
         if(lang){
             recognition.lang = lang;
         }
-        var silenceTimeout = opts.silenceTimeout || 0;
-        var silenceTimer = null;
-        var lastFinalTranscript = '';
-        var silenceFired = false;
-        var clearSilenceTimer = function(){
+        const silenceTimeout = opts.silenceTimeout || 0;
+        const stopWords = (opts.stopWords || []).map(w => w.toLowerCase().trim()).filter(Boolean);
+        let silenceTimer = null;
+        let lastFinalTranscript = '';
+        let silenceFired = false;
+        let stopWordFired = false;
+        const checkStopWords = (text) => {
+            if(!stopWords.length){ return null; }
+            const lower = text.toLowerCase();
+            for(const word of stopWords){
+                const idx = lower.lastIndexOf(word);
+                if(idx >= 0){
+                    return {word, idx};
+                }
+            }
+            return null;
+        };
+        const clearSilenceTimer = () => {
             if(silenceTimer){
                 clearTimeout(silenceTimer);
                 silenceTimer = null;
             }
         };
-        var armSilenceTimer = function(){
+        const armSilenceTimer = () => {
             if(silenceTimeout <= 0){ return; }
             clearSilenceTimer();
-            silenceTimer = setTimeout(function(){
+            silenceTimer = setTimeout(() => {
                 silenceTimer = null;
                 silenceFired = true;
                 if(opts.onSilence){
@@ -97,29 +110,51 @@ dojo.declare("gnr.GnrSpeech", null, {
                 try{ recognition.stop(); }catch(e){}
             }, silenceTimeout);
         };
-        recognition.onresult = function(event){
-            var i = event.resultIndex;
-            for(; i < event.results.length; i++){
-                var res = event.results[i];
-                var transcript = res[0].transcript;
+        recognition.onresult = (event) => {
+            if(stopWordFired){ return; }
+            let finalText = '';
+            let interimText = '';
+            for(const res of event.results){
+                const transcript = res[0].transcript;
                 if(res.isFinal){
-                    lastFinalTranscript = transcript;
-                }
-                if(opts.onResult){
-                    if(opts.interimResults){
-                        opts.onResult(transcript, res.isFinal);
-                    }else if(res.isFinal){
-                        opts.onResult(transcript);
-                    }
+                    finalText += transcript;
+                }else{
+                    interimText += transcript;
                 }
             }
-            armSilenceTimer();
+            const fullText = finalText + interimText;
+            const match = checkStopWords(fullText);
+            if(match){
+                stopWordFired = true;
+                clearSilenceTimer();
+                const cleaned = fullText.substring(0, match.idx).trim();
+                if(opts.onResult){
+                    if(opts.interimResults){
+                        opts.onResult(cleaned, '');
+                    }else{
+                        opts.onResult(cleaned);
+                    }
+                }
+                try{ recognition.stop(); }catch(e){}
+                return;
+            }
+            if(finalText){
+                lastFinalTranscript = finalText;
+                armSilenceTimer();
+            }
+            if(opts.onResult){
+                if(opts.interimResults){
+                    opts.onResult(finalText, interimText);
+                }else if(finalText){
+                    opts.onResult(finalText);
+                }
+            }
         };
-        recognition.onerror = function(event){
+        recognition.onerror = (event) => {
             clearSilenceTimer();
             if(opts.onError){ opts.onError(event); }
         };
-        recognition.onend = function(){
+        recognition.onend = () => {
             clearSilenceTimer();
             if(opts.onEnd){ opts.onEnd(silenceFired); }
         };
@@ -129,10 +164,9 @@ dojo.declare("gnr.GnrSpeech", null, {
             if(opts.onError){ opts.onError({error: 'start-failed', exception: e}); }
             return null;
         }
-        armSilenceTimer();
         return {
-            recognition: recognition,
-            stop: function(){
+            recognition,
+            stop(){
                 clearSilenceTimer();
                 try{ recognition.stop(); }catch(e){}
             }
