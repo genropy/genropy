@@ -10,7 +10,7 @@ from dateutil.relativedelta import relativedelta
 
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
-from gnr.core.gnrdecorator import public_method,extract_kwargs,metadata
+from gnr.core.gnrdecorator import public_method,extract_kwargs,metadata,customizable
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import slugify
@@ -909,7 +909,7 @@ class TableHandlerView(BaseComponent):
                             SET .query.currentQuery = '__basequery__';
                         }
                         SET .query.currentQuery = $1.fullpath;
-                        SET .query.queryEditor=true; 
+                        SET .query.queryEditor=true;
                         SET .query.queryAttributes.extended = true;
                     }else{
                         if($1.fullpath=='__basequery__'){
@@ -942,6 +942,25 @@ class TableHandlerView(BaseComponent):
     #    query = tblobj.query(where='$%s IN :pkd' %tblobj.pkey,pkd=pkeys,**kwargs)
     #    return query.selection(sortedBy=sortedBy, _aggregateRows=True) 
 
+    @customizable
+    def th_handlePyQueries(self, pane, table=None, th_root=None):
+        q = Bag()
+        pyqueries = self._th_hook('query',mangler=th_root,asDict=True)
+        if self.db.table(table).column('_duplicate_finder') is not None and \
+                self.application.checkResourcePermission('_DEV_,superadmin', self.userTags):
+            pyqueries['default_duplicate_finder'] = self.th_default_find_duplicates
+        if self.db.table(table).hasInvalidCheck():
+            pyqueries['default_invalidrows_finder'] = self.th_default_find_invalidRows
+        for k,v in pyqueries.items():
+            pars = dictExtract(dict(v.__dict__),'query_')
+            code = pars.get('code')
+            q.setItem(code,None,tip=pars.get('description'),filteringPkeys=v,**pars)
+        return q
+
+    @customizable
+    def th_handleCustomQueryActions(self, pane, table=None, th_root=None):
+        return Bag()
+
     def _th_menu_sources(self,pane,extendedQuery=None,bySample=None,baseViewName=None):
         inattr = pane.getInheritedAttributes()
         th_root = inattr['th_root']
@@ -959,25 +978,12 @@ class TableHandlerView(BaseComponent):
                                     viewResource:'ViewCustomColumn'
                                     ,formResource:'FormCustomColumn'})
             """,tbl=table,_fired='^.handle_custom_column',pkg=table.split('.')[0],title='!!Custom columns')
-        q = Bag()
-        pyqueries = self._th_hook('query',mangler=th_root,asDict=True)
-        if self.db.table(table).column('_duplicate_finder') is not None and \
-                self.application.checkResourcePermission('_DEV_,superadmin', self.userTags):
-            pyqueries['default_duplicate_finder'] = self.th_default_find_duplicates
-            #pyqueries['default_duplicate_finder_to_del'] = self.th_default_find_duplicates_to_del
-        
-        if self.db.table(table).hasInvalidCheck():
-            pyqueries['default_invalidrows_finder'] = self.th_default_find_invalidRows        
-
-        for k,v in pyqueries.items():
-            pars = dictExtract(dict(v.__dict__),'query_')
-            code = pars.get('code')
-            q.setItem(code,None,tip=pars.get('description'),filteringPkeys=v,**pars)
-        pane.data('.query.pyqueries',q)
+        pane.data('.query.pyqueries',self.th_handlePyQueries(pane, table=table, th_root=th_root))
+        pane.data('.query.customQueryActions',self.th_handleCustomQueryActions(pane, table=table, th_root=th_root))
         pane.dataRemote('.query.menu',self.th_menuQueries,pyqueries='=.query.pyqueries',
-                        _resolved_pyqueries=q,editor=extendedQuery,bySample=bySample,
-                        table=table,th_root=th_root,caption='Queries',cacheTime=15,
-                        _resolved=extendedQuery)
+                        customQueryActions='=.query.customQueryActions',
+                        editor=extendedQuery,bySample=bySample,
+                        table=table,th_root=th_root,caption='Queries',cacheTime=15)
         pane.dataController("TH(th_root).querymanager.queryEditor(queryEditor);",
                         th_root=th_root,queryEditor="^.query.queryEditor")
         if 'adm' not in self.db.packages:
@@ -1637,7 +1643,7 @@ class THViewUtils(BaseComponent):
 
     
     @public_method
-    def th_menuQueries(self,table=None,th_root=None,pyqueries=None,editor=True,bySample=False,**kwargs):
+    def th_menuQueries(self,table=None,th_root=None,pyqueries=None,customQueryActions=None,editor=True,bySample=False,**kwargs):
         querymenu = Bag()
         if editor:
             querymenu.setItem('__basequery__',None,caption='!!Plain Query',description='',
@@ -1651,6 +1657,17 @@ class THViewUtils(BaseComponent):
             for n in pyqueries:
                 querymenu.setItem(n.label,n.value,caption=n.attr.get('description'),_attributes=n.attr)
             querymenu.setItem('r_3',None,caption='-')
+        customMenuItems = self._th_hook('queryMenuItem', mangler=th_root, asDict=True)
+        if customMenuItems:
+            querymenu.setItem('r_custom', None, caption='-')
+            for name, handler in customMenuItems.items():
+                item_pars = handler()
+                code = item_pars.pop('code', name)
+                querymenu.setItem(code, None, **item_pars)
+        if customQueryActions:
+            querymenu.setItem('r_customactions', None, caption='-')
+            for n in customQueryActions:
+                querymenu.setItem(n.label, n.value, caption=n.attr.get('caption'), _attributes=n.attr)
         if bySample:
             querymenu.setItem('__querybysample__',None,caption='!!Query by sample',extended=True)
         if editor:
