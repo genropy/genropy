@@ -7,8 +7,16 @@
  *
  * Recognition API:
  *   genro.speech.isAvailable()
- *   genro.speech.start({lang, onResult, onError, onEnd, interimResults, continuous})
+ *   genro.speech.start({lang, onResult, onSilence, onError, onEnd,
+ *                       interimResults, continuous, silenceTimeout})
  *     returns { stop(), recognition }
+ *
+ *   silenceTimeout (ms, default 0 = disabled): when set, the recognition
+ *     auto-stops after this many ms without a new final result.
+ *   onSilence(lastTranscript): fired once just before the auto-stop
+ *     triggered by silenceTimeout. Not fired on manual stop or error.
+ *   onEnd(silenceFired): receives a boolean telling whether the end
+ *     was caused by the silence timer.
  *
  * Synthesis API:
  *   genro.speech.canSpeak()
@@ -67,11 +75,36 @@ dojo.declare("gnr.GnrSpeech", null, {
         if(lang){
             recognition.lang = lang;
         }
+        var silenceTimeout = opts.silenceTimeout || 0;
+        var silenceTimer = null;
+        var lastFinalTranscript = '';
+        var silenceFired = false;
+        var clearSilenceTimer = function(){
+            if(silenceTimer){
+                clearTimeout(silenceTimer);
+                silenceTimer = null;
+            }
+        };
+        var armSilenceTimer = function(){
+            if(silenceTimeout <= 0){ return; }
+            clearSilenceTimer();
+            silenceTimer = setTimeout(function(){
+                silenceTimer = null;
+                silenceFired = true;
+                if(opts.onSilence){
+                    opts.onSilence(lastFinalTranscript);
+                }
+                try{ recognition.stop(); }catch(e){}
+            }, silenceTimeout);
+        };
         recognition.onresult = function(event){
             var i = event.resultIndex;
             for(; i < event.results.length; i++){
                 var res = event.results[i];
                 var transcript = res[0].transcript;
+                if(res.isFinal){
+                    lastFinalTranscript = transcript;
+                }
                 if(opts.onResult){
                     if(opts.interimResults){
                         opts.onResult(transcript, res.isFinal);
@@ -80,12 +113,15 @@ dojo.declare("gnr.GnrSpeech", null, {
                     }
                 }
             }
+            armSilenceTimer();
         };
         recognition.onerror = function(event){
+            clearSilenceTimer();
             if(opts.onError){ opts.onError(event); }
         };
         recognition.onend = function(){
-            if(opts.onEnd){ opts.onEnd(); }
+            clearSilenceTimer();
+            if(opts.onEnd){ opts.onEnd(silenceFired); }
         };
         try{
             recognition.start();
@@ -93,9 +129,11 @@ dojo.declare("gnr.GnrSpeech", null, {
             if(opts.onError){ opts.onError({error: 'start-failed', exception: e}); }
             return null;
         }
+        armSilenceTimer();
         return {
             recognition: recognition,
             stop: function(){
+                clearSilenceTimer();
                 try{ recognition.stop(); }catch(e){}
             }
         };

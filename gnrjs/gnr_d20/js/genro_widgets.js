@@ -1987,7 +1987,10 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
                 return;
             }
             btn.classList.add('gnr_speech_listening');
+            var silenceTimeout = sourceNode.attr.speech_silenceTimeout;
+            if(silenceTimeout === undefined){ silenceTimeout = 2500; }
             session = genro.speech.start({
+                silenceTimeout: silenceTimeout,
                 onResult: function(transcript){
                     that.onSpeechEnd(sourceNode, transcript);
                 },
