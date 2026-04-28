@@ -1943,14 +1943,16 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
     },
     onSpeechEnd:function(sourceNode,v){
         var lastSelection = genro._lastSelection;
+        var oldValue = sourceNode.getAttributeFromDatasource('value') || '';
         if(lastSelection && (lastSelection.domNode == sourceNode.widget.domNode)){
-            var oldValue = sourceNode.getAttributeFromDatasource('value');
             var fistchunk = oldValue.slice(0,lastSelection.start);
             var secondchunk =  oldValue.slice(lastSelection.end);
             v = fistchunk+v+secondchunk;
+        }else if(oldValue){
+            v = oldValue.trimEnd() + ' ' + v.trimStart();
         }
         setTimeout(function(){
-            sourceNode.setAttributeInDatasource('value',v,true);
+            sourceNode.setAttributeInDatasource('value',v.trim(),true);
             sourceNode.widget.domNode.focus();
         },1);
     },
@@ -1962,15 +1964,18 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
         var domNode = newobj.domNode;
         var parent = domNode.parentNode;
         if(!parent){ return; }
-        if(getComputedStyle(parent).position === 'static'){
-            parent.style.position = 'relative';
-        }
+        var wrapper = document.createElement('div');
+        wrapper.style.position = 'relative';
+        wrapper.style.display = 'inline-block';
+        parent.insertBefore(wrapper, domNode);
+        wrapper.appendChild(domNode);
+        domNode.style.paddingRight = '26px';
         var btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'gnr_speech_button';
         btn.title = 'Voice input';
         btn.setAttribute('tabindex','-1');
-        parent.appendChild(btn);
+        wrapper.appendChild(btn);
         var session = null;
         var stopListening = function(){
             if(session){
@@ -1987,14 +1992,31 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
                 return;
             }
             btn.classList.add('gnr_speech_listening');
+            let silenceTimeout = sourceNode.getAttributeFromDatasource('speech_silenceTimeout');
+            if(silenceTimeout == null){ silenceTimeout = 2500; }
+            silenceTimeout = parseInt(silenceTimeout, 10) || 0;
+            const baseValue = (sourceNode.getAttributeFromDatasource('value') || '').trimEnd();
+            const domNode = sourceNode.widget.domNode;
+            let lastFullText = baseValue;
+            const stopWordsAttr = sourceNode.getAttributeFromDatasource('speech_stopWords');
+            const stopWords = stopWordsAttr ? stopWordsAttr.split(',') : [];
             session = genro.speech.start({
-                onResult: function(transcript){
-                    that.onSpeechEnd(sourceNode, transcript);
+                silenceTimeout: silenceTimeout,
+                stopWords: stopWords,
+                interimResults: true,
+                onResult: (finalText, interimText) => {
+                    const parts = [];
+                    if(baseValue){ parts.push(baseValue); }
+                    if(finalText){ parts.push(finalText.trim()); }
+                    if(interimText){ parts.push(interimText.trim()); }
+                    lastFullText = parts.join(' ').trim();
+                    domNode.value = lastFullText;
                 },
-                onError: function(){
+                onError: () => {
                     stopListening();
                 },
-                onEnd: function(){
+                onEnd: () => {
+                    sourceNode.setAttributeInDatasource('value', lastFullText.trim(), true);
                     stopListening();
                 }
             });
