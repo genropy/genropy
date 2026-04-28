@@ -42,37 +42,33 @@ class LlmService(GnrBaseService):
     def resolve_model(self, model=None):
         """Resolve a model name or alias to an actual model identifier.
 
-        Args:
-            model: A model name, an alias (``low``, ``medium``, ``max``),
-                   or ``None`` to use the service default.
-
-        Returns:
-            str: The resolved model identifier.
+        :param model: a model name, an alias (``low``, ``medium``, ``max``),
+                      or ``None`` to use the service default.
+        :returns: the resolved model identifier.
         """
         if model is None:
             return self.model
-        return self._model_aliases.get(model) or model or self.model
+        if model in self._model_aliases:
+            return self._model_aliases[model] or self.model
+        return model or self.model
 
     def complete(self, system_prompt=None, user_prompt=None,
                  temperature=0, max_tokens=2000, model=None, **kwargs):
         """Send a prompt to the LLM and return the response.
 
-        Args:
-            system_prompt: System-level instructions for the model.
-            user_prompt: The user message to send.
-            temperature: Sampling temperature (0 = deterministic).
-            max_tokens: Maximum tokens to generate.
-            model: Model name, alias (``low``/``medium``/``max``), or
-                   ``None`` for the service default.  Aliases are resolved
-                   via :meth:`resolve_model`.
-            **kwargs: Provider-specific parameters.
+        :param system_prompt: system-level instructions for the model.
+        :param user_prompt: the user message to send.
+        :param temperature: sampling temperature (0 = deterministic).
+        :param max_tokens: maximum tokens to generate.
+        :param model: model name, alias (``low``/``medium``/``max``), or
+                      ``None`` for the service default. Aliases are resolved
+                      via :meth:`resolve_model`.
+        :param kwargs: provider-specific parameters.
+        :returns: a dictionary with at least the following keys:
 
-        Returns:
-            dict: A dictionary with at least the following keys:
-
-            - ``answer`` (str): The generated text.
-            - ``model`` (str): The model used.
-            - ``usage`` (dict, optional): Token usage with keys
+            - ``answer`` (str): the generated text.
+            - ``model`` (str): the model used.
+            - ``usage`` (dict, optional): token usage with keys
               ``prompt_tokens``, ``completion_tokens``, ``total_tokens``.
         """
         raise NotImplementedError
