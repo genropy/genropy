@@ -1,0 +1,40 @@
+/* ==========================================================================
+   22_gnr_speech.css — voice input mic button on widgets with speech=True
+   ========================================================================== */
+
+.gnr_speech_button {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background-color: transparent;
+    background-image: url('/_rsrc/common/css_icons/google_icons/mic.svg');
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: 16px 16px;
+    cursor: pointer;
+    opacity: 0.5;
+    z-index: 5;
+    transition: opacity 0.15s, background-color 0.15s;
+}
+
+.gnr_speech_button:hover {
+    opacity: 0.9;
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.gnr_speech_button.gnr_speech_listening {
+    opacity: 1;
+    background-color: rgba(220, 53, 69, 0.15);
+    animation: gnr_speech_pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes gnr_speech_pulse {
+    0%   { box-shadow: 0 0 0 0   rgba(220, 53, 69, 0.55); }
+    70%  { box-shadow: 0 0 0 6px rgba(220, 53, 69, 0); }
+    100% { box-shadow: 0 0 0 0   rgba(220, 53, 69, 0); }
+}
