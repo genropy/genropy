@@ -3,27 +3,18 @@
 "Speech input test page"
 
 class GnrCustomWebPage(object):
-    py_requires = "gnrcomponents/testhandler:TestHandlerBase"
+    py_requires = "gnrcomponents/testhandler:TestHandlerFull"
 
     def test_0_simpleTextArea(self, pane):
-        """SimpleTextArea with speech=True — mic button should appear on supported browsers"""
+        """SimpleTextArea with speech and silence timeout settings"""
         fb = pane.formbuilder(cols=2, border_spacing='3px')
+        fb.numberTextBox(value='^.silence_timeout', lbl='Silence timeout (ms)',
+                         default=2500, width='100px')
         fb.simpleTextArea(value='^.note', height='300px', width='400px',
-                         lbl='Note', speech=True)
-        fb.div('^.note')
-
-    def test_1_textbox(self, pane):
-        """Textbox with speech=True — no mic button expected (not yet supported)"""
-        fb = pane.formbuilder(cols=2, border_spacing='3px')
-        fb.textbox(value='^.prova', speech=True, lbl='Textbox')
-        fb.div('^.prova')
-
-    def test_2_dbselect(self, pane):
-        """DbSelect with speech=True — no mic button expected (not yet supported)"""
-        fb = pane.formbuilder(cols=2, border_spacing='3px')
-        fb.dbSelect(dbtable='glbl.provincia', value='^.provincia',
-                   lbl='Provincia', speech=True)
-        fb.div('^.provincia')
+                         lbl='Note', speech=True,
+                         speech_silenceTimeout='^.silence_timeout',
+                         speech_stopWords='stop,fine,basta')
+        fb.div('^.note', colspan=2)
 
     def test_3_speechSynthesis(self, pane):
         """Text-to-speech: type text, pick language, press Speak"""
