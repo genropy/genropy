@@ -1,89 +1,139 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from gnr.core.gnrbag import DirectoryResolver
-from gnr.core.gnrdecorator import public_method
+import os
+import stat
+
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.web.gnrwebstruct import struct_method
+from gnrpkg.sys.services.ftp import SftpService
 
-class SftpClient(BaseComponent):
-    py_requires='public:Public'
+import paramiko
 
-    @struct_method
-    def sftp_sftpClientLayout(self,pane,ftpname=None,
-                            datapath='.sftpclient',destdir=None,remotedir=None,**kwargs):
-        bc = pane.borderContainer(datapath=datapath,_anchor=True,**kwargs)
-        self.sftp_remoteTree(bc.roundedGroupFrame(region='left',title='!!Remote',
-                            datapath='.remote',width='50%',
-                            splitter=True),ftpname=ftpname,remotedir=remotedir)
-        self.sftp_localTree(bc.roundedGroupFrame(region='center',title='!!Local',
-                            datapath='.local'),ftpname=ftpname,destdir=destdir)
+class _Connection(object):
+    """Wraps paramiko SFTPClient to match the interface used by SftpDirectoryResolver
+    and the download/upload helpers."""
 
-    def sftp_remoteTree(self,frame,ftpname=None,remotedir=None):
-        resolver = self.getService('ftp',ftpname).sftpResolver()
-        frame.data('.tree',resolver())
-        self.sftp_fileTree(frame,nodeId='%s_src' %ftpname,topic='%s_upload' %ftpname)
-        frame.dataRpc(None,self.sftp_uploadFiles,ftp=ftpname,
-                    _onResult="""kwargs._dropnode.refresh(true);""",
-                    **{'subscribe_%s_upload' %ftpname:True})
+    def __init__(self, sftp, ssh_client):
+        self._sftp = sftp
+        self._ssh = ssh_client
 
-    def sftp_localTree(self,frame,ftpname=None,destdir=None):
-        resolver= DirectoryResolver(destdir or self.site.getStatic('site').path())
-        frame.data('.tree',resolver())
-        self.sftp_fileTree(frame,nodeId='%s_dest' %ftpname,
-                            topic='%s_download' %ftpname)
-        frame.dataRpc(None,self.sftp_downloadFiles,ftp=ftpname,
-                    _onResult="""kwargs._dropnode.refresh(true);""",
-                        **{'subscribe_%s_download' %ftpname:True})
+    def listdir(self, path='.'):
+        return self._sftp.listdir(path or '.')
 
+    def isdir(self, path):
+        try:
+            return stat.S_ISDIR(self._sftp.stat(path).st_mode)
+        except (FileNotFoundError, IOError):
+            return False
 
-    def sftp_onDrag(self):
-        return """var children=treeItem.getValue('static')
-                  if(!children){
-                      dragValues['fsource']=[treeItem.attr.abs_path];
-                      return
-                  }
-                   result=[];
-                   children.forEach(function(n){
-                        if (n.attr.checked && !n._value){result.push(n.attr.abs_path);
-                    }},'static');
-                   dragValues['fsource']= result;
-               """
+    def stat(self, path):
+        return self._sftp.stat(path)
 
-    @public_method
-    def sftp_downloadFiles(self,sourcefiles=None,destfolder=None,ftp=None,**kwargs):
-        self.getService('ftp',ftp).downloadFilesIntoFolder(sourcefiles=sourcefiles,
-                                                destfolder=destfolder,**kwargs)
+    def get(self, remotepath, localpath, callback=None, preserve_mtime=False):
+        self._sftp.get(remotepath, localpath, callback=callback)
+        if preserve_mtime:
+            remote_stat = self._sftp.stat(remotepath)
+            os.utime(localpath, (remote_stat.st_atime, remote_stat.st_mtime))
 
-    @public_method
-    def sftp_uploadFiles(self,sourcefiles=None,destfolder=None,ftp=None,**kwargs):
-        self.getService('ftp',ftp).uploadFilesIntoFolder(sourcefiles=sourcefiles,
-                                                destfolder=destfolder,**kwargs)
+    def put(self, localpath, remotepath, callback=None, preserve_mtime=False, confirm=True):
+        self._sftp.put(localpath, remotepath, callback=callback, confirm=confirm)
+        if preserve_mtime:
+            local_stat = os.stat(localpath)
+            self._sftp.utime(remotepath, (local_stat.st_atime, local_stat.st_mtime))
+
+    def close(self):
+        self._sftp.close()
+        self._ssh.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+        return False
 
 
-    def sftp_fileTree(self,pane,topic=None,**kwargs):
-        tree = pane.treeGrid(storepath='.tree',hideValues=True,
-                      selectedLabelClass='selectedTreeNode',
-                      selected_abs_path='.abs_path',selected_file_ext='.file_ext',
-                      checked_abs_path='.checked_abs_path',
-                       autoCollapse=True,
-                      onDrag_fsource=self.sftp_onDrag(),
-                      headers=True,draggable=True,dragClass='draggedItem',
-                      onDrop_fsource="""
-                         if(dropInfo.treeItem.attr.file_ext!='directory'){
-                             return false;
-                         }else{
-                             genro.publish('%s',{
-                                destfolder:dropInfo.treeItem.attr.abs_path,
-                                _dropnode:dropInfo.treeItem,
-                                sourcefiles:data});
-                         }
-                     """ %topic,dropTargetCb_fsource="""
-                     if(dropInfo.selfdrop || dropInfo.treeItem.attr.file_ext!='directory'){
-                         return false;
-                     }
-                     return true;
-                     """,**kwargs)
-        tree.column('nodecaption',header='!!Name')
-        tree.column('file_ext',size=50,header='!!Ext')
-        tree.column('size',header='!!Size(KB)',size=60,dtype='L')
-        tree.column('mtime',header='!!MTime',size=100,dtype='DH')
+class Service(SftpService):
+    def __init__(self, parent=None, host=None, username=None, password=None,
+                 private_key=None, port=None, root=None, **kwargs):
+        self.parent = parent
+        self.host = host
+        self.username = username
+        self.password = password
+        self.private_key = private_key
+        self.port = port
+        self.root = root
+
+    def __call__(self, host=None, username=None, password=None, private_key=None, port=None):
+        host = host or self.host
+        username = username or self.username
+        password = password or self.password
+        private_key = private_key or self.private_key
+        port = int(port or self.port or 22)
+
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+        connect_kwargs = dict(hostname=host, port=port, username=username)
+        if password:
+            connect_kwargs['password'] = password
+        if private_key:
+            connect_kwargs['key_filename'] = private_key
+
+        ssh.connect(**connect_kwargs)
+        sftp = ssh.open_sftp()
+
+        if self.root:
+            sftp.chdir(self.root)
+
+        return _Connection(sftp, ssh)
+
+    def downloadFilesIntoFolder(self, sourcefiles=None, destfolder=None,
+                                callback=None, preserve_mtime=None,
+                                thermo_wrapper=None, **kwargs):
+        if isinstance(sourcefiles, str):
+            sourcefiles = sourcefiles.split(',')
+        if thermo_wrapper:
+            sourcefiles = thermo_wrapper(thermo_wrapper)
+        if callback is None:
+            def callback(curr, total):
+                print('dl %i/%i' % (curr, total))
+        with self(**kwargs) as sftp:
+            for filepath in sourcefiles:
+                basename = os.path.basename(filepath)
+                getkw = dict(callback=callback)
+                if preserve_mtime:
+                    getkw['preserve_mtime'] = preserve_mtime
+                sftp.get(filepath, os.path.join(destfolder, basename), **getkw)
+
+    def uploadFilesIntoFolder(self, sourcefiles=None, destfolder=None,
+                              callback=None, preserve_mtime=None,
+                              thermo_wrapper=None, confirm=None, **kwargs):
+        if isinstance(sourcefiles, str):
+            sourcefiles = sourcefiles.split(',')
+        if thermo_wrapper:
+            sourcefiles = thermo_wrapper(thermo_wrapper)
+        if callback is None:
+            def callback(curr, total):
+                print('up %i/%i' % (curr, total))
+        with self(**kwargs) as sftp:
+            for filepath in sourcefiles:
+                basename = os.path.basename(filepath)
+                putkw = dict(callback=callback)
+                if preserve_mtime:
+                    putkw['preserve_mtime'] = preserve_mtime
+                if confirm:
+                    putkw['confirm'] = confirm
+                sftp.put(filepath, os.path.join(destfolder, basename), **putkw)
+
+
+class ServiceParameters(BaseComponent):
+
+    def service_parameters(self, pane, datapath=None, **kwargs):
+        fb = pane.formbuilder(datapath=datapath)
+        fb.textbox(value='^.host', lbl='Host')
+        fb.textbox(value='^.username', lbl='Username')
+        fb.passwordTextBox(value='^.password', lbl='Password')
+        fb.textbox(value='^.private_key', lbl='Private key file path')
+        fb.textbox(value='^.port', lbl='Port')
+        fb.textbox(value='^.root', lbl='Root')

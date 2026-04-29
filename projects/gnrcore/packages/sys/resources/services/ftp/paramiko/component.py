@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 
-# paramiko/ftp component
-
 from gnr.core.gnrbag import DirectoryResolver
 from gnr.core.gnrdecorator import public_method
 from gnr.web.gnrbaseclasses import BaseComponent
@@ -48,7 +46,7 @@ class SftpClient(BaseComponent):
                    children.forEach(function(n){
                         if (n.attr.checked && !n._value){result.push(n.attr.abs_path);
                     }},'static');
-                   dragValues['fsource']= result; 
+                   dragValues['fsource']= result;
                """
 
     @public_method
@@ -63,11 +61,10 @@ class SftpClient(BaseComponent):
 
 
     def sftp_fileTree(self,pane,topic=None,**kwargs):
-        tree = pane.treeGrid(storepath='.tree',hideValues=True, 
+        tree = pane.treeGrid(storepath='.tree',hideValues=True,
                       selectedLabelClass='selectedTreeNode',
                       selected_abs_path='.abs_path',selected_file_ext='.file_ext',
                       checked_abs_path='.checked_abs_path',
-                      #labelAttribute='nodecaption',
                        autoCollapse=True,
                       onDrag_fsource=self.sftp_onDrag(),
                       headers=True,draggable=True,dragClass='draggedItem',
