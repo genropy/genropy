@@ -790,6 +790,56 @@ async def websocket_handler(request):
     return ws
 
 
+async def wsproxy_handler(request):
+    """aiohttp POST handler for /wsproxy.
+
+    Replaces the legacy GnrWsProxyHandler (Tornado RequestHandler).
+    Used by WSGI workers (gunicorn) and any external publisher that needs
+    to push a message to one or more browser pages over the WebSocket.
+
+    Form fields (urlencoded body):
+    - page_id: target page id, comma-separated list, '*' to broadcast,
+      or empty if remote_service is given.
+    - envelope: XML payload of a Bag(command=..., data=...).
+    - remote_service: optional gateway service name; the server resolves
+      it to a registered page_id via self.remote_services.
+
+    With no page_id and no remote_service the envelope is decoded and
+    dispatched as a server-side externalCommand.
+    """
+    server = request.app['server']
+    form = await request.post()
+    page_id = form.get('page_id') or ''
+    envelope = form.get('envelope') or ''
+    remote_service = form.get('remote_service') or ''
+
+    if remote_service:
+        page_id = server.remote_services.get(remote_service) or ''
+        if not page_id:
+            return web.Response(text='')
+
+    if not page_id:
+        bag = Bag(envelope)
+        command = bag['command']
+        data = bag['data']
+        server.externalCommand(command, data)
+        return web.Response(text='')
+
+    if page_id == '*':
+        page_ids = list(server.channels.keys())
+    else:
+        page_ids = page_id.split(',')
+
+    for dest_page_id in page_ids:
+        target = server.channels.get(dest_page_id)
+        if target is not None:
+            try:
+                await target.write_message(envelope)
+            except Exception:
+                logger.exception('wsproxy send failed for page %s', dest_page_id)
+    return web.Response(text='')
+
+
 class GnrBaseAsyncServer:
     """Async server based on aiohttp + asyncio.
 
@@ -899,7 +949,7 @@ class GnrBaseAsyncServer:
         app = web.Application()
         app['server'] = self
         app.router.add_get('/websocket', websocket_handler)
-        # Phase 5 will register POST /wsproxy here.
+        app.router.add_post('/wsproxy', wsproxy_handler)
         return app
 
     def _build_ssl_context(self):
