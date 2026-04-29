@@ -1,6 +1,8 @@
 import sys
 import os
 import atexit
+import shutil
+import subprocess
 import webbrowser
 import socket
 
@@ -45,7 +47,7 @@ wsgi_options = dict(
         restore=False,
         source_instance=None,
         remote_edit=None,
-        async_too=None
+        async_port=None
         )
 
 
@@ -156,10 +158,11 @@ class Server(object):
                             dest='nodebug',
                             action='store_true',
                             help="Don't use werkzeug debugger")
-        parser.add_argument('-a', '--async-too',
-                            dest='async_too',
-                            action='store_true',
-                            help="Spawn the gnrasync server alongside the WSGI dev server "
+        parser.add_argument('-a', '--async-port',
+                            dest='async_port',
+                            type=int,
+                            default=None,
+                            help="Spawn the gnrasync server on this TCP port alongside the WSGI dev server "
                                  "(WebSocket, wsproxy, debugger)")
         
         parser.add_argument('-o','--open',
@@ -331,8 +334,8 @@ class Server(object):
         self.app_host = self.options.host
         site_name= f'{self.site_name}:{self.remote_db}' if self.remote_db else self.site_name
 
-        if self.options.async_too and not is_running_from_reloader():
-            self._spawn_async_server(site_name)
+        if self.options.async_port and not is_running_from_reloader():
+            self._spawn_async_server(site_name, self.options.async_port)
 
         ssl_context = None
         if not self.debugpy and self.reloader and not is_running_from_reloader():
@@ -413,26 +416,24 @@ class Server(object):
         if not is_running_from_reloader():
             logger.info("Shutting down")
 
-    def _spawn_async_server(self, site_name):
-        """Spawn the gnrasync server as a child process for `--async-too`.
+    def _spawn_async_server(self, site_name, async_port):
+        """Spawn the gnrasync server as a child process for `--async-port`.
 
         Registers an atexit cleanup so SIGTERM is sent on parent exit.
         Skipped when running from the werkzeug reloader child to avoid
         spawning two gnrasync processes.
         """
-        import shutil
-        import subprocess
         gnrasync_bin = shutil.which('gnrasync')
         if not gnrasync_bin:
-            logger.error('gnrasync entrypoint not found on PATH; --async-too disabled')
+            logger.error('gnrasync entrypoint not found on PATH; --async-port disabled')
             return
         try:
-            child = subprocess.Popen([gnrasync_bin, site_name])
+            child = subprocess.Popen([gnrasync_bin, site_name, '-p', str(async_port)])
         except Exception:
             logger.exception('failed to spawn gnrasync subprocess')
             return
-        logger.info('gnrasync subprocess started (pid=%s) for instance %s',
-                    child.pid, site_name)
+        logger.info('gnrasync subprocess started (pid=%s) for instance %s on port %s',
+                    child.pid, site_name, async_port)
 
         def _cleanup():
             if child.poll() is None:

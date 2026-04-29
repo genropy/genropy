@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"Shared Objects. Please use websockets=True in siteconfig and gnrwsgiserve --tornado for testing"
+"Shared Objects. Please enable experimental.wsk_enabled preference and use gnrwsgiserve --async-port PORT for testing"
 
 class GnrCustomWebPage(object):
     py_requires="gnrcomponents/testhandler:TestHandlerFull"

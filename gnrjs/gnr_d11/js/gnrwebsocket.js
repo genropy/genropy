@@ -29,7 +29,10 @@ dojo.declare("gnr.GnrWebSocketHandler", null, {
     constructor: function(application, wsroot, options) {
         this.application = application;
         this.wsroot=wsroot;
-        this.url=(window.location.protocol=='https:'?'wss://':'ws://')+window.location.host+wsroot;
+        var protocol = window.location.protocol=='https:'?'wss://':'ws://';
+        var host = window.location.hostname;
+        var port = (options && options.port) ? options.port : window.location.port;
+        this.url = protocol + host + (port ? ':' + port : '') + wsroot;
         this.options=objectUpdate({ debug: false, reconnectInterval: 4000, ping_time:1000 },
                                   options);
         this.waitingCalls={};
@@ -82,7 +85,6 @@ dojo.declare("gnr.GnrWebSocketHandler", null, {
         if (data=='pong'){
             return;
         }
-        
         if (data.indexOf('<?xml')==0){
             var result=this.parseResponse(e.data);
             var token=result.getItem('token') 
@@ -196,6 +198,10 @@ dojo.declare("gnr.GnrWebSocketHandler", null, {
     },
     call:function(kw,omitSerialize,cb){
         var deferred = new dojo.Deferred();
+        if(!this.socket){
+            deferred.callback(null);
+            return deferred;
+        }
         var kw= objectUpdate({},kw);
         var _onResult = objectPop(kw,'_onResult');
         var _onError = objectPop(kw,'_onError');
@@ -206,7 +212,6 @@ dojo.declare("gnr.GnrWebSocketHandler", null, {
             kw=genro.rpc.serializeParameters(genro.src.dynamicParameters(kw));
         }
         this.waitingCalls[token] = deferred;
-        //console.log('sending',kw)
         this.socket.send(dojo.toJson(kw));
         deferred.addCallback(function(result){
             if(result && result.error){
@@ -227,6 +232,9 @@ dojo.declare("gnr.GnrWebSocketHandler", null, {
         return deferred;
     },
     send:function(command,kw){
+        if(!this.socket){
+            return;
+        }
         var kw=kw || {};
         kw['command']=command
         kw=genro.rpc.serializeParameters(genro.src.dynamicParameters(kw));
@@ -564,7 +572,7 @@ dojo.declare("gnr.GnrWebSocketHandler", null, {
          * @param data a text string, ArrayBuffer or Blob to send to the server.
          */
         this.send = function(data) {
-            if (ws) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
                 if (self.debug || ReconnectingWebSocket.debugAll) {
                     console.debug('ReconnectingWebSocket', 'send', self.url, data);
                 }
@@ -572,8 +580,6 @@ dojo.declare("gnr.GnrWebSocketHandler", null, {
             } else {
                 console.log('socket not ready - adding to queue')
                 this.pendingMessagesToSend.push(data)
-                //console.log ('Error sending :',data);
-                //throw 'INVALID_STATE_ERR : Pausing to reconnect websocket'
             }
         };
 

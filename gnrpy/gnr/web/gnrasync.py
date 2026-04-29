@@ -1131,6 +1131,7 @@ class GnrBaseAsyncServer:
         os.chmod(socket_path, 0o666)
         logger.info('aiohttp server bound to unix socket %s', socket_path)
 
+        port_file = os.path.join(sockets_dir, 'async_port')
         if self.port:
             tcp_site = web.TCPSite(
                 self.runner,
@@ -1139,7 +1140,11 @@ class GnrBaseAsyncServer:
                 ssl_context=self._build_ssl_context(),
             )
             await tcp_site.start()
+            with open(port_file, 'w') as f:
+                f.write(str(self.port))
             logger.info('aiohttp server listening on TCP port %s', self.port)
+        elif os.path.exists(port_file):
+            os.unlink(port_file)
 
         # Debugger unix socket: pdb-protocol bridge for the IDE.
         debug_socket_path = os.path.join(sockets_dir, 'debugger.sock')
