@@ -5,10 +5,18 @@
 #  Copyright (c) 2013 Softwell. All rights reserved.
 
 import os
+import warnings
 from gnr.web.gnrbaseclasses import BaseComponent
 
 from gnrpkg.sys.services.ftp import SftpService
 from gnr.core.gnrlang import GnrException
+
+
+warnings.warn(
+    "PYSFTP based FTP service is deprecated, please use newer implementation 'paramiko' ASAP",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 
 try:
@@ -102,6 +110,6 @@ class ServiceParameters(BaseComponent):
         fb.textbox(value='^.host',lbl='Host')
         fb.textbox(value='^.username',lbl='Username')
         fb.passwordTextBox(value='^.password',lbl='Password')
-        fb.textbox(value='^.private_key',lbl='Private key')
+        fb.textbox(value='^.private_key',lbl='Private key file path')
         fb.textbox(value='^.port',lbl='Port')
         fb.textbox(value='^.root',lbl='Root')
