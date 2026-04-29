@@ -20,7 +20,10 @@ import os
 import signal
 import ssl as ssl_module
 import time
+from copy import deepcopy
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
+from functools import wraps
 
 from aiohttp import WSMsgType, web
 
@@ -28,6 +31,9 @@ from gnr.core.gnrbag import Bag, TraceBackResolver
 from gnr.core.gnrstring import fromJson
 from gnr.web import logger
 from gnr.web.gnrwsgisite import GnrWsgiSite
+from gnr.web.gnrwsgisite_proxy.gnrwebsockethandler import (
+    AsyncWebSocketHandler as _LegacyAsyncWebSocketHandler,
+)
 
 MAX_WAIT_SECONDS_BEFORE_SHUTDOWN = 3
 
@@ -36,6 +42,33 @@ def threadpool(func):
     """Marker decorator: handler runs in the threadpool executor."""
     func._executor = 'threadpool'
     return func
+
+
+def lockedCoroutine(f):
+    """Async lock decorator. Equivalent of legacy @gen.coroutine + lock.acquire."""
+    @wraps(f)
+    async def wrapper(self, *args, **kwargs):
+        async with self.lock:
+            result = f(self, *args, **kwargs)
+            if inspect.isawaitable(result):
+                result = await result
+            return result
+    return wrapper
+
+
+def lockedThreadpool(f):
+    """Async lock + threadpool execution. Equivalent of legacy @gen.coroutine
+    + lock.acquire + executor.submit."""
+    @wraps(f)
+    async def wrapper(self, *args, **kwargs):
+        async with self.lock:
+            loop = asyncio.get_running_loop()
+            executor = self.server.executors['threadpool']
+            await loop.run_in_executor(
+                executor,
+                functools.partial(f, self, *args, **kwargs),
+            )
+    return wrapper
 
 
 class DelayedCall:
@@ -52,6 +85,487 @@ class DelayedCall:
 
     def cancel(self):
         self.handle.cancel()
+
+
+class SharedObject:
+    """In-memory shared state with optional persistence and pub/sub broadcast.
+
+    Concurrency model: a per-instance asyncio.Lock guards write operations
+    (datachange, save, load) and serializes them. Mutations on the inner
+    Bag are signalled via _on_data_trigger (sync callback from gnrbag), which
+    schedules an async broadcast to all subscribers using create_task.
+    """
+
+    default_savedir = 'site:async/sharedobjects'
+
+    def __init__(self, manager, shared_id, expire=None, startData=None,
+                 read_tags=None, write_tags=None, filepath=None,
+                 dbSaveKw=None, saveInterval=None, autoSave=None,
+                 autoLoad=None, **kwargs):
+        self.manager = manager
+        self.lock = asyncio.Lock()
+        self.server = manager.server
+        self.shared_id = shared_id
+        self._data = Bag(dict(root=Bag(startData)))
+        self.read_tags = read_tags
+        self.write_tags = write_tags
+        self._data.subscribe('datachanges', any=self._on_data_trigger)
+        self.subscribed_pages = dict()
+        self.expire = expire or 0
+        self.focusedPaths = {}
+        if self.expire < 0:
+            self.expire = 365 * 24 * 60 * 60
+        self.timeout = None
+        self.autoSave = autoSave
+        self.saveInterval = saveInterval
+        self.autoLoad = autoLoad
+        self.changes = False
+        self.dbSaveKw = dbSaveKw
+        self.onInit(**kwargs)
+
+    @property
+    def savepath(self):
+        return self.server.gnrsite.storageNode(self.default_savedir, '%s.xml' % self.shared_id)
+
+    @property
+    def data(self):
+        return self._data['root']
+
+    @property
+    def sql_data_column(self):
+        return self.dbSaveKw.get('data_column') or 'shared_data'
+
+    @property
+    def sql_backup_column(self):
+        return self.dbSaveKw.get('backup_column') or 'shared_backup'
+
+    @lockedThreadpool
+    def save(self):
+        if self.changes:
+            if self.dbSaveKw:
+                kw = dict(self.dbSaveKw)
+                tblobj = self.server.db.table(kw.pop('table'))
+                handler = getattr(tblobj, 'saveSharedObject', None)
+                if handler:
+                    handler(self.shared_id, self.data, **kw)
+                else:
+                    self.sql_save(tblobj)
+                self.server.db.commit()
+            else:
+                with self.savepath.open(mode='wb') as savefile:
+                    self.data.toXml(savefile, unresolved=True, autocreate=True)
+        self.changes = False
+
+    @lockedThreadpool
+    def load(self):
+        if self.dbSaveKw:
+            tblobj = self.server.db.table(self.dbSaveKw['table'])
+            handler = getattr(tblobj, 'loadSharedObject', None)
+            if handler:
+                data = handler(self.shared_id)
+            else:
+                data = self.sql_load(tblobj)
+        elif self.savepath.exists:
+            with self.savepath.open(mode='r') as savefile:
+                data = Bag(savefile)
+        else:
+            data = Bag()
+        self._data['root'] = data
+        self.changes = False
+
+    def sql_save(self, tblobj):
+        backup = self.dbSaveKw.get('backup')
+        data_column = self.sql_data_column
+        with tblobj.recordToUpdate(self.shared_id) as record:
+            if not self.data:
+                logger.error('NO DATA IN SAVING: %s', self.shared_id)
+            record[data_column] = deepcopy(self.data)
+            onSavingHandler = getattr(tblobj, 'shared_onSaving', None)
+            if onSavingHandler:
+                onSavingHandler(record)
+            if backup:
+                backup_column = self.sql_backup_column
+                if not record[backup_column]:
+                    record[backup_column] = Bag()
+                    n = 0
+                else:
+                    n = int(list(record[backup_column].keys())[-1].split('_')[1]) + 1
+                record[backup_column].setItem('v_%s' % n, record[data_column], ts=datetime.now())
+                if len(record[backup_column]) > backup:
+                    record[backup_column].popNode('#0')
+
+    def sql_load(self, tblobj, version=None):
+        record = tblobj.record(self.shared_id).output('bag')
+        onLoadingHandler = getattr(tblobj, 'shared_onLoading', None)
+        if onLoadingHandler:
+            onLoadingHandler(record)
+        if not version:
+            return record[self.sql_data_column]
+        return record[self.sql_backup_column].getItem('v_%i' % version)
+
+    def onInit(self, **kwargs):
+        if self.autoLoad:
+            # load() is now an async coroutine; legacy code "fired and forgot" it.
+            # Schedule it in the running loop. onInit is invoked from getSharedObject
+            # which is always reached from inside a coroutine (websocket handler).
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(self.load())
+            except RuntimeError:
+                # No loop yet: defer until manager calls _post_init (rare, init-time tools)
+                logger.debug('autoLoad deferred: no running loop for %s', self.shared_id)
+
+    def onSubscribePage(self, page_id):
+        pass
+
+    def onUnsubscribePage(self, page_id):
+        pass
+
+    def onDestroy(self):
+        logger.debug('onDestroy %s', self.shared_id)
+        if self.autoSave:
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(self.save())
+            except RuntimeError:
+                pass
+
+    def onShutdown(self):
+        if self.autoSave:
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(self.save())
+            except RuntimeError:
+                pass
+
+    def subscribe(self, page_id=None, **kwargs):
+        page = self.server.pages[page_id]
+        privilege = self.checkPermission(page)
+        if privilege:
+            page.sharedObjects.add(self.shared_id)
+            subkwargs = dict(kwargs)
+            subkwargs['page_id'] = page_id
+            subkwargs['user'] = page.user
+            self.subscribed_pages[page_id] = subkwargs
+            self.server.sharedStatus.sharedObjectSubscriptionAddPage(
+                self.shared_id, page_id, subkwargs,
+            )
+            self.onSubscribePage(page)
+            return dict(privilege=privilege, data=self.data)
+
+    def unsubscribe(self, page_id=None):
+        self.subscribed_pages.pop(page_id, None)
+        self.server.sharedStatus.sharedObjectSubscriptionRemovePage(self.shared_id, page_id)
+        self.onUnsubscribePage(page_id)
+        if not self.subscribed_pages:
+            self.timeout = self.server.delayedCall(
+                self.expire, self.manager.removeSharedObject, self,
+            )
+
+    def checkPermission(self, page):
+        privilege = 'readwrite'
+        gnrapp = self.server.gnrapp
+        if self.read_tags and not gnrapp.checkResourcePermission(self.read_tags, page.userTags):
+            privilege = None
+        elif self.write_tags and not gnrapp.checkResourcePermission(self.write_tags, page.userTags):
+            privilege = 'readonly'
+        return privilege
+
+    @lockedCoroutine
+    def datachange(self, page_id=None, path=None, value=None, attr=None,
+                   evt=None, fired=None, **kwargs):
+        if fired:
+            data = Bag(dict(value=value, attr=attr, path=path,
+                            shared_id=self.shared_id, evt=evt, fired=fired))
+            return self.broadcast(
+                command='som.sharedObjectChange', data=data, from_page_id=page_id,
+            )
+        path = 'root' if not path else 'root.%s' % path
+        if evt == 'del':
+            self._data.popNode(path, _reason=page_id)
+        else:
+            self._data.setItem(path, value, _attributes=attr, _reason=page_id)
+
+    def _on_data_trigger(self, node=None, ind=None, evt=None, pathlist=None,
+                         reason=None, **kwargs):
+        self.changes = True
+        if reason == 'autocreate':
+            return
+        plist = pathlist[1:]
+        if evt == 'ins' or evt == 'del':
+            plist = plist + [node.label]
+        path = '.'.join(plist)
+        data = Bag(dict(value=node.value, attr=node.attr, path=path,
+                        shared_id=self.shared_id, evt=evt))
+        from_page_id = reason
+        # _on_data_trigger is a sync callback fired by gnrbag during setItem/popNode.
+        # broadcast() is now async; schedule it on the running loop.
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self.broadcast(
+                command='som.sharedObjectChange', data=data, from_page_id=from_page_id,
+            ))
+        except RuntimeError:
+            logger.debug('broadcast deferred: no running loop')
+
+    def onPathFocus(self, page_id=None, curr_path=None, focused=None):
+        if focused:
+            self.focusedPaths[curr_path] = page_id
+        else:
+            self.focusedPaths.pop(curr_path, None)
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self.broadcast(
+                command='som.onPathLock', from_page_id=page_id,
+                data=Bag(dict(locked=focused, lock_path=curr_path)),
+            ))
+        except RuntimeError:
+            pass
+
+    async def broadcast(self, command=None, data=None, from_page_id=None):
+        envelope = Bag(dict(command=command, data=data)).toXml()
+        channels = self.server.channels
+        for p in list(self.subscribed_pages.keys()):
+            if p != from_page_id:
+                target = channels.get(p)
+                if target is not None:
+                    try:
+                        await target.write_message(envelope)
+                    except Exception:
+                        logger.exception('broadcast failed for page %s', p)
+
+
+class SqlSharedObject(SharedObject):
+    pass
+
+
+class SharedLogger(SharedObject):
+    def onInit(self, **kwargs):
+        logger.debug('onInit %s', self.shared_id)
+
+    def onSubscribePage(self, page_id):
+        logger.debug('onSubscribePage %s %s', self.shared_id, page_id)
+
+    def onUnsubscribePage(self, page_id):
+        logger.debug('onUnsubscribePage %s %s', self.shared_id, page_id)
+
+    def onDestroy(self):
+        logger.debug('onDestroy %s', self.shared_id)
+
+
+class SharedStatus(SharedObject):
+    def onInit(self, **kwargs):
+        self.data['users'] = Bag()
+        self.data['sharedObjects'] = Bag()
+
+    @property
+    def users(self):
+        return self.data['users']
+
+    @property
+    def sharedObjects(self):
+        return self.data['sharedObjects']
+
+    def registerPage(self, page):
+        page_item = page.page_item
+        users = self.users
+        page_id = page.page_id
+        if page.user not in users:
+            users[page.user] = Bag(dict(
+                start_ts=page_item['start_ts'], user=page.user, connections=Bag(),
+            ))
+        userbag = users[page.user]
+        connection_id = page.connection_id
+        if connection_id not in userbag['connections']:
+            userbag['connections'][connection_id] = Bag(dict(
+                start_ts=page_item['start_ts'],
+                user_ip=page_item['user_ip'],
+                user_agent=page_item['user_agent'],
+                connection_id=connection_id,
+                pages=Bag(),
+            ))
+        userbag['connections'][connection_id]['pages'][page_id] = Bag(dict(
+            pagename=page_item['pagename'],
+            relative_url=page_item['relative_url'],
+            start_ts=page_item['start_ts'],
+            page_id=page_id,
+        ))
+
+    def unregisterPage(self, page):
+        users = self.users
+        userbag = users[page.user]
+        connection_id = page.connection_id
+        userconnections = userbag['connections']
+        connection_pages = userconnections[connection_id]['pages']
+        connection_pages.popNode(page.page_id)
+        if not connection_pages:
+            userconnections.popNode(connection_id)
+            if not userconnections:
+                users.popNode(page.user)
+
+    def onPing(self, page_id, lastEventAge):
+        page = self.server.pages.get(page_id)
+        if not page:
+            return
+        userdata = self.users[page.user]
+        conndata = userdata['connections'][page.connection_id]
+        pagedata = conndata['pages'][page_id]
+        pagedata['lastEventAge'] = lastEventAge
+        conndata['lastEventAge'] = min(
+            conndata['pages'].digest('#v.lastEventAge'), key=lambda i: i or 0,
+        )
+        userdata['lastEventAge'] = min(
+            userdata['connections'].digest('#v.lastEventAge'), key=lambda i: i or 0,
+        )
+
+    def onUserEvent(self, page_id, event):
+        page = self.server.pages.get(page_id)
+        if not page:
+            return
+        pagedata = self.users[page.user]['connections'][page.connection_id]['pages'][page_id]
+        old_targetId = pagedata['evt_targetId']
+        for k, v in list(event.items()):
+            pagedata['evt_%s' % k] = v
+        if old_targetId == event['targetId']:
+            if event['type'] == 'keypress':
+                pagedata['typing'] = True
+        else:
+            pagedata['typing'] = False
+
+    def registerSharedObject(self, shared_id, sharingkw):
+        self.sharedObjects[shared_id] = Bag(sharingkw)
+
+    def unregisterSharedObject(self, shared_id):
+        self.sharedObjects.pop(shared_id)
+
+    def sharedObjectSubscriptionAddPage(self, shared_id, page_id, subkwargs):
+        self.sharedObjects[shared_id]['subscriptions'][page_id] = Bag(subkwargs)
+
+    def sharedObjectSubscriptionRemovePage(self, shared_id, page_id):
+        self.sharedObjects[shared_id]['subscriptions'].pop(page_id, None)
+
+
+class SharedObjectsManager:
+    def __init__(self, server, gc_interval=5):
+        self.server = server
+        self.sharedObjects = dict()
+        # Legacy carried a tornado queues.Queue here for buffered changes
+        # (consume_change_queue method, fully commented out). Drop it.
+
+    def getSharedObject(self, shared_id, expire=None, startData=None,
+                        read_tags=None, write_tags=None, factory=None, **kwargs):
+        if factory is None:
+            factory = SharedObject
+        if shared_id not in self.sharedObjects:
+            self.sharedObjects[shared_id] = factory(
+                self, shared_id=shared_id, expire=expire, startData=startData,
+                read_tags=read_tags, write_tags=write_tags, **kwargs,
+            )
+            sharingkw = dict(kwargs)
+            sharingkw.update(dict(
+                shared_id=shared_id, expire=expire,
+                read_tags=read_tags, write_tags=write_tags,
+                subscriptions=Bag(),
+            ))
+            # Avoid recursion: __global_status__ is itself a SharedObject and
+            # registers itself on first access via sharedStatus property.
+            if shared_id != '__global_status__':
+                self.server.sharedStatus.registerSharedObject(shared_id, sharingkw)
+        return self.sharedObjects[shared_id]
+
+    def removeSharedObject(self, so):
+        if so.onDestroy() is not False:
+            self.sharedObjects.pop(so.shared_id, None)
+            self.server.sharedStatus.unregisterSharedObject(so.shared_id)
+
+    def do_unsubscribe(self, shared_id=None, page_id=None, **kwargs):
+        sharedObject = self.sharedObjects.get(shared_id)
+        if sharedObject:
+            sharedObject.unsubscribe(page_id=page_id)
+
+    def do_subscribe(self, shared_id=None, page_id=None, **kwargs):
+        sharedObject = self.getSharedObject(shared_id, **kwargs)
+        subscription = sharedObject.subscribe(page_id)
+        if not subscription:
+            subscription = dict(privilege='forbidden', data=Bag())
+        elif sharedObject.timeout:
+            sharedObject.timeout.cancel()
+            sharedObject.timeout = None
+        data = Bag(dict(
+            value=subscription['data'], shared_id=shared_id,
+            evt='init', privilege=subscription['privilege'],
+        ))
+        envelope = Bag(dict(command='som.sharedObjectChange', data=data))
+        return envelope
+
+    async def do_datachange(self, shared_id=None, **kwargs):
+        if shared_id in self.sharedObjects:
+            await self.sharedObjects[shared_id].datachange(**kwargs)
+
+    async def do_saveSharedObject(self, shared_id=None, **kwargs):
+        await self.sharedObjects[shared_id].save()
+
+    async def do_loadSharedObject(self, shared_id=None, **kwargs):
+        await self.getSharedObject(shared_id).load()
+
+    def do_dispatch(self, shared_id=None, so_method=None, so_pars=None, **kwargs):
+        so = self.getSharedObject(shared_id)
+        pars = so_pars or dict()
+        return getattr(so, so_method)(**pars)
+
+    def onShutdown(self):
+        for so in list(self.sharedObjects.values()):
+            so.onShutdown()
+
+    def do_onPathFocus(self, shared_id=None, page_id=None, curr_path=None,
+                       focused=None, **kwargs):
+        self.sharedObjects[shared_id].onPathFocus(
+            page_id=page_id, curr_path=curr_path, focused=focused,
+        )
+
+
+class AsyncWebSocketHandler(_LegacyAsyncWebSocketHandler):
+    """Override of the legacy AsyncWebSocketHandler.
+
+    The legacy class assumed Tornado's write_message was a sync method that
+    schedules the send on the IOLoop. With aiohttp, GnrWebSocketSession
+    .write_message is a coroutine. Callers come from two contexts:
+
+    - inside the event loop (e.g. SharedObject.broadcast, DebugSession):
+      they should ``await`` write_message directly. They use this handler
+      via ``server.wsk.sendCommandToPage`` which we now route through the
+      session's coroutine method via run_coroutine_threadsafe.
+    - from a threadpool worker (e.g. page methods called from do_call):
+      run_coroutine_threadsafe schedules the send on the loop and returns
+      a concurrent.futures.Future the worker can ignore.
+    """
+
+    def __init__(self, server):
+        self.server = server
+
+    def _send(self, target, envelope_xml):
+        loop = self.server.loop
+        coro = target.write_message(envelope_xml)
+        if loop is None or not loop.is_running():
+            logger.warning('AsyncWebSocketHandler.sendCommandToPage called with no running loop')
+            return
+        try:
+            running = asyncio.get_running_loop()
+        except RuntimeError:
+            running = None
+        if running is loop:
+            # Already inside the loop: schedule as task, don't block.
+            loop.create_task(coro)
+        else:
+            # From a thread (e.g. threadpool worker): schedule on the loop.
+            asyncio.run_coroutine_threadsafe(coro, loop)
+
+    def sendCommandToPage(self, page_id, command, data):
+        envelope = Bag(dict(command=command, data=data))
+        target = self.server.channels.get(page_id)
+        if target is None:
+            return
+        self._send(target, envelope.toXml(unresolved=True))
 
 
 class GnrWebSocketSession:
@@ -183,18 +697,12 @@ class GnrWebSocketSession:
         return data
 
     async def do_ping(self, lastEventAge=None, **kwargs):
-        # SharedStatus is set up in Phase 4. Until then, skip the ping
-        # bookkeeping but always emit pong so the client heartbeat works.
-        som = getattr(self.server, 'som', None)
-        if som is not None and self._page_id is not None:
-            shared_status = self.server.sharedStatus
-            shared_status.onPing(self._page_id, lastEventAge)
+        if self._page_id is not None:
+            self.server.sharedStatus.onPing(self._page_id, lastEventAge)
         await self.write_message('pong')
 
     def do_user_event(self, event=None, **kwargs):
-        som = getattr(self.server, 'som', None)
-        if som is not None:
-            self.server.sharedStatus.onUserEvent(self._page_id, event)
+        self.server.sharedStatus.onUserEvent(self._page_id, event)
 
     async def do_route(self, target_page_id=None, envelope=None, **kwargs):
         target = self.channels.get(target_page_id)
@@ -309,12 +817,11 @@ class GnrBaseAsyncServer:
         self.ssl_crt = ssl_crt
         self.site_options = site_options or dict()
         self.autoreload = autoreload  # accepted for CLI compat
-        # The server-side wsk and som are populated by Phase 4; placeholders
-        # let do_ping / do_user_event run cleanly until then.
-        self.wsk = None
-        self.som = None
+        self.som = SharedObjectsManager(self)
+        self.wsk = AsyncWebSocketHandler(self)
         self.app = None
         self.runner = None
+        self.loop = None  # set by _run() when the event loop starts
         self._shutdown_event = None
 
     # ---- API used by external callers (kept identical to legacy) ----
@@ -354,28 +861,26 @@ class GnrBaseAsyncServer:
         page.asyncServer = self
         page.sharedObjects = set()
         self.pages[page.page_id] = page
-        if self.som is not None:
-            self.sharedStatus.registerPage(page)
+        self.sharedStatus.registerPage(page)
 
     def unregisterPage(self, page_id):
         page = self.pages.get(page_id)
         if not page:
             return
-        if self.som is not None and page.sharedObjects:
+        if page.sharedObjects:
             for shared_id in page.sharedObjects:
-                self.som.sharedObjects[shared_id].unsubscribe(page_id)
-        if self.som is not None:
-            self.sharedStatus.unregisterPage(page)
+                so = self.som.sharedObjects.get(shared_id)
+                if so is not None:
+                    so.unsubscribe(page_id)
+        self.sharedStatus.unregisterPage(page)
         self.pages.pop(page_id, None)
 
     @property
     def sharedStatus(self):
-        # Lazily resolved by SharedObjectsManager (Phase 4).
         return self.som.getSharedObject(
             '__global_status__', expire=-1,
             read_tags='_DEV_,superadmin', write_tags='__SYSTEM__',
-            # SharedStatus class will be wired in Phase 4
-            factory=getattr(self, '_SharedStatusFactory', None),
+            factory=SharedStatus,
         )
 
     @property
@@ -383,7 +888,7 @@ class GnrBaseAsyncServer:
         return self.som.getSharedObject(
             '__error_status__', expire=-1, startData=dict(users=Bag()),
             read_tags='_DEV_,superadmin', write_tags='__SYSTEM__',
-            factory=getattr(self, '_SharedLoggerFactory', None),
+            factory=SharedLogger,
         )
 
     def logToPage(self, page_id, **kwargs):
@@ -417,6 +922,7 @@ class GnrBaseAsyncServer:
         return sockets_dir
 
     async def _run(self):
+        self.loop = asyncio.get_running_loop()
         self.app = self._build_app()
         self.runner = web.AppRunner(self.app)
         await self.runner.setup()
