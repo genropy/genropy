@@ -242,7 +242,8 @@ class SharedObject:
                 loop = asyncio.get_running_loop()
                 loop.create_task(self.save())
             except RuntimeError:
-                pass
+                logger.warning('autoSave skipped on shutdown for %s: no running loop',
+                               self.shared_id)
 
     def subscribe(self, page_id=None, **kwargs):
         page = self.server.pages[page_id]

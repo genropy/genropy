@@ -85,7 +85,6 @@ dojo.declare("gnr.GnrWebSocketHandler", null, {
         if (data=='pong'){
             return;
         }
-        
         if (data.indexOf('<?xml')==0){
             var result=this.parseResponse(e.data);
             var token=result.getItem('token') 
