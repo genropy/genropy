@@ -38,6 +38,11 @@ from gnr.web.gnrwsgisite_proxy.gnrwebsockethandler import (
 
 MAX_WAIT_SECONDS_BEFORE_SHUTDOWN = 3
 
+# Typed AppKey used to attach the GnrAsyncServer instance to the aiohttp
+# Application (request.app[SERVER_KEY]). aiohttp >=3.9 deprecates raw string
+# keys via NotAppKeyWarning.
+SERVER_KEY = web.AppKey('server', object)
+
 
 def threadpool(func):
     """Marker decorator: handler runs in the threadpool executor."""
@@ -909,7 +914,7 @@ async def websocket_handler(request):
     Replaces tornado.websocket.WebSocketHandler subclass dispatch with the
     async-iteration pattern recommended by aiohttp.
     """
-    server = request.app['server']
+    server = request.app[SERVER_KEY]
     ws = web.WebSocketResponse()
     await ws.prepare(request)
     session = GnrWebSocketSession(server, ws)
@@ -946,7 +951,7 @@ async def wsproxy_handler(request):
     With no page_id and no remote_service the envelope is decoded and
     dispatched as a server-side externalCommand.
     """
-    server = request.app['server']
+    server = request.app[SERVER_KEY]
     form = await request.post()
     page_id = form.get('page_id') or ''
     envelope = form.get('envelope') or ''
@@ -1087,7 +1092,7 @@ class GnrBaseAsyncServer:
     # ---- aiohttp wiring -----------------------------------------------
     def _build_app(self):
         app = web.Application()
-        app['server'] = self
+        app[SERVER_KEY] = self
         app.router.add_get('/websocket', websocket_handler)
         app.router.add_post('/wsproxy', wsproxy_handler)
         return app
