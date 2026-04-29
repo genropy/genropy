@@ -6,7 +6,6 @@ import stat
 
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnrpkg.sys.services.ftp import SftpService
-from gnr.core.gnrlang import GnrException
 
 import paramiko
 
