@@ -14,6 +14,7 @@
 # Lesser General Public License for more details.
 
 import asyncio
+import base64
 import functools
 import inspect
 import os
@@ -524,6 +525,143 @@ class SharedObjectsManager:
         )
 
 
+class DebugSession:
+    """Per-connection bridge between an IDE pdb debugger (TCP unix socket
+    on debugger.sock) and the browser WebSocket showing the debug UI.
+
+    Pipeline preserved verbatim from the legacy implementation:
+
+        TCP debugger    --[line]-->  socket_input_queue
+                                     -> handle_socket_message:
+                                        first message ('\\0...' or '|...')
+                                        registers the debugkey;
+                                        subsequent lines go to
+                                        websocket_output_queue
+                                     -> consume_websocket_output_queue
+                                        (encode as Bag XML pdb_out_line)
+                                        and send to channels[page_id]
+
+        debug_queues[k] -> websocket_input_queue
+                                     -> socket_output_queue
+                                     -> stream.write back to the debugger
+
+    The four queues are kept as separate asyncio.Queue instances and the
+    consumers run as background tasks tied to the connection lifetime.
+    """
+
+    def __init__(self, server, reader, writer):
+        self.server = server
+        self.reader = reader
+        self.writer = writer
+        self.pdb_id = None
+        self.page_id = None
+        self.socket_input_queue = asyncio.Queue(maxsize=40)
+        self.socket_output_queue = asyncio.Queue(maxsize=40)
+        self.websocket_output_queue = asyncio.Queue(maxsize=40)
+        self.websocket_input_queue = None
+        self._tasks = []
+
+    @property
+    def channels(self):
+        return self.server.channels
+
+    @property
+    def debug_queues(self):
+        return self.server.debug_queues
+
+    def link_debugger(self, debugkey):
+        page_id, pdb_id = debugkey.split(',')
+        self.page_id = page_id
+        self.pdb_id = pdb_id
+        if debugkey not in self.debug_queues:
+            self.debug_queues[debugkey] = asyncio.Queue(maxsize=40)
+        self.websocket_input_queue = self.debug_queues[debugkey]
+        self._tasks.append(asyncio.create_task(self.consume_websocket_output_queue()))
+        self._tasks.append(asyncio.create_task(self.consume_websocket_input_queue()))
+        self._tasks.append(asyncio.create_task(self.consume_socket_output_queue()))
+
+    async def handle_socket_message(self, message):
+        if message.startswith('\0') or message.startswith('|'):
+            self.link_debugger(message[1:])
+        else:
+            await self.websocket_output_queue.put(message)
+
+    async def consume_socket_input_queue(self):
+        while True:
+            message = await self.socket_input_queue.get()
+            await self.handle_socket_message(message)
+
+    async def consume_socket_output_queue(self):
+        while True:
+            message = await self.socket_output_queue.get()
+            try:
+                self.writer.write(('%s\n' % message).encode('utf-8'))
+                await self.writer.drain()
+            except (ConnectionResetError, BrokenPipeError):
+                return
+
+    async def consume_websocket_input_queue(self):
+        while True:
+            message = await self.websocket_input_queue.get()
+            await self.socket_output_queue.put('%s' % message)
+
+    async def consume_websocket_output_queue(self):
+        while True:
+            data = await self.websocket_output_queue.get()
+            if data.startswith('B64:'):
+                envelope = base64.b64decode(data[4:])
+            else:
+                payload = Bag(dict(line=data, pdb_id=self.pdb_id))
+                envelope = Bag(dict(command='pdb_out_line', data=payload)).toXml()
+            target = self.channels.get(self.page_id)
+            if target is not None:
+                try:
+                    await target.write_message(envelope)
+                except Exception:
+                    logger.exception('debug write_message failed for %s', self.page_id)
+
+    async def dispatch_client(self):
+        """Read from the IDE TCP socket line-by-line until EOF."""
+        try:
+            while True:
+                line = await self.reader.readuntil(b'\n')
+                line = line[:-1]
+                # Decode for downstream consumers: legacy code was inconsistent
+                # on bytes vs str; the format expected by handle_socket_message
+                # is str (.startswith '\\0', split ',', ...).
+                await self.socket_input_queue.put(line.decode('utf-8', errors='replace'))
+        except (asyncio.IncompleteReadError, ConnectionResetError):
+            pass
+
+    async def on_connect(self):
+        # Start the input consumer task; it lives until the connection closes.
+        self._tasks.append(asyncio.create_task(self.consume_socket_input_queue()))
+        await self.dispatch_client()
+
+    def cleanup(self):
+        for t in self._tasks:
+            t.cancel()
+
+
+async def debug_handler(reader, writer):
+    """asyncio.start_unix_server callback for the IDE debugger socket.
+
+    Resolves the GnrAsyncServer instance via the closure attached to the
+    coroutine factory in GnrBaseAsyncServer._start_debugger.
+    """
+    server = debug_handler._server
+    session = DebugSession(server, reader, writer)
+    try:
+        await session.on_connect()
+    finally:
+        session.cleanup()
+        try:
+            writer.close()
+            await writer.wait_closed()
+        except Exception:
+            pass
+
+
 class AsyncWebSocketHandler(_LegacyAsyncWebSocketHandler):
     """Override of the legacy AsyncWebSocketHandler.
 
@@ -619,13 +757,14 @@ class GnrWebSocketSession:
 
     # ---- writer used by SharedObject.broadcast and DebugSession --------
     async def write_message(self, msg):
-        """Async writer used by code paths that already run in the loop.
-
-        Mirrors the legacy ``write_message`` name. Coroutine-only: callers
-        from other coroutines must ``await`` it. There are no remaining
-        sync callers after the migration.
-        """
-        if not self.ws.closed:
+        """Async writer matching legacy Tornado write_message semantics:
+        str -> TEXT frame, bytes -> BINARY frame. The DebugSession B64
+        bypass relies on the binary path."""
+        if self.ws.closed:
+            return
+        if isinstance(msg, bytes):
+            await self.ws.send_bytes(msg)
+        else:
             await self.ws.send_str(msg)
 
     # ---- dispatch ------------------------------------------------------
@@ -872,6 +1011,7 @@ class GnrBaseAsyncServer:
         self.app = None
         self.runner = None
         self.loop = None  # set by _run() when the event loop starts
+        self._debug_server = None
         self._shutdown_event = None
 
     # ---- API used by external callers (kept identical to legacy) ----
@@ -996,7 +1136,19 @@ class GnrBaseAsyncServer:
             await tcp_site.start()
             logger.info('aiohttp server listening on TCP port %s', self.port)
 
-        # Phase 6 wires the debugger TCP server here.
+        # Debugger unix socket: pdb-protocol bridge for the IDE.
+        debug_socket_path = os.path.join(sockets_dir, 'debugger.sock')
+        if os.path.exists(debug_socket_path):
+            os.unlink(debug_socket_path)
+        # Attach the server reference to the module-level handler so it
+        # can be picked up by the connection callback (asyncio.start_unix
+        # _server takes a coroutine factory of (reader, writer)).
+        debug_handler._server = self
+        self._debug_server = await asyncio.start_unix_server(
+            debug_handler, path=debug_socket_path,
+        )
+        os.chmod(debug_socket_path, 0o666)
+        logger.info('debugger server bound to unix socket %s', debug_socket_path)
 
         self._shutdown_event = asyncio.Event()
         loop = asyncio.get_running_loop()
@@ -1010,6 +1162,15 @@ class GnrBaseAsyncServer:
             self._shutdown_event.set()
 
     async def _cleanup(self):
+        if self._debug_server is not None:
+            self._debug_server.close()
+            try:
+                await asyncio.wait_for(
+                    self._debug_server.wait_closed(),
+                    timeout=MAX_WAIT_SECONDS_BEFORE_SHUTDOWN,
+                )
+            except asyncio.TimeoutError:
+                logger.warning('debug server shutdown timeout')
         try:
             await asyncio.wait_for(
                 self.runner.cleanup(),
