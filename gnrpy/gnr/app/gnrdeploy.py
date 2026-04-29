@@ -516,7 +516,7 @@ class GunicornDeployBuilder(object):
         self.logs_path = os.path.join(self.site_path, 'logs')
         self.pidfile_path = os.path.join(self.site_path, '%s_pid' % site_name)
         self.gunicorn_conf_path = os.path.join(self.config_folder,'gunicorn.py')
-        self.gnrasync_socket_path = os.path.join(self.socket_path, "async.tornado" )
+        self.gnrasync_socket_path = os.path.join(self.socket_path, "async.sock")
         self.gunicorn_socket_path = os.path.join(self.socket_path,'gunicorn.sock')
         
 
