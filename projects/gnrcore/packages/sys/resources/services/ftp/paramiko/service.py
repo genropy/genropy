@@ -23,7 +23,7 @@ class _Connection(object):
     def isdir(self, path):
         try:
             return stat.S_ISDIR(self._sftp.stat(path).st_mode)
-        except (FileNotFoundError, IOError):
+        except IOError:
             return False
 
     def stat(self, path):
@@ -72,6 +72,11 @@ class Service(SftpService):
         port = int(port or self.port or 22)
 
         ssh = paramiko.SSHClient()
+        
+        # FIXME
+        # we're auto-accepting host keys, which can lead to MITM issues.
+        # One possibile solution is to provide, in service configuration,
+        # a list of allowed host keys
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
         connect_kwargs = dict(hostname=host, port=port, username=username)
