@@ -3081,10 +3081,13 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
                 console.warn('error in updaterowcount',e);
             }
             
-            this.updateTotalsCount(); 
+            this.updateTotalsCount();
             scrollBox.scrollLeft = scrollLeft;
             //this.updateColumnsetsAndFooters(); makes grids slower
             //},1,this);
+        }
+        if(this.sourceNode.attr.emptyIndicator){
+            this.domNode.classList.toggle('gnr_empty_grid', this.rowCount === 0);
         }
     },
     mixin_setSortedBy:function(sortedBy) {

@@ -1383,7 +1383,9 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         dojo.connect(widget, 'onSelected', widget, '_gnrUpdateSelect');
         genro.src.onBuiltCall(dojo.hitch(widget, 'render'));
         dojo.connect(widget, 'modelAllChange', dojo.hitch(sourceNode, this.modelAllChange));
-
+        dojo.connect(widget, 'updateRowCount', function(){
+            this.domNode.classList.toggle('gnr_empty_grid', this.rowCount === 0);
+        });
 
     },
 
@@ -1391,7 +1393,6 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         if (this.attr.rowcount) {
             this.setRelativeData(this.attr.rowcount, this.widget.rowCount);
         }
-        //this.widget._gnrUpdateSelect();
     },
     mixin_columnNodelist:function(idx, includeHeader) {
         var condition = 'td.dojoxGrid-cell[idx="' + idx + '"]';
@@ -3172,10 +3173,13 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
                 console.warn('error in updaterowcount',e);
             }
             
-            this.updateTotalsCount(); 
+            this.updateTotalsCount();
             scrollBox.scrollLeft = scrollLeft;
             //this.updateColumnsetsAndFooters(); makes grids slower
             //},1,this);
+        }
+        if(this.sourceNode.attr.emptyIndicator){
+            this.domNode.classList.toggle('gnr_empty_grid', this.rowCount === 0);
         }
     },
     mixin_setSortedBy:function(sortedBy) {
