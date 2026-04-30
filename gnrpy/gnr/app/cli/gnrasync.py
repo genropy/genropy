@@ -4,7 +4,7 @@
 from gnr.core.cli import GnrCliArgParse
 from gnr.web.gnrasync import GnrAsyncServer
 
-description = "will run a websocket server for <site_name> using tornado."
+description = "will run an asyncio/aiohttp websocket server for <site_name>."
 
 def main():
     parser = GnrCliArgParse(description=description)

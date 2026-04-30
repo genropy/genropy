@@ -391,8 +391,15 @@ class GnrWebPage(GnrBaseWebPage):
         if not hasattr(self, '_wsk_enabled'):
             self._wsk_enabled = self.wsk and self.getPreference('experimental.wsk_enabled',pkg='sys')
         return self._wsk_enabled
-    
-    @property 
+
+    def _get_async_port(self):
+        port_file = os.path.join(self.site.site_path, 'sockets', 'async_port')
+        if os.path.isfile(port_file):
+            with open(port_file, 'r') as f:
+                return f.read().strip()
+        return None
+
+    @property
     def dev(self):
         if not hasattr(self, '_dev'):
             self._dev = GnrWebDeveloper(self)
@@ -1287,6 +1294,7 @@ class GnrWebPage(GnrBaseWebPage):
         arg_dict['baseUrl'] = self.site.home_uri
         kwargs['servertime'] = datetime.datetime.now()
         kwargs['websockets_url'] = '/websocket' if self.wsk_enabled else None
+        kwargs['websockets_port'] = self._get_async_port() if self.wsk_enabled else None
         self.getPwaIntegration(arg_dict)
         self.getSquareLogoUrl(arg_dict)
         self.getCoverLogoUrl(arg_dict)

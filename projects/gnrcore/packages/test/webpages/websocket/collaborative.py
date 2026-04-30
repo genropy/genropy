@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"Collaborative rooms with shared Object. Please use websockets=True in siteconfig and gnrwsgiserve --tornado for testing"
+"Collaborative rooms with shared Object. Please enable experimental.wsk_enabled preference and use gnrwsgiserve --async-port PORT for testing"
 
 class GnrCustomWebPage(object):
     

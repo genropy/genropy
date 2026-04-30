@@ -1,6 +1,8 @@
 import sys
 import os
 import atexit
+import shutil
+import subprocess
 import webbrowser
 import socket
 
@@ -45,7 +47,7 @@ wsgi_options = dict(
         restore=False,
         source_instance=None,
         remote_edit=None,
-        tornado=None
+        async_port=None
         )
 
 
@@ -156,10 +158,12 @@ class Server(object):
                             dest='nodebug',
                             action='store_true',
                             help="Don't use werkzeug debugger")
-        parser.add_argument('-t','--tornado',
-                            dest='tornado',
-                            action='store_true',
-                            help="Serve using tornado")
+        parser.add_argument('-a', '--async-port',
+                            dest='async_port',
+                            type=int,
+                            default=None,
+                            help="Spawn the gnrasync server on this TCP port alongside the WSGI dev server "
+                                 "(WebSocket, wsproxy, debugger)")
         
         parser.add_argument('-o','--open',
                             dest='open_browser',
@@ -330,98 +334,116 @@ class Server(object):
         self.app_host = self.options.host
         site_name= f'{self.site_name}:{self.remote_db}' if self.remote_db else self.site_name
 
-        if self.options.tornado:
-            self.app_host = '127.0.0.1' if self.options.host == '0.0.0.0' else self.options.host
+        if self.options.async_port and not is_running_from_reloader():
+            self._spawn_async_server(site_name, self.options.async_port)
 
-            from gnr.web.gnrasync import GnrAsyncServer
-            site_options= dict(_config=self.siteconfig,_gnrconfig=self.gnr_config,
-                counter=getattr(self.options, 'counter', None),
-                noclean=self.options.noclean, options=self.options)
-            logger.info(f"Starting Tornado server - listening on {self.app_host}:{self.app_port}")
-            server=GnrAsyncServer(port=self.app_port, instance=site_name,
-                                  web=True, autoreload=self.options.reload,
-                                  site_options=site_options)
-            server.start()
+        ssl_context = None
+        if not self.debugpy and self.reloader and not is_running_from_reloader():
+            gnrServer = 'FakeApp'
         else:
-            ssl_context = None
-            if not self.debugpy and self.reloader and not is_running_from_reloader():
-                gnrServer='FakeApp'
+            gnrServer = GnrWsgiSite(self.site_script,
+                                    site_name=site_name,
+                                    _config=self.siteconfig,
+                                    _gnrconfig=self.gnr_config,
+                                    counter=getattr(self.options, 'counter', None),
+                                    noclean=self.options.noclean,
+                                    options=self.options,
+                                    debugpy=self.debugpy)
+            gnrServer._local_mode = True
+            atexit.register(gnrServer.on_site_stop)
+            extra_info = []
+            if self.debugpy:
+                extra_info.append(f'Debugpy on port {self.debugpy_port} on loopback interface')
+            elif self.debug:
+                gnrServer = GnrDebuggedApplication(gnrServer, evalex=True, pin_security=False)
+                extra_info.append('Debug mode: On')
             else:
-                gnrServer = GnrWsgiSite(self.site_script,
-                                        site_name=site_name,
-                                        _config=self.siteconfig,
-                                        _gnrconfig=self.gnr_config,
-                                        counter=getattr(self.options, 'counter', None),
-                                        noclean=self.options.noclean,
-                                        options=self.options,
-                                        debugpy=self.debugpy)
-                gnrServer._local_mode=True
-                atexit.register(gnrServer.on_site_stop)
-                extra_info = []
-                if self.debugpy:
-                    extra_info.append(f'Debugpy on port {self.debugpy_port} on loopback interface')
-                elif self.debug:
-                    gnrServer = GnrDebuggedApplication(gnrServer, evalex=True, pin_security=False)
-                    extra_info.append('Debug mode: On')
-                else:
-                    extra_info.append('Debug mode: Off')
+                extra_info.append('Debug mode: Off')
 
-                if self.options.ssl:
-                    cert_path = os.path.join(self.config_path,'localhost.pem')
-                    key_path = os.path.join(self.config_path,'localhost-key.pem')
-                    if os.path.exists(cert_path) and os.path.exists(key_path):
-                        ssl_context = (cert_path, key_path)
-                    extra_info.append('SSL mode: On')
-                    app_scheme = 'https'
-                if self.options.ssl_cert and self.options.ssl_key:
-                    ssl_context=(self.options.ssl_cert,self.options.ssl_key)
-                    extra_info.append(f'SSL mode: On {ssl_context}')
-                    app_scheme = 'https'
-                    self.app_host = self.options.ssl_cert.split('/')[-1].split('.pem')[0]
-                    
-                logger.info(f"Started server on {self.app_host}:{self.app_port}\t%s", ",".join(extra_info))
-                logger.info(f"Connect at {self.app_url}")
-                
-            if self.options.open_browser and not os.environ.get("WERKZEUG_RUN_MAIN", None):
-                logger.info(f'Opening browser to application on {self.app_url}')
-                webbrowser.open(self.app_url)
+            if self.options.ssl:
+                cert_path = os.path.join(self.config_path, 'localhost.pem')
+                key_path = os.path.join(self.config_path, 'localhost-key.pem')
+                if os.path.exists(cert_path) and os.path.exists(key_path):
+                    ssl_context = (cert_path, key_path)
+                extra_info.append('SSL mode: On')
+                app_scheme = 'https'
+            if self.options.ssl_cert and self.options.ssl_key:
+                ssl_context = (self.options.ssl_cert, self.options.ssl_key)
+                extra_info.append(f'SSL mode: On {ssl_context}')
+                app_scheme = 'https'
+                self.app_host = self.options.ssl_cert.split('/')[-1].split('.pem')[0]
 
-            if not is_running_from_reloader():
-                fd = None
-            else:
-                fd = int(os.environ["WERKZEUG_SERVER_FD"])
+            logger.info(f"Started server on {self.app_host}:{self.app_port}\t%s", ",".join(extra_info))
+            logger.info(f"Connect at {self.app_url}")
 
-            srv = make_server(
-                self.app_host,
-                self.app_port,
-                gnrServer,
-                threaded=True,
-                processes=1,
-                ssl_context=ssl_context,
-                fd=fd)
-            srv.socket.set_inheritable(True)
-            os.environ["WERKZEUG_SERVER_FD"] = str(srv.fileno())
+        if self.options.open_browser and not os.environ.get("WERKZEUG_RUN_MAIN", None):
+            logger.info(f'Opening browser to application on {self.app_url}')
+            webbrowser.open(self.app_url)
 
-            if self.reloader:
-                
-                # werkzeug reloader expects sys.argv without
-                # spaces for the reloader on python3.8
-                if " " in sys.argv[0]:
-                    cmd_name = sys.argv.pop(0).split()
-                    sys.argv = cmd_name + sys.argv
+        if not is_running_from_reloader():
+            fd = None
+        else:
+            fd = int(os.environ["WERKZEUG_SERVER_FD"])
 
-                run_with_reloader(
-                    srv.serve_forever,
-                    #extra_files=extra_files,
-                    #exclude_patterns=exclude_patterns,
-                    interval=1,
-                    reloader_type="auto",
-                )
-            else:
+        srv = make_server(
+            self.app_host,
+            self.app_port,
+            gnrServer,
+            threaded=True,
+            processes=1,
+            ssl_context=ssl_context,
+            fd=fd)
+        srv.socket.set_inheritable(True)
+        os.environ["WERKZEUG_SERVER_FD"] = str(srv.fileno())
+
+        if self.reloader:
+            # werkzeug reloader expects sys.argv without
+            # spaces for the reloader on python3.8
+            if " " in sys.argv[0]:
+                cmd_name = sys.argv.pop(0).split()
+                sys.argv = cmd_name + sys.argv
+
+            run_with_reloader(
+                srv.serve_forever,
+                interval=1,
+                reloader_type="auto",
+            )
+        else:
+            try:
+                srv.serve_forever()
+            finally:
+                srv.server_close()
+        if not is_running_from_reloader():
+            logger.info("Shutting down")
+
+    def _spawn_async_server(self, site_name, async_port):
+        """Spawn the gnrasync server as a child process for `--async-port`.
+
+        Registers an atexit cleanup so SIGTERM is sent on parent exit.
+        Skipped when running from the werkzeug reloader child to avoid
+        spawning two gnrasync processes.
+        """
+        gnrasync_bin = shutil.which('gnrasync')
+        if not gnrasync_bin:
+            logger.error('gnrasync entrypoint not found on PATH; --async-port disabled')
+            return
+        try:
+            child = subprocess.Popen([gnrasync_bin, site_name, '-p', str(async_port)])
+        except Exception:
+            logger.exception('failed to spawn gnrasync subprocess')
+            return
+        logger.info('gnrasync subprocess started (pid=%s) for instance %s on port %s',
+                    child.pid, site_name, async_port)
+
+        def _cleanup():
+            if child.poll() is None:
                 try:
-                    srv.serve_forever()
-                finally:
-                    srv.server_close()
-            if not is_running_from_reloader():
-                logger.info("Shutting down")
+                    child.terminate()
+                    child.wait(timeout=3)
+                except Exception:
+                    try:
+                        child.kill()
+                    except Exception:
+                        pass
+        atexit.register(_cleanup)
 
