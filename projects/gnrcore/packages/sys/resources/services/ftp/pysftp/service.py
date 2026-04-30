@@ -11,16 +11,6 @@ from gnr.web.gnrbaseclasses import BaseComponent
 from gnrpkg.sys.services.ftp import SftpService
 from gnr.core.gnrlang import GnrException
 
-
-warnings.warn(
-    "PYSFTP based FTP service is deprecated, please use newer implementation 'paramiko' ASAP",
-    DeprecationWarning,
-    stacklevel=2
-)
-
-
-
-
 try:
     import pysftp
 except:
@@ -28,6 +18,13 @@ except:
 
 class Service(SftpService):
     def __init__(self, parent=None,host=None,username=None,password=None,private_key=None,port=None,root=None,**kwargs):
+
+        warnings.warn(
+            "PYSFTP based FTP service is deprecated, please use newer implementation 'paramiko' ASAP",
+            DeprecationWarning,
+            stacklevel=2
+        )
+
         self.parent = parent
         if not pysftp:
             raise GnrException('Missing pysftp. hint: pip install pysftp')
