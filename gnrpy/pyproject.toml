@@ -35,6 +35,7 @@ dependencies = [
 	     "jsmin",
 	     "lxml",
 	     "mako",
+	     "mypantry", # optional dependency management
 	     "openpyxl",
 	     "packaging",
 	     "paramiko", # gnr.core.gnrssh
