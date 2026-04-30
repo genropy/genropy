@@ -1,3 +1,30 @@
+Release 26.04.30
+================
+
+New Features
+------------
+
+* New ftp/sftp service based on paramiko, deprecation pysftp
+  (abandoware). This new service is a drop-in replacement for the old
+  pysftp service, which is now deprecated. Supports modern key
+  formats. (#845,#849)
+
+Bugfixes
+--------
+
+* Allow shift+wheel vertical scroll on grids (#826,#851): holding shift while
+  scrolling the wheel no longer freezes the grid viewport on Windows
+* TimeTextBox popup styling and time cell alignment fixes (#833)
+* Checkbox visibility toggle in _ask dialogs (#829, #831): ensure
+  layout recalculation and consistent visibility handling with other
+  widgets types.
+* Allow shift key on pasteOnGrid onkeydown (#826,#830): The onkeydown
+  handler on pasteOnGrid grids only allowed metaKey and ctrlKey
+  through, blocking all Shift-only key events. After the DOM/CSS
+  restructuring in PR #671, the contenteditable node receives keyboard
+  focus more readily, making the Shift-scroll block manifest during
+  normal range-selection interactions.
+
 Release 26.04.22
 ================
 
