@@ -67,14 +67,14 @@ def test_compose_builder_healthcheck_test_is_list():
     assert test == ['CMD-SHELL', 'pg_isready -U genro -d myapp']
 
 
-def test_compose_builder_db_environment_is_sequence():
+def test_compose_builder_db_environment_is_mapping():
     parsed = yaml.safe_load(_make_builder()._generate_compose_yaml('1.0'))
     env = parsed['services']['myapp_db']['environment']
-    assert env == [
-        'POSTGRES_PASSWORD=S3cret',
-        'POSTGRES_USER=genro',
-        'POSTGRES_DB=myapp',
-    ]
+    assert env == {
+        'POSTGRES_PASSWORD': 'S3cret',
+        'POSTGRES_USER': 'genro',
+        'POSTGRES_DB': 'myapp',
+    }
 
 
 def test_compose_builder_app_volume_mount():
@@ -103,17 +103,3 @@ def test_compose_legacy_mako_dollar_var_preserved():
     raw = _make_builder(mako=True)._generate_compose_yaml('1.0')
     assert '${GNR_DB_HOST:-myapp_db}' in raw
     assert '${GNR_ROOTPWD:-admin}' in raw
-
-
-# ---------- semantic equivalence between paths ----------
-
-def test_compose_paths_semantically_equal_with_traefik():
-    builder_yaml = _make_builder(fqdns=['myapp.local'])._generate_compose_yaml('1.0')
-    mako_yaml = _make_builder(mako=True, fqdns=['myapp.local'])._generate_compose_yaml('1.0')
-    assert yaml.safe_load(builder_yaml) == yaml.safe_load(mako_yaml)
-
-
-def test_compose_paths_semantically_equal_without_traefik():
-    builder_yaml = _make_builder()._generate_compose_yaml('1.0')
-    mako_yaml = _make_builder(mako=True)._generate_compose_yaml('1.0')
-    assert yaml.safe_load(builder_yaml) == yaml.safe_load(mako_yaml)

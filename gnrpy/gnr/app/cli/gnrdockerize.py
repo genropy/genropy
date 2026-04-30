@@ -16,7 +16,7 @@ import subprocess
 from mako.template import Template
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.core.gnryaml import GnrYamlBuilder
+from gnr.utils.dockercompose import DockerComposeBuilder
 from gnr.app.pathresolver import PathResolver
 from gnr.dev.builder import GnrProjectBuilder
 from gnr.app import logger
@@ -305,64 +305,53 @@ stderr_logfile_maxbytes=0
         return self._compose_via_builder(version_tag, extra_labels)
 
     def _compose_via_builder(self, version_tag, extra_labels):
-        """Build the docker-compose document with GnrYamlBuilder.
+        """Build the docker-compose document via DockerComposeBuilder.
 
-        Reads top-down like the compose file itself: volumes, then the db
-        service (postgres + healthcheck), then the app service (image,
-        traefik labels, ports, db dependency, env, volume mount)."""
+        Two services declared declaratively: the postgres db (with
+        healthcheck) and the application (with optional traefik labels,
+        ports, db dependency, env, volume mount)."""
         name = self.instance_name
 
-        compose = GnrYamlBuilder()
-        compose.child('volumes').set(f'{name}_site', None)
+        compose = DockerComposeBuilder()
+        compose.volume(f'{name}_site')
 
-        services = compose.child('services')
-        self._compose_db(services.child(f'{name}_db'))
-        self._compose_app(services.child(name), version_tag, extra_labels)
+        compose.service(
+            f'{name}_db',
+            image='postgres:latest',
+            environment={
+                'POSTGRES_PASSWORD': 'S3cret',
+                'POSTGRES_USER': 'genro',
+                'POSTGRES_DB': name,
+            },
+            healthcheck={
+                'test': ['CMD-SHELL', f'pg_isready -U genro -d {name}'],
+                'interval': '10s',
+                'retries': 5,
+                'start_period': '30s',
+                'timeout': '10s',
+            },
+        )
+
+        compose.service(
+            name,
+            image=name,
+            version_tag=version_tag,
+            labels=dict(extra_labels) if extra_labels else None,
+            ports=['8888:8888'],
+            depends_on={f'{name}_db': {'condition': 'service_healthy'}},
+            environment={
+                'GNR_DB_IMPLEMENTATION': 'postgres',
+                'GNR_DB_HOST': f'${{GNR_DB_HOST:-{name}_db}}',
+                'GNR_ROOTPWD': '${GNR_ROOTPWD:-admin}',
+                'GNR_DB_USER': '${GNR_DB_USER:-genro}',
+                'GNR_DB_PORT': '${GNR_DB_PORT:-5432}',
+                'GNR_DB_PASSWORD': '${GNR_DB_PASSWORD:-S3cret}',
+                'GNR_LOCALE': 'IT_it',
+            },
+            volumes=[f'{name}_site:/home/genro/site/'],
+        )
 
         return compose.toYaml(explicit_start=True)
-
-    def _compose_db(self, db):
-        name = self.instance_name
-        db.set('image', 'postgres:latest')
-
-        env = db.child('environment', kind='sequence')
-        env.append('POSTGRES_PASSWORD=S3cret')
-        env.append('POSTGRES_USER=genro')
-        env.append(f'POSTGRES_DB={name}')
-
-        hc = db.child('healthcheck')
-        hc.set('test', ['CMD-SHELL', f'pg_isready -U genro -d {name}'])
-        hc.set('interval', '10s')
-        hc.set('retries', 5)
-        hc.set('start_period', '30s')
-        hc.set('timeout', '10s')
-
-    def _compose_app(self, app, version_tag, extra_labels):
-        name = self.instance_name
-        app.set('image', f'{name}:{version_tag}')
-
-        if extra_labels:
-            labels = app.child('labels')
-            for key, value in extra_labels:
-                labels.set(key, value)
-
-        app.child('ports', kind='sequence').append('8888:8888')
-
-        deps = app.child('depends_on')
-        deps.child(f'{name}_db').set('condition', 'service_healthy')
-
-        env = app.child('environment')
-        env.set('GNR_DB_IMPLEMENTATION', 'postgres')
-        env.set('GNR_DB_HOST', f'${{GNR_DB_HOST:-{name}_db}}')
-        env.set('GNR_ROOTPWD', '${GNR_ROOTPWD:-admin}')
-        env.set('GNR_DB_USER', '${GNR_DB_USER:-genro}')
-        env.set('GNR_DB_PORT', '${GNR_DB_PORT:-5432}')
-        env.set('GNR_DB_PASSWORD', '${GNR_DB_PASSWORD:-S3cret}')
-        env.set('GNR_LOCALE', 'IT_it')
-
-        app.child('volumes', kind='sequence').append(
-            f'{name}_site:/home/genro/site/'
-        )
 
     def _compose_via_mako(self, version_tag, extra_labels):
         """Render the legacy Mako compose template (``--mako`` opt-in).
