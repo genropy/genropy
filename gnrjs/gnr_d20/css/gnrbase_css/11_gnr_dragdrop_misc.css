@@ -106,6 +106,10 @@ table.draggedItem {
     text-align: right;
 }
 
+.dojoxGrid td.cell_H .cellContent, .treecell.cell_H .treeCellContent, .dynamicTable td.cell_H{
+    text-align: center;
+}
+
 ._common_d11 .dojoxGrid-row td.invalidCell.dojoxGrid-cell{
     background-image: var(--icon-invalid);
     background-repeat:no-repeat;
@@ -122,6 +126,10 @@ table.draggedItem {
 
 .dtype_L, .dtype_R, .dtype_I, .dtype_N {
     text-align: right;
+}
+
+.dtype_H {
+    text-align: center;
 }
 
 .highlight_negative .negative_number {
