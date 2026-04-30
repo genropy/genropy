@@ -62,8 +62,10 @@ class Service(SftpService):
                                 callback=None,preserve_mtime=None,thermo_wrapper=None,**kwargs):
         if isinstance(sourcefiles,str):
             sourcefiles = sourcefiles.split(',')
+            
         if thermo_wrapper:
-            sourcefiles = thermo_wrapper(thermo_wrapper)
+            sourcefiles = thermo_wrapper(sourcefiles)
+            
         if callback is None:
             def cb(curr,total):
                 print('dl %i/%i' %(curr,total))

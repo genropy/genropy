@@ -93,8 +93,10 @@ class Service(SftpService):
                                 thermo_wrapper=None, **kwargs):
         if isinstance(sourcefiles, str):
             sourcefiles = sourcefiles.split(',')
+
         if thermo_wrapper:
-            sourcefiles = thermo_wrapper(thermo_wrapper)
+            sourcefiles = thermo_wrapper(sourcefiles)
+            
         if callback is None:
             def callback(curr, total):
                 print('dl %i/%i' % (curr, total))
