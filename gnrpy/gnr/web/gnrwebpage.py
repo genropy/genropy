@@ -36,6 +36,8 @@ import re
 import datetime
 import traceback
 
+from gnr.web.gnrwebpage_proxy.frontend.template_lookup import lookup_template_class
+
 
 DEFAULT_CSS_THEME = os.environ.get('GNR_CSS_THEME', 'mimi')
 
@@ -188,7 +190,12 @@ class GnrWebPage(GnrBaseWebPage):
         self.page_timeout = self.site.config.getItem('page_timeout') or PAGE_TIMEOUT
         self.page_refresh = self.site.config.getItem('page_refresh') or PAGE_REFRESH
         self.private_kwargs = dict([(k[:2], v)for k, v in list(request_kwargs.items()) if k.startswith('__')])
-        self.pagetemplate = request_kwargs.pop('pagetemplate', None) or getattr(self, 'pagetemplate', None) or \
+        # ``_tpl`` is the short URL-friendly alias for ``pagetemplate`` —
+        # e.g. ``/page?_tpl=iphone_frame`` selects a different template
+        # without affecting any other dispatch.
+        self.pagetemplate = request_kwargs.pop('_tpl', None) or \
+                            request_kwargs.pop('pagetemplate', None) or \
+                            getattr(self, 'pagetemplate', None) or \
                             self.site.config['dojo?pagetemplate'] or 'standard.tpl'
         self.css_theme = request_kwargs.pop('css_theme', None) or getattr(self, 'css_theme', None) \
                         or self.site.config['gui?css_theme']
@@ -1064,13 +1071,31 @@ class GnrWebPage(GnrBaseWebPage):
         tpl = self.pagetemplate
         if not isinstance(tpl, str):
             tpl = '%s.%s' % (self.pagename, 'tpl')
+        self.htmlHeaders()
+
+        # When ``experimental.no_mako`` is on, look for a ``<name>.py``
+        # struct template in the same resource dirs the Mako lookup uses.
+        # If one is found, render it; otherwise fall through to Mako so a
+        # missing struct template never breaks the page.
+        if self.getPreference('experimental.no_mako', pkg='sys'):
+            tpl_name = tpl[:-4] if tpl.endswith('.tpl') else tpl
+            template_cls = lookup_template_class(self.tpldirectories, tpl_name)
+            if template_cls is not None:
+                template = template_cls(self)
+                if not template.check_access():
+                    raise GnrWebPageException(
+                        "Access denied for template '%s'" % tpl_name)
+                return template.render(arg_dict)
+
+        # Fallback Mako (default behaviour, unchanged)
+        if not tpl.endswith('.tpl'):
+            tpl = '%s.tpl' % tpl
         lookup = TemplateLookup(directories=self.tpldirectories, output_encoding=self.charset,
                                 encoding_errors='replace')
         try:
             mytemplate = lookup.get_template(tpl)
         except:
             raise GnrWebPageException("No template %s found in %s" % (tpl, str(self.tpldirectories)))
-        self.htmlHeaders()
         return mytemplate.render(mainpage=self, **arg_dict).decode()
         
     def rpc_changeLocale(self, locale):
@@ -1342,7 +1367,15 @@ class GnrWebPage(GnrBaseWebPage):
         css_path, css_media_path = self.get_css_path()
         arg_dict['css_requires'] = css_path
         arg_dict['css_media_requires'] = css_media_path
-        
+        # Staging visual cue: env vars take precedence over siteconfig.
+        # Raw style wins over the colour shortcut. When both are empty
+        # the rendered HTML matches the legacy layout.
+        arg_dict['staging_style'] = (
+            os.environ.get('GNR_STAGING_STYLE')
+            or self.site.config['gui?staging_style'] or '')
+        arg_dict['staging_colour'] = (
+            os.environ.get('GNR_STAGING_COLOUR')
+            or self.site.config['gui?staging_colour'] or '')
         return arg_dict
     
     def getPwaIntegration(self, arg_dict):
