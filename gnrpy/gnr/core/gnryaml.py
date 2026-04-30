@@ -24,6 +24,12 @@ class GnrYamlNode(object):
             self._data.append(node)
         return node
 
+    def mapping(self, key=None):
+        return self.child(key=key, kind='mapping')
+
+    def sequence(self, key=None):
+        return self.child(key=key, kind='sequence')
+
     def set(self, key, value):
         if self._kind != 'mapping':
             raise TypeError("set() not allowed on sequence node")
