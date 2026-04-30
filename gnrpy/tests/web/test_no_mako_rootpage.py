@@ -310,3 +310,54 @@ class TestComments:
     def test_viewport_comment(self):
         html = _render_struct(_make_arg_dict())
         assert '<!-- Prevent iPad/iPhone resize' in html
+
+
+# ---------------------------------------------------------------------------
+# Tests: Staging cue
+# ---------------------------------------------------------------------------
+
+class TestStagingCue:
+    """The staging wrapper marks the top-level browser window when the
+    site is configured with ``staging_colour`` or ``staging_style``."""
+
+    def test_no_wrapper_when_no_staging(self):
+        html = _render_struct(_make_arg_dict())
+        assert 'stagingFrame' not in html
+
+    def test_wrapper_emitted_with_staging_colour(self):
+        html = _render_struct(_make_arg_dict(staging_colour='#ff8800'))
+        assert 'id="stagingFrame"' in html
+        assert 'background: #ff8800' in html
+
+    def test_wrapper_emitted_with_raw_staging_style(self):
+        html = _render_struct(_make_arg_dict(
+            staging_style='border: 8px dashed red'))
+        assert 'id="stagingFrame"' in html
+        assert 'border: 8px dashed red' in html
+
+    def test_raw_style_wins_over_colour(self):
+        html = _render_struct(_make_arg_dict(
+            staging_style='border: 4px solid blue',
+            staging_colour='#ff8800'))
+        assert 'border: 4px solid blue' in html
+        assert '#ff8800' not in html
+
+    def test_mainwindow_inside_wrapper_when_staging(self):
+        html = _render_struct(_make_arg_dict(staging_colour='#ff8800'))
+        idx_staging = html.find('id="stagingFrame"')
+        idx_main = html.find('id="mainWindow"')
+        assert 0 < idx_staging < idx_main
+
+    def test_no_wrapper_in_subframe_even_with_staging(self):
+        """The cue is meant for the top-level window only: subpages
+        rendered inside an iframe must not draw their own wrapper."""
+        html = _render_struct(_make_arg_dict(
+            staging_colour='#ff8800', is_subframe=True))
+        assert 'stagingFrame' not in html
+        assert 'background: #ff8800' not in html
+
+    def test_extra_css_rule_only_when_staging(self):
+        html_off = _render_struct(_make_arg_dict())
+        html_on = _render_struct(_make_arg_dict(staging_colour='#ff8800'))
+        assert '#stagingFrame' not in html_off
+        assert '#stagingFrame' in html_on

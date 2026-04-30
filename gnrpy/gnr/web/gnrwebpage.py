@@ -1369,6 +1369,11 @@ class GnrWebPage(GnrBaseWebPage):
         # Staging visual cue: env vars take precedence over siteconfig.
         # Raw style wins over the colour shortcut. When both are empty
         # the rendered HTML matches the legacy layout.
+        # ``_calling_page_id`` is injected by the client when building an
+        # iframe (see genro_widgets setSrc_do): its presence flags that this
+        # page is being rendered inside another page, so the staging cue
+        # should not be drawn around it.
+        arg_dict['is_subframe'] = bool(kwargs.get('_calling_page_id'))
         arg_dict['staging_style'] = (
             os.environ.get('GNR_STAGING_STYLE')
             or self.site.config['gui?staging_style'] or '')
