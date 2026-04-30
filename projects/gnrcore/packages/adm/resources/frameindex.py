@@ -5,6 +5,8 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 # Frameindex component
 
+import os
+
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import customizable
 from gnr.core.gnrconfig import getRmsOptions
@@ -38,6 +40,10 @@ class FrameIndex(BaseComponent):
     menuClass = 'ApplicationMenu'
     check_tester = False
 
+    @property
+    def staging_colour(self):
+        return os.environ.get("GNR_STAGING_COLOUR", self.site.config['gui?staging_colour'])
+    
     @property
     def index_title(self):
         return 'Index'
@@ -115,6 +121,11 @@ class FrameIndex(BaseComponent):
         if new_window:
             self.loginDialog(pane,new_window=True)
             return
+        
+        staging_colour_style = ""
+        if self.staging_colour:
+            staging_colour_style = f"border: 6px solid {self.staging_colour}"
+            
         pane.dataController("""var d = data.deepCopy();
                             if(deltaDays(new Date(),d.getItem('workdate'))==0){
                                 d.setItem('workdate','');
@@ -129,6 +140,7 @@ class FrameIndex(BaseComponent):
                                 #border='1px solid gray',#rounded_top=8,
                                 margin='0px',overflow='hidden',
                                 persist=True,
+                                style=staging_colour_style,
                                 selfsubscribe_toggleLeft="""this.getWidget().setRegionVisible("left",'toggle');""",
                                 selfsubscribe_hideLeft="""this.getWidget().setRegionVisible("left",false);""",
                                 subscribe_openUserSettings="genro.framedIndexManager.openUserSettings($1)",
