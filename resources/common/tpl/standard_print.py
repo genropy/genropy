@@ -1,13 +1,9 @@
 # -*- coding: utf-8 -*-
-"""Struct-based equivalent of ``standard_print.tpl``.
+"""Python equivalent of ``standard_print.tpl``.
 
-Page template used by the ``mako_plugin`` invocation in
-``apphandler/export.py:print_standard`` to render a printable HTML
-list of a selection.
-
-Composes :class:`HeaderStaticTemplate` (CSS imports only) and
-:class:`PrintTableTemplate` (the data table) under a minimal
-``<html><head><body>`` shell.
+Page template used by ``apphandler/export.py:print_standard`` to render
+a printable HTML list of a selection. Composes :class:`HeaderStaticTemplate`
+(CSS imports) and :class:`PrintTableTemplate` (data table).
 """
 
 from gnr.web.gnrwebpage_proxy.frontend.basepagetemplate import BasePageTemplate
@@ -21,7 +17,8 @@ class PageTemplate(BasePageTemplate):
         body = builder.body
         meta = arg_dict.get('meta') or {}
 
-        head.meta(http_equiv='content-type', content='text/html; charset=utf-8')
+        head.child('meta', _attributes={'http-equiv': 'content-type'},
+                   _content='text/html; charset=utf-8')
 
         header_cls = lookup_template_class(self.page.tpldirectories,
                                            'gnr_header_static',
@@ -29,8 +26,7 @@ class PageTemplate(BasePageTemplate):
         if header_cls is not None:
             header_cls(self.page).render_into(builder, arg_dict)
 
-        head.style(self._table_css_imports())
-
+        head.child('style', content=self._table_css_imports(), _type='text/css')
         head.child('title', content=meta.get('title') or meta.get('header', ''))
 
         body.attributes['class'] = 'tableWindow %s' % self.page.get_bodyclasses()

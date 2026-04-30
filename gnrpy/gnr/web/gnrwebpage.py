@@ -1086,7 +1086,6 @@ class GnrWebPage(GnrBaseWebPage):
                     raise GnrWebPageException(
                         "Access denied for template '%s'" % tpl_name)
                 return template.render(arg_dict)
-
         # Fallback Mako (default behaviour, unchanged)
         if not tpl.endswith('.tpl'):
             tpl = '%s.tpl' % tpl

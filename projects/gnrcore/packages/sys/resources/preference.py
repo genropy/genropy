@@ -120,7 +120,8 @@ class AppPref(object):
         fb = pane.formbuilder()
         fb.comboBox(value='^.experimental.remoteForm',lbl='!![en]Remote forms',values='onEnter,delayed')
         fb.checkbox(value='^.experimental.wsk_enabled',lbl='!![en]WSK Enabled')
-        
+        fb.checkbox(value='^.experimental.no_mako',lbl='!![en]No Mako rootPage')
+
     def tablesConfiguration(self, pane):
         fb = pane.formbuilder(cols=1,border_spacing='3px',datapath='.tblconf')
         fb.textbox(value='^.archivable_tag',lbl='!![en]Archivable tag')
