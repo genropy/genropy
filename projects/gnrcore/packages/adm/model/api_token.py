@@ -13,7 +13,7 @@ class Table(object):
                         rowcaption='$description')
         self.sysFields(tbl)
         tbl.column('token', size='64', unique=True, indexed=True,
-                   name_long='!!Token', _sendback=True)
+                   name_long='!!Token')
         tbl.column('description', name_long='!!Description')
         tbl.column('group_code', size=':15', name_long='!!Group').relation(
                    'group.code', relation_name='api_tokens', mode='foreignkey')

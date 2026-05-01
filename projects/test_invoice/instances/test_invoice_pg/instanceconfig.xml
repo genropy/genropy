@@ -5,7 +5,6 @@
 	<packages>
 		<gnrcore_sys pkgcode="gnrcore:sys"/>
 		<gnrcore_adm pkgcode="gnrcore:adm"/>
-		<gnrdbextra_data_api pkgcode="gnrdbextra:data_api"/>
 		<invc/>
 	</packages>
 
