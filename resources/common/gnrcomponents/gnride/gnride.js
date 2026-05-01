@@ -142,45 +142,47 @@ dojo.declare("gnr.GnrIde", null, {
     },
     onCreatedEditorDo:function(sourceNode){
         var cm = sourceNode.externalWidget;
-        cm.gnrMakeMarker = function(conditional) {
-            var marker = document.createElement("div");
-            var _class = conditional?"pdb_conditional_breakpoint":"pdb_breakpoint";
-            genro.dom.addClass(marker,_class);
+        // Helper kept on the gnr handler so it is reachable from python-side dataController.
+        cm.gnr.gnrMakeMarker = function(conditional){
+            var marker = document.createElement('div');
+            var _class = conditional ? 'pdb_conditional_breakpoint' : 'pdb_breakpoint';
+            genro.dom.addClass(marker, _class);
             marker.innerHTML = "●";
             return marker;
-        }
-        cm.gnrSetCurrentLine = function(line) {
-            var cm_line = line-1;
-            if(cm.currentLine){
-                cm.removeLineClass(cm.currentLine,'wrap','pdb_currentLine_wrap');
-                cm.removeLineClass(cm.currentLine,'background','pdb_currentLine_background');  
-                cm.removeLineClass(cm.currentLine,'text','pdb_currentLine_text');
-                cm.removeLineClass(cm.currentLine,'gutter','pdb_currentLine_gutter');   
-            }
-            cm.currentLine = cm_line;
-            cm.addLineClass(cm.currentLine,'wrap','pdb_currentLine_wrap');
-            cm.addLineClass(cm.currentLine,'background','pdb_currentLine_background');
-            cm.addLineClass(cm.currentLine,'text','pdb_currentLine_text');
-            cm.addLineClass(cm.currentLine,'gutter','pdb_currentLine_gutter'); 
         };
+        // gnrSetCurrentLine highlights the line currently being executed under PDB.
+        // pdb_currentLine_wrap is the only line class gnride uses, so clearing all
+        // before applying the new one is safe and survives editor rebuilds (the
+        // previous mark survives via _cm6Snapshot.lineClasses but its id is stale).
+        cm.gnrSetCurrentLine = function(line){
+            var cm_line = line - 1;
+            cm.gnr_clearAllLineClasses();
+            cm.currentLine = cm_line;
+            // CM6 has a single per-line decoration class slot (no wrap/background/text/gutter
+            // distinction like CM5). The legacy classes are merged into pdb_currentLine_wrap.
+            cm.gnr_addLineClass(cm_line, 'pdb_currentLine_wrap');
+        };
+        // gutter click handling has moved to onBreakpointGutterClick, registered from
+        // gnride.py via onGutterClick_pdb_breakpoints. No CM5 cm.on('gutterClick') here.
+    },
+    onBreakpointGutterClick:function(view, line, gutter, evt){
+        var sourceNode = view.sourceNode;
+        var info = view.gnr_lineInfo(line);
+        var evt_type = (info && info.gutterMarkers && info.gutterMarkers[gutter]) ? 'del' : 'ins';
+        var code_line = line + 1;
+        var modifier = genro.dom.getEventModifiers(evt);
+        var module = sourceNode.attr.modulePath;
         var that = this;
-
-        cm.on("gutterClick", function(cm, n,gutter,evt) {
-            var info = cm.lineInfo(n);
-            var evt_type = info.gutterMarkers?'del':'ins';
-            var code_line = n+1;
-            var modifier = genro.dom.getEventModifiers(evt)
-            var module = sourceNode.attr.modulePath;
-            var cb = function(condition){
-                cm.setGutterMarker(n, "pdb_breakpoints", evt_type=='del' ? null : cm.gnrMakeMarker(condition));
-                that.setBreakpoint({line:code_line,module:module,condition:condition,evt:evt_type});
-            };
-            if(modifier=='Shift'){
-                genro.dlg.prompt(_T("Breakpoint condition"),{lbl:_T('Condition'),action:cb})
-            }else{
-                cb();
-            }
-        });
+        var cb = function(condition){
+            var dom = (evt_type === 'del') ? null : view.gnr.gnrMakeMarker(condition);
+            view.gnr_setGutterMarker(line, gutter, dom);
+            that.setBreakpoint({line: code_line, module: module, condition: condition, evt: evt_type});
+        };
+        if(modifier === 'Shift'){
+            genro.dlg.prompt(_T("Breakpoint condition"), {lbl: _T('Condition'), action: cb});
+        } else {
+            cb();
+        }
     },
     setBreakpoint:function(kw){
         var debugged_page_id = this.getStackEditor().getRelativeData('.debugged_page_id');
@@ -221,8 +223,8 @@ dojo.declare("gnr.GnrIde", null, {
     selectLine:function(lineno){
         var editorNode = this.getEditorNode();
         var doselect = function(cm){
-            cm.gnrSetCurrentLine(lineno)
-            cm.scrollIntoView({line:lineno});
+            cm.gnrSetCurrentLine(lineno);
+            cm.gnr_scrollIntoView({line: lineno});
         }
         if(editorNode.externalWidget){
             doselect(editorNode.externalWidget);

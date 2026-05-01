@@ -750,204 +750,527 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
 
 });
 
-dojo.declare("gnr.widgets.codemirror", gnr.widgets.baseHtml, {
+
+dojo.declare("gnr.widgets.codemirror", gnr.widgets.baseExternalWidget, {
     constructor: function(application) {
         this._domtag = 'div';
     },
-    getAddOnDict:function(key){
-        return {
-            search:{
-                command:'find',
-                js:['addon/search/search.js','addon/search/searchcursor.js','addon/dialog/dialog.js'],
-                css:['addon/dialog/dialog.css'],
-            },lint:{
-                command:'lint',
-                js:['//ajax.aspnetcdn.com/ajax/jshint/r07/jshint.js','addon/lint/lint.js','addon/lint/javascript-lint.js'],
-                css:['addon/lint/lint.css'],
-            }
-        }[key];
-    },
     creating: function(attributes, sourceNode) {
-        //if (sourceNode.attr.storepath) {
-        //    sourceNode.registerDynAttr('storepath');
-        //}
         var cmAttrs = objectExtract(attributes,'config_*');
         var readOnly = objectPop(attributes,'readOnly');
+        var editable = objectPop(attributes,'editable');
         var lineWrapping = objectPop(attributes,'lineWrapping');
-
-        if(readOnly){
-            cmAttrs.readOnly = readOnly;
-        }
+        cmAttrs.readOnly = !!readOnly;
+        // editable defaults to true: even read-only editors keep cursor + focus + keyboard
+        // shortcuts (e.g. Cmd+F search) by default. Pass editable=false explicitly to get the
+        // CM5 'nocursor' behaviour (no focus, no shortcuts).
+        cmAttrs.editable = (editable === undefined || editable === null) ? true : !!editable;
         if(lineWrapping){
             cmAttrs.lineWrapping = lineWrapping;
         }
         cmAttrs.value = objectPop(attributes,'value') || '';
-        return {cmAttrs:cmAttrs}
+        return {cmAttrs:cmAttrs};
     },
-
-    created:function(widget, savedAttrs, sourceNode){
+    created: function(widget, savedAttrs, sourceNode){
         var that = this;
         var cmAttrs = objectPop(savedAttrs,'cmAttrs');
-        var mode = cmAttrs.mode;
-        var theme = cmAttrs.theme;
-        var addon = cmAttrs.addon;
-        if(addon){
-            if (typeof addon === 'string'){
-                addon = addon.split(',');
-            } else if (Array.isArray(addon)){
-                // keep as-is
-            } else {
-                addon = [String(addon)];
-            }
-        }
-
-        var cb = function(){
-            that.load_mode(mode,function(){
-                if(theme){
-                    that.load_theme(theme,function(){that.initialize(widget,cmAttrs,sourceNode)})
-                }
-                else{
-                    that.initialize(widget,cmAttrs,sourceNode);
-                }
-             });
-            if(addon){
-                addon.forEach(function(addon){
-                    that.load_addon(addon)
-                })
-            }
-        }
-        if(!window.CodeMirror){
-            this.loadCodeMirror(cb);
-        }else{
+        var cb = function(){ that.initialize(widget, cmAttrs, sourceNode); };
+        if(!window.CodeMirror6){
+            this.loadCodeMirror6(cb);
+        } else {
             cb();
         }
     },
-
-    loadCodeMirror:function(cb){
-        var urlist = ['/_rsrc/js_libs/codemirror/lib/codemirror.js',
-                    '/_rsrc/js_libs/codemirror/lib/codemirror.css'];
-        genro.dom.addHeaders(urlist,function(){
-            genro.dom.loadJs('/_rsrc/js_libs/codemirror/addon/mode/overlay.js',cb);
+    loadCodeMirror6: function(cb){
+        // mtime-based cache-buster: server publishes the file mtime via gnr.vendoredMtime
+        // so the browser refetches the bundle whenever it gets rebuilt.
+        var mtime = genro.getData('gnr.vendoredMtime.codemirror6') || 0;
+        var url = '/_rsrc/js_libs/codemirror6/codemirror6.bundle.js' + (mtime ? '?mtime=' + mtime : '');
+        genro.dom.loadJs(url, cb);
+    },
+    buildExtensions: function(cmAttrs, sourceNode){
+        var CM = window.CodeMirror6;
+        var extensions = [];
+        // Per-instance dynamic state primitives, used by gnr_markText / gnr_addLineClass /
+        // gnr_setGutterMarker mixins below. These are wired here so the EditorView is born
+        // already prepared to accept dispatch effects targeting them.
+        var setMarksEffect = CM.StateEffect.define();           // payload: {add:[{from,to,deco}], remove:[id,...], clear:bool}
+        var setLineClassEffect = CM.StateEffect.define();       // payload: {add:[{line,deco,id}], remove:[id,...], clear:bool}
+        var setGutterMarkersEffect = CM.StateEffect.define();   // payload: {gutter:str, add:[{line,marker}], remove:[line,...], clear:bool}
+        var marksField = CM.StateField.define({
+            create: function(){ return CM.RangeSet.empty; },
+            update: function(set, tr){
+                set = set.map(tr.changes);
+                for(var i = 0; i < tr.effects.length; i++){
+                    var ef = tr.effects[i];
+                    if(!ef.is(setMarksEffect)) continue;
+                    var p = ef.value;
+                    if(p.clear){ set = CM.RangeSet.empty; }
+                    if(p.remove && p.remove.length){
+                        var rm = p.remove;
+                        set = set.update({filter: function(_from, _to, deco){
+                            return rm.indexOf(deco.spec && deco.spec.id) === -1;
+                        }});
+                    }
+                    if(p.add && p.add.length){
+                        set = set.update({add: p.add.map(function(a){ return a.deco.range(a.from, a.to); }), sort: true});
+                    }
+                }
+                return set;
+            },
+            provide: function(field){ return CM.EditorView.decorations.from(field); }
         });
-        
-    },
-    defineKeyMap:function(name,keyMap){
-        CodeMirror.keyMap[name] = objectUpdate(keyMap,CodeMirror.keyMap['default']);
-    },
-
-
-    initialize:function(widget,cmAttrs,sourceNode){
-        this.defineKeyMap('softTab',{'Tab':function(cm){
-                                          var spaces = Array(cm.getOption("indentUnit") + 1).join(" ");
-                                          cm.replaceSelection(spaces);
-                                      }
-                                });
-        dojo.style(widget,{position:'relative'})
-        var cm = CodeMirror(widget,cmAttrs);
-        dojo.style(widget.firstChild,{height:'inherit',top:0,left:0,right:0,bottom:0,position:'absolute'})
-        cm.refresh();
-        cm.sourceNode = sourceNode;
-        cm.gnr = this;
-        sourceNode.externalWidget = cm;
-        for (var prop in this) {
-            if (prop.indexOf('mixin_') == 0) {
-                cm[prop.replace('mixin_', '')] = this[prop];
-            }
-        }
-        cm.on('update',function(){
-            sourceNode.delayedCall(function(){
-                var v = sourceNode.externalWidget.getValue();
-                if(sourceNode.attr.value){
-                    sourceNode.setRelativeData(sourceNode.attr.value,v,null,null,sourceNode);
+        var lineClassField = CM.StateField.define({
+            create: function(){ return CM.RangeSet.empty; },
+            update: function(set, tr){
+                set = set.map(tr.changes);
+                for(var i = 0; i < tr.effects.length; i++){
+                    var ef = tr.effects[i];
+                    if(!ef.is(setLineClassEffect)) continue;
+                    var p = ef.value;
+                    if(p.clear){ set = CM.RangeSet.empty; }
+                    if(p.remove && p.remove.length){
+                        var rm = p.remove;
+                        set = set.update({filter: function(_from, _to, deco){
+                            return rm.indexOf(deco.spec && deco.spec.id) === -1;
+                        }});
+                    }
+                    if(p.add && p.add.length){
+                        set = set.update({add: p.add.map(function(a){ return a.deco.range(a.linePos); }), sort: true});
+                    }
                 }
-            },sourceNode.attr._delay || 500,'updatingContent')
-        })
-        let startValue = sourceNode.getAttributeFromDatasource('value');
-        cm.setValue(startValue || '');
-    },
-
-
-    load_theme:function(theme,cb){
-        genro.dom.loadCss('/_rsrc/js_libs/codemirror/theme/'+theme+'.css','codemirror_'+theme,cb);
-    },
-
-    load_addon:function(addon,cb){
-        var that = this;
-        var addondict = this.getAddOnDict(addon);
-        if (!CodeMirror.commands[addondict.command]){
-            addondict.js.forEach(function(path){
-                if(path[0]=='/'){
-                    genro.dom.loadJs(path);
-                }else{
-                    genro.dom.loadJs('/_rsrc/js_libs/codemirror/'+path);
-                }
-                 
-            })
-            addondict.css.forEach(function(path){
-                 genro.dom.loadCss('/_rsrc/js_libs/codemirror/'+path);
-            })
-        }
-    },
-
-    load_mode:function(mode,cb){
-        var that = this;
-        if (!(mode in CodeMirror.modes)){
-            genro.dom.loadJs('/_rsrc/js_libs/codemirror/mode/'+mode+'/'+mode+'.js',function(){
-                if(CodeMirror.modes[mode].dependencies){
-                    var i =0;
-                    CodeMirror.modes[mode].dependencies.forEach(function(dep){
-                        i++;
-                        if(CodeMirror.modes[mode].dependencies.length==i){
-                            that.load_mode(dep,function(){
-                                setTimeout(function(){cb()},10);
-                            });
-                        }else{
-                            that.load_mode(dep);
+                return set;
+            },
+            provide: function(field){ return CM.EditorView.decorations.from(field); }
+        });
+        // Gutter markers: a Map<gutterName, Map<linePos, marker>> kept inside a StateField.
+        // line positions are normalized to line-start offsets so RangeSet sorting works.
+        var gutterMarkersField = CM.StateField.define({
+            create: function(){ return {}; },  // {gutterName: Map<linePos, GutterMarker>}
+            update: function(state, tr){
+                // Shallow clone so reference identity changes (CM6 schedules redraw on change).
+                var next = {};
+                for(var k in state){ next[k] = new Map(state[k]); }
+                for(var i = 0; i < tr.effects.length; i++){
+                    var ef = tr.effects[i];
+                    if(!ef.is(setGutterMarkersEffect)) continue;
+                    var p = ef.value;
+                    var gname = p.gutter;
+                    if(!next[gname]){ next[gname] = new Map(); }
+                    var m = next[gname];
+                    if(p.clear){ m.clear(); }
+                    if(p.remove && p.remove.length){
+                        for(var r = 0; r < p.remove.length; r++){ m.delete(p.remove[r]); }
+                    }
+                    if(p.add && p.add.length){
+                        for(var a = 0; a < p.add.length; a++){
+                            m.set(p.add[a].line, p.add[a].marker);
                         }
-                    });
+                    }
                 }
-                else if(cb){
-                    cb()
+                return next;
+            }
+        });
+        extensions.push(marksField);
+        extensions.push(lineClassField);
+        extensions.push(gutterMarkersField);
+        if(cmAttrs.lineNumbers !== false){
+            extensions.push(CM.lineNumbers());
+        }
+        extensions.push(CM.highlightActiveLine());
+        extensions.push(CM.highlightActiveLineGutter());
+        extensions.push(CM.drawSelection());
+        extensions.push(CM.dropCursor());
+        extensions.push(CM.history());
+        extensions.push(CM.indentOnInput());
+        extensions.push(CM.bracketMatching());
+        extensions.push(CM.foldGutter());
+        extensions.push(CM.highlightSelectionMatches());
+        extensions.push(CM.search({top:true}));
+        extensions.push(CM.syntaxHighlighting(CM.defaultHighlightStyle, {fallback:true}));
+        var keymapList = [].concat(CM.defaultKeymap, CM.searchKeymap, CM.historyKeymap, CM.foldKeymap);
+        if(cmAttrs.keyMap === 'softTab'){
+            var indentUnit = cmAttrs.indentUnit || 4;
+            var pad = new Array(indentUnit + 1).join(' ');
+            keymapList.unshift({
+                key: 'Tab',
+                run: function(view){
+                    view.dispatch(view.state.replaceSelection(pad));
+                    return true;
                 }
             });
+        } else {
+            keymapList.push(CM.indentWithTab);
         }
-        else if(cb){
-            cb();
+        extensions.push(CM.keymap.of(keymapList));
+        // Mode aliases keep CM5 names working in CM6. CM6's html() already nests
+        // <script> JS and <style> CSS, so it's a drop-in for CM5 'htmlmixed'.
+        var modeAlias = {htmlmixed: 'html', htmlembedded: 'html', 'text/html': 'html', md: 'markdown'};
+        var mode = cmAttrs.mode;
+        if(mode && modeAlias[mode]){ mode = modeAlias[mode]; }
+        if(mode && CM.langs[mode]){
+            extensions.push(CM.langs[mode]());
+        }
+        // toolsTheme first, theme last: themes that include their own tool
+        // styling (e.g. @codemirror/theme-one-dark) win and override our
+        // generic tool skin. Themes that don't (thememirror) leave our skin
+        // in place. Order matters: later extensions take precedence.
+        if(CM.toolsTheme){
+            extensions.push(CM.toolsTheme);
+        }
+        if(cmAttrs.theme){
+            // CM5 theme name aliases mapped to closest CM6 equivalents.
+            var themeAlias = {dark: 'oneDark', twilight: 'oneDark', night: 'dracula'};
+            var themeKey = themeAlias[cmAttrs.theme] || cmAttrs.theme;
+            if(CM.themes[themeKey]){
+                extensions.push(CM.themes[themeKey]);
+            }
+        }
+        // Font overrides applied last, so they win over any theme.
+        if(cmAttrs.fontSize || cmAttrs.fontFamily){
+            var fontRule = {};
+            if(cmAttrs.fontSize) fontRule.fontSize = cmAttrs.fontSize;
+            if(cmAttrs.fontFamily) fontRule.fontFamily = cmAttrs.fontFamily;
+            extensions.push(CM.EditorView.theme({"&": fontRule, ".cm-content": fontRule}));
+        }
+        if(cmAttrs.lineWrapping){
+            extensions.push(CM.EditorView.lineWrapping);
+        }
+        var readOnlyCompartment = new CM.Compartment();
+        extensions.push(readOnlyCompartment.of([
+            CM.EditorState.readOnly.of(!!cmAttrs.readOnly),
+            CM.EditorView.editable.of(!!cmAttrs.editable)
+        ]));
+        extensions.push(CM.EditorView.updateListener.of(function(update){
+            // Persist selection across rebuilds: stash on sourceNode (which survives).
+            if(update.selectionSet || update.docChanged){
+                sourceNode._cm6Snapshot = sourceNode._cm6Snapshot || {};
+                sourceNode._cm6Snapshot.selection = update.state.selection.toJSON();
+            }
+            // Push doc changes to the datapath (debounced).
+            if(!update.docChanged) return;
+            sourceNode.delayedCall(function(){
+                var v = sourceNode.externalWidget.state.doc.toString();
+                if(sourceNode.attr.value){
+                    sourceNode.setRelativeData(sourceNode.attr.value, v, null, null, sourceNode);
+                }
+            }, sourceNode.attr._delay || 500, 'updatingContent');
+        }));
+        // Persist scroll position separately (scroll events don't trigger updateListener).
+        extensions.push(CM.EditorView.domEventHandlers({
+            scroll: function(_event, view){
+                sourceNode._cm6Snapshot = sourceNode._cm6Snapshot || {};
+                sourceNode._cm6Snapshot.scrollTop = view.scrollDOM.scrollTop;
+                sourceNode._cm6Snapshot.scrollLeft = view.scrollDOM.scrollLeft;
+            }
+        }));
+        // Custom gutters declared via config_extraGutters=[{name:'breakpoints', width:'0.8em'}, ...].
+        // Each gutter renders markers fetched from gutterMarkersField (line -> GutterMarker).
+        var extraGutters = cmAttrs.extraGutters;
+        if(extraGutters && extraGutters.length){
+            for(var gi = 0; gi < extraGutters.length; gi++){
+                (function(spec){
+                    var gname = spec.name || spec;
+                    var gwidth = spec.width;
+                    extensions.push(CM.gutter({
+                        class: 'cm-gutter-' + gname,
+                        markers: function(view){
+                            var byLine = view.state.field(gutterMarkersField)[gname];
+                            if(!byLine || !byLine.size) return CM.RangeSet.empty;
+                            var entries = [];
+                            byLine.forEach(function(marker, linePos){
+                                entries.push({pos: linePos, marker: marker});
+                            });
+                            entries.sort(function(a, b){ return a.pos - b.pos; });
+                            var builder = new CM.RangeSetBuilder();
+                            for(var k = 0; k < entries.length; k++){
+                                builder.add(entries[k].pos, entries[k].pos, entries[k].marker);
+                            }
+                            return builder.finish();
+                        },
+                        initialSpacer: gwidth ? function(){
+                            return new (function(){
+                                var inst = Object.create(CM.GutterMarker.prototype);
+                                inst.toDOM = function(){
+                                    var el = document.createElement('div');
+                                    el.style.minWidth = gwidth;
+                                    return el;
+                                };
+                                return inst;
+                            })();
+                        } : null,
+                        domEventHandlers: {
+                            mousedown: function(view, lineBlock, event){
+                                var handler = sourceNode.attr['onGutterClick_' + gname];
+                                if(handler){
+                                    var lineObj = view.state.doc.lineAt(lineBlock.from);
+                                    funcCreate(handler, 'view,line,gutter,event')
+                                        .call(sourceNode, view, lineObj.number - 1, gname, event);
+                                    return true;
+                                }
+                                return false;
+                            }
+                        }
+                    }));
+                })(extraGutters[gi]);
+            }
+        }
+        return {
+            extensions: extensions,
+            readOnlyCompartment: readOnlyCompartment,
+            setMarksEffect: setMarksEffect,
+            marksField: marksField,
+            setLineClassEffect: setLineClassEffect,
+            lineClassField: lineClassField,
+            setGutterMarkersEffect: setGutterMarkersEffect,
+            gutterMarkersField: gutterMarkersField
+        };
+    },
+    initialize: function(widget, cmAttrs, sourceNode){
+        var CM = window.CodeMirror6;
+        dojo.style(widget, {position:'relative'});
+        var built = this.buildExtensions(cmAttrs, sourceNode);
+        var startValue = sourceNode.getAttributeFromDatasource('value') || cmAttrs.value || '';
+        // Restore selection from a previous incarnation (sourceNode survives rebuilds).
+        var snapshot = sourceNode._cm6Snapshot;
+        var selection = null;
+        if(snapshot && snapshot.selection){
+            try {
+                selection = CM.EditorState.fromJSON(
+                    {doc: startValue, selection: snapshot.selection}
+                ).selection;
+            } catch(e){
+                selection = null;
+            }
+        }
+        var stateConfig = {doc: startValue, extensions: built.extensions};
+        if(selection){
+            stateConfig.selection = selection;
+        }
+        var state = CM.EditorState.create(stateConfig);
+        var view = new CM.EditorView({state: state, parent: widget});
+        dojo.style(view.dom, {height:'inherit', top:0, left:0, right:0, bottom:0, position:'absolute'});
+        view._readOnlyCompartment = built.readOnlyCompartment;
+        view._readOnlyState = !!cmAttrs.readOnly;
+        view._editableState = !!cmAttrs.editable;
+        // Refs to dynamic-state primitives, used by gnr_markText / gnr_addLineClass /
+        // gnr_setGutterMarker mixins. See buildExtensions() for definitions.
+        view._setMarksEffect = built.setMarksEffect;
+        view._marksField = built.marksField;
+        view._setLineClassEffect = built.setLineClassEffect;
+        view._lineClassField = built.lineClassField;
+        view._setGutterMarkersEffect = built.setGutterMarkersEffect;
+        view._gutterMarkersField = built.gutterMarkersField;
+        view._markIdSeq = 0;
+        // Restore scroll position after the view is mounted (needs layout pass).
+        if(snapshot && (snapshot.scrollTop || snapshot.scrollLeft)){
+            setTimeout(function(){
+                view.scrollDOM.scrollTop = snapshot.scrollTop || 0;
+                view.scrollDOM.scrollLeft = snapshot.scrollLeft || 0;
+            }, 0);
+        }
+        // baseExternalWidget wires sourceNode.externalWidget, mixins, and back-refs.
+        this.setExternalWidget(sourceNode, view);
+        // Reapply line classes that were live before the rebuild (e.g. the
+        // pdb current-line highlight in gnride). Old ids become stale: rebuild
+        // the snapshot map with fresh ids returned by gnr_addLineClass.
+        if(snapshot && snapshot.lineClasses){
+            var oldClasses = snapshot.lineClasses;
+            snapshot.lineClasses = {};
+            for(var oldId in oldClasses){
+                var entry = oldClasses[oldId];
+                view.gnr_addLineClass(entry.line, entry.className);
+            }
         }
     },
-
-    mixin_gnr_value:function(value,kw, trigger_reason){        
-        this.setValue(value || '');
-        var that = this;
-        var sourceNode = this.sourceNode;
-
-        sourceNode.watch('isVisible',function(){
-            return genro.dom.isVisible(sourceNode);
-        },function(){
-            that.refresh();
+    _applyReadOnlyEditable: function(view){
+        var CM = window.CodeMirror6;
+        view.dispatch({
+            effects: view._readOnlyCompartment.reconfigure([
+                CM.EditorState.readOnly.of(view._readOnlyState),
+                CM.EditorView.editable.of(view._editableState)
+            ])
         });
     },
-
-
-    mixin_gnr_setDisabled:function(disabled){
-        genro.dom.setDomNodeDisabled(this.sourceNode.domNode,disabled);
+    mixin_gnr_value: function(value, kw, trigger_reason){
+        var view = this;
+        var doc = view.state.doc;
+        var newValue = value || '';
+        if(doc.toString() === newValue) return;
+        view.dispatch({changes: {from: 0, to: doc.length, insert: newValue}});
+        var sourceNode = view.sourceNode;
+        sourceNode.watch('isVisible', function(){
+            return genro.dom.isVisible(sourceNode);
+        }, function(){
+            view.requestMeasure();
+        });
+    },
+    // CM5 compat: pages may call externalWidget.setValue(...) directly.
+    mixin_setValue: function(value){
+        return this.gnr_value(value);
+    },
+    mixin_gnr_setDisabled: function(disabled){
+        genro.dom.setDomNodeDisabled(this.sourceNode.domNode, disabled);
         this.gnr_readOnly(disabled);
     },
-
-    mixin_gnr_readOnly:function(value,kw,trigger_reason){
-        this.setOption('readOnly',value?'nocursor':false);
+    mixin_gnr_readOnly: function(value, kw, trigger_reason){
+        var view = this;
+        if(!view._readOnlyCompartment) return;
+        view._readOnlyState = !!value;
+        // editable is intentionally left untouched: the new default is editable=true
+        // even for read-only editors, so search/keyboard shortcuts keep working.
+        view.gnr._applyReadOnlyEditable(view);
     },
-
-    mixin_gnr_lineWrapping:function(value,kw,trigger_reason){
-        this.setOption('lineWrapping',value);
+    mixin_gnr_editable: function(value, kw, trigger_reason){
+        var view = this;
+        if(!view._readOnlyCompartment) return;
+        view._editableState = !!value;
+        view.gnr._applyReadOnlyEditable(view);
     },
-
-
-    mixin_gnr_quoteSelection:function(startchunk,endchunk){
+    mixin_gnr_lineWrapping: function(value, kw, trigger_reason){
+        // Toggling lineWrapping at runtime would require a dedicated compartment;
+        // current widget consumers set it once at creation, so this is a noop.
+    },
+    mixin_gnr_quoteSelection: function(startchunk, endchunk){
         endchunk = endchunk || startchunk;
-        var oldtxt = this.doc.getSelection();
-        var newtxt = startchunk+oldtxt+endchunk;
-        this.doc.replaceSelection(newtxt);
+        var view = this;
+        var range = view.state.selection.main;
+        var oldtxt = view.state.doc.sliceString(range.from, range.to);
+        var newtxt = startchunk + oldtxt + endchunk;
+        view.dispatch({changes: {from: range.from, to: range.to, insert: newtxt}});
+    },
+    // ---- Inline text decorations (CM5 markText equivalent) ----
+    // gnr_markText({line,ch}, {line,ch}, {className, attributes})
+    // Returns an id that gnr_clearMark uses to remove the decoration.
+    mixin_gnr_markText: function(from, to, options){
+        var CM = window.CodeMirror6;
+        var view = this;
+        if(!view._setMarksEffect) return null;
+        var fromOff = view.gnr._posToOffset(view, from);
+        var toOff = view.gnr._posToOffset(view, to);
+        if(fromOff == null || toOff == null || fromOff >= toOff) return null;
+        options = options || {};
+        var id = 'mark_' + (++view._markIdSeq);
+        var spec = {id: id};
+        if(options.className) spec['class'] = options.className;
+        if(options.attributes) spec.attributes = options.attributes;
+        var deco = CM.Decoration.mark(spec);
+        view.dispatch({effects: view._setMarksEffect.of({add: [{from: fromOff, to: toOff, deco: deco}]})});
+        return id;
+    },
+    mixin_gnr_clearMark: function(id){
+        var view = this;
+        if(!view._setMarksEffect || !id) return;
+        view.dispatch({effects: view._setMarksEffect.of({remove: [id]})});
+    },
+    mixin_gnr_clearAllMarks: function(){
+        var view = this;
+        if(!view._setMarksEffect) return;
+        view.dispatch({effects: view._setMarksEffect.of({clear: true})});
+    },
+    // ---- Per-line CSS classes (CM5 addLineClass / removeLineClass) ----
+    // gnr_addLineClass(lineNumber, className) where lineNumber is 0-based.
+    // Returns an id that gnr_removeLineClass uses.
+    // Active classes are tracked on sourceNode._cm6Snapshot.lineClasses so the
+    // current-line highlight (used by gnride debugger) survives editor rebuilds.
+    mixin_gnr_addLineClass: function(line, className){
+        var CM = window.CodeMirror6;
+        var view = this;
+        if(!view._setLineClassEffect || className == null) return null;
+        var linePos = view.gnr._lineStart(view, line);
+        if(linePos == null) return null;
+        var id = 'line_' + (++view._markIdSeq);
+        var deco = CM.Decoration.line({attributes: {'class': className}, id: id});
+        view.dispatch({effects: view._setLineClassEffect.of({add: [{linePos: linePos, deco: deco, id: id}]})});
+        var sourceNode = view.sourceNode;
+        sourceNode._cm6Snapshot = sourceNode._cm6Snapshot || {};
+        sourceNode._cm6Snapshot.lineClasses = sourceNode._cm6Snapshot.lineClasses || {};
+        sourceNode._cm6Snapshot.lineClasses[id] = {line: line, className: className};
+        return id;
+    },
+    mixin_gnr_removeLineClass: function(id){
+        var view = this;
+        if(!view._setLineClassEffect || !id) return;
+        view.dispatch({effects: view._setLineClassEffect.of({remove: [id]})});
+        var snap = view.sourceNode._cm6Snapshot;
+        if(snap && snap.lineClasses){ delete snap.lineClasses[id]; }
+    },
+    mixin_gnr_clearAllLineClasses: function(){
+        var view = this;
+        if(!view._setLineClassEffect) return;
+        view.dispatch({effects: view._setLineClassEffect.of({clear: true})});
+        var snap = view.sourceNode._cm6Snapshot;
+        if(snap){ snap.lineClasses = {}; }
+    },
+    // ---- Programmatic scroll (CM5 scrollIntoView) ----
+    // gnr_scrollIntoView({line, ch}) — line and ch are 0-based; line-only also accepted.
+    mixin_gnr_scrollIntoView: function(pos){
+        var CM = window.CodeMirror6;
+        var view = this;
+        var off;
+        if(typeof pos === 'number'){
+            off = pos;
+        } else {
+            off = view.gnr._posToOffset(view, pos);
+        }
+        if(off == null) return;
+        view.dispatch({effects: CM.EditorView.scrollIntoView(off, {y: 'center'})});
+    },
+    // ---- Custom gutter markers (CM5 setGutterMarker / clearGutter / lineInfo) ----
+    // gnr_setGutterMarker(line, gutterName, domElement | null)
+    // line is 0-based. Pass null/undefined as third arg to remove the marker on that line.
+    mixin_gnr_setGutterMarker: function(line, gutterName, domElement){
+        var CM = window.CodeMirror6;
+        var view = this;
+        if(!view._setGutterMarkersEffect) return;
+        var linePos = view.gnr._lineStart(view, line);
+        if(linePos == null) return;
+        if(!domElement){
+            view.dispatch({effects: view._setGutterMarkersEffect.of({gutter: gutterName, remove: [linePos]})});
+            return;
+        }
+        var marker = Object.create(CM.GutterMarker.prototype);
+        marker.toDOM = function(){ return domElement; };
+        view.dispatch({effects: view._setGutterMarkersEffect.of({gutter: gutterName, add: [{line: linePos, marker: marker}]})});
+    },
+    mixin_gnr_clearGutter: function(gutterName){
+        var view = this;
+        if(!view._setGutterMarkersEffect) return;
+        view.dispatch({effects: view._setGutterMarkersEffect.of({gutter: gutterName, clear: true})});
+    },
+    // gnr_lineInfo(lineNumber) returns {line, gutterMarkers: {gutterName: domElement}}
+    // mirrors the small subset of CM5 cm.lineInfo used by gnride.
+    mixin_gnr_lineInfo: function(line){
+        var view = this;
+        var linePos = view.gnr._lineStart(view, line);
+        if(linePos == null) return null;
+        var info = {line: line, gutterMarkers: {}};
+        var byName = view.state.field(view._gutterMarkersField, false) || {};
+        for(var gname in byName){
+            var byLine = byName[gname];
+            if(byLine && byLine.has(linePos)){
+                var marker = byLine.get(linePos);
+                info.gutterMarkers[gname] = marker.toDOM ? marker.toDOM() : null;
+            }
+        }
+        return info;
+    },
+    // ---- Internal helpers (called from mixins via view.gnr._...) ----
+    _posToOffset: function(view, pos){
+        if(pos == null) return null;
+        if(typeof pos === 'number') return pos;
+        var doc = view.state.doc;
+        var lineNum = (pos.line || 0) + 1;
+        if(lineNum < 1 || lineNum > doc.lines) return null;
+        var lineObj = doc.line(lineNum);
+        var off = lineObj.from + (pos.ch || 0);
+        return Math.min(off, lineObj.to);
+    },
+    _lineStart: function(view, line){
+        var doc = view.state.doc;
+        var lineNum = (line || 0) + 1;
+        if(lineNum < 1 || lineNum > doc.lines) return null;
+        return doc.line(lineNum).from;
     }
 });
 

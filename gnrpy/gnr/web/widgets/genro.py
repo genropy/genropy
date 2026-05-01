@@ -425,11 +425,15 @@ class GenroWidgets:
 
     @element
     def codemirror(self, **kwargs):
-        """CodeMirror text editor widget for code editing.
+        """CodeMirror 6 text editor widget for code editing.
 
         Args:
-            **kwargs: value (^path), mode (language), theme, readOnly,
-                lineNumbers, height, width.
+            **kwargs: value (^path), config_mode (language: sql, python,
+                javascript, css, html, xml, json, markdown, yaml),
+                config_theme (oneDark, dracula, ...), config_lineNumbers,
+                config_keyMap (softTab), config_indentUnit, config_fontSize,
+                config_fontFamily, config_extraGutters, readOnly, editable,
+                lineWrapping, height, width.
         """
         ...
 
