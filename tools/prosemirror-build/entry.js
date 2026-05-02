@@ -141,6 +141,7 @@ import {
     toggleHeaderColumn,
     toggleHeaderRow,
     toggleHeaderCell,
+    setCellAttr,
     fixTables
 } from "prosemirror-tables";
 
@@ -301,6 +302,7 @@ window.ProseMirror = {
         toggleHeaderColumn,
         toggleHeaderRow,
         toggleHeaderCell,
+        setCellAttr,
         fixTables
     },
     // trailing node

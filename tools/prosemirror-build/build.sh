@@ -46,6 +46,22 @@ CSS_OUT="$TARGET_DIR/prosemirror.css"
     -moz-user-select: text;
     user-select: text;
 }
+
+/* Genropy table styling: prosemirror-tables ships with no cell borders by
+ * design. Match the upstream demo (prosemirror.net/examples/, table demo)
+ * so users can actually see the cells they're editing. */
+.ProseMirror table {
+    margin: 0.5em 0;
+}
+.ProseMirror td,
+.ProseMirror th {
+    border: 1px solid #ccc;
+    padding: 4px 8px;
+}
+.ProseMirror th {
+    background: #f5f5f5;
+    font-weight: bold;
+}
 GNRCSS
 } > "$CSS_OUT"
 
