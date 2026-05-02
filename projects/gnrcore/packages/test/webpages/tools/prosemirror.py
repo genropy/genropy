@@ -2,6 +2,42 @@
 
 "ProseMirror"
 
+from gnr.core.gnrbag import Bag
+
+
+def _sample_bag():
+    """Build a sample document as gnr.Bag using the canonical schema:
+    - block nodes carry tag = type name (paragraph, heading, ...) and PM attrs
+    - inline text runs use tag='txt' with the text as cell value, mark names
+      joined as a comma-separated 'markers' attribute, and per-mark attrs
+      spread on the cell.
+    Note: we use 'tag' (not '_tag') because the latter is a Bag framework
+    reserved attribute that the XML deserializer interprets as the cell label.
+    """
+    b = Bag()
+    b.setItem('doc', Bag(), tag='doc')
+    doc = b['doc']
+
+    doc.setItem('heading_0', Bag(), tag='heading', level=2)
+    heading_0 = doc['heading_0']
+    heading_0.setItem('txt_0', 'Bag document', tag='txt')
+
+    doc.setItem('paragraph_0', Bag(), tag='paragraph')
+    paragraph_0 = doc['paragraph_0']
+    paragraph_0.setItem('txt_0', 'Edits are mirrored to a ', tag='txt')
+    paragraph_0.setItem('txt_1', 'gnr.Bag', tag='txt', markers='bold')
+    paragraph_0.setItem('txt_2', ' tree, ready to query from Python.', tag='txt')
+
+    doc.setItem('paragraph_1', Bag(), tag='paragraph')
+    paragraph_1 = doc['paragraph_1']
+    paragraph_1.setItem('txt_0', 'See the ', tag='txt')
+    paragraph_1.setItem('txt_1', 'Genropy site',
+                        tag='txt', markers='link',
+                        href='https://genropy.org', title='Genropy')
+    paragraph_1.setItem('txt_2', ' for the framework.', tag='txt')
+
+    return b
+
 
 SAMPLE_HTML = (
     '<h2>ProseMirror demo</h2>'
@@ -61,3 +97,34 @@ class GnrCustomWebPage(object):
         right = bc.contentPane(region='center')
         right.div('Editor B', font_weight='bold', padding='4px')
         right.proseMirrorEditor(value='^.shared', height='220px', padding='8px')
+
+    def test_5_strip_diag(self, pane):
+        """Diagnostic: does a plain textBox bound to a datapath strip
+        trailing/leading whitespace at save time?
+
+        Open the page, look at the textbox with 'AAAA    ' (4 trailing
+        spaces). Edit nothing, just commit (Tab out / blur). Then read
+        from the JS console: genro.getData('test.test_5_strip_diag.tx')
+        If length is 4, the textbox stripped. If 8, it preserved."""
+        pane.data('.tx', 'AAAA    ')
+        pane.div('Open the JS console and run:', font_weight='bold')
+        pane.div("genro.getData('test.test_5_strip_diag.tx').length",
+                 font_family='monospace', background='#f5f5f5', padding='4px')
+        pane.div('Initial length should be 8. After Tab/blur on the textbox, '
+                 're-run to see if it changed.', font_size='0.9em', color='#666')
+        pane.textBox(value='^.tx', width='400px', font_family='monospace',
+                     border='1px solid silver', padding='4px', margin_top='8px')
+
+    def test_4_bag(self, pane):
+        "ProseMirror with gnr.Bag output (canonical Tiptap-biased schema)"
+        pane.data('.docbag', _sample_bag())
+        pane.proseMirrorEditor(value='^.docbag', format='bag',
+                               height='220px', width='600px',
+                               border='1px solid silver', padding='8px')
+        pane.div('Output (gnr.Bag — live tree of the document, Shift+click a node to inspect its attributes):',
+                 font_weight='bold', margin_top='12px')
+        pane.div(height='280px', width='600px', border='1px solid silver',
+                 overflow='auto').tree(storepath='.docbag',
+                                       hideValues=False, inspect='shift',
+                                       autoCollapse=False,
+                                       _class='branchtree noIcon')
