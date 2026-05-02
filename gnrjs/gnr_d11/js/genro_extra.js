@@ -933,9 +933,8 @@ dojo.declare("gnr.widgets.codemirror", gnr.widgets.baseExternalWidget, {
             if(cmAttrs.fontFamily) fontRule.fontFamily = cmAttrs.fontFamily;
             extensions.push(CM.EditorView.theme({"&": fontRule, ".cm-content": fontRule}));
         }
-        if(cmAttrs.lineWrapping){
-            extensions.push(CM.EditorView.lineWrapping);
-        }
+        var lineWrappingCompartment = new CM.Compartment();
+        extensions.push(lineWrappingCompartment.of(cmAttrs.lineWrapping ? CM.EditorView.lineWrapping : []));
         var readOnlyCompartment = new CM.Compartment();
         extensions.push(readOnlyCompartment.of([
             CM.EditorState.readOnly.of(!!cmAttrs.readOnly),
@@ -1018,6 +1017,7 @@ dojo.declare("gnr.widgets.codemirror", gnr.widgets.baseExternalWidget, {
         return {
             extensions: extensions,
             readOnlyCompartment: readOnlyCompartment,
+            lineWrappingCompartment: lineWrappingCompartment,
             setMarksEffect: setMarksEffect,
             marksField: marksField,
             setLineClassEffect: setLineClassEffect,
@@ -1040,6 +1040,7 @@ dojo.declare("gnr.widgets.codemirror", gnr.widgets.baseExternalWidget, {
                     {doc: startValue, selection: snapshot.selection}
                 ).selection;
             } catch(e){
+                console.warn('codemirror6: failed to restore selection snapshot', e);
                 selection = null;
             }
         }
@@ -1053,6 +1054,7 @@ dojo.declare("gnr.widgets.codemirror", gnr.widgets.baseExternalWidget, {
         view._readOnlyCompartment = built.readOnlyCompartment;
         view._readOnlyState = !!cmAttrs.readOnly;
         view._editableState = !!cmAttrs.editable;
+        view._lineWrappingCompartment = built.lineWrappingCompartment;
         // Refs to dynamic-state primitives, used by gnr_markText / gnr_addLineClass /
         // gnr_setGutterMarker mixins. See buildExtensions() for definitions.
         view._setMarksEffect = built.setMarksEffect;
@@ -1096,7 +1098,8 @@ dojo.declare("gnr.widgets.codemirror", gnr.widgets.baseExternalWidget, {
         var view = this;
         var doc = view.state.doc;
         var newValue = value || '';
-        if(doc.toString() === newValue) return;
+        // Cheap length check first so unchanged large docs don't materialize the full rope.
+        if(doc.length === newValue.length && doc.toString() === newValue) return;
         view.dispatch({changes: {from: 0, to: doc.length, insert: newValue}});
         var sourceNode = view.sourceNode;
         sourceNode.watch('isVisible', function(){
@@ -1128,8 +1131,12 @@ dojo.declare("gnr.widgets.codemirror", gnr.widgets.baseExternalWidget, {
         view.gnr._applyReadOnlyEditable(view);
     },
     mixin_gnr_lineWrapping: function(value, kw, trigger_reason){
-        // Toggling lineWrapping at runtime would require a dedicated compartment;
-        // current widget consumers set it once at creation, so this is a noop.
+        var CM = window.CodeMirror6;
+        var view = this;
+        if(!view._lineWrappingCompartment) return;
+        view.dispatch({
+            effects: view._lineWrappingCompartment.reconfigure(value ? CM.EditorView.lineWrapping : [])
+        });
     },
     mixin_gnr_quoteSelection: function(startchunk, endchunk){
         endchunk = endchunk || startchunk;

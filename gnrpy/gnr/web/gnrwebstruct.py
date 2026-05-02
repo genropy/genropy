@@ -1790,7 +1790,6 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                 kwargs['customStyles'] = customStyles
         return self.child('ckEditor',**kwargs)
 
-
     def palettePane(self, paletteCode, datapath=None, **kwargs):
         """Return a :ref:`palettepane`
         
