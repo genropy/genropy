@@ -1033,6 +1033,12 @@ dojo.declare("gnr.widgets.codemirror", gnr.widgets.baseExternalWidget, {
     }
 });
 
+// Mark name canonicalization (PM native names → Bag canonical names).
+// Biased toward Tiptap StarterKit naming so the same Bag schema works
+// unchanged when the widget will be backed by Tiptap in a future phase.
+gnr.widgets.proseMirrorEditor_PM_TO_BAG_MARKS = {strong: 'bold', em: 'italic'};
+gnr.widgets.proseMirrorEditor_BAG_TO_PM_MARKS = {bold: 'strong', italic: 'em'};
+
 dojo.declare("gnr.widgets.proseMirrorEditor", gnr.widgets.baseExternalWidget, {
     constructor: function(application) {
         this._domtag = 'div';
@@ -1040,7 +1046,15 @@ dojo.declare("gnr.widgets.proseMirrorEditor", gnr.widgets.baseExternalWidget, {
     creating: function(attributes, sourceNode) {
         var pmAttrs = objectExtract(attributes, 'config_*');
         pmAttrs.value = objectPop(attributes, 'value') || '';
-        pmAttrs.format = objectPop(attributes, 'format') || 'html';  // 'html' | 'json'
+        pmAttrs.format = objectPop(attributes, 'format') || 'html';  // 'html' | 'json' | 'bag'
+        // Lifecycle hooks: strings of JS source executed around dispatchTransaction.
+        // beforeDispatch runs before the transaction is applied to the state.
+        // afterDispatch runs after the state has been updated.
+        // onChange runs only when tr.docChanged is true (skip selection-only changes).
+        // Scope available in all three: tr, view, steps, doc, before, genro, sourceNode.
+        pmAttrs.beforeDispatch = objectPop(attributes, 'beforeDispatch');
+        pmAttrs.afterDispatch = objectPop(attributes, 'afterDispatch');
+        pmAttrs.onChange = objectPop(attributes, 'onChange');
         // readOnly takes precedence over editable: passing readOnly=true forces
         // editable=false regardless of any explicit editable= argument.
         var readOnly = objectPop(attributes, 'readOnly');
@@ -1074,11 +1088,151 @@ dojo.declare("gnr.widgets.proseMirrorEditor", gnr.widgets.baseExternalWidget, {
         var jsUrl = '/_rsrc/js_libs/prosemirror/prosemirror.bundle.js' + (jsMtime ? '?mtime=' + jsMtime : '');
         genro.dom.loadJs(jsUrl, cb);
     },
-    // Parse the initial value (HTML string or PM JSON document) into a PM Node
-    // using the configured schema. Empty / unparseable input falls back to an
-    // empty document so the editor never starts in a broken state.
+    // ===== Bag <-> PM conversion =====
+    // PM Node -> gnr.GnrBag. Whole-tree snapshot, lossless against the
+    // pre-built schemas (basic, basicWithLists, basicWithListsAndTables) and
+    // any custom mark/node that follows the PM model.
+    pmDocToBag: function(doc){
+        var bag = new gnr.GnrBag();
+        bag.setItem('doc', this._pmNodeToBagChildren(doc), {tag: doc.type.name});
+        return bag;
+    },
+    // Build a Bag holding the children of a PM Node, with labels of the form
+    // <type>_<index> where index counts occurrences of that type within the
+    // same parent (so paragraph_0, paragraph_1, heading_0, ...).
+    _pmNodeToBagChildren: function(node){
+        var children = new gnr.GnrBag();
+        var counters = {};
+        var that = this;
+        node.forEach(function(child){
+            var typeName = child.type.name;
+            var index = (counters[typeName] = (counters[typeName] || 0));
+            counters[typeName] = index + 1;
+            // Inline text nodes become 'txt' cells with the text as value and
+            // marks/attrs spread into the cell attributes.
+            if(child.isText){
+                var attrs = {tag: 'txt'};
+                if(child.marks && child.marks.length){
+                    var markNames = [];
+                    for(var i = 0; i < child.marks.length; i++){
+                        var mk = child.marks[i];
+                        var canonical = gnr.widgets.proseMirrorEditor_PM_TO_BAG_MARKS[mk.type.name] || mk.type.name;
+                        markNames.push(canonical);
+                        // Spread mark attrs onto the cell. Standard PM/Tiptap
+                        // marks (link.href, link.title) do not collide.
+                        if(mk.attrs){
+                            for(var k in mk.attrs){
+                                if(mk.attrs[k] != null){ attrs[k] = mk.attrs[k]; }
+                            }
+                        }
+                    }
+                    markNames.sort();
+                    attrs.markers = markNames.join(',');
+                }
+                var label = 'txt_' + index;
+                children.setItem(label, child.text, attrs);
+                return;
+            }
+            // Non-text node: cell with tag + spread attrs, value is the
+            // sub-Bag of children (or null for leaves like image / hard_break).
+            var nodeAttrs = {tag: typeName};
+            if(child.attrs){
+                for(var ak in child.attrs){
+                    if(child.attrs[ak] != null){ nodeAttrs[ak] = child.attrs[ak]; }
+                }
+            }
+            var label2 = typeName + '_' + index;
+            var subBag = (child.content && child.content.size) ? that._pmNodeToBagChildren(child) : null;
+            children.setItem(label2, subBag, nodeAttrs);
+        });
+        return children;
+    },
+    // gnr.GnrBag -> PM Node. The Bag must have a single top-level entry (doc).
+    bagToPmDoc: function(bag, schema){
+        var rootNode = bag.getNode('doc');
+        if(!rootNode){
+            return schema.topNodeType.createAndFill();
+        }
+        var children = this._bagChildrenToPmFragment(rootNode.getValue(), schema);
+        return schema.topNodeType.create(rootNode.attr || null, children);
+    },
+    // Build a PM Fragment from a Bag of children, using the cell 'tag' attr
+    // to look up the node type in the schema. Unknown tags are silently
+    // skipped to avoid hard failures on partial / external data.
+    _bagChildrenToPmFragment: function(childrenBag, schema){
+        var PM = window.ProseMirror;
+        var nodes = [];
+        if(!childrenBag){ return PM.Fragment.empty; }
+        var bagNodes = childrenBag.getNodes();
+        for(var i = 0; i < bagNodes.length; i++){
+            var bn = bagNodes[i];
+            var attrs = bn.attr || {};
+            var tag = attrs.tag;
+            // Inline text run.
+            if(tag === 'txt'){
+                var text = bn.getValue();
+                if(text == null || text === ''){ continue; }
+                var marks = this._bagAttrsToPmMarks(attrs, schema);
+                nodes.push(schema.text(String(text), marks));
+                continue;
+            }
+            var nodeType = schema.nodes[tag];
+            if(!nodeType){ continue; }
+            // Build PM attrs by stripping Bag-only keys.
+            var pmAttrs = this._stripBagKeys(attrs);
+            var subContent = bn.getValue();
+            var content = (subContent && subContent.getNodes) ? this._bagChildrenToPmFragment(subContent, schema) : PM.Fragment.empty;
+            try {
+                nodes.push(nodeType.createChecked(pmAttrs, content));
+            } catch(e){
+                // Schema mismatch (e.g. forbidden child). Try createAndFill as a fallback.
+                var filled = nodeType.createAndFill(pmAttrs, content);
+                if(filled){ nodes.push(filled); }
+            }
+        }
+        return PM.Fragment.fromArray(nodes);
+    },
+    // Reconstruct PM marks from a 'markers' csv attribute, pulling per-mark
+    // attrs (e.g. link.href, link.title) from the cell-level attributes.
+    _bagAttrsToPmMarks: function(attrs, schema){
+        if(!attrs.markers){ return null; }
+        var marks = [];
+        var names = String(attrs.markers).split(',');
+        for(var i = 0; i < names.length; i++){
+            var canonical = names[i].trim();
+            if(!canonical){ continue; }
+            var pmName = gnr.widgets.proseMirrorEditor_BAG_TO_PM_MARKS[canonical] || canonical;
+            var markType = schema.marks[pmName];
+            if(!markType){ continue; }
+            // Per-mark attrs come from the same cell attribute bag.
+            // We pass everything not in the Bag-only allowlist; PM ignores
+            // extras that the mark spec doesn't declare.
+            var markAttrs = {};
+            if(markType.spec.attrs){
+                for(var k in markType.spec.attrs){
+                    if(attrs[k] !== undefined){ markAttrs[k] = attrs[k]; }
+                }
+            }
+            marks.push(markType.create(markAttrs));
+        }
+        return marks.length ? marks : null;
+    },
+    // Strip Bag-only / cell-only attribute keys before passing to PM.
+    _stripBagKeys: function(attrs){
+        var clean = {};
+        for(var k in attrs){
+            if(k === 'tag' || k === 'markers'){ continue; }
+            // Strip Bag internal double-underscore metadata only.
+            if(k.charAt(0) === '_' && k.charAt(1) === '_'){ continue; }
+            clean[k] = attrs[k];
+        }
+        return clean;
+    },
+    // Parse the initial value (HTML / PM JSON / Bag) into a PM Node using the
+    // configured schema. Empty / unparseable input falls back to an empty
+    // document so the editor never starts in a broken state.
     parseInitialDoc: function(PM, schema, value, format){
-        if(!value){
+        if(value == null || value === ''){
             return schema.topNodeType.createAndFill();
         }
         if(format === 'json'){
@@ -1089,21 +1243,52 @@ dojo.declare("gnr.widgets.proseMirrorEditor", gnr.widgets.baseExternalWidget, {
                 return schema.topNodeType.createAndFill();
             }
         }
+        if(format === 'bag'){
+            var bag;
+            if(value && value.getNodes){
+                bag = value;
+            } else if(typeof value === 'string'){
+                try { bag = new gnr.GnrBag().fromXml(value); }
+                catch(e){ return schema.topNodeType.createAndFill(); }
+            } else {
+                return schema.topNodeType.createAndFill();
+            }
+            try { return this.bagToPmDoc(bag, schema); }
+            catch(e){
+                console.error('[proseMirrorEditor] bagToPmDoc failed:', e);
+                return schema.topNodeType.createAndFill();
+            }
+        }
         // HTML: parse via DOMParser bound to the schema.
         var div = document.createElement('div');
         div.innerHTML = String(value);
         return PM.DOMParser.fromSchema(schema).parse(div);
     },
-    // Serialize the current document back to the configured format string for
-    // datapath sync. HTML uses DOMSerializer; JSON uses Node.toJSON.
+    // Serialize the current document back to the configured format for
+    // datapath sync. HTML/JSON return strings; 'bag' returns a gnr.GnrBag
+    // instance so the datapath can hold it as a navigable tree.
     serializeDoc: function(PM, schema, doc, format){
         if(format === 'json'){
             return JSON.stringify(doc.toJSON());
+        }
+        if(format === 'bag'){
+            return this.pmDocToBag(doc);
         }
         var serializer = PM.DOMSerializer.fromSchema(schema);
         var div = document.createElement('div');
         div.appendChild(serializer.serializeFragment(doc.content));
         return div.innerHTML;
+    },
+    // Compile a hook string once and run it inside a try/catch so a buggy
+    // hook can never break the editor's transaction pipeline.
+    _runHook: function(label, source, scope){
+        if(!source){ return; }
+        try {
+            var fn = new Function('tr', 'view', 'steps', 'doc', 'before', 'genro', 'sourceNode', source);
+            fn(scope.tr, scope.view, scope.steps, scope.doc, scope.before, window.genro, scope.sourceNode);
+        } catch(e){
+            console.error('[proseMirrorEditor ' + label + '] hook error:', e);
+        }
     },
     initialize: function(widget, pmAttrs, sourceNode){
         var that = this;
@@ -1170,9 +1355,13 @@ dojo.declare("gnr.widgets.proseMirrorEditor", gnr.widgets.baseExternalWidget, {
             state: state,
             editable: function(){ return editableState; },
             dispatchTransaction: function(tr){
+                var hookScope = {tr: tr, view: view, steps: tr.steps, doc: tr.doc,
+                                 before: tr.before, sourceNode: sourceNode};
+                that._runHook('beforeDispatch', pmAttrs.beforeDispatch, hookScope);
                 var newState = view.state.apply(tr);
                 view.updateState(newState);
                 if(tr.docChanged){
+                    that._runHook('onChange', pmAttrs.onChange, hookScope);
                     sourceNode.delayedCall(function(){
                         var serialized = that.serializeDoc(PM, schema, view.state.doc, format);
                         if(sourceNode.attr.value){
@@ -1180,12 +1369,22 @@ dojo.declare("gnr.widgets.proseMirrorEditor", gnr.widgets.baseExternalWidget, {
                         }
                     }, sourceNode.attr._delay || 500, 'updatingContent');
                 }
+                that._runHook('afterDispatch', pmAttrs.afterDispatch, hookScope);
             }
         });
         // Expose the toggle through the view so gnr_editable can flip it at runtime.
         view._gnrSetEditable = function(v){ editableState = !!v; view.setProps({}); };
         view._gnrSchema = schema;
         view._gnrFormat = format;
+        // Public API for console / batch operations: read or replace the
+        // document as a gnr.GnrBag, regardless of the configured format.
+        view.toBag = function(){ return that.pmDocToBag(view.state.doc); };
+        view.fromBag = function(bag){
+            var newDoc = that.bagToPmDoc(bag, schema);
+            var tr = view.state.tr.replaceWith(0, view.state.doc.content.size, newDoc.content);
+            tr.setMeta('addToHistory', false);
+            view.updateState(view.state.apply(tr));
+        };
         // baseExternalWidget wires sourceNode.externalWidget, mixins, and back-refs.
         this.setExternalWidget(sourceNode, view);
     },
