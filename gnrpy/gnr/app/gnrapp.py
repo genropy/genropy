@@ -50,6 +50,7 @@ from gnr.core.gnrconfig import getGnrConfig
 from gnr.core import gnrlog
 from gnr.utils import ssmtplib
 from gnr.app.pathresolver import PathResolver
+from gnr.app.esmbuilder import GnrInstanceEsmBundler
 from gnr.app import logger
 from gnr.app.gnrlocalization import AppLocalizer
 from gnr.sql.gnrsql import GnrSqlDb
@@ -1069,7 +1070,12 @@ class GnrApp(object):
                 logger.error("ERROR: wrong dependencies:")
                 for requested, installed in wrong:
                     logger.error(f"{requested} is requested, but {installed} found")
-            
+        logger.debug("Checking javascript dependencies")
+        bundler = GnrInstanceEsmBundler(self)
+        output_dir, results = bundler.run()
+        
+        
+        
     def check_package_missing_dependencies(self):
         missing = []
         wrong = []
