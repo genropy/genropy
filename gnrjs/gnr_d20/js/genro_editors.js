@@ -1045,7 +1045,12 @@ dojo.declare("gnr.widgets.proseMirrorEditor", gnr.widgets.baseExternalWidget, {
     },
     creating: function(attributes, sourceNode) {
         var pmAttrs = objectExtract(attributes, 'config_*');
-        pmAttrs.value = objectPop(attributes, 'value') || '';
+        // value: leave the binding (^.path) intact on sourceNode.attr so that
+        // mixin_gnr_value can react to datapath changes. Resolve the current
+        // value via getAttributeFromDatasource which follows the binding when
+        // present and returns the literal value otherwise.
+        pmAttrs.value = sourceNode.getAttributeFromDatasource('value');
+        if(pmAttrs.value == null){ pmAttrs.value = ''; }
         pmAttrs.format = objectPop(attributes, 'format') || 'html';  // 'html' | 'json' | 'bag'
         // Lifecycle hooks: strings of JS source executed around dispatchTransaction.
         // beforeDispatch runs before the transaction is applied to the state.
@@ -1363,7 +1368,15 @@ dojo.declare("gnr.widgets.proseMirrorEditor", gnr.widgets.baseExternalWidget, {
         if(setup === 'full' || menubarEnabled){
             try {
                 var menu = PM.buildMenuItems(schema);
-                plugins.push(PM.menu.menuBar({floating: true, content: menu.fullMenu}));
+                var fullMenu = menu.fullMenu;
+                if(schema.nodes.table && PM.tables){
+                    var tableMenu = this._buildTableMenu(PM, schema);
+                    if(tableMenu && tableMenu.length){
+                        fullMenu = fullMenu.slice();
+                        fullMenu.splice(2, 0, [new PM.menu.Dropdown(tableMenu, {label: 'Table'})]);
+                    }
+                }
+                plugins.push(PM.menu.menuBar({floating: true, content: fullMenu}));
             } catch(e){
                 console.warn('[proseMirrorEditor] menubar build failed:', e);
             }
@@ -1385,6 +1398,67 @@ dojo.declare("gnr.widgets.proseMirrorEditor", gnr.widgets.baseExternalWidget, {
         }
         return plugins;
     },
+    // Build the "Table" dropdown menu. The "Insert table 3x3" command is
+    // custom (prosemirror-tables exposes the per-cell commands but no helper
+    // to create a fresh table); the rest are direct from PM.tables.
+    _buildTableMenu: function(PM, schema){
+        var T = PM.tables;
+        var Mi = PM.menu.MenuItem;
+        function item(label, cmd){
+            return new Mi({label: label, select: cmd, run: cmd});
+        }
+        var insertTable = function(state, dispatch){
+            var rows = 3, cols = 3;
+            var cellType = schema.nodes.table_cell;
+            var headerType = schema.nodes.table_header;
+            var rowType = schema.nodes.table_row;
+            var tableType = schema.nodes.table;
+            if(!cellType || !rowType || !tableType){ return false; }
+            var headerRow = null;
+            if(headerType){
+                var headerCells = [];
+                for(var i = 0; i < cols; i++){
+                    headerCells.push(headerType.createAndFill());
+                }
+                headerRow = rowType.create(null, headerCells);
+            }
+            var bodyRows = [];
+            for(var r = 0; r < (headerRow ? rows - 1 : rows); r++){
+                var bodyCells = [];
+                for(var c = 0; c < cols; c++){
+                    bodyCells.push(cellType.createAndFill());
+                }
+                bodyRows.push(rowType.create(null, bodyCells));
+            }
+            var allRows = headerRow ? [headerRow].concat(bodyRows) : bodyRows;
+            var table = tableType.create(null, allRows);
+            if(dispatch){
+                var tr = state.tr.replaceSelectionWith(table).scrollIntoView();
+                dispatch(tr);
+            }
+            return true;
+        };
+        var items = [
+            item('Insert table (3×3)', insertTable),
+            item('Insert column before', T.addColumnBefore),
+            item('Insert column after', T.addColumnAfter),
+            item('Delete column', T.deleteColumn),
+            item('Insert row before', T.addRowBefore),
+            item('Insert row after', T.addRowAfter),
+            item('Delete row', T.deleteRow),
+            item('Delete table', T.deleteTable),
+            item('Merge cells', T.mergeCells),
+            item('Split cell', T.splitCell),
+            item('Toggle header column', T.toggleHeaderColumn),
+            item('Toggle header row', T.toggleHeaderRow),
+            item('Toggle header cells', T.toggleHeaderCell)
+        ];
+        if(T.setCellAttr){
+            items.push(item('Highlight cell (green)', T.setCellAttr('background', '#dfd')));
+            items.push(item('Clear cell highlight', T.setCellAttr('background', null)));
+        }
+        return items;
+    },
     initialize: function(widget, pmAttrs, sourceNode){
         var that = this;
         var PM = window.ProseMirror;
@@ -1392,11 +1466,9 @@ dojo.declare("gnr.widgets.proseMirrorEditor", gnr.widgets.baseExternalWidget, {
         var schema = this._resolveSchema(PM, schemaName);
         var format = pmAttrs.format || 'html';
         var setup = pmAttrs.setup || 'example';
-        // Read initial value from the datasource if a path was bound.
-        var initialValue = sourceNode.getAttributeFromDatasource('value');
-        if(initialValue == null || initialValue === ''){
-            initialValue = pmAttrs.value || '';
-        }
+        // pmAttrs.value is already resolved by `creating` (or by `rebuild` for
+        // subsequent mounts) so we don't re-read from the datasource here.
+        var initialValue = (pmAttrs.value == null) ? '' : pmAttrs.value;
         var doc = this.parseInitialDoc(PM, schema, initialValue, format);
         var plugins = this._buildPlugins(PM, schema, setup, pmAttrs.menubar);
         var state = PM.EditorState.create({doc: doc, schema: schema, plugins: plugins});
