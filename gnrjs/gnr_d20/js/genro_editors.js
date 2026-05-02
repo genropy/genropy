@@ -1055,6 +1055,17 @@ dojo.declare("gnr.widgets.proseMirrorEditor", gnr.widgets.baseExternalWidget, {
         pmAttrs.beforeDispatch = objectPop(attributes, 'beforeDispatch');
         pmAttrs.afterDispatch = objectPop(attributes, 'afterDispatch');
         pmAttrs.onChange = objectPop(attributes, 'onChange');
+        // schema selection: 'basic' | 'basicWithLists' (default) | 'basicWithListsAndTables'
+        pmAttrs.schema = objectPop(attributes, 'schema') || 'basicWithLists';
+        // setup preset: 'minimal' | 'example' (default) | 'full'
+        // - minimal: baseKeymap + history + cursors. No input rules, no menubar.
+        // - example: input rules (markdown-ish) + list keymap + history.
+        // - full: example + menubar (toolbar) + table editing/resizing if schema
+        //   includes tables + trailing-node.
+        pmAttrs.setup = objectPop(attributes, 'setup') || 'example';
+        // menubar override: True/False forces presence regardless of setup.
+        // null/undefined = derived from setup ('full' -> true, others -> false).
+        pmAttrs.menubar = objectPop(attributes, 'menubar');
         // readOnly takes precedence over editable: passing readOnly=true forces
         // editable=false regardless of any explicit editable= argument.
         var readOnly = objectPop(attributes, 'readOnly');
@@ -1290,29 +1301,38 @@ dojo.declare("gnr.widgets.proseMirrorEditor", gnr.widgets.baseExternalWidget, {
             console.error('[proseMirrorEditor ' + label + '] hook error:', e);
         }
     },
-    initialize: function(widget, pmAttrs, sourceNode){
-        var that = this;
-        var PM = window.ProseMirror;
-        var schema = PM.schemas.basicWithLists;
-        var format = pmAttrs.format || 'html';
-        // Read initial value from the datasource if a path was bound.
-        var initialValue = sourceNode.getAttributeFromDatasource('value');
-        if(initialValue == null || initialValue === ''){
-            initialValue = pmAttrs.value || '';
+    // Resolve the schema name to the actual Schema instance from the bundle.
+    // Unknown names fall back to basicWithLists so the editor still boots.
+    _resolveSchema: function(PM, name){
+        var s = PM.schemas[name];
+        if(!s){
+            console.warn('[proseMirrorEditor] unknown schema "' + name + '", falling back to basicWithLists');
+            s = PM.schemas.basicWithLists;
         }
-        var doc = this.parseInitialDoc(PM, schema, initialValue, format);
-        // Build the input rules typically expected from a markdown-ish editor.
+        return s;
+    },
+    // Build the plugin list for the requested setup preset. 'minimal' returns
+    // just baseKeymap+history+cursors. 'example' adds markdown-ish input rules
+    // and list keymap. 'full' is example + menubar + tables + trailing node.
+    _buildPlugins: function(PM, schema, setup, menubarOverride){
+        var plugins = [];
+        if(setup === 'minimal'){
+            plugins.push(PM.history());
+            plugins.push(PM.keymap({'Mod-z': PM.undo, 'Mod-y': PM.redo, 'Mod-Shift-z': PM.redo}));
+            plugins.push(PM.keymap(PM.baseKeymap));
+            plugins.push(PM.dropCursor());
+            plugins.push(PM.gapCursor());
+            return plugins;
+        }
+        // example + full share the markdown-ish input rules and list keymap.
         var rules = PM.smartQuotes.concat([PM.ellipsis, PM.emDash]);
-        // Headings via `# `, `## `, ..., up to 6.
         if(schema.nodes.heading){
             rules.push(PM.textblockTypeInputRule(/^(#{1,6})\s$/, schema.nodes.heading,
                 function(match){ return {level: match[1].length}; }));
         }
-        // Blockquote via `> `.
         if(schema.nodes.blockquote){
             rules.push(PM.wrappingInputRule(/^\s*>\s$/, schema.nodes.blockquote));
         }
-        // Lists via `1. ` / `* ` (require schema-list).
         if(schema.nodes.ordered_list){
             rules.push(PM.wrappingInputRule(/^(\d+)\.\s$/, schema.nodes.ordered_list,
                 function(match){ return {order: +match[1]}; },
@@ -1321,32 +1341,64 @@ dojo.declare("gnr.widgets.proseMirrorEditor", gnr.widgets.baseExternalWidget, {
         if(schema.nodes.bullet_list){
             rules.push(PM.wrappingInputRule(/^\s*([-+*])\s$/, schema.nodes.bullet_list));
         }
-        // Code block via triple-backtick.
         if(schema.nodes.code_block){
             rules.push(PM.textblockTypeInputRule(/^```$/, schema.nodes.code_block));
         }
-        // Compose keymap: list-aware Enter/Tab/Shift-Tab on top of baseKeymap +
-        // history shortcuts, so undo/redo work out of the box.
         var listKeys = {};
         if(schema.nodes.list_item){
             listKeys['Enter'] = PM.splitListItem(schema.nodes.list_item);
             listKeys['Mod-['] = PM.liftListItem(schema.nodes.list_item);
             listKeys['Mod-]'] = PM.sinkListItem(schema.nodes.list_item);
         }
-        var historyKeys = {
-            'Mod-z': PM.undo,
-            'Mod-y': PM.redo,
-            'Mod-Shift-z': PM.redo
-        };
-        var plugins = [
-            PM.history(),
-            PM.keymap(historyKeys),
-            PM.keymap(listKeys),
-            PM.keymap(PM.baseKeymap),
-            PM.inputRules({rules: rules}),
-            PM.dropCursor(),
-            PM.gapCursor()
-        ];
+        var historyKeys = {'Mod-z': PM.undo, 'Mod-y': PM.redo, 'Mod-Shift-z': PM.redo};
+        plugins.push(PM.history());
+        plugins.push(PM.keymap(historyKeys));
+        plugins.push(PM.keymap(listKeys));
+        plugins.push(PM.keymap(PM.baseKeymap));
+        plugins.push(PM.inputRules({rules: rules}));
+        plugins.push(PM.dropCursor());
+        plugins.push(PM.gapCursor());
+        // 'full' adds menubar / tables / trailing-node on top of 'example'.
+        var menubarEnabled = (menubarOverride == null) ? (setup === 'full') : !!menubarOverride;
+        if(setup === 'full' || menubarEnabled){
+            try {
+                var menu = PM.buildMenuItems(schema);
+                plugins.push(PM.menu.menuBar({floating: true, content: menu.fullMenu}));
+            } catch(e){
+                console.warn('[proseMirrorEditor] menubar build failed:', e);
+            }
+        }
+        if(schema.nodes.table && PM.tables){
+            try {
+                plugins.push(PM.tables.columnResizing());
+                plugins.push(PM.tables.tableEditing());
+                plugins.push(PM.keymap({
+                    'Tab': PM.tables.goToNextCell(1),
+                    'Shift-Tab': PM.tables.goToNextCell(-1)
+                }));
+            } catch(e){
+                console.warn('[proseMirrorEditor] tables plugins failed:', e);
+            }
+        }
+        if(setup === 'full' && PM.trailingNode){
+            try { plugins.push(PM.trailingNode()); } catch(e){}
+        }
+        return plugins;
+    },
+    initialize: function(widget, pmAttrs, sourceNode){
+        var that = this;
+        var PM = window.ProseMirror;
+        var schemaName = pmAttrs.schema || 'basicWithLists';
+        var schema = this._resolveSchema(PM, schemaName);
+        var format = pmAttrs.format || 'html';
+        var setup = pmAttrs.setup || 'example';
+        // Read initial value from the datasource if a path was bound.
+        var initialValue = sourceNode.getAttributeFromDatasource('value');
+        if(initialValue == null || initialValue === ''){
+            initialValue = pmAttrs.value || '';
+        }
+        var doc = this.parseInitialDoc(PM, schema, initialValue, format);
+        var plugins = this._buildPlugins(PM, schema, setup, pmAttrs.menubar);
         var state = PM.EditorState.create({doc: doc, schema: schema, plugins: plugins});
         // editableState lives in this closure so the editable() prop can read
         // it during EditorView construction (before `view` itself is bound).
@@ -1375,7 +1427,11 @@ dojo.declare("gnr.widgets.proseMirrorEditor", gnr.widgets.baseExternalWidget, {
         // Expose the toggle through the view so gnr_editable can flip it at runtime.
         view._gnrSetEditable = function(v){ editableState = !!v; view.setProps({}); };
         view._gnrSchema = schema;
+        view._gnrSchemaName = schemaName;
         view._gnrFormat = format;
+        view._gnrSetup = setup;
+        view._gnrPmAttrs = pmAttrs;
+        view._gnrWidget = widget;
         // Public API for console / batch operations: read or replace the
         // document as a gnr.GnrBag, regardless of the configured format.
         view.toBag = function(){ return that.pmDocToBag(view.state.doc); };
@@ -1387,6 +1443,32 @@ dojo.declare("gnr.widgets.proseMirrorEditor", gnr.widgets.baseExternalWidget, {
         };
         // baseExternalWidget wires sourceNode.externalWidget, mixins, and back-refs.
         this.setExternalWidget(sourceNode, view);
+    },
+    // Tear down the current EditorView and rebuild it with merged pmAttrs.
+    // Used by gnr_rebuild and the schema/setup change mixins. Preserves the
+    // current document content (serialized in the previous format) so that
+    // switching setup or menubar does not blank out the user's work.
+    rebuild: function(sourceNode, overrides){
+        var view = sourceNode.externalWidget;
+        if(!view){ return; }
+        var prevPmAttrs = view._gnrPmAttrs || {};
+        var widget = view._gnrWidget;
+        var PM = window.ProseMirror;
+        var prevSchema = view._gnrSchema;
+        var prevFormat = view._gnrFormat;
+        var snapshot;
+        try { snapshot = this.serializeDoc(PM, prevSchema, view.state.doc, prevFormat); }
+        catch(e){ snapshot = ''; }
+        var newPmAttrs = objectUpdate({}, prevPmAttrs);
+        objectUpdate(newPmAttrs, overrides || {});
+        if(overrides && overrides.format && overrides.format !== prevFormat){
+            newPmAttrs.value = '';
+        } else {
+            newPmAttrs.value = snapshot;
+        }
+        view.destroy();
+        while(widget.firstChild){ widget.removeChild(widget.firstChild); }
+        this.initialize(widget, newPmAttrs, sourceNode);
     },
     // ---- Mixins (available on sourceNode.externalWidget as gnr_*) ----
     // gnr_value(text) replaces the current document with the parsed input,
@@ -1414,6 +1496,32 @@ dojo.declare("gnr.widgets.proseMirrorEditor", gnr.widgets.baseExternalWidget, {
     },
     mixin_gnr_editable: function(value, kw, trigger_reason){
         if(this._gnrSetEditable){ this._gnrSetEditable(value); }
+    },
+    // gnr_setSchema('basicWithListsAndTables') / gnr_setSetup('full') /
+    // gnr_setMenubar(true) trigger a full view rebuild with the override
+    // merged on top of the previous pmAttrs. Document content is preserved
+    // when the format does not change.
+    mixin_gnr_setSchema: function(value, kw, trigger_reason){
+        var view = this;
+        view.gnr.rebuild(view.sourceNode, {schema: value});
+    },
+    mixin_gnr_setSetup: function(value, kw, trigger_reason){
+        var view = this;
+        view.gnr.rebuild(view.sourceNode, {setup: value});
+    },
+    mixin_gnr_setMenubar: function(value, kw, trigger_reason){
+        var view = this;
+        view.gnr.rebuild(view.sourceNode, {menubar: !!value});
+    },
+    mixin_gnr_setFormat: function(value, kw, trigger_reason){
+        var view = this;
+        view.gnr.rebuild(view.sourceNode, {format: value});
+    },
+    // Generic rebuild: pass any subset of {schema, setup, menubar, format,
+    // beforeDispatch, afterDispatch, onChange} as kw.
+    mixin_gnr_rebuild: function(value, kw, trigger_reason){
+        var view = this;
+        view.gnr.rebuild(view.sourceNode, kw || value || {});
     }
 });
 
