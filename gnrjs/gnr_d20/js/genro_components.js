@@ -1625,7 +1625,9 @@ dojo.declare("gnr.widgets.MultiValueEditor", gnr.widgets.gnrwdg, {
                                                 }
                                             },grid_kwargs));
         grid._('column',{name:'Key',field:'attribute_key',width:'15em',cellStyles:'background:#BBB;color:#333;border-bottom:1px solid white;font-weight:bold;'})
-        grid._('column',{name:'Value',field:'attribute_value',edit:!readOnly,width:'100%',cellStyles:'border-bottom:1px solid lightgray;'})
+        grid._('column',{name:'Value',field:'attribute_value',
+                         edit:readOnly?false:{trim:false},
+                         width:'100%',cellStyles:'border-bottom:1px solid lightgray;'})
         if(tools){
             var t = grid._('tools',objectUpdate({tools:tools,
                                           custom_tools:{addrow:{content_class:'iconbox add_row',ask:{title:'New Line',
