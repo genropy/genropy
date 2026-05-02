@@ -98,23 +98,6 @@ class GnrCustomWebPage(object):
         right.div('Editor B', font_weight='bold', padding='4px')
         right.proseMirrorEditor(value='^.shared', height='220px', padding='8px')
 
-    def test_5_strip_diag(self, pane):
-        """Diagnostic: does a plain textBox bound to a datapath strip
-        trailing/leading whitespace at save time?
-
-        Open the page, look at the textbox with 'AAAA    ' (4 trailing
-        spaces). Edit nothing, just commit (Tab out / blur). Then read
-        from the JS console: genro.getData('test.test_5_strip_diag.tx')
-        If length is 4, the textbox stripped. If 8, it preserved."""
-        pane.data('.tx', 'AAAA    ')
-        pane.div('Open the JS console and run:', font_weight='bold')
-        pane.div("genro.getData('test.test_5_strip_diag.tx').length",
-                 font_family='monospace', background='#f5f5f5', padding='4px')
-        pane.div('Initial length should be 8. After Tab/blur on the textbox, '
-                 're-run to see if it changed.', font_size='0.9em', color='#666')
-        pane.textBox(value='^.tx', width='400px', font_family='monospace',
-                     border='1px solid silver', padding='4px', margin_top='8px')
-
     def test_4_bag(self, pane):
         "ProseMirror with gnr.Bag output (canonical Tiptap-biased schema)"
         pane.data('.docbag', _sample_bag())
