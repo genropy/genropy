@@ -7,7 +7,7 @@
 """Dashboards"""
 
 class GnrCustomWebPage(object):
-    py_requires = "gnrcomponents/testhandler:TestHandlerBase,dashboard_component/dashboard_component:DashboardItem"
+    py_requires = "gnrcomponents/testhandler:TestHandlerFull,dashboard_component/dashboard_component:DashboardItem"
 
     def windowTitle(self):
         return 'Dashboards'

@@ -13,7 +13,7 @@ from gnr.core.gnrbag import Bag
 
 
 class GnrCustomWebPage(object):
-    py_requires = "gnrcomponents/testhandler:TestHandlerBase"
+    py_requires = "gnrcomponents/testhandler:TestHandlerFull"
     
     def windowTitle(self):
         return 'Messages'

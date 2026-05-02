@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 class GnrCustomWebPage(object):
-    py_requires="""gnrcomponents/testhandler:TestHandlerBase,
+    py_requires="""gnrcomponents/testhandler:TestHandlerFull,
                     gnrcomponents/tpleditor:ChunkEditor"""
 
     def test_0_chooseRecord(self,pane):

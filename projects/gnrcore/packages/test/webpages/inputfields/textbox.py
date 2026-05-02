@@ -3,7 +3,7 @@
 "Simple textBox"
 
 class GnrCustomWebPage(object):
-    py_requires = "gnrcomponents/testhandler:TestHandlerBase"
+    py_requires = "gnrcomponents/testhandler:TestHandlerFull"
     js_requires = "docu_components"
 
     def test_0_textbox_phone(self,pane):

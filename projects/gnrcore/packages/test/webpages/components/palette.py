@@ -5,7 +5,7 @@
 from gnr.core.gnrbag import Bag
 
 class GnrCustomWebPage(object):
-    py_requires = "gnrcomponents/testhandler:TestHandlerBase,th/th:TableHandler"
+    py_requires = "gnrcomponents/testhandler:TestHandlerFull,th/th:TableHandler"
     
     def test_1_paletteGrid(self, pane):
         "paletteGrid showing table values, opened with picker"

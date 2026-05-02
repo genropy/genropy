@@ -4,7 +4,7 @@ from gnr.core.gnrdecorator import public_method
 
 
 class GnrCustomWebPage(object):
-    py_requires = "gnrcomponents/testhandler:TestHandlerBase"
+    py_requires = "gnrcomponents/testhandler:TestHandlerFull"
     
     def test_01_rpc(self, pane):
         "Insert your test here"

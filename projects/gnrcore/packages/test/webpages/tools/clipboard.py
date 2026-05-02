@@ -3,7 +3,7 @@
 "Clipboard"
 
 class GnrCustomWebPage(object):
-    py_requires="gnrcomponents/testhandler:TestHandlerBase"
+    py_requires="gnrcomponents/testhandler:TestHandlerFull"
     
     def test_0_pasteFromClipboard(self,pane):
         fb = pane.formbuilder(cols=1,border_spacing='3px')

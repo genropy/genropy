@@ -5,7 +5,7 @@
 from gnr.core.gnrbag import Bag
 
 class GnrCustomWebPage(object):
-    py_requires = "gnrcomponents/testhandler:TestHandlerBase"
+    py_requires = "gnrcomponents/testhandler:TestHandlerFull"
     
     def test_0_htmltable(self, pane):
         "Formbuilder is basically an HTML table"

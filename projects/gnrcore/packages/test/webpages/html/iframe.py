@@ -4,7 +4,7 @@
 from gnr.web.gnrwebstruct import struct_method
 
 class GnrCustomWebPage(object):
-    py_requires = "gnrcomponents/testhandler:TestHandlerBase"
+    py_requires = "gnrcomponents/testhandler:TestHandlerFull"
     
     def test_0_external(self, pane):
         """Basic test for an external iframe with no attributes"""

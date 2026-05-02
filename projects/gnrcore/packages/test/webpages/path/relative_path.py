@@ -3,7 +3,7 @@
 from gnr.core.gnrbag import Bag
 
 class GnrCustomWebPage(object):
-    py_requires = "gnrcomponents/testhandler:TestHandlerBase,msgarea_component:MsgArea"
+    py_requires = "gnrcomponents/testhandler:TestHandlerFull,msgarea_component:MsgArea"
     
     def test_0_relative_path(self, pane):     
         "With relative path you can replicate modules infinite times, filling fields with different records"
