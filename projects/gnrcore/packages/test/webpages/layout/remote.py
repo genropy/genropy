@@ -7,7 +7,7 @@ from gnr.core.gnrdecorator import public_method
 from time import sleep
 
 class GnrCustomWebPage(object):
-    py_requires = "gnrcomponents/testhandler:TestHandlerBase"
+    py_requires = "gnrcomponents/testhandler:TestHandlerFull"
         
     def test_0_bordercontainer_cb_splitter(self, pane):
         "Use remote to define content in a separate method"

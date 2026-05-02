@@ -7,7 +7,7 @@ for creating two-dimensional layouts with rows and columns.
 """
 
 class GnrCustomWebPage(object):
-    py_requires="""gnrcomponents/testhandler:TestHandlerBase,
+    py_requires="""gnrcomponents/testhandler:TestHandlerFull,
                     th/th:TableHandler"""
 
     def test_0_basic_gridbox(self,pane):

@@ -7,7 +7,7 @@
 "Test page description"
 
 class GnrCustomWebPage(object):
-    py_requires="gnrcomponents/testhandler:TestHandlerBase"
+    py_requires="gnrcomponents/testhandler:TestHandlerFull"
     
     def test_0_videotrack_dynamic(self,pane):
         "Widget video shows a video from its url. You can indicate video path dinamically"
