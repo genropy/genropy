@@ -148,6 +148,18 @@ class GnrCustomWebPage(object):
         fb.checkbox(value='^.config.menubar', label='Menubar (toolbar)')
         fb.checkbox(value='^.config.readOnly', label='Read only')
 
+        controls.div('Bag samples (load with format=bag):',
+                     font_weight='bold', font_size='0.85em',
+                     padding_top='10px', color='#555')
+        bag_row = controls.div(padding_top='4px')
+        bag_row.button('Simple bag', action='FIRE .loadBagSimple;',
+                       margin_right='4px')
+        bag_row.button('Formatted bag', action='FIRE .loadBagFormatted;')
+        controls.dataRpc('.source', 'load_bag_sample', name='simple',
+                         _fired='^.loadBagSimple')
+        controls.dataRpc('.source', 'load_bag_sample', name='formatted',
+                         _fired='^.loadBagFormatted')
+
         controls.div('Tip: switching schema or setup rebuilds the editor.',
                      font_size='0.85em', color='#666', padding_top='8px')
 
@@ -156,11 +168,11 @@ class GnrCustomWebPage(object):
         # The mixin routes through gnr.GnrEditorPlugin.rebuild which preserves
         # the current content (re-serializing in the previous format).
         controls.dataController("""
-            var nodes = genro.dom.getNodes('proseMirrorEditor', 'pmplay_editor');
-            if(!nodes || !nodes.length){ return; }
-            var view = nodes[0].externalWidget;
+            var sn = genro.nodeById('pmplay_editor');
+            if(!sn){ return; }
+            var view = sn.externalWidget;
             if(!view){ return; }
-            view.gnr.rebuild(view.sourceNode, {
+            view.gnr.rebuild(sn, {
                 schema: schema, setup: setup, format: format,
                 menubar: menubar, editable: !readOnly
             });
@@ -169,20 +181,13 @@ class GnrCustomWebPage(object):
             readOnly='^.config.readOnly',
             _onStart=False)
 
-        # When the sample selector changes, swap the source datapath with the
-        # right Python-side sample. Bag samples come from a callable factory
-        # since Bag instances are mutable and we want a fresh tree each time.
-        controls.dataController("""
-            if(format === 'bag'){
-                var fn = SAMPLES_BAG[sample] || SAMPLES_BAG.simple;
-                SET .source = fn ? fn() : null;
-            } else {
-                SET .source = SAMPLES_HTML.getItem(sample);
-            }
-        """, sample='^.config.sample', format='^.config.format',
-            SAMPLES_HTML=SAMPLES_HTML,
-            SAMPLES_BAG={k: v() for k, v in SAMPLES_BAG.items()},
-            _onStart=False)
+        # When the sample selector changes, load the matching HTML sample.
+        # Bag samples are loaded via a separate "Load bag sample" button to
+        # avoid serializing Bag instances through dataController kwargs.
+        controls.dataController("SET .source = SAMPLES_HTML[sample];",
+                                sample='^.config.sample',
+                                SAMPLES_HTML=SAMPLES_HTML,
+                                _onStart=False)
 
         # ---- Center: the editor ----
         editor_pane = bc.contentPane(region='center', overflow='hidden',
@@ -224,3 +229,9 @@ class GnrCustomWebPage(object):
                                             hideValues=False, inspect='shift',
                                             autoCollapse=False,
                                             _class='branchtree noIcon')
+
+    def rpc_load_bag_sample(self, name=None, **kwargs):
+        "Return a fresh gnr.Bag sample for the playground source datapath."
+        if name == 'formatted':
+            return _bag_formatted()
+        return _bag_simple()
