@@ -98,12 +98,94 @@ import {
 import { dropCursor } from "prosemirror-dropcursor";
 import { gapCursor } from "prosemirror-gapcursor";
 
-// Compose a default schema that adds list nodes to the basic schema, so
-// callers that want lists out-of-the-box can use `schemas.basicWithLists`
-// directly. The two raw schemas are also exposed for callers that want to
-// build their own.
+// Menu primitives (toolbar / dropdown / menu items).
+import {
+    MenuItem,
+    Dropdown,
+    DropdownSubmenu,
+    menuBar,
+    blockTypeItem,
+    joinUpItem,
+    liftItem,
+    selectParentNodeItem,
+    undoItem,
+    redoItem,
+    icons,
+    wrapItem
+} from "prosemirror-menu";
+
+// Pre-baked editor setup: input rules + keymap + menubar wired to the basic
+// schema. Mirrors the demo on the prosemirror.net front page.
+import {
+    exampleSetup,
+    buildMenuItems,
+    buildKeymap,
+    buildInputRules
+} from "prosemirror-example-setup";
+
+// Tables: rowspan/colspan with column resizing and header cells.
+import {
+    tableNodes,
+    tableEditing,
+    columnResizing,
+    goToNextCell,
+    addColumnAfter,
+    addColumnBefore,
+    deleteColumn,
+    addRowAfter,
+    addRowBefore,
+    deleteRow,
+    mergeCells,
+    splitCell,
+    deleteTable,
+    toggleHeaderColumn,
+    toggleHeaderRow,
+    toggleHeaderCell,
+    fixTables
+} from "prosemirror-tables";
+
+// Trailing node: keep an empty paragraph at the very end so users can always
+// click below the last block to position the cursor.
+import { trailingNode } from "prosemirror-trailing-node";
+
+// Collab: Operational Transform plugin for multi-user editing. Pairs naturally
+// with Genropy SharedObject as the canonical server-side state store.
+import {
+    collab,
+    getVersion,
+    sendableSteps,
+    receiveTransaction
+} from "prosemirror-collab";
+
+// Changeset: produces a diff (inserted / deleted ranges) between two document
+// versions, intended for review-mode UIs (track changes, suggestion mode, etc).
+import { ChangeSet } from "prosemirror-changeset";
+
+// Compose pre-built schemas:
+// - basic               raw schema-basic
+// - basicWithLists      basic + bullet/ordered lists
+// - basicWithListsAndTables  basic + lists + tables (HTML <table>)
 const basicWithListsSchema = new Schema({
     nodes: addListNodes(basicSchema.spec.nodes, "paragraph block*", "block"),
+    marks: basicSchema.spec.marks
+});
+
+const tableNodesSpec = tableNodes({
+    tableGroup: "block",
+    cellContent: "block+",
+    cellAttributes: {
+        background: {
+            default: null,
+            getFromDOM(dom){ return dom.style.backgroundColor || null; },
+            setDOMAttr(value, attrs){
+                if(value){ attrs.style = (attrs.style || "") + `background-color: ${value};`; }
+            }
+        }
+    }
+});
+
+const basicWithListsAndTablesSchema = new Schema({
+    nodes: addListNodes(basicSchema.spec.nodes, "paragraph block*", "block").append(tableNodesSpec),
     marks: basicSchema.spec.marks
 });
 
@@ -181,9 +263,61 @@ window.ProseMirror = {
     // ui
     dropCursor,
     gapCursor,
+    // menu primitives (toolbar / dropdown)
+    menu: {
+        MenuItem,
+        Dropdown,
+        DropdownSubmenu,
+        menuBar,
+        blockTypeItem,
+        joinUpItem,
+        liftItem,
+        selectParentNodeItem,
+        undoItem,
+        redoItem,
+        icons,
+        wrapItem
+    },
+    // example-setup: turnkey input rules + keymap + menubar
+    exampleSetup,
+    buildMenuItems,
+    buildKeymap,
+    buildInputRules,
+    // tables
+    tables: {
+        tableNodes,
+        tableEditing,
+        columnResizing,
+        goToNextCell,
+        addColumnAfter,
+        addColumnBefore,
+        deleteColumn,
+        addRowAfter,
+        addRowBefore,
+        deleteRow,
+        mergeCells,
+        splitCell,
+        deleteTable,
+        toggleHeaderColumn,
+        toggleHeaderRow,
+        toggleHeaderCell,
+        fixTables
+    },
+    // trailing node
+    trailingNode,
+    // collab (Operational Transform: pair with Genropy SharedObject server-side)
+    collab: {
+        collab,
+        getVersion,
+        sendableSteps,
+        receiveTransaction
+    },
+    // changeset (diff between document versions, for review/suggestion mode)
+    ChangeSet,
     // pre-built schemas
     schemas: {
         basic: basicSchema,
-        basicWithLists: basicWithListsSchema
+        basicWithLists: basicWithListsSchema,
+        basicWithListsAndTables: basicWithListsAndTablesSchema
     }
 };
