@@ -14,6 +14,7 @@ from threading import RLock, Thread
 import warnings
 
 import requests
+from werkzeug.serving import is_running_from_reloader
 from werkzeug.wrappers import Request, Response
 from werkzeug.utils import redirect
 from werkzeug.exceptions import (HTTPException, InternalServerError,
@@ -407,13 +408,12 @@ class GnrWsgiSite(object):
     """TODO"""
 
     def __init__(self, script_path, site_name=None, _config=None,
-                 _gnrconfig=None, counter=None, noclean=None,
+                 _gnrconfig=None,
                  options=None, tornado=None, websockets=None,
                  debugpy=False):
-        
+
         global GNRSITE
         GNRSITE = self
-        counter = int(counter or '0')
         self.storageTypes = STORAGE_TYPES + STATIC_HANDLER_TYPES
         self.pathfile_cache = {}
         self._currentAuxInstanceNames = ThreadedDict()
@@ -513,11 +513,11 @@ class GnrWsgiSite(object):
         self.register
         
         self.datacollector = DataCollector(self.register.siteregister)
-        
-        if counter == 0 and self.debug:
-            self.onInited(clean=not noclean)
-            
-        if counter == 0 and options and options.source_instance:
+
+        if not is_running_from_reloader():
+            self.onInited()
+
+        if not is_running_from_reloader() and options and options.source_instance:
             self.gnrapp.importFromSourceInstance(options.source_instance)
             self.db.commit()
             logger.info('End of import')
@@ -898,14 +898,9 @@ class GnrWsgiSite(object):
                 self.connFolderRemove(conn_id)
         
 
-    def onInited(self, clean):
-        """TODO
-
-        :param clean: TODO"""
-        if clean:
-            logger.info("Purging connection folders")
-            self.dropConnectionFolder()
-            self.initializePackages()
+    def onInited(self):
+        """One-shot initialization on first process boot."""
+        self.initializePackages()
 
     def on_reloader_restart(self):
         """TODO"""
