@@ -28,6 +28,7 @@ import os
 import os.path
 import csv
 import datetime
+import warnings
 
 from gnr.core import logger
 from gnr.core.gnrstring import slugify, toText
@@ -506,6 +507,13 @@ def readTab(doc):
 
     :param doc: file path or file-like object
     """
+    warnings.warn(
+        f"'readTab' has been deprecated."
+        f"Please use CvsReader with the appropriate dialect.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
     if isinstance(doc, str):
         f = open(doc)
     else:
@@ -531,7 +539,15 @@ def readCSV_new(doc):
     """Read a CSV file — done by Jeff.
 
     :param doc: file path or file-like object
+    
     """
+    warnings.warn(
+        f"'readCSV_new' has been deprecated."
+        f"Please use CvsReader with the appropriate dialect.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
     if isinstance(doc, str):
         f = open(doc)
     else:
@@ -561,6 +577,13 @@ def readCSV(doc):
 
     :param doc: file path or file-like object
     """
+    warnings.warn(
+        f"'readCSV' has been deprecated."
+        f"Please use CvsReader with the appropriate dialect.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
     if isinstance(doc, str):
         f = open(doc)
     else:
@@ -587,6 +610,13 @@ def readXLS(doc):
 
     :param doc: file path or file-like object
     """
+    warnings.warn(
+        f"'readXLS' has been deprecated."
+        f"Please use XlsReader with the appropriate dialect.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
     import xlrd
     if isinstance(doc, str):
         filename = doc
