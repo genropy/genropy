@@ -14,6 +14,7 @@ from mako.lookup import TemplateLookup
 
 from gnr.web.gnrwebpage_plugin.gnrbaseplugin import GnrBasePlugin
 from gnr.web.gnrwsgisite import HTTPException
+from gnr.web.gnrwebpage_proxy.frontend.template_lookup import lookup_template_class
 
 AUTH_OK = 0
 AUTH_NOT_LOGGED = 1
@@ -35,9 +36,6 @@ class Plugin(GnrBasePlugin):
         gnr_static_handler = page.site.getStatic('gnr')
         tpldirectories = [os.path.dirname(mako_path), page.parentdirpath] + page.resourceDirs + [
                 gnr_static_handler.path(page.gnrjsversion, 'tpl')]
-        lookup = TemplateLookup(directories=tpldirectories,
-                                output_encoding='utf-8', encoding_errors='replace')
-        template = lookup.get_template(os.path.basename(mako_path))
         page.charset = 'utf-8'
         _resources = list(page.site.resources.keys())
         _resources.reverse()
@@ -45,6 +43,25 @@ class Plugin(GnrBasePlugin):
         arg_dict = page.build_arg_dict()
         arg_dict['mainpage'] = page
         arg_dict.update(kwargs)
+
+        # When the no_mako preference is on, look for a struct template
+        # next to the requested .tpl. Falls through to Mako otherwise.
+        if page.getPreference('experimental.no_mako', pkg='sys'):
+            tpl_basename = os.path.basename(mako_path)
+            tpl_name = tpl_basename[:-4] if tpl_basename.endswith('.tpl') else tpl_basename
+            template_cls = lookup_template_class(tpldirectories, tpl_name)
+            if template_cls is not None:
+                instance = template_cls(page)
+                if not instance.check_access():
+                    return self.page.site.forbidden_exception
+                output = instance.render(arg_dict)
+                if not pdf:
+                    page.response.content_type = 'text/html'
+                    return output
+
+        lookup = TemplateLookup(directories=tpldirectories,
+                                output_encoding='utf-8', encoding_errors='replace')
+        template = lookup.get_template(os.path.basename(mako_path))
         try:
             output = template.render(**arg_dict)
         except HTTPException as exc:
