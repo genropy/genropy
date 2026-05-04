@@ -28,6 +28,9 @@ class _Connection(object):
     def stat(self, path):
         return self._sftp.stat(path)
 
+    def remove(self, path):
+        self._sftp.remove(path)
+
     def get(self, remotepath, localpath, callback=None, preserve_mtime=False):
         self._sftp.get(remotepath, localpath, callback=callback)
         if preserve_mtime:
