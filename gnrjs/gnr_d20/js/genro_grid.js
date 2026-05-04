@@ -794,9 +794,19 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             widget.domNode.setAttribute('contenteditable',"true");
             widget.domNode.setAttribute('onpaste',"return false;");
             widget.domNode.setAttribute('oncut',"return false;");
-            widget.domNode.setAttribute('onkeydown',"if(event.metaKey || event.ctrlKey || event.target!=event.currentTarget) return true; return false;");
+            widget.domNode.setAttribute('onkeydown',"if(event.metaKey || event.ctrlKey || event.shiftKey || event.target!=event.currentTarget) return true; return false;");
             dojo.connect(widget.domNode,'onpaste', funcCreate(savedAttrs.onpaste,'event',widget));
         }
+        widget.domNode.addEventListener('wheel',function(e){
+            if(!e.shiftKey){return;}
+            var view = widget.views && widget.views.views && widget.views.views[0];
+            var sb = view && view.scrollboxNode;
+            if(!sb){return;}
+            var dy = e.deltaY;
+            if(!dy){return;}
+            sb.scrollTop += dy;
+            e.preventDefault();
+        },{capture:true, passive:false});
         objectFuncReplace(widget.selection, 'clickSelectEvent', function(e) {
             if(sourceNode.attr.selectGroupColumns && ( e.shiftKey && (e.ctrlKey || e.metaKey) ) ){
                 sourceNode.widget.groupColumnsSelect(e.rowIndex,sourceNode.attr.selectGroupColumns);

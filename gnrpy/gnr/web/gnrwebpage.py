@@ -1066,6 +1066,7 @@ class GnrWebPage(GnrBaseWebPage):
         if 'MSIE' in user_agent and not 'chromeframe' in user_agent:
             raise GnrUnsupportedBrowserException
         self.charset = 'utf-8'
+        self.db  # ensure db env (storename, currentDomain) is set before reading preferences
         arg_dict = self.build_arg_dict(**kwargs)
         tpl = self.pagetemplate
         if not isinstance(tpl, str):
@@ -1404,6 +1405,25 @@ class GnrWebPage(GnrBaseWebPage):
         mtime = gnr_static_handler.mtime(*args)
         url = '%s?mtime=%0.0f' % (url, mtime)
         return url
+
+    # Vendored bundles loaded lazily by widgets need a cache-busting token so
+    # the browser refetches them whenever the file on disk changes. The map
+    # below keys each bundle to a path under the 'rsrc' storage; widgets read
+    # the resulting mtime via genro.getData('gnr.vendoredMtime.<key>').
+    _VENDORED_BUNDLES = {
+        'codemirror6': ('js_libs', 'codemirror6', 'codemirror6.bundle.js'),
+    }
+
+    def _vendoredBundlesMtime(self):
+        rsrc = self.site.storage('rsrc')
+        out = {}
+        for key, path in self._VENDORED_BUNDLES.items():
+            try:
+                mtime = rsrc.mtime(*path)
+            except Exception:
+                mtime = None
+            out[key] = int(mtime) if mtime else 0
+        return out
         
     def homeUrl(self):
         """TODO"""
@@ -2329,6 +2349,7 @@ class GnrWebPage(GnrBaseWebPage):
         page.data('gnr.package',self.package.name)
         page.data('gnr.root_page_id',self.root_page_id)
         page.data('gnr.workdate', self.workdate) #serverpath='rootenv.workdate')
+        page.data('gnr.vendoredMtime', self._vendoredBundlesMtime())
         page.data('gnr.language', self.language,serverpath='rootenv.language',dbenv=True)
         
         page.data('gnr.table',getattr(self,'maintable',None))
