@@ -16,6 +16,7 @@ import subprocess
 from mako.template import Template
 
 from gnr.core.cli import GnrCliArgParse
+from gnr.utils.dockercompose import DockerComposeBuilder
 from gnr.app.pathresolver import PathResolver
 from gnr.dev.builder import GnrProjectBuilder
 from gnr.app import logger
@@ -264,22 +265,116 @@ stderr_logfile_maxbytes=0
 
         # docker compose conf file
         if self.options.compose:
-            extra_labels = []
-            if self.options.fqdns and self.options.router == 'traefik':
-                hosts_rule = " || ".join([f"Host(`{fqdn}`)" for fqdn in self.options.fqdns])
-                extra_labels.extend([
-                    'traefik.enable: "true"',
-                    f'traefik.http.routers.{self.instance_name}_web.rule: "({hosts_rule}) && !Path(`/websocket`))"',
-                    f'traefik.http.routers.{self.instance_name}_web.entrypoints: http',
-                    f'traefik.http.routers.{self.instance_name}_web.service: {self.instance_name}_svc_web',
-                    f'traefik.http.services.{self.instance_name}_svc_web.loadbalancer.server.port: 8888',
-                    f'traefik.http.routers.{self.instance_name}_wsk.rule: "({hosts_rule}) && Path(`/websocket`))"',
-                    f'traefik.http.routers.{self.instance_name}_wsk.entrypoints: http',
-                    f'traefik.http.routers.{self.instance_name}_wsk.service: {self.instance_name}_svc_wsk',
-                    f'traefik.http.services.{self.instance_name}_svc_wsk.loadbalancer.server.port: 9999'
-                ])
-                    
-            compose_template = """
+            content = self._generate_compose_yaml(version_tag)
+            compose_file = f"{self.instance_name}-compose.yml"
+            with open(compose_file, "w") as wfp:
+                wfp.write(content)
+            print(f"Created docker compose file {compose_file}")
+            print(f"You can now execute 'docker-compose -f {compose_file} up'")
+            print("YMMV, please adjust the generated file accordingly.")
+
+    def _compute_extra_labels(self):
+        """Build the optional traefik labels for the app service.
+
+        Returns a list of ``(key, value)`` pairs with native Python types
+        (e.g. port numbers stay int) so the YAML emitter can render them
+        without spurious quoting. Empty when no fqdn / router is set."""
+        if not (self.options.fqdns and self.options.router == 'traefik'):
+            return []
+        hosts_rule = ' || '.join(f'Host(`{fqdn}`)' for fqdn in self.options.fqdns)
+        name = self.instance_name
+        return [
+            ('traefik.enable', 'true'),
+            (f'traefik.http.routers.{name}_web.rule',
+             f'({hosts_rule}) && !Path(`/websocket`))'),
+            (f'traefik.http.routers.{name}_web.entrypoints', 'http'),
+            (f'traefik.http.routers.{name}_web.service', f'{name}_svc_web'),
+            (f'traefik.http.services.{name}_svc_web.loadbalancer.server.port', 8888),
+            (f'traefik.http.routers.{name}_wsk.rule',
+             f'({hosts_rule}) && Path(`/websocket`))'),
+            (f'traefik.http.routers.{name}_wsk.entrypoints', 'http'),
+            (f'traefik.http.routers.{name}_wsk.service', f'{name}_svc_wsk'),
+            (f'traefik.http.services.{name}_svc_wsk.loadbalancer.server.port', 9999),
+        ]
+
+    def _generate_compose_yaml(self, version_tag):
+        """Dispatch to builder (default) or legacy mako template (``--mako``)."""
+        extra_labels = self._compute_extra_labels()
+        if self.options.mako:
+            return self._compose_via_mako(version_tag, extra_labels)
+        return self._compose_via_builder(version_tag, extra_labels)
+
+    def _compose_via_builder(self, version_tag, extra_labels):
+        """Build the docker-compose document via DockerComposeBuilder.
+
+        Two services declared declaratively: the postgres db (with
+        healthcheck) and the application (with optional traefik labels,
+        ports, db dependency, env, volume mount)."""
+        name = self.instance_name
+
+        compose = DockerComposeBuilder()
+        compose.volume(f'{name}_site')
+
+        compose.service(
+            f'{name}_db',
+            image='postgres:latest',
+            environment={
+                'POSTGRES_PASSWORD': 'S3cret',
+                'POSTGRES_USER': 'genro',
+                'POSTGRES_DB': name,
+            },
+            healthcheck={
+                'test': ['CMD-SHELL', f'pg_isready -U genro -d {name}'],
+                'interval': '10s',
+                'retries': 5,
+                'start_period': '30s',
+                'timeout': '10s',
+            },
+        )
+
+        compose.service(
+            name,
+            image=name,
+            version_tag=version_tag,
+            labels=dict(extra_labels) if extra_labels else None,
+            ports=['8888:8888'],
+            depends_on={f'{name}_db': {'condition': 'service_healthy'}},
+            environment={
+                'GNR_DB_IMPLEMENTATION': 'postgres',
+                'GNR_DB_HOST': f'${{GNR_DB_HOST:-{name}_db}}',
+                'GNR_ROOTPWD': '${GNR_ROOTPWD:-admin}',
+                'GNR_DB_USER': '${GNR_DB_USER:-genro}',
+                'GNR_DB_PORT': '${GNR_DB_PORT:-5432}',
+                'GNR_DB_PASSWORD': '${GNR_DB_PASSWORD:-S3cret}',
+                'GNR_LOCALE': 'IT_it',
+            },
+            volumes=[f'{name}_site:/home/genro/site/'],
+        )
+
+        return compose.toYaml(explicit_start=True)
+
+    def _compose_via_mako(self, version_tag, extra_labels):
+        """Render the legacy Mako compose template (``--mako`` opt-in).
+
+        Re-flattens the typed ``(key, value)`` pairs into the
+        ``"key: value"`` string form that the historical template expects."""
+        legacy_labels = [self._format_legacy_label(k, v) for k, v in extra_labels]
+        return Template(_LEGACY_COMPOSE_TEMPLATE, strict_undefined=True).render(
+            instanceName=self.instance_name,
+            version_tag=version_tag,
+            extra_labels=legacy_labels,
+        )
+
+    @staticmethod
+    def _format_legacy_label(key, value):
+        if isinstance(value, str) and ' ' in value:
+            return f'{key}: "{value}"'
+        if isinstance(value, str) and value in ('true', 'false'):
+            return f'{key}: "{value}"'
+        return f'{key}: {value}'
+
+
+_LEGACY_COMPOSE_TEMPLATE = """
 ---
 # Docker compose file for instance ${instanceName}:${version_tag}
 
@@ -322,18 +417,10 @@ services:
       GNR_LOCALE: "IT_it"
     volumes:
       - ${instanceName}_site:/home/genro/site/
-                
+
                 """
-            compose_template_file = f"{self.instance_name}-compose.yml"
-            with open(compose_template_file, "w") as wfp:
-                t = Template(compose_template, strict_undefined=True)
-                wfp.write(t.render(instanceName=self.instance_name,
-                                   version_tag=version_tag,
-                                   extra_labels=extra_labels))
-                print(f"Created docker compose file {compose_template_file}")
-                print(f"You can now execute 'docker-compose -f {compose_template_file} up'")
-                print("YMMV, please adjust the generated file accordingly.")
-                    
+
+
 def main():
     parser = GnrCliArgParse(description=description)
     parser.add_argument('-c','--compose',
@@ -402,7 +489,11 @@ def main():
                         default='traefik',
                         choices=['traefik'],
                         help="The router to use for deployment")
-    
+    parser.add_argument('--mako',
+                        action="store_true",
+                        dest="mako",
+                        help="Use the legacy Mako compose template instead of GnrYamlBuilder")
+
     parser.add_argument('instance_name')
     
     options = parser.parse_args()
