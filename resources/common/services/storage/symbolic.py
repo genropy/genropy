@@ -1,6 +1,6 @@
 #!/usr/bin/env pythonw
 # -*- coding: utf-8 -*-
-
+from gnr.core.gnrstring import boolean
 from gnr.lib.services.storage import BaseLocalService
 import os
 import tempfile
@@ -142,7 +142,7 @@ class Service(BaseLocalService):
         
     
     def checkPermission(self, path, *args, **kwargs):
-        if not self.parent.config['wsgi?authenticate_storages'] or self.public:
+        if not boolean(self.parent.config['wsgi?authenticate_storages']) or self.public:
             return True
         authgetter = getattr(self, 'auth_%s'%self.service_name, None)
         if authgetter:
