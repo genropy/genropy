@@ -290,8 +290,6 @@ class GnrHtmlBuilder(object):
         self.nextLetterhead = None
         self.page_height = page_height or top_layer['main.page.height']
         self.page_width = page_width or top_layer['main.page.width']
-        if not (self.page_height and self.page_width):
-            raise GnrHtmlSrcError('Missing page dimensions')
         self.page_margin_top = page_margin_top or top_layer['main.page.top'] or 0
         self.page_margin_left = page_margin_left or top_layer['main.page.left'] or 0
         self.page_margin_right = page_margin_right or top_layer['main.page.right'] or 0
@@ -373,12 +371,13 @@ class GnrHtmlBuilder(object):
                         }
                         """)
 
-        self.head.style(f"""
-            @page{{
-                margin:0;
-                size:{self.page_width}mm {self.page_height}mm;
-            }}
-        """)
+        if self.page_width and self.page_height:
+            self.head.style(f"""
+                @page{{
+                    margin:0;
+                    size:{self.page_width}mm {self.page_height}mm;
+                }}
+            """)
 
 
     def prepareTplLayout(self,letterhead_root):

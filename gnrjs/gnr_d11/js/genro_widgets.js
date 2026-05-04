@@ -150,12 +150,6 @@ dojo.declare("gnr.widgets.baseHtml", null, {
         }
         this._makeInteger(attributes, ['sizeShare','sizerWidth']);
         var savedAttrs = {};
-        if ('speech' in attributes){
-            objectPop(attributes,'speech');
-            if(genro.isChrome){
-                savedAttrs['speech'] = true;
-            }
-        }
         if (attributes.moveable){
             savedAttrs['moveable'] = objectPop(attributes,'moveable');
             savedAttrs['moveable_kw'] = objectExtract(attributes,'moveable_*');
@@ -256,20 +250,6 @@ dojo.declare("gnr.widgets.baseHtml", null, {
         }
         if(this.formattedValueHandler){
             this.formattedValueHandler(newobj, savedAttrs, sourceNode);
-        }
-        if('speech' in savedAttrs){
-            if(newobj.focusNode){
-                newobj.focusNode.setAttribute("x-webkit-speech","x-webkit-speech");
-                newobj.focusNode.onwebkitspeechchange = function(){
-                    if('onSpeechEnd' in newobj){
-                        if(typeof(newobj.onSpeechEnd)=='function'){
-                            newobj.onSpeechEnd();
-                        }else{
-                            newobj.sourceNode.onNodeCall(newobj.onSpeechEnd);
-                        }
-                    }
-                };
-            }
         }
         var domNode = newobj.domNode || newobj;
         if('moveable' in savedAttrs){
@@ -1921,7 +1901,7 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
     onBuilding:function(sourceNode){
         //{value:,height,width}
         var areaAttr = objectUpdate({},sourceNode.attr);
-        var speech = objectPop(areaAttr,'speech');
+        objectPop(areaAttr,'speech'); // consumed in created()
         var editor = objectPop(areaAttr,'editor');
         var tag = this._domtag;
         var notrigger = {'doTrigger':false};
@@ -1938,11 +1918,11 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
             var currAttr = sourceNode.attr;
             sourceNode.attr = {'tag':'div',_class:_class};
             objectExtract(currAttr,'tag,width');
-            var tKw = objectUpdate({overflow:'hidden',_class:'textAreaWrapperArea'},currAttr); 
+            var tKw = objectUpdate({overflow:'hidden',_class:'textAreaWrapperArea'},currAttr);
             if(editor){
                 tKw['border'] = '1px solid silver';
                 tKw['rounded'] = 4;
-            } 
+            }
             var top = sourceNode._('div',tKw,notrigger);
             var bottom = sourceNode._('div',{_class:'textAreaWrapperButtons',transition:'1s all'},notrigger)
             if(editor){
@@ -1963,16 +1943,88 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
     },
     onSpeechEnd:function(sourceNode,v){
         var lastSelection = genro._lastSelection;
+        var oldValue = sourceNode.getAttributeFromDatasource('value') || '';
         if(lastSelection && (lastSelection.domNode == sourceNode.widget.domNode)){
-            var oldValue = sourceNode.getAttributeFromDatasource('value');
             var fistchunk = oldValue.slice(0,lastSelection.start);
             var secondchunk =  oldValue.slice(lastSelection.end);
             v = fistchunk+v+secondchunk;
+        }else if(oldValue){
+            v = oldValue.trimEnd() + ' ' + v.trimStart();
         }
         setTimeout(function(){
-            sourceNode.setAttributeInDatasource('value',v,true);
+            sourceNode.setAttributeInDatasource('value',v.trim(),true);
             sourceNode.widget.domNode.focus();
         },1);
+    },
+
+    _attachSpeechButton:function(newobj, sourceNode){
+        if(!sourceNode.attr.speech){ return; }
+        if(!genro.speech || !genro.speech.isAvailable()){ return; }
+        var that = this;
+        var domNode = newobj.domNode;
+        var parent = domNode.parentNode;
+        if(!parent){ return; }
+        var wrapper = document.createElement('div');
+        wrapper.style.position = 'relative';
+        wrapper.style.display = 'inline-block';
+        parent.insertBefore(wrapper, domNode);
+        wrapper.appendChild(domNode);
+        domNode.style.paddingRight = '26px';
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'gnr_speech_button';
+        btn.title = 'Voice input';
+        btn.setAttribute('tabindex','-1');
+        wrapper.appendChild(btn);
+        var session = null;
+        var stopListening = function(){
+            if(session){
+                session.stop();
+                session = null;
+            }
+            btn.classList.remove('gnr_speech_listening');
+        };
+        btn.addEventListener('click', function(e){
+            e.preventDefault();
+            e.stopPropagation();
+            if(session){
+                stopListening();
+                return;
+            }
+            btn.classList.add('gnr_speech_listening');
+            let silenceTimeout = sourceNode.getAttributeFromDatasource('speech_silenceTimeout');
+            if(silenceTimeout == null){ silenceTimeout = 2500; }
+            silenceTimeout = parseInt(silenceTimeout, 10) || 0;
+            const baseValue = (sourceNode.getAttributeFromDatasource('value') || '').trimEnd();
+            const domNode = sourceNode.widget.domNode;
+            let lastFullText = baseValue;
+            const stopWordsAttr = sourceNode.getAttributeFromDatasource('speech_stopWords');
+            const stopWords = stopWordsAttr ? stopWordsAttr.split(',') : [];
+            session = genro.speech.start({
+                silenceTimeout: silenceTimeout,
+                stopWords: stopWords,
+                interimResults: true,
+                onResult: (finalText, interimText) => {
+                    const parts = [];
+                    if(baseValue){ parts.push(baseValue); }
+                    if(finalText){ parts.push(finalText.trim()); }
+                    if(interimText){ parts.push(interimText.trim()); }
+                    lastFullText = parts.join(' ').trim();
+                    domNode.value = lastFullText;
+                },
+                onError: () => {
+                    stopListening();
+                },
+                onEnd: () => {
+                    sourceNode.setAttributeInDatasource('value', lastFullText.trim(), true);
+                    stopListening();
+                }
+            });
+            if(!session){
+                btn.classList.remove('gnr_speech_listening');
+            }
+        });
+        sourceNode.subscribe('onDestroying', stopListening);
     },
 
     connectFocus: function(widget, savedAttrs, sourceNode) {
@@ -2009,6 +2061,7 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
             newobj.state = result.error?'Error':null;
         })
         this.connectFocus(newobj, savedAttrs, sourceNode);
+        this._attachSpeechButton(newobj, sourceNode);
     },
 
     cell_onCreating:function(gridEditor,colname,colattr){
@@ -3698,11 +3751,10 @@ dojo.declare("gnr.widgets.CheckBox", gnr.widgets.baseDojo, {
         }
     },
     mixin_setHidden: function(hidden) {
-        if(this.sourceNode._hiddenTargets){
-            this.sourceNode.setHidden(hidden);
-        }else{
-            dojo.style(this.sourceNode._gnrcheckbox_wrapper, 'display', (hidden ? 'none' : ''));
+        if(!this.sourceNode._hiddenTargets){
+            this.sourceNode._hiddenTargets = [this.sourceNode._gnrcheckbox_wrapper, this.domNode];
         }
+        this.sourceNode.setHidden(hidden);
     },
 
     _getKeeperRoot:function(sourceNode){

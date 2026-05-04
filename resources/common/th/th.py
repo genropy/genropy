@@ -294,8 +294,13 @@ class TableHandler(BaseComponent):
         pane.tableEditor(frameCode=pane.attributes['thform_root'],table=table,
                                 formResource=formResource,
                                 loadEvent=loadEvent,
-                                palette_kwargs=palette_kwargs,attachTo=pane,default_kwargs=default_kwargs,
-                                **form_kwargs)     
+                                palette_kwargs=palette_kwargs,attachTo=pane,formInIframe=formInIframe,
+                                default_kwargs=default_kwargs,
+                                **form_kwargs)
+        formId = pane.attributes.get('thform_root', '') + '_form'
+        pane.dataController("genro.publish('form_'+formId+'_onDismissed');",
+                            formId=formId,
+                            formsubscribe_onDismissed=True)
         return pane
 
     @extract_kwargs(widget=True,vpane=True,fpane=True,default=True,form=True)

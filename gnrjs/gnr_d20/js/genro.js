@@ -220,6 +220,7 @@ dojo.declare('gnr.GenroClient', null, {
         this.dev = new gnr.GnrDevHandler(this);
         this.dlg = new gnr.GnrDlgHandler(this); //da implementare
         this.toast = new gnr.GnrToast();
+        this.speech = new gnr.GnrSpeech();
 
         this.dom = new gnr.GnrDomHandler(this);
         this.vld = new gnr.GnrValidator(this);

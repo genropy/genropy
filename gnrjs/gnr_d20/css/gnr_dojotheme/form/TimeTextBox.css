@@ -10,7 +10,7 @@
 .gnr_dojotheme .dijitMenu:has(.dijitTimePickerItem) {
     padding: 0;
     overflow: hidden;
-    min-width: 0;
+    min-width: 4em;
 }
 
 /* --- Up/Down arrow buttons: transparent with outline chevrons --- */
@@ -18,7 +18,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 1.8em;
+    height: 1.5em;
     background: transparent;
     border: none;
     border-radius: 0;
@@ -67,15 +67,14 @@
 
 /* --- Tick items (15-min intervals) --- */
 .gnr_dojotheme .dijitTimePickerTick {
-    color: var(--text-placeholder, #BABABB);
-    border-bottom: 1px solid var(--border-light, #E5E5EA);
+    border-bottom: none;
     border-top: none;
 }
 
 .gnr_dojotheme .dijitTimePickerTick .dijitTimePickerItemInner {
-    font-size: 0.8em;
-    padding: 2px 8px;
-    color: var(--text-secondary, #929394);
+    font-size: 0.85em;
+    padding: 0.1em 0.6em;
+    color: var(--text-secondary, #777);
 }
 
 /* --- Marker items (hour labels) --- */
@@ -83,12 +82,12 @@
     background-color: var(--surface-light, #F7F7FA);
     border-top: 1px solid var(--border-light, #E5E5EA);
     border-bottom: 1px solid var(--border-light, #E5E5EA);
-    font-weight: 500;
+    font-weight: 400;
     color: var(--text-color, #3A3A3C);
 }
 
 .gnr_dojotheme .dijitTimePickerMarker .dijitTimePickerItemInner {
-    padding: 4px 12px;
+    padding: 0.15em 0.6em;
 }
 
 /* --- Hover state --- */
