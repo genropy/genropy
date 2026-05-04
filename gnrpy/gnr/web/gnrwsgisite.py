@@ -525,6 +525,9 @@ class GnrWsgiSite(object):
         self.cleanup_interval = int(cleanup.get('interval') or 120)
         self.page_max_age = int(cleanup.get('page_max_age') or DEFAULT_PAGE_MAX_AGE)
         self.connection_max_age = int(cleanup.get('connection_max_age')or 600)
+        self.folder_purge_threshold = float(cleanup.get('folder_purge_threshold') or 5)
+        self.folder_purge_min_age_minutes = int(cleanup.get('folder_purge_min_age_minutes') or 120)
+        self.folder_purge_interval_minutes = int(cleanup.get('folder_purge_interval_minutes') or 240)
 
         self.db.closeConnection()
 
