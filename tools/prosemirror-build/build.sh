@@ -62,6 +62,24 @@ CSS_OUT="$TARGET_DIR/prosemirror.css"
     background: #f5f5f5;
     font-weight: bold;
 }
+
+/* Genropy host wrapper: when ProseMirror is mounted into a Genropy widget
+ * the host div carries the user-supplied height (e.g. height='240px').
+ * Make the host clip and let the ProseMirror surface scroll inside.
+ * 'min-height: 0' is required on the flex child so it can shrink below
+ * its content height; without it ProseMirror would still push past the
+ * host on tall documents. */
+.gnr-prosemirror-host {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+.gnr-prosemirror-host > .ProseMirror {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    min-height: 0;
+}
 GNRCSS
 } > "$CSS_OUT"
 

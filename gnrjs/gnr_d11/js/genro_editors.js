@@ -1480,6 +1480,9 @@ dojo.declare("gnr.widgets.proseMirrorEditor", gnr.widgets.baseExternalWidget, {
         return items;
     },
     initialize: function(widget, pmAttrs, sourceNode){
+        // Tag the host so prosemirror.css can clip overflow at the user-supplied
+        // height and let the .ProseMirror surface scroll inside.
+        widget.classList.add('gnr-prosemirror-host');
         var that = this;
         var PM = window.ProseMirror;
         var schemaName = pmAttrs.schema || 'basicWithLists';
