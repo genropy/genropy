@@ -710,6 +710,13 @@ class SiteRegister(BaseRemoteObject):
         self.last_cleanup = time.time()
         return dropped_connections
 
+    def claim_cleanup(self, min_gap_seconds):
+        now = time.time()
+        if now - self.last_cleanup < min_gap_seconds:
+            return False
+        self.last_cleanup = now
+        return True
+
     def get_register(self, register_name):
         return getattr(self, '%s_register' % register_name)
 

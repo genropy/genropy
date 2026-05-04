@@ -324,6 +324,9 @@ class SiteRegisterClient(object):
         else:
             logger.info('UNABLE TO LOAD REGISTER %s' % self.site.site_name)
 
+    def claim_cleanup(self, min_gap_seconds):
+        return self.siteregister.claim_cleanup(min_gap_seconds)
+
     def __getattr__(self, name):
         h = getattr(self.siteregister, name)
         if not callable(h):
