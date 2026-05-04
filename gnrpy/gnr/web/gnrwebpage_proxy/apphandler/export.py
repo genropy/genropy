@@ -133,29 +133,6 @@ class ExportMixin:
                                                           outdata=outdata, colAttrs=colAttrs,
                                                           title='Print List', header='Print List', columns=columns)
 
-    def pdf_standard(self, selection: Any, locale: Optional[str] = None,
-                     **kwargs: Any) -> str:
-        """Render a selection as a PDF via RML template.
-
-        Args:
-            selection: The selection to render.
-            locale: Locale for formatting.
-
-        Returns:
-            Rendered PDF content.
-
-        Note:
-            SMELL: Same dead-code pattern as :meth:`print_standard` —
-            ``columns = None`` followed by ``if not columns``.
-        """
-        columns = None  # SMELL: always None — same dead code as print_standard
-        if not columns:
-            columns = [c for c in selection.allColumns if not c in ('pkey', 'rowidx')]
-        outdata = selection.output('dictlist', columns=columns, asIterator=True)
-        colAttrs = selection.colAttrs
-        return self.page.rmlTemplate('standard_print.rml', outdata=outdata, colAttrs=colAttrs,
-                                     title='Print List', header='Print List', columns=columns)
-
     def rpc_pdfmaker(self, pdfmode: str, txt: str, **kwargs: Any) -> str:
         """Generate a PDF file and return its filename.
 
@@ -349,21 +326,6 @@ class ExportMixin:
         f.close()
         os.remove(fpath)
         return result.decode('utf-8')  # BUG: str has no .decode() in Python 3
-
-    def rpc_recordToPDF(self, table: str, pkey: str, template: str,
-                        **kwargs: Any) -> str:
-        """Generate a PDF from a single record via RML template.
-
-        Args:
-            table: Fully qualified table name.
-            pkey: Primary key of the record.
-            template: RML template path.
-
-        Returns:
-            Rendered PDF content.
-        """
-        record = self.db.table(table).record(pkey).output('bag')
-        return self.page.rmlTemplate(path=template, record=record)
 
     @public_method
     def includedViewAction(self, action: Optional[str] = None,
