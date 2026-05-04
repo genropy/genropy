@@ -13,7 +13,13 @@ from gnr.core.gnrbag import Bag,DirectoryResolver
 from gnr.core.gnrconfig import getGenroRoot
 
 DIRECTORY_RESOLVER_DEFAULT_PARS = {
-    'include':'*.py,*.js,*.xml,*.html',
+    'include':('*.py,*.pyx,*.pyi,'
+               '*.js,*.mjs,*.jsx,*.ts,*.tsx,'
+               '*.css,*.scss,*.less,'
+               '*.html,*.htm,*.mako,*.tpl,'
+               '*.xml,*.xsl,*.xslt,*.svg,'
+               '*.json,*.md,*.markdown,*.sql,'
+               '*.yml,*.yaml,*.txt,*.rst'),
     'processors':{'xml':False},
     'exclude':'_*,.*',
     'dropext':True,
@@ -42,11 +48,12 @@ class GnrIde(BaseComponent):
         self.gi_dbstructPane(bc.framePane(frameCode='%s_dbstruct' %ideId,region='right',width='250px',splitter=True,drawer='close',background='rgba(230, 230, 230, 1)'))
         center = bc.framePane(frameCode=ideId,region='center')
         bar = center.top.slotToolbar('5,stackButtons,*,addIdeBtn,5')
-        bar.addIdeBtn.slotButton('Add ide',action='genro.nodeById(ideId)._gnrIdeHandler.newIde({ide_page:"ide_"+genro.getCounter(),isDebugger:true})')
+        bar.addIdeBtn.slotButton('Add ide',
+                                 action='genro.nodeById(ideId)._gnrIdeHandler.newIde({ide_page:"ide_"+genro.getCounter(),isDebugger:true})',
+                                 ideId=ideId)
         sc = center.center.stackContainer(selectedPage='^.#parent.ide_page',
                                             datapath='.instances',nodeId='%s_stack' %ideId)
         self.gi_makeEditorStack(sc.contentPane(pageName='mainEditor',title='Main Editor',overflow='hidden',datapath='.mainEditor'),'mainEditor')
-        #bc.dataController('gnride.setBreakpoint(_subscription_kwargs)',subscribe_setBreakpoint=True)
         if debugEnabled:
             bc.dataRpc('dummy','pdb.setBreakpoint',subscribe_setBreakpoint=True)
         return center
@@ -116,10 +123,31 @@ class GnrIde(BaseComponent):
         return result
 
 
+    EDITOR_MODE_BY_EXT = {
+        'py': 'python', 'pyx': 'python', 'pyi': 'python',
+        'js': 'javascript', 'mjs': 'javascript', 'jsx': 'javascript',
+        'ts': 'javascript', 'tsx': 'javascript',
+        'css': 'css', 'scss': 'css', 'less': 'css',
+        'html': 'html', 'htm': 'html', 'mako': 'html', 'tpl': 'html',
+        'xml': 'xml', 'xsl': 'xml', 'xslt': 'xml', 'svg': 'xml',
+        'json': 'json',
+        'md': 'markdown', 'markdown': 'markdown',
+        'sql': 'sql',
+        'yml': 'yaml', 'yaml': 'yaml',
+        # Plain-text-ish: shown without syntax highlighting until a dedicated
+        # CM6 mode (e.g. legacy-modes restructuredText) is added to the bundle.
+        'txt': None, 'rst': None,
+    }
+
+    def _editorModeFor(self, module):
+        ext = (module or '').rsplit('.', 1)[-1].lower() if module and '.' in module else ''
+        return self.EDITOR_MODE_BY_EXT.get(ext, 'python')
+
     @public_method
     def gi_buildEditorTab(self,pane,module=None,ide_page=None,**kwargs):
         plist = module.split(os.sep)
         frameCode = '%s_%s' %(ide_page,'_'.join(plist).replace('.','_'))
+        editorMode = self._editorModeFor(module)
         wchunk = False
         preview_url = False
         cmroot = None
@@ -202,42 +230,47 @@ class GnrIde(BaseComponent):
                                     }
                                 """)
 
-        cm = cmroot.codemirror(value='^.source',
-                                nodeId='%s_cm' %frameCode,
-                                config_mode='python',config_lineNumbers=True,
-                                config_indentUnit=4,config_keyMap='softTab',
-                                config_addon='search',
-                                height='100%',
-                                config_gutters=["CodeMirror-linenumbers", "pdb_breakpoints"],
-                                onCreated="this.attributeOwnerNode('_activeIDE')._gnrIdeHandler.onCreatedEditor(this);", 
-                                readOnly='^.#parent.#parent.readOnly',
-                                modulePath=module)
+        # The pdb gutter is only meaningful for Python sources: showing it on
+        # JS/HTML/JSON would let users drop "breakpoints" the debugger ignores.
+        cm_kwargs = dict(
+            value='^.source',
+            nodeId='%s_cm' % frameCode,
+            config_mode=editorMode, config_lineNumbers=True,
+            config_indentUnit=4, config_keyMap='softTab',
+            height='100%',
+            onCreated="this.attributeOwnerNode('_activeIDE')._gnrIdeHandler.onCreatedEditor(this);",
+            readOnly='^.#parent.#parent.readOnly',
+            modulePath=module,
+        )
+        if editorMode == 'python':
+            cm_kwargs['config_extraGutters'] = [{'name': 'pdb_breakpoints', 'width': '0.8em'}]
+            cm_kwargs['onGutterClick_pdb_breakpoints'] = "this.attributeOwnerNode('_activeIDE')._gnrIdeHandler.onBreakpointGutterClick(view, line, gutter, event);"
+        cm = cmroot.codemirror(**cm_kwargs)
         frame.dataController("""
-            var cm = cm.externalWidget;
-            cm.clearGutter('pdb_breakpoints');
+            var cmView = cmNode.externalWidget;
+            cmView.gnr_clearGutter('pdb_breakpoints');
             if(breakpoints){
                 breakpoints.forEach(function(n){
-                    var line_cm = n.attr.line -1;
-                    cm.setGutterMarker(line_cm, "pdb_breakpoints",cm.gnrMakeMarker(n.attr.condition));
+                    var line_cm = n.attr.line - 1;
+                    cmView.gnr_setGutterMarker(line_cm, 'pdb_breakpoints', cmView.gnr.gnrMakeMarker(n.attr.condition));
                 });
             }
-   
-            """,breakpoints='^.breakpoints',cm=cm,_fired='^.editorCompleted')
+            """, breakpoints='^.breakpoints', cmNode=cm, _fired='^.editorCompleted')
         frame.dataController("""
             var cm = cmNode.externalWidget;
-            var lineno = error.lineno-1;
-            var offset = error.offset-1;
-            var ch_start = error.offset>1?error.offset-1:error.offset;
+            var lineno = error.lineno - 1;
+            var ch_start = error.offset > 1 ? error.offset - 1 : error.offset;
             var ch_end = error.offset;
-            cm.scrollIntoView({line:lineno,ch:ch_start});
-            var tm = cm.doc.markText({line:lineno,ch:ch_start},{line:lineno, ch:ch_end},
-                            {clearOnEnter:true,className:'source_viewer_error'});
-            genro.dlg.floatingMessage(cmNode.getParentNode(),{messageType:'error',
-                        message:dataTemplate('Save error: $error. Line $lineno pos $offset',error),onClosedCb:function(){
-                    tm.clear();
-                }})
-
-            """,error='^.error',cmNode=cm)
+            cm.gnr_scrollIntoView({line: lineno, ch: ch_start});
+            var markId = cm.gnr_markText({line: lineno, ch: ch_start},
+                                          {line: lineno, ch: ch_end},
+                                          {className: 'source_viewer_error'});
+            genro.dlg.floatingMessage(cmNode.getParentNode(), {messageType: 'error',
+                message: dataTemplate('Save error: $error. Line $lineno pos $offset', error),
+                onClosedCb: function(){
+                    cm.gnr_clearMark(markId);
+                }});
+            """, error='^.error', cmNode=cm)
 
     def __readsource(self,docPath):
         if not os.path.exists(docPath):
@@ -349,12 +382,7 @@ class GnrIde(BaseComponent):
                                  SET .command=null;
                                  debugger_input.domNode.focus();
                                  """,command='^.command',debugger_input=debugger_input,_if='command')
-        
-       #bottom=bc.contentPane(region='bottom',padding='2px',splitter=True)
-       #fb = bottom.div(margin_right='20px').formbuilder(cols=2,width='100%')
-       #fb.textBox(lbl='Command',value='^.command',onEnter='FIRE .sendCommand',width='100%',padding='2px')
-       #fb.button('Send', fire='.sendCommand')
-        
+
 
     def gi_debuggerBottom(self,bottom):
         pass
