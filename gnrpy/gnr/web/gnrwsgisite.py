@@ -1,4 +1,5 @@
 import os
+import random
 import re
 import io
 import shutil
@@ -1739,6 +1740,42 @@ class GnrWsgiSite(object):
         self.pageLog('close', page_id=page_id)
         self.clearRecordLocks(page_id=page_id)
         page._closed = True
+        self._maybeRunFolderCleanup()
+
+    def _maybeRunFolderCleanup(self):
+        """Lottery + atomic claim + spawn cleanup thread.
+
+        Runs only when the local lottery (folder_purge_threshold) wins AND
+        the daemon's claim_cleanup gates the call by interval.
+        """
+        if random.random() * 100 >= self.folder_purge_threshold:
+            return
+        interval_seconds = self.folder_purge_interval_minutes * 60
+        if not self.register.claim_cleanup(interval_seconds):
+            return
+        Thread(target=self._runFolderCleanup, daemon=True).start()
+
+    def _runFolderCleanup(self):
+        """Worker thread: removes orphan connection folders older than min_age."""
+        min_age_seconds = self.folder_purge_min_age_minutes * 60
+        now = time()
+        try:
+            live_connections = set(self.register.connections().keys())
+            for entry in os.listdir(self.allConnectionsFolder):
+                path = os.path.join(self.allConnectionsFolder, entry)
+                if not os.path.isdir(path):
+                    continue
+                if entry in live_connections:
+                    continue
+                try:
+                    mtime = os.stat(path).st_mtime
+                except OSError:
+                    continue
+                if now - mtime < min_age_seconds:
+                    continue
+                shutil.rmtree(path, ignore_errors=True)
+        except Exception:
+            logger.exception("Folder cleanup thread failed")
 
     def sqlDebugger(self,**kwargs):
         page = self.currentPage
