@@ -28,7 +28,7 @@ import warnings
 from functools import cmp_to_key
 
 from gnr.core.gnrdecorator import deprecated
-from gnr.core import flatfiles
+
 
 # FIXME: what's this for?
 class FakeList(list):
@@ -314,6 +314,7 @@ _MOVED_TO_FLATFILES = frozenset({
 
 def __getattr__(name):
     if name in _MOVED_TO_FLATFILES:
+        from gnr.core import flatfiles
         warnings.warn(
             f"'{name}' has been moved to gnr.core.flatfiles. "
             f"Import from gnr.core.gnrlist is deprecated.",
