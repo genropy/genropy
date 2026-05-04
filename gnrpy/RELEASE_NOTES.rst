@@ -1,3 +1,18 @@
+Unreleased
+==========
+
+Bugfixes
+--------
+
+* PDF watermark service: fix ``code=4: source object number out of
+  range`` when ``watermarkedPDF`` is applied to PDFs saved with
+  multiple incremental xref generations (e.g. macOS Preview
+  annotations, PAdES signatures). The source PDF is now normalized
+  with ``garbage=4, clean=True, deflate=True`` before the watermark
+  is composed, following the official PyMuPDF workaround. No
+  backward-compatibility impact: PDFs that already had a single xref
+  generation are unaffected. (#872)
+
 Release 26.04.30
 ================
 
