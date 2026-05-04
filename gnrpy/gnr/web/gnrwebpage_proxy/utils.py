@@ -358,12 +358,7 @@ class GnrWebUtils(GnrBaseProxy):
         docommit = False
         if import_mode=='replace':
             tblobj.empty()
-        if sql_mode:
-            rows_to_insert = list(rows)
-            if rows_to_insert:
-                tblobj.insertMany(rows_to_insert)
-                docommit=True
-        elif import_mode=='update_only':
+        if import_mode=='update_only':
             _updater_keyfield = match_index.pop('_updater_keyfield',None)
             if not _updater_keyfield:
                 return
@@ -380,6 +375,11 @@ class GnrWebUtils(GnrBaseProxy):
                 if missing_keys:
                     self.page.clientPublish('floating_message',message='Missing record to update %s' %','.join(missing_keys),
                                             messageType='warning')
+        elif sql_mode:
+            rows_to_insert = list(rows)
+            if rows_to_insert:
+                tblobj.insertMany(rows_to_insert)
+                docommit=True
         else:
             for r in rows:
                 pkey = r.get(tblobj.pkey)
@@ -400,7 +400,7 @@ class GnrWebUtils(GnrBaseProxy):
         for row in self.quickThermo(reader(),maxidx=reader.nrows if hasattr(reader,'nrows') else None,
                         labelfield=tblobj.attributes.get('caption_field') or tblobj.name):
             r = dict(constants) if constants else dict()
-            f =  {v:row[k] for k,v in match_index.items() if v != ''} if match_index else dict(row)
+            f =  {v:row[k] for k,v in match_index.items() if v != '' and k != '_updater_keyfield'} if match_index else dict(row)
             r.update(f)
             tblobj.recordCoerceTypes(r)
             if sql_mode:

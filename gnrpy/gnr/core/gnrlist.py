@@ -457,9 +457,9 @@ class XlsxReader(object):
             firstline = []
         headers = []
         for i,header in enumerate(firstline):
+            header = slugify(header, sep='_') if header else ''
             if not header:
                 header = f'gnr_emptycol_{i}'
-            header = slugify(header, sep='_')
             headers.append(header)
         colindex = dict([(i,True)for i,h in enumerate(headers) if h])
         index = dict()
@@ -515,16 +515,29 @@ class XlsxReader(object):
         for line in s['linegen']:
             #row = [self.sheet.cell_value(r, c) for c in range(self.ncols)]
             yield GnrNamedList(s['index'], [c for i,c in enumerate(line) if i in s['colindex']])
-            
+
     def _sheetlines(self,sheet):
         """Generate lines from the sheet, handling empty rows according to settings.
 
         :param sheet: openpyxl worksheet object
         :yield: list of cell values for each row
+
+        Note: In read_only mode, openpyxl may omit leading empty cells from
+        data rows.  We use each cell's .column attribute (1-based int) to place
+        values at the correct position so that header and data rows stay aligned.
         """
         last_line_empty = False
         for line in sheet.rows:
-            result = []
+            if not line:
+                if self.allEmptyRows:
+                    yield []
+                elif self.compressEmptyRows and not last_line_empty:
+                    last_line_empty = True
+                    logger.debug('yielding empty row')
+                    yield []
+                continue
+            max_col = line[-1].column
+            result = [None] * max_col
             empty_flag = True
             for cell in line:
                 # cell attributes: is_date, data_type => s:string, n:null and numeric, d:date
@@ -533,10 +546,11 @@ class XlsxReader(object):
                     # Note: the previous [elem for elem in line if elem] also considers zeros
                     empty_flag = False
 
+                col_idx = cell.column - 1
                 if value=='':
-                    result.append(None)
+                    result[col_idx] = None
                 else:
-                    result.append(value)
+                    result[col_idx] = value
 
             if empty_flag:
                 # self.allEmptyRows and self.compressEmptyRows cannot both be False
@@ -549,7 +563,7 @@ class XlsxReader(object):
                         yield []
             else:
                 last_line_empty = False
-                yield result 
+                yield result
 
 
 class CsvReader(object):
