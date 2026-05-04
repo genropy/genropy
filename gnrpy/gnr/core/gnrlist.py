@@ -28,7 +28,7 @@ import warnings
 from functools import cmp_to_key
 
 from gnr.core.gnrdecorator import deprecated
-
+from gnr.core import flatfiles
 
 # FIXME: what's this for?
 class FakeList(list):
@@ -320,6 +320,5 @@ def __getattr__(name):
             DeprecationWarning,
             stacklevel=2,
         )
-        from gnr.core import flatfiles
         return getattr(flatfiles, name)
     raise AttributeError(f"module 'gnr.core.gnrlist' has no attribute {name!r}")
