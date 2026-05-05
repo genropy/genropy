@@ -11,7 +11,7 @@ def main():
     parser.add_argument('site_name')
 
     options = parser.parse_args()
-    site = GnrWsgiSite(options.site_name, noclean=False)
+    site = GnrWsgiSite(options.site_name)
 
 if __name__ == "__main__":
     main()
