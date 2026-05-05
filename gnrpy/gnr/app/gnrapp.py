@@ -35,7 +35,7 @@ import time
 from datetime import datetime
 import glob
 import subprocess
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote
 from collections import defaultdict
 from email.mime.text import MIMEText
 
@@ -963,11 +963,11 @@ class GnrApp(object):
     def dsn_to_config(self, dsn: str) -> dict:
         parsed = urlparse(dsn)
         return {
-            'implementation': 'postgres',
+            'implementation': parsed.scheme,
             'host': parsed.hostname,
-            'port': str(parsed.port) if parsed.port else '5432',
-            'password': parsed.password,
-            'user': parsed.username,
+            'port': str(parsed.port),
+            'user': unquote(parsed.username) if parsed.username else None,
+            'password': unquote(parsed.password) if parsed.password else None,
             'dbname': parsed.path.lstrip('/'),
         }
     
