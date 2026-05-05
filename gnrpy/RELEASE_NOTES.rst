@@ -1,3 +1,12 @@
+Release 26.05.05
+================
+
+New features
+------------
+
+* paramiko based sftp service now implementes remove()/unlink() method
+  in order to remove remote files. (#848,#868)
+
 Release 26.04.30
 ================
 
