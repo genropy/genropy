@@ -15,6 +15,7 @@ not realistically exercisable from pytest either.
 
 import logging
 import os
+import threading
 import time
 
 import gnr.web.gnrwsgisite as gws
@@ -65,6 +66,8 @@ class _FakeRegister:
 
     def claim_cleanup(self, min_gap_seconds):
         self.claim_called_with = min_gap_seconds
+        if 'claim_cleanup' in self.raises:
+            raise self.raises['claim_cleanup']
         return self.claim_returns
 
     def connections(self):
@@ -396,3 +399,54 @@ def test_runcleanup_swallows_expire_pages_errors(tmp_path, caplog):
                for r in caplog.records)
     # expire_connection still ran, dropped, rmtree happened
     assert not conn_dir.exists()
+
+
+def test_maybe_swallows_claim_cleanup_errors(monkeypatch, caplog):
+    """If register.claim_cleanup() raises (e.g. Pyro CommunicationError
+    when the daemon is down), the cleanup pass is silently skipped:
+    the exception is logged and no Thread is spawned. This prevents a
+    failed RPC from turning a page-close into a 500 for the client."""
+    site = _FakeSite(
+        cleanup_threshold=100,
+        cleanup_interval_minutes=4,
+        register=_FakeRegister(
+            raises={'claim_cleanup': RuntimeError('daemon unreachable')},
+        ),
+    )
+    spawned = []
+    monkeypatch.setattr(gws, 'Thread',
+                        lambda **kw: spawned.append(kw) or _UnusedThread())
+
+    with caplog.at_level(logging.ERROR, logger='gnr.web'):
+        gws.GnrWsgiSite._maybeRunCleanup(site)
+
+    assert spawned == []
+    assert any('claim_cleanup failed' in r.getMessage()
+               for r in caplog.records)
+
+
+def test_maybe_real_thread_runs_cleanup():
+    """End-to-end with a real Thread: when both gates clear, the
+    spawned thread actually invokes _runCleanup. Catches regressions
+    where the spawn idiom would silently change to .run() (sync) or
+    the target is wired wrong."""
+    started = threading.Event()
+    captured_ident = []
+
+    def _capture():
+        captured_ident.append(threading.get_ident())
+        started.set()
+
+    site = _FakeSite(
+        cleanup_threshold=100,
+        cleanup_interval_minutes=4,
+        register=_FakeRegister(claim_returns=True),
+        _runCleanup=_capture,
+    )
+
+    gws.GnrWsgiSite._maybeRunCleanup(site)
+
+    assert started.wait(timeout=5), "spawned thread did not run within 5s"
+    assert len(captured_ident) == 1
+    # The cleanup ran in a different thread than the test's main thread.
+    assert captured_ident[0] != threading.get_ident()
