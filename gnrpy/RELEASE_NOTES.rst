@@ -1,6 +1,23 @@
 Unreleased
 ==========
 
+Enhancements
+------------
+
+* Print resources now emit a baseline ``body { font-family: sans-serif; }``
+  rule from ``BagToHtml.defineStandardStyles`` (covering
+  ``TableScriptToHtml``, ``TableTemplateToHtml`` and any other
+  ``BagToHtml`` subclass) and from the ``RecordToHtmlPage`` /
+  ``RecordToHtml`` hierarchy, so HTML/PDF prints default to a neutral
+  sans-serif when no ``font_family`` is set and no body
+  ``font-family`` is declared by the project. Setting ``font_family``
+  on the print class still overrides the baseline as before;
+  project-level styles that declare their own body ``font-family`` are
+  unaffected. **Backward compatibility:** prints that previously relied
+  on the implicit serif fallback (Times) will now render in sans-serif
+  by default. Projects that want the old serif rendering can declare
+  it explicitly in their own styles. (#881)
+
 Bugfixes
 --------
 
