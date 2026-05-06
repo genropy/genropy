@@ -537,7 +537,7 @@ class SiteRegister(BaseRemoteObject):
         self.user_register = UserRegister(self)
         self.remotebag_handler = RemoteStoreBagHandler(self)
         self.server.daemon.register(self.remotebag_handler, 'RemoteData')
-        self.last_cleanup = time.time()
+        self.last_cleanup = 0
         self.sitename = sitename
         self.storage_path = storage_path
         self.catalog = GnrClassCatalog()
@@ -561,7 +561,6 @@ class SiteRegister(BaseRemoteObject):
 
     def setConfiguration(self, cleanup=None):
         cleanup = cleanup or dict()
-        self.cleanup_interval = int(cleanup.get('interval') or 120)
         self.page_max_age = int(cleanup.get('page_max_age') or DEFAULT_PAGE_MAX_AGE)
         self.guest_connection_max_age = int(cleanup.get('guest_connection_max_age') or 40)
         self.connection_max_age = int(cleanup.get('connection_max_age') or 600)
@@ -690,25 +689,48 @@ class SiteRegister(BaseRemoteObject):
         return self.user_register.refresh(connection['user'], last_user_ts=last_user_ts,
                                           last_rpc_ts=last_rpc_ts, refresh_ts=refresh_ts)
 
-    def cleanup(self):
-        if time.time() - self.last_cleanup < self.cleanup_interval:
-            return
+    def claim_cleanup(self, min_gap_seconds):
+        """Atomic check-and-set on last_cleanup. Returns True if the caller
+        wins the right to run a cleanup pass; False if another caller has
+        already claimed within the gap."""
+        now = time.time()
+        if now - self.last_cleanup < min_gap_seconds:
+            return False
+        self.last_cleanup = now
+        return True
+
+    def expire_pages(self, connection_id):
+        """Drop pages of `connection_id` idle longer than page_max_age
+        (or guest_connection_max_age for guest users). Returns list of
+        dropped page_ids."""
         now = datetime.now()
-        for page in self.pages():
-            page_max_age = self.page_max_age if not page['user'].startswith('guest_') else self.guest_connection_max_age
+        dropped = []
+        for page in self.page_register.pages(connection_id=connection_id):
+            max_age = (self.guest_connection_max_age
+                       if page['user'].startswith('guest_')
+                       else self.page_max_age)
             last_refresh_ts = page.get('last_refresh_ts') or page.get('start_ts')
-            if ((now - last_refresh_ts).seconds > page_max_age):
-                self.drop_page(page['register_item_id'])
-        dropped_connections = []
-        for connection in self.connections():
-            last_refresh_ts = connection.get('last_refresh_ts') or connection.get('start_ts')
-            connection_max_age = self.connection_max_age if not connection['user'].startswith('guest_') \
-                else self.guest_connection_max_age
-            if (now - last_refresh_ts).seconds > connection_max_age:
-                dropped_connections.append(connection['register_item_id'])
-                self.drop_connection(connection['register_item_id'], cascade=True)
-        self.last_cleanup = time.time()
-        return dropped_connections
+            if (now - last_refresh_ts).seconds > max_age:
+                page_id = page['register_item_id']
+                self.drop_page(page_id)
+                dropped.append(page_id)
+        return dropped
+
+    def expire_connection(self, connection_id):
+        """Drop the connection if idle longer than connection_max_age
+        (or guest_connection_max_age for guest users). Returns True if
+        dropped."""
+        connection = self.connection_register.get_item(connection_id)
+        if not connection:
+            return False
+        max_age = (self.guest_connection_max_age
+                   if connection['user'].startswith('guest_')
+                   else self.connection_max_age)
+        last_refresh_ts = connection.get('last_refresh_ts') or connection.get('start_ts')
+        if (datetime.now() - last_refresh_ts).seconds > max_age:
+            self.drop_connection(connection_id, cascade=True)
+            return True
+        return False
 
     def get_register(self, register_name):
         return getattr(self, '%s_register' % register_name)

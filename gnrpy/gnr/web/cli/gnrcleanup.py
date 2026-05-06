@@ -12,6 +12,7 @@ def main():
 
     options = parser.parse_args()
     site = GnrWsgiSite(options.site_name)
+    site._runCleanup()
 
 if __name__ == "__main__":
     main()
