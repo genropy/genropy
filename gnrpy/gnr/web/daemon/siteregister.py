@@ -563,7 +563,7 @@ class SiteRegister(BaseRemoteObject):
         cleanup = cleanup or dict()
         self.page_max_age = int(cleanup.get('page_max_age') or DEFAULT_PAGE_MAX_AGE)
         self.guest_connection_max_age = int(cleanup.get('guest_connection_max_age') or 40)
-        self.connection_max_age = int(cleanup.get('connection_max_age') or 600)
+        self.connection_max_age = int(cleanup.get('connection_max_age') or 7200)
 
     def new_connection(self, connection_id, connection_name=None, user=None, user_id=None,
                        user_name=None, user_tags=None, user_ip=None, user_agent=None, browser_name=None,
