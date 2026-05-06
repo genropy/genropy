@@ -525,6 +525,11 @@ class GnrWsgiSite(object):
         self.cleanup_interval_minutes = int(cleanup.get('interval_minutes') or 240)
         self.page_max_age = int(cleanup.get('page_max_age') or DEFAULT_PAGE_MAX_AGE)
         self.connection_max_age = int(cleanup.get('connection_max_age') or 7200)
+        logger.info(
+            "Cleanup config: threshold=%s%%, interval=%dmin, "
+            "page_max_age=%ds, connection_max_age=%ds",
+            self.cleanup_threshold, self.cleanup_interval_minutes,
+            self.page_max_age, self.connection_max_age)
 
         self.db.closeConnection()
 
@@ -1737,7 +1742,12 @@ class GnrWsgiSite(object):
         if random.random() * 100 >= self.cleanup_threshold:
             return
         interval_seconds = self.cleanup_interval_minutes * 60
-        if not self.register.claim_cleanup(interval_seconds):
+        try:
+            won = self.register.claim_cleanup(interval_seconds)
+        except Exception:
+            logger.exception("claim_cleanup failed")
+            return
+        if not won:
             return
         Thread(target=self._runCleanup, daemon=True).start()
 
