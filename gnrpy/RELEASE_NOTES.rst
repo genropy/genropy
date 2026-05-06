@@ -1,6 +1,32 @@
 Unreleased
 ==========
 
+New features
+------------
+
+* Connection cleanup is now a single on-event mechanism instead of
+  two parallel ones. When a page closes on the client a lottery
+  (``cleanup_threshold``, default 5%) gates an attempt to spawn a
+  background cleanup pass; the daemon ``claim_cleanup`` primitive
+  ensures only one pass runs per ``cleanup_interval_minutes``
+  (default 240). The pass walks ``data/_connections/`` once, drops
+  stale pages and connections from the in-memory register, and
+  ``rmtree``\s their filesystem folders. The legacy
+  ``SiteRegister.cleanup()`` (which ran on every request and only
+  expired the in-memory register, leaving folders behind) is
+  removed. The legacy ``--noclean`` / ``--counter`` CLI flags and
+  the init-time folder purge are removed too — folders are kept
+  across restarts and cleaned by the on-event pass. (#874)
+
+  Config keys (under ``<cleanup>`` in siteconfig):
+
+  - ``cleanup.threshold`` — lottery percentage [0..100], default 5
+  - ``cleanup.interval_minutes`` — claim min gap, default 240
+  - ``cleanup.connection_max_age`` — default raised from 600s to 7200s
+  - ``cleanup.page_max_age`` — unchanged
+  - ``cleanup.guest_connection_max_age`` — unchanged
+  - ``cleanup.interval`` (legacy 120s gate) — removed
+
 Bugfixes
 --------
 

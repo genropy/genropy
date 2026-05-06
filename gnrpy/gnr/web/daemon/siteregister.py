@@ -692,7 +692,14 @@ class SiteRegister(BaseRemoteObject):
     def claim_cleanup(self, min_gap_seconds):
         """Atomic check-and-set on last_cleanup. Returns True if the caller
         wins the right to run a cleanup pass; False if another caller has
-        already claimed within the gap."""
+        already claimed within the gap.
+
+        ``last_cleanup`` is initialized to 0 in ``__init__``, so the very
+        first caller after a daemon restart wins immediately regardless of
+        wall-clock time (the previous lifetime's claim history is not
+        carried over). Atomicity is guaranteed by the daemon's
+        single-thread Pyro4 multiplex server: only one ``claim_cleanup``
+        executes at a time across all concurrent callers."""
         now = time.time()
         if now - self.last_cleanup < min_gap_seconds:
             return False

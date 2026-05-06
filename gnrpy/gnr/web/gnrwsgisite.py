@@ -1738,7 +1738,13 @@ class GnrWsgiSite(object):
         """Lottery + atomic claim + spawn cleanup thread.
 
         Runs only when the local lottery (cleanup_threshold) wins AND
-        the daemon's claim_cleanup gates the call by interval."""
+        the daemon's claim_cleanup gates the call by interval.
+
+        cleanup_threshold is a percentage in [0, 100]. The default 5
+        means there is a 5% chance, per page-close event, that this
+        worker attempts to spawn a cleanup pass. The interval gate on
+        the daemon (cleanup_interval_minutes) ensures that even when
+        the lottery fires often, only one pass runs per interval."""
         if random.random() * 100 >= self.cleanup_threshold:
             return
         interval_seconds = self.cleanup_interval_minutes * 60
