@@ -28,10 +28,10 @@ dependencies = [
 	     "boto3",
 	     "caldav",
 	     "chardet==5.2.0",
+	     "cryptography",
 	     "dictdiffer", # for gnr.sql migration
 	     "docutils",
 	     "dulwich", # needed by gnrgit
-	     "mypantry",
 	     "gunicorn",
 	     "jsmin",
 	     "lxml",
@@ -72,8 +72,6 @@ pgsql = [
 ]
 
 mysql = ["mysqlclient"]
-
-encryption = ["cryptography"]
 
 developer = [
   "pytest", "pytest-cov", "graphviz",

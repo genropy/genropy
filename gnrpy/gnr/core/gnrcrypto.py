@@ -7,7 +7,6 @@ import os
 import datetime
 from urllib.parse import parse_qs, urlparse
 
-import pantry
 from gnr.core import logger
 
 
@@ -20,9 +19,8 @@ PREFIX_R = '$R$'
 PREFIX_Q = '$Q$'
 PREFIX_X = '$X$'
 
-if pantry.has('cryptography'):
-    from cryptography.fernet import Fernet
-    from cryptography.hazmat.primitives.ciphers.aead import AESSIV
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives.ciphers.aead import AESSIV
 
 
 def _derive_fernet_key(secret_key):
@@ -55,9 +53,8 @@ class Encryptor:
 
     Encrypted values are stored with a prefix: ``$R$``, ``$Q$``, ``$X$``.
 
-    The instance is always created (even without a key or without
-    ``cryptography`` installed). Methods guarded by ``@pantry('cryptography')``
-    raise ``RuntimeError`` at call-time if the package is missing.
+    The instance is always created (even without a key). Calling
+    ``encrypt()``/``decrypt()`` without a key raises ``ValueError``.
 
     Args:
         secret_key: The master secret key string, or ``None``.
@@ -83,7 +80,6 @@ class Encryptor:
         """Return ``True`` if an encryption key is configured."""
         return bool(self._secret_key)
 
-    @pantry('cryptography')
     def encrypt(self, value, mode='R'):
         """Encrypt a value according to the specified mode.
 
@@ -109,7 +105,6 @@ class Encryptor:
             return PREFIX_X + salt.hex() + '$' + h
         raise ValueError(f"Unknown encryption mode: {mode!r}")
 
-    @pantry('cryptography')
     def decrypt(self, value):
         """Decrypt an encrypted value, detecting the mode from its prefix.
 
