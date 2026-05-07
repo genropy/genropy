@@ -197,7 +197,8 @@ def run_query(db, table=None, count_only=False,
             kwargs.setdefault('addPkeyColumn', False)
             rows, attrs = app.getSelection(
                 table=table, recordResolver=False,
-                output_mode='dictlist', **kwargs)
+                output_mode='dictlist',
+                countOnly=count_only, **kwargs)
             if count_only:
                 rows = []
             info['totalrows'] = attrs.get('totalrows', 0)
