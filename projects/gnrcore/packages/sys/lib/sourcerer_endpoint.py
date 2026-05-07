@@ -126,104 +126,58 @@ def _apply_statement_timeout(db, timeout_ms):
         pass
 
 
-def run_query(db, table=None, count_only=False,
+def run_query(site, table=None,
               max_rows=DEFAULT_MAX_ROWS,
               statement_timeout_ms=DEFAULT_STATEMENT_TIMEOUT_MS,
-              app=None, **kwargs):
-    """Execute a query against a GenroPy DB, returning the same shape that
-    rpc_query produces over HTTP.
-
-    Two execution paths:
-        - If ``app`` is provided, uses ``app.getSelection`` (web context: full
-          virtual_column resolution, alias expansion, etc.).
-        - Otherwise falls back to ``db.table(table).query(**kwargs).fetch()``
-          for in-process callers without a web app.
+              **kwargs):
+    """Execute a getSelection against a GenroPy site.
 
     Args:
-        db: GenroPy db connection.
-        table: Fully qualified table name (e.g. ``'fatt.fattura'``).
-        count_only: If True, return only the row count.
-        max_rows: Cap applied when ``limit`` is missing or higher.
-        statement_timeout_ms: PostgreSQL statement_timeout cap (best effort).
-        app: Optional GnrApp / web app proxy with ``getSelection``.
-        **kwargs: Forwarded to getSelection / tbl.query (columns, where,
-            distinct, group_by, having, order_by, limit, etc.).
+        site: GnrWsgiSite (provides ``site.db`` and ``site.dummyPage.app``).
+        table: fully qualified table name (e.g. ``'fatt.fattura'``).
+        max_rows: cap applied when ``limit`` is missing or higher.
+        statement_timeout_ms: PostgreSQL statement_timeout cap.
+        **kwargs: forwarded to ``app.getSelection`` (columns, where, condition,
+            distinct, group_by, having, order_by, limit, offset, pkeys,
+            sqlparams, excludeLogicalDeleted, excludeDraft, countOnly, …).
 
     Returns:
-        dict: {
-            'ok': bool,
-            'data': list[dict],
-            'info': {
-                'totalrows': int,
-                'more': bool,
-                'limit_applied': int|None,
-                'servertime_ms': int,
-                'error': str|None
-            }
-        }
+        ``{'ok': bool, 'data': list[dict], 'info': {...}}``
     """
-    info: dict = {'error': None}
+    kwargs['limit'] = min(kwargs.get('limit') or max_rows, max_rows)
+    kwargs.setdefault('addPkeyColumn', False)
 
-    if not table and not count_only:
-        # getSelection variant lets the caller pass table inside kwargs;
-        # tbl.query variant requires it explicitly. We require it always
-        # for clarity.
-        return {'ok': False, 'data': [],
-                'info': {'error': 'missing required parameter: table'}}
-
-    # Cap limit
-    if count_only:
-        cap_applied = False
-        info['limit_applied'] = kwargs.get('limit')
-    else:
-        requested = kwargs.get('limit')
-        cap_applied = (requested is None
-                       or (isinstance(requested, int)
-                           and requested > max_rows))
-        kwargs['limit'] = max_rows if cap_applied else requested
-        info['limit_applied'] = kwargs['limit']
-
-    kwargs.pop('recordResolver', None)
-
-    _apply_statement_timeout(db, statement_timeout_ms)
+    _apply_statement_timeout(site.db, statement_timeout_ms)
 
     t0 = time.monotonic()
     try:
-        if app is not None:
-            # Web context: rich getSelection (preserves virtual cols).
-            # output_mode='dictlist' makes getSelection return a flat
-            # list of dicts directly (no Bag wrapping), so no manual
-            # post-processing is needed.
-            kwargs.setdefault('addPkeyColumn', False)
-            rows, attrs = app.getSelection(
-                table=table, recordResolver=False,
-                output_mode='dictlist',
-                countOnly=count_only, **kwargs)
-            if count_only:
-                rows = []
-            info['totalrows'] = attrs.get('totalrows', 0)
-            info['servertime_ms'] = attrs.get('servertime')
-        else:
-            # In-process: direct table.query (lighter)
-            tbl = db.table(table)
-            sel = tbl.query(**kwargs)
-            if count_only:
-                rows = []
-                info['totalrows'] = sel.count()
-            else:
-                fetched = sel.fetch()
-                rows = [dict(r) for r in fetched]
-                info['totalrows'] = len(rows)
-            info['servertime_ms'] = int(
-                (time.monotonic() - t0) * 1000)
-
-        info['more'] = (cap_applied
-                        and info['totalrows'] >= max_rows)
-        return {'ok': True, 'data': rows, 'info': info}
+        rows, attrs = site.dummyPage.app.getSelection(
+            table=table, recordResolver=False,
+            output_mode='dictlist', **kwargs)
+        if kwargs.get('countOnly'):
+            rows = []
+        total = attrs.get('totalrows', 0)
+        return {
+            'ok': True,
+            'data': rows,
+            'info': {
+                'totalrows': total,
+                'limit_applied': kwargs['limit'],
+                'more': total >= kwargs['limit'],
+                'servertime_ms': attrs.get('servertime') or int(
+                    (time.monotonic() - t0) * 1000),
+                'error': None,
+            },
+        }
     except Exception as e:
-        info['error'] = str(e)
-        info['servertime_ms'] = int((time.monotonic() - t0) * 1000)
-        return {'ok': False, 'data': [], 'info': info}
+        return {
+            'ok': False,
+            'data': [],
+            'info': {
+                'error': str(e),
+                'servertime_ms': int((time.monotonic() - t0) * 1000),
+            },
+        }
 
 
 def build_relationtree_response(db, table=None, ticket_code=None):

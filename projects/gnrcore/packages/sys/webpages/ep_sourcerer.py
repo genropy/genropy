@@ -54,7 +54,7 @@ class GnrCustomWebPage(object):
             return {'ok': False, 'ticket_code': ticket_code,
                     'info': info_base, 'data': []}
 
-        result = run_query(self.db, app=self.app, **kwargs)
+        result = run_query(self.site, **kwargs)
         # merge endpoint metadata into info
         result_info = result.get('info') or {}
         result_info['endpoint'] = 'rpc_query'
