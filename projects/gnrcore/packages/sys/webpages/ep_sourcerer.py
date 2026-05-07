@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
 from gnr.core.gnrdecorator import public_method
-from gnr.core.gnrbag import Bag
+from gnr.core.gnrstring import toTypedJSON
+from gnr.web.gnrwebpage import GnrUserNotAllowed, GnrBasicAuthenticationError
 from gnr.web.verifiers import AuthorizationBearerVerifier
 
 from gnrpkg.sys.sourcerer_endpoint import (
@@ -19,10 +20,29 @@ class SourcererBearerVerifier(AuthorizationBearerVerifier):
 
 class GnrCustomWebPage(object):
     py_requires = 'gnrcomponents/externalcall:BaseRpc'
+    convert_result = False
+
+    def rootPage(self, *args, **kwargs):
+        kwargs.pop('pagetemplate', None)
+        if args:
+            try:
+                method = self.getPublicMethod('rpc', args[0])
+            except (GnrUserNotAllowed, GnrBasicAuthenticationError) as err:
+                self.response.content_type = 'application/json'
+                return toTypedJSON({'error': str(err)})
+            if not method:
+                self.response.content_type = 'application/json'
+                return toTypedJSON({'error': f'Not existing method {args[0]}'})
+            args = list(args)[1:]
+        else:
+            method = self.rpc_index
+        result = method(*args, **kwargs)
+        self.response.content_type = 'application/json'
+        return toTypedJSON(result)
 
     @public_method(verifier=SourcererBearerVerifier)
     def rpc_health(self, **kwargs):
-        return Bag(dict(result='ok'))
+        return {'result': 'ok'}
 
     @public_method(verifier=SourcererBearerVerifier)
     def rpc_query(self, ticket_code=None, **kwargs):
