@@ -423,16 +423,16 @@ class Server(object):
         Skipped when running from the werkzeug reloader child to avoid
         spawning two gnrasync processes.
         """
-        gnrasync_bin = shutil.which('gnrasync')
-        if not gnrasync_bin:
-            logger.error('gnrasync entrypoint not found on PATH; --async-port disabled')
+        gnr_bin = shutil.which('gnr')
+        if not gnr_bin:
+            logger.error("'gnr' entrypoint not found on PATH; --async-port disabled")
             return
         try:
-            child = subprocess.Popen([gnrasync_bin, site_name, '-p', str(async_port)])
+            child = subprocess.Popen([gnr_bin, 'web', 'async', site_name, '-p', str(async_port)])
         except Exception:
-            logger.exception('failed to spawn gnrasync subprocess')
+            logger.exception('failed to spawn gnr web async subprocess')
             return
-        logger.info('gnrasync subprocess started (pid=%s) for instance %s on port %s',
+        logger.info('gnr web async subprocess started (pid=%s) for instance %s on port %s',
                     child.pid, site_name, async_port)
 
         def _cleanup():

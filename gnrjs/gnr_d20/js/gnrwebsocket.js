@@ -29,14 +29,20 @@ dojo.declare("gnr.GnrWebSocketHandler", null, {
     constructor: function(application, wsroot, options) {
         this.application = application;
         this.wsroot=wsroot;
-        var protocol = window.location.protocol=='https:'?'wss://':'ws://';
-        var host = window.location.hostname;
-        var port = (options && options.port) ? options.port : window.location.port;
-        this.url = protocol + host + (port ? ':' + port : '') + wsroot;
+        var endpoint = options && options.endpoint;
+        if (endpoint && (endpoint.indexOf('ws://')===0 || endpoint.indexOf('wss://')===0)) {
+            // full URL — async server reachable from a different origin/container
+            this.url = endpoint.replace(/\/$/, '') + wsroot;
+        } else {
+            var protocol = window.location.protocol=='https:'?'wss://':'ws://';
+            var host = window.location.hostname;
+            var port = endpoint || window.location.port;
+            this.url = protocol + host + (port ? ':' + port : '') + wsroot;
+        }
         this.options=objectUpdate({ debug: false, reconnectInterval: 4000, ping_time:1000 },
                                   options);
         this.waitingCalls={};
-        
+
     },
     create:function(){
         if (this.wsroot){

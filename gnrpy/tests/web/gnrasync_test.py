@@ -13,12 +13,6 @@ import urllib.parse
 
 import pytest
 
-if sys.platform == 'win32':
-    pytest.skip(
-        'gnrasync requires AF_UNIX sockets which are not fully supported on Windows',
-        allow_module_level=True,
-    )
-
 import aiohttp
 from unittest.mock import MagicMock, patch
 
@@ -173,6 +167,10 @@ async def test_shared_object_subscribe_and_datachange(tmp_path):
         await run_task
 
 
+@pytest.mark.skipif(
+    sys.platform == 'win32',
+    reason='AF_UNIX sockets not supported on Windows',
+)
 @pytest.mark.asyncio
 async def test_unix_sockets_created(tmp_path):
     server, _ = _build_server(tmp_path, PORT_BASE + 4)

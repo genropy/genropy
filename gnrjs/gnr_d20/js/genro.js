@@ -75,7 +75,7 @@ dojo.declare('gnr.GenroClient', null, {
         });
         //this.debug_py = kwargs.startArgs.debug_py;
         this.websockets_url = objectPop(kwargs.startArgs,'websockets_url');
-        this.websockets_port = objectPop(kwargs.startArgs,'websockets_port');
+        this.websockets_endpoint = objectPop(kwargs.startArgs,'websockets_endpoint');
         this.pageMode = kwargs.pageMode;
         this.pageModule = kwargs.pageModule;
         this.baseUrl = kwargs.baseUrl;
@@ -225,7 +225,7 @@ dojo.declare('gnr.GenroClient', null, {
 
         this.dom = new gnr.GnrDomHandler(this);
         this.vld = new gnr.GnrValidator(this);
-        this.wsk = new gnr.GnrWebSocketHandler(this,this.websockets_url,{debug:false, port:this.websockets_port});
+        this.wsk = new gnr.GnrWebSocketHandler(this,this.websockets_url,{debug:false, endpoint:this.websockets_endpoint});
         this.som = new gnr.GnrSharedObjectHandler(this);  
        //var onerrorcb = function(errorMsg,url,linenumber){
        //    genro.onError(errorMsg,url,linenumber);
