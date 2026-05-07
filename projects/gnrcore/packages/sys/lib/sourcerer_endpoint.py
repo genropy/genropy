@@ -194,6 +194,7 @@ def run_query(db, table=None, count_only=False,
             # output_mode='dictlist' makes getSelection return a flat
             # list of dicts directly (no Bag wrapping), so no manual
             # post-processing is needed.
+            kwargs.setdefault('addPkeyColumn', False)
             rows, attrs = app.getSelection(
                 table=table, recordResolver=False,
                 output_mode='dictlist', **kwargs)
