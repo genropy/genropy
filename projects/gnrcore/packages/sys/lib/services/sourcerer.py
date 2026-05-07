@@ -37,11 +37,12 @@ class SourcererClient:
 
     def request_registration(self, host, name, callback_url):
         callback_token = secrets.token_urlsafe()
-        data = self._request('srv/request_server_registration',
-                             payload={'host': host, 'name': name,
-                                      'callback_url': callback_url,
-                                      'callback_token': callback_token},
-                             authenticated=False)
+        response = self._request('srv/request_server_registration',
+                                 payload={'host': host, 'name': name,
+                                          'callback_url': callback_url,
+                                          'callback_token': callback_token},
+                                 authenticated=False)
+        data = response.get('data') or {}
         return {
             'token': callback_token,
             'sourcerer_token': data.get('token', '')
