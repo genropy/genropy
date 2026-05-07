@@ -141,7 +141,8 @@ class GetSelectionMixin:
                      gridVisibleColumns: Optional[str] = None,
                      formulaVariants: Optional[Bag] = None,
                      countOnly: bool = False,
-                     **kwargs: Any) -> tuple[Bag, dict]:
+                     output_mode: Optional[str] = None,
+                     **kwargs: Any) -> tuple[Any, dict]:
         """Load a selection of records for grid display.
 
         This is the primary entry point for all grid data loading.
@@ -324,6 +325,9 @@ class GetSelectionMixin:
             resultAttributes.update(table=table, method='app.getSelection', selectionName=selectionName,
                                     row_count=row_count,
                                     totalrows=len(selection))
+        if output_mode is not None:
+            return selection.output(mode=output_mode, offset=row_start,
+                                    limit=row_count, formats=formats), resultAttributes
         generator = selection.output(mode='generator', offset=row_start, limit=row_count, formats=formats)
         _addClassesDict = dict([(k, v['_addClass']) for k, v in list(selection.colAttrs.items()) if '_addClass' in v])
         data = self.gridSelectionData(selection, generator, logicalDeletionField=tblobj.logicalDeletionField,

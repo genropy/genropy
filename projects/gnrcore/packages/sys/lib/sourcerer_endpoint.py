@@ -190,17 +190,15 @@ def run_query(db, table=None, count_only=False,
     t0 = time.monotonic()
     try:
         if app is not None:
-            # Web context: rich getSelection (preserves virtual cols)
-            data_bag, attrs = app.getSelection(
-                table=table, recordResolver=False, **kwargs)
-            rows = []
-            if not count_only:
-                for k in data_bag.keys():
-                    node = data_bag.getNode(k)
-                    row = dict(node.attr)
-                    row.pop('_customClasses', None)
-                    row.pop('_attributes', None)
-                    rows.append(row)
+            # Web context: rich getSelection (preserves virtual cols).
+            # output_mode='dictlist' makes getSelection return a flat
+            # list of dicts directly (no Bag wrapping), so no manual
+            # post-processing is needed.
+            rows, attrs = app.getSelection(
+                table=table, recordResolver=False,
+                output_mode='dictlist', **kwargs)
+            if count_only:
+                rows = []
             info['totalrows'] = attrs.get('totalrows', 0)
             info['servertime_ms'] = attrs.get('servertime')
         else:
