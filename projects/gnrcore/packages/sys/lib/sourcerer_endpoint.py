@@ -144,7 +144,7 @@ def run_query(site, table=None,
     Returns:
         ``{'ok': bool, 'data': list[dict], 'info': {...}}``
     """
-    kwargs['limit'] = min(kwargs.get('limit') or max_rows, max_rows)
+    kwargs['limit'] = min(int(kwargs.get('limit') or max_rows), max_rows)
     kwargs.setdefault('addPkeyColumn', False)
 
     _apply_statement_timeout(site.db, statement_timeout_ms)
