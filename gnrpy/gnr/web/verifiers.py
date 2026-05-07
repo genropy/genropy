@@ -48,8 +48,11 @@ class AuthorizationBearerVerifier(GnrVerifier):
 
     def get_bearer(self):
         """Extract the bearer token from the Authorization header.
+        Falls back to X-GNR-Authorization when the standard header is
+        missing (e.g. stripped by Tailscale Funnel or other proxies).
         Returns the token string or None if missing/invalid."""
-        auth_header = self.page.request.headers.get('Authorization', '')
+        auth_header = self.page.request.headers.get('Authorization') \
+            or self.page.request.headers.get('X-GNR-Authorization', '')
         if not auth_header.startswith('Bearer '):
             return None
         return auth_header[7:]
