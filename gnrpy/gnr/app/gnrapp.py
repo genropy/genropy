@@ -35,6 +35,7 @@ import time
 from datetime import datetime
 import glob
 import subprocess
+from urllib.parse import urlparse, unquote
 from collections import defaultdict
 from email.mime.text import MIMEText
 
@@ -959,7 +960,18 @@ class GnrApp(object):
                     instance_config.update(normalizePackages(self.gnr_config['gnr.instanceconfig.%s_xml' % instance_template]) or Bag())
         instance_config.update(base_instance_config, preservePattern=re.compile(r'^[\$\{]'))
         return instance_config
-        
+
+    def dsn_to_config(self, dsn: str) -> dict:
+        parsed = urlparse(dsn)
+        return {
+            'implementation': parsed.scheme,
+            'host': parsed.hostname,
+            'port': str(parsed.port),
+            'user': unquote(parsed.username) if parsed.username else None,
+            'password': unquote(parsed.password) if parsed.password else None,
+            'dbname': parsed.path.lstrip('/'),
+        }
+    
     def init(self, db_attrs=None, restorepath=None):
         """Initiate a :class:`GnrApp`
 
@@ -983,6 +995,7 @@ class GnrApp(object):
 
         dbattrs = dict(self.config.getAttr('db') or {})
         dbattrs['implementation'] = dbattrs.get('implementation') or 'sqlite'
+
         if db_attrs:
             dbattrs.update(db_attrs)
         elif dbattrs.get('dbname') == '_dummydb':
@@ -1003,6 +1016,14 @@ class GnrApp(object):
             dbattrs['dbname'] = dbname
 
         dbattrs['application'] = self
+        
+        # GNR_DB_DSN env var contains a DSN, and it can be
+        # used to override any configuration at runtime.
+        # use case: temporary database tunnel, to run an app
+        # locally by using a remote database of choice.
+        if gnr_db_dsn := os.environ.get("GNR_DB_DSN", None):
+            dbattrs.update(self.dsn_to_config(gnr_db_dsn))
+
         self.db = GnrSqlAppDb(debugger=getattr(self, 'sqlDebugger', None), **dbattrs)
 
         for pkgid, apppkg in list(self.packages.items()):

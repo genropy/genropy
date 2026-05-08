@@ -82,10 +82,6 @@ class GnrHtmlSrc(GnrStructData):
         """Creates a ``<style>`` tag"""
         self.root.builder.head.child('style', content=style, **kwargs)
         
-    def comment(self, content=None):
-        """Creates an HTML comment tag (``<!-- -->``)"""
-        self.child(tag='__flatten__', content='<!--%s-->' % content)
-        
     def script(self, script='', _type="text/javascript", **kwargs):
         """Creates a ``<script>`` tag"""
         self.root.builder.head.child('script', content=script, _type=_type, **kwargs)
@@ -105,12 +101,16 @@ class GnrHtmlSrc(GnrStructData):
             _attributes['http-equiv'] = http_equiv
         self.root.builder.head.child('meta', name=name, _content=content, _attributes=_attributes, **kwargs)
         
+    def comment(self, text):
+        """Emit an HTML comment: ``<!-- text -->``."""
+        return self.child(tag='__flatten__', content='<!-- %s -->' % text)
+
     def child(self, tag, *args, **kwargs):
         """TODO"""
         for lbl in ['_class', 'class_', '_type', 'type_', '_for', 'for_']:
             if lbl in kwargs:
                 kwargs[lbl.replace('_', '')] = kwargs.pop(lbl)
-                
+
         #if 'name' in kwargs:
         #    kwargs['_name'] = kwargs.pop('name')
         return super(GnrHtmlSrc, self).child(tag, *args, **kwargs)

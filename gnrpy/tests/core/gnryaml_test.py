@@ -140,3 +140,26 @@ def test_explicit_start_opt_in():
     b.set('k', 'v')
     out = b.toYaml(explicit_start=True)
     assert out.startswith('---\n')
+
+
+def test_mapping_helper():
+    b = GnrYamlBuilder()
+    services = b.mapping('services')
+    services.set('name', 'genro')
+    assert yaml.safe_load(b.toYaml()) == {'services': {'name': 'genro'}}
+
+
+def test_sequence_helper():
+    b = GnrYamlBuilder()
+    items = b.sequence('items')
+    items.append('a').append('b')
+    assert yaml.safe_load(b.toYaml()) == {'items': ['a', 'b']}
+
+
+def test_mapping_sequence_inside_sequence():
+    b = GnrYamlBuilder(kind='sequence')
+    inner_map = b.mapping()
+    inner_map.set('k', 'v')
+    inner_seq = b.sequence()
+    inner_seq.append(1).append(2)
+    assert yaml.safe_load(b.toYaml()) == [{'k': 'v'}, [1, 2]]
