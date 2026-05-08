@@ -1362,10 +1362,15 @@ dojo.declare("gnr.widgets.proseMirrorEditor", gnr.widgets.baseExternalWidget, {
             listKeys['Mod-['] = PM.liftListItem(schema.nodes.list_item);
             listKeys['Mod-]'] = PM.sinkListItem(schema.nodes.list_item);
         }
+        var markKeys = {};
+        if(schema.marks.strong){ markKeys['Mod-b'] = PM.toggleMark(schema.marks.strong); }
+        if(schema.marks.em){ markKeys['Mod-i'] = PM.toggleMark(schema.marks.em); }
+        if(schema.marks.code){ markKeys['Mod-`'] = PM.toggleMark(schema.marks.code); }
         var historyKeys = {'Mod-z': PM.undo, 'Mod-y': PM.redo, 'Mod-Shift-z': PM.redo};
         plugins.push(PM.history());
         plugins.push(PM.keymap(historyKeys));
         plugins.push(PM.keymap(listKeys));
+        plugins.push(PM.keymap(markKeys));
         plugins.push(PM.keymap(PM.baseKeymap));
         plugins.push(PM.inputRules({rules: rules}));
         plugins.push(PM.dropCursor());

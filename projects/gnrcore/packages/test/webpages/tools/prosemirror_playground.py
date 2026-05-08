@@ -152,9 +152,11 @@ class GnrCustomWebPage(object):
                      font_weight='bold', font_size='0.85em',
                      padding_top='10px', color='#555')
         bag_row = controls.div(padding_top='4px')
-        bag_row.button('Simple bag', action='FIRE .loadBagSimple;',
+        bag_row.button('Simple bag',
+                       action="SET .config.format = 'bag'; FIRE .loadBagSimple;",
                        margin_right='4px')
-        bag_row.button('Formatted bag', action='FIRE .loadBagFormatted;')
+        bag_row.button('Formatted bag',
+                       action="SET .config.format = 'bag'; FIRE .loadBagFormatted;")
         controls.dataRpc('.source', 'load_bag_sample', name='simple',
                          _fired='^.loadBagSimple')
         controls.dataRpc('.source', 'load_bag_sample', name='formatted',
