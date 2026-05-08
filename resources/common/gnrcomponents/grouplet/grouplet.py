@@ -617,3 +617,124 @@ class GroupletHandler(BaseComponent):
         resmodule = gnrImport(info_node.attr['abs_path'],
                               avoid_module_cache=True)
         return self._get_raw_info(resmodule)
+
+
+class GroupletGridHandler(BaseComponent):
+    css_requires = 'gnrcomponents/grouplet/grouplet'
+    js_requires = 'gnrcomponents/grouplet/grouplet'
+
+    @public_method
+    def gr_getGroupletGridTemplate(self, resource=None, handler=None,
+                                   table=None, grouplets_root=None,
+                                   grouplet_kwargs=None,
+                                   _inheritedAttributes=None, **kwargs):
+        grouplets_root = grouplets_root or 'grouplets'
+        cell_kw = dict(grouplet_kwargs or {})
+        for k in list(cell_kw.keys()):
+            if k.endswith('_path'):
+                cell_kw[k[0:-5]] = cell_kw.pop(k)[1:]
+        if resource:
+            handlername = handler or 'grouplet_main'
+            res = resource if ':' in resource else f'{resource}:Grouplet'
+            if table:
+                self.mixinTableResource(
+                    table, f'{grouplets_root}/{res}', safeMode=True)
+            else:
+                self.mixinComponent(f'{grouplets_root}/{res}')
+            handler_fn = getattr(self, handlername)
+        elif handler:
+            handler_fn = self.getPublicMethod('remote', handler)
+        else:
+            raise self.exception(
+                'generic',
+                msg='groupletGrid: missing resource or handler for template')
+        pane = self.newSourceRoot(_inheritedAttributes)
+        self._root = pane
+        handler_fn(pane, **cell_kw)
+        return pane
+
+    @extract_kwargs(grouplet=dict(slice_prefix=False, pop=True))
+    @struct_method
+    def gr_groupletGrid(self, pane, storepath=None,
+                        resource=None, handler=None,
+                        table=None, grouplets_root=None,
+                        cols=1, min_width=None, gap='12px',
+                        addEnabled=False, removeEnabled=False,
+                        reorderEnabled=False,
+                        minRows=0, maxRows=None,
+                        emptyMessage=None, defaultRow=None,
+                        grouplet_kwargs=None, **kwargs):
+        gridId = kwargs.pop('gridId', None) or f'grpgrid_{id(pane)}'
+        body_id = f'{gridId}_body'
+        empty_id = f'{gridId}_empty'
+        addbtn_id = f'{gridId}_addbtn'
+        if not (resource or handler):
+            raise self.exception(
+                'generic',
+                msg='groupletGrid: missing resource or handler')
+        handler_name = handler.__name__ if callable(handler) else handler
+        container = pane.div(
+            _class='grouplet_grid_container',
+            nodeId=gridId,
+            storepath=storepath,
+            **kwargs)
+        body_datapath = (storepath or '').replace('^', '')
+        container.div(_class='grouplet_grid_body',
+                      nodeId=body_id,
+                      datapath=body_datapath)
+        # Empty state card lives outside the body so it's not part of the grid layout
+        empty_card = container.div(_class='grouplet_grid_empty',
+                                   nodeId=empty_id,
+                                   hidden=True)
+        empty_card.div(emptyMessage or '!!No rows yet — click below to add the first one.',
+                       _class='grouplet_grid_empty_message')
+        if addEnabled:
+            add_action = (f"genro.nodeById('{gridId}')"
+                          ".gridController.addRowAction();")
+            container.lightButton(
+                '!!Add row',
+                _class='grouplet_grid_footer',
+                nodeId=addbtn_id,
+                action=add_action)
+        container.dataController("""
+            var node = genro.nodeById(_gridId);
+            if (node && !node.gridController) {
+                node.gridController = new gnr.GroupletGridController(node, {
+                    bodyNodeId: _bodyNodeId,
+                    gridId: _gridId,
+                    resource: _resource,
+                    handler: _handler,
+                    table: _table,
+                    grouplets_root: _grouplets_root,
+                    grouplet_kw: _grouplet_kw,
+                    cols: _cols,
+                    min_width: _min_width,
+                    gap: _gap,
+                    addEnabled: _addEnabled,
+                    removeEnabled: _removeEnabled,
+                    defaultRow: _defaultRow,
+                    minRows: _minRows,
+                    maxRows: _maxRows,
+                    emptyNodeId: _emptyNodeId,
+                    addBtnNodeId: _addBtnNodeId
+                });
+            }
+        """, _onBuilt=True,
+            _gridId=gridId,
+            _bodyNodeId=body_id,
+            _resource=resource,
+            _handler=handler_name,
+            _table=table,
+            _grouplets_root=grouplets_root,
+            _grouplet_kw=grouplet_kwargs or {},
+            _cols=int(cols),
+            _min_width=min_width,
+            _gap=gap,
+            _addEnabled=addEnabled,
+            _removeEnabled=removeEnabled,
+            _defaultRow=defaultRow,
+            _minRows=minRows,
+            _maxRows=maxRows,
+            _emptyNodeId=empty_id,
+            _addBtnNodeId=addbtn_id)
+        return container

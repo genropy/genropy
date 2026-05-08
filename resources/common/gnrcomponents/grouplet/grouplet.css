@@ -192,3 +192,197 @@
 .grplt_status_error .multibutton_selected.multibutton {
     border-bottom-color: var(--status-error, #E53935);
 }
+
+/* --- Grouplet Grid --- */
+.grouplet_grid_container {
+    --gg-accent: var(--accent-color, #007AFF);
+    --gg-danger: var(--status-error, #E53935);
+    --gg-border: var(--border-color, #e5e7eb);
+    --gg-surface: var(--surface-bg, #fff);
+    --gg-surface-alt: var(--surface-alt, #f9fafb);
+    --gg-text-muted: var(--text-secondary, #6b7280);
+    margin: 6px 0;
+}
+
+/* Body: stack verticale di default. */
+.grouplet_grid_body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+}
+
+/* Quando il container ha .gg-responsive (settato dal JS quando l'autore
+   ha passato min_width + cols>1), il body diventa una CSS-grid responsiva.
+   --gg-cols, --gg-min-width, --gg-gap sono custom properties settate inline
+   sul container. */
+.grouplet_grid_container.gg-responsive .grouplet_grid_body {
+    display: grid;
+    gap: var(--gg-gap, 12px);
+    grid-template-columns: repeat(auto-fill,
+                                  minmax(var(--gg-min-width, 280px), 1fr));
+    max-width: calc(var(--gg-cols, 1) * var(--gg-min-width, 280px)
+                    + (var(--gg-cols, 1) - 1) * var(--gg-gap, 12px));
+}
+
+/* --- Row blocchetto card --- */
+.grouplet_grid_row {
+    position: relative;
+    padding: 12px 36px 12px 14px;
+    background: var(--gg-surface);
+    border: 1px solid var(--gg-border);
+    border-radius: var(--radius-md);
+    transition: background-color 160ms ease,
+                border-color 160ms ease,
+                outline-color 160ms ease;
+    animation: ggRowFadeIn 200ms ease both;
+}
+
+.grouplet_grid_row:hover {
+    background: var(--gg-surface-alt);
+}
+
+/* Stato focus-within: un widget interno ha il focus → bordo accent */
+.grouplet_grid_row:focus-within {
+    border-color: var(--accent-color);
+    outline: 2px solid var(--accent-color);
+    outline-offset: 1px;
+}
+
+/* Stato selected: applicato via JS (gridController.selectRow) */
+.grouplet_grid_row.selected {
+    border-color: var(--accent-color);
+    background: var(--surface-light, var(--gray-50));
+}
+
+.grouplet_grid_row.selected:focus-within {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 1px;
+}
+
+@keyframes ggRowFadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: none; }
+}
+
+/* --- Remove handle (✕) --- */
+.grouplet_grid_remove_btn {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    transform: translateY(-50%) scale(0.92);
+    width: 22px;
+    height: 22px;
+    border-radius: var(--radius-full, 50%);
+    background: transparent;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 160ms ease, transform 160ms ease,
+                background-color 160ms ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.grouplet_grid_remove_btn::before {
+    content: '';
+    width: 12px;
+    height: 12px;
+    background-color: var(--gg-text-muted);
+    -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M3.6 3.6a1 1 0 0 1 1.4 0L8 6.6l3-3a1 1 0 1 1 1.4 1.4L9.4 8l3 3a1 1 0 1 1-1.4 1.4l-3-3-3 3a1 1 0 0 1-1.4-1.4l3-3-3-3a1 1 0 0 1 0-1.4z'/></svg>") center / contain no-repeat;
+            mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M3.6 3.6a1 1 0 0 1 1.4 0L8 6.6l3-3a1 1 0 1 1 1.4 1.4L9.4 8l3 3a1 1 0 1 1-1.4 1.4l-3-3-3 3a1 1 0 0 1-1.4-1.4l3-3-3-3a1 1 0 0 1 0-1.4z'/></svg>") center / contain no-repeat;
+    transition: background-color 160ms ease;
+}
+
+.grouplet_grid_row:hover .grouplet_grid_remove_btn {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+}
+
+.grouplet_grid_remove_btn:hover {
+    background: rgba(229, 57, 53, 0.12);
+}
+
+.grouplet_grid_remove_btn:hover::before {
+    background-color: var(--gg-danger);
+}
+
+/* --- Phantom row (footer "+ Add row" — looks like a future row) --- */
+.grouplet_grid_footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 14px;
+    margin-top: 12px;
+    background: var(--gg-surface-alt);
+    border: 1px dashed var(--gg-border);
+    border-radius: var(--radius-md);
+    color: var(--gg-text-muted);
+    font-size: 0.92em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 160ms ease, color 160ms ease,
+                border-color 160ms ease;
+    user-select: none;
+}
+
+.grouplet_grid_footer::before {
+    content: '';
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border-radius: var(--radius-full, 50%);
+    border: 1.5px dashed currentColor;
+    background-color: transparent;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='%236b7280' d='M8 3.5a.75.75 0 0 1 .75.75v3h3a.75.75 0 0 1 0 1.5h-3v3a.75.75 0 0 1-1.5 0v-3h-3a.75.75 0 0 1 0-1.5h3v-3A.75.75 0 0 1 8 3.5z'/></svg>");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 12px 12px;
+    transition: border-color 160ms ease, background-color 160ms ease,
+                transform 160ms ease;
+}
+
+.grouplet_grid_footer:hover {
+    background: var(--gg-surface);
+    color: var(--gg-accent);
+}
+
+.grouplet_grid_footer:hover::before {
+    border-style: solid;
+    border-color: var(--gg-accent);
+    background-color: var(--gg-accent);
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='white' d='M8 3.5a.75.75 0 0 1 .75.75v3h3a.75.75 0 0 1 0 1.5h-3v3a.75.75 0 0 1-1.5 0v-3h-3a.75.75 0 0 1 0-1.5h3v-3A.75.75 0 0 1 8 3.5z'/></svg>");
+    transform: rotate(90deg);
+}
+
+.grouplet_grid_footer.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+/* Hide redundant inner add btn — whole footer is clickable */
+.grouplet_grid_add_btn {
+    display: none;
+}
+
+/* --- Empty-state phantom row (taller, message inline) --- */
+.grouplet_grid_empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 28px 14px;
+    background: var(--gg-surface);
+    border: 1px dashed var(--gg-border);
+    border-radius: var(--radius-md);
+    color: var(--gg-text-muted);
+    font-size: 0.95em;
+    font-style: italic;
+    text-align: center;
+    cursor: default;
+}
+
+.grouplet_grid_empty_message {
+    flex: 0 1 auto;
+}
