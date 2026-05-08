@@ -28,6 +28,12 @@ class _Connection(object):
     def stat(self, path):
         return self._sftp.stat(path)
 
+    def remove(self, remotepath):
+        self._sftp.remove(remotepath)
+
+    # alias, to maintain interface
+    unlink = remove
+
     def get(self, remotepath, localpath, callback=None, preserve_mtime=False):
         self._sftp.get(remotepath, localpath, callback=callback)
         if preserve_mtime:

@@ -1,3 +1,37 @@
+Unreleased
+==========
+
+Bugfixes
+--------
+
+* PDF watermark service: fix ``code=4: source object number out of
+  range`` when ``watermarkedPDF`` is applied to PDFs saved with
+  multiple incremental xref generations (e.g. macOS Preview
+  annotations, PAdES signatures). The source PDF is now normalized
+  with ``garbage=4, clean=True, deflate=True`` before the watermark
+  is composed, following the official PyMuPDF workaround. No
+  backward-compatibility impact: PDFs that already had a single xref
+  generation are unaffected. (#872)
+* dbSelect: the ``notnull`` parameter is now honored client-side. It
+  was silently overwritten by ``validate_notnull`` in
+  ``DynamicBaseCombo.creating()``, coupling the two flags and forcing
+  callers who only wanted to suppress the empty option row to also
+  make the field mandatory. With the fix, ``notnull=True`` on the
+  widget removes the empty row without triggering required-field
+  validation, as documented in the server-side handler. No
+  backward-compatibility impact: when only ``validate_notnull`` is
+  set the behavior is unchanged. (#883)
+
+  
+Release 26.05.05
+================
+
+New features
+------------
+
+* paramiko based sftp service now implementes remove()/unlink() method
+  in order to remove remote files. (#848,#868)
+
 Release 26.04.30
 ================
 

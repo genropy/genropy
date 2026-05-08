@@ -95,6 +95,10 @@ class Service(PdfService):
         for docpath in documents:
             with self.parent.storageNode(docpath).open('rb') as f:
                 srcdoc = fitz.open('pdf',f.read())
+                # rewrite xref to one clean generation: incremental-saved
+                # PDFs (macOS Preview, PAdES signatures, ...) otherwise make
+                # the later insert_pdf raise 'source object number out of range'
+                srcdoc = fitz.open('pdf', srcdoc.tobytes(garbage=4, clean=True, deflate=True))
                 tmpdoc = BytesIO()
                 for page in srcdoc:
                     yield page

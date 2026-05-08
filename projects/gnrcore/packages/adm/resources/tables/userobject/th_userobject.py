@@ -28,6 +28,9 @@ class View(BaseComponent):
 
     def th_order(self):
         return 'code'
+    
+    def th_query(self):
+        return dict(column='code', op='contains', val='')
 
     def th_options(self):
         return dict(virtualStore=False,addrow=False)
@@ -55,7 +58,7 @@ class View(BaseComponent):
                 dict(code='is_mail',caption='!!Mail', condition="$is_mail IS TRUE"),
                 dict(code='is_print',caption='!!Print', condition="$is_print IS TRUE"),
                 dict(code='is_row',caption='!!Row', condition="$is_row IS TRUE"),
-                dict(code='all_flags',caption='!!All flags', condition="$flags IS NOT NULL")]
+                dict(code='any',caption='!!Any', condition="$flags IS NOT NULL")]
 
     def th_sections_systemuserobject(self):
         return [dict(code='standard',caption='!!Standard',
@@ -89,7 +92,7 @@ class View_rpcquery(View_query):
         r.fieldcell('userid',width='6em')
         
         
-class ViewTemplate(View):
+class View_template(View):
     
     def th_top_custom(self,top):
         top.slotToolbar('2,sections@flags,*',childname='upper',_position='<bar')
@@ -161,7 +164,7 @@ class Form(BaseComponent):
         fb.field('tbl', hasDownArrow=True)
         fb.field('private')
         fb.field('authtags', tag='checkBoxText', lbl='!![en]Auth Tags',
-                 table='adm.htag', popup=True)
+                 table='adm.htag', alternatePkey='authorization_tag', popup=True)
         
         fb.field('flags', tag='checkBoxText', lbl='!![en]Flags',
                  values='is_print:[!![en]Print],is_row:[!![en]Row],is_mail:[!![en]Mail]',
@@ -195,7 +198,8 @@ class Form_query(Form):
         fb.field('code')
         fb.field('description')
         fb.field('notes')
-        fb.field('authtags')
+        fb.field('authtags', tag='checkBoxText', lbl='!![en]Auth Tags',
+                 table='adm.htag', alternatePkey='authorization_tag', popup=True)
         fb.field('private')
         fb.field('quicklist')
         
@@ -299,9 +303,9 @@ class FormCustomColumn(BaseComponent):
                     duplicate=True)
 
 
-class FormTemplate(Form):
-    
-     def th_options(self):
-        return dict(default_objtype='template', 
+class Form_template(Form):
+
+    def th_options(self):
+        return dict(default_objtype='template',
                     duplicate=True,
                     defaultPrompt=self.addUserObjectPrompt())
