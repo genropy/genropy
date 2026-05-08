@@ -193,15 +193,66 @@
     border-bottom-color: var(--status-error, #E53935);
 }
 
-/* --- Grouplet Grid --- */
+/* --- Grouplet Grid ---
+   Theme tokens. The widget defers to the design-system tokens
+   (--accent-color, --status-error, ...) and falls back to neutral
+   grays. Soft-tints (--gg-accent-soft, --gg-danger-soft) are used
+   for hover backgrounds: they are explicit named tokens (not
+   color-mix or rgba) so each theme can override them coherently. */
 .grouplet_grid_container {
     --gg-accent: var(--accent-color, #007AFF);
+    --gg-accent-soft: var(--accent-soft, #e6f2ff);
     --gg-danger: var(--status-error, #E53935);
+    --gg-danger-soft: var(--status-error-soft, #fdeceb);
     --gg-border: var(--border-color, #e5e7eb);
     --gg-surface: var(--surface-bg, #fff);
     --gg-surface-alt: var(--surface-alt, #f9fafb);
     --gg-text-muted: var(--text-secondary, #6b7280);
     margin: 6px 0;
+}
+
+/* Wrapper CSS-grid with named slot areas. The container is a grid;
+   slot children sit in fixed grid-area cells. The body and empty card
+   share the 'center' area. Empty slots are hidden via .has-* classes
+   set by the JS controller (collapses the corresponding grid track). */
+.grouplet_grid {
+    display: grid;
+    grid-template-areas:
+        "left top    right"
+        "left center right"
+        "left bottom right";
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-columns: 0 minmax(0, 1fr) 0;
+}
+
+.grouplet_grid.has-left  { grid-template-columns: auto minmax(0, 1fr) 0; }
+.grouplet_grid.has-right { grid-template-columns: 0 minmax(0, 1fr) auto; }
+.grouplet_grid.has-left.has-right {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.grouplet_grid > .grouplet_grid_slot_top    { grid-area: top; }
+.grouplet_grid > .grouplet_grid_slot_bottom { grid-area: bottom; }
+.grouplet_grid > .grouplet_grid_slot_left   { grid-area: left; }
+.grouplet_grid > .grouplet_grid_slot_right  { grid-area: right; }
+.grouplet_grid > .grouplet_grid_body  { grid-area: center; }
+
+/* Hide empty slots so they don't take padding/margin or affect grid sizing. */
+.grouplet_grid:not(.has-top)    > .grouplet_grid_slot_top,
+.grouplet_grid:not(.has-bottom) > .grouplet_grid_slot_bottom,
+.grouplet_grid:not(.has-left)   > .grouplet_grid_slot_left,
+.grouplet_grid:not(.has-right)  > .grouplet_grid_slot_right {
+    display: none;
+}
+
+/* Frame mode: container has explicit height/max_height. The wrapper
+   clips overflow; the center body scrolls internally; top/bottom/left/
+   right stay anchored because they sit in non-scrolling grid cells. */
+.grouplet_grid--framed {
+    overflow: hidden;
+}
+.grouplet_grid--framed > .grouplet_grid_body {
+    overflow: auto;
 }
 
 /* Body: stack verticale di default. */
@@ -225,10 +276,13 @@
                     + (var(--gg-cols, 1) - 1) * var(--gg-gap, 12px));
 }
 
-/* --- Row blocchetto card --- */
+/* --- Row blocchetto card ---
+   Layout: position:relative + padding orizzontale per kebab (dx) e drag
+   handle (sx), entrambi posizionati assoluti centrati verticalmente.
+   Il padding evita che il contenuto del grouplet si infili sotto. */
 .grouplet_grid_row {
     position: relative;
-    padding: 12px 36px 12px 14px;
+    padding: 0.7em 2.4em 0.7em 2em;
     background: var(--gg-surface);
     border: 1px solid var(--gg-border);
     border-radius: var(--radius-md);
@@ -265,124 +319,269 @@
     to   { opacity: 1; transform: none; }
 }
 
-/* --- Remove handle (✕) --- */
-.grouplet_grid_remove_btn {
+/* --- Per-row kebab button ---
+   Vertical-centered ⋮ anchored to the right edge of the row. Plain
+   `<div>` target with a child `<menu>` widget that auto-binds via
+   `bindDomNode` (genro_widgets.js Menu `connectToParent:true`).
+   `modifiers:'*'` on the menu opens it on plain left-click.
+   Minimal styling: no background on hover, only color change on the
+   ⋮ glyph (gray → accent). Discreet by default (opacity 0.4), full
+   on row-hover. */
+.grouplet_grid_row_kebab {
     position: absolute;
     top: 50%;
-    right: 8px;
-    transform: translateY(-50%) scale(0.92);
-    width: 22px;
-    height: 22px;
-    border-radius: var(--radius-full, 50%);
-    background: transparent;
+    right: 0.4em;
+    transform: translateY(-50%);
+    width: 1.6em;
+    height: 1.6em;
+    opacity: 0.85;
     cursor: pointer;
-    opacity: 0;
-    transition: opacity 160ms ease, transform 160ms ease,
-                background-color 160ms ease;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: opacity 160ms ease;
 }
 
-.grouplet_grid_remove_btn::before {
-    content: '';
-    width: 12px;
-    height: 12px;
-    background-color: var(--gg-text-muted);
-    -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M3.6 3.6a1 1 0 0 1 1.4 0L8 6.6l3-3a1 1 0 1 1 1.4 1.4L9.4 8l3 3a1 1 0 1 1-1.4 1.4l-3-3-3 3a1 1 0 0 1-1.4-1.4l3-3-3-3a1 1 0 0 1 0-1.4z'/></svg>") center / contain no-repeat;
-            mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M3.6 3.6a1 1 0 0 1 1.4 0L8 6.6l3-3a1 1 0 1 1 1.4 1.4L9.4 8l3 3a1 1 0 1 1-1.4 1.4l-3-3-3 3a1 1 0 0 1-1.4-1.4l3-3-3-3a1 1 0 0 1 0-1.4z'/></svg>") center / contain no-repeat;
-    transition: background-color 160ms ease;
-}
-
-.grouplet_grid_row:hover .grouplet_grid_remove_btn {
+.grouplet_grid_row:hover .grouplet_grid_row_kebab,
+.grouplet_grid_row:focus-within .grouplet_grid_row_kebab {
     opacity: 1;
-    transform: translateY(-50%) scale(1);
 }
 
-.grouplet_grid_remove_btn:hover {
-    background: rgba(229, 57, 53, 0.12);
+.grouplet_grid_kebab_icon {
+    font-size: 1.6em;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--gg-text, #374151);
+    transition: color 160ms ease;
+    user-select: none;
 }
 
-.grouplet_grid_remove_btn:hover::before {
-    background-color: var(--gg-danger);
+.grouplet_grid_row_kebab:hover .grouplet_grid_kebab_icon {
+    color: var(--gg-accent);
 }
 
-/* --- Phantom row (footer "+ Add row" — looks like a future row) --- */
-.grouplet_grid_footer {
+/* --- Per-row drag handle ---
+   Symmetric counterpart to the kebab, anchored on the left edge.
+   Only rendered when the widget is configured with `dragCode`.
+   Behaviour: handle itself is `draggable=true` so dragging is initiated
+   from here without interfering with click-to-select on the row body or
+   focus/typing inside row widgets. */
+.grouplet_grid_row_drag {
+    position: absolute;
+    top: 50%;
+    left: 0.4em;
+    transform: translateY(-50%);
+    width: 1.5em;
+    height: 1.6em;
+    opacity: 0.8;
+    cursor: grab;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    padding: 12px 14px;
-    margin-top: 12px;
-    background: var(--gg-surface-alt);
-    border: 1px dashed var(--gg-border);
+    transition: opacity 160ms ease;
+    -webkit-user-drag: element;
+}
+
+.grouplet_grid_row:hover .grouplet_grid_row_drag,
+.grouplet_grid_row:focus-within .grouplet_grid_row_drag {
+    opacity: 1;
+}
+
+.grouplet_grid_row_drag:active {
+    cursor: grabbing;
+}
+
+.grouplet_grid_drag_icon {
+    font-size: 1.5em;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--gg-text, #374151);
+    user-select: none;
+}
+
+/* While the row is being dragged: subtle lift (slight scale-down +
+   reduced opacity) so the user perceives the card as "picked up".
+   The shadow goes to the drag-image clone (below); the original
+   stays in place but visibly de-emphasized. */
+.grouplet_grid_row.gg-dragging {
+    opacity: 0.5;
+    transform: scale(0.98);
+    transition: transform 160ms ease, opacity 160ms ease;
+}
+
+/* Container-level cursor when a drag is in progress (set by JS on
+   dragstart / removed on dragend). Gives consistent grabbing cursor
+   across the whole grid surface, not just the handle. */
+.grouplet_grid_container.gg-drag-active {
+    cursor: grabbing;
+}
+
+/* Drag image clone: a snapshot of the row wrapper is appended to
+   #auxDragImage on dragstart, passed to setDragImage, then removed on
+   next tick. The browser captures the snapshot synchronously, so the
+   short DOM presence is invisible in practice. We give the clone a
+   shadow so the floating preview reads as a "card lifted off the
+   page". */
+#auxDragImage > .grouplet_grid_row {
+    box-shadow: var(--shadow-lg, 0 4px 12px rgba(0,0,0,0.15));
     border-radius: var(--radius-md);
-    color: var(--gg-text-muted);
-    font-size: 0.92em;
-    font-weight: 500;
+    background: var(--surface-bg, #fff);
+}
+
+/* --- Drop target highlight ---
+   Target row: scales up slightly + thicker accent border + soft tint
+   + lift shadow. No infinite animation — the lift itself reads as
+   "this is the receiver". Same visual language as :focus-within and
+   .selected, just amplified. Transition is on the row so it eases in
+   smoothly when dragover enters and back out on dragleave. */
+.grouplet_grid_row.gg-drop-target,
+.grouplet_grid_row.gg-drop-target-invalid {
+    transform: scale(1.015);
+    box-shadow: var(--shadow-md, 0 2px 8px rgba(0,0,0,0.08));
+    transition: transform 200ms ease, box-shadow 200ms ease,
+                background-color 200ms ease, border-color 200ms ease;
+}
+
+.grouplet_grid_row.gg-drop-target {
+    background: var(--gg-accent-soft);
+    border: 2px solid var(--gg-accent);
+}
+
+/* Drop forbidden: payload comes from a non-matching dragCode (e.g.
+   another isolated grid). Same enlargement language but in danger
+   tones, plus a not-allowed cursor. The drop handler rejects the
+   payload silently. */
+.grouplet_grid_row.gg-drop-target-invalid {
+    background: var(--gg-danger-soft);
+    border: 2px solid var(--gg-danger);
+    cursor: not-allowed;
+}
+
+/* --- Just-dropped flash ---
+   The row inherits the drop-target highlight for a brief moment after
+   the drop, then transitions back to its normal state. Transitions
+   (defined on `.grouplet_grid_row` itself) handle the easing — no
+   keyframes, no bounce. Cleared by JS after ~260ms. */
+.grouplet_grid_row.gg-just-dropped {
+    background: var(--gg-accent-soft);
+    border-color: var(--gg-accent);
+    transition: background-color 260ms ease-out,
+                border-color 260ms ease-out;
+}
+
+/* --- Phantom add cell ---
+   Looks like an empty version of a row card: same size, same border
+   radius, but with a dashed border instead of solid + a big '+' glyph
+   centered. In multi-column responsive mode it occupies the next free
+   cell of the CSS grid (same `min_width`/auto-fill rules); in single
+   column it spans the whole body width. Order: 999 keeps it last in
+   flex/grid auto-flow even though it's emitted at template time before
+   the rows are added dynamically. */
+/* Sizing rationale: no fixed min-height. The phantom takes its natural
+   height from the centered '+' + padding when it's alone (or in single-
+   column flex), and stretches to match siblings automatically when it
+   shares a CSS-grid row with a row card (grid's default `align-items:
+   stretch` does the work — no JS needed). Padding is generous so even
+   the compact form has visible breathing room around the '+'. */
+.grouplet_grid_footer {
+    order: 999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.6em;
+    background: transparent;
+    border: 2px dashed var(--gg-text-muted);
+    border-radius: var(--radius-md);
+    color: var(--gg-text, #374151);
     cursor: pointer;
-    transition: background-color 160ms ease, color 160ms ease,
-                border-color 160ms ease;
+    opacity: 0.9;
+    transition: opacity 160ms ease, color 160ms ease,
+                background-color 160ms ease, border-color 160ms ease;
     user-select: none;
 }
 
 .grouplet_grid_footer::before {
-    content: '';
-    display: inline-block;
-    width: 18px;
-    height: 18px;
-    border-radius: var(--radius-full, 50%);
-    border: 1.5px dashed currentColor;
-    background-color: transparent;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='%236b7280' d='M8 3.5a.75.75 0 0 1 .75.75v3h3a.75.75 0 0 1 0 1.5h-3v3a.75.75 0 0 1-1.5 0v-3h-3a.75.75 0 0 1 0-1.5h3v-3A.75.75 0 0 1 8 3.5z'/></svg>");
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: 12px 12px;
-    transition: border-color 160ms ease, background-color 160ms ease,
-                transform 160ms ease;
+    content: '+';
+    font-size: 2em;
+    font-weight: 500;
+    line-height: 1;
+    color: inherit;
+    transition: transform 200ms ease, color 160ms ease;
 }
 
 .grouplet_grid_footer:hover {
-    background: var(--gg-surface);
+    opacity: 1;
     color: var(--gg-accent);
+    background: var(--gg-accent-soft);
+    border-color: var(--gg-accent);
 }
 
 .grouplet_grid_footer:hover::before {
-    border-style: solid;
-    border-color: var(--gg-accent);
-    background-color: var(--gg-accent);
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='white' d='M8 3.5a.75.75 0 0 1 .75.75v3h3a.75.75 0 0 1 0 1.5h-3v3a.75.75 0 0 1-1.5 0v-3h-3a.75.75 0 0 1 0-1.5h3v-3A.75.75 0 0 1 8 3.5z'/></svg>");
-    transform: rotate(90deg);
+    transform: rotate(90deg) scale(1.05);
 }
 
 .grouplet_grid_footer.disabled {
-    opacity: 0.4;
+    opacity: 0.3;
     pointer-events: none;
 }
 
-/* Hide redundant inner add btn — whole footer is clickable */
-.grouplet_grid_add_btn {
+/* lightButton normally renders a `<span>` with the label text (which
+   we explicitly leave empty); hide it so only the centered '+' shows. */
+.grouplet_grid_footer > span {
     display: none;
 }
 
-/* --- Empty-state phantom row (taller, message inline) --- */
-.grouplet_grid_empty {
+/* --- Toolbar buttons (used in slot.top for fakexcel and similar) --- */
+.gg-toolbar-btn {
+    width: 1.8em;
+    height: 1.8em;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    padding: 28px 14px;
-    background: var(--gg-surface);
-    border: 1px dashed var(--gg-border);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-sm, 4px);
     color: var(--gg-text-muted);
-    font-size: 0.95em;
-    font-style: italic;
-    text-align: center;
-    cursor: default;
+    font-size: 1.1em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 160ms ease, color 160ms ease;
+    user-select: none;
 }
 
-.grouplet_grid_empty_message {
-    flex: 0 1 auto;
+.gg-toolbar-btn:hover {
+    background: var(--gg-accent-soft);
+    color: var(--gg-accent);
+}
+
+/* --- Flat rows variant (fakexcel) --- */
+/* Stack of plain rows: no card border/radius, just a bottom separator.
+   Used to give the widget a spreadsheet-like feel when each row is a
+   row of inline widgets (e.g. excel_row grouplet). */
+.gg-flat-rows .grouplet_grid_body {
+    gap: 0;
+}
+
+.gg-flat-rows .grouplet_grid_row {
+    --gg-tool-w: 1.8em;
+    border: none;
+    border-bottom: 1px solid var(--gg-border);
+    border-radius: 0;
+    padding: 0.3em 0 0.3em 0.6em;
+    background: transparent;
+}
+
+.gg-flat-rows .grouplet_grid_row:hover {
+    background: var(--gg-surface-alt);
+}
+
+.gg-flat-rows .grouplet_grid_row:focus-within {
+    border-color: transparent;
+    border-bottom-color: var(--accent-color);
+    outline: none;
+    background: var(--gg-surface-alt);
+}
+
+.gg-flat-rows .grouplet_grid_row.selected {
+    background: var(--surface-light, var(--gray-50));
+    border-bottom-color: var(--accent-color);
+    outline: none;
 }

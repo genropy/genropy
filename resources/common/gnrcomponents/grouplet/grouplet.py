@@ -659,49 +659,84 @@ class GroupletGridHandler(BaseComponent):
                         resource=None, handler=None,
                         table=None, grouplets_root=None,
                         cols=1, min_width=None, gap='12px',
+                        height=None, max_height=None,
                         addEnabled=False, removeEnabled=False,
                         reorderEnabled=False,
+                        dragCode=None,
                         minRows=0, maxRows=None,
-                        emptyMessage=None, defaultRow=None,
-                        grouplet_kwargs=None, **kwargs):
-        gridId = kwargs.pop('gridId', None) or f'grpgrid_{id(pane)}'
-        body_id = f'{gridId}_body'
-        empty_id = f'{gridId}_empty'
-        addbtn_id = f'{gridId}_addbtn'
+                        defaultRow=None,
+                        grouplet_kwargs=None, nodeId=None, **kwargs):
+        # Accept legacy `gridId` kw as alias of `nodeId` for back-compat.
+        nodeId = nodeId or kwargs.pop('gridId', None) or f'grpgrid_{id(pane)}'
+        body_id = f'{nodeId}_body'
+        addbtn_id = f'{nodeId}_addbtn'
         if not (resource or handler):
             raise self.exception(
                 'generic',
                 msg='groupletGrid: missing resource or handler')
         handler_name = handler.__name__ if callable(handler) else handler
+        # Drag-code resolution (single API: dragCode):
+        #   dragCode=None  (default)  → dragCode = nodeId  (isolated D&D)
+        #   dragCode=False            → no D&D
+        #   dragCode='foo'            → 'foo'  (cross-grid sharing)
+        if dragCode is False:
+            resolved_drag_code = None
+        elif dragCode is None:
+            resolved_drag_code = nodeId
+        else:
+            resolved_drag_code = dragCode
+        framed = bool(height or max_height)
+        container_class = 'grouplet_grid_container grouplet_grid'
+        if framed:
+            container_class += ' grouplet_grid--framed'
+        extra_class = kwargs.pop('_class', None)
+        if extra_class:
+            container_class = f'{container_class} {extra_class}'
+        if height is not None:
+            kwargs.setdefault('height', height)
+        if max_height is not None:
+            kwargs.setdefault('max_height', max_height)
         container = pane.div(
-            _class='grouplet_grid_container',
-            nodeId=gridId,
+            _class=container_class,
+            nodeId=nodeId,
             storepath=storepath,
             **kwargs)
+        # Pre-create the four slot containers as plain divs with childname
+        # so the user can append into them via `mygrid.top.div(...)` etc.
+        # Empty slots are detected by the JS controller and the matching
+        # `.has-*` class is omitted, collapsing the corresponding grid track.
+        for side in ('top', 'bottom', 'left', 'right'):
+            container.div(_class=f'grouplet_grid_slot grouplet_grid_slot_{side}',
+                          childname=side, gg_side=side)
         body_datapath = (storepath or '').replace('^', '')
-        container.div(_class='grouplet_grid_body',
-                      nodeId=body_id,
-                      datapath=body_datapath)
-        # Empty state card lives outside the body so it's not part of the grid layout
-        empty_card = container.div(_class='grouplet_grid_empty',
-                                   nodeId=empty_id,
-                                   hidden=True)
-        empty_card.div(emptyMessage or '!!No rows yet — click below to add the first one.',
-                       _class='grouplet_grid_empty_message')
+        body = container.div(_class='grouplet_grid_body',
+                             nodeId=body_id,
+                             datapath=body_datapath)
+        # Action topic: every UI element (kebab menu items, footer button,
+        # empty-state +) publishes on this topic; the controller subscribes
+        # and dispatches. Keeps every entry point uniform.
+        action_topic = f'groupletGrid_{nodeId}_action'
+        publish_add = (f"genro.publish('{action_topic}',"
+                       "{action:'add'});")
+        # Phantom add-cell: a dashed placeholder shaped like an empty
+        # row card with a big '+' centered. In multi-column responsive
+        # mode it occupies the next free cell of the grid (same size as
+        # a row card); in single column it spans full width. CSS pins
+        # it to the end via `order: 999`. Empty label so only the '+'
+        # shows; tooltip carries the verbose label for a11y.
         if addEnabled:
-            add_action = (f"genro.nodeById('{gridId}')"
-                          ".gridController.addRowAction();")
-            container.lightButton(
-                '!!Add row',
+            body.lightButton(
+                '',
                 _class='grouplet_grid_footer',
                 nodeId=addbtn_id,
-                action=add_action)
+                tip='!!Add row',
+                action=publish_add)
         container.dataController("""
-            var node = genro.nodeById(_gridId);
+            var node = genro.nodeById(_nodeId);
             if (node && !node.gridController) {
                 node.gridController = new gnr.GroupletGridController(node, {
                     bodyNodeId: _bodyNodeId,
-                    gridId: _gridId,
+                    nodeId: _nodeId,
                     resource: _resource,
                     handler: _handler,
                     table: _table,
@@ -715,12 +750,12 @@ class GroupletGridHandler(BaseComponent):
                     defaultRow: _defaultRow,
                     minRows: _minRows,
                     maxRows: _maxRows,
-                    emptyNodeId: _emptyNodeId,
-                    addBtnNodeId: _addBtnNodeId
+                    addBtnNodeId: _addBtnNodeId,
+                    dragCode: _dragCode
                 });
             }
         """, _onBuilt=True,
-            _gridId=gridId,
+            _nodeId=nodeId,
             _bodyNodeId=body_id,
             _resource=resource,
             _handler=handler_name,
@@ -735,6 +770,6 @@ class GroupletGridHandler(BaseComponent):
             _defaultRow=defaultRow,
             _minRows=minRows,
             _maxRows=maxRows,
-            _emptyNodeId=empty_id,
-            _addBtnNodeId=addbtn_id)
+            _addBtnNodeId=addbtn_id,
+            _dragCode=resolved_drag_code)
         return container
