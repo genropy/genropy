@@ -27,6 +27,60 @@ class View(BaseComponent):
                         action="""genro.publish('generateApiToken',
                                     {description: description})""")
 
+    def th_top_custom(self, top):
+        # The RPC subscriber and the result dialog must live on the View
+        # (always mounted), not on the Form (mounted only when a record is
+        # open) — otherwise pressing "Create New Token" with an empty list
+        # has no listener and the dialog never shows.
+        self._tokenGeneratorDialog(top)
+
+    def _tokenGeneratorDialog(self, parent):
+        """Setup the token generation RPC and result dialog on the View."""
+        parent.dataRpc('.newTokenResult', self.generateApiToken,
+                       subscribe_generateApiToken=True,
+                       _lockScreen=True,
+                       _onResult="""
+                           if(result){
+                               SET .newTokenResult = result;
+                               genro.publish('showTokenDialog');
+                           }
+                       """)
+        dlg = parent.dialog(title='!!New API Token Created',
+                            closable=True, datapath='.tokenDialog',
+                            width='500px',
+                            connect_show="""
+                                this.setRelativeData('.token',
+                                    genro.getRelativeData('..newTokenResult.token', null, this.sourceNode));
+                            """)
+        pane = dlg.contentPane(padding='15px')
+        pane.div('!!Copy this token now. It will not be shown again.',
+                 font_weight='bold', margin_bottom='10px', color='#c00')
+        pane.div(margin_bottom='10px').textarea(value='^.token',
+                 readonly=True, width='100%', height='60px',
+                 font_family='monospace', font_size='.85em',
+                 lbl='!!Token')
+        bar = pane.div(text_align='right')
+        bar.button('!!Copy to clipboard',
+                   iconClass='iconbox copy',
+                   action="""
+                       var token = GET .token;
+                       genro.textToClipboard(token, 'Copied!');
+                   """)
+        bar.button('!!Close', action='this.widget.getParentWidget("dialog").hide();',
+                   margin_left='10px')
+        dlg.dataController("""
+            this.widget.show();
+        """, subscribe_showTokenDialog=True)
+
+    @public_method(tags='admin')
+    def generateApiToken(self, description=None, **kwargs):
+        created_by = self.db.currentEnv.get('user_id')
+        record_id, token_value = self.db.table('adm.api_token').create_api_token(
+            description=description or 'New API Token',
+            created_by=created_by
+        )
+        return dict(pkey=record_id, token=token_value)
+
     def th_order(self):
         return 'description'
 
@@ -54,54 +108,6 @@ class Form(BaseComponent):
             pbl_classes=True, margin='2px', addrow=True,
             picker='tag_id', picker_condition='$child_count=0',
             picker_viewResource=True)
-        self._tokenGeneratorDialog(bc)
-
-    def _tokenGeneratorDialog(self, parent):
-        """Setup the token generation RPC and result dialog."""
-        parent.dataRpc('#FORM.newTokenResult', self.generateApiToken,
-                       subscribe_generateApiToken=True,
-                       _lockScreen=True,
-                       _onResult="""
-                           if(result){
-                               SET #FORM.newTokenResult = result;
-                               genro.publish('showTokenDialog');
-                           }
-                       """)
-        dlg = parent.dialog(title='!!New API Token Created',
-                            closable=True, datapath='#FORM.tokenDialog',
-                            width='500px',
-                            connect_show="""
-                                this.setRelativeData('.token',
-                                    genro.getData('#FORM.newTokenResult.token'));
-                            """)
-        pane = dlg.contentPane(padding='15px')
-        pane.div('!!Copy this token now. It will not be shown again.',
-                 font_weight='bold', margin_bottom='10px', color='#c00')
-        pane.div(margin_bottom='10px').textarea(value='^.token',
-                 readonly=True, width='100%', height='60px',
-                 font_family='monospace', font_size='.85em',
-                 lbl='!!Token')
-        bar = pane.div(text_align='right')
-        bar.button('!!Copy to clipboard',
-                   iconClass='iconbox copy',
-                   action="""
-                       var token = GET .token;
-                       genro.textToClipboard(token, 'Copied!');
-                   """)
-        bar.button('!!Close', action='this.widget.getParentWidget("dialog").hide();',
-                   margin_left='10px')
-        dlg.dataController("""
-            this.widget.show();
-        """, subscribe_showTokenDialog=True)
-
-    @public_method
-    def generateApiToken(self, description=None, **kwargs):
-        created_by = self.db.currentEnv.get('user_id')
-        record_id, token_value = self.db.table('adm.api_token').create_api_token(
-            description=description or 'New API Token',
-            created_by=created_by
-        )
-        return dict(pkey=record_id, token=token_value)
 
     def th_options(self):
         return dict(dialog_height='500px', dialog_width='700px', addrow=False)

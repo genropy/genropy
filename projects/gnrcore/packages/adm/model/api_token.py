@@ -22,7 +22,7 @@ class Table(object):
         tbl.column('last_used_ts', dtype='DHZ', name_long='!!Last Used')
         tbl.column('created_by', size='22', group='_',
                    name_long='!!Created By').relation('adm.user.id',
-                   relation_name='api_tokens', onDelete='cascade')
+                   relation_name='api_tokens', onDelete='setnull')
         tbl.column('notes', dtype='T', name_long='!!Notes')
         tbl.column('token_hint', size='8', name_long='!!Token Hint')
         tbl.formulaColumn('all_tags',
@@ -70,11 +70,19 @@ class Table(object):
         if not records:
             return None
         record = records[0]
-        if record['expires_ts'] and record['expires_ts'] < datetime.now(timezone.utc):
-            return None
-        self.raw_update(record={'id': record['id'],
-                                'last_used_ts': datetime.now(timezone.utc)})
-        self.db.commit()
+        expires_ts = record['expires_ts']
+        if expires_ts:
+            # DHZ may return a naive datetime depending on DB config; normalize to UTC.
+            if expires_ts.tzinfo is None:
+                expires_ts = expires_ts.replace(tzinfo=timezone.utc)
+            if expires_ts < datetime.now(timezone.utc):
+                return None
+        # Piggy-back the last_used_ts update on the caller's commit instead of
+        # forcing a synchronous commit on every Bearer-authenticated request.
+        self.db.deferToCommit(self.raw_update,
+                              record={'id': record['id'],
+                                      'last_used_ts': datetime.now(timezone.utc)},
+                              _deferredId=record['id'])
         return {
             'token_id': record['id'],
             'auth_tags': record.get('all_tags', ''),
