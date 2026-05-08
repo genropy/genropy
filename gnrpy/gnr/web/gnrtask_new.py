@@ -464,7 +464,7 @@ class GnrTaskScheduler:
 
         head.child('meta', charset='utf-8')
         head.child('meta', name='viewport',
-                   content='width=device-width, initial-scale=1')
+                   _content='width=device-width, initial-scale=1')
         head.child('title', content='Gnr Scheduler Dashboard')
         head.child(
             'link',
