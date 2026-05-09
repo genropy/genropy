@@ -1,0 +1,344 @@
+/* Quick Budget Editor — visual styling for the 4-zone app shell + the
+   3 nesting levels (chapters → accounts → details). Mirrors the mockup
+   at clienti/pansotti/.../mockup_editor_budget.html with theme-aware
+   tokens where genropy already exposes them, hardcoded hex only where
+   the mockup's palette is the contract.
+
+   Layering note: the page sits on top of `framePane`, which already
+   provides top/center/bottom slots and overflow handling. CSS here only
+   styles the visual chrome of each zone — no layout wiring. */
+
+/* --- Topbar (dark navbar) --- */
+.budget_topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 14px;
+    background: #2c3e50;
+    color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+}
+.budget_topbar_title {
+    font-weight: 600;
+    font-size: 15px;
+}
+.budget_topbar_meta {
+    display: flex;
+    align-items: center;
+    margin-left: auto;
+    color: #b0c4d4;
+    font-size: 12px;
+}
+.budget_topbar_meta_strong {
+    color: white;
+    font-weight: 600;
+}
+
+/* --- Toolbar (light, action buttons) --- */
+.budget_toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: white;
+    border-bottom: 1px solid #d8dde3;
+    flex-wrap: wrap;
+}
+.budget_toolbar_btn {
+    padding: 6px 11px;
+    border: 1px solid #b8bec5;
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+}
+.budget_toolbar_btn:hover {
+    background: #f3f5f7;
+}
+.budget_toolbar_btn_warn {
+    background: #f39c12;
+    color: white;
+    border-color: #d68910;
+}
+.budget_toolbar_btn_warn:hover {
+    background: #d68910;
+}
+.budget_toolbar_btn_success {
+    background: #27ae60;
+    color: white;
+    border-color: #229954;
+}
+.budget_toolbar_btn_success:hover {
+    background: #229954;
+}
+.budget_toolbar_sep {
+    width: 1px;
+    height: 22px;
+    background: #d8dde3;
+    margin: 0 6px;
+}
+.budget_toolbar_spacer {
+    flex: 1;
+}
+
+/* --- Source banner (yellow info strip) --- */
+.budget_banner {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 6px 14px;
+    background: #fff8dc;
+    border-bottom: 1px solid #e0d0a0;
+    color: #5e4a1c;
+    font-size: 12px;
+}
+.budget_banner_badge {
+    background: #e6c97a;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+}
+
+/* --- Footer (dark, totals strip) --- */
+.budget_footer {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    padding: 8px 14px;
+    background: #2c3e50;
+    color: white;
+    font-size: 12px;
+}
+.budget_footer_stat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.budget_footer_label {
+    color: #b0c4d4;
+}
+.budget_footer_value {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+.budget_footer_value_strong {
+    font-size: 13px;
+}
+.budget_footer_spacer {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+}
+
+/* --- Capitolo card (chapter, dark blue accent) --- */
+.gg-capitolo-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    width: 100%;
+}
+.gg-capitolo-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    background: linear-gradient(to right, #ecf0f1, white);
+    border-left: 6px solid #2c3e50;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+}
+.gg-capitolo-codice {
+    font-family: ui-monospace, monospace;
+    font-weight: 700;
+    background: #2c3e50;
+    color: white;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+}
+.gg-capitolo-descr {
+    flex: 1;
+    font-weight: 600;
+    font-size: 14px;
+}
+.gg-capitolo-descr input {
+    border: none;
+    background: transparent;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 2px 0;
+    width: 100%;
+    outline: none;
+}
+.gg-capitolo-descr input:focus {
+    background: white;
+    outline: 1px solid #3498db;
+}
+.gg-capitolo-totale {
+    color: #2c3e50;
+    font-size: 13px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+.gg-capitolo-body {
+    padding: 8px 12px 10px 28px;
+    border-left: 6px solid #2c3e50;
+    border-bottom-left-radius: 5px;
+}
+
+/* The chapter row card (the wrapper added by groupletGrid) loses its
+   default border because the inner gg-capitolo-card already supplies
+   the visual frame; keep the rest (animation, spacing). */
+.budget_capitoli_grid .grouplet_grid_row {
+    padding: 0;
+    border: none;
+    background: transparent;
+}
+.budget_capitoli_grid .grouplet_grid_row:hover {
+    background: transparent;
+}
+
+/* --- Conto card (account, teal accent) --- */
+.gg-conto-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    background: #fafbfc;
+    border: 1px solid #ccd2d8;
+    border-left: 5px solid #16a085;
+    border-radius: 4px;
+    margin-bottom: 8px;
+}
+.gg-conto-head {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 10px;
+}
+.gg-conto-codice {
+    font-family: ui-monospace, monospace;
+    font-weight: 600;
+    background: #16a085;
+    color: white;
+    padding: 2px 7px;
+    border-radius: 3px;
+    font-size: 11px;
+}
+.gg-conto-descr {
+    flex: 1;
+    font-weight: 500;
+}
+.gg-conto-descr input {
+    border: none;
+    background: transparent;
+    font-weight: 500;
+    font-size: 13px;
+    padding: 2px 0;
+    width: 100%;
+    outline: none;
+}
+.gg-conto-descr input:focus {
+    background: white;
+    outline: 1px solid #3498db;
+}
+.gg-conto-totale {
+    color: #2c3e50;
+    font-variant-numeric: tabular-nums;
+    font-size: 12px;
+}
+.gg-conto-body {
+    padding: 0 10px 8px 26px;
+}
+
+/* The account row wrapper from the inner groupletGrid: same logic as
+   the chapter wrapper — the inner card supplies the frame. */
+.gg-conto-card-host .grouplet_grid_row,
+.gg-capitolo-body .grouplet_grid_row {
+    padding: 0;
+    border: none;
+    background: transparent;
+}
+.gg-capitolo-body .grouplet_grid_row:hover {
+    background: transparent;
+}
+
+/* --- Dettaglio row (innermost: tabular wide row) ---
+   Single grid template applied to BOTH the row template and the header
+   in the parent groupletGrid's top slot. Column widths match the
+   mockup's <th> widths so the header lines up with the row widgets. */
+.gg-dettagli-grid {
+    display: grid;
+    grid-template-columns:
+        60px              /* tipo */
+        minmax(180px, 1fr) /* descrizione */
+        100px             /* fase */
+        110px             /* data */
+        55px              /* n_ris */
+        55px              /* qty */
+        90px              /* p_u */
+        60px              /* iva */
+        75px              /* al_oneri */
+        75px              /* al_rit */
+        80px              /* distrib */
+        100px;            /* tot_netto */
+    gap: 4px;
+    align-items: center;
+    width: 100%;
+}
+.gg-dettagli-header {
+    background: #f4f6f8;
+    color: #555;
+    font-weight: 600;
+    font-size: 10px;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    padding: 5px 8px;
+    border-bottom: 1px solid #e2e6ea;
+}
+.gg-dettagli-row {
+    padding: 0 8px;
+    font-size: 12px;
+}
+.gg-dettagli-row > * {
+    min-width: 0;
+}
+.gg-dettagli-row input,
+.gg-dettagli-row select {
+    width: 100%;
+    border: 1px solid transparent;
+    background: transparent;
+    padding: 4px 6px;
+    font-family: inherit;
+    font-size: 12px;
+    color: inherit;
+    outline: none;
+    box-sizing: border-box;
+}
+.gg-dettagli-row input:focus,
+.gg-dettagli-row select:focus {
+    background: #fff7d6;
+    border-color: #f39c12;
+}
+.gg-dett-tot {
+    text-align: right;
+    padding: 4px 6px;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: #2c3e50;
+    background: #f8fafb;
+    border-left: 1px solid #eef0f3;
+}
+
+/* The detail row uses the flat-rows variant so each row is a thin
+   spreadsheet-like line (no card border); the sticky header sits on
+   top via the groupletGrid `top` slot (already styled by groupletGrid
+   itself). */
+.gg-dettagli-host .grouplet_grid_body {
+    background: white;
+    border: 1px solid #e2e6ea;
+    border-radius: 3px;
+}
