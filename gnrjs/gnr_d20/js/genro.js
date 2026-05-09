@@ -95,7 +95,6 @@ dojo.declare('gnr.GenroClient', null, {
         this.extraFeatures = objectPop(this.startArgs,'extraFeatures');
         this.theme = {};
         this.dojo = dojo;
-        this.debugged_rpc = {};
         this.ext={};
         this.watches = {};
         this.userInfoCb = [];
@@ -535,9 +534,6 @@ dojo.declare('gnr.GenroClient', null, {
         for (var k in genro.rpc.rpc_register){
             var kw = genro.rpc.rpc_register[k];
             var age = now-kw.__rpc_started;
-            if(k in this.debugged_rpc){
-                return;
-            }
             if (age>5000){
                 console.warn('slow rpc pending',kw,age);
                 objectPop(genro.rpc.rpc_register,k);
@@ -590,11 +586,8 @@ dojo.declare('gnr.GenroClient', null, {
             this.mobile = new gnr.GnrMobileHandler(this);  
         }
         if (this.isCordova) {
-            this.cordova = new gnr.GnrCordovaHandler(this);  
+            this.cordova = new gnr.GnrCordovaHandler(this);
         }
-        dojo.subscribe('debugstep',
-                       function(data){genro.dev.onDebugstep(data)}
-                     );
         dojo.subscribe('closePage',function(){
             genro.closePage();
         });

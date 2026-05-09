@@ -181,7 +181,6 @@ async def test_unix_sockets_created(tmp_path):
         # falls back to /tmp/<instance>/gnr_sock — resolve via the same helper.
         sockets_dir = server._ensure_sockets_dir()
         assert os.path.exists(os.path.join(sockets_dir, 'async.sock'))
-        assert os.path.exists(os.path.join(sockets_dir, 'debugger.sock'))
     finally:
         server._on_signal()
         await run_task

@@ -58,7 +58,6 @@ from gnr.web.gnrwebpage_proxy.connection import GnrWebConnection
 from gnr.web.gnrwebpage_proxy.serverbatch import GnrWebBatch
 from gnr.web.gnrwebpage_proxy.rpc import GnrWebRpc
 from gnr.web.gnrwebpage_proxy.developer import GnrWebDeveloper
-from gnr.web.gnrwebpage_proxy.gnrpdb import GnrPdbClient
 from gnr.web.gnrwebpage_proxy.utils import GnrWebUtils
 from gnr.web.gnrwebpage_proxy.pluginhandler import GnrWebPluginHandler
 from gnr.web.gnrwebpage_proxy.jstools import GnrWebJSTools
@@ -424,12 +423,6 @@ class GnrWebPage(GnrBaseWebPage):
         if not hasattr(self, '_dev'):
             self._dev = GnrWebDeveloper(self)
         return self._dev
-        
-    @property 
-    def pdb(self):
-        if not hasattr(self, '_pdb'):
-            self._pdb = GnrPdbClient(self)
-        return self._pdb
 
     @property
     def utils(self):
@@ -613,7 +606,6 @@ class GnrWebPage(GnrBaseWebPage):
         
     def __call__(self):
         """Internal method dispatcher"""
-        self.pdb.onPageStart()    
         self.onInit() ### kept for compatibility
         self._onBegin()
         args = self._call_args

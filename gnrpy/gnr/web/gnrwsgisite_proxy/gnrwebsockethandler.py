@@ -70,15 +70,6 @@ class WebSocketHandler(object):
     #    self.sendCommandToPage(page_id,'datachanges',data)
 
 
-class AsyncWebSocketHandler(WebSocketHandler):
-    def __init__(self,server):
-        self.server = server
-
-    def sendCommandToPage(self,page_id,command,data):
-        envelope = Bag(dict(command=command,data=data))
-        self.server.channels.get(page_id).write_message(envelope.toXml(unresolved=True))
-
-
 class WsgiWebSocketHandler(WebSocketHandler):
     def __init__(self,site):
         self.site = site
