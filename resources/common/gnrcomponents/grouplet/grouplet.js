@@ -103,8 +103,15 @@ var gnr_grouplet = {
 gnr.GroupletGridController = class GroupletGridController {
     constructor(sourceNode, kw) {
         this.sourceNode = sourceNode;
-        this.bodyNode = genro.nodeById(kw.bodyNodeId);
-        this.nodeId = kw.nodeId;
+        // bodyNode and addBtnNode are passed in as already-resolved
+        // sourceNodes (looked up via attribute markers in the bootstrap
+        // dataController). nodeId is read directly from the live
+        // container — by the time this constructor fires, namespacing
+        // (if any) has already been applied so sourceNode.attr.nodeId
+        // is the per-instance unique id.
+        this.bodyNode = kw.bodyNode || null;
+        this.addBtnNode = kw.addBtnNode || null;
+        this.nodeId = sourceNode.attr.nodeId;
         if (typeof sourceNode.registerDynAttr === 'function') {
             sourceNode.registerDynAttr('storepath');
         }
@@ -125,7 +132,6 @@ gnr.GroupletGridController = class GroupletGridController {
         this.defaultRow = kw.defaultRow;
         this.minRows = kw.minRows || 0;
         this.maxRows = kw.maxRows || null;
-        this.addBtnNodeId = kw.addBtnNodeId || null;
         // Drag-and-drop: when `dragCode` is non-null each row is rendered
         // with a drag handle (left side). `dragCode` is the data-transfer
         // key — only payloads with the same key are accepted as drop
@@ -143,12 +149,11 @@ gnr.GroupletGridController = class GroupletGridController {
         // through here. Menu items, footer button, programmatic API all
         // publish on this topic; the controller dispatches via _handleAction.
         this.actionTopic = 'groupletGrid_' + this.nodeId + '_action';
-        console.log('[GG] init', this.nodeId, 'valuepath=', this.valuepath,
-                    'cols=', this.cols, 'min_width=', this.minWidth);
         this._applyResponsiveLayout();
         this._applySlotClasses();
         this._registerTriggers();
         this._registerActionSubscription();
+        this._wireContainerDnD();
         const that = this;
         dojo.connect(sourceNode, '_onDeleting', function() { that.destroy(); });
         const initialBag = this.valuepath
@@ -253,9 +258,16 @@ gnr.GroupletGridController = class GroupletGridController {
         const containerDom = this.sourceNode && this.sourceNode.getDomNode
             && this.sourceNode.getDomNode();
         const onDragStart = function(e) {
+            // The handle that started the drag must belong to THIS
+            // wrapper, not to a nested grid's wrapper. Without this
+            // check, a dragstart on a nested row's handle would bubble
+            // up and re-fire on the outer wrapper, snapshotting the
+            // outer card instead of the nested row.
             const handle = e.target.closest
                 ? e.target.closest('.grouplet_grid_row_drag') : null;
             if (!handle) return;
+            const innermostWrapper = handle.closest('.grouplet_grid_row');
+            if (innermostWrapper !== wrapperDom) return;
             try {
                 e.dataTransfer.setData(dataKey, JSON.stringify({
                     rowKey: rowKey, nodeId: that.nodeId
@@ -264,20 +276,16 @@ gnr.GroupletGridController = class GroupletGridController {
                 e.dataTransfer.setData('text/plain', rowKey);
                 e.dataTransfer.effectAllowed = 'move';
             } catch (err) { /* IE/Safari quirks */ }
-            // Drag image = snapshot of the whole row wrapper, not just
-            // the handle. Pattern from genro_grid.js:2199-2211: clone the
-            // node into the global '#auxDragImage' container, point the
-            // browser's setDragImage at it, then remove on next tick
-            // (the snapshot is captured synchronously).
+            // Drag image = snapshot of THIS row wrapper. The clone goes
+            // into the global '#auxDragImage' off-screen container,
+            // becomes the browser's drag image, and is cleaned up on
+            // next tick (the snapshot is captured synchronously).
             try {
                 const auxDragImage = document.getElementById('auxDragImage');
                 if (auxDragImage) {
                     const clone = wrapperDom.cloneNode(true);
                     clone.classList.remove('gg-dragging', 'gg-drop-target',
                         'gg-drop-target-invalid', 'gg-just-dropped');
-                    // Match the original width so the preview is sized
-                    // correctly even though the clone is in a detached
-                    // off-screen container.
                     clone.style.width = wrapperDom.offsetWidth + 'px';
                     auxDragImage.appendChild(clone);
                     e.dataTransfer.setDragImage(clone,
@@ -294,6 +302,10 @@ gnr.GroupletGridController = class GroupletGridController {
             if (containerDom) {
                 containerDom.classList.add('gg-drag-active');
             }
+            // Stop propagation so an outer grid's wrapper does not
+            // re-process this dragstart and override the dataTransfer
+            // payload + drag image with its own.
+            e.stopPropagation();
         };
         const onDragEnd = function() {
             wrapperDom.classList.remove('gg-dragging');
@@ -354,16 +366,33 @@ gnr.GroupletGridController = class GroupletGridController {
             let payload;
             try { payload = JSON.parse(raw); }
             catch (err) { return; }
-            if (!payload || payload.nodeId !== that.nodeId) return;
-            if (payload.rowKey === rowKey) return;
-            // Drop on a row N → dragged row becomes the new N (target
-            // shifts to N+1). "Append at end" is not reachable via D&D —
-            // use the footer "+ Add row" or the kebab menu for that.
-            genro.publish(that.actionTopic, {
-                action: 'move',
-                rowKey: payload.rowKey,
-                position: '<' + rowKey
-            });
+            if (!payload) return;
+            // Same-instance drop: source and target are the same
+            // controller. Drop on a row N → dragged row becomes the new
+            // N (target shifts to N+1). "Append at end" is not reachable
+            // via D&D — use the footer "+ Add row" or the kebab menu.
+            if (payload.nodeId === that.nodeId) {
+                if (payload.rowKey === rowKey) return;
+                genro.publish(that.actionTopic, {
+                    action: 'move',
+                    rowKey: payload.rowKey,
+                    position: '<' + rowKey
+                });
+                return;
+            }
+            // Cross-instance drop: same dragCode (already filtered by
+            // matching `dataKey`) but different controllers. Resolve the
+            // source controller and migrate the row directly. This branch
+            // is only reached when both grids share an explicit `dragCode`
+            // — server-side default keeps dragCode = nodeId, so cross
+            // drops cannot happen by accident.
+            const sourceCtrl = that._findSourceController(payload.nodeId);
+            if (!sourceCtrl) {
+                console.warn('[GG] cross drop: source ctrl not found',
+                             payload.nodeId);
+                return;
+            }
+            that._doMoveRowFrom(sourceCtrl, payload.rowKey, '<' + rowKey);
         };
         wrapperDom.addEventListener('dragstart', onDragStart);
         wrapperDom.addEventListener('dragend', onDragEnd);
@@ -387,6 +416,120 @@ gnr.GroupletGridController = class GroupletGridController {
             entry.dom.removeEventListener(evt, entry.handlers[evt]);
         });
         delete this._dragHandlesByRow[rowKey];
+    }
+
+    _wireContainerDnD() {
+        // Container-level drop accepter: handles drops that fall OUTSIDE
+        // any row wrapper (whose own listeners stop propagation). Two
+        // legitimate scenarios:
+        //   - Empty grid: there are no rows to drop "before", so the
+        //     drop lands on free container area → first/only row.
+        //   - Past the last row: dragging beyond the bottom of the row
+        //     stack → append at the tail.
+        // Both same-instance reorder (drag a row over the empty space
+        // below it → appends) and cross-instance migration (drag from
+        // another grid with same dragCode → appends) flow through here.
+        // Visual cue: the whole container highlights green during the
+        // dragover so the user sees "this whole grid will accept it".
+        if (!this.dragCode) return;
+        const containerDom = this.sourceNode && this.sourceNode.getDomNode
+            && this.sourceNode.getDomNode();
+        if (!containerDom) return;
+        const that = this;
+        const dataKey = 'application/x-gg-' + this.dragCode;
+        const onDragOver = function(e) {
+            const types = e.dataTransfer.types || [];
+            let isValid = false;
+            for (let i = 0; i < types.length; i++) {
+                if (types[i] === dataKey) { isValid = true; break; }
+            }
+            if (!isValid) return;
+            // Highlight the container only when no row is currently the
+            // dragover target — i.e. the cursor is on free space, not
+            // over a row wrapper that has its own row-level highlight.
+            if (that._dragOverRow) {
+                containerDom.classList.remove('gg-container-drop-target');
+            } else {
+                containerDom.classList.add('gg-container-drop-target');
+            }
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        };
+        const onDragLeave = function(e) {
+            // Only clear when leaving the container outright; crossing
+            // into a child row should keep the container "armed".
+            if (!containerDom.contains(e.relatedTarget)) {
+                containerDom.classList.remove('gg-container-drop-target');
+            }
+        };
+        const onDrop = function(e) {
+            containerDom.classList.remove('gg-container-drop-target');
+            // If a row wrapper inside the container handled the drop, it
+            // called e.preventDefault() — skip in that case so we don't
+            // re-process the same event (which would double-mutate).
+            if (e.defaultPrevented) return;
+            const raw = e.dataTransfer.getData(dataKey);
+            if (!raw) return;
+            e.preventDefault();
+            let payload;
+            try { payload = JSON.parse(raw); }
+            catch (err) { return; }
+            if (!payload) return;
+            if (payload.nodeId === that.nodeId) {
+                // Same-instance: append at the tail.
+                that._doMoveRowSameInstance(payload.rowKey, null);
+                return;
+            }
+            const sourceCtrl = that._findSourceController(payload.nodeId);
+            if (!sourceCtrl) {
+                console.warn('[GG] container drop: source ctrl not found',
+                             payload.nodeId);
+                return;
+            }
+            that._doMoveRowFrom(sourceCtrl, payload.rowKey, null);
+        };
+        containerDom.addEventListener('dragover', onDragOver);
+        containerDom.addEventListener('dragleave', onDragLeave);
+        containerDom.addEventListener('drop', onDrop);
+        this._containerDnDHandlers = {
+            dom: containerDom,
+            handlers: {dragover: onDragOver, dragleave: onDragLeave,
+                       drop: onDrop}
+        };
+    }
+
+    _unwireContainerDnD() {
+        const entry = this._containerDnDHandlers;
+        if (!entry) return;
+        Object.keys(entry.handlers).forEach((evt) => {
+            entry.dom.removeEventListener(evt, entry.handlers[evt]);
+        });
+        this._containerDnDHandlers = null;
+    }
+
+    _doMoveRowSameInstance(rowKey, position) {
+        // Same-instance reorder where the position can be null → append
+        // at the tail. The existing `_doMoveRow` (above) requires a
+        // '<targetKey' or '>targetKey' position; this variant skips that
+        // requirement so the phantom-drop ("drop on +") can append.
+        const dataBag = this.valuepath ? genro.getData(this.valuepath) : null;
+        if (!(dataBag instanceof gnr.GnrBag)) return;
+        const node = dataBag.getNode(rowKey);
+        if (!node) return;
+        const rowValue = node.getValue();
+        const rowAttrs = node.getAttr() || {};
+        dataBag.popNode(rowKey);
+        const setKw = position ? {_position: position} : {};
+        dataBag.setItem(rowKey, rowValue, rowAttrs, setKw);
+        this._removeRow(rowKey);
+        if (position) {
+            const sign = position.charAt(0);
+            const targetKey = position.substring(1);
+            this._addRow(rowKey, sign + '_grow_' + targetKey);
+        } else {
+            this._addRow(rowKey);
+        }
+        this._flashRow(rowKey);
     }
 
     _setDragOver(wrapper, isValid) {
@@ -436,10 +579,70 @@ gnr.GroupletGridController = class GroupletGridController {
         const sign = position.charAt(0);
         this._removeRow(rowKey);
         this._addRow(rowKey, sign + '_grow_' + targetKey);
-        // Just-dropped flash: the new row inherits the drop-target tint
-        // for ~260ms then transitions back to normal. The CSS handles
-        // the fade-out via `transition` on background/border, so JS only
-        // needs to add the class and remove it later.
+        this._flashRow(rowKey);
+    }
+
+    _findSourceController(sourceNodeId) {
+        // Resolves the controller of another GroupletGrid instance on the
+        // same page. The controller is attached to its container node by
+        // the `dataController` bootstrap in grouplet.py — `node.gridController`.
+        const node = genro.nodeById(sourceNodeId);
+        return (node && node.gridController) || null;
+    }
+
+    _doMoveRowFrom(sourceCtrl, sourceRowKey, targetPosition) {
+        // Migrate a row from another grid instance into THIS grid.
+        // Mutates four Bags: source data Bag, source body source Bag,
+        // target data Bag, target body source Bag — keeping the two-bag
+        // pattern (Phase 6.5+7) consistent across the cross-instance move.
+        if (!sourceCtrl || sourceCtrl === this) return;
+        const sourceBag = sourceCtrl.valuepath
+            ? genro.getData(sourceCtrl.valuepath) : null;
+        const targetBag = this.valuepath
+            ? genro.getData(this.valuepath) : null;
+        if (!(sourceBag instanceof gnr.GnrBag)
+            || !(targetBag instanceof gnr.GnrBag)) {
+            console.warn('[GG] _doMoveRowFrom: bags not found',
+                         sourceCtrl.valuepath, this.valuepath);
+            return;
+        }
+        const node = sourceBag.getNode(sourceRowKey);
+        if (!node) {
+            console.warn('[GG] _doMoveRowFrom: source row not found',
+                         sourceRowKey);
+            return;
+        }
+        const rowValue = node.getValue();
+        const rowAttrs = node.getAttr() || {};
+        // Mint a fresh key if the source rowKey already exists on the target.
+        let targetRowKey = sourceRowKey;
+        if (targetBag.getNode(targetRowKey)) {
+            targetRowKey = genro.time36Id();
+        }
+        // 1) Source side: pop from data Bag + remove from body source.
+        sourceBag.popNode(sourceRowKey);
+        sourceCtrl._removeRow(sourceRowKey);
+        // 2) Target side: insert into data Bag + add to body source.
+        const setKw = targetPosition ? {_position: targetPosition} : {};
+        targetBag.setItem(targetRowKey, rowValue, rowAttrs, setKw);
+        if (targetPosition) {
+            const sign = targetPosition.charAt(0);
+            const targetKey = targetPosition.substring(1);
+            this._addRow(targetRowKey, sign + '_grow_' + targetKey);
+        } else {
+            this._addRow(targetRowKey);
+        }
+        // Refresh add-button state on both sides (min/max constraints).
+        sourceCtrl._updateAddBtnState();
+        this._updateAddBtnState();
+        this._flashRow(targetRowKey);
+    }
+
+    _flashRow(rowKey) {
+        // Just-dropped flash: the row inherits the drop-target tint for
+        // ~260ms then transitions back to normal. CSS handles the
+        // fade-out via `transition` on background/border, so JS only
+        // adds the class and removes it later.
         const that = this;
         setTimeout(function() {
             const entry = that.rows[rowKey];
@@ -464,6 +667,7 @@ gnr.GroupletGridController = class GroupletGridController {
         if (this.sourceNode) {
             this.sourceNode.unregisterSubscription(this.actionTopic);
         }
+        this._unwireContainerDnD();
         Object.keys(this.rows).forEach((rowKey) => this._removeRow(rowKey));
         this.templateSource = null;
         this.templateLoading = null;
@@ -517,7 +721,18 @@ gnr.GroupletGridController = class GroupletGridController {
         const node = kw && kw.node;
         if (!node || !node.label) return;
         if (evt === 'ins') {
+            // Wrap the runtime add with the same body-level
+            // freeze/unfreeze cycle that `_fullSync` uses for the initial
+            // render. Both paths must have the same shape so that nested
+            // groupletGrid bootstraps (registered via `_onBuilt` while the
+            // grafted subtree is being built) get flushed by the framework
+            // the same way they do at first render. Without the outer
+            // freeze/unfreeze, an "add row at runtime" produces a card
+            // whose nested groupletGrids never instantiate their
+            // controllers.
+            this.bodyNode.freeze();
             this._addRow(node.label);
+            this.bodyNode.unfreeze();
         } else if (evt === 'del') {
             this._removeRow(node.label);
         }
@@ -531,8 +746,16 @@ gnr.GroupletGridController = class GroupletGridController {
         }
         const wrapperLabel = '_grow_' + rowKey;
         const wrapperNodeId = '__grpgridrow__' + this.nodeId + '__' + rowKey;
+        // Clone the template — every row owns its own copy. Auto-generated
+        // nodeIds (those starting with `grpgrid_`, used by the framework
+        // itself for action-topic routing of nested groupletGrids) get
+        // namespaced so each row's clone has a unique container nodeId.
+        // Author-supplied nodeIds are left untouched: it's the author's
+        // responsibility to make them unique if they need to be referenced
+        // (typically by including `rowKey` in the nodeId or just by
+        // omitting nodeId on widgets that aren't referenced).
         const cloned = this.templateSource.deepCopy();
-        this._namespaceNodeIds(cloned, rowKey);
+        this._namespaceFrameworkNodeIds(cloned, rowKey);
         const bodyContent = this.bodyNode.getValue();
         if (!(bodyContent instanceof gnr.GnrDomSource)) {
             console.warn('[GG] bodyNode has no GnrDomSource', bodyContent);
@@ -571,9 +794,6 @@ gnr.GroupletGridController = class GroupletGridController {
                 handle.innerHTML =
                     '<span class="grouplet_grid_drag_icon">⠿</span>';
                 wrapperDom.appendChild(handle);
-                console.log('[GG-dnd] handle appended (onCreated)',
-                    'rowKey=', rowKey,
-                    'draggable=', handle.getAttribute('draggable'));
                 that0._wireRowDnD(wrapperDom, rowKey);
             };
         }
@@ -735,14 +955,21 @@ gnr.GroupletGridController = class GroupletGridController {
     // --- Private executors ---
 
     _doAddRow(position, defaults) {
-        // Append (no `position`) or insert at `position` (e.g. '>r_002').
-        // Mutates the data Bag, then the body source Bag at the matching
-        // position so the DOM lands where the data sits.
         if (this.maxRows && this._rowCount() >= this.maxRows) return;
-        const dataBag = this.valuepath ? genro.getData(this.valuepath) : null;
-        if (!(dataBag instanceof gnr.GnrBag)) {
-            console.warn('[GG] _doAddRow: no Bag at', this.valuepath);
+        if (!this.valuepath) {
+            console.warn('[GG] _doAddRow: no valuepath');
             return;
+        }
+        // Auto-create the rows Bag if it doesn't exist yet. This is the
+        // common case when a row is added at runtime to a parent record
+        // that was created without an empty sub-Bag for the nested grid
+        // (e.g. addRow on the outer grid creates a person with no
+        // `contacts` Bag — the first time we click + on the inner grid
+        // we have to materialize `.contacts` ourselves).
+        let dataBag = genro.getData(this.valuepath);
+        if (!(dataBag instanceof gnr.GnrBag)) {
+            dataBag = new gnr.GnrBag();
+            genro.setData(this.valuepath, dataBag);
         }
         const newKey = 'r_' + genro.time36Id();
         const rowBag = new gnr.GnrBag();
@@ -812,19 +1039,32 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     _updateAddBtnState() {
-        if (!this.addBtnNodeId) return;
-        const node = genro.nodeById(this.addBtnNodeId);
-        if (!node || !node.domNode) return;
+        if (!this.addBtnNode || !this.addBtnNode.domNode) return;
         const atMax = !!(this.maxRows
                          && this._rowCount() >= this.maxRows);
-        node.domNode.classList.toggle('disabled', atMax);
+        this.addBtnNode.domNode.classList.toggle('disabled', atMax);
     }
 
-    _namespaceNodeIds(domSource, rowKey) {
+    _namespaceFrameworkNodeIds(domSource, rowKey) {
+        // Append `__<gridId>__<rowKey>` to nodeIds that the framework
+        // generated for its own bookkeeping (groupletGrid containers
+        // and their body / addbtn satellites). These nodeIds always
+        // share the `grpgrid_` prefix (set server-side by gr_groupletGrid
+        // when no explicit nodeId is passed). Author-supplied nodeIds
+        // are NEVER touched — it's the author's job to make them unique
+        // across rows if they actually use them.
+        // Why we still need a nodeId at all on the container, instead
+        // of fully attribute-driven lookups: the action topic is
+        // `groupletGrid_<nodeId>_action` (publish-subscribe), so each
+        // nested grid instance must subscribe to its own topic — hence
+        // a unique nodeId per row.
         const suffix = '__' + this.nodeId + '__' + rowKey;
         const apply = function(n) {
-            if (n.attr && n.attr.nodeId) {
-                n.attr.nodeId = n.attr.nodeId + suffix;
+            const a = n.attr;
+            if (!a || !a.nodeId) return;
+            if (typeof a.nodeId === 'string'
+                && a.nodeId.indexOf('grpgrid_') === 0) {
+                a.nodeId = a.nodeId + suffix;
             }
         };
         domSource.getNodes().forEach(function(n) {

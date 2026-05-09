@@ -666,6 +666,18 @@ class GroupletGridHandler(BaseComponent):
                         minRows=0, maxRows=None,
                         defaultRow=None,
                         grouplet_kwargs=None, nodeId=None, **kwargs):
+        # NOTE on nodeIds inside the grouplet template:
+        #   The widget renders the grouplet template once per row by
+        #   cloning it. nodeIds are NOT renamed automatically — every
+        #   row's clone keeps the literal nodeIds that the grouplet
+        #   author wrote. If your grouplet template uses an explicit
+        #   `nodeId='foo'` on a widget for cross-widget references,
+        #   bake `rowKey` (or another row-distinct value) into the
+        #   nodeId yourself, otherwise N rows produce N widgets sharing
+        #   the same nodeId and `genro.nodeById('foo')` becomes
+        #   ambiguous. For grouplets that don't reference internal
+        #   widgets by nodeId, no change is needed — just don't set
+        #   nodeId on those widgets.
         # Accept legacy `gridId` kw as alias of `nodeId` for back-compat.
         nodeId = nodeId or kwargs.pop('gridId', None) or f'grpgrid_{id(pane)}'
         body_id = f'{nodeId}_body'
@@ -696,34 +708,40 @@ class GroupletGridHandler(BaseComponent):
             kwargs.setdefault('height', height)
         if max_height is not None:
             kwargs.setdefault('max_height', max_height)
+        # Attribute marker `_gg_root` on the container makes it discoverable
+        # by descendants via `attributeOwnerNode('_gg_root')`. Same trick
+        # `gnride.py` uses with `_activeIDE`. This decouples the bootstrap
+        # from the literal nodeId — when the grid lives inside another
+        # groupletGrid's row template the cloned nodeIds are namespaced
+        # per row, but the marker attr stays the same and is resolved at
+        # runtime through the parent chain.
         container = pane.div(
             _class=container_class,
             nodeId=nodeId,
             storepath=storepath,
+            _gg_root=True,
             **kwargs)
-        # Pre-create the four slot containers as plain divs with childname
-        # so the user can append into them via `mygrid.top.div(...)` etc.
-        # Empty slots are detected by the JS controller and the matching
-        # `.has-*` class is omitted, collapsing the corresponding grid track.
         for side in ('top', 'bottom', 'left', 'right'):
             container.div(_class=f'grouplet_grid_slot grouplet_grid_slot_{side}',
                           childname=side, gg_side=side)
         body_datapath = (storepath or '').replace('^', '')
+        # `_gg_body=True` is the descendant-side counterpart of `_gg_root`:
+        # the controller resolves the body via attributeOwnerNode at init.
         body = container.div(_class='grouplet_grid_body',
                              nodeId=body_id,
-                             datapath=body_datapath)
-        # Action topic: every UI element (kebab menu items, footer button,
-        # empty-state +) publishes on this topic; the controller subscribes
-        # and dispatches. Keeps every entry point uniform.
-        action_topic = f'groupletGrid_{nodeId}_action'
-        publish_add = (f"genro.publish('{action_topic}',"
+                             datapath=body_datapath,
+                             _gg_body=True)
+        # Action topic uses the (per-row-namespaced) nodeId so each
+        # nested grid instance has its own pub/sub channel. Without
+        # namespacing every row of an outer grid would publish on the
+        # SAME topic and a click on row N's "+" would be heard by all
+        # nested grids — the "add lands on the last row" bug.
+        action_topic_template = (
+            "'groupletGrid_'"
+            "+this.attributeOwnerNode('_gg_root').attr.nodeId"
+            "+'_action'")
+        publish_add = (f"genro.publish({action_topic_template},"
                        "{action:'add'});")
-        # Phantom add-cell: a dashed placeholder shaped like an empty
-        # row card with a big '+' centered. In multi-column responsive
-        # mode it occupies the next free cell of the grid (same size as
-        # a row card); in single column it spans full width. CSS pins
-        # it to the end via `order: 999`. Empty label so only the '+'
-        # shows; tooltip carries the verbose label for a11y.
         if addEnabled:
             body.lightButton(
                 '',
@@ -731,12 +749,26 @@ class GroupletGridHandler(BaseComponent):
                 nodeId=addbtn_id,
                 tip='!!Add row',
                 action=publish_add)
+        # Bootstrap dataController: sits inside the container so
+        # `this.attributeOwnerNode('_gg_root')` resolves to the container
+        # itself (the closest ancestor — including self — that carries
+        # the marker). No literal nodeId is hardcoded into the script,
+        # so per-row namespacing of nodeIds works transparently.
         container.dataController("""
-            var node = genro.nodeById(_nodeId);
+            var node = this.attributeOwnerNode('_gg_root');
             if (node && !node.gridController) {
+                var bodyNode = node.getValue().walk(function(n){
+                    if (n.attr && n.attr._gg_body) return n;
+                }, 'static');
                 node.gridController = new gnr.GroupletGridController(node, {
-                    bodyNodeId: _bodyNodeId,
-                    nodeId: _nodeId,
+                    bodyNode: bodyNode,
+                    addBtnNode: bodyNode && bodyNode.getValue() ?
+                        bodyNode.getValue().walk(function(n){
+                            if (n.attr &&
+                                n.attr._class &&
+                                n.attr._class.indexOf('grouplet_grid_footer')>=0)
+                                return n;
+                        }, 'static') : null,
                     resource: _resource,
                     handler: _handler,
                     table: _table,
@@ -750,13 +782,10 @@ class GroupletGridHandler(BaseComponent):
                     defaultRow: _defaultRow,
                     minRows: _minRows,
                     maxRows: _maxRows,
-                    addBtnNodeId: _addBtnNodeId,
                     dragCode: _dragCode
                 });
             }
         """, _onBuilt=True,
-            _nodeId=nodeId,
-            _bodyNodeId=body_id,
             _resource=resource,
             _handler=handler_name,
             _table=table,
@@ -770,6 +799,5 @@ class GroupletGridHandler(BaseComponent):
             _defaultRow=defaultRow,
             _minRows=minRows,
             _maxRows=maxRows,
-            _addBtnNodeId=addbtn_id,
             _dragCode=resolved_drag_code)
         return container

@@ -469,6 +469,21 @@
                 border-color 260ms ease-out;
 }
 
+/* --- Container drop target ---
+   The whole grid container becomes a drop accepter when the cursor is
+   over free space (no row underneath). Two scenarios:
+     - empty grid → drop anywhere on the container = the first row;
+     - past the last row → append at the tail.
+   On dragover we tint the entire container with accent-soft + a solid
+   accent outline so the user sees "this whole grid will accept it".
+   When the cursor is over a row wrapper, the row-level highlight takes
+   over and the container highlight is removed (handled by the JS). */
+.grouplet_grid_container.gg-container-drop-target {
+    outline: 2px solid var(--gg-accent);
+    outline-offset: -2px;
+    background: var(--gg-accent-soft);
+}
+
 /* --- Phantom add cell ---
    Looks like an empty version of a row card: same size, same border
    radius, but with a dashed border instead of solid + a big '+' glyph
@@ -561,11 +576,14 @@
 }
 
 .gg-flat-rows .grouplet_grid_row {
-    --gg-tool-w: 1.8em;
     border: none;
     border-bottom: 1px solid var(--gg-border);
     border-radius: 0;
-    padding: 0.3em 0 0.3em 0.6em;
+    /* Reserve horizontal room for drag handle (left) and kebab (right)
+       even in the dense flat layout — same allowance as the default card
+       row. Without this, inline widgets in the row overlap the tools and
+       neither is clickable. */
+    padding: 0.3em 2em 0.3em 1.8em;
     background: transparent;
 }
 
@@ -584,4 +602,13 @@
     background: var(--surface-light, var(--gray-50));
     border-bottom-color: var(--accent-color);
     outline: none;
+}
+
+/* In flat-rows mode the row is dense and tools (drag/kebab) need to be
+   readable at a glance — bump their default opacity to full so the
+   spreadsheet-like UX has visible affordances per row, not the discreet
+   "appear on hover" pattern of the card variant. */
+.gg-flat-rows .grouplet_grid_row_drag,
+.gg-flat-rows .grouplet_grid_row_kebab {
+    opacity: 1;
 }
