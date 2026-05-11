@@ -396,7 +396,7 @@ class GnrWebPage(GnrBaseWebPage):
     @property
     def wsk_enabled(self):
         if not hasattr(self, '_wsk_enabled'):
-            self._wsk_enabled = self.wsk and self.getPreference('experimental.wsk_enabled',pkg='sys')
+            self._wsk_enabled = self.wsk and not self.getPreference('experimental.wsk_disabled',pkg='sys')
         return self._wsk_enabled
 
     @property

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"Collaborative rooms with shared Object. Please enable experimental.wsk_enabled preference and use gnrwsgiserve --async-port PORT for testing"
+"Collaborative rooms with shared Object. Requires websockets=\"true\" in siteconfig; the dev server (gnr web serve) auto-spawns the gnrasync subprocess."
 
 class GnrCustomWebPage(object):
     

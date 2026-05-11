@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"Shared Objects. Please enable experimental.wsk_enabled preference and use gnrwsgiserve --async-port PORT for testing"
+"Shared Objects. Requires websockets=\"true\" in siteconfig; the dev server (gnr web serve) auto-spawns the gnrasync subprocess."
 
 class GnrCustomWebPage(object):
     py_requires="gnrcomponents/testhandler:TestHandlerFull"

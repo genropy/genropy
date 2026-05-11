@@ -35,6 +35,7 @@ from werkzeug.wrappers import Response, Request
 from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrconfig import getGnrConfig, gnrConfigPath
 from gnr.core.gnrdict import dictExtract
+from gnr.core.gnrstring import boolean
 from gnr.app.pathresolver import PathResolver
 from gnr.web.gnrwsgisite import GnrWsgiSite
 from gnr.web import logger
@@ -162,8 +163,9 @@ class Server(object):
                             dest='async_port',
                             type=int,
                             default=None,
-                            help="Spawn the gnrasync server on this TCP port alongside the WSGI dev server "
-                                 "(WebSocket, wsproxy, debugger)")
+                            help="Force the gnrasync subprocess to listen on this TCP port. "
+                                 "When omitted, if siteconfig declares websockets=true the "
+                                 "subprocess is auto-spawned on a free port.")
         
         parser.add_argument('-o','--open',
                             dest='open_browser',
@@ -334,8 +336,20 @@ class Server(object):
         self.app_host = self.options.host
         site_name= f'{self.site_name}:{self.remote_db}' if self.remote_db else self.site_name
 
-        if self.options.async_port and not is_running_from_reloader():
-            self._spawn_async_server(site_name, self.options.async_port)
+        if not is_running_from_reloader():
+            async_port = self.options.async_port
+            websockets_enabled = boolean(self.siteconfig['wsgi?websockets'])
+            if async_port:
+                # explicit CLI request: spawn on the user-chosen port
+                if not self._async_server_already_running():
+                    self._spawn_async_server(site_name, async_port)
+            elif websockets_enabled:
+                # siteconfig declares websockets=true: auto-spawn on a free port
+                if not self._async_server_already_running():
+                    async_port = self._pick_free_port()
+                    self._spawn_async_server(
+                        site_name, async_port,
+                        reason='auto-spawned because siteconfig declares websockets=true')
 
         ssl_context = None
         if not self.debugpy and self.reloader and not is_running_from_reloader():
@@ -416,8 +430,8 @@ class Server(object):
         if not is_running_from_reloader():
             logger.info("Shutting down")
 
-    def _spawn_async_server(self, site_name, async_port):
-        """Spawn the gnrasync server as a child process for `--async-port`.
+    def _spawn_async_server(self, site_name, async_port, reason=None):
+        """Spawn the gnrasync server as a child process.
 
         Registers an atexit cleanup so SIGTERM is sent on parent exit.
         Skipped when running from the werkzeug reloader child to avoid
@@ -425,15 +439,19 @@ class Server(object):
         """
         gnr_bin = shutil.which('gnr')
         if not gnr_bin:
-            logger.error("'gnr' entrypoint not found on PATH; --async-port disabled")
+            logger.error("'gnr' entrypoint not found on PATH; async subprocess disabled")
             return
         try:
             child = subprocess.Popen([gnr_bin, 'web', 'async', site_name, '-p', str(async_port)])
         except Exception:
             logger.exception('failed to spawn gnr web async subprocess')
             return
-        logger.info('gnr web async subprocess started (pid=%s) for instance %s on port %s',
-                    child.pid, site_name, async_port)
+        if reason:
+            logger.info('gnr web async subprocess started on port %s (%s) — pid=%s, instance=%s',
+                        async_port, reason, child.pid, site_name)
+        else:
+            logger.info('gnr web async subprocess started (pid=%s) for instance %s on port %s',
+                        child.pid, site_name, async_port)
 
         def _cleanup():
             if child.poll() is None:
@@ -446,4 +464,38 @@ class Server(object):
                     except Exception:
                         pass
         atexit.register(_cleanup)
+
+    def _async_server_already_running(self):
+        """Return True if a gnrasync server is already listening on the
+        site's unix socket. A lingering stale socket file (no listener) is
+        treated as not-running: gnr web async itself replaces stale files
+        on startup.
+        """
+        socket_path = os.path.join(self.site_path, 'sockets', 'async.sock')
+        if not os.path.exists(socket_path):
+            return False
+        try:
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+                s.settimeout(0.2)
+                s.connect(socket_path)
+            return True
+        except (OSError, socket.error):
+            return False
+
+    def _pick_free_port(self, start=8086, end=8200):
+        """Pick a free TCP port for the auto-spawned gnrasync subprocess.
+
+        Tries the [start, end) range in order, falls back to kernel
+        ephemeral allocation (bind to 0) if nothing in the range is free.
+        """
+        for port in range(start, end):
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                try:
+                    s.bind(('127.0.0.1', port))
+                except OSError:
+                    continue
+                return port
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(('127.0.0.1', 0))
+            return s.getsockname()[1]
 
