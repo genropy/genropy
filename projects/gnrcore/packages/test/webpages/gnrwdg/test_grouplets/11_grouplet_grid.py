@@ -1,17 +1,20 @@
-"""groupletGrid demo page — gallery of realistic use cases.
+"""groupletGrid demo page — minimum gallery covering every use case.
 
-  test_1_smoke              — invoice rows, baseline single-column
-  test_2_empty              — empty state + defaultRow (phantom add only)
-  test_3_todolist           — handler= callable, reactive line-through
-                              when a todo is marked done
-  test_4_excel_grid         — fakexcel: framed mode + sticky toolbar
-  test_5_responsive_invoice — cols=3 + min_width: re-flow on resize
-  test_6_framed             — internal scroll with sticky bottom slot
-  test_8_kanban_board       — 3 columns sharing dragCode='kanban',
-                              drag cards across workflow lanes
-  test_9_team_with_contacts — nested groupletGrid: each team member
-                              has a sub-grid of contact channels
+  test_1_invoice_baseline      — invoice rows, single column, plain
+                                 (smoke: add/remove via phantom + kebab)
+  test_2_todolist_handler      — handler= callable (not a resource file)
+  test_3_invoice_responsive    — same rows, cols=3 + min_width
+                                 (responsive: reflow with viewport width)
+  test_4_excel_framed_top_slot — flat-row layout, framed scroll,
+                                 toolbar in `top` slot wired to action-bus
+  test_5_long_list_bottom_slot — framed long list with sticky `bottom` slot
+  test_6_kanban_dnd            — 3 grids sharing dragCode='kanban',
+                                 cross-grid drag of editable cards
+  test_7_nested_team           — outer grid of team members, each with a
+                                 nested groupletGrid of contact channels
 """
+import datetime
+
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
 
@@ -20,50 +23,41 @@ class GnrCustomWebPage(object):
     py_requires = """gnrcomponents/testhandler:TestHandlerFull,
                      gnrcomponents/grouplet/grouplet:GroupletGridHandler"""
 
-    def test_1_smoke(self, pane):
-        """Baseline: 3 invoice rows, single column.
-
-        Sanity check: card-like blocks, hover/focus/selected states,
-        add/remove via phantom and kebab. Everything else builds on
-        this shape.
-        """
+    def _invoice_seed(self, n):
+        catalogue = [('Apples', 10, 2.50), ('Bread', 2, 1.20),
+                     ('Coffee', 1, 12.00), ('Donuts', 6, 1.50),
+                     ('Eggs', 12, 0.30), ('Flour', 3, 2.10),
+                     ('Grapes', 4, 3.40), ('Honey', 1, 8.00)]
         rows = Bag()
-        rows.setItem('r_001', Bag(dict(product='Apples',
-                                       qty=10, price=2.50)))
-        rows.setItem('r_002', Bag(dict(product='Bread',
-                                       qty=2, price=1.20)))
-        rows.setItem('r_003', Bag(dict(product='Coffee',
-                                       qty=1, price=12.00)))
-        pane.data('.invoice_lines', rows)
-        pane.div('Test 1: 3 invoice rows (single column, card blocks).',
+        for i in range(1, n + 1):
+            prod, qty, price = catalogue[(i - 1) % len(catalogue)]
+            if i > len(catalogue):
+                prod = f'{prod} #{i // len(catalogue) + 1}'
+            rows.setItem(f'r_{i:03d}', Bag(dict(product=prod,
+                                                qty=qty, price=price)))
+        return rows
+
+    def test_1_invoice_baseline(self, pane):
+        """Invoice rows, single column, plain (smoke test).
+
+        The simplest shape: a card per row, full width, add/remove via
+        phantom `+` and per-row kebab. Empty state emerges naturally if
+        all rows are deleted — clicking the phantom `+` then inserts a
+        row prefilled from `defaultRow`.
+        """
+        pane.data('.invoice_lines', self._invoice_seed(3))
+        pane.div('Test 1: 3 invoice rows, single column (baseline).',
                  color='#666', font_style='italic', margin_bottom='8px')
         pane.groupletGrid(storepath='.invoice_lines',
                           resource='invoice_row',
-                          addEnabled=True, removeEnabled=True)
+                          addEnabled=True, removeEnabled=True,
+                          defaultRow=dict(qty=1, price=0))
 
-    def test_2_empty(self, pane):
-        """Empty state with defaultRow.
+    def test_2_todolist_handler(self, pane):
+        """Todolist via inline `handler=` callable (not a resource file).
 
-        Empty Bag → only the phantom add-cell is visible. Clicking it
-        inserts the first row pre-filled with `defaultRow`.
-        """
-        pane.data('.invoice_lines', Bag())
-        pane.div('Test 2: empty state — click the phantom + to add the '
-                 'first row, prefilled with defaultRow={qty:1, price:0}.',
-                 color='#666', font_style='italic', margin_bottom='8px')
-        pane.groupletGrid(
-            storepath='.invoice_lines',
-            resource='invoice_row',
-            addEnabled=True, removeEnabled=True,
-            defaultRow=dict(qty=1, price=0))
-
-    def test_3_todolist(self, pane):
-        """Use case: classic todolist with checkbox + line-through.
-
-        Each row is a to-do (`done` flag + `text`). Toggling the checkbox
-        strikes the text and dims the row. Demonstrates `handler=`
-        callable (instead of a resource file on disk) plus reactive
-        per-row styling driven by the row data.
+        Demonstrates that the row template can be a Python callable on
+        the page itself, instead of a resource in `resources/grouplets/`.
         """
         rows = Bag()
         rows.setItem('r_001', Bag(dict(done=False, text='Buy milk')))
@@ -74,8 +68,7 @@ class GnrCustomWebPage(object):
         rows.setItem('r_004', Bag(dict(done=False,
                                        text='Reply to Marta about Friday')))
         pane.data('.todos', rows)
-        pane.div('Test 3: classic todolist — check the box to strike '
-                 'and dim the row.',
+        pane.div('Test 2: small todolist driven by handler=callable.',
                  color='#666', font_style='italic', margin_bottom='8px')
         pane.groupletGrid(storepath='.todos',
                           handler=self.todo_row_handler,
@@ -87,35 +80,37 @@ class GnrCustomWebPage(object):
         row = pane.div(display='flex', align_items='center', gap='0.6em',
                        padding='2px 0')
         row.checkBox(value='^.done')
-        # Reactive style: when `done` is true, strike the text and dim
-        # the colour. Bind `text_decoration` and `color` directly to the
-        # `done` value via `=.done`-style placeholder evaluation in the
-        # widget's dynamic attribute system.
         row.textbox(value='^.text', placeholder='!!What needs doing?',
-                    width='100%', flex='1',
-                    text_decoration='=.done?"line-through":"none"',
-                    color='=.done?"#999":"inherit"',
-                    transition='color 160ms ease')
+                    width='100%', flex='1')
 
-    def test_4_excel_grid(self, pane):
-        """Fakexcel: dense flat rows with a sticky toolbar.
+    def test_3_invoice_responsive(self, pane):
+        """Same invoice rows, but in a responsive grid.
 
-        `height='320px'` activates the frame mode (internal scroll). The
-        toolbar in the `top` slot stays anchored and exposes `+` / `−`
-        which publish on the controller's action topic — same path the
-        kebab and phantom add-cell use, just from a different UI.
+        `cols=3 + min_width=300px`: wide viewport → 3 columns, tablet → 2,
+        mobile → 1. Demonstrates the auto-fill responsive mode on the
+        same data shape as test_1 — only the layout kwargs change.
         """
-        rows = Bag()
-        for i, (prod, qty, price) in enumerate([
-            ('Apples', 10, 2.50), ('Bread', 2, 1.20),
-            ('Coffee', 1, 12.00), ('Donuts', 6, 1.50),
-            ('Eggs', 12, 0.30), ('Flour', 3, 2.10),
-            ('Grapes', 4, 3.40), ('Honey', 1, 8.00),
-        ], start=1):
-            rows.setItem(f'r_{i:03d}', Bag(dict(product=prod,
-                                                qty=qty, price=price)))
-        pane.data('.lines', rows)
-        pane.div('Test 4: fakexcel — flat rows with a sticky toolbar.',
+        pane.data('.invoice_lines', self._invoice_seed(6))
+        pane.div('Test 3: same rows as test_1, cols=3 + min_width=300px '
+                 '(resize the viewport to see re-flow).',
+                 color='#666', font_style='italic', margin_bottom='8px')
+        pane.groupletGrid(storepath='.invoice_lines',
+                          resource='invoice_row',
+                          cols=3, min_width='300px',
+                          addEnabled=True, removeEnabled=True,
+                          defaultRow=dict(qty=1, price=0))
+
+    def test_4_excel_framed_top_slot(self, pane):
+        """Fakexcel: flat rows + framed scroll + toolbar in `top` slot.
+
+        `height=320px` activates frame mode (body scrolls, slots stay
+        anchored). Toolbar buttons publish on the controller's action
+        topic — same path the kebab and phantom add-cell use, just
+        invoked from a custom UI affordance.
+        """
+        pane.data('.lines', self._invoice_seed(8))
+        pane.div('Test 4: fakexcel — flat rows, framed scroll, toolbar '
+                 'in top slot wired to the action bus.',
                  color='#666', font_style='italic', margin_bottom='8px')
         grid_id = 'grpgrid_excel'
         topic = f'groupletGrid_{grid_id}_action'
@@ -141,44 +136,16 @@ class GnrCustomWebPage(object):
             '−', _class='gg-toolbar-btn', tip='!!Delete selected row',
             action=f"genro.publish('{topic}', {{action:'delete'}});")
 
-    def test_5_responsive_invoice(self, pane):
-        """Responsive multi-column layout.
+    def test_5_long_list_bottom_slot(self, pane):
+        """Framed long list with a sticky summary in the `bottom` slot.
 
-        `cols=3 + min_width='300px'`: wide monitor → 3 columns, tablet
-        → 2, mobile → 1. Demonstrates the auto-fill responsive grid mode.
+        30 rows; body scrolls internally; the `bottom` slot stays
+        anchored at the foot. Use case: a long editable list with a
+        running total / footer note.
         """
-        rows = Bag()
-        for i, (prod, qty, price) in enumerate([
-            ('Apples', 10, 2.50), ('Bread', 2, 1.20),
-            ('Coffee', 1, 12.00), ('Donuts', 6, 1.50),
-            ('Eggs', 12, 0.30), ('Flour', 3, 2.10),
-        ], start=1):
-            rows.setItem(f'r_{i:03d}', Bag(dict(product=prod,
-                                                qty=qty, price=price)))
-        pane.data('.invoice_lines', rows)
-        pane.div('Test 5: invoice rows, cols=3, min_width=300px '
-                 '(responsive — re-flow as the viewport narrows).',
-                 color='#666', font_style='italic', margin_bottom='8px')
-        pane.groupletGrid(storepath='.invoice_lines',
-                          resource='invoice_row',
-                          cols=3, min_width='300px',
-                          addEnabled=True, removeEnabled=True)
-
-    def test_6_framed(self, pane):
-        """Frame mode with bottom slot.
-
-        `height='400px'` activates the framed mode: the body scrolls
-        internally while the `bottom` slot stays anchored at the foot.
-        Use case: a long list with a sticky summary footer.
-        """
-        rows = Bag()
-        for i in range(1, 31):
-            rows.setItem(f'r_{i:03d}',
-                         Bag(dict(product=f'Item {i}',
-                                  qty=i, price=i * 1.5)))
-        pane.data('.invoice_lines', rows)
-        pane.div('Test 6: framed mode (height=400px) — internal scroll '
-                 'with a sticky bottom slot.',
+        pane.data('.invoice_lines', self._invoice_seed(30))
+        pane.div('Test 5: framed long list (height=400px) — internal '
+                 'scroll + sticky bottom slot.',
                  color='#666', font_style='italic', margin_bottom='8px')
         grid = pane.groupletGrid(storepath='.invoice_lines',
                                  resource='invoice_row',
@@ -191,33 +158,48 @@ class GnrCustomWebPage(object):
                         font_size='0.9em',
                         color='var(--text-secondary, #6b7280)')
 
-    def test_8_kanban_board(self, pane):
-        """Use case: a 3-column kanban board (To do / In progress / Done).
+    def test_6_kanban_dnd(self, pane):
+        """3-column kanban board with cross-grid drag-and-drop.
 
-        Each column is a groupletGrid; all share `dragCode='kanban'` so a
-        card can be dragged across columns to advance through the
+        Each column is its own groupletGrid; all share `dragCode='kanban'`
+        so a card can be dragged across columns to advance through the
         workflow. Drop on a card inserts before it; drop on free space
-        (or on an empty column) appends.
+        (or on an empty column) appends. Each card is fully editable
+        inline — title, priority (filteringSelect with coloured dots),
+        assignee, and due date.
         """
+        d = datetime.date
         todo = Bag()
         todo.setItem('r_001', Bag(dict(title='Draft Q3 plan',
-                                       assignee='Alice', priority='high')))
+                                       assignee='@alice',
+                                       priority='high',
+                                       due=d(2026, 6, 15))))
         todo.setItem('r_002', Bag(dict(title='Review PR #412',
-                                       assignee='Bob', priority='med')))
+                                       assignee='@bob',
+                                       priority='med',
+                                       due=d(2026, 5, 20))))
         todo.setItem('r_003', Bag(dict(title='Update onboarding doc',
-                                       assignee='Marta', priority='low')))
+                                       assignee='@marta',
+                                       priority='low',
+                                       due=d(2026, 7, 1))))
         wip = Bag()
         wip.setItem('r_001', Bag(dict(title='Migrate auth service',
-                                      assignee='Bob', priority='high')))
+                                      assignee='@bob',
+                                      priority='high',
+                                      due=d(2026, 5, 15))))
         wip.setItem('r_002', Bag(dict(title='Design new dashboard',
-                                      assignee='Alice', priority='med')))
+                                      assignee='@alice',
+                                      priority='med',
+                                      due=d(2026, 6, 1))))
         done = Bag()
         done.setItem('r_001', Bag(dict(title='Ship 1.4.0 release',
-                                       assignee='Marta', priority='high')))
+                                       assignee='@marta',
+                                       priority='high',
+                                       due=d(2026, 5, 9))))
         pane.data('.kanban_todo', todo)
         pane.data('.kanban_wip', wip)
         pane.data('.kanban_done', done)
-        pane.div('Test 8: kanban board — drag cards across columns to '
+        pane.div('Test 6: kanban board — drag cards across columns to '
                  'advance their state. All columns share dragCode="kanban".',
                  color='#666', font_style='italic', margin_bottom='8px')
         board = pane.div(display='grid',
@@ -241,19 +223,17 @@ class GnrCustomWebPage(object):
                              resource='kanban_card',
                              addEnabled=True, removeEnabled=True,
                              dragCode='kanban',
-                             defaultRow=dict(title='', assignee='',
-                                             priority='med'))
+                             defaultRow=dict(title='', assignee='@',
+                                             priority='med', due=None))
 
-    def test_9_team_with_contacts(self, pane):
-        """Use case: a team roster where each member has a list of
-        contact channels (email, phone, …).
+    def test_7_nested_team(self, pane):
+        """Outer grid with a nested groupletGrid inside each row.
 
-        Outer grid = list of team members. Each member's grouplet renders
-        an avatar (initials), name + role + team in the header, and a
-        nested `groupletGrid` over `.contacts`. Demonstrates the
-        bread-and-butter use case for nested groupletGrids: a "card with
-        sub-rows" pattern that you can edit, add to, and remove from at
-        either level.
+        Outer = team members; each member's grouplet renders an avatar
+        (initials), name + role + team in the header, and a nested
+        `groupletGrid` over `.contacts`. The bread-and-butter "card with
+        sub-rows" pattern: add/remove/edit works independently at either
+        level.
         """
         people = Bag()
         c_alice = Bag()
@@ -277,7 +257,7 @@ class GnrCustomWebPage(object):
                                          team='Production',
                                          contacts=c_bob)))
         pane.data('.team', people)
-        pane.div('Test 9: team roster with per-person contact channels '
+        pane.div('Test 7: team roster with per-person contact channels '
                  '(card + nested rows).',
                  color='#666', font_style='italic', margin_bottom='8px')
         pane.groupletGrid(storepath='.team',

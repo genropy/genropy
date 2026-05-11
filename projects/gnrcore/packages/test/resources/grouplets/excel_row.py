@@ -15,5 +15,5 @@ class Grouplet(BaseComponent):
                           width='60px', validate_notnull=True)
         row.numberTextBox(value='^.price', placeholder='Price',
                           width='80px')
-        row.textbox(value='^.notes', placeholder='Notes',
+        row.textbox(value='^.note', placeholder='Note',
                     width='160px', flex='1 1 160px')

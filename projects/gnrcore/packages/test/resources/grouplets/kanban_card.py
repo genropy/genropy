@@ -1,8 +1,8 @@
-"""Kanban card — title + assignee + priority badge.
+"""Kanban card — title + assignee + priority + due date, all editable
+inline. Used by `test_8_kanban_board` for cross-grid drag-and-drop.
 
-Used by `test_8_kanban_board` in 11_grouplet_grid.py to demonstrate
-cross-grid drag-and-drop with a realistic narrative (move tasks across
-workflow lanes).
+Design: title on top, then a meta row with priority pill (filtering
+select), assignee (textbox), and due date (dateTextBox).
 """
 from gnr.web.gnrbaseclasses import BaseComponent
 
@@ -13,28 +13,33 @@ class Grouplet(BaseComponent):
 
     def grouplet_main(self, pane, **kwargs):
         card = pane.div(display='flex', flex_direction='column', gap='4px')
+        # Title — bold, full width, no border (in-place editing).
         card.textbox(value='^.title',
                      placeholder='!!Task title',
                      lbl=None,
                      font_weight='600', font_size='13px',
                      border='none', background='transparent',
                      padding='2px 0', width='100%')
+        # Meta row.
         meta = card.div(display='flex', gap='6px', align_items='center',
-                        font_size='11px', color='#666')
-        meta.div('^.assignee',
-                 padding='1px 6px',
-                 background='var(--surface-alt, #eef1f4)',
-                 border_radius='10px',
-                 white_space='nowrap')
-        # Priority pill: colour-coded (low/med/high). Colour is computed
-        # client-side via a `=` dynamic-attr expression on the value.
-        meta.div('^.priority',
-                 padding='1px 6px',
-                 border_radius='10px',
-                 font_weight='600',
-                 text_transform='uppercase',
-                 letter_spacing='0.4px',
-                 background=('=.priority=="high"?"#fdecea":'
-                             '.priority=="med"?"#fff5e0":"#e8f4ec"'),
-                 color=('=.priority=="high"?"#b53024":'
-                        '.priority=="med"?"#a07412":"#2c7846"'))
+                        font_size='11px', color='#666',
+                        flex_wrap='wrap')
+        # Priority — coloured emoji dot in front of the level label.
+        meta.filteringSelect(
+            value='^.priority',
+            values='🟢 low:low,🟡 med:med,🔴 high:high',
+            width='90px',
+            lbl=None)
+        # Assignee — short textbox.
+        meta.textbox(value='^.assignee',
+                     placeholder='!!@assignee',
+                     lbl=None,
+                     width='110px',
+                     border='none',
+                     background='var(--surface-alt, #eef1f4)',
+                     border_radius='10px',
+                     padding='2px 8px')
+        # Due date — compact picker.
+        meta.dateTextBox(value='^.due',
+                         lbl=None,
+                         width='110px')
