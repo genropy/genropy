@@ -50,7 +50,6 @@ class GnrCustomWebPage(object):
                  color='#666', font_style='italic', margin_bottom='8px')
         pane.groupletGrid(storepath='.invoice_lines',
                           resource='invoice_row',
-                          addEnabled=True, removeEnabled=True,
                           defaultRow=dict(qty=1, price=0))
 
     def test_2_todolist_handler(self, pane):
@@ -68,11 +67,31 @@ class GnrCustomWebPage(object):
         rows.setItem('r_004', Bag(dict(done=False,
                                        text='Reply to Marta about Friday')))
         pane.data('.todos', rows)
-        pane.div('Test 2: small todolist driven by handler=callable.',
+        pane.div('Test 2: small todolist driven by handler=callable. '
+                 'Kebab is the only affordance (no `×`) and shows the '
+                 'three editmenu value shapes: True (preset), string '
+                 '(preset with custom label) and dict (full menuline).',
                  color='#666', font_style='italic', margin_bottom='8px')
+        # `editmenu` as a dict: keys identify entries, values can be
+        #   True   → use the built-in preset (addPrev/addNext/delete)
+        #   string → override the preset's label, keep preset action
+        #   dict   → full menuline spec (label, action, ...) — must be
+        #            a complete genropy menuline kwargs dict, no magic
+        #            substitutions
+        # The custom `Mark important` entry publishes a page-level topic;
+        # subscribers can take action without touching the grid.
         pane.groupletGrid(storepath='.todos',
                           handler=self.todo_row_handler,
-                          addEnabled=True, removeEnabled=True,
+                          delitem=False,
+                          editmenu={
+                              'addPrev': True,
+                              'addNext': 'Insert below',
+                              'mark': dict(
+                                  label='Mark important',
+                                  action="alert('Marked as important!');",
+                              ),
+                              'delete': True,
+                          },
                           defaultRow=dict(done=False, text=''))
 
     @public_method
@@ -94,10 +113,16 @@ class GnrCustomWebPage(object):
         pane.div('Test 3: same rows as test_1, cols=3 + min_width=300px '
                  '(resize the viewport to see re-flow).',
                  color='#666', font_style='italic', margin_bottom='8px')
+        # Prefix capture demo on the phantom add and `×` delete:
+        #   additem_tip / additem_class   → on phantom '+'
+        #   delitem_tip / delitem_class   → on row '×'
         pane.groupletGrid(storepath='.invoice_lines',
                           resource='invoice_row',
                           cols=3, min_width='300px',
-                          addEnabled=True, removeEnabled=True,
+                          additem_tip='!!Add invoice line',
+                          additem_class='gg-fancy-add',
+                          delitem_tip='!!Remove line',
+                          delitem_class='gg-fancy-del',
                           defaultRow=dict(qty=1, price=0))
 
     def test_4_excel_framed_top_slot(self, pane):
@@ -119,7 +144,7 @@ class GnrCustomWebPage(object):
                                  _class='gg-flat-rows',
                                  height='320px',
                                  nodeId=grid_id,
-                                 addEnabled=False, removeEnabled=False,
+                                 additem=False, delitem=False,
                                  defaultRow=dict(qty=1, price=0))
         toolbar = grid.top.div(_class='gg-excel-toolbar',
                                display='flex', align_items='center',
@@ -147,10 +172,16 @@ class GnrCustomWebPage(object):
         pane.div('Test 5: framed long list (height=400px) — internal '
                  'scroll + sticky bottom slot.',
                  color='#666', font_style='italic', margin_bottom='8px')
+        # Single-column long list: kebab handles everything (add+delete);
+        # no phantom '+' (would sit at the bottom of the scroll, awkward)
+        # and no top-right `×`. Prefix capture demo on the kebab:
+        #   editmenu_class='gg-test-kebab' → extra class on kebab container
         grid = pane.groupletGrid(storepath='.invoice_lines',
                                  resource='invoice_row',
                                  height='400px',
-                                 addEnabled=True, removeEnabled=True)
+                                 additem=False, delitem=False,
+                                 editmenu=True,
+                                 editmenu_class='gg-test-kebab')
         grid.bottom.div('30 rows',
                         padding='6px 12px',
                         border_top='1px solid var(--border-color, #e5e7eb)',
@@ -221,7 +252,6 @@ class GnrCustomWebPage(object):
                     margin_bottom='8px')
             col.groupletGrid(storepath=store,
                              resource='kanban_card',
-                             addEnabled=True, removeEnabled=True,
                              dragCode='kanban',
                              defaultRow=dict(title='', assignee='@',
                                              priority='med', due=None))
@@ -262,5 +292,6 @@ class GnrCustomWebPage(object):
                  color='#666', font_style='italic', margin_bottom='8px')
         pane.groupletGrid(storepath='.team',
                           resource='person_with_contacts',
-                          addEnabled=True, removeEnabled=True,
+                          additem_label='!!New team member',
                           defaultRow=dict(name='', role='', team=''))
+

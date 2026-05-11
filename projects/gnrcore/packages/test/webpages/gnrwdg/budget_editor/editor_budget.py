@@ -1,14 +1,22 @@
-"""Quick Budget Editor — Step 1: 2 levels of nested groupletGrid only.
+"""Quick Budget Editor — XML-backed Load/Save round-trip.
 
-Building the demo incrementally:
-  Step 1 (this file): chapters → accounts (2 levels, no details, no
-                      cumulative totals, no footer reactivity).
-  Step 2 (next):      add the inner details groupletGrid inside each
-                      account.
-  Step 3 (next):      cascade tot_netto upwards via dataFormulae.
-  Step 4 (next):      visual polish (topbar, toolbar, source banner).
+3 levels of nested groupletGrid (chapters → accounts → details) driven
+by a Bag that is loaded from / saved to an on-disk XML file via two
+@public_method RPCs. Demonstrates the realistic data-flow scenario: the
+Bag is empty at page bootstrap and arrives later, after the user clicks
+"Load".
+
+XML file lives at:
+    packages/test/resources/budget_editor/budget_sample.xml
+
+generated once by /tmp/gen_budget_sample.py so the on-disk format
+matches exactly what Bag.toXml(pretty=True) produces — no hand-XML
+drift.
 """
+import os
+
 from gnr.core.gnrbag import Bag
+from gnr.core.gnrdecorator import public_method
 
 
 class GnrCustomWebPage(object):
@@ -17,62 +25,72 @@ class GnrCustomWebPage(object):
                    'gnrcomponents/grouplet/grouplet:GroupletGridHandler')
     css_requires = 'budget_editor/editor_budget'
 
+    def _xml_path(self):
+        return os.path.join(self.package_folder, 'resources',
+                            'budget_editor', 'budget_sample.xml')
+
     def main(self, root, **kwargs):
-        # Workaround: wrap in a child pane with explicit datapath so the
-        # inner groupletGrid can resolve relative paths during the
-        # initial build pass. The proper fix (let gr_groupletGrid honor
-        # `datapath` as a canonical kwarg) is deferred to a dedicated
-        # phase — first attempt at the widget broke regression tests.
+        # contentPane(datapath=...) workaround: gr_groupletGrid currently
+        # needs an anchored ancestor to resolve relative storepaths.
+        # Removed once Phase 13.5 lands.
         page = root.contentPane(datapath='budget')
-        page.data('.chapters', self._build_fixture())
-        page.div('Quick Budget — Step 1 (chapters → accounts)',
-                 _class='budget_step_title',
-                 font_weight='600', font_size='14px',
-                 margin_bottom='4px')
-        page.div('3 chapters, each with N accounts. No details yet.',
-                 color='#666', font_style='italic',
-                 margin_bottom='12px')
+        page.data('.chapters', Bag())
+
+        bar = page.div(_class='budget_toolbar')
+        # Load — ask for confirmation if there are unsaved edits.
+        bar.lightButton(
+            '!!Load',
+            _class='budget_toolbar_btn',
+            action=("var bag = GET .chapters;"
+                    "if (bag && bag.len && bag.len() > 0) {"
+                    "  if (!confirm('Discard current budget and reload "
+                    "from disk?')) return;"
+                    "}"
+                    "FIRE .load_signal;"))
+        bar.lightButton(
+            '!!Save',
+            _class='budget_toolbar_btn budget_toolbar_btn_success',
+            action=("if (!confirm('Overwrite budget_sample.xml on disk "
+                    "with the current budget?')) return;"
+                    "FIRE .save_signal;"))
+        bar.div('', _class='budget_toolbar_spacer')
+        bar.div('^.status', _class='budget_toolbar_status')
+
         page.groupletGrid(
             storepath='.chapters',
             resource='budget/capitolo_card',
             _class='budget_capitoli_grid',
-            addEnabled=True,
-            removeEnabled=True,
             dragCode='budget_capitoli',
             defaultRow=dict(codice='', descr=''))
 
-    def _build_fixture(self):
-        chapters = Bag()
-        chapters.setItem('r_001', self._chapter(
-            codice='01', descr='Sopra la linea (ATL)',
-            accounts=[
-                ('001', 'Diritti soggetto e sceneggiatura'),
-                ('002', 'Cast principale'),
-                ('003', 'Regista'),
-            ]))
-        chapters.setItem('r_002', self._chapter(
-            codice='02', descr='Cast tecnico (BTL)',
-            accounts=[
-                ('001', 'Direzione fotografia'),
-                ('002', 'Costumi e trucco'),
-            ]))
-        chapters.setItem('r_003', self._chapter(
-            codice='03', descr='Post-produzione',
-            accounts=[]))
-        return chapters
+        # Load: returns a Bag, dataRpc writes it to .chapters.
+        page.dataRpc('.chapters', self.loadBudget,
+                     _fired='^.load_signal')
+        page.dataController(
+            "SET .status = 'loaded ' + new Date().toLocaleTimeString();",
+            _fired='^.chapters')
+        # Save: send the current Bag to the server.
+        page.dataRpc('.save_result', self.saveBudget,
+                     payload='=.chapters',
+                     _fired='^.save_signal')
+        page.dataController(
+            "if (result && result.getItem) {"
+            "  SET .status = result.getItem('ok') ?"
+            "    'saved ' + new Date().toLocaleTimeString() :"
+            "    'save failed: ' + (result.getItem('error') || '?');"
+            "}",
+            result='=.save_result',
+            _fired='^.save_result')
 
-    def _chapter(self, codice, descr, accounts):
-        bag = Bag()
-        bag['codice'] = codice
-        bag['descr'] = descr
-        bag['accounts'] = self._accounts(accounts)
-        return bag
+    @public_method
+    def loadBudget(self, **kwargs):
+        path = self._xml_path()
+        return Bag(path) if os.path.exists(path) else Bag()
 
-    def _accounts(self, account_specs):
-        accounts = Bag()
-        for i, (codice, descr) in enumerate(account_specs, start=1):
-            acc = Bag()
-            acc['codice'] = codice
-            acc['descr'] = descr
-            accounts.setItem(f'r_{i:03d}', acc)
-        return accounts
+    @public_method
+    def saveBudget(self, payload=None, **kwargs):
+        if payload is None:
+            return Bag(dict(ok=False, error='empty payload'))
+        path = self._xml_path()
+        payload.toXml(path, pretty=True)
+        return Bag(dict(ok=True, path=path))

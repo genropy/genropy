@@ -81,6 +81,12 @@
 .budget_toolbar_spacer {
     flex: 1;
 }
+.budget_toolbar_status {
+    color: #666;
+    font-style: italic;
+    font-size: 12px;
+    padding: 0 6px;
+}
 
 /* --- Source banner (yellow info strip) --- */
 .budget_banner {
@@ -192,13 +198,15 @@
 
 /* The chapter row card (the wrapper added by groupletGrid) loses its
    default border because the inner gg-capitolo-card already supplies
-   the visual frame; keep the rest (animation, spacing). */
-.budget_capitoli_grid .grouplet_grid_row {
+   the visual frame; keep the rest (animation, spacing). The `>` chain
+   restricts the override to the IMMEDIATE chapters grid so it doesn't
+   leak into nested grids (conti/dettagli) further down. */
+.budget_capitoli_grid > .grouplet_grid_body > .grouplet_grid_row {
     padding: 0;
     border: none;
     background: transparent;
 }
-.budget_capitoli_grid .grouplet_grid_row:hover {
+.budget_capitoli_grid > .grouplet_grid_body > .grouplet_grid_row:hover {
     background: transparent;
 }
 
@@ -255,14 +263,17 @@
 }
 
 /* The account row wrapper from the inner groupletGrid: same logic as
-   the chapter wrapper — the inner card supplies the frame. */
-.gg-conto-card-host .grouplet_grid_row,
-.gg-capitolo-body .grouplet_grid_row {
+   the chapter wrapper — the inner card supplies the frame.
+   `> .grouplet_grid_body > .grouplet_grid_row` is intentional: it scopes
+   the override to the IMMEDIATE conti grid only, so the nested dettagli
+   grid (inside each conto) keeps the default row chrome (border, drag
+   handle padding, hover background). */
+.gg-capitolo-body > .grouplet_grid > .grouplet_grid_body > .grouplet_grid_row {
     padding: 0;
     border: none;
     background: transparent;
 }
-.gg-capitolo-body .grouplet_grid_row:hover {
+.gg-capitolo-body > .grouplet_grid > .grouplet_grid_body > .grouplet_grid_row:hover {
     background: transparent;
 }
 
@@ -299,38 +310,17 @@
     padding: 5px 8px;
     border-bottom: 1px solid #e2e6ea;
 }
-.gg-dettagli-row {
-    padding: 0 8px;
-    font-size: 12px;
-}
+/* Don't override padding on .gg-dettagli-row: the default
+   .grouplet_grid_row already reserves space for the drag handle (left)
+   and kebab (right). */
 .gg-dettagli-row > * {
     min-width: 0;
-}
-.gg-dettagli-row input,
-.gg-dettagli-row select {
-    width: 100%;
-    border: 1px solid transparent;
-    background: transparent;
-    padding: 4px 6px;
-    font-family: inherit;
-    font-size: 12px;
-    color: inherit;
-    outline: none;
-    box-sizing: border-box;
-}
-.gg-dettagli-row input:focus,
-.gg-dettagli-row select:focus {
-    background: #fff7d6;
-    border-color: #f39c12;
 }
 .gg-dett-tot {
     text-align: right;
     padding: 4px 6px;
     font-variant-numeric: tabular-nums;
     font-weight: 600;
-    color: #2c3e50;
-    background: #f8fafb;
-    border-left: 1px solid #eef0f3;
 }
 
 /* The detail row uses the flat-rows variant so each row is a thin

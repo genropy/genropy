@@ -78,16 +78,20 @@ class Grouplet(BaseComponent):
             value='^.distrib',
             values='UNI:UNI,FL:FL,QT:QT',
             _class='gg-dett-distrib')
-        # Totale netto — read-only, computed via dataFormula on the row
+        # Totale netto — read-only, displays the pre-formatted string
+        # computed by the dataFormula below.
         row.div(
-            '^.tot_netto?format=#,##0.00',
+            '^.tot_netto_fmt',
             _class='gg-dett-tot')
-        # Hidden formula: tot_netto = (qty || 1) * (p_u || 0)
-        # Keeping the formula at the row level (not in the page) means
-        # every nested row recomputes independently — exactly what the
-        # nested groupletGrid stress test needs.
+        # Compute tot_netto as a number, plus a formatted string for the
+        # display div. Keeping the formula at the row level (not on the
+        # page) means every nested row recomputes independently.
         pane.dataFormula(
             '.tot_netto',
             '(qty || 1) * (p_u || 0)',
             qty='^.qty',
             p_u='^.p_u')
+        pane.dataFormula(
+            '.tot_netto_fmt',
+            'genro.formatter.asText(tot, {format: "#,##0.00"})',
+            tot='^.tot_netto')

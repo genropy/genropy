@@ -399,6 +399,46 @@
     user-select: none;
 }
 
+/* Per-row "×" delete button — opt-in via `delitem=True`. Anchored to
+   the top-right corner of the card. Always visible (no hover gate).
+   Click publishes {action:'delete', rowKey} on the action topic.
+   The `×` glyph is wrapped in a flex line-height:1 box so its bounding
+   box matches the visible glyph (×'s descent area is empty) — that way
+   the round hover background is centered on the visible glyph, not on
+   the typographic baseline. */
+.grouplet_grid_row_delete {
+    position: absolute;
+    top: 0.3em;
+    right: 0.3em;
+    width: 1.4em;
+    height: 1.4em;
+    padding: 0;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    color: var(--gg-text, #374151);
+    font-size: 1.05em;
+    font-weight: 700;
+    line-height: 1;
+    transition: color 160ms ease, background 160ms ease;
+    border-radius: 50%;
+    user-select: none;
+    z-index: 2;
+}
+
+.grouplet_grid_row_delete > * {
+    line-height: 1;
+}
+
+.grouplet_grid_row_delete:hover {
+    color: var(--gg-danger, #dc2626);
+    background: rgba(220, 38, 38, 0.1);
+}
+
+.gg-flat-rows .grouplet_grid_row_delete {
+    display: none;
+}
+
 /* While the row is being dragged: subtle lift (slight scale-down +
    reduced opacity) so the user perceives the card as "picked up".
    The shadow goes to the drag-image clone (below); the original
@@ -540,10 +580,77 @@
     pointer-events: none;
 }
 
-/* lightButton normally renders a `<span>` with the label text (which
-   we explicitly leave empty); hide it so only the centered '+' shows. */
+/* lightButton normally renders a `<span>` with the label text. The
+   default phantom add has no label (only the centered '+' from
+   ::before) so we hide the span. When `additem_label` is set, the
+   widget gets the `--labeled` modifier and the span is shown beside
+   the '+', producing a compact "+ New item" affordance. */
 .grouplet_grid_footer > span {
     display: none;
+}
+
+.grouplet_grid_footer--labeled {
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: 0.4em;
+    padding: 0.55em 0.9em;
+}
+
+.grouplet_grid_footer--labeled > span {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.92em;
+    font-weight: 600;
+    line-height: 1;
+    color: inherit;
+}
+
+/* `+` glyph for the labeled variant — line-height:1 + matched font
+   size + translateY tiny nudge to compensate the bottom-heavy '+'
+   font metric so it visually centers with the label baseline. */
+.grouplet_grid_footer--labeled::before {
+    font-size: 1.1em;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    transform: translateY(-0.04em);
+}
+
+/* Minimal "row-style" variant — opt-in via
+   `additem_class='grouplet_grid_footer--minimal'`. No dashed border,
+   tighter padding, smaller subtle `+`. For nested or secondary grids
+   where the standard dashed CTA would feel too loud. Designed to be
+   composed WITH `--labeled` for a "+ New item" Apple-like row. */
+.grouplet_grid_footer--minimal {
+    border: none;
+    background: transparent;
+    color: var(--gg-text-muted, #9ca3af);
+    padding: 0.35em 0.6em;
+    opacity: 0.85;
+    /* Left-aligned (Notion/Linear pattern) — when --minimal is paired
+       with --labeled, override the labeled justify-content:center. */
+    justify-content: flex-start;
+    /* Pull the minimal add closer to the last row — the parent flex gap
+       is sized for inter-row spacing of dashed CTAs, too loose for an
+       inline "row-style" link. Negative margin compensates. */
+    margin-top: calc(var(--gg-gap, 12px) * -0.6);
+}
+
+.grouplet_grid_footer--minimal:hover {
+    border: none;
+    background: var(--gg-accent-soft, rgba(59, 130, 246, 0.08));
+    color: var(--gg-accent, #2563eb);
+    opacity: 1;
+}
+
+.grouplet_grid_footer--minimal::before {
+    font-size: 1em;
+    font-weight: 500;
+}
+
+.grouplet_grid_footer--minimal:hover::before {
+    transform: none;  /* skip the rotate-90 of the default variant */
 }
 
 /* --- Toolbar buttons (used in slot.top for fakexcel and similar) --- */

@@ -6,6 +6,10 @@ from gnr.core.gnrlang import gnrImport
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 
+# Sentinel for kwargs whose default may need to be resolved later. Lets
+# us tell "not passed" apart from "explicitly False/{}".
+_UNSET = object()
+
 
 class GroupletHandler(BaseComponent):
     css_requires = 'gnrcomponents/grouplet/grouplet'
@@ -653,19 +657,28 @@ class GroupletGridHandler(BaseComponent):
         handler_fn(pane, **cell_kw)
         return pane
 
-    @extract_kwargs(grouplet=dict(slice_prefix=False, pop=True))
+    @extract_kwargs(
+        grouplet=dict(slice_prefix=False, pop=True),
+        additem=True, delitem=True, editmenu=True,
+    )
     @struct_method
     def gr_groupletGrid(self, pane, storepath=None,
                         resource=None, handler=None,
                         table=None, grouplets_root=None,
                         cols=1, min_width=None, gap='12px',
                         height=None, max_height=None,
-                        addEnabled=False, removeEnabled=False,
+                        additem=True, delitem=_UNSET, editmenu=_UNSET,
                         reorderEnabled=False,
                         dragCode=None,
+                        onSelfDropRows=None,
+                        afterSelfDropRows=None,
                         minRows=0, maxRows=None,
                         defaultRow=None,
-                        grouplet_kwargs=None, nodeId=None, **kwargs):
+                        grouplet_kwargs=None,
+                        additem_kwargs=None,
+                        delitem_kwargs=None,
+                        editmenu_kwargs=None,
+                        nodeId=None, **kwargs):
         # NOTE on nodeIds inside the grouplet template:
         #   The widget renders the grouplet template once per row by
         #   cloning it. nodeIds are NOT renamed automatically — every
@@ -680,6 +693,24 @@ class GroupletGridHandler(BaseComponent):
         #   nodeId on those widgets.
         # Accept legacy `gridId` kw as alias of `nodeId` for back-compat.
         nodeId = nodeId or kwargs.pop('gridId', None) or f'grpgrid_{id(pane)}'
+        # Modal defaults: when `delitem`/`editmenu` were not passed
+        # explicitly, fall back to the cards-mode defaults — row-level
+        # `×` is the primary delete affordance, no kebab.
+        if delitem is _UNSET:
+            delitem = True
+        if editmenu is _UNSET:
+            editmenu = False
+        # `editmenu` accepts: False/None → no kebab (default — the `×`
+        # from `delitem` is the primary delete affordance); True →
+        # preset entries (addPrev + addNext, plus `delete` only when
+        # `delitem` is False — otherwise the `×` covers it); dict →
+        # custom entries.
+        if editmenu is True:
+            editmenu = {'addPrev': True, 'addNext': True}
+            if not delitem:
+                editmenu['delete'] = True
+        elif not editmenu:
+            editmenu = {}
         body_id = f'{nodeId}_body'
         addbtn_id = f'{nodeId}_addbtn'
         if not (resource or handler):
@@ -708,6 +739,16 @@ class GroupletGridHandler(BaseComponent):
             kwargs.setdefault('height', height)
         if max_height is not None:
             kwargs.setdefault('max_height', max_height)
+        # Drop hooks (grid-compatible `selfDragRows` naming): attach as
+        # container attrs so the JS controller can resolve them via
+        # `gnr.convertFuncAttribute(sourceNode, ...)` — the same path
+        # the grid uses (genro_grid.js:671). Strings are converted to
+        # functions at controller init; callable hooks passed via
+        # structpage are JSON-serialized as `js:...` upstream.
+        if onSelfDropRows is not None:
+            kwargs.setdefault('onSelfDropRows', onSelfDropRows)
+        if afterSelfDropRows is not None:
+            kwargs.setdefault('afterSelfDropRows', afterSelfDropRows)
         # Attribute marker `_gg_root` on the container makes it discoverable
         # by descendants via `attributeOwnerNode('_gg_root')`. Same trick
         # `gnride.py` uses with `_activeIDE`. This decouples the bootstrap
@@ -742,13 +783,31 @@ class GroupletGridHandler(BaseComponent):
             "+'_action'")
         publish_add = (f"genro.publish({action_topic_template},"
                        "{action:'add'});")
-        if addEnabled:
-            body.lightButton(
-                '',
-                _class='grouplet_grid_footer',
-                nodeId=addbtn_id,
-                tip='!!Add row',
-                action=publish_add)
+        if additem:
+            # Phantom `+` sits in the body with the `--footer` styling
+            # (CSS `order: 999` places it after all rows).
+            btn_kw = dict(_class='grouplet_grid_footer',
+                          nodeId=addbtn_id,
+                          tip='!!Add row',
+                          action=publish_add)
+            # `dictExtract` renames the reserved key `class` to `_class`
+            # (see gnrdict.py:41). Merge it onto the default `_class` as
+            # an APPEND so the page author extends styling instead of
+            # clobbering `grouplet_grid_footer` (which carries `order:999`
+            # responsible for placing the phantom at the end of the body).
+            extra = dict(additem_kwargs or {})
+            extra_class = extra.pop('_class', None)
+            if extra_class:
+                btn_kw['_class'] = f"{btn_kw['_class']} {extra_class}"
+            # `additem_label` opts into the labeled variant — when set,
+            # the lightButton renders its `<span>` with text alongside
+            # the `+` glyph. CSS gates the span via the `--labeled` modifier.
+            label = extra.pop('label', '')
+            if label:
+                btn_kw['_class'] = (f"{btn_kw['_class']} "
+                                    "grouplet_grid_footer--labeled")
+            btn_kw.update(extra)
+            body.lightButton(label, **btn_kw)
         # Bootstrap dataController: sits inside the container so
         # `this.attributeOwnerNode('_gg_root')` resolves to the container
         # itself (the closest ancestor — including self — that carries
@@ -760,15 +819,16 @@ class GroupletGridHandler(BaseComponent):
                 var bodyNode = node.getValue().walk(function(n){
                     if (n.attr && n.attr._gg_body) return n;
                 }, 'static');
+                // Find the add-button node by walking the whole container
+                // tree (`.grouplet_grid_footer` inside the body).
+                var addBtnNode = node.getValue().walk(function(n){
+                    if (n.attr && n.attr._class
+                        && n.attr._class.indexOf('grouplet_grid_footer')>=0)
+                        return n;
+                }, 'static');
                 node.gridController = new gnr.GroupletGridController(node, {
                     bodyNode: bodyNode,
-                    addBtnNode: bodyNode && bodyNode.getValue() ?
-                        bodyNode.getValue().walk(function(n){
-                            if (n.attr &&
-                                n.attr._class &&
-                                n.attr._class.indexOf('grouplet_grid_footer')>=0)
-                                return n;
-                        }, 'static') : null,
+                    addBtnNode: addBtnNode,
                     resource: _resource,
                     handler: _handler,
                     table: _table,
@@ -777,8 +837,12 @@ class GroupletGridHandler(BaseComponent):
                     cols: _cols,
                     min_width: _min_width,
                     gap: _gap,
-                    addEnabled: _addEnabled,
-                    removeEnabled: _removeEnabled,
+                    additem: _additem,
+                    delitem: _delitem,
+                    editmenu: _editmenu,
+                    additem_kw: _additem_kw,
+                    delitem_kw: _delitem_kw,
+                    editmenu_kw: _editmenu_kw,
                     defaultRow: _defaultRow,
                     minRows: _minRows,
                     maxRows: _maxRows,
@@ -794,8 +858,12 @@ class GroupletGridHandler(BaseComponent):
             _cols=int(cols),
             _min_width=min_width,
             _gap=gap,
-            _addEnabled=addEnabled,
-            _removeEnabled=removeEnabled,
+            _additem=additem,
+            _delitem=delitem,
+            _editmenu=editmenu,
+            _additem_kw=additem_kwargs or {},
+            _delitem_kw=delitem_kwargs or {},
+            _editmenu_kw=editmenu_kwargs or {},
             _defaultRow=defaultRow,
             _minRows=minRows,
             _maxRows=maxRows,

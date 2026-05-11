@@ -127,8 +127,24 @@ gnr.GroupletGridController = class GroupletGridController {
         this.cols = kw.cols || 1;
         this.minWidth = kw.min_width || null;
         this.gap = kw.gap || '12px';
-        this.addEnabled = kw.addEnabled;
-        this.removeEnabled = kw.removeEnabled;
+        // Action affordances (Item 10 API):
+        //   additem  : bool — phantom '+' (rendered server-side as a
+        //              lightButton in body/tabbar). The controller does not
+        //              build it; only used to gate maxRows logic.
+        //   delitem  : bool — top-right `×` close button on each row.
+        //   editmenu : false | true | dict — per-row kebab:
+        //              false → no kebab
+        //              true  → {addPrev, addNext} (and `delete` only when
+        //                      delitem is False)
+        //              dict  → custom map {entryKey: label or {label, ...}}
+        //   *_kw     : prefix-capture kwargs (e.g. additem_class via
+        //              additem_kwargs.class) applied to the rendered DOM.
+        this.additem = (kw.additem !== false);
+        this.delitem = (kw.delitem === true);
+        this.editmenu = (kw.editmenu === undefined) ? false : kw.editmenu;
+        this.additemKw = kw.additem_kw || {};
+        this.delitemKw = kw.delitem_kw || {};
+        this.editmenuKw = kw.editmenu_kw || {};
         this.defaultRow = kw.defaultRow;
         this.minRows = kw.minRows || 0;
         this.maxRows = kw.maxRows || null;
@@ -801,58 +817,104 @@ gnr.GroupletGridController = class GroupletGridController {
         bodyContent._('div', wrapperLabel, wrapperKw, extraKw);
         const wrapperNode = bodyContent.getNode(wrapperLabel);
         const wrapperContent = wrapperNode.getValue();
-        // 2) Per-row kebab menu — `<div>` target with a child `<menu>`.
-        //    Pattern: `gnr.widgets.Menu` (genro_widgets.js Menu widget) with
-        //    `connectToParent:true` (default) auto-binds the menu to its
-        //    parent DOM node via `bindDomNode`. `modifiers:'*'` opens the
-        //    menu on plain left-click (instead of right-click only).
-        //    Items: "Insert below" + "Delete row" via menuline children.
-        //    Reference: genro_components.js:497 (multivalue dlg) for the
-        //    inline `_('menu', {modifiers:'*', ...})` shape.
-        const showInsert = !!this.addEnabled;
-        const showRemove = !!this.removeEnabled;
-        if (showInsert || showRemove) {
+        const topic = this.actionTopic;
+        // 2a) Top-right `×` delete button (Item 10 affordance).
+        //     Enabled by `delitem=True`. Always sits on top of the kebab
+        //     and the row content via CSS absolute positioning.
+        if (this.delitem) {
+            const delKw = objectUpdate({
+                _class: 'grouplet_grid_row_delete',
+                tip: _T('!!Delete row'),
+                connect_onclick: "genro.publish('" + topic + "',"
+                                + "{action:'delete',rowKey:'" + rowKey + "'});"
+            }, this.delitemKw || {});
+            // Author-provided extra _class is merged additively.
+            if (this.delitemKw && this.delitemKw._class) {
+                delKw._class = 'grouplet_grid_row_delete '
+                             + this.delitemKw._class;
+            }
+            wrapperContent._('div', '_grow_del_' + rowKey, delKw);
+            const delNode = wrapperContent.getNode('_grow_del_' + rowKey);
+            delNode.getValue()._('div', 'glyph', {innerHTML: '×'});
+        }
+        // 2b) Per-row kebab menu — `<div>` target with a child `<menu>`.
+        //     The Python side pre-resolves `editmenu` to a dict whose keys
+        //     are entry identifiers ('addPrev', 'addNext', 'delete', ...
+        //     or anything custom) and whose values are:
+        //       True   → use the built-in preset for that key
+        //       string → custom label, action derived from preset key
+        //       dict   → full menuline spec (label, action, ...)
+        //     An empty dict means "no kebab".
+        // Reference: genro_components.js:497 (multivalue dlg) for the
+        // inline `_('menu', {modifiers:'*', ...})` shape.
+        const editmenu = this.editmenu;
+        const hasEditmenu = editmenu && typeof editmenu === 'object'
+                            && Object.keys(editmenu).length > 0;
+        if (hasEditmenu) {
+            // Preset entries: keyed by the same identifiers the Python
+            // side emits ('addPrev', 'addNext', 'delete'). Each returns a
+            // menuline-ready spec (label + action publishing on the
+            // controller's action topic).
+            const presets = {
+                addPrev: {
+                    label: _T('!!Add prev'),
+                    action: "genro.publish('" + topic + "',"
+                          + "{action:'add',position:'<" + rowKey + "'});"
+                },
+                addNext: {
+                    label: _T('!!Add next'),
+                    action: "genro.publish('" + topic + "',"
+                          + "{action:'add',position:'>" + rowKey + "'});"
+                },
+                'delete': {
+                    label: _T('!!Delete'),
+                    action: "genro.publish('" + topic + "',"
+                          + "{action:'delete',rowKey:'" + rowKey + "'});"
+                }
+            };
             const kebabId = '__grpgridrowmenu__' + this.nodeId + '__' + rowKey;
-            wrapperContent._('div', '_grow_kebab_' + rowKey, {
+            const kebabKw = objectUpdate({
                 _class: 'grouplet_grid_row_kebab',
                 tip: _T('!!Row actions'),
                 nodeId: kebabId
-            });
+            }, this.editmenuKw || {});
+            if (this.editmenuKw && this.editmenuKw._class) {
+                kebabKw._class = 'grouplet_grid_row_kebab '
+                               + this.editmenuKw._class;
+            }
+            wrapperContent._('div', '_grow_kebab_' + rowKey, kebabKw);
             const kebabNode = wrapperContent.getNode('_grow_kebab_' + rowKey);
             const kebabContent = kebabNode.getValue();
-            // Inner glyph (three dots) — plain unicode character so it
-            // inherits font + color from the theme.
             kebabContent._('div', 'glyph', {
                 _class: 'grouplet_grid_kebab_icon',
                 innerHTML: '⋮'
             });
-            // Menu as child of the kebab — auto-binds to kebab DOM node.
-            // Items publish on the controller's action topic; the
-            // controller dispatches via _handleAction.
             const menu = kebabContent._('menu', {
                 modifiers: '*',
                 _class: 'smallmenu grouplet_grid_row_menu'
             });
-            const topic = this.actionTopic;
-            if (showInsert) {
-                menu._('menuline', {
-                    label: _T('!!Add prev'),
-                    action: "genro.publish('" + topic + "',"
-                          + "{action:'add',position:'<" + rowKey + "'});"
-                });
-                menu._('menuline', {
-                    label: _T('!!Add next'),
-                    action: "genro.publish('" + topic + "',"
-                          + "{action:'add',position:'>" + rowKey + "'});"
-                });
-            }
-            if (showRemove) {
-                menu._('menuline', {
-                    label: _T('!!Delete'),
-                    action: "genro.publish('" + topic + "',"
-                          + "{action:'delete',rowKey:'" + rowKey + "'});"
-                });
-            }
+            Object.keys(editmenu).forEach((entryKey) => {
+                const raw = editmenu[entryKey];
+                if (raw === false || raw === null || raw === undefined) {
+                    return;
+                }
+                const preset = presets[entryKey] || null;
+                let spec;
+                if (raw === true) {
+                    if (!preset) return;        // unknown key, no preset
+                    spec = preset;
+                } else if (typeof raw === 'string') {
+                    spec = objectUpdate({}, preset || {});
+                    spec.label = raw;
+                } else if (typeof raw === 'object') {
+                    spec = objectUpdate({}, preset || {});
+                    objectUpdate(spec, raw);
+                } else {
+                    return;
+                }
+                if (!spec.label) return;
+                menu._('menuline', spec);
+            });
         }
         // 3) Freeze → graft dello stampino (i children top-level del template
         //    clonato) → unfreeze. Il framework costruisce atomicamente

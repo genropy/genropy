@@ -59,8 +59,14 @@ class Grouplet(BaseComponent):
                  color='#888', font_size='11px', font_weight='600',
                  text_transform='uppercase', letter_spacing='0.4px',
                  margin='4px 0 2px 0')
+        # Nested contacts grid: phantom '+ New contact' in the quieter
+        # minimal style (no dashed border) — distinguishes the nested
+        # add affordance from the outer "+ New team member" CTA.
+        # kebab handles per-row actions (incl. delete); no top-right `×`.
         pane.groupletGrid(
             storepath='.contacts',
             resource='contact_row',
-            addEnabled=True, removeEnabled=True,
+            delitem=False, editmenu=True,
+            additem_label='!!New contact',
+            additem_class='grouplet_grid_footer--minimal',
             defaultRow=dict(channel='email', value=''))

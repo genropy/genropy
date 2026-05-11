@@ -26,7 +26,5 @@ class Grouplet(BaseComponent):
         body.groupletGrid(
             storepath='.accounts',
             resource='budget/conto_card',
-            addEnabled=True,
-            removeEnabled=True,
             dragCode='budget_conti',
             defaultRow=dict(codice='', descr=''))
