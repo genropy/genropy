@@ -41,7 +41,6 @@ wsgi_options = dict(
         host='0.0.0.0',
         reload=False,
         debug=True,
-        noclean=False,
         restore=False,
         source_instance=None,
         remote_edit=None,
@@ -197,15 +196,6 @@ class Server(object):
                             dest='site_name_opt',
                             help="Use command on site identified by supplied name")
 
-        parser.add_argument('-n', '--noclean',
-                            dest='noclean',
-                            help="Don't perform a clean (full reset) restart",
-                            action='store_true')
-
-        parser.add_argument('--counter',
-                            dest='counter',
-                            help="Startup counter")
-
         parser.add_argument('--ssl_cert',
                             dest='ssl_cert',
                             help="SSL cert")
@@ -335,8 +325,7 @@ class Server(object):
 
             from gnr.web.gnrasync import GnrAsyncServer
             site_options= dict(_config=self.siteconfig,_gnrconfig=self.gnr_config,
-                counter=getattr(self.options, 'counter', None),
-                noclean=self.options.noclean, options=self.options)
+                options=self.options)
             logger.info(f"Starting Tornado server - listening on {self.app_host}:{self.app_port}")
             server=GnrAsyncServer(port=self.app_port, instance=site_name,
                                   web=True, autoreload=self.options.reload,
@@ -351,8 +340,6 @@ class Server(object):
                                         site_name=site_name,
                                         _config=self.siteconfig,
                                         _gnrconfig=self.gnr_config,
-                                        counter=getattr(self.options, 'counter', None),
-                                        noclean=self.options.noclean,
                                         options=self.options,
                                         debugpy=self.debugpy)
                 gnrServer._local_mode=True
