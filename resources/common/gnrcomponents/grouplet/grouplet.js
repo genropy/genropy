@@ -103,14 +103,20 @@ var gnr_grouplet = {
 gnr.GroupletGridController = class GroupletGridController {
     constructor(sourceNode, kw) {
         this.sourceNode = sourceNode;
-        // bodyNode and addBtnNode are passed in as already-resolved
-        // sourceNodes (looked up via attribute markers in the bootstrap
+        // bodyNode is passed in as an already-resolved sourceNode
+        // (looked up via the `_gg_body` attribute marker in the bootstrap
         // dataController). nodeId is read directly from the live
         // container — by the time this constructor fires, namespacing
         // (if any) has already been applied so sourceNode.attr.nodeId
         // is the per-instance unique id.
+        // The phantom `+` add button is NOT passed in: the controller
+        // builds it client-side via `_buildLayoutAffordances` (which
+        // also handles the tabbar in tabs mode). Stored as
+        // `this.addBtnDom` (raw DOM, not a sourceNode).
         this.bodyNode = kw.bodyNode || null;
-        this.addBtnNode = kw.addBtnNode || null;
+        this.addBtnDom = null;
+        this.tabbarDom = null;
+        this.tabstripDom = null;
         this.nodeId = sourceNode.attr.nodeId;
         // Absolute datapath of the rows Bag — resolved once against the
         // container's datapath chain (`mixin_absStorepath` does the same
@@ -154,6 +160,17 @@ gnr.GroupletGridController = class GroupletGridController {
         this.dragCode = kw.dragCode || null;
         this._dragOverRow = null;
         this._dragHandlesByRow = {};
+        // Tabs mode (Item 11): `layout='tabs'` swaps the cards body for
+        // a horizontal tab strip with one chip per row. The active tab
+        // shows its panel (all others get `display:none` via CSS — hidden
+        // panels stay mounted, subscriptions intact). `setLayout()` flips
+        // between modes at runtime.
+        this.layout = kw.layout || 'cards';
+        this.titleField = kw.titleField || null;
+        this.emptyTitle = kw.emptyTitle || _T('!!Untitled');
+        this.activeRowKey = null;
+        this._tabsByRow = {};         // rowKey -> chip DOM element
+        this._pendingActivate = null; // rowKey to auto-activate on next _addRow
         this.templateSource = null;
         this.templateLoading = null;
         this.rows = {};
@@ -166,6 +183,11 @@ gnr.GroupletGridController = class GroupletGridController {
         this._applySlotClasses();
         this._registerActionSubscription();
         this._wireContainerDnD();
+        // Build the layout-specific affordances (phantom `+` button in
+        // cards mode, full tabbar+`+` chip in tabs mode). Must run AFTER
+        // the container DOM exists; `_onBuilt` of the bootstrap
+        // dataController guarantees that.
+        this._buildLayoutAffordances();
         const that = this;
         dojo.connect(sourceNode, '_onDeleting', function() { that.destroy(); });
         // Initial render: the store-driven dispatch (`gnr_storepath`) is
@@ -217,14 +239,30 @@ gnr.GroupletGridController = class GroupletGridController {
         //                     mixin_newDataStore in genro_grid.js)
         //   parent_lv === 1 → add/remove of a whole row
         //   parent_lv > 1  → mutation INSIDE a row (field/sub-bag):
-        //                    the widget bound to the field updates
-        //                    itself, no tile-level work needed.
+        //                    widgets bound to that field update
+        //                    themselves via the standard `^.field`
+        //                    binding. The controller only intervenes
+        //                    here for chrome that lives OUTSIDE the
+        //                    row template — namely the tab chip label
+        //                    in tabs mode, which is plain DOM (no
+        //                    sourceNode subscription of its own).
         const parent_lv = storeNode
             ? kw.node.parentshipLevel(storeNode)
             : 0;
         if (parent_lv === 0) {
             // Whole-store replacement: rebuild from the new Bag.
             this._renderFromStore();
+            return;
+        }
+        if (parent_lv > 1) {
+            // Tabs mode label refresh: walk up the changed node's
+            // parentship chain to find the row-level node (parent_lv=1)
+            // and, if the mutated leaf is the titleField, repaint the
+            // chip's title text. Other intra-row mutations are
+            // ignored (widgets do their own binding).
+            if (this._isTabsLayout() && this.titleField) {
+                this._maybeRefreshTabLabel(kw.node, storeNode);
+            }
             return;
         }
         if (parent_lv !== 1) return;
@@ -235,6 +273,40 @@ gnr.GroupletGridController = class GroupletGridController {
             this._ensureTemplate(function() { that._addRow(rowKey); });
         } else if (kw.evt === 'del') {
             this._removeRow(rowKey);
+        }
+    }
+
+    _maybeRefreshTabLabel(changedNode, storeNode) {
+        // Find the row-level ancestor of `changedNode` (the node whose
+        // parent IS `storeNode`). Walk up parents until we hit it, then
+        // verify the mutated leaf is exactly the titleField. We need an
+        // exact match: if the user has nested data and the titleField
+        // is `.name` but the change was on `.contacts.r_001.value`,
+        // the leaf check filters it out.
+        let cur = changedNode;
+        let leafLabel = null;
+        while (cur) {
+            const parent = cur.getParentNode && cur.getParentNode();
+            if (!parent) break;
+            if (parent === storeNode) {
+                // `cur` is the row node; the path from row to changed
+                // leaf must be exactly `<titleField>`.
+                if (leafLabel === this.titleField) {
+                    const chip = this._tabsByRow[cur.label];
+                    if (chip) {
+                        const title = chip.querySelector(
+                            ':scope > .grouplet_grid_tab_title');
+                        if (title) {
+                            title.textContent = this._readTabLabel(cur.label);
+                        }
+                    }
+                }
+                return;
+            }
+            leafLabel = (leafLabel === null)
+                ? cur.label
+                : (cur.label + '.' + leafLabel);
+            cur = parent;
         }
     }
 
@@ -268,6 +340,415 @@ gnr.GroupletGridController = class GroupletGridController {
                 container.classList.add('has-' + side);
             }
         });
+    }
+
+    // --- Layout affordances (cards `+` footer / tabs tabbar) ---
+    //
+    // All layout-specific DOM is built client-side, never emitted from
+    // Python. Cards mode appends a `.grouplet_grid_footer` div inside
+    // the body (CSS `order:999` parks it after rows). Tabs mode inserts
+    // a `.grouplet_grid_tabbar` between the `top` slot and the body
+    // (CSS `grid-template-areas` pins it), plus a `+` chip on its right.
+    // `setLayout()` swaps between the two without touching row panels.
+
+    _isTabsLayout() {
+        return this.layout === 'tabs' || this.layout === 'vtabs';
+    }
+
+    _buildLayoutAffordances() {
+        const containerDom = this.sourceNode && this.sourceNode.getDomNode
+            && this.sourceNode.getDomNode();
+        if (!containerDom) return;
+        // Always start clean — `setLayout()` removes mode classes via
+        // teardown, but the constructor's first call also enters here
+        // and we want idempotent behavior.
+        containerDom.classList.remove(
+            'grouplet_grid--tabs', 'grouplet_grid--vtabs');
+        if (this._isTabsLayout()) {
+            containerDom.classList.add('grouplet_grid--tabs');
+            if (this.layout === 'vtabs') {
+                containerDom.classList.add('grouplet_grid--vtabs');
+            }
+            this._buildTabbar(containerDom);
+            // Re-add chips for existing rows (relevant when entering
+            // tabs mode via setLayout — rows already exist).
+            Object.keys(this.rows).forEach((rowKey) => {
+                this._addTabChip(rowKey);
+            });
+            // If at least one row exists and none is currently active,
+            // activate the first.
+            const allKeys = Object.keys(this.rows);
+            if (allKeys.length > 0 && !this.activeRowKey) {
+                this._activateTab(allKeys[0]);
+            } else if (this.activeRowKey && this.rows[this.activeRowKey]) {
+                this._setActiveTabClasses(this.activeRowKey);
+            }
+        } else {
+            this._buildCardsFooter(containerDom);
+        }
+        this._updateAddBtnState();
+    }
+
+    _teardownLayoutAffordances() {
+        // Remove the layout-specific scaffolding (footer or tabbar) and
+        // wipe state. Row wrappers themselves are NOT touched — their
+        // widgets / subscriptions / pending edits stay alive across a
+        // layout switch.
+        if (this.addBtnDom && this.addBtnDom.parentNode) {
+            this.addBtnDom.parentNode.removeChild(this.addBtnDom);
+        }
+        this.addBtnDom = null;
+        if (this.tabbarDom && this.tabbarDom.parentNode) {
+            this.tabbarDom.parentNode.removeChild(this.tabbarDom);
+        }
+        this.tabbarDom = null;
+        this.tabstripDom = null;
+        // No per-chip subscriptions to detach: tab label reactivity is
+        // a single branch inside `gnr_storepath` (handled by the
+        // controller's existing dyn-attr subscription on `storepath`),
+        // so the chips themselves carry no listeners beyond click/DnD,
+        // which are removed when the DOM is destroyed.
+        this._tabsByRow = {};
+        // Strip tab-active class from any surviving row wrapper.
+        Object.keys(this.rows).forEach((rowKey) => {
+            const entry = this.rows[rowKey];
+            const live = entry && genro.nodeById(entry.wrapperNodeId);
+            const dom = live && live.getDomNode && live.getDomNode();
+            if (dom) dom.classList.remove('gg-tab-active');
+        });
+    }
+
+    setLayout(newLayout) {
+        // Public API: flip between 'cards', 'tabs' and 'vtabs' at
+        // runtime. Row panels survive the switch (only layout-specific
+        // DOM is rebuilt). Selection is preserved when going from one
+        // tabs flavor to another (or cards → tabs/vtabs); going to
+        // cards clears `activeRowKey` since there is no active concept.
+        if (newLayout !== 'cards'
+            && newLayout !== 'tabs'
+            && newLayout !== 'vtabs') {
+            console.warn('[GG] setLayout: unknown layout', newLayout);
+            return;
+        }
+        if (newLayout === this.layout) return;
+        const prevActive = this.activeRowKey;
+        this._teardownLayoutAffordances();
+        this.layout = newLayout;
+        if (newLayout === 'cards') {
+            this.activeRowKey = null;
+        } else {
+            // Keep the previously selected row as the active tab if it
+            // still exists; the build pass below will install the
+            // chip and apply `.gg-tab-active`.
+            if (prevActive && this.rows[prevActive]) {
+                this.activeRowKey = prevActive;
+            }
+        }
+        this._buildLayoutAffordances();
+    }
+
+    _buildCardsFooter(containerDom) {
+        // The phantom `+` is appended to the CONTAINER (not to the
+        // body) so that the framework's row rendering inside the body
+        // never touches it. CSS pins the footer to its own grid-area
+        // (`addbtn`) so it sits directly below the body, mimicking the
+        // previous "in-body footer with order:999" layout.
+        if (!this.additem) return;
+        const btn = document.createElement('div');
+        btn.className = 'grouplet_grid_footer';
+        btn.setAttribute('title', _T('!!Add row'));
+        // Honor `additem_kw` (extra class / label):
+        //   additem_class → appended to the class list
+        //   additem_label → switches the footer to the `--labeled` variant
+        //                   and renders a `<span>` next to the `+` glyph
+        const extra = this.additemKw || {};
+        if (extra._class) {
+            btn.className += ' ' + extra._class;
+        }
+        const label = extra.label || '';
+        if (label) {
+            btn.className += ' grouplet_grid_footer--labeled';
+            const span = document.createElement('span');
+            span.textContent = _T(label);
+            btn.appendChild(span);
+        }
+        const that = this;
+        btn.addEventListener('click', function() {
+            genro.publish(that.actionTopic, {action: 'add'});
+        });
+        containerDom.appendChild(btn);
+        this.addBtnDom = btn;
+    }
+
+    _buildTabbar(containerDom) {
+        // Insert the tabbar immediately after the `top` slot so the CSS
+        // grid template-areas places it correctly (top → tabbar → center).
+        const tabbar = document.createElement('div');
+        tabbar.className = 'grouplet_grid_tabbar';
+        const strip = document.createElement('div');
+        strip.className = 'grouplet_grid_tabs';
+        tabbar.appendChild(strip);
+        if (this.additem) {
+            const addBtn = document.createElement('div');
+            addBtn.className = 'grouplet_grid_tab_add';
+            addBtn.setAttribute('title', _T('!!Add row'));
+            // The `+` chip is intentionally NOT draggable and NOT a
+            // drop target — even when `dragCode` is set, no DnD
+            // listeners are attached. Dropping a chip on the `+`
+            // releases as a no-op.
+            const that = this;
+            addBtn.addEventListener('click', function() {
+                genro.publish(that.actionTopic, {action: 'add'});
+            });
+            tabbar.appendChild(addBtn);
+            this.addBtnDom = addBtn;
+        }
+        // Place the tabbar at the start of the container (after the
+        // top slot if present, else first). CSS grid-template-areas
+        // pins it to the `tabbar` area; document order only matters
+        // for accessibility / source-reading order.
+        const topSlot = containerDom.querySelector(
+            ':scope > .grouplet_grid_slot_top');
+        if (topSlot && topSlot.nextSibling) {
+            containerDom.insertBefore(tabbar, topSlot.nextSibling);
+        } else {
+            containerDom.insertBefore(tabbar, containerDom.firstChild);
+        }
+        this.tabbarDom = tabbar;
+        this.tabstripDom = strip;
+    }
+
+    // --- Tab chip lifecycle ---
+
+    _addTabChip(rowKey) {
+        if (!this.tabstripDom) return;
+        if (this._tabsByRow[rowKey]) return;
+        const chip = document.createElement('div');
+        chip.className = 'grouplet_grid_tab';
+        chip.setAttribute('data-rowkey', rowKey);
+        const title = document.createElement('div');
+        title.className = 'grouplet_grid_tab_title';
+        title.textContent = this._readTabLabel(rowKey);
+        chip.appendChild(title);
+        if (this.delitem) {
+            const closeBtn = document.createElement('div');
+            closeBtn.className = 'grouplet_grid_tab_close';
+            closeBtn.textContent = '×';
+            closeBtn.setAttribute('title', _T('!!Delete row'));
+            const that = this;
+            closeBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                genro.publish(that.actionTopic,
+                    {action: 'delete', rowKey: rowKey});
+            });
+            chip.appendChild(closeBtn);
+        }
+        const that0 = this;
+        chip.addEventListener('click', function() {
+            that0._activateTab(rowKey);
+        });
+        // Insert at the correct position relative to existing chips,
+        // mirroring the Bag order. The chip strip is always in sync
+        // with the Bag thanks to the `gnr_storepath` pipeline — but
+        // for the FIRST render after a fullSync we mount in Bag order.
+        const bag = this.storebag();
+        let inserted = false;
+        if (bag instanceof gnr.GnrBag) {
+            const allKeys = bag.getNodes().map((n) => n.label);
+            const idx = allKeys.indexOf(rowKey);
+            for (let j = idx + 1; j < allKeys.length; j++) {
+                if (this._tabsByRow[allKeys[j]]) {
+                    this.tabstripDom.insertBefore(
+                        chip, this._tabsByRow[allKeys[j]]);
+                    inserted = true;
+                    break;
+                }
+            }
+        }
+        if (!inserted) {
+            this.tabstripDom.appendChild(chip);
+        }
+        this._tabsByRow[rowKey] = chip;
+        if (this.dragCode) {
+            this._wireTabDnD(chip, rowKey);
+        }
+        // Reactive label refresh is handled by `gnr_storepath` →
+        // `_maybeRefreshTabLabel` whenever the row's titleField mutates.
+        // No per-chip subscription needed.
+    }
+
+    _removeTabChip(rowKey) {
+        const chip = this._tabsByRow[rowKey];
+        if (!chip) return;
+        if (this.dragCode) {
+            this._unwireTabDnD(rowKey);
+        }
+        if (chip.parentNode) chip.parentNode.removeChild(chip);
+        delete this._tabsByRow[rowKey];
+    }
+
+    _readTabLabel(rowKey) {
+        if (!this.titleField) return rowKey;
+        const v = genro.getData(
+            this.storepath + '.' + rowKey + '.' + this.titleField);
+        if (v === undefined || v === null || v === '') {
+            return _T(this.emptyTitle);
+        }
+        return String(v);
+    }
+
+    _activateTab(rowKey) {
+        if (!this._isTabsLayout()) return;
+        if (this.activeRowKey === rowKey) return;
+        this.activeRowKey = rowKey;
+        this._setActiveTabClasses(rowKey);
+        // Hook for Item 12 (form swap): publish activation on the action
+        // bus. No internal subscriber for now — it is a pure extension
+        // point. External listeners can use it (e.g. `+` auto-focus).
+        genro.publish(this.actionTopic,
+            {action: 'activate', rowKey: rowKey});
+    }
+
+    _setActiveTabClasses(activeRowKey) {
+        // Toggles `.gg-tab-active` on every chip and every row wrapper.
+        // Idempotent: safe to call on every render / activation.
+        Object.keys(this._tabsByRow).forEach((rk) => {
+            const chip = this._tabsByRow[rk];
+            if (!chip) return;
+            chip.classList.toggle('gg-tab-active', rk === activeRowKey);
+        });
+        Object.keys(this.rows).forEach((rk) => {
+            const entry = this.rows[rk];
+            const live = entry && genro.nodeById(entry.wrapperNodeId);
+            const dom = live && live.getDomNode && live.getDomNode();
+            if (dom) dom.classList.toggle('gg-tab-active', rk === activeRowKey);
+        });
+    }
+
+    // --- Tab DnD (mirror of _wireRowDnD with chip selectors) ---
+    //
+    // The chip itself is the drag handle in tabs mode (no `⠿` glyph).
+    // Same data-transfer payload as `_wireRowDnD`, so cross-grid drag
+    // works between any combination of cards-mode and tabs-mode grids
+    // sharing a `dragCode`. The drop position is always "before the
+    // target chip" — same convention as cards mode.
+
+    _wireTabDnD(chipDom, rowKey) {
+        const that = this;
+        const dataKey = 'application/x-gg-' + this.dragCode;
+        const containerDom = this.sourceNode && this.sourceNode.getDomNode
+            && this.sourceNode.getDomNode();
+        chipDom.setAttribute('draggable', 'true');
+        const onDragStart = function(e) {
+            try {
+                e.dataTransfer.setData(dataKey, JSON.stringify({
+                    rowKey: rowKey, nodeId: that.nodeId
+                }));
+                e.dataTransfer.setData('text/plain', rowKey);
+                e.dataTransfer.effectAllowed = 'move';
+            } catch (err) { /* IE/Safari quirks */ }
+            try {
+                const auxDragImage = document.getElementById('auxDragImage');
+                if (auxDragImage) {
+                    const clone = chipDom.cloneNode(true);
+                    clone.classList.remove('gg-dragging', 'gg-drop-target',
+                        'gg-drop-target-invalid', 'gg-just-dropped');
+                    clone.style.width = chipDom.offsetWidth + 'px';
+                    auxDragImage.appendChild(clone);
+                    e.dataTransfer.setDragImage(clone,
+                        e.clientX - chipDom.getBoundingClientRect().left,
+                        e.clientY - chipDom.getBoundingClientRect().top);
+                    setTimeout(function() {
+                        if (clone.parentNode) {
+                            clone.parentNode.removeChild(clone);
+                        }
+                    }, 0);
+                }
+            } catch (err) { /* setDragImage not supported */ }
+            chipDom.classList.add('gg-dragging');
+            if (containerDom) containerDom.classList.add('gg-drag-active');
+            e.stopPropagation();
+        };
+        const onDragEnd = function() {
+            chipDom.classList.remove('gg-dragging');
+            that._clearDragOver();
+            if (containerDom) containerDom.classList.remove('gg-drag-active');
+        };
+        const onDragOver = function(e) {
+            if (chipDom.classList.contains('gg-dragging')) {
+                that._clearDragOver();
+                return;
+            }
+            const types = e.dataTransfer.types || [];
+            let isValid = false;
+            let isForeignGG = false;
+            for (let i = 0; i < types.length; i++) {
+                if (types[i] === dataKey) { isValid = true; break; }
+                if (typeof types[i] === 'string'
+                    && types[i].indexOf('application/x-gg-') === 0) {
+                    isForeignGG = true;
+                }
+            }
+            if (!isValid && !isForeignGG) return;
+            if (isValid) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+            } else {
+                e.dataTransfer.dropEffect = 'none';
+            }
+            that._setDragOver(chipDom, isValid);
+        };
+        const onDragLeave = function(e) {
+            if (!chipDom.contains(e.relatedTarget)) {
+                if (that._dragOverRow === chipDom) that._clearDragOver();
+            }
+        };
+        const onDrop = function(e) {
+            const raw = e.dataTransfer.getData(dataKey);
+            that._clearDragOver();
+            if (!raw) return;
+            e.preventDefault();
+            let payload;
+            try { payload = JSON.parse(raw); }
+            catch (err) { return; }
+            if (!payload) return;
+            if (payload.nodeId === that.nodeId) {
+                if (payload.rowKey === rowKey) return;
+                genro.publish(that.actionTopic, {
+                    action: 'move',
+                    rowKey: payload.rowKey,
+                    position: '<' + rowKey
+                });
+                return;
+            }
+            const sourceCtrl = that._findSourceController(payload.nodeId);
+            if (!sourceCtrl) {
+                console.warn('[GG] cross drop: source ctrl not found',
+                             payload.nodeId);
+                return;
+            }
+            that._doMoveRowFrom(sourceCtrl, payload.rowKey, '<' + rowKey);
+        };
+        chipDom.addEventListener('dragstart', onDragStart);
+        chipDom.addEventListener('dragend', onDragEnd);
+        chipDom.addEventListener('dragover', onDragOver);
+        chipDom.addEventListener('dragleave', onDragLeave);
+        chipDom.addEventListener('drop', onDrop);
+        // Reuse `_dragHandlesByRow` storage — keying by rowKey is unique
+        // per controller, and tabs mode never has a `_wireRowDnD` peer
+        // for the same row (only the chip is wired).
+        this._dragHandlesByRow[rowKey] = {
+            dom: chipDom,
+            handlers: {dragstart: onDragStart, dragend: onDragEnd,
+                       dragover: onDragOver, dragleave: onDragLeave,
+                       drop: onDrop}
+        };
+    }
+
+    _unwireTabDnD(rowKey) {
+        // Identical teardown to `_unwireRowDnD` since both store under
+        // the same `_dragHandlesByRow` key; reuse the existing method.
+        this._unwireRowDnD(rowKey);
     }
 
     _registerActionSubscription() {
@@ -690,6 +1171,10 @@ gnr.GroupletGridController = class GroupletGridController {
         this.sourceNode.unregisterSubscription(this.actionTopic);
         this._unwireContainerDnD();
         Object.keys(this.rows).forEach((rowKey) => this._removeRow(rowKey));
+        // Tear down the layout-specific scaffolding (tabbar / footer +
+        // any surviving chip subscriptions). Safe to call regardless of
+        // current layout.
+        this._teardownLayoutAffordances();
         this.templateSource = null;
         this.templateLoading = null;
     }
@@ -713,9 +1198,30 @@ gnr.GroupletGridController = class GroupletGridController {
             }
         });
         if (toAdd.length === 0) return;
+        // Tabs mode: pre-decide which row will be active so `_addRow`
+        // can stamp `gg-tab-active` directly onto the wrapper's `_class`
+        // BEFORE the wrapper is built. Without this, all wrappers mount
+        // with `display:none` (CSS hides every non-active row in tabs
+        // mode), and nested groupletGrids inside them — which run their
+        // own `_renderFromStore` on `_onBuilt` — would render their
+        // body subtree while detached from layout flow. By activating
+        // up-front, the first wrapper is `display:block` from the very
+        // first paint and its nested widgets build normally.
+        if (this._isTabsLayout() && !this.activeRowKey && toAdd.length > 0) {
+            this.activeRowKey = toAdd[0];
+        }
         this.bodyNode.freeze();
         toAdd.forEach((rowKey) => this._addRow(rowKey));
         this.bodyNode.unfreeze();
+        // After the batch unfreeze, re-assert the active classes on
+        // chip + wrapper (the per-row `_addRow` calls during the freeze
+        // applied the wrapper class via `_class`, but the chip class
+        // depends on the chip already existing — and chips are appended
+        // inside `_addRow` too, so this is mostly a safety net for the
+        // chip side and a no-op for the wrapper side).
+        if (this._isTabsLayout() && this.activeRowKey) {
+            this._setActiveTabClasses(this.activeRowKey);
+        }
     }
 
     _addRow(rowKey) {
@@ -760,9 +1266,19 @@ gnr.GroupletGridController = class GroupletGridController {
         }
         const that0 = this;
         const dragCode = this.dragCode;
+        // In tabs mode pre-stamp `gg-tab-active` on the wrapper when
+        // this row is the one being activated, so the wrapper is born
+        // visible. See the matching comment in `_fullSync` — without
+        // this, every wrapper would mount under `display:none` and
+        // nested widgets inside the first-active panel would build in
+        // a detached layout context.
+        let wrapperClass = 'grouplet_grid_row';
+        if (this._isTabsLayout() && this.activeRowKey === rowKey) {
+            wrapperClass += ' gg-tab-active';
+        }
         const wrapperKw = {
             datapath: '.' + rowKey,
-            _class: 'grouplet_grid_row',
+            _class: wrapperClass,
             nodeId: wrapperNodeId,
             connect_onclick: function() { that0.selectRow(rowKey); }
         };
@@ -911,6 +1427,30 @@ gnr.GroupletGridController = class GroupletGridController {
         // Drag handle is appended via onCreated callback (set on
         // wrapperKw above). No post-unfreeze hook needed.
         this._updateAddBtnState();
+        // Tabs mode: also build the corresponding tab chip. The
+        // wrapper's `_class` was pre-stamped above when this row was
+        // already known to be the active one (set by `_fullSync`
+        // before the batch freeze). If the row was just added via the
+        // `+` button (`_pendingActivate === rowKey`), switch the
+        // active tab to it now — same UX as opening a new browser
+        // tab. Otherwise, if the new row was inserted as the active
+        // one at fullSync time, reassert the chip class.
+        if (this._isTabsLayout()) {
+            this._addTabChip(rowKey);
+            const pending = this._pendingActivate === rowKey;
+            if (pending) {
+                this._pendingActivate = null;
+                // Force switch even if another tab is currently active.
+                this.activeRowKey = null;
+                this._activateTab(rowKey);
+            } else if (!this.activeRowKey) {
+                this._activateTab(rowKey);
+            } else if (this.activeRowKey === rowKey) {
+                // The wrapper class was pre-stamped, but the chip was
+                // just created — mark it active too.
+                this._setActiveTabClasses(this.activeRowKey);
+            }
+        }
         // Consume pending flash (set by `_doMoveRow*` before mutating
         // the Bag): highlight a row that just landed via DnD.
         if (this._pendingFlash && this._pendingFlash[rowKey]) {
@@ -940,8 +1480,31 @@ gnr.GroupletGridController = class GroupletGridController {
         const entry = this.rows[rowKey];
         if (!entry) return;
         // Tear down DnD listeners before the DOM is destroyed.
+        // In tabs mode the DnD handlers are on the chip (not the row
+        // wrapper), so the wrapper-level unwire is a no-op there — the
+        // chip teardown happens in `_removeTabChip` below. In cards
+        // mode the chip teardown is also a no-op.
         if (this.dragCode) {
             this._unwireRowDnD(rowKey);
+        }
+        // Tabs mode: drop the chip + decide next active.
+        if (this._isTabsLayout()) {
+            // Pre-compute the next active tab BEFORE removing the chip.
+            let nextActive = null;
+            if (this.activeRowKey === rowKey) {
+                const chipKeys = Object.keys(this._tabsByRow);
+                const idx = chipKeys.indexOf(rowKey);
+                if (idx > 0) {
+                    nextActive = chipKeys[idx - 1];
+                } else if (chipKeys.length > 1) {
+                    nextActive = chipKeys[idx + 1];
+                }
+            }
+            this._removeTabChip(rowKey);
+            if (this.activeRowKey === rowKey) {
+                this.activeRowKey = null;
+                if (nextActive) this._activateTab(nextActive);
+            }
         }
         const wrapperLabel = '_grow_' + rowKey;
         const bodySource = this.bodyNode.getValue('static');
@@ -1009,6 +1572,12 @@ gnr.GroupletGridController = class GroupletGridController {
             genro.setData(this.storepath, dataBag);
         }
         const newKey = 'r_' + genro.time36Id();
+        // Tabs mode: mark the new key as the one to activate when its
+        // `_addRow` fires (triggered by the Bag mutation below via
+        // `gnr_storepath`). Picked up — and cleared — inside `_addRow`.
+        if (this._isTabsLayout()) {
+            this._pendingActivate = newKey;
+        }
         const rowBag = new gnr.GnrBag();
         const merged = objectUpdate({}, this.defaultRow || {});
         objectUpdate(merged, defaults || {});
@@ -1056,6 +1625,11 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     selectRow(rowKey) {
+        // In tabs/vtabs mode the active state is fully owned by
+        // `_activateTab` (which manages `.gg-tab-active`) — the
+        // `selected` CSS class is a cards-mode UX leftover that
+        // visually conflicts with the panel chrome here.
+        if (this._isTabsLayout()) return;
         if (this.selectedRowKey === rowKey) return;
         if (this.selectedRowKey) {
             const prev = this.rows[this.selectedRowKey];
@@ -1073,10 +1647,10 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     _updateAddBtnState() {
-        if (!this.addBtnNode || !this.addBtnNode.domNode) return;
+        if (!this.addBtnDom) return;
         const atMax = !!(this.maxRows
                          && this._rowCount() >= this.maxRows);
-        this.addBtnNode.domNode.classList.toggle('disabled', atMax);
+        this.addBtnDom.classList.toggle('disabled', atMax);
     }
 
     _namespaceFrameworkNodeIds(domSource, rowKey) {

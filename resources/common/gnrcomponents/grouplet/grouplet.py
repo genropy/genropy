@@ -668,6 +668,9 @@ class GroupletGridHandler(BaseComponent):
                         cols=1, min_width=None, gap='12px',
                         height=None, max_height=None,
                         additem=True, delitem=_UNSET, editmenu=_UNSET,
+                        layout='cards',
+                        titleField=None,
+                        emptyTitle='!!Untitled',
                         dragCode=None,
                         onSelfDropRows=None,
                         afterSelfDropRows=None,
@@ -711,7 +714,6 @@ class GroupletGridHandler(BaseComponent):
         elif not editmenu:
             editmenu = {}
         body_id = f'{nodeId}_body'
-        addbtn_id = f'{nodeId}_addbtn'
         if not (resource or handler):
             raise self.exception(
                 'generic',
@@ -770,46 +772,16 @@ class GroupletGridHandler(BaseComponent):
         # node in the rows Bag.
         # `_gg_body=True` is the descendant-side counterpart of `_gg_root`:
         # the controller resolves the body via attributeOwnerNode at init.
-        body = container.div(_class='grouplet_grid_body',
-                             nodeId=body_id,
-                             datapath=storepath,
-                             _gg_body=True)
-        # Action topic uses the (per-row-namespaced) nodeId so each
-        # nested grid instance has its own pub/sub channel. Without
-        # namespacing every row of an outer grid would publish on the
-        # SAME topic and a click on row N's "+" would be heard by all
-        # nested grids — the "add lands on the last row" bug.
-        action_topic_template = (
-            "'groupletGrid_'"
-            "+this.attributeOwnerNode('_gg_root').attr.nodeId"
-            "+'_action'")
-        publish_add = (f"genro.publish({action_topic_template},"
-                       "{action:'add'});")
-        if additem:
-            # Phantom `+` sits in the body with the `--footer` styling
-            # (CSS `order: 999` places it after all rows).
-            btn_kw = dict(_class='grouplet_grid_footer',
-                          nodeId=addbtn_id,
-                          tip='!!Add row',
-                          action=publish_add)
-            # `dictExtract` renames the reserved key `class` to `_class`
-            # (see gnrdict.py:41). Merge it onto the default `_class` as
-            # an APPEND so the page author extends styling instead of
-            # clobbering `grouplet_grid_footer` (which carries `order:999`
-            # responsible for placing the phantom at the end of the body).
-            extra = dict(additem_kwargs or {})
-            extra_class = extra.pop('_class', None)
-            if extra_class:
-                btn_kw['_class'] = f"{btn_kw['_class']} {extra_class}"
-            # `additem_label` opts into the labeled variant — when set,
-            # the lightButton renders its `<span>` with text alongside
-            # the `+` glyph. CSS gates the span via the `--labeled` modifier.
-            label = extra.pop('label', '')
-            if label:
-                btn_kw['_class'] = (f"{btn_kw['_class']} "
-                                    "grouplet_grid_footer--labeled")
-            btn_kw.update(extra)
-            body.lightButton(label, **btn_kw)
+        container.div(_class='grouplet_grid_body',
+                      nodeId=body_id,
+                      datapath=storepath,
+                      _gg_body=True)
+        # The phantom `+` add affordance is NOT emitted server-side.
+        # The JS controller (`_buildLayoutAffordances`) builds it in
+        # both `layout='cards'` (as a `.grouplet_grid_footer` div inside
+        # the body) and `layout='tabs'` (as a `.grouplet_grid_tab_add`
+        # chip inside the tabbar). This keeps all layout-specific DOM
+        # construction client-side, enabling runtime `setLayout()`.
         # Bootstrap dataController: sits inside the container so
         # `this.attributeOwnerNode('_gg_root')` resolves to the container
         # itself (the closest ancestor — including self — that carries
@@ -821,16 +793,8 @@ class GroupletGridHandler(BaseComponent):
                 var bodyNode = node.getValue().walk(function(n){
                     if (n.attr && n.attr._gg_body) return n;
                 }, 'static');
-                // Find the add-button node by walking the whole container
-                // tree (`.grouplet_grid_footer` inside the body).
-                var addBtnNode = node.getValue().walk(function(n){
-                    if (n.attr && n.attr._class
-                        && n.attr._class.indexOf('grouplet_grid_footer')>=0)
-                        return n;
-                }, 'static');
                 node.gridController = new gnr.GroupletGridController(node, {
                     bodyNode: bodyNode,
-                    addBtnNode: addBtnNode,
                     resource: _resource,
                     handler: _handler,
                     table: _table,
@@ -845,6 +809,9 @@ class GroupletGridHandler(BaseComponent):
                     additem_kw: _additem_kw,
                     delitem_kw: _delitem_kw,
                     editmenu_kw: _editmenu_kw,
+                    layout: _layout,
+                    titleField: _titleField,
+                    emptyTitle: _emptyTitle,
                     defaultRow: _defaultRow,
                     minRows: _minRows,
                     maxRows: _maxRows,
@@ -875,6 +842,9 @@ class GroupletGridHandler(BaseComponent):
             _additem_kw=additem_kwargs or {},
             _delitem_kw=delitem_kwargs or {},
             _editmenu_kw=editmenu_kwargs or {},
+            _layout=layout,
+            _titleField=titleField,
+            _emptyTitle=emptyTitle,
             _defaultRow=defaultRow,
             _minRows=minRows,
             _maxRows=maxRows,

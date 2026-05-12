@@ -12,6 +12,11 @@
                                  cross-grid drag of editable cards
   test_7_nested_team           — outer grid of team members, each with a
                                  nested groupletGrid of contact channels
+  test_8_team_tabs             — team roster with a layout picker:
+                                 horizontal tabs / vertical tabs / cards
+                                 (`layout='tabs'|'vtabs'|'cards'`),
+                                 reactive `titleField`, runtime switch
+                                 via `setLayout()` on the controller
 """
 import datetime
 
@@ -303,5 +308,86 @@ class GnrCustomWebPage(object):
         pane.groupletGrid(storepath='.team',
                           resource='person_with_contacts',
                           additem_label='!!New team member',
+                          defaultRow=dict(name='', role='', team=''))
+
+    def test_8_team_tabs(self, pane):
+        """Team roster rendered as horizontal tabs (`layout='tabs'`).
+
+        Same data shape as test_7 (person_with_contacts) but the outer
+        grid is now a tab strip: one chip per member, the active chip
+        shows the full panel (avatar, name/role/team, nested contacts
+        grid). The chip label is bound reactively to the row's `name`
+        field via `titleField='name'` — type in the name input and the
+        tab updates live.
+
+        The "Toggle layout" toolbar button calls the controller's
+        public `setLayout()` API and flips between tabs and cards mode
+        at runtime. Row panels survive the switch — pending edits and
+        nested grid state stay intact.
+        """
+        people = Bag()
+        c_alice = Bag()
+        c_alice.setItem('r_001', Bag(dict(channel='email',
+                                          value='alice@acme.io')))
+        c_alice.setItem('r_002', Bag(dict(channel='phone',
+                                          value='+39 02 1234 5678')))
+        c_bob = Bag()
+        c_bob.setItem('r_001', Bag(dict(channel='email',
+                                        value='bob@acme.io')))
+        c_bob.setItem('r_002', Bag(dict(channel='mobile',
+                                        value='+39 333 987 6543')))
+        c_bob.setItem('r_003', Bag(dict(channel='web',
+                                        value='bobthebuilder.dev')))
+        c_carla = Bag()
+        c_carla.setItem('r_001', Bag(dict(channel='email',
+                                          value='carla@acme.io')))
+        people.setItem('r_001', Bag(dict(name='Alice Rossi',
+                                         role='Producer',
+                                         team='Strategy',
+                                         contacts=c_alice)))
+        people.setItem('r_002', Bag(dict(name='Bob Bianchi',
+                                         role='Director',
+                                         team='Production',
+                                         contacts=c_bob)))
+        people.setItem('r_003', Bag(dict(name='Carla Verdi',
+                                         role='Designer',
+                                         team='Creative',
+                                         contacts=c_carla)))
+        pane.data('.team_tabs', people)
+        pane.div('Test 8: team roster as tabs. Edit a name → tab label '
+                 'updates live. Drag a chip to reorder. The layout '
+                 'picker on the right flips between cards / horizontal '
+                 'tabs / vertical tabs at runtime without losing '
+                 'pending edits.',
+                 color='#666', font_style='italic', margin_bottom='8px')
+        grid_id = 'grpgrid_team_tabs'
+        # Seed the layout datapath with the same default the
+        # groupletGrid uses, so the picker mirrors the actual state.
+        pane.data('.team_tabs_layout', 'tabs')
+        toolbar = pane.div(display='flex', gap='0.6em',
+                           align_items='center',
+                           margin_bottom='8px')
+        toolbar.div('!!Layout', color='#666', font_size='0.9em')
+        toolbar.filteringSelect(
+            value='^.team_tabs_layout',
+            values='tabs:!!Tabs (horizontal),vtabs:!!Tabs (vertical),cards:!!Cards',
+            width='200px')
+        # On layout change, call the controller's public setLayout API.
+        # Using a dataController instead of a direct connect_onchange
+        # keeps the dispatch off the widget event loop and ensures the
+        # call runs in the page datapath context.
+        pane.dataController("""
+            var n = genro.nodeById(grid_id);
+            var c = n && n.gridController;
+            if (c && c.layout !== layout) {
+                c.setLayout(layout);
+            }
+        """, layout='^.team_tabs_layout', grid_id=grid_id)
+        pane.groupletGrid(storepath='.team_tabs',
+                          resource='person_with_contacts',
+                          layout='tabs',
+                          titleField='name',
+                          emptyTitle='!!New member',
+                          nodeId=grid_id,
                           defaultRow=dict(name='', role='', team=''))
 
