@@ -668,7 +668,6 @@ class GroupletGridHandler(BaseComponent):
                         cols=1, min_width=None, gap='12px',
                         height=None, max_height=None,
                         additem=True, delitem=_UNSET, editmenu=_UNSET,
-                        reorderEnabled=False,
                         dragCode=None,
                         onSelfDropRows=None,
                         afterSelfDropRows=None,
@@ -765,12 +764,15 @@ class GroupletGridHandler(BaseComponent):
         for side in ('top', 'bottom', 'left', 'right'):
             container.div(_class=f'grouplet_grid_slot grouplet_grid_slot_{side}',
                           childname=side, gg_side=side)
-        body_datapath = (storepath or '').replace('^', '')
+        # Body datapath = storepath: every row wrapper is created at
+        # runtime with `datapath='.<rowKey>'` (relative), so that the
+        # inline grouplet widgets bind via `^.field` against the matching
+        # node in the rows Bag.
         # `_gg_body=True` is the descendant-side counterpart of `_gg_root`:
         # the controller resolves the body via attributeOwnerNode at init.
         body = container.div(_class='grouplet_grid_body',
                              nodeId=body_id,
-                             datapath=body_datapath,
+                             datapath=storepath,
                              _gg_body=True)
         # Action topic uses the (per-row-namespaced) nodeId so each
         # nested grid instance has its own pub/sub channel. Without
@@ -848,6 +850,15 @@ class GroupletGridHandler(BaseComponent):
                     maxRows: _maxRows,
                     dragCode: _dragCode
                 });
+                // Hook the controller into the framework's dyn-attr
+                // dispatch chain (gnrdomsource.js:1357-1363). When the Bag
+                // at `storepath` mutates, the framework will call
+                // `node.externalWidget.gnr_storepath(value, kw, reason)`
+                // — modeled after FullCalendar's pattern in
+                // genro_extra.js:124-129 + 145.
+                node.externalWidget = node.gridController;
+                node.registerDynAttr('storepath');
+                node._setDynAttributes();
             }
         """, _onBuilt=True,
             _resource=resource,

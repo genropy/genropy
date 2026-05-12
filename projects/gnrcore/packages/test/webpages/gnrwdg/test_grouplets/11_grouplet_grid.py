@@ -40,14 +40,24 @@ class GnrCustomWebPage(object):
     def test_1_invoice_baseline(self, pane):
         """Invoice rows, single column, plain (smoke test).
 
-        The simplest shape: a card per row, full width, add/remove via
-        phantom `+` and per-row kebab. Empty state emerges naturally if
-        all rows are deleted — clicking the phantom `+` then inserts a
-        row prefilled from `defaultRow`.
+        Starts EMPTY. A `Load sample` button swaps the whole rows Bag
+        into the grid's storepath in one shot — exercising the
+        `newDataStore` path (storepath value replaced wholesale, not
+        mutated key by key). The phantom `+` then adds individual rows
+        on top of the loaded set, and `×` removes them.
         """
-        pane.data('.invoice_lines', self._invoice_seed(3))
-        pane.div('Test 1: 3 invoice rows, single column (baseline).',
+        # Seed lives at a path the grid does NOT watch. The button below
+        # copies it into `.invoice_lines` to trigger the swap.
+        pane.data('.seed_invoice', self._invoice_seed(3))
+        pane.div('Test 1: empty grid + "Load sample" button (exercises '
+                 'newDataStore: the whole rows Bag is replaced at once).',
                  color='#666', font_style='italic', margin_bottom='8px')
+        toolbar = pane.div(display='flex', gap='0.6em',
+                           margin_bottom='8px')
+        toolbar.button('!!Load sample').dataController('SET .invoice_lines = seed_invoice.deepCopy()',
+                                                    seed_invoice='=.seed_invoice')
+        toolbar.button('!!Clear',
+                       action="SET .invoice_lines = null;")
         pane.groupletGrid(storepath='.invoice_lines',
                           resource='invoice_row',
                           defaultRow=dict(qty=1, price=0))

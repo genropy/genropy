@@ -112,13 +112,10 @@ gnr.GroupletGridController = class GroupletGridController {
         this.bodyNode = kw.bodyNode || null;
         this.addBtnNode = kw.addBtnNode || null;
         this.nodeId = sourceNode.attr.nodeId;
-        if (typeof sourceNode.registerDynAttr === 'function') {
-            sourceNode.registerDynAttr('storepath');
-        }
-        this.storepath = sourceNode.attr.storepath || null;
-        this.valuepath = this.bodyNode
-            ? this.bodyNode.absDatapath('.')
-            : null;
+        // Absolute datapath of the rows Bag — resolved once against the
+        // container's datapath chain (`mixin_absStorepath` does the same
+        // in genro_grid.js:3066-3068).
+        this.storepath = sourceNode.absDatapath(sourceNode.attr.storepath);
         this.resource = kw.resource || null;
         this.handler = kw.handler || null;
         this.table = kw.table || null;
@@ -167,18 +164,78 @@ gnr.GroupletGridController = class GroupletGridController {
         this.actionTopic = 'groupletGrid_' + this.nodeId + '_action';
         this._applyResponsiveLayout();
         this._applySlotClasses();
-        this._registerTriggers();
         this._registerActionSubscription();
         this._wireContainerDnD();
         const that = this;
         dojo.connect(sourceNode, '_onDeleting', function() { that.destroy(); });
-        const initialBag = this.valuepath
-            ? genro.getData(this.valuepath)
-            : null;
-        if (initialBag instanceof gnr.GnrBag) {
-            this._onDataChange({evt: 'init', _synthetic: true});
-        }
+        // Initial render: the store-driven dispatch (`gnr_storepath`) is
+        // wired by the bootstrap dataController in grouplet.py, but the
+        // first build of the container does not produce a 'storepath'
+        // trigger — seed the render once here. Subsequent mutations
+        // flow through `gnr_storepath`; whole-store replacements call
+        // `_renderFromStore` again from there.
+        this._renderFromStore();
         this._updateAddBtnState();
+    }
+
+    storebag() {
+        // Fresh lookup of the rows Bag on every call (no caching),
+        // mirroring `gnrgrid.mixin_storebag` (genro_grid.js:3230-3236).
+        return genro.getData(this.storepath);
+    }
+
+    _renderFromStore() {
+        // Render the grid from scratch against the current Bag at
+        // `storepath`. Used at construct time and whenever the Bag root
+        // is replaced (the gnrgrid-equivalent of `newDataStore`).
+        const bag = this.storebag();
+        if (!(bag instanceof gnr.GnrBag) || bag.len() === 0) {
+            // Nothing to render — clear stale tiles if any survived.
+            Object.keys(this.rows).forEach((rowKey) => this._removeRow(rowKey));
+            return;
+        }
+        const that = this;
+        this._ensureTemplate(function() { that._fullSync(); });
+    }
+
+    gnr_storepath(value, kw, trigger_reason) {
+        // Single dispatch entry point for storepath-bound mutations.
+        // Wired in grouplet.py's bootstrap dataController via
+        //   node.externalWidget = node.gridController;
+        //   node.registerDynAttr('storepath');
+        //   node._setDynAttributes();
+        // The framework calls us through gnrdomsource.js:1357-1363
+        // (doUpdateAttrBuiltObj → externalWidget['gnr_'+attr]).
+        // Pattern reference: FullCalendar in genro_extra.js:145.
+        if (!kw || kw.reason === 'autocreate') return;
+        const storeBag = this.storebag();
+        const storeNode = storeBag && storeBag.getParentNode();
+        if (!kw.node) return;
+        // `parentshipLevel` (gnrbag.js:535) discriminates between:
+        //   parent_lv === 0 → the rows Bag itself was replaced
+        //                     (newDataStore — equivalent of
+        //                     mixin_newDataStore in genro_grid.js)
+        //   parent_lv === 1 → add/remove of a whole row
+        //   parent_lv > 1  → mutation INSIDE a row (field/sub-bag):
+        //                    the widget bound to the field updates
+        //                    itself, no tile-level work needed.
+        const parent_lv = storeNode
+            ? kw.node.parentshipLevel(storeNode)
+            : 0;
+        if (parent_lv === 0) {
+            // Whole-store replacement: rebuild from the new Bag.
+            this._renderFromStore();
+            return;
+        }
+        if (parent_lv !== 1) return;
+        const rowKey = kw.node.label;
+        if (!rowKey) return;
+        const that = this;
+        if (kw.evt === 'ins') {
+            this._ensureTemplate(function() { that._addRow(rowKey); });
+        } else if (kw.evt === 'del') {
+            this._removeRow(rowKey);
+        }
     }
 
     _applyResponsiveLayout() {
@@ -211,17 +268,6 @@ gnr.GroupletGridController = class GroupletGridController {
                 container.classList.add('has-' + side);
             }
         });
-    }
-
-    _registerTriggers() {
-        if (!this.bodyNode) {
-            console.warn('[GroupletGrid] cannot register triggers: bodyNode is null');
-            return;
-        }
-        this.bodyNode.registerSubscription(
-            '_trigger_data', this,
-            (kw) => this._onDataChange(kw),
-            'groupletGrid_' + this.nodeId);
     }
 
     _registerActionSubscription() {
@@ -524,28 +570,19 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     _doMoveRowSameInstance(rowKey, position) {
-        // Same-instance reorder where the position can be null → append
-        // at the tail. The existing `_doMoveRow` (above) requires a
-        // '<targetKey' or '>targetKey' position; this variant skips that
-        // requirement so the phantom-drop ("drop on +") can append.
-        const dataBag = this.valuepath ? genro.getData(this.valuepath) : null;
+        // Same-instance reorder, position can be null → append at tail.
+        // Bag-only mutation; the DOM diff is done by `gnr_storepath`.
+        const dataBag = this.storebag();
         if (!(dataBag instanceof gnr.GnrBag)) return;
         const node = dataBag.getNode(rowKey);
         if (!node) return;
         const rowValue = node.getValue();
         const rowAttrs = node.getAttr() || {};
+        this._pendingFlash = this._pendingFlash || {};
+        this._pendingFlash[rowKey] = true;
         dataBag.popNode(rowKey);
         const setKw = position ? {_position: position} : {};
         dataBag.setItem(rowKey, rowValue, rowAttrs, setKw);
-        this._removeRow(rowKey);
-        if (position) {
-            const sign = position.charAt(0);
-            const targetKey = position.substring(1);
-            this._addRow(rowKey, sign + '_grow_' + targetKey);
-        } else {
-            this._addRow(rowKey);
-        }
-        this._flashRow(rowKey);
     }
 
     _setDragOver(wrapper, isValid) {
@@ -566,13 +603,12 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     _doMoveRow(rowKey, position) {
-        // Reorder a row inside the data Bag (and the body source Bag).
-        // `position` is '<targetKey' or '>targetKey'. Implementation:
-        // remove the row from both Bags, then re-insert at the requested
-        // position with the original data.
-        const dataBag = this.valuepath ? genro.getData(this.valuepath) : null;
+        // Reorder a row inside the rows Bag. `position` is '<targetKey'
+        // or '>targetKey'. Bag-only mutation; the DOM diff is done by
+        // `gnr_storepath` reacting to the `del`+`ins` trigger pair.
+        const dataBag = this.storebag();
         if (!(dataBag instanceof gnr.GnrBag)) {
-            console.warn('[GG] _doMoveRow: no Bag at', this.valuepath);
+            console.warn('[GG] _doMoveRow: no Bag at', this.storepath);
             return;
         }
         const node = dataBag.getNode(rowKey);
@@ -580,22 +616,12 @@ gnr.GroupletGridController = class GroupletGridController {
             console.warn('[GG] _doMoveRow: row not found', rowKey);
             return;
         }
-        // Snapshot the row data + attrs so the reinsertion is a faithful
-        // copy. The row Bag is moved by reference, so attrs survive.
         const rowValue = node.getValue();
         const rowAttrs = node.getAttr() || {};
-        // 1) data Bag: pop + re-set with _position. This keeps the row's
-        // sub-Bag identity (and any subscribers wired against it).
+        this._pendingFlash = this._pendingFlash || {};
+        this._pendingFlash[rowKey] = true;
         dataBag.popNode(rowKey);
         dataBag.setItem(rowKey, rowValue, rowAttrs, {_position: position});
-        // 2) body source Bag: same dance for the wrapper. _removeRow +
-        // _addRow rebuilds the wrapper at the right position. The wrapper
-        // label is `_grow_<rowKey>`; the position must be translated.
-        const targetKey = position.substring(1);
-        const sign = position.charAt(0);
-        this._removeRow(rowKey);
-        this._addRow(rowKey, sign + '_grow_' + targetKey);
-        this._flashRow(rowKey);
     }
 
     _findSourceController(sourceNodeId) {
@@ -608,18 +634,16 @@ gnr.GroupletGridController = class GroupletGridController {
 
     _doMoveRowFrom(sourceCtrl, sourceRowKey, targetPosition) {
         // Migrate a row from another grid instance into THIS grid.
-        // Mutates four Bags: source data Bag, source body source Bag,
-        // target data Bag, target body source Bag — keeping the two-bag
-        // pattern (Phase 6.5+7) consistent across the cross-instance move.
+        // Bag-only mutation on source and target; each side's
+        // `gnr_storepath` reacts to its own `del`/`ins` and rebuilds
+        // its tiles.
         if (!sourceCtrl || sourceCtrl === this) return;
-        const sourceBag = sourceCtrl.valuepath
-            ? genro.getData(sourceCtrl.valuepath) : null;
-        const targetBag = this.valuepath
-            ? genro.getData(this.valuepath) : null;
+        const sourceBag = sourceCtrl.storebag();
+        const targetBag = this.storebag();
         if (!(sourceBag instanceof gnr.GnrBag)
             || !(targetBag instanceof gnr.GnrBag)) {
             console.warn('[GG] _doMoveRowFrom: bags not found',
-                         sourceCtrl.valuepath, this.valuepath);
+                         sourceCtrl.storepath, this.storepath);
             return;
         }
         const node = sourceBag.getNode(sourceRowKey);
@@ -630,28 +654,15 @@ gnr.GroupletGridController = class GroupletGridController {
         }
         const rowValue = node.getValue();
         const rowAttrs = node.getAttr() || {};
-        // Mint a fresh key if the source rowKey already exists on the target.
         let targetRowKey = sourceRowKey;
         if (targetBag.getNode(targetRowKey)) {
             targetRowKey = genro.time36Id();
         }
-        // 1) Source side: pop from data Bag + remove from body source.
+        this._pendingFlash = this._pendingFlash || {};
+        this._pendingFlash[targetRowKey] = true;
         sourceBag.popNode(sourceRowKey);
-        sourceCtrl._removeRow(sourceRowKey);
-        // 2) Target side: insert into data Bag + add to body source.
         const setKw = targetPosition ? {_position: targetPosition} : {};
         targetBag.setItem(targetRowKey, rowValue, rowAttrs, setKw);
-        if (targetPosition) {
-            const sign = targetPosition.charAt(0);
-            const targetKey = targetPosition.substring(1);
-            this._addRow(targetRowKey, sign + '_grow_' + targetKey);
-        } else {
-            this._addRow(targetRowKey);
-        }
-        // Refresh add-button state on both sides (min/max constraints).
-        sourceCtrl._updateAddBtnState();
-        this._updateAddBtnState();
-        this._flashRow(targetRowKey);
     }
 
     _flashRow(rowKey) {
@@ -676,40 +687,15 @@ gnr.GroupletGridController = class GroupletGridController {
     destroy() {
         if (this._destroyed) return;
         this._destroyed = true;
-        if (this.bodyNode) {
-            this.bodyNode.unregisterSubscription(
-                'groupletGrid_' + this.nodeId);
-        }
-        if (this.sourceNode) {
-            this.sourceNode.unregisterSubscription(this.actionTopic);
-        }
+        this.sourceNode.unregisterSubscription(this.actionTopic);
         this._unwireContainerDnD();
         Object.keys(this.rows).forEach((rowKey) => this._removeRow(rowKey));
         this.templateSource = null;
         this.templateLoading = null;
     }
 
-    _onDataChange(kw) {
-        let reason;
-        if (kw && kw._synthetic) {
-            reason = 'init';
-        } else {
-            const absPath = this.valuepath || this.bodyNode.absDatapath('.');
-            reason = this.bodyNode.getTriggerReason(absPath, kw);
-            if (!reason) return;
-        }
-        const that = this;
-        this._ensureTemplate(function() {
-            if (reason === 'init' || reason === 'node' || reason === 'value') {
-                that._fullSync();
-            } else if (reason === 'child') {
-                that._handleChildChange(kw);
-            }
-        });
-    }
-
     _fullSync() {
-        const bag = this.valuepath ? genro.getData(this.valuepath) : null;
+        const bag = this.storebag();
         const presentKeys = {};
         const toAdd = [];
         if (bag instanceof gnr.GnrBag) {
@@ -732,33 +718,28 @@ gnr.GroupletGridController = class GroupletGridController {
         this.bodyNode.unfreeze();
     }
 
-    _handleChildChange(kw) {
-        const evt = kw && kw.evt;
-        const node = kw && kw.node;
-        if (!node || !node.label) return;
-        if (evt === 'ins') {
-            // Wrap the runtime add with the same body-level
-            // freeze/unfreeze cycle that `_fullSync` uses for the initial
-            // render. Both paths must have the same shape so that nested
-            // groupletGrid bootstraps (registered via `_onBuilt` while the
-            // grafted subtree is being built) get flushed by the framework
-            // the same way they do at first render. Without the outer
-            // freeze/unfreeze, an "add row at runtime" produces a card
-            // whose nested groupletGrids never instantiate their
-            // controllers.
-            this.bodyNode.freeze();
-            this._addRow(node.label);
-            this.bodyNode.unfreeze();
-        } else if (evt === 'del') {
-            this._removeRow(node.label);
-        }
-    }
-
-    _addRow(rowKey, position) {
+    _addRow(rowKey) {
         if (this.rows[rowKey]) return;
         if (!this.templateSource) {
             console.warn('[GG] _addRow before template ready', rowKey);
             return;
+        }
+        // Derive the wrapper insertion position from the Bag itself: put
+        // the wrapper right before the wrapper of the next sibling row
+        // that already exists in the DOM, or append at the tail. Works
+        // for all sources of 'ins' (action handlers, DnD, external
+        // setItem) without the caller having to know.
+        let position;
+        const bag = this.storebag();
+        if (bag instanceof gnr.GnrBag) {
+            const allKeys = bag.getNodes().map((n) => n.label);
+            const idx = allKeys.indexOf(rowKey);
+            for (let j = idx + 1; j < allKeys.length; j++) {
+                if (this.rows[allKeys[j]]) {
+                    position = '<_grow_' + allKeys[j];
+                    break;
+                }
+            }
         }
         const wrapperLabel = '_grow_' + rowKey;
         const wrapperNodeId = '__grpgridrow__' + this.nodeId + '__' + rowKey;
@@ -777,11 +758,6 @@ gnr.GroupletGridController = class GroupletGridController {
             console.warn('[GG] bodyNode has no GnrDomSource', bodyContent);
             return;
         }
-        // 1) Aggiungo il wrapper (blocchetto card) come figlio del bodyNode.
-        //    Layout interno della riga: 2 colonne via CSS-grid → contenuto +
-        //    kebab laterale (gestito interamente dal CSS).
-        //    `position` (es. '>_grow_r_002') colloca il wrapper subito dopo
-        //    il sibling indicato; senza, append in coda.
         const that0 = this;
         const dragCode = this.dragCode;
         const wrapperKw = {
@@ -916,10 +892,9 @@ gnr.GroupletGridController = class GroupletGridController {
                 menu._('menuline', spec);
             });
         }
-        // 3) Freeze → graft dello stampino (i children top-level del template
-        //    clonato) → unfreeze. Il framework costruisce atomicamente
-        //    tutta la subtree con label/widget completi. Il content del
-        //    grouplet finisce nella prima colonna del CSS-grid della riga.
+        // freeze/unfreeze on the wrapperNode so the framework builds
+        // the grafted subtree (template root children → row widgets)
+        // atomically in one shot.
         wrapperNode.freeze();
         cloned.getNodes().forEach((n) => {
             this._graftNode(wrapperContent, n);
@@ -936,6 +911,12 @@ gnr.GroupletGridController = class GroupletGridController {
         // Drag handle is appended via onCreated callback (set on
         // wrapperKw above). No post-unfreeze hook needed.
         this._updateAddBtnState();
+        // Consume pending flash (set by `_doMoveRow*` before mutating
+        // the Bag): highlight a row that just landed via DnD.
+        if (this._pendingFlash && this._pendingFlash[rowKey]) {
+            delete this._pendingFlash[rowKey];
+            this._flashRow(rowKey);
+        }
     }
 
     _graftNode(parentContent, srcNode) {
@@ -1018,20 +999,14 @@ gnr.GroupletGridController = class GroupletGridController {
 
     _doAddRow(position, defaults) {
         if (this.maxRows && this._rowCount() >= this.maxRows) return;
-        if (!this.valuepath) {
-            console.warn('[GG] _doAddRow: no valuepath');
-            return;
-        }
-        // Auto-create the rows Bag if it doesn't exist yet. This is the
-        // common case when a row is added at runtime to a parent record
-        // that was created without an empty sub-Bag for the nested grid
-        // (e.g. addRow on the outer grid creates a person with no
-        // `contacts` Bag — the first time we click + on the inner grid
-        // we have to materialize `.contacts` ourselves).
-        let dataBag = genro.getData(this.valuepath);
+        // Auto-create the rows Bag if it doesn't exist yet. Real case:
+        // a row added to the outer grid (test_7 team) materializes a
+        // `person` record without a `.contacts` sub-Bag; the first `+`
+        // on the inner grid has to create it.
+        let dataBag = this.storebag();
         if (!(dataBag instanceof gnr.GnrBag)) {
             dataBag = new gnr.GnrBag();
-            genro.setData(this.valuepath, dataBag);
+            genro.setData(this.storepath, dataBag);
         }
         const newKey = 'r_' + genro.time36Id();
         const rowBag = new gnr.GnrBag();
@@ -1051,10 +1026,8 @@ gnr.GroupletGridController = class GroupletGridController {
                 ? position.substring(1) : position;
             dataBag.setItem(newKey, rowBag, null,
                             {_position: sign + targetKey});
-            this._addRow(newKey, sign + '_grow_' + targetKey);
         } else {
             dataBag.setItem(newKey, rowBag);
-            this._addRow(newKey);
         }
     }
 
@@ -1073,11 +1046,10 @@ gnr.GroupletGridController = class GroupletGridController {
 
     _doDeleteRow(rowKey) {
         if (this._rowCount() <= this.minRows) return;
-        const dataBag = this.valuepath ? genro.getData(this.valuepath) : null;
+        const dataBag = this.storebag();
         if (dataBag instanceof gnr.GnrBag) {
             dataBag.popNode(rowKey);
         }
-        this._removeRow(rowKey);
         if (this.selectedRowKey === rowKey) {
             this.selectedRowKey = null;
         }
