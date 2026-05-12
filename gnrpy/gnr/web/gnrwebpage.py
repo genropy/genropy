@@ -36,6 +36,7 @@ import re
 import datetime
 import traceback
 
+from gnr.web import logger
 from gnr.web.gnrwebpage_proxy.frontend.template_lookup import lookup_template_class
 
 
@@ -1089,7 +1090,8 @@ class GnrWebPage(GnrBaseWebPage):
         # struct template in the same resource dirs the Mako lookup uses.
         # If one is found, render it; otherwise fall through to Mako so a
         # missing struct template never breaks the page.
-        if self.getPreference('experimental.no_mako', pkg='sys'):
+        no_mako = self.getPreference('experimental.no_mako', pkg='sys')
+        if no_mako:
             tpl_name = tpl[:-4] if tpl.endswith('.tpl') else tpl
             template_cls = lookup_template_class(self.tpldirectories, tpl_name)
             if template_cls is not None:
@@ -1098,6 +1100,9 @@ class GnrWebPage(GnrBaseWebPage):
                     raise GnrWebPageException(
                         "Access denied for template '%s'" % tpl_name)
                 return template.render(arg_dict)
+            logger.warning(
+                "no_mako=True but no struct template '%s.py' found; "
+                "falling back to Mako '%s'", tpl_name, tpl)
         # Fallback Mako (default behaviour, unchanged)
         if not tpl.endswith('.tpl'):
             tpl = '%s.tpl' % tpl
