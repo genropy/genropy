@@ -169,14 +169,7 @@ dojo.declare("gnr.GnrRpcHandler", null, {
     unregister_call:function(ioArgs) {
         this.rpc_level = this.rpc_level - 1;
         var rpc_counter = ioArgs.args['__rpc_counter'];
-        genro.dev.removeFromDebugged(rpc_counter);
         delete this.rpc_register['r_' + rpc_counter];
-    },
-    suspend_call:function(rpc_counter){
-        var c = this.rpc_register['r_'+rpc_counter];
-        if(c && c._deferred_){
-            c._deferred_.ioArgs.args.timeout = 3600*1000;
-        }
     },
 
     classifyHttpError: function(response, ioArgs) {

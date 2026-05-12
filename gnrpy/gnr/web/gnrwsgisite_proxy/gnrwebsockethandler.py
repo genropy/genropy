@@ -70,15 +70,6 @@ class WebSocketHandler(object):
     #    self.sendCommandToPage(page_id,'datachanges',data)
 
 
-class AsyncWebSocketHandler(WebSocketHandler):
-    def __init__(self,server):
-        self.server = server
-
-    def sendCommandToPage(self,page_id,command,data):
-        envelope = Bag(dict(command=command,data=data))
-        self.server.channels.get(page_id).write_message(envelope.toXml(unresolved=True))
-
-
 class WsgiWebSocketHandler(WebSocketHandler):
     def __init__(self,site):
         self.site = site
@@ -87,7 +78,7 @@ class WsgiWebSocketHandler(WebSocketHandler):
             sockets_dir = os.path.join('/tmp', os.path.basename(site.instance_path), 'gnr_sock')
         if not os.path.exists(sockets_dir):
             os.makedirs(sockets_dir)
-        self.socket_path= os.path.join(sockets_dir, 'async.tornado')
+        self.socket_path = os.path.join(sockets_dir, 'async.sock')
         self.proxyurl='/wsproxy'
     
     def checkSocket(self):

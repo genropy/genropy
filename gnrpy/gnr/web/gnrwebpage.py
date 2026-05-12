@@ -59,7 +59,6 @@ from gnr.web.gnrwebpage_proxy.connection import GnrWebConnection
 from gnr.web.gnrwebpage_proxy.serverbatch import GnrWebBatch
 from gnr.web.gnrwebpage_proxy.rpc import GnrWebRpc
 from gnr.web.gnrwebpage_proxy.developer import GnrWebDeveloper
-from gnr.web.gnrwebpage_proxy.gnrpdb import GnrPdbClient
 from gnr.web.gnrwebpage_proxy.utils import GnrWebUtils
 from gnr.web.gnrwebpage_proxy.pluginhandler import GnrWebPluginHandler
 from gnr.web.gnrwebpage_proxy.jstools import GnrWebJSTools
@@ -397,20 +396,34 @@ class GnrWebPage(GnrBaseWebPage):
     @property
     def wsk_enabled(self):
         if not hasattr(self, '_wsk_enabled'):
-            self._wsk_enabled = self.wsk and self.getPreference('experimental.wsk_enabled',pkg='sys')
+            self._wsk_enabled = self.wsk and not self.getPreference('experimental.wsk_disabled',pkg='sys')
         return self._wsk_enabled
-    
-    @property 
+
+    @property
+    def async_endpoint(self):
+        """Return the async-server endpoint (port number or full ws/wss URL).
+
+        Resolution order:
+          1. ``GNR_ASYNC_URL`` env var — supports a deploy in a separate
+             container; value can be a port number or a ``ws://``/``wss://`` URL.
+          2. ``sockets/async_port`` file — written by the local async server.
+          3. ``None`` — caller falls back to ``window.location.port`` client-side.
+        """
+        if not hasattr(self, '_async_endpoint'):
+            value = os.environ.get('GNR_ASYNC_URL')
+            if not value:
+                port_file = os.path.join(self.site.site_path, 'sockets', 'async_port')
+                if os.path.isfile(port_file):
+                    with open(port_file, 'r') as f:
+                        value = f.read().strip()
+            self._async_endpoint = value or None
+        return self._async_endpoint
+
+    @property
     def dev(self):
         if not hasattr(self, '_dev'):
             self._dev = GnrWebDeveloper(self)
         return self._dev
-        
-    @property 
-    def pdb(self):
-        if not hasattr(self, '_pdb'):
-            self._pdb = GnrPdbClient(self)
-        return self._pdb
 
     @property
     def utils(self):
@@ -594,7 +607,6 @@ class GnrWebPage(GnrBaseWebPage):
         
     def __call__(self):
         """Internal method dispatcher"""
-        self.pdb.onPageStart()    
         self.onInit() ### kept for compatibility
         self._onBegin()
         args = self._call_args
@@ -1316,6 +1328,7 @@ class GnrWebPage(GnrBaseWebPage):
         arg_dict['baseUrl'] = self.site.home_uri
         kwargs['servertime'] = datetime.datetime.now()
         kwargs['websockets_url'] = '/websocket' if self.wsk_enabled else None
+        kwargs['websockets_endpoint'] = self.async_endpoint if self.wsk_enabled else None
         self.getPwaIntegration(arg_dict)
         self.getSquareLogoUrl(arg_dict)
         self.getCoverLogoUrl(arg_dict)

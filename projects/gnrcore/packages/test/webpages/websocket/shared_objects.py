@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"Shared Objects. Please use websockets=True in siteconfig and gnrwsgiserve --tornado for testing"
+"Shared Objects. Requires websockets=\"true\" in siteconfig; the dev server (gnr web serve) auto-spawns the gnrasync subprocess."
 
 class GnrCustomWebPage(object):
     py_requires="gnrcomponents/testhandler:TestHandlerFull"

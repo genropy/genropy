@@ -408,7 +408,7 @@ class GnrWsgiSite(object):
 
     def __init__(self, script_path, site_name=None, _config=None,
                  _gnrconfig=None,
-                 options=None, tornado=None, websockets=None,
+                 options=None, websockets=None,
                  debugpy=False):
 
         global GNRSITE
