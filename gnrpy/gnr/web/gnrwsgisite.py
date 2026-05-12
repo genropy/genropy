@@ -1,4 +1,5 @@
 import os
+import random
 import re
 import io
 import shutil
@@ -406,13 +407,12 @@ class GnrWsgiSite(object):
     """TODO"""
 
     def __init__(self, script_path, site_name=None, _config=None,
-                 _gnrconfig=None, counter=None, noclean=None,
+                 _gnrconfig=None,
                  options=None, websockets=None,
                  debugpy=False):
-        
+
         global GNRSITE
         GNRSITE = self
-        counter = int(counter or '0')
         self.storageTypes = STORAGE_TYPES + STATIC_HANDLER_TYPES
         self.pathfile_cache = {}
         self._currentAuxInstanceNames = ThreadedDict()
@@ -513,18 +513,23 @@ class GnrWsgiSite(object):
         
         self.datacollector = DataCollector(self.register.siteregister)
         
-        if counter == 0 and self.debug:
-            self.onInited(clean=not noclean)
-            
-        if counter == 0 and options and options.source_instance:
+        self.onInited()
+
+        if options and options.source_instance:
             self.gnrapp.importFromSourceInstance(options.source_instance)
             self.db.commit()
             logger.info('End of import')
 
         cleanup = self.custom_config.getAttr('cleanup') or dict()
-        self.cleanup_interval = int(cleanup.get('interval') or 120)
+        self.cleanup_threshold = float(cleanup.get('threshold') or 5)
+        self.cleanup_interval_minutes = int(cleanup.get('interval_minutes') or 240)
         self.page_max_age = int(cleanup.get('page_max_age') or DEFAULT_PAGE_MAX_AGE)
-        self.connection_max_age = int(cleanup.get('connection_max_age')or 600)
+        self.connection_max_age = int(cleanup.get('connection_max_age') or 7200)
+        logger.info(
+            "Cleanup config: threshold=%s%%, interval=%dmin, "
+            "page_max_age=%ds, connection_max_age=%ds",
+            self.cleanup_threshold, self.cleanup_interval_minutes,
+            self.page_max_age, self.connection_max_age)
 
         self.db.closeConnection()
 
@@ -894,14 +899,9 @@ class GnrWsgiSite(object):
                 self.connFolderRemove(conn_id)
         
 
-    def onInited(self, clean):
-        """TODO
-
-        :param clean: TODO"""
-        if clean:
-            logger.info("Purging connection folders")
-            self.dropConnectionFolder()
-            self.initializePackages()
+    def onInited(self):
+        """Called once on every fresh GnrWsgiSite instantiation."""
+        self.initializePackages()
 
     def on_reloader_restart(self):
         """TODO"""
@@ -1261,10 +1261,6 @@ class GnrWsgiSite(object):
         self.db.currentEnv['currentDomain'] = self.currentDomain
         path_list = router.path_list or ['index']
 
-        # Cleanup expired connections (after routing to ensure domain is set in multidomain)
-        expiredConnections = self.register.cleanup()
-        if expiredConnections:
-            self.connectionLog('close',expiredConnections)
         first_segment = path_list[0]
         last_segment = path_list[-1]
         # this can be moved.
@@ -1736,6 +1732,89 @@ class GnrWsgiSite(object):
         self.pageLog('close', page_id=page_id)
         self.clearRecordLocks(page_id=page_id)
         page._closed = True
+        self._maybeRunCleanup()
+
+    def _maybeRunCleanup(self):
+        """Lottery + atomic claim + spawn cleanup thread.
+
+        Runs only when the local lottery (cleanup_threshold) wins AND
+        the daemon's claim_cleanup gates the call by interval.
+
+        cleanup_threshold is a percentage in [0, 100]. The default 5
+        means there is a 5% chance, per page-close event, that this
+        worker attempts to spawn a cleanup pass. The interval gate on
+        the daemon (cleanup_interval_minutes) ensures that even when
+        the lottery fires often, only one pass runs per interval."""
+        if random.random() * 100 >= self.cleanup_threshold:
+            return
+        interval_seconds = self.cleanup_interval_minutes * 60
+        try:
+            won = self.register.claim_cleanup(interval_seconds)
+        except Exception:
+            logger.exception("claim_cleanup failed")
+            return
+        if not won:
+            return
+        Thread(target=self._runCleanup, daemon=True).start()
+
+    def _runCleanup(self):
+        """Worker thread: drops stale pages/connections from the register
+        and removes their filesystem folders under _connections/.
+
+        Walks _connections/ once. For each entry:
+        - if not in live connections AND old enough -> rmtree
+        - if in live connections -> expire stale pages of that connection
+          (drop from register + rmtree their per-page subfolders) and
+          expire the connection itself if stale (drop + rmtree).
+
+        Idempotent and safe to call concurrently: register expire methods
+        and rmtree(ignore_errors=True) tolerate concurrent state changes."""
+        if not os.path.isdir(self.allConnectionsFolder):
+            return
+        try:
+            live_connections = {c['register_item_id']
+                                for c in self.register.connections()}
+        except Exception:
+            logger.exception("Cleanup failed reading register")
+            return
+        dropped_pages = 0
+        dropped_connections = 0
+        removed_folders = 0
+        connection_max_age_seconds = self.connection_max_age
+        for entry in os.listdir(self.allConnectionsFolder):
+            path = os.path.join(self.allConnectionsFolder, entry)
+            if not os.path.isdir(path):
+                continue
+            if entry not in live_connections:
+                try:
+                    age = time() - os.stat(path).st_mtime
+                except OSError:
+                    continue
+                if age < connection_max_age_seconds:
+                    continue
+                shutil.rmtree(path, ignore_errors=True)
+                removed_folders += 1
+                continue
+            try:
+                stale_pages = self.register.expire_pages(entry)
+            except Exception:
+                logger.exception("expire_pages failed for %s", entry)
+                stale_pages = []
+            for page_id in stale_pages:
+                shutil.rmtree(os.path.join(path, page_id), ignore_errors=True)
+                dropped_pages += 1
+            try:
+                connection_dropped = self.register.expire_connection(entry)
+            except Exception:
+                logger.exception("expire_connection failed for %s", entry)
+                connection_dropped = False
+            if connection_dropped:
+                shutil.rmtree(path, ignore_errors=True)
+                dropped_connections += 1
+        if dropped_pages or dropped_connections or removed_folders:
+            logger.info("Cleanup: dropped %d pages, %d connections, "
+                        "removed %d orphan folders",
+                        dropped_pages, dropped_connections, removed_folders)
 
     def sqlDebugger(self,**kwargs):
         page = self.currentPage
