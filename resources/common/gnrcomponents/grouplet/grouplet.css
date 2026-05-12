@@ -1160,3 +1160,88 @@
     border-color: var(--gg-danger);
     background: var(--gg-danger-soft);
 }
+
+/* === struct= mode (Item 12) ===
+   `--gg-struct-columns` is set on the container by GroupletGridStructAdapter
+   when `struct=` is supplied. Header, every row, and the totalize footer
+   share the same grid-template-columns template — perfect column alignment
+   without sticky positioning and without nested grids. Non-resizable by
+   design (the struct columns are fixed). */
+.grouplet_grid--struct > .grouplet_grid_slot_top > .grouplet_grid__struct_header,
+.grouplet_grid--struct > .grouplet_grid_slot_bottom > .grouplet_grid__struct_footer,
+.grouplet_grid--struct .grouplet_grid__struct_row {
+    /* All three tracks share the same box model so subpixel rounding
+       between width + padding behaves identically across header, row,
+       and footer. */
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: var(--gg-struct-columns, 1fr);
+    gap: 4px;
+    align-items: center;
+}
+
+.grouplet_grid--struct > .grouplet_grid_slot_top > .grouplet_grid__struct_header {
+    font-weight: 600;
+    font-size: 0.85em;
+    color: var(--gg-text-muted, #555);
+    border-bottom: 1px solid var(--gg-border, #ddd);
+    /* Match the row's horizontal padding (1.8em left for drag handle,
+       2em right for kebab) so header columns align column-for-column
+       with the row's grid tracks. */
+    padding: 6px 2em 6px 1.8em;
+    background: var(--gg-surface, transparent);
+}
+
+.grouplet_grid--struct .grouplet_grid__struct_header_cell {
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Row widgets sit directly as grid children of `.grouplet_grid__struct_row`
+   (mirrors the hand-written `shopping_row` baseline). No per-cell
+   wrapper. `min-width:0` lets dijit-wrapped widgets shrink within their
+   grid track instead of pushing the row wider than the container. */
+.grouplet_grid--struct .grouplet_grid__struct_row > * {
+    min-width: 0;
+}
+
+/* Horizontal padding goes on the INNER grid container, NOT on the
+   outer row wrapper. This keeps the row's grid tracks computed from
+   the same base as the header/footer grids — both apply padding on
+   the element that carries `display:grid`. Vertical padding stays on
+   the outer wrapper since drag handle / kebab are absolutely
+   positioned relative to it. */
+.grouplet_grid--struct .grouplet_grid_row {
+    padding: 0.3em 0;
+}
+.grouplet_grid--struct .grouplet_grid__struct_row {
+    padding: 0 2em 0 1.8em;
+}
+
+/* Totalize footer: emitted by the adapter only when at least one cell
+   declares `totalize=`. Each footer cell sits in the same grid column
+   as its row counterpart (empty for non-totalize columns). Padding
+   mirrors the row + header so totals line up under the data values. */
+.grouplet_grid--struct > .grouplet_grid_slot_bottom > .grouplet_grid__struct_footer {
+    font-weight: 600;
+    border-top: 1px solid var(--gg-border, #ddd);
+    padding: 6px 2em 6px 1.8em;
+    background: var(--gg-surface, transparent);
+}
+
+.grouplet_grid--struct .grouplet_grid__struct_footer_cell {
+    text-align: right;
+    color: var(--gg-text-muted, #555);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    /* Reserve a row height even for empty cells so the grid doesn't
+       collapse to the height of the single populated cell. */
+    min-height: 1.2em;
+}
+
+.grouplet_grid--struct .grouplet_grid__struct_footer_cell--total {
+    color: var(--gg-text, #222);
+}

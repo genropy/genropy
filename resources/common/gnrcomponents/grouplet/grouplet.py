@@ -664,6 +664,7 @@ class GroupletGridHandler(BaseComponent):
     @struct_method
     def gr_groupletGrid(self, pane, storepath=None,
                         resource=None, handler=None,
+                        struct=None,
                         table=None, grouplets_root=None,
                         cols=1, min_width=None, gap='12px',
                         height=None, max_height=None,
@@ -714,10 +715,26 @@ class GroupletGridHandler(BaseComponent):
         elif not editmenu:
             editmenu = {}
         body_id = f'{nodeId}_body'
-        if not (resource or handler):
+        # `struct=` (Item 12) is the fakexcel mode: a Grid-style struct
+        # drives auto-generation of a sticky header in the top slot, a
+        # row template built from cell `edit=`/dtype, and a totalize
+        # footer. Resolve the struct the same way gnr.Grid does
+        # (gnrwebpage.py:3045 _prepareGridStruct): a callable is invoked
+        # on a fresh GnrGridStruct; an already-built Bag is honoured as-is.
+        if callable(struct):
+            built = pane.page.newGridStruct()
+            struct(built)
+            struct = built
+        struct_mode = struct is not None
+        if struct_mode and (resource or handler):
             raise self.exception(
                 'generic',
-                msg='groupletGrid: missing resource or handler')
+                msg='groupletGrid: struct= is mutually exclusive with '
+                    'resource/handler')
+        if not (resource or handler or struct_mode):
+            raise self.exception(
+                'generic',
+                msg='groupletGrid: missing resource, handler, or struct')
         handler_name = handler.__name__ if callable(handler) else handler
         # Drag-code resolution (single API: dragCode):
         #   dragCode=None  (default)  → dragCode = nodeId  (isolated D&D)
@@ -731,6 +748,8 @@ class GroupletGridHandler(BaseComponent):
             resolved_drag_code = dragCode
         framed = bool(height or max_height)
         container_class = 'grouplet_grid_container grouplet_grid'
+        if struct_mode:
+            container_class += ' grouplet_grid--struct'
         if framed:
             container_class += ' grouplet_grid--framed'
         extra_class = kwargs.pop('_class', None)
@@ -757,6 +776,17 @@ class GroupletGridHandler(BaseComponent):
         # groupletGrid's row template the cloned nodeIds are namespaced
         # per row, but the marker attr stays the same and is resolved at
         # runtime through the parent chain.
+        # struct= mode (Item 12): the component parks the resolved
+        # struct in the page data tree at a deterministic path keyed by
+        # `nodeId`, and forwards only the path (string) to the JS
+        # controller. The Bag itself never travels through dataController
+        # kwargs because the framework calls `js_sourceNode()` on
+        # non-scalar kwargs and GnrGridStruct doesn't implement it.
+        # Pattern mirrors gnr.Grid (gnrwebstruct.py:1981).
+        structpath = None
+        if struct_mode:
+            structpath = f'gnr.groupletGridStructs.{nodeId}'
+            pane.data(structpath, struct)
         container = pane.div(
             _class=container_class,
             nodeId=nodeId,
@@ -764,8 +794,24 @@ class GroupletGridHandler(BaseComponent):
             _gg_root=True,
             **kwargs)
         for side in ('top', 'bottom', 'left', 'right'):
-            container.div(_class=f'grouplet_grid_slot grouplet_grid_slot_{side}',
-                          childname=side, gg_side=side)
+            slot = container.div(
+                _class=f'grouplet_grid_slot grouplet_grid_slot_{side}',
+                childname=side, gg_side=side)
+            # Pre-allocate empty placeholders inside top/bottom slots
+            # in struct mode. The JS adapter resolves these via
+            # `slot.getValue().getNode('struct_header')` and populates
+            # them with the canonical `freeze → graft children →
+            # unfreeze` pattern (same as `_addRow` for row wrappers).
+            # Without the placeholders the adapter would have to inject
+            # new children into the already-live slot sourceNode, which
+            # the framework rejects (replaceChild / trigger_ins
+            # confusion).
+            if struct_mode and side == 'top':
+                slot.div(_class='grouplet_grid__struct_header',
+                         childname='struct_header')
+            elif struct_mode and side == 'bottom':
+                slot.div(_class='grouplet_grid__struct_footer',
+                         childname='struct_footer')
         # Body datapath = storepath: every row wrapper is created at
         # runtime with `datapath='.<rowKey>'` (relative), so that the
         # inline grouplet widgets bind via `^.field` against the matching
@@ -797,6 +843,7 @@ class GroupletGridHandler(BaseComponent):
                     bodyNode: bodyNode,
                     resource: _resource,
                     handler: _handler,
+                    structpath: _structpath,
                     table: _table,
                     grouplets_root: _grouplets_root,
                     grouplet_kw: _grouplet_kw,
@@ -830,6 +877,7 @@ class GroupletGridHandler(BaseComponent):
         """, _onBuilt=True,
             _resource=resource,
             _handler=handler_name,
+            _structpath=structpath,
             _table=table,
             _grouplets_root=grouplets_root,
             _grouplet_kw=grouplet_kwargs or {},

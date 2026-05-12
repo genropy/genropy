@@ -17,6 +17,14 @@
                                  (`layout='tabs'|'vtabs'|'cards'`),
                                  reactive `titleField`, runtime switch
                                  via `setLayout()` on the controller
+  test_9_struct_shopping_list  — Item 12 fakexcel style: `struct=` mode
+                                 with checkbox + editable cells, derived
+                                 line total (formula) and live footer
+                                 total (totalize). No phantom row, no
+                                 per-row ×: actions via kebab + toolbar
+                                 +/−.
+  test_10_shopping_row_resource — baseline for test_9, same shape via a
+                                 hand-written resource grouplet.
 """
 import datetime
 
@@ -390,4 +398,127 @@ class GnrCustomWebPage(object):
                           emptyTitle='!!New member',
                           nodeId=grid_id,
                           defaultRow=dict(name='', role='', team=''))
+
+    def test_9_struct_shopping_list(self, pane):
+        """`struct=` mode + reactive controller (Item 12) — fakexcel style.
+
+        Shopping list driven by a `gnr.Grid`-style struct: checkbox to
+        mark bought items, editable item name / qty / unit price,
+        derived line total via `formula=`, and a totalize footer
+        showing total spent. No phantom `+` row, no per-row ×:
+        additions and deletions go through the kebab (`editmenu=True`
+        → addPrev / addNext / delete) and through the toolbar +/−
+        buttons above the grid (publish on the controller's
+        actionTopic).
+
+        Live cascade: edit `qty` or `unit_price` → `line_total`
+        recomputes; the `Total spent` footer cell updates in real time.
+        Driven by the same `gnr.GridChangeManager` Grid uses,
+        instantiated directly on the controller — no adapter, no fork.
+        """
+        seed = Bag()
+        for i, (item, qty, price) in enumerate((
+                ('Milk',     2, 1.40),
+                ('Bread',    1, 2.20),
+                ('Apples',   6, 0.55),
+                ('Coffee',   1, 8.90),
+                ('Pasta',    3, 1.10)), start=1):
+            seed.setItem(f'r_{i:03d}',
+                         Bag(dict(bought=False, item=item,
+                                  qty=qty, unit_price=price)))
+        pane.data('.shopping_list', seed)
+
+        def struct(struct):
+            r = struct.view().rows()
+            r.cell('bought', name=' ', width='3em', dtype='B', edit=True)
+            r.cell('item', name='Item', width='14em',
+                   edit=True, validate_notnull=True)
+            r.cell('qty', name='Qty', width='5em', dtype='L', edit=True)
+            r.cell('unit_price', name='Unit price', width='7em',
+                   dtype='N', edit=True, format='###,###,###.00')
+            r.cell('line_total', name='Line total', width='8em',
+                   dtype='N', formula='qty*unit_price',
+                   totalize='.total_spent', format='###,###,###.00')
+
+        pane.div('Test 9: shopping list (fakexcel style). Edit qty / '
+                 'unit price → line total recomputes; the footer shows '
+                 'total spent. Use the toolbar +/− to add or remove '
+                 'rows, or use the kebab on each row (add before / '
+                 'add after / delete).',
+                 color='#666', font_style='italic', margin_bottom='8px')
+        grid_id = 'grpgrid_shopping_list'
+        # Toolbar +/−: publish on the controller's actionTopic.
+        # The controller's _handleAction routes to _doAddRow /
+        # _askAndDeleteRow.
+        action_topic = f'groupletGrid_{grid_id}_action'
+        toolbar = pane.div(display='flex', gap='0.4em',
+                           margin_bottom='8px')
+        toolbar.button(
+            '+',
+            action=f"genro.publish('{action_topic}', "
+                   f"{{action:'add'}});")
+        toolbar.button(
+            '−',
+            action=f"genro.publish('{action_topic}', "
+                   f"{{action:'delete'}});")
+        pane.groupletGrid(storepath='.shopping_list',
+                          struct=struct,
+                          nodeId=grid_id,
+                          max_height='320px',
+                          additem=False,
+                          delitem=False,
+                          editmenu=True,
+                          defaultRow=dict(bought=False, qty=1,
+                                          unit_price=0))
+
+    def test_10_shopping_row_resource(self, pane):
+        """Visual baseline for test_9.
+
+        Same data shape (with `line_total` pre-computed in the seed
+        since this mode has no auto-formula); rendered via the
+        hand-written `shopping_row` resource grouplet. The row produced
+        by `gnr.GroupletGridStructAdapter` from the struct walk should
+        look the same as this one — minus header/footer/totals which
+        only test_9 emits.
+        """
+        seed = Bag()
+        for i, (item, qty, price) in enumerate((
+                ('Milk',     2, 1.40),
+                ('Bread',    1, 2.20),
+                ('Apples',   6, 0.55),
+                ('Coffee',   1, 8.90),
+                ('Pasta',    3, 1.10)), start=1):
+            seed.setItem(f'r_{i:03d}',
+                         Bag(dict(bought=False, item=item,
+                                  qty=qty, unit_price=price,
+                                  line_total=qty * price)))
+        pane.data('.shopping_list_ref', seed)
+        pane.div('Test 10: baseline. Same data as test_9, rendered '
+                 'via a hand-written resource grouplet '
+                 '(`shopping_row`). The struct adapter should produce '
+                 'the same row shape — minus the auto-header / '
+                 'auto-footer which only struct= mode emits.',
+                 color='#666', font_style='italic', margin_bottom='8px')
+        grid_id = 'grpgrid_shopping_list_ref'
+        action_topic = f'groupletGrid_{grid_id}_action'
+        toolbar = pane.div(display='flex', gap='0.4em',
+                           margin_bottom='8px')
+        toolbar.button(
+            '+',
+            action=f"genro.publish('{action_topic}', "
+                   f"{{action:'add'}});")
+        toolbar.button(
+            '−',
+            action=f"genro.publish('{action_topic}', "
+                   f"{{action:'delete'}});")
+        pane.groupletGrid(storepath='.shopping_list_ref',
+                          resource='shopping_row',
+                          nodeId=grid_id,
+                          max_height='320px',
+                          additem=False,
+                          delitem=False,
+                          editmenu=True,
+                          defaultRow=dict(bought=False, qty=1,
+                                          unit_price=0,
+                                          line_total=0))
 

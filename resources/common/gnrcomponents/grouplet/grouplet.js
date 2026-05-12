@@ -123,6 +123,16 @@ gnr.GroupletGridController = class GroupletGridController {
         // in genro_grid.js:3066-3068).
         this.storepath = sourceNode.absDatapath(sourceNode.attr.storepath);
         this.resource = kw.resource || null;
+        // struct= mode (Item 12): the Python side parked the
+        // GnrGridStruct Bag at a deterministic page path via
+        // `pane.data(structpath, struct)`, and passed only the path
+        // string. The controller pulls the Bag back via
+        // `genro.getData(structpath)` and hands it off to
+        // `gnr.GroupletGridStructAdapter` which owns every struct-
+        // specific concern: cellmap, row template synthesis, header
+        // and footer sourceRoots, columnsCSS.
+        this.structpath = kw.structpath || null;
+        this.structAdapter = null;
         this.handler = kw.handler || null;
         this.table = kw.table || null;
         this.grouplets_root = kw.grouplets_root;
@@ -171,8 +181,19 @@ gnr.GroupletGridController = class GroupletGridController {
         this.activeRowKey = null;
         this._tabsByRow = {};         // rowKey -> chip DOM element
         this._pendingActivate = null; // rowKey to auto-activate on next _addRow
-        this.templateSource = null;
-        this.templateLoading = null;
+        // Row templates are cached per "key" — today always
+        // `__default__` (single-template grid) but the multi-grouplet
+        // mode (Item 13 Parte A) will switch on a `resourceField`
+        // value (e.g. ticket_type). `_addRow` consults the row data
+        // via `_templateKeyForRow` to pick the key.
+        this.templateSources = {};      // key -> sourceRoot
+        this.templateLoading = {};      // key -> [callback, ...]
+        // Item 12 changeManager wiring: cellmap is populated by the
+        // struct adapter (struct mode) or stays empty in resource
+        // mode (user can populate via setTotalizer/setFormula).
+        this.cellmap = {};
+        this._changeMgr = null;
+        this._cmNeedsBag = false;
         this.rows = {};
         this._destroyed = false;
         // Single per-instance topic: every action (add, delete, ...) goes
@@ -188,6 +209,11 @@ gnr.GroupletGridController = class GroupletGridController {
         // the container DOM exists; `_onBuilt` of the bootstrap
         // dataController guarantees that.
         this._buildLayoutAffordances();
+        // Item 12: instantiate changeManager BEFORE first render. In
+        // struct mode this also resolves the struct adapter, mounts
+        // header/footer into the slot placeholders, and auto-registers
+        // totalize/formula cells with the changeManager.
+        this._initChangeManager();
         const that = this;
         dojo.connect(sourceNode, '_onDeleting', function() { that.destroy(); });
         // Initial render: the store-driven dispatch (`gnr_storepath`) is
@@ -206,6 +232,282 @@ gnr.GroupletGridController = class GroupletGridController {
         return genro.getData(this.storepath);
     }
 
+    collectionStore() {
+        // First-class store wrapper around the rows Bag — NOT an alias
+        // of storebag(). `GridChangeManager.calculateFormula` calls
+        // `collectionStore().updateRowNode(rowNode, updDict)` which is
+        // a Grid-store method (genro_components.js:7169), NOT a GnrBag
+        // method. We provide the minimal store-shaped surface here:
+        //   - updateRowNode(rowNode, updDict): writes each k→v into
+        //     the row's sub-Bag with lazySet (mirrors :7178).
+        //   - sum(field): delegates to Bag's native sum.
+        //   - getIdxFromPkey(pkey), rowByIndex(idx): used by `+=`/`%=`
+        //     cumulative formulas (future).
+        const bag = this.storebag();
+        if (!bag) return null;
+        return {
+            _bag: bag,
+            updateRowNode: function(rowNode, updDict) {
+                const rowData = rowNode.getValue();
+                if (!(rowData instanceof gnr.GnrBag)) return;
+                const idx = bag.index ? bag.index(rowNode.label) : null;
+                for (const k in updDict) {
+                    if (!rowData.getNode(k, 'static')) {
+                        rowData.setItem(k, null, null, {doTrigger: false});
+                    }
+                    rowData.setItem(k, updDict[k], null,
+                        {doTrigger: {editedRowIndex: idx}, lazySet: true});
+                }
+            },
+            sum: function(field, strict) {
+                return bag.sum(field, strict);
+            },
+            getIdxFromPkey: function(pkey) {
+                return bag.index ? bag.index(pkey) : null;
+            },
+            rowByIndex: function(idx) {
+                const nodes = bag.getNodes();
+                const n = nodes[idx];
+                if (!n) return null;
+                const v = n.getValue();
+                return v instanceof gnr.GnrBag ? v.asDict() : {};
+            }
+        };
+    }
+
+    rowFromBagNode(rowNode, _includeAttrs) {
+        // Flatten a row Bag node into a plain object the changeManager
+        // can read. Matches the contract of `gnr.Grid.rowFromBagNode`
+        // (genro_wdg.js used in calculateFormula:2135).
+        //
+        // In our world the row's data lives in its sub-Bag (the value),
+        // not in attrs — `setItem(rowKey, Bag(dict(qty=..., price=...)))`
+        // is the canonical seeding shape. The sub-Bag children are the
+        // editable fields and we need them as plain keys so
+        // `funcApply('return qty*unit_price', pars,...)` resolves names.
+        const pars = {};
+        const v = rowNode.getValue();
+        if (v instanceof gnr.GnrBag) {
+            v.getNodes().forEach(function(child) {
+                pars[child.label] = child.getValue();
+            });
+        }
+        return objectUpdate(pars, rowNode.attr || {});
+    }
+
+    _initStructAdapter() {
+        // struct= mode (Item 12): the Python side parked the struct
+        // Bag at `this.structpath`. Pull it back and hand it to the
+        // adapter (a pure converter: struct → cellmap + sourceRoots
+        // for row template, header, footer).
+        if (!this.structpath) return;
+        const struct = genro.getData(this.structpath);
+        if (!(struct instanceof gnr.GnrBag)) {
+            console.warn('[GG] structpath did not resolve to a Bag',
+                         this.structpath, struct);
+            return;
+        }
+        this.structAdapter = new gnr.GroupletGridStructAdapter(struct);
+        this.cellmap = this.structAdapter.cellmap;
+    }
+
+    _initChangeManager() {
+        // Build the struct adapter (if struct mode), then instantiate
+        // `gnr.GridChangeManager` directly on the controller. The
+        // changeManager reads these attributes off `grid`:
+        //   sourceNode, storebag(), cellmap, datamode, structBag,
+        //   collectionStore(), rowFromBagNode(rowNode, true)
+        // Optional (filtered totals): _virtual, isFiltered,
+        //   getSelectedRowidx, getSelectedNodes
+        // Optional (gridEditor codepath, always skipped here):
+        //   gridEditor, getRowEditor, masterEditColumn,
+        //   currRenderedRowIndex
+        // We pass a small shim object as `grid`; `gridEditor` stays
+        // undefined so the editor branches at genro_wdg.js:293,322,344
+        // are auto-skipped.
+        this._initStructAdapter();
+        this.datamode = 'bag';
+        this.structBag = this.structAdapter ? this.structAdapter.struct : null;
+        this._virtual = false;
+        this.isFiltered = function() { return false; };
+        this.getSelectedRowidx = function() { return []; };
+        this.getSelectedNodes = function() { return []; };
+        // `sourceNode` for the changeManager MUST be the container,
+        // NOT the body. The changeManager writes `.sum_*` totals via
+        // `sourceNode.setRelativeData(cell.totalize, value)`. If the
+        // sourceNode were the body — whose datapath equals `storepath`
+        // (i.e. the rows Bag itself) — `setRelativeData('.sum_total',x)`
+        // would write INTO the rows Bag, triggering the rowLogger that
+        // the changeManager subscribed to → infinite triggerINS/UPD
+        // loop. Anchoring on the container puts `.sum_total` one level
+        // up, sibling to the rows Bag — same shape gnr.Grid uses.
+        const cmGrid = {
+            sourceNode: this.sourceNode,
+            storebag: () => this.storebag(),
+            collectionStore: () => this.collectionStore(),
+            cellmap: this.cellmap,
+            datamode: this.datamode,
+            structBag: this.structBag,
+            _virtual: this._virtual,
+            isFiltered: this.isFiltered,
+            getSelectedRowidx: this.getSelectedRowidx,
+            getSelectedNodes: this.getSelectedNodes,
+            rowFromBagNode: (n, _) => this.rowFromBagNode(n, _)
+        };
+        this._changeMgr = new gnr.GridChangeManager(cmGrid);
+        // GridChangeManager subscribes to `onNewDatastore` and only
+        // attaches `rowLogger` to the Bag from inside that callback —
+        // calling `that.grid.storebag().subscribe(...)`. If we publish
+        // `onNewDatastore` now and the Bag is null (resource= mode
+        // starting empty, e.g. test_1), the callback NPEs. We publish
+        // lazily from `_renderFromStore` once a real Bag is available.
+        this._cmNeedsBag = true;
+        // Adapter-driven auto-registration of totalize/formula cells.
+        // Server-seeded rows go through a force-resolve so initial
+        // values render without waiting for an edit.
+        if (this.structAdapter) {
+            this.structAdapter.cells.forEach((c) => {
+                if (c.totalize) {
+                    this._changeMgr.addTotalizer(c.field,
+                        {totalize: c.totalize});
+                }
+                if (c.formula) {
+                    this._changeMgr.addFormulaColumn(c.field,
+                        {formula: c.formula});
+                }
+            });
+            this._mountStructSlots();
+            const store = this.storebag();
+            if (store && store.len() > 0) {
+                this._changeMgr.resolveCalculatedColumns();
+                this._changeMgr.resolveTotalizeColumns();
+            }
+        }
+    }
+
+    _mountStructSlots() {
+        // Set `--gg-struct-columns` on the container DOM, then mount
+        // header (top slot) and footer (bottom slot, if any totalize).
+        // Each side targets a server-side placeholder (childname=
+        // 'struct_header' / 'struct_footer') that lives inside the
+        // slot's sourceNode — leaf-empty, safe to freeze/unfreeze.
+        if (!this.structAdapter) return;
+        const containerDom = this.sourceNode && this.sourceNode.getDomNode
+            && this.sourceNode.getDomNode();
+        if (containerDom) {
+            containerDom.style.setProperty('--gg-struct-columns',
+                this.structAdapter.columnsCSS());
+        }
+        const slots = this._resolveStructSlots();
+        if (slots.top) {
+            this._mountSlotContent(slots.top,
+                this.structAdapter.buildHeader(), 'struct_header');
+            // Force `has-top` directly: the slot now carries struct
+            // chrome, but `_applySlotClasses` reads from `slot.children`
+            // which may not reflect the just-grafted nodes yet.
+            if (containerDom) containerDom.classList.add('has-top');
+        }
+        const footer = this.structAdapter.buildFooter();
+        if (slots.bottom && footer) {
+            this._mountSlotContent(slots.bottom, footer, 'struct_footer');
+            if (containerDom) containerDom.classList.add('has-bottom');
+        }
+    }
+
+    _resolveStructSlots() {
+        const out = {top: null, bottom: null};
+        const containerContent = this.sourceNode.getValue();
+        if (!(containerContent instanceof gnr.GnrDomSource)) return out;
+        containerContent.getNodes().forEach((n) => {
+            const side = n.attr && n.attr.gg_side;
+            if (side === 'top') out.top = n;
+            else if (side === 'bottom') out.bottom = n;
+        });
+        return out;
+    }
+
+    _mountSlotContent(slotNode, sourceRoot, placeholderLabel) {
+        // Populate the empty placeholder sourceNode (emitted server-
+        // side by gr_groupletGrid via `childname='struct_header'` /
+        // `'struct_footer'` inside the corresponding slot) with the
+        // cells produced by the adapter.
+        //
+        // The placeholder is a leaf <div>: built when the container
+        // was built, but with no children. `freeze → graft → unfreeze`
+        // on a leaf-empty sourceNode is the same pattern `_addRow`
+        // uses for the row wrapper. The framework treats the cells as
+        // fresh inserts, not as updates of pre-existing DOM.
+        //
+        // Idempotent: prior cells are popped so a rebuild on struct
+        // mutation (controller.applyStruct) doesn't duplicate.
+        const slotContent = slotNode.getValue();
+        if (!(slotContent instanceof gnr.GnrDomSource)) return;
+        const placeholder = slotContent.getNode(placeholderLabel);
+        if (!placeholder) return;
+        const placeholderContent = placeholder.getValue();
+        if (!(placeholderContent instanceof gnr.GnrDomSource)) return;
+        placeholderContent.getNodes().slice().forEach((n) => {
+            placeholderContent.popNode(n.label);
+        });
+        // The adapter sourceRoot has exactly one root child (the
+        // wrapper div carrying class __struct_header / __struct_footer).
+        // We discard that wrapper level since the placeholder IS that
+        // wrapper — graft the wrapper's inner cells directly into
+        // the placeholder instead.
+        placeholder.freeze();
+        sourceRoot.getNodes().forEach((wrapperNode) => {
+            const inner = wrapperNode.getValue();
+            if (inner instanceof gnr.GnrBag) {
+                inner.getNodes().forEach((cellNode) => {
+                    this._graftNode(placeholderContent, cellNode);
+                });
+            }
+        });
+        placeholder.unfreeze();
+    }
+
+    applyStruct(newStruct) {
+        // Public hook for data-driven struct mutation. Re-walks the
+        // struct via the adapter, invalidates the template cache,
+        // remounts header/footer + CSS columns, then re-renders rows.
+        // Not auto-wired today: callers must invoke explicitly.
+        if (!this.structAdapter) return;
+        this.structAdapter.rebuild(newStruct);
+        this.cellmap = this.structAdapter.cellmap;
+        if (this._changeMgr) this._changeMgr.grid.cellmap = this.cellmap;
+        this.templateSources = {};
+        this.templateLoading = {};
+        Object.keys(this.rows).forEach((rowKey) => this._removeRow(rowKey));
+        this._mountStructSlots();
+        this._renderFromStore();
+    }
+
+    setTotalizer(field, datapath) {
+        // Public API: register a column for live totalization. Works
+        // in BOTH resource= and struct= modes (in struct mode the
+        // cells with `totalize=` auto-register; this is the manual
+        // escape hatch).
+        if (!this._changeMgr) return;
+        this.cellmap[field] = this.cellmap[field]
+            || {field: field, _nodelabel: field};
+        this.cellmap[field].totalize = datapath;
+        this._changeMgr.addTotalizer(field, {totalize: datapath});
+        this._changeMgr.updateTotalizer(field);
+    }
+
+    setFormula(field, expression) {
+        // Public API: register a column whose value is derived live
+        // from other row fields. Expression is plain JS in the context
+        // of the row dict (same contract as `gnr.Grid` formula column).
+        if (!this._changeMgr) return;
+        this.cellmap[field] = this.cellmap[field]
+            || {field: field, _nodelabel: field};
+        this.cellmap[field].formula = expression;
+        this.cellmap[field].calculated = true;
+        this._changeMgr.addFormulaColumn(field, {formula: expression});
+        this._changeMgr.recalculateOneFormula(field);
+    }
+
     _renderFromStore() {
         // Render the grid from scratch against the current Bag at
         // `storepath`. Used at construct time and whenever the Bag root
@@ -215,6 +517,16 @@ gnr.GroupletGridController = class GroupletGridController {
             // Nothing to render — clear stale tiles if any survived.
             Object.keys(this.rows).forEach((rowKey) => this._removeRow(rowKey));
             return;
+        }
+        // Late `onNewDatastore` publish: GridChangeManager's
+        // constructor wired its `rowLogger` subscription behind this
+        // event but its callback dereferences `storebag()`. We can't
+        // emit at controller init time because resource= mode often
+        // starts with a null Bag (test_1 baseline). Now that we have
+        // a Bag for sure, fire once and clear the flag.
+        if (this._cmNeedsBag && this._changeMgr) {
+            this._cmNeedsBag = false;
+            this.sourceNode.publish('onNewDatastore');
         }
         const that = this;
         this._ensureTemplate(function() { that._fullSync(); });
@@ -1175,8 +1487,8 @@ gnr.GroupletGridController = class GroupletGridController {
         // any surviving chip subscriptions). Safe to call regardless of
         // current layout.
         this._teardownLayoutAffordances();
-        this.templateSource = null;
-        this.templateLoading = null;
+        this.templateSources = {};
+        this.templateLoading = {};
     }
 
     _fullSync() {
@@ -1226,8 +1538,13 @@ gnr.GroupletGridController = class GroupletGridController {
 
     _addRow(rowKey) {
         if (this.rows[rowKey]) return;
-        if (!this.templateSource) {
-            console.warn('[GG] _addRow before template ready', rowKey);
+        // Multi-template support (Item 13 Parte A hook): pick the
+        // template key from the row data. Today always __default__.
+        const tplKey = this._templateKeyForRow(rowKey);
+        const tplSource = this.templateSources[tplKey];
+        if (!tplSource) {
+            console.warn('[GG] _addRow before template ready',
+                         rowKey, 'key=' + tplKey);
             return;
         }
         // Derive the wrapper insertion position from the Bag itself: put
@@ -1257,7 +1574,7 @@ gnr.GroupletGridController = class GroupletGridController {
         // responsibility to make them unique if they need to be referenced
         // (typically by including `rowKey` in the nodeId or just by
         // omitting nodeId on widgets that aren't referenced).
-        const cloned = this.templateSource.deepCopy();
+        const cloned = tplSource.deepCopy();
         this._namespaceFrameworkNodeIds(cloned, rowKey);
         const bodyContent = this.bodyNode.getValue();
         if (!(bodyContent instanceof gnr.GnrDomSource)) {
@@ -1684,17 +2001,42 @@ gnr.GroupletGridController = class GroupletGridController {
         });
     }
 
-    _ensureTemplate(callback) {
-        if (this.templateSource) {
+    _ensureTemplate(callback, key) {
+        // Keyed template cache. `key` selects which row template to
+        // resolve — `__default__` for single-template grids (struct=
+        // or resource=), or a `resourceField` value (e.g. ticket_type)
+        // when multi-grouplet mode (Item 13 Parte A) lands.
+        //
+        // Once `templateSources[key]` is a sourceRoot, struct= and
+        // resource= modes are indistinguishable to downstream code:
+        // `_addRow` deep-copies the sourceRoot, namespaces nodeIds,
+        // mounts in the body.
+        key = key || '__default__';
+        if (this.templateSources[key]) {
             callback();
             return;
         }
-        if (this.templateLoading) {
-            this.templateLoading.push(callback);
+        if (this.templateLoading[key]) {
+            this.templateLoading[key].push(callback);
             return;
         }
         const that = this;
-        this.templateLoading = [callback];
+        this.templateLoading[key] = [callback];
+        const flush = function() {
+            const queue = that.templateLoading[key];
+            delete that.templateLoading[key];
+            queue.forEach(function(cb) { cb(); });
+        };
+        // struct= mode: no RPC roundtrip. The adapter synthesizes the
+        // row template directly from the struct already loaded into
+        // `this.structAdapter` at init time.
+        if (this.structAdapter) {
+            this.templateSources[key] = this.structAdapter.buildRowTemplate();
+            flush();
+            return;
+        }
+        // resource= / handler= mode: server-side RPC builds the
+        // template Bag from the named resource.
         const params = {
             resource: this.resource,
             handler: this.handler,
@@ -1706,14 +2048,21 @@ gnr.GroupletGridController = class GroupletGridController {
             function(tplBag, error) {
                 if (error) {
                     console.error('[GG] template RPC failed', error);
-                    that.templateLoading = null;
+                    delete that.templateLoading[key];
                     return;
                 }
-                that.templateSource = that._bagToDetachedSource(tplBag);
-                const queue = that.templateLoading;
-                that.templateLoading = null;
-                queue.forEach(function(cb) { cb(); });
+                that.templateSources[key] = that._bagToDetachedSource(tplBag);
+                flush();
             });
+    }
+
+    _templateKeyForRow(rowKey) {
+        // Hook for Item 13 Parte A (multi-grouplet via resourceField):
+        // returns the cache key to look up the row template for the
+        // row identified by `rowKey`. Today single-template, always
+        // `__default__`. When `resourceField` lands the controller
+        // will read it off the row and return the field's value.
+        return '__default__';
     }
 
     _bagToDetachedSource(bag) {
@@ -1727,5 +2076,238 @@ gnr.GroupletGridController = class GroupletGridController {
                          objectUpdate({}, node.attr || {}));
         });
         return root;
+    }
+};
+
+
+// ============================================================================
+//  GroupletGridStructAdapter (Item 12)
+//
+//  Pure functions wrapped in a class. Once `buildRowTemplate()` returns
+//  a sourceRoot, it's indistinguishable from the one
+//  `_bagToDetachedSource()` returns for resource= mode — the controller
+//  treats it identically (clone, namespace, mount).
+//
+//    - cells/cellmap : metadata for the changeManager.
+//    - columnsCSS()  : `grid-template-columns` value.
+//    - hasTotalize() : true if any cell declares totalize=.
+//    - buildRowTemplate() / buildHeader() / buildFooter() : sourceRoots
+//      ready for the controller's templateSources cache and for the
+//      header/footer placeholder graft.
+//
+//  Mapping dtype → editor widget mirrors gnr.Grid (genro_wdg.js:1038-1051).
+//  Widget tags are case-sensitive (`genro.wdg.getHandler` is a registry
+//  lookup): PascalCase, with the legacy `DateTextbox`/`DatetimeTextbox`
+//  (lowercase `b`) spelling preserved from Grid.
+// ============================================================================
+
+gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
+    constructor(struct) {
+        this.struct = struct;
+        this.cells = this._walkStruct();
+        this.cellmap = this._buildCellmap();
+    }
+
+    rebuild(struct) {
+        // Re-walk the struct. Used by `controller.applyStruct` when
+        // the underlying Bag has mutated. Returns `this` for chaining.
+        if (struct) this.struct = struct;
+        this.cells = this._walkStruct();
+        this.cellmap = this._buildCellmap();
+        return this;
+    }
+
+    _walkStruct() {
+        const rows = this.struct.getItem('view_0.rows_0');
+        if (!(rows instanceof gnr.GnrBag)) return [];
+        const out = [];
+        rows.getNodes().forEach(function(node) {
+            const attr = node.attr || {};
+            if (attr.hidden) return;
+            const field = attr.caption_field || attr.field;
+            if (!field) return;
+            // Header label: respect an explicit empty `name=''` as
+            // "no label" (e.g. a checkbox column). Only fall back to
+            // the field when `name` is undefined.
+            const hasName = (attr.name !== undefined && attr.name !== null);
+            // Totalize path resolution mirrors gnr.Grid
+            // (genro_grid.js:1943): `totalize=True` → auto path
+            // `.totalize.<field>` (a workspace path relative to the
+            // grid's sourceNode, isolated from user data). Explicit
+            // string from the user is honoured as-is.
+            let totalize = attr.totalize;
+            if (totalize === true) {
+                totalize = '.totalize.' + field;
+            }
+            out.push({
+                _nodelabel: node.label,
+                field: field,
+                name: hasName ? attr.name : field,
+                width: attr.width,
+                dtype: attr.dtype || 'T',
+                edit: attr.edit,
+                format: attr.format,
+                totalize: totalize,
+                totalize_strict: attr.totalize_strict,
+                formula: attr.formula,
+                related_table: attr.related_table,
+                values: attr.values,
+                validate_notnull: attr.validate_notnull
+            });
+        });
+        return out;
+    }
+
+    _buildCellmap() {
+        // Shape required by GridChangeManager (genro_wdg.js):
+        //   cellmap[field] = {field, dtype, totalize, formula,
+        //                     totalize_strict, _formats, _nodelabel,
+        //                     calculated}
+        // `_nodelabel` is the Bag node label, used by
+        // calculateFormula:2160 to resolve `formula_*` dyn params.
+        // `calculated: true` gates resolveCalculatedColumns
+        // (genro_wdg.js:2021) so the initial recalc pass actually
+        // fires for cells with `formula=` on seeded data.
+        const cellmap = {};
+        this.cells.forEach(function(c) {
+            const entry = {
+                field: c.field,
+                dtype: c.dtype,
+                _nodelabel: c._nodelabel,
+                _formats: c.format ? {format: c.format} : null
+            };
+            if (c.totalize) entry.totalize = c.totalize;
+            if (c.totalize_strict) entry.totalize_strict = c.totalize_strict;
+            if (c.formula) {
+                entry.formula = c.formula;
+                entry.calculated = true;
+            }
+            cellmap[c.field] = entry;
+        });
+        return cellmap;
+    }
+
+    columnsCSS() {
+        // Build the shared `grid-template-columns` value used by
+        // header, row template and footer. Explicit `width=` honoured;
+        // missing widths fall back to `1fr` (flex). Non-resizable.
+        return this.cells.map(function(c) {
+            return c.width || '1fr';
+        }).join(' ');
+    }
+
+    hasTotalize() {
+        return this.cells.some(function(c) { return !!c.totalize; });
+    }
+
+    buildHeader() {
+        // Synthetic sourceRoot for the top slot — one cell per visible
+        // struct column. Static labels go through `innerHTML` (the
+        // second positional arg to `_()` is the node *label*, NOT the
+        // visible content — passing the column name there would make
+        // it the source-tree label and leave the DOM empty).
+        const root = genro.src.newRoot();
+        const hdr = root._('div', {_class: 'grouplet_grid__struct_header'});
+        this.cells.forEach(function(c) {
+            hdr._('div', {
+                _class: 'grouplet_grid__struct_header_cell',
+                innerHTML: c.name || ''
+            });
+        });
+        return root;
+    }
+
+    buildFooter() {
+        // Synthetic sourceRoot for the bottom slot — only emitted when
+        // at least one column declares `totalize=`. Cells without
+        // totalize render as empty placeholders so the grid template
+        // stays aligned column-by-column.
+        //
+        // Totalize cells: `<div innerHTML='^totalize_path' format=...>`.
+        // `innerHTML='^...'` is the genropy idiom for live-bound
+        // read-only display (gnrdomsource.js:577 applies `format` to
+        // the resolved value); `value='^...'` would only end up as a
+        // static HTML attribute, leaving the cell visually empty.
+        // The path resolution (auto `.totalize.<field>` vs explicit
+        // user-supplied) happens up in `_walkStruct`.
+        if (!this.hasTotalize()) return null;
+        const root = genro.src.newRoot();
+        const ftr = root._('div', {_class: 'grouplet_grid__struct_footer'});
+        this.cells.forEach(function(c) {
+            let cls = 'grouplet_grid__struct_footer_cell';
+            if (c.totalize) {
+                cls += ' grouplet_grid__struct_footer_cell--total';
+                const kw = {_class: cls, innerHTML: '^' + c.totalize};
+                if (c.format) kw.format = c.format;
+                ftr._('div', kw);
+            } else {
+                ftr._('div', {_class: cls});
+            }
+        });
+        return root;
+    }
+
+    buildRowTemplate() {
+        // Synthesize a sourceRoot (gnr.GnrDomSource — same type the
+        // resource= flow produces via _bagToDetachedSource) holding
+        // one row element with widgets as DIRECT children (no per-cell
+        // wrapper — mirrors the hand-written `shopping_row` baseline).
+        // Editable cells get the widget mapped from dtype+edit (same
+        // table gnr.Grid uses, genro_wdg.js:1038-1051); read-only
+        // cells render as plain <div> with `^.field` innerHTML binding.
+        const root = genro.src.newRoot();
+        const row = root._('div', {_class: 'grouplet_grid__struct_row'});
+        this.cells.forEach(function(c) {
+            const tag = gnr.GroupletGridStructAdapter._resolveWidgetTag(c);
+            if (tag) {
+                const kw = gnr.GroupletGridStructAdapter._editorKwargs(c);
+                row._(tag, kw);
+            } else {
+                const kw = {innerHTML: '^.' + c.field};
+                if (c.format) kw.format = c.format;
+                row._('div', kw);
+            }
+        });
+        return root;
+    }
+
+    static _resolveWidgetTag(c) {
+        // Returns null when the cell is read-only (no `edit`).
+        // Otherwise mirrors gnr.Grid editor resolution at
+        // genro_wdg.js:1038-1051.
+        if (!c.edit) return null;
+        if (typeof c.edit === 'object' && c.edit.tag) return c.edit.tag;
+        if (c.related_table) return 'dbselect';
+        if (c.values) {
+            return c.values.indexOf(':') >= 0 ? 'filteringselect' : 'combobox';
+        }
+        const map = {
+            L: 'NumberTextBox', I: 'NumberTextBox',
+            R: 'NumberTextBox', N: 'NumberTextBox',
+            D: 'DateTextbox', DH: 'DatetimeTextbox',
+            H: 'TimeTextBox', B: 'CheckBox'
+        };
+        return map[c.dtype] || 'Textbox';
+    }
+
+    static _editorKwargs(c) {
+        // Build the editor widget's kwargs. The dict variant of `edit`
+        // (`edit=dict(option_X=...)`) carries widget-level options; we
+        // pop `tag` since it's already resolved, then merge the rest
+        // on top of the dtype/related_table/values defaults.
+        const kw = {
+            value: '^.' + c.field,
+            width: '100%'
+        };
+        if (c.related_table) kw.table = c.related_table;
+        if (c.values) kw.values = c.values;
+        if (c.format) kw.format = c.format;
+        if (c.validate_notnull) kw.validate_notnull = true;
+        if (typeof c.edit === 'object' && c.edit) {
+            for (const k in c.edit) {
+                if (k !== 'tag') kw[k] = c.edit[k];
+            }
+        }
+        return kw;
     }
 };
