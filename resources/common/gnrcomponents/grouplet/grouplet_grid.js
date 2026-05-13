@@ -22,20 +22,14 @@
 //  controller on `_onBuilt`, after the container DOM exists.
 // ============================================================================
 
+
 // ============================================================================
 //  GroupletGridStructAdapter (Item 12)
 //
-//  Pure functions wrapped in a class. Once `buildRowTemplate()` returns
-//  a sourceRoot, it's indistinguishable from the one
-//  `_bagToDetachedSource()` returns for resource= mode — the controller
-//  treats it identically (clone, namespace, mount).
-//
-//    - cells/cellmap : metadata for the changeManager.
-//    - columnsCSS()  : `grid-template-columns` value.
-//    - hasTotalize() : true if any cell declares totalize=.
-//    - buildRowTemplate() / buildHeader() / buildFooter() : sourceRoots
-//      ready for the controller's templateSources cache and for the
-//      header/footer placeholder graft.
+//  Pure converter from a gnr.Grid-style struct Bag into the artefacts
+//  the controller needs. Once `buildRowTemplate()` returns a sourceRoot
+//  it's indistinguishable from the one `_bagToDetachedSource()` produces
+//  for resource= mode — the controller treats them identically.
 //
 //  Mapping dtype → editor widget mirrors gnr.Grid (genro_wdg.js:1038-1051).
 //  Widget tags are case-sensitive (`genro.wdg.getHandler` is a registry
@@ -51,8 +45,7 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
     }
 
     rebuild(struct) {
-        // Re-walk the struct. Used by `controller.applyStruct` when
-        // the underlying Bag has mutated. Returns `this` for chaining.
+        // Re-walk the struct after a mutation. Returns `this` for chaining.
         if (struct) this.struct = struct;
         this.cells = this._walkStruct();
         this.cellmap = this._buildCellmap();
@@ -101,10 +94,7 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
     }
 
     _buildCellmap() {
-        // Shape required by GridChangeManager (genro_wdg.js):
-        //   cellmap[field] = {field, dtype, totalize, formula,
-        //                     totalize_strict, _formats, _nodelabel,
-        //                     calculated}
+        // Shape required by GridChangeManager (genro_wdg.js).
         // `_nodelabel` is the Bag node label, used by
         // calculateFormula:2160 to resolve `formula_*` dyn params.
         // `calculated: true` gates resolveCalculatedColumns
@@ -130,12 +120,9 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
     }
 
     columnsCSS() {
-        // Translate gnr.Grid-style widths into CSS Grid track functions
-        // for the shared `grid-template-columns` value used by header,
-        // row template and footer.
-        //
-        // `'100%'` / `'*'` / missing → `minmax(0, 1fr)` (flex track).
-        // Everything else (em / px / rem / explicit %) passes through.
+        // Translate gnr.Grid widths into CSS Grid track functions.
+        //   '100%' / '*' / missing → `minmax(0, 1fr)` (flex track)
+        //   anything else (em / px / rem / %) passes through.
         //
         // A literal `'100%'` would be a CSS Grid track of "100% of the
         // content box": added to the other fixed tracks it overflows
@@ -146,11 +133,9 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
         // three containers given identical available width.
         //
         // If no cell ends up flex after translation, auto-promote the
-        // widest fixed-em cell. Rationale: header/row/footer alignment
-        // is automatic when at least one track absorbs the free space;
-        // without a flex track, fixed widths either undershoot (grid
-        // centres, header labels visually disconnected from data) or
-        // overshoot (overflow + per-container drift).
+        // widest fixed-em cell. Without a flex track, fixed widths
+        // either undershoot (grid centres, header labels disconnect
+        // from data) or overshoot (overflow + per-container drift).
         const tracks = this.cells.map(function(c) {
             const w = c.width;
             if (!w || w === '*' || w === '100%') return 'minmax(0, 1fr)';
@@ -175,20 +160,6 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
         return this.cells.some(function(c) { return !!c.totalize; });
     }
 
-    static _alignFor(c) {
-        // Derive horizontal alignment from dtype so header label,
-        // readonly cell, and footer total all line up consistently:
-        // - numeric (L/I/R/N) → right (matches NumberTextBox default)
-        // - boolean (B)       → center (matches CheckBox)
-        // - everything else   → left
-        // Applied as a modifier class (`--align-<right|center|left>`)
-        // on header/footer/readonly-row cells.
-        const dtype = c.dtype;
-        if (dtype === 'L' || dtype === 'I' || dtype === 'R' || dtype === 'N') return 'right';
-        if (dtype === 'B') return 'center';
-        return 'left';
-    }
-
     buildHeader() {
         // Synthetic sourceRoot for the top slot — one cell per visible
         // struct column. Static labels go through `innerHTML` (the
@@ -198,15 +169,14 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
         //
         // Empty or whitespace-only labels are rendered as `&nbsp;` so
         // the cell keeps its line height (a bare space collapses in
-        // some layout passes, breaking the header row's vertical
-        // alignment with sibling labelled cells).
+        // some layout passes, breaking header/sibling vertical alignment).
         const root = genro.src.newRoot();
         const hdr = root._('div', {_class: 'grouplet_grid__struct_header'});
         const Adapter = gnr.GroupletGridStructAdapter;
         this.cells.forEach(function(c) {
             const align = Adapter._alignFor(c);
             const raw = c.name || '';
-            const label = (raw.trim() === '') ? ' ' : raw;
+            const label = (raw.trim() === '') ? ' ' : raw;
             hdr._('div', {
                 _class: 'grouplet_grid__struct_col_cell'
                     + ' grouplet_grid__struct_header_cell'
@@ -223,13 +193,12 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
         // totalize render as empty placeholders so the grid template
         // stays aligned column-by-column.
         //
-        // Totalize cells: `<div innerHTML='^totalize_path' format=...>`.
-        // `innerHTML='^...'` is the genropy idiom for live-bound
-        // read-only display (gnrdomsource.js:577 applies `format` to
-        // the resolved value); `value='^...'` would only end up as a
-        // static HTML attribute, leaving the cell visually empty.
-        // The path resolution (auto `.totalize.<field>` vs explicit
-        // user-supplied) happens up in `_walkStruct`.
+        // Totalize cells use `innerHTML='^totalize_path'`: the genropy
+        // idiom for live-bound read-only display (gnrdomsource.js:577
+        // applies `format` to the resolved value). `value='^...'` would
+        // only end up as a static HTML attribute, leaving the cell
+        // visually empty. The path resolution (auto `.totalize.<field>`
+        // vs explicit user-supplied) happens in `_walkStruct`.
         if (!this.hasTotalize()) return null;
         const root = genro.src.newRoot();
         const ftr = root._('div', {_class: 'grouplet_grid__struct_footer'});
@@ -252,12 +221,12 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
 
     buildRowTemplate() {
         // Synthesize a sourceRoot (gnr.GnrDomSource — same type the
-        // resource= flow produces via _bagToDetachedSource) holding
-        // one row element with widgets as DIRECT children (no per-cell
+        // resource= flow produces via _bagToDetachedSource) holding one
+        // row element with widgets as DIRECT children (no per-cell
         // wrapper — mirrors the hand-written `shopping_row` baseline).
         // Editable cells get the widget mapped from dtype+edit (same
-        // table gnr.Grid uses, genro_wdg.js:1038-1051); read-only
-        // cells render as plain <div> with `^.field` innerHTML binding.
+        // table gnr.Grid uses, genro_wdg.js:1038-1051); read-only cells
+        // render as plain <div> with `^.field` innerHTML binding.
         const root = genro.src.newRoot();
         const row = root._('div', {_class: 'grouplet_grid__struct_row'});
         const Adapter = gnr.GroupletGridStructAdapter;
@@ -285,6 +254,18 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
         return root;
     }
 
+    static _alignFor(c) {
+        // Derive horizontal alignment from dtype:
+        //   numeric (L/I/R/N) → right  (matches NumberTextBox default)
+        //   boolean (B)       → center (matches CheckBox)
+        //   everything else   → left
+        // Applied as a `--align-<right|center|left>` modifier class.
+        const dtype = c.dtype;
+        if (dtype === 'L' || dtype === 'I' || dtype === 'R' || dtype === 'N') return 'right';
+        if (dtype === 'B') return 'center';
+        return 'left';
+    }
+
     static _resolveWidgetTag(c) {
         // Returns null when the cell is read-only (no `edit`).
         // Otherwise mirrors gnr.Grid editor resolution at
@@ -305,7 +286,7 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
     }
 
     static _editorKwargs(c) {
-        // Build the editor widget's kwargs. The dict variant of `edit`
+        // Build the editor widget kwargs. The dict variant of `edit`
         // (`edit=dict(option_X=...)`) carries widget-level options; we
         // pop `tag` since it's already resolved, then merge the rest
         // on top of the dtype/related_table/values defaults.
@@ -342,18 +323,19 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
 // ============================================================================
 
 gnr.GroupletGridController = class GroupletGridController {
+
+    // ====================================================================
+    //  Lifecycle — constructor, destroy
+    // ====================================================================
+
     constructor(sourceNode, kw) {
         this.sourceNode = sourceNode;
         // bodyNode is passed in as an already-resolved sourceNode
         // (looked up via the `_gg_body` attribute marker in the bootstrap
-        // dataController). nodeId is read directly from the live
-        // container — by the time this constructor fires, namespacing
-        // (if any) has already been applied so sourceNode.attr.nodeId
-        // is the per-instance unique id.
-        // The phantom `+` add button is NOT passed in: the controller
-        // builds it client-side via `_buildLayoutAffordances` (which
-        // also handles the tabbar in tabs mode). Stored as
-        // `this.addBtnDom` (raw DOM, not a sourceNode).
+        // dataController). The phantom `+` add button is NOT passed in:
+        // the controller builds it client-side via
+        // `_buildLayoutAffordances` (which also handles the tabbar in
+        // tabs mode). Stored as `this.addBtnDom` (raw DOM, not a sourceNode).
         this.bodyNode = kw.bodyNode || null;
         this.addBtnDom = null;
         this.tabbarDom = null;
@@ -367,10 +349,10 @@ gnr.GroupletGridController = class GroupletGridController {
         // struct= mode (Item 12): the Python side parked the
         // GnrGridStruct Bag at `structpath` (relative to the
         // container — `#WORKSPACE.struct` auto, or user-supplied).
-        // The controller pulls it back via `getRelativeData` and
-        // hands it to `gnr.GroupletGridStructAdapter` which owns
-        // every struct-specific concern: cellmap, row template
-        // synthesis, header / footer sourceRoots, columnsCSS.
+        // The controller pulls it back via `getRelativeData` and hands
+        // it to `gnr.GroupletGridStructAdapter` which owns every
+        // struct-specific concern: cellmap, row template synthesis,
+        // header / footer sourceRoots, columnsCSS.
         this.structpath = kw.structpath || null;
         this.structAdapter = null;
         this.handler = kw.handler || null;
@@ -382,8 +364,8 @@ gnr.GroupletGridController = class GroupletGridController {
         this.gap = kw.gap || '12px';
         // Action affordances (Item 10 API):
         //   additem  : bool — phantom '+' (rendered server-side as a
-        //              lightButton in body/tabbar). The controller does not
-        //              build it; only used to gate maxRows logic.
+        //              lightButton in body/tabbar). The controller does
+        //              not build it; only used to gate maxRows logic.
         //   delitem  : bool — top-right `×` close button on each row.
         //   editmenu : false | true | dict — per-row kebab:
         //              false → no kebab
@@ -401,19 +383,19 @@ gnr.GroupletGridController = class GroupletGridController {
         this.defaultRow = kw.defaultRow;
         this.minRows = kw.minRows || 0;
         this.maxRows = kw.maxRows || null;
-        // Drag-and-drop: when `dragCode` is non-null each row is rendered
-        // with a drag handle (left side). `dragCode` is the data-transfer
-        // key — only payloads with the same key are accepted as drop
-        // sources, so two grids with different `dragCode` values are
-        // isolated (default behavior: dragCode = nodeId, server-side).
-        // Cross-grid sharing requires explicitly passing the same dragCode.
+        // Drag-and-drop: when `dragCode` is non-null each row gets a
+        // drag handle (left side). `dragCode` is the data-transfer key —
+        // only payloads with the same key are accepted as drop sources,
+        // so two grids with different `dragCode` values are isolated
+        // (default: dragCode = nodeId, server-side). Cross-grid sharing
+        // requires explicitly passing the same dragCode.
         this.dragCode = kw.dragCode || null;
         this._dragOverRow = null;
         this._dragHandlesByRow = {};
         // Tabs mode (Item 11): `layout='tabs'` swaps the cards body for
         // a horizontal tab strip with one chip per row. The active tab
-        // shows its panel (all others get `display:none` via CSS — hidden
-        // panels stay mounted, subscriptions intact). `setLayout()` flips
+        // shows its panel (others get `display:none` — hidden panels
+        // stay mounted, subscriptions intact). `setLayout()` flips
         // between modes at runtime.
         this.layout = kw.layout || 'cards';
         this.titleField = kw.titleField || null;
@@ -422,15 +404,15 @@ gnr.GroupletGridController = class GroupletGridController {
         this._tabsByRow = {};         // rowKey -> chip DOM element
         this._pendingActivate = null; // rowKey to auto-activate on next _addRow
         // Row templates are cached per "key" — today always
-        // `__default__` (single-template grid) but the multi-grouplet
+        // `__default__` (single-template grid) but multi-grouplet
         // mode (Item 13 Parte A) will switch on a `resourceField`
         // value (e.g. ticket_type). `_addRow` consults the row data
         // via `_templateKeyForRow` to pick the key.
         this.templateSources = {};      // key -> sourceRoot
         this.templateLoading = {};      // key -> [callback, ...]
         // Item 12 changeManager wiring: cellmap is populated by the
-        // struct adapter (struct mode) or stays empty in resource
-        // mode (user can populate via setTotalizer/setFormula).
+        // struct adapter (struct mode) or stays empty in resource mode
+        // (user can populate via setTotalizer/setFormula).
         this.cellmap = {};
         this._changeMgr = null;
         this._cmNeedsBag = false;
@@ -449,10 +431,10 @@ gnr.GroupletGridController = class GroupletGridController {
         // the container DOM exists; `_onBuilt` of the bootstrap
         // dataController guarantees that.
         this._buildLayoutAffordances();
-        // Item 12: instantiate changeManager BEFORE first render. In
-        // struct mode this also resolves the struct adapter, mounts
-        // header/footer into the slot placeholders, and auto-registers
-        // totalize/formula cells with the changeManager.
+        // Instantiate changeManager BEFORE first render. In struct mode
+        // this also resolves the struct adapter, mounts header/footer
+        // into slot placeholders, and auto-registers totalize/formula
+        // cells with the changeManager.
         this._initChangeManager();
         const that = this;
         dojo.connect(sourceNode, '_onDeleting', function() { that.destroy(); });
@@ -465,6 +447,27 @@ gnr.GroupletGridController = class GroupletGridController {
         this._renderFromStore();
         this._updateAddBtnState();
     }
+
+    destroy() {
+        if (this._destroyed) return;
+        this._destroyed = true;
+        this.sourceNode.unregisterSubscription(this.actionTopic);
+        this._unwireContainerDnD();
+        Object.keys(this.rows).forEach((rowKey) => this._removeRow(rowKey));
+        // Tear down the layout-specific scaffolding (tabbar / footer +
+        // any surviving chip subscriptions). Safe regardless of layout.
+        this._teardownLayoutAffordances();
+        if (this._structResizeObserver) {
+            this._structResizeObserver.disconnect();
+            this._structResizeObserver = null;
+        }
+        this.templateSources = {};
+        this.templateLoading = {};
+    }
+
+    // ====================================================================
+    //  Data access — storebag, collectionStore, rowFromBagNode
+    // ====================================================================
 
     storebag() {
         // Fresh lookup of the rows Bag on every call (no caching),
@@ -535,12 +538,16 @@ gnr.GroupletGridController = class GroupletGridController {
         return objectUpdate(pars, rowNode.attr || {});
     }
 
+    // ====================================================================
+    //  Struct chrome (Item 12) — adapter wiring, header/footer mounting,
+    //  cross-track alignment, public mutation API
+    // ====================================================================
+
     _initStructAdapter() {
-        // struct= mode (Item 12): the Python side parked the struct
-        // Bag at `this.structpath`, relative to the container. Path
-        // types like `#WORKSPACE.struct` (when the component
-        // auto-assigned the path) or explicit `.foo` resolve against
-        // the container's datapath / workspace ancestor.
+        // struct= mode: the Python side parked the struct Bag at
+        // `this.structpath`, relative to the container. Path types like
+        // `#WORKSPACE.struct` (auto-assigned) or explicit `.foo` resolve
+        // against the container's datapath / workspace ancestor.
         // `getRelativeData` honours path types; `genro.getData`
         // (absolute) does not.
         if (!this.structpath) return;
@@ -575,8 +582,8 @@ gnr.GroupletGridController = class GroupletGridController {
         this.isFiltered = function() { return false; };
         this.getSelectedRowidx = function() { return []; };
         this.getSelectedNodes = function() { return []; };
-        // `sourceNode` for the changeManager MUST be the container,
-        // NOT the body. The changeManager writes `.sum_*` totals via
+        // `sourceNode` for the changeManager MUST be the container, NOT
+        // the body. The changeManager writes `.sum_*` totals via
         // `sourceNode.setRelativeData(cell.totalize, value)`. If the
         // sourceNode were the body — whose datapath equals `storepath`
         // (i.e. the rows Bag itself) — `setRelativeData('.sum_total',x)`
@@ -667,6 +674,58 @@ gnr.GroupletGridController = class GroupletGridController {
         }
     }
 
+    _resolveStructSlots() {
+        const out = {top: null, bottom: null};
+        const containerContent = this.sourceNode.getValue();
+        if (!(containerContent instanceof gnr.GnrDomSource)) return out;
+        containerContent.getNodes().forEach((n) => {
+            const side = n.attr && n.attr.gg_side;
+            if (side === 'top') out.top = n;
+            else if (side === 'bottom') out.bottom = n;
+        });
+        return out;
+    }
+
+    _mountSlotContent(slotNode, sourceRoot, placeholderLabel) {
+        // Populate the empty placeholder sourceNode (emitted server-side
+        // by gr_groupletGrid via `childname='struct_header'` /
+        // `'struct_footer'` inside the corresponding slot) with the
+        // cells produced by the adapter.
+        //
+        // The placeholder is a leaf <div>: built when the container was
+        // built, but with no children. `freeze → graft → unfreeze` on a
+        // leaf-empty sourceNode is the same pattern `_addRow` uses for
+        // the row wrapper. The framework treats the cells as fresh
+        // inserts, not as updates of pre-existing DOM.
+        //
+        // Idempotent: prior cells are popped so a rebuild on struct
+        // mutation (controller.applyStruct) doesn't duplicate.
+        const slotContent = slotNode.getValue();
+        if (!(slotContent instanceof gnr.GnrDomSource)) return;
+        const placeholder = slotContent.getNode(placeholderLabel);
+        if (!placeholder) return;
+        const placeholderContent = placeholder.getValue();
+        if (!(placeholderContent instanceof gnr.GnrDomSource)) return;
+        placeholderContent.getNodes().slice().forEach((n) => {
+            placeholderContent.popNode(n.label);
+        });
+        // The adapter sourceRoot has exactly one root child (the
+        // wrapper div carrying class __struct_header / __struct_footer).
+        // Discard that wrapper level since the placeholder IS that
+        // wrapper — graft the wrapper's inner cells directly into the
+        // placeholder instead.
+        placeholder.freeze();
+        sourceRoot.getNodes().forEach((wrapperNode) => {
+            const inner = wrapperNode.getValue();
+            if (inner instanceof gnr.GnrBag) {
+                inner.getNodes().forEach((cellNode) => {
+                    this._graftNode(placeholderContent, cellNode);
+                });
+            }
+        });
+        placeholder.unfreeze();
+    }
+
     _scheduleStructSync() {
         // Coalesce multiple sync requests within a frame (resize +
         // row-add + applyStruct can all fire in the same tick). The
@@ -695,13 +754,12 @@ gnr.GroupletGridController = class GroupletGridController {
         //   `firstRow`'s outer rect. After this, the three grids
         //   resolve identical track positions automatically.
         //
-        // STEP 2 — Text edge inside each column: for each column,
-        //   align the header label and the readonly row cell to the
-        //   VISIBLE text edge of the row's widget input. Computed
-        //   relative to the column wrapper's edge (intrinsic inset)
-        //   PLUS the widget's own padding/border on that side. No
-        //   cross-track measurement here — each column's adjustment
-        //   is local to itself.
+        // STEP 2 — Text edge inside each column: for each column, align
+        //   the header label and the readonly row cell to the VISIBLE
+        //   text edge of the row's widget input. Computed relative to
+        //   the column wrapper's edge (intrinsic inset) PLUS the
+        //   widget's own padding/border on that side. No cross-track
+        //   measurement here — each column's adjustment is local.
         if (!this.structAdapter) return;
         const containerDom = this.sourceNode && this.sourceNode.getDomNode
             && this.sourceNode.getDomNode();
@@ -709,8 +767,8 @@ gnr.GroupletGridController = class GroupletGridController {
         const firstRow = containerDom.querySelector(
             '.grouplet_grid_body .grouplet_grid__struct_row');
         if (!firstRow) return;
-        // Single pass over all rows: stamp the col_cell marker class
-        // on every direct child (some widgets — e.g. gnrcheckbox — wrap
+        // Single pass over all rows: stamp the col_cell marker class on
+        // every direct child (some widgets — e.g. gnrcheckbox — wrap
         // themselves at parse time, so the marker class supplied to the
         // builder lands on an inner node and the actual row child is
         // the wrap the framework added), AND index readonly cells by
@@ -780,8 +838,8 @@ gnr.GroupletGridController = class GroupletGridController {
             if (!trackEl) return;
             const trackRect = trackEl.getBoundingClientRect();
             if (trackRect.width === 0) return;
-            // Text-edge inset: gap between wrapper edge and visible
-            // text inside the widget input (the input has its own
+            // Text-edge inset: gap between wrapper edge and visible text
+            // inside the widget input (the input has its own
             // padding+border that pushes the text inward).
             let target = trackEl;
             let bestW = 0;
@@ -837,58 +895,6 @@ gnr.GroupletGridController = class GroupletGridController {
         });
     }
 
-    _resolveStructSlots() {
-        const out = {top: null, bottom: null};
-        const containerContent = this.sourceNode.getValue();
-        if (!(containerContent instanceof gnr.GnrDomSource)) return out;
-        containerContent.getNodes().forEach((n) => {
-            const side = n.attr && n.attr.gg_side;
-            if (side === 'top') out.top = n;
-            else if (side === 'bottom') out.bottom = n;
-        });
-        return out;
-    }
-
-    _mountSlotContent(slotNode, sourceRoot, placeholderLabel) {
-        // Populate the empty placeholder sourceNode (emitted server-
-        // side by gr_groupletGrid via `childname='struct_header'` /
-        // `'struct_footer'` inside the corresponding slot) with the
-        // cells produced by the adapter.
-        //
-        // The placeholder is a leaf <div>: built when the container
-        // was built, but with no children. `freeze → graft → unfreeze`
-        // on a leaf-empty sourceNode is the same pattern `_addRow`
-        // uses for the row wrapper. The framework treats the cells as
-        // fresh inserts, not as updates of pre-existing DOM.
-        //
-        // Idempotent: prior cells are popped so a rebuild on struct
-        // mutation (controller.applyStruct) doesn't duplicate.
-        const slotContent = slotNode.getValue();
-        if (!(slotContent instanceof gnr.GnrDomSource)) return;
-        const placeholder = slotContent.getNode(placeholderLabel);
-        if (!placeholder) return;
-        const placeholderContent = placeholder.getValue();
-        if (!(placeholderContent instanceof gnr.GnrDomSource)) return;
-        placeholderContent.getNodes().slice().forEach((n) => {
-            placeholderContent.popNode(n.label);
-        });
-        // The adapter sourceRoot has exactly one root child (the
-        // wrapper div carrying class __struct_header / __struct_footer).
-        // We discard that wrapper level since the placeholder IS that
-        // wrapper — graft the wrapper's inner cells directly into
-        // the placeholder instead.
-        placeholder.freeze();
-        sourceRoot.getNodes().forEach((wrapperNode) => {
-            const inner = wrapperNode.getValue();
-            if (inner instanceof gnr.GnrBag) {
-                inner.getNodes().forEach((cellNode) => {
-                    this._graftNode(placeholderContent, cellNode);
-                });
-            }
-        });
-        placeholder.unfreeze();
-    }
-
     applyStruct(newStruct) {
         // Public hook for data-driven struct mutation. Re-walks the
         // struct via the adapter, invalidates the template cache,
@@ -907,10 +913,9 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     setTotalizer(field, datapath) {
-        // Public API: register a column for live totalization. Works
-        // in BOTH resource= and struct= modes (in struct mode the
-        // cells with `totalize=` auto-register; this is the manual
-        // escape hatch).
+        // Public API: register a column for live totalization. Works in
+        // BOTH resource= and struct= modes (in struct mode, cells with
+        // `totalize=` auto-register; this is the manual escape hatch).
         if (!this._changeMgr) return;
         this.cellmap[field] = this.cellmap[field]
             || {field: field, _nodelabel: field};
@@ -932,6 +937,10 @@ gnr.GroupletGridController = class GroupletGridController {
         this._changeMgr.recalculateOneFormula(field);
     }
 
+    // ====================================================================
+    //  Store dispatch & render — single entry point for storepath events
+    // ====================================================================
+
     _renderFromStore() {
         // Render the grid from scratch against the current Bag at
         // `storepath`. Used at construct time and whenever the Bag root
@@ -942,12 +951,12 @@ gnr.GroupletGridController = class GroupletGridController {
             Object.keys(this.rows).forEach((rowKey) => this._removeRow(rowKey));
             return;
         }
-        // Late `onNewDatastore` publish: GridChangeManager's
-        // constructor wired its `rowLogger` subscription behind this
-        // event but its callback dereferences `storebag()`. We can't
-        // emit at controller init time because resource= mode often
-        // starts with a null Bag (test_1 baseline). Now that we have
-        // a Bag for sure, fire once and clear the flag.
+        // Late `onNewDatastore` publish: GridChangeManager's constructor
+        // wired its `rowLogger` subscription behind this event but its
+        // callback dereferences `storebag()`. We can't emit at controller
+        // init time because resource= mode often starts with a null Bag
+        // (test_1 baseline). Now that we have a Bag for sure, fire once
+        // and clear the flag.
         if (this._cmNeedsBag && this._changeMgr) {
             this._cmNeedsBag = false;
             this.sourceNode.publish('onNewDatastore');
@@ -974,7 +983,7 @@ gnr.GroupletGridController = class GroupletGridController {
         //                     (newDataStore — equivalent of
         //                     mixin_newDataStore in genro_grid.js)
         //   parent_lv === 1 → add/remove of a whole row
-        //   parent_lv > 1  → mutation INSIDE a row (field/sub-bag):
+        //   parent_lv  > 1 → mutation INSIDE a row (field/sub-bag):
         //                    widgets bound to that field update
         //                    themselves via the standard `^.field`
         //                    binding. The controller only intervenes
@@ -994,8 +1003,8 @@ gnr.GroupletGridController = class GroupletGridController {
             // Tabs mode label refresh: walk up the changed node's
             // parentship chain to find the row-level node (parent_lv=1)
             // and, if the mutated leaf is the titleField, repaint the
-            // chip's title text. Other intra-row mutations are
-            // ignored (widgets do their own binding).
+            // chip's title text. Other intra-row mutations are ignored
+            // (widgets do their own binding).
             if (this._isTabsLayout() && this.titleField) {
                 this._maybeRefreshTabLabel(kw.node, storeNode);
             }
@@ -1046,10 +1055,22 @@ gnr.GroupletGridController = class GroupletGridController {
         }
     }
 
+    // ====================================================================
+    //  Layout — responsive grid, slot classes, cards/tabs affordances
+    // ====================================================================
+    //
+    //  All layout-specific DOM is built client-side, never emitted from
+    //  Python. Cards mode appends a `.grouplet_grid_footer` div to the
+    //  container (CSS grid-area `addbtn` parks it below the body). Tabs
+    //  mode inserts a `.grouplet_grid_tabbar` between the `top` slot and
+    //  the body, plus a `+` chip on its right. `setLayout()` swaps
+    //  between the two without touching row panels.
+
     _applyResponsiveLayout() {
         if (!(this.minWidth && this.cols > 1)) return;
-        // Set custom properties on the container (stable across body rebuilds).
-        // CSS uses these to drive the grid layout on .grouplet_grid_body.
+        // Set custom properties on the container (stable across body
+        // rebuilds). CSS uses these to drive the grid layout on
+        // .grouplet_grid_body.
         const container = this.sourceNode && this.sourceNode.getDomNode
             && this.sourceNode.getDomNode();
         if (!container) {
@@ -1077,15 +1098,6 @@ gnr.GroupletGridController = class GroupletGridController {
             }
         });
     }
-
-    // --- Layout affordances (cards `+` footer / tabs tabbar) ---
-    //
-    // All layout-specific DOM is built client-side, never emitted from
-    // Python. Cards mode appends a `.grouplet_grid_footer` div inside
-    // the body (CSS `order:999` parks it after rows). Tabs mode inserts
-    // a `.grouplet_grid_tabbar` between the `top` slot and the body
-    // (CSS `grid-template-areas` pins it), plus a `+` chip on its right.
-    // `setLayout()` swaps between the two without touching row panels.
 
     _isTabsLayout() {
         return this.layout === 'tabs' || this.layout === 'vtabs';
@@ -1172,23 +1184,20 @@ gnr.GroupletGridController = class GroupletGridController {
         this.layout = newLayout;
         if (newLayout === 'cards') {
             this.activeRowKey = null;
-        } else {
+        } else if (prevActive && this.rows[prevActive]) {
             // Keep the previously selected row as the active tab if it
-            // still exists; the build pass below will install the
-            // chip and apply `.gg-tab-active`.
-            if (prevActive && this.rows[prevActive]) {
-                this.activeRowKey = prevActive;
-            }
+            // still exists; the build pass below will install the chip
+            // and apply `.gg-tab-active`.
+            this.activeRowKey = prevActive;
         }
         this._buildLayoutAffordances();
     }
 
     _buildCardsFooter(containerDom) {
-        // The phantom `+` is appended to the CONTAINER (not to the
-        // body) so that the framework's row rendering inside the body
-        // never touches it. CSS pins the footer to its own grid-area
-        // (`addbtn`) so it sits directly below the body, mimicking the
-        // previous "in-body footer with order:999" layout.
+        // The phantom `+` is appended to the CONTAINER (not the body)
+        // so that the framework's row rendering inside the body never
+        // touches it. CSS pins the footer to its own grid-area
+        // (`addbtn`) so it sits directly below the body.
         if (!this.additem) return;
         const btn = document.createElement('div');
         btn.className = 'grouplet_grid_footer';
@@ -1239,10 +1248,10 @@ gnr.GroupletGridController = class GroupletGridController {
             tabbar.appendChild(addBtn);
             this.addBtnDom = addBtn;
         }
-        // Place the tabbar at the start of the container (after the
-        // top slot if present, else first). CSS grid-template-areas
-        // pins it to the `tabbar` area; document order only matters
-        // for accessibility / source-reading order.
+        // Place the tabbar at the start of the container (after the top
+        // slot if present, else first). CSS grid-template-areas pins it
+        // to the `tabbar` area; document order only matters for
+        // accessibility / source-reading order.
         const topSlot = containerDom.querySelector(
             ':scope > .grouplet_grid_slot_top');
         if (topSlot && topSlot.nextSibling) {
@@ -1254,7 +1263,15 @@ gnr.GroupletGridController = class GroupletGridController {
         this.tabstripDom = strip;
     }
 
-    // --- Tab chip lifecycle ---
+    // ====================================================================
+    //  Tabs — chip lifecycle, activation, per-chip DnD
+    // ====================================================================
+    //
+    //  The chip itself is the drag handle in tabs mode (no `⠿` glyph).
+    //  Same data-transfer payload as `_wireRowDnD`, so cross-grid drag
+    //  works between any combination of cards-mode and tabs-mode grids
+    //  sharing a `dragCode`. The drop position is always "before the
+    //  target chip" — same convention as cards mode.
 
     _addTabChip(rowKey) {
         if (!this.tabstripDom) return;
@@ -1360,14 +1377,6 @@ gnr.GroupletGridController = class GroupletGridController {
             if (dom) dom.classList.toggle('gg-tab-active', rk === activeRowKey);
         });
     }
-
-    // --- Tab DnD (mirror of _wireRowDnD with chip selectors) ---
-    //
-    // The chip itself is the drag handle in tabs mode (no `⠿` glyph).
-    // Same data-transfer payload as `_wireRowDnD`, so cross-grid drag
-    // works between any combination of cards-mode and tabs-mode grids
-    // sharing a `dragCode`. The drop position is always "before the
-    // target chip" — same convention as cards mode.
 
     _wireTabDnD(chipDom, rowKey) {
         const that = this;
@@ -1487,6 +1496,10 @@ gnr.GroupletGridController = class GroupletGridController {
         this._unwireRowDnD(rowKey);
     }
 
+    // ====================================================================
+    //  Action dispatch — single subscription routes every action
+    // ====================================================================
+
     _registerActionSubscription() {
         // Single dispatch point: menu items, footer button and the public
         // controller methods all publish on `this.actionTopic` with a
@@ -1522,6 +1535,10 @@ gnr.GroupletGridController = class GroupletGridController {
                 console.warn('[GG] unknown action', payload);
         }
     }
+
+    // ====================================================================
+    //  DnD — row wrappers, container drop zone, cross-instance migration
+    // ====================================================================
 
     _wireRowDnD(wrapperDom, rowKey) {
         // Wire HTML5 drag-and-drop directly on a row wrapper (mounted DOM).
@@ -1568,9 +1585,9 @@ gnr.GroupletGridController = class GroupletGridController {
                     clone.style.width = wrapperDom.offsetWidth + 'px';
                     // In struct mode the row's own chrome is stripped
                     // (the container card owns the border/radius). Tag
-                    // the clone so CSS can re-add a self-contained
-                    // card look — otherwise the drag image renders as
-                    // a borderless naked strip. Also carry over the
+                    // the clone so CSS can re-add a self-contained card
+                    // look — otherwise the drag image renders as a
+                    // borderless naked strip. Also carry over the
                     // `--gg-struct-columns` CSS custom property: it's
                     // set inline on the container, but the clone sits
                     // outside the container in `#auxDragImage`, so the
@@ -1656,8 +1673,8 @@ gnr.GroupletGridController = class GroupletGridController {
             that._setDragOver(wrapperDom, isValid);
         };
         const onDragLeave = function(e) {
-            // Only clear when leaving the wrapper, not when crossing into
-            // a child element.
+            // Only clear when leaving the wrapper, not when crossing
+            // into a child element.
             if (!wrapperDom.contains(e.relatedTarget)) {
                 if (that._dragOverRow === wrapperDom) that._clearDragOver();
             }
@@ -1689,11 +1706,11 @@ gnr.GroupletGridController = class GroupletGridController {
                 return;
             }
             // Cross-instance drop: same dragCode (already filtered by
-            // matching `dataKey`) but different controllers. Resolve the
-            // source controller and migrate the row directly. This branch
-            // is only reached when both grids share an explicit `dragCode`
-            // — server-side default keeps dragCode = nodeId, so cross
-            // drops cannot happen by accident.
+            // matching `dataKey`) but different controllers. Resolve
+            // the source controller and migrate the row directly. This
+            // branch is only reached when both grids share an explicit
+            // `dragCode` — server-side default keeps dragCode = nodeId,
+            // so cross drops cannot happen by accident.
             const sourceCtrl = that._findSourceController(payload.nodeId);
             if (!sourceCtrl) {
                 console.warn('[GG] cross drop: source ctrl not found',
@@ -1707,8 +1724,8 @@ gnr.GroupletGridController = class GroupletGridController {
         wrapperDom.addEventListener('dragover', onDragOver);
         wrapperDom.addEventListener('dragleave', onDragLeave);
         wrapperDom.addEventListener('drop', onDrop);
-        // Track for teardown: the listeners are anonymous closures, so we
-        // store references keyed by rowKey.
+        // Track for teardown: the listeners are anonymous closures, so
+        // we store references keyed by rowKey.
         this._dragHandlesByRow[rowKey] = {
             dom: wrapperDom,
             handlers: {dragstart: onDragStart, dragend: onDragEnd,
@@ -1871,9 +1888,10 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     _findSourceController(sourceNodeId) {
-        // Resolves the controller of another GroupletGrid instance on the
-        // same page. The controller is attached to its container node by
-        // the `dataController` bootstrap in grouplet.py — `node.gridController`.
+        // Resolves the controller of another GroupletGrid instance on
+        // the same page. The controller is attached to its container
+        // node by the `dataController` bootstrap in grouplet.py —
+        // `node.gridController`.
         const node = genro.nodeById(sourceNodeId);
         return (node && node.gridController) || null;
     }
@@ -1930,23 +1948,9 @@ gnr.GroupletGridController = class GroupletGridController {
         }, 0);
     }
 
-    destroy() {
-        if (this._destroyed) return;
-        this._destroyed = true;
-        this.sourceNode.unregisterSubscription(this.actionTopic);
-        this._unwireContainerDnD();
-        Object.keys(this.rows).forEach((rowKey) => this._removeRow(rowKey));
-        // Tear down the layout-specific scaffolding (tabbar / footer +
-        // any surviving chip subscriptions). Safe to call regardless of
-        // current layout.
-        this._teardownLayoutAffordances();
-        if (this._structResizeObserver) {
-            this._structResizeObserver.disconnect();
-            this._structResizeObserver = null;
-        }
-        this.templateSources = {};
-        this.templateLoading = {};
-    }
+    // ====================================================================
+    //  Row CRUD — internal sync between rows Bag and DOM
+    // ====================================================================
 
     _fullSync() {
         const bag = this.storebag();
@@ -2005,11 +2009,11 @@ gnr.GroupletGridController = class GroupletGridController {
                          rowKey, 'key=' + tplKey);
             return;
         }
-        // Derive the wrapper insertion position from the Bag itself: put
-        // the wrapper right before the wrapper of the next sibling row
-        // that already exists in the DOM, or append at the tail. Works
-        // for all sources of 'ins' (action handlers, DnD, external
-        // setItem) without the caller having to know.
+        // Derive the wrapper insertion position from the Bag itself:
+        // put the wrapper right before the wrapper of the next sibling
+        // row that already exists in the DOM, or append at the tail.
+        // Works for all sources of 'ins' (action handlers, DnD,
+        // external setItem) without the caller having to know.
         let position;
         const bag = this.storebag();
         if (bag instanceof gnr.GnrBag) {
@@ -2024,14 +2028,15 @@ gnr.GroupletGridController = class GroupletGridController {
         }
         const wrapperLabel = '_grow_' + rowKey;
         const wrapperNodeId = '__grpgridrow__' + this.nodeId + '__' + rowKey;
-        // Clone the template — every row owns its own copy. Auto-generated
-        // nodeIds (those starting with `grpgrid_`, used by the framework
-        // itself for action-topic routing of nested groupletGrids) get
-        // namespaced so each row's clone has a unique container nodeId.
-        // Author-supplied nodeIds are left untouched: it's the author's
-        // responsibility to make them unique if they need to be referenced
-        // (typically by including `rowKey` in the nodeId or just by
-        // omitting nodeId on widgets that aren't referenced).
+        // Clone the template — every row owns its own copy.
+        // Auto-generated nodeIds (those starting with `grpgrid_`, used
+        // by the framework itself for action-topic routing of nested
+        // groupletGrids) get namespaced so each row's clone has a unique
+        // container nodeId. Author-supplied nodeIds are left untouched:
+        // it's the author's responsibility to make them unique if they
+        // need to be referenced (typically by including `rowKey` in the
+        // nodeId or just by omitting nodeId on widgets that aren't
+        // referenced).
         const cloned = tplSource.deepCopy();
         this._namespaceFrameworkNodeIds(cloned, rowKey);
         const bodyContent = this.bodyNode.getValue();
@@ -2085,9 +2090,9 @@ gnr.GroupletGridController = class GroupletGridController {
         const wrapperNode = bodyContent.getNode(wrapperLabel);
         const wrapperContent = wrapperNode.getValue();
         const topic = this.actionTopic;
-        // 2a) Top-right `×` delete button (Item 10 affordance).
-        //     Enabled by `delitem=True`. Always sits on top of the kebab
-        //     and the row content via CSS absolute positioning.
+        // Top-right `×` delete button (Item 10 affordance). Enabled by
+        // `delitem=True`. Always sits on top of the kebab and the row
+        // content via CSS absolute positioning.
         if (this.delitem) {
             const delKw = objectUpdate({
                 _class: 'grouplet_grid_row_delete',
@@ -2104,14 +2109,14 @@ gnr.GroupletGridController = class GroupletGridController {
             const delNode = wrapperContent.getNode('_grow_del_' + rowKey);
             delNode.getValue()._('div', 'glyph', {innerHTML: '×'});
         }
-        // 2b) Per-row kebab menu — `<div>` target with a child `<menu>`.
-        //     The Python side pre-resolves `editmenu` to a dict whose keys
-        //     are entry identifiers ('addPrev', 'addNext', 'delete', ...
-        //     or anything custom) and whose values are:
-        //       True   → use the built-in preset for that key
-        //       string → custom label, action derived from preset key
-        //       dict   → full menuline spec (label, action, ...)
-        //     An empty dict means "no kebab".
+        // Per-row kebab menu — `<div>` target with a child `<menu>`.
+        // The Python side pre-resolves `editmenu` to a dict whose keys
+        // are entry identifiers ('addPrev', 'addNext', 'delete', ...
+        // or anything custom) and whose values are:
+        //   True   → use the built-in preset for that key
+        //   string → custom label, action derived from preset key
+        //   dict   → full menuline spec (label, action, ...)
+        // An empty dict means "no kebab".
         // Reference: genro_components.js:497 (multivalue dlg) for the
         // inline `_('menu', {modifiers:'*', ...})` shape.
         const editmenu = this.editmenu;
@@ -2119,8 +2124,8 @@ gnr.GroupletGridController = class GroupletGridController {
                             && Object.keys(editmenu).length > 0;
         if (hasEditmenu) {
             // Preset entries: keyed by the same identifiers the Python
-            // side emits ('addPrev', 'addNext', 'delete'). Each returns a
-            // menuline-ready spec (label + action publishing on the
+            // side emits ('addPrev', 'addNext', 'delete'). Each returns
+            // a menuline-ready spec (label + action publishing on the
             // controller's action topic).
             const presets = {
                 addPrev: {
@@ -2192,24 +2197,20 @@ gnr.GroupletGridController = class GroupletGridController {
         });
         wrapperNode.unfreeze();
         this.rows[rowKey] = {wrapperNodeId: wrapperNodeId};
-        // Drag handle: created LAST, on a wrapper that is already mounted
-        // (no enclosing freeze). This is the pattern used in
-        // timesheet_viewer.js:339-362 — `draggable:true` in the struct
-        // attrs is reliably reflected as the HTML attribute when the
-        // parent is live, which is what the browser's native HTML5
-        // dragstart needs to fire. Then we wire native DnD listeners on
-        // the wrapper for dragover preview line + drop dispatch.
-        // Drag handle is appended via onCreated callback (set on
-        // wrapperKw above). No post-unfreeze hook needed.
+        // Drag handle is appended via the onCreated callback set above
+        // on wrapperKw — pattern from timesheet_viewer.js:339-362.
+        // `draggable:true` in the struct attrs is reliably reflected as
+        // the HTML attribute when the parent is live, which is what the
+        // browser's native HTML5 dragstart needs to fire.
         this._updateAddBtnState();
         // Tabs mode: also build the corresponding tab chip. The
         // wrapper's `_class` was pre-stamped above when this row was
-        // already known to be the active one (set by `_fullSync`
-        // before the batch freeze). If the row was just added via the
-        // `+` button (`_pendingActivate === rowKey`), switch the
-        // active tab to it now — same UX as opening a new browser
-        // tab. Otherwise, if the new row was inserted as the active
-        // one at fullSync time, reassert the chip class.
+        // already known to be the active one (set by `_fullSync` before
+        // the batch freeze). If the row was just added via the `+`
+        // button (`_pendingActivate === rowKey`), switch the active tab
+        // to it now — same UX as opening a new browser tab. Otherwise,
+        // if the new row was inserted as the active one at fullSync
+        // time, reassert the chip class.
         if (this._isTabsLayout()) {
             this._addTabChip(rowKey);
             const pending = this._pendingActivate === rowKey;
@@ -2302,11 +2303,14 @@ gnr.GroupletGridController = class GroupletGridController {
         return Object.keys(this.rows).length;
     }
 
-    // --- Public API: thin publishers on the action topic ---
-    // Every public mutator goes through `genro.publish(this.actionTopic, ...)`.
-    // The single subscription in _registerActionSubscription dispatches via
-    // _handleAction → _doAddRow / _askAndDeleteRow. All entry points
-    // (kebab menu, footer button, programmatic calls) follow the same path.
+    // ====================================================================
+    //  Public action API — thin publishers + private executors
+    // ====================================================================
+    //
+    //  Every public mutator goes through `genro.publish(actionTopic,...)`.
+    //  The single subscription in _registerActionSubscription dispatches
+    //  via _handleAction → _doAddRow / _askAndDeleteRow. All entry points
+    //  (kebab menu, footer button, programmatic calls) follow this path.
 
     addRowAction(defaults) {
         genro.publish(this.actionTopic,
@@ -2333,8 +2337,6 @@ gnr.GroupletGridController = class GroupletGridController {
         genro.publish(this.actionTopic,
                       {action: 'delete', rowKey: rowKey});
     }
-
-    // --- Private executors ---
 
     _doAddRow(position, defaults) {
         if (this.maxRows && this._rowCount() >= this.maxRows) return;
@@ -2429,14 +2431,19 @@ gnr.GroupletGridController = class GroupletGridController {
         this.addBtnDom.classList.toggle('disabled', atMax);
     }
 
+    // ====================================================================
+    //  Template plumbing — namespacing, cache, source-root building
+    // ====================================================================
+
     _namespaceFrameworkNodeIds(domSource, rowKey) {
         // Append `__<gridId>__<rowKey>` to nodeIds that the framework
         // generated for its own bookkeeping (groupletGrid containers
         // and their body / addbtn satellites). These nodeIds always
-        // share the `grpgrid_` prefix (set server-side by gr_groupletGrid
-        // when no explicit nodeId is passed). Author-supplied nodeIds
-        // are NEVER touched — it's the author's job to make them unique
-        // across rows if they actually use them.
+        // share the `grpgrid_` prefix (set server-side by
+        // gr_groupletGrid when no explicit nodeId is passed).
+        // Author-supplied nodeIds are NEVER touched — it's the author's
+        // job to make them unique across rows if they actually use them.
+        //
         // Why we still need a nodeId at all on the container, instead
         // of fully attribute-driven lookups: the action topic is
         // `groupletGrid_<nodeId>_action` (publish-subscribe), so each
