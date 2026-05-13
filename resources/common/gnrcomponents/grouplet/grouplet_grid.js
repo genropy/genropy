@@ -334,6 +334,12 @@ gnr.GroupletGridController = class GroupletGridController {
         // in genro_grid.js:3066-3068).
         this.storepath = sourceNode.absDatapath(sourceNode.attr.storepath);
         this.resource = kw.resource || null;
+        // Item 13: multi-grouplet mode — the row template is chosen per
+        // row based on the value of `resourceField` on the row data
+        // (e.g. `ticket_type='commercial/offer'`). When set, the
+        // controller preloads ALL grouplets under the table's folder
+        // in a single RPC at boot, keyed by their resource path.
+        this.resourceField = kw.resourceField || null;
         // struct= mode (Item 12): the Python side parked the
         // GnrGridStruct Bag at `structpath` (relative to the
         // container — `#WORKSPACE.struct` auto, or user-supplied).
@@ -1007,7 +1013,8 @@ gnr.GroupletGridController = class GroupletGridController {
         const rowKey = kw.node.label;
         if (!rowKey) return;
         if (kw.evt === 'ins') {
-            this._ensureTemplate(() => this._addRow(rowKey));
+            this._ensureTemplate(() => this._addRow(rowKey),
+                                 this._templateKeyForRow(rowKey));
         } else if (kw.evt === 'del') {
             this._removeRow(rowKey);
         }
@@ -2355,8 +2362,8 @@ gnr.GroupletGridController = class GroupletGridController {
     _ensureTemplate(callback, key) {
         // Keyed template cache. `key` selects which row template to
         // resolve — `__default__` for single-template grids (struct=
-        // or resource=), or a `resourceField` value (e.g. ticket_type)
-        // when multi-grouplet mode (Item 13 Parte A) lands.
+        // or resource=), or a sanitized `resourceField` value
+        // (e.g. `commercial_offer`) in multi-grouplet mode.
         //
         // Once `templateSources[key]` is a sourceRoot, struct= and
         // resource= modes are indistinguishable to downstream code:
@@ -2365,6 +2372,15 @@ gnr.GroupletGridController = class GroupletGridController {
         key = key || '__default__';
         if (this.templateSources[key]) {
             callback();
+            return;
+        }
+        // Multi-grouplet mode: one RPC at first call preloads ALL
+        // candidate templates under the table's folder. Subsequent
+        // calls for any key short-circuit on cache. We keep a single
+        // shared loading queue under `__resource_field__` since the
+        // RPC primes every key in one shot.
+        if (this.resourceField) {
+            this._ensureResourceFieldTemplates(callback);
             return;
         }
         if (this.templateLoading[key]) {
@@ -2406,13 +2422,73 @@ gnr.GroupletGridController = class GroupletGridController {
             });
     }
 
+    _ensureResourceFieldTemplates(callback) {
+        // Multi-grouplet bulk loader. The server returns a Bag whose
+        // children are { label: sanitized_resource, value: template_bag,
+        // attr: { resource: 'commercial/offer' } } — one entry per
+        // grouplet under the table's folder. We turn each into a
+        // detached sourceRoot and store under both the sanitized key
+        // (label) and the original resource path, so a row whose
+        // discriminator carries either form resolves correctly.
+        const sharedKey = '__resource_field__';
+        if (this.templateLoading[sharedKey]) {
+            this.templateLoading[sharedKey].push(callback);
+            return;
+        }
+        this.templateLoading[sharedKey] = [callback];
+        const flush = () => {
+            const queue = this.templateLoading[sharedKey];
+            delete this.templateLoading[sharedKey];
+            queue.forEach((cb) => cb());
+        };
+        const params = {
+            table: this.table,
+            grouplets_root: this.grouplets_root,
+            grouplet_kwargs: this.grouplet_kw
+        };
+        genro.serverCall('gr_getGroupletGridTemplateMap', params,
+            (mapBag, error) => {
+                if (error) {
+                    console.error('[GG] template map RPC failed', error);
+                    delete this.templateLoading[sharedKey];
+                    return;
+                }
+                if (!(mapBag instanceof gnr.GnrBag)) {
+                    console.warn('[GG] template map payload is not a Bag',
+                                 mapBag);
+                    flush();
+                    return;
+                }
+                mapBag.getNodes().forEach((node) => {
+                    const tplValue = node.getValue();
+                    if (!(tplValue instanceof gnr.GnrBag)) return;
+                    const source = this._bagToDetachedSource(tplValue);
+                    this.templateSources[node.label] = source;
+                    const origResource = node.attr && node.attr.resource;
+                    if (origResource) {
+                        this.templateSources[origResource] = source;
+                    }
+                });
+                flush();
+            });
+    }
+
     _templateKeyForRow(rowKey) {
-        // Hook for Item 13 Parte A (multi-grouplet via resourceField):
-        // returns the cache key to look up the row template for the
-        // row identified by `rowKey`. Today single-template, always
-        // `__default__`. When `resourceField` lands the controller
-        // will read it off the row and return the field's value.
-        return '__default__';
+        // Single-template grids (struct=, plain resource=, handler=)
+        // all share the `__default__` cache slot. In `resourceField=`
+        // mode the row's discriminator field selects which preloaded
+        // template applies (cache key = resource_path with `/` → `_`
+        // to match server-side keying in gr_getGroupletGridTemplateMap).
+        if (!this.resourceField) return '__default__';
+        const bag = this.storebag();
+        if (!(bag instanceof gnr.GnrBag)) return '__default__';
+        const rowNode = bag.getNode(rowKey, 'static');
+        if (!rowNode) return '__default__';
+        const rowValue = rowNode.getValue();
+        if (!(rowValue instanceof gnr.GnrBag)) return '__default__';
+        const fieldValue = rowValue.getItem(this.resourceField);
+        if (!fieldValue) return '__default__';
+        return String(fieldValue).replace(/\//g, '_');
     }
 
     _bagToDetachedSource(bag) {

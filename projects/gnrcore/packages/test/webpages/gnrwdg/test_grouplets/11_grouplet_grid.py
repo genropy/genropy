@@ -25,6 +25,16 @@
                                  +/−.
   test_10_shopping_row_resource — baseline for test_9, same shape via a
                                  hand-written resource grouplet.
+  test_12_myticket_resourcefield — Item 13: heterogeneous rows where the
+                                 template is chosen per-row from the
+                                 `ticket_type` discriminator field. Rows
+                                 are loaded from `test.myticket` via a
+                                 `dataRpc` (`selection().output('baglist')`
+                                 — same pattern as `righeDocumento` in
+                                 erpy). Each row picks one of the 9
+                                 complete templates under
+                                 `myticket/grid_grouplets/` and renders
+                                 the matching mini-form.
 """
 import datetime
 
@@ -576,4 +586,117 @@ class GnrCustomWebPage(object):
                           delitem=False,
                           editmenu=True,
                           defaultRow=dict(qty=1, unit_price=0))
+
+    @public_method
+    def getMyTickets(self, **kwargs):
+        """Load all `test.myticket` rows as a Bag-of-Bags.
+
+        Mirrors the canonical `righeDocumento` pattern from erpy
+        (model/fattura.py:411-415, model/ddt.py:199-203): bagFields=True
+        expands every row's columns into a sub-Bag, then
+        `selection().output('baglist')` returns a Bag whose children
+        are the row Bags keyed by pkey.
+        """
+        return self.db.table('test.myticket').query(
+            order_by='ticket_date desc',
+            bagFields=True,
+            columns='*',
+        ).selection().output('baglist')
+
+    def test_12_myticket_resourcefield(self, pane):
+        """Item 13: heterogeneous rows whose template is chosen
+        per-row from the `ticket_type` discriminator field.
+
+        Rows arrive from `test.myticket` via the canonical `dataRpc`
+        pattern (`selection().output('baglist')`). Each row carries
+        `ticket_type='commercial/offer'` (or one of the 8 other
+        categories) plus an `extra_data` sub-Bag with type-specific
+        fields. The groupletGrid in `resourceField='ticket_type'`
+        mode preloads ALL 9 templates from
+        `myticket/grid_grouplets/` in a single bootstrap RPC, then
+        each row picks its template at render time.
+
+        Add-by-type: one button per ticket type publishes an
+        `{action: 'add', defaults: {ticket_type: '<path>'}}` on the
+        action bus. The new row is born with the discriminator
+        already set, so the next `_addRow` resolves the correct
+        template immediately.
+
+        Layout toggle: the `setLayout()` runtime API (Item 11) lets
+        the same data flip between cards / horizontal tabs /
+        vertical tabs without reload.
+        """
+        pane.div('Test 12: heterogeneous rows from `test.myticket`. '
+                 'Each row picks its template (one of 9) from the '
+                 '`ticket_type` field. The toolbar provides a layout '
+                 'picker (cards / H-tabs / V-tabs) and an Add menu '
+                 'driven by `gr_groupletAddrowMenu` — same Bag pattern '
+                 'as `fgr_slotbar_addrow` / `fh_slotbar_form_add`.',
+                 color='#666', font_style='italic', margin_bottom='8px')
+        grid_id = 'grpgrid_myticket'
+        action_topic = f'groupletGrid_{grid_id}_action'
+        # Seed the layout datapath so the picker mirrors the grid's
+        # initial state, then wire the change to the controller's
+        # public setLayout() API (pattern from test_8_team_tabs).
+        pane.data('.myticket_layout', 'cards')
+        # Build the add-row menu Bag server-side: one item per grouplet
+        # under `myticket/grid_grouplets/`, each carrying default_kw
+        # with the discriminator field pre-set. The widget reads this
+        # Bag from `.addrow_menu_store` via menupath= and renders a
+        # popup; the click emits an action with `default_kw` as $1.
+        pane.data('.addrow_menu_store',
+                  self.gr_groupletAddrowMenu(
+                      table='test.myticket',
+                      field='ticket_type',
+                      grouplets_root='grid_grouplets'))
+        toolbar = pane.div(display='flex', gap='0.8em',
+                           align_items='center', margin_bottom='8px')
+        toolbar.div('!!Layout', color='#666', font_size='0.9em')
+        toolbar.filteringSelect(
+            value='^.myticket_layout',
+            values='cards:!!Cards,tabs:!!Tabs (horizontal),'
+                   'vtabs:!!Tabs (vertical)',
+            width='200px')
+        pane.dataController("""
+            var n = genro.nodeById(grid_id);
+            var c = n && n.gridController;
+            if (c && c.layout !== layout) {
+                c.setLayout(layout);
+            }
+        """, layout='^.myticket_layout', grid_id=grid_id)
+        # Add menu: `menudiv` is a standalone clickable icon that
+        # opens a popup with items from `storepath` (the menu Bag).
+        # Each item click runs `action` with `$1` = the clicked
+        # node's attrs (including `default_kw` from
+        # gr_groupletAddrowMenu). We publish onto the grid's action
+        # bus, which the controller picks up as a normal `add`.
+        # Pattern from th_picker.py:352 and erpy/th_mese.py:840.
+        toolbar.menudiv(
+            storepath='.addrow_menu_store',
+            iconClass='iconbox add_row',
+            tip='!!Add ticket',
+            action=(
+                f"genro.publish('{action_topic}', "
+                "{action: 'add', defaults: $1.default_kw});"
+            ),
+        )
+        # The grid itself: dataRpc fires at boot, then resourceField
+        # mode preloads all templates with a single follow-up RPC.
+        pane.dataRpc('.tickets', self.getMyTickets, _onBuilt=True)
+        pane.groupletGrid(
+            storepath='.tickets',
+            resourceField='ticket_type',
+            table='test.myticket',
+            grouplets_root='grid_grouplets',
+            layout='cards',
+            titleField='subject',
+            emptyTitle='!!New ticket',
+            cols=2,
+            min_width='28em',
+            gap='12px',
+            nodeId=grid_id,
+            delitem=True,
+            editmenu=False,
+            additem=False,  # add via the slotButton menu in the toolbar
+        )
 

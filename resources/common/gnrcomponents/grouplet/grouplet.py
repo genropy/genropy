@@ -624,6 +624,13 @@ class GroupletHandler(BaseComponent):
 
 
 class GroupletGridHandler(BaseComponent):
+    # GroupletGridHandler reuses GroupletHandler's machinery for menu
+    # discovery and topic walking (gr_getGroupletMenu,
+    # _getGroupletResources, _get_grouplet_info). Declaring it via
+    # py_requires makes any page that includes GroupletGridHandler
+    # automatically get GroupletHandler too (BaseComponent.__onmixin__
+    # honours this attribute).
+    py_requires = 'gnrcomponents/grouplet/grouplet:GroupletHandler'
     css_requires = 'gnrcomponents/grouplet/grouplet'
     js_requires = ('gnrcomponents/grouplet/grouplet,'
                    'gnrcomponents/grouplet/grouplet_grid')
@@ -658,6 +665,44 @@ class GroupletGridHandler(BaseComponent):
         handler_fn(pane, **cell_kw)
         return pane
 
+    @public_method
+    def gr_getGroupletGridTemplateMap(self, table=None,
+                                      grouplets_root=None,
+                                      grouplet_kwargs=None,
+                                      _inheritedAttributes=None, **kwargs):
+        """Return a Bag {resource_path: template_source_root} for every
+        grouplet found under `table`'s `grouplets_root` folder. Used by
+        the controller in `resourceField=` mode to preload all candidate
+        templates with a single RPC at boot.
+        """
+        if not table:
+            raise self.exception(
+                'generic',
+                msg='groupletGrid: gr_getGroupletGridTemplateMap '
+                    'requires table=')
+        menu = self.gr_getGroupletMenu(table=table,
+                                       grouplets_root=grouplets_root)
+        result = Bag()
+        for resource_path in self._walkGroupletMenu(menu):
+            template = self.gr_getGroupletGridTemplate(
+                resource=resource_path, table=table,
+                grouplets_root=grouplets_root,
+                grouplet_kwargs=grouplet_kwargs,
+                _inheritedAttributes=_inheritedAttributes)
+            result.setItem(resource_path.replace('/', '_'), template,
+                           resource=resource_path)
+        return result
+
+    def _walkGroupletMenu(self, menu):
+        """Yield every leaf resource_path from a grouplet menu Bag
+        (returned by gr_getGroupletMenu). Topics are walked recursively;
+        leaves carry attr['resource']."""
+        for node in menu:
+            if node.value:
+                yield from self._walkGroupletMenu(node.value)
+            elif node.attr.get('resource'):
+                yield node.attr['resource']
+
     @extract_kwargs(
         grouplet=dict(slice_prefix=False, pop=True),
         additem=True, delitem=True, editmenu=True,
@@ -665,6 +710,7 @@ class GroupletGridHandler(BaseComponent):
     @struct_method
     def gr_groupletGrid(self, pane, datapath=None, storepath=None,
                         resource=None, handler=None,
+                        resourceField=None,
                         struct=None, structpath=None,
                         table=None, grouplets_root=None,
                         cols=1, min_width=None, gap='12px',
@@ -727,15 +773,27 @@ class GroupletGridHandler(BaseComponent):
             struct(built)
             struct = built
         struct_mode = struct is not None
-        if struct_mode and (resource or handler):
+        if struct_mode and (resource or handler or resourceField):
             raise self.exception(
                 'generic',
                 msg='groupletGrid: struct= is mutually exclusive with '
-                    'resource/handler')
-        if not (resource or handler or struct_mode):
+                    'resource/handler/resourceField')
+        if resourceField and (resource or handler):
             raise self.exception(
                 'generic',
-                msg='groupletGrid: missing resource, handler, or struct')
+                msg='groupletGrid: resourceField= is mutually exclusive '
+                    'with resource/handler (template is chosen per row)')
+        if resourceField and not table:
+            raise self.exception(
+                'generic',
+                msg='groupletGrid: resourceField= requires table= '
+                    '(grouplets are looked up under that table\'s '
+                    'resources)')
+        if not (resource or handler or resourceField or struct_mode):
+            raise self.exception(
+                'generic',
+                msg='groupletGrid: missing resource, handler, '
+                    'resourceField, or struct')
         handler_name = handler.__name__ if callable(handler) else handler
         # Drag-code resolution (single API: dragCode):
         #   dragCode=None  (default)  → dragCode = nodeId  (isolated D&D)
@@ -853,6 +911,7 @@ class GroupletGridHandler(BaseComponent):
                     bodyNode: bodyNode,
                     resource: _resource,
                     handler: _handler,
+                    resourceField: _resourceField,
                     structpath: _structpath,
                     table: _table,
                     grouplets_root: _grouplets_root,
@@ -887,6 +946,7 @@ class GroupletGridHandler(BaseComponent):
         """, _onBuilt=True,
             _resource=resource,
             _handler=handler_name,
+            _resourceField=resourceField,
             _structpath=structpath,
             _table=table,
             _grouplets_root=grouplets_root,
