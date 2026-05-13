@@ -435,10 +435,10 @@ class GnrCustomWebPage(object):
                    edit=True, validate_notnull=True)
             r.cell('qty', name='Qty', width='5em', dtype='L', edit=True)
             r.cell('unit_price', name='Unit price', width='7em',
-                   dtype='N', edit=True, format='###,###,###.00')
+                   dtype='N', edit=True, format='#,###.00')
             r.cell('line_total', name='Line total', width='8em',
                    dtype='N', formula='qty*unit_price',
-                   totalize='.total_spent', format='###,###,###.00')
+                   totalize='.total_spent', format='#,###.00')
 
         pane.div('Test 9: shopping list (fakexcel style). Edit qty / '
                  'unit price → line total recomputes; the footer shows '
@@ -525,4 +525,55 @@ class GnrCustomWebPage(object):
                           defaultRow=dict(bought=False, qty=1,
                                           unit_price=0,
                                           line_total=0))
+
+    def test_11_struct_datapath(self, pane):
+        """`datapath` + `storepath` + `structpath` (all relative) —
+        mirror of framegrid / paletteGrid. The widget anchors at
+        `datapath=`, then `storepath` and `structpath` resolve
+        relatively to it. Passing `structpath='.gridstruct'` lands the
+        struct at `.demo_shopping.gridstruct` (next to the rows
+        instead of in a per-instance workspace), so other widgets on
+        the page can read / mutate the struct via that path —
+        useful for dynamic struct scenarios.
+        """
+        seed = Bag()
+        for i, (item, qty, price) in enumerate((
+                ('Milk',  2, 1.40),
+                ('Bread', 1, 2.20),
+                ('Apples', 6, 0.55)), start=1):
+            seed.setItem(f'r_{i:03d}',
+                         Bag(dict(item=item, qty=qty,
+                                  unit_price=price)))
+        pane.data('.demo_shopping.rows', seed)
+
+        def struct(struct):
+            r = struct.view().rows()
+            r.cell('item', name='Item', width='100%',
+                   edit=True, validate_notnull=True)
+            r.cell('qty', name='Qty', width='5em',
+                   dtype='L', edit=True)
+            r.cell('unit_price', name='Unit price', width='7em',
+                   dtype='N', edit=True, format='#,###.00')
+            r.cell('line_total', name='Line total', width='8em',
+                   dtype='N', formula='qty*unit_price',
+                   totalize='.total_spent',
+                   format='#,###.00')
+
+        pane.div('Test 11: `datapath` + relative `storepath` + relative '
+                 '`structpath` (mirror of framegrid/paletteGrid). The '
+                 'struct lives at `.demo_shopping.gridstruct` — '
+                 'inspectable from sibling widgets, mutable for '
+                 'data-driven struct scenarios.',
+                 color='#666', font_style='italic', margin_bottom='8px')
+        grid_id = 'grpgrid_struct_datapath'
+        pane.groupletGrid(datapath='.demo_shopping',
+                          storepath='.rows',
+                          struct=struct,
+                          structpath='.gridstruct',
+                          nodeId=grid_id,
+                          max_height='320px',
+                          additem=False,
+                          delitem=False,
+                          editmenu=True,
+                          defaultRow=dict(qty=1, unit_price=0))
 

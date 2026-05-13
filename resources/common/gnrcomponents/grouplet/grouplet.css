@@ -1243,11 +1243,19 @@
 }
 
 /* Shared box model for every column cell (header / footer / readonly
-   row). `justify-self: start` keeps the cell at the track origin
-   instead of stretching beyond its declared width — JS sync sets an
-   explicit `width` cloned from the row widget. */
+   row). */
 .grouplet_grid--struct .grouplet_grid__struct_col_cell {
     box-sizing: border-box;
+}
+
+/* `justify-self: start` only on header and footer col cells: those
+   are absolutely-positioned by the JS sync with an explicit `width`
+   cloned from the corresponding row widget, so they must NOT stretch.
+   Readonly row cells live inside the row grid and DO stretch to fill
+   their track — otherwise they shrink to their text width and the
+   layout drifts. */
+.grouplet_grid--struct .grouplet_grid__struct_header > .grouplet_grid__struct_col_cell,
+.grouplet_grid--struct .grouplet_grid__struct_footer > .grouplet_grid__struct_col_cell {
     justify-self: start;
 }
 
@@ -1434,17 +1442,25 @@
    resting-state cells in the same column). The inner dijit nodes
    (.dijitInputContainer, .dijitArrowButton) also get neutralised so
    no stray borders leak through the wrapper's transparency. */
+/* Editable widgets in struct mode keep a permanent thin grey border
+   (so the user reads them as 'this is editable' even at rest), a
+   slightly tinted background on hover, and switch to the accent
+   color on focus. The dijit theme's inner container borders are
+   neutralised — only the wrapper's border is the visual one. */
 .grouplet_grid--struct .grouplet_grid__struct_row > .dijitTextBox,
 .grouplet_grid--struct .grouplet_grid__struct_row > .dijitComboBox,
-.grouplet_grid--struct .grouplet_grid__struct_row > .dijitSelect,
+.grouplet_grid--struct .grouplet_grid__struct_row > .dijitSelect {
+    border: 1px solid var(--gg-border);
+    background: var(--gg-surface);
+    box-shadow: none;
+    transition: background 120ms ease, border-color 120ms ease;
+}
 .grouplet_grid--struct .grouplet_grid__struct_row > .dijitTextBox .dijitInputContainer,
 .grouplet_grid--struct .grouplet_grid__struct_row > .dijitTextBox .dijitArrowButtonContainer,
 .grouplet_grid--struct .grouplet_grid__struct_row > .dijitComboBox .dijitInputContainer,
 .grouplet_grid--struct .grouplet_grid__struct_row > .dijitComboBox .dijitArrowButtonContainer {
     border-color: transparent;
     background: transparent;
-    box-shadow: none;
-    transition: background 120ms ease, outline-color 120ms ease;
 }
 .grouplet_grid--struct .grouplet_grid__struct_row > .dijitTextBox .dijitInputField input,
 .grouplet_grid--struct .grouplet_grid__struct_row > .dijitComboBox .dijitInputField input {
@@ -1454,7 +1470,6 @@
 .grouplet_grid--struct .grouplet_grid__struct_row > .dijitComboBox:hover,
 .grouplet_grid--struct .grouplet_grid__struct_row > .dijitSelect:hover {
     background: var(--gg-surface-alt);
-    border-color: var(--gg-border);
 }
 .grouplet_grid--struct .grouplet_grid__struct_row > .dijitTextBoxFocused,
 .grouplet_grid--struct .grouplet_grid__struct_row > .dijitComboBoxFocused,

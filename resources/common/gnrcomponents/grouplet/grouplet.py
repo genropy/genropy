@@ -625,7 +625,8 @@ class GroupletHandler(BaseComponent):
 
 class GroupletGridHandler(BaseComponent):
     css_requires = 'gnrcomponents/grouplet/grouplet'
-    js_requires = 'gnrcomponents/grouplet/grouplet'
+    js_requires = ('gnrcomponents/grouplet/grouplet,'
+                   'gnrcomponents/grouplet/grouplet_grid')
 
     @public_method
     def gr_getGroupletGridTemplate(self, resource=None, handler=None,
@@ -662,9 +663,9 @@ class GroupletGridHandler(BaseComponent):
         additem=True, delitem=True, editmenu=True,
     )
     @struct_method
-    def gr_groupletGrid(self, pane, storepath=None,
+    def gr_groupletGrid(self, pane, datapath=None, storepath=None,
                         resource=None, handler=None,
-                        struct=None,
+                        struct=None, structpath=None,
                         table=None, grouplets_root=None,
                         cols=1, min_width=None, gap='12px',
                         height=None, max_height=None,
@@ -776,23 +777,32 @@ class GroupletGridHandler(BaseComponent):
         # groupletGrid's row template the cloned nodeIds are namespaced
         # per row, but the marker attr stays the same and is resolved at
         # runtime through the parent chain.
-        # struct= mode (Item 12): the component parks the resolved
-        # struct in the page data tree at a deterministic path keyed by
-        # `nodeId`, and forwards only the path (string) to the JS
-        # controller. The Bag itself never travels through dataController
-        # kwargs because the framework calls `js_sourceNode()` on
-        # non-scalar kwargs and GnrGridStruct doesn't implement it.
-        # Pattern mirrors gnr.Grid (gnrwebstruct.py:1981).
-        structpath = None
-        if struct_mode:
-            structpath = f'gnr.groupletGridStructs.{nodeId}'
-            pane.data(structpath, struct)
+        # struct= mode (Item 12): forward only the path string to the
+        # JS controller (the Bag itself can't travel through
+        # dataController kwargs because the framework calls
+        # `js_sourceNode()` on non-scalar values and GnrGridStruct
+        # doesn't implement it). Pattern mirrors gnr.Grid
+        # (gnrwebstruct.py:1981).
+        #
+        # `structpath` resolution mirrors `storepath`: when the user
+        # passes one explicitly it's honoured (relative to `datapath`
+        # if provided), otherwise the component sets `_workspace=True`
+        # on the container and parks the struct at `#WORKSPACE.struct`
+        # — isolated per-instance, no pollution of a global `gnr.*`
+        # namespace.
+        container_kwargs = dict(kwargs)
+        if struct_mode and not structpath:
+            structpath = '#WORKSPACE.struct'
+            container_kwargs['_workspace'] = True
         container = pane.div(
             _class=container_class,
             nodeId=nodeId,
+            datapath=datapath,
             storepath=storepath,
             _gg_root=True,
-            **kwargs)
+            **container_kwargs)
+        if struct_mode:
+            container.data(structpath, struct)
         for side in ('top', 'bottom', 'left', 'right'):
             slot = container.div(
                 _class=f'grouplet_grid_slot grouplet_grid_slot_{side}',
