@@ -134,6 +134,7 @@
     <li><a href="#tldr">TL;DR</a></li>
     <li><a href="#architettura">Architettura — 3 modes</a></li>
     <li><a href="#api-grid">API che la Grid usa dallo store</a></li>
+    <li><a href="#api-grid-widget">API del Grid widget — layer di orchestrazione</a></li>
     <li><a href="#api-controller">API che il controller groupletGrid usa oggi</a></li>
     <li><a href="#datastore">GroupletDataStore — superficie pubblica</a></li>
     <li><a href="#dispatch">Dispatch table per mode</a></li>
@@ -314,6 +315,93 @@ GroupletDataStore  ───  modello del widget
     <tr><td><code>onLoaded(result)</code> / <code>onLoading()</code></td><td>Hook lifecycle dataController</td><td><span class="tag skip">Skip</span></td><td>Solo in modalità RPC-loaded — fase 3</td></tr>
   </tbody>
 </table>
+
+<!-- ================================================================== -->
+<h2 id="api-grid-widget"><span class="num">3bis.</span>API del Grid widget — layer di orchestrazione</h2>
+
+<p>Queste vivono sul <strong>Grid widget</strong> (<code>genro_grid.js</code> mixin), NON sullo store. Sono il "view-transform layer" che orchestrate filter/sort/render e che il boss vuole rubare. Cosa fanno e dove finiscono nel nostro DataStore (o nel controller).</p>
+
+<h3>Filter / Sort orchestration</h3>
+<table>
+  <thead>
+    <tr><th>API Grid</th><th>Cosa fa</th><th>Action</th><th>Mapping in groupletGrid</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>applyFilter(value, rendering, col)</code> @2720</td><td>Orchestra: <code>createFiltered</code> store → <code>updateRowCount</code> → <code>calculateFilteredTotals</code> changeManager</td><td><span class="tag steal">Steal</span></td><td><code>dataStore.applyFilter(value, col)</code> + controller fa <code>_fullSync()</code> a valle</td></tr>
+    <tr><td><code>compileFilter(v, col, type)</code> @2751</td><td>Builder del callback filter (regex testuale + operatori numerici)</td><td><span class="tag steal">Steal</span></td><td><code>dataStore.compileFilter(...)</code> — copia identica</td></tr>
+    <tr><td><code>setSortedBy(sortedBy)</code> @2531</td><td>Stato sort + clear cache + re-render</td><td><span class="tag steal">Steal</span></td><td><code>dataStore.setSort(spec)</code> + controller refresh</td></tr>
+    <tr><td><code>clearBagCache()</code> @2523</td><td><code>storebag.clear()</code> + reset <code>currRendered*</code> + <code>currCachedPage*</code></td><td><span class="tag skip">Skip</span></td><td>Cache è Grid-specifica (page-based). Noi rebuild full-DOM</td></tr>
+    <tr><td><code>currentFilterValue</code></td><td>Stato testo filtro</td><td><span class="tag steal">Steal</span></td><td>Property del dataStore</td></tr>
+    <tr><td><code>filterColumn</code></td><td>Colonna su cui filtra</td><td><span class="tag steal">Steal</span></td><td>Idem</td></tr>
+    <tr><td><code>cellmap</code></td><td>field → metadata (dtype, edit, format)</td><td><span class="tag steal">Steal</span></td><td>Già esiste in struct mode; estendere a resource/resourceField</td></tr>
+  </tbody>
+</table>
+
+<h3>Render lifecycle &amp; visual filter</h3>
+<table>
+  <thead>
+    <tr><th>API Grid</th><th>Cosa fa</th><th>Action</th><th>Mapping</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>attributes_mixin_get(idx, ignoreFilter)</code> @2654</td><td><strong>Punto di intercetto del rendering</strong>: per ogni cella il widget passa qui prima di mostrare il dato. <code>ignoreFilter=true</code> bypassa <code>_filtered</code></td><td><span class="tag steal">Steal</span></td><td>Nel controller groupletGrid: ogni rendering di riga passa per <code>dataStore.rowByIndex(visualIdx)</code> che applica <code>_filtered</code>. Equivalente concettuale: c'è SEMPRE un filtro tra dati e display</td></tr>
+    <tr><td><code>rowCached(idx)</code> @2687</td><td>Cache 1-deep dell'ultima riga renderizzata + delega a <code>rowByIndex(idx, true)</code></td><td><span class="tag adapt">Adapt</span></td><td>Cache fa senso per dijit cell-by-cell render. Noi rendiamo per-row → cache potrebbe essere <code>row → wrapper DOM</code> nel controller</td></tr>
+    <tr><td><code>rowByIndex(idx, bagFields)</code> @2688</td><td>Cache + delega a <code>collectionStore.rowByIndex</code> — RESPECTS <code>_filtered</code> via <code>absIndex</code></td><td><span class="tag steal">Steal</span></td><td><code>dataStore.rowByIndex()</code> già visual-aware</td></tr>
+    <tr><td><code>updateRowCount(n)</code></td><td>Dijit grid: triggera re-render del viewport</td><td><span class="tag skip">Skip</span></td><td>Non applicabile. Equivalente: <code>controller._fullSync()</code></td></tr>
+    <tr><td><code>currRenderedRow</code> / <code>currRenderedRowIndex</code></td><td>Cache row corrente per il rendering cella-per-cella</td><td><span class="tag skip">Skip</span></td><td>Solo per dijit cell-by-cell rendering. Inutile per noi che renderizziamo grouplet template per-row</td></tr>
+    <tr><td><code>currCachedPage</code></td><td>Cache della pagina renderizzata (virtualized)</td><td><span class="tag skip">Skip</span></td><td>Noi non virtualizziamo</td></tr>
+    <tr><td><code>onChangedView()</code></td><td>Hook per view-change RPC</td><td><span class="tag skip">Skip</span></td><td>Solo dataSelection / RpcBase. Fase 3</td></tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  <span class="label">Insight</span>
+  <code>attributes_mixin_get</code> è la prova architetturale che <strong>tra i dati e il display c'è sempre un layer di filtro</strong>, anche quando non c'è UI di filtro attivo. Nel nostro controller il punto di intercetto è <code>_fullSync()</code> / <code>_addRow()</code>: oggi accedono diretto a <code>bag.getNodes()</code>; nel refactor passeranno per <code>dataStore.visualOrder()</code> che applica <code>_filtered</code> e <code>sortedBy</code> trasparentemente. Senza UI di filter/sort cambia nulla — ma con UI futuro è drop-in.
+</div>
+
+<h3>Selection / Identifier</h3>
+<table>
+  <thead>
+    <tr><th>API Grid</th><th>Cosa fa</th><th>Action</th><th>Mapping</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>rowIdentifier(row)</code> @1428,2597,3472</td><td>Estrae pkey dalla row dict (rispetta <code>identifier</code>)</td><td><span class="tag steal">Steal</span></td><td><code>dataStore.keyForRow()</code></td></tr>
+    <tr><td><code>selectionKeeper(flag, loadkw)</code> @3261</td><td>Save/clear/load della selezione attraverso re-render (save indici, load per pkey)</td><td><span class="tag adapt">Adapt</span></td><td>Item 15 (multi-select) — controller mantiene <code>selectedKeys: Set</code>, il selectionKeeper-style ci serve per sopravvivere a filter/sort</td></tr>
+    <tr><td><code>restoreSelectedRows()</code> @2905</td><td>Riapplica selezione dopo load</td><td><span class="tag adapt">Adapt</span></td><td>Idem Item 15</td></tr>
+    <tr><td><code>rowIdByIndex(idx)</code></td><td>pkey a indice (per save selezione)</td><td><span class="tag steal">Steal</span></td><td>Già coperto da <code>dataStore.keyForRow(visualOrder()[idx])</code></td></tr>
+    <tr><td><code>selectByRowAttr(field, vals)</code></td><td>Selezione programmatica per valore</td><td><span class="tag skip">Skip</span></td><td>Item 15 — eventualmente</td></tr>
+  </tbody>
+</table>
+
+<h3>Mutation orchestration (verso lo store)</h3>
+<table>
+  <thead>
+    <tr><th>API Grid</th><th>Cosa fa</th><th>Action</th><th>Mapping</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>rowBagNodeUpdate(idx, data, pkey)</code> @2538</td><td>Update row: idx=-1 insert, else patch</td><td><span class="tag delegate">Delegate</span></td><td>Già coperto da <code>dataStore.updateRow</code>/<code>addRow</code></td></tr>
+    <tr><td><code>markDeleted(pkeys)</code></td><td>Pop righe + flag autoSave + cache deletedRows</td><td><span class="tag adapt">Adapt</span></td><td>In <code>deleteRowAsk()</code>. Senza gridEditor il flag autoSave non serve. Item 24 lo userà</td></tr>
+    <tr><td><code>newDataStore()</code></td><td>Rebuild totale dopo cambio storepath</td><td><span class="tag skip">Skip</span></td><td>Il widget non cambia storepath a runtime</td></tr>
+    <tr><td><code>batchUpdating</code> flag</td><td>Sopprime rendering durante load bulk</td><td><span class="tag steal">Steal</span></td><td>Utile in <code>_fullSync</code> per evitare flash. <code>this._batchUpdating</code></td></tr>
+  </tbody>
+</table>
+
+<h3>Eventi pubblicati / sottoscritti</h3>
+<table>
+  <thead>
+    <tr><th>Evento</th><th>Direzione</th><th>Action</th><th>Mapping</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>onDeletedRows</code></td><td>Pub by store</td><td><span class="tag delegate">Delegate</span></td><td>In proxy/adapter. Vedi R3 — doppio dispatch</td></tr>
+    <tr><td><code>onLockChange</code></td><td>Pub by store</td><td><span class="tag delegate">Delegate</span></td><td>Solo proxy/adapter</td></tr>
+    <tr><td><code>onNewDatastore</code></td><td>Pub by widget</td><td><span class="tag steal">Steal</span></td><td>Già usato dal controller per re-fire del changeManager</td></tr>
+    <tr><td><code>rowLogger</code></td><td>Pub by store on mutate</td><td><span class="tag delegate">Delegate</span></td><td>Usato dal changeManager per cascading formula recalc — già funziona</td></tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  <span class="label">Pattern del view-transform layer</span>
+  Il flow canonico è: <strong>user input → <code>applyFilter()</code> → store.<code>createFiltered()</code> → <code>_filtered</code> array → re-render</strong>. Il widget orchestrа, lo store fa il lavoro pesante. Per noi: <code>dataStore.applyFilter()</code> popola il proprio <code>_filtered</code>, il controller chiama <code>_fullSync()</code> che itera <code>dataStore.visualOrder()</code> (filter+sort applicati).
+</div>
 
 <!-- ================================================================== -->
 <h2 id="api-controller"><span class="num">4.</span>API che il controller groupletGrid usa oggi sul Bag</h2>
