@@ -70,10 +70,9 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
             // `.totalize.<field>` (a workspace path relative to the
             // grid's sourceNode, isolated from user data). Explicit
             // string from the user is honoured as-is.
-            let totalize = attr.totalize;
-            if (totalize === true) {
-                totalize = '.totalize.' + field;
-            }
+            const totalize = (attr.totalize === true)
+                ? '.totalize.' + field
+                : attr.totalize;
             out.push({
                 _nodelabel: node.label,
                 field: field,
@@ -136,12 +135,12 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
         // widest fixed-em cell. Without a flex track, fixed widths
         // either undershoot (grid centres, header labels disconnect
         // from data) or overshoot (overflow + per-container drift).
+        const FLEX = 'minmax(0, 1fr)';
         const tracks = this.cells.map(function(c) {
             const w = c.width;
-            if (!w || w === '*' || w === '100%') return 'minmax(0, 1fr)';
-            return w;
+            return (!w || w === '*' || w === '100%') ? FLEX : w;
         });
-        if (!tracks.some(function(t) { return t === 'minmax(0, 1fr)'; })) {
+        if (!tracks.some((t) => t === FLEX)) {
             let bestIdx = 0;
             let bestVal = -Infinity;
             tracks.forEach(function(t, i) {
@@ -151,13 +150,13 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
                     bestIdx = i;
                 }
             });
-            tracks[bestIdx] = 'minmax(0, 1fr)';
+            tracks[bestIdx] = FLEX;
         }
         return tracks.join(' ');
     }
 
     hasTotalize() {
-        return this.cells.some(function(c) { return !!c.totalize; });
+        return this.cells.some((c) => !!c.totalize);
     }
 
     buildHeader() {
@@ -176,12 +175,11 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
         this.cells.forEach(function(c) {
             const align = Adapter._alignFor(c);
             const raw = c.name || '';
-            const label = (raw.trim() === '') ? ' ' : raw;
             hdr._('div', {
                 _class: 'grouplet_grid__struct_col_cell'
                     + ' grouplet_grid__struct_header_cell'
                     + ' grouplet_grid__struct_cell--align-' + align,
-                innerHTML: label
+                innerHTML: (raw.trim() === '') ? ' ' : raw
             });
         });
         return root;
@@ -204,17 +202,16 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
         const ftr = root._('div', {_class: 'grouplet_grid__struct_footer'});
         const Adapter = gnr.GroupletGridStructAdapter;
         this.cells.forEach(function(c) {
-            const align = Adapter._alignFor(c);
-            let cls = 'grouplet_grid__struct_col_cell'
+            const cls = 'grouplet_grid__struct_col_cell'
                 + ' grouplet_grid__struct_footer_cell'
-                + ' grouplet_grid__struct_cell--align-' + align;
-            if (c.totalize) {
-                const kw = {_class: cls, innerHTML: '^' + c.totalize};
-                if (c.format) kw.format = c.format;
-                ftr._('div', kw);
-            } else {
+                + ' grouplet_grid__struct_cell--align-' + Adapter._alignFor(c);
+            if (!c.totalize) {
                 ftr._('div', {_class: cls});
+                return;
             }
+            const kw = {_class: cls, innerHTML: '^' + c.totalize};
+            if (c.format) kw.format = c.format;
+            ftr._('div', kw);
         });
         return root;
     }
@@ -233,23 +230,21 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
         this.cells.forEach(function(c) {
             const tag = Adapter._resolveWidgetTag(c);
             if (tag) {
-                const kw = Adapter._editorKwargs(c);
-                row._(tag, kw);
-            } else {
-                // Readonly cells get the alignment class so numeric
-                // readonly values line up with their header/footer
-                // counterparts (NumberTextBox already right-aligns
-                // internally; a plain <div> needs explicit styling).
-                const align = Adapter._alignFor(c);
-                const kw = {
-                    _class: 'grouplet_grid__struct_col_cell'
-                        + ' grouplet_grid__struct_row_cell'
-                        + ' grouplet_grid__struct_cell--align-' + align,
-                    innerHTML: '^.' + c.field
-                };
-                if (c.format) kw.format = c.format;
-                row._('div', kw);
+                row._(tag, Adapter._editorKwargs(c));
+                return;
             }
+            // Readonly cells get the alignment class so numeric
+            // readonly values line up with their header/footer
+            // counterparts (NumberTextBox already right-aligns
+            // internally; a plain <div> needs explicit styling).
+            const kw = {
+                _class: 'grouplet_grid__struct_col_cell'
+                    + ' grouplet_grid__struct_row_cell'
+                    + ' grouplet_grid__struct_cell--align-' + Adapter._alignFor(c),
+                innerHTML: '^.' + c.field
+            };
+            if (c.format) kw.format = c.format;
+            row._('div', kw);
         });
         return root;
     }
@@ -260,10 +255,11 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
         //   boolean (B)       → center (matches CheckBox)
         //   everything else   → left
         // Applied as a `--align-<right|center|left>` modifier class.
-        const dtype = c.dtype;
-        if (dtype === 'L' || dtype === 'I' || dtype === 'R' || dtype === 'N') return 'right';
-        if (dtype === 'B') return 'center';
-        return 'left';
+        switch (c.dtype) {
+            case 'L': case 'I': case 'R': case 'N': return 'right';
+            case 'B': return 'center';
+            default: return 'left';
+        }
     }
 
     static _resolveWidgetTag(c) {
@@ -531,7 +527,7 @@ gnr.GroupletGridController = class GroupletGridController {
         const pars = {};
         const v = rowNode.getValue();
         if (v instanceof gnr.GnrBag) {
-            v.getNodes().forEach(function(child) {
+            v.getNodes().forEach((child) => {
                 pars[child.label] = child.getValue();
             });
         }
@@ -961,8 +957,7 @@ gnr.GroupletGridController = class GroupletGridController {
             this._cmNeedsBag = false;
             this.sourceNode.publish('onNewDatastore');
         }
-        const that = this;
-        this._ensureTemplate(function() { that._fullSync(); });
+        this._ensureTemplate(() => this._fullSync());
     }
 
     gnr_storepath(value, kw, trigger_reason) {
@@ -1013,9 +1008,8 @@ gnr.GroupletGridController = class GroupletGridController {
         if (parent_lv !== 1) return;
         const rowKey = kw.node.label;
         if (!rowKey) return;
-        const that = this;
         if (kw.evt === 'ins') {
-            this._ensureTemplate(function() { that._addRow(rowKey); });
+            this._ensureTemplate(() => this._addRow(rowKey));
         } else if (kw.evt === 'del') {
             this._removeRow(rowKey);
         }
@@ -1036,16 +1030,11 @@ gnr.GroupletGridController = class GroupletGridController {
             if (parent === storeNode) {
                 // `cur` is the row node; the path from row to changed
                 // leaf must be exactly `<titleField>`.
-                if (leafLabel === this.titleField) {
-                    const chip = this._tabsByRow[cur.label];
-                    if (chip) {
-                        const title = chip.querySelector(
-                            ':scope > .grouplet_grid_tab_title');
-                        if (title) {
-                            title.textContent = this._readTabLabel(cur.label);
-                        }
-                    }
-                }
+                if (leafLabel !== this.titleField) return;
+                const chip = this._tabsByRow[cur.label];
+                const title = chip && chip.querySelector(
+                    ':scope > .grouplet_grid_tab_title');
+                if (title) title.textContent = this._readTabLabel(cur.label);
                 return;
             }
             leafLabel = (leafLabel === null)
@@ -1957,18 +1946,13 @@ gnr.GroupletGridController = class GroupletGridController {
         const presentKeys = {};
         const toAdd = [];
         if (bag instanceof gnr.GnrBag) {
-            const that = this;
-            bag.getNodes().forEach(function(node) {
+            bag.getNodes().forEach((node) => {
                 presentKeys[node.label] = true;
-                if (!that.rows[node.label]) {
-                    toAdd.push(node.label);
-                }
+                if (!this.rows[node.label]) toAdd.push(node.label);
             });
         }
         Object.keys(this.rows).forEach((rowKey) => {
-            if (!presentKeys[rowKey]) {
-                this._removeRow(rowKey);
-            }
+            if (!presentKeys[rowKey]) this._removeRow(rowKey);
         });
         if (toAdd.length === 0) return;
         // Tabs mode: pre-decide which row will be active so `_addRow`
@@ -2261,9 +2245,7 @@ gnr.GroupletGridController = class GroupletGridController {
         // wrapper), so the wrapper-level unwire is a no-op there — the
         // chip teardown happens in `_removeTabChip` below. In cards
         // mode the chip teardown is also a no-op.
-        if (this.dragCode) {
-            this._unwireRowDnD(rowKey);
-        }
+        if (this.dragCode) this._unwireRowDnD(rowKey);
         // Tabs mode: drop the chip + decide next active.
         if (this._isTabsLayout()) {
             // Pre-compute the next active tab BEFORE removing the chip.
@@ -2271,11 +2253,8 @@ gnr.GroupletGridController = class GroupletGridController {
             if (this.activeRowKey === rowKey) {
                 const chipKeys = Object.keys(this._tabsByRow);
                 const idx = chipKeys.indexOf(rowKey);
-                if (idx > 0) {
-                    nextActive = chipKeys[idx - 1];
-                } else if (chipKeys.length > 1) {
-                    nextActive = chipKeys[idx + 1];
-                }
+                if (idx > 0) nextActive = chipKeys[idx - 1];
+                else if (chipKeys.length > 1) nextActive = chipKeys[idx + 1];
             }
             this._removeTabChip(rowKey);
             if (this.activeRowKey === rowKey) {
@@ -2353,41 +2332,33 @@ gnr.GroupletGridController = class GroupletGridController {
         // Tabs mode: mark the new key as the one to activate when its
         // `_addRow` fires (triggered by the Bag mutation below via
         // `gnr_storepath`). Picked up — and cleared — inside `_addRow`.
-        if (this._isTabsLayout()) {
-            this._pendingActivate = newKey;
-        }
+        if (this._isTabsLayout()) this._pendingActivate = newKey;
         const rowBag = new gnr.GnrBag();
         const merged = objectUpdate({}, this.defaultRow || {});
         objectUpdate(merged, defaults || {});
-        Object.keys(merged).forEach(function(k) {
-            rowBag.setItem(k, merged[k]);
-        });
-        if (position) {
-            // `position` is a Bag _position spec: '<rowKey' (before) or
-            // '>rowKey' (after). Falls back to '>' if no sign is given.
-            const sign = (position.charAt(0) === '<'
-                          || position.charAt(0) === '>')
-                ? position.charAt(0) : '>';
-            const targetKey = (position.charAt(0) === '<'
-                               || position.charAt(0) === '>')
-                ? position.substring(1) : position;
-            dataBag.setItem(newKey, rowBag, null,
-                            {_position: sign + targetKey});
-        } else {
+        Object.keys(merged).forEach((k) => rowBag.setItem(k, merged[k]));
+        if (!position) {
             dataBag.setItem(newKey, rowBag);
+            return;
         }
+        // `position` is a Bag _position spec: '<rowKey' (before) or
+        // '>rowKey' (after). Falls back to '>' if no sign is given.
+        const first = position.charAt(0);
+        const hasSign = (first === '<' || first === '>');
+        const sign = hasSign ? first : '>';
+        const targetKey = hasSign ? position.substring(1) : position;
+        dataBag.setItem(newKey, rowBag, null, {_position: sign + targetKey});
     }
 
     _askAndDeleteRow(rowKey) {
         // Confirmation dialog before destroying the row. genro.dlg.ask
         // accepts a function in `actions` (funcCreate normalizes both
         // strings and functions — see th.js:20 for an in-codebase example).
-        const that = this;
         genro.dlg.ask(
             _T('!!Delete this row?'),
             _T('!!This row will be removed. Continue?'),
             {confirm: _T('!!Delete'), cancel: _T('!!Cancel')},
-            {confirm: function() { that._doDeleteRow(rowKey); }}
+            {confirm: () => this._doDeleteRow(rowKey)}
         );
     }
 
@@ -2409,19 +2380,18 @@ gnr.GroupletGridController = class GroupletGridController {
         // visually conflicts with the panel chrome here.
         if (this._isTabsLayout()) return;
         if (this.selectedRowKey === rowKey) return;
+        const domForRow = (rk) => {
+            const entry = this.rows[rk];
+            const live = entry && genro.nodeById(entry.wrapperNodeId);
+            return (live && live.getDomNode && live.getDomNode()) || null;
+        };
         if (this.selectedRowKey) {
-            const prev = this.rows[this.selectedRowKey];
-            const prevDom = prev && genro.nodeById(prev.wrapperNodeId);
-            if (prevDom && prevDom.getDomNode && prevDom.getDomNode()) {
-                prevDom.getDomNode().classList.remove('selected');
-            }
+            const prevDom = domForRow(this.selectedRowKey);
+            if (prevDom) prevDom.classList.remove('selected');
         }
         this.selectedRowKey = rowKey;
-        const entry = this.rows[rowKey];
-        const liveNode = entry && genro.nodeById(entry.wrapperNodeId);
-        if (liveNode && liveNode.getDomNode && liveNode.getDomNode()) {
-            liveNode.getDomNode().classList.add('selected');
-        }
+        const dom = domForRow(rowKey);
+        if (dom) dom.classList.add('selected');
     }
 
     _updateAddBtnState() {
@@ -2452,18 +2422,13 @@ gnr.GroupletGridController = class GroupletGridController {
         const suffix = '__' + this.nodeId + '__' + rowKey;
         const apply = function(n) {
             const a = n.attr;
-            if (!a || !a.nodeId) return;
-            if (typeof a.nodeId === 'string'
-                && a.nodeId.indexOf('grpgrid_') === 0) {
-                a.nodeId = a.nodeId + suffix;
-            }
+            if (!a || typeof a.nodeId !== 'string') return;
+            if (a.nodeId.indexOf('grpgrid_') === 0) a.nodeId += suffix;
         };
-        domSource.getNodes().forEach(function(n) {
+        domSource.getNodes().forEach((n) => {
             apply(n);
             const v = n.getValue();
-            if (v instanceof gnr.GnrBag) {
-                v.walk(apply, 'static');
-            }
+            if (v instanceof gnr.GnrBag) v.walk(apply, 'static');
         });
     }
 
@@ -2486,12 +2451,11 @@ gnr.GroupletGridController = class GroupletGridController {
             this.templateLoading[key].push(callback);
             return;
         }
-        const that = this;
         this.templateLoading[key] = [callback];
-        const flush = function() {
-            const queue = that.templateLoading[key];
-            delete that.templateLoading[key];
-            queue.forEach(function(cb) { cb(); });
+        const flush = () => {
+            const queue = this.templateLoading[key];
+            delete this.templateLoading[key];
+            queue.forEach((cb) => cb());
         };
         // struct= mode: no RPC roundtrip. The adapter synthesizes the
         // row template directly from the struct already loaded into
@@ -2511,13 +2475,13 @@ gnr.GroupletGridController = class GroupletGridController {
             grouplet_kwargs: this.grouplet_kw
         };
         genro.serverCall('gr_getGroupletGridTemplate', params,
-            function(tplBag, error) {
+            (tplBag, error) => {
                 if (error) {
                     console.error('[GG] template RPC failed', error);
-                    delete that.templateLoading[key];
+                    delete this.templateLoading[key];
                     return;
                 }
-                that.templateSources[key] = that._bagToDetachedSource(tplBag);
+                this.templateSources[key] = this._bagToDetachedSource(tplBag);
                 flush();
             });
     }
@@ -2537,7 +2501,7 @@ gnr.GroupletGridController = class GroupletGridController {
             console.warn('[GroupletGrid] template payload is not a Bag', bag);
             return root;
         }
-        bag.getNodes().forEach(function(node) {
+        bag.getNodes().forEach((node) => {
             root.setItem(node.label, node._value,
                          objectUpdate({}, node.attr || {}));
         });
