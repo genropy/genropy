@@ -62,6 +62,8 @@ class S3LocalFile(object):
             return result
 
     def __enter__(self):
+        if self.file is None:
+            self.open()
         self.file.__enter__()
         if self.read_mode:
             self.s3.download_fileobj(self.bucket,self.key, self.file)
@@ -340,20 +342,18 @@ class Service(StorageService):
         return self._client.generate_presigned_url('put_object',
             Params={'Bucket': self.bucket,'Key': internal_path},
             ExpiresIn=expiration)
-
     def open(self, *args, **kwargs):
         kwargs['mode'] = kwargs.get('mode', 'rb')
-        #version_id = kwargs.pop('version_id',None)
         if self.readonly:
-            if 'b' in kwargs['mode']:
-                kwargs['mode'] = 'rb'
-            else:
-                kwargs['mode'] = 'r'
+            kwargs['mode'] = 'rb' if 'b' in kwargs['mode'] else 'r'
+        if self.endpoint_url:
+            mode = kwargs.get('mode', 'rb')
+            internalpath = self.internal_path(*args)
+            return S3LocalFile(mode=mode, bucket=self.bucket, key=internalpath, s3_client=self._client)
         so_open.DEFAULT_BUFFER_SIZE = 1024 * 1024
-        version_id = kwargs.pop('version_id',None)
-        return so_open("s3://%s/%s"%(self.bucket,self.internal_path(*args)),
-            transport_params={'session':self._session, 'client': self._client,'version_id':version_id},**kwargs)
-
+        version_id = kwargs.pop('version_id', None)
+        return so_open("s3://%s/%s" % (self.bucket, self.internal_path(*args)),
+                       transport_params={'session': self._session, 'client': self._client, 'version_id': version_id}, **kwargs)
 
     def duplicateNode(self, sourceNode=None, destNode=None): # will work only in the same bucket
         if self.readonly:
