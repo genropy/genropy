@@ -724,6 +724,7 @@ class GroupletGridHandler(BaseComponent):
                         afterSelfDropRows=None,
                         minRows=0, maxRows=None,
                         defaultRow=None,
+                        counterField=None,
                         grouplet_kwargs=None,
                         additem_kwargs=None,
                         delitem_kwargs=None,
@@ -931,6 +932,7 @@ class GroupletGridHandler(BaseComponent):
                     defaultRow: _defaultRow,
                     minRows: _minRows,
                     maxRows: _maxRows,
+                    counterField: _counterField,
                     dragCode: _dragCode
                 });
                 // Hook the controller into the framework's dyn-attr
@@ -966,5 +968,6 @@ class GroupletGridHandler(BaseComponent):
             _defaultRow=defaultRow,
             _minRows=minRows,
             _maxRows=maxRows,
+            _counterField=counterField,
             _dragCode=resolved_drag_code)
         return container

@@ -477,6 +477,50 @@
     display: none;
 }
 
+/* Struct-mode rows are flat / one-line tall — the default top:6px
+   anchor reads too high. Vertically centre the `×` on the row instead. */
+.grouplet_grid--struct .grouplet_grid_row_delete {
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* Subtle delete — opt-in via `delitem_class='grouplet_grid_row_delete--subtle'`.
+   Faded glyph at rest, full danger only at hover. Designed for nested
+   or dense grids where the always-on dark `×` competes with content. */
+.grouplet_grid_row_delete--subtle {
+    opacity: 0.45;
+    --x-color: var(--gg-text-muted, #9ca3af);
+    transition: background 160ms ease, opacity 160ms ease;
+}
+
+.grouplet_grid_row:hover > .grouplet_grid_row_delete--subtle {
+    opacity: 0.85;
+}
+
+.grouplet_grid_row_delete--subtle:hover {
+    opacity: 1;
+}
+
+/* Reveal-on-hover variant — opt-in via the CONTAINER class
+   `grouplet_grid--delete-on-hover`. Each row's `×` stays invisible
+   until that row is hovered, then fades in. Pairs naturally with
+   `--subtle`. Useful for very dense grids (struct mode spreadsheet)
+   where always-visible per-row crosses become noise. */
+.grouplet_grid--delete-on-hover .grouplet_grid_row_delete {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 160ms ease, background 160ms ease;
+}
+
+.grouplet_grid--delete-on-hover .grouplet_grid_row:hover > .grouplet_grid_row_delete {
+    opacity: 0.85;
+    pointer-events: auto;
+}
+
+.grouplet_grid--delete-on-hover .grouplet_grid_row_delete:hover {
+    opacity: 1;
+}
+
 /* While the row is being dragged: subtle lift (slight scale-down +
    reduced opacity) so the user perceives the card as "picked up".
    The shadow goes to the drag-image clone (below); the original
@@ -1216,10 +1260,22 @@
        coherent with the row. `min-height` reserves vertical space
        for the absolute children (which don't contribute to the
        parent's height) — sized to read as a chrome strip slightly
-       taller than a data row for visual hierarchy. */
+       taller than a data row for visual hierarchy.
+
+       `display: grid` is the empty-state fallback: when the grid has
+       no rows yet, the JS sync has nothing to measure and skips —
+       leaving the header cells in normal flow (stacked vertically).
+       Declaring `display: grid` here gives them a sensible column
+       layout from the start. Once rows arrive, the JS sync sets
+       `position: absolute` on each cell — absolute children leave
+       the grid flow, so the populated state is unaffected. */
     box-sizing: border-box;
     position: relative;
     min-height: 2.2em;
+    display: grid;
+    grid-template-columns: var(--gg-struct-columns, 1fr);
+    gap: 4px;
+    align-items: center;
 }
 
 .grouplet_grid--struct > .grouplet_grid_slot_top > .grouplet_grid__struct_header {

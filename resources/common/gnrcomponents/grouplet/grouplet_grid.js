@@ -333,6 +333,12 @@ gnr.GroupletGridController = class GroupletGridController {
         // container's datapath chain (`mixin_absStorepath` does the same
         // in genro_grid.js:3066-3068).
         this.storepath = sourceNode.absDatapath(sourceNode.attr.storepath);
+        console.log('[groupletGrid] constructor', {
+            nodeId: this.nodeId,
+            rawStorepath: sourceNode.attr.storepath,
+            absStorepath: this.storepath,
+            initialBag: genro.getData(this.storepath)
+        });
         this.resource = kw.resource || null;
         // Item 13: multi-grouplet mode — the row template is chosen per
         // row based on the value of `resourceField` on the row data
@@ -377,6 +383,12 @@ gnr.GroupletGridController = class GroupletGridController {
         this.defaultRow = kw.defaultRow;
         this.minRows = kw.minRows || 0;
         this.maxRows = kw.maxRows || null;
+        // `counterField`: when set, the controller maintains a 1-based
+        // ordinal column on every row, renumbered after add / remove /
+        // drag-and-drop. Mirrors `gnr.Grid.mixin_updateCounterColumn`
+        // (genro_grid.js:3657). The field is written into the row Bag
+        // as `^.<counterField>` — grouplets can bind to it normally.
+        this.counterField = kw.counterField || null;
         // Drag-and-drop: when `dragCode` is non-null each row gets a
         // drag handle (left side). `dragCode` is the data-transfer key —
         // only payloads with the same key are accepted as drop sources,
@@ -437,8 +449,8 @@ gnr.GroupletGridController = class GroupletGridController {
         // first build of the container does not produce a 'storepath'
         // trigger — seed the render once here. Subsequent mutations
         // flow through `gnr_storepath`; whole-store replacements call
-        // `_renderFromStore` again from there.
-        this._renderFromStore();
+        // `newDataStore` again from there.
+        this.newDataStore();
         this._updateAddBtnState();
     }
 
@@ -612,7 +624,7 @@ gnr.GroupletGridController = class GroupletGridController {
         // calling `that.grid.storebag().subscribe(...)`. If we publish
         // `onNewDatastore` now and the Bag is null (resource= mode
         // starting empty, e.g. test_1), the callback NPEs. We publish
-        // lazily from `_renderFromStore` once a real Bag is available.
+        // lazily from `newDataStore` once a real Bag is available.
         this._cmNeedsBag = true;
         // Adapter-driven auto-registration of totalize/formula cells.
         // Server-seeded rows go through a force-resolve so initial
@@ -908,7 +920,7 @@ gnr.GroupletGridController = class GroupletGridController {
         this.templateLoading = {};
         Object.keys(this.rows).forEach((rowKey) => this._removeRow(rowKey));
         this._mountStructSlots();
-        this._renderFromStore();
+        this.newDataStore();
         this._scheduleStructSync();
     }
 
@@ -938,29 +950,63 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     // ====================================================================
+    //  Counter field — 1-based ordinal column maintained on each row
+    // ====================================================================
+
+    updateCounterColumn() {
+        // Walk the rows in render order and write `^.<counterField> = k`
+        // (1-based) on each row Bag. No-op when the counter field is not
+        // set, or when the Bag isn't materialised yet. Pattern lifted
+        // from `gnr.Grid.mixin_updateCounterColumn` (genro_grid.js:3657).
+        if (!this.counterField) return;
+        const bag = this.storebag();
+        if (!(bag instanceof gnr.GnrBag)) return;
+        const field = this.counterField;
+        let k = 1;
+        bag.forEach(function(node) {
+            const row = node.getValue();
+            if (!(row instanceof gnr.GnrBag)) {
+                k += 1;
+                return;
+            }
+            if (row.getItem(field) !== k) {
+                row.setItem(field, k);
+            }
+            k += 1;
+        }, 'static');
+    }
+
+    // ====================================================================
     //  Store dispatch & render — single entry point for storepath events
     // ====================================================================
 
-    _renderFromStore() {
+    newDataStore() {
         // Render the grid from scratch against the current Bag at
-        // `storepath`. Used at construct time and whenever the Bag root
-        // is replaced (the gnrgrid-equivalent of `newDataStore`).
+        // `storepath`. Mirrors `gnr.Grid.mixin_newDataStore` (genro_grid.js
+        // line 2886): called at construct time, on whole-Bag swap, and
+        // whenever a record load lands a fresh Bag at storepath.
+        // Always publish `onNewDatastore` so subscribers (e.g.
+        // GridChangeManager, user dataControllers) get the same hook
+        // contract as a standard genropy Grid. Guard against the
+        // empty-Bag NPE in GridChangeManager's `rowLogger`: only emit
+        // once the Bag is materialised.
         const bag = this.storebag();
-        if (!(bag instanceof gnr.GnrBag) || bag.len() === 0) {
+        const hasBag = (bag instanceof gnr.GnrBag);
+        if (hasBag && this._cmNeedsBag && this._changeMgr) {
+            this._cmNeedsBag = false;
+        }
+        if (hasBag) {
+            this.sourceNode.publish('onNewDatastore');
+        }
+        if (!hasBag || bag.len() === 0) {
             // Nothing to render — clear stale tiles if any survived.
             Object.keys(this.rows).forEach((rowKey) => this._removeRow(rowKey));
             return;
         }
-        // Late `onNewDatastore` publish: GridChangeManager's constructor
-        // wired its `rowLogger` subscription behind this event but its
-        // callback dereferences `storebag()`. We can't emit at controller
-        // init time because resource= mode often starts with a null Bag
-        // (test_1 baseline). Now that we have a Bag for sure, fire once
-        // and clear the flag.
-        if (this._cmNeedsBag && this._changeMgr) {
-            this._cmNeedsBag = false;
-            this.sourceNode.publish('onNewDatastore');
-        }
+        // Renumber upfront so the initial render already shows the
+        // correct counter values; widgets bound to `^.<counterField>`
+        // pick them up on their first paint.
+        this.updateCounterColumn();
         this._ensureTemplate(() => this._fullSync());
     }
 
@@ -993,9 +1039,17 @@ gnr.GroupletGridController = class GroupletGridController {
         const parent_lv = storeNode
             ? kw.node.parentshipLevel(storeNode)
             : 0;
+        if (parent_lv < 0) {
+            // An ancestor of the rows Bag was replaced — typically a
+            // record load that does `setRelativeData('.record', <cluster>)`
+            // wholesale. The Bag at storepath has just been swapped in
+            // as part of that parent payload. Treat as newDataStore.
+            this.newDataStore();
+            return;
+        }
         if (parent_lv === 0) {
             // Whole-store replacement: rebuild from the new Bag.
-            this._renderFromStore();
+            this.newDataStore();
             return;
         }
         if (parent_lv > 1) {
@@ -1015,8 +1069,10 @@ gnr.GroupletGridController = class GroupletGridController {
         if (kw.evt === 'ins') {
             this._ensureTemplate(() => this._addRow(rowKey),
                                  this._templateKeyForRow(rowKey));
+            this.updateCounterColumn();
         } else if (kw.evt === 'del') {
             this._removeRow(rowKey);
+            this.updateCounterColumn();
         }
     }
 
@@ -1915,7 +1971,7 @@ gnr.GroupletGridController = class GroupletGridController {
         // BEFORE the wrapper is built. Without this, all wrappers mount
         // with `display:none` (CSS hides every non-active row in tabs
         // mode), and nested groupletGrids inside them — which run their
-        // own `_renderFromStore` on `_onBuilt` — would render their
+        // own `newDataStore` on `_onBuilt` — would render their
         // body subtree while detached from layout flow. By activating
         // up-front, the first wrapper is `display:block` from the very
         // first paint and its nested widgets build normally.

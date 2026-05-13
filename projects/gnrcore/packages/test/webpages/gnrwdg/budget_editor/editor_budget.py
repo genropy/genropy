@@ -54,13 +54,33 @@ class GnrCustomWebPage(object):
                     "with the current budget?')) return;"
                     "FIRE .save_signal;"))
         bar.div('', _class='budget_toolbar_spacer')
+        # Layout switcher (chapter view): tabs = focus on one chapter,
+        # cards = stack vertically so accounts can be dragged across.
+        page.data('.layout', 'tabs')
+        bar.filteringSelect(
+            value='^.layout',
+            values='tabs:!!Tabs,cards:!!Cards',
+            lbl=None, width='110px')
         bar.div('^.status', _class='budget_toolbar_status')
+
+        grid_id = 'budget_chapters_grid'
+        page.dataController("""
+            var n = genro.nodeById(grid_id);
+            var c = n && n.gridController;
+            if (c && c.layout !== layout) {
+                c.setLayout(layout);
+            }
+        """, layout='^.layout', grid_id=grid_id)
 
         page.groupletGrid(
             storepath='.chapters',
             resource='budget/capitolo_card',
-            _class='budget_capitoli_grid',
+            nodeId=grid_id,
+            layout='tabs',
+            titleField='descr',
+            emptyTitle='!!New chapter',
             dragCode='budget_capitoli',
+            counterField='codice',
             defaultRow=dict(codice='', descr=''))
 
         # Load: returns a Bag, dataRpc writes it to .chapters.
