@@ -1,0 +1,1536 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>groupletGrid · Integrazione con gli store nativi di Genropy</title>
+<style>
+  :root {
+    --bg: #fafaf7;
+    --fg: #1d1d1f;
+    --muted: #6b6b73;
+    --accent: #b8860b;
+    --accent-soft: #f5ecd5;
+    --danger: #a04040;
+    --danger-soft: #f3dede;
+    --ok: #2f6f3f;
+    --ok-soft: #e0ecd9;
+    --rule: #d8d4c8;
+    --code-bg: #f2efe6;
+    --code-fg: #1d1d1f;
+    --shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: 'Charter', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+    font-size: 17px;
+    line-height: 1.6;
+  }
+  .container {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 60px 48px 120px;
+  }
+  header.cover {
+    border-bottom: 2px solid var(--rule);
+    padding-bottom: 32px;
+    margin-bottom: 48px;
+  }
+  header.cover .eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  header.cover h1 {
+    font-size: 38px;
+    line-height: 1.15;
+    margin: 0 0 16px;
+    font-weight: 700;
+  }
+  header.cover .subtitle {
+    font-size: 19px;
+    color: var(--muted);
+    font-style: italic;
+    margin: 0 0 24px;
+  }
+  header.cover .meta {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  header.cover .meta span + span::before {
+    content: " · ";
+    margin: 0 8px;
+  }
+  h2 {
+    font-size: 26px;
+    margin: 48px 0 16px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    font-weight: 700;
+  }
+  h2 .num {
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    margin-right: 12px;
+  }
+  h3 {
+    font-size: 19px;
+    margin: 32px 0 12px;
+    font-weight: 600;
+  }
+  h4 {
+    font-size: 16px;
+    margin: 24px 0 8px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  p { margin: 0 0 14px; }
+  ul, ol { margin: 0 0 16px; padding-left: 24px; }
+  li { margin-bottom: 6px; }
+  code {
+    font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 14px;
+    background: var(--code-bg);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+  pre {
+    background: var(--code-bg);
+    border-left: 3px solid var(--accent);
+    padding: 16px 18px;
+    overflow-x: auto;
+    border-radius: 0 4px 4px 0;
+    font-size: 13.5px;
+    line-height: 1.55;
+    margin: 16px 0;
+  }
+  pre code {
+    background: transparent;
+    padding: 0;
+    font-size: inherit;
+  }
+  .callout {
+    border-left: 4px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 16px 20px;
+    margin: 20px 0;
+    border-radius: 0 6px 6px 0;
+  }
+  .callout.warning {
+    border-left-color: var(--danger);
+    background: var(--danger-soft);
+  }
+  .callout.ok {
+    border-left-color: var(--ok);
+    background: var(--ok-soft);
+  }
+  .callout .label {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 11px;
+    display: block;
+    margin-bottom: 6px;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 18px 0;
+    font-size: 14px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  th {
+    background: var(--code-bg);
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin: 20px 0;
+  }
+  .two-col > div {
+    background: white;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 18px 20px;
+    box-shadow: var(--shadow);
+  }
+  .two-col h4 {
+    margin-top: 0;
+    color: var(--accent);
+  }
+  .tag {
+    display: inline-block;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 2px 8px;
+    border-radius: 3px;
+    margin-right: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+  }
+  .tag.danger { background: var(--danger-soft); color: var(--danger); }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  hr.soft {
+    border: 0;
+    border-top: 1px dashed var(--rule);
+    margin: 32px 0;
+  }
+  .toc {
+    background: white;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 20px 24px;
+    margin-bottom: 40px;
+    box-shadow: var(--shadow);
+  }
+  .toc h4 {
+    margin-top: 0;
+    margin-bottom: 12px;
+    color: var(--accent);
+  }
+  .toc ol { padding-left: 22px; margin: 0; }
+  .toc a {
+    color: var(--fg);
+    text-decoration: none;
+  }
+  .toc a:hover { text-decoration: underline; }
+  blockquote {
+    margin: 16px 0;
+    padding: 8px 20px;
+    border-left: 3px solid var(--rule);
+    color: var(--muted);
+    font-style: italic;
+  }
+  .footer-note {
+    margin-top: 80px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .bag-tree {
+    background: white;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 18px 22px;
+    margin: 12px 0;
+    font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.65;
+    box-shadow: var(--shadow);
+    overflow-x: auto;
+  }
+  .bag-tree .root {
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .bag-tree .key {
+    color: var(--fg);
+    font-weight: 600;
+  }
+  .bag-tree .field {
+    color: #486060;
+  }
+  .bag-tree .value {
+    color: var(--muted);
+    font-style: italic;
+  }
+  .bag-tree .comment {
+    color: var(--muted);
+    font-style: italic;
+    font-size: 12px;
+  }
+  .bag-tree .indent {
+    color: #ccc8b8;
+  }
+  .bag-tree .marker {
+    background: var(--accent-soft);
+    padding: 0 4px;
+    border-radius: 2px;
+    color: var(--accent);
+  }
+  .bag-tree .marker.danger {
+    background: var(--danger-soft);
+    color: var(--danger);
+  }
+  .bag-tree .marker.ok {
+    background: var(--ok-soft);
+    color: var(--ok);
+  }
+  .shape-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin: 24px 0;
+  }
+  .shape-card {
+    background: white;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 20px 22px;
+    box-shadow: var(--shadow);
+  }
+  .shape-card h4 {
+    margin-top: 0;
+    color: var(--accent);
+  }
+  .shape-card .props {
+    list-style: none;
+    padding: 0;
+    margin: 14px 0 0 0;
+    font-size: 13px;
+  }
+  .shape-card .props li {
+    padding: 4px 0;
+    border-bottom: 1px dashed var(--rule);
+    color: var(--muted);
+  }
+  .shape-card .props li:last-child { border-bottom: 0; }
+  .shape-card .props strong { color: var(--fg); }
+  .question {
+    background: white;
+    border: 1px solid var(--rule);
+    border-left: 4px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+    padding: 18px 22px;
+    margin: 18px 0;
+    box-shadow: var(--shadow);
+  }
+  .question .qnum {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    color: var(--accent);
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+  .question .qtitle {
+    font-size: 17px;
+    font-weight: 700;
+    margin: 0 0 10px;
+    line-height: 1.35;
+  }
+  .question .qbody {
+    font-size: 14px;
+    color: var(--fg);
+    margin-bottom: 12px;
+  }
+  .question .qbody p { margin: 0 0 8px; }
+  .question .qbody p:last-child { margin-bottom: 0; }
+  .question .qoptions {
+    background: var(--code-bg);
+    border-radius: 4px;
+    padding: 12px 16px;
+    font-size: 13px;
+    margin-top: 10px;
+  }
+  .question .qoptions .opt {
+    padding: 5px 0;
+    border-bottom: 1px dashed var(--rule);
+  }
+  .question .qoptions .opt:last-child { border-bottom: 0; }
+  .question .qoptions .opt strong {
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    margin-right: 8px;
+  }
+  .question .qhint {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--muted);
+    font-style: italic;
+  }
+  .question.critical { border-left-color: var(--danger); }
+  .question.critical .qnum { color: var(--danger); }
+  .question.critical .qoptions .opt strong { color: var(--danger); }
+  .qrisk {
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: var(--danger-soft);
+    border-left: 3px solid var(--danger);
+    border-radius: 0 4px 4px 0;
+    font-size: 13px;
+  }
+  .qrisk .rlabel {
+    display: block;
+    font-weight: 700;
+    color: var(--danger);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 11px;
+    margin-bottom: 5px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header class="cover">
+  <div class="eyebrow">Documento di design · GroupletGrid</div>
+  <h1>Integrazione con gli store nativi di Genropy</h1>
+  <p class="subtitle">Come avvicinare il <code>groupletGrid</code> al modello <code>BagStore</code> + <code>_Collection</code>, mantenendo le sue due anime: grid&#8209;like e form&#8209;collection.</p>
+  <div class="meta">
+    <span>Branch <code>feat-grouplet-grid</code></span>
+    <span>Worktree corrente</span>
+    <span>Stato: post Item 12 (struct mode chiuso)</span>
+  </div>
+</header>
+
+<div class="toc">
+  <h4>Indice</h4>
+  <ol>
+    <li><a href="#executive">Executive summary</a></li>
+    <li><a href="#contesto">Contesto: dove siamo arrivati</a></li>
+    <li><a href="#problema">Il problema architetturale</a></li>
+    <li><a href="#anime">Le due anime di groupletGrid</a></li>
+    <li><a href="#forma-dati">La forma dei dati nelle due anime</a></li>
+    <li><a href="#store-nativi">Gli store nativi di Genropy</a></li>
+    <li><a href="#riferimento">Pattern di riferimento: bagGrid &rarr; bagStore</a></li>
+    <li><a href="#proposta">La proposta concreta</a></li>
+    <li><a href="#scope">Decisione di scope: datamode='bag' soltanto</a></li>
+    <li><a href="#casilimite">Casi limite e rischi</a></li>
+    <li><a href="#esempi">Esempi prima/dopo</a></li>
+    <li><a href="#roadmap">Roadmap di esecuzione</a></li>
+    <li><a href="#fuoriscope">Cosa resta fuori scope</a></li>
+    <li><a href="#domande">Domande aperte per il boss</a></li>
+  </ol>
+</div>
+
+<!-- ================================================================== -->
+<h2 id="executive"><span class="num">1.</span>Executive summary</h2>
+
+<p>
+Il <code>groupletGrid</code> oggi gestisce i dati con un piccolo oggetto literal chiamato <code>collectionStore()</code> definito inline nel controller JS. Funziona, ma è una scorciatoia: <strong>Genropy ha già una gerarchia di store</strong> (<code>_Collection</code>, <code>BagRows</code>, <code>ValuesBagRows</code>) che la <code>gnr.Grid</code> standard consuma da sempre, e che porta in dote un sacco di funzionalità — dialog di conferma cancellazione, propagazione del lock dalla form parent, indici filtrati, sort, <code>hasChanges</code>/<code>hasErrors</code>, broadcast multi&#8209;grid.
+</p>
+
+<p>
+Ci stiamo perdendo tutto questo perché abbiamo costruito qualcosa di simile a metà, e ora ci accorgiamo che funzionalità future (multi&#8209;select bulk delete, integrazione con form esterna, validazione, DB-backed mode) sarebbero molto più semplici se semplicemente adottassimo lo store nativo.
+</p>
+
+<p>
+La proposta è di <strong>adottare il pattern</strong> già usato da <code>fgr_bagGrid</code>:
+</p>
+
+<ol>
+  <li>trasformare il container del groupletGrid in un tag named (<code>child('GroupletGrid', ...)</code>) invece di un <code>&lt;div&gt;</code> generico;</li>
+  <li>aggiungere uno <code>@struct_method gr_groupletGridStore</code> sul componente Python, che <strong>delega</strong> al <code>BagStore</code> widget esistente — zero codice JS nuovo, solo zucchero sintattico;</li>
+  <li>nel controller JS, se lo store è presente lo si usa direttamente (<code>this.store = storeNode.store</code>), altrimenti si ricade sul literal attuale.</li>
+</ol>
+
+<p>
+Il vincolo importante: <strong>l'adozione è opt&#8209;in via <code>datamode='bag'</code></strong>, non default-on. La <strong>natura del groupletGrid è duplice</strong>: in alcuni test (es. test_9 struct, test_11 invoice) si comporta come una grid; in altri (test_8 team a tabs, kanban, person&#8209;with&#8209;contacts) ogni riga è una mini&#8209;form complessa con widget vivi. Lo store nativo è perfetto per la prima anima, ma per la seconda servirà piuttosto un <code>formStore</code> (lavoro futuro, dopo l'integrazione con formHandler).
+</p>
+
+<div class="callout ok">
+  <span class="label">Bottom line</span>
+  Riusciamo a tagliare ~60 LoC dal controller JS, ereditiamo gratis 4 famiglie di funzionalità (delete UX, lock propagation, filter/sort, status), e mettiamo le basi per multi&#8209;select e DB-backed mode. Costo: ~20 LoC di boilerplate Python + 1 nuovo struct_method.
+</div>
+
+<!-- ================================================================== -->
+<h2 id="contesto"><span class="num">2.</span>Contesto: dove siamo arrivati</h2>
+
+<p>
+Il <code>groupletGrid</code> è nato per rendere una <code>Bag</code> come N righe, dove ogni riga è la stessa "grouplet" — un piccolo template riutilizzabile di widget vivi. Le 12 fasi che abbiamo chiuso hanno costruito tutte le primitive che servivano:
+</p>
+
+<ul>
+  <li><strong>Item 1–5</strong> &mdash; scheletro, trigger reattivo, render righe, API atomica con <code>freeze/unfreeze</code>.</li>
+  <li><strong>Item 6–8</strong> &mdash; frame con slot, kebab menu per&#8209;riga, drag&amp;drop con action bus.</li>
+  <li><strong>Item 9</strong> &mdash; gallery di 7 test che coprono ogni asse visivo.</li>
+  <li><strong>Item 10–11</strong> &mdash; API cleanup (additem/delitem/editmenu), layout cards|tabs.</li>
+  <li><strong>Item 12</strong> &mdash; <code>struct=</code> mode: dato uno struct stile Grid, header dark + footer giallino + widget editable inline + totalize + formula. Riusa <code>gnr.GridChangeManager</code> senza fork, agganciandolo al controller con 7 shim.</li>
+</ul>
+
+<p>
+È in chiusura dell'Item 12 che il problema diventa visibile: il <strong>changeManager si aspetta un oggetto <code>collectionStore()</code></strong> con una certa superficie (<code>updateRowNode</code>, <code>sum</code>, <code>getIdxFromPkey</code>, <code>rowByIndex</code>), e noi gliela abbiamo data scrivendo un literal di 40 righe — un mini-store ad hoc. Funziona, ma è una scorciatoia: <strong>Genropy ha già lo store giusto</strong>, lo usa la <code>gnr.Grid</code>, ed espone molte più cose di quanto serva al changeManager.
+</p>
+
+<!-- ================================================================== -->
+<h2 id="problema"><span class="num">3.</span>Il problema architetturale</h2>
+
+<h3>Lo stato attuale: literal <code>collectionStore()</code></h3>
+
+<p>
+Nel file <code>grouplet_grid.js</code> (linee 474&#8209;515) c'è questo:
+</p>
+
+<pre><code>collectionStore() {
+    const bag = this.storebag();
+    if (!bag) return null;
+    return {
+        _bag: bag,
+        updateRowNode(rowNode, updDict) { /* ~10 righe */ },
+        sum(field, strict)              { return bag.sum(field, strict); },
+        getIdxFromPkey(pkey)            { return bag.index(pkey); },
+        rowByIndex(idx)                 { /* ~6 righe */ }
+    };
+}</code></pre>
+
+<p>
+Quattro metodi, costruiti a mano, sufficienti a far girare il <code>GridChangeManager</code> in modalità <code>struct=</code>. Punto.
+</p>
+
+<p>
+Lo store reale (<code>gnr.stores.ValuesBagRows</code> in <code>genro_components.js:7150</code>), eredita da <code>BagRows</code> ed eredita da <code>_Collection</code>, e fornisce <strong>quattro famiglie di funzionalità</strong> in più:
+</p>
+
+<table>
+  <thead>
+    <tr><th>Famiglia</th><th>Cosa offre</th><th>Quando ci serve</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Delete UX</strong></td>
+      <td><code>deleteAsk(pkeys, protectPkeys, cb)</code> con dialog plural/singular, count-verification per bulk, supporto logical-delete vs hard-delete, <code>unlinkdict</code> per "rimuovi da parent".</td>
+      <td>Item 15 (multi&#8209;select bulk delete) — dialog standardizzato senza riscrivere nulla.</td>
+    </tr>
+    <tr>
+      <td><strong>Filter / sort</strong></td>
+      <td><code>compileFilter</code>, <code>createFiltered</code>, <code>iterfilterCb</code>, array <code>_filtered</code> di indici, <code>absIndex(visual&rarr;abs)</code>, <code>sort(sortedBy)</code>.</td>
+      <td>Visual iterator (memory note esistente: "sort + filter never mutate the Bag"), futura filter bar.</td>
+    </tr>
+    <tr>
+      <td><strong>Lock / form integration</strong></td>
+      <td><code>setLocked</code>, <code>inheritProtect</code>, <code>inheritLock</code>, <code>parentForm</code> auto-detect, subscription <code>onDisabledChange</code>.</td>
+      <td>Item 16 (phantom formHandler), Item 19 (validate_notnull gate).</td>
+    </tr>
+    <tr>
+      <td><strong>Status</strong></td>
+      <td><code>hasChanges()</code> (via attr <code>_loadedValue</code>/<code>_newrecord</code>), <code>hasErrors()</code> (via <code>_validationError</code>), <code>currentPkeys(captionField)</code>.</td>
+      <td>Item 19 (validate gate), Item 24 (autosave).</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Differenze sottili ma importanti</h3>
+
+<p>Il literal e lo store non sono drop&#8209;in equivalenti. Tre differenze concrete:</p>
+
+<ol>
+  <li><strong>Filter awareness.</strong> Il literal usa sempre <code>bag.getNodes()[idx]</code>; lo store passa per <code>itemByIdx</code> + <code>absIndex</code>, che rispetta l'array <code>_filtered</code> se presente. Quando avremo un filtro, <code>rowByIndex(0)</code> del literal punterà alla prima riga assoluta, lo store invece alla prima riga <em>visibile</em>.</li>
+  <li><strong>Identifier indirection.</strong> Il literal assume implicitamente che <strong>la chiave di riga sia il label del nodo Bag</strong>. Lo store ha un campo <code>identifier</code> (default <code>_pkey</code>) e un metodo <code>keyGetter(n)</code> che lo applica. Se un domani vogliamo identificare le righe per campo (es. <code>id_invoice</code>), il literal va riscritto, lo store no.</li>
+  <li><strong>Sum filtrato.</strong> Il literal fa <code>bag.sum(field)</code>; <code>ValuesBagRows.sum</code> fa <code>getData().sum('#v.'+field)</code> — sintatticamente equivalente, ma <code>getData(true)</code> ritorna solo i nodi filtrati. Totalize su grid filtrate va corretto a mano nel literal.</li>
+</ol>
+
+<!-- ================================================================== -->
+<h2 id="anime"><span class="num">4.</span>Le due anime di groupletGrid</h2>
+
+<p>
+Prima di decidere se adottare lo store, va riconosciuto un punto: <strong>groupletGrid non è una cosa sola</strong>. Guardando i 9 test della gallery, due nature emergono nette.
+</p>
+
+<div class="two-col">
+  <div>
+    <h4>Anima A &mdash; Grid-like</h4>
+    <p><strong>Test rappresentativi:</strong> test_9 (struct invoice), test_11 (invoice rows), futuro tabular mode pieno.</p>
+    <p><strong>Caratteristiche:</strong></p>
+    <ul>
+      <li>Righe omogenee, campi atomici (numero, data, stringa breve)</li>
+      <li>Formule che dipendono da altre celle stessa riga</li>
+      <li>Totalize aggregati a footer</li>
+      <li>Naturalmente filtrabili / ordinabili</li>
+      <li>Delete tipicamente bulk con conferma</li>
+    </ul>
+    <p><strong>Store reale:</strong> <span class="tag ok">Perfetto fit</span></p>
+    <p>Il <code>ValuesBagRows</code> è esattamente ciò che la <code>gnr.Grid</code> usa per questi scenari da sempre.</p>
+  </div>
+
+  <div>
+    <h4>Anima B &mdash; Form-collection</h4>
+    <p><strong>Test rappresentativi:</strong> test_5 (person with contacts), test_7 (budget editor), test_8 (team tabs), kanban.</p>
+    <p><strong>Caratteristiche:</strong></p>
+    <ul>
+      <li>Ogni riga è una mini&#8209;form complessa con N widget vivi</li>
+      <li>Nested grouplets, sub-Bag annidate</li>
+      <li>Validazione per&#8209;riga, defaults, lifecycle</li>
+      <li>Editing visivamente in luogo, mai una dialog</li>
+      <li>Delete per&#8209;riga (× o kebab), non bulk</li>
+    </ul>
+    <p><strong>Store reale:</strong> <span class="tag">Fit parziale</span></p>
+    <p>Lo <code>ValuesBagRows</code> è ancora utilizzabile, ma il vero match sarà un <code>formStore</code> (Item 16, phantom formHandler).</p>
+  </div>
+</div>
+
+<p>
+La domanda diventa: <strong>se adottiamo lo store, lo facciamo per tutte e due le anime o solo per la prima?</strong>
+</p>
+
+<p>
+Boss, qui c'è un trade-off vero. Adottare lo store per entrambe ci darebbe più uniformità, ma:
+</p>
+
+<ul>
+  <li>per l'anima B la maggior parte delle API dello store (formule, totalize, sum) sono morte;</li>
+  <li>la <em>vera</em> integrazione naturale dell'anima B è il <code>formStore</code>, non il <code>bagStore</code>;</li>
+  <li>forzare lo store ora significa riscrivere 8 test che oggi funzionano benissimo.</li>
+</ul>
+
+<p>
+La proposta è di <strong>differenziare via <code>datamode</code></strong>: <code>datamode='bag'</code> emette uno store reale, <code>datamode=False</code> (default in <code>resource=</code> mode) non emette nulla e il controller resta sul literal. Quando arriverà Item 16, lì introdurremo <code>datamode='form'</code> che emette un <code>formStore</code>.
+</p>
+
+<!-- ================================================================== -->
+<h2 id="forma-dati"><span class="num">5.</span>La forma dei dati nelle due anime</h2>
+
+<p>
+Prima di parlare di store, vale la pena guardare <strong>com'è fatta concretamente la <code>Bag</code></strong> che il <code>groupletGrid</code> riceve nei due casi. La differenza è strutturale e spiega da sola perché la stessa API non basta a coprire entrambi.
+</p>
+
+<h3>Caso grid-like &mdash; <code>test_9_struct_invoice</code> (o <code>test_1</code> con <code>invoice_row</code>)</h3>
+
+<p>
+Le righe sono <strong>omogenee</strong>: ognuna ha esattamente gli stessi campi atomici (<code>product</code>, <code>qty</code>, <code>price</code>), tutti scalari. La Bag è regolare come una tabella SQL.
+</p>
+
+<div class="bag-tree">
+<span class="root">.invoice_lines</span>  <span class="comment">// la storepath del groupletGrid</span><br>
+<span class="indent">├── </span><span class="key">r_001</span>  <span class="comment">// sub-Bag: la "riga"</span><br>
+<span class="indent">│   ├── </span><span class="field">product</span>  = <span class="value">"Apples"</span><br>
+<span class="indent">│   ├── </span><span class="field">qty</span>      = <span class="value">10</span><br>
+<span class="indent">│   └── </span><span class="field">price</span>    = <span class="value">2.50</span><br>
+<span class="indent">├── </span><span class="key">r_002</span><br>
+<span class="indent">│   ├── </span><span class="field">product</span>  = <span class="value">"Bread"</span><br>
+<span class="indent">│   ├── </span><span class="field">qty</span>      = <span class="value">2</span><br>
+<span class="indent">│   └── </span><span class="field">price</span>    = <span class="value">1.20</span><br>
+<span class="indent">└── </span><span class="key">r_003</span><br>
+<span class="indent">&nbsp;&nbsp;&nbsp;&nbsp;├── </span><span class="field">product</span>  = <span class="value">"Coffee"</span><br>
+<span class="indent">&nbsp;&nbsp;&nbsp;&nbsp;├── </span><span class="field">qty</span>      = <span class="value">1</span><br>
+<span class="indent">&nbsp;&nbsp;&nbsp;&nbsp;└── </span><span class="field">price</span>    = <span class="value">12.00</span>
+</div>
+
+<div class="shape-grid">
+<div class="shape-card">
+<h4>Proprietà strutturali</h4>
+<ul class="props">
+<li><strong>Omogeneità:</strong> ogni riga ha lo stesso set di campi</li>
+<li><strong>Profondità:</strong> 2 livelli (riga &rarr; campi scalari)</li>
+<li><strong>Tipi:</strong> tutti atomici (numero, stringa, data, bool)</li>
+<li><strong>Sub-Bag:</strong> nessuna</li>
+<li><strong>Indici:</strong> label del nodo = identificativo riga</li>
+</ul>
+</div>
+<div class="shape-card">
+<h4>Operazioni naturali</h4>
+<ul class="props">
+<li><strong>SUM</strong> per colonna &rarr; <code>store.sum('qty')</code></li>
+<li><strong>Formula</strong> intra-riga &rarr; <code>totale = qty*price</code></li>
+<li><strong>Filter</strong> per valore di campo</li>
+<li><strong>Sort</strong> per colonna</li>
+<li><strong>Bulk delete</strong> di N righe selezionate</li>
+</ul>
+</div>
+</div>
+
+<p>
+Tutte queste operazioni sono <strong>esattamente quello che <code>_Collection</code> + <code>ValuesBagRows</code> sanno fare da sempre</strong>. Lo store reale è perfetto: ogni riga è un'unità atomica intercambiabile, la struttura è prevedibile, gli aggregati hanno senso.
+</p>
+
+<hr class="soft">
+
+<h3>Caso form-collection &mdash; <code>test_7_nested_team</code> (<code>person_with_contacts</code>)</h3>
+
+<p>
+Qui ogni riga è una <strong>mini-form complessa</strong>: campi scalari mescolati a sub-Bag, gerarchia profonda, widget vivi che editano sotto-livelli. La Bag <strong>non è una tabella</strong>, è un albero.
+</p>
+
+<div class="bag-tree">
+<span class="root">.team</span><br>
+<span class="indent">├── </span><span class="key">r_001</span>  <span class="comment">// Alice — sub-Bag con campi + sub-sub-Bag</span><br>
+<span class="indent">│   ├── </span><span class="field">name</span>      = <span class="value">"Alice Rossi"</span><br>
+<span class="indent">│   ├── </span><span class="field">role</span>      = <span class="value">"Producer"</span><br>
+<span class="indent">│   ├── </span><span class="field">team</span>      = <span class="value">"Strategy"</span><br>
+<span class="indent">│   └── </span><span class="field">contacts</span>  = <span class="marker">Bag (nested)</span><br>
+<span class="indent">│       </span><span class="indent">├── </span><span class="key">r_001</span><br>
+<span class="indent">│       </span><span class="indent">│   ├── </span><span class="field">channel</span> = <span class="value">"email"</span><br>
+<span class="indent">│       </span><span class="indent">│   └── </span><span class="field">value</span>   = <span class="value">"alice@acme.io"</span><br>
+<span class="indent">│       </span><span class="indent">└── </span><span class="key">r_002</span><br>
+<span class="indent">│       </span><span class="indent">&nbsp;&nbsp;&nbsp;&nbsp;├── </span><span class="field">channel</span> = <span class="value">"phone"</span><br>
+<span class="indent">│       </span><span class="indent">&nbsp;&nbsp;&nbsp;&nbsp;└── </span><span class="field">value</span>   = <span class="value">"+39 02 1234 5678"</span><br>
+<span class="indent">└── </span><span class="key">r_002</span>  <span class="comment">// Bob — stesso shape ma N contatti diverso</span><br>
+<span class="indent">&nbsp;&nbsp;&nbsp;&nbsp;├── </span><span class="field">name</span>      = <span class="value">"Bob Bianchi"</span><br>
+<span class="indent">&nbsp;&nbsp;&nbsp;&nbsp;├── </span><span class="field">role</span>      = <span class="value">"Director"</span><br>
+<span class="indent">&nbsp;&nbsp;&nbsp;&nbsp;├── </span><span class="field">team</span>      = <span class="value">"Production"</span><br>
+<span class="indent">&nbsp;&nbsp;&nbsp;&nbsp;└── </span><span class="field">contacts</span>  = <span class="marker">Bag (nested)</span><br>
+<span class="indent">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── </span><span class="key">r_001</span> &rarr; { channel: "email",  value: "bob@acme.io" }<br>
+<span class="indent">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── </span><span class="key">r_002</span> &rarr; { channel: "mobile", value: "+39 333 987 6543" }<br>
+<span class="indent">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── </span><span class="key">r_003</span> &rarr; { channel: "web",    value: "bobthebuilder.dev" }
+</div>
+
+<div class="shape-grid">
+<div class="shape-card">
+<h4>Proprietà strutturali</h4>
+<ul class="props">
+<li><strong>Profondità variabile:</strong> 3, 4, N livelli</li>
+<li><strong>Sub-Bag come valori:</strong> <code>contacts</code> è una Bag dentro la Bag riga</li>
+<li><strong>Cardinalità interna variabile:</strong> Alice ha 2 contatti, Bob ne ha 3</li>
+<li><strong>Editing inline:</strong> ogni campo (scalare o sub-collection) ha widget vivi</li>
+<li><strong>Validation locale:</strong> per riga, anche cross-field</li>
+</ul>
+</div>
+<div class="shape-card">
+<h4>Operazioni che PERDONO SENSO</h4>
+<ul class="props">
+<li><strong>SUM</strong> per colonna &mdash; non c'è "colonna"</li>
+<li><strong>Formula</strong> intra-riga &mdash; ogni riga ha logica propria</li>
+<li><strong>Filter</strong> &mdash; su quale campo? con quale semantica per le sub-Bag?</li>
+<li><strong>Sort</strong> &mdash; per nome, sì; ma per "contacts"? non ha senso</li>
+<li><strong>Bulk delete</strong> &mdash; è il caso d'uso meno ovvio (di solito UI per-riga)</li>
+</ul>
+</div>
+</div>
+
+<h3>Il grouplet variabile (Item 13, <code>resourceField</code>)</h3>
+
+<p>
+C'è di più, e qui sta una proprietà che <strong>l'anima A non può avere ma l'anima B sì</strong>: le righe possono essere <strong>non&#8209;omogenee</strong>. Item 13 nella roadmap prevede esattamente questo: il template della form per una riga viene scelto in base al valore di un campo del record (mirror del pattern <code>myticket.ticket_type</code>).
+</p>
+
+<p>
+Esempio: una lista di "elementi di un'offerta commerciale" dove le righe possono essere <strong>materiale</strong>, <strong>manodopera</strong>, <strong>sconto</strong>, <strong>nota libera</strong>:
+</p>
+
+<div class="bag-tree">
+<span class="root">.offer_lines</span><br>
+<span class="indent">├── </span><span class="key">r_001</span>  <span class="comment">// type=material → resource 'material_row'</span><br>
+<span class="indent">│   ├── </span><span class="field">_resource</span> = <span class="marker ok">"material_row"</span><br>
+<span class="indent">│   ├── </span><span class="field">code</span>      = <span class="value">"MAT-117"</span><br>
+<span class="indent">│   ├── </span><span class="field">descr</span>     = <span class="value">"Pannello fonoassorbente 60×60"</span><br>
+<span class="indent">│   ├── </span><span class="field">qty</span>       = <span class="value">12</span><br>
+<span class="indent">│   ├── </span><span class="field">unit</span>      = <span class="value">"pz"</span><br>
+<span class="indent">│   └── </span><span class="field">price</span>     = <span class="value">18.50</span><br>
+<span class="indent">├── </span><span class="key">r_002</span>  <span class="comment">// type=labour → resource 'labour_row' (campi DIVERSI)</span><br>
+<span class="indent">│   ├── </span><span class="field">_resource</span> = <span class="marker ok">"labour_row"</span><br>
+<span class="indent">│   ├── </span><span class="field">role</span>      = <span class="value">"Tecnico installatore"</span><br>
+<span class="indent">│   ├── </span><span class="field">hours</span>     = <span class="value">6</span><br>
+<span class="indent">│   ├── </span><span class="field">hourly</span>    = <span class="value">35.00</span><br>
+<span class="indent">│   └── </span><span class="field">date</span>      = <span class="value">2026-05-15</span><br>
+<span class="indent">├── </span><span class="key">r_003</span>  <span class="comment">// type=discount → resource 'discount_row' (un solo campo + nota)</span><br>
+<span class="indent">│   ├── </span><span class="field">_resource</span> = <span class="marker ok">"discount_row"</span><br>
+<span class="indent">│   ├── </span><span class="field">percent</span>   = <span class="value">-10</span><br>
+<span class="indent">│   └── </span><span class="field">reason</span>    = <span class="value">"Sconto fedeltà"</span><br>
+<span class="indent">└── </span><span class="key">r_004</span>  <span class="comment">// type=note → resource 'note_row' (testo libero)</span><br>
+<span class="indent">&nbsp;&nbsp;&nbsp;&nbsp;├── </span><span class="field">_resource</span> = <span class="marker ok">"note_row"</span><br>
+<span class="indent">&nbsp;&nbsp;&nbsp;&nbsp;└── </span><span class="field">text</span>      = <span class="value">"Consegna entro venerdì, accesso da retro."</span>
+</div>
+
+<p>
+Qui ogni riga ha <strong>campi diversi</strong>: <code>r_001</code> ha <code>code</code>/<code>descr</code>/<code>qty</code>/<code>unit</code>/<code>price</code>, <code>r_002</code> ha <code>role</code>/<code>hours</code>/<code>hourly</code>/<code>date</code>, <code>r_003</code> ha solo <code>percent</code>/<code>reason</code>. Il widget renderizza ognuna col template appropriato (<code>_resource</code> o un campo definito da <code>resourceField=...</code>).
+</p>
+
+<p>
+Per uno store di tipo grid <strong>è inammissibile</strong>: <code>ValuesBagRows.rowFromItem</code> assume una conversione canonica riga&rarr;dict; la cellmap presuppone colonne stabili; <code>compileFilter</code> opera su una colonna nominata, ma qui la "colonna" non esiste per metà delle righe; <code>sum('hours')</code> sommerebbe i numeri sbagliati (le righe materiale non hanno <code>hours</code>, le note non hanno nulla di numerico). Lo store non è pensato per dati eterogenei.
+</p>
+
+<p>
+Viceversa, per il <strong>controller in literal mode è banale</strong>: l'unica cosa che fa è "guarda il campo discriminante, scegli il template, clonalo, mettilo nel wrapper". Non itera mai pensando alle righe come record di una tabella; le tratta come <strong>Bag annidate indipendenti</strong>.
+</p>
+
+<div class="callout">
+<span class="label">Conclusione</span>
+La <strong>forma dei dati</strong> nei due casi è strutturalmente diversa:
+<ul style="margin-bottom:0">
+<li><strong>Grid-like:</strong> tabella regolare, profondità 2, righe omogenee. Lo store nativo è perfetto.</li>
+<li><strong>Form-collection:</strong> alberi annidati di profondità e shape variabili, righe potenzialmente eterogenee (Item 13). Lo store nativo non è il modello giusto &mdash; il modello giusto è il <code>formStore</code> o il pattern <code>recordCluster</code>, che però richiede l'integrazione phantom formHandler (Item 16).</li>
+</ul>
+</div>
+
+<p>
+Questa è la ragione tecnica per cui adottiamo lo store <strong>solo</strong> in <code>datamode='bag'</code>, e perché Item 13 (multi-grouplet) e Item 16 (phantom formHandler) sono fasi distinte: la prima accentua la natura form&#8209;collection variabile, la seconda introduce la giusta astrazione di storage per quel mondo.
+</p>
+
+<!-- ================================================================== -->
+<h2 id="store-nativi"><span class="num">6.</span>Gli store nativi di Genropy</h2>
+
+<p>
+Per inquadrare bene cosa stiamo adottando, ecco la gerarchia delle classi store JS in <code>gnr_d11/js/genro_components.js</code>:
+</p>
+
+<pre><code>gnr.stores._Collection           (line 6555)  ← base astratta
+  ├── gnr.stores.BagRows         (line 7064)  ← Bag-based, mutable
+  │     ├── gnr.stores.ValuesBagRows      (line 7150)  ← riga = sub-Bag {field:value}
+  │     └── gnr.stores.AttributesBagRows  (line 7222)  ← riga = solo attr (no sub-Bag)
+  │           └── gnr.stores.RpcBase      (line 7277)
+  │                 ├── gnr.stores.FileSystem  (line 7328)
+  │                 └── gnr.stores.Selection   (line 7341)</code></pre>
+
+<p>
+Lo store che ci interessa è <code>ValuesBagRows</code>: ogni riga è una Bag-node con un sub-Bag come valore, contenente i campi della riga. È esattamente ciò che già succede oggi nel <code>groupletGrid</code>: l'utente fa <code>dataBag.setItem(rowKey, Bag(dict(quantita=2, prezzo=10)))</code> e il widget renderizza una riga.
+</p>
+
+<p>
+<strong>Perché non <code>AttributesBagRows</code>?</strong> Perché lì la riga è solo <code>node.attr</code> (nessun sub-Bag), e i widget grouplet hanno bisogno di subscribersi a <code>^.campo</code>, cioè a un nodo figlio della Bag della riga. Senza sub-Bag i widget vivi non hanno dove agganciarsi. <strong>Conclusione: per il nostro caso esiste un unico store sensato, <code>ValuesBagRows</code></strong>.
+</p>
+
+<h3>Come la <code>gnr.Grid</code> standard usa lo store</h3>
+
+<p>
+Il pattern in <code>gnr.Grid</code> è semplice e si replica identico per noi:
+</p>
+
+<ol>
+  <li>Il widget Grid riceve un attributo <code>store=&lt;storeCode&gt;</code> (una stringa, di solito uguale al <code>nodeId</code> del grid stesso).</li>
+  <li>Il metodo <code>mixin_collectionStore()</code> di <code>gnr.Grid</code> fa <code>genro.nodeById(storeCode + '_store').store</code> per recuperare l'istanza.</li>
+  <li>Lo "store node" è una SourceNode separata, dichiarata come sibling del grid via <code>BagStore</code> widget (in <code>genro_components.js:6533</code>).</li>
+  <li>Il <code>BagStore</code> widget istanzia la classe store appropriata: <code>storeNode.store = new gnr.stores[storeType](storeNode, {identifier, deleteRows})</code>.</li>
+</ol>
+
+<p>
+Lo "store node" ha tre cose essenziali: <code>nodeId</code> (per essere trovato), <code>storepath</code> (path della Bag dei dati), e <code>attr.parentForm</code>/<code>attr.identifier</code>/<code>attr.inherithLock</code> (parametri di configurazione che il costruttore dello store legge).
+</p>
+
+<!-- ================================================================== -->
+<h2 id="riferimento"><span class="num">7.</span>Pattern di riferimento: bagGrid &rarr; bagStore</h2>
+
+<p>
+Genropy ha già un wrapper Python che fa esattamente ciò che dovremmo fare noi: <code>fgr_bagGrid</code> in <code>resources/common/gnrcomponents/framegrid.py:467</code>. La sua firma è lunga, ma il punto chiave è alla riga 532:
+</p>
+
+<pre><code>frame = pane.frameGrid(_newGrid=True, datamode=datamode, ...)
+# ... configurazione toolbar, slot, struct ...
+if datamode == 'attr':
+    store_kwargs.setdefault('storeType', 'AttributesBagRows')
+store = frame.grid.bagStore(storepath=storepath, parentForm=parentForm, **store_kwargs)
+frame.store = store
+return frame</code></pre>
+
+<p>
+La chiamata <code>frame.grid.bagStore(...)</code> non è un widget separato: è un metodo di <code>GnrWebStruct</code> (in <code>gnrpy/gnr/web/gnrwebstruct.py:1551</code>) che riconosce il tag del parent e si attacca correttamente.
+</p>
+
+<pre><code>def bagStore(self, table=None, storeCode=None, storepath=None, columns=None,
+             _identifier=None, **kwargs):
+    attr = self.attributes
+    parentTag = (attr.get('tag') or '').lower()
+    parent = self
+
+    if parentTag == 'includedview' or parentTag == 'newincludedview':
+        attr['table'] = attr.get('table') or table
+        storepath = storepath or attr.get('storepath') or '.store'
+        storeCode = storeCode or attr.get('nodeId') or attr.get('frameCode')
+        attr['store'] = storeCode
+        attr['tag'] = 'newincludedview'
+        if _identifier:
+            attr['identifier'] = _identifier
+        parent = self._storeParentFrame()
+
+    if parentTag == 'palettegrid':
+        # ... branch simile per palettegrid ...
+        pass
+
+    nodeId = '%s_store' % storeCode
+    return parent.child('BagStore', storepath=storepath, nodeId=nodeId,
+                        _identifier=_identifier, **kwargs)</code></pre>
+
+<p>
+Quello che fa è:
+</p>
+
+<ol>
+  <li>guarda il tag del parent (<code>includedview</code> &equiv; il grid; <code>palettegrid</code> &equiv; la palette);</li>
+  <li>imposta sul parent gli attributi <code>store</code>, <code>identifier</code>, ecc. — così il widget grid sa a quale store agganciarsi;</li>
+  <li>risale a un punto sano dell'albero DOM (<code>_storeParentFrame</code>) e ci aggancia il widget <code>BagStore</code> con <code>nodeId=&lt;storeCode&gt;_store</code>;</li>
+  <li>il <code>BagStore</code> widget JS, al momento del build, istanzia <code>storeNode.store = new gnr.stores[storeType](...)</code>.</li>
+</ol>
+
+<div class="callout">
+  <span class="label">Insight chiave</span>
+  Il pattern è <strong>elegantissimo</strong>: il metodo Python fa zucchero sintattico (riconosce il tag, pesca i defaults dagli attr del parent), poi delega al widget <code>BagStore</code> esistente. Non c'è codice JS nuovo da scrivere. Replicarlo per <code>groupletGrid</code> è ~20 righe di Python.
+</div>
+
+<!-- ================================================================== -->
+<h2 id="proposta"><span class="num">8.</span>La proposta concreta</h2>
+
+<h3>Tre interventi minimi</h3>
+
+<h4>1. Container come tag named</h4>
+
+<p>
+Oggi <code>gr_groupletGrid</code> emette il container come un <code>&lt;div&gt;</code> generico:
+</p>
+
+<pre><code># grouplet.py, attorno alla linea 793
+container = pane.div(
+    _class=container_class,
+    nodeId=nodeId,
+    datapath=datapath,
+    **container_kwargs)</code></pre>
+
+<p>
+Lo trasformiamo in un tag riconoscibile:
+</p>
+
+<pre><code>container = pane.child('GroupletGrid',
+    _class=container_class,
+    nodeId=nodeId,
+    datapath=datapath,
+    store=nodeId,           # storeCode convention: nodeId del container = storeCode
+    **container_kwargs)</code></pre>
+
+<p>
+Cambia <strong>solo</strong> il valore di <code>attr['tag']</code> della SourceNode (diventa <code>'GroupletGrid'</code>). Per il rendering DOM è equivalente: il framework emette comunque un <code>&lt;div&gt;</code>. Il marker <code>_gg_root</code> che oggi usiamo per la discovery del container può sparire — il tag è già discriminante.
+</p>
+
+<h4>2. Nuovo struct_method <code>gr_groupletGridStore</code></h4>
+
+<pre><code>@struct_method
+def gr_groupletGridStore(self, pane, storepath=None, _identifier=None,
+                         parentForm=None, **kwargs):
+    """Emit a BagStore sibling to a groupletGrid container.
+    Mirrors bagStore() but for groupletGrid parents."""
+    attr = pane.attributes
+    parentTag = (attr.get('tag') or '').lower()
+    if parentTag != 'groupletgrid':
+        raise self.exception(
+            'generic',
+            msg='groupletGridStore requires a GroupletGrid parent tag')
+
+    storeCode = attr.get('nodeId')
+    storepath = storepath or attr.get('storepath') or '.store'
+    attr['store'] = storeCode
+    if _identifier:
+        attr['identifier'] = _identifier
+    if parentForm is not None:
+        attr['parentForm'] = parentForm
+
+    nodeId = f'{storeCode}_store'
+    return pane.parent.child('BagStore',
+                              storepath=storepath,
+                              nodeId=nodeId,
+                              _identifier=_identifier,
+                              **kwargs)</code></pre>
+
+<h4>3. <code>gr_groupletGrid</code> lo invoca opt-in via <code>datamode</code></h4>
+
+<pre><code># dentro gr_groupletGrid, dopo aver costruito il container:
+
+datamode = kwargs.pop('datamode', None)
+if datamode is None:
+    datamode = 'bag' if struct_mode else False
+
+if datamode == 'bag':
+    store_kwargs = kwargs.pop('store_kwargs', None) or {}
+    store_kwargs.setdefault('storeType', 'ValuesBagRows')
+    container.groupletGridStore(
+        storepath=storepath,
+        _identifier=kwargs.pop('identifier', None),
+        parentForm=kwargs.pop('parentForm', None),
+        **store_kwargs
+    )
+# datamode=False → nessuno store, fallback al literal corrente</code></pre>
+
+<h3>Lato JS: due righe per il pickup</h3>
+
+<p>
+Il controller JS in <code>_initChangeManager</code> cerca lo store; se c'è, lo adopta:
+</p>
+
+<pre><code>// grouplet_grid.js, dentro _initChangeManager o nel constructor
+const storeCode = this.sourceNode.attr.store || this.sourceNode.attr.nodeId;
+const storeNode = genro.nodeById(storeCode + '_store');
+this.store = storeNode ? storeNode.store : null;
+
+// collectionStore() diventa:
+collectionStore() {
+    if (this.store) return this.store;           // path nuovo
+    return this._collectionStoreLiteral();       // path back-compat
+}</code></pre>
+
+<p>
+Niente più che questo. Se <code>this.store</code> è presente, <code>setTotalizer</code> / <code>setFormula</code> passano per lo store reale, e tutte le sue API (delete, filter, sort, lock) sono disponibili. Se assente, codice corrente intatto.
+</p>
+
+<!-- ================================================================== -->
+<h2 id="scope"><span class="num">9.</span>Decisione di scope: datamode='bag' soltanto</h2>
+
+<p>
+Ricapitolando la decisione presa nei punti 4 e 5:
+</p>
+
+<table>
+  <thead>
+    <tr><th>Modalità</th><th>datamode default</th><th>Store reale?</th><th>Test rappresentativi</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>struct=</code></td>
+      <td><code>'bag'</code></td>
+      <td><span class="tag ok">Sì &mdash; ValuesBagRows</span></td>
+      <td>test_9 (struct invoice)</td>
+    </tr>
+    <tr>
+      <td><code>resource=</code> semplice</td>
+      <td><code>False</code></td>
+      <td><span class="tag">No &mdash; literal</span></td>
+      <td>test_1, test_2, test_3</td>
+    </tr>
+    <tr>
+      <td><code>resource=</code> complesso</td>
+      <td><code>False</code></td>
+      <td><span class="tag">No &mdash; literal</span></td>
+      <td>test_5, test_7, test_8, kanban</td>
+    </tr>
+    <tr>
+      <td>(Item 16, futuro)</td>
+      <td><code>'form'</code></td>
+      <td><span class="tag">formStore</span></td>
+      <td>nuovi test con phantom formHandler</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>
+Override esplicito sempre disponibile: un caller in <code>resource=</code> mode può passare <code>datamode='bag'</code> a mano se vuole comunque adottare lo store reale — per esempio per usare <code>setTotalizer</code> da un <code>dataController</code>, o per ottenere la delete UX nativa.
+</p>
+
+<div class="callout">
+  <span class="label">Nota su AttributesBagRows</span>
+  <strong>Non lo esponiamo</strong>. La natura del groupletGrid è widget vivi che editano sub-Bag annidate; l'<code>AttributesBagRows</code> usa solo <code>node.attr</code> senza sub-Bag, e questo rompe le subscription dei widget interni. Se mai servisse, lo si valuterà allora con esempi reali, non per anticipazione.
+</div>
+
+<!-- ================================================================== -->
+<h2 id="casilimite"><span class="num">10.</span>Casi limite e rischi</h2>
+
+<h3>Rischio 1: groupletGrid standalone (test_1 baseline)</h3>
+
+<p>
+Il costruttore di <code>_Collection</code> a <code>genro_components.js:6587</code> fa:
+</p>
+
+<pre><code>var parentForm = that.storeNode.attr.parentForm === false
+                 ? false
+                 : that.storeNode.getFormHandler();</code></pre>
+
+<p>
+Se il groupletGrid è dentro una form (la maggior parte dei casi reali), <code>getFormHandler()</code> trova l'ancestor form e tutto va bene. Ma test_1 è una pagina di gallery <strong>senza</strong> form &mdash; il groupletGrid è root&#8209;level. Lì <code>getFormHandler()</code> ritorna <code>null</code>, e dobbiamo assicurarci che il costruttore non assuma il contrario.
+</p>
+
+<p>
+<strong>Mitigazione:</strong> il codice del costruttore <em>già</em> gestisce il caso (line 6592&#8209;6595):
+</p>
+
+<pre><code>if (parentForm === false) {
+    startLocked = false;
+    this.locked = false;
+}
+else if (that.inherithLock && parentForm) { /* ... */ }</code></pre>
+
+<p>
+Basta che noi <strong>passiamo esplicitamente <code>parentForm=False</code></strong> nel caso standalone (lo facciamo dal nostro struct_method se l'attr non è già impostato), oppure lasciamo che <code>getFormHandler()</code> torni <code>null</code> e la branch <code>else if</code> non scatti. In entrambi i casi nessuna NPE.
+</p>
+
+<h3>Rischio 2: linkedGrids() ritorna vuoto</h3>
+
+<p>
+Il metodo <code>linkedGrids()</code> in <code>_Collection</code> walka <code>genro.src._main</code> cercando widget con il mixin <code>selectionKeeper</code> &mdash; cioè i grid veri. Il controller <code>groupletGrid</code> non è in quella categoria, quindi il walk ritorna <code>[]</code>.
+</p>
+
+<p>
+<strong>Conseguenze:</strong>
+</p>
+
+<ul>
+  <li><code>gridBroadcast(cb)</code> è no-op. Non rompe niente, semplicemente non fa nulla.</li>
+  <li><code>hasVisibleClients()</code> ritorna <code>false</code> &mdash; questo potrebbe in teoria dire allo store "nessun client visibile, non fare update" e bloccare i refresh. In pratica usiamo lo store solo per i suoi metodi diretti, non sottoscriviamo a quelle gate.</li>
+  <li><code>loadData(data, selfUpdate=true)</code> tenta di chiamare <code>grid.selectionKeeper('save')</code> sui linked grids &mdash; ma se la lista è vuota, l'iter non fa nulla.</li>
+</ul>
+
+<p>
+<strong>Mitigazione (futura):</strong> volendo, possiamo monkey&#8209;patchare <code>linkedGrids</code> per ritornare <code>[this.gridController]</code> &mdash; ma per ora il vuoto è benigno.
+</p>
+
+<h3>Rischio 3: storeNode separato vs container</h3>
+
+<p>
+Nello schema <code>bagStore</code> standard, lo "store node" è una SourceNode <strong>separata</strong> dal grid, agganciata come sibling al frame. Per noi è uguale: <code>container.groupletGridStore()</code> crea un sibling <code>BagStore</code> nel parent del container.
+</p>
+
+<p>
+Il container resta il controller (è la SourceNode su cui gira il <code>_onBuilt</code> e che ospita il controller JS); lo store vive accanto, identificato da <code>nodeId=&lt;storeCode&gt;_store</code>. Il controller fa <code>genro.nodeById(storeCode + '_store').store</code> per recuperarlo. <strong>Identico al pattern Grid.</strong>
+</p>
+
+<h3>Rischio 4: <code>_filtered</code> null&#8209;safety</h3>
+
+<p>
+<code>_Collection._filtered</code> è <code>null</code> per default; vari metodi fanno <code>if (filtered &amp;&amp; this._filtered) { ... }</code>. Se noi chiamiamo <code>store.rowByIndex(0)</code> senza aver mai chiamato <code>createFiltered</code>, il path "unfiltered" si attiva correttamente.
+</p>
+
+<p>
+<strong>Nessun rischio reale oggi.</strong> Diventerà rilevante quando aggiungeremo filter UI (forse mai per l'anima B; sicuramente mai prima di Item 15&#8209;16).
+</p>
+
+<h3>Rischio 5: DnD reorder &mdash; lo store non lo supporta nativamente</h3>
+
+<p>
+Il drag&amp;drop di righe oggi fa <code>dataBag.popNode(rowKey)</code> + <code>setItem(rowKey, value, _position=...)</code>. Lo store non espone un metodo <code>reorder</code>; sotto sotto si potrebbe fare via <code>deleteRows([rowKey])</code> + <code>loadData(...)</code>, ma è ginnastica inutile.
+</p>
+
+<p>
+<strong>Decisione:</strong> il reorder via DnD resta una mutazione diretta della Bag nel controller. Non è un caso d'uso che lo store nativo prevede &mdash; nei grid standard il reorder non esiste come operazione client. Lo accettiamo come responsabilità del controller, non dello store.
+</p>
+
+<h3>Rischio 6: storeType inference per RPC/DB-backed</h3>
+
+<p>
+Per il futuro (Item 14, DB&#8209;backed test page; Item 23, groupletTableHandler), avremo bisogno di righe che arrivano da DB. Lì il pattern naturale è <code>recordCluster</code> o <code>selectionStore</code> con storeType <code>Selection</code>.
+</p>
+
+<p>
+Lo struct_method <code>gr_groupletGridStore</code> è già pronto per accettare <code>storeType='Selection'</code> via <code>store_kwargs</code> &mdash; basterà passarlo. Lo "switch" è invisibile al controller JS: lui chiama <code>this.store.getData()</code> e funziona uguale per <code>ValuesBagRows</code> e <code>Selection</code> (la classe base è la stessa, <code>_Collection</code>).
+</p>
+
+<div class="callout ok">
+  <span class="label">Vantaggio strategico</span>
+  Adottare lo store ora è un investimento che paga doppio quando arriva l'Item 14: il path "DB-backed" diventa "cambia <code>storeType</code> e passa <code>table=</code>", non "riscrivi il controller".
+</div>
+
+<!-- ================================================================== -->
+<h2 id="esempi"><span class="num">11.</span>Esempi prima/dopo</h2>
+
+<h3>Esempio A &mdash; Cancellazione di una riga</h3>
+
+<div class="two-col">
+  <div>
+    <h4>Oggi (literal)</h4>
+<pre><code>// grouplet_grid.js
+_askAndDeleteRow(rowKey) {
+    genro.dlg.ask(
+        _T('!!Delete this row?'),
+        _T('!!This row will be removed.'),
+        {confirm: _T('!!Delete'), cancel: _T('!!Cancel')},
+        {confirm: () => this._doDeleteRow(rowKey)}
+    );
+}
+_doDeleteRow(rowKey) {
+    if (this._rowCount() <= this.minRows) return;
+    const dataBag = this.storebag();
+    dataBag.popNode(rowKey);
+    if (this.selectedRowKey === rowKey) {
+        this.selectedRowKey = null;
+    }
+}</code></pre>
+  </div>
+  <div>
+    <h4>Dopo (store reale)</h4>
+<pre><code>// grouplet_grid.js
+_askAndDeleteRow(rowKey) {
+    this.store.deleteAsk([rowKey], null);
+}
+// Il dialog standard, count-verify per bulk,
+// logical-delete se allowLogicalDelete=true,
+// onDeletedRows publish gratis,
+// selection unselect gratis.</code></pre>
+  </div>
+</div>
+
+<p>~15 righe risparmiate. UX standardizzata e identica ai grid standard.</p>
+
+<hr class="soft">
+
+<h3>Esempio B &mdash; Bulk delete (Item 15, in arrivo)</h3>
+
+<div class="two-col">
+  <div>
+    <h4>Oggi (da implementare a mano)</h4>
+<pre><code>// Bisognerà:
+// 1. raccogliere i rowKey selezionati
+// 2. mostrare dialog con count
+// 3. count-verify per N > 1
+// 4. iterare e popNode uno per uno
+// 5. emettere evento custom
+// 6. cleanup selection
+// 7. gestire minRows
+// → ~50 LoC</code></pre>
+  </div>
+  <div>
+    <h4>Dopo (store)</h4>
+<pre><code>_bulkDelete() {
+    const pkeys = Array.from(this.selectedKeys);
+    if (!pkeys.length) return;
+    this.store.deleteAsk(pkeys, null);
+    // Tutto il resto è gratis.
+}</code></pre>
+  </div>
+</div>
+
+<hr class="soft">
+
+<h3>Esempio C &mdash; Setup Python di un groupletGrid struct mode</h3>
+
+<div class="two-col">
+  <div>
+    <h4>Oggi</h4>
+<pre><code>pane.groupletGrid(
+    storepath='.invoices',
+    struct=lambda s: build_invoice_struct(s),
+    cols=4,
+    height='400px'
+)
+# Il controller JS si arrangia internamente
+# con un literal collectionStore.</code></pre>
+  </div>
+  <div>
+    <h4>Dopo (datamode='bag' implicito)</h4>
+<pre><code>pane.groupletGrid(
+    storepath='.invoices',
+    struct=lambda s: build_invoice_struct(s),
+    cols=4,
+    height='400px'
+)
+# Identico al caller! Internamente,
+# struct_mode=True → datamode='bag' →
+# emette container.groupletGridStore(...)
+# che istanzia ValuesBagRows.</code></pre>
+  </div>
+</div>
+
+<p>API utente <strong>invariata</strong>. Il vantaggio è interno e si manifesta nel comportamento (delete dialog, totalize filter-aware, ...).</p>
+
+<hr class="soft">
+
+<h3>Esempio D &mdash; Setup Python di un groupletGrid form-collection (anima B)</h3>
+
+<pre><code>pane.groupletGrid(
+    storepath='.contacts',
+    resource='contact_card',
+    layout='cards',
+    cols=2
+)
+# datamode default = False (resource= mode).
+# Nessuno store emesso, controller usa literal.
+# Test_5, test_7, test_8 vivono qui senza modifiche.</code></pre>
+
+<p>Quando arriverà Item 16, qui aggiungeremo (in modo opt-in) <code>datamode='form'</code> per emettere un <code>formStore</code> a fianco. Per ora: status quo.</p>
+
+<hr class="soft">
+
+<h3>Esempio E &mdash; Override esplicito</h3>
+
+<pre><code># Un caller in resource= mode vuole comunque lo store reale
+# (per usare setTotalizer su un campo, o per la delete UX nativa).
+pane.groupletGrid(
+    storepath='.lines',
+    resource='line_card',
+    datamode='bag',                    # ← override esplicito
+    store_parentForm=False,            # ← passa al BagStore
+    store__identifier='id_line'        # ← campo come pkey
+)</code></pre>
+
+<p>Il pattern <code>store_*</code> per il prefisso è già usato da <code>fgr_bagGrid</code> via <code>@extract_kwargs(store=True)</code>. Lo replichiamo identico.</p>
+
+<!-- ================================================================== -->
+<h2 id="roadmap"><span class="num">12.</span>Roadmap di esecuzione</h2>
+
+<p>
+La proposta è di procedere in <strong>tre passi piccoli e verificabili</strong>, ognuno con stop&#8209;criterion chiaro.
+</p>
+
+<h3>Passo 1 &mdash; Tag + struct_method, ma senza consumarlo lato JS</h3>
+
+<ul>
+  <li>Trasformare il container in <code>pane.child('GroupletGrid', ..., store=nodeId, ...)</code>.</li>
+  <li>Aggiungere il nuovo <code>@struct_method gr_groupletGridStore</code> in <code>grouplet.py</code>.</li>
+  <li>Quando <code>struct_mode</code> è attivo (test_9), emettere il <code>groupletGridStore</code> siblings.</li>
+  <li><strong>Non toccare il JS.</strong> Il controller continua a usare il literal.</li>
+</ul>
+
+<p><strong>Verifica:</strong> tutti i test 1&#8209;9 verdi (nessuna regressione visiva); in console, <code>genro.nodeById('grpgrid_xxx_store').store</code> esiste ed è un'istanza di <code>gnr.stores.ValuesBagRows</code> nei test struct.</p>
+
+<h3>Passo 2 &mdash; Consumare lo store nel controller, mantenendo back-compat</h3>
+
+<ul>
+  <li>Nel costruttore del controller: <code>this.store = genro.nodeById(storeCode+'_store')?.store ?? null</code>.</li>
+  <li>Aggiornare <code>collectionStore()</code>: se <code>this.store</code> esiste, ritornalo direttamente; altrimenti literal.</li>
+  <li>Aggiornare <code>storebag()</code>: se store esiste, <code>this.store.getData()</code>; altrimenti via <code>genro.getData(this.storepath)</code>.</li>
+  <li>Aggiornare <code>_askAndDeleteRow</code>: se store, <code>this.store.deleteAsk([rowKey], null)</code>; altrimenti dialog corrente.</li>
+</ul>
+
+<p><strong>Verifica:</strong> test_9 mostra il nuovo delete dialog (count-verify per bulk; "delete logical" se applicabile); formule e totalize continuano a girare; nessuna regressione su test 1&#8209;8 che restano sul path literal.</p>
+
+<h3>Passo 3 &mdash; Visual iterator</h3>
+
+<ul>
+  <li>Sostituire le 3&#8209;4 iterazioni dirette su <code>bag.getNodes()</code> nei punti di render con <code>this._visualIterator()</code>.</li>
+  <li><code>_visualIterator()</code> = se store, <code>this.store.getData(true).getNodes()</code>; altrimenti fallback su <code>this.storebag().getNodes()</code>.</li>
+  <li>Adempie alla memory note esistente ("sort + filter never mutate the Bag, route through visual iterator").</li>
+</ul>
+
+<p><strong>Verifica:</strong> DnD reorder funziona invariato (perché agisce sulla Bag diretta, non sull'iteratore visuale); insertion position su tabs/cards corretta. Filter UI non c'è ancora, ma quando arriverà sarà drop-in.</p>
+
+<hr class="soft">
+
+<h3>Stima tempi (per discussione)</h3>
+
+<table>
+  <thead>
+    <tr><th>Passo</th><th>Effort</th><th>Rischio</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>1. Tag + struct_method Python</td><td>Basso (~30&#8209;60 min)</td><td>Basso &mdash; aggiunta, non rimozione</td></tr>
+    <tr><td>2. Consumo store nel controller JS</td><td>Medio (~2&#8209;3h)</td><td>Medio &mdash; back-compat path da mantenere</td></tr>
+    <tr><td>3. Visual iterator</td><td>Basso (~1h)</td><td>Basso &mdash; refactoring locale</td></tr>
+  </tbody>
+</table>
+
+<!-- ================================================================== -->
+<h2 id="fuoriscope"><span class="num">13.</span>Cosa resta fuori scope</h2>
+
+<p>
+Questo lavoro <strong>non</strong> tocca:
+</p>
+
+<ul>
+  <li><strong>Phantom formHandler (Item 16).</strong> L'anima B (grouplet complessi) resta sul literal finché non introduciamo <code>formStore</code> a fianco. Quel lavoro è più grosso e merita un piano dedicato.</li>
+  <li><strong>Multi&#8209;select toggle (Item 15).</strong> Pre&#8209;condizione: questa adozione store. Ma l'UI multi-select (checkbox round, top-bar counter, ESC handler) è un'altra fase.</li>
+  <li><strong>DB-backed test page (Item 14).</strong> L'infrastruttura store è pronta per ricevere <code>storeType='Selection'</code>, ma la pagina demo è una fase a sé.</li>
+  <li><strong>validate_notnull gate (Item 19).</strong> Userà <code>store.hasErrors()</code> quando l'integrazione sarà fatta, ma il gate stesso è altro lavoro.</li>
+  <li><strong>Autosave debounced (Item 24).</strong> Costruisce sopra Item 16, non sopra questo lavoro.</li>
+  <li><strong>groupletTableHandler (Item 23).</strong> Richiesta del boss per swap renderer di <code>inlineTableHandler</code> → <code>groupletGrid</code>. Beneficerà di questa adozione, ma resta una fase separata.</li>
+</ul>
+
+<p>
+L'obiettivo qui è <strong>solo</strong> agganciare il controller agli store esistenti, in modo riusabile e simmetrico col resto di Genropy. Non costruiamo nulla di nuovo: usiamo ciò che <code>bagGrid</code> usa da anni.
+</p>
+
+<!-- ================================================================== -->
+<h2 id="domande"><span class="num">14.</span>Domande aperte per il boss</h2>
+
+<p>
+Su alcuni punti la decisione tecnica esiste ma <strong>la scelta strategica</strong> spetta a te. Sono domande che incidono sul modo in cui il <code>groupletGrid</code> verrà percepito dagli utenti finali (sviluppatori che lo useranno), sul modello di evoluzione futuro, e sul rapporto con il resto di Genropy.
+</p>
+
+<h3>Sulla relazione con l'ecosistema esistente</h3>
+
+<div class="question critical">
+  <span class="qnum">Q1 &mdash; STRATEGICA</span>
+  <p class="qtitle">Quanto vogliamo che <code>groupletGrid</code> assomigli a <code>bagGrid</code>?</p>
+  <div class="qbody">
+    <p>
+      Oggi <code>groupletGrid</code> è un widget standalone con API propria (<code>storepath</code>, <code>resource</code>, <code>handler</code>, <code>struct</code>, <code>cols</code>, <code>layout</code>...). Adottando lo store ci avviciniamo a <code>bagGrid</code>, ma resta la domanda di fondo: <strong>è un parente stretto o un cugino lontano?</strong>
+    </p>
+  </div>
+  <div class="qoptions">
+    <div class="opt"><strong>A.</strong> Stretto cugino: stessa API surface dove possibile (<code>store_*</code> prefix, stesso <code>parentForm</code>, stesso <code>identifier</code>); chi sa usare <code>bagGrid</code> sa usare <code>groupletGrid</code> in modalità struct.</div>
+    <div class="opt"><strong>B.</strong> Cugino lontano: API distinta, lo store è un dettaglio interno; il caller non vede mai <code>store_*</code>.</div>
+    <div class="opt"><strong>C.</strong> Convergenza: <code>groupletGrid</code> con <code>struct=</code> diventa esplicitamente un'alternativa a <code>bagGrid</code> + <code>gridEditor=False</code>, e lo documentiamo come tale.</div>
+  </div>
+  <p class="qhint">Impatto: l'Item 23 (groupletTableHandler) richiede sapere quanto sono drop-in compatibili.</p>
+  <div class="qrisk">
+    <span class="rlabel">Rischio concreto</span>
+    Sul container metteremo <code>attr['store']=&lt;storeCode&gt;</code> per coerenza con <code>bagGrid</code>. Ma il container ha già un <code>datapath</code> e oggi accetta <code>**kwargs</code> arbitrari che finiscono come attr HTML. <strong>Se un caller passa <code>store='qualcosa'</code> per un proprio scopo</strong> (es. un attributo HTML5 <code>data-store</code> via dataset), va in conflitto. Mitigazione: trattare <code>store</code> come riservato in <code>gr_groupletGrid</code>, sollevare eccezione esplicita se già presente nei kwargs.
+  </div>
+</div>
+
+<div class="question">
+  <span class="qnum">Q2</span>
+  <p class="qtitle">Vogliamo esporre il pattern <code>store_*</code> kwargs?</p>
+  <div class="qbody">
+    <p>
+      <code>bagGrid</code> usa <code>@extract_kwargs(store=True)</code>: il caller scrive <code>bagGrid(..., store_parentForm=False, store__identifier='id')</code> e il decoratore raccoglie tutto in <code>store_kwargs</code>. Replicarlo per <code>groupletGrid</code> è banale.
+    </p>
+    <p>
+      Tuttavia, dei due path che abbiamo, lo store esiste <strong>solo</strong> in <code>datamode='bag'</code>. Se un caller passa <code>store_*</code> in <code>resource=</code> mode, va ignorato o segnalato come errore?
+    </p>
+  </div>
+  <div class="qoptions">
+    <div class="opt"><strong>A.</strong> Sempre accettato: se non c'è store, i <code>store_*</code> sono silently ignored (semplice, ma silenzioso).</div>
+    <div class="opt"><strong>B.</strong> Solo se store presente: errore esplicito se passati senza <code>datamode='bag'</code>.</div>
+    <div class="opt"><strong>C.</strong> Presenza di <code>store_*</code> implica automaticamente <code>datamode='bag'</code>.</div>
+  </div>
+</div>
+
+<h3>Sulla forma dei dati e l'API utente</h3>
+
+<div class="question">
+  <span class="qnum">Q3</span>
+  <p class="qtitle">Esponiamo <code>identifier</code> come kwarg di primo livello?</p>
+  <div class="qbody">
+    <p>
+      Oggi il <code>groupletGrid</code> assume implicitamente che <strong>il label del nodo Bag sia la chiave</strong> (es. <code>r_001</code>). Lo store nativo invece supporta un <code>identifier</code> esplicito (default <code>_pkey</code>) che permette di usare un campo della riga come chiave (<code>id_invoice</code>, <code>codice_articolo</code>, ecc.).
+    </p>
+    <p>
+      Domanda: <strong>questo è solo un dettaglio per integrazione DB</strong> (futuro Item 14), <strong>o è un'opzione utile già oggi</strong> per chi caricasse dati da JSON con id "naturali"?
+    </p>
+  </div>
+  <div class="qoptions">
+    <div class="opt"><strong>A.</strong> Esponiamo subito <code>identifier=...</code>: chi vuole può usare un campo come PK, default resta label.</div>
+    <div class="opt"><strong>B.</strong> Lo nascondiamo per ora: assumiamo sempre label, lo introdurremo quando arriverà Item 14 DB-backed.</div>
+    <div class="opt"><strong>C.</strong> Sempre obbligatorio passare <code>identifier</code> quando c'è uno store: forza chi è in struct mode a pensarci.</div>
+  </div>
+  <div class="qrisk">
+    <span class="rlabel">Edge case concreto</span>
+    <code>ValuesBagRows.keyGetter()</code> ritorna <code>rowFromItem(n)[this.identifier]</code> — cioè il valore di un campo della riga, non il label. Default <code>identifier='_pkey'</code>. Le righe del nostro <code>groupletGrid</code> oggi <strong>non hanno un campo <code>_pkey</code></strong>: il <code>rowKey</code> autogenerato (es. <code>r_v3kf8h2</code>) vive solo come <strong>label del nodo</strong>. Risultato: <code>keyGetter(n)</code> ritorna <code>undefined</code> per ogni riga. <code>getIdxFromPkey('r_v3kf8h2')</code> non trova mai nulla. <strong>Funzioni rotte: <code>currentPkeys</code>, <code>deleteRows(pkeys)</code>, lookup per pkey, formule cumulative.</strong> Mitigazione: <code>ValuesBagRows.keyGetter</code> ha già un fallback in <code>rowFromItem</code> (linea 7164) che usa il label se <code>identifier</code> è null/blank; serve verificare che il path passi sempre da lì oppure passare esplicitamente <code>identifier=null</code> e/o iniettare il label come <code>_pkey</code> al setup di ogni riga.
+  </div>
+</div>
+
+<div class="question">
+  <span class="qnum">Q4</span>
+  <p class="qtitle">Per il grouplet variabile (Item 13, <code>resourceField</code>), quale campo usiamo per il discriminatore?</p>
+  <div class="qbody">
+    <p>
+      Negli esempi di sezione 5 ho usato <code>_resource</code> (con underscore iniziale, indicante "campo di sistema"). I pattern Genropy esistenti vanno in più direzioni:
+    </p>
+  </div>
+  <div class="qoptions">
+    <div class="opt"><strong>A.</strong> <code>_resource</code> (campo "magico" riconosciuto dal widget per default).</div>
+    <div class="opt"><strong>B.</strong> Campo a scelta dell'utente, dichiarato via <code>resourceField='type'</code> kwarg (come in <code>th_myticket</code>).</div>
+    <div class="opt"><strong>C.</strong> Entrambi: <code>resourceField</code> override esplicito, fallback su <code>_resource</code>.</div>
+  </div>
+  <p class="qhint">Coerenza con il resto di Genropy: il pattern <code>th_myticket.ticket_type</code> usa un campo applicativo, non un campo magico.</p>
+</div>
+
+<h3>Sulla migrazione e l'attivazione</h3>
+
+<div class="question">
+  <span class="qnum">Q5</span>
+  <p class="qtitle">Manteniamo il dual-path (literal + store) a lungo o lo togliamo presto?</p>
+  <div class="qbody">
+    <p>
+      La proposta tecnica mantiene il literal come fallback per <code>datamode=False</code>. Questo è prudente: zero regressioni sui test 1&#8209;8 e zero rischio sui consumatori esterni in <code>resource=</code> mode. Tuttavia ci porta a mantenere <strong>due percorsi paralleli</strong> nel controller JS, che a lungo termine è debito.
+    </p>
+  </div>
+  <div class="qoptions">
+    <div class="opt"><strong>A.</strong> Long-term dual-path: il literal vive finché ha senso (probabilmente sempre, per l'anima B).</div>
+    <div class="opt"><strong>B.</strong> Migrazione completa entro N mesi: dopo Item 16 (phantom formHandler), <strong>anche l'anima B</strong> passa per uno store (<code>formStore</code>), e il literal viene rimosso.</div>
+    <div class="opt"><strong>C.</strong> Storico: lasciamo il literal solo per <code>handler=</code> callable inline (test_2 todolist), tutto il resto passa per store.</div>
+  </div>
+  <div class="qrisk">
+    <span class="rlabel">Race condition possibile</span>
+    Il controller JS si istanzia dentro un <code>dataController</code> che gira al <code>_onBuilt</code>. Lo storeNode siblings, emesso da Python, viene anche lui costruito al <code>_onBuilt</code> &mdash; <strong>ma l'ordine di costruzione tra siblings non è strettamente garantito</strong> dal framework (è data-driven, dipende dall'ordine nella SourceNode tree). Se il controller parte <em>prima</em> dello store, <code>genro.nodeById(storeCode+'_store')</code> ritorna <code>null</code> e cade silenziosamente sul literal &mdash; bug invisibile. Mitigazione: il controller deve fare il pickup dello store <strong>nel suo <code>_onBuilt</code></strong> usando <code>genro.src.onBuiltCall</code> (post-build globale), non nel constructor. Andamento attualmente NON testato; va verificato esplicitamente nel passo 2 della roadmap.
+  </div>
+</div>
+
+<div class="question">
+  <span class="qnum">Q6</span>
+  <p class="qtitle">Il tag <code>'GroupletGrid'</code>: lo dichiariamo come widget Python o resta solo un nome di tag?</p>
+  <div class="qbody">
+    <p>
+      <code>pane.child('GroupletGrid', ...)</code> funziona <strong>senza</strong> dichiarare una classe widget Python: il framework rispetta il nome come stringa nella SourceNode. Però alcuni metodi sibling (come <code>bagStore</code>) leggono <code>attr.get('tag').lower()</code> e fanno il match. È più chiaro se esiste anche un widget formale.
+    </p>
+  </div>
+  <div class="qoptions">
+    <div class="opt"><strong>A.</strong> Solo nome di tag: zero codice in più, branch via stringa.</div>
+    <div class="opt"><strong>B.</strong> Widget formale: <code>class GroupletGrid(gnrwdg)</code> in <code>genro_components.js</code> + simmetrico Python.</div>
+  </div>
+  <p class="qhint">Impatto: <strong>B</strong> ha un piccolo costo iniziale ma rende più "documentato" il widget; lo si trova grep'ando per <code>'GroupletGrid'</code> come si trovano tutti gli altri widget.</p>
+  <div class="qrisk">
+    <span class="rlabel">Rischio concreto</span>
+    Lo storeCode è il <code>nodeId</code> del container, oggi generato come <code>grpgrid_&lt;id(pane)&gt;</code> in Python. <strong>In <code>test_7_nested_team</code> il <code>person_with_contacts</code> grouplet contiene un groupletGrid nested</strong> &mdash; e ogni clone della riga produce un container con lo stesso <code>nodeId</code> base, namespaceato a runtime via <code>_namespaceNodeIds</code> in <code>&lt;gridId&gt;__&lt;rowKey&gt;</code>. Lo storeNode dello store, però, viene istanziato da Python al momento dello struct emit &mdash; <strong>una sola volta</strong>. Risultato: N istanze nested condividerebbero un solo <code>storeNode</code>, scrivendo sullo stesso <code>storepath</code>. Mitigazione: il namespacing deve estendersi anche allo storeNode, oppure documentare che <strong>il datamode='bag' è incompatibile con grouplet nested</strong> (probabilmente accettabile: i grouplet nested sono per natura form-collection, non grid-like).
+  </div>
+</div>
+
+<h3>Sulla roadmap e priorità</h3>
+
+<div class="question">
+  <span class="qnum">Q7</span>
+  <p class="qtitle">Procediamo subito o aspettiamo Item 13?</p>
+  <div class="qbody">
+    <p>
+      Tecnicamente questo lavoro è <strong>indipendente</strong> da Item 13 (multi-grouplet con <code>resourceField</code>): l'adozione store tocca <code>struct=</code> mode, Item 13 tocca <code>resource=</code> mode. Sono ortogonali.
+    </p>
+    <p>
+      Ma a livello di <strong>tema mentale</strong>, fare prima Item 13 forza a riflettere meglio sulla natura dei grouplet eterogenei (anima B) prima di toccare l'anima A.
+    </p>
+  </div>
+  <div class="qoptions">
+    <div class="opt"><strong>A.</strong> Subito: l'adozione store è pulita e ben isolata. Item 13 segue.</div>
+    <div class="opt"><strong>B.</strong> Prima Item 13: capiamo bene l'anima B, poi torniamo all'anima A con più contesto.</div>
+    <div class="opt"><strong>C.</strong> In parallelo: l'adozione store in passo 1 (solo Python) può andare avanti mentre Item 13 progredisce.</div>
+  </div>
+</div>
+
+<div class="question critical">
+  <span class="qnum">Q8 &mdash; STRATEGICA</span>
+  <p class="qtitle">Quale è l'utente target di <code>groupletGrid</code> in <code>struct=</code> mode?</p>
+  <div class="qbody">
+    <p>
+      <code>struct=</code> mode (test_9) replica un Grid editor, ma con dei trade-off: render via grouplet template invece che via Grid renderer, widget vivi sempre attivi invece che on-demand, niente <code>gridEditor</code>. Va bene per fatture, righe d'ordine, todolist, kanban &mdash; ma è una scelta da spiegare bene.
+    </p>
+    <p>
+      Domanda: <strong>questa modalità è un sostituto naturale di <code>bagGrid + gridEditor</code></strong> (e dovremmo posizionarla così in documentazione), <strong>o è un caso di nicchia</strong> per quando si vuole lo "stile spreadsheet" leggero?
+    </p>
+  </div>
+  <div class="qoptions">
+    <div class="opt"><strong>A.</strong> Sostituto naturale: per editing di Bag in-memory N&times;M, <code>groupletGrid struct=</code> è la <strong>scelta di default</strong>, <code>bagGrid</code> resta per quando serve performance su tanti dati o per integrazione DB.</div>
+    <div class="opt"><strong>B.</strong> Caso di nicchia: rimane un'opzione "morbida" per spreadsheet leggeri; il default per editing tabellare resta <code>bagGrid</code>.</div>
+    <div class="opt"><strong>C.</strong> Ortogonale: lasciamo che gli sviluppatori scelgano caso per caso; documentiamo entrambi senza preferenza.</div>
+  </div>
+  <p class="qhint">Impatto: governa l'Item 23 (<code>groupletTableHandler</code>) e quanta documentazione/test investiamo in <code>struct=</code> mode.</p>
+</div>
+
+<div class="question">
+  <span class="qnum">Q9</span>
+  <p class="qtitle">Per l'anima B (form-collection), <code>formStore</code> oppure altro?</p>
+  <div class="qbody">
+    <p>
+      Quando arriverà Item 16 (phantom formHandler), dovremo decidere quale store agganciamo. Le opzioni concrete:
+    </p>
+  </div>
+  <div class="qoptions">
+    <div class="opt"><strong>A.</strong> <code>formStore</code> come per le form: ogni riga = un "record virtuale", la form viene swappata sul cambio di riga attiva (insight da <code>genro_frm.js:1545</code>).</div>
+    <div class="opt"><strong>B.</strong> Store ad-hoc per groupletGrid form-collection, da progettare: niente form virtuale, solo persistenza + validazione + lock.</div>
+    <div class="opt"><strong>C.</strong> Niente store: l'anima B resta sul literal a vita; lo store è una caratteristica solo di <code>struct=</code> mode.</div>
+  </div>
+  <p class="qhint">Domanda da rivedere quando arriverà davvero il momento; serve scriverla qui perché potrebbe orientare alcune scelte attuali.</p>
+</div>
+
+<h3>Sulla pulizia tecnica</h3>
+
+<div class="question">
+  <span class="qnum">Q10</span>
+  <p class="qtitle">Lo store di <code>groupletGrid</code> dovrebbe iscriversi come <code>linkedGrid</code>?</p>
+  <div class="qbody">
+    <p>
+      Oggi <code>_Collection.linkedGrids()</code> walka l'albero cercando widget con il mixin <code>selectionKeeper</code> &mdash; non trova <code>groupletGrid</code>, quindi tutti i <code>gridBroadcast</code> sono no-op. Va benissimo per ora, ma un domani potremmo voler partecipare alle stesse broadcast (es. <code>onDeletedRows</code> propaga la cancellazione a UI agganciate).
+    </p>
+  </div>
+  <div class="qoptions">
+    <div class="opt"><strong>A.</strong> Lasciamo perdere: <code>linkedGrids</code> resta uno strumento dei grid veri.</div>
+    <div class="opt"><strong>B.</strong> Monkey-patch <code>linkedGrids</code> nel controller per includersi: il <code>gridBroadcast</code> raggiungerebbe anche noi.</div>
+    <div class="opt"><strong>C.</strong> Refactor del walk in <code>_Collection</code>: invece di cercare <code>selectionKeeper</code>, accetta qualunque widget che dichiara <code>storeClient: true</code>. Cambiamento upstream.</div>
+  </div>
+  <div class="qrisk">
+    <span class="rlabel">Edge case da tenere d'occhio</span>
+    L'opzione B (auto-include) ha un effetto collaterale: <code>BagRows.deleteRows</code> ([genro_components.js:7102](gnrjs/gnr_d11/js/genro_components.js#L7102)) fa <code>this.linkedGrids().forEach(grid =&gt; grid.sourceNode.publish('onDeletedRows', ...))</code>. Se ci auto-includiamo, il nostro controller riceve l'evento &mdash; <strong>ma il <code>storepath</code> trigger reattivo (<code>_trigger_data</code>) lo riceve già</strong> dalla mutazione della Bag. Risultato: doppio handler che reagisce alla stessa cancellazione, con <code>_fullSync</code> chiamato due volte. La prima volta funziona, la seconda trova il DOM già aggiornato e no-op&mdash;ma è spreco. Mitigazione: se andiamo per B, sopprimere il subscribe automatico a <code>onDeletedRows</code>.
+  </div>
+</div>
+
+<div class="callout">
+  <span class="label">Come usare queste domande</span>
+  Non serve risolverle tutte prima di iniziare. Le considero divise in tre gruppi:
+  <ul style="margin-bottom:0">
+    <li><strong>Da decidere prima di scrivere codice:</strong> Q1, Q2, Q3, Q6.</li>
+    <li><strong>Da decidere prima di mergiare:</strong> Q4, Q5, Q7.</li>
+    <li><strong>Da tenere a mente per il futuro, non urgenti:</strong> Q8, Q9, Q10.</li>
+  </ul>
+</div>
+
+<!-- ================================================================== -->
+<div class="footer-note">
+  <p>
+    <strong>Note di referenza.</strong> File chiave consultati: <code>gnrjs/gnr_d11/js/genro_components.js</code> (<code>BagStore</code> @6533, <code>_Collection</code> @6555, <code>BagRows</code> @7064, <code>ValuesBagRows</code> @7150); <code>gnrjs/gnr_d11/js/genro_grid.js</code> (<code>mixin_collectionStore</code> @4833); <code>gnrpy/gnr/web/gnrwebstruct.py</code> (<code>bagStore</code> @1551, <code>formstore</code> @520); <code>resources/common/gnrcomponents/framegrid.py</code> (<code>fgr_bagGrid</code> @467); <code>resources/common/gnrcomponents/grouplet/grouplet.py</code> (<code>gr_groupletGrid</code> @665); <code>resources/common/gnrcomponents/grouplet/grouplet_grid.js</code> (<code>collectionStore</code> literal @474).
+  </p>
+</div>
+
+</div>
+</body>
+</html>
