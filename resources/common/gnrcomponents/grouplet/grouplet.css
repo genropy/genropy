@@ -208,6 +208,16 @@
     --gg-surface: var(--surface-bg, #fff);
     --gg-surface-alt: var(--surface-alt, #f9fafb);
     --gg-text-muted: var(--text-secondary, #6b7280);
+    /* struct= chrome (Item 12): dark header strip + spreadsheet-style
+       yellow total band. Tokens are explicit so each theme can
+       override them coherently (no color-mix). Column alignment
+       between header / readonly cells / widget inputs is computed
+       at runtime in the controller (see `_syncStructChromeToColumns`)
+       so no width-related magic numbers live here. */
+    --gg-header-bg: var(--surface-strong, #374151);
+    --gg-header-text: var(--surface-on-strong, #f9fafb);
+    --gg-total-bg: var(--total-bg, #fffbe6);
+    --gg-total-text: var(--total-text, #1f2937);
     margin: 6px 0;
 }
 
@@ -494,6 +504,25 @@
     box-shadow: var(--shadow-lg, 0 4px 12px rgba(0,0,0,0.15));
     border-radius: var(--radius-md);
     background: var(--surface-bg, #fff);
+}
+
+/* Struct-mode rows are stripped (no per-row border / radius / bg)
+   so they integrate with the container card. The drag-image clone
+   lives outside that container — restore enough chrome for the
+   floating preview to read as a card on its own. `position:relative`
+   becomes the positioning context for the absolute children (drag
+   handle, kebab) so they sit at their usual offsets inside the
+   clone instead of pinning to the viewport. `box-sizing:border-box`
+   keeps the clone width identical to the source row width (JS sets
+   `width = offsetWidth` inline). */
+#auxDragImage > .gg-struct-drag-clone {
+    position: relative;
+    box-sizing: border-box;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: var(--radius-md, 8px);
+    background: var(--surface-bg, #fff);
+    padding: 0.4em 2em 0.4em 1.8em;
+    overflow: hidden;
 }
 
 /* --- Drop target highlight ---
@@ -1167,12 +1196,12 @@
    share the same grid-template-columns template — perfect column alignment
    without sticky positioning and without nested grids. Non-resizable by
    design (the struct columns are fixed). */
-.grouplet_grid--struct > .grouplet_grid_slot_top > .grouplet_grid__struct_header,
-.grouplet_grid--struct > .grouplet_grid_slot_bottom > .grouplet_grid__struct_footer,
 .grouplet_grid--struct .grouplet_grid__struct_row {
-    /* All three tracks share the same box model so subpixel rounding
-       between width + padding behaves identically across header, row,
-       and footer. */
+    /* The row is the only grid container that needs `display:grid`:
+       it holds the actual widgets and uses `--gg-struct-columns` to
+       distribute them. Header and footer cells are positioned at
+       runtime by JS to match each row column's wrapper geometry
+       exactly — they don't need their own grid layout. */
     box-sizing: border-box;
     display: grid;
     grid-template-columns: var(--gg-struct-columns, 1fr);
@@ -1180,23 +1209,61 @@
     align-items: center;
 }
 
-.grouplet_grid--struct > .grouplet_grid_slot_top > .grouplet_grid__struct_header {
-    font-weight: 600;
-    font-size: 0.85em;
-    color: var(--gg-text-muted, #555);
-    border-bottom: 1px solid var(--gg-border, #ddd);
-    /* Match the row's horizontal padding (1.8em left for drag handle,
-       2em right for kebab) so header columns align column-for-column
-       with the row's grid tracks. */
-    padding: 6px 2em 6px 1.8em;
-    background: var(--gg-surface, transparent);
+.grouplet_grid--struct > .grouplet_grid_slot_top > .grouplet_grid__struct_header,
+.grouplet_grid--struct > .grouplet_grid_slot_bottom > .grouplet_grid__struct_footer {
+    /* Positioning context for absolute-positioned col cells (set by
+       JS sync). `box-sizing: border-box` keeps the framed width
+       coherent with the row. `min-height` reserves vertical space
+       for the absolute children (which don't contribute to the
+       parent's height) — sized to read as a chrome strip slightly
+       taller than a data row for visual hierarchy. */
+    box-sizing: border-box;
+    position: relative;
+    min-height: 2.2em;
 }
 
-.grouplet_grid--struct .grouplet_grid__struct_header_cell {
-    text-align: left;
+.grouplet_grid--struct > .grouplet_grid_slot_top > .grouplet_grid__struct_header {
+    /* CRITICAL: keep font-size at 1em on the grid container — the
+       `em`-based tracks declared in `--gg-struct-columns` resolve
+       against this element's font-size, and any divergence from the
+       row's font-size shifts every column. The smaller header label
+       size is applied at the CELL level instead. */
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--gg-header-text);
+    background: var(--gg-header-bg);
+    border-bottom: 1px solid var(--gg-border, #ddd);
+    border-top-left-radius: var(--radius-md, 8px);
+    border-top-right-radius: var(--radius-md, 8px);
+    /* Match the row's horizontal padding (1.8em left for drag handle,
+       2em right for kebab) so header columns align column-for-column
+       with the row's grid tracks. Vertical padding gives the strip
+       its taller chrome read vs. data rows. */
+    padding: 10px 2em 10px 1.8em;
+}
+
+/* Shared box model for every column cell (header / footer / readonly
+   row). `justify-self: start` keeps the cell at the track origin
+   instead of stretching beyond its declared width — JS sync sets an
+   explicit `width` cloned from the row widget. */
+.grouplet_grid--struct .grouplet_grid__struct_col_cell {
+    box-sizing: border-box;
+    justify-self: start;
+}
+
+/* Single-line truncation for header and footer cells. */
+.grouplet_grid--struct .grouplet_grid__struct_header_cell,
+.grouplet_grid--struct .grouplet_grid__struct_footer_cell {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.grouplet_grid--struct .grouplet_grid__struct_header_cell {
+    /* Smaller header text — applied on the cell (not the container)
+       so the grid track resolution stays in lockstep with the row.
+       `text-align` comes from the `--align-*` modifier. */
+    font-size: 0.85em;
 }
 
 /* Row widgets sit directly as grid children of `.grouplet_grid__struct_row`
@@ -1207,12 +1274,24 @@
     min-width: 0;
 }
 
-/* Horizontal padding goes on the INNER grid container, NOT on the
-   outer row wrapper. This keeps the row's grid tracks computed from
-   the same base as the header/footer grids — both apply padding on
-   the element that carries `display:grid`. Vertical padding stays on
-   the outer wrapper since drag handle / kebab are absolutely
-   positioned relative to it. */
+/* Checkbox cells: centre the small native checkbox inside its grid
+   track (dijit CheckBox is ~16px wide; an em-sized track like `3em`
+   would otherwise leave it flush-left). The wrapper that genropy
+   inserts (`.gnrcheckbox_wrapper`) is the actual grid item, so the
+   alignment lives there. */
+.grouplet_grid--struct .grouplet_grid__struct_row > .gnrcheckbox_wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Padding split: the outer row wrapper keeps only vertical padding
+   (drag handle / kebab are absolute, anchored to the wrapper); the
+   inner grid carries the horizontal padding so its grid tracks compute
+   from the same base as the header/footer grids (all three apply
+   horizontal padding on the element that carries `display:grid`).
+   Identical horizontal values across the three grids — combined with
+   one flex track via `columnsCSS()` — make column alignment exact. */
 .grouplet_grid--struct .grouplet_grid_row {
     padding: 0.3em 0;
 }
@@ -1226,22 +1305,160 @@
    mirrors the row + header so totals line up under the data values. */
 .grouplet_grid--struct > .grouplet_grid_slot_bottom > .grouplet_grid__struct_footer {
     font-weight: 600;
+    color: var(--gg-total-text);
+    background: var(--gg-total-bg);
     border-top: 1px solid var(--gg-border, #ddd);
-    padding: 6px 2em 6px 1.8em;
-    background: var(--gg-surface, transparent);
+    border-bottom-left-radius: var(--radius-md, 8px);
+    border-bottom-right-radius: var(--radius-md, 8px);
+    padding: 10px 2em 10px 1.8em;
 }
 
 .grouplet_grid--struct .grouplet_grid__struct_footer_cell {
-    text-align: right;
-    color: var(--gg-text-muted, #555);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    /* Reserve a row height even for empty cells so the grid doesn't
-       collapse to the height of the single populated cell. */
+    /* Reserve height on the footer strip independently of content: a
+       single populated total cell would otherwise collapse the strip
+       to that cell's text height and lose the visual band. */
     min-height: 1.2em;
 }
 
-.grouplet_grid--struct .grouplet_grid__struct_footer_cell--total {
-    color: var(--gg-text, #222);
+/* Dtype-driven horizontal alignment shared by header label, readonly
+   row cell, and footer total cell. The adapter assigns one of these
+   three modifier classes based on the column's dtype so the visual
+   "column of numbers" reads as one band. Editable cells inherit their
+   alignment from the dijit widget (NumberTextBox is right-align by
+   default). The right-pad on `--align-right` compensates for the
+   internal border+padding of the dijit textbox so a numeric header
+   sits flush above the digits inside the input. */
+.grouplet_grid--struct .grouplet_grid__struct_cell--align-left   { text-align: left; }
+.grouplet_grid--struct .grouplet_grid__struct_cell--align-center { text-align: center; }
+.grouplet_grid--struct .grouplet_grid__struct_cell--align-right  { text-align: right; }
+
+/* === Spreadsheet-like skin ===
+   Compact "Excel feel": tabular numerals, thin row separators, hover
+   row tint, subtler row chrome (no card-style border per row — the
+   container itself is the card). Applied only in struct mode so
+   resource-mode grouplets keep their card-stack aesthetic. */
+.grouplet_grid--struct {
+    /* Reset card-stack chrome: the struct grid is one continuous
+       table, not a stack of independent cards. */
+    background: var(--gg-surface);
+    border: 1px solid var(--gg-border);
+    border-radius: var(--radius-md, 8px);
+    overflow: hidden;
+}
+
+/* Kill the inter-row gap that the card-stack body adds via `--gg-gap`:
+   in struct mode every row is just one tabular line, separated only
+   by the row's own border-bottom — not by 12px of empty space. */
+.grouplet_grid--struct > .grouplet_grid_body {
+    gap: 0;
+}
+
+/* Rows: drop the per-row border + radius (the container owns those
+   now), keep only a thin bottom separator. The last row's separator
+   is the footer's border-top, so suppress it on the last data row. */
+.grouplet_grid--struct .grouplet_grid_row {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--gg-border);
+    border-radius: 0;
+    animation: none;
+}
+.grouplet_grid--struct .grouplet_grid_body > .grouplet_grid_row:last-child {
+    border-bottom: none;
+}
+
+/* Hover: full-row tint (no per-cell hover — that's an interaction
+   pattern from data-grids, not spreadsheets). */
+.grouplet_grid--struct .grouplet_grid_row:hover {
+    background: var(--gg-surface-alt);
+}
+
+/* Selected row in struct mode: accent-soft tint + a 2px accent
+   inset strip on the left (current-row marker, like Excel/Sheets).
+   No accent bottom border — keep the thin grey separator unchanged
+   so the table grid stays uniform; the inset strip + tint are
+   enough to read as 'this is the selected row'. The `:hover`
+   override prevents the generic row hover from wiping out the
+   selected tint when the cursor is on the row. */
+.grouplet_grid--struct .grouplet_grid_row.selected,
+.grouplet_grid--struct .grouplet_grid_row.selected:hover {
+    background: var(--gg-accent-soft);
+    box-shadow: inset 2px 0 0 var(--gg-accent);
+}
+
+/* Drop-target feedback in struct mode: a thick accent line on top
+   of the target row marks where the dragged row will land. No
+   scale, no tint, no gap — just a horizontal rule in accent color.
+   Invalid state uses the same rule in danger color so the 'no drop'
+   state remains visible. */
+.grouplet_grid--struct .grouplet_grid_row.gg-drop-target,
+.grouplet_grid--struct .grouplet_grid_row.gg-drop-target-invalid {
+    transform: none;
+    background: transparent;
+}
+.grouplet_grid--struct .grouplet_grid_row.gg-drop-target {
+    box-shadow: inset 0 3px 0 var(--gg-accent);
+}
+.grouplet_grid--struct .grouplet_grid_row.gg-drop-target-invalid {
+    box-shadow: inset 0 3px 0 var(--gg-danger);
+}
+
+/* Tabular numerals + monospace digits for numeric columns: same
+   feature browsers expose for `font-feature-settings`. Applied to
+   readonly divs AND the editable widgets — dijit's NumberTextBox
+   in this theme uses `.dijitInputField > input` (NOT `.dijitInputInner`
+   as in some other dijit themes), and the class on the wrapper is
+   `.numberTextBox` (camelCase, lowercase `n` — verified in DOM). */
+.grouplet_grid--struct .grouplet_grid__struct_cell--align-right,
+.grouplet_grid--struct .grouplet_grid__struct_row > .numberTextBox .dijitInputField input,
+.grouplet_grid--struct .grouplet_grid__struct_footer .grouplet_grid__struct_cell--align-right {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+}
+
+/* Numeric dijit inputs: force right-align on the inner <input>. The
+   dijit NumberTextBox doesn't set text-align by default — the input
+   inherits its natural left flow. Match both the wrapper class and
+   the input element. No extra padding: header label, readonly div
+   and input all end at their cell's right edge (whatever dijit-
+   internal padding the input has applies equally to every row so
+   the column reads consistently). */
+.grouplet_grid--struct .grouplet_grid__struct_row > .numberTextBox .dijitInputField input {
+    text-align: right;
+}
+
+/* Editable cells: borderless resting state. The textbox blends into
+   the row background; hover reveals a hairline outline; focus shows
+   the accent ring as an `outline` (NOT a border — borders shift the
+   content by their own width and break column alignment with the
+   resting-state cells in the same column). The inner dijit nodes
+   (.dijitInputContainer, .dijitArrowButton) also get neutralised so
+   no stray borders leak through the wrapper's transparency. */
+.grouplet_grid--struct .grouplet_grid__struct_row > .dijitTextBox,
+.grouplet_grid--struct .grouplet_grid__struct_row > .dijitComboBox,
+.grouplet_grid--struct .grouplet_grid__struct_row > .dijitSelect,
+.grouplet_grid--struct .grouplet_grid__struct_row > .dijitTextBox .dijitInputContainer,
+.grouplet_grid--struct .grouplet_grid__struct_row > .dijitTextBox .dijitArrowButtonContainer,
+.grouplet_grid--struct .grouplet_grid__struct_row > .dijitComboBox .dijitInputContainer,
+.grouplet_grid--struct .grouplet_grid__struct_row > .dijitComboBox .dijitArrowButtonContainer {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    transition: background 120ms ease, outline-color 120ms ease;
+}
+.grouplet_grid--struct .grouplet_grid__struct_row > .dijitTextBox .dijitInputField input,
+.grouplet_grid--struct .grouplet_grid__struct_row > .dijitComboBox .dijitInputField input {
+    background: transparent;
+}
+.grouplet_grid--struct .grouplet_grid__struct_row > .dijitTextBox:hover,
+.grouplet_grid--struct .grouplet_grid__struct_row > .dijitComboBox:hover,
+.grouplet_grid--struct .grouplet_grid__struct_row > .dijitSelect:hover {
+    background: var(--gg-surface-alt);
+    border-color: var(--gg-border);
+}
+.grouplet_grid--struct .grouplet_grid__struct_row > .dijitTextBoxFocused,
+.grouplet_grid--struct .grouplet_grid__struct_row > .dijitComboBoxFocused,
+.grouplet_grid--struct .grouplet_grid__struct_row > .dijitSelectFocused {
+    background: var(--gg-surface);
+    border-color: var(--gg-accent);
 }

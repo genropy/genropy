@@ -412,6 +412,186 @@ gnr.GroupletGridController = class GroupletGridController {
             this._mountSlotContent(slots.bottom, footer, 'struct_footer');
             if (containerDom) containerDom.classList.add('has-bottom');
         }
+        // Re-measure column alignment on container resize: em-based
+        // padding scales with the container's font-size, and the
+        // intrinsic width of widget cells changes with available space.
+        if (containerDom && !this._structResizeObserver
+                && typeof ResizeObserver !== 'undefined') {
+            this._structResizeObserver = new ResizeObserver(() => {
+                this._scheduleStructSync();
+            });
+            this._structResizeObserver.observe(containerDom);
+        }
+    }
+
+    _scheduleStructSync() {
+        // Coalesce multiple sync requests within a frame (resize +
+        // row-add + applyStruct can all fire in the same tick). The
+        // actual measurement happens once, in the next animation frame,
+        // when layout is settled.
+        if (this._structSyncScheduled) return;
+        this._structSyncScheduled = true;
+        const that = this;
+        requestAnimationFrame(function() {
+            that._structSyncScheduled = false;
+            that._syncStructChromeToColumns();
+        });
+    }
+
+    _syncStructChromeToColumns() {
+        // Two-step alignment:
+        //
+        // STEP 1 — Frame: make the header and footer containers share
+        //   the same horizontal CONTENT-BOX as the row inner grid. The
+        //   row lives inside `.grouplet_grid_row` which has drag/kebab
+        //   spacing; the header lives in slot top, full-width of the
+        //   outer card. Even with identical `grid-template-columns`,
+        //   the absolute X of every track differs because the two
+        //   containers start at different X. Fix by stretching the
+        //   header/footer padding so their content-box coincides with
+        //   `firstRow`'s outer rect. After this, the three grids
+        //   resolve identical track positions automatically.
+        //
+        // STEP 2 — Text edge inside each column: for each column,
+        //   align the header label and the readonly row cell to the
+        //   VISIBLE text edge of the row's widget input. Computed
+        //   relative to the column wrapper's edge (intrinsic inset)
+        //   PLUS the widget's own padding/border on that side. No
+        //   cross-track measurement here — each column's adjustment
+        //   is local to itself.
+        if (!this.structAdapter) return;
+        const containerDom = this.sourceNode && this.sourceNode.getDomNode
+            && this.sourceNode.getDomNode();
+        if (!containerDom) return;
+        const firstRow = containerDom.querySelector(
+            '.grouplet_grid_body .grouplet_grid__struct_row');
+        if (!firstRow) return;
+        // Single pass over all rows: stamp the col_cell marker class
+        // on every direct child (some widgets — e.g. gnrcheckbox — wrap
+        // themselves at parse time, so the marker class supplied to the
+        // builder lands on an inner node and the actual row child is
+        // the wrap the framework added), AND index readonly cells by
+        // column for the padding pass below.
+        const readonlyByColumn = [];
+        const allRows = containerDom.querySelectorAll(
+            '.grouplet_grid_body .grouplet_grid__struct_row');
+        allRows.forEach(function(row) {
+            Array.from(row.children).forEach(function(el, i) {
+                el.classList.add('grouplet_grid__struct_col_cell');
+                if (el.classList.contains('grouplet_grid__struct_row_cell')) {
+                    if (!readonlyByColumn[i]) readonlyByColumn[i] = [];
+                    readonlyByColumn[i].push(el);
+                }
+            });
+        });
+        // --- STEP 1: frame header/footer onto the row inner grid's
+        // CONTENT-BOX (its bounding rect minus its own padding, because
+        // the row's horizontal padding is what reserves space for the
+        // absolute drag handle / kebab on the row wrapper above it).
+        const rowOuter = firstRow.getBoundingClientRect();
+        const rowCs = getComputedStyle(firstRow);
+        const rowContentLeft  = rowOuter.left  + parseFloat(rowCs.paddingLeft);
+        const rowContentRight = rowOuter.right - parseFloat(rowCs.paddingRight);
+        const headerEl = containerDom.querySelector(
+            '.grouplet_grid__struct_header');
+        const footerEl = containerDom.querySelector(
+            '.grouplet_grid__struct_footer');
+        const frameToRow = function(el) {
+            if (!el) return;
+            el.style.paddingLeft = '';
+            el.style.paddingRight = '';
+            const elRect = el.getBoundingClientRect();
+            const cs = getComputedStyle(el);
+            const padL = parseFloat(cs.paddingLeft);
+            const padR = parseFloat(cs.paddingRight);
+            const wantPadL = padL + (rowContentLeft  - (elRect.left  + padL));
+            const wantPadR = padR + ((elRect.right - padR) - rowContentRight);
+            el.style.paddingLeft  = Math.max(0, wantPadL) + 'px';
+            el.style.paddingRight = Math.max(0, wantPadR) + 'px';
+        };
+        frameToRow(headerEl);
+        frameToRow(footerEl);
+        // --- STEP 2: per-column text-edge alignment.
+        // Position header and footer cells absolutely at the same X /
+        // width as the row column wrappers. Header/footer are
+        // `position:relative`; cells become `position:absolute` with
+        // `left` + `width` cloned from the row's geometry. Result: the
+        // cell is physically in the same horizontal slot as the row
+        // widget, regardless of grid track resolution or font-size
+        // scaling. Readonly cells (which DO live inside the row grid)
+        // keep their natural grid placement — only their internal
+        // padding is tuned to the widget text-edge.
+        const trackEls = Array.from(firstRow.children);
+        if (!trackEls.length) return;
+        const headerCells = containerDom.querySelectorAll(
+            '.grouplet_grid__struct_header > .grouplet_grid__struct_col_cell');
+        const footerCells = containerDom.querySelectorAll(
+            '.grouplet_grid__struct_footer > .grouplet_grid__struct_col_cell');
+        const headerLeftRef = headerEl
+            ? headerEl.getBoundingClientRect().left : 0;
+        const footerLeftRef = footerEl
+            ? footerEl.getBoundingClientRect().left : 0;
+        const Adapter = gnr.GroupletGridStructAdapter;
+        this.structAdapter.cells.forEach(function(c, i) {
+            const trackEl = trackEls[i];
+            if (!trackEl) return;
+            const trackRect = trackEl.getBoundingClientRect();
+            if (trackRect.width === 0) return;
+            // Text-edge inset: gap between wrapper edge and visible
+            // text inside the widget input (the input has its own
+            // padding+border that pushes the text inward).
+            let target = trackEl;
+            let bestW = 0;
+            trackEl.querySelectorAll('input, textarea').forEach(function(el) {
+                const r = el.getBoundingClientRect();
+                if (r.width > bestW) {
+                    bestW = r.width;
+                    target = el;
+                }
+            });
+            const targetRect = target.getBoundingClientRect();
+            let extraLeft = 0;
+            let extraRight = 0;
+            if (target !== trackEl) {
+                const cs = getComputedStyle(target);
+                extraLeft  = parseFloat(cs.paddingLeft)  + parseFloat(cs.borderLeftWidth);
+                extraRight = parseFloat(cs.paddingRight) + parseFloat(cs.borderRightWidth);
+            }
+            const leftInset  = Math.max(0,
+                (targetRect.left - trackRect.left) + extraLeft);
+            const rightInset = Math.max(0,
+                (trackRect.right - targetRect.right) + extraRight);
+            const align = Adapter._alignFor(c);
+            let justify;
+            if (align === 'right') justify = 'flex-end';
+            else if (align === 'center') justify = 'center';
+            else justify = 'flex-start';
+            const placeAbsolute = function(el, parentLeft) {
+                if (!el) return;
+                el.style.position = 'absolute';
+                el.style.top = '0';
+                el.style.bottom = '0';
+                el.style.left = (trackRect.left - parentLeft) + 'px';
+                el.style.width = trackRect.width + 'px';
+                el.style.boxSizing = 'border-box';
+                el.style.display = 'flex';
+                el.style.alignItems = 'center';
+                el.style.justifyContent = justify;
+                el.style.paddingLeft = (align === 'left'  ? leftInset  : 0) + 'px';
+                el.style.paddingRight = (align === 'right' ? rightInset : 0) + 'px';
+            };
+            placeAbsolute(headerCells[i], headerLeftRef);
+            placeAbsolute(footerCells[i], footerLeftRef);
+            // Readonly row cells stay in the grid (they DO belong to
+            // the row's track); only their padding is set so their
+            // text-edge matches the editable widgets above.
+            (readonlyByColumn[i] || []).forEach(function(el) {
+                el.style.paddingLeft = '';
+                el.style.paddingRight = '';
+                if (align === 'right') el.style.paddingRight = rightInset + 'px';
+                else if (align === 'left') el.style.paddingLeft = leftInset + 'px';
+            });
+        });
     }
 
     _resolveStructSlots() {
@@ -480,6 +660,7 @@ gnr.GroupletGridController = class GroupletGridController {
         Object.keys(this.rows).forEach((rowKey) => this._removeRow(rowKey));
         this._mountStructSlots();
         this._renderFromStore();
+        this._scheduleStructSync();
     }
 
     setTotalizer(field, datapath) {
@@ -1142,6 +1323,35 @@ gnr.GroupletGridController = class GroupletGridController {
                     clone.classList.remove('gg-dragging', 'gg-drop-target',
                         'gg-drop-target-invalid', 'gg-just-dropped');
                     clone.style.width = wrapperDom.offsetWidth + 'px';
+                    // In struct mode the row's own chrome is stripped
+                    // (the container card owns the border/radius). Tag
+                    // the clone so CSS can re-add a self-contained
+                    // card look — otherwise the drag image renders as
+                    // a borderless naked strip. Also carry over the
+                    // `--gg-struct-columns` CSS custom property: it's
+                    // set inline on the container, but the clone sits
+                    // outside the container in `#auxDragImage`, so the
+                    // variable wouldn't resolve and the inner grid
+                    // would collapse all widgets to a single 1fr track.
+                    if (containerDom
+                        && containerDom.classList.contains('grouplet_grid--struct')) {
+                        // Mark the clone so CSS can restyle it as a
+                        // self-contained card AND apply the inner
+                        // struct grid rules — those are scoped under
+                        // `.grouplet_grid--struct` which lives on the
+                        // container, not on the row. Adding the same
+                        // class to the clone makes the struct rules
+                        // (display:grid + grid-template-columns) take
+                        // effect even though the clone now lives in
+                        // `#auxDragImage`, outside the container tree.
+                        clone.classList.add('gg-struct-drag-clone',
+                            'grouplet_grid--struct');
+                        const cols = containerDom.style.getPropertyValue(
+                            '--gg-struct-columns');
+                        if (cols) {
+                            clone.style.setProperty('--gg-struct-columns', cols);
+                        }
+                    }
                     auxDragImage.appendChild(clone);
                     e.dataTransfer.setDragImage(clone,
                         e.clientX - wrapperDom.getBoundingClientRect().left,
@@ -1487,6 +1697,10 @@ gnr.GroupletGridController = class GroupletGridController {
         // any surviving chip subscriptions). Safe to call regardless of
         // current layout.
         this._teardownLayoutAffordances();
+        if (this._structResizeObserver) {
+            this._structResizeObserver.disconnect();
+            this._structResizeObserver = null;
+        }
         this.templateSources = {};
         this.templateLoading = {};
     }
@@ -1534,6 +1748,7 @@ gnr.GroupletGridController = class GroupletGridController {
         if (this._isTabsLayout() && this.activeRowKey) {
             this._setActiveTabClasses(this.activeRowKey);
         }
+        if (this.structAdapter) this._scheduleStructSync();
     }
 
     _addRow(rowKey) {
@@ -1774,6 +1989,7 @@ gnr.GroupletGridController = class GroupletGridController {
             delete this._pendingFlash[rowKey];
             this._flashRow(rowKey);
         }
+        if (this.structAdapter) this._scheduleStructSync();
     }
 
     _graftNode(parentContent, srcNode) {
@@ -2188,16 +2404,63 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
     }
 
     columnsCSS() {
-        // Build the shared `grid-template-columns` value used by
-        // header, row template and footer. Explicit `width=` honoured;
-        // missing widths fall back to `1fr` (flex). Non-resizable.
-        return this.cells.map(function(c) {
-            return c.width || '1fr';
-        }).join(' ');
+        // Translate gnr.Grid-style widths into CSS Grid track functions
+        // for the shared `grid-template-columns` value used by header,
+        // row template and footer.
+        //
+        // `'100%'` / `'*'` / missing → `minmax(0, 1fr)` (flex track).
+        // Everything else (em / px / rem / explicit %) passes through.
+        //
+        // A literal `'100%'` would be a CSS Grid track of "100% of the
+        // content box": added to the other fixed tracks it overflows
+        // the container, and the browser resolves the overflow with
+        // subpixel-different rounding across header / row / footer
+        // because their intrinsic content widths differ — visible
+        // column drift. `minmax(0, 1fr)` is deterministic across the
+        // three containers given identical available width.
+        //
+        // If no cell ends up flex after translation, auto-promote the
+        // widest fixed-em cell. Rationale: header/row/footer alignment
+        // is automatic when at least one track absorbs the free space;
+        // without a flex track, fixed widths either undershoot (grid
+        // centres, header labels visually disconnected from data) or
+        // overshoot (overflow + per-container drift).
+        const tracks = this.cells.map(function(c) {
+            const w = c.width;
+            if (!w || w === '*' || w === '100%') return 'minmax(0, 1fr)';
+            return w;
+        });
+        if (!tracks.some(function(t) { return t === 'minmax(0, 1fr)'; })) {
+            let bestIdx = 0;
+            let bestVal = -Infinity;
+            tracks.forEach(function(t, i) {
+                const v = parseFloat(t);
+                if (!isNaN(v) && v > bestVal) {
+                    bestVal = v;
+                    bestIdx = i;
+                }
+            });
+            tracks[bestIdx] = 'minmax(0, 1fr)';
+        }
+        return tracks.join(' ');
     }
 
     hasTotalize() {
         return this.cells.some(function(c) { return !!c.totalize; });
+    }
+
+    static _alignFor(c) {
+        // Derive horizontal alignment from dtype so header label,
+        // readonly cell, and footer total all line up consistently:
+        // - numeric (L/I/R/N) → right (matches NumberTextBox default)
+        // - boolean (B)       → center (matches CheckBox)
+        // - everything else   → left
+        // Applied as a modifier class (`--align-<right|center|left>`)
+        // on header/footer/readonly-row cells.
+        const dtype = c.dtype;
+        if (dtype === 'L' || dtype === 'I' || dtype === 'R' || dtype === 'N') return 'right';
+        if (dtype === 'B') return 'center';
+        return 'left';
     }
 
     buildHeader() {
@@ -2206,12 +2469,23 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
         // second positional arg to `_()` is the node *label*, NOT the
         // visible content — passing the column name there would make
         // it the source-tree label and leave the DOM empty).
+        //
+        // Empty or whitespace-only labels are rendered as `&nbsp;` so
+        // the cell keeps its line height (a bare space collapses in
+        // some layout passes, breaking the header row's vertical
+        // alignment with sibling labelled cells).
         const root = genro.src.newRoot();
         const hdr = root._('div', {_class: 'grouplet_grid__struct_header'});
+        const Adapter = gnr.GroupletGridStructAdapter;
         this.cells.forEach(function(c) {
+            const align = Adapter._alignFor(c);
+            const raw = c.name || '';
+            const label = (raw.trim() === '') ? ' ' : raw;
             hdr._('div', {
-                _class: 'grouplet_grid__struct_header_cell',
-                innerHTML: c.name || ''
+                _class: 'grouplet_grid__struct_col_cell'
+                    + ' grouplet_grid__struct_header_cell'
+                    + ' grouplet_grid__struct_cell--align-' + align,
+                innerHTML: label
             });
         });
         return root;
@@ -2233,10 +2507,13 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
         if (!this.hasTotalize()) return null;
         const root = genro.src.newRoot();
         const ftr = root._('div', {_class: 'grouplet_grid__struct_footer'});
+        const Adapter = gnr.GroupletGridStructAdapter;
         this.cells.forEach(function(c) {
-            let cls = 'grouplet_grid__struct_footer_cell';
+            const align = Adapter._alignFor(c);
+            let cls = 'grouplet_grid__struct_col_cell'
+                + ' grouplet_grid__struct_footer_cell'
+                + ' grouplet_grid__struct_cell--align-' + align;
             if (c.totalize) {
-                cls += ' grouplet_grid__struct_footer_cell--total';
                 const kw = {_class: cls, innerHTML: '^' + c.totalize};
                 if (c.format) kw.format = c.format;
                 ftr._('div', kw);
@@ -2257,13 +2534,24 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
         // cells render as plain <div> with `^.field` innerHTML binding.
         const root = genro.src.newRoot();
         const row = root._('div', {_class: 'grouplet_grid__struct_row'});
+        const Adapter = gnr.GroupletGridStructAdapter;
         this.cells.forEach(function(c) {
-            const tag = gnr.GroupletGridStructAdapter._resolveWidgetTag(c);
+            const tag = Adapter._resolveWidgetTag(c);
             if (tag) {
-                const kw = gnr.GroupletGridStructAdapter._editorKwargs(c);
+                const kw = Adapter._editorKwargs(c);
                 row._(tag, kw);
             } else {
-                const kw = {innerHTML: '^.' + c.field};
+                // Readonly cells get the alignment class so numeric
+                // readonly values line up with their header/footer
+                // counterparts (NumberTextBox already right-aligns
+                // internally; a plain <div> needs explicit styling).
+                const align = Adapter._alignFor(c);
+                const kw = {
+                    _class: 'grouplet_grid__struct_col_cell'
+                        + ' grouplet_grid__struct_row_cell'
+                        + ' grouplet_grid__struct_cell--align-' + align,
+                    innerHTML: '^.' + c.field
+                };
                 if (c.format) kw.format = c.format;
                 row._('div', kw);
             }
@@ -2295,9 +2583,14 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
         // (`edit=dict(option_X=...)`) carries widget-level options; we
         // pop `tag` since it's already resolved, then merge the rest
         // on top of the dtype/related_table/values defaults.
+        //
+        // `grouplet_grid__struct_col_cell` is the marker class read by
+        // `_syncStructChromeToColumns` to identify column wrappers.
+        // User-supplied `_class` is preserved (space-concat).
         const kw = {
             value: '^.' + c.field,
-            width: '100%'
+            width: '100%',
+            _class: 'grouplet_grid__struct_col_cell'
         };
         if (c.related_table) kw.table = c.related_table;
         if (c.values) kw.values = c.values;
@@ -2305,7 +2598,12 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
         if (c.validate_notnull) kw.validate_notnull = true;
         if (typeof c.edit === 'object' && c.edit) {
             for (const k in c.edit) {
-                if (k !== 'tag') kw[k] = c.edit[k];
+                if (k === 'tag') continue;
+                if (k === '_class' && c.edit[k]) {
+                    kw._class = kw._class + ' ' + c.edit[k];
+                } else {
+                    kw[k] = c.edit[k];
+                }
             }
         }
         return kw;

@@ -431,7 +431,7 @@ class GnrCustomWebPage(object):
         def struct(struct):
             r = struct.view().rows()
             r.cell('bought', name=' ', width='3em', dtype='B', edit=True)
-            r.cell('item', name='Item', width='14em',
+            r.cell('item', name='Item', width='100%',
                    edit=True, validate_notnull=True)
             r.cell('qty', name='Qty', width='5em', dtype='L', edit=True)
             r.cell('unit_price', name='Unit price', width='7em',
@@ -447,17 +447,21 @@ class GnrCustomWebPage(object):
                  'add after / delete).',
                  color='#666', font_style='italic', margin_bottom='8px')
         grid_id = 'grpgrid_shopping_list'
-        # Toolbar +/−: publish on the controller's actionTopic.
-        # The controller's _handleAction routes to _doAddRow /
-        # _askAndDeleteRow.
+        # Toolbar: title on the left, +/− buttons on the right.
+        # The buttons publish on the controller's actionTopic;
+        # `_handleAction` routes to `_doAddRow` / `_askAndDeleteRow`.
         action_topic = f'groupletGrid_{grid_id}_action'
-        toolbar = pane.div(display='flex', gap='0.4em',
+        toolbar = pane.div(display='flex', align_items='center',
                            margin_bottom='8px')
-        toolbar.button(
+        toolbar.div('Shopping list',
+                    font_weight='600', font_size='1.05em')
+        actions = toolbar.div(margin_left='auto',
+                              display='flex', gap='0.4em')
+        actions.button(
             '+',
             action=f"genro.publish('{action_topic}', "
                    f"{{action:'add'}});")
-        toolbar.button(
+        actions.button(
             '−',
             action=f"genro.publish('{action_topic}', "
                    f"{{action:'delete'}});")
