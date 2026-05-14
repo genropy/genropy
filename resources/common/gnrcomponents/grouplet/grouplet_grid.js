@@ -225,6 +225,22 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
 
 gnr.GroupletGridDnD = class GroupletGridDnD {
 
+    // DOM-pure HTML5 drag-and-drop dispatch shared by tile (cards/struct)
+    // and chip (tabs/vtabs). Same payload key (`gg_tile_<dragCode>`),
+    // same move dispatch (publishes 'move' on the controller's action
+    // topic), so cross-grid drag tile↔chip works through one path.
+    //
+    // External contract (kept intentionally framework-compatible):
+    //   - payload via `genro.dom.setInDataTransfer` with key
+    //     `gg_tile_<dragCode>` and value `{rowKey, sourceNodeId}`
+    //   - drop = "insert-after" (`>target`, aligned with the tree).
+    //
+    // Internals (this commit): all listeners are `addEventListener`s
+    // wired on the rendered DOM — no sourceNode `dropTarget`/`onDrag_*`
+    // kwargs anywhere. Symmetric to the chip path (test_8 nested) and
+    // independent of framework-side pointer-events / inherited-attrs
+    // resolution.
+
     constructor(controller) {
         this.controller = controller;
     }
@@ -233,45 +249,52 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
         return 'gg_tile_' + this.controller.dragCode;
     }
 
-    onDrag(dragInfo, dragValues, pkey, tileNodeId) {
-        // tileNodeId rewrites dragInfo.nodeId before setDragSourceInfo
-        // so selfdrop fires on the tile, not on the handle sub-sourceNode.
+    _writePayload(dataTransfer, pkey) {
         const c = this.controller;
-        const dropType = this.dropType();
-        if (tileNodeId) dragInfo.nodeId = tileNodeId;
-        dragValues[dropType] = {rowKey: pkey, sourceNodeId: c.nodeId};
+        try {
+            genro.dom.setInDataTransfer(dataTransfer, this.dropType(),
+                {rowKey: pkey, sourceNodeId: c.nodeId});
+            dataTransfer.setData('text/plain', pkey);
+            dataTransfer.effectAllowed = 'move';
+        } catch (err) {}
+    }
+
+    _setDragImage(e, sourceDom, opts) {
         try {
             const aux = document.getElementById('auxDragImage');
-            const sourceDom = tileNodeId
-                ? (c.tiles[pkey] && c.tiles[pkey].domNode())
-                : (c._tabsByPkey[pkey]
-                    && c._tabsByPkey[pkey].getDomNode());
             if (!aux || !sourceDom) return;
             const clone = sourceDom.cloneNode(true);
             clone.classList.remove('draggedItem', 'canBeDropped',
                 'cannotBeDropped', 'grouplet_grid_just_dropped');
             clone.style.width = sourceDom.offsetWidth + 'px';
-            const containerDom = c._containerDom();
-            if (tileNodeId
-                && containerDom.classList.contains('grouplet_grid--struct')) {
-                // Struct chrome is on the container; the clone lives in
-                // #auxDragImage, so the struct rules must travel with it.
+            if (opts && opts.struct) {
+                // Struct chrome is on the container, the clone is not.
+                // Tag it so the cell rules still apply outside the tree.
                 clone.classList.add('grouplet_grid_struct_drag_clone',
                     'grouplet_grid--struct');
+                const containerDom = this.controller._containerDom();
                 const cols = containerDom.style.getPropertyValue(
                     '--gg-struct-columns');
                 if (cols) clone.style.setProperty('--gg-struct-columns', cols);
             }
             aux.appendChild(clone);
-            dragInfo.dragImageNode = clone;
             const rect = sourceDom.getBoundingClientRect();
-            dragInfo.event.dataTransfer.setDragImage(clone,
-                dragInfo.event.clientX - rect.left,
-                dragInfo.event.clientY - rect.top);
+            e.dataTransfer.setDragImage(clone,
+                e.clientX - rect.left,
+                e.clientY - rect.top);
             setTimeout(function() {
                 if (clone.parentNode) clone.parentNode.removeChild(clone);
             }, 0);
         } catch (err) {}
+    }
+
+    _dataTransferHasOurType(dataTransfer) {
+        const dropType = this.dropType();
+        const types = dataTransfer.types || [];
+        for (let i = 0; i < types.length; i++) {
+            if (types[i] === dropType) return true;
+        }
+        return false;
     }
 
     onDrop(data, targetPkey) {
@@ -287,49 +310,79 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
         });
     }
 
-    // Chip bridge: plain DOM, no sourceNode kwargs. Wraps dragstart/over/
-    // leave/end/drop so cross-grid drag with tiles uses the same dropType.
+    // === Tile (cards / struct) ===
+    // The handle ⠿ is the drag source; the tile wrapper is the drop
+    // zone. Stop propagation on dragstart so an outer tile (nested
+    // grids) doesn't re-snapshot its own card.
+
+    tileDragStart(e, tileDom, pkey) {
+        this._writePayload(e.dataTransfer, pkey);
+        const containerDom = this.controller._containerDom();
+        const struct = containerDom.classList.contains(
+            'grouplet_grid--struct');
+        this._setDragImage(e, tileDom, {struct: struct});
+        tileDom.classList.add('draggedItem');
+        document.body.classList.add('drag_started');
+        e.stopPropagation();
+    }
+
+    tileDragEnd(tileDom) {
+        tileDom.classList.remove('draggedItem',
+            'canBeDropped', 'cannotBeDropped');
+        document.body.classList.remove('drag_started');
+    }
+
+    tileDragOver(e, tileDom) {
+        if (tileDom.classList.contains('draggedItem')) {
+            // Hovering the source tile itself: paint cannotBeDropped
+            // briefly (selfdrop preview) but do NOT preventDefault, so
+            // the drop won't fire on it.
+            tileDom.classList.add('cannotBeDropped');
+            return;
+        }
+        if (!this._dataTransferHasOurType(e.dataTransfer)) {
+            // Foreign drag (different dragCode / unrelated payload):
+            // leave the tile alone, let the event bubble to an outer
+            // dropTarget that might handle it.
+            return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = 'move';
+        tileDom.classList.add('canBeDropped');
+    }
+
+    tileDragLeave(e, tileDom) {
+        if (!tileDom.contains(e.relatedTarget)) {
+            tileDom.classList.remove('canBeDropped', 'cannotBeDropped');
+        }
+    }
+
+    tileDrop(e, tileDom, pkey) {
+        tileDom.classList.remove('canBeDropped', 'cannotBeDropped');
+        const data = genro.dom.getFromDataTransfer(
+            e.dataTransfer, this.dropType());
+        if (!data) return;
+        e.preventDefault();
+        e.stopPropagation();
+        this.onDrop(data, pkey);
+    }
+
+    // === Chip (tabs / vtabs) ===
+    // Same shape as the tile path. Chips never carry inner widgets,
+    // so the dragover logic is simpler — no struct clone tag.
 
     chipDragStart(e, chipDom, pkey) {
-        const c = this.controller;
-        const dropType = this.dropType();
-        try {
-            genro.dom.setInDataTransfer(e.dataTransfer, dropType,
-                {rowKey: pkey, sourceNodeId: c.nodeId});
-            e.dataTransfer.setData('text/plain', pkey);
-            e.dataTransfer.effectAllowed = 'move';
-        } catch (err) {}
-        try {
-            const aux = document.getElementById('auxDragImage');
-            if (aux) {
-                const clone = chipDom.cloneNode(true);
-                clone.classList.remove('draggedItem',
-                    'canBeDropped', 'cannotBeDropped',
-                    'grouplet_grid_just_dropped');
-                clone.style.width = chipDom.offsetWidth + 'px';
-                aux.appendChild(clone);
-                const rect = chipDom.getBoundingClientRect();
-                e.dataTransfer.setDragImage(clone,
-                    e.clientX - rect.left,
-                    e.clientY - rect.top);
-                setTimeout(function() {
-                    if (clone.parentNode) clone.parentNode.removeChild(clone);
-                }, 0);
-            }
-        } catch (err) {}
+        this._writePayload(e.dataTransfer, pkey);
+        this._setDragImage(e, chipDom);
         chipDom.classList.add('draggedItem');
+        document.body.classList.add('drag_started');
         e.stopPropagation();
     }
 
     chipDragOver(e, chipDom) {
-        const dropType = this.dropType();
         if (chipDom.classList.contains('draggedItem')) return;
-        const types = e.dataTransfer.types || [];
-        let isValid = false;
-        for (let i = 0; i < types.length; i++) {
-            if (types[i] === dropType) { isValid = true; break; }
-        }
-        if (!isValid) {
+        if (!this._dataTransferHasOurType(e.dataTransfer)) {
             e.dataTransfer.dropEffect = 'none';
             chipDom.classList.add('cannotBeDropped');
             return;
@@ -348,12 +401,13 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
     chipDragEnd(chipDom) {
         chipDom.classList.remove('draggedItem',
             'canBeDropped', 'cannotBeDropped');
+        document.body.classList.remove('drag_started');
     }
 
     chipDrop(e, chipDom, pkey) {
-        const dropType = this.dropType();
         chipDom.classList.remove('canBeDropped', 'cannotBeDropped');
-        const data = genro.dom.getFromDataTransfer(e.dataTransfer, dropType);
+        const data = genro.dom.getFromDataTransfer(
+            e.dataTransfer, this.dropType());
         if (!data) return;
         e.preventDefault();
         this.onDrop(data, pkey);
@@ -369,9 +423,14 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
 // never touches `genro.getData(storepath)` / `bag.popNode` / `bag.setItem`
 // directly; it talks to `this.dataStore.X()`.
 //
-// Phase 1 (current): mode 'internal' only — wraps the storepath Bag.
-// Filter/sort/lock/changes APIs are stubbed with console.warn so callers
-// that creep in early are visible.
+// Phase 1: mode 'internal' wraps the storepath Bag.
+// Phase 2 (current): adds purely-visual filter+sort.
+//   - filter → `display: none` on filtered-out tiles (Bag intact)
+//   - sort → `style.order = N` on each tile (Bag intact)
+//   The dataStore stores only the visual state and notifies the
+//   controller, which applies the CSS in `_applyVisualState`. Tiles
+//   stay mounted, inner widgets keep their state, layout flow
+//   compacts naturally. Lock/changes APIs still stubbed for Phase 3.
 //
 // Phase 2 will add mode 'proxy' (sibling BagStore / ValuesBagRows) and
 // 'adapter' (AttributesBagRows / dataSelection). The controller-facing
@@ -1907,6 +1966,8 @@ gnr.GroupletGridTile = class GroupletGridTile {
         this.editmenuSpec = null;
         this.dragEnabled = false;
         this.position = null;
+        this._tileDnDHandlers = null;
+        this._handleDnDHandlers = null;
     }
 
     mount(position) {
@@ -1937,6 +1998,8 @@ gnr.GroupletGridTile = class GroupletGridTile {
     }
 
     unmount() {
+        this._unwireTileDnD();
+        this._unwireHandleDnD();
         const bodyContent = this.controller.bodyNode.getValue('static');
         bodyContent.popNode(this.tileLabel);
         this.mounted = false;
@@ -2011,27 +2074,17 @@ gnr.GroupletGridTile = class GroupletGridTile {
             nodeId: this.tileNodeId,
             connect_onclick: function() { c.selectTile(pkey); }
         };
-        // Tile is a drop target only in cards/struct layout — in tabs
-        // mode the row's panel is the active content area, the drop
-        // belongs to the chip strip above.
-        if (this.dragEnabled && !c._isTabsLayout()) {
-            const dropType = c.dnd.dropType();
-            tileKw.dropTarget = true;
-            tileKw.dropTypes = dropType;
-            // selfdrop fires here because dnd.onDrag rewrote
-            // dragInfo.nodeId to the tile's; returning false makes the
-            // framework apply .cannotBeDropped and reject the drop.
-            tileKw.dropTargetCb = function(dropInfo) {
-                return !dropInfo.selfdrop;
-            };
-            tileKw['onDrop_' + dropType] = function(dropInfo, data) {
-                c.dnd.onDrop(data, pkey);
-            };
-        }
         tileKw.onCreated = function(domnode) {
             tile.tileDom = domnode.sourceNode
                 ? domnode.sourceNode.getDomNode()
                 : domnode;
+            // DnD is wired with native listeners only — no framework
+            // dropTarget/onDrag_/onDrop_ kwargs. Symmetric to the chip
+            // path; keeps nested grids decoupled from the outer
+            // framework drag dispatch (cf. test_8 contacts).
+            if (tile.dragEnabled && !c._isTabsLayout() && tile.tileDom) {
+                tile._wireTileDnD(tile.tileDom);
+            }
         };
         const bodyContent = c.bodyNode.getValue();
         const extraKw = this.position ? {_position: this.position} : undefined;
@@ -2040,23 +2093,76 @@ gnr.GroupletGridTile = class GroupletGridTile {
         this.tileContent = this.tileNode.getValue();
     }
 
-    _mountDragHandle() {
-        // `⠿` drag source as a child sourceNode of the tile.
-        if (!this.dragEnabled) return;
+    _wireTileDnD(tileDom) {
         const c = this.controller;
+        const dnd = c.dnd;
+        const pkey = this.pkey;
+        const onDragOver = (e) => dnd.tileDragOver(e, tileDom);
+        const onDragLeave = (e) => dnd.tileDragLeave(e, tileDom);
+        const onDrop = (e) => dnd.tileDrop(e, tileDom, pkey);
+        tileDom.addEventListener('dragover', onDragOver);
+        tileDom.addEventListener('dragleave', onDragLeave);
+        tileDom.addEventListener('drop', onDrop);
+        this._tileDnDHandlers = {
+            dom: tileDom,
+            handlers: {dragover: onDragOver, dragleave: onDragLeave,
+                       drop: onDrop}
+        };
+    }
+
+    _unwireTileDnD() {
+        const entry = this._tileDnDHandlers;
+        if (!entry) return;
+        Object.keys(entry.handlers).forEach((evt) => {
+            entry.dom.removeEventListener(evt, entry.handlers[evt]);
+        });
+        this._tileDnDHandlers = null;
+    }
+
+    _mountDragHandle() {
+        // `⠿` drag source — sub-sourceNode for layout consistency, but
+        // DnD is wired natively in `onCreated` (same model as the tile
+        // drop zone above). Stays out of the framework drag dispatch.
+        if (!this.dragEnabled) return;
         const pkey = this.pkey;
         const tile = this;
-        const dropType = c.dnd.dropType();
         const handleLabel = '_grtile_drag_' + pkey;
         this.tileContent._('div', handleLabel, {
             _class: 'grouplet_grid_row_drag',
-            draggable: true,
             title: _T('!!Drag to reorder'),
             innerHTML: '<span class="grouplet_grid_drag_icon">⠿</span>',
-            ['onDrag_' + dropType]: function(dragValues, dragInfo) {
-                c.dnd.onDrag(dragInfo, dragValues, pkey, tile.tileNodeId);
+            onCreated: function(domnode) {
+                const handleDom = domnode.sourceNode
+                    ? domnode.sourceNode.getDomNode()
+                    : domnode;
+                if (handleDom) tile._wireHandleDnD(handleDom);
             }
         });
+    }
+
+    _wireHandleDnD(handleDom) {
+        const c = this.controller;
+        const dnd = c.dnd;
+        const pkey = this.pkey;
+        const tile = this;
+        handleDom.setAttribute('draggable', 'true');
+        const onDragStart = (e) => dnd.tileDragStart(e, tile.tileDom, pkey);
+        const onDragEnd = () => dnd.tileDragEnd(tile.tileDom);
+        handleDom.addEventListener('dragstart', onDragStart);
+        handleDom.addEventListener('dragend', onDragEnd);
+        this._handleDnDHandlers = {
+            dom: handleDom,
+            handlers: {dragstart: onDragStart, dragend: onDragEnd}
+        };
+    }
+
+    _unwireHandleDnD() {
+        const entry = this._handleDnDHandlers;
+        if (!entry) return;
+        Object.keys(entry.handlers).forEach((evt) => {
+            entry.dom.removeEventListener(evt, entry.handlers[evt]);
+        });
+        this._handleDnDHandlers = null;
     }
 
     _mountChrome() {

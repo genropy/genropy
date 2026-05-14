@@ -539,21 +539,6 @@ body.drag_started .grouplet_grid_container {
     cursor: grabbing;
 }
 
-/* Block pointer-events on tile content during an active drag so the
-   drop hits the tile sourceNode's declarative dropTarget rather than
-   nested widgets (inputs, inner grouplets, etc.). The drag handle
-   keeps pointer-events so dragstart can fire on it. Nested grids and
-   their own tiles stay clickable so a contact tile inside a person
-   tile keeps receiving dragover (test_7 — nested contacts). */
-body.drag_started .grouplet_grid_row > *:not(.grouplet_grid_row_drag) {
-    pointer-events: none;
-}
-body.drag_started .grouplet_grid_row_drag,
-body.drag_started .grouplet_grid_row .grouplet_grid,
-body.drag_started .grouplet_grid_row .grouplet_grid_row {
-    pointer-events: auto;
-}
-
 /* Drag image clone: a snapshot of the row wrapper is appended to
    #auxDragImage on dragstart, passed to setDragImage, then removed on
    next tick. The browser captures the snapshot synchronously, so the
