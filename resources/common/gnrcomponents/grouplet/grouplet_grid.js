@@ -2389,75 +2389,31 @@ gnr.GroupletGridController = class GroupletGridController {
 };
 
 
-// ============================================================================
-//  gnr.GroupletGridTile — view manager for a single item
-//
-//  Long-lived instance, one per `pkey` in the controller's `tiles` registry.
-//  Owns the DOM wrapper, the chrome (delete `×`, kebab `⋮`, drag handle), and
-//  the body (cloned grouplet template grafted into the wrapper). Acts as a
-//  proxy/façade on two planes:
-//
-//    - View side: `domNode()`, `content()`, `freeze`/`unfreeze`, class mgmt.
-//      Wraps the wrapper sourceNode created in `_mountWrapper`.
-//    - Model side: `itemNode()`, `itemData()`, `getField`/`setField`.
-//      Resolves the corresponding item in the controller's storebag.
-//
-//  Lifecycle:
-//    new Tile(controller, pkey)  → identity set, nothing mounted.
-//    tile.mount(position)        → resolve template + decorations, mount
-//                                  wrapper into bodyContent at `position`,
-//                                  freeze/graft template/unfreeze.
-//    tile.rebuild()              → destroy body (chrome survives) and re-mount
-//                                  body — use when the template changes
-//                                  (resourceField swap).
-//    tile.unmount()              → tear down DOM via popNode on the body Bag.
-//
-//  What this class does NOT own (controller responsibilities):
-//    - Tile insertion position (controller knows the global registry).
-//    - Tab chip lifecycle (chip lives in the global tab strip).
-//    - DnD wiring (`_wireTileDnD` on the controller, called from `onCreated`).
-//    - Struct chrome sync (controller-global).
-//    - Pending flash / pending activate (transient controller state).
-//
-//  Reference patterns:
-//    - `gnr.RowEditor` (genro_wdg.js:658) — long-lived row state, the
-//      attribute-based dirty tracking we'll adopt later (`_loadedValue`,
-//      `_validationError`, `_newrecord`).
-// ============================================================================
+// gnr.GroupletGridTile — long-lived view manager for one item.
+// One instance per pkey in controller.tiles. Owns wrapper + chrome + body.
+// Created/destroyed by controller._renderTile / _destroyTile via the
+// gnr_storepath dispatcher. See mount() for the construction sequence.
 
 gnr.GroupletGridTile = class GroupletGridTile {
 
     constructor(controller, pkey) {
-        // Identity
         this.controller = controller;
         this.pkey = pkey;
         this.tileLabel = '_grtile_' + pkey;
         this.tileNodeId = '__grpgridtile__' + controller.nodeId + '__' + pkey;
-
-        // Template metadata (resolved at mount)
         this.templateKey = null;
         this.templateSource = null;
-
-        // DOM / sourceNode (populated by `_mountWrapper`)
-        this.tileNode = null;       // wrapper sourceNode
-        this.tileContent = null;    // wrapper inner Bag (view structure)
-        this.tileDom = null;        // wrapper DOM element (set on onCreated)
-
-        // Lifecycle state
+        this.tileNode = null;
+        this.tileContent = null;
+        this.tileDom = null;
         this.mounted = false;
         this.isActive = false;
         this.isDragging = false;
-
-        // Decorations snapshot (resolved at mount; see `_resolveDecorations`)
         this.hasDelete = false;
         this.editmenuSpec = null;
         this.dragEnabled = false;
-
-        // Position (snapshot for re-render)
         this.position = null;
     }
-
-    // ── lifecycle ───────────────────────────────────────────────────────────
 
     mount(position) {
         this.position = position || null;
@@ -2472,10 +2428,8 @@ gnr.GroupletGridTile = class GroupletGridTile {
     }
 
     rebuild() {
-        // Re-render the body in place. Chrome (delete, kebab, drag handle)
-        // survives because it sits in the same tileContent but we rebuild
-        // it too — simpler and idempotent. The wrapper sourceNode itself
-        // and the DnD listeners stay intact.
+        // Re-render body + chrome in place; wrapper sourceNode and DnD
+        // listeners are preserved. Used on resourceField swap.
         if (!this.mounted) return;
         this.tileNode.freeze();
         this._destroyChrome();
@@ -2488,9 +2442,6 @@ gnr.GroupletGridTile = class GroupletGridTile {
     }
 
     unmount() {
-        // Triggered popNode on the body's source Bag: framework tears down
-        // the wrapper dijit and removes the DOM subtree. Children dijits are
-        // destroyed by the framework via the `_trigger_data` `del` cascade.
         const bodyContent = this.controller.bodyNode.getValue('static');
         bodyContent.popNode(this.tileLabel);
         this.mounted = false;
@@ -2501,21 +2452,7 @@ gnr.GroupletGridTile = class GroupletGridTile {
         this.isDragging = false;
     }
 
-    // ── state ───────────────────────────────────────────────────────────────
-
-    activate() {
-        this.isActive = true;
-        this.addClass('gg-tab-active');
-    }
-
-    deactivate() {
-        this.isActive = false;
-        this.removeClass('gg-tab-active');
-    }
-
     flash() {
-        // Just-dropped flash: CSS handles the fade via `transition`. We just
-        // toggle the class on/off with a fixed delay.
         const dom = this.domNode();
         if (!dom) return;
         dom.classList.add('gg-just-dropped');
@@ -2526,32 +2463,18 @@ gnr.GroupletGridTile = class GroupletGridTile {
         }, 260);
     }
 
-    addClass(cls)        { const d = this.domNode(); if (d) d.classList.add(cls); }
-    removeClass(cls)     { const d = this.domNode(); if (d) d.classList.remove(cls); }
-    toggleClass(cls, on) { const d = this.domNode(); if (d) d.classList.toggle(cls, on); }
-
-    // ── sourceNode proxy (view side) ────────────────────────────────────────
-
-    sourceNode()    { return this.tileNode; }
-    content()       { return this.tileNode && this.tileNode.getValue(); }
-    getValue()      { return this.content(); }
     domNode() {
-        // Prefer the cached `tileDom` (set in `onCreated`). Fallback through
-        // the sourceNode in case `domNode()` is called before the framework
-        // has fired `onCreated` for this wrapper.
         if (this.tileDom) return this.tileDom;
         const live = this.tileNode && genro.nodeById(this.tileNodeId);
         const dom = live && live.getDomNode && live.getDomNode();
         if (dom) this.tileDom = dom;
         return dom || null;
     }
-    freeze()        { this.tileNode && this.tileNode.freeze(); }
-    unfreeze()      { this.tileNode && this.tileNode.unfreeze(); }
-    getRelativeData(path)        { return this.tileNode && this.tileNode.getRelativeData(path); }
-    setRelativeData(path, value) { return this.tileNode && this.tileNode.setRelativeData(path, value); }
 
-    // ── item proxy (model side) ─────────────────────────────────────────────
+    freeze()   { this.tileNode && this.tileNode.freeze(); }
+    unfreeze() { this.tileNode && this.tileNode.unfreeze(); }
 
+    // Model-side accessors — anticipate the pseudoForm / microform layer.
     itemNode() {
         const bag = this.controller.storebag();
         if (!(bag instanceof gnr.GnrBag)) return null;
@@ -2562,30 +2485,13 @@ gnr.GroupletGridTile = class GroupletGridTile {
         const value = node && node.getValue();
         return (value instanceof gnr.GnrBag) ? value : null;
     }
-    getField(name) {
-        const data = this.itemData();
-        return data ? data.getItem(name) : undefined;
-    }
-    setField(name, value, attr) {
-        const data = this.itemData();
-        if (data) data.setItem(name, value, attr);
-    }
-
-    // ── internal: mount helpers ─────────────────────────────────────────────
 
     _resolveTemplate() {
-        // Multi-template support (Item 13): the template key is picked from
-        // the row data via `_templateKeyForItem`. Today defaults to
-        // `__default__`. Callers route through `_ensureTemplate`, so the
-        // template is always primed by the time we land here.
         this.templateKey = this.controller._templateKeyForItem(this.pkey);
         this.templateSource = this.controller.templateSources[this.templateKey];
     }
 
     _resolveDecorations() {
-        // Snapshot the controller-level decoration flags at mount time. They
-        // are level-controller (not per-tile) today, but caching here keeps
-        // future per-tile overrides easy to introduce.
         const c = this.controller;
         this.hasDelete = !!c.delitem;
         this.dragEnabled = !!c.dragCode;
@@ -2595,11 +2501,9 @@ gnr.GroupletGridTile = class GroupletGridTile {
     }
 
     _mountWrapper() {
-        // In tabs mode pre-stamp `gg-tab-active` on the wrapper when this
-        // tile is the active one, so the wrapper is born visible. Without
-        // this, every wrapper would mount under `display:none` and nested
-        // widgets inside the first-active panel would build in a detached
-        // layout context.
+        // Pre-stamp `gg-tab-active` when this tile is the active one in
+        // tabs mode: without this the wrapper mounts under display:none
+        // and nested widgets build in a detached layout context.
         const c = this.controller;
         const pkey = this.pkey;
         let tileClass = 'grouplet_grid_row';
@@ -2615,9 +2519,8 @@ gnr.GroupletGridTile = class GroupletGridTile {
             connect_onclick: function() { c.selectTile(pkey); }
         };
         // onCreated runs after the DOM is mounted — the right place to
-        // attach the drag handle (no timing hack needed). The handle is
-        // a leaf <div> with no widget logic, so we append plain HTML
-        // directly and wire native HTML5 DnD listeners on the wrapper.
+        // attach the drag handle (no timing hack). HTML5-native DnD is
+        // wired by the controller on the wrapper itself.
         if (this.dragEnabled) {
             tileKw.onCreated = function(domnode) {
                 const tileDom = domnode.sourceNode
@@ -2647,8 +2550,6 @@ gnr.GroupletGridTile = class GroupletGridTile {
         this.tileContent = this.tileNode.getValue();
     }
 
-    // ── chrome (tools) ──────────────────────────────────────────────────────
-
     _mountChrome() {
         this._mountDelete();
         this._mountKebab();
@@ -2667,9 +2568,6 @@ gnr.GroupletGridTile = class GroupletGridTile {
     }
 
     _mountDelete() {
-        // Top-right `×` delete button (Item 10 affordance). Enabled by
-        // `delitem=True`. Always sits on top of the kebab and the body
-        // content via CSS absolute positioning.
         if (!this.hasDelete) return;
         const c = this.controller;
         const pkey = this.pkey;
@@ -2680,8 +2578,8 @@ gnr.GroupletGridTile = class GroupletGridTile {
             connect_onclick: "genro.publish('" + topic + "',"
                             + "{action:'delete',rowKey:'" + pkey + "'});"
         }, c.delitemKw || {});
-        // Author-provided extra _class is merged additively.
         if (c.delitemKw && c.delitemKw._class) {
+            // additive merge: keep base class.
             delKw._class = 'grouplet_grid_row_delete '
                          + c.delitemKw._class;
         }
@@ -2691,25 +2589,15 @@ gnr.GroupletGridTile = class GroupletGridTile {
     }
 
     _mountKebab() {
-        // Per-row kebab menu — `<div>` target with a child `<menu>`. The
-        // Python side pre-resolves `editmenu` to a dict whose keys are
-        // entry identifiers ('addPrev', 'addNext', 'delete', or anything
-        // custom) and whose values are:
-        //   True   → use the built-in preset for that key
-        //   string → custom label, action derived from preset key
-        //   dict   → full menuline spec (label, action, ...)
-        // An empty dict means "no kebab".
-        // Reference: genro_components.js:497 (multivalue dlg) for the
-        // inline `_('menu', {modifiers:'*', ...})` shape.
+        // editmenu is a dict {entryKey: True | 'label' | {label,action,...}}.
+        // True → built-in preset (addPrev/addNext/delete).
+        // string → preset + label override.
+        // dict → preset + dict merge (custom action allowed).
         const editmenu = this.editmenuSpec;
         if (!editmenu) return;
         const c = this.controller;
         const pkey = this.pkey;
         const topic = c.actionTopic;
-        // Preset entries: keyed by the same identifiers the Python side
-        // emits ('addPrev', 'addNext', 'delete'). Each returns a
-        // menuline-ready spec (label + action publishing on the
-        // controller's action topic).
         const presets = {
             addPrev: {
                 label: _T('!!Add prev'),
@@ -2754,7 +2642,7 @@ gnr.GroupletGridTile = class GroupletGridTile {
             const preset = presets[entryKey] || null;
             let spec;
             if (raw === true) {
-                if (!preset) return;        // unknown key, no preset
+                if (!preset) return;
                 spec = preset;
             } else if (typeof raw === 'string') {
                 spec = objectUpdate({}, preset || {});
@@ -2768,15 +2656,10 @@ gnr.GroupletGridTile = class GroupletGridTile {
         });
     }
 
-    // ── body (grouplet template) ────────────────────────────────────────────
-
     _mountBody() {
-        // Clone the template — every tile owns its own copy. Auto-generated
-        // nodeIds (those starting with `grpgrid_`, used by the framework
-        // itself for action-topic routing of nested groupletGrids) get
-        // namespaced so each tile's clone has a unique container nodeId.
-        // Author-supplied nodeIds are left untouched: it's the author's
-        // responsibility to make them unique if they need to be referenced.
+        // Deep-copy the template — every tile owns its own. Auto-generated
+        // framework nodeIds (`grpgrid_*`) get namespaced so each tile's
+        // clone is unique; author-supplied nodeIds are left untouched.
         const cloned = this.templateSource.deepCopy();
         this.controller._namespaceFrameworkNodeIds(cloned, this.pkey);
         cloned.getNodes().forEach((n) => {
@@ -2785,9 +2668,8 @@ gnr.GroupletGridTile = class GroupletGridTile {
     }
 
     _destroyBody() {
-        // Remove all body-grafted children, keeping the wrapper + chrome
-        // children (`_grtile_del_*`, `_grtile_kebab_*`). The body children
-        // are everything else inside `tileContent`.
+        // Pop everything except the chrome children (`_grtile_del_*` /
+        // `_grtile_kebab_*`).
         if (!this.tileContent) return;
         const delLabel = '_grtile_del_' + this.pkey;
         const kebabLabel = '_grtile_kebab_' + this.pkey;
