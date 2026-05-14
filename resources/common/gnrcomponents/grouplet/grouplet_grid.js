@@ -362,6 +362,259 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
 
 
 // ============================================================================
+//  GroupletDataStore — widget data model
+// ============================================================================
+//
+// Single funnel between the controller and the rows Bag. The controller
+// never touches `genro.getData(storepath)` / `bag.popNode` / `bag.setItem`
+// directly; it talks to `this.dataStore.X()`.
+//
+// Phase 1 (current): mode 'internal' only — wraps the storepath Bag.
+// Filter/sort/lock/changes APIs are stubbed with console.warn so callers
+// that creep in early are visible.
+//
+// Phase 2 will add mode 'proxy' (sibling BagStore / ValuesBagRows) and
+// 'adapter' (AttributesBagRows / dataSelection). The controller-facing
+// surface stays the same; only the dispatch internals change.
+//
+// See docs/groupletgrid_store_integration.html for the full design.
+
+gnr.GroupletDataStore = class GroupletDataStore {
+
+    constructor(controller, kw) {
+        this.controller = controller;
+        this.storepath = kw.storepath;
+        this.identifier = kw.identifier || null;
+        this._filtered = null;
+        this._sortedBy = null;
+    }
+
+    // === Read ===
+
+    bag() {
+        return genro.getData(this.storepath);
+    }
+
+    ensureBag() {
+        // Nested grids inside a freshly-created parent record may have
+        // no rows Bag yet; materialise it on demand.
+        let b = this.bag();
+        if (!(b instanceof gnr.GnrBag)) {
+            b = new gnr.GnrBag();
+            genro.setData(this.storepath, b);
+        }
+        return b;
+    }
+
+    getNodes() {
+        // Phase 1: forwards bag().getNodes() (visual order == Bag order).
+        // Phase 2 will apply `_filtered` / sort transparently — same
+        // convention as gnr.Grid using storebag().getNodes() throughout.
+        const b = this.bag();
+        return (b instanceof gnr.GnrBag) ? b.getNodes() : [];
+    }
+
+    rowNode(rowKey) {
+        const b = this.bag();
+        return (b instanceof gnr.GnrBag) ? b.getNode(rowKey) : null;
+    }
+
+    rowValue(rowKey) {
+        const b = this.bag();
+        return (b instanceof gnr.GnrBag) ? b.getItem(rowKey) : null;
+    }
+
+    rowField(rowKey, field) {
+        return genro.getData(this.storepath + '.' + rowKey + '.' + field);
+    }
+
+    rowByIndex(idx) {
+        const nodes = this.getNodes();
+        const n = nodes[idx];
+        if (!n) return null;
+        const v = n.getValue();
+        return v instanceof gnr.GnrBag ? v.asDict() : {};
+    }
+
+    len() {
+        const b = this.bag();
+        return (b instanceof gnr.GnrBag) ? b.len() : 0;
+    }
+
+    keyForRow(rowKey) {
+        return rowKey;
+    }
+
+    indexOfKey(rowKey) {
+        const b = this.bag();
+        return (b instanceof gnr.GnrBag && b.index) ? b.index(rowKey) : -1;
+    }
+
+    // === Mutate ===
+
+    addRow(rowKey, data, position) {
+        const dataBag = this.ensureBag();
+        const rowBag = new gnr.GnrBag();
+        const merged = objectUpdate({}, data || {});
+        Object.keys(merged).forEach((k) => rowBag.setItem(k, merged[k]));
+        if (!position) {
+            dataBag.setItem(rowKey, rowBag);
+            return;
+        }
+        const first = position.charAt(0);
+        const hasSign = (first === '<' || first === '>');
+        const sign = hasSign ? first : '>';
+        const targetKey = hasSign ? position.substring(1) : position;
+        dataBag.setItem(rowKey, rowBag, null, {_position: sign + targetKey});
+    }
+
+    removeRow(rowKey) {
+        const b = this.bag();
+        if (b instanceof gnr.GnrBag) b.popNode(rowKey);
+    }
+
+    deleteRowAsk(rowKey) {
+        const that = this;
+        genro.dlg.ask(
+            _T('!!Delete this row?'),
+            _T('!!This row will be removed. Continue?'),
+            {confirm: _T('!!Delete'), cancel: _T('!!Cancel')},
+            {confirm: () => that.controller._doDeleteItem(rowKey)}
+        );
+    }
+
+    moveRow(rowKey, position) {
+        // Splice the Bag's _nodes array in place: no del/ins triggers
+        // fire, so nested widgets whose datapath is anchored to the
+        // moved row (e.g. inner groupletGrids on `.contacts`) keep a
+        // valid parent chain. DOM mirroring is the controller's job.
+        if (typeof position !== 'string') return null;
+        const op = position.charAt(0);
+        if (op !== '<' && op !== '>') return null;
+        const targetKey = position.slice(1);
+        const bag = this.bag();
+        if (!(bag instanceof gnr.GnrBag)) return null;
+        const nodes = bag._nodes;
+        const fromIdx = nodes.findIndex((n) => n.label === rowKey);
+        const targetIdx = nodes.findIndex((n) => n.label === targetKey);
+        if (fromIdx < 0 || targetIdx < 0 || fromIdx === targetIdx) return null;
+        const [moved] = nodes.splice(fromIdx, 1);
+        let insertAt = nodes.findIndex((n) => n.label === targetKey);
+        if (op === '>') insertAt += 1;
+        nodes.splice(insertAt, 0, moved);
+        return {op: op, targetKey: targetKey};
+    }
+
+    moveRowFrom(srcStore, srcKey, position, forceKey) {
+        // Cross-grid migration. `forceKey` lets the caller pre-commit
+        // the destination key (so e.g. _pendingFlash can be set before
+        // the setItem trigger fires _renderTile).
+        const sourceBag = srcStore.bag();
+        const targetBag = this.ensureBag();
+        const node = sourceBag.getNode(srcKey);
+        if (!node) return null;
+        const rowValue = node.getValue();
+        const rowAttrs = node.getAttr() || {};
+        let targetRowKey = forceKey || srcKey;
+        if (!forceKey && targetBag.getNode(targetRowKey)) {
+            targetRowKey = genro.time36Id();
+        }
+        sourceBag.popNode(srcKey);
+        const setKw = position ? {_position: position} : {};
+        targetBag.setItem(targetRowKey, rowValue, rowAttrs, setKw);
+        return targetRowKey;
+    }
+
+    updateRow(rowKey, dict) {
+        // Grid-store-shaped `updateRowNode`: patch N fields atomically
+        // with `editedRowIndex` in the doTrigger so the changeManager's
+        // rowLogger can cascade formula/totalize recalcs.
+        const rowNode = this.rowNode(rowKey);
+        if (!rowNode) return;
+        const rowData = rowNode.getValue();
+        if (!(rowData instanceof gnr.GnrBag)) return;
+        const idx = this.indexOfKey(rowKey);
+        for (const k in dict) {
+            if (!rowData.getNode(k, 'static')) {
+                rowData.setItem(k, null, null, {doTrigger: false});
+            }
+            rowData.setItem(k, dict[k], null,
+                {doTrigger: {editedRowIndex: idx}, lazySet: true});
+        }
+    }
+
+    // === GridChangeManager bridge (store-shaped wrapper) ===
+    // The literal `collectionStore()` used to expose exactly these names;
+    // keeping them lets `cmGrid.collectionStore = () => this.dataStore`
+    // drop in unchanged.
+
+    updateRowNode(rowNode, updDict) {
+        if (!rowNode) return;
+        this.updateRow(rowNode.label, updDict);
+    }
+
+    sum(field, strict) {
+        const b = this.bag();
+        return (b instanceof gnr.GnrBag) ? b.sum(field, strict) : 0;
+    }
+
+    getIdxFromPkey(pkey) {
+        return this.indexOfKey(pkey);
+    }
+
+    // === Phase 2 stubs — visible if any path uses them today ===
+
+    setFilter(_cb) {
+        console.warn('[GroupletDataStore] setFilter() — Phase 2');
+    }
+
+    clearFilter() {
+        console.warn('[GroupletDataStore] clearFilter() — Phase 2');
+    }
+
+    setSort(_spec) {
+        console.warn('[GroupletDataStore] setSort() — Phase 2');
+    }
+
+    clearSort() {
+        console.warn('[GroupletDataStore] clearSort() — Phase 2');
+    }
+
+    isFiltered() {
+        return false;
+    }
+
+    refresh() {
+        // no-op until filter/sort state exists
+    }
+
+    hasChanges() {
+        console.warn(
+            '[GroupletDataStore] hasChanges() requires an external '
+            + 'store (Phase 2)');
+        return false;
+    }
+
+    hasErrors() {
+        console.warn(
+            '[GroupletDataStore] hasErrors() requires an external '
+            + 'store (Phase 2)');
+        return false;
+    }
+
+    setLocked(_v) {
+        console.warn(
+            '[GroupletDataStore] setLocked() requires an external '
+            + 'store (Phase 2)');
+    }
+
+    isLocked() {
+        return false;
+    }
+};
+
+
+// ============================================================================
 //  GroupletGridController
 // ============================================================================
 
@@ -402,6 +655,10 @@ gnr.GroupletGridController = class GroupletGridController {
         this.counterField = kw.counterField || null;
         this.dragCode = kw.dragCode || null;
         this.dnd = this.dragCode ? new gnr.GroupletGridDnD(this) : null;
+        this.dataStore = new gnr.GroupletDataStore(this, {
+            storepath: this.storepath,
+            identifier: kw.identifier || null
+        });
         this._chipDnDHandlers = {};
         this.layout = kw.layout || 'cards';
         this.titleField = kw.titleField || null;
@@ -450,7 +707,7 @@ gnr.GroupletGridController = class GroupletGridController {
     // ====================================================================
 
     storebag() {
-        return genro.getData(this.storepath);
+        return this.dataStore.bag();
     }
 
     _containerDom() {
@@ -458,38 +715,10 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     collectionStore() {
-        // Minimal store-shaped wrapper required by GridChangeManager
-        // (`updateRowNode` is a Grid-store method, not a GnrBag one).
-        const bag = this.storebag();
-        if (!bag) return null;
-        return {
-            _bag: bag,
-            updateRowNode: function(rowNode, updDict) {
-                const rowData = rowNode.getValue();
-                if (!(rowData instanceof gnr.GnrBag)) return;
-                const idx = bag.index ? bag.index(rowNode.label) : null;
-                for (const k in updDict) {
-                    if (!rowData.getNode(k, 'static')) {
-                        rowData.setItem(k, null, null, {doTrigger: false});
-                    }
-                    rowData.setItem(k, updDict[k], null,
-                        {doTrigger: {editedRowIndex: idx}, lazySet: true});
-                }
-            },
-            sum: function(field, strict) {
-                return bag.sum(field, strict);
-            },
-            getIdxFromPkey: function(pkey) {
-                return bag.index ? bag.index(pkey) : null;
-            },
-            rowByIndex: function(idx) {
-                const nodes = bag.getNodes();
-                const n = nodes[idx];
-                if (!n) return null;
-                const v = n.getValue();
-                return v instanceof gnr.GnrBag ? v.asDict() : {};
-            }
-        };
+        // GridChangeManager expects a store-shaped object with
+        // updateRowNode / sum / getIdxFromPkey / rowByIndex; the
+        // dataStore exposes exactly these names.
+        return this.dataStore.bag() ? this.dataStore : null;
     }
 
     rowFromBagNode(rowNode, _includeAttrs) {
@@ -1109,18 +1338,15 @@ gnr.GroupletGridController = class GroupletGridController {
             that._activateTab(pkey);
         });
         // Insert before the next mounted sibling chip (Bag order).
-        const bag = this.storebag();
         let inserted = false;
-        if (bag instanceof gnr.GnrBag) {
-            const allKeys = bag.getNodes().map((n) => n.label);
-            const idx = allKeys.indexOf(pkey);
-            for (let j = idx + 1; j < allKeys.length; j++) {
-                if (this._tabsByPkey[allKeys[j]]) {
-                    this.tabstripDom.insertBefore(
-                        chip, this._tabsByPkey[allKeys[j]]);
-                    inserted = true;
-                    break;
-                }
+        const allKeys = this.dataStore.getNodes().map((n) => n.label);
+        const idx = allKeys.indexOf(pkey);
+        for (let j = idx + 1; j < allKeys.length; j++) {
+            if (this._tabsByPkey[allKeys[j]]) {
+                this.tabstripDom.insertBefore(
+                    chip, this._tabsByPkey[allKeys[j]]);
+                inserted = true;
+                break;
             }
         }
         if (!inserted) this.tabstripDom.appendChild(chip);
@@ -1253,24 +1479,13 @@ gnr.GroupletGridController = class GroupletGridController {
     // ====================================================================
 
     _doMoveTile(pkey, position) {
-        // Reorder by splicing the Bag's _nodes array in place: no del/ins
-        // triggers fire, so nested widgets whose datapath is anchored to
-        // the moved row (e.g. inner groupletGrids on `.contacts`) keep
-        // a valid parent chain. The corresponding tile DOM is moved
-        // manually to mirror the new Bag order.
-        if (typeof position !== 'string') return;
-        const op = position.charAt(0);
-        if (op !== '<' && op !== '>') return;
-        const targetKey = position.slice(1);
-        const bag = this.storebag();
-        const nodes = bag._nodes;
-        const fromIdx = nodes.findIndex((n) => n.label === pkey);
-        const targetIdx = nodes.findIndex((n) => n.label === targetKey);
-        if (fromIdx < 0 || targetIdx < 0 || fromIdx === targetIdx) return;
-        const [moved] = nodes.splice(fromIdx, 1);
-        let insertAt = nodes.findIndex((n) => n.label === targetKey);
-        if (op === '>') insertAt += 1;
-        nodes.splice(insertAt, 0, moved);
+        // dataStore.moveRow splices the Bag's _nodes in place (no del/ins
+        // triggers) so nested widgets keep a valid datapath chain; the
+        // tile/chip DOM is mirrored here.
+        const move = this.dataStore.moveRow(pkey, position);
+        if (!move) return;
+        const op = move.op;
+        const targetKey = move.targetKey;
         // Move the tile DOM in the body to mirror the new Bag order.
         const movedDom = this.tiles[pkey] && this.tiles[pkey].domNode();
         if (movedDom && movedDom.parentNode) {
@@ -1306,20 +1521,15 @@ gnr.GroupletGridController = class GroupletGridController {
         // Cross-instance migration. The guard catches the browser quirk
         // where a self-drop is misrouted to the source controller.
         if (sourceCtrl === this) return;
-        const sourceBag = sourceCtrl.storebag();
-        const targetBag = this.storebag();
-        const node = sourceBag.getNode(sourceRowKey);
-        const rowValue = node.getValue();
-        const rowAttrs = node.getAttr() || {};
-        let targetRowKey = sourceRowKey;
-        if (targetBag.getNode(targetRowKey)) {
-            targetRowKey = genro.time36Id();
-        }
+        // Pre-commit the target key so _pendingFlash is set before the
+        // setItem trigger fires _renderTile.
+        const targetBag = this.dataStore.bag();
+        const targetRowKey = (targetBag && targetBag.getNode(sourceRowKey))
+            ? genro.time36Id() : sourceRowKey;
         this._pendingFlash = this._pendingFlash || {};
         this._pendingFlash[targetRowKey] = true;
-        sourceBag.popNode(sourceRowKey);
-        const setKw = targetPosition ? {_position: targetPosition} : {};
-        targetBag.setItem(targetRowKey, rowValue, rowAttrs, setKw);
+        this.dataStore.moveRowFrom(
+            sourceCtrl.dataStore, sourceRowKey, targetPosition, targetRowKey);
     }
 
     _flashTile(pkey) {
@@ -1336,15 +1546,12 @@ gnr.GroupletGridController = class GroupletGridController {
     // ====================================================================
 
     _fullSync() {
-        const bag = this.storebag();
         const presentKeys = {};
         const toAdd = [];
-        if (bag instanceof gnr.GnrBag) {
-            bag.getNodes().forEach((node) => {
-                presentKeys[node.label] = true;
-                if (!this.tiles[node.label]) toAdd.push(node.label);
-            });
-        }
+        this.dataStore.getNodes().forEach((node) => {
+            presentKeys[node.label] = true;
+            if (!this.tiles[node.label]) toAdd.push(node.label);
+        });
         Object.keys(this.tiles).forEach((pkey) => {
             if (!presentKeys[pkey]) this._destroyTile(pkey);
         });
@@ -1375,9 +1582,7 @@ gnr.GroupletGridController = class GroupletGridController {
         // Insert before the next already-mounted sibling, else append.
         // Works uniformly for all sources of 'ins' (action handlers,
         // DnD, external setItem).
-        const bag = this.storebag();
-        if (!(bag instanceof gnr.GnrBag)) return undefined;
-        const allKeys = bag.getNodes().map((n) => n.label);
+        const allKeys = this.dataStore.getNodes().map((n) => n.label);
         const idx = allKeys.indexOf(pkey);
         for (let j = idx + 1; j < allKeys.length; j++) {
             if (this.tiles[allKeys[j]]) {
@@ -1490,47 +1695,22 @@ gnr.GroupletGridController = class GroupletGridController {
 
     _doAddItem(position, defaults) {
         if (this.maxRows && this._rowCount() >= this.maxRows) return;
-        // Materialise the rows Bag if missing (nested grids inside a
-        // freshly-created parent record start with no sub-Bag).
-        let dataBag = this.storebag();
-        if (!(dataBag instanceof gnr.GnrBag)) {
-            dataBag = new gnr.GnrBag();
-            genro.setData(this.storepath, dataBag);
-        }
         const newKey = 'r_' + genro.time36Id();
         // Tabs: the row's _renderTile runs from the gnr_storepath
         // trigger below; _afterTileMounted clears _pendingActivate.
         if (this._isTabsLayout()) this._pendingActivate = newKey;
-        const rowBag = new gnr.GnrBag();
         const merged = objectUpdate({}, this.defaultRow || {});
         objectUpdate(merged, defaults || {});
-        Object.keys(merged).forEach((k) => rowBag.setItem(k, merged[k]));
-        if (!position) {
-            dataBag.setItem(newKey, rowBag);
-            return;
-        }
-        const first = position.charAt(0);
-        const hasSign = (first === '<' || first === '>');
-        const sign = hasSign ? first : '>';
-        const targetKey = hasSign ? position.substring(1) : position;
-        dataBag.setItem(newKey, rowBag, null, {_position: sign + targetKey});
+        this.dataStore.addRow(newKey, merged, position);
     }
 
     _askAndDeleteItem(pkey) {
-        genro.dlg.ask(
-            _T('!!Delete this row?'),
-            _T('!!This row will be removed. Continue?'),
-            {confirm: _T('!!Delete'), cancel: _T('!!Cancel')},
-            {confirm: () => this._doDeleteItem(pkey)}
-        );
+        this.dataStore.deleteRowAsk(pkey);
     }
 
     _doDeleteItem(pkey) {
         if (this._rowCount() <= this.minRows) return;
-        const dataBag = this.storebag();
-        if (dataBag instanceof gnr.GnrBag) {
-            dataBag.popNode(pkey);
-        }
+        this.dataStore.removeRow(pkey);
         if (this.selectedPkey === pkey) {
             this.selectedPkey = null;
         }
@@ -1682,11 +1862,7 @@ gnr.GroupletGridController = class GroupletGridController {
         // Key = sanitised resource_path ('/' → '_'), matching the server
         // keying in gr_getGroupletGridTemplateMap.
         if (!this.resourceField) return '__default__';
-        const bag = this.storebag();
-        if (!(bag instanceof gnr.GnrBag)) return '__default__';
-        const rowNode = bag.getNode(pkey, 'static');
-        if (!rowNode) return '__default__';
-        const rowValue = rowNode.getValue();
+        const rowValue = this.dataStore.rowValue(pkey);
         if (!(rowValue instanceof gnr.GnrBag)) return '__default__';
         const fieldValue = rowValue.getItem(this.resourceField);
         if (!fieldValue) return '__default__';
