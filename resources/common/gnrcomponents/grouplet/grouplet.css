@@ -282,11 +282,11 @@
     min-height: 0;
 }
 
-/* Quando il container ha .gg-responsive (settato dal JS quando l'autore
+/* Quando il container ha .grouplet_grid_responsive (settato dal JS quando l'autore
    ha passato min_width + cols>1), il body diventa una CSS-grid responsiva.
    --gg-cols, --gg-min-width, --gg-gap sono custom properties settate inline
    sul container. */
-.grouplet_grid_container.gg-responsive .grouplet_grid_body {
+.grouplet_grid_container.grouplet_grid_responsive .grouplet_grid_body {
     display: grid;
     gap: var(--gg-gap, 12px);
     grid-template-columns: repeat(auto-fill,
@@ -525,17 +525,29 @@
    reduced opacity) so the user perceives the card as "picked up".
    The shadow goes to the drag-image clone (below); the original
    stays in place but visibly de-emphasized. */
-.grouplet_grid_row.gg-dragging {
+.grouplet_grid_row.draggedItem {
     opacity: 0.5;
     transform: scale(0.98);
     transition: transform 160ms ease, opacity 160ms ease;
 }
 
-/* Container-level cursor when a drag is in progress (set by JS on
-   dragstart / removed on dragend). Gives consistent grabbing cursor
-   across the whole grid surface, not just the handle. */
-.grouplet_grid_container.gg-drag-active {
+/* Container-level cursor while a drag is active. The framework toggles
+   `body.drag_started` on dragstart/dragend (genro_dom.js:1304/1095); we
+   use the ancestor selector so any grouplet_grid inside the page gets
+   the grabbing cursor consistently. */
+body.drag_started .grouplet_grid_container {
     cursor: grabbing;
+}
+
+/* Block pointer-events on tile content during an active drag so the
+   drop hits the tile sourceNode's declarative dropTarget rather than
+   nested widgets (inputs, inner grouplets, etc.). The drag handle
+   keeps pointer-events so dragstart can fire on it. */
+body.drag_started .grouplet_grid_row > *:not(.grouplet_grid_row_drag) {
+    pointer-events: none;
+}
+body.drag_started .grouplet_grid_row_drag {
+    pointer-events: auto;
 }
 
 /* Drag image clone: a snapshot of the row wrapper is appended to
@@ -550,6 +562,18 @@
     background: var(--surface-bg, #fff);
 }
 
+/* Chip drag image: floating preview reads as a "lifted tab" — full
+   rounded radius (not just top, since it's detached from the strip),
+   accent border on every side, and shadow. */
+#auxDragImage > .grouplet_grid_tab {
+    border: 2px solid var(--gg-accent);
+    border-radius: 6px;
+    margin: 0;
+    padding: 6px 10px;
+    background: var(--gg-surface, #fff);
+    box-shadow: var(--shadow-lg, 0 4px 12px rgba(0,0,0,0.2));
+}
+
 /* Struct-mode rows are stripped (no per-row border / radius / bg)
    so they integrate with the container card. The drag-image clone
    lives outside that container — restore enough chrome for the
@@ -559,7 +583,7 @@
    clone instead of pinning to the viewport. `box-sizing:border-box`
    keeps the clone width identical to the source row width (JS sets
    `width = offsetWidth` inline). */
-#auxDragImage > .gg-struct-drag-clone {
+#auxDragImage > .grouplet_grid_struct_drag_clone {
     position: relative;
     box-sizing: border-box;
     border: 1px solid var(--border-color, #e5e7eb);
@@ -575,15 +599,15 @@
    "this is the receiver". Same visual language as :focus-within and
    .selected, just amplified. Transition is on the row so it eases in
    smoothly when dragover enters and back out on dragleave. */
-.grouplet_grid_row.gg-drop-target,
-.grouplet_grid_row.gg-drop-target-invalid {
+.grouplet_grid_row.canBeDropped,
+.grouplet_grid_row.cannotBeDropped {
     transform: scale(1.015);
     box-shadow: var(--shadow-md, 0 2px 8px rgba(0,0,0,0.08));
     transition: transform 200ms ease, box-shadow 200ms ease,
                 background-color 200ms ease, border-color 200ms ease;
 }
 
-.grouplet_grid_row.gg-drop-target {
+.grouplet_grid_row.canBeDropped {
     background: var(--gg-accent-soft);
     border: 2px solid var(--gg-accent);
 }
@@ -592,7 +616,7 @@
    another isolated grid). Same enlargement language but in danger
    tones, plus a not-allowed cursor. The drop handler rejects the
    payload silently. */
-.grouplet_grid_row.gg-drop-target-invalid {
+.grouplet_grid_row.cannotBeDropped {
     background: var(--gg-danger-soft);
     border: 2px solid var(--gg-danger);
     cursor: not-allowed;
@@ -603,7 +627,7 @@
    the drop, then transitions back to its normal state. Transitions
    (defined on `.grouplet_grid_row` itself) handle the easing — no
    keyframes, no bounce. Cleared by JS after ~260ms. */
-.grouplet_grid_row.gg-just-dropped {
+.grouplet_grid_row.grouplet_grid_just_dropped {
     background: var(--gg-accent-soft);
     border-color: var(--gg-accent);
     transition: background-color 260ms ease-out,
@@ -613,13 +637,13 @@
 /* --- Container drop target ---
    The whole grid container becomes a drop accepter when the cursor is
    over free space (no row underneath). Two scenarios:
-     - empty grid → drop anywhere on the container = the first row;
+     - empty grid → drop anywhere on the body = the first row;
      - past the last row → append at the tail.
-   On dragover we tint the entire container with accent-soft + a solid
-   accent outline so the user sees "this whole grid will accept it".
-   When the cursor is over a row wrapper, the row-level highlight takes
-   over and the container highlight is removed (handled by the JS). */
-.grouplet_grid_container.gg-container-drop-target {
+   The framework applies `.canBeDropped` to the outlined drop target
+   (the body sourceNode here) and `.cannotBeDropped` for foreign-
+   dragCode payloads; the row-level highlight on a hovered tile takes
+   over automatically (single-dispatch event resolution). */
+.grouplet_grid_body.canBeDropped {
     outline: 2px solid var(--gg-accent);
     outline-offset: -2px;
     background: var(--gg-accent-soft);
@@ -905,12 +929,12 @@
     position: relative;
 }
 
-.grouplet_grid_tab:hover:not(.gg-tab-active) {
+.grouplet_grid_tab:hover:not(.grouplet_grid_tab_active) {
     color: var(--gg-text, #374151);
     background: var(--gg-surface);
 }
 
-.grouplet_grid_tab.gg-tab-active {
+.grouplet_grid_tab.grouplet_grid_tab_active {
     color: var(--gg-text, #374151);
     background: var(--gg-surface);
     font-weight: 600;
@@ -1032,14 +1056,21 @@
 }
 
 /* Panels: every row card is mounted as usual, but in tabs mode only
-   the one with `.gg-tab-active` is visible. Hidden panels keep their
+   the one with `.grouplet_grid_tab_active` is visible. Hidden panels keep their
    widgets and subscriptions alive — essential for preserving
    uncommitted edits when the user switches tab. */
 .grouplet_grid--tabs > .grouplet_grid_body > .grouplet_grid_row {
     display: none;
 }
 
-.grouplet_grid--tabs > .grouplet_grid_body > .grouplet_grid_row.gg-tab-active {
+/* In tabs mode the panel is not a "row card" anymore — kill the
+   hover background so only the chip in the strip reacts to hover. */
+.grouplet_grid--tabs > .grouplet_grid_body > .grouplet_grid_row:hover,
+.grouplet_grid--vtabs > .grouplet_grid_body > .grouplet_grid_row:hover {
+    background: var(--gg-surface);
+}
+
+.grouplet_grid--tabs > .grouplet_grid_body > .grouplet_grid_row.grouplet_grid_tab_active {
     display: block;
     border-top: none;
     border-top-left-radius: 0;
@@ -1051,7 +1082,7 @@
    noisy — the chip selection already tells the user what's active.
    Suppress the panel's focus border and outline; keep widget focus
    indication local to the input that has it. */
-.grouplet_grid--tabs > .grouplet_grid_body > .grouplet_grid_row.gg-tab-active:focus-within {
+.grouplet_grid--tabs > .grouplet_grid_body > .grouplet_grid_row.grouplet_grid_tab_active:focus-within {
     border-color: var(--gg-border);
     outline: none;
 }
@@ -1068,24 +1099,25 @@
     cursor: grabbing;
 }
 
-.grouplet_grid_tab.gg-dragging {
+.grouplet_grid_tab.draggedItem {
     opacity: 0.5;
 }
 
-.grouplet_grid_tab.gg-drop-target {
+/* Drop semantics: "insert after target" → highlight on the right edge. */
+.grouplet_grid_tab.canBeDropped {
     background: var(--gg-accent-soft);
     border-bottom-color: var(--gg-accent);
-    box-shadow: inset 2px 0 0 var(--gg-accent);
+    box-shadow: inset -3px 0 0 var(--gg-accent);
 }
 
-.grouplet_grid_tab.gg-drop-target-invalid {
+.grouplet_grid_tab.cannotBeDropped {
     background: var(--gg-danger-soft);
     border-bottom-color: var(--gg-danger);
-    box-shadow: inset 2px 0 0 var(--gg-danger);
+    box-shadow: inset -3px 0 0 var(--gg-danger);
     cursor: not-allowed;
 }
 
-.grouplet_grid_tab.gg-just-dropped {
+.grouplet_grid_tab.grouplet_grid_just_dropped {
     background: var(--gg-accent-soft);
     transition: background 260ms ease-out;
 }
@@ -1145,7 +1177,7 @@
 /* Vertical chips — reset the horizontal-tabs heavy chrome:
    inactive chips are FLAT (no fill, no border, no rounded corners,
    no bottom rule), only the label is rendered. Only the active chip
-   gets the full tab silhouette (see `.gg-tab-active` rule below). */
+   gets the full tab silhouette (see `.grouplet_grid_tab_active` rule below). */
 .grouplet_grid--vtabs > .grouplet_grid_tabbar > .grouplet_grid_tabs > .grouplet_grid_tab {
     max-width: none;
     background: transparent;
@@ -1172,11 +1204,11 @@
     text-align: right;
 }
 
-.grouplet_grid--vtabs > .grouplet_grid_tabbar > .grouplet_grid_tabs > .grouplet_grid_tab:hover:not(.gg-tab-active) {
+.grouplet_grid--vtabs > .grouplet_grid_tabbar > .grouplet_grid_tabs > .grouplet_grid_tab:hover:not(.grouplet_grid_tab_active) {
     background: var(--gg-surface);
 }
 
-.grouplet_grid--vtabs > .grouplet_grid_tabbar > .grouplet_grid_tabs > .grouplet_grid_tab.gg-tab-active {
+.grouplet_grid--vtabs > .grouplet_grid_tabbar > .grouplet_grid_tabs > .grouplet_grid_tab.grouplet_grid_tab_active {
     background: var(--gg-surface);
     border-color: var(--gg-border);
     /* The crucial line: the active chip's right border is painted
@@ -1212,7 +1244,7 @@
    fuses with the active chip (which has `border-right-color:
    var(--gg-surface)`, erasing the tabbar divider for that chip).
    Keep the other three borders + right corners rounded. */
-.grouplet_grid--vtabs > .grouplet_grid_body > .grouplet_grid_row.gg-tab-active {
+.grouplet_grid--vtabs > .grouplet_grid_body > .grouplet_grid_row.grouplet_grid_tab_active {
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
     border-top-right-radius: var(--radius-md);
@@ -1222,16 +1254,16 @@
     margin-left: 0;
 }
 
-/* DnD feedback: chips in vtabs use the right-edge accent instead of
-   the bottom-edge accent used in horizontal tabs. */
-.grouplet_grid--vtabs > .grouplet_grid_tabbar > .grouplet_grid_tabs > .grouplet_grid_tab.gg-drop-target {
-    border-color: var(--gg-accent);
+/* Drop = insert-after: chips stack vertically so the accent sits on
+   the bottom edge (mirror of the right-edge accent in horizontal tabs). */
+.grouplet_grid--vtabs > .grouplet_grid_tabbar > .grouplet_grid_tabs > .grouplet_grid_tab.canBeDropped {
     background: var(--gg-accent-soft);
+    box-shadow: inset 0 -3px 0 var(--gg-accent);
 }
 
-.grouplet_grid--vtabs > .grouplet_grid_tabbar > .grouplet_grid_tabs > .grouplet_grid_tab.gg-drop-target-invalid {
-    border-color: var(--gg-danger);
+.grouplet_grid--vtabs > .grouplet_grid_tabbar > .grouplet_grid_tabs > .grouplet_grid_tab.cannotBeDropped {
     background: var(--gg-danger-soft);
+    box-shadow: inset 0 -3px 0 var(--gg-danger);
 }
 
 /* === struct= mode (Item 12) ===
@@ -1455,15 +1487,15 @@
    scale, no tint, no gap — just a horizontal rule in accent color.
    Invalid state uses the same rule in danger color so the 'no drop'
    state remains visible. */
-.grouplet_grid--struct .grouplet_grid_row.gg-drop-target,
-.grouplet_grid--struct .grouplet_grid_row.gg-drop-target-invalid {
+.grouplet_grid--struct .grouplet_grid_row.canBeDropped,
+.grouplet_grid--struct .grouplet_grid_row.cannotBeDropped {
     transform: none;
     background: transparent;
 }
-.grouplet_grid--struct .grouplet_grid_row.gg-drop-target {
+.grouplet_grid--struct .grouplet_grid_row.canBeDropped {
     box-shadow: inset 0 3px 0 var(--gg-accent);
 }
-.grouplet_grid--struct .grouplet_grid_row.gg-drop-target-invalid {
+.grouplet_grid--struct .grouplet_grid_row.cannotBeDropped {
     box-shadow: inset 0 3px 0 var(--gg-danger);
 }
 
