@@ -397,7 +397,7 @@ gnr.GroupletGridController = class GroupletGridController {
         // requires explicitly passing the same dragCode.
         this.dragCode = kw.dragCode || null;
         this._dragOverRow = null;
-        this._dragHandlesByRow = {};
+        this._dragHandlesByPkey = {};
         // Tabs mode (Item 11): `layout='tabs'` swaps the cards body for
         // a horizontal tab strip with one chip per row. The active tab
         // shows its panel (others get `display:none` — hidden panels
@@ -406,14 +406,14 @@ gnr.GroupletGridController = class GroupletGridController {
         this.layout = kw.layout || 'cards';
         this.titleField = kw.titleField || null;
         this.emptyTitle = kw.emptyTitle || _T('!!Untitled');
-        this.activeRowKey = null;
-        this._tabsByRow = {};         // rowKey -> chip DOM element
-        this._pendingActivate = null; // rowKey to auto-activate on next _addRow
+        this.activePkey = null;
+        this._tabsByPkey = {};         // pkey -> chip DOM element
+        this._pendingActivate = null; // pkey to auto-activate on next _renderTile
         // Row templates are cached per "key" — today always
         // `__default__` (single-template grid) but multi-grouplet
         // mode (Item 13 Parte A) will switch on a `resourceField`
-        // value (e.g. ticket_type). `_addRow` consults the row data
-        // via `_templateKeyForRow` to pick the key.
+        // value (e.g. ticket_type). `_renderTile` consults the row data
+        // via `_templateKeyForItem` to pick the key.
         this.templateSources = {};      // key -> sourceRoot
         this.templateLoading = {};      // key -> [callback, ...]
         // Item 12 changeManager wiring: cellmap is populated by the
@@ -422,7 +422,7 @@ gnr.GroupletGridController = class GroupletGridController {
         this.cellmap = {};
         this._changeMgr = null;
         this._cmNeedsBag = false;
-        this.rows = {};
+        this.tiles = {};
         this._destroyed = false;
         // Single per-instance topic: every action (add, delete, ...) goes
         // through here. Menu items, footer button, programmatic API all
@@ -459,7 +459,7 @@ gnr.GroupletGridController = class GroupletGridController {
         this._destroyed = true;
         this.sourceNode.unregisterSubscription(this.actionTopic);
         this._unwireContainerDnD();
-        Object.keys(this.rows).forEach((rowKey) => this._removeRow(rowKey));
+        Object.keys(this.tiles).forEach((pkey) => this._destroyTile(pkey));
         // Tear down the layout-specific scaffolding (tabbar / footer +
         // any surviving chip subscriptions). Safe regardless of layout.
         this._teardownLayoutAffordances();
@@ -538,7 +538,7 @@ gnr.GroupletGridController = class GroupletGridController {
         // (genro_wdg.js used in calculateFormula:2135).
         //
         // In our world the row's data lives in its sub-Bag (the value),
-        // not in attrs — `setItem(rowKey, Bag(dict(qty=..., price=...)))`
+        // not in attrs — `setItem(pkey, Bag(dict(qty=..., price=...)))`
         // is the canonical seeding shape. The sub-Bag children are the
         // editable fields and we need them as plain keys so
         // `funcApply('return qty*unit_price', pars,...)` resolves names.
@@ -705,7 +705,7 @@ gnr.GroupletGridController = class GroupletGridController {
         //
         // The placeholder is a leaf <div>: built when the container was
         // built, but with no children. `freeze → graft → unfreeze` on a
-        // leaf-empty sourceNode is the same pattern `_addRow` uses for
+        // leaf-empty sourceNode is the same pattern `_renderTile` uses for
         // the row wrapper. The framework treats the cells as fresh
         // inserts, not as updates of pre-existing DOM.
         //
@@ -726,8 +726,8 @@ gnr.GroupletGridController = class GroupletGridController {
         // wrapper — graft the wrapper's inner cells directly into the
         // placeholder instead.
         placeholder.freeze();
-        sourceRoot.getNodes().forEach((wrapperNode) => {
-            const inner = wrapperNode.getValue();
+        sourceRoot.getNodes().forEach((tileNode) => {
+            const inner = tileNode.getValue();
             if (inner instanceof gnr.GnrBag) {
                 inner.getNodes().forEach((cellNode) => {
                     this._graftNode(placeholderContent, cellNode);
@@ -918,7 +918,7 @@ gnr.GroupletGridController = class GroupletGridController {
         if (this._changeMgr) this._changeMgr.grid.cellmap = this.cellmap;
         this.templateSources = {};
         this.templateLoading = {};
-        Object.keys(this.rows).forEach((rowKey) => this._removeRow(rowKey));
+        Object.keys(this.tiles).forEach((pkey) => this._destroyTile(pkey));
         this._mountStructSlots();
         this.newDataStore();
         this._scheduleStructSync();
@@ -1000,7 +1000,7 @@ gnr.GroupletGridController = class GroupletGridController {
         }
         if (!hasBag || bag.len() === 0) {
             // Nothing to render — clear stale tiles if any survived.
-            Object.keys(this.rows).forEach((rowKey) => this._removeRow(rowKey));
+            Object.keys(this.tiles).forEach((pkey) => this._destroyTile(pkey));
             return;
         }
         // Renumber upfront so the initial render already shows the
@@ -1064,14 +1064,14 @@ gnr.GroupletGridController = class GroupletGridController {
             return;
         }
         // parent_lv === 1: add/remove of a whole row.
-        const rowKey = kw.node.label;
-        if (!rowKey) return;
+        const pkey = kw.node.label;
+        if (!pkey) return;
         if (kw.evt === 'ins') {
-            this._ensureTemplate(() => this._addRow(rowKey),
-                                 this._templateKeyForRow(rowKey));
+            this._ensureTemplate(() => this._renderTile(pkey),
+                                 this._templateKeyForItem(pkey));
             this.updateCounterColumn();
         } else if (kw.evt === 'del') {
-            this._removeRow(rowKey);
+            this._destroyTile(pkey);
             this.updateCounterColumn();
         }
     }
@@ -1092,7 +1092,7 @@ gnr.GroupletGridController = class GroupletGridController {
                 // `cur` is the row node; the path from row to changed
                 // leaf must be exactly `<titleField>`.
                 if (leafLabel !== this.titleField) return;
-                const chip = this._tabsByRow[cur.label];
+                const chip = this._tabsByPkey[cur.label];
                 const title = chip && chip.querySelector(
                     ':scope > .grouplet_grid_tab_title');
                 if (title) title.textContent = this._readTabLabel(cur.label);
@@ -1161,16 +1161,16 @@ gnr.GroupletGridController = class GroupletGridController {
             this._buildTabbar(containerDom);
             // Re-add chips for existing rows (relevant when entering
             // tabs mode via setLayout — rows already exist).
-            Object.keys(this.rows).forEach((rowKey) => {
-                this._addTabChip(rowKey);
+            Object.keys(this.tiles).forEach((pkey) => {
+                this._addTabChip(pkey);
             });
             // If at least one row exists and none is currently active,
             // activate the first.
-            const allKeys = Object.keys(this.rows);
-            if (allKeys.length > 0 && !this.activeRowKey) {
+            const allKeys = Object.keys(this.tiles);
+            if (allKeys.length > 0 && !this.activePkey) {
                 this._activateTab(allKeys[0]);
-            } else if (this.activeRowKey && this.rows[this.activeRowKey]) {
-                this._setActiveTabClasses(this.activeRowKey);
+            } else if (this.activePkey && this.tiles[this.activePkey]) {
+                this._setActiveTabClasses(this.activePkey);
             }
         } else {
             this._buildCardsFooter(containerDom);
@@ -1197,11 +1197,11 @@ gnr.GroupletGridController = class GroupletGridController {
         // controller's existing dyn-attr subscription on `storepath`),
         // so the chips themselves carry no listeners beyond click/DnD,
         // which are removed when the DOM is destroyed.
-        this._tabsByRow = {};
+        this._tabsByPkey = {};
         // Strip tab-active class from any surviving row wrapper.
-        Object.keys(this.rows).forEach((rowKey) => {
-            const entry = this.rows[rowKey];
-            const live = entry && genro.nodeById(entry.wrapperNodeId);
+        Object.keys(this.tiles).forEach((pkey) => {
+            const entry = this.tiles[pkey];
+            const live = entry && genro.nodeById(entry.tileNodeId);
             const dom = live && live.getDomNode && live.getDomNode();
             if (dom) dom.classList.remove('gg-tab-active');
         });
@@ -1212,7 +1212,7 @@ gnr.GroupletGridController = class GroupletGridController {
         // runtime. Row panels survive the switch (only layout-specific
         // DOM is rebuilt). Selection is preserved when going from one
         // tabs flavor to another (or cards → tabs/vtabs); going to
-        // cards clears `activeRowKey` since there is no active concept.
+        // cards clears `activePkey` since there is no active concept.
         if (newLayout !== 'cards'
             && newLayout !== 'tabs'
             && newLayout !== 'vtabs') {
@@ -1220,16 +1220,16 @@ gnr.GroupletGridController = class GroupletGridController {
             return;
         }
         if (newLayout === this.layout) return;
-        const prevActive = this.activeRowKey;
+        const prevActive = this.activePkey;
         this._teardownLayoutAffordances();
         this.layout = newLayout;
         if (newLayout === 'cards') {
-            this.activeRowKey = null;
-        } else if (prevActive && this.rows[prevActive]) {
+            this.activePkey = null;
+        } else if (prevActive && this.tiles[prevActive]) {
             // Keep the previously selected row as the active tab if it
             // still exists; the build pass below will install the chip
             // and apply `.gg-tab-active`.
-            this.activeRowKey = prevActive;
+            this.activePkey = prevActive;
         }
         this._buildLayoutAffordances();
     }
@@ -1309,20 +1309,20 @@ gnr.GroupletGridController = class GroupletGridController {
     // ====================================================================
     //
     //  The chip itself is the drag handle in tabs mode (no `⠿` glyph).
-    //  Same data-transfer payload as `_wireRowDnD`, so cross-grid drag
+    //  Same data-transfer payload as `_wireTileDnD`, so cross-grid drag
     //  works between any combination of cards-mode and tabs-mode grids
     //  sharing a `dragCode`. The drop position is always "before the
     //  target chip" — same convention as cards mode.
 
-    _addTabChip(rowKey) {
+    _addTabChip(pkey) {
         if (!this.tabstripDom) return;
-        if (this._tabsByRow[rowKey]) return;
+        if (this._tabsByPkey[pkey]) return;
         const chip = document.createElement('div');
         chip.className = 'grouplet_grid_tab';
-        chip.setAttribute('data-rowkey', rowKey);
+        chip.setAttribute('data-rowkey', pkey);
         const title = document.createElement('div');
         title.className = 'grouplet_grid_tab_title';
-        title.textContent = this._readTabLabel(rowKey);
+        title.textContent = this._readTabLabel(pkey);
         chip.appendChild(title);
         if (this.delitem) {
             const closeBtn = document.createElement('div');
@@ -1333,13 +1333,13 @@ gnr.GroupletGridController = class GroupletGridController {
             closeBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
                 genro.publish(that.actionTopic,
-                    {action: 'delete', rowKey: rowKey});
+                    {action: 'delete', rowKey: pkey});
             });
             chip.appendChild(closeBtn);
         }
         const that0 = this;
         chip.addEventListener('click', function() {
-            that0._activateTab(rowKey);
+            that0._activateTab(pkey);
         });
         // Insert at the correct position relative to existing chips,
         // mirroring the Bag order. The chip strip is always in sync
@@ -1349,11 +1349,11 @@ gnr.GroupletGridController = class GroupletGridController {
         let inserted = false;
         if (bag instanceof gnr.GnrBag) {
             const allKeys = bag.getNodes().map((n) => n.label);
-            const idx = allKeys.indexOf(rowKey);
+            const idx = allKeys.indexOf(pkey);
             for (let j = idx + 1; j < allKeys.length; j++) {
-                if (this._tabsByRow[allKeys[j]]) {
+                if (this._tabsByPkey[allKeys[j]]) {
                     this.tabstripDom.insertBefore(
-                        chip, this._tabsByRow[allKeys[j]]);
+                        chip, this._tabsByPkey[allKeys[j]]);
                     inserted = true;
                     break;
                 }
@@ -1362,64 +1362,64 @@ gnr.GroupletGridController = class GroupletGridController {
         if (!inserted) {
             this.tabstripDom.appendChild(chip);
         }
-        this._tabsByRow[rowKey] = chip;
+        this._tabsByPkey[pkey] = chip;
         if (this.dragCode) {
-            this._wireTabDnD(chip, rowKey);
+            this._wireTabDnD(chip, pkey);
         }
         // Reactive label refresh is handled by `gnr_storepath` →
         // `_maybeRefreshTabLabel` whenever the row's titleField mutates.
         // No per-chip subscription needed.
     }
 
-    _removeTabChip(rowKey) {
-        const chip = this._tabsByRow[rowKey];
+    _removeTabChip(pkey) {
+        const chip = this._tabsByPkey[pkey];
         if (!chip) return;
         if (this.dragCode) {
-            this._unwireTabDnD(rowKey);
+            this._unwireTabDnD(pkey);
         }
         if (chip.parentNode) chip.parentNode.removeChild(chip);
-        delete this._tabsByRow[rowKey];
+        delete this._tabsByPkey[pkey];
     }
 
-    _readTabLabel(rowKey) {
-        if (!this.titleField) return rowKey;
+    _readTabLabel(pkey) {
+        if (!this.titleField) return pkey;
         const v = genro.getData(
-            this.storepath + '.' + rowKey + '.' + this.titleField);
+            this.storepath + '.' + pkey + '.' + this.titleField);
         if (v === undefined || v === null || v === '') {
             return _T(this.emptyTitle);
         }
         return String(v);
     }
 
-    _activateTab(rowKey) {
+    _activateTab(pkey) {
         if (!this._isTabsLayout()) return;
-        if (this.activeRowKey === rowKey) return;
-        this.activeRowKey = rowKey;
-        this._setActiveTabClasses(rowKey);
+        if (this.activePkey === pkey) return;
+        this.activePkey = pkey;
+        this._setActiveTabClasses(pkey);
         // Hook for Item 12 (form swap): publish activation on the action
         // bus. No internal subscriber for now — it is a pure extension
         // point. External listeners can use it (e.g. `+` auto-focus).
         genro.publish(this.actionTopic,
-            {action: 'activate', rowKey: rowKey});
+            {action: 'activate', rowKey: pkey});
     }
 
-    _setActiveTabClasses(activeRowKey) {
+    _setActiveTabClasses(activePkey) {
         // Toggles `.gg-tab-active` on every chip and every row wrapper.
         // Idempotent: safe to call on every render / activation.
-        Object.keys(this._tabsByRow).forEach((rk) => {
-            const chip = this._tabsByRow[rk];
+        Object.keys(this._tabsByPkey).forEach((rk) => {
+            const chip = this._tabsByPkey[rk];
             if (!chip) return;
-            chip.classList.toggle('gg-tab-active', rk === activeRowKey);
+            chip.classList.toggle('gg-tab-active', rk === activePkey);
         });
-        Object.keys(this.rows).forEach((rk) => {
-            const entry = this.rows[rk];
-            const live = entry && genro.nodeById(entry.wrapperNodeId);
+        Object.keys(this.tiles).forEach((rk) => {
+            const entry = this.tiles[rk];
+            const live = entry && genro.nodeById(entry.tileNodeId);
             const dom = live && live.getDomNode && live.getDomNode();
-            if (dom) dom.classList.toggle('gg-tab-active', rk === activeRowKey);
+            if (dom) dom.classList.toggle('gg-tab-active', rk === activePkey);
         });
     }
 
-    _wireTabDnD(chipDom, rowKey) {
+    _wireTabDnD(chipDom, pkey) {
         const that = this;
         const dataKey = 'application/x-gg-' + this.dragCode;
         const containerDom = this._containerDom();
@@ -1427,9 +1427,9 @@ gnr.GroupletGridController = class GroupletGridController {
         const onDragStart = function(e) {
             try {
                 e.dataTransfer.setData(dataKey, JSON.stringify({
-                    rowKey: rowKey, nodeId: that.nodeId
+                    rowKey: pkey, nodeId: that.nodeId
                 }));
-                e.dataTransfer.setData('text/plain', rowKey);
+                e.dataTransfer.setData('text/plain', pkey);
                 e.dataTransfer.effectAllowed = 'move';
             } catch (err) { /* IE/Safari quirks */ }
             try {
@@ -1498,27 +1498,27 @@ gnr.GroupletGridController = class GroupletGridController {
             catch (err) { return; }
             if (!payload) return;
             if (payload.nodeId === that.nodeId) {
-                if (payload.rowKey === rowKey) return;
+                if (payload.rowKey === pkey) return;
                 genro.publish(that.actionTopic, {
                     action: 'move',
                     rowKey: payload.rowKey,
-                    position: '<' + rowKey
+                    position: '<' + pkey
                 });
                 return;
             }
             const sourceCtrl = that._findSourceController(payload.nodeId);
             if (!sourceCtrl) return;
-            that._doMoveRowFrom(sourceCtrl, payload.rowKey, '<' + rowKey);
+            that._doMoveTileFrom(sourceCtrl, payload.rowKey, '<' + pkey);
         };
         chipDom.addEventListener('dragstart', onDragStart);
         chipDom.addEventListener('dragend', onDragEnd);
         chipDom.addEventListener('dragover', onDragOver);
         chipDom.addEventListener('dragleave', onDragLeave);
         chipDom.addEventListener('drop', onDrop);
-        // Reuse `_dragHandlesByRow` storage — keying by rowKey is unique
-        // per controller, and tabs mode never has a `_wireRowDnD` peer
+        // Reuse `_dragHandlesByPkey` storage — keying by pkey is unique
+        // per controller, and tabs mode never has a `_wireTileDnD` peer
         // for the same row (only the chip is wired).
-        this._dragHandlesByRow[rowKey] = {
+        this._dragHandlesByPkey[pkey] = {
             dom: chipDom,
             handlers: {dragstart: onDragStart, dragend: onDragEnd,
                        dragover: onDragOver, dragleave: onDragLeave,
@@ -1526,10 +1526,10 @@ gnr.GroupletGridController = class GroupletGridController {
         };
     }
 
-    _unwireTabDnD(rowKey) {
-        // Identical teardown to `_unwireRowDnD` since both store under
-        // the same `_dragHandlesByRow` key; reuse the existing method.
-        this._unwireRowDnD(rowKey);
+    _unwireTabDnD(pkey) {
+        // Identical teardown to `_unwireTileDnD` since both store under
+        // the same `_dragHandlesByPkey` key; reuse the existing method.
+        this._unwireTileDnD(pkey);
     }
 
     // ====================================================================
@@ -1550,19 +1550,19 @@ gnr.GroupletGridController = class GroupletGridController {
         if (!payload || typeof payload !== 'object') return;
         switch (payload.action) {
             case 'add':
-                this._doAddRow(payload.position, payload.defaults);
+                this._doAddItem(payload.position, payload.defaults);
                 break;
             case 'delete': {
-                // If no rowKey is provided fall back to the currently
+                // If no pkey is provided fall back to the currently
                 // selected row — used by toolbar '−' buttons that act on
                 // the selection rather than on a specific row.
-                const rowKey = payload.rowKey || this.selectedRowKey;
-                if (!rowKey) return;
-                this._askAndDeleteRow(rowKey);
+                const pkey = payload.rowKey || this.selectedPkey;
+                if (!pkey) return;
+                this._askAndDeleteItem(pkey);
                 break;
             }
             case 'move':
-                this._doMoveRow(payload.rowKey, payload.position);
+                this._doMoveTile(payload.rowKey, payload.position);
                 break;
         }
     }
@@ -1571,9 +1571,9 @@ gnr.GroupletGridController = class GroupletGridController {
     //  DnD — row wrappers, container drop zone, cross-instance migration
     // ====================================================================
 
-    _wireRowDnD(wrapperDom, rowKey) {
+    _wireTileDnD(tileDom, pkey) {
         // Wire HTML5 drag-and-drop directly on a row wrapper (mounted DOM).
-        // Called from _addRow after unfreeze. The drag handle inside the
+        // Called from _renderTile after unfreeze. The drag handle inside the
         // wrapper carries `draggable="true"` so dragstart fires; here we
         // listen on the wrapper itself for dragstart/dragend (bubbled from
         // the handle) and dragover/drop (the wrapper is the drop zone).
@@ -1593,13 +1593,13 @@ gnr.GroupletGridController = class GroupletGridController {
                 ? e.target.closest('.grouplet_grid_row_drag') : null;
             if (!handle) return;
             const innermostWrapper = handle.closest('.grouplet_grid_row');
-            if (innermostWrapper !== wrapperDom) return;
+            if (innermostWrapper !== tileDom) return;
             try {
                 e.dataTransfer.setData(dataKey, JSON.stringify({
-                    rowKey: rowKey, nodeId: that.nodeId
+                    rowKey: pkey, nodeId: that.nodeId
                 }));
                 // Some browsers also need a generic text payload to start.
-                e.dataTransfer.setData('text/plain', rowKey);
+                e.dataTransfer.setData('text/plain', pkey);
                 e.dataTransfer.effectAllowed = 'move';
             } catch (err) { /* IE/Safari quirks */ }
             // Drag image = snapshot of THIS row wrapper. The clone goes
@@ -1609,10 +1609,10 @@ gnr.GroupletGridController = class GroupletGridController {
             try {
                 const auxDragImage = document.getElementById('auxDragImage');
                 if (auxDragImage) {
-                    const clone = wrapperDom.cloneNode(true);
+                    const clone = tileDom.cloneNode(true);
                     clone.classList.remove('gg-dragging', 'gg-drop-target',
                         'gg-drop-target-invalid', 'gg-just-dropped');
-                    clone.style.width = wrapperDom.offsetWidth + 'px';
+                    clone.style.width = tileDom.offsetWidth + 'px';
                     // In struct mode the row's own chrome is stripped
                     // (the container card owns the border/radius). Tag
                     // the clone so CSS can re-add a self-contained card
@@ -1643,8 +1643,8 @@ gnr.GroupletGridController = class GroupletGridController {
                     }
                     auxDragImage.appendChild(clone);
                     e.dataTransfer.setDragImage(clone,
-                        e.clientX - wrapperDom.getBoundingClientRect().left,
-                        e.clientY - wrapperDom.getBoundingClientRect().top);
+                        e.clientX - tileDom.getBoundingClientRect().left,
+                        e.clientY - tileDom.getBoundingClientRect().top);
                     setTimeout(function() {
                         if (clone.parentNode) {
                             clone.parentNode.removeChild(clone);
@@ -1652,7 +1652,7 @@ gnr.GroupletGridController = class GroupletGridController {
                     }, 0);
                 }
             } catch (err) { /* setDragImage not supported */ }
-            wrapperDom.classList.add('gg-dragging');
+            tileDom.classList.add('gg-dragging');
             containerDom.classList.add('gg-drag-active');
             // Stop propagation so an outer grid's wrapper does not
             // re-process this dragstart and override the dataTransfer
@@ -1660,7 +1660,7 @@ gnr.GroupletGridController = class GroupletGridController {
             e.stopPropagation();
         };
         const onDragEnd = function() {
-            wrapperDom.classList.remove('gg-dragging');
+            tileDom.classList.remove('gg-dragging');
             that._clearDragOver();
             containerDom.classList.remove('gg-drag-active');
         };
@@ -1671,7 +1671,7 @@ gnr.GroupletGridController = class GroupletGridController {
             // A different `application/x-gg-*` key → another grid with
             // a different dragCode (isolated by default) → invalid.
             // Anything else (text/plain alone, foreign drags) → ignore.
-            if (wrapperDom.classList.contains('gg-dragging')) {
+            if (tileDom.classList.contains('gg-dragging')) {
                 that._clearDragOver();
                 return;
             }
@@ -1695,13 +1695,13 @@ gnr.GroupletGridController = class GroupletGridController {
             } else {
                 e.dataTransfer.dropEffect = 'none';
             }
-            that._setDragOver(wrapperDom, isValid);
+            that._setDragOver(tileDom, isValid);
         };
         const onDragLeave = function(e) {
             // Only clear when leaving the wrapper, not when crossing
             // into a child element.
-            if (!wrapperDom.contains(e.relatedTarget)) {
-                if (that._dragOverRow === wrapperDom) that._clearDragOver();
+            if (!tileDom.contains(e.relatedTarget)) {
+                if (that._dragOverRow === tileDom) that._clearDragOver();
             }
         };
         const onDrop = function(e) {
@@ -1722,11 +1722,11 @@ gnr.GroupletGridController = class GroupletGridController {
             // N (target shifts to N+1). "Append at end" is not reachable
             // via D&D — use the footer "+ Add row" or the kebab menu.
             if (payload.nodeId === that.nodeId) {
-                if (payload.rowKey === rowKey) return;
+                if (payload.rowKey === pkey) return;
                 genro.publish(that.actionTopic, {
                     action: 'move',
                     rowKey: payload.rowKey,
-                    position: '<' + rowKey
+                    position: '<' + pkey
                 });
                 return;
             }
@@ -1738,30 +1738,30 @@ gnr.GroupletGridController = class GroupletGridController {
             // so cross drops cannot happen by accident.
             const sourceCtrl = that._findSourceController(payload.nodeId);
             if (!sourceCtrl) return;
-            that._doMoveRowFrom(sourceCtrl, payload.rowKey, '<' + rowKey);
+            that._doMoveTileFrom(sourceCtrl, payload.rowKey, '<' + pkey);
         };
-        wrapperDom.addEventListener('dragstart', onDragStart);
-        wrapperDom.addEventListener('dragend', onDragEnd);
-        wrapperDom.addEventListener('dragover', onDragOver);
-        wrapperDom.addEventListener('dragleave', onDragLeave);
-        wrapperDom.addEventListener('drop', onDrop);
+        tileDom.addEventListener('dragstart', onDragStart);
+        tileDom.addEventListener('dragend', onDragEnd);
+        tileDom.addEventListener('dragover', onDragOver);
+        tileDom.addEventListener('dragleave', onDragLeave);
+        tileDom.addEventListener('drop', onDrop);
         // Track for teardown: the listeners are anonymous closures, so
-        // we store references keyed by rowKey.
-        this._dragHandlesByRow[rowKey] = {
-            dom: wrapperDom,
+        // we store references keyed by pkey.
+        this._dragHandlesByPkey[pkey] = {
+            dom: tileDom,
             handlers: {dragstart: onDragStart, dragend: onDragEnd,
                        dragover: onDragOver, dragleave: onDragLeave,
                        drop: onDrop}
         };
     }
 
-    _unwireRowDnD(rowKey) {
-        const entry = this._dragHandlesByRow[rowKey];
+    _unwireTileDnD(pkey) {
+        const entry = this._dragHandlesByPkey[pkey];
         if (!entry) return;
         Object.keys(entry.handlers).forEach((evt) => {
             entry.dom.removeEventListener(evt, entry.handlers[evt]);
         });
-        delete this._dragHandlesByRow[rowKey];
+        delete this._dragHandlesByPkey[pkey];
     }
 
     _wireContainerDnD() {
@@ -1821,12 +1821,12 @@ gnr.GroupletGridController = class GroupletGridController {
             if (!payload) return;
             if (payload.nodeId === that.nodeId) {
                 // Same-instance: append at the tail.
-                that._doMoveRowSameInstance(payload.rowKey, null);
+                that._doMoveTileSameInstance(payload.rowKey, null);
                 return;
             }
             const sourceCtrl = that._findSourceController(payload.nodeId);
             if (!sourceCtrl) return;
-            that._doMoveRowFrom(sourceCtrl, payload.rowKey, null);
+            that._doMoveTileFrom(sourceCtrl, payload.rowKey, null);
         };
         containerDom.addEventListener('dragover', onDragOver);
         containerDom.addEventListener('dragleave', onDragLeave);
@@ -1847,20 +1847,20 @@ gnr.GroupletGridController = class GroupletGridController {
         this._containerDnDHandlers = null;
     }
 
-    _doMoveRowSameInstance(rowKey, position) {
+    _doMoveTileSameInstance(pkey, position) {
         // Same-instance reorder, position can be null → append at tail.
         // Bag-only mutation; the DOM diff is done by `gnr_storepath`.
         // No guards: this only runs from a drop handler that already
         // proved the row exists in our Bag (the drag started from it).
         const dataBag = this.storebag();
-        const node = dataBag.getNode(rowKey);
+        const node = dataBag.getNode(pkey);
         const rowValue = node.getValue();
         const rowAttrs = node.getAttr() || {};
         this._pendingFlash = this._pendingFlash || {};
-        this._pendingFlash[rowKey] = true;
-        dataBag.popNode(rowKey);
+        this._pendingFlash[pkey] = true;
+        dataBag.popNode(pkey);
         const setKw = position ? {_position: position} : {};
-        dataBag.setItem(rowKey, rowValue, rowAttrs, setKw);
+        dataBag.setItem(pkey, rowValue, rowAttrs, setKw);
     }
 
     _setDragOver(wrapper, isValid) {
@@ -1880,20 +1880,20 @@ gnr.GroupletGridController = class GroupletGridController {
         this._dragOverRow = null;
     }
 
-    _doMoveRow(rowKey, position) {
+    _doMoveTile(pkey, position) {
         // Reorder a row inside the rows Bag. `position` is '<targetKey'
         // or '>targetKey'. Bag-only mutation; the DOM diff is done by
         // `gnr_storepath` reacting to the `del`+`ins` trigger pair.
         // No guards: this only runs from an action published by a DnD
         // handler that already proved the row exists in our Bag.
         const dataBag = this.storebag();
-        const node = dataBag.getNode(rowKey);
+        const node = dataBag.getNode(pkey);
         const rowValue = node.getValue();
         const rowAttrs = node.getAttr() || {};
         this._pendingFlash = this._pendingFlash || {};
-        this._pendingFlash[rowKey] = true;
-        dataBag.popNode(rowKey);
-        dataBag.setItem(rowKey, rowValue, rowAttrs, {_position: position});
+        this._pendingFlash[pkey] = true;
+        dataBag.popNode(pkey);
+        dataBag.setItem(pkey, rowValue, rowAttrs, {_position: position});
     }
 
     _findSourceController(sourceNodeId) {
@@ -1905,7 +1905,7 @@ gnr.GroupletGridController = class GroupletGridController {
         return (node && node.gridController) || null;
     }
 
-    _doMoveRowFrom(sourceCtrl, sourceRowKey, targetPosition) {
+    _doMoveTileFrom(sourceCtrl, sourceRowKey, targetPosition) {
         // Migrate a row from another grid instance into THIS grid.
         // Bag-only mutation on source and target; each side's
         // `gnr_storepath` reacts to its own `del`/`ins` and rebuilds
@@ -1929,15 +1929,15 @@ gnr.GroupletGridController = class GroupletGridController {
         targetBag.setItem(targetRowKey, rowValue, rowAttrs, setKw);
     }
 
-    _flashRow(rowKey) {
+    _flashTile(pkey) {
         // Just-dropped flash: the row inherits the drop-target tint for
         // ~260ms then transitions back to normal. CSS handles the
         // fade-out via `transition` on background/border, so JS only
         // adds the class and removes it later.
         const that = this;
         setTimeout(function() {
-            const entry = that.rows[rowKey];
-            const liveNode = entry && genro.nodeById(entry.wrapperNodeId);
+            const entry = that.rows[pkey];
+            const liveNode = entry && genro.nodeById(entry.tileNodeId);
             const dom = liveNode && liveNode.getDomNode
                 && liveNode.getDomNode();
             if (!dom) return;
@@ -1959,14 +1959,14 @@ gnr.GroupletGridController = class GroupletGridController {
         if (bag instanceof gnr.GnrBag) {
             bag.getNodes().forEach((node) => {
                 presentKeys[node.label] = true;
-                if (!this.rows[node.label]) toAdd.push(node.label);
+                if (!this.tiles[node.label]) toAdd.push(node.label);
             });
         }
-        Object.keys(this.rows).forEach((rowKey) => {
-            if (!presentKeys[rowKey]) this._removeRow(rowKey);
+        Object.keys(this.tiles).forEach((pkey) => {
+            if (!presentKeys[pkey]) this._destroyTile(pkey);
         });
         if (toAdd.length === 0) return;
-        // Tabs mode: pre-decide which row will be active so `_addRow`
+        // Tabs mode: pre-decide which row will be active so `_renderTile`
         // can stamp `gg-tab-active` directly onto the wrapper's `_class`
         // BEFORE the wrapper is built. Without this, all wrappers mount
         // with `display:none` (CSS hides every non-active row in tabs
@@ -1975,24 +1975,24 @@ gnr.GroupletGridController = class GroupletGridController {
         // body subtree while detached from layout flow. By activating
         // up-front, the first wrapper is `display:block` from the very
         // first paint and its nested widgets build normally.
-        if (this._isTabsLayout() && !this.activeRowKey && toAdd.length > 0) {
-            this.activeRowKey = toAdd[0];
+        if (this._isTabsLayout() && !this.activePkey && toAdd.length > 0) {
+            this.activePkey = toAdd[0];
         }
         this.bodyNode.freeze();
-        toAdd.forEach((rowKey) => this._addRow(rowKey));
+        toAdd.forEach((pkey) => this._renderTile(pkey));
         this.bodyNode.unfreeze();
-        // Active-tab classes are already applied per-row by `_addRow` →
+        // Active-tab classes are already applied per-row by `_renderTile` →
         // `_addTabChip` → `_setActiveTabClasses` along the active path.
         if (this.structAdapter) this._scheduleStructSync();
     }
 
-    _addRow(rowKey) {
-        if (this.rows[rowKey]) return;
+    _renderTile(pkey) {
+        if (this.tiles[pkey]) return;
         // Multi-template support (Item 13 Parte A hook): pick the
         // template key from the row data. Today always __default__.
         // Callers route through `_ensureTemplate`, so the template
         // is always primed by the time we land here.
-        const tplKey = this._templateKeyForRow(rowKey);
+        const tplKey = this._templateKeyForItem(pkey);
         const tplSource = this.templateSources[tplKey];
         // Derive the wrapper insertion position from the Bag itself:
         // put the wrapper right before the wrapper of the next sibling
@@ -2003,27 +2003,27 @@ gnr.GroupletGridController = class GroupletGridController {
         const bag = this.storebag();
         if (bag instanceof gnr.GnrBag) {
             const allKeys = bag.getNodes().map((n) => n.label);
-            const idx = allKeys.indexOf(rowKey);
+            const idx = allKeys.indexOf(pkey);
             for (let j = idx + 1; j < allKeys.length; j++) {
-                if (this.rows[allKeys[j]]) {
-                    position = '<_grow_' + allKeys[j];
+                if (this.tiles[allKeys[j]]) {
+                    position = '<_grtile_' + allKeys[j];
                     break;
                 }
             }
         }
-        const wrapperLabel = '_grow_' + rowKey;
-        const wrapperNodeId = '__grpgridrow__' + this.nodeId + '__' + rowKey;
+        const tileLabel = '_grtile_' + pkey;
+        const tileNodeId = '__grpgridtile__' + this.nodeId + '__' + pkey;
         // Clone the template — every row owns its own copy.
         // Auto-generated nodeIds (those starting with `grpgrid_`, used
         // by the framework itself for action-topic routing of nested
         // groupletGrids) get namespaced so each row's clone has a unique
         // container nodeId. Author-supplied nodeIds are left untouched:
         // it's the author's responsibility to make them unique if they
-        // need to be referenced (typically by including `rowKey` in the
+        // need to be referenced (typically by including `pkey` in the
         // nodeId or just by omitting nodeId on widgets that aren't
         // referenced).
         const cloned = tplSource.deepCopy();
-        this._namespaceFrameworkNodeIds(cloned, rowKey);
+        this._namespaceFrameworkNodeIds(cloned, pkey);
         const bodyContent = this.bodyNode.getValue();
         const that0 = this;
         const dragCode = this.dragCode;
@@ -2033,23 +2033,23 @@ gnr.GroupletGridController = class GroupletGridController {
         // this, every wrapper would mount under `display:none` and
         // nested widgets inside the first-active panel would build in
         // a detached layout context.
-        let wrapperClass = 'grouplet_grid_row';
-        if (this._isTabsLayout() && this.activeRowKey === rowKey) {
-            wrapperClass += ' gg-tab-active';
+        let tileClass = 'grouplet_grid_row';
+        if (this._isTabsLayout() && this.activePkey === pkey) {
+            tileClass += ' gg-tab-active';
         }
-        const wrapperKw = {
-            datapath: '.' + rowKey,
-            _class: wrapperClass,
-            nodeId: wrapperNodeId,
-            connect_onclick: function() { that0.selectRow(rowKey); }
+        const tileKw = {
+            datapath: '.' + pkey,
+            _class: tileClass,
+            nodeId: tileNodeId,
+            connect_onclick: function() { that0.selectTile(pkey); }
         };
         // onCreated runs after the DOM is mounted — the right place to
         // attach the drag handle (no timing hack needed). The handle is
         // a leaf <div> with no widget logic, so we append plain HTML
         // directly and wire native HTML5 DnD listeners on the wrapper.
         if (dragCode) {
-            wrapperKw.onCreated = function(domnode) {
-                const wrapperDom = domnode.sourceNode
+            tileKw.onCreated = function(domnode) {
+                const tileDom = domnode.sourceNode
                     ? domnode.sourceNode.getDomNode()
                     : domnode;
                 const handle = document.createElement('div');
@@ -2058,14 +2058,14 @@ gnr.GroupletGridController = class GroupletGridController {
                 handle.title = _T('!!Drag to reorder');
                 handle.innerHTML =
                     '<span class="grouplet_grid_drag_icon">⠿</span>';
-                wrapperDom.appendChild(handle);
-                that0._wireRowDnD(wrapperDom, rowKey);
+                tileDom.appendChild(handle);
+                that0._wireTileDnD(tileDom, pkey);
             };
         }
         const extraKw = position ? {_position: position} : undefined;
-        bodyContent._('div', wrapperLabel, wrapperKw, extraKw);
-        const wrapperNode = bodyContent.getNode(wrapperLabel);
-        const wrapperContent = wrapperNode.getValue();
+        bodyContent._('div', tileLabel, tileKw, extraKw);
+        const tileNode = bodyContent.getNode(tileLabel);
+        const tileContent = tileNode.getValue();
         const topic = this.actionTopic;
         // Top-right `×` delete button (Item 10 affordance). Enabled by
         // `delitem=True`. Always sits on top of the kebab and the row
@@ -2075,15 +2075,15 @@ gnr.GroupletGridController = class GroupletGridController {
                 _class: 'grouplet_grid_row_delete',
                 tip: _T('!!Delete row'),
                 connect_onclick: "genro.publish('" + topic + "',"
-                                + "{action:'delete',rowKey:'" + rowKey + "'});"
+                                + "{action:'delete',rowKey:'" + pkey + "'});"
             }, this.delitemKw || {});
             // Author-provided extra _class is merged additively.
             if (this.delitemKw && this.delitemKw._class) {
                 delKw._class = 'grouplet_grid_row_delete '
                              + this.delitemKw._class;
             }
-            wrapperContent._('div', '_grow_del_' + rowKey, delKw);
-            const delNode = wrapperContent.getNode('_grow_del_' + rowKey);
+            tileContent._('div', '_grow_del_' + pkey, delKw);
+            const delNode = tileContent.getNode('_grow_del_' + pkey);
             delNode.getValue()._('div', 'glyph', {innerHTML: '×'});
         }
         // Per-row kebab menu — `<div>` target with a child `<menu>`.
@@ -2108,20 +2108,20 @@ gnr.GroupletGridController = class GroupletGridController {
                 addPrev: {
                     label: _T('!!Add prev'),
                     action: "genro.publish('" + topic + "',"
-                          + "{action:'add',position:'<" + rowKey + "'});"
+                          + "{action:'add',position:'<" + pkey + "'});"
                 },
                 addNext: {
                     label: _T('!!Add next'),
                     action: "genro.publish('" + topic + "',"
-                          + "{action:'add',position:'>" + rowKey + "'});"
+                          + "{action:'add',position:'>" + pkey + "'});"
                 },
                 'delete': {
                     label: _T('!!Delete'),
                     action: "genro.publish('" + topic + "',"
-                          + "{action:'delete',rowKey:'" + rowKey + "'});"
+                          + "{action:'delete',rowKey:'" + pkey + "'});"
                 }
             };
-            const kebabId = '__grpgridrowmenu__' + this.nodeId + '__' + rowKey;
+            const kebabId = '__grpgridrowmenu__' + this.nodeId + '__' + pkey;
             const kebabKw = objectUpdate({
                 _class: 'grouplet_grid_row_kebab',
                 tip: _T('!!Row actions'),
@@ -2131,8 +2131,8 @@ gnr.GroupletGridController = class GroupletGridController {
                 kebabKw._class = 'grouplet_grid_row_kebab '
                                + this.editmenuKw._class;
             }
-            wrapperContent._('div', '_grow_kebab_' + rowKey, kebabKw);
-            const kebabNode = wrapperContent.getNode('_grow_kebab_' + rowKey);
+            tileContent._('div', '_grow_kebab_' + pkey, kebabKw);
+            const kebabNode = tileContent.getNode('_grow_kebab_' + pkey);
             const kebabContent = kebabNode.getValue();
             kebabContent._('div', 'glyph', {
                 _class: 'grouplet_grid_kebab_icon',
@@ -2163,17 +2163,17 @@ gnr.GroupletGridController = class GroupletGridController {
                 menu._('menuline', spec);
             });
         }
-        // freeze/unfreeze on the wrapperNode so the framework builds
+        // freeze/unfreeze on the tileNode so the framework builds
         // the grafted subtree (template root children → row widgets)
         // atomically in one shot.
-        wrapperNode.freeze();
+        tileNode.freeze();
         cloned.getNodes().forEach((n) => {
-            this._graftNode(wrapperContent, n);
+            this._graftNode(tileContent, n);
         });
-        wrapperNode.unfreeze();
-        this.rows[rowKey] = {wrapperNodeId: wrapperNodeId};
+        tileNode.unfreeze();
+        this.tiles[pkey] = {tileNodeId: tileNodeId};
         // Drag handle is appended via the onCreated callback set above
-        // on wrapperKw — pattern from timesheet_viewer.js:339-362.
+        // on tileKw — pattern from timesheet_viewer.js:339-362.
         // `draggable:true` in the struct attrs is reliably reflected as
         // the HTML attribute when the parent is live, which is what the
         // browser's native HTML5 dragstart needs to fire.
@@ -2182,31 +2182,31 @@ gnr.GroupletGridController = class GroupletGridController {
         // wrapper's `_class` was pre-stamped above when this row was
         // already known to be the active one (set by `_fullSync` before
         // the batch freeze). If the row was just added via the `+`
-        // button (`_pendingActivate === rowKey`), switch the active tab
+        // button (`_pendingActivate === pkey`), switch the active tab
         // to it now — same UX as opening a new browser tab. Otherwise,
         // if the new row was inserted as the active one at fullSync
         // time, reassert the chip class.
         if (this._isTabsLayout()) {
-            this._addTabChip(rowKey);
-            const pending = this._pendingActivate === rowKey;
+            this._addTabChip(pkey);
+            const pending = this._pendingActivate === pkey;
             if (pending) {
                 this._pendingActivate = null;
                 // Force switch even if another tab is currently active.
-                this.activeRowKey = null;
-                this._activateTab(rowKey);
-            } else if (!this.activeRowKey) {
-                this._activateTab(rowKey);
-            } else if (this.activeRowKey === rowKey) {
+                this.activePkey = null;
+                this._activateTab(pkey);
+            } else if (!this.activePkey) {
+                this._activateTab(pkey);
+            } else if (this.activePkey === pkey) {
                 // The wrapper class was pre-stamped, but the chip was
                 // just created — mark it active too.
-                this._setActiveTabClasses(this.activeRowKey);
+                this._setActiveTabClasses(this.activePkey);
             }
         }
-        // Consume pending flash (set by `_doMoveRow*` before mutating
+        // Consume pending flash (set by `_doMoveTile*` before mutating
         // the Bag): highlight a row that just landed via DnD.
-        if (this._pendingFlash && this._pendingFlash[rowKey]) {
-            delete this._pendingFlash[rowKey];
-            this._flashRow(rowKey);
+        if (this._pendingFlash && this._pendingFlash[pkey]) {
+            delete this._pendingFlash[pkey];
+            this._flashTile(pkey);
         }
         if (this.structAdapter) this._scheduleStructSync();
     }
@@ -2228,41 +2228,41 @@ gnr.GroupletGridController = class GroupletGridController {
         }
     }
 
-    _removeRow(rowKey) {
-        const entry = this.rows[rowKey];
+    _destroyTile(pkey) {
+        const entry = this.tiles[pkey];
         if (!entry) return;
         // Tear down DnD listeners before the DOM is destroyed.
         // In tabs mode the DnD handlers are on the chip (not the row
         // wrapper), so the wrapper-level unwire is a no-op there — the
         // chip teardown happens in `_removeTabChip` below. In cards
         // mode the chip teardown is also a no-op.
-        if (this.dragCode) this._unwireRowDnD(rowKey);
+        if (this.dragCode) this._unwireTileDnD(pkey);
         // Tabs mode: drop the chip + decide next active.
         if (this._isTabsLayout()) {
             // Pre-compute the next active tab BEFORE removing the chip.
             let nextActive = null;
-            if (this.activeRowKey === rowKey) {
-                const chipKeys = Object.keys(this._tabsByRow);
-                const idx = chipKeys.indexOf(rowKey);
+            if (this.activePkey === pkey) {
+                const chipKeys = Object.keys(this._tabsByPkey);
+                const idx = chipKeys.indexOf(pkey);
                 if (idx > 0) nextActive = chipKeys[idx - 1];
                 else if (chipKeys.length > 1) nextActive = chipKeys[idx + 1];
             }
-            this._removeTabChip(rowKey);
-            if (this.activeRowKey === rowKey) {
-                this.activeRowKey = null;
+            this._removeTabChip(pkey);
+            if (this.activePkey === pkey) {
+                this.activePkey = null;
                 if (nextActive) this._activateTab(nextActive);
             }
         }
-        const wrapperLabel = '_grow_' + rowKey;
+        const tileLabel = '_grow_' + pkey;
         // Triggered popNode on the body's source Bag: framework
         // tears down the wrapper dijit and removes the DOM subtree.
-        this.bodyNode.getValue('static').popNode(wrapperLabel);
-        delete this.rows[rowKey];
+        this.bodyNode.getValue('static').popNode(tileLabel);
+        delete this.tiles[pkey];
         this._updateAddBtnState();
     }
 
     _rowCount() {
-        return Object.keys(this.rows).length;
+        return Object.keys(this.tiles).length;
     }
 
     // ====================================================================
@@ -2271,36 +2271,36 @@ gnr.GroupletGridController = class GroupletGridController {
     //
     //  Every public mutator goes through `genro.publish(actionTopic,...)`.
     //  The single subscription in _registerActionSubscription dispatches
-    //  via _handleAction → _doAddRow / _askAndDeleteRow. All entry points
+    //  via _handleAction → _doAddItem / _askAndDeleteItem. All entry points
     //  (kebab menu, footer button, programmatic calls) follow this path.
 
-    addRowAction(defaults) {
+    addItem(defaults) {
         genro.publish(this.actionTopic,
                       {action: 'add', defaults: defaults || null});
     }
 
-    insertRowAfter(rowKey, defaults) {
+    insertItemAfter(pkey, defaults) {
         genro.publish(this.actionTopic, {
             action: 'add',
-            position: '>' + rowKey,
+            position: '>' + pkey,
             defaults: defaults || null
         });
     }
 
-    insertRowBefore(rowKey, defaults) {
+    insertItemBefore(pkey, defaults) {
         genro.publish(this.actionTopic, {
             action: 'add',
-            position: '<' + rowKey,
+            position: '<' + pkey,
             defaults: defaults || null
         });
     }
 
-    deleteRowAction(rowKey) {
+    deleteItem(pkey) {
         genro.publish(this.actionTopic,
-                      {action: 'delete', rowKey: rowKey});
+                      {action: 'delete', rowKey: pkey});
     }
 
-    _doAddRow(position, defaults) {
+    _doAddItem(position, defaults) {
         if (this.maxRows && this._rowCount() >= this.maxRows) return;
         // Auto-create the rows Bag if it doesn't exist yet. Real case:
         // a row added to the outer grid (test_7 team) materializes a
@@ -2313,8 +2313,8 @@ gnr.GroupletGridController = class GroupletGridController {
         }
         const newKey = 'r_' + genro.time36Id();
         // Tabs mode: mark the new key as the one to activate when its
-        // `_addRow` fires (triggered by the Bag mutation below via
-        // `gnr_storepath`). Picked up — and cleared — inside `_addRow`.
+        // `_renderTile` fires (triggered by the Bag mutation below via
+        // `gnr_storepath`). Picked up — and cleared — inside `_renderTile`.
         if (this._isTabsLayout()) this._pendingActivate = newKey;
         const rowBag = new gnr.GnrBag();
         const merged = objectUpdate({}, this.defaultRow || {});
@@ -2324,8 +2324,8 @@ gnr.GroupletGridController = class GroupletGridController {
             dataBag.setItem(newKey, rowBag);
             return;
         }
-        // `position` is a Bag _position spec: '<rowKey' (before) or
-        // '>rowKey' (after). Falls back to '>' if no sign is given.
+        // `position` is a Bag _position spec: '<pkey' (before) or
+        // '>pkey' (after). Falls back to '>' if no sign is given.
         const first = position.charAt(0);
         const hasSign = (first === '<' || first === '>');
         const sign = hasSign ? first : '>';
@@ -2333,7 +2333,7 @@ gnr.GroupletGridController = class GroupletGridController {
         dataBag.setItem(newKey, rowBag, null, {_position: sign + targetKey});
     }
 
-    _askAndDeleteRow(rowKey) {
+    _askAndDeleteItem(pkey) {
         // Confirmation dialog before destroying the row. genro.dlg.ask
         // accepts a function in `actions` (funcCreate normalizes both
         // strings and functions — see th.js:20 for an in-codebase example).
@@ -2341,39 +2341,39 @@ gnr.GroupletGridController = class GroupletGridController {
             _T('!!Delete this row?'),
             _T('!!This row will be removed. Continue?'),
             {confirm: _T('!!Delete'), cancel: _T('!!Cancel')},
-            {confirm: () => this._doDeleteRow(rowKey)}
+            {confirm: () => this._doDeleteItem(pkey)}
         );
     }
 
-    _doDeleteRow(rowKey) {
+    _doDeleteItem(pkey) {
         if (this._rowCount() <= this.minRows) return;
         const dataBag = this.storebag();
         if (dataBag instanceof gnr.GnrBag) {
-            dataBag.popNode(rowKey);
+            dataBag.popNode(pkey);
         }
-        if (this.selectedRowKey === rowKey) {
-            this.selectedRowKey = null;
+        if (this.selectedPkey === pkey) {
+            this.selectedPkey = null;
         }
     }
 
-    selectRow(rowKey) {
+    selectTile(pkey) {
         // In tabs/vtabs mode the active state is fully owned by
         // `_activateTab` (which manages `.gg-tab-active`) — the
         // `selected` CSS class is a cards-mode UX leftover that
         // visually conflicts with the panel chrome here.
         if (this._isTabsLayout()) return;
-        if (this.selectedRowKey === rowKey) return;
+        if (this.selectedPkey === pkey) return;
         const domForRow = (rk) => {
-            const entry = this.rows[rk];
-            const live = entry && genro.nodeById(entry.wrapperNodeId);
+            const entry = this.tiles[rk];
+            const live = entry && genro.nodeById(entry.tileNodeId);
             return (live && live.getDomNode && live.getDomNode()) || null;
         };
-        if (this.selectedRowKey) {
-            const prevDom = domForRow(this.selectedRowKey);
+        if (this.selectedPkey) {
+            const prevDom = domForRow(this.selectedPkey);
             if (prevDom) prevDom.classList.remove('selected');
         }
-        this.selectedRowKey = rowKey;
-        const dom = domForRow(rowKey);
+        this.selectedPkey = pkey;
+        const dom = domForRow(pkey);
         if (dom) dom.classList.add('selected');
     }
 
@@ -2388,8 +2388,8 @@ gnr.GroupletGridController = class GroupletGridController {
     //  Template plumbing — namespacing, cache, source-root building
     // ====================================================================
 
-    _namespaceFrameworkNodeIds(domSource, rowKey) {
-        // Append `__<gridId>__<rowKey>` to nodeIds that the framework
+    _namespaceFrameworkNodeIds(domSource, pkey) {
+        // Append `__<gridId>__<pkey>` to nodeIds that the framework
         // generated for its own bookkeeping (groupletGrid containers
         // and their body / addbtn satellites). These nodeIds always
         // share the `grpgrid_` prefix (set server-side by
@@ -2402,7 +2402,7 @@ gnr.GroupletGridController = class GroupletGridController {
         // `groupletGrid_<nodeId>_action` (publish-subscribe), so each
         // nested grid instance must subscribe to its own topic — hence
         // a unique nodeId per row.
-        const suffix = '__' + this.nodeId + '__' + rowKey;
+        const suffix = '__' + this.nodeId + '__' + pkey;
         const apply = function(n) {
             const a = n.attr;
             if (!a || typeof a.nodeId !== 'string') return;
@@ -2423,7 +2423,7 @@ gnr.GroupletGridController = class GroupletGridController {
         //
         // Once `templateSources[key]` is a sourceRoot, struct= and
         // resource= modes are indistinguishable to downstream code:
-        // `_addRow` deep-copies the sourceRoot, namespaces nodeIds,
+        // `_renderTile` deep-copies the sourceRoot, namespaces nodeIds,
         // mounts in the body.
         key = key || '__default__';
         if (this.templateSources[key]) {
@@ -2529,7 +2529,7 @@ gnr.GroupletGridController = class GroupletGridController {
             });
     }
 
-    _templateKeyForRow(rowKey) {
+    _templateKeyForItem(pkey) {
         // Single-template grids (struct=, plain resource=, handler=)
         // all share the `__default__` cache slot. In `resourceField=`
         // mode the row's discriminator field selects which preloaded
@@ -2538,7 +2538,7 @@ gnr.GroupletGridController = class GroupletGridController {
         if (!this.resourceField) return '__default__';
         const bag = this.storebag();
         if (!(bag instanceof gnr.GnrBag)) return '__default__';
-        const rowNode = bag.getNode(rowKey, 'static');
+        const rowNode = bag.getNode(pkey, 'static');
         if (!rowNode) return '__default__';
         const rowValue = rowNode.getValue();
         if (!(rowValue instanceof gnr.GnrBag)) return '__default__';
