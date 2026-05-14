@@ -100,10 +100,11 @@ def test_genroNameSpace_total_count():
     """Freeze the cardinality of the public widget namespace.
 
     Sourced from `AllWidgets._widget_names`, which composes the four
-    dialect mixins. 256 entries today. Drift in either direction must
-    be intentional.
+    dialect mixins. 282 entries today (HtmlWidgets now ports the full
+    W3C HTML5 catalog of 112 tags). Drift in either direction must be
+    intentional.
     """
-    assert len(GnrDomSrc_dojo_11.genroNameSpace) == 256
+    assert len(GnrDomSrc_dojo_11.genroNameSpace) == 282
 
 
 def test_genroNameSpace_samples_per_dialect():
