@@ -1,12 +1,12 @@
 """GenroPy HTML widgets — standard HTML elements available on GnrDomSrc.
 
-Formal documentation of the HTML namespace widgets.
-These methods are generated at runtime via __getattr__ -> child(tag, **kwargs).
+Formal declaration of the HTML namespace widgets.
+These methods are dispatched at runtime via __getattr__ -> child(tag, **kwargs).
 """
-from genro_bag.builder import element
+from gnr.web.widgets import WidgetMixinBase, element
 
 
-class HtmlWidgets:
+class HtmlWidgets(WidgetMixinBase):
     """Mixin documenting standard HTML elements and GenroPy HTML extensions."""
 
     # --- Layout ---
