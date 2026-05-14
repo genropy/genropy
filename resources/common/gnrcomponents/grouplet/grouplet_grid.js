@@ -1,41 +1,6 @@
-// ============================================================================
-//  groupletGrid — controller + struct adapter
-//
-//  Loaded by `GroupletGridHandler` (grouplet.py:626) via `js_requires`.
-//  Defines two classes on `gnr.*`:
-//
-//    - `gnr.GroupletGridStructAdapter`  (struct= mode helper)
-//        Pure converter from a `gnr.Grid`-style struct Bag to:
-//          • cellmap (for the changeManager)
-//          • header / row template / footer sourceRoots
-//          • shared `grid-template-columns` value
-//          • per-cell horizontal alignment
-//        Stateless: `applyStruct` rebuilds it in place.
-//
-//    - `gnr.GroupletGridController`  (the widget brain)
-//        Lifecycle, row rendering, store-driven dispatch via
-//        `gnr_storepath`, layout swaps (cards/tabs/vtabs), DnD,
-//        action API (add/delete), and the struct= chrome sync that
-//        keeps header/footer aligned to the row widget geometry.
-//
-//  Bootstrap dataController in `grouplet.py` instantiates the
-//  controller on `_onBuilt`, after the container DOM exists.
-// ============================================================================
-
-
-// ============================================================================
-//  GroupletGridStructAdapter (Item 12)
-//
-//  Pure converter from a gnr.Grid-style struct Bag into the artefacts
-//  the controller needs. Once `buildRowTemplate()` returns a sourceRoot
-//  it's indistinguishable from the one `_bagToDetachedSource()` produces
-//  for resource= mode — the controller treats them identically.
-//
-//  Mapping dtype → editor widget mirrors gnr.Grid (genro_wdg.js:1038-1051).
-//  Widget tags are case-sensitive (`genro.wdg.getHandler` is a registry
-//  lookup): PascalCase, with the legacy `DateTextbox`/`DatetimeTextbox`
-//  (lowercase `b`) spelling preserved from Grid.
-// ============================================================================
+// groupletGrid — Architecture overview in docs/groupletgrid_architecture.md
+// This file defines three classes on `gnr.*`: GroupletGridStructAdapter,
+// GroupletGridController, GroupletGridTile.
 
 gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
     constructor(struct) {
@@ -340,19 +305,18 @@ gnr.GroupletGridController = class GroupletGridController {
             initialBag: genro.getData(this.storepath)
         });
         this.resource = kw.resource || null;
-        // Item 13: multi-grouplet mode — the row template is chosen per
-        // row based on the value of `resourceField` on the row data
-        // (e.g. `ticket_type='commercial/offer'`). When set, the
-        // controller preloads ALL grouplets under the table's folder
-        // in a single RPC at boot, keyed by their resource path.
+        // Multi-grouplet mode: the tile template is chosen per item
+        // from the value of `resourceField` on the item data (e.g.
+        // `ticket_type='commercial/offer'`). When set, the controller
+        // preloads ALL grouplets under the table's folder in a single
+        // RPC at boot, keyed by their resource path.
         this.resourceField = kw.resourceField || null;
-        // struct= mode (Item 12): the Python side parked the
-        // GnrGridStruct Bag at `structpath` (relative to the
-        // container — `#WORKSPACE.struct` auto, or user-supplied).
-        // The controller pulls it back via `getRelativeData` and hands
-        // it to `gnr.GroupletGridStructAdapter` which owns every
-        // struct-specific concern: cellmap, row template synthesis,
-        // header / footer sourceRoots, columnsCSS.
+        // struct= mode: the Python side parks a GnrGridStruct Bag at
+        // `structpath` (relative to the container — `#WORKSPACE.struct`
+        // auto, or user-supplied). The controller pulls it back via
+        // `getRelativeData` and hands it to GroupletGridStructAdapter,
+        // which owns every struct-specific concern: cellmap, tile
+        // template synthesis, header/footer sourceRoots, columnsCSS.
         this.structpath = kw.structpath || null;
         this.structAdapter = null;
         this.handler = kw.handler || null;
@@ -362,12 +326,12 @@ gnr.GroupletGridController = class GroupletGridController {
         this.cols = kw.cols || 1;
         this.minWidth = kw.min_width || null;
         this.gap = kw.gap || '12px';
-        // Action affordances (Item 10 API):
+        // Action affordances:
         //   additem  : bool — phantom '+' (rendered server-side as a
         //              lightButton in body/tabbar). The controller does
         //              not build it; only used to gate maxRows logic.
-        //   delitem  : bool — top-right `×` close button on each row.
-        //   editmenu : false | true | dict — per-row kebab:
+        //   delitem  : bool — top-right `×` close button on each tile.
+        //   editmenu : false | true | dict — per-tile kebab:
         //              false → no kebab
         //              true  → {addPrev, addNext} (and `delete` only when
         //                      delitem is False)
@@ -398,27 +362,25 @@ gnr.GroupletGridController = class GroupletGridController {
         this.dragCode = kw.dragCode || null;
         this._dragOverRow = null;
         this._dragHandlesByPkey = {};
-        // Tabs mode (Item 11): `layout='tabs'` swaps the cards body for
-        // a horizontal tab strip with one chip per row. The active tab
-        // shows its panel (others get `display:none` — hidden panels
-        // stay mounted, subscriptions intact). `setLayout()` flips
-        // between modes at runtime.
+        // `layout='tabs'` swaps the cards body for a horizontal tab strip
+        // with one chip per tile. The active tab shows its panel (others
+        // get `display:none` — hidden panels stay mounted, subscriptions
+        // intact). `setLayout()` flips between modes at runtime.
         this.layout = kw.layout || 'cards';
         this.titleField = kw.titleField || null;
         this.emptyTitle = kw.emptyTitle || _T('!!Untitled');
         this.activePkey = null;
         this._tabsByPkey = {};         // pkey -> chip DOM element
         this._pendingActivate = null; // pkey to auto-activate on next _renderTile
-        // Row templates are cached per "key" — today always
-        // `__default__` (single-template grid) but multi-grouplet
-        // mode (Item 13 Parte A) will switch on a `resourceField`
-        // value (e.g. ticket_type). `_renderTile` consults the row data
-        // via `_templateKeyForItem` to pick the key.
+        // Tile templates are cached per key — `__default__` for the
+        // single-template default, or a `resourceField` value (e.g.
+        // ticket_type) in multi-grouplet mode. `_renderTile` consults
+        // the item data via `_templateKeyForItem` to pick the key.
         this.templateSources = {};      // key -> sourceRoot
         this.templateLoading = {};      // key -> [callback, ...]
-        // Item 12 changeManager wiring: cellmap is populated by the
-        // struct adapter (struct mode) or stays empty in resource mode
-        // (user can populate via setTotalizer/setFormula).
+        // changeManager wiring: cellmap is populated by the struct
+        // adapter (struct mode) or stays empty in resource mode
+        // (user can populate via setTotalizer / setFormula).
         this.cellmap = {};
         this._changeMgr = null;
         this._cmNeedsBag = false;
@@ -553,7 +515,7 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     // ====================================================================
-    //  Struct chrome (Item 12) — adapter wiring, header/footer mounting,
+    //  Struct chrome — adapter wiring, header/footer mounting,
     //  cross-track alignment, public mutation API
     // ====================================================================
 
@@ -623,8 +585,8 @@ gnr.GroupletGridController = class GroupletGridController {
         // attaches `rowLogger` to the Bag from inside that callback —
         // calling `that.grid.storebag().subscribe(...)`. If we publish
         // `onNewDatastore` now and the Bag is null (resource= mode
-        // starting empty, e.g. test_1), the callback NPEs. We publish
-        // lazily from `newDataStore` once a real Bag is available.
+        // starting empty), the callback NPEs. We publish lazily from
+        // `newDataStore` once a real Bag is available.
         this._cmNeedsBag = true;
         // Adapter-driven auto-registration of totalize/formula cells.
         // Server-seeded rows go through a force-resolve so initial
@@ -1198,11 +1160,9 @@ gnr.GroupletGridController = class GroupletGridController {
         // so the chips themselves carry no listeners beyond click/DnD,
         // which are removed when the DOM is destroyed.
         this._tabsByPkey = {};
-        // Strip tab-active class from any surviving row wrapper.
+        // Strip tab-active class from any surviving tile.
         Object.keys(this.tiles).forEach((pkey) => {
-            const entry = this.tiles[pkey];
-            const live = entry && genro.nodeById(entry.tileNodeId);
-            const dom = live && live.getDomNode && live.getDomNode();
+            const dom = this.tiles[pkey].domNode();
             if (dom) dom.classList.remove('gg-tab-active');
         });
     }
@@ -1396,9 +1356,9 @@ gnr.GroupletGridController = class GroupletGridController {
         if (this.activePkey === pkey) return;
         this.activePkey = pkey;
         this._setActiveTabClasses(pkey);
-        // Hook for Item 12 (form swap): publish activation on the action
-        // bus. No internal subscriber for now — it is a pure extension
-        // point. External listeners can use it (e.g. `+` auto-focus).
+        // Publish activation on the action bus as an extension point.
+        // No internal subscriber for now; external listeners can use it
+        // (e.g. `+` auto-focus, future pseudoForm activation).
         genro.publish(this.actionTopic,
             {action: 'activate', rowKey: pkey});
     }
@@ -1412,9 +1372,7 @@ gnr.GroupletGridController = class GroupletGridController {
             chip.classList.toggle('gg-tab-active', rk === activePkey);
         });
         Object.keys(this.tiles).forEach((rk) => {
-            const entry = this.tiles[rk];
-            const live = entry && genro.nodeById(entry.tileNodeId);
-            const dom = live && live.getDomNode && live.getDomNode();
+            const dom = this.tiles[rk].domNode();
             if (dom) dom.classList.toggle('gg-tab-active', rk === activePkey);
         });
     }
@@ -2129,10 +2087,10 @@ gnr.GroupletGridController = class GroupletGridController {
 
     _doAddItem(position, defaults) {
         if (this.maxRows && this._rowCount() >= this.maxRows) return;
-        // Auto-create the rows Bag if it doesn't exist yet. Real case:
-        // a row added to the outer grid (test_7 team) materializes a
-        // `person` record without a `.contacts` sub-Bag; the first `+`
-        // on the inner grid has to create it.
+        // Auto-create the rows Bag if it doesn't exist yet. Nested
+        // groupletGrids hit this when their parent record is created
+        // without the sub-Bag at the storepath: the first `+` on the
+        // inner grid has to materialise it.
         let dataBag = this.storebag();
         if (!(dataBag instanceof gnr.GnrBag)) {
             dataBag = new gnr.GnrBag();
@@ -2190,17 +2148,12 @@ gnr.GroupletGridController = class GroupletGridController {
         // visually conflicts with the panel chrome here.
         if (this._isTabsLayout()) return;
         if (this.selectedPkey === pkey) return;
-        const domForRow = (rk) => {
-            const entry = this.tiles[rk];
-            const live = entry && genro.nodeById(entry.tileNodeId);
-            return (live && live.getDomNode && live.getDomNode()) || null;
-        };
-        if (this.selectedPkey) {
-            const prevDom = domForRow(this.selectedPkey);
+        if (this.selectedPkey && this.tiles[this.selectedPkey]) {
+            const prevDom = this.tiles[this.selectedPkey].domNode();
             if (prevDom) prevDom.classList.remove('selected');
         }
         this.selectedPkey = pkey;
-        const dom = domForRow(pkey);
+        const dom = this.tiles[pkey] && this.tiles[pkey].domNode();
         if (dom) dom.classList.add('selected');
     }
 
