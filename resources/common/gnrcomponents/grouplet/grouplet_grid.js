@@ -1930,21 +1930,16 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     _flashTile(pkey) {
-        // Just-dropped flash: the row inherits the drop-target tint for
+        // Just-dropped flash: the tile inherits the drop-target tint for
         // ~260ms then transitions back to normal. CSS handles the
         // fade-out via `transition` on background/border, so JS only
-        // adds the class and removes it later.
+        // adds the class and removes it later. Defer one tick so the
+        // tile has time to fully mount (this method may fire from a
+        // post-DnD callback chained ahead of `_renderTile`).
         const that = this;
         setTimeout(function() {
-            const entry = that.rows[pkey];
-            const liveNode = entry && genro.nodeById(entry.tileNodeId);
-            const dom = liveNode && liveNode.getDomNode
-                && liveNode.getDomNode();
-            if (!dom) return;
-            dom.classList.add('gg-just-dropped');
-            setTimeout(function() {
-                dom.classList.remove('gg-just-dropped');
-            }, 260);
+            const tile = that.tiles[pkey];
+            if (tile) tile.flash();
         }, 0);
     }
 
@@ -1988,222 +1983,57 @@ gnr.GroupletGridController = class GroupletGridController {
 
     _renderTile(pkey) {
         if (this.tiles[pkey]) return;
-        // Multi-template support (Item 13 Parte A hook): pick the
-        // template key from the row data. Today always __default__.
-        // Callers route through `_ensureTemplate`, so the template
-        // is always primed by the time we land here.
-        const tplKey = this._templateKeyForItem(pkey);
-        const tplSource = this.templateSources[tplKey];
+        const position = this._computeTilePosition(pkey);
+        const tile = new gnr.GroupletGridTile(this, pkey);
+        tile.mount(position);
+        this.tiles[pkey] = tile;
+        this._afterTileMounted(tile);
+    }
+
+    _computeTilePosition(pkey) {
         // Derive the wrapper insertion position from the Bag itself:
         // put the wrapper right before the wrapper of the next sibling
-        // row that already exists in the DOM, or append at the tail.
+        // tile that is already rendered, or append at the tail.
         // Works for all sources of 'ins' (action handlers, DnD,
         // external setItem) without the caller having to know.
-        let position;
         const bag = this.storebag();
-        if (bag instanceof gnr.GnrBag) {
-            const allKeys = bag.getNodes().map((n) => n.label);
-            const idx = allKeys.indexOf(pkey);
-            for (let j = idx + 1; j < allKeys.length; j++) {
-                if (this.tiles[allKeys[j]]) {
-                    position = '<_grtile_' + allKeys[j];
-                    break;
-                }
+        if (!(bag instanceof gnr.GnrBag)) return undefined;
+        const allKeys = bag.getNodes().map((n) => n.label);
+        const idx = allKeys.indexOf(pkey);
+        for (let j = idx + 1; j < allKeys.length; j++) {
+            if (this.tiles[allKeys[j]]) {
+                return '<_grtile_' + allKeys[j];
             }
         }
-        const tileLabel = '_grtile_' + pkey;
-        const tileNodeId = '__grpgridtile__' + this.nodeId + '__' + pkey;
-        // Clone the template — every row owns its own copy.
-        // Auto-generated nodeIds (those starting with `grpgrid_`, used
-        // by the framework itself for action-topic routing of nested
-        // groupletGrids) get namespaced so each row's clone has a unique
-        // container nodeId. Author-supplied nodeIds are left untouched:
-        // it's the author's responsibility to make them unique if they
-        // need to be referenced (typically by including `pkey` in the
-        // nodeId or just by omitting nodeId on widgets that aren't
-        // referenced).
-        const cloned = tplSource.deepCopy();
-        this._namespaceFrameworkNodeIds(cloned, pkey);
-        const bodyContent = this.bodyNode.getValue();
-        const that0 = this;
-        const dragCode = this.dragCode;
-        // In tabs mode pre-stamp `gg-tab-active` on the wrapper when
-        // this row is the one being activated, so the wrapper is born
-        // visible. See the matching comment in `_fullSync` — without
-        // this, every wrapper would mount under `display:none` and
-        // nested widgets inside the first-active panel would build in
-        // a detached layout context.
-        let tileClass = 'grouplet_grid_row';
-        if (this._isTabsLayout() && this.activePkey === pkey) {
-            tileClass += ' gg-tab-active';
-        }
-        const tileKw = {
-            datapath: '.' + pkey,
-            _class: tileClass,
-            nodeId: tileNodeId,
-            connect_onclick: function() { that0.selectTile(pkey); }
-        };
-        // onCreated runs after the DOM is mounted — the right place to
-        // attach the drag handle (no timing hack needed). The handle is
-        // a leaf <div> with no widget logic, so we append plain HTML
-        // directly and wire native HTML5 DnD listeners on the wrapper.
-        if (dragCode) {
-            tileKw.onCreated = function(domnode) {
-                const tileDom = domnode.sourceNode
-                    ? domnode.sourceNode.getDomNode()
-                    : domnode;
-                const handle = document.createElement('div');
-                handle.className = 'grouplet_grid_row_drag';
-                handle.setAttribute('draggable', 'true');
-                handle.title = _T('!!Drag to reorder');
-                handle.innerHTML =
-                    '<span class="grouplet_grid_drag_icon">⠿</span>';
-                tileDom.appendChild(handle);
-                that0._wireTileDnD(tileDom, pkey);
-            };
-        }
-        const extraKw = position ? {_position: position} : undefined;
-        bodyContent._('div', tileLabel, tileKw, extraKw);
-        const tileNode = bodyContent.getNode(tileLabel);
-        const tileContent = tileNode.getValue();
-        const topic = this.actionTopic;
-        // Top-right `×` delete button (Item 10 affordance). Enabled by
-        // `delitem=True`. Always sits on top of the kebab and the row
-        // content via CSS absolute positioning.
-        if (this.delitem) {
-            const delKw = objectUpdate({
-                _class: 'grouplet_grid_row_delete',
-                tip: _T('!!Delete row'),
-                connect_onclick: "genro.publish('" + topic + "',"
-                                + "{action:'delete',rowKey:'" + pkey + "'});"
-            }, this.delitemKw || {});
-            // Author-provided extra _class is merged additively.
-            if (this.delitemKw && this.delitemKw._class) {
-                delKw._class = 'grouplet_grid_row_delete '
-                             + this.delitemKw._class;
-            }
-            tileContent._('div', '_grtile_del_' + pkey, delKw);
-            const delNode = tileContent.getNode('_grtile_del_' + pkey);
-            delNode.getValue()._('div', 'glyph', {innerHTML: '×'});
-        }
-        // Per-row kebab menu — `<div>` target with a child `<menu>`.
-        // The Python side pre-resolves `editmenu` to a dict whose keys
-        // are entry identifiers ('addPrev', 'addNext', 'delete', ...
-        // or anything custom) and whose values are:
-        //   True   → use the built-in preset for that key
-        //   string → custom label, action derived from preset key
-        //   dict   → full menuline spec (label, action, ...)
-        // An empty dict means "no kebab".
-        // Reference: genro_components.js:497 (multivalue dlg) for the
-        // inline `_('menu', {modifiers:'*', ...})` shape.
-        const editmenu = this.editmenu;
-        const hasEditmenu = editmenu && typeof editmenu === 'object'
-                            && Object.keys(editmenu).length > 0;
-        if (hasEditmenu) {
-            // Preset entries: keyed by the same identifiers the Python
-            // side emits ('addPrev', 'addNext', 'delete'). Each returns
-            // a menuline-ready spec (label + action publishing on the
-            // controller's action topic).
-            const presets = {
-                addPrev: {
-                    label: _T('!!Add prev'),
-                    action: "genro.publish('" + topic + "',"
-                          + "{action:'add',position:'<" + pkey + "'});"
-                },
-                addNext: {
-                    label: _T('!!Add next'),
-                    action: "genro.publish('" + topic + "',"
-                          + "{action:'add',position:'>" + pkey + "'});"
-                },
-                'delete': {
-                    label: _T('!!Delete'),
-                    action: "genro.publish('" + topic + "',"
-                          + "{action:'delete',rowKey:'" + pkey + "'});"
-                }
-            };
-            const kebabId = '__grpgridtilemenu__' + this.nodeId + '__' + pkey;
-            const kebabKw = objectUpdate({
-                _class: 'grouplet_grid_row_kebab',
-                tip: _T('!!Row actions'),
-                nodeId: kebabId
-            }, this.editmenuKw || {});
-            if (this.editmenuKw && this.editmenuKw._class) {
-                kebabKw._class = 'grouplet_grid_row_kebab '
-                               + this.editmenuKw._class;
-            }
-            tileContent._('div', '_grtile_kebab_' + pkey, kebabKw);
-            const kebabNode = tileContent.getNode('_grtile_kebab_' + pkey);
-            const kebabContent = kebabNode.getValue();
-            kebabContent._('div', 'glyph', {
-                _class: 'grouplet_grid_kebab_icon',
-                innerHTML: '⋮'
-            });
-            const menu = kebabContent._('menu', {
-                modifiers: '*',
-                _class: 'smallmenu grouplet_grid_row_menu'
-            });
-            Object.keys(editmenu).forEach((entryKey) => {
-                const raw = editmenu[entryKey];
-                if (raw === false || raw === null || raw === undefined) {
-                    return;
-                }
-                const preset = presets[entryKey] || null;
-                let spec;
-                if (raw === true) {
-                    if (!preset) return;        // unknown key, no preset
-                    spec = preset;
-                } else if (typeof raw === 'string') {
-                    spec = objectUpdate({}, preset || {});
-                    spec.label = raw;
-                } else if (typeof raw === 'object') {
-                    spec = objectUpdate({}, preset || {});
-                    objectUpdate(spec, raw);
-                }
-                if (!spec || !spec.label) return;
-                menu._('menuline', spec);
-            });
-        }
-        // freeze/unfreeze on the tileNode so the framework builds
-        // the grafted subtree (template root children → row widgets)
-        // atomically in one shot.
-        tileNode.freeze();
-        cloned.getNodes().forEach((n) => {
-            this._graftNode(tileContent, n);
-        });
-        tileNode.unfreeze();
-        this.tiles[pkey] = {tileNodeId: tileNodeId};
-        // Drag handle is appended via the onCreated callback set above
-        // on tileKw — pattern from timesheet_viewer.js:339-362.
-        // `draggable:true` in the struct attrs is reliably reflected as
-        // the HTML attribute when the parent is live, which is what the
-        // browser's native HTML5 dragstart needs to fire.
+        return undefined;
+    }
+
+    _afterTileMounted(tile) {
+        // Decorations driven by controller-global state. The tile is
+        // already in the DOM and registered in `this.tiles`.
+        const pkey = tile.pkey;
         this._updateAddBtnState();
-        // Tabs mode: also build the corresponding tab chip. The
-        // wrapper's `_class` was pre-stamped above when this row was
-        // already known to be the active one (set by `_fullSync` before
-        // the batch freeze). If the row was just added via the `+`
-        // button (`_pendingActivate === pkey`), switch the active tab
-        // to it now — same UX as opening a new browser tab. Otherwise,
-        // if the new row was inserted as the active one at fullSync
-        // time, reassert the chip class.
+        // Tabs mode: also build the corresponding tab chip. The tile's
+        // `_class` was pre-stamped with `gg-tab-active` if it is the
+        // active one (decided by `_fullSync` before the batch freeze).
+        // If the tile was just added via the `+` button
+        // (`_pendingActivate === pkey`), switch the active tab to it
+        // now — same UX as opening a new browser tab.
         if (this._isTabsLayout()) {
             this._addTabChip(pkey);
             const pending = this._pendingActivate === pkey;
             if (pending) {
                 this._pendingActivate = null;
-                // Force switch even if another tab is currently active.
                 this.activePkey = null;
                 this._activateTab(pkey);
             } else if (!this.activePkey) {
                 this._activateTab(pkey);
             } else if (this.activePkey === pkey) {
-                // The wrapper class was pre-stamped, but the chip was
-                // just created — mark it active too.
                 this._setActiveTabClasses(this.activePkey);
             }
         }
         // Consume pending flash (set by `_doMoveTile*` before mutating
-        // the Bag): highlight a row that just landed via DnD.
+        // the Bag): highlight a tile that just landed via DnD.
         if (this._pendingFlash && this._pendingFlash[pkey]) {
             delete this._pendingFlash[pkey];
             this._flashTile(pkey);
@@ -2229,13 +2059,13 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     _destroyTile(pkey) {
-        const entry = this.tiles[pkey];
-        if (!entry) return;
+        const tile = this.tiles[pkey];
+        if (!tile) return;
         // Tear down DnD listeners before the DOM is destroyed.
-        // In tabs mode the DnD handlers are on the chip (not the row
+        // In tabs mode the DnD handlers are on the chip (not the tile
         // wrapper), so the wrapper-level unwire is a no-op there — the
         // chip teardown happens in `_removeTabChip` below. In cards
-        // mode the chip teardown is also a no-op.
+        // mode the chip teardown is a no-op.
         if (this.dragCode) this._unwireTileDnD(pkey);
         // Tabs mode: drop the chip + decide next active.
         if (this._isTabsLayout()) {
@@ -2253,10 +2083,7 @@ gnr.GroupletGridController = class GroupletGridController {
                 if (nextActive) this._activateTab(nextActive);
             }
         }
-        const tileLabel = '_grtile_' + pkey;
-        // Triggered popNode on the body's source Bag: framework
-        // tears down the wrapper dijit and removes the DOM subtree.
-        this.bodyNode.getValue('static').popNode(tileLabel);
+        tile.unmount();
         delete this.tiles[pkey];
         this._updateAddBtnState();
     }
@@ -2558,5 +2385,417 @@ gnr.GroupletGridController = class GroupletGridController {
                          objectUpdate({}, node.attr || {}));
         });
         return root;
+    }
+};
+
+
+// ============================================================================
+//  gnr.GroupletGridTile — view manager for a single item
+//
+//  Long-lived instance, one per `pkey` in the controller's `tiles` registry.
+//  Owns the DOM wrapper, the chrome (delete `×`, kebab `⋮`, drag handle), and
+//  the body (cloned grouplet template grafted into the wrapper). Acts as a
+//  proxy/façade on two planes:
+//
+//    - View side: `domNode()`, `content()`, `freeze`/`unfreeze`, class mgmt.
+//      Wraps the wrapper sourceNode created in `_mountWrapper`.
+//    - Model side: `itemNode()`, `itemData()`, `getField`/`setField`.
+//      Resolves the corresponding item in the controller's storebag.
+//
+//  Lifecycle:
+//    new Tile(controller, pkey)  → identity set, nothing mounted.
+//    tile.mount(position)        → resolve template + decorations, mount
+//                                  wrapper into bodyContent at `position`,
+//                                  freeze/graft template/unfreeze.
+//    tile.rebuild()              → destroy body (chrome survives) and re-mount
+//                                  body — use when the template changes
+//                                  (resourceField swap).
+//    tile.unmount()              → tear down DOM via popNode on the body Bag.
+//
+//  What this class does NOT own (controller responsibilities):
+//    - Tile insertion position (controller knows the global registry).
+//    - Tab chip lifecycle (chip lives in the global tab strip).
+//    - DnD wiring (`_wireTileDnD` on the controller, called from `onCreated`).
+//    - Struct chrome sync (controller-global).
+//    - Pending flash / pending activate (transient controller state).
+//
+//  Reference patterns:
+//    - `gnr.RowEditor` (genro_wdg.js:658) — long-lived row state, the
+//      attribute-based dirty tracking we'll adopt later (`_loadedValue`,
+//      `_validationError`, `_newrecord`).
+// ============================================================================
+
+gnr.GroupletGridTile = class GroupletGridTile {
+
+    constructor(controller, pkey) {
+        // Identity
+        this.controller = controller;
+        this.pkey = pkey;
+        this.tileLabel = '_grtile_' + pkey;
+        this.tileNodeId = '__grpgridtile__' + controller.nodeId + '__' + pkey;
+
+        // Template metadata (resolved at mount)
+        this.templateKey = null;
+        this.templateSource = null;
+
+        // DOM / sourceNode (populated by `_mountWrapper`)
+        this.tileNode = null;       // wrapper sourceNode
+        this.tileContent = null;    // wrapper inner Bag (view structure)
+        this.tileDom = null;        // wrapper DOM element (set on onCreated)
+
+        // Lifecycle state
+        this.mounted = false;
+        this.isActive = false;
+        this.isDragging = false;
+
+        // Decorations snapshot (resolved at mount; see `_resolveDecorations`)
+        this.hasDelete = false;
+        this.editmenuSpec = null;
+        this.dragEnabled = false;
+
+        // Position (snapshot for re-render)
+        this.position = null;
+    }
+
+    // ── lifecycle ───────────────────────────────────────────────────────────
+
+    mount(position) {
+        this.position = position || null;
+        this._resolveTemplate();
+        this._resolveDecorations();
+        this._mountWrapper();
+        this.tileNode.freeze();
+        this._mountChrome();
+        this._mountBody();
+        this.tileNode.unfreeze();
+        this.mounted = true;
+    }
+
+    rebuild() {
+        // Re-render the body in place. Chrome (delete, kebab, drag handle)
+        // survives because it sits in the same tileContent but we rebuild
+        // it too — simpler and idempotent. The wrapper sourceNode itself
+        // and the DnD listeners stay intact.
+        if (!this.mounted) return;
+        this.tileNode.freeze();
+        this._destroyChrome();
+        this._destroyBody();
+        this._resolveTemplate();
+        this._resolveDecorations();
+        this._mountChrome();
+        this._mountBody();
+        this.tileNode.unfreeze();
+    }
+
+    unmount() {
+        // Triggered popNode on the body's source Bag: framework tears down
+        // the wrapper dijit and removes the DOM subtree. Children dijits are
+        // destroyed by the framework via the `_trigger_data` `del` cascade.
+        const bodyContent = this.controller.bodyNode.getValue('static');
+        bodyContent.popNode(this.tileLabel);
+        this.mounted = false;
+        this.tileNode = null;
+        this.tileContent = null;
+        this.tileDom = null;
+        this.isActive = false;
+        this.isDragging = false;
+    }
+
+    // ── state ───────────────────────────────────────────────────────────────
+
+    activate() {
+        this.isActive = true;
+        this.addClass('gg-tab-active');
+    }
+
+    deactivate() {
+        this.isActive = false;
+        this.removeClass('gg-tab-active');
+    }
+
+    flash() {
+        // Just-dropped flash: CSS handles the fade via `transition`. We just
+        // toggle the class on/off with a fixed delay.
+        const dom = this.domNode();
+        if (!dom) return;
+        dom.classList.add('gg-just-dropped');
+        setTimeout(() => {
+            if (this.tileDom) {
+                this.tileDom.classList.remove('gg-just-dropped');
+            }
+        }, 260);
+    }
+
+    addClass(cls)        { const d = this.domNode(); if (d) d.classList.add(cls); }
+    removeClass(cls)     { const d = this.domNode(); if (d) d.classList.remove(cls); }
+    toggleClass(cls, on) { const d = this.domNode(); if (d) d.classList.toggle(cls, on); }
+
+    // ── sourceNode proxy (view side) ────────────────────────────────────────
+
+    sourceNode()    { return this.tileNode; }
+    content()       { return this.tileNode && this.tileNode.getValue(); }
+    getValue()      { return this.content(); }
+    domNode() {
+        // Prefer the cached `tileDom` (set in `onCreated`). Fallback through
+        // the sourceNode in case `domNode()` is called before the framework
+        // has fired `onCreated` for this wrapper.
+        if (this.tileDom) return this.tileDom;
+        const live = this.tileNode && genro.nodeById(this.tileNodeId);
+        const dom = live && live.getDomNode && live.getDomNode();
+        if (dom) this.tileDom = dom;
+        return dom || null;
+    }
+    freeze()        { this.tileNode && this.tileNode.freeze(); }
+    unfreeze()      { this.tileNode && this.tileNode.unfreeze(); }
+    getRelativeData(path)        { return this.tileNode && this.tileNode.getRelativeData(path); }
+    setRelativeData(path, value) { return this.tileNode && this.tileNode.setRelativeData(path, value); }
+
+    // ── item proxy (model side) ─────────────────────────────────────────────
+
+    itemNode() {
+        const bag = this.controller.storebag();
+        if (!(bag instanceof gnr.GnrBag)) return null;
+        return bag.getNode(this.pkey, 'static') || null;
+    }
+    itemData() {
+        const node = this.itemNode();
+        const value = node && node.getValue();
+        return (value instanceof gnr.GnrBag) ? value : null;
+    }
+    getField(name) {
+        const data = this.itemData();
+        return data ? data.getItem(name) : undefined;
+    }
+    setField(name, value, attr) {
+        const data = this.itemData();
+        if (data) data.setItem(name, value, attr);
+    }
+
+    // ── internal: mount helpers ─────────────────────────────────────────────
+
+    _resolveTemplate() {
+        // Multi-template support (Item 13): the template key is picked from
+        // the row data via `_templateKeyForItem`. Today defaults to
+        // `__default__`. Callers route through `_ensureTemplate`, so the
+        // template is always primed by the time we land here.
+        this.templateKey = this.controller._templateKeyForItem(this.pkey);
+        this.templateSource = this.controller.templateSources[this.templateKey];
+    }
+
+    _resolveDecorations() {
+        // Snapshot the controller-level decoration flags at mount time. They
+        // are level-controller (not per-tile) today, but caching here keeps
+        // future per-tile overrides easy to introduce.
+        const c = this.controller;
+        this.hasDelete = !!c.delitem;
+        this.dragEnabled = !!c.dragCode;
+        const editmenu = c.editmenu;
+        this.editmenuSpec = (editmenu && typeof editmenu === 'object'
+            && Object.keys(editmenu).length > 0) ? editmenu : null;
+    }
+
+    _mountWrapper() {
+        // In tabs mode pre-stamp `gg-tab-active` on the wrapper when this
+        // tile is the active one, so the wrapper is born visible. Without
+        // this, every wrapper would mount under `display:none` and nested
+        // widgets inside the first-active panel would build in a detached
+        // layout context.
+        const c = this.controller;
+        const pkey = this.pkey;
+        let tileClass = 'grouplet_grid_row';
+        if (c._isTabsLayout() && c.activePkey === pkey) {
+            tileClass += ' gg-tab-active';
+            this.isActive = true;
+        }
+        const tile = this;
+        const tileKw = {
+            datapath: '.' + pkey,
+            _class: tileClass,
+            nodeId: this.tileNodeId,
+            connect_onclick: function() { c.selectTile(pkey); }
+        };
+        // onCreated runs after the DOM is mounted — the right place to
+        // attach the drag handle (no timing hack needed). The handle is
+        // a leaf <div> with no widget logic, so we append plain HTML
+        // directly and wire native HTML5 DnD listeners on the wrapper.
+        if (this.dragEnabled) {
+            tileKw.onCreated = function(domnode) {
+                const tileDom = domnode.sourceNode
+                    ? domnode.sourceNode.getDomNode()
+                    : domnode;
+                tile.tileDom = tileDom;
+                const handle = document.createElement('div');
+                handle.className = 'grouplet_grid_row_drag';
+                handle.setAttribute('draggable', 'true');
+                handle.title = _T('!!Drag to reorder');
+                handle.innerHTML =
+                    '<span class="grouplet_grid_drag_icon">⠿</span>';
+                tileDom.appendChild(handle);
+                c._wireTileDnD(tileDom, pkey);
+            };
+        } else {
+            tileKw.onCreated = function(domnode) {
+                tile.tileDom = domnode.sourceNode
+                    ? domnode.sourceNode.getDomNode()
+                    : domnode;
+            };
+        }
+        const bodyContent = c.bodyNode.getValue();
+        const extraKw = this.position ? {_position: this.position} : undefined;
+        bodyContent._('div', this.tileLabel, tileKw, extraKw);
+        this.tileNode = bodyContent.getNode(this.tileLabel);
+        this.tileContent = this.tileNode.getValue();
+    }
+
+    // ── chrome (tools) ──────────────────────────────────────────────────────
+
+    _mountChrome() {
+        this._mountDelete();
+        this._mountKebab();
+    }
+
+    _destroyChrome() {
+        if (!this.tileContent) return;
+        const delLabel = '_grtile_del_' + this.pkey;
+        const kebabLabel = '_grtile_kebab_' + this.pkey;
+        if (this.tileContent.getNode(delLabel, 'static')) {
+            this.tileContent.popNode(delLabel);
+        }
+        if (this.tileContent.getNode(kebabLabel, 'static')) {
+            this.tileContent.popNode(kebabLabel);
+        }
+    }
+
+    _mountDelete() {
+        // Top-right `×` delete button (Item 10 affordance). Enabled by
+        // `delitem=True`. Always sits on top of the kebab and the body
+        // content via CSS absolute positioning.
+        if (!this.hasDelete) return;
+        const c = this.controller;
+        const pkey = this.pkey;
+        const topic = c.actionTopic;
+        const delKw = objectUpdate({
+            _class: 'grouplet_grid_row_delete',
+            tip: _T('!!Delete row'),
+            connect_onclick: "genro.publish('" + topic + "',"
+                            + "{action:'delete',rowKey:'" + pkey + "'});"
+        }, c.delitemKw || {});
+        // Author-provided extra _class is merged additively.
+        if (c.delitemKw && c.delitemKw._class) {
+            delKw._class = 'grouplet_grid_row_delete '
+                         + c.delitemKw._class;
+        }
+        this.tileContent._('div', '_grtile_del_' + pkey, delKw);
+        const delNode = this.tileContent.getNode('_grtile_del_' + pkey);
+        delNode.getValue()._('div', 'glyph', {innerHTML: '×'});
+    }
+
+    _mountKebab() {
+        // Per-row kebab menu — `<div>` target with a child `<menu>`. The
+        // Python side pre-resolves `editmenu` to a dict whose keys are
+        // entry identifiers ('addPrev', 'addNext', 'delete', or anything
+        // custom) and whose values are:
+        //   True   → use the built-in preset for that key
+        //   string → custom label, action derived from preset key
+        //   dict   → full menuline spec (label, action, ...)
+        // An empty dict means "no kebab".
+        // Reference: genro_components.js:497 (multivalue dlg) for the
+        // inline `_('menu', {modifiers:'*', ...})` shape.
+        const editmenu = this.editmenuSpec;
+        if (!editmenu) return;
+        const c = this.controller;
+        const pkey = this.pkey;
+        const topic = c.actionTopic;
+        // Preset entries: keyed by the same identifiers the Python side
+        // emits ('addPrev', 'addNext', 'delete'). Each returns a
+        // menuline-ready spec (label + action publishing on the
+        // controller's action topic).
+        const presets = {
+            addPrev: {
+                label: _T('!!Add prev'),
+                action: "genro.publish('" + topic + "',"
+                      + "{action:'add',position:'<" + pkey + "'});"
+            },
+            addNext: {
+                label: _T('!!Add next'),
+                action: "genro.publish('" + topic + "',"
+                      + "{action:'add',position:'>" + pkey + "'});"
+            },
+            'delete': {
+                label: _T('!!Delete'),
+                action: "genro.publish('" + topic + "',"
+                      + "{action:'delete',rowKey:'" + pkey + "'});"
+            }
+        };
+        const kebabId = '__grpgridtilemenu__' + c.nodeId + '__' + pkey;
+        const kebabKw = objectUpdate({
+            _class: 'grouplet_grid_row_kebab',
+            tip: _T('!!Row actions'),
+            nodeId: kebabId
+        }, c.editmenuKw || {});
+        if (c.editmenuKw && c.editmenuKw._class) {
+            kebabKw._class = 'grouplet_grid_row_kebab '
+                           + c.editmenuKw._class;
+        }
+        this.tileContent._('div', '_grtile_kebab_' + pkey, kebabKw);
+        const kebabNode = this.tileContent.getNode('_grtile_kebab_' + pkey);
+        const kebabContent = kebabNode.getValue();
+        kebabContent._('div', 'glyph', {
+            _class: 'grouplet_grid_kebab_icon',
+            innerHTML: '⋮'
+        });
+        const menu = kebabContent._('menu', {
+            modifiers: '*',
+            _class: 'smallmenu grouplet_grid_row_menu'
+        });
+        Object.keys(editmenu).forEach((entryKey) => {
+            const raw = editmenu[entryKey];
+            if (raw === false || raw === null || raw === undefined) return;
+            const preset = presets[entryKey] || null;
+            let spec;
+            if (raw === true) {
+                if (!preset) return;        // unknown key, no preset
+                spec = preset;
+            } else if (typeof raw === 'string') {
+                spec = objectUpdate({}, preset || {});
+                spec.label = raw;
+            } else if (typeof raw === 'object') {
+                spec = objectUpdate({}, preset || {});
+                objectUpdate(spec, raw);
+            }
+            if (!spec || !spec.label) return;
+            menu._('menuline', spec);
+        });
+    }
+
+    // ── body (grouplet template) ────────────────────────────────────────────
+
+    _mountBody() {
+        // Clone the template — every tile owns its own copy. Auto-generated
+        // nodeIds (those starting with `grpgrid_`, used by the framework
+        // itself for action-topic routing of nested groupletGrids) get
+        // namespaced so each tile's clone has a unique container nodeId.
+        // Author-supplied nodeIds are left untouched: it's the author's
+        // responsibility to make them unique if they need to be referenced.
+        const cloned = this.templateSource.deepCopy();
+        this.controller._namespaceFrameworkNodeIds(cloned, this.pkey);
+        cloned.getNodes().forEach((n) => {
+            this.controller._graftNode(this.tileContent, n);
+        });
+    }
+
+    _destroyBody() {
+        // Remove all body-grafted children, keeping the wrapper + chrome
+        // children (`_grtile_del_*`, `_grtile_kebab_*`). The body children
+        // are everything else inside `tileContent`.
+        if (!this.tileContent) return;
+        const delLabel = '_grtile_del_' + this.pkey;
+        const kebabLabel = '_grtile_kebab_' + this.pkey;
+        const labelsToRemove = [];
+        this.tileContent.getNodes().forEach((n) => {
+            if (n.label === delLabel || n.label === kebabLabel) return;
+            labelsToRemove.push(n.label);
+        });
+        labelsToRemove.forEach((lbl) => this.tileContent.popNode(lbl));
     }
 };
