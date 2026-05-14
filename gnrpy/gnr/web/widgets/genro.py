@@ -5,10 +5,10 @@ These methods are generated at runtime via __getattr__ -> child(tag, **kwargs).
 """
 from __future__ import annotations
 
-from genro_bag.builder import element
+from gnr.web.widgets import WidgetMixinBase, element
 
 
-class GenroWidgets:
+class GenroWidgets(WidgetMixinBase):
     """Mixin documenting GenroPy-specific widgets (gnrNS namespace)."""
 
     # =====================================================================
