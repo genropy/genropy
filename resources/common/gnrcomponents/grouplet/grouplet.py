@@ -748,6 +748,9 @@ class GroupletGridHandler(BaseComponent):
                         additem_kwargs=None,
                         delitem_kwargs=None,
                         editmenu_kwargs=None,
+                        storeType='ValuesBagRows',
+                        store_identifier=None,
+                        store_kwargs=None,
                         nodeId=None, **kwargs):
         # nodeIds inside the grouplet template are NOT auto-renamed when
         # the template is cloned per row. Author-supplied nodeIds must
@@ -811,13 +814,36 @@ class GroupletGridHandler(BaseComponent):
         # `_gg_root=True` is an attribute marker descendants resolve via
         # `attributeOwnerNode('_gg_root')` — robust against nested
         # groupletGrids where literal nodeIds are namespaced per row.
+        # `store=<nodeId>` ties the container to its sibling store
+        # node (looked up via `genro.nodeById(store+'_store')` lato JS).
         container = pane.div(
             _class=container_class,
             nodeId=nodeId,
             datapath=datapath,
             storepath=storepath,
             _gg_root=True,
+            store=f'{nodeId}_store',
             **container_kwargs)
+        # Sibling store (default: ValuesBagRows). The store wraps the
+        # rows Bag and gives us hasChanges/hasErrors/setLocked/sum-with-
+        # filter for free. `storeType` picks the variant (the helper
+        # also accepts 'AttributesBagRows', 'RpcBase', 'Selection',
+        # fsStore, ...).
+        # Emitted INSIDE the container so `storepath` resolves against
+        # the same `datapath` the container declares (otherwise a
+        # `datapath='.demo'` + `storepath='.rows'` would mismatch — the
+        # store would land on `.rows` instead of `.demo.rows`).
+        # The store nodeId is derived from the container's nodeId, so
+        # the framework's nodeId namespacing (cf.
+        # _namespaceFrameworkNodeIds in grouplet_grid.js) keeps the
+        # sibling store unique per row clone when the template is
+        # reused inside a parent tile.
+        store_kw = dict(store_kwargs or {})
+        if store_identifier is not None:
+            store_kw['_identifier'] = store_identifier
+        store_kw['storeType'] = storeType
+        container.bagStore(storepath=storepath, storeCode=nodeId,
+                           **store_kw)
         if struct_mode:
             container.data(structpath, struct)
         for side in ('top', 'bottom', 'left', 'right'):

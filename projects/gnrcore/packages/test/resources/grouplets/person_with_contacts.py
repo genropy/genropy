@@ -67,6 +67,7 @@ class Grouplet(BaseComponent):
             storepath='.contacts',
             resource='contact_row',
             delitem=False, editmenu=True,
+            dragCode='contacts',
             additem_label='!!New contact',
             additem_class='grouplet_grid_footer--minimal',
             defaultRow=dict(channel='email', value=''))

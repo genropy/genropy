@@ -423,18 +423,21 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
 // never touches `genro.getData(storepath)` / `bag.popNode` / `bag.setItem`
 // directly; it talks to `this.dataStore.X()`.
 //
-// Phase 1: mode 'internal' wraps the storepath Bag.
-// Phase 2 (current): adds purely-visual filter+sort.
-//   - filter → `display: none` on filtered-out tiles (Bag intact)
-//   - sort → `style.order = N` on each tile (Bag intact)
-//   The dataStore stores only the visual state and notifies the
-//   controller, which applies the CSS in `_applyVisualState`. Tiles
-//   stay mounted, inner widgets keep their state, layout flow
-//   compacts naturally. Lock/changes APIs still stubbed for Phase 3.
+// The `gr_groupletGrid` Python helper always emits a sibling
+// `pane.bagStore(...)` (default `storeType='ValuesBagRows'`) and tags
+// the container with `attr.store=<nodeId>`. This dataStore is a thin
+// view over that sibling — it picks the framework store up via
+// `genro.nodeById(<store>+'_store').store` and delegates change
+// tracking, lock propagation, deleteAsk and (Phase 2) filter/sort
+// state. Mutations flow through the Bag, so the store's rowLogger
+// picks them up automatically — no manual change events.
 //
-// Phase 2 will add mode 'proxy' (sibling BagStore / ValuesBagRows) and
-// 'adapter' (AttributesBagRows / dataSelection). The controller-facing
-// surface stays the same; only the dispatch internals change.
+// Filter and sort will be added on top of this in a follow-up:
+//   - filter → `display: none` on filtered-out tiles
+//   - sort   → `style.order = N` per tile
+// Both purely visual; the data stays untouched. The `_filtered`
+// array lives on the sibling store so totals (changeManager) and
+// `sum(field)` aggregate the visible rows for free.
 //
 // See docs/groupletgrid_store_integration.html for the full design.
 
@@ -446,41 +449,44 @@ gnr.GroupletDataStore = class GroupletDataStore {
         this.identifier = kw.identifier || null;
         this._filtered = null;
         this._sortedBy = null;
+        // The sibling BagStore (default ValuesBagRows, see grouplet.py
+        // `pane.bagStore(...)`) is always emitted. Its instance lives
+        // at `genro.nodeById(<store>+'_store').store`; we look it up
+        // lazily on first access (the BagStore widget initialises in
+        // its own _onBuilt callback — same dispatch tick as the
+        // controller, so neither order is guaranteed at construct).
+        this._storeCode = controller.sourceNode.attr.store;
+        this._externalStore = null;
+    }
+
+    store() {
+        // Lazy resolve + cache. `attr.store` on the container holds
+        // the BagStore widget's full nodeId (`<base>_store`), so
+        // `_namespaceFrameworkNodeIds` rewrites both consistently
+        // (`<base>_store__<outer>__<pkey>`) when the template is
+        // cloned per row. Initial render is deferred via
+        // `genro.src.onBuiltCall` so the sibling BagStore is built.
+        if (this._externalStore) return this._externalStore;
+        this._externalStore = genro.nodeById(this._storeCode).store;
+        return this._externalStore;
     }
 
     // === Read ===
 
-    bag() {
-        return genro.getData(this.storepath);
-    }
-
-    ensureBag() {
-        // Nested grids inside a freshly-created parent record may have
-        // no rows Bag yet; materialise it on demand.
-        let b = this.bag();
-        if (!(b instanceof gnr.GnrBag)) {
-            b = new gnr.GnrBag();
-            genro.setData(this.storepath, b);
-        }
-        return b;
+    getData() {
+        return this.store().getData();
     }
 
     getNodes() {
-        // Phase 1: forwards bag().getNodes() (visual order == Bag order).
-        // Phase 2 will apply `_filtered` / sort transparently — same
-        // convention as gnr.Grid using storebag().getNodes() throughout.
-        const b = this.bag();
-        return (b instanceof gnr.GnrBag) ? b.getNodes() : [];
+        return this.getData().getNodes();
     }
 
     rowNode(rowKey) {
-        const b = this.bag();
-        return (b instanceof gnr.GnrBag) ? b.getNode(rowKey) : null;
+        return this.getData().getNode(rowKey);
     }
 
     rowValue(rowKey) {
-        const b = this.bag();
-        return (b instanceof gnr.GnrBag) ? b.getItem(rowKey) : null;
+        return this.getData().getItem(rowKey);
     }
 
     rowField(rowKey, field) {
@@ -488,16 +494,14 @@ gnr.GroupletDataStore = class GroupletDataStore {
     }
 
     rowByIndex(idx) {
-        const nodes = this.getNodes();
-        const n = nodes[idx];
+        const n = this.getNodes()[idx];
         if (!n) return null;
         const v = n.getValue();
         return v instanceof gnr.GnrBag ? v.asDict() : {};
     }
 
     len() {
-        const b = this.bag();
-        return (b instanceof gnr.GnrBag) ? b.len() : 0;
+        return this.getData().len();
     }
 
     keyForRow(rowKey) {
@@ -505,14 +509,13 @@ gnr.GroupletDataStore = class GroupletDataStore {
     }
 
     indexOfKey(rowKey) {
-        const b = this.bag();
-        return (b instanceof gnr.GnrBag && b.index) ? b.index(rowKey) : -1;
+        return this.getData().index(rowKey);
     }
 
     // === Mutate ===
 
     addRow(rowKey, data, position) {
-        const dataBag = this.ensureBag();
+        const dataBag = this.getData();
         const rowBag = new gnr.GnrBag();
         const merged = objectUpdate({}, data || {});
         Object.keys(merged).forEach((k) => rowBag.setItem(k, merged[k]));
@@ -528,18 +531,13 @@ gnr.GroupletDataStore = class GroupletDataStore {
     }
 
     removeRow(rowKey) {
-        const b = this.bag();
-        if (b instanceof gnr.GnrBag) b.popNode(rowKey);
+        this.getData().popNode(rowKey);
     }
 
     deleteRowAsk(rowKey) {
-        const that = this;
-        genro.dlg.ask(
-            _T('!!Delete this row?'),
-            _T('!!This row will be removed. Continue?'),
-            {confirm: _T('!!Delete'), cancel: _T('!!Cancel')},
-            {confirm: () => that.controller._doDeleteItem(rowKey)}
-        );
+        // Standard delete dialog (count-verify + protect logic +
+        // logical-delete UX), inherited from gnr.stores._Collection.
+        this.store().deleteAsk([rowKey]);
     }
 
     moveRow(rowKey, position) {
@@ -551,8 +549,7 @@ gnr.GroupletDataStore = class GroupletDataStore {
         const op = position.charAt(0);
         if (op !== '<' && op !== '>') return null;
         const targetKey = position.slice(1);
-        const bag = this.bag();
-        if (!(bag instanceof gnr.GnrBag)) return null;
+        const bag = this.getData();
         const nodes = bag._nodes;
         const fromIdx = nodes.findIndex((n) => n.label === rowKey);
         const targetIdx = nodes.findIndex((n) => n.label === targetKey);
@@ -568,8 +565,8 @@ gnr.GroupletDataStore = class GroupletDataStore {
         // Cross-grid migration. `forceKey` lets the caller pre-commit
         // the destination key (so e.g. _pendingFlash can be set before
         // the setItem trigger fires _renderTile).
-        const sourceBag = srcStore.bag();
-        const targetBag = this.ensureBag();
+        const sourceBag = srcStore.getData();
+        const targetBag = this.getData();
         const node = sourceBag.getNode(srcKey);
         if (!node) return null;
         const rowValue = node.getValue();
@@ -591,7 +588,6 @@ gnr.GroupletDataStore = class GroupletDataStore {
         const rowNode = this.rowNode(rowKey);
         if (!rowNode) return;
         const rowData = rowNode.getValue();
-        if (!(rowData instanceof gnr.GnrBag)) return;
         const idx = this.indexOfKey(rowKey);
         for (const k in dict) {
             if (!rowData.getNode(k, 'static')) {
@@ -613,15 +609,16 @@ gnr.GroupletDataStore = class GroupletDataStore {
     }
 
     sum(field, strict) {
-        const b = this.bag();
-        return (b instanceof gnr.GnrBag) ? b.sum(field, strict) : 0;
+        return this.getData().sum(field, strict);
     }
 
     getIdxFromPkey(pkey) {
         return this.indexOfKey(pkey);
     }
 
-    // === Phase 2 stubs — visible if any path uses them today ===
+    // === Phase 2 stubs (filter/sort done via CSS on top of the
+    //     sibling store's `_filtered` array — wired in a follow-up
+    //     commit). Stub-warn keeps any early caller visible. ===
 
     setFilter(_cb) {
         console.warn('[GroupletDataStore] setFilter() — Phase 2');
@@ -640,35 +637,29 @@ gnr.GroupletDataStore = class GroupletDataStore {
     }
 
     isFiltered() {
-        return false;
+        return this.store().isFiltered();
     }
 
     refresh() {
         // no-op until filter/sort state exists
     }
 
+    // === Lock / changes / errors — forward to the sibling store ===
+
     hasChanges() {
-        console.warn(
-            '[GroupletDataStore] hasChanges() requires an external '
-            + 'store (Phase 2)');
-        return false;
+        return this.store().hasChanges();
     }
 
     hasErrors() {
-        console.warn(
-            '[GroupletDataStore] hasErrors() requires an external '
-            + 'store (Phase 2)');
-        return false;
+        return this.store().hasErrors();
     }
 
-    setLocked(_v) {
-        console.warn(
-            '[GroupletDataStore] setLocked() requires an external '
-            + 'store (Phase 2)');
+    setLocked(value) {
+        this.store().setLocked(value);
     }
 
     isLocked() {
-        return false;
+        return this.store().isLocked();
     }
 };
 
@@ -737,14 +728,22 @@ gnr.GroupletGridController = class GroupletGridController {
         this._applySlotClasses();
         this._registerActionSubscription();
         this._buildLayoutAffordances();
-        this._initChangeManager();
         const that = this;
         dojo.connect(sourceNode, '_onDeleting', function() { that.destroy(); });
-        // The first container build emits no 'storepath' trigger, so we
-        // seed the initial render here; later mutations flow through
-        // `gnr_storepath`.
-        this.newDataStore();
-        this._updateAddBtnState();
+        // ChangeManager wiring + first render both reach into the
+        // sibling BagStore — but the BagStore registers its own
+        // `_onBuilt` callback too, and for cloned templates (test_7
+        // contacts, test_8 nested) the inner store finishes building
+        // AFTER our constructor returns. Defer everything store-bound
+        // to `onBuiltCall` — same pattern as gnr.Grid
+        // (`genro_grid.js:704`) when a grid consumes its sibling
+        // store. Pre-store init (layout, DnD, action bus) stays sync.
+        genro.src.onBuiltCall(function() {
+            if (that._destroyed) return;
+            that._initChangeManager();
+            that.newDataStore();
+            that._updateAddBtnState();
+        });
     }
 
     destroy() {
@@ -766,7 +765,7 @@ gnr.GroupletGridController = class GroupletGridController {
     // ====================================================================
 
     storebag() {
-        return this.dataStore.bag();
+        return this.dataStore.getData();
     }
 
     _containerDom() {
@@ -777,7 +776,7 @@ gnr.GroupletGridController = class GroupletGridController {
         // GridChangeManager expects a store-shaped object with
         // updateRowNode / sum / getIdxFromPkey / rowByIndex; the
         // dataStore exposes exactly these names.
-        return this.dataStore.bag() ? this.dataStore : null;
+        return this.dataStore.getData() ? this.dataStore : null;
     }
 
     rowFromBagNode(rowNode, _includeAttrs) {
@@ -1582,7 +1581,7 @@ gnr.GroupletGridController = class GroupletGridController {
         if (sourceCtrl === this) return;
         // Pre-commit the target key so _pendingFlash is set before the
         // setItem trigger fires _renderTile.
-        const targetBag = this.dataStore.bag();
+        const targetBag = this.dataStore.getData();
         const targetRowKey = (targetBag && targetBag.getNode(sourceRowKey))
             ? genro.time36Id() : sourceRowKey;
         this._pendingFlash = this._pendingFlash || {};
@@ -1801,15 +1800,25 @@ gnr.GroupletGridController = class GroupletGridController {
     // ====================================================================
 
     _namespaceFrameworkNodeIds(domSource, pkey) {
-        // Suffix only the framework-generated `grpgrid_*` nodeIds so
-        // each row instance is unique on the action bus
-        // (`groupletGrid_<nodeId>_action`). Author-supplied nodeIds are
-        // left as is.
+        // Suffix every framework-generated reference (`grpgrid_*`) in
+        // the cloned template so each row instance is unique. Applies
+        // to all string attrs, not just `nodeId`: the sibling BagStore
+        // (and any future cross-reference like controller=/for=) is
+        // looked up by string nodeId, so an `attr.store='grpgrid_X'`
+        // that survives unchanged would point to the template's
+        // original store instead of the clone's. Author-supplied
+        // (non-`grpgrid_*`) ids are left untouched.
         const suffix = '__' + this.nodeId + '__' + pkey;
         const apply = function(n) {
             const a = n.attr;
-            if (!a || typeof a.nodeId !== 'string') return;
-            if (a.nodeId.indexOf('grpgrid_') === 0) a.nodeId += suffix;
+            if (!a) return;
+            for (const k in a) {
+                const v = a[k];
+                if (typeof v === 'string'
+                        && v.indexOf('grpgrid_') === 0) {
+                    a[k] = v + suffix;
+                }
+            }
         };
         domSource.getNodes().forEach((n) => {
             apply(n);
