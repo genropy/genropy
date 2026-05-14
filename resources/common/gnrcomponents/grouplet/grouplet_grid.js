@@ -1269,10 +1269,9 @@ gnr.GroupletGridController = class GroupletGridController {
     // ====================================================================
     //
     //  The chip itself is the drag handle in tabs mode (no `⠿` glyph).
-    //  Same data-transfer payload as the tile (handled declaratively by
-    //  the framework), so cross-grid drag works between any combination
-    //  of cards-mode and tabs-mode grids sharing a `dragCode`. The drop
-    //  position is always "before the
+    //  Same data-transfer payload as `_wireTileDnD`, so cross-grid drag
+    //  works between any combination of cards-mode and tabs-mode grids
+    //  sharing a `dragCode`. The drop position is always "before the
     //  target chip" — same convention as cards mode.
 
     _addTabChip(pkey) {
@@ -1380,13 +1379,14 @@ gnr.GroupletGridController = class GroupletGridController {
 
     _wireTabDnD(chipDom, pkey) {
         const that = this;
-        const dataKey = this._dnDDropType();
+        const dataKey = 'application/x-gg-' + this.dragCode;
         const containerDom = this._containerDom();
         chipDom.setAttribute('draggable', 'true');
         const onDragStart = function(e) {
             try {
-                genro.dom.setInDataTransfer(e.dataTransfer, dataKey,
-                    {rowKey: pkey, nodeId: that.nodeId});
+                e.dataTransfer.setData(dataKey, JSON.stringify({
+                    rowKey: pkey, nodeId: that.nodeId
+                }));
                 e.dataTransfer.setData('text/plain', pkey);
                 e.dataTransfer.effectAllowed = 'move';
             } catch (err) { /* IE/Safari quirks */ }
@@ -1428,7 +1428,7 @@ gnr.GroupletGridController = class GroupletGridController {
             for (let i = 0; i < types.length; i++) {
                 if (types[i] === dataKey) { isValid = true; break; }
                 if (typeof types[i] === 'string'
-                    && types[i].indexOf('gg_tile_') === 0) {
+                    && types[i].indexOf('application/x-gg-') === 0) {
                     isForeignGG = true;
                 }
             }
@@ -1447,29 +1447,35 @@ gnr.GroupletGridController = class GroupletGridController {
             }
         };
         const onDrop = function(e) {
-            const payload = genro.dom.getFromDataTransfer(e.dataTransfer,
-                                                          dataKey);
+            const raw = e.dataTransfer.getData(dataKey);
             that._clearDragOver();
-            if (!payload) return;
+            if (!raw) return;
             e.preventDefault();
-            if (payload.rowKey === pkey && payload.nodeId === that.nodeId) {
+            let payload;
+            try { payload = JSON.parse(raw); }
+            catch (err) { return; }
+            if (!payload) return;
+            if (payload.nodeId === that.nodeId) {
+                if (payload.rowKey === pkey) return;
+                genro.publish(that.actionTopic, {
+                    action: 'move',
+                    rowKey: payload.rowKey,
+                    position: '<' + pkey
+                });
                 return;
             }
-            genro.publish(that.actionTopic, {
-                action: 'move',
-                rowKey: payload.rowKey,
-                sourceNodeId: payload.nodeId,
-                position: '<' + pkey
-            });
+            const sourceCtrl = that._findSourceController(payload.nodeId);
+            if (!sourceCtrl) return;
+            that._doMoveTileFrom(sourceCtrl, payload.rowKey, '<' + pkey);
         };
         chipDom.addEventListener('dragstart', onDragStart);
         chipDom.addEventListener('dragend', onDragEnd);
         chipDom.addEventListener('dragover', onDragOver);
         chipDom.addEventListener('dragleave', onDragLeave);
         chipDom.addEventListener('drop', onDrop);
-        // Storage `_dragHandlesByPkey` keyed by pkey — tabs mode has the
-        // chip listeners here while the tile itself in tabs mode is
-        // hidden (only the chip is wired).
+        // Reuse `_dragHandlesByPkey` storage — keying by pkey is unique
+        // per controller, and tabs mode never has a `_wireTileDnD` peer
+        // for the same row (only the chip is wired).
         this._dragHandlesByPkey[pkey] = {
             dom: chipDom,
             handlers: {dragstart: onDragStart, dragend: onDragEnd,
@@ -1479,9 +1485,9 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     _unwireTabDnD(pkey) {
-        // Identical teardown to `_unwireChipDnD` since both store under
+        // Identical teardown to `_unwireTileDnD` since both store under
         // the same `_dragHandlesByPkey` key; reuse the existing method.
-        this._unwireChipDnD(pkey);
+        this._unwireTileDnD(pkey);
     }
 
     // ====================================================================
@@ -1535,7 +1541,191 @@ gnr.GroupletGridController = class GroupletGridController {
     //  DnD — row wrappers, container drop zone, cross-instance migration
     // ====================================================================
 
-    _unwireChipDnD(pkey) {
+    _wireTileDnD(tileDom, pkey) {
+        // Wire HTML5 drag-and-drop directly on a row wrapper (mounted DOM).
+        // Called from _renderTile after unfreeze. The drag handle inside the
+        // wrapper carries `draggable="true"` so dragstart fires; here we
+        // listen on the wrapper itself for dragstart/dragend (bubbled from
+        // the handle) and dragover/drop (the wrapper is the drop zone).
+        // Drop position is always "before the target row" — the cursor's
+        // Y inside the row is irrelevant: any hit on the wrapper highlights
+        // the whole card and inserts the dragged row at that index.
+        const that = this;
+        const dataKey = 'application/x-gg-' + this.dragCode;
+        const containerDom = this._containerDom();
+        const onDragStart = function(e) {
+            // The handle that started the drag must belong to THIS
+            // wrapper, not to a nested grid's wrapper. Without this
+            // check, a dragstart on a nested row's handle would bubble
+            // up and re-fire on the outer wrapper, snapshotting the
+            // outer card instead of the nested row.
+            const handle = e.target.closest
+                ? e.target.closest('.grouplet_grid_row_drag') : null;
+            if (!handle) return;
+            const innermostWrapper = handle.closest('.grouplet_grid_row');
+            if (innermostWrapper !== tileDom) return;
+            try {
+                e.dataTransfer.setData(dataKey, JSON.stringify({
+                    rowKey: pkey, nodeId: that.nodeId
+                }));
+                // Some browsers also need a generic text payload to start.
+                e.dataTransfer.setData('text/plain', pkey);
+                e.dataTransfer.effectAllowed = 'move';
+            } catch (err) { /* IE/Safari quirks */ }
+            // Drag image = snapshot of THIS row wrapper. The clone goes
+            // into the global '#auxDragImage' off-screen container,
+            // becomes the browser's drag image, and is cleaned up on
+            // next tick (the snapshot is captured synchronously).
+            try {
+                const auxDragImage = document.getElementById('auxDragImage');
+                if (auxDragImage) {
+                    const clone = tileDom.cloneNode(true);
+                    clone.classList.remove('gg-dragging', 'gg-drop-target',
+                        'gg-drop-target-invalid', 'gg-just-dropped');
+                    clone.style.width = tileDom.offsetWidth + 'px';
+                    // In struct mode the row's own chrome is stripped
+                    // (the container card owns the border/radius). Tag
+                    // the clone so CSS can re-add a self-contained card
+                    // look — otherwise the drag image renders as a
+                    // borderless naked strip. Also carry over the
+                    // `--gg-struct-columns` CSS custom property: it's
+                    // set inline on the container, but the clone sits
+                    // outside the container in `#auxDragImage`, so the
+                    // variable wouldn't resolve and the inner grid
+                    // would collapse all widgets to a single 1fr track.
+                    if (containerDom.classList.contains('grouplet_grid--struct')) {
+                        // Mark the clone so CSS can restyle it as a
+                        // self-contained card AND apply the inner
+                        // struct grid rules — those are scoped under
+                        // `.grouplet_grid--struct` which lives on the
+                        // container, not on the row. Adding the same
+                        // class to the clone makes the struct rules
+                        // (display:grid + grid-template-columns) take
+                        // effect even though the clone now lives in
+                        // `#auxDragImage`, outside the container tree.
+                        clone.classList.add('gg-struct-drag-clone',
+                            'grouplet_grid--struct');
+                        const cols = containerDom.style.getPropertyValue(
+                            '--gg-struct-columns');
+                        if (cols) {
+                            clone.style.setProperty('--gg-struct-columns', cols);
+                        }
+                    }
+                    auxDragImage.appendChild(clone);
+                    e.dataTransfer.setDragImage(clone,
+                        e.clientX - tileDom.getBoundingClientRect().left,
+                        e.clientY - tileDom.getBoundingClientRect().top);
+                    setTimeout(function() {
+                        if (clone.parentNode) {
+                            clone.parentNode.removeChild(clone);
+                        }
+                    }, 0);
+                }
+            } catch (err) { /* setDragImage not supported */ }
+            tileDom.classList.add('gg-dragging');
+            containerDom.classList.add('gg-drag-active');
+            // Stop propagation so an outer grid's wrapper does not
+            // re-process this dragstart and override the dataTransfer
+            // payload + drag image with its own.
+            e.stopPropagation();
+        };
+        const onDragEnd = function() {
+            tileDom.classList.remove('gg-dragging');
+            that._clearDragOver();
+            containerDom.classList.remove('gg-drag-active');
+        };
+        const onDragOver = function(e) {
+            // Distinguish valid vs invalid drops by inspecting the
+            // payload's data-transfer keys (available on dragover; the
+            // actual data is not). A key matching our `dataKey` → valid.
+            // A different `application/x-gg-*` key → another grid with
+            // a different dragCode (isolated by default) → invalid.
+            // Anything else (text/plain alone, foreign drags) → ignore.
+            if (tileDom.classList.contains('gg-dragging')) {
+                that._clearDragOver();
+                return;
+            }
+            const types = e.dataTransfer.types || [];
+            let isValid = false;
+            let isForeignGG = false;
+            for (let i = 0; i < types.length; i++) {
+                if (types[i] === dataKey) { isValid = true; break; }
+                if (typeof types[i] === 'string'
+                    && types[i].indexOf('application/x-gg-') === 0) {
+                    isForeignGG = true;
+                }
+            }
+            if (!isValid && !isForeignGG) return;
+            // Calling preventDefault enables the drop; for invalid
+            // payloads we DO NOT preventDefault, so the browser shows
+            // the native "no drop" cursor and onDrop won't fire.
+            if (isValid) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+            } else {
+                e.dataTransfer.dropEffect = 'none';
+            }
+            that._setDragOver(tileDom, isValid);
+        };
+        const onDragLeave = function(e) {
+            // Only clear when leaving the wrapper, not when crossing
+            // into a child element.
+            if (!tileDom.contains(e.relatedTarget)) {
+                if (that._dragOverRow === tileDom) that._clearDragOver();
+            }
+        };
+        const onDrop = function(e) {
+            // Defensive: with dropEffect='none' the browser usually
+            // suppresses onDrop, but some setups still fire it. Reading
+            // by `dataKey` (our own key) ensures foreign payloads
+            // produce an empty `raw` and are silently rejected.
+            const raw = e.dataTransfer.getData(dataKey);
+            that._clearDragOver();
+            if (!raw) return;
+            e.preventDefault();
+            let payload;
+            try { payload = JSON.parse(raw); }
+            catch (err) { return; }
+            if (!payload) return;
+            // Same-instance drop: source and target are the same
+            // controller. Drop on a row N → dragged row becomes the new
+            // N (target shifts to N+1). "Append at end" is not reachable
+            // via D&D — use the footer "+ Add row" or the kebab menu.
+            if (payload.nodeId === that.nodeId) {
+                if (payload.rowKey === pkey) return;
+                genro.publish(that.actionTopic, {
+                    action: 'move',
+                    rowKey: payload.rowKey,
+                    position: '<' + pkey
+                });
+                return;
+            }
+            // Cross-instance drop: same dragCode (already filtered by
+            // matching `dataKey`) but different controllers. Resolve
+            // the source controller and migrate the row directly. This
+            // branch is only reached when both grids share an explicit
+            // `dragCode` — server-side default keeps dragCode = nodeId,
+            // so cross drops cannot happen by accident.
+            const sourceCtrl = that._findSourceController(payload.nodeId);
+            if (!sourceCtrl) return;
+            that._doMoveTileFrom(sourceCtrl, payload.rowKey, '<' + pkey);
+        };
+        tileDom.addEventListener('dragstart', onDragStart);
+        tileDom.addEventListener('dragend', onDragEnd);
+        tileDom.addEventListener('dragover', onDragOver);
+        tileDom.addEventListener('dragleave', onDragLeave);
+        tileDom.addEventListener('drop', onDrop);
+        // Track for teardown: the listeners are anonymous closures, so
+        // we store references keyed by pkey.
+        this._dragHandlesByPkey[pkey] = {
+            dom: tileDom,
+            handlers: {dragstart: onDragStart, dragend: onDragEnd,
+                       dragover: onDragOver, dragleave: onDragLeave,
+                       drop: onDrop}
+        };
+    }
+
+    _unwireTileDnD(pkey) {
         const entry = this._dragHandlesByPkey[pkey];
         if (!entry) return;
         Object.keys(entry.handlers).forEach((evt) => {
@@ -1560,7 +1750,7 @@ gnr.GroupletGridController = class GroupletGridController {
         if (!this.dragCode) return;
         const containerDom = this._containerDom();
         const that = this;
-        const dataKey = this._dnDDropType();
+        const dataKey = 'application/x-gg-' + this.dragCode;
         const onDragOver = function(e) {
             const types = e.dataTransfer.types || [];
             let isValid = false;
@@ -1588,16 +1778,20 @@ gnr.GroupletGridController = class GroupletGridController {
         };
         const onDrop = function(e) {
             containerDom.classList.remove('gg-container-drop-target');
-            // If a tile inside the container handled the drop already,
-            // skip (the framework marks the event preventDefault).
+            // If a row wrapper inside the container handled the drop, it
+            // called e.preventDefault() — skip in that case so we don't
+            // re-process the same event (which would double-mutate).
             if (e.defaultPrevented) return;
-            const payload = genro.dom.getFromDataTransfer(e.dataTransfer,
-                                                          dataKey);
-            if (!payload) return;
+            const raw = e.dataTransfer.getData(dataKey);
+            if (!raw) return;
             e.preventDefault();
-            // Append at tail (drop landed on free container area). Route
-            // through the action bus so _handleAction picks same vs
-            // cross-instance based on sourceNodeId.
+            let payload;
+            try { payload = JSON.parse(raw); }
+            catch (err) { return; }
+            if (!payload) return;
+            // Append at tail (drop landed on free container area).
+            // Route through the action bus so _handleAction picks same
+            // vs cross-instance based on sourceNodeId.
             genro.publish(that.actionTopic, {
                 action: 'move',
                 rowKey: payload.rowKey,
@@ -1643,26 +1837,19 @@ gnr.GroupletGridController = class GroupletGridController {
 
     _doMoveTile(pkey, position) {
         // Reorder a tile inside the rows Bag. `position` is a Bag-style
-        // insert spec ('<targetKey', '>targetKey', or null = append at
-        // tail). The DOM diff is done by gnr_storepath reacting to the
-        // del+ins trigger pair. Mirror of `gnr.Grid.mixin_moveRow`
-        // (genro_grid.js:2146).
+        // insert spec ('<targetKey', '>targetKey', or null = append). The
+        // DOM diff is done by gnr_storepath reacting to the del+ins
+        // trigger pair. Only callable from a drop handler that already
+        // verified the source row exists in our Bag.
         const dataBag = this.storebag();
-        const fromIdx = dataBag.index(pkey);
-        if (fromIdx < 0) return;
-        let toIdx;
-        if (!position) {
-            toIdx = dataBag.getNodes().length - 1;
-        } else {
-            const targetKey = position.slice(1);
-            const targetIdx = dataBag.index(targetKey);
-            if (targetIdx < 0) return;
-            toIdx = position.charAt(0) === '>' ? targetIdx + 1 : targetIdx;
-        }
-        if (fromIdx === toIdx) return;
+        const node = dataBag.getNode(pkey);
+        const rowValue = node.getValue();
+        const rowAttrs = node.getAttr() || {};
         this._pendingFlash = this._pendingFlash || {};
         this._pendingFlash[pkey] = true;
-        dataBag.moveNode(fromIdx, toIdx);
+        dataBag.popNode(pkey);
+        const setKw = position ? {_position: position} : {};
+        dataBag.setItem(pkey, rowValue, rowAttrs, setKw);
     }
 
     _findSourceController(sourceNodeId) {
@@ -1672,13 +1859,6 @@ gnr.GroupletGridController = class GroupletGridController {
         // `node.gridController`.
         const node = genro.nodeById(sourceNodeId);
         return (node && node.gridController) || null;
-    }
-
-    _dnDDropType() {
-        // DataTransfer key used to namespace tile drops. Two grids with
-        // the same dragCode share the type and accept each other's tiles
-        // (cross-grid kanban). Different dragCodes → isolated.
-        return 'gg_tile_' + this.dragCode;
     }
 
     _doMoveTileFrom(sourceCtrl, sourceRowKey, targetPosition) {
@@ -1842,7 +2022,7 @@ gnr.GroupletGridController = class GroupletGridController {
         // wrapper), so the wrapper-level unwire is a no-op there — the
         // chip teardown happens in `_removeTabChip` below. In cards
         // mode the chip teardown is a no-op.
-        if (this.dragCode) this._unwireChipDnD(pkey);
+        if (this.dragCode) this._unwireTileDnD(pkey);
         // Tabs mode: drop the chip + decide next active.
         if (this._isTabsLayout()) {
             // Pre-compute the next active tab BEFORE removing the chip.
@@ -2287,33 +2467,31 @@ gnr.GroupletGridTile = class GroupletGridTile {
             datapath: '.' + pkey,
             _class: tileClass,
             nodeId: this.tileNodeId,
-            connect_onclick: function() { c.selectTile(pkey); },
-            onCreated: function(domnode) {
+            connect_onclick: function() { c.selectTile(pkey); }
+        };
+        // onCreated runs after the DOM is mounted — the right place to
+        // attach the drag handle (no timing hack). HTML5-native DnD is
+        // wired by the controller on the wrapper itself.
+        if (this.dragEnabled) {
+            tileKw.onCreated = function(domnode) {
+                const tileDom = domnode.sourceNode
+                    ? domnode.sourceNode.getDomNode()
+                    : domnode;
+                tile.tileDom = tileDom;
+                const handle = document.createElement('div');
+                handle.className = 'grouplet_grid_row_drag';
+                handle.setAttribute('draggable', 'true');
+                handle.title = _T('!!Drag to reorder');
+                handle.innerHTML =
+                    '<span class="grouplet_grid_drag_icon">⠿</span>';
+                tileDom.appendChild(handle);
+                c._wireTileDnD(tileDom, pkey);
+            };
+        } else {
+            tileKw.onCreated = function(domnode) {
                 tile.tileDom = domnode.sourceNode
                     ? domnode.sourceNode.getDomNode()
                     : domnode;
-            }
-        };
-        // Declarative DnD: when dragCode is set the tile becomes a drop
-        // target for its own family, and the framework wires dragstart/
-        // dragover/drop globally. The drag SOURCE is a child `⠿` handle
-        // (drawn in _mountBody — see chrome). Cross-grid drops are
-        // accepted when both grids share the same dragCode (the dropType
-        // token embeds it).
-        if (this.dragEnabled) {
-            const dropType = c._dnDDropType();
-            const dropTypeCode = dropType.replace(/\W/g, '_');
-            tileKw.dropTarget = true;
-            tileKw.dropTypes = dropType;
-            tileKw['onDrop_' + dropTypeCode] = function(data) {
-                if (!data) return;
-                if (data.nodeId === c.nodeId && data.rowKey === pkey) return;
-                genro.publish(c.actionTopic, {
-                    action: 'move',
-                    rowKey: data.rowKey,
-                    sourceNodeId: data.nodeId,
-                    position: '<' + pkey
-                });
             };
         }
         const bodyContent = c.bodyNode.getValue();
@@ -2326,80 +2504,18 @@ gnr.GroupletGridTile = class GroupletGridTile {
     _mountChrome() {
         this._mountDelete();
         this._mountKebab();
-        this._mountDrag();
     }
 
     _destroyChrome() {
         if (!this.tileContent) return;
-        const labels = [
-            '_grtile_del_' + this.pkey,
-            '_grtile_kebab_' + this.pkey,
-            '_grtile_drag_' + this.pkey
-        ];
-        labels.forEach((lbl) => {
-            if (this.tileContent.getNode(lbl, 'static')) {
-                this.tileContent.popNode(lbl);
-            }
-        });
-    }
-
-    _mountDrag() {
-        // Draggable `⠿` handle as a sub-sourceNode of the tile. The
-        // framework wires dragstart globally on any element with
-        // draggable=true; our onDrag_<type> hook composes the payload
-        // and, in struct mode, swaps the drag image for a styled clone.
-        if (!this.dragEnabled) return;
-        const c = this.controller;
-        const pkey = this.pkey;
-        const tile = this;
-        const dropType = c._dnDDropType();
-        const dropTypeCode = dropType.replace(/\W/g, '_');
-        const handleKw = {
-            _class: 'grouplet_grid_row_drag',
-            tip: _T('!!Drag to reorder'),
-            draggable: true,
-            innerHTML: '<span class="grouplet_grid_drag_icon">⠿</span>'
-        };
-        handleKw['onDrag_' + dropTypeCode] = function(dragValues, dragInfo) {
-            dragValues[dropType] = {rowKey: pkey, nodeId: c.nodeId};
-            gnr.GroupletGridTile._buildDragImage(tile, dragInfo);
-        };
-        this.tileContent._('div', '_grtile_drag_' + pkey, handleKw);
-    }
-
-    static _buildDragImage(tile, dragInfo) {
-        // Snapshot the tile DOM into the off-screen #auxDragImage div so
-        // the browser uses a styled clone (not the live tile) as the
-        // drag image. Struct mode needs the --gg-struct-columns CSS var
-        // copied inline because the variable lives on the container and
-        // the clone is detached.
-        const tileDom = tile.tileDom;
-        if (!tileDom) return;
-        const aux = document.getElementById('auxDragImage');
-        if (!aux) return;
-        const clone = tileDom.cloneNode(true);
-        clone.classList.remove('gg-dragging', 'gg-just-dropped',
-                               'canBeDropped', 'cannotBeDropped');
-        clone.style.width = tileDom.offsetWidth + 'px';
-        const containerDom = tile.controller._containerDom();
-        if (containerDom.classList.contains('grouplet_grid--struct')) {
-            clone.classList.add('gg-struct-drag-clone',
-                                'grouplet_grid--struct');
-            const cols = containerDom.style.getPropertyValue(
-                '--gg-struct-columns');
-            if (cols) clone.style.setProperty('--gg-struct-columns', cols);
+        const delLabel = '_grtile_del_' + this.pkey;
+        const kebabLabel = '_grtile_kebab_' + this.pkey;
+        if (this.tileContent.getNode(delLabel, 'static')) {
+            this.tileContent.popNode(delLabel);
         }
-        aux.appendChild(clone);
-        const rect = tileDom.getBoundingClientRect();
-        dragInfo.event.dataTransfer.setDragImage(
-            clone, dragInfo.event.clientX - rect.left,
-            dragInfo.event.clientY - rect.top);
-        setTimeout(function() {
-            if (clone.parentNode) clone.parentNode.removeChild(clone);
-        }, 0);
-        // Mark the dragInfo so the framework knows not to re-apply
-        // `draggedItem` class (see genro_dom.js:1285).
-        dragInfo.dragImageNode = clone;
+        if (this.tileContent.getNode(kebabLabel, 'static')) {
+            this.tileContent.popNode(kebabLabel);
+        }
     }
 
     _mountDelete() {
