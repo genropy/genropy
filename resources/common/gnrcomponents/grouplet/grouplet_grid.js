@@ -1511,17 +1511,29 @@ gnr.GroupletGridController = class GroupletGridController {
                 this._doAddItem(payload.position, payload.defaults);
                 break;
             case 'delete': {
-                // If no pkey is provided fall back to the currently
-                // selected row — used by toolbar '−' buttons that act on
-                // the selection rather than on a specific row.
+                // Fall back to the current selection when no pkey is given
+                // — used by toolbar '−' buttons that act on the selection.
                 const pkey = payload.rowKey || this.selectedPkey;
                 if (!pkey) return;
                 this._askAndDeleteItem(pkey);
                 break;
             }
-            case 'move':
-                this._doMoveTile(payload.rowKey, payload.position);
+            case 'move': {
+                // Same-instance vs cross-instance routed by sourceNodeId.
+                // Drop handlers publish a uniform payload; this is the
+                // single dispatch point.
+                const src = payload.sourceNodeId;
+                if (src && src !== this.nodeId) {
+                    const sourceCtrl = this._findSourceController(src);
+                    if (sourceCtrl) {
+                        this._doMoveTileFrom(sourceCtrl, payload.rowKey,
+                                             payload.position);
+                    }
+                } else {
+                    this._doMoveTile(payload.rowKey, payload.position);
+                }
                 break;
+            }
         }
     }
 
@@ -1777,14 +1789,15 @@ gnr.GroupletGridController = class GroupletGridController {
             try { payload = JSON.parse(raw); }
             catch (err) { return; }
             if (!payload) return;
-            if (payload.nodeId === that.nodeId) {
-                // Same-instance: append at the tail.
-                that._doMoveTileSameInstance(payload.rowKey, null);
-                return;
-            }
-            const sourceCtrl = that._findSourceController(payload.nodeId);
-            if (!sourceCtrl) return;
-            that._doMoveTileFrom(sourceCtrl, payload.rowKey, null);
+            // Append at tail (drop landed on free container area).
+            // Route through the action bus so _handleAction picks same
+            // vs cross-instance based on sourceNodeId.
+            genro.publish(that.actionTopic, {
+                action: 'move',
+                rowKey: payload.rowKey,
+                sourceNodeId: payload.nodeId,
+                position: null
+            });
         };
         containerDom.addEventListener('dragover', onDragOver);
         containerDom.addEventListener('dragleave', onDragLeave);
@@ -1805,22 +1818,6 @@ gnr.GroupletGridController = class GroupletGridController {
         this._containerDnDHandlers = null;
     }
 
-    _doMoveTileSameInstance(pkey, position) {
-        // Same-instance reorder, position can be null → append at tail.
-        // Bag-only mutation; the DOM diff is done by `gnr_storepath`.
-        // No guards: this only runs from a drop handler that already
-        // proved the row exists in our Bag (the drag started from it).
-        const dataBag = this.storebag();
-        const node = dataBag.getNode(pkey);
-        const rowValue = node.getValue();
-        const rowAttrs = node.getAttr() || {};
-        this._pendingFlash = this._pendingFlash || {};
-        this._pendingFlash[pkey] = true;
-        dataBag.popNode(pkey);
-        const setKw = position ? {_position: position} : {};
-        dataBag.setItem(pkey, rowValue, rowAttrs, setKw);
-    }
-
     _setDragOver(wrapper, isValid) {
         const wantClass = isValid
             ? 'gg-drop-target' : 'gg-drop-target-invalid';
@@ -1839,11 +1836,11 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     _doMoveTile(pkey, position) {
-        // Reorder a row inside the rows Bag. `position` is '<targetKey'
-        // or '>targetKey'. Bag-only mutation; the DOM diff is done by
-        // `gnr_storepath` reacting to the `del`+`ins` trigger pair.
-        // No guards: this only runs from an action published by a DnD
-        // handler that already proved the row exists in our Bag.
+        // Reorder a tile inside the rows Bag. `position` is a Bag-style
+        // insert spec ('<targetKey', '>targetKey', or null = append). The
+        // DOM diff is done by gnr_storepath reacting to the del+ins
+        // trigger pair. Only callable from a drop handler that already
+        // verified the source row exists in our Bag.
         const dataBag = this.storebag();
         const node = dataBag.getNode(pkey);
         const rowValue = node.getValue();
@@ -1851,7 +1848,8 @@ gnr.GroupletGridController = class GroupletGridController {
         this._pendingFlash = this._pendingFlash || {};
         this._pendingFlash[pkey] = true;
         dataBag.popNode(pkey);
-        dataBag.setItem(pkey, rowValue, rowAttrs, {_position: position});
+        const setKw = position ? {_position: position} : {};
+        dataBag.setItem(pkey, rowValue, rowAttrs, setKw);
     }
 
     _findSourceController(sourceNodeId) {
