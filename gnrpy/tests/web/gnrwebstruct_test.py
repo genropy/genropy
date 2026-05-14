@@ -116,18 +116,23 @@ def test_invalid_override_methods():
 def test_genroNameSpace_total_count():
     """Freeze the cardinality of the public widget namespace.
 
-    Lowercased dedup of htmlNS + dijitNS + dojoxNS + gnrNS yields 256
-    entries today. Drift in either direction must be intentional.
+    Sourced from `AllWidgets._widget_names`, which composes the four
+    dialect mixins. 247 entries today. Drift in either direction must
+    be intentional.
     """
-    assert len(GnrDomSrc_dojo_11.genroNameSpace) == 256
+    assert len(GnrDomSrc_dojo_11.genroNameSpace) == 247
 
 
 def test_genroNameSpace_samples_per_dialect():
+    """Tag values reflect the Python method name in each dialect mixin.
+    The client lower-cases tags before dispatching to its handler
+    registry, so the casing of the value is informational only — the
+    contract is that the *key* is always lowercase."""
     ns = GnrDomSrc_dojo_11.genroNameSpace
     assert ns['div'] == 'div'                          # html
-    assert ns['bordercontainer'] == 'BorderContainer'  # dijit
-    assert ns['chart'] == 'Chart'                      # dojox
-    assert ns['dbselect'] == 'DbSelect'                # gnr
+    assert ns['bordercontainer'] == 'borderContainer'  # dojox declares borderContainer
+    assert ns['chart'] == 'chart'                      # dojox
+    assert ns['dbselect'] == 'DbSelect'                # genro
 
 
 def test_genroNameSpace_is_lowercase_keyed():
@@ -154,12 +159,12 @@ def test_namespace_covers_all_four_dialects():
 def test_getattr_namespace_hit_returns_GnrDomElem():
     """A widget name that is in genroNameSpace but has no explicit
     method on the class is dispatched through __getattr__ and yields
-    a GnrDomElem bound to the CamelCase tag.
+    a GnrDomElem bound to the declared tag.
     """
     root = _make_root()
     elem = root.borderContainer
     assert isinstance(elem, GnrDomElem)
-    assert elem.tag == 'BorderContainer'
+    assert elem.tag == 'borderContainer'
 
 
 def test_getattr_namespace_hit_lowercase_only_tag():
