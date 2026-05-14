@@ -233,7 +233,11 @@ class HtmlWidgets(WidgetMixinBase):
         """HTML inserted text element."""
         ...
 
-    # NOTE: 'del' is a Python keyword; the element is available via child('del', **kwargs).
+    @element(name='del')
+    def del_(self, **kwargs):
+        """HTML deleted text element. Exposed as `del_` because `del`
+        is a Python keyword; the tag emitted to the DOM is `del`."""
+        ...
 
     # --- Lists ---
 
