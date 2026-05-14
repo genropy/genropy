@@ -137,7 +137,8 @@ def test_widget_mixin_base_leftmost_wins_on_collision():
 # ---------------------------------------------------------------------------
 
 def test_html_widgets_count():
-    assert len(HtmlWidgets._widget_names) == 87
+    """112 elements ported from the W3C HTML5 RELAX NG schema."""
+    assert len(HtmlWidgets._widget_names) == 112
 
 
 def test_dijit_widgets_count():
@@ -149,7 +150,9 @@ def test_dojox_widgets_count():
 
 
 def test_genro_widgets_count():
-    assert len(GenroWidgets._widget_names) == 98
+    """98 native GenroPy widgets + 4 layout primitives moved from html
+    (flexbox, gridbox, labledbox, htmliframe)."""
+    assert len(GenroWidgets._widget_names) == 102
 
 
 def test_html_widgets_sample_entries():
@@ -189,8 +192,11 @@ def test_all_dialect_keys_are_lowercase():
 # ---------------------------------------------------------------------------
 
 def test_all_widgets_total_count():
-    """The composed catalog spans all four dialects after collision merge."""
-    assert len(AllWidgets._widget_names) == 256
+    """The composed catalog spans all four dialects after collision
+    merge: 112 html + 42 dijit + 31 dojox + 102 genro minus the 5
+    cross-dialect collisions (button, dialog, menu, textarea, script).
+    """
+    assert len(AllWidgets._widget_names) == 282
 
 
 def test_all_widgets_includes_every_dialect():
@@ -205,18 +211,22 @@ def test_all_widgets_includes_every_dialect():
 
 
 def test_all_widgets_collision_dijit_wins_over_html():
-    """`button` and `textarea` are declared in both Html and Dijit. The
-    MRO `(Genro, Dojox, Dijit, Html)` makes Dijit win. Today the tag
-    value is identical because both forms are lowercase, but the
-    collision must resolve through Dijit's declaration.
-
-    Additional collisions (`dialog`, `menu`, `script`) will appear when
-    the html mixin is replaced by the W3C HTML5 catalog in a later
-    step; that change must update this test."""
-    for name in ('button', 'textarea'):
+    """`button`, `dialog`, `menu`, `textarea` are declared in both Html
+    and Dijit. The MRO `(Genro, Dojox, Dijit, Html)` makes Dijit win.
+    The tag value happens to coincide because both forms are lowercase,
+    but the collision must resolve through Dijit's declaration."""
+    for name in ('button', 'dialog', 'menu', 'textarea'):
         assert name in DijitWidgets._widget_names
         assert name in HtmlWidgets._widget_names
         assert AllWidgets._widget_names[name] == DijitWidgets._widget_names[name]
+
+
+def test_all_widgets_collision_genro_wins_over_html():
+    """`script` is declared by both Html and Genro. Genro is leftmost
+    in the MRO and wins."""
+    assert 'script' in HtmlWidgets._widget_names
+    assert 'script' in GenroWidgets._widget_names
+    assert AllWidgets._widget_names['script'] == GenroWidgets._widget_names['script']
 
 
 def test_all_widgets_keys_lowercase():

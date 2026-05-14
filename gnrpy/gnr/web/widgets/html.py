@@ -1,462 +1,483 @@
-"""GenroPy HTML widgets — standard HTML elements available on GnrDomSrc.
+"""HTML5 element catalog — ported from the W3C Validator RELAX NG schema.
 
-Formal declaration of the HTML namespace widgets.
-These methods are dispatched at runtime via __getattr__ -> child(tag, **kwargs).
+112 elements with sub_tags validation metadata. The list mirrors
+`genro_builders/contrib/html/html5_elements.py`; do not edit manually —
+regenerate from the upstream `html5_schema.bag.json` if the schema
+changes.
+
+The sub_tags strings encode the allowed child elements of each tag and
+are stored as `_widget_metadata` on the decorated function. They are
+NOT consumed at runtime by GnrDomSrc; future validation passes can opt
+into them via the decorator metadata.
 """
+
+from __future__ import annotations
+
 from gnr.web.widgets import WidgetMixinBase, element
 
 
 class HtmlWidgets(WidgetMixinBase):
-    """Mixin documenting standard HTML elements and GenroPy HTML extensions."""
+    """HTML5 element mixin. Declares the standard HTML5 tag namespace
+    consumed by `GnrDomSrc.__getattr__` through `AllWidgets`."""
 
-    # --- Layout ---
+    @element()
+    def a(self): ...
 
-    @element
-    def html(self, **kwargs):
-        """HTML root element."""
-        ...
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def abbr(self): ...
 
-    @element
-    def head(self, **kwargs):
-        """HTML head element."""
-        ...
+    @element(
+        sub_tags='a,abbr,address,area,article,aside,audio,b,bdi,bdo,blockquote,br,button,canvas,cite,code,data,datalist,del,details,dfn,dialog,div,dl,em,embed,fieldset,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,hr,i,iframe,img,input,ins,kbd,label,link,main,map,mark,menu,meta,meter,nav,noscript,object,ol,output,p,picture,pre,progress,q,ruby,s,samp,script,search,section,select,slot,small,span,strong,sub,sup,table,template,textarea,time,u,ul,var,video,wbr',
+    )
+    def address(self): ...
 
-    @element
-    def body(self, **kwargs):
-        """HTML body element."""
-        ...
+    @element()
+    def area(self): ...
 
-    @element
-    def div(self, **kwargs):
-        """HTML div container element."""
-        ...
+    @element(
+        sub_tags='a,abbr,address,area,article,aside,audio,b,bdi,bdo,blockquote,br,button,canvas,cite,code,data,datalist,del,details,dfn,dialog,div,dl,em,embed,fieldset,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,hr,i,iframe,img,input,ins,kbd,label,link,main,map,mark,menu,meta,meter,nav,noscript,object,ol,output,p,picture,pre,progress,q,ruby,s,samp,script,search,section,select,slot,small,span,strong,sub,sup,table,template,textarea,time,u,ul,var,video,wbr',
+    )
+    def article(self): ...
 
-    @element
-    def span(self, **kwargs):
-        """HTML inline span element."""
-        ...
+    @element(
+        sub_tags='a,abbr,address,area,article,aside,audio,b,bdi,bdo,blockquote,br,button,canvas,cite,code,data,datalist,del,details,dfn,dialog,div,dl,em,embed,fieldset,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,hr,i,iframe,img,input,ins,kbd,label,link,main,map,mark,menu,meta,meter,nav,noscript,object,ol,output,p,picture,pre,progress,q,ruby,s,samp,script,search,section,select,slot,small,span,strong,sub,sup,table,template,textarea,time,u,ul,var,video,wbr',
+    )
+    def aside(self): ...
 
-    @element
-    def br(self, **kwargs):
-        """HTML line break element."""
-        ...
+    @element()
+    def audio(self): ...
 
-    @element
-    def hr(self, **kwargs):
-        """HTML horizontal rule element."""
-        ...
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def b(self): ...
 
-    @element
-    def blockquote(self, **kwargs):
-        """HTML block quotation element."""
-        ...
+    @element()
+    def base(self): ...
 
-    @element
-    def pre(self, **kwargs):
-        """HTML preformatted text element."""
-        ...
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def bdi(self): ...
 
-    @element
-    def iframe(self, **kwargs):
-        """HTML inline frame element."""
-        ...
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def bdo(self): ...
 
-    @element
-    def frame(self, **kwargs):
-        """HTML frame element."""
-        ...
+    @element(
+        sub_tags='a,abbr,address,area,article,aside,audio,b,bdi,bdo,blockquote,br,button,canvas,cite,code,data,datalist,del,details,dfn,dialog,div,dl,em,embed,fieldset,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,hr,i,iframe,img,input,ins,kbd,label,link,main,map,mark,menu,meta,meter,nav,noscript,object,ol,output,p,picture,pre,progress,q,ruby,s,samp,script,search,section,select,slot,small,span,strong,sub,sup,table,template,textarea,time,u,ul,var,video,wbr',
+    )
+    def blockquote(self): ...
 
-    @element
-    def frameset(self, **kwargs):
-        """HTML frameset element."""
-        ...
+    @element(
+        sub_tags='a,abbr,address,area,article,aside,audio,b,bdi,bdo,blockquote,br,button,canvas,cite,code,data,datalist,del,details,dfn,dialog,div,dl,em,embed,fieldset,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,hr,i,iframe,img,input,ins,kbd,label,link,main,map,mark,menu,meta,meter,nav,noscript,object,ol,output,p,picture,pre,progress,q,ruby,s,samp,script,search,section,select,slot,small,span,strong,sub,sup,table,template,textarea,time,u,ul,var,video,wbr',
+    )
+    def body(self): ...
 
-    @element
-    def noframes(self, **kwargs):
-        """HTML noframes fallback element."""
-        ...
+    @element()
+    def br(self): ...
 
-    @element
-    def fieldset(self, **kwargs):
-        """HTML fieldset grouping element."""
-        ...
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def button(self): ...
 
-    @element
-    def legend(self, **kwargs):
-        """HTML legend element for fieldset."""
-        ...
+    @element()
+    def canvas(self): ...
 
-    # --- Text ---
+    @element(
+        sub_tags='a,abbr,address,area,article,aside,audio,b,bdi,bdo,blockquote,br,button,canvas,cite,code,data,datalist,del,details,dfn,dialog,div,dl,em,embed,fieldset,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,hr,i,iframe,img,input,ins,kbd,label,link,main,map,mark,menu,meta,meter,nav,noscript,object,ol,output,p,picture,pre,progress,q,ruby,s,samp,script,search,section,select,slot,small,span,strong,sub,sup,table,template,textarea,time,u,ul,var,video,wbr',
+    )
+    def caption(self): ...
 
-    @element
-    def h1(self, **kwargs):
-        """HTML heading level 1."""
-        ...
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def cite(self): ...
 
-    @element
-    def h2(self, **kwargs):
-        """HTML heading level 2."""
-        ...
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def code(self): ...
 
-    @element
-    def h3(self, **kwargs):
-        """HTML heading level 3."""
-        ...
+    @element()
+    def col(self): ...
 
-    @element
-    def h4(self, **kwargs):
-        """HTML heading level 4."""
-        ...
+    @element(sub_tags='col,script,template')
+    def colgroup(self): ...
 
-    @element
-    def h5(self, **kwargs):
-        """HTML heading level 5."""
-        ...
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def data(self): ...
 
-    @element
-    def h6(self, **kwargs):
-        """HTML heading level 6."""
-        ...
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,option,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def datalist(self): ...
 
-    @element
-    def p(self, **kwargs):
-        """HTML paragraph element."""
-        ...
-
-    @element
-    def a(self, **kwargs):
-        """HTML anchor (link) element."""
-        ...
-
-    @element
-    def b(self, **kwargs):
-        """HTML bold text element."""
-        ...
-
-    @element
-    def i(self, **kwargs):
-        """HTML italic text element."""
-        ...
-
-    @element
-    def em(self, **kwargs):
-        """HTML emphasis element."""
-        ...
-
-    @element
-    def strong(self, **kwargs):
-        """HTML strong importance element."""
-        ...
-
-    @element
-    def small(self, **kwargs):
-        """HTML small text element."""
-        ...
-
-    @element
-    def big(self, **kwargs):
-        """HTML big text element."""
-        ...
-
-    @element
-    def sub(self, **kwargs):
-        """HTML subscript element."""
-        ...
-
-    @element
-    def sup(self, **kwargs):
-        """HTML superscript element."""
-        ...
-
-    @element
-    def code(self, **kwargs):
-        """HTML inline code element."""
-        ...
-
-    @element
-    def kbd(self, **kwargs):
-        """HTML keyboard input element."""
-        ...
-
-    @element
-    def samp(self, **kwargs):
-        """HTML sample output element."""
-        ...
-
-    @element
-    def var(self, **kwargs):
-        """HTML variable element."""
-        ...
-
-    @element
-    def tt(self, **kwargs):
-        """HTML teletype text element."""
-        ...
-
-    @element
-    def cite(self, **kwargs):
-        """HTML citation element."""
-        ...
-
-    @element
-    def q(self, **kwargs):
-        """HTML short inline quotation element."""
-        ...
-
-    @element
-    def abbr(self, **kwargs):
-        """HTML abbreviation element."""
-        ...
-
-    @element
-    def acronym(self, **kwargs):
-        """HTML acronym element."""
-        ...
-
-    @element
-    def dfn(self, **kwargs):
-        """HTML definition term element."""
-        ...
-
-    @element
-    def address(self, **kwargs):
-        """HTML contact address element."""
-        ...
-
-    @element
-    def bdo(self, **kwargs):
-        """HTML bidirectional override element."""
-        ...
-
-    @element
-    def ins(self, **kwargs):
-        """HTML inserted text element."""
-        ...
+    @element(
+        sub_tags='a,abbr,address,area,article,aside,audio,b,bdi,bdo,blockquote,br,button,canvas,cite,code,data,datalist,del,details,dfn,dialog,div,dl,em,embed,fieldset,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,hr,i,iframe,img,input,ins,kbd,label,link,main,map,mark,menu,meta,meter,nav,noscript,object,ol,output,p,picture,pre,progress,q,ruby,s,samp,script,search,section,select,slot,small,span,strong,sub,sup,table,template,textarea,time,u,ul,var,video,wbr',
+    )
+    def dd(self): ...
 
     @element(name='del')
-    def del_(self, **kwargs):
-        """HTML deleted text element. Exposed as `del_` because `del`
-        is a Python keyword; the tag emitted to the DOM is `del`."""
-        ...
+    def del_(self): ...
 
-    # --- Lists ---
+    @element(sub_tags='summary')
+    def details(self): ...
 
-    @element
-    def ul(self, **kwargs):
-        """HTML unordered list element."""
-        ...
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def dfn(self): ...
 
-    @element
-    def ol(self, **kwargs):
-        """HTML ordered list element."""
-        ...
+    @element(
+        sub_tags='a,abbr,address,area,article,aside,audio,b,bdi,bdo,blockquote,br,button,canvas,cite,code,data,datalist,del,details,dfn,dialog,div,dl,em,embed,fieldset,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,hr,i,iframe,img,input,ins,kbd,label,link,main,map,mark,menu,meta,meter,nav,noscript,object,ol,output,p,picture,pre,progress,q,ruby,s,samp,script,search,section,select,slot,small,span,strong,sub,sup,table,template,textarea,time,u,ul,var,video,wbr',
+    )
+    def dialog(self): ...
 
-    @element
-    def li(self, **kwargs):
-        """HTML list item element."""
-        ...
+    @element(
+        sub_tags='a,abbr,address,area,article,aside,audio,b,bdi,bdo,blockquote,br,button,canvas,cite,code,data,datalist,del,details,dfn,dialog,div,dl,em,embed,fieldset,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,hr,i,iframe,img,input,ins,kbd,label,link,main,map,mark,menu,meta,meter,nav,noscript,object,ol,output,p,picture,pre,progress,q,ruby,s,samp,script,search,section,select,slot,small,span,strong,sub,sup,table,template,textarea,time,u,ul,var,video,wbr',
+    )
+    def div(self): ...
 
-    @element
-    def dl(self, **kwargs):
-        """HTML description list element."""
-        ...
+    @element(sub_tags='div,dt,script,template')
+    def dl(self): ...
 
-    @element
-    def dt(self, **kwargs):
-        """HTML description term element."""
-        ...
+    @element(
+        sub_tags='a,abbr,address,area,article,aside,audio,b,bdi,bdo,blockquote,br,button,canvas,cite,code,data,datalist,del,details,dfn,dialog,div,dl,em,embed,fieldset,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,hr,i,iframe,img,input,ins,kbd,label,link,main,map,mark,menu,meta,meter,nav,noscript,object,ol,output,p,picture,pre,progress,q,ruby,s,samp,script,search,section,select,slot,small,span,strong,sub,sup,table,template,textarea,time,u,ul,var,video,wbr',
+    )
+    def dt(self): ...
 
-    @element
-    def dd(self, **kwargs):
-        """HTML description details element."""
-        ...
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def em(self): ...
 
-    # --- Forms ---
+    @element()
+    def embed(self): ...
 
-    @element
-    def button(self, **kwargs):
-        """HTML button element."""
-        ...
+    @element(sub_tags='legend')
+    def fieldset(self): ...
 
-    @element
-    def input(self, **kwargs):
-        """HTML input element."""
-        ...
+    @element(
+        sub_tags='a,abbr,address,area,article,aside,audio,b,bdi,bdo,blockquote,br,button,canvas,cite,code,data,datalist,del,details,dfn,dialog,div,dl,em,embed,fieldset,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,hr,i,iframe,img,input,ins,kbd,label,link,main,map,mark,menu,meta,meter,nav,noscript,object,ol,output,p,picture,pre,progress,q,ruby,s,samp,script,search,section,select,slot,small,span,strong,sub,sup,table,template,textarea,time,u,ul,var,video,wbr',
+    )
+    def figcaption(self): ...
 
-    @element
-    def textarea(self, **kwargs):
-        """HTML textarea element."""
-        ...
+    @element(
+        sub_tags='a,abbr,address,area,article,aside,audio,b,bdi,bdo,blockquote,br,button,canvas,cite,code,data,datalist,del,details,dfn,dialog,div,dl,em,embed,fieldset,figcaption,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,hr,i,iframe,img,input,ins,kbd,label,link,main,map,mark,menu,meta,meter,nav,noscript,object,ol,output,p,picture,pre,progress,q,ruby,s,samp,script,search,section,select,slot,small,span,strong,sub,sup,table,template,textarea,time,u,ul,var,video,wbr',
+    )
+    def figure(self): ...
 
-    @element
-    def select(self, **kwargs):
-        """HTML select dropdown element."""
-        ...
+    @element(
+        sub_tags='a,abbr,address,area,article,aside,audio,b,bdi,bdo,blockquote,br,button,canvas,cite,code,data,datalist,del,details,dfn,dialog,div,dl,em,embed,fieldset,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,hr,i,iframe,img,input,ins,kbd,label,link,main,map,mark,menu,meta,meter,nav,noscript,object,ol,output,p,picture,pre,progress,q,ruby,s,samp,script,search,section,select,slot,small,span,strong,sub,sup,table,template,textarea,time,u,ul,var,video,wbr',
+    )
+    def footer(self): ...
 
-    @element
-    def option(self, **kwargs):
-        """HTML option element for select."""
-        ...
+    @element(
+        sub_tags='a,abbr,address,area,article,aside,audio,b,bdi,bdo,blockquote,br,button,canvas,cite,code,data,datalist,del,details,dfn,dialog,div,dl,em,embed,fieldset,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,hr,i,iframe,img,input,ins,kbd,label,link,main,map,mark,menu,meta,meter,nav,noscript,object,ol,output,p,picture,pre,progress,q,ruby,s,samp,script,search,section,select,slot,small,span,strong,sub,sup,table,template,textarea,time,u,ul,var,video,wbr',
+    )
+    def form(self): ...
 
-    @element
-    def optgroup(self, **kwargs):
-        """HTML option group element."""
-        ...
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def h1(self): ...
 
-    @element
-    def label(self, **kwargs):
-        """HTML label element for form controls."""
-        ...
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def h2(self): ...
 
-    # --- Tables ---
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def h3(self): ...
 
-    @element
-    def table(self, **kwargs):
-        """HTML table element."""
-        ...
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def h4(self): ...
 
-    @element
-    def caption(self, **kwargs):
-        """HTML table caption element."""
-        ...
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def h5(self): ...
 
-    @element
-    def thead(self, **kwargs):
-        """HTML table head section."""
-        ...
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def h6(self): ...
 
-    @element
-    def tbody(self, **kwargs):
-        """HTML table body section."""
-        ...
+    @element(sub_tags='base,link,meta,noscript,script,style,template,title')
+    def head(self): ...
 
-    @element
-    def tfoot(self, **kwargs):
-        """HTML table foot section."""
-        ...
+    @element(
+        sub_tags='a,abbr,address,area,article,aside,audio,b,bdi,bdo,blockquote,br,button,canvas,cite,code,data,datalist,del,details,dfn,dialog,div,dl,em,embed,fieldset,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,hr,i,iframe,img,input,ins,kbd,label,link,main,map,mark,menu,meta,meter,nav,noscript,object,ol,output,p,picture,pre,progress,q,ruby,s,samp,script,search,section,select,slot,small,span,strong,sub,sup,table,template,textarea,time,u,ul,var,video,wbr',
+    )
+    def header(self): ...
 
-    @element
-    def tr(self, **kwargs):
-        """HTML table row element."""
-        ...
+    @element(sub_tags='h1,h2,h3,h4,h5,h6,p,script,template')
+    def hgroup(self): ...
 
-    @element
-    def th(self, **kwargs):
-        """HTML table header cell element."""
-        ...
+    @element()
+    def hr(self): ...
 
-    @element
-    def td(self, **kwargs):
-        """HTML table data cell element."""
-        ...
+    @element(sub_tags='head')
+    def html(self): ...
 
-    @element
-    def col(self, **kwargs):
-        """HTML column properties element."""
-        ...
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def i(self): ...
 
-    @element
-    def colgroup(self, **kwargs):
-        """HTML column group element."""
-        ...
+    @element()
+    def iframe(self): ...
 
-    # --- Media ---
+    @element()
+    def img(self): ...
 
-    @element
-    def img(self, **kwargs):
-        """HTML image element."""
-        ...
+    @element()
+    def input(self): ...
 
-    @element
-    def audio(self, **kwargs):
-        """HTML audio playback element."""
-        ...
+    @element()
+    def ins(self): ...
 
-    @element
-    def video(self, **kwargs):
-        """HTML video playback element."""
-        ...
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def kbd(self): ...
 
-    @element
-    def canvas(self, **kwargs):
-        """HTML canvas drawing element."""
-        ...
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def label(self): ...
 
-    @element
-    def embed(self, **kwargs):
-        """HTML embed element for external content."""
-        ...
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,h1,h2,h3,h4,h5,h6,hgroup,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def legend(self): ...
 
-    @element
-    def object(self, **kwargs):
-        """HTML embedded object element."""
-        ...
+    @element(
+        sub_tags='a,abbr,address,area,article,aside,audio,b,bdi,bdo,blockquote,br,button,canvas,cite,code,data,datalist,del,details,dfn,dialog,div,dl,em,embed,fieldset,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,hr,i,iframe,img,input,ins,kbd,label,link,main,map,mark,menu,meta,meter,nav,noscript,object,ol,output,p,picture,pre,progress,q,ruby,s,samp,script,search,section,select,slot,small,span,strong,sub,sup,table,template,textarea,time,u,ul,var,video,wbr',
+    )
+    def li(self): ...
 
-    @element
-    def param(self, **kwargs):
-        """HTML parameter element for object."""
-        ...
+    @element()
+    def link(self): ...
 
-    @element
-    def map(self, **kwargs):
-        """HTML image map element."""
-        ...
+    @element(
+        sub_tags='a,abbr,address,area,article,aside,audio,b,bdi,bdo,blockquote,br,button,canvas,cite,code,data,datalist,del,details,dfn,dialog,div,dl,em,embed,fieldset,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,hr,i,iframe,img,input,ins,kbd,label,link,main,map,mark,menu,meta,meter,nav,noscript,object,ol,output,p,picture,pre,progress,q,ruby,s,samp,script,search,section,select,slot,small,span,strong,sub,sup,table,template,textarea,time,u,ul,var,video,wbr',
+    )
+    def main(self): ...
 
-    @element
-    def area(self, **kwargs):
-        """HTML image map area element."""
-        ...
+    @element()
+    def map(self): ...
 
-    # --- Head elements ---
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def mark(self): ...
 
-    @element
-    def title(self, **kwargs):
-        """HTML document title element."""
-        ...
+    @element(sub_tags='li,script,template')
+    def menu(self): ...
 
-    @element
-    def base(self, **kwargs):
-        """HTML base URL element."""
-        ...
+    @element()
+    def meta(self): ...
 
-    @element
-    def link(self, **kwargs):
-        """HTML external resource link element."""
-        ...
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def meter(self): ...
 
-    @element
-    def meta(self, **kwargs):
-        """HTML metadata element."""
-        ...
+    @element(
+        sub_tags='a,abbr,address,area,article,aside,audio,b,bdi,bdo,blockquote,br,button,canvas,cite,code,data,datalist,del,details,dfn,dialog,div,dl,em,embed,fieldset,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,hr,i,iframe,img,input,ins,kbd,label,link,main,map,mark,menu,meta,meter,nav,noscript,object,ol,output,p,picture,pre,progress,q,ruby,s,samp,script,search,section,select,slot,small,span,strong,sub,sup,table,template,textarea,time,u,ul,var,video,wbr',
+    )
+    def nav(self): ...
 
-    @element
-    def style(self, **kwargs):
-        """HTML style element for CSS."""
-        ...
+    @element()
+    def noscript(self): ...
 
-    @element
-    def noscript(self, **kwargs):
-        """HTML noscript fallback element."""
-        ...
+    @element()
+    def object(self): ...
 
-    # --- GenroPy extensions ---
+    @element(sub_tags='li,script,template')
+    def ol(self): ...
 
-    @element
-    def htmliframe(self, **kwargs):
-        """GenroPy enhanced iframe with datastore integration and event bridging."""
-        ...
+    @element(sub_tags='option,script,template')
+    def optgroup(self): ...
 
-    @element
-    def flexbox(self, **kwargs):
-        """GenroPy flexbox layout container with CSS flex properties support."""
-        ...
+    @element()
+    def option(self): ...
 
-    @element
-    def gridbox(self, **kwargs):
-        """GenroPy CSS grid layout container for two-dimensional grid arrangements."""
-        ...
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def output(self): ...
 
-    @element
-    def labledbox(self, **kwargs):
-        """GenroPy labeled box — a container with a built-in label/title header."""
-        ...
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def p(self): ...
+
+    @element(sub_tags='img,script,source,template')
+    def picture(self): ...
+
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def pre(self): ...
+
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def progress(self): ...
+
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def q(self): ...
+
+    @element()
+    def rp(self): ...
+
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def rt(self): ...
+
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def ruby(self): ...
+
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def s(self): ...
+
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def samp(self): ...
+
+    @element()
+    def script(self): ...
+
+    @element(
+        sub_tags='a,abbr,address,area,article,aside,audio,b,bdi,bdo,blockquote,br,button,canvas,cite,code,data,datalist,del,details,dfn,dialog,div,dl,em,embed,fieldset,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,hr,i,iframe,img,input,ins,kbd,label,link,main,map,mark,menu,meta,meter,nav,noscript,object,ol,output,p,picture,pre,progress,q,ruby,s,samp,script,search,section,select,slot,small,span,strong,sub,sup,table,template,textarea,time,u,ul,var,video,wbr',
+    )
+    def search(self): ...
+
+    @element(
+        sub_tags='a,abbr,address,area,article,aside,audio,b,bdi,bdo,blockquote,br,button,canvas,cite,code,data,datalist,del,details,dfn,dialog,div,dl,em,embed,fieldset,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,hr,i,iframe,img,input,ins,kbd,label,link,main,map,mark,menu,meta,meter,nav,noscript,object,ol,output,p,picture,pre,progress,q,ruby,s,samp,script,search,section,select,slot,small,span,strong,sub,sup,table,template,textarea,time,u,ul,var,video,wbr',
+    )
+    def section(self): ...
+
+    @element(sub_tags='hr,optgroup,option,script,template')
+    def select(self): ...
+
+    @element()
+    def slot(self): ...
+
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def small(self): ...
+
+    @element()
+    def source(self): ...
+
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def span(self): ...
+
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def strong(self): ...
+
+    @element()
+    def style(self): ...
+
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def sub(self): ...
+
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,h1,h2,h3,h4,h5,h6,hgroup,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def summary(self): ...
+
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def sup(self): ...
+
+    @element(sub_tags='caption,colgroup,script,tbody,template,tfoot,thead,tr')
+    def table(self): ...
+
+    @element(sub_tags='script,template,tr')
+    def tbody(self): ...
+
+    @element(
+        sub_tags='a,abbr,address,area,article,aside,audio,b,bdi,bdo,blockquote,br,button,canvas,cite,code,data,datalist,del,details,dfn,dialog,div,dl,em,embed,fieldset,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,hr,i,iframe,img,input,ins,kbd,label,link,main,map,mark,menu,meta,meter,nav,noscript,object,ol,output,p,picture,pre,progress,q,ruby,s,samp,script,search,section,select,slot,small,span,strong,sub,sup,table,template,textarea,time,u,ul,var,video,wbr',
+    )
+    def td(self): ...
+
+    @element(
+        sub_tags='a,abbr,address,area,article,aside,audio,b,bdi,bdo,blockquote,br,button,canvas,caption,cite,code,col,colgroup,data,datalist,del,details,dfn,dialog,div,dl,dt,em,embed,fieldset,figcaption,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,hr,i,iframe,img,input,ins,kbd,label,legend,li,link,main,map,mark,menu,meta,meter,nav,noscript,object,ol,optgroup,option,output,p,picture,pre,progress,q,ruby,s,samp,script,search,section,select,slot,small,source,span,strong,style,sub,summary,sup,table,tbody,td,template,textarea,tfoot,th,thead,time,tr,track,u,ul,var,video,wbr',
+    )
+    def template(self): ...
+
+    @element()
+    def textarea(self): ...
+
+    @element(sub_tags='script,template,tr')
+    def tfoot(self): ...
+
+    @element(
+        sub_tags='a,abbr,address,area,article,aside,audio,b,bdi,bdo,blockquote,br,button,canvas,cite,code,data,datalist,del,details,dfn,dialog,div,dl,em,embed,fieldset,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,hr,i,iframe,img,input,ins,kbd,label,link,main,map,mark,menu,meta,meter,nav,noscript,object,ol,output,p,picture,pre,progress,q,ruby,s,samp,script,search,section,select,slot,small,span,strong,sub,sup,table,template,textarea,time,u,ul,var,video,wbr',
+    )
+    def th(self): ...
+
+    @element(sub_tags='script,template,tr')
+    def thead(self): ...
+
+    @element()
+    def time(self): ...
+
+    @element()
+    def title(self): ...
+
+    @element(sub_tags='script,td,template,th')
+    def tr(self): ...
+
+    @element()
+    def track(self): ...
+
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def u(self): ...
+
+    @element(sub_tags='li,script,template')
+    def ul(self): ...
+
+    @element(
+        sub_tags='a,abbr,area,audio,b,bdi,bdo,br,button,canvas,cite,code,data,datalist,del,dfn,em,embed,i,iframe,img,input,ins,kbd,label,link,map,mark,meta,meter,noscript,object,output,picture,progress,q,ruby,s,samp,script,select,slot,small,span,strong,sub,sup,template,textarea,time,u,var,video,wbr',
+    )
+    def var(self): ...
+
+    @element()
+    def video(self): ...
+
+    @element()
+    def wbr(self): ...
