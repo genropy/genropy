@@ -525,17 +525,31 @@
    reduced opacity) so the user perceives the card as "picked up".
    The shadow goes to the drag-image clone (below); the original
    stays in place but visibly de-emphasized. */
-.grouplet_grid_row.gg-dragging {
+.grouplet_grid_row.draggedItem {
     opacity: 0.5;
     transform: scale(0.98);
     transition: transform 160ms ease, opacity 160ms ease;
 }
 
-/* Container-level cursor when a drag is in progress (set by JS on
-   dragstart / removed on dragend). Gives consistent grabbing cursor
-   across the whole grid surface, not just the handle. */
-.grouplet_grid_container.gg-drag-active {
+/* Container-level cursor when a drag is in progress. The framework
+   marks `body.drag_started` from dragstart until the drag completes
+   (genro_dom.js:1304); we scope the cursor and the inner widget
+   pointer-events suppression to our container.
+
+   The inner-widget rule below makes the entire tile rectangle a single
+   drop target: without it the user has to hover a "gap" between widgets
+   to land on the wrapper, because the framework's `getEventInfo`
+   resolves to the innermost sourceNode (an input, a button — which has
+   no `dropTarget`) and the drop is rejected. We re-enable pointer
+   events on the drag handle so the source itself stays grabbable. */
+body.drag_started .grouplet_grid_container {
     cursor: grabbing;
+}
+body.drag_started .grouplet_grid_row > * {
+    pointer-events: none;
+}
+body.drag_started .grouplet_grid_row > .grouplet_grid_row_drag {
+    pointer-events: auto;
 }
 
 /* Drag image clone: a snapshot of the row wrapper is appended to
@@ -575,15 +589,15 @@
    "this is the receiver". Same visual language as :focus-within and
    .selected, just amplified. Transition is on the row so it eases in
    smoothly when dragover enters and back out on dragleave. */
-.grouplet_grid_row.gg-drop-target,
-.grouplet_grid_row.gg-drop-target-invalid {
+.grouplet_grid_row.canBeDropped,
+.grouplet_grid_row.cannotBeDropped {
     transform: scale(1.015);
     box-shadow: var(--shadow-md, 0 2px 8px rgba(0,0,0,0.08));
     transition: transform 200ms ease, box-shadow 200ms ease,
                 background-color 200ms ease, border-color 200ms ease;
 }
 
-.grouplet_grid_row.gg-drop-target {
+.grouplet_grid_row.canBeDropped {
     background: var(--gg-accent-soft);
     border: 2px solid var(--gg-accent);
 }
@@ -592,7 +606,7 @@
    another isolated grid). Same enlargement language but in danger
    tones, plus a not-allowed cursor. The drop handler rejects the
    payload silently. */
-.grouplet_grid_row.gg-drop-target-invalid {
+.grouplet_grid_row.cannotBeDropped {
     background: var(--gg-danger-soft);
     border: 2px solid var(--gg-danger);
     cursor: not-allowed;
@@ -1068,17 +1082,17 @@
     cursor: grabbing;
 }
 
-.grouplet_grid_tab.gg-dragging {
+.grouplet_grid_tab.draggedItem {
     opacity: 0.5;
 }
 
-.grouplet_grid_tab.gg-drop-target {
+.grouplet_grid_tab.canBeDropped {
     background: var(--gg-accent-soft);
     border-bottom-color: var(--gg-accent);
     box-shadow: inset 2px 0 0 var(--gg-accent);
 }
 
-.grouplet_grid_tab.gg-drop-target-invalid {
+.grouplet_grid_tab.cannotBeDropped {
     background: var(--gg-danger-soft);
     border-bottom-color: var(--gg-danger);
     box-shadow: inset 2px 0 0 var(--gg-danger);
@@ -1224,12 +1238,12 @@
 
 /* DnD feedback: chips in vtabs use the right-edge accent instead of
    the bottom-edge accent used in horizontal tabs. */
-.grouplet_grid--vtabs > .grouplet_grid_tabbar > .grouplet_grid_tabs > .grouplet_grid_tab.gg-drop-target {
+.grouplet_grid--vtabs > .grouplet_grid_tabbar > .grouplet_grid_tabs > .grouplet_grid_tab.canBeDropped {
     border-color: var(--gg-accent);
     background: var(--gg-accent-soft);
 }
 
-.grouplet_grid--vtabs > .grouplet_grid_tabbar > .grouplet_grid_tabs > .grouplet_grid_tab.gg-drop-target-invalid {
+.grouplet_grid--vtabs > .grouplet_grid_tabbar > .grouplet_grid_tabs > .grouplet_grid_tab.cannotBeDropped {
     border-color: var(--gg-danger);
     background: var(--gg-danger-soft);
 }
@@ -1455,15 +1469,15 @@
    scale, no tint, no gap — just a horizontal rule in accent color.
    Invalid state uses the same rule in danger color so the 'no drop'
    state remains visible. */
-.grouplet_grid--struct .grouplet_grid_row.gg-drop-target,
-.grouplet_grid--struct .grouplet_grid_row.gg-drop-target-invalid {
+.grouplet_grid--struct .grouplet_grid_row.canBeDropped,
+.grouplet_grid--struct .grouplet_grid_row.cannotBeDropped {
     transform: none;
     background: transparent;
 }
-.grouplet_grid--struct .grouplet_grid_row.gg-drop-target {
+.grouplet_grid--struct .grouplet_grid_row.canBeDropped {
     box-shadow: inset 0 3px 0 var(--gg-accent);
 }
-.grouplet_grid--struct .grouplet_grid_row.gg-drop-target-invalid {
+.grouplet_grid--struct .grouplet_grid_row.cannotBeDropped {
     box-shadow: inset 0 3px 0 var(--gg-danger);
 }
 

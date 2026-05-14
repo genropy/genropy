@@ -1394,8 +1394,8 @@ gnr.GroupletGridController = class GroupletGridController {
                 const auxDragImage = document.getElementById('auxDragImage');
                 if (auxDragImage) {
                     const clone = chipDom.cloneNode(true);
-                    clone.classList.remove('gg-dragging', 'gg-drop-target',
-                        'gg-drop-target-invalid', 'gg-just-dropped');
+                    clone.classList.remove('draggedItem', 'canBeDropped',
+                        'cannotBeDropped', 'gg-just-dropped');
                     clone.style.width = chipDom.offsetWidth + 'px';
                     auxDragImage.appendChild(clone);
                     e.dataTransfer.setDragImage(clone,
@@ -1408,17 +1408,17 @@ gnr.GroupletGridController = class GroupletGridController {
                     }, 0);
                 }
             } catch (err) { /* setDragImage not supported */ }
-            chipDom.classList.add('gg-dragging');
-            containerDom.classList.add('gg-drag-active');
+            chipDom.classList.add('draggedItem');
+            containerDom.classList.add('drag_started');
             e.stopPropagation();
         };
         const onDragEnd = function() {
-            chipDom.classList.remove('gg-dragging');
+            chipDom.classList.remove('draggedItem');
             that._clearDragOver();
-            containerDom.classList.remove('gg-drag-active');
+            containerDom.classList.remove('drag_started');
         };
         const onDragOver = function(e) {
-            if (chipDom.classList.contains('gg-dragging')) {
+            if (chipDom.classList.contains('draggedItem')) {
                 that._clearDragOver();
                 return;
             }
@@ -1626,7 +1626,7 @@ gnr.GroupletGridController = class GroupletGridController {
 
     _setDragOver(wrapper, isValid) {
         const wantClass = isValid
-            ? 'gg-drop-target' : 'gg-drop-target-invalid';
+            ? 'canBeDropped' : 'cannotBeDropped';
         if (this._dragOverRow === wrapper
             && wrapper.classList.contains(wantClass)) return;
         this._clearDragOver();
@@ -1637,7 +1637,7 @@ gnr.GroupletGridController = class GroupletGridController {
     _clearDragOver() {
         if (!this._dragOverRow) return;
         this._dragOverRow.classList.remove(
-            'gg-drop-target', 'gg-drop-target-invalid');
+            'canBeDropped', 'cannotBeDropped');
         this._dragOverRow = null;
     }
 
@@ -2305,6 +2305,11 @@ gnr.GroupletGridTile = class GroupletGridTile {
             const dropTypeCode = dropType.replace(/\W/g, '_');
             tileKw.dropTarget = true;
             tileKw.dropTypes = dropType;
+            // Reject self-drop so the framework paints `cannotBeDropped`
+            // on the tile under the cursor when it's the very source.
+            tileKw.dropTargetCb = function(dropInfo) {
+                return !dropInfo.selfdrop;
+            };
             tileKw['onDrop_' + dropTypeCode] = function(data) {
                 if (!data) return;
                 if (data.nodeId === c.nodeId && data.rowKey === pkey) return;
@@ -2361,6 +2366,11 @@ gnr.GroupletGridTile = class GroupletGridTile {
             innerHTML: '<span class="grouplet_grid_drag_icon">⠿</span>'
         };
         handleKw['onDrag_' + dropTypeCode] = function(dragValues, dragInfo) {
+            // Bind the drag source identity to the TILE, not to the
+            // handle sub-sourceNode. This lets the framework compute
+            // `info.selfdrop` correctly when the user drags a tile
+            // over itself (dropTargetCb above refuses the drop).
+            dragInfo.nodeId = tile.tileNodeId;
             dragValues[dropType] = {rowKey: pkey, nodeId: c.nodeId};
             gnr.GroupletGridTile._buildDragImage(tile, dragInfo);
         };
@@ -2378,7 +2388,7 @@ gnr.GroupletGridTile = class GroupletGridTile {
         const aux = document.getElementById('auxDragImage');
         if (!aux) return;
         const clone = tileDom.cloneNode(true);
-        clone.classList.remove('gg-dragging', 'gg-just-dropped',
+        clone.classList.remove('draggedItem', 'gg-just-dropped',
                                'canBeDropped', 'cannotBeDropped');
         clone.style.width = tileDom.offsetWidth + 'px';
         const containerDom = tile.controller._containerDom();
