@@ -137,11 +137,11 @@ def test_widget_mixin_base_leftmost_wins_on_collision():
 # ---------------------------------------------------------------------------
 
 def test_html_widgets_count():
-    assert len(HtmlWidgets._widget_names) == 86
+    assert len(HtmlWidgets._widget_names) == 87
 
 
 def test_dijit_widgets_count():
-    assert len(DijitWidgets._widget_names) == 35
+    assert len(DijitWidgets._widget_names) == 42
 
 
 def test_dojox_widgets_count():
@@ -149,7 +149,7 @@ def test_dojox_widgets_count():
 
 
 def test_genro_widgets_count():
-    assert len(GenroWidgets._widget_names) == 97
+    assert len(GenroWidgets._widget_names) == 98
 
 
 def test_html_widgets_sample_entries():
@@ -190,7 +190,7 @@ def test_all_dialect_keys_are_lowercase():
 
 def test_all_widgets_total_count():
     """The composed catalog spans all four dialects after collision merge."""
-    assert len(AllWidgets._widget_names) == 247
+    assert len(AllWidgets._widget_names) == 256
 
 
 def test_all_widgets_includes_every_dialect():

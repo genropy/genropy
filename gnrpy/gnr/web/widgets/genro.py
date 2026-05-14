@@ -1023,3 +1023,9 @@ class GenroWidgets(WidgetMixinBase):
             **kwargs: src, height, width, _class.
         """
         ...
+
+    @element(name='TracebackViewer')
+    def TracebackViewer(self, **kwargs):
+        """Widget that renders a Python traceback as a navigable tree.
+        Used by the `sys.error` page and the IDE."""
+        ...
