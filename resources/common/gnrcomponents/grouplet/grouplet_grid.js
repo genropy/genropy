@@ -2082,8 +2082,8 @@ gnr.GroupletGridController = class GroupletGridController {
                 delKw._class = 'grouplet_grid_row_delete '
                              + this.delitemKw._class;
             }
-            tileContent._('div', '_grow_del_' + pkey, delKw);
-            const delNode = tileContent.getNode('_grow_del_' + pkey);
+            tileContent._('div', '_grtile_del_' + pkey, delKw);
+            const delNode = tileContent.getNode('_grtile_del_' + pkey);
             delNode.getValue()._('div', 'glyph', {innerHTML: '×'});
         }
         // Per-row kebab menu — `<div>` target with a child `<menu>`.
@@ -2121,7 +2121,7 @@ gnr.GroupletGridController = class GroupletGridController {
                           + "{action:'delete',rowKey:'" + pkey + "'});"
                 }
             };
-            const kebabId = '__grpgridrowmenu__' + this.nodeId + '__' + pkey;
+            const kebabId = '__grpgridtilemenu__' + this.nodeId + '__' + pkey;
             const kebabKw = objectUpdate({
                 _class: 'grouplet_grid_row_kebab',
                 tip: _T('!!Row actions'),
@@ -2131,8 +2131,8 @@ gnr.GroupletGridController = class GroupletGridController {
                 kebabKw._class = 'grouplet_grid_row_kebab '
                                + this.editmenuKw._class;
             }
-            tileContent._('div', '_grow_kebab_' + pkey, kebabKw);
-            const kebabNode = tileContent.getNode('_grow_kebab_' + pkey);
+            tileContent._('div', '_grtile_kebab_' + pkey, kebabKw);
+            const kebabNode = tileContent.getNode('_grtile_kebab_' + pkey);
             const kebabContent = kebabNode.getValue();
             kebabContent._('div', 'glyph', {
                 _class: 'grouplet_grid_kebab_icon',
@@ -2253,7 +2253,7 @@ gnr.GroupletGridController = class GroupletGridController {
                 if (nextActive) this._activateTab(nextActive);
             }
         }
-        const tileLabel = '_grow_' + pkey;
+        const tileLabel = '_grtile_' + pkey;
         // Triggered popNode on the body's source Bag: framework
         // tears down the wrapper dijit and removes the DOM subtree.
         this.bodyNode.getValue('static').popNode(tileLabel);
