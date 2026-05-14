@@ -1459,6 +1459,8 @@ class GnrWebPage(GnrBaseWebPage):
     # the resulting mtime via genro.getData('gnr.vendoredMtime.<key>').
     _VENDORED_BUNDLES = {
         'codemirror6': ('js_libs', 'codemirror6', 'codemirror6.bundle.js'),
+        'prosemirror': ('js_libs', 'prosemirror', 'prosemirror.bundle.js'),
+        'prosemirrorCss': ('js_libs', 'prosemirror', 'prosemirror.css'),
     }
 
     def _vendoredBundlesMtime(self):

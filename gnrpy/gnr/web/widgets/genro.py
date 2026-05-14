@@ -438,6 +438,22 @@ class GenroWidgets:
         ...
 
     @element
+    def proseMirrorEditor(self, **kwargs):
+        """ProseMirror-based rich text editor (no toolbar, schema-basic + lists).
+
+        Lightweight test widget exposing the vendored ProseMirror bundle.
+        Intended as the foundation for higher-level editors (Milkdown, TipTap).
+        Editing is keyboard-driven; markdown-style input rules let users type
+        ``# `` for headings, ``> `` for blockquote, ``1. `` / ``* `` for lists,
+        ``\\`\\`\\``` for code blocks. Undo/redo via Mod-z / Mod-Shift-z.
+
+        Args:
+            **kwargs: value (^path), format ('html' | 'json', default 'html'),
+                editable (bool), readOnly (bool), height, width.
+        """
+        ...
+
+    @element
     def CodeEditor(self, value=None, **kwargs):
         """GenroPy enhanced code editor (wraps CodeMirror with extra features).
 

@@ -3,7 +3,7 @@
 "Sections"
 
 class GnrCustomWebPage(object):
-    py_requires="gnrcomponents/testhandler:TestHandlerBase,th/th:TableHandler"
+    py_requires="gnrcomponents/testhandler:TestHandlerFull,th/th:TableHandler"
 
     def test_0_depending_sections(self,pane):
         """Sections filtering data on loading"""

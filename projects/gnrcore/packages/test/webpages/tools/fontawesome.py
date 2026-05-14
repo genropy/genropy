@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 class GnrCustomWebPage(object):
-    py_requires = "gnrcomponents/testhandler:TestHandlerBase"
+    py_requires = "gnrcomponents/testhandler:TestHandlerFull"
 
     def test_0_icons(self, pane):
         """Fontawesome icon"""

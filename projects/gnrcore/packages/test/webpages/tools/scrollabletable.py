@@ -3,7 +3,7 @@
 "Shortcuts"
 
 class GnrCustomWebPage(object):
-    py_requires="gnrcomponents/testhandler:TestHandlerBase"
+    py_requires="gnrcomponents/testhandler:TestHandlerFull"
 
     def test_0_json(self,pane):
         bc = pane.borderContainer(height='300px',width='400px',border='1px solid silver')
