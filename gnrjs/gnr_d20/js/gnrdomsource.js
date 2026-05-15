@@ -1594,8 +1594,10 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         var statusChanged = false;
         targets.forEach(function(domNode){
             let currenHidden = !genro.dom.isVisible(domNode);
-            statusChanged = currenHidden!=hidden;
-            dojo.style(domNode, 'display', (hidden ? 'none' : ''));
+            if(currenHidden != hidden){
+                statusChanged = true;
+                dojo.style(domNode, 'display', (hidden ? 'none' : ''));
+            }
         });
         if(statusChanged){
             genro.fakeResize()
