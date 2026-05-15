@@ -5,7 +5,7 @@ These methods are generated at runtime via __getattr__ -> child(tag, **kwargs).
 """
 from __future__ import annotations
 
-from gnr.web.widgets import WidgetMixinBase, element
+from gnr.web.gnrwebstruct._widgets import WidgetMixinBase, element
 
 
 class DijitWidgets(WidgetMixinBase):

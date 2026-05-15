@@ -13,7 +13,7 @@ into them via the decorator metadata.
 
 from __future__ import annotations
 
-from gnr.web.widgets import WidgetMixinBase, element
+from gnr.web.gnrwebstruct._widgets import WidgetMixinBase, element
 
 
 class HtmlWidgets(WidgetMixinBase):

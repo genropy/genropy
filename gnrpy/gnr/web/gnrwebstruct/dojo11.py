@@ -28,7 +28,7 @@ from gnr.core.gnrdict import dictExtract
 
 from gnr.web.gnrwebstruct.base import GnrDomSrc, GnrDomSrcError
 from gnr.web.gnrwebstruct._helpers import _selected_defaultFrom
-from gnr.web.widgets import AllWidgets
+from gnr.web.gnrwebstruct._widgets import AllWidgets
 
 
 class GnrDomSrc_dojo_11(GnrDomSrc):
@@ -36,10 +36,11 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
 
     # Widget namespace used by `__getattr__` to dispatch widget calls
     # through `child(tag)`. Populated from the declarative catalog in
-    # `gnr.web.widgets`, where each dialect mixin (html, dijit, dojox,
-    # genro) registers its widgets via the `@element` decorator. The
-    # composed `AllWidgets` class resolves cross-dialect collisions
-    # through its MRO (leftmost wins: Genro > Dojox > Dijit > Html).
+    # `gnr.web.gnrwebstruct._widgets`, where each dialect mixin (html,
+    # dijit, dojox, genro) registers its widgets via the `@element`
+    # decorator. The composed `AllWidgets` class resolves cross-dialect
+    # collisions through its MRO (leftmost wins: Genro > Dojox > Dijit
+    # > Html).
     genroNameSpace = AllWidgets._widget_names
         
     #def framePane(self,slots=None,**kwargs):

@@ -3,16 +3,17 @@
 
 """Class-level tests for the widget declaration package.
 
-These tests exercise `gnr.web.widgets` as a pure declarative catalog,
-without instantiating `GnrDomSrc` or touching `__getattr__`. They are
-the foundation for the registry-driven dispatch wired in a later commit.
+These tests exercise `gnr.web.gnrwebstruct._widgets` as a pure
+declarative catalog, without instantiating `GnrDomSrc` or touching
+`__getattr__`. They are the foundation for the registry-driven dispatch
+wired in a later commit.
 """
 
-from gnr.web.widgets import AllWidgets, WidgetMixinBase, element
-from gnr.web.widgets.dijit import DijitWidgets
-from gnr.web.widgets.dojox import DojoxWidgets
-from gnr.web.widgets.genro import GenroWidgets
-from gnr.web.widgets.html import HtmlWidgets
+from gnr.web.gnrwebstruct._widgets import AllWidgets, WidgetMixinBase, element
+from gnr.web.gnrwebstruct._widgets.dijit import DijitWidgets
+from gnr.web.gnrwebstruct._widgets.dojox import DojoxWidgets
+from gnr.web.gnrwebstruct._widgets.genro import GenroWidgets
+from gnr.web.gnrwebstruct._widgets.html import HtmlWidgets
 
 
 # ---------------------------------------------------------------------------

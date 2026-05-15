@@ -78,10 +78,10 @@ class WidgetMixinBase:
         cls._widget_names = collected
 
 
-from gnr.web.widgets.html import HtmlWidgets         # noqa: E402
-from gnr.web.widgets.dijit import DijitWidgets       # noqa: E402
-from gnr.web.widgets.dojox import DojoxWidgets       # noqa: E402
-from gnr.web.widgets.genro import GenroWidgets       # noqa: E402
+from gnr.web.gnrwebstruct._widgets.html import HtmlWidgets         # noqa: E402
+from gnr.web.gnrwebstruct._widgets.dijit import DijitWidgets       # noqa: E402
+from gnr.web.gnrwebstruct._widgets.dojox import DojoxWidgets       # noqa: E402
+from gnr.web.gnrwebstruct._widgets.genro import GenroWidgets       # noqa: E402
 
 
 class AllWidgets(GenroWidgets, DojoxWidgets, DijitWidgets, HtmlWidgets):
