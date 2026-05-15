@@ -163,7 +163,9 @@ class ResourceLoader(object):
         page_class.css_requires.extend([x for x in splitAndStrip(getattr(custom_class, 'css_requires', ''), ',') if x])
         if package_css_requires:
             page_class.css_requires = uniquify(page_class.css_requires+package_css_requires)
-        page_class.tpldirectories = page_class.resourceDirs + [
+        tpl_subdirs = [os.path.join(d, 'tpl') for d in page_class.resourceDirs
+                       if os.path.isdir(os.path.join(d, 'tpl'))]
+        page_class.tpldirectories = page_class.resourceDirs + tpl_subdirs + [
                 self.gnr_static_handler.path(page_class.gnrjsversion, 'tpl')]
         page_class._packageId = mainPkg
         self.page_class_plugin_mixin(page_class, plugin_webpage_classes)

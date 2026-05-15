@@ -391,9 +391,13 @@
 /* --- Linker --- */
 .th_enableLinker .th_linkerField, .th_linkerAlwaysOpen .th_linkerField{
     display:block;
-    width:12em;
+    min-width:6em;
+    width:auto;
+    max-width:20em;
     box-shadow:none;
     padding-top:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
 }
 
 /* --- Zoom cell (grid hyperlinks) --- */

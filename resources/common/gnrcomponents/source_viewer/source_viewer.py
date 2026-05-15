@@ -204,15 +204,14 @@ class SourceViewer(BaseComponent):
         frame.dataController("""
             var cm = cmNode.externalWidget;
             var lineno = error.lineno-1;
-            var offset = error.offset-1;
             var ch_start = error.offset>1?error.offset-1:error.offset;
             var ch_end = error.offset;
-            cm.scrollIntoView({line:lineno,ch:ch_start});
-            var tm = cm.doc.markText({line:lineno,ch:ch_start},{line:lineno, ch:ch_end},
-                            {clearOnEnter:true,className:'source_viewer_error'});
+            cm.gnr_scrollIntoView({line:lineno,ch:ch_start});
+            var markId = cm.gnr_markText({line:lineno,ch:ch_start},{line:lineno, ch:ch_end},
+                            {className:'source_viewer_error'});
             genro.dlg.floatingMessage(cmNode.getParentNode(),{messageType:'error',
                         message:error.msg,onClosedCb:function(){
-                    tm.clear();
+                    cm.gnr_clearMark(markId);
                 }})
 
             """,error='^.error',cmNode=cm)

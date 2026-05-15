@@ -9,13 +9,6 @@
 				</regione>
 			</glbl>
 		</_packages>
-		<animal ext="py" path="model/animal.py">
-			<en_animal base="Animal" de="Tier" en="Animal" fr="Animal" it="Animale"/>
-				<en_animals base="Animals" de="Animals" en="Animals" fr="Animaux" it="Animali"/>
-				<en_name base="Name" de="Name" en="Name" fr="Nom" it="Nome"/>
-				<en_age base="Age" de="Alter" en="Age" fr="Âge" it="Età"/>
-				<en_abilities base="Abilities" de="Fähigkeiten" en="Abilities" fr="Capacités" it="Abilità"/>
-		</animal>
 		<nodetbl ext="py" path="model/nodetbl.py">
 			<en_node_tbl base="Node tbl" de="Node tbl" en="Node tbl" fr="Noeud tbl" it="Nodo tbl"/>
 				<en_partenza base="Partenza" de="Abfahrt" en="Partenza" fr="Départ" it="Partenza"/>
@@ -24,10 +17,6 @@
 		<recursive ext="py" path="model/recursive.py">
 			<en_description base="Description" en="Description" it="Descrizione"/>
 		</recursive>
-		<species ext="py" path="model/species.py">
-			<en_species base="Species" de="Spezies" en="Species" fr="Espèce" it="Specie"/>
-				<en_abilities base="Abilities" de="Fähigkeiten" en="Abilities" fr="Capacités" it="Abilità"/>
-		</species>
 	</model>
 
 	<resources>

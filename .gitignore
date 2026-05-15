@@ -48,3 +48,4 @@ gnrpy/tests/core/*/gnr/instanceconfig/default.xml
 gnrpy/tests/core/*/gnr/siteconfig/default.xml
 gnrpy/tests/core/*/gnrtest/instances/gnrtest/config/instanceconfig.xml
 gnrpy/tests/core/*/gnrtest/instances/gnrtest/root.py
+/temp/
