@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>groupletGrid · GroupletDataStore — specchietti API</title>
+<style>
+  :root {
+    --bg: #fafaf7;
+    --fg: #1d1d1f;
+    --muted: #6b6b73;
+    --accent: #b8860b;
+    --accent-soft: #f5ecd5;
+    --danger: #a04040;
+    --danger-soft: #f3dede;
+    --ok: #2f6f3f;
+    --ok-soft: #e0ecd9;
+    --rule: #d8d4c8;
+    --code-bg: #f2efe6;
+    --shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--fg);
+    font-family: 'Charter', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+    font-size: 15px; line-height: 1.45;
+  }
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 36px 80px; }
+  header.cover { border-bottom: 2px solid var(--rule); padding-bottom: 20px; margin-bottom: 32px; }
+  header.cover .eyebrow {
+    text-transform: uppercase; letter-spacing: 0.12em;
+    font-size: 11px; color: var(--muted); margin-bottom: 6px;
+  }
+  header.cover h1 { font-size: 28px; margin: 0 0 10px; font-weight: 700; }
+  header.cover .subtitle { font-size: 14px; color: var(--muted); font-style: italic; margin: 0 0 12px; }
+  header.cover .meta { font-size: 12px; color: var(--muted); }
+  header.cover .meta span + span::before { content: " · "; margin: 0 6px; }
+  h2 {
+    font-size: 19px; margin: 32px 0 10px;
+    padding-top: 16px; border-top: 1px solid var(--rule);
+    font-weight: 700;
+  }
+  h2 .num { color: var(--accent); font-variant-numeric: tabular-nums; margin-right: 8px; }
+  h3 { font-size: 15px; margin: 18px 0 6px; font-weight: 600; }
+  p { margin: 0 0 8px; }
+  code {
+    font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 12.5px; background: var(--code-bg);
+    padding: 1px 5px; border-radius: 3px;
+  }
+  pre {
+    background: var(--code-bg); border-left: 3px solid var(--accent);
+    padding: 10px 14px; overflow-x: auto;
+    border-radius: 0 3px 3px 0; font-size: 12px; line-height: 1.4;
+    margin: 10px 0;
+  }
+  pre code { background: transparent; padding: 0; font-size: inherit; }
+  table {
+    border-collapse: collapse; width: 100%;
+    margin: 8px 0 14px; font-size: 12.5px;
+  }
+  th, td {
+    text-align: left; padding: 6px 9px;
+    border-bottom: 1px solid var(--rule); vertical-align: top;
+  }
+  th { background: var(--code-bg); font-weight: 600; font-size: 12px; }
+  td code { font-size: 11.5px; }
+  .tag {
+    display: inline-block; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 1px 6px; border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace; font-weight: 600;
+  }
+  .tag.steal      { background: var(--accent-soft); color: var(--accent); }
+  .tag.delegate   { background: var(--ok-soft); color: var(--ok); }
+  .tag.adapt      { background: #d8e8f0; color: #2c5a78; }
+  .tag.stub       { background: #fff3d4; color: #7a5e10; }
+  .tag.skip       { background: #efefef; color: var(--muted); }
+  .tag.danger     { background: var(--danger-soft); color: var(--danger); }
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 14px;
+    margin: 12px 0 20px; font-size: 12px;
+    padding: 10px 14px; background: white;
+    border: 1px solid var(--rule); border-radius: 4px;
+  }
+  .legend .item { display: flex; align-items: center; gap: 6px; }
+  .callout {
+    border-left: 4px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 10px 14px; margin: 14px 0;
+    border-radius: 0 4px 4px 0; font-size: 13px;
+  }
+  .callout .label {
+    font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    font-size: 10px; display: block; margin-bottom: 4px;
+  }
+  .toc {
+    background: white; border: 1px solid var(--rule);
+    border-radius: 4px; padding: 12px 18px; margin-bottom: 28px;
+    font-size: 13px;
+  }
+  .toc h4 { margin: 0 0 8px; color: var(--accent); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .toc ol { margin: 0; padding-left: 22px; }
+  .toc a { color: var(--fg); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .ascii {
+    font-family: 'JetBrains Mono', monospace; font-size: 11.5px;
+    background: white; border: 1px solid var(--rule);
+    border-radius: 4px; padding: 14px 18px;
+    line-height: 1.5; white-space: pre; overflow-x: auto;
+    margin: 12px 0;
+  }
+  .compact-list { margin: 4px 0; padding-left: 18px; }
+  .compact-list li { margin-bottom: 2px; font-size: 12.5px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header class="cover">
+  <div class="eyebrow">Design · GroupletGrid · MVC store-ready</div>
+  <h1>GroupletDataStore — specchietti API</h1>
+  <p class="subtitle">Matrice di cosa ruba il widget dalla Grid, cosa delega allo store, cosa adatta, cosa stubba con warn.</p>
+  <div class="meta">
+    <span>Branch <code>feat-grouplet-grid</code></span>
+    <span>Post Item 12 + Item 13</span>
+    <span>Sostituisce versione 1 (prosa)</span>
+  </div>
+</header>
+
+<div class="toc">
+  <h4>Indice</h4>
+  <ol>
+    <li><a href="#tldr">TL;DR</a></li>
+    <li><a href="#architettura">Architettura — 3 modes</a></li>
+    <li><a href="#api-grid">API che la Grid usa dallo store</a></li>
+    <li><a href="#api-grid-widget">API del Grid widget — layer di orchestrazione</a></li>
+    <li><a href="#api-controller">API che il controller groupletGrid usa oggi</a></li>
+    <li><a href="#datastore">GroupletDataStore — superficie pubblica</a></li>
+    <li><a href="#dispatch">Dispatch table per mode</a></li>
+    <li><a href="#fase1">Fase 1 — scope minimo</a></li>
+    <li><a href="#rischi">Rischi & edge cases</a></li>
+    <li><a href="#domande">Domande aperte</a></li>
+  </ol>
+</div>
+
+<div class="legend">
+  <div class="item"><span class="tag steal">Steal</span><span>Pattern preso dalla Grid</span></div>
+  <div class="item"><span class="tag delegate">Delegate</span><span>Passa allo store esterno</span></div>
+  <div class="item"><span class="tag adapt">Adapt</span><span>Converti shape (es. attr ↔ sub-Bag)</span></div>
+  <div class="item"><span class="tag stub">Stub</span><span>Console.warn + no-op in Fase 1</span></div>
+  <div class="item"><span class="tag skip">Skip</span><span>Non applicabile / Fuori scope</span></div>
+</div>
+
+<!-- ================================================================== -->
+<h2 id="tldr"><span class="num">1.</span>TL;DR</h2>
+
+<ul class="compact-list">
+  <li>Il controller groupletGrid mischia Model + View. Lo separiamo.</li>
+  <li><strong>Nuova classe <code>GroupletDataStore</code></strong> (interna al controller). Sempre presente.</li>
+  <li>Tre mode: <code>internal</code> (no store esterno), <code>proxy</code> (BagStore/ValuesBagRows), <code>adapter</code> (AttributesBagRows/Selection/altri).</li>
+  <li>Il controller chiama solo <code>this.dataStore.X()</code>. Mai più <code>bag.getNodes()</code> diretto.</li>
+  <li>Lo store esterno è opzionale ma drop-in: quando c'è, ereditiamo delete UX / lock / filter / sort / hasChanges/Errors.</li>
+  <li><strong>Fase 1 limitata</strong>: introduciamo la classe, riportiamo internamente il comportamento attuale, le API non implementate fanno <code>console.warn</code>. Test 1–12 invariati.</li>
+</ul>
+
+<!-- ================================================================== -->
+<h2 id="architettura"><span class="num">2.</span>Architettura — 3 mode</h2>
+
+<div class="ascii">Controller (View + UI)
+   │
+   ▼ chiama solo l'interfaccia
+GroupletDataStore  ───  modello del widget
+   │
+   ├─ mode "internal"   →   GnrBag diretta              (default: nessuno store esterno)
+   │
+   ├─ mode "proxy"      →   gnr.stores.ValuesBagRows    (pass-through 1:1)
+   │
+   └─ mode "adapter"    →   gnr.stores.AttributesBagRows / Selection / RpcBase
+                            (materializza Bag per il widget, write-back via attr)</div>
+
+<table>
+  <thead>
+    <tr><th>Mode</th><th>Quando</th><th>Sorgente dati</th><th>Conversioni</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>internal</code></td>
+      <td>Nessuno store siblings</td>
+      <td>Bag al <code>storepath</code></td>
+      <td>Nessuna</td>
+    </tr>
+    <tr>
+      <td><code>proxy</code></td>
+      <td><code>BagStore</code> siblings, <code>storeType='ValuesBagRows'</code></td>
+      <td>Bag al <code>storepath</code> via store</td>
+      <td>Nessuna — pass-through</td>
+    </tr>
+    <tr>
+      <td><code>adapter</code></td>
+      <td><code>BagStore</code>/<code>dataSelection</code>, <code>storeType ≠ ValuesBagRows</code></td>
+      <td>Righe attr-shaped o RPC paginate</td>
+      <td>Lettura: <code>node.attr → GnrBag</code> al volo. Scrittura: <code>updAttributes()</code> via subscribe write-back.</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ================================================================== -->
+<h2 id="api-grid"><span class="num">3.</span>API che la Grid (gnr.widgets.Grid) usa dallo store</h2>
+
+<p>Estratta da <code>genro_wdg.js</code> + <code>genro_grid.js</code>, raggruppata per intento. Colonna <strong>Action</strong> = cosa fa il <code>GroupletDataStore</code>.</p>
+
+<h3>Read</h3>
+<table>
+  <thead>
+    <tr><th>API store</th><th>Uso nella Grid</th><th>Action</th><th>Note</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>storebag()</code></td><td>Accesso diretto alla Bag dei dati</td><td><span class="tag steal">Steal</span></td><td>Esponiamo <code>dataStore.bag()</code> — internal/proxy/adapter</td></tr>
+    <tr><td><code>getData(filtered)</code></td><td>Bag opzionalmente filtrata</td><td><span class="tag steal">Steal</span></td><td>Diventa <code>dataStore.visualBag()</code> — sort+filter applicati</td></tr>
+    <tr><td><code>getItems()</code></td><td>Array di nodi <code>this.getData()._nodes</code></td><td><span class="tag steal">Steal</span></td><td>Interno a <code>visualOrder()</code></td></tr>
+    <tr><td><code>rowByIndex(idx)</code></td><td>Plain object della riga a indice visuale</td><td><span class="tag steal">Steal</span></td><td>Già esiste oggi (literal). Diventa metodo del dataStore</td></tr>
+    <tr><td><code>rowFromItem(node)</code></td><td>Converte nodo → dict</td><td><span class="tag adapt">Adapt</span></td><td>In mode adapter è il punto di materializzazione</td></tr>
+    <tr><td><code>itemByIdx(idx)</code></td><td>Nodo Bag a indice assoluto</td><td><span class="tag steal">Steal</span></td><td>Interno</td></tr>
+    <tr><td><code>keyGetter(node)</code></td><td>pkey della riga via <code>identifier</code></td><td><span class="tag steal">Steal</span></td><td>Fondamentale per Q3 (identifier ≠ label)</td></tr>
+    <tr><td><code>len(filtered)</code></td><td>Conteggio righe (visibili)</td><td><span class="tag steal">Steal</span></td><td>Banale</td></tr>
+    <tr><td><code>sum(field)</code></td><td>Aggregazione colonna</td><td><span class="tag delegate">Delegate</span></td><td>Già usato dal changeManager via collectionStore() literal</td></tr>
+    <tr><td><code>getKeyFromIdx(idx, filtered)</code></td><td>rowKey a indice</td><td><span class="tag steal">Steal</span></td><td>Stesso pattern</td></tr>
+    <tr><td><code>getIdxFromPkey(pkey)</code></td><td>Indice da pkey</td><td><span class="tag steal">Steal</span></td><td>Idem</td></tr>
+    <tr><td><code>rowBagNodeByIdentifier(pkey)</code></td><td>Nodo dato pkey</td><td><span class="tag steal">Steal</span></td><td>Idem</td></tr>
+    <tr><td><code>currentPkeys(captionField)</code></td><td>Lista pkey con caption opzionale</td><td><span class="tag stub">Stub</span></td><td>Fase 2</td></tr>
+  </tbody>
+</table>
+
+<h3>Mutate</h3>
+<table>
+  <thead>
+    <tr><th>API store</th><th>Uso nella Grid</th><th>Action</th><th>Note</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>updateRowNode(rowNode, dict)</code></td><td>Update di N campi su una riga</td><td><span class="tag delegate">Delegate</span></td><td>Già nel literal. In adapter → <code>updAttributes()</code></td></tr>
+    <tr><td><code>loadData(data, selfUpdate)</code></td><td>Sostituzione bulk</td><td><span class="tag stub">Stub</span></td><td>Fase 2 — per ora il widget non lo invoca</td></tr>
+    <tr><td><code>deleteRows(pkeys, protect)</code></td><td>Cancellazione N righe</td><td><span class="tag delegate">Delegate</span></td><td>Internal: <code>bag.popNode()</code>. Proxy/adapter: store nativo</td></tr>
+    <tr><td><code>setNewStorepath(path)</code></td><td>Cambio storepath con broadcast</td><td><span class="tag skip">Skip</span></td><td>Fuori scope — il groupletGrid non lo cambia mai</td></tr>
+    <tr><td><code>duplicateRows(pkeys)</code></td><td>Clone N righe</td><td><span class="tag skip">Skip</span></td><td>Fuori scope</td></tr>
+  </tbody>
+</table>
+
+<h3>Filter / Sort</h3>
+<table>
+  <thead>
+    <tr><th>API store</th><th>Uso nella Grid</th><th>Action</th><th>Note</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>compileFilter(grid, val, col, type)</code></td><td>Costruzione callback filter</td><td><span class="tag steal">Steal</span></td><td>Lo riusiamo identico — filter testuale/operatori</td></tr>
+    <tr><td><code>createFiltered(grid, val, col, type)</code></td><td>Popola <code>_filtered</code></td><td><span class="tag steal">Steal</span></td><td>Il "view-transform layer" che il boss vuole rubare</td></tr>
+    <tr><td><code>iterfilterCb(cb)</code></td><td>Iter filtrato</td><td><span class="tag steal">Steal</span></td><td>Interno a <code>visualOrder()</code></td></tr>
+    <tr><td><code>_filtered</code></td><td>Array indici visibili</td><td><span class="tag steal">Steal</span></td><td>Stato interno del dataStore</td></tr>
+    <tr><td><code>absIndex(idx, reverse)</code></td><td>Visual ↔ assoluto</td><td><span class="tag steal">Steal</span></td><td>Banale</td></tr>
+    <tr><td><code>resetFilter()</code></td><td>Cancella filtro</td><td><span class="tag steal">Steal</span></td><td>Idem</td></tr>
+    <tr><td><code>isFiltered()</code></td><td>Check stato</td><td><span class="tag steal">Steal</span></td><td>Già consumato dal changeManager</td></tr>
+    <tr><td><code>sort(sortedBy)</code></td><td>Sort persistente</td><td><span class="tag delegate">Delegate</span></td><td>Internal/proxy: come Grid. Adapter: deferred al server (RPC)</td></tr>
+    <tr><td><code>sortedBy</code></td><td>Stato sort corrente</td><td><span class="tag steal">Steal</span></td><td>Property del dataStore</td></tr>
+    <tr><td><code>filterToRebuild(v)</code> / <code>invalidFilter()</code></td><td>Flag staleness</td><td><span class="tag steal">Steal</span></td><td>Coerente con cache invalidation</td></tr>
+  </tbody>
+</table>
+
+<h3>Lock / Form integration</h3>
+<table>
+  <thead>
+    <tr><th>API store</th><th>Uso nella Grid</th><th>Action</th><th>Note</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>setLocked(v)</code></td><td>Lock manuale</td><td><span class="tag delegate">Delegate</span></td><td>Solo proxy/adapter. Internal: stub-warn</td></tr>
+    <tr><td><code>inheritLock</code> / <code>inheritProtect</code></td><td>Eredità da form parent</td><td><span class="tag delegate">Delegate</span></td><td>Idem</td></tr>
+    <tr><td><code>setBlockingReason(r, b)</code></td><td>Blocco async</td><td><span class="tag stub">Stub</span></td><td>Fase 2</td></tr>
+    <tr><td><code>isEnabledStore()</code></td><td>Check lock + visibility</td><td><span class="tag stub">Stub</span></td><td>Stub-return <code>true</code> in Fase 1</td></tr>
+    <tr><td><code>hasVisibleClients()</code></td><td>Linked grids visibili</td><td><span class="tag skip">Skip</span></td><td>No linked grids per groupletGrid</td></tr>
+    <tr><td><code>onStartEditItem(form)</code> / <code>onEndEditItem(form)</code></td><td>Tracking edit attivo</td><td><span class="tag skip">Skip</span></td><td>Item 16 (phantom formHandler)</td></tr>
+  </tbody>
+</table>
+
+<h3>Status</h3>
+<table>
+  <thead>
+    <tr><th>API store</th><th>Uso nella Grid</th><th>Action</th><th>Note</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>hasChanges()</code></td><td>Check via <code>_loadedValue</code>/<code>_newrecord</code></td><td><span class="tag delegate">Delegate</span></td><td>Internal: stub-return <code>false</code>. Proxy/adapter: store nativo</td></tr>
+    <tr><td><code>hasErrors()</code></td><td>Check via <code>_validationError</code></td><td><span class="tag delegate">Delegate</span></td><td>Idem. Centrale per Item 19</td></tr>
+    <tr><td><code>setExternalChangeClasses(node)</code></td><td>Hook per CSS dirty</td><td><span class="tag stub">Stub</span></td><td>Fase 2</td></tr>
+  </tbody>
+</table>
+
+<h3>UX</h3>
+<table>
+  <thead>
+    <tr><th>API store</th><th>Uso nella Grid</th><th>Action</th><th>Note</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>deleteAsk(pkeys, protect, cb)</code></td><td>Dialog conferma + count-verify + logical delete</td><td><span class="tag delegate">Delegate</span></td><td>Sostituisce il dialog custom in <code>_askAndDeleteRow</code></td></tr>
+    <tr><td><code>archiveAsk(pkeys, protect, cb)</code></td><td>Dialog archivio</td><td><span class="tag skip">Skip</span></td><td>Fuori scope</td></tr>
+  </tbody>
+</table>
+
+<h3>Discovery / Lifecycle</h3>
+<table>
+  <thead>
+    <tr><th>API store</th><th>Uso nella Grid</th><th>Action</th><th>Note</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>linkedGrids()</code></td><td>Walk tree per widget con <code>selectionKeeper</code></td><td><span class="tag skip">Skip</span></td><td>Vedi rischio R2</td></tr>
+    <tr><td><code>gridBroadcast(cb)</code></td><td>Itera linked grids</td><td><span class="tag skip">Skip</span></td><td>Idem</td></tr>
+    <tr><td><code>runQuery(cb, kw)</code></td><td>Fire async load</td><td><span class="tag skip">Skip</span></td><td>Fuori scope — il widget non triggera query</td></tr>
+    <tr><td><code>onLoaded(result)</code> / <code>onLoading()</code></td><td>Hook lifecycle dataController</td><td><span class="tag skip">Skip</span></td><td>Solo in modalità RPC-loaded — fase 3</td></tr>
+  </tbody>
+</table>
+
+<!-- ================================================================== -->
+<h2 id="api-grid-widget"><span class="num">3bis.</span>API del Grid widget — layer di orchestrazione</h2>
+
+<p>Queste vivono sul <strong>Grid widget</strong> (<code>genro_grid.js</code> mixin), NON sullo store. Sono il "view-transform layer" che orchestrate filter/sort/render e che il boss vuole rubare. Cosa fanno e dove finiscono nel nostro DataStore (o nel controller).</p>
+
+<h3>Filter / Sort orchestration</h3>
+<table>
+  <thead>
+    <tr><th>API Grid</th><th>Cosa fa</th><th>Action</th><th>Mapping in groupletGrid</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>applyFilter(value, rendering, col)</code> @2720</td><td>Orchestra: <code>createFiltered</code> store → <code>updateRowCount</code> → <code>calculateFilteredTotals</code> changeManager</td><td><span class="tag steal">Steal</span></td><td><code>dataStore.applyFilter(value, col)</code> + controller fa <code>_fullSync()</code> a valle</td></tr>
+    <tr><td><code>compileFilter(v, col, type)</code> @2751</td><td>Builder del callback filter (regex testuale + operatori numerici)</td><td><span class="tag steal">Steal</span></td><td><code>dataStore.compileFilter(...)</code> — copia identica</td></tr>
+    <tr><td><code>setSortedBy(sortedBy)</code> @2531</td><td>Stato sort + clear cache + re-render</td><td><span class="tag steal">Steal</span></td><td><code>dataStore.setSort(spec)</code> + controller refresh</td></tr>
+    <tr><td><code>clearBagCache()</code> @2523</td><td><code>storebag.clear()</code> + reset <code>currRendered*</code> + <code>currCachedPage*</code></td><td><span class="tag skip">Skip</span></td><td>Cache è Grid-specifica (page-based). Noi rebuild full-DOM</td></tr>
+    <tr><td><code>currentFilterValue</code></td><td>Stato testo filtro</td><td><span class="tag steal">Steal</span></td><td>Property del dataStore</td></tr>
+    <tr><td><code>filterColumn</code></td><td>Colonna su cui filtra</td><td><span class="tag steal">Steal</span></td><td>Idem</td></tr>
+    <tr><td><code>cellmap</code></td><td>field → metadata (dtype, edit, format)</td><td><span class="tag steal">Steal</span></td><td>Già esiste in struct mode; estendere a resource/resourceField</td></tr>
+  </tbody>
+</table>
+
+<h3>Render lifecycle &amp; visual filter</h3>
+<table>
+  <thead>
+    <tr><th>API Grid</th><th>Cosa fa</th><th>Action</th><th>Mapping</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>attributes_mixin_get(idx, ignoreFilter)</code> @2654</td><td><strong>Punto di intercetto del rendering</strong>: per ogni cella il widget passa qui prima di mostrare il dato. <code>ignoreFilter=true</code> bypassa <code>_filtered</code></td><td><span class="tag steal">Steal</span></td><td>Nel controller groupletGrid: ogni rendering di riga passa per <code>dataStore.rowByIndex(visualIdx)</code> che applica <code>_filtered</code>. Equivalente concettuale: c'è SEMPRE un filtro tra dati e display</td></tr>
+    <tr><td><code>rowCached(idx)</code> @2687</td><td>Cache 1-deep dell'ultima riga renderizzata + delega a <code>rowByIndex(idx, true)</code></td><td><span class="tag adapt">Adapt</span></td><td>Cache fa senso per dijit cell-by-cell render. Noi rendiamo per-row → cache potrebbe essere <code>row → wrapper DOM</code> nel controller</td></tr>
+    <tr><td><code>rowByIndex(idx, bagFields)</code> @2688</td><td>Cache + delega a <code>collectionStore.rowByIndex</code> — RESPECTS <code>_filtered</code> via <code>absIndex</code></td><td><span class="tag steal">Steal</span></td><td><code>dataStore.rowByIndex()</code> già visual-aware</td></tr>
+    <tr><td><code>updateRowCount(n)</code></td><td>Dijit grid: triggera re-render del viewport</td><td><span class="tag skip">Skip</span></td><td>Non applicabile. Equivalente: <code>controller._fullSync()</code></td></tr>
+    <tr><td><code>currRenderedRow</code> / <code>currRenderedRowIndex</code></td><td>Cache row corrente per il rendering cella-per-cella</td><td><span class="tag skip">Skip</span></td><td>Solo per dijit cell-by-cell rendering. Inutile per noi che renderizziamo grouplet template per-row</td></tr>
+    <tr><td><code>currCachedPage</code></td><td>Cache della pagina renderizzata (virtualized)</td><td><span class="tag skip">Skip</span></td><td>Noi non virtualizziamo</td></tr>
+    <tr><td><code>onChangedView()</code></td><td>Hook per view-change RPC</td><td><span class="tag skip">Skip</span></td><td>Solo dataSelection / RpcBase. Fase 3</td></tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  <span class="label">Insight</span>
+  <code>attributes_mixin_get</code> è la prova architetturale che <strong>tra i dati e il display c'è sempre un layer di filtro</strong>, anche quando non c'è UI di filtro attivo. Nel nostro controller il punto di intercetto è <code>_fullSync()</code> / <code>_addRow()</code>: oggi accedono diretto a <code>bag.getNodes()</code>; nel refactor passeranno per <code>dataStore.visualOrder()</code> che applica <code>_filtered</code> e <code>sortedBy</code> trasparentemente. Senza UI di filter/sort cambia nulla — ma con UI futuro è drop-in.
+</div>
+
+<h3>Selection / Identifier</h3>
+<table>
+  <thead>
+    <tr><th>API Grid</th><th>Cosa fa</th><th>Action</th><th>Mapping</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>rowIdentifier(row)</code> @1428,2597,3472</td><td>Estrae pkey dalla row dict (rispetta <code>identifier</code>)</td><td><span class="tag steal">Steal</span></td><td><code>dataStore.keyForRow()</code></td></tr>
+    <tr><td><code>selectionKeeper(flag, loadkw)</code> @3261</td><td>Save/clear/load della selezione attraverso re-render (save indici, load per pkey)</td><td><span class="tag adapt">Adapt</span></td><td>Item 15 (multi-select) — controller mantiene <code>selectedKeys: Set</code>, il selectionKeeper-style ci serve per sopravvivere a filter/sort</td></tr>
+    <tr><td><code>restoreSelectedRows()</code> @2905</td><td>Riapplica selezione dopo load</td><td><span class="tag adapt">Adapt</span></td><td>Idem Item 15</td></tr>
+    <tr><td><code>rowIdByIndex(idx)</code></td><td>pkey a indice (per save selezione)</td><td><span class="tag steal">Steal</span></td><td>Già coperto da <code>dataStore.keyForRow(visualOrder()[idx])</code></td></tr>
+    <tr><td><code>selectByRowAttr(field, vals)</code></td><td>Selezione programmatica per valore</td><td><span class="tag skip">Skip</span></td><td>Item 15 — eventualmente</td></tr>
+  </tbody>
+</table>
+
+<h3>Mutation orchestration (verso lo store)</h3>
+<table>
+  <thead>
+    <tr><th>API Grid</th><th>Cosa fa</th><th>Action</th><th>Mapping</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>rowBagNodeUpdate(idx, data, pkey)</code> @2538</td><td>Update row: idx=-1 insert, else patch</td><td><span class="tag delegate">Delegate</span></td><td>Già coperto da <code>dataStore.updateRow</code>/<code>addRow</code></td></tr>
+    <tr><td><code>markDeleted(pkeys)</code></td><td>Pop righe + flag autoSave + cache deletedRows</td><td><span class="tag adapt">Adapt</span></td><td>In <code>deleteRowAsk()</code>. Senza gridEditor il flag autoSave non serve. Item 24 lo userà</td></tr>
+    <tr><td><code>newDataStore()</code></td><td>Rebuild totale dopo cambio storepath</td><td><span class="tag skip">Skip</span></td><td>Il widget non cambia storepath a runtime</td></tr>
+    <tr><td><code>batchUpdating</code> flag</td><td>Sopprime rendering durante load bulk</td><td><span class="tag steal">Steal</span></td><td>Utile in <code>_fullSync</code> per evitare flash. <code>this._batchUpdating</code></td></tr>
+  </tbody>
+</table>
+
+<h3>Eventi pubblicati / sottoscritti</h3>
+<table>
+  <thead>
+    <tr><th>Evento</th><th>Direzione</th><th>Action</th><th>Mapping</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>onDeletedRows</code></td><td>Pub by store</td><td><span class="tag delegate">Delegate</span></td><td>In proxy/adapter. Vedi R3 — doppio dispatch</td></tr>
+    <tr><td><code>onLockChange</code></td><td>Pub by store</td><td><span class="tag delegate">Delegate</span></td><td>Solo proxy/adapter</td></tr>
+    <tr><td><code>onNewDatastore</code></td><td>Pub by widget</td><td><span class="tag steal">Steal</span></td><td>Già usato dal controller per re-fire del changeManager</td></tr>
+    <tr><td><code>rowLogger</code></td><td>Pub by store on mutate</td><td><span class="tag delegate">Delegate</span></td><td>Usato dal changeManager per cascading formula recalc — già funziona</td></tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  <span class="label">Pattern del view-transform layer</span>
+  Il flow canonico è: <strong>user input → <code>applyFilter()</code> → store.<code>createFiltered()</code> → <code>_filtered</code> array → re-render</strong>. Il widget orchestrа, lo store fa il lavoro pesante. Per noi: <code>dataStore.applyFilter()</code> popola il proprio <code>_filtered</code>, il controller chiama <code>_fullSync()</code> che itera <code>dataStore.visualOrder()</code> (filter+sort applicati).
+</div>
+
+<!-- ================================================================== -->
+<h2 id="api-controller"><span class="num">4.</span>API che il controller groupletGrid usa oggi sul Bag</h2>
+
+<p>Punti di accesso diretto alla Bag (<code>storebag()</code>, <code>bag.getNodes()</code>, <code>popNode</code>) — questi vanno tutti dietro <code>this.dataStore</code>.</p>
+
+<table>
+  <thead>
+    <tr><th>File:Line</th><th>Operazione</th><th>Nuovo wiring</th><th>Action</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>grouplet_grid.js:474-515</code></td><td><code>collectionStore()</code> literal (4 metodi)</td><td><code>dataStore</code> stesso lo è</td><td><span class="tag steal">Steal</span></td></tr>
+    <tr><td><code>:495,497</code></td><td><code>rowData.setItem(k, ...)</code> in updateRowNode</td><td><code>dataStore.updateRow(rowKey, dict)</code></td><td><span class="tag delegate">Delegate</span></td></tr>
+    <tr><td><code>:508</code></td><td><code>bag.getNodes()</code> in rowByIndex</td><td><code>dataStore.visualOrder()</code></td><td><span class="tag steal">Steal</span></td></tr>
+    <tr><td><code>:1288,1942</code></td><td><code>bag.getNodes().map(label)</code> per insert position</td><td><code>dataStore.visualOrder()</code></td><td><span class="tag steal">Steal</span></td></tr>
+    <tr><td><code>:1798,1832</code></td><td><code>popNode + setItem(_position)</code> DnD reorder</td><td><code>dataStore.moveRow(rowKey, pos)</code></td><td><span class="tag delegate">Delegate</span></td></tr>
+    <tr><td><code>:1864-1866</code></td><td><code>popNode + setItem</code> cross-grid DnD</td><td><code>dataStore.moveRowFrom(src, dst, pos)</code></td><td><span class="tag delegate">Delegate</span></td></tr>
+    <tr><td><code>:1897</code></td><td><code>bag.getNodes().forEach</code> in <code>_fullSync</code></td><td><code>dataStore.visualOrder()</code></td><td><span class="tag steal">Steal</span></td></tr>
+    <tr><td><code>:2196</code></td><td><code>bodyNode.popNode(wrapperLabel)</code></td><td>Resta — DOM teardown, non dati</td><td><span class="tag skip">Skip</span></td></tr>
+    <tr><td><code>:2259,2261,2270</code></td><td>Seed defaults + <code>dataBag.setItem(newKey, rowBag, _position)</code></td><td><code>dataStore.addRow(rowKey, data, pos)</code></td><td><span class="tag delegate">Delegate</span></td></tr>
+    <tr><td><code>:2273-2294</code></td><td>Dialog custom + <code>dataBag.popNode</code></td><td><code>dataStore.deleteRowAsk(rowKey)</code></td><td><span class="tag delegate">Delegate</span></td></tr>
+  </tbody>
+</table>
+
+<!-- ================================================================== -->
+<h2 id="datastore"><span class="num">5.</span>GroupletDataStore — superficie pubblica</h2>
+
+<p>Interfaccia che il controller consuma. Tutte le mode espongono questa API uguale.</p>
+
+<h3>Read</h3>
+<table>
+  <thead>
+    <tr><th>Metodo</th><th>Ritorno</th><th>Descrizione</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>bag()</code></td><td><code>GnrBag</code></td><td>La Bag underlying (per i widget che hanno bisogno della reference). In adapter ritorna la Bag materializzata cachata</td></tr>
+    <tr><td><code>visualBag(filtered=true)</code></td><td><code>GnrBag</code></td><td>Filtrata + ordinata secondo lo stato corrente</td></tr>
+    <tr><td><code>visualOrder()</code></td><td><code>string[]</code></td><td>Array di rowKey nell'ordine visivo. Sostituisce <code>bag.getNodes()</code></td></tr>
+    <tr><td><code>rowNode(rowKey)</code></td><td><code>GnrBagNode</code></td><td>Il nodo (cachato in adapter)</td></tr>
+    <tr><td><code>rowValue(rowKey)</code></td><td><code>GnrBag</code></td><td>Il sub-Bag della riga (sempre Bag, anche in adapter)</td></tr>
+    <tr><td><code>rowField(rowKey, field)</code></td><td>any</td><td>Lookup rapido (è shortcut)</td></tr>
+    <tr><td><code>rowByIndex(idx)</code></td><td>plain dict</td><td>Per changeManager</td></tr>
+    <tr><td><code>len()</code></td><td>int</td><td>Righe visibili (o totali se non filtered)</td></tr>
+    <tr><td><code>keyForRow(rowKey)</code></td><td>string</td><td>pkey della riga (identifier-aware)</td></tr>
+    <tr><td><code>indexOfKey(rowKey)</code></td><td>int</td><td>Indice visuale o -1</td></tr>
+  </tbody>
+</table>
+
+<h3>Mutate</h3>
+<table>
+  <thead>
+    <tr><th>Metodo</th><th>Descrizione</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>addRow(rowKey, data, position?)</code></td><td>Insert. <code>position</code> è formato Bag <code>&lt;key</code> / <code>&gt;key</code></td></tr>
+    <tr><td><code>removeRow(rowKey)</code></td><td>Pop diretto, niente conferma</td></tr>
+    <tr><td><code>deleteRowAsk(rowKey)</code></td><td>Dialog + delete (delegato a <code>deleteAsk</code> in proxy/adapter)</td></tr>
+    <tr><td><code>moveRow(rowKey, position)</code></td><td>Reorder same-grid</td></tr>
+    <tr><td><code>moveRowFrom(srcStore, srcKey, position)</code></td><td>Cross-grid (DnD)</td></tr>
+    <tr><td><code>updateRow(rowKey, dict)</code></td><td>N campi atomici (per formule/totalize)</td></tr>
+  </tbody>
+</table>
+
+<h3>Filter / Sort</h3>
+<table>
+  <thead>
+    <tr><th>Metodo</th><th>Descrizione</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>setFilter(cb)</code> / <code>clearFilter()</code></td><td>Filter callback applicato al visualOrder</td></tr>
+    <tr><td><code>setSort(spec)</code> / <code>clearSort()</code></td><td>Sort spec ("name:a,priority:d" stile Grid)</td></tr>
+    <tr><td><code>isFiltered()</code></td><td>True se <code>_filtered</code> è valorizzato</td></tr>
+    <tr><td><code>refresh()</code></td><td>Ricalcola <code>_filtered</code> + visualOrder</td></tr>
+  </tbody>
+</table>
+
+<h3>Status / Lock</h3>
+<table>
+  <thead>
+    <tr><th>Metodo</th><th>Descrizione</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>hasChanges()</code></td><td>Solo proxy/adapter — stub <code>false</code> in internal</td></tr>
+    <tr><td><code>hasErrors()</code></td><td>Idem</td></tr>
+    <tr><td><code>setLocked(v)</code> / <code>isLocked()</code></td><td>Idem</td></tr>
+  </tbody>
+</table>
+
+<h3>changeManager bridge</h3>
+<table>
+  <thead>
+    <tr><th>Metodo</th><th>Descrizione</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>sum(field, strict)</code></td><td>Per totalize. Delegate a <code>storebag().sum()</code> o <code>store.sum()</code></td></tr>
+    <tr><td><code>getIdxFromPkey(pkey)</code></td><td>Per formule cumulative</td></tr>
+  </tbody>
+</table>
+
+<!-- ================================================================== -->
+<h2 id="dispatch"><span class="num">6.</span>Dispatch table per mode</h2>
+
+<p>Per ogni API pubblica, dove finisce in pratica.</p>
+
+<table>
+  <thead>
+    <tr><th>API DataStore</th><th>mode <code>internal</code></th><th>mode <code>proxy</code></th><th>mode <code>adapter</code></th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>bag()</code></td><td><code>genro.getData(storepath)</code></td><td><code>store.getData()</code></td><td>Cache di Bag materializzata</td></tr>
+    <tr><td><code>visualBag()</code></td><td>Bag wrappata, filter+sort interno</td><td><code>store.getData(true)</code></td><td>Idem proxy + materializzazione lazy</td></tr>
+    <tr><td><code>visualOrder()</code></td><td>Bag walk + <code>_filtered</code></td><td><code>store.iterfilterCb</code></td><td>Idem proxy con <code>keyGetter</code> diverso</td></tr>
+    <tr><td><code>rowValue(k)</code></td><td><code>bag.getItem(k)</code></td><td><code>store.getData().getItem(k)</code></td><td><strong>Materializza al volo</strong> da <code>node.attr</code></td></tr>
+    <tr><td><code>addRow(k, data, pos)</code></td><td><code>bag.setItem(k, data, _position)</code></td><td>Idem internal (loadData se selfUpdate)</td><td><code>node.attr</code>-shaped + <code>setItem</code> sullo store</td></tr>
+    <tr><td><code>removeRow(k)</code></td><td><code>bag.popNode(k)</code></td><td><code>store.deleteRows([k])</code></td><td>Idem proxy + invalida cache</td></tr>
+    <tr><td><code>deleteRowAsk(k)</code></td><td>Dialog inline (oggi)</td><td><code>store.deleteAsk([k])</code></td><td>Idem proxy</td></tr>
+    <tr><td><code>moveRow(k, pos)</code></td><td><code>popNode + setItem(_position)</code></td><td>Idem internal (lo store non ha reorder)</td><td>Idem (può degradare se DB-backed)</td></tr>
+    <tr><td><code>updateRow(k, dict)</code></td><td><code>rowBag.setItem(field, v)</code> con <code>doTrigger</code></td><td><code>store.updateRowNode(node, dict)</code></td><td><code>node.updAttributes(dict)</code></td></tr>
+    <tr><td><code>setFilter(cb)</code></td><td>Wrappa con <code>iterfilterCb</code></td><td><code>store.createFiltered(this, ...)</code></td><td>Idem proxy</td></tr>
+    <tr><td><code>setSort(spec)</code></td><td>Sort visuale, no mutazione Bag</td><td><code>store.sort(spec)</code></td><td>Solo client (server-sort è fase 3)</td></tr>
+    <tr><td><code>hasChanges()</code></td><td><span class="tag stub">Stub</span> return false</td><td><code>store.hasChanges()</code></td><td>Idem</td></tr>
+    <tr><td><code>hasErrors()</code></td><td><span class="tag stub">Stub</span> return false</td><td><code>store.hasErrors()</code></td><td>Idem</td></tr>
+    <tr><td><code>setLocked(v)</code></td><td><span class="tag stub">Stub</span> warn</td><td><code>store.setLocked(v)</code></td><td>Idem</td></tr>
+    <tr><td><code>sum(f)</code></td><td><code>bag.sum(f)</code></td><td><code>store.sum(f)</code></td><td><code>store.sum('#a.'+f)</code> in AttributesBagRows</td></tr>
+    <tr><td><code>keyForRow(k)</code></td><td><code>k</code> (label = pkey)</td><td><code>store.keyGetter(node)</code></td><td>Idem proxy (rispetta <code>identifier</code>)</td></tr>
+  </tbody>
+</table>
+
+<!-- ================================================================== -->
+<h2 id="fase1"><span class="num">7.</span>Fase 1 — scope minimo</h2>
+
+<div class="callout">
+  <span class="label">Principio</span>
+  Refactoring puro. Introduciamo <code>GroupletDataStore</code> SOLO in mode <code>internal</code>. Test 1–12 invariati bit-per-bit. Le API non implementate (proxy/adapter, lock, deleteAsk, ecc.) fanno <code>console.warn('[GroupletDataStore] X not implemented yet')</code> e ritornano valori sensati di default.
+</div>
+
+<table>
+  <thead>
+    <tr><th>Step</th><th>Cosa</th><th>Verifica</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>Creare classe <code>GroupletDataStore</code> (file separato), mode internal-only</td>
+      <td>Istanziabile, expose API table sopra; metodi non impl. = stub-warn</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>Controller costruisce <code>this.dataStore</code> al init</td>
+      <td>Test 1-12 invariati visivamente</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>Migrare <code>collectionStore()</code> literal → <code>this.dataStore</code></td>
+      <td>Test_9 struct invoice, totalize/formula, OK</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>Migrare iterazioni dirette <code>bag.getNodes()</code> → <code>dataStore.visualOrder()</code></td>
+      <td>Test_8 tabs, insertion position OK</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>Migrare mutazioni dirette <code>popNode/setItem</code> → <code>dataStore.add/remove/move</code></td>
+      <td>Test_6 kanban DnD, test_12 add menu OK</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>Migrare <code>_askAndDeleteRow</code> → <code>dataStore.deleteRowAsk()</code> (con dialog interno alla classe)</td>
+      <td>Delete per-riga su tutti i test OK</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><strong>Out of scope Fase 1</strong>: mode proxy, mode adapter, filter/sort UI, lock propagation, hasChanges/Errors reali, BagStore siblings emit lato Python. Tutto rinviato a Fase 2/3.</p>
+
+<h3>Stub-with-warn pattern</h3>
+<pre><code>// In Fase 1 — internal mode
+hasChanges() {
+    console.warn('[GroupletDataStore] hasChanges() not implemented '
+                 + 'in internal mode (requires external store, '
+                 + 'see issue #897)');
+    return false;
+}
+
+setLocked(value) {
+    console.warn('[GroupletDataStore] setLocked() not implemented '
+                 + 'in internal mode');
+}
+
+createFiltered(cb) {
+    console.warn('[GroupletDataStore] createFiltered() — Fase 2');
+}</code></pre>
+
+<!-- ================================================================== -->
+<h2 id="rischi"><span class="num">8.</span>Rischi & edge cases</h2>
+
+<table>
+  <thead>
+    <tr><th>#</th><th>Rischio</th><th>Mode</th><th>Mitigazione</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>R1</td>
+      <td><code>getFormHandler()</code> walk fallisce per standalone widget (test_1)</td>
+      <td>proxy/adapter</td>
+      <td>Passare <code>parentForm: false</code> esplicito quando emettiamo lo store siblings</td>
+    </tr>
+    <tr>
+      <td>R2</td>
+      <td><code>linkedGrids()</code> dello store cerca <code>selectionKeeper</code>; il groupletGrid non lo ha</td>
+      <td>proxy/adapter</td>
+      <td>Conseguenza benigna: <code>gridBroadcast</code> no-op. Opzionalmente sovrascriviamo per includersi</td>
+    </tr>
+    <tr>
+      <td>R3</td>
+      <td><code>onDeletedRows</code> doppio: <code>_trigger_data</code> Bag + store publish</td>
+      <td>proxy</td>
+      <td>Sopprimere uno dei due (preferenza: ascoltare solo il subscribe Bag, che già funziona)</td>
+    </tr>
+    <tr>
+      <td>R4</td>
+      <td><code>_pkey</code> non esiste nelle righe groupletGrid (oggi label è pkey)</td>
+      <td>proxy</td>
+      <td><code>keyGetter</code> fallback a label (BagRows:7164). Iniettare <code>_pkey=label</code> a init</td>
+    </tr>
+    <tr>
+      <td>R5</td>
+      <td><code>storeNode</code> race: controller construct prima dello store</td>
+      <td>proxy/adapter</td>
+      <td>Pickup in <code>onBuiltCall</code>, non in constructor</td>
+    </tr>
+    <tr>
+      <td>R6</td>
+      <td>NodeId collision in groupletGrid nested (test_7)</td>
+      <td>proxy/adapter</td>
+      <td>Mode <code>proxy/adapter</code> incompatibile con nested. Force <code>internal</code></td>
+    </tr>
+    <tr>
+      <td>R7</td>
+      <td>Adapter: write-back ricorsivo su <code>extra_data</code> sub-Bag</td>
+      <td>adapter</td>
+      <td>Sub-Bag in <code>node.attr</code> copiate per ref; subscribe ricorsivo per write-back</td>
+    </tr>
+    <tr>
+      <td>R8</td>
+      <td>Adapter: cache invalidation</td>
+      <td>adapter</td>
+      <td>Subscribe a <code>rowLogger</code> dello store esterno per invalidare cache materializzata</td>
+    </tr>
+    <tr>
+      <td>R9</td>
+      <td>DnD reorder + store: il reorder visuale non ha mapping in <code>Selection</code>/<code>RpcBase</code></td>
+      <td>adapter (DB)</td>
+      <td>Mode adapter su DB-backed disabilita reorder, oppure salva posizione in attr <code>_order</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ================================================================== -->
+<h2 id="domande"><span class="num">9.</span>Domande aperte</h2>
+
+<table>
+  <thead>
+    <tr><th>#</th><th>Domanda</th><th>Quando rispondere</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Q1</td>
+      <td><code>identifier</code> kwarg di primo livello su <code>gr_groupletGrid</code>? (oggi assume label = pkey)</td>
+      <td>Prima di Fase 2 (proxy)</td>
+    </tr>
+    <tr>
+      <td>Q2</td>
+      <td>Tag named (<code>pane.child('GroupletGrid', ...)</code>) o resta <code>div</code> con marker?</td>
+      <td>Prima di Fase 2 (siblings store emit)</td>
+    </tr>
+    <tr>
+      <td>Q3</td>
+      <td><code>store_*</code> prefix come <code>bagGrid</code> (<code>@extract_kwargs</code>) o kwargs piatti?</td>
+      <td>Prima di Fase 2</td>
+    </tr>
+    <tr>
+      <td>Q4</td>
+      <td>Mode <code>proxy</code> e <code>adapter</code> sono pieni cittadini o solo "via store_*"? (cioè il caller chiede esplicitamente)</td>
+      <td>Prima di Fase 2</td>
+    </tr>
+    <tr>
+      <td>Q5</td>
+      <td>DnD reorder in mode adapter su DB: disabilitato, oppure <code>_order</code> field?</td>
+      <td>Fase 3 / Item 14 DB-backed</td>
+    </tr>
+    <tr>
+      <td>Q6</td>
+      <td>L'anima form-collection (test_7, test_8) resta in mode <code>internal</code> a vita, o entra in mode adapter quando arriva Item 16 (formStore)?</td>
+      <td>Item 16</td>
+    </tr>
+  </tbody>
+</table>
+
+</div>
+</body>
+</html>
