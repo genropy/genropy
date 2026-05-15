@@ -43,6 +43,23 @@ def _attached_node(root):
     return root.child('div', childname='inner')
 
 
+@pytest.fixture(autouse=True)
+def _isolate_external_methods():
+    """Save and restore `GnrDomSrc._external_methods` around each test.
+
+    The `@struct_method` decorator mutates a class-level dict. Without
+    this fixture, every test that decorates a function leaves a
+    permanent entry behind, leaking state across tests and across
+    pytest sessions.
+    """
+    saved = GnrDomSrc._external_methods.copy()
+    try:
+        yield
+    finally:
+        GnrDomSrc._external_methods.clear()
+        GnrDomSrc._external_methods.update(saved)
+
+
 # ---------------------------------------------------------------------------
 # @struct_method registration (pre-existing tests, kept verbatim)
 # ---------------------------------------------------------------------------
