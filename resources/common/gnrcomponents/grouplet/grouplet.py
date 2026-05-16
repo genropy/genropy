@@ -877,6 +877,33 @@ class GroupletGridHandler(BaseComponent):
         # Bootstrap: instantiate the JS controller on _onBuilt and hook
         # it into the framework's dyn-attr dispatch so gnr_storepath
         # fires on every rows-Bag mutation (gnrdomsource.js:1357-1363).
+        self._gr_groupletGrid_emitController(
+            container,
+            resource=resource, handler_name=handler_name,
+            resourceField=resourceField, structpath=structpath,
+            table=table, grouplets_root=grouplets_root,
+            grouplet_kwargs=grouplet_kwargs,
+            cols=cols, min_width=min_width, gap=gap,
+            additem=additem, delitem=delitem, editmenu=editmenu,
+            additem_kwargs=additem_kwargs,
+            delitem_kwargs=delitem_kwargs,
+            editmenu_kwargs=editmenu_kwargs,
+            layout=layout, titleField=titleField, emptyTitle=emptyTitle,
+            defaultRow=defaultRow, minRows=minRows, maxRows=maxRows,
+            counterField=counterField,
+            resolved_drag_code=resolved_drag_code)
+        return container
+
+    def _gr_groupletGrid_emitController(
+            self, container, *,
+            resource, handler_name, resourceField, structpath, table,
+            grouplets_root, grouplet_kwargs,
+            cols, min_width, gap,
+            additem, delitem, editmenu,
+            additem_kwargs, delitem_kwargs, editmenu_kwargs,
+            layout, titleField, emptyTitle,
+            defaultRow, minRows, maxRows, counterField,
+            resolved_drag_code):
         # `attributeOwnerNode('_gg_root')` resolves the container at
         # runtime via the parent chain — required for nested groupletGrid
         # where the template is cloned per row (a `containerNode=container`
@@ -942,4 +969,3 @@ class GroupletGridHandler(BaseComponent):
             maxRows=maxRows,
             counterField=counterField,
             dragCode=resolved_drag_code)
-        return container

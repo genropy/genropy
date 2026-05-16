@@ -1,40 +1,33 @@
 """groupletGrid demo page — minimum gallery covering every use case.
 
-  test_1_invoice_baseline      — invoice rows, single column, plain
-                                 (smoke: add/remove via phantom + kebab)
-  test_2_todolist_handler      — handler= callable (not a resource file)
-  test_3_invoice_responsive    — same rows, cols=3 + min_width
-                                 (responsive: reflow with viewport width)
-  test_4_excel_framed_top_slot — flat-row layout, framed scroll,
-                                 toolbar in `top` slot wired to action-bus
-  test_5_long_list_bottom_slot — framed long list with sticky `bottom` slot
-  test_6_kanban_dnd            — 3 grids sharing dragCode='kanban',
-                                 cross-grid drag of editable cards
-  test_7_nested_team           — outer grid of team members, each with a
-                                 nested groupletGrid of contact channels
-  test_8_team_tabs             — team roster with a layout picker:
-                                 horizontal tabs / vertical tabs / cards
-                                 (`layout='tabs'|'vtabs'|'cards'`),
-                                 reactive `titleField`, runtime switch
-                                 via `setLayout()` on the controller
-  test_9_struct_shopping_list  — Item 12 fakexcel style: `struct=` mode
-                                 with checkbox + editable cells, derived
-                                 line total (formula) and live footer
-                                 total (totalize). No phantom row, no
-                                 per-row ×: actions via kebab + toolbar
-                                 +/−.
-  test_10_shopping_row_resource — baseline for test_9, same shape via a
-                                 hand-written resource grouplet.
-  test_12_myticket_resourcefield — Item 13: heterogeneous rows where the
-                                 template is chosen per-row from the
-                                 `ticket_type` discriminator field. Rows
-                                 are loaded from `test.myticket` via a
-                                 `dataRpc` (`selection().output('baglist')`
-                                 — same pattern as `righeDocumento` in
-                                 erpy). Each row picks one of the 9
-                                 complete templates under
-                                 `myticket/grid_grouplets/` and renders
-                                 the matching mini-form.
+  test_01_invoice_baseline       — invoice rows, single column, plain
+                                   (smoke: add/remove via phantom + kebab)
+  test_02_todolist_handler       — handler= callable (not a resource file)
+  test_03_invoice_responsive     — same rows, cols=3 + min_width
+                                   (responsive: reflow with viewport width)
+  test_04_kanban_dnd             — 3 grids sharing dragCode='kanban',
+                                   cross-grid drag of editable cards
+  test_05_team_tabs              — team roster with a layout picker:
+                                   horizontal tabs / vertical tabs / cards
+                                   (`layout='tabs'|'vtabs'|'cards'`),
+                                   reactive `titleField`, runtime switch
+                                   via `setLayout()` on the controller
+  test_06_struct_shopping_list   — fakexcel style: `struct=` mode
+                                   with checkbox + editable cells, derived
+                                   line total (formula) and live footer
+                                   total (totalize). No phantom row, no
+                                   per-row ×: actions via kebab + toolbar
+                                   +/−.
+  test_07_myticket_resourcefield — heterogeneous rows where the template
+                                   is chosen per-row from the `ticket_type`
+                                   discriminator field. Rows are loaded
+                                   from `test.myticket` via a `dataRpc`
+                                   (`selection().output('baglist')` —
+                                   same pattern as `righeDocumento` in
+                                   erpy). Each row picks one of the
+                                   complete templates under
+                                   `myticket/grid_grouplets/` and renders
+                                   the matching mini-form.
 """
 import datetime
 
@@ -60,7 +53,7 @@ class GnrCustomWebPage(object):
                                                 qty=qty, price=price)))
         return rows
 
-    def test_1_invoice_baseline(self, pane):
+    def test_01_invoice_baseline(self, pane):
         """Invoice rows, single column, plain (smoke test).
 
         Starts EMPTY. A `Load sample` button swaps the whole rows Bag
@@ -72,7 +65,7 @@ class GnrCustomWebPage(object):
         # Seed lives at a path the grid does NOT watch. The button below
         # copies it into `.invoice_lines` to trigger the swap.
         pane.data('.seed_invoice', self._invoice_seed(3))
-        pane.div('Test 1: empty grid + "Load sample" button (exercises '
+        pane.div('Test 01: empty grid + "Load sample" button (exercises '
                  'newDataStore: the whole rows Bag is replaced at once).',
                  color='#666', font_style='italic', margin_bottom='8px')
         toolbar = pane.div(display='flex', gap='0.6em',
@@ -85,7 +78,7 @@ class GnrCustomWebPage(object):
                           resource='invoice_row',
                           defaultRow=dict(qty=1, price=0))
 
-    def test_2_todolist_handler(self, pane):
+    def test_02_todolist_handler(self, pane):
         """Todolist via inline `handler=` callable (not a resource file).
 
         Demonstrates that the row template can be a Python callable on
@@ -100,7 +93,7 @@ class GnrCustomWebPage(object):
         rows.setItem('r_004', Bag(dict(done=False,
                                        text='Reply to Marta about Friday')))
         pane.data('.todos', rows)
-        pane.div('Test 2: small todolist driven by handler=callable. '
+        pane.div('Test 02: small todolist driven by handler=callable. '
                  'Kebab is the only affordance (no `×`) and shows the '
                  'three editmenu value shapes: True (preset), string '
                  '(preset with custom label) and dict (full menuline).',
@@ -135,7 +128,7 @@ class GnrCustomWebPage(object):
         row.textbox(value='^.text', placeholder='!!What needs doing?',
                     width='100%', flex='1')
 
-    def test_3_invoice_responsive(self, pane):
+    def test_03_invoice_responsive(self, pane):
         """Same invoice rows, but in a responsive grid.
 
         `cols=3 + min_width=300px`: wide viewport → 3 columns, tablet → 2,
@@ -143,7 +136,7 @@ class GnrCustomWebPage(object):
         same data shape as test_1 — only the layout kwargs change.
         """
         pane.data('.invoice_lines', self._invoice_seed(6))
-        pane.div('Test 3: same rows as test_1, cols=3 + min_width=300px '
+        pane.div('Test 03: same rows as test_01, cols=3 + min_width=300px '
                  '(resize the viewport to see re-flow).',
                  color='#666', font_style='italic', margin_bottom='8px')
         # Prefix capture demo on the phantom add and `×` delete:
@@ -158,71 +151,7 @@ class GnrCustomWebPage(object):
                           delitem_class='gg-fancy-del',
                           defaultRow=dict(qty=1, price=0))
 
-    def test_4_excel_framed_top_slot(self, pane):
-        """Fakexcel: flat rows + framed scroll + toolbar in `top` slot.
-
-        `height=320px` activates frame mode (body scrolls, slots stay
-        anchored). Toolbar buttons publish on the controller's action
-        topic — same path the kebab and phantom add-cell use, just
-        invoked from a custom UI affordance.
-        """
-        pane.data('.lines', self._invoice_seed(8))
-        pane.div('Test 4: fakexcel — flat rows, framed scroll, toolbar '
-                 'in top slot wired to the action bus.',
-                 color='#666', font_style='italic', margin_bottom='8px')
-        grid_id = 'grpgrid_excel'
-        topic = f'groupletGrid_{grid_id}_action'
-        grid = pane.groupletGrid(storepath='.lines',
-                                 resource='excel_row',
-                                 _class='gg-flat-rows',
-                                 height='320px',
-                                 nodeId=grid_id,
-                                 additem=False, delitem=False,
-                                 defaultRow=dict(qty=1, price=0))
-        toolbar = grid.top.div(_class='gg-excel-toolbar',
-                               display='flex', align_items='center',
-                               gap='0.4em', padding='0.4em 0.6em',
-                               border_bottom='1px solid var(--border-color, #e5e7eb)',
-                               background='var(--surface-alt, #f9fafb)')
-        toolbar.div('!!Items', font_weight='600', flex='1',
-                    color='var(--text-secondary, #6b7280)',
-                    font_size='0.9em')
-        toolbar.lightButton(
-            '+', _class='gg-toolbar-btn', tip='!!Add row',
-            action=f"genro.publish('{topic}', {{action:'add'}});")
-        toolbar.lightButton(
-            '−', _class='gg-toolbar-btn', tip='!!Delete selected row',
-            action=f"genro.publish('{topic}', {{action:'delete'}});")
-
-    def test_5_long_list_bottom_slot(self, pane):
-        """Framed long list with a sticky summary in the `bottom` slot.
-
-        30 rows; body scrolls internally; the `bottom` slot stays
-        anchored at the foot. Use case: a long editable list with a
-        running total / footer note.
-        """
-        pane.data('.invoice_lines', self._invoice_seed(30))
-        pane.div('Test 5: framed long list (height=400px) — internal '
-                 'scroll + sticky bottom slot.',
-                 color='#666', font_style='italic', margin_bottom='8px')
-        # Single-column long list: kebab handles everything (add+delete);
-        # no phantom '+' (would sit at the bottom of the scroll, awkward)
-        # and no top-right `×`. Prefix capture demo on the kebab:
-        #   editmenu_class='gg-test-kebab' → extra class on kebab container
-        grid = pane.groupletGrid(storepath='.invoice_lines',
-                                 resource='invoice_row',
-                                 height='400px',
-                                 additem=False, delitem=False,
-                                 editmenu=True,
-                                 editmenu_class='gg-test-kebab')
-        grid.bottom.div('30 rows',
-                        padding='6px 12px',
-                        border_top='1px solid var(--border-color, #e5e7eb)',
-                        background='var(--surface-alt, #f9fafb)',
-                        font_size='0.9em',
-                        color='var(--text-secondary, #6b7280)')
-
-    def test_6_kanban_dnd(self, pane):
+    def test_04_kanban_dnd(self, pane):
         """3-column kanban board with cross-grid drag-and-drop.
 
         Each column is its own groupletGrid; all share `dragCode='kanban'`
@@ -263,7 +192,7 @@ class GnrCustomWebPage(object):
         pane.data('.kanban_todo', todo)
         pane.data('.kanban_wip', wip)
         pane.data('.kanban_done', done)
-        pane.div('Test 6: kanban board — drag cards across columns to '
+        pane.div('Test 04: kanban board — drag cards across columns to '
                  'advance their state. All columns share dragCode="kanban".',
                  color='#666', font_style='italic', margin_bottom='8px')
         board = pane.div(display='grid',
@@ -289,46 +218,7 @@ class GnrCustomWebPage(object):
                              defaultRow=dict(title='', assignee='@',
                                              priority='med', due=None))
 
-    def test_7_nested_team(self, pane):
-        """Outer grid with a nested groupletGrid inside each row.
-
-        Outer = team members; each member's grouplet renders an avatar
-        (initials), name + role + team in the header, and a nested
-        `groupletGrid` over `.contacts`. The bread-and-butter "card with
-        sub-rows" pattern: add/remove/edit works independently at either
-        level.
-        """
-        people = Bag()
-        c_alice = Bag()
-        c_alice.setItem('r_001', Bag(dict(channel='email',
-                                          value='alice@acme.io')))
-        c_alice.setItem('r_002', Bag(dict(channel='phone',
-                                          value='+39 02 1234 5678')))
-        c_bob = Bag()
-        c_bob.setItem('r_001', Bag(dict(channel='email',
-                                        value='bob@acme.io')))
-        c_bob.setItem('r_002', Bag(dict(channel='mobile',
-                                        value='+39 333 987 6543')))
-        c_bob.setItem('r_003', Bag(dict(channel='web',
-                                        value='bobthebuilder.dev')))
-        people.setItem('r_001', Bag(dict(name='Alice Rossi',
-                                         role='Producer',
-                                         team='Strategy',
-                                         contacts=c_alice)))
-        people.setItem('r_002', Bag(dict(name='Bob Bianchi',
-                                         role='Director',
-                                         team='Production',
-                                         contacts=c_bob)))
-        pane.data('.team', people)
-        pane.div('Test 7: team roster with per-person contact channels '
-                 '(card + nested rows).',
-                 color='#666', font_style='italic', margin_bottom='8px')
-        pane.groupletGrid(storepath='.team',
-                          resource='person_with_contacts',
-                          additem_label='!!New team member',
-                          defaultRow=dict(name='', role='', team=''))
-
-    def test_8_team_tabs(self, pane):
+    def test_05_team_tabs(self, pane):
         """Team roster rendered as horizontal tabs (`layout='tabs'`).
 
         Same data shape as test_7 (person_with_contacts) but the outer
@@ -372,7 +262,7 @@ class GnrCustomWebPage(object):
                                          team='Creative',
                                          contacts=c_carla)))
         pane.data('.team_tabs', people)
-        pane.div('Test 8: team roster as tabs. Edit a name → tab label '
+        pane.div('Test 05: team roster as tabs. Edit a name → tab label '
                  'updates live. Drag a chip to reorder. The layout '
                  'picker on the right flips between cards / horizontal '
                  'tabs / vertical tabs at runtime without losing '
@@ -409,7 +299,7 @@ class GnrCustomWebPage(object):
                           nodeId=grid_id,
                           defaultRow=dict(name='', role='', team=''))
 
-    def test_9_struct_shopping_list(self, pane):
+    def test_06_struct_shopping_list(self, pane):
         """`struct=` mode + reactive controller (Item 12) — fakexcel style.
 
         Shopping list driven by a `gnr.Grid`-style struct: checkbox to
@@ -450,7 +340,7 @@ class GnrCustomWebPage(object):
                    dtype='N', formula='qty*unit_price',
                    totalize='.total_spent', format='#,###.00')
 
-        pane.div('Test 9: shopping list (fakexcel style). Edit qty / '
+        pane.div('Test 06: shopping list (fakexcel style). Edit qty / '
                  'unit price → line total recomputes; the footer shows '
                  'total spent. Use the toolbar +/− to add or remove '
                  'rows, or use the kebab on each row (add before / '
@@ -485,108 +375,6 @@ class GnrCustomWebPage(object):
                           defaultRow=dict(bought=False, qty=1,
                                           unit_price=0))
 
-    def test_10_shopping_row_resource(self, pane):
-        """Visual baseline for test_9.
-
-        Same data shape (with `line_total` pre-computed in the seed
-        since this mode has no auto-formula); rendered via the
-        hand-written `shopping_row` resource grouplet. The row produced
-        by `gnr.GroupletGridStructAdapter` from the struct walk should
-        look the same as this one — minus header/footer/totals which
-        only test_9 emits.
-        """
-        seed = Bag()
-        for i, (item, qty, price) in enumerate((
-                ('Milk',     2, 1.40),
-                ('Bread',    1, 2.20),
-                ('Apples',   6, 0.55),
-                ('Coffee',   1, 8.90),
-                ('Pasta',    3, 1.10)), start=1):
-            seed.setItem(f'r_{i:03d}',
-                         Bag(dict(bought=False, item=item,
-                                  qty=qty, unit_price=price,
-                                  line_total=qty * price)))
-        pane.data('.shopping_list_ref', seed)
-        pane.div('Test 10: baseline. Same data as test_9, rendered '
-                 'via a hand-written resource grouplet '
-                 '(`shopping_row`). The struct adapter should produce '
-                 'the same row shape — minus the auto-header / '
-                 'auto-footer which only struct= mode emits.',
-                 color='#666', font_style='italic', margin_bottom='8px')
-        grid_id = 'grpgrid_shopping_list_ref'
-        action_topic = f'groupletGrid_{grid_id}_action'
-        toolbar = pane.div(display='flex', gap='0.4em',
-                           margin_bottom='8px')
-        toolbar.button(
-            '+',
-            action=f"genro.publish('{action_topic}', "
-                   f"{{action:'add'}});")
-        toolbar.button(
-            '−',
-            action=f"genro.publish('{action_topic}', "
-                   f"{{action:'delete'}});")
-        pane.groupletGrid(storepath='.shopping_list_ref',
-                          resource='shopping_row',
-                          nodeId=grid_id,
-                          max_height='320px',
-                          additem=False,
-                          delitem=False,
-                          editmenu=True,
-                          defaultRow=dict(bought=False, qty=1,
-                                          unit_price=0,
-                                          line_total=0))
-
-    def test_11_struct_datapath(self, pane):
-        """`datapath` + `storepath` + `structpath` (all relative) —
-        mirror of framegrid / paletteGrid. The widget anchors at
-        `datapath=`, then `storepath` and `structpath` resolve
-        relatively to it. Passing `structpath='.gridstruct'` lands the
-        struct at `.demo_shopping.gridstruct` (next to the rows
-        instead of in a per-instance workspace), so other widgets on
-        the page can read / mutate the struct via that path —
-        useful for dynamic struct scenarios.
-        """
-        seed = Bag()
-        for i, (item, qty, price) in enumerate((
-                ('Milk',  2, 1.40),
-                ('Bread', 1, 2.20),
-                ('Apples', 6, 0.55)), start=1):
-            seed.setItem(f'r_{i:03d}',
-                         Bag(dict(item=item, qty=qty,
-                                  unit_price=price)))
-        pane.data('.demo_shopping.rows', seed)
-
-        def struct(struct):
-            r = struct.view().rows()
-            r.cell('item', name='Item', width='100%',
-                   edit=True, validate_notnull=True)
-            r.cell('qty', name='Qty', width='5em',
-                   dtype='L', edit=True)
-            r.cell('unit_price', name='Unit price', width='7em',
-                   dtype='N', edit=True, format='#,###.00')
-            r.cell('line_total', name='Line total', width='8em',
-                   dtype='N', formula='qty*unit_price',
-                   totalize='.total_spent',
-                   format='#,###.00')
-
-        pane.div('Test 11: `datapath` + relative `storepath` + relative '
-                 '`structpath` (mirror of framegrid/paletteGrid). The '
-                 'struct lives at `.demo_shopping.gridstruct` — '
-                 'inspectable from sibling widgets, mutable for '
-                 'data-driven struct scenarios.',
-                 color='#666', font_style='italic', margin_bottom='8px')
-        grid_id = 'grpgrid_struct_datapath'
-        pane.groupletGrid(datapath='.demo_shopping',
-                          storepath='.rows',
-                          struct=struct,
-                          structpath='.gridstruct',
-                          nodeId=grid_id,
-                          max_height='320px',
-                          additem=False,
-                          delitem=False,
-                          editmenu=True,
-                          defaultRow=dict(qty=1, unit_price=0))
-
     @public_method
     def getMyTickets(self, **kwargs):
         """Load all `test.myticket` rows as a Bag-of-Bags.
@@ -603,42 +391,37 @@ class GnrCustomWebPage(object):
             columns='*',
         ).selection().output('baglist')
 
-    def test_12_myticket_resourcefield(self, pane):
-        """Item 13: heterogeneous rows whose template is chosen
-        per-row from the `ticket_type` discriminator field.
+    def test_07_myticket_resourcefield(self, pane):
+        """Heterogeneous rows: per-row template chosen from the
+        `ticket_type` discriminator field.
 
         Rows arrive from `test.myticket` via the canonical `dataRpc`
         pattern (`selection().output('baglist')`). Each row carries
-        `ticket_type='commercial/offer'` (or one of the 8 other
+        `ticket_type='commercial/offer'` (or one of the other 8
         categories) plus an `extra_data` sub-Bag with type-specific
         fields. The groupletGrid in `resourceField='ticket_type'`
-        mode preloads ALL 9 templates from
-        `myticket/grid_grouplets/` in a single bootstrap RPC, then
-        each row picks its template at render time.
+        mode preloads ALL templates from `myticket/grid_grouplets/`
+        in a single bootstrap RPC, then each row picks its template
+        at render time.
 
-        Add-by-type: one button per ticket type publishes an
+        Add-by-type: the toolbar exposes a menu with one item per
+        ticket type. Each click publishes
         `{action: 'add', defaults: {ticket_type: '<path>'}}` on the
-        action bus. The new row is born with the discriminator
+        action bus; the new row is born with the discriminator
         already set, so the next `_addRow` resolves the correct
         template immediately.
 
-        Layout toggle: the `setLayout()` runtime API (Item 11) lets
-        the same data flip between cards / horizontal tabs /
-        vertical tabs without reload.
+        Setup: run `python projects/gnrcore/packages/test/lib/populate_mytickets.py`
+        once to seed test data into `test.myticket`.
         """
-        pane.div('Test 12: heterogeneous rows from `test.myticket`. '
+        pane.div('Test 07: heterogeneous rows from `test.myticket`. '
                  'Each row picks its template (one of 9) from the '
-                 '`ticket_type` field. The toolbar provides a layout '
-                 'picker (cards / H-tabs / V-tabs) and an Add menu '
+                 '`ticket_type` field. The toolbar shows an Add menu '
                  'driven by `gr_groupletAddrowMenu` — same Bag pattern '
                  'as `fgr_slotbar_addrow` / `fh_slotbar_form_add`.',
                  color='#666', font_style='italic', margin_bottom='8px')
         grid_id = 'grpgrid_myticket'
         action_topic = f'groupletGrid_{grid_id}_action'
-        # Seed the layout datapath so the picker mirrors the grid's
-        # initial state, then wire the change to the controller's
-        # public setLayout() API (pattern from test_8_team_tabs).
-        pane.data('.myticket_layout', 'cards')
         # Build the add-row menu Bag server-side: one item per grouplet
         # under `myticket/grid_grouplets/`, each carrying default_kw
         # with the discriminator field pre-set. The widget reads this
@@ -651,19 +434,6 @@ class GnrCustomWebPage(object):
                       grouplets_root='grid_grouplets'))
         toolbar = pane.div(display='flex', gap='0.8em',
                            align_items='center', margin_bottom='8px')
-        toolbar.div('!!Layout', color='#666', font_size='0.9em')
-        toolbar.filteringSelect(
-            value='^.myticket_layout',
-            values='cards:!!Cards,tabs:!!Tabs (horizontal),'
-                   'vtabs:!!Tabs (vertical)',
-            width='200px')
-        pane.dataController("""
-            var n = genro.nodeById(grid_id);
-            var c = n && n.gridController;
-            if (c && c.layout !== layout) {
-                c.setLayout(layout);
-            }
-        """, layout='^.myticket_layout', grid_id=grid_id)
         # Add menu: `menudiv` is a standalone clickable icon that
         # opens a popup with items from `storepath` (the menu Bag).
         # Each item click runs `action` with `$1` = the clicked
@@ -688,15 +458,9 @@ class GnrCustomWebPage(object):
             resourceField='ticket_type',
             table='test.myticket',
             grouplets_root='grid_grouplets',
-            layout='cards',
-            titleField='subject',
-            emptyTitle='!!New ticket',
-            cols=2,
-            min_width='28em',
-            gap='12px',
             nodeId=grid_id,
             delitem=True,
             editmenu=False,
-            additem=False,  # add via the slotButton menu in the toolbar
+            additem=False,  # add via the menudiv in the toolbar
         )
 

@@ -15,9 +15,9 @@ The `+` add cell uses `additem_class='grouplet_grid_footer--minimal'`
 (compact, no dashed border). Per-row `×` uses the `--subtle` variant
 so it does not visually compete with the spreadsheet cells.
 
-Pattern reference: `test_9_struct_shopping_list` in
-`11_grouplet_grid.py` — same recipe, scaled up to the 12-column
-budget schema and embedded inside the conto row.
+Pattern reference: `test_06_struct_shopping_list` in
+`test_grouplet_grid/01_gallery.py` — same recipe, scaled up to the
+12-column budget schema and embedded inside the conto row.
 """
 from gnr.web.gnrbaseclasses import BaseComponent
 

@@ -1,6 +1,14 @@
-// groupletGrid — see docs/groupletgrid_architecture.md
-// Three classes on gnr.*: GroupletGridStructAdapter,
-// GroupletGridDnD, GroupletGridController, GroupletGridTile.
+// groupletGrid — JS classes on gnr.*:
+//   GroupletGridStructAdapter, GroupletGridDnD,
+//   GroupletGridController, GroupletGridTile.
+
+// Attribute keys whose value may carry a framework-generated
+// `grpgrid_*` reference. Used by `_namespaceFrameworkNodeIds` to
+// rewrite per-row clones without scanning every attribute of every
+// node. Keep in sync with the server-side emitters in
+// `gnrcomponents/grouplet/grouplet.py` (search for `grpgrid_` and
+// `f'{nodeId}_…'`).
+const NAMESPACED_ATTRS = ['nodeId', 'store', 'storeCode', 'dragCode'];
 
 gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
     constructor(struct) {
@@ -438,8 +446,6 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
 // Both purely visual; the data stays untouched. The `_filtered`
 // array lives on the sibling store so totals (changeManager) and
 // `sum(field)` aggregate the visible rows for free.
-//
-// See docs/groupletgrid_store_integration.html for the full design.
 
 gnr.GroupletDataStore = class GroupletDataStore {
 
@@ -616,25 +622,13 @@ gnr.GroupletDataStore = class GroupletDataStore {
         return this.indexOfKey(pkey);
     }
 
-    // === Phase 2 stubs (filter/sort done via CSS on top of the
-    //     sibling store's `_filtered` array — wired in a follow-up
-    //     commit). Stub-warn keeps any early caller visible. ===
-
-    setFilter(_cb) {
-        console.warn('[GroupletDataStore] setFilter() — Phase 2');
-    }
-
-    clearFilter() {
-        console.warn('[GroupletDataStore] clearFilter() — Phase 2');
-    }
-
-    setSort(_spec) {
-        console.warn('[GroupletDataStore] setSort() — Phase 2');
-    }
-
-    clearSort() {
-        console.warn('[GroupletDataStore] clearSort() — Phase 2');
-    }
+    // Phase 2 stubs — silent no-ops. Filter/sort will route through
+    // `_visualOrder()` (CSS on top of the sibling store's `_filtered`
+    // array), never mutating the underlying Bag.
+    setFilter(_cb) {}
+    clearFilter() {}
+    setSort(_spec) {}
+    clearSort() {}
 
     isFiltered() {
         return this.store().isFiltered();
@@ -941,11 +935,12 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     _syncStructChromeToColumns() {
-        // STEP 1: stretch header/footer padding so their content-box
-        // matches the row's inner grid (header lives in slot-top,
-        // outside the row's drag/kebab insets — different absolute X).
-        // STEP 2: per-column padding so header label / readonly cell
-        // align to the row widget's visible text edge.
+        // Header/footer in struct= mode live in slot-top/slot-bottom,
+        // outside the row's drag/kebab insets — so their absolute X
+        // differs from the row's grid tracks. This sync runs in two
+        // passes:
+        //   1) frame header/footer onto firstRow's content-box
+        //   2) place header/footer cells absolutely over each track
         if (!this.structAdapter) return;
         const containerDom = this._containerDom();
         const firstRow = containerDom.querySelector(
@@ -970,15 +965,22 @@ gnr.GroupletGridController = class GroupletGridController {
                 }
             });
         });
-        // --- STEP 1: frame header/footer onto firstRow's content-box.
-        const rowOuter = firstRow.getBoundingClientRect();
-        const rowCs = getComputedStyle(firstRow);
-        const rowContentLeft  = rowOuter.left  + parseFloat(rowCs.paddingLeft);
-        const rowContentRight = rowOuter.right - parseFloat(rowCs.paddingRight);
         const headerEl = containerDom.querySelector(
             '.grouplet_grid__struct_header');
         const footerEl = containerDom.querySelector(
             '.grouplet_grid__struct_footer');
+        this._frameStructChromeToFirstRow(firstRow, headerEl, footerEl);
+        this._placeStructColumnCells(
+            containerDom, headerEl, footerEl, trackEls, readonlyByColumn);
+    }
+
+    // STEP 1 — stretch header/footer padding so their content-box matches
+    // the row's inner grid.
+    _frameStructChromeToFirstRow(firstRow, headerEl, footerEl) {
+        const rowOuter = firstRow.getBoundingClientRect();
+        const rowCs = getComputedStyle(firstRow);
+        const rowContentLeft  = rowOuter.left  + parseFloat(rowCs.paddingLeft);
+        const rowContentRight = rowOuter.right - parseFloat(rowCs.paddingRight);
         const frameToRow = function(el) {
             if (!el) return;
             el.style.paddingLeft = '';
@@ -994,10 +996,14 @@ gnr.GroupletGridController = class GroupletGridController {
         };
         frameToRow(headerEl);
         frameToRow(footerEl);
-        // --- STEP 2: place header/footer cells absolutely at the same
-        // left/width as the row's column wrappers (decouples from grid
-        // track resolution / font-size scaling). Readonly row cells keep
-        // grid placement; only their internal padding is tuned.
+    }
+
+    // STEP 2 — place header/footer cells absolutely at the same left/width
+    // as the row's column wrappers (decouples from grid track resolution /
+    // font-size scaling). Readonly row cells keep grid placement; only
+    // their internal padding is tuned.
+    _placeStructColumnCells(containerDom, headerEl, footerEl,
+                            trackEls, readonlyByColumn) {
         if (!trackEls.length) return;
         const headerCells = containerDom.querySelectorAll(
             '.grouplet_grid__struct_header > .grouplet_grid__struct_col_cell');
@@ -1801,18 +1807,21 @@ gnr.GroupletGridController = class GroupletGridController {
 
     _namespaceFrameworkNodeIds(domSource, pkey) {
         // Suffix every framework-generated reference (`grpgrid_*`) in
-        // the cloned template so each row instance is unique. Applies
-        // to all string attrs, not just `nodeId`: the sibling BagStore
-        // (and any future cross-reference like controller=/for=) is
-        // looked up by string nodeId, so an `attr.store='grpgrid_X'`
-        // that survives unchanged would point to the template's
-        // original store instead of the clone's. Author-supplied
-        // (non-`grpgrid_*`) ids are left untouched.
+        // the cloned template so each row instance is unique. The
+        // sibling BagStore is looked up by string nodeId, so an
+        // `attr.store='grpgrid_X'` that survives unchanged would point
+        // to the template's original store instead of the clone's.
+        // Author-supplied (non-`grpgrid_*`) ids are left untouched.
+        //
+        // Whitelist of attribute keys whose value may carry a
+        // `grpgrid_*` reference. Keeping this list small avoids the
+        // O(nodes × attrs) walk of the previous implementation.
         const suffix = '__' + this.nodeId + '__' + pkey;
         const apply = function(n) {
             const a = n.attr;
             if (!a) return;
-            for (const k in a) {
+            for (let i = 0; i < NAMESPACED_ATTRS.length; i++) {
+                const k = NAMESPACED_ATTRS[i];
                 const v = a[k];
                 if (typeof v === 'string'
                         && v.indexOf('grpgrid_') === 0) {
