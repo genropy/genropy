@@ -1,0 +1,151 @@
+<h2>groupletPanel</h2>
+<p class="lede">A navigation container that shows one grouplet at a time, with a tree or button-bar to switch between them.</p>
+
+<h3>When to use</h3>
+<p>You have a collection of grouplets &mdash; a topic folder, the grouplets directory of a table, or a custom <code>grouplets_root</code> &mdash; and you want the user to flip between them like sections of a settings page. <code>groupletPanel</code> wires that up for you: it builds the menu from the resource tree, renders a chrome around it (tree on the left or button bar at the top), and swaps the active grouplet into a center pane as the selection changes.</p>
+<p>Internally each panel is mounted inside a <code>GroupletForm</code>, so every section keeps its own form status (clean / dirty / error) and its own save lifecycle. Switching to another section does not throw away the editing state of the previous one.</p>
+
+<h3>Two navigation modes</h3>
+<p>The same widget renders differently depending on whether you pass a <code>topic</code>. The dichotomy is intentional: a tree is right when you want the full map of sections, a button bar is right when there are few siblings inside a single topic.</p>
+
+<div class="cards">
+  <div class="card">
+    <h4>Tree mode</h4>
+    <p>No <code>topic</code> param. The full tree of grouplets (all topics, all leaves) is rendered on the left in a <code>borderContainer</code> with a splitter. Selecting a leaf swaps the right pane. Use when the user needs to see the whole map.</p>
+  </div>
+  <div class="card">
+    <h4>MultiButton mode</h4>
+    <p>Pass <code>topic='...'</code>. The widget uses a <code>framePane</code> with a <code>multibutton</code> in the top slot bar, filtered to that single topic's children. Use when you have a handful of siblings inside one topic and a tree would feel over-engineered.</p>
+  </div>
+</div>
+
+<h3>Tree mode example</h3>
+<p>From <code>07_grouplet_nested_topics.py</code>, <code>test_2_nested_topic_panel</code>. No <code>topic</code> is passed, so the panel shows the whole grouplet tree of the page's package on the left and the selected grouplet (including expandable nested topics like <code>submethodtesting/inner/</code>) on the right.</p>
+
+<pre><code><span class="kw">def</span> <span class="fn">test_2_nested_topic_panel</span>(<span class="self">self</span>, pane):
+    pane.<span class="fn">borderContainer</span>(height=<span class="str">'500px'</span>, border=<span class="str">'1px solid silver'</span>,
+                         datapath=<span class="str">'.nested_panel'</span>).<span class="fn">groupletPanel</span>(
+        value=<span class="str">'^.data'</span>,
+        frameCode=<span class="str">'nested_panel'</span>,
+        region=<span class="str">'center'</span>)
+</code></pre>
+
+<p>The panel reads its menu from <code>gr_getGroupletMenu()</code> with no filter, so every topic and grouplet found under <code>resources/grouplets/</code> ends up in the tree. The <code>frameCode</code> is the identifier the panel uses for its internal frame and form &mdash; pick a unique one per panel on the same page.</p>
+
+<h3>MultiButton mode example</h3>
+<p>From <code>06_grouplet_navigation.py</code>, <code>test_2_panel_multibutton_table</code>. Passing <code>topic='technical'</code> together with <code>table='test.myticket'</code> filters the menu to that table's <code>grouplets/technical/</code> branch and flips the chrome to a button bar at the top:</p>
+
+<pre><code><span class="kw">def</span> <span class="fn">test_2_panel_multibutton_table</span>(<span class="self">self</span>, pane):
+    pane.<span class="fn">borderContainer</span>(height=<span class="str">'500px'</span>, border=<span class="str">'1px solid silver'</span>,
+                         datapath=<span class="str">'.panel_mb'</span>).<span class="fn">groupletPanel</span>(
+        table=<span class="str">'test.myticket'</span>,
+        topic=<span class="str">'technical'</span>,
+        value=<span class="str">'^.data'</span>,
+        frameCode=<span class="str">'mb_table_panel'</span>,
+        region=<span class="str">'center'</span>)
+</code></pre>
+
+<p>The button bar shows one button per grouplet inside the <code>technical</code> topic. Clicking a button drives <code>.selected_code</code>, which the panel's controller turns into a resource swap on the center pane.</p>
+
+<h3>Without form wrapper (useForm=False)</h3>
+<p>By default the panel wraps each grouplet in a <code>GroupletForm</code> so the bound Bag has dirty tracking, autosave, status broadcasting. You can opt out with <code>useForm=False</code> when there is no per-panel editing &mdash; for example a read-only dashboard of sections, or a custom flow where you handle persistence yourself.</p>
+
+<pre><code><span class="kw">def</span> <span class="fn">test_3_panel_multibutton_no_table</span>(<span class="self">self</span>, pane):
+    pane.<span class="fn">borderContainer</span>(height=<span class="str">'500px'</span>, border=<span class="str">'1px solid silver'</span>,
+                         datapath=<span class="str">'.panel_app'</span>).<span class="fn">groupletPanel</span>(
+        topic=<span class="str">'app'</span>,
+        useForm=<span class="kw">False</span>,
+        value=<span class="str">'^.record'</span>,
+        frameCode=<span class="str">'mb_app_panel'</span>,
+        region=<span class="str">'center'</span>)
+</code></pre>
+
+<p>With <code>useForm=False</code> the center pane mounts a plain <code>grouplet</code> against the same <code>value</code> path. No form id, no autosave, no status pill on the bar &mdash; just the grouplet body.</p>
+
+<h3>Inside a Table Handler form</h3>
+<p>This is the canonical case: the form of a table (prospect, contact, ticket, ...) has a header with a few primary fields and a center area divided into many optional sections. Instead of stacking accordions, drop a <code>groupletPanel</code> rooted on <code>^#FORM.record</code> (or a child path of it) and let the user pick the section.</p>
+
+<p>From <code>resources/tables/myprospect/th_myprospect.py</code>:</p>
+
+<pre><code><span class="kw">class</span> <span class="cls">Form</span>(<span class="cls">BaseComponent</span>):
+    py_requires = <span class="str">'gnrcomponents/grouplet/grouplet:GroupletHandler'</span>
+
+    <span class="kw">def</span> <span class="fn">th_form</span>(<span class="self">self</span>, form):
+        bc = form.center.<span class="fn">borderContainer</span>()
+        top = bc.<span class="fn">contentPane</span>(region=<span class="str">'top'</span>, datapath=<span class="str">'.record'</span>)
+        fb = top.<span class="fn">formlet</span>(cols=<span class="num">2</span>, border_spacing=<span class="str">'3px'</span>)
+        fb.<span class="fn">field</span>(<span class="str">'company_name'</span>, colspan=<span class="num">2</span>, width=<span class="str">'100%'</span>)
+        fb.<span class="fn">field</span>(<span class="str">'contact_name'</span>)
+        fb.<span class="fn">field</span>(<span class="str">'contact_email'</span>)
+        <span class="cmt"># ... more header fields ...</span>
+        bc.<span class="fn">contentPane</span>(region=<span class="str">'center'</span>).<span class="fn">groupletPanel</span>(
+            value=<span class="str">'^#FORM.record.extra_data'</span>,
+            table=<span class="str">'test.myprospect'</span>,
+            frameCode=<span class="str">'prospect_panel'</span>)
+</code></pre>
+
+<p>The header edits the columns of the record directly; the panel edits a Bag column (<code>extra_data</code>) sectioned by the grouplets under <code>tables/_packages/test/myprospect/grouplets/</code>. The whole structure lives inside the same TH form, so the standard Save / Cancel buttons commit everything at once.</p>
+
+<h3>Custom navigation menu</h3>
+<p>Sometimes the built-in tree or button bar is not what you want &mdash; you need a custom layout, an icon menu, a sidebar that mixes grouplet entries with other links. In that case, skip <code>groupletPanel</code> and call <code>gr_getGroupletMenu</code> directly to fetch the same menu Bag, then render it however you like and drive a plain <code>grouplet</code> with the selected resource.</p>
+
+<pre><code><span class="kw">def</span> <span class="fn">test_7_menu_tree</span>(<span class="self">self</span>, pane):
+    bc = pane.<span class="fn">borderContainer</span>(height=<span class="str">'500px'</span>, datapath=<span class="str">'.comune_menu'</span>)
+    left = bc.<span class="fn">contentPane</span>(region=<span class="str">'left'</span>, width=<span class="str">'220px'</span>, splitter=<span class="kw">True</span>)
+    left.<span class="fn">dataRpc</span>(<span class="str">'.grouplets_menu'</span>, <span class="self">self</span>.gr_getGroupletMenu,
+                 table=<span class="str">'glbl.comune'</span>, _onStart=<span class="kw">True</span>)
+    left.<span class="fn">tree</span>(storepath=<span class="str">'.grouplets_menu'</span>,
+              labelAttribute=<span class="str">'caption'</span>,
+              connect_onClick=<span class="str">"""
+                  if($2.item.attr.resource &amp;&amp; $2.item.attr.grouplet_caption){
+                      SET .selected_resource = $2.item.attr.resource;
+                      SET .selected_caption = $2.item.attr.grouplet_caption;
+                  }
+              """</span>)
+    right = bc.<span class="fn">borderContainer</span>(region=<span class="str">'center'</span>)
+    right.<span class="fn">contentPane</span>(region=<span class="str">'center'</span>).<span class="fn">grouplet</span>(
+        resource=<span class="str">'^.selected_resource'</span>,
+        table=<span class="str">'glbl.comune'</span>,
+        value=<span class="str">'^.data'</span>)
+</code></pre>
+
+<p>The helper <code>gr_getGroupletMenu(table=..., topic=..., grouplets_root=...)</code> is defined in <code>resources/common/gnrcomponents/grouplet/grouplet.py</code> and returns a <code>Bag</code> where each leaf carries <code>resource</code> and <code>grouplet_caption</code> attributes. That is enough to feed any widget that takes a storepath.</p>
+
+<h3>Parameters</h3>
+<table>
+  <thead><tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>value</code></td><td>str</td><td>required</td><td>Data binding path. The selected grouplet reads and writes its Bag here.</td></tr>
+    <tr><td><code>table</code></td><td>str</td><td><code>None</code></td><td>Table reference (e.g. <code>'test.myticket'</code>) for table-level grouplets. Resolves the menu under that table's <code>grouplets/</code> directory.</td></tr>
+    <tr><td><code>topic</code></td><td>str</td><td><code>None</code></td><td>Topic name. If set, the panel uses <code>multiButton</code> mode filtered to that topic; otherwise tree mode.</td></tr>
+    <tr><td><code>frameCode</code></td><td>str</td><td><code>'grplt_panel'</code></td><td>Identifier for the internal frame and form. Use a unique value per panel on the same page.</td></tr>
+    <tr><td><code>useForm</code></td><td>bool</td><td><code>True</code></td><td>Wrap each grouplet in a <code>GroupletForm</code> with autosave store and status broadcasting.</td></tr>
+    <tr><td><code>useRecordPath</code></td><td>bool</td><td><code>False</code></td><td>Force the form data path to <code>.record</code> instead of the dynamic location path of the selected grouplet.</td></tr>
+    <tr><td><code>menuCallback</code></td><td>callable</td><td><code>None</code></td><td>Custom menu builder. Called as <code>menuCallback(table, topic, grouplets_root)</code>, must return a menu Bag in the same shape as <code>gr_getGroupletMenu</code>.</td></tr>
+    <tr><td><code>grouplets_root</code></td><td>str</td><td><code>'grouplets'</code></td><td>Custom root folder name under each package. Useful when one app exposes multiple unrelated grouplet sets (e.g. <code>'myconfigurations'</code>).</td></tr>
+    <tr><td><code>grouplet_*</code></td><td>any</td><td>&mdash;</td><td>Extra kwargs prefixed with <code>grouplet_</code> are forwarded to the underlying grouplet loader (the same convention as <code>pane.grouplet</code>).</td></tr>
+  </tbody>
+</table>
+
+<h3>Gotchas</h3>
+
+<div class="callout warn">
+  <div class="callout-title">Switching tabs doesn't auto-save</div>
+  <p>With <code>useForm=True</code> (the default) each panel keeps its own dirty state in its own <code>GroupletForm</code>. When the user clicks another section, the previous form is <strong>not</strong> saved automatically &mdash; it stays dirty in memory until something triggers a save (Save button, page close, explicit RPC). If you want auto-save-on-switch, wire a <code>connect_onChange</code> on each grouplet form that fires a save, or surface a status pill so the user notices unsaved work.</p>
+</div>
+
+<div class="callout warn">
+  <div class="callout-title">frameCode collisions</div>
+  <p>Two <code>groupletPanel</code> instances on the same page with the same <code>frameCode</code> will share the internal frame/form id and step on each other's status events. Always pass a unique <code>frameCode</code> per panel.</p>
+</div>
+
+<h3>Reference files</h3>
+<ul>
+  <li><code>resources/common/gnrcomponents/grouplet/grouplet.py</code> &mdash; <code>gr_groupletPanel</code> (lines 195-239), <code>_groupletPanel_topic</code> (multiButton mode), <code>_groupletPanel_tree</code> (tree mode), <code>gr_getGroupletMenu</code> (line 512).</li>
+  <li><code>resources/common/gnrcomponents/grouplet/grouplet.js</code> &mdash; <code>gnr_grouplet.panelSelectFromCode</code> and related panel selection logic.</li>
+  <li><code>resources/common/gnrcomponents/grouplet/grouplet.css</code> &mdash; <code>grouplet_panel_tree</code>, <code>grouplet_panel_title_bar</code>, <code>grplt_status_*</code> classes.</li>
+  <li><code>projects/gnrcore/packages/test/webpages/gnrwdg/test_grouplets/06_grouplet_navigation.py</code> &mdash; tree and multiButton tests, custom menu via <code>gr_getGroupletMenu</code>.</li>
+  <li><code>projects/gnrcore/packages/test/webpages/gnrwdg/test_grouplets/07_grouplet_nested_topics.py</code> &mdash; <code>test_2_nested_topic_panel</code> for tree mode with nested topics.</li>
+  <li><code>projects/gnrcore/packages/test/webpages/gnrwdg/test_grouplets/09_grouplet_custom_root.py</code> &mdash; panel with <code>grouplets_root='myconfigurations'</code>.</li>
+  <li><code>projects/gnrcore/packages/test/resources/tables/myprospect/th_myprospect.py</code> &mdash; <code>groupletPanel</code> inside a TH <code>th_form</code>.</li>
+</ul>

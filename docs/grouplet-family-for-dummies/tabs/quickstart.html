@@ -1,0 +1,93 @@
+<h2>Quick Start</h2>
+<p class="lede">A working grouplet is a webpage class, one <code>pane.grouplet(...)</code> call, and a method that drops form fields into the box it receives.</p>
+
+<h3>Prerequisites</h3>
+<ul>
+  <li>A standard GenroPy webpage scaffolding. The page lives at <code>webpages/index.py</code> (mandatory entry point) or any sibling page; you need the usual <code>GnrCustomWebPage</code> class with a <code>main(self, root, ...)</code> method.</li>
+  <li>The page mixes in the grouplet machinery via <code>py_requires = "gnrcomponents/grouplet/grouplet:GroupletHandler"</code> (you can chain other components with commas, as usual).</li>
+  <li>Nothing else to import: <code>GroupletHandler</code> declares <code>css_requires</code> and <code>js_requires</code> on itself, so the grouplet CSS and JS are pulled in automatically the moment the component is mixed in.</li>
+</ul>
+
+<h3>Minimal example &mdash; handler</h3>
+<p>The fastest path: a handler method on the same webpage. Drop a grouplet, point it at a Bag path, give it a callable. The callable receives a <code>pane</code> already rooted at that Bag node.</p>
+
+<pre><code><span class="kw">from</span> gnr.core.gnrdecorator <span class="kw">import</span> public_method
+
+
+<span class="kw">class</span> <span class="cls">GnrCustomWebPage</span>(<span class="kw">object</span>):
+    py_requires = <span class="str">"gnrcomponents/grouplet/grouplet:GroupletHandler"</span>
+
+    <span class="kw">def</span> <span class="fn">main</span>(<span class="self">self</span>, root, **kwargs):
+        root.<span class="fn">grouplet</span>(value=<span class="str">'^.data'</span>, handler=<span class="self">self</span>.grp_address)
+
+    <span class="dec">@public_method</span>
+    <span class="kw">def</span> <span class="fn">grp_address</span>(<span class="self">self</span>, pane, **kwargs):
+        fb = pane.<span class="fn">formlet</span>(cols=<span class="num">1</span>, border_spacing=<span class="str">'3px'</span>)
+        fb.<span class="fn">textbox</span>(value=<span class="str">'^.street'</span>, lbl=<span class="str">'Street'</span>)
+        fb.<span class="fn">textbox</span>(value=<span class="str">'^.city'</span>, lbl=<span class="str">'City'</span>)
+        fb.<span class="fn">textbox</span>(value=<span class="str">'^.zip'</span>, lbl=<span class="str">'ZIP'</span>)
+</code></pre>
+
+<p>Open the page, see the three fields, edit them. The Bag at <code>.data</code> updates live as you type &mdash; <code>street</code>, <code>city</code>, <code>zip</code> become children of that node, no glue code in between.</p>
+
+<h3>Minimal example &mdash; resource</h3>
+<p>Same screen, same behaviour, but the field layout moves out of the page into a reusable resource. The webpage stops caring what the fields are:</p>
+
+<pre><code><span class="kw">class</span> <span class="cls">GnrCustomWebPage</span>(<span class="kw">object</span>):
+    py_requires = <span class="str">"gnrcomponents/grouplet/grouplet:GroupletHandler"</span>
+
+    <span class="kw">def</span> <span class="fn">main</span>(<span class="self">self</span>, root, **kwargs):
+        root.<span class="fn">grouplet</span>(value=<span class="str">'^.data'</span>, resource=<span class="str">'examples/address_fields'</span>)
+</code></pre>
+
+<p>The resource file lives at <code>projects/gnrcore/packages/test/resources/grouplets/examples/address_fields.py</code> and looks like this:</p>
+
+<pre><code><span class="kw">class</span> <span class="cls">Grouplet</span>(<span class="kw">object</span>):
+    <span class="kw">def</span> <span class="fn">__info__</span>(<span class="self">self</span>):
+        <span class="kw">return</span> <span class="fn">dict</span>(caption=<span class="str">'Address Fields'</span>, priority=<span class="num">1</span>)
+
+    <span class="kw">def</span> <span class="fn">grouplet_main</span>(<span class="self">self</span>, pane, **kwargs):
+        fb = pane.<span class="fn">formlet</span>(cols=<span class="num">1</span>, border_spacing=<span class="str">'3px'</span>)
+        fb.<span class="fn">textbox</span>(value=<span class="str">'^.street'</span>, lbl=<span class="str">'Street'</span>)
+        fb.<span class="fn">textbox</span>(value=<span class="str">'^.city'</span>, lbl=<span class="str">'City'</span>)
+        fb.<span class="fn">textbox</span>(value=<span class="str">'^.zip'</span>, lbl=<span class="str">'ZIP'</span>)
+        fb.<span class="fn">textbox</span>(value=<span class="str">'^.country'</span>, lbl=<span class="str">'Country'</span>)
+</code></pre>
+
+<p>The conventions: the file lives under a <code>resources/grouplets/&lt;path&gt;.py</code> folder of any package, the class is named <code>Grouplet</code>, and the entry method is <code>grouplet_main</code>. The <code>resource</code> string is the path relative to the <code>grouplets/</code> root, without the <code>.py</code> suffix.</p>
+
+<h3>Two ways, one mental model</h3>
+<div class="callout ok">
+  <div class="callout-title">Handler or resource &mdash; same thing</div>
+  <p>The grouplet engine doesn't care which form you used. It hands a <code>pane</code> already datapath&#8209;rooted to your code; your code drops widgets in. Handler is faster when the template is page&#8209;specific. Resource is mandatory when the same field block must be shared across pages, or when you want it picked up automatically per table via the <code>table=</code> argument.</p>
+</div>
+
+<h3>What you just unlocked</h3>
+<div class="cards">
+  <div class="card">
+    <h4>Add fields</h4>
+    <p>Anything <code>formlet</code> accepts works: <code>fb.textbox</code>, <code>fb.numberTextBox</code>, <code>fb.dateTextBox</code>, <code>fb.filteringSelect</code>. The grouplet is just a wrapper around a <code>contentPane</code> at a datapath.</p>
+  </div>
+  <div class="card">
+    <h4>Bind to a record</h4>
+    <p>Inside a TH form, point <code>value</code> at the form's record Bag: <code>pane.grouplet(value='^#FORM.record', handler=self.grp_address)</code>. Edits flow into the record like any other form field.</p>
+  </div>
+  <div class="card">
+    <h4>Multiple grouplets</h4>
+    <p>Drop several <code>pane.grouplet(value=...)</code> calls side by side, each on its own Bag path. They are independent boxes, edited in parallel, persisted independently.</p>
+  </div>
+  <div class="card">
+    <h4>Switch by record type</h4>
+    <p>The <code>resource</code> argument accepts a datapath: <code>resource='^.record_type'</code>. The grouplet re&#8209;renders whenever that value changes, swapping the entire field layout to match.</p>
+  </div>
+</div>
+
+<h3>Where to go next</h3>
+<p>To add edit dialogs (open the grouplet content in a modal, commit on OK) use <code>groupletChunk</code>. For repeating sub&#8209;records in a tabular layout use <code>groupletGrid</code>. For multi&#8209;step forms with a progress bar use <code>groupletWizard</code>. For navigation between sections (tree + content, or button bar + content) use <code>groupletPanel</code>.</p>
+
+<h3>Reference files</h3>
+<ul>
+  <li><code>resources/common/gnrcomponents/grouplet/grouplet.py</code> &mdash; the engine.</li>
+  <li><code>projects/gnrcore/packages/test/webpages/gnrwdg/test_grouplets/01_grouplet_basics.py</code> &mdash; handler, resource, value paths, multiple grouplets.</li>
+  <li><code>projects/gnrcore/packages/test/resources/grouplets/examples/address_fields.py</code> &mdash; the resource shown above.</li>
+</ul>
