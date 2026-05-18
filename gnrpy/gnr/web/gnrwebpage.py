@@ -1347,6 +1347,8 @@ class GnrWebPage(GnrBaseWebPage):
             kwargs['isMobile'] = True
         kwargs['deviceScreenSize'] = self.deviceScreenSize
         kwargs['extraFeatures'] = dict(self.extraFeatures)
+        if self.getPreference('experimental.fluent_domsource_disabled', pkg='sys'):
+            kwargs['extraFeatures']['fluent_domsource_disabled'] = True
         kwargs['isCordova'] = self.connection.is_cordova
         localroot = None
         if self.connection.electron_static:

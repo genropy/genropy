@@ -1401,3 +1401,13 @@ genropatches.decimalRound = function() {
     };
   }
 };
+
+genropatches.fluentDomSource = function() {
+    if (genro.extraFeatures && genro.extraFeatures.fluent_domsource_disabled) {
+        return;
+    }
+    if (typeof Proxy === 'undefined') {
+        return;
+    }
+    gnr.GnrDomSource.applyFluentProxy();
+};

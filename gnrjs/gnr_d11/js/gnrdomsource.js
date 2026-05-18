@@ -2163,3 +2163,37 @@ dojo.declare("gnr.GnrDomSource", gnr.GnrStructData, {
     }
 });
 
+gnr.GnrDomSource.applyFluentProxy = function() {
+    if (gnr.GnrDomSource._fluentApplied) { return; }
+    var OriginalGnrDomSource = gnr.GnrDomSource;
+    var fluentHandler = {
+        get: function(target, prop, receiver) {
+            if (typeof prop !== 'string') {
+                return Reflect.get(target, prop, receiver);
+            }
+            if (Reflect.has(target, prop)) {
+                var value = Reflect.get(target, prop, receiver);
+                return typeof value === 'function' ? value.bind(target) : value;
+            }
+            var registry = genro && genro.wdg;
+            if (registry) {
+                var lower = prop.toLowerCase();
+                if ((registry.namespace && lower in registry.namespace) ||
+                    (registry.widgets && lower in registry.widgets)) {
+                    return function(name, attributes, extrakw) {
+                        return target._(prop, name, attributes, extrakw);
+                    };
+                }
+            }
+            return undefined;
+        }
+    };
+    gnr.GnrDomSource = function(source, kw) {
+        var instance = new OriginalGnrDomSource(source, kw);
+        return new Proxy(instance, fluentHandler);
+    };
+    gnr.GnrDomSource.prototype = OriginalGnrDomSource.prototype;
+    gnr.GnrDomSource.applyFluentProxy = OriginalGnrDomSource.applyFluentProxy;
+    gnr.GnrDomSource._fluentApplied = true;
+};
+
