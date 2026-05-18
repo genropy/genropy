@@ -1015,11 +1015,19 @@ class GnrDomSrc(GnrStructData):
         if formNode:
             table = table or formNode.attr.get('table')
 
-        # Extract ALL item_* parameters and propagate them to child items
+        # Promote static item_* to their unprefixed form on the gridbox so
+        # that child fields can pick them up via getInheritedAttributes()
+        # before gridbox.onChildBuilding copies _items_attr on them
+        # (buildLblWrapper runs *before* the child has been touched).
+        # Reactive bindings (^...) must NOT be promoted: they would land on
+        # the gridbox as unhandled reactive attrs and trigger rebuild loops.
         item_params = dictExtract(kwargs, 'item_', pop=False, slice_prefix=True)
         for param_name, value in item_params.items():
-            if param_name not in kwargs:  # Don't override explicit params
-                kwargs[param_name] = value
+            if param_name in kwargs:
+                continue
+            if isinstance(value, str) and value.startswith('^'):
+                continue
+            kwargs[param_name] = value
 
         result =  self.gridbox(columns=columns,
                                table=table,
