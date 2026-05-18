@@ -698,6 +698,12 @@ gnr.GroupletGridController = class GroupletGridController {
         this.maxRows = kw.maxRows || null;
         this.counterField = kw.counterField || null;
         this.dragCode = kw.dragCode || null;
+        // Server-serialized RPC paths for the template loaders. Sent by
+        // the Python widget as bound method refs, turned into path strings
+        // by the dataController emitter, so dynamic mixins resolve to the
+        // correct implementation (a bare method name would miss them).
+        this.loaderrpc = kw.loaderrpc;
+        this.mapLoaderrpc = kw.mapLoaderrpc;
         this.dnd = this.dragCode ? new gnr.GroupletGridDnD(this) : null;
         this.dataStore = new gnr.GroupletDataStore(this, {
             storepath: this.storepath,
@@ -1872,7 +1878,7 @@ gnr.GroupletGridController = class GroupletGridController {
             grouplets_root: this.grouplets_root,
             grouplet_kwargs: this.grouplet_kw
         };
-        genro.serverCall('gr_getGroupletGridTemplate', params,
+        genro.serverCall(this.loaderrpc, params,
             (tplBag, error) => {
                 if (error) {
                     console.error('[GG] template RPC failed', error);
@@ -1908,7 +1914,7 @@ gnr.GroupletGridController = class GroupletGridController {
             grouplets_root: this.grouplets_root,
             grouplet_kwargs: this.grouplet_kw
         };
-        genro.serverCall('gr_getGroupletGridTemplateMap', params,
+        genro.serverCall(this.mapLoaderrpc, params,
             (mapBag, error) => {
                 if (error) {
                     console.error('[GG] template map RPC failed', error);
