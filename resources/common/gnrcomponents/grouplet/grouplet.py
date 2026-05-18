@@ -835,8 +835,21 @@ class GroupletGridHandler(BaseComponent):
         if store_identifier is not None:
             store_kw['_identifier'] = store_identifier
         store_kw['storeType'] = storeType
-        container.bagStore(storepath=storepath, storeCode=nodeId,
-                           **store_kw)
+        # In workspace mode, park the bagStore's storeNode under
+        # `#WORKSPACE.store` so CollectionStore control flags (setLocked
+        # writes `.locked`/`.disabledButton`) don't dirty the host form.
+        # storepath is anchored to the container via `#<nodeId>` so the
+        # rows Bag resolves to the same node regardless of storeNode.
+        if container_kwargs.get('_workspace'):
+            anchored_storepath = (f'#{nodeId}{storepath}'
+                                  if storepath and storepath.startswith('.')
+                                  else storepath)
+            container.bagStore(datapath='#WORKSPACE.store',
+                               storepath=anchored_storepath,
+                               storeCode=nodeId, **store_kw)
+        else:
+            container.bagStore(storepath=storepath, storeCode=nodeId,
+                               **store_kw)
         if struct_mode:
             container.data(structpath, struct)
         for side in ('top', 'bottom', 'left', 'right'):
