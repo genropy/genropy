@@ -6,11 +6,6 @@ from gnr.core.gnrlang import gnrImport
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 
-# Sentinel for kwargs whose default may need to be resolved later. Lets
-# us tell "not passed" apart from "explicitly False/{}".
-_UNSET = object()
-
-
 class GroupletHandler(BaseComponent):
     css_requires = 'gnrcomponents/grouplet/grouplet'
     js_requires = 'gnrcomponents/grouplet/grouplet'
@@ -734,7 +729,7 @@ class GroupletGridHandler(BaseComponent):
                         table=None, grouplets_root=None,
                         cols=1, min_width=None, gap='12px',
                         height=None, max_height=None,
-                        additem=True, delitem=_UNSET, editmenu=_UNSET,
+                        additem=True, delitem=True, editmenu=False,
                         layout='cards',
                         titleField=None,
                         emptyTitle='!!Untitled',
@@ -756,10 +751,6 @@ class GroupletGridHandler(BaseComponent):
         # the template is cloned per row. Author-supplied nodeIds must
         # bake in `rowKey` (or similar) to stay unique.
         nodeId = nodeId or kwargs.pop('gridId', None) or f'grpgrid_{id(pane)}'
-        if delitem is _UNSET:
-            delitem = True
-        if editmenu is _UNSET:
-            editmenu = False
         # editmenu: False = no kebab; True = preset (addPrev/addNext,
         # plus delete when delitem is False); dict = custom entries.
         if editmenu is True:
@@ -770,9 +761,11 @@ class GroupletGridHandler(BaseComponent):
             editmenu = {}
         body_id = f'{nodeId}_body'
         # struct= accepts a callable (invoked on a fresh GnrGridStruct,
-        # mirroring gnr.Grid) or a pre-built Bag.
+        # mirroring gnr.Grid) or a pre-built Bag. When the grouplet is
+        # table-scoped, propagate `table` as the struct's maintable so
+        # column shortcuts (field name → table column metadata) resolve.
         if callable(struct):
-            built = pane.page.newGridStruct()
+            built = pane.page.newGridStruct(maintable=table)
             struct(built)
             struct = built
         struct_mode = struct is not None
@@ -891,7 +884,9 @@ class GroupletGridHandler(BaseComponent):
             layout=layout, titleField=titleField, emptyTitle=emptyTitle,
             defaultRow=defaultRow, minRows=minRows, maxRows=maxRows,
             counterField=counterField,
-            resolved_drag_code=resolved_drag_code)
+            resolved_drag_code=resolved_drag_code,
+            loaderrpc=self.gr_getGroupletGridTemplate,
+            mapLoaderrpc=self.gr_getGroupletGridTemplateMap)
         return container
 
     def _gr_groupletGrid_emitController(
@@ -903,12 +898,17 @@ class GroupletGridHandler(BaseComponent):
             additem_kwargs, delitem_kwargs, editmenu_kwargs,
             layout, titleField, emptyTitle,
             defaultRow, minRows, maxRows, counterField,
-            resolved_drag_code):
+            resolved_drag_code,
+            loaderrpc, mapLoaderrpc):
         # `attributeOwnerNode('_gg_root')` resolves the container at
         # runtime via the parent chain — required for nested groupletGrid
         # where the template is cloned per row (a `containerNode=container`
         # kwarg would freeze on the template's original sourceNode and
         # collide across row clones).
+        # loaderrpc / mapLoaderrpc are bound public_methods: the framework
+        # serializes them into their RPC path string when emitting the
+        # dataController, so JS receives the dynamic path that resolves
+        # the correct mixin at call time (instead of a bare name lookup).
         container.dataController("""
             var node = this.attributeOwnerNode('_gg_root');
             var bodyNode = node.getValue().walk(function(n){
@@ -939,7 +939,9 @@ class GroupletGridHandler(BaseComponent):
                 minRows: minRows,
                 maxRows: maxRows,
                 counterField: counterField,
-                dragCode: dragCode
+                dragCode: dragCode,
+                loaderrpc: loaderrpc,
+                mapLoaderrpc: mapLoaderrpc
             });
             node.externalWidget = node.gridController;
             node.registerDynAttr('storepath');
@@ -968,4 +970,6 @@ class GroupletGridHandler(BaseComponent):
             minRows=minRows,
             maxRows=maxRows,
             counterField=counterField,
-            dragCode=resolved_drag_code)
+            dragCode=resolved_drag_code,
+            loaderrpc=loaderrpc,
+            mapLoaderrpc=mapLoaderrpc)
