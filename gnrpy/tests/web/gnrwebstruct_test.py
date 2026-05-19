@@ -256,3 +256,19 @@ def test_child_creates_attached_node():
     fetched = root.getNode('greeting')
     assert fetched is not None
     assert fetched._value is node
+
+
+def test_attached_subnode_wins_over_widget_namespace():
+    """When a sub-node is attached under a name that ALSO exists in the
+    widget catalog (e.g. 'form' is both an HTML5 tag and a common
+    childname used by tableHandler), `__getattr__` must return the
+    stateful attached node, not a fresh GnrDomElem. Regression for the
+    collision introduced by porting the full HTML5 catalog into
+    AllWidgets._widget_names.
+    """
+    root = _make_root()
+    form_node = root.child('div', childname='form')
+    assert 'form' in GnrDomSrc_dojo_11.genroNameSpace
+    resolved = root.form
+    assert resolved is form_node
+    assert not isinstance(resolved, GnrDomElem)

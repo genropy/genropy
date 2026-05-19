@@ -167,10 +167,16 @@ class GnrDomSrc(GnrStructData):
             return self.parent.parentfb
     parentfb = property(_get_parentfb)
             
-    def __getattr__(self, fname): 
+    def __getattr__(self, fname):
         fnamelower = fname.lower()
         if (fname != fnamelower) and hasattr(self, fnamelower):
             return getattr(self, fnamelower)
+        # Attached sub-nodes must win over the widget catalog: an explicit
+        # named child is stateful (attributes, children), while the widget
+        # entry would build a brand-new element and orphan the existing node.
+        attachnode = self.getNode(fname)
+        if attachnode:
+            return attachnode._value
         if fnamelower in self.genroNameSpace:
             return GnrDomElem(self, '%s' % (self.genroNameSpace[fnamelower]))
         if fname in self._external_methods:
@@ -182,9 +188,6 @@ class GnrDomSrc(GnrStructData):
                     "Struct method '%s' not found in page '%s'"
                     " — check py_requires" % (method_name, page_name))
             return lambda *args, **kwargs: handler(self, *args,**kwargs)
-        attachnode = self.getNode(fname)
-        if attachnode:
-            return attachnode._value
         autoslots = self._parentNode.attr.get('autoslots')
         if autoslots:
             autoslots = autoslots.split(',')
