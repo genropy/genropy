@@ -619,12 +619,6 @@ class GroupletHandler(BaseComponent):
 
 
 class GroupletGridHandler(BaseComponent):
-    # GroupletGridHandler reuses GroupletHandler's machinery for menu
-    # discovery and topic walking (gr_getGroupletMenu,
-    # _getGroupletResources, _get_grouplet_info). Declaring it via
-    # py_requires makes any page that includes GroupletGridHandler
-    # automatically get GroupletHandler too (BaseComponent.__onmixin__
-    # honours this attribute).
     py_requires = 'gnrcomponents/grouplet/grouplet:GroupletHandler'
     css_requires = 'gnrcomponents/grouplet/grouplet'
     js_requires = ('gnrcomponents/grouplet/grouplet,'
@@ -698,31 +692,14 @@ class GroupletGridHandler(BaseComponent):
             elif node.attr.get('resource'):
                 yield node.attr['resource']
 
-    def _validateGroupletGridConfig(self, struct_mode, resource, handler,
-                                    resourceField, table):
-        if struct_mode and (resource or handler or resourceField):
-            msg = ('groupletGrid: struct= is mutually exclusive with '
-                   'resource/handler/resourceField')
-        elif resourceField and (resource or handler):
-            msg = ('groupletGrid: resourceField= is mutually exclusive '
-                   'with resource/handler (template is chosen per row)')
-        elif resourceField and not table:
-            msg = ('groupletGrid: resourceField= requires table= '
-                   "(grouplets are looked up under that table's "
-                   'resources)')
-        elif not (resource or handler or resourceField or struct_mode):
-            msg = ('groupletGrid: missing resource, handler, '
-                   'resourceField, or struct')
-        else:
-            return
-        raise self.exception('generic', msg=msg)
-
     @extract_kwargs(
         grouplet=dict(slice_prefix=False, pop=True),
+        store= dict(slice_prefix=False,pop=True),
         additem=True, delitem=True, editmenu=True,
     )
     @struct_method
     def gr_groupletGrid(self, pane, datapath=None, storepath=None,
+                        controllerPath=None,
                         resource=None, handler=None,
                         resourceField=None,
                         struct=None, structpath=None,
@@ -743,16 +720,11 @@ class GroupletGridHandler(BaseComponent):
                         additem_kwargs=None,
                         delitem_kwargs=None,
                         editmenu_kwargs=None,
-                        storeType='ValuesBagRows',
-                        store_identifier=None,
                         store_kwargs=None,
                         nodeId=None, **kwargs):
-        # nodeIds inside the grouplet template are NOT auto-renamed when
-        # the template is cloned per row. Author-supplied nodeIds must
-        # bake in `rowKey` (or similar) to stay unique.
+        # Author-supplied nodeIds inside the template must bake in `rowKey`
+        # (or similar): the framework does NOT auto-rename them per row clone.
         nodeId = nodeId or kwargs.pop('gridId', None) or f'grpgrid_{id(pane)}'
-        # editmenu: False = no kebab; True = preset (addPrev/addNext,
-        # plus delete when delitem is False); dict = custom entries.
         if editmenu is True:
             editmenu = {'addPrev': True, 'addNext': True}
             if not delitem:
@@ -760,17 +732,16 @@ class GroupletGridHandler(BaseComponent):
         elif not editmenu:
             editmenu = {}
         body_id = f'{nodeId}_body'
-        # struct= accepts a callable (invoked on a fresh GnrGridStruct,
-        # mirroring gnr.Grid) or a pre-built Bag. When the grouplet is
-        # table-scoped, propagate `table` as the struct's maintable so
-        # column shortcuts (field name → table column metadata) resolve.
         if callable(struct):
             built = pane.page.newGridStruct(maintable=table)
             struct(built)
             struct = built
         struct_mode = struct is not None
-        self._validateGroupletGridConfig(struct_mode, resource, handler,
-                                         resourceField, table)
+        if not (resource or handler or resourceField or struct_mode):
+            raise self.exception(
+                'generic',
+                msg='groupletGrid: missing resource, handler, '
+                    'resourceField, or struct')
         handler_name = handler.__name__ if callable(handler) else handler
         # dragCode: None → isolated DnD (nodeId), False → off, str → shared.
         if dragCode is False:
@@ -789,93 +760,56 @@ class GroupletGridHandler(BaseComponent):
         if extra_class:
             flavours.append(extra_class)
         container_class = ' '.join(flavours)
-        if height is not None:
-            kwargs.setdefault('height', height)
-        if max_height is not None:
-            kwargs.setdefault('max_height', max_height)
-        if onSelfDropRows is not None:
-            kwargs.setdefault('onSelfDropRows', onSelfDropRows)
-        if afterSelfDropRows is not None:
-            kwargs.setdefault('afterSelfDropRows', afterSelfDropRows)
-        container_kwargs = dict(kwargs)
-        # When the caller doesn't pin structpath, park the struct Bag in
-        # the container's workspace — isolates it per-instance, no need
-        # to pollute a global `gnr.*` namespace.
+        # controllerPath: explicit → use it; else fall back to datapath when
+        # caller supplied one; else default to a per-instance workspace slot
+        # (isolated, no global namespace pollution). The store widget node
+        # lives at controllerPath; the rows Bag is unaffected.
+        if not controllerPath:
+            if datapath:
+                controllerPath = datapath
+            else:
+                controllerPath = f'#WORKSPACE.{nodeId}'
+                kwargs['_workspace'] = True
         if struct_mode and not structpath:
-            structpath = '#WORKSPACE.struct'
-            container_kwargs['_workspace'] = True
-        # `_gg_root=True` is an attribute marker descendants resolve via
-        # `attributeOwnerNode('_gg_root')` — robust against nested
-        # groupletGrids where literal nodeIds are namespaced per row.
-        # `store=<nodeId>` ties the container to its sibling store
-        # node (looked up via `genro.nodeById(store+'_store')` lato JS).
+            structpath = f'{controllerPath}.struct'
         container = pane.div(
             _class=container_class,
             nodeId=nodeId,
             datapath=datapath,
             storepath=storepath,
+            controllerPath=controllerPath,
             _gg_root=True,
-            store=f'{nodeId}_store',
-            **container_kwargs)
-        # Sibling store (default: ValuesBagRows). The store wraps the
-        # rows Bag and gives us hasChanges/hasErrors/setLocked/sum-with-
-        # filter for free. `storeType` picks the variant (the helper
-        # also accepts 'AttributesBagRows', 'RpcBase', 'Selection',
-        # fsStore, ...).
-        # Emitted INSIDE the container so `storepath` resolves against
-        # the same `datapath` the container declares (otherwise a
-        # `datapath='.demo'` + `storepath='.rows'` would mismatch — the
-        # store would land on `.rows` instead of `.demo.rows`).
-        # The store nodeId is derived from the container's nodeId, so
-        # the framework's nodeId namespacing (cf.
-        # _namespaceFrameworkNodeIds in grouplet_grid.js) keeps the
-        # sibling store unique per row clone when the template is
-        # reused inside a parent tile.
-        store_kw = dict(store_kwargs or {})
-        if store_identifier is not None:
-            store_kw['_identifier'] = store_identifier
-        store_kw['storeType'] = storeType
-        container.bagStore(storepath=storepath, storeCode=nodeId,
-                           **store_kw)
+            height=height,
+            max_height=max_height,
+            onSelfDropRows=onSelfDropRows,
+            afterSelfDropRows=afterSelfDropRows,
+            **kwargs)
+        store_kwargs.setdefault('store_storeType', 'ValuesBagRows')
         if struct_mode:
             container.data(structpath, struct)
         for side in ('top', 'bottom', 'left', 'right'):
             slot = container.div(
                 _class=f'grouplet_grid_slot grouplet_grid_slot_{side}',
                 childname=side, gg_side=side)
-            # Struct mode pre-allocates the header/footer placeholders
-            # so the JS adapter can graft into a leaf-empty sourceNode
-            # (the framework rejects injection into a live one).
+            # Pre-allocate placeholders: the JS adapter can only graft into
+            # a leaf-empty sourceNode, never into a live one.
             if struct_mode and side == 'top':
                 slot.div(_class='grouplet_grid__struct_header',
                          childname='struct_header')
             elif struct_mode and side == 'bottom':
                 slot.div(_class='grouplet_grid__struct_footer',
                          childname='struct_footer')
-        # Body datapath = storepath: every row wrapper is created at
-        # runtime with `datapath='.<rowKey>'` (relative), so that the
-        # inline grouplet widgets bind via `^.field` against the matching
-        # node in the rows Bag.
-        # `_gg_body=True` is the descendant-side counterpart of `_gg_root`:
-        # the controller resolves the body via attributeOwnerNode at init.
         container.div(_class='grouplet_grid_body',
                       nodeId=body_id,
                       datapath=storepath,
                       _gg_body=True)
-        # The phantom `+` add affordance is NOT emitted server-side.
-        # The JS controller (`_buildLayoutAffordances`) builds it in
-        # both `layout='cards'` (as a `.grouplet_grid_footer` div inside
-        # the body) and `layout='tabs'` (as a `.grouplet_grid_tab_add`
-        # chip inside the tabbar). This keeps all layout-specific DOM
-        # Bootstrap: instantiate the JS controller on _onBuilt and hook
-        # it into the framework's dyn-attr dispatch so gnr_storepath
-        # fires on every rows-Bag mutation (gnrdomsource.js:1357-1363).
         self._gr_groupletGrid_emitController(
             container,
             resource=resource, handler_name=handler_name,
             resourceField=resourceField, structpath=structpath,
             table=table, grouplets_root=grouplets_root,
             grouplet_kwargs=grouplet_kwargs,
+            store_kwargs=store_kwargs,
             cols=cols, min_width=min_width, gap=gap,
             additem=additem, delitem=delitem, editmenu=editmenu,
             additem_kwargs=additem_kwargs,
@@ -892,7 +826,7 @@ class GroupletGridHandler(BaseComponent):
     def _gr_groupletGrid_emitController(
             self, container, *,
             resource, handler_name, resourceField, structpath, table,
-            grouplets_root, grouplet_kwargs,
+            grouplets_root, grouplet_kwargs, store_kwargs,
             cols, min_width, gap,
             additem, delitem, editmenu,
             additem_kwargs, delitem_kwargs, editmenu_kwargs,
@@ -900,15 +834,9 @@ class GroupletGridHandler(BaseComponent):
             defaultRow, minRows, maxRows, counterField,
             resolved_drag_code,
             loaderrpc, mapLoaderrpc):
-        # `attributeOwnerNode('_gg_root')` resolves the container at
-        # runtime via the parent chain — required for nested groupletGrid
-        # where the template is cloned per row (a `containerNode=container`
-        # kwarg would freeze on the template's original sourceNode and
-        # collide across row clones).
-        # loaderrpc / mapLoaderrpc are bound public_methods: the framework
-        # serializes them into their RPC path string when emitting the
-        # dataController, so JS receives the dynamic path that resolves
-        # the correct mixin at call time (instead of a bare name lookup).
+        # Resolve the container via attributeOwnerNode at runtime: a fixed
+        # containerNode kwarg would freeze on the template's sourceNode and
+        # collide across row clones in nested groupletGrid.
         container.dataController("""
             var node = this.attributeOwnerNode('_gg_root');
             var bodyNode = node.getValue().walk(function(n){
@@ -923,6 +851,7 @@ class GroupletGridHandler(BaseComponent):
                 table: table,
                 grouplets_root: grouplets_root,
                 grouplet_kw: grouplet_kw,
+                store_kw: store_kw,
                 cols: cols,
                 min_width: min_width,
                 gap: gap,
@@ -954,6 +883,7 @@ class GroupletGridHandler(BaseComponent):
             table=table,
             grouplets_root=grouplets_root,
             grouplet_kw=grouplet_kwargs or {},
+            store_kw=store_kwargs or {},
             cols=int(cols),
             min_width=min_width,
             gap=gap,

@@ -3,16 +3,14 @@
 //   GroupletGridController, GroupletGridTile.
 
 // Attribute keys whose value may carry a framework-generated
-// `grpgrid_*` reference. Used by `_namespaceFrameworkNodeIds` to
-// rewrite per-row clones without scanning every attribute of every
-// node. Keep in sync with the server-side emitters in
-// `gnrcomponents/grouplet/grouplet.py` (search for `grpgrid_` and
-// `f'{nodeId}_…'`).
-const NAMESPACED_ATTRS = ['nodeId', 'store', 'storeCode', 'dragCode'];
+// `grpgrid_*` reference, rewritten per-row clone by
+// `_namespaceFrameworkNodeIds`.
+const NAMESPACED_ATTRS = ['nodeId', 'dragCode'];
 
 gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
-    constructor(struct) {
+    constructor(struct, controllerPath) {
         this.struct = struct;
+        this.controllerPath = controllerPath;
         this.cells = this._walkStruct();
         this.cellmap = this._buildCellmap();
     }
@@ -26,6 +24,7 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
     _walkStruct() {
         const rows = this.struct.getItem('view_0.rows_0');
         const out = [];
+        const ctrlPath = this.controllerPath;
         rows.getNodes().forEach(function(node) {
             const attr = node.attr || {};
             if (attr.hidden) return;
@@ -34,10 +33,8 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
             // Empty name='' means "no label"; only undefined falls back
             // to the field name.
             const hasName = (attr.name !== undefined && attr.name !== null);
-            // totalize=true → auto path '.totalize.<field>' (mirrors
-            // gnr.Grid at genro_grid.js:1943); strings pass through.
             const totalize = (attr.totalize === true)
-                ? '.totalize.' + field
+                ? ctrlPath + '.totalize.' + field
                 : attr.totalize;
             out.push({
                 _nodelabel: node.label,
@@ -202,13 +199,7 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
         if (c.values) {
             return c.values.indexOf(':') >= 0 ? 'filteringselect' : 'combobox';
         }
-        const map = {
-            L: 'NumberTextBox', I: 'NumberTextBox',
-            R: 'NumberTextBox', N: 'NumberTextBox',
-            D: 'DateTextbox', DH: 'DatetimeTextbox',
-            H: 'TimeTextBox', B: 'CheckBox'
-        };
-        return map[c.dtype] || 'Textbox';
+        return genro.wdg.wdgByDtype(c.dtype);
     }
 
     static _editorKwargs(c) {
@@ -424,57 +415,22 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
 
 
 // ============================================================================
-//  GroupletDataStore — widget data model
+//  GroupletDataStore — single funnel between controller and rows Bag.
+//  Thin view over the framework store built in the controller
+//  constructor; `this.store()` returns `this.controller.store`.
 // ============================================================================
-//
-// Single funnel between the controller and the rows Bag. The controller
-// never touches `genro.getData(storepath)` / `bag.popNode` / `bag.setItem`
-// directly; it talks to `this.dataStore.X()`.
-//
-// The `gr_groupletGrid` Python helper always emits a sibling
-// `pane.bagStore(...)` (default `storeType='ValuesBagRows'`) and tags
-// the container with `attr.store=<nodeId>`. This dataStore is a thin
-// view over that sibling — it picks the framework store up via
-// `genro.nodeById(<store>+'_store').store` and delegates change
-// tracking, lock propagation, deleteAsk and (Phase 2) filter/sort
-// state. Mutations flow through the Bag, so the store's rowLogger
-// picks them up automatically — no manual change events.
-//
-// Filter and sort will be added on top of this in a follow-up:
-//   - filter → `display: none` on filtered-out tiles
-//   - sort   → `style.order = N` per tile
-// Both purely visual; the data stays untouched. The `_filtered`
-// array lives on the sibling store so totals (changeManager) and
-// `sum(field)` aggregate the visible rows for free.
 
 gnr.GroupletDataStore = class GroupletDataStore {
 
     constructor(controller, kw) {
         this.controller = controller;
         this.storepath = kw.storepath;
-        this.identifier = kw.identifier || null;
         this._filtered = null;
         this._sortedBy = null;
-        // The sibling BagStore (default ValuesBagRows, see grouplet.py
-        // `pane.bagStore(...)`) is always emitted. Its instance lives
-        // at `genro.nodeById(<store>+'_store').store`; we look it up
-        // lazily on first access (the BagStore widget initialises in
-        // its own _onBuilt callback — same dispatch tick as the
-        // controller, so neither order is guaranteed at construct).
-        this._storeCode = controller.sourceNode.attr.store;
-        this._externalStore = null;
     }
 
     store() {
-        // Lazy resolve + cache. `attr.store` on the container holds
-        // the BagStore widget's full nodeId (`<base>_store`), so
-        // `_namespaceFrameworkNodeIds` rewrites both consistently
-        // (`<base>_store__<outer>__<pkey>`) when the template is
-        // cloned per row. Initial render is deferred via
-        // `genro.src.onBuiltCall` so the sibling BagStore is built.
-        if (this._externalStore) return this._externalStore;
-        this._externalStore = genro.nodeById(this._storeCode).store;
-        return this._externalStore;
+        return this.controller.store;
     }
 
     // === Read ===
@@ -623,8 +579,8 @@ gnr.GroupletDataStore = class GroupletDataStore {
     }
 
     // Phase 2 stubs — silent no-ops. Filter/sort will route through
-    // `_visualOrder()` (CSS on top of the sibling store's `_filtered`
-    // array), never mutating the underlying Bag.
+    // `_visualOrder()` (CSS on top of the store's `_filtered` array),
+    // never mutating the underlying Bag.
     setFilter(_cb) {}
     clearFilter() {}
     setSort(_spec) {}
@@ -638,7 +594,7 @@ gnr.GroupletDataStore = class GroupletDataStore {
         // no-op until filter/sort state exists
     }
 
-    // === Lock / changes / errors — forward to the sibling store ===
+    // === Lock / changes / errors — forward to the store ===
 
     hasChanges() {
         return this.store().hasChanges();
@@ -698,16 +654,30 @@ gnr.GroupletGridController = class GroupletGridController {
         this.maxRows = kw.maxRows || null;
         this.counterField = kw.counterField || null;
         this.dragCode = kw.dragCode || null;
-        // Server-serialized RPC paths for the template loaders. Sent by
-        // the Python widget as bound method refs, turned into path strings
-        // by the dataController emitter, so dynamic mixins resolve to the
-        // correct implementation (a bare method name would miss them).
+        // RPC path strings, not method names: serialized server-side
+        // from bound public_methods so dynamic mixins resolve correctly.
         this.loaderrpc = kw.loaderrpc;
         this.mapLoaderrpc = kw.mapLoaderrpc;
         this.dnd = this.dragCode ? new gnr.GroupletGridDnD(this) : null;
-        this.dataStore = new gnr.GroupletDataStore(this, {
+        // Dedicated storeNode at controllerPath, separate from the rows
+        // Bag at storepath (same technique as gnr.widgets.BagStore but
+        // built programmatically: no sibling XML node needed).
+        this.controllerPath = sourceNode.absDatapath(
+            sourceNode.attr.controllerPath);
+        const storeNode = sourceNode._('dataController', {
+            datapath: this.controllerPath,
             storepath: this.storepath,
-            identifier: kw.identifier || null
+            nodeId: this.nodeId + '_store'
+        }).getParentNode();
+        const storeKw = kw.store_kw || {};
+        const storeType = storeKw.store_storeType || 'ValuesBagRows';
+        this.store = new gnr.stores[storeType](storeNode, {
+            identifier: storeKw.store_identifier || '_pkey',
+            deleteRows: storeKw.store_deleteRows
+        });
+        storeNode.store = this.store;
+        this.dataStore = new gnr.GroupletDataStore(this, {
+            storepath: this.storepath
         });
         this._chipDnDHandlers = {};
         this.layout = kw.layout || 'cards';
@@ -730,14 +700,8 @@ gnr.GroupletGridController = class GroupletGridController {
         this._buildLayoutAffordances();
         const that = this;
         dojo.connect(sourceNode, '_onDeleting', function() { that.destroy(); });
-        // ChangeManager wiring + first render both reach into the
-        // sibling BagStore — but the BagStore registers its own
-        // `_onBuilt` callback too, and for cloned templates (test_7
-        // contacts, test_8 nested) the inner store finishes building
-        // AFTER our constructor returns. Defer everything store-bound
-        // to `onBuiltCall` — same pattern as gnr.Grid
-        // (`genro_grid.js:704`) when a grid consumes its sibling
-        // store. Pre-store init (layout, DnD, action bus) stays sync.
+        // Defer first render to `onBuiltCall` so the body slot is
+        // attached to the DOM before tiles are created.
         genro.src.onBuiltCall(function() {
             if (that._destroyed) return;
             that._initChangeManager();
@@ -808,7 +772,8 @@ gnr.GroupletGridController = class GroupletGridController {
                          this.structpath, struct);
             return;
         }
-        this.structAdapter = new gnr.GroupletGridStructAdapter(struct);
+        this.structAdapter = new gnr.GroupletGridStructAdapter(
+            struct, this.controllerPath);
         this.cellmap = this.structAdapter.cellmap;
     }
 
@@ -1812,16 +1777,10 @@ gnr.GroupletGridController = class GroupletGridController {
     // ====================================================================
 
     _namespaceFrameworkNodeIds(domSource, pkey) {
-        // Suffix every framework-generated reference (`grpgrid_*`) in
-        // the cloned template so each row instance is unique. The
-        // sibling BagStore is looked up by string nodeId, so an
-        // `attr.store='grpgrid_X'` that survives unchanged would point
-        // to the template's original store instead of the clone's.
-        // Author-supplied (non-`grpgrid_*`) ids are left untouched.
-        //
-        // Whitelist of attribute keys whose value may carry a
-        // `grpgrid_*` reference. Keeping this list small avoids the
-        // O(nodes × attrs) walk of the previous implementation.
+        // Suffix every framework-generated `grpgrid_*` reference in the
+        // cloned template so each row instance is unique. Author-supplied
+        // (non-`grpgrid_*`) ids are left untouched. The attribute
+        // whitelist (NAMESPACED_ATTRS) avoids the O(nodes × attrs) walk.
         const suffix = '__' + this.nodeId + '__' + pkey;
         const apply = function(n) {
             const a = n.attr;
