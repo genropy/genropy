@@ -494,11 +494,15 @@ class GnrCustomWebPage(object):
         return pkg.attributes.get('openapi') is not False
 
     def _read_json_body(self):
-        raw = None
+        # GnrWebRequest delegates to a Werkzeug request via __getattr__.
+        # Werkzeug exposes the raw body on request.get_data(); the
+        # legacy 'body' attribute returns a stream object, not bytes.
+        req = self.request._request
         try:
-            raw = self.request.body
+            raw = req.get_data(as_text=False)
         except Exception:
-            raw = None
+            return {'__error__': self._error(
+                400, 'bad_body', 'Could not read request body')}
         if not raw:
             return {}
         if isinstance(raw, bytes):
