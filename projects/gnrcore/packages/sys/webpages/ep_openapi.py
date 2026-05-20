@@ -105,7 +105,12 @@ class GnrCustomWebPage(object):
     # ── Auth & CORS ──────────────────────────────────────────────────
 
     def _check_bearer(self):
-        service = self.getService('openapi')
+        # The endpoint trusts a dedicated 'openapi' service when present;
+        # for the legacy transition phase it falls back to the bearer of
+        # the 'sourcerer' service so integrators can start consuming the
+        # REST surface without provisioning a second token. The fallback
+        # will be removed once 'openapi' is provisioned everywhere.
+        service = self.getService('openapi') or self.getService('sourcerer')
         if not service:
             return False
         expected = getattr(service, 'token', None)
