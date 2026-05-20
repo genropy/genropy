@@ -24,6 +24,17 @@ import time
 DEFAULT_DEPTH = 1
 
 
+class ApiEngineError(Exception):
+    """Raised by ApiEngine when the model contains data the engine
+    cannot describe (e.g. a column dtype that is not a known string
+    code or is not a string at all).
+
+    FK targets pointing to unloaded tables are NOT errors: the engine
+    silently omits the fkey entry on those columns, since the model
+    is incomplete but otherwise consistent.
+    """
+
+
 # ---------------------------------------------------------------------------
 # Pure helpers — module private, no app/db state
 # ---------------------------------------------------------------------------
@@ -117,7 +128,7 @@ _DTYPE_PYTHON = {
     'H': 'time', 'HZ': 'time',
     'TD': 'timedelta',
     'N': 'Decimal',
-    'BAG': 'Bag',
+    'BAG': 'Bag', 'X': 'Bag',
     'JS': 'list',
 }
 
@@ -139,18 +150,48 @@ _DTYPE_OPENAPI = {
     # Decimal is serialized as string to preserve precision
     'N': ('string', 'decimal'),
     # structured
-    'BAG': ('object', 'gnr-bag'),
+    'BAG': ('object', 'gnr-bag'), 'X': ('object', 'gnr-bag'),
     'JS': ('array', None),
 }
 
 
-def _dtype_to_python(dtype):
-    return _DTYPE_PYTHON.get((dtype or '').upper(), 'Any')
+_KNOWN_DTYPES = frozenset(_DTYPE_PYTHON.keys())
 
 
-def _dtype_to_openapi(dtype):
-    t, fmt = _DTYPE_OPENAPI.get((dtype or '').upper(), ('string', None))
-    return t, fmt
+def _validate_dtype(dtype, colname, tbl_fullname):
+    """Validate a column dtype against the known mapping.
+
+    Raises ApiEngineError when:
+    - dtype is not None and not a string (e.g. a bool from a typo
+      like ``dtype=True``)
+    - dtype is a string that is not a known dtype code
+
+    Returns the normalized upper-case dtype code, or ``''`` when the
+    column declares no dtype (``None`` or empty string), which is
+    legitimate for virtual columns without a declared type.
+    """
+    if dtype is None or dtype == '':
+        return ''
+    if not isinstance(dtype, str):
+        raise ApiEngineError(
+            "Invalid dtype %r on column %r of table %r: "
+            "expected str or None, got %s"
+            % (dtype, colname, tbl_fullname, type(dtype).__name__))
+    key = dtype.upper()
+    if key not in _KNOWN_DTYPES:
+        raise ApiEngineError(
+            "Unknown dtype %r on column %r of table %r: "
+            "expected one of %s"
+            % (dtype, colname, tbl_fullname, sorted(_KNOWN_DTYPES)))
+    return key
+
+
+def _dtype_to_python(key):
+    return _DTYPE_PYTHON.get(key, 'Any')
+
+
+def _dtype_to_openapi(key):
+    return _DTYPE_OPENAPI.get(key, ('string', None))
 
 
 # ---------------------------------------------------------------------------
@@ -373,8 +414,9 @@ class ApiEngine:
     def _column_info(self, colname, attrs, tbl, col=None):
         kind, has_subquery = _classify_column(attrs)
         dtype = attrs.get('dtype')
-        openapi_type, openapi_format = _dtype_to_openapi(dtype)
-        python_type = _dtype_to_python(dtype)
+        key = _validate_dtype(dtype, colname, tbl.fullname)
+        python_type = _dtype_to_python(key)
+        openapi_type, openapi_format = _dtype_to_openapi(key)
         is_pkey = (colname == tbl.pkey)
         notnull = bool(attrs.get('notnull')) or is_pkey
         info = {
@@ -394,10 +436,13 @@ class ApiEngine:
         }
         if has_subquery:
             info['subquery'] = True
-        # FK detection for real columns: ask the model directly
+        # FK detection for real columns: ask the model directly.
+        # related.table can be None when the FK points to a table whose
+        # package is not loaded in the current instance — in that case
+        # we silently omit the fkey entry rather than crashing.
         if col is not None:
             related = col.relatedColumn()
-            if related is not None:
+            if related is not None and related.table is not None:
                 info['fkey'] = {
                     'target_table': related.table.fullname,
                     'target_column': related.name,

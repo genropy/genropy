@@ -9,7 +9,7 @@ import json
 
 import pytest
 
-from gnr.app.api_engine import ApiEngine
+from gnr.app.api_engine import ApiEngine, ApiEngineError
 
 
 # ---------------------------------------------------------------------------
@@ -137,6 +137,56 @@ class TestTableColumns:
         engine = ApiEngine(db_sqlite.application)
         with pytest.raises(ValueError, match='Unknown table'):
             engine.table_columns('invc.nonexistent')
+
+    def test_non_string_dtype_raises(self, db_sqlite):
+        """A model with a non-string dtype (e.g. dtype=True from a typo)
+        must raise ApiEngineError rather than silently fall back."""
+        engine = ApiEngine(db_sqlite.application)
+        col = engine.db.table('invc.customer').columns['account_name']
+        prev = col.attributes.get('dtype')
+        try:
+            col.attributes['dtype'] = True
+            with pytest.raises(ApiEngineError, match='Invalid dtype True'):
+                engine.table_columns('invc.customer')
+        finally:
+            if prev is None:
+                col.attributes.pop('dtype', None)
+            else:
+                col.attributes['dtype'] = prev
+
+    def test_unknown_dtype_raises(self, db_sqlite):
+        """A dtype that is a string but not in the known mapping must
+        raise ApiEngineError listing the accepted codes."""
+        engine = ApiEngine(db_sqlite.application)
+        col = engine.db.table('invc.customer').columns['account_name']
+        prev = col.attributes.get('dtype')
+        try:
+            col.attributes['dtype'] = 'ZZZ'
+            with pytest.raises(ApiEngineError, match="Unknown dtype 'ZZZ'"):
+                engine.table_columns('invc.customer')
+        finally:
+            if prev is None:
+                col.attributes.pop('dtype', None)
+            else:
+                col.attributes['dtype'] = prev
+
+    def test_fkey_orphan_omitted(self, db_sqlite):
+        """A FK pointing to an unloaded target table must not crash:
+        the engine silently omits the fkey entry."""
+        engine = ApiEngine(db_sqlite.application)
+        col = engine.db.table('invc.invoice').columns['customer_id']
+        orig = col.relatedColumn
+
+        class _OrphanRelated:
+            table = None
+            name = 'irrelevant'
+
+        col.relatedColumn = lambda: _OrphanRelated()
+        try:
+            cols = engine.table_columns('invc.invoice')
+            assert 'fkey' not in cols['invc.invoice']['customer_id']
+        finally:
+            col.relatedColumn = orig
 
 
 # ---------------------------------------------------------------------------

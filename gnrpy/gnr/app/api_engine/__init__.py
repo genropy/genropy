@@ -10,6 +10,6 @@ The engine bundles enumeration, relation-tree schema, per-column typing,
 OpenAPI schema synthesis and safe query execution.
 """
 
-from gnr.app.api_engine.core import ApiEngine
+from gnr.app.api_engine.core import ApiEngine, ApiEngineError
 
-__all__ = ['ApiEngine']
+__all__ = ['ApiEngine', 'ApiEngineError']
