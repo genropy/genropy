@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+import json
+
 from gnr.app.api_engine import ApiEngine, ApiEngineError
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
@@ -46,6 +48,18 @@ class GnrCustomWebPage(object):
         if count_only:
             kwargs['columns'] = 'count(*) AS totalrows'
         kwargs.pop('recordResolver', None)
+
+        # When this endpoint is reached via HTTP, structured kwargs
+        # (sqlparams, partition_kwargs) arrive JSON-encoded as strings
+        # because urlencode flattens dicts. Restore them to dicts.
+        for k in ('sqlparams', 'partition_kwargs'):
+            v = kwargs.get(k)
+            if isinstance(v, str) and v:
+                try:
+                    kwargs[k] = json.loads(v)
+                except (TypeError, ValueError):
+                    return self._query_error(
+                        '%s must be valid JSON' % k, ticket_code)
 
         primary = {k: kwargs[k] for k in _RUN_QUERY_PRIMARY_KEYS
                    if k in kwargs}
