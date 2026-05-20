@@ -445,13 +445,16 @@ class ApiEngine:
         explicit_package = (isinstance(target, str)
                             and '.' not in target
                             and target is not None)
+        tables: list[str]
         if explicit_package:
+            assert isinstance(target, str)
             pkg = self._resolve_package(target)
             if _package_openapi_setting(pkg) is False:
                 raise ValueError(
                     "Package %r is not exposed via openapi" % target)
             tables = self.table_names(target)
         elif explicit_table:
+            assert isinstance(target, str)
             self._resolve_targets(target)
             tables = [target]
         elif isinstance(target, (list, tuple, set)):
