@@ -79,10 +79,20 @@ class GnrCustomWebPage(object):
         if result['error']:
             return self._query_error(result['error'], ticket_code)
 
+        rows = result['rows']
+        rowcount = result['rowcount']
+        if count_only:
+            # Lift the count(*) result out of the row payload into
+            # rowcount so callers always see a number, not a row.
+            total = 0
+            if rows and isinstance(rows[0], dict):
+                total = int(rows[0].get('totalrows') or 0)
+            rows = []
+            rowcount = total
         return {'ok': True, 'ticket_code': ticket_code,
                 'info': {'endpoint': 'rpc_query', 'error': None},
-                'rows': [] if count_only else result['rows'],
-                'rowcount': result['rowcount'],
+                'rows': rows,
+                'rowcount': rowcount,
                 'truncated': result['truncated'],
                 'elapsed_ms': result['elapsed_ms']}
 
