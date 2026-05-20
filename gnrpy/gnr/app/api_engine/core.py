@@ -19,7 +19,9 @@ entirely) or ``openapi='R'`` (read-only). System columns
 appear in OpenAPI output.
 """
 
+import datetime
 import time
+from decimal import Decimal
 
 DEFAULT_DEPTH = 1
 
@@ -156,6 +158,58 @@ _DTYPE_OPENAPI = {
 
 
 _KNOWN_DTYPES = frozenset(_DTYPE_PYTHON.keys())
+
+
+def _to_json_safe(value):
+    """Coerce a single Python value into a JSON-safe representation.
+
+    The output is shaped so that ``json.dumps(_to_json_safe(value))``
+    never needs a custom encoder for the types ApiEngine surfaces:
+
+    - ``Decimal`` is stringified to preserve precision.
+    - ``date``, ``datetime``, ``time`` go to ISO 8601 strings.
+    - ``timedelta`` is stringified via ``str(td)``.
+    - ``bytes`` and ``bytearray`` are decoded as UTF-8, replacing
+      undecodable sequences.
+    - GnrBag-like objects (anything with ``toJson``) is serialized
+      via that method and the resulting JSON string is returned as
+      string (consumers expecting structured data can re-parse).
+    - Plain dicts and lists/tuples are recursed.
+    - Primitives (str, int, float, bool, None) pass through.
+
+    Anything else is coerced via ``str()`` as a last resort, never
+    raising.
+    """
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, Decimal):
+        return str(value)
+    if isinstance(value, datetime.datetime):
+        return value.isoformat()
+    if isinstance(value, datetime.date):
+        return value.isoformat()
+    if isinstance(value, datetime.time):
+        return value.isoformat()
+    if isinstance(value, datetime.timedelta):
+        return str(value)
+    if isinstance(value, (bytes, bytearray)):
+        return value.decode('utf-8', errors='replace')
+    if isinstance(value, dict):
+        return {k: _to_json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_to_json_safe(v) for v in value]
+    to_json = getattr(value, 'toJson', None)
+    if callable(to_json):
+        try:
+            return to_json()
+        except Exception:
+            pass
+    return str(value)
+
+
+def _rows_to_json_safe(rows):
+    """Apply ``_to_json_safe`` to every cell of every row."""
+    return [{k: _to_json_safe(v) for k, v in row.items()} for row in rows]
 
 
 def _validate_dtype(dtype, colname, tbl_fullname):
@@ -621,6 +675,13 @@ class ApiEngine:
                   max_rows=None):
         """Execute a JSON-safe read selection.
 
+        The returned envelope is guaranteed to be ``json.dumps``-able
+        without a custom encoder: ``Decimal`` cells are stringified,
+        ``date`` / ``datetime`` / ``time`` use ISO 8601 strings,
+        timedeltas use ``str(td)``, bytes are UTF-8 decoded, ``Bag``
+        and similar objects with a ``toJson`` method are serialized
+        through that method. Nested dicts/lists are recursed.
+
         See module docstring for the parameter contract. ``max_rows``
         defaults to the engine-level value configured at construction;
         pass an explicit value to override.
@@ -682,7 +743,8 @@ class ApiEngine:
                 selection = (self.db.table(table)
                              .query(**query_kwargs).selection())
                 rowcount = len(selection)
-                rows = selection.output(mode='dictlist')
+                raw_rows = selection.output(mode='dictlist')
+                rows = _rows_to_json_safe(raw_rows)
         except Exception as exc:
             error = '%s: %s' % (type(exc).__name__, exc)
         elapsed_ms = (time.monotonic() - t0) * 1000.0

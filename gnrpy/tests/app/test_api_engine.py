@@ -450,11 +450,31 @@ class TestRunQuery:
                              limit=1)
         assert r['error'] is None
 
-    def test_json_safe_envelope(self, db_sqlite):
+    def test_json_safe_envelope_plain(self, db_sqlite):
+        """Envelope is serializable by stdlib json without any custom
+        encoder for the typical projection (strings, ids)."""
         engine = ApiEngine(db_sqlite.application)
         r = engine.run_query('invc.customer', columns='$id,$account_name',
                              limit=2)
-        json.dumps(r, default=str)
+        json.dumps(r)
+
+    def test_json_safe_envelope_with_decimal_and_date(self, db_sqlite):
+        """Envelope is serializable by stdlib json even when the
+        selection includes Decimal and date columns: the engine
+        coerces them to JSON-safe shapes."""
+        engine = ApiEngine(db_sqlite.application)
+        r = engine.run_query('invc.invoice',
+                             columns='$id,$total,$date', limit=2)
+        assert r['error'] is None
+        # Plain json.dumps without default= must succeed.
+        json.dumps(r)
+        # Spot-check the coercion: Decimal becomes str, date becomes
+        # ISO string.
+        for row in r['rows']:
+            if row.get('total') is not None:
+                assert isinstance(row['total'], str)
+            if row.get('date') is not None:
+                assert isinstance(row['date'], str)
 
     def test_rejects_statement_timeout_ms(self, db_sqlite):
         engine = ApiEngine(db_sqlite.application)
