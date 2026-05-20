@@ -9,8 +9,18 @@ import json
 
 import pytest
 
+from core.common import BaseGnrTest
+
 from gnr.app.api_engine import ApiEngine, ApiEngineError
 from gnr.app.api_engine.core import _check_sql_fragment
+
+
+def setup_module(module):
+    BaseGnrTest.setup_class()
+
+
+def teardown_module(module):
+    BaseGnrTest.teardown_class()
 
 
 # ---------------------------------------------------------------------------
