@@ -330,6 +330,9 @@ class ApiEngine:
             - str without '.': a package name; expands to its tables.
             - str with '.': a table fullname; returns ``[target]``.
             - iterable of strings: each resolved as above and flattened.
+              Duplicates (whether literal or produced by overlapping
+              packages) are silently de-duplicated; the result
+              preserves the order of first occurrence.
 
         Raises ``ValueError`` when a name does not resolve to a known
         package or table.
@@ -724,12 +727,16 @@ class ApiEngine:
             query_kwargs['_storename'] = storename
         if opt_kwargs:
             query_kwargs.update(opt_kwargs)
+        # addPkeyColumn=False survives the None filter (False is not
+        # None) so the key is already present in query_kwargs.
         query_kwargs = {k: v for k, v in query_kwargs.items()
                         if v is not None}
-        query_kwargs.setdefault('addPkeyColumn', False)
 
         env_inject = {}
         if partition_kwargs:
+            # A ``None`` value in partition_kwargs is treated as "skip
+            # this partition field" rather than "clear it"; callers
+            # wanting no partition pressure simply omit the key.
             for field, value in partition_kwargs.items():
                 if value is None:
                     continue
