@@ -437,11 +437,19 @@ class ApiEngine:
         if has_subquery:
             info['subquery'] = True
         # FK detection for real columns: ask the model directly.
-        # related.table can be None when the FK points to a table whose
-        # package is not loaded in the current instance — in that case
-        # we silently omit the fkey entry rather than crashing.
+        # When the FK target table belongs to a package not loaded in
+        # the current instance, model.table() returns None and
+        # model.column() then raises AttributeError on the missing
+        # .column attribute. The defensive `related.table is not None`
+        # additionally covers the theoretical case of a related column
+        # returned without a back-reference to its table. Either way
+        # the engine silently omits the fkey entry rather than
+        # crashing — the column itself is still described.
         if col is not None:
-            related = col.relatedColumn()
+            try:
+                related = col.relatedColumn()
+            except AttributeError:
+                related = None
             if related is not None and related.table is not None:
                 info['fkey'] = {
                     'target_table': related.table.fullname,

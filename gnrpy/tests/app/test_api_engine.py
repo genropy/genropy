@@ -171,8 +171,8 @@ class TestTableColumns:
                 col.attributes['dtype'] = prev
 
     def test_fkey_orphan_omitted(self, db_sqlite):
-        """A FK pointing to an unloaded target table must not crash:
-        the engine silently omits the fkey entry."""
+        """A FK whose target column resolves but whose .table is None
+        must not crash: the engine silently omits the fkey entry."""
         engine = ApiEngine(db_sqlite.application)
         col = engine.db.table('invc.invoice').columns['customer_id']
         orig = col.relatedColumn
@@ -182,6 +182,26 @@ class TestTableColumns:
             name = 'irrelevant'
 
         col.relatedColumn = lambda: _OrphanRelated()
+        try:
+            cols = engine.table_columns('invc.invoice')
+            assert 'fkey' not in cols['invc.invoice']['customer_id']
+        finally:
+            col.relatedColumn = orig
+
+    def test_fkey_target_package_not_loaded(self, db_sqlite):
+        """The real-world case: when the FK target table belongs to a
+        package not loaded in the instance, model.table() returns None
+        and model.column() raises AttributeError on the missing .column
+        attribute. The engine must catch it and omit the fkey entry."""
+        engine = ApiEngine(db_sqlite.application)
+        col = engine.db.table('invc.invoice').columns['customer_id']
+        orig = col.relatedColumn
+
+        def _raise_attr_error():
+            raise AttributeError(
+                "'NoneType' object has no attribute 'column'")
+
+        col.relatedColumn = _raise_attr_error
         try:
             cols = engine.table_columns('invc.invoice')
             assert 'fkey' not in cols['invc.invoice']['customer_id']
