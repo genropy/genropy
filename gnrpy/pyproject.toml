@@ -138,6 +138,7 @@ include-package-data = true
 packages = [
 	    'gnr',
 	    'gnr.app',
+	    'gnr.app.api_engine',
 	    'gnr.app.cli',
 	    'gnr.core',
 	    'gnr.core.cli',
