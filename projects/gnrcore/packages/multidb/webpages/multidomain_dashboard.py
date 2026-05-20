@@ -467,9 +467,22 @@ class GnrCustomWebPage(object):
                              where='$%s IN :pk' % pkey, pk=pkey_list).fetch()
         if not rows:
             return
+        has_identifier = 'identifier' in tbl.columns
         with self.db.tempEnv(storename=store_to):
             for r in rows:
-                tbl.insertOrUpdate(dict(r))
+                r = dict(r)
+                # When the table has a business key (identifier), match the
+                # target by it so we don't INSERT a duplicate when pkeys
+                # diverge across stores.
+                if has_identifier and r.get('identifier'):
+                    existing = tbl.query(
+                        addPkeyColumn=False, bagFields=True,
+                        excludeLogicalDeleted=False,
+                        where='$identifier=:id',
+                        id=r['identifier']).fetch()
+                    if existing:
+                        r[pkey] = existing[0][pkey]
+                tbl.insertOrUpdate(r)
             self.db.commit()
 
     @public_method
@@ -490,10 +503,23 @@ class GnrCustomWebPage(object):
                 self._propagateOne(tbl, record, update_existing)
 
     def _propagateOne(self, tbl, record, update_existing):
-        existing = tbl.query(addPkeyColumn=False, bagFields=True,
-                             excludeLogicalDeleted=False,
-                             where='$%s=:pk' % tbl.pkey,
-                             pk=record[tbl.pkey]).fetch()
+        pkey_col = tbl.pkey
+        # Match on identifier (business key) when the table has one, else
+        # on pkey. When found via identifier, realign the source pkey to
+        # the local one before raw_update so existing FKs keep pointing
+        # to the target record.
+        if 'identifier' in tbl.columns and record.get('identifier'):
+            existing = tbl.query(addPkeyColumn=False, bagFields=True,
+                                 excludeLogicalDeleted=False,
+                                 where='$identifier=:id',
+                                 id=record['identifier']).fetch()
+            if existing:
+                record = dict(record, **{pkey_col: existing[0][pkey_col]})
+        else:
+            existing = tbl.query(addPkeyColumn=False, bagFields=True,
+                                 excludeLogicalDeleted=False,
+                                 where='$%s=:pk' % pkey_col,
+                                 pk=record[pkey_col]).fetch()
         if not existing:
             tbl.raw_insert(dict(record))
         elif update_existing:
