@@ -10,6 +10,7 @@ import json
 import pytest
 
 from gnr.app.api_engine import ApiEngine, ApiEngineError
+from gnr.app.api_engine.core import _check_sql_fragment
 
 
 # ---------------------------------------------------------------------------
@@ -550,6 +551,161 @@ class TestPartition:
                          partition_kwargs={'invc_state': 'NSW'}, limit=1)
         after = engine.db.currentEnv.get('current_invc_state')
         assert after == before
+
+
+# ---------------------------------------------------------------------------
+# SQL fragment blacklist
+# ---------------------------------------------------------------------------
+
+class TestSqlBlacklist:
+    """Reject SQL fragments carrying injection-style patterns on
+    columns/where/having/order_by/group_by. sqlparams and structured
+    inputs are not subject to the blacklist."""
+
+    def _expect_rejected(self, engine, **kwargs):
+        kwargs.setdefault('limit', 1)
+        with pytest.raises(ApiEngineError, match='Rejected'):
+            engine.run_query('invc.customer', **kwargs)
+
+    # -- statement injection / comments --------------------------------
+
+    def test_semicolon_in_where_rejected(self, db_sqlite):
+        self._expect_rejected(ApiEngine(db_sqlite.application),
+                              where='$id IS NULL; DROP TABLE x')
+
+    def test_line_comment_in_columns_rejected(self, db_sqlite):
+        self._expect_rejected(ApiEngine(db_sqlite.application),
+                              columns='$id -- evil')
+
+    def test_block_comment_in_where_rejected(self, db_sqlite):
+        self._expect_rejected(ApiEngine(db_sqlite.application),
+                              where='$id IS NULL /* hide */')
+
+    def test_null_byte_rejected(self, db_sqlite):
+        self._expect_rejected(ApiEngine(db_sqlite.application),
+                              where='$id\x00')
+
+    # -- DDL / DML keywords --------------------------------------------
+
+    def test_drop_keyword_rejected(self, db_sqlite):
+        self._expect_rejected(ApiEngine(db_sqlite.application),
+                              where='$id IN (DROP TABLE x)')
+
+    def test_insert_keyword_rejected(self, db_sqlite):
+        self._expect_rejected(ApiEngine(db_sqlite.application),
+                              where='$id IS NULL INSERT')
+
+    def test_update_keyword_rejected(self, db_sqlite):
+        self._expect_rejected(ApiEngine(db_sqlite.application),
+                              order_by='UPDATE')
+
+    def test_delete_keyword_rejected(self, db_sqlite):
+        self._expect_rejected(ApiEngine(db_sqlite.application),
+                              having='DELETE')
+
+    # -- UNION / nested SELECT -----------------------------------------
+
+    def test_union_rejected(self, db_sqlite):
+        self._expect_rejected(ApiEngine(db_sqlite.application),
+                              where='$id IS NULL UNION SELECT 1')
+
+    def test_nested_select_rejected(self, db_sqlite):
+        self._expect_rejected(ApiEngine(db_sqlite.application),
+                              where='$id IN (SELECT id FROM other)')
+
+    # -- system catalogs / recon ---------------------------------------
+
+    def test_information_schema_rejected(self, db_sqlite):
+        self._expect_rejected(ApiEngine(db_sqlite.application),
+                              columns='information_schema.tables')
+
+    def test_pg_catalog_rejected(self, db_sqlite):
+        self._expect_rejected(ApiEngine(db_sqlite.application),
+                              where='$id IS NULL OR pg_catalog')
+
+    def test_version_function_rejected(self, db_sqlite):
+        self._expect_rejected(ApiEngine(db_sqlite.application),
+                              columns='version()')
+
+    def test_current_user_rejected(self, db_sqlite):
+        self._expect_rejected(ApiEngine(db_sqlite.application),
+                              where='$id = current_user')
+
+    # -- DoS / sleep ---------------------------------------------------
+
+    def test_pg_sleep_rejected(self, db_sqlite):
+        self._expect_rejected(ApiEngine(db_sqlite.application),
+                              where='pg_sleep(2.0) IS NULL')
+
+    def test_sleep_function_rejected(self, db_sqlite):
+        self._expect_rejected(ApiEngine(db_sqlite.application),
+                              where='SLEEP(5) IS NULL')
+
+    def test_waitfor_delay_rejected(self, db_sqlite):
+        self._expect_rejected(ApiEngine(db_sqlite.application),
+                              where='WAITFOR DELAY')
+
+    # -- tautologies ---------------------------------------------------
+
+    def test_numeric_tautology_rejected(self, db_sqlite):
+        self._expect_rejected(ApiEngine(db_sqlite.application),
+                              where='1=1')
+
+    def test_string_tautology_rejected(self, db_sqlite):
+        self._expect_rejected(ApiEngine(db_sqlite.application),
+                              where="'a'='a'")
+
+    # -- bypass tricks -------------------------------------------------
+
+    def test_char_function_rejected(self, db_sqlite):
+        self._expect_rejected(ApiEngine(db_sqlite.application),
+                              columns='CHAR(65)')
+
+    def test_chr_function_rejected(self, db_sqlite):
+        self._expect_rejected(ApiEngine(db_sqlite.application),
+                              columns='CHR(65)')
+
+    # -- session statements --------------------------------------------
+
+    def test_set_statement_rejected(self, db_sqlite):
+        self._expect_rejected(ApiEngine(db_sqlite.application),
+                              where='SET statement_timeout = 0')
+
+    def test_commit_keyword_rejected(self, db_sqlite):
+        self._expect_rejected(ApiEngine(db_sqlite.application),
+                              having='COMMIT')
+
+    # -- false-positive guards (legitimate uses must pass) -------------
+
+    def test_column_name_dropdown_is_accepted(self, db_sqlite):
+        """`dropdown` is a legitimate identifier, must not trip DROP."""
+        engine = ApiEngine(db_sqlite.application)
+        # We don't run a real query (the column doesn't exist on the
+        # test DB), we just check the blacklist does not reject it.
+        # Use a column expression that survives the blacklist.
+        # Should not raise
+        _check_sql_fragment('$dropdown_field', 'columns')
+
+    def test_column_name_update_at_is_accepted(self, db_sqlite):
+        _check_sql_fragment('$update_at', 'columns')
+
+    def test_column_name_selection_is_accepted(self, db_sqlite):
+        _check_sql_fragment('$selection_id', 'columns')
+
+    def test_legitimate_aggregate_accepted(self, db_sqlite):
+        """SUM/COUNT/AVG and similar read-only aggregates pass."""
+        _check_sql_fragment('count(*),sum($total),avg($total)', 'columns')
+
+    def test_legitimate_function_accepted(self, db_sqlite):
+        _check_sql_fragment('length($name),upper($name),coalesce($a,$b)',
+                            'columns')
+
+    def test_gnrsql_macro_accepted(self, db_sqlite):
+        """gnrsql macros are safe by construction (expanded server-side)."""
+        _check_sql_fragment('$date #IN_RANGE :range', 'where')
+
+    def test_gnrsql_relation_path_accepted(self, db_sqlite):
+        _check_sql_fragment('@customer_id.@state.name', 'columns')
 
 
 # ---------------------------------------------------------------------------
