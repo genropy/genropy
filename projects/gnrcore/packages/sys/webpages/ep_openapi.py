@@ -125,7 +125,7 @@ class GnrCustomWebPage(object):
 
     def _cors_preflight(self):
         self._set_cors_headers()
-        self.response.status_code = 204
+        self.response._response.status_code = 204
         return ''
 
     def _set_cors_headers(self):
@@ -521,7 +521,7 @@ class GnrCustomWebPage(object):
     def _error(self, status, code, message, details=None):
         self._set_cors_headers()
         self.response.content_type = 'application/json'
-        self.response.status_code = status
+        self.response._response.status_code = status
         body = {'error': {'code': code, 'message': message}}
         if details is not None:
             body['error']['details'] = details
