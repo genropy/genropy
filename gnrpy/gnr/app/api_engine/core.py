@@ -197,23 +197,25 @@ class ApiEngine:
         engine = ApiEngine('test_invoice_pg')
         engine = ApiEngine(my_app)
 
-    Optional engine-level safety caps apply to ``run_query`` unless the
-    call overrides them:
+    ``max_rows`` is an optional engine-level safety cap that applies to
+    ``run_query`` unless the call overrides it.
+
+    A per-query wall-clock timeout is not currently supported: gnrsql
+    has no native primitive for it (tracked by genropy issue #919).
+    Until that lands, callers that need to bound query duration must
+    use external means (asyncio timeout, signal alarm, ...).
 
     Args:
         app: ``GnrApp`` instance or instance name (str).
         max_rows: default clamp on ``limit`` for ``run_query``.
-        statement_timeout_ms: default per-statement Postgres timeout
-            for ``run_query``.
     """
 
-    def __init__(self, app, *, max_rows=None, statement_timeout_ms=None):
+    def __init__(self, app, *, max_rows=None):
         if isinstance(app, str):
             from gnr.app.gnrapp import GnrApp
             app = GnrApp(app)
         self.app = app
         self.max_rows = max_rows
-        self.statement_timeout_ms = statement_timeout_ms
 
     # -- shorthand ----------------------------------------------------------
 
@@ -560,13 +562,12 @@ class ApiEngine:
                   language=None,
                   opt_kwargs=None,
                   *,
-                  max_rows=None,
-                  statement_timeout_ms=None):
+                  max_rows=None):
         """Execute a JSON-safe read selection.
 
         See module docstring for the parameter contract. ``max_rows``
-        and ``statement_timeout_ms`` default to the engine-level values
-        configured at construction; pass explicit values to override.
+        defaults to the engine-level value configured at construction;
+        pass an explicit value to override.
         """
         if opt_kwargs:
             unknown = set(opt_kwargs) - _RUN_QUERY_OPT_KEYS
@@ -576,9 +577,6 @@ class ApiEngine:
                     % (sorted(unknown), sorted(_RUN_QUERY_OPT_KEYS)))
 
         cap = max_rows if max_rows is not None else self.max_rows
-        timeout = (statement_timeout_ms
-                   if statement_timeout_ms is not None
-                   else self.statement_timeout_ms)
 
         requested_limit = limit
         effective_limit = limit
@@ -625,7 +623,6 @@ class ApiEngine:
         t0 = time.monotonic()
         try:
             with self.db.tempEnv(**env_inject):
-                self._apply_statement_timeout(timeout)
                 selection = (self.db.table(table)
                              .query(**query_kwargs).selection())
                 rowcount = len(selection)
@@ -647,11 +644,3 @@ class ApiEngine:
             'elapsed_ms': elapsed_ms,
             'error': error,
         }
-
-    def _apply_statement_timeout(self, timeout_ms):
-        if not timeout_ms:
-            return
-        adapter_name = type(self.db.adapter).__name__.lower()
-        if 'postgres' in adapter_name or 'pg' in adapter_name:
-            self.db.execute(
-                'SET LOCAL statement_timeout = %d' % int(timeout_ms))
