@@ -694,12 +694,18 @@ class ApiEngine:
                     % (sorted(unknown), sorted(_RUN_QUERY_OPT_KEYS)))
 
         cap = max_rows if max_rows is not None else self.max_rows
+        cap = int(cap) if cap is not None else None
 
-        requested_limit = limit
-        effective_limit = limit
+        # When a cap is in effect, fetch one extra row internally so we
+        # can tell apart "the table has exactly cap rows" (no
+        # truncation) from "the cap is hiding more rows" (truncation).
+        # The extra row is trimmed before returning.
         if cap is not None:
-            effective_limit = (min(int(limit), int(cap))
-                               if limit is not None else int(cap))
+            probe_limit = cap + 1
+            effective_limit = (min(int(limit), probe_limit)
+                               if limit is not None else probe_limit)
+        else:
+            effective_limit = limit
 
         query_kwargs = dict(
             columns=columns,
@@ -737,23 +743,24 @@ class ApiEngine:
         error = None
         rows = []
         rowcount = 0
+        truncated = False
         t0 = time.monotonic()
         try:
             with self.db.tempEnv(**env_inject):
                 selection = (self.db.table(table)
                              .query(**query_kwargs).selection())
-                rowcount = len(selection)
                 raw_rows = selection.output(mode='dictlist')
+                # When a cap is active, we asked for cap+1 internally.
+                # If we got more than cap, the cap is hiding rows: trim
+                # back to cap and flag truncation.
+                if cap is not None and len(raw_rows) > cap:
+                    raw_rows = raw_rows[:cap]
+                    truncated = True
+                rowcount = len(raw_rows)
                 rows = _rows_to_json_safe(raw_rows)
         except Exception as exc:
             error = '%s: %s' % (type(exc).__name__, exc)
         elapsed_ms = (time.monotonic() - t0) * 1000.0
-
-        truncated = (
-            cap is not None
-            and requested_limit is not None
-            and requested_limit > int(cap)
-        ) or (cap is not None and rowcount >= int(cap))
 
         return {
             'rows': rows,

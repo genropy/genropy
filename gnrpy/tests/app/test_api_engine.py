@@ -430,6 +430,32 @@ class TestRunQuery:
                              limit=5, max_rows=5)
         assert r['rowcount'] == 5
 
+    def test_truncated_false_when_rowcount_equals_cap_naturally(self,
+                                                                 db_sqlite):
+        """When the table happens to have exactly ``cap`` rows and the
+        caller did not request more, ``truncated`` must be False —
+        nothing was actually cut off."""
+        engine = ApiEngine(db_sqlite.application)
+        total = engine.run_query('invc.state',
+                                 columns='$code')['rowcount']
+        # Cap exactly equal to the table size, no explicit limit:
+        # the engine returns all rows, but capped by max_rows. Since
+        # the caller didn't ask for more, this is not truncation.
+        r = engine.run_query('invc.state', columns='$code',
+                             max_rows=total)
+        assert r['rowcount'] == total
+        assert r['truncated'] is False
+
+    def test_truncated_false_when_limit_smaller_than_cap(self, db_sqlite):
+        """If the caller explicitly limits below the cap, the cap
+        never engages — ``truncated`` must be False even if rowcount
+        equals the explicit limit."""
+        engine = ApiEngine(db_sqlite.application)
+        r = engine.run_query('invc.customer', columns='$id',
+                             limit=3, max_rows=100)
+        assert r['rowcount'] == 3
+        assert r['truncated'] is False
+
     def test_invalid_sql_caught_as_error(self, db_sqlite):
         engine = ApiEngine(db_sqlite.application)
         r = engine.run_query('invc.invoice',
