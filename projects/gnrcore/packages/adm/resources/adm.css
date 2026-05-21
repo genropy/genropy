@@ -1,0 +1,39 @@
+/* API token lifecycle status dot.
+ *
+ * Cell layout: a small colored dot followed by the textual status code.
+ * Class names match the values produced by the formulaColumn
+ * `adm.api_token.status` ('to_activate' | 'active' | 'expired' | 'inactive').
+ */
+.status_dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+    border: 1px solid rgba(0, 0, 0, .15);
+}
+.status_label {
+    vertical-align: middle;
+    font-size: .85em;
+    color: #555;
+}
+
+.status_to_activate { background: #f0ad4e; }
+.status_active      { background: #5cb85c; }
+.status_expired     { background: #d9534f; }
+.status_inactive    { background: #9e9e9e; }
+
+/* Plaintext token shown once in the post-activation dialog. */
+.api_token_value {
+    margin: 12px 0 4px;
+    padding: 10px 12px;
+    background: #f4f4f4;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: .72em;
+    word-break: break-all;
+    white-space: pre-wrap;
+    user-select: all;
+}
