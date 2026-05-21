@@ -50,7 +50,7 @@ class Table(object):
             expires_ts=expires_ts,
             notes=notes or '',
             created_by=created_by,
-            token_hint='...' + token_value[-4:]
+            token_hint=f'...{token_value[-4:]}'
         )
         self.insert(record)
         self.db.commit()
