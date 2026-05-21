@@ -133,7 +133,6 @@ _DTYPE_PYTHON = {
     'N': 'Decimal',
     'BAG': 'Bag', 'X': 'Bag',
     'JS': 'list',
-    'VEC': 'list',
 }
 
 _DTYPE_OPENAPI = {
@@ -156,8 +155,6 @@ _DTYPE_OPENAPI = {
     # structured
     'BAG': ('object', 'gnr-bag'), 'X': ('object', 'gnr-bag'),
     'JS': ('array', None),
-    # pgvector embedding column: array of floats
-    'VEC': ('array', 'vector'),
 }
 
 
