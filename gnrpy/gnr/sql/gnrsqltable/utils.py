@@ -486,6 +486,11 @@ class UtilsMixin(SqlTableBaseMixin):
                 )
 
         def resultAppend(result, label, attributes, omit):
+            enc_mode = attributes.get('encrypted')
+            if enc_mode == 'X':
+                return
+            if enc_mode == 'R' and '*' in omit:
+                return
             if not self.db.application.allowedByPreference(**attributes):
                 return
             if 'one_relation' in attributes or 'many_relation' in attributes:
