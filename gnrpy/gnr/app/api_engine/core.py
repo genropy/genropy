@@ -780,19 +780,22 @@ class ApiEngine:
                 out.append('%s.%s' % (pkg_name, tname))
         return sorted(out)
 
-    def exposed_column_names(self, fullname, readonly=True):
-        """Return the column names that would appear in the OpenAPI
-        schema for ``fullname``. Useful for callers that need to
-        materialize a payload whose shape matches the published spec —
-        e.g. so the runtime response stays a subset of what the spec
-        promises.
+    def _iter_exposed_columns(self, fullname, readonly=True):
+        """Yield ``(colname, info, writable)`` for the columns of
+        ``fullname`` that pass the OpenAPI exposure filter.
 
-        ``readonly=False`` mirrors the write-mode schema (excludes
-        system columns, formula columns, etc.). The default keeps the
-        full read shape.
+        Filter rules:
+          - ``openapi=False`` at column level skips the column.
+          - In write mode (``readonly=False``), only columns that are
+            writable (real, not system, not declared 'R', not pkey)
+            survive.
+
+        Used by both ``exposed_column_names`` (which keeps just the
+        names) and ``_build_openapi_table_schema`` (which materializes
+        the property descriptors). Keep them in sync by sharing this
+        predicate.
         """
         columns = self._collect_columns(fullname)
-        out = []
         for colname, info in columns.items():
             col_setting = _column_openapi_setting(
                 {'openapi': info.get('openapi')})
@@ -805,28 +808,27 @@ class ApiEngine:
                         and col_setting != 'R' and not is_pkey)
             if not readonly and not writable:
                 continue
-            out.append(colname)
-        return out
+            yield colname, info, writable
+
+    def exposed_column_names(self, fullname, readonly=True):
+        """Return the column names that would appear in the OpenAPI
+        schema for ``fullname``. Useful for callers that need to
+        materialize a payload whose shape matches the published spec —
+        e.g. so the runtime response stays a subset of what the spec
+        promises.
+
+        ``readonly=False`` mirrors the write-mode schema (excludes
+        system columns, formula columns, etc.). The default keeps the
+        full read shape.
+        """
+        return [colname for colname, _, _
+                in self._iter_exposed_columns(fullname, readonly=readonly)]
 
     def _build_openapi_table_schema(self, fullname, readonly=True):
-        columns = self._collect_columns(fullname)
         properties = {}
         required = []
-        for colname, info in columns.items():
-            col_setting = _column_openapi_setting(
-                {'openapi': info.get('openapi')})
-            if col_setting is False:
-                continue
-            is_real = info['kind'] == 'real'
-            is_system = info['system']
-            is_pkey = info['pkey']
-            # Writable iff: real, not system, not declared 'R', not pkey
-            writable = (is_real
-                        and not is_system
-                        and col_setting != 'R'
-                        and not is_pkey)
-            if not readonly and not writable:
-                continue
+        for colname, info, writable in self._iter_exposed_columns(
+                fullname, readonly=readonly):
             prop = {'type': info['openapi_type']}
             if info['openapi_format']:
                 prop['format'] = info['openapi_format']
