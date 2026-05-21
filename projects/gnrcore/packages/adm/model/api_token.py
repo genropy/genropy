@@ -1,5 +1,6 @@
 # encoding: utf-8
 
+import hashlib
 import secrets
 from datetime import datetime, timezone
 from gnr.core.gnrdecorator import public_method
@@ -35,16 +36,23 @@ class Table(object):
         """Generate a new secure token and return the full value."""
         return secrets.token_urlsafe(48)
 
+    def _hash_token(self, token_value):
+        # Deterministic SHA-256 (no salt): tokens from secrets.token_urlsafe(48)
+        # already carry 384 bits of entropy, so rainbow tables are not a threat
+        # and we need O(1) lookup on every authenticated request.
+        return hashlib.sha256(token_value.encode('utf-8')).hexdigest()
+
     @public_method
     def create_api_token(self, description=None, expires_ts=None,
                          notes=None, created_by=None):
         """Create a new API token. Returns (record_id, full_token).
 
-        The full token is returned ONLY at creation time.
+        Only the SHA-256 hash is persisted; the full token is returned
+        ONLY at creation time and never stored.
         """
         token_value = self.generate_token()
         record = self.newrecord(
-            token=token_value,
+            token=self._hash_token(token_value),
             description=description or '',
             is_active=True,
             expires_ts=expires_ts,
@@ -65,7 +73,7 @@ class Table(object):
         records = self.query(
             columns='$id,$description,$expires_ts,$is_active,$all_tags,$group_code',
             where='$token=:t AND $is_active=:a',
-            t=token_value, a=True
+            t=self._hash_token(token_value), a=True
         ).fetch()
         if not records:
             return None
