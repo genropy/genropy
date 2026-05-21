@@ -340,6 +340,24 @@ def _check_sql_fragment(value, parameter_name):
     return value
 
 
+def _is_known_dtype(dtype):
+    """Quick predicate used to decide whether a column should appear in
+    the OpenAPI schema (and consequently in REST payloads).
+
+    Returns True for the empty/None case (legitimate for virtual columns
+    without a declared type) and for any string in the known mapping.
+    Returns False for unknown strings (e.g. pgvector's ``VEC``) and for
+    non-string values (e.g. a model typo like ``dtype=True``). Strict
+    validation that raises ``ApiEngineError`` is reserved for
+    ``_validate_dtype``.
+    """
+    if dtype is None or dtype == '':
+        return True
+    if not isinstance(dtype, str):
+        return False
+    return dtype.upper() in _KNOWN_DTYPES
+
+
 def _validate_dtype(dtype, colname, tbl_fullname):
     """Validate a column dtype against the known mapping.
 
@@ -584,16 +602,10 @@ class ApiEngine:
                 continue
             if attrs.get('virtual_column'):
                 continue
-            try:
-                cols_dict[colname] = self._column_info(
-                    colname, attrs, tbl, col=col)
-            except ApiEngineError:
-                # Column dtype is not known to ApiEngine (e.g. VEC from
-                # pgvector). Silently skip it so unknown extensions do
-                # not block the entire schema; callers that need full
-                # introspection of those columns can opt into a custom
-                # dtype mapping.
+            if not _is_known_dtype(attrs.get('dtype')):
                 continue
+            cols_dict[colname] = self._column_info(
+                colname, attrs, tbl, col=col)
         # Virtual columns from model (alias, formula_sql, formula_subquery,
         # bagitem, virtual_other — pycolumn excluded)
         vcols = self.db.model.table(fullname).get('virtual_columns') or {}
@@ -602,10 +614,9 @@ class ApiEngine:
             kind, _ = _classify_column(attrs)
             if kind == 'pycolumn':
                 continue
-            try:
-                cols_dict[colname] = self._column_info(colname, attrs, tbl)
-            except ApiEngineError:
+            if not _is_known_dtype(attrs.get('dtype')):
                 continue
+            cols_dict[colname] = self._column_info(colname, attrs, tbl)
         return cols_dict
 
     def _column_info(self, colname, attrs, tbl, col=None):
@@ -690,6 +701,31 @@ class ApiEngine:
         schema).
 
         Returns ``{table_fullname: {<openapi schema object>}}``.
+
+        Dtype coverage
+        --------------
+        Only columns whose dtype is one of the codes below appear in the
+        schema (and, consequently, in REST payloads built by callers
+        that respect the schema):
+
+            T, A, P, TEXT  -> string
+            R, F           -> number(float)
+            L, I           -> integer
+            B              -> boolean
+            D              -> string(date)
+            DH, DT, DHZ    -> string(date-time)
+            H, HZ          -> string(time)
+            TD             -> string(duration)
+            N              -> string(decimal)
+            BAG, X         -> object(gnr-bag)
+            JS             -> array
+
+        Columns declaring any other dtype string (e.g. pgvector's
+        ``VEC``) or a non-string dtype are intentionally omitted: the
+        engine cannot describe their shape, so it neither lists nor
+        materializes them. If you need to expose such a column, extend
+        the dtype tables in this module or expose a derived virtual
+        column with a supported dtype.
         """
         explicit_table = isinstance(target, str) and '.' in target
         explicit_package = (isinstance(target, str)

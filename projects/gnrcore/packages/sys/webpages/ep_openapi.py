@@ -10,15 +10,44 @@ URL surface (all under ``/sys/ep_openapi/``):
     GET  /{pkg}/{table}/{pkey}               single record
     POST /{pkg}/{table}/_search              complex query in JSON body
 
-Tables are exposed only if their model declares ``openapi=True``.
-
 Auth: Authorization: Bearer <token>. The token lives in the ``openapi``
-service of the instanceconfig.
+service of the instanceconfig (transitional fallback to the
+``sourcerer`` service while the dedicated token is provisioned).
 
 This endpoint is a transitional layer over the legacy WSGI stack. The
 production-grade REST API will live on genro-asgi.
+
+Exposure boundary (read carefully before flipping flags)
+--------------------------------------------------------
+A table appears in the surface iff its model declares ``openapi=True``
+(and its package is not ``openapi=False``). Per-column ``openapi=False``
+hides individual columns. Beyond that, two important caveats hold for
+the current implementation:
+
+1. **Foreign-key traversal is not gated.** GenroPy expressions of the
+   form ``$@<fkey>.<col>`` are accepted verbatim in ``columns``,
+   ``where``, ``order_by``, ``group_by`` and ``having``. They make any
+   table reachable via fkey queryable, even when the target table is
+   ``openapi=False``. Both direct exfiltration (selecting traversed
+   columns) and boolean-blind probing (filtering on traversed columns
+   and reading rowcount) are possible. A traversal guard inside
+   ``ApiEngine`` is planned; until it ships, treat ``openapi=True`` as
+   exposing the **entire fkey-reachable subgraph** of the table.
+
+2. **GenroPy ``auth_tags`` are not enforced.** A column with
+   ``auth_tags='hr_only'`` and ``openapi=True`` is visible to anyone
+   holding the bearer. There is no end-user identity propagation
+   (``acting_user``) on the path yet; audit attribution lives at the
+   service level. On-behalf-of identity flow will land with the ASGI
+   rewrite.
+
+Practical rule: only mark a table ``openapi=True`` when its entire
+fkey-reachable subgraph is intended to be readable by every holder of
+the service bearer, and when no auth-tag-gated column needs to remain
+private from those same holders.
 """
 
+import hmac
 import json
 
 from gnr.app.api_engine import ApiEngine, ApiEngineError
@@ -121,7 +150,7 @@ class GnrCustomWebPage(object):
             auth = self.request.headers.get('X-GNR-Authorization') or ''
         if not auth.startswith('Bearer '):
             return False
-        return auth[len('Bearer '):].strip() == expected
+        return hmac.compare_digest(auth[len('Bearer '):].strip(), expected)
 
     def _cors_preflight(self):
         self._set_cors_headers()

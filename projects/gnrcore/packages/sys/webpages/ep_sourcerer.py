@@ -1,4 +1,24 @@
 # -*- coding: utf-8 -*-
+"""Internal operations endpoint backing the Sourcerer MCP client.
+
+This is **not** a public REST API. The bearer is the token of the
+``sourcerer`` service, custodied by the operations team, revocable at
+will, and intended for diagnostic / introspection work performed by
+the Sourcerer toolchain (MCP server, target_db tool surface).
+
+Implications:
+
+- The endpoint trusts the bearer holder to be the operator. ``rpc_query``
+  therefore accepts ``partition_kwargs`` straight from the payload —
+  on a partitioned DB the operator can scope the env to any tenant for
+  diagnosis. This would be inappropriate for a user-facing API; it is
+  intentional here.
+- ``ApiEngine`` is invoked without ``acting_user`` or auth tags. Audit
+  attribution is at the service level, not the end-user level.
+
+External integrators must use ``ep_openapi`` instead, which has its
+own (much tighter) exposure boundary keyed on ``openapi=True`` flags.
+"""
 
 import json
 
