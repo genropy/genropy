@@ -584,7 +584,16 @@ class ApiEngine:
                 continue
             if attrs.get('virtual_column'):
                 continue
-            cols_dict[colname] = self._column_info(colname, attrs, tbl, col=col)
+            try:
+                cols_dict[colname] = self._column_info(
+                    colname, attrs, tbl, col=col)
+            except ApiEngineError:
+                # Column dtype is not known to ApiEngine (e.g. VEC from
+                # pgvector). Silently skip it so unknown extensions do
+                # not block the entire schema; callers that need full
+                # introspection of those columns can opt into a custom
+                # dtype mapping.
+                continue
         # Virtual columns from model (alias, formula_sql, formula_subquery,
         # bagitem, virtual_other — pycolumn excluded)
         vcols = self.db.model.table(fullname).get('virtual_columns') or {}
@@ -593,7 +602,10 @@ class ApiEngine:
             kind, _ = _classify_column(attrs)
             if kind == 'pycolumn':
                 continue
-            cols_dict[colname] = self._column_info(colname, attrs, tbl)
+            try:
+                cols_dict[colname] = self._column_info(colname, attrs, tbl)
+            except ApiEngineError:
+                continue
         return cols_dict
 
     def _column_info(self, colname, attrs, tbl, col=None):
