@@ -189,6 +189,15 @@ class GnrCustomWebPage(object):
 
     # ── Handlers ─────────────────────────────────────────────────────
 
+    def _default_columns(self, engine, full):
+        """Build a GenroPy ``columns`` expression that restricts the
+        runtime payload to the columns published in the OpenAPI spec.
+        Without this, columns with unknown dtypes (e.g. pgvector VEC)
+        would leak into responses even though the spec hides them.
+        """
+        cols = engine.exposed_column_names(full)
+        return ','.join('$%s' % c for c in cols) if cols else None
+
     def _list(self, pkg, table, **kwargs):
         full = '%s.%s' % (pkg, table)
         if not self._is_exposed(full):
@@ -224,6 +233,10 @@ class GnrCustomWebPage(object):
             run_kwargs['sqlparams'] = sqlparams
 
         engine = ApiEngine(self.app, max_rows=MAX_ROWS)
+        if 'columns' not in run_kwargs:
+            default_cols = self._default_columns(engine, full)
+            if default_cols:
+                run_kwargs['columns'] = default_cols
         try:
             result = engine.run_query(full, **run_kwargs)
         except (ApiEngineError, ValueError) as e:
@@ -248,13 +261,16 @@ class GnrCustomWebPage(object):
                                'Table %r not exposed' % full)
 
         engine = ApiEngine(self.app, max_rows=MAX_ROWS)
+        run_kwargs = dict(
+            where='$pkey = :_pkey',
+            sqlparams={'_pkey': pkey},
+            limit=1,
+        )
+        default_cols = self._default_columns(engine, full)
+        if default_cols:
+            run_kwargs['columns'] = default_cols
         try:
-            result = engine.run_query(
-                full,
-                where='$pkey = :_pkey',
-                sqlparams={'_pkey': pkey},
-                limit=1,
-            )
+            result = engine.run_query(full, **run_kwargs)
         except (ApiEngineError, ValueError) as e:
             return self._error(422, 'invalid_query', str(e))
         if result['error']:
@@ -293,6 +309,10 @@ class GnrCustomWebPage(object):
                 run_kwargs[k] = v
 
         engine = ApiEngine(self.app, max_rows=MAX_ROWS)
+        if 'columns' not in run_kwargs:
+            default_cols = self._default_columns(engine, full)
+            if default_cols:
+                run_kwargs['columns'] = default_cols
         try:
             result = engine.run_query(full, **run_kwargs)
         except (ApiEngineError, ValueError) as e:
