@@ -149,32 +149,36 @@ class TestTableColumns:
         with pytest.raises(ValueError, match='Unknown table'):
             engine.table_columns('invc.nonexistent')
 
-    def test_non_string_dtype_raises(self, db_sqlite):
-        """A model with a non-string dtype (e.g. dtype=True from a typo)
-        must raise ApiEngineError rather than silently fall back."""
+    def test_non_string_dtype_skipped(self, db_sqlite):
+        """A column with a non-string dtype (e.g. dtype=True from a typo)
+        is silently omitted from the schema rather than raising."""
         engine = ApiEngine(db_sqlite.application)
         col = engine.db.table('invc.customer').columns['account_name']
         prev = col.attributes.get('dtype')
         try:
             col.attributes['dtype'] = True
-            with pytest.raises(ApiEngineError, match='Invalid dtype True'):
-                engine.table_columns('invc.customer')
+            cols = engine.table_columns('invc.customer')
+            assert 'account_name' not in cols['invc.customer']
         finally:
             if prev is None:
                 col.attributes.pop('dtype', None)
             else:
                 col.attributes['dtype'] = prev
 
-    def test_unknown_dtype_raises(self, db_sqlite):
-        """A dtype that is a string but not in the known mapping must
-        raise ApiEngineError listing the accepted codes."""
+    def test_unknown_dtype_skipped(self, db_sqlite):
+        """A column with an unknown dtype string (e.g. 'ZZZ' or a custom
+        pgvector 'VEC') is silently omitted from the schema rather than
+        raising — unknown extensions should not block introspection of
+        the rest of the table."""
         engine = ApiEngine(db_sqlite.application)
         col = engine.db.table('invc.customer').columns['account_name']
         prev = col.attributes.get('dtype')
         try:
             col.attributes['dtype'] = 'ZZZ'
-            with pytest.raises(ApiEngineError, match="Unknown dtype 'ZZZ'"):
-                engine.table_columns('invc.customer')
+            cols = engine.table_columns('invc.customer')
+            assert 'account_name' not in cols['invc.customer']
+            # Other columns of the same table still appear.
+            assert 'account_code' in cols['invc.customer']
         finally:
             if prev is None:
                 col.attributes.pop('dtype', None)
