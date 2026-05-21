@@ -61,7 +61,6 @@ class Table(object):
             token_hint=f'...{token_value[-4:]}'
         )
         self.insert(record)
-        self.db.commit()
         return record['id'], token_value
 
     def validate_token(self, token_value):
@@ -79,12 +78,8 @@ class Table(object):
             return None
         record = records[0]
         expires_ts = record['expires_ts']
-        if expires_ts:
-            # DHZ may return a naive datetime depending on DB config; normalize to UTC.
-            if expires_ts.tzinfo is None:
-                expires_ts = expires_ts.replace(tzinfo=timezone.utc)
-            if expires_ts < datetime.now(timezone.utc):
-                return None
+        if expires_ts and expires_ts < datetime.now(timezone.utc):
+            return None
         # Piggy-back the last_used_ts update on the caller's commit instead of
         # forcing a synchronous commit on every Bearer-authenticated request.
         self.db.deferToCommit(self.raw_update,
