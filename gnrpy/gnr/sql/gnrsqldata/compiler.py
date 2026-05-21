@@ -142,6 +142,7 @@ class SqlCompiledQuery(object):
         self.for_update = None
         self.explodingColumns = []
         self.evaluateBagColumns = []
+        self.encryptedColumns = {}
         self.aggregateDict = {}
         self.pyColumns = []
         self.maintable_as = maintable_as
@@ -1079,6 +1080,15 @@ class SqlQueryCompiler(object):
                         # Consider better documentation or making it configurable.
                         columns = '%s.%s' % (self.aliasCode(0),self.tblobj.pkey)
 
+        # --- Detect encrypted columns in the SELECT list ---
+        for as_name in col_dict:
+            clean_name = as_name.strip('"').lstrip('$')
+            col_obj = self.tblobj.columns.get(clean_name)
+            if col_obj:
+                enc_mode = col_obj.attributes.get('encrypted')
+                if enc_mode:
+                    self.cpl.encryptedColumns[clean_name] = enc_mode
+
         # --- Store all compiled fragments into the SqlCompiledQuery ---
         self.cpl.distinct = distinct
         self.cpl.columns = self.macro_expander.replace(columns,'TSRANK,TSHEADLINE,VECRANK')
@@ -1155,6 +1165,9 @@ class SqlQueryCompiler(object):
                 sqlname = attrs.get('sqlname') or fieldname
                 self.fieldlist.append( '%s.%s AS %s' % (self.db.adapter.adaptSqlName(self.aliasCode(0)),self.db.adapter.adaptSqlName(sqlname),self.db.adapter.asTranslator('%s_%s'%(self.aliasCode(0),fieldname))))
                 xattrs['as'] = '%s_%s' %(self.aliasCode(0),fieldname)
+                enc_mode = attrs.get('encrypted')
+                if enc_mode:
+                    self.cpl.encryptedColumns[fieldname] = enc_mode
             self.cpl.resultmap.setItem(fieldname, None, xattrs)
 
         # Resolve virtual columns (sql_formula, py_method, etc.)
