@@ -5084,6 +5084,11 @@ dojo.declare("gnr.widgets.FilteringSelect", gnr.widgets.BaseCombo, {
 
 });
 dojo.declare("gnr.widgets.ComboBox", gnr.widgets.BaseCombo, {
+    // Opt into the Genro validation pipeline so validate_case / validate_regex
+    // / validate_call fire on this widget too. dijit.form.ComboBox does not
+    // extend ValidationTextBox, so without this flag setValidations() is never
+    // called and validators silently no-op.
+    _validatingWidget:true,
     constructor: function(application) {
         this._domtag = 'div';
         this._dojotag = 'ComboBox';
@@ -5120,6 +5125,23 @@ dojo.declare("gnr.widgets.ComboBox", gnr.widgets.BaseCombo, {
         genro.callAfter(checkAndAdd, 1, null, reason);
     },
     _autoAddToStore: function(sourceNode, value){
+        // Honor the validation pipeline: a value rejected by validate_regex,
+        // validate_len, validate_email, etc. must NOT enrich the store.
+        // We are called from the setValue connect, which fires *before* the
+        // change-event flow runs validation and updates _validations.error,
+        // so the stored error from a previous turn would be stale. Run the
+        // validators here with validateOnly=true to get a fresh verdict.
+        if(sourceNode.hasValidations && sourceNode.hasValidations()){
+            var vres = genro.vld.validate(sourceNode, value, true, true);
+            if(vres && vres.error){
+                return;
+            }
+            // Some validators (validate_case, validate_call) return a
+            // modified value; honor it so the store gets the canonical form.
+            if(vres && vres.modified && typeof vres.value === 'string'){
+                value = vres.value;
+            }
+        }
         var storepath = sourceNode.absDatapath(sourceNode.attr.storepath);
         var storebag = genro.getData(storepath);
         if(!storebag){
@@ -5142,6 +5164,9 @@ dojo.declare("gnr.widgets.ComboBox", gnr.widgets.BaseCombo, {
         var newAttrs = {};
         newAttrs[idAttr] = value;
         newAttrs[captionAttr] = value;
+        // Marker so callers can distinguish auto-added entries from seeded
+        // ones and purge them selectively (see test_14).
+        newAttrs.__autoadded = true;
         storebag.addItem(label, null, newAttrs);
     }
 });
