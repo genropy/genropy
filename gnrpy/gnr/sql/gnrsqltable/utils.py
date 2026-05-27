@@ -802,4 +802,5 @@ class UtilsMixin(SqlTableBaseMixin):
         """Return the DB implementation for the package's storename."""
         packageStorename = self.pkg.attributes.get('storename')
         if packageStorename:
-            return self.db.dbstores[packageStorename].get('implementation')
+            storeattr = self.db.get_store_parameters(packageStorename) or {}
+            return storeattr.get('implementation')
