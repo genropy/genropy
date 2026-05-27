@@ -1686,6 +1686,30 @@ gnr.GroupletGridController = class GroupletGridController {
         }
     }
 
+    _reproxyForm(content) {
+        // Nodes were built while the template was detached, so getFormHandler
+        // cached a falsy this.form. Now that the subtree is grafted under the
+        // live form, re-resolve so each form-bound widget caches this.form.
+        if (!(content instanceof gnr.GnrBag)) return;
+        content.walk((node) => {
+            if (node._registerInForm && !node.form) {
+                delete node.form;
+                node._registerInForm();
+            }
+        }, 'static');
+    }
+
+    _unproxyForm(content) {
+        // Symmetric teardown: popNode does not de-register the grafted
+        // widgets from the form, so do it here before the pop.
+        if (!(content instanceof gnr.GnrBag)) return;
+        content.walk((node) => {
+            if (node.form && node.form.unregisterChild) {
+                node.form.unregisterChild(node);
+            }
+        }, 'static');
+    }
+
     _destroyTile(pkey) {
         const tile = this.tiles[pkey];
         if (!tile) return;
@@ -1984,6 +2008,10 @@ gnr.GroupletGridTile = class GroupletGridTile {
         this._mountChrome();
         this._mountBody();
         this.tileNode.unfreeze();
+        // After unfreeze the subtree is attached under the live form, so
+        // getFormHandler can resolve it: re-proxy so form-bound widgets
+        // cache this.form and get cleanly unregistered on teardown.
+        this.controller._reproxyForm(this.tileContent);
         this.mounted = true;
     }
 
@@ -2004,6 +2032,11 @@ gnr.GroupletGridTile = class GroupletGridTile {
     unmount() {
         this._unwireTileDnD();
         this._unwireHandleDnD();
+        // popNode does not propagate form de-registration to the grafted
+        // widgets, so unregister them explicitly (symmetric with the
+        // _reproxyForm done at mount). Otherwise they linger in the form
+        // _register as orphans and break setLastSavedValues on save.
+        this.controller._unproxyForm(this.tileContent);
         const bodyContent = this.controller.bodyNode.getValue('static');
         bodyContent.popNode(this.tileLabel);
         this.mounted = false;
