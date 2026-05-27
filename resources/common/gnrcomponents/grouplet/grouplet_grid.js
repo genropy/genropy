@@ -1117,11 +1117,19 @@ gnr.GroupletGridController = class GroupletGridController {
             this.sourceNode.publish('onNewDatastore');
         }
         if (!hasBag || bag.len() === 0) {
-            Object.keys(this.tiles).forEach((pkey) => this._destroyTile(pkey));
+            this._clearBody();
             return;
         }
+        this._clearBody();
         this.updateCounterColumn();
         this._ensureTemplate(() => this._fullSync());
+    }
+
+    _clearBody() {
+        // Full teardown on record load: a different record may carry a
+        // different grouplet structure, so stale tiles must not be reused.
+        Object.keys(this.tiles).forEach((pkey) => this._destroyTile(pkey));
+        this.activePkey = null;
     }
 
     gnr_storepath(value, kw, trigger_reason) {
@@ -1580,6 +1588,13 @@ gnr.GroupletGridController = class GroupletGridController {
     //  Row CRUD — internal sync between rows Bag and DOM
     // ====================================================================
 
+    _setLoading(on) {
+        // Dim the body while a template loads via RPC (canonical .dimmed).
+        const dom = this.bodyNode && this.bodyNode.getDomNode();
+        if (!dom) return;
+        dom.classList.toggle('dimmed', !!on);
+    }
+
     _fullSync() {
         const presentKeys = {};
         const toAdd = [];
@@ -1823,6 +1838,7 @@ gnr.GroupletGridController = class GroupletGridController {
         const flush = () => {
             const queue = this.templateLoading[key];
             delete this.templateLoading[key];
+            this._setLoading(false);
             queue.forEach((cb) => cb());
         };
         if (this.structAdapter) {
@@ -1837,11 +1853,13 @@ gnr.GroupletGridController = class GroupletGridController {
             grouplets_root: this.grouplets_root,
             grouplet_kwargs: this.grouplet_kw
         };
+        this._setLoading(true);
         genro.serverCall(this.loaderrpc, params,
             (tplBag, error) => {
                 if (error) {
                     console.error('[GG] template RPC failed', error);
                     delete this.templateLoading[key];
+                    this._setLoading(false);
                     return;
                 }
                 this.templateSources[key] = this._bagToDetachedSource(tplBag);
@@ -1866,6 +1884,7 @@ gnr.GroupletGridController = class GroupletGridController {
         const flush = () => {
             const queue = this.templateLoading[sharedKey];
             delete this.templateLoading[sharedKey];
+            this._setLoading(false);
             queue.forEach((cb) => cb());
         };
         const params = {
@@ -1873,11 +1892,13 @@ gnr.GroupletGridController = class GroupletGridController {
             grouplets_root: this.grouplets_root,
             grouplet_kwargs: this.grouplet_kw
         };
+        this._setLoading(true);
         genro.serverCall(this.mapLoaderrpc, params,
             (mapBag, error) => {
                 if (error) {
                     console.error('[GG] template map RPC failed', error);
                     delete this.templateLoading[sharedKey];
+                    this._setLoading(false);
                     return;
                 }
                 if (!(mapBag instanceof gnr.GnrBag)) {
