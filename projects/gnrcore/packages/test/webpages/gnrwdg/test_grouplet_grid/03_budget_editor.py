@@ -35,6 +35,13 @@ class GnrCustomWebPage(object):
         # Removed once Phase 13.5 lands.
         page = root.contentPane(datapath='budget')
         page.data('.chapters', Bag())
+        # Shared option pools for detail cells across all chapters/accounts.
+        # Each combobox in conto_card has addMissingValue=True, so values
+        # arriving from loaded XML auto-populate these stores and become
+        # suggestable on every other row.
+        for k in ('tipi_values', 'fase_values', 'iva_values',
+                  'al_oneri_values', 'al_rit_values', 'distrib_values'):
+            page.data('.%s' % k, Bag())
 
         bar = page.div(_class='budget_toolbar')
         # Load — ask for confirmation if there are unsaved edits.

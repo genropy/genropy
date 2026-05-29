@@ -855,6 +855,21 @@ body.drag_started .grouplet_grid_container {
         "left addbtn right"
         "left bottom right";
     grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+    /* Tab palette — consumers override these on a scoped ancestor
+       (e.g. `.bilancio_editor_root .grouplet_grid--tabs { ... }`) to
+       recolour chips + active panel without duplicating selectors.
+       The default values reproduce the historical chrome. vtabs
+       inherits this rule (the controller adds both --tabs and --vtabs
+       classes when layout='vtabs'). */
+    --gg-tab-accent:        var(--gg-accent);
+    --gg-tab-accent-bar:    2px;
+    --gg-tab-fill:          var(--gg-surface);
+    --gg-tab-border:        var(--gg-border);
+    --gg-tab-rest-color:    var(--gg-text-muted);
+    --gg-tab-rest-bg:       var(--gg-surface-alt);
+    --gg-tab-rest-border:   var(--gg-border);
+    --gg-tab-hover-bg:      var(--gg-surface);
+    --gg-tab-hover-color:   var(--gg-text, #374151);
 }
 
 .grouplet_grid--tabs > .grouplet_grid_tabbar {
@@ -867,7 +882,7 @@ body.drag_started .grouplet_grid_container {
     align-items: stretch;
     background: transparent;
     min-height: 34px;
-    border-bottom: 1px solid var(--gg-border);
+    border-bottom: 1px solid var(--gg-tab-border);
     padding: 4px 4px 0 4px;
 }
 
@@ -905,29 +920,29 @@ body.drag_started .grouplet_grid_container {
     cursor: pointer;
     white-space: nowrap;
     font-size: 0.85em;
-    color: var(--gg-text-muted);
-    border: 1px solid var(--gg-border);
-    border-bottom: 1px solid var(--gg-border);
+    color: var(--gg-tab-rest-color);
+    border: 1px solid var(--gg-tab-rest-border);
     border-top-left-radius: 6px;
     border-top-right-radius: 6px;
     flex-shrink: 0;
     max-width: 180px;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
-    background: var(--gg-surface-alt);
+    background: var(--gg-tab-rest-bg);
     margin-bottom: -1px;
     position: relative;
 }
 
 .grouplet_grid_tab:hover:not(.grouplet_grid_tab_active) {
-    color: var(--gg-text, #374151);
-    background: var(--gg-surface);
+    color: var(--gg-tab-hover-color);
+    background: var(--gg-tab-hover-bg);
 }
 
 .grouplet_grid_tab.grouplet_grid_tab_active {
-    color: var(--gg-text, #374151);
-    background: var(--gg-surface);
+    color: var(--gg-tab-hover-color);
+    background: var(--gg-tab-fill);
     font-weight: 600;
-    border-bottom: 2px solid var(--gg-accent);
+    border-color: var(--gg-tab-border);
+    border-bottom: var(--gg-tab-accent-bar) solid var(--gg-tab-accent);
 }
 
 .grouplet_grid_tab_title {
@@ -1056,11 +1071,13 @@ body.drag_started .grouplet_grid_container {
    hover background so only the chip in the strip reacts to hover. */
 .grouplet_grid--tabs > .grouplet_grid_body > .grouplet_grid_row:hover,
 .grouplet_grid--vtabs > .grouplet_grid_body > .grouplet_grid_row:hover {
-    background: var(--gg-surface);
+    background: var(--gg-tab-fill);
 }
 
 .grouplet_grid--tabs > .grouplet_grid_body > .grouplet_grid_row.grouplet_grid_tab_active {
     display: block;
+    background: var(--gg-tab-fill);
+    border-color: var(--gg-tab-border);
     border-top: none;
     border-top-left-radius: 0;
     border-top-right-radius: 0;
@@ -1072,7 +1089,7 @@ body.drag_started .grouplet_grid_container {
    Suppress the panel's focus border and outline; keep widget focus
    indication local to the input that has it. */
 .grouplet_grid--tabs > .grouplet_grid_body > .grouplet_grid_row.grouplet_grid_tab_active:focus-within {
-    border-color: var(--gg-border);
+    border-color: var(--gg-tab-border);
     outline: none;
 }
 
@@ -1149,7 +1166,7 @@ body.drag_started .grouplet_grid_container {
     min-height: 0;
     min-width: 160px;
     border-bottom: none;
-    border-right: 1px solid var(--gg-border);
+    border-right: 1px solid var(--gg-tab-border);
     padding: 4px 0 4px 4px;
     /* Push the tabbar 1px to the right so its chips' right edge
        overlaps the tabbar border exactly — the active chip's
@@ -1166,7 +1183,11 @@ body.drag_started .grouplet_grid_container {
 /* Vertical chips — reset the horizontal-tabs heavy chrome:
    inactive chips are FLAT (no fill, no border, no rounded corners,
    no bottom rule), only the label is rendered. Only the active chip
-   gets the full tab silhouette (see `.grouplet_grid_tab_active` rule below). */
+   gets the full tab silhouette (see `.grouplet_grid_tab_active` rule below).
+   The rest-bg/border are reset to transparent INLINE (not via the
+   --gg-tab-rest-* vars) so consumers can still customise the active
+   chip palette without accidentally tinting inactive chips — vtabs
+   "flat at rest" is a layout-mode invariant, not a palette choice. */
 .grouplet_grid--vtabs > .grouplet_grid_tabbar > .grouplet_grid_tabs > .grouplet_grid_tab {
     max-width: none;
     background: transparent;
@@ -1194,17 +1215,21 @@ body.drag_started .grouplet_grid_container {
 }
 
 .grouplet_grid--vtabs > .grouplet_grid_tabbar > .grouplet_grid_tabs > .grouplet_grid_tab:hover:not(.grouplet_grid_tab_active) {
-    background: var(--gg-surface);
+    background: var(--gg-tab-hover-bg);
 }
 
 .grouplet_grid--vtabs > .grouplet_grid_tabbar > .grouplet_grid_tabs > .grouplet_grid_tab.grouplet_grid_tab_active {
-    background: var(--gg-surface);
-    border-color: var(--gg-border);
+    background: var(--gg-tab-fill);
+    border-color: var(--gg-tab-border);
+    /* Override the horizontal --tabs rule which sets a bottom accent
+       bar — meaningless on a vertical chip, would draw a horizontal
+       line across the active vtab. */
+    border-bottom: 1px solid var(--gg-tab-border);
     /* The crucial line: the active chip's right border is painted
-       with the panel's surface color, so it visually "erases" the
+       with the panel's fill colour, so it visually "erases" the
        tabbar's vertical divider exactly along the chip's full
        height, fusing the chip with the panel. */
-    border-right-color: var(--gg-surface);
+    border-right-color: var(--gg-tab-fill);
 }
 
 /* `+` in vtabs — flat, right-aligned glyph to match the column of
@@ -1238,7 +1263,7 @@ body.drag_started .grouplet_grid_container {
     border-bottom-left-radius: 0;
     border-top-right-radius: var(--radius-md);
     border-bottom-right-radius: var(--radius-md);
-    border-top: 1px solid var(--gg-border);
+    border-top: 1px solid var(--gg-tab-border);
     border-left: none;
     margin-left: 0;
 }
@@ -1512,45 +1537,26 @@ body.drag_started .grouplet_grid_container {
     text-align: right;
 }
 
-/* Editable cells: borderless resting state. The textbox blends into
-   the row background; hover reveals a hairline outline; focus shows
-   the accent ring as an `outline` (NOT a border — borders shift the
-   content by their own width and break column alignment with the
-   resting-state cells in the same column). The inner dijit nodes
-   (.dijitInputContainer, .dijitArrowButton) also get neutralised so
-   no stray borders leak through the wrapper's transparency. */
-/* Editable widgets in struct mode keep a permanent thin grey border
-   (so the user reads them as 'this is editable' even at rest), a
-   slightly tinted background on hover, and switch to the accent
-   color on focus. The dijit theme's inner container borders are
-   neutralised — only the wrapper's border is the visual one. */
-.grouplet_grid--struct .grouplet_grid__struct_row > .dijitTextBox,
-.grouplet_grid--struct .grouplet_grid__struct_row > .dijitComboBox,
-.grouplet_grid--struct .grouplet_grid__struct_row > .dijitSelect {
-    border: 1px solid var(--gg-border);
-    background: var(--gg-surface);
-    box-shadow: none;
-    transition: background 120ms ease, border-color 120ms ease;
+/* === fillParent ===
+   Opt-in via `gr_groupletGrid(..., fillParent=True)`. Root stays a
+   plain <div>; height: 100% cascades from the dijit ancestor. Implies
+   --framed (cards body scrolls). In tabs/vtabs the active panel is
+   `overflow: hidden` so a nested dijit layout owns its own scroll. */
+.grouplet_grid--fill {
+    height: 100%;
+    min-height: 0;
 }
-.grouplet_grid--struct .grouplet_grid__struct_row > .dijitTextBox .dijitInputContainer,
-.grouplet_grid--struct .grouplet_grid__struct_row > .dijitTextBox .dijitArrowButtonContainer,
-.grouplet_grid--struct .grouplet_grid__struct_row > .dijitComboBox .dijitInputContainer,
-.grouplet_grid--struct .grouplet_grid__struct_row > .dijitComboBox .dijitArrowButtonContainer {
-    border-color: transparent;
-    background: transparent;
+/* Tabs/vtabs: tabbar sticks (own grid-area), only active panel scrolls. */
+.grouplet_grid--fill.grouplet_grid--tabs > .grouplet_grid_body,
+.grouplet_grid--fill.grouplet_grid--vtabs > .grouplet_grid_body {
+    overflow: visible;
+    min-height: 0;
 }
-.grouplet_grid--struct .grouplet_grid__struct_row > .dijitTextBox .dijitInputField input,
-.grouplet_grid--struct .grouplet_grid__struct_row > .dijitComboBox .dijitInputField input {
-    background: transparent;
+.grouplet_grid--fill.grouplet_grid--tabs > .grouplet_grid_body > .grouplet_grid_row.grouplet_grid_tab_active,
+.grouplet_grid--fill.grouplet_grid--vtabs > .grouplet_grid_body > .grouplet_grid_row.grouplet_grid_tab_active {
+    height: 100%;
+    min-height: 0;
+    box-sizing: border-box;
+    overflow: hidden;
 }
-.grouplet_grid--struct .grouplet_grid__struct_row > .dijitTextBox:hover,
-.grouplet_grid--struct .grouplet_grid__struct_row > .dijitComboBox:hover,
-.grouplet_grid--struct .grouplet_grid__struct_row > .dijitSelect:hover {
-    background: var(--gg-surface-alt);
-}
-.grouplet_grid--struct .grouplet_grid__struct_row > .dijitTextBoxFocused,
-.grouplet_grid--struct .grouplet_grid__struct_row > .dijitComboBoxFocused,
-.grouplet_grid--struct .grouplet_grid__struct_row > .dijitSelectFocused {
-    background: var(--gg-surface);
-    border-color: var(--gg-accent);
-}
+

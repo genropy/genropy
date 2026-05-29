@@ -194,6 +194,7 @@ dojo.declare("gnr.QueryManager", null, {
             sourceNode.setRelativeData(path+'?value_caption', '');
         }
         sourceNode.setRelativeData(path + '?_owner_package', column_attr._owner_package);
+        sourceNode.setRelativeData(path + '?encrypted', column_attr.encrypted || null);
     },
 
     queryEditor:function(queryEditor){
