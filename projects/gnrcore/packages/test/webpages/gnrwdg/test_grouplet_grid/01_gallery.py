@@ -28,6 +28,14 @@
                                    complete templates under
                                    `myticket/grid_grouplets/` and renders
                                    the matching mini-form.
+  test_08_double_grid_same_pane  — regression: two groupletGrids on the
+                                   SAME pane. Used to fail with
+                                   "grpgrid_<id> is duplicated" because
+                                   the framework auto-id was based on
+                                   id(pane). Now author-supplied nodeIds
+                                   with `#` are resolved via
+                                   `page.getUuid()` (same convention as
+                                   `framePane`).
 """
 import datetime
 
@@ -463,4 +471,42 @@ class GnrCustomWebPage(object):
             editmenu=False,
             additem=False,  # add via the menudiv in the toolbar
         )
+
+    def test_08_double_grid_same_pane(self, pane):
+        """Two groupletGrids on the SAME pane — regression test.
+
+        Reproduces a duplicate-nodeId AssertionError that triggers when
+        the framework auto-id `f'grpgrid_{id(pane)}'` collides between
+        two sibling grids sharing the same `pane`. Author-supplied
+        nodeIds with `#` (resolved to `page.getUuid()`) provide a
+        readable escape hatch matching the `framePane` convention.
+
+        Both grids reuse `invoice_row` as template; the two stores hold
+        independent rows so add/remove on one must not touch the other.
+        """
+        pane.data('.invoice_lines_a', self._invoice_seed(2))
+        pane.data('.invoice_lines_b', self._invoice_seed(3))
+        pane.div('Test 08: two groupletGrids on the same pane. Before '
+                 'the fix this raised "grpgrid_<id> is duplicated" at '
+                 'render time. With the fix both grids render and edit '
+                 'independently.',
+                 color='#666', font_style='italic', margin_bottom='8px')
+
+        pane.div('Grid A', font_weight='600', margin_bottom='4px')
+        # No explicit nodeId: relies on framework auto-id. Before the
+        # fix this was `f'grpgrid_{id(pane)}'`, identical to grid B
+        # below and crashing with "is duplicated".
+        pane.groupletGrid(storepath='.invoice_lines_a',
+                          resource='invoice_row',
+                          defaultRow=dict(qty=1, price=0))
+
+        pane.div('Grid B', font_weight='600',
+                 margin='12px 0 4px 0')
+        # Same pane, same auto-id collision condition as grid A.
+        # The `#` convention here additionally exercises the new
+        # author-supplied placeholder resolution (mirrors framePane).
+        pane.groupletGrid(storepath='.invoice_lines_b',
+                          resource='invoice_row',
+                          nodeId='gallery_double_grid_b_#',
+                          defaultRow=dict(qty=1, price=0))
 

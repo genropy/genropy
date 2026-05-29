@@ -705,7 +705,7 @@ class GroupletGridHandler(BaseComponent):
                         struct=None, structpath=None,
                         table=None, grouplets_root=None,
                         cols=1, min_width=None, gap='12px',
-                        height=None, max_height=None,
+                        height=None, max_height=None, fillParent=False,
                         additem=True, delitem=True, editmenu=False,
                         layout='cards',
                         titleField=None,
@@ -750,12 +750,16 @@ class GroupletGridHandler(BaseComponent):
             resolved_drag_code = nodeId
         else:
             resolved_drag_code = dragCode
-        framed = bool(height or max_height)
+        # fillParent implies framed: pixel-accurate sizing comes from the
+        # dijit ancestor, internal scrolling is delegated to .grouplet_grid_body.
+        framed = bool(height or max_height or fillParent)
         flavours = ['grouplet_grid_container', 'grouplet_grid']
         if struct_mode:
             flavours.append('grouplet_grid--struct')
         if framed:
             flavours.append('grouplet_grid--framed')
+        if fillParent:
+            flavours.append('grouplet_grid--fill')
         extra_class = kwargs.pop('_class', None)
         if extra_class:
             flavours.append(extra_class)
@@ -772,6 +776,11 @@ class GroupletGridHandler(BaseComponent):
                 kwargs['_workspace'] = True
         if struct_mode and not structpath:
             structpath = f'{controllerPath}.struct'
+        # Root is always a plain div. When fillParent is set, the
+        # `.grouplet_grid--fill { height: 100% }` rule makes the grid
+        # claim its parent's height — relying on standard CSS flow,
+        # not on dijit sizing (a dijit contentPane buried inside a
+        # non-layout container would not get resize callbacks anyway).
         container = pane.div(
             _class=container_class,
             nodeId=nodeId,

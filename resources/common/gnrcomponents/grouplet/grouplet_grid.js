@@ -1117,11 +1117,19 @@ gnr.GroupletGridController = class GroupletGridController {
             this.sourceNode.publish('onNewDatastore');
         }
         if (!hasBag || bag.len() === 0) {
-            Object.keys(this.tiles).forEach((pkey) => this._destroyTile(pkey));
+            this._clearBody();
             return;
         }
+        this._clearBody();
         this.updateCounterColumn();
         this._ensureTemplate(() => this._fullSync());
+    }
+
+    _clearBody() {
+        // Full teardown on record load: a different record may carry a
+        // different grouplet structure, so stale tiles must not be reused.
+        Object.keys(this.tiles).forEach((pkey) => this._destroyTile(pkey));
+        this.activePkey = null;
     }
 
     gnr_storepath(value, kw, trigger_reason) {
@@ -1580,6 +1588,13 @@ gnr.GroupletGridController = class GroupletGridController {
     //  Row CRUD — internal sync between rows Bag and DOM
     // ====================================================================
 
+    _setLoading(on) {
+        // Dim the body while a template loads via RPC (canonical .dimmed).
+        const dom = this.bodyNode && this.bodyNode.getDomNode();
+        if (!dom) return;
+        dom.classList.toggle('dimmed', !!on);
+    }
+
     _fullSync() {
         const presentKeys = {};
         const toAdd = [];
@@ -1669,6 +1684,30 @@ gnr.GroupletGridController = class GroupletGridController {
         } else if (childValue !== undefined && childValue !== null) {
             newNode.setValue(childValue);
         }
+    }
+
+    _reproxyForm(content) {
+        // Nodes were built while the template was detached, so getFormHandler
+        // cached a falsy this.form. Now that the subtree is grafted under the
+        // live form, re-resolve so each form-bound widget caches this.form.
+        if (!(content instanceof gnr.GnrBag)) return;
+        content.walk((node) => {
+            if (node._registerInForm && !node.form) {
+                delete node.form;
+                node._registerInForm();
+            }
+        }, 'static');
+    }
+
+    _unproxyForm(content) {
+        // Symmetric teardown: popNode does not de-register the grafted
+        // widgets from the form, so do it here before the pop.
+        if (!(content instanceof gnr.GnrBag)) return;
+        content.walk((node) => {
+            if (node.form && node.form.unregisterChild) {
+                node.form.unregisterChild(node);
+            }
+        }, 'static');
     }
 
     _destroyTile(pkey) {
@@ -1823,6 +1862,7 @@ gnr.GroupletGridController = class GroupletGridController {
         const flush = () => {
             const queue = this.templateLoading[key];
             delete this.templateLoading[key];
+            this._setLoading(false);
             queue.forEach((cb) => cb());
         };
         if (this.structAdapter) {
@@ -1837,11 +1877,13 @@ gnr.GroupletGridController = class GroupletGridController {
             grouplets_root: this.grouplets_root,
             grouplet_kwargs: this.grouplet_kw
         };
+        this._setLoading(true);
         genro.serverCall(this.loaderrpc, params,
             (tplBag, error) => {
                 if (error) {
                     console.error('[GG] template RPC failed', error);
                     delete this.templateLoading[key];
+                    this._setLoading(false);
                     return;
                 }
                 this.templateSources[key] = this._bagToDetachedSource(tplBag);
@@ -1866,6 +1908,7 @@ gnr.GroupletGridController = class GroupletGridController {
         const flush = () => {
             const queue = this.templateLoading[sharedKey];
             delete this.templateLoading[sharedKey];
+            this._setLoading(false);
             queue.forEach((cb) => cb());
         };
         const params = {
@@ -1873,11 +1916,13 @@ gnr.GroupletGridController = class GroupletGridController {
             grouplets_root: this.grouplets_root,
             grouplet_kwargs: this.grouplet_kw
         };
+        this._setLoading(true);
         genro.serverCall(this.mapLoaderrpc, params,
             (mapBag, error) => {
                 if (error) {
                     console.error('[GG] template map RPC failed', error);
                     delete this.templateLoading[sharedKey];
+                    this._setLoading(false);
                     return;
                 }
                 if (!(mapBag instanceof gnr.GnrBag)) {
@@ -1963,6 +2008,10 @@ gnr.GroupletGridTile = class GroupletGridTile {
         this._mountChrome();
         this._mountBody();
         this.tileNode.unfreeze();
+        // After unfreeze the subtree is attached under the live form, so
+        // getFormHandler can resolve it: re-proxy so form-bound widgets
+        // cache this.form and get cleanly unregistered on teardown.
+        this.controller._reproxyForm(this.tileContent);
         this.mounted = true;
     }
 
@@ -1983,6 +2032,11 @@ gnr.GroupletGridTile = class GroupletGridTile {
     unmount() {
         this._unwireTileDnD();
         this._unwireHandleDnD();
+        // popNode does not propagate form de-registration to the grafted
+        // widgets, so unregister them explicitly (symmetric with the
+        // _reproxyForm done at mount). Otherwise they linger in the form
+        // _register as orphans and break setLastSavedValues on save.
+        this.controller._unproxyForm(this.tileContent);
         const bodyContent = this.controller.bodyNode.getValue('static');
         bodyContent.popNode(this.tileLabel);
         this.mounted = false;

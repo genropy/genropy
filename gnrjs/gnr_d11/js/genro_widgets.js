@@ -4329,12 +4329,12 @@ dojo.declare("gnr.widgets.BaseCombo", gnr.widgets.baseDojo, {
     creating: function(attributes, sourceNode) {
         objectExtract(attributes, 'maxLength,_type');
         var values = objectPop(attributes, 'values');
+        var savedAttrs = {};
         if (values) {
             var store = this.storeFromValues(values);
             attributes.searchAttr = 'caption';
         } else {
             var storeAttrs = objectExtract(attributes, 'storepath,storeid,storecaption');
-            var savedAttrs = {};
             var store = new gnr.GnrStoreBag({datapath: sourceNode.absDatapath(storeAttrs.storepath)});
             attributes.searchAttr = store.rootDataNode().attr['caption'] || storeAttrs['storecaption'] || 'caption';
             attributes.autoComplete = attributes.autoComplete || false;
@@ -5084,9 +5084,90 @@ dojo.declare("gnr.widgets.FilteringSelect", gnr.widgets.BaseCombo, {
 
 });
 dojo.declare("gnr.widgets.ComboBox", gnr.widgets.BaseCombo, {
+    // Opt into the Genro validation pipeline so validate_case / validate_regex
+    // / validate_call fire on this widget too. dijit.form.ComboBox does not
+    // extend ValidationTextBox, so without this flag setValidations() is never
+    // called and validators silently no-op.
+    _validatingWidget:true,
     constructor: function(application) {
         this._domtag = 'div';
         this._dojotag = 'ComboBox';
+    },
+    created: function(widget, savedAttrs, sourceNode) {
+        this.inherited(arguments);
+        this.connectAddMissingValue(widget, sourceNode);
+    },
+    connectAddMissingValue: function(widget, sourceNode) {
+        // When addMissingValue is set on a ComboBox backed by a local
+        // storepath, any value (typed by the user or arriving from the
+        // datapath, e.g. record load) that is not present in the store
+        // is added on the fly so it becomes a suggestable option.
+        // Limited to ComboBox: dbSelect/FilteringSelect/dbComboBox have
+        // their own validation rules and are out of scope.
+        if(!sourceNode.attr.addMissingValue || !sourceNode.attr.storepath){
+            return;
+        }
+        var self = this;
+        var checkAndAdd = function(){
+            // Read the normalized value from the widget instead of trusting
+            // the setValue argument: Dojo may call setValue with non-string
+            // payloads (item, undefined) on internal flows.
+            var v = widget.getValue();
+            if(typeof v === 'string' && !isNullOrBlank(v)){
+                self._autoAddToStore(sourceNode, v);
+            }
+        };
+        dojo.connect(widget, 'setValue', checkAndAdd);
+        // Deferred initial check: covers the case where the value is already
+        // present in the datapath at widget creation time (e.g. fb.data() seed)
+        // and no setValue call follows. Debounced per-widget via reason.
+        var reason = 'addMissingValue_' + (sourceNode.attr.nodeId || sourceNode.getStringId());
+        genro.callAfter(checkAndAdd, 1, null, reason);
+    },
+    _autoAddToStore: function(sourceNode, value){
+        // Honor the validation pipeline: a value rejected by validate_regex,
+        // validate_len, validate_email, etc. must NOT enrich the store.
+        // We are called from the setValue connect, which fires *before* the
+        // change-event flow runs validation and updates _validations.error,
+        // so the stored error from a previous turn would be stale. Run the
+        // validators here with validateOnly=true to get a fresh verdict.
+        if(sourceNode.hasValidations && sourceNode.hasValidations()){
+            var vres = genro.vld.validate(sourceNode, value, true, true);
+            if(vres && vres.error){
+                return;
+            }
+            // Some validators (validate_case, validate_call) return a
+            // modified value; honor it so the store gets the canonical form.
+            if(vres && vres.modified && typeof vres.value === 'string'){
+                value = vres.value;
+            }
+        }
+        var storepath = sourceNode.absDatapath(sourceNode.attr.storepath);
+        var storebag = genro.getData(storepath);
+        if(!storebag){
+            // No store bag at storepath: nothing to enrich. The dropdown
+            // would be empty anyway. Caller must declare the data path.
+            return;
+        }
+        var idAttr = sourceNode.attr.storeid || 'id';
+        var captionAttr = sourceNode.attr.storecaption || 'caption';
+        var nodes = storebag.getNodes();
+        for(var i = 0; i < nodes.length; i++){
+            if(nodes[i].attr[idAttr] === value){
+                return;
+            }
+        }
+        var label = 'r_' + nodes.length;
+        while(storebag.getNode(label)){
+            label = label + '_';
+        }
+        var newAttrs = {};
+        newAttrs[idAttr] = value;
+        newAttrs[captionAttr] = value;
+        // Marker so callers can distinguish auto-added entries from seeded
+        // ones and purge them selectively (see test_14).
+        newAttrs.__autoadded = true;
+        storebag.addItem(label, null, newAttrs);
     }
 });
 

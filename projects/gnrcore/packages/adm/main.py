@@ -88,6 +88,10 @@ class Package(GnrDboPackage):
     def onExternalUser(self,externalUser=None):
         self.db.table('adm.user').syncExternalUser(externalUser)
         
+    def validate_bearer_token(self, token_value):
+        """Validate a Bearer token. Called by other packages (e.g. data_api)."""
+        return self.db.table('adm.api_token').validate_token(token_value)
+
     def newUserUrl(self):
         return 'adm/new_user'
 
