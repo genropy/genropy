@@ -136,7 +136,6 @@ class Service(BaseLocalService):
         return self.connection.connection_id==connection_id
     
     def auth_user(self, user,*args, **kwargs):
-        print('auth_user', user, self.connection.user)
         return self.connection.user==user
         
         
