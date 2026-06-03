@@ -744,8 +744,7 @@ class StorageService(GnrBaseService):
   
     @property
     def connection(self):
-        if not hasattr(self,'_connection'):
-             self._connection = StorageConnection(self.parent)
+        self._connection = StorageConnection(self.parent)
         return self._connection
         
     def checkPermission(self, path, *args, **kwargs):
