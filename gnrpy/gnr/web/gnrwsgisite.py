@@ -1959,11 +1959,9 @@ class GnrWsgiSite(object):
             if isinstance(v, str):
                 v_pre = v
                 result[self._sanitize_string(k)] = self._sanitize_string(v)
-                print(f"Sanitized parameter '{k}' '{self._sanitize_string(k)}': '{v_pre}' -> '{result[k]}'")
             elif isinstance(v, list):
                 v_pre = v
                 result[self._sanitize_string(k)] = [self._sanitize_string(i) if isinstance(i, str) else i for i in v]
-                print(f"Sanitized parameter '{k}': '{v_pre}' -> '{result[k]}'")
             else:
                 result[self._sanitize_string(k)] = v
         return result
