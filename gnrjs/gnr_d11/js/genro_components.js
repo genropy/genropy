@@ -4352,7 +4352,7 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
                 }
                 if (totSize>maxsize){
                     var size_kb = maxsize/1000
-                    genro.dlg.alert("File exeeds size limit ("+size_kb+"KB)",'Error');
+                    genro.dlg.alert(_T("File exceeds size limit")+` (${size_kb}KB)`,_T('Error'));
                     return false;
                 }
             }

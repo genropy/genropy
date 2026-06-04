@@ -4,6 +4,14 @@ Unreleased
 New features
 ------------
 
+* ``attachmentGrid`` now accepts an ``uploader`` kwargs family
+  (``@extract_kwargs(uploader=True)``) forwarded to its drop
+  uploader. This makes it possible to set, for instance, a client
+  side upload size limit via ``uploader_maxsize=2000000`` (2 MB).
+  No backward-compatibility impact: when no ``uploader_*`` kwarg is
+  passed the forwarded dict is empty and the uploader behaves exactly
+  as before.
+
 * Connection cleanup is now a single on-event mechanism instead of
   two parallel ones. When a page closes on the client a lottery
   (``cleanup_threshold``, default 5%) gates an attempt to spawn a
