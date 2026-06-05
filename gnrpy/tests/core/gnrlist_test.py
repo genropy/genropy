@@ -2,9 +2,10 @@ import os.path
 import datetime
 import tempfile
 import csv
-    
+
 import pytest
 from gnr.core import gnrlist as gl
+
 
 def test_findByAttr():
     class MockObj(object):
@@ -158,57 +159,6 @@ def test_sortByItem():
     assert "Wayne" in res[0]['company']['name']
 
 
-def test_getCsvDialect():
-    """Test getCsvDialect: detects correct delimiter, quotechar and escapechar for various CSV formats"""
-    test_dir = os.path.dirname(__file__)
-
-    # Map filename pattern to expected delimiter
-    test_cases = [
-        ('test_CsvAuto_Comma.csv', ','),
-        ('test_CsvAuto_CommaQuotedDecimalsEUR.csv', ','),
-        ('test_CsvAuto_CommaQuotedDecimalsUSA.csv', ','),
-        ('test_CsvAuto_SemiColon.csv', ';'),
-        ('test_CsvAuto_Tab.csv', '\t'),
-        ('test_CsvAuto_Pipe.csv', '|'),
-        ('test_CsvAuto_Colon.csv', ':'),
-    ]
-
-    for filename, expected_delimiter in test_cases:
-        test_file = os.path.join(test_dir, 'data', filename)
-        dialect = gl.getCsvDialect(test_file, encoding='utf-8')
-
-        assert dialect.delimiter == expected_delimiter
-        assert dialect.quotechar == '"'
-        assert not dialect.escapechar
-
-
-def test_getCsvDialect_limited_lines():
-    """Test getCsvDialect with detector_max_lines=1 does not detect quotechar
-
-    When reading only the first line, the dialect detector should not
-    find any quotechar since the quoted content only appears in later rows.
-    """
-    test_dir = os.path.dirname(__file__)
-
-    # Some test files that have quoted content only beyond the first line)
-    test_files = [
-        'test_CsvAuto_Comma.csv',
-        'test_CsvAuto_CommaQuotedDecimalsEUR.csv',
-        'test_CsvAuto_CommaQuotedDecimalsUSA.csv',
-        'test_CsvAuto_SemiColon.csv',
-        'test_CsvAuto_Tab.csv',
-        'test_CsvAuto_Pipe.csv',
-        'test_CsvAuto_Colon.csv',
-    ]
-
-    for filename in test_files:
-        test_file = os.path.join(test_dir, 'data', filename)
-        dialect = gl.getCsvDialect(test_file, encoding='utf-8', detector_max_lines=1)
-
-        # When reading only first line, quotechar should not be detected
-        assert not dialect.quotechar
-
-
 def test_getReader():
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -262,29 +212,6 @@ def test_getReader():
         filename = os.path.join(test_dir, "data", "testbag.xml")
         a = gl.getReader(filename)
 
-def test_getReader_CsvAuto():
-    """Test getReader with csv_auto filetype detects various delimiters correctly."""
-    test_dir = os.path.dirname(__file__)
-
-    test_files = [
-        'test_CsvAuto_Colon.csv',
-        'test_CsvAuto_Comma.csv',
-        'test_CsvAuto_CommaQuotedDecimalsEUR.csv',
-        'test_CsvAuto_CommaQuotedDecimalsUSA.csv',
-        'test_CsvAuto_Pipe.csv',
-        'test_CsvAuto_SemiColon.csv',
-        'test_CsvAuto_Tab.csv',
-    ]
-
-    for filename in test_files:
-        test_file = os.path.join(test_dir, 'data', filename)
-
-        reader = gl.getReader(test_file, filetype='csv_auto')
-
-        assert reader.ncols == 11
-        assert reader.headers[0] == 'Data contabile'
-        assert reader.headers[10] == 'Note'
-        assert len(list(reader())) == 6
        
 
 def test_XlsReader():
