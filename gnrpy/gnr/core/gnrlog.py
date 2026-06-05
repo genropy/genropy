@@ -252,3 +252,5 @@ class AuditLogger(object):
 
     def log(self, statement, *args, **kwargs):
         self.loggers.get(statement).log(self.DEFAULT_LEVEL, *args, **kwargs)
+
+

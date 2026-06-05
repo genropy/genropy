@@ -62,7 +62,8 @@ import sys
 import re
 import copy
 import pickle as pickle
-from datetime import datetime, timedelta
+import uuid
+from datetime import datetime, timedelta, timezone
 import urllib.request, urllib.parse, urllib.error
 import urllib.parse
 
@@ -70,7 +71,7 @@ import requests
 
 from gnr.core import gnrstring, logger
 from gnr.core.gnrclasses import GnrClassCatalog
-from gnr.core.gnrlang import GnrObject, GnrException #setCallable
+from gnr.core.gnrlang import GnrObject, GnrException, getUuid #setCallable
 from gnr.core.gnrlang import file_types
 
 
@@ -1881,11 +1882,12 @@ class Bag(GnrObject):
 #        setCallable(self, name, argstring=argstring, func=func)
         
     #-------------------- toXml --------------------------------
-    def toXml(self, filename=None, encoding='UTF-8', typeattrs=True, typevalue=True, unresolved=False,
+    def toXml(self, filename=None, encoding='UTF-8', typeattrs=True,
+              typevalue=True, unresolved=False,
               addBagTypeAttr=True, output_encoding=None,
               autocreate=False, translate_cb=None, self_closed_tags=None,
-              omitUnknownTypes=False, catalog=None, omitRoot=False, forcedTagAttr=None, docHeader=None,
-              mode4d=False,pretty=False):
+              omitUnknownTypes=False, catalog=None, omitRoot=False,
+              forcedTagAttr=None, docHeader=None, pretty=False):
         """Return a complete standard XML version of the Bag, including the encoding
         tag <?xml version=\'1.0\' encoding=\'UTF-8\'?> (the *docHeader* default value)
         
@@ -1924,7 +1926,7 @@ class Bag(GnrObject):
                                 unresolved=unresolved, autocreate=autocreate, forcedTagAttr=forcedTagAttr,
                                 translate_cb=translate_cb, self_closed_tags=self_closed_tags,
                                 omitUnknownTypes=omitUnknownTypes, catalog=catalog, omitRoot=omitRoot,
-                                docHeader=docHeader,mode4d=mode4d,pretty=pretty)
+                                docHeader=docHeader, pretty=pretty)
                                 
 
     def toJson(self,typed=True,nested=False):
@@ -2894,11 +2896,74 @@ GeoCoderBagNew = GeoCoderBag #compatibility
 class BagCbResolver(BagResolver):
     """A standard resolver. Call a callback method, passing its kwargs parameters"""
     classArgs = ['method']
-        
+
     def load(self):
         """TODO"""
         return self.method(**self.kwargs)
-        
+
+
+class EnvResolver(BagResolver):
+    """Expose an environment variable as a lazy bag node.
+
+    With ``cacheTime=0`` (default) re-reads ``os.environ`` on every access,
+    so runtime changes are visible. ``cacheTime=N`` caches for N seconds;
+    ``cacheTime=-1`` reads once and freezes."""
+    classKwargs = {'cacheTime': 0, 'readOnly': True, 'default': None}
+    classArgs = ['var_name']
+
+    def load(self):
+        return os.environ.get(self.var_name, self.default)
+
+
+class UidResolver(BagResolver):
+    """Generate a stable identifier on first access.
+
+    Default (``version=None``): 22-char base64-urlsafe id from
+    :func:`gnr.core.gnrlang.getUuid`. ``version='uuid1'`` / ``'uuid4'``
+    yield standard 36-char UUID strings.
+
+    Default ``cacheTime=-1`` makes the id stable for the lifetime of the
+    bag; pass ``cacheTime=0`` to regenerate on every access."""
+    classKwargs = {'cacheTime': -1, 'readOnly': True, 'version': None}
+    classArgs = ['version']
+
+    _generators = {
+        'uuid1': lambda: str(uuid.uuid1()),
+        'uuid4': lambda: str(uuid.uuid4()),
+    }
+
+    def load(self):
+        if self.version is None:
+            return getUuid()
+        gen = self._generators.get(self.version)
+        if gen is None:
+            raise ValueError(f"Unsupported UID version: {self.version!r}. "
+                             f"Use None (default), 'uuid1' or 'uuid4'.")
+        return gen()
+
+
+class TsResolver(BagResolver):
+    """Expose the current timestamp as a lazy bag node.
+
+    Three behaviors via ``cacheTime``:
+      * ``cacheTime=0`` (default): live, re-read on every access
+      * ``cacheTime=N``: refresh every N seconds
+      * ``cacheTime=-1``: snapshot at first access, frozen forever
+        (e.g. ``created_at``)
+
+    Returns a naive ``datetime`` instance. Formatting is the consumer's
+    responsibility (``value.isoformat()``, ``value.strftime(...)``)."""
+    classKwargs = {'cacheTime': 0, 'readOnly': True, 'tz': 'local'}
+    classArgs = []
+
+    def load(self):
+        if self.tz == 'utc':
+            return datetime.now(timezone.utc).replace(tzinfo=None)
+        if self.tz == 'local':
+            return datetime.now()
+        raise ValueError(f"Unsupported tz: {self.tz!r}. Use 'local' or 'utc'.")
+
+
 class UrlResolver(BagResolver):
     """TODO"""
     classKwargs = {'cacheTime': 300, 'readOnly': True}

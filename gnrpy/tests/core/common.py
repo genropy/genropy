@@ -6,7 +6,9 @@ import os.path
 import tempfile
 import shutil
 import random
-from gnr.app.gnrdeploy import InstanceMaker
+
+import gnr.app.gnrapp as ga
+from gnr.dev.makers.instance import InstanceMaker
 
 class BaseGnrTest:
     """
@@ -78,7 +80,7 @@ class BaseGnrTest:
             fp.write(f"""<?xml version="1.0" ?>
 <GenRoBag>
         <wsgi debug="True::B" reload="True::B" port="8080"/>
-        <gui css_theme="modern"/>
+        <gui css_theme="{os.environ.get('GNR_CSS_THEME', 'mimi')}"/>
         <jslib dojo_version="11" gnr_version="11"/>
         <resources>
                 <common/>
@@ -105,10 +107,25 @@ class BaseGnrTest:
     def teardown_class(cls):
         """Teardown testing environment"""
         shutil.rmtree(cls.tmp_conf_dir)
-        os.environ.pop("GENRO_GNRFOLDER")
+        os.environ.pop("GENRO_GNRFOLDER", None)
 
 class BaseGnrAppTest(BaseGnrTest):
-    pass
+    app_name = 'gnrdevelop'
+    
+    @classmethod
+    def setup_class(cls):
+        super().setup_class()
+        cls._tempdir = tempfile.mkdtemp()
+        cls.app = ga.GnrApp(cls.app_name, db_attrs=dict(
+            implementation='sqlite',
+            dbname=os.path.join(cls._tempdir, 'testing'),
+        ))
+
+    @classmethod
+    def teardown_class(cls):
+        super().teardown_class()
+        if cls._tempdir and os.path.exists(cls._tempdir):
+            shutil.rmtree(cls._tempdir)
 
 def checkInstance(instance_name):
     """Attempt to load a Genropy instance.

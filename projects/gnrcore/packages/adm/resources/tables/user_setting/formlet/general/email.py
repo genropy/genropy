@@ -4,7 +4,8 @@ info = {
     "code":'email',
     "caption":"!![en]Email",
     "priority":1,
-    "editing_path":"adm"
+    "editing_path":"adm",
+    "tags":"NOBODY"
 }
 
 class Formlet(BaseComponent):

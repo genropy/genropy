@@ -34,7 +34,6 @@ def rect(**kwargs):
 
 class Timetable(BaseComponent):
     py_requires = 'foundation/tools:CSSHandler'
-    css_requires = 'public'
 
     def tt_left(self, bc, wkdlist):
         center = bc.contentPane(region='center')

@@ -1,0 +1,63 @@
+/* ==========================================================================
+   gnr_dojotheme/Toolbar.css — Flat toolbar baseline replacing tundra PNG.
+   ========================================================================== */
+
+/* --- Toolbar container --- */
+.gnr_dojotheme .dijitToolbar {
+    padding: 0.2em 0 0.1em 0.2em;
+    border-bottom: 1px solid var(--border-color, #ddd);
+    background-color: var(--toolbar-bg, #EDEDEE);
+    background-image: var(--toolbar-gradient, none);
+    color: var(--toolbar-color);
+}
+
+/* --- Toolbar buttons: transparent by default --- */
+.gnr_dojotheme .dijitToolbar .dijitButtonNode {
+    background: none;
+    background-image: none;
+    margin: 0;
+    padding: 0;
+    border: none;
+}
+
+.gnr_dojotheme .dijitToolbar .dijitButton,
+.gnr_dojotheme .dijitToolbar .dijitToggleButton,
+.gnr_dojotheme .dijitToolbar .dijitDropDownButton {
+    background: none;
+    background-image: none;
+    margin: 0.1em;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+/* --- Hover state --- */
+.gnr_dojotheme .dijitToolbar .dijitButtonHover,
+.gnr_dojotheme .dijitToolbar .dijitToggleButtonHover,
+.gnr_dojotheme .dijitToolbar .dijitDropDownButtonHover {
+    border-color: var(--border-color, #ddd);
+    background-color: var(--surface-bg, #fff);
+    background-image: none;
+}
+
+/* --- Checked / active state --- */
+.gnr_dojotheme .dijitToolbar .dijitButtonChecked,
+.gnr_dojotheme .dijitToolbar .dijitToggleButtonChecked {
+    background-color: var(--card-surface, #F2F2F7);
+    border-color: var(--border-strong, #aab4c4);
+    background-image: none;
+}
+
+/* --- Checked + hover --- */
+.gnr_dojotheme .dijitToolbar .dijitButtonCheckedHover,
+.gnr_dojotheme .dijitToolbar .dijitToggleButtonCheckedHover {
+    background-color: var(--border-light, #efefef);
+    border-color: var(--border-strong, #aab4c4);
+    background-image: none;
+}
+
+/* --- Toolbar label --- */
+.gnr_dojotheme .dijitToolbar label {
+    padding: 0.2em 0.2em 0 0.4em;
+}

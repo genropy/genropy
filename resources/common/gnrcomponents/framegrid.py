@@ -148,7 +148,7 @@ class FrameGridTools(BaseComponent):
                                 **kwargs)
     @struct_method
     def fgr_slotbar_gridsemaphore(self,pane,**kwargs):
-        return pane.div(_class='editGrid_semaphore',padding_left='4px')
+        return pane.div(width='1.5em').div(_class='editGrid_semaphore')
 
     @extract_kwargs(cb=True,lbl=dict(slice_prefix=False))
     @struct_method
@@ -250,7 +250,8 @@ class FrameGridTools(BaseComponent):
     @public_method
     def fg_remoteGrouper(self,pane,table=None,groupedTh=None,groupedThViewResource=None,static=False,
                         grid_configurable=True,configurable=False,margin=None,pbl_classes=True,**kwargs):
-        self._th_mixinResource(groupedTh,table=table,resourceName=groupedThViewResource,defaultClass='View')
+        if not self._th_mixinResource(groupedTh,table=table,resourceName=groupedThViewResource,defaultClass='View',pane=pane):
+            return
         tree_nodeId = f'{groupedTh}_grouper_tree'
         static_kwargs = dictExtract(kwargs,'static_',pop=True)
         gth = pane.groupByTableHandler(table=table,frameCode=f'{groupedTh}_grouper',
@@ -416,7 +417,7 @@ class FrameGrid(BaseComponent):
                     editor_kwargs=None,**kwargs):
         pane.attributes.update(overflow='hidden')
         frame = pane.framePane(frameCode=frameCode,center_overflow='hidden',**kwargs)
-        frame.center.stackContainer(selectedPage=selectedPage)
+        frame.center.stackContainer(selectedPage=selectedPage, _class='framegrid_center')
         grid_kwargs.setdefault('fillDown', fillDown)
         grid_kwargs.update(footer_kwargs)
         grid_kwargs.update(columnset_kwargs)

@@ -2,38 +2,18 @@
 # encoding: utf-8
 import os
 import sys
-import glob
 import time
 
 import urllib.request, urllib.parse, urllib.error
 
 from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrsys import expandpath
 from gnr.core.gnrconfig import getGnrConfig
-
-
-def site_name_to_path(gnr_config, site_name):
-    path_list = []
-    if 'sites' in gnr_config['gnr.environment_xml']:
-        path_list.extend([expandpath(path) for path in gnr_config['gnr.environment_xml'].digest('sites:#a.path') if
-                          os.path.isdir(expandpath(path))])
-    if 'projects' in gnr_config['gnr.environment_xml']:
-        projects = [expandpath(path) for path in gnr_config['gnr.environment_xml'].digest('projects:#a.path') if
-                    os.path.isdir(expandpath(path))]
-        for project_path in projects:
-            path_list.extend(glob.glob(os.path.join(project_path, '*/sites')))
-        for path in path_list:
-            site_path = os.path.join(path, site_name)
-            if os.path.isdir(site_path):
-                return site_path
-        raise Exception(
-                'Error: no site named %s found' % site_name)
+from gnr.app.pathresolver import PathResolver
 
 
 def get_site_config( site_path, gnr_config):
     site_config_path = os.path.join(site_path, 'siteconfig.xml')
-    base_site_config = Bag(site_config_path)
     site_config = gnr_config['gnr.siteconfig.default_xml'] or Bag()
     template = site_config['site?template'] 
     if template:
@@ -47,8 +27,9 @@ def get_site_config( site_path, gnr_config):
 
 def get_site_url(site_name):
     gnr_config = getGnrConfig(set_environment=True)
+    path_resolver = PathResolver(gnr_config=gnr_config)
     if site_name:
-        site_path = site_name_to_path(gnr_config, site_name)
+        site_path = path_resolver.site_name_to_path(site_name)
         if not site_path:
             site_path = os.path.join(gnr_config['gnr.environment_xml.sites?path'] or '', site_name)
         if not site_path:

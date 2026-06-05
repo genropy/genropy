@@ -26,7 +26,6 @@ from gnr.core.gnrbag import Bag
 
 
 class FormHandler(BaseComponent):
-    css_requires='public'
 
     @extract_kwargs(palette=True,dialog=True,default=True,tree=True,link=True)
     @struct_method
@@ -288,14 +287,15 @@ class FormHandler(BaseComponent):
         
 
     
-    @struct_method               
+    @struct_method
     def fh_slotbar_form_semaphore(self,pane,**kwargs):
-        s = pane.div(_class='fh_semaphore',connect_onclick="""
+        pane.lightbutton(_class='fh_semaphore',action="""
             if(this.form.status=='readOnly'){
                 this.form.forceIgnoreReadOnly($1);
+            } else {
+                this.form.showSemaphoreStatus(this);
             }
             """)
-        s.tooltip(callback="return this.form.getSemaphoreStatus()",modifiers='Shift')
 
     
     @struct_method          

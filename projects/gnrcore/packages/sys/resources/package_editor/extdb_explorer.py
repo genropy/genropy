@@ -4,18 +4,18 @@
 # Created by Francesco Porcari on 2012-04-05.
 # Copyright (c) 2012 Softwell. All rights reserved.
 
-
-from collections import defaultdict
-from gnr.web.gnrwebpage import BaseComponent
-from gnr.core.gnrdecorator import public_method
-from gnr.web.gnrwebstruct import struct_method
-from gnr.core.gnrbag import Bag
-from gnr.sql.gnrsql import GnrSqlDb
-from gnr.app.gnrapp import GnrApp
-from gnr.core.gnrstring import boolean
-from time import time
-from gnr.app.gnrdeploy import PathResolver
 import os
+from time import time
+from collections import defaultdict
+
+from gnr.core.gnrbag import Bag
+from gnr.core.gnrstring import boolean
+from gnr.core.gnrdecorator import public_method
+from gnr.app.gnrapp import GnrApp
+from gnr.app.pathresolver import PathResolver
+from gnr.web.gnrwebpage import BaseComponent
+from gnr.web.gnrwebstruct import struct_method
+from gnr.sql.gnrsql import GnrSqlDb
 
 class ExtDbExplorer(BaseComponent):
     py_requires='package_editor/model_editor:TableModuleWriter'

@@ -32,14 +32,19 @@ import copy
 from time import time
 from datetime import timedelta
 from mako.lookup import TemplateLookup
-from base64 import b64decode
 import re
 import datetime
+import traceback
 
+from gnr.web import logger
+from gnr.web.gnrwebpage_proxy.frontend.template_lookup import lookup_template_class
+
+
+DEFAULT_CSS_THEME = os.environ.get('GNR_CSS_THEME', 'mimi')
 
 from gnr.core.gnrstring import toText, toJson, concat, jsquote,splitAndStrip,boolean,asDict
 from gnr.core.gnrdict import dictExtract
-from gnr.core.gnrlang import getUuid,gnrImport, GnrException, GnrSilentException, tracebackBag
+from gnr.core.gnrlang import getUuid,gnrImport, GnrException, GnrSilentException
 from gnr.core.gnrbag import Bag, BagResolver
 from gnr.core.gnrdecorator import public_method,deprecated
 from gnr.core.gnrclasses import GnrMixinNotFound
@@ -54,11 +59,11 @@ from gnr.web.gnrwebpage_proxy.connection import GnrWebConnection
 from gnr.web.gnrwebpage_proxy.serverbatch import GnrWebBatch
 from gnr.web.gnrwebpage_proxy.rpc import GnrWebRpc
 from gnr.web.gnrwebpage_proxy.developer import GnrWebDeveloper
-from gnr.web.gnrwebpage_proxy.gnrpdb import GnrPdbClient
 from gnr.web.gnrwebpage_proxy.utils import GnrWebUtils
 from gnr.web.gnrwebpage_proxy.pluginhandler import GnrWebPluginHandler
 from gnr.web.gnrwebpage_proxy.jstools import GnrWebJSTools
 from gnr.web.gnrwebstruct import GnrGridStruct
+from gnr.web.verifiers import GnrVerifier,AuthorizationBaseTagsVerifier
 
  # DO NOT REMOVE, old code relies on BaseComponent being defined in this file
 from gnr.web.gnrbaseclasses import BaseComponent # noqa: F401
@@ -185,7 +190,12 @@ class GnrWebPage(GnrBaseWebPage):
         self.page_timeout = self.site.config.getItem('page_timeout') or PAGE_TIMEOUT
         self.page_refresh = self.site.config.getItem('page_refresh') or PAGE_REFRESH
         self.private_kwargs = dict([(k[:2], v)for k, v in list(request_kwargs.items()) if k.startswith('__')])
-        self.pagetemplate = request_kwargs.pop('pagetemplate', None) or getattr(self, 'pagetemplate', None) or \
+        # ``_tpl`` is the short URL-friendly alias for ``pagetemplate`` —
+        # e.g. ``/page?_tpl=iphone_frame`` selects a different template
+        # without affecting any other dispatch.
+        self.pagetemplate = request_kwargs.pop('_tpl', None) or \
+                            request_kwargs.pop('pagetemplate', None) or \
+                            getattr(self, 'pagetemplate', None) or \
                             self.site.config['dojo?pagetemplate'] or 'standard.tpl'
         self.css_theme = request_kwargs.pop('css_theme', None) or getattr(self, 'css_theme', None) \
                         or self.site.config['gui?css_theme']
@@ -193,6 +203,7 @@ class GnrWebPage(GnrBaseWebPage):
                         or self.site.config['gui?css_theme_variant'] or 'base'
         self.css_icons = request_kwargs.pop('css_icons', None) or getattr(self, 'css_icons', None)\
                         or self.site.config['gui?css_icons'] or 'retina/gray'
+        self.color_variant = self.site.config['gui?color_variant']
         self.dojo_theme = request_kwargs.pop('dojo_theme', None) or getattr(self, 'dojo_theme', None)
         self.dojo_version = request_kwargs.pop('dojo_version', None) or getattr(self, 'dojo_version', None)
         self.envelope_js_requires= {}
@@ -218,7 +229,11 @@ class GnrWebPage(GnrBaseWebPage):
         self.onPreIniting(request_args, request_kwargs)
         self._call_handler = self.get_call_handler(request_args, request_kwargs)
         
-        self.onIniting(request_args, request_kwargs)
+        try:
+            self.onIniting(request_args, request_kwargs)
+        except Exception as e:
+            self.site.raiseIfDeveloper()
+            self._page_init_error = str(e)
         self._call_args = request_args or tuple()
         self._call_kwargs = dict(request_kwargs)
         if getattr(self,'skip_connection', False) or self._call_kwargs.get('method') == 'onClosePage':
@@ -304,7 +319,8 @@ class GnrWebPage(GnrBaseWebPage):
             
         self.page_id = page_id or getUuid()
         page_info = dict([(k,getattr(self,k,None)) for k in ATTRIBUTES_SIMPLEWEBPAGE])
-        data = Bag()   
+        data = Bag()
+        data['rootenv'] = Bag()
         data['pageArgs'] = kwargs
         data['class_info'] = class_info
         data['init_info'] = init_info
@@ -352,29 +368,62 @@ class GnrWebPage(GnrBaseWebPage):
         
     frontend = property(_get_frontend)
             
-    @property 
+    @property
     def wsk(self):
         if hasattr(self,'asyncServer'):
             return self.asyncServer.wsk
         return self.site.wsk
-    
+
+    @property
+    def currentDomain(self):
+        """Returns the current domain/workspace from site."""
+        return self.site.currentDomain
+
+    @property
+    def multidomain(self):
+        """Returns True if multidomain mode is enabled."""
+        return self.site.multidomain
+
+    @property
+    def currentDomainIdentifier(self):
+        """Returns the unique identifier for the current domain.
+
+        In multidomain: {site_name}_{domain}
+        In single-domain: {site_name}
+        """
+        return self.site.currentDomainIdentifier
+
     @property
     def wsk_enabled(self):
         if not hasattr(self, '_wsk_enabled'):
-            self._wsk_enabled = self.wsk and self.getPreference('experimental.wsk_enabled',pkg='sys')
+            self._wsk_enabled = self.wsk and not self.getPreference('experimental.wsk_disabled',pkg='sys')
         return self._wsk_enabled
-    
-    @property 
+
+    @property
+    def async_endpoint(self):
+        """Return the async-server endpoint (port number or full ws/wss URL).
+
+        Resolution order:
+          1. ``GNR_ASYNC_URL`` env var — supports a deploy in a separate
+             container; value can be a port number or a ``ws://``/``wss://`` URL.
+          2. ``sockets/async_port`` file — written by the local async server.
+          3. ``None`` — caller falls back to ``window.location.port`` client-side.
+        """
+        if not hasattr(self, '_async_endpoint'):
+            value = os.environ.get('GNR_ASYNC_URL')
+            if not value:
+                port_file = os.path.join(self.site.site_path, 'sockets', 'async_port')
+                if os.path.isfile(port_file):
+                    with open(port_file, 'r') as f:
+                        value = f.read().strip()
+            self._async_endpoint = value or None
+        return self._async_endpoint
+
+    @property
     def dev(self):
         if not hasattr(self, '_dev'):
             self._dev = GnrWebDeveloper(self)
         return self._dev
-        
-    @property 
-    def pdb(self):
-        if not hasattr(self, '_pdb'):
-            self._pdb = GnrPdbClient(self)
-        return self._pdb
 
     @property
     def utils(self):
@@ -453,7 +502,8 @@ class GnrWebPage(GnrBaseWebPage):
                                maxdate=datetime.date.max, mindate=datetime.date.min,
                                user=self.user, userTags=self.userTags, pagename=self.pagename,
                                mainpackage=self.mainpackage, _user_conf_expirebag=expirebag,
-                               external_host=self.external_host)
+                               external_host=self.external_host,
+                               currentDomain=self.currentDomain)
             
             self._db.setLocale()
             avatar = self.avatar
@@ -557,7 +607,6 @@ class GnrWebPage(GnrBaseWebPage):
         
     def __call__(self):
         """Internal method dispatcher"""
-        self.pdb.onPageStart()    
         self.onInit() ### kept for compatibility
         self._onBegin()
         args = self._call_args
@@ -596,19 +645,29 @@ class GnrWebPage(GnrBaseWebPage):
             self.rpc.error = 'gnrsilent'
             result = Bag(topic=e.topic,parameters=e.parameters)
         except GnrException as e:
-            if self.site.debug and (self.isDeveloper() or self.site.force_debug):
-                raise
+            self.site.raiseIfDeveloper()
             self.rpc.error = 'gnrexception'
             result = str(e)
         except Exception as e:
-            if self.site.debug and (self.isDeveloper() or self.site.force_debug):
-                raise
-            else:
-                exception_record = self.site.writeException(exception=e, traceback=tracebackBag())
-                self.rpc.error = 'server_exception'
-                result = '<div>%s</div>' %str(e)
-                if exception_record:
-                    result = '%s <br/> Check Exception Id: %s' %(result,exception_record['id'])
+            self.site.raiseIfDeveloper()
+            tb_text = traceback.format_exc()
+            error_id = self.site.errorHandler(
+                exception=e,
+                error_type='rpc_exception',
+                notify_user=True,
+                traceback=True,
+                rpc_method=method,
+                rpc_kwargs=Bag(kwargs)
+            )
+            self.rpc.error = 'server_exception'
+            self.envelope_error_traceback = tb_text
+            result = '<div>%s</div>' %str(e)
+            if error_id:
+                if self.isDeveloper():
+                    detail_url = '/sys/ep_error?error_code=%s' % error_id
+                    result = '%s <br/> Exception Id: <a href="%s" target="_blank">%s</a>' % (result, detail_url, error_id)
+                else:
+                    result = '%s <br/> Check Exception Id: %s' % (result, error_id)
         result_handler = getattr(self.rpc, 'result_%s' % mode.lower())
         return_result = result_handler(result)
         return return_result
@@ -625,8 +684,17 @@ class GnrWebPage(GnrBaseWebPage):
             return AUTH_FORBIDDEN
         return AUTH_OK
     
-    def _checkRootPage(self):
+    @property
+    def avatar_rootpage(self):
+        if not self.avatar:
+            return
         avatar_rootpage = self.avatar.avatar_rootpage or self.rootenv['singlepage'] if self.avatar else None
+        if avatar_rootpage and avatar_rootpage.startswith('/') and self.multidomain:
+            return f'/{self.currentDomain}{avatar_rootpage}'
+        return avatar_rootpage
+    
+    def _checkRootPage(self):
+        avatar_rootpage = self.avatar_rootpage
         if self.pageOptions.get('standAlonePage') \
             or self.root_page_id or not self.avatar \
                 or not avatar_rootpage:
@@ -1011,17 +1079,39 @@ class GnrWebPage(GnrBaseWebPage):
         if 'MSIE' in user_agent and not 'chromeframe' in user_agent:
             raise GnrUnsupportedBrowserException
         self.charset = 'utf-8'
+        self.db  # ensure db env (storename, currentDomain) is set before reading preferences
         arg_dict = self.build_arg_dict(**kwargs)
         tpl = self.pagetemplate
         if not isinstance(tpl, str):
             tpl = '%s.%s' % (self.pagename, 'tpl')
+        self.htmlHeaders()
+
+        # When ``experimental.no_mako`` is on, look for a ``<name>.py``
+        # struct template in the same resource dirs the Mako lookup uses.
+        # If one is found, render it; otherwise fall through to Mako so a
+        # missing struct template never breaks the page.
+        no_mako = self.getPreference('experimental.no_mako', pkg='sys')
+        if no_mako:
+            tpl_name = tpl[:-4] if tpl.endswith('.tpl') else tpl
+            template_cls = lookup_template_class(self.tpldirectories, tpl_name)
+            if template_cls is not None:
+                template = template_cls(self)
+                if not template.check_access():
+                    raise GnrWebPageException(
+                        "Access denied for template '%s'" % tpl_name)
+                return template.render(arg_dict)
+            logger.warning(
+                "no_mako=True but no struct template '%s.py' found; "
+                "falling back to Mako '%s'", tpl_name, tpl)
+        # Fallback Mako (default behaviour, unchanged)
+        if not tpl.endswith('.tpl'):
+            tpl = '%s.tpl' % tpl
         lookup = TemplateLookup(directories=self.tpldirectories, output_encoding=self.charset,
                                 encoding_errors='replace')
         try:
             mytemplate = lookup.get_template(tpl)
         except:
             raise GnrWebPageException("No template %s found in %s" % (tpl, str(self.tpldirectories)))
-        self.htmlHeaders()
         return mytemplate.render(mainpage=self, **arg_dict).decode()
         
     def rpc_changeLocale(self, locale):
@@ -1158,33 +1248,29 @@ class GnrWebPage(GnrBaseWebPage):
         handler = getattr(proxy_object, submethod, None)
         if not handler or not getattr(handler, 'is_rpc', False):
             handler = getattr(proxy_object, '%s_%s' % (prefix, submethod),None)
-        
-        if handler and getattr(handler,'signed',None):
+    
+        if not handler:
+            self.clientPublish('floating_message',message='missing public method %s' %method,messageType='error')
+            return
+        if getattr(handler,'signed',None):
             error = self.site.auth_token_generator.verify_url(self.request._request.url)
             if error:
                 raise GnrSignedTokenException(error)
-            
-        if handler and getattr(handler, 'tags',None):
-            userTags = self.userTags or self.basicAuthenticationTags()
-            if not self.application.checkResourcePermission(handler.tags, userTags):
-                raise self.exception(GnrUserNotAllowed,method=method)
-        if not handler:
-            self.clientPublish('floating_message',message='missing public method %s' %method,messageType='error')
+        verifier_error = None
+        if getattr(handler,'verifier',None):
+            verifier_class = handler.verifier
+            if issubclass(verifier_class,GnrVerifier):
+                verifier_error = verifier_class(self)()
+            else:
+                raise GnrException('Verifier wrong class')
+        elif getattr(handler, 'tags',None):
+            verifier = AuthorizationBaseTagsVerifier(self)
+            verifier_error = verifier(tags=handler.tags)
+        if verifier_error:
+            raise verifier_error                
         return handler
 
-    def basicAuthenticationTags(self):
-        authorization = self.request.headers.get('Authorization')
-        if not authorization:
-            raise GnrBasicAuthenticationError('Missing Basic Authorization')
-        authmode,login = authorization.split(' ')
-        if authmode!='Basic':
-            raise GnrBasicAuthenticationError('Wrong Authorization Mode')
-        user,pwd = b64decode(login).decode().split(':')
-        self.avatar = self.application.getAvatar(user,pwd,authenticate=True)
-        if not self.avatar:
-            raise GnrBasicAuthenticationError('Wrong Authorization Login')
-        return self.avatar.user_tags
-        
+
     def getWsMethod(self, method):
         """TODO
         
@@ -1242,6 +1328,7 @@ class GnrWebPage(GnrBaseWebPage):
         arg_dict['baseUrl'] = self.site.home_uri
         kwargs['servertime'] = datetime.datetime.now()
         kwargs['websockets_url'] = '/websocket' if self.wsk_enabled else None
+        kwargs['websockets_endpoint'] = self.async_endpoint if self.wsk_enabled else None
         self.getPwaIntegration(arg_dict)
         self.getSquareLogoUrl(arg_dict)
         self.getCoverLogoUrl(arg_dict)
@@ -1297,7 +1384,20 @@ class GnrWebPage(GnrBaseWebPage):
         css_path, css_media_path = self.get_css_path()
         arg_dict['css_requires'] = css_path
         arg_dict['css_media_requires'] = css_media_path
-        
+        # Staging visual cue: env vars take precedence over siteconfig.
+        # Raw style wins over the colour shortcut. When both are empty
+        # the rendered HTML matches the legacy layout.
+        # ``_calling_page_id`` is injected by the client when building an
+        # iframe (see genro_widgets setSrc_do): its presence flags that this
+        # page is being rendered inside another page, so the staging cue
+        # should not be drawn around it.
+        arg_dict['is_subframe'] = bool(kwargs.get('_calling_page_id'))
+        arg_dict['staging_style'] = (
+            os.environ.get('GNR_STAGING_STYLE')
+            or self.site.config['gui?staging_style'] or '')
+        arg_dict['staging_colour'] = (
+            os.environ.get('GNR_STAGING_COLOUR')
+            or self.site.config['gui?staging_colour'] or '')
         return arg_dict
     
     def getPwaIntegration(self, arg_dict):
@@ -1352,6 +1452,25 @@ class GnrWebPage(GnrBaseWebPage):
         mtime = gnr_static_handler.mtime(*args)
         url = '%s?mtime=%0.0f' % (url, mtime)
         return url
+
+    # Vendored bundles loaded lazily by widgets need a cache-busting token so
+    # the browser refetches them whenever the file on disk changes. The map
+    # below keys each bundle to a path under the 'rsrc' storage; widgets read
+    # the resulting mtime via genro.getData('gnr.vendoredMtime.<key>').
+    _VENDORED_BUNDLES = {
+        'codemirror6': ('js_libs', 'codemirror6', 'codemirror6.bundle.js'),
+    }
+
+    def _vendoredBundlesMtime(self):
+        rsrc = self.site.storage('rsrc')
+        out = {}
+        for key, path in self._VENDORED_BUNDLES.items():
+            try:
+                mtime = rsrc.mtime(*path)
+            except Exception:
+                mtime = None
+            out[key] = int(mtime) if mtime else 0
+        return out
         
     def homeUrl(self):
         """TODO"""
@@ -1428,20 +1547,42 @@ class GnrWebPage(GnrBaseWebPage):
             return 'mobile'
         return self.getUserPreference('theme.device_mode',pkg='sys') or 'std'
 
-    def get_bodyclasses(self):   #  is still necessary _common_d11?
-        """TODO"""
-        theme_variant = self.getPreference('theme.theme_variant',pkg='sys') or ''
-        if theme_variant:
-            theme_variant = 'theme_variant_%s' %theme_variant
-        theme_variant = '%s mode_%s' %(theme_variant,self.device_mode)
-        return '%s %s %s _common_d11 pkg_%s page_%s %s ' % ((self.site.config['gui?css_theme'] or ''),
-        self.frontend.theme or '',theme_variant, self.packageId, self.pagename, getattr(self, 'bodyclasses', ''))
+    def get_bodyclasses(self):
+        color_variant = self.getUserPreference('theme.color_variant',pkg='sys') \
+                        or self.getPreference('theme.color_variant',pkg='sys') \
+                        or self.color_variant or ''
+        if color_variant:
+            color_variant = f'color_variant_{color_variant}'
+        color_variant = f'{color_variant} mode_{self.device_mode}'
+        css_theme = self.get_css_theme() or DEFAULT_CSS_THEME
+        # '_common_d11' is always included for backward compatibility.
+        # When using a different dojo version (e.g. '20'), its class is added
+        # so that version-specific CSS can override the base styles.
+        frontend_theme = self.frontend.theme or ''
+        extra_classes = getattr(self, 'bodyclasses', '')
+        dojo_ver = getattr(self, 'dojo_version', '11') or '11'
+        common_classes = '_common_d11'
+        if dojo_ver != '11':
+            common_classes = f'_common_d11 _common_d{dojo_ver}'
+        debug_class = 'gnr_debug' if self.site.debug else ''
+        return f'{css_theme} {frontend_theme} gnr_dojotheme {color_variant} {common_classes} pkg_{self.packageId} page_{self.pagename} {extra_classes} {debug_class}'
         
     def get_css_genro(self):
         """TODO"""
         css_genro = self.frontend.css_genro_frontend()
+        gnr_static_handler = self.site.storage('gnr')
         for media in list(css_genro.keys()):
-            css_genro[media] = [self.mtimeurl(self.gnrjsversion, 'css', '%s.css' % f) for f in css_genro[media]]
+            expanded = []
+            for f in css_genro[media]:
+                css_dir = f + '_css'
+                dir_path = gnr_static_handler.internal_path(self.gnrjsversion, 'css', css_dir)
+                if os.path.isdir(dir_path):
+                    for name in sorted(os.listdir(dir_path)):
+                        if name.endswith('.css'):
+                            expanded.append(self.mtimeurl(self.gnrjsversion, 'css', css_dir, name))
+                else:
+                    expanded.append(self.mtimeurl(self.gnrjsversion, 'css', '%s.css' % f))
+            css_genro[media] = expanded
         return css_genro
         
     def _get_domSrcFactory(self):
@@ -1586,9 +1727,10 @@ class GnrWebPage(GnrBaseWebPage):
     
     @property
     def userLocalTags(self):
-        if not hasattr(self,'_rootenv'):
-             return
-        return self.rootenv['user_local_tags']
+        rootenv = self.rootenv
+        if not rootenv:
+            return
+        return rootenv['user_local_tags']
     
     @property
     def userMenu(self):
@@ -1654,17 +1796,67 @@ class GnrWebPage(GnrBaseWebPage):
         return self.application.checkResourcePermission(self.auth_tags, self.userTags)
         
     def get_css_theme(self):
-        """Get the css_theme and return it. The css_theme get is the one defined the :ref:`siteconfig_gui`
-        tag of your :ref:`sites_siteconfig` or in a single :ref:`webpage` through the
-        :ref:`webpages_css_theme` webpage variable"""
-        return self.css_theme
+        """Get the css_theme with fallback chain: app_pref → siteconfig → DEFAULT_CSS_THEME.
+        If the configured theme does not exist on disk, falls back to DEFAULT_CSS_THEME."""
+        pref_theme = self.getPreference('theme.css_theme', pkg='sys')
+        css_theme = pref_theme or self.css_theme
+        if css_theme and not self.site.resource_loader.getResourceList(
+                self.resourceDirs, 'themes/%s' % css_theme, 'css'):
+            css_theme = DEFAULT_CSS_THEME
+        return css_theme
 
         
     def get_css_theme_variant(self):
-        """Get the css_theme and return it. The css_theme get is the one defined the :ref:`siteconfig_gui`
-        tag of your :ref:`sites_siteconfig` or in a single :ref:`webpage` through the
-        :ref:`webpages_css_theme` webpage variable"""
-        return self.css_theme_variant
+        """Get css_theme_variant with fallback chain: app_pref → siteconfig → 'base'."""
+        return self.getPreference('theme.css_theme_variant', pkg='sys') or self.css_theme_variant
+
+    @public_method
+    def getAvailableThemes(self):
+        """Discover available themes by scanning resourceDirs for themes/*.css files."""
+        themes = set()
+        for rdir in self.resourceDirs:
+            themes_path = os.path.join(rdir, 'themes')
+            snode = self.site.storageNode(themes_path)
+            if snode.exists and snode.isdir:
+                entries = snode.listdir()
+                for name in entries:
+                    basename = os.path.basename(name)
+                    if basename.endswith('.css') and not basename.startswith('.'):
+                        themes.add(basename[:-4])
+        return ','.join(sorted(themes))
+
+    @public_method
+    def getAvailableThemeVariants(self, theme=None):
+        """Discover available theme variants (CSS files inside themes/{theme}/)."""
+        theme = theme or self.get_css_theme() or DEFAULT_CSS_THEME
+        variants = set()
+        for rdir in self.resourceDirs:
+            snode = self.site.storageNode(os.path.join(rdir, 'themes', theme))
+            if snode.exists and snode.isdir:
+                for name in snode.listdir():
+                    basename = os.path.basename(name)
+                    if basename.endswith('.css') and not basename.startswith('.'):
+                        variants.add(basename[:-4])
+        return ','.join(sorted(variants))
+
+    @public_method
+    def getAvailableColorVariants(self, theme=None, theme_variant=None):
+        """Discover available color variants by parsing .color_variant_* classes
+        from the active theme variant CSS file."""
+        theme = theme or self.get_css_theme() or DEFAULT_CSS_THEME
+        theme_variant = theme_variant or self.get_css_theme_variant() or 'base'
+        color_variants = set()
+        css_path = 'themes/%s/%s' % (theme, theme_variant)
+        css_files = self.site.resource_loader.getResourceList(
+            self.resourceDirs, css_path, 'css')
+        for fpath in css_files:
+            snode = self.site.storageNode(fpath)
+            if snode.exists:
+                with snode.open('r') as f:
+                    content = f.read()
+                for match in re.finditer(r'\.color_variant_([\w-]+)\s*\{', content):
+                    color_variants.add(match.group(1))
+        return ','.join(sorted(color_variants))
 
     def get_css_icons(self):
         """Get the css_icons and return it. The css_icons get is the one defined the :ref:`siteconfig_gui`
@@ -1681,12 +1873,12 @@ class GnrWebPage(GnrBaseWebPage):
         
         :param requires: TODO If None, get the css_requires string included in a :ref:`webpage`"""
         requires = [r for r in (requires or self.css_requires) if r]
-        css_theme = self.get_css_theme() or 'ludo'
+        css_theme = self.get_css_theme() or DEFAULT_CSS_THEME
         css_icons = self.get_css_icons()
         css_theme_variant =  self.get_css_theme_variant()
         if css_theme:
             requires.append('themes/%s' %css_theme)
-        requires.append('themes/{css_theme}/{css_theme_variant}'.format(css_theme=css_theme,css_theme_variant=css_theme_variant))
+        requires.append('themes/{css_theme}/{css_theme_variant}'.format(css_theme=css_theme, css_theme_variant=css_theme_variant))
         if self.dbstore:
             requires.append('multidb_{dbstore}/theme_variant'.format(dbstore=self.dbstore))
         if css_icons:
@@ -2167,6 +2359,7 @@ class GnrWebPage(GnrBaseWebPage):
         if 'google' not in api_keys and google_mapkey:
             api_keys.setItem('google',None,mapkey = google_mapkey)
         page.data('gnr.api_keys',api_keys)
+        page.data('gnr.switches', Bag(self.application.config['switches']))
         if hasattr(self, 'main_root'):
             self.main_root(page, **kwargs)
             return (page, pageattr)
@@ -2194,8 +2387,8 @@ class GnrWebPage(GnrBaseWebPage):
                                 })
                                 genro.publish('dbevent_'+_node.label,{'changelist':changelist,'changeattr':_node.attr});""",
                                 changes="^gnr.dbchanges")
-        page.data('gnr.homepage', self.externalUrl(self.site.homepage))
-        page.data('gnr.homeFolder', self.externalUrl(self.site.home_uri).rstrip('/'))
+        page.data('gnr.homepage', self.externalUrl(f"{self.site.default_uri.rstrip('/')}{self.site.indexpage}"))
+        page.data('gnr.homeFolder', f"{self.externalUrl(self.site.default_uri).rstrip('/')}/")
         page.data('gnr.homeUrl', self.site.home_uri)
         page.data('gnr.defaultUrl', self.site.default_uri)
         page.data('gnr.siteName',self.siteName)
@@ -2203,6 +2396,7 @@ class GnrWebPage(GnrBaseWebPage):
         page.data('gnr.package',self.package.name)
         page.data('gnr.root_page_id',self.root_page_id)
         page.data('gnr.workdate', self.workdate) #serverpath='rootenv.workdate')
+        page.data('gnr.vendoredMtime', self._vendoredBundlesMtime())
         page.data('gnr.language', self.language,serverpath='rootenv.language',dbenv=True)
         
         page.data('gnr.table',getattr(self,'maintable',None))
@@ -2216,6 +2410,8 @@ class GnrWebPage(GnrBaseWebPage):
         page.data('gnr.remote_db',self.site.remote_db)
         if self.dbstore:
             page.data('gnr.dbstore',self.dbstore)
+        page.data('gnr.multidomain', self.multidomain)
+        page.data('gnr.currentDomain', self.currentDomain)
         if has_adm and not self.isGuest:
             page.dataRemote('gnr.user_preference', self.getUserPreference,username='^gnr.avatar.user',
                             _resolved=True,_resolved_username=self.user)
@@ -2457,7 +2653,7 @@ class GnrWebPage(GnrBaseWebPage):
         return result
 
     @public_method
-    def bagFieldDispatcher(self,pane,resource=None,module=None,table=None,
+    def bagFieldDispatcher(self,pane,resource=None,table=None,
                         bfhandler=None,field=None,version=None,valuepath=None,**kwargs):
         if bfhandler:
             handlername = bfhandler
@@ -2475,8 +2671,7 @@ class GnrWebPage(GnrBaseWebPage):
         box = pane.contentPane(datapath=valuepath,bagfieldmodule=bagfieldmodule)
         return getattr(self,handlername)(box,**kwargs)
         
-    
-    @public_method                                 
+    @public_method
     def remoteBuilder(self, handler=None,tag=None, py_requires=None,_inheritedAttributes=None,**kwargs):
         """TODO
         
@@ -2778,8 +2973,8 @@ class GnrWebPage(GnrBaseWebPage):
     def forbiddenRedirectPage(self):
         if hasattr(self,'forbidden_redirect'):
             return self.forbidden_redirect()
-        if self.avatar and self.avatar.avatar_rootpage:
-            return self.avatar.avatar_rootpage
+        if self.avatar_rootpage:
+            return self.avatar_rootpage
 
     def isLocalizer(self):
         """TODO"""

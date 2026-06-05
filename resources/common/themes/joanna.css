@@ -1,0 +1,63 @@
+/*joanna*/
+
+/* @group Default color palette */
+body {
+    /* --- Palette (gray scale + accent) --- */
+    --gray-600: #636366;
+    --accent-500: #007AFF;
+    --gray-300: #D8D8DC;
+    --gray-100: #F2F2F7;
+
+    /* --- Brand / Primary --- */
+    --primary-color: #636366;
+    --primary-dark: #3A3A3C;
+    --login-underlay-bg: #1D1D1F;
+    --primary-light: #D8D8DC;
+    --primary-lighter: #F2F2F7;
+    --accent-color: #007AFF;
+    --mainWindow-background: white;
+
+    /* --- Layout: frameindex --- */
+    --frameindexroot-background: #F2F2F7;
+    --frameindexcenter-background: #F2F2F7;
+    --frameindexroot-mobile-background: #48484A;
+
+    /* --- Rounded groups (transparent bar — joanna signature) --- */
+    --roundedgroup-bar: transparent;
+    --roundedgroup-bar-color: var(--primary-color);
+    --roundedgroup-border: #D1D1D6;
+    --card-surface: #F2F2F7;
+    --roundedgroup-surface: var(--card-surface);
+    --roundedgroup-shadow: rgba(0,0,0,0.06);
+
+    /* --- topLabelTable --- */
+    --topLabelTable-border-top: 2px solid var(--primary-light);
+    --topLabelTable-separator: var(--primary-light);
+
+    /* --- Form fields --- */
+    --field-border: #AEAEB2;
+    --field-bg: white;
+    --field-disabled-border: #C7C7CC;
+    --field-disabled-bg: #F2F2F7;
+    --field-readonly-border: #C7C7CC;
+    --field-readonly-bg: #F2F2F7;
+
+    /* --- Form-context shared overrides (formbuilder + formlet) --- */
+    --form-field-border: var(--primary-light);
+    --form-field-radius: var(--radius-sm);
+    --form-label-font-size: .8em;
+
+    /* --- Formlet-specific overrides --- */
+    --formlet-label-font-weight: normal;
+
+    /* --- Buttons: filled and tonal (accent-color #007AFF) --- */
+    --btn-filled-hover-bg:    #0061CC; /* #007AFF 80% + black */
+    --btn-filled-pressed-bg:  #004FA6; /* #007AFF 65% + black */
+    --btn-filled-selected-bg: #004FA6;
+    --btn-tonal-bg:           #E0EFFF; /* #007AFF 12% + white */
+    --btn-tonal-color:        #007AFF;
+    --btn-tonal-hover-bg:     #CCE4FF; /* #007AFF 20% + white */
+    --btn-tonal-pressed-bg:   #B7D9FF; /* #007AFF 28% + white */
+    --btn-tonal-selected-bg:  #B7D9FF;
+}
+/* @end */

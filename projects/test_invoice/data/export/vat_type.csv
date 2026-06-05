@@ -1,4 +1,4 @@
-__ins_ts,__del_ts,__mod_ts,__ins_user,code,description,vat_rate,pkey
-2026-02-10 12:26:41.152007,,2026-02-10 12:26:41.152011,,GST,Goods and Services Tax,10,GST
-2026-02-10 12:26:41.152381,,2026-02-10 12:26:41.152385,,FRE,GST Free,0,FRE
-2026-02-10 12:26:41.152511,,2026-02-10 12:26:41.152515,,INP,Input Taxed,0,INP
+__del_ts,__ins_ts,__ins_user,__mod_ts,code,description,vat_rate
+,2026-02-10 12:26:41.152007,,2026-02-10 12:26:41.152011,GST,Goods and Services Tax,10.00
+,2026-02-10 12:26:41.152381,,2026-02-10 12:26:41.152385,FRE,GST Free,0.00
+,2026-02-10 12:26:41.152511,,2026-02-10 12:26:41.152515,INP,Input Taxed,0.00

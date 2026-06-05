@@ -33,7 +33,8 @@ class TableHandlerView(BaseComponent):
                        virtualStore=None,condition=None,condition_kwargs=None,
                        structure_field=None,structure_field_kwargs=None,sections_kwargs=None,
                        store_kwargs=None,extendedQuery=None,**kwargs):
-        self._th_mixinResource(frameCode,table=table,resourceName=viewResource,defaultClass='View')
+        if not self._th_mixinResource(frameCode,table=table,resourceName=viewResource,defaultClass='View',pane=pane,safeMode=True):
+            return
         options = self._th_getOptions(frameCode)
         if extendedQuery is None:
             extendedQuery = options.get('extendedQuery')
@@ -228,9 +229,8 @@ class TableHandlerView(BaseComponent):
 
     def _th_handleQueryBySample(self,view,table=None,pars=None):
         fields = pars.pop('fields')
-        pars['dbtable'] = table
+        pars['table'] = table
         pars['datapath'] = '.queryBySample'
-        pars['border_spacing'] = '2px'
         pars.setdefault('_class','th_querysampleform')
         view.data('.query.bySampleIsDefault',pars.pop('isDefault',False))
         bar = view.top.slotToolbar('fb,*',childname='queryBySample')
@@ -946,6 +946,7 @@ class TableHandlerView(BaseComponent):
         inattr = pane.getInheritedAttributes()
         th_root = inattr['th_root']
         table = inattr['table']
+        viewResource = inattr.get('th_viewResource', '')
         gridId = '%s_grid' %th_root
 
         #SOURCE MENUQUERIES
@@ -992,20 +993,29 @@ class TableHandlerView(BaseComponent):
                    _onResult='FIRE .query.currentQuery="__newquery__";FIRE .query.refreshMenues;')
 
         #SOURCE MENUVIEWS
-        pane.dataController("""genro.grid_configurator.loadView(gridId, (currentView || favoriteView));
-                                """,
+        pane.dataController("""
+            if(genro.grid_configurator){
+                genro.grid_configurator.loadView(gridId, (currentView || favoriteView));
+                return;
+            }
+            this.watch('jsconf_loaded',function(){return genro.grid_configurator;},function(){
+                setTimeout(function(){
+                    genro.grid_configurator.loadView(gridId, (currentView || favoriteView));
+                },1);
+            });""",
                             currentView="^.grid.currViewPath",
                             favoriteView='^.grid.favoriteViewPath',
-                            _delay=1,gridId=gridId,_onBuilt=1)
+                            gridId=gridId,_onBuilt=1)
         q = Bag()
         pyviews = self._th_hook('struct',mangler=th_root,asDict=True)
         for k,v in list(pyviews.items()):
             prefix,name=k.split('_struct_')
             q.setItem(name,self._prepareGridStruct(v,table=table),caption=v.__doc__)
         pane.data('.grid.resource_structs',q)
-        pane.data('.grid.userobject_structs',self.th_userObjectViews(table=table,th_root=th_root))
+        pane.data('.grid.viewResource',viewResource)
+        pane.data('.grid.userobject_structs',self.th_userObjectViews(table=table,th_root=th_root,viewResource=viewResource))
         pane.dataRpc('.grid.userobject_structs',self.th_userObjectViews,
-                        table=table,th_root=th_root,
+                        table=table,th_root=th_root,viewResource=viewResource,
                         _loadAfter='^.grid.reload_userobjects_struct',
                         _onResult="""if(kwargs._loadAfter!==true){
                             PUT .grid.currViewPath = null;
@@ -1133,6 +1143,24 @@ class TableHandlerView(BaseComponent):
     def th_slotbar_pageHooksSelector(self,pane,**kwargs):
         pane.multiButton(items='^.viewPages',value='^.viewPage',identifier='pageName')
       
+    def _th_addRequiredColumns(self, tblobj, hiddencolumns):
+        if not hiddencolumns:
+            return hiddencolumns
+        columns = [c.strip() for c in hiddencolumns.split(',')]
+        for col in list(columns):
+            colname = col.lstrip('$')
+            colobj = tblobj.model.column(colname)
+            if colobj is None:
+                continue
+            req = colobj.attributes.get('required_columns')
+            if not req:
+                continue
+            for rc in req.split(','):
+                rc = rc.strip()
+                if rc and rc not in columns:
+                    columns.append(rc)
+        return ','.join(columns)
+
     @struct_method
     def th_gridPane(self, frame,table=None,th_pkey=None,
                         virtualStore=None,condition=None,unlinkdict=None,
@@ -1198,7 +1226,7 @@ class TableHandlerView(BaseComponent):
         gridattr.update(rowsPerPage=rowsPerPage,
                         dropTypes=None,dropTarget=True,
                         
-                        hiddencolumns=self._th_hook('hiddencolumns',mangler=th_root)(),
+                        hiddencolumns=self._th_addRequiredColumns(tblobj, self._th_hook('hiddencolumns',mangler=th_root)()),
                         dragClass='draggedItem',
                         selfsubscribe_runbtn="""
                             var currLinkedSelection = GET .#parent.linkedSelectionPars;
@@ -1499,7 +1527,7 @@ class TableHandlerView(BaseComponent):
                                genro.dlg.alert(alertmsg,dlgtitle);
                                  """, _fired="^.showQueryCountDlg", waitmsg='!!Working.....',
                               dlgtitle='!!Current query record count',alertmsg='=.currentQueryCountAsString')
-        box = pane.div(datapath='.query.where',onEnter='genro.nodeById(this.getInheritedAttributes().target).publish("runbtn",{"modifiers":null});')
+        box = pane.div(datapath='.query.where',onEnter='genro.nodeById(this.getInheritedAttributes().target).publish("runbtn",{"modifiers":null});',parentForm=False)
         box.data('.#parent.queryMode','S',caption='!!Search')
         box.div('^.#parent.queryMode?caption',_class='gnrfieldlabel th_searchlabel',
                 nodeId='%s_searchMenu_a' %th_root)
@@ -1594,13 +1622,17 @@ class THViewUtils(BaseComponent):
         return menu
 
     @public_method
-    def th_userObjectViews(self,table=None,th_root=None,objtype=None,**kwargs):
+    def th_userObjectViews(self,table=None,th_root=None,objtype=None,viewResource=None,**kwargs):
         objtype = objtype or 'view'
-        flagCode = '%s_grid' %th_root.split('_DUP_')[0]
-        userobjects = self.db.table('adm.userobject').userObjectMenu(objtype=objtype,flags='%s_%s' % (self.pagename, flagCode),table=table)
+        uoTable = self.db.table('adm.userobject')
+        userobjects = Bag()
+        if viewResource:
+            userobjects.update(uoTable.userObjectMenu(objtype=objtype,flags=f'RES_{viewResource}',table=table))
+        #backward compatibility: old gridId-based flags
+        flagCode = f'{th_root.split("_DUP_")[0]}_grid'
+        userobjects.update(uoTable.userObjectMenu(objtype=objtype,flags=f'{self.pagename}_{flagCode}',table=table))
         if self.pagename.startswith('thpage'):
-            #compatibility old saved views
-            userobjects.update(self.db.table('adm.userobject').userObjectMenu(objtype='view',flags='thpage_%s' % flagCode,table=table))
+            userobjects.update(uoTable.userObjectMenu(objtype='view',flags=f'thpage_{flagCode}',table=table))
         return userobjects
 
     

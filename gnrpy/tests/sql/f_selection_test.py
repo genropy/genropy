@@ -28,6 +28,7 @@ this test module focus on SqlSelection's methods
 
 import os, os.path
 import datetime
+import tempfile
 
 from gnr.sql.gnrsql import GnrSqlDb
 from gnr.core.gnrbag import Bag
@@ -87,10 +88,15 @@ class BaseDb(BaseGnrSqlTest):
         self.mysel.filter()
 
     def test_freeze(self):
-        freeze_fname = os.path.join(os.path.dirname(__file__), 'data/myselection')
+
+        freeze_dir = tempfile.mkdtemp(prefix='gnr_test_freeze_')
+        freeze_fname = os.path.join(freeze_dir, 'myselection')
         self.mysel.freeze(freeze_fname)
         sel = self.db.table('video.cast').frozenSelection(freeze_fname)
         assert self.mysel.data == sel.data
+        for f in os.listdir(freeze_dir):
+            os.remove(os.path.join(freeze_dir, f))
+        os.rmdir(freeze_dir)
 
     def xtest_formatSelection(self):
         sel = self.db.query('video.dvd', columns='$purchasedate, @movie_id.title AS title').selection()

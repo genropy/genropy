@@ -33,7 +33,7 @@ from datetime import datetime, timezone
 from collections import defaultdict
 from typing import Any
 
-from mako.template import Template
+from gnr.web.gnrwebpage_proxy.frontend.basepagetemplate import PageBuilder
 import aiohttp
 import asyncio
 from aiohttp import web
@@ -153,15 +153,24 @@ class GnrTask:
     def __post_init__(self):
         self.queue_name = self.queue_name if self.queue_name else "general"
 
-    async def completed(self, tasktbl, exectbl):
+    async def completed(self, tasktbl, exectbl, run_id=None):
         """
         The task has been executed and acknowledged, update
         the last execution timestamp accordingly
         """
+        end_ts = datetime.now(timezone.utc)
+        
         record = tasktbl.record(self.task_id).output('dict')
-        tasktbl.update(dict(last_execution_ts=datetime.now(timezone.utc)),
-                       record)                                    
+        tasktbl.update(dict(last_execution_ts=end_ts),
+                       record)
         tasktbl.db.commit()
+
+        if run_id:
+            record = exectbl.record(run_id).output('dict')
+            exectbl.update(dict(end_ts=end_ts),
+                           record)
+            exectbl.db.commit()
+        
 
     def is_due(self, timestamp=None, last_scheduled_ts=None):
         """
@@ -204,8 +213,6 @@ class GnrTask:
         key_hm = max(hmlist)
         result = '-'.join([str(y),str(m),str(d),str(int(key_hm/60)),str(key_hm%60)])
         return result
-
-        
 
     
 class GnrTaskScheduler:
@@ -277,11 +284,11 @@ class GnrTaskScheduler:
                                            parameters=x['parameters']),
                                    x['last_scheduled_ts']]
         
-    async def complete_task(self, task_id):
+    async def complete_task(self, task_id, run_id=None):
         task = self.tasks.get(task_id)[0]
         if task:
             logger.info("Task %s completed, saving", task_id)
-            await task.completed(self.tasktbl, self.exectbl)
+            await task.completed(self.tasktbl, self.exectbl, run_id)
         else:
             logger.error("Task %s not found, can't complete", task_id)
             
@@ -418,7 +425,7 @@ class GnrTaskScheduler:
             logger.info("Task run %s acknowledged", run_id)
             # update the task
             ack_run = self.pending_ack.pop(run_id)
-            await self.complete_task(ack_run[0]['task_id'])
+            await self.complete_task(ack_run[0]['task_id'], run_id=run_id)
             return web.json_response({"status": "acknowledged"})
         return web.json_response({"status": "unknown task"}, status=400)
 
@@ -444,118 +451,102 @@ class GnrTaskScheduler:
         return "ok"
     
     async def dashboard(self, request):
-        template_content = """
-        <html lang="en">
-        <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>Gnr Scheduler Dashboard</title>
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-4Q6Gf2aSP4eDXB8Miphtr37CMZZQ5oXLH2yaXMJ2w8e2ZtHTl7GptT4jmndRuHDT" crossorigin="anonymous">
-        </head>
-        <script>
-        setInterval(function () {
-        location.reload();
-        }, 2000); 
-        </script>
-        <body>
-        <div class="container">
-        <h1>Gnr Scheduler Dashboard</h1>
-        <h2>Status</h2>
-        <table class="table"><tbody>
-        
-        <tr><th>Startup time</th><td>${startup_time}</td>
-        <th>Server time</th><td>${scheduler_current_time}</td>
-        <th>Uptime</th><td>${server_uptime}</td></tr>
-        <tr><th>Total tasks</th><td>${total_tasks}</td>
-        <th>Total queue size</th><td>${total_queue_size}</td></tr>
-        </tbody></table>
-        
-        <h2>Queue details</h2>
-        <table class="table"><thead><tr>
-        <th scope="col">Queue</th>
-        <th scope="col">Items</th>
-        </tr></thead><tbody>
-        % for w in queues_sizes.items():
-        <tr>
-        <td>${w[0]}</td>
-        <td>${w[1]}</td>
-        </tr>
-        % endfor
-        </tbody></table>
-        
-        <h2>Running workers</h2>
-        % if workers:
-        <table class="table"><thead><tr>
-        <th scope="col">Worker ID</th>
-        <th scope="col">Queue</th>
-        <th scope="col">Last seen</th>
-        <th scope="col">Worked tasks</th>
-        </tr></thead><tbody>
-        % for w in workers.items():
-        <tr>
-        <td>${w[0]}</td>
-        <td>${w[1]['queue_name']}</td>
-        <td>${w[1]['lastseen']}</td>
-        <td>${w[1]['worked_tasks']}</td>
-        </tr>
-        % endfor
-        </tbody></table>
-        % else:
-        <div class="alert alert-danger" role="alert">
-        No workers connected!
-        </div>
-        % endif
-
-        <h2>Pending Acknowledgements</h2>
-        % if pending:
-        <table class="table"
-        <thead><tr>
-        <th scope="col">Queue</th>
-        <th scope="col">Run ID</th>
-        <th scope="col">Since</th>
-        </tr></thead><tbody>
-        % for k,v in pending.items():
-        <tr>
-        <td>${v[0]['queue_name']}</td>
-        <td>${k}</td><td>${v[1]}</td>
-        </tr>
-        % endfor
-        </tbody></table>
-        % else:
-        <div class="alert alert-success" role="alert">
-        No pending acks
-        </div>
-        % endif
-        
-        <h2>Failed tasks</h2>
-        % if failed:
-        <table class="table">
-        <thead><tr>
-        <th scope="col">Queue</th>
-        <th scope="col">Task Id</th>
-        <th scope="col">Run id</th>
-        </tr></thead><tbody>
-        % for a in failed:
-        <tr><td>${a['queue_name']}</td>
-        <td>${a['task_id']}</td>
-        <td>${a['run_id']}</td></tr>
-        % endfor
-        </tbody></table>
-        % else:
-        <div class="alert alert-success" role="alert">
-        No failed tasks.
-        </div>
-        % endif
-        </div>
-        </body></html>
-        """
-        t = Template(template_content, strict_undefined=True)
-        
         payload = self._get_status()
         return web.Response(
-            text=t.render(**payload),
+            text=self._render_dashboard(payload),
             content_type="text/html"
         )
+
+    def _render_dashboard(self, payload):
+        builder = PageBuilder()
+        head = builder.head
+        body = builder.body
+
+        head.child('meta', charset='utf-8')
+        head.child('meta', name='viewport',
+                   _content='width=device-width, initial-scale=1')
+        head.child('title', content='Gnr Scheduler Dashboard')
+        head.child(
+            'link',
+            href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css',
+            rel='stylesheet',
+            integrity='sha384-4Q6Gf2aSP4eDXB8Miphtr37CMZZQ5oXLH2yaXMJ2w8e2ZtHTl7GptT4jmndRuHDT',
+            crossorigin='anonymous',
+        )
+        head.child('script',
+                   content='setInterval(function () { location.reload(); }, 2000);')
+
+        container = body.child('div', _class='container')
+        container.child('h1', content='Gnr Scheduler Dashboard')
+
+        # ---- Status -----------------------------------------------------
+        container.child('h2', content='Status')
+        status_tbody = container.child('table', _class='table').child('tbody')
+        row1 = status_tbody.child('tr')
+        row1.child('th', content='Startup time')
+        row1.child('td', content=str(payload['startup_time']))
+        row1.child('th', content='Server time')
+        row1.child('td', content=str(payload['scheduler_current_time']))
+        row1.child('th', content='Uptime')
+        row1.child('td', content=str(payload['server_uptime']))
+        row2 = status_tbody.child('tr')
+        row2.child('th', content='Total tasks')
+        row2.child('td', content=str(payload['total_tasks']))
+        row2.child('th', content='Total queue size')
+        row2.child('td', content=str(payload['total_queue_size']))
+
+        # ---- Queue details ----------------------------------------------
+        container.child('h2', content='Queue details')
+        self._table(container, ['Queue', 'Items'],
+                    [(name, size) for name, size in payload['queues_sizes'].items()])
+
+        # ---- Running workers --------------------------------------------
+        container.child('h2', content='Running workers')
+        workers = payload['workers']
+        if workers:
+            self._table(container,
+                        ['Worker ID', 'Queue', 'Last seen', 'Worked tasks'],
+                        [(wid, w['queue_name'], w['lastseen'], w['worked_tasks'])
+                         for wid, w in workers.items()])
+        else:
+            container.child('div', _class='alert alert-danger', role='alert',
+                            content='No workers connected!')
+
+        # ---- Pending Acknowledgements -----------------------------------
+        container.child('h2', content='Pending Acknowledgements')
+        pending = payload['pending']
+        if pending:
+            self._table(container, ['Queue', 'Run ID', 'Since'],
+                        [(v[0]['queue_name'], k, v[1])
+                         for k, v in pending.items()])
+        else:
+            container.child('div', _class='alert alert-success', role='alert',
+                            content='No pending acks')
+
+        # ---- Failed tasks -----------------------------------------------
+        container.child('h2', content='Failed tasks')
+        failed = payload['failed']
+        if failed:
+            self._table(container, ['Queue', 'Task Id', 'Run id'],
+                        [(a['queue_name'], a['task_id'], a['run_id'])
+                         for a in failed])
+        else:
+            container.child('div', _class='alert alert-success', role='alert',
+                            content='No failed tasks.')
+
+        return builder.toHtml()
+
+    @staticmethod
+    def _table(parent, headers, rows):
+        table = parent.child('table', _class='table')
+        thead_tr = table.child('thead').child('tr')
+        for h in headers:
+            thead_tr.child('th', scope='col', content=h)
+        tbody = table.child('tbody')
+        for row in rows:
+            tr = tbody.child('tr')
+            for cell in row:
+                tr.child('td', content=str(cell))
 
     def _get_status(self):
         now = datetime.now(timezone.utc)

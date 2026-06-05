@@ -249,10 +249,15 @@ class MenuResolver(BagResolver):
         instanceMenu = self.getInstanceMenu()
         if instanceMenu:
             return instanceMenu
-        pkgMenus = self.app.config['menu?package']
-        if pkgMenus:
-            return self.legacyMenuFromPkgList(pkgMenus)
-        return self.mainPackageMenu(self._page.package.name)
+
+        pkgMenus = self.app.config.get('menu?package')
+        if pkgMenus is None:
+            # Try mainPackage first, fallback to all packages
+            mainPkgMenu = self.mainPackageMenu(self._page.package.name)
+            if mainPkgMenu and len(mainPkgMenu) > 0:
+                return mainPkgMenu
+            pkgMenus = '*'
+        return self.legacyMenuFromPkgList(pkgMenus)
     
     def mainPackageMenu(self,pkg):
         result = self.pkgMenu(pkg,className=getattr(self._page,'menuClass',None))
@@ -320,6 +325,7 @@ class MenuResolver(BagResolver):
                     menuLineBadge_attr = dictExtract(attributes,'menuLineBadge_',pop=False)
                     menuLineBadge_attr['table'] = menuLineBadge_attr.get('table') or attributes.get('table')
                     menuLineBadge_attr['handler'] = menuLineBadge
+                    
                 else:
                     menuLineBadge_attr = dictExtract(attributes,'titleCounter_',pop=False)
                     if isinstance(titleCounter_val, dict):
@@ -328,6 +334,7 @@ class MenuResolver(BagResolver):
                 if menuLineBadge_attr.get('table'):
                     self._page.subscribeTable(menuLineBadge_attr.get('table'), True, subscribeMode=True)
                     attributes['badgeContent'] = self._page.menu.getMenuLineBadge(**menuLineBadge_attr)
+            
             result.setItem(node.label, value, attributes)
         return result
 
@@ -546,6 +553,7 @@ class MenuResolver(BagResolver):
         attributes.setdefault('branchIdentifier',getUuid())
         kwargs = dict(attributes)
         kwargs.pop('titleCounter',None)
+        kwargs.pop('menuLineBadge',None)
         kwargs.pop('tag')
         cacheTime = kwargs.pop('cacheTime',None)
         xmlresolved = kwargs.pop('resolved',False)
@@ -559,9 +567,9 @@ class MenuResolver(BagResolver):
                             level_offset=self.level,
                             **kwargs)
         attributes['isDir'] = True
-        if menuLineBadge is True or titleCounter:
-            attributes['child_count'] =  len(sbresolver())
-            attributes['badgeContent'] = str(attributes['child_count'] or 0)
+        if menuLineBadge == '#' or titleCounter:
+            attributes['child_count'] = len(sbresolver())
+            attributes['badgeContent'] = attributes['child_count'] or None
         return sbresolver,attributes
 
     def nodeType_packageBranch(self,node):
@@ -752,11 +760,12 @@ class LookupBranchResolver(MenuResolver):
 
 class PackageMenuResolver(MenuResolver):
     def __init__(self, pkg=None,branchMethod=None, **kwargs):
-       super().__init__(pkg=pkg,
+        super().__init__(pkg=pkg,
                             branchMethod=branchMethod,
                             **kwargs)
-       self.pkg = pkg
-       self.branchMethod = branchMethod
+
+        self.pkg = pkg
+        self.branchMethod = branchMethod
 
     @property
     def sourceBag(self):
@@ -766,9 +775,9 @@ class PackageMenuResolver(MenuResolver):
 
 class DirectoryMenuResolver(MenuResolver):
     def __init__(self, dirpath=None, **kwargs):
-       super().__init__(dirpath=dirpath,**kwargs)
-       self.dirpath = dirpath
-       self.xmlresolved = False
+        super().__init__(dirpath=dirpath,**kwargs)
+        self.dirpath = dirpath
+        self.xmlresolved = False
 
     @property
     def sourceBag(self):

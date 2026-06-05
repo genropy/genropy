@@ -1,6 +1,8 @@
 import os.path
 import datetime
-
+import tempfile
+import csv
+    
 import pytest
 from gnr.core import gnrlist as gl
 
@@ -208,7 +210,7 @@ def test_getCsvDialect_limited_lines():
 
 
 def test_getReader():
-    import tempfile
+
     with tempfile.TemporaryDirectory() as tmpdir:
         filename = os.path.join(tmpdir, 'test.csv')
         with open(filename, "w") as wfp:
@@ -390,14 +392,59 @@ def test_sortByAttr():
     m2 = MockObj()
     m2.a = MockObj()
 
+
+def test_CsvReader_duplicate_columns():
+    """Test handling of duplicate column names in CSV files"""
+
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, newline='') as f:
+        csv_file = f.name
+        writer = csv.writer(f)
+        # Headers with duplicate 'name' column
+        writer.writerow(['id', 'name', 'surname', 'name', 'email'])
+        writer.writerow(['1', 'Mario', 'Rossi', 'Giuseppe', 'mario@test.com'])
+        writer.writerow(['2', 'Laura', 'Bianchi', 'Anna', 'laura@test.com'])
+
+    try:
+        reader = gl.CsvReader(csv_file)
+
+        # Check that duplicate column has been renamed
+        assert 'name' in reader.headers
+        assert 'name[3]' in reader.headers
+        assert reader.headers == ['id', 'name', 'surname', 'name[3]', 'email']
+
+        # Check index mapping
+        assert reader.index['name'] == 1
+        assert reader.index['name[3]'] == 3
+
+        # Read rows
+        rows = [row for row in reader()]
+        assert len(rows) == 2
+
+        # Test first row
+        row = rows[0]
+        assert row[0] == '1'
+        assert row[1] == 'Mario'
+        assert row[2] == 'Rossi'
+        assert row[3] == 'Giuseppe'
+        assert row[4] == 'mario@test.com'
+
+        # Access by name
+        assert row['id'] == '1'
+        assert row['name'] == 'Mario'
+        assert row['surname'] == 'Rossi'
+        assert row['name[3]'] == 'Giuseppe'
+        assert row['email'] == 'mario@test.com'
+
+    finally:
+        os.unlink(csv_file)
+
+
 def test_XlsxReader_duplicate_columns():
     """Test handling of duplicate column names in XLSX files"""
     try:
         from openpyxl import Workbook
     except ImportError:
         pytest.skip("openpyxl not available")
-
-    import tempfile
 
     with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as f:
         xlsx_file = f.name
@@ -451,8 +498,6 @@ def test_XlsReader_duplicate_columns():
         import xlwt
     except ImportError:
         pytest.skip("xlwt not available")
-
-    import tempfile
 
     with tempfile.NamedTemporaryFile(suffix='.xls', delete=False) as f:
         xls_file = f.name
@@ -545,8 +590,6 @@ def test_hGetAttr():
 
 def test_readTab():
     """Test tab-delimited file reading"""
-    import tempfile
-
     with tempfile.NamedTemporaryFile(mode='w', suffix='.tab', delete=False) as f:
         tab_file = f.name
         f.write("name\tage\tcity\n")
@@ -613,8 +656,6 @@ def test_GnrNamedList_dynamic_columns():
 
 def test_multiple_duplicate_columns():
     """Test handling of 3+ duplicate columns"""
-    import tempfile
-    import csv
 
     with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, newline='') as f:
         csv_file = f.name
@@ -685,8 +726,6 @@ def test_sortByItem_case_insensitive():
 
 def test_slugify_consistency_across_readers():
     """Test that CSV, XLS, and XLSX readers use consistent slugification"""
-    import tempfile
-    import csv
 
     # Headers with spaces and special characters
     headers = ['Transaction ID', 'User Name', 'Email-Address', 'Created At']

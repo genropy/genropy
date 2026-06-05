@@ -2,12 +2,11 @@
 # encoding: utf-8
 import sys
 import os
-import glob
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.core.gnrsys import expandpath
 from gnr.core.gnrconfig import getGnrConfig
 from gnr.app.gnrapp import GnrApp
+from gnr.app.pathresolver import PathResolver
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
 from gnr.db import logger
 
@@ -18,41 +17,6 @@ S_GNRHOME + ('data', 'instances'))
 GNRINSTANCES = os.path.join(*S_GNRINSTANCES)
 
 description = "create/update/check database models in Genro framework"
-
-
-def site_name_to_path(gnr_config, site_name):
-    path_list = []
-    if 'sites' in gnr_config['gnr.environment_xml']:
-        path_list.extend([expandpath(path) for path in gnr_config['gnr.environment_xml'].digest('sites:#a.path') if
-                          os.path.isdir(expandpath(path))])
-    if 'projects' in gnr_config['gnr.environment_xml']:
-        projects = [expandpath(path) for path in gnr_config['gnr.environment_xml'].digest('projects:#a.path') if
-                    os.path.isdir(expandpath(path))]
-        for project_path in projects:
-            path_list.extend(glob.glob(os.path.join(project_path, '*/sites')))
-        for path in path_list:
-            site_path = os.path.join(path, site_name)
-            if os.path.isdir(site_path):
-                return site_path
-        raise Exception(
-                'Error: no site named %s found' % site_name)
-
-def instance_name_to_path(gnr_config, instance_name):
-    path_list = []
-    if 'instances' in gnr_config['gnr.environment_xml']:
-        path_list.extend([expandpath(path) for path in gnr_config['gnr.environment_xml'].digest('instances:#a.path') if
-                          os.path.isdir(expandpath(path))])
-    if 'projects' in gnr_config['gnr.environment_xml']:
-        projects = [expandpath(path) for path in gnr_config['gnr.environment_xml'].digest('projects:#a.path') if
-                    os.path.isdir(expandpath(path))]
-        for project_path in projects:
-            path_list.extend(glob.glob(os.path.join(project_path, '*/instances')))
-        for path in path_list:
-            instance_path = os.path.join(path, instance_name)
-            if os.path.isdir(instance_path):
-                return instance_path
-        raise Exception(
-                'Error: no instance named %s found' % instance_name)
 
 
 def get_app(options):
@@ -70,18 +34,19 @@ def get_app(options):
         config_path = None
         
     gnr_config = getGnrConfig(config_path=config_path, set_environment=True)
+    path_resolver = PathResolver(gnr_config=gnr_config)
     instance_name = options.instance
     
     if instance_name:
         if '.' in instance_name:
             instance_name, storename = instance_name.split('.')
-        instance_path = instance_name_to_path(gnr_config, instance_name)
+        instance_path = path_resolver.instance_name_to_path(instance_name)
         if os.path.isdir(instance_path):
             return GnrApp(instance_path, debug=debug), storename
         else:
             raise Exception("No valid instance provided")
     if options.site:
-        site_path = site_name_to_path(gnr_config, options.site)
+        site_path = path_resolver.site_name_to_path(options.site)
         if not site_path:
             site_path = os.path.join(gnr_config['gnr.environment_xml.sites?path'] or '', options.site)
         instance_path = os.path.join(site_path, 'instance')

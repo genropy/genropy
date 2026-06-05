@@ -276,25 +276,6 @@ class BagToXml(object):
         elif isinstance(nodeValue, BagAsXml):
             result = self.buildTag(node.label, nodeValue, nodeattr, '', xmlMode=True,namespaces=current_namespaces)
 
-        #elif ((isinstance(nodeValue, list) or isinstance(nodeValue, dict))):
-        #    nodeValue = gnrstring.toJson(nodeValue)
-        #    result = self.buildTag(node.label, nodeValue, node.attr)
-        #elif nodeValue and (isinstance(nodeValue, list) or isinstance(nodeValue, tuple)):
-        #    result = self.buildTag(node.label,
-        #                           '\n'.join([self.buildTag('C', c) for c in nodeValue]),
-        #                           node.attr, cls='A%s' % self.catalog.getClassKey(nodeValue[0]),
-        #                           xmlMode=True)
-
-        elif self.mode4d and (nodeValue and (isinstance(nodeValue, list) or isinstance(nodeValue, tuple))):
-            if node.label[:3] in ('AR_','AL_','AT_','AD_','AH_','AB_'):
-                cls4d = node.label[:2] # if variable name specify array type, use it
-            else:
-                cls4d = 'A%s' % self.catalog.getClassKey(nodeValue[0])
-            result = self.buildTag(node.label,
-                       '\n'.join([self.buildTag('C', c,namespaces=current_namespaces) for c in nodeValue]),
-                       node.attr, cls=cls4d,
-                       xmlMode=True,namespaces=namespaces)
-
         else:
             result = self.buildTag(node.label, nodeValue, node.attr,namespaces=namespaces)
         return result
@@ -316,10 +297,12 @@ class BagToXml(object):
         return '\n'.join([self.nodeToXmlBlock(node,namespaces=namespaces) for node in bag.nodes])
 
     #-------------------- toXml --------------------------------
-    def build(self, bag, filename=None, encoding='UTF-8', catalog=None, typeattrs=True, typevalue=True,
+    def build(self, bag, filename=None, encoding='UTF-8', catalog=None,
+              typeattrs=True, typevalue=True,
               addBagTypeAttr=True, output_encoding=None,
               unresolved=False, autocreate=False, docHeader=None, self_closed_tags=None,
-              translate_cb=None, omitUnknownTypes=False, omitRoot=False, forcedTagAttr=None,mode4d=False,pretty=None):
+              translate_cb=None, omitUnknownTypes=False, omitRoot=False, forcedTagAttr=None,
+              pretty=None):
         """Return a complete standard XML version of the Bag, including the encoding tag
         ``<?xml version=\'1.0\' encoding=\'UTF-8\'?>``; the Bag's content is hierarchically represented
         as an XML block sub-element of the ``<GenRoBag>`` node.
@@ -360,20 +343,20 @@ class BagToXml(object):
         self.self_closed_tags = self_closed_tags or []
         self.forcedTagAttr = forcedTagAttr
         self.addBagTypeAttr = addBagTypeAttr
-        self.mode4d = mode4d
         if not typeattrs:
             self.catalog.addSerializer("asText", bool, lambda b: 'y' * int(b))
 
         self.unresolved = unresolved
         if omitRoot:
-            result = result + self.bagToXmlBlock(bag,namespaces=[])
+            xmlblock = self.bagToXmlBlock(bag,namespaces=[])
         else:
-            result = result + self.buildTag('GenRoBag', self.bagToXmlBlock(bag,namespaces=[]), xmlMode=True, localize=False)
+            xmlblock = self.buildTag('GenRoBag', self.bagToXmlBlock(bag,namespaces=[]), xmlMode=True, localize=False)
         if pretty:
-            from xml.dom.minidom import parseString
-            result = parseString(result)
-            result = result.toprettyxml()
-            result = result.replace('\t\n','').replace('\t\n','')
+            try:
+                xmlblock = self._prettyfy(xmlblock, indent=pretty if isinstance(pretty, str) else '\t')
+            except (ValueError, IndexError):
+                pass
+        result = result + xmlblock
         if isinstance(result, str):
             result = result.encode(encoding, 'replace')
         if filename:
@@ -388,6 +371,52 @@ class BagToXml(object):
                     out_result = result
                     output.write(out_result)
         return result.decode(encoding)
+
+    def _prettyfy(self, xml, indent='\t'):
+        """Add indentation to a flat XML string based on tag nesting."""
+        result = []
+        level = 0
+        i = 0
+        length = len(xml)
+        while i < length:
+            if xml[i:i+4] == '<!--':
+                j = xml.index('-->', i) + 3
+                result.append('%s%s' % (indent * level, xml[i:j]))
+                i = j
+            elif xml[i] == '<':
+                j = xml.index('>', i) + 1
+                tag = xml[i:j]
+                if tag.startswith('</'):
+                    level -= 1
+                    result.append('%s%s' % (indent * level, tag))
+                elif tag.endswith('/>'):
+                    result.append('%s%s' % (indent * level, tag))
+                else:
+                    close_tag = '</%s>' % tag[1:].split()[0].split('>')[0].rstrip('>')
+                    end_pos = xml.find(close_tag, j)
+                    if end_pos != -1 and '<' not in xml[j:end_pos]:
+                        content = xml[j:end_pos]
+                        if '\n' in content:
+                            result.append('%s%s' % (indent * level, tag))
+                            for cline in content.splitlines():
+                                result.append('%s%s' % (indent * (level + 1), cline))
+                            result.append('%s%s' % (indent * level, close_tag))
+                        else:
+                            result.append('%s%s%s%s' % (indent * level, tag, content, close_tag))
+                        i = end_pos + len(close_tag)
+                        continue
+                    result.append('%s%s' % (indent * level, tag))
+                    level += 1
+                i = j
+            else:
+                j = xml.find('<', i)
+                if j == -1:
+                    j = length
+                text = xml[i:j].strip()
+                if text:
+                    result.append('%s%s' % (indent * level, text))
+                i = j
+        return '\n'.join(result)
 
     def buildTag(self, tagName, value, attributes=None, cls='', xmlMode=False,localize=True,namespaces=None):
         """TODO Return the XML tag that represent self BagNode
@@ -410,8 +439,6 @@ class BagToXml(object):
                 elif isinstance(value, BagAsXml):
                     value = value.value
                 else:
-                    if self.mode4d and isinstance(value, Decimal):
-                        value = float(value)
                     value, t = self.catalog.asTextAndType(value, translate_cb=self.translate_cb if localize else None,nestedTyping=True)
                 if isinstance(value, BagAsXml):
                     # FIXME - raise the proper exception with description!

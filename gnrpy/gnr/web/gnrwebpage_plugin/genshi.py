@@ -12,7 +12,7 @@ import itertools
 import os
 
 from gnr.web.gnrwebpage_plugin.gnrbaseplugin import GnrBasePlugin
-from gnr.web.gnrwsgisite import WSGIHTTPException
+from gnr.web.gnrwsgisite import HTTPException
 from .genshi.template import TemplateLoader
 
 
@@ -47,7 +47,7 @@ class Plugin(GnrBasePlugin):
         arg_dict.update(kwargs)
         try:
             output = template.generate(**arg_dict).render()
-        except WSGIHTTPException as exc:
+        except HTTPException as exc:
             return exc
         if not pdf:
             page.response.content_type = 'text/html'

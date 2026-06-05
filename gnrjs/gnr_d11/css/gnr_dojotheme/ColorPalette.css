@@ -1,0 +1,44 @@
+/* ==========================================================================
+   gnr_dojotheme/ColorPalette.css — Color picker widget grid styling.
+   Clean border, hover/selection indicators. No PNG images.
+   ========================================================================== */
+
+/* --- Palette container --- */
+.gnr_dojotheme .dijitColorPalette {
+    border: 1px solid var(--border-color, #ddd);
+    border-radius: var(--radius-sm);
+    background: var(--surface-bg, #fff);
+    padding: 0.2em;
+}
+
+/* --- Color palette table --- */
+.gnr_dojotheme .dijitColorPalette .dijitPaletteTable {
+    border-collapse: separate;
+    border-spacing: 2px;
+}
+
+/* --- Individual color cell --- */
+.gnr_dojotheme .dijitColorPalette .dijitPaletteCell {
+    border: 1px solid transparent;
+    padding: 0;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: border-color 0.1s ease, transform 0.1s ease;
+}
+
+/* --- Hover --- */
+.gnr_dojotheme .dijitColorPalette .dijitPaletteCellHover {
+    border-color: var(--text-color, #444);
+    transform: scale(1.15);
+}
+
+/* --- Selected --- */
+.gnr_dojotheme .dijitColorPalette .dijitPaletteCellSelected {
+    border-color: var(--accent-color, #369);
+    box-shadow: 0 0 0 1px var(--accent-color, #369);
+}
+
+/* --- Color swatch image --- */
+.gnr_dojotheme .dijitColorPalette .dijitPaletteImg {
+    border: none;
+}

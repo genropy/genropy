@@ -19,7 +19,7 @@ from gnr.lib.services.storage import StorageService, StorageNode
 from gnr.web.gnrbaseclasses import BaseComponent
 
 class S3LocalFile(object):
-    def __init__(self, mode='rb', bucket=None, key=None, s3_session=None):
+    def __init__(self, mode='rb', bucket=None, key=None, s3_client=None):
         self.bucket = bucket
         self.key = key
         self.mode = mode
@@ -27,8 +27,7 @@ class S3LocalFile(object):
         self.read_mode = not self.write_mode
         self.file = None
         self.close_called = False
-        self.session = s3_session
-        self.s3 = self.session.client('s3')
+        self.s3 = s3_client
 
     def __getattr__(self, name):
         local_file = self.__dict__['file']
@@ -73,7 +72,7 @@ class S3LocalFile(object):
         return self.close(exit_args=(exc, value, tb))
 
 class S3TemporaryFilename(object):
-    def __init__(self, bucket=None, key=None, s3_session=None, mode=None, keep=False):
+    def __init__(self, bucket=None, key=None, s3_client=None, mode=None, keep=False):
         self.bucket = bucket
         self.key = key
         self.mode = mode or 'r'
@@ -81,8 +80,7 @@ class S3TemporaryFilename(object):
         self.read_mode = not self.write_mode
         self.file = None
         self.close_called = False
-        self.session = s3_session
-        self.s3 = self.session.client('s3',config= boto3.session.Config(signature_version='s3v4'))
+        self.s3 = s3_client
         self.ext = os.path.splitext(self.key)[-1]
         self.keep = keep
 
@@ -96,10 +94,13 @@ class S3TemporaryFilename(object):
         return self.name
 
     def __exit__(self, exc, value, tb):
-        if os.stat(self.name).st_mtime != self.enter_mtime:
-            self.s3.upload_file(self.name, self.bucket,self.key)
-        if not self.keep:
-            os.unlink(self.name)
+        try:
+            if os.stat(self.name).st_mtime != self.enter_mtime:
+                self.s3.upload_file(self.name, self.bucket, self.key)
+        finally:
+            os.close(self.fd)
+            if not self.keep:
+                os.unlink(self.name)
 
 class Service(StorageService):
 
@@ -178,7 +179,10 @@ class Service(StorageService):
     def md5hash(self,*args):
         bucket = self._head_object(*args)
         if bucket:
-            return bucket['ETag'][1:-1]
+            etag = bucket['ETag'][1:-1]
+            if len(etag) == 32:
+                return etag
+        return None
 
     def exists(self, *args):
         return self.isfile(*args) or self.isdir(*args)
@@ -240,7 +244,7 @@ class Service(StorageService):
             else:
                 mode='r'
         return S3TemporaryFilename(bucket=self.bucket, key=internalpath,
-            s3_session=self._session, mode=mode, keep=keep)
+            s3_client=self._client, mode=mode, keep=keep)
 
     def isdir(self, *args):
         internalpath = self.internal_path(*args)

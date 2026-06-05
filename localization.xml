@@ -65,39 +65,6 @@
 <en_package fr="Paquet" de="Paket" en="Package" it="Pacchetto" base="Package"></en_package>
 <en_name base="Name" de="Name" en="Name" fr="Nom" it="Nome"></en_name>
 <en_holes fr="Trous" de="Löcher" en="Holes" it="Holes" base="Holes"></en_holes></gnrdbo>
-<gnrdbo_legacy path="gnrpy/gnr/app/gnrdbo_legacy.py" ext="py"><en_code base="Code" en="Code" it="Codice"></en_code>
-<en_description base="Description" en="Description" it="Descrizione"></en_description>
-<en_child_code base="Child code" de="Child Code" en="Child code" fr="Code de l'enfant" it="Codice subordinato"></en_child_code>
-<en_required base="Required" de="Erforderlich" en="Required" fr="Requis" it="Richiesto"></en_required>
-<en_invalid_code_char_is_not_allowed base='Invalid code: "." char is not allowed' de='Invalid code: "." char ist nicht erlaubt' en='Invalid code: "." char is not allowed' fr='Code invalide: "." omble est pas autorisé' it='Codice non VALIDO: "." char non è consentito'></en_invalid_code_char_is_not_allowed>
-<en_parent_code base="Parent code" de="Geordneten Code" en="Parent code" fr="Code Parent" it="Codice Parent"></en_parent_code>
-<en_level base="Level" de="Höhe" en="Level" fr="Niveau" it="Livello"></en_level>
-<en_type fr="Type" de="Art" en="Type" it="Tipo" base="Type"></en_type>
-<en_default_value base="Default value" de="Standardwert" en="Default value" fr="Valeur par défaut" it="Valore predefinito"></en_default_value>
-<en_data_type fr="Type de données" de="Datentyp" en="Data type" it="Tipo di dati" base="Data Type"></en_data_type>
-<en_enterable base="Enterable" de="Eingebbar" en="Enterable" fr="Saisissable" it="Enterable"></en_enterable>
-<en_wdg_type base="Wdg type" de="Wdg Typ" en="Wdg type" fr="Type Wdg" it="Tipo WDG"></en_wdg_type>
-<en_colspan base="Colspan" de="Colspan" en="Colspan" fr="Colspan" it="Colspan"></en_colspan>
-<en_wdg_kwargs base="Wdg kwargs" de="Wdg kwargs" en="Wdg kwargs" fr="Kwargs wdg" it="Kwargs WDG"></en_wdg_kwargs>
-<en_suggested_values base="Suggested Values" de="Empfohlene Werte" en="Suggested Values" fr="Les valeurs suggérées" it="I valori suggeriti"></en_suggested_values>
-<en_db_table base="Db Table" en="Db Table" it="Tabella Db"></en_db_table>
-<en_allowed_values base="Allowed Values" de="Zulässige Werte" en="Allowed Values" fr="Valeurs autorisées" it="Valori ammessi"></en_allowed_values>
-<en_checkbox_values base="Checkbox Values" de="Checkbox Werte" en="Checkbox Values" fr="Checkbox Valeurs" it="Valori Checkbox"></en_checkbox_values>
-<en_checkbox_cols base="Checkbox cols" de="Checkbox cols" en="Checkbox cols" fr="Cochez les cols" it="Cols Checkbox"></en_checkbox_cols>
-<en_multiple_values base="Multiple Values" de="Mehrere Werte" en="Multiple Values" fr="Valeurs multiples" it="Valori multipli"></en_multiple_values>
-<en_style base="Style" de="Stil" en="Style" fr="Style" it="Stile"></en_style>
-<en_visible_if base="Visible if" de="Sichtbar, wenn" en="Visible if" fr="Visible si" it="Visibile se"></en_visible_if>
-<en_format base="Format" de="Format" en="Format" fr="Format" it="Formato"></en_format>
-<en_placeholder base="Placeholder" de="Platzhalter" en="Placeholder" fr="Espace réservé" it="Segnaposto"></en_placeholder>
-<en_mask base="Mask" de="Maske" en="Mask" fr="Masquer" it="Maschera"></en_mask>
-<en_tip base="Tip" de="Spitze" en="Tip" fr="Pointe" it="Punta"></en_tip>
-<en_u_uppercase_l_lowercase_c_capitalize base="u:Uppercase,l:Lowercase,c:Capitalize" de="u: Großbuchstaben, l: Kleinbuchstaben, c: Profitieren" en="u:Uppercase,l:Lowercase,c:Capitalize" fr="u: majuscules, l: Minuscules, c: Capitaliser" it="u: Maiuscolo, l: minuscola, c: Capitalizzare"></en_u_uppercase_l_lowercase_c_capitalize>
-<en_case base="Case" de="Fall" en="Case" fr="Cas" it="Caso"></en_case>
-<en_range base="Range" de="Angebot" en="Range" fr="Gamme" it="Gamma"></en_range>
-<en_std_range base="Std range" de="Std.Range" en="Std.Range" fr="Std.Range" it="Std.Range"></en_std_range>
-<en_formula base="Formula" de="Formel" en="Formula" fr="Formule" it="Formula"></en_formula>
-<en_do_summary base="Do summary" en="Do summary" it="Fare sintesi"></en_do_summary>
-<en_mandatory base="Mandatory" de="Verpflichtend" en="Mandatory" fr="Obligatoire" it="Obbligatorio"></en_mandatory></gnrdbo_legacy>
 <gnrlocalization path="gnrpy/gnr/app/gnrlocalization.py" ext="py"><en_autotranslate_terms_in_lang_ base="Autotranslate terms in {lang}" it="Traduci automaticamente i termini in {lang}"></en_autotranslate_terms_in_lang_></gnrlocalization></app>
 <core><gnrbag path="gnrpy/gnr/core/gnrbag.py" ext="py"><en_s_s _tag="en__s_s" base="%s %s" en="[4] [5]" it="%s %s"></en_s_s></gnrbag>
 <gnrbaghtml path="gnrpy/gnr/core/gnrbaghtml.py" ext="py"><en_totals base="Totals" it="Totali"></en_totals></gnrbaghtml>
@@ -114,7 +81,7 @@
 <en_upper base="Upper" de="Obere" en="Upper" fr="Supérieur" it="Superiore"></en_upper>
 <en_lower base="Lower" de="Niedriger" en="Lower" fr="Inférieur" it="Inferiore"></en_lower>
 <en_largecapacity base="LargeCapacity" de="Largecapacity" en="LargeCapacity" fr="LargeCapacity" it="LargeCapacity"></en_largecapacity></gnrprinthandler>
-<gnrrlab path="gnrpy/gnr/core/gnrrlab.py" ext="py"><en_totals base="Totals" it="Totali"></en_totals></gnrrlab></core>
+</core>
 <dev><cli><gnrmkthresource path="gnrpy/gnr/dev/cli/gnrmkthresource.py" ext="py"><en_lookup_tables fr="Tables de recherche" de="Lookup Tables" en="Lookup Tables" it="Tabelle di configurazione" base="Lookup tables"></en_lookup_tables>
 <en_table_capitalize_ _tag="en__table_capitalize_" base="{table.capitalize()}"></en_table_capitalize_></gnrmkthresource>
 <gnrsql2py path="gnrpy/gnr/dev/cli/gnrsql2py.py" ext="py"><en_s _tag="en__s" fr="% S" en="[29]" de="% S" it="% S" base="%s"></en_s></gnrsql2py>
@@ -379,13 +346,13 @@
 <en_date fr="Date" de="Datum" en="Date" it="Data" base="Date"></en_date>
 <en_time base="Time" en="Time" it="Ora"></en_time>
 <en_formula base="Formula" de="Formel" en="Formula" fr="Formule" it="Formula"></en_formula>
-<en_upload_options base="Upload options"></en_upload_options>
-<en_choose_upload_option base="Choose upload option"></en_choose_upload_option>
+<en_upload_options base="Upload options" it="Opzioni caricamento"></en_upload_options>
+<en_choose_upload_option base="Choose upload option" it="Scegli modalità di caricamento"></en_choose_upload_option>
 <en_upload base="Upload" de="Hochladen" en="Upload" fr="Télécharger" it="Carica"></en_upload>
 <en_photo base="Photo" en="Photo" it="Foto"></en_photo>
 <en_edit base="Edit" de="Bearbeiten" en="Edit" fr="Éditer" it="Modifica"></en_edit>
 <en_delete base="Delete" de="Löschen" en="Delete" fr="Effacer" it="Cancellare"></en_delete>
-<en_edit_image base="Edit image"></en_edit_image>
+<en_edit_image base="Edit image" it="Modifica immagine"></en_edit_image>
 <en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm" zh="确认"></en_confirm>
 <en_take_picture base="Take picture"></en_take_picture></genro_widgets>
 <gnrdomsource path="gnrjs/gnr_d11/js/gnrdomsource.js" ext="js"><en_edit_help base="Edit help"></en_edit_help>

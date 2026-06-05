@@ -1593,9 +1593,12 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         var targets = this._hiddenTargets || [this.domNode || this.widget.domNode];
         var statusChanged = false;
         targets.forEach(function(domNode){
-            let currenHidden = !genro.dom.isVisible(domNode);
-            statusChanged = currenHidden!=hidden;
-            dojo.style(domNode, 'display', (hidden ? 'none' : ''));
+            let wasHidden = domNode.style.display === 'none';
+            let prevHeight = domNode.offsetHeight;
+            domNode.style.display = hidden ? 'none' : '';
+            if(wasHidden !== hidden && domNode.offsetHeight !== prevHeight){
+                statusChanged = true;
+            }
         });
         if(statusChanged){
             genro.fakeResize()
@@ -1736,7 +1739,13 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         }
     },
     getElementLabel:function(){
-        return this.attr._valuelabel || this.attr.field_name_long || this.attr.name_long || stringCapitalize(this.label);
+        var raw = this.attr.error_label || this.attr._valuelabel || this.attr.field_name_long || this.attr.name_long || stringCapitalize(this.label);
+        if(raw && raw.indexOf('<') >= 0){
+            var tmp = document.createElement('div');
+            tmp.innerHTML = raw;
+            raw = tmp.textContent.trim();
+        }
+        return raw;
     },
 
     unwatch:function(watchId){
@@ -1858,9 +1867,66 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         } else {
             genro.dom.removeClass(domnode, 'gnrrequired');
         }
+        this._updateErrorTooltip();
     },
+
+    _updateErrorTooltip: function(){
+        var domNode = this.widget.domNode;
+        if(!domNode){
+            return;
+        }
+        var errMsg = this._validations && this._validations.error;
+        var errText = errMsg ? this._resolveErrorMessage(errMsg) : null;
+        domNode._gnrErrorText = errText || null;
+        if(errText){
+            domNode.setAttribute('data-error', errText);
+            this._bindErrorTooltipEvents(domNode);
+        }else{
+            domNode.removeAttribute('data-error');
+            dijit.hideTooltip(domNode);
+        }
+    },
+
+    _bindErrorTooltipEvents: function(domNode){
+        if(domNode._gnrErrorTooltipBound){
+            return;
+        }
+        domNode.addEventListener('mouseenter', function(){
+            if(domNode._gnrErrorText){
+                dijit.showTooltip(
+                    '<span class="gnrErrorTooltip">' + domNode._gnrErrorText + '</span>',
+                    domNode
+                );
+            }
+        });
+        domNode.addEventListener('mouseleave', function(){
+            dijit.hideTooltip(domNode);
+        });
+        domNode._gnrErrorTooltipBound = true;
+    },
+
+    _errorFallbacks: {
+        'notnull':  '!!Required field',
+        'missing':  '!!Required field',
+        'error':    '!!Invalid value',
+        'too long': '!!Value too long',
+        'too short':'!!Value too short',
+        'wrong length': '!!Wrong length',
+        'query_error':  '!!Lookup error',
+        'invalidItem':  '!!Invalid selection'
+    },
+
+    _resolveErrorMessage: function(errMsg){
+        let msg = typeof errMsg === 'string' ? errMsg : (errMsg.msg || errMsg.toString());
+        let fallback = this._errorFallbacks[msg];
+        if(fallback){
+            return _T(fallback);
+        }
+        return _T(msg.indexOf('!!') < 0 ? '!!' + msg : msg);
+    },
+
     isDisabled:function(){
-        return this.getAttributeFromDatasource('disabled'); 
+        return this.getAttributeFromDatasource('disabled');
     },
 
     setDisabled:function(reason){

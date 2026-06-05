@@ -283,7 +283,6 @@ class HTableHandlerBase(BaseComponent):
 class HTableHandler(HTableHandlerBase):
     """A class to handle the :ref:`h_th_component` component"""
     py_requires = 'gnrcomponents/selectionhandler:SelectionHandler'
-    css_requires = 'public'
     
     def htableHandler(self, parent, nodeId=None, datapath=None, table=None, rootpath=None, label=None,
                       editMode='bc', childTypes=None, dialogPars=None, loadKwargs=None, parentLock=None,

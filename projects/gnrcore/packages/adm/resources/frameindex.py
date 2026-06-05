@@ -17,6 +17,7 @@ class FrameIndex(BaseComponent):
                    login:LoginComponent,
                    th/th:TableHandler,
                    prefhandler/prefhandler:UserPrefMenu,
+                   gnrcomponents/grouplet/grouplet:GroupletHandler,
                    gnrcomponents/batch_handler/batch_handler:TableScriptRunner,
                    gnrcomponents/batch_handler/batch_handler:BatchMonitor,
                    gnrcomponents/chat_component/chat_component,
@@ -24,7 +25,7 @@ class FrameIndex(BaseComponent):
                    """
     #gnrcomponents/datamover:MoverPlugin, removed
     js_requires='frameindex'
-    css_requires='frameindex,public'
+    css_requires='frameindex'
     
     custom_plugin_list = None
     index_page = False
@@ -163,32 +164,36 @@ class FrameIndex(BaseComponent):
     def prepareBottom(self,bc):
         return self.prepareBottom_std(bc)
         
-    
+
+    @customizable
     def prepareTop_mobile(self,bc,onCreatingTablist=None,**kwargs):
         top = bc.contentPane(region='top',overflow='hidden')
         bar = top.slotBar('5,pluginSwitch,*,pageTitle,*,35',
-                          _class='framedindex_tablist showcase_dark',height='34px',childname='upperbar')
+                          _class='framedindex_tablist showcase_dark',childname='upperbar')
         bar.pluginSwitch.lightButton(_class='showcase_toggle',tip='!!Show/Hide the left pane',height='30px',width='30px',
                                                       action="""genro.nodeById('standard_index').publish('toggleLeft');""")
         self.pageTitle_mobile(bar.pageTitle)
-        
+        return top
+    
+
     def pageTitle_mobile(self,pane):
         pane.div('^gnr.windowTitle',color='white',font_size='15px',font_weight='bold',caption_path='selectedPageTitle')
 
-    
+    @customizable
     def prepareTop_std(self,bc,onCreatingTablist=None):
-        bc = bc.borderContainer(region='top',height='30px',overflow='hidden',_class='framedindex_tablist')
-        leftbar = bc.contentPane(region='left',overflow='hidden').div(display='inline-block', margin_left='10px',margin_top='4px')  
+        top = bc.contentPane(region='top',overflow='hidden',_class='framedindex_tablist')
+        leftbar = top.div(_class='framedindex_tablist_left')
         if self.plugin_list or self.custom_plugin_list:
             plugins_standard = ['menuToggle']+self.plugin_list.split(',') if self.plugin_list else ['menuToggle']
             for btn in plugins_standard:
                 getattr(self,'btn_%s' %btn)(leftbar)
-                
+
             if self.custom_plugin_list:
                 for btn in self.custom_plugin_list.split(','):
                     getattr(self,'btn_%s' %btn)(leftbar)
-        
-        self.prepareTablist(bc.contentPane(region='center',margin_top='4px'),onCreatingTablist=onCreatingTablist)
+
+        self.prepareTablist(top.div(_class='framedindex_tablist_center'),onCreatingTablist=onCreatingTablist)
+        return top
         
     def prepareTablist(self,pane,onCreatingTablist=False):
 
@@ -259,17 +264,17 @@ class FrameIndex(BaseComponent):
     @customizable
     def prepareBottom_std(self,bc):
         pane = bc.contentPane(region='bottom',overflow='hidden')
-        sb = pane.slotToolbar("""5,genrologo,helpdesk,settings,refresh,count_errors,left_placeholder,*,
-                                    right_placeholder,owner_name,user_name,logout,debugping,5""",
-                                    _class='slotbar_toolbar framefooter',height='22px', background='#EEEEEE',border_top='1px solid silver')    
+        sb = pane.slotToolbar("""5,genrologo,1,helpdesk,1,settings,10,refresh,10,phonelink,left_placeholder,*,
+                                    right_placeholder,count_errors,10,owner_name,user_name,logout,debugping,5""",
+                                    _class='slotbar_toolbar framefooter', background='#EEEEEE',border_top='1px solid silver')
         return sb
-    
+
     @customizable
     def prepareBottom_mobile(self,bc):
         pane = bc.contentPane(region='bottom',overflow='hidden')
-        sb = pane.slotToolbar("""5,genrologo,helpdesk,settings,refresh,left_placeholder,*,
+        sb = pane.slotToolbar("""5,genrologo,2,helpdesk,2,settings,5,refresh,5,left_placeholder,*,
                                 right_placeholder,user_name,logout,debugping,5""",
-                                _class='slotbar_toolbar framefooter',height='25px', background='#EEEEEE',border_top='1px solid silver')
+                                _class='slotbar_toolbar framefooter', background='#EEEEEE',border_top='1px solid silver')
         pane.div(height='10px',background='black')
         return sb
     
@@ -294,6 +299,7 @@ class FrameIndex(BaseComponent):
             """,_iframes='=iframes',_selectedFrame='=selectedFrame'
         )
         logomenu.menuline("!![en]Open Genro IDE",_tags='_DEV_').dataController('genro.framedIndexManager.openGnrIDE();')
+        logomenu.menuline("!![en]Theme Editor",_tags='_DEV_').dataController('genro.dev.openThemeEditor();')
         logomenu.menuline("!![en]Application info").dataController("genro.publish('application_info')")
         
         logomenu.menuline('!![en]Open helper editor in root',_tags='_DEV_').dataController('genro.dev.openHelperEditor();') 
@@ -332,10 +338,17 @@ class FrameIndex(BaseComponent):
         return dlg
 
     @struct_method
-    def fi_slotbar_userpref(self,slot,**kwargs):
-        slot.lightbutton(_class='iframeroot_userpref', tip='!!%s preference' % (
-            self.user if not self.isGuest else 'guest')).dataController(
-                        'genro.framedIndexManager.openUserPreferences()')
+    def fi_slotbar_phonelink(self,slot,**kwargs):
+        if not self.site.is_mobile_app_enabled():
+            return
+        btn = slot.lightButton(_class='google_innericonbox phonelink_dark',
+                         tip='!!Mobile app connection',
+                         height='18px',width='18px')
+        dlg = slot.dialog(title='!![en]Mobile app connection',
+                          datapath='gnr.phonelink_dialog',closable=True)
+        dlg.groupletPanel(topic='phonelink',useForm=False,
+                          height='450px',width='350px')
+        btn.dataController("dlg.show()",dlg=dlg.js_widget)
 
     @struct_method
     def fi_slotbar_helpdesk(self,slot,**kwargs):
@@ -368,7 +381,7 @@ class FrameIndex(BaseComponent):
         return
 
     def helpdesk_help(self):
-        return 
+        return None
     
     @struct_method
     def fi_slotbar_openGnrIDE(self,slot,**kwargs):
@@ -416,7 +429,7 @@ class FrameIndex(BaseComponent):
     @struct_method
     def fi_slotbar_owner_name(self,slot,**kwargs):
         box = slot.div(_class='iframeroot_pref')
-        if not self.dbstore:
+        if self.db.usingRootstore() or self.site.multidomain:
             box.lightButton(innerHTML='==_owner_name?dataTemplate(_owner_name,envbag):"Preferences";',
                                     _owner_name=self.fi_get_owner_name(),
                                     action='PUBLISH app_preference;',envbag='=gnr.rootenv', display='inline-block')
@@ -535,7 +548,7 @@ class FrameIndex(BaseComponent):
     def prepareLeft_mobile(self,bc):
         frame = bc.framePane(region='left',width='100%',datapath='left',
                                 overflow='hidden',hidden=self.hideLeftPlugins)
-        frame.top.slotBar('*,close_icon,5',height='22px'
+        frame.top.slotBar('*,close_icon,5'
                           ).close_icon.lightButton(_class='google_icon google_cancel',height='30px',width='30px',background_color='white',
                                                    ).dataController("genro.nodeById('standard_index').publish('hideLeft');")
         sc = frame.center.stackContainer(selectedPage='^.selected',nodeId='gnr_main_left_center',

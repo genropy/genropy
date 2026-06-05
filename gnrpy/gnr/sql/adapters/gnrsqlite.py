@@ -113,18 +113,30 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         Replace the ILIKE operator with LIKE: sqlite LIKE is case insensitive"""
         sql = self.adaptTupleListSet(sql,kwargs)
         sql = sql.replace('ILIKE', 'LIKE').replace('ilike', 'like').replace('~*', ' REGEXP ')
-        sql = re.sub(" +IS +(NOT +)?(TRUE|FALSE)",self._booleanSubCb,sql,flags=re.I)
+        sql = re.sub(r'(\(*)(["\w]["\w.]*) +IS +(NOT +)?(TRUE|FALSE)',self._booleanSubCb,sql,flags=re.I)
         return sql, kwargs
 
     def _booleanSubCb(self,m):
-        op = '!=' if m.group(1) else '='
-        val = '1' if m.group(2).lower() == 'true' else '0'
-        return ' %s%s ' %(op,val)
+        prefix = m.group(1)
+        expr = m.group(2)
+        is_not = bool(m.group(3))
+        is_true = m.group(4).upper() == 'TRUE'
+        val = '1' if is_true else '0'
+        if is_not:
+            return '%s(%s IS NULL OR %s !=%s)' % (prefix, expr, expr, val)
+        else:
+            return '%s(%s IS NOT NULL AND %s =%s)' % (prefix, expr, expr, val)
 
     @classmethod
     def adaptSqlName(self,name):
         return '"%s"' %name
 
+    def setLocale(self, locale):
+        """
+        Ignore the locale change, no meaning for this adapter
+        """
+        pass
+    
     def _selectForUpdate(self,maintable_as=None,**kwargs):
         return ''
 
@@ -269,7 +281,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                 colType = colType[:colType.find('(')]
             colType = colType.strip()
             col['dtype'] = self.typesDict[colType] if colType else 'T'
-            col['notnull'] = (col['notnull'] == 'NO')
+            col['notnull'] = bool(col['notnull'])
             col = self._filterColInfo(col, '_sl_')
             if col['dtype'] in ('A','C') and col.get('length'):
                 col['size'] = col['_sl_size'] if col['dtype']=='C' else '0:%s' %col['_sl_size']
@@ -300,8 +312,8 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             if onTimeout != None:
                 listening = onTimeout()
 
-    def notify(self, msg, autocommit=False):
-        """Actually sqlite has no message comunications: so simply pass"""
+    def notify(self, msg, payload=None, autocommit=False):
+        """SQLite has no notification mechanism: no-op."""
         pass
 
     def createDb(self, name, encoding='unicode'):
@@ -511,7 +523,7 @@ class GnrSqliteCursor(pysqlite.Cursor):
             logger.exception(e)
             raise
 
-# ------------------------------------------------------------------------------------------------------- Add support for time fields to sqlite3 module
+# Add support for time fields to sqlite3 module
 
 def adapt_time(val):
     return val.isoformat()
@@ -522,12 +534,12 @@ def convert_time(val):
 pysqlite.register_adapter(datetime.time, adapt_time)
 pysqlite.register_converter("time", convert_time)
 
-# ------------------------------------------------------------------------------------------------------- Add support for decimal fields to sqlite3 module
+# Add support for decimal fields to sqlite3 module
 
 pysqlite.register_adapter(decimal.Decimal, lambda x: float(x))
 pysqlite.register_converter('numeric', lambda x: decimal.Decimal(x.decode()))
 
-# ------------------------------------------------------------------------------------------------------- Fix issues with datetimes and dates
+# Fix issues with datetimes and dates
 
 def convert_date(val):
     val = val.decode().partition(' ')[0] # take just the date part, if we received a datetime string
@@ -535,10 +547,46 @@ def convert_date(val):
 
 pysqlite.register_converter("date", convert_date)
 
+# date adapter/converters
 
+def adapt_date_iso(val):
+    """Adapt datetime.date to ISO 8601 date."""
+    return val.isoformat()
+
+pysqlite.register_adapter(datetime.date, adapt_date_iso)
+
+def convert_datetime(val):
+    """Convert ISO 8601 datetime to datetime.datetime object."""
+    return datetime.datetime.fromisoformat(val.decode())
+
+def adapt_datetime_iso(val):
+    """Adapt datetime.datetime to timezone-naive ISO 8601 date."""
+    return val.replace(tzinfo=None).isoformat()
+
+pysqlite.register_adapter(datetime.datetime, adapt_datetime_iso)
+pysqlite.register_converter("datetime", convert_datetime)
+
+
+# bool converter
 
 def convert_boolean(val):
     return boolean(val)
 
 pysqlite.register_converter("bool", convert_boolean)
 
+
+# unix timestamps
+def convert_timestamp(val):
+    """Convert timestamp to datetime.datetime object."""
+    if isinstance(val, (bytes, bytearray)):
+        val = val.decode()
+    try:
+        ts = int(val)
+    except ValueError:
+        dt = datetime.datetime.fromisoformat(val)
+    else:
+        dt = datetime.fromtimestamp(ts)
+
+    return dt
+
+pysqlite.register_converter("timestamp", convert_timestamp)

@@ -1,0 +1,300 @@
+/* ==========================================================================
+   14_gnr_traceback.css — Traceback viewer (gnr-tb system).
+   Variables defined in 01_gnr_variables.css under "Traceback".
+   ========================================================================== */
+
+/* --- Root container (flex column: toolbar stays, frames scroll) --- */
+.gnr-tb {
+    font-family: var(--font-family);
+    font-size: var(--tb-font-size);
+    display: flex;
+    flex-direction: column;
+}
+
+/* --- Toolbar (pinned at top) --- */
+.gnr-tb-toolbar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: var(--tb-summary-bg);
+    border-bottom: 1px solid var(--tb-frame-border);
+    border-radius: var(--tb-frame-radius) var(--tb-frame-radius) 0 0;
+}
+
+.gnr-tb-toolbar-title {
+    flex: 1;
+    font-weight: 600;
+    color: var(--tb-error-color);
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.gnr-tb-btn {
+    padding: 4px 10px;
+    border: 1px solid var(--tb-btn-border);
+    border-radius: var(--tb-frame-radius);
+    background: var(--tb-btn-bg);
+    font-size: 11px;
+    cursor: pointer;
+    color: var(--tb-btn-color);
+}
+
+.gnr-tb-btn:hover {
+    background: var(--tb-btn-hover-bg);
+    border-color: var(--tb-btn-hover-border);
+}
+
+/* --- Frames container (fills remaining space, scrolls) --- */
+.gnr-tb-frames {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+/* --- Frame (details/summary) --- */
+.gnr-tb-frame {
+    margin-bottom: 6px;
+    border: 1px solid var(--tb-frame-border);
+    border-radius: var(--tb-frame-radius);
+    overflow: hidden;
+}
+
+.gnr-tb-frame:last-of-type {
+    border-color: var(--tb-frame-border-error);
+}
+
+.gnr-tb-frame[open] {
+    border-color: var(--tb-frame-border-open);
+}
+
+/* --- Frame summary (clickable header) --- */
+.gnr-tb-summary {
+    padding: 8px 14px;
+    cursor: pointer;
+    background: var(--tb-summary-bg);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    list-style: none;
+    user-select: none;
+}
+
+.gnr-tb-summary::-webkit-details-marker {
+    display: none;
+}
+
+.gnr-tb-summary::before {
+    content: "\25B6";
+    font-size: 9px;
+    color: var(--tb-muted-color);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+}
+
+.gnr-tb-frame[open] > .gnr-tb-summary::before {
+    transform: rotate(90deg);
+}
+
+.gnr-tb-summary:hover {
+    background: var(--tb-summary-hover);
+}
+
+/* --- Frame number badge --- */
+.gnr-tb-num {
+    background: var(--tb-num-bg);
+    color: var(--tb-num-color);
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-family: var(--tb-mono-font);
+}
+
+.gnr-tb-frame:last-of-type .gnr-tb-num {
+    background: var(--tb-num-error-bg);
+    color: var(--tb-error-color);
+}
+
+/* --- Frame header elements --- */
+.gnr-tb-module {
+    color: var(--tb-module-color);
+    font-weight: 600;
+}
+
+.gnr-tb-sep {
+    color: #ccc;
+}
+
+.gnr-tb-lineno {
+    color: var(--tb-muted-color);
+    font-family: var(--tb-mono-font);
+    font-size: 12px;
+}
+
+.gnr-tb-func {
+    color: var(--tb-func-color);
+    font-weight: 500;
+}
+
+.gnr-tb-func::before {
+    content: "in ";
+    color: var(--tb-muted-color);
+    font-weight: 400;
+}
+
+.gnr-tb-hash {
+    color: var(--tb-hash-color);
+    font-family: var(--tb-mono-font);
+    font-size: 10px;
+    background: var(--tb-hash-bg);
+    padding: 1px 5px;
+    border-radius: 3px;
+}
+
+/* --- Locals badge (summary) --- */
+.gnr-tb-locals-badge {
+    background: var(--tb-locals-badge-bg);
+    color: var(--tb-module-color);
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-weight: 600;
+    margin-left: auto;
+}
+
+/* --- Frame body (expanded content) --- */
+.gnr-tb-body {
+    padding: 10px 14px 14px;
+    background: var(--color-bg, white);
+}
+
+.gnr-tb-filename {
+    color: var(--tb-hash-color);
+    font-size: 11px;
+    margin-bottom: 6px;
+    word-break: break-all;
+    font-family: var(--tb-mono-font);
+}
+
+/* --- Code block --- */
+.gnr-tb-code {
+    background: var(--tb-code-bg);
+    color: var(--tb-code-color);
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-family: var(--tb-mono-font);
+    font-size: 13px;
+    overflow-x: auto;
+    line-height: 1.5;
+    margin-bottom: 6px;
+}
+
+/* --- Local variables section --- */
+.gnr-tb-locals {
+    margin-top: 6px;
+    border: 1px solid var(--tb-frame-border);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.gnr-tb-locals-hdr {
+    padding: 6px 10px;
+    background: var(--tb-locals-hdr-bg);
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--tb-num-color);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
+}
+
+.gnr-tb-locals-hdr:hover {
+    background: var(--tb-summary-hover);
+}
+
+.gnr-tb-locals-arrow {
+    font-size: 10px;
+    transition: transform 0.2s;
+    display: inline-block;
+}
+
+.gnr-tb-locals.expanded .gnr-tb-locals-arrow {
+    transform: rotate(90deg);
+}
+
+/* --- Locals table --- */
+.gnr-tb-locals-tbl {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    display: none;
+}
+
+.gnr-tb-locals.expanded .gnr-tb-locals-tbl {
+    display: table;
+}
+
+.gnr-tb-locals-tbl th {
+    text-align: left;
+    padding: 5px 10px;
+    background: var(--tb-locals-th-bg);
+    font-size: 11px;
+    color: var(--tb-num-color);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    border-bottom: 1px solid var(--tb-frame-border);
+}
+
+.gnr-tb-locals-tbl td {
+    padding: 4px 10px;
+    border-bottom: 1px solid var(--tb-locals-th-bg);
+    vertical-align: top;
+}
+
+.gnr-tb-locals-tbl tr:last-child td {
+    border-bottom: none;
+}
+
+.gnr-tb-locals-tbl tr:hover {
+    background: var(--tb-locals-hdr-bg);
+}
+
+.gnr-tb-loc-name {
+    font-family: var(--tb-mono-font);
+    font-weight: 600;
+    color: #334155;
+    white-space: nowrap;
+    width: 1%;
+}
+
+.gnr-tb-loc-value {
+    font-family: var(--tb-mono-font);
+    color: #555;
+    word-break: break-all;
+    max-width: 0;
+}
+
+.gnr-tb-loc-special {
+    color: var(--tb-hash-color);
+    font-style: italic;
+}
+
+/* --- Error message --- */
+.gnr-tb-errmsg {
+    background: var(--tb-error-bg);
+    color: var(--tb-error-color);
+    padding: 12px 16px;
+    border-radius: var(--tb-frame-radius);
+    font-family: var(--tb-mono-font);
+    font-size: 14px;
+    font-weight: 600;
+    margin-top: 10px;
+    border: 1px solid var(--tb-error-border);
+    line-height: 1.5;
+}

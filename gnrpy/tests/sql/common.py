@@ -7,7 +7,6 @@ from testing.postgresql import Postgresql
 
 from gnr.core.gnrbag import Bag
 
-
 class MockCache:
     """Mock cache for testing GnrSqlDb and GnrSqlAppDb"""
     def __init__(self):
@@ -36,11 +35,41 @@ class MockApplication:
     instanceFolder = None
     cache = MockCache()
 
+    packages = {}
+
     def checkResourcePermission(self, deletable, tags, test=True):
         return test
 
+    def pkgBroadcast(self, method, *args, **kwargs):
+        return []
+
 excludewin32 = pytest.mark.skipif(sys.platform == "win32",
                                   reason="testing.postgresl doesn't run on Windows")
+
+
+def get_pg_config():
+    """Determine PostgreSQL connection parameters for tests.
+
+    Returns (pg_conf, pg_instance) where pg_instance is not None
+    only when a temporary testing.postgresql was started.  The caller
+    must call pg_instance.stop() when done.
+    """
+    if 'GITHUB_WORKFLOW' in os.environ:
+        return dict(host='127.0.0.1', port='5432',
+                    user='postgres', password='postgres'), None
+    if 'GNR_TEST_PG_PASSWORD' in os.environ:
+        return dict(
+            host=os.environ.get('GNR_TEST_PG_HOST', '127.0.0.1'),
+            port=os.environ.get('GNR_TEST_PG_PORT', '5432'),
+            user=os.environ.get('GNR_TEST_PG_USER', 'postgres'),
+            password=os.environ.get('GNR_TEST_PG_PASSWORD'),
+        ), None
+    subprocess.run(['pkill', '-f', 'postgres.*tmp'], capture_output=True)
+    # we need to ensure that a proper LANG is set, needed by postgresql's initdb
+    os.environ['LANG'] = "en_GB.UTF-8"
+    pg_instance = Postgresql()
+    return pg_instance.dsn(), pg_instance
+
 
 @excludewin32
 class BaseGnrSqlTest:
@@ -55,40 +84,25 @@ class BaseGnrSqlTest:
         base_path = os.path.join(os.path.dirname(__file__), "data")
         cls.CONFIG = Bag(os.path.join(base_path, 'configTest.xml'))
         cls.SAMPLE_XMLDATA = os.path.join(base_path, 'dbdata_base.xml')
-        
-        if "GITHUB_WORKFLOW" in os.environ:
-            # we are running inside the Github CI
-            cls.pg_conf = dict(host="127.0.0.1",
-                               port="5432",
-                               user="postgres",
-                               password="postgres")
-            # no mysql in CI environment
-            cls.mysql_conf = None
-        elif "GNR_TEST_PG_PASSWORD" in os.environ:
-            cls.pg_conf = dict(host=os.environ.get("GNR_TEST_PG_HOST","127.0.0.1"),
-                               port=os.environ.get("GNR_TEST_PG_PORT","5432"),
-                               user=os.environ.get("GNR_TEST_PG_USER","postgres"),
-                               password=os.environ.get("GNR_TEST_PG_PASSWORD"))
+
+        cls.pg_conf, cls.pg_instance = get_pg_config()
+        if 'GITHUB_WORKFLOW' in os.environ or 'GNR_TEST_PG_PASSWORD' in os.environ:
             cls.mysql_conf = None
         else:
-            # cleanup stale postgres temp instances from previous interrupted runs
-            subprocess.run(['pkill', '-f', 'postgres.*tmp'], capture_output=True)
-            cls.pg_instance = Postgresql()
-            cls.pg_conf = cls.pg_instance.dsn()
             cls.mysql_conf = dict(host="localhost",
                                   port=3306,
                                   user="genrotest",
                                   password="genrotest")
         
-    @classmethod    
+    @classmethod
     def teardown_class(cls):
         """
         Teardown testing enviroment
         """
-        if "GNR_TEST_PG_PASSWORD" in os.environ:
-            if hasattr(cls,'dbname'):
-                cls.db.dropDb(cls.dbname)
-        elif not ("GITHUB_WORKFLOW" in os.environ or "GNR_TEST_PG_PASSWORD" in os.environ):
+        if hasattr(cls, 'dbname'):
+            cls.db.closeConnection()
+            cls.db.dropDb(cls.dbname)
+        if cls.pg_instance is not None:
             cls.pg_instance.stop()
 
 

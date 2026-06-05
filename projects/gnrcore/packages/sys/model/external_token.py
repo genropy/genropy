@@ -50,8 +50,14 @@ class Table(object):
         self.insert(record)
         return record['id']
 
+    def get_storeargs(self):
+        storeargs = {}
+        if not self.db.multidomain:
+            storeargs = {'storename':self.db.rootstore}
+        return storeargs
+
     def use_token(self, token, host=None):
-        with self.db.tempEnv(connectionName='system',storename=self.db.rootstore):
+        with self.db.tempEnv(connectionName='system',**self.get_storeargs()):
             record = self.record(id=token, ignoreMissing=True).output('bag')
             record = self.check_token(record, host)
             if record:

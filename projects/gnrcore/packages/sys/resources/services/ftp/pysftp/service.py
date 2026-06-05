@@ -1,15 +1,14 @@
-#!/usr/bin/env pythonw
 # -*- coding: utf-8 -*-
 #
 #  Created by Saverio Porcari on 2013-04-06.
 #  Copyright (c) 2013 Softwell. All rights reserved.
 
 import os
+import warnings
 from gnr.web.gnrbaseclasses import BaseComponent
 
 from gnrpkg.sys.services.ftp import SftpService
 from gnr.core.gnrlang import GnrException
-
 
 try:
     import pysftp
@@ -18,6 +17,13 @@ except:
 
 class Service(SftpService):
     def __init__(self, parent=None,host=None,username=None,password=None,private_key=None,port=None,root=None,**kwargs):
+
+        warnings.warn(
+            "PYSFTP based FTP service is deprecated, please use newer implementation 'paramiko' ASAP",
+            DeprecationWarning,
+            stacklevel=2
+        )
+
         self.parent = parent
         if not pysftp:
             raise GnrException('Missing pysftp. hint: pip install pysftp')
@@ -55,8 +61,10 @@ class Service(SftpService):
                                 callback=None,preserve_mtime=None,thermo_wrapper=None,**kwargs):
         if isinstance(sourcefiles,str):
             sourcefiles = sourcefiles.split(',')
+            
         if thermo_wrapper:
-            sourcefiles = thermo_wrapper(thermo_wrapper)
+            sourcefiles = thermo_wrapper(sourcefiles)
+            
         if callback is None:
             def cb(curr,total):
                 print('dl %i/%i' %(curr,total))
@@ -76,8 +84,10 @@ class Service(SftpService):
                                 thermo_wrapper=None,confirm=None,**kwargs):
         if isinstance(sourcefiles,str):
             sourcefiles = sourcefiles.split(',')
+            
         if thermo_wrapper:
-            sourcefiles = thermo_wrapper(thermo_wrapper)
+            sourcefiles = thermo_wrapper(sourcefiles)
+            
         if callback is None:
             def cb(curr,total):
                 print('up %i/%i' %(curr,total))
@@ -102,6 +112,6 @@ class ServiceParameters(BaseComponent):
         fb.textbox(value='^.host',lbl='Host')
         fb.textbox(value='^.username',lbl='Username')
         fb.passwordTextBox(value='^.password',lbl='Password')
-        fb.textbox(value='^.private_key',lbl='Private key')
+        fb.textbox(value='^.private_key',lbl='Private key file path')
         fb.textbox(value='^.port',lbl='Port')
         fb.textbox(value='^.root',lbl='Root')

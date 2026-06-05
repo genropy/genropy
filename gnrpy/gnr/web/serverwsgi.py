@@ -1,9 +1,10 @@
 import sys
-import time
-from datetime import datetime
 import os
 import atexit
-import re
+import shutil
+import subprocess
+import webbrowser
+import socket
 
 from werkzeug.serving import make_server, is_running_from_reloader
 from werkzeug._reloader import run_with_reloader
@@ -33,50 +34,22 @@ from werkzeug.wrappers import Response, Request
 
 from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrconfig import getGnrConfig, gnrConfigPath
-from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
-from gnr.app.gnrdeploy import PathResolver
+from gnr.core.gnrstring import boolean
+from gnr.app.pathresolver import PathResolver
 from gnr.web.gnrwsgisite import GnrWsgiSite
 from gnr.web import logger
-from gnr.web.gnrwsgisite_proxy.gnrsiteregister import GnrSiteRegisterServer
-
-CONN_STRING_RE=r"(?P<ssh_user>\w*)\:?(?P<ssh_password>\w*)\@(?P<ssh_host>(\w|\.)*)\:?(?P<ssh_port>\w*)(\/?(?P<db_user>\w*)\:?(?P<db_password>\w*)\@(?P<db_host>(\w|\.)*)\:?(?P<db_port>\w*))?"
-CONN_STRING = re.compile(CONN_STRING_RE)
-
 wsgi_options = dict(
         port=8080,
         host='0.0.0.0',
         reload=False,
-        set_user=None,
-        set_group=None,
-        server_name='Genropy',
         debug=True,
-        profile=False,
-        noclean=False,
         restore=False,
         source_instance=None,
         remote_edit=None,
-        remotesshdb=None,
-        gzip=None,
-        websockets=True,
-        tornado=None
+        async_port=None
         )
 
-DNS_SD_PID = None
-
-
-def run_sitedaemon(sitename=None, sitepath=None, debug=None, storage_path=None, host=None, port=None, socket=None, hmac_key=None):
-    sitedaemon = GnrSiteRegisterServer(sitename=sitename,debug=debug, storage_path=storage_path)
-    sitedaemon.start(host=host,socket=socket,hmac_key=hmac_key,port=port, run_now=False)
-    sitedaemon_xml_path = os.path.join(sitepath,'sitedaemon.xml')
-    sitedaemon_bag = Bag()
-    sitedaemon_bag.setItem('params',None,
-        register_uri=sitedaemon.register_uri,
-        main_uri = sitedaemon.main_uri,
-        pid=os.getpid()
-        )
-    sitedaemon_bag.toXml(sitedaemon_xml_path)
-    sitedaemon.run()
 
 class GnrDebuggedApplication(DebuggedApplication):
 
@@ -102,7 +75,6 @@ class GnrDebuggedApplication(DebuggedApplication):
                 self.frames[id(frame)] = frame
             self.tracebacks[traceback_id] = traceback
             request = Request(environ)
-            frm=''
             debug_url = '%sconsole?error=%i'%(request.host_url, traceback_id)
 
             logger.error(f"Error occurred, debug on {debug_url}")
@@ -158,20 +130,22 @@ class GnrDebuggedApplication(DebuggedApplication):
 class ServerException(Exception):
     pass
 
-class DaemonizeException(Exception):
-    pass
-
+def host_binding_address(host):
+    """
+    Type validator for command line
+    """
+    try:
+        socket.getaddrinfo(host, 1)
+        return host
+    except:
+        raise ValueError(f"Invalid address: {host}")
+    
 class Server(object):
-    min_args = 0
     description = "This command serves a genropy web application."
 
 
-    def __init__(self, site_script=None, server_name='Genro Server', server_description='Development'):
+    def __init__(self, site_script=None):
         parser = GnrCliArgParse(description=self.description)
-        parser.add_argument('--log-file',
-                            dest='log_file',
-                            metavar='LOG_FILE',
-                            help="Save output to the given log file (redirects stdout)")
         parser.add_argument('--reload',
                             dest='reload',
                             action='store_true',
@@ -181,34 +155,31 @@ class Server(object):
                             action='store_false',
                             help="Do not use auto-restart file monitor")
         parser.add_argument('--nodebug',
-                            dest='debug',
-                            action='store_false',
+                            dest='nodebug',
+                            action='store_true',
                             help="Don't use werkzeug debugger")
-        parser.add_argument('--profile',
-                            dest='profile',
-                            action='store_true',
-                            help="Use profiler at /__profile__ url")
-        parser.add_argument('--websockets',
-                            dest='websockets',
-                            action='store_true',
-                            help="Use websockets")
-        parser.add_argument('-t','--tornado',
-                            dest='tornado',
-                            action='store_true',
-                            help="Serve using tornado")
+        parser.add_argument('-a', '--async-port',
+                            dest='async_port',
+                            type=int,
+                            default=None,
+                            help="Force the gnrasync subprocess to listen on this TCP port. "
+                                 "When omitted, if siteconfig declares websockets=true the "
+                                 "subprocess is auto-spawned on a free port.")
         
+        parser.add_argument('-o','--open',
+                            dest='open_browser',
+                            action='store_true',
+                            help="Automatically open the browser to this application")
         parser.add_argument('-c', '--config',
                             dest='config_path',
                             help="gnrserve directory path")
-
         parser.add_argument('-p', '--port',
                             dest='port',
                             help="Sets server listening port (Default: 8080)")
-
         parser.add_argument('-H', '--host',
                             dest='host',
+                            type=host_binding_address,
                             help="Sets server listening address (Default: 0.0.0.0)")
-
         parser.add_argument('--restore',
                             dest='restore',
                             help="Restore from path")
@@ -220,34 +191,16 @@ class Server(object):
                             dest='remote_edit',
                             action='store_true',
                             help="Enable remote edit")
-        parser.add_argument('-g','--gzip',
-                            dest='gzip',
-                            action='store_true',
-                            help="Enable gzip compressions")
         parser.add_argument('--remotedb',
                             nargs="?",
                             const=True,
                             default=None,
                             dest='remotedb',
                             help="Use a remote db")
-        parser.add_argument('--verbose',
-                            dest='verbose',
-                            action='store_true',
-                            help='Verbose')
-
         parser.add_argument('site_name', nargs='?')
         parser.add_argument('-s', '--site',
                             dest='site_name_opt',
                             help="Use command on site identified by supplied name")
-
-        parser.add_argument('-n', '--noclean',
-                            dest='noclean',
-                            help="Don't perform a clean (full reset) restart",
-                            action='store_true')
-
-        parser.add_argument('--counter',
-                            dest='counter',
-                            help="Startup counter")
 
         parser.add_argument('--ssl_cert',
                             dest='ssl_cert',
@@ -273,9 +226,10 @@ class Server(object):
                 help="Debugpy port (defaults to 5678)")
 
         self.site_script = site_script
-        self.server_description = server_description
-        self.server_name = server_name
-
+        self.app_scheme = 'http'
+        self.app_host = '127.0.0.1'
+        self.app_port = '8080'
+        
         parser.set_defaults(loglevel="info")
         self.options = parser.parse_args()
         if hasattr(self.options, 'config_path') and self.options.config_path:
@@ -321,9 +275,6 @@ class Server(object):
             self.site_path = os.path.dirname(os.path.realpath(site_script))
         self.init_options()
 
-    def isVerbose(self, level=0):
-        return self.options.verbose and self.options.verbose>level
-
     def site_name_to_path(self, site_name):
         return PathResolver().site_name_to_path(site_name)
 
@@ -333,44 +284,20 @@ class Server(object):
         options = self.options.__dict__
         envopt = dictExtract(os.environ,'GNR_WSGI_OPT_')
         for option in list(options.keys()):
+
             if not options.get(option, None): # not specified on the command-line
-                site_option = self.siteconfig['wsgi?%s' % option]
-                self.options.__dict__[option] = site_option or wsgi_options.get(option) or envopt.get(option)
+                option_value = wsgi_options.get(option)
+
+                site_option_value = self.siteconfig['wsgi?%s' % option]
+                if site_option_value is not None:
+                    option_value = site_option_value
+                if option in envopt:
+                    option_value = envopt.get(option)
+
+                self.options.__dict__[option] = option_value
 
     def get_config(self):
         return PathResolver().get_siteconfig(self.site_name)
-
-
-    @property
-    def site_config(self):
-        if not hasattr(self, '_site_config'):
-            self._site_config = self.get_config()
-        return self._site_config
-
-    @property
-    def instance_config(self):
-        if not hasattr(self, '_instance_config'):
-            self._instance_config = self.get_instance_config()
-        return self._instance_config
-
-    def get_instance_config(self):
-        instance_path = os.path.join(self.site_path, 'instance')
-        if not os.path.isdir(instance_path):
-            instance_path = os.path.join(self.site_path, '..', '..', 'instances', self.site_name)
-        if not os.path.isdir(instance_path):
-            instance_path = self.site_config['instance?path'] or self.site_config['instances.#0?path']
-        instance_config_path = os.path.join(instance_path, 'instanceconfig.xml')
-        base_instance_config = Bag(instance_config_path)
-        instance_config = self.gnr_config['gnr.instanceconfig.default_xml'] or Bag()
-        template = instance_config['instance?template'] or getattr(self, 'instance_template', None)
-        if template:
-            instance_config.update(self.gnr_config['gnr.instanceconfig.%s_xml' % template] or Bag())
-        if 'instances' in self.gnr_config['gnr.environment_xml']:
-            for path, instance_template in self.gnr_config.digest('gnr.environment_xml.instances:#a.path,#a.instance_template'):
-                if path == os.path.dirname(instance_path):
-                    instance_config.update(self.gnr_config['gnr.instanceconfig.%s_xml' % instance_template] or Bag())
-        instance_config.update(base_instance_config)
-        return instance_config
 
     def run(self):
         try:
@@ -383,127 +310,180 @@ class Server(object):
             self.debugpy_port = None
             
         self.reloader = not self.debugpy and not (self.options.reload == 'false' or self.options.reload == 'False' or self.options.reload == False or self.options.reload == None)
-        self.debug = not (self.options.debug == 'false' or self.options.debug == 'False' or self.options.debug == False or self.options.debug == None)
+        self.debug = not (self.options.debug == 'false' or self.options.debug == 'False' or self.options.debug == False or self.options.debug == None or self.options.nodebug)
         if self.debugpy:
             logger.debug("Starting debugpy service on port localhost:%s", self.debugpy_port)
             debugpy.listen(("localhost", self.debugpy_port))
         self.serve()
 
-    def start_sitedaemon(self):
-        from gnr.app.gnrdeploy import PathResolver
-        import os
-        from multiprocessing import Process
-        path_resolver = PathResolver()
-        siteconfig = path_resolver.get_siteconfig(self.site_name)
-        daemonconfig = siteconfig.getAttr('gnrdaemon')
-        sitedaemonconfig = siteconfig.getAttr('sitedaemon') or {}
-        if not sitedaemonconfig:
-            return
-        sitepath = path_resolver.site_name_to_path(self.site_name)
-        sitedaemon_attr = dict(
-            sitepath = sitepath,
-            debug = sitedaemonconfig.get('debug',None),
-            host = sitedaemonconfig.get('host','localhost'),
-            socket = sitedaemonconfig.get('socket',None),
-            port = sitedaemonconfig.get('port','*'),
-            hmac_key = sitedaemonconfig.get('hmac_key') or daemonconfig['hmac_key'],
-            storage_path = os.path.join(sitepath, 'siteregister_data.pik')
-        )
-        sitedaemon_process = Process(name='sitedaemon_%s' %(self.site_name),
-                        target=run_sitedaemon, kwargs=sitedaemon_attr)
-        sitedaemon_process.daemon = True
-        sitedaemon_process.start()
-        logger.info('sitedaemon started')
-        time.sleep(1)
-
+    @property
+    def app_url(self):
+        connect_host = '127.0.0.1' if self.app_host == '0.0.0.0' else self.app_host
+        return f'{self.app_scheme}://{connect_host}:{self.app_port}'
+        
     def serve(self):
-        port = int(self.options.port)
-        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')
-        host = self.options.host
+        self.app_port = int(self.options.port)
+        self.app_host = self.options.host
         site_name= f'{self.site_name}:{self.remote_db}' if self.remote_db else self.site_name
-        if self.options.tornado:
-            host = '127.0.0.1' if self.options.host == '0.0.0.0' else self.options.host
 
-            from gnr.web.gnrasync import GnrAsyncServer
-            site_options= dict(_config=self.siteconfig,_gnrconfig=self.gnr_config,
-                counter=getattr(self.options, 'counter', None),
-                noclean=self.options.noclean, options=self.options)
-            logger.info(f"Starting Tornado server - listening on {host}:{port}")
-            server=GnrAsyncServer(port=port,instance=site_name,
-                web=True, autoreload=self.options.reload, site_options=site_options)
-            server.start()
+        if not is_running_from_reloader():
+            async_port = self.options.async_port
+            websockets_enabled = boolean(self.siteconfig['wsgi?websockets'])
+            if async_port:
+                # explicit CLI request: spawn on the user-chosen port
+                if not self._async_server_already_running():
+                    self._spawn_async_server(site_name, async_port)
+            elif websockets_enabled:
+                # siteconfig declares websockets=true: auto-spawn on a free port
+                if not self._async_server_already_running():
+                    async_port = self._pick_free_port()
+                    self._spawn_async_server(
+                        site_name, async_port,
+                        reason='auto-spawned because siteconfig declares websockets=true')
+
+        ssl_context = None
+        if not self.debugpy and self.reloader and not is_running_from_reloader():
+            gnrServer = 'FakeApp'
         else:
-            ssl_context = None
-            if not self.debugpy and self.reloader and not is_running_from_reloader():
-                gnrServer='FakeApp'
+            gnrServer = GnrWsgiSite(self.site_script,
+                                    site_name=site_name,
+                                    _config=self.siteconfig,
+                                    _gnrconfig=self.gnr_config,
+                                    options=self.options,
+                                    debugpy=self.debugpy)
+            gnrServer._local_mode = True
+            atexit.register(gnrServer.on_site_stop)
+            extra_info = []
+            if self.debugpy:
+                extra_info.append(f'Debugpy on port {self.debugpy_port} on loopback interface')
+            elif self.debug:
+                gnrServer = GnrDebuggedApplication(gnrServer, evalex=True, pin_security=False)
+                extra_info.append('Debug mode: On')
             else:
-                gnrServer = GnrWsgiSite(self.site_script,
-                                        site_name=site_name,
-                                        _config=self.siteconfig,
-                                        _gnrconfig=self.gnr_config,
-                                        counter=getattr(self.options, 'counter', None),
-                                        noclean=self.options.noclean,
-                                        options=self.options,
-                                        debugpy=self.debugpy)
-                gnrServer._local_mode=True
-                atexit.register(gnrServer.on_site_stop)
-                extra_info = []
-                if self.debugpy:
-                    extra_info.append(f'Debugpy on port {self.debugpy_port} on loopback interface')
-                elif self.debug:
-                    gnrServer = GnrDebuggedApplication(gnrServer, evalex=True, pin_security=False)
-                    extra_info.append('Debug mode: On')
-                localhost = 'http://127.0.0.1'
-                if self.options.ssl:
-                    cert_path = os.path.join(self.config_path,'localhost.pem')
-                    key_path = os.path.join(self.config_path,'localhost-key.pem')
-                    if os.path.exists(cert_path) and os.path.exists(key_path):
-                        ssl_context = (cert_path, key_path)
-                    extra_info.append('SSL mode: On')
-                    localhost = 'https://localhost'
-                if self.options.ssl_cert and self.options.ssl_key:
-                    ssl_context=(self.options.ssl_cert,self.options.ssl_key)
-                    extra_info.append(f'SSL mode: On {ssl_context}')
-                    localhost = 'https://{host}'.format(host=self.options.ssl_cert.split('/')[-1].split('.pem')[0])
+                extra_info.append('Debug mode: Off')
 
-                logger.info(f"Starting server - listening on {localhost}:{port}\t%s", ",".join(extra_info))
+            if self.options.ssl:
+                cert_path = os.path.join(self.config_path, 'localhost.pem')
+                key_path = os.path.join(self.config_path, 'localhost-key.pem')
+                if os.path.exists(cert_path) and os.path.exists(key_path):
+                    ssl_context = (cert_path, key_path)
+                extra_info.append('SSL mode: On')
+                app_scheme = 'https'
+            if self.options.ssl_cert and self.options.ssl_key:
+                ssl_context = (self.options.ssl_cert, self.options.ssl_key)
+                extra_info.append(f'SSL mode: On {ssl_context}')
+                app_scheme = 'https'
+                self.app_host = self.options.ssl_cert.split('/')[-1].split('.pem')[0]
 
-            if not is_running_from_reloader():
-                fd = None
-            else:
-                fd = int(os.environ["WERKZEUG_SERVER_FD"])
+            logger.info(f"Started server on {self.app_host}:{self.app_port}\t%s", ",".join(extra_info))
+            logger.info(f"Connect at {self.app_url}")
 
-            srv = make_server(
-                host,
-                port,
-                gnrServer,
-                threaded=True,
-                processes=1,
-                ssl_context=ssl_context,
-                fd=fd)
-            srv.socket.set_inheritable(True)
-            os.environ["WERKZEUG_SERVER_FD"] = str(srv.fileno())
+        if self.options.open_browser and not os.environ.get("WERKZEUG_RUN_MAIN", None):
+            logger.info(f'Opening browser to application on {self.app_url}')
+            webbrowser.open(self.app_url)
 
-            if self.reloader:
-                
-                # werkzeug reloader expects sys.argv without
-                # spaces for the reloader on python3.8
-                if " " in sys.argv[0]:
-                    cmd_name = sys.argv.pop(0).split()
-                    sys.argv = cmd_name + sys.argv
+        if not is_running_from_reloader():
+            fd = None
+        else:
+            fd = int(os.environ["WERKZEUG_SERVER_FD"])
 
-                run_with_reloader(
-                    srv.serve_forever,
-                    #extra_files=extra_files,
-                    #exclude_patterns=exclude_patterns,
-                    interval=1,
-                    reloader_type="auto",
-                )
-            else:
+        srv = make_server(
+            self.app_host,
+            self.app_port,
+            gnrServer,
+            threaded=True,
+            processes=1,
+            ssl_context=ssl_context,
+            fd=fd)
+        srv.socket.set_inheritable(True)
+        os.environ["WERKZEUG_SERVER_FD"] = str(srv.fileno())
+
+        if self.reloader:
+            # werkzeug reloader expects sys.argv without
+            # spaces for the reloader on python3.8
+            if " " in sys.argv[0]:
+                cmd_name = sys.argv.pop(0).split()
+                sys.argv = cmd_name + sys.argv
+
+            run_with_reloader(
+                srv.serve_forever,
+                interval=1,
+                reloader_type="auto",
+            )
+        else:
+            try:
+                srv.serve_forever()
+            finally:
+                srv.server_close()
+        if not is_running_from_reloader():
+            logger.info("Shutting down")
+
+    def _spawn_async_server(self, site_name, async_port, reason=None):
+        """Spawn the gnrasync server as a child process.
+
+        Registers an atexit cleanup so SIGTERM is sent on parent exit.
+        Skipped when running from the werkzeug reloader child to avoid
+        spawning two gnrasync processes.
+        """
+        gnr_bin = shutil.which('gnr')
+        if not gnr_bin:
+            logger.error("'gnr' entrypoint not found on PATH; async subprocess disabled")
+            return
+        try:
+            child = subprocess.Popen([gnr_bin, 'web', 'async', site_name, '-p', str(async_port)])
+        except Exception:
+            logger.exception('failed to spawn gnr web async subprocess')
+            return
+        if reason:
+            logger.info('gnr web async subprocess started on port %s (%s) — pid=%s, instance=%s',
+                        async_port, reason, child.pid, site_name)
+        else:
+            logger.info('gnr web async subprocess started (pid=%s) for instance %s on port %s',
+                        child.pid, site_name, async_port)
+
+        def _cleanup():
+            if child.poll() is None:
                 try:
-                    srv.serve_forever()
-                finally:
-                    srv.server_close()
-            if not is_running_from_reloader():
-                logger.info("Shutting down")
+                    child.terminate()
+                    child.wait(timeout=3)
+                except Exception:
+                    try:
+                        child.kill()
+                    except Exception:
+                        pass
+        atexit.register(_cleanup)
+
+    def _async_server_already_running(self):
+        """Return True if a gnrasync server is already listening on the
+        site's unix socket. A lingering stale socket file (no listener) is
+        treated as not-running: gnr web async itself replaces stale files
+        on startup.
+        """
+        socket_path = os.path.join(self.site_path, 'sockets', 'async.sock')
+        if not os.path.exists(socket_path):
+            return False
+        try:
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+                s.settimeout(0.2)
+                s.connect(socket_path)
+            return True
+        except (OSError, socket.error):
+            return False
+
+    def _pick_free_port(self, start=8086, end=8200):
+        """Pick a free TCP port for the auto-spawned gnrasync subprocess.
+
+        Tries the [start, end) range in order, falls back to kernel
+        ephemeral allocation (bind to 0) if nothing in the range is free.
+        """
+        for port in range(start, end):
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                try:
+                    s.bind(('127.0.0.1', port))
+                except OSError:
+                    continue
+                return port
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(('127.0.0.1', 0))
+            return s.getsockname()[1]
 

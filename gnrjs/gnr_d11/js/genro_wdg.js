@@ -120,7 +120,8 @@ dojo.declare("gnr.GnrWdgHandler", null, {
             'ins', 'kbd', 'label', 'legend', 'li', 'link', 'map', 'meta', 'noframes', 'noscript',
             'object', 'ol', 'optgroup', 'option', 'p', 'param', 'pre', 'q', 'samp', 'script',
             'select', 'small', 'span', 'strong', 'style', 'sub', 'sup', 'table', 'tbody', 'td',
-            'textarea', 'tfoot', 'th', 'thead', 'title', 'tr', 'tt', 'ul', 'var','embed','audio','video','canvas','progress'];
+            'textarea', 'tfoot', 'th', 'thead', 'title', 'tr', 'tt', 'ul', 'var','embed','audio','video','canvas','progress',
+            'details','summary'];
         for (let tag of htmlspace) {
             this.namespace[tag.toLowerCase()] = ['html',tag];
         }
@@ -573,6 +574,7 @@ dojo.declare("gnr.GnrWdgHandler", null, {
     doMixin:function(obj, handler, tag, sourceNode) {
         var oldfunc, funcname;
         var versionpatch = 'versionpatch_' + dojo.version.major + dojo.version.minor + '_';
+        var versionpatch_fallback = (versionpatch !== 'versionpatch_11_') ? 'versionpatch_11_' : null;
         var ispatch;
         for (var prop in handler) {
             funcname = null;
@@ -584,6 +586,12 @@ dojo.declare("gnr.GnrWdgHandler", null, {
                 ispatch = true;
                 if (stringStartsWith(prop, versionpatch)) {
                     funcname = prop.replace(versionpatch, '');
+                } else if (versionpatch_fallback && stringStartsWith(prop, versionpatch_fallback)) {
+                    // fallback: if no version-specific patch exists, use 1.1 patch
+                    var fallback_funcname = prop.replace(versionpatch_fallback, '');
+                    if (!(versionpatch + fallback_funcname in handler)) {
+                        funcname = fallback_funcname;
+                    }
                 }
             }
             else if (stringStartsWith(prop, 'patch_')) {
@@ -826,6 +834,7 @@ dojo.declare("gnr.GridEditor", null, {
             this.autoSave = 3000;
         }
         this.remoteRowController = sourceNode.attr.remoteRowController;
+        this.remoteRowController_onEmptyRow = sourceNode.attr.remoteRowController_onEmptyRow;
         this.remoteRowController_default = sourceNode.attr.remoteRowController_default;
         if(this.remoteRowController_default){
             var caller_kw = {'script':"this.getParentNode().widget.gridEditor.callRemoteControllerBatch('*',null,true)",'_delay':500,
@@ -1691,11 +1700,8 @@ dojo.declare("gnr.GridEditor", null, {
         grid.currRenderedRowIndex = lastRenderedRowIndex;
         grid.selection.select(grid.currRenderedRowIndex);
         attr.datapath = this.widgetRootNode.absDatapath('.' + rowLabel);
-        attr.width = attr.width || (cellNode.clientWidth-10)+'px';
-        if(attr.tag.toLowerCase()=='checkbox'){
-            attr.margin_left = ( (cellNode.clientWidth-10-16)/2)+'px';
-            attr.margin_top ='1px';
-        }
+        attr.width = 'auto';
+        /* checkbox centering is handled by CSS via .gnrcheckbox_wrapper flexbox */
         //attr.preventChangeIfIvalid = true;
         if ('value' in attr) {
             if (attr.tag.toLowerCase() == 'dbselect') {
@@ -1805,6 +1811,10 @@ dojo.declare("gnr.GridEditor", null, {
             editWidgetNode.widget.focus();
         }
         editWidgetNode.grid = gridEditor.grid;
+        var wdghandler = genro.wdg.getHandler(wdgtag);
+        if(wdghandler.cell_onStartEdit){
+            wdghandler.cell_onStartEdit(cellNode,editingInfo,fldDict.attr,editWidgetNode);
+        }
 
     },
 
@@ -2304,8 +2314,9 @@ dojo.declare("gnr.GridChangeManager", null, {
                 const hasRemoteController = gridEditor.remoteRowController || rowSelectedQueries.len(rowEditor.data) > 0;
                 const hasMasterEditValue = rowEditor.data.getItem(this.grid.masterEditColumn()) !== null;
                 const hasDefaultController = gridEditor.remoteRowController_default;
+                const onEmptyRow = gridEditor.remoteRowController_onEmptyRow;
 
-                if (hasRemoteController && (hasMasterEditValue || hasDefaultController)) {
+                if (hasRemoteController && (hasMasterEditValue || (hasDefaultController && onEmptyRow))) {
                     gridEditor.callRemoteController(kw.node, null, null, true);
                 }
             }

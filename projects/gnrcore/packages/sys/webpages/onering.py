@@ -23,7 +23,6 @@ if hasattr(Pyro4.config, 'REQUIRE_EXPOSE'):
 
 
 class GnrCustomWebPage(object):
-    css_requires='public'
     py_requires='gnrcomponents/framegrid:FrameGrid'
     auth_main = 'superadmin,_DEV_'
 

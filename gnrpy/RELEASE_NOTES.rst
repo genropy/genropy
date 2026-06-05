@@ -1,11 +1,691 @@
-Upcoming Release
-================
+Unreleased
+==========
+
+New features
+------------
+
+* Connection cleanup is now a single on-event mechanism instead of
+  two parallel ones. When a page closes on the client a lottery
+  (``cleanup_threshold``, default 5%) gates an attempt to spawn a
+  background cleanup pass; the daemon ``claim_cleanup`` primitive
+  ensures only one pass runs per ``cleanup_interval_minutes``
+  (default 240). The pass walks ``data/_connections/`` once, drops
+  stale pages and connections from the in-memory register, and
+  ``rmtree``\s their filesystem folders. The legacy
+  ``SiteRegister.cleanup()`` (which ran on every request and only
+  expired the in-memory register, leaving folders behind) is
+  removed. The legacy ``--noclean`` / ``--counter`` CLI flags and
+  the init-time folder purge are removed too — folders are kept
+  across restarts and cleaned by the on-event pass. (#874)
+
+  Config keys (under ``<cleanup>`` in siteconfig):
+
+  - ``cleanup.threshold`` — lottery percentage [0..100], default 5
+  - ``cleanup.interval_minutes`` — claim min gap, default 240
+  - ``cleanup.connection_max_age`` — default raised from 600s to 7200s
+  - ``cleanup.page_max_age`` — unchanged
+  - ``cleanup.guest_connection_max_age`` — unchanged
+  - ``cleanup.interval`` (legacy 120s gate) — removed
+
+Bugfixes
+--------
+
+* PDF watermark service: fix ``code=4: source object number out of
+  range`` when ``watermarkedPDF`` is applied to PDFs saved with
+  multiple incremental xref generations (e.g. macOS Preview
+  annotations, PAdES signatures). The source PDF is now normalized
+  with ``garbage=4, clean=True, deflate=True`` before the watermark
+  is composed, following the official PyMuPDF workaround. No
+  backward-compatibility impact: PDFs that already had a single xref
+  generation are unaffected. (#872)
+* dbSelect: the ``notnull`` parameter is now honored client-side. It
+  was silently overwritten by ``validate_notnull`` in
+  ``DynamicBaseCombo.creating()``, coupling the two flags and forcing
+  callers who only wanted to suppress the empty option row to also
+  make the field mandatory. With the fix, ``notnull=True`` on the
+  widget removes the empty row without triggering required-field
+  validation, as documented in the server-side handler. No
+  backward-compatibility impact: when only ``validate_notnull`` is
+  set the behavior is unchanged. (#883)
 
   
+Release 26.05.05
+================
+
+New features
+------------
+
+* paramiko based sftp service now implementes remove()/unlink() method
+  in order to remove remote files. (#848,#868)
+
+Release 26.04.30
+================
+
+New Features
+------------
+
+* New ftp/sftp service based on paramiko, deprecation pysftp
+  (abandoware). This new service is a drop-in replacement for the old
+  pysftp service, which is now deprecated. Supports modern key
+  formats. (#845,#849)
+
+Bugfixes
+--------
+
+* Allow shift+wheel vertical scroll on grids (#826,#851): holding shift while
+  scrolling the wheel no longer freezes the grid viewport on Windows
+* TimeTextBox popup styling and time cell alignment fixes (#833)
+* Checkbox visibility toggle in _ask dialogs (#829, #831): ensure
+  layout recalculation and consistent visibility handling with other
+  widgets types.
+* Allow shift key on pasteOnGrid onkeydown (#826,#830): The onkeydown
+  handler on pasteOnGrid grids only allowed metaKey and ctrlKey
+  through, blocking all Shift-only key events. After the DOM/CSS
+  restructuring in PR #671, the contenteditable node receives keyboard
+  focus more readily, making the Shift-scroll block manifest during
+  normal range-selection interactions.
+
+Release 26.04.22
+================
+
+Bugfix release.
+
+* fix: Allow the iframe form handler to forward the table attribute to
+the form page (#822)
+
+Release 26.04.21
+================
+
+Bugfix release.
+
+* fix: initialize rootenv in pageStore at page registration (#806)
+* fix(#805): restore normal flow for grid edit widgets (#808)
+* fix: use viewResource instead of gridId in userobject view flags (#814)
+
+Release 26.04.13
+================
+
+Bugfix release.
+
+Introduce distinct visual styling for readonly fields (subtle border,
+white background) to clearly differentiate them from normal editable
+and disabled fields (#790)
+
+
+Release 26.04.09
+================
+
+Bugfix release.
+
+* guard against showHider race condition in lockScreen (#785)
+* fix validation error indicator not showing on readonly fields (#783)
+* allow textarea resize in both directions (#784)
+
+
+Release 26.04.07.1
+==================
+
+Bugfix release, fixed regression in upload procedure (#776)
+
+
+Release 26.04.07
+================
+
+New Features
+------------
+
+Mail Proxy and Email Queue
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A complete email dispatch subsystem has been introduced:
+
+* A ``message_to_send`` queue table stores outgoing emails together with
+  their sending status.  A dedicated dashboard lets operators monitor the
+  queue in real time.
+* A mail-proxy integration layer routes messages through the queue, using
+  the ``message_to_send`` formula as the single gatekeeper that decides
+  whether a message is actually sent.
+* The new architecture decouples email generation from delivery, making
+  retry logic and auditing straightforward.
+
+GnrListener - event-driven handler system
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A new ``GnrListener`` class (``gnr.app.gnrlistener``) provides a
+declarative, database-backed publish/subscribe mechanism:
+
+* Handlers are registered with the ``@listen`` decorator and are
+  auto-discovered at start-up both at module level and on package classes.
+* An optional thread-pool executor enables parallel handler execution for
+  high-throughput workloads.
+* Notification payloads are automatically enriched with ``user``,
+  ``page_id``, and ``ts`` fields and serialised with ``toTypedJSON``.
+* The polling loop has been delegated to the adapter layer, keeping the
+  core listener free of database-specific code.
+
+Centralised Error Handler
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A new centralised ``errorHandler`` (PR #677) replaces the scattered
+per-page error handling:
+
+* Errors are broadcast via ``pkgBroadcast`` so every open page is
+  notified simultaneously.
+* Toast notifications provide immediate, non-intrusive feedback.
+* A traceback viewer allows developers to inspect the full Python
+  stack trace directly in the browser.
+
+REST API Dispatcher (``_api``)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A new ``_api`` dispatcher has been added to the web layer, providing
+first-class routing for REST API endpoints without requiring a dedicated
+WSGI application.
+
+ExpandBox Widget
+~~~~~~~~~~~~~~~~
+
+A new ``expandbox`` widget based on the HTML5 ``<details>``/``<summary>``
+elements has been added to the grouplet system.  It provides
+zero-JavaScript collapsible sections and integrates with the existing
+grouplet panel infrastructure.
+
+GnrToast Improvements
+~~~~~~~~~~~~~~~~~~~~~~
+
+``GnrToast`` has been extended with two new options:
+
+* **persistent** - the toast stays visible until the user explicitly
+  dismisses it.
+* **copyable** - a copy-to-clipboard button is added to the toast body,
+  useful for error messages or reference codes.
+
+``gnr.web.widgets`` Package
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A new Python package ``gnr.web.widgets`` has been introduced.  Every
+widget exposes an ``@element`` method that returns its Bag-based
+descriptor, providing a programmatic API for widget introspection and
+documentation generation.
+
+Sourcerer Integration
+~~~~~~~~~~~~~~~~~~~~~
+
+GenroPy now ships a built-in service adapter for Sourcerer, registered
+through the standard service declaration mechanism.
+
+
+Improvements and Refactoring
+-----------------------------
+
+CSS / Theme System Modernisation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+An extensive CSS overhaul (PR #671 and follow-up commits) affects the
+entire UI:
+
+* A **design-token system** replaces ad-hoc colour literals.  All colours
+  are now expressed through a numbered seven-step gray scale
+  (``--gray-1`` - ``--gray-7``) and semantic aliases
+  (``--border-light``, ``--border-strong``, etc.).
+* Border-radius values are centralised in CSS custom properties; the
+  ``--palette-*`` namespace has been retired in favour of the new tokens.
+* ``color-mix()`` calls have been replaced with explicit hex values to
+  maximise browser compatibility.
+* The theme selection mechanism is unified: the ``GNR_CSS_THEME``
+  environment variable now controls the default theme consistently in both
+  ``default.xml`` and the Dockerfile.
+* CSS variables have been added for ``--multibutton-selected-bg``,
+  ``--button-in-grid-bg``, ``--frameindex-tablist-*`` sizing, and the
+  ``deletingButton`` specialisation.
+
+Grid Enhancements
+~~~~~~~~~~~~~~~~~
+
+* Flex grid columns now enforce an automatic minimum width so that column
+  headers are never truncated below their natural size.
+* Widget-in-cell rendering has been overhauled: text centering, the
+  invalid-cell icon, and style-attribute conflicts have all been fixed.
+* The ``required_columns`` parameter is now honoured in print-resource
+  grid queries.
+* ``drawFiller`` width calculation has been restored to its pre-PR #749
+  behaviour.
+
+Grouplet Panel
+~~~~~~~~~~~~~~
+
+* ``GroupletForm`` now maintains a strict datapath separation between the
+  grouplet's own data and the host page's store, preventing cross-page
+  data leaks.
+* The error indicator is now shown only when there are actual validation
+  errors, not on every field change.
+* The inline ``_onRemote`` pattern has been replaced with a proper
+  ``gnrwdg`` method, improving reusability.
+* A double-load on the preference page has been eliminated.
+
+Authentication Module
+~~~~~~~~~~~~~~~~~~~~~
+
+Auth verifiers have been extracted from ``gnrwebpage`` into a dedicated
+module (PR #700), improving separation of concerns and making it easier
+to swap or extend the verification strategy.
+
+Daemon Package
+~~~~~~~~~~~~~~
+
+Daemon initialisation logic has been moved into ``gnr.web.daemon.service``
+(PR #695, #688), reducing coupling between the CLI entry points and the
+runtime service objects.  The ``DataCollector`` (register analyser) has
+similarly been moved out of the CLI layer.
+
+``gnrdeploy`` Refactoring
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The deployment helper has been refactored (PR #706) to separate
+configuration parsing from execution.  A typo that mapped ``column.type``
+instead of ``column.dtype`` was fixed as part of this work.
+
+Siteregisters Module Organisation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Siteregisters modules have been reorganised (PR #733) to follow a clearer
+package structure, making it easier to locate and extend individual
+register implementations.
+
+Database Migration Extensions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``gnr db migrate`` command now accepts a ``-e``/``--extension``
+option with possible values ``txt``, ``json``, or ``sql``, giving
+operators control over the format of generated migration scripts.
+
+PostgreSQL Extension Handling
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``gnr`` database layer now uses ``CREATE EXTENSION IF NOT EXISTS``
+instead of the previous ``DROP - CREATE`` sequence, making migrations
+idempotent and safe to re-run.
+
+Werkzeug ProxyFix
+~~~~~~~~~~~~~~~~~
+
+The ``ProxyFix`` WSGI middleware is now automatically applied when the
+application is running inside Kubernetes, ensuring that ``REMOTE_ADDR``,
+``HTTP_HOST``, and scheme headers are correctly resolved behind a
+reverse proxy.
+
+Frameindex Top Hook
+~~~~~~~~~~~~~~~~~~~~
+
+The ``frameindex`` top hook is now decorated with ``@customizable``,
+allowing projects to override the default rendering without monkey-patching.
+``functools.wraps`` is applied so that the decorated function retains its
+original ``__name__``.
+
+K8S Generator
+~~~~~~~~~~~~~
+
+``K8SGenerator`` now accepts an optional ``initContainers`` argument for
+providing accessory init containers to the generated Kubernetes manifests.
+
+Services Declarations
+~~~~~~~~~~~~~~~~~~~~~
+
+Missing ``name`` and ``protocol`` fields in service declarations have been
+added, and ``last_refresh_ts`` availability in new connections has been
+fixed.
+
+Autoreload Browser-Open Fix
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When Werkzeug autoreload is active together with the ``-o`` (open browser)
+option, the browser is now opened only once by the main monitor process,
+preventing duplicate tabs on every file change.
+
+
+Removals and Clean-up
+---------------------
+
+* **Legacy Dojo 1.8 library** (``dojo_libs/dojo_18``) has been
+  removed.  The framework now targets a new Dojo internal fork in a
+  non-exclusive way, coexisting with old Dojo 11.
+* **``legacy_packages/gnr``** has been removed.
+* **``example_configuration/demo_site``** has been removed.
+* Dead WSGI code has been deleted (PR #739).
+* The ``name_full`` fallback from preference caption resolution has been
+  removed; callers must supply an explicit caption.
+* Tree branch PNG icons have been replaced by pure-CSS triangles,
+  eliminating several image assets.
+
+
+Bug Fixes
+---------
+
+Email
+~~~~~
+
+* The ``sendMessage`` method now consults ``message_to_send`` as its sole
+  gating condition, preventing duplicate sends and race conditions.
+
+Storage / S3
+~~~~~~~~~~~~
+
+* ``S3`` multipart upload ETags (which contain a ``-<partcount>`` suffix)
+  are now correctly detected via a ``len`` check rather than a fragile
+  string scan.  The ``md5hash`` helper returns ``None`` for multipart
+  ETags instead of raising.
+
+CKEditor
+~~~~~~~~
+
+* The ``disabled vs readOnly`` regression introduced in a previous release
+  has been fixed.  Disabled CKEditor instances are now visually distinct
+  from read-only ones.
+
+DateTimeTextBox
+~~~~~~~~~~~~~~~
+
+* ``DateTimeTextBox`` no longer clears its value on blur when the field
+  contains a valid date/time.
+
+Login Form
+~~~~~~~~~~
+
+* The ``login_newUser`` form has been converted from ``frameForm`` to
+  ``boxForm`` so that it auto-sizes correctly on all viewport sizes.
+
+Document Store
+~~~~~~~~~~~~~~
+
+* The custom ``rpcmethod`` in ``load_document`` and the handler rpcmethod
+  chain in ``load_record``, ``save_record``, and ``save_document`` have
+  been restored after being lost in a previous refactoring.
+
+Web Page
+~~~~~~~~
+
+* ``userLocalTags`` now returns a safe empty value instead of ``None``
+  when called from a ``remoteBuilder`` context, preventing ``AttributeError``
+  downstream.
+* The ``--nodebug`` command-line flag is now correctly evaluated and no
+  longer silently ignored.
+* Debug-level evaluation order has been corrected so that the intended
+  log level is applied from the very first log statement.
+
+Record / BoxForm
+~~~~~~~~~~~~~~~~
+
+* The ``record`` property has been extended to be compatible with
+  ``BoxForm``, removing an incompatibility introduced when grouplet panels
+  were redesigned.
+
+Batch Handler
+~~~~~~~~~~~~~
+
+* Schedulable batches that do not define a ``table_script_parameters_pane``
+  now correctly show their parameters dialog (PR #679).
+* Batch handler CSS now uses ``em`` units and CSS custom properties for
+  consistent scaling; the thermoline label is flex-centred.
+
+Theme / CSS Fixes
+~~~~~~~~~~~~~~~~~
+
+* ``css_theme`` default value is now consistent between ``default.xml``
+  and the Dockerfile entry point.
+* The theme editor has been fixed after the CSS variable renaming.
+* Obsolete ``--radius-*`` and ``--palette-*`` variable references in
+  project and resource CSS files have been updated to the new token names.
+* The ``framedindex_tablist`` now uses ``min-height`` instead of
+  ``padding`` to avoid layout collisions.
+* ``hiderLayer`` and ``hiderMessage`` readability has been improved.
+* The draft-marker ribbon position is now configurable via a ``draftMarker``
+  option.
+* Duplicate CSS triangle chevrons in the mobile menu are hidden when
+  ``branchiconright`` is active.
+* Toolbar background and ``border-strong`` colours have been darkened for
+  better contrast.
+* ``grouplet_chunk_box`` ``position: relative`` has been moved from
+  hardcoded Python into the CSS file.
+* ``NumberTextBox`` and other right-aligned inputs now have symmetric
+  ``padding-right``.
+* The quickgrid toolbar ``contentPane`` now has a base height so it is
+  always visible.
+* ``TabContainer`` border-radius is applied only to the top-right corner
+  to preserve the visual tab-line continuation.
+* The linker error tooltip is now always visible and the scrollable-table
+  header sync issue has been resolved.
+* XSS sanitisation has been added to the dojo_20 toast output.
+* ``ping_semaphore`` CSS visibility and ``TimeTextBox`` popup styling have
+  been corrected.
+* The ``ext_`` column handler mechanism now correctly supports multiple
+  handlers on the same column (PR #698).
+
+``mkthresource``
+~~~~~~~~~~~~~~~~
+
+* Cross-package foreign key relation errors in ``mkthresource`` have been
+  fixed (PR #684).
+
+Wizard / Formlet
+~~~~~~~~~~~~~~~~
+
+* Wizard ``onLoading`` of the main form has been fixed.
+* Formlet fields now correctly display error, focus, and disabled visual
+  states.
+
+Preferences
+~~~~~~~~~~~
+
+* The preference page no longer triggers a double load on initialisation.
+* ``GroupletForm`` preference indicator now shows only on error conditions.
+
+Miscellaneous
+~~~~~~~~~~~~~
+
+* ``_th_mixinResource`` now operates in safe mode for tables that have no
+  ``th_`` resource, and multidomain error URLs are handled correctly
+  (PR #716).
+* ``display: flex`` has been removed from ``cellContent`` to restore
+  correct template grid column widths.
+* ``inline-flex`` is now used for formbuilder cells inside toolbars.
+* Minor hider background fix removing an unwanted box shadow.
+
+
+Release 26.04.01
+================
+
+Bugfix release: FDs leaking in S3 storage node, causing easily reach of
+upper limits for open files in batches. (#760)
+
+Release 26.03.24.1
+==================
+
+Backport release for handling reverse-proxy/ssl termination correctly
+in a K8S enviroment, and to provide an easy way (with default path or
+env-var provided path) custom configuration for gunicorn backend.
+
+Release 26.03.24
+================
+
+This is a bugfix release to provide in docker image the needed
+fonts for default printing templates.
+
+Release 26.03.18
+================
+
+This is a bugfix release to address a regression on the task scheduler
+time computing, introduced with the tz-aware timestamp in the relative model.
+
+
+Release 26.03.09
+================
+
+This release includes significant refactor in code organization,
+removal and/or deprecation of old modules, and visual enhancement in
+the user interface regarding menus and modular form fragments. It also
+includes new PGVector related macros, with a newly organized macro
+registry. 
+
+New Features
+~~~~~~~~~~~~
+
+- **SQL — Automatic NOTIFY on table changes**: ``adapter.notify()``
+  now automatically triggers PostgreSQL NOTIFY on table
+  modifications. (#663, #664)
+- **gnrstring — cleanRst() utility**: New ``cleanRst()`` function
+  added to the gnrstring module for cleaning RST-formatted
+  strings. (#665)
+- **XML Transform service**: New ``xmltransform`` service for
+  converting XML to HTML via XSLT stylesheets. (#656)
+- **SQL — Complete addMacro registry**: All SQL macros are now
+  registered in the addMacro registry. (#617, #650)
+- **SQL — pgvector macros**: Added ``VECQUERY`` and ``VECRANK`` macros
+  for pgvector similarity search. (#584)
+- **Menu — iconClass support and improved tree arrows**: Menu
+  component now supports ``iconClass`` and has improved tree arrow
+  rendering. (#615)
+- **Menu — empty branch visual feedback and badge improvements**:
+  Visual feedback for empty menu branches and enhanced badge
+  display. (#641)
+- **Grouplet system**: New grouplet system for modular form fragments,
+  including topic grids, wizard, panel and template auto-discovery,
+  and mobile app connection. (#560, #587)
+- **Grouplet — dedicated folder and mobile app connection**: Component
+  moved to dedicated folder with mobile app support added.
+- **Multidomain Workspace Mode**: Isolated tenant support under a
+  single instance. (#426)
+- **Dependencies — replace webob with werkzeug exceptions**: Migrated
+  from ``webob`` to ``werkzeug`` for HTTP exception handling. (#612)
+- **Web — apphandler split into sub-package**: ``apphandler.py``
+  refactored into a class-based sub-package. (#543)
+- **GnrApp — db_attrs parameter**: New ``db_attrs`` parameter added to
+  ``GnrApp.init()``. (#553)
+- **Auto-GIN index for TSV columns**: Migration system now
+  automatically creates GIN indexes for TSV (full-text search)
+  columns. (#629)
+
+Bug Fixes
+~~~~~~~~~
+
+- **Migration — clear error on unreachable DB server**: Error state is
+  now cleared when the database server becomes reachable again. (#654,
+  #655)
+- **Migration packages bugs**: Applied fixes for bugs in migration
+  packages. (#508, #534)
+- **SQL — macro registry premature copy**: Removed premature copy of
+  macro registry to expander. (#617)
+- **SQLite adapter**: Suppressed deprecation warnings via timestamp
+  converter; added no-op ``setLocale`` method.
+- **SQL — RE_SQL_PARAMS skips PostgreSQL cast syntax**: Parameter
+  regex no longer incorrectly matches ``::`` cast notation. (#586)
+- **SQL — BETWEEN macro renamed to IN_RANGE**: ``#BETWEEN`` macro
+  renamed to ``#IN_RANGE`` for clarity. (#644)
+- **SQL — guessPkey method restored**: Method lost during
+  ``gnrsqltable`` split has been restored. (#568)
+- **SQLite — IS NOT TRUE rewrite**: NULL values are now handled
+  correctly. (#550)
+- **Formbuilder — spurious labeledbox wrapper**: Removed unwanted
+  labeledbox wrapper in formlet mode. (#639)
+- **phonelink — cosmetic fixes**: Style and ``__info__`` pattern
+  alignment improvements.
+- **Menu — tableBranch badge fallthrough**: Prevented badge from
+  falling through to RPC path on dbchanges. (#657)
+- **Menu — whitespace preservation in tree search highlight**: Fixed
+  inline-flex labels losing whitespace in highlighted search
+  results. (#646)
+- **Menu — menuLineBadge propagation**: Badge now correctly propagates
+  to package branches. (#645)
+- **Menu — badge sizing, alignment and shape**: Multiple fixes for
+  circular badge rendering, spacing, border, and vertical stretching
+  on mobile. (#various)
+- **Thread-safe relation tree**: Relation tree now uses ``currentEnv``
+  cache for thread safety. (#578)
+- **Locale handling**: Unknown or invalid locales are now handled
+  gracefully. (#566, #581)
+- **quickDialog — rootNode scoping issue**: Fixed scoping issue in
+  ``close_action``. (#582)
+- **Unique constraint on composite primary key columns**: Unique
+  constraint is now correctly preserved. (#576, #580)
+- **required_columns for pyColumns**: Resolved resolution of required
+  columns for ``th_hiddencolumns``. (#577, #579)
+- **CKEditor — disabled when no layout area selected**: CKEditor is
+  now properly disabled in this scenario. (#10, #573)
+- **Page max age increased**: Default ``page_max_age`` increased from
+  120s to 600s. (#569, #570)
+- **dbo — hardcoded table reference removed**: Removed hardcoded
+  ``srvy.question`` reference in hierarchical update trigger. (#561)
+- **USER-DEFINED type mapping in migrator**: Resolved mapping error
+  for USER-DEFINED column types. (#556, #558)
+- **adm — email formlet hidden from user preferences**. (#559)
+
+- **S3 — inject client instead of session**. (#554)
+- **DOM — guard against undefined headers in scrollableTable**. (#555)
+- **attachmanager — fit-to-container mode for image preview**. (#545)
+- **Parametric query dialog interference in nested forms**: Fixed
+  dialog interfering with nested form state. (#505)
+- **Email message column**: Removed incorrect ``indexed=True`` from
+  ``email.message`` ``to_address`` column. (#503)
+
+Refactoring
+~~~~~~~~~~~
+
+- **SQL sub-packages**: Split ``gnrsql.py``, ``gnrsqlmodel.py``,
+  ``gnrsqltable.py``, ``gnrsqldata.py``, and ``gnrsqlmigration.py``
+  into class-based sub-packages for improved maintainability. (#490,
+  #501, #502, #506, #528)
+- **Typing — TYPE_CHECKING base classes**: Added ``TYPE_CHECKING``
+  base classes for mixin modules. (#635, #637)
+- **Removed legacy modules**: Removed modules related to ``suds``,
+  ``gnrpdf``, ``reportlab``, and ``platypus``. (#574)
+- **Removed 4D references**: All references to the 4D database system
+  have been removed from the framework. (#562, #575)
+- **Removed uWSGI support**: uWSGI support has been deprecated and
+  removed. (#423, #500)
+- **btcmail — dead code removed**: Removed dead code referencing
+  non-existing ``adm.doctemplate``. (#640)
+- **Test code duplication refactor**: Reduced duplication across test
+  modules. (#571)
+
+Tests
+~~~~~
+
+- **SQL compiler coverage**: Coverage raised to 92% with dead code
+  annotations. (#647)
+- **SQL model structural tests**: 162 exhaustive tests for gnrsqlmodel
+  structure. (#552)
+- **SQL compiler coverage suite**: 252-test suite covering partition,
+  subtable, and staff scenarios. (#551)
+- **Test teardown improvements**: Improved test teardown and pytest
+  configuration. (#533)
+- **pytest plugins**: Added missing pytest plugins and configured
+  ``asyncio_default_fixture_loop_scope``.
+
+Project / Infrastructure
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+- **chardet pinned**: Pinned ``chardet`` to version 5.2.0 to avoid
+  test breakage.
+
+
+Release 26.02.16
+================
+
+This release includes significant improvements to the task scheduling
+system, email handling, database administration tools, and migration
+utilities. Notable additions include deferred email sending, enhanced
+dbadmin functionality with unused element detection, and improved
+locale/language handling throughout the codebase.
+
+This release removes support for Python < 3.11. Please upgrade to
+Python 3.11 or later before upgrading to this release.
+
 Breaking changes
 ----------------
 
 * REMOVED SUPPORT FOR PYTHON < 3.11
+* Removed SOAP functionality from test15 package
+* Removed ``dest_user_id`` concept and ``ViewMobile`` class from email.message
+
   
 Enhancements
 ------------
@@ -15,18 +695,52 @@ Enhancements
 * DbAdmin now can show the orphaned entities in the databases and
   offer a cleanup method (#319)
 * Generalized use of '{}' to support environment variables in bags
-* Added 'insertToolbarItems' parameters for TinyMCE widget (#418)  
-
+* Added 'insertToolbarItems' parameters for TinyMCE widget (#418)
+* K8S extensive metadata labeling for custom resource tagging
+* Deferred email sending support, backward compatible.
+* Opt-in preference for collecting message_address to reduce database
+  size, including a new retention policy to help keeping the db tidy.
+* Implementend smart type conversion in migration for Postgres,
+  supporting 3 distinct modes to handle conversion. Added support for
+  missing DHZ type conversions (timestamp with timezone)
+* New test invoice sample application provided (#467, #468), to
+  support more complex tests related to complex database structures.
+* Removed XML LoadModel from sql tests, structures are now Python-based.
+* Added support for empty to_address in email, allowing sending email
+  just using BCC recipients.
+  
 Fixes
 -----
 
-* Extension creation on managed postgresql services now works correctly (#415)
-* Fixed regression for task scheduling due to timezone-aware comparisons (#434)
-* Locale detection for localized columns fixes
+* Sqlite structure creation fixes (#478) upon ALTER COLUMN SET NOT NULL.
+* pyColumn_full_external_url now always computes URL directly via
+  'filepath_endpoint_url()', simplifying logic and eliminating
+  inter-column dependencies. (#443)
+* DbModelObj (column, table, relation) wrappers now always evalute to
+  truthy when they exist, to fix logical bug where empty Bag are
+  evaluated. (#453)
+* Fixed Excel export with DHZ content as string (#419)
+* remoteRowController on empty rows is no longer triggered
+  automatically, need to opt-in via 'remoteRowController_onEmptyRow'
+  attribute.
+* menuLineBadge fixes using virtual columns, including edge case
+  handling for undefined or empty string content. (#444)
+* Extension creation on managed postgresql services now works
+  correctly (#415)
+* Fixed regression for task scheduling due to timezone-aware
+  comparisons (#434)
+* Task scheduling and execution tracking fixes.
+* Locale detection for localized columns fixes, and added a global
+  default for non-compliant environments.
+* File encoding detection improvements, with test coverage.
 * Docker image build fixes when cleaning up cloned git repositories
 * Fixed to handle correctly empty to_address in mail service (#406)
 * Minor fixes on storage parameters
 * Fix with tz-aware timestamp in XLSX export (#419)
+* Stale test-based Postgresql instances cleanup in test infrastructure.
+* Centralized mobile app config access, improviing code organization
+  for mobile app configuration (#439)
+  
 
   
 Release 26.01.15

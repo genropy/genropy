@@ -9,7 +9,6 @@ from gnr.core.gnrbag import Bag
 
 class FlibPicker(BaseComponent):
     py_requires = """gnrcomponents/htablehandler:HTableHandlerBase,foundation/includedview:IncludedView"""
-    css_requires = 'public'
 
     def flibPicker(self, pane, pickerId=None, datapath=None, title=None, rootpath=None,
                    centerOn=None, limit_rec_type=None, **kwargs):

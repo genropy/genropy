@@ -2,7 +2,7 @@ import sys
 import imp
 import os
 
-from gnr.app.gnrdeploy import PathResolver, EntityNotFoundException
+from gnr.app.pathresolver import PathResolver, EntityNotFoundException
 
 class GnrProjectMeta(object):
     

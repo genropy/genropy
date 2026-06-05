@@ -76,7 +76,11 @@
 <en_destination_user fr="utilisateur Destinations" de="Zielbenutzer" en="Destination user" it="Utente destinatario" base="Destination user"></en_destination_user>
 <en_sent base="Sent" it="Inviato" en="Sent" es="Enviado"></en_sent>
 <en_abstract base="Abstract" it="Riassunto"></en_abstract>
-<en_show_read base="Show read"></en_show_read></message>
+<en_show_read base="Show read"></en_show_read>
+<en_in_queue base="In queue" en="In queue" it="In coda"></en_in_queue>
+<en_is_sent base="Is sent" en="Is sent" it="Inviato"></en_is_sent>
+<en_is_error base="Is error" en="Is error" it="In errore"></en_is_error>
+<en_queue_mismatch base="Queue mismatch" en="Queue mismatch" it="Disallineamento coda"></en_queue_mismatch></message>
 <message_address path="model/message_address.py" ext="py"><en_message_address base="Message address" it="Indirizzo messaggio" en="Message address"></en_message_address>
 <en_message_addresses base="Message addresses" it="Indirizzi" en="Message addresses"></en_message_addresses>
 <en_message_id base="Message id" it="Id messaggio" en="Message id"></en_message_id>
@@ -137,6 +141,11 @@
 <en_mailboxes base="Mailboxes" en="Mailboxes" it="Cassette postali"></en_mailboxes>
 <en_common base="Common" de="Gemeinsam" en="Common" fr="Commun" it="Comune"></en_common>
 <en_user base="User" de="Benutzer" en="User" fr="Utilisateur" it="Utente"></en_user></mail_dashboard>
+<sending_dashboard path="webpages/sending_dashboard.py" ext="py"><en_sending_dashboard base="Sending Dashboard" en="Sending Dashboard" it="Cruscotto invii"></en_sending_dashboard>
+<en_account_sending_status base="Account sending status" en="Account sending status" it="Stato invio per account"></en_account_sending_status>
+<en_reload base="Reload" en="Reload" it="Ricarica"></en_reload>
+<en_total base="Total" en="Total" it="Totale"></en_total>
+<en_mismatch base="Mismatch" en="Mismatch" it="Disallineamento"></en_mismatch></sending_dashboard>
 <protocol_page path="webpages/protocol_page.py" ext="py"><en_protocols base="Protocols" it="Protocolli" en="Protocols"></en_protocols>
 <en_i_in_o_out_b_both base="I:In,O:Out,B:Both" it="I:Ingresso,O:Uscita,B:Entrambi" en="I:In,O:Out,B:Both"></en_i_in_o_out_b_both>
 <en_direction base="Direction" it="Direzione" en="Direction"></en_direction></protocol_page></webpages></GenRoBag>

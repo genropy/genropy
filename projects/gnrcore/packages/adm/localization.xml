@@ -525,13 +525,6 @@
 								<en_wrong_order fr="Mauvais ordre" de="Falschen Reihenfolge" en="Wrong order" it="Ordine sbagliato" base="Wrong order"/>
 				</th_counter>
 			</counter>
-				<doctemplate>
-				<th_doctemplate path="resources/tables/doctemplate/th_doctemplate.py" ext="py">
-					<en_name base="Name" de="Name" en="Name" fr="Nom" it="Nome"/>
-								<en_username fr="Nom d'utilisateur" de="Benutzername" en="Username" it="Nome utente" base="Username"/>
-								<en_version fr="Version" de="Version" en="Version" it="Versione" base="Version"/>
-				</th_doctemplate>
-			</doctemplate>
 				<group>
 				<th_group path="resources/tables/group/th_group.py" ext="py">
 					<en_users fr="Utilisateurs" de="Benutzer" en="Users" it="Utenti" base="Users"/>

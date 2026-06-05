@@ -21,18 +21,18 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 
-import sys, traceback, datetime
+import sys
 import importlib
 import os.path
 import _thread
 import uuid
 import base64
+import inspect
 from types import MethodType
 from io import IOBase
 from functools import total_ordering
 from chardet.universaldetector import UniversalDetector
 
-from gnr.core import logger
 from gnr.core.gnrdecorator import extract_kwargs # keep for compatibility
 
 try:
@@ -58,48 +58,6 @@ def getmixincount():
     _mixincount+=1
     return '%015i' %_mixincount
 
-def tracebackBag(limit=None):
-    import linecache
-    from gnr.core.gnrstructures import GnrStructData
-    from gnr.core.gnrbag import Bag
-    result = Bag()
-    if limit is None:
-        if hasattr(sys, 'tracebacklimit'):
-            limit = sys.tracebacklimit
-    n = 0
-    tb = sys.exc_info()[2]
-    while tb is not None and (limit is None or n < limit):
-        tb_bag = Bag()
-        f = tb.tb_frame
-        lineno = tb.tb_lineno
-        co = f.f_code
-        filename = co.co_filename
-        name = co.co_name
-        linecache.checkcache(filename)
-        line = linecache.getline(filename, lineno)
-        if line: line = line.strip()
-        else: line = None
-        tb_bag['module'] = os.path.basename(os.path.splitext(filename)[0])
-        tb_bag['filename'] = filename
-        tb_bag['lineno'] = lineno
-        tb_bag['name'] = name
-        tb_bag['line'] = line
-        #tb_bag['locals'] = Bag(f.f_locals.items())
-        loc = Bag()
-        for k,v in list(f.f_locals.items()):
-            try:
-                if isinstance(v,GnrStructData):
-                    v = '*STRUCTURE*'
-                elif isinstance(v,Bag):
-                    v = '*BAG*'
-                loc[k] = v
-            except Exception:
-                loc[k] = '*UNSERIALIZABLE* %s' %v.__class__
-        tb_bag['locals'] = loc
-        tb = tb.tb_next
-        n = n + 1
-        result['%s method %s line %s' % (tb_bag['module'], name, lineno)] = tb_bag
-    return Bag(root=result)
 
 
 def get_caller_info():
@@ -302,7 +260,6 @@ class GnrException(Exception):
 
     def __init__(self, description=None, localizer=None,**kwargs):
         if not description:
-            import inspect
             st = inspect.stack()
             description = "%s:%i"%(st[1][1],st[1][2])
         self.description = description
@@ -674,55 +631,6 @@ def instanceOf(obj, *args, **kwargs):
     else:
         return obj
 
-def errorTxt():
-    """TODO"""
-    el = sys.exc_info()
-    tb_text = traceback.format_exc()
-    e = el[2]
-    while e.tb_next:
-        e = e.tb_next
-
-    locals_list = []
-    for k, v in list(e.tb_frame.f_locals.items()):
-        try:
-            from gnr.core.gnrstring import toText
-            strvalue = toText(v)
-        except:
-            strvalue = 'unicode error'
-        locals_list.append('%s: %s' % (k, strvalue))
-    return u'%s\n\nLOCALS:\n\n%s' % (tb_text, '\n'.join(locals_list))
-
-def errorLog(proc_name, host=None, from_address='', to_address=None, user=None, password=''):
-    """Report the error log
-
-    :param proc_name: the name of the wrong process
-    :param host: the database server host
-    :param from_address: the email sender
-    :param to_address: the email receiver
-    :param user: the username
-    :param password: the username's password"""
-    from gnr.utils.gnrmail import sendmail
-
-    ts = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S: ')
-    title = '%s - Error in %s' % (ts, proc_name)
-    logger.error(title)
-    tb_text = errorTxt()
-    logger.error(tb_text.encode('ascii', 'ignore'))
-
-    if (host and to_address):
-        try:
-            sendmail(host=host,
-                     from_address=from_address,
-                     to_address=to_address,
-                     subject=title,
-                     body=tb_text,
-                     user=user,
-                     password=password
-                     )
-        except:
-            logger.exception("While sending errroLog email")
-            
-    return tb_text
 
 
 

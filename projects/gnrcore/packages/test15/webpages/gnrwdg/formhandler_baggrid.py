@@ -9,7 +9,6 @@ from gnr.core.gnrbag import Bag
 
 class GnrCustomWebPage(object):
     dojo_source = True
-    css_requires='public'
     py_requires="""gnrcomponents/testhandler:TestHandlerFull,gnrcomponents/framegrid:FrameGrid,gnrcomponents/formhandler:FormHandler"""
     
     def test_0_bc(self,pane):

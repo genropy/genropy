@@ -20,10 +20,7 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-import tempfile
-import atexit
-import shutil
-import locale
+
 import sys
 import re
 import types
@@ -35,21 +32,25 @@ import os
 import hashlib
 import smtplib
 import time
+from datetime import datetime
 import glob
 import subprocess
+from urllib.parse import urlparse, unquote
 from collections import defaultdict
 from email.mime.text import MIMEText
 
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrbag import Bag
+from gnr.core.gnrlocale import defaultLocale
 from gnr.core.gnrdecorator import extract_kwargs, deprecated
 from gnr.core.gnrlang import  objectExtract,gnrImport, instanceMixin, GnrException
+from gnr.core.gnrerror import tracebackBag
 from gnr.core.gnrstring import makeSet, toText, splitAndStrip, like, boolean
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrconfig import getGnrConfig
 from gnr.core import gnrlog
 from gnr.utils import ssmtplib
-from gnr.app.gnrdeploy import PathResolver
+from gnr.app.pathresolver import PathResolver
 from gnr.app import logger
 from gnr.app.gnrlocalization import AppLocalizer
 from gnr.sql.gnrsql import GnrSqlDb
@@ -236,6 +237,8 @@ class DbStoresHandler(object):
                                         host=dbattr.get('host', self.db.host), user=dbattr.get('user', self.db.user),
                                         password=dbattr.get('password', self.db.password),
                                         port=dbattr.get('port', self.db.port),
+                                        implementation=dbattr.get('implementation'),
+                                        dbbranch=dbattr.get('dbbranch'),
                                         remote_host=dbattr.get('remote_host'),
                                         remote_port=dbattr.get('remote_port'))
         return dbattr
@@ -298,7 +301,12 @@ class DbStoresHandler(object):
 
 class GnrSqlAppDb(GnrSqlDb):
     """TODO"""
-
+    def __init__(self, *args, **kwargs):
+        if not kwargs.get("application", None):
+            raise TypeError("'application' is mandatory for GnrSqlAppDb")
+        
+        super().__init__(*args, **kwargs)
+        
     @property
     def stores_handler(self):
         handler = getattr(self, '_stores_handler', None)
@@ -338,6 +346,31 @@ class GnrSqlAppDb(GnrSqlDb):
             self._multidb_config = result
         return result
     
+    def registerMacros(self):
+        """Register SQL macros: base + adapter + app-level + package-level.
+
+        Registration order:
+            1. Base macros (IN_RANGE, PERIOD) via super()
+            2. Adapter macros (TSQUERY, TSRANK, etc.) via super()
+            3. App-level macros (PREF, THIS, BAG, BAGCOLS) — here
+            4. Package macros via pkgBroadcast
+
+        Passes ``self`` (the db) to pkgBroadcast so packages can call
+        ``db.addMacro()`` even though ``application.db`` is not yet
+        assigned at this point in the init sequence.
+        """
+        super().registerMacros()
+        from gnr.sql.gnrsqldata.compiler import (
+            PREFFINDER, THISFINDER,
+            BAGEXPFINDER, BAGCOLSEXPFINDER
+        )
+        self.addMacro('PREF', PREFFINDER, None)
+        self.addMacro('THIS', THISFINDER, None)
+        self.addMacro('BAG', BAGEXPFINDER, None)
+        self.addMacro('BAGCOLS', BAGCOLSEXPFINDER, None)
+        if self.application:
+            self.application.pkgBroadcast('registerMacros', self)
+
     def checkTransactionWritable(self, tblobj):
         """TODO
         
@@ -736,15 +769,12 @@ class GnrPackage(object):
         struct.package(self.id, **self.attributes)
         
         config_db_xml = os.path.join(self.packageFolder, 'model', 'config_db.xml')
+        
         if os.path.isfile(config_db_xml):
-            if hasattr(self, '_structFix4D'):
-                config_db_xml = self._structFix4D(struct, config_db_xml)
             struct.update(config_db_xml)
         
         config_db_xml = os.path.join(self.customFolder, 'model', 'config_db.xml')
         if os.path.isfile(config_db_xml):
-            if hasattr(self, '_structFix4D'):
-                config_db_xml = self._structFix4D(struct, config_db_xml)
             struct.update(config_db_xml)
         
     def onApplicationInited(self):
@@ -790,10 +820,8 @@ class GnrApp(object):
     
     :param instanceFolder: instance folder or name
     :param custom_config:  a :ref:`bag` or dictionary that will override configuration value
-    :param forTesting:  if ``False``, setup the application normally.
-                        if ``True``, setup the application for testing with a temporary sqlite database.
-                        If it's a bag, setup the application for testing and import test data from this bag.
-                        (see :meth:`loadTestingData()`)
+    :param db_attrs:    a dict of db connection attributes that override
+                        the ones read from instanceconfig.
     
     If you want to interact with a Genro instance from your own python script, you can use this class directly.
     
@@ -803,10 +831,11 @@ class GnrApp(object):
     >>> testgarden.db.table('showcase.person').query().count()
     12"""
     def __init__(self, instanceFolder=None, custom_config=None,
-                 forTesting=False, debug=False, restorepath=None,
-                 enabled_packages=None, **kwargs):
+                 debug=False, restorepath=None,
+                 enabled_packages=None, db_attrs=None, **kwargs):
         self.aux_instances = {}
         self.gnr_config = getGnrConfig(set_environment=True)
+        self.path_resolver = PathResolver(gnr_config=self.gnr_config)
         self.debug=debug
         self.remote_db = None
         self.instanceFolder = ''
@@ -870,7 +899,7 @@ class GnrApp(object):
             self.main_module = gnrImport(os.path.join(self.customFolder, 'custom.py'),avoidDup=True, silent=False)
             instanceMixin(self, getattr(self.main_module, 'Application', None))
             self.webPageCustom = getattr(self.main_module, 'WebPage', None)
-        self.init(forTesting=forTesting,restorepath=restorepath)
+        self.init(restorepath=restorepath, db_attrs=db_attrs)
         self.creationTime = time.time()
 
     def get_modulefinder(self):
@@ -932,68 +961,72 @@ class GnrApp(object):
                     instance_config.update(normalizePackages(self.gnr_config['gnr.instanceconfig.%s_xml' % instance_template]) or Bag())
         instance_config.update(base_instance_config, preservePattern=re.compile(r'^[\$\{]'))
         return instance_config
-        
-    def init(self, forTesting=False,restorepath=None):
+
+    def dsn_to_config(self, dsn: str) -> dict:
+        parsed = urlparse(dsn)
+        return {
+            'implementation': parsed.scheme,
+            'host': parsed.hostname,
+            'port': str(parsed.port),
+            'user': unquote(parsed.username) if parsed.username else None,
+            'password': unquote(parsed.password) if parsed.password else None,
+            'dbname': parsed.path.lstrip('/'),
+        }
+    
+    def init(self, db_attrs=None, restorepath=None):
         """Initiate a :class:`GnrApp`
-        
-        :param forTesting:  if ``False``, setup the application normally.
-                            if ``True``, setup the application for testing with a temporary sqlite database.
-                            If it's a :ref:`bag`, setup the application for testing and import test data from this bag.
-                            (see :meth:`loadTestingData()`)"""
+
+        :param db_attrs:    a dict of db connection attributes that override
+                            the ones read from instanceconfig.
+        """
         self.onIniting()
         self.base_lang = self.config['i18n?base_lang'] or 'en'
         self.catalog = GnrClassCatalog()
         self.localization = {}
 
 
-
+        # check for packages python dependencies
+        self.check_package_dependencies()
+        if 'checkdepcli' in self.kwargs:
+            return
 
         # load the packages
         for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
             self.addPackage(pkgid,pkgattrs=pkgattrs,pkgcontent=pkgcontent)
 
-        # check for packages python dependencies
-        self.check_package_dependencies()
-        if 'checkdepcli' in self.kwargs:
-            return
-        
-        if not forTesting:
-            dbattrs = dict(self.config.getAttr('db') or {}) 
-            dbattrs['implementation'] = dbattrs.get('implementation') or 'sqlite'
-            if dbattrs.get('dbname') == '_dummydb':
-                pass
-            elif self.remote_db:
-                rdb = self.config.get(f"remote_db")#.{self.remote_db}")
-                if rdb:
-                    rconf = rdb.getAttr(self.remote_db)
-                    if rconf:
-                        logger.info("Using remote db: %s", self.remote_db)
-                        dbattrs.update(rconf)
-                    else:
-                        logger.error("Remote db %s does not exists", self.remote_db)
-            elif dbattrs and dbattrs.get('implementation') == 'sqlite':
-                dbname = dbattrs.pop('filename',None) or dbattrs['dbname']
-                if not os.path.isabs(dbname):
-                    dbname = self.realPath(os.path.join('..','data',dbname))
-                dbattrs['dbname'] = dbname
-        else:
-            # Setup for testing with a temporary sqlite database
-            tempdir = tempfile.mkdtemp()
-            dbattrs = {}
-            dbattrs['implementation'] = 'sqlite'
-            dbattrs['dbname'] = os.path.join(tempdir, 'testing')
+        dbattrs = dict(self.config.getAttr('db') or {})
+        dbattrs['implementation'] = dbattrs.get('implementation') or 'sqlite'
 
-            # We have to use a directory, because genro sqlite adapter
-            # will create a sqlite file for each package
-            logger.info('Testing database dir: %s', tempdir)
+        if db_attrs:
+            dbattrs.update(db_attrs)
+        elif dbattrs.get('dbname') == '_dummydb':
+            pass
+        elif self.remote_db:
+            rdb = self.config.get("remote_db")
+            if rdb:
+                rconf = rdb.getAttr(self.remote_db)
+                if rconf:
+                    logger.info("Using remote db: %s", self.remote_db)
+                    dbattrs.update(rconf)
+                else:
+                    logger.error("Remote db %s does not exists", self.remote_db)
+        elif dbattrs and dbattrs.get('implementation') == 'sqlite':
+            dbname = dbattrs.pop('filename',None) or dbattrs['dbname']
+            if not os.path.isabs(dbname):
+                dbname = self.realPath(os.path.join('..','data',dbname))
+            dbattrs['dbname'] = dbname
 
-            @atexit.register
-            def removeTemporaryDirectory():
-                shutil.rmtree(tempdir)
-                
         dbattrs['application'] = self
-        self.db = GnrSqlAppDb(debugger=getattr(self, 'sqlDebugger', None), **dbattrs)
         
+        # GNR_DB_DSN env var contains a DSN, and it can be
+        # used to override any configuration at runtime.
+        # use case: temporary database tunnel, to run an app
+        # locally by using a remote database of choice.
+        if gnr_db_dsn := os.environ.get("GNR_DB_DSN", None):
+            dbattrs.update(self.dsn_to_config(gnr_db_dsn))
+
+        self.db = GnrSqlAppDb(debugger=getattr(self, 'sqlDebugger', None), **dbattrs)
+
         for pkgid, apppkg in list(self.packages.items()):
             apppkg.initTableMixinDict()
             self.db.packageMixin('%s' % (pkgid), apppkg.pkgMixin)
@@ -1006,14 +1039,8 @@ class GnrApp(object):
             self.config['menu'] = self.config['menu']['#0']
         #if self.instanceMenu:
         #    self.config['menu']=self.instanceMenu
-            
+
         self.localizer = AppLocalizer(self)
-        if forTesting:
-            # Create tables in temporary database
-            self.db.model.check(applyChanges=True)
-                
-            if isinstance(forTesting, Bag):
-                self.loadTestingData(forTesting)
         self.onInited()
 
     def addPackage(self,pkgid,pkgattrs=None,pkgcontent=None):
@@ -1039,14 +1066,21 @@ class GnrApp(object):
     def check_package_dependencies(self):
         logger.debug("Checking python dependencies")
         instance_deps = defaultdict(list)
-        for package in [x.getValue() for x in self.packages]:
-            requirements_file = os.path.join(package.packageFolder, "requirements.txt")
+        # find all packages deps
+        for package,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
+            if ":" in package:
+                project, package = package.split(":")
+            else:
+                project = None
+                
+            packageFolder = self.pkg_name_to_path(package, project)
+            requirements_file = os.path.join(packageFolder, package, "requirements.txt")
             if os.path.isfile(requirements_file):
                 with open(requirements_file) as fp:
                     for line in fp:
                         dep_name = line.strip()
                         if dep_name:
-                            instance_deps[dep_name].append(package.id)
+                            instance_deps[dep_name].append(package)
 
         self.instance_packages_dependencies = instance_deps
 
@@ -1055,7 +1089,7 @@ class GnrApp(object):
             if missing:
                 logger.error(f"ERROR: missing dependencies: {', '.join(missing)}")
             if wrong:
-                logger.error(f"ERROR: wrong dependencies:")
+                logger.error("ERROR: wrong dependencies:")
                 for requested, installed in wrong:
                     logger.error(f"{requested} is requested, but {installed} found")
             
@@ -1153,38 +1187,11 @@ class GnrApp(object):
                 tables_to_import.append(tbl)
         
 
-    def loadTestingData(self, bag):
-        """Load data used for testing in the database.
-        
-        Called by the constructor when you pass a :ref:`bag` into the *forTesting* parameter
-        
-        :param bag: a :ref:`bag` your test data
-        
-        Use this format in your test data::
-        
-            <?xml version="1.0" encoding="UTF-8"?>
-            <GenRoBag>
-                <table name="package.table">
-                    <some_name>
-                        <field1>ABCDEFG</field2>
-                        <field2>1235</field2>
-                        <!-- ... more fields ... -->
-                    </some_name>
-                    <!-- ... more records ... -->
-                </table>
-                <!-- ... more tables ... -->
-            </GenRoBag>"""
-        for table_name, records in bag.digest('#a.name,#v'):
-            tbl = self.db.table(table_name)
-            for r in list(records.values()):
-                tbl.insert(r)
-        self.db.commit()
-
     def instance_name_to_path(self, instance_name):
         """TODO
 
         :param instance_name: the name of the :ref:`instance <instances>`"""
-        return PathResolver(gnr_config=self.gnr_config).instance_name_to_path(instance_name)
+        return self.path_resolver.instance_name_to_path(instance_name)
 
     def build_package_path(self):
         """Build the path of the :ref:`package <packages>`"""
@@ -1272,13 +1279,58 @@ class GnrApp(object):
                     result.append((pkgId,r))
         return result
 
+    _ERROR_ID_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+
+    def _make_error_id(self):
+        now = datetime.now()
+        prefix = now.strftime('%y%m%d')
+        day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        ms = int((now - day_start).total_seconds() * 1000)
+        chars = self._ERROR_ID_CHARS
+        result = ''
+        while ms:
+            result = chars[ms % 36] + result
+            ms //= 36
+        return f"{prefix}-{result.rjust(5, '0')}"
+
+    def errorHandler(self, exception=None, description=None,
+                     error_type=None, traceback=None,
+                     action='ignore', loglevel='error',
+                     origin=None, notify_user=None,
+                     **kwargs):
+        if exception and not description:
+            description = str(exception)
+        log_fn = getattr(logger, loglevel, logger.error)
+        log_fn(description)
+        should_broadcast = loglevel in ('error', 'critical') or action == 'block'
+        if not should_broadcast:
+            return None
+        error_id = self._make_error_id()
+        if traceback is None:
+            traceback = loglevel in ('error', 'critical')
+        if traceback and exception:
+            traceback = tracebackBag()
+        else:
+            traceback = None
+        error_type = error_type or (type(exception).__name__ if exception else 'ERR')
+        error_info = dict(
+            error_id=error_id,
+            description=description,
+            error_type=error_type,
+            traceback=traceback,
+            origin=origin,
+            action=action,
+            loglevel=loglevel,
+            notify_user=notify_user,
+            **kwargs
+        )
+        self.pkgBroadcast('errorHandler', **error_info)
+        return error_id
+
     @property
     def locale(self):
-        found_locale = self.config_locale or os.environ.get('GNR_LOCALE') or locale.getlocale()[0]
-        if not found_locale:
-            locale.setlocale(locale.LC_ALL, "")
-            found_locale = locale.getlocale(locale.LC_MESSAGES)[0]
-        return (found_locale or 'en-US').replace('_','-')
+        found_locale = self.config_locale or defaultLocale()
+        return (found_locale or 'en-GB').replace('_','-')
 
     def setPreference(self, path, data, pkg):
         if self.db.package('adm'):
@@ -1871,8 +1923,8 @@ class GnrApp(object):
     @property
     def gnrdaemon(self):
         if not getattr(self,'_gnrdaemon',None):
-            from gnr.web.gnrdaemonhandler import GnrDaemonProxy
-            self._gnrdaemon = GnrDaemonProxy(use_environment=True).proxy() 
+            from gnr.web.daemon.handler import GnrDaemonProxy
+            self._gnrdaemon = GnrDaemonProxy(use_environment=True).proxy()
         return self._gnrdaemon
 
 class AuthTagStruct(GnrStructData):

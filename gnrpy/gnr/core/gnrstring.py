@@ -31,6 +31,7 @@ import math
 import unicodedata
 from decimal import Decimal
 from string import Template
+from gnr.utils.fonts import string_width as _font_string_width
 
 import unidecode
 
@@ -1032,5 +1033,35 @@ def weightedLen(mystring, narrow_coeff=None, upper_coeff=None):
         else:
             normal=normal+1
     return math.ceil(narrow * narrow_coeff + normal + upper*upper_coeff)
+
+
+def stringWidth(text, fontName='Helvetica', fontSize=10):
+    """Return the width in points of *text* rendered in *fontName* at *fontSize* pt.
+
+    Uses embedded AFM metrics from gnr.utils.fonts — no font files or external
+    dependencies needed. Same signature as reportlab.pdfbase.pdfmetrics.stringWidth.
+    """
+    return _font_string_width(text, fontName, fontSize)
+
+
+def cleanRst(text):
+    """Clean RST/Markdown text for plain-text display, removing images, HTML tags,
+    backslash escapes and formatting markers.
+
+    :param text: RST or Markdown text to clean
+    :returns: plain text string"""
+    if not text:
+        return ''
+    # remove markdown inline images (including base64 data URIs): ![alt](url)
+    text = re.sub(r'!\[[^\]]*\]\([^)]*\)', '', text)
+    # strip HTML tags but keep their text content
+    text = re.sub(r'<[^>]+>', '', text)
+    # unescape backslash-escaped markdown/RST chars e.g. \- \( \) \[ \]
+    text = re.sub(r'\\(.)', r'\1', text)
+    # remove bold/italic markers ** and *
+    text = re.sub(r'\*+', '', text)
+    # collapse excess whitespace
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
 
 

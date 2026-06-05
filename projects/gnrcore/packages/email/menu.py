@@ -4,5 +4,6 @@ class Menu(object):
         email_config = root.branch(u"!!Email Config", tags="admin")
         email_config.thpage(u"!!Accounts", table="email.account", tags="")
         email_config.thpage(u"!!Messages", table="email.message", tags="")
+        email_config.webpage(u"!!Sending Dashboard", filepath="/email/sending_dashboard")
         email_config.lookupBranch(u"!!Utility tables", pkg="email")
 

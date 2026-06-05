@@ -680,7 +680,7 @@ class IncludedView(BaseComponent):
         datapath = datapath or '#FORM.%s' %frameCode
         if pbl_classes:
             kwargs['_class'] = kwargs.get('_class','') + ' pbl_roundedGroup'
-        
+
         if storepath.startswith('.'):
             storepath = '#FORM.record%s' %storepath
         frame = pane.frameGrid(frameCode=frameCode,datapath=datapath,struct=struct,

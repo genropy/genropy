@@ -9,6 +9,7 @@ import sys
 import os.path
 from gnr.web import logger
 
+
 class GnrK8SGenerator(object):
     def __init__(self, instance_name, image,
                  fqdns,
@@ -17,7 +18,9 @@ class GnrK8SGenerator(object):
                  container_port=8000,
                  secret_name=None,
                  replicas=1,
-                 extra_labels=None):
+                 resource_profile=None,
+                 extra_labels=None,
+                 extra_initContainers: list | None = None):
         
         self.instance_name = instance_name
         self.image = image
@@ -25,6 +28,7 @@ class GnrK8SGenerator(object):
             self.image = f'{self.image}:latest'
         self.secret_name = secret_name
         self.fqdns = fqdns
+        self.resource_profile = resource_profile or {}
         self.container_port = container_port
         self.stack_name = deployment_name or instance_name
         self.application_name = f'{self.stack_name}-application'
@@ -45,6 +49,36 @@ class GnrK8SGenerator(object):
                             self.env.append(dict(name=k, value=v))
                             
         self.extra_labels = extra_labels if isinstance(extra_labels, dict) else {}
+
+        volume_init_containers = {
+            "name": "volume-permissions",
+            "image": "busybox",
+            "command": ["sh", "-c", f"chown -R 100:100 /mnt/data/{self.stack_name}-site"],
+            "volumeMounts": [
+                {
+                    "name": f"{self.stack_name}-site-volume",
+                    "mountPath": f"/mnt/data/{self.stack_name}-site",
+                    
+                }
+            ]
+        }
+        
+        self.extra_initContainers = [volume_init_containers]
+        if extra_initContainers is not None:
+            self.extra_initContainers.extend(extra_initContainers)
+        
+        # validate initContainers
+        for eic in self.extra_initContainers:
+            if not isinstance(eic, dict):
+                raise TypeError(f"Extra init container {eic} must be a dict instance")
+            for key in ['name','image','command']:
+                if key not in eic:
+                    raise ValueError(f"Missing required {key} in initContainer {eic}")
+        # ensure name uniqueness
+        initContainers_names = [x.get("name") for x in self.extra_initContainers]
+        if len(initContainers_names) != len(set(initContainers_names)):
+            raise ValueError("initContainers list has duplicates names!")
+
         
         self.GNR_DAEMON_PORT = 40407
         self.services = [
@@ -122,127 +156,113 @@ class GnrK8SGenerator(object):
         resources.extend(deployments)
         resources.extend(services)
         resources.extend(ingress)
-        
-        # Output YAML to stdout or write to file
-        yaml.dump_all(resources, fp, sort_keys=False)
+
+        class _NoAliasDumper(yaml.Dumper):
+            def ignore_aliases(self, data):  # noqa: ARG002
+                return True
+
+        yaml.dump_all(resources, fp, Dumper=_NoAliasDumper, sort_keys=False)
 
     def get_splitted_conf(self):
+        """One deployment per service. daemon and taskscheduler are always replicas=1;
+        application and taskworker scale with self.replicas."""
         deployments = []
         services = []
         services_default_parms = {
-            # if in split, the daemon should listen on public interface
-            # to expose its port
-            'daemon': ['-H','0.0.0.0', '-P', str(self.GNR_DAEMON_PORT)]
+            # daemon must listen on all interfaces to be reachable by other pods
+            'daemon': ['-H', '0.0.0.0', '-P', str(self.GNR_DAEMON_PORT)]
         }
         self.env.append(dict(name='GNR_DAEMON_HOST', value=f'{self.stack_name}-daemon'))
-        
+
+        # Built once, reused as a value (not a reference) per non-daemon deployment
+        wait_for_daemon = {
+            "name": "wait-for-daemon",
+            "image": "busybox",
+            "command": [
+                "sh", "-c",
+                f"until nc -z {self.stack_name}-daemon {self.GNR_DAEMON_PORT}; "
+                f"do echo \"Waiting for {self.stack_name}-daemon...\"; sleep 2; done"
+            ]
+        }
+
+        site_volume = {
+            'name': f'{self.stack_name}-site-volume',
+            'persistentVolumeClaim': {'claimName': f'{self.stack_name}-site-pvc'}
+        }
+
         for service in self.services:
             name = f'{self.stack_name}-{service}'
-            args = [self.instance_name, f'--{service}']
             container = {
                 'name': f'{name}-container',
                 'image': self.image,
-                'imagePullPolicy': "Always",
+                'imagePullPolicy': 'Always',
                 'command': ['gnr'],
-                'args': ['web','stack'] + args,
-                'env': self.env
+                'args': ['web', 'stack', self.instance_name, f'--{service}'],
+                'env': self.env,
             }
-            
-            if self.env_secrets:
-                container['envFrom'] = []
-                for env_s in self.env_secrets:
-                    container['envFrom'].append({'secretRef': {'name': env_s}})
-
-            if self.services_port.get(service, None):
-                container['ports'] = [
-                    {'containerPort': self.services_port.get(service) }
-                ]
+            if self.resource_profile:
+                container['resources'] = self.resource_profile
                 
-            if services_default_parms.get(service, None):
-                container['args'].extend(services_default_parms.get(service))
-                    
+            if self.env_secrets:
+                container['envFrom'] = [{'secretRef': {'name': s}} for s in self.env_secrets]
+
+            if self.services_port.get(service):
+                container['ports'] = [{'containerPort': self.services_port[service]}]
+
+            if services_default_parms.get(service):
+                container['args'].extend(services_default_parms[service])
+
+            pod_spec = {'containers': [container]}
+
+            if service == 'daemon':
+                container['readinessProbe'] = {
+                    'tcpSocket': {'port': self.GNR_DAEMON_PORT},
+                    'initialDelaySeconds': 5,
+                    'periodSeconds': 5,
+                }
+            else:
+                # Fresh list per deployment — avoids shared-list mutation across iterations
+                pod_spec['initContainers'] = list(self.extra_initContainers) + [wait_for_daemon]
+                pod_spec['volumes'] = [site_volume]
+
+            if self.secret_name:
+                pod_spec['imagePullSecrets'] = [{'name': self.secret_name}]
 
             deployment = {
                 'apiVersion': 'apps/v1',
                 'kind': 'Deployment',
                 'metadata': {
                     'name': f'{name}-deployment',
-                    'labels': {
-                        'app': f'{name}'
-                    }
+                    'labels': {'app': name, **self.extra_labels},
                 },
                 'spec': {
-                    'replicas': self.replicas if service in ['application','taskworker'] else 1,
-                    'selector': {
-                        'matchLabels': {
-                            'app': name
-                        }
-                    },
+                    'replicas': self.replicas if service in ('application', 'taskworker') else 1,
+                    'selector': {'matchLabels': {'app': name}},
                     'template': {
-                        'metadata': {
-                            'labels': {
-                                'app': name
-                            }
-                        },
-                        'spec': {
-                            'containers': [container]
-                        }
-                    }
-                }
-            }
-            
-            deployment['metadata']['labels'].update(self.extra_labels)
-            deployment['spec']['template']['metadata']['labels'].update(self.extra_labels)
-            
-            if service == "daemon":
-                container['readinessProbe'] = {
-                    "tcpSocket": {
-                        "port": self.GNR_DAEMON_PORT
+                        'metadata': {'labels': {'app': name, **self.extra_labels}},
+                        'spec': pod_spec,
                     },
-                    "initialDelaySeconds": 5,
-                    "periodSeconds": 5
-                }
-
-            else:
-                deployment['spec']['template']['spec']['initContainers'] = [
-                    {
-                        "name": "wait-for-daemon",
-                        "image": "busybox",
-                        "command": [
-                            "sh", "-c",
-                            f"until nc -z {self.stack_name}-daemon {self.GNR_DAEMON_PORT}; do echo \"Waiting for {self.stack_name}-daemon...\"; sleep 2; done"
-                        ]
-                    }
-                ]
-            if self.secret_name:
-                deployment['spec']['template']['spec']['imagePullSecrets'] = [{"name": self.secret_name}]
+                },
+            }
             deployments.append(deployment)
 
             if service != 'taskworker':
-                service =   {
-                    "apiVersion": "v1",
-                    "kind": "Service",
-                    "metadata": {
-                        "name": name,
-                        "labels": {
-                            "app": name
-                        }
+                service_port = self.services_port.get(service)
+                service_obj = {
+                    'apiVersion': 'v1',
+                    'kind': 'Service',
+                    'metadata': {
+                        'name': name,
+                        'labels': {'app': name, **self.extra_labels},
                     },
-                    "spec": {
-                        "ports": [
-                            {
-                                "port": self.services_port.get(service),
-                                "targetPort": self.services_port.get(service),
-                            }
-                        ],
-                        "selector": {
-                            "app": name
-                        }
-                    }
+                    'spec': {
+                        'ports': [{'name': 'http', 'protocol': 'TCP',
+                                   'port': service_port, 'targetPort': service_port}],
+                        'selector': {'app': name},
+                    },
                 }
-                service['metadata']['labels'].update(self.extra_labels)
-                services.append(service)
-                
+                services.append(service_obj)
+
         return deployments, services, self.get_ingress()
     
     def get_monolithic_conf(self):
@@ -275,7 +295,9 @@ class GnrK8SGenerator(object):
             ]
                 
         }
-
+        if self.resource_profile:
+            service_def['resources'] = self.resource_profile
+            
         if self.env_secrets:
             service_def['envFrom'] = []
             for env_s in self.env_secrets:
@@ -321,20 +343,7 @@ class GnrK8SGenerator(object):
                         'securityContext': {
                             'fsGroup': 100
                         },
-                        'initContainers': [
-                            {
-                                "name": "volume-permissions",
-                                "image": "busybox",
-                                "command": ["sh", "-c", f"chown -R 100:100 /mnt/data/{self.stack_name}-site"],
-                                "volumeMounts": [
-                                    {
-                                        "name": f"{self.stack_name}-site-volume",
-                                        "mountPath": f"/mnt/data/{self.stack_name}-site",
-                                        
-                                    }
-                                ]
-                            }
-                        ],
+                        'initContainers': [],
                         'containers':containers,
                         'volumes': [
                             {
@@ -349,6 +358,10 @@ class GnrK8SGenerator(object):
                 }
             }
         }
+        
+        if self.extra_initContainers:
+            deployment['spec']['template']['spec']['initContainers'].extend(self.extra_initContainers)
+            
         deployment['metadata']['labels'].update(self.extra_labels)
         deployment['spec']['template']['metadata']['labels'].update(self.extra_labels)
         
@@ -367,6 +380,8 @@ class GnrK8SGenerator(object):
             "spec": {
                 "ports": [
                     {
+                        "name": "http",
+                        "protocol": "TCP",
                         "port": self.container_port,
                         "targetPort": self.container_port,
                     }

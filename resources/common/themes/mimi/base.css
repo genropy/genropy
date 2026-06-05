@@ -1,19 +1,310 @@
-:root {
-    --root-dark:#444;
-    --root-top-background: rgba(234, 203, 110, 1);
-    --root-top-color:rgba(30, 48, 85, 1);
-    --frameindex-tablist-background:linear-gradient(to right top, #172b51, #1b3058, #20345e, #243965, #293e6c);
-    --frameindex-tablist-color:#ffffff;
-    --roundedgroup-bar:linear-gradient(to bottom, #c2d0e9,  #d6dfee);
-    --roundedgroup-bar-color:#444;
-    --gnrfieldlabel-color:#707070;
+/* mimi/base.css — User color variants
+   This file is loaded when css_theme_variant='base' (default).
+   Copy to acme.css to create a corporate palette with approved variants,
+   or leave empty to disable user color choice.
+*/
 
-    --tab-background:linear-gradient(to bottom, #c2d0e9,  #d6dfee);
-    --tab-text-color:#444;
-    --tab-selected-background:white;
-    --tab-selected-color:#ccc;
-    --mainWindow-background:linear-gradient(to top, #f6f8fa, #ffffff);
-    --mainWindow-font-size:12px;
-    --mainWindow-color:#444;
-    --dialogtitlebar-background: linear-gradient(to right top, #172b51, #1b3058, #20345e, #243965, #293e6c);
+/* Color variants — gray scale + accent overrides:
+   Each variant sets --gray-N / --accent-500 palette AND explicit semantic vars.
+   This ensures both derived and directly-referenced vars are correct.
+*/
+
+/* Green - forest emerald */
+.color_variant_green {
+    --gray-900: #1B3A2C;
+    --gray-800: #1B5E43;
+    --gray-600: #2E7D5B;
+    --accent-500: #2E7D5B;
+    --gray-300: #B8D8CA;
+    --gray-200: #D0DED6;
+    --gray-100: #EDF5F1;
+
+    --primary-color: #2E7D5B;
+    --primary-dark: #1B5E43;
+    --accent-color: #2E7D5B;
+    --primary-light: #B8D8CA;
+    --primary-lighter: #EDF5F1;
+    --root-top-background: #2E7D5B;
+    --dialogtitlebar-background: #2E7D5B;
+    --frameindex-tablist-background: #1B5E43;
+    --card-surface: #F5FAF7;
+    --roundedgroup-bar: #D0DED6;
+    --menu-item-hover-bg: #DCF0E6;
+    --menu-item-hover-color: #1B5E43;
+
+    --field-disabled-border: #A8C4B4;
+    --field-readonly-border: #A8C4B4;
+
+    --btn-filled-bg: #2E7D5B;
+    --btn-filled-hover-bg: #256449;    /* #2E7D5B 80% + black */
+    --btn-filled-pressed-bg: #1E513B;  /* 65% + black */
+    --btn-filled-selected-bg: #1E513B;
+    --btn-filled-disabled-bg: #96BEAD;  /* #2E7D5B 50% + white */
+    --btn-tonal-bg: #E5EFEB;           /* 12% + white */
+    --btn-tonal-color: #2E7D5B;
+    --btn-tonal-hover-bg: #D5E5DE;     /* 20% + white */
+    --btn-tonal-pressed-bg: #C4DBD1;   /* 28% + white */
+    --btn-tonal-selected-bg: #C4DBD1;
+
+    --gray-50: #F4F9F7;
+    --gray-150: #E8EEEA;
+    --gray-250: #CDE4DA;
+    --gray-400: #AFBAB5;
+    --gray-500: #82938B;
+    --gray-700: #4D655A;
+    --gnrfieldlabel-color: var(--gray-700);
+    --accordion-title-bg: #DCE7E1;
+    --frameindex-subtab-bg: #236A4D;
+    --frameindex-subtab-selected-bg: #8CB8A5;
+    --frameindex-closer-hover-bg: #347B5D;
+    --frameindex-tab-bg: #D1DFD9;
+    --frameindex-tab-bg-hover: #6B9685;
+    --grid-reporting-header-bg: #175039;
+    --treegrid-header-bg: #18553C;
+    --fieldsTree-rm-color: #164B36;
+    --grid-draft-color: #2E7D5B;
+    --grid-lineno-color: #2E7D5B;
+    --grid-row-odd-bg: rgba(237, 245, 241, .5);
+    --grid-row-selected-bg: rgba(184, 216, 202, .8);
+    --grid-cell-hover-bg: #FFF5D9;
+    --grid-cell-hover-bg-lazy: #E0EEFF;
+    --grid-cell-hover-bg-disabled: #FFE0D0;
+}
+
+/* Blue - deep ocean */
+.color_variant_blue {
+    --gray-900: #1A2840;
+    --gray-800: #1C4678;
+    --gray-600: #2962A8;
+    --accent-500: #0071E3;
+    --gray-300: #B8CCE4;
+    --gray-200: #CDD6E4;
+    --gray-100: #ECF1F9;
+
+    --primary-color: #2962A8;
+    --primary-dark: #1C4678;
+    --accent-color: #0071E3;
+    --primary-light: #B8CCE4;
+    --primary-lighter: #ECF1F9;
+    --root-top-background: #2962A8;
+    --dialogtitlebar-background: #2962A8;
+    --frameindex-tablist-background: #1C4678;
+    --card-surface: #F6F8FC;
+    --roundedgroup-bar: #CDD6E4;
+    --menu-item-hover-bg: #D8E4F4;
+    --menu-item-hover-color: #1C4678;
+
+    --field-disabled-border: #A8BCD4;
+    --field-readonly-border: #A8BCD4;
+
+    --btn-filled-bg: #0071E3;
+    --btn-filled-hover-bg: #005AB6;    /* #0071E3 80% + black */
+    --btn-filled-pressed-bg: #004994;  /* 65% + black */
+    --btn-filled-selected-bg: #004994;
+    --btn-filled-disabled-bg: #7FB8F1;  /* #0071E3 50% + white */
+    --btn-tonal-bg: #E0EEFC;           /* 12% + white */
+    --btn-tonal-color: #0071E3;
+    --btn-tonal-hover-bg: #CCE3F9;     /* 20% + white */
+    --btn-tonal-pressed-bg: #B8D7F7;   /* 28% + white */
+    --btn-tonal-selected-bg: #B8D7F7;
+
+    --gray-50: #F4F7FB;
+    --gray-150: #E6EAF2;
+    --gray-250: #CDDBEC;
+    --gray-400: #AFB4BC;
+    --gray-500: #818996;
+    --gray-700: #4C576A;
+    --gnrfieldlabel-color: var(--gray-700);
+    --accordion-title-bg: #D9E1EC;
+    --frameindex-subtab-bg: #21518B;
+    --frameindex-subtab-selected-bg: #89A9CF;
+    --frameindex-closer-hover-bg: #33629B;
+    --frameindex-tab-bg: #D2DAE4;
+    --frameindex-tab-bg-hover: #6B87A7;
+    --grid-reporting-header-bg: #183C66;
+    --treegrid-header-bg: #193F6C;
+    --fieldsTree-rm-color: #163860;
+    --grid-draft-color: #1769C3;
+    --grid-lineno-color: #1769C3;
+    --grid-row-odd-bg: rgba(236, 241, 249, .5);
+    --grid-row-selected-bg: rgba(184, 204, 228, .8);
+    --grid-cell-hover-bg: #F8FFD9;
+    --grid-cell-hover-bg-lazy: #E0FFEE;
+    --grid-cell-hover-bg-disabled: #FFE7DD;
+}
+
+/* Red - cherry lipstick / fuchsia fashion */
+.color_variant_red {
+    --gray-800: #880E4F;
+    --gray-600: #C2185B;
+    --accent-500: #C2185B;
+    --gray-300: #D8B8C8;
+    --gray-100: #F8F0F4;
+
+    --primary-color: #6B6E72;
+    --primary-dark: #48494C;
+    --accent-color: #C2185B;
+    --primary-light: #D8B8C8;
+    --primary-lighter: #F8F0F4;
+    --root-top-background: #C2185B;
+    --dialogtitlebar-background: #C2185B;
+    --frameindex-tablist-background: #880E4F;
+    --card-surface: #FBF6F8;
+    --roundedgroup-bar: #E0E1E3;
+    --menu-item-hover-bg: #F4DCE8;
+    --menu-item-hover-color: #880E4F;
+
+    --field-disabled-border: #BDBFC2;
+    --field-readonly-border: #BDBFC2;
+
+    --btn-filled-bg: #C2185B;
+    --btn-filled-hover-bg: #9B1349;    /* #C2185B 80% + black */
+    --btn-filled-pressed-bg: #7E103B;  /* 65% + black */
+    --btn-filled-selected-bg: #7E103B;
+    --btn-filled-disabled-bg: #E08BAD;  /* #C2185B 50% + white */
+    --btn-tonal-bg: #F8E3EB;           /* 12% + white */
+    --btn-tonal-color: #C2185B;
+    --btn-tonal-hover-bg: #F3D1DE;     /* 20% + white */
+    --btn-tonal-pressed-bg: #EEBFD1;   /* 28% + white */
+    --btn-tonal-selected-bg: #EEBFD1;
+
+    --gray-50: #FBF6F8;
+    --gray-250: #E4CDD8;
+    --gnrfieldlabel-color: var(--gray-700);
+    --accordion-title-bg: #EAE7EA;
+    --frameindex-subtab-bg: #9F1254;
+    --frameindex-subtab-selected-bg: #DD80A5;
+    --frameindex-closer-hover-bg: #AE2465;
+    --frameindex-tab-bg: #E7CFDC;
+    --frameindex-tab-bg-hover: #B2628D;
+    --grid-reporting-header-bg: #740C43;
+    --treegrid-header-bg: #7A0D47;
+    --fieldsTree-rm-color: #6D0B3F;
+    --grid-draft-color: #C2185B;
+    --grid-lineno-color: #C2185B;
+    --grid-row-odd-bg: rgba(248, 240, 244, .5);
+    --grid-row-selected-bg: rgba(216, 184, 200, .8);
+    --grid-cell-hover-bg: #F8FFD9;
+    --grid-cell-hover-bg-lazy: #E6F9FF;
+    --grid-cell-hover-bg-disabled: #FFEDB8;
+}
+
+/* Orange - warm terracotta / plum buttons */
+.color_variant_orange {
+    --gray-900: #3A1830;
+    --gray-800: #4A2040;
+    --gray-600: #D97020;
+    --accent-500: #D4650A;
+    --gray-300: #D8C0D0;
+    --gray-200: #E0D8DE;
+    --gray-100: #F6F0F4;
+
+    --primary-color: #4A2040;
+    --primary-dark: #3A1830;
+    --accent-color: #4A2040;
+    --primary-light: #D8C0D0;
+    --primary-lighter: #F6F0F4;
+    --root-top-background: #D97020;
+    --dialogtitlebar-background: #D97020;
+    --frameindex-tablist-background: #3A1830;
+    --card-surface: #FAF8F6;
+    --roundedgroup-bar: #E0D8DE;
+    --menu-item-hover-bg: #F5DFD0;
+    --menu-item-hover-color: #3A1830;
+
+    --field-disabled-border: #C4B0BC;
+    --field-readonly-border: #C4B0BC;
+
+    --btn-filled-bg: #4A2040;
+    --btn-filled-hover-bg: #3B1A33;    /* #4A2040 80% + black */
+    --btn-filled-pressed-bg: #301529;  /* 65% + black */
+    --btn-filled-selected-bg: #301529;
+    --btn-filled-disabled-bg: #A48F9F;  /* #4A2040 50% + white */
+    --btn-tonal-bg: #EDE4EB;           /* #4A2040 12% + white */
+    --btn-tonal-color: #4A2040;
+    --btn-tonal-hover-bg: #E1D1DD;     /* 20% + white */
+    --btn-tonal-pressed-bg: #D5BFD0;   /* 28% + white */
+    --btn-tonal-selected-bg: #D5BFD0;
+
+    --gray-50: #FAF6F8;
+    --gray-150: #F0ECEE;
+    --gray-250: #E4D3DE;
+    --gray-400: #BAAEB7;
+    --gray-500: #93808D;
+    --gray-700: #654B5E;
+    --gnrfieldlabel-color: var(--gray-700);
+    --accordion-title-bg: #E9E2E7;
+    --frameindex-subtab-bg: #5E2A4E;
+    --frameindex-subtab-selected-bg: #D9A070;
+    --frameindex-closer-hover-bg: #6B3858;
+    --frameindex-tab-bg: #D8D1D6;
+    --frameindex-tab-bg-hover: #7F6978;
+    --grid-reporting-header-bg: #3F1B36;
+    --treegrid-header-bg: #431D3A;
+    --fieldsTree-rm-color: #3B1A33;
+    --grid-draft-color: #C06010;
+    --grid-lineno-color: #C06010;
+    --grid-row-odd-bg: rgba(246, 240, 244, .5);
+    --grid-row-selected-bg: rgba(216, 192, 208, .8);
+    --grid-cell-hover-bg: #F8FFD9;
+    --grid-cell-hover-bg-lazy: #E6F9FF;
+    --grid-cell-hover-bg-disabled: #FFE7DD;
+}
+
+/* Yellow - gold on dark titanium */
+.color_variant_yellow {
+    --gray-600: #FFD100;
+    --gray-300: #FFE566;
+    --gray-200: #FFF0B8;
+    --gray-100: #FFF8D6;
+
+    --primary-color: #3C3D40;
+    --primary-dark: #3C3D40;
+    --accent-color: #0071E3;
+    --primary-light: #FFE566;
+    --primary-lighter: #FFF8D6;
+    --root-top-background: #FFD100;
+    --root-top-color: #3C3D40;
+    --dialogtitlebar-background: #FFD100;
+    --dialogtitlebar-color: #3C3D40;
+    --frameindex-tablist-background: #3C3D40;
+    --card-surface: #FAFAF6;
+    --roundedgroup-bar: #FFF0B8;
+    --menu-item-hover-bg: #FFF0B8;
+    --menu-item-hover-color: #3C3D40;
+
+    --field-disabled-border: #B0B0A8;
+    --field-readonly-border: #B0B0A8;
+
+    --btn-filled-bg: #0071E3;
+    --btn-filled-hover-bg: #005AB6;    /* #0071E3 80% + black (accent-color same as blue variant) */
+    --btn-filled-pressed-bg: #004994;
+    --btn-filled-selected-bg: #004994;
+    --btn-filled-disabled-bg: #7FB8F1;  /* #0071E3 50% + white */
+    --btn-tonal-bg: #E0EEFC;
+    --btn-tonal-color: #0071E3;
+    --btn-tonal-hover-bg: #CCE3F9;
+    --btn-tonal-pressed-bg: #B8D7F7;
+    --btn-tonal-selected-bg: #B8D7F7;
+
+    --gray-50: #FFFBE6;
+    --gray-150: #FFF8DC;
+    --gray-250: #FFED94;
+    --gnrfieldlabel-color: var(--gray-700);
+    --accordion-title-bg: #FFF3C4;
+    --frameindex-subtab-bg: #917F2E;
+    --frameindex-subtab-selected-bg: #FFE673;
+    --frameindex-closer-hover-bg: #9A8B43;
+    --frameindex-tab-bg: #D8D8D9;
+    --frameindex-tab-bg-hover: #808183;
+    --grid-reporting-header-bg: #3D3E41;
+    --treegrid-header-bg: #414244;
+    --fieldsTree-rm-color: #3A3A3D;
+    --grid-draft-color: #8CA666;
+    --grid-lineno-color: #8CA666;
+    --grid-row-odd-bg: rgba(255, 248, 214, .5);
+    --grid-row-selected-bg: rgba(255, 240, 184, .8);
+    --grid-cell-hover-bg: #E6EEFF;
+    --grid-cell-hover-bg-lazy: #E0FFE8;
+    --grid-cell-hover-bg-disabled: #FFE0D0;
 }

@@ -20,7 +20,9 @@ class TableHandlerForm(BaseComponent):
     def th_tableEditor(self,pane,frameCode=None,table=None,th_pkey=None,formResource=None,
                         formInIframe=False,dfltoption_kwargs=None,**kwargs):
         table = table or pane.attributes.get('table')
-        resourcePath = self._th_mixinResource(frameCode,table=table,resourceName=formResource,defaultClass='Form') 
+        resourcePath = self._th_mixinResource(frameCode,table=table,resourceName=formResource,defaultClass='Form',pane=pane,safeMode=True)
+        if not resourcePath:
+            return
         options = dfltoption_kwargs
         options.update(self._th_getOptions(frameCode))
         options.update(kwargs)
@@ -131,7 +133,9 @@ class TableHandlerForm(BaseComponent):
                         store='recordCluster',handlerType=None,tree_kwargs=None,**kwargs):
         tableCode = table.replace('.','_')
         formId = formId or tableCode
-        resourcePath = self._th_mixinResource(formId,table=table,resourceName=formResource,defaultClass='Form')
+        resourcePath = self._th_mixinResource(formId,table=table,resourceName=formResource,defaultClass='Form',pane=pane,safeMode=True)
+        if not resourcePath:
+            return
         resource_options = self._th_getOptions(formId)
         resource_options.update(kwargs)
         resource_options.update(tree_kwargs)
@@ -212,6 +216,7 @@ class TableHandlerForm(BaseComponent):
         draftIfInvalid= options.pop('draftIfInvalid',False)
         allowSaveInvalid= options.pop('allowSaveInvalid',draftIfInvalid)
         avoidFloatingMessage= options.pop('avoidFloatingMessage',draftIfInvalid)
+        draftMarker = options.pop('draftMarker', True)
         formCaption_kwargs = dictExtract(options,'formCaption_',pop=True) 
         formCaption = options.pop('formCaption',formCaption_kwargs)
 
@@ -223,7 +228,8 @@ class TableHandlerForm(BaseComponent):
         annotations = options.pop('annotations',False)
         single_record = options.get('single_record') or options.pop('linker',False)
 
-        form.attributes.update(form_draftIfInvalid=draftIfInvalid,form_allowSaveInvalid=allowSaveInvalid,form_avoidFloatingMessage=avoidFloatingMessage)
+        form.attributes.update(form_draftIfInvalid=draftIfInvalid,form_allowSaveInvalid=allowSaveInvalid,
+                               form_avoidFloatingMessage=avoidFloatingMessage,form_draftMarker=draftMarker)
         if autoSave:
             form.store.attributes.update(autoSave=autoSave,firstAutoSave=firstAutoSave)
 

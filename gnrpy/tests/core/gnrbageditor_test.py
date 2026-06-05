@@ -19,6 +19,7 @@ class TestBagEditor(BaseGnrTest):
     @classmethod
     def setup_class(cls):
         """Set up test fixtures."""
+        super().setup_class()
         # Create a temporary XML file for testing
         cls.test_dir = tempfile.mkdtemp()
         cls.test_file = Path(cls.test_dir) / "test.xml"
@@ -49,7 +50,8 @@ class TestBagEditor(BaseGnrTest):
         if cls.test_file.exists():
             cls.test_file.unlink()
         Path(cls.test_dir).rmdir()
-
+        super().teardown_class()
+        
     def test_init_without_file(self):
         """Test initializing BagEditor without a file."""
         editor = BagEditor()

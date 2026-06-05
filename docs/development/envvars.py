@@ -33,6 +33,7 @@ variables = {
         "GNR_LOCALE": "The default locale (en_US, it_IT, etc)",
         "GNR_LOGLEVEL": "The default logging level (debug, info, warning, error)",
         "GNR_CURRENT_SITE": "TBD",
+        "GNR_CUSTOM_GUNICORN_CONF": "Gunicorn's custom configuration file (python)",
         "GNR_WSGI_OPT_": "Prefix for options to be passed to the wsgi server",
         "GNR_GUNICORN_": "Prefix for options to be passed to the gunicorn based application server",
         "GNR_WORKER_ID": "Used by taskworker, the worker ID",

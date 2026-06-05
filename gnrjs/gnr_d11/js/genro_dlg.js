@@ -145,7 +145,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
     },
 
     floatingMessage:function(sourceNode,kw){
-        kw = objectUpdate({},kw)
+        kw = objectUpdate({},kw);
         var yRatio = objectPop(kw,'yRatio');
         var xRatio = objectPop(kw,'xRatio');
         var duration = objectPop(kw,'duration') || 2;
@@ -154,41 +154,58 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         var sound = objectPop(kw,'sound');
         var message = objectPop(kw,'message');
         var msgType = objectPop(kw,'messageType') || 'message';
-        var transition = 'opacity '+duration_in+'s';
         var onClosedCb = objectPop(kw,'onClosedCb');
-        if (onClosedCb){
-            onClosedCb = funcCreate(onClosedCb,null,sourceNode)
+        if(onClosedCb){
+            onClosedCb = funcCreate(onClosedCb,null,sourceNode);
         }
-        var messageBox = sourceNode._('div','_floatingmess',{_class:'invisible fm_box fm_'+msgType,transition:transition}).getParentNode()
+        var slideDown = objectPop(kw,'slideDown');
+        var fmClass = 'fm_box fm_'+msgType + (slideDown ? ' fm_slidedown' : '');
+        var messageBox = sourceNode._('div','_floatingmess',{
+            _class: fmClass,
+            style: slideDown ? '' : 'opacity:0; transform:scale(0.9); transition:opacity '+duration_in+'s, transform '+duration_in+'s;'
+        }).getParentNode();
         kw.innerHTML = _T(message);
-        messageBox._('div',kw);
-        var deleteCb = function(){
-                                    that._value.popNode('_floatingmess');
-                                    if(onClosedCb){
-                                        onClosedCb();
-                                    }
-                                 };
-        messageBox._('div',{_class:'dlg_closebtn',connect_onclick:deleteCb});
-        genro.dom.centerOn(messageBox,sourceNode,xRatio,yRatio);
+        messageBox._('div',{_class:'fm_content'})._('div',kw);
         var that = sourceNode;
+        var deleteCb = function(){
+            that._value.popNode('_floatingmess');
+            if(onClosedCb){
+                onClosedCb();
+            }
+        };
+        messageBox._('div',{_class:'fm_closebtn',connect_onclick:deleteCb});
+        if(!slideDown){
+            genro.dom.centerOn(messageBox,sourceNode,xRatio,yRatio);
+        }
         if(sound){
             genro.playSound(sound);
         }
-        var t1 = setTimeout(function(){
-                              genro.dom.removeClass(messageBox,'invisible');
-                              setTimeout(function(){
-                                    if(duration_out>0){
-                                        var dt = duration_out/2;
-                                        setTimeout(function(){
-                                            genro.dom.addClass(messageBox,'invisible');
-                                            setTimeout(function(){
-                                                deleteCb();
-                                            },dt*1000)
-                                        },(dt*1000)+1)
-                                    }
-                                    
-                              },(duration_in*1000)+1);
-                            },1)
+        setTimeout(function(){
+            var domNode = messageBox.getDomNode ? messageBox.getDomNode() : messageBox.domNode;
+            if(!domNode){ return; }
+            if(slideDown){
+                domNode.classList.add('fm_visible');
+                if(duration_out > 0){
+                    setTimeout(function(){
+                        domNode.classList.remove('fm_visible');
+                        domNode.classList.add('fm_hiding');
+                        setTimeout(deleteCb, 400);
+                    }, (duration_in + duration_out) * 1000);
+                }
+            }else{
+                domNode.style.opacity = '1';
+                domNode.style.transform = 'scale(1)';
+                if(duration_out > 0){
+                    setTimeout(function(){
+                        if(domNode){
+                            domNode.style.opacity = '0';
+                            domNode.style.transform = 'scale(0.9)';
+                        }
+                        setTimeout(deleteCb, duration_out * 500);
+                    }, (duration_in + duration_out / 2) * 1000);
+                }
+            }
+        }, 16)
 
     },
     iframeDialog:function(iframeId,kw){
@@ -348,8 +365,9 @@ dojo.declare("gnr.GnrDlgHandler", null, {
 
         });
         dlg._('div', {'innerHTML':msg,'_class':'selectable dlg_ask_msg'});
+        var btnBox = dlg._('div', {'_class':'dialog_bottom dlg_ask_btnBox'});
         for (var btn in buttons) {
-            dlg._('button', {'_class':'dlg_ask_btn','label':buttons[btn],'actCode':btn});
+            btnBox._('button', {'_class':'dlg_ask_btn','label':buttons[btn],'actCode':btn});
         }
         node.unfreeze();
         genro.wdgById(alertCode).show();
@@ -372,7 +390,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         genro.src.getNode()._('div', alertCode);
         kw = kw || {};
         let closable = objectPop(kw,'closable');
-        buttons = buttons || {confirm:'Confirm',cancel:'Cancel'};
+        buttons = buttons || {confirm:_T('Confirm'),cancel:_T('Cancel')};
         var action,actions;
         var that = this;
         var node = genro.src.getNode(alertCode).clearValue().freeze();
@@ -392,9 +410,9 @@ dojo.declare("gnr.GnrDlgHandler", null, {
                                         that.alert_count-=1;
                                     },centerOn:'_pageRoot'})._('div', {_class:'dlg_ask','action':action});
         dlg._('div', {'content':_T(msg),'_class':'selectable dlg_ask_msg',width:kw.width});
-        //var buttonBox = dlg._('div', {'_class':'dlg_ask_btnBox'});
-        objectKeys(buttons).sort().reverse().forEach(function(btn){
-            dlg._('button', {'_class':'dlg_ask_btn','label':buttons[btn],'actCode':btn,'act':actions[btn]});
+        var btnBox = dlg._('div', {'_class':'dialog_bottom dlg_ask_btnBox'});
+        objectKeys(buttons).forEach(function(btn){
+            btnBox._('button', {'_class':'dlg_ask_btn','label':buttons[btn],'actCode':btn,'act':actions[btn]});
         });
         node.unfreeze();
         genro.wdgById(alertCode).show();
@@ -450,42 +468,158 @@ dojo.declare("gnr.GnrDlgHandler", null, {
     },
 
     message: function(msg, position, level, duration) {
-        this.messanger.forcedPos = position;
         var level = level || 'message';
         var duration = duration || 4000;
-        if(level=='error'){
-            if(!dojo.query('.countBoxErrors').length){
-                return;
+        if(genro.toast){
+            genro.toast.show({message: msg, level: level, duration: duration});
+        }else{
+            this.messanger.forcedPos = position;
+            if(level=='error'){
+                if(!dojo.query('.countBoxErrors').length){
+                    return;
+                }
             }
+            dojo.publish("standardMsg", [
+                {message: msg, type: level, duration: duration}
+            ]);
         }
-        dojo.publish("standardMsg", [
-            {message: msg, type: level, duration: duration}
-        ]);
+    },
+    
+
+
+    _resolveDialogRoot:function(rootNode, label){
+        if(!rootNode){
+            genro.src.getNode()._('div',label);
+            return genro.src.getNode();
+        }
+        const skipTags = new Set(['dataformula', 'datascript', 'datacontroller',
+                                'datarpc', 'button', 'slotbutton', 'lightbutton']);
+        let roottag = rootNode.attr.tag.toLowerCase();
+        while(skipTags.has(roottag)){
+            rootNode = rootNode.getParentNode();
+            roottag = rootNode.attr.tag.toLowerCase();
+        }
+        rootNode._('div',label,{_attachTo:'mainWindow',parentForm:false});
+        return rootNode;
     },
 
-    remoteDialog:function(name,remote,remoteKw,dlgKw){
+    _groupletForm:function(name, kw,rootNode){
+        kw = kw || {};
+        let dlgKw = objectExtract(kw,'dialog_*');
+        objectUpdate(dlgKw,objectExtract(kw,'title,closable,animateResize'));
+        const dlgId = 'grouplet_dlg_' + name;
+        const formId = 'grouplet_form_' + name;
+        const pkey = objectPop(kw,'pkey');
+        const table = kw.table;
+        kw.formId = formId;
+        kw.form_modalForm = true;
+        dlgKw.nodeId = dlgId;
+        // Check if dialog already exists to reuse it
+        let dlgNode = genro.nodeById(dlgKw.nodeId);
+
+        if(!dlgNode){
+            if(table && pkey){
+                kw.store_handler = kw.store_handler || 'record';
+            }
+            // Configure dialog defaults
+            dlgKw.autoSize = false;
+            dlgKw.closable = dlgKw.closable !== undefined ? dlgKw.closable : true;
+            dlgKw.animateResize = dlgKw.animateResize !== undefined ? dlgKw.animateResize : true;
+            rootNode = this._resolveDialogRoot(rootNode, 'root_'+dlgId);
+            const node = rootNode.getValue().getNode('root_'+dlgId).clearValue();
+            const dlg = node._('dialog', dlgId,dlgKw);
+            const loadChunk = pkey ? `genro.formById("${formId}").goToRecord("${pkey}")` : `genro.formById("${formId}").load()`;
+            kw.grouplet__onRemote = `setTimeout(() => {genro.nodeById('${dlgId}').widget.adjustDialogSize();${loadChunk};}, 1);`;
+            const onSavedCb = objectPop(kw,'onSavedCb');
+            const confirmLabel = objectPop(kw, 'confirmLabel') || _T('Confirm');
+            const cancelLabel = objectPop(kw, 'cancelLabel') || _T('Cancel');
+            dlg._('GroupletForm', kw);
+            const hideDlg = function(){ genro.nodeById(dlgId).widget.hide(); };
+            genro.formById(formId).subscribe('onSaved',function(kw){
+                if(onSavedCb){ onSavedCb(kw); }
+                hideDlg();
+            });
+            genro.formById(formId).subscribe('onDismissed',hideDlg);
+            const bottom = dlg._('flexbox', {_class:'dialog_bottom',flex_direction:'row-reverse',padding_bottom:'5px'});
+            bottom._('Button', {'label':confirmLabel, action:function(){
+                genro.formById(formId).save();
+            }});
+            bottom._('Button', {'label':cancelLabel, action:function(){
+                genro.formById(formId).abort();
+            }});
+            dlgNode = dlg.getParentNode();
+            dlgNode.widget.show();
+        }else{
+            
+            dlgNode.widget.show();
+            genro.formById(formId).load(pkey ? {destPkey:pkey} : null);
+        }
+    },
+    
+
+
+
+    memoryDataEditor:function(name, kw,sourceNode){
+        kw = kw || {};
+        // memory + SubForm are GroupletForm defaults:
+        // load_memory copies fields from parent form, save_memory writes them back
+        this._groupletForm(name, kw,sourceNode);
+    },
+
+    documentDataEditor:function(name, kw,sourceNode){
+        kw = kw || {};
+        kw.pkey = objectPop(kw, 'path') || kw.pkey;
+        kw.store_handler = 'document';
+        kw.storeType = 'Item';
+        this._groupletForm(name, kw,sourceNode);
+    },
+
+    recordDataEditor:function(name, kw, sourceNode){
+        kw = kw || {};
+        kw.store_handler = 'record';
+        kw.storeType = 'Item';
+        this._groupletForm(name, kw,sourceNode);
+    },
+
+    // Creates and shows a dialog with remote content
+    // - name: unique identifier for the dialog
+    // - remote: the remote method to call for content
+    // - remoteKw: parameters passed to the remote call (prefixed with 'remote_')
+    // - dlgKw: dialog widget configuration options
+    remoteDialog:function(name, remote, remoteKw, dlgKw,remoteRootCb){
         remoteKw = remoteKw || {};
         dlgKw = dlgKw || {};
-        dlgKw.nodeId = 'remote_dlg_'+name;
+        dlgKw.nodeId = 'remote_dlg_' + name;
 
-        var dlgNode = genro.nodeById(dlgKw.nodeId);
+        // Check if dialog already exists to reuse it
+        let dlgNode = genro.nodeById(dlgKw.nodeId);
+
         if(!dlgNode){
+            // Configure dialog defaults
             dlgKw.autoSize = false;
-            dlgKw.closable = true;
-            var dlg = genro.src.create('dialog',dlgKw,'_rmt_dlg');
-            var kw = {};
-            for (var k in remoteKw){
-                kw['remote_'+k] = remoteKw[kw];
+            dlgKw.closable = dlgKw.closable !== undefined ? dlgKw.closable : true;
+
+            const dlg = genro.src.create('dialog', dlgKw, '_rmt_dlg');
+
+            // Build remote call parameters with 'remote_' prefix
+            let kw = {remote: remote};
+            for(const k in remoteKw){
+                kw['remote_' + k] = remoteKw[k];
             }
-            kw.min_height = '1px';
-            kw.min_width = '1px';
-            kw.remote__onRemote = function(){setTimeout(function(){
-                dlgNode.widget.adjustDialogSize();
-            },1)};
-            kw.remote = remote;
-            dlg._('div',kw);
+
+            // Adjust dialog size after remote content loads
+            kw.remote__onRemote = function(){
+                setTimeout(() => dlgNode.widget.adjustDialogSize(), 1);
+            };
+            remoteRootCb = remoteRootCb || function(dlg, content_remotekw){
+                content_remotekw.min_height = '1px';
+                content_remotekw.min_width = '1px';
+                dlg._('div', content_remotekw);
+            };
+            remoteRootCb(dlg,kw);
             dlgNode = dlg.getParentNode();
         }
+
         dlgNode.widget.show();
     },
     
@@ -530,7 +664,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             }
             funcApply(cb, parameters, sourceNode,argnames,argvalues);
         }
-        genro.dlg.prompt(objectPop(promptkw,'title','Parameters'),promptkw,sourceNode);
+        genro.dlg.prompt(_T(objectPop(promptkw,'title','Parameters')),promptkw,sourceNode);
     },
 
     prompt: function(title, kw,sourceNode) {
@@ -692,14 +826,15 @@ dojo.declare("gnr.GnrDlgHandler", null, {
     
     request: function(title, msg, buttons, resultPath, valuePath) {
         genro.src.getNode()._('div', '_dlg_request');
-        var buttons = buttons || {confirm:'Confirm',cancel:'Cancel'};
+        var buttons = buttons || {confirm:_T('Confirm'),cancel:_T('Cancel')};
         var node = genro.src.getNode('_dlg_request').clearValue().freeze();
         var dlg = node._('dialog', {nodeId:'_dlg_request',title:title})._('div', {_class:'dlg_ask',
             'action':"genro.wdgById('_dlg_request').hide();genro.setData('" + resultPath + "',this.attr.actCode);"});
         dlg._('div', {'content':msg,'_class':'selectable dlg_ask_msg'});
         dlg._('textBox', {'value':'^' + valuePath});
+        var btnBox = dlg._('div', {'_class':'dialog_bottom dlg_ask_btnBox'});
         for (var btn in buttons) {
-            dlg._('button', {'_class':'dlg_ask_btn','label':buttons[btn],'actCode':btn});
+            btnBox._('button', {'_class':'dlg_ask_btn','label':buttons[btn],'actCode':btn});
         }
         node.unfreeze();
         genro.wdgById('_dlg_request').show();
@@ -756,19 +891,8 @@ dojo.declare("gnr.GnrDlgHandler", null, {
     quickDialog: function(title,kw,rootNode) {
         kw = objectUpdate({_class:'dlg_prompt'},kw);
         var quickRoot = '_dlg_quick_'+genro.getCounter();
-        var node;
-        if(!rootNode){
-            genro.src.getNode()._('div',quickRoot);
-            node = genro.src.getNode(quickRoot).clearValue();
-        }else{
-            let roottag = rootNode.attr.tag.toLowerCase();
-            while(roottag == 'dataformula' || roottag == 'datascript' || roottag == 'datacontroller' || roottag == 'datarpc'){
-                rootNode = rootNode.getParentNode();
-                roottag = rootNode.attr.tag.toLowerCase();
-            }
-            rootNode._('div',quickRoot,{_attachTo:'mainWindow',parentForm:false});
-            node = rootNode.getValue().getNode(quickRoot).clearValue();
-        }
+        rootNode = this._resolveDialogRoot(rootNode, quickRoot);
+        var node = rootNode.getValue().getNode(quickRoot).clearValue();
         node.freeze();
         let kwdimension = objectExtract(kw,'height,width,background,padding');
         let bottom_position_kw = {}
@@ -788,6 +912,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             }
             dlg.center = bc._('contentPane', 'center',{_class:'pbl_dialog_center',region:'center'});
         }else{
+            kwdimension['_class'] = 'dlg_body';
             let box = dlg._('div',kwdimension);
             let center = box._('div', {_class:'pbl_dialog_center'});
             if(kw.dialog_bottom!==false){
@@ -1073,10 +1198,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
     _prepareThIframeUrl:function(kw){
         var prefix = kw.lookup? '/sys/lookuptables/':'/sys/thpage/';
         var zoomUrl = kw.zoomUrl || prefix+kw.table.replace('.','/');
-        var dbstore = genro.getData('gnr.dbstore');
-        if(dbstore){
-            zoomUrl = '/'+dbstore+zoomUrl;
-        }
+        zoomUrl = genro.buildContextUrl(zoomUrl);
         var urlKw = objectExtract(kw,'url_*');
         urlKw.th_public = objectPop(kw,'public') || false;
         if(kw.pkey){
@@ -1173,15 +1295,15 @@ dojo.declare("gnr.GnrDlgHandler", null, {
 
     listChoice: function(title, msg, buttons, resultPath, valuePath, storePath) {
         genro.src.getNode()._('div', '_dlg_listChoice');
-        var buttons = buttons || {confirm:'Confirm',cancel:'Cancel'};
+        var buttons = buttons || {confirm:_T('Confirm'),cancel:_T('Cancel')};
         var node = genro.src.getNode('_dlg_listChoice').clearValue().freeze();
         var dlg = node._('dialog', {nodeId:'_dlg_listChoice',title:title})._('div', {_class:'dlg_ask',
             'action':"genro.wdgById('_dlg_listChoice').hide();genro.setData('" + resultPath + "',this.attr.actCode);"});
         dlg._('div', {'content':msg,'_class':'selectable dlg_ask_msg'});
         dlg._('filteringSelect', {'value':'^' + valuePath, 'storepath':storePath, 'ignoreCase':true});
-
+        var btnBox = dlg._('div', {'_class':'dialog_bottom dlg_ask_btnBox'});
         for (var btn in buttons) {
-            dlg._('button', {'_class':'dlg_ask_btn','label':buttons[btn],'actCode':btn});
+            btnBox._('button', {'_class':'dlg_ask_btn','label':buttons[btn],'actCode':btn});
         }
         node.unfreeze();
         genro.wdgById('_dlg_listChoice').show();

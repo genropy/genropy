@@ -21,6 +21,7 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 import warnings
+from functools import wraps
 from gnr.core.gnrdict import dictExtract
 
 def metadata(**kwargs):
@@ -179,6 +180,7 @@ def customizable(func):
             if result is False:
                 return result
 
+    @wraps(func)
     def wrapper(page,*args,**kwargs):
         oncalling_result = customize(page,'%s_oncalling_' %func.__name__,*args,**kwargs)
         if oncalling_result is False:
@@ -219,3 +221,26 @@ def deprecated(message=None):
         wrapper.__dict__.update(func.__dict__)
         return wrapper
     return decore
+
+
+def listen(channel=None):
+    """Mark a table method as a NOTIFY event handler.
+
+    The decorated method will be auto-discovered by GnrListener
+    and registered on the given channel.  The listener automatically
+    filters by the table's fullname.
+
+    Always use with parentheses::
+
+        @listen()
+        def on_change(self, payload):
+            ...  # listens on 'dbevent' (default)
+
+        @listen('fatturona')
+        def alert_big(self, payload):
+            ...  # listens on 'fatturona'
+    """
+    def decorator(func):
+        func._listen_channel = channel or 'dbevent'
+        return func
+    return decorator

@@ -227,12 +227,12 @@ class SettingManager(BaseComponent):
             content = Bag()
             group_info['group'] = groupNode.label
             settings = Bag(groupNode.value)
+            settings.popNode('__pycache__')
+            if not settings:
+                continue
             info_node = settings.popNode('__info__')
             group_info = self._get_info_from_node(info_node,table=table)
             if group_info is False:
-                continue
-            settings.popNode('__pycache__')
-            if not settings:
                 continue
             result.addItem(groupNode.label, content, **group_info)
             for setting_node in settings:

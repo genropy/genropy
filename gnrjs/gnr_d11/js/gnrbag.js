@@ -645,79 +645,70 @@ dojo.declare("gnr.GnrBag", null, {
     /**
      * @id getItem
      */
-    asHtmlTable:function(kw,mode){
+    asHtmlTable:function(kw, mode){
         kw = kw || {};
         var datamode = kw.datamode || 'bag';
-        var headers = kw.headers;
-        var h ='';
-        var hheadcel = datamode=='bag'?this.getItem('#0'):new gnr.GnrBag(this.getAttr('#0'));
-        if(headers && hheadcel){
-            if(headers===true){
-                headers = '';
-                hheadcel.forEach(function(n){
-                    var calclabel = (n.attr._valuelabel || n.attr.name_long || stringCapitalize(n.label));
-                    headers+=headers?','+calclabel:calclabel;
-                })
-            }
-            h = '<thead>';
-            headers = headers.split(',');
-            dojo.forEach(headers,function(th){
-               h+='<th>'+th+'</th>';
-            });
-            h+='</thead>';
-        }
-        var rows ='';
-        var r,b,v,vnode,cell_kw,format,cells,dtype;
-        if(kw.cells===true){
-            cells = hheadcel.keys();
-        }else{
+        var tableClass = kw.tableClass || 'selectable formattedBagTable';
+        var firstRow = datamode == 'bag' ? this.getItem('#0') : new gnr.GnrBag(this.getAttr('#0'));
+        var cells;
+        if(kw.cells === true){
+            cells = firstRow ? firstRow.keys() : [];
+        }else if(typeof kw.cells === 'string'){
             cells = kw.cells.split(',');
+        }else{
+            cells = kw.cells || [];
         }
-        
-        //var cellformats = objectExtract
-
-        this.forEach(function(n){
-            r ='';
-            if(datamode=='bag'){
-                b = n._value;
-            }else{
-                b = new gnr.GnrBag(n.attr);
+        var parts = ['<table class="' + tableClass + '">'];
+        if(kw.headers && firstRow){
+            var headerLabels = kw.headers;
+            if(headerLabels === true){
+                headerLabels = [];
+                firstRow.forEach(function(n){
+                    headerLabels.push(n.attr._valuelabel || n.attr.name_long || stringCapitalize(n.label));
+                });
+            }else if(typeof headerLabels === 'string'){
+                headerLabels = headerLabels.split(',');
             }
-            dojo.forEach(cells,function(cell){
-                var align = 'left';
-                vnode = b.getNode(cell);
-                cell_kw = kw[cell] || {};
+            parts.push('<thead><tr>');
+            dojo.forEach(headerLabels, function(th){
+                parts.push('<th>' + th + '</th>');
+            });
+            parts.push('</tr></thead>');
+        }
+        parts.push('<tbody>');
+        this.forEach(function(n){
+            var bag = datamode == 'bag' ? n._value : new gnr.GnrBag(n.attr);
+            var rowParts = ['<tr>'];
+            dojo.forEach(cells, function(cell){
+                var cellConf = kw[cell] || {};
+                var vnode = bag ? bag.getNode(cell) : null;
+                var v = '';
+                var tdClass = '';
                 if(vnode){
                     v = vnode._value;
                     if(v instanceof gnr.GnrBag){
-                        v = v.getFormattedValue(kw,mode);
+                        v = v.getFormattedValue(kw, mode);
                     }else if(isNullOrBlank(v)){
-                        v='';
-                    }
-                    else{
-                        
-                        dtype = cell_kw.dtype || vnode.attr.dtype || guessDtype(v);
-                        format = typeof(cell_kw)=='string'?cell_kw:cell_kw.format;
-                        if(format){
-                            v = _F(v,format,dtype);
-                        }else{
-                            v = vnode.attr._formattedValue || vnode.attr._displayedValue || v;
-                        }
-                        if(dtype=='N' || dtype=='L'){
-                            align ='right';
+                        v = '';
+                    }else{
+                        var dtype = cellConf.dtype || vnode.attr.dtype || guessDtype(v);
+                        var fmt = typeof cellConf === 'string' ? cellConf : cellConf.format;
+                        v = fmt ? _F(v, fmt, dtype) : (vnode.attr._formattedValue || vnode.attr._displayedValue || v);
+                        if(dtype == 'N' || dtype == 'L'){
+                            tdClass = ' class="num"';
                         }
                     }
-                }else{
-                    v = '';
                 }
-                if (cell_kw.width){
-                    v = '<div style="width:'+cell_kw.width+';">'+v+'</div>'
+                if(cellConf.width){
+                    v = '<div style="width:' + cellConf.width + '">' + v + '</div>';
                 }
-                r+='<td style="text-align:'+align+'">'+v+'</td>';
+                rowParts.push('<td' + tdClass + '>' + v + '</td>');
             });
-            rows+='<tr>'+r+'</tr>';
-        },'static');
-        return '<table class="selectable formattedBagTable">'+h+'<tbody>'+rows+'</tbody></table>';
+            rowParts.push('</tr>');
+            parts.push(rowParts.join(''));
+        }, 'static');
+        parts.push('</tbody></table>');
+        return parts.join('');
     },
     
     asNestedTable:function(kw,mode){

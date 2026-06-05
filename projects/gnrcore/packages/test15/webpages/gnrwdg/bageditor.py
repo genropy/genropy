@@ -10,7 +10,6 @@ from gnr.core.gnrbag import Bag
 
 class GnrCustomWebPage(object):
     py_requires="gnrcomponents/testhandler:TestHandlerFull,gnrcomponents/framegrid:FrameGrid"
-    css_requires='public'
     
     def windowTitle(self):
         return 'bageditor'

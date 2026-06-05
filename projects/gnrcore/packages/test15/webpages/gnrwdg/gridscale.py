@@ -6,7 +6,6 @@
 
 class GnrCustomWebPage(object):
     py_requires="gnrcomponents/testhandler:TestHandlerFull,th/th:TableHandler"
-    css_requires='public'
     def test_1_gridscale(self,pane):
         bc = pane.borderContainer(height='600px',width='800px')
         th = bc.plainTableHandler(table='glbl.provincia',view_store__onStart=True,

@@ -44,27 +44,29 @@ class Public(BaseComponent):
     @struct_method
     def public_publicRoot_multidb_selector(self,pane, **kwargs): 
         pane.parent.parent.parent.center.attributes['context_dbstore'] = '=current.context_dbstore'
-        fb = pane.div(margin_top='2px').formbuilder(border_spacing='0',cols=1)
+        fb = pane.div().formbuilder(border_spacing='0',cols=1)
         storetable = self.db.storetable
-        multidb_selector = self._getMultiDbSelector() 
+        multidb_selector = self._getMultiDbSelector()
         extra_kw = {} if multidb_selector is True else multidb_selector
         fb.dbSelect(value='^current.context_dbstore',_storename=False,dbtable=storetable,
-                    alternatePkey='dbstore',font_size='.8em',
-                    color='#666',lbl_font_size='.8em',lbl=self.db.table(storetable).name_long,**extra_kw)
+                    alternatePkey='dbstore',hasDownArrow=True,
+                    lbl=self.db.table(storetable).name_long,
+                    _class='pbl_partitionField',**extra_kw)
 
 class TableHandlerMain(BaseComponent):
 
     @struct_method
-    def public_publicRoot_multidb_selector(self,pane, **kwargs): 
+    def public_publicRoot_multidb_selector(self,pane, **kwargs):
         pane.parent.parent.parent.center.attributes['context_dbstore'] = '=current.context_dbstore'
-        fb = pane.div(margin_top='2px').formbuilder(border_spacing='0',cols=1)
+        fb = pane.div().formbuilder(border_spacing='0',cols=1)
         storetable = self.db.storetable
-        multidb_selector = self._getMultiDbSelector() 
+        multidb_selector = self._getMultiDbSelector()
         extra_kw = {} if multidb_selector is True else multidb_selector
         fb.dbSelect(value='^current.context_dbstore',_storename=False,dbtable=storetable,
-                    alternatePkey='dbstore',font_size='.8em',
+                    alternatePkey='dbstore',
                     disabled='^%s.form.pkey' %self.maintable.replace('.','_'),
-                    color='#666',lbl_font_size='.8em',lbl=self.db.table(storetable).name_long,**extra_kw)
+                    lbl=self.db.table(storetable).name_long,
+                    _class='pbl_partitionField',**extra_kw)
         fb.dataController("FIRE %s.view.runQueryDo;" %self.maintable.replace('.','_'),
                             runned='=%s.view.store?method' %self.maintable.replace('.','_'),
                             _if='runned',_fired='^current.context_dbstore')
@@ -90,9 +92,9 @@ class TableHandlerMain(BaseComponent):
                     bar = form.top.bar.replaceSlots('{first_chunk}*'.format(first_chunk=first_chunk),
                                                     '{first_chunk}*,cb_default_sub,10'.format(first_chunk=first_chunk))
                 bar.cb_default_sub.checkbox(value='^#FORM.record.__multidb_default_subscribed',
-                                        label='!!Subscribed by default',margin_top='1px',
-                                        label_color='#666',label_font_size='.9em',
-                                        label_font_weight='bold') 
+                                        label='!!Subscribed by default',
+                                        label_color='var(--text-muted)',label_font_size='.9em',
+                                        label_font_weight='bold')
             return
 
         readOnly = self.tblobj.attributes.get('multidb_onLocalWrite') != 'merge'

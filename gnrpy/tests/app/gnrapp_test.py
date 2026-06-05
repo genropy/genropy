@@ -12,10 +12,6 @@ class TestGnrApp(BaseGnrAppTest):
     """
     Tests class for gnr.app.gnrapp package
     """
-    def setup_method(self, method):
-        self.app_name = 'gnrdevelop'
-        self.app = ga.GnrApp(self.app_name, forTesting=True)
-
     def test_nullloader(self):
         """
         Tests for NullLoader
@@ -158,8 +154,11 @@ class TestGnrApp(BaseGnrAppTest):
 
         FIXME: maybe this should be moved to gnr.sql
         """
-        a = ga.GnrSqlAppDb()
-        assert a.application is None
+
+        # ensure that a GnrSqlAppDb without
+        # an application raises a TypeError
+        with pytest.raises(TypeError):
+            a = ga.GnrSqlAppDb()
 
 
     def test_data_retention(self):

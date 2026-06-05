@@ -8,7 +8,7 @@ from gnr.core.gnrbag import Bag
 from gnr.core.cli import GnrCliArgParse
 from gnr.app.gnrapp import GnrApp
 
-NOTES_SEARCH = re.compile(r"\{?#[\s]*?(FIXME|ERROR|WARNING|TODO|BUG|WTF)[\s:]?(.+)")
+NOTES_SEARCH = re.compile(r"\{?#[\s]*?(FIXME|ERROR|WARNING|TODO|REVIEW|BUG|WTF)[\s:]?(.+)")
 NOTES_SEARCH_END = re.compile(r"(.*)#\}(.*)")
 ALLOWED_EXTENSIONS = ['.py','.html','.js']
 EXCLUDED_DIRNAME = ['htmlcov', '.eggs', '__pycache__']

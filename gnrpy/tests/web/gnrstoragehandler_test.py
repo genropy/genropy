@@ -1,3 +1,4 @@
+import pytest
 import os
 import tempfile
 import shutil
@@ -352,10 +353,11 @@ class TestStorageHandler(BaseGnrDaemonTest):
 
     def test_deprecated_get_volume_service(self):
         """Test that deprecated getVolumeService still works but is deprecated."""
-        # Should still work for backward compatibility
-        result = self.storage_handler.getVolumeService('gnr')
-        # May return None or a service, but should not raise exception
-        assert result is None or hasattr(result, 'url')
+        # Should still work for backward compatibility, but raises a deprecation warning
+        with pytest.warns(DeprecationWarning):
+            result = self.storage_handler.getVolumeService('gnr')
+            # May return None or a service, but should not raise exception
+            assert result is None or hasattr(result, 'url')
 
     # ========================================================================
     # Edge Cases and Error Handling

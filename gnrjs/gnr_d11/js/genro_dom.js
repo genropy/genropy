@@ -34,7 +34,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
             'visibility','opacity', 'overflow', 'float', 'clear', 'display','line_height',
             'z_index', 'border','position','padding','margin','cursor',
             'color','white_space','vertical_align','background','font','text','gap','row_gap','column_gap',
-            'flex','grid','grid_template_columns','align_content','justify_content','align_items','justify_items'
+            'flex','grid_template_columns','align_content','justify_content','align_items','justify_items'
         ].concat(this.css3AttrNames);
         
     },
@@ -1490,7 +1490,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
 
     scrollableTable:function(where, gridbag, kw) {
         var domnode = this.getDomNode(where);
-        var max_height = kw.max_height || '180px';
+        var max_height = kw.max_height || 'clamp(180px, 40vh, 400px)';
         var cols = [];
         var columns = kw.columns;
         var headers = kw.headers;
@@ -1502,8 +1502,8 @@ dojo.declare("gnr.GnrDomHandler", null, {
             });
         }
         var tblclass = kw.tblclass;
-        let noHeader = headers.length==1 && headers[0]=='*'
-        let thead_style = noHeader? 'style="display:none;"':'';
+        let noHeader = headers && headers.length==1 && headers[0]=='*'
+        let thead_style = noHeader? 'style="display:none;"':'style="position:sticky;top:0;z-index:2;background:white;"';
         var thead = `<thead ${thead_style} onmouseup="dojo.stopEvent(event)"><tr>`;
         var autoWidth = true;
         cols.forEach(function(cell){
@@ -1515,7 +1515,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
             thead += `<th style="${style}">${cell.name}</th>`;
         });
         if(autoWidth){
-            thead = thead + "<th style='width:13px;'>&nbsp</th></thead>";
+            thead = thead + "</thead>";
         }
         var nodes = gridbag.getNodes();
         var item,r, value,v,_customClasses,rowvalidation;
@@ -1574,10 +1574,8 @@ dojo.declare("gnr.GnrDomHandler", null, {
         tbl.push("</tbody>");
         var tbody = tbl.join('');
         var cbf = function(cgr) {
-
-            var cgr_h = cgr ? '<colgroup>' + cgr + '<col width=11 /></colgroup>' : '';
             var cgr_b = cgr ? '<colgroup>' + cgr + '</colgroup>' : '';
-            return '<div class="' + tblclass + '"><div><table>' + cgr_h + '' + thead + '</table></div><div onmouseup="if(event.target===event.currentTarget){dojo.stopEvent(event)};" style="overflow-y:auto;overflow-x:hidden;max-height:'+max_height+';"><table>' + cgr_b + tbody + '</table></div></div>';
+            return '<div class="' + tblclass + '" style="max-width:min(calc(100vw - 40px), 900px); overflow-x:auto;"><div onmouseup="if(event.target===event.currentTarget){dojo.stopEvent(event)};" style="overflow-y:auto;max-height:'+max_height+';"><table>' + cgr_b + thead + tbody + '</table></div></div>';
         };
         domnode.innerHTML = cbf('');
         var cb = function() {
@@ -1592,7 +1590,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
                 colgroup = colgroup + '<col width="' + wt + '"/>';
             }
             domnode.innerHTML = cbf(colgroup);
-            dojo.style(domnode, {width:'auto'});
+            dojo.style(domnode, {width:'auto', maxWidth:'min(calc(100vw - 40px), 900px)'});
             var rows = dojo.query('tbody tr', domnode);
             for (let i = 0; i < rows.length; i++) {
                 rows[i].item = nodes[i];
@@ -1695,8 +1693,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
             rootNode = parentId;
             parentId = rootNode.getStringId();
         }
-        var default_kw = {'position':'absolute',top:'0',left:'0',right:'0','bottom':0,
-            z_index:399,background_color:'rgba(255,255,255,0.5)',id:parentId + '_hider',
+        var default_kw = {_class:'hiderLayer',id:parentId + '_hider',
             connect_ondblclick:function(evt){
                 if(evt.shiftKey){
                     var sn =  evt.target.sourceNode;
@@ -1716,8 +1713,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
                 messageArgs['cursor'] = 'pointer';
             }
             messageArgs.innerHTML = message;
-            var t = hider._('table',{'height':'100%',width:'100%',border:0})._('tbody');
-            t._('tr',{'height':'100%'})._('td',{'height':'100%',width:'100%',text_align:'center'})._('div',messageArgs);
+            hider._('div',messageArgs);
         }
         return hider;
     },

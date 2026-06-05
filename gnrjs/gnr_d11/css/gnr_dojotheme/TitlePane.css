@@ -1,0 +1,111 @@
+/* ==========================================================================
+   gnr_dojotheme/TitlePane.css — Complete TitlePane widget styling.
+   Flat design with CSS triangle arrows. No PNG images.
+   ========================================================================== */
+
+/* --- Title bar --- */
+.gnr_dojotheme .dijitTitlePane .dijitTitlePaneTitle {
+    background: var(--surface-light, #f6f6f6);
+    background-image: none;
+    border: 1px solid var(--border-color, #ddd);
+    border-radius: var(--radius-sm);
+    padding: 0.35em 0.5em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: background-color 0.12s ease;
+}
+
+.gnr_dojotheme .dijitTitlePane .dijitTitlePaneTitle:hover {
+    background: var(--card-surface, #F2F2F7);
+}
+
+/* When open, remove bottom radius for seamless join with content */
+.gnr_dojotheme .dijitTitlePane .dijitOpen .dijitTitlePaneTitle,
+.gnr_dojotheme .dijitTitlePane .dijitOpen.dijitTitlePaneTitle {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+/* --- Arrow node: CSS triangle --- */
+.gnr_dojotheme .dijitTitlePane .dijitArrowNode {
+    width: 1em;
+    height: 1em;
+    float: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: none;
+    background-image: none;
+}
+
+/* Hide inner text (a11y fallback) */
+.gnr_dojotheme .dijitTitlePane .dijitArrowNodeInner {
+    visibility: hidden;
+    display: none;
+}
+
+/* Open/close arrow container */
+.gnr_dojotheme .dijitTitlePaneTitle .dijitOpenCloseArrowOuter {
+    margin-right: 0.4em;
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Closed: right-pointing triangle ▸ */
+.gnr_dojotheme .dijitTitlePane .dijitClosed .dijitArrowNode {
+    background: none;
+    background-image: none;
+}
+
+.gnr_dojotheme .dijitTitlePane .dijitClosed .dijitArrowNode::after {
+    content: '';
+    display: block;
+    border-style: solid;
+    border-width: 0.25em 0 0.25em 0.35em;
+    border-color: transparent transparent transparent var(--text-muted, #666);
+    transition: transform 0.15s ease;
+}
+
+/* Open: down-pointing triangle ▾ */
+.gnr_dojotheme .dijitTitlePane .dijitOpen .dijitArrowNode {
+    background: none;
+    background-image: none;
+}
+
+.gnr_dojotheme .dijitTitlePane .dijitOpen .dijitArrowNode::after {
+    content: '';
+    display: block;
+    border-style: solid;
+    border-width: 0.35em 0.25em 0 0.25em;
+    border-color: var(--text-muted, #666) transparent transparent transparent;
+}
+
+.gnr_dojotheme .dijitOpen .dijitTitlePaneTitle .dijitOpenCloseArrowOuter {
+    position: relative;
+    top: 0;
+}
+
+/* --- Focus state --- */
+.gnr_dojotheme .dijitTitlePaneFocused .dijitTitlePaneTextNode {
+    text-decoration: underline;
+}
+
+/* --- Content area --- */
+.gnr_dojotheme .dijitTitlePaneContentOuter {
+    background: var(--surface-bg, #fff);
+    border: 1px solid var(--border-color, #ddd);
+    border-top: none;
+    border-bottom-left-radius: var(--radius-sm);
+    border-bottom-right-radius: var(--radius-sm);
+}
+
+.gnr_dojotheme .dijitTitlePaneContentInner {
+    padding: 0.6em;
+}
+
+/* --- Clickable region highlight --- */
+.gnr_dojotheme .dijitClickableRegion {
+    background-color: #FFFDE6;
+}

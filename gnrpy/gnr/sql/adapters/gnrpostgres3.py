@@ -32,9 +32,9 @@ from psycopg import sql
 
 from gnr.core.gnrlist import GnrNamedList
 from gnr.sql.adapters._gnrbasepostgresadapter import PostgresSqlDbBaseAdapter
-from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
+from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException, GnrSqlConnectionException
 
-RE_SQL_PARAMS = re.compile(r":(\S\w*)(\W|$)")
+RE_SQL_PARAMS = re.compile(r"(?<!:):(?!:)(\S\w*)(\W|$)")
 
 class SqlDbAdapter(PostgresSqlDbBaseAdapter):
 
@@ -55,8 +55,10 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         
         try:
             conn = psycopg.connect(**kwargs)
-        except psycopg.OperationalError:
-            raise GnrNonExistingDbException(self.dbroot.dbname)
+        except psycopg.OperationalError as e:
+            if 'does not exist' in str(e).lower():
+                raise GnrNonExistingDbException(self.dbroot.dbname)
+            raise GnrSqlConnectionException(self.dbroot.dbname, original_error=e)
         conn.cursor_factory = GnrDictCursor
         return conn
 
@@ -184,12 +186,16 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
                 
         self.dbroot.connection.isolation_level=IsolationLevel.READ_COMMITTED
         
-    def notify(self, msg, autocommit=False):
+    def notify(self, msg, payload=None, autocommit=False):
         """Notify a message to listener processes using the Postgres LISTEN - NOTIFY method.
-        
-        :param msg: name of the message to notify
-        :param autocommit: if False (default) you have to commit transaction, and the message is actually sent on commit"""
-        self.dbroot.execute('NOTIFY %s;' % msg)
+
+        :param msg: channel name to notify
+        :param payload: optional payload string (max 8000 bytes)
+        :param autocommit: if False (default) the message is sent on commit"""
+        if payload is None:
+            self.dbroot.execute("NOTIFY %s;" % msg)
+        else:
+            self.dbroot.execute("NOTIFY %s, :payload;" % msg, sqlargs={'payload': payload})
         if autocommit:
             self.dbroot.commit()
 

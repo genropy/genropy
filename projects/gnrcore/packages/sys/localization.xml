@@ -231,7 +231,7 @@
 				<en_site_config fr="config du site" de="Site Config" en="Site config" it="Config del sito" base="Site config"/>
 				<en_tables_configuration base="Tables Configuration" en="Tables Configuration" it="Configurazione delle tabelle"/>
 				<en_notification fr="Notification" de="Benachrichtigung" en="Notification" it="Notifica" base="Notification"/>
-				<en_theme_variant base="Theme variant" it="Variante tema" en="Theme variant"/>
+				<en_color_variant base="Color variant" it="Variante colore" en="Color variant"/>
 				<en_default_color_palette base="Default color palette" it="Colore palette default" en="Default color palette"/>
 				<en_default_color_steps base="Default color steps" it="Gradini colore default" en="Default color steps"/>
 				<en_use_formlets base="Use formlets"/>

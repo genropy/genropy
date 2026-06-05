@@ -31,6 +31,12 @@ class Table(object):
         tbl.column('smtp_ssl',name_long='!!Smtp ssl',dtype='B')
         tbl.column('send_limit', dtype='L', name_long='!!Sending limit')
         tbl.column('system_bcc',name_long='!!System bcc')
+        tbl.column('proxy_ttl', dtype='L', name_long='!!Proxy connection TTL (seconds)', default=300)
+        tbl.column('proxy_limit_per_minute', dtype='L', name_long='!!Proxy limit per minute')
+        tbl.column('proxy_limit_per_hour', dtype='L', name_long='!!Proxy limit per hour')
+        tbl.column('proxy_limit_per_day', dtype='L', name_long='!!Proxy limit per day')
+        tbl.column('proxy_limit_behavior', size=':20', name_long='!!Proxy limit behavior', default='defer')
+        tbl.column('proxy_batch_size', dtype='L', name_long='!!Proxy batch size')
 
         tbl.column('schedulable',dtype='B',name_long='!!Schedulable',name_short='Sched')
         tbl.column('save_output_message', dtype='B', name_long='!!Save output message')
@@ -62,12 +68,40 @@ class Table(object):
         mboxtbl = self.db.table('email.mailbox')
         for i,mbox in enumerate(self.standardMailboxes()):
             mboxtbl.createMbox(mbox,record_data['id'],order=i+1)
+        self._sync_account_to_mailproxy_if_active(record_data)
 
-    def trigger_onUpdated(self, record_data,old_record=None):
+    def trigger_onUpdated(self, record_data, old_record=None):
         mboxtbl = self.db.table('email.mailbox')
         if mboxtbl.query(where='$account_id=:account_id',account_id=record_data['id']).count()==0:
             for i,mbox in enumerate(self.standardMailboxes()):
                 mboxtbl.createMbox(mbox,record_data['id'],order=i+1)
+        self._sync_account_to_mailproxy_if_active(record_data)
+
+    def trigger_onDeleted(self, record_data):
+        self._remove_account_from_mailproxy_if_active(record_data)
+
+    def _sync_account_to_mailproxy_if_active(self, record_data):
+        """Sync account to mailproxy if service is active."""
+        service = self.pkg.getMailProxy(raise_if_missing=False)
+        if not service:
+            return
+        try:
+            if record_data['save_output_message'] and record_data['smtp_host']:
+                service.add_account(record_data['id'])
+            else:
+                service.delete_account(record_data['id'])
+        except Exception as e:
+            gnrlogger.error(f'Failed to sync account to mailproxy: {e}')
+
+    def _remove_account_from_mailproxy_if_active(self, record_data):
+        """Remove account from mailproxy if service is active."""
+        service = self.pkg.getMailProxy(raise_if_missing=False)
+        if not service:
+            return
+        try:
+            service.delete_account(record_data['id'])
+        except Exception as e:
+            gnrlogger.error(f'Failed to remove account from mailproxy: {e}')
 
 
     def partitionioning_pkeys(self):

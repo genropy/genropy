@@ -9,7 +9,7 @@
 
 
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrstring import splitAndStrip
+from gnr.core.gnrstring import splitAndStrip, stringWidth
 from gnr.core.gnrstructures import GnrStructData
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrdecorator import extract_kwargs
@@ -82,10 +82,6 @@ class GnrHtmlSrc(GnrStructData):
         """Creates a ``<style>`` tag"""
         self.root.builder.head.child('style', content=style, **kwargs)
         
-    def comment(self, content=None):
-        """Creates an HTML comment tag (``<!-- -->``)"""
-        self.child(tag='__flatten__', content='<!--%s-->' % content)
-        
     def script(self, script='', _type="text/javascript", **kwargs):
         """Creates a ``<script>`` tag"""
         self.root.builder.head.child('script', content=script, _type=_type, **kwargs)
@@ -105,12 +101,16 @@ class GnrHtmlSrc(GnrStructData):
             _attributes['http-equiv'] = http_equiv
         self.root.builder.head.child('meta', name=name, _content=content, _attributes=_attributes, **kwargs)
         
+    def comment(self, text):
+        """Emit an HTML comment: ``<!-- text -->``."""
+        return self.child(tag='__flatten__', content='<!-- %s -->' % text)
+
     def child(self, tag, *args, **kwargs):
         """TODO"""
         for lbl in ['_class', 'class_', '_type', 'type_', '_for', 'for_']:
             if lbl in kwargs:
                 kwargs[lbl.replace('_', '')] = kwargs.pop(lbl)
-                
+
         #if 'name' in kwargs:
         #    kwargs['_name'] = kwargs.pop('name')
         return super(GnrHtmlSrc, self).child(tag, *args, **kwargs)
@@ -262,6 +262,9 @@ class GnrHtmlSrc(GnrStructData):
         row.cellborder_total_width += row.last_cell_border_width
         return cell
             
+MM_TO_PT = 72 / 25.4
+
+
 class GnrHtmlBuilder(object):
     """TODO"""
     styleAttrNames = ['height', 'width', 'top', 'left', 'right', 'bottom',
@@ -269,6 +272,8 @@ class GnrHtmlBuilder(object):
                       'z_index', 'border', 'position', 'padding', 'margin',
                       'color', 'white_space', 'vertical_align', 'background', 'text',
                       'font'];
+    font_family = None
+    font_size = 10
     @extract_kwargs(default=True)
     def __init__(self, page_height=None, page_width=None, page_margin_top=None,
                  page_margin_left=None, page_margin_right=None, page_margin_bottom=None,
@@ -285,8 +290,6 @@ class GnrHtmlBuilder(object):
         self.nextLetterhead = None
         self.page_height = page_height or top_layer['main.page.height']
         self.page_width = page_width or top_layer['main.page.width']
-        if not (self.page_height and self.page_width):
-            raise GnrHtmlSrcError('Missing page dimensions')
         self.page_margin_top = page_margin_top or top_layer['main.page.top'] or 0
         self.page_margin_left = page_margin_left or top_layer['main.page.left'] or 0
         self.page_margin_right = page_margin_right or top_layer['main.page.right'] or 0
@@ -368,12 +371,13 @@ class GnrHtmlBuilder(object):
                         }
                         """)
 
-        self.head.style(f"""
-            @page{{
-                margin:0;
-                size:{self.page_width}mm {self.page_height}mm;
-            }}
-        """)
+        if self.page_width and self.page_height:
+            self.head.style(f"""
+                @page{{
+                    margin:0;
+                    size:{self.page_width}mm {self.page_height}mm;
+                }}
+            """)
 
 
     def prepareTplLayout(self,letterhead_root):
@@ -732,9 +736,46 @@ class GnrHtmlBuilder(object):
             self.calculate_style(content_attr, um, position='absolute')
             cell.child('div', content=cur_content_value, **content_attr)
                     
+    def calcRowsNumber(self, text, width_mm=None, font_name=None, font_size=None):
+        """Return the number of wrapped lines for *text* using exact AFM font metrics.
+
+        Handles both explicit newlines (``\\n``) and word-wrap overflow.
+
+        :param text: plain text to measure
+        :param width_mm: available width in mm; defaults to page width minus margins
+        :param font_name: font for AFM lookup; defaults to ``self.font_family`` or ``'Helvetica'``
+        :param font_size: font size in points; defaults to ``self.font_size``
+        """
+        if not text:
+            return 0
+        if width_mm is None:
+            width_mm = self.page_width - self.page_margin_left - self.page_margin_right - 2
+        if font_name is None:
+            font_name = self.font_family or 'Helvetica'
+        if font_size is None:
+            font_size = self.font_size
+        avail_pt = width_mm * MM_TO_PT
+        space_pt = stringWidth(' ', font_name, font_size)
+        count = 0
+        for hard_line in text.split('\n'):
+            current = 0.0
+            has_words = False
+            for word in hard_line.split():
+                w = stringWidth(word, font_name, font_size)
+                if not has_words:
+                    current = w
+                    has_words = True
+                elif current + space_pt + w <= avail_pt:
+                    current += space_pt + w
+                else:
+                    count += 1
+                    current = w
+            count += 1
+        return count
+
     def finalize_pass(self, src, attr, value):
         """TODO
-        
+
         :param src: TODO
         :param attr: TODO
         :param value: TODO"""

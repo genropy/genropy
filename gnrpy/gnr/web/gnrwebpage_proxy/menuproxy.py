@@ -72,8 +72,7 @@ class GnrMenuProxy(GnrBaseProxy):
             else:
                 # text, date, etc.: check for non-null
                 where = f'{fieldpath} IS NOT NULL' if positiveCondition else f'{fieldpath} IS NULL'
-
-        return tblobj.query(where=where, **kwargs).count()
+        return tblobj.query(where=where, **kwargs).count() or None
             
 
     def getRoot(self,pkg=None,indexPagePkg=None,**kwargs):

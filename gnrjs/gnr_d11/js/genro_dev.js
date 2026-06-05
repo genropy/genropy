@@ -142,16 +142,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
             mainGenroWindow.polling_enabled = false;
             mainGenroWindow.dlg.alert('No longer existing page','Error',null,null,{confirmCb:genro.pageReload});
             return;
-        } else if (status === 0) {
-            //genro.dlg.alert('Site temporary un available. Retry later');
-
-            var msg = 'status: ' + xhr.status + ' - statusText:' + xhr.statusText + ' - readyState:' + xhr.readyState + ' - responseText:' + responseText;
-            console.log(ioArgs.url);
-            console.log(msg);
-            console.log(ioArgs);
-
-        }
-        else {
+        } else {
             console.log('handleRpcHttpError');
             debug_url = ioArgs.xhr.getResponseHeader('X-Debug-Url');
             if (!debug_url) {
@@ -185,18 +176,25 @@ dojo.declare("gnr.GnrDevHandler", null, {
             return;
         }
         if (error=='gnrexception'){
-            if(genro.src.getNode()){
-                genro.dlg.alert('<h2 align="center">'+envNode.getValue()+'</h2> <br/>','Warning');
-            }else{
-                dojo.byId('mainWindow').innerHTML = '<h2 class="selectable" style="color:red;" align="center">'+envNode.getValue()+'</h2> <br/>';
-            }
+            genro.toast.show({
+                title: 'Warning',
+                message: envNode.getValue(),
+                level: 'error',
+                centered: true,
+                duration:3000
+            });
             return;
         }else if (error=='server_exception'){
-            if(genro.src.getNode()){
-                genro.dlg.alert('<h3 align="center">'+envNode.getValue()+'</h3> <br/>','Error');
-            }else{
-                dojo.byId('mainWindow').innerHTML = '<h2 class="selectable" style="color:red;" align="center">'+envNode.getValue()+'</h2> <br/>';
-            }
+            var envelope = envNode.getParentBag ? envNode.getParentBag() : null;
+            var tbText = envelope ? envelope.getItem('error_traceback') : null;
+            genro.toast.show({
+                title: 'Server Error',
+                message: envNode.getValue(),
+                level: 'error',
+                duration: 0,
+                copyable: true,
+                copyDetail: tbText
+            });
             return;
         }
         if (error == 'expired') {
@@ -295,7 +293,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
         genro.setData(path,genro.rpc.remoteResolver('relationExplorer', {'table':table,'currRecordPath':objectPop(kw,'currRecordPath'),omit:'_',item_type:'FTREE',checkPermissions:checkPermissions}));
         var treeattr = objectUpdate({storepath:path,margin:'4px'},kw);
         treeattr.labelAttribute = 'caption';
-        treeattr._class = 'fieldsTree noIcon noExpando';
+        treeattr._class = 'fieldsTree';
         treeattr.hideValues = true;
         treeattr.autoCollapse=true;
         treeattr.openOnClick = true;
@@ -339,111 +337,8 @@ dojo.declare("gnr.GnrDevHandler", null, {
             dragValues[dragCode] = fldinfo;
         };
         treeattr.draggable = true;
-        //treeattr.getIconClass = 'if(node.attr.dtype){return "icnDtype_"+node.attr.dtype}';
-        treeattr.getIconClass = 'return "treeNoIcon";';
         pane._('tree', treeattr);
     },
-    startDebug:function(callcounter){
-        if(this._debuggerWindow){
-            console.log('callcounter',callcounter)
-            this._debuggerWindow.focus();
-        }else{
-            this.openGnrIde();
-        }
-    },
-
-    openGnrIde :function(){
-        var url = window.location.host+'/sys/gnride/'+genro.page_id;
-        url = window.location.protocol+'//'+url;
-        var w = genro.openWindow(url,'debugger',{location:'no',menubar:'no'});
-        console.log('w,h',window.clientWidth,window.clientHeight)
-        w.resizeTo(window.screen.width,window.screen.height);
-        var debuggedModule = genro.pageModule;
-        var mainGenro = genro;
-        this._debuggerWindow = w;
-        genro.wsk.addhandler('do_focus_debugger',function(callcounter){
-            setTimeout(function(){
-                genro.dev.startDebug(callcounter);
-            },100)
-        });
-        w.addEventListener('load',function(){
-            var dbg_genro = this.genro;     
-            dbg_genro.ext.mainGenro = mainGenro;
-            dbg_genro.ext['startingModule'] = debuggedModule;
-        });
-
-    },
-    onDebugstep:function(data){
-        var callcounter = data.callcounter;
-        if (!('r_'+callcounter in genro.debugged_rpc)){
-            this.addToDebugged(callcounter,data)
-            this.updateDebuggerStepBox(callcounter,data);
-            
-        }
-    },
-
-    updateDebuggerStepBox:function(callcounter,data){
-        var debugger_box = dojo.byId('pdb_root');
-        var debuggerStepBox = dojo.byId('_debugger_step_'+callcounter);
-        if(!debuggerStepBox){
-            debuggerStepBox = document.createElement('div');
-            debuggerStepBox.setAttribute('id','_debugger_step_'+callcounter);
-            debuggerStepBox.setAttribute('class','pdb_debugger_step');
-            debugger_box.appendChild(debuggerStepBox);
-        }else{
-            dojo.removeClass(debuggerStepBox,'pdb_running');
-            debuggerStepBox.removeChild(debuggerStepBox.firstChild);
-        }
-        var container = document.createElement('div');
-        var message = document.createElement('div');
-        var footer = document.createElement('div');
-        footer.setAttribute('class','pdb_debugger_step_footer');
-        container.appendChild(message);
-        container.appendChild(footer);
-        debuggerStepBox.appendChild(container);
-        message.innerHTML = dataTemplate('<table><tbody><tr><td class="pdb_label">Rpc:</td><td>$methodname</td></tr><tr><td class="pdb_label">Module:</td><td>$filename</td><tr><td class="pdb_label">Function:</td><td>$functionName</td></tr><td class="pdb_label">Line:</td><td>$lineno</td></tr></tbody></table>',data);
-        var link = document.createElement('div');
-        link.setAttribute('class','pdb_footer_button pdb_footer_button_right');
-        link.innerHTML = 'Debug';
-        link.setAttribute('onclick',dataTemplate("genro.dev.openDebugInIde('$pdb_id','$debugger_page_id');",data));
-        footer.appendChild(link);
-        link = document.createElement('div');
-        link.setAttribute('class','pdb_footer_button pdb_footer_button_left');
-        link.innerHTML = 'Continue';
-        link.setAttribute('onclick',dataTemplate("dojo.addClass(dojo.byId('_debugger_step_"+callcounter+"'),'pdb_running'); genro.dev.continueDebugInIde('$pdb_id','$debugger_page_id',"+callcounter+");",data));
-        footer.appendChild(link);
-    },
-
-    continueDebugInIde:function(pdb_id,debugger_page_id,callcounter){
-        genro.wsk.publishToClient(debugger_page_id,"debugCommand",{cmd:'c',pdb_id:pdb_id});
-        setTimeout(function(){
-            genro.dev.removeFromDebugged(callcounter);
-        },1000)
-    },
-
-    openDebugInIde:function(pdb_id,debugger_page_id){
-        if(genro.mainGenroWindow){
-            genro.mainGenroWindow.genro.framedIndexManager.openGnrIDE();
-        }else{
-            genro.wsk.publishToClient(debugger_page_id,'bringToTop')
-        }
-    },
-
-
-    addToDebugged:function(callcounter,data){
-        var dbgpars = {debugger_page_id:data.debugger_page_id,pdb_id:data.pdb_id};
-        genro.debugged_rpc['r_'+callcounter] = dbgpars;
-        genro.rpc.suspend_call(callcounter);
-    },
-
-    removeFromDebugged:function(callcounter){
-        var dbgpars = objectPop(genro.debugged_rpc,'r_'+callcounter);
-        var debuggerStepBox = dojo.byId('_debugger_step_'+callcounter);
-        if(debuggerStepBox){
-            dojo.byId('pdb_root').removeChild(debuggerStepBox);
-        }
-    },
-
     handleDebugPath:function(dataNode){
         if(dataNode.getFullpath){
             var path = dataNode.getFullpath(null,true);
@@ -652,6 +547,196 @@ dojo.declare("gnr.GnrDevHandler", null, {
         tc._('contentPane',{title:'Arguments'})._('div',{innerHTML:'^gnr.debugger.sqlquery_grid.output.params',height:'100%',overflow:'auto',_class:'debug_params'});
 
         
+    },
+
+    openThemeEditor:function(){
+        if(genro._themeEditorWin && !genro._themeEditorWin.closed){
+            genro._themeEditorWin.focus();
+            return;
+        }
+        var w = 540, h = screen.availHeight;
+        var left = screen.availWidth - w;
+        var top = 0;
+        genro._themeEditorWin = window.open(
+            '/_rsrc/common/theme_editor.html?v=' + Date.now(),
+            'gnrThemeEditor',
+            'width='+w+',height='+h+',left='+left+',top='+top+',menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=no'
+        );
+        if(!genro._themeEditorListener){
+            genro._themeEditorListener = true;
+            window.addEventListener('message', function(e){
+                var d = e.data;
+                if(!d || !d.type) return;
+                genro.dev._handleThemeEditorMessage(d);
+            });
+        }
+    },
+
+    _handleThemeEditorMessage:function(d){
+        if(d.type === 'themeEditorSetVar' || d.type === 'themeEditorResetAll'){
+            this._themeApplyToAll(d);
+        }
+    },
+
+    _themeApplyToAll:function(d){
+        var isSet = (d.type === 'themeEditorSetVar');
+        var vars = isSet ? null : (d.vars || {});
+        var allDocs = this._themeGetAllDocs();
+        allDocs.forEach(function(doc){
+            try {
+                var targets = [doc.documentElement];
+                if(doc.body) targets.push(doc.body);
+                targets.forEach(function(el){
+                    if(isSet){
+                        el.style.setProperty(d.name, d.value);
+                    }else{
+                        for(var name in vars){
+                            el.style.removeProperty(name);
+                        }
+                    }
+                });
+            } catch(ex){}
+        });
+    },
+
+    _themeGetAllDocs:function(){
+        var docs = [document];
+        var frames = document.querySelectorAll('iframe');
+        for(var i=0; i<frames.length; i++){
+            try {
+                var fdoc = frames[i].contentDocument;
+                if(fdoc && fdoc.body){
+                    docs.push(fdoc);
+                }
+            } catch(ex){}
+        }
+        return docs;
+    },
+
+    _themeStartPicker:function(){
+        this._themeStopPicker();
+        var overlays = [];
+        var docs = this._themeGetAllDocs();
+        var editorWin = genro._themeEditorWin;
+        var overlayCSS = 'position:fixed;pointer-events:none;z-index:99999999;' +
+            'border:2px solid #e91e63;background:rgba(233,30,99,0.08);transition:all .1s;display:none;';
+
+        var onMove = function(e){
+            var el = e.target;
+            if(el.id === '_te_picker_overlay') return;
+            if(el.tagName === 'IFRAME') {
+                overlays.forEach(function(ov){ ov.style.display = 'none'; });
+                return;
+            }
+            var rect = el.getBoundingClientRect();
+            var doc = el.ownerDocument;
+            overlays.forEach(function(ov){
+                if(ov.ownerDocument === doc){
+                    ov.style.display = 'block';
+                    ov.style.top = rect.top + 'px';
+                    ov.style.left = rect.left + 'px';
+                    ov.style.width = rect.width + 'px';
+                    ov.style.height = rect.height + 'px';
+                }else{
+                    ov.style.display = 'none';
+                }
+            });
+        };
+
+        var onClick = function(e){
+            e.preventDefault();
+            e.stopPropagation();
+            var el = e.target;
+            if(el.id === '_te_picker_overlay' || el.tagName === 'IFRAME') return;
+            var varNames = genro.dev._themeFindVarsForElement(el);
+            genro.dev._themeStopPicker();
+            if(editorWin && !editorWin.closed && editorWin.themeEditorPickerResult){
+                editorWin.themeEditorPickerResult(Array.from(varNames));
+            }
+        };
+
+        docs.forEach(function(doc){
+            try {
+                var ov = doc.createElement('div');
+                ov.id = '_te_picker_overlay';
+                ov.style.cssText = overlayCSS;
+                doc.body.appendChild(ov);
+                overlays.push(ov);
+                doc.addEventListener('mousemove', onMove, true);
+                doc.addEventListener('click', onClick, true);
+                doc._tePickerMove = onMove;
+                doc._tePickerClick = onClick;
+            } catch(ex){}
+        });
+
+        genro._themePickerOverlays = overlays;
+        genro._themePickerDocs = docs;
+    },
+
+    _themeStopPicker:function(){
+        var docs = genro._themePickerDocs || [];
+        var overlays = genro._themePickerOverlays || [];
+        docs.forEach(function(doc){
+            try {
+                if(doc._tePickerMove) doc.removeEventListener('mousemove', doc._tePickerMove, true);
+                if(doc._tePickerClick) doc.removeEventListener('click', doc._tePickerClick, true);
+                delete doc._tePickerMove;
+                delete doc._tePickerClick;
+            } catch(ex){}
+        });
+        overlays.forEach(function(ov){
+            try { if(ov && ov.parentNode) ov.parentNode.removeChild(ov); } catch(ex){}
+        });
+        genro._themePickerOverlays = [];
+        genro._themePickerDocs = [];
+    },
+
+    _themeFindVarsForElement:function(el){
+        var varRefPattern = /var\(\s*(--[\w-]+)/g;
+        var varNames = new Set();
+        var elDoc = el.ownerDocument;
+        var current = el;
+        var depth = 0;
+        while(current && current.nodeType === 1 && depth < 8){
+            var sheets = elDoc.styleSheets;
+            for(var si=0; si<sheets.length; si++){
+                try {
+                    var rules = sheets[si].cssRules;
+                    if(rules) this._themeFindVarsInRules(rules, current, varNames, varRefPattern);
+                } catch(ex){}
+            }
+            if(current.style && current.style.cssText){
+                this._themeExtractVarRefs(current.style.cssText, varNames, varRefPattern);
+            }
+            current = current.parentElement;
+            depth++;
+        }
+        return varNames;
+    },
+
+    _themeFindVarsInRules:function(rules, el, varNames, pat){
+        for(var i=0; i<rules.length; i++){
+            var r = rules[i];
+            if(r.href !== undefined && r.styleSheet !== undefined && r.styleSheet){
+                try { this._themeFindVarsInRules(r.styleSheet.cssRules, el, varNames, pat); } catch(ex){}
+                continue;
+            }
+            if(r.selectorText !== undefined && r.style !== undefined){
+                try {
+                    if(el.matches(r.selectorText)){
+                        this._themeExtractVarRefs(r.cssText, varNames, pat);
+                    }
+                } catch(ex){}
+            }
+        }
+    },
+
+    _themeExtractVarRefs:function(cssText, varNames, pat){
+        var m;
+        pat.lastIndex = 0;
+        while((m = pat.exec(cssText)) !== null){
+            varNames.add(m[1]);
+        }
     },
 
     devUtilsPalette:function(parent){
@@ -1154,7 +1239,9 @@ dojo.declare("gnr.GnrDevHandler", null, {
 
     addError:function(error,error_type,show){
         var msg = "<div style='text-align:center;font-size:1em;font-weight:bold;'>"+error_type.toUpperCase()+" Error "+_F(new Date(),'short')+"</div>"+error;
-        if(show){
+        if(show && genro.toast){
+            genro.toast.show({title: error_type.toUpperCase() + ' Error', message: error, level: 'error'});
+        }else if(show){
             genro.dlg.message(msg,null,'error',3000);
         }
         var errorbag = genro.getData('gnr.errors');

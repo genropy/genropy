@@ -8,7 +8,6 @@ class GnrCustomWebPage(object):
     dojo_version = '11'
     py_requires = "gnrcomponents/testhandler:TestHandlerBase"
     css_theme = 'aqua'
-    css_requires='public'
     dojo_theme = 'tundra'
     
     def test_0_basic(self, pane):
