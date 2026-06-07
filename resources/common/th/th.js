@@ -521,6 +521,7 @@ dojo.declare("gnr.IframeFormManager", null, {
             var that = this;
             iframeAttr['onStarted'] = function(){that.onIframeStarted(this,kw)};
             iframeAttr['main_th_formId'] = this.fakeFormId;
+            iframeAttr['main_th_table'] = this.table;
             objectUpdate(iframeAttr,{height:'100%',width:'100%',border:0});
             iframeAttr.src = iframeAttr.src || '/sys/thpage/'+this.table.replace('.','/');
             if(isNullOrBlank(this.sourceNode.attr.context_dbstore)){

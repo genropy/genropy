@@ -35,6 +35,7 @@ import time
 from datetime import datetime
 import glob
 import subprocess
+from urllib.parse import urlparse, unquote
 from collections import defaultdict
 from email.mime.text import MIMEText
 
@@ -236,6 +237,8 @@ class DbStoresHandler(object):
                                         host=dbattr.get('host', self.db.host), user=dbattr.get('user', self.db.user),
                                         password=dbattr.get('password', self.db.password),
                                         port=dbattr.get('port', self.db.port),
+                                        implementation=dbattr.get('implementation'),
+                                        dbbranch=dbattr.get('dbbranch'),
                                         remote_host=dbattr.get('remote_host'),
                                         remote_port=dbattr.get('remote_port'))
         return dbattr
@@ -298,7 +301,12 @@ class DbStoresHandler(object):
 
 class GnrSqlAppDb(GnrSqlDb):
     """TODO"""
-
+    def __init__(self, *args, **kwargs):
+        if not kwargs.get("application", None):
+            raise TypeError("'application' is mandatory for GnrSqlAppDb")
+        
+        super().__init__(*args, **kwargs)
+        
     @property
     def stores_handler(self):
         handler = getattr(self, '_stores_handler', None)
@@ -953,7 +961,18 @@ class GnrApp(object):
                     instance_config.update(normalizePackages(self.gnr_config['gnr.instanceconfig.%s_xml' % instance_template]) or Bag())
         instance_config.update(base_instance_config, preservePattern=re.compile(r'^[\$\{]'))
         return instance_config
-        
+
+    def dsn_to_config(self, dsn: str) -> dict:
+        parsed = urlparse(dsn)
+        return {
+            'implementation': parsed.scheme,
+            'host': parsed.hostname,
+            'port': str(parsed.port),
+            'user': unquote(parsed.username) if parsed.username else None,
+            'password': unquote(parsed.password) if parsed.password else None,
+            'dbname': parsed.path.lstrip('/'),
+        }
+    
     def init(self, db_attrs=None, restorepath=None):
         """Initiate a :class:`GnrApp`
 
@@ -977,6 +996,7 @@ class GnrApp(object):
 
         dbattrs = dict(self.config.getAttr('db') or {})
         dbattrs['implementation'] = dbattrs.get('implementation') or 'sqlite'
+
         if db_attrs:
             dbattrs.update(db_attrs)
         elif dbattrs.get('dbname') == '_dummydb':
@@ -997,6 +1017,14 @@ class GnrApp(object):
             dbattrs['dbname'] = dbname
 
         dbattrs['application'] = self
+        
+        # GNR_DB_DSN env var contains a DSN, and it can be
+        # used to override any configuration at runtime.
+        # use case: temporary database tunnel, to run an app
+        # locally by using a remote database of choice.
+        if gnr_db_dsn := os.environ.get("GNR_DB_DSN", None):
+            dbattrs.update(self.dsn_to_config(gnr_db_dsn))
+
         self.db = GnrSqlAppDb(debugger=getattr(self, 'sqlDebugger', None), **dbattrs)
 
         for pkgid, apppkg in list(self.packages.items()):

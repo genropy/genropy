@@ -154,8 +154,11 @@ class TestGnrApp(BaseGnrAppTest):
 
         FIXME: maybe this should be moved to gnr.sql
         """
-        a = ga.GnrSqlAppDb()
-        assert a.application is None
+
+        # ensure that a GnrSqlAppDb without
+        # an application raises a TypeError
+        with pytest.raises(TypeError):
+            a = ga.GnrSqlAppDb()
 
 
     def test_data_retention(self):

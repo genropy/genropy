@@ -1,3 +1,107 @@
+Unreleased
+==========
+
+New features
+------------
+
+* Connection cleanup is now a single on-event mechanism instead of
+  two parallel ones. When a page closes on the client a lottery
+  (``cleanup_threshold``, default 5%) gates an attempt to spawn a
+  background cleanup pass; the daemon ``claim_cleanup`` primitive
+  ensures only one pass runs per ``cleanup_interval_minutes``
+  (default 240). The pass walks ``data/_connections/`` once, drops
+  stale pages and connections from the in-memory register, and
+  ``rmtree``\s their filesystem folders. The legacy
+  ``SiteRegister.cleanup()`` (which ran on every request and only
+  expired the in-memory register, leaving folders behind) is
+  removed. The legacy ``--noclean`` / ``--counter`` CLI flags and
+  the init-time folder purge are removed too — folders are kept
+  across restarts and cleaned by the on-event pass. (#874)
+
+  Config keys (under ``<cleanup>`` in siteconfig):
+
+  - ``cleanup.threshold`` — lottery percentage [0..100], default 5
+  - ``cleanup.interval_minutes`` — claim min gap, default 240
+  - ``cleanup.connection_max_age`` — default raised from 600s to 7200s
+  - ``cleanup.page_max_age`` — unchanged
+  - ``cleanup.guest_connection_max_age`` — unchanged
+  - ``cleanup.interval`` (legacy 120s gate) — removed
+
+Bugfixes
+--------
+
+* PDF watermark service: fix ``code=4: source object number out of
+  range`` when ``watermarkedPDF`` is applied to PDFs saved with
+  multiple incremental xref generations (e.g. macOS Preview
+  annotations, PAdES signatures). The source PDF is now normalized
+  with ``garbage=4, clean=True, deflate=True`` before the watermark
+  is composed, following the official PyMuPDF workaround. No
+  backward-compatibility impact: PDFs that already had a single xref
+  generation are unaffected. (#872)
+* dbSelect: the ``notnull`` parameter is now honored client-side. It
+  was silently overwritten by ``validate_notnull`` in
+  ``DynamicBaseCombo.creating()``, coupling the two flags and forcing
+  callers who only wanted to suppress the empty option row to also
+  make the field mandatory. With the fix, ``notnull=True`` on the
+  widget removes the empty row without triggering required-field
+  validation, as documented in the server-side handler. No
+  backward-compatibility impact: when only ``validate_notnull`` is
+  set the behavior is unchanged. (#883)
+
+  
+Release 26.05.05
+================
+
+New features
+------------
+
+* paramiko based sftp service now implementes remove()/unlink() method
+  in order to remove remote files. (#848,#868)
+
+Release 26.04.30
+================
+
+New Features
+------------
+
+* New ftp/sftp service based on paramiko, deprecation pysftp
+  (abandoware). This new service is a drop-in replacement for the old
+  pysftp service, which is now deprecated. Supports modern key
+  formats. (#845,#849)
+
+Bugfixes
+--------
+
+* Allow shift+wheel vertical scroll on grids (#826,#851): holding shift while
+  scrolling the wheel no longer freezes the grid viewport on Windows
+* TimeTextBox popup styling and time cell alignment fixes (#833)
+* Checkbox visibility toggle in _ask dialogs (#829, #831): ensure
+  layout recalculation and consistent visibility handling with other
+  widgets types.
+* Allow shift key on pasteOnGrid onkeydown (#826,#830): The onkeydown
+  handler on pasteOnGrid grids only allowed metaKey and ctrlKey
+  through, blocking all Shift-only key events. After the DOM/CSS
+  restructuring in PR #671, the contenteditable node receives keyboard
+  focus more readily, making the Shift-scroll block manifest during
+  normal range-selection interactions.
+
+Release 26.04.22
+================
+
+Bugfix release.
+
+* fix: Allow the iframe form handler to forward the table attribute to
+the form page (#822)
+
+Release 26.04.21
+================
+
+Bugfix release.
+
+* fix: initialize rootenv in pageStore at page registration (#806)
+* fix(#805): restore normal flow for grid edit widgets (#808)
+* fix: use viewResource instead of gridId in userobject view flags (#814)
+
 Release 26.04.13
 ================
 

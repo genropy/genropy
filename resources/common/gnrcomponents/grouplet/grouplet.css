@@ -192,3 +192,1371 @@
 .grplt_status_error .multibutton_selected.multibutton {
     border-bottom-color: var(--status-error, #E53935);
 }
+
+/* --- Grouplet Grid ---
+   Theme tokens. The widget defers to the design-system tokens
+   (--accent-color, --status-error, ...) and falls back to neutral
+   grays. Soft-tints (--gg-accent-soft, --gg-danger-soft) are used
+   for hover backgrounds: they are explicit named tokens (not
+   color-mix or rgba) so each theme can override them coherently. */
+.grouplet_grid_container {
+    --gg-accent: var(--accent-color, #007AFF);
+    --gg-accent-soft: var(--accent-soft, #e6f2ff);
+    --gg-danger: var(--status-error, #E53935);
+    --gg-danger-soft: var(--status-error-soft, #fdeceb);
+    --gg-border: var(--border-color, #e5e7eb);
+    --gg-surface: var(--surface-bg, #fff);
+    --gg-surface-alt: var(--surface-alt, #f9fafb);
+    --gg-text-muted: var(--text-secondary, #6b7280);
+    /* struct= chrome (Item 12): dark header strip + spreadsheet-style
+       yellow total band. Tokens are explicit so each theme can
+       override them coherently (no color-mix). Column alignment
+       between header / readonly cells / widget inputs is computed
+       at runtime in the controller (see `_syncStructChromeToColumns`)
+       so no width-related magic numbers live here. */
+    --gg-header-bg: var(--surface-strong, #374151);
+    --gg-header-text: var(--surface-on-strong, #f9fafb);
+    --gg-total-bg: var(--total-bg, #fffbe6);
+    --gg-total-text: var(--total-text, #1f2937);
+    margin: 6px 0;
+}
+
+/* Wrapper CSS-grid with named slot areas. The container is a grid;
+   slot children sit in fixed grid-area cells. The body and empty card
+   share the 'center' area. Empty slots are hidden via .has-* classes
+   set by the JS controller (collapses the corresponding grid track). */
+.grouplet_grid {
+    display: grid;
+    grid-template-areas:
+        "left top    right"
+        "left center right"
+        "left addbtn right"
+        "left bottom right";
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    grid-template-columns: 0 minmax(0, 1fr) 0;
+}
+
+.grouplet_grid.has-left  { grid-template-columns: auto minmax(0, 1fr) 0; }
+.grouplet_grid.has-right { grid-template-columns: 0 minmax(0, 1fr) auto; }
+.grouplet_grid.has-left.has-right {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.grouplet_grid > .grouplet_grid_slot_top    { grid-area: top; }
+.grouplet_grid > .grouplet_grid_slot_bottom { grid-area: bottom; }
+.grouplet_grid > .grouplet_grid_slot_left   { grid-area: left; }
+.grouplet_grid > .grouplet_grid_slot_right  { grid-area: right; }
+.grouplet_grid > .grouplet_grid_body  { grid-area: center; }
+.grouplet_grid > .grouplet_grid_footer { grid-area: addbtn; }
+
+/* Hide empty slots so they don't take padding/margin or affect grid sizing. */
+.grouplet_grid:not(.has-top)    > .grouplet_grid_slot_top,
+.grouplet_grid:not(.has-bottom) > .grouplet_grid_slot_bottom,
+.grouplet_grid:not(.has-left)   > .grouplet_grid_slot_left,
+.grouplet_grid:not(.has-right)  > .grouplet_grid_slot_right {
+    display: none;
+}
+
+/* Frame mode: container has explicit height/max_height. The wrapper
+   clips overflow; the center body scrolls internally; top/bottom/left/
+   right stay anchored because they sit in non-scrolling grid cells. */
+.grouplet_grid--framed {
+    overflow: hidden;
+}
+.grouplet_grid--framed > .grouplet_grid_body {
+    overflow: auto;
+}
+
+/* Body: stack verticale di default. The body's row-to-row gap (and
+   the footer's distance from the last row) is driven by `--gg-gap`
+   so both stay in sync — JS sets `--gg-gap` on the container when
+   responsive mode is active (cols>1 + min_width), and the default
+   below covers cards-stack mode. */
+.grouplet_grid_container {
+    --gg-gap: 12px;
+}
+.grouplet_grid_body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gg-gap);
+    min-height: 0;
+}
+
+/* Quando il container ha .grouplet_grid_responsive (settato dal JS quando l'autore
+   ha passato min_width + cols>1), il body diventa una CSS-grid responsiva.
+   --gg-cols, --gg-min-width, --gg-gap sono custom properties settate inline
+   sul container. */
+.grouplet_grid_container.grouplet_grid_responsive .grouplet_grid_body {
+    display: grid;
+    gap: var(--gg-gap, 12px);
+    grid-template-columns: repeat(auto-fill,
+                                  minmax(var(--gg-min-width, 280px), 1fr));
+    max-width: calc(var(--gg-cols, 1) * var(--gg-min-width, 280px)
+                    + (var(--gg-cols, 1) - 1) * var(--gg-gap, 12px));
+}
+
+/* --- Row blocchetto card ---
+   Layout: position:relative + padding orizzontale per kebab (dx) e drag
+   handle (sx), entrambi posizionati assoluti centrati verticalmente.
+   Il padding evita che il contenuto del grouplet si infili sotto. */
+.grouplet_grid_row {
+    position: relative;
+    padding: 0.7em 2.4em 0.7em 2em;
+    background: var(--gg-surface);
+    border: 1px solid var(--gg-border);
+    border-radius: var(--radius-md);
+    transition: background-color 160ms ease,
+                border-color 160ms ease,
+                outline-color 160ms ease;
+    animation: ggRowFadeIn 200ms ease both;
+}
+
+.grouplet_grid_row:hover {
+    background: var(--gg-surface-alt);
+}
+
+/* Stato focus-within: un widget interno ha il focus → bordo accent */
+.grouplet_grid_row:focus-within {
+    border-color: var(--accent-color);
+    outline: 2px solid var(--accent-color);
+    outline-offset: 1px;
+}
+
+/* Stato selected: applicato via JS (gridController.selectRow) */
+.grouplet_grid_row.selected {
+    border-color: var(--accent-color);
+    background: var(--surface-light, var(--gray-50));
+}
+
+.grouplet_grid_row.selected:focus-within {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 1px;
+}
+
+@keyframes ggRowFadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: none; }
+}
+
+/* --- Per-row kebab button ---
+   Vertical-centered ⋮ anchored to the right edge of the row. Plain
+   `<div>` target with a child `<menu>` widget that auto-binds via
+   `bindDomNode` (genro_widgets.js Menu `connectToParent:true`).
+   `modifiers:'*'` on the menu opens it on plain left-click.
+   Minimal styling: no background on hover, only color change on the
+   ⋮ glyph (gray → accent). Discreet by default (opacity 0.4), full
+   on row-hover. */
+.grouplet_grid_row_kebab {
+    position: absolute;
+    top: 50%;
+    right: 0.4em;
+    transform: translateY(-50%);
+    width: 1.6em;
+    height: 1.6em;
+    opacity: 0.85;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 160ms ease;
+}
+
+.grouplet_grid_row:hover .grouplet_grid_row_kebab,
+.grouplet_grid_row:focus-within .grouplet_grid_row_kebab {
+    opacity: 1;
+}
+
+.grouplet_grid_kebab_icon {
+    font-size: 1.6em;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--gg-text, #374151);
+    transition: color 160ms ease;
+    user-select: none;
+}
+
+.grouplet_grid_row_kebab:hover .grouplet_grid_kebab_icon {
+    color: var(--gg-accent);
+}
+
+/* --- Per-row drag handle ---
+   Symmetric counterpart to the kebab, anchored on the left edge.
+   Only rendered when the widget is configured with `dragCode`.
+   Behaviour: handle itself is `draggable=true` so dragging is initiated
+   from here without interfering with click-to-select on the row body or
+   focus/typing inside row widgets. */
+.grouplet_grid_row_drag {
+    position: absolute;
+    top: 50%;
+    left: 0.4em;
+    transform: translateY(-50%);
+    width: 1.5em;
+    height: 1.6em;
+    opacity: 0.8;
+    cursor: grab;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 160ms ease;
+    -webkit-user-drag: element;
+}
+
+.grouplet_grid_row:hover .grouplet_grid_row_drag,
+.grouplet_grid_row:focus-within .grouplet_grid_row_drag {
+    opacity: 1;
+}
+
+.grouplet_grid_row_drag:active {
+    cursor: grabbing;
+}
+
+.grouplet_grid_drag_icon {
+    font-size: 1.5em;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--gg-text, #374151);
+    user-select: none;
+}
+
+/* Per-row "×" delete button — opt-in via `delitem=True`. Anchored to
+   the top-right corner of the card. Always visible (no hover gate).
+   Click publishes {action:'delete', rowKey} on the action topic.
+   The cross is drawn as two rotated 1.5px segments via ::before/::after
+   so the visible centerpoint exactly matches the box centerpoint —
+   the literal `×` glyph has asymmetric font metrics that make
+   `text-align:center` look subtly off, especially inside a hover halo. */
+.grouplet_grid_row_delete {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    cursor: pointer;
+    transition: background 160ms ease;
+    border-radius: 50%;
+    user-select: none;
+    z-index: 2;
+    font-size: 0;
+    color: transparent;
+    --x-color: var(--gg-text, #374151);
+}
+
+.grouplet_grid_row_delete > * {
+    /* Hide the inner glyph element; the cross is drawn via ::before/::after. */
+    display: none;
+}
+
+.grouplet_grid_row_delete::before,
+.grouplet_grid_row_delete::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 11px;
+    height: 1.5px;
+    background: var(--x-color);
+    border-radius: 1px;
+    transform-origin: center;
+}
+
+.grouplet_grid_row_delete::before {
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.grouplet_grid_row_delete::after {
+    transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.grouplet_grid_row_delete:hover {
+    background: var(--gg-danger-soft);
+    --x-color: var(--gg-danger, #dc2626);
+}
+
+.gg-flat-rows .grouplet_grid_row_delete {
+    display: none;
+}
+
+/* Struct-mode rows are flat / one-line tall — the default top:6px
+   anchor reads too high. Vertically centre the `×` on the row instead. */
+.grouplet_grid--struct .grouplet_grid_row_delete {
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* Subtle delete — opt-in via `delitem_class='grouplet_grid_row_delete--subtle'`.
+   Faded glyph at rest, full danger only at hover. Designed for nested
+   or dense grids where the always-on dark `×` competes with content. */
+.grouplet_grid_row_delete--subtle {
+    opacity: 0.45;
+    --x-color: var(--gg-text-muted, #9ca3af);
+    transition: background 160ms ease, opacity 160ms ease;
+}
+
+.grouplet_grid_row:hover > .grouplet_grid_row_delete--subtle {
+    opacity: 0.85;
+}
+
+.grouplet_grid_row_delete--subtle:hover {
+    opacity: 1;
+}
+
+/* Reveal-on-hover variant — opt-in via the CONTAINER class
+   `grouplet_grid--delete-on-hover`. Each row's `×` stays invisible
+   until that row is hovered, then fades in. Pairs naturally with
+   `--subtle`. Useful for very dense grids (struct mode spreadsheet)
+   where always-visible per-row crosses become noise. */
+.grouplet_grid--delete-on-hover .grouplet_grid_row_delete {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 160ms ease, background 160ms ease;
+}
+
+.grouplet_grid--delete-on-hover .grouplet_grid_row:hover > .grouplet_grid_row_delete {
+    opacity: 0.85;
+    pointer-events: auto;
+}
+
+.grouplet_grid--delete-on-hover .grouplet_grid_row_delete:hover {
+    opacity: 1;
+}
+
+/* While the row is being dragged: subtle lift (slight scale-down +
+   reduced opacity) so the user perceives the card as "picked up".
+   The shadow goes to the drag-image clone (below); the original
+   stays in place but visibly de-emphasized. */
+.grouplet_grid_row.draggedItem {
+    opacity: 0.5;
+    transform: scale(0.98);
+    transition: transform 160ms ease, opacity 160ms ease;
+}
+
+/* Container-level cursor while a drag is active. The framework toggles
+   `body.drag_started` on dragstart/dragend (genro_dom.js:1304/1095); we
+   use the ancestor selector so any grouplet_grid inside the page gets
+   the grabbing cursor consistently. */
+body.drag_started .grouplet_grid_container {
+    cursor: grabbing;
+}
+
+/* Drag image clone: a snapshot of the row wrapper is appended to
+   #auxDragImage on dragstart, passed to setDragImage, then removed on
+   next tick. The browser captures the snapshot synchronously, so the
+   short DOM presence is invisible in practice. We give the clone a
+   shadow so the floating preview reads as a "card lifted off the
+   page". */
+#auxDragImage > .grouplet_grid_row {
+    box-shadow: var(--shadow-lg, 0 4px 12px rgba(0,0,0,0.15));
+    border-radius: var(--radius-md);
+    background: var(--surface-bg, #fff);
+}
+
+/* Chip drag image: floating preview reads as a "lifted tab" — full
+   rounded radius (not just top, since it's detached from the strip),
+   accent border on every side, and shadow. */
+#auxDragImage > .grouplet_grid_tab {
+    border: 2px solid var(--gg-accent);
+    border-radius: 6px;
+    margin: 0;
+    padding: 6px 10px;
+    background: var(--gg-surface, #fff);
+    box-shadow: var(--shadow-lg, 0 4px 12px rgba(0,0,0,0.2));
+}
+
+/* Struct-mode rows are stripped (no per-row border / radius / bg)
+   so they integrate with the container card. The drag-image clone
+   lives outside that container — restore enough chrome for the
+   floating preview to read as a card on its own. `position:relative`
+   becomes the positioning context for the absolute children (drag
+   handle, kebab) so they sit at their usual offsets inside the
+   clone instead of pinning to the viewport. `box-sizing:border-box`
+   keeps the clone width identical to the source row width (JS sets
+   `width = offsetWidth` inline). */
+#auxDragImage > .grouplet_grid_struct_drag_clone {
+    position: relative;
+    box-sizing: border-box;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: var(--radius-md, 8px);
+    background: var(--surface-bg, #fff);
+    padding: 0.4em 2em 0.4em 1.8em;
+    overflow: hidden;
+}
+
+/* --- Drop target highlight ---
+   Target row: scales up slightly + thicker accent border + soft tint
+   + lift shadow. No infinite animation — the lift itself reads as
+   "this is the receiver". Same visual language as :focus-within and
+   .selected, just amplified. Transition is on the row so it eases in
+   smoothly when dragover enters and back out on dragleave. */
+.grouplet_grid_row.canBeDropped,
+.grouplet_grid_row.cannotBeDropped {
+    transform: scale(1.015);
+    box-shadow: var(--shadow-md, 0 2px 8px rgba(0,0,0,0.08));
+    transition: transform 200ms ease, box-shadow 200ms ease,
+                background-color 200ms ease, border-color 200ms ease;
+}
+
+.grouplet_grid_row.canBeDropped {
+    background: var(--gg-accent-soft);
+    border: 2px solid var(--gg-accent);
+}
+
+/* Drop forbidden: payload comes from a non-matching dragCode (e.g.
+   another isolated grid). Same enlargement language but in danger
+   tones, plus a not-allowed cursor. The drop handler rejects the
+   payload silently. */
+.grouplet_grid_row.cannotBeDropped {
+    background: var(--gg-danger-soft);
+    border: 2px solid var(--gg-danger);
+    cursor: not-allowed;
+}
+
+/* --- Just-dropped flash ---
+   The row inherits the drop-target highlight for a brief moment after
+   the drop, then transitions back to its normal state. Transitions
+   (defined on `.grouplet_grid_row` itself) handle the easing — no
+   keyframes, no bounce. Cleared by JS after ~260ms. */
+.grouplet_grid_row.grouplet_grid_just_dropped {
+    background: var(--gg-accent-soft);
+    border-color: var(--gg-accent);
+    transition: background-color 260ms ease-out,
+                border-color 260ms ease-out;
+}
+
+/* --- Container drop target ---
+   The whole grid container becomes a drop accepter when the cursor is
+   over free space (no row underneath). Two scenarios:
+     - empty grid → drop anywhere on the body = the first row;
+     - past the last row → append at the tail.
+   The framework applies `.canBeDropped` to the outlined drop target
+   (the body sourceNode here) and `.cannotBeDropped` for foreign-
+   dragCode payloads; the row-level highlight on a hovered tile takes
+   over automatically (single-dispatch event resolution). */
+.grouplet_grid_body.canBeDropped {
+    outline: 2px solid var(--gg-accent);
+    outline-offset: -2px;
+    background: var(--gg-accent-soft);
+}
+
+/* --- Phantom add cell ---
+   Looks like an empty version of a row card: same size, same border
+   radius, but with a dashed border instead of solid + a big '+' glyph
+   centered. In multi-column responsive mode it occupies the next free
+   cell of the CSS grid (same `min_width`/auto-fill rules); in single
+   column it spans the whole body width. Order: 999 keeps it last in
+   flex/grid auto-flow even though it's emitted at template time before
+   the rows are added dynamically. */
+/* Sizing rationale: no fixed min-height. The phantom takes its natural
+   height from the centered '+' + padding when it's alone (or in single-
+   column flex), and stretches to match siblings automatically when it
+   shares a CSS-grid row with a row card (grid's default `align-items:
+   stretch` does the work — no JS needed). Padding is generous so even
+   the compact form has visible breathing room around the '+'. */
+.grouplet_grid_footer {
+    /* Lives as a sibling of `.grouplet_grid_body` inside the
+       container (grid-area: addbtn). Sits one body-gap below the
+       last row so it doesn't visually merge with row cards. */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.6em;
+    margin-top: var(--gg-gap);
+    background: transparent;
+    border: 2px dashed var(--gg-text-muted);
+    border-radius: var(--radius-md);
+    color: var(--gg-text, #374151);
+    cursor: pointer;
+    opacity: 0.9;
+    transition: opacity 160ms ease, color 160ms ease,
+                background-color 160ms ease, border-color 160ms ease;
+    user-select: none;
+}
+
+.grouplet_grid_footer::before {
+    content: '+';
+    font-size: 2em;
+    font-weight: 500;
+    line-height: 1;
+    color: inherit;
+    transition: transform 200ms ease, color 160ms ease;
+}
+
+.grouplet_grid_footer:hover {
+    opacity: 1;
+    color: var(--gg-accent);
+    background: var(--gg-accent-soft);
+    border-color: var(--gg-accent);
+}
+
+.grouplet_grid_footer:hover::before {
+    transform: rotate(90deg) scale(1.05);
+}
+
+.grouplet_grid_footer.disabled {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+/* lightButton normally renders a `<span>` with the label text. The
+   default phantom add has no label (only the centered '+' from
+   ::before) so we hide the span. When `additem_label` is set, the
+   widget gets the `--labeled` modifier and the span is shown beside
+   the '+', producing a compact "+ New item" affordance. */
+.grouplet_grid_footer > span {
+    display: none;
+}
+
+.grouplet_grid_footer--labeled {
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: 0.4em;
+    padding: 0.55em 0.9em;
+}
+
+.grouplet_grid_footer--labeled > span {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.92em;
+    font-weight: 600;
+    line-height: 1;
+    color: inherit;
+}
+
+/* `+` glyph for the labeled variant — line-height:1 + matched font
+   size + translateY tiny nudge to compensate the bottom-heavy '+'
+   font metric so it visually centers with the label baseline. */
+.grouplet_grid_footer--labeled::before {
+    font-size: 1.1em;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    transform: translateY(-0.04em);
+}
+
+/* Minimal "row-style" variant — opt-in via
+   `additem_class='grouplet_grid_footer--minimal'`. No dashed border,
+   tighter padding, smaller subtle `+`. For nested or secondary grids
+   where the standard dashed CTA would feel too loud. Designed to be
+   composed WITH `--labeled` for a "+ New item" Apple-like row. */
+.grouplet_grid_footer--minimal {
+    border: none;
+    background: transparent;
+    color: var(--gg-text-muted, #9ca3af);
+    padding: 0.35em 0.6em;
+    opacity: 0.85;
+    /* Left-aligned (Notion/Linear pattern) — when --minimal is paired
+       with --labeled, override the labeled justify-content:center. */
+    justify-content: flex-start;
+    /* Pull the minimal add closer to the last row — the default
+       footer margin-top of `--gg-gap` is sized for dashed CTAs, too
+       loose for an inline "row-style" link. Tighten to ~0.4 gap. */
+    margin-top: calc(var(--gg-gap) * 0.4);
+}
+
+.grouplet_grid_footer--minimal:hover {
+    border: none;
+    background: var(--gg-accent-soft, rgba(59, 130, 246, 0.08));
+    color: var(--gg-accent, #2563eb);
+    opacity: 1;
+}
+
+.grouplet_grid_footer--minimal::before {
+    font-size: 1em;
+    font-weight: 500;
+}
+
+.grouplet_grid_footer--minimal:hover::before {
+    transform: none;  /* skip the rotate-90 of the default variant */
+}
+
+/* --- Toolbar buttons (used in slot.top for fakexcel and similar) --- */
+.gg-toolbar-btn {
+    width: 1.8em;
+    height: 1.8em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm, 4px);
+    color: var(--gg-text-muted);
+    font-size: 1.1em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 160ms ease, color 160ms ease;
+    user-select: none;
+}
+
+.gg-toolbar-btn:hover {
+    background: var(--gg-accent-soft);
+    color: var(--gg-accent);
+}
+
+/* --- Flat rows variant (fakexcel) --- */
+/* Stack of plain rows: no card border/radius, just a bottom separator.
+   Used to give the widget a spreadsheet-like feel when each row is a
+   row of inline widgets (e.g. excel_row grouplet). */
+.gg-flat-rows .grouplet_grid_body {
+    gap: 0;
+}
+
+.gg-flat-rows .grouplet_grid_row {
+    border: none;
+    border-bottom: 1px solid var(--gg-border);
+    border-radius: 0;
+    /* Reserve horizontal room for drag handle (left) and kebab (right)
+       even in the dense flat layout — same allowance as the default card
+       row. Without this, inline widgets in the row overlap the tools and
+       neither is clickable. */
+    padding: 0.3em 2em 0.3em 1.8em;
+    background: transparent;
+}
+
+.gg-flat-rows .grouplet_grid_row:hover {
+    background: var(--gg-surface-alt);
+}
+
+.gg-flat-rows .grouplet_grid_row:focus-within {
+    border-color: transparent;
+    border-bottom-color: var(--accent-color);
+    outline: none;
+    background: var(--gg-surface-alt);
+}
+
+.gg-flat-rows .grouplet_grid_row.selected {
+    background: var(--surface-light, var(--gray-50));
+    border-bottom-color: var(--accent-color);
+    outline: none;
+}
+
+/* In flat-rows mode the row is dense and tools (drag/kebab) need to be
+   readable at a glance — bump their default opacity to full so the
+   spreadsheet-like UX has visible affordances per row, not the discreet
+   "appear on hover" pattern of the card variant. */
+.gg-flat-rows .grouplet_grid_row_drag,
+.gg-flat-rows .grouplet_grid_row_kebab {
+    opacity: 1;
+}
+
+/* === Tabs mode ===
+   Style inspired by gnrai/resources/ai_chat/ai_chat.css (lightweight
+   chrome): slim tabbar, padding-tight chips, flat surface swap on
+   active (no shadow). Class names are namespaced `grouplet_grid_tab*`.
+   All DOM here is created at runtime by GroupletGridController
+   (`_buildLayoutAffordances`) — never emitted server-side.
+   The tabbar row lives between `top` and `center` in the grid template
+   areas. Hidden panels are kept mounted (display:none only); their
+   widget subscriptions stay alive across tab switches. */
+
+.grouplet_grid--tabs {
+    grid-template-areas:
+        "left top    right"
+        "left tabbar right"
+        "left center right"
+        "left addbtn right"
+        "left bottom right";
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+    /* Tab palette — consumers override these on a scoped ancestor
+       (e.g. `.bilancio_editor_root .grouplet_grid--tabs { ... }`) to
+       recolour chips + active panel without duplicating selectors.
+       The default values reproduce the historical chrome. vtabs
+       inherits this rule (the controller adds both --tabs and --vtabs
+       classes when layout='vtabs'). */
+    --gg-tab-accent:        var(--gg-accent);
+    --gg-tab-accent-bar:    2px;
+    --gg-tab-fill:          var(--gg-surface);
+    --gg-tab-border:        var(--gg-border);
+    --gg-tab-rest-color:    var(--gg-text-muted);
+    --gg-tab-rest-bg:       var(--gg-surface-alt);
+    --gg-tab-rest-border:   var(--gg-border);
+    --gg-tab-hover-bg:      var(--gg-surface);
+    --gg-tab-hover-color:   var(--gg-text, #374151);
+}
+
+.grouplet_grid--tabs > .grouplet_grid_tabbar {
+    grid-area: tabbar;
+}
+
+.grouplet_grid_tabbar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: stretch;
+    background: transparent;
+    min-height: 34px;
+    border-bottom: 1px solid var(--gg-tab-border);
+    padding: 4px 4px 0 4px;
+}
+
+.grouplet_grid_tabs {
+    display: flex;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    gap: 2px;
+    /* Visual separation between the last tab and the `+` chip — the
+       `+` lives in the same flex row as the strip but is NOT a tab,
+       so a thin divider + breathing space disambiguates its role.
+       Pattern: Chrome/Firefox/Linear all use ~8px gap (here `0.6em`
+       so it scales with typography) and a faint divider line. */
+}
+
+.grouplet_grid_tabs + .grouplet_grid_tab_add {
+    margin-left: 2px;
+}
+
+.grouplet_grid_tabs::-webkit-scrollbar {
+    display: none;
+}
+
+/* Individual tab chip. Chrome-style: every tab is a fully-rendered
+   "pill" with a muted fill + bordered silhouette + rounded top
+   corners. The active tab swaps to the brighter `--gg-surface` fill
+   (same as the panel below) and adds a thick accent bottom border
+   that visually bridges the chip with the panel. */
+.grouplet_grid_tab {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 8px 2px;
+    cursor: pointer;
+    white-space: nowrap;
+    font-size: 0.85em;
+    color: var(--gg-tab-rest-color);
+    border: 1px solid var(--gg-tab-rest-border);
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    flex-shrink: 0;
+    max-width: 180px;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    background: var(--gg-tab-rest-bg);
+    margin-bottom: -1px;
+    position: relative;
+}
+
+.grouplet_grid_tab:hover:not(.grouplet_grid_tab_active) {
+    color: var(--gg-tab-hover-color);
+    background: var(--gg-tab-hover-bg);
+}
+
+.grouplet_grid_tab.grouplet_grid_tab_active {
+    color: var(--gg-tab-hover-color);
+    background: var(--gg-tab-fill);
+    font-weight: 600;
+    border-color: var(--gg-tab-border);
+    border-bottom: var(--gg-tab-accent-bar) solid var(--gg-tab-accent);
+}
+
+.grouplet_grid_tab_title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Close affordance on a tab chip. The glyph is drawn as two rotated
+   1.5px-thick segments via ::before/::after — pixel-perfect centering
+   without relying on the `×` character's asymmetric font metrics
+   (which make `text-align:center` look subtly off). The element holds
+   a literal '×' as its textContent (for accessibility / screen readers
+   and as a graceful fallback if CSS fails) — we suppress its visual
+   rendering via `font-size:0` + `color:transparent` and paint the
+   cross with two pseudo-element bars instead.
+   The bars use `--gg-text-muted` directly (NOT `currentColor`, which
+   would inherit the transparent text color and disappear). */
+.grouplet_grid_tab_close {
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    flex-shrink: 0;
+    position: relative;
+    cursor: pointer;
+    border-radius: 50%;
+    font-size: 0;
+    color: transparent;
+    --x-color: var(--gg-text-muted);
+    transition: background 0.15s, --x-color 0.15s;
+}
+
+.grouplet_grid_tab_close::before,
+.grouplet_grid_tab_close::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 9px;
+    height: 1.5px;
+    background: var(--x-color);
+    border-radius: 1px;
+    transform-origin: center;
+}
+
+.grouplet_grid_tab_close::before {
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.grouplet_grid_tab_close::after {
+    transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.grouplet_grid_tab_close:hover {
+    background: var(--gg-border);
+    --x-color: var(--gg-text, #374151);
+}
+
+/* `+` add affordance — fake tab. Same silhouette as inactive tabs
+   (surface-alt fill + 1px border + rounded top corners + same
+   bottom-margin trick) but narrower and centered on a `+` glyph
+   built from two crossed gradient bars (no font glyph). Reads as
+   "another tab waiting to be created". */
+.grouplet_grid_tab_add {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 10px 2px;
+    cursor: pointer;
+    color: var(--gg-text-muted);
+    font-size: 0.85em;
+    background-color: var(--gg-surface-alt);
+    border: 1px solid var(--gg-border);
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    margin-bottom: -1px;
+    user-select: none;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.grouplet_grid_tab_add::before {
+    content: '';
+    display: block;
+    width: 0.9em;
+    height: 0.9em;
+    background:
+        linear-gradient(currentColor, currentColor) center / 1.5px 100% no-repeat,
+        linear-gradient(currentColor, currentColor) center / 100% 1.5px no-repeat;
+}
+
+.grouplet_grid_tab_add:hover {
+    color: var(--gg-text, #374151);
+    background-color: var(--gg-surface);
+}
+
+.grouplet_grid_tab_add.disabled {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+/* In tabs mode the row-level `×` (.grouplet_grid_row_delete) and the
+   `⠿` drag handle (.grouplet_grid_row_drag) are both redundant — the
+   close affordance lives on the tab chip and dragging the chip is the
+   reorder gesture. Hide them on every panel so the chrome stays clean. */
+/* CRITICAL: the `>` direct-child combinators keep these rules from
+   leaking into nested groupletGrids. A `.grouplet_grid--tabs` outer
+   panel can contain another `.grouplet_grid` (in cards mode) inside
+   one of its row template — without `>` the descendant selector
+   `.grouplet_grid--tabs .grouplet_grid_body` would match BOTH the
+   outer tabs body AND the inner nested body, hiding the inner rows
+   too. Always anchor tabs-mode rules to the direct container. */
+.grouplet_grid--tabs > .grouplet_grid_body > .grouplet_grid_row > .grouplet_grid_row_delete,
+.grouplet_grid--tabs > .grouplet_grid_body > .grouplet_grid_row > .grouplet_grid_row_drag {
+    display: none;
+}
+
+/* Panels: every row card is mounted as usual, but in tabs mode only
+   the one with `.grouplet_grid_tab_active` is visible. Hidden panels keep their
+   widgets and subscriptions alive — essential for preserving
+   uncommitted edits when the user switches tab. */
+.grouplet_grid--tabs > .grouplet_grid_body > .grouplet_grid_row {
+    display: none;
+}
+
+/* In tabs mode the panel is not a "row card" anymore — kill the
+   hover background so only the chip in the strip reacts to hover. */
+.grouplet_grid--tabs > .grouplet_grid_body > .grouplet_grid_row:hover,
+.grouplet_grid--vtabs > .grouplet_grid_body > .grouplet_grid_row:hover {
+    background: var(--gg-tab-fill);
+}
+
+.grouplet_grid--tabs > .grouplet_grid_body > .grouplet_grid_row.grouplet_grid_tab_active {
+    display: block;
+    background: var(--gg-tab-fill);
+    border-color: var(--gg-tab-border);
+    border-top: none;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    animation: none;
+}
+
+/* In tabs mode the focus-within accent halo on the active panel is
+   noisy — the chip selection already tells the user what's active.
+   Suppress the panel's focus border and outline; keep widget focus
+   indication local to the input that has it. */
+.grouplet_grid--tabs > .grouplet_grid_body > .grouplet_grid_row.grouplet_grid_tab_active:focus-within {
+    border-color: var(--gg-tab-border);
+    outline: none;
+}
+
+/* In tabs mode the body collapses its inter-row gap (only one panel
+   visible at a time). */
+.grouplet_grid--tabs > .grouplet_grid_body {
+    gap: 0;
+}
+
+/* Drag feedback on tab chips. Same palette as `.grouplet_grid_row`
+   in cards mode: accent on valid drop, danger on foreign payload. */
+.grouplet_grid_tab[draggable="true"]:active {
+    cursor: grabbing;
+}
+
+.grouplet_grid_tab.draggedItem {
+    opacity: 0.5;
+}
+
+/* Drop semantics: "insert after target" → highlight on the right edge. */
+.grouplet_grid_tab.canBeDropped {
+    background: var(--gg-accent-soft);
+    border-bottom-color: var(--gg-accent);
+    box-shadow: inset -3px 0 0 var(--gg-accent);
+}
+
+.grouplet_grid_tab.cannotBeDropped {
+    background: var(--gg-danger-soft);
+    border-bottom-color: var(--gg-danger);
+    box-shadow: inset -3px 0 0 var(--gg-danger);
+    cursor: not-allowed;
+}
+
+.grouplet_grid_tab.grouplet_grid_just_dropped {
+    background: var(--gg-accent-soft);
+    transition: background 260ms ease-out;
+}
+
+/* === Vertical tabs (layout='vtabs') ===
+   Layered ON TOP of the horizontal `.grouplet_grid--tabs` base: same
+   chips, same `+` chip, same active-fusion mechanism — only the axis
+   changes. The tabbar moves to the left of the body via CSS-grid
+   template-areas; the tabs strip becomes a flex column; each chip
+   uses border-right (instead of border-bottom) to fuse with the
+   panel sitting to its right. */
+
+.grouplet_grid--vtabs {
+    grid-template-areas:
+        "left top    top    right"
+        "left tabbar center right"
+        "left bottom bottom right";
+    /* The tabbar gets its own column so the center body is to its
+       right. Overrides the row-based `tabbar` placement set by the
+       horizontal `.grouplet_grid--tabs` base. */
+    grid-template-columns: 0 auto minmax(0, 1fr) 0;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.grouplet_grid--vtabs.has-left {
+    grid-template-columns: auto auto minmax(0, 1fr) 0;
+}
+
+.grouplet_grid--vtabs.has-right {
+    grid-template-columns: 0 auto minmax(0, 1fr) auto;
+}
+
+.grouplet_grid--vtabs.has-left.has-right {
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+}
+
+.grouplet_grid--vtabs > .grouplet_grid_tabbar {
+    flex-direction: column;
+    align-items: stretch;
+    min-height: 0;
+    min-width: 160px;
+    border-bottom: none;
+    border-right: 1px solid var(--gg-tab-border);
+    padding: 4px 0 4px 4px;
+    /* Push the tabbar 1px to the right so its chips' right edge
+       overlaps the tabbar border exactly — the active chip's
+       transparent right border then "punches through" cleanly. */
+}
+
+.grouplet_grid--vtabs > .grouplet_grid_tabbar > .grouplet_grid_tabs {
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+    gap: 2px;
+}
+
+/* Vertical chips — reset the horizontal-tabs heavy chrome:
+   inactive chips are FLAT (no fill, no border, no rounded corners,
+   no bottom rule), only the label is rendered. Only the active chip
+   gets the full tab silhouette (see `.grouplet_grid_tab_active` rule below).
+   The rest-bg/border are reset to transparent INLINE (not via the
+   --gg-tab-rest-* vars) so consumers can still customise the active
+   chip palette without accidentally tinting inactive chips — vtabs
+   "flat at rest" is a layout-mode invariant, not a palette choice. */
+.grouplet_grid--vtabs > .grouplet_grid_tabbar > .grouplet_grid_tabs > .grouplet_grid_tab {
+    max-width: none;
+    background: transparent;
+    border: 1px solid transparent;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-top-left-radius: 6px;
+    border-bottom-left-radius: 6px;
+    margin-bottom: 0;
+    margin-right: -1px;
+    justify-content: flex-end;
+    padding: 8px 12px;
+}
+
+/* In vtabs both the label and the close `×` are right-aligned so the
+   active tab's content sits flush with the panel edge. The title
+   flexes (right-aligned text within); the `×` follows directly to
+   its right, locked against the chip's right padding. Result: across
+   chips of varying label widths, both the rightmost glyph of the
+   label AND the `×` stay vertically aligned. */
+.grouplet_grid--vtabs > .grouplet_grid_tabbar > .grouplet_grid_tabs > .grouplet_grid_tab > .grouplet_grid_tab_title {
+    flex: 0 1 auto;
+    min-width: 0;
+    text-align: right;
+}
+
+.grouplet_grid--vtabs > .grouplet_grid_tabbar > .grouplet_grid_tabs > .grouplet_grid_tab:hover:not(.grouplet_grid_tab_active) {
+    background: var(--gg-tab-hover-bg);
+}
+
+.grouplet_grid--vtabs > .grouplet_grid_tabbar > .grouplet_grid_tabs > .grouplet_grid_tab.grouplet_grid_tab_active {
+    background: var(--gg-tab-fill);
+    border-color: var(--gg-tab-border);
+    /* Override the horizontal --tabs rule which sets a bottom accent
+       bar — meaningless on a vertical chip, would draw a horizontal
+       line across the active vtab. */
+    border-bottom: 1px solid var(--gg-tab-border);
+    /* The crucial line: the active chip's right border is painted
+       with the panel's fill colour, so it visually "erases" the
+       tabbar's vertical divider exactly along the chip's full
+       height, fusing the chip with the panel. */
+    border-right-color: var(--gg-tab-fill);
+}
+
+/* `+` in vtabs — flat, right-aligned glyph to match the column of
+   `×` icons above. A thin `border-top` separates it from the tab
+   list as a subtle divider; nothing else, no fill, no hover halo. */
+.grouplet_grid--vtabs > .grouplet_grid_tabbar > .grouplet_grid_tab_add {
+    width: auto;
+    align-self: stretch;
+    margin-right: -1px;
+    margin-bottom: 0;
+    margin-top: 6px;
+    padding: 8px 14px 6px;
+    background: transparent;
+    border: none;
+    border-top: 1px solid var(--gg-border);
+    border-radius: 0;
+    justify-content: flex-end;
+}
+
+.grouplet_grid--vtabs > .grouplet_grid_tabbar > .grouplet_grid_tab_add:hover {
+    color: var(--gg-text, #374151);
+}
+
+/* Panels in vtabs: the panel sits to the right of the chip column.
+   Drop the left border + left corner radius so the panel visually
+   fuses with the active chip (which has `border-right-color:
+   var(--gg-surface)`, erasing the tabbar divider for that chip).
+   Keep the other three borders + right corners rounded. */
+.grouplet_grid--vtabs > .grouplet_grid_body > .grouplet_grid_row.grouplet_grid_tab_active {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-top-right-radius: var(--radius-md);
+    border-bottom-right-radius: var(--radius-md);
+    border-top: 1px solid var(--gg-tab-border);
+    border-left: none;
+    margin-left: 0;
+}
+
+/* Drop = insert-after: chips stack vertically so the accent sits on
+   the bottom edge (mirror of the right-edge accent in horizontal tabs). */
+.grouplet_grid--vtabs > .grouplet_grid_tabbar > .grouplet_grid_tabs > .grouplet_grid_tab.canBeDropped {
+    background: var(--gg-accent-soft);
+    box-shadow: inset 0 -3px 0 var(--gg-accent);
+}
+
+.grouplet_grid--vtabs > .grouplet_grid_tabbar > .grouplet_grid_tabs > .grouplet_grid_tab.cannotBeDropped {
+    background: var(--gg-danger-soft);
+    box-shadow: inset 0 -3px 0 var(--gg-danger);
+}
+
+/* === struct= mode (Item 12) ===
+   `--gg-struct-columns` is set on the container by GroupletGridStructAdapter
+   when `struct=` is supplied. Header, every row, and the totalize footer
+   share the same grid-template-columns template — perfect column alignment
+   without sticky positioning and without nested grids. Non-resizable by
+   design (the struct columns are fixed). */
+.grouplet_grid--struct .grouplet_grid__struct_row {
+    /* The row is the only grid container that needs `display:grid`:
+       it holds the actual widgets and uses `--gg-struct-columns` to
+       distribute them. Header and footer cells are positioned at
+       runtime by JS to match each row column's wrapper geometry
+       exactly — they don't need their own grid layout. */
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: var(--gg-struct-columns, 1fr);
+    gap: 4px;
+    align-items: center;
+}
+
+.grouplet_grid--struct > .grouplet_grid_slot_top > .grouplet_grid__struct_header,
+.grouplet_grid--struct > .grouplet_grid_slot_bottom > .grouplet_grid__struct_footer {
+    /* Positioning context for absolute-positioned col cells (set by
+       JS sync). `box-sizing: border-box` keeps the framed width
+       coherent with the row. `min-height` reserves vertical space
+       for the absolute children (which don't contribute to the
+       parent's height) — sized to read as a chrome strip slightly
+       taller than a data row for visual hierarchy.
+
+       `display: grid` is the empty-state fallback: when the grid has
+       no rows yet, the JS sync has nothing to measure and skips —
+       leaving the header cells in normal flow (stacked vertically).
+       Declaring `display: grid` here gives them a sensible column
+       layout from the start. Once rows arrive, the JS sync sets
+       `position: absolute` on each cell — absolute children leave
+       the grid flow, so the populated state is unaffected. */
+    box-sizing: border-box;
+    position: relative;
+    min-height: 2.2em;
+    display: grid;
+    grid-template-columns: var(--gg-struct-columns, 1fr);
+    gap: 4px;
+    align-items: center;
+}
+
+.grouplet_grid--struct > .grouplet_grid_slot_top > .grouplet_grid__struct_header {
+    /* CRITICAL: keep font-size at 1em on the grid container — the
+       `em`-based tracks declared in `--gg-struct-columns` resolve
+       against this element's font-size, and any divergence from the
+       row's font-size shifts every column. The smaller header label
+       size is applied at the CELL level instead. */
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--gg-header-text);
+    background: var(--gg-header-bg);
+    border-bottom: 1px solid var(--gg-border, #ddd);
+    border-top-left-radius: var(--radius-md, 8px);
+    border-top-right-radius: var(--radius-md, 8px);
+    /* Match the row's horizontal padding (1.8em left for drag handle,
+       2em right for kebab) so header columns align column-for-column
+       with the row's grid tracks. Vertical padding gives the strip
+       its taller chrome read vs. data rows. */
+    padding: 10px 2em 10px 1.8em;
+}
+
+/* Shared box model for every column cell (header / footer / readonly
+   row). */
+.grouplet_grid--struct .grouplet_grid__struct_col_cell {
+    box-sizing: border-box;
+}
+
+/* `justify-self: start` only on header and footer col cells: those
+   are absolutely-positioned by the JS sync with an explicit `width`
+   cloned from the corresponding row widget, so they must NOT stretch.
+   Readonly row cells live inside the row grid and DO stretch to fill
+   their track — otherwise they shrink to their text width and the
+   layout drifts. */
+.grouplet_grid--struct .grouplet_grid__struct_header > .grouplet_grid__struct_col_cell,
+.grouplet_grid--struct .grouplet_grid__struct_footer > .grouplet_grid__struct_col_cell {
+    justify-self: start;
+}
+
+/* Single-line truncation for header and footer cells. */
+.grouplet_grid--struct .grouplet_grid__struct_header_cell,
+.grouplet_grid--struct .grouplet_grid__struct_footer_cell {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.grouplet_grid--struct .grouplet_grid__struct_header_cell {
+    /* Smaller header text — applied on the cell (not the container)
+       so the grid track resolution stays in lockstep with the row.
+       `text-align` comes from the `--align-*` modifier. */
+    font-size: 0.85em;
+}
+
+/* Row widgets sit directly as grid children of `.grouplet_grid__struct_row`
+   (mirrors the hand-written `shopping_row` baseline). No per-cell
+   wrapper. `min-width:0` lets dijit-wrapped widgets shrink within their
+   grid track instead of pushing the row wider than the container. */
+.grouplet_grid--struct .grouplet_grid__struct_row > * {
+    min-width: 0;
+}
+
+/* Checkbox cells: centre the small native checkbox inside its grid
+   track (dijit CheckBox is ~16px wide; an em-sized track like `3em`
+   would otherwise leave it flush-left). The wrapper that genropy
+   inserts (`.gnrcheckbox_wrapper`) is the actual grid item, so the
+   alignment lives there. */
+.grouplet_grid--struct .grouplet_grid__struct_row > .gnrcheckbox_wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Padding split: the outer row wrapper keeps only vertical padding
+   (drag handle / kebab are absolute, anchored to the wrapper); the
+   inner grid carries the horizontal padding so its grid tracks compute
+   from the same base as the header/footer grids (all three apply
+   horizontal padding on the element that carries `display:grid`).
+   Identical horizontal values across the three grids — combined with
+   one flex track via `columnsCSS()` — make column alignment exact. */
+.grouplet_grid--struct .grouplet_grid_row {
+    padding: 0.3em 0;
+}
+.grouplet_grid--struct .grouplet_grid__struct_row {
+    padding: 0 2em 0 1.8em;
+}
+
+/* Totalize footer: emitted by the adapter only when at least one cell
+   declares `totalize=`. Each footer cell sits in the same grid column
+   as its row counterpart (empty for non-totalize columns). Padding
+   mirrors the row + header so totals line up under the data values. */
+.grouplet_grid--struct > .grouplet_grid_slot_bottom > .grouplet_grid__struct_footer {
+    font-weight: 600;
+    color: var(--gg-total-text);
+    background: var(--gg-total-bg);
+    border-top: 1px solid var(--gg-border, #ddd);
+    border-bottom-left-radius: var(--radius-md, 8px);
+    border-bottom-right-radius: var(--radius-md, 8px);
+    padding: 10px 2em 10px 1.8em;
+}
+
+.grouplet_grid--struct .grouplet_grid__struct_footer_cell {
+    /* Reserve height on the footer strip independently of content: a
+       single populated total cell would otherwise collapse the strip
+       to that cell's text height and lose the visual band. */
+    min-height: 1.2em;
+}
+
+/* Dtype-driven horizontal alignment shared by header label, readonly
+   row cell, and footer total cell. The adapter assigns one of these
+   three modifier classes based on the column's dtype so the visual
+   "column of numbers" reads as one band. Editable cells inherit their
+   alignment from the dijit widget (NumberTextBox is right-align by
+   default). The right-pad on `--align-right` compensates for the
+   internal border+padding of the dijit textbox so a numeric header
+   sits flush above the digits inside the input. */
+.grouplet_grid--struct .grouplet_grid__struct_cell--align-left   { text-align: left; }
+.grouplet_grid--struct .grouplet_grid__struct_cell--align-center { text-align: center; }
+.grouplet_grid--struct .grouplet_grid__struct_cell--align-right  { text-align: right; }
+
+/* === Spreadsheet-like skin ===
+   Compact "Excel feel": tabular numerals, thin row separators, hover
+   row tint, subtler row chrome (no card-style border per row — the
+   container itself is the card). Applied only in struct mode so
+   resource-mode grouplets keep their card-stack aesthetic. */
+.grouplet_grid--struct {
+    /* Reset card-stack chrome: the struct grid is one continuous
+       table, not a stack of independent cards. */
+    background: var(--gg-surface);
+    border: 1px solid var(--gg-border);
+    border-radius: var(--radius-md, 8px);
+    overflow: hidden;
+}
+
+/* Kill the inter-row gap that the card-stack body adds via `--gg-gap`:
+   in struct mode every row is just one tabular line, separated only
+   by the row's own border-bottom — not by 12px of empty space. */
+.grouplet_grid--struct > .grouplet_grid_body {
+    gap: 0;
+}
+
+/* Rows: drop the per-row border + radius (the container owns those
+   now), keep only a thin bottom separator. The last row's separator
+   is the footer's border-top, so suppress it on the last data row. */
+.grouplet_grid--struct .grouplet_grid_row {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--gg-border);
+    border-radius: 0;
+    animation: none;
+}
+.grouplet_grid--struct .grouplet_grid_body > .grouplet_grid_row:last-child {
+    border-bottom: none;
+}
+
+/* Hover: full-row tint (no per-cell hover — that's an interaction
+   pattern from data-grids, not spreadsheets). */
+.grouplet_grid--struct .grouplet_grid_row:hover {
+    background: var(--gg-surface-alt);
+}
+
+/* Selected row in struct mode: accent-soft tint + a 2px accent
+   inset strip on the left (current-row marker, like Excel/Sheets).
+   No accent bottom border — keep the thin grey separator unchanged
+   so the table grid stays uniform; the inset strip + tint are
+   enough to read as 'this is the selected row'. The `:hover`
+   override prevents the generic row hover from wiping out the
+   selected tint when the cursor is on the row. */
+.grouplet_grid--struct .grouplet_grid_row.selected,
+.grouplet_grid--struct .grouplet_grid_row.selected:hover {
+    background: var(--gg-accent-soft);
+    box-shadow: inset 2px 0 0 var(--gg-accent);
+}
+
+/* Drop-target feedback in struct mode: a thick accent line on top
+   of the target row marks where the dragged row will land. No
+   scale, no tint, no gap — just a horizontal rule in accent color.
+   Invalid state uses the same rule in danger color so the 'no drop'
+   state remains visible. */
+.grouplet_grid--struct .grouplet_grid_row.canBeDropped,
+.grouplet_grid--struct .grouplet_grid_row.cannotBeDropped {
+    transform: none;
+    background: transparent;
+}
+.grouplet_grid--struct .grouplet_grid_row.canBeDropped {
+    box-shadow: inset 0 3px 0 var(--gg-accent);
+}
+.grouplet_grid--struct .grouplet_grid_row.cannotBeDropped {
+    box-shadow: inset 0 3px 0 var(--gg-danger);
+}
+
+/* Tabular numerals + monospace digits for numeric columns: same
+   feature browsers expose for `font-feature-settings`. Applied to
+   readonly divs AND the editable widgets — dijit's NumberTextBox
+   in this theme uses `.dijitInputField > input` (NOT `.dijitInputInner`
+   as in some other dijit themes), and the class on the wrapper is
+   `.numberTextBox` (camelCase, lowercase `n` — verified in DOM). */
+.grouplet_grid--struct .grouplet_grid__struct_cell--align-right,
+.grouplet_grid--struct .grouplet_grid__struct_row > .numberTextBox .dijitInputField input,
+.grouplet_grid--struct .grouplet_grid__struct_footer .grouplet_grid__struct_cell--align-right {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+}
+
+/* Numeric dijit inputs: force right-align on the inner <input>. The
+   dijit NumberTextBox doesn't set text-align by default — the input
+   inherits its natural left flow. Match both the wrapper class and
+   the input element. No extra padding: header label, readonly div
+   and input all end at their cell's right edge (whatever dijit-
+   internal padding the input has applies equally to every row so
+   the column reads consistently). */
+.grouplet_grid--struct .grouplet_grid__struct_row > .numberTextBox .dijitInputField input {
+    text-align: right;
+}
+
+/* === fillParent ===
+   Opt-in via `gr_groupletGrid(..., fillParent=True)`. Root stays a
+   plain <div>; height: 100% cascades from the dijit ancestor. Implies
+   --framed (cards body scrolls). In tabs/vtabs the active panel is
+   `overflow: hidden` so a nested dijit layout owns its own scroll. */
+.grouplet_grid--fill {
+    height: 100%;
+    min-height: 0;
+}
+/* Tabs/vtabs: tabbar sticks (own grid-area), only active panel scrolls. */
+.grouplet_grid--fill.grouplet_grid--tabs > .grouplet_grid_body,
+.grouplet_grid--fill.grouplet_grid--vtabs > .grouplet_grid_body {
+    overflow: visible;
+    min-height: 0;
+}
+.grouplet_grid--fill.grouplet_grid--tabs > .grouplet_grid_body > .grouplet_grid_row.grouplet_grid_tab_active,
+.grouplet_grid--fill.grouplet_grid--vtabs > .grouplet_grid_body > .grouplet_grid_row.grouplet_grid_tab_active {
+    height: 100%;
+    min-height: 0;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+

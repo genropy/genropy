@@ -150,7 +150,7 @@ class GnrRemoteProcess(object):
 
     def _makeSite(self):
         from gnr.web.gnrwsgisite import GnrWsgiSite
-        self._site =  GnrWsgiSite(self.sitename,noclean=True)
+        self._site = GnrWsgiSite(self.sitename)
         self._site_ts = datetime.now()
         self.logger.debug('Created site for PID {}'.format(os.getpid()))
     
@@ -181,7 +181,7 @@ class GnrDaemonServiceManager(object):
     def site(self):
         if not hasattr(self, '_site'):
             from gnr.web.gnrwsgisite import GnrWsgiSite
-            self._site = GnrWsgiSite(self.sitename, noclean=True)
+            self._site = GnrWsgiSite(self.sitename)
         return self._site
 
     def terminate(self):

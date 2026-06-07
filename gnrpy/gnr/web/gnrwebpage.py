@@ -36,6 +36,9 @@ import re
 import datetime
 import traceback
 
+from gnr.web import logger
+from gnr.web.gnrwebpage_proxy.frontend.template_lookup import lookup_template_class
+
 
 DEFAULT_CSS_THEME = os.environ.get('GNR_CSS_THEME', 'mimi')
 
@@ -56,7 +59,6 @@ from gnr.web.gnrwebpage_proxy.connection import GnrWebConnection
 from gnr.web.gnrwebpage_proxy.serverbatch import GnrWebBatch
 from gnr.web.gnrwebpage_proxy.rpc import GnrWebRpc
 from gnr.web.gnrwebpage_proxy.developer import GnrWebDeveloper
-from gnr.web.gnrwebpage_proxy.gnrpdb import GnrPdbClient
 from gnr.web.gnrwebpage_proxy.utils import GnrWebUtils
 from gnr.web.gnrwebpage_proxy.pluginhandler import GnrWebPluginHandler
 from gnr.web.gnrwebpage_proxy.jstools import GnrWebJSTools
@@ -188,7 +190,12 @@ class GnrWebPage(GnrBaseWebPage):
         self.page_timeout = self.site.config.getItem('page_timeout') or PAGE_TIMEOUT
         self.page_refresh = self.site.config.getItem('page_refresh') or PAGE_REFRESH
         self.private_kwargs = dict([(k[:2], v)for k, v in list(request_kwargs.items()) if k.startswith('__')])
-        self.pagetemplate = request_kwargs.pop('pagetemplate', None) or getattr(self, 'pagetemplate', None) or \
+        # ``_tpl`` is the short URL-friendly alias for ``pagetemplate`` —
+        # e.g. ``/page?_tpl=iphone_frame`` selects a different template
+        # without affecting any other dispatch.
+        self.pagetemplate = request_kwargs.pop('_tpl', None) or \
+                            request_kwargs.pop('pagetemplate', None) or \
+                            getattr(self, 'pagetemplate', None) or \
                             self.site.config['dojo?pagetemplate'] or 'standard.tpl'
         self.css_theme = request_kwargs.pop('css_theme', None) or getattr(self, 'css_theme', None) \
                         or self.site.config['gui?css_theme']
@@ -312,7 +319,8 @@ class GnrWebPage(GnrBaseWebPage):
             
         self.page_id = page_id or getUuid()
         page_info = dict([(k,getattr(self,k,None)) for k in ATTRIBUTES_SIMPLEWEBPAGE])
-        data = Bag()   
+        data = Bag()
+        data['rootenv'] = Bag()
         data['pageArgs'] = kwargs
         data['class_info'] = class_info
         data['init_info'] = init_info
@@ -388,20 +396,34 @@ class GnrWebPage(GnrBaseWebPage):
     @property
     def wsk_enabled(self):
         if not hasattr(self, '_wsk_enabled'):
-            self._wsk_enabled = self.wsk and self.getPreference('experimental.wsk_enabled',pkg='sys')
+            self._wsk_enabled = self.wsk and not self.getPreference('experimental.wsk_disabled',pkg='sys')
         return self._wsk_enabled
-    
-    @property 
+
+    @property
+    def async_endpoint(self):
+        """Return the async-server endpoint (port number or full ws/wss URL).
+
+        Resolution order:
+          1. ``GNR_ASYNC_URL`` env var — supports a deploy in a separate
+             container; value can be a port number or a ``ws://``/``wss://`` URL.
+          2. ``sockets/async_port`` file — written by the local async server.
+          3. ``None`` — caller falls back to ``window.location.port`` client-side.
+        """
+        if not hasattr(self, '_async_endpoint'):
+            value = os.environ.get('GNR_ASYNC_URL')
+            if not value:
+                port_file = os.path.join(self.site.site_path, 'sockets', 'async_port')
+                if os.path.isfile(port_file):
+                    with open(port_file, 'r') as f:
+                        value = f.read().strip()
+            self._async_endpoint = value or None
+        return self._async_endpoint
+
+    @property
     def dev(self):
         if not hasattr(self, '_dev'):
             self._dev = GnrWebDeveloper(self)
         return self._dev
-        
-    @property 
-    def pdb(self):
-        if not hasattr(self, '_pdb'):
-            self._pdb = GnrPdbClient(self)
-        return self._pdb
 
     @property
     def utils(self):
@@ -585,7 +607,6 @@ class GnrWebPage(GnrBaseWebPage):
         
     def __call__(self):
         """Internal method dispatcher"""
-        self.pdb.onPageStart()    
         self.onInit() ### kept for compatibility
         self._onBegin()
         args = self._call_args
@@ -1058,17 +1079,39 @@ class GnrWebPage(GnrBaseWebPage):
         if 'MSIE' in user_agent and not 'chromeframe' in user_agent:
             raise GnrUnsupportedBrowserException
         self.charset = 'utf-8'
+        self.db  # ensure db env (storename, currentDomain) is set before reading preferences
         arg_dict = self.build_arg_dict(**kwargs)
         tpl = self.pagetemplate
         if not isinstance(tpl, str):
             tpl = '%s.%s' % (self.pagename, 'tpl')
+        self.htmlHeaders()
+
+        # When ``experimental.no_mako`` is on, look for a ``<name>.py``
+        # struct template in the same resource dirs the Mako lookup uses.
+        # If one is found, render it; otherwise fall through to Mako so a
+        # missing struct template never breaks the page.
+        no_mako = self.getPreference('experimental.no_mako', pkg='sys')
+        if no_mako:
+            tpl_name = tpl[:-4] if tpl.endswith('.tpl') else tpl
+            template_cls = lookup_template_class(self.tpldirectories, tpl_name)
+            if template_cls is not None:
+                template = template_cls(self)
+                if not template.check_access():
+                    raise GnrWebPageException(
+                        "Access denied for template '%s'" % tpl_name)
+                return template.render(arg_dict)
+            logger.warning(
+                "no_mako=True but no struct template '%s.py' found; "
+                "falling back to Mako '%s'", tpl_name, tpl)
+        # Fallback Mako (default behaviour, unchanged)
+        if not tpl.endswith('.tpl'):
+            tpl = '%s.tpl' % tpl
         lookup = TemplateLookup(directories=self.tpldirectories, output_encoding=self.charset,
                                 encoding_errors='replace')
         try:
             mytemplate = lookup.get_template(tpl)
         except:
             raise GnrWebPageException("No template %s found in %s" % (tpl, str(self.tpldirectories)))
-        self.htmlHeaders()
         return mytemplate.render(mainpage=self, **arg_dict).decode()
         
     def rpc_changeLocale(self, locale):
@@ -1285,6 +1328,7 @@ class GnrWebPage(GnrBaseWebPage):
         arg_dict['baseUrl'] = self.site.home_uri
         kwargs['servertime'] = datetime.datetime.now()
         kwargs['websockets_url'] = '/websocket' if self.wsk_enabled else None
+        kwargs['websockets_endpoint'] = self.async_endpoint if self.wsk_enabled else None
         self.getPwaIntegration(arg_dict)
         self.getSquareLogoUrl(arg_dict)
         self.getCoverLogoUrl(arg_dict)
@@ -1340,7 +1384,20 @@ class GnrWebPage(GnrBaseWebPage):
         css_path, css_media_path = self.get_css_path()
         arg_dict['css_requires'] = css_path
         arg_dict['css_media_requires'] = css_media_path
-        
+        # Staging visual cue: env vars take precedence over siteconfig.
+        # Raw style wins over the colour shortcut. When both are empty
+        # the rendered HTML matches the legacy layout.
+        # ``_calling_page_id`` is injected by the client when building an
+        # iframe (see genro_widgets setSrc_do): its presence flags that this
+        # page is being rendered inside another page, so the staging cue
+        # should not be drawn around it.
+        arg_dict['is_subframe'] = bool(kwargs.get('_calling_page_id'))
+        arg_dict['staging_style'] = (
+            os.environ.get('GNR_STAGING_STYLE')
+            or self.site.config['gui?staging_style'] or '')
+        arg_dict['staging_colour'] = (
+            os.environ.get('GNR_STAGING_COLOUR')
+            or self.site.config['gui?staging_colour'] or '')
         return arg_dict
     
     def getPwaIntegration(self, arg_dict):
@@ -1395,6 +1452,25 @@ class GnrWebPage(GnrBaseWebPage):
         mtime = gnr_static_handler.mtime(*args)
         url = '%s?mtime=%0.0f' % (url, mtime)
         return url
+
+    # Vendored bundles loaded lazily by widgets need a cache-busting token so
+    # the browser refetches them whenever the file on disk changes. The map
+    # below keys each bundle to a path under the 'rsrc' storage; widgets read
+    # the resulting mtime via genro.getData('gnr.vendoredMtime.<key>').
+    _VENDORED_BUNDLES = {
+        'codemirror6': ('js_libs', 'codemirror6', 'codemirror6.bundle.js'),
+    }
+
+    def _vendoredBundlesMtime(self):
+        rsrc = self.site.storage('rsrc')
+        out = {}
+        for key, path in self._VENDORED_BUNDLES.items():
+            try:
+                mtime = rsrc.mtime(*path)
+            except Exception:
+                mtime = None
+            out[key] = int(mtime) if mtime else 0
+        return out
         
     def homeUrl(self):
         """TODO"""
@@ -2320,6 +2396,7 @@ class GnrWebPage(GnrBaseWebPage):
         page.data('gnr.package',self.package.name)
         page.data('gnr.root_page_id',self.root_page_id)
         page.data('gnr.workdate', self.workdate) #serverpath='rootenv.workdate')
+        page.data('gnr.vendoredMtime', self._vendoredBundlesMtime())
         page.data('gnr.language', self.language,serverpath='rootenv.language',dbenv=True)
         
         page.data('gnr.table',getattr(self,'maintable',None))

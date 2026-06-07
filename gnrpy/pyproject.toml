@@ -28,6 +28,7 @@ dependencies = [
 	     "boto3",
 	     "caldav",
 	     "chardet==5.2.0",
+	     "cryptography",
 	     "dictdiffer", # for gnr.sql migration
 	     "docutils",
 	     "dulwich", # needed by gnrgit
@@ -53,7 +54,6 @@ dependencies = [
 	     "six", # evaluate if needed
 	     "smart_open",
 	     "supervisor",
-	     "tornado", # used for async
 	     "tzlocal",
 	     "unidecode",
 	     "vobject",
@@ -93,8 +93,8 @@ gnrtaskscheduler = 'gnr.web.cli.gnrtaskscheduler:main'
 gnrtaskworker = 'gnr.web.cli.gnrtaskworker:main'
 gnrwsgiserve = 'gnr.web.cli.gnrwsgiserve:main'
 gnrdaemon = 'gnr.web.cli.gnrdaemon:main'
+gnrasync = 'gnr.web.cli.gnrasync:main'  # deprecated alias, prefer 'gnr web async'
 # gnr.app
-gnrasync = 'gnr.app.cli.gnrasync:main'
 gnrdbsetup = 'gnr.app.cli.gnrdbsetup:main'
 gnrdbsetupparallel = 'gnr.app.cli.gnrdbsetupparallel:main'
 gnrdbshell = 'gnr.app.cli.gnrdbshell:main'
@@ -139,6 +139,7 @@ include-package-data = true
 packages = [
 	    'gnr',
 	    'gnr.app',
+	    'gnr.app.api_engine',
 	    'gnr.app.cli',
 	    'gnr.core',
 	    'gnr.core.cli',
@@ -157,7 +158,8 @@ packages = [
 	    'gnr.web.gnrwebpage_plugin',
 	    'gnr.web.gnrwebpage_proxy',
 	    'gnr.web.gnrwebpage_proxy.apphandler',
-    	    'gnr.web.gnrwebpage_proxy.frontend',	
+    	    'gnr.web.gnrwebpage_proxy.frontend',
+	    'gnr.web.gnrwebstruct',
 	    'gnr.web.gnrwsgisite_proxy',
 	    'gnr.web.widgets',
 	    'gnr.xtnd',

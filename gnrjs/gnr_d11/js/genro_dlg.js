@@ -664,7 +664,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             }
             funcApply(cb, parameters, sourceNode,argnames,argvalues);
         }
-        genro.dlg.prompt(objectPop(promptkw,'title','Parameters'),promptkw,sourceNode);
+        genro.dlg.prompt(_T(objectPop(promptkw,'title','Parameters')),promptkw,sourceNode);
     },
 
     prompt: function(title, kw,sourceNode) {

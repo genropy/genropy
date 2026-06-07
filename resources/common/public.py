@@ -676,16 +676,17 @@ class TableHandlerMain(BaseComponent):
         formResource = th_kwargs.pop('formResource',None)
         root.attributes.update(overflow='hidden')
         public = boolean(th_kwargs.pop('public',False))
-        formId = th_kwargs.pop('formId',self.maintable.replace('.','_'))
+        table = th_kwargs.pop('table',None) or self.maintable
+        formId = th_kwargs.pop('formId',table.replace('.','_'))
         if  public:
             root.attributes.update(_class='pbl_root')
             root = root.rootContentPane(title=self.tblobj.name_long)
         else:
             root.attributes.update(tag='ContentPane',_class=None)
-        root.attributes.update(datapath=self.maintable.replace('.','_'))
+        root.attributes.update(datapath=table.replace('.','_'))
         formkw = kwargs
         formkw.update(th_kwargs)
-        form = root.thFormHandler(table=self.maintable,formId=formId,startKey=pkey,
+        form = root.thFormHandler(table=table,formId=formId,startKey=pkey,
                                   formResource=formResource,
                                   formCb=formCb,form_isRootForm=True,**formkw)
         if public:

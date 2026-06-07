@@ -150,12 +150,6 @@ dojo.declare("gnr.widgets.baseHtml", null, {
         }
         this._makeInteger(attributes, ['sizeShare','sizerWidth']);
         var savedAttrs = {};
-        if ('speech' in attributes){
-            objectPop(attributes,'speech');
-            if(genro.isChrome){
-                savedAttrs['speech'] = true;
-            }
-        }
         if (attributes.moveable){
             savedAttrs['moveable'] = objectPop(attributes,'moveable');
             savedAttrs['moveable_kw'] = objectExtract(attributes,'moveable_*');
@@ -256,20 +250,6 @@ dojo.declare("gnr.widgets.baseHtml", null, {
         }
         if(this.formattedValueHandler){
             this.formattedValueHandler(newobj, savedAttrs, sourceNode);
-        }
-        if('speech' in savedAttrs){
-            if(newobj.focusNode){
-                newobj.focusNode.setAttribute("x-webkit-speech","x-webkit-speech");
-                newobj.focusNode.onwebkitspeechchange = function(){
-                    if('onSpeechEnd' in newobj){
-                        if(typeof(newobj.onSpeechEnd)=='function'){
-                            newobj.onSpeechEnd();
-                        }else{
-                            newobj.sourceNode.onNodeCall(newobj.onSpeechEnd);
-                        }
-                    }
-                };
-            }
         }
         var domNode = newobj.domNode || newobj;
         if('moveable' in savedAttrs){
@@ -525,6 +505,10 @@ dojo.declare("gnr.widgets.baseHtml", null, {
     },
 
     cell_onCreating:function(gridEditor,colname,colattr){
+        //pass
+    },
+
+    cell_onStartEdit:function(cellNode,editingInfo,attr,editWidgetNode){
         //pass
     },
 
@@ -1917,7 +1901,7 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
     onBuilding:function(sourceNode){
         //{value:,height,width}
         var areaAttr = objectUpdate({},sourceNode.attr);
-        var speech = objectPop(areaAttr,'speech');
+        objectPop(areaAttr,'speech'); // consumed in created()
         var editor = objectPop(areaAttr,'editor');
         var tag = this._domtag;
         var notrigger = {'doTrigger':false};
@@ -1934,11 +1918,11 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
             var currAttr = sourceNode.attr;
             sourceNode.attr = {'tag':'div',_class:_class};
             objectExtract(currAttr,'tag,width');
-            var tKw = objectUpdate({overflow:'hidden',_class:'textAreaWrapperArea'},currAttr); 
+            var tKw = objectUpdate({overflow:'hidden',_class:'textAreaWrapperArea'},currAttr);
             if(editor){
                 tKw['border'] = '1px solid silver';
                 tKw['rounded'] = 4;
-            } 
+            }
             var top = sourceNode._('div',tKw,notrigger);
             var bottom = sourceNode._('div',{_class:'textAreaWrapperButtons',transition:'1s all'},notrigger)
             if(editor){
@@ -1959,16 +1943,88 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
     },
     onSpeechEnd:function(sourceNode,v){
         var lastSelection = genro._lastSelection;
+        var oldValue = sourceNode.getAttributeFromDatasource('value') || '';
         if(lastSelection && (lastSelection.domNode == sourceNode.widget.domNode)){
-            var oldValue = sourceNode.getAttributeFromDatasource('value');
             var fistchunk = oldValue.slice(0,lastSelection.start);
             var secondchunk =  oldValue.slice(lastSelection.end);
             v = fistchunk+v+secondchunk;
+        }else if(oldValue){
+            v = oldValue.trimEnd() + ' ' + v.trimStart();
         }
         setTimeout(function(){
-            sourceNode.setAttributeInDatasource('value',v,true);
+            sourceNode.setAttributeInDatasource('value',v.trim(),true);
             sourceNode.widget.domNode.focus();
         },1);
+    },
+
+    _attachSpeechButton:function(newobj, sourceNode){
+        if(!sourceNode.attr.speech){ return; }
+        if(!genro.speech || !genro.speech.isAvailable()){ return; }
+        var that = this;
+        var domNode = newobj.domNode;
+        var parent = domNode.parentNode;
+        if(!parent){ return; }
+        var wrapper = document.createElement('div');
+        wrapper.style.position = 'relative';
+        wrapper.style.display = 'inline-block';
+        parent.insertBefore(wrapper, domNode);
+        wrapper.appendChild(domNode);
+        domNode.style.paddingRight = '26px';
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'gnr_speech_button';
+        btn.title = 'Voice input';
+        btn.setAttribute('tabindex','-1');
+        wrapper.appendChild(btn);
+        var session = null;
+        var stopListening = function(){
+            if(session){
+                session.stop();
+                session = null;
+            }
+            btn.classList.remove('gnr_speech_listening');
+        };
+        btn.addEventListener('click', function(e){
+            e.preventDefault();
+            e.stopPropagation();
+            if(session){
+                stopListening();
+                return;
+            }
+            btn.classList.add('gnr_speech_listening');
+            let silenceTimeout = sourceNode.getAttributeFromDatasource('speech_silenceTimeout');
+            if(silenceTimeout == null){ silenceTimeout = 2500; }
+            silenceTimeout = parseInt(silenceTimeout, 10) || 0;
+            const baseValue = (sourceNode.getAttributeFromDatasource('value') || '').trimEnd();
+            const domNode = sourceNode.widget.domNode;
+            let lastFullText = baseValue;
+            const stopWordsAttr = sourceNode.getAttributeFromDatasource('speech_stopWords');
+            const stopWords = stopWordsAttr ? stopWordsAttr.split(',') : [];
+            session = genro.speech.start({
+                silenceTimeout: silenceTimeout,
+                stopWords: stopWords,
+                interimResults: true,
+                onResult: (finalText, interimText) => {
+                    const parts = [];
+                    if(baseValue){ parts.push(baseValue); }
+                    if(finalText){ parts.push(finalText.trim()); }
+                    if(interimText){ parts.push(interimText.trim()); }
+                    lastFullText = parts.join(' ').trim();
+                    domNode.value = lastFullText;
+                },
+                onError: () => {
+                    stopListening();
+                },
+                onEnd: () => {
+                    sourceNode.setAttributeInDatasource('value', lastFullText.trim(), true);
+                    stopListening();
+                }
+            });
+            if(!session){
+                btn.classList.remove('gnr_speech_listening');
+            }
+        });
+        sourceNode.subscribe('onDestroying', stopListening);
     },
 
     connectFocus: function(widget, savedAttrs, sourceNode) {
@@ -2005,12 +2061,42 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
             newobj.state = result.error?'Error':null;
         })
         this.connectFocus(newobj, savedAttrs, sourceNode);
+        this._attachSpeechButton(newobj, sourceNode);
     },
 
     cell_onCreating:function(gridEditor,colname,colattr){
         colattr['z_index']= 1;
-        //colattr['position'] = 'fixed';
         colattr['height'] = colattr['height'] || '100px';
+    },
+
+    cell_onStartEdit:function(cellNode,editingInfo,attr,editWidgetNode){
+        var domNode = editWidgetNode.widget ? editWidgetNode.widget.domNode : editWidgetNode.domNode;
+        if(!domNode){
+            return;
+        }
+        var h = parseInt(attr.height) || 100;
+        domNode.classList.add('cellEditFixed');
+        domNode.style.position = 'fixed';
+        domNode.style.height = h + 'px';
+        domNode.style.zIndex = '10';
+        domNode.style.margin = '0';
+        var positionTextarea = function(){
+            var rect = cellNode.getBoundingClientRect();
+            domNode.style.left = (rect.left + 1) + 'px';
+            domNode.style.top = (rect.top + 1) + 'px';
+            domNode.style.width = (rect.width - 2) + 'px';
+        };
+        positionTextarea();
+        var scrollNode = cellNode.closest('.dojoxGrid-scrollbox');
+        if(scrollNode){
+            editingInfo._scrollHandler = dojo.connect(scrollNode, 'onscroll', positionTextarea);
+        }
+    },
+
+    cell_onDestroying:function(sourceNode,gridEditor,editingInfo){
+        if(editingInfo._scrollHandler){
+            dojo.disconnect(editingInfo._scrollHandler);
+        }
     },
 
     onChanged:function(widget) {
@@ -3665,11 +3751,10 @@ dojo.declare("gnr.widgets.CheckBox", gnr.widgets.baseDojo, {
         }
     },
     mixin_setHidden: function(hidden) {
-        if(this.sourceNode._hiddenTargets){
-            this.sourceNode.setHidden(hidden);
-        }else{
-            dojo.style(this.sourceNode._gnrcheckbox_wrapper, 'display', (hidden ? 'none' : ''));
+        if(!this.sourceNode._hiddenTargets){
+            this.sourceNode._hiddenTargets = [this.sourceNode._gnrcheckbox_wrapper, this.domNode];
         }
+        this.sourceNode.setHidden(hidden);
     },
 
     _getKeeperRoot:function(sourceNode){
@@ -4244,12 +4329,12 @@ dojo.declare("gnr.widgets.BaseCombo", gnr.widgets.baseDojo, {
     creating: function(attributes, sourceNode) {
         objectExtract(attributes, 'maxLength,_type');
         var values = objectPop(attributes, 'values');
+        var savedAttrs = {};
         if (values) {
             var store = this.storeFromValues(values);
             attributes.searchAttr = 'caption';
         } else {
             var storeAttrs = objectExtract(attributes, 'storepath,storeid,storecaption');
-            var savedAttrs = {};
             var store = new gnr.GnrStoreBag({datapath: sourceNode.absDatapath(storeAttrs.storepath)});
             attributes.searchAttr = store.rootDataNode().attr['caption'] || storeAttrs['storecaption'] || 'caption';
             attributes.autoComplete = attributes.autoComplete || false;
@@ -4287,7 +4372,7 @@ dojo.declare("gnr.widgets.BaseCombo", gnr.widgets.baseDojo, {
             if (val.indexOf(':') > 0) {
                 val = val.split(':');
                 xval['id'] = val[0];
-                xval['caption'] = val[1];
+                xval['caption'] = _T(val[1]);
             } else {
                 xval['id'] = val;
                 xval['caption'] = val;
@@ -4687,8 +4772,10 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
             attributes.hasDownArrow = false;
             attributes['tabindex'] = -1;
         }
-        var resolverAttrs = objectExtract(attributes, 'method,columns,limit,auxColumns,hiddenColumns,alternatePkey,rowcaption,order_by,preferred,invalidItemCondition,subtable');
-        resolverAttrs['notnull'] = attributes['validate_notnull'];
+        var resolverAttrs = objectExtract(attributes, 'method,columns,limit,auxColumns,hiddenColumns,alternatePkey,rowcaption,order_by,preferred,invalidItemCondition,subtable,notnull');
+        if (resolverAttrs['notnull'] === undefined) {
+            resolverAttrs['notnull'] = attributes['validate_notnull'];
+        }
         savedAttrs['auxColumns'] = resolverAttrs['auxColumns'];
         var selectedColumns = objectExtract(attributes, 'selected_*');
         var selectedCb = objectPop(attributes,'selectedCb');
@@ -4997,9 +5084,90 @@ dojo.declare("gnr.widgets.FilteringSelect", gnr.widgets.BaseCombo, {
 
 });
 dojo.declare("gnr.widgets.ComboBox", gnr.widgets.BaseCombo, {
+    // Opt into the Genro validation pipeline so validate_case / validate_regex
+    // / validate_call fire on this widget too. dijit.form.ComboBox does not
+    // extend ValidationTextBox, so without this flag setValidations() is never
+    // called and validators silently no-op.
+    _validatingWidget:true,
     constructor: function(application) {
         this._domtag = 'div';
         this._dojotag = 'ComboBox';
+    },
+    created: function(widget, savedAttrs, sourceNode) {
+        this.inherited(arguments);
+        this.connectAddMissingValue(widget, sourceNode);
+    },
+    connectAddMissingValue: function(widget, sourceNode) {
+        // When addMissingValue is set on a ComboBox backed by a local
+        // storepath, any value (typed by the user or arriving from the
+        // datapath, e.g. record load) that is not present in the store
+        // is added on the fly so it becomes a suggestable option.
+        // Limited to ComboBox: dbSelect/FilteringSelect/dbComboBox have
+        // their own validation rules and are out of scope.
+        if(!sourceNode.attr.addMissingValue || !sourceNode.attr.storepath){
+            return;
+        }
+        var self = this;
+        var checkAndAdd = function(){
+            // Read the normalized value from the widget instead of trusting
+            // the setValue argument: Dojo may call setValue with non-string
+            // payloads (item, undefined) on internal flows.
+            var v = widget.getValue();
+            if(typeof v === 'string' && !isNullOrBlank(v)){
+                self._autoAddToStore(sourceNode, v);
+            }
+        };
+        dojo.connect(widget, 'setValue', checkAndAdd);
+        // Deferred initial check: covers the case where the value is already
+        // present in the datapath at widget creation time (e.g. fb.data() seed)
+        // and no setValue call follows. Debounced per-widget via reason.
+        var reason = 'addMissingValue_' + (sourceNode.attr.nodeId || sourceNode.getStringId());
+        genro.callAfter(checkAndAdd, 1, null, reason);
+    },
+    _autoAddToStore: function(sourceNode, value){
+        // Honor the validation pipeline: a value rejected by validate_regex,
+        // validate_len, validate_email, etc. must NOT enrich the store.
+        // We are called from the setValue connect, which fires *before* the
+        // change-event flow runs validation and updates _validations.error,
+        // so the stored error from a previous turn would be stale. Run the
+        // validators here with validateOnly=true to get a fresh verdict.
+        if(sourceNode.hasValidations && sourceNode.hasValidations()){
+            var vres = genro.vld.validate(sourceNode, value, true, true);
+            if(vres && vres.error){
+                return;
+            }
+            // Some validators (validate_case, validate_call) return a
+            // modified value; honor it so the store gets the canonical form.
+            if(vres && vres.modified && typeof vres.value === 'string'){
+                value = vres.value;
+            }
+        }
+        var storepath = sourceNode.absDatapath(sourceNode.attr.storepath);
+        var storebag = genro.getData(storepath);
+        if(!storebag){
+            // No store bag at storepath: nothing to enrich. The dropdown
+            // would be empty anyway. Caller must declare the data path.
+            return;
+        }
+        var idAttr = sourceNode.attr.storeid || 'id';
+        var captionAttr = sourceNode.attr.storecaption || 'caption';
+        var nodes = storebag.getNodes();
+        for(var i = 0; i < nodes.length; i++){
+            if(nodes[i].attr[idAttr] === value){
+                return;
+            }
+        }
+        var label = 'r_' + nodes.length;
+        while(storebag.getNode(label)){
+            label = label + '_';
+        }
+        var newAttrs = {};
+        newAttrs[idAttr] = value;
+        newAttrs[captionAttr] = value;
+        // Marker so callers can distinguish auto-added entries from seeded
+        // ones and purge them selectively (see test_14).
+        newAttrs.__autoadded = true;
+        storebag.addItem(label, null, newAttrs);
     }
 });
 

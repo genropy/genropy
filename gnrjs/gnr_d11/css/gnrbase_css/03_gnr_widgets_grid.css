@@ -170,7 +170,7 @@ div.cellContent{
 .quickEditorWrapper{
     position: relative;
 }
-.widgetInCell.quickEditorWrapper{
+.widgetInCell.quickEditorWrapper:not(.quickEditorCell){
     margin-left: 2px;
 }
 .quickEditor{
@@ -187,7 +187,7 @@ div.cellContent{
     border-bottom: 1px solid var(--border-light);
 }
 
-.quickEditorButton{
+.quickEditorWrapper:not(.quickEditorCell) > .quickEditorButton{
     width: 18px;
     height: 17px;
     border-top:1px solid var(--border-color);
@@ -198,7 +198,7 @@ div.cellContent{
     top:0;
     right:0;
 }
-.widgetInCell .quickEditorButton{
+.widgetInCell:not(.quickEditorCell) .quickEditorButton{
     border-top:0px;
     border-right:0px;
     border-bottom:1px solid var(--border-light);
@@ -279,6 +279,7 @@ div.cellContent{
 
 ._common_d11 .dijitTextBoxFocused .cls_DbSelect, ._common_d11 .dijitComboBoxFocused .cls_DbSelect{
     background-color: var(--field-focus-bg, #fff);
+    border-radius: inherit;
 }
 ._common_d11 .slotbar_toolbar .dijitTextAreaFocused,._common_d11 .slotbar_toolbar .dijitTextBoxFocused,._common_d11 .slotbar_toolbar .dijitComboBoxFocused{
     box-shadow: 0 0 1px var(--accent-color);

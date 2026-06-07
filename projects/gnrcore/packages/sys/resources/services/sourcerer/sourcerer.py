@@ -8,11 +8,18 @@ from gnrpkg.sys.services.sourcerer import SourcererClient
 class Service(GnrBaseService):
 
     def __init__(self, parent=None, url=None, token=None,
-                 sourcerer_token=None, **kwargs):
+                 sourcerer_token=None, query_enabled=None, **kwargs):
         self.parent = parent
         self.token = token
         self.sourcerer_token = sourcerer_token
+        self.query_enabled = query_enabled
         self.client = SourcererClient(url=url, sourcerer_token=sourcerer_token)
+
+    def is_query_enabled(self):
+        v = self.query_enabled
+        if v in (True, 'Y', 'y', 'true', 'True', '1', 1):
+            return True
+        return False
 
     def request_registration(self, host, name, callback_url):
         return self.client.request_registration(host, name, callback_url)
@@ -35,6 +42,8 @@ class ServiceParameters(BaseComponent):
                    readOnly=True, width='30em')
         fb.textbox(value='^.sourcerer_token', lbl='!!Sourcerer Token',
                    readOnly=True, width='30em')
+        fb.checkbox(value='^.query_enabled',
+                    lbl='!![en]Enable rpc_query endpoint')
         fb.button('!![en]Connect to Sourcerer',
                   hidden='^.token').dataRpc(self.rpc_connectToSourcerer,
                    _onResult="""SET .token = result.getItem('token');
