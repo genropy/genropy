@@ -1352,7 +1352,8 @@ class GnrWsgiSite(object):
                     content_type = getattr(page,'forced_mimetype',None) or mimetypes.guess_type(download_name)[0]
                     if content_type:
                         page.response.content_type = content_type
-                    page.response.add_header("Content-Disposition", str("attachment; filename=%s" %download_name))
+                    page.response.add_header("Content-Disposition",
+                                             f"attachment; filename*=UTF-8''{urllib.parse.quote(download_name)}")
 
                 try:
                     file_types = file, io.IOBase
@@ -1466,7 +1467,8 @@ class GnrWsgiSite(object):
         headers = getattr(tool, 'headers', [])
         download_name = getattr(tool, 'download_name', None)
         if download_name:
-            headers.append(("Content-Disposition", f"attachment; filename={download_name}"))
+            headers.append(("Content-Disposition",
+                            f"attachment; filename*=UTF-8''{urllib.parse.quote(download_name)}"))
         for header_name, header_value in headers:
             response.headers[header_name] = header_value
         if isinstance(result, Response):
