@@ -331,11 +331,11 @@
    Prefixed with .gnr_dojotheme to win over the theme's
    .dijitMenuTable{width:100%} and .dijitMenu{overflow:hidden}. */
 .gnr_dojotheme .scrollmenu.dijitMenu {
-    display: block;
+    display: inline-block;
     max-height: 70vh;
     overflow-x: hidden;
     overflow-y: auto;
-    width: max-content;
+    width: auto;
     max-width: 90vw;
 }
 .noIconMenu .dijitMenuItem td:first-child {
