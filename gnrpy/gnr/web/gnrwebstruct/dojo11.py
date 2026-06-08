@@ -28,51 +28,20 @@ from gnr.core.gnrdict import dictExtract
 
 from gnr.web.gnrwebstruct.base import GnrDomSrc, GnrDomSrcError
 from gnr.web.gnrwebstruct._helpers import _selected_defaultFrom
+from gnr.web.gnrwebstruct._widgets import AllWidgets
 
 
 class GnrDomSrc_dojo_11(GnrDomSrc):
     """TODO"""
-    htmlNS = ['a', 'abbr', 'acronym', 'address', 'area', 'b', 'base', 'bdo', 'big', 'blockquote',
-              'body', 'br', 'button', 'caption', 'cite', 'code', 'col', 'colgroup', 'dd', 'del',
-              'div', 'dfn', 'dl', 'dt', 'em', 'fieldset', 'frame', 'frameset',
-              'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'head', 'hr', 'html', 'i', 'iframe','htmliframe','flexbox','gridbox','labledbox', 'img', 'input',
-              'ins', 'kbd', 'label', 'legend', 'li', 'link', 'map', 'meta', 'noframes', 'noscript',
-              'object', 'ol', 'optgroup', 'option', 'p', 'param', 'pre', 'q', 'samp',
-              'select', 'small', 'span', 'strong', 'style', 'sub', 'sup', 'table', 'tbody', 'td',
-              'textarea', 'tfoot', 'th', 'thead', 'title', 'tr', 'tt', 'ul', 'audio', 'video', 'var', 'embed','canvas']
-              
-    dijitNS = ['CheckBox', 'RadioButton', 'ComboBox', 'CurrencyTextBox', 'DateTextBox','DatetimeTextBox',
-               'InlineEditBox', 'NumberSpinner', 'NumberTextBox', 'HorizontalSlider', 'VerticalSlider', 'Textarea',
-               'TextBox', 'TimeTextBox',
-               'ValidationTextBox', 'AccordionContainer', 'AccordionPane', 'ContentPane', 'LayoutContainer',
-               'BorderContainer',
-               'SplitContainer', 'StackContainer', 'TabContainer', 'Button', 'ToggleButton', 'ComboButton',
-               'DropDownButton', 'FilteringSelect',
-               'Menu', 'Menubar', 'MenuItem', 'Toolbar', 'Dialog', 'ProgressBar', 'TooltipDialog',
-               'TitlePane', 'Tooltip', 'ColorPalette', 'Editor', 'Tree', 'SimpleTextarea', 'MultiSelect','ToolbarSeparator']
-               
-    dojoxNS = ['FloatingPane', 'Dock', 'RadioGroup', 'ResizeHandle', 'SizingPane', 'BorderContainer',
-               'FisheyeList', 'Loader', 'Toaster', 'FileInput', 'fileInputBlind', 'FileInputAuto', 'ColorPicker',
-               'SortList', 'TimeSpinner', 'Iterator', 'ScrollPane',
-               'Gallery', 'Lightbox', 'SlideShow', 'ThumbnailPicker', 'Chart',
-               'Deck', 'Slide', 'GoogleMap','GoogleChart', 'Calendar', 'GoogleChart', 'GoogleVisualization',
-               'DojoGrid', 'VirtualGrid', 'VirtualStaticGrid']
-               
-    #gnrNS=['menu','menuBar','menuItem','Tree','Select','DbSelect','Combobox','Data',
-    #'Css','Script','Func','BagFilteringTable','DbTableFilter','TreeCheck']
-    gnrNS = ['DbSelect','CallBackSelect','RemoteSelect','PackageSelect','TableSelect', 'DbComboBox', 'DbView', 'DbForm', 'DbQuery', 'DbField',
-             'dataFormula', 'dataScript', 'dataRpc', 'dataController', 'dataRemote',
-             'gridView', 'viewHeader', 'viewRow', 'script', 'func',
-             'staticGrid', 'dynamicGrid', 'fileUploader', 'gridEditor', 'ckEditor', 
-             'tinyMCE', 'protovis','codemirror','mdeditor','qrscanner','fullcalendar','dygraph','chartjs','MultiButton','PaletteGroup','DocumentFrame','DownloadButton','bagEditor','PagedHtml',
-             'DocItem','UserObjectLayout','UserObjectBar', 'PalettePane','PasswordTextBox','PaletteMap','PaletteImporter','DropUploader','ModalUploader','DropUploaderGrid','VideoPickerPalette','GeoCoderField','StaticMap','ImgUploader','TooltipPane','MenuDiv', 'BagNodeEditor','FlatBagEditor',
-             'PaletteBagNodeEditor','StackButtons', 'Palette', 'PaletteTree','TreeFrame','CheckBoxText','RadioButtonText','GeoSearch','ComboArrow','ComboMenu','ChartPane','PaletteChart','ColorTextBox','ColorFiltering', 'SearchBox', 'FormStore',
-             'FramePane', 'FrameForm','BoxForm','QuickEditor','ExtendedCkeditor','ExtendedTinyMCE','CodeEditor','TreeGrid','QuickGrid',
-            "GridGallery","VideoPlayer",'MultiValueEditor','MultiLanguageTextBox','TextboxMenu','MultiLineTextbox','QuickTree','SharedObject','IframeDiv','FieldsTree', 'SlotButton','TemplateChunk','LightButton','Semaphore','CharCounterTextarea','TracebackViewer']
-    genroNameSpace = dict([(name.lower(), name) for name in htmlNS])
-    genroNameSpace.update(dict([(name.lower(), name) for name in dijitNS]))
-    genroNameSpace.update(dict([(name.lower(), name) for name in dojoxNS]))
-    genroNameSpace.update(dict([(name.lower(), name) for name in gnrNS]))
+
+    # Widget namespace used by `__getattr__` to dispatch widget calls
+    # through `child(tag)`. Populated from the declarative catalog in
+    # `gnr.web.gnrwebstruct._widgets`, where each dialect mixin (html,
+    # dijit, dojox, genro) registers its widgets via the `@element`
+    # decorator. The composed `AllWidgets` class resolves cross-dialect
+    # collisions through its MRO (leftmost wins: Genro > Dojox > Dijit
+    # > Html).
+    genroNameSpace = AllWidgets._widget_names
         
     #def framePane(self,slots=None,**kwargs):
     #    self.child('FramePane',slots='top,left,bottom,right',**kwargs)

@@ -5,10 +5,10 @@ These methods are generated at runtime via __getattr__ -> child(tag, **kwargs).
 """
 from __future__ import annotations
 
-from genro_bag.builder import element
+from gnr.web.gnrwebstruct._widgets import WidgetMixinBase, element
 
 
-class DijitWidgets:
+class DijitWidgets(WidgetMixinBase):
     """Mixin documenting Dojo dijit widgets (form, buttons, menus, dialogs, misc)."""
 
     # =====================================================================
@@ -595,4 +595,49 @@ class DijitWidgets:
             showRoot: If True, shows the root node; if False, only children are visible.
             persist: If True, saves expand/collapse state in a cookie.
         """
+        ...
+
+    # =====================================================================
+    # Layout containers
+    # =====================================================================
+
+    @element(name='accordionContainer')
+    def accordionContainer(self, **kwargs):
+        """Stack of panes where titles are visible and one pane's content
+        is shown at a time, with sliding animation between selections."""
+        ...
+
+    @element(name='accordionPane')
+    def accordionPane(self, **kwargs):
+        """A pane inside an `accordionContainer`. Equivalent to a
+        `contentPane` with a title bar that participates in the accordion."""
+        ...
+
+    @element(name='contentPane')
+    def contentPane(self, **kwargs):
+        """A container for other widgets, with optional AJAX loading of
+        external content via `href`."""
+        ...
+
+    @element(name='stackContainer')
+    def stackContainer(self, **kwargs):
+        """A container that has multiple children but shows only one
+        at a time. Base for wizard, tabContainer and accordionContainer."""
+        ...
+
+    @element(name='tabContainer')
+    def tabContainer(self, **kwargs):
+        """A container with title tabs along an edge; shows only one
+        pane at a time with a tab bar for navigation."""
+        ...
+
+    @element(name='layoutContainer')
+    def layoutContainer(self, **kwargs):
+        """Deprecated. Provides 5-region layout. Prefer `borderContainer`."""
+        ...
+
+    @element(name='splitContainer')
+    def splitContainer(self, **kwargs):
+        """Deprecated. Horizontal or vertical split with movable splitter.
+        Prefer `borderContainer`."""
         ...

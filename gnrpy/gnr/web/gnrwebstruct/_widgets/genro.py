@@ -5,10 +5,10 @@ These methods are generated at runtime via __getattr__ -> child(tag, **kwargs).
 """
 from __future__ import annotations
 
-from genro_bag.builder import element
+from gnr.web.gnrwebstruct._widgets import WidgetMixinBase, element
 
 
-class GenroWidgets:
+class GenroWidgets(WidgetMixinBase):
     """Mixin documenting GenroPy-specific widgets (gnrNS namespace)."""
 
     # =====================================================================
@@ -1022,4 +1022,39 @@ class GenroWidgets:
         Args:
             **kwargs: src, height, width, _class.
         """
+        ...
+
+    @element(name='TracebackViewer')
+    def TracebackViewer(self, **kwargs):
+        """Widget that renders a Python traceback as a navigable tree.
+        Used by the `sys.error` page and the IDE."""
+        ...
+
+    # =====================================================================
+    # Genro layout primitives — declared here because they are framework
+    # widgets, not standard HTML. They previously lived in the html
+    # namespace alongside <iframe> et al., which conflated W3C HTML5
+    # with GenroPy-specific extensions; this catalog keeps the two
+    # concerns separate.
+    # =====================================================================
+
+    @element
+    def htmliframe(self, **kwargs):
+        """Genro-enhanced iframe with datastore integration and event
+        bridging. The plain HTML5 `<iframe>` lives in the html namespace."""
+        ...
+
+    @element
+    def flexbox(self, **kwargs):
+        """Flexbox layout container with CSS flex properties support."""
+        ...
+
+    @element
+    def gridbox(self, **kwargs):
+        """CSS grid layout container for two-dimensional grid arrangements."""
+        ...
+
+    @element
+    def labledbox(self, **kwargs):
+        """Container with a built-in label/title header."""
         ...

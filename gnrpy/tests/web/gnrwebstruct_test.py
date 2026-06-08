@@ -116,18 +116,24 @@ def test_invalid_override_methods():
 def test_genroNameSpace_total_count():
     """Freeze the cardinality of the public widget namespace.
 
-    Lowercased dedup of htmlNS + dijitNS + dojoxNS + gnrNS yields 256
-    entries today. Drift in either direction must be intentional.
+    Sourced from `AllWidgets._widget_names`, which composes the four
+    dialect mixins. 282 entries today (HtmlWidgets now ports the full
+    W3C HTML5 catalog of 112 tags). Drift in either direction must be
+    intentional.
     """
-    assert len(GnrDomSrc_dojo_11.genroNameSpace) == 256
+    assert len(GnrDomSrc_dojo_11.genroNameSpace) == 282
 
 
 def test_genroNameSpace_samples_per_dialect():
+    """Tag values reflect the Python method name in each dialect mixin.
+    The client lower-cases tags before dispatching to its handler
+    registry, so the casing of the value is informational only — the
+    contract is that the *key* is always lowercase."""
     ns = GnrDomSrc_dojo_11.genroNameSpace
     assert ns['div'] == 'div'                          # html
-    assert ns['bordercontainer'] == 'BorderContainer'  # dijit
-    assert ns['chart'] == 'Chart'                      # dojox
-    assert ns['dbselect'] == 'DbSelect'                # gnr
+    assert ns['bordercontainer'] == 'borderContainer'  # dojox declares borderContainer
+    assert ns['chart'] == 'chart'                      # dojox
+    assert ns['dbselect'] == 'DbSelect'                # genro
 
 
 def test_genroNameSpace_is_lowercase_keyed():
@@ -154,12 +160,12 @@ def test_namespace_covers_all_four_dialects():
 def test_getattr_namespace_hit_returns_GnrDomElem():
     """A widget name that is in genroNameSpace but has no explicit
     method on the class is dispatched through __getattr__ and yields
-    a GnrDomElem bound to the CamelCase tag.
+    a GnrDomElem bound to the declared tag.
     """
     root = _make_root()
     elem = root.borderContainer
     assert isinstance(elem, GnrDomElem)
-    assert elem.tag == 'BorderContainer'
+    assert elem.tag == 'borderContainer'
 
 
 def test_getattr_namespace_hit_lowercase_only_tag():
@@ -250,3 +256,19 @@ def test_child_creates_attached_node():
     fetched = root.getNode('greeting')
     assert fetched is not None
     assert fetched._value is node
+
+
+def test_attached_subnode_wins_over_widget_namespace():
+    """When a sub-node is attached under a name that ALSO exists in the
+    widget catalog (e.g. 'form' is both an HTML5 tag and a common
+    childname used by tableHandler), `__getattr__` must return the
+    stateful attached node, not a fresh GnrDomElem. Regression for the
+    collision introduced by porting the full HTML5 catalog into
+    AllWidgets._widget_names.
+    """
+    root = _make_root()
+    form_node = root.child('div', childname='form')
+    assert 'form' in GnrDomSrc_dojo_11.genroNameSpace
+    resolved = root.form
+    assert resolved is form_node
+    assert not isinstance(resolved, GnrDomElem)
