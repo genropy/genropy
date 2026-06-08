@@ -28,6 +28,7 @@ dependencies = [
 	     "boto3",
 	     "caldav",
 	     "chardet==5.2.0",
+	     "cryptography",
 	     "dictdiffer", # for gnr.sql migration
 	     "docutils",
 	     "dulwich", # needed by gnrgit
@@ -142,6 +143,7 @@ include-package-data = true
 packages = [
 	    'gnr',
 	    'gnr.app',
+	    'gnr.app.api_engine',
 	    'gnr.app.cli',
 	    'gnr.core',
 	    'gnr.core.cli',
@@ -160,7 +162,8 @@ packages = [
 	    'gnr.web.gnrwebpage_plugin',
 	    'gnr.web.gnrwebpage_proxy',
 	    'gnr.web.gnrwebpage_proxy.apphandler',
-    	    'gnr.web.gnrwebpage_proxy.frontend',	
+    	    'gnr.web.gnrwebpage_proxy.frontend',
+	    'gnr.web.gnrwebstruct',
 	    'gnr.web.gnrwsgisite_proxy',
 	    'gnr.web.widgets',
 	    'gnr.xtnd',

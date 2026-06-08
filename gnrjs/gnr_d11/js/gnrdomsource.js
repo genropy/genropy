@@ -1593,9 +1593,12 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         var targets = this._hiddenTargets || [this.domNode || this.widget.domNode];
         var statusChanged = false;
         targets.forEach(function(domNode){
-            let currenHidden = !genro.dom.isVisible(domNode);
-            statusChanged = currenHidden!=hidden;
-            dojo.style(domNode, 'display', (hidden ? 'none' : ''));
+            let wasHidden = domNode.style.display === 'none';
+            let prevHeight = domNode.offsetHeight;
+            domNode.style.display = hidden ? 'none' : '';
+            if(wasHidden !== hidden && domNode.offsetHeight !== prevHeight){
+                statusChanged = true;
+            }
         });
         if(statusChanged){
             genro.fakeResize()

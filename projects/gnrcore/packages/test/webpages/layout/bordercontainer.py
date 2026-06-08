@@ -3,8 +3,7 @@
 """borderContainer"""
 
 class GnrCustomWebPage(object):
-    py_requires = """gnrcomponents/testhandler:TestHandlerBase,th/th:TableHandler,
-                        dashboard_component/dashboard_component:DashboardItem"""
+    py_requires = "gnrcomponents/testhandler:TestHandlerBase,th/th:TableHandler"
     
     def windowTitle(self):
         return 'borderContainer'
@@ -45,8 +44,26 @@ class GnrCustomWebPage(object):
         bc.contentPane(background='yellow',title='aa').borderContainer(background='red')
     
     def test_4_region(self,pane):
-        """borderContainer with a closable contentPane inside. 
+        """borderContainer with a closable contentPane inside.
         Using closable='close' it starts closed on loading."""
         bc = pane.borderContainer(height='300px')
         bc.contentPane(region='right',width='400px',background='red',closable='close')
         bc.contentPane(region='center',background='green').div()
+
+    def test_5_top_autoheight_hidden_toggle(self,pane):
+        """borderContainer with a `top` region sized by its content (no fixed height).
+        Toggling the visibility of a child changes the top region's height,
+        so a relayout (fakeResize) must fire and the center region must shrink
+        or grow to match. This verifies that setHidden correctly triggers
+        fakeResize when the toggled node affects the parent's flow height."""
+        bc = pane.borderContainer(height='400px', border='1px solid silver')
+        top = bc.contentPane(region='top', background='#eef', padding='8px')
+        top.checkbox(value='^.show_block', label='Show big block in top region')
+        top.div('This block grows the top region — center must shrink',
+                background='#fc9', padding='20px', margin_top='8px',
+                hidden='^.show_block?=!#v')
+        top.div('Always-visible footer row', padding_top='8px', color='#666')
+
+        center = bc.contentPane(region='center', background='#efe', padding='8px')
+        center.div('Center region — height must adapt when the top toggles.',
+                   color='#363')
