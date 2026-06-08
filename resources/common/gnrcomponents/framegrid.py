@@ -209,13 +209,15 @@ class FrameGridTools(BaseComponent):
 
     @struct_method
     def fg_slotbar_viewsMenu(self,pane,iconClass=None,**kwargs):
-        pane.menudiv(iconClass= iconClass or 'iconbox list',datapath='.grid',storepath='.structMenuBag',selected_fullpath='.currViewPath')
+        pane.menudiv(iconClass= iconClass or 'iconbox list',datapath='.grid',storepath='.structMenuBag',
+                     selected_fullpath='.currViewPath',_class='smallmenu scrollmenu')
 
     @struct_method
     def fg_slotbar_viewsSelect(self,pane,iconClass=None,caption_path=None,placeholder=None,**kwargs):
         pane.menudiv(value='^.currViewPath',datapath='.grid',storepath='.structMenuBag',
                         caption_path=caption_path or '.currViewAttrs.caption',
-                        placeholder=placeholder or '!![en]Base View',**kwargs)
+                        placeholder=placeholder or '!![en]Base View',
+                        _class='smallmenu scrollmenu',**kwargs)
 
     @extract_kwargs(closable=dict(slice_prefix=False),border=dict(slice_prefix=False),box=True)
     @struct_method
