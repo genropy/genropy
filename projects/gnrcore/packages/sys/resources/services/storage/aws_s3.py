@@ -110,7 +110,7 @@ class Service(StorageService):
                 region_name=None, url_expiration=None, write_in_local=None, 
                 readonly=None,versioned=True,
                 custom_endpoint=False, endpoint_url=None,
-                disable_cert_verify=False, **kwargs):
+                disable_cert_verify=False, public=None, tags=None,  **kwargs):
         self.parent = parent
         self.bucket = bucket
         self.base_path = (base_path or '').rstrip('/')
@@ -127,6 +127,8 @@ class Service(StorageService):
         local_readonly = (local or secondary) and not write_in_local
         self.readonly = readonly or local_readonly
         self.versioned = versioned
+        self.public = public
+        self.tags = tags
 
     @property
     def is_versioned(self):
