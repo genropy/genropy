@@ -308,7 +308,7 @@
 ._common_d11 .gr_wrap_footers .dojoxGrid-scrollbox{
     overflow-x:auto !important;
     -ms-overflow-style:none;
-    scrollbar-width:none;
+    /*scrollbar-width:none;*/
 }
 ._common_d11 .gr_wrap_footers .dojoxGrid-scrollbox::-webkit-scrollbar:horizontal{
     height:0;
