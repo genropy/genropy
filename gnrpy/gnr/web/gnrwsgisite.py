@@ -807,7 +807,7 @@ class GnrWsgiSite(object):
         return self.storageNode('%s:%s'%(storage_name,path),_adapt=False)
     
     def storageDispatcher(self,path_list,environ,start_response,storageType=None,**kwargs):
-        logger.info("Storage request for path: %s", '/'.join(path_list))
+        logger.debug("Storage request for path: %s", '/'.join(path_list))
         storageNode = self.storageNodeFromPathList(path_list, storageType)
         exists = storageNode and storageNode.exists
         if not exists and '_lazydoc' in kwargs:
@@ -817,7 +817,7 @@ class GnrWsgiSite(object):
 
         # WHY THIS?
         self.db.closeConnection()
-        logger.info("Authentication check for storage access: %s", self.config['wsgi?authenticate_storages'])
+        logger.debug("Authentication check for storage access: %s", self.config['wsgi?authenticate_storages'])
         if self.config['wsgi?authenticate_storages'] and not storageNode.public:
             logger.debug("Authenticating storage access for path: %s", '/'.join(path_list))
             if not storageNode.checkPermission():
