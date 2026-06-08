@@ -494,7 +494,3 @@
     border-bottom: 0 !important;
     border-color: var(--border-color) !important;
 }
-
-._common_d11 .dojoxGrid-scrollbox {
-    overflow: auto;
-}

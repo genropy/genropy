@@ -489,6 +489,3 @@
     border-color: var(--border-color) !important;
 }
 
-._common_d11 .dojoxGrid-scrollbox {
-    overflow: auto;
-}
