@@ -67,8 +67,9 @@ def main():
     if gnrtask.USE_ASYNC_TASKS:
         start_new(options)
     else:
-        print("This tool is currently disabled")
-        sys.exit(1)
+        start_old(options)
+        #print("This tool is currently disabled")
+        #sys.exit(1)
         
 if __name__=="__main__":
     main()
