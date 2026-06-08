@@ -127,9 +127,6 @@ class GnrDaemon(object):
         self.multiprocessing_manager =  Manager()
         self.batch_processes = dict()
         self.cron_processes = dict()
-        if not gnrtask.USE_ASYNC_TASKS:
-            self.task_locks = dict()
-            self.task_execution_dicts = dict()
         self.logger = logger
 
 
@@ -299,7 +296,7 @@ class GnrDaemon(object):
             childprocess.start()
             siteregister_processes_dict['register'] = childprocess
 
-            if not gnrtask.USE_ASYNC_TASKS and self.hasSysPackageAndIsPrimary(sitename):
+            if not gnrtask.USE_ASYNC_TASKS and not gnrtask.USE_DETACHED_SCHEDULER and self.hasSysPackageAndIsPrimary(sitename):
                 logger.info("Starting task scheduler")
                 taskScheduler = Process(name='ts_%s' %sitename, target=createTaskScheduler,kwargs=dict(sitename=sitename))
                 taskScheduler.daemon = True

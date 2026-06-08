@@ -508,8 +508,8 @@ class GunicornDeployBuilder(object):
         gnrasync.parameter('command', f"{os.path.join(self.bin_folder,'gnrasync')} {self.site_name}")
 
         
-        from gnr.web.gnrtask import USE_ASYNC_TASKS
-        if USE_ASYNC_TASKS:
+        from gnr.web.gnrtask import USE_ASYNC_TASKS,USE_DETACHED_SCHEDULER
+        if USE_ASYNC_TASKS or USE_DETACHED_SCHEDULER:
             self.taskSchedulerConf(group)
 
         self.taskWorkersConf(group)
@@ -571,8 +571,8 @@ class GunicornDeployBuilder(object):
         gnrasync = group.section('program','%s_gnrasync' %self.site_name)
         gnrasync.parameter('command','%s %s' %(os.path.join(self.bin_folder,'gnrasync'),self.site_name))
 
-        from gnr.web.gnrtask import USE_ASYNC_TASKS
-        if USE_ASYNC_TASKS:
+        from gnr.web.gnrtask import USE_ASYNC_TASKS,USE_DETACHED_SCHEDULER
+        if USE_ASYNC_TASKS or USE_DETACHED_SCHEDULER:
             self.taskSchedulerConf(group)
             
         self.taskWorkersConf(group)

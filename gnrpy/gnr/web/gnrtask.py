@@ -30,9 +30,25 @@ from random import randrange
 from gnr.core.gnrconfig import getGnrConfig
 from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrbag import Bag
+from gnr.core.gnrstring import boolean
 from gnr.web.gnrwsgisite import GnrWsgiSite
 from gnr.web import logger
 
+def get_task_attribute(attribute):
+    """
+    Load the task async implementation configuration from
+    environment.xml. If it fails, for example by importing the code
+    in a non-established environment, default back to old implementation anyway.
+    """
+    try:
+        _c = getGnrConfig()
+        _env = _c['gnr.environment_xml']
+        task_configuration = _env.getAttr('tasks')
+        if task_configuration and boolean(task_configuration.get(attribute)):
+            return True
+    except:
+        pass
+    return False
 
 def determine_task_manager_to_use():
     """
@@ -52,8 +68,8 @@ def determine_task_manager_to_use():
 
 # global bool to be used to determine if we're using the old
 # or the new async based task scheduler/worker
-USE_ASYNC_TASKS = determine_task_manager_to_use()
-
+USE_ASYNC_TASKS = get_task_attribute("async_impl")
+USE_DETACHED_SCHEDULER = get_task_attribute("legacy_detached")
 logger.info("Using new task infrastructure: %s", USE_ASYNC_TASKS)
 
 class GnrTaskScheduler(object):
