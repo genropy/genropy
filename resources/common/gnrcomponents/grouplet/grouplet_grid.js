@@ -681,6 +681,10 @@ gnr.GroupletGridController = class GroupletGridController {
         });
         this._chipDnDHandlers = {};
         this.layout = kw.layout || 'cards';
+        // Lazy tab bodies: build chips upfront but defer each tile body
+        // (chrome + grafted template) until the tab is first activated.
+        // Only meaningful for tab layouts; cards are all visible at once.
+        this.lazyTabs = (kw.lazyTabs === true) && this._isTabsLayout();
         this.titleField = kw.titleField || null;
         this.emptyTitle = kw.emptyTitle || _T('!!Untitled');
         this.activePkey = null;
@@ -1245,6 +1249,12 @@ gnr.GroupletGridController = class GroupletGridController {
                 this._activateTab(allKeys[0]);
             } else if (this.activePkey && this.tiles[this.activePkey]) {
                 this._setActiveTabClasses(this.activePkey);
+                // Defensive: ensure the active tile's body exists (e.g. a
+                // tabs→tabs affordance rebuild on a lazily-deferred tile).
+                const activeTile = this.tiles[this.activePkey];
+                if (this.lazyTabs && !activeTile.bodyMounted) {
+                    this._mountBodyWhenVisible(activeTile);
+                }
             }
         } else {
             this._buildCardsFooter(containerDom);
@@ -1287,6 +1297,23 @@ gnr.GroupletGridController = class GroupletGridController {
         this.layout = newLayout;
         if (newLayout === 'cards') {
             this.activePkey = null;
+            // Cards show every tile at once, so any lazily-deferred body
+            // (built only on tab activation) must be materialised now —
+            // otherwise never-opened tabs would become empty cards.
+            if (this.lazyTabs) {
+                this.bodyNode.freeze();
+                Object.keys(this.tiles).forEach((pkey) => {
+                    const t = this.tiles[pkey];
+                    if (t && !t.bodyMounted) t.mountBody();
+                });
+                this.bodyNode.unfreeze();
+                if (this.structAdapter) this._scheduleStructSync();
+            }
+            // Cards mount synchronously above (all visible at once); drop
+            // any pending visibility observers from the tabs session.
+            Object.keys(this.tiles).forEach((pkey) => {
+                this.tiles[pkey]._cancelPendingBody();
+            });
         } else if (prevActive && this.tiles[prevActive]) {
             this.activePkey = prevActive;
         }
@@ -1419,11 +1446,40 @@ gnr.GroupletGridController = class GroupletGridController {
 
     _activateTab(pkey) {
         if (!this._isTabsLayout()) return;
-        if (this.activePkey === pkey) return;
+        const tile = this.tiles[pkey];
+        // Lazy: materialize chrome + body on first activation. Set the
+        // active classes first so the wrapper is display:block while the
+        // body subtree is grafted — nested groupletGrids then measure
+        // their geometry against a visible layout (see _fullSync note).
+        const needsBody = tile && this.lazyTabs && !tile.bodyMounted;
+        if (this.activePkey === pkey && !needsBody) return;
         this.activePkey = pkey;
         this._setActiveTabClasses(pkey);
+        if (needsBody) {
+            // _setActiveTabClasses above set the active class on both the
+            // DOM and the wrapper sourceNode, so the body graft (which
+            // freeze/unfreezes the wrapper) re-renders it display:block.
+            // Defer to rAF so nested groupletGrids build after layout.
+            this._mountBodyWhenVisible(tile);
+        }
         genro.publish(this.actionTopic,
             {action: 'activate', rowKey: pkey});
+    }
+
+    _mountBodyWhenVisible(tile) {
+        // Defer the body graft to the next animation frame, after style +
+        // layout have applied to the now-active (display:block) wrapper, so
+        // nested groupletGrids build against real geometry rather than a
+        // 0-size box. Idempotent via the _bodyPending guard.
+        if (!tile || tile.bodyMounted || tile._bodyPending) return;
+        const that = this;
+        tile._bodyPending = true;
+        requestAnimationFrame(function() {
+            tile._bodyPending = false;
+            if (tile.bodyMounted || tile.mounted === false) return;
+            tile.mountBody();
+            if (that.structAdapter) that._scheduleStructSync();
+        });
     }
 
     _setActiveTabClasses(activePkey) {
@@ -1436,10 +1492,25 @@ gnr.GroupletGridController = class GroupletGridController {
                 'grouplet_grid_tab_active', rk === activePkey);
         });
         Object.keys(this.tiles).forEach((rk) => {
-            const dom = this.tiles[rk].domNode();
+            const tile = this.tiles[rk];
+            const isActive = rk === activePkey;
+            const dom = tile.domNode();
             if (dom) {
-                dom.classList.toggle(
-                    'grouplet_grid_tab_active', rk === activePkey);
+                dom.classList.toggle('grouplet_grid_tab_active', isActive);
+            }
+            // Keep the wrapper sourceNode `_class` in sync with the DOM so a
+            // later freeze/unfreeze (mountBody, rebuild) re-renders with the
+            // correct active state instead of resetting to the source attrs.
+            const node = tile.tileNode;
+            if (node && node.attr) {
+                const cls = node.attr._class || 'grouplet_grid_row';
+                const has = cls.indexOf('grouplet_grid_tab_active') !== -1;
+                if (isActive && !has) {
+                    node.attr._class = cls + ' grouplet_grid_tab_active';
+                } else if (!isActive && has) {
+                    node.attr._class = cls
+                        .replace(/\s*grouplet_grid_tab_active/, '');
+                }
             }
         });
     }
@@ -1616,6 +1687,14 @@ gnr.GroupletGridController = class GroupletGridController {
         this.bodyNode.freeze();
         toAdd.forEach((pkey) => this._renderTile(pkey));
         this.bodyNode.unfreeze();
+        // In lazy mode _renderTile only built wrappers: graft the body of
+        // the (pre-decided) active tile so the first tab is visible.
+        if (this.lazyTabs && this._isTabsLayout() && this.activePkey) {
+            const activeTile = this.tiles[this.activePkey];
+            if (activeTile && !activeTile.bodyMounted) {
+                this._mountBodyWhenVisible(activeTile);
+            }
+        }
         if (this.structAdapter) this._scheduleStructSync();
     }
 
@@ -1623,7 +1702,11 @@ gnr.GroupletGridController = class GroupletGridController {
         if (this.tiles[pkey]) return;
         const position = this._computeTilePosition(pkey);
         const tile = new gnr.GroupletGridTile(this, pkey);
-        tile.mount(position);
+        if (this.lazyTabs && this._isTabsLayout()) {
+            tile.mountWrapperOnly(position);
+        } else {
+            tile.mount(position);
+        }
         this.tiles[pkey] = tile;
         this._afterTileMounted(tile);
     }
@@ -1988,6 +2071,12 @@ gnr.GroupletGridTile = class GroupletGridTile {
         this.tileContent = null;
         this.tileDom = null;
         this.mounted = false;
+        // `mounted` = wrapper + drag handle exist; `bodyMounted` = chrome
+        // and the grafted template subtree exist. With lazyTabs a tile can
+        // be mounted (chip + wrapper) yet have no body until activated.
+        this.bodyMounted = false;
+        // True while a rAF is scheduled to graft the lazy body.
+        this._bodyPending = false;
         this.isActive = false;
         this.isDragging = false;
         this.hasDelete = false;
@@ -1999,12 +2088,35 @@ gnr.GroupletGridTile = class GroupletGridTile {
     }
 
     mount(position) {
+        // Eager full mount (cards, and tabs without lazyTabs).
+        this.mountWrapperOnly(position);
+        this.mountBody();
+    }
+
+    mountWrapperOnly(position) {
+        // Cheap half: wrapper + drag handle only. Used by lazyTabs to build
+        // chips/wrappers upfront while deferring the expensive body graft.
         this.position = position || null;
         this._resolveTemplate();
         this._resolveDecorations();
         this._mountWrapper();
         this.tileNode.freeze();
         this._mountDragHandle();
+        this.tileNode.unfreeze();
+        this.mounted = true;
+    }
+
+    mountBody() {
+        // Expensive half: chrome + grafted template subtree. Idempotent.
+        // Called inline by mount(), or lazily by _activateTab on first show.
+        if (this.bodyMounted) return;
+        // A pending deferred graft is now moot (we're mounting now).
+        this._cancelPendingBody();
+        // The wrapper sourceNode `_class` already carries the correct active
+        // state (set by _setActiveTabClasses before this graft is scheduled),
+        // so the unfreeze re-render preserves display:block for the active
+        // panel — no post-mount class re-assert needed.
+        this.tileNode.freeze();
         this._mountChrome();
         this._mountBody();
         this.tileNode.unfreeze();
@@ -2012,13 +2124,21 @@ gnr.GroupletGridTile = class GroupletGridTile {
         // getFormHandler can resolve it: re-proxy so form-bound widgets
         // cache this.form and get cleanly unregistered on teardown.
         this.controller._reproxyForm(this.tileContent);
-        this.mounted = true;
+        this.bodyMounted = true;
     }
 
     rebuild() {
         // Re-render body + chrome in place (used on resourceField swap):
         // wrapper sourceNode and drag handle survive.
         if (!this.mounted) return;
+        // Lazy wrapper-only tile: nothing to tear down — just build the
+        // body for the first time (keeps bodyMounted coherent).
+        if (!this.bodyMounted) {
+            this._resolveTemplate();
+            this._resolveDecorations();
+            this.mountBody();
+            return;
+        }
         this.tileNode.freeze();
         this._destroyChrome();
         this._destroyBody();
@@ -2029,7 +2149,14 @@ gnr.GroupletGridTile = class GroupletGridTile {
         this.tileNode.unfreeze();
     }
 
+    _cancelPendingBody() {
+        // The scheduled rAF guards on `mounted === false` / `bodyMounted`,
+        // so clearing the flag is enough to neutralise a pending graft.
+        this._bodyPending = false;
+    }
+
     unmount() {
+        this._cancelPendingBody();
         this._unwireTileDnD();
         this._unwireHandleDnD();
         // popNode does not propagate form de-registration to the grafted
@@ -2040,6 +2167,7 @@ gnr.GroupletGridTile = class GroupletGridTile {
         const bodyContent = this.controller.bodyNode.getValue('static');
         bodyContent.popNode(this.tileLabel);
         this.mounted = false;
+        this.bodyMounted = false;
         this.tileNode = null;
         this.tileContent = null;
         this.tileDom = null;

@@ -84,6 +84,7 @@ class GnrCustomWebPage(object):
             resource='budget/capitolo_card',
             nodeId=grid_id,
             layout='tabs',
+            lazyTabs=True,
             titleField='descr',
             emptyTitle='!!New chapter',
             dragCode='budget_capitoli',
