@@ -897,7 +897,7 @@ class TableHandlerView(BaseComponent):
 
     @struct_method
     def th_slotbar_queryMenu(self,pane,**kwargs):
-        pane.div(_class='iconbox menubox magnifier').menu(storepath='.query.menu',_class='smallmenu',modifiers='*',
+        pane.div(_class='iconbox menubox magnifier').menu(storepath='.query.menu',_class='smallmenu scrollmenu',modifiers='*',
                     action="""
                     if($1.fullpath=='__queryeditor__'){
                         var currentQuery = GET .query.currentQuery;
