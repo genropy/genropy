@@ -1,0 +1,224 @@
+<h2>grouplet</h2>
+
+<p class="lede">The base widget of the family: it loads a single UI fragment under a datapath, so every <code>^.field</code> inside the fragment resolves relative to a sub-Bag of the page store.</p>
+
+<h3>When to use</h3>
+
+<p>You have a form and you need a self-contained section bound to a sub-Bag &mdash; an address block, contact details, a technical-specs panel &mdash; that you want to define once and drop into multiple places. The grouplet is the answer: you write the UI as a callable (or a resource file), you bind it to a datapath, and the widget mounts it under that datapath without you having to thread paths through every inner field.</p>
+
+<p>If instead you need a <em>repeating</em> collection where the user can add and remove items, jump straight to <code>groupletGrid</code>. The plain grouplet renders <strong>one</strong> fragment under <strong>one</strong> sub-Bag; it has no built-in concept of rows.</p>
+
+<h3>Two ways to define it</h3>
+
+<h4>Handler</h4>
+
+<p>A <code>@public_method</code> on the page class. Pass it via the <code>handler</code> kwarg. The method receives the pane already positioned at the grouplet's datapath, so every inner field uses plain relative paths.</p>
+
+<pre><code><span class="kw">from</span> gnr.core.gnrdecorator <span class="kw">import</span> public_method
+
+
+<span class="kw">class</span> <span class="cls">GnrCustomWebPage</span>(<span class="kw">object</span>):
+
+    <span class="kw">def</span> <span class="fn">test_1_handler</span>(<span class="self">self</span>, pane):
+        pane.<span class="fn">grouplet</span>(value=<span class="str">'^.ship_address'</span>, handler=<span class="self">self</span>.grp_address)
+
+    <span class="dec">@public_method</span>
+    <span class="kw">def</span> <span class="fn">grp_address</span>(<span class="self">self</span>, pane, **kwargs):
+        fb = pane.<span class="fn">formlet</span>(cols=<span class="num">3</span>, border_spacing=<span class="str">'3px'</span>)
+        fb.<span class="fn">textbox</span>(value=<span class="str">'^.street'</span>, lbl=<span class="str">'Street'</span>, colspan=<span class="num">3</span>)
+        fb.<span class="fn">textbox</span>(value=<span class="str">'^.city'</span>, lbl=<span class="str">'City'</span>)
+        fb.<span class="fn">textbox</span>(value=<span class="str">'^.zip'</span>, lbl=<span class="str">'ZIP'</span>, width=<span class="str">'5em'</span>)
+        fb.<span class="fn">textbox</span>(value=<span class="str">'^.country'</span>, lbl=<span class="str">'Country'</span>)
+</code></pre>
+
+<h4>Resource</h4>
+
+<p>A file under <code>resources/grouplets/</code> (or a sub-folder) that defines a <code>Grouplet</code> class with a <code>grouplet_main(self, pane, **kwargs)</code> method. Pass <code>resource='examples/address_fields'</code> to mount it. Same datapath behavior as the handler form.</p>
+
+<pre><code><span class="cmt"># resources/grouplets/examples/address_fields.py</span>
+
+<span class="kw">class</span> <span class="cls">Grouplet</span>(<span class="kw">object</span>):
+
+    <span class="kw">def</span> <span class="fn">__info__</span>(<span class="self">self</span>):
+        <span class="kw">return</span> <span class="fn">dict</span>(caption=<span class="str">'Address Fields'</span>, priority=<span class="num">1</span>)
+
+    <span class="kw">def</span> <span class="fn">grouplet_main</span>(<span class="self">self</span>, pane, **kwargs):
+        fb = pane.<span class="fn">formlet</span>(cols=<span class="num">1</span>, border_spacing=<span class="str">'3px'</span>)
+        fb.<span class="fn">textbox</span>(value=<span class="str">'^.street'</span>, lbl=<span class="str">'Street'</span>)
+        fb.<span class="fn">textbox</span>(value=<span class="str">'^.city'</span>, lbl=<span class="str">'City'</span>)
+        fb.<span class="fn">textbox</span>(value=<span class="str">'^.zip'</span>, lbl=<span class="str">'ZIP'</span>)
+        fb.<span class="fn">textbox</span>(value=<span class="str">'^.country'</span>, lbl=<span class="str">'Country'</span>)
+</code></pre>
+
+<p>And then in the page:</p>
+
+<pre><code>pane.<span class="fn">grouplet</span>(value=<span class="str">'^.address_in_res'</span>, resource=<span class="str">'examples/address_fields'</span>)
+</code></pre>
+
+<p>The <code>__info__()</code> classmethod is metadata: it powers menu rendering for topics, panels and wizards. Keys it understands:</p>
+
+<ul>
+  <li><code>caption</code> &mdash; human-readable label.</li>
+  <li><code>priority</code> &mdash; ordering within a topic (lower comes first).</li>
+  <li><code>virtual_columns</code> &mdash; extra computed columns to request when used inside <code>groupletChunk</code>.</li>
+  <li><code>template</code> &mdash; default read-only template for <code>groupletChunk</code>.</li>
+  <li><code>code</code>, <code>tags</code>, <code>permissions</code> &mdash; identifier and access control.</li>
+</ul>
+
+<p>For a single-leaf grouplet you can skip <code>__info__</code> entirely; it only matters once the resource enters a topic or a panel.</p>
+
+<h3>The value path</h3>
+
+<p>The <code>value</code> kwarg is the contract: whatever path you pass becomes the datapath under which the loaded fragment lives. Every <code>^.field</code> inside resolves relative to it. The grouplet does not care whether the sub-Bag already exists &mdash; bindings will create the leaves on first write.</p>
+
+<pre><code><span class="kw">from</span> gnr.core.gnrbag <span class="kw">import</span> Bag
+<span class="kw">from</span> gnr.core.gnrdecorator <span class="kw">import</span> public_method
+
+
+<span class="kw">class</span> <span class="cls">GnrCustomWebPage</span>(<span class="kw">object</span>):
+
+    <span class="kw">def</span> <span class="fn">test_2_value_path</span>(<span class="self">self</span>, pane):
+        pane.<span class="fn">data</span>(<span class="str">'.contact'</span>, <span class="fn">Bag</span>(<span class="fn">dict</span>(email=<span class="str">'test@example.com'</span>, phone=<span class="str">'123456'</span>)))
+        fb = pane.<span class="fn">formlet</span>(cols=<span class="num">1</span>, border_spacing=<span class="str">'3px'</span>)
+        fb.<span class="fn">textbox</span>(value=<span class="str">'^.name'</span>, lbl=<span class="str">'Name'</span>)
+        pane.<span class="fn">grouplet</span>(value=<span class="str">'^.contact'</span>, handler=<span class="self">self</span>.grp_contact)
+
+    <span class="dec">@public_method</span>
+    <span class="kw">def</span> <span class="fn">grp_contact</span>(<span class="self">self</span>, pane, **kwargs):
+        fb = pane.<span class="fn">formlet</span>(cols=<span class="num">2</span>, border_spacing=<span class="str">'3px'</span>)
+        fb.<span class="fn">textbox</span>(value=<span class="str">'^.email'</span>, lbl=<span class="str">'Email'</span>)
+        fb.<span class="fn">textbox</span>(value=<span class="str">'^.phone'</span>, lbl=<span class="str">'Phone'</span>)
+        fb.<span class="fn">dateTextBox</span>(value=<span class="str">'^.birthdate'</span>, lbl=<span class="str">'Birth Date'</span>)
+</code></pre>
+
+<p>Here <code>^.email</code> inside <code>grp_contact</code> resolves to <code>.contact.email</code> on the outer pane. The outer textbox bound to <code>^.name</code> is at the sibling level and stays untouched.</p>
+
+<p>Inside a form you typically pass <code>value='^#FORM.record.address'</code> so that the grouplet mounts under the form's record sub-Bag. The same rule holds: inner fields use plain <code>^.street</code>, <code>^.city</code>, etc.</p>
+
+<h3>Table-level resources</h3>
+
+<p>When the grouplet is conceptually attached to a table, store the resource under <code>resources/tables/&lt;pkg&gt;.&lt;tbl&gt;/grouplets/&lt;name&gt;.py</code> and pass <code>table='&lt;pkg&gt;.&lt;tbl&gt;'</code>. The loader looks under the table folder first, falling back to the cross-package <code>tables/_packages/&lt;pkg&gt;/&lt;tbl&gt;/grouplets/</code> layout.</p>
+
+<pre><code><span class="cmt"># resources/tables/booking/grouplets/stay.py</span>
+
+<span class="kw">from</span> gnr.web.gnrbaseclasses <span class="kw">import</span> BaseComponent
+
+
+<span class="kw">class</span> <span class="cls">Grouplet</span>(BaseComponent):
+
+    <span class="kw">def</span> <span class="fn">__info__</span>(<span class="self">self</span>):
+        <span class="kw">return</span> <span class="fn">dict</span>(caption=<span class="str">'Stay'</span>, priority=<span class="num">1</span>)
+
+    <span class="kw">def</span> <span class="fn">grouplet_main</span>(<span class="self">self</span>, pane, **kwargs):
+        fb = pane.<span class="fn">formlet</span>(cols=<span class="num">2</span>, table=<span class="str">'test.booking'</span>)
+        fb.<span class="fn">field</span>(<span class="str">'check_in'</span>, tag=<span class="str">'dateTextBox'</span>, lbl=<span class="str">'Check-in'</span>)
+        fb.<span class="fn">field</span>(<span class="str">'check_out'</span>, tag=<span class="str">'dateTextBox'</span>, lbl=<span class="str">'Check-out'</span>)
+        fb.<span class="fn">field</span>(<span class="str">'room_type'</span>, tag=<span class="str">'filteringSelect'</span>,
+                 values=<span class="str">'single:Single,double:Double,suite:Suite'</span>,
+                 lbl=<span class="str">'Room Type'</span>)
+</code></pre>
+
+<pre><code>pane.<span class="fn">grouplet</span>(value=<span class="str">'^#FORM.record'</span>,
+              resource=<span class="str">'stay'</span>,
+              table=<span class="str">'test.booking'</span>)
+</code></pre>
+
+<p>Using <code>fb.field(...)</code> with a parent <code>formlet(table=...)</code> means the inner fields pick up column metadata (labels, validators, formatters) from the table definition. This is the idiomatic pattern for table-bound grouplets.</p>
+
+<h3>Topic resolution</h3>
+
+<p>If the value you pass as <code>resource</code> happens to be a folder under <code>resources/grouplets/</code> (a "topic") rather than a single file, the grouplet does not error: it switches mode and renders all child grouplets as a CSS grid of collapsible panels. The grid layout, columns, gap and collapsible behavior are controlled by <code>remote_grid_*</code> kwargs. See the <strong>Topic Grid</strong> tab for the full story.</p>
+
+<h3>Multiple grouplets on a page</h3>
+
+<p>Each grouplet is independent: drop as many as you need, on whatever datapaths you want. They do not share state, they do not interfere, and they can use different handlers or resources.</p>
+
+<pre><code><span class="kw">def</span> <span class="fn">test_3_multiple_grouplets</span>(<span class="self">self</span>, pane):
+    bc = pane.<span class="fn">borderContainer</span>(height=<span class="str">'400px'</span>)
+    left = bc.<span class="fn">contentPane</span>(region=<span class="str">'left'</span>, width=<span class="str">'50%'</span>, splitter=<span class="kw">True</span>)
+    right = bc.<span class="fn">contentPane</span>(region=<span class="str">'center'</span>)
+    left.<span class="fn">grouplet</span>(value=<span class="str">'^.addresses'</span>, handler=<span class="self">self</span>.grp_address)
+    right.<span class="fn">grouplet</span>(value=<span class="str">'^.contacts'</span>, handler=<span class="self">self</span>.grp_contact)
+</code></pre>
+
+<h3>Parameters</h3>
+
+<table>
+  <thead>
+    <tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>value</code></td>
+      <td>str</td>
+      <td>required</td>
+      <td>Data binding path under which the fragment is mounted (e.g. <code>'^.data'</code>, <code>'^#FORM.record'</code>). Every <code>^.field</code> inside resolves relative to this path.</td>
+    </tr>
+    <tr>
+      <td><code>handler</code></td>
+      <td>callable</td>
+      <td><code>None</code></td>
+      <td>A <code>@public_method</code> on the page class that builds the UI. Receives the pane already positioned at <code>value</code>.</td>
+    </tr>
+    <tr>
+      <td><code>resource</code></td>
+      <td>str</td>
+      <td><code>None</code></td>
+      <td>Path of a resource file (without <code>.py</code>) under <code>resources/grouplets/</code> or under the configured root. Mutually exclusive with <code>handler</code>.</td>
+    </tr>
+    <tr>
+      <td><code>table</code></td>
+      <td>str</td>
+      <td><code>None</code></td>
+      <td><code>pkg.tbl</code> identifier. Switches the lookup to <code>resources/tables/&lt;tbl&gt;/&lt;grouplets_root&gt;/</code> (with the cross-package fallback under <code>tables/_packages/&lt;pkg&gt;/</code>).</td>
+    </tr>
+    <tr>
+      <td><code>grouplets_root</code></td>
+      <td>str</td>
+      <td><code>'grouplets'</code></td>
+      <td>Root folder name. Override to load from a sibling tree (e.g. <code>'myconfigurations'</code>, <code>'grid_grouplets'</code>) without touching the default grouplets folder.</td>
+    </tr>
+    <tr>
+      <td><code>rootTag</code></td>
+      <td>str</td>
+      <td><code>'div'</code></td>
+      <td>HTML tag of the box that wraps the loaded fragment. Set to <code>'contentPane'</code> when the grouplet must sit inside a frame region.</td>
+    </tr>
+    <tr>
+      <td><code>remote_*</code></td>
+      <td>any</td>
+      <td>&mdash;</td>
+      <td>Kwargs prefixed with <code>remote_</code> are stripped of the prefix and forwarded to the remote loading call &mdash; that is how grid options (<code>remote_grid_columns</code>, <code>remote_grid_collapsible</code>) and custom hooks reach the server side.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Gotchas</h3>
+
+<div class="callout warn">
+  <div class="callout-title">Use relative paths inside the handler</div>
+  <p>Inside the handler or the <code>grouplet_main</code> method, always use plain relative paths like <code>^.street</code>. The pane is already positioned at <code>value</code>, so absolute paths like <code>^#FORM.record.street</code> would bypass the mount point and break composition. The absolute form is needed only inside <code>groupletChunk</code>, which mounts a read-only template at the outer level.</p>
+</div>
+
+<div class="callout warn">
+  <div class="callout-title"><code>@public_method</code> is mandatory on handlers</div>
+  <p>The grouplet loads its content via an RPC roundtrip, so the handler must be exposed as <code>@public_method</code>. If you forget the decorator the call returns nothing, the pane stays empty, and the failure is silent &mdash; no traceback in the browser, no error in the log. The same applies to any callback you pass through <code>remote_*</code> kwargs that ends up resolved by name on the server.</p>
+</div>
+
+<div class="callout warn">
+  <div class="callout-title"><code>handler</code> and <code>resource</code> are mutually exclusive</div>
+  <p>If both are present, <code>resource</code> wins and the handler is ignored. Decide upfront whether the grouplet lives on the page (handler) or in the resource tree (resource). Mixing the two by accident produces a surprising "my handler is never called" bug.</p>
+</div>
+
+<h3>Reference files</h3>
+
+<ul>
+  <li><code>resources/common/gnrcomponents/grouplet/grouplet.py</code> &mdash; <code>GroupletHandler.gr_loadGrouplet</code>, topic resolution, info extraction.</li>
+  <li><code>resources/common/gnrcomponents/grouplet/grouplet.js</code> &mdash; client-side loader and panel controller.</li>
+  <li><code>resources/common/gnrcomponents/grouplet/grouplet.css</code> &mdash; visual layer for boxes, topic grid, panels.</li>
+  <li><code>gnrjs/gnr_d20/js/genro_components.js</code> &mdash; <code>gnr.widgets.grouplet</code> widget class.</li>
+  <li><code>projects/gnrcore/packages/test/webpages/gnrwdg/test_grouplets/01_grouplet_basics.py</code> &mdash; handler, resource, value-path and multi-grouplet examples.</li>
+  <li><code>projects/gnrcore/packages/test/webpages/gnrwdg/test_grouplets/09_grouplet_custom_root.py</code> &mdash; <code>grouplets_root</code> override.</li>
+  <li><code>projects/gnrcore/packages/test/resources/grouplets/examples/</code> &mdash; sample page-level resources.</li>
+  <li><code>projects/gnrcore/packages/test/resources/tables/booking/grouplets/</code> &mdash; sample table-level resources.</li>
+</ul>

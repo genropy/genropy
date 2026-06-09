@@ -1,0 +1,117 @@
+<h2>Dialog Editors</h2>
+<p class="lede">Three JS functions that open a popup dialog containing a grouplet &mdash; for editing in&#8209;memory data, a document, or a DB record.</p>
+
+<h3>When to use</h3>
+<p>You want a button or a link that pops up a focused editor for a specific piece of data, without dedicating page real estate to it. The trigger sits inline &mdash; on a toolbar, in a row action, next to a preview &mdash; and the modal contains a full grouplet rendered by your handler. When the user confirms, the data round&#8209;trips back to the right place.</p>
+<p>The three variants differ in what they edit: an ephemeral in&#8209;memory Bag (no persistence, just write&#8209;back), a document handled by a custom save callback (file, blob, sub&#8209;record of another table), or a DB record with full table integration (audit, validation, triggers).</p>
+
+<h3>The three variants</h3>
+<div class="cards">
+  <div class="card">
+    <h4>memoryDataEditor</h4>
+    <p>Edits an in&#8209;memory Bag. Changes are written back to the source path. There is no explicit save action &mdash; the dialog confirm closes and the form's <code>save_memory</code> step pushes the values into the parent.</p>
+  </div>
+  <div class="card">
+    <h4>documentDataEditor</h4>
+    <p>Edits a document referenced by <code>path</code>. Uses the <code>document</code> store handler. Good for documents whose persistence is custom &mdash; XML/JSON files in the docstore, blobs on disk, sub&#8209;records of another table.</p>
+  </div>
+  <div class="card">
+    <h4>recordDataEditor</h4>
+    <p>Edits a DB record. Loads via <code>pkey</code> on a <code>table</code>, saves via the record's standard <code>update</code> path. Full integration with table audit, validation, counters, triggers.</p>
+  </div>
+</div>
+
+<h3>memoryDataEditor &mdash; quick example</h3>
+<p>Adapted from <code>02_grouplet_dialogs.py</code>. A button on the form toolbar opens a dialog that edits a sub&#8209;Bag of the current record.</p>
+<pre><code>bar.edit_btn.<span class="fn">button</span>(<span class="str">'Edit Address'</span>).<span class="fn">dataController</span>(
+    <span class="str">"""genro.dlg.memoryDataEditor('address',
+        {value:'^#FORM.record', handler:grp_handler, title:'Edit Address'}, this)"""</span>,
+    grp_handler=<span class="self">self</span>.grp_address)
+</code></pre>
+<p>The kwargs:</p>
+<ul>
+  <li><code>node</code> (third positional, <code>this</code> here) &mdash; the calling DOM context, used to resolve relative datapaths and to anchor the dialog in the DOM tree.</li>
+  <li><code>handler</code> &mdash; the grouplet builder, a <code>@public_method</code> that receives a <code>pane</code> and adds the editor fields.</li>
+  <li><code>value</code> &mdash; the datapath where the Bag lives. The dialog loads from here on open and writes back on confirm.</li>
+  <li><code>title</code> &mdash; the dialog title bar text.</li>
+</ul>
+<p>The first argument (<code>'address'</code>) is the dialog <code>name</code> &mdash; a unique identifier used by <code>genro.dlg</code> to register the dialog and form for re&#8209;use.</p>
+
+<h3>recordDataEditor &mdash; quick example</h3>
+<p>Pick a record with a <code>dbselect</code>, then open it in a dialog. The same record can be re&#8209;opened; <code>genro.dlg</code> reuses the dialog instance and re&#8209;loads on the new <code>pkey</code>.</p>
+<pre><code>fb.<span class="fn">dbselect</span>(value=<span class="str">'^.selected_comune'</span>, table=<span class="str">'glbl.comune'</span>, lbl=<span class="str">'Select Comune'</span>)
+fb.<span class="fn">button</span>(<span class="str">'Edit Comune'</span>).<span class="fn">dataController</span>(
+    <span class="str">"""genro.dlg.recordDataEditor('comune_edit',
+        {table:'glbl.comune', pkey:comune_pkey,
+         handler:grp_handler, title:'Edit Comune'}, this)"""</span>,
+    comune_pkey=<span class="str">'=.selected_comune'</span>,
+    grp_handler=<span class="self">self</span>.grp_comune)
+</code></pre>
+<p>The required kwargs are <code>table</code> and <code>pkey</code>; everything else mirrors <code>memoryDataEditor</code>. Internally the dialog builds a <code>GroupletForm</code> with <code>store_handler='record'</code> and <code>storeType='Item'</code>, so the form behaves exactly like a standard record form &mdash; <code>load()</code>/<code>save()</code>/<code>abort()</code> all wired, dirty tracking active, audit fields populated by the table on save.</p>
+<p>You can also point at a table&#8209;resource grouplet instead of an inline handler, with <code>resource:'anagrafica'</code> (or a nested path like <code>'territorio/altimetria'</code>) &mdash; the dialog will load the matching <code>.py</code> resource from the table's <code>grouplets/</code> folder.</p>
+
+<h3>documentDataEditor &mdash; quick example</h3>
+<p>For documents identified by a path rather than a table+pkey. The <code>path</code> kwarg is mapped internally onto <code>pkey</code>, and the form uses <code>store_handler='document'</code>.</p>
+<pre><code>fb.<span class="fn">textbox</span>(value=<span class="str">'^.doc_path'</span>, lbl=<span class="str">'Document path'</span>,
+           default_value=<span class="str">'pkg:test15/testdata/docstore/doc1.xml'</span>)
+fb.<span class="fn">button</span>(<span class="str">'Edit Document'</span>).<span class="fn">dataController</span>(
+    <span class="str">"""genro.dlg.documentDataEditor('doc_edit',
+        {path:doc_path, handler:grp_handler, title:'Edit Document'}, this)"""</span>,
+    doc_path=<span class="str">'=.doc_path'</span>,
+    grp_handler=<span class="self">self</span>.grp_document)
+</code></pre>
+<p>The <code>path</code> is whatever the <code>document</code> store handler on the server understands &mdash; typically a <code>pkg:</code> resource path or an absolute path inside a registered docstore. The save semantics are determined by that store handler, not by the dialog.</p>
+
+<h3>The role of <code>name</code> and <code>formId</code></h3>
+<p>Each dialog needs a unique identifier. The first positional argument (<code>name</code>) is used to derive the dialog node id (<code>grouplet_dlg_&lt;name&gt;</code>) and the form id (<code>grouplet_form_&lt;name&gt;</code>) in <code>genro.dlg</code>'s internal registry. If you reuse a name on the same page, the second dialog finds an existing instance and inherits its state &mdash; usually unwanted. Use distinct names per logical editor: <code>'address'</code> for the address editor, <code>'territorio'</code> for the territorio editor, and so on.</p>
+
+<h3>Comparison table</h3>
+<table>
+  <thead>
+    <tr><th>Editor</th><th>Edits</th><th>Persistence</th><th>Typical trigger</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>memoryDataEditor</code></td>
+      <td>in&#8209;memory Bag</td>
+      <td>none (write&#8209;back to source path)</td>
+      <td>inline <code>button.dataController</code></td>
+    </tr>
+    <tr>
+      <td><code>documentDataEditor</code></td>
+      <td>document at a path</td>
+      <td>custom save via <code>document</code> store handler</td>
+      <td>toolbar button</td>
+    </tr>
+    <tr>
+      <td><code>recordDataEditor</code></td>
+      <td>DB record</td>
+      <td>record <code>update</code> via table</td>
+      <td>grid action / link</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Used by groupletChunk</h3>
+<p><code>groupletChunk</code> uses <code>memoryDataEditor</code> internally for its pencil button &mdash; the chunk renders a read&#8209;only HTML preview, and the pencil wires a <code>dataController</code> that calls <code>genro.dlg.memoryDataEditor(name, editor_kw, this)</code> with the surrounding Bag value. If you find yourself manually pairing a static preview <code>&lt;div&gt;</code> with a button that calls <code>memoryDataEditor</code>, you're rebuilding <code>groupletChunk</code> by hand &mdash; reach for the widget directly.</p>
+
+<h3>Gotchas</h3>
+<div class="callout warn">
+  <div class="callout-title">Unique name per dialog</div>
+  <p>Reusing the same <code>name</code> for two different editors on the same page silently collides: the second call finds the first dialog already registered and shows it, inheriting its <code>handler</code>, <code>title</code> and current value. There is no error, just a confusing UX. Name each dialog after what it edits, not after the button that opens it.</p>
+</div>
+<div class="callout warn">
+  <div class="callout-title">Path syntax differs across variants</div>
+  <p><code>memoryDataEditor</code> reads its data via the <code>value</code> kwarg &mdash; any datapath, relative or absolute, resolved against the calling <code>node</code>. <code>recordDataEditor</code> uses <code>table</code> + <code>pkey</code>. <code>documentDataEditor</code> uses <code>path</code> (mapped onto <code>pkey</code> internally). They are not interchangeable; check the relevant branch of <code>_groupletForm</code> in <code>genro_dlg.js</code> for the exact kwargs each accepts.</p>
+</div>
+<div class="callout warn">
+  <div class="callout-title">Pkey is required for record editing</div>
+  <p><code>recordDataEditor</code> only opens existing records &mdash; there is no &ldquo;new record&rdquo; mode. To create, open a standard <code>frameForm</code> or build the row inline; the dialog editors are for edit&#8209;in&#8209;place workflows.</p>
+</div>
+
+<h3>Reference files</h3>
+<ul>
+  <li><code>gnrjs/gnr_d20/js/genro_dlg.js</code> &mdash; <code>memoryDataEditor</code>, <code>documentDataEditor</code>, <code>recordDataEditor</code> and the shared <code>_groupletForm</code> builder.</li>
+  <li><code>resources/common/gnrcomponents/grouplet/grouplet.py</code> &mdash; <code>gr_groupletChunk</code> shows the canonical <code>memoryDataEditor</code> wiring from a pencil button.</li>
+  <li><code>projects/gnrcore/packages/test/webpages/gnrwdg/test_grouplets/02_grouplet_dialogs.py</code> &mdash; five live tests covering all three editors, including resource&#8209;based <code>recordDataEditor</code> and nested resource paths.</li>
+</ul>

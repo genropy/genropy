@@ -1,0 +1,376 @@
+<h2>groupletGrid</h2>
+
+<p class="lede">Renders a Bag as N tiles where each tile is the same reusable grouplet template (a mini-form). One RPC for the template at boot, then zero RPC for every add / remove / edit / save.</p>
+
+<h3>The use cases it unlocks</h3>
+
+<p>If you find yourself looking at a list of variable rows where each row is too rich for a column-and-cell grid &mdash; multi-line, with selects, nested children, computed fields &mdash; this is the widget. The data shape is a Bag of sub-Bags; the rendering shape is N independent mini-forms sharing a template.</p>
+
+<div class="cards">
+  <div class="card">
+    <h4>Invoice line editors</h4>
+    <p>N variable line rows, each a self-contained mini-form with product, qty, price, note. The phantom <code>+</code> adds, the row <code>&times;</code> removes. No grid plumbing.</p>
+  </div>
+  <div class="card">
+    <h4>Kanban boards</h4>
+    <p>Multiple columns share a single <code>dragCode</code>; cards drag freely across columns. Each card is fully editable inline.</p>
+  </div>
+  <div class="card">
+    <h4>Card galleries</h4>
+    <p>Framed cards with internal scroll and sticky toolbars. Set <code>height</code> or <code>max_height</code> to enter frame mode.</p>
+  </div>
+  <div class="card">
+    <h4>Spreadsheet-like entry</h4>
+    <p><code>struct=</code> mode turns the grid into a fakexcel surface: editable cells with <code>dtype</code>, <code>formula=</code> derivations and <code>totalize=</code> footer aggregates.</p>
+  </div>
+  <div class="card">
+    <h4>Tab editors</h4>
+    <p><code>layout='tabs'</code> or <code>'vtabs'</code> turns the same collection into a chip-and-panel navigator. <code>titleField</code> binds the chip label to a row field.</p>
+  </div>
+  <div class="card">
+    <h4>Master-detail</h4>
+    <p>Nested groupletGrid: each parent tile contains its own inner groupletGrid bound to a sub-collection, with independent DnD and add/delete affordances.</p>
+  </div>
+</div>
+
+<h3>How it works (architecture)</h3>
+
+<p>Server side, <code>gr_groupletGrid</code> emits a container, a sibling <code>BagStore</code>, four slot divs (top/bottom/left/right), and an empty body. It then attaches a <code>dataController</code> that, at build time, instantiates a JS <code>gnr.GroupletGridController</code> on the container node and registers <code>storepath</code> as a dyn-attr. From that moment on, every mutation of the rows Bag fires the controller's <code>gnr_storepath</code> hook, which dispatches to <code>_renderTile(pkey)</code>, <code>_destroyTile(pkey)</code>, or an intra-row refresh based on <code>parentshipLevel</code>. The template is fetched once via <code>gr_getGroupletGridTemplate</code> (or all candidates at once via <code>gr_getGroupletGridTemplateMap</code> in <code>resourceField=</code> mode), then cloned and bound per row &mdash; no further server roundtrip for normal editing.</p>
+
+<div class="diagram">
+<svg viewBox="0 0 700 320" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="ggArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6c9eff"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="700" height="320" fill="#0f1117"/>
+  <rect x="20" y="30" width="120" height="50" rx="6" fill="#1a1d27" stroke="#2e3340"/>
+  <text x="80" y="55" text-anchor="middle" fill="#d8dae5" font-size="13" font-family="sans-serif">User edits</text>
+  <text x="80" y="71" text-anchor="middle" fill="#9aa0b0" font-size="11" font-family="sans-serif">add / del / drag</text>
+
+  <rect x="180" y="30" width="120" height="50" rx="6" fill="#1a1d27" stroke="#2e3340"/>
+  <text x="240" y="55" text-anchor="middle" fill="#d8dae5" font-size="13" font-family="sans-serif">Rows Bag</text>
+  <text x="240" y="71" text-anchor="middle" fill="#9aa0b0" font-size="11" font-family="sans-serif">storepath</text>
+
+  <rect x="340" y="30" width="140" height="50" rx="6" fill="#1a1d27" stroke="#2e3340"/>
+  <text x="410" y="55" text-anchor="middle" fill="#d8dae5" font-size="13" font-family="sans-serif">BagStore (sibling)</text>
+  <text x="410" y="71" text-anchor="middle" fill="#9aa0b0" font-size="11" font-family="sans-serif">gnr_storepath trigger</text>
+
+  <rect x="520" y="30" width="160" height="50" rx="6" fill="#1a1d27" stroke="#2e3340"/>
+  <text x="600" y="55" text-anchor="middle" fill="#d8dae5" font-size="13" font-family="sans-serif">GroupletGridController</text>
+  <text x="600" y="71" text-anchor="middle" fill="#9aa0b0" font-size="11" font-family="sans-serif">dispatch by parentshipLevel</text>
+
+  <rect x="180" y="180" width="160" height="50" rx="6" fill="#1a1d27" stroke="#2e3340"/>
+  <text x="260" y="200" text-anchor="middle" fill="#d8dae5" font-size="13" font-family="sans-serif">_renderTile(pkey)</text>
+  <text x="260" y="216" text-anchor="middle" fill="#7dd3a8" font-size="11" font-family="sans-serif">new GroupletGridTile</text>
+
+  <rect x="370" y="180" width="160" height="50" rx="6" fill="#1a1d27" stroke="#2e3340"/>
+  <text x="450" y="200" text-anchor="middle" fill="#d8dae5" font-size="13" font-family="sans-serif">_destroyTile(pkey)</text>
+  <text x="450" y="216" text-anchor="middle" fill="#ff6b8a" font-size="11" font-family="sans-serif">unmount + cleanup</text>
+
+  <rect x="180" y="260" width="350" height="40" rx="6" fill="#1a1d27" stroke="#2e3340"/>
+  <text x="355" y="285" text-anchor="middle" fill="#d8dae5" font-size="13" font-family="sans-serif">DOM body (.grouplet_grid_body)</text>
+
+  <line x1="140" y1="55" x2="180" y2="55" stroke="#6c9eff" stroke-width="1.5" marker-end="url(#ggArrow)"/>
+  <line x1="300" y1="55" x2="340" y2="55" stroke="#6c9eff" stroke-width="1.5" marker-end="url(#ggArrow)"/>
+  <line x1="480" y1="55" x2="520" y2="55" stroke="#6c9eff" stroke-width="1.5" marker-end="url(#ggArrow)"/>
+  <line x1="600" y1="80" x2="260" y2="180" stroke="#6c9eff" stroke-width="1.5" marker-end="url(#ggArrow)"/>
+  <line x1="600" y1="80" x2="450" y2="180" stroke="#6c9eff" stroke-width="1.5" marker-end="url(#ggArrow)"/>
+  <line x1="260" y1="230" x2="300" y2="260" stroke="#6c9eff" stroke-width="1.5" marker-end="url(#ggArrow)"/>
+  <line x1="450" y1="230" x2="410" y2="260" stroke="#6c9eff" stroke-width="1.5" marker-end="url(#ggArrow)"/>
+</svg>
+</div>
+
+<div class="callout">
+  <div class="callout-title">The sibling BagStore is mandatory by design</div>
+  <p>The widget always emits an inline <code>bagStore</code> next to the body. That store wires <code>hasChanges</code>, <code>hasErrors</code>, <code>setLocked</code>, and <code>sum</code> aggregations for free, and exposes the row collection through the same interface a <code>gnr.Grid</code> consumes. You cannot opt out, but you rarely need to interact with it directly &mdash; the controller talks to it on your behalf.</p>
+</div>
+
+<h3>Vocabulary</h3>
+
+<ul>
+  <li><strong>item</strong> &mdash; one record of the collection (a child node of the storebag).</li>
+  <li><strong>pkey</strong> &mdash; the item's unique key, used as the Bag node label. The controller mints fresh pkeys as <code>r_&lt;time36Id&gt;</code> for new rows.</li>
+  <li><strong>tile</strong> &mdash; the view manager for one item, implemented by <code>gnr.GroupletGridTile</code>. In <code>cards</code> mode it renders as a card, in <code>tabs</code> as a chip plus panel, in <code>struct</code> as a row.</li>
+  <li><strong>chrome</strong> &mdash; the per-tile widgetry around the body: drag handle, <code>&times;</code> close button, kebab menu, counter cell. The term refers to the widget chrome, not the browser chrome.</li>
+  <li><strong>body</strong> &mdash; the cloned template content, with <code>^.field</code> widgets bound to the row's sub-Bag.</li>
+</ul>
+
+<h3>Quick example &mdash; invoice baseline</h3>
+
+<p>This is test_01 from the gallery. A resource grouplet (<code>invoice_row</code>) is the template, a Bag at <code>.invoice_lines</code> holds the rows, and the widget call wires them together. The phantom <code>+</code> appends rows, each row gets a <code>&times;</code> button, and <code>defaultRow</code> seeds new rows with sensible values.</p>
+
+<pre><code><span class="kw">from</span> gnr.core.gnrbag <span class="kw">import</span> Bag
+
+
+<span class="kw">class</span> <span class="cls">GnrCustomWebPage</span>(<span class="kw">object</span>):
+    py_requires = <span class="str">"""gnrcomponents/grouplet/grouplet:GroupletGridHandler"""</span>
+
+    <span class="kw">def</span> <span class="fn">test_01_invoice_baseline</span>(<span class="self">self</span>, pane):
+        pane.<span class="fn">data</span>(<span class="str">'.invoice_lines'</span>, Bag())
+        pane.<span class="fn">groupletGrid</span>(storepath=<span class="str">'.invoice_lines'</span>,
+                          resource=<span class="str">'invoice_row'</span>,
+                          defaultRow=<span class="kw">dict</span>(qty=<span class="num">1</span>, price=<span class="num">0</span>))
+</code></pre>
+
+<p>The <code>invoice_row</code> resource file lives under <code>resources/grouplets/invoice_row.py</code>. It is an ordinary grouplet: a <code>Grouplet</code> class with a <code>grouplet_main</code> method, free to use any builder API.</p>
+
+<pre><code><span class="cmt"># resources/grouplets/invoice_row.py</span>
+<span class="kw">from</span> gnr.web.gnrbaseclasses <span class="kw">import</span> BaseComponent
+
+
+<span class="kw">class</span> <span class="cls">Grouplet</span>(BaseComponent):
+    <span class="kw">def</span> <span class="fn">__info__</span>(<span class="self">self</span>):
+        <span class="kw">return</span> <span class="kw">dict</span>(caption=<span class="str">'Invoice Row'</span>, priority=<span class="num">1</span>)
+
+    <span class="kw">def</span> <span class="fn">grouplet_main</span>(<span class="self">self</span>, pane, **kwargs):
+        fb = pane.<span class="fn">formlet</span>(cols=<span class="num">4</span>, border_spacing=<span class="str">'4px'</span>)
+        fb.<span class="fn">textbox</span>(value=<span class="str">'^.product'</span>, lbl=<span class="str">'Product'</span>,
+                   colspan=<span class="num">2</span>, width=<span class="str">'100%'</span>,
+                   validate_notnull=<span class="kw">True</span>)
+        fb.<span class="fn">numberTextBox</span>(value=<span class="str">'^.qty'</span>, lbl=<span class="str">'Qty'</span>, width=<span class="str">'5em'</span>)
+        fb.<span class="fn">numberTextBox</span>(value=<span class="str">'^.price'</span>, lbl=<span class="str">'Price'</span>, width=<span class="str">'6em'</span>)
+        fb.<span class="fn">textbox</span>(value=<span class="str">'^.note'</span>, lbl=<span class="str">'Note'</span>,
+                   colspan=<span class="num">4</span>, width=<span class="str">'100%'</span>)
+</code></pre>
+
+<h3>Handler instead of resource</h3>
+
+<p>When the template is small or single-use, skip the resource file and pass an inline callable. The handler receives the pane positioned at the row's datapath, exactly like the resource form.</p>
+
+<pre><code><span class="kw">def</span> <span class="fn">test_02_todolist_handler</span>(<span class="self">self</span>, pane):
+    pane.<span class="fn">data</span>(<span class="str">'.todos'</span>, Bag())
+    pane.<span class="fn">groupletGrid</span>(storepath=<span class="str">'.todos'</span>,
+                      handler=<span class="self">self</span>.todo_row_handler,
+                      defaultRow=<span class="kw">dict</span>(done=<span class="kw">False</span>, text=<span class="str">''</span>))
+
+<span class="dec">@public_method</span>
+<span class="kw">def</span> <span class="fn">todo_row_handler</span>(<span class="self">self</span>, pane, **kwargs):
+    row = pane.<span class="fn">div</span>(display=<span class="str">'flex'</span>, align_items=<span class="str">'center'</span>, gap=<span class="str">'0.6em'</span>)
+    row.<span class="fn">checkBox</span>(value=<span class="str">'^.done'</span>)
+    row.<span class="fn">textbox</span>(value=<span class="str">'^.text'</span>, placeholder=<span class="str">'!!What needs doing?'</span>,
+                width=<span class="str">'100%'</span>, flex=<span class="str">'1'</span>)
+</code></pre>
+
+<h3>Responsive cards</h3>
+
+<p>Set <code>cols</code> and <code>min_width</code> together to get an auto-fill layout that re-flows with viewport width. Internally the body container uses CSS Grid <code>repeat(auto-fill, minmax(&lt;min_width&gt;, 1fr))</code>: each column is at least <code>min_width</code> wide, the grid packs as many columns as fit, and a wide viewport can exceed <code>cols</code> (it is a target, not a cap when <code>min_width</code> is also set).</p>
+
+<pre><code>pane.<span class="fn">groupletGrid</span>(storepath=<span class="str">'.invoice_lines'</span>,
+                  resource=<span class="str">'invoice_row'</span>,
+                  cols=<span class="num">3</span>, min_width=<span class="str">'300px'</span>,
+                  defaultRow=<span class="kw">dict</span>(qty=<span class="num">1</span>, price=<span class="num">0</span>))
+</code></pre>
+
+<h3>Layouts: cards, tabs, vtabs</h3>
+
+<p>Three layouts share the same data shape and template. <code>cards</code> (the default) lays tiles in a CSS Grid. <code>tabs</code> renders a horizontal chip strip on top, with the active row's body underneath. <code>vtabs</code> is the same with a vertical chip rail on the side. In tabs and vtabs mode, <code>titleField</code> binds the chip label to a field of the row &mdash; type in the title input and the chip relabels live.</p>
+
+<p>The controller exposes <code>setLayout(name)</code> for runtime switching. Tile state survives the switch: pending edits, expanded sections, and nested grids are preserved.</p>
+
+<pre><code>grid_id = <span class="str">'grpgrid_team_tabs'</span>
+pane.<span class="fn">data</span>(<span class="str">'.team_tabs_layout'</span>, <span class="str">'tabs'</span>)
+toolbar = pane.<span class="fn">div</span>(display=<span class="str">'flex'</span>, gap=<span class="str">'0.6em'</span>)
+toolbar.<span class="fn">filteringSelect</span>(
+    value=<span class="str">'^.team_tabs_layout'</span>,
+    values=<span class="str">'tabs:Tabs (horizontal),vtabs:Tabs (vertical),cards:Cards'</span>)
+pane.<span class="fn">dataController</span>(<span class="str">"""
+    var n = genro.nodeById(grid_id);
+    var c = n &amp;&amp; n.gridController;
+    if (c &amp;&amp; c.layout !== layout) c.setLayout(layout);
+"""</span>, layout=<span class="str">'^.team_tabs_layout'</span>, grid_id=grid_id)
+pane.<span class="fn">groupletGrid</span>(storepath=<span class="str">'.team_tabs'</span>,
+                  resource=<span class="str">'person_with_contacts'</span>,
+                  layout=<span class="str">'tabs'</span>,
+                  titleField=<span class="str">'name'</span>,
+                  emptyTitle=<span class="str">'!!New member'</span>,
+                  nodeId=grid_id)
+</code></pre>
+
+<h3>Struct mode (spreadsheet with formulas)</h3>
+
+<p>Pass <code>struct=</code> as a callable receiving a fresh <code>gnr.Grid</code>-style struct Bag &mdash; the same dialect you use to define a real grid. Cells declare <code>dtype</code>, <code>edit=True</code> for editors, <code>formula=</code> for derivations, and <code>totalize=</code> for footer aggregations. The widget synthesises a row template from the struct (no resource file, no handler) and drives the live cascade through <code>gnr.GridChangeManager</code> &mdash; the same engine <code>gnr.Grid</code> uses. Edit a cell, formula cells recompute, footer totals update.</p>
+
+<pre><code><span class="kw">def</span> <span class="fn">test_06_struct_shopping_list</span>(<span class="self">self</span>, pane):
+    pane.<span class="fn">data</span>(<span class="str">'.shopping_list'</span>, Bag())
+
+    <span class="kw">def</span> <span class="fn">struct</span>(struct):
+        r = struct.<span class="fn">view</span>().<span class="fn">rows</span>()
+        r.<span class="fn">cell</span>(<span class="str">'bought'</span>, name=<span class="str">' '</span>, width=<span class="str">'3em'</span>, dtype=<span class="str">'B'</span>, edit=<span class="kw">True</span>)
+        r.<span class="fn">cell</span>(<span class="str">'item'</span>, name=<span class="str">'Item'</span>, width=<span class="str">'100%'</span>, edit=<span class="kw">True</span>)
+        r.<span class="fn">cell</span>(<span class="str">'qty'</span>, name=<span class="str">'Qty'</span>, width=<span class="str">'5em'</span>, dtype=<span class="str">'L'</span>, edit=<span class="kw">True</span>)
+        r.<span class="fn">cell</span>(<span class="str">'unit_price'</span>, name=<span class="str">'Unit price'</span>, width=<span class="str">'7em'</span>,
+               dtype=<span class="str">'N'</span>, edit=<span class="kw">True</span>, format=<span class="str">'#,###.00'</span>)
+        r.<span class="fn">cell</span>(<span class="str">'line_total'</span>, name=<span class="str">'Line total'</span>, width=<span class="str">'8em'</span>,
+               dtype=<span class="str">'N'</span>, formula=<span class="str">'qty*unit_price'</span>,
+               totalize=<span class="str">'.total_spent'</span>, format=<span class="str">'#,###.00'</span>)
+
+    pane.<span class="fn">groupletGrid</span>(storepath=<span class="str">'.shopping_list'</span>,
+                      struct=struct,
+                      max_height=<span class="str">'320px'</span>,
+                      additem=<span class="kw">False</span>, delitem=<span class="kw">False</span>, editmenu=<span class="kw">True</span>,
+                      defaultRow=<span class="kw">dict</span>(bought=<span class="kw">False</span>, qty=<span class="num">1</span>, unit_price=<span class="num">0</span>))
+</code></pre>
+
+<p><code>structpath</code> lets you anchor the struct Bag at a known path so external code can mutate the columns at runtime; left unset, the struct lives in the container's workspace, isolated per instance.</p>
+
+<h3>Kanban (cross-grid drag)</h3>
+
+<p>Each kanban column is its own <code>groupletGrid</code>. Give them all the <strong>same</strong> string <code>dragCode</code> and they share a DnD namespace: a card dragged out of one column drops into another. Drop on a card inserts before it; drop on the column's free space appends. The controller's <code>_doMoveTileFrom</code> handles the cross-instance migration, splicing the row in place so nested widgets keep their datapaths valid.</p>
+
+<pre><code><span class="kw">for</span> label, store <span class="kw">in</span> [(<span class="str">'To do'</span>, <span class="str">'.kanban_todo'</span>),
+                     (<span class="str">'In progress'</span>, <span class="str">'.kanban_wip'</span>),
+                     (<span class="str">'Done'</span>, <span class="str">'.kanban_done'</span>)]:
+    col = board.<span class="fn">div</span>(_class=<span class="str">'gg-kanban-col'</span>)
+    col.<span class="fn">div</span>(label, font_weight=<span class="str">'600'</span>)
+    col.<span class="fn">groupletGrid</span>(storepath=store,
+                     resource=<span class="str">'kanban_card'</span>,
+                     dragCode=<span class="str">'kanban'</span>,
+                     defaultRow=<span class="kw">dict</span>(title=<span class="str">''</span>, priority=<span class="str">'med'</span>))
+</code></pre>
+
+<h3>Nested groupletGrid</h3>
+
+<p>Put a <code>groupletGrid</code> inside the body of another grouplet template. The inner grid binds against the row's datapath, so its <code>storepath</code> is relative: <code>'.contacts'</code> resolves to <code>&lt;outer_storepath&gt;.&lt;rowKey&gt;.contacts</code>. Each parent tile gets its own independent inner controller, with its own add affordance, kebab, and DnD &mdash; even when the outer template is cloned across many rows. The framework's per-row nodeId namespacing keeps each inner controller addressable.</p>
+
+<pre><code><span class="cmt"># resources/grouplets/person_with_contacts.py</span>
+<span class="kw">class</span> <span class="cls">Grouplet</span>(BaseComponent):
+    <span class="kw">def</span> <span class="fn">grouplet_main</span>(<span class="self">self</span>, pane, **kwargs):
+        head = pane.<span class="fn">div</span>(display=<span class="str">'grid'</span>,
+                        grid_template_columns=<span class="str">'auto 1fr auto'</span>)
+        head.<span class="fn">textbox</span>(value=<span class="str">'^.name'</span>, lbl=<span class="str">'Full name'</span>)
+        head.<span class="fn">textbox</span>(value=<span class="str">'^.role'</span>, lbl=<span class="str">'Role'</span>)
+        head.<span class="fn">textbox</span>(value=<span class="str">'^.team'</span>, lbl=<span class="str">'Team'</span>)
+        <span class="cmt"># Each row gets its own independent inner grid of contacts.</span>
+        pane.<span class="fn">groupletGrid</span>(
+            storepath=<span class="str">'.contacts'</span>,
+            resource=<span class="str">'contact_row'</span>,
+            delitem=<span class="kw">False</span>, editmenu=<span class="kw">True</span>,
+            dragCode=<span class="str">'contacts'</span>,
+            defaultRow=<span class="kw">dict</span>(channel=<span class="str">'email'</span>, value=<span class="str">''</span>))
+</code></pre>
+
+<h3>resourceField &mdash; heterogeneous rows</h3>
+
+<p>When rows are not homogeneous &mdash; an issue tracker with offers, bugs, refunds, internal tasks, each needing its own form &mdash; declare a discriminator field with <code>resourceField=</code>. Each row picks its template from that field's value at render time. At boot, <code>gr_getGroupletGridTemplateMap</code> preloads <strong>all</strong> candidate templates under the table's <code>grouplets_root</code> folder in a single RPC; from there, rendering is local.</p>
+
+<p>To add rows of a specific type, pair the grid with a <code>menudiv</code> driven by <code>gr_groupletAddrowMenu</code>: it builds a Bag with one entry per discoverable template, each carrying <code>default_kw</code> with the discriminator pre-set. Clicking a menu entry publishes an action with that <code>default_kw</code> as <code>defaults</code>; the new row is born with the right type and the controller resolves its template immediately.</p>
+
+<pre><code>pane.<span class="fn">data</span>(<span class="str">'.addrow_menu_store'</span>,
+          <span class="self">self</span>.<span class="fn">gr_groupletAddrowMenu</span>(
+              table=<span class="str">'test.myticket'</span>,
+              field=<span class="str">'ticket_type'</span>,
+              grouplets_root=<span class="str">'grid_grouplets'</span>))
+toolbar.<span class="fn">menudiv</span>(
+    storepath=<span class="str">'.addrow_menu_store'</span>,
+    iconClass=<span class="str">'iconbox add_row'</span>,
+    action=<span class="str">"genro.publish(action_topic, "</span>
+           <span class="str">"{action: 'add', defaults: $1.default_kw});"</span>,
+    action_topic=action_topic)
+pane.<span class="fn">dataRpc</span>(<span class="str">'.tickets'</span>, <span class="self">self</span>.getMyTickets, _onBuilt=<span class="kw">True</span>)
+pane.<span class="fn">groupletGrid</span>(
+    storepath=<span class="str">'.tickets'</span>,
+    resourceField=<span class="str">'ticket_type'</span>,
+    table=<span class="str">'test.myticket'</span>,
+    grouplets_root=<span class="str">'grid_grouplets'</span>,
+    delitem=<span class="kw">True</span>, editmenu=<span class="kw">False</span>, additem=<span class="kw">False</span>)
+</code></pre>
+
+<h3>Action bus</h3>
+
+<p>Every controller subscribes to a single topic, <code>groupletGrid_&lt;nodeId&gt;_action</code>, and routes the payload to the right internal method. This is how toolbar buttons, custom menu entries, and even keyboard shortcuts interact with the grid: publish a small object, the controller does the rest.</p>
+
+<table>
+  <thead><tr><th>Payload</th><th>Effect</th></tr></thead>
+  <tbody>
+    <tr><td><code>{action: 'add'}</code></td><td>Append a new row using <code>defaultRow</code>.</td></tr>
+    <tr><td><code>{action: 'add', defaults: {...}}</code></td><td>Append, merging <code>defaults</code> over <code>defaultRow</code>.</td></tr>
+    <tr><td><code>{action: 'add', position: '&gt;r_042'}</code></td><td>Insert after the given pkey (<code>&lt;r_042</code> inserts before).</td></tr>
+    <tr><td><code>{action: 'delete'}</code></td><td>Delete the selected row (falls back to no-op when nothing is selected).</td></tr>
+    <tr><td><code>{action: 'delete', rowKey: 'r_042'}</code></td><td>Delete the named row, with a confirmation prompt.</td></tr>
+    <tr><td><code>{action: 'move', rowKey, position, sourceNodeId}</code></td><td>Move the row inside the grid, or migrate it from another grid (used by cross-grid DnD).</td></tr>
+    <tr><td><code>{action: 'activate', rowKey}</code></td><td>Tabs/vtabs only: activate the row's chip and panel.</td></tr>
+  </tbody>
+</table>
+
+<p>The controller also exposes a typed JS API &mdash; <code>addItem(defaults)</code>, <code>insertItemAfter(pkey, defaults)</code>, <code>insertItemBefore(pkey, defaults)</code>, <code>deleteItem(pkey)</code> &mdash; thin publishers on the same topic, useful from inside custom widgets that hold a reference to the controller.</p>
+
+<h3>Slots and frame mode</h3>
+
+<p>Four slot divs (<code>grid.top</code>, <code>grid.bottom</code>, <code>grid.left</code>, <code>grid.right</code>) are emitted around the body. Reach them via <code>childname</code> on the container if you need custom UI: a search box on top, a totals row on the bottom, a filter rail on the side.</p>
+
+<p>Setting <code>height</code> or <code>max_height</code> activates <em>frame mode</em>: the container becomes a flex column with a scrollable body, and the slot divs become sticky anchors. Use this for tall lists embedded in dialogs or split panes where you want the toolbar visible while the body scrolls.</p>
+
+<h3>Parameters (essential)</h3>
+
+<p>Most-used kwargs. Full reference lives in the source under <code>gr_groupletGrid</code>.</p>
+
+<table>
+  <thead><tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>storepath</code></td><td>str</td><td>required</td><td>Path of the Bag holding the items.</td></tr>
+    <tr><td><code>datapath</code></td><td>str</td><td><code>None</code></td><td>Anchor; <code>storepath</code> and <code>structpath</code> resolve relative to it.</td></tr>
+    <tr><td><code>resource</code></td><td>str</td><td><code>None</code></td><td>Template file under <code>resources/grouplets/&lt;name&gt;.py</code> (or under the table's <code>tables/&lt;name&gt;/grouplets/</code>).</td></tr>
+    <tr><td><code>handler</code></td><td>callable</td><td><code>None</code></td><td>Inline template callable on the page class.</td></tr>
+    <tr><td><code>resourceField</code></td><td>str</td><td><code>None</code></td><td>Multi-template mode: row field that picks the resource per row. Requires <code>table=</code>.</td></tr>
+    <tr><td><code>struct</code></td><td>callable / Bag</td><td><code>None</code></td><td><code>gnr.Grid</code>-style struct for spreadsheet mode. Mutually exclusive with resource/handler/resourceField.</td></tr>
+    <tr><td><code>structpath</code></td><td>str</td><td>workspace</td><td>Anchor for the struct Bag. Default isolates per instance.</td></tr>
+    <tr><td><code>table</code></td><td>str</td><td><code>None</code></td><td>Table whose <code>grouplets_root</code> folder holds the templates (needed by <code>resourceField</code>).</td></tr>
+    <tr><td><code>grouplets_root</code></td><td>str</td><td><code>'grouplets'</code></td><td>Subfolder name under the resources tree.</td></tr>
+    <tr><td><code>defaultRow</code></td><td>dict</td><td><code>None</code></td><td>Defaults merged into every new row.</td></tr>
+    <tr><td><code>cols</code></td><td>int</td><td><code>1</code></td><td>Columns in cards layout.</td></tr>
+    <tr><td><code>min_width</code></td><td>str</td><td><code>None</code></td><td>Card minimum width; enables responsive <code>auto-fill</code>.</td></tr>
+    <tr><td><code>gap</code></td><td>str</td><td><code>'12px'</code></td><td>Grid gap between cards.</td></tr>
+    <tr><td><code>layout</code></td><td>str</td><td><code>'cards'</code></td><td>One of <code>'cards'</code>, <code>'tabs'</code>, <code>'vtabs'</code>.</td></tr>
+    <tr><td><code>titleField</code></td><td>str</td><td><code>None</code></td><td>Row field that drives the chip title in tabs/vtabs.</td></tr>
+    <tr><td><code>emptyTitle</code></td><td>str</td><td><code>'!!Untitled'</code></td><td>Chip label when <code>titleField</code> is empty.</td></tr>
+    <tr><td><code>dragCode</code></td><td>str / False / None</td><td><code>None</code></td><td><code>None</code> = isolated DnD (nodeId), <code>False</code> = DnD off, string = shared namespace (kanban).</td></tr>
+    <tr><td><code>additem</code></td><td>bool / dict</td><td><code>True</code></td><td>Phantom <code>+</code> footer toggle and customisation (<code>additem_label</code>, <code>additem_tip</code>, ...).</td></tr>
+    <tr><td><code>delitem</code></td><td>bool / dict</td><td><code>True</code></td><td>Per-row <code>&times;</code> toggle and customisation.</td></tr>
+    <tr><td><code>editmenu</code></td><td>bool / dict</td><td><code>False</code></td><td>Per-row kebab menu. <code>True</code> = preset, dict = full menu spec.</td></tr>
+    <tr><td><code>height</code> / <code>max_height</code></td><td>str</td><td><code>None</code></td><td>Activate frame mode with sticky slots and scrollable body.</td></tr>
+    <tr><td><code>counterField</code></td><td>str</td><td><code>None</code></td><td>Auto-populated with the row ordinal; kept in sync on insert/delete/move.</td></tr>
+    <tr><td><code>minRows</code> / <code>maxRows</code></td><td>int</td><td><code>0</code> / <code>None</code></td><td>Operational limits; the <code>+</code> button greys out when <code>maxRows</code> is reached.</td></tr>
+    <tr><td><code>nodeId</code></td><td>str</td><td>auto</td><td>Container node id; needed to look up <code>gridController</code> from external code.</td></tr>
+  </tbody>
+</table>
+
+<h3>Gotchas</h3>
+
+<div class="callout warn">
+  <div class="callout-title">dragCode defaults to isolated</div>
+  <p>When you omit <code>dragCode</code>, the controller uses the container's <code>nodeId</code> as an isolated namespace: cards drag within the grid, never across grids. To get a kanban where cards jump between columns, give every sharing grid the <strong>same</strong> explicit string, e.g. <code>dragCode='kanban'</code>. Conversely, set <code>dragCode=False</code> to disable DnD entirely.</p>
+</div>
+
+<div class="callout warn">
+  <div class="callout-title">moveRow splices in place</div>
+  <p>To preserve nested widget datapaths during a move, <code>dataStore.moveRow</code> splices the Bag's <code>_nodes</code> directly instead of doing a delete-then-insert pair. The widget handles this transparently for you. Be aware of it only if you are writing custom DnD hooks: the standard <code>ins</code>/<code>del</code> triggers do <strong>not</strong> fire on a move, so do not listen on them to detect reorderings &mdash; subscribe to the controller's action bus instead.</p>
+</div>
+
+<div class="callout warn">
+  <div class="callout-title">resourceField needs its own folder</div>
+  <p><code>resourceField=</code> always requires <code>table=</code>, and you almost certainly want <code>grouplets_root='grid_grouplets'</code> (or another dedicated folder name) instead of the default <code>'grouplets'</code>. Mixing single-template grouplets (for plain panels) and multi-template grouplets (for the grid) in the same folder will load both as candidates, which is rarely what you want.</p>
+</div>
+
+<div class="callout warn">
+  <div class="callout-title">struct mode is exclusive</div>
+  <p><code>struct=</code> cannot be combined with <code>resource</code>, <code>handler</code>, or <code>resourceField</code>. The widget validates this at server build time and raises <code>groupletGrid: struct= is mutually exclusive with resource/handler/resourceField</code>. Pick spreadsheet mode <em>or</em> grouplet mode; the two have different row template machinery.</p>
+</div>
+
+<h3>Performance</h3>
+
+<p>The always-on sibling <code>BagStore</code> sometimes raises eyebrows in dense layouts. A synthetic 50-instance probe (<code>04_perf_50.py</code>) measures no observable bootstrap overhead from the store itself: the dominant cost is template fetching, and that happens once per grid regardless of row count. Worry about density only if you are mounting hundreds of grids on a single page; for normal master-detail and dashboard layouts there is nothing to tune.</p>
+
+<h3>Reference files</h3>
+
+<ul>
+  <li><code>resources/common/gnrcomponents/grouplet/grouplet.py</code> &mdash; <code>GroupletGridHandler</code>, <code>gr_groupletGrid</code>, <code>gr_getGroupletGridTemplate</code>, <code>gr_getGroupletGridTemplateMap</code>.</li>
+  <li><code>resources/common/gnrcomponents/grouplet/grouplet_grid.js</code> &mdash; controller, tile, struct adapter, DnD, data store (5 classes).</li>
+  <li><code>projects/gnrcore/packages/test/webpages/gnrwdg/test_grouplet_grid/01_gallery.py</code> &mdash; 7 tests covering every axis.</li>
+  <li><code>projects/gnrcore/packages/test/webpages/gnrwdg/test_grouplet_grid/02_grid_db.py</code> &mdash; DB-backed grids over <code>test.myticket</code>.</li>
+  <li><code>projects/gnrcore/packages/test/webpages/gnrwdg/test_grouplet_grid/03_budget_editor.py</code> &mdash; three-level nested editor.</li>
+  <li><code>projects/gnrcore/packages/test/webpages/gnrwdg/test_grouplet_grid/04_perf_50.py</code> &mdash; perf probe.</li>
+  <li><code>projects/gnrcore/packages/test/resources/grouplets/</code> &mdash; <code>invoice_row</code>, <code>kanban_card</code>, <code>contact_row</code>, <code>person_with_contacts</code>, <code>province_row</code>, <code>budget/</code>.</li>
+  <li>Introduced in PR #905, merged 2026-05-18 (merge commit <code>51452f3376</code>).</li>
+</ul>
