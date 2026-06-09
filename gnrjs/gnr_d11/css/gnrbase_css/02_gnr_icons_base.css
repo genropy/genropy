@@ -327,12 +327,15 @@
 .smallmenu .dijitMenuItem {
     font-size: 0.9em;
 }
-/* Scrollable menu: cap the height and show a vertical scrollbar */
-.scrollmenu.dijitMenu {
-    display: block;
+/* Scrollable menu: keep the menu's native table layout (so columns size to
+   the longest label) and let the popup WRAPPER handle the vertical scroll.
+   Scrolling the table itself would require display:block/inline-block, which
+   breaks the table column sizing and clips long labels (Dojo also forces an
+   inline width on the table when the menu is bound to a toolbar icon). */
+.gnr_dojotheme .dijitPopup:has(.scrollmenu.dijitMenu) {
     max-height: 70vh;
-    overflow-y: auto;
     overflow-x: hidden;
+    overflow-y: auto;
 }
 .noIconMenu .dijitMenuItem td:first-child {
     display: none;
