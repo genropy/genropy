@@ -5,7 +5,7 @@ import csv
 
 import pytest
 from gnr.core import gnrlist as gl
-
+from gnr.core import flatfiles as ff
 
 def test_findByAttr():
     class MockObj(object):
@@ -165,22 +165,22 @@ def test_getReader():
         filename = os.path.join(tmpdir, 'test.csv')
         with open(filename, "w") as wfp:
             wfp.write("one,two,three\nfour,five,six")
-        a = gl.getReader(filename)
-        assert isinstance(a, gl.CsvReader)
+        a = ff.getReader(filename)
+        assert isinstance(a, ff.CsvReader)
         a.filecsv.close()
 
         filename = os.path.join(tmpdir, 'test.tab')
         with open(filename, "w") as wfp:
             wfp.write("one\ttwo\tthree\nfour\tfive\tsix")
-        a = gl.getReader(filename)
-        assert isinstance(a, gl.CsvReader)
+        a = ff.getReader(filename)
+        assert isinstance(a, ff.CsvReader)
         a.filecsv.close()
         
         filename = os.path.join(tmpdir, 'test.csv')
         with open(filename, "w") as wfp:
             wfp.write("one\ttwo\tthree\nfour\tfive\tsix")
-        a = gl.getReader(filename, filetype="csv_auto")
-        assert isinstance(a, gl.CsvReader)
+        a = ff.getReader(filename, filetype="csv_auto")
+        assert isinstance(a, ff.CsvReader)
         a.filecsv.close()
 
         # Will fail with an emtpy file
@@ -188,36 +188,36 @@ def test_getReader():
         with open(filename, "w") as wfp:
             pass
         with pytest.raises(Exception):
-            a = gl.getReader(filename, filetype="excel")
+            a = ff.getReader(filename, filetype="excel")
             a.filecsv.close()
         filename = os.path.join(tmpdir, 'test.xlsx')
         with open(filename, "w") as wfp:
             pass
         with pytest.raises(Exception):
-            a = gl.getReader(filename, filetype="excel")
+            a = ff.getReader(filename, filetype="excel")
             a.filecsv.close()
             
     test_dir = os.path.dirname(__file__)
     
     filename = os.path.join(test_dir, "data", "test.xls")
-    a = gl.getReader(filename)
-    assert isinstance(a, gl.XlsReader)
+    a = ff.getReader(filename)
+    assert isinstance(a, ff.XlsReader)
 
     filename = os.path.join(test_dir, "data","test.xlsx")
-    a = gl.getReader(filename)
-    assert isinstance(a, gl.XlsxReader)
+    a = ff.getReader(filename)
+    assert isinstance(a, ff.XlsxReader)
 
     # FIXME: this fails all the time.
     with pytest.raises(Exception):
         filename = os.path.join(test_dir, "data", "testbag.xml")
-        a = gl.getReader(filename)
+        a = ff.getReader(filename)
 
        
 
 def test_XlsReader():
     test_dir = os.path.dirname(__file__)
     test_file = os.path.join(test_dir, "data", 'test.xls')
-    r = gl.XlsReader(test_file)
+    r = ff.XlsReader(test_file)
     assert r.sheet.name == "Sheet1"
     assert 'a' in r.headers
     assert 0 in r.colindex
@@ -233,7 +233,7 @@ def test_XlsReader():
 def test_XlsxReader():
     test_dir = os.path.dirname(__file__)
     test_file = os.path.join(test_dir, "data", 'test.xlsx')
-    r = gl.XlsxReader(test_file)
+    r = ff.XlsxReader(test_file)
     assert r.sheet.title == "Sheet1"
     assert 'a' in r.headers
     assert 0 in r.colindex
@@ -252,14 +252,14 @@ def test_XlsxReader():
 def test_readXLS():
     test_dir = os.path.dirname(__file__)
     test_file = os.path.join(test_dir, "data", 'test.xls')
-    r = gl.readXLS(test_file)
+    r = ff.readXLS(test_file)
     d = [x for x in r]
     assert len(d) == 1
     assert isinstance(d[0], gl.GnrNamedList)
     assert 'a' in d[0].keys()
 
     with open(test_file, "rb") as fp:
-        r = gl.readXLS(fp)
+        r = ff.readXLS(fp)
         d = [x for x in r]
         assert len(d) == 1
         assert isinstance(d[0], gl.GnrNamedList)
@@ -273,14 +273,14 @@ def test_readCSV():
     # be the implementation..
     test_dir = os.path.dirname(__file__)
     test_file = os.path.join(test_dir, "data", 'test.csv')
-    r = gl.readCSV(test_file)
+    r = ff.readCSV(test_file)
     d = [x for x in r]
     assert len(d) == 2
     assert isinstance(d[0], gl.GnrNamedList)
     assert 'a' in d[0].keys()[0]
 
     with open(test_file, "r") as fp:
-        r = gl.readCSV(fp)
+        r = ff.readCSV(fp)
         d = [x for x in r]
         assert len(d) == 2
         assert isinstance(d[0], gl.GnrNamedList)
@@ -289,14 +289,14 @@ def test_readCSV():
 def test_readCSV_new():
     test_dir = os.path.dirname(__file__)
     test_file = os.path.join(test_dir, "data", 'test.csv')
-    r = gl.readCSV_new(test_file)
+    r = ff.readCSV_new(test_file)
     d = [x for x in r]
     assert len(d) == 1
     assert isinstance(d[0], gl.GnrNamedList)
     assert 'a' in d[0].keys()
 
     with open(test_file, "r") as fp:
-        r = gl.readCSV_new(fp)
+        r = ff.readCSV_new(fp)
         d = [x for x in r]
         assert len(d) == 1
         assert isinstance(d[0], gl.GnrNamedList)
@@ -332,7 +332,7 @@ def test_CsvReader_duplicate_columns():
         writer.writerow(['2', 'Laura', 'Bianchi', 'Anna', 'laura@test.com'])
 
     try:
-        reader = gl.CsvReader(csv_file)
+        reader = ff.CsvReader(csv_file)
 
         # Check that duplicate column has been renamed
         assert 'name' in reader.headers
@@ -385,7 +385,7 @@ def test_XlsxReader_duplicate_columns():
         ws.append(['2', 'Laura', 'Bianchi', 'Anna', 'laura@test.com'])
         wb.save(xlsx_file)
 
-        reader = gl.XlsxReader(xlsx_file)
+        reader = ff.XlsxReader(xlsx_file)
 
         # Check that duplicate column has been renamed
         assert 'name' in reader.headers
@@ -450,7 +450,7 @@ def test_XlsReader_duplicate_columns():
 
         wb.save(xls_file)
 
-        reader = gl.XlsReader(xls_file)
+        reader = ff.XlsReader(xls_file)
 
         # Check that duplicate column has been renamed
         assert 'name' in reader.headers
@@ -524,7 +524,7 @@ def test_readTab():
         f.write("Bob\t25\tLA\n")
 
     try:
-        rows = list(gl.readTab(tab_file))
+        rows = list(ff.readTab(tab_file))
         assert len(rows) == 2
         assert isinstance(rows[0], gl.GnrNamedList)
         assert rows[0]['name'] == 'Alice'
@@ -592,7 +592,7 @@ def test_multiple_duplicate_columns():
         writer.writerow(['1', 'First', 'Middle', 'Last', 'test@test.com'])
 
     try:
-        reader = gl.CsvReader(csv_file)
+        reader = ff.CsvReader(csv_file)
 
         # Check all duplicate columns are renamed
         assert reader.headers == ['id', 'name', 'name[2]', 'name[3]', 'email']
@@ -666,7 +666,7 @@ def test_slugify_consistency_across_readers():
         writer.writerow(['123', 'Alice', 'alice@test.com', '2025-10-28'])
 
     try:
-        csv_reader = gl.getReader(csv_file)
+        csv_reader = ff.getReader(csv_file)
         csv_keys = list(csv_reader.index.keys())
         assert csv_keys == expected_keys, f"CSV keys: {csv_keys}"
 
@@ -694,7 +694,7 @@ def test_slugify_consistency_across_readers():
         ws.append(['123', 'Alice', 'alice@test.com', '2025-10-28'])
         wb.save(xlsx_file)
 
-        xlsx_reader = gl.XlsxReader(xlsx_file)
+        xlsx_reader = ff.XlsxReader(xlsx_file)
         xlsx_keys = list(xlsx_reader.index.keys())
         assert xlsx_keys == expected_keys, f"XLSX keys: {xlsx_keys}"
 
@@ -724,7 +724,7 @@ def test_slugify_consistency_across_readers():
             ws.write(1, col, value)
         wb.save(xls_file)
 
-        xls_reader = gl.XlsReader(xls_file)
+        xls_reader = ff.XlsReader(xls_file)
         xls_keys = list(xls_reader.index.keys())
         assert xls_keys == expected_keys, f"XLS keys: {xls_keys}"
 
@@ -834,13 +834,13 @@ class TestCsvReader:
     def test_basics(self):
         test_dir = os.path.dirname(__file__)
         test_file = os.path.join(test_dir, "data", "test.csv")
-        a = gl.CsvReader(test_file)
+        a = ff.CsvReader(test_file)
         # FIXME: odd interface using __call__
         r = [x for x in a()]
         assert len(r) == 1
         assert isinstance(r[0], gl.GnrNamedList)
         assert 'a' in r[0].keys()
-        a = gl.CsvReader(test_file, detect_encoding=True)
+        a = ff.CsvReader(test_file, detect_encoding=True)
 
 
     def test_duplicate_columns(self):
@@ -857,7 +857,7 @@ class TestCsvReader:
             writer.writerow(['2', 'Laura', 'Bianchi', 'Anna', 'laura@test.com'])
 
         try:
-            reader = gl.CsvReader(csv_file)
+            reader = ff.CsvReader(csv_file)
 
             # Check that duplicate column has been renamed
             assert 'name' in reader.headers
@@ -906,8 +906,8 @@ class TestCsvReader:
             test_file = os.path.join(test_dir, 'data', filename)
 
             # Detect dialect first, then create CsvReader
-            dialect = gl.getCsvDialect(test_file, encoding='utf-8')
-            reader = gl.CsvReader(test_file, dialect=dialect, encoding='utf-8')
+            dialect = ff.getCsvDialect(test_file, encoding='utf-8')
+            reader = ff.CsvReader(test_file, dialect=dialect, encoding='utf-8')
 
             assert reader.ncols == 11
             assert reader.headers[0] == 'Data contabile'
@@ -947,7 +947,7 @@ class TestCsvReader:
         for filename, expected_header, expected_last_descrizione in test_cases:
             test_file = os.path.join(test_dir, 'data', filename)
 
-            reader = gl.CsvReader(test_file, detect_encoding=True)
+            reader = ff.CsvReader(test_file, detect_encoding=True)
 
             assert reader.headers == expected_header
 
@@ -966,17 +966,17 @@ class TestCsvReader:
 
         # Reference file (no skip)
         reference_file = os.path.join(test_dir, 'data', 'test_CsvAuto_Colon.csv')
-        dialect = gl.getCsvDialect(reference_file, encoding='utf-8')
-        reference_reader = gl.CsvReader(reference_file,
+        dialect = ff.getCsvDialect(reference_file, encoding='utf-8')
+        reference_reader = ff.CsvReader(reference_file,
                                         dialect=dialect, encoding='utf-8')
         reference_rows = list(reference_reader())
 
         # File with metadata to skip
         START_LINE = 12
         skip_file = os.path.join(test_dir, 'data', 'test_CsvAuto_Colon_skipLines.csv')
-        dialect = gl.getCsvDialect(skip_file, encoding='utf-8',
+        dialect = ff.getCsvDialect(skip_file, encoding='utf-8',
                                    start_at_line=START_LINE)
-        skip_reader = gl.CsvReader(skip_file,
+        skip_reader = ff.CsvReader(skip_file,
                                    dialect=dialect, encoding='utf-8',
                                    start_at_line=START_LINE)
         skip_rows = list(skip_reader())
@@ -1013,8 +1013,8 @@ class TestCsvReader:
             test_file = os.path.join(test_dir, 'data', filename)
 
             # Detect dialect first, then create CsvReader
-            dialect = gl.getCsvDialect(test_file, encoding='utf-8')
-            reader = gl.CsvReader(test_file, dialect=dialect, encoding='utf-8')
+            dialect = ff.getCsvDialect(test_file, encoding='utf-8')
+            reader = ff.CsvReader(test_file, dialect=dialect, encoding='utf-8')
 
             assert reader.ncols == 11
             assert reader.headers[0] == 'Data contabile'
