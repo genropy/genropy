@@ -281,7 +281,7 @@ class ThPackageResourceMaker(object):
                 % self.option_columns,
                 indent=2,
             )
-            for column, size, dtype in columns:
+            for column, dtype in columns:
                 tag = ""
                 if dtype == "X":
                     if isinstance(self.bag_columns["form"], str):
