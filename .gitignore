@@ -28,6 +28,7 @@ docker/*
 .python-version
 .spyproject/
 .coverage
+.coverage.*
 coverage.xml
 
 .aider*
