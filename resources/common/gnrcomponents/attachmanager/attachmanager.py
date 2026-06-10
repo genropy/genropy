@@ -290,7 +290,7 @@ class AttachManager(BaseComponent):
                                      **kwargs)
         if uploaderButton:
             th.view.bottom.dropUploader(
-                            label='<div class="atc_galleryDropArea"><div>Drop document here</div><div>or double click</div></div>',
+                            label='<div class="atc_galleryDropArea"><div>[!!Drop document here]</div><div>[!!or double click to upload]</div></div>',
                             height='40px',
                             ask=ask,
                             onUploadingMethod=self.onUploadingAttachment,
@@ -355,8 +355,10 @@ class AttachManager(BaseComponent):
         if screenshot:
             th.view.top.bar.replaceSlots('delrow','delrow,screenshot,5')
         if uploaderButton:
+            custom_label = uploader_kwargs.pop('label', None)
+            label_content = '<div>%s</div>' % custom_label if custom_label else '<div>[!!Drop document here]</div><div>[!!or double click to upload]</div>'
             th.view.bottom.dropUploader(
-                            label='<div class="atc_galleryDropArea"><div>Drop document here</div><div>or double click</div></div>',
+                            label='<div class="atc_galleryDropArea">%s</div>' % label_content,
                             height='40px',
                             ask=ask,
                             onUploadingMethod=self.onUploadingAttachment,
@@ -462,7 +464,7 @@ class AttachManager(BaseComponent):
 
         if uploaderButton:
             th.view.bottom.dropUploader(
-                            label='<div class="atc_galleryDropArea"><div>Drop document here</div><div>or double click</div></div>',
+                            label='<div class="atc_galleryDropArea"><div>[!!Drop document here]</div><div>[!!or double click to upload]</div></div>',
                             height='40px',
                             onUploadingMethod=self.onUploadingAttachment,
                             onUploadedMethod=self.onUploadedAttachment,
