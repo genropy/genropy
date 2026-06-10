@@ -1,5 +1,5 @@
-Unreleased
-==========
+Release 26.05.05
+================
 
 New features
 ------------
@@ -35,9 +35,192 @@ New features
   - ``cleanup.guest_connection_max_age`` — unchanged
   - ``cleanup.interval`` (legacy 120s gate) — removed
 
+* ApiEngine — programmatic DB facade - A new application-level class,
+  ``gnr.app.api_engine.ApiEngine``, provides a unified, JSON-safe
+  interface for introspecting and querying a GenroPy database without
+  going through the web layer:
+
+  * ``package_names()`` / ``table_names()`` — enumerate packages and
+    tables.
+  * ``table_schema()`` — relation-tree introspection with configurable
+    depth.
+  * ``table_columns()`` — flat per-column typing (dtype, python_type, openapi_type).
+  * ``openapi_schema()`` — synthesise an OpenAPI 3.0 schema for any table or package.
+  * ``run_query()`` — JSON-safe selection with paging, partitioning,
+    counting and a cap-based truncation flag (probe-limit pattern
+    avoids false positives).
+
+  All row values are coerced to JSON-safe types (``Decimal`` → string,
+  dates → ISO 8601, ``Bag`` → ``toJson()``, etc.) before being
+  returned.
+
+* Bearer authentication — A new ``adm.api_token`` table enables
+  stateless Bearer token authentication for REST clients.  Tokens are
+  generated via ``secrets.token_urlsafe(48)`` (384 bits of entropy)
+  and stored as a SHA-256 hex digest; the plain-text value is shown
+  exactly once on creation and never persisted.
+
+  The admin form has been reworked with a lifecycle bar and status
+  badge:
+
+  * Status ``formulaColumn`` displayed as a coloured-dot cell in the view.
+  * Editable formlet on top; passive info strip with a token hint below.
+  * Actions — *Activate*, *Revoke*, *Reactivate* — exposed as toolbar
+    buttons with server-side guards; an ``activated_ts`` column is set
+    on first activation.
+
+* Multidb dashboard - A new superadmin dashboard at
+  ``/multidb/multidomain_dashboard`` enables pushing content from the
+  root store to any configured secondary dbstore:
+
+  * **Tables** tab — pick any propagable table (``multidb='*'``,
+    startup-data or whitelist); drag rows with copyRows or bulk-push
+    with *Propagate to all stores*.
+  * **User Objects** tab — same UX, fixed on ``adm.userobject``, with
+    extra filters by table, type and user.
+
+  Row colouring marks ``toprop`` (primary only), ``localonly``
+  (secondary only) and ``diff`` (present on both sides, mismatched).
+  ``propagateToAllStores`` uses ``raw_insert`` / ``raw_update`` so
+  derived unique columns (e.g.  ``adm.userobject.identifier``) are
+  written byte-for-byte without recomputation.
+
+* ``groupletGrid`` improvements
+  * **fillParent** — new opt-in ``fillParent=True`` kwarg.  The grid
+    claims 100 % of its dijit ancestor's height via plain CSS and
+    scrolls internally.  Works with ``tabs``, ``vtabs`` and ``cards``
+    layouts.
+  * **Themeable tab palette** — the tab/vtab colour scheme is now
+    exposed as ``--gg-tab-*`` CSS custom properties on
+    ``.grouplet_grid--tabs``, so consumers can recolour chips and the
+    active panel by overriding three or four variables on a scoped
+    ancestor — no ``!important``, no selector duplication.  Defaults
+    reproduce the historical chrome exactly.
+  * **Loading dimmer** — ``_setLoading()`` toggles the canonical
+    ``.dimmed`` class on the body while a row template resolves via RPC.
+
+* ``ComboBox`` — validation pipeline and ``addMissingValue``
+  * The Genro validation pipeline (``validate_case``,
+    ``validate_regex``, ``validate_call``, …) is now wired into
+    ``gnr.widgets.ComboBox``, which previously silently ignored all
+    validators.
+  * New opt-in ``addMissingValue`` flag: when a ComboBox is backed by
+    a local ``storepath``, any value typed by the user (or arriving
+    via a datapath binding) is consolidated into the underlying
+    ``GnrBag`` store.  Auto-added nodes are tagged
+    ``__autoadded=True`` to allow selective purge.  Particularly
+    useful when several comboboxes share the same store.
+
+Enhancements
+------------
+
+* Print resources now emit a baseline ``body { font-family: sans-serif; }``
+  rule from ``BagToHtml.defineStandardStyles`` (covering
+  ``TableScriptToHtml``, ``TableTemplateToHtml`` and any other
+  ``BagToHtml`` subclass) and from the ``RecordToHtmlPage`` /
+  ``RecordToHtml`` hierarchy, so HTML/PDF prints default to a neutral
+  sans-serif when no ``font_family`` is set and no body
+  ``font-family`` is declared by the project. Setting ``font_family``
+  on the print class still overrides the baseline as before;
+  project-level styles that declare their own body ``font-family`` are
+  unaffected. **Backward compatibility:** prints that previously relied
+  on the implicit serif fallback (Times) will now render in sans-serif
+  by default. Projects that want the old serif rendering can declare
+  it explicitly in their own styles. (#881)
+
+ 
+
+Experimental features
+---------------------
+
+PLEASE NOTE: these feature are experimental, YMMV. Use at your own risk.
+
+* Column-level encryption - Transparent encryption is now available
+  for any ``dtype='T'`` column by adding an ``encrypted`` kwarg to the
+  column definition:
+
+  * ``encrypted='R'`` (*Reversible*) — Fernet AES-128-CBC; suitable for reusable
+    secrets that must be read back in plain text.
+  * ``encrypted='Q'`` (*Queryable*) — AES-SIV deterministic
+    encryption; suitable for searchable personal-data fields.
+    ``whereTranslator`` auto-encrypts the search term so existing
+    queries work unchanged.
+  * ``encrypted='X'`` (*one-shot hash*) — SHA-256; suitable for issued
+    tokens and other values that never need to be decrypted.
+
+  
+Security
+--------
+
+* **SQL injection blacklist in ApiEngine** (``feat/app``): ``run_query`` now
+  rejects SQL fragments (``columns``, ``where``, ``having``, ``order_by``,
+  ``group_by``) that match injection-style patterns — statement injection,
+  DDL/DML keywords, privilege keywords, system catalogs, reconnaissance
+  functions, encoding bypass tricks, sleep/DoS primitives and tautologies.
+  Patterns are word-boundary anchored so legitimate identifiers such as
+  ``updated_at`` or ``selection_id`` pass through.  ``sqlparams`` (bind
+  parameters) are not subject to the blacklist.
+* **API token hashing**: ``adm.api_token`` now stores only the SHA-256 hex
+  digest of the issued token.  The plain-text value is returned to the caller
+  exactly once and never written to the database.
+
+
+Infrastructure
+--------------
+
+* **gnr_d20 JS directory removed**: the ``gnrjs/gnr_d20/`` tree — a full
+  duplicate of ``gnrjs/gnr_d11/`` kept for a paused future port — has been
+  deleted.  It had no runtime consumers but was inflating repository size and
+  full-text search results.  The configuration machinery in ``gnrdeploy.py`` and
+  the ``<gnr_20>`` nodes in the example ``environment.xml`` files are intentionally
+  preserved so the option to ship a second JS bundle remains open.
+* **ep_sourcerer rewritten on ApiEngine**: the Sourcerer MCP endpoint now
+  delegates introspection and query execution to ``ApiEngine``, removing ~62
+  lines of inline helpers that duplicated framework-level logic.
+* **``statement_timeout_ms`` removed from ApiEngine**: the parameter was dropped
+  because ``gnrsql`` has no native primitive for per-query timeouts and a
+  ``SET SESSION`` workaround does not survive across the transactional boundary.
+  Per-query timeout support is tracked in issue #919.
+
+
 Bugfixes
 --------
 
+* 'gnr dev mkthresource' refression fix
+* **groupletGrid — orphan form registrations** (``fix/grouplet``): tile widgets
+  built from a detached template clone cached a falsy ``this.form`` and were never
+  de-registered on teardown, breaking ``setLastSavedValues`` on autosave.
+  ``_reproxyForm`` (on mount) and ``_unproxyForm`` (on teardown) now keep the
+  form register clean.
+* **groupletGrid — stale tiles on record load** (``fix/grouplet``): switching to a
+  record with a different grouplet structure could reuse tiles from the previous
+  record.  A full ``_clearBody()`` teardown is now performed on every record load
+  and whole-Bag swap.
+* **dbstores — instanceconfig store resolution** (``fix/dbstores``): stores
+  declared in ``<dbstores>`` inside ``instanceconfig`` are loaded into
+  ``auxstores``, but ``SqlTable.dbImplementation`` only looked at
+  ``db.dbstores``, raising ``KeyError`` on any query against such a package.
+  Additionally, ``add_auxstore`` was silently dropping the ``implementation``
+  and ``dbbranch`` attributes, causing the resolved connection to fall back to
+  the root database.  Both issues are fixed.
+* **multidb — identifier collision on cross-store sync**: ``copyRows`` and
+  ``propagateToAllStores`` now look up the target row by the ``identifier``
+  business key (when present) before falling back to pkey, avoiding
+  ``UniqueViolation`` when the same logical record carries different pkeys across
+  stores.
+* **rpc_query — structured kwargs decoding**: JSON-string kwargs
+  (``sqlparams``, ``partition_kwargs``) arriving over HTTP are now decoded before
+  being forwarded to ``ApiEngine``.
+* **rpc_query — countOnly envelope**: the ``totalrows`` value is now lifted into
+  ``rowcount`` so callers read a plain integer regardless of query mode.
+* **ApiEngine — truncation flag false positive**: switched to the probe-limit-plus-one
+  pattern; ``truncated`` is only set when the result genuinely exceeds the cap.
+* **ApiEngine — unknown / invalid dtype columns**: columns with an unrecognised
+  dtype are now silently skipped rather than aborting introspection of the entire
+  table.
+* **ApiEngine — orphan FK on unloaded package**: ``AttributeError`` from
+  ``relatedColumn()`` is caught and the FK entry silently omitted; the column
+  itself is still described.
 * PDF watermark service: fix ``code=4: source object number out of
   range`` when ``watermarkedPDF`` is applied to PDFs saved with
   multiple incremental xref generations (e.g. macOS Preview
