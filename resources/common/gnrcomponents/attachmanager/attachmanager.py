@@ -290,7 +290,7 @@ class AttachManager(BaseComponent):
                                      **kwargs)
         if uploaderButton:
             th.view.bottom.dropUploader(
-                            label='<div class="atc_galleryDropArea"><div>Drop document here</div><div>or double click</div></div>',
+                            label='<div class="atc_galleryDropArea"><div>[!!Drop document here]</div><div>[!!or double click to upload]</div></div>',
                             height='40px',
                             ask=ask,
                             onUploadingMethod=self.onUploadingAttachment,
@@ -356,7 +356,7 @@ class AttachManager(BaseComponent):
             th.view.top.bar.replaceSlots('delrow','delrow,screenshot,5')
         if uploaderButton:
             th.view.bottom.dropUploader(
-                            label='<div class="atc_galleryDropArea"><div>Drop document here</div><div>or double click</div></div>',
+                            label='<div class="atc_galleryDropArea"><div>[!!Drop document here]</div><div>[!!or double click to upload]</div></div>',
                             height='40px',
                             ask=ask,
                             onUploadingMethod=self.onUploadingAttachment,
@@ -461,7 +461,7 @@ class AttachManager(BaseComponent):
 
         if uploaderButton:
             th.view.bottom.dropUploader(
-                            label='<div class="atc_galleryDropArea"><div>Drop document here</div><div>or double click</div></div>',
+                            label='<div class="atc_galleryDropArea"><div>[!!Drop document here]</div><div>[!!or double click to upload]</div></div>',
                             height='40px',
                             onUploadingMethod=self.onUploadingAttachment,
                             onUploadedMethod=self.onUploadedAttachment,

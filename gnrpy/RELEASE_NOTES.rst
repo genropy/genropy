@@ -30,6 +30,13 @@ New features
 Bugfixes
 --------
 
+* attachmentGrid drop uploader: the gallery drop area label ("Drop
+  document here" / "or double click") was hardcoded English HTML
+  with no translation marker, so it never reached the localizer. The
+  text fragments are now wrapped with the embedded ``[!!...]`` marker
+  so they are localized like the other uploader messages, and the
+  Italian translations are added. No backward-compatibility impact.
+
 * PDF watermark service: fix ``code=4: source object number out of
   range`` when ``watermarkedPDF`` is applied to PDFs saved with
   multiple incremental xref generations (e.g. macOS Preview

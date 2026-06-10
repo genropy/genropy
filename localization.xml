@@ -420,6 +420,8 @@
 <en_uploader base="Uploader" de="Uploader" en="Uploader" fr="Uploader" it="Uploader"></en_uploader>
 <en_drag_here_or_double_click_to_upload base="Drag here or double click to upload" it="Trascina qui o fai doppio click" en=""></en_drag_here_or_double_click_to_upload>
 <en_double_click_to_upload base="Double click to upload" it="Doppio click per caricare" en=""></en_double_click_to_upload>
+<en_drop_document_here base="Drop document here" it="Trascina qui il documento" en=""></en_drop_document_here>
+<en_or_double_click_to_upload base="or double click to upload" it="o fai doppio click per caricare" en=""></en_or_double_click_to_upload>
 <en_attachment base="Attachment" de="Befestigung" en="Attachment" fr="Attachement" it="Allegato"></en_attachment>
 <en_attachments base="Attachments" de="Zubehör" en="Attachments" fr="Pièces jointes" it="Allegati"></en_attachments>
 <en_delete_attachment base="Delete attachment" de="Anhang löschen" en="Delete attachment" fr="Supprimer la pièce jointe" it="Elimina allegato"></en_delete_attachment>
