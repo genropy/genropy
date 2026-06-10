@@ -3,7 +3,12 @@
 ############################################################
 
 FROM python:3.11-slim
+LABEL org.opencontainers.image.title "Genropy"
 LABEL org.opencontainers.image.description "Genropy web framework"
+LABEL org.opencontainers.image.source "https://github.com/genropy/genropy"
+LABEL org.opencontainers.image.documentation "https://docs.genropy.org"
+LABEL org.opencontainers.image.url "https://www.genropy.org"
+LABEL org.opencontainers.image.vendor "Softwell Srl"
 
 RUN apt-get update && apt-get -y full-upgrade &&  apt install -y supervisor git procps iproute2 python3-psycopg weasyprint fonts-liberation fonts-liberation-sans-narrow && apt-get autoremove -y && apt clean
 RUN pip install --upgrade pip

@@ -73,12 +73,25 @@ class MultiStageDockerImageBuilder:
         repositories from multiple Docker images.
         """
         git_repositories = self.builder.git_repositories()
-        now = datetime.datetime.now(datetime.UTC)
-        image_labels = {"gnr_app_dockerize_on": str(now)}
         entry_dir = os.getcwd()
 
         main_repo_url = self.builder.git_url_from_path(self.instance_folder)
         self.main_repo_name = self.builder.git_repo_name_from_url(main_repo_url)
+
+        now = datetime.datetime.now(datetime.UTC)
+        image_labels = {
+            "gnr_app_dockerize_on": str(now),
+            "org.opencontainers.image.created": str(now),
+            "org.label-schema.build-date": str(now),
+
+            "org.opencontainers.image.title": self.instance_name,
+            "org.label-schema.name": self.instance_name,
+
+            "org.opencontainers.image.description": f"Genropy application - instance {self.instance_name}",
+            "org.opencontainers.image.source": main_repo_url,
+            "org.label-schema.vcs-url": main_repo_url
+        }
+
         
         os.chdir(self.build_context_dir)
         self.dockerfile_path = os.path.join(self.build_context_dir, "Dockerfile")
