@@ -433,7 +433,7 @@ class TableHandlerForm(BaseComponent):
     def th_slotbar_form_print(self,pane,**kwargs):
         inattr = pane.getInheritedAttributes()
         table = inattr['table']
-        pane.div(_class='iconbox print').menu(modifiers='*',storepath='.resources.print.menu',_class='smallmenu',
+        pane.div(_class='iconbox print').menu(modifiers='*',storepath='.resources.print.menu',_class='smallmenu scrollmenu',
                     action="""
                             var kw = objectExtract(this.getInheritedAttributes(),"batch_*",true);
                             kw.resource = $1.resource;

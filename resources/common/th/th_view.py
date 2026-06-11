@@ -1046,6 +1046,7 @@ class TableHandlerView(BaseComponent):
     @struct_method
     def th_slotbar_resourcePrints(self,pane,flags=None,from_resource=None,hidden=None,**kwargs):
         pane.menudiv(iconClass='iconbox menubox print',hidden=hidden,storepath='.resources.print.menu',
+                    _class='smallmenu scrollmenu',
                     _tablePermissions=dict(table=pane.frame.grid.attributes.get('table'),
                                                         permissions='print'),
                     action="""FIRE .th_batch_run = {resource:$1.resource,template_id:$1.template_id,userobject:$1.userobject,res_type:'print'};""")
