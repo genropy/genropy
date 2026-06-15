@@ -1,5 +1,8 @@
+import io
+
 import pytest
 from gnr.sql.adapters import _gnrbaseadapter as ba
+from gnr.sql.adapters import _gnrbasepostgresadapter as pgmod
 
 class FakeCursor(object):
     def fetchall(self):
@@ -429,3 +432,51 @@ class TestSqliteAdapterMaskField:
         # Should fall back to 2-4
         assert "2" in result
         assert "4" in result
+
+
+class FakePopen(object):
+    """Stand-in for subprocess.Popen exposing a binary stdout pipe."""
+    def __init__(self, out=b''):
+        self.stdout = io.BytesIO(out)
+
+    def wait(self):
+        return 0
+
+
+class TestPostgresAdapterListRemoteDatabases:
+    """Test listRemoteDatabases bytes parsing for PostgreSQL adapter."""
+
+    @classmethod
+    def setup_class(cls):
+        cls.adapter = pgmod.PostgresSqlDbBaseAdapter(FakeDbRoot(False))
+
+    def _patch_popen(self, monkeypatch, output):
+        captured = {}
+
+        def fake_popen(cmd, stdout=None):
+            captured['cmd'] = cmd
+            return FakePopen(output)
+
+        monkeypatch.setattr(pgmod.subprocess, 'Popen', fake_popen)
+        return captured
+
+    def test_parses_bytes_output(self, monkeypatch):
+        """psql -l -t output arrives as bytes from the pipe (incl. non-ascii)."""
+        fixture = (
+            b" mydb      | postgres | UTF8 | libc | C | C |  |  | \n"
+            b" caff\xc3\xa8_db  | postgres | UTF8 | libc | C | C |  |  | \n"
+            b" template0 | postgres | UTF8 | libc | C | C |  |  | =c/postgres\n"
+            b"\n"
+        )
+        captured = self._patch_popen(monkeypatch, fixture)
+        result = self.adapter.listRemoteDatabases(source_ssh_host='example.com',
+                                                  source_ssh_user='user')
+        assert result == ['mydb', 'caff\xe8_db', 'template0']
+        assert captured['cmd'][0] == 'ssh'
+        assert captured['cmd'][1] == 'user@example.com'
+
+    def test_empty_output(self, monkeypatch):
+        self._patch_popen(monkeypatch, b'')
+        result = self.adapter.listRemoteDatabases(source_ssh_host='example.com',
+                                                  source_ssh_user='user')
+        assert result == []

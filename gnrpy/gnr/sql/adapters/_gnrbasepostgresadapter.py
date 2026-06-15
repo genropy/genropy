@@ -477,7 +477,7 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
         result = []
         if not res:
             return []
-        for dbr in res.split('\n'):
+        for dbr in res.decode('utf-8', errors='replace').split('\n'):
             dbname = dbr.split('|')[0].strip()
             if dbname:
                 result.append(dbname)
