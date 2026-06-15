@@ -17,7 +17,9 @@ Implications:
   attribution is at the service level, not the end-user level.
 
 External integrators must use ``ep_openapi`` instead, which has its
-own (much tighter) exposure boundary keyed on ``openapi=True`` flags.
+own (much tighter) exposure boundary keyed on ``openapi=True``
+flags. The endpoint is provided externally.
+
 """
 
 import json

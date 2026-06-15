@@ -742,11 +742,13 @@ class TableScriptToHtml(BagToHtmlWeb):
         
         
     def defineStandardStyles(self):
-        """Injects font_family into body if set, then delegates to the base implementation."""
+        """Delegates to the base implementation (which emits the sans-serif
+        baseline), then injects ``font_family`` into body if set so it wins
+        by source order over the baseline."""
+        super(TableScriptToHtml, self).defineStandardStyles()
         if self.font_family:
             self.builder.font_family = self.font_family
             self.body.style('body {{ font-family: {f}; }}'.format(f=self.font_family))
-        super(TableScriptToHtml, self).defineStandardStyles()
 
     def getRowWrapField(self):
         """Override to return the text of the main wrapping field for the current row.

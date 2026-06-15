@@ -1291,6 +1291,7 @@ class BagToHtml(object):
 
     def defineStandardStyles(self):
         """TODO"""
+        self.body.style('body { font-family: sans-serif; }')
         self.body.style("""
 
                         .caption{text-align:center;
