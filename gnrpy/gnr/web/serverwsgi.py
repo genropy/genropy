@@ -435,7 +435,7 @@ class Server(object):
             logger.exception('failed to spawn gnr web async subprocess')
             return
         if reason:
-            logger.info('gnr web async subprocess started on port %s (%s) — pid=%s, instance=%s',
+            logger.info('gnr web async subprocess started on port %s (%s) - pid=%s, instance=%s',
                         async_port, reason, child.pid, site_name)
         else:
             logger.info('gnr web async subprocess started (pid=%s) for instance %s on port %s',
