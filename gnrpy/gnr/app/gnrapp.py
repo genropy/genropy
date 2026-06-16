@@ -296,7 +296,10 @@ class DbStoresHandler(object):
         
         :param storename: TODO
         :param changes: TODO. """
-        with self.db.tempEnv(storename=storename):
+
+        # current_language is set to None in the migration context like this
+        # in order to properly handle all the localized columns in the models
+        with self.db.tempEnv(storename=storename, current_language=None):
             self.db.syncOrmToSql()
 
 class GnrSqlAppDb(GnrSqlDb):
