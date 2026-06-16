@@ -12,6 +12,17 @@ New features
   passed the forwarded dict is empty and the uploader behaves exactly
   as before.
 
+* ``attachmentGrid`` drop uploader label is now customizable and
+  localized. Passing ``uploader_label=...`` replaces only the text
+  content of the drop area, while the styled ``atc_galleryDropArea``
+  wrapper (padding, centering, border) is always preserved; when
+  omitted, the default ("Drop document here" / "or double click to
+  upload") is used. The default label was previously hardcoded
+  English HTML with no translation marker, so it never reached the
+  localizer; the text fragments now carry the embedded ``[!!...]``
+  marker (Italian translations added). No backward-compatibility
+  impact.
+
 * Connection cleanup is now a single on-event mechanism instead of
   two parallel ones. When a page closes on the client a lottery
   (``cleanup_threshold``, default 5%) gates an attempt to spawn a
