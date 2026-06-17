@@ -160,6 +160,7 @@ class GnrWebConnection(GnrBaseProxy):
         self.user_tags = avatar_dict.get('user_tags')
         self.user_name = avatar_dict.get('user_name')
         self.user_id = avatar_dict.get('user_id')
+        self.cookie_data['xgroup'] = avatar_dict.get('xgroup')
         if avatar:
             self.avatar_extra = avatar.extra_kwargs
 

@@ -36,6 +36,9 @@ class Table(object):
         tbl.column('sms_number',name_long='!!Sms Number')
         tbl.column('photo',dtype='P', name_long='!![en]Photo')
         tbl.column('group_code',size=':15',name_long='!!Group').relation('group.code',relation_name='users',mode='foreignkey')
+        tbl.column('xgroup', size=':10', name_long='!!Deployment group',
+                    batch_assign=dict(tags='_DEV_')).relation('adm.xgroup.code',
+                    relation_name='users', mode='foreignkey', onDelete='setnull')
         tbl.column('custom_menu', dtype='X', name_long='!!Custom menu')
         tbl.column('custom_fields', dtype='X', name_long='!!Custom fields')
         tbl.column('avatar_secret_2fa', dtype='T',name_long='!![en]Secret 2fa')
