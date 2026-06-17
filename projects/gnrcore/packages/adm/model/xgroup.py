@@ -1,7 +1,5 @@
 # encoding: utf-8
 
-from gnr.core.gnrdecorator import metadata
-
 
 class Table(object):
     def config_db(self, pkg):
@@ -12,22 +10,16 @@ class Table(object):
         tbl.column('code', size=':10', name_long='!!Code')
         tbl.column('description', name_long='!!Description')
 
-    @metadata(mandatory=True)
-    def sysRecord_ALPHA(self):
-        return self.newrecord(code='ALPHA', description='Alpha')
-
-    @metadata(mandatory=True)
-    def sysRecord_CANARY(self):
-        return self.newrecord(code='CANARY', description='Canary')
-
-    @metadata(mandatory=True)
-    def sysRecord_BETA(self):
-        return self.newrecord(code='BETA', description='Beta')
-
-    @metadata(mandatory=True)
+    # Base deployment groups, aligned with the sticky-proxy worker groups
+    # (standard/beta/canary). These are modifiable defaults, not constraints:
+    # an instance may add, rename or remove them. Codes are upper-case here;
+    # the proxy lower-cases them to match the worker group names. STANDARD is
+    # the default/fallback channel for users without an explicit group.
     def sysRecord_STANDARD(self):
         return self.newrecord(code='STANDARD', description='Standard')
 
-    @metadata(mandatory=True)
-    def sysRecord_LTS(self):
-        return self.newrecord(code='LTS', description='LTS')
+    def sysRecord_BETA(self):
+        return self.newrecord(code='BETA', description='Beta')
+
+    def sysRecord_CANARY(self):
+        return self.newrecord(code='CANARY', description='Canary')
