@@ -236,6 +236,7 @@ class LoginComponent(BaseComponent):
         rootenv['user'] = self.avatar.user
         rootenv['user_id'] = self.avatar.user_id
         rootenv['user_group_code'] = getattr(self.avatar,'group_code',None)
+        rootenv['xgroup'] = getattr(self.avatar,'xgroup',None)
         rootenv['workdate'] = rootenv['workdate'] or self.workdate
         rootenv['login_date'] = date.today()
         rootenv['custom_workdate'] = rootenv['workdate']!=rootenv['login_date']
