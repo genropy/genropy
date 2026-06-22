@@ -112,7 +112,7 @@ class MultiStageDockerImageBuilder:
             # the APT write has to occur here, using root user, before the USER genro
             # changes.
             if self.apt_deps:
-                logger.debug("Found APT dependencies", self.apt_deps)
+                logger.debug("Found APT dependencies: %s", self.apt_deps)
                 dockerfile.write(f"RUN apt install -y {self.apt_deps}\n")
 
             dockerfile.write("USER genro\n\n")
