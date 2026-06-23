@@ -24,19 +24,22 @@ class Table(object):
         self.deleteBackupFile(filename=record['name'])
 
     def deleteBackupFile(self, filename=None):
-        # Use the same default and path layout used when the backup file is written
-        # (see the adm:backup `dumpall` action): {backup_folder}/{name}.zip.
-        # Do NOT add an extra 'backups' segment here, otherwise delete() targets a
-        # non-existent path and the file is never removed from storage.
+        # Backups live directly in the backup folder (see the adm:backup `dumpall`
+        # action). The file extension depends on the dump format: `.zip` for the
+        # general case, `.pgd` for a single postgres store. Match by base name so
+        # every format is removed regardless of extension.
         backups_folder = self.db.application.getPreference(path='backups.backup_folder',pkg='adm') or 'maintenance:backups'
-        backupSn = self.db.application.site.storageNode(backups_folder, f'{filename}.zip')
-        try:
-            if backupSn.exists:
-                backupSn.delete()
-            else:
-                logger.warning('Backup file to delete not found: %s', backupSn.internal_path)
-        except Exception as e:
-            logger.exception('Error deleting backup file %s: %s', backupSn.internal_path, e)
+        folderSn = self.db.application.site.storageNode(backups_folder)
+        deleted = False
+        for childSn in (folderSn.children() or []):
+            if childSn.isfile and childSn.cleanbasename == filename:
+                try:
+                    childSn.delete()
+                    deleted = True
+                except Exception as e:
+                    logger.exception('Error deleting backup file %s: %s', childSn.internal_path, e)
+        if not deleted:
+            logger.warning('No backup file found to delete for: %s', filename)
 
     
     
