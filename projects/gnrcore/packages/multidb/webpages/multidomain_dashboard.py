@@ -205,7 +205,7 @@ class GnrCustomWebPage(object):
             _onResult='FIRE main.userobjects_alignment.load_th;')
 
         body = bc.borderContainer(region='center')
-        condition = '$tbl=:c_tbl AND ($objtype=:c_objtype OR :c_objtype IS NULL)'
+        condition = '(CASE WHEN :c_tbl IS NOT NULL THEN $tbl=:c_tbl ELSE TRUE END) AND ($objtype=:c_objtype OR :c_objtype IS NULL)'
 
         # Primary pane (rootstore) — datapath = main.userobjects_alignment.th_primary
         primary = body.framePane(margin='3px', border='1px solid silver',
@@ -257,8 +257,10 @@ class GnrCustomWebPage(object):
                 condition_c_objtype='^main.userobjects_alignment.uo_objtype',
                 view_store_applymethod='checksync_secondary',
                 view_store_state='userobjects_alignment',
+                view_store_secstore = '^main.userobjects_alignment.store_secondary',
                 view_store_currentDbstore=sec_store,
                 view_store_forced_dbstore=True,
+                condition_if='secstore',
                 dbstore=sec_store,
                 view_store_onStart=True,
                 view_store__fired='^main.userobjects_alignment.load_th',

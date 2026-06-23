@@ -45,6 +45,12 @@ class MultiStageDockerImageBuilder:
         self.main_repo_name = ""
         
         self.config = self.builder.load_config(generate=options.build_generate)
+
+        self.apt_deps = None
+        apt_dep_file = os.path.join(self.instance_folder, "config", "apt-dependencies.txt")
+        if os.path.isfile(apt_dep_file):
+            self.apt_deps = " ".join([x.strip() for x in open(apt_dep_file).readlines()])
+            
         self.build_context_dir = tempfile.mkdtemp(dir=os.getcwd())
         atexit.register(self.cleanup_build_dir)
         
@@ -102,6 +108,12 @@ class MultiStageDockerImageBuilder:
             base_image_tag = self.options.bleeding and "develop" or "latest"
             dockerfile.write(f"FROM ghcr.io/genropy/genropy:{base_image_tag} as build_stage\n")
             dockerfile.write("WORKDIR /home/genro/genropy_projects\n")
+
+            # the APT write has to occur here, using root user, before the USER genro
+            # changes.
+            if self.apt_deps:
+                logger.debug("Found APT dependencies: %s", self.apt_deps)
+                dockerfile.write(f"RUN apt install -y {self.apt_deps}\n")
 
             dockerfile.write("USER genro\n\n")
             dockerfile.write('ENV PATH="/home/genro/.local/bin:$PATH"\n')
@@ -247,9 +259,8 @@ stderr_logfile_maxbytes=0
                 wfp.write(supervisor_template.format(instanceName=self.instance_name))
                     
             dockerfile.write(f"COPY --chown=genro:genro supervisord.conf /etc/supervisor/conf.d/{self.instance_name}-supervisor.conf\n")
-
+            # install dependencies
             dockerfile.write(f"RUN gnr app checkdep --loglevel=debug -v -n -i {self.instance_name}\n")
-
             dockerfile.write("LABEL {}\n".format(
                 " \\ \n\t ".join([f'{k}="{v}"' for k,v in image_labels.items()])
             ))
