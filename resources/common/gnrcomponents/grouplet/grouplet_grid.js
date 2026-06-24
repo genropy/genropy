@@ -1365,6 +1365,28 @@ gnr.GroupletGridController = class GroupletGridController {
             this.activePkey = prevActive;
         }
         this._buildLayoutAffordances();
+        this._reconcileTileDnD();
+    }
+
+    _reconcileTileDnD() {
+        // Row (tile) DnD is wired once at mount, gated on the layout at
+        // that moment, and setLayout does NOT re-mount tiles. Re-sync each
+        // tile with the current layout: a row is a drop target in cards /
+        // struct, never in tabs (where the chip strip drives DnD). Without
+        // this a grid born in tabs has no row-drop wiring after switching
+        // to cards, and one born in cards leaves stale row listeners live
+        // under tabs.
+        if (!this.dnd) return;
+        const tabs = this._isTabsLayout();
+        Object.keys(this.tiles).forEach((pkey) => {
+            const tile = this.tiles[pkey];
+            if (!tile) return;
+            if (tabs) {
+                tile._unwireTileDnD();
+            } else if (tile.tileDom && !tile._tileDnDHandlers) {
+                tile._wireTileDnD(tile.tileDom);
+            }
+        });
     }
 
     _buildCardsFooter(containerDom) {
