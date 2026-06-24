@@ -973,7 +973,10 @@ class GnrWebPage(GnrBaseWebPage):
             self.site.onAuthenticated(avatar)
             self.connection.change_user(avatar)
             logger.info("User %s login", login['user'])
-            self.site.connectionLog('open')
+            
+            if getattr(avatar, "user_id", None):
+                self.site.connectionLog('open')
+                
             login['message'] = ''
             loginPars = avatar.loginPars
             loginPars.update(avatar.extra_kwargs)

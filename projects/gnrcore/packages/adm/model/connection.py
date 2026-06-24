@@ -10,7 +10,7 @@ class Table(object):
         tbl.column('id', size='22', name_long='!!Connection id')
         tbl.column('userid', size='22', name_long='!!Userid').relation('user.id')
         tbl.column('username', size=':32', name_long='!!Username')
-        tbl.column('ip', size=':15', name_long='!!Ip number')
+        tbl.column('ip', size=':255', name_long='!!Ip address')
         tbl.column('start_ts', 'DH', name_long='!!Start TS')
         tbl.column('end_ts', 'DH', name_long='!!End TS')
         tbl.column('end_reason', size=':12', name_long='!!End reason')
