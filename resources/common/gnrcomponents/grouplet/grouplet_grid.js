@@ -411,6 +411,53 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
         e.preventDefault();
         this.onDrop(data, pkey);
     }
+
+    // === Add button ("+") — append / drop into an empty grid ===
+    // Dropping a card on the "+" affordance appends it at the tail, or
+    // makes it the first row when the grid is empty. The "+" is a LEAF
+    // (a sibling of the rows, not an ancestor of the drag handles), so
+    // listening here cannot interfere with the tiles' own drag start —
+    // which is exactly why this lives on the "+" and not on the body or
+    // container. Works for cards (footer "+") and tabs (tab-strip "+").
+
+    addBtnDragOver(e) {
+        if (!this._dataTransferHasOurType(e.dataTransfer)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = 'move';
+        this._addBtnHighlight(true);
+    }
+
+    addBtnDragLeave() {
+        this._addBtnHighlight(false);
+    }
+
+    addBtnDrop(e) {
+        this._addBtnHighlight(false);
+        const data = genro.dom.getFromDataTransfer(
+            e.dataTransfer, this.dropType());
+        if (!data || !data.rowKey) return;
+        e.preventDefault();
+        e.stopPropagation();
+        // Append at the tail (after the last row), or no position when the
+        // grid is empty (→ the moved row becomes the first one). Same
+        // 'move' dispatch as onDrop; _handleAction routes self vs cross.
+        const c = this.controller;
+        const nodes = c.dataStore.getNodes();
+        const lastKey = nodes.length ? nodes[nodes.length - 1].label : null;
+        if (data.sourceNodeId === c.nodeId && data.rowKey === lastKey) return;
+        genro.publish(c.actionTopic, {
+            action: 'move',
+            rowKey: data.rowKey,
+            sourceNodeId: data.sourceNodeId,
+            position: lastKey ? ('>' + lastKey) : ''
+        });
+    }
+
+    _addBtnHighlight(on) {
+        const btn = this.controller.addBtnDom;
+        if (btn) btn.classList.toggle('canBeDropped', on);
+    }
 };
 
 
@@ -1344,6 +1391,20 @@ gnr.GroupletGridController = class GroupletGridController {
         });
         containerDom.appendChild(btn);
         this.addBtnDom = btn;
+        this._wireAddBtnDnD();
+    }
+
+    _wireAddBtnDnD() {
+        // Native DnD on the "+" (a leaf element) so a drop there appends /
+        // lands in an empty grid. The button is recreated by every layout
+        // build, so this follows setLayout automatically; its listeners
+        // die with the button when the footer/tabbar is torn down.
+        const btn = this.addBtnDom;
+        if (!this.dnd || !btn) return;
+        const dnd = this.dnd;
+        btn.addEventListener('dragover', (e) => dnd.addBtnDragOver(e));
+        btn.addEventListener('dragleave', () => dnd.addBtnDragLeave());
+        btn.addEventListener('drop', (e) => dnd.addBtnDrop(e));
     }
 
     _buildTabbar(containerDom) {
@@ -1365,6 +1426,7 @@ gnr.GroupletGridController = class GroupletGridController {
             });
             tabbar.appendChild(addBtn);
             this.addBtnDom = addBtn;
+            this._wireAddBtnDnD();
         }
         const topSlot = containerDom.querySelector(
             ':scope > .grouplet_grid_slot_top');
