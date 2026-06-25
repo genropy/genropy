@@ -368,12 +368,12 @@ class Server(object):
                 if os.path.exists(cert_path) and os.path.exists(key_path):
                     ssl_context = (cert_path, key_path)
                 extra_info.append('SSL mode: On')
-                app_scheme = 'https'
+                self.app_scheme = 'https'
+                
             if self.options.ssl_cert and self.options.ssl_key:
                 ssl_context = (self.options.ssl_cert, self.options.ssl_key)
-                extra_info.append(f'SSL mode: On {ssl_context}')
-                app_scheme = 'https'
-                self.app_host = self.options.ssl_cert.split('/')[-1].split('.pem')[0]
+                extra_info.append(f'SSL mode: On (Cert: {ssl_context[0]}, Key {ssl_context[1]}')
+                self.app_scheme = 'https'
 
             logger.info(f"Started server on {self.app_host}:{self.app_port}\t%s", ",".join(extra_info))
             logger.info(f"Connect at {self.app_url}")
