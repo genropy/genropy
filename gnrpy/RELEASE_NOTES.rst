@@ -4,6 +4,12 @@ Release 26.05.05
 New features
 ------------
 
+* attachmentGrid — external/foreign attachments (``external_url``, no stored
+  file) are no longer rendered as a blank iframe in the preview pane. The
+  reader now switches to a notice with an "open in a new tab" action, since
+  the ``iframe`` widget cannot frame bare-domain URLs. Stored files keep
+  rendering in the viewer exactly as before. No backward-compatibility issues.
+
 * Connection cleanup is now a single on-event mechanism instead of
   two parallel ones. When a page closes on the client a lottery
   (``cleanup_threshold``, default 5%) gates an attempt to spawn a
