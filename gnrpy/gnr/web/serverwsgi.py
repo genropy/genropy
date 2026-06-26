@@ -430,7 +430,11 @@ class Server(object):
             logger.error("'gnr' entrypoint not found on PATH; async subprocess disabled")
             return
         try:
-            child = subprocess.Popen([gnr_bin, 'web', 'async', site_name, '-p', str(async_port)])
+            async_server_cmd = [gnr_bin, 'web', 'async', site_name, '-p', str(async_port)]
+            if self.options.ssl_cert and self.options.ssl_key:
+                async_server_cmd.extend(['-c', self.options.ssl_cert,
+                                         '-k', self.options.ssl_key])
+            child = subprocess.Popen(async_server_cmd)
         except Exception:
             logger.exception('failed to spawn gnr web async subprocess')
             return
