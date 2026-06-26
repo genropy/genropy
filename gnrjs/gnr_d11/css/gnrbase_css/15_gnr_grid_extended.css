@@ -344,9 +344,12 @@ textarea.cellEditFixed {
 
 ._common_d11 .gr_wrap_footers .dojoxGrid-scrollbox{
     overflow-x:auto !important;
-    -ms-overflow-style:none;
-    scrollbar-width:none;
 }
+/* Hide only the horizontal scrollbar: the columnset header and footer panes carry their own
+   synced horizontal scroll, so the grid's own horizontal bar is redundant. scrollbar-width and
+   -ms-overflow-style are NOT axis-specific and would also hide the vertical scrollbar, so they
+   must not be used here (doing so removed the vertical scrollbar whenever columnsets/footers
+   were present). */
 ._common_d11 .gr_wrap_footers .dojoxGrid-scrollbox::-webkit-scrollbar:horizontal{
     height:0;
     display:none;
