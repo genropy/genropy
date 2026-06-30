@@ -19,10 +19,16 @@ import pytest
 
 from gnr.core.flatfiles import (
     CsvReader, XlsReader, XlsxReader, XmlReader,
-    getReader, readTab, readCSV, readCSV_new, readXLS,
+    getReader, getCsvDialect, readTab, readCSV, readCSV_new, readXLS,
     XlsWriter, XlsxWriter,
 )
 from gnr.core.gnrlist import GnrNamedList
+
+try:
+    import clevercsv  # noqa: F401
+    HAS_CLEVERCSV = True
+except ImportError:
+    HAS_CLEVERCSV = False
 
 TEST_DIR = os.path.dirname(__file__)
 DATA_DIR = os.path.join(TEST_DIR, 'data')
@@ -365,3 +371,78 @@ def test_legacy_functions_importable_from_flatfiles():
     assert callable(readCSV)
     assert callable(readCSV_new)
     assert callable(readXLS)
+
+
+# ===========================================================================
+# getCsvDialect / getReader csv_auto — clevercsv-backed dialect detection
+# ===========================================================================
+
+@pytest.mark.skipif(not HAS_CLEVERCSV, reason="clevercsv not available")
+def test_getCsvDialect():
+    """Test getCsvDialect: detects correct delimiter, quotechar and escapechar for various CSV formats"""
+    test_cases = [
+        ('test_CsvAuto_Comma.csv', ','),
+        ('test_CsvAuto_CommaQuotedDecimalsEUR.csv', ','),
+        ('test_CsvAuto_CommaQuotedDecimalsUSA.csv', ','),
+        ('test_CsvAuto_SemiColon.csv', ';'),
+        ('test_CsvAuto_Tab.csv', '\t'),
+        ('test_CsvAuto_Pipe.csv', '|'),
+        ('test_CsvAuto_Colon.csv', ':'),
+    ]
+
+    for filename, expected_delimiter in test_cases:
+        test_file = os.path.join(DATA_DIR, filename)
+        dialect = getCsvDialect(test_file, encoding='utf-8')
+
+        assert dialect.delimiter == expected_delimiter
+        assert dialect.quotechar == '"'
+        assert not dialect.escapechar
+
+
+@pytest.mark.skipif(not HAS_CLEVERCSV, reason="clevercsv not available")
+def test_getCsvDialect_limited_lines():
+    """Test getCsvDialect with detector_max_lines=1 does not detect quotechar
+
+    When reading only the first line, the dialect detector should not
+    find any quotechar since the quoted content only appears in later rows.
+    """
+    test_files = [
+        'test_CsvAuto_Comma.csv',
+        'test_CsvAuto_CommaQuotedDecimalsEUR.csv',
+        'test_CsvAuto_CommaQuotedDecimalsUSA.csv',
+        'test_CsvAuto_SemiColon.csv',
+        'test_CsvAuto_Tab.csv',
+        'test_CsvAuto_Pipe.csv',
+        'test_CsvAuto_Colon.csv',
+    ]
+
+    for filename in test_files:
+        test_file = os.path.join(DATA_DIR, filename)
+        dialect = getCsvDialect(test_file, encoding='utf-8', detector_max_lines=1)
+
+        # When reading only first line, quotechar should not be detected
+        assert not dialect.quotechar
+
+
+@pytest.mark.skipif(not HAS_CLEVERCSV, reason="clevercsv not available")
+def test_getReader_CsvAuto():
+    """Test getReader with csv_auto filetype detects various delimiters correctly."""
+    test_files = [
+        'test_CsvAuto_Colon.csv',
+        'test_CsvAuto_Comma.csv',
+        'test_CsvAuto_CommaQuotedDecimalsEUR.csv',
+        'test_CsvAuto_CommaQuotedDecimalsUSA.csv',
+        'test_CsvAuto_Pipe.csv',
+        'test_CsvAuto_SemiColon.csv',
+        'test_CsvAuto_Tab.csv',
+    ]
+
+    for filename in test_files:
+        test_file = os.path.join(DATA_DIR, filename)
+
+        reader = getReader(test_file, filetype='csv_auto')
+
+        assert reader.ncols == 11
+        assert reader.headers[0] == 'Data contabile'
+        assert reader.headers[10] == 'Note'
+        assert len(list(reader())) == 6

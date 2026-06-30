@@ -45,6 +45,12 @@ class MultiStageDockerImageBuilder:
         self.main_repo_name = ""
         
         self.config = self.builder.load_config(generate=options.build_generate)
+
+        self.apt_deps = None
+        apt_dep_file = os.path.join(self.instance_folder, "config", "apt-dependencies.txt")
+        if os.path.isfile(apt_dep_file):
+            self.apt_deps = " ".join([x.strip() for x in open(apt_dep_file).readlines()])
+            
         self.build_context_dir = tempfile.mkdtemp(dir=os.getcwd())
         atexit.register(self.cleanup_build_dir)
         
@@ -73,12 +79,25 @@ class MultiStageDockerImageBuilder:
         repositories from multiple Docker images.
         """
         git_repositories = self.builder.git_repositories()
-        now = datetime.datetime.now(datetime.UTC)
-        image_labels = {"gnr_app_dockerize_on": str(now)}
         entry_dir = os.getcwd()
 
         main_repo_url = self.builder.git_url_from_path(self.instance_folder)
         self.main_repo_name = self.builder.git_repo_name_from_url(main_repo_url)
+
+        now = datetime.datetime.now(datetime.UTC)
+        image_labels = {
+            "gnr_app_dockerize_on": str(now),
+            "org.opencontainers.image.created": str(now),
+            "org.label-schema.build-date": str(now),
+
+            "org.opencontainers.image.title": self.instance_name,
+            "org.label-schema.name": self.instance_name,
+
+            "org.opencontainers.image.description": f"Genropy application - instance {self.instance_name}",
+            "org.opencontainers.image.source": main_repo_url,
+            "org.label-schema.vcs-url": main_repo_url
+        }
+
         
         os.chdir(self.build_context_dir)
         self.dockerfile_path = os.path.join(self.build_context_dir, "Dockerfile")
@@ -89,6 +108,12 @@ class MultiStageDockerImageBuilder:
             base_image_tag = self.options.bleeding and "develop" or "latest"
             dockerfile.write(f"FROM ghcr.io/genropy/genropy:{base_image_tag} as build_stage\n")
             dockerfile.write("WORKDIR /home/genro/genropy_projects\n")
+
+            # the APT write has to occur here, using root user, before the USER genro
+            # changes.
+            if self.apt_deps:
+                logger.debug("Found APT dependencies: %s", self.apt_deps)
+                dockerfile.write(f"RUN apt install -y {self.apt_deps}\n")
 
             dockerfile.write("USER genro\n\n")
             dockerfile.write('ENV PATH="/home/genro/.local/bin:$PATH"\n')
@@ -234,9 +259,8 @@ stderr_logfile_maxbytes=0
                 wfp.write(supervisor_template.format(instanceName=self.instance_name))
                     
             dockerfile.write(f"COPY --chown=genro:genro supervisord.conf /etc/supervisor/conf.d/{self.instance_name}-supervisor.conf\n")
-
+            # install dependencies
             dockerfile.write(f"RUN gnr app checkdep --loglevel=debug -v -n -i {self.instance_name}\n")
-
             dockerfile.write("LABEL {}\n".format(
                 " \\ \n\t ".join([f'{k}="{v}"' for k,v in image_labels.items()])
             ))

@@ -18,6 +18,7 @@ class View(BaseComponent):
         r.fieldcell('username',name='Username',width='10em')
         r.fieldcell('fullname',name='Fullname',width='20em')
         r.fieldcell('group_code')
+        r.fieldcell('xgroup',name='!![en]Deployment group',width='10em',_tags='_DEV_')
         r.fieldcell('email',name='Email',width='20em')
         r.fieldcell('@tags.@tag_id.code',name='Tags',width='100%')
         r.fieldcell('auth_tags',name='Old tags',width='15em')
@@ -218,6 +219,7 @@ class Form(BaseComponent):
         fb.field('locale', lbl='!!Locale')
         fb.field('language', lbl='!![en]Language')
         fb.field('group_code',lbl='!![en]Main group',hasDownArrow=True)
+        fb.field('xgroup',lbl='!![en]Deployment group',hasDownArrow=True,_tags='_DEV_')
         fb.checkBoxText('^._other_groups',lbl='!![en]Other groups',
                         table='adm.group', condition='$code!=:mg', condition_mg='^.group_code',
                         _virtual_column='other_groups',popup=True)
