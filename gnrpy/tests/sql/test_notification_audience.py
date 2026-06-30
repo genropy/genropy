@@ -12,6 +12,16 @@ and the start/end date window gating.
 
 import datetime
 
+from core.common import BaseGnrTest
+
+
+def setup_module(module):
+    BaseGnrTest.setup_class()
+
+
+def teardown_module(module):
+    BaseGnrTest.teardown_class()
+
 
 WORKDATE = datetime.date(2026, 6, 30)
 UNIQUE_TAG = 'ZZNOTIFTAG'
