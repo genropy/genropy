@@ -1,4 +1,11 @@
-Release 26.05.05
+Release 26.06.30
+================
+
+This is an hotfix release, fixing the CodeMirror6 loading which broke the
+handbook feature. Refs #962
+
+
+Release 26.05.08
 ================
 
 New features

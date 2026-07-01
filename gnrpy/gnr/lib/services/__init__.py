@@ -109,7 +109,12 @@ class BaseServiceType(object):
         l = self.serviceConfigurationsFromSiteConfig()
         if 'sys' in list(self.site.gnrapp.packages.keys()):
             dbservices = self.site.db.table('sys.service').query(where='$service_type=:st', st=self.service_type, order_by='$service_name').fetch()
-            l += [dict(implementation=r['implementation'], service_name=r['service_name'], service_type=r['service_type']) for r in dbservices]
+            l += [dict(
+                implementation=r['implementation'],
+                service_name=r['service_name'],
+                service_type=r['service_type'],
+                service_disabled=r['disabled'] and True or False
+            ) for r in dbservices]
         return l
 
 
