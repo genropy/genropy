@@ -181,6 +181,31 @@ class GnrCustomWebPage(object):
             grid_columns=2,
             colspan=2, lbl='Budget & Timeline')
 
+    def test_6_chunk_record_mode(self, pane):
+        """groupletChunk RECORD MODE (record_id=): a standalone chunk with NO surrounding
+        form that edits a real DB record and saves it directly on confirm
+        (recordDataEditor). The summary is fed by the built-in dataRecord and refreshes
+        after save via the _fired trigger."""
+        comune = self.db.table('glbl.comune').query(
+            columns='$id,$denominazione', order_by='$denominazione', limit=1).fetch()
+        pane.div('groupletChunk(record_id=...): nessun frameForm intorno; la matita apre '
+                 'recordDataEditor che salva il record direttamente sul DB.',
+                 margin='10px', color='#555', font_style='italic')
+        if not comune:
+            pane.div('Nessun record glbl.comune per la demo.', margin='10px', color='red')
+            return
+        box = pane.div(margin='10px', width='320px', height='60px')
+        box.groupletChunk(
+            name='edit_comune_record',
+            record_id=comune[0]['id'],
+            table='glbl.comune',
+            resource='anagrafica',
+            title='Edit Comune (record mode)',
+            template="""
+            <div style="font-weight:bold;">$denominazione</div>
+            <div style="color:#555;">$sigla_provincia - $codice_comune</div>
+            """)
+
     @public_method
     def grp_territorio(self, pane, **kwargs):
         fb = pane.formlet(cols=2, border_spacing='3px',
