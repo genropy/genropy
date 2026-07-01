@@ -182,22 +182,20 @@ class GnrCustomWebPage(object):
             colspan=2, lbl='Budget & Timeline')
 
     def test_6_chunk_record_mode(self, pane):
-        """groupletChunk RECORD MODE (record_id=): a standalone chunk with NO surrounding
-        form that edits a real DB record and saves it directly on confirm
-        (recordDataEditor). The summary is fed by the built-in dataRecord and refreshes
-        after save via the _fired trigger."""
-        comune = self.db.table('glbl.comune').query(
-            columns='$id,$denominazione', order_by='$denominazione', limit=1).fetch()
-        pane.div('groupletChunk(record_id=...): nessun frameForm intorno; la matita apre '
-                 'recordDataEditor che salva il record direttamente sul DB.',
+        """groupletChunk RECORD MODE with a VARIABLE record_id: a standalone chunk (no
+        surrounding form) whose record_id is a reactive path fed by a dbselect. Pick a
+        comune and the chunk loads it; the pencil opens recordDataEditor and saves the
+        record directly on confirm. The loaded record lives in the chunk's own workspace,
+        never in the page datapath."""
+        pane.div('groupletChunk(record_id="^.selected_comune"): scegli un comune, il chunk '
+                 'lo carica; la matita apre recordDataEditor che salva sul DB.',
                  margin='10px', color='#555', font_style='italic')
-        if not comune:
-            pane.div('Nessun record glbl.comune per la demo.', margin='10px', color='red')
-            return
+        pane.dbselect(value='^.selected_comune', table='glbl.comune', lbl='Comune',
+                      hasDownArrow=True, margin='10px', width='320px')
         box = pane.div(margin='10px', width='320px', height='60px')
         box.groupletChunk(
             name='edit_comune_record',
-            record_id=comune[0]['id'],
+            record_id='^.selected_comune',
             table='glbl.comune',
             resource='anagrafica',
             title='Edit Comune (record mode)',

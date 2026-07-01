@@ -168,19 +168,22 @@ class GroupletHandler(BaseComponent):
         btn_kwargs.setdefault('right', '2px')
         kwargs.setdefault('_class', 'grouplet_chunk_box')
         grid_kw = dictExtract(kwargs, 'grid_', pop=True)
+        if record_id is not None:
+            # in record mode the chunk gets its own workspace, so the loaded record lives
+            # in an isolated (gnr.workspace) scope, never in the caller datapath.
+            kwargs['_workspace'] = f'grplt_{name}'
         root = pane.div(**kwargs)
         template_kwargs['template'] = template
         if record_id is not None:
-            # RECORD MODE (no surrounding form): load the record into a REACTIVE datapath
-            # that feeds the templatechunk (same client-chunk rendering as when value is a
-            # form record, just fed by dataRecord). The pencil opens recordDataEditor, which
+            # RECORD MODE (no surrounding form): the record is loaded into the component's
+            # own WORKSPACE (isolated from the caller datapath, so it can never pollute a
+            # form record) which feeds the templatechunk. record_id (a pkey or a reactive
+            # path) is resolved in the caller scope. The pencil opens recordDataEditor, which
             # loads by pkey and saves the record directly (store_handler='record');
             # onSavedCb bumps the reload trigger so the summary refreshes after save.
-            data_path = '.%s_record' % name
-            reload_path = '.%s_reload' % name
-            root.dataRecord(data_path, table=table, pkey=record_id,
-                            _onBuilt=True, _fired='^%s' % reload_path)
-            template_kwargs['datasource'] = '^%s' % data_path
+            root.dataRecord('#WORKSPACE.record', table=table, pkey=record_id,
+                            _onBuilt=True, _fired='^#WORKSPACE.reload')
+            template_kwargs['datasource'] = '^#WORKSPACE.record'
         else:
             template_kwargs['datasource'] = value
         root.div(**template_kwargs)  # templatechunk
@@ -198,14 +201,18 @@ class GroupletHandler(BaseComponent):
         for k, v in grid_kw.items():
             grouplet_kwargs[f'grouplet_remote_grid_{k}'] = v
         if record_id is not None:
-            grouplet_kwargs['pkey'] = record_id
+            # editor pkey read at click (= binding) when record_id is a reactive path, so
+            # the button controller does not subscribe to it; a literal pkey passes through.
+            grouplet_kwargs['pkey'] = (f'={record_id[1:]}'
+                                       if isinstance(record_id, str) and record_id.startswith('^')
+                                       else record_id)
             grouplet_kwargs['storeType'] = 'Item'
             btn.dataController("""
                 var _bnode = this;
                 let editor_kw = {..._kwargs};
-                editor_kw.onSavedCb = function(){_bnode.setRelativeData('%s', new Date().getTime());};
+                editor_kw.onSavedCb = function(){_bnode.setRelativeData('#WORKSPACE.reload', new Date().getTime());};
                 genro.dlg.recordDataEditor(name, editor_kw, this);
-            """ % reload_path, name=name, **grouplet_kwargs)
+            """, name=name, **grouplet_kwargs)
         else:
             grouplet_kwargs['value'] = value.replace('^', '')
             btn.dataController("""
