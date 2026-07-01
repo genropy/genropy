@@ -623,16 +623,15 @@ body.drag_started .grouplet_grid_container {
                 border-color 260ms ease-out;
 }
 
-/* --- Container drop target ---
-   The whole grid container becomes a drop accepter when the cursor is
-   over free space (no row underneath). Two scenarios:
-     - empty grid → drop anywhere on the body = the first row;
-     - past the last row → append at the tail.
-   The framework applies `.canBeDropped` to the outlined drop target
-   (the body sourceNode here) and `.cannotBeDropped` for foreign-
-   dragCode payloads; the row-level highlight on a hovered tile takes
-   over automatically (single-dispatch event resolution). */
-.grouplet_grid_body.canBeDropped {
+/* --- Add-button ("+") drop target ---
+   Dropping a dragged card on the "+" appends it at the tail, or makes it
+   the first row when the grid is empty. The "+" is the only accepter for
+   the "append / empty grid" case — the rows themselves handle drop-to-
+   reorder. Listening on this leaf element keeps the DnD wiring clear of
+   the row drag handles. The highlight is gated on `body.drag_started` so
+   a stray class left by an aborted drag is invisible once the drag ends. */
+body.drag_started .grouplet_grid_footer.canBeDropped,
+body.drag_started .grouplet_grid_tab_add.canBeDropped {
     outline: 2px solid var(--gg-accent);
     outline-offset: -2px;
     background: var(--gg-accent-soft);
