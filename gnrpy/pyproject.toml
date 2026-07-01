@@ -40,7 +40,6 @@ dependencies = [
 	     "openpyxl",
 	     "packaging",
 	     "paramiko", # gnr.core.gnrssh
-	     "paste",
 	     "psutil",
 	     "pymupdf",
 	     "pypdftk",
