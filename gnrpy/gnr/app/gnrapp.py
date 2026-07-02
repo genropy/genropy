@@ -259,7 +259,9 @@ class DbStoresHandler(object):
                 return True
             
     def create_dbstore(self,storename):
-        self.db.createDb(f'{self.db.multidb_prefix}{storename}')
+        dbname = f'{self.db.multidb_prefix}{storename}'
+        if not self.db.adapter.dbExists(dbname):
+            self.db.createDb(dbname)
         self.refresh_dbstores()
 
     @deprecated(message='Storetable-based architecture auto-detects stores. Use create_dbstore instead.')

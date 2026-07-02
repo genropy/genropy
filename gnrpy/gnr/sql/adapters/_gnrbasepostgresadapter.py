@@ -401,8 +401,8 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
         try:
             curs.execute(cls.createDbSql(dbname, encoding))
             conn.commit()
-        except:
-            raise DbAdapterException(f"Could not create database {dbname}")
+        except Exception as e:
+            raise DbAdapterException(f"Could not create database {dbname}: {e}") from e
         finally:
             curs.close()
             conn.close()
