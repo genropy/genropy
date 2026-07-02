@@ -827,6 +827,11 @@ class GroupletGridHandler(BaseComponent):
         store_kwargs.setdefault('store_storeType', 'ValuesBagRows')
         if struct_mode:
             container.data(structpath, struct)
+        # the footer placeholder exists only when some column totalizes: the JS
+        # adapter grafts the totals there (buildFooter returns null otherwise)
+        # and an unconditional placeholder would paint an empty footer strip
+        struct_has_totalize = struct_mode and any(
+            n.attr.get('totalize') for n in struct.traverse())
         for side in ('top', 'bottom', 'left', 'right'):
             slot = container.div(
                 _class=f'grouplet_grid_slot grouplet_grid_slot_{side}',
@@ -836,7 +841,7 @@ class GroupletGridHandler(BaseComponent):
             if struct_mode and side == 'top':
                 slot.div(_class='grouplet_grid__struct_header',
                          childname='struct_header')
-            elif struct_mode and side == 'bottom':
+            elif struct_has_totalize and side == 'bottom':
                 slot.div(_class='grouplet_grid__struct_footer',
                          childname='struct_footer')
         container.div(_class='grouplet_grid_body',
