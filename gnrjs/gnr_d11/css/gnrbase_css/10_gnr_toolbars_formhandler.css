@@ -88,6 +88,40 @@
     transform: rotate(45deg);
 }
 
+/* Centered draft badge on the form bars. The --fh-draft-display variable
+   is switched on by the draft form node and switched off again inside its
+   content, so bars of nested forms only show their own badge. */
+.form_draft{
+    --fh-draft-display: block;
+}
+.form_draft[class*="draft_marker_"]{
+    --fh-draft-display: none;
+}
+.form_draft .fh_content{
+    --fh-draft-display: none;
+}
+.th_form_toolbar, .slotbar_dialog_footer{
+    position: relative;
+    z-index: 0;
+}
+.th_form_toolbar::after, .slotbar_dialog_footer::after{
+    content: var(--form-draft-label, 'DRAFT');
+    display: var(--fh-draft-display, none);
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    padding: 1px 10px;
+    font-size: 0.75em;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--form-draft-color, #c77700);
+    border: 1px dashed var(--form-draft-color, #c77700);
+    border-radius: 9px;
+    pointer-events: none;
+    z-index: -1;
+}
+
 .form_logical_deleted .gnrfieldlabel{
     color: var(--status-error);
 }
