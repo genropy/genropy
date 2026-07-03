@@ -1007,7 +1007,26 @@ class GnrDomSrc(GnrStructData):
             return self.formbuilder_table(*args,**kwargs)
         
     def formlet(self,columns=None,table=None,formletCode=None,
-                formletclass='formlet',excludeParentField=True,_class=None,**kwargs):
+                formletclass='formlet',excludeParentField=True,_class=None,
+                wrap=None,col_min_width=None,**kwargs):
+        # Two responsive modes, mutually exclusive with each other and with a
+        # fixed `columns`/`cols`:
+        #  * wrap=True       -> wrapping flexbox: heterogeneous items keep their
+        #    intrinsic width and flow onto new rows when they no longer fit
+        #    (toolbar / "headline" strips). See .gnrgridbox.formlet_wrap.
+        #  * col_min_width   -> responsive grid: uniform columns that reduce in
+        #    count as the container narrows, down to 1, each column at least
+        #    `col_min_width` wide (mobile-friendly record forms). Same CSS
+        #    auto-fit/minmax trick as the groupletGrid min_width. auto-fit
+        #    never lays out more tracks than there are items; cap the count on
+        #    wide screens with a fixed `columns=N` or a max_width on the formlet.
+        #    A distinct name (not `min_width`) so it never shadows the element's
+        #    CSS min-width style.
+        if col_min_width:
+            kwargs.pop('cols', None)
+            columns = f'repeat(auto-fit, minmax({col_min_width}, 1fr))'
+        elif wrap:
+            formletclass = f'{formletclass} formlet_wrap'
         formNode = self.parentNode.attributeOwnerNode('formId') if self.parentNode else None
         excludeCols = kwargs.pop('excludeCols',None)
         if formNode:

@@ -213,6 +213,15 @@
     padding: var(--formlet-padding);
 }
 
+/* formlet(wrap=True): responsive single-strip mode — items keep their
+   intrinsic width and flow onto new rows when the container narrows.
+   Pair with an auto-height region (BorderContainer re-measures top/bottom
+   panes on every layout) so the strip can grow vertically. */
+.gnrgridbox.formlet_wrap{
+    display: flex;
+    flex-wrap: wrap;
+}
+
 .gnrgridbox.formlet .labledBox_left>.labledBox_label{
     padding-right: 2px;
 }
