@@ -1,3 +1,10 @@
+Release 26.07.06
+================
+
+This is an hotfix release, to correct Draft ribbon with centered
+toolbar badge #(934, #966)
+
+
 Release 26.06.30
 ================
 
