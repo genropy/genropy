@@ -801,7 +801,8 @@
 <en_revert base="Revert" de="Zurückkehren" en="Revert" fr="Revenir" it="Ritornare"></en_revert>
 <en_save fr="Sauvegarder" de="Speichern" en="Save" it="Salva" base="Save"></en_save>
 <en_record_history base="Record History" it="Cronologia dei record"></en_record_history>
-<en_copy_and_paste base="Copy and paste" de="Kopieren und Einfügen" en="Copy and paste" fr="Copier coller" it="Copia e incolla"></en_copy_and_paste></th_form>
+<en_copy_and_paste base="Copy and paste" de="Kopieren und Einfügen" en="Copy and paste" fr="Copier coller" it="Copia e incolla"></en_copy_and_paste>
+<en_draft base="Draft" de="Entwurf" en="Draft" fr="Brouillon" it="Bozza"></en_draft></th_form>
 <th_groupth path="resources/common/th/th_groupth.py" ext="py"><en_grid_view base="Grid View" it="Visualizzazione a griglia"></en_grid_view>
 <en_group_by base="Group by" it="Raggruppa per"></en_group_by>
 <en_flat base="Flat" it="Piatto"></en_flat>

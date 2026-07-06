@@ -216,7 +216,7 @@ class TableHandlerForm(BaseComponent):
         draftIfInvalid= options.pop('draftIfInvalid',False)
         allowSaveInvalid= options.pop('allowSaveInvalid',draftIfInvalid)
         avoidFloatingMessage= options.pop('avoidFloatingMessage',draftIfInvalid)
-        draftMarker = options.pop('draftMarker', True)
+        draftMarker = options.pop('draftMarker', False)
         formCaption_kwargs = dictExtract(options,'formCaption_',pop=True) 
         formCaption = options.pop('formCaption',formCaption_kwargs)
 
@@ -229,7 +229,8 @@ class TableHandlerForm(BaseComponent):
         single_record = options.get('single_record') or options.pop('linker',False)
 
         form.attributes.update(form_draftIfInvalid=draftIfInvalid,form_allowSaveInvalid=allowSaveInvalid,
-                               form_avoidFloatingMessage=avoidFloatingMessage,form_draftMarker=draftMarker)
+                               form_avoidFloatingMessage=avoidFloatingMessage,form_draftMarker=draftMarker,
+                               form_draftLabel='!!Draft')
         if autoSave:
             form.store.attributes.update(autoSave=autoSave,firstAutoSave=firstAutoSave)
 
