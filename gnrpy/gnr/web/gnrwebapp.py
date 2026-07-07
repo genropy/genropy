@@ -92,7 +92,8 @@ class GnrWsgiWebApp(GnrApp):
         if not currentEnv.get('env_transaction_id'):
             self.db.updateEnv(env_transaction_id= getUuid())
         broadcast = tblobj.attributes.get('broadcast')
-        if broadcast is not False and broadcast != '*old*':
+        subscribed_tables = currentEnv.get('subscribed_tables') or ()
+        if broadcast is not False and broadcast != '*old*' and tblobj.fullname in subscribed_tables:
             dbevents=currentEnv.setdefault(dbeventKey,{})
             r=dict(dbevent=event,pkey=record.get(tblobj.pkey),old_pkey=old_record.get(tblobj.pkey) if old_record else None)
             if broadcast and broadcast is not True:
