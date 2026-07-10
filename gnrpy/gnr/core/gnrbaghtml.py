@@ -281,6 +281,7 @@ class BagToHtml(object):
             baseTemplate.pop('next_letterhead')
             baseTemplate.walk(self.fillLetterheadSourceData)
             top_layer =  baseTemplate['#%i' %(len(baseTemplate)-1)]
+        self._letterhead_top_layer = top_layer
         d = self.__dict__
         paper_height = float(d.get('page_height') or top_layer['main.page.height'] or self.paperHeight)
         paper_width = float(d.get('page_width') or top_layer['main.page.width'] or self.paperWidth)
@@ -559,6 +560,23 @@ class BagToHtml(object):
         """TODO"""
         return (self.page_width - self.page_margin_left - self.page_margin_right -\
                 self.page_leftbar_width - self.page_rightbar_width)
+
+    def contentAreaWidth(self):
+        """Return the width of the band the copies are actually rendered into.
+
+        With a ``headline`` letterhead the content goes into the template's
+        center_center cell, whose side bands are ``layout.center.left/right``
+        (see ``letterhead_layer``): the ``layout.left/right`` widths that
+        ``prepareTemplates`` loads into ``page_leftbar/rightbar_width`` only
+        shape the ``sidebar`` design, so ``copyWidth()`` would subtract them
+        even when they take no horizontal space.
+        """
+        top_layer = getattr(self, '_letterhead_top_layer', None)
+        if top_layer and top_layer['main.design'] == 'headline':
+            return (self.page_width - self.page_margin_left - self.page_margin_right
+                    - float(top_layer['layout.center.left?width'] or 0)
+                    - float(top_layer['layout.center.right?width'] or 0))
+        return self.copyWidth()
 
     def lineIterator(self,nodes):
         lastNode = nodes[-1]
@@ -1319,7 +1337,7 @@ class BagToHtml(object):
         if self.grid_width:
             outer_width = self.grid_width
         else:
-            outer_width = self.copyWidth() - layoutPars.get('left', 0) - layoutPars.get('right', 0)
+            outer_width = self.contentAreaWidth() - layoutPars.get('left', 0) - layoutPars.get('right', 0)
         #the nested grid layout loses its left/right offsets and side borders (finalize_layout)
         grid_width = gridPars.get('width') or \
                      (outer_width - gridPars.get('left', 0) - gridPars.get('right', 0) - 2 * border_width)

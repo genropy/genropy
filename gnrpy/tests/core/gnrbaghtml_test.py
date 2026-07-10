@@ -1,3 +1,5 @@
+import pytest
+
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrbaghtml import BagToHtml
 from gnr.core.gnrhtml import GnrHtmlBuilder
@@ -115,3 +117,49 @@ def test_mainLayoutParameters_uses_declared_font_family():
     p = _print_instance([], dict(), font_family='Courier')
     assert p.mainLayoutParameters()['font_family'] == 'Courier'
     assert BagToHtml().mainLayoutParameters()['font_family'] == 'Arial Narrow'
+
+
+def _headline_layer(center_left=10, center_right=10):
+    layer = Bag()
+    layer['main.design'] = 'headline'
+    layer.setItem('layout.center.left', None, width=center_left)
+    layer.setItem('layout.center.right', None, width=center_right)
+    return layer
+
+
+def test_contentAreaWidth_headline_letterhead():
+    # real-world geometry: the template carries 30mm layout.left/right widths that
+    # prepareTemplates loads into the side bars, but the headline center band only
+    # reserves 10+10mm, so the content area is wider than copyWidth()
+    p = _print_instance([], dict(), page_width=210,
+                        page_leftbar_width=30, page_rightbar_width=30,
+                        _letterhead_top_layer=_headline_layer())
+    assert p.copyWidth() == 150
+    assert p.contentAreaWidth() == 190
+
+
+def test_contentAreaWidth_sidebar_letterhead_matches_copyWidth():
+    layer = Bag()
+    layer['main.design'] = 'sidebar'
+    p = _print_instance([], dict(), page_width=210,
+                        page_leftbar_width=30, page_rightbar_width=30,
+                        _letterhead_top_layer=layer)
+    assert p.contentAreaWidth() == p.copyWidth() == 150
+
+
+def test_contentAreaWidth_no_letterhead_matches_copyWidth():
+    p = _print_instance([], dict(), page_width=210, page_margin_left=10, page_margin_right=10)
+    assert p.contentAreaWidth() == p.copyWidth() == 190
+
+
+def test_gridFlexWidth_headline_letterhead_uses_content_area():
+    p = _print_instance([dict(field='code', mm_width=30),
+                         dict(field='descr', mm_width=0, white_space='normal')],
+                        dict(code='X1', descr=LONG_TEXT),
+                        page_width=210, page_leftbar_width=30, page_rightbar_width=30,
+                        _letterhead_top_layer=_headline_layer())
+    columns = [node.attr for node in p.sheetColumnsBag(0)]
+    cells = p._gridRowCells(columns, p.rowData)
+    # 190 content band - 2 main layout offsets - 0.2 grid offsets - 0.6 grid side
+    # borders - 30 fixed column - 0.3 inner cell border
+    assert p._gridFlexWidth(cells) == pytest.approx(190 - 2 - 0.2 - 0.6 - 30 - 0.3)
