@@ -27,7 +27,7 @@
 import os
 from datetime import datetime
 
-from gnr.core.gnrlang import  gnrImport
+from gnr.core.gnrlang import  gnrImport, GnrException
 from gnr.core.gnrbag import Bag
 from gnr.lib import logger
 
@@ -90,6 +90,9 @@ class BaseServiceType(object):
             return
         implementation = service_conf.pop('implementation',None) or service_conf.pop('resource',None) #resource is the oldname for implementation
         service_factory = self.getServiceFactory(implementation)
+        if service_factory is None:
+            raise GnrException('no implementation %r for service type %r (service %r)'
+                               % (implementation, self.service_type, service_name))
         service_conf = service_conf or {}
         service = service_factory(self.site, **service_conf)
         service.service_name = service_name
