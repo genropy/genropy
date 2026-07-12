@@ -148,6 +148,7 @@ class GroupletHandler(BaseComponent):
     def gr_groupletChunk(self, pane, value=None, template=None, name=None,
                          handler=None, resource=None, table=None,
                          title=None,
+                         record_id=None,
                          virtual_columns=None,
                          grouplets_root=None,
                          grouplet_kwargs=None, template_kwargs=None,
@@ -167,12 +168,26 @@ class GroupletHandler(BaseComponent):
         btn_kwargs.setdefault('right', '2px')
         kwargs.setdefault('_class', 'grouplet_chunk_box')
         grid_kw = dictExtract(kwargs, 'grid_', pop=True)
+        if record_id is not None:
+            # in record mode the chunk gets its own workspace, so the loaded record lives
+            # in an isolated (gnr.workspace) scope, never in the caller datapath.
+            kwargs['_workspace'] = f'grplt_{name}'
         root = pane.div(**kwargs)
         template_kwargs['template'] = template
-        template_kwargs['datasource'] = value
+        if record_id is not None:
+            # RECORD MODE (no surrounding form): the record is loaded into the component's
+            # own WORKSPACE (isolated from the caller datapath, so it can never pollute a
+            # form record) which feeds the templatechunk. record_id (a pkey or a reactive
+            # path) is resolved in the caller scope. The pencil opens recordDataEditor, which
+            # loads by pkey and saves the record directly (store_handler='record');
+            # onSavedCb bumps the reload trigger so the summary refreshes after save.
+            root.dataRecord('#WORKSPACE.record', table=table, pkey=record_id,
+                            _onBuilt=True, _fired='^#WORKSPACE.reload')
+            template_kwargs['datasource'] = '^#WORKSPACE.record'
+        else:
+            template_kwargs['datasource'] = value
         root.div(**template_kwargs)  # templatechunk
         btn = root.lightButton(**btn_kwargs)
-        grouplet_kwargs['value'] = value.replace('^', '')
         if resource:
             grouplet_kwargs['resource'] = resource
         if table:
@@ -185,10 +200,25 @@ class GroupletHandler(BaseComponent):
             grouplet_kwargs['grouplets_root'] = grouplets_root
         for k, v in grid_kw.items():
             grouplet_kwargs[f'grouplet_remote_grid_{k}'] = v
-        btn.dataController("""
-            let editor_kw = {..._kwargs};
-            genro.dlg.memoryDataEditor(name,editor_kw,this);
-        """, name=name, **grouplet_kwargs)
+        if record_id is not None:
+            # editor pkey read at click (= binding) when record_id is a reactive path, so
+            # the button controller does not subscribe to it; a literal pkey passes through.
+            grouplet_kwargs['pkey'] = (f'={record_id[1:]}'
+                                       if isinstance(record_id, str) and record_id.startswith('^')
+                                       else record_id)
+            grouplet_kwargs['storeType'] = 'Item'
+            btn.dataController("""
+                var _bnode = this;
+                let editor_kw = {..._kwargs};
+                editor_kw.onSavedCb = function(){_bnode.setRelativeData('#WORKSPACE.reload', new Date().getTime());};
+                genro.dlg.recordDataEditor(name, editor_kw, this);
+            """, name=name, **grouplet_kwargs)
+        else:
+            grouplet_kwargs['value'] = value.replace('^', '')
+            btn.dataController("""
+                let editor_kw = {..._kwargs};
+                genro.dlg.memoryDataEditor(name,editor_kw,this);
+            """, name=name, **grouplet_kwargs)
         return root
 
     @extract_kwargs(grouplet=dict(slice_prefix=False, pop=True))
@@ -797,6 +827,11 @@ class GroupletGridHandler(BaseComponent):
         store_kwargs.setdefault('store_storeType', 'ValuesBagRows')
         if struct_mode:
             container.data(structpath, struct)
+        # the footer placeholder exists only when some column totalizes: the JS
+        # adapter grafts the totals there (buildFooter returns null otherwise)
+        # and an unconditional placeholder would paint an empty footer strip
+        struct_has_totalize = struct_mode and any(
+            n.attr.get('totalize') for n in struct.traverse())
         for side in ('top', 'bottom', 'left', 'right'):
             slot = container.div(
                 _class=f'grouplet_grid_slot grouplet_grid_slot_{side}',
@@ -806,7 +841,7 @@ class GroupletGridHandler(BaseComponent):
             if struct_mode and side == 'top':
                 slot.div(_class='grouplet_grid__struct_header',
                          childname='struct_header')
-            elif struct_mode and side == 'bottom':
+            elif struct_has_totalize and side == 'bottom':
                 slot.div(_class='grouplet_grid__struct_footer',
                          childname='struct_footer')
         container.div(_class='grouplet_grid_body',
