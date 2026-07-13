@@ -51,3 +51,5 @@ gnrpy/tests/core/*/gnrtest/instances/gnrtest/config/instanceconfig.xml
 gnrpy/tests/core/*/gnrtest/instances/gnrtest/root.py
 /temp/
 .gnr/
+worktrees/
+.venv/

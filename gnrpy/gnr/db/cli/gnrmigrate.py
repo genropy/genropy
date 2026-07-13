@@ -15,8 +15,50 @@ from gnr.app.gnrapp import GnrApp
 from gnr.app.pathresolver import PathResolver
 from gnr.sql.gnrsqlmigration import SqlMigrator
 from gnr.sql import AdapterCapabilities
+from gnr.db.cli import _migrator_bridge
 
 description = "create/update/check database models in Genro framework NG"
+
+
+def _try_external_migrate(app, options):
+    """Delegate a standard migrate/check to the external genro-sqlmigrate CLI.
+
+    Returns True if it handled the run, False to fall back to the in-process
+    legacy engine. Scope (A): only plain check/apply on a direct PostgreSQL
+    connection — inspect/import/extensions/rebuild and non-direct connections
+    always use the legacy path.
+    """
+    if options.inspect or options.import_file or options.extensions \
+            or options.rebuild_relations or options.remove_relations_only:
+        return False
+    cmd = _migrator_bridge.external_cmd()
+    if not cmd or not _migrator_bridge.is_direct_connection(app.db):
+        return False
+
+    extensions = app.db.application.config['db?extensions']
+    engine_options = {'force': options.force, 'backup': options.backup}
+    job = _migrator_bridge.build_job(app.db, extensions=extensions,
+                                     options=engine_options)
+    subcommand = 'check' if options.check else 'migrate'
+    apply = not options.check
+    result = _migrator_bridge.run_external(cmd, subcommand, job, apply=apply)
+    if result.stderr:
+        logger.error(result.stderr.rstrip())
+    sql = result.stdout.strip()
+    if subcommand == 'check':
+        logger.info('STRUCTURE NEEDS CHANGES' if result.returncode == 1
+                    else 'STRUCTURE OK')
+        if sql and options.verbose:
+            logger.info('*CHANGES:\n%s' % sql)
+    else:
+        if sql:
+            logger.info('CHANGES APPLIED TO DATABASE' if apply
+                        else 'STRUCTURE NEEDS CHANGES')
+            if options.verbose:
+                logger.info('*CHANGES:\n%s' % sql)
+        else:
+            logger.info('STRUCTURE OK')
+    return True
 
 
 def get_app(options):
@@ -214,6 +256,15 @@ def main():
             app.db.commit()
             app.db.closeConnection()
             continue
+        if _try_external_migrate(app, options):
+            app.pkgBroadcast('onDbSetup,onDbSetup_*')
+            if options.upgrade:
+                app.pkgBroadcast('onDbUpgrade,onDbUpgrade_*')
+                app.db.table('sys.upgrade').runUpgrades()
+                app.db.commit()
+            app.db.closeConnection()
+            continue
+
         extensions = app.db.application.config['db?extensions']
         migrator = SqlMigrator(app.db, extensions=extensions,
                                ignore_constraint_name=True,
