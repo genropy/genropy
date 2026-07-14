@@ -107,9 +107,10 @@ class Service(StorageService):
     def __init__(self, parent=None, bucket=None,
                 base_path=None, aws_access_key_id=None,
                 aws_secret_access_key=None, aws_session_token=None,
-                region_name=None, url_expiration=None, write_in_local=None, 
+                region_name=None, url_expiration=None, write_in_local=None,
                 readonly=None,versioned=True,
                 custom_endpoint=False, endpoint_url=None,
+                public_base_url=None,
                 disable_cert_verify=False, **kwargs):
         self.parent = parent
         self.bucket = bucket
@@ -119,6 +120,7 @@ class Service(StorageService):
         self.aws_session_token=aws_session_token
         self.region_name=region_name
         self.endpoint_url = endpoint_url if custom_endpoint else None
+        self.public_base_url = (public_base_url or '').rstrip('/')
         self.disable_cert_verify = disable_cert_verify
         self.url_expiration = url_expiration or 3600
         has_sys = 'gnrcore:sys' in self.parent.gnrapp.config['packages']
@@ -334,7 +336,28 @@ class Service(StorageService):
         return self._client.generate_presigned_url('get_object',
             Params=params,
             ExpiresIn=expiration)
-    
+
+    def public_url(self, *args, **kwargs):
+        """Returns a plain, non-expiring url for objects readable by anyone.
+
+        The object must be publicly readable (bucket policy or equivalent):
+        the service only builds the url, it does not grant access.
+        With public_base_url set, the url is {public_base_url}/{internal_path}:
+        use it for a custom or CDN domain fronting the bucket. Otherwise a
+        path-style url is built against the service endpoint: the custom
+        endpoint_url if configured (e.g. a SeaweedFS or MinIO gateway) or
+        the AWS regional endpoint https://s3.{region_name}.amazonaws.com."""
+        internal_path = self.internal_path(*args)
+        if self.public_base_url:
+            return '%s/%s' % (self.public_base_url, internal_path)
+        if self.endpoint_url:
+            endpoint = self.endpoint_url.rstrip('/')
+        elif self.region_name:
+            endpoint = 'https://s3.%s.amazonaws.com' % self.region_name
+        else:
+            endpoint = 'https://s3.amazonaws.com'
+        return '%s/%s/%s' % (endpoint, self.bucket, internal_path)
+
     def internal_url(self, *args, **kwargs):
         kwargs = kwargs or {}
         kwargs['_download'] = True
@@ -431,6 +454,7 @@ class ServiceParameters(BaseComponent):
         fb.textbox(value='^.region_name',lbl='Region Name')
         fb.checkbox(value='^.custom_endpoint',lbl='Custom Endpoint')
         fb.textbox(value='^.endpoint_url',lbl='Endpoint Url', hidden='==!custom', custom='^.custom_endpoint')
+        fb.textbox(value='^.public_base_url',lbl='Public Base Url')
         fb.checkbox(value='^.disable_cert_verify',lbl='Disable Certificate Verification')
         bc.storageTreeFrame(frameCode='bucketStorage',storagepath='^#FORM.record.service_name?=#v+":"',
                                 border='1px solid silver',margin='2px',rounded=4,
