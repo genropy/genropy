@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
+from urllib.parse import urlsplit
+
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
 from gnr.app.gnrlocalization import AppLocalizer
@@ -70,6 +72,61 @@ class Table(object):
         """Returns the full url of the documentation page, based on the handbook_url 
            of the closest ancestor handbook and on the hierarchical_name of the current record"""
         return self.calculateExternalUrl(record)
+
+    def resolveRequestPath(self, path):
+        """Resolve a request path of the published handbooks site to the current
+        absolute URL of the matching page.
+
+        Meant to serve the web server fallback for missing static files: the page
+        is looked up by name, narrowing homonyms with the other path segments.
+        Returns None when nothing matches or when the resolved URL points back to
+        the requested path (the caller would answer it with a redirect loop)."""
+        path = (path or '').strip('/')
+        if not path:
+            return None
+        location = self._resolveFromName(path)
+        if not location or urlsplit(location).path.strip('/') == path:
+            return None
+        return location
+
+    def _resolveFromName(self, path):
+        """Return the current external URL of the page named as the last path segment.
+
+        Homonyms under different handbooks or folders are disambiguated by scoring
+        each candidate URL by the number of requested path segments it shares
+        (handbook name, folder names); an unresolvable tie yields None."""
+        segments = self._urlPathSegments(path)
+        if not segments:
+            return None
+        candidates = self.query(columns='$id,$name,$child_count',
+                                where='$name=:docname AND $publish_date IS NOT NULL',
+                                docname=segments[-1]).fetch()
+        scored = {}
+        for candidate in candidates:
+            url = self.calculateExternalUrl(dict(candidate))
+            if not url:
+                continue
+            url_segments = self._urlPathSegments(urlsplit(url).path)
+            score = len(set(segments) & set(url_segments))
+            scored.setdefault(score, []).append(url)
+        if not scored:
+            return None
+        best_urls = scored[max(scored)]
+        if len(best_urls) == 1:
+            return best_urls[0]
+        return None
+
+    def _urlPathSegments(self, path):
+        """Normalize a url path into comparable segments: no .html suffix, no
+        trailing index page, no doubled branch name (sphinx builds branch pages
+        as <name>/<name>.html)"""
+        segments = [seg[:-5] if seg.endswith('.html') else seg
+                        for seg in path.split('/') if seg]
+        if segments and segments[-1] == 'index':
+            segments = segments[:-1]
+        if len(segments) >= 2 and segments[-1] == segments[-2]:
+            segments = segments[:-1]
+        return segments
 
     def atc_getAttachmentPath(self,pkey):
         return f'documentation:attachments/{pkey}'
@@ -149,9 +206,34 @@ class Table(object):
 
         for atc in attachments:
             atc = dict(atc)
-            atc['host'] = host
-            result.append(tpl % atc)
+            media_url = self._atcPublicUrl(atc)
+            if media_url:
+                result.append('- `%s <%s>`_ ' % (atc['description'], media_url))
+            else:
+                atc['host'] = host
+                result.append(tpl % atc)
         return '\n'.join(result)
+
+    def _atcPublicUrl(self, atc):
+        """Return a stable public url for an attachment from its own storage node.
+
+        The attachment already lives on a storage service, so no copy is needed:
+        public_url() gives an unsigned permanent url on services with a public
+        base (e.g. aws_s3) and falls back to the plain instance-served url on
+        the others. Foreign documents keep their own external url. Returns None
+        when the file cannot be resolved, falling back to the legacy fileurl
+        link."""
+        if atc.get('external_url'):
+            return atc['external_url']
+        filepath = atc.get('filepath')
+        if not filepath:
+            return None
+        if ':' not in filepath:
+            filepath = 'home:%s' % filepath
+        node = self.db.application.site.storageNode(filepath)
+        if not node.exists:
+            return None
+        return node.public_url()
 
     def dfAsRstTable(self,pkey,language=None):
         rows = self.df_getFieldsRows(pkey=pkey)

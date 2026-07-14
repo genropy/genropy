@@ -4,7 +4,6 @@
 		<en_documentation base="Documentation" de="Dokumentation" en="Documentation" fr="Documentation" it="Documentazione"/>
 		<en_contents base="Contents" it="Contenuti"/>
 		<en_handbooks base="Handbooks" it="Manuali" en="Handbooks"/>
-		<en_redirects base="Redirects" en="Redirects" it="Reindirizzamenti"/>
 		<en_docu_tables base="Docu tables" en="Docu tables" it="Tabelle Docu"/>
 	</menu>
 
@@ -99,16 +98,6 @@
 				<en_handbook_preview_image base="Handbook preview image" it="Immagine anteprima manuale" en="Handbook preview image"/>
 				<en_sphinx_path base="Sphinx path" en="Sphinx path" it="Path Sphinx"/>
 		</handbook>
-		<redirect path="model/redirect.py" ext="py">
-			<en_moved_page base="Moved Page" en="Moved Page" it="Pagina spostata"/>
-				<en_old_url base="Old url" en="Old url" it="Vecchia url"/>
-				<en_new_url base="New url" en="New url" it="Nuovo url"/>
-				<en_old_handbook base="Old Handbook" en="Old Handbook" it="Vecchio manuale"/>
-				<en_new_handbook base="New Handbook" en="New Handbook" it="Nuovo manuale"/>
-				<en_page_name fr="Nom de la page" de="Seitenname" en="Page Name" it="Nome pagina" base="Page name"/>
-				<en_handbook_path base="Handbook path" en="Handbook path" it="Percorso del manuale"/>
-				<en_handbook_url base="Handbook url" it="Url manuale" en="Handbook url"/>
-		</redirect>
 		<topic path="model/topic.py" ext="py">
 			<en_topic base="Topic" de="Thema" en="Topic" fr="Sujet" it="Argomento"/>
 		</topic>
@@ -137,7 +126,6 @@
 				<en_base_js base="Base JS" it="JS di base"/>
 				<en_sphinx_baseurl base="Sphinx baseurl" en="Sphinx baseurl" it="Sphinx baseurl"/>
 				<en_cloudfront_distribution_id base="Cloudfront distribution ID" en="Cloudfront distribution ID" it="ID di distribuzione Cloudfront"/>
-				<en_manage_redirects base="Manage redirects" it="Gestisci reindirizzamenti" en="Manage redirects"/>
 				<en_enable_sitemap base="Enable sitemap" it="Abilita mappa del sito"/>
 				<en_save_source_debug_files base="Save source debug files" it="Salva i file di debug di origine"/>
 				<en_handbook_logo base="Handbook Logo" it="Logo del manuale"/>
@@ -183,7 +171,6 @@
 						<en_parameters base="Parameters" de="Parameter" en="Parameters" fr="Paramètres" it="Parametri"/>
 										<en_attachments base="Attachments" de="Zubehör" en="Attachments" fr="Pièces jointes" it="Allegati"/>
 										<en_publish_date base="Publish date" en="Publish date" it="Data di pubblicazione"/>
-										<en_skip_redirects base="Skip redirects" en="Skip redirects" it="Salta i reindirizzamenti"/>
 										<en_force_cloudfront_cache_invalidation base="Force Cloudfront cache invalidation" en="Force Cloudfront cache invalidation" it="Forza l'invalidazione della cache di Cloudfront"/>
 										<en_send_notification_via_telegram base="Send notification via Telegram" en="Send notification via Telegram" it="Invia una notifica tramite Telegram"/>
 										<en_notification_content base="Notification content" en="Notification content" it="Contenuto delle notifiche"/>
@@ -211,13 +198,6 @@
 								<en_doc_url_ base="Doc url:" en="Doc url:" it="URL del documento:"/>
 				</th_handbook>
 			</handbook>
-				<redirect>
-				<th_redirect path="resources/tables/redirect/th_redirect.py" ext="py">
-					<en_all fr="Tous" de="Alle" en="All" it="Tutto" base="All"/>
-								<en_make_redirect base="Make redirect" it="Fai redirect" en="Make redirect"/>
-								<en_page base="Page" de="Seite" en="Page" fr="Page" it="Pagina"/>
-				</th_redirect>
-			</redirect>
 		</tables>
 	</resources>
 </GenRoBag>

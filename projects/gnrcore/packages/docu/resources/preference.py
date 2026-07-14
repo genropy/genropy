@@ -36,7 +36,6 @@ class AppPref(object):
         fb = pane.formbuilder(cols=1,border_spacing='4px')
         fb.textbox('^.sphinx_baseurl', lbl='!![en]Sphinx baseurl', placeholder='Default: http://genropy.org/docs/')
         fb.textbox('^.cloudfront_distribution_id', lbl='!![en]Cloudfront distribution ID', placeholder='E.g. E350MXXXXXZ73K')
-        fb.checkbox('^.manage_redirects', label='!![en]Manage redirects')
         fb.checkbox('^.enable_sitemap', label='!![en]Enable sitemap')
         fb.checkbox('^.save_src_debug', label='!![en]Save source debug files')
         if self.db.package('genrobot'):

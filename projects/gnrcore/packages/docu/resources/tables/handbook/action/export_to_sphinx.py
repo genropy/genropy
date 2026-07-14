@@ -54,6 +54,7 @@ class Main(BaseResourceBatch):
         self.enable_sitemap = self.db.application.getPreference('.enable_sitemap',pkg='docu')
         self.imagesDict = dict()
         self.imagesPath='_static/images'
+        self.mediaUrlsDict = dict()
         self.examplesPath='_static/_webpages'
         self.examples_root = None 
         self.examples_pars = Bag(self.handbook_record['examples_pars'])
@@ -66,10 +67,6 @@ class Main(BaseResourceBatch):
             self.examples_root_local = '%(examples_local_site)s/webpages/%(examples_directory)s' %self.handbook_record
         self.imagesDirNode = self.sourceDirNode.child(self.imagesPath)
         self.examplesDirNode = self.sourceDirNode.child(self.examplesPath)
-        #DP202112 Check if there are active redirects
-        if self.db.application.getPreference('.manage_redirects',pkg='docu'):
-            self.redirect_pkeys = self.db.table('docu.redirect').query(where='$old_handbook_id=:h_id AND $is_active IS TRUE', 
-                        h_id=self.handbook_id).selection().output('pkeylist')   
             
     def step_prepareConfFile(self):
         "Prepare conf file"
@@ -216,14 +213,6 @@ class Main(BaseResourceBatch):
         if not self.db.application.getPreference('.save_src_debug',pkg='docu'):
             self.sphinxNode.delete()
         self.db.commit()
-
-        if self.db.application.getPreference('.manage_redirects',pkg='docu'):
-            if self.redirect_pkeys or not self.batch_parameters.get('skip_redirects'):
-            #DP202112 Make redirect files
-                redirect_recs = self.db.table('docu.redirect').query(columns='*,$old_handbook_path,$old_handbook_url').fetchAsDict('id')
-                for redirect_pkey in self.redirect_pkeys:
-                    redirect_rec = redirect_recs[redirect_pkey]
-                    self.db.table('docu.redirect').makeRedirect(redirect_rec)
 
         if self.batch_parameters.get('invalidate_cache'):
             self.invalidateCloudfrontCache()
@@ -376,10 +365,36 @@ class Main(BaseResourceBatch):
     def fixImages(self, m):
         old_filepath = m.group(1)
         filename = old_filepath.split('/')[-1]
+        media_url = self.imagePublicUrl(old_filepath)
+        if media_url:
+            return ".. image:: %s" % media_url
         new_filepath = '%s/%s' % (self.imagesPath, '/'.join(self.curr_pathlist+[filename]))
         self.imagesDict[new_filepath]=old_filepath
         result = ".. image:: /%s" % new_filepath
         return result
+
+    def imagePublicUrl(self, old_filepath):
+        """Return the stable public url of an image already living on a storage.
+
+        Images stored on the instance are referenced by their storage url
+        (e.g. /_storage/service/path): the url of their own node is public on
+        services with a public base (e.g. aws_s3) and instance-served on the
+        others, so the image can be linked as-is instead of being embedded in
+        the sphinx build. Returns None for sources that do not resolve to an
+        existing storage node (e.g. external urls), falling back to the
+        standard download-and-embed behavior."""
+        if old_filepath in self.mediaUrlsDict:
+            return self.mediaUrlsDict[old_filepath]
+        media_url = None
+        if old_filepath.startswith('/'):
+            path_list = self.page.site.pathListFromUrl(old_filepath)
+            storage_type = self.page.site.storageType(path_list) if path_list else None
+            if storage_type:
+                node = self.page.site.storageNodeFromPathList(path_list, storage_type)
+                if node is not None and node.exists:
+                    media_url = node.public_url()
+        self.mediaUrlsDict[old_filepath] = media_url
+        return media_url
         
     def fixLinks(self, m):
         prefix = '%s/' % self.db.package('docu').htmlProcessorName()
@@ -454,8 +469,6 @@ class Main(BaseResourceBatch):
     
     def table_script_parameters_pane(self,pane,**kwargs):   
         fb = pane.formbuilder(cols=1, border_spacing='5px')
-        if self.db.application.getPreference('.manage_redirects',pkg='docu'):
-            fb.checkbox(label='!![en]Skip redirects', value='^.skip_redirects')
         if self.db.application.getPreference('.cloudfront_distribution_id',pkg='docu'):
             fb.checkbox(label='!![en]Force Cloudfront cache invalidation', value='^.invalidate_cache')
         #DP202101 Ask for Telegram notification option if enabled in docu settings
