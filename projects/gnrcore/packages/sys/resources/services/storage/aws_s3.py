@@ -453,8 +453,8 @@ class ServiceParameters(BaseComponent):
         fb.textbox(value='^.aws_secret_access_key',lbl='Aws Secret Access Key')
         fb.textbox(value='^.region_name',lbl='Region Name')
         fb.checkbox(value='^.custom_endpoint',lbl='Custom Endpoint')
-        fb.textbox(value='^.endpoint_url',lbl='Endpoint Url', hidden='==!custom', custom='^.custom_endpoint')
-        fb.textbox(value='^.public_base_url',lbl='Public Base Url')
+        fb.textbox(value='^.endpoint_url',lbl='Endpoint Url', hidden='^.custom_endpoint?=!#v')
+        fb.textbox(value='^.public_base_url',lbl='Public Base Url', hidden='^.custom_endpoint?=!#v')
         fb.checkbox(value='^.disable_cert_verify',lbl='Disable Certificate Verification')
         bc.storageTreeFrame(frameCode='bucketStorage',storagepath='^#FORM.record.service_name?=#v+":"',
                                 border='1px solid silver',margin='2px',rounded=4,
