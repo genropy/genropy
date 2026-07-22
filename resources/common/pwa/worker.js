@@ -1,16 +1,67 @@
+'use strict';
 //console.log('inside service worker');
 self.addEventListener("install", event => {
-  //console.log("Service worker installed");
+  self.skipWaiting();
 });
 self.addEventListener("activate", event => {
-  //console.log("Service worker activated");
+  event.waitUntil(self.clients.claim());
 });
 
+// Some browsers still gate PWA installability on the presence of a fetch listener.
 self.addEventListener("fetch", event => {
   //console.log("Service worker fetch");
 });
-'use strict';
 
+function urlB64ToUint8Array(base64String){
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+    const rawData = self.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
+const WPN_DB = 'wpn-config';
+const WPN_STORE = 'config';
+const WPN_KEY = 'wpn_config';
+
+function wpnDb(){
+    return new Promise((resolve, reject)=>{
+        const req = indexedDB.open(WPN_DB, 1);
+        req.onupgradeneeded = ()=>req.result.createObjectStore(WPN_STORE);
+        req.onsuccess = ()=>resolve(req.result);
+        req.onerror = ()=>reject(req.error);
+    });
+}
+function wpnConfigPut(cfg){
+    return wpnDb().then(db=>new Promise((resolve, reject)=>{
+        const tx = db.transaction(WPN_STORE, 'readwrite');
+        tx.objectStore(WPN_STORE).put(cfg, WPN_KEY);
+        tx.oncomplete = ()=>resolve();
+        tx.onerror = ()=>reject(tx.error);
+    }));
+}
+function wpnConfigGet(){
+    return wpnDb().then(db=>new Promise((resolve, reject)=>{
+        const req = db.transaction(WPN_STORE, 'readonly')
+                      .objectStore(WPN_STORE).get(WPN_KEY);
+        req.onsuccess = ()=>resolve(req.result || null);
+        req.onerror = ()=>reject(req.error);
+    }));
+}
+
+self.addEventListener('message', event=>{
+    const data = event.data || {};
+    if(data.type === 'wpn_config'){
+        event.waitUntil(wpnConfigPut({
+            vapidPublicKey: data.vapidPublicKey || null,
+            syncUrl: data.syncUrl || null,
+            deviceUuid: data.deviceUuid || null
+        }));
+    }
+});
 
 self.addEventListener('push', event=> {
     console.log('[Service Worker] Push Received.');
@@ -18,7 +69,10 @@ self.addEventListener('push', event=> {
     console.log(`[Service Worker] Push had this data: "${json.title}"`);
 
     const title = json.title;
-    const options = {body: json.text,data:json};
+    const options = {body: json.message || json.text, data:json};
+    if(json.icon){options.icon = json.icon;}
+    if(json.badge){options.badge = json.badge;}
+    if(json.tag){options.tag = json.tag;}
     const on_notified_url = json.on_notified_url;
     const body =  new URLSearchParams(json);
     event.waitUntil(
@@ -52,7 +106,6 @@ self.addEventListener('push', event=> {
 
 self.addEventListener('notificationclick', function(event) {
     console.log('[Service Worker] Notification click Received.');
-    this.clients.matchAll().then(m=>{console.log('match al result',m)});
     let json = event.notification.data;
     let body =  new URLSearchParams(json);
     const on_click_url = json.on_click_url;
@@ -84,18 +137,39 @@ self.addEventListener('notificationclick', function(event) {
     
 });
 
-self.addEventListener('pushsubscriptionchange', function(event) {
-    console.log('[Service Worker]: \'pushsubscriptionchange\' event fired.');
-    const applicationServerPublicKey = localStorage.getItem('applicationServerPublicKey');
-    const applicationServerKey = urlB64ToUint8Array(applicationServerPublicKey);
+self.addEventListener('pushsubscriptionchange', event=>{
     event.waitUntil(
-      self.registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: applicationServerKey
-      })
-      .then(function(newSubscription) {
-        // TODO: Send to application server
-        console.log('[Service Worker] New subscription: ', newSubscription);
-      })
+        wpnConfigGet().then(cfg=>{
+            const oldKey = (event.oldSubscription && event.oldSubscription.options)
+                ? event.oldSubscription.options.applicationServerKey : null;
+            const appKey = oldKey ||
+                ((cfg && cfg.vapidPublicKey) ? urlB64ToUint8Array(cfg.vapidPublicKey) : null);
+            if(!appKey){
+                return; // no key available: the page-side reconcile will heal
+            }
+            return self.registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: appKey
+            }).then(newSubscription=>{
+                if(!(cfg && cfg.syncUrl && cfg.deviceUuid)){
+                    return; // cannot identify the device: page-side reconcile will heal
+                }
+                // Best effort: syncUrl embeds the page_id captured at handshake
+                // time; if that page has expired the POST fails harmlessly.
+                return fetch(cfg.syncUrl, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    cache: 'no-cache',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: new URLSearchParams({
+                        device_uuid: cfg.deviceUuid,
+                        subscription_token: JSON.stringify(newSubscription),
+                        notification_method: 'WPN'
+                    })
+                });
+            });
+        }).catch(err=>{
+            console.error('[Service Worker] pushsubscriptionchange failed', err);
+        })
     );
 });
