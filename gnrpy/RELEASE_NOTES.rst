@@ -1,3 +1,9 @@
+Release 26.07.15
+================
+
+This is an hotfix release, restore grid vertical scrollbar when
+a view uses a columnset. (#957, #955)
+
 Release 26.07.06
 ================
 
