@@ -166,7 +166,10 @@ class GroupletHandler(BaseComponent):
         btn_kwargs.setdefault('position', 'absolute')
         btn_kwargs.setdefault('bottom', '2px')
         btn_kwargs.setdefault('right', '2px')
-        kwargs.setdefault('_class', 'grouplet_chunk_box')
+        # 'selectable' re-enables text selection on the summary template
+        # (the global reset sets user-select:none on div/span), so read-only
+        # content like an IBAN or code can be copied from the chunk.
+        kwargs.setdefault('_class', 'grouplet_chunk_box selectable')
         grid_kw = dictExtract(kwargs, 'grid_', pop=True)
         if record_id is not None:
             # in record mode the chunk gets its own workspace, so the loaded record lives
