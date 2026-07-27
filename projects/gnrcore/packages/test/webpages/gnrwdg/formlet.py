@@ -640,3 +640,73 @@ class GnrCustomWebPage(object):
         fl.textbox(value='^.g_phone', lbl='Phone')
         fl.textbox(value='^.g_taxcode', lbl='Tax Code')
         fl.textbox(value='^.g_zip', lbl='ZIP')
+
+    def test_8_button_alignment(self, pane):
+        """Buttons inside formlet: vertical alignment with labeled fields
+
+        A button (or any widget without lbl) placed next to labeled fields
+        does not get the labledBox wrapper, so it aligns to the top of its
+        grid cell while the field inputs sit below their label. This test
+        collects the relevant cases to verify the framework-level alignment.
+        """
+        pane.div('Button alignment inside formlet',
+                font_size='20px', font_weight='bold', margin='10px')
+
+        # Case A: top labels, plain style — button lands next to two textboxes
+        pane.div('A. item_lbl_side="top": button should align with the inputs, not float above',
+                margin='10px', color='#666')
+        fl = pane.formlet(cols=3, gap='10px', margin='10px',
+                          item_lbl_side='top', width='700px')
+        fl.textbox(value='^.a_code', lbl='Code')
+        fl.textbox(value='^.a_description', lbl='Description')
+        fl.button('Check', action='alert("checked")')
+
+        # Case B: top labels, card style (item_border) — same with styled items
+        pane.div('B. Same with card-styled items (item_border / item_padding)',
+                margin='10px', color='#666')
+        fl = pane.formlet(cols=3, gap='10px', margin='10px',
+                          item_lbl_side='top', width='700px',
+                          item_border='1px solid #ddd',
+                          item_rounded=6, item_padding='8px')
+        fl.textbox(value='^.b_code', lbl='Code')
+        fl.textbox(value='^.b_description', lbl='Description')
+        fl.button('Check', action='alert("checked")')
+
+        # Case C: left labels — button next to fields on the same row
+        pane.div('C. item_lbl_side="left": button on the same row as the fields',
+                margin='10px', color='#666')
+        fl = pane.formlet(cols=3, gap='10px', margin='10px',
+                          item_lbl_side='left', width='700px')
+        fl.textbox(value='^.c_code', lbl='Code')
+        fl.textbox(value='^.c_description', lbl='Description')
+        fl.button('Check', action='alert("checked")')
+
+        # Case D: checkbox with both lbl and label next to labeled fields
+        pane.div('D. checkbox with lbl and label next to labeled fields',
+                margin='10px', color='#666')
+        fl = pane.formlet(cols=3, gap='10px', margin='10px',
+                          item_lbl_side='top', width='700px')
+        fl.textbox(value='^.d_code', lbl='Code')
+        fl.checkbox(value='^.d_active', label='Active', lbl='Status')
+        fl.button('Check', action='alert("checked")')
+
+        # Case E: several unlabeled widgets — buttons only, must not gain
+        # spurious extra height
+        pane.div('E. Buttons only: no labeled siblings, no extra height expected',
+                margin='10px', color='#666')
+        fl = pane.formlet(cols=3, gap='10px', margin='10px',
+                          item_lbl_side='top', width='700px')
+        fl.button('One', action='alert(1)')
+        fl.button('Two', action='alert(2)')
+        fl.button('Three', action='alert(3)')
+
+        # Case F: checkbox variants — lbl only (text moved beside the box)
+        # and label only (button-like placeholder): both must align with the
+        # inputs; with both lbl and label see case D (label on top, box below)
+        pane.div('F. checkbox with lbl only / label only: aligned with the inputs',
+                margin='10px', color='#666')
+        fl = pane.formlet(cols=3, gap='10px', margin='10px',
+                          item_lbl_side='top', width='700px')
+        fl.textbox(value='^.f_code', lbl='Code')
+        fl.checkbox(value='^.f_privacy', lbl='Privacy')
+        fl.checkbox(value='^.f_active', label='Active')

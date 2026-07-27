@@ -826,9 +826,10 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         if lbl and not label and not getattr(self,'fbuilder',None):
             label = lbl
             lbl = '&nbsp;'
-            # Auto-add formlet_fakelabel class to hide empty label row in formlet
+            # Placeholder label: keeps the label height with top/bottom label
+            # side so the checkbox lines up with the sibling inputs
             if 'box__class' not in kwargs:
-                kwargs['box__class'] = 'formlet_fakelabel'
+                kwargs['box__class'] = 'formlet_placeholder_label'
         return self.child('checkbox', value=value, label=label,lbl=lbl, **kwargs)
         
     def dropdownbutton(self, label=None, **kwargs):

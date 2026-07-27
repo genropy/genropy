@@ -77,18 +77,16 @@ class Main(BaseResourceBatch):
         if len(self.filelist)==1 and self.db.implementation=='postgres':
             filepath = self.filelist[0] #/.../pippo/mainstore.pgd --> /.../pippo.pgd
             fileSn = self.db.application.site.storageNode(filepath)
-            destname = '%s.pdg' %self.dump_name
+            destname = '%s.pgd' %self.dump_name
             destSn = self.backupSn.child(destname)
             fileSn.move(destSn)
             self.tempSn.delete()
-            self.result_url = destSn.internal_url()
-            return
+        else:
+            destSn = self.backupSn.child(f'{self.dump_name}.zip')
+            self.page.site.zipFiles(file_list=self.filelist, zipPath=destSn.fullpath)
+            self.tempSn.delete()
 
-        destSn = self.backupSn.child(f'{self.dump_name}.zip')
-        self.page.site.zipFiles(file_list=self.filelist, zipPath=destSn.fullpath)
-        self.tempSn.delete()
         self.result_url = destSn.url()
-
         backup_rec = dict(self.dump_rec)
         self.dump_rec['end_ts'] = datetime.now()
         self.dump_rec['file_url'] = destSn.internal_url()
