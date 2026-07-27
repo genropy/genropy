@@ -34,6 +34,16 @@ async-mail-service -> Genropy (delivery reports):
   - error -> error_msg
   - deferred_ts -> deferred_ts (UTC datetime, for rate-limited messages)
 
+Transient error handling:
+------------------------
+Attachment fetch failures reported by the proxy are retried automatically
+when the attachment is still available on storage (the failure was a
+temporary outage, e.g. server in maintenance): the message is re-enqueued
+in email.message_to_send with an incremental backoff (deferred_ts), up to
+MAX_TRANSIENT_RETRIES attempts tracked in the sending_attempt bag.
+Proxy communication errors and storage errors during conversion keep the
+messages in the queue instead of marking them as failed.
+
 Database Fields Used:
 ---------------------
 email.message:
@@ -62,13 +72,20 @@ For protocol details see:
 https://github.com/genropy/gnr-async-mail-service/blob/main/docs/protocol.rst
 """
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from gnr.web import logger
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
 
 MEDIUM_PRIORITY = 2
+
+# Delivery errors caused by a temporarily unreachable attachment endpoint
+# (e.g. server in maintenance while the proxy fetches from S3-backed volumes)
+# are retried automatically instead of being marked as permanent failures.
+MAX_TRANSIENT_RETRIES = 5
+TRANSIENT_RETRY_DELAYS = (0, 300, 900, 3600, 7200)
+TRANSIENT_ERROR_MARKERS = ('Attachment fetch failed',)
 
 class GnrCustomWebPage(object):
     py_requires='gnrcomponents/externalcall:BaseRpc'
@@ -181,7 +198,8 @@ class GnrCustomWebPage(object):
         messages = messagetbl.query(
             where='$id IN :message_pkeys',
             message_pkeys=list(reports_by_id.keys()),
-            for_update=True
+            for_update=True,
+            bagFields=True
         ).fetch()
 
         # Find IDs not in DB
@@ -208,6 +226,8 @@ class GnrCustomWebPage(object):
                     pass
 
             elif error_ts:
+                if self._defer_transient_error(messagetbl, message, old_message, report):
+                    continue
                 try:
                     message['error_ts'] = datetime.fromtimestamp(int(error_ts), tz=timezone.utc)
                     message['error_msg'] = report.get('error')
@@ -230,6 +250,57 @@ class GnrCustomWebPage(object):
             result['not_found'] = not_found_ids
         return result
 
+    def _defer_transient_error(self, messagetbl, message, old_message, report):
+        """Re-enqueue a message whose delivery failed for a transient reason.
+
+        The proxy reports an attachment fetch failure as a permanent error, but
+        if the attachment is still available on storage the failure was almost
+        certainly a temporary outage (server in maintenance, storage hiccup).
+        In that case the message is re-enqueued with an incremental backoff
+        instead of being marked as failed. Attempts are tracked in the
+        sending_attempt bag, up to MAX_TRANSIENT_RETRIES.
+
+        Returns True if the message was re-enqueued (caller must skip error marking).
+        """
+        error = report.get('error') or ''
+        if not any(marker in error for marker in TRANSIENT_ERROR_MARKERS):
+            return False
+        if self._has_missing_attachments(message):
+            return False
+        attempts = message['sending_attempt'] or Bag()
+        if len(attempts) >= MAX_TRANSIENT_RETRIES:
+            return False
+        ts = messagetbl.newUTCDatetime()
+        attempts.child('attempt', ts=ts, error=error)
+        message['sending_attempt'] = attempts
+        delay = TRANSIENT_RETRY_DELAYS[min(len(attempts) - 1, len(TRANSIENT_RETRY_DELAYS) - 1)]
+        message['deferred_ts'] = ts + timedelta(seconds=delay) if delay else None
+        message['proxy_ts'] = None
+        message['error_ts'] = None
+        message['error_msg'] = None
+        messagetbl.update(message, old_message)
+        self.db.table('email.message_to_send').addMessageToQueue(message['id'])
+        logger.info('proxy_sync: transient delivery error for message %s (attempt %d/%d), re-enqueued%s: %s',
+                    message['id'], len(attempts), MAX_TRANSIENT_RETRIES,
+                    ' deferred %ds' % delay if delay else '', error)
+        return True
+
+    def _has_missing_attachments(self, record):
+        """Check whether any attachment of the message is definitely missing.
+
+        Storage backend errors are treated as unknown (not missing), so that a
+        temporary storage outage does not turn a retryable error into a
+        permanent one.
+        """
+        for path in self._attachment_paths(record):
+            try:
+                node = self.site.storageNode(path)
+                if not node or not node.exists:
+                    return True
+            except Exception:
+                continue
+        return False
+
     @public_method(tags='_MAILPROXY_')
     def proxy_get_attachments(self, **kwargs):
         """
@@ -245,38 +316,47 @@ class GnrCustomWebPage(object):
         Returns:
             Binary file content directly with application/octet-stream.
 
-        Raises:
-            ValueError: If storage_path parameter is missing
-            FileNotFoundError: If the specified file does not exist
-            IOError: If there's an error reading the file
+        Error responses use meaningful HTTP status codes so that the proxy can
+        distinguish permanent failures from transient ones:
+            400 - missing storage_path parameter
+            404 - the file does not exist (permanent)
+            503 - storage backend error while checking/reading (transient)
         """
         json_data = self._request_json()
         storage_path = json_data.get('storage_path')
 
         if not storage_path:
             logger.warning('proxy_get_attachments: missing storage_path parameter')
-            raise ValueError("Missing required parameter: storage_path")
+            self._response.status_code = 400
+            return self._json_response({'error': 'Missing required parameter: storage_path'})
 
         logger.info('proxy_get_attachments: fetching %s', storage_path)
-        storage_node = self.site.storageNode(storage_path)
+        try:
+            storage_node = self.site.storageNode(storage_path)
+            node_exists = bool(storage_node and storage_node.exists)
+        except Exception as e:
+            logger.error('Storage error checking attachment %s: %s', storage_path, str(e))
+            self._response.status_code = 503
+            return self._json_response({'error': f'Storage error for attachment {storage_path}: {str(e)}'})
 
-        if not storage_node or not storage_node.exists:
+        if not node_exists:
             logger.warning('Attachment not found: %s', storage_path)
-            raise FileNotFoundError(f'Attachment not found: {storage_path}')
+            self._response.status_code = 404
+            return self._json_response({'error': f'Attachment not found: {storage_path}'})
 
         try:
             with storage_node.open('rb') as f:
                 content = f.read()
-
-            logger.debug('Attachment retrieved: %s (%d bytes)', storage_path, len(content))
-
-            # Return binary content - the proxy reads it with response.read()
-            self.response.content_type = 'application/octet-stream'
-            return content
-
-        except (IOError, OSError) as e:
+        except Exception as e:
             logger.error('Error reading attachment %s: %s', storage_path, str(e))
-            raise IOError(f'Error reading attachment {storage_path}: {str(e)}')
+            self._response.status_code = 503
+            return self._json_response({'error': f'Error reading attachment {storage_path}: {str(e)}'})
+
+        logger.debug('Attachment retrieved: %s (%d bytes)', storage_path, len(content))
+
+        # Return binary content - the proxy reads it with response.read()
+        self.response.content_type = 'application/octet-stream'
+        return content
 
     def _mark_message_error(self, message_tbl, message, error_msg):
         """Mark a message record with an error timestamp and message."""
@@ -288,7 +368,11 @@ class GnrCustomWebPage(object):
     def _add_messages_to_proxy_queue(self, proxy_service, message_pkeys):
         """
         Fetch pending messages, convert and submit to async-mail-service.
-        All messages are always dequeued — the proxy owns the lifecycle from here.
+
+        Messages accepted or rejected by the proxy are dequeued — the proxy
+        owns their lifecycle from there. Messages hit by a transient problem
+        (storage error during conversion, proxy communication error) are kept
+        in the queue and resubmitted on the next sync cycle.
         """
         message_tbl = self.db.table('email.message')
         messages = message_tbl.query(where='$id IN :message_pkeys',
@@ -299,34 +383,44 @@ class GnrCustomWebPage(object):
         # Convert to proxy format
         payload = []
         proxy_ids = {}
+        skipped = set()
         for message in messages.values():
             result = self._convert_to_proxy_message(message, proxy_service.tenant_id)
-            if isinstance(result, str):
+            if result is None:
+                skipped.add(message['id'])
+            elif isinstance(result, str):
                 self._mark_message_error(message_tbl, message, result)
-            elif result:
+            else:
                 payload.append(result)
                 proxy_ids[message['id']] = result.get('id')
 
         # Submit to proxy and process response
         queued_count = 0
+        submitted = True
         if payload:
-            queued_count = self._submit_to_proxy(
+            queued_count, submitted = self._submit_to_proxy(
                 proxy_service, message_tbl, messages, payload, proxy_ids)
 
-        # Always dequeue — proxy owns the lifecycle from here
-        self.db.table('email.message_to_send').removeMessageFromQueue(message_pkeys)
+        to_dequeue = [pkey for pkey in message_pkeys if pkey not in skipped]
+        if not submitted:
+            to_dequeue = [pkey for pkey in to_dequeue if pkey not in proxy_ids]
+        if to_dequeue:
+            self.db.table('email.message_to_send').removeMessageFromQueue(to_dequeue)
         return queued_count
 
     def _submit_to_proxy(self, proxy_service, message_tbl, messages, payload, proxy_ids):
-        """Submit payload to proxy and update message records based on response."""
+        """Submit payload to proxy and update message records based on response.
+
+        Returns a (queued_count, submitted) tuple. When the submission fails at
+        transport level the messages are left untouched (submitted=False) so the
+        caller keeps them in the queue for the next sync cycle.
+        """
         try:
             response_data = proxy_service.add_messages(payload) or {}
         except Exception as e:
-            logger.error('proxy_sync: Proxy communication error: %s', e)
-            for message_id in proxy_ids:
-                self._mark_message_error(
-                    message_tbl, messages[message_id], f"Proxy communication error: {e}")
-            return 0
+            logger.error('proxy_sync: Proxy communication error: %s - %d messages kept in queue for retry',
+                         e, len(proxy_ids))
+            return 0, False
 
         if isinstance(response_data, list):
             response_data = {'ok': True, 'legacy': response_data}
@@ -352,7 +446,7 @@ class GnrCustomWebPage(object):
                 message['error_msg'] = None
                 message_tbl.update(message, oldrec)
 
-        return response_data.get('queued', 0)
+        return response_data.get('queued', 0), True
 
     def _convert_to_proxy_message(self, record, tenant_id):
         """
@@ -426,6 +520,12 @@ class GnrCustomWebPage(object):
                 result['attachments'] = attachments
         except FileNotFoundError as e:
             return str(e)  # Return error string to mark message as failed
+        except Exception as e:
+            # Transient storage error (e.g. S3 outage): keep the message in
+            # queue, it will be resubmitted on the next sync cycle
+            logger.error('proxy_sync: storage error collecting attachments for message %s: %s - kept in queue',
+                         record['id'], e)
+            return None
 
         return result
 
@@ -466,44 +566,30 @@ class GnrCustomWebPage(object):
                 normalized[str(key)] = str(value)
         return normalized
 
-    def _attachments_for_message(self, record):
-        """Collect attachments for a message. Raises FileNotFoundError if any attachment is missing."""
-        attachments = []
-        message_id = record['id']
+    def _attachment_paths(self, record):
+        """Collect the storage paths of all attachments of a message."""
         atc_tbl = self.db.table('email.message_atc')
         attachment_rows = atc_tbl.query(
             where='$maintable_id=:mid AND $filepath IS NOT NULL',
-            mid=message_id,
+            mid=record['id'],
             columns='$filepath',
             addPkeyColumn=False
         ).fetch()
-        for row in attachment_rows:
-            entry = self._attachment_entry_from_row(row)
-            attachments.append(entry)
-
+        paths = [row['filepath'] for row in attachment_rows]
         weak_attachments = record.get('weak_attachments') or ''
-        for path in [p.strip() for p in weak_attachments.split(',') if p.strip()]:
-            entry = self._attachment_entry_from_path(path)
-            attachments.append(entry)
+        paths.extend(p.strip() for p in weak_attachments.split(',') if p.strip())
+        return paths
 
+    def _attachments_for_message(self, record):
+        """Collect attachments for a message. Raises FileNotFoundError if any attachment is missing."""
+        attachments = []
+        for path in self._attachment_paths(record):
+            node = self.site.storageNode(path)
+            if not node:
+                raise FileNotFoundError(f'Attachment not found: {path}')
+            attachments.append(self._attachment_payload_from_node(
+                node, filename=node.basename or path.split('/')[-1]))
         return attachments
-
-    def _attachment_entry_from_row(self, row):
-        if hasattr(row, 'asDict'):
-            row = row.asDict(ascii=True)
-        filepath = row.get('filepath')
-
-        node = self.site.storageNode(filepath)
-        if not node:
-            raise FileNotFoundError(f'Attachment not found: {filepath}')
-        # Always use node.basename as filename (includes extension)
-        return self._attachment_payload_from_node(node, filename=node.basename)
-
-    def _attachment_entry_from_path(self, path):
-        node = self._storage_node(path)
-        if not node:
-            raise FileNotFoundError(f'Attachment not found: {path}')
-        return self._attachment_payload_from_node(node, filename=node.basename or path.split('/')[-1])
 
     def _attachment_payload_from_node(self, node, filename=None):
         """Convert storage node to attachment payload for HTTP download.
