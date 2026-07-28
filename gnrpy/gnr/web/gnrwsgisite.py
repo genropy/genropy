@@ -1906,8 +1906,12 @@ class GnrWsgiSite(object):
 
     def _get_resources_dirs(self):
         if not hasattr(self, '_resources_dirs'):
-            self._resources_dirs = list(self.resources.values())
-            self._resources_dirs.reverse()
+            # Build locally and publish complete: assigning the attribute first and
+            # reversing in place afterwards exposes a half-initialized list to
+            # concurrent readers (see issue #984).
+            dirs = list(self.resources.values())
+            dirs.reverse()
+            self._resources_dirs = dirs
         return self._resources_dirs
 
     resources_dirs = property(_get_resources_dirs)
