@@ -11,6 +11,8 @@ Uses the SQLite instance of the test_invoice project.
 
 import datetime
 
+import pytest
+
 from core.common import BaseGnrTest
 
 
@@ -69,6 +71,28 @@ class TestUserobjectArchivedDuplicate:
 
     USEROBJECT = dict(code='test_uo_896', pkg='invc',
                       tbl='invc.customer', objtype='template')
+
+    @pytest.fixture(autouse=True)
+    def _purge_userobject(self, db_pg):
+        """Hard-delete the test userobject before and after each test.
+
+        The db_pg fixture may run against a persistent PostgreSQL
+        database, so the archived row would otherwise survive between
+        runs and collide with the insert through the very unique index
+        this test is about.
+        """
+        self._hard_delete(db_pg)
+        yield
+        self._hard_delete(db_pg)
+
+    def _hard_delete(self, db):
+        tbl = db.table('adm.userobject')
+        rows = tbl.query(where='$code = :c', c=self.USEROBJECT['code'],
+                         excludeLogicalDeleted=False,
+                         for_update=True).fetch()
+        for row in rows:
+            tbl.delete(dict(row))
+        db.commit()
 
     def test_archived_userobject_detected(self, db_pg):
         tbl = db_pg.table('adm.userobject')
