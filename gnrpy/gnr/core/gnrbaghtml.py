@@ -65,6 +65,7 @@ class BagToHtml(object):
     grid_columnsets = {}
     grid_row_height = 4.5
     font_family = None  # font name or CSS stack applied to the main layout and used for row-height estimation
+    main_font_family = None  # font name or CSS stack injected by the application on the whole document (wins over the layout font by CSS specificity)
     auto_row_height = True  # estimate multi-line row heights from wrappable cell content
     grid_cell_text_margin = 1.5  # mm taken from the cell width by the aligned_left/aligned_right content margin
     renderMode = None
@@ -939,7 +940,7 @@ class BagToHtml(object):
         return rowData.get(field_getter or field)
 
     def rowCell(self, field=None, value=None, default=None, locale=None,
-                format=None, mask=None, currency=None,white_space='nowrap',align_class=None,
+                format=None, mask=None, currency=None,white_space=None,align_class=None,
                 content_class=None, totalize=None,**kwargs):
 
         """Allow to get data from record. You can use it in the :meth:`prepareRow` method
@@ -956,6 +957,9 @@ class BagToHtml(object):
         self.currColumn = self.currColumn + 1
         if curr_attr.get('hidden'):
             return
+        #falling back on the column attribute keeps rendering and row-height
+        #estimation (which only sees column attributes) on the same setting
+        white_space = white_space or curr_attr.get('white_space') or 'nowrap'
         if field:
             if callable(field):
                 value = field()
@@ -1263,12 +1267,17 @@ class BagToHtml(object):
     def gridFontMetrics(self):
         """Return ``(font_name, font_size_pt)`` used to measure grid cell text.
 
-        The font family is the one the grid actually renders with (the
-        ``mainLayoutParameters`` one, i.e. ``font_family`` when declared on the
-        print class) resolved to a font with AFM metrics; the size comes from
-        ``gridLayoutParameters``.
+        The font family is the one the grid actually renders with, resolved to
+        a font with AFM metrics; the size comes from ``gridLayoutParameters``.
+        ``main_font_family`` — the font the application imposes on the whole
+        document via CSS — wins over the ``mainLayoutParameters`` one because
+        its selector beats the layout inline style. Fonts without AFM metrics
+        (e.g. per-document custom fonts) resolve to plain Helvetica, wider than
+        the Narrow default: the estimate errs on the tall side, costing paper
+        rather than clipped text.
         """
-        font_family = self.mainLayoutParameters().get('font_family') or self.font_family
+        font_family = self.main_font_family \
+            or self.mainLayoutParameters().get('font_family') or self.font_family
         font_size = self.gridLayoutParameters().get('font_size') or GnrHtmlBuilder.font_size
         return resolve_font_name(font_family), font_size_pt(font_size)
 

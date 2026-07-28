@@ -103,6 +103,29 @@ def test_calcRowHeight_none_value_stays_flat():
     assert p.calcRowHeight() == p.grid_row_height
 
 
+def test_rowCell_white_space_falls_back_to_column_attr():
+    #imperative prints (prepareRow + rowCell) must render with the
+    #column-declared white_space so it matches the row-height estimation,
+    #which only sees column attributes; an explicit argument still wins
+    p = _print_instance([dict(field='descr', mm_width=40, white_space='normal'),
+                         dict(field='qty', mm_width=20, white_space='normal'),
+                         dict(field='code', mm_width=20)],
+                        dict(descr=LONG_TEXT, qty=5, code='X1'))
+    p.builder = GnrHtmlBuilder(page_width=210, page_height=297)
+    p.builder.initializeSrc()
+    layout = p.builder.newPage().layout(name='testlayout', top=1, left=1,
+                                        right=1, bottom=1, border_width=0)
+    p.currRow = layout.row(height=10)
+    p.currColumn = 0
+    p.rowCell(value=LONG_TEXT)
+    p.rowCell(value=5, white_space='nowrap')
+    p.rowCell(value='X1')
+    descr_cell, qty_cell, code_cell = p.currRow.nodes
+    assert descr_cell.attr.get('white_space') == 'normal'  # from the column
+    assert qty_cell.attr.get('white_space') == 'nowrap'  # explicit argument wins
+    assert code_cell.attr.get('white_space') == 'nowrap'  # default
+
+
 def test_gridFontMetrics_default_is_narrow_9pt():
     p = _print_instance([], dict())
     assert p.gridFontMetrics() == ('Helvetica-Narrow', 9.0)
@@ -111,6 +134,21 @@ def test_gridFontMetrics_default_is_narrow_9pt():
 def test_gridFontMetrics_follows_declared_font_family():
     p = _print_instance([], dict(), font_family='Courier New, monospace')
     assert p.gridFontMetrics() == ('Courier', 9.0)
+
+
+def test_gridFontMetrics_main_font_family_wins_over_layout_font():
+    #the application-injected document font beats the layout one by CSS
+    #specificity, so it must also drive the measurement
+    p = _print_instance([], dict(), font_family='Courier',
+                        main_font_family='Times New Roman, serif')
+    assert p.gridFontMetrics() == ('Times-Roman', 9.0)
+
+
+def test_gridFontMetrics_unknown_custom_font_measures_wide():
+    #a per-document font without AFM metrics resolves to plain Helvetica,
+    #wider than the Narrow default: over-estimation costs paper, not clipping
+    p = _print_instance([], dict(), main_font_family='Lobster')
+    assert p.gridFontMetrics() == ('Helvetica', 9.0)
 
 
 def test_mainLayoutParameters_uses_declared_font_family():
