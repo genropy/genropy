@@ -29,4 +29,4 @@ class Table(object):
         return 'flib/items' 
 
     def getUploadPath(self):
-        return 'site:uploaded_files'
+        return 'home:uploaded_files'
