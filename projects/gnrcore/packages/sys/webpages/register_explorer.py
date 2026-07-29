@@ -76,8 +76,8 @@ class GnrCustomWebPage(object):
         dialog.dataRpc('dummy', 'cleanup_register', _fired='^.save', register_type='=.opener',
                        _onResult='FIRE .close;FIRE refresh_all;', max_age='=.max_age', cascade='=.cascade')
 
-    def rpc_cleanup_register(self, register_type=None, max_age=None, cascade=None):
-        self.site.register.cleanup(max_age=max_age, cascade=cascade)
+    def rpc_cleanup_register(self, **kwargs):
+        self.site._runCleanup()
 
 
     def overview_pane(self, bc):

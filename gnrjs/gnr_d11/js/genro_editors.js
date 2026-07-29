@@ -544,11 +544,34 @@ dojo.declare("gnr.widgets.codemirror", gnr.widgets.baseExternalWidget, {
         }
     },
     loadCodeMirror6: function(cb){
+        if(window.CodeMirror6){
+            cb();
+            return;
+        }
+        // Dedupe concurrent loads: several editors created in the same tick all see
+        // !window.CodeMirror6 and would each append a <script> via loadJs (which does
+        // not dedupe). The bundle would then run twice, instantiating a second
+        // @codemirror/state and breaking instanceof checks across editors ("multiple
+        // instances of @codemirror/state are loaded"). Queue callbacks behind a single
+        // in-flight load instead. The handler is a singleton (gnr.wdg caches it), so
+        // this state is shared across every codemirror editor on the page.
+        this._cm6PendingCbs = this._cm6PendingCbs || [];
+        this._cm6PendingCbs.push(cb);
+        if(this._cm6Loading){
+            return;
+        }
+        this._cm6Loading = true;
+        var that = this;
         // mtime-based cache-buster: server publishes the file mtime via gnr.vendoredMtime
         // so the browser refetches the bundle whenever it gets rebuilt.
         var mtime = genro.getData('gnr.vendoredMtime.codemirror6') || 0;
         var url = '/_rsrc/js_libs/codemirror6/codemirror6.bundle.js' + (mtime ? '?mtime=' + mtime : '');
-        genro.dom.loadJs(url, cb);
+        genro.dom.loadJs(url, function(){
+            that._cm6Loading = false;
+            var cbs = that._cm6PendingCbs;
+            that._cm6PendingCbs = [];
+            for(var i = 0; i < cbs.length; i++){ cbs[i](); }
+        });
     },
     buildExtensions: function(cmAttrs, sourceNode){
         var CM = window.CodeMirror6;

@@ -3,8 +3,7 @@
 """framePane"""
 
 class GnrCustomWebPage(object):
-    py_requires = """gnrcomponents/testhandler:TestHandlerFull,th/th:TableHandler,
-                        dashboard_component/dashboard_component:DashboardItem"""
+    py_requires = "gnrcomponents/testhandler:TestHandlerFull,th/th:TableHandler"
     
     def windowTitle(self):
         return 'framePane'

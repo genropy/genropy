@@ -62,7 +62,6 @@ class PageTemplate(BasePageTemplate):
             staging.child('div', id='mainWindow', _class='waiting')
         else:
             body.child('div', id='mainWindow', _class='waiting')
-        body.child('div', id='pdb_root')
         body.child('div', id='protection_shield')
 
     def _resolve_staging_style(self, arg_dict):

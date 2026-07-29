@@ -520,6 +520,7 @@ class SqlRecord(object):
         result = dict([(str(k)[3:], self.result[k]) for k in list(self.result.keys())])
         for k,v in list(result.items()):
             result[k] =  pyColumnsDict[k](result,field=k) if k in pyColumnsDict else result[k]
+        self._decryptRow(result)
         return result
 
     def loadRecord(self, result, resolver_one=None, resolver_many=None):
@@ -539,6 +540,18 @@ class SqlRecord(object):
             for field, handler in self.compiled.pyColumns:
                 if handler:
                     result[field] = handler(result, field=field)
+        self._decryptRow(result)
+
+    def _decryptRow(self, row):
+        """Decrypt encrypted fields in a row (dict or Bag), in place.
+
+        Args:
+            row: A dict or Bag object (modified in place).
+        """
+        encrypted = self.compiled.encryptedColumns
+        if not encrypted:
+            return
+        self.db.encryptor.decrypt_row(row, encrypted)
 
 
     def _loadRecord_DynItemMany(self, joiner, info, sqlresult,
@@ -732,7 +745,6 @@ class SqlRecord(object):
                             pending_subscribes.append(fieldname[1:])
             else:
                 value = sqlresult['%s0_%s' %(self.aliasPrefix,fieldname)]
-
                 if dtype == 'X':
                     if self.bagFields:
                         value = Bag(value)

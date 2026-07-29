@@ -32,16 +32,15 @@ class GnrIde(BaseComponent):
     js_requires='gnrcomponents/gnride/gnride'
 
     @struct_method
-    def gi_gnrIdeFrame(self,parent,nodeId=None,debugEnabled=False,sourceFolders=None,**kwargs):
+    def gi_gnrIdeFrame(self,parent,nodeId=None,sourceFolders=None,**kwargs):
         ideId=nodeId or 'mainIDE'
 
         bc = parent.borderContainer(nodeId=ideId,_activeIDE=True,
                                     selfsubscribe_openModuleToEditorStack="this._gnrIdeHandler.openModuleToEditorStack($1);",
-                                    selfsubscribe_debugCommand="this._gnrIdeHandler.sendCommand($1.cmd,$1.pdb_id);",
                                     onCreated="""this._gnrIdeHandler = new gnr.GnrIde(this)""",
                                     _gi_buildEditorTab=self.gi_buildEditorTab,
                                     _gi_makeEditorStack=self.gi_makeEditorStack,
-                                    debugEnabled=debugEnabled,**kwargs)
+                                    **kwargs)
 
         self.gi_drawerPane(bc.framePane(frameCode='%s_drawer' %ideId,region='left',width='250px',splitter=True,drawer=True,background='rgba(230, 230, 230, 1)'),
                                         sourceFolders=sourceFolders,ideId=ideId)
@@ -49,26 +48,20 @@ class GnrIde(BaseComponent):
         center = bc.framePane(frameCode=ideId,region='center')
         bar = center.top.slotToolbar('5,stackButtons,*,addIdeBtn,5')
         bar.addIdeBtn.slotButton('Add ide',
-                                 action='genro.nodeById(ideId)._gnrIdeHandler.newIde({ide_page:"ide_"+genro.getCounter(),isDebugger:true})',
+                                 action='genro.nodeById(ideId)._gnrIdeHandler.newIde({ide_page:"ide_"+genro.getCounter()})',
                                  ideId=ideId)
         sc = center.center.stackContainer(selectedPage='^.#parent.ide_page',
                                             datapath='.instances',nodeId='%s_stack' %ideId)
         self.gi_makeEditorStack(sc.contentPane(pageName='mainEditor',title='Main Editor',overflow='hidden',datapath='.mainEditor'),'mainEditor')
-        if debugEnabled:
-            bc.dataRpc('dummy','pdb.setBreakpoint',subscribe_setBreakpoint=True)
         return center
 
     @public_method
-    def gi_makeEditorStack(self,pane,frameCode=None,isDebugger=False):
+    def gi_makeEditorStack(self,pane,frameCode=None):
         bc = pane.borderContainer()
-        if isDebugger:
-            self.gi_debuggerPane(bc.framePane(frameCode='%s_debugger' %frameCode,height='400px',splitter=True,drawer=True,region='bottom'))
         frame = bc.framePane(frameCode=frameCode,region='center')
-        slots = '5,stackButtons,*' if isDebugger else '5,stackButtons,*,readOnlySlot,5'
-        bar = frame.top.slotToolbar(slots,height='20px')
+        bar = frame.top.slotToolbar('5,stackButtons,*,readOnlySlot,5',height='20px')
         bar.data('.readOnly',True)
-        if not isDebugger:
-            bar.readOnlySlot.div().checkbox(value='^.readOnly', label='Read Only')
+        bar.readOnlySlot.div().checkbox(value='^.readOnly', label='Read Only')
         stackNodeId = '%s_sc' %frameCode
         frame.center.stackContainer(nodeId=stackNodeId,selectedPage='^.selectedModule')
 
@@ -111,7 +104,7 @@ class GnrIde(BaseComponent):
                                               if(ew.item && ew.item.attr.file_ext!='directory'){
                                                   this.attributeOwnerNode('_activeIDE').publish('openModuleToEditorStack',{module:ew.item.attr.abs_path});
                                               }
-                                             """,_class='branchtree noIcon pdb_tree',
+                                             """,_class='branchtree noIcon',
             hideValues=True,openOnClick=True,labelAttribute='nodecaption',font_size='')
 
     @public_method
@@ -189,12 +182,10 @@ class GnrIde(BaseComponent):
             commandbar = frame.top.slotBar('*,savebtn,revertbtn,5',childname='commandbar',toolbar=True,background='#efefef')
             cmroot = frame.center.contentPane(overflow='hidden')
         source = self.__readsource(module)
-        breakpoints = self.pdb.getBreakpoints(module)
         pane.data('.module',module)
         bar = frame.bottom.slotBar('5,fpath,*',height='18px',background='#efefef')
         bar.fpath.div('^.module',font_size='9px')
         frame.data('.source',source)
-        frame.data('.breakpoints',breakpoints)
 
         commandbar.savebtn.slotButton('Save',iconClass='iconbox save',
                                 _class='source_viewer_button',
@@ -230,32 +221,15 @@ class GnrIde(BaseComponent):
                                     }
                                 """)
 
-        # The pdb gutter is only meaningful for Python sources: showing it on
-        # JS/HTML/JSON would let users drop "breakpoints" the debugger ignores.
-        cm_kwargs = dict(
+        cm = cmroot.codemirror(
             value='^.source',
             nodeId='%s_cm' % frameCode,
             config_mode=editorMode, config_lineNumbers=True,
             config_indentUnit=4, config_keyMap='softTab',
             height='100%',
-            onCreated="this.attributeOwnerNode('_activeIDE')._gnrIdeHandler.onCreatedEditor(this);",
             readOnly='^.#parent.#parent.readOnly',
             modulePath=module,
         )
-        if editorMode == 'python':
-            cm_kwargs['config_extraGutters'] = [{'name': 'pdb_breakpoints', 'width': '0.8em'}]
-            cm_kwargs['onGutterClick_pdb_breakpoints'] = "this.attributeOwnerNode('_activeIDE')._gnrIdeHandler.onBreakpointGutterClick(view, line, gutter, event);"
-        cm = cmroot.codemirror(**cm_kwargs)
-        frame.dataController("""
-            var cmView = cmNode.externalWidget;
-            cmView.gnr_clearGutter('pdb_breakpoints');
-            if(breakpoints){
-                breakpoints.forEach(function(n){
-                    var line_cm = n.attr.line - 1;
-                    cmView.gnr_setGutterMarker(line_cm, 'pdb_breakpoints', cmView.gnr.gnrMakeMarker(n.attr.condition));
-                });
-            }
-            """, breakpoints='^.breakpoints', cmNode=cm, _fired='^.editorCompleted')
         frame.dataController("""
             var cm = cmNode.externalWidget;
             var lineno = error.lineno - 1;
@@ -328,62 +302,3 @@ class GnrIde(BaseComponent):
 
     def source_viewer_edit_allowed(self):
         return self.site.remote_edit
-
-        
-    def gi_debuggerPane(self,frame):
-        bc =  frame.center.borderContainer()
-        self.gi_debuggerTop(frame.top)
-        self.gi_debuggerLeft(bc)
-        self.gi_debuggerRight(bc)
-        self.gi_debuggerBottom(bc)
-        self.gi_debuggerCenter(bc)
-        
-    def gi_debuggerTop(self,top):
-        bar = top.slotToolbar('5,stepover,stepin,stepout,cont,clearconsole,*')
-        bar.stepover.slotButton('Step over',action='this.attributeOwnerNode("_activeIde")._gnrIdeHandler.do_stepOver()')
-        bar.stepin.slotButton('Step in',action='this.attributeOwnerNode("_activeIde")._gnrIdeHandler.do_stepIn()')
-        bar.stepout.slotButton('Step out',action='this.attributeOwnerNode("_activeIde")._gnrIdeHandler.do_stepOut()')
-        bar.cont.slotButton('Continue',action='this.attributeOwnerNode("_activeIde")._gnrIdeHandler.do_continue()')
-
-        bar.clearconsole.slotButton('Clear console',action='this.attributeOwnerNode("_activeIde")._gnrIdeHandler.clearConsole()')
-
-    def gi_debuggerLeft(self,bc):
-        bc=bc.borderContainer(width='250px',splitter=True,region='left',margin='2px', border='1px solid #efefef',margin_right=0,rounded=4)
-        bc.contentPane(region='top',background='#666',color='white',font_size='.8em',text_align='center',padding='2px').div('Stack')
-        bc.contentPane(region='center',padding='2px').tree(storepath='.stack',
-                     labelAttribute='caption',_class='branchtree noIcon',autoCollapse=True,
-                     connect_onClick="""level=$1.attr.level;this.attributeOwnerNode("_activeIde")._gnrIdeHandler.do_level(level);""")
-        
-    def gi_debuggerRight(self,bc):
-        bc=bc.borderContainer(width='250px',splitter=True,region='right',margin='2px',border='1px solid #efefef',margin_left=0,rounded=4)
-        paneTree=bc.contentPane(region='center')   
-        tree = paneTree.treeGrid(storepath='.result',headers=True)
-        tree.column('__label__',contentCb="""return this.attr.caption || this.label""",header='Variable')
-        tree.column('__value__',size=300,contentCb="""var v=this.getValue();
-                                                          return (v instanceof gnr.GnrBag)?'':_F(v)""",
-                                                          header='Value')
-
-    def gi_debuggerCenter(self,bc):
-        bc=bc.borderContainer(region='center',border='1px solid #efefef',margin='2px',margin_right=0,margin_left=0,rounded=4)
-        bc.contentPane(region='top',background='#666',color='white',font_size='.8em',text_align='center',padding='2px').div('Output')
-        center=bc.contentPane(region='center',padding='2px',border_bottom='1px solid silver',_class='selectable',overflow='auto')
-        center.div(value='^.output', style='font-family:monospace; white-space:pre-wrap')
-        lastline=center.div(position='relative')
-        lastline.div('>>>',position='absolute',top='1px',left='0px')
-        debugger_input=lastline.div(position='absolute',top='0px',left='20px',right='5px').input(value='^.command',width='100%',border='0px')
-        center.dataController("""SET .output=output? output+_lf+line:line;""",line='^.output_line',output='=.output')
-        center.dataController("""SET .output_line=command; 
-                                 if (command[0]=='/'){
-                                    command=command.slice(1)
-                                 }else if(command[0]!='!'){
-                                     command='!'+command;
-                                 }
-                                 this.attributeOwnerNode('_activeIDE').publish('debugCommand',{command:command});
-                                 SET .command=null;
-                                 debugger_input.domNode.focus();
-                                 """,command='^.command',debugger_input=debugger_input,_if='command')
-
-
-    def gi_debuggerBottom(self,bottom):
-        pass
-

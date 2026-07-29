@@ -150,10 +150,6 @@ class TestBodyStructure:
         html = _render_struct(_make_arg_dict())
         assert re.search(r'id="mainWindow"[^>]*class="waiting"', html)
 
-    def test_pdb_root_div(self):
-        html = _render_struct(_make_arg_dict())
-        assert 'id="pdb_root"' in html
-
     def test_protection_shield_div(self):
         html = _render_struct(_make_arg_dict())
         assert 'id="protection_shield"' in html

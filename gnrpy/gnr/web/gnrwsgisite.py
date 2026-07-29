@@ -1,4 +1,5 @@
 import os
+import random
 import re
 import io
 import shutil
@@ -33,7 +34,6 @@ from gnr.core.gnrdecorator import extract_kwargs,metadata
 from gnr.core.gnrcrypto import AuthTokenGenerator
 from gnr.lib.services import ServiceHandler
 from gnr.app.pathresolver import PathResolver
-from gnr.web.gnrwsgisite_proxy.gnrapidispatcher import ApiDispatcher
 from gnr.app.gnrapp import GnrPackage
 from gnr.web import logger
 from gnr.web.gnrwebapp import GnrWsgiWebApp
@@ -406,13 +406,12 @@ class GnrWsgiSite(object):
     """TODO"""
 
     def __init__(self, script_path, site_name=None, _config=None,
-                 _gnrconfig=None, counter=None, noclean=None,
-                 options=None, tornado=None, websockets=None,
+                 _gnrconfig=None,
+                 options=None, websockets=None,
                  debugpy=False):
-        
+
         global GNRSITE
         GNRSITE = self
-        counter = int(counter or '0')
         self.storageTypes = STORAGE_TYPES + STATIC_HANDLER_TYPES
         self.pathfile_cache = {}
         self._currentAuxInstanceNames = ThreadedDict()
@@ -489,7 +488,6 @@ class GnrWsgiSite(object):
         self.find_gnrjs_and_dojo()
         self._remote_edit = options.remote_edit if options else None
         self._main_gnrapp = self.build_gnrapp(options=options)
-        self.api_dispatcher = ApiDispatcher(self)
         self.server_locale = self.gnrapp.locale
         self.wsgiapp = self.build_wsgiapp(options=options)
         self.debugpy = debugpy
@@ -513,18 +511,23 @@ class GnrWsgiSite(object):
         
         self.datacollector = DataCollector(self.register.siteregister)
         
-        if counter == 0 and self.debug:
-            self.onInited(clean=not noclean)
-            
-        if counter == 0 and options and options.source_instance:
+        self.onInited()
+
+        if options and options.source_instance:
             self.gnrapp.importFromSourceInstance(options.source_instance)
             self.db.commit()
             logger.info('End of import')
 
         cleanup = self.custom_config.getAttr('cleanup') or dict()
-        self.cleanup_interval = int(cleanup.get('interval') or 120)
+        self.cleanup_threshold = float(cleanup.get('threshold') or 5)
+        self.cleanup_interval_minutes = int(cleanup.get('interval_minutes') or 240)
         self.page_max_age = int(cleanup.get('page_max_age') or DEFAULT_PAGE_MAX_AGE)
-        self.connection_max_age = int(cleanup.get('connection_max_age')or 600)
+        self.connection_max_age = int(cleanup.get('connection_max_age') or 7200)
+        logger.info(
+            "Cleanup config: threshold=%s%%, interval=%dmin, "
+            "page_max_age=%ds, connection_max_age=%ds",
+            self.cleanup_threshold, self.cleanup_interval_minutes,
+            self.page_max_age, self.connection_max_age)
 
         self.db.closeConnection()
 
@@ -894,14 +897,9 @@ class GnrWsgiSite(object):
                 self.connFolderRemove(conn_id)
         
 
-    def onInited(self, clean):
-        """TODO
-
-        :param clean: TODO"""
-        if clean:
-            logger.info("Purging connection folders")
-            self.dropConnectionFolder()
-            self.initializePackages()
+    def onInited(self):
+        """Called once on every fresh GnrWsgiSite instantiation."""
+        self.initializePackages()
 
     def on_reloader_restart(self):
         """TODO"""
@@ -1261,10 +1259,6 @@ class GnrWsgiSite(object):
         self.db.currentEnv['currentDomain'] = self.currentDomain
         path_list = router.path_list or ['index']
 
-        # Cleanup expired connections (after routing to ensure domain is set in multidomain)
-        expiredConnections = self.register.cleanup()
-        if expiredConnections:
-            self.connectionLog('close',expiredConnections)
         first_segment = path_list[0]
         last_segment = path_list[-1]
         # this can be moved.
@@ -1308,8 +1302,6 @@ class GnrWsgiSite(object):
             finally:
                 self.cleanup()
             return response(environ, start_response)
-        if first_segment == '_api':
-            return self.serve_api(path_list, environ, start_response, **request_kwargs)
 
         #static elements that doesn't have .py extension in self.root_static
         if self.root_static and not first_segment.startswith('_') and '.' in last_segment and not (':' in first_segment):
@@ -1613,6 +1605,7 @@ class GnrWsgiSite(object):
 
     def checkPendingConnection(self):
         if self.connectionLogEnabled:
+            # FIXME: evaluate methods to remove this dependency from a package
             self.db.table('adm.connection').dropExpiredConnections()
 
     def pageLog(self, event, page_id=None):
@@ -1736,6 +1729,89 @@ class GnrWsgiSite(object):
         self.pageLog('close', page_id=page_id)
         self.clearRecordLocks(page_id=page_id)
         page._closed = True
+        self._maybeRunCleanup()
+
+    def _maybeRunCleanup(self):
+        """Lottery + atomic claim + spawn cleanup thread.
+
+        Runs only when the local lottery (cleanup_threshold) wins AND
+        the daemon's claim_cleanup gates the call by interval.
+
+        cleanup_threshold is a percentage in [0, 100]. The default 5
+        means there is a 5% chance, per page-close event, that this
+        worker attempts to spawn a cleanup pass. The interval gate on
+        the daemon (cleanup_interval_minutes) ensures that even when
+        the lottery fires often, only one pass runs per interval."""
+        if random.random() * 100 >= self.cleanup_threshold:
+            return
+        interval_seconds = self.cleanup_interval_minutes * 60
+        try:
+            won = self.register.claim_cleanup(interval_seconds)
+        except Exception:
+            logger.exception("claim_cleanup failed")
+            return
+        if not won:
+            return
+        Thread(target=self._runCleanup, daemon=True).start()
+
+    def _runCleanup(self):
+        """Worker thread: drops stale pages/connections from the register
+        and removes their filesystem folders under _connections/.
+
+        Walks _connections/ once. For each entry:
+        - if not in live connections AND old enough -> rmtree
+        - if in live connections -> expire stale pages of that connection
+          (drop from register + rmtree their per-page subfolders) and
+          expire the connection itself if stale (drop + rmtree).
+
+        Idempotent and safe to call concurrently: register expire methods
+        and rmtree(ignore_errors=True) tolerate concurrent state changes."""
+        if not os.path.isdir(self.allConnectionsFolder):
+            return
+        try:
+            live_connections = {c['register_item_id']
+                                for c in self.register.connections()}
+        except Exception:
+            logger.exception("Cleanup failed reading register")
+            return
+        dropped_pages = 0
+        dropped_connections = 0
+        removed_folders = 0
+        connection_max_age_seconds = self.connection_max_age
+        for entry in os.listdir(self.allConnectionsFolder):
+            path = os.path.join(self.allConnectionsFolder, entry)
+            if not os.path.isdir(path):
+                continue
+            if entry not in live_connections:
+                try:
+                    age = time() - os.stat(path).st_mtime
+                except OSError:
+                    continue
+                if age < connection_max_age_seconds:
+                    continue
+                shutil.rmtree(path, ignore_errors=True)
+                removed_folders += 1
+                continue
+            try:
+                stale_pages = self.register.expire_pages(entry)
+            except Exception:
+                logger.exception("expire_pages failed for %s", entry)
+                stale_pages = []
+            for page_id in stale_pages:
+                shutil.rmtree(os.path.join(path, page_id), ignore_errors=True)
+                dropped_pages += 1
+            try:
+                connection_dropped = self.register.expire_connection(entry)
+            except Exception:
+                logger.exception("expire_connection failed for %s", entry)
+                connection_dropped = False
+            if connection_dropped:
+                shutil.rmtree(path, ignore_errors=True)
+                dropped_connections += 1
+        if dropped_pages or dropped_connections or removed_folders:
+            logger.info("Cleanup: dropped %d pages, %d connections, "
+                        "removed %d orphan folders",
+                        dropped_pages, dropped_connections, removed_folders)
 
     def sqlDebugger(self,**kwargs):
         page = self.currentPage
@@ -1827,8 +1903,12 @@ class GnrWsgiSite(object):
 
     def _get_resources_dirs(self):
         if not hasattr(self, '_resources_dirs'):
-            self._resources_dirs = list(self.resources.values())
-            self._resources_dirs.reverse()
+            # Build locally and publish complete: assigning the attribute first and
+            # reversing in place afterwards exposes a half-initialized list to
+            # concurrent readers (see issue #984).
+            dirs = list(self.resources.values())
+            dirs.reverse()
+            self._resources_dirs = dirs
         return self._resources_dirs
 
     resources_dirs = property(_get_resources_dirs)
@@ -1845,9 +1925,6 @@ class GnrWsgiSite(object):
         :param tool: TODO"""
         kwargs_string = '&'.join(['%s=%s' % (k, v) for k, v in list(kwargs.items())])
         return '%s%s_tools/%s?%s' % (self.external_host, self.home_uri, tool, kwargs_string)
-
-    def serve_api(self, path_list, environ, start_response, **kwargs):
-        return self.api_dispatcher.dispatch(path_list, environ, start_response, **kwargs)
 
     def serve_ping(self, response, environ, start_response, page_id=None, reason=None, **kwargs):
         response.content_type = "text/xml"

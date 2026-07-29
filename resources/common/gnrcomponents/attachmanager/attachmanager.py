@@ -369,9 +369,25 @@ class AttachManager(BaseComponent):
         fpane_kw = dict(margin='2px',border='1px solid silver')
         fpane_kw.update(fpane_kwargs)
         readerpane = bc.contentPane(region='center',datapath=datapath,overflow='hidden',**fpane_kw)
-        readerpane.dataController('SET .reader_url=fileurl',fileurl='^.view.grid.selectedId?fileurl')
-        readerpane.iframe(src='^.reader_url',height='100%',width='100%',avoidCache=True,
-                            border=0,documentClasses=True)
+        readerstack = readerpane.stackContainer(selectedPage='^.reader_mode',height='100%',width='100%')
+        readerstack.contentPane(pageName='viewer',overflow='hidden').iframe(src='^.reader_url',height='100%',
+                            width='100%',avoidCache=True,border=0,documentClasses=True)
+        # External/foreign attachments (external_url, no stored file) cannot be framed:
+        # the iframe widget blanks "directory" URLs, leaving a confusing empty pane.
+        # Show a notice with an open-in-new-tab action instead.
+        notice = readerstack.contentPane(pageName='notice',overflow='auto')
+        noticebox = notice.div(position='absolute',top=0,bottom=0,left=0,right=0,display='flex',
+                            flex_direction='column',align_items='center',justify_content='center',
+                            padding='30px',text_align='center')
+        noticebox.div(_class='iconbox globe',font_size='40px',color='#bbb',margin_bottom='16px')
+        noticebox.div('!!This attachment links to an external site and cannot be previewed here.',
+                            color='#666',font_size='15px',margin_bottom='20px',max_width='420px')
+        noticebox.button('!!Open in a new tab',
+                            action='genro.openBrowserTab(url,{target:"_blank"})',url='^.reader_url')
+        readerpane.dataController("""SET .reader_url = fileurl;
+                            SET .reader_mode = foreign ? 'notice' : 'viewer';""",
+                            fileurl='^.view.grid.selectedId?fileurl',
+                            foreign='^.view.grid.selectedId?is_foreign_document')
         return th
 
     @struct_method

@@ -14,7 +14,7 @@ from gnr.sql.gnrsql import GnrSqlDb
 from gnr.sql.pgutils import PgDbUtils
 
 class GnrCustomWebPage(object):
-    py_requires="public:Public"
+    py_requires="public:Public,gnrcomponents/framegrid:FrameGrid"
 
     def main(self,root, **kwargs):
         bc = root.borderContainer(datapath='main')

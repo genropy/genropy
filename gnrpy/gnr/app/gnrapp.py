@@ -237,6 +237,8 @@ class DbStoresHandler(object):
                                         host=dbattr.get('host', self.db.host), user=dbattr.get('user', self.db.user),
                                         password=dbattr.get('password', self.db.password),
                                         port=dbattr.get('port', self.db.port),
+                                        implementation=dbattr.get('implementation'),
+                                        dbbranch=dbattr.get('dbbranch'),
                                         remote_host=dbattr.get('remote_host'),
                                         remote_port=dbattr.get('remote_port'))
         return dbattr
@@ -294,7 +296,10 @@ class DbStoresHandler(object):
         
         :param storename: TODO
         :param changes: TODO. """
-        with self.db.tempEnv(storename=storename):
+
+        # current_language is set to None in the migration context like this
+        # in order to properly handle all the localized columns in the models
+        with self.db.tempEnv(storename=storename, current_language=None):
             self.db.syncOrmToSql()
 
 class GnrSqlAppDb(GnrSqlDb):
