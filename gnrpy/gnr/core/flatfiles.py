@@ -30,6 +30,10 @@ import csv
 import datetime
 import warnings
 
+# safe to import it's a framework dep
+import openpyxl
+from chardet.universaldetector import UniversalDetector
+
 from gnr.core import logger
 from gnr.core.gnrstring import slugify, toText
 from gnr.lib.services.storage import StorageNode
@@ -39,11 +43,6 @@ try:
     import xlwt
 except Exception:
     logger.warning("Missing xlwt: can't export in xls")
-
-try:
-    import openpyxl
-except Exception:
-    logger.exception("Missing openpyxl: can't export in xlsx")
 
 
 # ===========================================================================
@@ -282,8 +281,7 @@ class XlsxReader(BaseSheetReader):
     """
 
     def _open_workbook(self):
-        from openpyxl import load_workbook
-        self.book = load_workbook(
+        self.book = openpyxl.load_workbook(
             filename=self.docname,
             read_only=True,
             data_only=True,
@@ -383,15 +381,7 @@ class CsvReader(BaseReader):
     def detect_encoding(self):
         if not isinstance(self.docname, str):
             return None
-        try:
-            import cchardet as chardet  # noqa: F401
-        except ImportError:
-            try:
-                import chardet  # noqa: F401
-            except ImportError:
-                logger.exception('either cchardet or chardet are required to detect encoding')
-                return
-        from chardet.universaldetector import UniversalDetector
+
         detector = UniversalDetector()
         detector.reset()
         with open(self.docname, 'rb') as f:
@@ -475,15 +465,16 @@ def getReader(file_path, filetype=None, **kwargs):
         _, ext = os.path.splitext(file_path)
     else:
         _, ext = os.path.splitext(getattr(file_path, 'name', '') or '')
-    if filetype == 'excel' or (not filetype and ext == '.xls'):
-        reader = XlsReader(file_path, **kwargs)
-    elif not filetype and ext == '.xlsx':
-        try:
-            import openpyxl  # noqa: F401
-            reader = XlsxReader(file_path, **kwargs)
-        except ImportError:  # pragma: no cover
-            logger.exception("\n**ERROR Missing openpyxl: 'xlsx' import may not work properly\n")
+
+    # ensure case
+    ext = ext.lower()
+    if filetype == 'excel' or (not filetype and ext in ('.xls', '.xlsx')):
+        # when passing a filelike object, default to XlsReader
+        if ext == '.xls' or not ext:
             reader = XlsReader(file_path, **kwargs)
+        else:
+            reader = XlsxReader(file_path, **kwargs)
+            
     elif ext == '.xml':
         reader = XmlReader(file_path, **kwargs)
     else:
