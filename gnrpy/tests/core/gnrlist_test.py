@@ -5,6 +5,12 @@ import pytest
 from gnr.core import gnrlist as gl
 from gnr.core import flatfiles as ff
 
+try:
+    import clevercsv  # noqa: F401
+    HAS_CLEVERCSV = True
+except ImportError:
+    HAS_CLEVERCSV = False
+
 def test_findByAttr():
     class MockObj(object):
         pass
@@ -442,6 +448,7 @@ class TestCsvReader:
             os.unlink(csv_file)
 
 
+    @pytest.mark.skipif(not HAS_CLEVERCSV, reason="clevercsv not available")
     def test_quoted_decimals(self):
         """Test CsvReader correctly reads quoted decimal values in different formats (EUR vs USA)"""
         test_dir = os.path.dirname(__file__)
@@ -507,6 +514,7 @@ class TestCsvReader:
 
             assert last_row[3] == expected_last_descrizione
 
+    @pytest.mark.skipif(not HAS_CLEVERCSV, reason="clevercsv not available")
     def test_start_at_line(self):
         """Test CsvReader start_at_line parameter skips header lines correctly.
 
@@ -539,6 +547,7 @@ class TestCsvReader:
             for j in range(len(ref_row)):
                 assert ref_row[j] == skip_row[j]
 
+    @pytest.mark.skipif(not HAS_CLEVERCSV, reason="clevercsv not available")
     def test_auto_dialect(self):
         """Test CsvReader with automatic dialect detection via getCsvDialect.
 
