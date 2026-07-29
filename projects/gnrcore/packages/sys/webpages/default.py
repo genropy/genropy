@@ -16,6 +16,16 @@ class GnrCustomWebPage(object):
     def windowTitle(self):
         return ''
 
+    def onIniting(self, request_args, request_kwargs):
+        # the page GET must answer 404 for URLs that map to no folder (#890):
+        # main() runs only over the 'main' rpc, so it cannot set the GET status.
+        # The errorPane rendered by main() is the body, this is the status.
+        if self._call_handler_type != 'root' or not request_args:
+            return
+        url_info = self.site.getUrlInfo(request_args)
+        if not os.path.isdir(os.path.join(url_info.basepath, *url_info.request_args)):
+            self._response.status_code = 404
+
     def main(self, root, **kwargs):
         url_info = self.site.getUrlInfo(self.getCallArgs())
         dirpath=os.path.join(url_info.basepath,*url_info.request_args)

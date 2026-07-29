@@ -83,6 +83,12 @@ class TestGnrWsgiSite(BaseGnrDaemonTest):
         assert "404 " in response.get('status')
         response = self.client.get('/sys/')
         assert "200 " in response.get('status')
+
+    def test_missing_page_returns_404(self):
+        # issue #890: unresolvable urls fall back to sys/default,
+        # which must answer 404, not 200
+        response = self.client.get('/antani/come/se/fosse')
+        assert "404 " in response.get('status')
         
 
 
