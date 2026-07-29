@@ -1,3 +1,10 @@
+Release 26.07.29
+================
+
+This is an hotfix release, fixed regression in flatfiles with xlsx
+file handling (#1002, #1002)
+
+
 Release 26.07.15
 ================
 
