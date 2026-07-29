@@ -451,7 +451,7 @@ def getReader(file_path, filetype=None, **kwargs):
 
     File type detection:
         - .xls  -> XlsReader
-        - .xlsx -> XlsxReader (falls back to XlsReader if openpyxl missing)
+        - .xlsx -> XlsxReader
         - .xml  -> XmlReader
         - .tab  -> CsvReader with excel-tab dialect
         - others -> CsvReader
