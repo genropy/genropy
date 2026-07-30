@@ -1,3 +1,10 @@
+Release 26.07.30
+================
+
+Hotfix release: fixed docker build definition for repository
+with subprojects folder (#1015)
+
+
 Release 26.07.29
 ================
 
