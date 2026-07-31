@@ -10,7 +10,7 @@ import sys
 import shutil
 import tempfile
 import datetime
-import os
+import os, os.path
 import subprocess
 
 from mako.template import Template
@@ -76,12 +76,14 @@ class MultiStageDockerImageBuilder:
         now = datetime.datetime.now(datetime.UTC)
         image_labels = {"gnr_app_dockerize_on": str(now)}
         entry_dir = os.getcwd()
-
         main_repo_url = self.builder.git_url_from_path(self.instance_folder)
         self.main_repo_name = self.builder.git_repo_name_from_url(main_repo_url)
+    
+        site_folder = f"/home/genro/genropy_projects/{self.main_repo_name}/instances/{self.instance_name}/site"
         
         os.chdir(self.build_context_dir)
         self.dockerfile_path = os.path.join(self.build_context_dir, "Dockerfile")
+        
         with open(self.dockerfile_path, 'w') as dockerfile:
             dockerfile.write(f"# Docker image for instance {self.instance_name}\n")
             dockerfile.write(f"# Dockerfile builded on {now}\n\n")
@@ -124,9 +126,10 @@ class MultiStageDockerImageBuilder:
                 os.chdir(self.build_context_dir)
                 
                 dockerfile.write(f"# {repo['description']}\n")
-                site_folder = f"/home/genro/genropy_projects/{repo_name}/instances/{self.instance_name}/site"
+
                 if repo['subfolder']:
-                    site_folder = f"/home/genro/genropy_projects/{repo['subfolder']}/instances/{self.instance_name}/site"
+                    if repo_name == self.main_repo_name:
+                        site_folder = f"/home/genro/genropy_projects/{repo['subfolder']}/instances/{self.instance_name}/site"
                     dockerfile.write(f"COPY --chown=genro:genro {repo_name}/{repo['subfolder']} /home/genro/genropy_projects/{repo['subfolder']}\n")
                 else:
 
@@ -169,7 +172,7 @@ daemon = False
 workers = get_cpu_limit()
 threads = 8
 loglevel = 'error'
-chdir = '/home/genro/genropy_projects/{main_repo_name}/instances/{instanceName}'
+chdir = '{local_instance_folder}'
 reload = False
 capture_output = True
 max_requests = 600
@@ -179,7 +182,8 @@ graceful_timeout = 600
                 """
             with open("gunicorn.py", "w") as wfp:
                 wfp.write(gunicorn_template.format(instanceName=self.instance_name,
-                                                       main_repo_name=self.main_repo_name))
+                                                   local_instance_folder=os.path.dirname(site_folder),
+                                                   main_repo_name=self.main_repo_name))
             dockerfile.write("COPY --chown=genro:genro gunicorn.py /home/genro/gunicorn.py\n")
                 
             supervisor_template = """
@@ -216,6 +220,7 @@ stderr_logfile_maxbytes=0
 
 [program:gnrtaskscheduler]
 priority=999
+autorestart=false
 command=gnr web taskscheduler {instanceName}
 stdout_logfile=/dev/stdout
 stdout_logfile_maxbytes=0
