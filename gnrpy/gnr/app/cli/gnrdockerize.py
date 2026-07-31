@@ -220,6 +220,7 @@ stderr_logfile_maxbytes=0
 
 [program:gnrtaskscheduler]
 priority=999
+autorestart=false
 command=gnr web taskscheduler {instanceName}
 stdout_logfile=/dev/stdout
 stdout_logfile_maxbytes=0
