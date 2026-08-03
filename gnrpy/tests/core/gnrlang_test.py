@@ -1,5 +1,6 @@
 import pytest
 import os
+import threading
 from gnr.core import gnrlang as gl
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrerror import tracebackBag
@@ -235,3 +236,44 @@ class TestGnrLang_getEncoding():
     def test_getEncoding_file_not_found(self):
         with pytest.raises(FileNotFoundError):
             gl.getEncoding(self._get_data_path('nonexistent_file.csv'))
+
+
+def test_gnrImport_path_cache(tmp_path):
+    source = tmp_path / 'dummy_cached_module.py'
+    source.write_text('class Service(object):\n    pass\n')
+    first = gl.gnrImport(str(source), avoidDup=True)
+    second = gl.gnrImport(str(source), avoidDup=True)
+    assert first is second
+
+
+def test_gnrImport_avoid_module_cache_returns_fresh_module(tmp_path):
+    source = tmp_path / 'dummy_reloaded_module.py'
+    source.write_text('VERSION = 1\n')
+    first = gl.gnrImport(str(source), avoidDup=True)
+    assert first.VERSION == 1
+    # different size on purpose: a same-size same-mtime rewrite would be
+    # served from the stale bytecode cache by the source loader
+    source.write_text('VERSION = 2000\n')
+    reloaded = gl.gnrImport(str(source), avoidDup=True, avoid_module_cache=True)
+    assert reloaded.VERSION == 2000
+    cached = gl.gnrImport(str(source), avoidDup=True)
+    assert cached is reloaded
+
+
+def test_gnrImport_concurrent_single_module_identity(tmp_path):
+    source = tmp_path / 'dummy_concurrent_module.py'
+    source.write_text('class Service(object):\n    pass\n')
+    modules = []
+
+    def worker():
+        modules.append(gl.gnrImport(str(source), avoidDup=True))
+
+    threads = [threading.Thread(target=worker) for _ in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert len(modules) == 8
+    assert all(m is modules[0] for m in modules)
+    assert modules[0].Service is not None
