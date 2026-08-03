@@ -237,13 +237,14 @@ class CrudMixin(SqlTableBaseMixin):
         return self.db.adapter.existsRecord(self, record)
 
     def checkDuplicate(self, excludeDraft=None, ignorePartition=None,
-                       **kwargs):
+                       excludeLogicalDeleted=True, **kwargs):
         where = ' AND '.join([
             '$%s=:%s' % (k, k) for k in kwargs.keys()
         ])
         return self.query(
             where=where, excludeDraft=excludeDraft,
-            ignorePartition=ignorePartition, **kwargs,
+            ignorePartition=ignorePartition,
+            excludeLogicalDeleted=excludeLogicalDeleted, **kwargs,
         ).count() > 0
 
     def insertOrUpdate(self, record):

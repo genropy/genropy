@@ -3,7 +3,7 @@
 """publish"""
 
 class GnrCustomWebPage(object):
-    py_requires = "gnrcomponents/testhandler:TestHandlerBase"
+    py_requires = "gnrcomponents/testhandler:TestHandlerFull"
 
     def test_0_publish_subscribe(self, pane):
         "Press button to send generic message and check result in div and console"

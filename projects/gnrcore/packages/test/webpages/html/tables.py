@@ -4,7 +4,7 @@
 "Grid layouts and tables"
 
 class GnrCustomWebPage(object):
-    py_requires = "gnrcomponents/testhandler:TestHandlerBase"
+    py_requires = "gnrcomponents/testhandler:TestHandlerFull"
     
     def test_0_formbuilder_advanced(self, pane):
         "Formbuilder helps you build HTML tables in an easy way. Use attribute 'pos' to manage content position"
