@@ -1096,10 +1096,11 @@ class GnrApp(object):
                 logger.error("ERROR: wrong dependencies:")
                 for requested, installed in wrong:
                     logger.error(f"{requested} is requested, but {installed} found")
+
         logger.debug("Checking javascript dependencies")
         bundler = GnrInstanceEsmBundler(self)
         output_dir, results = bundler.run()
-        
+        logger.debug("Bundle in %s: %s", output_dir, results)
         
         
     def check_package_missing_dependencies(self):
