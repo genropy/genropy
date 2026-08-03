@@ -8,6 +8,7 @@ import sys
 import tarfile
 import tempfile
 import urllib.parse
+import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event, Lock
