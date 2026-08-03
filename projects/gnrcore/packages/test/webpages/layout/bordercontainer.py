@@ -3,7 +3,7 @@
 """borderContainer"""
 
 class GnrCustomWebPage(object):
-    py_requires = "gnrcomponents/testhandler:TestHandlerBase,th/th:TableHandler"
+    py_requires = "gnrcomponents/testhandler:TestHandlerFull,th/th:TableHandler"
     
     def windowTitle(self):
         return 'borderContainer'

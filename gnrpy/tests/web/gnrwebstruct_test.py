@@ -116,10 +116,10 @@ def test_invalid_override_methods():
 def test_genroNameSpace_total_count():
     """Freeze the cardinality of the public widget namespace.
 
-    Lowercased dedup of htmlNS + dijitNS + dojoxNS + gnrNS yields 256
+    Lowercased dedup of htmlNS + dijitNS + dojoxNS + gnrNS yields 257
     entries today. Drift in either direction must be intentional.
     """
-    assert len(GnrDomSrc_dojo_11.genroNameSpace) == 256
+    assert len(GnrDomSrc_dojo_11.genroNameSpace) == 257
 
 
 def test_genroNameSpace_samples_per_dialect():
@@ -250,3 +250,45 @@ def test_child_creates_attached_node():
     fetched = root.getNode('greeting')
     assert fetched is not None
     assert fetched._value is node
+
+
+# ---------------------------------------------------------------------------
+# formlet responsive modes (wrap / min_width)
+# ---------------------------------------------------------------------------
+
+def _formlet_attr(**kwargs):
+    """Build a formlet on a fresh root and return the gridbox node's
+    attributes. formlet() returns the gridbox *value* node; its attributes
+    live on the parent node. `table` is passed so the _PageStub (which has
+    no maintable) never has to resolve one."""
+    node = _make_root().formlet(table='dummy.tbl', **kwargs)
+    return node.parentNode.attr
+
+
+def test_formlet_plain_is_grid_without_wrap():
+    attrs = _formlet_attr()
+    assert 'formlet' in attrs.get('_class', '')
+    assert 'formlet_wrap' not in attrs.get('_class', '')
+    assert attrs.get('columns') is None
+
+
+def test_formlet_wrap_adds_wrap_class():
+    attrs = _formlet_attr(wrap=True)
+    assert 'formlet_wrap' in attrs.get('_class', '')
+    # wrap is the flex mode: it must not build a grid-columns template
+    assert attrs.get('columns') is None
+
+
+def test_formlet_col_min_width_builds_autofit_columns():
+    attrs = _formlet_attr(col_min_width='14em')
+    assert attrs.get('columns') == 'repeat(auto-fit, minmax(14em, 1fr))'
+    # col_min_width is the responsive-grid mode, NOT the flex wrap mode
+    assert 'formlet_wrap' not in attrs.get('_class', '')
+
+
+def test_formlet_col_min_width_drops_cols():
+    # col_min_width owns the columns template; a stray `cols` must not survive
+    # to fight it at the gridbox level
+    attrs = _formlet_attr(col_min_width='14em', cols=3)
+    assert attrs.get('columns') == 'repeat(auto-fit, minmax(14em, 1fr))'
+    assert 'cols' not in attrs

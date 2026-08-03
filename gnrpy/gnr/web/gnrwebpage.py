@@ -472,13 +472,15 @@ class GnrWebPage(GnrBaseWebPage):
 
     @property
     def default_language(self):
-        """Return the default language for database localization.
+        """Return the default language using the database default.
 
-        :returns: the first language code from db languages config, or None
+        FIXME: since this is in the page context, here could be the correct place
+        to check if, in a multi tenant deployment, the tenant has a specific default
+        language, otherwise fallback on the db's default.
+
+        :returns: the default language, or None
         """
-        db_languages = self._db.extra_kw.get('languages')
-        db_languages = db_languages.split(',') if db_languages else []
-        return db_languages[0].lower() if db_languages else None
+        return self._db.default_language
 
     @property
     def locale_language(self):
@@ -971,7 +973,10 @@ class GnrWebPage(GnrBaseWebPage):
             self.site.onAuthenticated(avatar)
             self.connection.change_user(avatar)
             logger.info("User %s login", login['user'])
-            self.site.connectionLog('open')
+            
+            if getattr(avatar, "user_id", None):
+                self.site.connectionLog('open')
+                
             login['message'] = ''
             loginPars = avatar.loginPars
             loginPars.update(avatar.extra_kwargs)
@@ -1459,6 +1464,8 @@ class GnrWebPage(GnrBaseWebPage):
     # the resulting mtime via genro.getData('gnr.vendoredMtime.<key>').
     _VENDORED_BUNDLES = {
         'codemirror6': ('js_libs', 'codemirror6', 'codemirror6.bundle.js'),
+        'prosemirror': ('js_libs', 'prosemirror', 'prosemirror.bundle.js'),
+        'prosemirrorCss': ('js_libs', 'prosemirror', 'prosemirror.css'),
     }
 
     def _vendoredBundlesMtime(self):

@@ -487,13 +487,9 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                                             sourceNode._footers,
                                             colinfo,autoTitle);
             scrollbox = sourceNode._footersNode._value.getNode('scrollbox');
-            genro.dom.setEventListener(scrollbox.domNode,'scroll',function(e){
-                var sn = that.views.views[0].scrollboxNode;
-                sn.scrollLeft = e.target.scrollLeft;
-                if(sourceNode._columnsetsNode){
-                    sourceNode._columnsetsNode._value.getNode('scrollbox').domNode.scrollLeft = e.target.scrollLeft;
-                }
-            });
+            // The footer pane is an overflow:hidden follower (like the columnset header):
+            // only the grid body owns the scrollbars, so the horizontal sync is one-way,
+            // body -> footer + columnset header.
             var footerScrollDom = scrollbox.domNode;
             var mainScrollbox = that.views.views[0].scrollboxNode;
             genro.dom.setEventListener(mainScrollbox,'scroll',function(e){

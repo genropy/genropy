@@ -34,7 +34,6 @@ from gnr.core.gnrdecorator import extract_kwargs,metadata
 from gnr.core.gnrcrypto import AuthTokenGenerator
 from gnr.lib.services import ServiceHandler
 from gnr.app.pathresolver import PathResolver
-from gnr.web.gnrwsgisite_proxy.gnrapidispatcher import ApiDispatcher
 from gnr.app.gnrapp import GnrPackage
 from gnr.web import logger
 from gnr.web.gnrwebapp import GnrWsgiWebApp
@@ -489,7 +488,6 @@ class GnrWsgiSite(object):
         self.find_gnrjs_and_dojo()
         self._remote_edit = options.remote_edit if options else None
         self._main_gnrapp = self.build_gnrapp(options=options)
-        self.api_dispatcher = ApiDispatcher(self)
         self.server_locale = self.gnrapp.locale
         self.wsgiapp = self.build_wsgiapp(options=options)
         self.debugpy = debugpy
@@ -1304,8 +1302,6 @@ class GnrWsgiSite(object):
             finally:
                 self.cleanup()
             return response(environ, start_response)
-        if first_segment == '_api':
-            return self.serve_api(path_list, environ, start_response, **request_kwargs)
 
         #static elements that doesn't have .py extension in self.root_static
         if self.root_static and not first_segment.startswith('_') and '.' in last_segment and not (':' in first_segment):
@@ -1609,6 +1605,7 @@ class GnrWsgiSite(object):
 
     def checkPendingConnection(self):
         if self.connectionLogEnabled:
+            # FIXME: evaluate methods to remove this dependency from a package
             self.db.table('adm.connection').dropExpiredConnections()
 
     def pageLog(self, event, page_id=None):
@@ -1906,8 +1903,12 @@ class GnrWsgiSite(object):
 
     def _get_resources_dirs(self):
         if not hasattr(self, '_resources_dirs'):
-            self._resources_dirs = list(self.resources.values())
-            self._resources_dirs.reverse()
+            # Build locally and publish complete: assigning the attribute first and
+            # reversing in place afterwards exposes a half-initialized list to
+            # concurrent readers (see issue #984).
+            dirs = list(self.resources.values())
+            dirs.reverse()
+            self._resources_dirs = dirs
         return self._resources_dirs
 
     resources_dirs = property(_get_resources_dirs)
@@ -1924,9 +1925,6 @@ class GnrWsgiSite(object):
         :param tool: TODO"""
         kwargs_string = '&'.join(['%s=%s' % (k, v) for k, v in list(kwargs.items())])
         return '%s%s_tools/%s?%s' % (self.external_host, self.home_uri, tool, kwargs_string)
-
-    def serve_api(self, path_list, environ, start_response, **kwargs):
-        return self.api_dispatcher.dispatch(path_list, environ, start_response, **kwargs)
 
     def serve_ping(self, response, environ, start_response, page_id=None, reason=None, **kwargs):
         response.content_type = "text/xml"

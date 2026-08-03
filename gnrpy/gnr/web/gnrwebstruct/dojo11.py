@@ -64,7 +64,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
              'dataFormula', 'dataScript', 'dataRpc', 'dataController', 'dataRemote',
              'gridView', 'viewHeader', 'viewRow', 'script', 'func',
              'staticGrid', 'dynamicGrid', 'fileUploader', 'gridEditor', 'ckEditor', 
-             'tinyMCE', 'protovis','codemirror','mdeditor','qrscanner','fullcalendar','dygraph','chartjs','MultiButton','PaletteGroup','DocumentFrame','DownloadButton','bagEditor','PagedHtml',
+             'tinyMCE', 'protovis','codemirror','proseMirrorEditor','mdeditor','qrscanner','fullcalendar','dygraph','chartjs','MultiButton','PaletteGroup','DocumentFrame','DownloadButton','bagEditor','PagedHtml',
              'DocItem','UserObjectLayout','UserObjectBar', 'PalettePane','PasswordTextBox','PaletteMap','PaletteImporter','DropUploader','ModalUploader','DropUploaderGrid','VideoPickerPalette','GeoCoderField','StaticMap','ImgUploader','TooltipPane','MenuDiv', 'BagNodeEditor','FlatBagEditor',
              'PaletteBagNodeEditor','StackButtons', 'Palette', 'PaletteTree','TreeFrame','CheckBoxText','RadioButtonText','GeoSearch','ComboArrow','ComboMenu','ChartPane','PaletteChart','ColorTextBox','ColorFiltering', 'SearchBox', 'FormStore',
              'FramePane', 'FrameForm','BoxForm','QuickEditor','ExtendedCkeditor','ExtendedTinyMCE','CodeEditor','TreeGrid','QuickGrid',
@@ -826,9 +826,10 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         if lbl and not label and not getattr(self,'fbuilder',None):
             label = lbl
             lbl = '&nbsp;'
-            # Auto-add formlet_fakelabel class to hide empty label row in formlet
+            # Placeholder label: keeps the label height with top/bottom label
+            # side so the checkbox lines up with the sibling inputs
             if 'box__class' not in kwargs:
-                kwargs['box__class'] = 'formlet_fakelabel'
+                kwargs['box__class'] = 'formlet_placeholder_label'
         return self.child('checkbox', value=value, label=label,lbl=lbl, **kwargs)
         
     def dropdownbutton(self, label=None, **kwargs):
@@ -922,7 +923,17 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         fieldobj = tblobj.column(fld)
         if fieldobj is None:
             raise GnrDomSrcError('Not existing field %s' % fld)
-        wdgattr = self.wdgAttributesFromColumn(fieldobj, fld=fld,**kwargs)    
+        wdgattr = self.wdgAttributesFromColumn(fieldobj, fld=fld, **kwargs)
+        # Formlet path only (no GnrFormBuilder above): hide the parent link column
+        # of a relation-based child Table Handler. The formbuilder handles this in
+        # GnrFormBuilder._formCell; here we read the same excludeCols the Table
+        # Handler left on the form node. parentfb has a fbuilder only in the
+        # formbuilder case, so its absence identifies the formlet/gridbox path.
+        if parentfb is None:
+            formNode = self.parentNode.attributeOwnerNode('formId') if self.parentNode else None
+            excludeCols = formNode.attr.get('excludeCols') if formNode else None
+            if excludeCols and fld in excludeCols.split(','):
+                wdgattr.setdefault('hidden', True)
         wdgattr['helpcode'] =  fieldobj.fullname.replace('.','_')
         if fieldobj.attributes.get('_owner_package'):
             wdgattr['helpcode_package'] = fieldobj.attributes.get('_owner_package')

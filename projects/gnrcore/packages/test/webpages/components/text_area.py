@@ -2,7 +2,7 @@
 
 
 class GnrCustomWebPage(object):
-    py_requires = "gnrcomponents/testhandler:TestHandlerBase,msgarea_component:MsgArea"
+    py_requires = "gnrcomponents/testhandler:TestHandlerFull,msgarea_component:MsgArea"
     
     def test_0_textarea(self, pane):
         "Test textArea with connect_onkeyup to show available characters"
