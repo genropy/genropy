@@ -434,7 +434,10 @@ class ResourceLoader(object):
             locations = resourceDirs[:]
             locations.reverse()
         else:
-            locations = resourceDirs
+            # Defensive copy, like the css/js branch: the caller may share this
+            # list across threads (e.g. site.resources_dirs) and a concurrent
+            # in-place mutation would make the iteration skip entries (issue #984).
+            locations = resourceDirs[:]
         if ext and not path.endswith('.%s' % ext): path = '%s.%s' % (path, ext)
         if '*' in path:
             searchpath=os.path.split(path.split('*')[0])[0]
