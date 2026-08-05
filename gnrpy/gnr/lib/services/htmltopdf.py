@@ -2,13 +2,17 @@
 # -*- coding: utf-8 -*-
 
 import os
+import re
 import tempfile
 from datetime import datetime, date
-            
+
 from gnr.core.gnrdecorator import extract_kwargs
 from gnr.core.gnrlang import  GnrException
 from gnr.lib.services import GnrBaseService,BaseServiceType
 from gnr.lib.services.storage import StorageNode
+
+#a valid margin: non-negative number with an optional css length unit (bare number -> mm)
+CSS_LENGTH_RE = re.compile(r'^(?:\d+(?:\.\d+)?|\.\d+)(?P<unit>mm|cm|in|px|pt|pc|em|rem|%)?$')
 
 
 class HtmlToPdfError(GnrException):
@@ -64,8 +68,39 @@ class HtmlToPdfService(GnrBaseService):
         tmp.close()
         return url
 
+    def pageMarginsFromPdfKwargs(self, pdf_kwargs=None):
+        """Extract ``margin_top/bottom/left/right`` from pdf_kwargs as CSS lengths.
+
+        Values are normalized before validation: internal whitespace is removed
+        (``'10 mm'`` -> ``'10mm'``) and a decimal comma becomes a dot
+        (``'1,5'`` -> ``'1.5'``). Bare non-negative numbers get the ``mm`` unit
+        (wkhtmltopdf's implicit unit, so stored preference values keep their
+        meaning); numbers with an explicit css length unit (mm, cm, in, px, pt,
+        pc, em, rem, %) are kept as normalized. Anything else (negative numbers,
+        unknown units, garbage) skips the side entirely, as if it were unset: an
+        invalid value interpolated in the generated stylesheet would be dropped
+        by the renderer, leaving that side silently asymmetric.
+
+        :param pdf_kwargs: dict possibly holding ``margin_*`` entries
+        :returns: dict keyed by side (``top``, ``bottom``, ``left``, ``right``)"""
+        pdf_kwargs = pdf_kwargs or {}
+        margins = {}
+        for side in ('top', 'bottom', 'left', 'right'):
+            value = pdf_kwargs.get('margin_%s' % side)
+            if value is None or isinstance(value, bool):
+                continue
+            #remove internal whitespace and normalize a decimal comma to a dot
+            value = ''.join(str(value).split()).replace(',', '.')
+            match = CSS_LENGTH_RE.match(value)
+            if not match:
+                continue
+            if not match.group('unit'):
+                value = '%smm' % value
+            margins[side] = value
+        return margins
+
     @extract_kwargs(pdf=True)
-    def htmlToPdf(self, srcPath, destPath=None, orientation=None, page_height=None, 
+    def htmlToPdf(self, srcPath, destPath=None, orientation=None, page_height=None,
                 page_width=None, pdf_kwargs=None,htmlTemplate=None,bodyStyle=None,**kwargs): #srcPathList per ridurre i processi?
             
         """TODO
