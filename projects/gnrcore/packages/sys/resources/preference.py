@@ -90,10 +90,10 @@ class AppPref(object):
         fb = pane.roundedGroup(title='!![en]PDF Render',region='center').formbuilder(cols=1, border_spacing='4px',datapath='.pdf_render')
         fb.checkbox(value='^.keep_html',label='!![en]Keep HTML (for debug)')
         fb.checkbox(value='^.wk_legacy',label='!![en]Legacy mode (use wkhtmltopdf)')
-        fb.textbox(value='^.margin_top',lbl='!![en]Margin top', hidden='^.wk_legacy?=!#v')
-        fb.textbox(value='^.margin_bottom',lbl='!![en]Margin bottom', hidden='^.wk_legacy?=!#v')
-        fb.textbox(value='^.margin_left',lbl='!![en]Margin left', hidden='^.wk_legacy?=!#v')
-        fb.textbox(value='^.margin_right',lbl='!![en]Margin right', hidden='^.wk_legacy?=!#v')
+        fb.textbox(value='^.margin_top',lbl='!![en]Margin top')
+        fb.textbox(value='^.margin_bottom',lbl='!![en]Margin bottom')
+        fb.textbox(value='^.margin_left',lbl='!![en]Margin left')
+        fb.textbox(value='^.margin_right',lbl='!![en]Margin right')
         fb.textbox(value='^.zoom',lbl='!![en]Pdf zoom',width='5em', hidden='^.wk_legacy?=!#v')
         
     def pdfPreferences(self, pane):
