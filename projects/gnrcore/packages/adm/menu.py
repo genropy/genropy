@@ -15,6 +15,7 @@ class Menu(object):
         permissions.thpage(u"!!Pkginfo", table="adm.pkginfo")
         permissions.thpage(u"!!Tableinfo", table="adm.tblinfo")
         permissions.webpage(u"!!User configurator", filepath="/adm/user_configuration",tags='superadmin')
+        permissions.webpage(u"!!Tag Manager", filepath="/adm/tag_manager",tags='superadmin')
         unused = administration.branch('!!Unused',tags='_DEV_')
         unused.thpage(u"!!Menu Manager", table="adm.menu")
         unused.thpage(u"!!Menu Pages", table="adm.menu_page")
@@ -28,6 +29,7 @@ class Menu(object):
         root.thpage(u"!!Access groups", table="adm.access_group",tags='_DEV_,superadmin')
         root.thpage(u"!!Help documents", table="adm.group_helpdoc")
         root.webpage('!!User preferences',filepath='/adm/user_preference')
+        root.thpage(u"!!API Tokens", table="adm.api_token", tags="admin")
 
     def utilitySubmenu(self,utility,**kwargs):
         utility.thpage(u"!!Letterheads", table="adm.htmltemplate")

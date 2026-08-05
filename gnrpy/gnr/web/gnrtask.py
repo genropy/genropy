@@ -22,15 +22,39 @@
 
 #Copyright (c) 2019 Softwell. All rights reserved.
 
+import os
 from psutil import pid_exists
+from datetime import datetime, timezone
+from time import sleep
+from random import randrange
+from gnr.core.gnrconfig import getGnrConfig
 from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrbag import Bag
 from gnr.web.gnrwsgisite import GnrWsgiSite
+from gnr.web import logger
 
-from datetime import datetime
-from time import sleep
-from random import randrange
-import os
+
+def determine_task_manager_to_use():
+    """
+    Load the task async implementation configuration from
+    environment.xml. If it fails, for example by importing the code
+    in a non-established environment, default back to old implementation anyway.
+    """
+    try:
+        _c = getGnrConfig()
+        _env = _c['gnr.environment_xml']
+        task_configuration = _env.getAttr('tasks')
+        if task_configuration and task_configuration.get("async_impl") == 'true':
+            return True
+    except:
+        pass
+    return False
+
+# global bool to be used to determine if we're using the old
+# or the new async based task scheduler/worker
+USE_ASYNC_TASKS = determine_task_manager_to_use()
+
+logger.info("Using new task infrastructure: %s", USE_ASYNC_TASKS)
 
 class GnrTaskScheduler(object):
     def __init__(self,instancename,interval=None):
@@ -41,15 +65,19 @@ class GnrTaskScheduler(object):
         self.tasktbl = self.db.table('sys.task')
         self.exectbl = self.db.table('sys.task_execution')
 
+
     def start(self):
+        logger.info("Starting task scheduler, check every %s seconds", self.interval)
         while True:
             self.writeTaskExecutions()
             self.db.closeConnection()
             sleep(self.interval)
     
     def writeTaskExecutions(self):
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
+        logger.info("Checking for new tasks")
         task_to_schedule = self.tasktbl.findTasks()
+        logger.debug("Found tasks to schedule: %s", task_to_schedule)
         existing_executions = self.exectbl.query(columns='$reasonkey,$status',
                                                 where='$reasonkey IN :reasonkeys',
                                                 reasonkeys=['%s_%s' %t for t in task_to_schedule if t[1]!='*']).fetchAsDict('reasonkey')
@@ -61,7 +89,7 @@ class GnrTaskScheduler(object):
             if reasonkey not in existing_executions:
                 self.exectbl.insert(self.exectbl.newrecord(task_id=t,exec_reason=reason,reasonkey=reasonkey))
                 taskToUpdate.append(t)
-
+        logger.debug("Tasks to be updated: %s", taskToUpdate)
         self.tasktbl.batchUpdate(dict(last_scheduled_ts=now,run_asap=None),
                                  _pkeys=taskToUpdate,
                                  for_update='SKIP LOCKED')
@@ -71,7 +99,7 @@ class GnrTaskScheduler(object):
     def checkAlive(self):
         f = self.exectbl.query(where='$start_ts IS NOT NULL AND $end_ts IS NULL').fetchGrouped(key='pid')
         for pid,exec_records in f.items():
-            if pid_exists(pid):
+            if pid and pid_exists(pid):
                 continue
             keys_to_kill=[e['id'] for e in exec_records]
             self.exectbl.batchUpdate(dict(pid=None,start_ts=None),
@@ -98,7 +126,7 @@ class GnrTaskWorker(object):
             if f:
                 rec = f[0]
                 oldrec = dict(rec)
-                rec['start_ts'] = datetime.now()
+                rec['start_ts'] = datetime.now(timezone.utc)
                 rec['pid'] = self.pid
                 self.tblobj.update(rec,oldrec)
                 self.db.commit()
@@ -110,7 +138,7 @@ class GnrTaskWorker(object):
         page._db = None
         page.db
         log_record = Bag()
-        start_time = datetime.now()
+        start_time = datetime.now(timezone.utc)
         log_record['start_time'] = start_time
         log_record['task_id'] =task_execution['id']
         table = task_execution['task_table']
@@ -123,11 +151,16 @@ class GnrTaskWorker(object):
                             batch_selection_savedQuery=task_execution['task_saved_query'])
         taskparameters = task_execution['task_parameters']
         with self.db.tempEnv(connectionName='execution'):
+            logger.info("Executing task %s.%s - %s", 
+                        task_execution['table_table'],
+                        task_execution['table_name'],
+                        task_execution['table_command'])
             taskObj(parameters=Bag(taskparameters),task_execution_record=task_execution)
     
     def start(self):
         while True:
             for te_pkey in self.taskToExecute():
+                logger.info("Starting task %s", te_pkey)
                 with self.tblobj.recordToUpdate(te_pkey,for_update='SKIP LOCKED',
                                                 virtual_columns="""$task_table,
                                                                     $task_name,
@@ -135,7 +168,7 @@ class GnrTaskWorker(object):
                                                                     $task_command,
                                                                     $task_saved_query""") as task_execution:
                     self.runTask(task_execution)
-                    task_execution['end_ts'] = datetime.now()
+                    task_execution['end_ts'] = datetime.now(timezone.utc)
                 self.db.commit()
             self.db.closeConnection()
             sleep(randrange(self.interval-10,self.interval+10))

@@ -12,6 +12,13 @@
 }
 
 
+
+
+.cordova_external_url :is(#download, #secondaryDownload)::before{
+    -webkit-mask-image:var(--toolbarButton-openFile-icon);
+            mask-image:var(--toolbarButton-openFile-icon);
+  }
+
 #secondaryOpenFile,
 #presentationMode,
 #viewBookmark,

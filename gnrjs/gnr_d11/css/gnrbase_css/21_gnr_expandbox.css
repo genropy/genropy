@@ -1,0 +1,113 @@
+/* ==========================================================================
+   21_gnr_expandbox.css — expandbox widget (details/summary based)
+
+   Variables defined in 01_gnr_variables.css:
+     --expandbox-border, --expandbox-radius,
+     --expandbox-header-bg, --expandbox-header-color,
+     --expandbox-header-padding, --expandbox-header-font-size,
+     --expandbox-header-font-weight, --expandbox-content-padding,
+     --expandbox-transition-duration
+   ========================================================================== */
+
+/* --- Base layout --- */
+.gnrexpandbox {
+    border: 1px solid var(--expandbox-border);
+    border-radius: var(--expandbox-radius);
+}
+
+/* --- Summary / Header --- */
+.gnrexpandbox_header {
+    display: flex;
+    align-items: center;
+    padding: var(--expandbox-header-padding);
+    cursor: pointer;
+    user-select: none;
+    background: var(--expandbox-header-bg);
+    color: var(--expandbox-header-color);
+    font-weight: var(--expandbox-header-font-weight);
+    font-size: var(--expandbox-header-font-size);
+    list-style: none;
+    border-radius: var(--expandbox-radius) var(--expandbox-radius) 0 0;
+}
+
+.gnrexpandbox:not([open]) > .gnrexpandbox_header {
+    border-radius: var(--expandbox-radius);
+}
+
+.gnrexpandbox_header::-webkit-details-marker {
+    display: none;
+}
+
+/* --- Custom marker --- */
+.gnrexpandbox_header::before {
+    content: '\25BE';
+    display: inline-block;
+    width: 1em;
+    text-align: center;
+    margin-right: 4px;
+    transition: transform var(--expandbox-transition-duration) ease;
+}
+
+.gnrexpandbox:not([open]) > .gnrexpandbox_header::before {
+    transform: rotate(-90deg);
+}
+
+/* --- Title --- */
+.gnrexpandbox_title {
+    flex: 1;
+}
+
+/* --- Content area --- */
+.gnrexpandbox > *:not(summary) {
+    padding: var(--expandbox-content-padding);
+}
+
+/* --- Animation support --- */
+.gnrexpandbox_animated {
+    interpolate-size: allow-keywords;
+}
+
+.gnrexpandbox_animated::details-content {
+    overflow: hidden;
+    height: 0;
+    opacity: 0;
+    transition: height var(--expandbox-transition-duration) ease,
+                opacity var(--expandbox-transition-duration) ease,
+                content-visibility var(--expandbox-transition-duration) ease allow-discrete;
+}
+
+.gnrexpandbox_animated[open]::details-content {
+    height: auto;
+    opacity: 1;
+}
+
+/* --- Minimal variant --- */
+.gnrexpandbox.gnrexpandbox_minimal {
+    border: none;
+    border-radius: 0;
+}
+
+.gnrexpandbox.gnrexpandbox_minimal > .gnrexpandbox_header {
+    background: none;
+    color: var(--text-color);
+    padding: 2px 0;
+    border-radius: 0;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.gnrexpandbox.gnrexpandbox_minimal:not([open]) > .gnrexpandbox_header {
+    border-bottom: none;
+}
+
+.gnrexpandbox.gnrexpandbox_minimal > *:not(summary) {
+    padding: var(--expandbox-content-padding) 0;
+}
+
+/* --- Locked variant (non-togglable) --- */
+.gnrexpandbox.gnrexpandbox_locked > .gnrexpandbox_header {
+    cursor: default;
+}
+
+.gnrexpandbox.gnrexpandbox_locked > .gnrexpandbox_header::before {
+    visibility: hidden;
+}

@@ -32,9 +32,9 @@ from psycopg import sql
 
 from gnr.core.gnrlist import GnrNamedList
 from gnr.sql.adapters._gnrbasepostgresadapter import PostgresSqlDbBaseAdapter
-from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
+from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException, GnrSqlConnectionException
 
-RE_SQL_PARAMS = re.compile(r":(\S\w*)(\W|$)")
+RE_SQL_PARAMS = re.compile(r"(?<!:):(?!:)(\S\w*)(\W|$)")
 
 class SqlDbAdapter(PostgresSqlDbBaseAdapter):
 
@@ -42,7 +42,7 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         """Return a new connection object: provides cursors accessible by col number or col name
         
         :returns: a new connection object"""
-        kwargs = self.dbroot.get_connection_params(storename=storename)
+        kwargs = self.get_connection_params(storename=storename)
         kwargs.pop('implementation',None)
         # remove None parameters, psycopg can't handle them
         kwargs = dict([(k, v) for k, v in list(kwargs.items()) if v != None])
@@ -55,8 +55,10 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         
         try:
             conn = psycopg.connect(**kwargs)
-        except psycopg.OperationalError:
-            raise GnrNonExistingDbException(self.dbroot.dbname)
+        except psycopg.OperationalError as e:
+            if 'does not exist' in str(e).lower():
+                raise GnrNonExistingDbException(self.dbroot.dbname)
+            raise GnrSqlConnectionException(self.dbroot.dbname, original_error=e)
         conn.cursor_factory = GnrDictCursor
         return conn
 
@@ -96,37 +98,6 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
 
         return sql
 
-    def execute(self, sql, sqlargs=None, manager=False, autoCommit=False):
-        """
-        Execute a sql statement on a new cursor from the connection of the selected
-        connection manager if provided, otherwise through a new connection.
-        sqlargs will be used for query params substitutions.
-
-        Returns None
-        """
-        
-        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit)
-        with connection.cursor() as cursor:
-            cursor.execute(sql,sqlargs)
-        connection.close()
-
-    def raw_fetch(self, sql, sqlargs=None, manager=False, autoCommit=False):
-        """
-        Execute a sql statement on a new cursor from the connection of the selected
-        connection manager if provided, otherwise through a new connection.
-        sqlargs will be used for query params substitutions.
-
-        Returns all records returned by the SQL statement.
-        """
-        
-        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit)
-        with connection.cursor() as cursor:
-            cursor.execute(sql, sqlargs)
-            r = cursor.fetchall()
-            connection.close()
-            return r
-
-    
     def prepareSqlText(self, sqltext, kwargs):
         """Change the format of named arguments in the query from ':argname' to '%(argname)s'.
         Replace the 'REGEXP' operator with '~*'
@@ -134,15 +105,14 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         :param sql: the sql string to execute
         :param kwargs: the params dict
         :returns: tuple (sql, kwargs)"""
+
         sqlargs = {}
         sqltext = self.adaptTupleListSet(sqltext,kwargs)
         sqltext = sqltext.replace('{',chr(2)).replace('}',chr(3))
         def subArgs(m):
             key = m.group(1)
             sqlargs[key]=kwargs[key]
-            #sqlargs.append(kwargs[key])
             return f'{{{key}}}{m.group(2)} '
-        #sql = RE_SQL_PARAMS.sub(r'%(\1)s\2', sql).replace('REGEXP', '~*')
         sqltext = RE_SQL_PARAMS.sub(subArgs, sqltext)
         sqltext= sqltext.replace('REGEXP', '~*')
         
@@ -216,12 +186,16 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
                 
         self.dbroot.connection.isolation_level=IsolationLevel.READ_COMMITTED
         
-    def notify(self, msg, autocommit=False):
+    def notify(self, msg, payload=None, autocommit=False):
         """Notify a message to listener processes using the Postgres LISTEN - NOTIFY method.
-        
-        :param msg: name of the message to notify
-        :param autocommit: if False (default) you have to commit transaction, and the message is actually sent on commit"""
-        self.dbroot.execute('NOTIFY %s;' % msg)
+
+        :param msg: channel name to notify
+        :param payload: optional payload string (max 8000 bytes)
+        :param autocommit: if False (default) the message is sent on commit"""
+        if payload is None:
+            self.dbroot.execute("NOTIFY %s;" % msg)
+        else:
+            self.dbroot.execute("NOTIFY %s, :payload;" % msg, sqlargs={'payload': payload})
         if autocommit:
             self.dbroot.commit()
 
@@ -234,7 +208,7 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         :returns: list of object names"""
         query = getattr(self, '_list_%s' % elType)()
         try:
-            result = self.dbroot.execute(query, kwargs).fetchall()
+            result = self.raw_fetch(query, sqlargs=kwargs)
         except psycopg.OperationalError:
             raise GnrNonExistingDbException(self.dbroot.dbname)
         return [r[0] for r in result]
@@ -289,10 +263,11 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         filtercol = ""
         if column:
             filtercol = "AND column_name=:column"
-        columns = self.dbroot.execute(sql % filtercol,
-                                      dict(schema=schema,
-                                           table=table,
-                                           column=column)).fetchall()
+        columns = self.raw_fetch(sql % filtercol,
+                                 dict(schema=schema,
+                                      table=table,
+                                      column=column)
+                                 )
         result = []
         for col in columns:
             col = dict(col)

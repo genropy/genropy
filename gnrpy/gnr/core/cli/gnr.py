@@ -128,7 +128,15 @@ class CommandManager():
                 missing_doc = "MISSING DESCRIPTION"
                 
             for command, cmd_impl in sorted(self.script_tree[section].items()):
-                description = getattr(self.load_module(*cmd_impl[2]), "description", "").capitalize()
+                try:
+                    l_module = self.load_module(*cmd_impl[2])
+                except Exception as e:
+                    print(f"  {command :>15} - NOT AVAILABLE ({e.name})")
+                    continue
+                description = getattr(l_module, "description", "").capitalize()
+                gnr_cli_hide = getattr(l_module, "gnr_cli_hide", False)
+                if gnr_cli_hide:
+                    continue
                 if not description:
                     description = missing_doc
                 print(f"  {command :>15} - {description}")
@@ -188,8 +196,12 @@ class CommandManager():
                     command_name = " ".join(sys.argv[:3])
                     sys.argv = sys.argv[3:]
                 sys.argv.insert(0, command_name)
-                
-                cmd_module = self.load_module(*cmd_impl[2])
+
+                try:
+                    cmd_module = self.load_module(*cmd_impl[2])
+                except Exception as e:
+                    print(f"Command {os.path.basename(command_name)} not available: {e}")
+                    return 
 
                 # measure execution time
                 start_time = time.time()

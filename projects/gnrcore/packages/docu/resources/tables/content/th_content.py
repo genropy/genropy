@@ -8,10 +8,9 @@ class View(BaseComponent):
 
     def th_struct(self,struct):
         r = struct.view().rows()
-        r.fieldcell('title')
-        r.fieldcell('headline')
-        r.fieldcell('abstract')
-        r.fieldcell('text')
+        r.fieldcell('title', width='20em')
+        r.fieldcell('headline', width='40em')
+        r.fieldcell('abstract', width='auto')
 
     def th_order(self):
         return 'title'
@@ -60,10 +59,11 @@ class Form(BaseComponent):
         self.contentAttributes(top.borderContainer(title='!!Content Attributes', region='right', width='500px'))
         self.contentMain(bc.tabContainer(region='center'))
     
-    @customizable
     def contentMain(self, tc):
-        self.contentText(tc.contentPane(title='!!Text', datapath='.record', overflow='hidden'))
-        self.contentTemplate(tc.contentPane(title='!!Template', datapath='.record'))
+        tc.contentPane(title='!!Text', datapath='.record', overflow='hidden').contentEditor(mode='text')
+        tc.contentPane(title='!!Markdown', datapath='.record', overflow='hidden').contentEditor(mode='md')
+        tc.contentPane(title='!!HTML', datapath='.record', overflow='hidden').contentEditor(mode='html')
+        tc.contentPane(title='!!Template', datapath='.record', overflow='hidden').contentEditor(mode='template')
         self.contentAttachments(tc.contentPane(title='!!Attachments'))
         return tc
     
@@ -77,7 +77,7 @@ class FormEmbed(Form):
 
     def th_form(self, form):
         bc = form.record
-        self.contentEditor(bc.contentPane(region='center',overflow='hidden',datapath='.record'), value='^.text',htmlpath='.html')
+        bc.contentPane(region='center',overflow='hidden',datapath='.record').contentEditor()
         
     def th_options(self):
         return dict(autoSave=True, showtoolbar=False)
@@ -90,9 +90,10 @@ class FormReview(Form):
     @customizable
     def th_form(self, form):
         tc = form.center.tabContainer(tabPosition='left-h')
-        self.contentEditor(tc.contentPane(title='!!Text', region='center',overflow='hidden', 
-                                          datapath='.record'), value='^.text',htmlpath='.html')
-        self.contentVersions(tc.borderContainer(title='!!Versions', region='center'), value='^.text')
+        tc.contentPane(title='!!Text', region='center',overflow='hidden',
+                                datapath='.record').contentEditor(mode='md')
+        self.contentVersions(tc.borderContainer(title='!!Versions', region='center'),
+                                relation='@versions')
         return tc
         
     def th_options(self):

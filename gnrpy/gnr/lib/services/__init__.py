@@ -25,64 +25,68 @@
 
 
 import os
-
-from gnr.core.gnrlang import  gnrImport
+import threading
 from datetime import datetime
+
+from gnr.core.gnrlang import  gnrImport, GnrException
 from gnr.core.gnrbag import Bag
 from gnr.lib import logger
 
-PKGMARKER = '%spackages%s' %(os.sep,os.sep)
-
-LIB_ROOT = os.path.dirname(__file__)
-
 class ServiceHandler(object):
-
     
-    def __init__(self,site):
+    def __init__(self, site, domain=None):
         self.site = site
+        self.domain = domain
         #cerco definizioni core
         service_types_factories = {}
         self.service_types = {}
-        services_roots = [LIB_ROOT]
-        for pkg,pkgobj in list(self.site.gnrapp.packages.items()):
-            pkglibroot = os.path.join(pkgobj.packageFolder,'lib','services')
+        services_roots = [os.path.dirname(__file__)]
+        for pkg, pkgobj in list(self.site.gnrapp.packages.items()):
+            pkglibroot = os.path.join(pkgobj.packageFolder, 'lib', 'services')
             if os.path.isdir(pkglibroot):
                 services_roots.append(pkglibroot)
         default_service_type_factory = BaseServiceType
         all_service_types = set()
+        logger.info("Loading services definitions")
         for service_root in services_roots:
-            service_types = [service_type for service_type, ext in map(os.path.splitext, os.listdir(service_root)) if ext=='.py']
+            service_types = [service_type for service_type, ext in map(os.path.splitext, os.listdir(service_root)) if ext.lower()=='.py']
             for service_type in service_types:
-                if service_type=='__init__': continue
+                if service_type == '__init__':
+                    continue
+                logger.debug("Found service %s in %s", service_type, service_root)
                 all_service_types.add(service_type)
-                m = gnrImport(os.path.join(service_root,'%s.py' %service_type))
-                service_type_factory = getattr(m,'ServiceType',None)
+                m = gnrImport(os.path.join(service_root, f'{service_type}.py'))
+                service_type_factory = getattr(m, 'ServiceType', None)
                 if service_type_factory:
                     service_types_factories[service_type] = service_type_factory
-        resdirs = site.resource_loader.getResourceList(site.resources_dirs,'services')
+        resdirs = site.resource_loader.getResourceList(site.resources_dirs, 'services')
         resdirs.reverse()
         for service_root in resdirs:
             for service_type in list(all_service_types):
-                if not os.path.isdir(os.path.join(service_root,service_type)):
+                if not os.path.isdir(os.path.join(service_root, service_type)):
                     continue
                 service_type_factory = service_types_factories.get(service_type) or default_service_type_factory
-                self.service_types[service_type] = service_type_factory(self.site,service_type=service_type)
+                logger.debug("Found resource service %s in %s", service_type, service_root)
+                self.service_types[service_type] = service_type_factory(self.site, service_type=service_type, domain=self.domain)
         
-    def getService(self,service_type=None,service_name=None, **kwargs):
+    def getService(self, service_type=None, service_name=None, **kwargs):
         if service_type not in self.service_types:
-            self.service_types[service_type] = BaseServiceType(site=self.site,service_type=service_type)
+            self.service_types[service_type] = BaseServiceType(site=self.site, service_type=service_type, domain=self.domain)
         return self(service_type)(service_name, **kwargs)
     
-    def __call__(self,service_type):
+    def __call__(self, service_type):
         return self.service_types[service_type]
-
 
 class BaseServiceType(object):
     
-    def __init__(self, site=None,service_type=None, **kwargs):
+    def __init__(self, site=None, service_type=None, domain=None, **kwargs):
         self.site = site
         self.service_type = service_type
-        self.service_instances = {}        
+        self.domain = domain
+        self.service_instances = {}
+        self.baseImplementation = None
+        self._implementations = None
+        self._implementations_lock = threading.RLock()
 
     def addService(self, service_name=None, **kwargs):
         service_conf = kwargs or self.getConfiguration(service_name)
@@ -90,8 +94,11 @@ class BaseServiceType(object):
             return
         implementation = service_conf.pop('implementation',None) or service_conf.pop('resource',None) #resource is the oldname for implementation
         service_factory = self.getServiceFactory(implementation)
+        if service_factory is None:
+            raise GnrException('no implementation %r for service type %r (service %r)'
+                               % (implementation, self.service_type, service_name))
         service_conf = service_conf or {}
-        service = service_factory(self.site,**service_conf)
+        service = service_factory(self.site, **service_conf)
         service.service_name = service_name
         service.service_type = self.service_type
         service.service_implementation = implementation
@@ -99,7 +106,7 @@ class BaseServiceType(object):
         self.service_instances[service_name] = service
         return service
 
-    def getConfiguration(self,service_name):
+    def getConfiguration(self, service_name):
         return self.getServiceConfigurationFromDb(service_name) or \
                 self.getServiceConfigurationFromSiteConfig(service_name) or \
                 self.getServiceConfigurationFromSelf(service_name)
@@ -108,20 +115,34 @@ class BaseServiceType(object):
     def configurations(self):
         l = self.serviceConfigurationsFromSiteConfig()
         if 'sys' in list(self.site.gnrapp.packages.keys()):
-            dbservices = self.site.db.table('sys.service').query(where='$service_type=:st',st=self.service_type,order_by='$service_name').fetch()
-            l += [dict(implementation=r['implementation'],service_name=r['service_name'],service_type=r['service_type']) for r in dbservices]
+            dbservices = self.site.db.table('sys.service').query(where='$service_type=:st', st=self.service_type, order_by='$service_name').fetch()
+            l += [dict(
+                implementation=r['implementation'],
+                service_name=r['service_name'],
+                service_type=r['service_type'],
+                service_disabled=r['disabled'] and True or False
+            ) for r in dbservices]
         return l
 
 
     def getServiceConfigurationFromDb(self,service_name):
         if 'sys' in list(self.site.gnrapp.packages.keys()):
-            service_record = self.site.db.table('sys.service').record(service_type=self.service_type,
-                                                            service_name=service_name,ignoreMissing=True).output('dict')
-            if not service_record:
-                return
-            conf =  Bag(service_record['parameters'])
-            conf['implementation'] = service_record['implementation']
-            return conf.asDict()
+            # Use explicit domain if set, otherwise fall back to currentDomain
+            storename = False
+            domain = self.domain if self.domain else self.site.currentDomain
+            if self.site.multidomain and domain and domain != self.site.rootDomain:
+                storename = domain
+
+            with self.site.db.tempEnv(storename=storename):
+                service_record = self.site.db.table('sys.service').record(service_type=self.service_type,
+                                                                          service_name=service_name,
+                                                                          ignoreMissing=True).output('dict')
+                if not service_record:
+                    return
+
+                conf =  Bag(service_record['parameters'])
+                conf['implementation'] = service_record['implementation']
+                return conf.asDict()
    
         
     def getServiceConfigurationFromSelf(self,service_name):
@@ -129,87 +150,77 @@ class BaseServiceType(object):
         return handler() if handler else None
 
     def serviceConfigurationsFromSiteConfig(self):
+        logger.info("Loading service configuration from site config")
         if not self.site.config['services']:
+            logger.info("No service configuration found in site config")
             return []
-        typeconf = self.site.config['services.%s' %self.service_type]
+        
+        typeconf = self.site.config['services.%s' % self.service_type]
         if not typeconf:
             result = []
             for k,attr in self.site.config['services'].digest('#k,#a'):
                 attr = dict(attr)
-                service_type = attr.pop('service_type',None) or k
+                service_type = attr.pop('service_type', None) or k
                 if service_type == self.service_type:
-                    result.append(dict(service_name=k, service_type=service_type,**attr))
+                    result.append(dict(service_name=k, service_type=service_type, **attr))
             return result
-        return [dict(service_name=k,service_type=attr.pop('service_type',None),**attr) for attr in typeconf.digest('#a')]
+        logger.info("Loading service configuration from site config completed")
+        return [dict(service_name=k, service_type=attr.pop('service_type',None), **attr) for attr in typeconf.digest('#a')]
 
-    def getServiceConfigurationFromSiteConfig(self,service_name):
-        conf = self.site.config.getAttr('services.%s' %service_name)
+    def getServiceConfigurationFromSiteConfig(self, service_name):
+        conf = self.site.config.getAttr('services.%s' % service_name)
         if not conf:
-            conf = self.site.config.getAttr('services.%s.%s' %(self.service_type,service_name))
+            conf = self.site.config.getAttr('services.%s.%s' % (self.service_type, service_name))
         return dict(conf) if conf else {}
 
-    @property
-    def implementations(self):
-        if not hasattr(self,'_implementations'):
-            self._implementations = {}
-            dirs = self.site.resource_loader.getResourceList(self.site.resources_dirs, 'services/%s' %(self.service_type))
-            dirs.reverse()
-            self.baseImplementation = None
-            for d in dirs:
-                for impl in os.listdir(d):
-                    implname,implext = os.path.splitext(impl)
-                    impl = os.path.join(d,impl)
-                    if os.path.isdir(impl):
-                        impl = os.path.join(d,impl,'service.py')
-                        if not os.path.exists(impl):
-                            continue
-                        implext = '.py'
-                    if implext!='.py':
-                        continue
-                    try:
-                        module = gnrImport(impl,avoidDup=True)
-                        service_class = getattr(module,'Service',None) or getattr(module,'Main',None) #backward compatibility
-                        self._implementations[implname] =  service_class
-                    except ImportError as imperr:
-                        logger.exception("Could not import %s"%impl)
-                        logger.exception(str(imperr))
-                    
-                    if not self.baseImplementation:
-                        self.baseImplementation = implname
-
-        return self._implementations
-
-    def getImplementations(self):
+    def _buildImplementations(self):
         result = {}
-        dirs = self.site.resource_loader.getResourceList(self.site.resources_dirs, 'services/%s' %(self.service_type))
-        dirs.reverse()
         baseImplementation = None
+        dirs = self.site.resource_loader.getResourceList(self.site.resources_dirs, 'services/%s' % (self.service_type))
+        dirs.reverse()
         for d in dirs:
             for impl in os.listdir(d):
                 implname,implext = os.path.splitext(impl)
-                impl = os.path.join(d,impl)
-                if os.path.isdir(impl):
-                    impl = os.path.join(d,impl,'service.py')
-                    if not os.path.exists(impl):
+                implpath = os.path.join(d,impl)
+                if os.path.isdir(implpath):
+                    implpath = os.path.join(implpath,'service.py')
+                    if not os.path.exists(implpath):
                         continue
                     implext = '.py'
                 if implext!='.py':
                     continue
                 try:
-                    module = gnrImport(impl,avoidDup=True)
-                    service_class = getattr(module,'Service',None) or getattr(module,'Main',None) #backward compatibility
-                    result[implname] =  service_class
-                except ImportError as imperr:
-                    logger.exception("Could not import %s"%impl)
-                    logger.exception(str(imperr))
+                    module = gnrImport(implpath, avoidDup=True)
+                except ImportError:
+                    logger.exception("Could not import %s", implpath)
+                    continue
+                service_class = getattr(module, 'Service', None) or getattr(module, 'Main', None) #backward compatibility
+                if service_class is None:
+                    logger.warning("No Service class found in %s", implpath)
+                    continue
+                result[implname] = service_class
                 if not baseImplementation:
                     baseImplementation = implname
-        return result,baseImplementation
+        return result, baseImplementation
 
+    @property
+    def implementations(self):
+        # Built atomically under lock: concurrent first accesses must never
+        # see a partially populated registry (factory would resolve to None)
+        if self._implementations is None:
+            with self._implementations_lock:
+                if self._implementations is None:
+                    implementations, baseImplementation = self._buildImplementations()
+                    self.baseImplementation = baseImplementation
+                    self._implementations = implementations
+        return self._implementations
 
-    def getServiceFactory(self,implementation=None):
-        implementations,baseImplementation = self.getImplementations()
-        return implementations.get(implementation) or implementations.get(baseImplementation)
+    def getImplementations(self):
+        return self.implementations, self.baseImplementation
+
+    def getServiceFactory(self, implementation=None):
+        implementations = self.implementations
+        return implementations.get(implementation) or implementations.get(self.baseImplementation)
     
     @property
     def default_service_name(self):
@@ -219,7 +230,7 @@ class BaseServiceType(object):
         service_name = service_name or self.default_service_name
         service = self.service_instances.get(service_name)
         gs = self.site.register.globalStore()
-        cache_key = 'globalServices_lastChangedConfigTS.%s_%s' %(self.service_type,service_name)
+        cache_key = 'globalServices_lastChangedConfigTS.%s_%s' % (self.service_type, service_name)
         lastChangedConfigurationTS = gs.getItem(cache_key)
         if service is None or (lastChangedConfigurationTS and service._service_creation_ts<lastChangedConfigurationTS):
             service = self.addService(service_name, **kwargs)
@@ -228,14 +239,14 @@ class BaseServiceType(object):
 
 
 class GnrBaseService(object):
-    def __init__(self, parent,**kwargs):
+    def __init__(self, parent, **kwargs):
         self.parent = parent
 
     @property
     def currentPage(self):
         return self.parent.currentPage
     
-    def updateServiceParameters(self,service_parameters=None,**kwargs):
+    def updateServiceParameters(self, service_parameters=None, **kwargs):
         tblservice = self.parent.db.table('sys.service')
         db = self.parent.db
         with db.tempEnv(connectionName='system'):

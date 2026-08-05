@@ -9,7 +9,6 @@
 import datetime
 import time
 from gnr.web.gnrbaseclasses import BaseWebtool
-from gnr.web.cli.gnrinspect import DataCollector
 from gnr.core.gnrdecorator import metadata
 
 METRIC_PREFIX = "genropy_site_counters"
@@ -18,7 +17,7 @@ class Prometheus(BaseWebtool):
     content_type = "text/plain"
 
     def get_metrics(self, ts):
-        collector = DataCollector(self.site.register.siteregister)
+        collector = self.site.datacollector
         counters = ['users', 'pages', 'connections']
         payload = []
         for counter in counters:
@@ -28,8 +27,8 @@ class Prometheus(BaseWebtool):
         now = datetime.datetime.now()
         stale = 0
         for c in collector.connections:
-            if c['last_refresh_ts']:
-                if(now - c['last_refresh_ts']).seconds > 60*5:
+            if last_ts := c.get('last_refresh_ts', None):
+                if(now - last_ts).seconds > 60*5:
                     stale +=1 
         payload.append(f'{METRIC_PREFIX}{{counter="stale_connections_5min"}} {stale}')
         return "\n".join(payload)

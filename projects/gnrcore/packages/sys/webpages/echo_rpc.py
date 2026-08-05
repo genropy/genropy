@@ -2,7 +2,6 @@
 # encoding: utf-8
 
 # --------------------------- GnrWebPage Standard header ---------------------------
-from __future__ import print_function
 
 class GnrCustomWebPage(object):
     skip_connection = True

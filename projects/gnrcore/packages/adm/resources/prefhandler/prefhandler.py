@@ -27,31 +27,131 @@ Component for preference handling:
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method
 from gnr.web.gnrwebstruct import struct_method
+from collections import defaultdict
+from gnr.core.gnrlang import gnrImport
 
 
 class BasePreferenceTabs(BaseComponent):
     def _pr_makePreferenceTabs(self,parent,packages='*',datapath=None,context_dbstore=None,wdg='tab',**kwargs):
-        if isinstance(packages,str):
-            packages = list(self.application.packages.keys()) if packages == '*' else packages.split(',')
+        if isinstance(packages, str):
+            packages = packages.strip()
+            if packages == '*':
+                if context_dbstore:
+                    packages = [pkg for pkg, pkgobj in self.db.application.packages.items()
+                                if pkgobj.attributes.get('multidb_pref')]
+                else:
+                    packages = list(self.application.packages.keys())
+            else:
+                packages = [pkg for pkg in (chunk.strip() for chunk in packages.split(',')) if pkg]
+        elif packages is None:
+            packages = []
+        application_packages = self.application.packages
+        packages = {pkgId: application_packages[pkgId] for pkgId in packages if pkgId in application_packages}
+        grouped_packages = defaultdict(list)
+        for pkgId,pkgObj in packages.items():
+            grouped_packages[pkgObj.attributes.get('prefgroup') or pkgObj.projectInfo['project?prefgroup'] or pkgObj.projectInfo['project?name'] or pkgId].append(pkgObj)
         tc = getattr(parent,f'{wdg}Container')(datapath=datapath,context_dbstore=context_dbstore,nodeId='PREFROOT',**kwargs)
-        for pkgId in packages:
-            pkg = self.application.packages[pkgId]
-            if pkg.disabled:
+        for pkgGroup,pkglist in grouped_packages.items():
+            if len(pkglist)==1:
+                self._fill_pkgpref(tc,pkglist[0],datapath=datapath)
                 continue
-            permmissioncb = getattr(self, 'permission_%s' % pkg.id, None)
-            auth = True
-            if permmissioncb:
-                auth = self.application.checkResourcePermission(permmissioncb(), self.userTags)
-            panecb = getattr(self, 'prefpane_%s' % pkg.id, None)
-            if panecb and auth:
-                panecb(tc, title=pkg.attributes.get('name_full') or pkg.attributes.get('name_long') or pkg.id, datapath='.%s' % pkg.id, nodeId=pkg.id,
-                        pkgId=pkg.id,_anchor=True,sqlContextRoot='%s.%s' % (datapath,pkg.id))
+            innerTc = tc.tabContainer(title=pkgGroup,margin='2px')
+            for pkg in pkglist:
+                self._fill_pkgpref(innerTc,pkg,datapath=datapath)
         return tc
+
+    def _fill_pkgpref(self,tc,pkg,datapath=None):
+        if pkg.disabled:
+            return
+        permmissioncb = getattr(self, 'permission_%s' % pkg.id, None)
+        auth = True
+        if permmissioncb:
+            auth = self.application.checkResourcePermission(permmissioncb(), self.userTags)
+        panecb = getattr(self, 'prefpane_%s' % pkg.id, None)
+        if panecb and auth:
+            panecb(tc, title=pkg.attributes.get('name_long') or pkg.id, datapath='.%s' % pkg.id, nodeId=pkg.id,
+                    pkgId=pkg.id,_anchor=True,sqlContextRoot='%s.%s' % (datapath,pkg.id))
 
 
 
 class AppPrefHandler(BasePreferenceTabs):
-    py_requires='preference:AppPref,foundation/tools'
+    py_requires='preference:AppPref,foundation/tools,gnrcomponents/grouplet/grouplet:GroupletHandler'
+
+    @struct_method
+    def ph_appPreferencesForm(self, parent, datapath=None, **kwargs):
+        form = parent.frameForm(frameCode='app_preferences',
+                                #store_startKey='_mainpref_',
+                                table='adm.preference', datapath=datapath,
+                                store=True, modal=True, **kwargs)
+        form.dataController("""
+            var tkw = _triggerpars.kw;
+            if(tkw.reason && tkw.reason.attr && tkw.reason.attr.livePreference){
+                genro.mainGenroWindow.genro.publish({topic:'externalSetData',
+                iframe:'*'},{path:'gnr.app_preference.'+tkw.pathlist.slice(4).join('.'),value:tkw.value});
+            }""", preference='^#FORM.record.data')
+        form.dataController(nodeId='PREFROOT', datapath='#FORM.record.data')
+        form.center.groupletPanel(
+            grouplets_root='app_preferences',
+            value='^#FORM.record.data',
+            frameCode='app_pref_grplt',
+            menuCallback=self._ph_preferenceMenu,
+            grouplet_datapath='.app_grouplet_form',
+        )
+        bar = form.bottom.slotBar('5,cancel,*,revertbtn,10,savebtn,saveAndClose,5',
+                                   margin_bottom='2px', _class='slotbar_dialog_footer')
+        bar.savebtn.button('!!Save', action='this.form.publish("save")',
+                           iconClass='fh_semaphore')
+        return form
+
+    def _ph_preferenceMenu(self, **kwargs):
+        menu = self.gr_getGroupletMenu(grouplets_root='app_preferences')
+        existing_locationpaths = set()
+        for node in menu:
+            lp = node.attr.get('locationpath')
+            if lp:
+                existing_locationpaths.add(lp)
+        menu.popNode('legacy_pref')
+        grouped = defaultdict(list)
+        for pkgId, pkgObj in self.application.packages.items():
+            if pkgObj.disabled or pkgId in existing_locationpaths:
+                continue
+            panecb = getattr(self, f'prefpane_{pkgId}', None)
+            if not panecb:
+                continue
+            permcb = getattr(self, f'permission_{pkgId}', None)
+            if permcb and not self.application.checkResourcePermission(
+                    permcb(), self.userTags):
+                continue
+            prefgroup = (pkgObj.attributes.get('prefgroup')
+                         or pkgObj.projectInfo.get('project?prefgroup')
+                         or pkgObj.projectInfo.get('project?name')
+                         or pkgId)
+            caption = pkgObj.attributes.get('name_long') or pkgId
+            grouped[prefgroup].append(dict(pkgId=pkgId, caption=caption))
+        for group, pkglist in grouped.items():
+            if len(pkglist) == 1:
+                pkg = pkglist[0]
+                menu.setItem(pkg['pkgId'], None,
+                             caption=pkg['caption'],
+                             grouplet_caption=pkg['caption'],
+                             resource='legacy_pref',
+                             locationpath=pkg['pkgId'],
+                             priority=50)
+            else:
+                group_key = group.split(']', 1)[-1] if ']' in group else group
+                group_caption = self._(group)
+                for pkg in pkglist:
+                    menu.setItem(f"{group_key}.{pkg['pkgId']}", None,
+                                 caption=pkg['caption'],
+                                 grouplet_caption=pkg['caption'],
+                                 resource='legacy_pref',
+                                 locationpath=pkg['pkgId'],
+                                 priority=50)
+                menu.setAttr(group_key, dict(caption=group_caption, priority=50))
+        menu.sort('#a.priority,#a.caption')
+        return menu
+
+
 
     @struct_method
     def ph_appPreferencesTabs(self,parent,packages='*',datapath=None,context_dbstore=None,**kwargs):
@@ -171,16 +271,23 @@ class AppPrefHandler(BasePreferenceTabs):
         mailservice = self.getService('mail')
         if template_id:
             mailservice.sendUserTemplateMail(record_id=user_record, template_id=template_id,
-                                                async_=False, html=True, scheduler=False)
+                                                html=True, **self._immediate_message_parameters())
         else:
             mailservice.sendmail_template(user_record, to_address=user_record['email'],
-                                    body=body or 'Dear $greetings to confirm click $link', 
+                                    body=body or 'Dear $greetings to confirm click $link',
                                     subject=subject or 'Confirm user',
-                                    async_=False, html=True, scheduler=False)
+                                    html=True, **self._immediate_message_parameters())
 
 
     def _ph_appGuiCustomization_splashscreen(self,pane):
         pass
+
+
+    def _immediate_message_parameters(self):
+        email_package = self.db.package('email')
+        if email_package and email_package.getMailProxy(raise_if_missing=False):
+            return dict()
+        return dict(async_=False, scheduler=False)
  
 
 class UserPrefHandler(BasePreferenceTabs):
@@ -196,4 +303,42 @@ class UserPrefHandler(BasePreferenceTabs):
     def ph_updatePrefCache(self,prefdbstore=None,**kwargs):
         self.db.application.cache.updatedItem( '_storepref_%s' %prefdbstore)
     
-        
+
+class UserPrefMenu(BaseComponent):
+    @struct_method
+    def pm_userPrefMenu(self,parent,packages='*',iconClass=None):
+        if isinstance(packages,str):
+            packages = list(self.application.packages.keys()) if packages == '*' else packages.split(',')
+        menu = parent.menudiv(iconClass='iconbox gear')
+
+        for pkgId in packages:
+            pkg = self.application.packages[pkgId]
+            if pkg.disabled:
+                continue
+            m = gnrImport(self.getResource('preference',pkg=pkg.id,ext='py'),importAs=f'Pref_{pkg.id}')
+            if not m:
+                continue
+            resource = getattr(m,'MenuUserPreference',None)
+            instance = resource() if resource else None
+            if not instance:
+                continue
+            instance._page = self
+            linescb = [r for r in dir(instance) if not r.startswith('_')]
+            if not linescb:
+                continue
+            m = menu.menuline(pkg.attributes['name_long']).menu()
+            for cbname in linescb:
+                h = getattr(instance,cbname)
+                tags = getattr(h,'tags',None)
+                if tags and not self.application.checkResourcePermission(tags, self.userTags):
+                    continue
+                pars = h()
+                m.menuline(h.__doc__).dataController(pars.pop('action'),**pars)
+        menu.menuline('-')
+        menu.menuline('User preferences',action='genro.framedIndexManager.openUserPreferences()')
+
+
+    @struct_method
+    def pm_userSettings(self,parent,packages='*',iconClass=None):
+        parent.slotButton('User settings',action='genro.framedIndexManager.openUserSettings()',
+                            iconClass='iconbox gear')

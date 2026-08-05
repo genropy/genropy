@@ -1,0 +1,20 @@
+import urllib.parse
+from gnr.web.gnrbaseclasses import BaseComponent
+
+class Grouplet(BaseComponent):
+    def __info__(self):
+        notEnabled = not self.site.get_mobile_app_config('android').get('store_url')
+        return dict(code='android_qrcode', caption='Android',
+                    priority=2, tags='notEnabled' if notEnabled else None)
+
+    def grouplet_main(self, pane, **kwargs):
+        plain_url = self.site.get_mobile_app_config('android').get('store_url')
+        url = urllib.parse.quote_plus(plain_url)
+        pane.dataController(""";
+            SET .qrcode_url = `${homeFolder}_tools/qrcode?url=${url}`;""",
+            url=url, homeFolder='=gnr.homeFolder', _onBuilt=True)
+        flex = pane.flexbox(justify_content='center', align_items='center',
+                           margin_top='50px', flex_direction='column')
+        link = flex.a(href=plain_url, target="_blank")
+        link.img(src='/_rsrc/pkg_adm/app_stores/android_badge.png', height='40px')
+        flex.img(src='^.qrcode_url', height='200px', width='200px', border='0')

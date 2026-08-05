@@ -43,6 +43,9 @@ class GnrWebRequest(object):
     def get_header(self, header, default=None):
         return self._request.headers.get(header, default)
 
+    def get_json(self):
+        return self._request.get_json()
+    
     def _get_filename(self):
         return self._request.filename
 

@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
-
 from gnr.core.gnrdecorator import websocket_method, public_method
 
 "Websocket_method. Please use websockets=True in siteconfig and gnrwsgiserve --websocket for testing"

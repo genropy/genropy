@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrdecorator import metadata
+from gnr.core.gnrdecorator import metadata, public_method
 
 class View(BaseComponent):
 
@@ -64,9 +64,11 @@ class View(BaseComponent):
     @metadata(isMain=True,_if='inout=="O"',_if_inout='^.in_out.current', variable_struct=True)
     def th_sections_sendingstatus(self):
         return [dict(code='drafts',caption='!!Drafts',condition="$__is_draft IS TRUE",includeDraft=True),
-                dict(code='to_send',caption='!!Ready to send',isDefault=True,condition='$send_date IS NULL AND $error_msg IS NULL'),
-                dict(code='sending_error',caption='!!Sending error',condition='$error_msg IS NOT NULL', struct='sending_error'),
+                dict(code='to_send',caption='!!Ready to send',isDefault=True,condition='$in_queue = 1'),
+                dict(code='dispatched_to_proxy',caption='!!Dispatched',condition='$proxy_ts IS NOT NULL AND $send_date IS NULL AND $error_ts IS NULL'),
+                dict(code='sending_error',caption='!!Sending error',condition='$error_ts IS NOT NULL', struct='sending_error'),
                 dict(code='sent',caption='!!Sent',includeDraft=False,condition='$send_date IS NOT NULL', struct='sent'),
+                dict(code='queue_issues',caption='!!Queue issues',condition='$queue_mismatch <> 0'),
                 dict(code='all',caption='!!All',includeDraft=True)]
 
     def th_options(self):
@@ -82,9 +84,10 @@ class ViewOutOnly(View):
     @metadata(isMain=True, variable_struct=True)
     def th_sections_sendingstatus(self):
         return [dict(code='drafts',caption='!!Drafts',condition="$__is_draft IS TRUE",includeDraft=True),
-                dict(code='to_send',caption='!!Ready to send',isDefault=True,condition='$send_date IS NULL AND $error_msg IS NULL'),
-                dict(code='sending_error',caption='!!Sending error',condition='$error_msg IS NOT NULL', struct='sending_error'),
+                dict(code='to_send',caption='!!Ready to send',isDefault=True,condition='$in_queue = 1'),
+                dict(code='sending_error',caption='!!Sending error',condition='$error_ts IS NOT NULL', struct='sending_error'),
                 dict(code='sent',caption='!!Sent',includeDraft=False,condition='$send_date IS NOT NULL'),
+                dict(code='queue_issues',caption='!!Queue issues',condition='$queue_mismatch <> 0'),
                 dict(code='all',caption='!!All',includeDraft=True)]
 
 
@@ -130,6 +133,7 @@ class ViewFromMailbox(View):
         r.fieldcell('user_id',width='35em')
         r.fieldcell('account_id',width='35em')
 
+
 class ViewFromDashboard(View):
     
     def th_struct(self,struct):
@@ -143,6 +147,7 @@ class ViewFromDashboard(View):
 
     def th_order(self):
         return 'send_date:d'
+    
 
 class Form(BaseComponent):
     py_requires = "gnrcomponents/attachmanager/attachmanager:AttachManager"
@@ -161,11 +166,15 @@ class Form(BaseComponent):
                                                     width='100%',
                                                     colswidth='auto')
         fb.field('in_out')
-        fb.field('subject', colspan=3)
+        fb.field('account_id',unmodifiable=True)
+        fb.field('proxy_priority')
+        fb.br()
+        fb.field('subject', colspan=4)
         fb.field('to_address',colspan=2)
         fb.field('from_address',colspan=2)
         fb.field('cc_address',colspan=2)
         fb.field('bcc_address',colspan=2)
+        fb.field('reply_to',colspan=2)
         fb.field('send_date', tag='div')
         fb.field('html',html_label=True)
         fb.field('__is_draft', lbl='!![en]Draft')
@@ -183,14 +192,20 @@ class Form(BaseComponent):
                                                             storepath='#FORM.record.sending_attempt',
                                                             pbl_classes=True,margin='2px',
                                                             delrow=False,datamode='attr')
-        errors_bg.top.bar.replaceSlots('addrow','clearerr,2')
-        errors_bg.top.bar.clearerr.slotButton('Clear errors').dataRpc(
-                    self.db.table('email.message').clearErrors, pkey='=#FORM.record.id', _onResult='this.form.reload();')
+        errors_bg.top.bar.replaceSlots('addrow','retryerr,2')
+        errors_bg.top.bar.retryerr.slotButton('Retry send').dataRpc(
+                    self.retrySendMessage, message_id='=#FORM.record.id', _onResult='this.form.reload();')
+
+    @public_method
+    def retrySendMessage(self, message_id=None):
+        self.db.table('email.message').retrySendMessage(message_id=message_id)
+        self.db.commit()
 
     def th_top_custom(self,top):
         bar = top.bar.replaceSlots('form_delete','send_button,5,form_delete')
         bar.send_button.slotButton('Send message', hidden='^#FORM.record.send_date').dataRpc(
                     self.db.table('email.message').sendMessage, pkey='=#FORM.record.id')
+
 
 class FormFromDashboard(Form):
 
@@ -200,6 +215,3 @@ class FormFromDashboard(Form):
     
     def th_options(self):
         return dict(showtoolbar=False)
-
-
-

@@ -37,7 +37,7 @@ from gnr.sql.gnrsql import GnrSqlDb
 from gnr.sql.gnrsqldata import SqlQuery, SqlSelection
 from gnr.sql import gnrsqldata as gsd
 
-from .common import BaseGnrSqlTest, configurePackage
+from .common import BaseGnrSqlTest, configureDb
 
 class BaseSql(BaseGnrSqlTest):
     @classmethod
@@ -47,9 +47,7 @@ class BaseSql(BaseGnrSqlTest):
         # create database (actually create the DB file or structure)
 
         cls.db.createDb(cls.dbname)
-        # read the structure of the db from xml file: this is the recipe only
-        # cls.db.loadModel(cls.SAMPLE_XMLSTRUCT)
-        configurePackage(cls.db.packageSrc('video'))
+        configureDb(cls.db)
 
         # build the python db structure from the recipe
         cls.db.startup()
@@ -140,18 +138,19 @@ class BaseSql(BaseGnrSqlTest):
         result = query.selection().output('list')
         assert result[0][0] == datetime.date(2005, 4, 7)
 
-    def test_between_syntax(self):
+    def test_in_range_syntax(self):
+        """Test #IN_RANGE macro (renamed from #BETWEEN, issue #622)."""
         # test blank handling
         query = self.db.query('video.location',
                               order_by="$rating",
                               columns='$id',
-                              where='#BETWEEN(  $rating  ,:lower, :upper     )',
+                              where='#IN_RANGE(  $rating  ,:lower, :upper     )',
                               sqlparams={'lower': -1, 'upper': 0})
         result = query.selection().output('list')
         assert result[0][0] == 2
         assert len(result) == 2
 
-        # test between using int
+        # test in_range using int
         lower = -6
         upper = 5
         params_cases = [
@@ -180,7 +179,7 @@ class BaseSql(BaseGnrSqlTest):
             query = self.db.query('video.location',
                                   order_by="$rating",
                                   columns='$rating',
-                                  where='#BETWEEN($rating, :lower, :upper)',
+                                  where='#IN_RANGE($rating, :lower, :upper)',
                                   sqlparams=params.get("params"))
             result = query.selection().output('list')
             print('PARAMS', params.get("params"))
@@ -188,7 +187,7 @@ class BaseSql(BaseGnrSqlTest):
             assert result[0][0] == params.get("expected")
             assert len(result) == params.get("n_records")
 
-        # test between using dates
+        # test in_range using dates
         lower = datetime.date(2005,4,1)
         upper = datetime.date(2005,4,30)
         params_cases = [
@@ -222,12 +221,11 @@ class BaseSql(BaseGnrSqlTest):
             query = self.db.query('video.dvd',
                                   order_by="$purchasedate",
                                   columns='$purchasedate',
-                                  where='#BETWEEN($purchasedate, :lower, :upper)',
+                                  where='#IN_RANGE($purchasedate, :lower, :upper)',
                                   sqlparams=params.get("params"))
             result = query.selection().output('list')
             assert result[0][0] == params.get("expected")
             assert len(result) == params.get("n_records")
-
 
     def test_joinSimple(self):
         tbl = self.db.table('video.dvd')
@@ -249,6 +247,19 @@ class BaseSql(BaseGnrSqlTest):
                                group_by='$nationality', order_by='$nationality').fetch()
         assert [(r[0], r[1]) for r in result] == [('UK', 6), ('USA', 6), ('USA,UK', 5)]
 
+    def test_query_subtables(self):
+        tbl = self.db.table("video.cast")
+        assert tbl.subtable('first_movie') is not None
+        assert tbl.subtable('accalla') is None
+        r = self.db.query("video.cast", columns='movie_id').fetch()
+        total_records = len(r)
+        r1 = self.db.query("video.cast", columns='movie_id', subtable="first_movie").fetch()
+        assert len(r1) == 3
+        r2 = self.db.query("video.cast", columns='movie_id', subtable="!first_movie").fetch()
+        assert len(r2) == (total_records-len(r1))
+        r3 = self.db.query("video.cast", columns='movie_id', subtable="first_movie|second_movie").fetch()
+        assert len(r3) < total_records
+        
     def test_query_limit(self):
         result = self.db.query('video.cast', columns='person_id',
                                where="@person_id.id=:id",

@@ -1,14 +1,15 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-
-
-from gnr.app.gnrdeploy import InstanceMaker, SiteMaker
-from gnr.core.gnrbag import Bag
 import os
 from subprocess import Popen, PIPE
 from  tempfile import NamedTemporaryFile
 import sys
+
+from gnr.core.gnrbag import Bag
+from gnr.dev.makers.instance import InstanceMaker
+from gnr.dev.makers.site import  SiteMaker
+
 
 class Table(object):
     def config_db(self, pkg):

@@ -127,4 +127,24 @@ def test_toJson():
         '[{"a": 2}, {"b": 3, "c": 6}, {"z": 9}]',
         '[{"a": 2}, {"c": 6, "b": 3}, {"z": 9}]'
     ]
+
+
+def test_stringWidth_empty():
+    assert gnrstring.stringWidth('', 'Helvetica', 10) == 0.0
+
+
+def test_stringWidth_known_char():
+    # Helvetica 'A' is 667 units at 10pt -> 6.67pt
+    assert gnrstring.stringWidth('A', 'Helvetica', 10) == pytest.approx(6.67)
+
+
+def test_stringWidth_courier_monospaced():
+    # Courier is monospaced at 600 units, so two chars = twice one char
+    w1 = gnrstring.stringWidth('A', 'Courier', 10)
+    w2 = gnrstring.stringWidth('AB', 'Courier', 10)
+    assert w2 == pytest.approx(w1 * 2)
+
+
+def test_stringWidth_unknown_font_falls_back_to_helvetica():
+    assert gnrstring.stringWidth('A', 'UnknownFont', 10) == gnrstring.stringWidth('A', 'Helvetica', 10)
         

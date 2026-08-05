@@ -1,0 +1,5 @@
+[mcp_servers.sourcerer]
+url = "https://sourcerer.genropy.net/mcp"
+
+[mcp_servers.sourcerer.http_headers]
+Authorization = "Bearer 3d96626cab354a9ebfe7656d7bfd922d"

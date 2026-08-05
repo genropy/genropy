@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 # 
-from __future__ import print_function
-
 from time import sleep
 from gnr.core.gnrdecorator import public_method
 """Registered users tester"""

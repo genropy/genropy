@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
+from gnr.app import pkglog as logger
 
 class Table(object):
     def config_db(self, pkg):
@@ -12,7 +13,13 @@ class Table(object):
         tbl.column('code3', size='3', name_long='!![it]Code3')
         tbl.column('nmbr', size='3', name_long='!![it]Num.Code')
         tbl.column('nmbrunico', size='3', name_long='!![it]Num.Unico')
-        
+
+    def onDbUpgrade(self):
+        logger.info("Ensure GLBL data is loaded")
+        if not self.query().count():
+            logger.info("No data found, loading GLBL data")
+            self.db.package("glbl").loadStartupData()
+
     def populate(self):
         data = """
 AALAND ISLANDS                                  AX      ALA     248

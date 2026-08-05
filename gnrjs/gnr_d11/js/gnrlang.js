@@ -31,6 +31,22 @@ const _lf = '\n';
 const _crlf = '\r\n';
 const _tab = '\t';
 
+var _JS_EXEC_PATTERNS = [
+    [/<script[^>]*>[\s\S]*?<\/script>/gi, ''],
+    [/\bon\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]*)/gi, ''],
+    [/href\s*=\s*(?:"[^"]*javascript:[^"]*"|'[^']*javascript:[^']*'|\s*javascript:[^\s>]*)/gi, 'href="#"'],
+    [/src\s*=\s*(?:"[^"]*javascript:[^"]*"|'[^']*javascript:[^']*'|\s*javascript:[^\s>]*)/gi, 'src=""']
+];
+
+function stripJsFromHtml(str) {
+    if (typeof str !== 'string') return str;
+    for (var i = 0; i < _JS_EXEC_PATTERNS.length; i++) {
+        str = str.replace(_JS_EXEC_PATTERNS[i][0], _JS_EXEC_PATTERNS[i][1]);
+    }
+    return str;
+}
+
+
 function _px(v){
     v+='';
     if(v.indexOf('px')<0){
@@ -42,8 +58,8 @@ function _T(str,lazy){
     if(isNullOrBlank(str)){
         return str;
     }
-    var locale = genro.locale() || 'en-EN';
-    var language = locale.split('-')[0];
+    var locale = genro.locale() || 'en';
+    var language = locale.slice(0, 2);
     var localekey = 'localsdict_'+language;
     var noLocMarker = (str.search(/^!!|\[!!/)<0);
     if(lazy && noLocMarker){
@@ -366,7 +382,7 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                     }else if(as_name in df_templates){
                                         value = dataTemplate(data.getItem(df_templates[as_name]),value);
                                     }else{
-                                        value = value.getFormattedValue();
+                                        value = genro.safeHtmlContent(value.getFormattedValue());
                                     }
                                 }else{
                                     if(editpars){
@@ -379,14 +395,16 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                     if(formats[as_name]){
                                         value = gnrformatter.asText(value,{format:formats[as_name],dtype:dtype});
                                     }
-                                    if(editpars){                                  
+                                    if(editpars){
+                                        value = genro.safeHtmlContent(value);
                                         value = '<div class="gnrinlinewidget_container"><div class="gnreditabletext" ondblclick="inlineWidget(event)" varname="'+as_name+'" >'+(isNullOrBlank(value)?'&nbsp':value)+'</div></div>';
-                                    }
-              
-                                    if(masks[as_name]){
-                                        value = gnrformatter.asText(value,{mask:masks[as_name]});
-                                    }else if(valueattr._formattedValue){
-                                        value = valueattr._formattedValue;
+                                    }else{
+                                        if(masks[as_name]){
+                                            value = gnrformatter.asText(value,{mask:masks[as_name]});
+                                        }else if(valueattr._formattedValue){
+                                            value = valueattr._formattedValue;
+                                        }
+                                        value = genro.safeHtmlContent(value);
                                     }
                                 }
                                 if (value != null) {
@@ -415,9 +433,9 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                     is_empty = false;
                                     sub = plist.slice(1);
                                     if(sub.length && value instanceof gnr.GnrBag){
-                                        return gnrformatter.asText(value.getItem(sub));
+                                        return genro.safeHtmlContent(gnrformatter.asText(value.getItem(sub)));
                                     }
-                                    return gnrformatter.asText(value,formats[p]);
+                                    return genro.safeHtmlContent(gnrformatter.asText(value,formats[p]));
                               }else{
                                     return '';
                               }
@@ -1230,15 +1248,19 @@ var gnrformatter = {
         if(format){
             if(format.indexOf(';')>=0){
                 var formats = format.split(';'); //format='#0,00;-;(#0,00)'
-                if(value===0){
-                    return formats[1];
+                let positive_format = formats[0];
+                let negative_format = `-${positive_format}`;
+                let zero_format = null;
+                if(formats.length>1){
+                    zero_format = formats[1];
                 }
-                if(value<0 && formats.length>2){
-                    format = formats[2];
-                    value = -value;
-                }else{
-                    format = formats[0];
+                if(formats.length>2 && formats[2]){
+                    negative_format = formats[2];
                 }
+                if(zero_format!==null && value===0){
+                    return zero_format;
+                }
+                format = `${positive_format};${negative_format}`;
             }
             if(standard_format.indexOf(format)>=0){
                 opt.type = format;

@@ -36,6 +36,9 @@ class Table(object):
         tbl.column('sms_number',name_long='!!Sms Number')
         tbl.column('photo',dtype='P', name_long='!![en]Photo')
         tbl.column('group_code',size=':15',name_long='!!Group').relation('group.code',relation_name='users',mode='foreignkey')
+        tbl.column('xgroup', size=':10', name_long='!!Deployment group',
+                    batch_assign=dict(tags='_DEV_')).relation('adm.xgroup.code',
+                    relation_name='users', mode='foreignkey', onDelete='setnull')
         tbl.column('custom_menu', dtype='X', name_long='!!Custom menu')
         tbl.column('custom_fields', dtype='X', name_long='!!Custom fields')
         tbl.column('avatar_secret_2fa', dtype='T',name_long='!![en]Secret 2fa')
@@ -44,11 +47,17 @@ class Table(object):
         tbl.pyColumn('cover_logo',name_long='Cover logo',dtype='A')
         tbl.pyColumn('square_logo',name_long='Square logo',dtype='A')
 
+        tbl.formulaColumn('custom_groups', 'null', name_long='!!Custom groups')   #For customization purposes
         tbl.formulaColumn('other_groups',select=dict(columns=self.db.adapter.string_agg('$group_code',separator=','),
-                                                     where='$user_id=#THIS.id', table='adm.user_group'))
-        tbl.formulaColumn('all_groups',select=dict(columns=self.db.adapter.string_agg('$code',separator=','),
-                                                     where='(@users.id=#THIS.id OR @user_groups.user_id=#THIS.id)',
-                                                table='adm.group'))
+                                                     where='$user_id=#THIS.id AND $group_code!=#THIS.group_code', 
+                                                     table='adm.user_group'))
+        tbl.formulaColumn('all_groups', """
+                                            CASE WHEN $group_code IS NOT NULL THEN $group_code ELSE '' END ||
+                                            CASE WHEN $group_code IS NOT NULL AND $other_groups IS NOT NULL THEN ',' ELSE '' END ||
+                                            CASE WHEN $other_groups IS NOT NULL THEN $other_groups ELSE '' END ||
+                                            CASE WHEN ($group_code IS NOT NULL OR $other_groups IS NOT NULL) AND $custom_groups IS NOT NULL THEN ',' ELSE '' END ||
+                                            CASE WHEN $custom_groups IS NOT NULL THEN $custom_groups ELSE '' END
+                                        """)
         
         tbl.formulaColumn('fullname', """CASE WHEN $firstname IS NOT NULL AND $lastname IS NOT NULL THEN $firstname||' '||$lastname
                                             WHEN $lastname IS NOT NULL THEN $lastname

@@ -6,6 +6,7 @@ build
 gnrpy/build/
 logs.log
 pyro5.log
+gnr_scheduler_queue_dump.json
 dist
 \#*
 .eggs
@@ -27,9 +28,27 @@ docker/*
 .python-version
 .spyproject/
 .coverage
+.coverage.*
 coverage.xml
 
 .aider*
 gnrpy/tests/sql/_main_connection
 gnrpy/tests/_main_connection
 .qodo
+_main_connection
+mydb
+projects/gnrcore/instances/gnrdevelop/data/adm.db
+projects/gnrcore/instances/gnrdevelop/data/sys.db
+projects/test_invoice/instances/data/
+projects/test_invoice/test_invoice_db.zip
+projects/test_invoice/data/invoice_data.zip
+projects/test_invoice/data/export/invoice.csv
+projects/test_invoice/data/export/invoice_row.csv
+gnrpy/tests/core/*/gnr/environment.xml
+gnrpy/tests/core/*/gnr/instanceconfig/default.xml
+gnrpy/tests/core/*/gnr/siteconfig/default.xml
+gnrpy/tests/core/*/gnrtest/instances/gnrtest/config/instanceconfig.xml
+gnrpy/tests/core/*/gnrtest/instances/gnrtest/root.py
+/temp/
+.gnr/
+

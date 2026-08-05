@@ -5,8 +5,6 @@
 # Copyright (c) 2010 Softwell. All rights reserved.
 
 """Test drop uploader"""
-from __future__ import print_function
-
 
 from gnr.core.gnrlist import XlsReader
 from gnr.core.gnrbag import Bag, DirectoryResolver
@@ -15,7 +13,6 @@ from gnr.core.gnrdecorator import public_method
 class GnrCustomWebPage(object):
     py_requires = """gnrcomponents/testhandler:TestHandlerFull,
                    gnrcomponents/drop_uploader"""
-    css_requires='public'
 
     def test_0_img_uploader(self, pane):
         #pane.img(src='^.avatar_url')

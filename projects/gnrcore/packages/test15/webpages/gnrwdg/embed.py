@@ -11,7 +11,6 @@
 class GnrCustomWebPage(object):
     py_requires = """gnrcomponents/testhandler:TestHandlerFull,
                    gnrcomponents/drop_uploader:DropUploader"""
-    css_requires='public'
     def test_0_noCrop(self, pane):
         fb=pane.formbuilder(cols=1)
         pane.data('.pdfurl',"/_site/test/testimages/test.pdf")

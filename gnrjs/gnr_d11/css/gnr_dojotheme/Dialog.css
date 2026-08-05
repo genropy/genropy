@@ -1,0 +1,185 @@
+/* ==========================================================================
+   gnr_dojotheme/Dialog.css — Dialog, Tooltip, TooltipDialog baseline.
+   Replaces tundra PNGs with CSS. gnrbase ._common_d11 rules override most.
+   ========================================================================== */
+
+/* --- Dialog frame --- */
+.gnr_dojotheme .dijitDialog {
+    background: var(--dlg-bg, var(--surface-bg, #f6f6f6));
+    border: 1px solid var(--dlg-border-color, var(--border-strong, silver));
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-dialog, 0 4px 24px rgba(0,0,0,0.18));
+    padding: 0;
+    overflow: hidden;
+}
+
+/* --- Dialog title bar: flex row for vertical centering --- */
+.gnr_dojotheme .dijitDialogTitleBar {
+    display: flex;
+    align-items: center;
+    background: var(--dialogtitlebar-background, var(--primary-color, #1E3055));
+    color: var(--dialogtitlebar-color, #fff);
+    background-image: none;
+    padding: 0.3em 0.4em;
+    cursor: move;
+    outline: 0;
+}
+
+/* --- Dialog title text --- */
+.gnr_dojotheme .dijitDialogTitle {
+    flex: 1;
+    font-weight: 600;
+    color: inherit;
+    padding: 0.1em 0.4em;
+    outline: 0;
+    border: none;
+}
+
+/* --- Close button: mask-image icon, circular, centered via flex --- */
+.gnr_dojotheme .dijitDialogCloseIcon {
+    background: none;
+    background-image: none;
+    position: relative;
+    width: 1.3em;
+    height: 1.3em;
+    cursor: pointer;
+    border-radius: 50%;
+    border: none;
+    transition: background-color 0.12s ease;
+    color: transparent;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.gnr_dojotheme .dijitDialogCloseIcon::after {
+    content: '';
+    position: absolute;
+    inset: 10%;
+    background-color: var(--dialogtitlebar-color, #fff);
+    -webkit-mask-image: var(--icon-wnd-close);
+    mask-image: var(--icon-wnd-close);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+}
+
+.gnr_dojotheme .dijitDialogCloseIcon:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* --- Dialog pane content --- */
+.gnr_dojotheme .dijitDialog .dijitDialogPaneContent {
+    background: var(--dlg-pane-bg, var(--surface-bg, #fff));
+    border: none;
+    border-top: 1px solid var(--border-color, #ddd);
+    padding: 0.6em;
+}
+
+/* --- Dialog content body --- */
+.gnr_dojotheme .dijitDialogContent {
+    padding: 0.5em;
+}
+
+/* ==========================================================================
+   Tooltip
+   ========================================================================== */
+
+/* --- Tooltip outer --- */
+.gnr_dojotheme .dijitTooltip,
+.gnr_dojotheme .dijitTooltipDialog {
+    background: transparent;
+}
+
+/* --- Tooltip container --- */
+.gnr_dojotheme .dijitTooltipContainer {
+    background: var(--surface-bg, #fff);
+    background-image: none;
+    border: 1px solid var(--border-color, #ddd);
+    border-radius: var(--radius-md);
+    padding: 0.5em;
+    box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.06));
+    color: var(--text-color, #444);
+    font-size: 0.9em;
+}
+
+/* --- Tooltip dialog container (overrides for tooltip dialog specifically) --- */
+.gnr_dojotheme .dijitTooltipDialog .dijitTooltipContainer {
+    border-radius: var(--radius-md);
+    padding: 0;
+    border: 1px solid var(--border-color, #ddd);
+    font-size: inherit;
+    box-shadow: var(--shadow-lg, 0 4px 24px rgba(0,0,0,0.18)) !important;
+    background-color: var(--surface-light, #f6f6f6);
+    overflow: hidden;
+}
+
+/* --- Pure tooltip container --- */
+.gnr_dojotheme .dijitTooltip .dijitTooltipContainer {
+    color: var(--text-muted, #666);
+    font-size: 0.9em;
+}
+
+/* --- Tooltip connectors: intentionally removed ---
+   The beak (a CSS-triangle "connector") read as a detached nub against colored
+   themes and added nothing over the popup's own border + shadow, so it is hidden
+   for both pure tooltips and tooltip dialogs. Reclaim the space the beak used to
+   occupy and snug the popup up to its anchor with a -1px margin per direction
+   (the recipe the old connector='none' case used). display:none also suppresses
+   any PNG arrow tundra would otherwise draw. */
+.gnr_dojotheme .dijitTooltipConnector {
+    display: none;
+}
+.gnr_dojotheme .dijitTooltipBelow { padding-top: 0; margin-top: -1px; }
+.gnr_dojotheme .dijitTooltipAbove { padding-bottom: 0; margin-bottom: -1px; }
+.gnr_dojotheme .dijitTooltipLeft { padding-right: 0; margin-right: -1px; }
+.gnr_dojotheme .dijitTooltipRight { padding-left: 0; margin-left: -1px; }
+
+/* --- Error validation tooltip (via dijit.showTooltip on invalid fields) --- */
+.gnr_dojotheme .dijitTooltipContainer .gnrErrorTooltip {
+    color: var(--field-error-tooltip-color, var(--status-error, #E53935));
+    font-size: 0.85em;
+    font-weight: 500;
+    line-height: 1.35;
+}
+
+.gnr_dojotheme .dijitTooltip:has(.gnrErrorTooltip) .dijitTooltipContainer {
+    background: var(--field-error-tooltip-bg, #fdf3f3);
+    border-color: var(--field-error-tooltip-border, rgba(229, 57, 53, 0.30));
+}
+
+.gnr_dojotheme .dijitTooltip:has(.gnrErrorTooltip) .dijitTooltipConnector {
+    display: none;
+}
+
+/* --- FloatingPane title: flex row, override tundra's .tundra .dojoxFloatingPaneTitle --- */
+.tundra.gnr_dojotheme .dojoxFloatingPaneTitle {
+    display: flex;
+    align-items: center;
+    background: var(--dialogtitlebar-background, var(--primary-color, #1E3055));
+    background-image: none;
+    color: var(--dialogtitlebar-color, #fff);
+    padding: 0.3em 0.4em;
+    border: 0;
+}
+
+.tundra.gnr_dojotheme .dojoxFloatingPaneTitle .dijitTitleNode {
+    flex: 1;
+    order: -1;
+    color: inherit;
+}
+
+/* --- FloatingPane icons: override tundra's PNG background --- */
+.tundra.gnr_dojotheme .dojoxFloatingCloseIcon,
+.tundra.gnr_dojotheme .dojoxFloatingMinimizeIcon,
+.tundra.gnr_dojotheme .dojoxFloatingMaximizeIcon {
+    background: none;
+}
+
+/* --- Popup opacity --- */
+.gnr_dojotheme .dijitPopup > div,
+.gnr_dojotheme .dijitPopup > table {
+    opacity: 1;
+}

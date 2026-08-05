@@ -26,14 +26,14 @@ from gnr.sql.gnrsql import GnrSqlDb
 from gnr.sql.gnrsqlmodel import DbPackageObj, DbModelObj, DbTableObj
 from gnr.sql.gnrsqlmodel import DbColumnObj, DbTableListObj, DbColumnListObj, DbIndexListObj
 
-from .common import BaseGnrSqlTest
+from .common import BaseGnrSqlTest, configureDb
 
 class TestSqlStructure(BaseGnrSqlTest):
     @classmethod
     def setup_class(cls):
         super().setup_class()
         cls.db = GnrSqlDb()
-        cls.db.loadModel(cls.SAMPLE_XMLSTRUCT)
+        configureDb(cls.db)
         cls.db.startup()
 
     def test_modelObj(self):

@@ -9,19 +9,66 @@ import shutil
 import stat
 import sys
 import mimetypes
-from collections import deque
+import hashlib
 from subprocess import check_call, check_output
+import stat
+import sys
+from collections import deque
+import urllib.request
+import base64
+import _thread
 
-# Third-party imports
-from paste import fileapp
-from paste.httpheaders import ETAG
-
-# Genropy imports
 from gnr.core.gnrsys import expandpath
 from gnr.core import gnrstring
 from gnr.core.gnrbag import Bag, BagResolver
 from gnr.lib.services import GnrBaseService, BaseServiceType
 
+
+class _FileIter:
+    block_size = 4096 * 16
+
+    def __init__(self, filelike):
+        self.filelike = filelike
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        data = self.filelike.read(self.block_size)
+        if not data:
+            self.filelike.close()
+            raise StopIteration
+        return data
+
+    def close(self):
+        self.filelike.close()
+
+
+class _SimpleFileApp:
+    def __init__(self, filepath, content_disposition=None, content_encoding=None):
+        self.filepath = filepath
+        self.content_disposition = content_disposition
+        self.content_encoding = content_encoding
+        self._cache_max_age = None
+
+    def cache_control(self, max_age=None):
+        self._cache_max_age = max_age
+
+    def __call__(self, environ, start_response):
+        content_type = mimetypes.guess_type(self.filepath)[0] or 'application/octet-stream'
+        file_size = os.path.getsize(self.filepath)
+        headers = [
+            ('Content-Type', content_type),
+            ('Content-Length', str(file_size)),
+        ]
+        if self.content_disposition:
+            headers.append(('Content-Disposition', self.content_disposition))
+        if self.content_encoding:
+            headers.append(('Content-Encoding', self.content_encoding))
+        if self._cache_max_age is not None:
+            headers.append(('Cache-Control', 'max-age=%d' % self._cache_max_age))
+        start_response('200 OK', headers)
+        return _FileIter(open(self.filepath, 'rb'))
 
 class NotExistingStorageNode(Exception):
     pass
@@ -138,6 +185,7 @@ class ExitStack(object):
                     raise
                 exc_details = new_exc_details
         return suppressed_exc
+    
 class LocalPath(object):
     def __init__(self, fullpath=None):
         self.fullpath = fullpath
@@ -202,7 +250,7 @@ class StorageNode(object):
     def __str__(self):
         return 'StorageNode %s <%s>' %(self.service.service_implementation,self.internal_path)
 
-    def __init__(self, parent=None, path=None, service=None, autocreate=None,must_exist=False, mode='r'):
+    def __init__(self, parent=None, path=None, service=None, autocreate=None,must_exist=False, version=None,mode='r'):
         self.service = service
         self.parent = parent
         self.path = self.service.expandpath(path)
@@ -210,6 +258,11 @@ class StorageNode(object):
             raise NotExistingStorageNode
         self.mode = mode
         self.autocreate = autocreate
+        self.version = version
+
+    @property
+    def versions(self):
+        return self.service.versions(self.path)
 
     @property
     def md5hash(self):
@@ -305,7 +358,10 @@ class StorageNode(object):
     def open(self, mode='rb'):
         """Is a context manager that returns the open file pointed"""
         self.service.autocreate(self.path, autocreate=-1)
-        return self.service.open(self.path, mode=mode)
+        kwargs = {'mode':mode}
+        if self.version and self.service.is_versioned:
+            kwargs['version_id'] = self.version
+        return self.service.open(self.path,**kwargs)
 
     def url(self, **kwargs):
         """Returns the external url of this file"""
@@ -360,7 +416,6 @@ class StorageNode(object):
         self.service.set_metadata(self.path, metadata)
 
     def fill_from_url(self, url):
-        import urllib.request
         with self.open('wb') as me:
             with urllib.request.urlopen(url) as response:
                 me.write(response.read())
@@ -376,6 +431,9 @@ class StorageService(GnrBaseService):
     def md5hash(self,*args):
         """Returns the md5 hash of a given path"""
         pass
+
+    def versions(self,*args):
+        return []
 
     def fullpath(self, path):
         """Returns the fullpath (comprending self.service_name) of a path"""
@@ -439,7 +497,6 @@ class StorageService(GnrBaseService):
 
     def base64(self, *args, **kwargs):
         """Convert a file (specified by a path) into a data URI."""
-        import base64
         if not self.exists(*args):
             return u''
         mime = kwargs.get('mime', False)
@@ -471,6 +528,10 @@ class StorageService(GnrBaseService):
 
         url = '%s?%s' % (url, '&'.join(['%s=%s' % (k, v) for k, v in list(kwargs.items())]))
         return url
+
+    @property
+    def is_versioned(self):
+        return False
 
     @property
     def location_identifier(self):
@@ -526,6 +587,7 @@ class StorageService(GnrBaseService):
         """Copies the content of a node to another node, its used only
         if copying between different service types"""
         with sourceNode.open(mode='rb') as sourceFile:
+            destNode.service.autocreate(destNode.path, autocreate=-1)
             with destNode.open(mode='wb') as destFile:
                 destFile.write(sourceFile.read())
 
@@ -568,7 +630,7 @@ class StorageService(GnrBaseService):
             return self._move_file(sourceNode, destNode)
         elif sourceNode.isdir:
             return self._move_dir(sourceNode, destNode)
-
+        
 
     def _move_file(self, sourceNode, destNode):
         """Moves the content of a node file to another node file, 
@@ -605,7 +667,7 @@ class StorageService(GnrBaseService):
             my_none_match = "%s-%s"%(str(mytime),str(size))
             if my_none_match == if_none_match:
                 headers = []
-                ETAG.update(headers, my_none_match)
+                headers.append(('ETag', '"%s"' % my_none_match))
                 start_response('304 Not Modified', headers)
                 return [''] # empty body
         file_args = dict()
@@ -613,7 +675,7 @@ class StorageService(GnrBaseService):
             download_name = download_name or os.path.basename(fullpath)
             file_args['content_disposition'] = "attachment; filename=%s" % download_name
         with self.local_path(fullpath) as local_path:
-            file_responder = fileapp.FileApp(local_path, **file_args)
+            file_responder = _SimpleFileApp(local_path, **file_args)
             if self.parent.cache_max_age:
                 file_responder.cache_control(max_age=self.parent.cache_max_age)
             return file_responder(environ, start_response)
@@ -646,7 +708,6 @@ class StorageService(GnrBaseService):
         return_output = kwargs.pop('return_output', None)
         call_params = dict(call_args=args,call_kwargs=kwargs, cb=cb, cb_args=cb_args, cb_kwargs=cb_kwargs, return_output=return_output)
         if run_async:
-            import _thread
             _thread.start_new_thread(self._call,(),call_params)
         else:
             return self._call(**call_params)
@@ -660,9 +721,10 @@ class StorageService(GnrBaseService):
         pass
 
 class BaseLocalService(StorageService):
-    def __init__(self, parent=None, base_path=None,**kwargs):
+    def __init__(self, parent=None, base_path=None, tags=None,**kwargs):
         self.parent = parent
         self.base_path =  expandpath(base_path) if base_path else None
+        self.tags = tags
 
     @property
     def location_identifier(self):
@@ -731,7 +793,6 @@ class BaseLocalService(StorageService):
         return os.path.isfile(self.internal_path(*args))
     
     def md5hash(self,*args):
-        import hashlib
         BLOCKSIZE = 65536
         hasher = hashlib.md5()
         with self.open(*args, mode='rb') as afile:
@@ -769,14 +830,14 @@ class BaseLocalService(StorageService):
             my_none_match = "%s-%s"%(str(mytime),str(size))
             if my_none_match == if_none_match:
                 headers = []
-                ETAG.update(headers, my_none_match)
+                headers.append(('ETag', '"%s"' % my_none_match))
                 start_response('304 Not Modified', headers)
                 return [b''] # empty body
         file_args = dict()
         if download or download_name:
             download_name = download_name or os.path.basename(fullpath)
             file_args['content_disposition'] = "attachment; filename=%s" % download_name
-        file_responder = fileapp.FileApp(fullpath, **file_args)
+        file_responder = _SimpleFileApp(fullpath, **file_args)
         if self.parent.cache_max_age:
             file_responder.cache_control(max_age=self.parent.cache_max_age)
         return file_responder(environ, start_response)

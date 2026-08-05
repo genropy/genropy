@@ -30,8 +30,7 @@ class TableScriptRunner(BaseComponent):
         pane.data('gnr.dialog_scheduler.pars',Bag(dict(resource_path=batch_dict.get('resource_path'),table=batch_dict.get('table') or self.tblobj.fullname)))
         if hasOptions:
             return self._scheduler_footer(pane.optionsDialog.footerNode.bar,batch_dict=batch_dict,extra_parameters=extra_parameters)
-        if hasParameters:
-            return self._scheduler_footer(pane.parametersDialog.footerNode.bar,batch_dict=batch_dict,extra_parameters=extra_parameters)
+        self._scheduler_footer(pane.parametersDialog.footerNode.bar,batch_dict=batch_dict,extra_parameters=extra_parameters)
 
     def _scheduler_footer(self,bar,batch_dict=None,extra_parameters=None,**kwargs):
         bar.replaceSlots('#','scbtn,#')

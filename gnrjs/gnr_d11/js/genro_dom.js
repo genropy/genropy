@@ -34,7 +34,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
             'visibility','opacity', 'overflow', 'float', 'clear', 'display','line_height',
             'z_index', 'border','position','padding','margin','cursor',
             'color','white_space','vertical_align','background','font','text','gap','row_gap','column_gap',
-            'flex','grid','grid_template_columns','align_content','justify_content','align_items','justify_items'
+            'flex','grid_template_columns','align_content','justify_content','align_items','justify_items'
         ].concat(this.css3AttrNames);
         
     },
@@ -107,17 +107,35 @@ dojo.declare("gnr.GnrDomHandler", null, {
             e.onload = cb;
         }
     },
-    loadJs: function(url, cb,avoidCache) {
+    loadJs: function(url, cb, avoidCache) {
         if(avoidCache){
             url = genro.addParamsToUrl(url,{nocache:timeStamp()});
         }
+        // Per-URL deduplication: a script that has already been requested is
+        // never refetched; concurrent calls for the same URL share the same
+        // <script> tag and have their callbacks queued. Bypassed by avoidCache,
+        // which produces a unique URL per call by design.
+        this._loadedJs = this._loadedJs || {};
+        var entry = this._loadedJs[url];
+        if(entry === 'loaded'){
+            if(cb){ cb(); }
+            return;
+        }
+        if(entry){
+            if(cb){ entry.push(cb); }
+            return;
+        }
+        var queue = cb ? [cb] : [];
+        this._loadedJs[url] = queue;
+        var that = this;
         var e = document.createElement("script");
         e.src = url;
         e.type = "text/javascript";
+        e.onload = function(){
+            that._loadedJs[url] = 'loaded';
+            for(var i = 0; i < queue.length; i++){ queue[i](); }
+        };
         document.getElementsByTagName("head")[0].appendChild(e);
-        if (cb) {
-            e.onload = cb;
-        }
     },
 
 
@@ -656,7 +674,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
     style_setall:  function(label, styledict/*{}*/, attributes/*{}*/, noConvertStyle) {
         for (var attrname in attributes) {
             if (stringStartsWith(attrname, label + '_') && arrayIndexOf(noConvertStyle, attrname) == -1) {
-                styledict[attrname.replace('_', '-')] = objectPop(attributes, attrname);
+                styledict[attrname.replace(/_/g, '-')] = objectPop(attributes, attrname);
             }
         }
     },
@@ -1490,7 +1508,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
 
     scrollableTable:function(where, gridbag, kw) {
         var domnode = this.getDomNode(where);
-        var max_height = kw.max_height || '180px';
+        var max_height = kw.max_height || 'clamp(180px, 40vh, 400px)';
         var cols = [];
         var columns = kw.columns;
         var headers = kw.headers;
@@ -1502,8 +1520,8 @@ dojo.declare("gnr.GnrDomHandler", null, {
             });
         }
         var tblclass = kw.tblclass;
-        let noHeader = headers.length==1 && headers[0]=='*'
-        let thead_style = noHeader? 'style="display:none;"':'';
+        let noHeader = headers && headers.length==1 && headers[0]=='*'
+        let thead_style = noHeader? 'style="display:none;"':'style="position:sticky;top:0;z-index:2;background:white;"';
         var thead = `<thead ${thead_style} onmouseup="dojo.stopEvent(event)"><tr>`;
         var autoWidth = true;
         cols.forEach(function(cell){
@@ -1515,7 +1533,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
             thead += `<th style="${style}">${cell.name}</th>`;
         });
         if(autoWidth){
-            thead = thead + "<th style='width:13px;'>&nbsp</th></thead>";
+            thead = thead + "</thead>";
         }
         var nodes = gridbag.getNodes();
         var item,r, value,v,_customClasses,rowvalidation;
@@ -1574,10 +1592,8 @@ dojo.declare("gnr.GnrDomHandler", null, {
         tbl.push("</tbody>");
         var tbody = tbl.join('');
         var cbf = function(cgr) {
-
-            var cgr_h = cgr ? '<colgroup>' + cgr + '<col width=11 /></colgroup>' : '';
             var cgr_b = cgr ? '<colgroup>' + cgr + '</colgroup>' : '';
-            return '<div class="' + tblclass + '"><div><table>' + cgr_h + '' + thead + '</table></div><div onmouseup="if(event.target===event.currentTarget){dojo.stopEvent(event)};" style="overflow-y:auto;overflow-x:hidden;max-height:'+max_height+';"><table>' + cgr_b + tbody + '</table></div></div>';
+            return '<div class="' + tblclass + '" style="max-width:min(calc(100vw - 40px), 900px); overflow-x:auto;"><div onmouseup="if(event.target===event.currentTarget){dojo.stopEvent(event)};" style="overflow-y:auto;max-height:'+max_height+';"><table>' + cgr_b + thead + tbody + '</table></div></div>';
         };
         domnode.innerHTML = cbf('');
         var cb = function() {
@@ -1592,7 +1608,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
                 colgroup = colgroup + '<col width="' + wt + '"/>';
             }
             domnode.innerHTML = cbf(colgroup);
-            dojo.style(domnode, {width:'auto'});
+            dojo.style(domnode, {width:'auto', maxWidth:'min(calc(100vw - 40px), 900px)'});
             var rows = dojo.query('tbody tr', domnode);
             for (let i = 0; i < rows.length; i++) {
                 rows[i].item = nodes[i];
@@ -1695,8 +1711,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
             rootNode = parentId;
             parentId = rootNode.getStringId();
         }
-        var default_kw = {'position':'absolute',top:'0',left:'0',right:'0','bottom':0,
-            z_index:399,background_color:'rgba(255,255,255,0.5)',id:parentId + '_hider',
+        var default_kw = {_class:'hiderLayer',id:parentId + '_hider',
             connect_ondblclick:function(evt){
                 if(evt.shiftKey){
                     var sn =  evt.target.sourceNode;
@@ -1716,8 +1731,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
                 messageArgs['cursor'] = 'pointer';
             }
             messageArgs.innerHTML = message;
-            var t = hider._('table',{'height':'100%',width:'100%',border:0})._('tbody');
-            t._('tr',{'height':'100%'})._('td',{'height':'100%',width:'100%',text_align:'center'})._('div',messageArgs);
+            hider._('div',messageArgs);
         }
         return hider;
     },
@@ -2022,6 +2036,10 @@ dojo.declare("gnr.GnrDomHandler", null, {
         var folderUrl = genro.getData('gnr.homeFolder');
         var parsedFolder = parseURL(folderUrl) || {};
         var parsedSrc = parseURL(src);
+        const ext = parsedSrc.params.source_ext || parsedSrc.file.split('.').pop();
+        if(ext && ext!='pdf'){
+            return src
+        }
         let prefJsPdf = genro.getData('gnr.user_preference.sys.jsPdfViewer') || genro.getData('gnr.app_preference.sys.jsPdfViewer');
         var jsPdfViewer = isNullOrBlank(jsPdfViewer)? prefJsPdf:jsPdfViewer;
         if(parsedSrc.file && jsPdfViewer){
@@ -2031,12 +2049,16 @@ dojo.declare("gnr.GnrDomHandler", null, {
             src = `/_rsrc/js_libs/pdfjs/web/viewer.html?file=`+encodeURIComponent(src);
             let jsPdfViewerOptions = genro.getData('gnr.app_preference.sys.jsPdfViewerOptions');
             let jsPdfViewerTools  = genro.getData('gnr.app_preference.sys.jsPdfViewerTools');
-            console.log('jsPdfViewerOptions',jsPdfViewerOptions,'jsPdfViewerTools',jsPdfViewerTools)
+            let external_document_url = genro.getData('gnr.app_preference.sys.external_document_url');
             if(jsPdfViewerOptions){
                 src+=('&_viewer_options='+jsPdfViewerOptions)
             }
             if(jsPdfViewerTools){
                 src+=('&_viewer_tools='+jsPdfViewerTools)
+            }
+            if(genro.isCordova  && external_document_url){
+                src+=('&_is_cordova=y');
+                src+='&_external_document_url='+external_document_url;
             }
         }
         return src;

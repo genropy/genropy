@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<GenRoBag><content _T="NN"></content>
+<controller><loaded _T="NN"></loaded></controller>
+<name _valuelabel="Name" _loadedValue="::NN">prova</name>
+<description _valuelabel="Description" _loadedValue="::NN">mias</description>
+<date _T="D" dtype="D" _valuelabel="Date" _loadedValue="::NN">2026-02-18</date></GenRoBag>

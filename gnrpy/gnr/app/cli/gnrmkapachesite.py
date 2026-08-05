@@ -1,30 +1,11 @@
 #!/usr/bin/env python
 # encoding: utf-8
 import os
-import glob, grp
+import grp
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.core.gnrsys import expandpath
 from gnr.core.gnrconfig import getGnrConfig
-
-def site_name_to_path(site_name, gnr_config=None):
-    path_list = []
-    if 'sites' in gnr_config['gnr.environment_xml']:
-        path_list.extend([(expandpath(path), site_template) for path, site_template in
-                          gnr_config['gnr.environment_xml.sites'].digest('#a.path,#a.site_template') if
-                          os.path.isdir(expandpath(path))])
-    if 'projects' in gnr_config['gnr.environment_xml']:
-        projects = [(expandpath(path), site_template) for path, site_template in
-                    gnr_config['gnr.environment_xml.projects'].digest('#a.path,#a.site_template') if
-                    os.path.isdir(expandpath(path))]
-        for project_path, site_template in projects:
-            sites = glob.glob(os.path.join(project_path, '*/sites'))
-            path_list.extend([(site_path, site_template) for site_path in sites])
-    for path, site_template in path_list:
-        site_path = os.path.join(path, site_name)
-        if os.path.isdir(site_path):
-            return site_path
-    print('Error: no site named %s found')
+from gnr.app.pathresolver import PathResolver
 
 
 def build_apache_site(site_name, apache_path='/etc/apache2/sites-available/', 
@@ -33,7 +14,8 @@ def build_apache_site(site_name, apache_path='/etc/apache2/sites-available/',
                       admin_mail=None, port=80, domain=None,
                       processes=8, maximum_requests=700, base_url='/', apache24=False):
     gnr_config = getGnrConfig(set_environment=True)
-    site_path = site_name_to_path(site_name, gnr_config=gnr_config)
+    path_resolver = PathResolver(gnr_config=gnr_config)
+    site_path = path_resolver.site_name_to_path(site_name)
     if os.path.exists(os.path.join(site_path,'root.wsgi')):
         script_name = 'root.wsgi'
     else:
@@ -81,10 +63,10 @@ def build_apache_site(site_name, apache_path='/etc/apache2/sites-available/',
 
 description = "generate apache configuration file"
 def main():
-    old_description = """
-    gnrmkapachesite <site_name> <domain_name> will output an apache site configuration file.
+    epilog = """
+    gnr app mkapachesite <site_name> <domain_name> will output an apache site configuration file.
     example usage:
-    gnrmkapachesite genro www.genro.org > genro_site.conf
+    gnr app mkapachesite genro www.genro.org > genro_site.conf
     will write the correct apache configuration for 'genro' site in genro_site
     then copy genro_site.conf to /etc/apache2/sites-available:
     sudo cp genro_site.conf /etc/apache2/sites-available
@@ -98,7 +80,7 @@ def main():
     gid = os.getgid()
     current_group = grp.getgrgid(gid)[0]
     
-    parser = GnrCliArgParse(description=description)
+    parser = GnrCliArgParse(description=description, epilog=epilog)
     parser.add_argument("-u", "--user", dest="user",default=current_user,
                        help="user for wsgi process execution")
     parser.add_argument("-g", "--group", dest="group",default=current_group,

@@ -298,11 +298,21 @@ def getQuarterNames(locale=None):
     return d
 
 def defaultLocale():
-    sys_locale = locale.getlocale()[0]
+    static_default = "en_GB"
     if sys.platform == 'win32':
         windll = ctypes.windll.kernel32
         sys_locale = locale.windows_locale[windll.GetUserDefaultUILanguage()]
-    return os.environ.get('GNR_LOCALE', sys_locale)
+    else:
+        sys_locale = locale.getlocale()[0]
+        
+    configured_locale = os.environ.get("GNR_LOCALE", sys_locale) or static_default
+    try:
+        Locale(configured_locale)
+        return configured_locale
+    except:
+        return static_default
+    
+    return os.environ.get('GNR_LOCALE', sys_locale) or "en_GB"
 
 def currentLocale(locale=None):
     r = (locale or defaultLocale()).replace('-', '_')

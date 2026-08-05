@@ -1,0 +1,1005 @@
+/* ==========================================================================
+   02_gnr_icons_base.css — Icon sprites (dtype, nav, base16),
+   cursor icons
+   ========================================================================== */
+
+/* @group Icons */
+
+.lockedContainer .rowEditorStatus{
+    display: none;
+}
+
+.editGrid_semaphore{
+    height: 14px;
+    width: 14px;
+    border-radius: var(--radius-full, 50%);
+    background-color: var(--text-secondary, #888);
+}
+
+.editGrid_error .editGrid_semaphore{
+    background-color: var(--status-error, #E53935);
+}
+
+.editGrid_changed .editGrid_semaphore{
+    background-color: var(--status-warning, #ff9800);
+}
+
+._common_d11 .rowEditorStatus.dojoxGrid-cell{
+    border-right:0px !important;
+}
+
+.buttonInGrid{
+    border-radius: var(--radius-sm);
+    margin:1px;
+    display:inline-block;
+    font-size:1.1em;
+    padding-bottom:2px;
+    padding-top:1px;
+    padding-left:4px;
+    padding-right:4px;
+    color:var(--text-on-dark);
+    cursor:pointer;
+    line-height:10px;
+    background-color:var(--accent-color);
+}
+
+.icnWarning {
+    background: var(--icon-warning) no-repeat center center;
+    width: 20px;
+    height: 16px;
+}
+
+.icnTag {
+    background: var(--icon-tag) no-repeat center center;
+    width: 18px;
+    height: 16px;
+}
+
+/* @group base14 */
+
+.vieselectorIcn {
+    background: var(--icon-grid-options) no-repeat center center;
+    height: 16px;
+    width: 18px;
+}
+
+.greenLight, .semaphoreCheck{
+    background-color: var(--status-ok, #4caf50);
+    border-radius: var(--radius-full, 50%);
+    width: 14px;
+    height: 14px;
+}
+.grayLight , .graySemaphore.semaphoreCheck {
+    background-color: var(--text-secondary, #888);
+    border-radius: var(--radius-full, 50%);
+    width: 14px;
+    height: 14px;
+}
+
+.redLight ,.invalidSemaphore.semaphoreCheck{
+    background-color: var(--status-error, #E53935);
+    border-radius: var(--radius-full, 50%);
+    width: 14px;
+    height: 14px;
+}
+
+.yellowLight {
+    background-color: var(--status-warning, #ff9800);
+    border-radius: var(--radius-full, 50%);
+    width: 14px;
+    height: 14px;
+}
+
+.waiting16{
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid var(--text-secondary, #888);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: gnr-spin 0.8s linear infinite;
+}
+@keyframes gnr-spin { to { transform: rotate(360deg); } }
+
+/* @end */
+
+.buttonIcon {
+    opacity: 0.8;
+    margin-left: 2px;
+    margin-right: 2px;
+}
+
+.buttonIcon:hover {
+    cursor: pointer;
+    opacity: 1;
+}
+
+/* @group Navigation */
+
+.icnNavFirst {
+    background: var(--icon-nav-first) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnNavLast {
+    background: var(--icon-nav-last) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnNavNext {
+    background: var(--icon-nav-next) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnNavPrev {
+    background: var(--icon-nav-prev) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+/* @end */
+
+/* @group International */
+
+.icnIntlEn {
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 30'%3E%3CclipPath id='a'%3E%3Crect width='60' height='30'/%3E%3C/clipPath%3E%3Cg clip-path='url(%23a)'%3E%3Crect width='60' height='30' fill='%23012169'/%3E%3Cpath d='M0 0l60 30M60 0L0 30' stroke='%23fff' stroke-width='6'/%3E%3Cpath d='M0 0l60 30M60 0L0 30' stroke='%23C8102E' stroke-width='4' clip-path='url(%23a)'/%3E%3Cpath d='M30 0v30M0 15h60' stroke='%23fff' stroke-width='10'/%3E%3Cpath d='M30 0v30M0 15h60' stroke='%23C8102E' stroke-width='6'/%3E%3C/g%3E%3C/svg%3E") no-repeat;
+    background-size: contain;
+    width: 14px;
+    height: 11px;
+}
+
+.icnIntlIt {
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 2'%3E%3Crect width='1' height='2' fill='%23009246'/%3E%3Crect x='1' width='1' height='2' fill='%23fff'/%3E%3Crect x='2' width='1' height='2' fill='%23CE2B37'/%3E%3C/svg%3E") no-repeat;
+    background-size: contain;
+    width: 14px;
+    height: 11px;
+}
+
+/* @end */
+
+
+/* @end */
+
+.isRootItem .add_sibling {
+    display: none;
+}
+
+.tableTreeNode {
+    font-weight: bold;
+}
+
+.aliasColumnTreeNode {
+    background-color: #feffe2
+}
+.siblingSorting .hview .canBeDropped{
+    padding-bottom:18px;
+    background-color: transparent !important;
+    background: linear-gradient(to bottom, transparent 50%, rgba(0, 255, 0, 0.3) 50%); 
+
+}
+
+.siblingSorting .hview .cannotBeDropped {
+    background-color: transparent !important;
+}
+
+.formulaColumnTreeNode {
+    background-color: #d1ffeb;
+    font-style: italic;
+    border-radius: var(--radius-sm);
+}
+
+/* @group Dtype */
+
+/* Dtype icons — CSS letter badges */
+[class^="icnDtype_"] {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    background-color: var(--text-secondary, #888);
+    color: #fff;
+    font-size: 8px;
+    font-weight: bold;
+    font-family: sans-serif;
+    line-height: 12px;
+    text-align: center;
+    display: inline-block;
+}
+.icnDtype_A::before { content: 'A'; }
+.icnDtype_DH { background-color: #7b1fa2; }
+.icnDtype_DH::before { content: 'DH'; font-size: 6px; }
+.icnDtype_B { background-color: #0288d1; }
+.icnDtype_B::before { content: 'B'; }
+.icnDtype_D { background-color: #7b1fa2; }
+.icnDtype_D::before { content: 'D'; }
+.icnDtype_L { background-color: #388e3c; }
+.icnDtype_L::before { content: 'L'; }
+.icnDtype_R { background-color: #388e3c; }
+.icnDtype_R::before { content: 'R'; }
+.icnDtype_N { background-color: #388e3c; }
+.icnDtype_N::before { content: 'N'; }
+.icnDtype_T::before { content: 'T'; }
+.icnDtype_X { background-color: #e65100; }
+.icnDtype_X::before { content: 'X'; }
+.icnDtype_RO { background-color: #1565c0; }
+.icnDtype_RO::before { content: '\2192'; font-size: 9px; }
+.icnDtype_RM { background-color: #1565c0; }
+.icnDtype_RM::before { content: '\21C4'; font-size: 9px; }
+.icnDtype_SQL_F { background-color: #c62828; }
+.icnDtype_SQL_F::before { content: 'f'; font-style: italic; }
+
+/* @end */
+
+/* @group Base12 */
+
+._common_d11 .dijitTextBoxDisabled .dateTextBoxCal{
+    visibility: hidden;
+}
+.dateTextBoxCal{
+    background-color: var(--text-secondary, #636366);
+    -webkit-mask-image: url(/_rsrc/common/css_icons/svg/16/calendar.svg);
+    mask-image: url(/_rsrc/common/css_icons/svg/16/calendar.svg);
+    -webkit-mask-size: 0.85em 0.85em;
+    mask-size: 0.85em 0.85em;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    opacity: .7;
+}
+
+.timeTextBoxWatch{
+    background: var(--icon-time) no-repeat center center;
+}
+
+.icnTabClose {
+    width: 12px;
+    height: 12px;
+    background-color: var(--text-secondary, #666);
+    -webkit-mask: var(--icon-wnd-close) no-repeat center / contain;
+    mask: var(--icon-wnd-close) no-repeat center / contain;
+}
+._common_d11 .smallTabs .dijitTabInnerDiv {
+    padding: 2px 5px;
+    font-size:11px;
+}
+
+.fakeTabContainer .dijitTabPaneWrapper {
+    display: none !important;
+}
+
+.icnTabCloseHover {
+    width: 12px;
+    height: 12px;
+    background-color: var(--text-primary, #333);
+    -webkit-mask: var(--icon-wnd-close) no-repeat center / contain;
+    mask: var(--icon-wnd-close) no-repeat center / contain;
+}
+
+.icnBaseArrowDown {
+    width: 12px;
+    height: 12px;
+    background-color: currentColor;
+    -webkit-mask: var(--icon-chevron-down) no-repeat center / contain;
+    mask: var(--icon-chevron-down) no-repeat center / contain;
+}
+
+.icnBaseSmallPopup {
+    width: 7px;
+    height: 12px;
+    background-color: currentColor;
+    -webkit-mask: var(--icon-chevron-down) no-repeat center / contain;
+    mask: var(--icon-chevron-down) no-repeat center / contain;
+}
+
+.searchtree_container{
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    inset: 0;
+}
+.tree_searchbox{
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    height: 2em;
+    background-color: var(--surface-dark, #444);
+}
+.tree_scrollbox{
+    flex: 1;
+    overflow: auto;
+    min-height: 0;
+}
+.tree_searchbox .searchboxLabel{
+    color: var(--surface-dark-color, #fff);
+}
+
+.largemenu .dijitMenuItem td{
+    font-size: 1.2em;
+    padding:5px;
+}
+
+.largemenu.dijitMenu.dijitMenuTable{
+    border-collapse: collapse;
+}
+
+.smallmenu .dijitMenuItem {
+    font-size: 0.9em;
+}
+.noIconMenu .dijitMenuItem td:first-child {
+    display: none;
+}
+
+/* Compact menu: small font, balanced columns, auto width */
+._common_d11 .minimenu.dijitMenu {
+    min-width: 0;
+}
+
+.minimenu .dijitMenuItem {
+    font-size: 0.85em;
+}
+
+.minimenu .dijitMenuItemIcon {
+    width: 0;
+    height: 0;
+}
+
+.minimenu .dijitMenuItem td {
+    padding: 0.1em 0.2em;
+}
+
+/* .menupane rules consolidated in 13_gnr_tree_treegrid.css */
+
+._common_d11 .smallmenu .dijitMenuItem td {
+    padding-top: 0.2em !important;
+    padding-bottom: 0.2em !important;
+    padding-right: .40em;
+}
+
+div.dojoxDock {
+	background: none;
+	border: none;
+}
+._common_d11 .hiddenDock li.dojoxDockNode{
+    cursor: pointer;
+    height: 100%;
+    width: 100%;
+    color:transparent;
+    background:transparent;
+    list-style: none;
+    margin: 0px;
+    padding: 0;
+    border:0;
+    border-radius: 0px 0px 0px 0px;
+    float: none;
+}
+
+._common_d11 .hiddenDock .dojoxDockRestoreButton {
+    background: transparent;
+    float: none;
+    height: 100%;
+    margin-top: 0px;
+    width:100%;
+}
+
+/* commonTitleBar: canonical definition in 05_gnr_widgets_base.css (uses CSS vars) */
+
+.hiddenBcPane{
+    display:none;
+}
+
+.visibleBcPane.hiddenBcPane{
+    display:block;
+}
+
+.floatingPopup {
+    position: relative;
+    padding-right: 2em;
+    cursor: pointer;
+}
+
+.floatingPopup::after {
+    content: '';
+    position: absolute;
+    right: 0.3em;
+    top: 50%;
+    transform: translateY(-50%);
+    border-style: solid;
+    border-width: 0.45em 0.35em 0;
+    border-color: currentColor transparent transparent;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.floatingPopup:hover::after {
+    opacity: 1;
+}
+.iframereload{
+    background: var(--icon-iframe-reload) no-repeat center center;
+}
+.iframeclose{
+	background: var(--icon-iframe-close) no-repeat center center;
+}
+.close_svg {
+    background-color: var(--text-secondary, #666);
+    -webkit-mask: var(--icon-wnd-close) no-repeat center / contain;
+    mask: var(--icon-wnd-close) no-repeat center / contain;
+    height: 16px;
+    width: 16px;
+}
+
+._common_d11 .dojoxFloatingPaneContent {
+    overflow:hidden !important;
+}
+
+/* --- FloatingPane title bar icons: mask-image, circular, themeable via variables --- */
+._common_d11 .dojoxFloatingCloseIcon {
+    order: 1;
+}
+._common_d11 .dojoxFloatingCloseIcon,
+._common_d11 .dojoxFloatingMinimizeIcon,
+._common_d11 .dojoxFloatingMaximizeIcon {
+    background: none;
+    width: 1.3em;
+    height: 1.3em;
+    position: relative;
+    cursor: pointer;
+    border-radius: 50%;
+    border: none;
+    transition: background-color 0.12s ease;
+    color: transparent;
+    overflow: hidden;
+    flex-shrink: 0;
+    margin-left: 0.2em;
+}
+._common_d11 .dojoxFloatingCloseIcon:hover,
+._common_d11 .dojoxFloatingMinimizeIcon:hover,
+._common_d11 .dojoxFloatingMaximizeIcon:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+._common_d11 .dojoxFloatingCloseIcon::after,
+._common_d11 .dojoxFloatingMinimizeIcon::after,
+._common_d11 .dojoxFloatingMaximizeIcon::after {
+    content: '';
+    position: absolute;
+    inset: 10%;
+    background-color: var(--dialogtitlebar-color, #fff);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+}
+._common_d11 .dojoxFloatingCloseIcon::after {
+    -webkit-mask-image: var(--icon-wnd-close);
+    mask-image: var(--icon-wnd-close);
+}
+._common_d11 .dojoxFloatingMinimizeIcon::after {
+    -webkit-mask-image: var(--icon-wnd-close);
+    mask-image: var(--icon-wnd-close);
+}
+._common_d11 .dojoxFloatingMaximizeIcon::after {
+    -webkit-mask-image: var(--icon-wnd-maximize);
+    mask-image: var(--icon-wnd-maximize);
+}
+
+.floatingTooltipPane:hover{
+    background-color: #feffb4;
+}
+.floatingPopup:hover {
+    background-color: #feffb4;
+}
+
+.floatingPopupFixed {
+    position: relative;
+    padding-right: 1em;
+}
+
+.floatingPopupFixed::after {
+    content: '';
+    position: absolute;
+    right: 0.25em;
+    top: 50%;
+    transform: translateY(-50%);
+    border-style: solid;
+    border-width: 0.25em 0.2em 0;
+    border-color: currentColor transparent transparent;
+}
+
+.helperField {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #feffb4;
+    z-index: 10;
+    cursor: pointer;
+    padding-left: 2px;
+    padding-top: 1px;
+    padding-right: 15px;
+    overflow: hidden;
+    white-space: pre;
+}
+.helperField::after {
+    content: '';
+    position: absolute;
+    right: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 7px;
+    height: 12px;
+    background-color: var(--text-color);
+    -webkit-mask: var(--icon-chevron-down) no-repeat center / contain;
+    mask: var(--icon-chevron-down) no-repeat center / contain;
+}
+.templateGrid .cellContent{
+    padding-top:0;
+    padding-bottom:0;
+    padding-left:0;
+    padding-right:0;
+    margin:0;
+    line-height: normal;
+}
+
+._common_d11 .templateGrid .dojoxGrid-row .dojoxGrid-cell, 
+._common_d11 .templateGrid .dojoxGrid-row-odd .dojoxGrid-cell, 
+._common_d11 .templateGrid .dojoxGrid-row.dojoxGrid-row-selected .dojoxGrid-cell{
+    border-right: 0;
+}
+
+.plainTextChunk{
+    white-space: pre;
+}
+
+.formbuilder .plainTextChunk{
+    padding:2px;
+    padding-left: 5px;
+    padding-right: 5px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--formbuilder-plaintext-border);
+    margin-bottom: 10px;
+}
+/* @end */
+
+/*@group template*/
+
+.preview .tplfieldpath {
+    display: inline;
+}
+
+.preview .tplfieldcaption {
+    display: none;
+}
+/* @end */
+
+.box16{
+    height:16px;
+    width:16px;
+}
+.box24{
+    height:24px;
+    width:24px;
+}
+.box32{
+     height:32px;
+    width:32px;
+}
+/* @group Base16 */
+.iconCreditWarning{
+    background: var(--icon-credit-warning) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+.icnBaseActivity{
+    background: var(--icon-alarm) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+.icnSavedQuery{
+    background: var(--icon-query) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+.icnSavedViews{
+    background: var(--icon-view) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseAdd {
+    background: var(--icon-add) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+.icnBuilding{
+    background: var(--icon-building) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseCalendar {
+    background: var(--icon-calendar) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+.icnBuddy {
+    background: var(--icon-buddy) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+.queryMenu{
+    background: var(--icon-query) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+.icnBuddyChat {
+    background: var(--icon-chat) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseCancel {
+    background: var(--icon-cancel) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnRefresh {
+    width: 16px;
+    height: 16px;
+    background: var(--icon-refresh) no-repeat center center;
+}
+
+.icnFrameRefresh {
+	background: var(--icon-refresh) no-repeat center center;
+}
+
+.icnFrameDelete {
+	background: var(--icon-delete) no-repeat center center;
+}
+
+.icnBaseEmail {
+    background: var(--icon-email) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseExport {
+    background: var(--icon-export) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseAction {
+    background: var(--icon-action) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBasePref {
+    background: var(--icon-pref) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseView {
+    background: var(--icon-view) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseDelete {
+    background: var(--icon-delete) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseEdit {
+    background: var(--icon-edit) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+.gridConfigurator{
+    background: var(--icon-grid-options) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseEditUser {
+    background: var(--icon-user) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseLens {
+    width: 1em;
+    height: 1em;
+    background-color: var(--text-muted, #666);
+    -webkit-mask: var(--icon-search) no-repeat center / contain;
+    mask: var(--icon-search) no-repeat center / contain;
+}
+
+.icnOpenPalette {
+    background: var(--icon-view) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseEye {
+    background: var(--icon-eye) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseLocked {
+    background: var(--icon-locked) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseLogout {
+    background: var(--icon-logout) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseUserLogout {
+    background: var(--icon-logout) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+.icnBaseUserPause {
+    background: var(--icon-poweroff) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseOk {
+    background: var(--icon-ok) no-repeat center center;
+    width: 17px;
+    height: 17px;
+}
+
+.icnBaseGenroLogo {
+    background: transparent url(/_rsrc/common/css_icons/svg/16/genrologo.svg) no-repeat center center;
+    background-size: contain;
+    width: 16px;
+    height: 16px;
+}
+
+.disabled_row {
+    opacity: .6;
+}
+.tickOn {
+    background: var(--icon-ok) no-repeat center center;
+    width: 15px;
+    height: 15px;
+}
+
+.checkboxOn {
+    -webkit-mask: var(--icon-checkbox-checked) no-repeat center / contain;
+    mask: var(--icon-checkbox-checked) no-repeat center / contain;
+    background-color: currentColor;
+    background-image: none;
+    width: 1.4em;
+    height: 1.4em;
+}
+
+.checkboxOff {
+    -webkit-mask: var(--icon-checkbox-unchecked) no-repeat center / contain;
+    mask: var(--icon-checkbox-unchecked) no-repeat center / contain;
+    background-color: currentColor;
+    background-image: none;
+    width: 1.4em;
+    height: 1.4em;
+}
+
+.checkboxOnOff {
+    -webkit-mask: var(--icon-checkbox-indeterminate) no-repeat center / contain;
+    mask: var(--icon-checkbox-indeterminate) no-repeat center / contain;
+    background-color: currentColor;
+    background-image: none;
+    width: 1.4em;
+    height: 1.4em;
+}
+
+.radioOn {
+    -webkit-mask: var(--icon-radio-checked) no-repeat center / contain;
+    mask: var(--icon-radio-checked) no-repeat center / contain;
+    background-color: currentColor;
+    background-image: none;
+    width: 1.4em;
+    height: 1.4em;
+}
+
+.radioOff {
+    -webkit-mask: var(--icon-radio-unchecked) no-repeat center / contain;
+    mask: var(--icon-radio-unchecked) no-repeat center / contain;
+    background-color: currentColor;
+    background-image: none;
+    width: 1.4em;
+    height: 1.4em;
+}
+
+/* @group boole */
+.icnTrue {
+    background: var(--icon-ok) no-repeat center center;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.icnFalse {
+    background: var(--icon-cancel) no-repeat center center;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+/* @end */
+
+.icnBaseOneWay {
+    background: var(--icon-oneway) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseSave {
+    background: var(--icon-save) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseFolder {
+    background: var(--icon-folder) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBasePowerOff {
+    background: var(--icon-poweroff) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBasePrinter {
+    background: var(--icon-print) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBasePdf {
+    background: var(--icon-pdf) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseReadOnly {
+    background: var(--icon-readonly) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseWrite {
+    background: var(--icon-edit) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.windowmenuIcon{
+    background: var(--icon-menu) no-repeat center center;
+}
+
+.windowaddIcon{
+    width: 1em;
+    height: 1em;
+    background-color: var(--text-muted, #666);
+    -webkit-mask: var(--icon-wnd-add) no-repeat center / contain;
+    mask: var(--icon-wnd-add) no-repeat center / contain;
+}
+
+
+.icnBaseTrash {
+    background: var(--icon-trash) no-repeat center center;
+}
+.icnBasePalette {
+    background: var(--icon-palette) no-repeat center center;
+}
+
+.icnBaseTableEdit {
+    background: var(--icon-table-edit) no-repeat center center;
+}
+.icnBaseUnlocked {
+    background: var(--icon-unlocked) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBaseUpYellow {
+    background: var(--icon-up-arrow) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBottomDocumentation {
+    background: var(--icon-bottom-docs) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+.icnBottomTicket {
+    background: var(--icon-bottom-ticket) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+.icnBottomViewer {
+    background: var(--icon-bottom-viewer) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+.icnBottomEditor {
+    background: var(--icon-bottom-editor) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+/* @end */
+
+/* @group Flag */
+
+.icnFlagRed {
+    background: var(--icon-flag-red) no-repeat center center;
+    width: 16px;
+    height: 16px;
+}
+
+/* @end */
+
+/* @group Base10 */
+
+.tick_icon10 {
+    background: var(--icon-ok) no-repeat center center;
+    background-size: 10px 10px;
+    width: 10px;
+    height: 10px;
+}
+
+/* @end */
+
+/* @end */
+
+/* --- Icon utilities (from theme_shared) --- */
+.placeholder_profile {
+    background: url(/_rsrc/common/css_icons/svg/16/user_profile.svg) no-repeat center center;
+}
+.user_icon {
+    background: url(/_rsrc/common/css_icons/svg/16/user_profile.svg) no-repeat center center;
+}
+
+.popupLabel {
+    padding-right: 15px;
+    cursor: pointer;
+    background: url(/_rsrc/common/css_icons/svg/16/popup.svg) no-repeat right !important;
+}
+.popup {
+    background: url(/_rsrc/common/css_icons/svg/16/popup.svg) no-repeat center center;
+}
+
+.threedots {
+    background: url(/_rsrc/common/css_icons/svg/16/3dots.svg) no-repeat center center;
+}
+.threedots_white {
+    background: url(/_rsrc/common/css_icons/svg/16/3dots_white.svg) no-repeat center center;
+}
+.threedots_h_white {
+    background: url(/_rsrc/common/css_icons/svg/16/3dots_h_white.svg) no-repeat center center;
+}
+
+/* semaphore lights — unified with CSS variables (see block above) */
+
+.popupLabel:hover {
+    background: rgba(234, 203, 110, 1.00);
+}

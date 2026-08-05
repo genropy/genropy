@@ -1,5 +1,6 @@
 import pytest
 from gnr.sql.adapters import _gnrbaseadapter as ba
+from gnr.sql.adapters import _gnrbasepostgresadapter as pgmod
 
 class FakeCursor(object):
     def fetchall(self):
@@ -59,7 +60,6 @@ class TestSqlDbAdapter():
         assert "gnrsqlite" in all_adapters
         
     def test_basic_methods(self):
-        assert self.adapter.setLocale("it_IT") is None
         assert self.adapter.adaptSqlSchema("schema_name") == "schema_name"
         assert self.adapter.adaptSqlName("schema_name") == "schema_name"
         assert self.adapter_fixed_schema.adaptSqlSchema("schema_name") == "fixed_schema"
@@ -93,7 +93,7 @@ class TestSqlDbAdapter():
             (): ['defaultMainSchema', 'relations',
                  'getTableConstraints'],
             ('arg1',): ['connect', 'listen',
-                        'notify', 'createDb',
+                        'createDb',
                         'dropDb', 'dump', 'restore',
                         'importRemoteDb', 'listRemoteDatabases',
                         'listElements'],
@@ -263,3 +263,222 @@ class TestSqlDbAdapter():
 
         r = self.adapter.createSchemaSql("MYSCHEMA")
         assert r == "CREATE SCHEMA MYSCHEMA;"
+
+    def test_mask_field_sql_base_warning(self):
+        """Test that base adapter mask_field_sql emits a warning and returns field unchanged."""
+        import warnings
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            result = self.adapter.mask_field_sql("$email", mode='email')
+            # Should return the field unchanged
+            assert result == "$email"
+            # Should have emitted a warning
+            assert len(w) == 1
+            assert "not implemented" in str(w[0].message).lower()
+
+
+class TestPostgresAdapterMaskField:
+    """Test mask_field_sql for PostgreSQL adapter."""
+
+    @classmethod
+    def setup_class(cls):
+        from gnr.sql.adapters._gnrbasepostgresadapter import PostgresSqlDbBaseAdapter
+        cls.adapter = PostgresSqlDbBaseAdapter(FakeDbRoot(False))
+
+    def test_mask_email(self):
+        """Test email masking mode for PostgreSQL."""
+        result = self.adapter.mask_field_sql("$email", mode='email')
+        # Should contain PostgreSQL-specific functions
+        assert "position('@'" in result.lower()
+        assert "split_part" in result.lower()
+        assert "repeat" in result.lower()
+        assert "$email" in result
+        assert "CASE" in result
+
+    def test_mask_creditcard(self):
+        """Test credit card masking mode for PostgreSQL."""
+        result = self.adapter.mask_field_sql("$cc", mode='creditcard')
+        assert "right(" in result.lower()
+        assert "repeat(" in result.lower()
+        assert "length(" in result.lower()
+        assert "$cc" in result
+        assert "4" in result  # Shows last 4 digits
+
+    def test_mask_phone(self):
+        """Test phone masking mode for PostgreSQL."""
+        result = self.adapter.mask_field_sql("$phone", mode='phone')
+        assert "substring(" in result.lower()
+        assert "repeat(" in result.lower()
+        assert "right(" in result.lower()
+        assert "$phone" in result
+        assert "3" in result  # Shows first 3 and last 3
+
+    def test_mask_custom(self):
+        """Test custom N-M masking mode for PostgreSQL."""
+        result = self.adapter.mask_field_sql("$data", mode='3-5')
+        assert "substring(" in result.lower()
+        assert "repeat(" in result.lower()
+        assert "3" in result
+        assert "5" in result
+
+    def test_mask_custom_placeholder(self):
+        """Test custom placeholder character for PostgreSQL."""
+        result = self.adapter.mask_field_sql("$data", mode='2-4', placeholder='#')
+        assert "#" in result
+        assert "*" not in result
+
+    def test_mask_invalid_mode_fallback(self):
+        """Test that invalid mode falls back to 2-4 format for PostgreSQL."""
+        result = self.adapter.mask_field_sql("$data", mode='invalid')
+        # Should fall back to 2-4
+        assert "2" in result
+        assert "4" in result
+
+
+class TestPrepareSqlTextDoubleColon:
+    """Ref #585 — PostgreSQL :: cast syntax must not be matched as a named parameter."""
+
+    @classmethod
+    def setup_class(cls):
+        from gnr.sql.adapters.gnrpostgres import SqlDbAdapter as PgAdapter
+        from gnr.sql.adapters.gnrmysql import SqlDbAdapter as MysqlAdapter
+        cls.pg = PgAdapter(FakeDbRoot(False))
+        cls.mysql = MysqlAdapter(FakeDbRoot(False))
+
+    @pytest.fixture(params=['pg', 'mysql'])
+    def adapter(self, request):
+        return getattr(self, request.param)
+
+    def test_double_colon_not_matched(self, adapter):
+        sql, _ = adapter.prepareSqlText("SELECT col::vector FROM t", {})
+        assert '::vector' in sql
+        assert '%(vector)s' not in sql
+
+    def test_param_still_matched(self, adapter):
+        sql, _ = adapter.prepareSqlText("WHERE id = :id", {})
+        assert '%(id)s' in sql
+
+    def test_cast_and_param_mixed(self, adapter):
+        sql, _ = adapter.prepareSqlText(
+            "SELECT (1 - (emb <=> :target::vector)) AS sim WHERE x::text = :val", {}
+        )
+        assert '%(target)s' in sql
+        assert '%(val)s' in sql
+        assert '::vector' in sql
+        assert '::text' in sql
+
+    def test_multiple_casts_and_params(self, adapter):
+        sql, _ = adapter.prepareSqlText(
+            "WHERE col::text ILIKE :pattern AND num::integer > :threshold", {}
+        )
+        assert '%(pattern)s' in sql
+        assert '%(threshold)s' in sql
+        assert '::text' in sql
+        assert '::integer' in sql
+
+
+class TestSqliteAdapterMaskField:
+    """Test mask_field_sql for SQLite adapter."""
+
+    @classmethod
+    def setup_class(cls):
+        from gnr.sql.adapters.gnrsqlite import SqlDbAdapter as SqliteAdapter
+        cls.adapter = SqliteAdapter(FakeDbRoot(False))
+
+    def test_mask_email(self):
+        """Test email masking mode for SQLite."""
+        result = self.adapter.mask_field_sql("$email", mode='email')
+        # Should contain SQLite-specific functions
+        assert "instr(" in result.lower()
+        assert "substr(" in result.lower()
+        assert "$email" in result
+        assert "CASE" in result
+        # Should NOT contain PostgreSQL-specific functions
+        assert "split_part" not in result.lower()
+        assert "position(" not in result.lower()
+
+    def test_mask_creditcard(self):
+        """Test credit card masking mode for SQLite."""
+        result = self.adapter.mask_field_sql("$cc", mode='creditcard')
+        assert "substr(" in result.lower()
+        assert "length(" in result.lower()
+        assert "$cc" in result
+        assert "-4" in result  # SQLite uses negative index for last chars
+
+    def test_mask_phone(self):
+        """Test phone masking mode for SQLite."""
+        result = self.adapter.mask_field_sql("$phone", mode='phone')
+        assert "substr(" in result.lower()
+        assert "$phone" in result
+        assert "-3" in result  # SQLite uses negative index for last chars
+
+    def test_mask_custom(self):
+        """Test custom N-M masking mode for SQLite."""
+        result = self.adapter.mask_field_sql("$data", mode='3-5')
+        assert "substr(" in result.lower()
+        assert "3" in result
+        assert "5" in result
+
+    def test_mask_custom_placeholder(self):
+        """Test custom placeholder character for SQLite."""
+        result = self.adapter.mask_field_sql("$data", mode='2-4', placeholder='#')
+        assert "#" in result
+
+    def test_mask_invalid_mode_fallback(self):
+        """Test that invalid mode falls back to 2-4 format for SQLite."""
+        result = self.adapter.mask_field_sql("$data", mode='invalid')
+        # Should fall back to 2-4
+        assert "2" in result
+        assert "4" in result
+
+
+class FakeCompletedProcess(object):
+    """Stand-in for the CompletedProcess returned by subprocess.run."""
+    def __init__(self, stdout=''):
+        self.stdout = stdout
+        self.returncode = 0
+
+
+class TestPostgresAdapterListRemoteDatabases:
+    """Test listRemoteDatabases output parsing for the PostgreSQL adapter."""
+
+    @classmethod
+    def setup_class(cls):
+        cls.adapter = pgmod.PostgresSqlDbBaseAdapter(FakeDbRoot(False))
+
+    def _patch_run(self, monkeypatch, stdout):
+        captured = {}
+
+        def fake_run(cmd, **kwargs):
+            captured['cmd'] = cmd
+            captured['kwargs'] = kwargs
+            return FakeCompletedProcess(stdout)
+
+        monkeypatch.setattr(pgmod.subprocess, 'run', fake_run)
+        return captured
+
+    def test_parses_output(self, monkeypatch):
+        """psql -l -t output is parsed; non-ascii names and blank lines handled."""
+        fixture = (
+            " mydb      | postgres | UTF8 | libc | C | C |  |  | \n"
+            " caff\xe8_db  | postgres | UTF8 | libc | C | C |  |  | \n"
+            " template0 | postgres | UTF8 | libc | C | C |  |  | =c/postgres\n"
+            "\n"
+        )
+        captured = self._patch_run(monkeypatch, fixture)
+        result = self.adapter.listRemoteDatabases(source_ssh_host='example.com',
+                                                  source_ssh_user='user')
+        assert result == ['mydb', 'caff\xe8_db', 'template0']
+        assert captured['cmd'][0] == 'ssh'
+        assert captured['cmd'][1] == 'user@example.com'
+        # robustness contract: utf-8 decoding regardless of locale, fail-loud on error
+        assert captured['kwargs']['encoding'] == 'utf-8'
+        assert captured['kwargs']['errors'] == 'replace'
+        assert captured['kwargs']['check'] is True
+        assert captured['kwargs']['capture_output'] is True
+
+    def test_empty_output(self, monkeypatch):
+        self._patch_run(monkeypatch, '')
+        result = self.adapter.listRemoteDatabases(source_ssh_host='example.com',
+                                                  source_ssh_user='user')
+        assert result == []

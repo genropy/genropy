@@ -7,35 +7,25 @@
 import os
 
 from gnr.core.gnrbag import DirectoryResolver
-from webob.exc import HTTPNotFound
 
 class GnrCustomWebPage(object):
-    css_requires='public'
 
     def pageAuthTags(self, method=None, **kwargs):
         return ''
 
     def windowTitle(self):
         return ''
-    def isDeveloper(self):
-        return True
 
     def main(self, root, **kwargs):
         url_info = self.site.getUrlInfo(self.getCallArgs())
         dirpath=os.path.join(url_info.basepath,*url_info.request_args)
         if not os.path.isdir(dirpath):
-            raise HTTPNotFound('Missing page')
+            requested_path = '/'.join(url_info.request_args)
+            root.errorPane(f'Page /{requested_path} not found')
+            return
         bc=root.borderContainer(datapath='main')
-        bc.style(""".menutree .opendir{
-                width: 12px;
-                background: url(/_gnr/11/css/icons/base10/tinyOpenBranch.png) no-repeat center center;
-            }
-            .menutree .closedir{
-                width: 12px;
-                background: url(/_gnr/11/css/icons/base10/tinyCloseBranch.png) no-repeat center center;
-            }
-        """)
-        center=bc.contentPane(region='center',datapath='.current')
+        bc.style("")
+        center=bc.contentPane(region='center',datapath='.current',overflow='hidden')
         left=bc.contentPane(region='left',width='200px',splitter=True,background='#eee',
                            datapath='.tree',overflow_y='auto')
         left.data('.store',DirectoryResolver(dirpath,cacheTime=10,
@@ -47,14 +37,6 @@ class GnrCustomWebPage(object):
             rel_path='^.rel_path',file_ext='=.file_ext',_delay=1)                   
         left.tree(storepath='.store', hideValues=True, inspect='shift', 
               labelAttribute='caption',
-               getIconClass="""
-               function(item,opened){
-                        console.log('item.attr',item.attr);
-                        if(item.attr.file_ext!='directory'){
-                            return "treeNoIcon";
-                        }
-                        return opened? 'opendir':'closedir';                        
-                    }""",
               getLabelClass="""var _class= (node._resolver || node._value) ? 'menu_shape menu_level_0' :  'menu_shape menu_level_2';
                                             return _class""",
               isTree=False, selected_rel_path='main.current.rel_path',  _class='menutree',

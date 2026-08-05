@@ -47,7 +47,6 @@ class Table(object):
                     if _querystring!='*':
                         chunk = _querystring.replace('*','').lower()
                         if not chunk in service_type and not chunk in resname:
-                            print('continue',service_type,resname)
                             continue
                     result.addItem(service_type,resource,implementation=resource,service_type=service_type,
                                         default_kw=dict(implementation=resource,service_type=service_type),
@@ -67,8 +66,26 @@ class Table(object):
             with site.register.globalStore() as gs:
                 gs.setItem('globalServices_lastChangedConfigTS.%(service_identifier)s' %record,datetime.now())
 
+    def trigger_onInserted(self, record):
+        self.serviceExpiredTs(record)
+        # Add to storage_handler params if this is a storage service
+        site = getattr(self.db.application, 'site', None)
+        if site and hasattr(site, 'storage_handler'):
+            if record.get('service_type') == 'storage':
+                site.storage_handler.updateStorageParams(record.get('service_name'))
+
     def trigger_onUpdated(self,record,old_record=None):
         self.serviceExpiredTs(record)
+        # Update storage_handler params if this is a storage service
+        site = getattr(self.db.application, 'site', None)
+        if site and hasattr(site, 'storage_handler'):
+            if record.get('service_type') == 'storage':
+                site.storage_handler.updateStorageParams(record.get('service_name'))
 
     def trigger_onDeleted(self,record):
         self.serviceExpiredTs(record)
+        # Remove from storage_handler params if this is a storage service
+        site = getattr(self.db.application, 'site', None)
+        if site and hasattr(site, 'storage_handler'):
+            if record.get('service_type') == 'storage':
+                site.storage_handler.removeStorageFromCache(record.get('service_name'))

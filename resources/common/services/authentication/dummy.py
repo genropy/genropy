@@ -7,7 +7,6 @@
 #    pip install python-ntlm
 #
 
-from __future__ import print_function
 from gnr.lib.services import GnrBaseService
 
 class Main(GnrBaseService):

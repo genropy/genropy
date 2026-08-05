@@ -20,11 +20,9 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-import tempfile
-import atexit
-import shutil
-import locale
+
 import sys
+import re
 import types
 import importlib
 import importlib.metadata
@@ -34,23 +32,29 @@ import os
 import hashlib
 import smtplib
 import time
+from datetime import datetime
 import glob
 import subprocess
+from urllib.parse import urlparse, unquote
 from collections import defaultdict
 from email.mime.text import MIMEText
 
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrdecorator import extract_kwargs
+from gnr.core.gnrlocale import defaultLocale
+from gnr.core.gnrdecorator import extract_kwargs, deprecated
 from gnr.core.gnrlang import  objectExtract,gnrImport, instanceMixin, GnrException
+from gnr.core.gnrerror import tracebackBag
 from gnr.core.gnrstring import makeSet, toText, splitAndStrip, like, boolean
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrconfig import getGnrConfig
+from gnr.core import gnrlog
 from gnr.utils import ssmtplib
-from gnr.app.gnrdeploy import PathResolver
+from gnr.app.pathresolver import PathResolver
 from gnr.app import logger
 from gnr.app.gnrlocalization import AppLocalizer
 from gnr.sql.gnrsql import GnrSqlDb
+from gnr.core.gnrstructures import GnrStructData
 
 class GnrRestrictedAccessException(GnrException):
     """GnrRestrictedAccessException"""
@@ -91,8 +95,13 @@ class ApplicationCache(object):
         self.application = application
         self.cache = {}
     
-    def getItem(self,key):
-        return self.cache.get(key,None)
+    def getItem(self,key,defaultFactory=None):
+        item =  self.cache.get(key,None)
+        if item is None and defaultFactory:
+            item = defaultFactory()
+            self.setItem(key,item)
+        return item
+
     
     def setItem(self,key,value):
         self.cache[key] = value
@@ -162,8 +171,209 @@ class GnrMixinObj(object):
     def __init__(self):
         pass
 
+class DbStoresHandler(object):
+    """Handler for using multi-database"""
+        
+    def __init__(self, db):
+        self.db = db
+        self.auxstores = {}
+        instance_dbstores = db.application.config['dbstores'] if db.application.config else None
+        if instance_dbstores:
+            for n in instance_dbstores:
+                self.add_auxstore(n.label,n.attr)
+
+    @property
+    def dbstores(self):
+        with self.db.tempEnv(storename=False):
+            return self.db.application.cache.getItem('MULTI_DBSTORES',defaultFactory=self._calculate_multidbstores)
+
+    def _calculate_multidbstores(self):
+        result = {}
+        if self.db.storetable:    
+            dbdict = self.get_dbdict()
+            dbstores = self.db.table(self.db.storetable).query(
+                where='$dbstore IN :databases',
+                databases=list(dbdict.keys()),columns="$dbstore").fetch()
+            for r in dbstores:
+                storename = r['dbstore']
+                result[storename] = dict(database=dbdict[storename])
+        return result
+    
+    def get_dbdict(self):
+        existing_databases = self.db.adapter.listElements('databases',manager=True)
+        if self.db.dbname not in existing_databases:
+            return {}
+        multidb_prefix = self.db.multidb_prefix
+        return {dbname[len(multidb_prefix):]:dbname for dbname in existing_databases if dbname.startswith(multidb_prefix)}
+            
+    def raw_multdb_dbstores(self):
+        result = {}
+        if self.db.storetable:    
+            dbdict = self.get_dbdict()
+            if not dbdict:
+                return result
+            pkgname,tblname = self.db.storetable.split('.')
+            pkgattr = self.db.application.packages[pkgname].attributes
+            sqlschema = pkgattr.get('sqlschema') or pkgname
+            sqlprefix = True if pkgattr.get('sqlprefix') is not False else False
+            tblname = tblname if not sqlprefix else f'{pkgname}_{tblname}'
+            adaptSqlName = self.db.adapter.adaptSqlName
+            sqltblfullname = f'{adaptSqlName(sqlschema)}.{adaptSqlName(tblname)}'
+            dbstores = self.db.adapter.raw_fetch(f"""
+                SELECT dbstore FROM {sqltblfullname} WHERE dbstore IS NOT NULL
+            """)
+            for r in dbstores:
+                storename = r['dbstore']
+                if storename in dbdict:
+                    result[storename] = dict(database=dbdict[storename])
+        return result
+
+
+    def add_auxstore(self, storename, dbattr=None):
+        """TODO
+        :param storename: TODO
+        :param check: TODO"""
+        self.auxstores[storename] = dict(database=dbattr.get('dbname', storename),
+                                        host=dbattr.get('host', self.db.host), user=dbattr.get('user', self.db.user),
+                                        password=dbattr.get('password', self.db.password),
+                                        port=dbattr.get('port', self.db.port),
+                                        implementation=dbattr.get('implementation'),
+                                        dbbranch=dbattr.get('dbbranch'),
+                                        remote_host=dbattr.get('remote_host'),
+                                        remote_port=dbattr.get('remote_port'))
+        return dbattr
+
+    def dbstore_check(self, storename, verbose=False):
+        """checks if dbstore exists and if it needs to be aligned
+        
+        :param storename: TODO
+        :param verbose: TODO"""
+        with self.db.tempEnv(storename=storename):
+            self.db.use_store(storename)
+            changes = self.db.model.check()
+            if changes and not verbose:
+                return False
+            elif changes and verbose:
+                return changes
+            else: #not changes
+                return True
+            
+    def create_dbstore(self,storename):
+        self.db.createDb(f'{self.db.multidb_prefix}{storename}')
+        self.refresh_dbstores()
+
+    @deprecated(message='Storetable-based architecture auto-detects stores. Use create_dbstore instead.')
+    def add_dbstore_config(self, storename, dbname=None, host=None,  # noqa: ARG002
+                           user=None, password=None, port=None,
+                           save=None, **_kwargs):
+        """Deprecated: creates dbstore without XML config file.
+
+        Storetable-based architecture auto-detects stores from database.
+        This method now delegates to create_dbstore for backward compatibility.
+
+        Args dbname, host, user, password, port are kept for API compatibility but ignored.
+        """
+        del dbname, host, user, password, port  # unused, kept for API compatibility
+        self.create_dbstore(storename)
+        if save:
+            self.dbstore_align(storename)
+
+    @deprecated(message='Storetable-based architecture auto-detects stores. This method has no effect.')
+    def drop_dbstore_config(self, _storename):
+        """Deprecated: no-op in storetable-based architecture.
+
+        Storetable-based architecture auto-detects stores from database.
+        Store removal should be handled by deleting the storetable record.
+        """
+        pass
+
+    def refresh_dbstores(self):
+        self.db.application.cache.updatedItem('MULTI_DBSTORES')
+
+
+    def dbstore_align(self, storename, changes=None):
+        """TODO
+        
+        :param storename: TODO
+        :param changes: TODO. """
+
+        # current_language is set to None in the migration context like this
+        # in order to properly handle all the localized columns in the models
+        with self.db.tempEnv(storename=storename, current_language=None):
+            self.db.syncOrmToSql()
+
 class GnrSqlAppDb(GnrSqlDb):
     """TODO"""
+    def __init__(self, *args, **kwargs):
+        if not kwargs.get("application", None):
+            raise TypeError("'application' is mandatory for GnrSqlAppDb")
+        
+        super().__init__(*args, **kwargs)
+        
+    @property
+    def stores_handler(self):
+        handler = getattr(self, '_stores_handler', None)
+        if handler is None:
+            handler = DbStoresHandler(self)
+            self._stores_handler = handler
+        return handler
+
+    @property
+    def debug(self):
+        """TODO"""
+        return self.application.debug
+        
+    @property
+    def dbstores(self):
+        return self.stores_handler.dbstores
+        
+    @property
+    def auxstores(self):
+        return self.stores_handler.auxstores
+    
+    @property
+    def tenant_table(self):
+        tenant_table = None
+        for pkgNode in self.application.config['packages']:
+            tenant_table = pkgNode.attr.get('tenant_table') or tenant_table
+        return tenant_table
+    
+    @property
+    def multidb_config(self):
+        result = getattr(self, '_multidb_config', None)
+        if result is None:
+            result = {}
+            for n in self.application.config['packages']:
+                if n.attr.get('storetable'):
+                    result.update(n.attr)
+            self._multidb_config = result
+        return result
+    
+    def registerMacros(self):
+        """Register SQL macros: base + adapter + app-level + package-level.
+
+        Registration order:
+            1. Base macros (IN_RANGE, PERIOD) via super()
+            2. Adapter macros (TSQUERY, TSRANK, etc.) via super()
+            3. App-level macros (PREF, THIS, BAG, BAGCOLS) — here
+            4. Package macros via pkgBroadcast
+
+        Passes ``self`` (the db) to pkgBroadcast so packages can call
+        ``db.addMacro()`` even though ``application.db`` is not yet
+        assigned at this point in the init sequence.
+        """
+        super().registerMacros()
+        from gnr.sql.gnrsqldata.compiler import (
+            PREFFINDER, THISFINDER,
+            BAGEXPFINDER, BAGCOLSEXPFINDER
+        )
+        self.addMacro('PREF', PREFFINDER, None)
+        self.addMacro('THIS', THISFINDER, None)
+        self.addMacro('BAG', BAGEXPFINDER, None)
+        self.addMacro('BAGCOLS', BAGCOLSEXPFINDER, None)
+        if self.application:
+            self.application.pkgBroadcast('registerMacros', self)
+
     def checkTransactionWritable(self, tblobj):
         """TODO
         
@@ -175,6 +385,11 @@ class GnrSqlAppDb(GnrSqlDb):
                     tblobj.attributes.get('transaction', tblobj.pkg.attributes.get('transaction', '')))
         if not self.inTransactionDaemon and tblobj._usesTransaction:
             raise GnrWriteInReservedTableError('%s.%s' % (tblobj.pkg.name, tblobj.name))
+        
+
+    @property
+    def storetable(self):
+        return self.multidb_config.get("storetable")
 
     @property
     def localizer(self):
@@ -557,15 +772,12 @@ class GnrPackage(object):
         struct.package(self.id, **self.attributes)
         
         config_db_xml = os.path.join(self.packageFolder, 'model', 'config_db.xml')
+        
         if os.path.isfile(config_db_xml):
-            if hasattr(self, '_structFix4D'):
-                config_db_xml = self._structFix4D(struct, config_db_xml)
             struct.update(config_db_xml)
         
         config_db_xml = os.path.join(self.customFolder, 'model', 'config_db.xml')
         if os.path.isfile(config_db_xml):
-            if hasattr(self, '_structFix4D'):
-                config_db_xml = self._structFix4D(struct, config_db_xml)
             struct.update(config_db_xml)
         
     def onApplicationInited(self):
@@ -611,10 +823,8 @@ class GnrApp(object):
     
     :param instanceFolder: instance folder or name
     :param custom_config:  a :ref:`bag` or dictionary that will override configuration value
-    :param forTesting:  if ``False``, setup the application normally.
-                        if ``True``, setup the application for testing with a temporary sqlite database.
-                        If it's a bag, setup the application for testing and import test data from this bag.
-                        (see :meth:`loadTestingData()`)
+    :param db_attrs:    a dict of db connection attributes that override
+                        the ones read from instanceconfig.
     
     If you want to interact with a Genro instance from your own python script, you can use this class directly.
     
@@ -624,10 +834,11 @@ class GnrApp(object):
     >>> testgarden.db.table('showcase.person').query().count()
     12"""
     def __init__(self, instanceFolder=None, custom_config=None,
-                 forTesting=False, debug=False, restorepath=None,
-                 enabled_packages=None, **kwargs):
+                 debug=False, restorepath=None,
+                 enabled_packages=None, db_attrs=None, **kwargs):
         self.aux_instances = {}
         self.gnr_config = getGnrConfig(set_environment=True)
+        self.path_resolver = PathResolver(gnr_config=self.gnr_config)
         self.debug=debug
         self.remote_db = None
         self.instanceFolder = ''
@@ -651,6 +862,8 @@ class GnrApp(object):
             if os.path.exists(os.path.join(self.instanceFolder,'config','instanceconfig.xml')):
                 self.instanceFolder = os.path.join(self.instanceFolder,'config')
 
+            self.load_logging_conf()
+            
         sys.meta_path.insert(0,self.get_modulefinder())
         self.pluginFolder = os.path.normpath(os.path.join(self.instanceFolder, 'plugin'))
         self.kwargs = kwargs
@@ -689,13 +902,32 @@ class GnrApp(object):
             self.main_module = gnrImport(os.path.join(self.customFolder, 'custom.py'),avoidDup=True, silent=False)
             instanceMixin(self, getattr(self.main_module, 'Application', None))
             self.webPageCustom = getattr(self.main_module, 'WebPage', None)
-        self.init(forTesting=forTesting,restorepath=restorepath)
+        self.init(restorepath=restorepath, db_attrs=db_attrs)
         self.creationTime = time.time()
 
     def get_modulefinder(self):
         """TODO"""
         return GnrModuleFinder(self)
-        
+
+    def save_logging_conf(self, conf_bag, apply=False):
+        logger.debug("Saving new logging configuration")
+        log_conf = os.path.join(self.instanceFolder, "logging.xml")
+        with open(log_conf, "w") as wfp:
+            wfp.write(conf_bag.toXml())
+        if apply:
+            gnrlog.apply_dynamic_conf(conf_bag)
+    
+    def load_logging_conf(self):
+        logger.debug("Loading logging configuration")
+        log_conf = os.path.join(self.instanceFolder, "logging.xml")
+        if os.path.isfile(log_conf):
+            try:
+                c = Bag(log_conf)
+                gnrlog.apply_dynamic_conf(c)
+                logger.debug("Logging configuration loaded")
+            except:
+                logger.exception("Logging configuration error")
+                
     def load_instance_config(self):
         """TODO"""
         if not self.instanceFolder:
@@ -717,26 +949,44 @@ class GnrApp(object):
         instance_config = normalizePackages(self.gnr_config['gnr.instanceconfig.default_xml']) or Bag()
         template = base_instance_config['instance?template']
         if template:
-            instance_config.update(normalizePackages(self.gnr_config['gnr.instanceconfig.%s_xml' % template]) or Bag())
+            template_update = self.gnr_config['gnr.instanceconfig.%s_xml' % template]
+            if template_update:
+                instance_config.update(normalizePackages(template_update) or Bag())
+            else:
+                template_config_path = os.path.join(self.instance_name_to_path(template),'config','instanceconfig.xml')
+                if os.path.exists(template_config_path):
+                    instance_config.update(normalizePackages(Bag(template_config_path)) or Bag())
+
         if 'instances' in self.gnr_config['gnr.environment_xml']:
             for path, instance_template in self.gnr_config.digest(
                     'gnr.environment_xml.instances:#a.path,#a.instance_template') or []:
                 if path == os.path.dirname(self.instanceFolder):
                     instance_config.update(normalizePackages(self.gnr_config['gnr.instanceconfig.%s_xml' % instance_template]) or Bag())
-        instance_config.update(base_instance_config)
+        instance_config.update(base_instance_config, preservePattern=re.compile(r'^[\$\{]'))
         return instance_config
-        
-    def init(self, forTesting=False,restorepath=None):
+
+    def dsn_to_config(self, dsn: str) -> dict:
+        parsed = urlparse(dsn)
+        return {
+            'implementation': parsed.scheme,
+            'host': parsed.hostname,
+            'port': str(parsed.port),
+            'user': unquote(parsed.username) if parsed.username else None,
+            'password': unquote(parsed.password) if parsed.password else None,
+            'dbname': parsed.path.lstrip('/'),
+        }
+    
+    def init(self, db_attrs=None, restorepath=None):
         """Initiate a :class:`GnrApp`
-        
-        :param forTesting:  if ``False``, setup the application normally.
-                            if ``True``, setup the application for testing with a temporary sqlite database.
-                            If it's a :ref:`bag`, setup the application for testing and import test data from this bag.
-                            (see :meth:`loadTestingData()`)"""
+
+        :param db_attrs:    a dict of db connection attributes that override
+                            the ones read from instanceconfig.
+        """
         self.onIniting()
         self.base_lang = self.config['i18n?base_lang'] or 'en'
         self.catalog = GnrClassCatalog()
         self.localization = {}
+
 
         # check for packages python dependencies
         self.check_package_dependencies()
@@ -747,44 +997,39 @@ class GnrApp(object):
         for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
             self.addPackage(pkgid,pkgattrs=pkgattrs,pkgcontent=pkgcontent)
 
-        
-        if not forTesting:
-            dbattrs = self.config.getAttr('db') or {}
-            dbattrs['implementation'] = dbattrs.get('implementation') or 'sqlite'
-            if dbattrs.get('dbname') == '_dummydb':
-                pass
-            elif self.remote_db:
-                rdb = self.config.get(f"remote_db")#.{self.remote_db}")
-                if rdb:
-                    rconf = rdb.getAttr(self.remote_db)
-                    if rconf:
-                        logger.info("Using remote db: %s", self.remote_db)
-                        dbattrs.update(rconf)
-                    else:
-                        logger.error("Remote db %s does not exists", self.remote_db)
-            elif dbattrs and dbattrs.get('implementation') == 'sqlite':
-                dbname = dbattrs.pop('filename',None) or dbattrs['dbname']
-                if not os.path.isabs(dbname):
-                    dbname = self.realPath(os.path.join('..','data',dbname))
-                dbattrs['dbname'] = dbname
-        else:
-            # Setup for testing with a temporary sqlite database
-            tempdir = tempfile.mkdtemp()
-            dbattrs = {}
-            dbattrs['implementation'] = 'sqlite'
-            dbattrs['dbname'] = os.path.join(tempdir, 'testing')
+        dbattrs = dict(self.config.getAttr('db') or {})
+        dbattrs['implementation'] = dbattrs.get('implementation') or 'sqlite'
 
-            # We have to use a directory, because genro sqlite adapter
-            # will create a sqlite file for each package
-            logger.info('Testing database dir: %s', tempdir)
+        if db_attrs:
+            dbattrs.update(db_attrs)
+        elif dbattrs.get('dbname') == '_dummydb':
+            pass
+        elif self.remote_db:
+            rdb = self.config.get("remote_db")
+            if rdb:
+                rconf = rdb.getAttr(self.remote_db)
+                if rconf:
+                    logger.info("Using remote db: %s", self.remote_db)
+                    dbattrs.update(rconf)
+                else:
+                    logger.error("Remote db %s does not exists", self.remote_db)
+        elif dbattrs and dbattrs.get('implementation') == 'sqlite':
+            dbname = dbattrs.pop('filename',None) or dbattrs['dbname']
+            if not os.path.isabs(dbname):
+                dbname = self.realPath(os.path.join('..','data',dbname))
+            dbattrs['dbname'] = dbname
 
-            @atexit.register
-            def removeTemporaryDirectory():
-                shutil.rmtree(tempdir)
-                
         dbattrs['application'] = self
-        self.db = GnrSqlAppDb(debugger=getattr(self, 'sqlDebugger', None), **dbattrs)
         
+        # GNR_DB_DSN env var contains a DSN, and it can be
+        # used to override any configuration at runtime.
+        # use case: temporary database tunnel, to run an app
+        # locally by using a remote database of choice.
+        if gnr_db_dsn := os.environ.get("GNR_DB_DSN", None):
+            dbattrs.update(self.dsn_to_config(gnr_db_dsn))
+
+        self.db = GnrSqlAppDb(debugger=getattr(self, 'sqlDebugger', None), **dbattrs)
+
         for pkgid, apppkg in list(self.packages.items()):
             apppkg.initTableMixinDict()
             self.db.packageMixin('%s' % (pkgid), apppkg.pkgMixin)
@@ -797,14 +1042,8 @@ class GnrApp(object):
             self.config['menu'] = self.config['menu']['#0']
         #if self.instanceMenu:
         #    self.config['menu']=self.instanceMenu
-            
+
         self.localizer = AppLocalizer(self)
-        if forTesting:
-            # Create tables in temporary database
-            self.db.model.check(applyChanges=True)
-                
-            if isinstance(forTesting, Bag):
-                self.loadTestingData(forTesting)
         self.onInited()
 
     def addPackage(self,pkgid,pkgattrs=None,pkgcontent=None):
@@ -821,32 +1060,31 @@ class GnrApp(object):
             attrs['path'] = self.realPath(attrs['path'])
         apppkg = GnrPackage(pkgid, self, **attrs)
         apppkg.content = pkgcontent or Bag()
+        readOnlyAttrs = {'readOnly':True} if attrs.get('readOnly') else dict()
         for reqpkgid in apppkg.required_packages():
-            self.addPackage(reqpkgid)
+            self.addPackage(reqpkgid,pkgattrs=dict(readOnlyAttrs))
         self.packagesIdByPath[os.path.realpath(apppkg.packageFolder)] = pkgid
         self.packages[pkgid] = apppkg
 
     def check_package_dependencies(self):
         logger.debug("Checking python dependencies")
         instance_deps = defaultdict(list)
-        for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
-            if ":" in pkgid:
-                project, pkgid = pkgid.split(":")
+        # find all packages deps
+        for package,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
+            if ":" in package:
+                project, package = package.split(":")
             else:
                 project = None
-            if not pkgattrs.get('path'):
-                path = self.pkg_name_to_path(pkgid,project)
-            if not os.path.isabs(path):
-                path = self.realPath(path)
-
-            requirements_file = os.path.join(path, pkgid, "requirements.txt")
+                
+            packageFolder = self.pkg_name_to_path(package, project)
+            requirements_file = os.path.join(packageFolder, package, "requirements.txt")
             if os.path.isfile(requirements_file):
                 with open(requirements_file) as fp:
                     for line in fp:
                         dep_name = line.strip()
                         if dep_name:
-                            instance_deps[dep_name].append(pkgid
-                                                           )
+                            instance_deps[dep_name].append(package)
+
         self.instance_packages_dependencies = instance_deps
 
         if not 'checkdepcli' in self.kwargs:
@@ -854,7 +1092,7 @@ class GnrApp(object):
             if missing:
                 logger.error(f"ERROR: missing dependencies: {', '.join(missing)}")
             if wrong:
-                logger.error(f"ERROR: wrong dependencies:")
+                logger.error("ERROR: wrong dependencies:")
                 for requested, installed in wrong:
                     logger.error(f"{requested} is requested, but {installed} found")
             
@@ -876,10 +1114,41 @@ class GnrApp(object):
                     logger.error(f"ERROR on {name}: {e}")
         return missing, wrong
 
-    def check_package_install_missing(self):
+    def check_package_install_missing(self, nocache=False,
+                                      verbose=False,
+                                      upgrading=False):
+        """
+        Install missing packages, or, with upgrading=True, try to
+        upgrade the wrong version of packages.
+        """
         missing, wrong = self.check_package_missing_dependencies()
-        return subprocess.check_call([sys.executable, '-m', 'pip', 'install',]+missing)
-        
+
+        packages = missing
+
+        # used the wrong versioned package when upgrading
+        if upgrading:
+            packages = [x[0] for x in wrong]
+            
+        base_cmd = [sys.executable, '-m', 'pip', 'install']
+        if nocache:
+            base_cmd.append("--no-cache-dir")
+        try:
+            result = subprocess.run(base_cmd+packages,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE,
+                                    text=True,
+                                    check=True)
+            if verbose:
+                print(result.stdout)
+                print(result.stderr)
+            print("Installation complete")
+            return result
+        except subprocess.CalledProcessError as e:
+            print(f"Package installation failed with exit code {e.returncode}.")
+            if verbose:
+                print(e.stdout)
+            print(e.stderr)
+                
     def importFromSourceInstance(self,source_instance=None):
         to_import = ''
         if ':' in source_instance:
@@ -921,38 +1190,11 @@ class GnrApp(object):
                 tables_to_import.append(tbl)
         
 
-    def loadTestingData(self, bag):
-        """Load data used for testing in the database.
-        
-        Called by the constructor when you pass a :ref:`bag` into the *forTesting* parameter
-        
-        :param bag: a :ref:`bag` your test data
-        
-        Use this format in your test data::
-        
-            <?xml version="1.0" encoding="UTF-8"?>
-            <GenRoBag>
-                <table name="package.table">
-                    <some_name>
-                        <field1>ABCDEFG</field2>
-                        <field2>1235</field2>
-                        <!-- ... more fields ... -->
-                    </some_name>
-                    <!-- ... more records ... -->
-                </table>
-                <!-- ... more tables ... -->
-            </GenRoBag>"""
-        for table_name, records in bag.digest('#a.name,#v'):
-            tbl = self.db.table(table_name)
-            for r in list(records.values()):
-                tbl.insert(r)
-        self.db.commit()
-
     def instance_name_to_path(self, instance_name):
         """TODO
 
         :param instance_name: the name of the :ref:`instance <instances>`"""
-        return PathResolver(gnr_config=self.gnr_config).instance_name_to_path(instance_name)
+        return self.path_resolver.instance_name_to_path(instance_name)
 
     def build_package_path(self):
         """Build the path of the :ref:`package <packages>`"""
@@ -979,8 +1221,15 @@ class GnrApp(object):
             project_path = self.project_path(project)
             if project_path:
                 path = os.path.join(project_path,'packages')
-                if not os.path.isdir(os.path.join(path, pkgid)):
+                if not os.path.exists(os.path.join(path, pkgid,'main.py')):
                     path=None
+                    external_project_path = os.path.join(project_path,'external_projects.xml')
+                    if os.path.exists(external_project_path):
+                        external_projects = Bag(external_project_path)
+                        package_attrs = external_projects.getAttr(pkgid) or {}
+                        external_project = package_attrs.get('project')
+                        if external_project:
+                            return self.pkg_name_to_path(pkgid,external_project)
         else:
             path = self.package_path.get(pkgid)
             
@@ -1033,13 +1282,58 @@ class GnrApp(object):
                     result.append((pkgId,r))
         return result
 
+    _ERROR_ID_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+
+    def _make_error_id(self):
+        now = datetime.now()
+        prefix = now.strftime('%y%m%d')
+        day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        ms = int((now - day_start).total_seconds() * 1000)
+        chars = self._ERROR_ID_CHARS
+        result = ''
+        while ms:
+            result = chars[ms % 36] + result
+            ms //= 36
+        return f"{prefix}-{result.rjust(5, '0')}"
+
+    def errorHandler(self, exception=None, description=None,
+                     error_type=None, traceback=None,
+                     action='ignore', loglevel='error',
+                     origin=None, notify_user=None,
+                     **kwargs):
+        if exception and not description:
+            description = str(exception)
+        log_fn = getattr(logger, loglevel, logger.error)
+        log_fn(description)
+        should_broadcast = loglevel in ('error', 'critical') or action == 'block'
+        if not should_broadcast:
+            return None
+        error_id = self._make_error_id()
+        if traceback is None:
+            traceback = loglevel in ('error', 'critical')
+        if traceback and exception:
+            traceback = tracebackBag()
+        else:
+            traceback = None
+        error_type = error_type or (type(exception).__name__ if exception else 'ERR')
+        error_info = dict(
+            error_id=error_id,
+            description=description,
+            error_type=error_type,
+            traceback=traceback,
+            origin=origin,
+            action=action,
+            loglevel=loglevel,
+            notify_user=notify_user,
+            **kwargs
+        )
+        self.pkgBroadcast('errorHandler', **error_info)
+        return error_id
+
     @property
     def locale(self):
-        found_locale = self.config_locale or os.environ.get('GNR_LOCALE') or locale.getlocale()[0]
-        if not found_locale:
-            locale.setlocale(locale.LC_ALL, "")
-            found_locale = locale.getlocale(locale.LC_MESSAGES)[0]
-        return (found_locale or 'en-US').replace('_','-')
+        found_locale = self.config_locale or defaultLocale()
+        return (found_locale or 'en-GB').replace('_','-')
 
     def setPreference(self, path, data, pkg):
         if self.db.package('adm'):
@@ -1506,6 +1800,101 @@ class GnrApp(object):
         sourcedb.closeConnection()
         logger.info('imported',tbl)
 
+    @property
+    def defaultRetentionPolicy(self):
+        """
+        Returns the default data retention policy by developers in table definitions,
+        for all packages composing the Gnr Application.
+
+        The return dict has table fullname (package.table) as keys,
+        and a dict describing the policy, which reports the
+        filter_column , the default retention_period and the computed
+        retention_period, all defined as days.
+
+        """
+        policy = {
+            table.fullname: table.defaultRetentionPolicy
+            for table in self.db.tables if table.defaultRetentionPolicy
+            }
+        return policy
+    
+    @property
+    def retentionPolicy(self):
+        """
+        Retrieve the data retention policy for each table for each
+        package in the application, starting from the default policy
+        then applying eventual customizations, residing in
+        sys.datarentetion table.
+
+        """
+        policy = self.defaultRetentionPolicy
+        # query the database for overrides
+        try:
+            custom_policies_qs = self.db.table('sys.dataretention').query().fetch()
+            if custom_policies_qs:
+                for record in custom_policies_qs:
+                    policy[record['table_fullname']]['retention_period_custom'] = record['retention_period']
+                    policy[record['table_fullname']]['retention_period'] = record['retention_period']
+        except:
+            pass
+        
+        return policy
+    
+    def saveRetentionPolicy(self, policy_bag):
+        """
+        Update the retention policy based on differences from
+        the default one. Manual comparison.
+        """
+        tbl = self.db.table("sys.dataretention")
+        
+        for r in policy_bag.values():
+
+            # no custom value set, ignore
+            if not r.get("retention_period_custom", None):
+                continue
+
+            # first, we search for existing configuration
+            existing_policy =None
+            exist = tbl.query(where='$table_fullname=:table_fullname AND $filter_column=:filter_column',
+                              table_fullname=r['table_fullname'],
+                              filter_column=r['filter_column']).fetch()
+            if exist:
+                existing_policy = exist[0]
+
+
+            if r['retention_period_custom'] == r['retention_period_default']:
+                # delete if present, not necessary
+                if existing_policy:
+                    tbl.delete(existing_policy)
+            else:
+                if existing_policy:
+                    existing_policy['retention_period'] = r['retention_period_custom']
+                    tbl.update(existing_policy)
+                    
+                else:
+                    # create the custom policy
+                    tbl.insert(
+                        dict(
+                            table_fullname=r['table_fullname'],
+                            filter_column=r['filter_column'],
+                            retention_period=r['retention_period_custom']
+                        )
+                    )
+        self.db.commit()
+            
+    def executeRetentionPolicy(self, dry_run=True):
+        """
+        Execute (with dry run options) the retention
+        policy on each table having a policy defined.
+
+        Data deletion is committed for each table.
+        """
+        r = {}
+        for table, policy in self.retentionPolicy.items():
+            report = self.db.table(table).executeRetentionPolicy(policy=policy, dry_run=dry_run)
+            r[table] = report
+        return r
+    
     def getAuxInstance(self, name=None,check=False):
         """TODO
         
@@ -1522,7 +1911,7 @@ class GnrApp(object):
         instance_name = instance_node.getAttr('name') or name
         remote_db = instance_node.getAttr('remote_db')
         if remote_db:
-            instance_name = '%s@%s' %(instance_name,remote_db)
+            instance_name = '%s:%s' %(instance_name,remote_db)
         self.aux_instances[name] = self.createAuxInstance(instance_name)
         return self.aux_instances[name]
     
@@ -1537,13 +1926,208 @@ class GnrApp(object):
     @property
     def gnrdaemon(self):
         if not getattr(self,'_gnrdaemon',None):
-            from gnr.web.gnrdaemonhandler import GnrDaemonProxy
-            self._gnrdaemon = GnrDaemonProxy(use_environment=True).proxy() 
+            from gnr.web.daemon.handler import GnrDaemonProxy
+            self._gnrdaemon = GnrDaemonProxy(use_environment=True).proxy()
         return self._gnrdaemon
+
+class AuthTagStruct(GnrStructData):
+    """A class for hierarchical auth tag structure definition.
+
+    This class provides a declarative way to define permission hierarchies
+    using a functional syntax with .branch() and .authTag() methods.
+
+    Unlike MenuStruct, this is instantiated once at application level.
+    Each package can define a packageTags(self, root) method in its main.py
+    to contribute its auth tags to the hierarchy.
+
+    Usage:
+        # At application level
+        auth_struct = AuthTagStruct()
+
+        # For each package
+        pkg_branch = auth_struct.branch('mypackage')
+        if hasattr(package, 'packageTags'):
+            package.packageTags(pkg_branch)
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._registered_tags = set()  # Track unique tag identifiers
+
+    def _validateLabel(self, label):
+        """Validate that a label is a valid identifier.
+
+        Labels can contain letters (uppercase or lowercase), numbers, and underscores.
+        Must start with a letter or underscore. No spaces, dots, or special characters allowed.
+        Raises GnrException if label is invalid.
+
+        :param label: the label to validate
+        :raises GnrException: if label format is invalid"""
+        import re
+
+        # Check if label matches valid identifier pattern (can start with _ or letter)
+        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', label):
+            raise GnrException(
+                f"Invalid label '{label}': must be a valid identifier (letters, numbers, _) "
+                f"and start with a letter or underscore. No spaces, dots, or special characters allowed."
+            )
+
+    def branch(self, label, description=None, **kwargs):
+        """Create a hierarchical branch for organizing auth tags.
+
+        Branches are intermediate nodes that organize permissions hierarchically
+        but do not generate auth tag entries themselves.
+
+        :param label: internal identifier (must be lowercase snake_case: a-z, 0-9, _)
+        :param description: human-readable label shown to users
+        :param kwargs: additional attributes for the branch
+        :return: the created branch structure
+        :raises GnrException: if label format is invalid"""
+        # Validate label format
+        self._validateLabel(label)
+        description = description or label
+
+        return self.child('branch', childname=label, label=label,
+                         description=description, **kwargs)
+
+    def authTag(self, label, description=None, identifier=None, isreserved=None,
+                note=None, linked_table=None, require_2fa=None, **kwargs):
+        """Define an auth tag entry.
+
+        This generates an actual permission entry in the final Bag.
+
+        :param label: internal identifier (must be lowercase snake_case: a-z, 0-9, _)
+        :param description: human-readable label shown to users
+        :param identifier: optional custom code override (auto-generated from path if not provided)
+        :param isreserved: Boolean - if True, tag is reserved for system use
+        :param note: optional notes about this permission
+        :param linked_table: optional table name this permission is linked to
+        :param require_2fa: Boolean - if True, requires two-factor authentication
+        :param kwargs: additional attributes for the tag
+        :return: None (leaf node)
+        :raises GnrException: if label format is invalid or identifier is duplicate"""
+
+        # Validate label format
+        self._validateLabel(label)
+
+        # Auto-generate identifier from path if not provided
+        if not identifier:
+            identifier = self.generateAuthCode(label)
+
+        # Check uniqueness at root level
+        root = self.root if hasattr(self, 'root') else self
+        if identifier in root._registered_tags:
+            raise GnrException(f"Duplicate auth tag identifier: {identifier}")
+
+        root._registered_tags.add(identifier)
+
+        # Default description to label if not provided
+        description = description or label
+
+        # Pass arguments directly to child(), using label as childname and identifier as code
+        return self.child('authTag', childname=label, _returnStruct=False,
+                         label=label, description=description, code=identifier,
+                         isreserved=isreserved, note=note, linked_table=linked_table,
+                         require_2fa=require_2fa, **kwargs)
+
+    def generateAuthCode(self, label):
+        """Generate a unique auth code from label and hierarchical path.
+
+        Uses fullpath property to build the complete hierarchical path,
+        then joins with underscore separator.
+        :param label: the label to generate a code from
+        :return: generated auth code"""
+
+        # Get full path using fullpath property (returns path with dots)
+        full_path = self.fullpath or ''
+
+        # Build complete path including current label
+        if full_path:
+            complete_path = f"{full_path}.{label}"
+        else:
+            complete_path = label
+
+        result = '_'.join(complete_path.split('.')[1:]) #exclude rootlevel 
+        return result
+
+    def toBag(self):
+        """Convert the auth tag structure to a flat Bag of tag_id: label mappings.
+
+        :return: Bag with tag_id keys and label values"""
+        result = Bag()
+        self._toBagRecursive(self, result)
+        return result
+
+    def _toBagRecursive(self, node, result_bag):
+        """Recursively process nodes to build the final auth tags Bag.
+
+        :param node: current node to process
+        :param result_bag: the Bag to populate"""
+        for child_node in node:
+            child_attr = child_node.attr
+            tag_type = child_attr.get('tag')
+
+            if tag_type == 'authTag':
+                # This is a leaf tag, add it to result
+                code = child_attr.get('code')
+                label = child_attr.get('label')
+                result_bag.setItem(code, label, **{k:v for k,v in child_attr.items()
+                                                      if k not in ('tag', 'code', 'label')})
+            elif tag_type == 'branch':
+                # Recurse into branch
+                if child_node.value:
+                    self._toBagRecursive(child_node.value, result_bag)
+
+    def iterFlattenedTags(self):
+        """Iterate over all tags including intermediate branches.
+
+        Uses Bag.getIndex() to traverse the structure. Yields dictionaries with
+        tag information, ordered so that parent nodes always come before their children.
+
+        :yields: dict with keys: code, description, parent_code, tag_type ('branch' or 'authTag'), **attrs"""
+
+        for path, node in self.getIndex():
+            node_attr = node.attr
+            tag_type = node_attr.get('tag')
+
+            # Get parent code from path (path contains validated node labels)
+            # Parent is simply the second-to-last element in path
+            parent_code = path[-2] if len(path) > 1 else None
+
+            if tag_type == 'branch':
+                # node.label is the validated label (no need to slugify)
+                code = node.label
+                branch_description = node_attr.get('description', node.label)
+
+                # Yield branch info
+                yield {
+                    'code': code,
+                    'description': branch_description,
+                    'parent_code': parent_code,
+                    'tag_type': 'branch'
+                }
+
+            elif tag_type == 'authTag':
+                # Get tag info (code is already generated with full path)
+                code = node_attr.get('code')
+                description = node_attr.get('description')
+
+                # Extract additional attributes (excluding internal ones)
+                attrs = {k: v for k, v in node_attr.items()
+                        if k not in ('tag', 'code', 'description', 'label')}
+
+                # Yield tag info
+                yield {
+                    'code': code,
+                    'description': description,
+                    'parent_code': parent_code,
+                    'tag_type': 'authTag',
+                    **attrs
+                }
 
 class GnrAvatar(object):
     """A class for avatar management
-    
+
     :param user: TODO
     :param user_name: the avatar username
     :param user_id: the user id
@@ -1592,5 +2176,4 @@ class GnrWriteInReservedTableError(Exception):
     pass
     
 if __name__ == '__main__':
-    pass # Non Scrivere qui, pena: castrazione!
-         # Don't write here, otherwise: castration!
+    pass

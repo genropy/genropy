@@ -24,12 +24,12 @@
 #Copyright (c) 2007 Softwell. All rights reserved.
 
 import os,math,re
-
+import warnings
 from gnr.core.gnrbaghtml import BagToHtml
 from gnr.core.gnrhtml import GnrHtmlSrc
 from gnr.core.gnrdecorator import extract_kwargs
 from gnr.core.gnrdict import dictExtract
-from gnr.core.gnrstring import  splitAndStrip, slugify,templateReplace
+from gnr.core.gnrstring import splitAndStrip, slugify, templateReplace
 from gnr.core.gnrlang import GnrObject
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlang import getUuid
@@ -326,6 +326,7 @@ class TableScriptToHtml(BagToHtmlWeb):
     row_relation = None
     subtotal_caption_prefix = '!![en]Totals'
     record_template = None
+    text_width_mm = None  # available text width in mm; if None, computed from page_width - margins
 
     def __init__(self, page=None, resource_table=None, parent=None, **kwargs):
         super(TableScriptToHtml, self).__init__(srcfactory=GnrTableScriptHtmlSrc,page=page,table=resource_table,parent=parent,**kwargs)
@@ -333,28 +334,23 @@ class TableScriptToHtml(BagToHtmlWeb):
         self._gridStructures = {}
         if self.rows_table:
             self.row_table = self.rows_table
-            raise DeprecationWarning('Please change rows_table into row_table')
-
+            warnings.warn('Please change rows_table into row_table',
+                  DeprecationWarning)
+            
     def __call__(self, record=None, pdf=None, downloadAs=None, thermo=None,record_idx=None, resultAs=None,
                     language=None,locale=None, htmlContent=None, **kwargs):
         if not record:
             return
         self.thermo_kwargs = thermo
         self.record_idx = record_idx
+        callingPdfPath = pdf if isinstance(pdf,str) else None
         if record=='*':
             record = None
         else:
             record = self.tblobj.recordAs(record, virtual_columns=self.virtual_columns)
         html_folder = self.getHtmlPath(autocreate=True)
-        if locale:
-            self.locale = locale #locale forced
-        self.language = language    
-        if self.language:
-            self.language = self.language.lower()
-            self.locale = locale or '{language}-{languageUPPER}'.format(language=self.language,
-                                        languageUPPER=self.language.upper())
-        elif self.locale:
-            self.language = self.locale.split('-')[0].lower()
+        self.locale = locale or self.page.locale
+        self.language = language or self.page.language
         if self.record_template:
             htmlContent = self.contentFromTemplate(record=record)
         result = super(TableScriptToHtml, self).__call__(record=record, folder=html_folder, htmlContent=htmlContent, **kwargs)
@@ -363,9 +359,9 @@ class TableScriptToHtml(BagToHtmlWeb):
         if not pdf:
             return self.getHtmlUrl(os.path.basename(self.filepath)) if resultAs=='url' else result
         if not isinstance(result, list):
-            self.writePdf(docname=self.getDocName())
+            self.writePdf(docname=self.getDocName(),pdfpath=callingPdfPath)
         else:
-            self.writePdf(filepath=result,docname=self.getDocName())
+            self.writePdf(filepath=result,docname=self.getDocName(),pdfpath=callingPdfPath)
         if downloadAs:
             with open(self.pdfpath, 'rb') as f:
                 result = f.read()
@@ -540,6 +536,7 @@ class TableScriptToHtml(BagToHtmlWeb):
                         subtotal_order_by=attr.get('subtotal_order_by'),
                         style=attr.get('style'), content_class = content_class, lbl_class=lbl_class,
                         sqlcolumn=attr.get('sqlcolumn'),dtype=attr.get('dtype'),
+                        required_columns=attr.get('required_columns'),
                         columnset=attr.get('columnset'),sheet=attr.get('sheet','*'),
                         totalize=attr.get('totalize'),formula=attr.get('formula'),
                         background=attr.get('background'),color=attr.get('color'),
@@ -712,7 +709,16 @@ class TableScriptToHtml(BagToHtmlWeb):
 
     @property
     def grid_sqlcolumns(self):
-        return ','.join(set([c['sqlcolumn'] for c in self.gridColumnsInfo()['columns'] if c.get('sqlcolumn')]))
+        columns_info = self.gridColumnsInfo()['columns']
+        sqlcolumns = set([c['sqlcolumn'] for c in columns_info if c.get('sqlcolumn')])
+        for c in columns_info:
+            required_columns = c.get('required_columns')
+            if required_columns:
+                for rc in required_columns.split(','):
+                    rc = rc.strip()
+                    if rc:
+                        sqlcolumns.add(rc)
+        return ','.join(sqlcolumns)
 
     @property
     def grid_subtotal_order_by(self):
@@ -734,6 +740,23 @@ class TableScriptToHtml(BagToHtmlWeb):
         return self.site.storageNode(self.pdf_folder, *args).url(**kwargs)
         
         
+    def defineStandardStyles(self):
+        """Delegates to the base implementation (which emits the sans-serif
+        baseline), then injects ``font_family`` into body if set so it wins
+        by source order over the baseline."""
+        super(TableScriptToHtml, self).defineStandardStyles()
+        if self.font_family:
+            self.builder.font_family = self.font_family
+            self.body.style('body {{ font-family: {f}; }}'.format(f=self.font_family))
+
+    def calcRowsNumber(self, text, width_mm=None, font_name=None, font_size=None):
+        """Delegate to :meth:`GnrHtmlBuilder.calcRowsNumber`.
+
+        Kept for backward compatibility with report subclasses that call
+        ``self.calcRowsNumber(...)`` directly.
+        """
+        return self.builder.calcRowsNumber(text, width_mm=width_mm, font_name=font_name, font_size=font_size)
+
     def outputDocName(self, ext=''):
         """TODO
         :param ext: TODO"""

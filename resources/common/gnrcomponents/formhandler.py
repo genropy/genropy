@@ -26,7 +26,6 @@ from gnr.core.gnrbag import Bag
 
 
 class FormHandler(BaseComponent):
-    css_requires='public'
 
     @extract_kwargs(palette=True,dialog=True,default=True,tree=True,link=True)
     @struct_method
@@ -202,6 +201,11 @@ class FormHandler(BaseComponent):
                                     }
                                     finalize();
                                     """
+        gridattr['selfsubscribe_dismissrow'] = """
+            var linkedFormId = this.attr._linkedFormId;
+            var pref = 'form_'+linkedFormId;
+            genro.publish(pref+'_dismiss');
+        """
         gridattr['selfsubscribe_viewlocker'] = 'this.widget.collectionStore().setLocked("toggle");'
         gridsubscribers['onExternalChanged']= """
             var selectionStore = this.widget.collectionStore();
@@ -283,14 +287,15 @@ class FormHandler(BaseComponent):
         
 
     
-    @struct_method               
+    @struct_method
     def fh_slotbar_form_semaphore(self,pane,**kwargs):
-        s = pane.div(_class='fh_semaphore',connect_onclick="""
+        pane.lightbutton(_class='fh_semaphore',action="""
             if(this.form.status=='readOnly'){
                 this.form.forceIgnoreReadOnly($1);
+            } else {
+                this.form.showSemaphoreStatus(this);
             }
             """)
-        s.tooltip(callback="return this.form.getSemaphoreStatus()",modifiers='Shift')
 
     
     @struct_method          
@@ -457,7 +462,7 @@ class FormHandler(BaseComponent):
     @struct_method          
     def fh_slotbar_form_dismissTitle(self,pane,height=None,color=None,back_title=None,**kwargs):
         color = color or pane.getInheritedAttributes().get('color')
-        btn = pane.lightButton(action='this.form.abort();',style='display:flex;align-items:center;',cursor='pointer')
+        btn = pane.lightButton(action='this.form.publish("navigationEvent",{command:"dismiss"});',style='display:flex;align-items:center;',cursor='pointer')
         btn.div(_class="iconbox leftOut",height=height or '25px',background_color=color)
         btn.div(back_title or '^.#parent.view.title')
 

@@ -5,7 +5,6 @@ import re
 import os
 import email
 import base64
-from datetime import datetime
 from smtplib import SMTPConnectError
 from mailparser import parse_from_bytes
 
@@ -21,18 +20,20 @@ class Table(object):
     def config_db(self, pkg):
         tbl =  pkg.table('message', rowcaption='$to_address,$subject', pkey='id',
                      name_long='!!Message', name_plural='!!Messages')
-        self.sysFields(tbl,draftField=True)
+        self.sysFields(tbl,draftField=True,ldel=False)
+        
         tbl.column('in_out', size='1', name_long='!!I/O', name_short='!!I/O',values='I:Input,O:Output')
         tbl.column('to_address',name_long='!!To',_sendback=True)
         tbl.column('from_address',name_long='!!From',_sendback=True)
         tbl.column('cc_address',name_long='!!Cc',_sendback=True)
         tbl.column('bcc_address',name_long='!!Bcc',_sendback=True)
+        tbl.column('reply_to',name_long='!!Reply to',_sendback=True)
         tbl.column('uid',name_long='!!UID')
         tbl.column('body',name_long='!!Body')
         tbl.column('body_plain',name_long='!!Plain Body')
         tbl.column('html','B',name_long='!!Html')
         tbl.column('subject',name_long='!!Subject')
-        tbl.column('send_date','DH',name_long='!!Send date')
+        tbl.column('send_date','DHZ',name_long='!!Send date',indexed=True)
         tbl.column('user_id',size='22',name_long='!!User id').relation('adm.user.id', mode='foreignkey', relation_name='messages')
         tbl.column('account_id',size='22',name_long='!!Account id').relation('email.account.id', mode='foreignkey', relation_name='messages')
         tbl.column('mailbox_id',size='22',name_long='!!Mailbox id').relation('email.mailbox.id', mode='foreignkey', relation_name='messages')
@@ -48,36 +49,89 @@ class Table(object):
         tbl.column('reply_message_id',size='22', group='_', name_long='!!Reply message id'
                     ).relation('email.message.id', relation_name='replies', mode='foreignkey', onDelete='setnull')
         tbl.column('error_msg', name_long='Error message')
-        tbl.column('error_ts', name_long='Error Timestamp')
+        tbl.column('error_ts', dtype='DHZ', name_long='Error Timestamp')
         tbl.column('connection_retry', dtype='L')
+        tbl.column('priority', name_long='!![en]Priority',
+                   values='9:[!![en]No send],3:[!![en]Low],2:[!![en]Standard],1:[!![en]High],-1:[!![en]Immediate]')
+        tbl.column('read', dtype='B', name_long='!!Read',indexed=True)
+        tbl.column('deferred_ts', dtype='DHZ', name_long='!!Deferred send',
+                   name_short='!!Deferred', indexed=True)
+        tbl.column('proxy_ts', dtype='DHZ', name_long='!!Dispatched to mail proxy')
+        tbl.column('proxy_priority', dtype='L', name_long='!!Proxy priority')
+        tbl.column('batch_code', size=':22', name_long='!!Batch code for circular mails')
 
         tbl.formulaColumn('sent','$send_date IS NOT NULL', name_long='!!Sent')
+        tbl.formulaColumn('message_to_send', "$in_out=:out AND $send_date IS NULL AND $error_msg IS NULL AND ($deferred_ts IS NULL OR $deferred_ts <= NOW())", var_out='O',
+                            name_long='!!Message to send', dtype='B')
         tbl.formulaColumn('plain_text', """regexp_replace($body, '<[^>]*>', '', 'g')""")
         tbl.formulaColumn('abstract', """LEFT(REPLACE($plain_text,'&nbsp;', ''),300)""", name_long='!![en]Abstract')
         tbl.formulaColumn('delta_send',"CAST( EXTRACT(EPOCH FROM ($send_date-$__ins_ts)) AS INTEGER)",dtype='L')
+        tbl.formulaColumn('show_read', """CASE WHEN $read IS NOT TRUE THEN '<div style="border-radius\\:10px;background\\:var(--primary-color);height\\:10px;width\\:10px"></div>'
+                                                ELSE NULL END""", name_long='!!Show read')
 
+        # Sending status
+        tbl.formulaColumn('in_queue',
+            select=dict(table='email.message_to_send',
+                        columns='COUNT(*)',
+                        where='$message_id=#THIS.id'),
+            dtype='L', name_long='!!In queue')
+        tbl.formulaColumn('is_sent',
+            'CASE WHEN $send_date IS NOT NULL THEN 1 ELSE 0 END',
+            dtype='L', name_long='!!Is sent')
+        tbl.formulaColumn('is_error',
+            'CASE WHEN $error_ts IS NOT NULL THEN 1 ELSE 0 END',
+            dtype='L', name_long='!!Is error')
+        tbl.formulaColumn('queue_mismatch',
+            "$in_queue - CASE WHEN $in_out=:qm_out AND $send_date IS NULL AND $proxy_ts IS NULL AND $error_ts IS NULL AND ($deferred_ts IS NULL OR $deferred_ts <= NOW()) THEN 1 ELSE 0 END",
+            var_qm_out='O', dtype='L', name_long='!!Queue mismatch')
+
+        tbl.pyColumn('full_external_url', name_long='Full external url')
+        tbl.pyColumn('compiled_body', py_method='getBody')
+        
+    def pyColumn_full_external_url(self,record,field):
+        return self.db.application.site.externalUrl('/index', menucode='messages')
+        
     def defaultValues(self):
         return dict(account_id=self.db.currentEnv.get('current_account_id'))
 
+    def _onInsertingOutputMessage(self, record_data):
+        account_record = self.db.table('email.account').cachedRecord(
+            record_data['account_id'],
+            cacheInPage=True
+        )
+        if not record_data['from_address']:
+            record_data['from_address'] = account_record['smtp_from_address']
+        bcc_address = record_data['bcc_address'] or account_record['system_bcc'] or ''
+        system_bcc = account_record['system_bcc']
+        if system_bcc and system_bcc not in bcc_address:
+            bcc_address = f'{bcc_address},{system_bcc}' if bcc_address else system_bcc
+        record_data['bcc_address'] = bcc_address or None
+
+    def _onInsertingInputMessage(self, record_data):
+        email_bag = Bag(record_data['email_bag'])
+        rif_id = email_bag.get('In-Reply-To')
+        if rif_id:
+            rif_id = rif_id.strip('<>')
+            if rif_id and rif_id.startswith('GNR_'):
+                reply_message_id = rif_id[4:26]
+                if self.existsRecord(reply_message_id):
+                    record_data['reply_message_id'] = reply_message_id
+
     def trigger_onInserting(self, record_data):
+        if record_data['account_id'] and record_data['in_out'] == 'O':
+            self._onInsertingOutputMessage(record_data)
         self.explodeAddressRelations(record_data)
-        if record_data['in_out']=='I':
-            email_bag = Bag(record_data['email_bag'])
-            rif_id = email_bag.get('In-Reply-To')
-            if rif_id:
-                rif_id = rif_id.strip('<>')
-                if rif_id and rif_id.startswith('GNR_'):
-                    reply_message_id = rif_id[4:26]
-                    if self.existsRecord(reply_message_id):
-                        record_data['reply_message_id'] = reply_message_id
-    
+        if record_data['in_out'] == 'I':
+            self._onInsertingInputMessage(record_data)
+
+    def trigger_onInserted(self, record_data):
+        if record_data['in_out'] == 'O' and record_data['send_date'] is None:
+            self.db.table('email.message_to_send').addMessageToQueue(record_data['id'])
+
     def trigger_onUpdating(self, record_data, old_record):
         self.deleteAddressRelations(record_data)
         self.explodeAddressRelations(record_data)
-    
-    def trigger_onDeleting(self, record_data):
-        self.deleteAddressRelations(record_data)
-        
+
     def extractAddresses(self,addresses):
         if not addresses:
             return []
@@ -93,9 +147,16 @@ class Table(object):
         self.db.table('email.message_address').deleteSelection('message_id',record['id'])
         
     def explodeAddressRelations(self,record):
+        prefs = self.db.application.getPreference('', pkg='email') or {}
+        if not prefs.get('collect_addresses'):
+            return
+        exclude_from = prefs.get('exclude_from_address')
         tblmsgaddres = self.db.table('email.message_address')
         message_id = record['id']
-        for address_type in ('to','from','bcc','cc'):
+        address_types = ['to', 'bcc', 'cc']
+        if not exclude_from:
+            address_types.append('from')
+        for address_type in address_types:
             addresslist = self.extractAddresses(record['%s_address' %address_type])
             for address in addresslist:
                 tblmsgaddres.insert(dict(address=address,message_id=message_id,reason=address_type))
@@ -120,11 +181,8 @@ class Table(object):
         ImapReceiver = imap_module.ImapReceiver
         if isinstance(account, str):
             account = self.db.table('email.account').record(pkey=account).output('bag')
-        print('INIT IMAP RECEIVER', account['account_name'])
         imap_checker = ImapReceiver(db=self.db, account=account)
-        print('RECEIVING', account['account_name'])
         imap_checker.receive()
-        print('RECEIVED', account['account_name'])
         #check_imap(page=page, account=account, remote_mailbox=remote_mailbox, local_mailbox=local_mailbox)
 
 
@@ -170,7 +228,7 @@ class Table(object):
         new_mail['cc_address'] = fill_address(mail.cc)
         new_mail['bcc_address'] = fill_address(mail.bcc)
         new_mail['subject'] = mail.subject
-        new_mail['send_date'] = mail.date or datetime.today()
+        new_mail['send_date'] = mail.date or self.newUTCDatetime()
 
 
     def parseAttachment(self, attachment, new_mail, atc_counter):
@@ -182,7 +240,7 @@ class Table(object):
         fname = fname.replace('.','_').replace('~','_').replace('#','_').replace(' ','').replace('/','_')
         fname = slugify(fname)
         filename = fname+ext
-        date = new_mail.get('send_date') or  datetime.datetime.today()
+        date = new_mail.get('send_date') or self.newUTCDatetime()
         attachmentNode =  self.getAttachmentNode(date=date,filename=filename, new_mail=new_mail, atc_counter=atc_counter)
         new_attachment['path'] = attachmentNode.fullpath
         new_attachment['filename'] = attachmentNode.basename
@@ -205,19 +263,33 @@ class Table(object):
 
     @public_method
     def newMessage(self, account_id=None,to_address=None,from_address=None,
-                  subject=None, body=None, cc_address=None, 
+                  subject=None, body=None, cc_address=None,
                   reply_to=None, bcc_address=None, attachments=None,weak_attachments=None,
                  message_id=None,message_date=None,message_type=None,
+                 batch_code=None,
                  html=False,doCommit=False,headers_kwargs=None,**kwargs):
-        
+
         message_date = message_date or self.db.workdate
-        extra_headers = Bag(dict(message_id=message_id,message_date=str(message_date),reply_to=reply_to))
+        # Fix debug address - if system_debug_address in kwargs, use it instead of to_address
+        to_address = kwargs.get('system_debug_address') or to_address
+        # Reply-to default from preferences
+        reply_to = reply_to or self.db.application.getPreference('dflt_reply_to',pkg='email')
+        extra_headers = Bag(dict(message_id=message_id,message_date=str(message_date)))
         if headers_kwargs:
             extra_headers.update(headers_kwargs)
         account_id = account_id or self.db.application.getPreference('mail', pkg='adm')['email_account_id']
-        if weak_attachments and isinstance(weak_attachments,list):
+        
+        if not weak_attachments:
+            weak_attachments = None
+        elif isinstance(weak_attachments, (str, bytes)):
+            pass
+        elif isinstance(weak_attachments, (list, tuple, set)):
             site = self.db.application.site
-            weak_attachments = ','.join([site.storageNode(p).fullpath for p in weak_attachments])
+            weak_paths = [site.storageNode(p).fullpath for p in weak_attachments]
+            weak_attachments = ','.join(weak_paths) if weak_paths else None
+        else:
+            weak_attachments = str(weak_attachments)
+
         use_dbstores = self.use_dbstores()
         dbstore = self.db.currentEnv.get('storename')
         envkw = {}
@@ -233,7 +305,9 @@ class Table(object):
                             extra_headers=extra_headers,
                             message_type=message_type,
                             weak_attachments=weak_attachments,
-                            html=html,dbstore=dbstore,**kwargs)
+                            batch_code=batch_code,
+                            html=html,dbstore=dbstore,
+                            reply_to=reply_to,**kwargs)
         message_atc = self.db.table('email.message_atc')
         with self.db.tempEnv(autoCommit=True,**envkw):
             self.insert(message_to_dispatch)
@@ -265,63 +339,83 @@ class Table(object):
     
 
     @public_method
-    def sendMessage(self,pkey=None):
+    def sendMessage(self, pkey=None):
         site = self.db.application.site
         mail_handler = site.getService('mail')
-        with self.recordToUpdate(pkey,for_update='SKIP LOCKED',ignoreMissing=True) as message:
+        mts_tbl = self.db.table('email.message_to_send')
+        check = self.record(pkey, virtual_columns='$message_to_send',
+                            ignoreMissing=True).output('dict')
+        if not check or not check['message_to_send']:
+            mts_tbl.removeMessageFromQueue(pkey)
+            return
+        with self.recordToUpdate(pkey, for_update='SKIP LOCKED', ignoreMissing=True) as message:
             if not message:
-                return
-            if message['send_date']:
                 return
             message['extra_headers'] = Bag(message['extra_headers'])
             extra_headers = message['extra_headers']
-            extra_headers['message_id'] = extra_headers['message_id'] or 'GNR_%(id)s' %message
+            extra_headers['message_id'] = extra_headers['message_id'] or 'GNR_%(id)s' % message
             account_id = message['account_id']
             mp = self.db.table('email.account').getSmtpAccountPref(account_id)
-            bcc_address = message['bcc_address'] 
-            attachments = self.db.table('email.message_atc').query(where='$maintable_id=:mid',mid=message['id']).fetch()
+            bcc_address = message['bcc_address']
+            to_address = mp['system_debug_address'] or message['to_address']
+            attachments = self.db.table('email.message_atc').query(
+                where='$maintable_id=:mid', mid=message['id']).fetch()
             attachments = [r['filepath'] or r['external_url'] for r in attachments]
             if message['weak_attachments']:
                 attachments.extend(message['weak_attachments'].split(','))
-            if mp['system_bcc']:
-                bcc_address = '%s,%s' %(bcc_address,mp['system_bcc']) if bcc_address else mp['system_bcc']
             try:
-                mail_handler.sendmail(to_address = message['to_address'],
-                                account_id = account_id,
-                                body=message['body'], subject=message['subject'],
+                mail_handler.sendmail(to_address=to_address,
+                                account_id=account_id,
+                                body=self.getBody(message), subject=message['subject'],
                                 cc_address=message['cc_address'], bcc_address=bcc_address,
                                 from_address=message['from_address'] or mp['from_address'],
-                                attachments=attachments, 
-                                smtp_host=mp['smtp_host'], port=mp['port'], user=mp['user'], password=mp['password'],
-                                ssl=mp['ssl'], tls=mp['tls'], html= message['html'], async_=False,
-                                scheduler=False,headers_kwargs=extra_headers.asDict(ascii=True))
-
-                message['send_date'] = datetime.now()
-                message['bcc_address'] = bcc_address
+                                attachments=attachments,
+                                smtp_host=mp['smtp_host'], port=mp['port'],
+                                user=mp['user'], password=mp['password'],
+                                ssl=mp['ssl'], tls=mp['tls'], html=message['html'],
+                                async_=False, scheduler=False,
+                                headers_kwargs=extra_headers.asDict(ascii=True))
+                message['send_date'] = self.newUTCDatetime()
+                self.db.table('email.message_to_send').removeMessageFromQueue(pkey)
             except SMTPConnectError as e:
                 message['connection_retry'] = (message['connection_retry'] or 0) + 1
                 if message['connection_retry'] > 10:
                     message['error_msg'] = f'Connection failed more than 10 times {str(e)}'
-            
+                    self.db.table('email.message_to_send').removeMessageFromQueue(pkey)
             except Exception as e:
                 error_msg = str(e)
-                ts = datetime.now()
+                ts = self.newUTCDatetime()
                 message['error_ts'] = ts
                 message['error_msg'] = error_msg
-                message['sending_attempt'] = message['sending_attempt'] or  Bag()
-                message['sending_attempt'].child('attempt', ts=ts, error= error_msg)
+                message['sending_attempt'] = message['sending_attempt'] or Bag()
+                message['sending_attempt'].child('attempt', ts=ts, error=error_msg)
+                self.db.table('email.message_to_send').removeMessageFromQueue(pkey)
         self.db.commit()
         return message
     
-    @public_method
-    def clearErrors(self, pkey):
-        with self.recordToUpdate(pkey) as message:
+    def getBody(self, message=None, **kwargs):
+        "Customizable method to return the body of the email. Default is to return the actual 'body' field."
+        if not message:
+            return ""
+        return message['body']
+    
+    def retrySendMessage(self, message_id=None):
+        with self.recordToUpdate(message_id) as message:
+            message['send_date'] = None
+            message['proxy_ts'] = None
             message['error_ts'] = None
             message['error_msg'] = None
             message['sending_attempt'] = None
-        self.db.commit()
-        return 
+            message['connection_retry'] = None
+        self.db.table('email.message_to_send').addMessageToQueue(message_id)
 
+
+    @public_method
+    def markAsRead(self, pkey):
+        with self.recordToUpdate(pkey) as message_rec:
+            message_rec['read'] = True
+        self.db.commit()
+        
     def atc_getAttachmentPath(self,pkey):
         return self.folderPath(self.recordAs(pkey))
 

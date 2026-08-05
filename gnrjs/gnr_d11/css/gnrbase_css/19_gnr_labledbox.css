@@ -1,0 +1,303 @@
+/* ==========================================================================
+   19_gnr_labledbox.css — labledBox pattern (flex-based form layout system)
+
+   Directions: top (default), left, right, bottom
+   Variants: gridbox, bordered, clean, inputBorderless
+   ========================================================================== */
+
+/* --- Base layout --- */
+.labledBox{
+    display: flex;
+}
+.labledBoxBordered.labledBox, .labledBoxBordered .labledBox{
+    border:1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+}
+.labledBox, .labledBox.labledBox_top, .labledBoxes_top .labledBox{
+    flex-direction: column;
+}
+
+/* --- Gridbox variant --- */
+.labledBox.labledBox_top.labledBox_gridbox{
+    border:1px solid var(--border-light);
+}
+
+.formlet_fakelabel.labledBox.labledBox_top.labledBox_gridbox{
+    border:unset;
+}
+
+.formlet_fakelabel.labledBox.labledBox_top>.labledBox_label{
+    display: none;
+}
+
+.developerToolElementsVisible .formlet_fakelabel.labledBox.labledBox_top> .labledBox_label{
+    display: unset;
+}
+
+/* Placeholder label: auto-added to unlabeled action widgets (buttons,
+   checkboxes) that sit next to labeled fields in a formlet grid. With the
+   label on top/bottom it keeps the label height (hidden but occupying
+   space), so the widget lines up with the sibling inputs; with the label
+   on left/right it takes no space at all. */
+.formlet_placeholder_label.labledBox>.labledBox_label{
+    display: none;
+}
+
+.formlet_placeholder_label.labledBox_top>.labledBox_label,
+.formlet_placeholder_label.labledBox_bottom>.labledBox_label{
+    display: flex;
+    visibility: hidden;
+}
+
+.developerToolElementsVisible .formlet_placeholder_label.labledBox>.labledBox_label{
+    display: flex;
+    visibility: visible;
+}
+
+/* The placeholder label lines up the widget's TOP with the sibling inputs, but
+   .labledBox_content is flex-start (top-aligned) so a widget shorter than the
+   inputs (a button, a checkbox) rides high. Center it in its content cell —
+   which the grid row stretches to the field height — so it sits on the field's
+   vertical midline instead. Only for top/bottom labels, where the cells share a
+   row height; left/right labels are already inline with their field. */
+.formlet_placeholder_label.labledBox_top>.labledBox_content,
+.formlet_placeholder_label.labledBox_bottom>.labledBox_content{
+    align-items: center;
+}
+
+.labledBox.labledBox_top.labledBox_gridbox>.labledBox_content{
+    padding:10px;
+}
+
+.formlet_fakelabel.labledBox.labledBox_top.labledBox_gridbox>.labledBox_content{
+    padding:unset;
+}
+
+.labledBox.labledBox_top.labledBox_gridbox>.labledBox_label{
+    padding:2px 5px;
+    background:var(--roundedgroup-bar);
+    color:var(--roundedgroup-bar-color);
+}
+
+.formlet_fakelabel.labledBox.labledBox_top.labledBox_gridbox>.labledBox_label{
+    background:unset;
+}
+
+/* --- Direction variants --- */
+.labledBox.labledBox_left{
+    flex-direction: row;
+    align-items:stretch;
+}
+.labledBox.labledBox_left.labledBox_simpletextarea,.labledBox.labledBox_right.labledBox_simpletextarea{
+    align-items:flex-start;
+}
+.labledBox.labledBox_left.labledBox_simpletextarea .labledBox_label,.labledBox.labledBox_right.labledBox_simpletextarea .labledBox_label{
+    padding-top:2px;
+}
+
+.labledBox.labledBox_left .labledBox_label{
+    flex-direction: row-reverse;
+}
+
+.labledBox.labledBox_bottom{
+    flex-direction: column-reverse;
+}
+
+.labledBox.labledBox_right{
+    flex-direction: row-reverse;
+    align-items:right;
+}
+
+/* --- Content area --- */
+.labledBox_content{
+    display: flex;
+    align-items: flex-start;
+    flex:1;
+    position: relative;
+}
+.labledBox_content>.dijitBorderContainer,.labledBox_content>.dijitContentPane{
+    position: absolute;
+    top:0;
+    left:0;
+    right:0;
+    bottom:0;
+}
+
+.labledBox_content > *{
+    flex:1;
+}
+.labledBox.labledBox_left .labledBox_title{
+    padding-top: 2px;
+}
+
+/* --- Label --- */
+.labledBox_label{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: .9em;
+    font-weight: bold;
+    padding-left: 6px;
+    padding-bottom: 1px;
+}
+.labledBox_content label{
+    font-size: .9em;
+    font-weight: bold;
+}
+
+.labledBox_content>.gnrcheckbox_wrapper{
+    font-size: .9em;
+    padding-bottom: 1px;
+}
+
+/* --- Clean and InputBorderless variants --- */
+.labledBoxClean .labledBox_title, .labledBoxInputBorderless .labledBox_title{
+    color:var(--root-dark);
+    font-weight: bold;
+    font-size: .9em;
+}
+
+/* --- Helper button --- */
+.helperbutton{
+    background: url('/_rsrc/common/css_icons/google_icons/info.svg') center center no-repeat;
+    background-size:contain;
+    position: relative;
+}
+
+.developerToolElementsVisible .labledBox.emptyhelper>.labledBox_label> .helperbutton{
+    background: url('/_rsrc/common/css_icons/google_icons/empty_info.svg') center center no-repeat;
+    display: block;
+    background-size:contain;
+}
+
+.labledBox.emptyhelper>.labledBox_label> .helperbutton{
+    display: none;
+}
+
+/* --- Zoom label --- */
+.labledBox.labledBox_top>.labledBox_label .gnrzoomlabel,
+.labledBox.labledBox_bottom>.labledBox_label .gnrzoomlabel{
+    flex-direction: row-reverse;
+}
+
+.labledBox.labledBox_left>.labledBox_label .gnrzoomlabel .gnrzoomicon{
+    display: none;
+}
+.labledBox.labledBox_left>.labledBox_label .gnrzoomlabel:hover .gnrzoomicon{
+    display: block;
+}
+
+/* --- InputBorderless field styling --- */
+.labledBoxInputBorderless .labledBox_title{
+    margin-left:6px;
+}
+
+._common_d11 .labledBoxInputBorderless .dijitTextBox,
+._common_d11 .labledBoxInputBorderless .dijitComboBox,
+._common_d11 .labledBoxInputBorderless .dijitSpinner,
+._common_d11 .labledBoxInputBorderless .dijitInlineEditor input,
+._common_d11 .labledBoxInputBorderless .dijitTextArea,
+._common_d11 .labledBoxInputBorderless .gnrcheckbox_wrapper,
+
+._common_d11 .labledBoxBordered .dijitTextBox,
+._common_d11 .labledBoxBordered .dijitComboBox,
+._common_d11 .labledBoxBordered .dijitSpinner,
+._common_d11 .labledBoxBordered .dijitInlineEditor input,
+._common_d11 .labledBoxBordered .dijitTextArea,
+._common_d11 .labledBoxBordered .gnrcheckbox_wrapper{
+    border-width: 0;
+    background: var(--surface-light);
+    padding-right: 5px;
+    font-size: 1.1em;
+    line-height: 1.5;
+    padding-left: 4px;
+    margin: 2px 4px 4px 4px;
+}
+
+/* --- Error state --- */
+._common_d11 .labledBoxInputBorderless .dijitError.dijitTextBox,
+._common_d11 .labledBoxInputBorderless .dijitError.dijitComboBox,
+._common_d11 .labledBoxInputBorderless .dijitError.dijitSpinner,
+._common_d11 .labledBoxInputBorderless .dijitError.dijitInlineEditor input,
+._common_d11 .labledBoxInputBorderless .dijitError.dijitTextArea,
+._common_d11 .labledBoxInputBorderless .dijitError.gnrcheckbox_wrapper,
+
+._common_d11 .labledBoxBordered .dijitError.dijitTextBox,
+._common_d11 .labledBoxBordered .dijitError.dijitComboBox,
+._common_d11 .labledBoxBordered .dijitError.dijitSpinner,
+._common_d11 .labledBoxBordered .dijitError.dijitInlineEditor input,
+._common_d11 .labledBoxBordered .dijitError.dijitTextArea,
+._common_d11 .labledBoxBordered .dijitError.gnrcheckbox_wrapper{
+    background: #ffe0e0;
+}
+
+/* --- Grid/Flex box --- */
+.gnrgridbox{
+    display: grid;
+}
+.gnrflexbox{
+    display: flex;
+}
+
+.gnrgridbox.formlet{
+    gap: var(--formlet-gap);
+    padding: var(--formlet-padding);
+}
+
+/* formlet(wrap=True): responsive single-strip mode — items keep their
+   intrinsic width and flow onto new rows when the container narrows.
+   Pair with an auto-height region (BorderContainer re-measures top/bottom
+   panes on every layout) so the strip can grow vertically. */
+.gnrgridbox.formlet_wrap{
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.gnrgridbox.formlet .labledBox_left>.labledBox_label{
+    padding-right: 2px;
+}
+
+._common_d11 .gnrgridbox .dijitTextBox,._common_d11 .gnrgridbox .dijitComboBox,._common_d11 .gnrgridbox .dijitSpinner{
+    width:unset;
+}
+
+.slotbar_cell .gnrgridbox.formlet{
+    padding: 2px;
+    gap: 3px;
+}
+
+._common_d11 .slotbar_cell .gnrgridbox .dijitTextBox,._common_d11 .slotbar_cell .gnrgridbox .dijitComboBox,._common_d11 .slotbar_cell .gnrgridbox .dijitSpinner{
+    width:15em;
+}
+
+/* --- Formlet field overrides (structural only — colors come from theme state rules) --- */
+.gnrgridbox.formlet .dijitTextBox,
+.gnrgridbox.formlet .dijitComboBox,
+.gnrgridbox.formlet .dijitSpinner,
+.gnrgridbox.formlet .dijitTextArea{
+    border-width: var(--formlet-field-border-width);
+    border-style: solid;
+    border-radius: var(--formlet-field-radius);
+    padding: var(--formlet-field-padding-y) var(--formlet-field-padding-x);
+}
+
+/* Formlet label (theme-dependent) */
+.gnrgridbox.formlet .labledBox_top > .labledBox_label{
+    font-weight: var(--formlet-label-font-weight);
+    font-size: var(--formlet-label-font-size);
+}
+
+/* Formlet checkbox: same box metrics as the sibling inputs (padding and a
+   transparent border of the same width), so its text line sits exactly where
+   the input text sits; the side text reads as field content, not as a label,
+   undoing the generic labledBox .9em/bold rules. */
+.gnrgridbox.formlet .labledBox_content>.gnrcheckbox_wrapper{
+    font-size: unset;
+    padding: var(--formlet-field-padding-y) 0;
+    border: var(--formlet-field-border-width) solid transparent;
+}
+
+.gnrgridbox.formlet .labledBox_content>.gnrcheckbox_wrapper label{
+    font-size: unset;
+    font-weight: unset;
+}

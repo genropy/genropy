@@ -1,13 +1,112 @@
 import threading
+import re
 from collections import defaultdict
 import subprocess
 from gnr.core.gnrbag import Bag
 from gnr.dev.decorator import time_measure
 from gnr.sql import AdapterCapabilities as Capabilities
-from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
+from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter,MacroExpander as BaseMacroExpander
 from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator, DbAdapterException
 
 DEFAULT_INDEX_METHOD = 'btree'
+
+class MacroExpander(BaseMacroExpander):
+    # Regex patterns for each macro with improved support for quoted identifiers
+    
+    macros = {
+        'TSQUERY':re.compile(
+                            r"#TSQUERY(?:_(?P<querycode>\w+))?\s*\(\s*"  # `querycode` opzionale dopo `_`
+                            r"(?P<tsv>[\$\@][\w\.\@]+)\s*,\s*"  # Primo parametro: colonna
+                            r"(?P<querystring>[:\$\@][\w\.\@]+)\s*"  # Secondo parametro: può iniziare con `:`, `$` o `@`
+                            r"(?:,\s*(?P<language>[:\$\@][\w\.\@]+))?\s*"  # Terzo parametro (opzionale), stesso pattern del secondo
+                            r"\)"
+                    ),
+        'TSRANK': re.compile(
+            r"#TSRANK(?:_(?P<code>\w+))?"
+            r"(?:\(\s*(?:\[(?P<weights>[\d.,\s]*)\])?\s*"
+            r"(?:,\s*(?P<normalization>\d+))?\s*\))?"
+        ),
+        'TSHEADLINE': re.compile(
+                r"#TSHEADLINE(?:_(?P<querycode>\w+))?\s*\(\s*"  # `querycode` opzionale dopo `_`
+                r"(?P<textfield>[\$\@][\w\.\@]+)\s*"  # Primo parametro: colonna con il testo
+                r"(?:,\s*'(?P<config>[^']+)')?\s*"  # Config opzionale tra apici singoli
+                r"\)"
+        ),
+        'VECQUERY': re.compile(
+                r"#VECQUERY(?:_(?P<querycode>\w+))?\s*\(\s*"
+                r"(?P<veccol>[\$\@][\w\.\@]+)\s*,\s*"
+                r"(?P<target>[:\$\@][\w\.\@]+)\s*"
+                r"\)"
+        ),
+        'VECRANK': re.compile(
+                r"#VECRANK(?:_(?P<code>\w+))?"
+        )
+    }
+
+    def _expand_TSQUERY(self, m):
+        """Expands the #TSQUERY macro into a full-text search condition using websearch_to_tsquery."""
+        tsv = m.group("tsv").strip()  # The field contining the ts_vector
+        querystring = m.group("querystring")  # The search text parameter (e.g., :querystring)
+        language = m.group("language") or "'simple'"  # Default to 'simple' if no language is provided
+        sqlparams = self.querycompiler.sqlparams
+        channel_code = m.group('querycode') or 'current'
+        sqlparams[f'tsquery_{channel_code}'] = {'querystring':querystring,'language':language,'tsv':tsv}
+        return f"{tsv} @@ websearch_to_tsquery(CAST({language} AS regconfig),{querystring})"
+
+    def _expand_TSRANK(self, m):
+        """Expands the #TSRANK macro into a ts_rank function for ranking full-text search results."""
+        weights = m.group("weights") or 'ARRAY[0.1, 0.2, 0.4, 1.0]' # The weight array
+        normalization = m.group("normalization") or 8  # Default normalization factor
+        channel_code = m.group('code') or 'current'
+        sqlparams = self.querycompiler.sqlparams
+        tsquery_params = sqlparams.get(f'tsquery_{channel_code}',{})
+        query_param = tsquery_params.get("querystring",'')  # The search text parameter (e.g., :querystring)
+        language_param = tsquery_params.get("language",'simple')  # Default language to 'simple'
+        tsvector = tsquery_params['tsv']
+        result =  f"ts_rank({tsvector}, websearch_to_tsquery(CAST({language_param} AS regconfig), {query_param}))"
+        if normalization:
+            result =  f"ts_rank({tsvector}, websearch_to_tsquery(CAST({language_param} AS regconfig), {query_param}),{normalization})"
+        if weights:
+            result =  f"ts_rank({weights},{tsvector}, websearch_to_tsquery(CAST({language_param} AS regconfig), {query_param}),{normalization})"
+        return result
+
+    def _expand_TSHEADLINE(self, m):
+        """Expands the #TSHEADLINE macro into a ts_headline function for highlighting search terms."""
+        text_field = m.group("textfield").strip()  # The text field to highlight
+        channel_code = m.group('querycode') or 'current'
+        sqlparams = self.querycompiler.sqlparams
+        tsquery_params = sqlparams.get(f'tsquery_{channel_code}',{})
+        if not tsquery_params:
+            return "''"
+        query_param = tsquery_params.get("querystring",'')  # The search text parameter (e.g., :querystring)
+        language_param = tsquery_params.get("language",'simple')  # Default language to 'simple'
+        config = m.group("config") or "StartSel=<mark>, StopSel=</mark>, MaxWords=20, MinWords=5, MaxFragments=99, FragmentDelimiter=<hr/>"
+        return f"ts_headline(CAST({language_param} AS regconfig), {text_field}, websearch_to_tsquery(CAST({language_param} AS regconfig), {query_param}), '{config}')"
+
+    def _expand_VECQUERY(self, m):
+        """Expands the #VECQUERY macro into a vector similarity filter condition.
+
+        Usage: #VECQUERY($table.embedding_col, :param_name)
+        Stores vector params in sqlparams and returns a NOT NULL check as filter."""
+        veccol = m.group("veccol").strip()
+        target = m.group("target")
+        channel_code = m.group('querycode') or 'current'
+        sqlparams = self.querycompiler.sqlparams
+        sqlparams[f'vecquery_{channel_code}'] = {'veccol': veccol, 'target': target}
+        return f"{veccol} IS NOT NULL"
+
+    def _expand_VECRANK(self, m):
+        """Expands the #VECRANK macro into a cosine similarity score.
+
+        Returns (1 - cosine_distance) so higher values = more similar.
+        Requires a prior #VECQUERY in the same query (same channel code)."""
+        channel_code = m.group('code') or 'current'
+        sqlparams = self.querycompiler.sqlparams
+        vecquery_params = sqlparams.get(f'vecquery_{channel_code}', {})
+        veccol = vecquery_params['veccol']
+        target = vecquery_params['target']
+        return f"(1 - ({veccol} <=> CAST({target} AS vector)))"
+
 
 class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
     REQUIRED_EXECUTABLES = ['psql','pg_dump', 'pg_restore']
@@ -69,6 +168,67 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
         'serial': 'serial8',
     }
 
+    # PostgreSQL-specific TYPE_CONVERSIONS
+    # Inherits simple conversions from base adapter and adds complex conversions with USING clause
+    # Values that don't match the pattern are converted to NULL
+    # A backup column is created before conversion to allow recovery if needed
+    TYPE_CONVERSIONS = {
+        # Inherit all simple conversions from base adapter
+        **SqlDbBaseAdapter.TYPE_CONVERSIONS,
+
+        # PostgreSQL-specific text → timestamp conversions
+        ('T', 'DH'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN {column_name} ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}' THEN {column_name}::timestamp ELSE NULL END",
+        ('T', 'DHZ'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN {column_name} ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}' THEN {column_name}::timestamp with time zone ELSE NULL END",
+        ('A', 'DH'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN {column_name} ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}' THEN {column_name}::timestamp ELSE NULL END",
+        ('A', 'DHZ'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN {column_name} ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}' THEN {column_name}::timestamp with time zone ELSE NULL END",
+
+        # Text → Date
+        ('T', 'D'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN {column_name} ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}' THEN {column_name}::date ELSE NULL END",
+        ('A', 'D'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN {column_name} ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}' THEN {column_name}::date ELSE NULL END",
+        ('C', 'D'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN TRIM({column_name}) ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}' THEN TRIM({column_name})::date ELSE NULL END",
+
+        # Text → Time
+        ('T', 'H'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN {column_name} ~ '^[0-9]{{2}}:[0-9]{{2}}' THEN {column_name}::time ELSE NULL END",
+        ('A', 'H'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN {column_name} ~ '^[0-9]{{2}}:[0-9]{{2}}' THEN {column_name}::time ELSE NULL END",
+
+        # Text → Numeric
+        ('T', 'N'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN {column_name} ~ '^-?[0-9]+(\\.[0-9]+)?$' THEN {column_name}::numeric ELSE NULL END",
+        ('A', 'N'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN {column_name} ~ '^-?[0-9]+(\\.[0-9]+)?$' THEN {column_name}::numeric ELSE NULL END",
+        ('C', 'N'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN TRIM({column_name}) ~ '^-?[0-9]+(\\.[0-9]+)?$' THEN TRIM({column_name})::numeric ELSE NULL END",
+
+        # Text → Integer
+        ('T', 'I'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN {column_name} ~ '^-?[0-9]+$' THEN {column_name}::integer ELSE NULL END",
+        ('A', 'I'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN {column_name} ~ '^-?[0-9]+$' THEN {column_name}::integer ELSE NULL END",
+        ('C', 'I'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN TRIM({column_name}) ~ '^-?[0-9]+$' THEN TRIM({column_name})::integer ELSE NULL END",
+
+        # Text → BigInt
+        ('T', 'L'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN {column_name} ~ '^-?[0-9]+$' THEN {column_name}::bigint ELSE NULL END",
+        ('A', 'L'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN {column_name} ~ '^-?[0-9]+$' THEN {column_name}::bigint ELSE NULL END",
+        ('C', 'L'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN TRIM({column_name}) ~ '^-?[0-9]+$' THEN TRIM({column_name})::bigint ELSE NULL END",
+
+        # Text → Boolean (non-matching values become NULL)
+        ('T', 'B'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN LOWER({column_name}) IN ('true', 't', 'yes', 'y', '1') THEN TRUE WHEN LOWER({column_name}) IN ('false', 'f', 'no', 'n', '0', '') THEN FALSE ELSE NULL END",
+        ('A', 'B'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN LOWER({column_name}) IN ('true', 't', 'yes', 'y', '1') THEN TRUE WHEN LOWER({column_name}) IN ('false', 'f', 'no', 'n', '0', '') THEN FALSE ELSE NULL END",
+        ('C', 'B'): "CASE WHEN {column_name} IS NULL THEN NULL WHEN LOWER(TRIM({column_name})) IN ('true', 't', 'yes', 'y', '1') THEN TRUE WHEN LOWER(TRIM({column_name})) IN ('false', 'f', 'no', 'n', '0', '') THEN FALSE ELSE NULL END",
+
+        # Real → Integer (with rounding)
+        ('R', 'I'): "CASE WHEN {column_name} IS NULL THEN NULL ELSE ROUND({column_name})::integer END",
+        ('R', 'L'): "CASE WHEN {column_name} IS NULL THEN NULL ELSE ROUND({column_name})::bigint END",
+    }
+
+
+    # -- Macro support -------------------------------------------------------
+
+    def registerMacros(self, db):
+        """Register PostgreSQL-specific macros."""
+        for name, regex in MacroExpander.macros.items():
+            db.addMacro(name, regex, None)
+
+    @property
+    def macroExpander(self):
+        return MacroExpander
+
+    # -- Schema and naming ---------------------------------------------------
 
     def defaultMainSchema(self):
         return 'public'
@@ -84,7 +244,78 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
         in DDL statements
         """
         pass
-    
+
+    def mask_field_sql(self, field, mode='2-4', placeholder='*'):
+        """
+        Returns a PostgreSQL SQL expression for masking a field value.
+
+        Args:
+            field: The field expression to mask (with $ prefix for gnr substitution)
+            mode: Masking mode - 'email', 'creditcard', 'phone', or 'N-M' format
+            placeholder: Character to use for masking (default: '*')
+
+        Returns:
+            str: PostgreSQL SQL expression for the masked field
+        """
+        if mode == 'email':
+            # Mask local part of email, keep domain visible (default 2 chars visible at start)
+            sql_formula = f"""
+                CASE
+                    WHEN position('@' in {field}) > 0 THEN
+                        substring({field} from 1 for 2) ||
+                        repeat('{placeholder}', greatest(length(split_part({field}, '@', 1)) - 2, 0)) ||
+                        '@' ||
+                        split_part({field}, '@', 2)
+                    ELSE
+                        {field}
+                END
+            """.strip()
+
+        elif mode == 'creditcard':
+            # Show only last 4 digits
+            sql_formula = f"""
+                CASE
+                    WHEN length({field}) > 4 THEN
+                        repeat('{placeholder}', length({field}) - 4) || right({field}, 4)
+                    ELSE
+                        {field}
+                END
+            """.strip()
+
+        elif mode == 'phone':
+            # Keep country code (3 chars) and last 3 digits visible
+            sql_formula = f"""
+                CASE
+                    WHEN length({field}) > 6 THEN
+                        substring({field} from 1 for 3) ||
+                        repeat('{placeholder}', length({field}) - 6) ||
+                        right({field}, 3)
+                    ELSE
+                        {field}
+                END
+            """.strip()
+
+        else:
+            # Generic masking with N-M format
+            try:
+                visible_start, visible_end = map(int, mode.split('-'))
+            except (ValueError, AttributeError):
+                # Fallback to default if mode is invalid
+                visible_start, visible_end = 2, 4
+
+            sql_formula = f"""
+                CASE
+                    WHEN length({field}) > {visible_start + visible_end} THEN
+                        substring({field} from 1 for {visible_start}) ||
+                        repeat('{placeholder}', length({field}) - {visible_start} - {visible_end}) ||
+                        right({field}, {visible_end})
+                    ELSE
+                        {field}
+                END
+            """.strip()
+
+        return sql_formula
+
     def lockTable(self, dbtable, mode='ACCESS EXCLUSIVE', nowait=False):
         if nowait:
             nowait = 'NO WAIT'
@@ -106,6 +337,7 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
         :param filename: db name
         :param excluded_schemas: excluded schemas
         :param filename: dump options"""
+
         available_parameters = dict(
             data_only='-a', clean='-c', create='-C', no_owner='-O',
             schema_only='-s', no_privileges='-x', if_exists='--if-exists',
@@ -113,11 +345,11 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
             compress = '--compress='
         )
         dbname = dbname or self.dbroot.dbname
-        pars = {'dbname':dbname,
-                'user':self.dbroot.user,
-                'password':self.dbroot.password,
-                'host':self.dbroot.host or 'localhost',
-                'port':self.dbroot.port or '5432'}
+        db_params = {'dbname':dbname,
+                     'user':self.dbroot.user,
+                     'password':self.dbroot.password,
+                     'host':self.dbroot.host or 'localhost',
+                     'port':self.dbroot.port or '5432'}
         excluded_schemas = excluded_schemas or []
         options = options or Bag()
         dump_options = []
@@ -140,18 +372,25 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
                 dump_options.append(parameter_value)
         if not filename.endswith(file_extension):
             filename = '%s%s' % (filename, file_extension)
-        #args = ['pg_dump', dbname, '-U', self.dbroot.user, '-f', filename]+extras
-        args = ['pg_dump',
-            '--dbname=postgresql://%(user)s:%(password)s@%(host)s:%(port)s/%(dbname)s' %pars, 
-            '-f', filename]+dump_options
-        callresult = subprocess.call(args)
+        cmd = ['pg_dump',
+                '--dbname=postgresql://%(user)s:%(password)s@%(host)s:%(port)s/%(dbname)s' % db_params,
+                '-f', filename] + dump_options
+        proc = subprocess.run(cmd,
+                              stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE,
+                              text=True)
+        if proc.returncode != 0:
+            raise RuntimeError(
+                f"pg_dump failed with exit code {proc.returncode}:\n{proc.stderr}"
+                )
         return filename
 
     def _managerConnection(self):
-        return self._classConnection(host=self.dbroot.host, 
-                                     port=self.dbroot.port,
-                                     user=self.dbroot.user, 
-                                     password=self.dbroot.password)
+        connection_params = self.get_connection_params(self.dbroot.currentStorename)
+        return self._classConnection(host=connection_params.get('host'), 
+                                     port=connection_params.get('port'),
+                                     user=connection_params.get('user'), 
+                                     password=connection_params.get('password'))
 
     @classmethod
     def _createDb(cls, dbname=None, host=None, port=None,
@@ -229,16 +468,12 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
                         password=source_dbpassword or 'postgres',
                         host = source_dbhost or 'localhost',
                         port = source_dbport or '5432')
-        ps = subprocess.Popen((
+        cmd_output = subprocess.run((
             'ssh','%s@%s' %(source_ssh_user,source_ssh_host),
             '-C', 'psql','-l','-t', "user=%(user)s password=%(password)s host=%(host)s port=%(port)s" %srcdb
-            ),stdout=subprocess.PIPE)
-        res = ps.stdout.read()
-        ps.wait()
+            ),capture_output=True, encoding='utf-8', errors='replace', check=True)
         result = []
-        if not res:
-            return []
-        for dbr in res.split('\n'):
+        for dbr in cmd_output.stdout.split('\n'):
             dbname = dbr.split('|')[0].strip()
             if dbname:
                 result.append(dbname)
@@ -448,7 +683,7 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
                 s.schema_name,
                 t.table_name,
                 c.column_name,
-                c.data_type,
+                CASE WHEN c.data_type = 'USER-DEFINED' THEN c.udt_name ELSE c.data_type END AS data_type,
                 c.character_maximum_length,
                 c.is_nullable,
                 c.column_default,
@@ -556,7 +791,7 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
             constraints[table_key]["UNIQUE"][constraint_name]["columns"].append(column_name)
         
         for row in self.raw_fetch(self.get_foreign_key_sql(), (schemas,)):
-            (schema_name, table_name, constraint_name, column_name, on_update,
+            (schema_name, table_name, constraint_name, column_name,column_ord, on_update,
             on_delete, related_schema, related_table, related_column,
             deferrable, initially_deferred) = row
 
@@ -671,9 +906,9 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
         column_defs = []
         for column, order in columns.items():
             if order:
-                column_defs.append(f"{column} {order}")
+                column_defs.append(f'"{column}" {order}')
             else:
-                column_defs.append(f"{column}")  # Default sorting if not specified
+                column_defs.append(f'"{column}"')  # Default sorting if not specified
 
         # Join columns into a single string
         column_list = ", ".join(column_defs)
@@ -729,6 +964,14 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
         Generate SQL to alter the type of a column.
         """
         return f'ALTER COLUMN "{column_name}" TYPE {new_sql_type}'
+
+    def struct_alter_column_with_conversion_sql(self, column_name=None, new_sql_type=None,
+                                                conversion_expression=None, **kwargs):
+        """
+        Generate SQL to alter column type with explicit conversion using USING clause.
+        Used for type conversions that require data transformation.
+        """
+        return f'ALTER COLUMN "{column_name}" TYPE {new_sql_type} USING {conversion_expression}'
 
     def struct_add_not_null_sql(self, column_name,**kwargs):
         """
@@ -869,10 +1112,9 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
     
     def struct_create_extension_sql(self, extension_name):
         """
-        Generates the SQL to create an extension with optional schema, version, and cascade options.
+        Generates the SQL to create an extension.
         """
-        return f"""CREATE EXTENSION IF NOT EXISTS {extension_name};"""
-        
+        return f"CREATE EXTENSION IF NOT EXISTS {extension_name};"
 
 
     def struct_get_event_triggers_sql(self):
@@ -969,6 +1211,7 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
             cls1.relname AS table_name,
             con.conname AS constraint_name,
             att1.attname AS column_name,  
+            fk.ord AS ord,
             CASE con.confupdtype
                 WHEN 'a' THEN 'NO ACTION'
                 WHEN 'r' THEN 'RESTRICT'
@@ -1018,7 +1261,8 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
             con.contype = 'f' -- Only foreign keys
             AND nsp1.nspname = ANY(%s)
         ORDER BY
-            con.conname;"""
+            con.conname,
+            ord;"""
 
         return q
 
@@ -1045,6 +1289,36 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
     def unaccentFormula(self, field):
         return 'unaccent({prefix}{field})'.format(field=field,
                                                   prefix = '' if field[0] in ('@','$') else '$')
+
+    def listen_connection(self, channels):
+        """Open a dedicated AUTOCOMMIT connection and LISTEN on the given channels.
+
+        Args:
+            channels: Iterable of channel names to LISTEN on.
+
+        Returns:
+            A connection ready for ``select()`` polling.
+        """
+        conn = self.connect(autoCommit=True)
+        cursor = conn.cursor()
+        for channel in channels:
+            cursor.execute('LISTEN %s;' % channel)
+        cursor.close()
+        return conn
+
+    def poll_notifications(self, conn):
+        """Poll for pending notifications on a psycopg2/psycopg3 connection.
+
+        Args:
+            conn: The connection returned by :meth:`listen_connection`.
+
+        Returns:
+            A list of notification objects (each with ``.channel`` and ``.payload``).
+        """
+        conn.poll()
+        notifications = list(conn.notifies)
+        conn.notifies.clear()
+        return notifications
 
 
 class GnrWhereTranslatorPG(GnrWhereTranslator):

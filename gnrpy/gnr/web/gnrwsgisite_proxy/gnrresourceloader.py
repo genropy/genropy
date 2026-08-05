@@ -163,7 +163,9 @@ class ResourceLoader(object):
         page_class.css_requires.extend([x for x in splitAndStrip(getattr(custom_class, 'css_requires', ''), ',') if x])
         if package_css_requires:
             page_class.css_requires = uniquify(page_class.css_requires+package_css_requires)
-        page_class.tpldirectories = page_class.resourceDirs + [
+        tpl_subdirs = [os.path.join(d, 'tpl') for d in page_class.resourceDirs
+                       if os.path.isdir(os.path.join(d, 'tpl'))]
+        page_class.tpldirectories = page_class.resourceDirs + tpl_subdirs + [
                 self.gnr_static_handler.path(page_class.gnrjsversion, 'tpl')]
         page_class._packageId = mainPkg
         self.page_class_plugin_mixin(page_class, plugin_webpage_classes)
@@ -232,6 +234,17 @@ class ResourceLoader(object):
         if os.path.exists(path):
             result.append(path)
                     
+
+    def getResource(self, path, ext=None, pkg=None):
+        if pkg:
+            resourceDirs = self.package_resourceDirs(pkg)
+        else:
+            resourceDirs = self.page_class_resourceDirs(None, path, pkg)
+        result = self.getResourceList(resourceDirs, path, ext=ext)
+        if result:
+            return result[0]        
+
+
     def page_class_resourceDirs(self, page_class, path, pkg=None):
         """Build page resources directories
         
@@ -421,7 +434,10 @@ class ResourceLoader(object):
             locations = resourceDirs[:]
             locations.reverse()
         else:
-            locations = resourceDirs
+            # Defensive copy, like the css/js branch: the caller may share this
+            # list across threads (e.g. site.resources_dirs) and a concurrent
+            # in-place mutation would make the iteration skip entries (issue #984).
+            locations = resourceDirs[:]
         if ext and not path.endswith('.%s' % ext): path = '%s.%s' % (path, ext)
         if '*' in path:
             searchpath=os.path.split(path.split('*')[0])[0]

@@ -8,12 +8,13 @@ import os
 import re
 from datetime import datetime
 
-from gnr.web.gnrbaseclasses import BaseComponent
+
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import fromJson
 from gnr.core.gnrlang import uniquify
-
+from gnr.sql import AdapterCapabilities as Capabilities
+from gnr.web.gnrbaseclasses import BaseComponent
 SH_ENABLED = False
 
 try:
@@ -29,7 +30,10 @@ class MaintenancePlugin(BaseComponent):
         """!!Maintenance"""
         frame = pane.framePane(datapath='gnr.maintenance')
         tc = frame.center.tabContainer(margin='2px')
-        self.maintenance_admin(tc.framePane(title='Administration',margin='2px',rounded=4,border='1px solid #efefef',datapath='.administration'))
+        # disable db administration if the adapter doesn't have the tools to
+        # execute operations
+        if self.site.gnrapp.db.adapter.has_capability(Capabilities.ADMINISTER):
+            self.maintenance_admin(tc.framePane(title='Administration',margin='2px',rounded=4,border='1px solid #efefef',datapath='.administration'))
         self.maintenance_register(tc.framePane(title='!!Users & Connections',margin='2px',rounded=4,border='1px solid #efefef'))
 
     def maintenance_admin(self,frame):

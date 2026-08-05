@@ -69,7 +69,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if (this.widget) {
             return  this.widget.focusNode || this.widget.containerNode || this.widget.domNode;
         }
-        return this.getParentNode().getDomNode();
+        return this.getParentNode()?this.getParentNode().getDomNode():null;
 
     },
     
@@ -1593,9 +1593,12 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         var targets = this._hiddenTargets || [this.domNode || this.widget.domNode];
         var statusChanged = false;
         targets.forEach(function(domNode){
-            let currenHidden = !genro.dom.isVisible(domNode);
-            statusChanged = currenHidden!=hidden;
-            dojo.style(domNode, 'display', (hidden ? 'none' : ''));
+            let wasHidden = domNode.style.display === 'none';
+            let prevHeight = domNode.offsetHeight;
+            domNode.style.display = hidden ? 'none' : '';
+            if(wasHidden !== hidden && domNode.offsetHeight !== prevHeight){
+                statusChanged = true;
+            }
         });
         if(statusChanged){
             genro.fakeResize()
@@ -1736,7 +1739,13 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         }
     },
     getElementLabel:function(){
-        return this.attr._valuelabel || this.attr.field_name_long || this.attr.name_long || stringCapitalize(this.label);
+        var raw = this.attr.error_label || this.attr._valuelabel || this.attr.field_name_long || this.attr.name_long || stringCapitalize(this.label);
+        if(raw && raw.indexOf('<') >= 0){
+            var tmp = document.createElement('div');
+            tmp.innerHTML = raw;
+            raw = tmp.textContent.trim();
+        }
+        return raw;
     },
 
     unwatch:function(watchId){
@@ -1794,7 +1803,15 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
     buildLblWrapper:function(){
         let lbl = objectPop(this.attr,'lbl');
         if(!lbl){
-            return this;
+            // Unlabeled action widgets in a formlet grid get an invisible
+            // placeholder label (same height as the sibling labels) so they
+            // line up with the field inputs. lbl=false opts out.
+            if(lbl===false || !this._formletNeedsPlaceholderLbl()){
+                return this;
+            }
+            lbl = '&nbsp;';
+            this.attr.box__class = this.attr.box__class?
+                this.attr.box__class+' formlet_placeholder_label' : 'formlet_placeholder_label';
         }
         let inherited_attr = this.getInheritedAttributes();
         let label_attr = {};
@@ -1837,6 +1854,38 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         return this._contentNode;
     },
 
+    _formletNeedsPlaceholderLbl:function(){
+        // Placeholder only for button-like widgets that sit as direct children
+        // of a grid formlet (not formlet_wrap) with labels on top/bottom and
+        // at least one labeled sibling: a buttons-only formlet keeps its
+        // natural height, containers and custom tags are never wrapped.
+        const placeholderTags = ['button','togglebutton','dropdownbutton','lightbutton','checkbox'];
+        if(placeholderTags.indexOf((this.attr.tag||'').toLowerCase())<0){
+            return false;
+        }
+        let parentNode = this.getParentNode();
+        let parentClass = (parentNode && parentNode.attr && parentNode.attr._class) || '';
+        if(!/(^|\s)formlet(\s|$)/.test(parentClass) || /(^|\s)formlet_wrap(\s|$)/.test(parentClass)){
+            return false;
+        }
+        let side = this.getInheritedAttributes().lbl_side || 'top';
+        if(side!='top' && side!='bottom'){
+            return false;
+        }
+        let siblings = parentNode.getValue('static');
+        if(!(siblings instanceof gnr.GnrDomSource)){
+            return false;
+        }
+        for(let node of siblings.getNodes()){
+            // siblings already wrapped by buildLblWrapper have tag 'labledbox',
+            // the ones still to be processed keep their lbl attribute
+            if(node!==this && node.attr && (node.attr.lbl || node.attr.tag=='labledbox')){
+                return true;
+            }
+        }
+        return false;
+    },
+
     getLabelWrapper:function(){
         if (this.attr._labelWrapper){
             return this.attributeOwnerNode('_labelWrapperId',this.attr._labelWrapper)
@@ -1858,9 +1907,66 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         } else {
             genro.dom.removeClass(domnode, 'gnrrequired');
         }
+        this._updateErrorTooltip();
     },
+
+    _updateErrorTooltip: function(){
+        var domNode = this.widget.domNode;
+        if(!domNode){
+            return;
+        }
+        var errMsg = this._validations && this._validations.error;
+        var errText = errMsg ? this._resolveErrorMessage(errMsg) : null;
+        domNode._gnrErrorText = errText || null;
+        if(errText){
+            domNode.setAttribute('data-error', errText);
+            this._bindErrorTooltipEvents(domNode);
+        }else{
+            domNode.removeAttribute('data-error');
+            dijit.hideTooltip(domNode);
+        }
+    },
+
+    _bindErrorTooltipEvents: function(domNode){
+        if(domNode._gnrErrorTooltipBound){
+            return;
+        }
+        domNode.addEventListener('mouseenter', function(){
+            if(domNode._gnrErrorText){
+                dijit.showTooltip(
+                    '<span class="gnrErrorTooltip">' + domNode._gnrErrorText + '</span>',
+                    domNode
+                );
+            }
+        });
+        domNode.addEventListener('mouseleave', function(){
+            dijit.hideTooltip(domNode);
+        });
+        domNode._gnrErrorTooltipBound = true;
+    },
+
+    _errorFallbacks: {
+        'notnull':  '!!Required field',
+        'missing':  '!!Required field',
+        'error':    '!!Invalid value',
+        'too long': '!!Value too long',
+        'too short':'!!Value too short',
+        'wrong length': '!!Wrong length',
+        'query_error':  '!!Lookup error',
+        'invalidItem':  '!!Invalid selection'
+    },
+
+    _resolveErrorMessage: function(errMsg){
+        let msg = typeof errMsg === 'string' ? errMsg : (errMsg.msg || errMsg.toString());
+        let fallback = this._errorFallbacks[msg];
+        if(fallback){
+            return _T(fallback);
+        }
+        return _T(msg.indexOf('!!') < 0 ? '!!' + msg : msg);
+    },
+
     isDisabled:function(){
-        return this.getAttributeFromDatasource('disabled'); 
+        return this.getAttributeFromDatasource('disabled');
     },
 
     setDisabled:function(reason){
@@ -2097,3 +2203,4 @@ dojo.declare("gnr.GnrDomSource", gnr.GnrStructData, {
         return node===true?null:node;
     }
 });
+

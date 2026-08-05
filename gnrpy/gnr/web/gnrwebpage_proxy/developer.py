@@ -33,7 +33,6 @@ class GnrWebDeveloper(GnrBaseProxy):
     def db(self):
         return self.page.db
 
-
     def maintenanceServerUrl(self):
         helpdesk = self.page.getPreference('helpdesk',pkg='adm')
         url = helpdesk['url']

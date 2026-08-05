@@ -77,3 +77,47 @@ class GnrCustomWebPage(object):
     def test_9_toggle(self, pane):
         "Use toggle attribute to display checkbox with a toggle icon"
         pane.checkbox(value='^.enabled',label='Enabled', toggle=True)
+
+    def test_10_mask_icon_colors(self, pane):
+        "Checkbox and radio icons adapt to text color via CSS mask-image + currentColor"
+        fb = pane.formbuilder(cols=1, border_spacing='6px')
+
+        fb.div('Default context (inherits page text color)', font_weight='bold')
+        fb.checkbox(value='^.c1', label='Default checkbox')
+        fb.radioButtonText(values='a:Alpha,b:Beta,c:Gamma', value='^.r1')
+
+        fb.div('Dark background, white text', font_weight='bold', margin_top='10px')
+        dark = fb.div(background='#1E3055', color='white', padding='10px',
+                      border_radius='8px')
+        darkfb = dark.formbuilder(cols=1, border_spacing='4px')
+        darkfb.checkbox(value='^.c2', label='White checkbox')
+        darkfb.radioButtonText(values='x:One,y:Two,z:Three', value='^.r2')
+        darkfb.checkBoxText(values='A:Apple,B:Banana,C:Cherry', value='^.c2t')
+
+        fb.div('Red text context', font_weight='bold', margin_top='10px')
+        red = fb.div(color='#cc0000', padding='10px')
+        redfb = red.formbuilder(cols=1, border_spacing='4px')
+        redfb.checkbox(value='^.c3', label='Red checkbox')
+        redfb.radioButtonText(values='p:Pizza,q:Pasta,r:Risotto', value='^.r3')
+
+        fb.div('Green text context', font_weight='bold', margin_top='10px')
+        green = fb.div(color='#006600', padding='10px')
+        greenfb = green.formbuilder(cols=1, border_spacing='4px')
+        greenfb.checkbox(value='^.c4', label='Green checkbox')
+        greenfb.checkBoxText(values='1:One,2:Two,3:Three', value='^.c4t')
+
+        fb.div('Icon classes (checkboxOn/Off, radioOn/Off)', font_weight='bold', margin_top='10px')
+        icons = fb.div(padding='10px')
+        iconsfb = icons.formbuilder(cols=4, border_spacing='6px')
+        iconsfb.div(_class='checkboxOn', width='1.4em', height='1.4em', lbl='checkboxOn')
+        iconsfb.div(_class='checkboxOff', width='1.4em', height='1.4em', lbl='checkboxOff')
+        iconsfb.div(_class='radioOn', width='1.4em', height='1.4em', lbl='radioOn')
+        iconsfb.div(_class='radioOff', width='1.4em', height='1.4em', lbl='radioOff')
+
+        fb.div('Icon classes in blue context', font_weight='bold', margin_top='10px')
+        blue = fb.div(color='#0055cc', padding='10px')
+        bluefb = blue.formbuilder(cols=4, border_spacing='6px')
+        bluefb.div(_class='checkboxOn', width='1.4em', height='1.4em', lbl='checkboxOn')
+        bluefb.div(_class='checkboxOff', width='1.4em', height='1.4em', lbl='checkboxOff')
+        bluefb.div(_class='radioOn', width='1.4em', height='1.4em', lbl='radioOn')
+        bluefb.div(_class='radioOff', width='1.4em', height='1.4em', lbl='radioOff')

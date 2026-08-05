@@ -15,7 +15,7 @@ def main():
     options = parser.parse_args()
     instance_name = options.instance_name[0]
     restorepath = options.restorepath[0]
-    server=GnrApp(instance_name, restorepath=restorepath)
+    GnrApp(instance_name, restorepath=restorepath)
     
 if __name__ == '__main__':
     main()

@@ -85,7 +85,8 @@ class FrameGridTools(BaseComponent):
         return pane.menudiv(tip='!!Advanced tools',iconClass=_class,storepath='.advancedTools',**kwargs)
 
     @struct_method
-    def fgr_slotbar_delrow(self,pane,_class='iconbox delete_row',enable=None,disabled='^.disabledButton',**kwargs):
+    def fgr_slotbar_delrow(self,pane,_class='iconbox delete_row',enable=None,label='!!Delete',buttonClass=None,
+                                iconClass='^.deleteButtonClass',disabled='^.disabledButton',**kwargs):
         kwargs.setdefault('visible',enable)
         frameCode = kwargs['frameCode']
         pane.dataController("""SET .deleteButtonClass = deleteButtonClass;
@@ -110,8 +111,8 @@ class FrameGridTools(BaseComponent):
                             disabled=disabled,deleteButtonClass=_class,frameCode=frameCode,_onBuilt=True,
                             **{str('subscribe_%s_grid_onSelectedRow' %frameCode):True})
         pane.data('.deleteButtonClass',_class)
-        return pane.slotButton(label='!!Delete',publish='delrow',
-                            iconClass='^.deleteButtonClass',disabled='^.deleteDisabled',
+        return pane.slotButton(label=label,publish='delrow',childname='deletbtn',_class=buttonClass,
+                            iconClass=iconClass,disabled='^.deleteDisabled',
                             _tablePermissions=dict(table=pane.frame.grid.attributes.get('table'),
                                                     permissions='del,readonly'),
                             **kwargs)
@@ -147,7 +148,7 @@ class FrameGridTools(BaseComponent):
                                 **kwargs)
     @struct_method
     def fgr_slotbar_gridsemaphore(self,pane,**kwargs):
-        return pane.div(_class='editGrid_semaphore',padding_left='4px')
+        return pane.div(width='1.5em').div(_class='editGrid_semaphore')
 
     @extract_kwargs(cb=True,lbl=dict(slice_prefix=False))
     @struct_method
@@ -231,10 +232,11 @@ class FrameGridTools(BaseComponent):
         default_closable.update(closable_kwargs)
         box_kwargs.setdefault('border_right','1px solid silver')
         box_kwargs.update(default_closable)
+        splitter = False if self.isMobile else splitter
         bc = view.grid_envelope.borderContainer(region= region or 'left',
                                         width=width or '300px',
                                         closable=closable,
-                                        splitter=False if self.isMobile else splitter,
+                                        splitter=splitter,
                                         selfsubscribe_closable_change="""SET .use_grouper = $1.open;""",
                                         **box_kwargs)
         if closable !='close':
@@ -248,7 +250,8 @@ class FrameGridTools(BaseComponent):
     @public_method
     def fg_remoteGrouper(self,pane,table=None,groupedTh=None,groupedThViewResource=None,static=False,
                         grid_configurable=True,configurable=False,margin=None,pbl_classes=True,**kwargs):
-        self._th_mixinResource(groupedTh,table=table,resourceName=groupedThViewResource,defaultClass='View')
+        if not self._th_mixinResource(groupedTh,table=table,resourceName=groupedThViewResource,defaultClass='View',pane=pane):
+            return
         tree_nodeId = f'{groupedTh}_grouper_tree'
         static_kwargs = dictExtract(kwargs,'static_',pop=True)
         gth = pane.groupByTableHandler(table=table,frameCode=f'{groupedTh}_grouper',
@@ -278,9 +281,12 @@ class FrameGridTools(BaseComponent):
         """,gth=gth.grid.js_widget,
             selectedLines=f'^.grid.currentSelectedPkeys'
         )
-        gth.viewConfigurator(table,queryLimit=False,toolbar=True,closable='close' if not static else False)
+        gth.viewConfigurator(table,queryLimit=False,toolbar=True,closable='close' if not static else False,readOnly=static)
         gth.dataController(f"""
             SET .selectedIndex = null;
+            if(!_use_grouper){{
+                grouper_grid.selection.unselectAll();
+            }}
             if(genro.nodeById(tree_nodeId)){{
                 SET #{tree_nodeId}.currentGroupPath = null;
             }}
@@ -291,11 +297,10 @@ class FrameGridTools(BaseComponent):
             }}else{{
                 groupedStore.store.loadData();
             }}
-        """,_use_grouper=f'^#{groupedTh}_grid.#parent.use_grouper',tree_nodeId=tree_nodeId)   
+        """,_use_grouper=f'^#{groupedTh}_grid.#parent.use_grouper',tree_nodeId=tree_nodeId,grouper_grid=gth.grid.js_widget)   
         gth.grid.attributes['selfsubscribe_group_added_column'] = f"""
             var groupedStore = genro.nodeById('{groupedTh}_grid_store');
             if(groupedStore.store.storeType!='VirtualSelection'){{
-                console.log('reload_grouper');
                 genro.nodeById('{groupedTh}_frame').fireEvent('.reloadGrouper',{{_addedColumn:$1.column}});
             }}
         """
@@ -358,11 +363,11 @@ class FrameGridTools(BaseComponent):
         
 
     @struct_method
-    def fg_viewConfigurator(self,view,table=None,queryLimit=None,region=None,configurable=None,toolbar=True,closable=None):
+    def fg_viewConfigurator(self,view,table=None,queryLimit=None,region=None,configurable=None,toolbar=True,closable=None,readOnly=None):
         if not self.checkTablePermission(table=table,permissions='configure_view'):
             return
         grid = view.grid
-        grid.attributes['configurable'] = True
+        grid.attributes['configurable'] = True if not readOnly else 'readOnly'
         if closable is None:
             closable = 'close'
         frameCode = view.attributes.get('frameCode')
@@ -412,7 +417,7 @@ class FrameGrid(BaseComponent):
                     editor_kwargs=None,**kwargs):
         pane.attributes.update(overflow='hidden')
         frame = pane.framePane(frameCode=frameCode,center_overflow='hidden',**kwargs)
-        frame.center.stackContainer(selectedPage=selectedPage)
+        frame.center.stackContainer(selectedPage=selectedPage, _class='framegrid_center')
         grid_kwargs.setdefault('fillDown', fillDown)
         grid_kwargs.update(footer_kwargs)
         grid_kwargs.update(columnset_kwargs)
@@ -425,14 +430,15 @@ class FrameGrid(BaseComponent):
 
         grid_kwargs['selfsubscribe_addrow'] = grid_kwargs.get('selfsubscribe_addrow','this.widget.addRows((($1.opt && $1.opt.default_kw)? [$1.opt.default_kw]: $1._counter),$1.evt);')
         grid_kwargs['selfsubscribe_duprow'] = grid_kwargs.get('selfsubscribe_duprow','this.widget.addRows($1._counter,$1.evt,true);')
-        grid_kwargs['selfsubscribe_delrow'] = grid_kwargs.get('selfsubscribe_delrow','this.widget.deleteSelectedRows();')
+        grid_kwargs['selfsubscribe_delrow'] = grid_kwargs.get('selfsubscribe_delrow','this.widget.deleteSelectedRows();this.publish("dismissrow")')
         grid_kwargs['selfsubscribe_archive'] = grid_kwargs.get('selfsubscribe_archive','this.widget.archiveSelectedRows();')
         #grid_kwargs['selfsubscribe_setSortedBy'] = """console.log($1.event);"""
         grid_kwargs.setdefault('selectedId','.selectedId')
         grid_kwargs.update(editor_kwargs)
         envelope_bc = frame.borderContainer(childname='grid_envelope',pageName='mainView',
-                                            title=grid_kwargs.pop('title','!!Grid'),_class='gridRoundedEnvelope' if roundedEnvelope else None)
-        grid = envelope_bc.contentPane(region='center').includedView(autoWidth=False,
+                                            title=grid_kwargs.pop('title','!!Grid'),
+                                            _class='gridRoundedEnvelope' if roundedEnvelope else None)
+        grid = envelope_bc.contentPane(region='center',childname='grid_pane').includedView(autoWidth=False,
                           storepath=storepath,datamode=datamode,
                           dynamicStorepath=dynamicStorepath,
                           datapath='.grid',

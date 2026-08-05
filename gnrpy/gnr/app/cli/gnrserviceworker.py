@@ -4,7 +4,7 @@
 import os
 import sys
 from gnr.core.gnrlang import gnrImport
-from gnr.app.gnrdeploy import PathResolver
+from gnr.app.pathresolver import PathResolver
 
 description = "Run a service defined in a project"
 

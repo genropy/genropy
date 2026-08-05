@@ -1,0 +1,77 @@
+/* Quick Budget Editor — minimal page-specific styling.
+
+   Chapter / account / detail chrome lives in `grouplet.css` (tabs for
+   chapters, default row card for accounts, struct mode for details).
+   Inline styles on the title widgets live on the grouplets themselves
+   (same idiom as `kanban_card`).
+
+   What stays here:
+     - The Load / Save / status toolbar at the top of the page.
+     - The chapter total footer at the bottom of each tab panel.
+*/
+
+/* --- Toolbar (Load / Save / status line) --- */
+.budget_toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: white;
+    border-bottom: 1px solid #d8dde3;
+    flex-wrap: wrap;
+}
+.budget_toolbar_btn {
+    padding: 6px 11px;
+    border: 1px solid #b8bec5;
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+}
+.budget_toolbar_btn:hover {
+    background: #f3f5f7;
+}
+.budget_toolbar_btn_success {
+    background: #27ae60;
+    color: white;
+    border-color: #229954;
+}
+.budget_toolbar_btn_success:hover {
+    background: #229954;
+}
+.budget_toolbar_spacer {
+    flex: 1;
+}
+.budget_toolbar_status {
+    color: #666;
+    font-style: italic;
+    font-size: 12px;
+    padding: 0 6px;
+}
+
+/* --- Chapter total footer (live total at the bottom of each tab) --- */
+.gg-capitolo-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 10px;
+    padding: 8px 14px;
+    background: #2c3e50;
+    color: white;
+    border-radius: 4px;
+    font-size: 12px;
+}
+.gg-capitolo-footer-label {
+    color: #b0c4d4;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    font-size: 10px;
+    font-weight: 600;
+}
+.gg-capitolo-footer-value {
+    font-weight: 700;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+}

@@ -7,13 +7,14 @@ class Table(object):
                         name_plural='!!Contents', caption_field='title')
         self.sysFields(tbl)
 
-        tbl.column('title', name_long='!!Title',indexed=True, validate_notnull=True)
+        tbl.column('title', name_long='!!Title', validate_notnull=True)
         tbl.column('headline', name_long='!!Headline')
         tbl.column('abstract', name_long='!!Abstract')
         tbl.column('text', name_long='!!Text')
         tbl.column('html', name_long='!!HTML')
-
         tbl.column('tplbag', dtype='X', name_long='!!Template')
+        
+        tbl.formulaColumn('calc_text', "COALESCE($html,$text)", name_long='!!Calculated Text')
 
     def trigger_onInserted(self, record):
         self.db.table('docu.content_history').makeNewVersionFromContent(record)
@@ -21,5 +22,3 @@ class Table(object):
     def trigger_onUpdated(self, record, old_record=None):
         if self.fieldsChanged('text', record, old_record):
             self.db.table('docu.content_history').makeNewVersionFromContent(record)
-
-    

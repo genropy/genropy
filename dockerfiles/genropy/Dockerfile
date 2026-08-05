@@ -3,18 +3,21 @@
 ############################################################
 
 FROM python:3.11-slim
-RUN apt-get update && apt-get -y full-upgrade &&  apt install -y supervisor nginx python3-psycopg weasyprint && apt-get autoremove -y
+LABEL org.opencontainers.image.title "Genropy"
+LABEL org.opencontainers.image.description "Genropy web framework"
+LABEL org.opencontainers.image.source "https://github.com/genropy/genropy"
+LABEL org.opencontainers.image.documentation "https://docs.genropy.org"
+LABEL org.opencontainers.image.url "https://www.genropy.org"
+LABEL org.opencontainers.image.vendor "Softwell Srl"
+
+RUN apt-get update && apt-get -y full-upgrade &&  apt install -y supervisor git procps iproute2 python3-psycopg weasyprint fonts-liberation fonts-liberation-sans-narrow && apt-get autoremove -y && apt clean
 RUN pip install --upgrade pip
 RUN adduser --group --system --shell /bin/bash --home /home/genro genro
   
-RUN mkdir -p /var/lib/nginx/tmp/proxy
-
-RUN chown genro:genro -R /var/lib/nginx /var/log/nginx /var/log/supervisor
-RUN touch /var/run/nginx.pid && chown -R genro:genro /var/run/nginx.pid
+RUN chown genro:genro -R  /var/log/supervisor
 
 COPY --chown=genro:genro dockerfiles/genropy/supervisor-genropy.conf /etc/supervisor/conf.d/genropy.conf
 COPY --chown=genro:genro dockerfiles/genropy/supervisord.conf /etc/supervisor/
-COPY --chown=genro:genro dockerfiles/genropy/nginx.conf /home/genro/nginx.conf
 COPY --chown=genro:genro dockerfiles/genropy/mime.types /home/genro/mime.types
 COPY --chown=genro:genro dojo_libs/dojo_11 /home/genro/genropy/dojo_libs/dojo_11
 COPY --chown=genro:genro gnrjs /home/genro/genropy/gnrjs
@@ -27,10 +30,11 @@ COPY --chown=genro:genro dockerfiles/genropy/gnrfolder /home/genro/.gnr
 RUN rm -fr /home/genro/genropy/.git
 
 WORKDIR /home/genro/genropy/gnrpy
-RUN pip install .[developer,pgsql]
+RUN pip install --no-cache-dir .[developer,pgsql]
 
 WORKDIR /home/genro
 ENV GNRLOCAL_PROJECTS=/etc/workspaces
 
 EXPOSE 8080
-ENTRYPOINT "supervisord"
+ENTRYPOINT []
+CMD ["supervisord"]

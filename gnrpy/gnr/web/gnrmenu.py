@@ -57,7 +57,7 @@ class MenuStruct(GnrStructData):
             if methodname.startswith('config_'):
                 handler = getattr(obj,methodname)
                 group_code = getattr(handler,'group_code',None)
-                if group_code==page.rootenv['user_group_code']:
+                if group_code and group_code==page.rootenv['user_group_code']:
                     return methodname
         return 'config'
 
@@ -249,10 +249,15 @@ class MenuResolver(BagResolver):
         instanceMenu = self.getInstanceMenu()
         if instanceMenu:
             return instanceMenu
-        pkgMenus = self.app.config['menu?package']
-        if pkgMenus:
-            return self.legacyMenuFromPkgList(pkgMenus)
-        return self.mainPackageMenu(self._page.package.name)
+
+        pkgMenus = self.app.config.get('menu?package')
+        if pkgMenus is None:
+            # Try mainPackage first, fallback to all packages
+            mainPkgMenu = self.mainPackageMenu(self._page.package.name)
+            if mainPkgMenu and len(mainPkgMenu) > 0:
+                return mainPkgMenu
+            pkgMenus = '*'
+        return self.legacyMenuFromPkgList(pkgMenus)
     
     def mainPackageMenu(self,pkg):
         result = self.pkgMenu(pkg,className=getattr(self._page,'menuClass',None))
@@ -260,9 +265,11 @@ class MenuResolver(BagResolver):
             baseNode = result.getNode('#0')
             if not self.allowedNode(baseNode):
                 return Bag()
-            result = baseNode.value
-            baseattr = baseNode.attr
-            self.basepath = baseattr.get('basepath')
+            value = baseNode.value
+            if isinstance(value,Bag):
+                result = value
+                baseattr = baseNode.attr
+                self.basepath = baseattr.get('basepath')
         return result
 
     def legacyMenuFromPkgList(self,pkgMenus):
@@ -310,10 +317,24 @@ class MenuResolver(BagResolver):
             except NotAllowedException:
                 continue
             self.setLabelClass(attributes)
-            if attributes.get('titleCounter') and menuTag!='tableBranch':
-                self._page.subscribeTable(attributes['table'],True,subscribeMode=True)
-                attributes['titleCounter_count'] = self._page.app.getRecordCount(table=attributes['table'],
-                                                                                 where=attributes.get('titleCounter_condition'))
+            titleCounter_val = attributes.get('titleCounter')
+            menuLineBadge = attributes.get('menuLineBadge')
+            menuLineBadge_attr = {}
+            if (titleCounter_val or menuLineBadge) and menuTag != 'tableBranch':
+                if menuLineBadge:
+                    menuLineBadge_attr = dictExtract(attributes,'menuLineBadge_',pop=False)
+                    menuLineBadge_attr['table'] = menuLineBadge_attr.get('table') or attributes.get('table')
+                    menuLineBadge_attr['handler'] = menuLineBadge
+                    
+                else:
+                    menuLineBadge_attr = dictExtract(attributes,'titleCounter_',pop=False)
+                    if isinstance(titleCounter_val, dict):
+                        menuLineBadge_attr.update(titleCounter_val)
+                    menuLineBadge_attr['table'] = attributes.get('table') or menuLineBadge_attr.get('table')
+                if menuLineBadge_attr.get('table'):
+                    self._page.subscribeTable(menuLineBadge_attr.get('table'), True, subscribeMode=True)
+                    attributes['badgeContent'] = self._page.menu.getMenuLineBadge(**menuLineBadge_attr)
+            
             result.setItem(node.label, value, attributes)
         return result
 
@@ -477,9 +498,11 @@ class MenuResolver(BagResolver):
         if not aux_instance:
             attributes['url_th_from_package'] = attributes['url_th_from_package'] or self._page.package.name
         attributes.setdefault('multipage',False)
-        tableattr = self._page.db.table(table).attributes
-        attributes['label'] =  attributes.get('label') or tableattr.get('name_long')
+        
         application = self.app.getAuxInstance(aux_instance) if aux_instance else self.app
+        tableattr = application.db.table(table).attributes
+        attributes['label'] =  attributes.get('label') or tableattr.get('name_long')
+        
         if not application.allowedByPreference(**tableattr):
             raise NotAllowedException('Not allowed by preference')
         return None,attributes
@@ -505,9 +528,11 @@ class MenuResolver(BagResolver):
             attributes.setdefault('url_th_public',True)
         else:
             attributes.setdefault('multipage',True)
-        tableattr = self._page.db.table(table).attributes
-        attributes['label'] =  attributes.get('label') or tableattr.get('name_long')
+
         application = self.app.getAuxInstance(aux_instance) if aux_instance else self.app
+        tableattr = application.db.table(table).attributes
+        attributes['label'] =  attributes.get('label') or tableattr.get('name_long')
+        
         if not application.allowedByPreference(**tableattr):
             raise NotAllowedException('Not allowed by preference')
         return None,attributes
@@ -528,18 +553,23 @@ class MenuResolver(BagResolver):
         attributes.setdefault('branchIdentifier',getUuid())
         kwargs = dict(attributes)
         kwargs.pop('titleCounter',None)
+        kwargs.pop('menuLineBadge',None)
         kwargs.pop('tag')
         cacheTime = kwargs.pop('cacheTime',None)
         xmlresolved = kwargs.pop('resolved',False)
         attributes.pop('branchPage',None)
         self._page.subscribeTable(kwargs['table'],True,subscribeMode=True)
-        if attributes.get('titleCounter'):
-            xmlresolved=True
+        titleCounter = attributes.get('titleCounter')
+        menuLineBadge = attributes.get('menuLineBadge')
+        xmlresolved=titleCounter is not None
         sbresolver = TableMenuResolver(xmlresolved=xmlresolved,
                             _page=self._page,cacheTime=cacheTime, 
                             level_offset=self.level,
                             **kwargs)
         attributes['isDir'] = True
+        if menuLineBadge == '#' or titleCounter:
+            attributes['child_count'] = len(sbresolver())
+            attributes['badgeContent'] = attributes['child_count'] or None
         return sbresolver,attributes
 
     def nodeType_packageBranch(self,node):
@@ -730,11 +760,12 @@ class LookupBranchResolver(MenuResolver):
 
 class PackageMenuResolver(MenuResolver):
     def __init__(self, pkg=None,branchMethod=None, **kwargs):
-       super().__init__(pkg=pkg,
+        super().__init__(pkg=pkg,
                             branchMethod=branchMethod,
                             **kwargs)
-       self.pkg = pkg
-       self.branchMethod = branchMethod
+
+        self.pkg = pkg
+        self.branchMethod = branchMethod
 
     @property
     def sourceBag(self):
@@ -744,9 +775,9 @@ class PackageMenuResolver(MenuResolver):
 
 class DirectoryMenuResolver(MenuResolver):
     def __init__(self, dirpath=None, **kwargs):
-       super().__init__(dirpath=dirpath,**kwargs)
-       self.dirpath = dirpath
-       self.xmlresolved = False
+        super().__init__(dirpath=dirpath,**kwargs)
+        self.dirpath = dirpath
+        self.xmlresolved = False
 
     @property
     def sourceBag(self):

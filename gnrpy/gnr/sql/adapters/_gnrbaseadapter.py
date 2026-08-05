@@ -33,12 +33,45 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrlist import GnrNamedList
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrdate import decodeDatePeriod
+from gnr.sql import AdapterCapabilities as Capabilities
 from gnr.sql import logger
 
 FLDMASK = dict(qmark='%s=?',named=':%s',pyformat='%%(%s)s')
 
 
+class MacroExpander(object):
+    # Class-level regex patterns — used by adapter subclasses (e.g. Postgres)
+    macros = {}
 
+    def __init__(self, querycompiler):
+        self.querycompiler = querycompiler
+        self._registered_macros = {}
+        self.context = {}
+
+    def register(self, name, regex, callback):
+        """Register a macro on this expander instance.
+
+        Args:
+            name: Macro name without ``#`` (e.g. ``'IN_RANGE'``).
+            regex: Compiled regex matching the macro syntax.
+            callback: ``callback(match, expander) → str`` replacement.
+        """
+        self._registered_macros[name] = (regex, callback)
+
+    def replace(self, sql_text, macro):
+        """Expand macros in the given SQL text.
+
+        Registered macros (via :meth:`register`) take precedence over
+        class-level macros inherited from the adapter.
+        """
+        for m in macro.split(','):
+            if m in self._registered_macros:
+                regex, callback = self._registered_macros[m]
+                sql_text = regex.sub(lambda match: callback(match, self), sql_text)
+            elif m in self.macros:
+                sql_text = self.macros[m].sub(getattr(self, f'_expand_{m}'), sql_text)
+        return sql_text
+    
 class SqlDbAdapter(object):
     """Base class for sql adapters.
     
@@ -66,7 +99,7 @@ class SqlDbAdapter(object):
 
     revTypesDict = {'A': 'character varying', 'C': 'character', 'T': 'text',
                     'X': 'text', 'P': 'text', 'Z': 'text', 'N': 'numeric', 'M': 'money',
-                    'B': 'boolean', 'D': 'date', 
+                    'B': 'boolean', 'D': 'date',
                     'H': 'time without time zone',
                     'HZ': 'time without time zone',
                     'DH': 'timestamp without time zone',
@@ -75,8 +108,51 @@ class SqlDbAdapter(object):
                     'I': 'integer', 'L': 'bigint', 'R': 'real',
                     'serial': 'serial8', 'O': 'bytea'}
 
+    # Type conversions for migration system
+    # Format: (old_dtype, new_dtype) → conversion rule
+    # - None or True: simple conversion (just ALTER COLUMN TYPE)
+    # - SQL string: complex conversion requiring USING clause (database-specific)
+    # - Key absent: incompatible conversion
+    TYPE_CONVERSIONS = {
+        # Simple text conversions (no USING needed)
+        ('A', 'T'): None,
+        ('A', 'C'): None,
+        ('A', 'X'): None,
+        ('A', 'Z'): None,
+        ('A', 'P'): None,
+        ('T', 'A'): None,
+        ('T', 'C'): None,
+        ('T', 'X'): None,
+        ('T', 'Z'): None,
+        ('T', 'P'): None,
+        ('C', 'A'): None,
+        ('C', 'T'): None,
+        ('C', 'X'): None,
+        ('C', 'Z'): None,
+        ('C', 'P'): None,
 
-    
+        # Simple numeric conversions
+        ('I', 'L'): None,
+        ('I', 'N'): None,
+        ('B', 'I'): None,
+        ('N', 'I'): None,
+        ('N', 'L'): None,
+        ('N', 'R'): None,
+        ('L', 'I'): None,
+        ('L', 'N'): None,
+        ('L', 'R'): None,
+
+        # Simple date/time conversions
+        ('D', 'DH'): None,
+        ('D', 'DHZ'): None,
+        ('DH', 'D'): None,
+        ('DH', 'DHZ'): None,
+        ('DHZ', 'D'): None,
+        ('DHZ', 'DH'): None,
+    }
+
+
+
     paramstyle = 'named'
     allowAlterColumn=True
 
@@ -85,7 +161,8 @@ class SqlDbAdapter(object):
         self.options = kwargs
         self._whereTranslator = None
 
-        self._check_required_executables()
+        if self._check_required_executables():
+            self.CAPABILITIES.add(Capabilities.ADMINISTER)
         
 
     def _check_required_executables(self):
@@ -98,6 +175,24 @@ class SqlDbAdapter(object):
             missing_desc = ", ".join(missing)
             logger.warning(f"DB adapter required executables not found: {missing_desc}, please install to avoid runtime errors."),
             
+        return not missing
+
+    # -- Macro support -------------------------------------------------------
+
+    def registerMacros(self, db):
+        """Register adapter-specific macros via ``db.addMacro()``.
+
+        Override in subclasses to register macros that depend on the
+        database engine (e.g. full-text search, vector similarity).
+        """
+        pass
+
+    @property
+    def macroExpander(self):
+        return MacroExpander
+
+    # -- SQL name adaptation -------------------------------------------------
+
     def adaptSqlName(self,name):
         """
         Adapt/fix a name if needed in a specific adapter/driver
@@ -136,7 +231,12 @@ class SqlDbAdapter(object):
         sql = "UPDATE %s SET %s=:newpkey WHERE %s=:currpkey;" % (tblobj.sqlfullname, pkeyColumn,pkeyColumn)
         return self.dbroot.execute(sql, dbtable=dbtable.fullname,sqlargs=dict(currpkey=pkey,newpkey=newpkey))
 
-
+    def get_connection_params(self, storename=None):
+        """
+        Get the connection parameters as a dict for connect kwargs
+        """
+        return self.dbroot.get_connection_params(storename=storename)
+    
     def connect(self, storename=None, autoCommit=False, **kw):
         """-- IMPLEMENT THIS --
         Build and return a new connection object: ex. return dbapi.connect()
@@ -265,6 +365,7 @@ class SqlDbAdapter(object):
         specific adapters
         """
         raise AdapterMethodNotImplemented()
+    
 
     def listElements(self, elType, **kwargs):
         """-- IMPLEMENT THIS --
@@ -289,6 +390,28 @@ class SqlDbAdapter(object):
         """
         raise AdapterMethodNotImplemented()
 
+    def listen_connection(self, channels):
+        """Open a dedicated AUTOCOMMIT connection and LISTEN on the given channels.
+
+        Returns a connection ready for ``select()`` polling, or ``None``
+        for adapters that do not support notifications.
+
+        Args:
+            channels: Iterable of channel names to LISTEN on.
+        """
+        return None
+
+    def poll_notifications(self, conn):
+        """Poll for pending notifications on a listen connection.
+
+        Args:
+            conn: The connection returned by :meth:`listen_connection`.
+
+        Returns:
+            A list of notification objects (each with ``.channel`` and ``.payload``).
+        """
+        return []
+
     def listRemoteDatabases(self, source_ssh_host=None, source_ssh_user=None,
                             source_ssh_dbuser=None, source_ssh_dbpassword=None,
                             source_ssh_dbhost=None):
@@ -303,12 +426,18 @@ class SqlDbAdapter(object):
         """
         raise AdapterMethodNotImplemented()
 
-    def notify(self, msg, autocommit=False):
-        """-- IMPLEMENT THIS --
-        Notify a message to listener processes.
-        @param msg: name of the message to notify
-        @param autocommit: dafault False, if specific implementation of notify uses transactions, commit the current transaction"""
-        raise AdapterMethodNotImplemented()
+    def notify(self, msg, payload=None, autocommit=False):
+        """Notify a message to listener processes.
+
+        Base implementation is a no-op for adapters that do not support
+        notifications (e.g. SQLite).  Override in subclasses.
+
+        Args:
+            msg: Channel name to notify.
+            payload: Optional payload string (JSON or plain text).
+            autocommit: If True, commit the notification immediately.
+        """
+        pass
 
     def prepareSqlText(self, sql, kwargs):
         """Subclass in adapter if you want to change some sql syntax or params types.
@@ -476,6 +605,17 @@ class SqlDbAdapter(object):
         """Generates SQL to alter the type of a column."""
         raise AdapterMethodNotImplemented()
 
+    def struct_alter_column_with_conversion_sql(self, column_name=None, new_sql_type=None,
+                                                conversion_expression=None, **kwargs):
+        """
+        Generate SQL to alter column type with explicit conversion.
+        Default implementation for databases that don't support USING clause.
+        """
+        raise AdapterMethodNotImplemented(
+            "Type conversion not supported for this database adapter. "
+            "Use an upgrade script for manual conversion."
+        )
+
     def struct_add_not_null_sql(self, column_name, **kwargs):
         """Generates SQL to add a NOT NULL constraint to a column."""
         raise AdapterMethodNotImplemented()
@@ -532,7 +672,7 @@ class SqlDbAdapter(object):
         result = """'<a %s >%s</a>'""" % (' '.join(['%s="%s"' %(k,v) for k,v in list(kw.items())]), link_txt)
         return result
 
-    def setLocale(self, locale):
+    def setLocale(self, locale): # pragma: no cover
         """-- IMPLEMENT THIS --
         Set the locale in the database connection
         """
@@ -606,6 +746,11 @@ class SqlDbAdapter(object):
                                 innernode.attr.pop(blackattr,None)
                     v = v.toXml() if v else None
                     #data_out[str(k.lower())] = v
+                col = tblobj.columns.get(k)
+                if col and v is not None:
+                    enc_mode = col.attributes.get('encrypted')
+                    if enc_mode:
+                        v = self.dbroot.encryptor.encrypt(v, enc_mode)
                 data_out[str(k)] = v
         sql_value_cols = [k for k,v in list(tblobj.columns.items()) if 'sql_value' in v.attributes and not k in data_out]
         for k in sql_value_cols:
@@ -622,10 +767,15 @@ class SqlDbAdapter(object):
 
         Returns None
         """
-        
-        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit)
+
+        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit,
+                                                                            storename=self.dbroot.currentStorename)
         with connection.cursor() as cursor:
+            if isinstance(sqlargs,dict):
+                sql,sqlargs = self.prepareSqlText(sql,sqlargs)
             cursor.execute(sql,sqlargs)
+        connection.close()
+
         
     def raw_fetch(self, sql, sqlargs=None, manager=False, autoCommit=False):
         """
@@ -635,11 +785,14 @@ class SqlDbAdapter(object):
 
         Returns all records returned by the SQL statement.
         """
-        
-        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit)
+        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit,storename=self.dbroot.currentStorename)
         with connection.cursor() as cursor:
+            if isinstance(sqlargs,dict):
+                sql,sqlargs = self.prepareSqlText(sql,sqlargs)
             cursor.execute(sql, sqlargs)
-            return cursor.fetchall()
+            result = cursor.fetchall()
+        connection.close()
+        return result
                 
     def insert(self, dbtable, record_data,**kwargs):
         """Insert a record in the db
@@ -687,7 +840,7 @@ class SqlDbAdapter(object):
         result = cursor.executemany(sql,records)
         return result
 
-    def update(self, dbtable, record_data, pkey=None,**kwargs):
+    def update(self, dbtable, record_data, pkey=None,old_record=None,**kwargs):
         """Update a record in the db. 
         All fields in record_data will be updated: all keys must correspond to a column in the db.
         
@@ -708,12 +861,19 @@ class SqlDbAdapter(object):
                     sql_par_prefix = ''
                     k = sql_value
                 sql_flds.append('%s=%s%s' % (sqlcolname, sql_par_prefix,k))
-        pkeyColumn = tblobj.pkey
-        if pkey:
-            pkeyColumn = '__pkey__'
-            record_data[pkeyColumn] = pkey
-        sql = 'UPDATE %s SET %s WHERE %s=:%s;' % (
-        tblobj.sqlfullname, ','.join(sql_flds), tblobj.sqlnamemapper[tblobj.pkey], pkeyColumn)
+        if old_record:
+            pkeysDict = {k:old_record[k] for k in  tblobj.pkeys}
+        elif pkey:
+            pkeysDict = dbtable.parseSerializedKey(pkey)
+        else:
+            pkeysDict = {k:record_data[k] for k in  tblobj.pkeys}
+        where = []
+        for i,k in enumerate(pkeysDict.keys()):
+            parname = f'__pkey__{i}'
+            where.append(f'{tblobj.sqlnamemapper[k]}=:{parname}')
+            record_data[parname] = pkeysDict[k]
+        where = ' AND '.join(where)
+        sql = f"UPDATE {tblobj.sqlfullname} SET {','.join(sql_flds)} WHERE {where};"
         return self.dbroot.execute(sql, record_data, dbtable=dbtable.fullname)
 
     def delete(self, dbtable, record_data,**kwargs):
@@ -784,6 +944,29 @@ class SqlDbAdapter(object):
         Returns a string_agg() SQL statement, which can be overriden if needed.
         """
         return f"string_agg({fieldpath},'{separator}')"
+
+    def mask_field_sql(self, field, mode='2-4', placeholder='*'):
+        """
+        Returns a SQL expression for masking a field value for secure display.
+
+        This base implementation emits a warning and returns the field unchanged.
+        Subclasses should override this method with database-specific implementations.
+
+        Args:
+            field: The field expression to mask (with $ prefix for gnr substitution)
+            mode: Masking mode - 'email', 'creditcard', 'phone', or 'N-M' format
+            placeholder: Character to use for masking (default: '*')
+
+        Returns:
+            str: SQL expression for the masked field
+        """
+        warnings.warn(
+            f"mask_field_sql is not implemented for {self.__class__.__name__}. "
+            "The field will be returned unmasked. "
+            "Use PostgreSQL or SQLite adapter for masking support.",
+            UserWarning
+        )
+        return field
 
     def addForeignKeySql(self, c_name,
                          o_pkg, o_tbl, o_fld,
@@ -1222,6 +1405,13 @@ class GnrWhereTranslator(object):
 
                 if value is None and attr.get('value_caption'):
                     value = sqlArgs.pop(attr['value_caption'],'')
+                enc_mode = attr.get('encrypted') or colobj.attributes.get('encrypted')
+                if enc_mode == 'Q' and value is not None:
+                    encryptor = self.db.encryptor
+                    if isinstance(value, list):
+                        value = [encryptor.encrypt(v, 'Q') for v in value]
+                    else:
+                        value = encryptor.encrypt(value, 'Q')
                 onecondition = self.prepareCondition(column, op, value, dtype, sqlArgs,tblobj=tblobj,parname=parname)
 
             if onecondition:
@@ -1331,6 +1521,13 @@ class GnrWhereTranslator(object):
     def op_contains(self, column, value, dtype, sqlArgs, tblobj, parname=None):
         "!!Contains"
         return self.unaccentTpl(tblobj,column,'ILIKE',mask="'%%%%' || :%s || '%%%%'")  % (column, self.storeArgs(value, dtype, sqlArgs, parname=parname))
+
+
+    def op_fulltext(self, column, value, dtype, sqlArgs, tblobj, parname=None):
+        "!!Matches"
+        return f"#TSQUERY({tblobj.column(column).attributes['tsvColumn']},:{self.storeArgs(value, dtype, sqlArgs, parname=parname)},{tblobj.column(column).attributes['tsvLanguage']})"
+
+
 
     def op_greater(self, column, value, dtype, sqlArgs, tblobj, parname=None):
         "!!Greater than"

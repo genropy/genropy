@@ -1,0 +1,133 @@
+/* ==========================================================================
+   gnr_dojotheme/form/Button.css — Complete dijit button styling.
+   Replaces tundra/form/Button.css: removes all PNG backgrounds.
+   Provides the tonal button system as base appearance.
+   gnrbase_css/08_gnr_buttons.css adds GenroPy-specific classes
+   (.btn_filled, .slotbar_toolbar, .no_background, etc.).
+   ========================================================================== */
+
+/* --- Button node base: tonal style --- */
+.gnr_dojotheme .dijitButtonNode {
+    border: 1px solid var(--btn-border-color, #ccc);
+    padding: calc(0.25rem - 1px) calc(0.7rem - 1px);
+    background-color: var(--btn-tonal-bg, #E3F2FD);
+    background-image: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    opacity: 1;
+    color: var(--btn-tonal-color, #1565C0);
+    font-weight: 500;
+    font-size: var(--font-size);
+    letter-spacing: 0.1px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.gnr_dojotheme .dijitButtonText {
+    text-align: center;
+    padding: 0;
+    color: var(--btn-tonal-color, #1565C0);
+}
+
+.gnr_dojotheme .dijitComboBox .dijitButtonNode {
+    border: 0;
+}
+
+.gnr_dojotheme .dijitArrowButton {
+    color: var(--text-color, #444);
+    background: none;
+    padding: 0;
+}
+
+.gnr_dojotheme .dijitComboButton .dijitDownArrowButton {
+    padding-right: 4px;
+}
+
+/* --- Disabled buttons --- */
+.gnr_dojotheme .dijitDisabled.dijitButtonDisabled .dijitButtonNode,
+.gnr_dojotheme .dijitDisabled.dijitToggleButtonDisabled .dijitButtonNode,
+.gnr_dojotheme .dijitDisabled.dijitDropDownButtonDisabled .dijitButtonNode,
+.gnr_dojotheme .dijitDisabled.dijitComboButtonDisabled .dijitButtonNode {
+    opacity: 0.65;
+    cursor: not-allowed;
+    background-image: none;
+}
+
+.gnr_dojotheme .dijitDisabled .dijitButtonText {
+    color: inherit;
+}
+
+/* --- Disabled combo/spinner fields (not buttons) --- */
+.gnr_dojotheme .dijitComboBoxDisabled,
+.gnr_dojotheme .dijitSpinnerDisabled,
+.gnr_dojotheme .dijitSpinnerDisabled .dijitButtonNode {
+    border-color: var(--field-disabled-border, #C7C7CC);
+    background-color: var(--field-disabled-bg, #F2F2F7);
+    background-image: none;
+}
+
+/* --- Hover state --- */
+.gnr_dojotheme .dijitButtonHover .dijitButtonNode,
+.gnr_dojotheme .dijitButtonNodeHover,
+.gnr_dojotheme .dijitToggleButtonHover .dijitButtonNode,
+.gnr_dojotheme .dijitDropDownButtonHover .dijitButtonNode,
+.gnr_dojotheme .dijitComboButton .dijitButtonContentsHover,
+.gnr_dojotheme .dijitComboButton .dijitDownArrowButtonHover {
+    background-image: none;
+    background-color: var(--btn-tonal-hover-bg, #BBDEFB);
+    box-shadow: none;
+}
+
+/* --- Active/pressed state --- */
+.gnr_dojotheme .dijitButton.dijitButtonActive .dijitButtonNode,
+.gnr_dojotheme .dijitButtonNodeActive,
+.gnr_dojotheme .dijitToggleButtonActive .dijitButtonNode,
+.gnr_dojotheme .dijitDropDownButtonActive .dijitButtonNode,
+.gnr_dojotheme .dijitComboButton .dijitButtonContentsActive,
+.gnr_dojotheme .dijitComboButton .dijitDownArrowButtonActive {
+    background-image: none;
+    background-color: var(--btn-tonal-pressed-bg, #90CAF9);
+    box-shadow: none;
+}
+
+.gnr_dojotheme .dijitButton.dijitButtonActive .dijitButtonText {
+    color: var(--btn-tonal-color, #1565C0);
+}
+
+/* --- Selected (toggle checked) --- */
+.gnr_dojotheme .dijitButtonActive .dijitButtonNode,
+.gnr_dojotheme .dijitButtonContentsActive,
+.gnr_dojotheme .dijitStackController .dijitToggleButtonChecked .dijitButtonNode {
+    background-image: none;
+    background-color: var(--btn-tonal-selected-bg, #90CAF9);
+    box-shadow: none;
+}
+
+/* --- Form-widget arrow buttons: pure icon, no chrome in any state --- */
+.gnr_dojotheme .dijitTextBox .dijitButtonNode,
+.gnr_dojotheme .dijitComboBox .dijitArrowButton,
+.gnr_dojotheme .dijitSpinner .dijitArrowButton {
+    border-radius: 0;
+    background: none;
+    background-color: transparent;
+    background-image: none;
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+    filter: none;
+}
+
+.gnr_dojotheme .dijitDisabled .dijitArrowButton {
+    visibility: hidden;
+}
+
+/* --- Arrow button inner (no PNG, SVG provided by gnrbase icons) --- */
+.gnr_dojotheme .dijitArrowButtonInner {
+    background-image: none;
+}
+
+.gnr_dojotheme .dijitComboBox .dijitArrowButton .dijitArrowButtonInner {
+    height: 100%;
+}

@@ -6,7 +6,7 @@ from imdb import IMDb
 
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
-from gnr.app.gnrdeploy import PathResolver
+from gnr.app.pathresolver import PathResolver
 
 class GnrCustomWebPage(object):
     py_requires="gnrcomponents/testhandler:TestHandlerFull"

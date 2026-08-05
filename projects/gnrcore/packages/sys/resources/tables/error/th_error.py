@@ -5,30 +5,34 @@ from gnr.web.gnrbaseclasses import BaseComponent
 
 class View(BaseComponent):
 
+    def th_groupedStruct(self,struct):
+        "By type and date"
+        r = struct.view().rows()
+        r.fieldcell('error_type', width='15em')
+        r.fieldcell('__ins_ts', name='Date', width='10em', format='ymd')
+        r.cell('_grp_count', name='Cnt', width='4em', group_aggr='sum')
+
     def th_struct(self,struct):
         r = struct.view().rows()
-        r.fieldcell('__ins_ts',name='Datetime')
-        r.fieldcell('error_type')
-
-        r.fieldcell('description')
-        r.fieldcell('username')
-        r.fieldcell('user_ip')
-        r.fieldcell('user_agent')
-        r.fieldcell('fixed')
-        r.fieldcell('notes')
+        r.fieldcell('__ins_ts', name='Datetime', width='8em')
+        r.fieldcell('error_code', name='Error code', width='8em')
+        r.fieldcell('id', name='Id', width='15em')
+        r.fieldcell('error_type', name='Error type', width='10em')
+        r.fieldcell('description', name='Description', width='20em')
+        r.fieldcell('request_host', name='Request Host', width='8em')
+        r.fieldcell('request_uri', name='Request URI', width='8em')
+        r.fieldcell('rpc_method', name='RPC Method', width='8em')
+        r.fieldcell('rpc_kwargs', name='RPC kwargs', width='15em',
+                    format_bag_nested=True, format_bag_omitEmpty=False)
+        r.fieldcell('username', name='User')
+        r.fieldcell('user_ip', name='User ip')
+        r.fieldcell('user_agent', name='User agent')
 
     def th_order(self):
         return '__ins_ts:d'
 
     def th_query(self):
-        return dict(column='description', op='contains', val='')
-
-    def th_bottom_custom(self,bar):
-        bar.slotToolbar('sections@error_type,*')
-
-    def th_sections_error_type(self):
-        return [dict(code='exc',caption='!!Exceptions',condition="$error_type=:c",condition_c='EXC'),
-                dict(code='err',caption='!!Errors',condition="$error_type=:c",condition_c='ERR')]
+        return dict(column='__ins_ts', op='equal', val='')
 
 
 class Form(BaseComponent):
@@ -36,24 +40,25 @@ class Form(BaseComponent):
         # pane = form.record
         bc = form.center.borderContainer(datapath='#FORM.record')
         self.left(bc.contentPane(region='left',margin='2px',_class='pbl_roundedGroup'))
-        self.right(bc.contentPane(region='center',margin='2px',_class='pbl_roundedGroup',overflow='auto'))
+        self.right(bc.borderContainer(region='center',margin='2px',_class='pbl_roundedGroup'))
 
     def left(self,pane):
         width='35em'
         pane.div('Error Data',_class='pbl_roundedGroupLabel')
-        fb = pane.formbuilder(cols=2, border_spacing='4px')
-        fb.field('error_type',colspan=2,width=width)
-        fb.field('description',colspan=2,width=width)
-        fb.field('username',width='15em')
-        fb.field('user_ip',width='15em')
-        fb.field('fixed',colspan=2,width=width)
-        fb.field('user_agent',colspan=2,width=width,tag='simpleTextArea',height='2.5em')
+        fb = pane.formlet(cols=1)
+        fb.field('__ins_ts')
+        fb.field('error_type')
+        fb.field('description')
+        fb.field('username')
+        fb.field('user_ip')
+        fb.field('user_agent',width=width,tag='simpleTextArea',height='5em')
+        fb.field('rpc_method')
+        fb.field('rpc_kwargs')
 
-    def right(self,pane):
-        width='35em'
-        pane.div('TraceBack Tree',_class='pbl_roundedGroupLabel')
-        fb = pane.formbuilder(cols=1, border_spacing='4px')
-        fb.field('error_data',width=width)
+    def right(self,bc):
+        bc.contentPane(region='top').div('Traceback',_class='pbl_roundedGroupLabel')
+        bc.contentPane(region='center',overflow='hidden').tracebackViewer(
+            value='^#FORM.record.error_data',height='100%')
 
 
 

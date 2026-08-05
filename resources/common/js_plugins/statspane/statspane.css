@@ -1,30 +1,26 @@
 .stat_step_status_OK{
-    background: url(/_gnr/11/css/icons/base16/semaphore_green.png) no-repeat center center;
+    background-color: var(--status-ok, #4caf50);
+    border-radius: var(--radius-full, 50%);
     width: 14px;
     height: 14px;
 }
 .stat_step_status_TC{
-    background: url(/_gnr/11/css/icons/base16/semaphore_yellow.png) no-repeat center center;
+    background-color: var(--status-warning, #ff9800);
+    border-radius: var(--radius-full, 50%);
     width: 14px;
     height: 14px;
 }
 
 .stat_step_status_NO{
-    background: url(/_gnr/11/css/icons/base16/semaphore_gray.png) no-repeat center center;
+    background-color: var(--status-idle, #9e9e9e);
+    border-radius: var(--radius-full, 50%);
     width: 14px;
     height: 14px;
 }
 
 .stat_step_status_ERR{
-    background: url(/_gnr/11/css/icons/base16/semaphore_red.png) no-repeat center center;
+    background-color: var(--status-error, #E53935);
+    border-radius: var(--radius-full, 50%);
     width: 14px;
     height: 14px;
 }
-
-
-
-
-
-
-
-

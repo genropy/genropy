@@ -12,10 +12,6 @@ class TestGnrApp(BaseGnrAppTest):
     """
     Tests class for gnr.app.gnrapp package
     """
-    def setup_method(self, method):
-        self.app_name = 'gnrdevelop'
-        self.app = ga.GnrApp(self.app_name, forTesting=True)
-
     def test_nullloader(self):
         """
         Tests for NullLoader
@@ -158,5 +154,33 @@ class TestGnrApp(BaseGnrAppTest):
 
         FIXME: maybe this should be moved to gnr.sql
         """
-        a = ga.GnrSqlAppDb()
-        assert a.application is None
+
+        # ensure that a GnrSqlAppDb without
+        # an application raises a TypeError
+        with pytest.raises(TypeError):
+            a = ga.GnrSqlAppDb()
+
+
+    def test_data_retention(self):
+        """
+        Test app higher level data retention
+        method and configurations
+        """
+        
+        default_policy = self.app.defaultRetentionPolicy
+        custom_policy = self.app.retentionPolicy
+
+        for p in (default_policy, custom_policy):
+            assert isinstance(p, dict)
+        
+            assert "sys.error" in p
+            assert "sys.task_execution" in p
+            assert isinstance(p['sys.error']['retention_period'], int)
+            assert p['sys.error']['retention_period_default'] == 60
+            assert p['sys.error']['filter_column'] == '__ins_ts'
+            assert p['sys.error']['retention_period'] == p['sys.error']['retention_period_default']
+            assert "extra_where_filter" in p['sys.error']
+            assert "extra_where_filter" in p['sys.task_execution']
+            assert p['sys.error']['extra_where_filter'] == None
+            assert p['sys.task_execution']['extra_where_filter'] == None
+       

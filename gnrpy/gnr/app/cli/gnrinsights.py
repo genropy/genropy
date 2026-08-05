@@ -9,8 +9,6 @@ from gnr.app.gnrutils import GnrAppInsights
 
 description = "provide app insights"
 
-
-
 def main():
     parser = GnrCliArgParse(description=description)
     parser.add_argument("-b", "--bag",
@@ -23,9 +21,14 @@ def main():
                         action="store_true",
                         help="Show a list of insights")
 
-    parser.add_argument("instance_name")
+    parser.add_argument("instance_name",
+                        help="Name of the instance to analyze")
+    available_insights = list(GnrAppInsights.insights.keys())
+    
     parser.add_argument("insight_name", nargs="?",
-                        default="project_composition")
+                        choices=available_insights,
+                        default=available_insights[0], metavar="insight_name",
+                        help=f"Requested insight: {', '.join(available_insights)}")
     options = parser.parse_args()
 
     if options.list:

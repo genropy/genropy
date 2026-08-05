@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"Collaborative rooms with shared Object. Please use websockets=True in siteconfig and gnrwsgiserve --tornado for testing"
+"Collaborative rooms with shared Object. Requires websockets=\"true\" in siteconfig; the dev server (gnr web serve) auto-spawns the gnrasync subprocess."
 
 class GnrCustomWebPage(object):
     
