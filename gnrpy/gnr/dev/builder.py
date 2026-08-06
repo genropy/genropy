@@ -119,7 +119,9 @@ class GnrProjectBuilder(object):
             'description': self.instance_name,
             'subfolder': None
             }
-        _repos[main_repo_url] = code_repo
+        
+        if main_repo_url not in _repos:
+            _repos[main_repo_url] = code_repo
         git_repositories = list(_repos.values())
         logger.debug("Found git repositories: %s", git_repositories)
         return git_repositories
