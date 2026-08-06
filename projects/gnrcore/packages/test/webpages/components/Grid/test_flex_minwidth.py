@@ -7,9 +7,8 @@ from gnr.core.gnrbag import Bag
 class GnrCustomWebPage(object):
     py_requires = "gnrcomponents/testhandler:TestHandlerFull,gnrcomponents/framegrid:frameGrid"
 
-    def getSampleData(self):
-        result = Bag()
-        rows = [
+    def _sampleRows(self):
+        return [
             dict(code='PROD-001', description='High performance widget with extended warranty',
                  category='Electronics', quantity=150, unit_price=29.99,
                  supplier='Acme Corp International', notes='Best seller this quarter'),
@@ -26,7 +25,20 @@ class GnrCustomWebPage(object):
                  category='Networking', quantity=12, unit_price=599.00,
                  supplier='SecureNet Global Partners', notes='Requires installation'),
         ]
-        for i, row in enumerate(rows):
+
+    def getSampleData(self):
+        result = Bag()
+        for i, row in enumerate(self._sampleRows()):
+            result.setItem('r_%i' % i, Bag(row))
+        return result
+
+    def getManyRows(self, n=120):
+        """Like getSampleData but with enough rows to force vertical overflow."""
+        base = self._sampleRows()
+        result = Bag()
+        for i in range(n):
+            row = dict(base[i % len(base)])
+            row['code'] = 'PROD-%03i' % i
             result.setItem('r_%i' % i, Bag(row))
         return result
 
@@ -140,3 +152,39 @@ class GnrCustomWebPage(object):
         center.bagGrid(frameCode='fixedem', datapath='.grid_3',
                                struct=struct, storepath='.store_3',
                                height='100%', fillDown=True)
+
+    def test_4_columnsets_vertical_scroll(self, pane):
+        """Regression test for #955: a columnset grid with enough rows to overflow
+        vertically MUST keep its vertical scrollbar. The columnset/footer wrapper
+        (gr_wrap_footers) must hide only the redundant horizontal scrollbar, never
+        the vertical one. Verify in Firefox and in Chrome >= 121 (where
+        scrollbar-width is honored): the vertical scrollbar has to be present."""
+        bc = pane.borderContainer(height='300px')
+        center = bc.contentPane(region='center')
+
+        def struct(struct):
+            r = struct.view().rows()
+            r.cell('code', width='8em', name='Product Code')
+            r.cell('description', width='auto', name='Description',
+                    columnset='product')
+            r.cell('category', width='auto', name='Category',
+                    columnset='product')
+            r.cell('quantity', width='6em', dtype='L', name='Quantity',
+                    columnset='numbers')
+            r.cell('unit_price', width='7em', dtype='N', name='Unit Price',
+                    format='#,###.00', columnset='numbers')
+            r.cell('supplier', width='auto', name='Supplier',
+                    columnset='supply')
+            r.cell('notes', width='auto', name='Notes',
+                    columnset='supply')
+
+        center.data('.sample_data', self.getManyRows(120))
+        center.dataFormula('.grid_4.store_4', 'sample_data', sample_data='=.sample_data', _onStart=True)
+
+        center.bagGrid(frameCode='colsets_vscroll', datapath='.grid_4',
+                               struct=struct, storepath='.store_4',
+                               height='100%',
+                               grid_footer='Totals',
+                               columnset_product='Product Info',
+                               columnset_numbers='Quantities',
+                               columnset_supply='Supply Chain')

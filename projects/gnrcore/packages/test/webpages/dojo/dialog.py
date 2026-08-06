@@ -6,7 +6,7 @@
 
 class GnrCustomWebPage(object):
     dojo_version = '11'
-    py_requires = "gnrcomponents/testhandler:TestHandlerBase"
+    py_requires = "gnrcomponents/testhandler:TestHandlerFull"
     css_theme = 'aqua'
     dojo_theme = 'tundra'
     

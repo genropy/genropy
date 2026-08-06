@@ -19,6 +19,8 @@ class GnrK8SGenerator(object):
                  secret_name=None,
                  replicas=1,
                  resource_profile=None,
+                 namespace=None,
+                 no_tls=False,
                  extra_labels=None,
                  extra_initContainers: list | None = None):
         
@@ -28,7 +30,9 @@ class GnrK8SGenerator(object):
             self.image = f'{self.image}:latest'
         self.secret_name = secret_name
         self.fqdns = fqdns
+        self.no_tls = no_tls
         self.resource_profile = resource_profile or {}
+        self.namespace = namespace
         self.container_port = container_port
         self.stack_name = deployment_name or instance_name
         self.application_name = f'{self.stack_name}-application'
@@ -98,6 +102,10 @@ class GnrK8SGenerator(object):
         self.env.append(dict(name='GNR_GUNICORN_BIND', value='0.0.0.0'))
         self.env.append(dict(name="GNR_EXTERNALHOST", value=f'https://{self.fqdns[0]}'))
 
+    def _set_namespace(self, obj_definition):
+        if self.namespace:
+            obj_definition['metadata']['namespace'] = self.namespace
+            
     def get_pv(self):
         pv = {
             "apiVersion": "v1",
@@ -118,6 +126,8 @@ class GnrK8SGenerator(object):
         }
         if self.extra_labels:
             pv['metadata']['labels'] = self.extra_labels
+
+        self._set_namespace(pv)
             
         return [pv]
     
@@ -143,6 +153,9 @@ class GnrK8SGenerator(object):
         }
         if self.extra_labels:
             pvc['metadata']['labels'] = self.extra_labels
+            
+        self._set_namespace(pvc)
+        
         return [pvc]
     
     def generate_conf(self, fp=sys.stdout):
@@ -244,6 +257,9 @@ class GnrK8SGenerator(object):
                     },
                 },
             }
+            
+            self._set_namespace(deployment)
+            
             deployments.append(deployment)
 
             if service != 'taskworker':
@@ -261,6 +277,7 @@ class GnrK8SGenerator(object):
                         'selector': {'app': name},
                     },
                 }
+                self._set_namespace(service_obj)
                 services.append(service_obj)
 
         return deployments, services, self.get_ingress()
@@ -358,7 +375,8 @@ class GnrK8SGenerator(object):
                 }
             }
         }
-        
+
+        self._set_namespace(deployment)
         if self.extra_initContainers:
             deployment['spec']['template']['spec']['initContainers'].extend(self.extra_initContainers)
             
@@ -391,6 +409,7 @@ class GnrK8SGenerator(object):
                 }
             }
         }
+        self._set_namespace(service)
         service['metadata']['labels'].update(self.extra_labels)
         return [deployment], [service], self.get_ingress()
     
@@ -400,11 +419,6 @@ class GnrK8SGenerator(object):
             "kind": "Ingress",
             "metadata": {
                 "name": f'{self.stack_name}-ingress',
-                "annotations": {
-                    "traefik.ingress.kubernetes.io/router.entrypoints": "websecure",
-                    "traefik.ingress.kubernetes.io/router.tls": "true",
-                    "traefik.ingress.kubernetes.io/router.tls.certresolver": "letsencrypt",
-                }
             },
             "spec": {
                 "rules": [
@@ -428,16 +442,29 @@ class GnrK8SGenerator(object):
                         }
                     }
                     for fqdn in self.fqdns
-                ],
-                "tls": [
-                    {
-                        "hosts": self.fqdns
-                    },
-                ],
+                ]
             }
         }
         if self.extra_labels:
             ingress['metadata']['labels'] = self.extra_labels
+        self._set_namespace(ingress)
+
+        if self.no_tls:
+            ingress['metadata']['annotations'] =  {
+                "traefik.ingress.kubernetes.io/router.entrypoints": "web",
+            }
+        else:
+            ingress['metadata']['annotations'] =  {
+                "traefik.ingress.kubernetes.io/router.entrypoints": "websecure",
+                "traefik.ingress.kubernetes.io/router.tls": "true",
+                "traefik.ingress.kubernetes.io/router.tls.certresolver": "letsencrypt",
+            }
+            ingress['spec']["tls"] = [
+                {
+                    "hosts": self.fqdns
+                },
+            ]
+
             
         return [ingress]
     

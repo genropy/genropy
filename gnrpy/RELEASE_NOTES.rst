@@ -1,3 +1,30 @@
+Release 26.07.31
+================
+
+Hotfix release: fixed docker build when the main application project
+resides in a subfolde of the repository (#1016)
+
+
+Release 26.07.30
+================
+
+Hotfix release: fixed docker build definition for repository
+with subprojects folder (#1015)
+
+
+Release 26.07.29
+================
+
+This is an hotfix release, fixed regression in flatfiles with xlsx
+file handling (#1002, #1002)
+
+
+Release 26.07.15
+================
+
+This is an hotfix release, restore grid vertical scrollbar when
+a view uses a columnset. (#957, #955)
+
 Release 26.07.06
 ================
 

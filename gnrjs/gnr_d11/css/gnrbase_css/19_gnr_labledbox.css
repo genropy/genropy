@@ -54,6 +54,17 @@
     visibility: visible;
 }
 
+/* The placeholder label lines up the widget's TOP with the sibling inputs, but
+   .labledBox_content is flex-start (top-aligned) so a widget shorter than the
+   inputs (a button, a checkbox) rides high. Center it in its content cell —
+   which the grid row stretches to the field height — so it sits on the field's
+   vertical midline instead. Only for top/bottom labels, where the cells share a
+   row height; left/right labels are already inline with their field. */
+.formlet_placeholder_label.labledBox_top>.labledBox_content,
+.formlet_placeholder_label.labledBox_bottom>.labledBox_content{
+    align-items: center;
+}
+
 .labledBox.labledBox_top.labledBox_gridbox>.labledBox_content{
     padding:10px;
 }
