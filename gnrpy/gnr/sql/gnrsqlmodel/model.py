@@ -1198,8 +1198,12 @@ class DbModelSrc(GnrStructData):
         """
         if mode == 'json':
             tname = f"{self.attributes.get('fullname').replace('.', '_')}_{name}"
+            # jsonb_agg, not json_agg: the json type has no equality operator,
+            # so the column would break any SELECT DISTINCT (auto-injected by
+            # the compiler on exploding many-relations); psycopg still parses
+            # jsonb to a python list
             sql_formula = (
-                f"SELECT json_agg(row_to_json({tname}_json)) "
+                f"SELECT jsonb_agg(row_to_json({tname}_json)) "
                 f"FROM #nestedselect {tname}_json"
             )
             return self.virtual_column(
@@ -1209,9 +1213,12 @@ class DbModelSrc(GnrStructData):
         if mode == 'xml':
             tname = f"{self.attributes.get('fullname').replace('.', '_')}_{name}"
             columns = query['columns'].replace('$', '')
+            # cast to text: the xml type has no equality operator either, and
+            # psycopg already returns xml columns as plain strings
             sql_formula = (
-                f"SELECT xmlagg(xmlelement(name {tname}_xml,"
-                f"xmlforest({columns}))) FROM #nestedselect {tname}_xml"
+                f"SELECT CAST(xmlagg(xmlelement(name {tname}_xml,"
+                f"xmlforest({columns}))) AS text) "
+                f"FROM #nestedselect {tname}_xml"
             )
             return self.virtual_column(
                 name, sql_formula=sql_formula, select_nestedselect=query,
