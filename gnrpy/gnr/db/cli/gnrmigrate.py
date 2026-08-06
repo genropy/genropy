@@ -20,19 +20,31 @@ from gnr.db.cli import _migrator_bridge
 description = "create/update/check database models in Genro framework NG"
 
 
-def _try_external_migrate(app, options):
-    """Delegate a standard migrate/check to the external genro-sqlmigrate CLI.
+def _external_scope(app, options):
+    """Return the external CLI path when this run is in scope, else None.
 
-    Returns True if it handled the run, False to fall back to the in-process
-    legacy engine. Scope (A): only plain check/apply on a direct PostgreSQL
-    connection — inspect/import/extensions/rebuild and non-direct connections
-    always use the legacy path.
+    Scope (A): only plain check/apply on a direct PostgreSQL connection —
+    inspect/import/extensions/rebuild and non-direct connections stay on the
+    legacy path.
     """
     if options.inspect or options.import_file or options.extensions \
             or options.rebuild_relations or options.remove_relations_only:
-        return False
+        return None
     cmd = _migrator_bridge.external_cmd()
     if not cmd or not _migrator_bridge.is_direct_connection(app.db):
+        return None
+    return cmd
+
+
+def _try_external_migrate(app, options):
+    """Delegate a standard migrate/check to the external genro-sqlmigrate CLI.
+
+    Used only in ``--newmode``: the external engine becomes the one that
+    applies. Returns True if it handled the run, False to fall back to the
+    in-process legacy engine.
+    """
+    cmd = _external_scope(app, options)
+    if not cmd:
         return False
 
     extensions = app.db.application.config['db?extensions']
@@ -59,6 +71,43 @@ def _try_external_migrate(app, options):
         else:
             logger.info('STRUCTURE OK')
     return True
+
+
+def _shadow_compare(app, options, legacy_sql):
+    """Compute the external SQL (without applying) and compare it to legacy.
+
+    Runs in the default mode alongside the trusted legacy engine: the external
+    ``migrate`` prints the SQL but does not touch the DB. Silent when the two
+    agree; logs a warning only on a substantial divergence.
+
+    The comparison is purely observational: any failure of the external path is
+    logged and swallowed, so it can never interrupt the real (legacy) migrate.
+    """
+    cmd = _external_scope(app, options)
+    if not cmd:
+        return
+    try:
+        extensions = app.db.application.config['db?extensions']
+        engine_options = {'force': options.force, 'backup': options.backup}
+        job = _migrator_bridge.build_job(app.db, extensions=extensions,
+                                         options=engine_options)
+        result = _migrator_bridge.run_external(cmd, 'migrate', job, apply=False)
+        if result.stderr:
+            logger.error(result.stderr.rstrip())
+        report = _migrator_bridge.compare_sql(legacy_sql, result.stdout)
+    except Exception as err:
+        logger.error('SHADOW COMPARE skipped: %s' % err)
+        return
+    if report['verdict'] != 'DIVERGENT':
+        return
+    lines = ['SHADOW COMPARE DIVERGENT: legacy and external SQL differ']
+    if report['only_legacy']:
+        lines.append('  only legacy:\n    %s'
+                     % '\n    '.join(report['only_legacy']))
+    if report['only_external']:
+        lines.append('  only external:\n    %s'
+                     % '\n    '.join(report['only_external']))
+    logger.warning('\n'.join(lines))
 
 
 def get_app(options):
@@ -202,6 +251,10 @@ def main():
                         dest='remove_relations_only',
                         action='store_true',
                         help="Remove relations")
+    parser.add_argument('-n', '--newmode',
+                        dest='newmode',
+                        action='store_true',
+                        help="Use the new external migration engine to apply changes")
     parser.add_argument('--inspect',
                         dest='inspect',
                         action='store_true',
@@ -256,7 +309,7 @@ def main():
             app.db.commit()
             app.db.closeConnection()
             continue
-        if _try_external_migrate(app, options):
+        if options.newmode and _try_external_migrate(app, options):
             app.pkgBroadcast('onDbSetup,onDbSetup_*')
             if options.upgrade:
                 app.pkgBroadcast('onDbUpgrade,onDbUpgrade_*')
@@ -287,13 +340,15 @@ def main():
             sys.exit(1)
             
         if options.check:
-            check_db(migrator, options)
+            changes = check_db(migrator, options)
+            _shadow_compare(app, options, changes)
         elif options.import_file:
             import_db(options.import_file, options)
         elif options.inspect:
             inspect(migrator, options)
         else:
             changes = check_db(migrator, options)
+            _shadow_compare(app, options, changes)
             if changes:
                 logger.info('APPLYING CHANGES TO DATABASE...')
                 migrator.applyChanges()
