@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 class GnrCustomWebPage(object):
-    py_requires = "gnrcomponents/testhandler:TestHandlerBase"
+    py_requires = "gnrcomponents/testhandler:TestHandlerFull"
     
     def test_1_plain(self, pane):
         """ckEditor plain"""
