@@ -160,8 +160,48 @@ class BaseGnrAppTest(BaseGnrTest):
 def checkInstance(instance_name):
     """Attempt to load a Genropy instance.
     Returns the GnrApp object or None if not available."""
-    from gnr.app.gnrapp import GnrApp
     try:
-        return GnrApp(instance_name)
+        return ga.GnrApp(instance_name)
     except:
         return None
+
+def build_missing_schema_dbs(instance_name):
+    """Create the sqlite schema files an instance needs but does not ship.
+
+    With sqlite every package schema lives in its own ``<sqlschema>.db`` file
+    beside the main database. Some of those files hold runtime data only and are
+    not versioned, so on a fresh checkout the schemas they carry do not exist at
+    all: the adapter creates the files empty on connect and the first query fails
+    with ``no such table``.
+
+    The database is built in a temporary folder and the schema files produced
+    there are copied over the empty ones. Building from scratch is the only path
+    sqlite supports, since the adapter cannot ALTER an existing column: schema
+    files that already hold data are left untouched.
+
+    Does nothing on non sqlite instances.
+
+    :param instance_name: name of the instance to provision
+    :return: the list of schemas that have been built"""
+    app = ga.GnrApp(instance_name)
+    if app.db.implementation != 'sqlite':
+        return []
+    datadir = os.path.dirname(app.db.dbname)
+    schema_files = {pkg.sqlschema: os.path.join(datadir, f"{pkg.sqlschema}.db")
+                    for pkg in app.db.packages.values()
+                    if pkg.sqlschema and pkg.sqlschema != app.db.main_schema}
+    missing = sorted(sqlschema for sqlschema, path in schema_files.items()
+                     if not os.path.exists(path) or os.path.getsize(path) == 0)
+    if not missing:
+        return []
+    tempdir = tempfile.mkdtemp()
+    try:
+        fresh = ga.GnrApp(instance_name, db_attrs=dict(
+            implementation='sqlite',
+            dbname=os.path.join(tempdir, os.path.basename(app.db.dbname))))
+        fresh.db.model.check(applyChanges=True)
+        for sqlschema in missing:
+            shutil.copy(os.path.join(tempdir, f"{sqlschema}.db"), schema_files[sqlschema])
+    finally:
+        shutil.rmtree(tempdir, ignore_errors=True)
+    return missing
