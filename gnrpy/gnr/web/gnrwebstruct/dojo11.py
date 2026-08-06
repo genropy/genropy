@@ -1055,7 +1055,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                 result['alternatePkey'] = onerelfld
         #elif attr.get('mode')=='M':
         #    result['tag']='bagfilteringtable'
-        elif dtype in ('A', 'T') and fldattr.get('values', False):
+        elif dtype in ('A', 'T', 'N', 'L', 'I') and fldattr.get('values', False):
             values = fldattr['values']
             values = getattr(fieldobj.table.dbtable, values ,lambda: values)()
             fldattr['values'] = values
