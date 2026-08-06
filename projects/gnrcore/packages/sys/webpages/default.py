@@ -6,6 +6,8 @@
 
 import os
 
+from werkzeug.exceptions import NotFound
+
 from gnr.core.gnrbag import DirectoryResolver
 
 class GnrCustomWebPage(object):
@@ -16,15 +18,22 @@ class GnrCustomWebPage(object):
     def windowTitle(self):
         return ''
 
-    def onIniting(self, request_args, request_kwargs):
-        # the page GET must answer 404 for URLs that map to no folder (#890):
-        # main() runs only over the 'main' rpc, so it cannot set the GET status.
-        # The errorPane rendered by main() is the body, this is the status.
-        if self._call_handler_type != 'root' or not request_args:
+    def onPreIniting(self, request_args, request_kwargs):
+        # urls that map to no page and no folder answer 404 before the page
+        # boots (#890): raising from this hook (which, unlike onIniting, is
+        # not wrapped in a try/except) reaches the dispatcher's HTTPException
+        # handler, that answers with werkzeug's plain 404 page instead of the
+        # full framework envelope and its client bootstrap.
+        # Only the plain page GET may abort here: method/rpc/_plugin calls and
+        # page_id sub-requests of already served pages must go through (their
+        # errorPane fallback in main() stays), and the direct /sys/default url
+        # arrives with empty request_args.
+        if not request_args or any(k in request_kwargs
+                                   for k in ('method', 'rpc', '_plugin', 'page_id')):
             return
         url_info = self.site.getUrlInfo(request_args)
         if not os.path.isdir(os.path.join(url_info.basepath, *url_info.request_args)):
-            self._response.status_code = 404
+            raise NotFound(f"Page /{'/'.join(request_args)} not found")
 
     def main(self, root, **kwargs):
         url_info = self.site.getUrlInfo(self.getCallArgs())
