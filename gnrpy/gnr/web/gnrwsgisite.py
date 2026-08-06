@@ -1407,7 +1407,14 @@ class GnrWsgiSite(object):
             response.data=result
         elif isinstance(result, Response):
             response = result
-        elif callable(result):
+        elif callable(result) and not isinstance(result, Bag):
+            # This branch is meant for objects that ARE the WSGI response
+            # (werkzeug HTTPException instances, GnrWsgiSite.forbidden_exception
+            # and friends), not for arbitrary Genropy objects that happen to
+            # define __call__. A Bag is callable (Bag.__call__) but is regular
+            # page/rpc result data, not a WSGI app: without this guard it would
+            # be returned here and later invoked as response(environ, start_response),
+            # raising a TypeError since Bag.__call__ only accepts 0 or 1 argument.
             response = result
         return response
 
