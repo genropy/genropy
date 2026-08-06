@@ -809,6 +809,16 @@ class TestRelationTreeResolver(TestModelStructure):
         rels = self.db.model.table('invc.customer').relations
         assert '@last_invoice_id' in rels
 
+    def test_virtual_relation_node_keeps_its_own_attributes(self):
+        """The @last_invoice_id node must carry the virtual column's own
+        attributes, not those of the last physical column of the table"""
+        rels = self.db.model.table('invc.customer').relations
+        attrs = dict(rels.getAttr('@last_invoice_id'))
+        attrs.pop('joiner', None)
+        assert attrs.get('name_long') == 'Last Invoice'
+        assert attrs.get('dtype') == 'T'
+        assert 'encrypted' not in attrs
+
     def test_virtual_non_fk_not_in_relations(self):
         rels = self.db.model.table('invc.customer').relations
         for vc_name in ('n_invoices', 'full_address', 'has_invoices',
