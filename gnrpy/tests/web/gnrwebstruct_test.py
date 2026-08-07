@@ -292,3 +292,132 @@ def test_formlet_col_min_width_drops_cols():
     attrs = _formlet_attr(col_min_width='14em', cols=3)
     assert attrs.get('columns') == 'repeat(auto-fit, minmax(14em, 1fr))'
     assert 'cols' not in attrs
+
+
+# ---------------------------------------------------------------------------
+# wdgAttributesFromColumn: widget resolution from a model column
+# ---------------------------------------------------------------------------
+
+class _DbTableStub(object):
+    """Stands in for `column.table.dbtable`.
+
+    A `values` attribute is resolved through
+    `getattr(dbtable, values, lambda: values)()`, so a literal `values`
+    string only needs an object that does *not* carry that name, while a
+    method-backed one needs the method to exist here.
+    """
+
+    def statusValues(self):
+        return '1:[!!Draft],2:[!!Published]'
+
+
+class _TableStub(object):
+    def __init__(self, name='mytable'):
+        self.name = name
+        self.dbtable = _DbTableStub()
+
+
+class _ColumnStub(object):
+    """Minimal stand-in for a model column object.
+
+    Exposes only the surface `wdgAttributesFromColumn` actually reads, so
+    the resolver itself runs for real against a plain (non-DB) column.
+    """
+
+    def __init__(self, name, dtype='A', **attributes):
+        self.name = name
+        self.dtype = dtype
+        self.name_long = '!!%s' % name
+        self.fullname = 'test.mytable.%s' % name
+        self.attributes = attributes
+        self.table = _TableStub()
+
+    def relatedColumn(self):
+        return None
+
+
+def _wdgattr(dtype, **attributes):
+    root = _make_root()
+    column = _ColumnStub('feature_status', dtype=dtype, **attributes)
+    return root.wdgAttributesFromColumn(column, fld='feature_status')
+
+
+NUMERIC_VALUES = '1:[!!Not present],2:[!!In development],3:[!!Active]'
+
+
+@pytest.mark.parametrize('dtype', ['N', 'L', 'I'])
+def test_numeric_column_with_values_resolves_to_filteringselect(dtype):
+    """A numeric column declaring `values` renders as a select, and the
+    store is carried along so the call site need not repeat `values=`.
+    """
+    result = _wdgattr(dtype, values=NUMERIC_VALUES)
+    assert result['tag'] == 'filteringselect'
+    assert result['values'] == NUMERIC_VALUES
+    # the column keeps its own dtype: only the widget changes
+    assert result['dtype'] == dtype
+
+
+@pytest.mark.parametrize('dtype', ['A', 'T'])
+def test_text_column_with_values_resolves_to_filteringselect(dtype):
+    """Pre-existing behaviour for text dtypes is unchanged."""
+    result = _wdgattr(dtype, values='001:Draft,050:Work in progress,100:Final')
+    assert result['tag'] == 'filteringselect'
+    assert result['values'] == '001:Draft,050:Work in progress,100:Final'
+    assert result['dtype'] == dtype
+
+
+@pytest.mark.parametrize('dtype', ['A', 'T', 'N', 'L', 'I'])
+def test_values_without_colon_resolves_to_combobox(dtype):
+    """`values` with no key:caption separator is a plain suggestion list."""
+    result = _wdgattr(dtype, values='1,2,3')
+    assert result['tag'] == 'combobox'
+    assert result['values'] == '1,2,3'
+
+
+def test_values_naming_a_table_method_is_resolved_through_the_dbtable():
+    """When `values` names a method on the table, the method's return
+    value becomes the store.
+    """
+    result = _wdgattr('N', values='statusValues')
+    assert result['tag'] == 'filteringselect'
+    assert result['values'] == '1:[!!Draft],2:[!!Published]'
+
+
+@pytest.mark.parametrize('dtype,expected', [
+    ('N', 'numberTextBox'),
+    ('L', 'numberTextBox'),
+    ('I', 'numberTextBox'),
+    ('R', 'numberTextBox'),
+])
+def test_numeric_column_without_values_keeps_its_dtype_widget(dtype, expected):
+    """Numeric columns that declare no `values` are untouched."""
+    result = _wdgattr(dtype)
+    assert result['tag'] == expected
+    assert 'values' not in result
+
+
+@pytest.mark.parametrize('dtype,expected', [
+    ('B', 'checkBox'),
+    ('X', 'tree'),
+    ('D', 'dateTextBox'),
+    ('H', 'timeTextBox'),
+])
+def test_non_numeric_non_text_dtypes_ignore_values(dtype, expected):
+    """The `values` branch is guarded by an explicit dtype tuple: dtypes
+    with a widget of their own must keep it even when `values` is set.
+    """
+    result = _wdgattr(dtype, values=NUMERIC_VALUES)
+    assert result['tag'] == expected
+
+
+def test_call_site_kwargs_override_the_resolved_tag():
+    """`result.update(kwargs)` runs last, so an explicit call-site tag
+    still wins over the dtype cascade.
+    """
+    root = _make_root()
+    column = _ColumnStub('feature_status', dtype='N', values=NUMERIC_VALUES)
+    result = root.wdgAttributesFromColumn(column, fld='feature_status',
+                                          tag='numberTextBox')
+    assert result['tag'] == 'numberTextBox'
+    # the store survives the override
+    assert result['values'] == NUMERIC_VALUES
