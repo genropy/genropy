@@ -4856,7 +4856,8 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
     },
     mixin_setCondition:function(value,kw){
         var vpath = this.sourceNode.attr.value;
-        var currvalue = this.sourceNode.getRelativeData(vpath);
+        var datavalue = this.sourceNode.getRelativeData(vpath);
+        var currvalue = datavalue;
         var reskwargs = this.store.rootDataNode().getResolver().kwargs;
         if(reskwargs.notnull){
             reskwargs = objectUpdate({},reskwargs);
@@ -4868,11 +4869,21 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
         }
         if(!isNullOrBlank(currvalue)){
             this.clearCache();
-            this.setValue(null,true);
-            this.setValue(currvalue,true);
-        } 
-
-        //this.sourceNode.setRelativeData(vpath,currvalue);
+            // priorityChange=false: re-evaluating the current value under the new
+            // condition must refresh caption and validity only, never write back to
+            // the datastore. With priorityChange=true the null step nulls the bound
+            // path synchronously, and the async identity reply then re-asserts the
+            // value captured above, overwriting anything set while it was in flight.
+            // The null step itself is still needed: it resets widget._lastValue, so
+            // GnrStoreQuery.fetchItemByIdentity does not skip the re-validation fetch.
+            this.setValue(null,false);
+            this.setValue(currvalue,false);
+            if(currvalue !== datavalue){
+                // oneOption auto-select: the new condition leaves a single option,
+                // and this is the only write this method is meant to perform.
+                this.sourceNode.setRelativeData(vpath,currvalue);
+            }
+        }
     },
     
     mixin_onSetValueFromItem: function(item, priorityChange) {
