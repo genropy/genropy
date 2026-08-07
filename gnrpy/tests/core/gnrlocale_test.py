@@ -24,7 +24,7 @@ import datetime
 import pytz
 from decimal import Decimal
 
-from gnr.core.gnrlocale import localize, parselocal
+from gnr.core.gnrlocale import localize, parselocal, localize_boolean
 
 class TestLocalize(object):
     def setup_class(cls):
@@ -100,6 +100,21 @@ class TestLocalize(object):
         assert localize(x, '¤ #.0', 'EUR') == '€ 1239988655.47'
         assert localize(x, '¤ #.0', '$') == '$ 1239988655.47'
         assert localize(x, 'Please pay #.#### ¤ ASAP', 'EUR', locale='it_IT') == 'Please pay 1239988655,47 € ASAP'
+
+    def test_format_boolean(self):
+        assert localize(True, format='PAGATA;DA SALDARE') == 'PAGATA'
+        assert localize(False, format='PAGATA;DA SALDARE') == 'DA SALDARE'
+        assert localize(True, format='yn') == 'Yes'
+        assert localize(False, format='yn') == 'No'
+        assert localize(True, format='yn', locale='it') == u'Sì'
+        assert localize(False, format='yn', locale='it') == 'No'
+
+    def test_format_boolean_none_section(self):
+        # localize_boolean supports a third ';'-separated section for None, but
+        # localize()/toText() short-circuit obj=None before it is ever reached
+        # through the normal template pipeline (see gnrstring.toText).
+        assert localize_boolean(None, format='PAGATA;DA SALDARE;In sospeso') == 'In sospeso'
+        assert localize_boolean(None, format='PAGATA;DA SALDARE') == 'DA SALDARE'
 
     def test_dateLocale(self):
         assert localize(self.date, locale='en') == '12/10/07'
