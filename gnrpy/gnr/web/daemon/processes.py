@@ -315,24 +315,32 @@ class GnrWorker(GnrRemoteProcess):
         batch_kwargs = item_value.get('batch_kwargs')
         page = self.site.resource_loader.get_page_by_id(page_id)
         self.site.currentPage = page
-        page.table_script_run(**batch_kwargs)
-        self.site.currentPage = None
+        try:
+            page.table_script_run(**batch_kwargs)
+        finally:
+            # currentPage is thread local: without the finally an exception
+            # would leave this worker thread's entry behind forever (#379/#380)
+            self.site.currentPage = None
 
     def run_task(self, item_value):
         task = item_value
         task_id = task['id']
         page = self.site.dummyPage
         self.site.currentPage = page
-        if not task['concurrent']:
-            with self.lock:
-                if task_id in self.execution_dict:
-                    self.logger.warn('Task {} already being executed by PID {} and not marked as concurrent'.format(task_id,self.execution_dict[task_id]))
-                    return
-                else:
-                    self.execution_dict[task_id] = os.getpid()
-        self.site.db.table('sys.task').runTask(task, page=page)
-        self.execution_dict.pop(task_id, None)
-        self.site.currentPage = None
+        try:
+            if not task['concurrent']:
+                with self.lock:
+                    if task_id in self.execution_dict:
+                        self.logger.warn('Task {} already being executed by PID {} and not marked as concurrent'.format(task_id,self.execution_dict[task_id]))
+                        return
+                    else:
+                        self.execution_dict[task_id] = os.getpid()
+            self.site.db.table('sys.task').runTask(task, page=page)
+            self.execution_dict.pop(task_id, None)
+        finally:
+            # covers both the early return of the concurrency guard and any
+            # exception raised by runTask (#379/#380)
+            self.site.currentPage = None
 
     def start(self):
         queue = self.batch_queue
