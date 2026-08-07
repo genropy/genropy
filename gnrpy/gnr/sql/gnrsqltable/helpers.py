@@ -30,6 +30,8 @@ This module provides:
   ``ormauditlogger``.
 - :class:`RecordUpdater` — context manager for safe record update/insert/delete
   workflows.
+- :func:`prepare_batch_selection` — shared row-selection guard for the
+  pkey-driven batch operations (``batchUpdate``, ``touchRecords``).
 """
 
 from __future__ import annotations
@@ -45,6 +47,78 @@ from gnr.sql import ormauditlogger
 
 if TYPE_CHECKING:
     from gnr.sql.gnrsqltable.table import SqlTable
+
+
+# ---------------------------------------------------------------------------
+#  Batch row selection
+# ---------------------------------------------------------------------------
+
+class _NoSelection:
+    """Sentinel type: the caller did not pass the argument at all.
+
+    It is falsy on purpose, so that any code forwarding the default value
+    through ``**kwargs`` keeps behaving exactly as it did when the default
+    was ``None``.
+    """
+
+    __slots__ = ()
+
+    def __bool__(self):
+        return False
+
+    def __repr__(self):
+        return 'NO_SELECTION'
+
+
+#: Default of ``pkey``/``_pkeys`` in the batch operations. Tells "argument
+#: absent" apart from an explicitly passed empty selection (``None``, ``[]``),
+#: which stays a legitimate no-op.
+NO_SELECTION = _NoSelection()
+
+
+def prepare_batch_selection(tblobj: SqlTable, kwargs, pkey=NO_SELECTION,
+                            _pkeys=NO_SELECTION):
+    """Build the pkey-driven row selection shared by the batch operations.
+
+    Called by :meth:`~gnrsqltable.crud.CrudMixin.batchUpdate` and
+    :meth:`~gnrsqltable.triggers.TriggersMixin.touchRecords` when *kwargs*
+    carries no ``where``: in that case the rows can only come from
+    *pkey*/*_pkeys*. On success *kwargs* is filled in place with the
+    ``where``/``_pkeys`` pair and the query options of the pkey flow.
+
+    :param tblobj: the table the batch operation runs on
+    :param kwargs: the query kwargs of the caller, updated in place
+    :param pkey: a single primary key, or ``NO_SELECTION`` if not passed
+    :param _pkeys: a list (or comma separated string) of primary keys,
+                   or ``NO_SELECTION`` if not passed
+    :returns: ``True`` when the caller must skip the operation because the
+              selection was explicitly passed and is empty
+    :raises GnrSqlBusinessLogicException: if neither *pkey* nor *_pkeys*
+            was passed, i.e. the call carries no row selection at all
+    """
+    if pkey is NO_SELECTION and _pkeys is NO_SELECTION:
+        raise tblobj.exception(
+            'business_logic',
+            msg=('!!No row selection: pass where, pkey or _pkeys. '
+                 'To act on the whole %(tablename)s table state it '
+                 "explicitly, e.g. where='$%(pkeyfield)s IS NOT NULL' "
+                 '(the where flow keeps the standard draft, partition and '
+                 'logical deletion filters).'),
+            pkeyfield=tblobj.pkey,
+        )
+    if pkey:
+        _pkeys = [pkey]
+    if not _pkeys:
+        return True
+    kwargs['where'] = '$%s IN :_pkeys' % tblobj.pkey
+    if isinstance(_pkeys, str):
+        _pkeys = _pkeys.strip(',').split(',')
+    kwargs['_pkeys'] = _pkeys
+    kwargs.setdefault('subtable', '*')
+    kwargs.setdefault('excludeDraft', False)
+    kwargs.setdefault('ignorePartition', True)
+    kwargs.setdefault('excludeLogicalDeleted', False)
+    return False
 
 
 # ---------------------------------------------------------------------------

@@ -37,9 +37,11 @@ from gnr.core.gnrbag import Bag
 
 from gnr.sql._typing import SqlTableBaseMixin
 from gnr.sql.gnrsqltable.helpers import (
+    NO_SELECTION,
     RecordUpdater,
     add_sql_comment,
     orm_audit_log,
+    prepare_batch_selection,
 )
 
 
@@ -345,7 +347,7 @@ class CrudMixin(SqlTableBaseMixin):
         return RecordUpdater(self, pkey=pkey, **kwargs)
 
     def batchUpdate(self, updater=None, _wrapper=None, _wrapperKwargs=None,
-                    autocommit=False, _pkeys=None, pkey=None,
+                    autocommit=False, _pkeys=NO_SELECTION, pkey=NO_SELECTION,
                     _raw_update=None, _onUpdatedCb=None,
                     updater_kwargs=None, for_update=None,
                     deferredTotalize=None, **kwargs):
@@ -353,20 +355,13 @@ class CrudMixin(SqlTableBaseMixin):
 
         :param updater: a dict of values or a callable ``updater(row)``
         :param autocommit: commit after all updates
+        :raises GnrSqlBusinessLogicException: if the call carries no row
+                selection at all (no ``where``, no ``pkey``, no ``_pkeys``)
         """
         if 'where' not in kwargs:
-            if pkey:
-                _pkeys = [pkey]
-            if not _pkeys:
+            if prepare_batch_selection(self, kwargs, pkey=pkey,
+                                       _pkeys=_pkeys):
                 return
-            kwargs['where'] = '$%s IN :_pkeys' % self.pkey
-            if isinstance(_pkeys, str):
-                _pkeys = _pkeys.strip(',').split(',')
-            kwargs['_pkeys'] = _pkeys
-            kwargs.setdefault('subtable', '*')
-            kwargs.setdefault('excludeDraft', False)
-            kwargs.setdefault('ignorePartition', True)
-            kwargs.setdefault('excludeLogicalDeleted', False)
         elif pkey:
             kwargs['pkey'] = pkey
         fetch = self.query(
