@@ -135,27 +135,33 @@ class GnrTaskWorker(object):
     def runTask(self, task_execution):
         page = self.site.dummyPage
         self.site.currentPage = page
-        page._db = None
-        page.db
-        log_record = Bag()
-        start_time = datetime.now(timezone.utc)
-        log_record['start_time'] = start_time
-        log_record['task_id'] =task_execution['id']
-        table = task_execution['task_table']
-        task_class = self.db.table('sys.task').getBtcClass(table=table, 
-                                                    command=task_execution['task_command'], 
-                                                    page=page)
-        if not task_class:
-            return
-        taskObj = task_class(page=page,resource_table=page.db.table(table),
-                            batch_selection_savedQuery=task_execution['task_saved_query'])
-        taskparameters = task_execution['task_parameters']
-        with self.db.tempEnv(connectionName='execution'):
-            logger.info("Executing task %s.%s - %s", 
-                        task_execution['table_table'],
-                        task_execution['table_name'],
-                        task_execution['table_command'])
-            taskObj(parameters=Bag(taskparameters),task_execution_record=task_execution)
+        try:
+            page._db = None
+            page.db
+            log_record = Bag()
+            start_time = datetime.now(timezone.utc)
+            log_record['start_time'] = start_time
+            log_record['task_id'] =task_execution['id']
+            table = task_execution['task_table']
+            task_class = self.db.table('sys.task').getBtcClass(table=table,
+                                                        command=task_execution['task_command'],
+                                                        page=page)
+            if not task_class:
+                return
+            taskObj = task_class(page=page,resource_table=page.db.table(table),
+                                batch_selection_savedQuery=task_execution['task_saved_query'])
+            taskparameters = task_execution['task_parameters']
+            with self.db.tempEnv(connectionName='execution'):
+                logger.info("Executing task %s.%s - %s",
+                            task_execution['table_table'],
+                            task_execution['table_name'],
+                            task_execution['table_command'])
+                taskObj(parameters=Bag(taskparameters),task_execution_record=task_execution)
+        finally:
+            # currentPage is thread local: the worker loop keeps running after
+            # a failed task, so the entry has to be popped on every exit path
+            # (missing task class, exception) or it leaks forever (#379/#380)
+            self.site.currentPage = None
     
     def start(self):
         while True:
