@@ -109,6 +109,10 @@ class MenuStruct(GnrStructData):
         return self.child('webpage',label=label,multipage=multipage,tags=tags,
                         filepath=filepath,_returnStruct=False,**kwargs)
 
+    def htmlpage(self, label,source=None,tags='', **kwargs):
+        return self.child('htmlpage',label=label,source=source,tags=tags,
+                        _returnStruct=False,**kwargs)
+
     def thpage(self, label=None,table=None,tags='',multipage=True, **kwargs):
         return self.child('thpage',label=label,table=table,
                             multipage=multipage,tags=tags,_returnStruct=False,**kwargs)
@@ -464,6 +468,15 @@ class MenuResolver(BagResolver):
         aux_instance = attributes.get('aux_instance') or self.aux_instance
         if webpage and self.basepath and not webpage.startswith('/'):
             attributes['webpage'] = f"{self.basepath}/{webpage}" 
+        attributes['url_aux_instance'] = aux_instance
+        self.checkContextParameters(attributes)
+        return None,attributes
+
+    def nodeType_htmlpage(self,node):
+        attributes = dict(node.attr)
+        source = attributes.pop('source',None)
+        attributes['webpage'] = self._page.site.storageNode(source).url() if source else None
+        aux_instance = attributes.get('aux_instance') or self.aux_instance
         attributes['url_aux_instance'] = aux_instance
         self.checkContextParameters(attributes)
         return None,attributes
