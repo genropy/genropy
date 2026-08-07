@@ -1,6 +1,7 @@
 # encoding: utf-8
 
-import os 
+import os
+from gnr.app import pkglog as logger
 from gnr.core.gnrlang import gnrImport
 
 class Table(object):
@@ -43,12 +44,12 @@ class Table(object):
         oversized = [k for k in candidates if codekeyMaxSize and len(k) > codekeyMaxSize]
         oversizedSet = set(oversized)
         for upgradekey in oversized:
-            print('ERROR',upgradekey,
-                  'upgrade filename too long for codekey column (max %s chars): skipped' %codekeyMaxSize)
+            logger.error('Upgrade %s skipped: filename too long for the codekey column (max %s chars)',
+                         upgradekey, codekeyMaxSize)
         for upgradekey in candidates:
             if upgradekey in oversizedSet:
                 continue
-            print('upgrade',upgradekey)
+            logger.info('Running upgrade %s', upgradekey)
             self.runUpgrade(upgradekey)
     
     def runUpgrade(self,codekey):
@@ -66,7 +67,7 @@ class Table(object):
             r['pkg'] = pkg
             r['filename'] = filename
         if error:
-            print('ERROR',codekey,error)
+            logger.error('Upgrade %s failed: %s', codekey, error)
         self.db.commit()
 
     def use_dbstores(self,**kwargs):
