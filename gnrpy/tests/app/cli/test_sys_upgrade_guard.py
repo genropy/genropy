@@ -1,4 +1,5 @@
 import importlib.util
+import logging
 import os
 
 # sys.upgrade's Table model lives under projects/gnrcore/, which is not on
@@ -72,7 +73,7 @@ def _make_table(tmp_path, filenames, pkg='mypkg', codekey_size=':80'):
     return table
 
 
-def test_oversized_filename_is_reported_and_not_executed(tmp_path, capsys):
+def test_oversized_filename_is_reported_and_not_executed(tmp_path, caplog):
     pkg = 'mypkg'
     long_name = 'x' * 90  # 'mypkg|' + 90 chars overflows the codekey :80 budget
     short_name = 'normal_upgrade'
@@ -80,25 +81,29 @@ def test_oversized_filename_is_reported_and_not_executed(tmp_path, capsys):
     executed = []
     table.runUpgrade = lambda codekey: executed.append(codekey)
 
-    table.runUpgrades()
+    with caplog.at_level(logging.INFO, logger='gnr.pkg'):
+        table.runUpgrades()
 
     long_key = f'{pkg}|{long_name}'
     short_key = f'{pkg}|{short_name}'
     assert long_key not in executed
     assert short_key in executed
 
-    out = capsys.readouterr().out
-    assert 'ERROR' in out
-    assert long_key in out
+    # the report must be an error: the root logger defaults to WARNING, so a
+    # lower level would leave the operator with no trace of the skipped upgrade
+    errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
+    assert len(errors) == 1
+    assert long_key in errors[0].getMessage()
 
 
-def test_normal_length_filenames_all_run(tmp_path, capsys):
+def test_normal_length_filenames_all_run(tmp_path, caplog):
     pkg = 'mypkg'
     table = _make_table(tmp_path, ['first_upgrade.py', 'second_upgrade.py'], pkg=pkg)
     executed = []
     table.runUpgrade = lambda codekey: executed.append(codekey)
 
-    table.runUpgrades()
+    with caplog.at_level(logging.INFO, logger='gnr.pkg'):
+        table.runUpgrades()
 
     assert executed == [f'{pkg}|first_upgrade', f'{pkg}|second_upgrade']
-    assert 'ERROR' not in capsys.readouterr().out
+    assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
