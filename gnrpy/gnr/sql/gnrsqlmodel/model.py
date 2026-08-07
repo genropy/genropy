@@ -150,8 +150,23 @@ class DbModel:
                     tblmix._tblname = tblname
                     if hasattr(tblmix, 'config_db'):
                         tblmix._cls = tblmix.config_db.__self__
+                    declared_before = set(pkgsrc['tables'].keys()) if 'tables' in pkgsrc else set()
                     _doObjMixinConfig(tblmix, pkgsrc)
-                    tblsrc = pkgsrc.table(tblmix._tblname)
+                    if 'tables.%s' % tblname not in pkgsrc:
+                        # the mixin registry is keyed by module filename: when
+                        # config_db declares a table with a different name,
+                        # pkgsrc.table(filename) would materialize an empty
+                        # phantom table and the mixin would never bind
+                        declared = (set(pkgsrc['tables'].keys())
+                                    if 'tables' in pkgsrc else set()) - declared_before
+                        if len(declared) != 1 or declared & set(tablenames):
+                            logger.warning('model module %s.%s declares no table: skipped',
+                                           pkg, tblname)
+                            continue
+                        tblname = declared.pop()
+                        tblmix._tblname = tblname
+                        self.mixins['tbl.%s.%s' % (pkg, tblname)] = tblmix
+                    tblsrc = pkgsrc.table(tblname)
                     tblsrc._mixinobj = tblmix
                     tblmix.src = tblsrc
         onBuildingCalls: list[Any] = []
