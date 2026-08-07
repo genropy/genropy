@@ -119,9 +119,12 @@ def db_sqlite(sqlite_temp_dir):
 
 @pytest.fixture(scope='module')
 def db_pg():
-    pg_conf, pg_instance = get_pg_config()
-    dbname = pg_conf.pop('database', 'test_compiler')
+    pg_instance = None
     try:
+        # inside the try: bootstrapping a temporary server can fail, and this
+        # fixture must skip when postgres is unavailable, not error out.
+        pg_conf, pg_instance = get_pg_config()
+        dbname = pg_conf.pop('database', 'test_compiler')
         app = GnrApp('test_invoice', db_attrs=dict(
             implementation='postgres',
             dbname=dbname,
@@ -130,8 +133,8 @@ def db_pg():
         app.db.model.check(applyChanges=True)
         _import_csv_data(app.db)
         yield app.db
-    except Exception:
-        pytest.skip('PostgreSQL not available')
+    except Exception as exc:
+        pytest.skip('PostgreSQL not available: %s' % exc)
     finally:
         if pg_instance is not None:
             pg_instance.stop()
@@ -139,9 +142,12 @@ def db_pg():
 
 @pytest.fixture(scope='module')
 def db_pg3():
-    pg_conf, pg_instance = get_pg_config()
-    dbname = pg_conf.pop('database', 'test_compiler')
+    pg_instance = None
     try:
+        # inside the try: bootstrapping a temporary server can fail, and this
+        # fixture must skip when postgres is unavailable, not error out.
+        pg_conf, pg_instance = get_pg_config()
+        dbname = pg_conf.pop('database', 'test_compiler')
         app = GnrApp('test_invoice', db_attrs=dict(
             implementation='postgres3',
             dbname=dbname,
@@ -150,8 +156,8 @@ def db_pg3():
         app.db.model.check(applyChanges=True)
         _import_csv_data(app.db)
         yield app.db
-    except Exception:
-        pytest.skip('PostgreSQL (psycopg3) not available')
+    except Exception as exc:
+        pytest.skip('PostgreSQL (psycopg3) not available: %s' % exc)
     finally:
         if pg_instance is not None:
             pg_instance.stop()
