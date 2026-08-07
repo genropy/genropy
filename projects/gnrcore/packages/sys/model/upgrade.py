@@ -10,7 +10,7 @@ class Table(object):
         self.sysFields(tbl,id=False)
         tbl.column('codekey',size=':80',name_long='Identifier')
         tbl.column('pkg',size=':20',name_long='Package')
-        tbl.column('filename', size=':40', name_long='!!Filename')
+        tbl.column('filename', size=':59', name_long='!!Filename')
         tbl.column('error', name_long='!!Upgrade error', name_short='!!Error')
 
     def upgradePath(self,codekey):
@@ -20,11 +20,20 @@ class Table(object):
 
     def runUpgrades(self):
         """Run all pending upgrades and return the failed ones as a list
-        of ``(codekey, error)`` tuples (empty list if all succeeded)."""
+        of ``(codekey, error)`` tuples (empty list if all succeeded).
+
+        Candidates rejected upfront by the codekey size pre-flight are reported
+        in the same list, so a caller reporting per store does not read a
+        skipped upgrade as a successful run."""
         errors = []
         alreadyRun= self.query(where='$error IS NULL').fetchAsDict('codekey')
+        codekeyMaxSize = self.column('codekey').getAttr('size')
+        if codekeyMaxSize and ':' in codekeyMaxSize:
+            codekeyMaxSize = codekeyMaxSize.split(':')[1]
+        codekeyMaxSize = int(codekeyMaxSize) if codekeyMaxSize else None
+        candidates = []
         for pkg,pkgobj in list(self.db.application.packages.items()):
-            upgradefolder = os.path.join(pkgobj.packageFolder,'lib','upgrades') 
+            upgradefolder = os.path.join(pkgobj.packageFolder,'lib','upgrades')
             if not os.path.isdir(upgradefolder):
                 continue
             for f in sorted(os.listdir(upgradefolder)):
@@ -33,10 +42,24 @@ class Table(object):
                     continue
                 upgradekey = '%s|%s' %(pkg,filename)
                 if upgradekey not in alreadyRun:
-                    print('upgrade',upgradekey)
-                    error = self.runUpgrade(upgradekey)
-                    if error:
-                        errors.append((upgradekey,error))
+                    candidates.append(upgradekey)
+        # pre-flight: report every candidate that would not fit in the codekey
+        # column before running anything, and never execute those. Recording
+        # them (even just an error) would hit the very same size overflow,
+        # so they can only be reported, not tracked.
+        oversized = [k for k in candidates if codekeyMaxSize and len(k) > codekeyMaxSize]
+        oversizedSet = set(oversized)
+        for upgradekey in oversized:
+            error = 'upgrade filename too long for codekey column (max %s chars): skipped' %codekeyMaxSize
+            print('ERROR',upgradekey,error)
+            errors.append((upgradekey,error))
+        for upgradekey in candidates:
+            if upgradekey in oversizedSet:
+                continue
+            print('upgrade',upgradekey)
+            error = self.runUpgrade(upgradekey)
+            if error:
+                errors.append((upgradekey,error))
         return errors
     
     def runUpgrade(self,codekey):
