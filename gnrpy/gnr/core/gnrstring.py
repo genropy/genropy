@@ -57,6 +57,43 @@ class NoneIsBlankMapWrapper(object):
             value= ''
         return value
 
+VALUEMAP_WILDCARD = '*'
+
+def valueMapFormat(format_choice, value):
+    """Resolve a text/enum ``value`` through a ``key:label,key:label,*:default``
+    value map carried by the template editor's ``format`` column.
+
+    Server-side counterpart of the client-side value map already applied in
+    ``gnrjs/gnr_d11/js/gnrlang.js`` (``objectFromString(valueattr.values)[value]``),
+    reusing the ``,``-separated ``key:value`` convention of ``objectFromString``
+    and the section-fallback idea of :func:`gnr.core.gnrlocale.localize_boolean`.
+
+    Returns ``None`` when ``format_choice`` does not look like a value map (no
+    ``:`` pairs, or it contains a ``#`` mask placeholder), so callers can fall
+    back to the standard dtype-based formatting.
+
+    >>> valueMapFormat('A:Approvato,R:Respinto,*:In esame', 'A')
+    'Approvato'
+    >>> valueMapFormat('A:Approvato,R:Respinto,*:In esame', 'Z')
+    'In esame'
+    >>> valueMapFormat('A:Approvato,R:Respinto', 'Z') is None
+    True
+    """
+    if not format_choice or '#' in format_choice or ':' not in format_choice:
+        return None
+    valuemap = {}
+    for chunk in format_choice.split(','):
+        if ':' not in chunk:
+            return None
+        key, _, label = chunk.partition(':')
+        key = key.strip()
+        if not key:
+            return None
+        valuemap[key] = label
+    if value in valuemap:
+        return valuemap[value]
+    return valuemap.get(VALUEMAP_WILDCARD)
+
 class LocalizedWrapper(object):
     """Missin doc"""
     def __init__(self,data, locale=None,templates=None, formats=None,
@@ -126,6 +163,10 @@ class LocalizedWrapper(object):
             caption = attrs.get('name_long','')
         format_choice = self.formats.get(as_name) or format_choice
         mask = self.masks.get(as_name) or mask
+        if isinstance(value, str):
+            mapped_value = valueMapFormat(format_choice, value)
+            if mapped_value is not None:
+                return mapped_value if not self.emptyMode else ''
         dtype = self.dtypes.get(as_name)
         if dtype =='P' and value and not value.startswith('data:') and self.urlformatter:
             value = self.urlformatter(value)
