@@ -1262,6 +1262,13 @@ class TestBagItemColumn:
         for r in rows:
             assert r['code'] is not None
 
+    def test_bagitem_custom_dtype_pg(self, db_pg):
+        """bagItemColumn with a package custom dtype compiles and runs (#22)."""
+        rows = db_pg.table('invc.product').query(
+            columns='$description, $detail_price', limit=5
+        ).fetch()
+        assert len(rows) == 5
+
 
 # ===================================================================
 # joinColumn (discount_tier_id)
