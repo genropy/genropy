@@ -16,4 +16,7 @@ class Menu(object):
         tests.directoryBranch("Services", folder="services")
         tests.directoryBranch("Tools", folder="tools")
         tests.directoryBranch("Websocket", folder="websocket")
+        tests.htmlpage("Html Page", source="pkg:test/resources/test.html", tags="_DEV_")
+        tests.htmlpage("Html Page (missing file)", source="pkg:test/resources/does_not_exist.html",
+                        tags="_DEV_")
 
