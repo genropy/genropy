@@ -2319,10 +2319,12 @@ class GnrWebPage(GnrBaseWebPage):
         path = 'gnr.chat.msg.%s' % roomId
         priority = priority or 'H'
         if not users:
+            # the label travels dot-escaped (Bag labels split on dots);
+            # the real username rides in the node's `user` attribute
             users = Bag()
             if from_user!='SYSTEM':
-                users.setItem(from_user,None,user_name=from_user,user=from_user)
-            users.setItem(user,None,user_name=user,user=user)
+                users.setItem(from_user.replace('.','_'),None,user_name=from_user,user=from_user)
+            users.setItem(user.replace('.','_'),None,user_name=user,user=user)
         ts = self.toText(datetime.datetime.now(), format='HH:mm:ss')
         with self.userStore(user) as store:
             if disconnect and (user == from_user):
