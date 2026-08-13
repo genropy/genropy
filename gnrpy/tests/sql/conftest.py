@@ -117,12 +117,26 @@ def db_sqlite(sqlite_temp_dir):
     return app.db
 
 
+def _pg_dbname(request, implementation):
+    """Database name unique to the requesting module and implementation.
+
+    get_pg_config() returns an already running server whenever the tests run
+    against a shared postgres (CI, or GNR_TEST_PG_*).  There every one of
+    these module-scoped fixtures would land on the same database and import
+    the CSV data on top of the previous module's rows, so the second module
+    onwards died on a duplicate key.
+    """
+    module = request.module.__name__.rsplit('.', 1)[-1]
+    return '%s_%s' % (module, implementation)
+
+
 @pytest.fixture(scope='module')
-def db_pg():
+def db_pg(request):
     # no skip on failure: postgres is a required part of this suite, and a
     # run that cannot reach it has to fail loudly instead of reporting green.
     pg_conf, pg_instance = get_pg_config()
-    dbname = pg_conf.pop('database', 'test_compiler')
+    pg_conf.pop('database', None)
+    dbname = _pg_dbname(request, 'postgres')
     try:
         app = GnrApp('test_invoice', db_attrs=dict(
             implementation='postgres',
@@ -138,11 +152,12 @@ def db_pg():
 
 
 @pytest.fixture(scope='module')
-def db_pg3():
+def db_pg3(request):
     # no skip on failure: postgres is a required part of this suite, and a
     # run that cannot reach it has to fail loudly instead of reporting green.
     pg_conf, pg_instance = get_pg_config()
-    dbname = pg_conf.pop('database', 'test_compiler')
+    pg_conf.pop('database', None)
+    dbname = _pg_dbname(request, 'postgres3')
     try:
         app = GnrApp('test_invoice', db_attrs=dict(
             implementation='postgres3',
