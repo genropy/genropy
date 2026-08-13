@@ -101,8 +101,8 @@ def get_pg_config():
     must call pg_instance.stop() when done; anything still running is
     stopped at interpreter exit as a fallback.
 
-    Raises when no temporary server can be started, so callers that can
-    run without postgres must handle the failure and skip.
+    Raises when no server can be reached or started: postgres is required
+    by this suite, so callers let the failure surface.
     """
     if 'GITHUB_WORKFLOW' in os.environ:
         return dict(host='127.0.0.1', port='5432',
