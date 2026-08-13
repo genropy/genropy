@@ -76,8 +76,7 @@ class WsgiWebSocketHandler(WebSocketHandler):
         sockets_dir = os.path.join(site.site_path, 'sockets')
         if len(sockets_dir)>90:
             sockets_dir = os.path.join('/tmp', os.path.basename(site.instance_path), 'gnr_sock')
-        if not os.path.exists(sockets_dir):
-            os.makedirs(sockets_dir)
+        os.makedirs(sockets_dir, exist_ok=True)
         self.socket_path = os.path.join(sockets_dir, 'async.sock')
         self.proxyurl='/wsproxy'
     
