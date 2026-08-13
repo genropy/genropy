@@ -2890,16 +2890,14 @@ class GnrWebPage(GnrBaseWebPage):
         """TODO"""
         filepath = os.path.join(self.connectionFolder, self.page_id, *args)
         folder = os.path.dirname(filepath)
-        if not os.path.isdir(folder):
-            os.makedirs(folder)
+        os.makedirs(folder, exist_ok=True)
         return filepath
         
     def userDocument(self, *args):
         """TODO"""
         filepath = os.path.join(self.userFolder, *args)
         folder = os.path.dirname(filepath)
-        if not os.path.isdir(folder):
-            os.makedirs(folder)
+        os.makedirs(folder, exist_ok=True)
         return filepath
         
     def connectionDocumentUrl(self, *args, **kwargs):

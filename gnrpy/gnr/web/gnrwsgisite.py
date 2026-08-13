@@ -826,8 +826,7 @@ class GnrWsgiSite(object):
             else:
                 autocreate_args = args
             dest_dir = static_handler.path(*autocreate_args)
-            if not os.path.exists(dest_dir):
-                os.makedirs(dest_dir)
+            os.makedirs(dest_dir, exist_ok=True)
         dest_path = static_handler.path(*args)
         return dest_path
 
