@@ -30,6 +30,27 @@ def setup_module(module):
 def teardown_module(module):
     BaseGnrTest.teardown_class()
 
+
+@pytest.fixture(scope='module', autouse=True)
+def gnr_test_config():
+    """Make sure every module in this package runs with a genro configuration.
+
+    The setup_module/teardown_module above are never called: pytest honours
+    xunit module hooks on test modules, not on a conftest.  Every module that
+    needs a configuration therefore repeats the call itself -- and
+    test_db_notify and test_gnrlistener do not, so on a machine without a
+    ~/.gnr of its own, CI included, their fixtures died with
+    'Missing genro configuration'.  Modules that already set one up keep it.
+    """
+    if os.environ.get('GENRO_GNRFOLDER'):
+        yield
+        return
+    BaseGnrTest.setup_class()
+    try:
+        yield
+    finally:
+        BaseGnrTest.teardown_class()
+
 def _csv_dir():
     """Return the path to the CSV export directory."""
     return os.path.join(
