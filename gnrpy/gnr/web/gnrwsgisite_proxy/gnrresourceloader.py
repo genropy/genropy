@@ -10,6 +10,9 @@ import os
 
 import inspect
 import glob
+import time
+from collections import OrderedDict
+from threading import Lock
 
 from gnr.core.gnrbag import Bag, DirectoryResolver
 from gnr.core.gnrlang import gnrImport, classMixin, cloneClass,clonedClassMixin
@@ -23,6 +26,16 @@ from gnr.core.gnrclasses import GnrMixinError,GnrMixinNotFound
 from gnr.core.gnrlang import uniquify
 from gnr.web import logger
 
+# Experimental per-page_id page-class cache (sys preference
+# ``experimental.page_class_cache``): a page's class is a function of values
+# fixed at the page's birth (module, main package, plugin/custom mixins), so
+# the first build can serve every later request of the same page_id. The LRU
+# ceiling bounds memory without wiring into the page lifecycle; the preference
+# is re-read at most every PAGE_CLASS_CACHE_FLAG_TTL seconds because a
+# getPreference call deepcopies the whole preference bag.
+PAGE_CLASS_CACHE_MAXSIZE = 2000
+PAGE_CLASS_CACHE_FLAG_TTL = 10
+
 
 class ResourceLoader(object):
     """Base class to load :ref:`intro_resources`"""
@@ -35,6 +48,34 @@ class ResourceLoader(object):
         self.gnr_static_handler = self.site.getStatic('gnr')
         self.page_factories = {}
         self.default_path = self.site.default_page and self.site.default_page.split('/')
+        self._page_class_cache = OrderedDict()
+        self._page_class_cache_lock = Lock()
+        self._page_class_cache_flag = (False, 0.0)
+
+    def page_class_cache_enabled(self):
+        """The experimental flag, read through a small TTL (kill switch stays live)."""
+        value, read_ts = self._page_class_cache_flag
+        now = time.time()
+        if now - read_ts > PAGE_CLASS_CACHE_FLAG_TTL:
+            value = bool(self.site.getPreference('experimental.page_class_cache', pkg='sys'))
+            self._page_class_cache_flag = (value, now)
+        return value
+
+    def load_class_by_page_id(self, page_id):
+        """The cached class of a live page, or None on a miss."""
+        with self._page_class_cache_lock:
+            page_class = self._page_class_cache.get(page_id)
+            if page_class is not None:
+                self._page_class_cache.move_to_end(page_id)
+            return page_class
+
+    def store_class_by_page_id(self, page_id, page_class):
+        """Deposit a freshly built class under its page_id, LRU-bounded."""
+        with self._page_class_cache_lock:
+            self._page_class_cache[page_id] = page_class
+            self._page_class_cache.move_to_end(page_id)
+            while len(self._page_class_cache) > PAGE_CLASS_CACHE_MAXSIZE:
+                self._page_class_cache.popitem(last=False)
     
     @property
     def gnrapp(self):
@@ -108,11 +149,23 @@ class ResourceLoader(object):
 
 
     def get_page_class(self, basepath=None,relpath=None, pkg=None, plugin=None,avoid_module_cache=None,request_args=None,request_kwargs=None, page_factory=None):
-        """TODO
-        
+        """Build the page class for a request — or serve the page's cached one.
+
+        With the experimental ``page_class_cache`` preference on, a request
+        that names a ``page_id`` reuses the class built at that page's birth.
+        An explicit ``page_factory`` bypasses the cache (``instantiate_page``
+        forces ``GnrSimplePage``: a different base class under the same
+        page_id), and so does ``avoid_module_cache`` (the dev reload).
+
         :param path: TODO
         :param pkg: the :ref:`package <packages>` object"""
-
+        page_id = (request_kwargs or {}).get('page_id')
+        use_cache = (page_id and page_factory is None and not avoid_module_cache
+                     and self.page_class_cache_enabled())
+        if use_cache:
+            cached_class = self.load_class_by_page_id(page_id)
+            if cached_class is not None:
+                return cached_class
         module_path = os.path.join(basepath,relpath)
         page_module = gnrImport(module_path, avoidDup=True,silent=False,avoid_module_cache=avoid_module_cache)
         page_factory = page_factory or getattr(page_module, 'page_factory', GnrWebPage)
@@ -171,6 +224,8 @@ class ResourceLoader(object):
         self.page_class_plugin_mixin(page_class, plugin_webpage_classes)
         self.page_class_custom_mixin(page_class, relpath, pkg=mainPkg)
         self.page_factories[module_path] = page_class
+        if use_cache:
+            self.store_class_by_page_id(page_id, page_class)
         return page_class
         
     def page_class_base_mixin(self, page_class, pkg=None):
