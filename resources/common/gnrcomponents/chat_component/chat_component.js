@@ -36,9 +36,10 @@ ct_chat_utils.fill_title = function(roombag) {
     roombag.setItem('title', title);
 };
 ct_chat_utils.escape_user = function(user){
-    // usernames may contain dots, which Bag labels read as path separators:
-    // the label travels escaped, the real name rides in the `user` attribute
-    return user.replace(/\./g, '_');
+    // usernames may contain dots (Bag path separators) or @ (email-style):
+    // the label travels escaped — the same [.@] -> _ rule connected_users_bag
+    // uses — and the real name rides in the `user` attribute
+    return user.replace(/[.@]/g, '_');
 };
 ct_chat_utils.key_from_users = function(users){
     var user = ct_chat_utils.escape_user(genro._('gnr.avatar.user'));
