@@ -189,9 +189,53 @@ class SiteRegisterClient(object):
         self.initSiteRegister()
 
     def initSiteRegister(self):
-        self.siteregister = build_proxy(self.siteregister_uri, hmac_key=self.hmac_key)
+        self.newSiteRegisterProxy()
         self.remotebag_uri = self.siteregister_uri.replace(':SiteRegister@', ':RemoteData@')
         self.siteregister.setConfiguration(cleanup=self.site.custom_config.getAttr('cleanup'))
+        # The site is normally built before the wsgi server forks its workers: leave
+        # no open socket behind, so no worker can inherit this one. Releasing here is
+        # safe because this process is still the only owner of the connection.
+        self._siteregister._pyroRelease()
+
+    def newSiteRegisterProxy(self):
+        self.siteregister = self.pyroProxy(self.siteregister_uri)
+
+    @property
+    def siteregister(self):
+        """Proxy to the siteregister, always owned by the current process.
+
+        A Pyro proxy carries an open socket and its own request sequence counter, and
+        neither survives a fork: sharing one socket between parent and workers makes
+        replies land in the wrong process, raising ProtocolError('reply sequence out
+        of sync') or resetting the connection. So a proxy inherited from another
+        process is replaced instead of being reused.
+        """
+        if self._siteregister_pid != os.getpid():
+            self.dropInheritedConnection(self._siteregister)
+            self.newSiteRegisterProxy()
+        return self._siteregister
+
+    @siteregister.setter
+    def siteregister(self, proxy):
+        self._siteregister = proxy
+        self._siteregister_pid = os.getpid()
+
+    def dropInheritedConnection(self, proxy):
+        """Give up this process' side of a forked connection, leaving it usable elsewhere.
+
+        Closing it is not an option: Pyro shuts the socket down (SHUT_RDWR) both on
+        _pyroRelease() and on garbage collection, and that would tear the connection
+        down for the process the socket was inherited from.
+        """
+        connection = proxy._pyroConnection
+        if connection is None:
+            return
+        connection.keep_open = True
+        try:
+            os.close(connection.sock.detach())
+        except OSError:
+            logger.debug('inherited siteregister socket already gone', exc_info=True)
+        proxy._pyroConnection = None
 
     def checkSiteRegisterServerUri(self, daemonProxy):
         if not self.siteregisterserver_uri:
