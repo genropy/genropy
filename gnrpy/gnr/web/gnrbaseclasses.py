@@ -598,7 +598,8 @@ class TableScriptToHtml(BagToHtmlWeb):
         #overridable
         self.row_mode = 'attribute'
         parameters = dict(self.gridQueryParameters())
-        if self.record['selectionPkeys'] and (not parameters or self.parameter('use_current_selection')):
+        from_current_selection = bool(self.record['selectionPkeys']) and (not parameters or self.parameter('use_current_selection'))
+        if from_current_selection:
             parameters = self.currentSelectionQueryParameters()
         if not parameters:
             raise Exception('You must define gridQueryParameters or gridData or use_current_selection')
@@ -624,7 +625,7 @@ class TableScriptToHtml(BagToHtmlWeb):
             parameters['order_by'] = self.grid_subtotal_order_by
         query = rowtblobj.query(columns=columns,where= ' AND '.join(where),**parameters)
         sel = query.selection(_aggregateRows=True)
-        if not parameters.get('order_by') and self.record['selectionPkeys']: #same case of line 493
+        if from_current_selection and not parameters.get('order_by'):
             sel.data.sort(key = lambda r : self.record['selectionPkeys'].index(r['pkey']))
         if self.parent and self.parent.export_mode:
             return sel.output('dictlist')
