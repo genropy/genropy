@@ -159,6 +159,7 @@ def main():
         if options.upgrade_only:
             logger.info('#### UPGRADE SCRIPTS IN STORE {%s} ####', storename)
             app.pkgBroadcast('onDbUpgrade,onDbUpgrade_*')
+            app.pkgBroadcast('onDbUpgradeDone,onDbUpgradeDone_*')
             app.db.table('sys.upgrade').runUpgrades()
             app.db.commit()
             app.db.closeConnection()
@@ -177,6 +178,7 @@ def main():
         app.pkgBroadcast('onDbSetup,onDbSetup_*')
         if options.upgrade:
             app.pkgBroadcast('onDbUpgrade,onDbUpgrade_*')
+            app.pkgBroadcast('onDbUpgradeDone,onDbUpgradeDone_*')
             app.db.table('sys.upgrade').runUpgrades()
             app.db.commit()
         app.db.closeConnection()

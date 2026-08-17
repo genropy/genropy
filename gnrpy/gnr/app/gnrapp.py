@@ -794,6 +794,9 @@ class GnrPackage(object):
     def onDbUpgrade(self):
         self.tableBroadcast('onDbUpgrade,onDbUpgrade_*')
 
+    def onDbUpgradeDone(self):
+        self.tableBroadcast('onDbUpgradeDone,onDbUpgradeDone_*')
+
     def tableBroadcast(self,evt,autocommit=False,**kwargs):
         changed = False
         for evt in evt.split(','):
