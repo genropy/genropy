@@ -1768,8 +1768,7 @@ class GnrWsgiSite(object):
         if not os.path.isdir(self.allConnectionsFolder):
             return
         try:
-            live_connections = {c['register_item_id']
-                                for c in self.register.connections()}
+            live_connections = self.register.connections()
         except Exception:
             logger.exception("Cleanup failed reading register")
             return
