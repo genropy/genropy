@@ -211,8 +211,7 @@ def main():
         try:
             if options.upgrade_only:
                 logger.info(f'#### UPGRADE SCRIPTS IN STORE {storename} ####')
-                app.pkgBroadcast('onDbUpgrade,onDbUpgrade_*')
-                app.pkgBroadcast('onDbUpgradeDone,onDbUpgradeDone_*')
+                app.dbUpgradeBroadcast()
                 upgrade_errors = app.db.table('sys.upgrade').runUpgrades()
                 app.db.commit()
                 errordb.extend((storelabel, f'{codekey}: {error}')
@@ -253,8 +252,7 @@ def main():
                     logger.info('CHANGES APPLIED TO DATABASE')
             app.pkgBroadcast('onDbSetup,onDbSetup_*')
             if options.upgrade:
-                app.pkgBroadcast('onDbUpgrade,onDbUpgrade_*')
-                app.pkgBroadcast('onDbUpgradeDone,onDbUpgradeDone_*')
+                app.dbUpgradeBroadcast()
                 upgrade_errors = app.db.table('sys.upgrade').runUpgrades()
                 app.db.commit()
                 errordb.extend((storelabel, f'{codekey}: {error}')

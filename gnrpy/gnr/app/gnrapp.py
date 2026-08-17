@@ -1282,6 +1282,15 @@ class GnrApp(object):
         for method in method.split(','):
             result+=self._pkgBroadcast(method,*args,**kwargs)
         return result
+
+    def dbUpgradeBroadcast(self):
+        """Run the db upgrade lifecycle: broadcast onDbUpgrade to every package,
+        then onDbUpgradeDone once all packages completed their upgrade pass.
+
+        onDbUpgradeDone hooks can rely on records created by any package during
+        the onDbUpgrade phase (mandatory sysRecords, lookup rows)."""
+        self.pkgBroadcast('onDbUpgrade,onDbUpgrade_*')
+        self.pkgBroadcast('onDbUpgradeDone,onDbUpgradeDone_*')
     
     def _pkgBroadcast(self,method,*args,**kwargs):
         result = []
