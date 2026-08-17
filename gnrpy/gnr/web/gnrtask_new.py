@@ -40,6 +40,7 @@ from aiohttp import web
 from concurrent.futures import ProcessPoolExecutor
 
 from gnr.core.gnrbag import Bag
+from gnr.core.gnrdatetime import localnow
 from gnr.app.gnrapp import GnrApp
 from gnr.web.gnrwsgisite import GnrWsgiSite
 from gnr.web import logger
@@ -177,7 +178,12 @@ class GnrTask:
         Compute if the task is to be executed
         """
         if not timestamp:
-            timestamp = datetime.now(timezone.utc)
+            # The month/day/hour/minute entries of the schedule are local wall
+            # clock time as entered by the user, so they must be compared
+            # against a timestamp carrying the local offset. last_scheduled_ts
+            # stays UTC: it is the same instant, just written with a different
+            # offset, so the frequency branch below is unaffected.
+            timestamp = localnow()
 
         result = []
                 
