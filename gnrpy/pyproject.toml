@@ -25,7 +25,6 @@ classifiers = [
 dependencies = [
 	     "aiohttp",
 	     "babel",
-	     "boto3",
 	     "caldav",
 	     "chardet==5.2.0",
 	     "clevercsv",
@@ -72,6 +71,10 @@ pgsql = [
 
 mysql = ["mysqlclient"]
 
+# needed by the gnrcore sys services storage/aws_s3, queue/aws_sqs,
+# translation/aws and cloudmanager/awsmanager
+s3 = ["boto3"]
+
 developer = [
   "pytest", "pytest-cov", "graphviz",
   "pytest-aiohttp", "pytest-asyncio",
@@ -81,6 +84,7 @@ developer = [
   "psycopg2-binary",
   "psycopg",
   "pymysql",
+  "boto3", # optional [s3] backend, installed so its tests run
   "testing.postgresql" # needed for tests, assuming developers runs tests
 ]
 

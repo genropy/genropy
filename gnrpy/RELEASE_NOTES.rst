@@ -1,3 +1,20 @@
+Unreleased
+==========
+
+Packaging
+---------
+
+* **boto3 is now an optional dependency**: ``boto3`` has been moved out of the
+  default requirements into a new ``s3`` extra.  An unbounded ``boto3`` cannot
+  be resolved together with any ``s3fs`` consumer, because ``s3fs`` pulls
+  ``aiobotocore``, which caps ``botocore`` below the floor that recent
+  ``boto3`` releases require.  **Upgrade note:** instances configured with an
+  AWS service — ``storage/aws_s3``, ``queue/aws_sqs``, ``translation/aws`` or
+  ``cloudmanager/awsmanager`` — must now install ``genropy[s3]``.  Without the
+  extra those implementations cannot be imported and the service silently
+  falls back to its base implementation, logging an error. (#1079)
+
+
 Release 26.07.31
 ================
 

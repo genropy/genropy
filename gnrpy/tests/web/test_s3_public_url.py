@@ -1,8 +1,14 @@
 import importlib.util
 import os
 
-from gnr.core.gnrbag import Bag
-from gnr.lib.services.storage import StorageNode, StorageService
+import pytest
+
+# boto3 is an optional dependency (genropy[s3]) and the aws_s3 module imports
+# it at module level, so the whole file is skipped when it is not installed.
+pytest.importorskip('boto3')
+
+from gnr.core.gnrbag import Bag  # noqa: E402
+from gnr.lib.services.storage import StorageNode, StorageService  # noqa: E402
 
 # The aws_s3 Service lives under projects/gnrcore/ which is not on the
 # default test sys.path.  We load it directly from the file system so the
