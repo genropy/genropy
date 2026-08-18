@@ -7,13 +7,15 @@ calculateExternalUrl, homonym disambiguation and 404 fallbacks.
 """
 import os
 from datetime import date
+from pathlib import Path
 from types import SimpleNamespace
 
 from gnr.core.gnrlang import gnrImport
 
-from common import BaseGnrAppTest
+from core.common import BaseGnrAppTest
 
 BASE_URL = 'https://docs.example.org'
+COMMON_RESOURCES = Path(__file__).resolve().parents[5] / 'resources' / 'common'
 
 
 class TestDocuResolver(BaseGnrAppTest):
@@ -95,7 +97,13 @@ class TestDocuResolver(BaseGnrAppTest):
                                    'webtools', 'resolver.py')
         module = gnrImport(module_path, avoidDup=True)
         tool = module.DocuResolver()
-        tool.site = SimpleNamespace(db=self.db, externalUrl=lambda url, **kwargs: url)
+
+        def getResource(path, ext=None, pkg=None):
+            resource_path = COMMON_RESOURCES / path
+            return str(resource_path) if resource_path.exists() else None
+
+        tool.site = SimpleNamespace(db=self.db,
+                                    resource_loader=SimpleNamespace(getResource=getResource))
         return tool
 
     def test_webtool_moved_page_301(self):
@@ -106,6 +114,5 @@ class TestDocuResolver(BaseGnrAppTest):
     def test_webtool_unknown_page_404(self):
         response = self._resolver_tool()('testguide', 'nowhere.html')
         assert response.status_code == 404
-        body = response.get_data(as_text=True)
-        assert 'Page not found' in body
-        assert 'testguide/nowhere.html' in body
+        template = (COMMON_RESOURCES / 'html_pages' / 'missing_result.html').read_text()
+        assert response.get_data(as_text=True) == template

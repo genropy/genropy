@@ -21,7 +21,7 @@ import pytest
 from gnr.core.gnrlang import gnrImport
 from gnr.lib.services.storage import BaseLocalService, StorageNode
 
-from common import BaseGnrAppTest
+from core.common import BaseGnrAppTest
 
 MEDIA_HOST = 'https://media.example.org'
 INSTANCE_HOST = 'https://instance.example.org'
