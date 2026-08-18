@@ -8,19 +8,19 @@ regenerable in bulk from the sourcebag since the site folder is
 disposable. The rst links pointing to a renamed record must be rewritten
 in the docbag of the other records.
 
-The tests run against a real database (gnrdevelop instance on a temporary
-sqlite file) and a real local storage service backed by a temporary
-directory: records go through the actual table triggers and assertions
-read the actual filesystem.
+The tests need no running site nor a shared database: they build a
+throwaway application on a temporary sqlite file and expose a real local
+storage service on a temporary directory, so the records go through the
+actual table triggers and the assertions read the actual filesystem.
 """
+import os
 import shutil
 import tempfile
 from types import SimpleNamespace
 
+from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrbag import Bag
 from gnr.lib.services.storage import BaseLocalService, StorageNode
-
-from common import BaseGnrAppTest
 
 
 class StorageSiteStub:
@@ -48,11 +48,15 @@ def sourceBag(*versions):
     return result
 
 
-class TestDocuExamplesSync(BaseGnrAppTest):
+class TestDocuExamplesSync(object):
 
     @classmethod
     def setup_class(cls):
-        super().setup_class()
+        cls.instance_name = os.environ.get('GNR_TESTING_INSTANCE_NAME') or 'gnrdevelop'
+        cls.temp_dir = tempfile.mkdtemp(prefix='gnr_docu_examples_')
+        cls.app = GnrApp(cls.instance_name, db_attrs=dict(
+            implementation='sqlite',
+            dbname=os.path.join(cls.temp_dir, 'testing')))
         cls.db = cls.app.db
         cls.db.model.check(applyChanges=True)
         cls.doctbl = cls.db.table('docu.documentation')
@@ -61,8 +65,9 @@ class TestDocuExamplesSync(BaseGnrAppTest):
 
     @classmethod
     def teardown_class(cls):
-        shutil.rmtree(cls.site_dir, ignore_errors=True)
-        super().teardown_class()
+        cls.db.closeConnection()
+        for folder in (cls.site_dir, cls.temp_dir):
+            shutil.rmtree(folder, ignore_errors=True)
 
     # ------------------------------------------------------------------
     # helpers
