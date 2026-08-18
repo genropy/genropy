@@ -208,6 +208,13 @@ class GnrWebPage(GnrBaseWebPage):
         self.dojo_version = request_kwargs.pop('dojo_version', None) or getattr(self, 'dojo_version', None)
         self.envelope_js_requires= {}
         self.envelope_css_requires= {}
+        # ``css_requires``/``js_requires`` live on the page class, and both the
+        # runtime component mixins (BaseComponent.__onmixin__) and the root
+        # render append to them. Shadowing the class lists with per-instance
+        # copies keeps those appends inside the request, as they were when
+        # every request built its own class.
+        self.css_requires = list(getattr(self, 'css_requires', None) or [])
+        self.js_requires = list(getattr(self, 'js_requires', None) or [])
         self._avoid_module_cache = _avoid_module_cache
         self.debug_sql = boolean(request_kwargs.pop('debug_sql', None))
         debug_py = request_kwargs.pop('debug_py', None)
@@ -622,6 +629,7 @@ class GnrWebPage(GnrBaseWebPage):
         self._onEnd()
         if getattr(self,'_closed',False):
             self.site.register.drop_page(self.page_id, cascade=False)
+            self.site.resource_loader.drop_page_class_cache(self.page_id)
         return result
     
 
