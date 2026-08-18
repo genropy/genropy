@@ -424,6 +424,13 @@ server {
             proxy_set_header Host $http_host;
             proxy_redirect off;
             proxy_pass http://unix:%(gunicorn_socket_path)s;
+            proxy_intercept_errors on;
+            error_page 502 503 504 = @gnr_maintenance;
+        }
+        location @gnr_maintenance {
+            default_type application/json;
+            add_header Retry-After 5 always;
+            return 503 '{"code":"MAINTENANCE","message":"Service temporarily unavailable, please retry"}';
         }
 }
 
