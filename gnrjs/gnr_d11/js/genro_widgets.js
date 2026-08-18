@@ -5424,7 +5424,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
             crop = objectUpdate({text_align:'center',overflow:'hidden'},crop);
             var innerImage=objectExtract(attr,'src,src_back,placeholder,height,width,edit,upload_maxsize,upload_folder,upload_filename,upload_ext,zoomWindow,format,mask,border,takePicture,nodeId,capture');
             if (innerImage.placeholder===true){
-                innerImage.placeholder = getComputedStyle(document.documentElement).getPropertyValue('--icon-placeholder-img').trim().slice(4, -1).replace(/["']/g, '')
+                innerImage.placeholder = getComputedStyle(document.documentElement).getPropertyValue('--icon-placeholder-img').trim().slice(4, -1).replace(/^["']|["']$/g, '')
             }
             innerImage.cr_width=crop.width;
             innerImage.cr_height=crop.height;
