@@ -1426,6 +1426,7 @@ class GnrWsgiSite(object):
     def onClosedPage(self, page_id=None, **kwargs):
         "Drops page when closing"
         self.register.drop_page(page_id)
+        self.resource_loader.drop_page_class_cache(page_id)
 
     def cleanup(self):
         """clean up"""
