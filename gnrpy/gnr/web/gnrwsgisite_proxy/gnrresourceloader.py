@@ -83,6 +83,12 @@ class ResourceLoader(object):
                 self._page_class_cache.move_to_end(cache_key)
             return page_class
 
+    def page_class_cache_entries(self):
+        """A snapshot of the cache: (page_id, module_path, class_name) per entry."""
+        with self._page_class_cache_lock:
+            return [(page_id, module_path, page_class.__name__)
+                    for (page_id, module_path), page_class in self._page_class_cache.items()]
+        
     def store_page_class_cache(self, cache_key, page_class):
         """Deposit a freshly built class under its ``(page_id, module_path)``, LRU-bounded."""
         with self._page_class_cache_lock:

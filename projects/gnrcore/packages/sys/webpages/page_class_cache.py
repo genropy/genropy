@@ -53,13 +53,10 @@ class GnrCustomWebPage(object):
     @public_method
     def getCacheEntries(self):
         result = Bag()
-        cache = self.site.resource_loader._page_class_cache
-        for i, ((page_id, module_path), page_class) in enumerate(cache.items()):
-            result.setItem(str(i), None,
-                        dict(
-                            page_id=page_id,
-                            module_path=module_path,
-                            class_name=page_class.__name__
-                        )
+        for i, (page_id, module_path, class_name) in enumerate(
+                self.site.resource_loader.page_class_cache_entries()):
+            result.setItem(str(i), None, dict(page_id=page_id,
+                                              module_path=module_path,
+                                              class_name=class_name)
                            )
         return result
