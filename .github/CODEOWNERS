@@ -1,4 +1,10 @@
+# The last matching pattern wins, so the catch-all must stay first:
+# anything the rules below do not cover falls back to it instead of
+# opening with no code owner and no reviewer at all.
+*               @fporcari @genro
+
+gnrpy/          @fporcari @genro
 gnrjs/          @fporcari @genro
-resources/      @fporcari @genro 
-projects/       @fporcari @genro 
+resources/      @fporcari @genro
+projects/       @fporcari @genro
 *.js            @fporcari
