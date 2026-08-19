@@ -1,3 +1,9 @@
+Release 26.08.19.1
+==================
+
+Hotfix release: fixed Dockerfile creation for projects with
+repositories organized in nested subfolders.
+
 Release 26.08.19
 ================
 

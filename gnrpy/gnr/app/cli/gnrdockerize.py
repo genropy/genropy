@@ -130,9 +130,16 @@ class MultiStageDockerImageBuilder:
                 if repo['subfolder']:
                     if repo_name == self.main_repo_name:
                         site_folder = f"/home/genro/genropy_projects/{repo['subfolder']}/instances/{self.instance_name}/site"
-                    dockerfile.write(f"COPY --chown=genro:genro {repo_name}/{repo['subfolder']} /home/genro/genropy_projects/{repo['subfolder']}\n")
-                else:
+                    dest_folder = repo['subfolder']
+                    if os.path.sep in repo['subfolder']:
+                        # we have a nested hierachy, we need to copy also what is exposed at top level
+                        dest_folder = os.path.basename(repo['subfolder'])
+                        dockerfile.write(f"COPY --chown=genro:genro {repo_name} /home/genro/genropy_projects/{repo_name}\n")
+                        dockerfile.write(f"COPY --chown=genro:genro {repo_name}/{repo['subfolder']} /home/genro/genropy_projects/{dest_folder}\n")
+                    else:
+                        dockerfile.write(f"COPY --chown=genro:genro {repo_name}/{repo['subfolder']} /home/genro/genropy_projects/{dest_folder}\n")
 
+                else:
                     dockerfile.write(f"COPY --chown=genro:genro {repo_name} /home/genro/genropy_projects/{repo_name}\n")
 
             dockerfile.write(f"RUN ln -s {site_folder} /home/genro/site\n")
