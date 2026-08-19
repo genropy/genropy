@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
 
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
@@ -87,7 +87,22 @@ class Table(object):
         location = self._resolveFromName(path)
         if not location or urlsplit(location).path.strip('/') == path:
             return None
-        return location
+        return self._absoluteLocation(location)
+
+    def _absoluteLocation(self, location):
+        """Give scheme and host to a host-relative resolved URL.
+
+        The documentation may be served by a different host than the instance
+        (cloudfront, a static content web server), so the redirect Location must
+        carry the docs host explicitly. handbook_url is normally absolute (the
+        sphinx export builds it from the docu.sphinx_baseurl preference), but a
+        relative one is resolved here against that same preference."""
+        if urlsplit(location).netloc:
+            return location
+        base_url = self.db.application.getPreference('.sphinx_baseurl', pkg='docu') or ''
+        if not urlsplit(base_url).netloc:
+            return location
+        return urljoin(base_url, location)
 
     def _resolveFromName(self, path):
         """Return the current external URL of the page named as the last path segment.

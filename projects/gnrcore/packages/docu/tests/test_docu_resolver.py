@@ -6,6 +6,7 @@ webtool against a real database built from the gnrdevelop instance
 calculateExternalUrl, homonym disambiguation and 404 fallbacks.
 """
 import os
+from contextlib import contextmanager
 from datetime import date
 from pathlib import Path
 from types import SimpleNamespace
@@ -15,6 +16,8 @@ from gnr.core.gnrlang import gnrImport
 from core.common import BaseGnrAppTest
 
 BASE_URL = 'https://docs.example.org'
+CDN_BASE_URL = 'https://cdn.example.org'
+INSTANCE_HOST = 'https://instance.example.org'
 COMMON_RESOURCES = Path(__file__).resolve().parents[5] / 'resources' / 'common'
 
 
@@ -34,6 +37,7 @@ class TestDocuResolver(BaseGnrAppTest):
 
         testguide: guide -> install, usage -> advanced, ghost (unpublished)
         otherbook: other -> install
+        relbook: relroot -> setup (handbook_url stored as host-relative path)
         """
         def add_doc(name, parent_id=None, publish_date=True):
             record = dict(name=name, parent_id=parent_id,
@@ -48,12 +52,16 @@ class TestDocuResolver(BaseGnrAppTest):
         add_doc('ghost', parent_id=guide_root, publish_date=False)
         other_root = add_doc('other')
         add_doc('install', parent_id=other_root)
+        rel_root = add_doc('relroot')
+        add_doc('setup', parent_id=rel_root)
 
         handbook_tbl = cls.db.table('docu.handbook')
         handbook_tbl.insert(dict(name='testguide', title='Test guide', docroot_id=guide_root,
                                  handbook_url=f'{BASE_URL}/testguide/'))
         handbook_tbl.insert(dict(name='otherbook', title='Other book', docroot_id=other_root,
                                  handbook_url=f'{BASE_URL}/otherbook/'))
+        handbook_tbl.insert(dict(name='relbook', title='Relative book', docroot_id=rel_root,
+                                 handbook_url='/docs/relbook/'))
         cls.db.commit()
 
     def resolve(self, path):
@@ -92,6 +100,33 @@ class TestDocuResolver(BaseGnrAppTest):
         assert self.resolve('') is None
         assert self.resolve(None) is None
 
+    @contextmanager
+    def sphinxBaseurl(self, value):
+        """Set the real docu.sphinx_baseurl preference, restoring it on exit"""
+        self.db.table('adm.preference').loadPreference()
+        try:
+            self.app.setPreference('sphinx_baseurl', value, pkg='docu')
+            yield
+        finally:
+            self.app.setPreference('sphinx_baseurl', None, pkg='docu')
+
+    def test_relative_handbook_url_absolutized_by_preference(self):
+        with self.sphinxBaseurl(f'{CDN_BASE_URL}/docs/'):
+            assert self.resolve('relbook/oldsection/setup.html') == \
+                f'{CDN_BASE_URL}/docs/relbook/setup.html'
+
+    def test_relative_handbook_url_without_preference(self):
+        assert self.resolve('relbook/oldsection/setup.html') == '/docs/relbook/setup.html'
+
+    def test_relative_preference_cannot_absolutize(self):
+        with self.sphinxBaseurl('/docs/'):
+            assert self.resolve('relbook/oldsection/setup.html') == '/docs/relbook/setup.html'
+
+    def test_absolute_handbook_url_ignores_preference(self):
+        with self.sphinxBaseurl(f'{CDN_BASE_URL}/docs/'):
+            assert self.resolve('testguide/oldsection/advanced.html') == \
+                f'{BASE_URL}/testguide/usage/advanced.html'
+
     def _resolver_tool(self):
         module_path = os.path.join(self.app.packages['docu'].packageFolder,
                                    'webtools', 'resolver.py')
@@ -102,14 +137,30 @@ class TestDocuResolver(BaseGnrAppTest):
             resource_path = COMMON_RESOURCES / path
             return str(resource_path) if resource_path.exists() else None
 
+        def externalUrl(url, **kwargs):
+            fmt = '{}{}' if url.startswith('/') else '{}/{}'
+            return fmt.format(INSTANCE_HOST, url)
+
         tool.site = SimpleNamespace(db=self.db,
-                                    resource_loader=SimpleNamespace(getResource=getResource))
+                                    resource_loader=SimpleNamespace(getResource=getResource),
+                                    externalUrl=externalUrl)
         return tool
 
     def test_webtool_moved_page_301(self):
         response = self._resolver_tool()('testguide', 'oldsection', 'advanced.html')
         assert response.status_code == 301
         assert response.headers['Location'] == f'{BASE_URL}/testguide/usage/advanced.html'
+
+    def test_webtool_relative_location_falls_back_on_instance_host(self):
+        response = self._resolver_tool()('relbook', 'oldsection', 'setup.html')
+        assert response.status_code == 301
+        assert response.headers['Location'] == f'{INSTANCE_HOST}/docs/relbook/setup.html'
+
+    def test_webtool_relative_location_absolutized_by_preference(self):
+        with self.sphinxBaseurl(f'{CDN_BASE_URL}/'):
+            response = self._resolver_tool()('relbook', 'oldsection', 'setup.html')
+        assert response.status_code == 301
+        assert response.headers['Location'] == f'{CDN_BASE_URL}/docs/relbook/setup.html'
 
     def test_webtool_unknown_page_404(self):
         response = self._resolver_tool()('testguide', 'nowhere.html')

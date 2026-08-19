@@ -3,10 +3,14 @@
 
 The web server serving the static handbooks proxies requests for missing
 paths to ``/_tools/docuresolver/<original path>``: pages that moved answer
-with a real HTTP 301 to their current URL, unknown paths get the standard
-framework 404 page (``html_pages/missing_result.html``), overridable per
-instance through the ordinary resource cascade.
+with a real HTTP 301 to their current absolute URL (the docs host — e.g.
+cloudfront or a static content server — may differ from the instance host),
+unknown paths get the standard framework 404 page
+(``html_pages/missing_result.html``), overridable per instance through the
+ordinary resource cascade.
 """
+
+from urllib.parse import urlsplit
 
 from werkzeug.utils import redirect
 from werkzeug.wrappers import Response
@@ -21,6 +25,12 @@ class DocuResolver(BaseWebtool):
         path = '/'.join(args)
         location = self.site.db.table('docu.documentation').resolveRequestPath(path)
         if location:
+            if not urlsplit(location).netloc:
+                # the docs host differs from the instance host: the Location
+                # header must be absolute, so a still-relative url (no
+                # docu.sphinx_baseurl preference) falls back on the instance
+                # host, the same base the sphinx export publishes with
+                location = self.site.externalUrl(location)
             return redirect(location, code=301)
         return Response(self.notFoundPage(), status=404, mimetype='text/html')
 
