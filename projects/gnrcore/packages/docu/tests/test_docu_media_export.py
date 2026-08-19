@@ -3,10 +3,10 @@
 Exercise the attachment links of docu.documentation.atcAsRstTable and the
 image rewriting of the export_to_sphinx batch against a real database
 (gnrdevelop instance) and real local storage services backed by temporary
-directories: media already living on a storage service is linked by the
-stable public_url of its own node (unsigned on signing services, plain
-instance-served elsewhere), anything else falls back to the standard
-fileurl / download-and-embed behavior.
+directories: attachments are linked by the stable public_url of their own node
+(unsigned on signing services), while images are linked only when that public
+url is served outside the instance, keeping the download-and-embed behavior -
+and the self-contained build - for media served by the instance itself.
 """
 import os
 import re
@@ -25,18 +25,21 @@ from core.common import BaseGnrAppTest
 
 MEDIA_HOST = 'https://media.example.org'
 INSTANCE_HOST = 'https://instance.example.org'
+PUBLIC_HOST = 'https://cdn.example.org'
 IMAGEFINDER = re.compile(r"\.\. image:: ([\w./:-]+)")
 
 
 class SigningLocalService(BaseLocalService):
-    """Local service mimicking a signing storage (e.g. aws_s3): url() is signed
-    and expiring while public_url() stays plain and permanent."""
+    """Local service mimicking a signing storage with a public host of its own
+    (e.g. aws_s3 with public_base_url): url() is signed, expiring and served by
+    the instance, while public_url() is plain, permanent and served by the
+    public host."""
 
     def url(self, *args, **kwargs):
         return '%s?Signature=deadbeef&Expires=123' % super().url(*args, **kwargs)
 
     def public_url(self, *args, **kwargs):
-        return super().url(*args, **kwargs)
+        return '/'.join([PUBLIC_HOST, self.service_name] + list(args))
 
 
 class StorageSiteStub:
@@ -197,15 +200,21 @@ class TestDocuMediaExport(BaseGnrAppTest):
         with self.app.site.storageNode(fullpath).open('wb') as image_file:
             image_file.write(content)
 
-    def test_fiximages_storage_public_url(self):
+    def test_fiximages_instance_storage_embedded(self):
+        """An image served by the instance itself keeps being embedded in the
+        build: linking it would make the published handbook depend on the
+        instance being reachable."""
         self._storeImage('testmedia:pics/logo.png')
         batch = self._batch()
         rst = IMAGEFINDER.sub(batch.fixImages,
                               '.. image:: /_storage/testmedia/pics/logo.png')
-        assert rst == '.. image:: %s' % self.storageUrl('testmedia', 'pics/logo.png')
-        assert batch.imagesDict == {}
+        assert rst == '.. image:: /_static/images/guide/logo.png'
+        assert batch.imagesDict == {
+            '_static/images/guide/logo.png': '/_storage/testmedia/pics/logo.png'}
 
-    def test_fiximages_signing_storage(self):
+    def test_fiximages_public_host_storage_linked(self):
+        """An image whose service has a public host of its own is linked by its
+        stable public url instead of being embedded."""
         self._storeImage('signedmedia:pics/signed.png')
         batch = self._batch()
         rst = IMAGEFINDER.sub(batch.fixImages,
@@ -213,16 +222,26 @@ class TestDocuMediaExport(BaseGnrAppTest):
         node = self.app.site.storageNode('signedmedia:pics/signed.png')
         assert rst == '.. image:: %s' % node.public_url()
         assert 'Signature' not in rst
+        assert batch.imagesDict == {}
+
+    def test_nodepublicurl_only_outside_the_instance(self):
+        self._storeImage('testmedia:pics/served.png')
+        self._storeImage('signedmedia:pics/served.png')
+        batch = self._batch()
+        instance_node = self.app.site.storageNode('testmedia:pics/served.png')
+        public_node = self.app.site.storageNode('signedmedia:pics/served.png')
+        assert batch.nodePublicUrl(instance_node) is None
+        assert batch.nodePublicUrl(public_node) == public_node.public_url()
 
     def test_fiximages_uses_cache(self):
-        self._storeImage('testmedia:pics/cached.png')
+        self._storeImage('signedmedia:pics/cached.png')
         batch = self._batch()
-        ref = '.. image:: /_storage/testmedia/pics/cached.png'
+        ref = '.. image:: /_storage/signedmedia/pics/cached.png'
         IMAGEFINDER.sub(batch.fixImages, ref)
-        expected = self.storageUrl('testmedia', 'pics/cached.png')
-        assert batch.mediaUrlsDict['/_storage/testmedia/pics/cached.png'] == expected
+        expected = self.app.site.storageNode('signedmedia:pics/cached.png').public_url()
+        assert batch.mediaUrlsDict['/_storage/signedmedia/pics/cached.png'] == expected
         # remove the stored file: the second occurrence must be served from the cache
-        self.app.site.storageNode('testmedia:pics/cached.png').delete()
+        self.app.site.storageNode('signedmedia:pics/cached.png').delete()
         rst = IMAGEFINDER.sub(batch.fixImages, ref)
         assert rst == '.. image:: %s' % expected
 
