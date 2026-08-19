@@ -6,7 +6,7 @@
 
 from json import dumps
 from datetime import datetime
-import re, sys, time
+import re, sys
 
 if sys.version_info[0] == 3:
     from urllib.request import urlopen
@@ -17,7 +17,6 @@ else:
     from urllib import urlopen
 
 from sphinx.cmd.build import main as sphinx_build_main
-import boto3
 
 from gnr.web.batch.btcbase import BaseResourceBatch
 from gnr.app.gnrlocalization import AppLocalizer
