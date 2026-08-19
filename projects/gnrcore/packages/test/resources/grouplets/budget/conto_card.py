@@ -22,15 +22,23 @@ Pattern reference: `test_06_struct_shopping_list` in
 from gnr.web.gnrbaseclasses import BaseComponent
 
 
+def _combo(store_key):
+    """Comboboxes share an option pool declared in the budget root.
+    addMissingValue means values loaded from XML auto-populate the
+    suggestable options across all chapters/accounts."""
+    return dict(tag='combobox',
+                storepath='main.budget.%s' % store_key,
+                addMissingValue=True)
+
+
 def _details_struct(struct):
     r = struct.view().rows()
     r.cell('tipo', name='Tipo', width='4.5em',
-           values='ACQ:ACQ,CMP:CMP,RIS:RIS', edit=True)
+           edit=_combo('tipi_values'))
     r.cell('descrizione', name='Descrizione', width='100%',
            edit=True, validate_notnull=True)
     r.cell('fase', name='Fase', width='8em',
-           values='Preparazione:Preparazione,Riprese:Riprese,Post:Post',
-           edit=True)
+           edit=_combo('fase_values'))
     r.cell('data_rif', name='Data rif.', width='8em',
            dtype='D', edit=True)
     r.cell('n_ris', name='N.Ris', width='4em',
@@ -40,13 +48,13 @@ def _details_struct(struct):
     r.cell('p_u', name='P.U.', width='6em',
            dtype='N', edit=True, format='#,##0.00')
     r.cell('iva', name='IVA', width='4.5em',
-           values='0:0%,10:10%,22:22%', edit=True)
+           edit=_combo('iva_values'))
     r.cell('al_oneri', name='Al.Oneri', width='4.5em',
-           values='0:0%,30:30%,33:33%', edit=True)
+           edit=_combo('al_oneri_values'))
     r.cell('al_rit', name='Al.Rit.', width='4.5em',
-           values='0:0%,20:20%,23:23%', edit=True)
+           edit=_combo('al_rit_values'))
     r.cell('distrib', name='Distribuz.', width='5em',
-           values='UNI:UNI,FL:FL,QT:QT', edit=True)
+           edit=_combo('distrib_values'))
     r.cell('tot_netto', name='Tot.Netto', width='7em',
            dtype='N', format='#,##0.00',
            formula='(qty || 1) * (p_u || 0)',

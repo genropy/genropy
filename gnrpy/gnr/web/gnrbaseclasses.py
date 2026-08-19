@@ -326,7 +326,6 @@ class TableScriptToHtml(BagToHtmlWeb):
     row_relation = None
     subtotal_caption_prefix = '!![en]Totals'
     record_template = None
-    font_family = None    # set to a mapped font name (e.g. 'Helvetica') to apply it to body and enable exact row-height calculation
     text_width_mm = None  # available text width in mm; if None, computed from page_width - margins
 
     def __init__(self, page=None, resource_table=None, parent=None, **kwargs):
@@ -742,20 +741,13 @@ class TableScriptToHtml(BagToHtmlWeb):
         
         
     def defineStandardStyles(self):
-        """Injects font_family into body if set, then delegates to the base implementation."""
+        """Delegates to the base implementation (which emits the sans-serif
+        baseline), then injects ``font_family`` into body if set so it wins
+        by source order over the baseline."""
+        super(TableScriptToHtml, self).defineStandardStyles()
         if self.font_family:
             self.builder.font_family = self.font_family
             self.body.style('body {{ font-family: {f}; }}'.format(f=self.font_family))
-        super(TableScriptToHtml, self).defineStandardStyles()
-
-    def getRowWrapField(self):
-        """Override to return the text of the main wrapping field for the current row.
-
-        When *font_family* is set to a mapped font and this returns a non-empty string,
-        :meth:`GnrHtmlBuilder.calcRowsNumber` is used by :meth:`calcRowHeight` for exact height calculation.
-        Return ``None`` (default) to fall back to ``grid_row_height``.
-        """
-        return None
 
     def calcRowsNumber(self, text, width_mm=None, font_name=None, font_size=None):
         """Delegate to :meth:`GnrHtmlBuilder.calcRowsNumber`.

@@ -60,6 +60,7 @@ class Package(GnrDboPackage):
                 else:
                     kwargs['group_code'] = group_code
                 kwargs['main_group_code'] = user_record['group_code']
+                kwargs['xgroup'] = user_record['xgroup']
                 kwargs['avatar_rootpage'] = user_record['avatar_rootpage'] or group_record.get('rootpage')
                 kwargs['locale'] = user_record['locale'] or self.application.config('default?client_locale')
                 kwargs['user_name'] = user_record['fullname'] or user_record['username']
@@ -88,6 +89,10 @@ class Package(GnrDboPackage):
     def onExternalUser(self,externalUser=None):
         self.db.table('adm.user').syncExternalUser(externalUser)
         
+    def validate_bearer_token(self, token_value):
+        """Validate a Bearer token. Called by other packages (e.g. data_api)."""
+        return self.db.table('adm.api_token').validate_token(token_value)
+
     def newUserUrl(self):
         return 'adm/new_user'
 

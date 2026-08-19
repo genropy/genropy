@@ -512,6 +512,7 @@ class RecordToHtmlNew(RecordToHtmlPage):
                         }
                          """)
 
+        self.body.style('body { font-family: sans-serif; }')
         if self.font_family:
             self.builder.font_family = self.font_family
             self.body.style('body {{ font-family: {f}; }}'.format(f=self.font_family))
@@ -592,6 +593,7 @@ class RecordToHtml(TableScriptOnRecord):
         self.body = self.builder.body
         self.getNewPage = self.builder.newPage
         self.builder.styleForLayout()
+        self.body.style('body { font-family: sans-serif; }')
 
     def hmtlFolderPath(self):
         return self.getFolderPath(*self.html_folder.split('/'))

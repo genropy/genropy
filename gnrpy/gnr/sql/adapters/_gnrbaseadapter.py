@@ -746,6 +746,11 @@ class SqlDbAdapter(object):
                                 innernode.attr.pop(blackattr,None)
                     v = v.toXml() if v else None
                     #data_out[str(k.lower())] = v
+                col = tblobj.columns.get(k)
+                if col and v is not None:
+                    enc_mode = col.attributes.get('encrypted')
+                    if enc_mode:
+                        v = self.dbroot.encryptor.encrypt(v, enc_mode)
                 data_out[str(k)] = v
         sql_value_cols = [k for k,v in list(tblobj.columns.items()) if 'sql_value' in v.attributes and not k in data_out]
         for k in sql_value_cols:
@@ -1400,6 +1405,13 @@ class GnrWhereTranslator(object):
 
                 if value is None and attr.get('value_caption'):
                     value = sqlArgs.pop(attr['value_caption'],'')
+                enc_mode = attr.get('encrypted') or colobj.attributes.get('encrypted')
+                if enc_mode == 'Q' and value is not None:
+                    encryptor = self.db.encryptor
+                    if isinstance(value, list):
+                        value = [encryptor.encrypt(v, 'Q') for v in value]
+                    else:
+                        value = encryptor.encrypt(value, 'Q')
                 onecondition = self.prepareCondition(column, op, value, dtype, sqlArgs,tblobj=tblobj,parname=parname)
 
             if onecondition:

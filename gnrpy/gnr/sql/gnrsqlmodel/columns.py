@@ -61,6 +61,12 @@ class DbBaseColumnObj(DbModelObj):
 
     readonly = property(_get_readonly)
 
+    def _get_encrypted(self) -> str | None:
+        """Return the encryption mode (``'R'``, ``'Q'``, ``'X'``) or ``None``."""
+        return self.attributes.get('encrypted')
+
+    encrypted = property(_get_encrypted)
+
     def _get_pkg(self) -> Any:
         """Return the ``DbPackageObj`` owning this column."""
         return self.parent.parent.pkg
@@ -114,6 +120,9 @@ class DbBaseColumnObj(DbModelObj):
                 self.attributes['dtype'] = 'A'
             else:
                 self.attributes['dtype'] = 'T'
+        enc = self.attributes.get('encrypted')
+        if enc is True:
+            self.attributes['encrypted'] = 'R'
         attributes_mixin_handler = getattr(
             self.pkg, 'custom_type_%s' % self.attributes['dtype'], None
         )
@@ -200,7 +209,7 @@ class DbColumnObj(DbBaseColumnObj):
         """
         base_sqlname = self.attributes.get('sqlname', self.name)
         if self.attributes.get('localized'):
-            default_language = self.db.currentEnv.get('default_language')
+            default_language = self.dbroot.default_language
             current_language = self.db.currentEnv.get('current_language')
             if default_language and current_language and current_language != default_language:
                 return f"{base_sqlname}_{current_language}"

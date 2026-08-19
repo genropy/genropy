@@ -368,12 +368,12 @@ class Server(object):
                 if os.path.exists(cert_path) and os.path.exists(key_path):
                     ssl_context = (cert_path, key_path)
                 extra_info.append('SSL mode: On')
-                app_scheme = 'https'
+                self.app_scheme = 'https'
+                
             if self.options.ssl_cert and self.options.ssl_key:
                 ssl_context = (self.options.ssl_cert, self.options.ssl_key)
-                extra_info.append(f'SSL mode: On {ssl_context}')
-                app_scheme = 'https'
-                self.app_host = self.options.ssl_cert.split('/')[-1].split('.pem')[0]
+                extra_info.append(f'SSL mode: On (Cert: {ssl_context[0]}, Key {ssl_context[1]}')
+                self.app_scheme = 'https'
 
             logger.info(f"Started server on {self.app_host}:{self.app_port}\t%s", ",".join(extra_info))
             logger.info(f"Connect at {self.app_url}")
@@ -430,12 +430,16 @@ class Server(object):
             logger.error("'gnr' entrypoint not found on PATH; async subprocess disabled")
             return
         try:
-            child = subprocess.Popen([gnr_bin, 'web', 'async', site_name, '-p', str(async_port)])
+            async_server_cmd = [gnr_bin, 'web', 'async', site_name, '-p', str(async_port)]
+            if self.options.ssl_cert and self.options.ssl_key:
+                async_server_cmd.extend(['-c', self.options.ssl_cert,
+                                         '-k', self.options.ssl_key])
+            child = subprocess.Popen(async_server_cmd)
         except Exception:
             logger.exception('failed to spawn gnr web async subprocess')
             return
         if reason:
-            logger.info('gnr web async subprocess started on port %s (%s) — pid=%s, instance=%s',
+            logger.info('gnr web async subprocess started on port %s (%s) - pid=%s, instance=%s',
                         async_port, reason, child.pid, site_name)
         else:
             logger.info('gnr web async subprocess started (pid=%s) for instance %s on port %s',

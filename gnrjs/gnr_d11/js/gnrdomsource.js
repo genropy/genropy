@@ -616,6 +616,16 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         }
         return value;
     },
+    isLostNode: function() {
+        //true when this node no longer belongs to the live source tree:
+        //remote content rebuilds tear nodes down while their widgets may
+        //still fire async callbacks (validate, label fetch, late onChange)
+        var currbag = this._parentbag;
+        while (currbag && currbag._parentnode) {
+            currbag = currbag._parentnode._parentbag;
+        }
+        return currbag !== genro.src._main;
+    },
     attrDatapath: function(attrname,targetNode) {
         targetNode = targetNode || this;
         if (!attrname) {
@@ -685,7 +695,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         return path;
 
     },
-    absDatapath: function(path) { 
+    absDatapath: function(path) {
         path = path || '';
         if (this.isPointerPath(path)) {
             path = path.slice(1);
@@ -719,7 +729,9 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         }
         if (path.indexOf('.') == 0) {
             console.error('unresolved relativepath ' + path);
-            debugger
+            if (genro.isDeveloper) {
+                debugger;
+            }
         }
         path = path.replace('.?', '?');
         if (path.indexOf('#parent') > 0) {
@@ -1593,10 +1605,11 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         var targets = this._hiddenTargets || [this.domNode || this.widget.domNode];
         var statusChanged = false;
         targets.forEach(function(domNode){
-            let currenHidden = !genro.dom.isVisible(domNode);
-            if(currenHidden != hidden){
+            let wasHidden = domNode.style.display === 'none';
+            let prevHeight = domNode.offsetHeight;
+            domNode.style.display = hidden ? 'none' : '';
+            if(wasHidden !== hidden && domNode.offsetHeight !== prevHeight){
                 statusChanged = true;
-                dojo.style(domNode, 'display', (hidden ? 'none' : ''));
             }
         });
         if(statusChanged){
@@ -1611,6 +1624,9 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             return;
         }
         if(this._remotebuilding){
+          //a dyn attr changed while a remote fetch is in flight: remember
+          //it, the running call re-fetches on landing with fresh attrs
+          this._pendingRemoteUpdate = true;
           return;
         }
         
@@ -1684,6 +1700,10 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                     });
                 }
                 delete that._remotebuilding;
+                if(that._pendingRemoteUpdate){
+                    delete that._pendingRemoteUpdate;
+                    that.updateRemoteContent(true,async);
+                }
                 return result;
             });
     },
@@ -1775,6 +1795,9 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
     },
     
     updateValidationStatus: function(kw) {
+        if (this.isLostNode()) {
+            return;
+        }
         if (this.widget) {
             if(this.widget.validate){
                 this.widget.validate();
@@ -1802,7 +1825,15 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
     buildLblWrapper:function(){
         let lbl = objectPop(this.attr,'lbl');
         if(!lbl){
-            return this;
+            // Unlabeled action widgets in a formlet grid get an invisible
+            // placeholder label (same height as the sibling labels) so they
+            // line up with the field inputs. lbl=false opts out.
+            if(lbl===false || !this._formletNeedsPlaceholderLbl()){
+                return this;
+            }
+            lbl = '&nbsp;';
+            this.attr.box__class = this.attr.box__class?
+                this.attr.box__class+' formlet_placeholder_label' : 'formlet_placeholder_label';
         }
         let inherited_attr = this.getInheritedAttributes();
         let label_attr = {};
@@ -1843,6 +1874,38 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             }
         }
         return this._contentNode;
+    },
+
+    _formletNeedsPlaceholderLbl:function(){
+        // Placeholder only for button-like widgets that sit as direct children
+        // of a grid formlet (not formlet_wrap) with labels on top/bottom and
+        // at least one labeled sibling: a buttons-only formlet keeps its
+        // natural height, containers and custom tags are never wrapped.
+        const placeholderTags = ['button','togglebutton','dropdownbutton','lightbutton','checkbox'];
+        if(placeholderTags.indexOf((this.attr.tag||'').toLowerCase())<0){
+            return false;
+        }
+        let parentNode = this.getParentNode();
+        let parentClass = (parentNode && parentNode.attr && parentNode.attr._class) || '';
+        if(!/(^|\s)formlet(\s|$)/.test(parentClass) || /(^|\s)formlet_wrap(\s|$)/.test(parentClass)){
+            return false;
+        }
+        let side = this.getInheritedAttributes().lbl_side || 'top';
+        if(side!='top' && side!='bottom'){
+            return false;
+        }
+        let siblings = parentNode.getValue('static');
+        if(!(siblings instanceof gnr.GnrDomSource)){
+            return false;
+        }
+        for(let node of siblings.getNodes()){
+            // siblings already wrapped by buildLblWrapper have tag 'labledbox',
+            // the ones still to be processed keep their lbl attribute
+            if(node!==this && node.attr && (node.attr.lbl || node.attr.tag=='labledbox')){
+                return true;
+            }
+        }
+        return false;
     },
 
     getLabelWrapper:function(){

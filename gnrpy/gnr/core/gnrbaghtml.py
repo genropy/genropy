@@ -11,6 +11,7 @@ from pathlib import Path
 from gnr.core.gnrstring import toText,templateReplace
 
 from gnr.core.gnrhtml import GnrHtmlBuilder
+from gnr.utils.fonts import resolve_font_name, font_size_pt
 from gnr.core.gnrbag import Bag, BagCbResolver
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrdecorator import  deprecated
@@ -63,6 +64,10 @@ class BagToHtml(object):
     grid_columns =  []
     grid_columnsets = {}
     grid_row_height = 4.5
+    font_family = None  # font name or CSS stack applied to the main layout and used for row-height estimation
+    main_font_family = None  # font name or CSS stack injected by the application on the whole document (wins over the layout font by CSS specificity)
+    auto_row_height = True  # estimate multi-line row heights from wrappable cell content
+    grid_cell_text_margin = 1.5  # mm taken from the cell width by the aligned_left/aligned_right content margin
     renderMode = None
     totalize_carry = False
     totalize_footer = False
@@ -277,6 +282,7 @@ class BagToHtml(object):
             baseTemplate.pop('next_letterhead')
             baseTemplate.walk(self.fillLetterheadSourceData)
             top_layer =  baseTemplate['#%i' %(len(baseTemplate)-1)]
+        self._letterhead_top_layer = top_layer
         d = self.__dict__
         paper_height = float(d.get('page_height') or top_layer['main.page.height'] or self.paperHeight)
         paper_width = float(d.get('page_width') or top_layer['main.page.width'] or self.paperWidth)
@@ -507,11 +513,14 @@ class BagToHtml(object):
 
     @property
     def columnsBag(self):
+        return self.sheetColumnsBag(self.sheet)
+
+    def sheetColumnsBag(self, sheet):
+        """Return the columns Bag of the current grid for the given *sheet* index."""
         gridName = self.currentGrid or '_main_'
         if gridName not in self._gridsColumnsBag:
             self._gridsColumnsBag[gridName] = self._gridSheetsBag(gridName)
-        result = self._gridsColumnsBag[gridName][self._sheetKey(self.sheet)]['columns']
-        return result
+        return self._gridsColumnsBag[gridName][self._sheetKey(sheet)]['columns']
 
     def _gridSheetsBag(self,gridName):
         result = Bag()
@@ -552,6 +561,23 @@ class BagToHtml(object):
         """TODO"""
         return (self.page_width - self.page_margin_left - self.page_margin_right -\
                 self.page_leftbar_width - self.page_rightbar_width)
+
+    def contentAreaWidth(self):
+        """Return the width of the band the copies are actually rendered into.
+
+        With a ``headline`` letterhead the content goes into the template's
+        center_center cell, whose side bands are ``layout.center.left/right``
+        (see ``letterhead_layer``): the ``layout.left/right`` widths that
+        ``prepareTemplates`` loads into ``page_leftbar/rightbar_width`` only
+        shape the ``sidebar`` design, so ``copyWidth()`` would subtract them
+        even when they take no horizontal space.
+        """
+        top_layer = getattr(self, '_letterhead_top_layer', None)
+        if top_layer and top_layer['main.design'] == 'headline':
+            return (self.page_width - self.page_margin_left - self.page_margin_right
+                    - float(top_layer['layout.center.left?width'] or 0)
+                    - float(top_layer['layout.center.right?width'] or 0))
+        return self.copyWidth()
 
     def lineIterator(self,nodes):
         lastNode = nodes[-1]
@@ -614,7 +640,7 @@ class BagToHtml(object):
             gridNetHeight = self.grid_height - self.calcGridHeaderHeight() - self.calcGridFooterHeight() -\
                             carry_height - self.totalizeFooterHeight() - self.grid_row_height
             availableSpace = gridNetHeight-bodyUsed-self.grid_body_adjustment
-            rowTotalHeight = rowheight + extra_row_height + len(subtotal_rows)*rowheight
+            rowTotalHeight = rowheight + extra_row_height + len(subtotal_rows)*self.grid_row_height
             doNewPage =   rowTotalHeight > availableSpace
             if doNewPage:
                 carry_height = self.totalizeCarryHeight()
@@ -914,7 +940,7 @@ class BagToHtml(object):
         return rowData.get(field_getter or field)
 
     def rowCell(self, field=None, value=None, default=None, locale=None,
-                format=None, mask=None, currency=None,white_space='nowrap',align_class=None,
+                format=None, mask=None, currency=None,white_space=None,align_class=None,
                 content_class=None, totalize=None,**kwargs):
 
         """Allow to get data from record. You can use it in the :meth:`prepareRow` method
@@ -931,6 +957,9 @@ class BagToHtml(object):
         self.currColumn = self.currColumn + 1
         if curr_attr.get('hidden'):
             return
+        #falling back on the column attribute keeps rendering and row-height
+        #estimation (which only sees column attributes) on the same setting
+        white_space = white_space or curr_attr.get('white_space') or 'nowrap'
         if field:
             if callable(field):
                 value = field()
@@ -983,7 +1012,7 @@ class BagToHtml(object):
         return page.layout(**self.mainLayoutParameters())
 
     def mainLayoutParameters(self):
-        return dict(font_family='Arial Narrow',font_size='11pt',
+        return dict(font_family=self.font_family or 'Arial Narrow',font_size='11pt',
                     name='mainLayout',top=1,left=1,right=1,bottom=1,border_width=0)
 
     def _openPage(self):
@@ -1221,8 +1250,130 @@ class BagToHtml(object):
         return '%02i_%02i' %(self.sheet,self.copy)
 
     def calcRowHeight(self):
-        """override for special needs"""
-        return self.grid_row_height
+        """Return the height of the current data row. Override for special needs.
+
+        When ``auto_row_height`` is true (default) the height is estimated cell
+        by cell: for every visible wrappable column (``white_space`` other than
+        ``'nowrap'``) the number of wrapped lines of the formatted value is
+        computed with AFM font metrics and the row gets
+        ``max(lines) * grid_row_height``. Columns without a ``field`` and
+        non-wrappable columns always count as a single line, so prints without
+        wrappable columns keep the flat behavior.
+        """
+        if not self.auto_row_height:
+            return self.grid_row_height
+        return max(1, self.gridMaxRowsCount()) * self.grid_row_height
+
+    def gridFontMetrics(self):
+        """Return ``(font_name, font_size_pt)`` used to measure grid cell text.
+
+        The font family is the one the grid actually renders with, resolved to
+        a font with AFM metrics; the size comes from ``gridLayoutParameters``.
+        ``main_font_family`` — the font the application imposes on the whole
+        document via CSS — wins over the ``mainLayoutParameters`` one because
+        its selector beats the layout inline style. Fonts without AFM metrics
+        (e.g. per-document custom fonts) resolve to plain Helvetica, wider than
+        the Narrow default: the estimate errs on the tall side, costing paper
+        rather than clipped text.
+        """
+        font_family = self.main_font_family \
+            or self.mainLayoutParameters().get('font_family') or self.font_family
+        font_size = self.gridLayoutParameters().get('font_size') or GnrHtmlBuilder.font_size
+        return resolve_font_name(font_family), font_size_pt(font_size)
+
+    def gridMaxRowsCount(self):
+        """Return the lines needed by the tallest wrappable cell of the current row.
+
+        Scans every sheet so that rows keep the same height (and stay aligned)
+        across sheets.
+        """
+        rowData = self.rowData
+        if not rowData:
+            return 1
+        font_name, font_size = self.gridFontMetrics()
+        result = 1
+        saved_render_mode = self.renderMode
+        self.renderMode = None
+        try:
+            for sheet in range(self.sheets_counter):
+                columns = [node.attr for node in self.sheetColumnsBag(sheet)]
+                cells = self._gridRowCells(columns, rowData)
+                flex_width = self._gridFlexWidth(cells)
+                for cell in cells:
+                    result = max(result, self._gridCellRowsCount(cell, rowData, flex_width,
+                                                                 font_name, font_size))
+        finally:
+            self.renderMode = saved_render_mode
+        return result
+
+    def _gridRowCells(self, columns, rowData):
+        """Resolve cell parameters applying the same colspan accumulation as renderGridCell."""
+        cells = []
+        span_cell = None
+        for col in columns:
+            #columns without a field (custom prints built from grid_col_widths) cannot
+            #be measured but still take part in the width accounting
+            pars = self.getGridCellPars(col, rowData) if col.get('field') else dict(col)
+            if pars.get('hidden'):
+                continue
+            mm_width = pars.get('mm_width') or 0
+            if span_cell is not None:
+                if mm_width:
+                    span_cell['width'] += mm_width
+                else:
+                    span_cell['flex'] = True
+                span_cell['span_count'] -= 1
+                if not span_cell['span_count']:
+                    span_cell = None
+                continue
+            cell = dict(pars=pars, width=mm_width, flex=not mm_width)
+            cells.append(cell)
+            colspan = pars.get('colspan') or 1
+            if colspan > 1:
+                cell['span_count'] = colspan - 1
+                span_cell = cell
+        return cells
+
+    def _gridFlexWidth(self, cells):
+        """Return the width an elastic cell (``mm_width`` falsy) will be rendered at:
+        the grid free width split between the elastic cells, as finalize_row does."""
+        flex_count = len([c for c in cells if c['flex']])
+        if not flex_count:
+            return 0
+        layoutPars = self.mainLayoutParameters()
+        gridPars = self.gridLayoutParameters()
+        border_width = gridPars.get('border_width') or 0
+        if self.grid_width:
+            outer_width = self.grid_width
+        else:
+            outer_width = self.contentAreaWidth() - layoutPars.get('left', 0) - layoutPars.get('right', 0)
+        #the nested grid layout loses its left/right offsets and side borders (finalize_layout)
+        grid_width = gridPars.get('width') or \
+                     (outer_width - gridPars.get('left', 0) - gridPars.get('right', 0) - 2 * border_width)
+        fixed_width = sum(c['width'] for c in cells)
+        free_width = grid_width - fixed_width - border_width * max(len(cells) - 1, 0)
+        return free_width / flex_count
+
+    def _gridCellRowsCount(self, cell, rowData, flex_width, font_name, font_size):
+        """Return the number of wrapped lines the given cell needs (1 if it cannot wrap)."""
+        pars = cell['pars']
+        if (pars.get('white_space') or 'nowrap') == 'nowrap':
+            return 1
+        if not pars.get('field'):
+            return 1
+        width_mm = cell['width'] + (flex_width if cell['flex'] else 0) - self.grid_cell_text_margin
+        if width_mm <= 0:
+            return 1
+        value = self.getGridCellValue(pars, rowData)
+        if value is None:
+            return 1
+        text = self.toText(value, locale=pars.get('locale') or self.locale,
+                           format=pars.get('format'), mask=pars.get('mask'),
+                           encoding=self.encoding, currency=pars.get('currency'))
+        if not text or text.endswith('::HTML'):
+            return 1
+        return max(1, self.builder.calcRowsNumber(text, width_mm=width_mm,
+                                                  font_name=font_name, font_size=font_size))
 
     def calcGridHeaderHeight(self):
         """override for special needs"""
@@ -1291,6 +1442,7 @@ class BagToHtml(object):
 
     def defineStandardStyles(self):
         """TODO"""
+        self.body.style('body { font-family: sans-serif; }')
         self.body.style("""
 
                         .caption{text-align:center;

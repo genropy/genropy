@@ -3,16 +3,14 @@
 //   GroupletGridController, GroupletGridTile.
 
 // Attribute keys whose value may carry a framework-generated
-// `grpgrid_*` reference. Used by `_namespaceFrameworkNodeIds` to
-// rewrite per-row clones without scanning every attribute of every
-// node. Keep in sync with the server-side emitters in
-// `gnrcomponents/grouplet/grouplet.py` (search for `grpgrid_` and
-// `f'{nodeId}_…'`).
-const NAMESPACED_ATTRS = ['nodeId', 'store', 'storeCode', 'dragCode'];
+// `grpgrid_*` reference, rewritten per-row clone by
+// `_namespaceFrameworkNodeIds`.
+const NAMESPACED_ATTRS = ['nodeId', 'dragCode'];
 
 gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
-    constructor(struct) {
+    constructor(struct, controllerPath) {
         this.struct = struct;
+        this.controllerPath = controllerPath;
         this.cells = this._walkStruct();
         this.cellmap = this._buildCellmap();
     }
@@ -26,18 +24,20 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
     _walkStruct() {
         const rows = this.struct.getItem('view_0.rows_0');
         const out = [];
+        const ctrlPath = this.controllerPath;
         rows.getNodes().forEach(function(node) {
             const attr = node.attr || {};
             if (attr.hidden) return;
-            const field = attr.caption_field || attr.field;
+            //fieldcell on a foreign key emits caption_field as a relation
+            //path ('@fk.<rowcaption>'): meaningful in a SQL selection,
+            //unresolvable on a Bag store — always bind the real column
+            const field = attr.field || attr.caption_field;
             if (!field) return;
             // Empty name='' means "no label"; only undefined falls back
             // to the field name.
             const hasName = (attr.name !== undefined && attr.name !== null);
-            // totalize=true → auto path '.totalize.<field>' (mirrors
-            // gnr.Grid at genro_grid.js:1943); strings pass through.
             const totalize = (attr.totalize === true)
-                ? '.totalize.' + field
+                ? ctrlPath + '.totalize.' + field
                 : attr.totalize;
             out.push({
                 _nodelabel: node.label,
@@ -202,13 +202,7 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
         if (c.values) {
             return c.values.indexOf(':') >= 0 ? 'filteringselect' : 'combobox';
         }
-        const map = {
-            L: 'NumberTextBox', I: 'NumberTextBox',
-            R: 'NumberTextBox', N: 'NumberTextBox',
-            D: 'DateTextbox', DH: 'DatetimeTextbox',
-            H: 'TimeTextBox', B: 'CheckBox'
-        };
-        return map[c.dtype] || 'Textbox';
+        return genro.wdg.wdgByDtype(c.dtype);
     }
 
     static _editorKwargs(c) {
@@ -420,61 +414,73 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
         e.preventDefault();
         this.onDrop(data, pkey);
     }
+
+    // === Add button ("+") — append / drop into an empty grid ===
+    // Dropping a card on the "+" affordance appends it at the tail, or
+    // makes it the first row when the grid is empty. The "+" is a LEAF
+    // (a sibling of the rows, not an ancestor of the drag handles), so
+    // listening here cannot interfere with the tiles' own drag start —
+    // which is exactly why this lives on the "+" and not on the body or
+    // container. Works for cards (footer "+") and tabs (tab-strip "+").
+
+    addBtnDragOver(e) {
+        if (!this._dataTransferHasOurType(e.dataTransfer)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = 'move';
+        this._addBtnHighlight(true);
+    }
+
+    addBtnDragLeave() {
+        this._addBtnHighlight(false);
+    }
+
+    addBtnDrop(e) {
+        this._addBtnHighlight(false);
+        const data = genro.dom.getFromDataTransfer(
+            e.dataTransfer, this.dropType());
+        if (!data || !data.rowKey) return;
+        e.preventDefault();
+        e.stopPropagation();
+        // Append at the tail (after the last row), or no position when the
+        // grid is empty (→ the moved row becomes the first one). Same
+        // 'move' dispatch as onDrop; _handleAction routes self vs cross.
+        const c = this.controller;
+        const nodes = c.dataStore.getNodes();
+        const lastKey = nodes.length ? nodes[nodes.length - 1].label : null;
+        if (data.sourceNodeId === c.nodeId && data.rowKey === lastKey) return;
+        genro.publish(c.actionTopic, {
+            action: 'move',
+            rowKey: data.rowKey,
+            sourceNodeId: data.sourceNodeId,
+            position: lastKey ? ('>' + lastKey) : ''
+        });
+    }
+
+    _addBtnHighlight(on) {
+        const btn = this.controller.addBtnDom;
+        if (btn) btn.classList.toggle('canBeDropped', on);
+    }
 };
 
 
 // ============================================================================
-//  GroupletDataStore — widget data model
+//  GroupletDataStore — single funnel between controller and rows Bag.
+//  Thin view over the framework store built in the controller
+//  constructor; `this.store()` returns `this.controller.store`.
 // ============================================================================
-//
-// Single funnel between the controller and the rows Bag. The controller
-// never touches `genro.getData(storepath)` / `bag.popNode` / `bag.setItem`
-// directly; it talks to `this.dataStore.X()`.
-//
-// The `gr_groupletGrid` Python helper always emits a sibling
-// `pane.bagStore(...)` (default `storeType='ValuesBagRows'`) and tags
-// the container with `attr.store=<nodeId>`. This dataStore is a thin
-// view over that sibling — it picks the framework store up via
-// `genro.nodeById(<store>+'_store').store` and delegates change
-// tracking, lock propagation, deleteAsk and (Phase 2) filter/sort
-// state. Mutations flow through the Bag, so the store's rowLogger
-// picks them up automatically — no manual change events.
-//
-// Filter and sort will be added on top of this in a follow-up:
-//   - filter → `display: none` on filtered-out tiles
-//   - sort   → `style.order = N` per tile
-// Both purely visual; the data stays untouched. The `_filtered`
-// array lives on the sibling store so totals (changeManager) and
-// `sum(field)` aggregate the visible rows for free.
 
 gnr.GroupletDataStore = class GroupletDataStore {
 
     constructor(controller, kw) {
         this.controller = controller;
         this.storepath = kw.storepath;
-        this.identifier = kw.identifier || null;
         this._filtered = null;
         this._sortedBy = null;
-        // The sibling BagStore (default ValuesBagRows, see grouplet.py
-        // `pane.bagStore(...)`) is always emitted. Its instance lives
-        // at `genro.nodeById(<store>+'_store').store`; we look it up
-        // lazily on first access (the BagStore widget initialises in
-        // its own _onBuilt callback — same dispatch tick as the
-        // controller, so neither order is guaranteed at construct).
-        this._storeCode = controller.sourceNode.attr.store;
-        this._externalStore = null;
     }
 
     store() {
-        // Lazy resolve + cache. `attr.store` on the container holds
-        // the BagStore widget's full nodeId (`<base>_store`), so
-        // `_namespaceFrameworkNodeIds` rewrites both consistently
-        // (`<base>_store__<outer>__<pkey>`) when the template is
-        // cloned per row. Initial render is deferred via
-        // `genro.src.onBuiltCall` so the sibling BagStore is built.
-        if (this._externalStore) return this._externalStore;
-        this._externalStore = genro.nodeById(this._storeCode).store;
-        return this._externalStore;
+        return this.controller.store;
     }
 
     // === Read ===
@@ -623,8 +629,8 @@ gnr.GroupletDataStore = class GroupletDataStore {
     }
 
     // Phase 2 stubs — silent no-ops. Filter/sort will route through
-    // `_visualOrder()` (CSS on top of the sibling store's `_filtered`
-    // array), never mutating the underlying Bag.
+    // `_visualOrder()` (CSS on top of the store's `_filtered` array),
+    // never mutating the underlying Bag.
     setFilter(_cb) {}
     clearFilter() {}
     setSort(_spec) {}
@@ -638,7 +644,7 @@ gnr.GroupletDataStore = class GroupletDataStore {
         // no-op until filter/sort state exists
     }
 
-    // === Lock / changes / errors — forward to the sibling store ===
+    // === Lock / changes / errors — forward to the store ===
 
     hasChanges() {
         return this.store().hasChanges();
@@ -698,13 +704,37 @@ gnr.GroupletGridController = class GroupletGridController {
         this.maxRows = kw.maxRows || null;
         this.counterField = kw.counterField || null;
         this.dragCode = kw.dragCode || null;
+        // RPC path strings, not method names: serialized server-side
+        // from bound public_methods so dynamic mixins resolve correctly.
+        this.loaderrpc = kw.loaderrpc;
+        this.mapLoaderrpc = kw.mapLoaderrpc;
         this.dnd = this.dragCode ? new gnr.GroupletGridDnD(this) : null;
-        this.dataStore = new gnr.GroupletDataStore(this, {
+        // Dedicated storeNode at controllerPath, separate from the rows
+        // Bag at storepath (same technique as gnr.widgets.BagStore but
+        // built programmatically: no sibling XML node needed).
+        this.controllerPath = sourceNode.absDatapath(
+            sourceNode.attr.controllerPath);
+        const storeNode = sourceNode._('dataController', {
+            datapath: this.controllerPath,
             storepath: this.storepath,
-            identifier: kw.identifier || null
+            nodeId: this.nodeId + '_store'
+        }).getParentNode();
+        const storeKw = kw.store_kw || {};
+        const storeType = storeKw.store_storeType || 'ValuesBagRows';
+        this.store = new gnr.stores[storeType](storeNode, {
+            identifier: storeKw.store_identifier || '_pkey',
+            deleteRows: storeKw.store_deleteRows
+        });
+        storeNode.store = this.store;
+        this.dataStore = new gnr.GroupletDataStore(this, {
+            storepath: this.storepath
         });
         this._chipDnDHandlers = {};
         this.layout = kw.layout || 'cards';
+        // Lazy tab bodies: build chips upfront but defer each tile body
+        // (chrome + grafted template) until the tab is first activated.
+        // Only meaningful for tab layouts; cards are all visible at once.
+        this.lazyTabs = (kw.lazyTabs === true) && this._isTabsLayout();
         this.titleField = kw.titleField || null;
         this.emptyTitle = kw.emptyTitle || _T('!!Untitled');
         this.activePkey = null;
@@ -724,14 +754,8 @@ gnr.GroupletGridController = class GroupletGridController {
         this._buildLayoutAffordances();
         const that = this;
         dojo.connect(sourceNode, '_onDeleting', function() { that.destroy(); });
-        // ChangeManager wiring + first render both reach into the
-        // sibling BagStore — but the BagStore registers its own
-        // `_onBuilt` callback too, and for cloned templates (test_7
-        // contacts, test_8 nested) the inner store finishes building
-        // AFTER our constructor returns. Defer everything store-bound
-        // to `onBuiltCall` — same pattern as gnr.Grid
-        // (`genro_grid.js:704`) when a grid consumes its sibling
-        // store. Pre-store init (layout, DnD, action bus) stays sync.
+        // Defer first render to `onBuiltCall` so the body slot is
+        // attached to the DOM before tiles are created.
         genro.src.onBuiltCall(function() {
             if (that._destroyed) return;
             that._initChangeManager();
@@ -802,7 +826,8 @@ gnr.GroupletGridController = class GroupletGridController {
                          this.structpath, struct);
             return;
         }
-        this.structAdapter = new gnr.GroupletGridStructAdapter(struct);
+        this.structAdapter = new gnr.GroupletGridStructAdapter(
+            struct, this.controllerPath);
         this.cellmap = this.structAdapter.cellmap;
     }
 
@@ -1146,11 +1171,19 @@ gnr.GroupletGridController = class GroupletGridController {
             this.sourceNode.publish('onNewDatastore');
         }
         if (!hasBag || bag.len() === 0) {
-            Object.keys(this.tiles).forEach((pkey) => this._destroyTile(pkey));
+            this._clearBody();
             return;
         }
+        this._clearBody();
         this.updateCounterColumn();
         this._ensureTemplate(() => this._fullSync());
+    }
+
+    _clearBody() {
+        // Full teardown on record load: a different record may carry a
+        // different grouplet structure, so stale tiles must not be reused.
+        Object.keys(this.tiles).forEach((pkey) => this._destroyTile(pkey));
+        this.activePkey = null;
     }
 
     gnr_storepath(value, kw, trigger_reason) {
@@ -1266,6 +1299,12 @@ gnr.GroupletGridController = class GroupletGridController {
                 this._activateTab(allKeys[0]);
             } else if (this.activePkey && this.tiles[this.activePkey]) {
                 this._setActiveTabClasses(this.activePkey);
+                // Defensive: ensure the active tile's body exists (e.g. a
+                // tabs→tabs affordance rebuild on a lazily-deferred tile).
+                const activeTile = this.tiles[this.activePkey];
+                if (this.lazyTabs && !activeTile.bodyMounted) {
+                    this._mountBodyWhenVisible(activeTile);
+                }
             }
         } else {
             this._buildCardsFooter(containerDom);
@@ -1308,10 +1347,49 @@ gnr.GroupletGridController = class GroupletGridController {
         this.layout = newLayout;
         if (newLayout === 'cards') {
             this.activePkey = null;
+            // Cards show every tile at once, so any lazily-deferred body
+            // (built only on tab activation) must be materialised now —
+            // otherwise never-opened tabs would become empty cards.
+            if (this.lazyTabs) {
+                this.bodyNode.freeze();
+                Object.keys(this.tiles).forEach((pkey) => {
+                    const t = this.tiles[pkey];
+                    if (t && !t.bodyMounted) t.mountBody();
+                });
+                this.bodyNode.unfreeze();
+                if (this.structAdapter) this._scheduleStructSync();
+            }
+            // Cards mount synchronously above (all visible at once); drop
+            // any pending visibility observers from the tabs session.
+            Object.keys(this.tiles).forEach((pkey) => {
+                this.tiles[pkey]._cancelPendingBody();
+            });
         } else if (prevActive && this.tiles[prevActive]) {
             this.activePkey = prevActive;
         }
         this._buildLayoutAffordances();
+        this._reconcileTileDnD();
+    }
+
+    _reconcileTileDnD() {
+        // Row (tile) DnD is wired once at mount, gated on the layout at
+        // that moment, and setLayout does NOT re-mount tiles. Re-sync each
+        // tile with the current layout: a row is a drop target in cards /
+        // struct, never in tabs (where the chip strip drives DnD). Without
+        // this a grid born in tabs has no row-drop wiring after switching
+        // to cards, and one born in cards leaves stale row listeners live
+        // under tabs.
+        if (!this.dnd) return;
+        const tabs = this._isTabsLayout();
+        Object.keys(this.tiles).forEach((pkey) => {
+            const tile = this.tiles[pkey];
+            if (!tile) return;
+            if (tabs) {
+                tile._unwireTileDnD();
+            } else if (tile.tileDom && !tile._tileDnDHandlers) {
+                tile._wireTileDnD(tile.tileDom);
+            }
+        });
     }
 
     _buildCardsFooter(containerDom) {
@@ -1338,6 +1416,20 @@ gnr.GroupletGridController = class GroupletGridController {
         });
         containerDom.appendChild(btn);
         this.addBtnDom = btn;
+        this._wireAddBtnDnD();
+    }
+
+    _wireAddBtnDnD() {
+        // Native DnD on the "+" (a leaf element) so a drop there appends /
+        // lands in an empty grid. The button is recreated by every layout
+        // build, so this follows setLayout automatically; its listeners
+        // die with the button when the footer/tabbar is torn down.
+        const btn = this.addBtnDom;
+        if (!this.dnd || !btn) return;
+        const dnd = this.dnd;
+        btn.addEventListener('dragover', (e) => dnd.addBtnDragOver(e));
+        btn.addEventListener('dragleave', () => dnd.addBtnDragLeave());
+        btn.addEventListener('drop', (e) => dnd.addBtnDrop(e));
     }
 
     _buildTabbar(containerDom) {
@@ -1359,6 +1451,7 @@ gnr.GroupletGridController = class GroupletGridController {
             });
             tabbar.appendChild(addBtn);
             this.addBtnDom = addBtn;
+            this._wireAddBtnDnD();
         }
         const topSlot = containerDom.querySelector(
             ':scope > .grouplet_grid_slot_top');
@@ -1440,11 +1533,40 @@ gnr.GroupletGridController = class GroupletGridController {
 
     _activateTab(pkey) {
         if (!this._isTabsLayout()) return;
-        if (this.activePkey === pkey) return;
+        const tile = this.tiles[pkey];
+        // Lazy: materialize chrome + body on first activation. Set the
+        // active classes first so the wrapper is display:block while the
+        // body subtree is grafted — nested groupletGrids then measure
+        // their geometry against a visible layout (see _fullSync note).
+        const needsBody = tile && this.lazyTabs && !tile.bodyMounted;
+        if (this.activePkey === pkey && !needsBody) return;
         this.activePkey = pkey;
         this._setActiveTabClasses(pkey);
+        if (needsBody) {
+            // _setActiveTabClasses above set the active class on both the
+            // DOM and the wrapper sourceNode, so the body graft (which
+            // freeze/unfreezes the wrapper) re-renders it display:block.
+            // Defer to rAF so nested groupletGrids build after layout.
+            this._mountBodyWhenVisible(tile);
+        }
         genro.publish(this.actionTopic,
             {action: 'activate', rowKey: pkey});
+    }
+
+    _mountBodyWhenVisible(tile) {
+        // Defer the body graft to the next animation frame, after style +
+        // layout have applied to the now-active (display:block) wrapper, so
+        // nested groupletGrids build against real geometry rather than a
+        // 0-size box. Idempotent via the _bodyPending guard.
+        if (!tile || tile.bodyMounted || tile._bodyPending) return;
+        const that = this;
+        tile._bodyPending = true;
+        requestAnimationFrame(function() {
+            tile._bodyPending = false;
+            if (tile.bodyMounted || tile.mounted === false) return;
+            tile.mountBody();
+            if (that.structAdapter) that._scheduleStructSync();
+        });
     }
 
     _setActiveTabClasses(activePkey) {
@@ -1457,10 +1579,25 @@ gnr.GroupletGridController = class GroupletGridController {
                 'grouplet_grid_tab_active', rk === activePkey);
         });
         Object.keys(this.tiles).forEach((rk) => {
-            const dom = this.tiles[rk].domNode();
+            const tile = this.tiles[rk];
+            const isActive = rk === activePkey;
+            const dom = tile.domNode();
             if (dom) {
-                dom.classList.toggle(
-                    'grouplet_grid_tab_active', rk === activePkey);
+                dom.classList.toggle('grouplet_grid_tab_active', isActive);
+            }
+            // Keep the wrapper sourceNode `_class` in sync with the DOM so a
+            // later freeze/unfreeze (mountBody, rebuild) re-renders with the
+            // correct active state instead of resetting to the source attrs.
+            const node = tile.tileNode;
+            if (node && node.attr) {
+                const cls = node.attr._class || 'grouplet_grid_row';
+                const has = cls.indexOf('grouplet_grid_tab_active') !== -1;
+                if (isActive && !has) {
+                    node.attr._class = cls + ' grouplet_grid_tab_active';
+                } else if (!isActive && has) {
+                    node.attr._class = cls
+                        .replace(/\s*grouplet_grid_tab_active/, '');
+                }
             }
         });
     }
@@ -1609,6 +1746,13 @@ gnr.GroupletGridController = class GroupletGridController {
     //  Row CRUD — internal sync between rows Bag and DOM
     // ====================================================================
 
+    _setLoading(on) {
+        // Dim the body while a template loads via RPC (canonical .dimmed).
+        const dom = this.bodyNode && this.bodyNode.getDomNode();
+        if (!dom) return;
+        dom.classList.toggle('dimmed', !!on);
+    }
+
     _fullSync() {
         const presentKeys = {};
         const toAdd = [];
@@ -1630,6 +1774,14 @@ gnr.GroupletGridController = class GroupletGridController {
         this.bodyNode.freeze();
         toAdd.forEach((pkey) => this._renderTile(pkey));
         this.bodyNode.unfreeze();
+        // In lazy mode _renderTile only built wrappers: graft the body of
+        // the (pre-decided) active tile so the first tab is visible.
+        if (this.lazyTabs && this._isTabsLayout() && this.activePkey) {
+            const activeTile = this.tiles[this.activePkey];
+            if (activeTile && !activeTile.bodyMounted) {
+                this._mountBodyWhenVisible(activeTile);
+            }
+        }
         if (this.structAdapter) this._scheduleStructSync();
     }
 
@@ -1637,7 +1789,11 @@ gnr.GroupletGridController = class GroupletGridController {
         if (this.tiles[pkey]) return;
         const position = this._computeTilePosition(pkey);
         const tile = new gnr.GroupletGridTile(this, pkey);
-        tile.mount(position);
+        if (this.lazyTabs && this._isTabsLayout()) {
+            tile.mountWrapperOnly(position);
+        } else {
+            tile.mount(position);
+        }
         this.tiles[pkey] = tile;
         this._afterTileMounted(tile);
     }
@@ -1698,6 +1854,30 @@ gnr.GroupletGridController = class GroupletGridController {
         } else if (childValue !== undefined && childValue !== null) {
             newNode.setValue(childValue);
         }
+    }
+
+    _reproxyForm(content) {
+        // Nodes were built while the template was detached, so getFormHandler
+        // cached a falsy this.form. Now that the subtree is grafted under the
+        // live form, re-resolve so each form-bound widget caches this.form.
+        if (!(content instanceof gnr.GnrBag)) return;
+        content.walk((node) => {
+            if (node._registerInForm && !node.form) {
+                delete node.form;
+                node._registerInForm();
+            }
+        }, 'static');
+    }
+
+    _unproxyForm(content) {
+        // Symmetric teardown: popNode does not de-register the grafted
+        // widgets from the form, so do it here before the pop.
+        if (!(content instanceof gnr.GnrBag)) return;
+        content.walk((node) => {
+            if (node.form && node.form.unregisterChild) {
+                node.form.unregisterChild(node);
+            }
+        }, 'static');
     }
 
     _destroyTile(pkey) {
@@ -1806,16 +1986,10 @@ gnr.GroupletGridController = class GroupletGridController {
     // ====================================================================
 
     _namespaceFrameworkNodeIds(domSource, pkey) {
-        // Suffix every framework-generated reference (`grpgrid_*`) in
-        // the cloned template so each row instance is unique. The
-        // sibling BagStore is looked up by string nodeId, so an
-        // `attr.store='grpgrid_X'` that survives unchanged would point
-        // to the template's original store instead of the clone's.
-        // Author-supplied (non-`grpgrid_*`) ids are left untouched.
-        //
-        // Whitelist of attribute keys whose value may carry a
-        // `grpgrid_*` reference. Keeping this list small avoids the
-        // O(nodes × attrs) walk of the previous implementation.
+        // Suffix every framework-generated `grpgrid_*` reference in the
+        // cloned template so each row instance is unique. Author-supplied
+        // (non-`grpgrid_*`) ids are left untouched. The attribute
+        // whitelist (NAMESPACED_ATTRS) avoids the O(nodes × attrs) walk.
         const suffix = '__' + this.nodeId + '__' + pkey;
         const apply = function(n) {
             const a = n.attr;
@@ -1858,6 +2032,7 @@ gnr.GroupletGridController = class GroupletGridController {
         const flush = () => {
             const queue = this.templateLoading[key];
             delete this.templateLoading[key];
+            this._setLoading(false);
             queue.forEach((cb) => cb());
         };
         if (this.structAdapter) {
@@ -1872,11 +2047,13 @@ gnr.GroupletGridController = class GroupletGridController {
             grouplets_root: this.grouplets_root,
             grouplet_kwargs: this.grouplet_kw
         };
-        genro.serverCall('gr_getGroupletGridTemplate', params,
+        this._setLoading(true);
+        genro.serverCall(this.loaderrpc, params,
             (tplBag, error) => {
                 if (error) {
                     console.error('[GG] template RPC failed', error);
                     delete this.templateLoading[key];
+                    this._setLoading(false);
                     return;
                 }
                 this.templateSources[key] = this._bagToDetachedSource(tplBag);
@@ -1901,6 +2078,7 @@ gnr.GroupletGridController = class GroupletGridController {
         const flush = () => {
             const queue = this.templateLoading[sharedKey];
             delete this.templateLoading[sharedKey];
+            this._setLoading(false);
             queue.forEach((cb) => cb());
         };
         const params = {
@@ -1908,11 +2086,13 @@ gnr.GroupletGridController = class GroupletGridController {
             grouplets_root: this.grouplets_root,
             grouplet_kwargs: this.grouplet_kw
         };
-        genro.serverCall('gr_getGroupletGridTemplateMap', params,
+        this._setLoading(true);
+        genro.serverCall(this.mapLoaderrpc, params,
             (mapBag, error) => {
                 if (error) {
                     console.error('[GG] template map RPC failed', error);
                     delete this.templateLoading[sharedKey];
+                    this._setLoading(false);
                     return;
                 }
                 if (!(mapBag instanceof gnr.GnrBag)) {
@@ -1978,6 +2158,12 @@ gnr.GroupletGridTile = class GroupletGridTile {
         this.tileContent = null;
         this.tileDom = null;
         this.mounted = false;
+        // `mounted` = wrapper + drag handle exist; `bodyMounted` = chrome
+        // and the grafted template subtree exist. With lazyTabs a tile can
+        // be mounted (chip + wrapper) yet have no body until activated.
+        this.bodyMounted = false;
+        // True while a rAF is scheduled to graft the lazy body.
+        this._bodyPending = false;
         this.isActive = false;
         this.isDragging = false;
         this.hasDelete = false;
@@ -1989,22 +2175,57 @@ gnr.GroupletGridTile = class GroupletGridTile {
     }
 
     mount(position) {
+        // Eager full mount (cards, and tabs without lazyTabs).
+        this.mountWrapperOnly(position);
+        this.mountBody();
+    }
+
+    mountWrapperOnly(position) {
+        // Cheap half: wrapper + drag handle only. Used by lazyTabs to build
+        // chips/wrappers upfront while deferring the expensive body graft.
         this.position = position || null;
         this._resolveTemplate();
         this._resolveDecorations();
         this._mountWrapper();
         this.tileNode.freeze();
         this._mountDragHandle();
+        this.tileNode.unfreeze();
+        this.mounted = true;
+    }
+
+    mountBody() {
+        // Expensive half: chrome + grafted template subtree. Idempotent.
+        // Called inline by mount(), or lazily by _activateTab on first show.
+        if (this.bodyMounted) return;
+        // A pending deferred graft is now moot (we're mounting now).
+        this._cancelPendingBody();
+        // The wrapper sourceNode `_class` already carries the correct active
+        // state (set by _setActiveTabClasses before this graft is scheduled),
+        // so the unfreeze re-render preserves display:block for the active
+        // panel — no post-mount class re-assert needed.
+        this.tileNode.freeze();
         this._mountChrome();
         this._mountBody();
         this.tileNode.unfreeze();
-        this.mounted = true;
+        // After unfreeze the subtree is attached under the live form, so
+        // getFormHandler can resolve it: re-proxy so form-bound widgets
+        // cache this.form and get cleanly unregistered on teardown.
+        this.controller._reproxyForm(this.tileContent);
+        this.bodyMounted = true;
     }
 
     rebuild() {
         // Re-render body + chrome in place (used on resourceField swap):
         // wrapper sourceNode and drag handle survive.
         if (!this.mounted) return;
+        // Lazy wrapper-only tile: nothing to tear down — just build the
+        // body for the first time (keeps bodyMounted coherent).
+        if (!this.bodyMounted) {
+            this._resolveTemplate();
+            this._resolveDecorations();
+            this.mountBody();
+            return;
+        }
         this.tileNode.freeze();
         this._destroyChrome();
         this._destroyBody();
@@ -2015,12 +2236,25 @@ gnr.GroupletGridTile = class GroupletGridTile {
         this.tileNode.unfreeze();
     }
 
+    _cancelPendingBody() {
+        // The scheduled rAF guards on `mounted === false` / `bodyMounted`,
+        // so clearing the flag is enough to neutralise a pending graft.
+        this._bodyPending = false;
+    }
+
     unmount() {
+        this._cancelPendingBody();
         this._unwireTileDnD();
         this._unwireHandleDnD();
+        // popNode does not propagate form de-registration to the grafted
+        // widgets, so unregister them explicitly (symmetric with the
+        // _reproxyForm done at mount). Otherwise they linger in the form
+        // _register as orphans and break setLastSavedValues on save.
+        this.controller._unproxyForm(this.tileContent);
         const bodyContent = this.controller.bodyNode.getValue('static');
         bodyContent.popNode(this.tileLabel);
         this.mounted = false;
+        this.bodyMounted = false;
         this.tileNode = null;
         this.tileContent = null;
         this.tileDom = null;

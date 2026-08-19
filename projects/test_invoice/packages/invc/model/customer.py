@@ -17,6 +17,9 @@ class Table(object):
         tbl.column('notes',name_long="!!Notes")
         tbl.column('email',name_long='!!Email')
         tbl.column('phone' ,name_long='!!Phone')
+        tbl.column('access_token', name_long='!!Access Token', encrypted='X')
+        tbl.column('bank_account', name_long='!!Bank Account', encrypted='R')
+        tbl.column('registration_id', name_long='!!Registration ID', encrypted='Q')
         tbl.formulaColumn('n_invoices',select=dict(table='invc.invoice',
                                                   columns='COUNT(*)',
                                                   where='$customer_id=#THIS.id'),

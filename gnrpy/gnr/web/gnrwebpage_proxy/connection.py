@@ -160,6 +160,7 @@ class GnrWebConnection(GnrBaseProxy):
         self.user_tags = avatar_dict.get('user_tags')
         self.user_name = avatar_dict.get('user_name')
         self.user_id = avatar_dict.get('user_id')
+        self.cookie_data['xgroup'] = avatar_dict.get('xgroup')
         if avatar:
             self.avatar_extra = avatar.extra_kwargs
 
@@ -170,7 +171,8 @@ class GnrWebConnection(GnrBaseProxy):
 
     def rpc_logout(self):
         self.page.site.register.drop_connection(self.connection_id,cascade=True)
-        self.page.site.connectionLog('close',connection_id=self.connection_id)
+        if self.connection_id:
+            self.page.site.connectionLog('close',connection_id=self.connection_id)
 
     @public_method
     def connected_users_bag(self, exclude=None, exclude_guest=True, max_age=600):

@@ -28,6 +28,8 @@ dependencies = [
 	     "boto3",
 	     "caldav",
 	     "chardet==5.2.0",
+	     "clevercsv",
+	     "cryptography",
 	     "dictdiffer", # for gnr.sql migration
 	     "docutils",
 	     "dulwich", # needed by gnrgit
@@ -38,7 +40,6 @@ dependencies = [
 	     "openpyxl",
 	     "packaging",
 	     "paramiko", # gnr.core.gnrssh
-	     "paste",
 	     "psutil",
 	     "pymupdf",
 	     "pypdftk",
@@ -51,7 +52,7 @@ dependencies = [
 	     "requests",
 	     "simpleeval",
 	     "six", # evaluate if needed
-	     "smart_open",
+	     "smart_open<8.0",
 	     "supervisor",
 	     "tzlocal",
 	     "unidecode",
@@ -138,6 +139,7 @@ include-package-data = true
 packages = [
 	    'gnr',
 	    'gnr.app',
+	    'gnr.app.api_engine',
 	    'gnr.app.cli',
 	    'gnr.core',
 	    'gnr.core.cli',

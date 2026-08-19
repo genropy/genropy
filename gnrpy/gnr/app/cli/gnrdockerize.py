@@ -10,7 +10,7 @@ import sys
 import shutil
 import tempfile
 import datetime
-import os
+import os, os.path
 import subprocess
 
 from mako.template import Template
@@ -45,6 +45,12 @@ class MultiStageDockerImageBuilder:
         self.main_repo_name = ""
         
         self.config = self.builder.load_config(generate=options.build_generate)
+
+        self.apt_deps = None
+        apt_dep_file = os.path.join(self.instance_folder, "config", "apt-dependencies.txt")
+        if os.path.isfile(apt_dep_file):
+            self.apt_deps = " ".join([x.strip() for x in open(apt_dep_file).readlines()])
+            
         self.build_context_dir = tempfile.mkdtemp(dir=os.getcwd())
         atexit.register(self.cleanup_build_dir)
         
@@ -73,15 +79,29 @@ class MultiStageDockerImageBuilder:
         repositories from multiple Docker images.
         """
         git_repositories = self.builder.git_repositories()
-        now = datetime.datetime.now(datetime.UTC)
-        image_labels = {"gnr_app_dockerize_on": str(now)}
         entry_dir = os.getcwd()
-
         main_repo_url = self.builder.git_url_from_path(self.instance_folder)
         self.main_repo_name = self.builder.git_repo_name_from_url(main_repo_url)
+
+        now = datetime.datetime.now(datetime.UTC)
+        image_labels = {
+            "gnr_app_dockerize_on": str(now),
+            "org.opencontainers.image.created": str(now),
+            "org.label-schema.build-date": str(now),
+
+            "org.opencontainers.image.title": self.instance_name,
+            "org.label-schema.name": self.instance_name,
+
+            "org.opencontainers.image.description": f"Genropy application - instance {self.instance_name}",
+            "org.opencontainers.image.source": main_repo_url,
+            "org.label-schema.vcs-url": main_repo_url
+        }
+
+        site_folder = f"/home/genro/genropy_projects/{self.main_repo_name}/instances/{self.instance_name}/site"
         
         os.chdir(self.build_context_dir)
         self.dockerfile_path = os.path.join(self.build_context_dir, "Dockerfile")
+        
         with open(self.dockerfile_path, 'w') as dockerfile:
             dockerfile.write(f"# Docker image for instance {self.instance_name}\n")
             dockerfile.write(f"# Dockerfile builded on {now}\n\n")
@@ -89,6 +109,12 @@ class MultiStageDockerImageBuilder:
             base_image_tag = self.options.bleeding and "develop" or "latest"
             dockerfile.write(f"FROM ghcr.io/genropy/genropy:{base_image_tag} as build_stage\n")
             dockerfile.write("WORKDIR /home/genro/genropy_projects\n")
+
+            # the APT write has to occur here, using root user, before the USER genro
+            # changes.
+            if self.apt_deps:
+                logger.debug("Found APT dependencies: %s", self.apt_deps)
+                dockerfile.write(f"RUN apt install -y {self.apt_deps}\n")
 
             dockerfile.write("USER genro\n\n")
             dockerfile.write('ENV PATH="/home/genro/.local/bin:$PATH"\n')
@@ -124,12 +150,20 @@ class MultiStageDockerImageBuilder:
                 os.chdir(self.build_context_dir)
                 
                 dockerfile.write(f"# {repo['description']}\n")
-                site_folder = f"/home/genro/genropy_projects/{repo_name}/instances/{self.instance_name}/site"
-                if repo['subfolder']:
-                    site_folder = f"/home/genro/genropy_projects/{repo['subfolder']}/instances/{self.instance_name}/site"
-                    dockerfile.write(f"COPY --chown=genro:genro {repo_name}/{repo['subfolder']} /home/genro/genropy_projects/{repo['subfolder']}\n")
-                else:
 
+                if repo['subfolder']:
+                    if repo_name == self.main_repo_name:
+                        site_folder = f"/home/genro/genropy_projects/{repo['subfolder']}/instances/{self.instance_name}/site"
+                    dest_folder = repo['subfolder']
+                    if os.path.sep in repo['subfolder']:
+                        # we have a nested hierachy, we need to copy also what is exposed at top level
+                        dest_folder = os.path.basename(repo['subfolder'])
+                        dockerfile.write(f"COPY --chown=genro:genro {repo_name} /home/genro/genropy_projects/{repo_name}\n")
+                        dockerfile.write(f"COPY --chown=genro:genro {repo_name}/{repo['subfolder']} /home/genro/genropy_projects/{dest_folder}\n")
+                    else:
+                        dockerfile.write(f"COPY --chown=genro:genro {repo_name}/{repo['subfolder']} /home/genro/genropy_projects/{dest_folder}\n")
+
+                else:
                     dockerfile.write(f"COPY --chown=genro:genro {repo_name} /home/genro/genropy_projects/{repo_name}\n")
 
             dockerfile.write(f"RUN ln -s {site_folder} /home/genro/site\n")
@@ -169,7 +203,7 @@ daemon = False
 workers = get_cpu_limit()
 threads = 8
 loglevel = 'error'
-chdir = '/home/genro/genropy_projects/{main_repo_name}/instances/{instanceName}'
+chdir = '{local_instance_folder}'
 reload = False
 capture_output = True
 max_requests = 600
@@ -179,7 +213,8 @@ graceful_timeout = 600
                 """
             with open("gunicorn.py", "w") as wfp:
                 wfp.write(gunicorn_template.format(instanceName=self.instance_name,
-                                                       main_repo_name=self.main_repo_name))
+                                                   local_instance_folder=os.path.dirname(site_folder),
+                                                   main_repo_name=self.main_repo_name))
             dockerfile.write("COPY --chown=genro:genro gunicorn.py /home/genro/gunicorn.py\n")
                 
             supervisor_template = """
@@ -216,6 +251,7 @@ stderr_logfile_maxbytes=0
 
 [program:gnrtaskscheduler]
 priority=999
+autorestart=false
 command=gnr web taskscheduler {instanceName}
 stdout_logfile=/dev/stdout
 stdout_logfile_maxbytes=0
@@ -234,9 +270,8 @@ stderr_logfile_maxbytes=0
                 wfp.write(supervisor_template.format(instanceName=self.instance_name))
                     
             dockerfile.write(f"COPY --chown=genro:genro supervisord.conf /etc/supervisor/conf.d/{self.instance_name}-supervisor.conf\n")
-
+            # install dependencies
             dockerfile.write(f"RUN gnr app checkdep --loglevel=debug -v -n -i {self.instance_name}\n")
-
             dockerfile.write("LABEL {}\n".format(
                 " \\ \n\t ".join([f'{k}="{v}"' for k,v in image_labels.items()])
             ))

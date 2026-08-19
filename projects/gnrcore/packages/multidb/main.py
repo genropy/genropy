@@ -1,6 +1,7 @@
 import os
 import datetime
 
+from gnr.app import pkglog as logger
 from gnr.app.gnrdbo import GnrDboTable, GnrDboPackage
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlang import instanceMixin
@@ -560,24 +561,18 @@ class MultidbTable(object):
                     result[k] = (v,store_record[k])
         return result
 
-    def createSysRecords(self,do_update=None):
+    def createSysRecords(self,do_update=False):
         if not self.db.usingRootstore():
+            #store-side runs are no-ops: sysRecords propagate from the rootstore
+            #through the standard multidb sync triggers
+            if do_update:
+                logger.warning('createSysRecords(do_update=True) skipped on store %s for table %s: '
+                                'run it on the rootstore, changes propagate through multidb sync',
+                                self.db.currentEnv.get('storename'),self.fullname)
             return
-        syscodes = []
-        for m in dir(self):
-            if m.startswith('sysRecord_') and m!='sysRecord_':
-                method = getattr(self,m)
-                if getattr(method,'mandatory',False):
-                    syscodes.append(m[10:])
-        commit = False
-        if syscodes:
-            f = self.query(where='$__syscode IN :codes',codes=syscodes).fetchAsDict('__syscode')
-            for syscode in syscodes:
-                if syscode not in f:
-                    self.sysRecord(syscode)
-                    commit = True
-        if commit:
-            self.db.commit()
+        #inserts and do_update changes propagate to the subscribed stores
+        #through trigger_onInserted_multidb/trigger_onUpdated_multidb
+        GnrDboTable.createSysRecords(self,do_update=do_update)
 
     def sysRecord(self,syscode):
         if not self.db.usingRootstore():
