@@ -249,6 +249,10 @@ class Main(BaseResourceBatch):
             docbag = Bag(record['docbag'])
             self.curr_sourcebag = Bag(record['sourcebag'])
             self.hierarchical_name = record['hierarchical_name']
+            if self.curr_sourcebag:
+                #regenerate the served example modules: the site folder is disposable
+                self.doctable.writeModulesFromSourceBag(dict(hierarchical_name=self.hierarchical_name,
+                                                             sourcebag=self.curr_sourcebag))
             lbag=docbag[self.handbook_record['language']] or Bag()
             rst = lbag['rst'] or ''
             df_rst = self.doctable.dfAsRstTable(record['id'], language=self.handbook_record['language'])
