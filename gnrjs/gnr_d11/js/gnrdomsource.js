@@ -1624,6 +1624,9 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             return;
         }
         if(this._remotebuilding){
+          //a dyn attr changed while a remote fetch is in flight: remember
+          //it, the running call re-fetches on landing with fresh attrs
+          this._pendingRemoteUpdate = true;
           return;
         }
         
@@ -1697,6 +1700,10 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                     });
                 }
                 delete that._remotebuilding;
+                if(that._pendingRemoteUpdate){
+                    delete that._pendingRemoteUpdate;
+                    that.updateRemoteContent(true,async);
+                }
                 return result;
             });
     },
