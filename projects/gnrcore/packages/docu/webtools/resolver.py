@@ -3,9 +3,8 @@
 
 The web server serving the static handbooks proxies requests for missing
 paths to ``/_tools/docuresolver/<original path>``: pages that moved answer
-with a real HTTP 301 to their current absolute URL (the docs host — e.g.
-cloudfront or a static content server — may differ from the instance host),
-unknown paths get the standard framework 404 page
+with a real HTTP 301 to their current absolute URL (the docs host may differ 
+from the instance host), unknown paths get the standard framework 404 page
 (``html_pages/missing_result.html``), overridable per instance through the
 ordinary resource cascade.
 """
