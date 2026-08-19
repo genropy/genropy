@@ -522,8 +522,6 @@ class GnrWebPage(GnrBaseWebPage):
             storeDbEnv.pop('workdate',None) #it does not override page workdate
             if len(storeDbEnv)>0:
                 self._db.updateEnv(**storeDbEnv.asDict(ascii=True))
-            subscribed_tables = self.site.register.page(self.page_id).get('subscribed_tables') if self.page_id else None
-            self._db.updateEnv(subscribed_tables=subscribed_tables or [])
             envPageArgs = dictExtract(self.pageArgs,'env_')
             if envPageArgs:
                 self._db.updateEnv(**envPageArgs)
