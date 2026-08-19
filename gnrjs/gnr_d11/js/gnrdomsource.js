@@ -719,7 +719,6 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         }
         if (path.indexOf('.') == 0) {
             console.error('unresolved relativepath ' + path);
-            debugger
         }
         path = path.replace('.?', '?');
         if (path.indexOf('#parent') > 0) {
