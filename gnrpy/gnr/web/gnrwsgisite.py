@@ -680,6 +680,12 @@ class GnrWsgiSite(object):
         if domain_proxy and domain_proxy._register is not None:
             return self.register.filter_subscribed_tables(tables,register_name='page')
 
+    def allSubscribedTables(self):
+        """Every table observed by at least one live page, from the register index."""
+        domain_proxy = self.domains[self.currentDomain]
+        if domain_proxy and domain_proxy._register is not None:
+            return self.register.subscribed_tables(register_name='page')
+
     @property
     def connectionLogEnabled(self):
         if not hasattr(self,'_connectionLogEnabled'):
