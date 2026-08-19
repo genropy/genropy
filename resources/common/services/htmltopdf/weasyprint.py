@@ -11,7 +11,7 @@ class Service(HtmlToPdfService):
 
         srcPath = self.parent.storageNode(srcPath, parent=self.parent)
         stylesheets = stylesheets or []
-        if pageSize or pageMargin:
+        if pageSize or pageMargin is not None:
             margin_priority = ' !important' if pageMargin is not None else ''
             pageMargin = pageMargin if pageMargin is not None else 0
             page_css_input=f"""@page {{
