@@ -616,6 +616,16 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         }
         return value;
     },
+    isLostNode: function() {
+        //true when this node no longer belongs to the live source tree:
+        //remote content rebuilds tear nodes down while their widgets may
+        //still fire async callbacks (validate, label fetch, late onChange)
+        var currbag = this._parentbag;
+        while (currbag && currbag._parentnode) {
+            currbag = currbag._parentnode._parentbag;
+        }
+        return currbag !== genro.src._main;
+    },
     attrDatapath: function(attrname,targetNode) {
         targetNode = targetNode || this;
         if (!attrname) {
@@ -685,7 +695,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         return path;
 
     },
-    absDatapath: function(path) { 
+    absDatapath: function(path) {
         path = path || '';
         if (this.isPointerPath(path)) {
             path = path.slice(1);
@@ -1778,6 +1788,9 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
     },
     
     updateValidationStatus: function(kw) {
+        if (this.isLostNode()) {
+            return;
+        }
         if (this.widget) {
             if(this.widget.validate){
                 this.widget.validate();

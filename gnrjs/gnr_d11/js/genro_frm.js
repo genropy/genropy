@@ -2093,9 +2093,15 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             //by the grid editor status channel, not by invalidDojo
             return;
         }
+        if(sn.isLostNode()){
+            //the widget outlived its sourceNode (torn down by a remote
+            //content rebuild): an async validate on a lost node has
+            //nothing to track and its relative value path cannot resolve
+            return;
+        }
         var node_identifier= sn.getStringId();
         var dojoValid=this.getInvalidDojo();
-        var changedNode = genro.getDataNode(wdg.sourceNode.absDatapath(wdg.sourceNode.attr.value));
+        var changedNode = genro.getDataNode(sn.absDatapath(sn.attr.value));
         if(!this.isNodeInFormData(changedNode)){
             return;
         }
