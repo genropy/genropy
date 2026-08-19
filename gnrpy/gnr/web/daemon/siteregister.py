@@ -325,6 +325,7 @@ class UserRegister(BaseRegister):
             user_name=user_name,
             user_tags=user_tags,
             avatar_extra=avatar_extra,
+            connections=set(),
             register_name='user')
         self.addRegisterItem(register_item)
         return register_item
@@ -351,6 +352,7 @@ class ConnectionRegister(BaseRegister):
             user_agent=user_agent,
             electron_static=electron_static,
             browser_name=browser_name,
+            pages=set(),
             register_name='connection')
         self.addRegisterItem(register_item)
         return register_item
@@ -616,6 +618,34 @@ class SiteRegister(BaseRemoteObject):
         self.guest_connection_max_age = int(cleanup.get('guest_connection_max_age') or 40)
         self.connection_max_age = int(cleanup.get('connection_max_age') or 7200)
 
+    def updateRegisterLink(self, register, parent_id, link_name, child_id, add=None):
+        """Add or drop *child_id* in a parent item's link set — the only writer of it.
+
+        A parent/child link in the register lives in two places: the child item
+        carries its parent id, the parent item carries the set of its children.
+        Every change goes through here so the two cannot drift into phantom
+        children or live children missing from the set.
+
+        ``registerItems`` rather than ``get_item``: linking a child must not
+        refresh the parent's timestamp, or a page being born would keep an
+        otherwise idle connection alive. Returns True when the set changed.
+        """
+        if not parent_id:
+            return False
+        parent_item = register.registerItems.get(parent_id)
+        if parent_item is None:
+            return False
+        children = parent_item.setdefault(link_name, set())
+        if add:
+            if child_id in children:
+                return False
+            children.add(child_id)
+            return True
+        if child_id not in children:
+            return False
+        children.discard(child_id)
+        return True
+
     def new_connection(self, connection_id, connection_name=None, user=None, user_id=None,
                        user_name=None, user_tags=None, user_ip=None, user_agent=None, browser_name=None,
                        avatar_extra=None, electron_static=None):
@@ -627,6 +657,7 @@ class SiteRegister(BaseRemoteObject):
             connection_id, connection_name=connection_name, user=user, user_id=user_id,
             user_name=user_name, user_tags=user_tags, user_ip=user_ip, user_agent=user_agent,
             browser_name=browser_name, electron_static=electron_static)
+        self.updateRegisterLink(self.user_register, user, 'connections', connection_id, add=True)
         return connection_item
 
     def drop_pages(self, connection_id):
@@ -634,6 +665,10 @@ class SiteRegister(BaseRemoteObject):
             self.drop_page(page_id)
 
     def drop_page(self, page_id, cascade=None):
+        page_item = self.page_register.registerItems.get(page_id)
+        if page_item:
+            self.updateRegisterLink(self.connection_register, page_item['connection_id'],
+                                    'pages', page_id)
         return self.page_register.drop(page_id, cascade=cascade)
 
     def drop_connections(self, user):
@@ -641,6 +676,10 @@ class SiteRegister(BaseRemoteObject):
             self.drop_connection(connection_id)
 
     def drop_connection(self, connection_id, cascade=None):
+        connection_item = self.connection_register.registerItems.get(connection_id)
+        if connection_item:
+            self.updateRegisterLink(self.user_register, connection_item['user'],
+                                    'connections', connection_id)
         self.connection_register.drop(connection_id, cascade=cascade)
 
     def drop_user(self, user):
@@ -669,6 +708,7 @@ class SiteRegister(BaseRemoteObject):
         page_item = self.page_register.create(page_id, pagename=pagename, connection_id=connection_id,
                                               user=user, user_ip=user_ip, user_agent=user_agent,
                                               relative_url=relative_url, data=data)
+        self.updateRegisterLink(self.connection_register, connection_id, 'pages', page_id, add=True)
         return page_item
 
     def new_user(self, user=None, user_tags=None, user_id=None, user_name=None, avatar_extra=None):
