@@ -680,6 +680,12 @@ class GnrWsgiSite(object):
         if domain_proxy and domain_proxy._register is not None:
             return self.register.filter_subscribed_tables(tables,register_name='page')
 
+    def allSubscribedTables(self):
+        """Every table observed by at least one live page, from the register index."""
+        domain_proxy = self.domains[self.currentDomain]
+        if domain_proxy and domain_proxy._register is not None:
+            return self.register.subscribed_tables(register_name='page')
+
     @property
     def connectionLogEnabled(self):
         if not hasattr(self,'_connectionLogEnabled'):
@@ -826,8 +832,7 @@ class GnrWsgiSite(object):
             else:
                 autocreate_args = args
             dest_dir = static_handler.path(*autocreate_args)
-            if not os.path.exists(dest_dir):
-                os.makedirs(dest_dir)
+            os.makedirs(dest_dir, exist_ok=True)
         dest_path = static_handler.path(*args)
         return dest_path
 
@@ -1434,6 +1439,7 @@ class GnrWsgiSite(object):
     def onClosedPage(self, page_id=None, **kwargs):
         "Drops page when closing"
         self.register.drop_page(page_id)
+        self.resource_loader.drop_page_class_cache(page_id)
 
     def cleanup(self):
         """clean up"""

@@ -1054,10 +1054,7 @@ class GnrApp(object):
         if pkgid in self.packages:
             return 
         attrs = pkgattrs or {}
-        if not attrs.get('path'):
-            attrs['path'] = self.pkg_name_to_path(pkgid,project)
-        if not os.path.isabs(attrs['path']):
-            attrs['path'] = self.realPath(attrs['path'])
+        attrs['path'] = self.pkg_path_from_attrs(pkgid, attrs, project=project)
         apppkg = GnrPackage(pkgid, self, **attrs)
         apppkg.content = pkgcontent or Bag()
         readOnlyAttrs = {'readOnly':True} if attrs.get('readOnly') else dict()
@@ -1076,8 +1073,9 @@ class GnrApp(object):
             else:
                 project = None
                 
-            packageFolder = self.pkg_name_to_path(package, project)
-            requirements_file = os.path.join(packageFolder, package, "requirements.txt")
+            packageFolder = self.pkg_path_from_attrs(package, pkgattrs, project=project)
+            filename = (pkgattrs or {}).get('filename') or package
+            requirements_file = os.path.join(packageFolder, filename, "requirements.txt")
             if os.path.isfile(requirements_file):
                 with open(requirements_file) as fp:
                     for line in fp:
@@ -1238,7 +1236,22 @@ class GnrApp(object):
         else:
             raise Exception(
                     'Error: package %s not found' % pkgid)
-        
+
+    def pkg_path_from_attrs(self, pkgid, pkgattrs=None, project=None):
+        """Return the folder containing the :ref:`package <packages>` folder.
+
+        The instanceconfig can declare an explicit ``path`` attribute, pointing
+        anywhere on the filesystem: only when it is missing the package is
+        looked up in the known packages roots.
+
+        :param pkgid: the id of the :ref:`package <packages>`
+        :param pkgattrs: the instanceconfig attributes of the package
+        :param project: the project owning the package, if any"""
+        path = (pkgattrs or {}).get('path') or self.pkg_name_to_path(pkgid, project)
+        if not os.path.isabs(path):
+            path = self.realPath(path)
+        return path
+
     def project_path(self, project):
         """TODO
         
