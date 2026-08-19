@@ -81,6 +81,8 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             'filteringselect':null,
             'dbselect':null,
             'dbcombobox':null,
+            'remoteselect':null,
+            'callbackselect':null,
             'input':null,
             'textarea':null,
             'datetextbox':null,

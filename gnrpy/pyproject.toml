@@ -52,7 +52,7 @@ dependencies = [
 	     "requests",
 	     "simpleeval",
 	     "six", # evaluate if needed
-	     "smart_open",
+	     "smart_open<8.0",
 	     "supervisor",
 	     "tzlocal",
 	     "unidecode",

@@ -68,10 +68,12 @@ class HTableTree(BaseComponent):
                 treeWdg.setSelectedPath(null,{value:pathToSelect});
             """)
         menuItem = menu.menuItem().div(max_height=max_height or '350px',min_width= min_width or '300px',overflow='auto')
+        #table: see ht_hTableTree. The gnr.htablestores node carries no table
+        #either, so the tree must name the table it browses on its own.
         menuItem.div(padding_top='4px', padding_bottom='4px').tree(storepath='%s.root' %storepath,
                          hideValues=True,autoCollapse=True,excludeRoot=True,
                          labelAttribute='caption',selectedLabelClass='selectedTreeNode',
-                         parentMenu=menu,childname='treemenu',
+                         parentMenu=menu,childname='treemenu',table=table,
                          _class="branchtree noIcon",**kwargs)
         return menu
         
@@ -110,7 +112,12 @@ class HTableTree(BaseComponent):
                     treeNode.widget.saveExpanded();
                 }
                 result = result || new gnr.GnrBag();
-                this.setRelativeData(storepath,result);
+                //storeTable: same attribute the non-rpc branch sets on the store
+                //node. THTree.fullPathByIdentifier reads it to know which table
+                //owns the hierarchy: without it the lookup falls back to the
+                //table inherited from the enclosing form and calls pathFromPkey
+                //on a non hierarchical table.
+                this.setRelativeData(storepath,result,{table:storeTable});
                 if(!selectedIdentifier){
                     treeNode.widget.setSelectedPath(null,{value:'#0'});
                     return;
@@ -124,7 +131,7 @@ class HTableTree(BaseComponent):
                     }
                 },1)
                 
-            """,storepath=storepath,treeNode=treeNode)
+            """,storepath=storepath,treeNode=treeNode,storeTable=table)
             return d
             
         b = tblobj.getHierarchicalData(caption_field=caption_field,dbstore=dbstore,
@@ -166,8 +173,12 @@ class HTableTree(BaseComponent):
                         caption_field=None,condition=None,caption=None,dbstore=None,condition_kwargs=None,store_kwargs=True,related_kwargs=None,root_id_delay=None,
                         moveTreeNode=True,excludeRoot=None,subtable=None,resolved=False,searchCode=None,**kwargs):
         
+        #table on the tree node itself: THTree.fullPathByIdentifier falls back to
+        #the tree inherited attributes, which otherwise resolve to the table of
+        #the enclosing form and not to the one the tree browses.
         treeattr = dict(storepath=storepath,hideValues=True,draggable=draggable,identifier='treeIdentifier',
-                            labelAttribute='caption',selectedLabelClass='selectedTreeNode',searchCode=searchCode,dropTarget=True)
+                            labelAttribute='caption',selectedLabelClass='selectedTreeNode',searchCode=searchCode,dropTarget=True,
+                            table=table)
         treeattr.update(kwargs)
         if excludeRoot:
             treeattr['storepath'] = '%(storepath)s.root' %treeattr
