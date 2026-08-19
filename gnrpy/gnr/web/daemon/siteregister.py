@@ -367,16 +367,24 @@ class ConnectionRegister(BaseRegister):
                 self.siteregister.drop_user(user)
 
     def user_connection_keys(self, user):
-        return [k for k, v in list(self.items()) if v['user'] == user]
+        # from the user item's link set; a list, so callers may drop while iterating
+        user_item = self.siteregister.user_register.registerItems.get(user)
+        if not user_item:
+            return []
+        return list(user_item['connections'])
 
     def user_connection_items(self, user):
-        return [(k, v) for k, v in list(self.items()) if v['user'] == user]
+        return [(k, self.registerItems[k]) for k in self.user_connection_keys(user)]
+
+    def user_connections(self, user):
+        return [self.registerItems[k] for k in self.user_connection_keys(user)]
 
     def connections(self, user=None, include_data=None):
-        connections = self.values(include_data=include_data)
-        if user:
-            connections = [v for v in connections if v['user'] == user]
-        return connections
+        if not user:
+            return self.values(include_data=include_data)
+        if include_data:
+            return [self.get_item(k, include_data=True) for k in self.user_connection_keys(user)]
+        return self.user_connections(user)
 
 
 class PageRegister(BaseRegister):
@@ -483,16 +491,35 @@ class PageRegister(BaseRegister):
         return [self.registerItems[k] for k in self.subscribed_table_page_keys(table)]
 
     def connection_page_keys(self, connection_id):
-        return [k for k, v in list(self.items()) if v['connection_id'] == connection_id]
+        # from the connection item's link set; a list, so callers may drop while iterating
+        connection_item = self.siteregister.connection_register.registerItems.get(connection_id)
+        if not connection_item:
+            return []
+        return list(connection_item['pages'])
 
     def connection_page_items(self, connection_id):
-        return [(k, v) for k, v in list(self.items()) if v['connection_id'] == connection_id]
+        return [(k, self.registerItems[k]) for k in self.connection_page_keys(connection_id)]
+
+    def connection_pages(self, connection_id):
+        return [self.registerItems[k] for k in self.connection_page_keys(connection_id)]
 
     def pages(self, connection_id=None, user=None, include_data=None, filters=None):
-        pages = self.values(include_data=include_data)
+        # walk the link sets rather than the whole registry: a connection knows its
+        # pages, a user knows its connections
+        page_ids = None
         if connection_id:
-            pages = [v for v in pages if v['connection_id'] == connection_id]
-        if user:
+            page_ids = self.connection_page_keys(connection_id)
+        elif user:
+            page_ids = [page_id
+                        for cid in self.siteregister.user_connection_keys(user)
+                        for page_id in self.connection_page_keys(cid)]
+        if page_ids is None:
+            pages = self.values(include_data=include_data)
+        elif include_data:
+            pages = [self.get_item(page_id, include_data=True) for page_id in page_ids]
+        else:
+            pages = [self.registerItems[page_id] for page_id in page_ids]
+        if connection_id and user:
             pages = [v for v in pages if v['user'] == user]
         if not filters or filters == '*':
             return pages

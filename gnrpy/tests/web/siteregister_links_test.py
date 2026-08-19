@@ -247,3 +247,119 @@ def test_both_directions_agree_through_a_full_lifecycle():
     assert _links_from_parents(reg) == _links_from_children(reg)
     reg.drop_page('page-1', cascade=True)
     assert _links_from_parents(reg) == _links_from_children(reg)
+
+
+# ---------------------------------------------------------------------------
+# the readers, now walking the links instead of the registry
+# ---------------------------------------------------------------------------
+
+
+def _populate(reg):
+    reg.new_connection('conn-1', user='anna')
+    reg.new_connection('conn-2', user='anna')
+    reg.new_connection('conn-3', user='marco')
+    _new_page(reg, 'page-1', 'conn-1', 'anna')
+    _new_page(reg, 'page-2', 'conn-1', 'anna')
+    _new_page(reg, 'page-3', 'conn-2', 'anna')
+    _new_page(reg, 'page-4', 'conn-3', 'marco')
+    return reg
+
+
+def test_user_connection_keys_walks_the_user_set():
+    reg = _populate(_register())
+    assert sorted(reg.user_connection_keys('anna')) == ['conn-1', 'conn-2']
+    assert reg.user_connection_keys('marco') == ['conn-3']
+    assert reg.user_connection_keys('ghost') == []
+
+
+def test_user_connection_items_and_connections_return_the_real_items():
+    reg = _populate(_register())
+    items = dict(reg.user_connection_items('marco'))
+    assert list(items) == ['conn-3']
+    assert items['conn-3'] is reg.connection_register.registerItems['conn-3']
+    assert reg.user_connections('marco') == [reg.connection_register.registerItems['conn-3']]
+
+
+def test_connection_page_keys_walks_the_connection_set():
+    reg = _populate(_register())
+    assert sorted(reg.connection_page_keys('conn-1')) == ['page-1', 'page-2']
+    assert reg.connection_page_keys('conn-3') == ['page-4']
+    assert reg.connection_page_keys('ghost') == []
+
+
+def test_pages_of_a_connection():
+    reg = _populate(_register())
+    got = sorted(p['register_item_id'] for p in reg.pages(connection_id='conn-1'))
+    assert got == ['page-1', 'page-2']
+
+
+def test_pages_of_a_user_walks_user_then_connections():
+    reg = _populate(_register())
+    got = sorted(p['register_item_id'] for p in reg.pages(user='anna'))
+    assert got == ['page-1', 'page-2', 'page-3']
+
+
+def test_pages_with_no_argument_still_returns_everything():
+    reg = _populate(_register())
+    got = sorted(p['register_item_id'] for p in reg.pages())
+    assert got == ['page-1', 'page-2', 'page-3', 'page-4']
+
+
+def test_pages_with_a_mismatched_connection_and_user_returns_nothing():
+    """conn-3 belongs to marco, so asking for anna's pages on it is empty."""
+    reg = _populate(_register())
+    assert reg.pages(connection_id='conn-3', user='anna') == []
+
+
+def test_pages_of_an_unknown_parent_is_empty():
+    reg = _populate(_register())
+    assert reg.pages(connection_id='ghost') == []
+    assert reg.pages(user='ghost') == []
+
+
+def test_connections_of_a_user_and_of_nobody():
+    reg = _populate(_register())
+    got = sorted(c['register_item_id'] for c in reg.connection_register.connections(user='anna'))
+    assert got == ['conn-1', 'conn-2']
+    got_all = sorted(c['register_item_id']
+                     for c in reg.connection_register.connections())
+    assert got_all == ['conn-1', 'conn-2', 'conn-3']
+
+
+def test_the_readers_agree_with_a_scan_of_the_whole_registry():
+    """The conversion must not change what the readers answer, only how."""
+    reg = _populate(_register())
+    for connection_id in ['conn-1', 'conn-2', 'conn-3']:
+        scanned = sorted(k for k, v in reg.page_register.registerItems.items()
+                         if v['connection_id'] == connection_id)
+        assert sorted(reg.connection_page_keys(connection_id)) == scanned
+    for user in ['anna', 'marco']:
+        scanned = sorted(k for k, v in reg.connection_register.registerItems.items()
+                         if v['user'] == user)
+        assert sorted(reg.user_connection_keys(user)) == scanned
+        scanned_pages = sorted(k for k, v in reg.page_register.registerItems.items()
+                               if v['user'] == user)
+        assert sorted(p['register_item_id'] for p in reg.pages(user=user)) == scanned_pages
+
+
+def test_readers_do_not_refresh_timestamps():
+    reg = _populate(_register())
+    before_pages = dict(reg.page_register.itemsTS)
+    before_conns = dict(reg.connection_register.itemsTS)
+    reg.pages(user='anna')
+    reg.pages(connection_id='conn-1')
+    reg.user_connection_items('anna')
+    reg.connection_page_items('conn-1')
+    assert reg.page_register.itemsTS == before_pages
+    assert reg.connection_register.itemsTS == before_conns
+
+
+def test_dropping_while_iterating_the_walk_is_safe():
+    """drop_pages and drop_connections iterate what the readers return."""
+    reg = _populate(_register())
+    reg.drop_pages('conn-1')
+    assert reg.connection_page_keys('conn-1') == []
+    reg.drop_connections('anna')
+    assert reg.user_connection_keys('anna') == []
+    assert not reg.connection_register.exists('conn-2')
+    assert not reg.page_register.exists('page-3')
