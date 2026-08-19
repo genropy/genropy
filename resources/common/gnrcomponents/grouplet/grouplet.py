@@ -404,7 +404,7 @@ class GroupletHandler(BaseComponent):
             frame.data('.next_label',
                        menu_nodes[1].attr.get('grouplet_caption')
                        if total_steps > 1 else completeLabel)
-        stepper_bar = frame.top.contentPane(_class='wizard_stepper_bar')
+        stepper_bar = frame.top.div(_class='wizard_stepper_bar')
         if has_summary:
             summary_caption = root_info.get('summary_caption', 'Summary')
             stepper_bar.div(summary_caption,
@@ -465,7 +465,7 @@ class GroupletHandler(BaseComponent):
         else:
             frame.center.contentPane(overflow='auto').GroupletForm(
                 **grouplet_kwargs)
-        bottom = frame.bottom.contentPane(_class='wizard_bottom_bar')
+        bottom = frame.bottom.div(_class='wizard_bottom_bar')
         if has_summary:
             bottom.lightButton('^.next_label',
                                _class='wizard_next_btn',
