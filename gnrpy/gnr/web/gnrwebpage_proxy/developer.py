@@ -175,8 +175,7 @@ class GnrWebDeveloper(GnrBaseProxy):
         moverpath = self.page.site.getStaticPath('user:temp','mover')
         indexpath = os.path.join(moverpath,'index.xml')
         indexbag = Bag()
-        if not os.path.isdir(moverpath):
-            os.makedirs(moverpath)
+        os.makedirs(moverpath, exist_ok=True)
         for movercode,table,pkeys,reftable,objtype in data.digest('#k,#a.table,#a.pkeys,#a.reftable,#a.objtype'):
             pkeys = list(pkeys.keys())
             databag = self.db.table(table).toXml(pkeys=pkeys,rowcaption=True,

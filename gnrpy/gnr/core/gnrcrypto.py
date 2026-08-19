@@ -206,7 +206,7 @@ class AuthTokenGenerator:
             raise AuthTokenError("Payload format error")
 
         val, signature = value.rsplit(self.payload_sep, 1)
-        if self._sign(val) != signature:
+        if not hmac.compare_digest(self._sign(val), signature):
             raise AuthTokenError("Token is not valid")
         if self.payload_sep in val:
             # verify timestamp
@@ -244,11 +244,13 @@ class AuthTokenGenerator:
             return "not_valid"
 
         val, signature = url.rsplit(self.payload_sep, 1)
-        if self._sign(val) != signature:
+        if not hmac.compare_digest(self._sign(val), signature):
             return "not_valid"
 
         expire_ts = signature_token.split(self.payload_sep)[0]
         if expire_ts:
+            if not expire_ts.isnumeric():
+                return "not_valid"
             ts_now = datetime.datetime.now(datetime.timezone.utc).timestamp()
             if ts_now > int(expire_ts):
                 return "expired"

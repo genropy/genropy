@@ -81,6 +81,8 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             'filteringselect':null,
             'dbselect':null,
             'dbcombobox':null,
+            'remoteselect':null,
+            'callbackselect':null,
             'input':null,
             'textarea':null,
             'datetextbox':null,
@@ -2085,9 +2087,21 @@ dojo.declare("gnr.GnrFrmHandler", null, {
 
     dojoValidation:function(wdg,isValid){
         var sn = wdg.sourceNode;
+        if(sn.attr._inGridEditor){
+            //grid cell editors live outside the row datapath (their value is
+            //row-relative, unresolvable from here); their validity is tracked
+            //by the grid editor status channel, not by invalidDojo
+            return;
+        }
+        if(sn.isLostNode()){
+            //the widget outlived its sourceNode (torn down by a remote
+            //content rebuild): an async validate on a lost node has
+            //nothing to track and its relative value path cannot resolve
+            return;
+        }
         var node_identifier= sn.getStringId();
         var dojoValid=this.getInvalidDojo();
-        var changedNode = genro.getDataNode(wdg.sourceNode.absDatapath(wdg.sourceNode.attr.value));
+        var changedNode = genro.getDataNode(sn.absDatapath(sn.attr.value));
         if(!this.isNodeInFormData(changedNode)){
             return;
         }
