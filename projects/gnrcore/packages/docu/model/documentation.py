@@ -5,8 +5,15 @@ from urllib.parse import urljoin, urlsplit
 
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
+from gnr.app import pkglog as logger
 from gnr.app.gnrlocalization import AppLocalizer
 import textwrap
+
+#DP202608 Resolving a candidate page to its url costs a query, and the resolver answers
+#an unauthenticated route: the number of pages sharing a name is bounded here so
+#that a walk over dead urls of a common name (index, intro) cannot fan out.
+RESOLVER_CANDIDATES_LIMIT = 20
+
 
 class Table(object):
     def config_db(self, pkg):
@@ -108,13 +115,30 @@ class Table(object):
 
         Homonyms under different handbooks or folders are disambiguated by scoring
         each candidate URL by the number of requested path segments it shares
-        (handbook name, folder names); an unresolvable tie yields None."""
+        (handbook name, folder names); an unresolvable tie yields None. The tie,
+        not the scoring, is what keeps the answer safe: segments are counted as a
+        set, so a page under a/b and one under b/a score the same for a request of
+        a/b/foo, and no redirect is preferred to a wrong one.
+
+        Candidates are resolved one query each (getAncestors), so a single one is
+        answered without scoring and the set is capped at RESOLVER_CANDIDATES_LIMIT,
+        ordered by hierarchical name to keep the cut deterministic."""
         segments = self._urlPathSegments(path)
         if not segments:
             return None
         candidates = self.query(columns='$id,$name,$child_count',
                                 where='$name=:docname AND $publish_date IS NOT NULL',
-                                docname=segments[-1]).fetch()
+                                docname=segments[-1],
+                                order_by='$hierarchical_name',
+                                limit=RESOLVER_CANDIDATES_LIMIT + 1).fetch()
+        if len(candidates) > RESOLVER_CANDIDATES_LIMIT:
+            logger.warning('docuresolver: more than %i published pages named %s, '
+                           'resolving the first %i only',
+                           RESOLVER_CANDIDATES_LIMIT, segments[-1],
+                           RESOLVER_CANDIDATES_LIMIT)
+            candidates = candidates[:RESOLVER_CANDIDATES_LIMIT]
+        if len(candidates) == 1:
+            return self.calculateExternalUrl(dict(candidates[0])) or None
         scored = {}
         for candidate in candidates:
             url = self.calculateExternalUrl(dict(candidate))

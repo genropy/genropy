@@ -125,7 +125,6 @@
 				<en_base_html base="Base HTML" it="HTML di base"/>
 				<en_base_js base="Base JS" it="JS di base"/>
 				<en_sphinx_baseurl base="Sphinx baseurl" en="Sphinx baseurl" it="Sphinx baseurl"/>
-				<en_cloudfront_distribution_id base="Cloudfront distribution ID" en="Cloudfront distribution ID" it="ID di distribuzione Cloudfront"/>
 				<en_enable_sitemap base="Enable sitemap" it="Abilita mappa del sito"/>
 				<en_save_source_debug_files base="Save source debug files" it="Salva i file di debug di origine"/>
 				<en_handbook_logo base="Handbook Logo" it="Logo del manuale"/>
@@ -171,7 +170,6 @@
 						<en_parameters base="Parameters" de="Parameter" en="Parameters" fr="Paramètres" it="Parametri"/>
 										<en_attachments base="Attachments" de="Zubehör" en="Attachments" fr="Pièces jointes" it="Allegati"/>
 										<en_publish_date base="Publish date" en="Publish date" it="Data di pubblicazione"/>
-										<en_force_cloudfront_cache_invalidation base="Force Cloudfront cache invalidation" en="Force Cloudfront cache invalidation" it="Forza l'invalidazione della cache di Cloudfront"/>
 										<en_send_notification_via_telegram base="Send notification via Telegram" en="Send notification via Telegram" it="Invia una notifica tramite Telegram"/>
 										<en_notification_content base="Notification content" en="Notification content" it="Contenuto delle notifiche"/>
 										<en_genropy_documentation_updated_handbook_title_was_modified_timestamp_check_out_what_s_new_on_handbook_url_ base="Genropy Documentation updated: {handbook_title} was modified @ {timestamp}. Check out what's new on {handbook_url}" en="Genropy Documentation updated: {handbook_title} was modified @ {timestamp}. Check out what's new on {handbook_url}" it="Documentazione Genropy aggiornata: {handbook_title} è stato modificato @ {timestamp}. Scopri le novità su {handbook_url}"/>

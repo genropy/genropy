@@ -167,3 +167,36 @@ class TestDocuResolver(BaseGnrAppTest):
         assert response.status_code == 404
         template = (COMMON_RESOURCES / 'html_pages' / 'missing_result.html').read_text()
         assert response.get_data(as_text=True) == template
+
+    # kept last: it publishes a crowd of homonyms the other tests do not expect
+
+    def _insertDoc(self, name, parent_id=None):
+        record = dict(name=name, parent_id=parent_id, publish_date=date.today())
+        self.doctbl.insert(record)
+        return record['id']
+
+    def test_homonym_candidates_are_bounded(self):
+        """Resolving a candidate costs a getAncestors query and this runs on the
+        unauthenticated fallback of the published site: a name shared by more
+        pages than the limit must not fan out into a query per page."""
+        module_path = os.path.join(self.app.packages['docu'].packageFolder,
+                                   'model', 'documentation.py')
+        limit = gnrImport(module_path, avoidDup=True).RESOLVER_CANDIDATES_LIMIT
+        for idx in range(limit + 2):
+            self._insertDoc('faq', parent_id=self._insertDoc('capbook%02i' % idx))
+        self.db.commit()
+        resolved = []
+        externalUrl = self.doctbl.calculateExternalUrl
+
+        def countingExternalUrl(doc_record):
+            #DP202608 spy delegating to the real resolution: what is counted is the
+            #real per candidate query, not a simulated one
+            resolved.append(doc_record.get('id'))
+            return externalUrl(doc_record)
+
+        self.doctbl.calculateExternalUrl = countingExternalUrl
+        try:
+            assert self.resolve('somebook/faq.html') is None
+        finally:
+            del self.doctbl.calculateExternalUrl
+        assert len(resolved) == limit
