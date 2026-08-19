@@ -8,7 +8,6 @@ looked up.
 """
 import importlib
 import importlib.metadata
-import logging
 import os
 import subprocess
 import sys
@@ -25,8 +24,16 @@ FAKE_PROVIDER_DIST = 'gnr-daemon-test-provider'
 
 
 def _entry_point(value, dist_name):
-    """Stub with the attributes ``_resolve_provider`` actually reads."""
-    return SimpleNamespace(value=value, dist=SimpleNamespace(name=dist_name))
+    """A real ``EntryPoint``, so ``.module`` is derived and not asserted.
+
+    The distinction matters here: ``.module`` strips the ``:attr`` suffix the
+    spec allows, and a stub declaring both fields by hand would agree with
+    whatever the code under test happens to read.
+    """
+    ep = importlib.metadata.EntryPoint(name='daemon',
+                                       value=value, group='gnr.web')
+    object.__setattr__(ep, 'dist', SimpleNamespace(name=dist_name))
+    return ep
 
 
 def _daemon_modules():
@@ -70,8 +77,14 @@ def test_import_smoke():
 
 # --- _resolve_provider, pure unit tests -----------------------------------
 
-def test_resolve_provider_matches_entry_point_value():
+def test_resolve_provider_matches_entry_point_module():
     eps = [_entry_point(FAKE_PROVIDER_MODULE, FAKE_PROVIDER_DIST)]
+    assert gnr.web.daemon._resolve_provider(FAKE_PROVIDER_MODULE, eps) is eps[0]
+
+
+def test_resolve_provider_matches_module_of_a_module_attr_value():
+    """``module:attr`` is a legal entry-point value; only the module imports."""
+    eps = [_entry_point(f'{FAKE_PROVIDER_MODULE}:provider', FAKE_PROVIDER_DIST)]
     assert gnr.web.daemon._resolve_provider(FAKE_PROVIDER_MODULE, eps) is eps[0]
 
 
@@ -87,6 +100,8 @@ def test_resolve_provider_ignores_unrelated_entry_points():
         gnr.web.daemon._resolve_provider(FAKE_PROVIDER_MODULE, eps)
     assert PROVIDER_ENV in str(excinfo.value)
     assert FAKE_PROVIDER_MODULE in str(excinfo.value)
+    assert 'other.provider' in str(excinfo.value)
+    assert 'other-dist' in str(excinfo.value)
 
 
 def test_resolve_provider_raises_without_entry_points():
@@ -94,14 +109,14 @@ def test_resolve_provider_raises_without_entry_points():
         gnr.web.daemon._resolve_provider(FAKE_PROVIDER_MODULE, [])
 
 
-def test_resolve_provider_warns_on_multiple_matches(caplog):
-    """Today's ``_eps[0]`` picks an undefined winner silently."""
+def test_resolve_provider_raises_on_multiple_matches():
+    """An ambiguous request is a configuration error, not a coin toss."""
     eps = [_entry_point('first.provider', FAKE_PROVIDER_DIST),
            _entry_point('second.provider', FAKE_PROVIDER_DIST)]
-    with caplog.at_level(logging.WARNING, logger='gnr.web'):
-        assert gnr.web.daemon._resolve_provider(FAKE_PROVIDER_DIST, eps) is eps[0]
-    assert 'first.provider' in caplog.text
-    assert 'second.provider' in caplog.text
+    with pytest.raises(ImportError) as excinfo:
+        gnr.web.daemon._resolve_provider(FAKE_PROVIDER_DIST, eps)
+    assert 'first.provider' in str(excinfo.value)
+    assert 'second.provider' in str(excinfo.value)
 
 
 # --- the gate itself, on a real import ------------------------------------

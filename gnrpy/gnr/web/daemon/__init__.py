@@ -25,26 +25,28 @@ DAEMON_ENTRY_POINT_NAME = 'daemon'
 def _resolve_provider(provider, eps):
     """Return the ``gnr.web:daemon`` entry point requested by *provider*.
 
-    *provider* is matched against both the entry-point value (the dotted
-    module path) and the name of the distribution declaring it. Raise
-    ``ImportError`` when nothing matches: an explicitly requested provider
-    that is not installed is a configuration error, not a reason to silently
-    fall back to the classic daemon. When more than one entry point matches,
-    warn and pick the first one instead of choosing silently.
+    *provider* is matched against both the entry-point module and the name of
+    the distribution declaring it. The module is read from ``ep.module``
+    rather than ``ep.value``: the entry-point spec allows ``module:attr``,
+    which ``ep.value`` carries verbatim and no importable name ever equals.
+
+    Anything other than exactly one match raises ``ImportError``. An
+    explicitly requested provider is a configuration statement, so neither a
+    missing one nor an ambiguous one may degrade into running a daemon the
+    caller did not ask for.
     """
     matching = [ep for ep in eps
-                if provider in (ep.value, getattr(ep.dist, 'name', None))]
-    if not matching:
+                if provider in (ep.module, getattr(ep.dist, 'name', None))]
+    if len(matching) != 1:
+        installed = ', '.join(sorted(
+            f'{ep.module} ({getattr(ep.dist, "name", "unknown distribution")})'
+            for ep in eps)) or 'none'
         raise ImportError(
-            f'{DAEMON_PROVIDER_ENV}={provider!r}: no '
-            f'{DAEMON_ENTRY_POINT_GROUP}:{DAEMON_ENTRY_POINT_NAME} '
-            'entry point matches')
-    if len(matching) > 1:
-        logger.warning('%s=%r matches %d %s:%s entry points (%s): using %r',
-                       DAEMON_PROVIDER_ENV, provider, len(matching),
-                       DAEMON_ENTRY_POINT_GROUP, DAEMON_ENTRY_POINT_NAME,
-                       ', '.join(ep.value for ep in matching),
-                       matching[0].value)
+            f'{DAEMON_PROVIDER_ENV}={provider!r} matches {len(matching)} '
+            f'{DAEMON_ENTRY_POINT_GROUP}:{DAEMON_ENTRY_POINT_NAME} entry '
+            f'points; installed: {installed}')
+    logger.info('%s=%r resolved to %s', DAEMON_PROVIDER_ENV, provider,
+                matching[0].module)
     return matching[0]
 
 
@@ -52,6 +54,6 @@ _provider = os.environ.get(DAEMON_PROVIDER_ENV)
 if _provider:
     _ep = _resolve_provider(_provider, importlib.metadata.entry_points(
         group=DAEMON_ENTRY_POINT_GROUP, name=DAEMON_ENTRY_POINT_NAME))
-    _mod = importlib.import_module(_ep.value)
+    _mod = importlib.import_module(_ep.module)
     _mod.__name__ = __name__
     sys.modules[__name__] = _mod
