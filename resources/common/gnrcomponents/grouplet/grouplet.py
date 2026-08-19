@@ -428,7 +428,11 @@ class GroupletHandler(BaseComponent):
             item.div(mnode.attr.get('grouplet_caption'),
                      _class='wizard_caption')
         step_form_id = f'{frameCode}_step_form'
-        on_loaded_js = "gnr_grouplet.wizardGoTo(this, 0, frameCode);"
+        on_loaded_js = """
+            if(this.form.isNewRecord()){
+                FIRE .step_index = 0;
+            }
+        """
         if has_summary:
             on_loaded_js = """
                 SET .wizard_showing_summary = false;
