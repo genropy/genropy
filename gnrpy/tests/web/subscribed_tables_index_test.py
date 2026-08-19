@@ -212,3 +212,43 @@ def test_update_reports_whether_anything_changed():
     assert reg.updateSubscriptions('page-1', tables, add='foo.bar') is False
     assert reg.updateSubscriptions('page-1', tables, remove='foo.bar') is True
     assert reg.updateSubscriptions('page-1', tables, remove='foo.bar') is False
+
+
+# ---------------------------------------------------------------------------
+# the per-table lookups, now served by the index
+# ---------------------------------------------------------------------------
+
+
+def test_page_keys_of_a_table_come_from_the_index():
+    reg = _register()
+    reg.create('page-1', subscribed_tables='foo.bar')
+    reg.create('page-2', subscribed_tables='foo.bar,foo.baz')
+    reg.create('page-3', subscribed_tables='foo.baz')
+    assert sorted(reg.subscribed_table_page_keys('foo.bar')) == ['page-1', 'page-2']
+    assert reg.subscribed_table_page_keys('foo.other') == []
+
+
+def test_pages_of_a_table_are_the_real_register_items():
+    reg = _register()
+    item = reg.create('page-1', subscribed_tables='foo.bar')
+    assert reg.subscribed_table_pages('foo.bar') == [item]
+    assert reg.subscribed_table_page_items('foo.bar') == [('page-1', item)]
+
+
+def test_notifying_a_table_does_not_refresh_the_subscribers_timestamp():
+    """The scan this replaced read the items directly; get_item would touch itemsTS."""
+    reg = _register()
+    reg.create('page-1', subscribed_tables='foo.bar')
+    before = dict(reg.itemsTS)
+    reg.subscribed_table_pages('foo.bar')
+    reg.subscribed_table_page_items('foo.bar')
+    assert reg.itemsTS == before
+
+
+def test_a_dropped_page_leaves_no_dangling_key_in_the_index():
+    reg = _register()
+    reg.create('page-1', subscribed_tables='foo.bar')
+    reg.create('page-2', subscribed_tables='foo.bar')
+    reg.drop('page-1')
+    assert reg.subscribed_table_page_keys('foo.bar') == ['page-2']
+    assert reg.subscribed_table_pages('foo.bar') == [reg.registerItems['page-2']]

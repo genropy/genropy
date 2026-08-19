@@ -453,9 +453,12 @@ class PageRegister(BaseRegister):
         return register_item
 
     def drop(self, register_item_id=None, cascade=None):
-        register_item = self.drop_item(register_item_id)
+        # Unindex before dropping the item: the index is read to reach the items, so
+        # it must never point at one that is already gone.
         self.dropSubscriptions(register_item_id,
-                               (register_item or {}).get('subscribed_tables') or [])
+                               (self.registerItems.get(register_item_id) or {}
+                                ).get('subscribed_tables') or [])
+        register_item = self.drop_item(register_item_id)
         self.pageProfilers.pop(register_item_id, None)
         if cascade:
             connection_id = register_item['connection_id']
@@ -467,13 +470,15 @@ class PageRegister(BaseRegister):
         return [table for table in table_list if table in self.tableSubscribers]
 
     def subscribed_table_page_keys(self, table):
-        return [k for k, v in list(self.items()) if table in v['subscribed_tables']]
+        return list(self.tableSubscribers.get(table, ()))
 
     def subscribed_table_page_items(self, table):
-        return [(k, v) for k, v in list(self.items()) if table in v['subscribed_tables']]
+        # registerItems rather than get_item: the scan this replaces did not refresh
+        # a page's timestamp, and notifying an event must not keep a page alive.
+        return [(k, self.registerItems[k]) for k in self.subscribed_table_page_keys(table)]
 
     def subscribed_table_pages(self, table):
-        return [v for k, v in list(self.items()) if table in v['subscribed_tables']]
+        return [self.registerItems[k] for k in self.subscribed_table_page_keys(table)]
 
     def connection_page_keys(self, connection_id):
         return [k for k, v in list(self.items()) if v['connection_id'] == connection_id]
