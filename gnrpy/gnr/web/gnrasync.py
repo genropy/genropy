@@ -958,8 +958,7 @@ class GnrBaseAsyncServer:
                 os.path.basename(self.gnrsite.instance_path),
                 'gnr_sock',
             )
-        if not os.path.exists(sockets_dir):
-            os.makedirs(sockets_dir)
+        os.makedirs(sockets_dir, exist_ok=True)
         return sockets_dir
 
     async def _run(self):

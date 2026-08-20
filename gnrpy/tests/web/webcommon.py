@@ -30,11 +30,11 @@ class BaseGnrDaemonTest(BaseGnrTest):
     """
     @classmethod
     def setup_class(cls):
-        super().setup_class()
         if shutil.which("gnr") is None:
+            # skip before super().setup_class(): nothing to clean up yet
             pytest.skip("gnr CLI not available in PATH")
+        super().setup_class()
         cls.external = ExternalProcess(['gnr','web','daemon'], cwd=None)
-
         try:
             cls.external.start()
             cls.site_name = 'gnrdevelop'
@@ -42,15 +42,19 @@ class BaseGnrDaemonTest(BaseGnrTest):
             cls.client = WSGITestClient(cls.site)
             cls.services_handler = cls.site.services_handler
         except Exception as e:
-            # re-raise to take care of the problem, but ensuring the external
-            # process is being terminated.
-            pytest.skip(f"Daemon not available: {e}")
+            # pytest.skip raises, so teardown_class would never run:
+            # clean up the daemon and the temp conf dir first
             cls.teardown_class()
-        
-        
+            pytest.skip(f"Daemon not available: {e}")
+
     @classmethod
     def teardown_class(cls):
-        cls.external.stop()
+        external = getattr(cls, "external", None)
+        if external is not None:
+            try:
+                external.stop()
+            finally:
+                cls.external = None
         super().teardown_class()
 
 

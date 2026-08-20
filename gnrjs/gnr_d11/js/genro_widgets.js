@@ -85,6 +85,11 @@ dojo.declare("gnr.widgets.baseHtml", null, {
         this._doChangeInData(domnode, domnode.sourceNode, domnode.value);
     },
     setValueInData:function(sourceNode,value,valueAttr){
+       if (sourceNode.isLostNode()){
+           //late change from a widget whose sourceNode was torn down by a
+           //remote content rebuild: it must not write into the datastore
+           return;
+       }
        if (sourceNode.attr_kw){
            var attr_kw = sourceNode.evaluateOnNode(sourceNode.attr_kw);
            for (var k in attr_kw){
@@ -157,7 +162,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
 
         objectExtract(attributes, 'onDrop,onDrag,dragTag,dropTag,dragTypes,dropTypes');
         objectExtract(attributes, 'onDrop_*');
-        objectUpdate(savedAttrs,objectExtract(attributes,'touchEvents,dropTarget,dropTargetCb,connectedMenu,onEnter,_watchOnVisible,autocomplete'))
+        objectUpdate(savedAttrs,objectExtract(attributes,'touchEvents,dropTarget,dropTargetCb,connectedMenu,onEnter,onEnter_shiftNewline,_watchOnVisible,autocomplete'))
         let extraDropTargets = objectExtract(attributes,'dropTargetCb_*');
         if(objectNotEmpty(extraDropTargets)){
             savedAttrs['dropTargetCb_extra'] = extraDropTargets;
@@ -371,11 +376,15 @@ dojo.declare("gnr.widgets.baseHtml", null, {
         }
         if (savedAttrs.onEnter) {
             var callback = savedAttrs.onEnter===true? null:dojo.hitch(sourceNode, funcCreate(savedAttrs.onEnter));
+            var shiftNewline = savedAttrs.onEnter_shiftNewline;
             var kbhandler = function(evt) {
                 if (evt.keyCode == genro.PATCHED_KEYS.ENTER) {
+                    if(shiftNewline && evt.shiftKey){
+                        return;
+                    }
                     evt.target.blur();
                     if(callback){
-                        setTimeout(callback, 100);
+                        setTimeout(function(){ callback(evt); }, 100);
                     }
                 }
             };
@@ -1413,6 +1422,12 @@ dojo.declare("gnr.widgets.baseDojo", gnr.widgets.baseHtml, {
          }*/
         if (sourceNode._modifying) { // avoid recursive _doChangeInData when calling widget.setValue in validations
 
+            return;
+        }
+        if (sourceNode.isLostNode()) {
+            //late change from a widget whose sourceNode was torn down by a
+            //remote content rebuild: its relative path cannot resolve and
+            //getNode with autocreate would pollute the datastore
             return;
         }
         var path = sourceNode.attrDatapath('value');
@@ -5420,7 +5435,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
             crop = objectUpdate({text_align:'center',overflow:'hidden'},crop);
             var innerImage=objectExtract(attr,'src,src_back,placeholder,height,width,edit,upload_maxsize,upload_folder,upload_filename,upload_ext,zoomWindow,format,mask,border,takePicture,nodeId,capture');
             if (innerImage.placeholder===true){
-                innerImage.placeholder = getComputedStyle(document.documentElement).getPropertyValue('--icon-placeholder-img').trim().slice(4, -1).replace(/["']/g, '')
+                innerImage.placeholder = getComputedStyle(document.documentElement).getPropertyValue('--icon-placeholder-img').trim().slice(4, -1).replace(/^["']|["']$/g, '')
             }
             innerImage.cr_width=crop.width;
             innerImage.cr_height=crop.height;
