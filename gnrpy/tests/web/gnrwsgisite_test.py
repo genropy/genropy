@@ -83,6 +83,26 @@ class TestGnrWsgiSite(BaseGnrDaemonTest):
         assert "404 " in response.get('status')
         response = self.client.get('/sys/')
         assert "200 " in response.get('status')
+
+    def test_missing_page_returns_404(self):
+        # issue #890: unresolvable urls fall back to sys/default,
+        # which must answer 404, not 200
+        response = self.client.get('/antani/come/se/fosse')
+        assert "404 " in response.get('status')
+        # and the 404 body must be lightweight: no framework envelope,
+        # no client bootstrap (that costs megabytes of js/css per hit)
+        body = response.get('data')
+        assert b'dojo' not in body
+        assert b'genro' not in body
+        assert len(body) < 1024
+
+    def test_directory_index_still_serves(self):
+        # a url that maps to a webpages folder without index.py is a
+        # legitimate use of the sys/default catch-all: it must keep
+        # answering 200 with the full framework page (directory browser)
+        response = self.client.get('/sys/test')
+        assert "200 " in response.get('status')
+        assert b'genro' in response.get('data')
         
 
 
