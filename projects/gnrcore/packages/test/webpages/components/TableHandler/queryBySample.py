@@ -3,7 +3,7 @@
 "queryBySample"
 
 class GnrCustomWebPage(object):
-    py_requires="gnrcomponents/testhandler:TestHandlerBase,th/th:TableHandler"
+    py_requires="gnrcomponents/testhandler:TestHandlerFull,th/th:TableHandler"
 
     def test_0_queryBySample(self,pane):
         """queryBySample for most used research fields, with use of special characters in labels"""

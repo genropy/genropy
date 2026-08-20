@@ -107,17 +107,35 @@ dojo.declare("gnr.GnrDomHandler", null, {
             e.onload = cb;
         }
     },
-    loadJs: function(url, cb,avoidCache) {
+    loadJs: function(url, cb, avoidCache) {
         if(avoidCache){
             url = genro.addParamsToUrl(url,{nocache:timeStamp()});
         }
+        // Per-URL deduplication: a script that has already been requested is
+        // never refetched; concurrent calls for the same URL share the same
+        // <script> tag and have their callbacks queued. Bypassed by avoidCache,
+        // which produces a unique URL per call by design.
+        this._loadedJs = this._loadedJs || {};
+        var entry = this._loadedJs[url];
+        if(entry === 'loaded'){
+            if(cb){ cb(); }
+            return;
+        }
+        if(entry){
+            if(cb){ entry.push(cb); }
+            return;
+        }
+        var queue = cb ? [cb] : [];
+        this._loadedJs[url] = queue;
+        var that = this;
         var e = document.createElement("script");
         e.src = url;
         e.type = "text/javascript";
+        e.onload = function(){
+            that._loadedJs[url] = 'loaded';
+            for(var i = 0; i < queue.length; i++){ queue[i](); }
+        };
         document.getElementsByTagName("head")[0].appendChild(e);
-        if (cb) {
-            e.onload = cb;
-        }
     },
 
 

@@ -80,12 +80,11 @@ class TestListenNotify:
 
     def test_listen_receives_notify(self, db_pg):
         """A LISTEN connection must receive NOTIFY with payload."""
-        import psycopg2
-        from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-
-        dsn = db_pg.adapter.dbroot.connection.dsn
-        listener = psycopg2.connect(dsn)
-        listener.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+        # The second connection is built through the adapter, never from
+        # ``connection.dsn``: psycopg strips the password out of the dsn, so a
+        # connection rebuilt from it cannot authenticate against a server that
+        # requires one -- which is what CI runs against.
+        listener = db_pg.adapter.connect(autoCommit=True)
         cur = listener.cursor()
         cur.execute('LISTEN test_listen;')
 
@@ -128,12 +127,7 @@ class TestDbNotifyPayload:
 
     def test_notify_true_insert(self, db_pg):
         """notify=True on insert sends {table, pkey, event}."""
-        import psycopg2
-        from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-
-        dsn = db_pg.adapter.dbroot.connection.dsn
-        listener = psycopg2.connect(dsn)
-        listener.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+        listener = db_pg.adapter.connect(autoCommit=True)
         cur = listener.cursor()
         cur.execute('LISTEN dbevent;')
 
@@ -163,12 +157,7 @@ class TestDbNotifyPayload:
 
     def test_notify_fields_delete(self, db_pg):
         """notify='invoice_id' on delete includes field values."""
-        import psycopg2
-        from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-
-        dsn = db_pg.adapter.dbroot.connection.dsn
-        listener = psycopg2.connect(dsn)
-        listener.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+        listener = db_pg.adapter.connect(autoCommit=True)
         cur = listener.cursor()
         cur.execute('LISTEN dbevent;')
 
@@ -196,12 +185,7 @@ class TestDbNotifyPayload:
 
     def test_notify_fields_update_changed(self, db_pg):
         """notify='invoice_id' on update includes only changed fields."""
-        import psycopg2
-        from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-
-        dsn = db_pg.adapter.dbroot.connection.dsn
-        listener = psycopg2.connect(dsn)
-        listener.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+        listener = db_pg.adapter.connect(autoCommit=True)
         cur = listener.cursor()
         cur.execute('LISTEN dbevent;')
 
@@ -232,12 +216,7 @@ class TestDbNotifyPayload:
 
     def test_notify_fields_update_no_change(self, db_pg):
         """notify='invoice_id' on update with no fkey change sends no fields."""
-        import psycopg2
-        from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-
-        dsn = db_pg.adapter.dbroot.connection.dsn
-        listener = psycopg2.connect(dsn)
-        listener.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+        listener = db_pg.adapter.connect(autoCommit=True)
         cur = listener.cursor()
         cur.execute('LISTEN dbevent;')
 

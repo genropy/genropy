@@ -161,7 +161,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
             for (let cb of onStartCallbacks) {
                 cb.call(this,this._genro);
             }
-            that.checkStartsArgs(rootPageName)
+            that.checkStartsArgs(rootPageName,this.domNode)
         };
 
         var iframe = center._('div','iframecontainer',{'height':'100%','width':'100%',overflow:'hidden'})._('iframe','iframenode',iframeattr);
@@ -189,15 +189,18 @@ dojo.declare("gnr.FramedIndexManager", null, {
         //div('<div class="multipage_add">&nbsp;</div>',connect_onclick="""FIRE gnr.multipage.new = genro.dom.getEventModifiers($1);""",_class='multibutton')
     },
 
-    checkStartsArgs:function(rootPageName){
-        var iframeDataNode = this.iframesbag.getNode(rootPageName);
-        let attr = iframeDataNode.attr
-        let openKw = attr.openKw || {};
-        var iframe = this.getCurrentIframe(rootPageName);
-        if(openKw){
-            openKw.topic = openKw.topic || 'changedStartArgs';
-            iframe.gnr.postMessage(iframe.sourceNode,openKw);
+    checkStartsArgs:function(rootPageName,iframe){
+        var iframeDataNode = this.iframesbag && this.iframesbag.getNode(rootPageName);
+        if(!iframeDataNode){
+            return;
         }
+        let openKw = iframeDataNode.attr.openKw;
+        iframe = iframe || this.getCurrentIframe(rootPageName);
+        if(!iframe || !iframe.gnr || !openKw){
+            return;
+        }
+        openKw.topic = openKw.topic || 'changedStartArgs';
+        iframe.gnr.postMessage(iframe.sourceNode,openKw);
     },
 
     selectIframePage:function(kw){
@@ -625,6 +628,9 @@ dojo.declare("gnr.FramedIndexManager", null, {
             return;
         }
         var iframePageId = iframesbag.getItem(rootPageName+'?selectedPage');
+        if(!iframePageId){
+            return;
+        }
         var iframeId = iframePageId;
         if(rootPageName!=iframePageId){
             iframeId = rootPageName+'_'+iframePageId;

@@ -6,8 +6,6 @@
 #  Created by Giovanni Porcari on 2007-03-24.
 #  Copyright (c) 2007 Softwell. All rights reserved.
 #
-import math
-
 from gnr.web.gnrbaseclasses import TableScriptToHtml
 from gnr.core.gnrnumber import decimalRound
 from gnr.core.gnrlang import position
@@ -55,7 +53,6 @@ class Main(TableScriptToHtml):
         totalize_mode = printParams['totalize_mode']
         totalize_footer = printParams['totalize_footer']
         totalize_carry =  printParams['totalize_carry']
-        self.cell_characters_limit = {}
         if totalize_mode or totalize_footer or totalize_carry:
             self.totalize_mode = totalize_mode or 'doc'
             self.totalize_footer = totalize_footer or True
@@ -80,7 +77,6 @@ class Main(TableScriptToHtml):
                 c['mm_width'] = max(int(c['q_width']*tot_width),min_mm_width)
             if c.get('character_limit'):
                 c['white_space'] = 'normal'
-                self.cell_characters_limit[c['field_getter']] = c.get('character_limit')
         #self.structAnalyze(struct)
         return dict(columns=self.gridColumnsFromStruct(struct=struct),
                     columnsets=self.gridColumnsetsFromStruct(struct))
@@ -162,19 +158,6 @@ class Main(TableScriptToHtml):
         row = layout.row()
         row.cell(self.getData('print_title'), content_class='caption')    
 
-
-    def calcRowHeight(self):
-        if self.font_family:
-            text = self.getRowWrapField()
-            if text:
-                return max(1, self.builder.calcRowsNumber(text, width_mm=self.text_width_mm)) * self.grid_row_height
-        if not self.cell_characters_limit:
-            return self.grid_row_height
-        l = []
-        for k,v in self.cell_characters_limit.items():
-            txt = (self.rowData.get(k) or '')
-            l.append(math.ceil(len(txt)/float(v)))
-        return max(l) * self.grid_row_height
 
     def outputDocName(self, ext=''):
         return '%s.%s' %(self.parameter('print_title') or self.page.getUuid() ,ext)

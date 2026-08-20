@@ -152,8 +152,7 @@ class SiteRegisterClient(object):
         if 'sockets' in daemonconfig:
             if daemonconfig['sockets'].lower() in ('t', 'true', 'y'):
                 daemonconfig['sockets'] = os.path.join(gnrConfigPath(), 'sockets')
-            if not os.path.isdir(daemonconfig['sockets']):
-                os.makedirs(daemonconfig['sockets'])
+            os.makedirs(daemonconfig['sockets'], exist_ok=True)
             daemonconfig['socket'] = daemonconfig.get('socket') or os.path.join(daemonconfig['sockets'], 'gnrdaemon.sock')
         if daemonconfig.get('socket'):
             daemon_uri = 'PYRO:GnrDaemon@./u:%(socket)s' % daemonconfig
