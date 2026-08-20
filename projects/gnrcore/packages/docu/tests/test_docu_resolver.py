@@ -11,6 +11,7 @@ from datetime import date
 from pathlib import Path
 from types import SimpleNamespace
 
+from gnr.app.gnrlocalization import AppLocalizer
 from gnr.core.gnrlang import gnrImport
 
 from core.common import BaseGnrAppTest
@@ -127,13 +128,15 @@ class TestDocuResolver(BaseGnrAppTest):
             assert self.resolve('testguide/oldsection/advanced.html') == \
                 f'{BASE_URL}/testguide/usage/advanced.html'
 
-    def _resolver_tool(self):
+    def _resolver_tool(self, resources=True):
         module_path = os.path.join(self.app.packages['docu'].packageFolder,
                                    'webtools', 'resolver.py')
         module = gnrImport(module_path, avoidDup=True)
         tool = module.DocuResolver()
 
         def getResource(path, ext=None, pkg=None):
+            if not resources:
+                return None
             resource_path = COMMON_RESOURCES / path
             return str(resource_path) if resource_path.exists() else None
 
@@ -141,8 +144,8 @@ class TestDocuResolver(BaseGnrAppTest):
             fmt = '{}{}' if url.startswith('/') else '{}/{}'
             return fmt.format(INSTANCE_HOST, url)
 
-        tool.site = SimpleNamespace(db=self.db,
-                                    resource_loader=SimpleNamespace(getResource=getResource),
+        tool.site = SimpleNamespace(db=self.db, gnrapp=self.app,
+                                    getResource=getResource,
                                     externalUrl=externalUrl)
         return tool
 
@@ -167,6 +170,15 @@ class TestDocuResolver(BaseGnrAppTest):
         assert response.status_code == 404
         template = (COMMON_RESOURCES / 'html_pages' / 'missing_result.html').read_text()
         assert response.get_data(as_text=True) == template
+
+    def test_webtool_404_without_template_is_localized(self):
+        """No framework page and no instance override: the body still has to be
+        a localized message rather than a raw localization marker."""
+        response = self._resolver_tool(resources=False)('testguide', 'nowhere.html')
+        assert response.status_code == 404
+        body = response.get_data(as_text=True)
+        assert body == AppLocalizer(self.app).translate('!!Page not found')
+        assert body and '!!' not in body
 
     # kept last: it publishes a crowd of homonyms the other tests do not expect
 

@@ -377,11 +377,12 @@ class Main(BaseResourceBatch):
         """Return the public url of an image served outside the instance.
 
         Images stored on the instance are referenced by their storage url
-        (e.g. /_storage/service/path): when the service serving them exposes a
-        public host of its own (e.g. aws_s3) the image can be linked as-is,
-        otherwise it keeps the standard download-and-embed behavior so that the
-        published handbook stays self-contained. Returns None for sources that
-        do not resolve to an existing storage node (e.g. external urls) too."""
+        (e.g. /_storage/service/path): only when their service publishes them on
+        a public base of its own (see documentation.publicMediaUrl) the image can
+        be linked as-is, otherwise it keeps the standard download-and-embed
+        behavior so that the published handbook stays self-contained. Returns
+        None for sources that do not resolve to an existing storage node
+        (e.g. external urls) too."""
         if old_filepath in self.mediaUrlsDict:
             return self.mediaUrlsDict[old_filepath]
         media_url = None
@@ -391,27 +392,9 @@ class Main(BaseResourceBatch):
             if storage_type:
                 node = self.page.site.storageNodeFromPathList(path_list, storage_type)
                 if node is not None and node.exists:
-                    media_url = self.nodePublicUrl(node)
+                    media_url = self.doctable.publicMediaUrl(node)
         self.mediaUrlsDict[old_filepath] = media_url
         return media_url
-
-    def nodePublicUrl(self, node):
-        """Return the public url of node, but only if served outside the instance.
-
-        A service exposing a public host (e.g. aws_s3, with or without
-        public_base_url) answers public_url() with a url on that host, while a
-        service served by the instance answers with the same /_storage/ url as
-        internal_url(). Only the former survives the instance being down, moved
-        or reachable from a vpn only, so it is the only one a published handbook
-        may link instead of carrying its own copy. Query strings are ignored in
-        the comparison, since internal_url adds ?_download=True on some
-        services."""
-        public_url = node.public_url()
-        if not public_url:
-            return None
-        if public_url.split('?')[0] == node.internal_url().split('?')[0]:
-            return None
-        return public_url
         
     def fixLinks(self, m):
         prefix = '%s/' % self.db.package('docu').htmlProcessorName()

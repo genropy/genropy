@@ -198,4 +198,9 @@
 			</handbook>
 		</tables>
 	</resources>
+	<webtools>
+		<resolver path="webtools/resolver.py" ext="py">
+			<en_page_not_found base="Page not found" en="Page not found" it="Pagina non trovata"/>
+		</resolver>
+	</webtools>
 </GenRoBag>

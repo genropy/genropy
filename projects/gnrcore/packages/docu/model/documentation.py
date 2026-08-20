@@ -270,23 +270,38 @@ class Table(object):
         return '\n'.join(result)
 
     def _atcPublicUrl(self, atc):
-        """Return a stable public url for an attachment from its own storage node.
+        """Return the public url of an attachment served outside the instance.
 
-        The attachment already lives on a storage service, so no copy is needed:
-        public_url() gives an unsigned permanent url on services with a public
-        base (e.g. aws_s3) and falls back to the plain instance-served url on
-        the others. Foreign documents keep their own external url. Returns None
-        when the file cannot be resolved, falling back to the legacy fileurl
-        link."""
+        The attachment already lives on a storage service, so no copy is needed
+        when that service publishes it on a public base of its own. Foreign
+        documents keep their own external url. Returns None for everything else,
+        so that atcAsRstTable falls back on the instance-served fileurl link."""
         if atc.get('external_url'):
             return atc['external_url']
-        filepath = atc.get('filepath')
-        if not filepath:
+        if not atc.get('filepath'):
             return None
-        if ':' not in filepath:
-            filepath = 'home:%s' % filepath
-        node = self.db.application.site.storageNode(filepath)
+        #DP202608 the framework's own resolution of an attachment node: it carries
+        #the home: default of the legacy rows written before atc_getAttachmentPath
+        #prefixed the service (same convention as AttachmentTable.onArchiveExport)
+        node = self.db.table('docu.documentation_atc')._atcStorageNode(atc)
         if not node.exists:
+            return None
+        return self.publicMediaUrl(node)
+
+    def publicMediaUrl(self, node):
+        """Return the permanent public url of node, but only when its storage
+        service publishes it on a public base of its own.
+
+        An explicit public base (e.g. aws_s3 with public_base_url) is the only
+        configuration that declares the file readable by anyone without the
+        instance and without a signature, which is what a published handbook
+        needs: StorageService.public_url falls back to url() everywhere else, so
+        the answer would be either an instance-served /_storage/ url - alive only
+        while the instance is up and reachable - or an unsigned url on a bucket
+        that may well be private, and the reader would get a 403 weeks later.
+        Media on those services keeps the instance-served link (attachments) or
+        is downloaded into the build (images)."""
+        if not getattr(node.service, 'public_base_url', None):
             return None
         return node.public_url()
 

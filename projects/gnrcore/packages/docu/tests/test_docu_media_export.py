@@ -3,10 +3,12 @@
 Exercise the attachment links of docu.documentation.atcAsRstTable and the
 image rewriting of the export_to_sphinx batch against a real database
 (gnrdevelop instance) and real local storage services backed by temporary
-directories: attachments are linked by the stable public_url of their own node
-(unsigned on signing services), while images are linked only when that public
-url is served outside the instance, keeping the download-and-embed behavior -
-and the self-contained build - for media served by the instance itself.
+directories. Both go through the same gate, documentation.publicMediaUrl: media
+is linked by the stable public_url of its own node only when its storage service
+declares a public base, the configuration that states the file is readable by
+anyone without the instance. Everything else keeps the previous behavior, so
+attachments stay instance-served downloads and images stay embedded in the
+build, and the published handbook stays self-contained.
 """
 import os
 import re
@@ -26,20 +28,36 @@ from core.common import BaseGnrAppTest
 MEDIA_HOST = 'https://media.example.org'
 INSTANCE_HOST = 'https://instance.example.org'
 PUBLIC_HOST = 'https://cdn.example.org'
+BUCKET_HOST = 'https://s3.eu-south-1.amazonaws.com'
 IMAGEFINDER = re.compile(r"\.\. image:: ([\w./:-]+)")
 
 
 class SigningLocalService(BaseLocalService):
-    """Local service mimicking a signing storage with a public host of its own
+    """Local service mimicking a signing storage with a public base of its own
     (e.g. aws_s3 with public_base_url): url() is signed, expiring and served by
     the instance, while public_url() is plain, permanent and served by the
-    public host."""
+    public base, which declares the content readable by anyone."""
+
+    public_base_url = PUBLIC_HOST
 
     def url(self, *args, **kwargs):
         return '%s?Signature=deadbeef&Expires=123' % super().url(*args, **kwargs)
 
     def public_url(self, *args, **kwargs):
-        return '/'.join([PUBLIC_HOST, self.service_name] + list(args))
+        return '/'.join([self.public_base_url, self.service_name] + list(args))
+
+
+class PrivateBucketLocalService(BaseLocalService):
+    """Local service mimicking a signing storage with no public base configured
+    (e.g. aws_s3 without public_base_url): public_url() still answers a url on
+    the bucket endpoint, outside the instance, but nothing says that bucket is
+    publicly readable, so linking it would publish 403s."""
+
+    def url(self, *args, **kwargs):
+        return '%s?Signature=deadbeef&Expires=123' % super().url(*args, **kwargs)
+
+    def public_url(self, *args, **kwargs):
+        return '/'.join([BUCKET_HOST, self.service_name] + list(args))
 
 
 class StorageSiteStub:
@@ -95,14 +113,19 @@ class TestDocuMediaExport(BaseGnrAppTest):
             'documentation': cls.attachments_dir,
         })
         cls.signed_dir = tempfile.mkdtemp(prefix='gnr_docu_signed_')
-        signed_service = SigningLocalService(parent=cls.app.site, base_path=cls.signed_dir)
-        signed_service.service_name = 'signedmedia'
-        cls.app.site.services['signedmedia'] = signed_service
+        cls.bucket_dir = tempfile.mkdtemp(prefix='gnr_docu_bucket_')
+        for service_name, service_class, base_path in (
+                ('signedmedia', SigningLocalService, cls.signed_dir),
+                ('bucketmedia', PrivateBucketLocalService, cls.bucket_dir)):
+            service = service_class(parent=cls.app.site, base_path=base_path)
+            service.service_name = service_name
+            cls.app.site.services[service_name] = service
         cls._makeFixture()
 
     @classmethod
     def teardown_class(cls):
-        for folder in (cls.media_dir, cls.attachments_dir, cls.signed_dir):
+        for folder in (cls.media_dir, cls.attachments_dir, cls.signed_dir,
+                       cls.bucket_dir):
             shutil.rmtree(folder, ignore_errors=True)
         super().teardown_class()
 
@@ -132,6 +155,10 @@ class TestDocuMediaExport(BaseGnrAppTest):
         cls._addAttachment(cls.signed_doc_id, 'Signed manual',
                            filepath='signedmedia:attachments/signed.pdf',
                            content=b'%PDF-signed-manual')
+        cls.bucket_doc_id = cls._addDoc('bucketatc')
+        cls._addAttachment(cls.bucket_doc_id, 'Bucket manual',
+                           filepath='bucketmedia:attachments/bucket.pdf',
+                           content=b'%PDF-bucket-manual')
         cls.missing_doc_id = cls._addDoc('missingatc')
         cls._addAttachment(cls.missing_doc_id, 'Lost file',
                            filepath='documentation:attachments/lost.pdf')
@@ -152,18 +179,32 @@ class TestDocuMediaExport(BaseGnrAppTest):
                                 pkey=doc_id).fetch()[0]
         return atc['fileurl']
 
-    def test_atc_public_url(self):
+    def test_atc_instance_storage_keeps_download_link(self):
+        """An attachment served by the instance itself keeps the instance link,
+        download parameter included: its storage service does not declare it
+        publicly readable."""
         rst = self.doctbl.atcAsRstTable(self.doc_id, host=INSTANCE_HOST)
-        expected = self.storageUrl('documentation', 'attachments/manual.pdf')
+        expected = '%s%s?download=1' % (INSTANCE_HOST, self._fileurl(self.doc_id))
         assert '`User manual <%s>`_' % expected in rst
-        assert 'download=1' not in rst
 
-    def test_atc_signing_storage(self):
+    def test_atc_public_base_url(self):
+        """An attachment whose service declares a public base is linked by its
+        unsigned, permanent public url."""
         rst = self.doctbl.atcAsRstTable(self.signed_doc_id, host=INSTANCE_HOST)
         node = self.app.site.storageNode('signedmedia:attachments/signed.pdf')
         assert 'Signature' in node.url()
         assert '`Signed manual <%s>`_' % node.public_url() in rst
         assert 'Signature' not in rst
+
+    def test_atc_private_bucket_keeps_download_link(self):
+        """A service answering public_url() with a bucket url it was never told
+        is public keeps the instance-served link: publishing that url would mean
+        publishing a 403 on a private bucket."""
+        rst = self.doctbl.atcAsRstTable(self.bucket_doc_id, host=INSTANCE_HOST)
+        expected = '%s%s?download=1' % (INSTANCE_HOST,
+                                        self._fileurl(self.bucket_doc_id))
+        assert '`Bucket manual <%s>`_' % expected in rst
+        assert BUCKET_HOST not in rst
 
     def test_atc_missing_file_fallback(self):
         rst = self.doctbl.atcAsRstTable(self.missing_doc_id, host=INSTANCE_HOST)
@@ -224,14 +265,29 @@ class TestDocuMediaExport(BaseGnrAppTest):
         assert 'Signature' not in rst
         assert batch.imagesDict == {}
 
-    def test_nodepublicurl_only_outside_the_instance(self):
+    def test_fiximages_private_bucket_embedded(self):
+        """An image on a service with no public base configured is embedded: the
+        bucket url public_url() answers is not declared publicly readable."""
+        self._storeImage('bucketmedia:pics/bucket.png')
+        batch = self._batch()
+        rst = IMAGEFINDER.sub(batch.fixImages,
+                              '.. image:: /_storage/bucketmedia/pics/bucket.png')
+        assert rst == '.. image:: /_static/images/guide/bucket.png'
+        assert batch.imagesDict == {
+            '_static/images/guide/bucket.png': '/_storage/bucketmedia/pics/bucket.png'}
+
+    def test_publicmediaurl_requires_a_public_base(self):
+        """The single gate both halves go through: only a service declaring a
+        public base answers a linkable url."""
         self._storeImage('testmedia:pics/served.png')
         self._storeImage('signedmedia:pics/served.png')
-        batch = self._batch()
+        self._storeImage('bucketmedia:pics/served.png')
         instance_node = self.app.site.storageNode('testmedia:pics/served.png')
         public_node = self.app.site.storageNode('signedmedia:pics/served.png')
-        assert batch.nodePublicUrl(instance_node) is None
-        assert batch.nodePublicUrl(public_node) == public_node.public_url()
+        bucket_node = self.app.site.storageNode('bucketmedia:pics/served.png')
+        assert self.doctbl.publicMediaUrl(instance_node) is None
+        assert self.doctbl.publicMediaUrl(bucket_node) is None
+        assert self.doctbl.publicMediaUrl(public_node) == public_node.public_url()
 
     def test_fiximages_uses_cache(self):
         self._storeImage('signedmedia:pics/cached.png')
