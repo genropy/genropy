@@ -145,7 +145,45 @@ pages need no rewriting and a user instance without `glbl` still runs the suite.
   - Details: move the seven files into `projects/gnrcore/packages/test/webpages/gnrwdg/`, apply the documentation and the two fixes above, and delete the seven `test15` originals. Every move in this phase is `git mv` and every removal `git rm`: the rename is recorded (macro 1's commit carries the same `{test15 => test}` renames) and nothing leaves the branch irrecoverably. Then remove their `test15/webpages/gnrwdg/...` lines from `docstring_debt.txt` — six of the seven are listed there (`textboxmenu.py` is not) — and do NOT add the new `test/webpages/gnrwdg/...` paths: they are documented now, so the ratchet must not list them.
   - Done: the seven files exist under `projects/gnrcore/packages/test/webpages/gnrwdg/` and no longer under test15; `pytest projects/gnrcore/packages/test/tests/test_pages_documented.py -q` passes; `pytest projects/gnrcore/packages/test/tests/test_pages_smoke.py -q -rs` reports `1 passed` (a skipped sweep does NOT satisfy this: it means the daemon never came up, and a check that skips protects nothing); `flake8` reports zero errors on the seven promoted files
 
-- [ ] **Phase 4**: Fold the six overlapping pages into their counterparts  `vast`
+- [x] **Phase 4**: Fold the six overlapping pages into their counterparts  `vast`
+  > Done: the seven test15 sources are gone. `palette.py` + `panetree.py` -> two cases appended to
+    `components/palette.py`; `menuselect.py` -> one case in `dojo/menu.py`; `framepane.py` -> six cases
+    plus its `mypage_slotbar_myaction` struct_method in `layout/framepane.py`; `includedview_bagstore.py`
+    -> one case in `components/includedview.py` reusing the target's own `common_data`/`common_struct`;
+    `baggrid_scroll.py` -> one case in `components/Grid/bag_grid.py` with its two helpers renamed
+    (`scrollstruct`, `getScrollDati`) to clear the collision with the target's `gridstruct`/`getDati`;
+    `slotbar.py` split into the new `gnrwdg/slotbar.py` (six slotBar/slotToolbar cases plus the `myslot`
+    struct_method, `testOnly='_0_'` dropped) and seven multibutton cases appended to
+    `components/multibutton.py` with `getmbdata` and `multibuttonRegione`. Every appended case renumbered
+    to continue its target's sequence and documented with a one-liner. Dropped as the plan said:
+    `framepane.py`'s `test_10/11/12_framepanebug` and `slotbar.py`'s commented-out `multiButtonForm` tail.
+    Eight lines removed from `docstring_debt.txt` (the five listed sources plus the three targets that are
+    now fully documented). `test_pages_documented.py` + `test_pages_ratchet.py`: 4 passed;
+    `test_pages_smoke.py -q -rs`: 1 passed, no skip; flake8 zero errors on the seven touched pages.
+  > Files: projects/gnrcore/packages/test/webpages/components/palette.py, projects/gnrcore/packages/test/webpages/dojo/menu.py, projects/gnrcore/packages/test/webpages/layout/framepane.py, projects/gnrcore/packages/test/webpages/components/includedview.py, projects/gnrcore/packages/test/webpages/components/Grid/bag_grid.py, projects/gnrcore/packages/test/webpages/components/multibutton.py, projects/gnrcore/packages/test/webpages/gnrwdg/slotbar.py (new, from test15), projects/gnrcore/packages/test15/webpages/gnrwdg/{palette,panetree,menuselect,framepane,includedview_bagstore,baggrid_scroll,slotbar}.py (deleted), projects/gnrcore/packages/test/tests/docstring_debt.txt
+  > Review: (deviation) two source cases were dropped beyond the plan's list because the target already
+    carried them verbatim: `framepane.py`'s `test_5_regions` is `layout/framepane.py`'s own `test_1_regions`
+    apart from one placeholder string, and `slotbar.py`'s `test_7_slotToolbar_multibutton_base` is a strict
+    subset of `components/multibutton.py`'s `test_0_multibutton_base`. Appending them would have shown the
+    same case twice on the merged page, which is the opposite of what folding is for.
+  > Review: (deviation) the merge forced four global codes apart. `slotbar.py` reused `frameOne` on two
+    cases and `frameTwo` on two more, and `slotbar.py`'s `test_12`/`test_14` both used
+    `frameMultibuttonStore`: `testOnly='_0_'` hid the clash while only one case rendered, and dropping
+    `testOnly` exposes it, since TestHandlerFull renders every case on one page. They are now `frameOneCss`,
+    `frameTwoVertical` and `frameMultibuttonStoreMixed`. Likewise `panetree.py`'s `palettePane('pippo')`
+    collided with `palette.py`'s `paletteCode='pippo'` in the shared target and became `hiddendock`.
+  > Review: (deviation) removing a debt line for a target "now fully documented" meant clearing the
+    pre-existing defects of the three listed targets, not only documenting the appended cases: module
+    docstrings for `components/includedview.py` and `components/multibutton.py`, one-liners on
+    `dojo/menu.py`'s `test_9_menudiv_label`/`test_10_combomenu` and on `components/multibutton.py`'s two
+    original cases. `assert_ratchet` fails on stale entries, so a half-documented target could not simply
+    keep its line while its appended cases were documented.
+  > Review: `dojo_source = True` on `includedview_bagstore.py` and `baggrid_scroll.py` was not carried into
+    the targets: it is a dev-only non-minified-dojo switch and `TestHandler` already sets it for every
+    test page.
+  > Verify: deferred: needs Phase 6 — the seven merged pages are in the Phase 6 browser pass; the render
+    sweep only proves their bootstrap GET, and the renumbered cases are exactly what a collision would
+    hide silently.
   - Pattern reference: macro 1's three merges in `1fbf73ce2` — `projects/gnrcore/packages/test/webpages/components/TableHandler/inlineedit.py` and `.../selectionname.py` (cases appended to an existing page, renumbered, each documented, nothing lost)
   - Files:
     - projects/gnrcore/packages/test/webpages/components/palette.py  <- test15 palette.py + panetree.py

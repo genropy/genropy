@@ -55,3 +55,29 @@ Second launch of 2026-08-20, stopped at 2/7 by a transient API error.
   `tooltip`; the assignment is dropped (dead matter), the widget stays.
 - Case docstrings say which part of the widget each case shows rather than restating the method name,
   because Phase 7 flags generic ones and the point of the macro is a reader learning the widget.
+
+## Phase 4
+
+- The plan's "nothing else is dropped" met two cases that the target already held verbatim.
+  `framepane.py`'s `test_5_regions` is `layout/framepane.py`'s `test_1_regions` (macro 1 clearly
+  promoted it from there, changing only the `placeholder='puzza'` string), and slotbar's
+  `test_7_slotToolbar_multibutton_base` is `components/multibutton.py`'s `test_0_multibutton_base`
+  minus its `dataController`. Both were dropped rather than appended: folding a page into its
+  counterpart cannot mean showing the same case twice on the merged page. Nothing else went.
+- `testOnly` is what had been hiding duplicate global codes. `slotbar.py` shipped `testOnly='_0_'`,
+  so only `test_0` ever rendered and nobody noticed that `frameOne` and `frameTwo` were each used by
+  two cases, or that `test_12` and `test_14` shared `frameMultibuttonStore`. TestHandlerFull renders
+  every case on a single page and gives each one its own datapath but not its own frameCode, so
+  dropping `testOnly` (as Phase 5's decisions do for its own pages) requires renaming them. The same
+  applies across a merge: panetree's `palettePane('pippo')` and palette's `paletteCode='pippo'` were
+  independent while the pages were separate and collide in `components/palette.py`.
+- `multiButtonForm` resolves through `py_requires="th/th:TableHandler"` even though it is defined in
+  `resources/common/th/th.py`'s `MultiButtonForm` class: `@struct_method` registers at module import,
+  so requiring any component of `th/th` registers all of them. The target's existing `py_requires`
+  needed no change.
+- The multibutton cases folded here also exist, nearly identical, in
+  `projects/gnrcore/packages/test15/webpages/revised/gui/multibutton.py`. That page belongs to the
+  `revised` area and to a later macro: when its turn comes it is a fold into
+  `components/multibutton.py` (now carrying nine documented cases), not a promotion.
+- The `test15` sources' `dojo_source = True` was not carried over. `TestHandler` sets it for every
+  test page already, and as a page attribute it only selects the non-minified dojo build.

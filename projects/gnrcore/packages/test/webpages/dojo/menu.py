@@ -130,6 +130,7 @@ class GnrCustomWebPage(object):
         pane.div('^.info_string')
 
     def test_9_menudiv_label(self,pane):
+        "menudiv inside a slotToolbar, showing the caption of the selected line as its own label"
         bar = pane.slotToolbar('*,mymenu,*')
         bar.mymenu.menudiv(value='^.code',storepath='.menudata',
                         caption_path='.caption',
@@ -137,6 +138,7 @@ class GnrCustomWebPage(object):
         pane.data('.menudata', self.menudata())
 
     def test_10_combomenu(self,pane):
+        "comboMenu: a textbox whose companion menu writes the picked caption into it"
         bar = pane.slotToolbar('*,mymenu,*')
         bar.data('.caption','Select')
         bar.mymenu.textbox('^.caption',width='15em').comboMenu(storepath='.menudata', selected_caption='.caption',_class='smallmenu')
@@ -148,3 +150,23 @@ class GnrCustomWebPage(object):
         info_string = 'Hello '+title+' '+surname
         print(info_string)
         return info_string
+
+    def test_12_menu_from_bag_attributes(self,pane):
+        "Menu built from a Bag: the picked line writes its own attributes back into the datastore"
+        b = Bag()
+        b.setItem('foo',None,caption='Test 1')
+        b.setItem('foo.bar',None,caption='Test 2',color='red')
+        b.setItem('spam',None,caption='Test 3')
+
+        pane.data('.menu',b)
+        pane.div('^.value?caption',min_width='40px',min_height='16px',display='inline-block',padding_left='4px',
+                border='1px solid silver',background='white',rounded=4).menu(storepath='.menu',
+                             selected_fullpath='.value',
+                             modifiers='*')
+        pane.dataController("""
+                            if($2.kw.updvalue){
+                                var path = this.absDatapath('.value');
+                                genro._data.setAttr(path,b.getNode(p).attr);
+                            }
+                            """,p="^.value",b='=.menu')
+
