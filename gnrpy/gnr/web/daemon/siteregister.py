@@ -788,6 +788,10 @@ class SiteRegister(BaseRemoteObject):
         connection_item['user_name'] = user_name
         connection_item['user_id'] = user_id
         connection_item['avatar_extra'] = avatar_extra
+        # move the link before the drop_user guard below: it reads the old
+        # user's link set, which must no longer hold this connection
+        self.updateRegisterLink(self.user_register, olduser, 'connections', connection_id)
+        self.updateRegisterLink(self.user_register, user, 'connections', connection_id, add=True)
         for p in self.pages(connection_id=connection_id):
             p['user'] = user
         if not self.connection_register.connections(olduser):

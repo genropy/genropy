@@ -243,9 +243,39 @@ def test_both_directions_agree_through_a_full_lifecycle():
     assert _links_from_parents(reg) == _links_from_children(reg)
     reg.drop_connection('conn-2')
     assert _links_from_parents(reg) == _links_from_children(reg)
+    reg.change_connection_user('conn-1', user='bruno')
+    assert _links_from_parents(reg) == _links_from_children(reg)
     reg.drop_user('marco')
     assert _links_from_parents(reg) == _links_from_children(reg)
     reg.drop_page('page-1', cascade=True)
+    assert _links_from_parents(reg) == _links_from_children(reg)
+
+
+def test_change_connection_user_moves_the_link_between_users():
+    """The guest-to-authenticated shape: every login goes through here."""
+    reg = _register()
+    reg.new_connection('conn-1', user='guest_1')
+    _new_page(reg, 'page-1', 'conn-1', 'guest_1')
+    reg.change_connection_user('conn-1', user='anna')
+    # the connection now belongs to anna, link included
+    assert _connections_of(reg, 'anna') == {'conn-1'}
+    assert [c['register_item_id'] for c in reg.connections(user='anna')] == ['conn-1']
+    assert [p['register_item_id'] for p in reg.pages(user='anna')] == ['page-1']
+    # the guest, left with no connections, is gone with its links
+    assert not reg.user_register.exists('guest_1')
+    assert reg.connections(user='guest_1') == []
+    assert reg.pages(user='guest_1') == []
+    assert _links_from_parents(reg) == _links_from_children(reg)
+
+
+def test_change_connection_user_keeps_the_old_users_other_connections():
+    reg = _register()
+    reg.new_connection('conn-1', user='anna')
+    reg.new_connection('conn-2', user='anna')
+    reg.change_connection_user('conn-1', user='bruno')
+    assert _connections_of(reg, 'anna') == {'conn-2'}
+    assert _connections_of(reg, 'bruno') == {'conn-1'}
+    assert reg.user_register.exists('anna')
     assert _links_from_parents(reg) == _links_from_children(reg)
 
 
