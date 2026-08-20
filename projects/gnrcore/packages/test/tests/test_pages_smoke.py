@@ -12,11 +12,17 @@ A page addressing a package the instance does not mount cannot render, and
 rewriting it to drop the dependency would throw away what it demonstrates: the
 sweep skips it instead (`pages_ratchet.page_required_packages` against the
 mounted package ids) and prints one line per skipped page, so a sweep that
-quietly stops covering pages stays visible. `gnrdevelop` mounts `gnr_it:glbl`
-for the pages that need it; its lookup tables are filled from the package's own
-startup data, which is developer setup and not something a test performs:
-`gnr app dbsetup gnrdevelop`, then `loadStartupData` on the `glbl` package --
-a destructive local operation, it empties and refills those tables.
+quietly stops covering pages stays visible. A page names another package
+through two channels and both count: the tables it addresses and the components
+it mixes in through `py_requires`, an entry the loader cannot resolve being a
+hard raise (`GnrMixinNotFound`) rather than a page missing a widget.
+
+`gnrdevelop` mounts what the pages need: `gnr_it:glbl` for the lookup tables and
+`gnrcore:biz` for the dashboard component. `glbl` lookup tables are filled from
+the package's own startup data, which is developer setup and not something a
+test performs: `gnr app dbsetup gnrdevelop`, then `loadStartupData` on the
+`glbl` package -- a destructive local operation, it empties and refills those
+tables.
 
 This half needs a booted site and a running daemon, which is why the
 documentation ratchet lives in `test_pages_documented.py` instead: a check that

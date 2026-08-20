@@ -8,11 +8,12 @@
 		<gnrcore_test pkgcode="gnrcore:test"/>
 		<gnrcore_test15 pkgcode="gnrcore:test15"/>
 		<gnr_it_glbl pkgcode="gnr_it:glbl"/>
+		<gnrcore_biz pkgcode="gnrcore:biz"/>
 		<gnrcore_docu pkgcode="gnrcore:docu"/>
 		<gnrcore_dev pkgcode="gnrcore:dev"/>
 	</packages>
 
-	<menu package="sys,adm,test,test15,glbl,docu,dev"/>
+	<menu package="sys,adm,test,test15,glbl,biz,docu,dev"/>
 
 	<authentication pkg="gnrcore:sys">
 		<py_auth defaultTags="user" method="authenticate" pkg="adm"/>

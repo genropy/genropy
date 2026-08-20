@@ -6,6 +6,7 @@ Keeping the two apart is what lets the documentation ratchet run in CI, where no
 instance is built: a check that silently skips is a check that protects nothing.
 """
 import ast
+import glob
 import os
 import re
 
@@ -16,6 +17,8 @@ PLACEHOLDER_TITLES = ('test page description', 'test', '-', 'index.py', 'test pa
 
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 PACKAGES_DIR = os.path.abspath(os.path.join(TESTS_DIR, *[os.pardir] * 2))
+GENROPY_ROOT = os.path.abspath(os.path.join(PACKAGES_DIR, *[os.pardir] * 3))
+COMMON_RESOURCES_DIR = os.path.join(GENROPY_ROOT, 'resources', 'common')
 SMOKE_RATCHET = os.path.join(TESTS_DIR, 'smoke_known_failures.txt')
 DOCSTRING_RATCHET = os.path.join(TESTS_DIR, 'docstring_debt.txt')
 
@@ -26,6 +29,16 @@ TABLE_REFERENCE = re.compile(r'^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$')
 
 # kwargs through which a page names the table it works on
 TABLE_KEYWORDS = ('table', 'dbtable', 'dbTable')
+
+# class attributes through which a page mixes in a component resource. Only
+# py_requires matters here: an entry the loader cannot resolve is a hard raise
+# (`GnrMixinNotFound`, gnrwsgisite_proxy/gnrresourceloader.py:mixinResource),
+# while an unresolved css/js entry only leaves the page unstyled.
+REQUIRES_ATTRIBUTES = ('py_requires',)
+
+# every package that can provide a resource, whatever project it lives in:
+# `site_resources` walks the mounted packages regardless of their project
+PACKAGE_RESOURCES_GLOB = os.path.join(GENROPY_ROOT, 'projects', '*', 'packages', '*', 'resources')
 
 
 def discover_pages():
@@ -72,14 +85,8 @@ def docstring_defects(page_path):
     return defects
 
 
-def page_required_packages(page_path):  # wf:phase-1:new
-    """Package ids the page addresses through a table reference"""
-    with open(os.path.join(PACKAGES_DIR, page_path), encoding='utf-8') as page_file:
-        source = page_file.read()
-    try:
-        tree = ast.parse(source)
-    except SyntaxError:
-        return set()
+def table_reference_packages(tree):
+    """Package ids the page addresses through a `package.table` reference"""
     references = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
@@ -93,6 +100,55 @@ def page_required_packages(page_path):  # wf:phase-1:new
             references.append(node.args[0].value)
     return {reference.split('.')[0] for reference in references
             if isinstance(reference, str) and TABLE_REFERENCE.match(reference)}
+
+
+def resource_owner_package(resource_path):
+    """Package id owning a required resource, None when no package owns it alone
+
+    A resource under `resources/common` is on the search path of every site, and
+    one provided by more than one package is satisfied by any of them: neither
+    tells the page which package it needs.
+    """
+    relative_path = '%s.py' % resource_path.replace('/', os.sep)
+    if os.path.exists(os.path.join(COMMON_RESOURCES_DIR, relative_path)):
+        return None
+    owners = {os.path.basename(os.path.dirname(resources_dir))
+              for resources_dir in glob.glob(PACKAGE_RESOURCES_GLOB)
+              if os.path.exists(os.path.join(resources_dir, relative_path))}
+    return owners.pop() if len(owners) == 1 else None
+
+
+def required_resource_packages(tree):
+    """Package ids owning the resources the page mixes in through py_requires"""
+    packages = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Constant):
+            continue
+        if not any(isinstance(target, ast.Name) and target.id in REQUIRES_ATTRIBUTES
+                   for target in node.targets):
+            continue
+        if not isinstance(node.value.value, str):
+            continue
+        for requirement in node.value.value.split(','):
+            resource_path = requirement.split(':')[0].strip()
+            if resource_path:
+                packages.add(resource_owner_package(resource_path))
+    return packages - {None}
+
+
+def page_required_packages(page_path):  # wf:phase-1:new
+    """Package ids the page needs mounted to render
+
+    Both channels through which a page names another package: the tables it
+    addresses and the components it mixes in through `py_requires`.
+    """
+    with open(os.path.join(PACKAGES_DIR, page_path), encoding='utf-8') as page_file:
+        source = page_file.read()
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return set()
+    return table_reference_packages(tree) | required_resource_packages(tree)
 
 
 def read_ratchet(ratchet_path):
