@@ -163,4 +163,4 @@ pages need no rewriting and a user instance without `glbl` still runs the suite.
 | Phase 4 | xhigh | opus |
 | Phase 5 | high | opus |
 | Phase 6 | medium | opus |
-| Phase 7 (review) | xhigh | opus |
+| Phase 7 | xhigh | opus |
