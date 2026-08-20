@@ -7,6 +7,7 @@ instance is built: a check that silently skips is a check that protects nothing.
 """
 import ast
 import os
+import re
 
 PACKAGES = ('test', 'test15')
 
@@ -19,6 +20,12 @@ SMOKE_RATCHET = os.path.join(TESTS_DIR, 'smoke_known_failures.txt')
 DOCSTRING_RATCHET = os.path.join(TESTS_DIR, 'docstring_debt.txt')
 
 SKIP_FOLDERS = ('_resources', '__pycache__')
+
+# a `package.table` reference as the pages spell it, e.g. glbl.provincia
+TABLE_REFERENCE = re.compile(r'^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$')
+
+# kwargs through which a page names the table it works on
+TABLE_KEYWORDS = ('table', 'dbtable', 'dbTable')
 
 
 def discover_pages():
@@ -63,6 +70,29 @@ def docstring_defects(page_path):
         if node.name.startswith('test_') and not ast.get_docstring(node):
             defects.append('undocumented test method: %s' % node.name)
     return defects
+
+
+def page_required_packages(page_path):
+    """wf:phase-1:new Package ids the page addresses through a table reference"""
+    with open(os.path.join(PACKAGES_DIR, page_path), encoding='utf-8') as page_file:
+        source = page_file.read()
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return set()
+    references = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        for keyword in node.keywords:
+            if keyword.arg in TABLE_KEYWORDS and isinstance(keyword.value, ast.Constant):
+                references.append(keyword.value.value)
+        func = node.func
+        if (isinstance(func, ast.Attribute) and func.attr == 'table'
+                and node.args and isinstance(node.args[0], ast.Constant)):
+            references.append(node.args[0].value)
+    return {reference.split('.')[0] for reference in references
+            if isinstance(reference, str) and TABLE_REFERENCE.match(reference)}
 
 
 def read_ratchet(ratchet_path):

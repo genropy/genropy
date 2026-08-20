@@ -13,7 +13,40 @@ teaches the render sweep to skip a page whose packages are absent, so the
 pages need no rewriting and a user instance without `glbl` still runs the suite.
 
 ## Work Plan
-- [ ] **Phase 1**: Mount glbl in gnrdevelop and skip pages whose packages are absent
+- [!] **Phase 1**: Mount glbl in gnrdevelop and skip pages whose packages are absent
+  > Issue: one Done criterion is unmet — `gnr app dbsetup gnrdevelop` does not exit 0. The
+    local sqlite of gnrdevelop carries a pre-existing docu model drift and dbsetup aborts on
+    `ALTER TABLE "docu"."docu_documentation" ALTER TABLE base_language TYPE character
+    varying(2)` with `sqlite3.OperationalError: near "ALTER": syntax error` — the generated
+    SQL repeats ALTER TABLE and sqlite has no ALTER COLUMN TYPE at all. The whole pending
+    change list is docu (two ALTER COLUMN TYPE plus the docu_faq/docu_redirect creates);
+    nothing in it belongs to this phase, and the same abort happens at HEAD with
+    instanceconfig.xml reverted, so it pre-dates this workflow. Everything else the phase
+    asked for is in place and green: glbl is mounted, its seven tables were created in
+    `data/glbl.db` and loaded from the package's own startup_data.gz (regione 20,
+    provincia 110, comune 8092, localita 14751), `page_required_packages` exists with unit
+    tests, the smoke sweep skips pages whose packages are absent and prints one line per
+    skipped page, the CI step runs the new suite, the six model injections are deleted.
+    test_pages_ratchet.py + test_pages_documented.py + test_pages_smoke.py: 5 passed;
+    flake8 clean on the Files: set. Repair means deciding what to do about the docu drift
+    (an adapter/model matter outside this phase's Files: set, worth its own issue), not
+    redoing the phase's work.
+  > Attempted: (1) reverted instanceconfig.xml to HEAD and re-ran dbsetup — identical
+    failure, so mounting glbl is not the cause; (2) inspected the pending change list with
+    `-c -v --loglevel info` — docu only, and the first ALTER aborts the run; (3) fixed the
+    mounted-package accessor after the first smoke run failed on `site.application` — the
+    site exposes `site.gnrapp.packages`; (4) loaded the glbl startup data through
+    `GnrApp('gnrdevelop').db.package('glbl').loadStartupData()`, which succeeded even
+    though dbsetup had aborted, because the glbl tables are created in the package's own
+    attached sqlite. Not attempted on purpose: deleting and rebuilding the local sqlite
+    (destructive well beyond the loadStartupData the plan authorized) and patching the docu
+    model or the sqlite adapter's ALTER COLUMN TYPE (outside this phase's Files: set).
+  > Deviation: the plan expected `test/webpages/inputfields/dbselect.py` to require
+    `{'glbl'}`; it also addresses `adm.user` and `adm.htag`, so the unit test asserts
+    `{'adm', 'glbl'}`.
+  > Verify: now — open /test15/gnrwdg/formHandler: the Provincia dbselect drops down with
+    real provinces, which is what proves the mount and the data load rather than the model
+    merely building.
   - Pattern reference: `projects/gnrcore/packages/test/tests/pages_ratchet.py:docstring_defects` (same ast-over-one-page shape, same SyntaxError tolerance); the `pkgcode` lines already in `projects/gnrcore/instances/gnrdevelop/config/instanceconfig.xml`
   - Files:
     - projects/gnrcore/instances/gnrdevelop/config/instanceconfig.xml

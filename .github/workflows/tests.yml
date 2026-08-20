@@ -62,4 +62,5 @@ jobs:
         # package suites under projects/ need their own invocation. Only the
         # source-only checks belong here: the render sweep needs a built
         # instance and a running daemon, which this job does not provide.
-        pytest projects/gnrcore/packages/test/tests/test_pages_documented.py -q
+        pytest projects/gnrcore/packages/test/tests/test_pages_documented.py \
+               projects/gnrcore/packages/test/tests/test_pages_ratchet.py -q
