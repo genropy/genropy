@@ -91,31 +91,48 @@ class Table(object):
     def trigger_onUpdated(self,record,old_record):
         if record['hierarchical_name'] != old_record['hierarchical_name']:
             self.updateLink(record, old_record)
-            if record['sourcebag'] and record['sourcebag']==old_record['sourcebag']:
-                self.tutorialRecordNode(old_record).move(self.tutorialRecordNode(record))
-        if record['sourcebag'] != old_record['sourcebag']:
+            self.deleteSourceBagModules(old_record)
+            self.writeModulesFromSourceBag(record)
+        elif record['sourcebag'] != old_record['sourcebag']:
             self.writeModulesFromSourceBag(record)
 
+    def trigger_onDeleted(self,record):
+        self.deleteSourceBagModules(record)
+
     def updateLink(self, record, old_record):
-        old_link = '&lt;%s/%s&gt;' %(self.pkg.htmlProcessorName(),old_record['hierarchical_name'])
-        new_link = '&lt;%s/%s&gt;' %(self.pkg.htmlProcessorName(),record['hierarchical_name'])
-        
+        processor_name = self.pkg.htmlProcessorName()
+        old_link = '&lt;%s/%s&gt;' % (processor_name, old_record['hierarchical_name'])
+        new_link = '&lt;%s/%s&gt;' % (processor_name, record['hierarchical_name'])
+
         def cb(row):
-            row['docbag'] = row['docbag'].replace(old_link,new_link)
-        
-        self.batchUpdate(cb,where='$docbag ILIKE :old_link_query OR $docbag ILIKE :old_link_query',
-                            old_link_query='%%%s%%',_raw_update=True,bagFields=True)
+            #the LIKE pattern is not escaped so it may overmatch: the exact check is here
+            if not row['docbag'] or old_link not in row['docbag']:
+                return False
+            row['docbag'] = row['docbag'].replace(old_link, new_link)
+
+        self.batchUpdate(cb, where='$docbag ILIKE :old_link_query',
+                         old_link_query='%%%s%%' % old_link,
+                         _raw_update=True, bagFields=True)
     
     def tutorialRecordNode(self,record):
         return self.db.application.site.storageNode('site:webpages','docu_examples',record['hierarchical_name'])
 
-    def writeModulesFromSourceBag(self,record):
+    def deleteSourceBagModules(self,record):
+        """Delete only the example files: the node of a parent record
+           also contains the subfolders of its children records"""
         tutorial_record_node = self.tutorialRecordNode(record)
-        if tutorial_record_node.exists:
-            for n in tutorial_record_node.children():
-                if n.exists and not n.isdir:
-                    tutorial_record_node.delete()
+        if not tutorial_record_node.exists:
+            return
+        for n in tutorial_record_node.children() or []:
+            if n.exists and not n.isdir:
+                n.delete()
+        if not tutorial_record_node.children():
+            tutorial_record_node.delete()
+
+    def writeModulesFromSourceBag(self,record):
+        self.deleteSourceBagModules(record)
         if record['sourcebag']:
+            tutorial_record_node = self.tutorialRecordNode(record)
             for source_version in record['sourcebag'].values():
                 with tutorial_record_node.child('%(version)s.py' %source_version).open('w') as f:
                     f.write(source_version['source'])

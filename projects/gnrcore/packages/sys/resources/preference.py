@@ -121,6 +121,7 @@ class AppPref(object):
         fb.comboBox(value='^.experimental.remoteForm',lbl='!![en]Remote forms',values='onEnter,delayed')
         fb.checkbox(value='^.experimental.wsk_disabled',lbl='!![en]WSK Disabled (kill switch)')
         fb.checkbox(value='^.experimental.no_mako',lbl='!![en]No Mako rootPage')
+        fb.checkbox(value='^.experimental.page_class_cache',lbl='!![en]Page class cache (per page_id)')
 
     def tablesConfiguration(self, pane):
         fb = pane.formbuilder(cols=1,border_spacing='3px',datapath='.tblconf')
