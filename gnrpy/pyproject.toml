@@ -57,7 +57,7 @@ dependencies = [
 	     "tzlocal",
 	     "unidecode",
 	     "vobject",
-	     "watchgod", # used in asyncio for autoreload
+	     "watchfiles", # used in asyncio for autoreload
 	     "weasyprint",
 	     "werkzeug>=2.3.8,!=3.1.4",
 	     "xlrd",

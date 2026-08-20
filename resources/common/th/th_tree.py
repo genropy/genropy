@@ -19,6 +19,8 @@ class HTableTree(BaseComponent):
     def ht_hdbselect(self,pane,caption_field=None,treeMode=None,folderSelectable=False,cacheTime=None,connectedMenu=None,tree_kwargs=None,**kwargs):
         dbselect = pane.dbselect(**kwargs)
         attr = dbselect.attributes
+        dbtable = attr.get('dbtable') or attr.pop('table', None)
+        attr['dbtable'] = dbtable
         dbselect_condition = attr.get('condition')
         dbselect_condition_kwargs = dictExtract(attr,'condition_',slice_prefix=False)
         dbselect_selected_kwargs = dictExtract(attr,'selected_',slice_prefix=False)
@@ -33,8 +35,8 @@ class HTableTree(BaseComponent):
         if connectedMenu not in currentHMenu:
             tree_kwargs['openOnClick'] = not folderSelectable
             tree_kwargs['selected_pkey'] = kwargs.get('value').replace('^','')
-            menupath = 'gnr.htablestores.%s_%s' %(attr['dbtable'],connectedMenu)
-            dbselect.treemenu(storepath=menupath,table=attr['dbtable'],condition=dbselect_condition,
+            menupath = 'gnr.htablestores.%s_%s' %(dbtable,connectedMenu)
+            dbselect.treemenu(storepath=menupath,table=dbtable,condition=dbselect_condition,
                                 condition_kwargs=dbselect_condition_kwargs,modifiers='*',
                                 caption_field=caption_field,cacheTime=cacheTime,
                                 menuId=connectedMenu,dbstore=kwargs.get('_storename'),**tree_kwargs)
