@@ -49,6 +49,7 @@ from gnr.sql.gnrsqlmodel.containers import DbIndexObj
 from gnr.sql.gnrsqlmodel.helpers import (
     ConfigureAfterStartError,
     bagItemFormula,
+    baseDtype,
     toolFormula,
 )
 from gnr.sql.gnrsqlmodel.obj import DbModelObj
@@ -1149,8 +1150,13 @@ class DbModelSrc(GnrStructData):
         Returns:
             The virtual-column source node.
         """
+        # resolve package custom dtypes (custom_type_<dtype> hooks) to their
+        # base dtype for the SQL cast; the virtual_column keeps the original
+        # dtype so the custom-type mixin (size, format...) applies at doInit
+        pkgmixin = self.root._dbmodel.mixins['pkg.%s' % self.attributes.get('pkg')]
         sql_formula = bagItemFormula(
-            bagcolumn=bagcolumn, itempath=itempath, dtype=dtype, kwargs=kwargs,
+            bagcolumn=bagcolumn, itempath=itempath,
+            dtype=baseDtype(pkgmixin, dtype), kwargs=kwargs,
         )
         return self.virtual_column(
             name, sql_formula=sql_formula,

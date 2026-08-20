@@ -19,6 +19,9 @@ class Table(object):
         
 
     def runUpgrades(self):
+        """Run all pending upgrades and return the failed ones as a list
+        of ``(codekey, error)`` tuples (empty list if all succeeded)."""
+        errors = []
         alreadyRun= self.query(where='$error IS NULL').fetchAsDict('codekey')
         for pkg,pkgobj in list(self.db.application.packages.items()):
             upgradefolder = os.path.join(pkgobj.packageFolder,'lib','upgrades') 
@@ -31,7 +34,10 @@ class Table(object):
                 upgradekey = '%s|%s' %(pkg,filename)
                 if upgradekey not in alreadyRun:
                     print('upgrade',upgradekey)
-                    self.runUpgrade(upgradekey)
+                    error = self.runUpgrade(upgradekey)
+                    if error:
+                        errors.append((upgradekey,error))
+        return errors
     
     def runUpgrade(self,codekey):
         pkg,filename = codekey.split('|')
@@ -40,8 +46,14 @@ class Table(object):
         try:
             m = gnrImport(filepath)
             error = m.main(self.db)
+            # commit inside the try: deferred constraints and writes queued
+            # on other connections by triggers only surface here, and they
+            # must be recorded as this upgrade's error, not kill the caller
+            self.db.commit()
         except Exception as e:
-            self.db.rollback()
+            # rollbackAll, not rollback: triggers may have written to other
+            # connections (e.g. the root store during a dbstore upgrade)
+            self.db.rollbackAll()
             error = str(e)
         with self.recordToUpdate(codekey,insertMissing=True) as r:
             r['error'] = error
@@ -50,6 +62,7 @@ class Table(object):
         if error:
             print('ERROR',codekey,error)
         self.db.commit()
+        return error
 
     def use_dbstores(self,**kwargs):
         return True
