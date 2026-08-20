@@ -38,3 +38,6 @@ class GnrDummySite(GnrWsgiSite):
 
     def getSubscribedTables(self,*args):
         return []
+
+    def allSubscribedTables(self):
+        return []

@@ -208,6 +208,13 @@ class GnrWebPage(GnrBaseWebPage):
         self.dojo_version = request_kwargs.pop('dojo_version', None) or getattr(self, 'dojo_version', None)
         self.envelope_js_requires= {}
         self.envelope_css_requires= {}
+        # ``css_requires``/``js_requires`` live on the page class, and both the
+        # runtime component mixins (BaseComponent.__onmixin__) and the root
+        # render append to them. Shadowing the class lists with per-instance
+        # copies keeps those appends inside the request, as they were when
+        # every request built its own class.
+        self.css_requires = list(getattr(self, 'css_requires', None) or [])
+        self.js_requires = list(getattr(self, 'js_requires', None) or [])
         self._avoid_module_cache = _avoid_module_cache
         self.debug_sql = boolean(request_kwargs.pop('debug_sql', None))
         debug_py = request_kwargs.pop('debug_py', None)
@@ -622,6 +629,7 @@ class GnrWebPage(GnrBaseWebPage):
         self._onEnd()
         if getattr(self,'_closed',False):
             self.site.register.drop_page(self.page_id, cascade=False)
+            self.site.resource_loader.drop_page_class_cache(self.page_id)
         return result
     
 
@@ -2319,10 +2327,13 @@ class GnrWebPage(GnrBaseWebPage):
         path = 'gnr.chat.msg.%s' % roomId
         priority = priority or 'H'
         if not users:
+            # the label travels escaped ([.@] -> _, the connected_users_bag rule:
+            # dots split Bag paths, @ comes with email-style usernames);
+            # the real username rides in the node's `user` attribute
             users = Bag()
             if from_user!='SYSTEM':
-                users.setItem(from_user,None,user_name=from_user,user=from_user)
-            users.setItem(user,None,user_name=user,user=user)
+                users.setItem(from_user.replace('.','_').replace('@','_'),None,user_name=from_user,user=from_user)
+            users.setItem(user.replace('.','_').replace('@','_'),None,user_name=user,user=user)
         ts = self.toText(datetime.datetime.now(), format='HH:mm:ss')
         with self.userStore(user) as store:
             if disconnect and (user == from_user):
@@ -2890,16 +2901,14 @@ class GnrWebPage(GnrBaseWebPage):
         """TODO"""
         filepath = os.path.join(self.connectionFolder, self.page_id, *args)
         folder = os.path.dirname(filepath)
-        if not os.path.isdir(folder):
-            os.makedirs(folder)
+        os.makedirs(folder, exist_ok=True)
         return filepath
         
     def userDocument(self, *args):
         """TODO"""
         filepath = os.path.join(self.userFolder, *args)
         folder = os.path.dirname(filepath)
-        if not os.path.isdir(folder):
-            os.makedirs(folder)
+        os.makedirs(folder, exist_ok=True)
         return filepath
         
     def connectionDocumentUrl(self, *args, **kwargs):
