@@ -162,3 +162,26 @@ The one finding outside the macro's own work is `test15/menu.py`'s surviving `Do
 at a directory absent from HEAD since well before this workflow. Phase 6 removed the `Gnrwdg` branch
 one line above it. Removing it too would have been a one-line change to a file already in the set,
 and it belongs to whichever macro triages the `dojo` area: flagged, not taken.
+
+Third launch of 2026-08-20, `run-end ok 7/7`. Phases 3 to 7 landed in one pass.
+
+- The macro's real find, and it came twice: `testOnly` was masking duplicate frameCodes. Phase 4
+  met it on `slotbar.py` (`frameOne`, `frameTwo` and `frameMultibuttonStore` each used twice) and
+  Phase 5 met it again on `formhandler_selection.py`, where all five cases shared `provincia` and
+  three shared `province`. Both renamed per case and carried the derived references with them
+  (`genro.formById`, `subscribe_form_*`, `parentStore`, `default_regione`). Same defect class as
+  `5c2ff2ffc` on the parent branch.
+- Inspector's own finding, for a macro or an issue of its own: **the suite has no check for
+  duplicate frameCodes on a page.** Macro 1 fixed one instance by hand, Phase 4 found four and
+  Phase 5 seven, and the render sweep cannot see any of them — the collision raises while the
+  client builds the structure, after the bootstrap GET has answered 200. It is the one defect this
+  area produced repeatedly and the only one nothing guards.
+- Phase 7 closed its convergence loop in one cycle: flake8 was already clean at its baseline. It
+  auto-fixed three things (two `wf:phase-1:new` markers written inside docstrings instead of on the
+  `def` line, and an Italian `print("Dati salvati:")` Phase 5's sweep missed) and flagged eight,
+  led by two documentation-authorship gaps on pages this macro promoted
+  (`includedview_externalchanges.py`, `tooltipDialog.py`) and a stale `Dojo` branch in
+  `test15/menu.py` pointing at a directory that no longer exists at HEAD.
+- Seven `wf:phase-*:new` markers are still in the tree. Expected: in autonomous mode they
+  accumulate and `/finalize-workflow` runs one naming review for the whole workflow.
+- No phase was repaired, none came back blocked, no budget cap was tripped.
