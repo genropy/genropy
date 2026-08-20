@@ -8,9 +8,13 @@ class Table(object):
                          rowcaption='$nome,$sigla:%s (%s)',caption_field='sigla',lookup=True)
         tbl.column('sigla', size='2', readOnly=True, name_long='!![it]Sigla', indexed=True,validate_notnull=True,
                     validate_len='2',validate_case='u')
-        tbl.column('regione', size='3', name_long='!![it]Regione',validate_notnull=True).relation('glbl.regione.sigla',
-                                                                        relation_name='prov_test',
-                                                                        eager_one=True)
+        tbl.column('regione', size='3', name_long='!![it]Regione',validate_notnull=True)
+        # the relation to glbl.regione.sigla is commented out like the ones in
+        # test15/model/nodetbl.py: glbl ships in the gnr_it project, so on an
+        # instance that does not mount it the model logs "the relation
+        # test.prov_test.regione - glbl.regione.sigla cannot be added" at every
+        # build. Restore it together with the glbl consolidation.
+        #.relation('glbl.regione.sigla', relation_name='prov_test', eager_one=True)
         tbl.column('nome', size=':128', name_long='!![it]Nome', indexed=True,validate_notnull=True)
         tbl.column('codice_istat', size='3', name_long='!![it]Codice Istat')
         

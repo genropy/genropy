@@ -16,7 +16,7 @@
 <en_centro base="Centro" de="Center" en="Centro" fr="Centre" it="Centro"></en_centro>
 <en_sud base="Sud" de="Süden" en="Sud" fr="Sud" it="Sud"></en_sud>
 <en_isole base="Isole" de="Islands" en="Isole" fr="Îles" it="Isole"></en_isole></th_provincia></provincia></glbl></_packages></tables></resources>
-<webpages><components><advanced_form ext="py" path="webpages/components/advanced_form.py"><en_terapia base="Terapia" de="Therapie" en="Terapia" fr="Thérapie" it="Terapia"></en_terapia></advanced_form>
+<webpages><components><advanced_form ext="py" path="webpages/components/advanced_form.py"><en_province base="Province" de="Provinzen" en="Provinces" fr="Provinces" it="Province"></en_province></advanced_form>
 <drop_uploader ext="py" path="webpages/components/drop_uploader.py"><en_description base="Description" en="Description" it="Descrizione"></en_description>
 <en_loaded_content base="loaded content" de="geladenen Inhalt" en="loaded content" fr="contenu chargé" it="contenuto caricato"></en_loaded_content>
 <en_xls_rows base="Xls Rows" de="Xls Rows" en="Xls Rows" fr="Rangées XLS" it="Righe xls"></en_xls_rows></drop_uploader>
