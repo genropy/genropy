@@ -72,8 +72,8 @@ def docstring_defects(page_path):
     return defects
 
 
-def page_required_packages(page_path):
-    """wf:phase-1:new Package ids the page addresses through a table reference"""
+def page_required_packages(page_path):  # wf:phase-1:new
+    """Package ids the page addresses through a table reference"""
     with open(os.path.join(PACKAGES_DIR, page_path), encoding='utf-8') as page_file:
         source = page_file.read()
     try:

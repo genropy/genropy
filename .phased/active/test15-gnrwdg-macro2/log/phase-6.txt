@@ -1,0 +1,3 @@
+✓ Phase 6 completed: Close the area
+
+The three remaining pages are under `test/webpages/gnrwdg/`, the `test15/webpages/gnrwdg/` folder and its menu branch are gone, and `docstring_debt.txt` dropped its last two entries (93 → 91). Green after the work: `test_pages_documented.py` + `test_pages_ratchet.py` 4 passed, `test_pages_smoke.py -q -rs` 1 passed with no skip, flake8 zero errors — committed as `a3d95009b`. One load-bearing finding, recorded as `> Review:`: the `dlg.js_widget` idiom cannot open a `thIframeDialog` (it returns the gnrwdg node, not the client-built dialog), so `thpalette.py` passes `dialog_nodeId` through and calls `genro.wdgById(...).show()`; the deferred macro-wide browser pass is now due as a `Verify: now`.

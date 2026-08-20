@@ -126,3 +126,39 @@ Second launch of 2026-08-20, stopped at 2/7 by a transient API error.
   than reformatted, keeping the diff a pure rename.
 - The `test15/webpages/gnrwdg/` folder is removed with `rm -rf` rather than `git rm`: after the
   three `git mv`, the only thing left in it was `__pycache__`, which is untracked.
+
+## Phase 7
+
+Where the auto-fix / flag line was drawn. The plan authorized auto-fixing "tool-fixable lint,
+unused imports, formatting, trivially mechanical fixes" and forbade touching logic, design or
+architecture. flake8 was already clean on the whole set at the baseline, so the lint budget bought
+nothing and the real question was what else counts as mechanical.
+
+Three things qualified. The two `wf:phase-1:new` markers sat inside docstrings instead of on the
+definition line: the fix is a two-line move, it changes no behaviour, and leaving it would have
+shipped the marker as part of a helper's documentation — in a macro whose entire point is the
+documentation contract. The Italian `print("Dati salvati:")` in the promoted formHandler.py is a
+debug string no caller reads; translating it is inert and the English-only rule is contractual, not
+stylistic.
+
+Everything else was flagged, and three of those refusals are worth recording because they look
+mechanical and are not:
+
+- `rpc_salvaDati` in formHandler.py is provably unreferenced in its own page, which makes deleting
+  it look like removing an unused import. It is not: the same name is live in
+  `components/advanced_form.py`, so the method is a shared convention across test pages, and
+  deciding that this page should not have the hook decides what the page demonstrates. Flagged with
+  a suggested action, and its Italian string translated so nothing waits on the ruling.
+- The `xxx` slot name and `.abx` datapath in slotbar.py's promoted case are two lines that must
+  change together, and they name a client-side slot. The rename is safe in all likelihood and
+  nothing here can prove it: the smoke sweep only sees the bootstrap GET, so only the browser pass
+  could catch a mistake. The cost of being wrong is a broken promoted example; the cost of flagging
+  is one line in review.md.
+- `includedview_externalchanges.py` needs three docstrings rewritten to match what Phase 6's other
+  two pages did. That is authorship — writing what an example demonstrates — and the phase text says
+  so explicitly ("Flag those rather than rewriting them").
+
+The one finding outside the macro's own work is `test15/menu.py`'s surviving `Dojo` branch, pointing
+at a directory absent from HEAD since well before this workflow. Phase 6 removed the `Gnrwdg` branch
+one line above it. Removing it too would have been a one-line change to a file already in the set,
+and it belongs to whichever macro triages the `dojo` area: flagged, not taken.

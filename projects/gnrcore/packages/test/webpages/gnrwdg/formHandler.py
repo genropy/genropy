@@ -154,7 +154,7 @@ class GnrCustomWebPage(object):
 
     def rpc_salvaDati(self, dati, **kwargs):
         """Server-side receiver printing whatever a case sends it"""
-        print("Dati salvati:")
+        print("Data saved:")
         print(dati)
 
     def test_111_frame_formdatapath(self,pane):

@@ -289,7 +289,28 @@ pages need no rewriting and a user instance without `glbl` still runs the suite.
   - Done: `test projects/gnrcore/packages/test15/webpages/gnrwdg` reports the folder is gone; `grep -c 'test15/webpages/gnrwdg' projects/gnrcore/packages/test/tests/docstring_debt.txt projects/gnrcore/packages/test/tests/smoke_known_failures.txt` returns 0 for both; `pytest projects/gnrcore/packages/test/tests/test_pages_documented.py -q` passes; `pytest projects/gnrcore/packages/test/tests/test_pages_smoke.py -q -rs` reports `1 passed` (a skipped sweep does NOT satisfy this: it means the daemon never came up, and a check that skips protects nothing); `flake8` reports zero errors on the three promoted files
   - Verify: deferred: needs Phase 6 — browser pass over the ~20 promoted pages: each one builds its structure past the bootstrap GET and shows what its docstring claims. This is what produced six issues in macro 1 and the render sweep cannot replace it.
 
-- [ ] **Phase 7**: Coherence review and auto-fix (final, mandatory)
+- [x] **Phase 7**: Coherence review and auto-fix (final, mandatory)
+  > Done: `review.md` is in the plan directory with its three sections (Auto-fixed, Flagged for
+    human, Final state); flake8 zero errors on the 25-file set; test_pages_ratchet.py +
+    test_pages_documented.py 4 passed; test_pages_smoke.py -q -rs 1 passed with no skip. The
+    convergence loop closed in one cycle: flake8 was already clean at the baseline, so the three
+    fixes were the only changes and none disturbed it.
+  > Files: projects/gnrcore/packages/test/tests/pages_ratchet.py,
+    projects/gnrcore/packages/test/tests/test_pages_smoke.py,
+    projects/gnrcore/packages/test/webpages/gnrwdg/formHandler.py,
+    .phased/active/test15-gnrwdg-macro2/review.md (new)
+  > Review: (deviation) three fixes were applied where the plan authorized only lint and formatting.
+    Two move the `wf:phase-1:new` marker out of a docstring onto the definition line, where the
+    marker convention puts it and where Phases 3 and 4 put theirs — it was leaking into the shipped
+    documentation of two helpers. The third translates `print("Dati salvati:")` in the promoted
+    formHandler.py, Italian that Phase 5's own sweep missed and that the English-only rule forbids.
+    Eight findings that would have needed authorship or a scope widening were flagged instead,
+    including the dead `rpc_salvaDati` the Italian string lives in. Boundary reasoning in notes.md.
+  > Verify: now — read the Flagged for human section of review.md and rule on its eight findings:
+    six are docstring or placeholder-naming calls inside pages this macro promoted (nothing
+    mechanical can decide what an example should say it demonstrates), one is a stale `Dojo` menu
+    branch belonging to another macro's area, one is the pre-existing debt left untouched on
+    purpose. Phase 6's browser-pass steps in verify.md stay the standing gate for the area.
   - Pattern reference: same as Phases 1..6 (cross-check against them)
   - Files: only the files written by Phases 1..6 (collect them from their `Files:` fields). Never touch a pre-existing file they did not modify.
   - Decisions:

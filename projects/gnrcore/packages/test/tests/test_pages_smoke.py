@@ -77,8 +77,8 @@ class TestPagesSmoke(BaseGnrDaemonTest):
         return False
 
     @classmethod
-    def mounted_packages(cls):
-        """wf:phase-1:new Package ids the site has mounted"""
+    def mounted_packages(cls):  # wf:phase-1:new
+        """Package ids the site has mounted"""
         return set(cls.site.gnrapp.packages.keys())
 
     @classmethod
