@@ -76,7 +76,7 @@ class GnrCustomWebPage(object):
         fb.dbselect(value='^aux.regione',dbtable='glbl.regione',lbl='Regione')
 
     @public_method
-    def multibuttonRegione(self,pane,**kwargs):  # wf:phase-4:new
+    def multibuttonRegione(self,pane,**kwargs):
         "Content of the remoteDialog of test_7_multibuttonForm"
         bc = pane.borderContainer(height='300px',width='400px',datapath='pippo')
         bc.contentPane(region='center').multiButtonForm(table='glbl.provincia',condition='$regione=:reg',
@@ -96,7 +96,7 @@ class GnrCustomWebPage(object):
         mb_1 = bar.mb_1.multibutton(value='^.curval',caption='nome',hidden='^.regione?=#v!="LAZ"',mandatory=False)
         mb_1.item('Paperino',sticky=True)
 
-    def getmbdata(self):  # wf:phase-4:new
+    def getmbdata(self):
         "Bag of code/caption items shared by test_2_multibutton_storepath and test_3_multibutton_items_path"
         result = Bag()
         result.setItem('pippo',None,caption='Pippo')

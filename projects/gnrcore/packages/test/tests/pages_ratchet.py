@@ -136,7 +136,7 @@ def required_resource_packages(tree):
     return packages - {None}
 
 
-def page_required_packages(page_path):  # wf:phase-1:new
+def page_required_packages(page_path):
     """Package ids the page needs mounted to render
 
     Both channels through which a page names another package: the tables it

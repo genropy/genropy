@@ -19,7 +19,7 @@ class GnrCustomWebPage(object):
     def windowTitle(self):
         return 'bageditor'
          
-    def localizationBag(self):  # wf:phase-3:new
+    def localizationBag(self):
         """The adm localization.xml read as a Bag, sample data for the tree cases"""
         return Bag(self.site.storageNode(LOCALIZATION_BAG).internal_path)
 

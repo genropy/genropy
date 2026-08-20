@@ -121,7 +121,7 @@ class GnrCustomWebPage(object):
 
     def test_4_columnset_scroll(self,pane):
         "bagGrid with a fixed first column and ten columnsets, to check horizontal scrolling"
-        pane.data('.dati',self.getScrollDati())
+        pane.data('.dati',self.getScrollRows())
         pane.dataController('SET .gridstore = dati.deepCopy();',dati='=.dati',_fired='^.loadBag')
         pane.dataFormula('.gridstore',"new gnr.GnrBag();",_onStart=True)
         frame = pane.bagGrid(frameCode='test',title='Test',
@@ -130,7 +130,7 @@ class GnrCustomWebPage(object):
                                 storepath='.gridstore')
         frame.bottom.button('Load',fire='.loadBag')
 
-    def scrollstruct(self,struct):  # wf:phase-4:new
+    def scrollstruct(self,struct):
         "Struct of test_4_columnset_scroll: one fixed column plus ten columnsets of three cells"
         view_0 = struct.view(fixedColumn=1)
         rows = view_0.rows()
@@ -140,7 +140,7 @@ class GnrCustomWebPage(object):
             for j in range(3):
                 cs.cell('val_{i:02}{j:02}'.format(i=i,j=j),name='Col {}'.format(i))
 
-    def getScrollDati(self):  # wf:phase-4:new
+    def getScrollRows(self):
         "Rows of test_4_columnset_scroll, one Bag row per record"
         result = Bag()
         for i in range(5):
