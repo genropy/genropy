@@ -14,7 +14,7 @@ pages need no rewriting and a user instance without `glbl` still runs the suite.
 
 ## Work Plan
 - [x] **Phase 1**: Mount glbl in gnrdevelop and skip pages whose packages are absent
-  > Foreman: the original Done criterion, `gnr app dbsetup gnrdevelop` exits 0, was wrong. It
+  > Review: (foreman) the original Done criterion, `gnr app dbsetup gnrdevelop` exits 0, was wrong. It
     made this phase hostage to the whole instance migrating cleanly, and gnrdevelop's sqlite
     carries a pre-existing docu drift that sqlite cannot apply at all (see notes.md, Run
     inspection). Corrected to a check on the glbl tables themselves, which is what the phase
@@ -48,7 +48,7 @@ pages need no rewriting and a user instance without `glbl` still runs the suite.
     attached sqlite. Not attempted on purpose: deleting and rebuilding the local sqlite
     (destructive well beyond the loadStartupData the plan authorized) and patching the docu
     model or the sqlite adapter's ALTER COLUMN TYPE (outside this phase's Files: set).
-  > Deviation: the plan expected `test/webpages/inputfields/dbselect.py` to require
+  > Review: (deviation) the plan expected `test/webpages/inputfields/dbselect.py` to require
     `{'glbl'}`; it also addresses `adm.user` and `adm.htag`, so the unit test asserts
     `{'adm', 'glbl'}`.
   > Verify: now — open /test15/gnrwdg/formHandler: the Provincia dbselect drops down with
