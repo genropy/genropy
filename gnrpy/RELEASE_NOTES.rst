@@ -1,4 +1,57 @@
-Release 26.05.05
+Release 26.08.19.1
+==================
+
+Hotfix release: fixed Dockerfile creation for projects with
+repositories organized in nested subfolders.
+
+Release 26.08.19
+================
+
+Hotfix release: fixed image configuration builder, which was skipping
+the framework repository using a keyword that matches also other repos.
+
+Release 26.07.31
+================
+
+Hotfix release: fixed docker build when the main application project
+resides in a subfolder of the repository (#1016)
+
+
+Release 26.07.30
+================
+
+Hotfix release: fixed docker build definition for repository
+with subprojects folder (#1015)
+
+
+Release 26.07.29
+================
+
+This is an hotfix release, fixed regression in flatfiles with xlsx
+file handling (#1002, #1002)
+
+
+Release 26.07.15
+================
+
+This is an hotfix release, restore grid vertical scrollbar when
+a view uses a columnset. (#957, #955)
+
+Release 26.07.06
+================
+
+This is an hotfix release, to correct Draft ribbon with centered
+toolbar badge #(934, #966)
+
+
+Release 26.06.30
+================
+
+This is an hotfix release, fixing the CodeMirror6 loading which broke the
+handbook feature. Refs #962
+
+
+Release 26.05.08
 ================
 
 New features

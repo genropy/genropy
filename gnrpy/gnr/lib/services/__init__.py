@@ -25,9 +25,10 @@
 
 
 import os
+import threading
 from datetime import datetime
 
-from gnr.core.gnrlang import  gnrImport
+from gnr.core.gnrlang import  gnrImport, GnrException
 from gnr.core.gnrbag import Bag
 from gnr.lib import logger
 
@@ -82,14 +83,20 @@ class BaseServiceType(object):
         self.site = site
         self.service_type = service_type
         self.domain = domain
-        self.service_instances = {}   
-        
+        self.service_instances = {}
+        self.baseImplementation = None
+        self._implementations = None
+        self._implementations_lock = threading.RLock()
+
     def addService(self, service_name=None, **kwargs):
         service_conf = kwargs or self.getConfiguration(service_name)
         if not service_conf:
             return
         implementation = service_conf.pop('implementation',None) or service_conf.pop('resource',None) #resource is the oldname for implementation
         service_factory = self.getServiceFactory(implementation)
+        if service_factory is None:
+            raise GnrException('no implementation %r for service type %r (service %r)'
+                               % (implementation, self.service_type, service_name))
         service_conf = service_conf or {}
         service = service_factory(self.site, **service_conf)
         service.service_name = service_name
@@ -109,7 +116,12 @@ class BaseServiceType(object):
         l = self.serviceConfigurationsFromSiteConfig()
         if 'sys' in list(self.site.gnrapp.packages.keys()):
             dbservices = self.site.db.table('sys.service').query(where='$service_type=:st', st=self.service_type, order_by='$service_name').fetch()
-            l += [dict(implementation=r['implementation'], service_name=r['service_name'], service_type=r['service_type']) for r in dbservices]
+            l += [dict(
+                implementation=r['implementation'],
+                service_name=r['service_name'],
+                service_type=r['service_type'],
+                service_disabled=r['disabled'] and True or False
+            ) for r in dbservices]
         return l
 
 
@@ -161,67 +173,54 @@ class BaseServiceType(object):
             conf = self.site.config.getAttr('services.%s.%s' % (self.service_type, service_name))
         return dict(conf) if conf else {}
 
-    @property
-    def implementations(self):
-        if not hasattr(self,'_implementations'):
-            self._implementations = {}
-            dirs = self.site.resource_loader.getResourceList(self.site.resources_dirs, 'services/%s' %(self.service_type))
-            dirs.reverse()
-            self.baseImplementation = None
-            for d in dirs:
-                for impl in os.listdir(d):
-                    implname,implext = os.path.splitext(impl)
-                    impl = os.path.join(d,impl)
-                    if os.path.isdir(impl):
-                        impl = os.path.join(d, impl, 'service.py')
-                        if not os.path.exists(impl):
-                            continue
-                        implext = '.py'
-                    if implext!='.py':
-                        continue
-                    try:
-                        module = gnrImport(impl,avoidDup=True)
-                        service_class = getattr(module, 'Service',None) or getattr(module, 'Main', None) #backward compatibility
-                        self._implementations[implname] =  service_class
-                    except ImportError as imperr:
-                        logger.exception("Could not import %s", impl)
-                        logger.exception(str(imperr))
-                    
-                    if not self.baseImplementation:
-                        self.baseImplementation = implname
-
-        return self._implementations
-
-    def getImplementations(self):
+    def _buildImplementations(self):
         result = {}
+        baseImplementation = None
         dirs = self.site.resource_loader.getResourceList(self.site.resources_dirs, 'services/%s' % (self.service_type))
         dirs.reverse()
-        baseImplementation = None
         for d in dirs:
             for impl in os.listdir(d):
                 implname,implext = os.path.splitext(impl)
-                impl = os.path.join(d,impl)
-                if os.path.isdir(impl):
-                    impl = os.path.join(d,impl,'service.py')
-                    if not os.path.exists(impl):
+                implpath = os.path.join(d,impl)
+                if os.path.isdir(implpath):
+                    implpath = os.path.join(implpath,'service.py')
+                    if not os.path.exists(implpath):
                         continue
                     implext = '.py'
                 if implext!='.py':
                     continue
                 try:
-                    module = gnrImport(impl, avoidDup=True)
-                    service_class = getattr(module, 'Service', None) or getattr(module, 'Main', None) #backward compatibility
-                    result[implname] =  service_class
-                except ImportError as imperr:
-                    logger.exception("Could not import %s", impl)
-                    logger.exception(str(imperr))
+                    module = gnrImport(implpath, avoidDup=True)
+                except ImportError:
+                    logger.exception("Could not import %s", implpath)
+                    continue
+                service_class = getattr(module, 'Service', None) or getattr(module, 'Main', None) #backward compatibility
+                if service_class is None:
+                    logger.warning("No Service class found in %s", implpath)
+                    continue
+                result[implname] = service_class
                 if not baseImplementation:
                     baseImplementation = implname
         return result, baseImplementation
 
+    @property
+    def implementations(self):
+        # Built atomically under lock: concurrent first accesses must never
+        # see a partially populated registry (factory would resolve to None)
+        if self._implementations is None:
+            with self._implementations_lock:
+                if self._implementations is None:
+                    implementations, baseImplementation = self._buildImplementations()
+                    self.baseImplementation = baseImplementation
+                    self._implementations = implementations
+        return self._implementations
+
+    def getImplementations(self):
+        return self.implementations, self.baseImplementation
+
     def getServiceFactory(self, implementation=None):
-        implementations, baseImplementation = self.getImplementations()
-        return implementations.get(implementation) or implementations.get(baseImplementation)
+        implementations = self.implementations
+        return implementations.get(implementation) or implementations.get(self.baseImplementation)
     
     @property
     def default_service_name(self):

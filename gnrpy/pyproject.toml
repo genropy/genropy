@@ -40,7 +40,6 @@ dependencies = [
 	     "openpyxl",
 	     "packaging",
 	     "paramiko", # gnr.core.gnrssh
-	     "paste",
 	     "psutil",
 	     "pymupdf",
 	     "pypdftk",
@@ -53,12 +52,12 @@ dependencies = [
 	     "requests",
 	     "simpleeval",
 	     "six", # evaluate if needed
-	     "smart_open",
+	     "smart_open<8.0",
 	     "supervisor",
 	     "tzlocal",
 	     "unidecode",
 	     "vobject",
-	     "watchgod", # used in asyncio for autoreload
+	     "watchfiles", # used in asyncio for autoreload
 	     "weasyprint",
 	     "werkzeug>=2.3.8,!=3.1.4",
 	     "xlrd",

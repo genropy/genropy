@@ -430,7 +430,7 @@
 <en_copy_attachment_url base="Copy attachment url"></en_copy_attachment_url>
 <en_en_copy_and_paste_attachment_url _tag="en__en_copy_and_paste_attachment_url" base="!![en]Copy and paste attachment url"></en_en_copy_and_paste_attachment_url>
 <en_external_url base="External url" it="URL esterno"></en_external_url>
-<en_save_record_before_upload_attachments base="Save record before upload attachments" it="Salva il record prima di caricare allegati"></en_save_record_before_upload_attachments></attachmanager></attachmanager>
+<en_save_record_before_upload_attachments base="Save record before upload attachments" it="Salva il record prima di caricare allegati"></en_save_record_before_upload_attachments><en_this_attachment_links_to_an_external_site_and_cannot_be_previewed_here base="This attachment links to an external site and cannot be previewed here." it="Questo allegato rimanda a un sito esterno e non può essere visualizzato qui."></en_this_attachment_links_to_an_external_site_and_cannot_be_previewed_here><en_open_in_a_new_tab base="Open in a new tab" it="Apri in una nuova scheda"></en_open_in_a_new_tab></attachmanager></attachmanager>
 <batch_handler><batch_handler path="resources/common/gnrcomponents/batch_handler/batch_handler.py" ext="py"><en_batch base="Batch" de="Stapel" en="Batch" fr="Lot" it="Partita"></en_batch>
 <en_batch_monitor base="Batch monitor" de="Batch Monitor" en="Batch monitor" fr="Batch Monitor" it="Monitor Batch"></en_batch_monitor>
 <en_s_i_ _tag="en__s_i_" base="%s (%i)" en="[0] ([1])" it="%s (%i)"></en_s_i_>
@@ -803,7 +803,8 @@
 <en_revert base="Revert" de="Zurückkehren" en="Revert" fr="Revenir" it="Ritornare"></en_revert>
 <en_save fr="Sauvegarder" de="Speichern" en="Save" it="Salva" base="Save"></en_save>
 <en_record_history base="Record History" it="Cronologia dei record"></en_record_history>
-<en_copy_and_paste base="Copy and paste" de="Kopieren und Einfügen" en="Copy and paste" fr="Copier coller" it="Copia e incolla"></en_copy_and_paste></th_form>
+<en_copy_and_paste base="Copy and paste" de="Kopieren und Einfügen" en="Copy and paste" fr="Copier coller" it="Copia e incolla"></en_copy_and_paste>
+<en_draft base="Draft" de="Entwurf" en="Draft" fr="Brouillon" it="Bozza"></en_draft></th_form>
 <th_groupth path="resources/common/th/th_groupth.py" ext="py"><en_grid_view base="Grid View" it="Visualizzazione a griglia"></en_grid_view>
 <en_group_by base="Group by" it="Raggruppa per"></en_group_by>
 <en_flat base="Flat" it="Piatto"></en_flat>
