@@ -49,10 +49,6 @@ test15/webpages/chart/chartjs.py
 test15/webpages/chart/dygraph.py
 test15/webpages/dd/dd_grid.py
 test15/webpages/events/keyboard_logger.py
-test15/webpages/gnrwdg/formHandler.py
-test15/webpages/gnrwdg/formclientstore.py
-test15/webpages/gnrwdg/formhandler_baggrid.py
-test15/webpages/gnrwdg/formhandler_selection.py
 test15/webpages/gnrwdg/gridscale.py
 test15/webpages/gnrwdg/thpalette.py
 test15/webpages/html/test_hidden.py

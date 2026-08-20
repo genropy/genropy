@@ -81,3 +81,34 @@ Second launch of 2026-08-20, stopped at 2/7 by a transient API error.
   `components/multibutton.py` (now carrying nine documented cases), not a promotion.
 - The `test15` sources' `dojo_source = True` was not carried over. `TestHandler` sets it for every
   test page already, and as a page attribute it only selects the non-minified dojo build.
+
+## Phase 5
+
+- Dropping `testOnly='_2_'` from `formhandler_selection.py` exposed the same defect Phase 4 met on
+  slotbar: with only `test_2` ever rendering, nobody noticed that all five cases used the frameCode
+  `provincia` for their form and three of them `province` for their grid. TestHandlerFull renders
+  every case on one page, so the codes were suffixed per case (`provincia_0..4`,
+  `province_0/2/3`, `province_regione_4`, `regione_4`) together with everything that derives from
+  them: `genro.formById("provincia_N_form")`, `subscribe_form_provincia_N_onLoaded`, the
+  `parentStore` attribute, and `default_regione='=#province_2_frame.regione'`. `province_1` kept
+  its name, so its `parentStore` line is unchanged.
+- `formhandler_selection.testToolbar` computed `left = 'selectrecord,|,' if not startKey else ''`
+  and never interpolated it — the slotToolbar string has no `%s`. Removed as dead matter: it is the
+  same category as the leftovers the plan lists, and Phase 7 would flag it otherwise. The
+  `mytoolbar_selectrecord` struct_method in `formHandler.py` that would have filled that slot is
+  left alone; it is a registered struct_method, not dead code inside a case.
+- Unused local assignment *targets* were dropped while keeping their calls (`t1`,
+  `slot_viewer`, `center`, `saver`, and the `form` of `remote_testPalette`): in Genropy the call is
+  what adds the widget to the structure, so only the name was dead. flake8 here selects
+  F401,E9,F63,F7,F82, so none of these was failing the linter.
+- `formclientstore.py` had no module docstring at all: its `"Store memory"` literal sat *after* the
+  imports, which makes it a plain expression. The debt list was right to carry the page.
+- `formhandler_baggrid.py`'s header comment claimed the file was `includedview_bagstore.py`, the
+  page Phase 4 folded into `components/includedview.py`. Stale copy-paste, not a duplicate: the two
+  share no case (diffed against `HEAD~1`). Replaced by a real title docstring.
+- `#default_value='MI',` was removed from `formHandler.testToolbar` as well as from
+  `formclientstore.testToolbar`; the plan named only the latter, and it is the same leftover.
+- `dojo_source = True` was kept where the source had it (`formHandler.py`,
+  `formhandler_baggrid.py`), unlike Phase 4's folds: a promotion has no target page whose own
+  attributes should win, and the two pages already promoted into this folder (`tooltipDialog.py`,
+  `textboxmenu.py`) carry it too.

@@ -1,0 +1,3 @@
+✓ Phase 5 completed: Promote the FormHandler family
+
+The four FormHandler pages are promoted into test/webpages/gnrwdg/ and documented; the load-bearing finding is that dropping testOnly='_2_' from formhandler_selection.py exposed frameCodes the flag had been hiding (all five cases named their form 'provincia'), so they were suffixed per case together with the JS ids that derive from them. Green: 4 passed on documented+ratchet, smoke sweep 1 passed with no skip, flake8 clean on the four files.

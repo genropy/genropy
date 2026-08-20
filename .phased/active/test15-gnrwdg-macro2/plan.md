@@ -203,7 +203,33 @@ pages need no rewriting and a user instance without `glbl` still runs the suite.
   - Details: for each of the six sources, read the target page first, append the cases under the target's own conventions (`py_requires` merged, imports merged, `struct_method` helpers carried over and renamed if they collide), document each appended case, then delete the source. Every move in this phase is `git mv` and every removal `git rm`: the rename is recorded (macro 1's commit carries the same `{test15 => test}` renames) and nothing leaves the branch irrecoverably. `palette.py` takes two sources: `palette.py`'s dockButton palettePane and `panetree.py`'s `hiddenDock` case. Finally remove from `docstring_debt.txt` every `test15/webpages/gnrwdg/` line for the seven deleted sources that appears there (`palette.py`, `menuselect.py`, `framepane.py`, `baggrid_scroll.py`, `slotbar.py` are listed; `panetree.py` and `includedview_bagstore.py` are not), and any line for a target page that is now fully documented.
   - Done: the seven source files no longer exist; `pytest projects/gnrcore/packages/test/tests/test_pages_documented.py -q` passes; `pytest projects/gnrcore/packages/test/tests/test_pages_smoke.py -q -rs` reports `1 passed` (a skipped sweep does NOT satisfy this: it means the daemon never came up, and a check that skips protects nothing); `flake8` reports zero errors on the six target files
 
-- [ ] **Phase 5**: Promote the FormHandler family
+- [x] **Phase 5**: Promote the FormHandler family
+  > Done: the four FormHandler pages live under `test/webpages/gnrwdg/` and are gone from test15,
+    each with a title docstring saying what part of the component it shows and a one-liner on every
+    case and helper; `testOnly='_2_'`, the commented-out tail of `test_111_frame_formdatapath`, the
+    Italian NISO note, the `#default_value='MI'` leftovers and the dead `left` variable are removed;
+    the four `test15/webpages/gnrwdg/` lines are out of `docstring_debt.txt` (97 -> 93).
+    test_pages_documented.py + test_pages_ratchet.py 4 passed; test_pages_smoke.py -q -rs 1 passed
+    with no skip; flake8 zero errors on the four promoted files.
+  > Files: projects/gnrcore/packages/test/webpages/gnrwdg/formHandler.py,
+    projects/gnrcore/packages/test/webpages/gnrwdg/formhandler_selection.py,
+    projects/gnrcore/packages/test/webpages/gnrwdg/formclientstore.py,
+    projects/gnrcore/packages/test/webpages/gnrwdg/formhandler_baggrid.py,
+    projects/gnrcore/packages/test/tests/docstring_debt.txt
+  > Review: (deviation) dropping `testOnly='_2_'` exposed frameCodes the flag had been hiding: all
+    five cases of `formhandler_selection.py` named their form `provincia` and three named their grid
+    `province`. The codes are suffixed per case and everything deriving from them was updated
+    (`genro.formById`, `subscribe_form_provincia_N_onLoaded`, `parentStore`, the
+    `=#province_2_frame.regione` default) — the same defect Phase 4 met on slotbar. Details in
+    notes.md.
+  > Review: (deviation) two removals beyond the plan's dead-matter list, both the same category: the
+    `left` variable of `formhandler_selection.testToolbar`, computed and never interpolated, and the
+    `#default_value='MI'` comment in `formHandler.testToolbar` (the plan named only
+    formclientstore's). Unused local assignment targets were dropped keeping their calls, since in
+    Genropy the call is what builds the widget.
+  > Verify: deferred: needs Phase 6 — in the browser, /test/gnrwdg/formhandler_selection now renders
+    all five cases at once: check that no two of them drive the same form, which is what the
+    per-case frameCode renaming is there to prevent and what the render sweep cannot see.
   - Pattern reference: Phase 3's promoted pages (same documentation contract); `projects/gnrcore/packages/test/webpages/components/advanced_form.py`, which macro 1 repaired, for how a form page in this package reads
   - Files:
     - projects/gnrcore/packages/test/webpages/gnrwdg/formHandler.py (new, from test15)
