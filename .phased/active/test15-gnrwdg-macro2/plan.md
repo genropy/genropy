@@ -84,7 +84,9 @@ pages need no rewriting and a user instance without `glbl` still runs the suite.
   - Done: the glbl tables are in place and populated — `python3 -c "from gnr.app.gnrapp import GnrApp; print(GnrApp('gnrdevelop').db.table('glbl.provincia').countRecords())"` prints a number greater than zero; `pytest projects/gnrcore/packages/test/tests/test_pages_ratchet.py -q` passes; `pytest projects/gnrcore/packages/test/tests/test_pages_documented.py -q` passes; `pytest projects/gnrcore/packages/test/tests/test_pages_smoke.py -q -rs` reports `1 passed` (a skipped sweep does NOT satisfy this: it means the daemon never came up, and a check that skips protects nothing); `flake8` reports zero errors on the Files: set
   - Verify: now — open /test15/gnrwdg/formHandler: the Provincia dbselect drops down with real provinces, which is what proves the mount and the data load rather than the model merely building
 
-- [ ] **Phase 2**: Remove the four dead pages of the area
+- [x] **Phase 2**: Remove the four dead pages of the area
+  > Done: the four files (recursive_th.py, panegrid.py, gnrlayout.py, embed.py) are deleted via `git rm`; their three docstring_debt.txt lines (embed.py, panegrid.py, recursive_th.py) are removed, gnrlayout.py was not listed as expected; `test_pages_documented.py` 1 passed; `test_pages_smoke.py -rs` reports `1 passed` (no skip). No code files touched, so no flake8 target.
+  > Files: projects/gnrcore/packages/test15/webpages/gnrwdg/recursive_th.py (deleted), projects/gnrcore/packages/test15/webpages/gnrwdg/panegrid.py (deleted), projects/gnrcore/packages/test15/webpages/gnrwdg/gnrlayout.py (deleted), projects/gnrcore/packages/test15/webpages/gnrwdg/embed.py (deleted), projects/gnrcore/packages/test/tests/docstring_debt.txt
   - Pattern reference: library-standard (deletions plus their ratchet entries, as in macro 1's `1fbf73ce2`)
   - Files:
     - projects/gnrcore/packages/test15/webpages/gnrwdg/recursive_th.py (deleted)
