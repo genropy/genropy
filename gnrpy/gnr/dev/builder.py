@@ -158,8 +158,10 @@ class GnrProjectBuilder(object):
 
             # find the local path
             local_path = self.find_git_root(obj.packageFolder)
-            
-            if "genropy/genropy" in url:
+
+            # skip the framework providing packages
+            # it's already in the base image
+            if url.endswith("genropy/genropy.git"):
                 continue
 
             description = url.split('/')[-1].replace(".git","")

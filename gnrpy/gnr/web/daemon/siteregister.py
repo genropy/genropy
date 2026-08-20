@@ -381,18 +381,67 @@ class PageRegister(BaseRegister):
     def __init__(self, *args, **kwargs):
         super(PageRegister, self).__init__(*args, **kwargs)
         self.pageProfilers = dict()
+        # Reverse index table -> set of page_id subscribed to it, so asking whether a
+        # table is observed at all is a lookup instead of a scan of every registered
+        # page. It duplicates the per-page ``subscribed_tables`` list, so every
+        # mutation goes through updateSubscriptions and nowhere else: one place to
+        # keep the two in step, instead of one per lifecycle event.
+        self.tableSubscribers = defaultdict(set)
+
+    def updateSubscriptions(self, page_id, subscribed_tables, add=None, remove=None):
+        """The only writer of a page's subscriptions, list and index together.
+
+        *subscribed_tables* is the page's own list, mutated in place. Pass *add* or
+        *remove* to change one table, or neither to index the list as it stands (a
+        page being created). Returns True when something changed.
+        """
+        if add is not None:
+            if add in subscribed_tables:
+                return False
+            subscribed_tables.append(add)
+            self.tableSubscribers[add].add(page_id)
+            return True
+        if remove is not None:
+            if remove not in subscribed_tables:
+                return False
+            subscribed_tables.remove(remove)
+            self._dropSubscriber(remove, page_id)
+            return True
+        for table in subscribed_tables:
+            self.tableSubscribers[table].add(page_id)
+        return bool(subscribed_tables)
+
+    def dropSubscriptions(self, page_id, subscribed_tables):
+        """Forget every subscription of a page that is going away."""
+        for table in list(subscribed_tables):
+            self._dropSubscriber(table, page_id)
+        del subscribed_tables[:]
+
+    def _dropSubscriber(self, table, page_id):
+        subscribers = self.tableSubscribers.get(table)
+        if subscribers is None:
+            return
+        subscribers.discard(page_id)
+        if not subscribers:
+            del self.tableSubscribers[table]
+
+    def subscribed_tables(self):
+        """Tables with at least one subscribed page."""
+        return list(self.tableSubscribers)
 
     def create(self, page_id, pagename=None, connection_id=None, subscribed_tables=None, user=None, user_ip=None, user_agent=None, relative_url=None, data=None):
         register_item_id = page_id
         start_ts = datetime.now()
         if subscribed_tables:
             subscribed_tables = subscribed_tables.split(',')
+        subscribed_tables = subscribed_tables or []
+        self.updateSubscriptions(register_item_id, subscribed_tables)
         register_item = dict(
             register_item_id=register_item_id,
             pagename=pagename,
             connection_id=connection_id,
             start_ts=start_ts,
-            subscribed_tables=subscribed_tables or [],
+            subscribed_tables=subscribed_tables,
             user=user,
             user_ip=user_ip,
             user_agent=user_agent,
@@ -404,6 +453,11 @@ class PageRegister(BaseRegister):
         return register_item
 
     def drop(self, register_item_id=None, cascade=None):
+        # Unindex before dropping the item: the index is read to reach the items, so
+        # it must never point at one that is already gone.
+        self.dropSubscriptions(register_item_id,
+                               (self.registerItems.get(register_item_id) or {}
+                                ).get('subscribed_tables') or [])
         register_item = self.drop_item(register_item_id)
         self.pageProfilers.pop(register_item_id, None)
         if cascade:
@@ -413,19 +467,18 @@ class PageRegister(BaseRegister):
                 self.siteregister.drop_connection(connection_id)
 
     def filter_subscribed_tables(self, table_list):
-        s = set()
-        for k, v in list(self.items()):
-            s.update(v['subscribed_tables'])
-        return list(s.intersection(table_list))
+        return [table for table in table_list if table in self.tableSubscribers]
 
     def subscribed_table_page_keys(self, table):
-        return [k for k, v in list(self.items()) if table in v['subscribed_tables']]
+        return list(self.tableSubscribers.get(table, ()))
 
     def subscribed_table_page_items(self, table):
-        return [(k, v) for k, v in list(self.items()) if table in v['subscribed_tables']]
+        # registerItems rather than get_item: the scan this replaces did not refresh
+        # a page's timestamp, and notifying an event must not keep a page alive.
+        return [(k, self.registerItems[k]) for k in self.subscribed_table_page_keys(table)]
 
     def subscribed_table_pages(self, table):
-        return [v for k, v in list(self.items()) if table in v['subscribed_tables']]
+        return [self.registerItems[k] for k in self.subscribed_table_page_keys(table)]
 
     def connection_page_keys(self, connection_id):
         return [k for k, v in list(self.items()) if v['connection_id'] == connection_id]
@@ -482,11 +535,9 @@ class PageRegister(BaseRegister):
         register_item = self.get_item(page_id)
         subscribed_tables = register_item['subscribed_tables']
         if subscribe:
-            if table not in subscribed_tables:
-                subscribed_tables.append(table)
+            self.updateSubscriptions(page_id, subscribed_tables, add=table)
         else:
-            if table in subscribed_tables:
-                subscribed_tables.remove(table)
+            self.updateSubscriptions(page_id, subscribed_tables, remove=table)
 
     def notifyDbEvents(self, dbeventsDict=None, origin_page_id=None, dbevent_reason=None):
         for table, dbevents in list(dbeventsDict.items()):
