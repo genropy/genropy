@@ -2184,45 +2184,46 @@ dojo.declare("gnr.GnrDomSource", gnr.GnrStructData, {
     getChild:function(childpath){
         childpath = childpath.split('/');
         var curr = this;
-        var node;
-        dojo.forEach(childpath,function(childname){
+        var node = null;
+        var childname, ownerNode;
+        for (var i=0;i<childpath.length;i++){
+            childname = childpath[i];
+            if(!(curr instanceof gnr.GnrBag)){
+                return null; //a step of the path is not a container: no child there
+            }
             if (childname=='parent'){
-                node=curr.getParentNode().getParentNode();
-                curr=node.getValue();
+                ownerNode = curr.getParentNode();
+                node = ownerNode?ownerNode.getParentNode():null;
             }else if(childname.indexOf('#')==0){
-                node=curr.getParentNode();
-                node=node.nodeById(childname.slice(1));
-                curr=node.getValue();
+                ownerNode = curr.getParentNode();
+                node = ownerNode?ownerNode.nodeById(childname.slice(1)):null;
             }
             else{
-
+                node = null;
                 curr.forEach(function(n){
                     if(n.attr._childname==childname){
                         node = n;
                     }
                 },'static');
-                
-                if(node){
-                    return 
-                }
-                node=curr.walk(function(n){
-                       if('_childname' in n.attr){
-                           return n.attr._childname==childname?n:true;
-                         }
-                      },'static');
-
-                if (node==true){
-                    return;
-                }else{
-                    curr=node.getValue();
-                    if(!(curr instanceof gnr.GnrBag)){
-                        return;
+                if(!node){
+                    node = curr.walk(function(n){
+                           if('_childname' in n.attr){
+                               return n.attr._childname==childname?n:true;
+                             }
+                          },'static');
+                    if(node===true){
+                        node = null;
                     }
                 }
             }
-            
-        });
-        return node===true?null:node;
+            if(!node){
+                return null;
+            }
+            //every step moves into the found node, so that paths deeper than
+            //one named level (e.g. 'parent/parent/r_0_l/c_0') are resolved
+            curr = node.getValue();
+        }
+        return node;
     }
 });
 
