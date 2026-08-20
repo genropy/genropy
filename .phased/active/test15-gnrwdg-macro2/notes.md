@@ -112,3 +112,17 @@ Second launch of 2026-08-20, stopped at 2/7 by a transient API error.
   `formhandler_baggrid.py`), unlike Phase 4's folds: a promotion has no target page whose own
   attributes should win, and the two pages already promoted into this folder (`tooltipDialog.py`,
   `textboxmenu.py`) carry it too.
+
+## Phase 6
+- `thpalette.py`'s button: the plan asked for a button that really opens the dialog but not for a
+  mechanism. `dlg.js_widget` — the idiom of `test/webpages/layout/dialog.py` — is not usable here:
+  `thIframeDialog` returns the gnrwdg node (`resources/common/th/th.py:995`) while the dialog is
+  built client-side by `ThIframeDialog.createContent`, and `js_widget` resolves a pyref on the
+  node's parent. `createContent` forwards every `dialog_*` keyword to that dialog, so the page
+  passes `dialog_nodeId` and the button calls `genro.wdgById(<that nodeId>).show()` — the same
+  shape `formHandler.py:test_4_formPane_dialog` already uses in this area.
+- `includedview_externalchanges.py` is promoted byte-for-byte, as the plan decided: it already
+  carries a title and a docstring on both cases, and its old author header is left alone rather
+  than reformatted, keeping the diff a pure rename.
+- The `test15/webpages/gnrwdg/` folder is removed with `rm -rf` rather than `git rm`: after the
+  three `git mv`, the only thing left in it was `__pycache__`, which is untracked.

@@ -246,7 +246,32 @@ pages need no rewriting and a user instance without `glbl` still runs the suite.
   - Details: Every move in this phase is `git mv` and every removal `git rm`: the rename is recorded (macro 1's commit carries the same `{test15 => test}` renames) and nothing leaves the branch irrecoverably. Move the four pages into `projects/gnrcore/packages/test/webpages/gnrwdg/`, drop `testOnly`, remove the dead matter above, give each page a real title docstring and each case a one-liner, delete the test15 originals, and remove the four `test15/webpages/gnrwdg/` lines from `docstring_debt.txt` (all four are listed).
   - Done: the four files exist under `projects/gnrcore/packages/test/webpages/gnrwdg/` and no longer under test15; `pytest projects/gnrcore/packages/test/tests/test_pages_documented.py -q` passes; `pytest projects/gnrcore/packages/test/tests/test_pages_smoke.py -q -rs` reports `1 passed` (a skipped sweep does NOT satisfy this: it means the daemon never came up, and a check that skips protects nothing); `flake8` reports zero errors on the four promoted files
 
-- [ ] **Phase 6**: Close the area
+- [x] **Phase 6**: Close the area
+  > Done: the three pages are under `projects/gnrcore/packages/test/webpages/gnrwdg/` via `git mv` and
+    gone from test15; `projects/gnrcore/packages/test15/webpages/gnrwdg/` is deleted, `__pycache__`
+    included, and the `Gnrwdg` branch is out of `test15/menu.py` (`Dojo` and `Tools` stay).
+    `thpalette.py` got a real title and case docstring, lost its commented-out
+    `test_0_iframe_autosize`, and its button now actually opens the dialog: the thIframeDialog
+    passes `dialog_nodeId='thpalette_provincia_dlg'` through (ThIframeDialog forwards `dialog_*`
+    to the dialog it builds, `resources/common/th/th.js:246`) and the button calls
+    `genro.wdgById(...).show()` instead of `console.log(dialog)`. `gridscale.py` got a title and a
+    case docstring and keeps its `plainTableHandler` on `glbl.provincia`.
+    `includedview_externalchanges.py` is promoted unchanged as the plan asked.
+    `docstring_debt.txt` dropped its last two `test15/webpages/gnrwdg/` lines, 93 -> 91;
+    `grep -c 'test15/webpages/gnrwdg'` returns 0 on `docstring_debt.txt` and on
+    `smoke_known_failures.txt`. `test_pages_documented.py` + `test_pages_ratchet.py`: 4 passed;
+    `test_pages_smoke.py -q -rs`: 1 passed, no skip; flake8 zero errors on the three promoted files.
+  > Files: projects/gnrcore/packages/test/webpages/gnrwdg/includedview_externalchanges.py, projects/gnrcore/packages/test/webpages/gnrwdg/thpalette.py, projects/gnrcore/packages/test/webpages/gnrwdg/gridscale.py, the same three under projects/gnrcore/packages/test15/webpages/gnrwdg/ (deleted), projects/gnrcore/packages/test15/menu.py, projects/gnrcore/packages/test/tests/docstring_debt.txt
+  > Review: (deviation) the plan left open how the thpalette button opens the dialog. `js_widget`
+    resolves a pyref on the node's parent (`gnrpy/gnr/web/gnrwebstruct/base.py:117`), and what
+    `thIframeDialog` returns is the gnrwdg node, not the dialog the client builds inside it — so
+    the layout/dialog.py `dlg.js_widget` idiom does not apply here. A `dialog_nodeId` plus
+    `genro.wdgById(...).show()` addresses the dialog the widget actually creates.
+  > Verify: now — the browser pass this macro deferred to Phase 6 is due: open the ~20 pages
+    promoted by Phases 3, 4, 5 and 6 and check each builds its structure past the bootstrap GET
+    and shows what its docstring claims. Two of this phase's own pages need eyes specifically:
+    /test/gnrwdg/thpalette (the `open` button must raise a dialog holding the provincia th page)
+    and /test/gnrwdg/gridscale (the two sliders must visibly scale the grid).
   - Pattern reference: Phase 3's promoted pages; `projects/gnrcore/packages/test/menu.py` (the target package's menu already carries a `Gnr widgets` directoryBranch, so nothing is added there)
   - Files:
     - projects/gnrcore/packages/test/webpages/gnrwdg/includedview_externalchanges.py (new, from test15)
