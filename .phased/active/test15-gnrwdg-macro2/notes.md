@@ -30,3 +30,14 @@ Run of 2026-08-20, stopped by stop-work after Phase 1. 1/7 phases landed.
   `gnr app dbsetup` cannot complete on a sqlite instance whose model has drifted; (2) instance
   sqlite files are versioned (`docu.db`, `dev.db`, `test15.db`) and drift against their models,
   which is what produced (1) here.
+
+Second launch of 2026-08-20, stopped at 2/7 by a transient API error.
+
+- Phase 2 landed exactly as specified: the four files deleted, three ratchet lines removed, 21
+  pages left in the area (from 25) and 17 debt lines (from 20), and nothing else in the commit.
+- Phase 3's session never started its work: `API Error: 529 Overloaded`, `claude` exited 1, and
+  the launcher stopped on its "claude exited non-zero" condition. It left no `[>]` marker and no
+  plan edit, so the relaunch needed no stale-phase reset. Not a finding about the plan.
+- `log/phase-2.txt` carries only the one-line result. The launcher writes a phase's log after
+  that phase's commit, and a light-mode (`low`) phase leaves no reasoning trace at all: had it
+  failed, the diff would have been the only thing left to inspect.
