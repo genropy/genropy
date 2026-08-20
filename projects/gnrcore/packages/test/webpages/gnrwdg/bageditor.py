@@ -1,12 +1,17 @@
 # -*- coding: utf-8 -*-
 
-# bageditor.py
-# Created by Francesco Porcari on 2011-01-10.
-# Copyright (c) 2011 Softwell. All rights reserved.
+"""Editing a Bag through bagNodeEditor, bagEditor and multiValueEditor
 
-"""bageditor"""
+The three widgets edit the same thing - the nodes of a Bag - at three levels of
+detail: bagNodeEditor edits one node, bagEditor gives a tree plus a grid over a
+whole Bag, and multiValueEditor edits a flat set of key/value pairs. The tree
+cases load `adm/localization.xml` as a sample Bag with attributes worth showing
+in columns.
+"""
 
 from gnr.core.gnrbag import Bag
+
+LOCALIZATION_BAG = 'pkg:adm/localization.xml'
 
 class GnrCustomWebPage(object):
     py_requires="gnrcomponents/testhandler:TestHandlerFull,gnrcomponents/framegrid:FrameGrid"
@@ -14,15 +19,20 @@ class GnrCustomWebPage(object):
     def windowTitle(self):
         return 'bageditor'
          
+    def localizationBag(self):  # wf:phase-3:new
+        """The adm localization.xml read as a Bag, sample data for the tree cases"""
+        return Bag(self.site.storageNode(LOCALIZATION_BAG).internal_path)
+
     def test_0_firsttest(self,pane):
-        """basic"""
+        """bagNodeEditor: edit the attributes of a single node, on the `test_editnode` topic"""
         bc = pane.borderContainer(height='400px',background='lime')
         bc.contentPane(region='top').button('load node',action='genro.publish("test_editnode","")')
         bc.contentPane(region='center').bagNodeEditor(bagpath='gnr',nodeId='test')
     
     def test_1_firsttest(self,pane):
+        """A tree plus a bagGrid built by hand: the selected branch becomes rows, its attributes columns"""
         bc = pane.borderContainer(height='600px')
-        b = Bag('/Users/sporcari/sviluppo/genro/projects/gnrcore/packages/adm/localization.xml')
+        b = self.localizationBag()
         bc.data('.treestore.root', b,label='Root')
         bc.contentPane(region='left',width='200px').tree(storepath='.treestore', labelAttribute='label',selectedPath='.selectedPath',hideValues=True)
         bc.dataController("""
@@ -92,32 +102,27 @@ class GnrCustomWebPage(object):
         """,branch='^.bageditor.store',selectedPath='=.selectedPath',treestore='=.treestore')
 
     def test_2_component(self,pane):
-        b = Bag('/Users/sporcari/sviluppo/genro/projects/gnrcore/packages/adm/localization.xml')
+        """bagEditor: the same tree plus grid as test_1, as one widget with addrow/delrow/addcol"""
+        b = self.localizationBag()
         pane.data('.treestore.root', b,label='Root')
         pane.borderContainer(height='600px').contentPane(region='center').bagEditor(storepath='.treestore.root',labelAttribute='label',addrow=True,delrow=True,addcol=True)
 
 
 
     def test_3_multiValueEditor(self,pane):
-        #box = pane.div(padding='10px',border='1px solid black')
-        #dati = Bag(dict(name_long='Artisti',multidb=True))
-        #pane.data('.dati',dati)
-        #box.div('^.dati_formattati')
-        #box.dataController("""
-        #    var dati_formattati = dati.getFormattedValue();
-        #    SET .dati_formattati = dati_formattati;
-        #    """,dati='^.dati',_onStart=True)
-
+        """multiValueEditor on an empty datastore node: rows are added from the widget itself"""
         bc = pane.borderContainer(height='300px')
 
         bc.contentPane(region='center').multiValueEditor(value='^.dati')
 
     def test_4_multiValueEditor(self,pane):
+        """multiValueEditor over a given dict, with tools=False so the pairs cannot be changed"""
         bc = pane.borderContainer(height='300px')
         bc.contentPane(region='center').multiValueEditor(value=dict(nome='Gianni',eta=33,indirizzo='via del pero 12'), 
                                                             tools=False)
 
     def test_5_prova(self, pane):
+        """The same read-only multiValueEditor inside a moveable div, filling it at height 100%"""
         bc = pane.borderContainer(height='300px')
         center = bc.contentPane(region='center')
         m = center.div(lbl='Bellone', height='80px', width='300px', moveable=True, border='1px solid gray;')

@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 
-# colormenu.py
-# Created by Francesco Porcari on 2017-01-08.
-# Copyright (c) 2011 Softwell. All rights reserved.
+"""Picking a colour: colorTextBox, colorFiltering and menus built on chroma.js
 
-"Test page description"
+Every case here needs `chroma.min.js`, loaded once by `onMain_chromaImport` from
+`resources/js_libs/`: chroma is what turns a list of colour names into a scale
+and what decides whether a swatch needs white or dark text on top of it. The
+cases go from a callbackSelect filled by hand to the two ready widgets,
+colorTextBox and colorFiltering, and finally to both of them editing grid cells.
+"""
 
 class GnrCustomWebPage(object):
     py_requires="gnrcomponents/testhandler:TestHandlerFull,gnrcomponents/framegrid:FrameGrid"
@@ -16,7 +19,7 @@ class GnrCustomWebPage(object):
 
          
     def test_0_filtering(self,pane):
-        """First test description"""
+        """callbackSelect over chroma.colors: the swatch is HTML in an auxColumn, filtered client side"""
         fb = pane.formbuilder(cols=2, border_spacing='4px')
         fb.callbackSelect(value='^.color',callback="""function(kw){
                 var _id = kw._id;
@@ -45,6 +48,7 @@ class GnrCustomWebPage(object):
                 _if="window.chroma")
 
     def test_1_scales(self,pane):
+        """chroma.scale over a comma separated list of colours, rendered as a strip of divs"""
         fb = pane.formbuilder(cols=1, border_spacing='4px')
         fb.textbox(value='^.colors',lbl='Colors')
         fb.numberTextBox(value='^.ns',lbl='Number of shades',default_value=5)
@@ -60,7 +64,7 @@ class GnrCustomWebPage(object):
         
 
     def test_2_menu(self,pane):
-        """First test description"""
+        """comboMenu whose entries are the shades of the scale, each captioned with its own hex"""
         fb = pane.formbuilder(cols=2, border_spacing='4px')
         fb.textbox(value='^.colors',lbl='Colors',default_value='white,black,blue,green,yellow,red,indigo')
         fb.numberTextBox(value='^.ns',lbl='Number of shades',default_value=20)
@@ -80,6 +84,7 @@ class GnrCustomWebPage(object):
 
 
     def test_3_colorTextBox(self,pane):
+        """colorTextBox: the same palette as a widget, with the number of shades and the mode as parameters"""
         fb = pane.formbuilder(cols=1, border_spacing='4px')
         fb.textbox(value='^.colors',lbl='Colors',default_value='white,black,blue,green,yellow,red,indigo')
         fb.numberTextBox(value='^.steps',lbl='Number of shades',default_value=20)
@@ -87,11 +92,13 @@ class GnrCustomWebPage(object):
         fb.colorTextBox(value='^.color',colors='^.colors',steps='^.steps',mode='^.mode',lbl='Color')
 
     def test_4_colorFiltering(self,pane):
+        """colorFiltering: a colour picker needing no palette of its own"""
         fb = pane.formbuilder(cols=1, border_spacing='4px')
         fb.colorFiltering(value='^.color',lbl='Color')
 
 
     def test_5_inGrid(self,pane):
+        """The three widgets as cell editors of a quickGrid, hex and rgba side by side"""
         bc = pane.borderContainer(height='400px')
         g = bc.contentPane(region='center').quickGrid(value='^.colors')
         g.tools('delrow,addrow')

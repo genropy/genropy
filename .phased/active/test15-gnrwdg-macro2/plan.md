@@ -102,7 +102,29 @@ pages need no rewriting and a user instance without `glbl` still runs the suite.
   - Details: delete the four files. Then remove exactly these three lines from `docstring_debt.txt` — `test15/webpages/gnrwdg/recursive_th.py`, `test15/webpages/gnrwdg/panegrid.py`, `test15/webpages/gnrwdg/embed.py`. `gnrlayout.py` is NOT in that file (it carries a title docstring) so there is no fourth line to remove; removing a line that is not there, or leaving one of the three, fails the ratchet in one direction or the other. Every move in this phase is `git mv` and every removal `git rm`: the rename is recorded (macro 1's commit carries the same `{test15 => test}` renames) and nothing leaves the branch irrecoverably.
   - Done: the four files no longer exist; `pytest projects/gnrcore/packages/test/tests/test_pages_documented.py -q` passes; `pytest projects/gnrcore/packages/test/tests/test_pages_smoke.py -q -rs` reports `1 passed` (a skipped sweep does NOT satisfy this: it means the daemon never came up, and a check that skips protects nothing)
 
-- [ ] **Phase 3**: Promote the seven self-contained pages
+- [x] **Phase 3**: Promote the seven self-contained pages
+  > Done: the seven pages are under `projects/gnrcore/packages/test/webpages/gnrwdg/` via `git mv` and gone
+    from test15. Each got a real title docstring and a one-liner on every `test_*` case (plus on
+    `struct_doc`/`doc_form`/`remote_contenuto_test`, the helpers the cases read through).
+    `bageditor.py`'s two `/Users/sporcari/...` Bag paths are replaced by one
+    `localizationBag()` helper reading `pkg:adm/localization.xml` through
+    `self.site.storageNode(...).internal_path`, so both cases work on any machine; its
+    commented-out block above `test_3_multiValueEditor` is gone, as is `fieldstree.py`'s
+    commented `onDrag=` line. Six `test15/webpages/gnrwdg/` lines removed from
+    `docstring_debt.txt` (`textboxmenu.py` was not listed, as the plan said) and no
+    `test/webpages/gnrwdg/` line added. `test_pages_documented.py` + `test_pages_smoke.py -rs`:
+    2 passed, no skip; `test_pages_ratchet.py`: 3 passed; flake8 zero errors on
+    `test/webpages/gnrwdg/`.
+  > Files: projects/gnrcore/packages/test/webpages/gnrwdg/bageditor.py, projects/gnrcore/packages/test/webpages/gnrwdg/colormenu.py, projects/gnrcore/packages/test/webpages/gnrwdg/fieldstree.py, projects/gnrcore/packages/test/webpages/gnrwdg/formdocumentstore.py, projects/gnrcore/packages/test/webpages/gnrwdg/gridgallery.py, projects/gnrcore/packages/test/webpages/gnrwdg/textboxmenu.py, projects/gnrcore/packages/test/webpages/gnrwdg/tooltipDialog.py, the same seven under projects/gnrcore/packages/test15/webpages/gnrwdg/ (deleted), projects/gnrcore/packages/test/tests/docstring_debt.txt
+  > Review: (deviation) the plan put the storageNode fix inline in the two `bageditor.py` cases; it is
+    factored into one `localizationBag()` helper instead, marked `# wf:phase-3:new` for the naming
+    review. Same call, written once.
+  > Review: `textboxmenu.py` carries two cases with the same `test_1_` prefix (`test_1_Menu`,
+    `test_1_Tooltip`). Left as they are: TestHandlerFull dispatches on the full method name
+    (`resources/common/gnrcomponents/testhandler.py:38`), so both render and nothing is hidden.
+    Phase 4's renumbering rule is about appended cases colliding by full name, not by number.
+  > Verify: deferred: needs Phase 6 — the seven pages are in the Phase 6 browser pass; the render
+    sweep only proves their bootstrap GET.
   - Pattern reference: the pages macro 1 promoted — `projects/gnrcore/packages/test/webpages/websocket/draw.py` (title docstring plus one line per test case, dead code dropped); `projects/gnrcore/packages/test/webpages/components/drop_uploader.py:99` for the storageNode idiom
   - Files:
     - projects/gnrcore/packages/test/webpages/gnrwdg/bageditor.py (new, from test15)

@@ -1,10 +1,14 @@
 # -*- coding: utf-8 -*-
 
-# tooltipDialog.py
-# Created by Francesco Porcari on 2011-03-18.
-# Copyright (c) 2011 Softwell. All rights reserved.
+"""tooltipPane: a floating pane opened by an event, by a topic or by a grid cell
 
-"tooltipDialog"
+A tooltipPane is built once and opened against whatever DOM node asks for it, so
+the same pane serves many openers. The cases walk the ways of opening one: the
+`evt` attribute, the `<code>_open` topic through `openerId`, `placingId` to
+anchor it elsewhere, and cell editing, where the pane becomes the editor of a
+whole row rendered by a rowTemplate. `genro.dlg.quickTooltipPane` is the
+shortcut that builds pane and formbuilder from a list of field descriptions.
+"""
 
 
 class GnrCustomWebPage(object):
@@ -52,6 +56,7 @@ class GnrCustomWebPage(object):
         pane.div(height='30px',width='30px',margin='10px',background='green',device='A.C')
         
     def remote_contenuto_test(self,pane,attrs=None):
+        """Remote content of test_2: a form coloured after the div that opened the pane"""
         fb = pane.formbuilder(background=attrs['background'])
         fb.textbox(value='^campo1',lbl='Campo1')
         fb.textbox(value='^campo2',lbl='Campo2')
@@ -59,6 +64,7 @@ class GnrCustomWebPage(object):
 
 
     def test_3_forcedOpen(self,pane):
+        """A pane with no event of its own, opened by publishing `pippo_open` from another div"""
         fb = pane.formbuilder(cols=2,border_spacing='3px')
         fb.div('ciao',lbl='Test')
         fb.div('Bao',lbl='Test 2',connect_onclick="""genro.publish('pippo_open',{evt:$1,domNode:$1.target,pippo:4});""")
@@ -67,6 +73,7 @@ class GnrCustomWebPage(object):
                              onOpening="""console.log("test",kwargs);""").div('Test',padding='20px')
 
     def test_4_grid(self,pane):
+        """The pane as the editor of a bagGrid row: editOnOpening publishes the row path to it"""
         def struct(struct):
             r = struct.view().rows()
             r.cell('tpl',rowTemplate="$nome - $cognome <br/> $indirizzo",width='100%',
@@ -88,11 +95,13 @@ class GnrCustomWebPage(object):
         fb.simpleTextArea(value='^.indirizzo',lbl='Indirizzo')
 
     def test_5_dynamic(self,pane):
+        """genro.dlg.quickTooltipPane building the pane and its fields at click time"""
         fb = pane.formbuilder(cols=2,border_spacing='3px')
         fb.button('Bomb',lbl='Test',action="""genro.dlg.quickTooltipPane({domNode:this.widget.domNode,fields:fields,datapath:'pippo'})""",
                 fields=[dict(lbl='Ciao',wdg='numberTextBox',value='^.ciao'),dict(lbl='Bao',wdg='dateTextBox',value='^.bao')])
 
     def test_6_griddynamic(self,pane):
+        """The same row editor declared as `edit=dict(fields=[...])` on the cell, no pane written by hand"""
         def struct(struct):
             r = struct.view().rows()
             r.cell('tpl',rowTemplate="$nome - $cognome <br/> $indirizzo",width='100%',
@@ -104,6 +113,7 @@ class GnrCustomWebPage(object):
         pane.bagGrid(storepath='.data',struct=struct,height='500px',pbl_classes='*',title='Pippo')
 
     def test_7_griddynamic_cb(self,pane):
+        """The field list of the row editor returned by a javascript callback instead of a literal"""
         def struct(struct):
             r = struct.view().rows()
             r.cell('tpl',rowTemplate="$nome - $cognome <br/> $indirizzo",width='100%',
@@ -112,6 +122,7 @@ class GnrCustomWebPage(object):
         pane.bagGrid(storepath='.data',struct=struct,height='500px',pbl_classes='*',title='Pippo')
 
     def test_8_placing_id(self,pane):
+        """placingId: the pane opens against the node with that id, not against its own opener"""
         fb = pane.formbuilder(cols=1,border_spacing='3px')
         fb.textbox(value='^.pippo',nodeId='piero',width='15em').comboArrow().tooltipPane(placingId='piero').div(height='400px',width='15em').div('ciao')
 

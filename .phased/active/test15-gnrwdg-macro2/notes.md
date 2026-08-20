@@ -41,3 +41,17 @@ Second launch of 2026-08-20, stopped at 2/7 by a transient API error.
 - `log/phase-2.txt` carries only the one-line result. The launcher writes a phase's log after
   that phase's commit, and a light-mode (`low`) phase leaves no reasoning trace at all: had it
   failed, the diff would have been the only thing left to inspect.
+
+## Phase 3
+- `bageditor.py`: the plan asked for `Bag(self.site.storageNode('pkg:adm/localization.xml').internal_path)`
+  inline in `test_1_firsttest` and `test_2_component`. It is one `localizationBag()` helper instead
+  (path in the module-level `LOCALIZATION_BAG`), because the two cases loaded the identical file and a
+  page that reads a sample file twice should name it once. Marked `# wf:phase-3:new`.
+- `textboxmenu.py` has `test_1_Menu` and `test_1_Tooltip`, two cases sharing the `test_1_` number.
+  Not renumbered: `TestHandlerFull` builds its cards from `dir(self)` and dispatches on the full method
+  name, so both render. Renumbering would have been a behavioural edit outside "documentation and dead
+  code", which is all this phase authorises.
+- `textboxmenu.py` `test_3_tooltipTextArea` assigned `multilineTextbox(...)` to an unused local
+  `tooltip`; the assignment is dropped (dead matter), the widget stays.
+- Case docstrings say which part of the widget each case shows rather than restating the method name,
+  because Phase 7 flags generic ones and the point of the macro is a reader learning the widget.
