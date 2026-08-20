@@ -795,6 +795,9 @@ class GnrPackage(object):
     def onDbUpgrade(self):
         self.tableBroadcast('onDbUpgrade,onDbUpgrade_*')
 
+    def onDbUpgradeDone(self):
+        self.tableBroadcast('onDbUpgradeDone,onDbUpgradeDone_*')
+
     def tableBroadcast(self,evt,autocommit=False,**kwargs):
         changed = False
         for evt in evt.split(','):
@@ -1055,10 +1058,7 @@ class GnrApp(object):
         if pkgid in self.packages:
             return 
         attrs = pkgattrs or {}
-        if not attrs.get('path'):
-            attrs['path'] = self.pkg_name_to_path(pkgid,project)
-        if not os.path.isabs(attrs['path']):
-            attrs['path'] = self.realPath(attrs['path'])
+        attrs['path'] = self.pkg_path_from_attrs(pkgid, attrs, project=project)
         apppkg = GnrPackage(pkgid, self, **attrs)
         apppkg.content = pkgcontent or Bag()
         readOnlyAttrs = {'readOnly':True} if attrs.get('readOnly') else dict()
@@ -1077,8 +1077,9 @@ class GnrApp(object):
             else:
                 project = None
                 
-            packageFolder = self.pkg_name_to_path(package, project)
-            requirements_file = os.path.join(packageFolder, package, "requirements.txt")
+            packageFolder = self.pkg_path_from_attrs(package, pkgattrs, project=project)
+            filename = (pkgattrs or {}).get('filename') or package
+            requirements_file = os.path.join(packageFolder, filename, "requirements.txt")
             if os.path.isfile(requirements_file):
                 with open(requirements_file) as fp:
                     for line in fp:
@@ -1245,7 +1246,22 @@ class GnrApp(object):
         else:
             raise Exception(
                     'Error: package %s not found' % pkgid)
-        
+
+    def pkg_path_from_attrs(self, pkgid, pkgattrs=None, project=None):
+        """Return the folder containing the :ref:`package <packages>` folder.
+
+        The instanceconfig can declare an explicit ``path`` attribute, pointing
+        anywhere on the filesystem: only when it is missing the package is
+        looked up in the known packages roots.
+
+        :param pkgid: the id of the :ref:`package <packages>`
+        :param pkgattrs: the instanceconfig attributes of the package
+        :param project: the project owning the package, if any"""
+        path = (pkgattrs or {}).get('path') or self.pkg_name_to_path(pkgid, project)
+        if not os.path.isabs(path):
+            path = self.realPath(path)
+        return path
+
     def project_path(self, project):
         """TODO
         
@@ -1273,6 +1289,15 @@ class GnrApp(object):
         for method in method.split(','):
             result+=self._pkgBroadcast(method,*args,**kwargs)
         return result
+
+    def dbUpgradeBroadcast(self):
+        """Run the db upgrade lifecycle: broadcast onDbUpgrade to every package,
+        then onDbUpgradeDone once all packages completed their upgrade pass.
+
+        onDbUpgradeDone hooks can rely on records created by any package during
+        the onDbUpgrade phase (mandatory sysRecords, lookup rows)."""
+        self.pkgBroadcast('onDbUpgrade,onDbUpgrade_*')
+        self.pkgBroadcast('onDbUpgradeDone,onDbUpgradeDone_*')
     
     def _pkgBroadcast(self,method,*args,**kwargs):
         result = []
