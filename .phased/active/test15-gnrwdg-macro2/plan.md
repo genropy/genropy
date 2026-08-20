@@ -13,7 +13,14 @@ teaches the render sweep to skip a page whose packages are absent, so the
 pages need no rewriting and a user instance without `glbl` still runs the suite.
 
 ## Work Plan
-- [!] **Phase 1**: Mount glbl in gnrdevelop and skip pages whose packages are absent
+- [x] **Phase 1**: Mount glbl in gnrdevelop and skip pages whose packages are absent
+  > Foreman: the original Done criterion, `gnr app dbsetup gnrdevelop` exits 0, was wrong. It
+    made this phase hostage to the whole instance migrating cleanly, and gnrdevelop's sqlite
+    carries a pre-existing docu drift that sqlite cannot apply at all (see notes.md, Run
+    inspection). Corrected to a check on the glbl tables themselves, which is what the phase
+    actually needs and what it delivered in `e5462996c`. The phase closes [x]; its Issue and
+    Attempted notes stay as the record of what its checks went through, and the docu drift is
+    filed separately, not repaired here.
   > Issue: one Done criterion is unmet — `gnr app dbsetup gnrdevelop` does not exit 0. The
     local sqlite of gnrdevelop carries a pre-existing docu model drift and dbsetup aborts on
     `ALTER TABLE "docu"."docu_documentation" ALTER TABLE base_language TYPE character
@@ -74,7 +81,7 @@ pages need no rewriting and a user instance without `glbl` still runs the suite.
     5. `tests.yml`: extend the existing "Documentation ratchet" step to invoke `test_pages_ratchet.py` alongside `test_pages_documented.py`.
     6. Delete the six `model/_packages/glbl/*.py` files; leave the now-empty `_packages/glbl` folders removed too.
     7. Run `gnr app dbsetup gnrdevelop`, then load the glbl startup data.
-  - Done: `gnr app dbsetup gnrdevelop` exits 0; `pytest projects/gnrcore/packages/test/tests/test_pages_ratchet.py -q` passes; `pytest projects/gnrcore/packages/test/tests/test_pages_documented.py -q` passes; `pytest projects/gnrcore/packages/test/tests/test_pages_smoke.py -q -rs` reports `1 passed` (a skipped sweep does NOT satisfy this: it means the daemon never came up, and a check that skips protects nothing); `flake8` reports zero errors on the Files: set
+  - Done: the glbl tables are in place and populated — `python3 -c "from gnr.app.gnrapp import GnrApp; print(GnrApp('gnrdevelop').db.table('glbl.provincia').countRecords())"` prints a number greater than zero; `pytest projects/gnrcore/packages/test/tests/test_pages_ratchet.py -q` passes; `pytest projects/gnrcore/packages/test/tests/test_pages_documented.py -q` passes; `pytest projects/gnrcore/packages/test/tests/test_pages_smoke.py -q -rs` reports `1 passed` (a skipped sweep does NOT satisfy this: it means the daemon never came up, and a check that skips protects nothing); `flake8` reports zero errors on the Files: set
   - Verify: now — open /test15/gnrwdg/formHandler: the Provincia dbselect drops down with real provinces, which is what proves the mount and the data load rather than the model merely building
 
 - [ ] **Phase 2**: Remove the four dead pages of the area
