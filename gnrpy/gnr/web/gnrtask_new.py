@@ -202,7 +202,7 @@ class GnrTask:
         months =  list(map(int, self.schedule.get('month').split(','))) if self.schedule.get('month') else range(1,13)
         days = list(map(int, self.schedule.get('day').split(','))) if self.schedule.get('day') else range(1,32)
         hours = list(map(int, self.schedule.get('hour').split(','))) if self.schedule.get('hour') else range(0,24)
-        minutes = list(map(int, self.schedule.get('minute').split(','))) if self.schedule.get('minutes') else range(0,60)
+        minutes = list(map(int, self.schedule.get('minute').split(','))) if self.schedule.get('minute') else range(0,60)
 
         hm = []
         for h in hours:

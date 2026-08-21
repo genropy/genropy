@@ -200,6 +200,18 @@ class TestGnrTaskBasics(BaseGnrTest):
         result = task.is_due(timestamp=ts)
         assert result == "2024-4-1-12-15"
 
+    def test_task_is_due_does_not_run_before_configured_minute(self):
+        ts = datetime(2024, 4, 1, 12, 5, tzinfo=timezone.utc)
+        task = gnrtask.GnrTask(
+            name="calendar",
+            action="run",
+            db="test",
+            table_name="tbl",
+            schedule={"month": "4", "day": "1", "hour": "12", "minute": "15"},
+        )
+
+        assert task.is_due(timestamp=ts) is False
+
     def _wallclock_task(self, **schedule):
         return gnrtask.GnrTask(
             name="wallclock",
