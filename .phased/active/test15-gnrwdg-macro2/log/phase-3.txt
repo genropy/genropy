@@ -1,0 +1,5 @@
+Foreman unreachable — skipped per the best-effort rule.
+
+✓ Phase 3 completed: Promote the seven self-contained pages
+
+The seven pages moved into `test/webpages/gnrwdg/` with real title docstrings and per-case one-liners, `bageditor.py`'s two unresolvable `/Users/sporcari/...` Bag paths replaced by a `pkg:adm/localization.xml` lookup, and the six `test15` lines dropped from `docstring_debt.txt`. Gate: `test_pages_documented.py` + `test_pages_smoke.py -rs` 2 passed with no skip, `test_pages_ratchet.py` 3 passed, flake8 clean — committed as `6b30d6b57`.

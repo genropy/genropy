@@ -1,0 +1,5 @@
+Foreman chat unreachable — notification skipped (best-effort, per the skill).
+
+✓ Phase 5 completed: Promote the FormHandler family
+
+The four FormHandler pages now live under `test/webpages/gnrwdg/`, documented, and are gone from test15; `docstring_debt.txt` dropped 97 → 93 lines. Green signal after the work: `test_pages_documented.py` + `test_pages_ratchet.py` 4 passed, `test_pages_smoke.py -q -rs` 1 passed with no skip, flake8 zero errors on the four promoted files — committed as `438bd3bd7`. The load-bearing finding, recorded as a `> Review:` note: dropping `testOnly='_2_'` exposed frameCodes the flag had been hiding (all five cases of `formhandler_selection.py` named their form `provincia`), so they were suffixed per case along with the JS ids derived from them.

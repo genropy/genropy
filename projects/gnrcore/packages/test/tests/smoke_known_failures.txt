@@ -1,1 +1,2 @@
-test/webpages/tools/flibpicker.py
+# Pages the render sweep is allowed to fail on. Empty: every discovered page
+# either renders or is skipped for a package the instance does not mount.

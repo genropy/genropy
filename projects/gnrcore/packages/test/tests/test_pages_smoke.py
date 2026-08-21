@@ -8,6 +8,22 @@ is a stale entry, so the list can only shrink. Pages are discovered by walking
 the tree (`pages_ratchet.discover_pages`), so the sweep shrinks by itself as
 test15 empties.
 
+A page addressing a package the instance does not mount cannot render, and
+rewriting it to drop the dependency would throw away what it demonstrates: the
+sweep skips it instead (`pages_ratchet.page_required_packages` against the
+mounted package ids) and prints one line per skipped page, so a sweep that
+quietly stops covering pages stays visible. A page names another package
+through two channels and both count: the tables it addresses and the components
+it mixes in through `py_requires`, an entry the loader cannot resolve being a
+hard raise (`GnrMixinNotFound`) rather than a page missing a widget.
+
+`gnrdevelop` mounts what the pages need: `gnr_it:glbl` for the lookup tables and
+`gnrcore:biz` for the dashboard component. `glbl` lookup tables are filled from
+the package's own startup data, which is developer setup and not something a
+test performs: `gnr app dbsetup gnrdevelop`, then `loadStartupData` on the
+`glbl` package -- a destructive local operation, it empties and refills those
+tables.
+
 This half needs a booted site and a running daemon, which is why the
 documentation ratchet lives in `test_pages_documented.py` instead: a check that
 can skip must not be the one guarding the documentation debt.
@@ -23,7 +39,8 @@ from Pyro4.errors import CommunicationError
 
 from webcommon import BaseGnrDaemonTest
 
-from pages_ratchet import SMOKE_RATCHET, assert_ratchet, discover_pages, page_url
+from pages_ratchet import (SMOKE_RATCHET, assert_ratchet, discover_pages,
+                           page_required_packages, page_url)
 
 # Every page render opens ~79 short-lived loopback connections to the site
 # register (`gnr/web/daemon/siteregister_client.py` connects and releases a
@@ -66,12 +83,26 @@ class TestPagesSmoke(BaseGnrDaemonTest):
         return False
 
     @classmethod
+    def mounted_packages(cls):
+        """Package ids the site has mounted"""
+        return set(cls.site.gnrapp.packages.keys())
+
+    @classmethod
     def page_statuses(cls):
-        """HTTP status of every discovered page, absorbing port-exhaustion stalls"""
+        """HTTP status of every discovered page, absorbing port-exhaustion stalls
+
+        Pages requiring an unmounted package are left out and returned apart.
+        """
+        mounted = cls.mounted_packages()
+        skipped = {}
         statuses = {}
         canary = None
         register_dead = False
         for page_path in discover_pages():
+            missing = page_required_packages(page_path) - mounted
+            if missing:
+                skipped[page_path] = sorted(missing)
+                continue
             status = cls.render_status(page_path)
             if not status.startswith('200') and not register_dead:
                 probe = canary or page_path
@@ -84,10 +115,13 @@ class TestPagesSmoke(BaseGnrDaemonTest):
             if status.startswith('200') and canary is None:
                 canary = page_path
             statuses[page_path] = status
-        return statuses
+        return statuses, skipped
 
     def test_pages_answer_200(self):
         """Every page returns 200, except the ones in smoke_known_failures.txt"""
-        failing = [page_path for page_path, status in self.page_statuses().items()
+        statuses, skipped = self.page_statuses()
+        for page_path, missing in sorted(skipped.items()):
+            print('skipped %s: package(s) not mounted: %s' % (page_path, ', '.join(missing)))
+        failing = [page_path for page_path, status in statuses.items()
                    if not status.startswith('200')]
         assert_ratchet(failing, SMOKE_RATCHET, 'failing pages')

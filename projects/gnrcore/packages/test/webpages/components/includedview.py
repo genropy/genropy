@@ -3,7 +3,7 @@
 # Created by Francesco Porcari on 2010-09-22 and updated by Davide Paci on 2022-01-25.
 # Copyright (c) 2010 Softwell. All rights reserved.
 
-
+"""includedView"""
 
 from gnr.core.gnrbag import Bag
 
@@ -62,3 +62,21 @@ class GnrCustomWebPage(object):
         r.cell('name', name='Name', width='10em')
         r.cell('age', name='Age', width='5em', dtype='I')
         r.cell('work', name='Work', width='10em')
+
+    def test_2_includedview_bagstore_addrow(self, pane):
+        "includedView on a Bag inside a framePane: the toolbar slot adds rows client side and opens the editor"
+        frame = pane.framePane('gridtest',height='400px',_class='no_over',datapath='.test')
+        frame.top.slotToolbar('*,addrow',addrow_delay=300)
+        frame.data('.mybag',self.common_data())
+        frame.dataController("console.log(data)",data="=#",fired='tt')
+        iv = frame.includedView(storepath='.mybag',datapath=False,struct=self.common_struct,datamode='bag',
+                                selectedIndex='.currIndex',
+                                selfsubscribe_addrow="""for(var i=0; i<$1._counter;i++){
+                                                            this.widget.addBagRow('#id', '*', this.widget.newBagRow());
+                                                        }
+                                                        this.widget.editBagRow(null);
+                                                        """)
+        gridEditor = iv.gridEditor()
+        gridEditor.textbox(gridcell='name')
+        gridEditor.numbertextbox(gridcell='age')
+        gridEditor.textbox(gridcell='work')

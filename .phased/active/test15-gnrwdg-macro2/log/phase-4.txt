@@ -1,0 +1,3 @@
+✓ Phase 4 completed: Fold the six overlapping pages into their counterparts
+
+All seven `test15/webpages/gnrwdg/` sources are folded into their counterparts and gone; the new `test/webpages/gnrwdg/slotbar.py` carries the slotBar/slotToolbar half of the split page. Green signal re-run after the merge: `test_pages_documented.py` + `test_pages_ratchet.py` 4 passed, `test_pages_smoke.py -q -rs` 1 passed with no skip, flake8 zero errors on the seven touched pages — committed as `1d66561b5`. Four deviations are on the record as `> Review:` notes, the load-bearing one being that dropping `testOnly='_0_'` exposed duplicate frameCodes the flag had been hiding, so four global codes were renamed; the foreman chat was unreachable, so that notification was skipped.
