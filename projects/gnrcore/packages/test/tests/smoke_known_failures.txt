@@ -1,2 +1,1 @@
 test/webpages/tools/flibpicker.py
-test/webpages/tools/icstest.py

@@ -1,17 +1,22 @@
 # -*- coding: utf-8 -*-
 
 from datetime import datetime, timedelta
-from ics import Calendar, Event
-from datetime import datetime
+
+try:
+    from ics import Calendar, Event
+except ImportError:
+    Calendar = Event = None
 
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrdict import dictExtract
 
 class GnrCustomWebPage(object):
-    py_requires = "gnrcomponents/testhandler:TestHandlerFull"
+    py_requires = "gnrcomponents/testhandler:TestHandlerFull,optional_library:OptionalLibrary"
 
     def test_1_makecalendar(self, pane):
         "Click button build ics object and read result"
+        if self.opl_missingLibrary(pane, Calendar, 'ics'):
+            return
         fb = pane.formbuilder(cols=1, border_spacing='3px')
         fb.textbox(value='^.name',lbl='Name', default='Genropy test')
         fb.simpleTextArea(value='^.description', lbl='Description', 
@@ -25,6 +30,8 @@ class GnrCustomWebPage(object):
 
     def test_2_dlcalendar(self, pane):
         "Click button build ics object and click on a button to get result"
+        if self.opl_missingLibrary(pane, Calendar, 'ics'):
+            return
         fb = pane.formbuilder(cols=1, border_spacing='3px')
         fb.textbox(value='^.name',lbl='Name', default='Genropy test')
         fb.simpleTextArea(value='^.description', lbl='Description', 

@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
-from PIL import Image
+try:
+    from PIL import Image
+except ImportError:
+    Image = None
 from urllib.parse import urlparse,parse_qs
 import base64
 from io import BytesIO      
@@ -8,7 +11,7 @@ from gnr.core.gnrdecorator import public_method
 "Test img"
 
 class GnrCustomWebPage(object):
-    py_requires="gnrcomponents/testhandler:TestHandlerFull" 
+    py_requires="gnrcomponents/testhandler:TestHandlerFull,optional_library:OptionalLibrary"
 
     def test_0_imgUrl(self,pane):
         "Basic usage to display an image from an url"
@@ -81,6 +84,8 @@ class GnrCustomWebPage(object):
 
     def test_5_dataUrl(self, pane):
         """Here you can convert an image saved to filesystem to a bytestring."""
+        if self.opl_missingLibrary(pane, Image, 'Pillow'):
+            return
         bc = pane.borderContainer(height='200px')
         left = bc.contentPane(region='left', width='200px')
         left.div(border='2px dotted silver', width='150px', height='150px').img(
