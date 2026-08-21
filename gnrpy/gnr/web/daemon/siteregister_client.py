@@ -25,6 +25,7 @@ import _thread
 import Pyro4
 import os
 from datetime import datetime
+from threading import Lock
 
 from gnr.core.gnrbag import Bag, BagResolver
 from gnr.core.gnrconfig import gnrConfigPath
@@ -51,14 +52,69 @@ def build_proxy(uri, hmac_key=None):
     Pyro retries recoverable network errors (connection closed by the peer,
     timeout) up to `_pyroMaxRetries` times, releasing the dead connection before
     re-raising, so each new attempt reconnects on a fresh socket. That counter
-    defaults to 0: without it, a daemon restart makes the next call of every
-    already connected worker fail with ConnectionClosedError.
+    defaults to 0: without it, a dropped established connection makes the next
+    call fail with ConnectionClosedError.
     """
     proxy = Pyro4.Proxy(uri)
     if not OLD_HMAC_MODE:
         proxy._pyroHmacKey = hmac_key
     proxy._pyroMaxRetries = MAX_RETRY_ATTEMPTS
     return proxy
+
+
+class RefreshingProxy(object):
+    def __init__(self, uri, hmac_key=None, refresh_uri=None, on_refresh=None):
+        self.uri = uri
+        self.hmac_key = hmac_key
+        self.refresh_uri = refresh_uri
+        self.on_refresh = on_refresh
+        self.proxy = build_proxy(uri, hmac_key=hmac_key)
+        self._refresh_lock = Lock()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.proxy._pyroRelease()
+
+    def _refresh(self, failed_uri):
+        if not self.refresh_uri:
+            return False
+        with self._refresh_lock:
+            if self.uri != failed_uri:
+                return True
+            new_uri = self.refresh_uri(failed_uri)
+            if not new_uri or new_uri == failed_uri:
+                return False
+            proxy = build_proxy(new_uri, hmac_key=self.hmac_key)
+            try:
+                if self.on_refresh:
+                    self.on_refresh(proxy)
+            except Exception:
+                proxy._pyroRelease()
+                raise
+            old_proxy = self.proxy
+            self.proxy = proxy
+            self.uri = new_uri
+            old_proxy._pyroRelease()
+        return True
+
+    def __getattr__(self, name):
+        remote = getattr(self.proxy, name)
+        if not callable(remote):
+            return remote
+
+        def decore(*args, **kwargs):
+            proxy = self.proxy
+            failed_uri = self.uri
+            try:
+                return getattr(proxy, name)(*args, **kwargs)
+            except Pyro4.errors.CommunicationError:
+                if not self._refresh(failed_uri):
+                    raise
+                return getattr(self.proxy, name)(*args, **kwargs)
+
+        return decore
 
 
 def remotebag_wrapper(func):
@@ -74,18 +130,20 @@ def remotebag_wrapper(func):
 #------------------------------- REMOTEBAG CLIENT SIDE ---------------------------
 
 class RemoteStoreBag(object):
-    def __init__(self, uri=None, register_name=None, register_item_id=None, rootpath=None, hmac_key=None):
+    def __init__(self, uri=None, register_name=None, register_item_id=None, rootpath=None,
+                 hmac_key=None, refresh_uri=None):
         self.register_name = register_name
         self.register_item_id = register_item_id
         self.rootpath = rootpath
         self.uri = uri
         self.hmac_key = hmac_key
-        self.proxy = build_proxy(uri, hmac_key=hmac_key)
+        self.refresh_uri = refresh_uri
+        self.proxy = RefreshingProxy(uri, hmac_key=hmac_key, refresh_uri=refresh_uri)
 
     def chunk(self, path):
-        return RemoteStoreBag(uri=self.uri, register_name=self.register_name,
+        return RemoteStoreBag(uri=self.proxy.uri, register_name=self.register_name,
                               register_item_id=self.register_item_id, rootpath=self.rootpath,
-                              hmac_key=self.hmac_key)
+                              hmac_key=self.hmac_key, refresh_uri=self.refresh_uri)
 
     @remotebag_wrapper
     def __str__(self, *args, **kwargs):
@@ -142,27 +200,23 @@ class SiteRegisterClient(object):
         self.site = site
         self.siteregisterserver_uri = None
         self.siteregister_uri = None
+        self.remotebag_uri = None
+        self.gnrdaemon_proxy = None
+        self._uri_refresh_lock = Lock()
         self.storage_path = os.path.join(self.site.site_path, self.STORAGE_PATH)
         self.errors = Pyro4.errors
         Pyro4.config.SERIALIZER = 'pickle'
         daemonconfig = self.site.config.getAttr('gnrdaemon')
         sitedaemonconfig = self.site.config.getAttr('sitedaemon') or {}
-        sitedaemon_xml_path = os.path.join(self.site.site_path, 'sitedaemon.xml')
-        if os.path.exists(sitedaemon_xml_path):
-            from psutil import pid_exists
-            sitedaemon_bag = Bag(sitedaemon_xml_path)
-            params = sitedaemon_bag.getAttr('params')
-            sitedaemon_pid = params.get('pid')
-            if sitedaemon_pid and pid_exists(sitedaemon_pid):
-                self.hmac_key = sitedaemonconfig.get('hmac_key') or daemonconfig['hmac_key']
-                self.siteregisterserver_uri = params.get('main_uri')
-                self.siteregister_uri = params.get('register_uri')
-                logger.info(f"URIS: \nmain - {self.siteregisterserver_uri}\n{self.siteregister_uri}")
-                sitedaemon_bag = None
-                self.initSiteRegister()
-                return
-            else:
-                logger.info('no sitedaemon process')
+        self.sitedaemon_xml_path = os.path.join(self.site.site_path, 'sitedaemon.xml')
+        sitedaemon_uris = self.readSitedaemonUris()
+        self.uses_sitedaemon = bool(sitedaemon_uris)
+        if sitedaemon_uris:
+            self.hmac_key = sitedaemonconfig.get('hmac_key') or daemonconfig['hmac_key']
+            self.siteregisterserver_uri, self.siteregister_uri = sitedaemon_uris
+            logger.info(f"URIS: \nmain - {self.siteregisterserver_uri}\n{self.siteregister_uri}")
+            self.initSiteRegister()
+            return
         if 'sockets' in daemonconfig:
             if daemonconfig['sockets'].lower() in ('t', 'true', 'y'):
                 daemonconfig['sockets'] = os.path.join(gnrConfigPath(), 'sockets')
@@ -189,9 +243,59 @@ class SiteRegisterClient(object):
         self.initSiteRegister()
 
     def initSiteRegister(self):
-        self.siteregister = build_proxy(self.siteregister_uri, hmac_key=self.hmac_key)
         self.remotebag_uri = self.siteregister_uri.replace(':SiteRegister@', ':RemoteData@')
+        self.siteregister = RefreshingProxy(
+            self.siteregister_uri, hmac_key=self.hmac_key,
+            refresh_uri=self.refreshSiteRegisterUri,
+            on_refresh=self.configureSiteRegisterProxy)
         self.siteregister.setConfiguration(cleanup=self.site.custom_config.getAttr('cleanup'))
+
+    def configureSiteRegisterProxy(self, proxy):
+        proxy.setConfiguration(cleanup=self.site.custom_config.getAttr('cleanup'))
+
+    def readSitedaemonUris(self):
+        if not os.path.exists(self.sitedaemon_xml_path):
+            return None
+        from psutil import pid_exists
+        params = Bag(self.sitedaemon_xml_path).getAttr('params')
+        if not params or not params.get('pid') or not pid_exists(params['pid']):
+            logger.info('no sitedaemon process')
+            return None
+        main_uri = params.get('main_uri')
+        register_uri = params.get('register_uri')
+        if main_uri and register_uri:
+            return main_uri, register_uri
+
+    def resolveSiteRegisterUris(self):
+        if self.uses_sitedaemon:
+            return self.readSitedaemonUris()
+        info = self.gnrdaemon_proxy.getSite(
+            self.site.currentDomainIdentifier, create=True,
+            storage_path=self.storage_path, autorestore=True)
+        if info and info.get('server_uri') and info.get('register_uri'):
+            return info['server_uri'], info['register_uri']
+
+    def refreshSiteRegisterUri(self, failed_uri, remote_data=False):
+        with self._uri_refresh_lock:
+            current_uri = self.remotebag_uri if remote_data else self.siteregister_uri
+            if current_uri != failed_uri:
+                return current_uri
+            timeout = time.time() + DAEMON_TIMEOUT_START
+            while time.time() < timeout:
+                try:
+                    uris = self.resolveSiteRegisterUris()
+                except Pyro4.errors.CommunicationError:
+                    uris = None
+                if uris and uris[1] != self.siteregister_uri:
+                    self.siteregisterserver_uri, self.siteregister_uri = uris
+                    self.remotebag_uri = self.siteregister_uri.replace(
+                        ':SiteRegister@', ':RemoteData@')
+                    return self.remotebag_uri if remote_data else self.siteregister_uri
+                time.sleep(.1)
+        return current_uri
+
+    def refreshRemoteBagUri(self, failed_uri):
+        return self.refreshSiteRegisterUri(failed_uri, remote_data=True)
 
     def checkSiteRegisterServerUri(self, daemonProxy):
         if not self.siteregisterserver_uri:
@@ -303,7 +407,8 @@ class SiteRegisterClient(object):
 
     def add_data_to_register_item(self, register_item):
         register_item['data'] = RemoteStoreBag(self.remotebag_uri, register_item['register_name'],
-                                               register_item['register_item_id'], hmac_key=self.hmac_key)
+                                               register_item['register_item_id'], hmac_key=self.hmac_key,
+                                               refresh_uri=self.refreshRemoteBagUri)
         return register_item
 
     def page(self, page_id, include_data=None):
