@@ -1021,3 +1021,117 @@ def test_readTab():
 
     finally:
         os.unlink(tab_file)
+
+
+# ===========================================================================
+# XlsxReader — column alignment (issue #797)
+# ===========================================================================
+
+def _write_xlsx(rows):
+    """Write *rows* (lists of values, None for a blank cell) to a temp xlsx.
+
+    Returns the file path; the caller is responsible for removing it.
+    """
+    import openpyxl
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    for r, row in enumerate(rows, start=1):
+        for c, value in enumerate(row, start=1):
+            if value is not None:
+                ws.cell(row=r, column=c, value=value)
+    with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as f:
+        path = f.name
+    wb.save(path)
+    return path
+
+
+def test_XlsxReader_blank_header_before_named_columns():
+    """A blank first header must not shift the following columns (issue #797).
+
+    A whitespace-only header is truthy but slugifies to '', so it used to drop
+    out of colindex while still occupying a slot in the index: every following
+    column was read one position to the left and row['id'] returned the value
+    of the next column.
+    """
+    path = _write_xlsx([
+        ['   ', 'id', 'importo'],
+        ['note', 'K1', 100],
+    ])
+    try:
+        r = XlsxReader(path)
+        assert r.headers == ['gnr_emptycol_0', 'id', 'importo']
+        assert r.ncols == 3
+        rows = list(r())
+        assert len(rows) == 1
+        assert rows[0]['id'] == 'K1'
+        assert rows[0]['importo'] == 100
+        assert rows[0]['gnr_emptycol_0'] == 'note'
+    finally:
+        os.unlink(path)
+
+
+def test_XlsxReader_header_slugifying_to_empty_is_renamed():
+    """Headers made only of punctuation slugify to '' and get a generated name."""
+    path = _write_xlsx([
+        ['#', 'id', '---'],
+        ['x', 'K1', 'y'],
+    ])
+    try:
+        r = XlsxReader(path)
+        assert r.headers[0] == 'gnr_emptycol_0'
+        assert r.headers[1] == 'id'
+        assert r.headers[2] == '_'
+        rows = list(r())
+        assert rows[0]['id'] == 'K1'
+    finally:
+        os.unlink(path)
+
+
+def test_XlsxReader_rows_with_blank_cells():
+    """Blank cells anywhere in a row keep the row aligned with the header.
+
+    In read_only mode openpyxl pads rows with EmptyCell objects, which expose
+    `value` but no `column`: the reader must not rely on cell coordinates.
+    """
+    path = _write_xlsx([
+        ['id', 'importo', 'note'],
+        [None, 100, 'x'],          # blank leading cell
+        ['K2', None, 'y'],         # blank cell inside the row
+        ['K3', 300, None],         # blank trailing cell
+    ])
+    try:
+        r = XlsxReader(path)
+        assert r.headers == ['id', 'importo', 'note']
+        rows = list(r())
+        assert len(rows) == 3
+        assert rows[0]['id'] is None
+        assert rows[0]['importo'] == 100
+        assert rows[0]['note'] == 'x'
+        assert rows[1]['id'] == 'K2'
+        assert rows[1]['importo'] is None
+        assert rows[1]['note'] == 'y'
+        assert rows[2]['id'] == 'K3'
+        assert rows[2]['importo'] == 300
+        assert rows[2]['note'] is None
+    finally:
+        os.unlink(path)
+
+
+def test_XlsxReader_empty_rows_are_skipped_by_default():
+    """Fully empty rows are dropped unless allEmptyRows/compressEmptyRows ask for them."""
+    path = _write_xlsx([
+        ['id', 'importo'],
+        ['K1', 1],
+        [None, None],
+        [None, None],
+        ['K2', 2],
+    ])
+    try:
+        assert [row['id'] for row in XlsxReader(path)()] == ['K1', 'K2']
+        compressed = list(XlsxReader(path, compressEmptyRows=True)())
+        assert len(compressed) == 3
+        assert compressed[1] == []
+        allrows = list(XlsxReader(path, allEmptyRows=True)())
+        assert len(allrows) == 4
+    finally:
+        os.unlink(path)

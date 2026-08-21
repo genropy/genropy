@@ -324,28 +324,24 @@ class XlsxReader(BaseSheetReader):
     def _sheetlines(self, sheet):
         """Generate lines from the sheet, handling empty rows according to settings.
 
-        In read_only mode openpyxl may omit leading empty cells from data rows,
-        so each value is placed at cell.column (1-based) instead of appended:
-        header and data rows stay aligned.
+        Rows are read with min_col=1 so that openpyxl pads every row from
+        column A up to the sheet width: appending the values then keeps each
+        row aligned with the header row even when the source file declares a
+        dimension that does not start at A or omits cells inside a row.
+
+        Cells are never inspected for their position: in read_only mode the
+        padding cells are EmptyCell instances, which expose `value` but have no
+        `column` attribute.
         """
         last_line_empty = False
-        for line in sheet.rows:
-            if not line:
-                if self.allEmptyRows:
-                    yield []
-                elif self.compressEmptyRows and not last_line_empty:
-                    last_line_empty = True
-                    logger.debug('yielding empty row')
-                    yield []
-                continue
-            result = [None] * line[-1].column
+        for line in sheet.iter_rows(min_col=1):
+            result = []
             empty_flag = True
             for cell in line:
                 value = cell.value
                 if value:
                     empty_flag = False
-                if value != '':
-                    result[cell.column - 1] = value
+                result.append(None if value == '' else value)
             if empty_flag:
                 if self.allEmptyRows:
                     yield []
