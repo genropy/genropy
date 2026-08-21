@@ -37,7 +37,9 @@ class GnrCustomWebPage(object):
         fb = pane.formbuilder(cols=2, border_spacing='4px')
         fb.dbSelect(table='glbl.regione',value='^.regione',lbl='Regione',width='25em',selected_nome='.nome_regione')
         fb.dbSelect(table='glbl.provincia',value='^.sigla',condition='$regione=:regione',condition_regione='^.regione',
-                        lbl='Sigla',width='25em', validate_notnull=True, validate_notnull_error='Manca il valore')
+                        lbl='Sigla',width='25em', selected_nome='.nome_provincia',
+                        validate_notnull=True, validate_notnull_error='Manca il valore')
+        fb.textbox(value='^.nome_provincia',lbl='Nome provincia')
         
     def test_2_clientmethod(self,pane):
         "Manually set what to display with callbackSelect"

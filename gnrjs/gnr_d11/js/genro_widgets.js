@@ -4869,30 +4869,28 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
         var vpath = this.sourceNode.attr.value;
         var datavalue = this.sourceNode.getRelativeData(vpath);
         var currvalue = datavalue;
+        var oneOptionItem = null;
         var reskwargs = this.store.rootDataNode().getResolver().kwargs;
         if(reskwargs.notnull){
             reskwargs = objectUpdate({},reskwargs);
             var reskwargs = objectUpdate(reskwargs,{limit:2,_querystring:'*',notnull:true});
             var singleOption = genro.serverCall(objectPop(reskwargs,'method'),reskwargs);
             if(singleOption._value.len()==1){
-                currvalue = singleOption._value.getAttr('#0')[this.store._identifier];
+                oneOptionItem = singleOption._value.getNode('#0');
+                currvalue = oneOptionItem.attr[this.store._identifier];
             }
         }
         if(!isNullOrBlank(currvalue)){
             this.clearCache();
-            // priorityChange=false: re-evaluating the current value under the new
-            // condition must refresh caption and validity only, never write back to
-            // the datastore. With priorityChange=true the null step nulls the bound
-            // path synchronously, and the async identity reply then re-asserts the
-            // value captured above, overwriting anything set while it was in flight.
-            // The null step itself is still needed: it resets widget._lastValue, so
-            // GnrStoreQuery.fetchItemByIdentity does not skip the re-validation fetch.
-            this.setValue(null,false);
-            this.setValue(currvalue,false);
-            if(currvalue !== datavalue){
-                // oneOption auto-select: the new condition leaves a single option,
-                // and this is the only write this method is meant to perform.
+            if(oneOptionItem && currvalue !== datavalue){
+                this.item = oneOptionItem;
+                this._setValueFromItem(oneOptionItem,false);
                 this.sourceNode.setRelativeData(vpath,currvalue);
+                this._updateSelect(oneOptionItem);
+            }else{
+                // Reset _lastValue so the identity fetch is not skipped.
+                this.setValue(null,false);
+                this.setValue(currvalue,false);
             }
         }
     },

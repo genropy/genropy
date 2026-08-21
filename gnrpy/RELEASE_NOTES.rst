@@ -1,3 +1,15 @@
+Unreleased
+==========
+
+Bug fixes
+---------
+
+* Dynamic ``dbSelect`` condition changes no longer write a transient null or
+  asynchronously restore a stale value. A value that becomes invalid remains
+  in the datastore while the widget is invalid, until it is corrected or
+  blurred. Single-option auto-selection updates the value and ``selected_*``
+  fields together.
+
 Release 26.08.19.1
 ==================
 
