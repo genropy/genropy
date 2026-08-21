@@ -10,6 +10,8 @@ an empty module produced an empty table named after the file.
 
 from gnr.sql.gnrsql import GnrSqlDb
 
+from core.common import BaseGnrAppTest
+
 from .common import BaseGnrSqlTest
 
 
@@ -71,3 +73,18 @@ class TestModelTableNaming(BaseGnrSqlTest):
         tables = sorted(self.db.package('demo').tables.keys())
         assert 'whatever' not in tables
         assert tables == ['bar', 'real']
+
+
+class TestGnrDockerModel(BaseGnrAppTest):
+    app_name = 'gnrdocker'
+
+    def test_image_relation_has_a_real_target(self):
+        tables = self.app.db.package('docker').tables
+        assert 'image' in tables
+
+        image = self.app.db.table('docker.image')
+        assert image.model.pkey == 'id'
+        assert image.model.column('name') is not None
+
+        image_id = self.app.db.table('docker.container').model.column('image_id')
+        assert image_id.relatedColumn().fullname == 'docker.image.id'
