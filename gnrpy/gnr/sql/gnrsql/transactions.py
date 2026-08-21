@@ -253,6 +253,29 @@ class TransactionMixin(GnrSqlDbBaseMixin):
         """Roll back the current connection's transaction."""
         self.connection.rollback()
 
+    def rollbackAll(self) -> None:
+        """Roll back every uncommitted connection of the current thread.
+
+        This is the counterpart of :meth:`commit`, which walks *all* the
+        thread's connections whose ``connectionName`` matches the active
+        one: triggers may have written to other stores' connections (e.g.
+        a dbstore trigger updating the root store), and :meth:`rollback`
+        alone would leave those writes pending, silently flushed by the
+        next :meth:`commit`.
+
+        Deferred-callback queues and pending exceptions accumulated for
+        the rolled-back connections are discarded as well.
+        """
+        trconns = self._connections.get(_thread.get_ident(), {})
+        for connection in list(trconns.values()):
+            if connection.committed or connection.connectionName != self.currentConnectionName:
+                continue
+            connection.rollback()
+            with self.tempEnv(storename=connection.storename):
+                for queue in (self.QUEUE_DEFER_TO_COMMIT, self.QUEUE_DEFER_AFTER_COMMIT):
+                    self.currentEnv.pop(f"{queue}_{self.connectionKey()}", None)
+        self.currentEnv.pop('_pendingExceptions', None)
+
     def listen(self, *args: Any, **kwargs: Any) -> None:
         """Start listening for a database notification channel (Postgres).
 
