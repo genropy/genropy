@@ -6,7 +6,7 @@
 
 from json import dumps
 from datetime import datetime
-import re, sys, time
+import re, sys
 
 if sys.version_info[0] == 3:
     from urllib.request import urlopen
@@ -17,7 +17,6 @@ else:
     from urllib import urlopen
 
 from sphinx.cmd.build import main as sphinx_build_main
-import boto3
 
 from gnr.web.batch.btcbase import BaseResourceBatch
 from gnr.app.gnrlocalization import AppLocalizer
@@ -39,21 +38,16 @@ class Main(BaseResourceBatch):
 
     def pre_process(self):
         self.handbook_id = self.batch_parameters['extra_parameters']['handbook_id']
-        self.handbook_record = self.tblobj.record(self.handbook_id, virtual_columns='$sphinx_path').output('bag')
+        self.handbook_record = self.tblobj.record(self.handbook_id).output('bag')
         self.doctable =self.db.table('docu.documentation')
         self.doc_data = self.doctable.getHierarchicalData(root_id=self.handbook_record['docroot_id'], condition='$is_published IS TRUE')['root']['#0']
-        #DP202208 Temporary node to build files, moved after creation to definitive folder
-        self.handbookNode = self.page.site.storageNode('site:handbooks', self.handbook_record['name'])
-        self.sphinxNode = self.handbookNode.child('sphinx') 
-        self.sourceDirNode = self.sphinxNode.child('source')
-        #DP202208 publishedDocNode node is where the final documentation will be published, at beginning of the process we erase former docs
-        self.publishedDocNode = self.page.site.storageNode(self.handbook_record['sphinx_path'])
-        self.publishedDocNode.delete()
+        self.prepareHandbookFolder()
         self.html_baseurl = self.db.application.getPreference('.sphinx_baseurl',pkg='docu') or self.page.site.externalUrl('/_documentation/')
         self.handbook_url = f"{self.html_baseurl}{self.handbook_record['name']}/"
         self.enable_sitemap = self.db.application.getPreference('.enable_sitemap',pkg='docu')
         self.imagesDict = dict()
         self.imagesPath='_static/images'
+        self.mediaUrlsDict = dict()
         self.examplesPath='_static/_webpages'
         self.examples_root = None 
         self.examples_pars = Bag(self.handbook_record['examples_pars'])
@@ -66,11 +60,23 @@ class Main(BaseResourceBatch):
             self.examples_root_local = '%(examples_local_site)s/webpages/%(examples_directory)s' %self.handbook_record
         self.imagesDirNode = self.sourceDirNode.child(self.imagesPath)
         self.examplesDirNode = self.sourceDirNode.child(self.examplesPath)
-        #DP202112 Check if there are active redirects
-        if self.db.application.getPreference('.manage_redirects',pkg='docu'):
-            self.redirect_pkeys = self.db.table('docu.redirect').query(where='$old_handbook_id=:h_id AND $is_active IS TRUE', 
-                        h_id=self.handbook_id).selection().output('pkeylist')   
             
+    def prepareHandbookFolder(self):
+        """Wire the folders of the export, erasing the former one.
+
+        Sphinx reads its sources and writes its build through the filesystem, which
+        the storage the handbook is published in has not necessarily got (a bucket,
+        an sftp host): the export always works in a disposable folder of the page,
+        which the site cleans up with the page itself, and post_process publishes
+        the result into the handbook folder."""
+        self.publishedDocNode = self.tblobj.handbookStorageNode(self.handbook_record)
+        self.sphinxNode = self.page.site.storageNode('page:handbook_build',
+                                                     self.handbook_record['name'], 'sphinx')
+        #the export regenerates every file of both folders: nothing of the former survives
+        self.publishedDocNode.delete()
+        self.sphinxNode.delete()
+        self.sourceDirNode = self.sphinxNode.child('source')
+
     def step_prepareConfFile(self):
         "Prepare conf file"
         confSn = self.sourceDirNode.child('conf.py')
@@ -199,34 +205,22 @@ class Main(BaseResourceBatch):
         with self.tblobj.recordToUpdate(self.handbook_id) as record:
             record['last_exp_ts'] = datetime.now()
             if record['is_local_handbook']:
-                self.zipNode = self.handbookNode.child('%s.zip' % self.handbook_record['name'])
-                self.page.site.zipFiles([self.resultNode.fullpath], self.zipNode.internal_path)
-                #DP202208 Zip file will be moved to published Doc node after creation. Building folders will be deleted
-                destNode = self.publishedDocNode.child(self.zipNode.basename)
-                self.zipNode.move(destNode)
+                #the zip is the published file: it is written straight in the handbook folder
+                self.zipNode = self.publishedDocNode.child('%s.zip' % self.handbook_record['name'])
+                self.page.site.zipFiles([self.resultNode.fullpath], self.zipNode.fullpath)
                 self.result_url = self.zipNode.internal_url().split('?')[0] #Remove ?download=True if present
                 record['local_handbook_zip'] = self.result_url
             else:
-                #DP202208 Html files will be moved to published Doc node after creation. Building folders will be deleted
-                logger.info(f"Moving HTML build from {self.resultNode.fullpath} to {self.publishedDocNode.fullpath}")
+                #the build is promoted to the root of the handbook folder: what the
+                #docs web server publishes is the handbook folder itself
+                logger.info(f"Publishing HTML build from {self.resultNode.fullpath} to {self.publishedDocNode.fullpath}")
                 self.resultNode.move(self.publishedDocNode)
-                logger.info(f"Move completed. Published doc available at: {self.publishedDocNode.fullpath}")
+                logger.info(f"Publishing completed. Published doc available at: {self.publishedDocNode.fullpath}")
                 record['handbook_url'] = self.handbook_url
                 self.result_url = None
         if not self.db.application.getPreference('.save_src_debug',pkg='docu'):
             self.sphinxNode.delete()
         self.db.commit()
-
-        if self.db.application.getPreference('.manage_redirects',pkg='docu'):
-            if self.redirect_pkeys or not self.batch_parameters.get('skip_redirects'):
-            #DP202112 Make redirect files
-                redirect_recs = self.db.table('docu.redirect').query(columns='*,$old_handbook_path,$old_handbook_url').fetchAsDict('id')
-                for redirect_pkey in self.redirect_pkeys:
-                    redirect_rec = redirect_recs[redirect_pkey]
-                    self.db.table('docu.redirect').makeRedirect(redirect_rec)
-
-        if self.batch_parameters.get('invalidate_cache'):
-            self.invalidateCloudfrontCache()
 
         if self.db.package('genrobot'):
             if self.batch_parameters.get('send_notification'):
@@ -380,10 +374,36 @@ class Main(BaseResourceBatch):
     def fixImages(self, m):
         old_filepath = m.group(1)
         filename = old_filepath.split('/')[-1]
+        media_url = self.imagePublicUrl(old_filepath)
+        if media_url:
+            return ".. image:: %s" % media_url
         new_filepath = '%s/%s' % (self.imagesPath, '/'.join(self.curr_pathlist+[filename]))
         self.imagesDict[new_filepath]=old_filepath
         result = ".. image:: /%s" % new_filepath
         return result
+
+    def imagePublicUrl(self, old_filepath):
+        """Return the public url of an image served outside the instance.
+
+        Images stored on the instance are referenced by their storage url
+        (e.g. /_storage/service/path): only when their service publishes them on
+        a public base of its own (see documentation.publicMediaUrl) the image can
+        be linked as-is, otherwise it keeps the standard download-and-embed
+        behavior so that the published handbook stays self-contained. Returns
+        None for sources that do not resolve to an existing storage node
+        (e.g. external urls) too."""
+        if old_filepath in self.mediaUrlsDict:
+            return self.mediaUrlsDict[old_filepath]
+        media_url = None
+        if old_filepath.startswith('/'):
+            path_list = self.page.site.pathListFromUrl(old_filepath)
+            storage_type = self.page.site.storageType(path_list) if path_list else None
+            if storage_type:
+                node = self.page.site.storageNodeFromPathList(path_list, storage_type)
+                if node is not None and node.exists:
+                    media_url = self.doctable.publicMediaUrl(node)
+        self.mediaUrlsDict[old_filepath] = media_url
+        return media_url
         
     def fixLinks(self, m):
         prefix = '%s/' % self.db.package('docu').htmlProcessorName()
@@ -422,22 +442,6 @@ class Main(BaseResourceBatch):
 
         return '\n%s\n%s\n\n\n   %s' % (".. toctree::", '\n'.join(toc_options),'\n   '.join(elements))
 
-    def invalidateCloudfrontCache(self):
-        client = boto3.client('cloudfront')
-        response = client.create_invalidation(
-                    DistributionId=self.db.application.getPreference('.cloudfront_distribution_id',pkg='docu'),
-                    InvalidationBatch={
-                        'Paths': {
-                            'Quantity': 1,
-                            'Items': [
-                                '/{handbook_name}/*'.format(handbook_name=self.handbook_record['name'])
-                                ],
-                            },
-                            'CallerReference': str(time.time()).replace(".", "")
-                        }
-                    )
-        return response
-
     def sendNotification(self, notification_bot=None, notification_message=None):
         notification_recipients = self.db.table('genrobot.bot_contact').query(columns='@contact_id.username AS username', 
                         where='@bot_id.bot_token=:bot_token', bot_token=notification_bot).fetchAsDict('username')
@@ -458,10 +462,6 @@ class Main(BaseResourceBatch):
     
     def table_script_parameters_pane(self,pane,**kwargs):   
         fb = pane.formbuilder(cols=1, border_spacing='5px')
-        if self.db.application.getPreference('.manage_redirects',pkg='docu'):
-            fb.checkbox(label='!![en]Skip redirects', value='^.skip_redirects')
-        if self.db.application.getPreference('.cloudfront_distribution_id',pkg='docu'):
-            fb.checkbox(label='!![en]Force Cloudfront cache invalidation', value='^.invalidate_cache')
         #DP202101 Ask for Telegram notification option if enabled in docu settings
         if self.db.application.getPreference('.telegram_notification',pkg='docu'):
             fb.checkbox(label='!![en]Send notification via Telegram', value='^.send_notification', default=True)
