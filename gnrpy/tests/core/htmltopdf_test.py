@@ -10,8 +10,9 @@ The integration tests resolve the real weasyprint implementation from the
 repository's ``resources/common`` tree (same harness as
 ``services_addservice_test``), render real HTML documents and assert the text
 position in the produced PDF: preference margins must win over a document
-``@page {margin:0}``, an explicit ``pageMargin`` must skip them entirely and a
-document's own ``@page`` margins must survive when no preference is set.
+``@page {margin:0}``, an explicit ``pageMargin`` must skip them entirely while
+winning over the document itself (#1022), and a document's own ``@page``
+margins must survive when no preference is set.
 They are skipped when weasyprint or pymupdf are not importable.
 """
 
@@ -308,19 +309,36 @@ def test_weasyprint_document_own_margins_survive_without_prefs(tmp_path):
     assert y0 >= 15 * MM_TO_PT - 1
 
 
-def test_weasyprint_explicit_pagemargin_skips_pref_margins(tmp_path):
-    """An explicit pageMargin argument wins over the preference margins:
-    they must not be injected at all. The pageMargin rule itself is a
-    user-normal declaration, so it currently loses to the document's author
-    @page {margin:0} and the marker sits at the page edge (known pre-existing
-    bug, not fixed on this branch). This test only proves that the preference
-    margins are not applied: the offset must stay strictly below them (8mm
-    passes both today's 0 and the 5mm pageMargin should the bug get fixed)."""
+def test_weasyprint_explicit_pagemargin_wins_and_skips_pref_margins(tmp_path):
+    """An explicit pageMargin argument wins over the preference margins: they
+    must not be injected at all, and the pageMargin itself must be honoured
+    against the document's own @page {margin:0} (#1022). The upper bound keeps
+    the preference margins (20mm/30mm) out."""
     x0, y0 = marker_origin(tmp_path, DOC_PAGE_MARGIN_ZERO,
                 pageSize='A4', pageMargin='5mm',
                 pdf_kwargs=dict(margin_top=30, margin_left=20))
-    assert x0 < 8 * MM_TO_PT
-    assert y0 < 8 * MM_TO_PT
+    assert 5 * MM_TO_PT - 1 <= x0 < 8 * MM_TO_PT
+    assert 5 * MM_TO_PT - 1 <= y0 < 8 * MM_TO_PT
+
+
+def test_weasyprint_explicit_pagemargin_beats_document_own_margins(tmp_path):
+    """The counterpart of test_weasyprint_document_own_margins_survive_without_prefs:
+    a document declaring @page {margin:15mm} keeps it only while nobody asks for
+    a margin. An explicit pageMargin is authoritative and shrinks it to 5mm."""
+    x0, y0 = marker_origin(tmp_path, DOC_PAGE_MARGIN_15MM,
+                pageSize='A4', pageMargin='5mm')
+    assert 5 * MM_TO_PT - 1 <= x0 < 8 * MM_TO_PT
+    assert 5 * MM_TO_PT - 1 <= y0 < 8 * MM_TO_PT
+
+
+def test_weasyprint_pref_margins_beat_pagesize_only_zero_margin(tmp_path):
+    """A pageSize with no pageMargin still emits margin:0, but as a plain
+    declaration: the preference margins carry !important and must survive it,
+    exactly as they do when no pageSize is passed at all."""
+    x0, y0 = marker_origin(tmp_path, DOC_PAGE_MARGIN_ZERO, pageSize='A4',
+                pdf_kwargs=dict(margin_top=30, margin_left=20))
+    assert x0 >= 20 * MM_TO_PT - 1
+    assert y0 >= 30 * MM_TO_PT - 1
 
 
 def test_weasyprint_zero_margins_beat_document_margins(tmp_path):
