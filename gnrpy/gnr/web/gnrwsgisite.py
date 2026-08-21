@@ -1167,7 +1167,13 @@ class GnrWsgiSite(object):
             return exc(environ, start_response)
         finally:
             self.cleanup()
-            self.currentDomain = self.rootDomain
+            # Do not re-set currentDomain here: cleanup() already reset it
+            # to None, which pops this thread's entry from the underlying
+            # ThreadedDict. Assigning rootDomain again would re-add a
+            # {tid: '_main_'} entry that is never removed, i.e. the same
+            # unbounded thread-local growth fixed for currentRequest/
+            # currentPage in #379. The currentDomain getter already falls
+            # back to rootDomain when unset, so no re-assignment is needed.
 
     def raiseIfDeveloper(self, exception=None):
         page = self.currentPage
