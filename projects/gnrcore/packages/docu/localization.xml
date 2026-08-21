@@ -200,7 +200,7 @@
 	</resources>
 	<webtools>
 		<resolver path="webtools/resolver.py" ext="py">
-			<en_page_not_found base="Page not found" en="Page not found" it="Pagina non trovata"/>
+			<en_back_to_handbook base="Back to handbook" en="Back to handbook" it="Torna al manuale"/>
 		</resolver>
 	</webtools>
 </GenRoBag>

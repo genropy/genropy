@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
+from urllib.parse import urlsplit
+
+
 class Table(object):
     def config_db(self, pkg):
         tbl = pkg.table('handbook', pkey='id', name_long='!!Handbook', 
@@ -30,6 +33,33 @@ class Table(object):
         
         tbl.formulaColumn('sphinx_path', """CASE WHEN $is_local_handbook THEN 'documentation\\:local_handbooks/' || $name 
                           ELSE 'documentation\\:handbooks/' || $name END""", name_long='!!Sphinx path')
+
+    def indexUrlFromRequestPath(self, path):
+        """Absolute url of the index of the handbook publishing a request path.
+
+        Serves the 'back to handbook' link of the resolver 404 page: the handbook
+        is the published one whose handbook_url is the longest path prefix of the
+        request, so both a baseurl carrying a path of its own and a handbook name
+        differing from its url segment keep matching. Local handbooks are zip
+        downloads with no published index to go back to."""
+        segments = [segment for segment in (path or '').strip('/').split('/') if segment]
+        if not segments:
+            return None
+        best_url = None
+        best_len = -1
+        for handbook in self.query(columns='$handbook_url,$is_local_handbook',
+                                   where='$handbook_url IS NOT NULL',
+                                   order_by='$name').fetch():
+            if handbook['is_local_handbook']:
+                continue
+            url_path = urlsplit(handbook['handbook_url']).path
+            url_segments = [segment for segment in url_path.strip('/').split('/') if segment]
+            if len(url_segments) > best_len and segments[:len(url_segments)] == url_segments:
+                best_len = len(url_segments)
+                best_url = handbook['handbook_url']
+        if not best_url:
+            return None
+        return self._absoluteLocation(f"{best_url.rstrip('/')}/index.html")
 
     def trigger_onDeleted(self, record):
         for node in ['build','source']:
