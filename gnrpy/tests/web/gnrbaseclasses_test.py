@@ -8,10 +8,12 @@ that behaviour and the silent fallback that hits callers who pass a template
 """
 
 import os
+import shutil
 import tempfile
 
 import pytest
 
+from core.common import BaseGnrTest
 from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlang import gnrImport
@@ -26,6 +28,14 @@ DEFAULT_RESOURCE = os.path.join(REPO_ROOT, 'resources', 'common', 'tables', '_de
                                 'html_res', 'print_record_template.py')
 
 ACCOUNT_NAME = 'Template Regression SpA'
+
+
+def setup_module(module):
+    BaseGnrTest.setup_class()
+
+
+def teardown_module(module):
+    BaseGnrTest.teardown_class()
 
 
 class StubPage(object):
@@ -49,16 +59,19 @@ class StubSite(object):
 def customer_table():
     """A real sqlite test_invoice db with one customer record."""
     tmpdir = tempfile.mkdtemp()
-    app = GnrApp('test_invoice', db_attrs=dict(
-        implementation='sqlite',
-        dbname=os.path.join(tmpdir, 'testing'),
-    ))
-    app.db.model.check(applyChanges=True)
-    tbl = app.db.table('invc.customer')
-    record = tbl.newrecord(account_name=ACCOUNT_NAME, street_address='Via Regression 1')
-    tbl.insert(record)
-    app.db.commit()
-    return tbl, record[tbl.pkey]
+    try:
+        app = GnrApp('test_invoice', db_attrs=dict(
+            implementation='sqlite',
+            dbname=os.path.join(tmpdir, 'testing'),
+        ))
+        app.db.model.check(applyChanges=True)
+        tbl = app.db.table('invc.customer')
+        record = tbl.newrecord(account_name=ACCOUNT_NAME, street_address='Via Regression 1')
+        tbl.insert(record)
+        app.db.commit()
+        yield tbl, record[tbl.pkey]
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 @pytest.fixture(scope='module')
