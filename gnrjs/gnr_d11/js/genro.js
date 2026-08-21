@@ -244,6 +244,7 @@ dojo.declare('gnr.GenroClient', null, {
             genropatches.indexOfError();
             genropatches.borderContainer();
             genropatches.tabContainer();
+            genropatches.contentPane();
             genropatches.setStateClass();
             genropatches.menu();
             genropatches.comboBox();

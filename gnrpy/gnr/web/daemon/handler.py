@@ -57,8 +57,7 @@ def getFullOptions(options=None):
     if env_options.get('sockets'):
         if env_options['sockets'].lower() in ('t','true','y') :
             env_options['sockets']=os.path.join(gnr_path,'sockets')
-        if not os.path.isdir(env_options['sockets']):
-            os.makedirs(env_options['sockets'])
+        os.makedirs(env_options['sockets'], exist_ok=True)
         env_options['socket']=env_options.get('socket') or os.path.join(env_options['sockets'],'gnrdaemon.sock')
     assert env_options,"Missing gnrdaemon configuration."
     for k,v in list(options.items()):
@@ -279,9 +278,9 @@ class GnrDaemon(object):
         return False
 
     def addSiteRegister(self,domainIdentifier,storage_path=None,autorestore=False,port=None):
+        # Extract sitename from domainIdentifier (format: sitename|domain or just sitename)
+        sitename = domainIdentifier.split('|')[0] if '|' in domainIdentifier else domainIdentifier
         if not domainIdentifier in self.siteregisters:
-            # Extract sitename from domainIdentifier (format: sitename|domain or just sitename)
-            sitename = domainIdentifier.split('|')[0] if '|' in domainIdentifier else domainIdentifier
             siteregister_processes_dict = dict()
             self.siteregisters_process[domainIdentifier] = siteregister_processes_dict
             siteregister_dict = dict()

@@ -325,6 +325,7 @@ class UserRegister(BaseRegister):
             user_name=user_name,
             user_tags=user_tags,
             avatar_extra=avatar_extra,
+            connections=set(),
             register_name='user')
         self.addRegisterItem(register_item)
         return register_item
@@ -351,6 +352,7 @@ class ConnectionRegister(BaseRegister):
             user_agent=user_agent,
             electron_static=electron_static,
             browser_name=browser_name,
+            pages=set(),
             register_name='connection')
         self.addRegisterItem(register_item)
         return register_item
@@ -365,34 +367,91 @@ class ConnectionRegister(BaseRegister):
                 self.siteregister.drop_user(user)
 
     def user_connection_keys(self, user):
-        return [k for k, v in list(self.items()) if v['user'] == user]
+        # from the user item's link set; a list, so callers may drop while iterating
+        user_item = self.siteregister.user_register.registerItems.get(user)
+        if not user_item:
+            return []
+        return list(user_item['connections'])
 
     def user_connection_items(self, user):
-        return [(k, v) for k, v in list(self.items()) if v['user'] == user]
+        return [(k, self.registerItems[k]) for k in self.user_connection_keys(user)]
+
+    def user_connections(self, user):
+        return [self.registerItems[k] for k in self.user_connection_keys(user)]
 
     def connections(self, user=None, include_data=None):
-        connections = self.values(include_data=include_data)
-        if user:
-            connections = [v for v in connections if v['user'] == user]
-        return connections
+        if not user:
+            return self.values(include_data=include_data)
+        if include_data:
+            return [self.get_item(k, include_data=True) for k in self.user_connection_keys(user)]
+        return self.user_connections(user)
 
 
 class PageRegister(BaseRegister):
     def __init__(self, *args, **kwargs):
         super(PageRegister, self).__init__(*args, **kwargs)
         self.pageProfilers = dict()
+        # Reverse index table -> set of page_id subscribed to it, so asking whether a
+        # table is observed at all is a lookup instead of a scan of every registered
+        # page. It duplicates the per-page ``subscribed_tables`` list, so every
+        # mutation goes through updateSubscriptions and nowhere else: one place to
+        # keep the two in step, instead of one per lifecycle event.
+        self.tableSubscribers = defaultdict(set)
+
+    def updateSubscriptions(self, page_id, subscribed_tables, add=None, remove=None):
+        """The only writer of a page's subscriptions, list and index together.
+
+        *subscribed_tables* is the page's own list, mutated in place. Pass *add* or
+        *remove* to change one table, or neither to index the list as it stands (a
+        page being created). Returns True when something changed.
+        """
+        if add is not None:
+            if add in subscribed_tables:
+                return False
+            subscribed_tables.append(add)
+            self.tableSubscribers[add].add(page_id)
+            return True
+        if remove is not None:
+            if remove not in subscribed_tables:
+                return False
+            subscribed_tables.remove(remove)
+            self._dropSubscriber(remove, page_id)
+            return True
+        for table in subscribed_tables:
+            self.tableSubscribers[table].add(page_id)
+        return bool(subscribed_tables)
+
+    def dropSubscriptions(self, page_id, subscribed_tables):
+        """Forget every subscription of a page that is going away."""
+        for table in list(subscribed_tables):
+            self._dropSubscriber(table, page_id)
+        del subscribed_tables[:]
+
+    def _dropSubscriber(self, table, page_id):
+        subscribers = self.tableSubscribers.get(table)
+        if subscribers is None:
+            return
+        subscribers.discard(page_id)
+        if not subscribers:
+            del self.tableSubscribers[table]
+
+    def subscribed_tables(self):
+        """Tables with at least one subscribed page."""
+        return list(self.tableSubscribers)
 
     def create(self, page_id, pagename=None, connection_id=None, subscribed_tables=None, user=None, user_ip=None, user_agent=None, relative_url=None, data=None):
         register_item_id = page_id
         start_ts = datetime.now()
         if subscribed_tables:
             subscribed_tables = subscribed_tables.split(',')
+        subscribed_tables = subscribed_tables or []
+        self.updateSubscriptions(register_item_id, subscribed_tables)
         register_item = dict(
             register_item_id=register_item_id,
             pagename=pagename,
             connection_id=connection_id,
             start_ts=start_ts,
-            subscribed_tables=subscribed_tables or [],
+            subscribed_tables=subscribed_tables,
             user=user,
             user_ip=user_ip,
             user_agent=user_agent,
@@ -404,6 +463,11 @@ class PageRegister(BaseRegister):
         return register_item
 
     def drop(self, register_item_id=None, cascade=None):
+        # Unindex before dropping the item: the index is read to reach the items, so
+        # it must never point at one that is already gone.
+        self.dropSubscriptions(register_item_id,
+                               (self.registerItems.get(register_item_id) or {}
+                                ).get('subscribed_tables') or [])
         register_item = self.drop_item(register_item_id)
         self.pageProfilers.pop(register_item_id, None)
         if cascade:
@@ -413,31 +477,49 @@ class PageRegister(BaseRegister):
                 self.siteregister.drop_connection(connection_id)
 
     def filter_subscribed_tables(self, table_list):
-        s = set()
-        for k, v in list(self.items()):
-            s.update(v['subscribed_tables'])
-        return list(s.intersection(table_list))
+        return [table for table in table_list if table in self.tableSubscribers]
 
     def subscribed_table_page_keys(self, table):
-        return [k for k, v in list(self.items()) if table in v['subscribed_tables']]
+        return list(self.tableSubscribers.get(table, ()))
 
     def subscribed_table_page_items(self, table):
-        return [(k, v) for k, v in list(self.items()) if table in v['subscribed_tables']]
+        # registerItems rather than get_item: the scan this replaces did not refresh
+        # a page's timestamp, and notifying an event must not keep a page alive.
+        return [(k, self.registerItems[k]) for k in self.subscribed_table_page_keys(table)]
 
     def subscribed_table_pages(self, table):
-        return [v for k, v in list(self.items()) if table in v['subscribed_tables']]
+        return [self.registerItems[k] for k in self.subscribed_table_page_keys(table)]
 
     def connection_page_keys(self, connection_id):
-        return [k for k, v in list(self.items()) if v['connection_id'] == connection_id]
+        # from the connection item's link set; a list, so callers may drop while iterating
+        connection_item = self.siteregister.connection_register.registerItems.get(connection_id)
+        if not connection_item:
+            return []
+        return list(connection_item['pages'])
 
     def connection_page_items(self, connection_id):
-        return [(k, v) for k, v in list(self.items()) if v['connection_id'] == connection_id]
+        return [(k, self.registerItems[k]) for k in self.connection_page_keys(connection_id)]
+
+    def connection_pages(self, connection_id):
+        return [self.registerItems[k] for k in self.connection_page_keys(connection_id)]
 
     def pages(self, connection_id=None, user=None, include_data=None, filters=None):
-        pages = self.values(include_data=include_data)
+        # walk the link sets rather than the whole registry: a connection knows its
+        # pages, a user knows its connections
+        page_ids = None
         if connection_id:
-            pages = [v for v in pages if v['connection_id'] == connection_id]
-        if user:
+            page_ids = self.connection_page_keys(connection_id)
+        elif user:
+            page_ids = [page_id
+                        for cid in self.siteregister.user_connection_keys(user)
+                        for page_id in self.connection_page_keys(cid)]
+        if page_ids is None:
+            pages = self.values(include_data=include_data)
+        elif include_data:
+            pages = [self.get_item(page_id, include_data=True) for page_id in page_ids]
+        else:
+            pages = [self.registerItems[page_id] for page_id in page_ids]
+        if connection_id and user:
             pages = [v for v in pages if v['user'] == user]
         if not filters or filters == '*':
             return pages
@@ -482,11 +564,9 @@ class PageRegister(BaseRegister):
         register_item = self.get_item(page_id)
         subscribed_tables = register_item['subscribed_tables']
         if subscribe:
-            if table not in subscribed_tables:
-                subscribed_tables.append(table)
+            self.updateSubscriptions(page_id, subscribed_tables, add=table)
         else:
-            if table in subscribed_tables:
-                subscribed_tables.remove(table)
+            self.updateSubscriptions(page_id, subscribed_tables, remove=table)
 
     def notifyDbEvents(self, dbeventsDict=None, origin_page_id=None, dbevent_reason=None):
         for table, dbevents in list(dbeventsDict.items()):
@@ -565,6 +645,34 @@ class SiteRegister(BaseRemoteObject):
         self.guest_connection_max_age = int(cleanup.get('guest_connection_max_age') or 40)
         self.connection_max_age = int(cleanup.get('connection_max_age') or 7200)
 
+    def updateRegisterLink(self, register, parent_id, link_name, child_id, add=None):
+        """Add or drop *child_id* in a parent item's link set — the only writer of it.
+
+        A parent/child link in the register lives in two places: the child item
+        carries its parent id, the parent item carries the set of its children.
+        Every change goes through here so the two cannot drift into phantom
+        children or live children missing from the set.
+
+        ``registerItems`` rather than ``get_item``: linking a child must not
+        refresh the parent's timestamp, or a page being born would keep an
+        otherwise idle connection alive. Returns True when the set changed.
+        """
+        if not parent_id:
+            return False
+        parent_item = register.registerItems.get(parent_id)
+        if parent_item is None:
+            return False
+        children = parent_item.setdefault(link_name, set())
+        if add:
+            if child_id in children:
+                return False
+            children.add(child_id)
+            return True
+        if child_id not in children:
+            return False
+        children.discard(child_id)
+        return True
+
     def new_connection(self, connection_id, connection_name=None, user=None, user_id=None,
                        user_name=None, user_tags=None, user_ip=None, user_agent=None, browser_name=None,
                        avatar_extra=None, electron_static=None):
@@ -576,6 +684,7 @@ class SiteRegister(BaseRemoteObject):
             connection_id, connection_name=connection_name, user=user, user_id=user_id,
             user_name=user_name, user_tags=user_tags, user_ip=user_ip, user_agent=user_agent,
             browser_name=browser_name, electron_static=electron_static)
+        self.updateRegisterLink(self.user_register, user, 'connections', connection_id, add=True)
         return connection_item
 
     def drop_pages(self, connection_id):
@@ -583,6 +692,10 @@ class SiteRegister(BaseRemoteObject):
             self.drop_page(page_id)
 
     def drop_page(self, page_id, cascade=None):
+        page_item = self.page_register.registerItems.get(page_id)
+        if page_item:
+            self.updateRegisterLink(self.connection_register, page_item['connection_id'],
+                                    'pages', page_id)
         return self.page_register.drop(page_id, cascade=cascade)
 
     def drop_connections(self, user):
@@ -590,6 +703,10 @@ class SiteRegister(BaseRemoteObject):
             self.drop_connection(connection_id)
 
     def drop_connection(self, connection_id, cascade=None):
+        connection_item = self.connection_register.registerItems.get(connection_id)
+        if connection_item:
+            self.updateRegisterLink(self.user_register, connection_item['user'],
+                                    'connections', connection_id)
         self.connection_register.drop(connection_id, cascade=cascade)
 
     def drop_user(self, user):
@@ -618,6 +735,7 @@ class SiteRegister(BaseRemoteObject):
         page_item = self.page_register.create(page_id, pagename=pagename, connection_id=connection_id,
                                               user=user, user_ip=user_ip, user_agent=user_agent,
                                               relative_url=relative_url, data=data)
+        self.updateRegisterLink(self.connection_register, connection_id, 'pages', page_id, add=True)
         return page_item
 
     def new_user(self, user=None, user_tags=None, user_id=None, user_name=None, avatar_extra=None):
@@ -670,6 +788,10 @@ class SiteRegister(BaseRemoteObject):
         connection_item['user_name'] = user_name
         connection_item['user_id'] = user_id
         connection_item['avatar_extra'] = avatar_extra
+        # move the link before the drop_user guard below: it reads the old
+        # user's link set, which must no longer hold this connection
+        self.updateRegisterLink(self.user_register, olduser, 'connections', connection_id)
+        self.updateRegisterLink(self.user_register, user, 'connections', connection_id, add=True)
         for p in self.pages(connection_id=connection_id):
             p['user'] = user
         if not self.connection_register.connections(olduser):
