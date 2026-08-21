@@ -148,3 +148,43 @@ one each of `calendar`, `events`, `mobile`, `revised`, `webservices`, plus
 `test15/menu.py` (Phase 6). Not re-reviewed as files, checked as state:
 `docstring_debt.txt`, `.github/workflows/tests.yml`,
 `instances/gnrdevelop/config/instanceconfig.xml`.
+
+## Ruling on the flagged findings (after the browser pass)
+
+Decided by the owner once the browser pass had confirmed the pages, and applied
+in the same working tree:
+
+1. **`includedview_externalchanges.py` docstrings** — rewritten: a title plus a
+   body paragraph saying what `externalChanges=True` and the two `userSets`
+   columns are for, one line on each case naming what distinguishes it (whole
+   selection vs chunked store driving `currentfilter`), and one line each on
+   `isDeveloper` and `mystruct`.
+2. **`tooltipDialog.py`** — `test_1_tooltipPane` and `test_2_div` now say what
+   they show instead of restating the widget name.
+3. **`rpc_salvaDati`** — deleted from `formHandler.py`. The live copy stays in
+   `components/advanced_form.py`, which is where the convention lives.
+4. **`formHandler.py` `test_10_frameform_iv`** — the `_onCalling='console.log("xxxx")'`
+   kwarg is gone; `test_0_frameform` remains the case that demonstrates a load
+   callback deliberately.
+5. **`slotbar.py` placeholders** — the slot is `tagpicker` and its datapath
+   `.picked_tags` (both occurrences, the multibutton and the echoing textbox).
+   `multibutton` itself cannot be a slot name: `__getattr__` resolves the widget
+   namespace before the slot children (`gnrpy/gnr/web/gnrwebstruct/base.py:174`
+   vs `:185`), so a slot named after a tag would return a builder, not the slot.
+6. **`slotbar.py` title** — replaced by a sentence plus a paragraph on the
+   `slots` string, the `*` / `|` / number forms, the toolbar flavour and
+   `replaceSlots`.
+7. **`test15/menu.py`** — the stale `Dojo` branch is removed; only `Tools`
+   survives, which is the one area still holding pages.
+8. **Pre-existing debt in the six fold targets** — left as it is, confirmed:
+   it belongs to whichever macro owns those areas.
+
+Not filed as issues, by the owner's ruling: the malformed `ALTER TABLE` in the
+sqlite migration path is a known limitation and stays as it is, and the missing
+duplicate-frameCode check does not become a suite check — it is a developer rule,
+written up as the Sourcerer skill *frameCode must be unique on the page*
+(`GenroPy/User Interface/Layout`, linked to `GenroPy/Conventions/Naming Rules`).
+
+After these edits: flake8 zero errors on the touched files,
+`test_pages_documented.py` + `test_pages_ratchet.py` 10 passed,
+`test_pages_smoke.py -q -rs` 1 passed with no skip.
