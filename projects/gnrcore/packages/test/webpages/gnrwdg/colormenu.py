@@ -33,7 +33,6 @@ class GnrCustomWebPage(object):
                     _querystring = _querystring.slice(0,-1).toLowerCase();
                     cbfilter = function(n){return n.name.toLowerCase().indexOf(_querystring)>=0;};
                 }else if(_id){
-                    console.log('_id',n)
                     cbfilter = function(n){return n._pkey==_id;}
                 }
                 data = data.filter(cbfilter);

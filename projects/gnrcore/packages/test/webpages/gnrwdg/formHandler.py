@@ -113,13 +113,13 @@ class GnrCustomWebPage(object):
         pane = pane.div(height='30px')
         pane.dock(id='test_3_dock')
         pane.palette(paletteCode='province_lazy',title='Province',dockTo='test_3_dock',
-                    _lazyBuild=True,_onLazyBuilt='console.log("aaa")').formTester('form_palette',height='300px',width='400px')
+                    _lazyBuild=True).formTester('form_palette',height='300px',width='400px')
 
     def test_8_formPane_tooltipForm(self,pane):
         """A form in a tooltipPane: shift-hovering the box loads the provincia named by its attribute"""
         box = pane.div(height='30px',width='100px',background='red',provincia='MI')
         box.span('Milano')
-        dlg = box.tooltipPane(title='Milano',modifiers='shift',xconnect_onOpening='console.log(arguments);genro.formById("form_ttdialog").load({destPkey:e.target.sourceNode.attr.provincia});')
+        dlg = box.tooltipPane(title='Milano',modifiers='shift',xconnect_onOpening='genro.formById("form_ttdialog").load({destPkey:e.target.sourceNode.attr.provincia});')
         dlg.formTester('form_ttdialog',height='300px',width='500px',background='white',rounded=6)
 
     def test_5_formPane_palette_remote(self,pane):

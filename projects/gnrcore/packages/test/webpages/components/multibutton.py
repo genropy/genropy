@@ -47,7 +47,7 @@ class GnrCustomWebPage(object):
         "Items declared one by one, each with its own action, disabled condition or deleteAction"
         pane.checkbox(value='^.disabled')
         mb = pane.multibutton(value='^.base',sticky=False)
-        mb.item('pippo',caption='Pippo',disabled='^.disabled',action='alert("xxx")')
+        mb.item('pippo',caption='Pippo',disabled='^.disabled',action='alert("Pippo clicked")')
         mb.item('paperino',caption='Paperino',deleteAction='genro.bp(true)')
 
     def test_5_multibutton_items_delay(self,pane):
