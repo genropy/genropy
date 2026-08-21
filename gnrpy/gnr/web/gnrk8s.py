@@ -416,6 +416,8 @@ class GnrK8SGenerator(object):
         return [deployment], [service], self.get_ingress()
     
     def get_ingress(self):
+        if not self.fqdns:
+            return []
         ingress = {
             "apiVersion": "networking.k8s.io/v1",
             "kind": "Ingress",
