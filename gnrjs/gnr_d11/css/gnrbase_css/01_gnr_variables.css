@@ -284,6 +284,7 @@
     --toast-container-right: 16px;
     --toast-min-width: 300px;
     --toast-max-width: 420px;
+    --toast-message-max-height: 40vh;
     --toast-padding: 14px 16px;
     --toast-gap: 10px;
     --toast-border-width: 4px;

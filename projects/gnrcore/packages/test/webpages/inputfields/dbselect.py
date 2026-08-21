@@ -77,3 +77,11 @@ class GnrCustomWebPage(object):
                         selected_regione='.regione',
                         invalidItemCondition_message='troppo lungo',auxColumns='$regione')
         fb.div('^.regione')
+
+    def test_6_hdbselect(self,pane):
+        "hdbSelect on a hierarchical table: table= kwarg and the deprecated dbtable= spelling sharing a connectedMenu"
+        fb = pane.formbuilder(cols=1, border_spacing='4px')
+        fb.hdbSelect(value='^.tag_id',table='adm.htag',lbl='Tag',width='25em',
+                    caption_field='hierarchical_description',connectedMenu='htag_menu')
+        fb.hdbSelect(value='^.tag_id_2',dbtable='adm.htag',lbl='Tag (old spelling)',width='25em',
+                    caption_field='hierarchical_description',connectedMenu='htag_menu')
