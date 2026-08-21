@@ -3868,6 +3868,20 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
         }
         return savedAttrs;
     },
+
+    mixin_setSelectedId: function(pkey) {
+        var nrow = this.rowCount;
+        if (nrow == 0 || isNullOrBlank(pkey)) {
+            this.selection.unselectAll();
+        } else {
+            var idx = this.indexByRowAttr(this.rowIdentifier(), pkey);
+            if (idx >= nrow) {
+                idx = nrow - 1;
+            }
+            this.selection.select(idx);
+            this.scrollToRow(idx);
+        }
+    },
     
     mixin_setEditableColumns:function(){
         var cellmap = this.cellmap;
