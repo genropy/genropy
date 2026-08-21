@@ -16,5 +16,6 @@ class GnrCustomWebPage(object):
     def test_0_thpalette(self, pane):
         """The dialog holds the th page of glbl.provincia and the button shows it"""
         pane.thIframeDialog(table='glbl.provincia', title='Province',
-                            dialog_nodeId='thpalette_provincia_dlg')
+                            dialog_nodeId='thpalette_provincia_dlg',
+                            dialog_windowRatio='.5')
         pane.button('open', action='genro.wdgById("thpalette_provincia_dlg").show()')

@@ -80,13 +80,13 @@ class GnrCustomWebPage(object):
                             rounded_bottom=10,height='180px',width='600px',pkeyPath='.prov')
         form.testToolbar()
         store = form.formStore(table='glbl.provincia',storeType='Item',handler='recordCluster',startKey='*norecord*',onSaved='reload')
-        store.handler('load',_onCalling='console.log("xxxx")',default_ordine_tot='100')
+        store.handler('load',default_ordine_tot='100')
         tc = form.center.tabContainer(datapath='.record')
         tc.contentPane(title='Provincia').formbuilder(cols=2, border_spacing='3px').formContent()
         bc =tc.borderContainer(title='Comuni')
         self.includedViewBox(bc,label='Comuni',datapath='comuni',
                              nodeId='comuni',table='glbl.localita',
-                             struct='min',
+                             struct='nome,cap,codice_istat',
                              reloader='^#regione_b_form.record.id',
                              selectionPars=dict(where='$provincia=:provincia_id',
                              provincia_id='^#regione_b_form.record.sigla'))
@@ -151,11 +151,6 @@ class GnrCustomWebPage(object):
         fb=pane.formbuilder(cols=1, border_spacing='1px')
         fb.dbselect(value="^.prov",dbtable="glbl.provincia",parentForm=False,
                     validate_onAccept="this.form.publish('load',{destPkey:value});",lbl='Provincia')
-
-    def rpc_salvaDati(self, dati, **kwargs):
-        """Server-side receiver printing whatever a case sends it"""
-        print("Data saved:")
-        print(dati)
 
     def test_111_frame_formdatapath(self,pane):
         """A form loaded on a fixed startKey (MI), its fields spread over two tabs"""

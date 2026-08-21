@@ -56,7 +56,7 @@ class GnrCustomWebPage(object):
         tb = frame.top.slotToolbar('*,selector,20,reloader')
         tb.selector.dbselect(value='^.regione',dbtable='glbl.regione',lbl='Regione')
         tb.reloader.button('reload',fire='.reload')
-        iv = frame.includedView(struct='regione',autoSelect=True,selectedId='.selectedPkey',
+        iv = frame.includedView(struct='sigla,nome',autoSelect=True,selectedId='.selectedPkey',
                            selfsubscribe_onSelectedRow='genro.formById("provincia_0_form").publish("load",{destPkey:$1.selectedId});',
                            subscribe_form_provincia_0_onLoaded="this.widget.selectByRowAttr('_pkey',$1.pkey)")
         iv.selectionStore(table='glbl.provincia',where='$regione=:r',r='^.regione',_fired='^.reload')
@@ -71,7 +71,7 @@ class GnrCustomWebPage(object):
         tb = frame.top.slotToolbar('selector,searchOn,reloader,count')
         tb.selector.dbselect(value='^.regione',dbtable='glbl.regione',lbl='Regione')
         tb.reloader.button('reload',fire='.reload')
-        iv = frame.includedView(struct='regione',autoSelect=True,selectedId='.selectedPkey',
+        iv = frame.includedView(struct='sigla,nome',autoSelect=True,selectedId='.selectedPkey',
                            selfsubscribe_onSelectedRow='genro.formById("provincia_1_form").publish("load",{destPkey:$1.selectedId});',
                            subscribe_form_provincia_1_onLoaded="this.widget.selectByRowAttr('_pkey',$1.pkey)")
         iv.selectionStore(table='glbl.provincia',where='$regione=:r',r='^.regione',_fired='^.reload')
@@ -82,11 +82,12 @@ class GnrCustomWebPage(object):
         """linkedForm: the grid builds the form itself and opens it in a dialog on double click"""
         bc = pane.borderContainer(height='250px')
         frame = bc.framePane(region='left',frameCode='province_2',width='300px')
-        tb = frame.top.slotToolbar('selector,*,addrow,10')
-        tb.selector.dbselect(value='^.regione',dbtable='glbl.regione',lbl='Regione')
-        iv = frame.includedView(struct='regione',autoSelect=True)
+        # the grid comes first: the addrow slot of the toolbar reads frame.grid
+        iv = frame.includedView(struct='sigla,nome',autoSelect=True)
         iv.selectionStore(table='glbl.provincia',where='$regione=:r',
                           r='^.regione',_fired='^.reload')
+        tb = frame.top.slotToolbar('selector,*,addrow,10')
+        tb.selector.dbselect(value='^.regione',dbtable='glbl.regione',lbl='Regione')
         form = iv.linkedForm(frameCode='provincia_2',loadEvent='onRowDblClick',
                              dialog_title='Prova',
                              dialog_height='300px',
@@ -105,7 +106,7 @@ class GnrCustomWebPage(object):
         tb = frame.top.slotToolbar('*,selector,20,reloader')
         tb.selector.dbselect(value='^.regione',dbtable='glbl.regione',lbl='Regione')
         tb.reloader.button('reload',fire='.reload')
-        iv = frame.includedView(struct='regione',autoSelect=True)
+        iv = frame.includedView(struct='sigla,nome',autoSelect=True)
         iv.selectionStore(table='glbl.provincia',where='$regione=:r',
                           r='^.regione',_fired='^.reload')
         center = bc.contentPane(region='center',border='1px solid blue')
@@ -137,9 +138,10 @@ class GnrCustomWebPage(object):
         fb.field('ordine')
         fb.field('zona')
         province = bc.framePane('province_regione_4',region='center',margin='2px',datapath='.#parent.provincia')
-        province.top.slotToolbar('*,addrow,delrow',addrow_parentForm=True,delrow_parentForm=True)
-        iv = province.includedView(struct='regione',autoSelect=True)
+        # the grid comes first: the addrow slot of the toolbar reads frame.grid
+        iv = province.includedView(struct='sigla,nome',autoSelect=True)
         iv.selectionStore(table='glbl.provincia',where='$regione=:r',r='^.#parent.record.sigla')
+        province.top.slotToolbar('*,addrow,delrow',addrow_parentForm=True,delrow_parentForm=True)
         form=iv.linkedForm(frameCode='provincia_4',loadEvent='onRowDblClick',
                             dialog_title='Provincia',dialog_height='300px',dialog_width='400px',store_onSaved='reload')
         form.testToolbar()

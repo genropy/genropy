@@ -5,13 +5,14 @@
 The three widgets edit the same thing - the nodes of a Bag - at three levels of
 detail: bagNodeEditor edits one node, bagEditor gives a tree plus a grid over a
 whole Bag, and multiValueEditor edits a flat set of key/value pairs. The tree
-cases load `adm/localization.xml` as a sample Bag with attributes worth showing
-in columns.
+cases load `adm/localization.xml` as a sample Bag: its nodes carry one attribute
+per language, which is what the editors put on screen as rows or as columns.
 """
 
 from gnr.core.gnrbag import Bag
 
 LOCALIZATION_BAG = 'pkg:adm/localization.xml'
+NODE_EDITOR_ID = 'localization_node_editor'
 
 class GnrCustomWebPage(object):
     py_requires="gnrcomponents/testhandler:TestHandlerFull,gnrcomponents/framegrid:FrameGrid"
@@ -23,11 +24,13 @@ class GnrCustomWebPage(object):
         """The adm localization.xml read as a Bag, sample data for the tree cases"""
         return Bag(self.site.storageNode(LOCALIZATION_BAG).internal_path)
 
-    def test_0_firsttest(self,pane):
-        """bagNodeEditor: edit the attributes of a single node, on the `test_editnode` topic"""
-        bc = pane.borderContainer(height='400px',background='lime')
-        bc.contentPane(region='top').button('load node',action='genro.publish("test_editnode","")')
-        bc.contentPane(region='center').bagNodeEditor(bagpath='gnr',nodeId='test')
+    def test_0_bagNodeEditor(self,pane):
+        """bagNodeEditor: edits the node whose path the tree publishes on `<nodeId>_currentPath`"""
+        bc = pane.borderContainer(height='400px')
+        bc.data('.localization', self.localizationBag())
+        bc.contentPane(region='left',width='220px').tree(storepath='.localization',hideValues=True,
+                                            selfsubscribe_onSelected="""genro.publish('%s_currentPath',$1.item.getFullpath(null,genro._data));""" % NODE_EDITOR_ID)
+        bc.contentPane(region='center').bagNodeEditor(nodeId=NODE_EDITOR_ID,datapath='.nodeeditor')
     
     def test_1_firsttest(self,pane):
         """A tree plus a bagGrid built by hand: the selected branch becomes rows, its attributes columns"""
@@ -121,7 +124,7 @@ class GnrCustomWebPage(object):
         bc.contentPane(region='center').multiValueEditor(value=dict(nome='Gianni',eta=33,indirizzo='via del pero 12'), 
                                                             tools=False)
 
-    def test_5_prova(self, pane):
+    def test_5_moveableDiv(self, pane):
         """The same read-only multiValueEditor inside a moveable div, filling it at height 100%"""
         bc = pane.borderContainer(height='300px')
         center = bc.contentPane(region='center')

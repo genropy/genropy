@@ -4,7 +4,16 @@
 # Created by Francesco Porcari on 2011-01-30.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
-"""slotBar and slotToolbar"""
+"""slotBar and slotToolbar: a bar whose content is declared as a list of named slots
+
+The `slots` string is the whole interface of the widget: every name in it becomes
+a child the page fills afterwards (`bar.foo.div(...)`), `*` is elastic space, `|`
+a separator and a bare number a fixed-width gap. `slotToolbar` is the toolbar
+flavour of the same bar and both go on any region of a framePane, horizontal on
+top, stacked on left. A slot can also be a `struct_method` reused by many bars,
+as `myslot` is here, and the whole set can be rewritten after the fact with
+`replaceSlots`.
+"""
 
 
 from gnr.web.gnrwebstruct import struct_method
@@ -76,11 +85,11 @@ class GnrCustomWebPage(object):
         frame = pane.framePane(frameCode='frameMultiline',height='100px',shadow='3px 3px 5px gray',
                                 border='1px solid #bbb',rounded_top=10,margin='10px')
 
-        upperbar = frame.top.slotToolbar(slots='*,xxx,*',
+        upperbar = frame.top.slotToolbar(slots='*,tagpicker,*',
                                     gradient_deg='90',gradient_from='#fff',gradient_to='lime',
                                     border_bottom='1px solid #bbb',
                                     lbl_position='T',lbl_color='red',lbl_font_size='7px',childname='topupper')
-        upperbar.xxx.multibutton(values='^.multibutton_values',value='^.abx',multivalue=True,mandatory=False)
+        upperbar.tagpicker.multibutton(values='^.multibutton_values',value='^.picked_tags',multivalue=True,mandatory=False)
         upperbar.dataController('SET .multibutton_values = v',v ='^.valuesetter')
 
         top = frame.top.slotToolbar(slots='*,|,foo,bar,|,*,xx',
@@ -95,4 +104,4 @@ class GnrCustomWebPage(object):
         frame.dataFormula('.valuesetter','v',v = 'pippo:mmaa:Pippo,pluto:Pluto,paperino:Paperino',_onStart=True)
 
         center = frame.center.contentPane()
-        center.textbox(value='^.abx')
+        center.textbox(value='^.picked_tags')

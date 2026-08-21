@@ -19,7 +19,7 @@ class GnrCustomWebPage(object):
         return 'tooltipDialog'
          
     def test_1_tooltipPane(self,pane):
-        """tooltipPane"""
+        """Three ways to hang content on a div: a tooltipPane on click, a plain tooltip, a styled one"""
         fb = pane.formbuilder(cols=2)
         dlg = fb.div(lbl='tooltipCode',height='40px',width='40px',
                      background='red').tooltipPane(tooltipCode='test1',evt='onclick')
@@ -38,7 +38,7 @@ class GnrCustomWebPage(object):
         fb.div("Move you mouse on the blue div to show a dialog with modified style.")
         
     def test_2_div(self,pane):
-        """div tooltipPane"""
+        """One pane serving three divs: onOpening reads the opener attributes and skips the div without them"""
         pane.div("""You can open a tooltipPane in the red and the green div with a double click
                     (\'onDblClick\' event). The textboxes of the red and the green dialog are
                     linked with a remote call. The yellow div doesn\'t support any kind of action.""",
