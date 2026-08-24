@@ -56,3 +56,10 @@ jobs:
     - name: Test with pytest
       run: |
         cd gnrpy &&  pytest
+    - name: Documentation ratchet on the test-page packages
+      run: |
+        # gnrpy's pytest config restricts collection to gnrpy/tests, so the
+        # package suites under projects/ need their own invocation. Only the
+        # source-only checks belong here: the render sweep needs a built
+        # instance and a running daemon, which this job does not provide.
+        pytest projects/gnrcore/packages/test/tests/test_pages_documented.py -q

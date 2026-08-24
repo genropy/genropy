@@ -2,14 +2,17 @@
 
 from time import sleep
 
-from imdb import IMDb
+try:
+    from imdb import IMDb
+except ImportError:
+    IMDb = None
 
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
 from gnr.app.pathresolver import PathResolver
 
 class GnrCustomWebPage(object):
-    py_requires="gnrcomponents/testhandler:TestHandlerFull"
+    py_requires="gnrcomponents/testhandler:TestHandlerFull,optional_library:OptionalLibrary"
 
     def windowTitle(self):
         return 'RemoteSelect'  
@@ -47,8 +50,9 @@ class GnrCustomWebPage(object):
         return result,dict(columns='username,status,auth_tags',headers='Name,Status,Tags')
 
     def test_2_remoteSelect_with_api(self, pane, **kwargs):
-        """Use remote select to connect with service and get results.
-        Run pip install imdbpy first to retrieve movie data"""
+        """Use remote select to connect with an external service and get results"""
+        if self.opl_missingLibrary(pane, IMDb, 'cinemagoer'):
+            return
         fb = pane.formbuilder(cols=1)
         fb.remoteSelect(value='^.movie_id',lbl='Movie title', method=self.getMovieId, 
                             auxColumns='title,kind,year', selected_cover='.cover')

@@ -4207,7 +4207,7 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
             celldata['action_delay'] = typeof(kw.remoteUpdate)=='number'?kw.remoteUpdate:1000;
         }
         celldata['format_onclick'] = "this.widget.onCheckedColumn(kw.rowIndex,'"+fieldname+"',e)";
-        if((celldata.checkBox || celldata.radioButton) && typeof(celldata.assignedValue)=='string'){
+        if(celldata.checkBox && typeof(celldata.assignedValue)=='string'){
             celldata._customGetter=function(rowdata,rowidx){
                 return rowdata[this.checkBox]? rowdata[this.checkBox].split(',').includes(this.assignedValue):false;
             }
