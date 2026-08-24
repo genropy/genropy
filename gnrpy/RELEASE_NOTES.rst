@@ -14,12 +14,23 @@ Packaging
   extra those implementations cannot be imported and the service silently
   falls back to its base implementation, logging an error. (#1079)
 
+Release 26.08.19.1
+==================
+
+Hotfix release: fixed Dockerfile creation for projects with
+repositories organized in nested subfolders.
+
+Release 26.08.19
+================
+
+Hotfix release: fixed image configuration builder, which was skipping
+the framework repository using a keyword that matches also other repos.
 
 Release 26.07.31
 ================
 
 Hotfix release: fixed docker build when the main application project
-resides in a subfolde of the repository (#1016)
+resides in a subfolder of the repository (#1016)
 
 
 Release 26.07.30

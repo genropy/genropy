@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
+import re
+
 import pytest
 
 from gnr.web.gnrwebstruct import (
@@ -23,12 +25,17 @@ class _AppStub(object):
 class _PageStub(object):
     filepath = '/tmp/fake_page.py'
     application = _AppStub()
+    maintable = None
+    pageOptions = {}
 
     def __init__(self):
         self._register_nodeId = {}
 
     def checkTablePermission(self, **kwargs):
         return True
+
+    def getPreference(self, *args, **kwargs):
+        return None
 
 
 def _make_root(page=None):
@@ -292,3 +299,98 @@ def test_formlet_col_min_width_drops_cols():
     attrs = _formlet_attr(col_min_width='14em', cols=3)
     assert attrs.get('columns') == 'repeat(auto-fit, minmax(14em, 1fr))'
     assert 'cols' not in attrs
+
+
+# ---------------------------------------------------------------------------
+# formbuilder: `hidden` hides the label cell as well
+# ---------------------------------------------------------------------------
+
+_GETCHILD_RE = re.compile(r"tdNode\.getChild\('([^']+)'\)")
+
+
+def _fieldNode(root, value):
+    return root.getNodeByAttr('value', value)
+
+
+def _resolveChildPath(cellNode, path):
+    """Resolve a client-side `getChild` path against the built source, the same
+    way `gnr.GnrDomSource.getChild` walks it in the browser: every step moves
+    into the found node, and `parent` climbs to the bag holding the owner node.
+    """
+    bag = cellNode.value
+    node = None
+    for step in path.split('/'):
+        node = bag.parentNode.parentNode if step == 'parent' else bag.getNode(step)
+        assert node is not None, 'unresolved step %s of %s' % (step, path)
+        bag = node.value
+    return node
+
+
+def _hiddenFieldLabelCell(root, value):
+    """Label cell targeted by the `hidden` propagation of the given field."""
+    fieldNode = _fieldNode(root, value)
+    path = _GETCHILD_RE.search(fieldNode.attr['onCreated']).group(1)
+    return _resolveChildPath(fieldNode.parentNode, path)
+
+
+def _hiddenFormbuilder(lblpos=None):
+    """Two fields side by side, the first one `hidden`: mobileFormBuilder puts
+    the labels on top (lblpos='T'), plain formbuilder keeps them on the left.
+    """
+    root = _make_root()
+    pane = root.child('div', childname='pane')
+    fb = pane.mobileFormBuilder(cols=2) if lblpos is None else pane.formbuilder(cols=2, lblpos=lblpos)
+    fb.textbox(value='^.alfa', lbl='Alfa', hidden='^.hide_alfa')
+    fb.textbox(value='^.beta', lbl='Beta')
+    return root
+
+
+def test_hidden_propagates_to_label_with_labels_on_top():
+    root = _hiddenFormbuilder()
+    labelCell = _hiddenFieldLabelCell(root, '^.alfa')
+    # the label of the hidden field, not the one of the field next to it
+    assert labelCell.attr['innerHTML'] == 'Alfa'
+    assert labelCell.attr['tag'] == 'td'
+
+
+def test_hidden_propagates_to_label_with_labels_on_left():
+    root = _hiddenFormbuilder(lblpos='L')
+    labelCell = _hiddenFieldLabelCell(root, '^.alfa')
+    assert labelCell.attr['tag'] == 'td'
+    # with labels on the left the cell wraps the label in a div
+    assert labelCell.value.getNodes()[0].attr['innerHTML'] == 'Alfa'
+
+
+def test_hidden_field_keeps_its_own_cell_as_first_target():
+    root = _hiddenFormbuilder()
+    fieldNode = _fieldNode(root, '^.alfa')
+    assert 'this._hiddenTargets.push(tdNode.domNode)' in fieldNode.attr['onCreated']
+    # `hidden` is popped at creation time and replayed on the cells once built
+    assert "objectPop(arguments[0],'hidden')" in fieldNode.attr['onCreating']
+
+
+def test_explicit_lbl_hidden_wins_over_propagation():
+    root = _make_root()
+    fb = root.child('div', childname='pane').mobileFormBuilder(cols=2)
+    fb.textbox(value='^.alfa', lbl='Alfa', hidden='^.hide_alfa', lbl_hidden='^.hide_alfa')
+    fieldNode = _fieldNode(root, '^.alfa')
+    assert 'onCreated' not in fieldNode.attr
+    assert fieldNode.attr['hidden'] == '^.hide_alfa'
+
+
+def test_visible_field_gets_no_hidden_handler():
+    root = _hiddenFormbuilder()
+    assert 'onCreated' not in _fieldNode(root, '^.beta').attr
+
+
+def test_hidden_group_member_targets_its_own_label_cell():
+    root = _make_root()
+    fb = root.child('div', childname='pane').mobileFormBuilder(cols=2)
+    fb.textbox(value='^.alfa', lbl='Alfa', hidden='^.hide_alfa', hiddenGroup='alfa')
+    fb.textbox(value='^.beta', lbl='Beta')
+    fb.textbox(value='^.gamma', lbl='Gamma', hiddenGroup='alfa')
+    memberNode = _fieldNode(root, '^.gamma')
+    # the group member walks up to its own cell, like the hidden field does
+    assert "this.attributeOwnerNode('tag','td')" in memberNode.attr['onCreated']
+    labelCell = _hiddenFieldLabelCell(root, '^.gamma')
+    assert labelCell.attr['innerHTML'] == 'Gamma'
