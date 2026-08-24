@@ -493,12 +493,10 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 var resolvedValue = this._resolvedValue;
                 var resolver = genro.rpc.remoteResolver(method, attributes, {'cacheTime':cacheTime,
                     'isGetter':isGetter});
-                // the resolver keeps its own copy of the parameters, so _sourceNode must not
-                // be left in the attributes assigned to the data node: a GnrDomSourceNode in
-                // node.attr breaks any serialization of that node (e.g. a record cluster).
-                var nodeAttributes = objectUpdate({}, attributes);
-                delete nodeAttributes['_sourceNode'];
-                dataNode.setValue(resolver, true, nodeAttributes);
+                // the resolver already took its own copy of the parameters: a GnrDomSourceNode
+                // left in node.attr breaks any serialization of that node (e.g. a record cluster).
+                objectExtract(attributes, '_*');
+                dataNode.setValue(resolver, true, attributes);
                 if(resolvedValue){
                     dataNode._status = 'loaded';
                     dataNode.setValue(resolvedValue,'resolver');
