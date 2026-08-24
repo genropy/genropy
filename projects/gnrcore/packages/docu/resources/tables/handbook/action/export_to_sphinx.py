@@ -283,17 +283,6 @@ class Main(BaseResourceBatch):
         #every handbook is committed as soon as it is published: a failure of the
         #next one leaves what is already online registered on its record
         self.db.commit()
-        self.sendHandbookNotification()
-
-    def sendHandbookNotification(self):
-        """Announce the handbook just published, if the run was asked to."""
-        if not (self.db.package('genrobot') and self.batch_parameters.get('send_notification')):
-            return
-        #DP202101 Send notification message via Telegram (gnrextra genrobot required)
-        notification_message = self.batch_parameters['notification_message'].format(handbook_title=self.handbook_record['title'],
-                                    timestamp=datetime.now(), handbook_url=self.handbook_url)
-        self.sendNotification(notification_message=notification_message,
-                              notification_bot=self.batch_parameters['bot_token'])
 
     def result_handler(self):
         resultAttr = dict()
@@ -525,15 +514,6 @@ class Main(BaseResourceBatch):
 
         return '\n%s\n%s\n\n\n   %s' % (".. toctree::", '\n'.join(toc_options),'\n   '.join(elements))
 
-    def sendNotification(self, notification_bot=None, notification_message=None):
-        notification_recipients = self.db.table('genrobot.bot_contact').query(columns='@contact_id.username AS username', 
-                        where='@bot_id.bot_token=:bot_token', bot_token=notification_bot).fetchAsDict('username')
-        socialservice = self.page.site.getService(service_type='telegram', service_name='telegram')
-        assert socialservice,'set in siteconfig the service social/telegram'
-        for recipient in notification_recipients:
-            result = socialservice.publishPost(message=notification_message, 
-                                            bot_token=notification_bot, page_id_code=recipient)
-             
     def createFile(self, pathlist=None, name=None, title=None, rst=None, hname=None, tocstring=None, footer=''):
         reference_label='.. _%s:\n' % hname if hname else ''
         title = title or name
@@ -543,21 +523,6 @@ class Main(BaseResourceBatch):
             f.write(content.encode())
 
     
-    def table_script_parameters_pane(self,pane,**kwargs):   
-        fb = pane.formbuilder(cols=1, border_spacing='5px')
-        #DP202101 Ask for Telegram notification option if enabled in docu settings
-        if self.db.application.getPreference('.telegram_notification',pkg='docu'):
-            fb.checkbox(label='!![en]Send notification via Telegram', value='^.send_notification', default=True)
-            fb.dbselect('^.bot_token', lbl='BOT', table='genrobot.bot', columns='$bot_name', alternatePkey='bot_token',
-                        colspan=3, hasDownArrow=True, default=self.db.application.getPreference('.bot_token',pkg='docu'),
-                        hidden='^.send_notification?=!#v')                
-            fb.simpleTextArea(lbl='!![en]Notification content', value='^.notification_message', hidden='^.send_notification?=!#v',
-                    default="!![en]Genropy Documentation updated: {handbook_title} was modified @ {timestamp}. Check out what's new on {handbook_url}", 
-                    height='60px', width='200px')
-            #pane.inlineTableHandler(table='genrobot.bot_contact', datapath='.notification_recipients',
-            #                title='!![en]Notification recipients', 
-            #                margin='2px', pbl_classes=True, addrow=False, delrow=False, height='200px')
-
     def processCssCustomizations(self):
         customCssPath='_static/custom.css' #DP Customizable?
         cssStyles = [

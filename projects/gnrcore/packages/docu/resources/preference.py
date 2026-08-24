@@ -37,11 +37,7 @@ class AppPref(object):
         fb.textbox('^.sphinx_baseurl', lbl='!![en]Sphinx baseurl', placeholder='Default: http://genropy.org/docs/')
         fb.checkbox('^.enable_sitemap', label='!![en]Enable sitemap')
         fb.checkbox('^.save_src_debug', label='!![en]Save source debug files')
-        if self.db.package('genrobot'):
-            fb.checkBox(value='^.telegram_notification', lbl='', label='Enable Telegram Notification')
-            fb.dbselect('^.bot_token', lbl='Default BOT', table='genrobot.bot', columns='$bot_name', alternatePkey='bot_token',
-                            colspan=3, hasDownArrow=True, hidden='^.telegram_notification?=!#v')
-            
+
     def handbooksTheme(self, pane):
         fb = pane.formbuilder(cols=1, border_spacing='4px')
         fb.img(src='^.logo', lbl='!![en]Handbook Logo', width='200px', height='100px', 
