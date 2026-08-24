@@ -38,16 +38,10 @@ class Main(BaseResourceBatch):
 
     def pre_process(self):
         self.handbook_id = self.batch_parameters['extra_parameters']['handbook_id']
-        self.handbook_record = self.tblobj.record(self.handbook_id, virtual_columns='$sphinx_path').output('bag')
+        self.handbook_record = self.tblobj.record(self.handbook_id).output('bag')
         self.doctable =self.db.table('docu.documentation')
         self.doc_data = self.doctable.getHierarchicalData(root_id=self.handbook_record['docroot_id'], condition='$is_published IS TRUE')['root']['#0']
-        #DP202208 Temporary node to build files, moved after creation to definitive folder
-        self.handbookNode = self.page.site.storageNode('site:handbooks', self.handbook_record['name'])
-        self.sphinxNode = self.handbookNode.child('sphinx') 
-        self.sourceDirNode = self.sphinxNode.child('source')
-        #DP202208 publishedDocNode node is where the final documentation will be published, at beginning of the process we erase former docs
-        self.publishedDocNode = self.page.site.storageNode(self.handbook_record['sphinx_path'])
-        self.publishedDocNode.delete()
+        self.prepareHandbookFolder()
         self.html_baseurl = self.db.application.getPreference('.sphinx_baseurl',pkg='docu') or self.page.site.externalUrl('/_documentation/')
         self.handbook_url = f"{self.html_baseurl}{self.handbook_record['name']}/"
         self.enable_sitemap = self.db.application.getPreference('.enable_sitemap',pkg='docu')
@@ -67,6 +61,22 @@ class Main(BaseResourceBatch):
         self.imagesDirNode = self.sourceDirNode.child(self.imagesPath)
         self.examplesDirNode = self.sourceDirNode.child(self.examplesPath)
             
+    def prepareHandbookFolder(self):
+        """Wire the folders of the export, erasing the former one.
+
+        Sphinx reads its sources and writes its build through the filesystem, which
+        the storage the handbook is published in has not necessarily got (a bucket,
+        an sftp host): the export always works in a disposable folder of the page,
+        which the site cleans up with the page itself, and post_process publishes
+        the result into the handbook folder."""
+        self.publishedDocNode = self.tblobj.handbookStorageNode(self.handbook_record)
+        self.sphinxNode = self.page.site.storageNode('page:handbook_build',
+                                                     self.handbook_record['name'], 'sphinx')
+        #the export regenerates every file of both folders: nothing of the former survives
+        self.publishedDocNode.delete()
+        self.sphinxNode.delete()
+        self.sourceDirNode = self.sphinxNode.child('source')
+
     def step_prepareConfFile(self):
         "Prepare conf file"
         confSn = self.sourceDirNode.child('conf.py')
@@ -195,18 +205,17 @@ class Main(BaseResourceBatch):
         with self.tblobj.recordToUpdate(self.handbook_id) as record:
             record['last_exp_ts'] = datetime.now()
             if record['is_local_handbook']:
-                self.zipNode = self.handbookNode.child('%s.zip' % self.handbook_record['name'])
-                self.page.site.zipFiles([self.resultNode.fullpath], self.zipNode.internal_path)
-                #DP202208 Zip file will be moved to published Doc node after creation. Building folders will be deleted
-                destNode = self.publishedDocNode.child(self.zipNode.basename)
-                self.zipNode.move(destNode)
+                #the zip is the published file: it is written straight in the handbook folder
+                self.zipNode = self.publishedDocNode.child('%s.zip' % self.handbook_record['name'])
+                self.page.site.zipFiles([self.resultNode.fullpath], self.zipNode.fullpath)
                 self.result_url = self.zipNode.internal_url().split('?')[0] #Remove ?download=True if present
                 record['local_handbook_zip'] = self.result_url
             else:
-                #DP202208 Html files will be moved to published Doc node after creation. Building folders will be deleted
-                logger.info(f"Moving HTML build from {self.resultNode.fullpath} to {self.publishedDocNode.fullpath}")
+                #the build is promoted to the root of the handbook folder: what the
+                #docs web server publishes is the handbook folder itself
+                logger.info(f"Publishing HTML build from {self.resultNode.fullpath} to {self.publishedDocNode.fullpath}")
                 self.resultNode.move(self.publishedDocNode)
-                logger.info(f"Move completed. Published doc available at: {self.publishedDocNode.fullpath}")
+                logger.info(f"Publishing completed. Published doc available at: {self.publishedDocNode.fullpath}")
                 record['handbook_url'] = self.handbook_url
                 self.result_url = None
         if not self.db.application.getPreference('.save_src_debug',pkg='docu'):
