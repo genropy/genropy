@@ -6,6 +6,8 @@ exposes real local storage services backed by temporary directories, so a test
 can exercise the paths the code builds and the files it writes, and PageStub
 answers the handful of things the model asks the current page for.
 """
+import os
+import zipfile
 from urllib.parse import urlsplit
 
 from gnr.core.gnrbag import Bag
@@ -133,3 +135,16 @@ class StorageSiteStub:
         if service_name not in self.services:
             return None
         return self.storageNode('%s:%s' % (service_name, path))
+
+    def zipFiles(self, file_list=None, zipPath=None):
+        """Zip the given storage folders, as GnrWsgiSite.zipFiles does."""
+        with self.storageNode(zipPath).open(mode='wb') as zipresult:
+            with zipfile.ZipFile(zipresult, mode='w',
+                                 compression=zipfile.ZIP_DEFLATED) as zip_archive:
+                for fpath in file_list:
+                    node = self.storageNode(fpath)
+                    for dirpath, _, filenames in os.walk(node.internal_path):
+                        for filename in filenames:
+                            fullname = os.path.join(dirpath, filename)
+                            zip_archive.write(fullname,
+                                              os.path.relpath(fullname, node.internal_path))

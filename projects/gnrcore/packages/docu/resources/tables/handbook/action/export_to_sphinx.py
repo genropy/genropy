@@ -37,9 +37,68 @@ class Main(BaseResourceBatch):
     batch_steps = 'prepareConfFile,prepareRstDocs,buildHtmlDocs'
 
     def pre_process(self):
-        self.handbook_id = self.batch_parameters['extra_parameters']['handbook_id']
-        self.handbook_record = self.tblobj.record(self.handbook_id).output('bag')
-        self.doctable =self.db.table('docu.documentation')
+        self.doctable = self.db.table('docu.documentation')
+        self.handbook_ids = self.handbookIds()
+        self.zip_urls = []
+        self.failures = []
+
+    def handbookIds(self):
+        """Pkeys of the handbooks this run has to export.
+
+        The gear menu of the view hands the batch the current grid selection, the
+        form toolbar button hands the pkey of the record on screen as an extra
+        parameter: the selection wins and the single record is the fallback, so
+        the button - and any other caller passing handbook_id - keeps working."""
+        pkeys = self.get_selection_pkeys()
+        if pkeys:
+            return pkeys
+        handbook_id = (self.batch_parameters.get('extra_parameters') or {}).get('handbook_id')
+        return [handbook_id] if handbook_id else []
+
+    def call_steps(self, offset=1):
+        """Run the export steps once for every handbook of the selection.
+
+        The framework calls this instead of do() because batch_steps is set: the
+        steps of a single export stay the base ones, this only wraps them in the
+        loop over the selection, adding the handbook thermo line above them - so
+        the base bookkeeping of the step lines starts one line further down."""
+        for handbook_id in self.btc.thermo_wrapper(self.handbook_ids, 'btc_handbooks',
+                                                   message=self.handbookCaption):
+            self.prepareHandbook(handbook_id)
+            try:
+                super().call_steps(offset=offset + 1)
+                self.publishHandbook()
+            except self.btc.exception_stopped:
+                raise
+            except Exception as e:
+                #a broken manual is a reported failure, not the end of the run: the
+                #handbooks left in the selection must still get their export
+                self.handbookFailed(e)
+
+    def handbookCaption(self, handbook_id, progress, maximum, **kwargs):
+        """Thermo message naming the handbook being exported."""
+        name = self.tblobj.readColumns(columns='$name', pkey=handbook_id) or handbook_id
+        return '%s (%i/%i)' % (name, progress, maximum)
+
+    def handbookFailed(self, error):
+        """Register the failure of the handbook being exported and let the run go on.
+
+        Whatever the failed export left uncommitted is dropped, so the handbooks
+        still to be exported do not inherit a transaction of someone else's making."""
+        name = self.handbook_record['name']
+        logger.exception('Export to sphinx of the handbook %s failed', name)
+        self.batch_log_write('%s: export failed (%s)' % (name, error))
+        self.failures.append(name)
+        self.db.rollbackAll()
+
+    def prepareHandbook(self, handbook_id):
+        """Set up the export state of a single handbook.
+
+        Every step reads the handbook it is building from self: the batch exports
+        one handbook at a time and this resets that state at the beginning of each
+        of them, so nothing of the former export leaks into the next one."""
+        self.handbook_id = handbook_id
+        self.handbook_record = self.tblobj.record(handbook_id).output('bag')
         self.doc_data = self.doctable.getHierarchicalData(root_id=self.handbook_record['docroot_id'], condition='$is_published IS TRUE')['root']['#0']
         self.prepareHandbookFolder()
         self.html_baseurl = self.db.application.getPreference('.sphinx_baseurl',pkg='docu') or self.page.site.externalUrl('/_documentation/')
@@ -67,7 +126,7 @@ class Main(BaseResourceBatch):
         Sphinx reads its sources and writes its build through the filesystem, which
         the storage the handbook is published in has not necessarily got (a bucket,
         an sftp host): the export always works in a disposable folder of the page,
-        which the site cleans up with the page itself, and post_process publishes
+        which the site cleans up with the page itself, and publishHandbook moves
         the result into the handbook folder."""
         self.publishedDocNode = self.tblobj.handbookStorageNode(self.handbook_record)
         self.sphinxNode = self.page.site.storageNode('page:handbook_build',
@@ -201,15 +260,17 @@ class Main(BaseResourceBatch):
         args = [self.sourceDirNode.internal_path, self.resultNode.internal_path] + args
         sphinx_build_main(args)
 
-    def post_process(self):     
+    def publishHandbook(self):
+        """Publish the build of the handbook just exported and register it on its record."""
         with self.tblobj.recordToUpdate(self.handbook_id) as record:
             record['last_exp_ts'] = datetime.now()
             if record['is_local_handbook']:
                 #the zip is the published file: it is written straight in the handbook folder
-                self.zipNode = self.publishedDocNode.child('%s.zip' % self.handbook_record['name'])
-                self.page.site.zipFiles([self.resultNode.fullpath], self.zipNode.fullpath)
-                self.result_url = self.zipNode.internal_url().split('?')[0] #Remove ?download=True if present
-                record['local_handbook_zip'] = self.result_url
+                zipNode = self.publishedDocNode.child('%s.zip' % self.handbook_record['name'])
+                self.page.site.zipFiles([self.resultNode.fullpath], zipNode.fullpath)
+                zip_url = zipNode.internal_url().split('?')[0] #Remove ?download=True if present
+                record['local_handbook_zip'] = zip_url
+                self.zip_urls.append(zip_url)
             else:
                 #the build is promoted to the root of the handbook folder: what the
                 #docs web server publishes is the handbook folder itself
@@ -217,23 +278,35 @@ class Main(BaseResourceBatch):
                 self.resultNode.move(self.publishedDocNode)
                 logger.info(f"Publishing completed. Published doc available at: {self.publishedDocNode.fullpath}")
                 record['handbook_url'] = self.handbook_url
-                self.result_url = None
         if not self.db.application.getPreference('.save_src_debug',pkg='docu'):
             self.sphinxNode.delete()
+        #every handbook is committed as soon as it is published: a failure of the
+        #next one leaves what is already online registered on its record
         self.db.commit()
+        self.sendHandbookNotification()
 
-        if self.db.package('genrobot'):
-            if self.batch_parameters.get('send_notification'):
-                #DP202101 Send notification message via Telegram (gnrextra genrobot required)
-                notification_message = self.batch_parameters['notification_message'].format(handbook_title=self.handbook_record['title'], 
-                                            timestamp=datetime.now(), handbook_url=self.handbook_url)
-                notification_bot = self.batch_parameters['bot_token']
-                self.sendNotification(notification_message=notification_message, notification_bot=notification_bot)
+    def sendHandbookNotification(self):
+        """Announce the handbook just published, if the run was asked to."""
+        if not (self.db.package('genrobot') and self.batch_parameters.get('send_notification')):
+            return
+        #DP202101 Send notification message via Telegram (gnrextra genrobot required)
+        notification_message = self.batch_parameters['notification_message'].format(handbook_title=self.handbook_record['title'],
+                                    timestamp=datetime.now(), handbook_url=self.handbook_url)
+        self.sendNotification(notification_message=notification_message,
+                              notification_bot=self.batch_parameters['bot_token'])
 
     def result_handler(self):
-        resultAttr = dict() 
-        if self.result_url:
-            resultAttr['url'] = self.result_url
+        resultAttr = dict()
+        if len(self.zip_urls) == 1:
+            #a lone zip stays the download of the batch result, as the export of a
+            #single local handbook has always been
+            resultAttr['url'] = self.zip_urls[0]
+        if not self.handbook_ids:
+            return 'No handbook to export', resultAttr
+        if self.failures:
+            return 'Exported %i of %i handbooks, failed: %s' % (len(self.handbook_ids) - len(self.failures),
+                                                                len(self.handbook_ids),
+                                                                ', '.join(self.failures)), resultAttr
         return 'Export done', resultAttr
 
     def prepare(self, data, pathlist, skip_first=False):
