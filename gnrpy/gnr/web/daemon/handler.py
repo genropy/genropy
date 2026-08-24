@@ -278,9 +278,9 @@ class GnrDaemon(object):
         return False
 
     def addSiteRegister(self,domainIdentifier,storage_path=None,autorestore=False,port=None):
+        # Extract sitename from domainIdentifier (format: sitename|domain or just sitename)
+        sitename = domainIdentifier.split('|')[0] if '|' in domainIdentifier else domainIdentifier
         if not domainIdentifier in self.siteregisters:
-            # Extract sitename from domainIdentifier (format: sitename|domain or just sitename)
-            sitename = domainIdentifier.split('|')[0] if '|' in domainIdentifier else domainIdentifier
             siteregister_processes_dict = dict()
             self.siteregisters_process[domainIdentifier] = siteregister_processes_dict
             siteregister_dict = dict()
