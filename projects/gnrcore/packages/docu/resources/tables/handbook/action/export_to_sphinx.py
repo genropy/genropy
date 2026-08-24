@@ -97,7 +97,7 @@ class Main(BaseResourceBatch):
             f"html_baseurl='{self.html_baseurl}'",
         ]
         if handbooks_theme_pref.get('logo'):
-            conf_lines.append(f"html_logo = '{self.page.site.externalUrl(handbooks_theme_pref['logo'])}'")
+            conf_lines.append(f"html_logo = '{self.logoUrl(handbooks_theme_pref['logo'])}'")
             conf_lines.append("html_short_title = 'Handbook'")
         if handbooks_theme_pref.get('copyright'):
             conf_lines.append("show_copyright = True")
@@ -381,6 +381,16 @@ class Main(BaseResourceBatch):
         self.imagesDict[new_filepath]=old_filepath
         result = ".. image:: /%s" % new_filepath
         return result
+
+    def logoUrl(self, logo):
+        """Absolute url of the handbook logo for the sphinx build.
+
+        The logo is uploaded on the documentation storage, so it goes through the
+        same gate as any other image of the build: the stable public url when that
+        service publishes it on a public base of its own, the instance-served one
+        otherwise - which is also what the logos uploaded on the instance home
+        before the move to the documentation storage keep answering."""
+        return self.imagePublicUrl(logo) or self.page.site.externalUrl(logo)
 
     def imagePublicUrl(self, old_filepath):
         """Return the public url of an image served outside the instance.

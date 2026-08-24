@@ -48,7 +48,7 @@ class AppPref(object):
                             crop_width='200px', crop_height='100px',
                             edit=True, placeholder=True,
                             upload_filename='docu_logo.png',
-                            upload_folder='home:documentation/img')
+                            upload_folder='documentation:img')
         fb.textbox(value='^.copyright', lbl='!![en]Copyright text')  
         fb.checkbox(value='^.last_update', label='!![en]Show last update date') 
         fb.checkbox(value='^.display_version', label='!![en]Display version number')

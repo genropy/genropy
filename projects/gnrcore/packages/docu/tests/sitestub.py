@@ -3,15 +3,95 @@
 The package tests run against a real database but without a site, while the docu
 model and the export batch reach storage services through it. StorageSiteStub
 exposes real local storage services backed by temporary directories, so a test
-can exercise the paths the code builds and the files it writes.
+can exercise the paths the code builds and the files it writes, and PageStub
+answers the handful of things the model asks the current page for.
 """
-from types import SimpleNamespace
 from urllib.parse import urlsplit
 
+from gnr.core.gnrbag import Bag
 from gnr.lib.services.storage import BaseLocalService, StorageNode
 
 MEDIA_HOST = 'https://media.example.org'
 INSTANCE_HOST = 'https://instance.example.org'
+PUBLIC_HOST = 'https://cdn.example.org'
+BUCKET_HOST = 'https://s3.eu-south-1.amazonaws.com'
+
+
+class PageStoreStub:
+    """In-memory stand-in for the page store, usable as a context manager or
+    read straight away, the two ways the framework reaches for it."""
+
+    def __init__(self):
+        self.data = Bag()
+
+    def getItem(self, path, default=None):
+        value = self.data.getItem(path)
+        return default if value is None else value
+
+    def setItem(self, path, value, **kwargs):
+        self.data.setItem(path, value, **kwargs)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exception_type, value, traceback):
+        return False
+
+
+class PageStub:
+    """The page the model and the batches reach for.
+
+    Hierarchical resolvers ask the current page for the connection, a uuid and
+    the store they cache their condition in; a batch asks its page for the same
+    connection, the site and the external host. One object answers both roles.
+    """
+
+    isMobile = False
+    user = None
+    page_id = 'test-page'
+    external_host = INSTANCE_HOST
+
+    def __init__(self, db=None, site=None, btc=None):
+        self.db = db
+        self.site = site
+        self.btc = btc
+        self._store = PageStoreStub()
+        self._uuid_count = 0
+
+    def getUuid(self):
+        self._uuid_count += 1
+        return 'test-uuid-%i' % self._uuid_count
+
+    def pageStore(self):
+        return self._store
+
+
+class SigningLocalService(BaseLocalService):
+    """Local service mimicking a signing storage with a public base of its own
+    (e.g. aws_s3 with public_base_url): url() is signed, expiring and served by
+    the instance, while public_url() is plain, permanent and served by the
+    public base, which declares the content readable by anyone."""
+
+    public_base_url = PUBLIC_HOST
+
+    def url(self, *args, **kwargs):
+        return '%s?Signature=deadbeef&Expires=123' % super().url(*args, **kwargs)
+
+    def public_url(self, *args, **kwargs):
+        return '/'.join([self.public_base_url, self.service_name] + list(args))
+
+
+class PrivateBucketLocalService(BaseLocalService):
+    """Local service mimicking a signing storage with no public base configured
+    (e.g. aws_s3 without public_base_url): public_url() still answers a url on
+    the bucket endpoint, outside the instance, but nothing says that bucket is
+    publicly readable, so linking it would publish 403s."""
+
+    def url(self, *args, **kwargs):
+        return '%s?Signature=deadbeef&Expires=123' % super().url(*args, **kwargs)
+
+    def public_url(self, *args, **kwargs):
+        return '/'.join([BUCKET_HOST, self.service_name] + list(args))
 
 
 class StorageSiteStub:
@@ -21,7 +101,7 @@ class StorageSiteStub:
         self.gnrapp = gnrapp
         self.mainpackage = mainpackage
         self.external_host = MEDIA_HOST
-        self.currentPage = SimpleNamespace(isMobile=False, user=None)
+        self.currentPage = PageStub(db=getattr(gnrapp, 'db', None), site=self)
         self.services = {}
         for name, base_path in (services_dirs or {}).items():
             self.addService(name, base_path)
