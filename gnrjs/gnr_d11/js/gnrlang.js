@@ -547,6 +547,26 @@ function objectIsEqual(obj1, obj2) {
     }
 }
 
+function attrIsUnchanged(currattr, newattr, updattr) {
+    if (newattr == null) {
+        return true; //a setter without attributes leaves them untouched
+    }
+    currattr = currattr || {};
+    for (var k in newattr) {
+        if (!isEqual(newattr[k], currattr[k])) {
+            return false;
+        }
+    }
+    if (!updattr) {
+        for (var k in currattr) {
+            if (!(k in newattr)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 function isNullOrBlank(elem){
     return elem === null || elem===undefined || elem === '';
 }

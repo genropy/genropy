@@ -1815,10 +1815,13 @@ dojo.declare("gnr.GnrBag", null, {
             if (resolver) {
                 node.setResolver(resolver);
             }
-            if(kwargs.lazySet){
-                if(isEqual(node._value,value)){
+            if(kwargs.lazySet && isEqual(node._value,value)){
+                if(attrIsUnchanged(node.attr,_attributes,_updattr)){
                     return node;
                 }
+                //same value, changed attributes: only the attribute listeners have to be notified
+                node.setAttr(_attributes, _doTrigger, _updattr);
+                return node;
             }
             node.setValue(value, _doTrigger, _attributes, _updattr,kwargs.fired);
             return node;

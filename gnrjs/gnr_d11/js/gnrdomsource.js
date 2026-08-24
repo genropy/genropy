@@ -507,16 +507,18 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         }
         
     },
-    setAttributeInDatasource: function(attrname, value, doTrigger, attributes, forceChanges) {
+    setAttributeInDatasource: function(attrname, value, doTrigger, attributes) {
         doTrigger = (doTrigger == null) ? this:doTrigger;
         var path = this.attrDatapath(attrname);
-        var old_value = genro._data.getItem(path);
-        //if (forceChanges){
-        //    genro._data.setItem(path,v,null,{'doTrigger':false});
-        //}
-        if (!isEqual(value,old_value) || (forceChanges && value != null)) {
-            genro._data.setItem(path, value, attributes, {'doTrigger':doTrigger});
+        if (path == null || (value == null && !attributes && !genro._data.getNode(path))) {
+            return; //nothing to publish: an attribute never set needs no datanode
         }
+        if (attributes) {
+            // attributes can be a live store row: without a copy the datastore node
+            // would alias it and no comparison could ever detect a change
+            attributes = objectUpdate({}, attributes);
+        }
+        genro._data.setItem(path, value, attributes, {'doTrigger':doTrigger,'lazySet':true});
     },
     defineForm: function(formId, formDatapath, controllerPath, pkeyPath,kw) {
         this.form = new gnr.GnrFrmHandler(this, formId, formDatapath, controllerPath, pkeyPath,kw);
