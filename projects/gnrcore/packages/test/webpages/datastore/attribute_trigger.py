@@ -71,6 +71,37 @@ class GnrCustomWebPage(object):
             """genro.setData(this.absDatapath('.target?tag'), 'bypath_'+genro.getCounter(),
                           {other:'other_'+genro.getCounter()});""")
 
+    def test_2_more_than_one_attribute(self, pane):
+        """Two attributes changed by a single set. Every consumer that branches on the changed
+        name must still react: 'changedAttr' stays empty because no single attribute can be
+        named, so the list is the only road. The _class bound to '?style' must drop its previous
+        class even when 'tag' travels with it, and the last button deletes 'tag' while writing
+        'style': a removed attribute is a change of its own path"""
+        box = pane.div(datapath='.t2')
+        box.data('.target', 'A', tag='first', style='testclass_a')
+        box.data('.attr_triggers', 0)
+        fb = box.formbuilder(cols=2, border_spacing='3px')
+        fb.div('^.attr_triggers', lbl='tag attribute triggers')
+        fb.div('^.target?tag', lbl='tag attribute')
+        fb.div('^.target?style', lbl='style attribute')
+        fb.div('^.changed_attr', lbl='changedAttr (empty when more than one)')
+        fb.div('^.changed_attrs', lbl='changedAttrs list')
+        fb.div('Bound to ?style', _class='^.target?style', lbl='node with _class on an attribute')
+        box.dataController("""SET .attr_triggers = n+1;
+                              SET .changed_attr = _triggerpars.kw.changedAttr;
+                              SET .changed_attrs = triggerChangedAttrs(_triggerpars.kw).join(',');""",
+                           target_tag='^.target?tag', n='=.attr_triggers')
+        bar = box.div(margin='5px')
+        bar.button('Change tag and style together').dataController(
+            """var c = genro.getCounter();
+               genro.getDataNode(this.absDatapath('.target')).updAttributes(
+                   {tag:'tag_'+c, style:'testclass_'+c}, true);""")
+        bar.button('Change style only').dataController(
+            """genro.setData(this.absDatapath('.target?style'), 'testclass_'+genro.getCounter());""")
+        bar.button('Drop tag, write style').dataController(
+            """genro.setData(this.absDatapath('.target'), 'A',
+                          {tag:null, style:'testclass_'+genro.getCounter()});""")
+
     def gridStruct(self, struct):
         r = struct.view().rows()
         r.cell('name', name='Name', width='12em', edit=True)

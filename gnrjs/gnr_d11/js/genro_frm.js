@@ -1778,12 +1778,17 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             allowed = !this._protectedNode(kw.node);
         }
         if( kw.value==kw.oldvalue  || (isNullOrBlank(kw.value) && isNullOrBlank(kw.oldvalue))){
-            if(kw.updattr && kw.changedAttr && kw.changedAttr!='_displayedValue'){
-                var cattr = kw.changedAttr;
+            var cattrs = kw.updattr?triggerChangedAttrs(kw):[];
+            var logged = false;
+            var changes = cattrs.length?this.getChangesLogger():null;
+            for(var i=0;i<cattrs.length;i++){
+                var cattr = cattrs[i];
+                if(cattr[0]=='_'){
+                    continue; //internal attributes are not user changes: they would dirty a clean form
+                }
                 var oldvalue = kw.oldattr[cattr];
                 var newvalue = kw.node.attr[cattr];
                 var changekey = this.getChangeKey(kw.node) + cattr;
-                var changes = this.getChangesLogger();
                 var n = changes.getNode(changekey);
                 if(n){
                     if(n.attr.from == newvalue){
@@ -1794,6 +1799,9 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                 }else{
                     changes.setItem(changekey,null,{_valuelabel:kw.reason.getElementLabel?kw.reason.getElementLabel():cattr,from:oldvalue,to:newvalue,allowed:allowed});
                 }
+                logged = true;
+            }
+            if(logged){
                 this.updateStatus();
             }
             return;

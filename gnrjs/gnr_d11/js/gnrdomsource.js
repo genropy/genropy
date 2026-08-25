@@ -1393,7 +1393,17 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             return;
         }
         else if (attr == '_class') {
-            var oldvalue = ('oldvalue' in kw) ? kw.oldvalue : kw.changedAttr ? kw.oldattr[kw.changedAttr] : null;
+            var oldvalue = null;
+            if ('oldvalue' in kw) {
+                oldvalue = kw.oldvalue;
+            } else {
+                //the old class lives under the attribute this node is bound to, not under
+                //whichever attribute the trigger happens to name
+                var boundattr = (this.attr._class || '').split('?')[1];
+                if (boundattr && boundattr[0] != '=' && triggerChangedAttrs(kw).indexOf(boundattr) >= 0) {
+                    oldvalue = kw.oldattr[boundattr];
+                }
+            }
 
             var domnode;
             if (this.widget) {

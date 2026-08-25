@@ -208,43 +208,43 @@ class TagMatrixGrid(BaseComponent):
                 return;
             }
             const kw = _triggerpars.kw;
-            if(kw.reason == 'tmg_multiselect' || !kw.changedAttr){
+            const changedTags = triggerChangedAttrs(kw).filter(function(n){return n.startsWith('tag_');});
+            if(kw.reason == 'tmg_multiselect' || !changedTags.length){
                 return;
             }
-            const changedAttr = kw.changedAttr;
-            if(!changedAttr.startsWith('tag_')){
-                return;
-            }
-            const tagId = changedAttr.substring(4);
             const clickedPkey = _node.attr._pkey;
-            const checked = _node.attr[changedAttr];
 
             // Get selected pkeys from grid
             const selectedPkeys = grid.getSelectedPkeys() || [];
-            let sourceIds = [];
             const storebag = grid.storebag();
+            const multiSelection = selectedPkeys.length > 1 && selectedPkeys.includes(clickedPkey);
+            const selectedRowsIdx = multiSelection? (grid.getSelectedRowidx() || []) : [];
 
-            if(selectedPkeys.length > 1 && selectedPkeys.includes(clickedPkey)){
-                // Multiple selection - apply to all selected rows
-                sourceIds = selectedPkeys;
-                const selectedRowsIdx = grid.getSelectedRowidx() || [];
-                selectedRowsIdx.forEach(function(rowIdx){
-                    const rowPath = '#' + grid.absIndex(rowIdx);
-                    const sep = grid.datamode=='bag'? '.':'?';
-                    // Update store for all selected rows with reason to avoid re-trigger
-                    storebag.setItem(rowPath + sep + changedAttr, checked, null, {doTrigger:'tmg_multiselect'});
+            changedTags.forEach(function(changedAttr){
+                const tagId = changedAttr.substring(4);
+                const checked = _node.attr[changedAttr];
+                let sourceIds = [];
+                if(multiSelection){
+                    // Multiple selection - apply to all selected rows
+                    sourceIds = selectedPkeys;
+                    selectedRowsIdx.forEach(function(rowIdx){
+                        const rowPath = '#' + grid.absIndex(rowIdx);
+                        const sep = grid.datamode=='bag'? '.':'?';
+                        // Update store for all selected rows with reason to avoid re-trigger
+                        storebag.setItem(rowPath + sep + changedAttr, checked, null, {doTrigger:'tmg_multiselect'});
+                    });
+                } else {
+                    // Single row
+                    sourceIds.push(clickedPkey);
+                }
+
+                // Save to server
+                genro.serverCall(rpcmethod, {
+                    source: source,
+                    source_ids: sourceIds,
+                    tag_id: tagId,
+                    checked: checked
                 });
-            } else {
-                // Single row
-                sourceIds.push(clickedPkey);
-            }
-
-            // Save to server
-            genro.serverCall(rpcmethod, {
-                source: source,
-                source_ids: sourceIds,
-                tag_id: tagId,
-                checked: checked
             });
         """, store='^.store', source=source, grid=frame.grid.js_widget,
             rpcmethod=self.tmg_saveChanges)

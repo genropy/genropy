@@ -705,8 +705,8 @@ class EvaluationGrid(BaseComponent):
     def _evlg_saver(self,frame,value):
         frame.dataController(
             """
-            let changedAttr = _triggerpars.kw.changedAttr;
-             if(!changedAttr){
+            let changedAttrs = triggerChangedAttrs(_triggerpars.kw);
+             if(!changedAttrs.length){
                 return
              }
              let newvalue = null;
@@ -727,7 +727,7 @@ class EvaluationGrid(BaseComponent):
                     cbcells[kw.original_field] = kw;
                 }
              }
-             if(!(changedAttr in cbcells)){
+             if(!changedAttrs.some(function(n){return n in cbcells;})){
                 return;
              }
              let currentAttributes = _node.attr;
@@ -777,7 +777,7 @@ class EvaluationGrid(BaseComponent):
 
     def _evlg_loader(self,frame,value):
         frame.dataController("""
-            if(_triggerpars.kw.changedAttr){
+            if(triggerChangedAttrs(_triggerpars.kw).length){
                 return;
             }
             if(_triggerpars.kw.reason=='evlg_saver'){
