@@ -1578,8 +1578,8 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                 selection.select(idx);
             }
         }
-        if(scrollTo===true && typeof(idx)=='number' && idx>=0){
-            scrollTo = idx;
+        if(scrollTo===true){
+            scrollTo = (typeof(idx)=='number' && idx>=0) ? idx : false;
         }
         if(scrollTo){
             this.scrollToRow(scrollTo);
