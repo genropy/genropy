@@ -1412,14 +1412,19 @@ class GnrWsgiSite(object):
             response.data=result
         elif isinstance(result, Response):
             response = result
-        elif callable(result) and not isinstance(result, Bag):
-            # This branch is meant for objects that ARE the WSGI response
-            # (werkzeug HTTPException instances, GnrWsgiSite.forbidden_exception
-            # and friends), not for arbitrary Genropy objects that happen to
-            # define __call__. A Bag is callable (Bag.__call__) but is regular
-            # page/rpc result data, not a WSGI app: without this guard it would
-            # be returned here and later invoked as response(environ, start_response),
-            # raising a TypeError since Bag.__call__ only accepts 0 or 1 argument.
+        elif isinstance(result, Bag):
+            # A Bag is callable (Bag.__call__) but is regular page/rpc result
+            # data, not a WSGI app, so it must be serialised here rather than
+            # reaching the branch below: returned as a WSGI application it
+            # would later be invoked as response(environ, start_response) and
+            # raise a TypeError, since Bag.__call__ takes 0 or 1 argument.
+            # Same serialisation the method= entry point applies through
+            # GnrWebPageRpc.result_xml.
+            response.mimetype = kwargs.get('mimetype') or 'text/xml'
+            response.data = result.toXml(unresolved=True, omitUnknownTypes=True)
+        elif callable(result):
+            # Objects that ARE the WSGI response: werkzeug HTTPException
+            # instances, GnrWsgiSite.forbidden_exception and friends.
             response = result
         return response
 

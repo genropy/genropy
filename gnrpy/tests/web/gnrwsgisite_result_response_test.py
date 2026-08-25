@@ -5,7 +5,9 @@ defines __call__, so it used to pass the bare ``callable(result)`` check
 in setResultInResponse and be handed back as if it were a WSGI
 application, then invoked downstream as ``response(environ,
 start_response)`` -- raising a TypeError, since Bag.__call__ only
-accepts 0 or 1 argument.
+accepts 0 or 1 argument. A Bag now gets its own serialising branch, so
+these tests assert the response body and not only that no exception is
+raised: an empty body would satisfy the latter.
 
 These tests pin the branch order of setResultInResponse using real
 objects (a real Bag, a real werkzeug Response, a real werkzeug
@@ -26,14 +28,45 @@ class _FakeSite:
     pass
 
 
-def test_bag_result_returns_response_not_bag():
-    """A Bag returned by a page must not be mistaken for a WSGI response."""
+def test_bag_result_is_serialised_into_the_response():
+    """A Bag must not be mistaken for a WSGI response, and must not be
+    dropped either: it is serialised the way the method= entry point
+    serialises it, through Bag.toXml."""
     bag = Bag()
+    bag['a'] = 'first'
+    bag['b.c'] = 2
     response = Response()
     result = gws.GnrWsgiSite.setResultInResponse(
         _FakeSite(), bag, response, info_kwargs={})
     assert result is response
     assert result is not bag
+    body = result.get_data(as_text=True)
+    assert body == bag.toXml(unresolved=True, omitUnknownTypes=True)
+    assert '<a>first</a>' in body
+    assert '<c' in body
+    assert result.mimetype == 'text/xml'
+
+
+def test_bag_result_honours_a_forced_mimetype():
+    """A page forcing its own mimetype keeps it, as on the str branch."""
+    response = Response()
+    result = gws.GnrWsgiSite.setResultInResponse(
+        _FakeSite(), Bag(), response, info_kwargs={},
+        mimetype='application/xml')
+    assert result.mimetype == 'application/xml'
+
+
+def test_empty_bag_result_still_has_a_body():
+    """The failure mode this branch exists to prevent: no branch matching
+    means the untouched empty response is returned as a 200 with nothing
+    in it."""
+    bag = Bag()
+    response = Response()
+    result = gws.GnrWsgiSite.setResultInResponse(
+        _FakeSite(), bag, response, info_kwargs={})
+    assert result.get_data(as_text=True) == bag.toXml(
+        unresolved=True, omitUnknownTypes=True)
+    assert result.get_data(as_text=True) != ''
 
 
 def test_str_result_sets_response_data():
