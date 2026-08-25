@@ -373,12 +373,25 @@ def test_text_column_with_values_resolves_to_filteringselect(dtype):
     assert result['dtype'] == dtype
 
 
-@pytest.mark.parametrize('dtype', ['A', 'T', 'N', 'L', 'I'])
-def test_values_without_colon_resolves_to_combobox(dtype):
-    """`values` with no key:caption separator is a plain suggestion list."""
+@pytest.mark.parametrize('dtype', ['A', 'T', 'N', 'L', 'I', 'R', 'D', 'H'])
+def test_values_without_colon_still_resolves_to_filteringselect(dtype):
+    """`values` declares a closed set of choices, so the widget does not
+    depend on whether key and caption happen to coincide.
+    """
     result = _wdgattr(dtype, values='1,2,3')
-    assert result['tag'] == 'combobox'
+    assert result['tag'] == 'filteringselect'
     assert result['values'] == '1,2,3'
+
+
+@pytest.mark.parametrize('dtype', ['A', 'T', 'N', 'L', 'I', 'R', 'D', 'H'])
+def test_every_other_dtype_with_values_resolves_to_filteringselect(dtype):
+    """It is the presence of `values` in the model that selects the widget,
+    not the dtype.
+    """
+    result = _wdgattr(dtype, values=NUMERIC_VALUES)
+    assert result['tag'] == 'filteringselect'
+    assert result['values'] == NUMERIC_VALUES
+    assert result['dtype'] == dtype
 
 
 def test_values_naming_a_table_method_is_resolved_through_the_dbtable():
@@ -406,15 +419,14 @@ def test_numeric_column_without_values_keeps_its_dtype_widget(dtype, expected):
 @pytest.mark.parametrize('dtype,expected', [
     ('B', 'checkBox'),
     ('X', 'tree'),
-    ('D', 'dateTextBox'),
-    ('H', 'timeTextBox'),
 ])
-def test_non_numeric_non_text_dtypes_ignore_values(dtype, expected):
-    """The `values` branch is guarded by an explicit dtype tuple: dtypes
-    with a widget of their own must keep it even when `values` is set.
+def test_widget_owning_dtypes_ignore_values(dtype, expected):
+    """A boolean is a checkBox and a Bag is a tree: neither is a list of
+    choices, so their own widget wins over a `values` store.
     """
     result = _wdgattr(dtype, values=NUMERIC_VALUES)
     assert result['tag'] == expected
+    assert 'values' not in result
 
 
 def test_call_site_kwargs_override_the_resolved_tag():
@@ -427,6 +439,18 @@ def test_call_site_kwargs_override_the_resolved_tag():
                                           tag='numberTextBox')
     assert result['tag'] == 'numberTextBox'
     # the store survives the override
+    assert result['values'] == NUMERIC_VALUES
+
+
+def test_call_site_can_ask_for_a_combobox_without_repeating_values():
+    """A developer who wants free text with suggestions says so at the call
+    site, and still gets the model's store for free.
+    """
+    root = _make_root()
+    column = _ColumnStub('feature_status', dtype='N', values=NUMERIC_VALUES)
+    result = root.wdgAttributesFromColumn(column, fld='feature_status',
+                                          tag='comboBox')
+    assert result['tag'] == 'comboBox'
     assert result['values'] == NUMERIC_VALUES
 # formbuilder: `hidden` hides the label cell as well
 # ---------------------------------------------------------------------------

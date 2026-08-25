@@ -233,9 +233,12 @@ dojo.declare("gnr.GnrWdgHandler", null, {
                 result.hasDownArrow = true;
             }
         }
-        if('values' in fieldattr){
+        // A declared `values` is a closed set of choices, so it wins over the
+        // dtype widget. B (checkBox) and X (tree) are the exception: their own
+        // widget is not a list of choices at all.
+        if('values' in fieldattr && dt!='B' && dt!='X'){
             result.values = fieldattr.values;
-            result.tag = fieldattr.values.indexOf(':')>=0?'filteringselect':'combobox';
+            result.tag = 'filteringselect';
         }
         if('size' in fieldattr && result.tag=='Textbox'){
             result.validate_len = fieldattr.size;
