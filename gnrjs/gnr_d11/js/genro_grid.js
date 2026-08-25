@@ -2879,6 +2879,14 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
         )
     },
 
+    mixin_setSelectedId: function(pkey) {
+        if (this.rowCount == 0 || isNullOrBlank(pkey)) {
+            this.selection.unselectAll();
+        } else {
+            this.selectByRowAttr(this.rowIdentifier(), pkey, null, true);
+        }
+    },
+
     mixin_newDataStore:function() {
         this.updateRowCount(0);
         this.resetFilter();
@@ -2893,9 +2901,7 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
         }
         this.restoreSelectedRows();
         if(this.sourceNode.attr.selectedId && this.sourceNode.attr.selectedId.startsWith('^')){
-            if(this.setSelectedId){
-                this.setSelectedId(this.sourceNode.getAttributeFromDatasource('selectedId'));
-            }
+            this.setSelectedId(this.sourceNode.getAttributeFromDatasource('selectedId'));
         }
         this.fillServerTotalize();
     },
@@ -3869,20 +3875,6 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
             attributes.excludeListCb = funcCreate(attributes.excludeListCb);
         }
         return savedAttrs;
-    },
-
-    mixin_setSelectedId: function(pkey) {
-        var nrow = this.rowCount;
-        if (nrow == 0 || isNullOrBlank(pkey)) {
-            this.selection.unselectAll();
-        } else {
-            var idx = this.indexByRowAttr(this.rowIdentifier(), pkey);
-            if (idx >= nrow) {
-                idx = nrow - 1;
-            }
-            this.selection.select(idx);
-            this.scrollToRow(idx);
-        }
     },
     
     mixin_setEditableColumns:function(){

@@ -44,6 +44,8 @@ class GnrCustomWebPage(object):
             seed='=.seed')
         toolbar.button('Select last').dataController(
             "SET .legacy.selectedId = 'row_039'; SET .new.grid.selectedId = 'row_039';")
+        toolbar.button('Select missing').dataController(
+            "SET .legacy.selectedId = 'row_999'; SET .new.grid.selectedId = 'row_999';")
         toolbar.button('Clear selection').dataController(
             'SET .legacy.selectedId = null; SET .new.grid.selectedId = null;')
         toolbar.textbox(value='^.legacy.selectedId', lbl='Legacy selected id', readOnly=True)
