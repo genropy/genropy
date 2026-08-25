@@ -510,13 +510,26 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
     setAttributeInDatasource: function(attrname, value, doTrigger, attributes) {
         doTrigger = (doTrigger == null) ? this:doTrigger;
         var path = this.attrDatapath(attrname);
-        if (path == null || (value == null && !attributes && !genro._data.getNode(path))) {
+        if (isBag(attributes)) {
+            attributes = attributes.asDict();
+        }
+        if (path == null || (value == null && !objectNotEmpty(attributes) && !genro._data.getNode(path))) {
             return; //nothing to publish: an attribute never set needs no datanode
         }
-        if (attributes) {
-            // attributes can be a live store row: without a copy the datastore node
-            // would alias it and no comparison could ever detect a change
-            attributes = objectUpdate({}, attributes);
+        if (objectNotEmpty(attributes)) {
+            // attributes can be a live store row: without a copy of its container values too
+            // the datastore node would alias them and no comparison could detect a change
+            var snapshot = {};
+            for (var k in attributes) {
+                var v = attributes[k];
+                if (isBag(v)) {
+                    v = v.deepCopy();
+                } else if (v != null && v.constructor === Object) {
+                    v = objectUpdate({}, v);
+                }
+                snapshot[k] = v;
+            }
+            attributes = snapshot;
         }
         genro._data.setItem(path, value, attributes, {'doTrigger':doTrigger,'lazySet':true});
     },

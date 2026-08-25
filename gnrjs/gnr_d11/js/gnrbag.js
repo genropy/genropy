@@ -1747,11 +1747,11 @@ dojo.declare("gnr.GnrBag", null, {
                     label = splittedlabel[0];
                     var attr = splittedlabel[1];
                     var node = obj.getNode(label, false, true);
-                    if(kwargs.lazySet && isEqual(node.attr[attr],value)){  
-                        return;
-                    }
-                    var auxattr = {};
+                    var auxattr = objectUpdate({}, _attributes);
                     auxattr[attr] = value;
+                    if(kwargs.lazySet && !changedAttrKeys(node.attr,auxattr,'*').length){
+                        return node;
+                    }
                     var _doTrigger = true;
                     if ('doTrigger' in kwargs) {
                         _doTrigger = kwargs.doTrigger;
@@ -1816,11 +1816,15 @@ dojo.declare("gnr.GnrBag", null, {
                 node.setResolver(resolver);
             }
             if(kwargs.lazySet && isEqual(node._value,value)){
-                if(attrIsUnchanged(node.attr,_attributes,_updattr)){
+                var changedAttrs = changedAttrKeys(node.attr,_attributes,_updattr);
+                if(!changedAttrs.length){
                     return node;
                 }
-                //same value, changed attributes: only the attribute listeners have to be notified
-                node.setAttr(_attributes, _doTrigger, _updattr);
+                //same value, changed attributes: only the attribute listeners have to be notified.
+                //changedAttr comes from here because setAttr cannot default it without changing the
+                //callers that read its absence as a whole-attribute change
+                node.setAttr(_attributes, _doTrigger, _updattr,
+                             changedAttrs.length==1?changedAttrs[0]:null);
                 return node;
             }
             node.setValue(value, _doTrigger, _attributes, _updattr,kwargs.fired);
