@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<GenRoBag><menu path="menu.py" ext="py"><en_html_document base="HTML document" en="HTML document"></en_html_document>
-<en_html_document_missing_file base="HTML document (missing file)" en="HTML document (missing file)"></en_html_document_missing_file></menu>
+<GenRoBag><menu path="menu.py" ext="py"><en_html_document base="HTML document" de="HTML-Dokument" en="HTML document" fr="Document HTML" it="Documento HTML"></en_html_document>
+<en_html_document_missing_file base="HTML document (missing file)" de="HTML-Dokument (fehlende Datei)" en="HTML document (missing file)" fr="Document HTML (fichier manquant)" it="Documento HTML (file mancante)"></en_html_document_missing_file></menu>
 <model><_packages><glbl><regione ext="py" path="model/_packages/glbl/regione.py"><en_prov_principali base="Prov principali" de="Prov Haupt" en="Prov principali" fr="Prov principale" it="Prov principali"></en_prov_principali>
 <en_prov_principali_nuts_ base="Prov principali (nuts)" de="Prov principali (Nüsse)" en="Prov principali (nuts)" fr="Prov principali (noix)" it="Prov Principali (dadi)"></en_prov_principali_nuts_></regione></glbl></_packages>
 <animal ext="py" path="model/animal.py"><en_animal base="Animal" de="Tier" en="Animal" fr="Animal" it="Animale"></en_animal>
