@@ -887,7 +887,7 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         tbl = pkg.table('upgrade_codekey_test', pkey='codekey')
         tbl.column('codekey', dtype='A', size=':80')
         check_value = ('CREATE TABLE "alfa"."alfa_upgrade_codekey_test"('
-                       '"codekey" character varying(80) NOT NULL, '
+                       '"codekey" character varying(80)NOT NULL, '
                        'PRIMARY KEY(codekey));')
         self.checkChanges(check_value)
 
