@@ -18,6 +18,7 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
+from gnr.web import logger
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import extract_kwargs,public_method
@@ -37,6 +38,26 @@ class TableHandler(BaseComponent):
                   gnrcomponents/userobject/userobject_editor:RpcQueryEditor
                   """
     
+    def _th_checkDatapathCollision(self,pane,effective_datapath,table=None,th_root=None):
+        """Two tableHandlers whose datapath resolves to the same address share
+        struct, selection and workspace: the last one built silently overwrites
+        the other. The default datapath is .<tablename>, so this bites whenever
+        the same table appears twice in the same datapath scope."""
+        parts = [effective_datapath]
+        node = pane
+        while node is not None and parts[-1].startswith('.'):
+            dp = node.attributes.get('datapath') if getattr(node,'attributes',None) else None
+            if dp:
+                parts.append(str(dp))
+            node = getattr(node,'parent',None)
+        scope_key = '/'.join(reversed(parts))
+        registry = self.__dict__.setdefault('_th_datapath_registry',{})
+        other = registry.get(scope_key)
+        if other and other!=th_root:
+            logger.warning("TableHandler datapath collision on table %s: '%s' and '%s' share datapath '%s' in the same scope; the last one built overwrites the other's grid struct and workspace - pass an explicit datapath to one of them",
+                           table,other,th_root,scope_key)
+        registry[scope_key] = th_root
+
     @extract_kwargs(condition=True,grid=True,view=True,picker=True,export=True,addrowmenu=True,hider=True,preview=True,relation=True)
     def __commonTableHandler(self,pane,nodeId=None,th_pkey=None,table=None,relation=None,datapath=None,viewResource=None,
                             formInIframe=False,virtualStore=False,extendedQuery=None,condition=None,condition_kwargs=None,
@@ -98,6 +119,7 @@ class TableHandler(BaseComponent):
 
         if pane.attributes.get('tag') == 'ContentPane':
             pane.attributes['overflow'] = 'hidden'
+        self._th_checkDatapathCollision(pane,datapath or '.{}'.format(tableCode),table=table,th_root=th_root)
         wdg = pane.child(tag=tag,datapath=datapath or '.{}'.format(tableCode),
                         thlist_root=viewCode,
                         thform_root=formCode,
