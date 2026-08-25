@@ -6,6 +6,7 @@
 
 from json import dumps
 from datetime import datetime
+from importlib.util import find_spec
 import re, sys
 
 if sys.version_info[0] == 3:
@@ -177,12 +178,37 @@ class Main(BaseResourceBatch):
             conf_lines.append("html_last_updated_fmt = '%d-%m-%Y'")
         if handbooks_theme_pref.get('show_authors'):
             conf_lines.append("show_authors = True")
-        if self.enable_sitemap: #DP Enabled extensions = ['sphinx_sitemap','sphinxext.opengraph']
+        sphinx_extensions = []
+        if self.enable_sitemap:
+            #DP the sitemap file is written by the sphinx_sitemap extension: the url scheme alone builds nothing
+            sphinx_extensions.append('sphinx_sitemap')
             conf_lines.append(f"sitemap_url_scheme = '{self.handbook_record['name']}/{{link}}'")
+        if self.handbook_record['ogp_image']:
+            #DP the ogp_image passed to sphinx-build is a config value of the opengraph extension
+            sphinx_extensions.append('sphinxext.opengraph')
+        sphinx_extensions = self.installedSphinxExtensions(sphinx_extensions)
+        if sphinx_extensions:
+            #DP default_conf.py sets no extension: this assignment comes later in conf.py, so it wins
+            conf_lines.append(f"extensions = {sphinx_extensions}")
         extra_conf = '\n'.join(conf_lines)
         with confSn.open('a') as confFile:
             confFile.write(extra_conf)
             logger.info("Extra conf lines added to conf.py: %s" % extra_conf)
+
+    def installedSphinxExtensions(self, extensions):
+        """Keep only the extensions available in the environment: a missing one
+        aborts the whole sphinx build instead of dropping just its own feature"""
+        result = []
+        for extension in extensions:
+            try:
+                installed = find_spec(extension) is not None
+            except ModuleNotFoundError:
+                installed = False
+            if installed:
+                result.append(extension)
+            else:
+                logger.warning(f"Sphinx extension '{extension}' is not installed: skipped. Install the docu package requirements to enable it")
+        return result
             
     def step_prepareRstDocs(self):
         "Prepare Rst docs"
