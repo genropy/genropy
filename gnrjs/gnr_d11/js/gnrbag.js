@@ -1931,7 +1931,7 @@ dojo.declare("gnr.GnrBag", null, {
     walk: function (callback, mode, kw, notRecursive) {
         var result;
         var isStatic = mode && mode.indexOf('static') >= 0;
-        var bagnodes = this._nodes;
+        var bagnodes = this.getNodes();
         for (var i = 0; ((i < bagnodes.length) && ((result == null)|| (result=='__continue__'))); i++) {
             result = callback(bagnodes[i], kw, i);
             if (result == null && !notRecursive) {

@@ -25,8 +25,13 @@ class GnrCustomWebPage(object):
         return 'Heavy build profiling page'
 
     def onIniting(self, request_args, request_kwargs):
-        # allows the JS Self-Profiling API (new Profiler(...)) on this page
-        self.response.add_header('Document-Policy', 'js-profiling')
+        # allows the JS Self-Profiling API (new Profiler(...)) on this page.
+        # self.response only exists on the WSGI path: the websocket
+        # registration (gnrasync.registerPage) instantiates the page without
+        # a response, and the header is meaningless there anyway.
+        response = getattr(self, 'response', None)
+        if response is not None:
+            response.add_header('Document-Policy', 'js-profiling')
 
     def gridData(self, rows=GRID_ROWS, cols=GRID_COLS):
         result = Bag()
@@ -103,11 +108,19 @@ class GnrCustomWebPage(object):
             table='glbl.regione', view_store_onStart=True)
 
     def test_3_data_storm(self, pane):
-        """Buttons to stress data triggers and rebuilds after page load."""
+        """Buttons to stress data triggers and rebuilds after page load.
+
+        The rebuild targets the bound-divs subtree: node.rebuild() re-expands
+        the already-expanded source, and component nodes (formbuilder,
+        bagGrid/framepane) do not survive that — _beforeCreation moves their
+        attributes into _saved_attributes on first expansion and nothing
+        restores them, so a second expansion finds them empty. Pre-existing
+        behavior, unrelated to this branch's changes.
+        """
         box = pane.div(datapath='storm')
         fb = box.formbuilder(cols=3)
         fb.button('Data storm (600 set)', fire='.run_storm')
-        fb.button('Rebuild heavy tab', fire='.run_rebuild')
+        fb.button('Rebuild bound divs', fire='.run_rebuild')
         fb.div('^.report', lbl='Last run')
         box.dataController("""
             var t0 = performance.now();
@@ -120,6 +133,6 @@ class GnrCustomWebPage(object):
         """, _fired='^.run_storm')
         box.dataController("""
             var t0 = performance.now();
-            genro.nodeById('heavyRoot').rebuild();
+            genro.nodeById('divsRoot').rebuild();
             SET .report = 'rebuild: '+(performance.now()-t0).toFixed(1)+' ms';
         """, _fired='^.run_rebuild')
