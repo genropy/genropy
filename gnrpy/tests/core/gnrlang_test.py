@@ -189,6 +189,83 @@ class TestGnrLang():
             assert 1000 in fl
         assert "d" not in fl
 
+
+class TestClassMixinProxy():
+    def test_legacy_true_uses_lowercase_class_name(self):
+        class Target(object):
+            pass
+
+        class Proxy_test(object):
+            proxy = True
+
+            def ping(self):
+                return 'pong'
+
+        gl.classMixin(Target, Proxy_test)
+
+        assert hasattr(Target, 'proxy_test_proxyclass')
+        assert Target.proxy_test_proxyclass.ping.proxy_name == 'proxy_test'
+
+    def test_legacy_named_proxy_composes_components(self):
+        class Target(object):
+            pass
+
+        class FirstComponent(object):
+            proxy = 'shared'
+
+            def first(self):
+                return 'first'
+
+        class SecondComponent(object):
+            proxy = 'shared'
+
+            def second(self):
+                return 'second'
+
+        gl.classMixin(Target, FirstComponent)
+        gl.classMixin(Target, SecondComponent)
+
+        page = Target()
+        page.shared = Target.shared_proxyclass(page)
+        assert page.shared.first() == 'first'
+        assert page.shared.second() == 'second'
+
+    def test_proxy_name_precedes_legacy_proxy(self):
+        class Target(object):
+            pass
+
+        class Component(object):
+            proxy = 'legacy'
+            proxy_name = 'modern'
+
+            def ping(self):
+                return 'pong'
+
+        gl.classMixin(Target, Component)
+
+        assert hasattr(Target, 'modern_proxyclass')
+        assert not hasattr(Target, 'legacy_proxyclass')
+        assert Target.modern_proxyclass.ping.proxy_name == 'modern'
+
+    def test_proxy_instantiation_preserves_serialized_rpc_name(self):
+        class Target(object):
+            pass
+
+        class Component(object):
+            proxy = 'shared'
+
+            def rpc_ping(self):
+                return 'pong'
+
+        gl.classMixin(Target, Component)
+
+        page = Target()
+        page.shared = Target.shared_proxyclass(page)
+        assert page.shared.main is page
+        assert page.shared.rpc_ping() == 'pong'
+        assert gl.serializedFuncName(page.shared.rpc_ping) == 'shared.ping'
+
+
 class TestGnrLang_getEncoding():
     def _get_data_path(self, filename):
         return os.path.join(os.path.dirname(__file__), 'data', filename)
