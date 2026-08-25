@@ -9,9 +9,12 @@ class Table(object):
         tbl=pkg.table('upgrade', pkey='codekey',pkey_columns='pkg,filename', pkey_columns_joiner='|',
                         name_long='!!Upgrade ', name_plural='!!Upgrades',caption_field='codekey')
         self.sysFields(tbl,id=False)
-        tbl.column('codekey',size=':80',name_long='Identifier')
-        tbl.column('pkg',size=':20',name_long='Package')
-        tbl.column('filename', size=':59', name_long='!!Filename')
+        #the filesystem ceiling on a name component is 255: sized for it, the
+        #codekey can hold any upgrade a package can actually carry, and pkg
+        #matches adm.pkginfo.pkgid rather than overflowing 20 chars sooner
+        tbl.column('codekey',size=':306',name_long='Identifier')
+        tbl.column('pkg',size=':50',name_long='Package')
+        tbl.column('filename', size=':255', name_long='!!Filename')
         tbl.column('error', name_long='!!Upgrade error', name_short='!!Error')
 
     def upgradePath(self,codekey):
@@ -23,9 +26,9 @@ class Table(object):
         """Run all pending upgrades and return the failed ones as a list
         of ``(codekey, error)`` tuples (empty list if all succeeded).
 
-        Candidates rejected upfront by the codekey size pre-flight are reported
-        in the same list, so a caller reporting per store does not read a
-        skipped upgrade as a successful run."""
+        A candidate rejected by the codekey size pre-flight stops the whole run
+        and is reported in the same list: running the rest would apply the stack
+        with a hole in it."""
         errors = []
         alreadyRun= self.query(where='$error IS NULL').fetchAsDict('codekey')
         codekeyMaxSize = self.column('codekey').getAttr('size')
@@ -44,19 +47,20 @@ class Table(object):
                 upgradekey = '%s|%s' %(pkg,filename)
                 if upgradekey not in alreadyRun:
                     candidates.append(upgradekey)
-        # pre-flight: report every candidate that would not fit in the codekey
-        # column before running anything, and never execute those. Recording
-        # them (even just an error) would hit the very same size overflow,
-        # so they can only be reported, not tracked.
+        #pre-flight: the codekey is sized for any name a filesystem can hold, so
+        #this cannot fire in practice. If it ever does, nothing runs: an upgrade
+        #skipped in the middle of the stack leaves the ones depending on it
+        #working against a database that never got its change.
         oversized = [k for k in candidates if codekeyMaxSize and len(k) > codekeyMaxSize]
-        oversizedSet = set(oversized)
-        for upgradekey in oversized:
-            error = 'filename too long for the codekey column (max %s chars)' %codekeyMaxSize
-            logger.error('Upgrade %s skipped: %s', upgradekey, error)
-            errors.append((upgradekey,error))
+        if oversized:
+            for upgradekey in oversized:
+                error = 'filename too long for the codekey column (max %s chars)' %codekeyMaxSize
+                logger.error('Upgrade %s rejected: %s', upgradekey, error)
+                errors.append((upgradekey,error))
+            logger.error('No upgrade was run: %i rejected candidate(s) would leave the '
+                         'stack half applied', len(oversized))
+            return errors
         for upgradekey in candidates:
-            if upgradekey in oversizedSet:
-                continue
             logger.info('Running upgrade %s', upgradekey)
             error = self.runUpgrade(upgradekey)
             if error:

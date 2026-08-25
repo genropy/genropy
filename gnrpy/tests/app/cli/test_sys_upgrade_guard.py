@@ -73,7 +73,13 @@ def _make_table(tmp_path, filenames, pkg='mypkg', codekey_size=':80'):
     return table
 
 
-def test_oversized_filename_is_reported_and_not_executed(tmp_path, caplog):
+def test_oversized_filename_stops_the_whole_run(tmp_path, caplog):
+    """One rejected candidate and nothing runs.
+
+    Executing the rest would apply the stack with a hole in it: an upgrade
+    depending on the skipped one runs against a database that never got its
+    change, which is worse than not upgrading at all.
+    """
     pkg = 'mypkg'
     long_name = 'x' * 90  # 'mypkg|' + 90 chars overflows the codekey :80 budget
     short_name = 'normal_upgrade'
@@ -82,18 +88,17 @@ def test_oversized_filename_is_reported_and_not_executed(tmp_path, caplog):
     table.runUpgrade = lambda codekey: executed.append(codekey)
 
     with caplog.at_level(logging.INFO, logger='gnr.pkg'):
-        table.runUpgrades()
+        errors = table.runUpgrades()
 
     long_key = f'{pkg}|{long_name}'
-    short_key = f'{pkg}|{short_name}'
-    assert long_key not in executed
-    assert short_key in executed
+    assert executed == []
+    assert [key for key, _ in errors] == [long_key]
 
     # the report must be an error: the root logger defaults to WARNING, so a
-    # lower level would leave the operator with no trace of the skipped upgrade
-    errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
-    assert len(errors) == 1
-    assert long_key in errors[0].getMessage()
+    # lower level would leave the operator with no trace of the aborted run
+    logged = [r.getMessage() for r in caplog.records if r.levelno >= logging.ERROR]
+    assert any(long_key in message for message in logged)
+    assert any('No upgrade was run' in message for message in logged)
 
 
 def test_normal_length_filenames_all_run(tmp_path, caplog):
@@ -107,3 +112,19 @@ def test_normal_length_filenames_all_run(tmp_path, caplog):
 
     assert executed == [f'{pkg}|first_upgrade', f'{pkg}|second_upgrade']
     assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
+
+
+def test_a_name_at_the_filesystem_ceiling_fits_the_shipped_codekey(tmp_path):
+    """The shipped sizes leave the pre-flight unreachable.
+
+    255 is the ceiling a filesystem puts on a single name component, and pkg is
+    sized like adm.pkginfo.pkgid: a 50-char package plus the separator plus a
+    255-char filename is exactly the codekey budget, so no name that can exist
+    on disk can be rejected.
+    """
+    table = _make_table(tmp_path, ['short.py'], pkg='p' * 50, codekey_size=':306')
+    executed = []
+    table.runUpgrade = lambda codekey: executed.append(codekey)
+    table.runUpgrades()
+    assert len(executed) == 1
+    assert len('%s|%s' % ('p' * 50, 'f' * 255)) == 306

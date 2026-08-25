@@ -853,7 +853,7 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
     def test_12r_varchar_widen_matches_sys_upgrade_filename_fix(self):
         """Test the varchar widening used to fix sys.upgrade.filename truncation (#1019).
 
-        sys.upgrade.filename moved from size=':40' to size=':59'. This must migrate
+        sys.upgrade.filename moved from size=':40' to size=':255'. This must migrate
         as a plain ALTER COLUMN ... TYPE (same-family varchar-to-varchar, no USING
         clause), and checkChanges() applying it and re-preparing with no leftover
         changes proves the migration is idempotent.
@@ -867,13 +867,35 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
                        'PRIMARY KEY(id));')
         self.checkChanges(check_value)
 
-        # Widen from :40 to :59, exactly the change applied to upgrade.py for #1019
+        # Widen from :40 to :255, exactly the change applied to upgrade.py for #1019
         pkg = self.src.package('alfa')
         tbl = pkg.table('upgrade_filename_test', pkey='id')
         tbl.column('id', dtype='serial')
-        tbl.column('filename', dtype='A', size=':59')
+        tbl.column('filename', dtype='A', size=':255')
         check_value = ('ALTER TABLE "alfa"."alfa_upgrade_filename_test" \n'
-                       ' ALTER COLUMN "filename" TYPE character varying(59);')
+                       ' ALTER COLUMN "filename" TYPE character varying(255);')
+        self.checkChanges(check_value)
+
+    def test_12s_varchar_widen_on_a_primary_key_column(self):
+        """Widening the varchar the primary key is built on, as sys.upgrade.codekey is.
+
+        codekey is the pkey of sys.upgrade, so its own :80 to :306 move carries a
+        primary key index over the type change: the migration must still be a plain
+        ALTER COLUMN ... TYPE and must still re-prepare with nothing left to do.
+        """
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('upgrade_codekey_test', pkey='codekey')
+        tbl.column('codekey', dtype='A', size=':80')
+        check_value = ('CREATE TABLE "alfa"."alfa_upgrade_codekey_test"('
+                       '"codekey" character varying(80) NOT NULL, '
+                       'PRIMARY KEY(codekey));')
+        self.checkChanges(check_value)
+
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('upgrade_codekey_test', pkey='codekey')
+        tbl.column('codekey', dtype='A', size=':306')
+        check_value = ('ALTER TABLE "alfa"."alfa_upgrade_codekey_test" \n'
+                       ' ALTER COLUMN "codekey" TYPE character varying(306);')
         self.checkChanges(check_value)
 
 
