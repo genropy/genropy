@@ -64,8 +64,10 @@ class Main(BaseResourceBatch):
         the base bookkeeping of the step lines starts one line further down."""
         for handbook_id in self.btc.thermo_wrapper(self.handbook_ids, 'btc_handbooks',
                                                    message=self.handbookCaption):
-            self.prepareHandbook(handbook_id)
             try:
+                #the setup of a handbook is inside the try with its steps: resolving
+                #its tree, its storage node or its pkey fails as easily as the build
+                self.prepareHandbook(handbook_id)
                 super().call_steps(offset=offset + 1)
                 self.publishHandbook()
             except self.btc.exception_stopped:
@@ -73,19 +75,25 @@ class Main(BaseResourceBatch):
             except Exception as e:
                 #a broken manual is a reported failure, not the end of the run: the
                 #handbooks left in the selection must still get their export
-                self.handbookFailed(e)
+                self.handbookFailed(handbook_id, e)
 
     def handbookCaption(self, handbook_id, progress, maximum, **kwargs):
         """Thermo message naming the handbook being exported."""
-        name = self.tblobj.readColumns(columns='$name', pkey=handbook_id) or handbook_id
-        return '%s (%i/%i)' % (name, progress, maximum)
+        return '%s (%i/%i)' % (self.handbookName(handbook_id), progress, maximum)
 
-    def handbookFailed(self, error):
+    def handbookName(self, handbook_id):
+        """Name of a handbook read from its pkey.
+
+        The loop names a handbook before its record is loaded and after its setup
+        has failed, so the name cannot come from the state of the export."""
+        return self.tblobj.readColumns(columns='$name', pkey=handbook_id) or handbook_id
+
+    def handbookFailed(self, handbook_id, error):
         """Register the failure of the handbook being exported and let the run go on.
 
         Whatever the failed export left uncommitted is dropped, so the handbooks
         still to be exported do not inherit a transaction of someone else's making."""
-        name = self.handbook_record['name']
+        name = self.handbookName(handbook_id)
         logger.exception('Export to sphinx of the handbook %s failed', name)
         self.batch_log_write('%s: export failed (%s)' % (name, error))
         self.failures.append(name)

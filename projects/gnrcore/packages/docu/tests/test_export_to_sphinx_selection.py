@@ -125,19 +125,30 @@ class TestExportToSphinxSelection(BaseGnrAppTest):
                                    'export_to_sphinx.py')
         return gnrImport(module_path, avoidDup=True)
 
-    def _batch(self, broken=None, exploding=None, **kwargs):
+    def _batch(self, broken=None, broken_setup=None, exploding=None, **kwargs):
         """Export batch whose sphinx build is replaced by two steps writing a
         recognizable build folder, so the loop around them runs for real.
 
         :param broken: names of the handbooks whose build must fail
+        :param broken_setup: names of the handbooks whose setup must fail, where
+                             the reachable failures of a real export are (an
+                             unpublished tree, the handbook storage node, a pkey
+                             that no longer resolves)
         :param exploding: exception class the broken handbooks raise
         """
         module = self._module()
         broken = broken or []
+        broken_setup = broken_setup or []
         exploding = exploding or RuntimeError
 
         class SelectionExport(module.Main):
             batch_steps = 'writeSource,fakeSphinxBuild'
+
+            def prepareHandbook(self, handbook_id):
+                name = self.tblobj.readColumns(columns='$name', pkey=handbook_id)
+                if name in broken_setup:
+                    raise exploding('the setup of %s failed' % name)
+                super().prepareHandbook(handbook_id)
 
             def step_writeSource(self):
                 "Write source"
@@ -296,6 +307,34 @@ class TestExportToSphinxSelection(BaseGnrAppTest):
         batch.selectedPkeys = [self.ids['beta']]
         self._run(batch)
         assert self._record('beta')['last_exp_ts'] == previous
+
+    def test_a_handbook_failing_its_setup_does_not_abort_the_others(self):
+        """The setup of a handbook is where the reachable failures are - a tree
+        with nothing published, the handbook storage node it erases before the
+        build, a pkey gone missing - so it has to be contained exactly like a
+        failing build."""
+        exported = {name: self._record(name)['last_exp_ts']
+                    for name in ('alpha', 'beta', 'gamma')}
+        batch = self._batch(broken_setup=['beta'])
+        batch.selectedPkeys = [self.ids['alpha'], self.ids['beta'], self.ids['gamma']]
+        self._run(batch)
+        assert batch.failures == ['beta']
+        assert self._record('alpha')['last_exp_ts'] != exported['alpha']
+        assert self._record('gamma')['last_exp_ts'] != exported['gamma']
+        assert self._record('beta')['last_exp_ts'] == exported['beta']
+        assert batch.result_handler()[0] == 'Exported 2 of 3 handbooks, failed: beta'
+
+    def test_the_first_handbook_failing_its_setup_is_reported_by_name(self):
+        """A setup failing on the first handbook leaves the export with no state
+        at all: the failure is named from the pkey the loop is iterating on, not
+        from a record that was never loaded."""
+        exported = self._record('gamma')['last_exp_ts']
+        batch = self._batch(broken_setup=['beta'])
+        batch.selectedPkeys = [self.ids['beta'], self.ids['gamma']]
+        self._run(batch)
+        assert batch.failures == ['beta']
+        assert any('beta: export failed' in line for line in batch.page.btc.logged)
+        assert self._record('gamma')['last_exp_ts'] != exported
 
     def test_the_user_stopping_the_batch_stops_the_run(self):
         """A failing handbook is skipped, but the user asking to stop is not a
