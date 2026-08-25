@@ -390,7 +390,8 @@ class AttachManager(BaseComponent):
         th.view.top.popNode('bar')
         th.view.grid.attributes.update(dropTarget_grid='Files',onDrop='AttachManager.onDropFiles(this,files);',
                                         dropTypes='Files',_uploader_fkey='=#FORM.pkey',
-                                        _uploader_onUploadingMethod=self.onUploadingAttachment)
+                                        _uploader_onUploadingMethod=self.onUploadingAttachment,
+                                        _uploader_onUploadedMethod=self.onUploadedAttachment)
         readerpane = bc.contentPane(region='center',datapath=datapath,margin='2px',border='1px solid #efefef',
                                 rounded=6,childname='atcviewer',overflow='hidden')
         readerpane.iframe(src='^.reader_url',height='100%',width='100%',
