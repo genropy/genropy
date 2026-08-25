@@ -80,6 +80,14 @@ def _symbolic_node():
     return StorageNode(path='test/resources/test.html', service=service)
 
 
+def _http_node(url):
+    module = gnrImport(str(REPO_ROOT / 'resources/common/services/storage/http.py'),
+                       importAs='gnr_storage_http_service')
+    service = module.Service(parent=object())
+    service.service_name = '_http_'
+    return StorageNode(path=url, service=service)
+
+
 def _raw_node():
     module = gnrImport(str(REPO_ROOT / 'resources/common/services/storage/raw.py'))
     service = module.Service(parent=object())
@@ -114,6 +122,20 @@ def test_load_resolves_real_storage_node_to_public_url():
     assert 'externalSite' not in node.attr
 
 
+def test_load_resolves_absolute_http_url():
+    url = 'https://www.example.test/report.html'
+    site = _Site(node=_http_node(url))
+    page = _Page(site=site)
+    struct = _build_struct(page, source=url)
+
+    node = next(iter(_load(struct, page, externalSite='inherited')))
+
+    assert site.sources == [url]
+    assert node.attr['webpage'] == url
+    assert node.attr['nonGenroContent'] is True
+    assert 'externalSite' not in node.attr
+
+
 def test_load_ignores_entry_external_site_for_document_url():
     page = _Page(site=_Site(node=_symbolic_node()))
     struct = _build_struct(page, externalSite='named-site')
@@ -133,7 +155,7 @@ def test_load_hides_unresolvable_document(source, node, caplog):
     page = _Page(site=_Site(node=node))
     struct = _build_struct(page, source=source)
 
-    with caplog.at_level(logging.WARNING, logger='gnr.web.gnrmenu'):
+    with caplog.at_level(logging.WARNING, logger='gnr.web'):
         result = _load(struct, page)
 
     assert len(result) == 0
@@ -144,7 +166,7 @@ def test_load_hides_storage_errors(caplog):
     page = _Page(site=_Site(error=RuntimeError('unknown service')))
     struct = _build_struct(page, source='broken:report.html')
 
-    with caplog.at_level(logging.WARNING, logger='gnr.web.gnrmenu'):
+    with caplog.at_level(logging.WARNING, logger='gnr.web'):
         result = _load(struct, page)
 
     assert len(result) == 0

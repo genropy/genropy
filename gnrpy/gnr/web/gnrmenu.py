@@ -23,7 +23,6 @@
 #Copyright (c) 2022 Softwell. All rights reserved.
 
 import os
-import logging
 import urllib.parse
 from gnr.core.gnrstructures import  GnrStructData
 from gnr.core.gnrlang import getUuid,gnrImport,instanceMixin
@@ -32,8 +31,7 @@ from gnr.core.gnrbag import Bag,BagResolver
 from gnr.core.gnrlang import objectExtract
 from gnr.core.gnrstring import slugify
 from gnr.core.gnrdecorator import extract_kwargs
-
-logger = logging.getLogger("gnr.web.gnrmenu")
+from gnr.web import logger
 
 class BaseMenu(object):
     def __init__(self,page) -> None:
@@ -113,7 +111,14 @@ class MenuStruct(GnrStructData):
                         filepath=filepath,_returnStruct=False,**kwargs)
 
     def docpage(self, label,source=None,tags='', **kwargs):
-        """Add a public stored document to the menu.
+        """Add a public document to the menu.
+
+        source is a storage path (e.g. ``pkg:test/resources/doc.html``) or an
+        absolute http(s) URL, resolved through the built-in ``_http_`` service.
+        With a remote URL the delivery caveats are the remote server's, not
+        ours: ``X-Frame-Options``/``frame-ancestors`` yield a blank frame with
+        no warning, an ``http`` URL under an ``https`` app is blocked as mixed
+        content, and the ``nocache`` cache-buster is silently ignored.
 
         The tags argument controls menu visibility only; it does not restrict
         access to the document URL, so source must not contain confidential data.
