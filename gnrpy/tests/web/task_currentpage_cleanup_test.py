@@ -16,6 +16,7 @@ the mechanism (resource loader, db, task classes) is faked.
 """
 
 import contextlib
+import logging
 import threading
 
 import pytest
@@ -273,6 +274,69 @@ def test_legacy_runtask_exception_leaves_no_thread_local_residue():
         worker.runTask(dict(TASK_EXECUTION))
 
     assert site._currentPages._data == {}
+
+
+def test_legacy_runtask_missing_task_class_is_logged(caplog):
+    """The new runner logs the missing task class; the legacy one used to
+    return in silence, so a task with a stale command vanished without a
+    trace in the only place an operator would look."""
+    worker, site = _legacy_worker(task_class=None)
+
+    with caplog.at_level(logging.ERROR, logger='gnr.web.gnrtask'):
+        worker.runTask(dict(TASK_EXECUTION))
+
+    logged = [r.getMessage() for r in caplog.records if r.levelno >= logging.ERROR]
+    assert any("Can't find task class" in m and 'do_stuff' in m for m in logged)
+
+
+class _StopLoop(Exception):
+    """Breaks out of ``start``'s ``while True`` after one pass."""
+
+
+class _FakeStartWorker:
+    """Calls the real ``GnrTaskWorker.start`` over a fake task table."""
+
+    start = gnrtask.GnrTaskWorker.start
+
+    def __init__(self, site, pkeys, failing):
+        self.site = site
+        self.db = site.db
+        self.tblobj = self
+        self.interval = 60
+        self._pkeys = pkeys
+        self._failing = failing
+        self.attempted = []
+        self.rollbacks = 0
+
+    def taskToExecute(self):
+        return list(self._pkeys)
+
+    @contextlib.contextmanager
+    def recordToUpdate(self, pkey, **kwargs):
+        yield dict(TASK_EXECUTION, id=pkey)
+
+    def runTask(self, task_execution):
+        self.attempted.append(task_execution['id'])
+        if task_execution['id'] in self._failing:
+            raise RuntimeError('task %s exploded' % task_execution['id'])
+
+
+def test_legacy_start_survives_a_failing_task(monkeypatch, caplog):
+    """One failing task used to propagate out of ``start``'s loop and kill the
+    worker, so every task queued behind it was never run either."""
+    site = _FakeSite(db=_FakeDb())
+    site.db.commit = lambda: None
+    site.db.rollbackAll = lambda: None
+    worker = _FakeStartWorker(site, ['first', 'boom', 'last'], {'boom'})
+    monkeypatch.setattr(gnrtask, 'sleep', lambda *a, **k: (_ for _ in ()).throw(_StopLoop()))
+
+    with caplog.at_level(logging.ERROR, logger='gnr.web.gnrtask'):
+        with pytest.raises(_StopLoop):
+            worker.start()
+
+    assert worker.attempted == ['first', 'boom', 'last']
+    assert any('boom' in r.getMessage() for r in caplog.records
+               if r.levelno >= logging.ERROR)
 
 
 # ---------------------------------------------------------------------------

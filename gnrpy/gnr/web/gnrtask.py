@@ -147,6 +147,7 @@ class GnrTaskWorker(object):
                                                         command=task_execution['task_command'],
                                                         page=page)
             if not task_class:
+                logger.error("Can't find task class for command %s", task_execution['task_command'])
                 return
             taskObj = task_class(page=page,resource_table=page.db.table(table),
                                 batch_selection_savedQuery=task_execution['task_saved_query'])
@@ -167,14 +168,21 @@ class GnrTaskWorker(object):
         while True:
             for te_pkey in self.taskToExecute():
                 logger.info("Starting task %s", te_pkey)
-                with self.tblobj.recordToUpdate(te_pkey,for_update='SKIP LOCKED',
-                                                virtual_columns="""$task_table,
-                                                                    $task_name,
-                                                                    $task_parameters,
-                                                                    $task_command,
-                                                                    $task_saved_query""") as task_execution:
-                    self.runTask(task_execution)
-                    task_execution['end_ts'] = datetime.now(timezone.utc)
-                self.db.commit()
+                try:
+                    with self.tblobj.recordToUpdate(te_pkey,for_update='SKIP LOCKED',
+                                                    virtual_columns="""$task_table,
+                                                                        $task_name,
+                                                                        $task_parameters,
+                                                                        $task_command,
+                                                                        $task_saved_query""") as task_execution:
+                        self.runTask(task_execution)
+                        task_execution['end_ts'] = datetime.now(timezone.utc)
+                    self.db.commit()
+                except Exception:
+                    # a failing task used to propagate out of the loop and take
+                    # the whole worker down with it, so every task queued behind
+                    # it was never run either
+                    logger.exception('Task %s failed', te_pkey)
+                    self.db.rollbackAll()
             self.db.closeConnection()
             sleep(randrange(self.interval-10,self.interval+10))
