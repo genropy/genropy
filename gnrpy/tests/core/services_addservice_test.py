@@ -34,6 +34,7 @@ def make_site():
         debug=False,
         getStatic=lambda name: None,
         default_page=None,
+        gnrapp=SimpleNamespace(packages={}),
     )
     site.resource_loader = ResourceLoader(site)
     site.resources_dirs = [COMMON_RESOURCES]
