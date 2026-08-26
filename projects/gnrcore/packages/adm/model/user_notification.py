@@ -55,12 +55,22 @@ class Table(object):
             return user_notification_id
 
 
-    def updateGenericNotification(self,user_id=None,user_tags=None):
-        # Only dynamic notifications gain new users over time, and only while
-        # they are inside their active date window. Static lists are frozen at
-        # the snapshot taken when the notification was saved.
+    def updateGenericNotification(self,user_id=None,**kwargs):
+        """Enrol a user that just logged in into the dynamic notifications
+        they match.
+
+        Only dynamic notifications gain new users over time, and only while
+        they are inside their active date window: a static list is frozen at
+        the snapshot taken when the notification was saved. The test is
+        `IS NOT FALSE` so that a NULL keeps meaning dynamic: the rows that
+        predate the column were delivered by this very incremental alignment,
+        and nothing stops being delivered after the upgrade.
+
+        `**kwargs` absorbs the avatar tags older callers still pass: the tag
+        rule is now evaluated on the user record, through the same
+        `audienceWhere` + `tagRuleMatches` pair the bulk snapshot uses."""
         notification_tbl = self.db.table('adm.notification')
-        dynamic_notification = notification_tbl.query(where="""$dynamic_list IS TRUE
+        dynamic_notification = notification_tbl.query(where="""$dynamic_list IS NOT FALSE
                                                                AND NOT $existing_for_current_user
                                                                AND ($start_date IS NULL OR $start_date<=:today)
                                                                AND ($end_date IS NULL OR $end_date>=:today)""",

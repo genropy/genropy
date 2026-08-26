@@ -16,7 +16,11 @@ class Table(object):
         tbl.column('all_users','B',name_long='!!For all users')
         tbl.column('letterhead_id',size='22',group='_',name_long='!!Letterhead').relation('htmltemplate.id',relation_name='notifications',mode='foreignkey')
         tbl.column('linked_query', dtype='X', name_long='!![en]Linked query',_sendback=True)
-        tbl.column('dynamic_list','B',name_long='!!Dynamic list', name_short='!!Dynamic')
+        # Dynamic by default: this is how notifications behaved before the
+        # column existed, so the rows that predate it (NULL) and the new ones
+        # (True) keep enrolling users at login. Static is an explicit opt-out.
+        tbl.column('dynamic_list','B',default=True,
+                   name_long='!!Dynamic list', name_short='!!Dynamic')
         tbl.column('start_date','D',name_long='!!Start date')
         tbl.column('end_date','D',name_long='!!End date')
         
@@ -41,6 +45,12 @@ class Table(object):
             record['all_users'] = True
 
     def trigger_onInserted(self, record):
+        # The audience is photographed as soon as the notification is saved:
+        # for a static list this snapshot *is* the list, and a dynamic one
+        # still has to reach the users matching right now. With `all_users`
+        # that means one adm.user_notification row per user, written inside
+        # the insert transaction: saving a notification costs one insert per
+        # user of the installation. That is the intended price of a snapshot.
         self.updateUserNotificationsFromQuery(record)
 
     def trigger_onUpdating(self, record, old_record=None):
@@ -48,8 +58,13 @@ class Table(object):
             record['all_users'] = True
 
     def trigger_onUpdated(self, record, old_record=None):
-        if self.fieldsChanged('linked_query,tag_rule,all_users,group_code,dynamic_list,start_date,end_date',
-                              record, old_record):
+        # Only a change to the audience criteria re-photographs the list: the
+        # snapshot drops the pending rows and rebuilds membership from the
+        # current population, so firing it on `dynamic_list` or on the date
+        # window would silently re-photograph a static list -- extending the
+        # window of a static notification would enrol exactly the newcomers
+        # it is meant to exclude, and drop the users who no longer match.
+        if self.fieldsChanged('linked_query,tag_rule,all_users,group_code', record, old_record):
             self.updateUserNotificationsFromQuery(record)
 
     def _hasNoAudienceRule(self, record):
@@ -57,9 +72,18 @@ class Table(object):
         return not (record['linked_query'] or record['tag_rule'] or record['group_code'])
 
     def audienceWhere(self, notification_record):
-        """Build the (where, kwargs) selecting adm.user rows that match this
-        notification audience. Shared by the bulk snapshot and the per-user
-        login alignment so both evaluate the audience identically.
+        """Build the (where, kwargs) pre-selecting the adm.user rows that are
+        candidates for this notification audience.
+
+        Only the criteria SQL can express live here, `group_code` and
+        `linked_query`. The tag rule is applied by `tagRuleMatches` on the
+        candidate rows instead: it is a permission-engine expression (exact
+        tags, `%` wildcards, `AND`/`NOT`, `;`) that a LIKE cannot reproduce.
+        Callers must therefore pair this pre-selection with the tag check --
+        `audienceUserIds` and `userMatchesAudience` are the two entry points
+        that do, and that is what keeps the bulk snapshot and the per-user
+        login alignment on one single rule.
+
         Returns (None, {}) when the notification targets all users."""
         if notification_record['all_users']:
             return None, {}
@@ -76,16 +100,6 @@ class Table(object):
                     selection_kwargs[f'group_{i}'] = f'%{g}%'
                 where.append('(' + ' OR '.join(group_conditions) + ')')
 
-        # Check if user has at least one of the specified tags
-        if notification_record.get('tag_rule'):
-            tags = [t.strip() for t in notification_record['tag_rule'].split(',') if t.strip()]
-            if tags:
-                tag_conditions = []
-                for i, t in enumerate(tags):
-                    tag_conditions.append(f"$auth_tags LIKE :tag_{i}")
-                    selection_kwargs[f'tag_{i}'] = f'%{t}%'
-                where.append('(' + ' OR '.join(tag_conditions) + ')')
-
         # Add linked query condition
         if notification_record.get('linked_query'):
             wherebag = Bag(notification_record['linked_query'])['query.where']
@@ -93,6 +107,40 @@ class Table(object):
                                     wherebag, selection_kwargs)
             where.append(condition)
         return (' AND '.join(where) if where else None), selection_kwargs
+
+    def audienceTagRule(self, notification_record):
+        """The tag rule in force for this notification, if any.
+        `all_users` wins over every other criterion, the tag rule included."""
+        if notification_record['all_users']:
+            return None
+        return notification_record['tag_rule']
+
+    def tagRuleMatches(self, tag_rule, user_tags):
+        """Evaluate a notification tag rule against a user's effective tags.
+
+        Delegated to the permission engine, the same one that gates every
+        other tagged resource of the framework: `$auth_tags LIKE '%admin%'`
+        would also match a user tagged `superadmin`, and would honor none of
+        the rule syntax the engine understands."""
+        if not tag_rule:
+            return True
+        return self.db.application.checkResourcePermission(tag_rule, user_tags)
+
+    def audienceUserIds(self, notification_record):
+        """Return the pkeys of the adm.user rows matching this notification."""
+        user_tbl = self.db.table('adm.user')
+        where, selection_kwargs = self.audienceWhere(notification_record)
+        tag_rule = self.audienceTagRule(notification_record)
+        if not tag_rule:
+            return user_tbl.query(where=where, **selection_kwargs).selection().output('pkeylist')
+        # $all_tags is the column adm authentication reads to build the avatar
+        # tags, so the rule is evaluated against the tags the user actually
+        # logs in with: their own plus the ones inherited from their group.
+        # Being a pyColumn it costs a query per candidate, paid only when a
+        # tag rule has to be evaluated -- and the snapshot that calls this is
+        # already one insert per user anyway.
+        rows = user_tbl.query(where=where, columns='*,$all_tags', **selection_kwargs).fetch()
+        return [r['id'] for r in rows if self.tagRuleMatches(tag_rule, r['all_tags'])]
 
     def userMatchesAudience(self, notification_record, user_id):
         """Return True if the given user matches the notification audience.
@@ -102,13 +150,15 @@ class Table(object):
         if where:
             user_where = f'({where}) AND {user_where}'
         selection_kwargs['__audience_uid'] = user_id
-        return self.db.table('adm.user').query(where=user_where, **selection_kwargs).count() > 0
+        rows = self.db.table('adm.user').query(where=user_where, columns='*,$all_tags',
+                                               **selection_kwargs).fetch()
+        if not rows:
+            return False
+        return self.tagRuleMatches(self.audienceTagRule(notification_record), rows[0]['all_tags'])
 
     def updateUserNotificationsFromQuery(self, notification_record):
-        user_tbl = self.db.table('adm.user')
         user_notification_tbl = self.db.table('adm.user_notification')
-        where, selection_kwargs = self.audienceWhere(notification_record)
-        users = user_tbl.query(where=where, **selection_kwargs).selection().output('pkeylist')
+        users = self.audienceUserIds(notification_record)
 
         # Delete previous unconfirmed notifications for this notification_id
         user_notification_tbl.deleteSelection(where='$notification_id=:notif_id AND $confirmed IS NOT TRUE',
