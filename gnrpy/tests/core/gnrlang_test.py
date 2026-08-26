@@ -1,5 +1,6 @@
 import pytest
 import os
+import threading
 from gnr.core import gnrlang as gl
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrerror import tracebackBag
@@ -188,6 +189,83 @@ class TestGnrLang():
             assert 1000 in fl
         assert "d" not in fl
 
+
+class TestClassMixinProxy():
+    def test_legacy_true_uses_lowercase_class_name(self):
+        class Target(object):
+            pass
+
+        class Proxy_test(object):
+            proxy = True
+
+            def ping(self):
+                return 'pong'
+
+        gl.classMixin(Target, Proxy_test)
+
+        assert hasattr(Target, 'proxy_test_proxyclass')
+        assert Target.proxy_test_proxyclass.ping.proxy_name == 'proxy_test'
+
+    def test_legacy_named_proxy_composes_components(self):
+        class Target(object):
+            pass
+
+        class FirstComponent(object):
+            proxy = 'shared'
+
+            def first(self):
+                return 'first'
+
+        class SecondComponent(object):
+            proxy = 'shared'
+
+            def second(self):
+                return 'second'
+
+        gl.classMixin(Target, FirstComponent)
+        gl.classMixin(Target, SecondComponent)
+
+        page = Target()
+        page.shared = Target.shared_proxyclass(page)
+        assert page.shared.first() == 'first'
+        assert page.shared.second() == 'second'
+
+    def test_proxy_name_precedes_legacy_proxy(self):
+        class Target(object):
+            pass
+
+        class Component(object):
+            proxy = 'legacy'
+            proxy_name = 'modern'
+
+            def ping(self):
+                return 'pong'
+
+        gl.classMixin(Target, Component)
+
+        assert hasattr(Target, 'modern_proxyclass')
+        assert not hasattr(Target, 'legacy_proxyclass')
+        assert Target.modern_proxyclass.ping.proxy_name == 'modern'
+
+    def test_proxy_instantiation_preserves_serialized_rpc_name(self):
+        class Target(object):
+            pass
+
+        class Component(object):
+            proxy = 'shared'
+
+            def rpc_ping(self):
+                return 'pong'
+
+        gl.classMixin(Target, Component)
+
+        page = Target()
+        page.shared = Target.shared_proxyclass(page)
+        assert page.shared.main is page
+        assert page.shared.rpc_ping() == 'pong'
+        assert gl.serializedFuncName(page.shared.rpc_ping) == 'shared.ping'
+
+
 class TestGnrLang_getEncoding():
     def _get_data_path(self, filename):
         return os.path.join(os.path.dirname(__file__), 'data', filename)
@@ -235,3 +313,103 @@ class TestGnrLang_getEncoding():
     def test_getEncoding_file_not_found(self):
         with pytest.raises(FileNotFoundError):
             gl.getEncoding(self._get_data_path('nonexistent_file.csv'))
+
+
+def test_gnrImport_path_cache(tmp_path):
+    source = tmp_path / 'dummy_cached_module.py'
+    source.write_text('class Service(object):\n    pass\n')
+    first = gl.gnrImport(str(source), avoidDup=True)
+    second = gl.gnrImport(str(source), avoidDup=True)
+    assert first is second
+
+
+def test_gnrImport_avoid_module_cache_returns_fresh_module(tmp_path):
+    source = tmp_path / 'dummy_reloaded_module.py'
+    source.write_text('VERSION = 1\n')
+    first = gl.gnrImport(str(source), avoidDup=True)
+    assert first.VERSION == 1
+    # different size on purpose: a same-size same-mtime rewrite would be
+    # served from the stale bytecode cache by the source loader
+    source.write_text('VERSION = 2000\n')
+    reloaded = gl.gnrImport(str(source), avoidDup=True, avoid_module_cache=True)
+    assert reloaded.VERSION == 2000
+    cached = gl.gnrImport(str(source), avoidDup=True)
+    assert cached is reloaded
+
+
+def test_gnrImport_concurrent_single_module_identity(tmp_path):
+    source = tmp_path / 'dummy_concurrent_module.py'
+    source.write_text('class Service(object):\n    pass\n')
+    modules = []
+
+    def worker():
+        modules.append(gl.gnrImport(str(source), avoidDup=True))
+
+    threads = [threading.Thread(target=worker) for _ in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert len(modules) == 8
+    assert all(m is modules[0] for m in modules)
+    assert modules[0].Service is not None
+
+
+# ---------------------------------------------------------------------------
+# ThreadedDict
+# ---------------------------------------------------------------------------
+
+
+def test_threaded_dict_get_default_is_none():
+    td = gl.ThreadedDict()
+    assert td.get() is None
+
+
+def test_threaded_dict_set_then_get_roundtrip():
+    td = gl.ThreadedDict()
+    td.set('value')
+    assert td.get() == 'value'
+
+
+def test_threaded_dict_set_none_pops_entry():
+    """Assigning None removes the current thread's entry instead of
+    storing it, so the backing dict does not keep a live-but-empty slot
+    for every thread that ever called set()."""
+    td = gl.ThreadedDict()
+    td.set('value')
+    assert len(td._data) == 1
+    td.set(None)
+    assert td.get() is None
+    assert len(td._data) == 0
+
+
+def test_threaded_dict_isolated_across_threads():
+    """Each thread sees only the value it set, keyed by its own ident.
+
+    A thread that exits without explicitly resetting to None leaves its
+    entry behind: ThreadedDict itself does no bookkeeping on thread exit,
+    so callers (e.g. GnrWsgiSite.cleanup()) are responsible for popping
+    their slot with set(None) before the thread ends. Skipping that step
+    is exactly the unbounded per-thread growth fixed by #379/#380.
+    """
+    td = gl.ThreadedDict()
+    results = {}
+
+    def worker(name):
+        td.set(name)
+        results[name] = td.get()
+        td.set(None)  # mirrors the app's own cleanup-on-exit responsibility
+
+    threads = [threading.Thread(target=worker, args=(name,))
+               for name in ('thread_a', 'thread_b', 'thread_c')]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert results == {'thread_a': 'thread_a',
+                        'thread_b': 'thread_b',
+                        'thread_c': 'thread_c'}
+    # each worker popped its own entry before exiting: nothing left behind
+    assert len(td._data) == 0

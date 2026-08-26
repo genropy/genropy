@@ -166,7 +166,10 @@ class GroupletHandler(BaseComponent):
         btn_kwargs.setdefault('position', 'absolute')
         btn_kwargs.setdefault('bottom', '2px')
         btn_kwargs.setdefault('right', '2px')
-        kwargs.setdefault('_class', 'grouplet_chunk_box')
+        # 'selectable' re-enables text selection on the summary template
+        # (the global reset sets user-select:none on div/span), so read-only
+        # content like an IBAN or code can be copied from the chunk.
+        kwargs.setdefault('_class', 'grouplet_chunk_box selectable')
         grid_kw = dictExtract(kwargs, 'grid_', pop=True)
         if record_id is not None:
             # in record mode the chunk gets its own workspace, so the loaded record lives
@@ -401,7 +404,7 @@ class GroupletHandler(BaseComponent):
             frame.data('.next_label',
                        menu_nodes[1].attr.get('grouplet_caption')
                        if total_steps > 1 else completeLabel)
-        stepper_bar = frame.top.contentPane(_class='wizard_stepper_bar')
+        stepper_bar = frame.top.div(_class='wizard_stepper_bar')
         if has_summary:
             summary_caption = root_info.get('summary_caption', 'Summary')
             stepper_bar.div(summary_caption,
@@ -425,7 +428,11 @@ class GroupletHandler(BaseComponent):
             item.div(mnode.attr.get('grouplet_caption'),
                      _class='wizard_caption')
         step_form_id = f'{frameCode}_step_form'
-        on_loaded_js = "gnr_grouplet.wizardGoTo(this, 0, frameCode);"
+        on_loaded_js = """
+            if(this.form.isNewRecord()){
+                FIRE .step_index = 0;
+            }
+        """
         if has_summary:
             on_loaded_js = """
                 SET .wizard_showing_summary = false;
@@ -462,7 +469,7 @@ class GroupletHandler(BaseComponent):
         else:
             frame.center.contentPane(overflow='auto').GroupletForm(
                 **grouplet_kwargs)
-        bottom = frame.bottom.contentPane(_class='wizard_bottom_bar')
+        bottom = frame.bottom.div(_class='wizard_bottom_bar')
         if has_summary:
             bottom.lightButton('^.next_label',
                                _class='wizard_next_btn',
@@ -827,6 +834,11 @@ class GroupletGridHandler(BaseComponent):
         store_kwargs.setdefault('store_storeType', 'ValuesBagRows')
         if struct_mode:
             container.data(structpath, struct)
+        # the footer placeholder exists only when some column totalizes: the JS
+        # adapter grafts the totals there (buildFooter returns null otherwise)
+        # and an unconditional placeholder would paint an empty footer strip
+        struct_has_totalize = struct_mode and any(
+            n.attr.get('totalize') for n in struct.traverse())
         for side in ('top', 'bottom', 'left', 'right'):
             slot = container.div(
                 _class=f'grouplet_grid_slot grouplet_grid_slot_{side}',
@@ -836,7 +848,7 @@ class GroupletGridHandler(BaseComponent):
             if struct_mode and side == 'top':
                 slot.div(_class='grouplet_grid__struct_header',
                          childname='struct_header')
-            elif struct_mode and side == 'bottom':
+            elif struct_has_totalize and side == 'bottom':
                 slot.div(_class='grouplet_grid__struct_footer',
                          childname='struct_footer')
         container.div(_class='grouplet_grid_body',

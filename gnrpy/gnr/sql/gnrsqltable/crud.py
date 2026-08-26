@@ -237,13 +237,14 @@ class CrudMixin(SqlTableBaseMixin):
         return self.db.adapter.existsRecord(self, record)
 
     def checkDuplicate(self, excludeDraft=None, ignorePartition=None,
-                       **kwargs):
+                       excludeLogicalDeleted=True, **kwargs):
         where = ' AND '.join([
             '$%s=:%s' % (k, k) for k in kwargs.keys()
         ])
         return self.query(
             where=where, excludeDraft=excludeDraft,
-            ignorePartition=ignorePartition, **kwargs,
+            ignorePartition=ignorePartition,
+            excludeLogicalDeleted=excludeLogicalDeleted, **kwargs,
         ).count() > 0
 
     def insertOrUpdate(self, record):
@@ -649,11 +650,26 @@ class CrudMixin(SqlTableBaseMixin):
             revnodes = list(enumerate(nodes))
             revnodes.reverse()
             for j, n in revnodes:
-                if n.label.startswith('@'):
-                    if n.getAttr('mode') == 'O':
-                        relatedOne[n.label[1:]] = nodes.pop(j)
-                    else:
-                        relatedMany[n.label] = nodes.pop(j)
+                if not n.label.startswith('@'):
+                    continue
+                node = nodes.pop(j)
+                if node.value is None:
+                    # A relation node without a cluster carries nothing to
+                    # write: it is a client-side artifact leaked into the
+                    # changeset (an invalidated related-one cache, a relation
+                    # emptied in a memory-store copy of the record), not an
+                    # edit (#998).
+                    continue
+                mode = node.getAttr('mode')
+                if mode is None:
+                    # Cluster copies can lose the wire attribute (#998): the
+                    # model, not the client, knows the relation mode.
+                    joiner = self.model.relations.getAttr(node.label, 'joiner')
+                    mode = joiner and joiner['mode']
+                if mode == 'O':
+                    relatedOne[node.label[1:]] = node
+                else:
+                    relatedMany[node.label] = node
         if debugPath:
             self.xmlDebug(recordCluster, debugPath)
             for k, v in list(relatedOne.items()):

@@ -103,7 +103,9 @@ class Table(object):
 
 ##################################
 
-    def onDbUpgrade_checkResourceUserObject(self):
+    def onDbUpgradeDone_checkResourceUserObject(self):
+        # Runs after every package completed its onDbUpgrade pass: resource
+        # userobjects may reference records (fk) created by downstream packages
         self.checkResourceUserObject()
 
     def uo_identifier(self,record):
@@ -121,14 +123,21 @@ class Table(object):
                 identifier = self.uo_identifier(record)
                 logger.debug("identifier: %s, code: %s, objtype: %s, pkg: %s, tbl: %s",
                             identifier, record['code'], record['objtype'], record['pkg'], record['tbl'])
-                if not self.checkDuplicate(code=record['code'], pkg=record['pkg'], tbl=record['tbl'], objtype=record['objtype']):
-                    if record['tbl'] and not record['tbl'] in tableindex:
-                        logger.warning('missing table %s, resource %s', record['tbl'], node.attr['abs_path'])
-                        return
-                    logger.info('inserting userobject %(code)s %(tbl)s %(pkg)s from resource' % record)
-                    record['__ins_ts'] = None
-                    record['__mod_ts'] = None
-                    self.insert(record)
+                duplicate_kwargs = dict(code=record['code'], pkg=record['pkg'],
+                                        tbl=record['tbl'], objtype=record['objtype'])
+                if self.checkDuplicate(**duplicate_kwargs):
+                    return
+                if self.checkDuplicate(excludeLogicalDeleted=False, **duplicate_kwargs):
+                    logger.warning('userobject %s is archived: skipping install from resource %s',
+                                   identifier, node.attr['abs_path'])
+                    return
+                if record['tbl'] and not record['tbl'] in tableindex:
+                    logger.warning('missing table %s, resource %s', record['tbl'], node.attr['abs_path'])
+                    return
+                logger.info('inserting userobject %(code)s %(tbl)s %(pkg)s from resource' % record)
+                record['__ins_ts'] = None
+                record['__mod_ts'] = None
+                self.insert(record)
 
         for pkgid, pkgobj in list(self.db.application.packages.items()):
             base_folder = os.path.join(pkgobj.packageFolder, 'resources', 'tables')

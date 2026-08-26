@@ -6,7 +6,7 @@ from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
 
 class GnrCustomWebPage(object):
-    py_requires = "gnrcomponents/testhandler:TestHandlerBase"
+    py_requires = "gnrcomponents/testhandler:TestHandlerFull"
     
     def test_0_json(self, pane):
         self._formatTesterLayout(pane,'json')
