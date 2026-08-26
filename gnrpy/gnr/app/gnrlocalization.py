@@ -118,6 +118,11 @@ class AppLocalizer(object):
                 loclang = m.get('lang') or m.get('lang_emb') or 'en'
                 if not lockey:
                     lockey = flatten(loctext)
+                    if not lockey.strip('_'):
+                        # symbol-only text ('=', '>=', '%', '#', whitespace) flattens
+                        # to a single '_': it is not translatable text and would
+                        # collide with every other symbol-only caption on '<lang>__'
+                        return loctext
                 lockey = '%s_%s' %(loclang,lockey)
                 translation_dict = self.localizationDict.get(lockey)
                 if translation_dict:
@@ -239,7 +244,10 @@ class AppLocalizer(object):
             loclang = m.group('lang_emb') or m.group('lang') or 'en'
             if not loctext:
                 return
-            lockey = lockey or flatten(loctext)
+            if not lockey:
+                lockey = flatten(loctext)
+                if not lockey.strip('_'):
+                    return          # never collect symbol-only literals
             lockey = '%s_%s' %(loclang,lockey)
             if not lockey in moduleLocBag:
                 locdict = dict(self.localizationDict.get(lockey) or dict())

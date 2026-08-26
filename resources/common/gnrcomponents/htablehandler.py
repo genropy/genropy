@@ -184,12 +184,14 @@ class HTableHandlerBase(BaseComponent):
     def ht_hdbselect_old(self,pane,**kwargs):
         dbselect = pane.dbselect(**kwargs)
         attr = dbselect.attributes
+        dbtable = attr.get('dbtable') or attr.pop('table', None)
+        attr['dbtable'] = dbtable
         menupath = 'gnr.htablestores.%(dbtable)s' %attr
         attr['hasDownArrow'] = True
         dbselect_condition = attr.get('condition')
         dbselect_condition_kwargs = dictExtract(attr,'condition_')
         attr['condition'] = '$child_count=0' if not dbselect_condition else ' ( %s ) AND $child_count=0' %dbselect_condition
-        pane.dataRemote(menupath,self.ht_remoteTreeData,table=attr['dbtable'],
+        pane.dataRemote(menupath,self.ht_remoteTreeData,table=dbtable,
                         condition=dbselect_condition,
                         condition_kwargs=dbselect_condition_kwargs,cacheTime=30)
         dbselect.menu(storepath='%s._root_' %menupath,_class='smallmenu',modifiers='*',selected_pkey=attr['value'].replace('^',''))
