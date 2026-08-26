@@ -1744,14 +1744,15 @@ dojo.declare("gnr.GnrBag", null, {
                     var node = obj.getNode(label, false, true);
                     var auxattr = objectUpdate({}, _attributes);
                     auxattr[attr] = value;
-                    if(kwargs.lazySet && !changedAttrKeys(node.attr,auxattr,'*').length){
+                    var changedAttrs = changedAttrKeys(node.attr,auxattr,'*');
+                    if(kwargs.lazySet && !changedAttrs.length){
                         return node;
                     }
                     var _doTrigger = true;
                     if ('doTrigger' in kwargs) {
                         _doTrigger = kwargs.doTrigger;
                     }
-                    node.setAttr(auxattr, _doTrigger, '*', attr);
+                    node.setAttr(auxattr, _doTrigger, '*', changedAttrs.length>1 ? null : attr);
                     return node;
                 }
                 else {
