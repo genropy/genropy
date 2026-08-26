@@ -8,10 +8,14 @@ class View(BaseComponent):
 
     def th_struct(self,struct):
         r = struct.view().rows()
-        r.fieldcell('title')
-        r.fieldcell('letterhead_id')
-        r.fieldcell('tag_rule', width='20em')
+        r.fieldcell('title', width='20em')
+        r.fieldcell('tag_rule', width='15em')
         r.fieldcell('group_code', width='10em')
+        r.fieldcell('dynamic_list', width='6em')
+        r.fieldcell('start_date', width='6em')
+        r.fieldcell('end_date', width='6em')
+        r.fieldcell('confirmed_count', width='7em')
+        r.fieldcell('pending_count', width='7em')
 
     def th_order(self):
         return 'title'
@@ -25,14 +29,17 @@ class Form(BaseComponent):
 
     def th_form(self, form):
         bc = form.center.borderContainer()
-        top = bc.borderContainer(region='top',datapath='.record', height='120px')
-        
+        top = bc.borderContainer(region='top',datapath='.record', height='160px')
+
         fb = top.contentPane(region='center').formbuilder(cols=2, border_spacing='4px', fld_width='100%')
         fb.field('title', colspan=2)
         fb.field('tag_rule', tag='checkboxtext', table='adm.htag', popup=True, cols=4, colspan=2)
         fb.field('group_code', tag='checkboxtext', table='adm.group', popup=True, cols=4, colspan=2)
-        fb.field('confirm_label',width='20em')
+        fb.field('confirm_label',width='20em', colspan=2)
         fb.field('letterhead_id')
+        fb.field('dynamic_list')
+        fb.field('start_date')
+        fb.field('end_date')
         
         self.linkedQueryPane(top.roundedGroup(region='right',width='400px', 
                                 title='!![en]Restriction query'))
@@ -135,7 +142,10 @@ class FormEmbed(Form):
         fb.field('group_code', tag='checkboxtext', table='adm.group', popup=True, cols=4)
         fb.field('confirm_label',width='20em')
         fb.field('letterhead_id')
-        
+        fb.field('dynamic_list')
+        fb.field('start_date')
+        fb.field('end_date')
+
         self.linkedQueryPane(left.roundedGroup(region='center', title='!![en]Restriction query'))
 
         sc = bc.stackContainer(region='center')
