@@ -363,6 +363,8 @@ dojo.declare("gnr.GnrRpcHandler", null, {
         if(!sysrpc){
             genro._lastRpc = new Date();
         }
+        content._lastUserEventTs = genro.getServerLastTs();
+        content._lastRpc = genro.getServerLastRpc();
         if (genro.debugRpc) {
             this.debugRpc(kw);
         }
