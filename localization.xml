@@ -733,7 +733,9 @@
 <en_edit_ base="Edit " de="Bearbeiten" en="Edit " fr="Éditer" it="Modifica"></en_edit_>
 <en_save_pdf_form base="Save PDF form" it="Salva modulo PDF"></en_save_pdf_form>
 <en_save_template base="Save template" de="Vorlage speichern" en="Save template" fr="Enregistrer le modèle" it="Salva modello"></en_save_template>
-<en_new_pdf_form base="New PDF form" it="Nuovo modulo PDF"></en_new_pdf_form></component></pdftk></pdfform></services>
+<en_new_pdf_form base="New PDF form" it="Nuovo modulo PDF"></en_new_pdf_form></component></pdftk></pdfform>
+<storage><relative path="resources/common/services/storage/relative.py" ext="py"><en_parent_service base="Parent service" en="Parent service" it="Servizio padre"></en_parent_service>
+<en_relative_path base="Relative path" en="Relative path" it="Percorso relativo"></en_relative_path></relative></storage></services>
 <tables><_default><action><_common><_doc path="resources/common/tables/_default/action/_common/_doc.py" ext="py"><en_common base="Common" de="Gemeinsam" en="Common" fr="Commun" it="Comune"></en_common>
 <en_common_actions base="Common Actions" de="Gemeinsame Maßnahmen" en="Common Actions" fr="Actions communes" it="Azioni comuni"></en_common_actions></_doc>
 <align_counter path="resources/common/tables/_default/action/_common/align_counter.py" ext="py"><en_align_counter base="Align counter" de="Richten Gegen" en="Align counter" fr="Alignez compteur" it="Allineare contatore"></en_align_counter>

@@ -4,6 +4,9 @@ import tempfile
 import shutil
 
 from gnr.core.gnrbag import Bag
+from gnr.core.gnrconfig import getGenroRoot
+from gnr.core.gnrlang import GnrException, gnrImport
+from gnr.lib.services.storage import StorageResolver
 
 from webcommon import BaseGnrDaemonTest
 
@@ -67,7 +70,7 @@ class TestStorageHandler(BaseGnrDaemonTest):
             assert 'implementation' in params, \
                 f"Parameters for '{storage_name}' should have 'implementation' key"
             impl = params['implementation']
-            assert impl in ['local', 'symbolic', 'raw', 'http', 'aws_s3'], \
+            assert impl in ['local', 'symbolic', 'raw', 'http', 'aws_s3', 'relative'], \
                 f"Unknown implementation '{impl}' for storage '{storage_name}'"
 
     # ========================================================================
@@ -747,3 +750,230 @@ class TestStorageHandler(BaseGnrDaemonTest):
 
         # Clean up
         self.storage_handler.removeStorageFromCache('test_no_modify')
+
+    # ========================================================================
+    # Relative Storage Service Tests (Bug #834)
+    # ========================================================================
+
+    def _addStorage(self, service_name, implementation=None, **parameters):
+        """Registers a storage service to be removed at the end of the test"""
+        self.storage_handler._setStorageParams(service_name,
+            parameters=parameters, implementation=implementation)
+        self._storages_to_clean.append(service_name)
+        return service_name
+
+    @pytest.fixture(autouse=True)
+    def cleanup_storages(self):
+        """Removes the storage services registered by a single test"""
+        self._storages_to_clean = []
+        yield
+        storage_type = self.services_handler('storage')
+        for service_name in self._storages_to_clean:
+            self.storage_handler.removeStorageFromCache(service_name)
+            storage_type.service_instances.pop(service_name, None)
+
+    @pytest.fixture
+    def relative_storages(self):
+        """A local storage plus a relative storage rooted on one of its subfolders"""
+        parent_dir = os.path.join(self.test_dir, 'relative_parent')
+        os.makedirs(os.path.join(parent_dir, 'docs', 'invoices'), exist_ok=True)
+        parent_name = self._addStorage('rel_parent_storage', implementation='local',
+                                       base_path=parent_dir, tags='admin')
+        child_name = self._addStorage('rel_child_storage', implementation='relative',
+                                       parent_service=parent_name, relative_path='docs/invoices')
+        return parent_name, child_name
+
+    def test_relative_storage_creation(self, relative_storages):
+        """Test that a relative storage service can be created (issue #834).
+
+        Creating it used to fail with AttributeError: 'Service' object has no
+        attribute '_call'.
+        """
+        parent_name, child_name = relative_storages
+        parent_service = self.site.storage(parent_name)
+        service = self.site.storage(child_name)
+
+        assert service is not None
+        # a relative service is an instance of the parent implementation
+        assert isinstance(service, type(parent_service))
+        assert service.service_implementation == 'relative'
+        assert service.service_name == child_name
+        assert service.parent_service is parent_service
+        assert service.relative_path == 'docs/invoices'
+
+    def test_relative_storage_base_path(self, relative_storages):
+        """Test that a relative storage is rooted inside its parent storage."""
+        parent_name, child_name = relative_storages
+        parent_service = self.site.storage(parent_name)
+        service = self.site.storage(child_name)
+
+        assert service.base_path == '%s/docs/invoices' % parent_service.base_path
+        assert service.internal_path('receipt.txt') == os.path.join(parent_service.base_path,
+                                                                    'docs', 'invoices', 'receipt.txt')
+
+    def test_relative_storage_write_and_read(self, relative_storages):
+        """Test that files written on a relative storage land in the parent subfolder."""
+        parent_name, child_name = relative_storages
+        node = self.site.storageNode('%s:receipt.txt' % child_name)
+        with node.open(mode='w') as output_file:
+            output_file.write('relative content')
+
+        assert node.exists
+        assert node.fullpath == '%s:receipt.txt' % child_name
+
+        # the same file is reachable from the parent storage through the relative path
+        parent_node = self.site.storageNode('%s:docs/invoices/receipt.txt' % parent_name)
+        assert parent_node.exists
+        with parent_node.open(mode='r') as input_file:
+            assert input_file.read() == 'relative content'
+
+        node.delete()
+        assert not node.exists
+
+    def test_relative_storage_children(self, relative_storages):
+        """Test that a relative storage lists only its own subtree."""
+        parent_name, child_name = relative_storages
+        for filename in ('first.txt', 'second.txt'):
+            with self.site.storageNode('%s:%s' % (child_name, filename)).open(mode='w') as output_file:
+                output_file.write(filename)
+        with self.site.storageNode('%s:outside.txt' % parent_name).open(mode='w') as output_file:
+            output_file.write('outside')
+
+        children = self.site.storageNode('%s:' % child_name).children()
+        assert sorted([child.basename for child in children]) == ['first.txt', 'second.txt']
+        assert all(child.service.service_name == child_name for child in children)
+
+    def test_relative_storage_inherits_parent_parameters(self, relative_storages):
+        """Test that the parameters of the parent service are used by the relative one."""
+        parent_name, child_name = relative_storages
+        parent_service = self.site.storage(parent_name)
+        service = self.site.storage(child_name)
+
+        assert service.tags == parent_service.tags == 'admin'
+        assert service.location_identifier == parent_service.location_identifier
+
+    def test_relative_storage_nested(self, relative_storages):
+        """Test that a relative storage can be the parent of another relative storage."""
+        parent_name, child_name = relative_storages
+        nested_name = self._addStorage('rel_nested_storage', implementation='relative',
+                                        parent_service=child_name, relative_path='2026')
+        parent_service = self.site.storage(parent_name)
+        service = self.site.storage(nested_name)
+
+        assert service.base_path == '%s/docs/invoices/2026' % parent_service.base_path
+        assert isinstance(service, type(parent_service))
+
+    def test_relative_storage_without_relative_path(self, relative_storages):
+        """Test that a relative storage without relative path is an alias of its parent."""
+        parent_name, child_name = relative_storages
+        alias_name = self._addStorage('rel_alias_storage', implementation='relative',
+                                       parent_service=parent_name)
+        parent_service = self.site.storage(parent_name)
+        service = self.site.storage(alias_name)
+
+        assert service.relative_path == ''
+        assert service.base_path == parent_service.base_path
+
+    def test_relative_storage_missing_parent_service(self):
+        """Test that a relative storage without parent service is empty and not writable.
+
+        A service that has just been created has no parameters yet: browsing it must
+        not fail (its own parameters form shows its tree) but nothing can be written
+        where there is no path.
+        """
+        service_name = self._addStorage('rel_no_parent_storage', implementation='relative',
+                                         relative_path='docs')
+        service = self.site.storage(service_name)
+        assert service.base_path is None
+        assert service.children() == []
+        assert service.exists('anything.txt') is False
+        assert service.url('anything.txt') == ''
+        node = self.site.storageNode('%s:anything.txt' % service_name)
+        assert not node.exists
+        with pytest.raises(GnrException):
+            node.open(mode='w')
+
+    def test_relative_storage_unsupported_parent_service(self):
+        """Test that a symbolic storage cannot be the parent of a relative storage."""
+        service_name = self._addStorage('rel_symbolic_storage', implementation='relative',
+                                         parent_service='rsrc', relative_path='docs')
+        service = self.site.storage(service_name)
+        assert service.base_path is None
+        with pytest.raises(GnrException):
+            service.mkdir('docs')
+
+    def test_relative_storage_tree_without_parent_service(self):
+        """Test that the storage tree of an unconfigured relative storage is empty.
+
+        This is the failure reported in issue #834: the tree of the service
+        parameters form used to break on the service it configures.
+        """
+        service_name = self._addStorage('rel_tree_storage', implementation='relative')
+        tree = StorageResolver(self.site.storageNode('%s:' % service_name),
+                               _page=self.site.dummyPage)()
+        assert len(tree) == 0
+
+    def test_relative_storage_from_service_record(self):
+        """Test a relative storage configured in sys.service end to end (issue #834).
+
+        This is the path that fails in a real instance: the parameters are read
+        from the service record, loaded in the storage_params registry by the
+        table triggers and passed to the service factory.
+        """
+        tblservice = self.site.db.table('sys.service')
+        service_name = 'rel_record_storage'
+        parameters = Bag()
+        parameters['parent_service'] = 'site'
+        parameters['relative_path'] = 'relative_from_record'
+        record = tblservice.newrecord(service_type='storage', service_name=service_name,
+                                      implementation='relative', parameters=parameters)
+        tblservice.insert(record)
+        self.site.db.commit()
+        try:
+            # the insert trigger fills the storage_params registry
+            stored_params = self.storage_handler.getStorageParameters(service_name)
+            assert stored_params['implementation'] == 'relative'
+            assert stored_params['parent_service'] == 'site'
+            assert stored_params['relative_path'] == 'relative_from_record'
+
+            service = self.site.storage(service_name)
+            assert service.parent_service is self.site.storage('site')
+            assert service.base_path == '%s/relative_from_record' % self.site.storage('site').base_path
+
+            node = self.site.storageNode('%s:probe.txt' % service_name)
+            node.parentStorageNode.mkdir()
+            with node.open(mode='w') as output_file:
+                output_file.write('from service record')
+            assert self.site.storageNode('site:relative_from_record/probe.txt').exists
+
+            # the storage tree of the service parameters form loads this service
+            tree = StorageResolver(self.site.storageNode('%s:' % service_name),
+                                   _page=self.site.dummyPage)()
+            assert 'probe_txt' in tree
+            node.delete()
+        finally:
+            tblservice.delete(record)
+            self.site.db.commit()
+            self.services_handler('storage').service_instances.pop(service_name, None)
+
+    def test_relative_storage_parent_options(self):
+        """Test the parent services offered by the relative storage parameters form."""
+        relative_module = gnrImport(os.path.join(getGenroRoot(), 'resources', 'common',
+                                                 'services', 'storage', 'relative.py'),
+                                    avoidDup=True)
+        service_name = self._addStorage('rel_options_storage', implementation='relative',
+                                         parent_service='removed_parent_storage')
+        self._addStorage('rel_options_parent', implementation='local', base_path='/tmp/rel_options')
+        form = relative_module.ServiceParameters()
+        form.site = self.site
+        options = relative_module.ServiceParameters.relativeStorageParents(
+            form, service_name=service_name).split(',')
+
+        assert 'rel_options_parent' in options
+        # a service cannot be the parent of itself
+        assert service_name not in options
+        # symbolic services have no real base path, internal ones are not configurable
+        assert 'rsrc' not in options
+        assert '_raw_' not in options
+        # the configured parent is always an option, even if it is not available any more
+        assert 'removed_parent_storage' in options
