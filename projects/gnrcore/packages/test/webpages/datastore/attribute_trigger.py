@@ -57,8 +57,10 @@ class GnrCustomWebPage(object):
         fb.div('^.target', lbl='value')
         fb.div('^.target?tag', lbl='tag attribute')
         fb.div('^.target?other', lbl='other attribute')
+        fb.div('^.changed_attrs', lbl='changedAttrs list')
         box.dataController("SET .value_triggers = n+1;", target='^.target', n='=.value_triggers')
-        box.dataController("SET .attr_triggers = n+1;",
+        box.dataController("""SET .attr_triggers = n+1;
+                              SET .changed_attrs = triggerChangedAttrs(_triggerpars.kw).join(',');""",
                            target_tag='^.target?tag', n='=.attr_triggers')
         bar = box.div(margin='5px')
         bar.button('Same value, same tag').dataController(
@@ -78,7 +80,7 @@ class GnrCustomWebPage(object):
         class even when 'tag' travels with it, and the last button deletes 'tag' while writing
         'style': a removed attribute is a change of its own path"""
         box = pane.div(datapath='.t2')
-        box.data('.target', 'A', tag='first', style='testclass_a')
+        box.data('.target', 'A', style='testclass_a')
         box.data('.attr_triggers', 0)
         fb = box.formbuilder(cols=2, border_spacing='3px')
         fb.div('^.attr_triggers', lbl='tag attribute triggers')

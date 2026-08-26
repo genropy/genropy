@@ -777,7 +777,7 @@ class EvaluationGrid(BaseComponent):
 
     def _evlg_loader(self,frame,value):
         frame.dataController("""
-            if(triggerChangedAttrs(_triggerpars.kw).length){
+            if(_triggerpars.kw.updattr && !_triggerpars.kw.updvalue){
                 return;
             }
             if(_triggerpars.kw.reason=='evlg_saver'){
@@ -813,4 +813,3 @@ class EvaluationGrid(BaseComponent):
                 n.updAttributes(updattr,false);
             });
         """,value=value,store='^.store',grid=frame.grid.js_widget)
-

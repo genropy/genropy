@@ -1396,12 +1396,12 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             var oldvalue = null;
             if ('oldvalue' in kw) {
                 oldvalue = kw.oldvalue;
-            } else {
-                //the old class lives under the attribute this node is bound to, not under
-                //whichever attribute the trigger happens to name
+            } else if (trigger_reason == 'node') {
                 var boundattr = (this.attr._class || '').split('?')[1];
-                if (boundattr && boundattr[0] != '=' && triggerChangedAttrs(kw).indexOf(boundattr) >= 0) {
+                if (boundattr && boundattr[0] != '=') {
                     oldvalue = kw.oldattr[boundattr];
+                } else if (kw.changedAttr) {
+                    oldvalue = kw.oldattr[kw.changedAttr];
                 }
             }
 
@@ -2254,4 +2254,3 @@ dojo.declare("gnr.GnrDomSource", gnr.GnrStructData, {
         return node;
     }
 });
-

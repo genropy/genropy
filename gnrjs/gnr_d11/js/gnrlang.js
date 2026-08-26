@@ -573,10 +573,13 @@ function changedAttrKeys(currattr, newattr, updattr) {
 }
 
 function triggerChangedAttrs(kw) {
-    if (kw.changedAttr) {
-        return [kw.changedAttr]; //a single changed attribute is named: callers may read its absence
+    if (kw.changedAttributes && kw.changedAttributes.length) {
+        return kw.changedAttributes;
     }
-    return kw.changedAttributes || [];
+    if (kw.changedAttr) {
+        return [kw.changedAttr];
+    }
+    return [];
 }
 
 function isNullOrBlank(elem){
