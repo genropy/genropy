@@ -493,6 +493,9 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 var resolvedValue = this._resolvedValue;
                 var resolver = genro.rpc.remoteResolver(method, attributes, {'cacheTime':cacheTime,
                     'isGetter':isGetter});
+                // the resolver already took its own copy of the parameters: a GnrDomSourceNode
+                // left in node.attr breaks any serialization of that node (e.g. a record cluster).
+                objectExtract(attributes, '_*');
                 dataNode.setValue(resolver, true, attributes);
                 if(resolvedValue){
                     dataNode._status = 'loaded';
@@ -616,6 +619,16 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         }
         return value;
     },
+    isLostNode: function() {
+        //true when this node no longer belongs to the live source tree:
+        //remote content rebuilds tear nodes down while their widgets may
+        //still fire async callbacks (validate, label fetch, late onChange)
+        var currbag = this._parentbag;
+        while (currbag && currbag._parentnode) {
+            currbag = currbag._parentnode._parentbag;
+        }
+        return currbag !== genro.src._main;
+    },
     attrDatapath: function(attrname,targetNode) {
         targetNode = targetNode || this;
         if (!attrname) {
@@ -685,7 +698,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         return path;
 
     },
-    absDatapath: function(path) { 
+    absDatapath: function(path) {
         path = path || '';
         if (this.isPointerPath(path)) {
             path = path.slice(1);
@@ -719,7 +732,9 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         }
         if (path.indexOf('.') == 0) {
             console.error('unresolved relativepath ' + path);
-            debugger
+            if (genro.isDeveloper) {
+                debugger;
+            }
         }
         path = path.replace('.?', '?');
         if (path.indexOf('#parent') > 0) {
@@ -1612,6 +1627,9 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             return;
         }
         if(this._remotebuilding){
+          //a dyn attr changed while a remote fetch is in flight: remember
+          //it, the running call re-fetches on landing with fresh attrs
+          this._pendingRemoteUpdate = true;
           return;
         }
         
@@ -1685,6 +1703,10 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                     });
                 }
                 delete that._remotebuilding;
+                if(that._pendingRemoteUpdate){
+                    delete that._pendingRemoteUpdate;
+                    that.updateRemoteContent(true,async);
+                }
                 return result;
             });
     },
@@ -1776,6 +1798,9 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
     },
     
     updateValidationStatus: function(kw) {
+        if (this.isLostNode()) {
+            return;
+        }
         if (this.widget) {
             if(this.widget.validate){
                 this.widget.validate();
@@ -2162,45 +2187,46 @@ dojo.declare("gnr.GnrDomSource", gnr.GnrStructData, {
     getChild:function(childpath){
         childpath = childpath.split('/');
         var curr = this;
-        var node;
-        dojo.forEach(childpath,function(childname){
+        var node = null;
+        var childname, ownerNode;
+        for (var i=0;i<childpath.length;i++){
+            childname = childpath[i];
+            if(!(curr instanceof gnr.GnrBag)){
+                return null; //a step of the path is not a container: no child there
+            }
             if (childname=='parent'){
-                node=curr.getParentNode().getParentNode();
-                curr=node.getValue();
+                ownerNode = curr.getParentNode();
+                node = ownerNode?ownerNode.getParentNode():null;
             }else if(childname.indexOf('#')==0){
-                node=curr.getParentNode();
-                node=node.nodeById(childname.slice(1));
-                curr=node.getValue();
+                ownerNode = curr.getParentNode();
+                node = ownerNode?ownerNode.nodeById(childname.slice(1)):null;
             }
             else{
-
+                node = null;
                 curr.forEach(function(n){
                     if(n.attr._childname==childname){
                         node = n;
                     }
                 },'static');
-                
-                if(node){
-                    return 
-                }
-                node=curr.walk(function(n){
-                       if('_childname' in n.attr){
-                           return n.attr._childname==childname?n:true;
-                         }
-                      },'static');
-
-                if (node==true){
-                    return;
-                }else{
-                    curr=node.getValue();
-                    if(!(curr instanceof gnr.GnrBag)){
-                        return;
+                if(!node){
+                    node = curr.walk(function(n){
+                           if('_childname' in n.attr){
+                               return n.attr._childname==childname?n:true;
+                             }
+                          },'static');
+                    if(node===true){
+                        node = null;
                     }
                 }
             }
-            
-        });
-        return node===true?null:node;
+            if(!node){
+                return null;
+            }
+            //every step moves into the found node, so that paths deeper than
+            //one named level (e.g. 'parent/parent/r_0_l/c_0') are resolved
+            curr = node.getValue();
+        }
+        return node;
     }
 });
 

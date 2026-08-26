@@ -137,7 +137,7 @@ class GnrHtmlPage(GnrWebPage):
 
     def setCssRequires(self):
         css_import_statements_list=[]
-        css_requires = getattr(self, 'css_requires', [])
+        css_requires = list(getattr(self, 'css_requires', None) or [])
         css_requires.extend([k.split('.')[0] for k in list(self.envelope_css_requires.keys())])
         for css_require in css_requires:
              urls =self.getResourceExternalUriList(css_require,'css') or []
@@ -148,7 +148,7 @@ class GnrHtmlPage(GnrWebPage):
             self.builder.head.style(import_statements + ';\n', type="text/css")
 
     def setJsRequires(self):
-        js_requires = getattr(self, 'js_requires', [])
+        js_requires = list(getattr(self, 'js_requires', None) or [])
         js_requires.extend([k.split('.')[0] for k in list(self.envelope_js_requires.keys())])
         for js_require in js_requires:
              urls =self.getResourceExternalUriList(js_require,'js',add_mtime=True) or []

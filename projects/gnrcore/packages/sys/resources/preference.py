@@ -106,14 +106,14 @@ class AppPref(object):
         fbv.checkboxtext(value='^.jsPdfViewerOptions', lbl='!![en]PDF viewer options', 
                          values="""editorFreeText:[!![en]Free text],editorInk:[!![en]Draw],editorStamp:[!![en]Image],\
                                     print:[!![en]Print],download:[!![en]Download],secondaryToolbarToggle:[!![en]Tools]""",
-                         cols=3, hidden='^.jsPdfViewer?=!#v',lbl_hidden='^.jsPdfViewer?=!#v')
+                         cols=3, hidden='^.jsPdfViewer?=!#v')
         fbv.checkboxtext(value='^.jsPdfViewerTools', lbl='!![en]PDF viewer tools', 
                          values="""secondaryOpenFile:[!![en]Open],presentationMode:[!![en]Presentation mode],viewBookmark:[!![en]View bookmark],\
                                     firstPage:[!![en]First page],lastPage:[!![en]Last page],pageRotateCw:[!![en]Page rotate clockwise],\
                                     pageRotateCcw:[!![en]Page rotate counterclockwise],cursorToolButtons:[!![en]Cursor tools],\
                                     scrollPage:[!![en]Scroll page],scrollVertical:[!![en]Scroll vertical],scrollHorizontal:[!![en]Scroll Horizontal],\
                                     spreadModeButtons:[!![en]Spread mode buttons],documentProperties:[!![en]Document properties]""",
-                         cols=3,hidden='^.jsPdfViewer?=!#v',lbl_hidden='^.jsPdfViewer?=!#v')
+                         cols=3,hidden='^.jsPdfViewer?=!#v')
         fbv.textbox(value='^.external_document_url',lbl='External document url')
 
     def developerPreferences(self, pane):
@@ -121,6 +121,7 @@ class AppPref(object):
         fb.comboBox(value='^.experimental.remoteForm',lbl='!![en]Remote forms',values='onEnter,delayed')
         fb.checkbox(value='^.experimental.wsk_disabled',lbl='!![en]WSK Disabled (kill switch)')
         fb.checkbox(value='^.experimental.no_mako',lbl='!![en]No Mako rootPage')
+        fb.checkbox(value='^.experimental.page_class_cache',lbl='!![en]Page class cache (per page_id)')
 
     def tablesConfiguration(self, pane):
         fb = pane.formbuilder(cols=1,border_spacing='3px',datapath='.tblconf')
