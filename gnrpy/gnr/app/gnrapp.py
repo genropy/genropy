@@ -1473,7 +1473,7 @@ class GnrApp(object):
             elif user_record_tags:
                 tags = tags.split(',')
                 tags.extend(user_record_tags.split(','))
-                tags = ','.join(list(set(tags)))
+                tags = ','.join(sorted(set(tags)))
             return self.makeAvatar(user=user, user_name=user_name, user_id=user_id, tags=tags,
                                    login_pwd=password, authenticate=authenticate,
                                    external_user=external_user,
@@ -1531,7 +1531,7 @@ class GnrApp(object):
         :param pwd: the password
         :param tags: TODO"""
         if defaultTags:
-            tags = ','.join(makeSet(defaultTags, tags or ''))
+            tags = ','.join(sorted(makeSet(defaultTags, tags or '')))
         if authenticate:
             valid = self.validatePassword(login_pwd, pwd)
             if valid and not self.checkAllowedIp(allowed_ip):
