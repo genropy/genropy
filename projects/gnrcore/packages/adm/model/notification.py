@@ -90,14 +90,18 @@ class Table(object):
         where = []
         selection_kwargs = {}
 
-        # Check if user has at least one of the specified groups
+        # Check if user has at least one of the specified groups. $all_groups is a
+        # comma-join with no delimiter at the string boundaries, so the match is made
+        # on delimited codes: a bare LIKE '%admin%' would also reach a user in
+        # `superadmin`, `admin_ro` or `nonadmin` -- a false positive, i.e. a
+        # group-restricted notification delivered outside its audience.
         if notification_record.get('group_code'):
             groups = [g.strip() for g in notification_record['group_code'].split(',') if g.strip()]
             if groups:
                 group_conditions = []
                 for i, g in enumerate(groups):
-                    group_conditions.append(f"$all_groups LIKE :group_{i}")
-                    selection_kwargs[f'group_{i}'] = f'%{g}%'
+                    group_conditions.append(f"',' || $all_groups || ',' LIKE :group_{i}")
+                    selection_kwargs[f'group_{i}'] = f'%,{g},%'
                 where.append('(' + ' OR '.join(group_conditions) + ')')
 
         # Add linked query condition

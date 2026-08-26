@@ -28,6 +28,11 @@ WORKDATE = datetime.date(2026, 6, 30)
 TAG_ADMIN = 'ZZADMIN'
 TAG_SUPERADMIN = 'SUPERZZADMIN'
 TAG_OTHER = 'ZZOTHER'
+# Same trick for the groups: GROUP_ADMIN is a substring of GROUP_SUPERADMIN, and
+# $all_groups is a comma-join with no delimiter at the string boundaries.
+GROUP_ADMIN = 'ZZADMG'
+GROUP_SUPERADMIN = 'SUPERZZADMG'
+GROUP_OTHER = 'ZZOTHERG'
 
 
 class TestNotificationAudience(object):
@@ -88,6 +93,14 @@ class TestNotificationAudience(object):
             tbl.insert(rec)
             self.db.commit()
         return code
+
+    def _add_extra_group(self, user_id, code):
+        """A group beyond the user's own group_code: $all_groups aggregates it
+        through adm.user_group, comma-joined with the others."""
+        tbl = self.db.table('adm.user_group')
+        rec = tbl.newrecord(user_id=user_id, group_code=self._insert_group(code))
+        tbl.insert(rec)
+        self.db.commit()
 
     def _tagged_user(self, username, tags):
         user_id = self._insert_user(username)
@@ -250,6 +263,55 @@ class TestNotificationAudience(object):
 
     def test_tag_rule_does_not_imply_all_users(self):
         notif_id = self._insert_notification(title='only tag rule', tag_rule=TAG_ADMIN)
+        rec = self.notif_tbl.record(pkey=notif_id).output('dict')
+        assert not rec['all_users'], "an explicit audience rule must not force all_users"
+
+    # --- group_code --------------------------------------------------------
+
+    def test_group_code_audience_coherent_on_both_paths(self):
+        member = self._insert_user('notif_group_member',
+                                   group_code=self._insert_group(GROUP_ADMIN))
+        other = self._insert_user('notif_group_other',
+                                  group_code=self._insert_group(GROUP_OTHER))
+
+        notif_id = self._insert_notification(title='group dynamic',
+                                             group_code=GROUP_ADMIN, dynamic_list=True)
+        linked = self._linked_users(notif_id)
+        assert member in linked
+        assert other not in linked
+
+        newcomer = self._insert_user('notif_group_new', group_code=GROUP_ADMIN)
+        self._login(newcomer)
+        assert newcomer in self._linked_users(notif_id)
+
+    def test_group_code_does_not_match_by_substring(self):
+        """A notification restricted to ZZADMG must not reach a user in
+        SUPERZZADMG: an unanchored LIKE '%code%' delivers it outside its
+        audience, which is the unsafe direction of the error."""
+        superadmin = self._insert_user('notif_group_superadmin',
+                                       group_code=self._insert_group(GROUP_SUPERADMIN))
+        notif_id = self._insert_notification(title='group substring',
+                                             group_code=GROUP_ADMIN, dynamic_list=True)
+        assert superadmin not in self._linked_users(notif_id)
+
+        newcomer = self._insert_user('notif_group_superadmin_new',
+                                     group_code=GROUP_SUPERADMIN)
+        self._login(newcomer)
+        assert newcomer not in self._linked_users(notif_id)
+
+    def test_group_code_matches_a_secondary_group(self):
+        """The delimited match must still see a group the user holds beyond their
+        own group_code, which reaches $all_groups through the comma-join."""
+        member = self._insert_user('notif_group_secondary',
+                                   group_code=self._insert_group(GROUP_OTHER))
+        self._add_extra_group(member, GROUP_ADMIN)
+        notif_id = self._insert_notification(title='group secondary',
+                                             group_code=GROUP_ADMIN, dynamic_list=True)
+        assert member in self._linked_users(notif_id)
+
+    def test_group_code_does_not_imply_all_users(self):
+        notif_id = self._insert_notification(title='only group code',
+                                             group_code=GROUP_ADMIN)
         rec = self.notif_tbl.record(pkey=notif_id).output('dict')
         assert not rec['all_users'], "an explicit audience rule must not force all_users"
 
