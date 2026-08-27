@@ -394,7 +394,18 @@ class Table(object):
         return message
     
     def getBody(self, message=None, **kwargs):
-        "Customizable method to return the body of the email. Default is to return the actual 'body' field."
+        """Body handed to the mail service, and to the ui through the compiled_body pyColumn.
+
+        Default is the stored 'body' field. Override it to keep a lightweight
+        placeholder on the message and compose the real content here, so that a
+        circular mail does not store its content once per recipient.
+
+        An override must read *message* defensively: it is a Bag when a single
+        record is loaded and a plain dict on query rows and mail-proxy payloads,
+        where a column that was not selected raises KeyError instead of
+        returning None. It must never raise: it runs while a message is being
+        displayed too, not only while it is being sent.
+        """
         if not message:
             return ""
         return message['body']
