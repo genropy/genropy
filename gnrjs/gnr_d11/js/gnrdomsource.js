@@ -129,7 +129,8 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if(!pathToCheck){
             return;
         }
-        var eventpath = kw.pathlist.slice(1).join('.');
+        var eventpath = kw._eventpath !== undefined ? kw._eventpath :
+                        (kw._eventpath = kw.pathlist.slice(1).join('.'));
         var isValuePath = (pathToCheck.indexOf('?') < 0);
         if (pathToCheck.indexOf('#parent') > 0) {
             pathToCheck = gnr.bagRealPath(pathToCheck);
@@ -493,6 +494,9 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 var resolvedValue = this._resolvedValue;
                 var resolver = genro.rpc.remoteResolver(method, attributes, {'cacheTime':cacheTime,
                     'isGetter':isGetter});
+                // the resolver already took its own copy of the parameters: a GnrDomSourceNode
+                // left in node.attr breaks any serialization of that node (e.g. a record cluster).
+                objectExtract(attributes, '_*');
                 dataNode.setValue(resolver, true, attributes);
                 if(resolvedValue){
                     dataNode._status = 'loaded';
@@ -997,6 +1001,10 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 formHandler.registerChild(this);
                 genro.src.formsToUpdate[this.form.formId]=this.form;
             }
+        }else if(typeof(this.attr.parentForm)!='string'){
+            //cache the negative result too: descendants stop at this node
+            //instead of walking the whole ancestor chain again
+            this.form = null;
         }
     },
     _registerNodeId: function(nodeId) {
@@ -1139,7 +1147,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if (nodeSubscribers) {
             for (var attr in nodeSubscribers) {
                 dojo.forEach(nodeSubscribers[attr],function(n){
-                    dojo.unsubscribe(n);
+                    genro.src.unsubscribeHandle(n);
                 });
             }
             delete genro.src._subscribedNodes[stringId];
@@ -1167,7 +1175,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if(reason in subDict){
             var l = objectPop(subDict,reason);
             if(l){
-                dojo.forEach(l,function(s){dojo.unsubscribe(s)});
+                dojo.forEach(l,function(s){genro.src.unsubscribeHandle(s)});
             }
         }
     },
@@ -1184,10 +1192,81 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         }
     },
     _subscriptionHandle:function(attr) {
-        var prop = attr;
-        return dojo.subscribe('_trigger_data', this, function(kw) {
-            this.trigger_data(prop, kw);
-        });
+        return genro.src.triggerIndex.add({node:this, attr:attr},
+                                          this._stableTriggerPath(attr));
+    },
+
+    _stableTriggerPath: function(attr) {
+        // absolute datapath to index this ^attr subscription under, or null
+        // when the resolution may change over time (the trie entry would go
+        // stale): those subscriptions stay in the floating set.
+        var attrvalue = this.attr[attr];
+        if (typeof(attrvalue) != 'string' || attrvalue.charAt(0) != '^') {
+            return null;
+        }
+        var path = attrvalue.slice(1);
+        if (path.indexOf('#parent') >= 0) {
+            return null;
+        }
+        var stable;
+        if (path.charAt(0) == '#') {
+            stable = this._stableSymbolicStart(path);
+        } else if (!path || path.charAt(0) == '.') {
+            stable = this._stableDatapathChain();
+        } else {
+            stable = true;
+        }
+        if (!stable) {
+            return null;
+        }
+        var abspath = this.attrDatapath(attr);
+        if (!abspath || abspath.indexOf('#') >= 0) {
+            return null;
+        }
+        return abspath;
+    },
+
+    _stableSymbolicStart: function(path) {
+        // #FORM/#ANCHOR resolve on an ancestor node: when that ancestor
+        // rebuilds, this whole subtree re-registers, so the resolution is as
+        // stable as the ancestor datapath chain. Any other symbolic head
+        // (#ROW, #WORKSPACE, aliases, generic nodeId) can move independently.
+        var head = path.split('.')[0].slice(1);
+        if (head == 'DATA') {
+            return true;
+        }
+        var target;
+        if (head.indexOf('FORM') === 0) {
+            target = this.attributeOwnerNode('formId,_fakeform');
+        } else if (head.indexOf('ANCHOR') === 0) {
+            target = this.attributeOwnerNode('_anchor');
+        } else {
+            return false;
+        }
+        return target ? target._stableDatapathChain() : false;
+    },
+
+    _stableDatapathChain: function() {
+        var curr = this;
+        while (curr) {
+            var datapath = curr.attr.datapath;
+            if (datapath) {
+                if (typeof(datapath) != 'string' || this.isPointerPath(datapath)) {
+                    return false;
+                }
+                if (datapath.charAt(0) == '#') {
+                    if (datapath.indexOf('#parent') >= 0) {
+                        return false;
+                    }
+                    return curr._stableSymbolicStart(datapath);
+                }
+                if (datapath.charAt(0) != '.') {
+                    return true; //absolute datapath shields the upper chain
+                }
+            }
+            curr = curr.getParentNode();
+        }
+        return true;
     },
     setGnrId:function(gnrId, obj) {
         var idLst = gnrId.split('.');

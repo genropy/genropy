@@ -14,6 +14,14 @@ Packaging
   extra those implementations cannot be imported and the service silently
   falls back to its base implementation, logging an error. (#1079)
 
+
+Release 26.08.26
+================
+
+Hotfix release: adm.notification - align notification audience on both
+paths, with static/dynamic lists (#1179)
+
+
 Release 26.08.19.1
 ==================
 
