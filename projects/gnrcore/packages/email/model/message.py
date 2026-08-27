@@ -211,6 +211,9 @@ class Table(object):
         new_mail['body'] = ' '.join(mail.text_html) or new_mail['body_plain']
         for key in ('body', 'body_plain'):
             new_mail[key] = new_mail[key].replace('\x00', '')
+        # attachments are inserted here, before new_mail itself is inserted by the
+        # caller: the deferred FK on email.attachment.message_id is what allows it,
+        # and receivers rely on the attachments being readable from trigger_onInserted.
         for atc_counter, attachment in enumerate(mail.attachments):
             self.parseAttachment(attachment, new_mail, atc_counter)
         return new_mail
@@ -233,7 +236,7 @@ class Table(object):
 
     def parseAttachment(self, attachment, new_mail, atc_counter):
         new_attachment = dict(message_id = new_mail['id'])
-        filename = attachment['filename']
+        filename = attachment['filename'] or ''
         binary = attachment['binary']
         payload = attachment['payload']
         fname,ext = os.path.splitext(filename)
