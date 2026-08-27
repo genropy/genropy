@@ -27,6 +27,6 @@
     "prosemirror-changeset": "^2.4.1"
   },
   "devDependencies": {
-    "esbuild": "^0.23.0"
+    "esbuild": "^0.28.1"
   }
 }
