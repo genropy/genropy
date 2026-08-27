@@ -20,6 +20,7 @@ from gnr.core.gnrbag import Bag
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
 from gnr.sql.gnrsqlmodel.columns import AliasColumnWrapper
 from gnr.sql.gnrsqlmodel.helpers import bagItemFormula
+from gnr.sql.gnrsqlmodel.helpers import baseDtype
 from gnr.sql.gnrsqlmodel.helpers import toolFormula
 
 from core.common import BaseGnrAppTest
@@ -933,6 +934,47 @@ class TestHelpers(TestModelStructure):
         kw = {}
         bagItemFormula(bagcolumn='$col', itempath='a.b?myattr', dtype='T', kwargs=kw)
         assert '@myattr' in kw['var_calculated_path']
+
+    def test_bagItemFormula_integer(self):
+        kw = {}
+        result = bagItemFormula(bagcolumn='$details', itempath='x.y', dtype='I', kwargs=kw)
+        assert 'integer' in result
+
+    def test_bagItemFormula_timestamp(self):
+        kw = {}
+        result = bagItemFormula(bagcolumn='$details', itempath='x.y', dtype='DH', kwargs=kw)
+        assert 'timestamp without time zone' in result
+
+    def test_bagItemFormula_unknown_dtype_falls_back_to_text(self):
+        # issue #22: unresolved dtypes must not raise KeyError
+        kw = {}
+        result = bagItemFormula(bagcolumn='$details', itempath='x.y', dtype='money', kwargs=kw)
+        assert 'xpath' in result
+        assert 'money' not in result
+
+    def test_baseDtype_resolves_custom_type(self):
+        pkgobj = self.db.model.table('invc.product').pkg
+        assert baseDtype(pkgobj, 'money') == 'N'
+        assert baseDtype(pkgobj, 'perc') == 'N'
+        assert baseDtype(pkgobj, 'N') == 'N'
+        assert baseDtype(pkgobj, None) is None
+        assert baseDtype(None, 'money') == 'money'
+
+    def test_bagItemColumn_custom_dtype(self):
+        # issue #22: bagItemColumn with a package custom dtype must build
+        # and inherit the custom-type mixin (base dtype, size, format)
+        col = self.db.model.table('invc.product').column('detail_price')
+        assert col is not None
+        assert col.attributes['dtype'] == 'N'
+        assert col.attributes['size'] == '14,2'
+        assert 'numeric' in col.attributes['sql_formula']
+
+    def test_tableobj_bagItemFormula_custom_dtype(self):
+        tbl = self.db.model.table('invc.product')
+        kw = {}
+        result = tbl.bagItemFormula(bagcolumn='$details', itempath='specs.price',
+                                    dtype='money', kwargs=kw)
+        assert 'numeric' in result
 
     def test_toolFormula(self):
         kw = {'name_long': 'My Tool'}

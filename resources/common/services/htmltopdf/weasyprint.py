@@ -9,14 +9,14 @@ from gnr.lib.services.htmltopdf import HtmlToPdfService
 class Service(HtmlToPdfService):
     def writePdf(self,srcPath, destPath,pageSize=None,pageMargin=None,stylesheets=None, **kwargs):
 
-        srcPath = self.parent.storageNode(srcPath, parent=self.parent)        
-        page_css = None
+        srcPath = self.parent.storageNode(srcPath, parent=self.parent)
         stylesheets = stylesheets or []
-        if pageSize:
-            pageMargin = pageMargin or 0
+        if pageSize or pageMargin is not None:
+            margin_priority = ' !important' if pageMargin is not None else ''
+            pageMargin = pageMargin if pageMargin is not None else 0
             page_css_input=f"""@page {{
-                size: {pageSize}; /* Change from the default size of A4 */
-                margin: {pageMargin}; /* Set margin on each page */
+                size: {pageSize or 'A4'}; /* Change from the default size of A4 */
+                margin: {pageMargin}{margin_priority}; /* Set margin on each page */
             }}"""
             stylesheets.append(page_css_input)
         stylesheets = [CSS(string=css) for css in stylesheets]

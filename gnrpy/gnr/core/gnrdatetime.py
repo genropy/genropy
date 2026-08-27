@@ -2,6 +2,8 @@
 
 import datetime as _dt
 
+from tzlocal import get_localzone
+
 
 class TZDateTime(_dt.datetime):
     """
@@ -80,6 +82,17 @@ def utcnow():
     return TZDateTime.utcnow()
 
 
+def localnow():
+    """
+    Module-level helper: aware now in the local timezone, standard datetime.
+    Same instant as now()/utcnow(), but with the offset of the local zone, so
+    that the wall clock fields (.year/.month/.day/.hour/.minute) are the ones
+    a human reads on the wall. Use it only where wall clock fields are
+    compared against values entered by a user; storage stays UTC.
+    """
+    return TZDateTime.now(get_localzone())
+
+
 __all__ = [
     # Classes / constants
     "TZDateTime",
@@ -87,5 +100,5 @@ __all__ = [
     "datetime", "date", "time", "timedelta", "timezone", "tzinfo",
     "MINYEAR", "MAXYEAR",
     # helpers
-    "now", "utcnow",
+    "now", "utcnow", "localnow",
 ]

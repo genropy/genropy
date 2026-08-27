@@ -25,9 +25,88 @@
 
 //######################## genro  #########################
 
+dojo.declare("gnr.GnrTriggerIndex", null, {
+    // Routes datastore change events to the source nodes that subscribed a
+    // dynamic attribute (^path). Subscriptions resolving to a stable absolute
+    // datapath are indexed in a trie keyed by the path segments, so an event
+    // only reaches the nodes registered on the event path, on one of its
+    // ancestors or inside its subtree. Subscriptions whose path can change
+    // over time (pointer or symbolic datapaths) stay in the floating set and
+    // are checked on every event, as every subscription was before.
+    constructor: function() {
+        this.root = this._newTrieNode(null, null);
+        this.floating = new Set();
+    },
+    _newTrieNode: function(parent, key) {
+        return {parent: parent, key: key, children: Object.create(null), subs: null};
+    },
+    add: function(sub, path) {
+        sub._gnrTriggerIndex = true;
+        if (!path) {
+            this.floating.add(sub);
+            return sub;
+        }
+        let trienode = this.root;
+        for (let key of path.split('?')[0].split('.')) {
+            trienode = trienode.children[key] ||
+                       (trienode.children[key] = this._newTrieNode(trienode, key));
+        }
+        (trienode.subs = trienode.subs || []).push(sub);
+        sub._trienode = trienode;
+        return sub;
+    },
+    remove: function(sub) {
+        sub._removed = true;
+        let trienode = sub._trienode;
+        if (!trienode) {
+            this.floating.delete(sub);
+            return;
+        }
+        sub._trienode = null;
+        let i = trienode.subs.indexOf(sub);
+        if (i >= 0) {
+            trienode.subs.splice(i, 1);
+        }
+        while (trienode.parent && !(trienode.subs && trienode.subs.length) &&
+               !objectNotEmpty(trienode.children)) {
+            delete trienode.parent.children[trienode.key];
+            trienode = trienode.parent;
+        }
+    },
+    publish: function(kw) {
+        //snapshot first: a notified node can rebuild and change subscriptions
+        let targets = [...this.floating];
+        let trienode = this.root;
+        let pathlist = kw.pathlist; //first segment is the datastore root 'main'
+        for (let i = 1; i < pathlist.length && trienode; i++) {
+            if (trienode.subs) {
+                targets.push(...trienode.subs);
+            }
+            trienode = trienode.children[pathlist[i]];
+        }
+        if (trienode) {
+            this._collect(trienode, targets);
+        }
+        for (let sub of targets) {
+            if (!sub._removed) {
+                sub.node.trigger_data(sub.attr, kw);
+            }
+        }
+    },
+    _collect: function(trienode, targets) {
+        if (trienode.subs) {
+            targets.push(...trienode.subs);
+        }
+        for (let key in trienode.children) {
+            this._collect(trienode.children[key], targets);
+        }
+    }
+});
+
 dojo.declare("gnr.GnrSrcHandler", null, {
 
     constructor: function(application) {
+        this.triggerIndex = new gnr.GnrTriggerIndex();
         this.application = application;
         //this.builder = new gnr.GnrDomBuilder(this);
         this._main = new gnr.GnrDomSource();
@@ -144,6 +223,7 @@ dojo.declare("gnr.GnrSrcHandler", null, {
             console.log('missing destination in rebuild');
         }
         this._onDeletingContent(kw.oldvalue);
+        this.cleanupContentSubscriptions(kw.oldvalue);
         var domNode = kw.node.getDomNode();//get the domnode
         var newNode = document.createElement('div');
         var widget = kw.node.widget;
@@ -194,7 +274,6 @@ dojo.declare("gnr.GnrSrcHandler", null, {
                 dojo._destroyElement(domNode.childNodes[0]);
             }
         }
-        this.refreshSourceIndexAndSubscribers();
         if(!kw.node._value){
             return;
         }
@@ -204,6 +283,14 @@ dojo.declare("gnr.GnrSrcHandler", null, {
         }
         if (selectedIndex) {
             destination.setSelected(selectedIndex);
+        }
+    },
+
+    unsubscribeHandle:function(handle){
+        if (handle && handle._gnrTriggerIndex) {
+            this.triggerIndex.remove(handle);
+        } else {
+            dojo.unsubscribe(handle);
         }
     },
 
@@ -255,7 +342,34 @@ dojo.declare("gnr.GnrSrcHandler", null, {
                 deletingNode.externalWidget.destroy();
             }
         }
-        this.refreshSourceIndexAndSubscribers();
+        this.cleanupNodeSubscriptions(deletingNode);
+    },
+
+    cleanupNodeSubscriptions:function(node){
+        this._cleanupNodeSubscriptions(node);
+        this.cleanupContentSubscriptions(node._value);
+    },
+
+    cleanupContentSubscriptions:function(content){
+        if (content instanceof gnr.GnrBag) {
+            var that = this;
+            content.walk(function(n){
+                that._cleanupNodeSubscriptions(n);
+            },'static');
+        }
+    },
+
+    _cleanupNodeSubscriptions:function(node){
+        var subscriptions = objectPop(this._subscribedNodes, node.getStringId());
+        if (subscriptions) {
+            for (var reason in subscriptions) {
+                dojo.forEach(subscriptions[reason], dojo.hitch(this, 'unsubscribeHandle'));
+            }
+        }
+        var nodeId = node.attr.nodeId;
+        if (nodeId && this._index[nodeId] === node) {
+            delete this._index[nodeId];
+        }
     },
 
     deleteChildrenExternalWidget:function(deletingNode){
@@ -430,11 +544,12 @@ dojo.declare("gnr.GnrSrcHandler", null, {
             }
         });
         this._main.walk(refresher, 'static');
+        var that = this;
         for (var subscriber in oldSubscribedNodes) {
             if (oldSubscribedNodes[subscriber]) {
                 for (var attr in oldSubscribedNodes[subscriber]) {
                     dojo.forEach(oldSubscribedNodes[subscriber][attr],function(n){
-                        dojo.unsubscribe(n);
+                        that.unsubscribeHandle(n);
                     });
                 }
 

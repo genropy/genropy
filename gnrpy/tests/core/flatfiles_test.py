@@ -25,12 +25,6 @@ from gnr.core.flatfiles import (
 )
 from gnr.core.gnrlist import GnrNamedList
 
-try:
-    import clevercsv  # noqa: F401
-    HAS_CLEVERCSV = True
-except ImportError:
-    HAS_CLEVERCSV = False
-
 TEST_DIR = os.path.dirname(__file__)
 DATA_DIR = os.path.join(TEST_DIR, 'data')
 
@@ -142,6 +136,41 @@ def test_CsvReader_detect_encoding_filelike_is_noop():
     r = CsvReader(f, detect_encoding=True)
     rows = list(r())
     assert len(rows) == 1
+
+
+def test_CsvReader_encoding_detection():
+    """Test CsvReader with detect_encoding=True on files with various encodings.
+
+    Verifies that:
+    1. Header is correctly read (slugified to 'id,nome,citta,descrizione' or similar)
+    2. Last row, 4th field (descrizione) contains encoding-specific characters
+    """
+    # Map filename to expected last row description field
+    # Each file has different content in the last row's 'descrizione' field
+    test_cases = [
+        ('test_Enc_ASCII.csv', ['id', 'nome', 'citta', 'descrizione'], 'Descrizione semplice e pulita'),
+        ('test_Enc_UTF8.csv', ['id', 'nome', 'città', 'descrizione'], 'Текст на русском языке'),
+        ('test_Enc_ISO8859_1.csv', ['id', 'nome', 'città', 'descrizione'], 'Größe und Qualität'),
+        ('test_Enc_Windows1252.csv', ['id', 'nome', 'città', 'descrizione'], 'Größe™ und Qualität'),
+        ('test_Enc_Windows1251.csv', ['id', 'name', 'city', 'description'], 'Белорусская столица'),
+        ('test_Enc_Windows1253.csv', ['id', 'name', 'city', 'description'], 'Νησί της Κρήτης €'),
+        ('test_Enc_KOI8R.csv', ['id', 'name', 'city', 'description'], 'Дальний Восток России'),
+        ('test_Enc_SHIFTJIS.csv', ['id', 'name', 'city', 'description'], '北海道の首都'),
+        ('test_Enc_EUCKR.csv', ['id', 'name', 'city', 'description'], '영남지방 중심도시'),
+        ('test_Enc_GB2312.csv', ['id', 'nome', 'città', 'descrizione'], '经济特区城市'),
+    ]
+
+    for filename, expected_header, expected_last_descrizione in test_cases:
+        test_file = os.path.join(DATA_DIR, filename)
+
+        reader = CsvReader(test_file, detect_encoding=True)
+
+        assert reader.headers == expected_header
+
+        rows = list(reader())
+        last_row = rows[-1]
+
+        assert last_row[3] == expected_last_descrizione
 
 
 # ===========================================================================
@@ -378,7 +407,6 @@ def test_legacy_functions_importable_from_flatfiles():
 # getCsvDialect / getReader csv_auto — clevercsv-backed dialect detection
 # ===========================================================================
 
-@pytest.mark.skipif(not HAS_CLEVERCSV, reason="clevercsv not available")
 def test_getCsvDialect():
     """Test getCsvDialect: detects correct delimiter, quotechar and escapechar for various CSV formats"""
     test_cases = [
@@ -400,7 +428,6 @@ def test_getCsvDialect():
         assert not dialect.escapechar
 
 
-@pytest.mark.skipif(not HAS_CLEVERCSV, reason="clevercsv not available")
 def test_getCsvDialect_limited_lines():
     """Test getCsvDialect with detector_max_lines=1 does not detect quotechar
 
@@ -425,7 +452,6 @@ def test_getCsvDialect_limited_lines():
         assert not dialect.quotechar
 
 
-@pytest.mark.skipif(not HAS_CLEVERCSV, reason="clevercsv not available")
 def test_getReader_CsvAuto():
     """Test getReader with csv_auto filetype detects various delimiters correctly."""
     test_files = [
@@ -447,6 +473,104 @@ def test_getReader_CsvAuto():
         assert reader.headers[0] == 'Data contabile'
         assert reader.headers[10] == 'Note'
         assert len(list(reader())) == 6
+
+
+def test_CsvReader_quoted_decimals():
+    """Test CsvReader correctly reads quoted decimal values in different formats (EUR vs USA)"""
+    test_cases = [
+        ('test_CsvAuto_CommaQuotedDecimalsEUR.csv', '-50,00'),  # European format: comma as decimal separator
+        ('test_CsvAuto_CommaQuotedDecimalsUSA.csv', '-50.00'),  # US format: period as decimal separator
+    ]
+
+    expected_description = 'PAGAMENTO   CARTA DEBITO;\tINTERNAZIONALE: "5375******3179" -03/01/26-13:49 BIANCHI NEGOZIO ABBIGLIAMENTO -ITA'
+
+    for filename, expected_importo in test_cases:
+        test_file = os.path.join(DATA_DIR, filename)
+
+        # Detect dialect first, then create CsvReader
+        dialect = getCsvDialect(test_file, encoding='utf-8')
+        reader = CsvReader(test_file, dialect=dialect, encoding='utf-8')
+
+        assert reader.ncols == 11
+        assert reader.headers[0] == 'Data contabile'
+        assert reader.headers[10] == 'Note'
+
+        rows = list(reader())
+        assert len(rows) == 6
+
+        last_row = rows[5]
+        assert last_row[2] == expected_importo
+        assert last_row[9] == expected_description
+
+
+def test_CsvReader_start_at_line():
+    """Test CsvReader start_at_line parameter skips header lines correctly.
+
+    Uses test_CsvAuto_Colon_skipLines.csv which has 12 lines of metadata before the actual CSV data.
+    With start_at_line=12, results should be identical to test_CsvAuto_Colon.csv without the parameter.
+    """
+    # Reference file (no skip)
+    reference_file = os.path.join(DATA_DIR, 'test_CsvAuto_Colon.csv')
+    dialect = getCsvDialect(reference_file, encoding='utf-8')
+    reference_reader = CsvReader(reference_file,
+                                 dialect=dialect, encoding='utf-8')
+    reference_rows = list(reference_reader())
+
+    # File with metadata to skip
+    START_LINE = 12
+    skip_file = os.path.join(DATA_DIR, 'test_CsvAuto_Colon_skipLines.csv')
+    dialect = getCsvDialect(skip_file, encoding='utf-8',
+                            start_at_line=START_LINE)
+    skip_reader = CsvReader(skip_file,
+                            dialect=dialect, encoding='utf-8',
+                            start_at_line=START_LINE)
+    skip_rows = list(skip_reader())
+
+    assert reference_reader.headers == skip_reader.headers
+    assert len(reference_rows) == len(skip_rows)
+
+    for ref_row, skip_row in zip(reference_rows, skip_rows):
+        for j in range(len(ref_row)):
+            assert ref_row[j] == skip_row[j]
+
+
+def test_CsvReader_auto_dialect():
+    """Test CsvReader with automatic dialect detection via getCsvDialect.
+
+    Verifies that CsvReader correctly reads CSV files with various delimiters
+    (comma, semicolon, tab, pipe, colon) when dialect is detected via getCsvDialect.
+    """
+    # Test files with different delimiters and decimal formats
+    test_files = [
+        ('test_CsvAuto_Colon.csv', '-50,00'),
+        ('test_CsvAuto_Comma.csv', '-50.00'),
+        ('test_CsvAuto_CommaQuotedDecimalsEUR.csv', '-50,00'),
+        ('test_CsvAuto_CommaQuotedDecimalsUSA.csv', '-50.00'),
+        ('test_CsvAuto_Pipe.csv', '-50,00'),
+        ('test_CsvAuto_SemiColon.csv', '-50,00'),
+        ('test_CsvAuto_Tab.csv', '-50,00'),
+    ]
+
+    expected_description = 'PAGAMENTO   CARTA DEBITO;\tINTERNAZIONALE: "5375******3179" -03/01/26-13:49 BIANCHI NEGOZIO ABBIGLIAMENTO -ITA'
+
+    for filename, expected_importo in test_files:
+        test_file = os.path.join(DATA_DIR, filename)
+
+        # Detect dialect first, then create CsvReader
+        dialect = getCsvDialect(test_file, encoding='utf-8')
+        reader = CsvReader(test_file, dialect=dialect, encoding='utf-8')
+
+        assert reader.ncols == 11
+        assert reader.headers[0] == 'Data contabile'
+        assert reader.headers[10] == 'Note'
+
+        rows = list(reader())
+        assert len(rows) == 6
+
+        last_row = rows[5]
+        assert last_row[2] == expected_importo
+        assert last_row[9] == expected_description
+
 
 ### ported from gnrlist_test
 def test_getReader():

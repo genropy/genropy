@@ -13,8 +13,9 @@ from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import public_method,extract_kwargs,metadata
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrstring import slugify
+from gnr.core.gnrstring import slugify, splitAndStrip
 from gnr.core.gnrdate import nextMonth
+from gnr.sql.gnrsql_exceptions import GnrSqlMissingColumn, GnrSqlMissingField
 
 
 class TableHandlerView(BaseComponent):
@@ -1146,18 +1147,28 @@ class TableHandlerView(BaseComponent):
     def _th_addRequiredColumns(self, tblobj, hiddencolumns):
         if not hiddencolumns:
             return hiddencolumns
-        columns = [c.strip() for c in hiddencolumns.split(',')]
+        columns = splitAndStrip(hiddencolumns)
         for col in list(columns):
-            colname = col.lstrip('$')
-            colobj = tblobj.model.column(colname)
+            colname = col.replace(' as ', ' AS ').split(' AS ', 1)[0].strip()
+            colname = colname.lstrip('$')
+            if not colname or colname[0] in ('(', '*'):
+                continue
+            try:
+                colobj = tblobj.model.column(colname)
+            except (GnrSqlMissingColumn, GnrSqlMissingField):
+                continue
             if colobj is None:
                 continue
             req = colobj.attributes.get('required_columns')
             if not req:
                 continue
-            for rc in req.split(','):
-                rc = rc.strip()
-                if rc and rc not in columns:
+            prefix = colname.rsplit('.', 1)[0] if colname.startswith('@') and '.' in colname else None
+            for rc in splitAndStrip(req):
+                if not rc:
+                    continue
+                if prefix:
+                    rc = '%s.%s' % (prefix, rc.lstrip('$'))
+                if rc not in columns:
                     columns.append(rc)
         return ','.join(columns)
 
