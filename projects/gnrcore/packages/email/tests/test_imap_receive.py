@@ -1,9 +1,13 @@
+import base64
 import os
 
 from gnr.core.gnrlang import gnrImport
 
 imap_module = gnrImport(os.path.join(os.path.dirname(__file__), '..', 'lib', 'imap.py'), silent=False)
 ImapReceiver = imap_module.ImapReceiver
+
+message_model = gnrImport(os.path.join(os.path.dirname(__file__), '..', 'model', 'message.py'), silent=False)
+MessageTable = message_model.Table
 
 
 class FakeMessagesTable:
@@ -108,3 +112,37 @@ def test_a_failing_message_does_not_stop_the_others():
     assert receiver.db.rollbacks == 1
     # last_uid moves past the failing message, so the mailbox is not stuck on it forever
     assert receiver.account_table.last_uid == b'3'
+
+
+def _decode(payload):
+    return MessageTable.decodeAttachmentPayload(MessageTable.__new__(MessageTable), payload)
+
+
+def _mime_lines(raw):
+    """Base64 as it travels in a MIME part: wrapped at 76 columns."""
+    b64 = base64.b64encode(raw).decode()
+    return '\n'.join([b64[i:i + 76] for i in range(0, len(b64), 76)])
+
+
+def test_wrapped_base64_decodes():
+    raw = b'%PDF-1.4 ' + b'x' * 200
+    assert _decode(_mime_lines(raw)) == raw
+
+
+def test_base64_with_lost_padding_still_decodes():
+    # a PEC arriving with the trailing '=' stripped raised binascii.Error and
+    # took the whole message down with it
+    raw = b'%PDF-1.4 contenuto'
+    assert _decode(_mime_lines(raw).rstrip('=')) == raw
+
+
+def test_payload_with_stray_characters_still_decodes():
+    # b64decode drops these on its own, so the padding must be counted without them
+    raw = b'%PDF-1.4 contenuto'
+    assert _decode(_mime_lines(raw).replace('\n', '\n\t *** \n')) == raw
+
+
+def test_undecodable_payload_returns_none():
+    # a base64 alphabet length of 4n+1 cannot be padded into anything valid:
+    # the caller stores the raw payload instead of losing the whole message
+    assert _decode('QUJDRA' + 'Q' * 3) is None
