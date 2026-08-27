@@ -1757,7 +1757,8 @@ dojo.declare("gnr.GnrBag", null, {
                     if ('doTrigger' in kwargs) {
                         _doTrigger = kwargs.doTrigger;
                     }
-                    node.setAttr(auxattr, _doTrigger, '*', changedAttrs.length>1 ? null : attr);
+                    node.setAttr(auxattr, _doTrigger, '*',
+                                 changedAttrs.length>1 ? null : (changedAttrs.length ? changedAttrs[0] : attr));
                     return node;
                 }
                 else {
