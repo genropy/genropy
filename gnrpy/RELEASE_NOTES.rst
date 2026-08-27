@@ -1,21 +1,3 @@
-Unreleased
-==========
-
-Bugfixes
---------
-
-* ``gnrdate.toDHZ`` now resolves timezones through ``zoneinfo``/``tzlocal``
-  instead of ``pytz``. The ``LOCAL`` timezone no longer raises
-  ``pytz.UnknownTimeZoneError`` on POSIX systems during summer time (the
-  local zone's DST abbreviation, e.g. ``CEST``, was not a valid ``pytz``
-  zone name), and named zones such as ``Europe/Rome`` now attach the UTC
-  offset actually in force on the given date instead of the zone's
-  arbitrary first historical offset (e.g. Rome's ``+00:50`` LMT). As a
-  side effect, an unknown zone name now raises
-  ``zoneinfo.ZoneInfoNotFoundError`` (a ``KeyError`` subclass) instead of
-  ``pytz.UnknownTimeZoneError``. (#1076)
-
-
 Release 26.08.26
 ================
 
