@@ -794,7 +794,9 @@ dojo.declare("gnr.widgets.FramePane", gnr.widgets.gnrwdg, {
             kw.frameCode = frameCode = frameCode.replace('#',sourceNode.getStringId()); 
         }
         var frameId = frameCode+'_frame';
-        genro.assert(!genro.nodeById(frameId),'existing frame');
+        //frames always register their nodeId on creation: the plain index
+        //lookup avoids the full source-tree scan of a genro.nodeById miss
+        genro.assert(!genro.src._index[frameId],'existing frame');
         sourceNode.attr.nodeId = frameId;
         sourceNode._registerNodeId();
         objectPop(kw,'datapath');
