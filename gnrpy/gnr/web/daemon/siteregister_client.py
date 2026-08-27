@@ -393,8 +393,10 @@ class ServerStore(object):
 
     @property
     def data(self):
-        if self.register_item:
-            return self.register_item['data']
+        # register_item is a remote call: evaluate it once
+        register_item = self.register_item
+        if register_item:
+            return register_item['data']
 
     @property
     def datachanges(self):

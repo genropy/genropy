@@ -85,6 +85,11 @@ dojo.declare("gnr.widgets.baseHtml", null, {
         this._doChangeInData(domnode, domnode.sourceNode, domnode.value);
     },
     setValueInData:function(sourceNode,value,valueAttr){
+       if (sourceNode.isLostNode()){
+           //late change from a widget whose sourceNode was torn down by a
+           //remote content rebuild: it must not write into the datastore
+           return;
+       }
        if (sourceNode.attr_kw){
            var attr_kw = sourceNode.evaluateOnNode(sourceNode.attr_kw);
            for (var k in attr_kw){
@@ -1417,6 +1422,12 @@ dojo.declare("gnr.widgets.baseDojo", gnr.widgets.baseHtml, {
          }*/
         if (sourceNode._modifying) { // avoid recursive _doChangeInData when calling widget.setValue in validations
 
+            return;
+        }
+        if (sourceNode.isLostNode()) {
+            //late change from a widget whose sourceNode was torn down by a
+            //remote content rebuild: its relative path cannot resolve and
+            //getNode with autocreate would pollute the datastore
             return;
         }
         var path = sourceNode.attrDatapath('value');
