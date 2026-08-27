@@ -3,7 +3,7 @@
 ## Supported Versions
 
 The Genropy team currently provides security fixes for the following
-develpment branches. Released packages tag are based on the 'master'
+development branches. Released packages tags are based on the 'master'
 branch, and they're usually supported up to 6 months. Released versions are
 using the format 'YY.MM.DD.xxx', for easier identification of the
 release date.
@@ -25,7 +25,7 @@ privately using one of the following channels:
   vulnerability" button under the repository's **Security** tab
   (preferred — keeps the report and any discussion attached to the
   repo).
-- **Email**: security@softwell.it 
+- **Email**: security@softwell.it
 
 When reporting, please include as much of the following as possible:
 
