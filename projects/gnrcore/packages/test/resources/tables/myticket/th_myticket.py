@@ -45,3 +45,27 @@ class Form(BaseComponent):
         return dict(dialog_windowRatio=.9,
             form_add=self.gr_groupletAddrowMenu(table='test.myticket', field='ticket_type')
         )
+
+
+class ViewWizard(View):
+    """Plain view for the wizard demo: no typed addrow menu."""
+
+    def th_options(self):
+        return dict()
+
+
+class FormWizard(BaseComponent):
+    """No-summary wizard on the `wizard_grouplets` root: a saved ticket
+    reopened (or reloaded by its own save) must keep the current step."""
+    py_requires = 'gnrcomponents/grouplet/grouplet:GroupletHandler'
+
+    def th_form(self, form):
+        form.center.contentPane().groupletWizard(
+            table='test.myticket',
+            value='^.record',
+            frameCode='ticket_wizard',
+            grouplets_root='wizard_grouplets',
+            completeLabel='Complete Ticket')
+
+    def th_options(self):
+        return dict(dialog_height='420px', dialog_width='700px')
