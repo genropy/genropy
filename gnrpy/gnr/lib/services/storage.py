@@ -366,6 +366,10 @@ class StorageNode(object):
         """Returns the external url of this file"""
         return self.service.url(self.path, **kwargs)
 
+    def public_url(self, **kwargs):
+        """Returns a stable public url of this file (no signature, no expiration)"""
+        return self.service.public_url(self.path, **kwargs)
+
     def internal_url(self, **kwargs):
         return self.service.internal_url(self.path, **kwargs)
 
@@ -543,6 +547,14 @@ class StorageService(GnrBaseService):
     def url(self,*args, **kwargs):
         """Returns the external url of path"""
         pass
+
+    def public_url(self, *args, **kwargs):
+        """Returns a stable public url of path: no signature, no expiration.
+
+        Services whose urls are already plain and permanent fall back to url();
+        services that sign their urls (e.g. aws_s3) override this method
+        to return an unsigned url suitable for long-lived content."""
+        return self.url(*args, **kwargs)
 
     def symbolic_url(self,*args, **kwargs):
         pass

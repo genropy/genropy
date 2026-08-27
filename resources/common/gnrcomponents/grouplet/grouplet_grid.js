@@ -28,7 +28,10 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
         rows.getNodes().forEach(function(node) {
             const attr = node.attr || {};
             if (attr.hidden) return;
-            const field = attr.caption_field || attr.field;
+            //fieldcell on a foreign key emits caption_field as a relation
+            //path ('@fk.<rowcaption>'): meaningful in a SQL selection,
+            //unresolvable on a Bag store — always bind the real column
+            const field = attr.field || attr.caption_field;
             if (!field) return;
             // Empty name='' means "no label"; only undefined falls back
             // to the field name.
