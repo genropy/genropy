@@ -478,22 +478,84 @@ class Route53Manager(BaseAwsService):
             HostedZoneId=hosted_zone_id)['ResourceRecordSets']
         return dict([(r['Name'].lower(), record_to_dict(r)) for r in resource_records])
 
-    def update_record(self, hosted_zone_id=None, name=None, 
-        type=None, target=None, ttl=360):
+    def update_record(self, hosted_zone_id=None, name=None,
+        type=None, target=None, ttl=300):
         r53 = self.client
-        parameters = {'Comment': 'add %s -> %s' % (name, target),
-                    'Changes': [
-                            {
-                             'Action': 'UPSTERT',
-                             'ResourceRecordSet': {
-                                 'Name': name,
-                                 'Type': type,
-                                 'TTL': ttl,
-                                 'ResourceRecords': [{'Value': target}]
-                            }
-                        }]
-        }
-        r53.client.change_resource_record_sets(**parameters)
+        r53.change_resource_record_sets(
+            HostedZoneId=hosted_zone_id,
+            ChangeBatch={
+                'Comment': 'add %s -> %s' % (name, target),
+                'Changes': [{
+                    'Action': 'UPSERT',
+                    'ResourceRecordSet': {
+                        'Name': name,
+                        'Type': type,
+                        'TTL': ttl,
+                        'ResourceRecords': [{'Value': target}]
+                    }
+                }]
+            }
+        )
+
+    def find_managed_zone(self, name):
+        name = name.lower().rstrip('.')
+        hosted_zones = self.get_hosted_zones()
+        parts = name.split('.')
+        for i in range(len(parts) - 1):
+            candidate = '.'.join(parts[i:])
+            if candidate in hosted_zones:
+                return candidate, hosted_zones[candidate]
+        return None, None
+
+    def record_exists(self, name, hosted_zone_id=None):
+        name = name.lower().rstrip('.')
+        if not hosted_zone_id:
+            _, hosted_zone_id = self.find_managed_zone(name)
+            if not hosted_zone_id:
+                return None
+        records = self.get_resource_records(hosted_zone_id=hosted_zone_id)
+        return records.get(name + '.')
+
+    def verify_record(self, name, record_type, value, hosted_zone_id=None):
+        record = self.record_exists(name, hosted_zone_id=hosted_zone_id)
+        if not record:
+            return False
+        if record['type'].upper() != record_type.upper():
+            return False
+        return value in record['resource_records']
+
+    def ensure_cname_record(self, name, value, ttl=300, dryrun=False):
+        """Ensure a CNAME record exists in a managed Route53 zone.
+
+        Four possible outcomes:
+        - Name has no matching managed zone: raises ValueError.
+        - Record exists with the expected value: returns False (no-op).
+        - Record exists with a different value: raises ValueError.
+        - Record absent, dryrun=True: returns True without writing.
+        - Record absent, dryrun=False: creates the CNAME and returns True.
+
+        Call with dryrun=True to validate during setup, then call again
+        (dryrun=False, the default) after commit to perform the write.
+        """
+        name = name.lower().rstrip('.')
+        zone_name, hosted_zone_id = self.find_managed_zone(name)
+        if not hosted_zone_id:
+            raise ValueError('No managed Route53 zone found for %s' % name)
+        record = self.record_exists(name, hosted_zone_id=hosted_zone_id)
+        if record:
+            if value not in record['resource_records']:
+                raise ValueError('Record %s already exists with a different value: %s' % (name, record['resource_records']))
+            return False
+        if dryrun:
+            return True
+        self.update_record(
+            hosted_zone_id=hosted_zone_id,
+            name=name + '.',
+            type='CNAME',
+            target=value,
+            ttl=ttl
+        )
+        return True
 
 class CostExplorerManager(BaseAwsService):
     service_label='ce'
