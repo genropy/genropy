@@ -62,6 +62,13 @@ class GnrRestrictedAccessException(GnrException):
     description = '!!User not allowed'
 
 
+class GnrUndeclaredPackageException(GnrException):
+    """Raised when a package required through ``Package.required_packages()`` is
+    not declared in the packages section of ``instanceconfig.xml``."""
+    code = 'GNRAPP-002'
+    description = '!!Required package not declared in instanceconfig'
+
+
 class NullLoader(object):
     """TODO"""
 
@@ -872,6 +879,7 @@ class GnrApp(object):
         self.kwargs = kwargs
         self.packages = Bag()
         self.packagesIdByPath = {}
+        self._declared_packages = None
         self.config = self.load_instance_config()
         self.config_locale = self.config('default?server_locale')
         if self.config_locale :
@@ -1049,6 +1057,15 @@ class GnrApp(object):
         self.localizer = AppLocalizer(self)
         self.onInited()
 
+    @property
+    def declared_packages(self):
+        """The package ids declared in the packages section of ``instanceconfig.xml``,
+        without their project prefix."""
+        if self._declared_packages is None:
+            self._declared_packages = set(k.split(':')[-1]
+                                          for k in self.config['packages'].digest('#k'))
+        return self._declared_packages
+
     def addPackage(self,pkgid,pkgattrs=None,pkgcontent=None):
         if ':' in pkgid:
             project,pkgid=pkgid.split(':')
@@ -1062,56 +1079,27 @@ class GnrApp(object):
         apppkg.content = pkgcontent or Bag()
         readOnlyAttrs = {'readOnly':True} if attrs.get('readOnly') else dict()
         for reqpkgid in apppkg.required_packages():
+            if reqpkgid.split(':')[-1] not in self.declared_packages:
+                raise GnrUndeclaredPackageException(
+                    f"Package '{pkgid}' requires '{reqpkgid}', which is not declared "
+                    f"in the packages section of instanceconfig.xml. Declare it there: "
+                    f"its python dependencies are not checked otherwise.")
             self.addPackage(reqpkgid,pkgattrs=dict(readOnlyAttrs))
         self.packagesIdByPath[os.path.realpath(apppkg.packageFolder)] = pkgid
         self.packages[pkgid] = apppkg
 
-    def package_required_packages(self, packageFolder, package):
-        """Return the packages declared by ``Package.required_packages()`` in the
-        ``main.py`` of a package, without building a :class:`GnrPackage`.
-
-        This runs before package loading, so it must not mutate ``sys.path``, load
-        plugins or touch the application config: it only mixes in the ``Package``
-        class the way :class:`GnrPackage` does. A ``main.py`` that cannot be
-        imported (e.g. its own dependencies are not installed yet) is reported and
-        skipped, so the dependency check can still complete.
-
-        :param packageFolder: the folder containing the :ref:`package <packages>` folder
-        :param package: the id of the :ref:`package <packages>`"""
-        main_path = os.path.join(packageFolder, package, 'main.py')
-        if not os.path.isfile(main_path):
-            return []
-        try:
-            main_module = gnrImport(main_path, avoidDup=True)
-            pkgMixin = GnrMixinObj()
-            instanceMixin(pkgMixin, getattr(main_module, 'Package', None))
-            return getattr(pkgMixin, 'required_packages', lambda: [])() or []
-        except Exception as e:
-            logger.warning("Cannot resolve required packages of %s: %s", package, e)
-            return []
-
     def check_package_dependencies(self):
         logger.debug("Checking python dependencies")
         instance_deps = defaultdict(list)
-        # find all packages deps, expanding the required_packages() closure:
-        # packages pulled in implicitly bring their own requirements.txt too
-        pending = list(self.config['packages'].digest('#k,#a'))
-        checked = set()
-        while pending:
-            package, pkgattrs = pending.pop(0)
+        # find all packages deps
+        for package,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
             if ":" in package:
                 project, package = package.split(":")
             else:
                 project = None
-            if package in checked:
-                continue
-            checked.add(package)
-
+                
             packageFolder = self.pkg_path_from_attrs(package, pkgattrs, project=project)
             filename = (pkgattrs or {}).get('filename') or package
-            # implicitly required packages carry no instanceconfig attributes
-            pending.extend([(reqpkgid, None)
-                            for reqpkgid in self.package_required_packages(packageFolder, filename)])
             requirements_file = os.path.join(packageFolder, filename, "requirements.txt")
             if os.path.isfile(requirements_file):
                 with open(requirements_file) as fp:

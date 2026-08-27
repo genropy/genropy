@@ -1,3 +1,20 @@
+Unreleased
+==========
+
+Bug fixes
+---------
+
+* An instance must now declare in ``instanceconfig.xml`` every package it
+  loads, including the ones reached through ``Package.required_packages()``.
+  A package required by another one but missing from the packages section
+  raises ``GnrUndeclaredPackageException`` at boot instead of being loaded
+  silently. **Upgrade note:** an instance whose ``instanceconfig.xml`` is
+  incomplete will not start until the missing packages are added — the error
+  names the required package and the one that requires it. This is what makes
+  ``gnr app checkdep`` trustworthy: it reads the packages section alone, so
+  the requirements of an undeclared package were never checked. (#1006)
+
+
 Release 26.08.26
 ================
 
