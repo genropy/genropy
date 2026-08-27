@@ -147,4 +147,13 @@ def test_stringWidth_courier_monospaced():
 
 def test_stringWidth_unknown_font_falls_back_to_helvetica():
     assert gnrstring.stringWidth('A', 'UnknownFont', 10) == gnrstring.stringWidth('A', 'Helvetica', 10)
+
+
+def test_flatten():
+    # symbol-only text collapses to a single '_': not a real key
+    assert gnrstring.flatten('>=') == '_'
+    assert gnrstring.flatten('') == ''
+    assert gnrstring.flatten('Condition op') == 'condition_op'
+    # digits are word characters and survive the collapse
+    assert gnrstring.flatten('100%') == '100_'
         

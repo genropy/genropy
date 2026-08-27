@@ -680,6 +680,12 @@ class GnrWsgiSite(object):
         if domain_proxy and domain_proxy._register is not None:
             return self.register.filter_subscribed_tables(tables,register_name='page')
 
+    def allSubscribedTables(self):
+        """Every table observed by at least one live page, from the register index."""
+        domain_proxy = self.domains[self.currentDomain]
+        if domain_proxy and domain_proxy._register is not None:
+            return self.register.subscribed_tables(register_name='page')
+
     @property
     def connectionLogEnabled(self):
         if not hasattr(self,'_connectionLogEnabled'):
@@ -1161,7 +1167,13 @@ class GnrWsgiSite(object):
             return exc(environ, start_response)
         finally:
             self.cleanup()
-            self.currentDomain = self.rootDomain
+            # Do not re-set currentDomain here: cleanup() already reset it
+            # to None, which pops this thread's entry from the underlying
+            # ThreadedDict. Assigning rootDomain again would re-add a
+            # {tid: '_main_'} entry that is never removed, i.e. the same
+            # unbounded thread-local growth fixed for currentRequest/
+            # currentPage in #379. The currentDomain getter already falls
+            # back to rootDomain when unset, so no re-assignment is needed.
 
     def raiseIfDeveloper(self, exception=None):
         page = self.currentPage
@@ -1426,6 +1438,7 @@ class GnrWsgiSite(object):
     def onClosedPage(self, page_id=None, **kwargs):
         "Drops page when closing"
         self.register.drop_page(page_id)
+        self.resource_loader.drop_page_class_cache(page_id)
 
     def cleanup(self):
         """clean up"""
