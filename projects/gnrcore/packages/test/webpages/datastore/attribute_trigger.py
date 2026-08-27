@@ -80,7 +80,7 @@ class GnrCustomWebPage(object):
         class even when 'tag' travels with it, and the last button deletes 'tag' while writing
         'style': a removed attribute is a change of its own path"""
         box = pane.div(datapath='.t2')
-        box.data('.target', 'A', style='testclass_a')
+        box.data('.target', 'A', tag='first', style='testclass_a')
         box.data('.attr_triggers', 0)
         fb = box.formbuilder(cols=2, border_spacing='3px')
         fb.div('^.attr_triggers', lbl='tag attribute triggers')

@@ -1399,9 +1399,9 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             } else if (trigger_reason == 'node') {
                 var boundattr = (this.attr._class || '').split('?')[1];
                 if (boundattr && boundattr[0] != '=') {
-                    oldvalue = kw.oldattr[boundattr];
+                    oldvalue = (kw.oldattr || {})[boundattr];
                 } else if (kw.changedAttr) {
-                    oldvalue = kw.oldattr[kw.changedAttr];
+                    oldvalue = (kw.oldattr || {})[kw.changedAttr];
                 }
             }
 
