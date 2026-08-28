@@ -142,6 +142,73 @@ class GnrCustomWebPage(object):
         bar.mymenu.textbox('^.caption',width='15em').comboMenu(storepath='.menudata', selected_caption='.caption',_class='smallmenu')
         pane.data('.menudata', self.menudata())
 
+    def test_12_menudiv_token_static(self, pane):
+        "Static values resolve the caption from the stored code"
+        pane.data('.choice', 'r')
+        row = pane.div(display='flex', align_items='center', gap='6px')
+        row.div('Status:')
+        row.menudiv(value='^.choice',
+                    values='r:Ready,w:Waiting,d:Done',
+                    placeholder='Choose',
+                    btn_id='menudiv_static_token')
+
+        fb = pane.formbuilder(cols=2, border_spacing='6px', margin_top='12px')
+        fb.div('^.choice', lbl='Stored code')
+        fb.div("^.choice?label?=#v||'not set'", lbl='Label attribute')
+        pane.button('Set Waiting externally', action="SET .choice='w';")
+        pane.button('Clear externally', action='SET .choice=null;')
+
+    def test_13_menudiv_token_dynamic(self, pane):
+        "Dynamic values and storepath menus retain the caption-path contract"
+        pane.data('.dynamic_values', 'a:Alpha,b:Beta,g:Gamma')
+        pane.data('.dynamic_choice', 'a')
+        pane.data('.dynamic_caption', 'Alpha')
+        pane.data('.store_choice', 'CA')
+        pane.data('.store_caption', 'California')
+        pane.data('.menudata', self.menudata())
+
+        fb = pane.formbuilder(cols=2, border_spacing='8px')
+        fb.menudiv(value='^.dynamic_choice',
+                   values='=.dynamic_values',
+                   caption_path='.dynamic_caption',
+                   btn_id='menudiv_dynamic_token',
+                   lbl='Bound values')
+        fb.div('^.dynamic_choice')
+        fb.menudiv(value='^.store_choice',
+                   storepath='.menudata',
+                   key='code', caption='caption',
+                   caption_path='.store_caption',
+                   btn_id='menudiv_store_token',
+                   lbl='Storepath')
+        fb.div('^.store_choice')
+
+    def test_14_menudiv_token_states(self, pane):
+        "Token variants preserve opt-out, dark-surface and disabled states"
+        pane.data('.choice', 'r')
+        pane.data('.disabled', False)
+        values = 'r:Ready,w:Waiting,d:Done'
+
+        pane.div('Default token', font_weight='bold', margin_bottom='4px')
+        pane.menudiv(value='^.choice', values=values,
+                     btn_id='menudiv_default_token')
+
+        dark = pane.div(background='#2A2A2E', padding='8px', margin_top='10px')
+        dark.menudiv(value='^.choice', values=values, colorWhite=True,
+                     btn_id='menudiv_white_token')
+
+        pane.div('Explicit legacy-button opt-out', font_weight='bold',
+                 margin_top='10px', margin_bottom='4px')
+        pane.menudiv(value='^.choice', values=values,
+                     btn__class='menuButtonDiv buttonDiv',
+                     btn_id='menudiv_legacy_button')
+
+        pane.div('Disabled token', font_weight='bold',
+                 margin_top='10px', margin_bottom='4px')
+        pane.menudiv(value='^.choice', values=values,
+                     disabled='^.disabled',
+                     btn_id='menudiv_disabled_token')
+        pane.checkbox(value='^.disabled', label='Disable token')
+
 
     @public_method
     def menulineRpc(self,surname=None,title=None,**kwargs):
