@@ -509,7 +509,7 @@ class GnrWsgiSite(object):
         # and it initialze the register itself.
         self.register
         
-        self.datacollector = DataCollector(self.register.siteregister)
+        self.datacollector = DataCollector(self.register)
         
         self.onInited()
 
