@@ -626,8 +626,10 @@ class TableScriptToHtml(BagToHtmlWeb):
         sel = query.selection(_aggregateRows=True)
         selection_pkeys = self.record['selectionPkeys']
         if not parameters.get('order_by') and selection_pkeys:
-            selection_position = {pkey: idx for idx, pkey in enumerate(selection_pkeys)}
-            unselected = len(selection_position)
+            selection_position = {}
+            for idx, pkey in enumerate(selection_pkeys):
+                selection_position.setdefault(pkey, idx)
+            unselected = len(selection_pkeys)
             sel.data.sort(key=lambda r: selection_position.get(r['pkey'], unselected))
         if self.parent and self.parent.export_mode:
             return sel.output('dictlist')
