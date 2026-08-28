@@ -218,7 +218,7 @@ dojo.declare("gnr.widgets.MenuDiv", gnr.widgets.gnrwdg, {
             let key = objectPop(kw,'key') || 'fullpath';
             let caption = objectPop(kw,'caption') || 'caption';
             let placeholder = objectPop(kw,'placeholder') || 'Empty';
-            if(!caption_path && typeof(kw.values)=='string' && kw.values[0]!='^'){
+            if(!caption_path && typeof(kw.values)=='string' && !sourceNode.isPointerPath(kw.values)){
                 //static values: the visible caption FOLLOWS THE VALUE, resolved against
                 //the same values the menu shows -- so a value set from anywhere (form
                 //load, a controller, a default) displays right with no bookkeeping,

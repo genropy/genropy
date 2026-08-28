@@ -375,13 +375,12 @@
 ._common_d11 .menudiv_token {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
     color: var(--menutoken-color);
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
 }
-._common_d11 .menudiv_token:after {
+._common_d11 .menudiv_token .menudiv_text:after {
     content: '';
     width: .62em;
     height: .62em;
@@ -395,12 +394,15 @@
 ._common_d11 .menudiv_token:hover {
     color: var(--menutoken-hover-color);
 }
-._common_d11 .menudiv_token:hover:after {
+._common_d11 .menudiv_token:hover .menudiv_text:after {
     opacity: .9;
 }
 ._common_d11 .menudiv_token .menudiv_text {
     background: none;
     padding-right: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     font-size: inherit;
     font-weight: inherit;
     color: inherit;
@@ -422,9 +424,9 @@
     color: var(--menutoken-disabled-color);
     cursor: default;
 }
-._common_d11 .menudiv_token[disabled]:after,
-._common_d11 .dijitDisabled .menudiv_token:after,
-._common_d11 .menudiv_token.disabled:after {
+._common_d11 .menudiv_token[disabled] .menudiv_text:after,
+._common_d11 .dijitDisabled .menudiv_token .menudiv_text:after,
+._common_d11 .menudiv_token.disabled .menudiv_text:after {
     display: none;
 }
 /* @end */
