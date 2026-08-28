@@ -391,6 +391,20 @@
     --multibutton-selected-bg: var(--gray-700, #656567); /* @theme */
     --button-in-grid-bg: var(--gray-200); /* @theme */
 
+    /* --- Menudiv token (menudiv rendered as a bare inline word + chevron) --- */
+    --menutoken-color: var(--accent-color); /* @theme */
+    --menutoken-hover-color: var(--primary-color); /* @theme */
+    --menutoken-disabled-color: var(--text-muted); /* @theme */
+
+    /* --- Checkstrip (contiguous checkboxes as a minimal toggle strip) ---
+       em-based on purpose: the strip scales with the font-size of its context */
+    --checkstrip-cell-min-width: 3em;
+    --checkstrip-cell-padding: .4em .5em;
+    --checkstrip-gap: .2em;
+    --checkstrip-color: var(--text-muted); /* @theme */
+    --checkstrip-selected-bg: var(--accent-color); /* @theme */
+    --checkstrip-selected-color: var(--text-on-dark); /* @theme */
+
     /* --- Buttons: shared --- */
     --btn-border-color: var(--border-color); /* @theme */
 
