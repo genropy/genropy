@@ -4895,9 +4895,12 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
                 // Reset _lastValue so the identity fetch is not skipped.
                 var self = this;
                 this.setValue(null,false);
-                this.setValue(currvalue,false,function(){
-                    return self.sourceNode.getRelativeData(vpath) == currvalue;
-                });
+                this.store.fetchItemByIdentity({identity:currvalue,onItem:function(){
+                    if(self.sourceNode.getRelativeData(vpath) != currvalue){
+                        return;
+                    }
+                    self.setValue(currvalue,false);
+                }});
             }
         }
     },
@@ -5064,7 +5067,7 @@ dojo.declare("gnr.widgets.FilteringSelect", gnr.widgets.BaseCombo, {
         this._dojotag = 'FilteringSelect';
     },
     //this patch will fix the problem where the displayed value stuck for a new record
-    patch_setValue: function(/*String*/ value, /*Boolean?*/ priorityChange, valueGuard){
+    patch_setValue: function(/*String*/ value, /*Boolean?*/ priorityChange){
         // summary
         //  Sets the value of the select.
         //  Also sets the label to the corresponding value by reverse lookup.
@@ -5072,9 +5075,6 @@ dojo.declare("gnr.widgets.FilteringSelect", gnr.widgets.BaseCombo, {
         //#3347: fetchItemByIdentity if no keyAttr specified
         var self=this;
         var handleFetchByIdentity = function(item, priorityChange){
-            if(valueGuard && !valueGuard()){
-                return;
-            }
             if(!isNullOrBlank(item)){
                 if(self.store.isItemLoaded(item)){
                     self._callbackSetLabel([item], undefined, priorityChange);
@@ -5082,9 +5082,7 @@ dojo.declare("gnr.widgets.FilteringSelect", gnr.widgets.BaseCombo, {
                     self.store.loadItem({
                         item: item, 
                         onItem: function(result, dataObject){
-                            if(!valueGuard || valueGuard()){
-                                self._callbackSetLabel(result, dataObject, priorityChange);
-                            }
+                            self._callbackSetLabel(result, dataObject, priorityChange);
                         }
                     });
                 }
