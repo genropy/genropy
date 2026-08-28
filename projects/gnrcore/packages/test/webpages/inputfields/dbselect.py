@@ -40,6 +40,24 @@ class GnrCustomWebPage(object):
                         lbl='Sigla',width='25em', selected_nome='.nome_provincia',
                         validate_notnull=True, validate_notnull_error='Manca il valore')
         fb.textbox(value='^.nome_provincia',lbl='Nome provincia')
+
+    def test_7_condition_race(self,pane):
+        "Condition changes must not restore or invalidate a newer value"
+        pane.data('.regione','LOM')
+        pane.data('.sigla','MI')
+        pane.data('.sigla_combo','MI')
+        fb = pane.formbuilder(cols=2, border_spacing='4px')
+        fb.dbSelect(table='glbl.regione',value='^.regione',lbl='Regione',width='25em')
+        fb.dbSelect(table='glbl.provincia',value='^.sigla',condition='$regione=:regione',
+                    condition_regione='^.regione',lbl='DbSelect',width='25em',
+                    selected_nome='.nome_provincia',validate_notnull=True)
+        fb.dbComboBox(table='glbl.provincia',value='^.sigla_combo',alternatePkey='sigla',
+                      condition='$regione=:regione',condition_regione='^.regione',
+                      lbl='DbComboBox',width='25em',selected_nome='.nome_provincia_combo',
+                      validate_notnull=True)
+        fb.textbox(value='^.nome_provincia',lbl='Nome dbSelect')
+        fb.textbox(value='^.nome_provincia_combo',lbl='Nome dbComboBox')
+        fb.button('Set VAL / AO',action="SET .regione='VAL'; SET .sigla='AO'; SET .sigla_combo='AO';")
         
     def test_2_clientmethod(self,pane):
         "Manually set what to display with callbackSelect"
