@@ -49,6 +49,7 @@ BENIN                                           BJ      BEN     204
 BERMUDA                                         BM      BMU     060
 BHUTAN                                          BT      BTN     064
 BOLIVIA                                         BO      BOL     068
+BONAIRE, SINT EUSTATIUS AND SABA                BQ      BES     535
 BOSNIA AND HERZEGOWINA                          BA      BIH     070
 BOTSWANA                                        BW      BWA     072
 BOUVET ISLAND                                   BV      BVT     074
@@ -78,6 +79,7 @@ COSTA RICA                                      CR      CRI     188
 COTE D'IVOIRE                                   CI      CIV     384
 CROATIA (local name: Hrvatska)                  HR      HRV     191
 CUBA                                            CU      CUB     192
+CURACAO                                         CW      CUW     531
 CYPRUS                                          CY      CYP     196
 CZECH REPUBLIC                                  CZ      CZE     203
 DENMARK                                         DK      DNK     208
@@ -111,6 +113,7 @@ GRENADA                                         GD      GRD     308
 GUADELOUPE                                      GP      GLP     312
 GUAM                                            GU      GUM     316
 GUATEMALA                                       GT      GTM     320
+GUERNSEY                                        GG      GGY     831
 GUINEA                                          GN      GIN     324
 GUINEA-BISSAU                                   GW      GNB     624
 GUYANA                                          GY      GUY     328
@@ -125,10 +128,12 @@ INDONESIA                                       ID      IDN     360
 IRAN (ISLAMIC REPUBLIC OF)                      IR      IRN     364
 IRAQ                                            IQ      IRQ     368
 IRELAND                                         IE      IRL     372
+ISLE OF MAN                                     IM      IMN     833
 ISRAEL                                          IL      ISR     376
 ITALY                                           IT      ITA     380
 JAMAICA                                         JM      JAM     388
 JAPAN                                           JP      JPN     392
+JERSEY                                          JE      JEY     832
 JORDAN                                          JO      JOR     400
 KAZAKHSTAN                                      KZ      KAZ     398
 KENYA                                           KE      KEN     404
@@ -164,6 +169,7 @@ MICRONESIA, FEDERATED STATES OF                 FM      FSM     583
 MOLDOVA, REPUBLIC OF                            MD      MDA     498
 MONACO                                          MC      MCO     492
 MONGOLIA                                        MN      MNG     496
+MONTENEGRO                                      ME      MNE     499
 MONTSERRAT                                      MS      MSR     500
 MOROCCO                                         MA      MAR     504
 MOZAMBIQUE                                      MZ      MOZ     508
@@ -200,9 +206,11 @@ REUNION                                         RE      REU     638
 ROMANIA                                         RO      ROU     642
 RUSSIAN FEDERATION                              RU      RUS     643
 RWANDA                                          RW      RWA     646
+SAINT BARTHELEMY                                BL      BLM     652
 SAINT HELENA                                    SH      SHN     654
 SAINT KITTS AND NEVIS                           KN      KNA     659
 SAINT LUCIA                                     LC      LCA     662
+SAINT MARTIN (FRENCH PART)                      MF      MAF     663
 SAINT PIERRE AND MIQUELON                       PM      SPM     666
 SAINT VINCENT AND THE GRENADINES                VC      VCT     670
 SAMOA                                           WS      WSM     882
@@ -210,16 +218,19 @@ SAN MARINO                                      SM      SMR     674
 SAO TOME AND PRINCIPE                           ST      STP     678
 SAUDI ARABIA                                    SA      SAU     682
 SENEGAL                                         SN      SEN     686
+SERBIA                                          RS      SRB     688
 SERBIA AND MONTENEGRO                           CS      SCG     891
 SEYCHELLES                                      SC      SYC     690
 SIERRA LEONE                                    SL      SLE     694
 SINGAPORE                                       SG      SGP     702
+SINT MAARTEN (DUTCH PART)                       SX      SXM     534
 SLOVAKIA                                        SK      SVK     703
 SLOVENIA                                        SI      SVN     705
 SOLOMON ISLANDS                                 SB      SLB     090
 SOMALIA                                         SO      SOM     706
 SOUTH AFRICA                                    ZA      ZAF     710
 SOUTH GEORGIA AND THE SOUTH SANDWICH ISLANDS    GS      SGS     239
+SOUTH SUDAN                                     SS      SSD     728
 SPAIN                                           ES      ESP     724
 SRI LANKA                                       LK      LKA     144
 SUDAN                                           SD      SDN     736
