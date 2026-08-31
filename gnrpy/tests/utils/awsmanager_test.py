@@ -77,25 +77,28 @@ def test_record_exists_found():
     record = _make_record('foo.example.com.', 'CNAME', 'bar.example.com')
     mgr = _make_manager(_make_client(records=[record]))
     result = mgr.record_exists('foo.example.com', hosted_zone_id=ZONE_ID)
-    assert result is not None
-    assert result['type'] == 'CNAME'
-    assert result['resource_records'] == ['bar.example.com']
+    assert result['status'] == 'ok'
+    assert result['value']['type'] == 'CNAME'
+    assert result['value']['resource_records'] == ['bar.example.com']
 
 
 def test_record_exists_not_found():
     mgr = _make_manager()
-    assert mgr.record_exists('missing.example.com', hosted_zone_id=ZONE_ID) is None
+    result = mgr.record_exists('missing.example.com', hosted_zone_id=ZONE_ID)
+    assert result['status'] == 'error'
+    assert result['value'] is None
 
 
 def test_record_exists_auto_discovers_zone():
     record = _make_record('foo.example.com.', 'CNAME', 'bar.example.com')
     mgr = _make_manager(_make_client(records=[record]))
-    assert mgr.record_exists('foo.example.com') is not None
+    assert mgr.record_exists('foo.example.com')['status'] == 'ok'
 
 
 def test_record_exists_returns_none_when_no_managed_zone():
     mgr = _make_manager()
-    assert mgr.record_exists('foo.other.org') is None
+    result = mgr.record_exists('foo.other.org')
+    assert result['status'] == 'error'
 
 
 # ---------- verify_record ----------
@@ -103,28 +106,35 @@ def test_record_exists_returns_none_when_no_managed_zone():
 def test_verify_record_correct_type_and_value():
     record = _make_record('foo.example.com.', 'CNAME', 'bar.example.com')
     mgr = _make_manager(_make_client(records=[record]))
-    assert mgr.verify_record('foo.example.com', 'CNAME', 'bar.example.com',
-                             hosted_zone_id=ZONE_ID) is True
+    result = mgr.verify_record('foo.example.com', 'CNAME', 'bar.example.com',
+                               hosted_zone_id=ZONE_ID)
+    assert result['status'] == 'ok'
+    assert result['value'] is True
 
 
 def test_verify_record_wrong_type():
     record = _make_record('foo.example.com.', 'A', '1.2.3.4')
     mgr = _make_manager(_make_client(records=[record]))
-    assert mgr.verify_record('foo.example.com', 'CNAME', '1.2.3.4',
-                             hosted_zone_id=ZONE_ID) is False
+    result = mgr.verify_record('foo.example.com', 'CNAME', '1.2.3.4',
+                               hosted_zone_id=ZONE_ID)
+    assert result['status'] == 'error'
+    assert result['value'] is False
 
 
 def test_verify_record_wrong_value():
     record = _make_record('foo.example.com.', 'CNAME', 'bar.example.com')
     mgr = _make_manager(_make_client(records=[record]))
-    assert mgr.verify_record('foo.example.com', 'CNAME', 'other.example.com',
-                             hosted_zone_id=ZONE_ID) is False
+    result = mgr.verify_record('foo.example.com', 'CNAME', 'other.example.com',
+                               hosted_zone_id=ZONE_ID)
+    assert result['status'] == 'error'
+    assert result['value'] is False
 
 
 def test_verify_record_missing():
     mgr = _make_manager()
-    assert mgr.verify_record('missing.example.com', 'CNAME', 'x',
-                             hosted_zone_id=ZONE_ID) is False
+    result = mgr.verify_record('missing.example.com', 'CNAME', 'x',
+                               hosted_zone_id=ZONE_ID)
+    assert result['status'] == 'error'
 
 
 # ---------- ensure_cname_record ----------
