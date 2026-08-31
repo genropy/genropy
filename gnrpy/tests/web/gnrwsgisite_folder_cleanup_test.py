@@ -73,8 +73,8 @@ class _FakeRegister:
     def connections(self):
         if 'connections' in self.raises:
             raise self.raises['connections']
-        return [{'register_item_id': k, **(v or {})}
-                for k, v in self.live_connections.items()]
+        return {k: {'register_item_id': k, **(v or {})}
+                for k, v in self.live_connections.items()}
 
     def expire_pages(self, connection_id):
         self.expire_pages_called.append(connection_id)

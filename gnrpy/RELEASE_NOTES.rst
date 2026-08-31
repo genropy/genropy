@@ -1,3 +1,10 @@
+Release 26.08.26
+================
+
+Hotfix release: adm.notification - align notification audience on both
+paths, with static/dynamic lists (#1179)
+
+
 Release 26.08.19.1
 ==================
 

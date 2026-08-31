@@ -45,6 +45,22 @@ if hasattr(Pyro4.config, 'REQUIRE_EXPOSE'):
 BAG_INSTANCE = Bag()
 
 
+def build_proxy(uri, hmac_key=None):
+    """Build a Pyro proxy to the daemon, able to survive a dropped connection.
+
+    Pyro retries recoverable network errors (connection closed by the peer,
+    timeout) up to `_pyroMaxRetries` times, releasing the dead connection before
+    re-raising, so each new attempt reconnects on a fresh socket. That counter
+    defaults to 0: without it, a daemon restart makes the next call of every
+    already connected worker fail with ConnectionClosedError.
+    """
+    proxy = Pyro4.Proxy(uri)
+    if not OLD_HMAC_MODE:
+        proxy._pyroHmacKey = hmac_key
+    proxy._pyroMaxRetries = MAX_RETRY_ATTEMPTS
+    return proxy
+
+
 def remotebag_wrapper(func):
     def decore(self, *args, **kwargs):
         if self.rootpath:
@@ -63,10 +79,8 @@ class RemoteStoreBag(object):
         self.register_item_id = register_item_id
         self.rootpath = rootpath
         self.uri = uri
-        self.proxy = Pyro4.Proxy(uri)
         self.hmac_key = hmac_key
-        if not OLD_HMAC_MODE:
-            self.proxy._pyroHmacKey = hmac_key
+        self.proxy = build_proxy(uri, hmac_key=hmac_key)
 
     def chunk(self, path):
         return RemoteStoreBag(uri=self.uri, register_name=self.register_name,
@@ -161,10 +175,8 @@ class SiteRegisterClient(object):
         daemon_hmac = daemonconfig['hmac_key']
         if OLD_HMAC_MODE:
             Pyro4.config.HMAC_KEY = daemon_hmac
-        self.gnrdaemon_proxy = Pyro4.Proxy(daemon_uri)
         self.hmac_key = daemon_hmac
-        if not OLD_HMAC_MODE:
-            self.gnrdaemon_proxy._pyroHmacKey = self.hmac_key
+        self.gnrdaemon_proxy = build_proxy(daemon_uri, hmac_key=daemon_hmac)
 
         with self.gnrdaemon_proxy as daemonProxy:
             if not self.runningDaemon(daemonProxy):
@@ -177,11 +189,53 @@ class SiteRegisterClient(object):
         self.initSiteRegister()
 
     def initSiteRegister(self):
-        self.siteregister = Pyro4.Proxy(self.siteregister_uri)
-        if not OLD_HMAC_MODE:
-            self.siteregister._pyroHmacKey = self.hmac_key
+        self.newSiteRegisterProxy()
         self.remotebag_uri = self.siteregister_uri.replace(':SiteRegister@', ':RemoteData@')
         self.siteregister.setConfiguration(cleanup=self.site.custom_config.getAttr('cleanup'))
+        # The site is normally built before the wsgi server forks its workers: leave
+        # no open socket behind, so no worker can inherit this one. Releasing here is
+        # safe because this process is still the only owner of the connection.
+        self._siteregister._pyroRelease()
+
+    def newSiteRegisterProxy(self):
+        self.siteregister = self.pyroProxy(self.siteregister_uri)
+
+    @property
+    def siteregister(self):
+        """Proxy to the siteregister, always owned by the current process.
+
+        A Pyro proxy carries an open socket and its own request sequence counter, and
+        neither survives a fork: sharing one socket between parent and workers makes
+        replies land in the wrong process, raising ProtocolError('reply sequence out
+        of sync') or resetting the connection. So a proxy inherited from another
+        process is replaced instead of being reused.
+        """
+        if self._siteregister_pid != os.getpid():
+            self.dropInheritedConnection(self._siteregister)
+            self.newSiteRegisterProxy()
+        return self._siteregister
+
+    @siteregister.setter
+    def siteregister(self, proxy):
+        self._siteregister = proxy
+        self._siteregister_pid = os.getpid()
+
+    def dropInheritedConnection(self, proxy):
+        """Give up this process' side of a forked connection, leaving it usable elsewhere.
+
+        Closing it is not an option: Pyro shuts the socket down (SHUT_RDWR) both on
+        _pyroRelease() and on garbage collection, and that would tear the connection
+        down for the process the socket was inherited from.
+        """
+        connection = proxy._pyroConnection
+        if connection is None:
+            return
+        connection.keep_open = True
+        try:
+            os.close(connection.sock.detach())
+        except OSError:
+            logger.debug('inherited siteregister socket already gone', exc_info=True)
+        proxy._pyroConnection = None
 
     def checkSiteRegisterServerUri(self, daemonProxy):
         if not self.siteregisterserver_uri:
@@ -209,10 +263,7 @@ class SiteRegisterClient(object):
         return False
 
     def pyroProxy(self, url):
-        proxy = Pyro4.Proxy(url)
-        if not OLD_HMAC_MODE:
-            proxy._pyroHmacKey = self.hmac_key
-        return proxy
+        return build_proxy(url, hmac_key=self.hmac_key)
 
     def new_page(self, page_id, page, data=None):
         register_item = self.siteregister.new_page(page_id, pagename=page.pagename,
@@ -324,22 +375,10 @@ class SiteRegisterClient(object):
             logger.info('UNABLE TO LOAD REGISTER %s' % self.site.site_name)
 
     def __getattr__(self, name):
-        h = getattr(self.siteregister, name)
-        if not callable(h):
-            return h
-
-        def decore(*args, **kwargs):
-            attempt = 0
-            r = None
-            while attempt < MAX_RETRY_ATTEMPTS:
-                try:
-                    r = h(*args, **kwargs)
-                    break
-                except Exception:
-                    attempt += 1
-            return r
-
-        return decore
+        # No retry loop here: the proxy already retries recoverable network
+        # errors on a fresh connection, so anything raised from this point is a
+        # real error and has to reach the caller instead of becoming a None.
+        return getattr(self.siteregister, name)
 
 
 ##############################################################################
@@ -393,8 +432,10 @@ class ServerStore(object):
 
     @property
     def data(self):
-        if self.register_item:
-            return self.register_item['data']
+        # register_item is a remote call: evaluate it once
+        register_item = self.register_item
+        if register_item:
+            return register_item['data']
 
     @property
     def datachanges(self):
