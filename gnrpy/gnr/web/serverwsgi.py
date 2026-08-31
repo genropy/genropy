@@ -405,8 +405,16 @@ class Server(object):
                 cmd_name = sys.argv.pop(0).split()
                 sys.argv = cmd_name + sys.argv
 
+            exclude_patterns = [
+                '*/.git/*',
+                '*/.git',
+                '*/__pycache__/*',
+                '*.pik',
+                '*/site/data/*',
+            ]
             run_with_reloader(
                 srv.serve_forever,
+                exclude_patterns=exclude_patterns,
                 interval=1,
                 reloader_type="auto",
             )
