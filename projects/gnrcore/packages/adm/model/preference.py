@@ -28,6 +28,8 @@ class Table(object):
         return result.deepcopy()
     
     def getStorePreferences(self):
+        if self.db.usingMultiStore():
+            return self.getMainStorePreference()
         storename = self.db.currentEnv.get('storename')
         pref_cache_key = '_storepref_%s' %storename
         preference = None
