@@ -35,12 +35,14 @@ class ServiceParameters(BaseComponent):
         fb.textbox(value='^.aws_access_key_id', lbl='Aws Access Key Id')
         fb.textbox(value='^.aws_secret_access_key', lbl='Aws Secret Access Key')
         center = bc.contentPane(region='center', padding='8px')
+
         cfb = center.formbuilder(cols=1)
         cfb.button('List Hosted Zones').dataRpc(
             self.r53_list_hosted_zones,
             service_name='=#FORM.record.service_name',
             _if='service_name'
         ).addCallback('genro.dlg.alert(result,"Hosted Zones")')
+        
         cfb.button('Check Record Exists').dataRpc(
             self.r53_check_record_exists,
             service_name='=#FORM.record.service_name',
@@ -50,6 +52,7 @@ class ServiceParameters(BaseComponent):
                 dict(name='hosted_zone_id', lbl='Hosted Zone ID (optional)')
             ])
         ).addCallback('genro.dlg.alert(result,"Record Exists")')
+        
         cfb.button('Verify Record').dataRpc(
             self.r53_verify_record,
             service_name='=#FORM.record.service_name',
@@ -73,17 +76,17 @@ class ServiceParameters(BaseComponent):
     @public_method
     def r53_check_record_exists(self, service_name=None, name=None, hosted_zone_id=None, **kwargs):
         service = self.getService('dnsmanager', service_name)
-        exists = service.record_exists(name=name, hosted_zone_id=hosted_zone_id or None)
-        if exists:
+        result = service.record_exists(name=name, hosted_zone_id=hosted_zone_id or None)
+        if result['status'] == 'ok':
             return 'Record "%s" EXISTS in Route53.' % name
-        return 'Record "%s" does NOT exist in Route53.' % name
+        return '%s: "%s".' % (result['description'], name)
 
     @public_method
     def r53_verify_record(self, service_name=None, name=None, record_type=None,
                           value=None, hosted_zone_id=None, **kwargs):
         service = self.getService('dnsmanager', service_name)
-        ok = service.verify_record(name=name, record_type=record_type,
-                                   value=value, hosted_zone_id=hosted_zone_id or None)
-        if ok:
+        result = service.verify_record(name=name, record_type=record_type,
+                                       value=value, hosted_zone_id=hosted_zone_id or None)
+        if result['status'] == 'ok':
             return 'Record "%s" (%s) matches expected value "%s".' % (name, record_type, value)
-        return 'Record "%s" (%s) does NOT match expected value "%s".' % (name, record_type, value)
+        return '%s: "%s" (%s).' % (result['description'], name, record_type)
