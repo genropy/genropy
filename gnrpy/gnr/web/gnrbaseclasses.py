@@ -32,7 +32,7 @@ from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrstring import splitAndStrip, slugify, templateReplace
 from gnr.core.gnrlang import GnrObject
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrlang import getUuid
+from gnr.core.gnrlang import getUuid, uniquify
 from gnr.web import logger
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 
@@ -347,7 +347,7 @@ class TableScriptToHtml(BagToHtmlWeb):
         if record=='*':
             record = None
         else:
-            record = self.tblobj.recordAs(record, virtual_columns=self.virtual_columns)
+            record = self.tblobj.recordAs(record, virtual_columns=self.captionVirtualColumns())
         html_folder = self.getHtmlPath(autocreate=True)
         self.locale = locale or self.page.locale
         self.language = language or self.page.language
@@ -370,6 +370,15 @@ class TableScriptToHtml(BagToHtmlWeb):
             return self.getPdfUrl(os.path.basename(self.pdfpath)) if resultAs=='url' else self.pdfpath
             #with open(temp.name,'rb') as f:
             #    result=f.read()
+
+    def captionVirtualColumns(self):
+        """:attr:`virtual_columns` plus the virtual columns the rowcaption is built on,
+        which would otherwise be missing from the loaded record"""
+        virtual_columns = self.virtual_columns.split(',') if self.virtual_columns else []
+        model_virtual_columns = self.tblobj.model.virtual_columns
+        caption_columns = [c.replace('$', '') for c in self.tblobj.rowcaptionDecode()[0]]
+        virtual_columns.extend([c for c in caption_columns if c in model_virtual_columns])
+        return ','.join(uniquify(virtual_columns)) or None
 
     def getDocName(self):
         return os.path.splitext(os.path.basename(self.filepath))[0]
@@ -757,19 +766,32 @@ class TableScriptToHtml(BagToHtmlWeb):
         """
         return self.builder.calcRowsNumber(text, width_mm=width_mm, font_name=font_name, font_size=font_size)
 
+    def outputDocIdentifier(self):
+        """Identity of the print resource and of the printed record, so that concurrent
+        prints never write to the same file"""
+        public_name = getattr(self, '_gnrPublicName', None) or self.__class__.__name__
+        resource_id = slugify(' '.join(public_name.rsplit('.', 2)[-2:]).replace('/', ' '), sep='_')
+        record_id = None
+        if self.record is not None and not self.record.get('selectionPkeys'):
+            record_id = self.record.get(self.tblobj.pkey)
+        record_id = re.sub(r'\W', '_', str(record_id)) if record_id else getUuid()
+        return '%s_%s' % (resource_id, record_id)
+
     def outputDocName(self, ext=''):
-        """TODO
-        :param ext: TODO"""
+        """Return the output file name for the current record
+
+        :param ext: the filename extension"""
         if ext and not ext[0] == '.':
             ext = '.%s' % ext
-        caption = ''
+        chunks = [self.tblobj.name]
         if self.record is not None:
             caption = slugify(self.tblobj.recordCaption(self.record))
-            idx = self.record_idx
-            if idx is not None:
-                caption = '%s_%i' %(caption,idx)
-        doc_name = '%s_%s%s' % (self.tblobj.name, caption, ext)
-        return doc_name
+            if caption:
+                chunks.append(caption)
+            if self.record_idx is not None:
+                chunks.append(str(self.record_idx))
+        chunks.append(self.outputDocIdentifier())
+        return '%s%s' % ('_'.join(chunks), ext)
 
 
 
