@@ -1186,7 +1186,11 @@ class GnrWebPage(GnrBaseWebPage):
 
     @public_method
     def getRemoteTranslation(self, txt=None,language=None,**kwargs):
-        return self.localizer.getTranslation(txt,language=language or self.locale)
+        language = language or self.locale
+        result = self.localizer.getTranslation(txt,language=language)
+        if result['status'] != 'OK':
+            logger.debug("Missing translation (%s) for %s in %s", result['status'], txt, language)
+        return result
 
     def localize(self, txt, language=None,**kwargs):
         return self.localizer.translate(txt,language=language or self.locale)
