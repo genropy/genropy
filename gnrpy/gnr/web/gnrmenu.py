@@ -31,6 +31,7 @@ from gnr.core.gnrbag import Bag,BagResolver
 from gnr.core.gnrlang import objectExtract
 from gnr.core.gnrstring import slugify
 from gnr.core.gnrdecorator import extract_kwargs
+from gnr.web import logger
 
 class BaseMenu(object):
     def __init__(self,page) -> None:
@@ -108,6 +109,22 @@ class MenuStruct(GnrStructData):
     def webpage(self, label,filepath=None,tags='',multipage=None, **kwargs):
         return self.child('webpage',label=label,multipage=multipage,tags=tags,
                         filepath=filepath,_returnStruct=False,**kwargs)
+
+    def docpage(self, label,source=None,tags='', **kwargs):
+        """Add a public document to the menu.
+
+        source is a storage path (e.g. ``pkg:test/resources/doc.html``) or an
+        absolute http(s) URL, resolved through the built-in ``_http_`` service.
+        With a remote URL the delivery caveats are the remote server's, not
+        ours: ``X-Frame-Options``/``frame-ancestors`` yield a blank frame with
+        no warning, an ``http`` URL under an ``https`` app is blocked as mixed
+        content, and the ``nocache`` cache-buster is silently ignored.
+
+        The tags argument controls menu visibility only; it does not restrict
+        access to the document URL, so source must not contain confidential data.
+        """
+        return self.child('docpage',label=label,source=source,tags=tags,
+                        _returnStruct=False,**kwargs)
 
     def thpage(self, label=None,table=None,tags='',multipage=True, **kwargs):
         return self.child('thpage',label=label,table=table,
@@ -446,14 +463,22 @@ class MenuResolver(BagResolver):
         attributes = dict(node.attr)
         return None,attributes
 
-    def checkContextParameters(self,attributes):
+    def checkContextParameters(self,attributes,absolute_webpage=False):
         externalSite = attributes.get('externalSite') or self.externalSite
-        if externalSite:
+        if externalSite and not absolute_webpage:
             externalSite = self._page.site.config['externalSites'].getAttr(externalSite)['url']
             attributes['webpage'] = f"{externalSite}{attributes['webpage']}"
         tenant_schema = attributes.pop('tenant_schema',None)
         if  tenant_schema is not None:
             attributes['url_env_tenant_schema'] = '_main_' if tenant_schema is False else tenant_schema
+
+    def _finalizePageAttributes(self,attributes,absolute_webpage=False):
+        webpage = attributes.get('webpage')
+        aux_instance = attributes.get('aux_instance') or self.aux_instance
+        if webpage and self.basepath and not absolute_webpage and not webpage.startswith('/'):
+            attributes['webpage'] = f"{self.basepath}/{webpage}"
+        attributes['url_aux_instance'] = aux_instance
+        self.checkContextParameters(attributes,absolute_webpage=absolute_webpage)
 
     def nodeType_webpage(self,node):
         attributes = dict(node.attr)
@@ -461,11 +486,25 @@ class MenuResolver(BagResolver):
         webpage = attributes['webpage'] 
         if webpage and not self._page.checkPermission(webpage):
             raise NotAllowedException('Not allowed page')
-        aux_instance = attributes.get('aux_instance') or self.aux_instance
-        if webpage and self.basepath and not webpage.startswith('/'):
-            attributes['webpage'] = f"{self.basepath}/{webpage}" 
-        attributes['url_aux_instance'] = aux_instance
-        self.checkContextParameters(attributes)
+        self._finalizePageAttributes(attributes)
+        return None,attributes
+
+    def nodeType_docpage(self,node):
+        attributes = dict(node.attr)
+        source = attributes.pop('source',None)
+        attributes.pop('externalSite',None)
+        try:
+            storage_node = self._page.site.storageNode(source) if source else None
+            webpage = storage_node.public_url(nocache=True) if storage_node else None
+        except Exception as error:
+            logger.warning("Cannot resolve docpage source %r: %s",source,error)
+            raise NotAllowedException('Invalid document source') from error
+        if not webpage:
+            logger.warning("Cannot resolve docpage source %r",source)
+            raise NotAllowedException('Invalid document source')
+        attributes['webpage'] = webpage
+        attributes['nonGenroContent'] = True
+        self._finalizePageAttributes(attributes,absolute_webpage=True)
         return None,attributes
 
     def nodeType_lookupBranch(self,node):
