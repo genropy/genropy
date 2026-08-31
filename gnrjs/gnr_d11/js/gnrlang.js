@@ -547,6 +547,31 @@ function objectIsEqual(obj1, obj2) {
     }
 }
 
+function changedAttrKeys(currattr, newattr, updattr) {
+    if (newattr == null) {
+        return []; //a setter without attributes leaves them untouched
+    }
+    currattr = currattr || {};
+    var changed = [];
+    for (var k in newattr) {
+        if (updattr == '*' && newattr[k] == null) {
+            if (k in currattr) {
+                changed.push(k); //update with '*': a null deletes the attribute
+            }
+        } else if (!(k in currattr) || !isEqual(newattr[k], currattr[k])) {
+            changed.push(k);
+        }
+    }
+    if (!updattr) {
+        for (var k in currattr) {
+            if (!(k in newattr)) {
+                changed.push(k); //replace semantics: a dropped attribute changes its own path
+            }
+        }
+    }
+    return changed;
+}
+
 function isNullOrBlank(elem){
     return elem === null || elem===undefined || elem === '';
 }
