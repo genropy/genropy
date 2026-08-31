@@ -813,24 +813,26 @@ class PackageMenuResolver(MenuResolver):
 
 
 class DirectoryMenuResolver(MenuResolver):
-    def __init__(self, dirpath=None, **kwargs):
-        super().__init__(dirpath=dirpath,**kwargs)
+    def __init__(self, dirpath=None, folder=None, **kwargs):
+        super().__init__(dirpath=dirpath,folder=folder,**kwargs)
         self.dirpath = dirpath
+        self.folder = folder or ''
         self.xmlresolved = False
 
     @property
     def sourceBag(self):
         result = MenuStruct(page=self._page)
+        folder = self.folder or ''
         if self.pkg:
-            folderSN = self._page.site.storageNode(f'pkg:{self.pkg}/webpages',self.folder)
+            folderSN = self._page.site.storageNode(f'pkg:{self.pkg}/webpages',folder)
         else:
-            folderSN = self._page.site.storageNode(f'site:webpages',self.folder)
-        for sn in folderSN.children():
+            folderSN = self._page.site.storageNode('site:webpages',folder)
+        for sn in folderSN.children() or []:
             if sn.isfile and sn.ext=='py':
                 filepath = sn.path.replace('.py','').replace('webpages/','')
                 result.webpage(sn.cleanbasename.replace('_',' ').title(),
                                 filepath=f"/{filepath}")
-            elif sn.isdir and sn.basename!='__pycache__':
+            elif sn.isdir and not sn.basename.startswith('_'):
                 result.directoryBranch(sn.cleanbasename.replace('_',' ').title(),
                                         folder=sn.path.replace(f'{self.pkg}/webpages',''),pkg=self.pkg)
         return result

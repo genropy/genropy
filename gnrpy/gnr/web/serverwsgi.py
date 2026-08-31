@@ -158,6 +158,11 @@ class Server(object):
                             dest='nodebug',
                             action='store_true',
                             help="Don't use werkzeug debugger")
+        parser.add_argument('--collect',
+                            dest='collect',
+                            action='store_true',
+                            help="Record every request and every site register "
+                                 "call into a run archive (requires gnrprobe)")
         parser.add_argument('-a', '--async-port',
                             dest='async_port',
                             type=int,
@@ -275,6 +280,36 @@ class Server(object):
             self.site_path = os.path.dirname(os.path.realpath(site_script))
         self.init_options()
 
+    def start_probe(self):
+        """Turn request collection on when --collect asked for it.
+
+        Called before GnrWsgiSite is built, and that is a requirement rather
+        than a preference: the site's __init__ forces its register into
+        existence, so a recorder assigned afterwards would patch a name the
+        site has already read.
+
+        The import lives here, inside the branch the flag opens, so a server
+        started without --collect imports nothing and genropy takes no
+        dependency on gnrprobe.
+
+        Under --reload the parent process never serves - it builds 'FakeApp' -
+        so only the reloader child collects, and each restart is a new process
+        attaching to the same archive.
+        """
+        if not getattr(self.options, 'collect', False):
+            return None
+        if self.reloader and not is_running_from_reloader():
+            return None
+        try:
+            from gnrprobe.collector import Probe
+        except ImportError:
+            logger.error('--collect requires gnrprobe: pip install gnrprobe')
+            return None
+        return Probe.start(label='dev', sitename=self.site_name,
+                           server='development', host=self.options.host,
+                           port=self.options.port, debug=self.debug,
+                           reload=bool(self.reloader))
+
     def site_name_to_path(self, site_name):
         return PathResolver().site_name_to_path(site_name)
 
@@ -342,6 +377,7 @@ class Server(object):
                         reason='auto-spawned because siteconfig declares websockets=true')
 
         ssl_context = None
+        probe = self.start_probe()
         if not self.debugpy and self.reloader and not is_running_from_reloader():
             gnrServer = 'FakeApp'
         else:
@@ -361,6 +397,9 @@ class Server(object):
                 extra_info.append('Debug mode: On')
             else:
                 extra_info.append('Debug mode: Off')
+            if probe:
+                gnrServer = probe.wrap(gnrServer)
+                extra_info.append(f'Collecting into {probe.path}')
 
             if self.options.ssl:
                 cert_path = os.path.join(self.config_path, 'localhost.pem')
