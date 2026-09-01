@@ -161,7 +161,10 @@ div.cellContent{
     position: absolute;
     display: block;
     bottom: 1px;
+    left: 2px;
+    right: 2px;
     height: 18px;
+    margin-left: 0;
     border-top: 0;
 }
 .quickTooltipContainer{
@@ -213,6 +216,12 @@ div.cellContent{
     min-height: 0;
     position: relative;
     box-sizing: border-box;
+}
+/* an inline iframe leaves a baseline gap under itself, pushing the kama
+   chrome past the area's height inside a table-cell that treats height
+   as a minimum: the editor then overflows the area and gets clipped */
+.textAreaWrapperArea .cke_skin_kama iframe{
+    display: block;
 }
 .textAreaWrapperButtons{
     flex-shrink: 0;

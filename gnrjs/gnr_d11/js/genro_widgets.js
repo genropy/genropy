@@ -1935,9 +1935,10 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
             // only the outer wrapper's own size and the speech_* settings belong on this node:
             // everything else in currAttr is meant for the inner editable tag (via areaAttr) and
             // must not leak onto the wrapper divs (it used to, doubling up height with config_height).
-            var wrapperSize = objectExtract(currAttr,'height,width');
+            var wrapperAttrs = objectExtract(currAttr,'height,width,region');
+            objectPop(areaAttr,'region'); // placement belongs to the wrapper, not the inner tag
             var speechAttrs = objectExtract(currAttr,'speech_*',false,true);
-            sourceNode.attr = objectUpdate(objectUpdate({'tag':'div',_class:_class},wrapperSize),speechAttrs);
+            sourceNode.attr = objectUpdate(objectUpdate({'tag':'div',_class:_class},wrapperAttrs),speechAttrs);
             var tKw = {overflow:'hidden',_class:'textAreaWrapperArea'};
             if(editor){
                 tKw['border'] = '1px solid silver';
@@ -1946,7 +1947,7 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
             var top = sourceNode._('div',tKw,notrigger);
             var bottom = sourceNode._('div',{_class:'textAreaWrapperButtons',transition:'1s all'},notrigger)
             if(editor){
-                bottom._('div',{_class:'TAeditorPalette',connect_onclick:function(){
+                bottom._('div',{_class:'TAeditorPalette',title:'Open in a floating editor',connect_onclick:function(){
                     genro.dlg.floatingEditor(textarea,{});
                 }},{'doTrigger':false})
                 tag = 'ckeditor';
@@ -1992,8 +1993,19 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
         wrapper.className = 'gnr_speech_wrapper';
         wrapper.style.position = 'relative';
         wrapper.style.display = 'inline-block';
+        wrapper.style.verticalAlign = 'top';
         parent.insertBefore(wrapper, domNode);
         wrapper.appendChild(domNode);
+        // the field's requested size must move to the wrapper: a percent size
+        // left on the field would now resolve against this auto-sized wrapper
+        if(domNode.style.width){
+            wrapper.style.width = domNode.style.width;
+            domNode.style.width = '100%';
+        }
+        if(domNode.style.height){
+            wrapper.style.height = domNode.style.height;
+            domNode.style.height = '100%';
+        }
         domNode.style.paddingRight = '26px';
         domNode.style.boxSizing = 'border-box';
         var btn = document.createElement('button');

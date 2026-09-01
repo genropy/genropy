@@ -37,15 +37,11 @@ class GnrCustomWebPage(object):
     def test_3_matrixFillPane(self, pane):
         """Matrix: editor False/True, sole child of a pane filling the available area"""
         bc = pane.borderContainer(height='500px')
-        top = bc.framePane(region='top', height='50%', splitter=True,
-                          _class='pbl_roundedGroup', margin='2px')
-        top.top.slotBar('2,vtitle,*', vtitle='!!editor=False (fills pane)',
-                       _class='pbl_roundedGroupLabel')
-        top.center.simpleTextArea(value='^.fill_plain', height='100%', width='100%', speech=True)
-        bottom = bc.framePane(region='center', _class='pbl_roundedGroup', margin='2px')
-        bottom.top.slotBar('2,vtitle,*', vtitle='!!editor=True (fills pane)',
-                          _class='pbl_roundedGroupLabel')
-        bottom.center.simpleTextArea(value='^.fill_editor', speech=True, editor=True)
+        top = bc.contentPane(region='top', height='50%', splitter=True,
+                            overflow='hidden', margin='2px')
+        top.simpleTextArea(value='^.fill_plain', height='100%', width='100%', speech=True)
+        bottom = bc.contentPane(region='center', overflow='hidden', margin='2px')
+        bottom.simpleTextArea(value='^.fill_editor', speech=True, editor=True)
 
     def test_4_gridCellEdit(self, pane):
         """Regression check: simpleTextArea speech=True as a grid cell editor"""
