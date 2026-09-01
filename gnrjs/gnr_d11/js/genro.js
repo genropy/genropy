@@ -1581,7 +1581,7 @@ dojo.declare('gnr.GenroClient', null, {
                     var inner=dpath.slice(registered_path.length);
                     if(!inner || inner[0]=='.'){
                         genro._serverstore_changes = genro._serverstore_changes || {};
-                        genro._serverstore_changes[genro._serverstore_paths[registered_path]+inner] = asTypedTxt(kw.value);
+                        genro._serverstore_changes[genro._serverstore_paths[registered_path]+inner] = asTypedTxt(kw.node._value);
                         break;
                     }
                 }
