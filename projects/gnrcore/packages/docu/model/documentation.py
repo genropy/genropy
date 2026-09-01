@@ -1,10 +1,19 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
+from urllib.parse import urlsplit
+
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
+from gnr.app import pkglog as logger
 from gnr.app.gnrlocalization import AppLocalizer
 import textwrap
+
+#DP202608 Resolving a candidate page to its url costs a query, and the resolver answers
+#an unauthenticated route: the number of pages sharing a name is bounded here so
+#that a walk over dead urls of a common name (index, intro) cannot fan out.
+RESOLVER_CANDIDATES_LIMIT = 20
+
 
 class Table(object):
     def config_db(self, pkg):
@@ -70,6 +79,78 @@ class Table(object):
         """Returns the full url of the documentation page, based on the handbook_url 
            of the closest ancestor handbook and on the hierarchical_name of the current record"""
         return self.calculateExternalUrl(record)
+
+    def resolveRequestPath(self, path):
+        """Resolve a request path of the published handbooks site to the current
+        absolute URL of the matching page.
+
+        Meant to serve the web server fallback for missing static files: the page
+        is looked up by name, narrowing homonyms with the other path segments.
+        Returns None when nothing matches or when the resolved URL points back to
+        the requested path (the caller would answer it with a redirect loop)."""
+        path = (path or '').strip('/')
+        if not path:
+            return None
+        location = self._resolveFromName(path)
+        if not location or urlsplit(location).path.strip('/') == path:
+            return None
+        return self._absoluteLocation(location)
+
+    def _resolveFromName(self, path):
+        """Return the current external URL of the page named as the last path segment.
+
+        Homonyms under different handbooks or folders are disambiguated by scoring
+        each candidate URL by the number of requested path segments it shares
+        (handbook name, folder names); an unresolvable tie yields None. The tie,
+        not the scoring, is what keeps the answer safe: segments are counted as a
+        set, so a page under a/b and one under b/a score the same for a request of
+        a/b/foo, and no redirect is preferred to a wrong one.
+
+        Candidates are resolved one query each (getAncestors), so a single one is
+        answered without scoring and the set is capped at RESOLVER_CANDIDATES_LIMIT,
+        ordered by hierarchical name to keep the cut deterministic."""
+        segments = self._urlPathSegments(path)
+        if not segments:
+            return None
+        candidates = self.query(columns='$id,$name,$child_count',
+                                where='$name=:docname AND $publish_date IS NOT NULL',
+                                docname=segments[-1],
+                                order_by='$hierarchical_name',
+                                limit=RESOLVER_CANDIDATES_LIMIT + 1).fetch()
+        if len(candidates) > RESOLVER_CANDIDATES_LIMIT:
+            logger.warning('docuresolver: more than %i published pages named %s, '
+                           'resolving the first %i only',
+                           RESOLVER_CANDIDATES_LIMIT, segments[-1],
+                           RESOLVER_CANDIDATES_LIMIT)
+            candidates = candidates[:RESOLVER_CANDIDATES_LIMIT]
+        if len(candidates) == 1:
+            return self.calculateExternalUrl(dict(candidates[0])) or None
+        scored = {}
+        for candidate in candidates:
+            url = self.calculateExternalUrl(dict(candidate))
+            if not url:
+                continue
+            url_segments = self._urlPathSegments(urlsplit(url).path)
+            score = len(set(segments) & set(url_segments))
+            scored.setdefault(score, []).append(url)
+        if not scored:
+            return None
+        best_urls = scored[max(scored)]
+        if len(best_urls) == 1:
+            return best_urls[0]
+        return None
+
+    def _urlPathSegments(self, path):
+        """Normalize a url path into comparable segments: no .html suffix, no
+        trailing index page, no doubled branch name (sphinx builds branch pages
+        as <name>/<name>.html)"""
+        segments = [seg[:-5] if seg.endswith('.html') else seg
+                        for seg in path.split('/') if seg]
+        if segments and segments[-1] == 'index':
+            segments = segments[:-1]
+        if len(segments) >= 2 and segments[-1] == segments[-2]:
+            segments = segments[:-1]
+        return segments
 
     def atc_getAttachmentPath(self,pkey):
         return f'documentation:attachments/{pkey}'
@@ -166,9 +247,49 @@ class Table(object):
 
         for atc in attachments:
             atc = dict(atc)
-            atc['host'] = host
-            result.append(tpl % atc)
+            media_url = self._atcPublicUrl(atc)
+            if media_url:
+                result.append('- `%s <%s>`_ ' % (atc['description'], media_url))
+            else:
+                atc['host'] = host
+                result.append(tpl % atc)
         return '\n'.join(result)
+
+    def _atcPublicUrl(self, atc):
+        """Return the public url of an attachment served outside the instance.
+
+        The attachment already lives on a storage service, so no copy is needed
+        when that service publishes it on a public base of its own. Foreign
+        documents keep their own external url. Returns None for everything else,
+        so that atcAsRstTable falls back on the instance-served fileurl link."""
+        if atc.get('external_url'):
+            return atc['external_url']
+        if not atc.get('filepath'):
+            return None
+        #DP202608 the framework's own resolution of an attachment node: it carries
+        #the home: default of the legacy rows written before atc_getAttachmentPath
+        #prefixed the service (same convention as AttachmentTable.onArchiveExport)
+        node = self.db.table('docu.documentation_atc')._atcStorageNode(atc)
+        if not node.exists:
+            return None
+        return self.publicMediaUrl(node)
+
+    def publicMediaUrl(self, node):
+        """Return the permanent public url of node, but only when its storage
+        service publishes it on a public base of its own.
+
+        An explicit public base (e.g. aws_s3 with public_base_url) is the only
+        configuration that declares the file readable by anyone without the
+        instance and without a signature, which is what a published handbook
+        needs: StorageService.public_url falls back to url() everywhere else, so
+        the answer would be either an instance-served /_storage/ url - alive only
+        while the instance is up and reachable - or an unsigned url on a bucket
+        that may well be private, and the reader would get a 403 weeks later.
+        Media on those services keeps the instance-served link (attachments) or
+        is downloaded into the build (images)."""
+        if not getattr(node.service, 'public_base_url', None):
+            return None
+        return node.public_url()
 
     def dfAsRstTable(self,pkey,language=None):
         rows = self.df_getFieldsRows(pkey=pkey)

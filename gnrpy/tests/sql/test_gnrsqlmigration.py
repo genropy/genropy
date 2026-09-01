@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 from gnr.sql.gnrsqlmigration import SqlMigrator, DbExtractor
 from gnr.sql.gnrsqlmigration import new_relation_item, new_index_item, nested_defaultdict
 from gnr.sql.gnrsqlmigration.command_builder import CommandBuilderMixin
+from gnr.sql.gnrsqlmigration.executor import ExecutorMixin
 from gnr.sql.gnrsql import GnrSqlDb
 from gnr.sql.adapters import gnrpostgres, gnrpostgres3
 from gnr.sql import AdapterCapabilities as Capabilities
@@ -1703,3 +1704,101 @@ class GeneralSqlMigrationCode:
             "prepareStructures() was called again even though structures "
             "were already set (to {}). Bug: 'not ({} or {})' is True."
         )
+
+
+class TestSqlCommandsForTable:
+    """Unit tests for the SQL assembly done by ``ExecutorMixin.sqlCommandsForTable``."""
+
+    @staticmethod
+    def tbl_item(command=None, columns=None, constraints=None,
+                 relations=None, indexes=None):
+        """Build a table command item as the command builders produce it."""
+        item = {
+            'columns': columns or {},
+            'constraints': constraints or {},
+            'relations': relations or {},
+            'indexes': indexes or {},
+        }
+        if command:
+            item['command'] = command
+        return item
+
+    def test_added_column_kept_with_pkey_rebuild(self):
+        """A table needing both a primary key rebuild and a new column must
+        emit the ADD COLUMN.
+
+        ``changed_table`` writes the primary key rebuild into the same
+        ``command`` key used by ``added_table`` for the CREATE TABLE. Treating
+        the two as alternatives drops the column commands while the index and
+        the foreign key on the same column are still emitted, producing SQL
+        that references a column the migration never created.
+        """
+        executor = ExecutorMixin.__new__(ExecutorMixin)
+        tbl_item = self.tbl_item(
+            command=('ALTER TABLE "adm"."adm_user" DROP CONSTRAINT IF EXISTS adm_user_pkey;\n'
+                     'ALTER TABLE "adm"."adm_user" ADD PRIMARY KEY (id);'),
+            columns={'xgroup': {'command': 'ADD COLUMN "xgroup" character varying(10)'}},
+            indexes={'idx_xgroup': {
+                'command': 'CREATE INDEX idx_xgroup ON "adm"."adm_user" USING btree ("xgroup");'}},
+            relations={'fk_xgroup': {
+                'command': 'ADD CONSTRAINT "fk_xgroup" FOREIGN KEY ("xgroup") '
+                           'REFERENCES "adm"."adm_xgroup" ("code")'}},
+        )
+
+        result = executor.sqlCommandsForTable(schema_name='adm',
+                                              table_name='adm_user',
+                                              tbl_item=tbl_item)
+        commands = result['commands']
+        joined = '\n'.join(commands)
+
+        assert 'ADD COLUMN "xgroup"' in joined, (
+            'ADD COLUMN was dropped because the table also needs a primary key '
+            f'rebuild. Generated commands: {commands}')
+
+        add_column_idx = next(i for i, c in enumerate(commands)
+                              if 'ADD COLUMN "xgroup"' in c)
+        pkey_idx = next(i for i, c in enumerate(commands)
+                        if 'ADD PRIMARY KEY' in c)
+        index_idx = next(i for i, c in enumerate(commands)
+                         if 'CREATE INDEX' in c)
+        assert add_column_idx < pkey_idx, (
+            'The column must exist before the primary key rebuild, which may '
+            'target it.')
+        assert add_column_idx < index_idx, (
+            'The column must exist before the index built on it.')
+
+    def test_new_table_emits_only_create_table(self):
+        """A new table carries its columns inline in the CREATE TABLE, so no
+        separate ALTER TABLE must be produced for it."""
+        executor = ExecutorMixin.__new__(ExecutorMixin)
+        tbl_item = self.tbl_item(
+            command='CREATE TABLE "adm"."adm_xgroup"(\n "code" character varying(10),\n'
+                    ' PRIMARY KEY (code)\n);',
+        )
+
+        result = executor.sqlCommandsForTable(schema_name='adm',
+                                              table_name='adm_xgroup',
+                                              tbl_item=tbl_item)
+
+        assert result['commands'] == [tbl_item['command']]
+
+    def test_changed_column_without_pkey_rebuild(self):
+        """Without a table command, column changes are still emitted as a
+        single ALTER TABLE."""
+        executor = ExecutorMixin.__new__(ExecutorMixin)
+        tbl_item = self.tbl_item(
+            columns={
+                'code': {'command': 'ADD COLUMN "code" character varying(12)'},
+                'descr': {'command': 'ADD COLUMN "descr" text'},
+            },
+        )
+
+        result = executor.sqlCommandsForTable(schema_name='alfa',
+                                              table_name='alfa_recipe',
+                                              tbl_item=tbl_item)
+
+        assert result['commands'] == [
+            'ALTER TABLE "alfa"."alfa_recipe"\n'
+            'ADD COLUMN "code" character varying(12),\n'
+            'ADD COLUMN "descr" text;'
+        ]

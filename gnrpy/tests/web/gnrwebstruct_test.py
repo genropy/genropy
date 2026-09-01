@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
+import re
+
 import pytest
 
 from gnr.web.gnrwebstruct import (
@@ -23,12 +25,17 @@ class _AppStub(object):
 class _PageStub(object):
     filepath = '/tmp/fake_page.py'
     application = _AppStub()
+    maintable = None
+    pageOptions = {}
 
     def __init__(self):
         self._register_nodeId = {}
 
     def checkTablePermission(self, **kwargs):
         return True
+
+    def getPreference(self, *args, **kwargs):
+        return None
 
 
 def _make_root(page=None):
@@ -292,3 +299,248 @@ def test_formlet_col_min_width_drops_cols():
     attrs = _formlet_attr(col_min_width='14em', cols=3)
     assert attrs.get('columns') == 'repeat(auto-fit, minmax(14em, 1fr))'
     assert 'cols' not in attrs
+
+
+# ---------------------------------------------------------------------------
+# wdgAttributesFromColumn: widget resolution from a model column
+# ---------------------------------------------------------------------------
+
+class _DbTableStub(object):
+    """Stands in for `column.table.dbtable`.
+
+    A `values` attribute is resolved through
+    `getattr(dbtable, values, lambda: values)()`, so a literal `values`
+    string only needs an object that does *not* carry that name, while a
+    method-backed one needs the method to exist here.
+    """
+
+    def statusValues(self):
+        return '1:[!!Draft],2:[!!Published]'
+
+
+class _TableStub(object):
+    def __init__(self, name='mytable'):
+        self.name = name
+        self.dbtable = _DbTableStub()
+
+
+class _ColumnStub(object):
+    """Minimal stand-in for a model column object.
+
+    Exposes only the surface `wdgAttributesFromColumn` actually reads, so
+    the resolver itself runs for real against a plain (non-DB) column.
+    """
+
+    def __init__(self, name, dtype='A', **attributes):
+        self.name = name
+        self.dtype = dtype
+        self.name_long = '!!%s' % name
+        self.fullname = 'test.mytable.%s' % name
+        self.attributes = attributes
+        self.table = _TableStub()
+
+    def relatedColumn(self):
+        return None
+
+
+def _wdgattr(dtype, **attributes):
+    root = _make_root()
+    column = _ColumnStub('feature_status', dtype=dtype, **attributes)
+    return root.wdgAttributesFromColumn(column, fld='feature_status')
+
+
+NUMERIC_VALUES = '1:[!!Not present],2:[!!In development],3:[!!Active]'
+
+
+@pytest.mark.parametrize('dtype', ['N', 'L', 'I'])
+def test_numeric_column_with_values_resolves_to_filteringselect(dtype):
+    """A numeric column declaring `values` renders as a select, and the
+    store is carried along so the call site need not repeat `values=`.
+    """
+    result = _wdgattr(dtype, values=NUMERIC_VALUES)
+    assert result['tag'] == 'filteringselect'
+    assert result['values'] == NUMERIC_VALUES
+    # the column keeps its own dtype: only the widget changes
+    assert result['dtype'] == dtype
+
+
+@pytest.mark.parametrize('dtype', ['A', 'T'])
+def test_text_column_with_values_resolves_to_filteringselect(dtype):
+    """Pre-existing behaviour for text dtypes is unchanged."""
+    result = _wdgattr(dtype, values='001:Draft,050:Work in progress,100:Final')
+    assert result['tag'] == 'filteringselect'
+    assert result['values'] == '001:Draft,050:Work in progress,100:Final'
+    assert result['dtype'] == dtype
+
+
+@pytest.mark.parametrize('dtype', ['A', 'T', 'N', 'L', 'I', 'R', 'D', 'H'])
+def test_values_without_colon_still_resolves_to_filteringselect(dtype):
+    """`values` declares a closed set of choices, so the widget does not
+    depend on whether key and caption happen to coincide.
+    """
+    result = _wdgattr(dtype, values='1,2,3')
+    assert result['tag'] == 'filteringselect'
+    assert result['values'] == '1,2,3'
+
+
+@pytest.mark.parametrize('dtype', ['A', 'T', 'N', 'L', 'I', 'R', 'D', 'H'])
+def test_every_other_dtype_with_values_resolves_to_filteringselect(dtype):
+    """It is the presence of `values` in the model that selects the widget,
+    not the dtype.
+    """
+    result = _wdgattr(dtype, values=NUMERIC_VALUES)
+    assert result['tag'] == 'filteringselect'
+    assert result['values'] == NUMERIC_VALUES
+    assert result['dtype'] == dtype
+
+
+def test_values_naming_a_table_method_is_resolved_through_the_dbtable():
+    """When `values` names a method on the table, the method's return
+    value becomes the store.
+    """
+    result = _wdgattr('N', values='statusValues')
+    assert result['tag'] == 'filteringselect'
+    assert result['values'] == '1:[!!Draft],2:[!!Published]'
+
+
+@pytest.mark.parametrize('dtype,expected', [
+    ('N', 'numberTextBox'),
+    ('L', 'numberTextBox'),
+    ('I', 'numberTextBox'),
+    ('R', 'numberTextBox'),
+])
+def test_numeric_column_without_values_keeps_its_dtype_widget(dtype, expected):
+    """Numeric columns that declare no `values` are untouched."""
+    result = _wdgattr(dtype)
+    assert result['tag'] == expected
+    assert 'values' not in result
+
+
+@pytest.mark.parametrize('dtype,expected', [
+    ('B', 'checkBox'),
+    ('X', 'tree'),
+])
+def test_widget_owning_dtypes_ignore_values(dtype, expected):
+    """A boolean is a checkBox and a Bag is a tree: neither is a list of
+    choices, so their own widget wins over a `values` store.
+    """
+    result = _wdgattr(dtype, values=NUMERIC_VALUES)
+    assert result['tag'] == expected
+    assert 'values' not in result
+
+
+def test_call_site_kwargs_override_the_resolved_tag():
+    """`result.update(kwargs)` runs last, so an explicit call-site tag
+    still wins over the dtype cascade.
+    """
+    root = _make_root()
+    column = _ColumnStub('feature_status', dtype='N', values=NUMERIC_VALUES)
+    result = root.wdgAttributesFromColumn(column, fld='feature_status',
+                                          tag='numberTextBox')
+    assert result['tag'] == 'numberTextBox'
+    # the store survives the override
+    assert result['values'] == NUMERIC_VALUES
+
+
+def test_call_site_can_ask_for_a_combobox_without_repeating_values():
+    """A developer who wants free text with suggestions says so at the call
+    site, and still gets the model's store for free.
+    """
+    root = _make_root()
+    column = _ColumnStub('feature_status', dtype='N', values=NUMERIC_VALUES)
+    result = root.wdgAttributesFromColumn(column, fld='feature_status',
+                                          tag='comboBox')
+    assert result['tag'] == 'comboBox'
+    assert result['values'] == NUMERIC_VALUES
+# formbuilder: `hidden` hides the label cell as well
+# ---------------------------------------------------------------------------
+
+_GETCHILD_RE = re.compile(r"tdNode\.getChild\('([^']+)'\)")
+
+
+def _fieldNode(root, value):
+    return root.getNodeByAttr('value', value)
+
+
+def _resolveChildPath(cellNode, path):
+    """Resolve a client-side `getChild` path against the built source, the same
+    way `gnr.GnrDomSource.getChild` walks it in the browser: every step moves
+    into the found node, and `parent` climbs to the bag holding the owner node.
+    """
+    bag = cellNode.value
+    node = None
+    for step in path.split('/'):
+        node = bag.parentNode.parentNode if step == 'parent' else bag.getNode(step)
+        assert node is not None, 'unresolved step %s of %s' % (step, path)
+        bag = node.value
+    return node
+
+
+def _hiddenFieldLabelCell(root, value):
+    """Label cell targeted by the `hidden` propagation of the given field."""
+    fieldNode = _fieldNode(root, value)
+    path = _GETCHILD_RE.search(fieldNode.attr['onCreated']).group(1)
+    return _resolveChildPath(fieldNode.parentNode, path)
+
+
+def _hiddenFormbuilder(lblpos=None):
+    """Two fields side by side, the first one `hidden`: mobileFormBuilder puts
+    the labels on top (lblpos='T'), plain formbuilder keeps them on the left.
+    """
+    root = _make_root()
+    pane = root.child('div', childname='pane')
+    fb = pane.mobileFormBuilder(cols=2) if lblpos is None else pane.formbuilder(cols=2, lblpos=lblpos)
+    fb.textbox(value='^.alfa', lbl='Alfa', hidden='^.hide_alfa')
+    fb.textbox(value='^.beta', lbl='Beta')
+    return root
+
+
+def test_hidden_propagates_to_label_with_labels_on_top():
+    root = _hiddenFormbuilder()
+    labelCell = _hiddenFieldLabelCell(root, '^.alfa')
+    # the label of the hidden field, not the one of the field next to it
+    assert labelCell.attr['innerHTML'] == 'Alfa'
+    assert labelCell.attr['tag'] == 'td'
+
+
+def test_hidden_propagates_to_label_with_labels_on_left():
+    root = _hiddenFormbuilder(lblpos='L')
+    labelCell = _hiddenFieldLabelCell(root, '^.alfa')
+    assert labelCell.attr['tag'] == 'td'
+    # with labels on the left the cell wraps the label in a div
+    assert labelCell.value.getNodes()[0].attr['innerHTML'] == 'Alfa'
+
+
+def test_hidden_field_keeps_its_own_cell_as_first_target():
+    root = _hiddenFormbuilder()
+    fieldNode = _fieldNode(root, '^.alfa')
+    assert 'this._hiddenTargets.push(tdNode.domNode)' in fieldNode.attr['onCreated']
+    # `hidden` is popped at creation time and replayed on the cells once built
+    assert "objectPop(arguments[0],'hidden')" in fieldNode.attr['onCreating']
+
+
+def test_explicit_lbl_hidden_wins_over_propagation():
+    root = _make_root()
+    fb = root.child('div', childname='pane').mobileFormBuilder(cols=2)
+    fb.textbox(value='^.alfa', lbl='Alfa', hidden='^.hide_alfa', lbl_hidden='^.hide_alfa')
+    fieldNode = _fieldNode(root, '^.alfa')
+    assert 'onCreated' not in fieldNode.attr
+    assert fieldNode.attr['hidden'] == '^.hide_alfa'
+
+
+def test_visible_field_gets_no_hidden_handler():
+    root = _hiddenFormbuilder()
+    assert 'onCreated' not in _fieldNode(root, '^.beta').attr
+
+
+def test_hidden_group_member_targets_its_own_label_cell():
+    root = _make_root()
+    fb = root.child('div', childname='pane').mobileFormBuilder(cols=2)
+    fb.textbox(value='^.alfa', lbl='Alfa', hidden='^.hide_alfa', hiddenGroup='alfa')
+    fb.textbox(value='^.beta', lbl='Beta')
+    fb.textbox(value='^.gamma', lbl='Gamma', hiddenGroup='alfa')
+    memberNode = _fieldNode(root, '^.gamma')
+    # the group member walks up to its own cell, like the hidden field does
+    assert "this.attributeOwnerNode('tag','td')" in memberNode.attr['onCreated']
+    labelCell = _hiddenFieldLabelCell(root, '^.gamma')
+    assert labelCell.attr['innerHTML'] == 'Gamma'
