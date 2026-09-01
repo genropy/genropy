@@ -362,7 +362,7 @@ class CrudMixin(SqlTableBaseMixin):
             if prepare_batch_selection(self, kwargs, pkey=pkey,
                                        _pkeys=_pkeys):
                 return
-        elif pkey:
+        elif pkey is not NO_SELECTION and pkey is not None:
             kwargs['pkey'] = pkey
         fetch = self.query(
             addPkeyColumn=False, for_update=for_update or True, **kwargs,

@@ -19,6 +19,7 @@ import uuid
 import pytest
 
 from gnr.sql.gnrsqltable import GnrSqlBusinessLogicException
+from gnr.sql.gnrsqltable.helpers import prepare_batch_selection
 
 from core.common import BaseGnrTest
 
@@ -163,6 +164,39 @@ class TestBatchUpdateSelection:
         db.commit()
         assert _tagged(tbl, tag) == set(rows['plain'])
 
+    def test_pkeys_string_ignores_the_spaces_after_the_commas(self, db,
+                                                             rows):
+        """A ', '.join() selection updates every key, not just the first."""
+        tbl = db.table('invc.customer')
+        tag = _tag()
+        tbl.batchUpdate(dict(notes=tag), _pkeys=', '.join(rows['plain']))
+        db.commit()
+        assert _tagged(tbl, tag) == set(rows['plain'])
+
+    @pytest.mark.parametrize('_pkeys', [',', ' , ', ''],
+                             ids=['comma', 'spaced_comma', 'empty'])
+    def test_pkeys_string_of_separators_only_is_a_noop(self, db, rows,
+                                                       _pkeys):
+        tbl = db.table('invc.customer')
+        tag = _tag()
+        before = _notes(tbl, rows['all'])
+        assert tbl.batchUpdate(dict(notes=tag), _pkeys=_pkeys) is None
+        db.commit()
+        assert _tagged(tbl, tag) == set()
+        assert _notes(tbl, rows['all']) == before
+
+    def test_falsy_pkey_is_a_selection_not_a_silent_skip(self, db, rows):
+        """Only None is the deliberate no-op: '' names a row that is absent.
+
+        The empty list tells the query flow apart from the guard's early
+        return, which yields None.
+        """
+        tbl = db.table('invc.customer')
+        tag = _tag()
+        assert tbl.batchUpdate(dict(notes=tag), pkey='') == []
+        db.commit()
+        assert _tagged(tbl, tag) == set()
+
     def test_explicit_where_none_stays_a_full_table_update(self, db, rows):
         """Pins the asymmetry the guard is built on.
 
@@ -222,9 +256,47 @@ class TestTouchRecordsSelection:
         db.commit()
         assert {row[tbl.pkey] for row in sel} == set(rows['plain'])
 
+    def test_pkeys_string_ignores_the_spaces_after_the_commas(self, db,
+                                                             rows):
+        tbl = db.table('invc.customer')
+        sel = tbl.touchRecords(_pkeys=', '.join(rows['plain']))
+        db.commit()
+        assert {row[tbl.pkey] for row in sel} == set(rows['plain'])
+
+    @pytest.mark.parametrize('_pkeys', [',', ' , ', ''],
+                             ids=['comma', 'spaced_comma', 'empty'])
+    def test_pkeys_string_of_separators_only_is_a_noop(self, db, rows,
+                                                       _pkeys):
+        tbl = db.table('invc.customer')
+        assert tbl.touchRecords(_pkeys=_pkeys) is None
+
+    def test_falsy_pkey_is_a_selection_not_a_silent_skip(self, db, rows):
+        tbl = db.table('invc.customer')
+        assert tbl.touchRecords(pkey='') == []
+
     def test_explicit_where_none_stays_a_full_table_touch(self, db, rows):
         tbl = db.table('invc.customer')
         visible = _visible(tbl)
         sel = tbl.touchRecords(where=None)
         db.commit()
         assert {row[tbl.pkey] for row in sel} == visible
+
+
+class TestSelectionNormalization:
+    """The helper itself, on the shapes the DB flow cannot express.
+
+    ``invc.customer`` has a text pkey, so a numeric key can only be pinned
+    on the normalization step, without reaching the query.
+    """
+
+    def test_zero_pkey_names_a_row(self, db):
+        tbl = db.table('invc.customer')
+        kwargs = {}
+        assert prepare_batch_selection(tbl, kwargs, pkey=0) is False
+        assert kwargs['_pkeys'] == [0]
+
+    def test_none_pkey_is_the_only_empty_selection(self, db):
+        tbl = db.table('invc.customer')
+        kwargs = {}
+        assert prepare_batch_selection(tbl, kwargs, pkey=None) is True
+        assert kwargs == {}

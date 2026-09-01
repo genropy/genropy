@@ -86,9 +86,15 @@ def prepare_batch_selection(tblobj: SqlTable, kwargs, pkey=NO_SELECTION,
     *pkey*/*_pkeys*. On success *kwargs* is filled in place with the
     ``where``/``_pkeys`` pair and the query options of the pkey flow.
 
+    ``None`` is the only deliberate empty selection: every other value
+    names rows and goes through the query, falsy ones (``0``, ``''``)
+    included. Testing a pkey by truthiness instead of identity is a known
+    defect of this layer, already flagged in ``gnrsqldata/record.py``.
+
     :param tblobj: the table the batch operation runs on
     :param kwargs: the query kwargs of the caller, updated in place
-    :param pkey: a single primary key, or ``NO_SELECTION`` if not passed
+    :param pkey: a single primary key, ``None`` for an explicitly empty
+                 selection, or ``NO_SELECTION`` if not passed
     :param _pkeys: a list (or comma separated string) of primary keys,
                    or ``NO_SELECTION`` if not passed
     :returns: ``True`` when the caller must skip the operation because the
@@ -106,13 +112,13 @@ def prepare_batch_selection(tblobj: SqlTable, kwargs, pkey=NO_SELECTION,
                  'logical deletion filters).'),
             pkeyfield=tblobj.pkey,
         )
-    if pkey:
-        _pkeys = [pkey]
+    if pkey is not NO_SELECTION:
+        _pkeys = [] if pkey is None else [pkey]
+    if isinstance(_pkeys, str):
+        _pkeys = [k.strip() for k in _pkeys.split(',') if k.strip()]
     if not _pkeys:
         return True
     kwargs['where'] = '$%s IN :_pkeys' % tblobj.pkey
-    if isinstance(_pkeys, str):
-        _pkeys = _pkeys.strip(',').split(',')
     kwargs['_pkeys'] = _pkeys
     kwargs.setdefault('subtable', '*')
     kwargs.setdefault('excludeDraft', False)
