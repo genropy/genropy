@@ -233,13 +233,12 @@ div.cellContent{
 }
 
 .TAeditorPalette{
-    background: transparent var(--icon-palette) no-repeat center center;
+    background: transparent var(--icon-text-editor) no-repeat center center;
     background-size: 13px 13px;
     width:16px;
     height:14px;
-    top:1px;
     display:inline-block;
-    position:relative;
+    vertical-align: middle;
     cursor: pointer;
 }
 
@@ -249,6 +248,7 @@ div.cellContent{
     vertical-align: middle;
     width: 16px;
     height: 14px;
+    background-size: 14px 14px;
     margin-left: 4px;
     opacity: 0.6;
 }
