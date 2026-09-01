@@ -131,6 +131,7 @@
 <en_to_date base="To date" en="To date" it="Fino alla data"></en_to_date>
 <en_draft base="Draft" it="Bozza" en="Draft"></en_draft>
 <en_body base="Body" de="Körper" en="Body" fr="Corps" it="Corpo"></en_body>
+<en_preview base="Preview" en="Preview" it="Anteprima"></en_preview>
 <en_attachments base="Attachments" de="Zubehör" en="Attachments" fr="Pièces jointes" it="Allegati"></en_attachments>
 <en_body_plain base="Body plain" it="Corpo piatto" en="Body plain"></en_body_plain>
 <en_errors fr="Erreurs" de="Fehler" en="Errors" it="Errori" base="Errors"></en_errors>
