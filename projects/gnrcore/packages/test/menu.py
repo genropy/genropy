@@ -1,19 +1,9 @@
 # encoding: utf-8
 class Menu(object):
-    def config(self,root,**kwargs):
-        tests = root.branch("!!Tests", tags="_DEV_")
-        tests.directoryBranch("Batch", folder="batch")
-        tests.directoryBranch("Components", folder="components")
-        tests.directoryBranch("Datastore elements", folder="datastore")
-        tests.directoryBranch("Dojo", folder="dojo")
-        tests.directoryBranch("Google", folder="google")
-        tests.directoryBranch("Drag & Drop", folder="drag_drop")
-        tests.directoryBranch("Gnr widgets", folder="gnrwdg")
-        tests.directoryBranch("HTML", folder="html")
-        tests.directoryBranch("Input fields", folder="inputfields")
-        tests.directoryBranch("Layout", folder="layout")
-        tests.directoryBranch("Path", folder="path")
-        tests.directoryBranch("Services", folder="services")
-        tests.directoryBranch("Tools", folder="tools")
-        tests.directoryBranch("Websocket", folder="websocket")
-
+    def config(self, root, **kwargs):
+        root.directoryBranch('!!Tests', folder='', tags='_DEV_')
+        documents = root.branch('!!Test documents', tags='_DEV_')
+        documents.docpage('!!HTML document', source='pkg:test/resources/test.html')
+        # Deliberately exercises click-time 404 behavior.
+        documents.docpage('!!HTML document (missing file)',
+                          source='pkg:test/resources/does_not_exist.html')

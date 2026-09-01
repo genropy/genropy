@@ -250,8 +250,18 @@ class TransactionMixin(GnrSqlDbBaseMixin):
             cursor.setConstraintsDeferred()
 
     def rollback(self) -> None:
-        """Roll back the current connection's transaction."""
-        self.connection.rollback()
+        """Roll back the current connection's transaction.
+
+        With a multi-store storename (``'*'`` or comma-separated) the
+        ``connection`` property returns a list of connections: each one
+        is rolled back.
+        """
+        connection = self.connection
+        if isinstance(connection, list):
+            for c in connection:
+                c.rollback()
+        else:
+            connection.rollback()
 
     def rollbackAll(self) -> None:
         """Roll back every uncommitted connection of the current thread.

@@ -223,7 +223,11 @@ dojo.declare("gnr.GnrSrcHandler", null, {
             console.log('missing destination in rebuild');
         }
         this._onDeletingContent(kw.oldvalue);
-        this.cleanupContentSubscriptions(kw.oldvalue);
+        if (kw.oldvalue !== kw.node._value) {
+            //on a same-bag rebuild the content is kept, not discarded: its
+            //data* nodes are already stripped and would never resubscribe
+            this.cleanupContentSubscriptions(kw.oldvalue);
+        }
         var domNode = kw.node.getDomNode();//get the domnode
         var newNode = document.createElement('div');
         var widget = kw.node.widget;

@@ -836,7 +836,7 @@ class GnrDomSrc(GnrStructData):
         return self.child('script', childcontent=content, **kwargs)
     
     def bagField(self,value=None,method=None,**kwargs):
-        return self.child('bagField',value=value,methodname=method,**kwargs)
+        return self.child('bagField',value=value,bfhandler=method,**kwargs)
     
     def grouplet(self,value=None,handler=None,**kwargs):
         return self.child('grouplet',value=value,handler=handler,**kwargs)
