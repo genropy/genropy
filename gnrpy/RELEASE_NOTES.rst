@@ -1,3 +1,8 @@
+Release 26.09.01
+================
+
+Hotfix release: disclosed security policy via SECURITY.md.
+
 Release 26.08.28
 ================
 
