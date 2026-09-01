@@ -29,6 +29,23 @@ class _FakeStatic:
         return '/'.join(str(a) for a in args)
 
 
+class _FakeTempEnv:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeDb:
+    """The slice of GnrSqlDb that page_class_cache_enabled touches."""
+
+    rootstore = '_main_db'
+
+    def tempEnv(self, **kwargs):
+        return _FakeTempEnv()
+
+
 class _FakeSite:
     """The slice of GnrWsgiSite that ResourceLoader.__init__ touches."""
 
@@ -40,6 +57,7 @@ class _FakeSite:
         self.default_page = None
         self.preference = preference
         self.preference_reads = 0
+        self.db = _FakeDb()
 
     def getStatic(self, name):
         return _FakeStatic()
