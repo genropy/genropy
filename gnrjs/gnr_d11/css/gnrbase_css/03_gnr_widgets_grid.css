@@ -161,7 +161,10 @@ div.cellContent{
     position: absolute;
     display: block;
     bottom: 1px;
+    left: 2px;
+    right: 2px;
     height: 18px;
+    margin-left: 0;
     border-top: 0;
 }
 .quickTooltipContainer{
@@ -212,56 +215,45 @@ div.cellContent{
     flex: 1;
     min-height: 0;
     position: relative;
+    box-sizing: border-box;
+}
+/* an inline iframe leaves a baseline gap under itself, pushing the kama
+   chrome past the area's height inside a table-cell that treats height
+   as a minimum: the editor then overflows the area and gets clipped */
+.textAreaWrapperArea .cke_skin_kama iframe{
+    display: block;
 }
 .textAreaWrapperButtons{
     flex-shrink: 0;
-    border: 1px solid var(--border-color);
-    border-bottom-right-radius: var(--radius-sm);
-    border-bottom-left-radius: var(--radius-sm);
     margin-left: 0.6em;
-    background: var(--surface-light);
 }
 
-.textAreaWrapperInTable .textAreaWrapperButtons{
-    opacity: 0;
-}
-
-.textAreaWrapper:hover .textAreaWrapperButtons{
-    opacity:1;
-}
-
-.TAspeechInputBox{
-    position:relative;
-    left:2px;
-    cursor: pointer;
-    display:inline-block;
-    width:34px;
-    height:14px;
-    overflow: hidden;
-}
-.TAspeechInput{
-    width:14px;
-    border:0;
-    color:transparent;
-    font-size:13px;
-    background:transparent;
-    position: relative;
-    left:8px;
-    top:0;
-}
 .ckBody{
     margin:2px;
 }
 
 .TAeditorPalette{
-    background: transparent var(--icon-editor-palette) no-repeat center center;
-    height:1px;
-    width:34px;
+    background: transparent var(--icon-text-editor) no-repeat center center;
+    background-size: 13px 13px;
+    width:16px;
     height:14px;
-    top:1px;
     display:inline-block;
-    position:relative;
+    vertical-align: middle;
     cursor: pointer;
+}
+
+.textAreaWrapperButtons .gnr_speech_button{
+    position: static;
+    display: inline-block;
+    vertical-align: middle;
+    width: 16px;
+    height: 14px;
+    background-size: 14px 14px;
+    margin-left: 4px;
+    opacity: 0.6;
+}
+.textAreaWrapperButtons .gnr_speech_button:hover{
+    opacity: 1;
 }
 
 ._common_d11 .cke_skin_kama iframe {

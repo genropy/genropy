@@ -236,7 +236,7 @@ class TableHandlerForm(BaseComponent):
 
         form.dataController(""" if(reason=='nochange'){return;}
                                 genro.dlg.alert(msg+' '+this.form.getRecordCaption()+': '+(reason=='invalid'?invalid:nochange),titledialog);""",
-                            reason="^.controller.save_failed",_if='reason',
+                            reason="^#FORM.controller.save_failed",_if='reason',
                             titledialog='!!Save failed',
                             msg='!!You cannot save',
                             invalid='!!Invalid record',
