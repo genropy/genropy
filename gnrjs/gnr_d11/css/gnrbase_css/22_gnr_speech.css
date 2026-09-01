@@ -33,6 +33,16 @@
     animation: gnr_speech_pulse 1.2s ease-in-out infinite;
 }
 
+.gnr_speech_button.gnr_speech_unavailable {
+    opacity: 0.25;
+    cursor: not-allowed;
+}
+
+.gnr_speech_button.gnr_speech_unavailable:hover {
+    opacity: 0.25;
+    background-color: transparent;
+}
+
 @keyframes gnr_speech_pulse {
     0%   { box-shadow: 0 0 0 0   rgba(220, 53, 69, 0.55); }
     70%  { box-shadow: 0 0 0 6px rgba(220, 53, 69, 0); }

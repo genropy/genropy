@@ -22,9 +22,10 @@ Assembly follows a specific order to respect dependencies::
     3. CREATE SCHEMA (new schemas)
     4. For each table:
        a. Pre-commands (column backups for type conversions)
-       b. CREATE TABLE (new tables) or ALTER TABLE (columns)
-       c. ADD CONSTRAINT (UNIQUE, CHECK constraints)
-       d. CREATE INDEX (indexes)
+       b. ALTER TABLE (added/changed columns)
+       c. CREATE TABLE (new tables) or primary key rebuild
+       d. ADD CONSTRAINT (UNIQUE, CHECK constraints)
+       e. CREATE INDEX (indexes)
     5. ALTER TABLE ADD FOREIGN KEY (FK relations - last)
 
 **Foreign keys are applied last** because they might reference
@@ -144,9 +145,13 @@ class ExecutorMixin(SqlMigratorBaseMixin):
 
         The assembly order is:
         1. Pre-commands (column backups for conversions)
-        2. CREATE TABLE (new table) or ALTER TABLE with columns
-        3. ADD CONSTRAINT (separate constraints)
-        4. CREATE INDEX (separate indexes)
+        2. ALTER TABLE with the added/changed columns
+        3. CREATE TABLE (new table) or primary key rebuild
+        4. ADD CONSTRAINT (separate constraints)
+        5. CREATE INDEX (separate indexes)
+
+        Columns are emitted before the table command because a primary key
+        rebuild may target a column added by the same migration.
 
         Foreign keys are returned separately in ``relation_commands``
         to be applied last.
@@ -185,12 +190,16 @@ class ExecutorMixin(SqlMigratorBaseMixin):
         ]
 
         table_command = tbl_item.get('command')
-        if table_command:
-            # New table: the command is the complete CREATE TABLE
-            command_list.append(table_command)
-        elif col_commands:
+        # Column changes go first: the table command may be a primary key
+        # rebuild (changed_table) targeting a column added in this same
+        # migration. New tables never reach this point with column commands:
+        # added_table inlines their columns into the CREATE TABLE.
+        if col_commands:
             # Existing table: ALTER TABLE with all columns
             command_list.append(f"{alter_table_command}\n{col_commands};")
+        if table_command:
+            # New table (CREATE TABLE) or primary key rebuild
+            command_list.append(table_command)
 
         # Separate constraints: each constraint needs its own ALTER TABLE
         for constraint_sql in constraint_commands:

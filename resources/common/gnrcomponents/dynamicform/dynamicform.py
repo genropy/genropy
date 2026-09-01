@@ -407,7 +407,7 @@ class DynamicForm(BaseComponent):
 
     @public_method
     def df_remoteDynamicForm(self,pane,df_table=None,df_pkey=None,datapath=None,df_groups_cols=None,df_groups=None,
-                             **kwargs):
+                             df_formlet=None,**kwargs):
         if not (df_pkey or df_groups):
             pane.div()
             return
@@ -419,7 +419,11 @@ class DynamicForm(BaseComponent):
         if df_groups:
             group_kwargs = dictExtract(kwargs,'group_')
             group_kwargs.setdefault('padding','10px')
-            groupfb = pane.div(**group_kwargs).formbuilder(cols=df_groups_cols or 1,spacing=3,border_spacing='3px',datapath=datapath,tdl_hidden=True)
+            groupbox = pane.div(**group_kwargs)
+            if df_formlet:
+                groupfb = groupbox.formbuilder_formlet(cols=df_groups_cols or 1,lblpos='T',datapath=datapath)
+            else:
+                groupfb = groupbox.formbuilder(cols=df_groups_cols or 1,spacing=3,border_spacing='3px',datapath=datapath,tdl_hidden=True)
             global_vars = self.df_prepareGlobalVars(global_fields=global_fields,df_groups=df_groups)
             for gr in df_groups:
                 gr_attr=gr.attr
@@ -435,11 +439,11 @@ class DynamicForm(BaseComponent):
                 grp=box.div(margin_right='10px')
                 fields = global_fields[pkey]
                 if fields:
-                    grp.dynamicFormGroup(fields=fields,ncol=ncol,global_vars=global_vars if gr_attr.get('global_namespace') else None,**kwargs)
+                    grp.dynamicFormGroup(fields=fields,ncol=ncol,df_formlet=df_formlet,global_vars=global_vars if gr_attr.get('global_namespace') else None,**kwargs)
         else:
             ncol,colswidth = df_tblobj.readColumns(columns='$df_fbcolumns,$df_colswidth',pkey=df_pkey)
             fields = global_fields[df_pkey]
-            pane.dynamicFormPage(fields=fields,ncol=ncol,colswidth=colswidth or None,datapath=datapath,**kwargs)
+            pane.dynamicFormPage(fields=fields,ncol=ncol,colswidth=colswidth or None,datapath=datapath,df_formlet=df_formlet,**kwargs)
             
     @struct_method
     def df_dynamicFormPage(self,pane,fields=None,ncol=None,colswidth=None,datapath=None,**kwargs):
@@ -460,17 +464,33 @@ class DynamicForm(BaseComponent):
             pages = ['Main']+pages
         for p in pages:
             pane = tc.contentPane(title=p,padding='10px')
-            pane.dynamicFormGroup(fdict[p],ncol=ncol,colswidth=colswidth,**kwargs)
+            pane.dynamicFormGroup(fdict[p],ncol=ncol,colswidth=colswidth,all_fields=fields,**kwargs)
 
     @struct_method
-    def df_dynamicFormGroup(self,pane,fields=None,ncol=None,colswidth=None,spacing=3,setInAttributes=False,**kwargs):
-        fb = pane.div(margin_right='10px').formbuilder(cols=ncol or 1,keeplabel=True,colswidth=colswidth,width='100%',border_spacing='3px',
-                                                            spacing=spacing,tdf_width='100%',lbl_white_space='nowrap',lbl=False)        
+    def df_dynamicFormGroup(self,pane,fields=None,ncol=None,colswidth=None,spacing=3,setInAttributes=False,df_formlet=None,**kwargs):
+        box = pane.div(margin_right='10px')
+        if df_formlet:
+            # lblpos='T': formbuilder_formlet defaults to the legacy left label,
+            # the formlet norm is top and it is what the surrounding form uses.
+            fb = box.formbuilder_formlet(cols=self.df_formletColumns(ncol,colswidth),lblpos='T')
+        else:
+            fb = box.formbuilder(cols=ncol or 1,keeplabel=True,colswidth=colswidth,width='100%',border_spacing='3px',
+                                                            spacing=spacing,tdf_width='100%',lbl_white_space='nowrap',lbl=False)
         fb.addDynamicFields(fields=fields,setInAttributes=setInAttributes,**kwargs)
+
+    def df_formletColumns(self,ncol=None,colswidth=None):
+        """Translate the formbuilder df_colswidth (comma separated) into a
+        grid-template-columns track list; 'auto' means equal tracks, i.e. plain ncol."""
+        ncol = ncol or 1
+        if not colswidth or colswidth == 'auto':
+            return ncol
+        widths = [w.strip() for w in colswidth.split(',') if w.strip()]
+        widths = widths + [widths[-1]] * (ncol - len(widths))
+        return ' '.join(widths[:ncol])
 
 
     @public_method
-    def df_remoteDynamicGroup(self,pane,df_table=None,df_pkey=None,datapath=None,fbattrs=None,**kwargs):
+    def df_remoteDynamicGroup(self,pane,df_table=None,df_pkey=None,datapath=None,fbattrs=None,df_formlet=None,**kwargs):
         if not df_pkey:
             pane.div()
             return
@@ -481,20 +501,26 @@ class DynamicForm(BaseComponent):
             r.pop('page',None)
         if fbattrs is not False:
             fbattrs = fbattrs or dict()
-            fb = pane.formbuilder(row_datapath=datapath,lbl=False,**fbattrs)     
+            if df_formlet:
+                # a formlet has no rows: the formbuilder row_datapath scoping becomes
+                # the datapath of the grid container
+                fb = pane.formbuilder_formlet(cols=self.df_formletColumns(fbattrs.get('cols'),fbattrs.get('colswidth')),
+                                              lblpos='T',datapath=datapath)
+            else:
+                fb = pane.formbuilder(row_datapath=datapath,lbl=False,**fbattrs)
         else:
             fb = pane   
             kwargs['box_c_'] =datapath
         fb.addDynamicFields(fields=fields,**kwargs)
 
     @struct_method
-    def df_addDynamicFields(self,fb,fields=None,setInAttributes=None,**kwargs):
+    def df_addDynamicFields(self,fb,fields=None,setInAttributes=None,all_fields=None,**kwargs):
         dbstore_kwargs = dictExtract(kwargs,'dbstore_',pop=True)
         if not fields:
             return
         fieldPrefix = '.?' if setInAttributes else '.'
         for r in fields:
-            fb.dynamicField(r,fields=fields,dbstore_kwargs=dbstore_kwargs,fieldPrefix=fieldPrefix,**kwargs)
+            fb.dynamicField(r,fields=all_fields or fields,dbstore_kwargs=dbstore_kwargs,fieldPrefix=fieldPrefix,**kwargs)
             
     @struct_method
     def df_dynamicField(self,fb,r,fields=None,dbstore_kwargs=None,**kwargs):

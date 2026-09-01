@@ -12,6 +12,7 @@ from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import slugify
 from gnr.core.gnrlang import gnrImport
+from gnr.app import pkglog as logger
 
 EMAIL_PATTERN = re.compile(r'([\w\-\.]+@(\w[\w\-]+\.)+[\w\-]+)')
 
@@ -211,6 +212,9 @@ class Table(object):
         new_mail['body'] = ' '.join(mail.text_html) or new_mail['body_plain']
         for key in ('body', 'body_plain'):
             new_mail[key] = new_mail[key].replace('\x00', '')
+        # attachments are inserted here, before new_mail itself is inserted by the
+        # caller: the deferred FK on email.attachment.message_id is what allows it,
+        # and receivers rely on the attachments being readable from trigger_onInserted.
         for atc_counter, attachment in enumerate(mail.attachments):
             self.parseAttachment(attachment, new_mail, atc_counter)
         return new_mail
@@ -231,11 +235,37 @@ class Table(object):
         new_mail['send_date'] = mail.date or self.newUTCDatetime()
 
 
+    def decodeAttachmentPayload(self, payload):
+        """Decode an attachment payload, tolerating the padding lost along the
+        delivery chain. Returns None when it cannot be decoded at all.
+
+        Everything outside the base64 alphabet is dropped before the padding is
+        recomputed: b64decode ignores those characters anyway, so counting them
+        would compute the padding against the wrong length."""
+        b64 = re.sub(r'[^A-Za-z0-9+/]', '', payload or '')
+        try:
+            return base64.b64decode(b64 + '=' * (-len(b64) % 4))
+        except Exception:
+            return None
+
     def parseAttachment(self, attachment, new_mail, atc_counter):
         new_attachment = dict(message_id = new_mail['id'])
-        filename = attachment['filename']
+        filename = attachment['filename'] or ''
         binary = attachment['binary']
         payload = attachment['payload']
+        file_content = payload
+        file_mode = 'w'
+        if binary:
+            file_content = self.decodeAttachmentPayload(payload)
+            if file_content is None:
+                # undecodable base64: keep the raw payload beside the message
+                # rather than lose the whole email over one attachment
+                logger.warning('Attachment %s of message %s is not decodable, stored raw',
+                               filename, new_mail['id'])
+                file_content = payload
+                filename = '%s.b64' % filename
+            else:
+                file_mode = 'wb'
         fname,ext = os.path.splitext(filename)
         fname = fname.replace('.','_').replace('~','_').replace('#','_').replace(' ','').replace('/','_')
         fname = slugify(fname)
@@ -244,12 +274,6 @@ class Table(object):
         attachmentNode =  self.getAttachmentNode(date=date,filename=filename, new_mail=new_mail, atc_counter=atc_counter)
         new_attachment['path'] = attachmentNode.fullpath
         new_attachment['filename'] = attachmentNode.basename
-        if binary:
-            file_content = base64.b64decode(payload)
-            file_mode = 'wb'
-        else:
-            file_content = payload
-            file_mode = 'w'
         with attachmentNode.open(file_mode) as attachment_file:
             attachment_file.write(file_content)
 
