@@ -746,21 +746,6 @@ class SiteRegister(BaseRemoteObject):
         children.discard(child_id)
         return True
 
-    def dropRegisterLink(self, register, parent_id, link_name, child_id):
-        """Discard *child_id* from one parent's link set, parent known.
-
-        Unlike updateRegisterLink this does not require the child item to exist:
-        it is what a pruning reader calls once it has found a key with no item.
-        """
-        parent_item = register.registerItems.get(parent_id)
-        if parent_item is None:
-            return False
-        children = parent_item.get(link_name)
-        if not children or child_id not in children:
-            return False
-        children.discard(child_id)
-        return True
-
     def dropRegisterLinks(self, register, link_name, child_id):
         """Discard *child_id* from every parent that holds it, parent unknown.
 
