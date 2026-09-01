@@ -421,11 +421,19 @@ class PageRegister(BaseRegister):
             self.tableSubscribers[table].add(page_id)
         return bool(subscribed_tables)
 
-    def dropSubscriptions(self, page_id, subscribed_tables):
-        """Forget every subscription of a page that is going away."""
-        for table in list(subscribed_tables):
+    def dropSubscriptions(self, page_id, subscribed_tables=None):
+        """Forget every subscription of a page that is going away.
+
+        Driven by the index, not by the page's own list: the list says what the
+        current item believes, the index says what notifyDbEvents will actually
+        read. Scanning the index makes the removal atomic with the drop whatever
+        happened to the item before (an overwritten registration, a restored
+        pickle), so a dropped page can never leave a dangling subscriber behind.
+        """
+        for table in list(self.tableSubscribers):
             self._dropSubscriber(table, page_id)
-        del subscribed_tables[:]
+        if subscribed_tables:
+            del subscribed_tables[:]
 
     def _dropSubscriber(self, table, page_id):
         subscribers = self.tableSubscribers.get(table)
@@ -439,9 +447,24 @@ class PageRegister(BaseRegister):
         """Tables with at least one subscribed page."""
         return list(self.tableSubscribers)
 
+    def load(self, storagefile):
+        # A restored pickle replaces registerItems wholesale: rebuild the index from
+        # the restored per-page lists, or every restored subscription is invisible to
+        # notifyDbEvents and whatever the index held before dangles.
+        super(PageRegister, self).load(storagefile)
+        self.tableSubscribers = defaultdict(set)
+        for page_id, register_item in self.registerItems.items():
+            for table in register_item.get('subscribed_tables') or []:
+                self.tableSubscribers[table].add(page_id)
+
     def create(self, page_id, pagename=None, connection_id=None, subscribed_tables=None, user=None, user_ip=None, user_agent=None, relative_url=None, data=None):
         register_item_id = page_id
         start_ts = datetime.now()
+        if register_item_id in self.registerItems:
+            # Re-registering an existing page_id replaces the item wholesale: unindex
+            # the previous life first, or its subscriptions dangle in the index and
+            # outlive the item, breaking every notifyDbEvents on those tables.
+            self.dropSubscriptions(register_item_id)
         if subscribed_tables:
             subscribed_tables = subscribed_tables.split(',')
         subscribed_tables = subscribed_tables or []
@@ -467,7 +490,7 @@ class PageRegister(BaseRegister):
         # it must never point at one that is already gone.
         self.dropSubscriptions(register_item_id,
                                (self.registerItems.get(register_item_id) or {}
-                                ).get('subscribed_tables') or [])
+                                ).get('subscribed_tables'))
         register_item = self.drop_item(register_item_id)
         self.pageProfilers.pop(register_item_id, None)
         if cascade:
@@ -485,10 +508,20 @@ class PageRegister(BaseRegister):
     def subscribed_table_page_items(self, table):
         # registerItems rather than get_item: the scan this replaces did not refresh
         # a page's timestamp, and notifying an event must not keep a page alive.
-        return [(k, self.registerItems[k]) for k in self.subscribed_table_page_keys(table)]
+        items = []
+        for k in self.subscribed_table_page_keys(table):
+            register_item = self.registerItems.get(k)
+            if register_item is None:
+                # The index is a cache of the per-page lists: a key with no item is
+                # residual drift, and raising here would abort the notification for
+                # every live subscriber of the table. Prune it and move on.
+                self._dropSubscriber(table, k)
+                continue
+            items.append((k, register_item))
+        return items
 
     def subscribed_table_pages(self, table):
-        return [self.registerItems[k] for k in self.subscribed_table_page_keys(table)]
+        return [register_item for k, register_item in self.subscribed_table_page_items(table)]
 
     def connection_page_keys(self, connection_id):
         # from the connection item's link set; a list, so callers may drop while iterating
