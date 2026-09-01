@@ -1991,23 +1991,20 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
         if(!parent){ return; }
         var wrapper = document.createElement('div');
         wrapper.className = 'gnr_speech_wrapper';
-        wrapper.style.position = 'relative';
-        wrapper.style.display = 'inline-block';
-        wrapper.style.verticalAlign = 'top';
         parent.insertBefore(wrapper, domNode);
         wrapper.appendChild(domNode);
-        // the field's requested size must move to the wrapper: a percent size
-        // left on the field would now resolve against this auto-sized wrapper
+        // the size the field asked for becomes the wrapper's: a percent left on
+        // the field would resolve against the wrapper instead of the container.
+        // Cleared rather than set to 100%: as the only grid item in the cell the
+        // field stretches on its own. Everything else is in 22_gnr_speech.css.
         if(domNode.style.width){
             wrapper.style.width = domNode.style.width;
-            domNode.style.width = '100%';
+            domNode.style.width = '';
         }
         if(domNode.style.height){
             wrapper.style.height = domNode.style.height;
-            domNode.style.height = '100%';
+            domNode.style.height = '';
         }
-        domNode.style.paddingRight = '26px';
-        domNode.style.boxSizing = 'border-box';
         var btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'gnr_speech_button';
