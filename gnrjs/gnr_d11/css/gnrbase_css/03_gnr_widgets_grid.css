@@ -225,19 +225,7 @@ div.cellContent{
 }
 .textAreaWrapperButtons{
     flex-shrink: 0;
-    border: 1px solid var(--border-color);
-    border-bottom-right-radius: var(--radius-sm);
-    border-bottom-left-radius: var(--radius-sm);
     margin-left: 0.6em;
-    background: var(--surface-light);
-}
-
-.textAreaWrapperInTable .textAreaWrapperButtons{
-    opacity: 0;
-}
-
-.textAreaWrapper:hover .textAreaWrapperButtons{
-    opacity:1;
 }
 
 .ckBody{
@@ -245,9 +233,9 @@ div.cellContent{
 }
 
 .TAeditorPalette{
-    background: transparent var(--icon-editor-palette) no-repeat center center;
-    height:1px;
-    width:34px;
+    background: transparent var(--icon-palette) no-repeat center center;
+    background-size: 13px 13px;
+    width:16px;
     height:14px;
     top:1px;
     display:inline-block;
