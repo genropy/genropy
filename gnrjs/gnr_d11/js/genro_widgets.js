@@ -1916,10 +1916,11 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
     onBuilding:function(sourceNode){
         //{value:,height,width}
         var areaAttr = objectUpdate({},sourceNode.attr);
-        objectPop(areaAttr,'speech'); // consumed in created()
+        var speechEnabled = objectPop(areaAttr,'speech'); // consumed here and in created()
         var editor = objectPop(areaAttr,'editor');
         var tag = this._domtag;
         var notrigger = {'doTrigger':false};
+        var that = this;
         if (editor){
             var parentNode =sourceNode.getParentNode();
             var insideTable = parentNode && parentNode.attr.tag=='td';
@@ -1931,9 +1932,13 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
                 _class+= ' textAreaIsEditor';
             }
             var currAttr = sourceNode.attr;
-            sourceNode.attr = {'tag':'div',_class:_class};
-            objectExtract(currAttr,'tag,width');
-            var tKw = objectUpdate({overflow:'hidden',_class:'textAreaWrapperArea'},currAttr);
+            // only the outer wrapper's own size and the speech_* settings belong on this node:
+            // everything else in currAttr is meant for the inner editable tag (via areaAttr) and
+            // must not leak onto the wrapper divs (it used to, doubling up height with config_height).
+            var wrapperSize = objectExtract(currAttr,'height,width');
+            var speechAttrs = objectExtract(currAttr,'speech_*',false,true);
+            sourceNode.attr = objectUpdate(objectUpdate({'tag':'div',_class:_class},wrapperSize),speechAttrs);
+            var tKw = {overflow:'hidden',_class:'textAreaWrapperArea'};
             if(editor){
                 tKw['border'] = '1px solid silver';
                 tKw['rounded'] = 4;
@@ -1954,6 +1959,11 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
                 this._dojotag = null;
             }
             var textarea = top._(tag,areaAttr,notrigger).getParentNode();
+            if(speechEnabled){
+                setTimeout(function(){
+                    that._attachEditorSpeechButton(sourceNode, textarea);
+                },1);
+            }
         }
     },
     onSpeechEnd:function(sourceNode,v){
@@ -1974,23 +1984,30 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
 
     _attachSpeechButton:function(newobj, sourceNode){
         if(!sourceNode.attr.speech){ return; }
-        if(!genro.speech || !genro.speech.isAvailable()){ return; }
         var that = this;
         var domNode = newobj.domNode;
         var parent = domNode.parentNode;
         if(!parent){ return; }
         var wrapper = document.createElement('div');
+        wrapper.className = 'gnr_speech_wrapper';
         wrapper.style.position = 'relative';
         wrapper.style.display = 'inline-block';
         parent.insertBefore(wrapper, domNode);
         wrapper.appendChild(domNode);
         domNode.style.paddingRight = '26px';
+        domNode.style.boxSizing = 'border-box';
         var btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'gnr_speech_button';
-        btn.title = 'Voice input';
         btn.setAttribute('tabindex','-1');
         wrapper.appendChild(btn);
+        if(!genro.speech || !genro.speech.isAvailable()){
+            btn.classList.add('gnr_speech_unavailable');
+            btn.title = 'Voice input not supported in this browser';
+            btn.disabled = true;
+            return;
+        }
+        btn.title = 'Voice input';
         var session = null;
         var stopListening = function(){
             if(session){
@@ -2042,6 +2059,69 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
         sourceNode.subscribe('onDestroying', stopListening);
     },
 
+    _attachEditorSpeechButton:function(sourceNode, editorSourceNode){
+        var wrapperDomNode = sourceNode.getDomNode();
+        var container = wrapperDomNode ? wrapperDomNode.querySelector('.textAreaWrapperButtons') : null;
+        if(!container){ return; }
+        var that = this;
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'gnr_speech_button';
+        btn.setAttribute('tabindex','-1');
+        container.appendChild(btn);
+        if(!genro.speech || !genro.speech.isAvailable()){
+            btn.classList.add('gnr_speech_unavailable');
+            btn.title = 'Voice input not supported in this browser';
+            btn.disabled = true;
+            return;
+        }
+        btn.title = 'Voice input';
+        var session = null;
+        var stopListening = function(){
+            if(session){
+                session.stop();
+                session = null;
+            }
+            btn.classList.remove('gnr_speech_listening');
+        };
+        btn.addEventListener('click', function(e){
+            e.preventDefault();
+            e.stopPropagation();
+            if(session){
+                stopListening();
+                return;
+            }
+            btn.classList.add('gnr_speech_listening');
+            let silenceTimeout = sourceNode.getAttributeFromDatasource('speech_silenceTimeout');
+            if(silenceTimeout == null){ silenceTimeout = 2500; }
+            silenceTimeout = parseInt(silenceTimeout, 10) || 0;
+            const stopWordsAttr = sourceNode.getAttributeFromDatasource('speech_stopWords');
+            const stopWords = stopWordsAttr ? stopWordsAttr.split(',') : [];
+            let dictated = '';
+            session = genro.speech.start({
+                silenceTimeout: silenceTimeout,
+                stopWords: stopWords,
+                interimResults: false,
+                onResult: (finalText) => {
+                    dictated = (dictated ? dictated + ' ' : '') + finalText.trim();
+                },
+                onError: () => {
+                    stopListening();
+                },
+                onEnd: () => {
+                    if(dictated){
+                        genro.wdg.getHandler('ckeditor').onSpeechEnd(editorSourceNode, dictated);
+                    }
+                    stopListening();
+                }
+            });
+            if(!session){
+                btn.classList.remove('gnr_speech_listening');
+            }
+        });
+        editorSourceNode.subscribe('onDestroying', stopListening);
+    },
+
     connectFocus: function(widget, savedAttrs, sourceNode) {
         if (sourceNode.attr._autoselect && !genro.isMobile) {
             dojo.connect(widget, 'onFocus', widget, function(e) {
@@ -2089,17 +2169,26 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
         if(!domNode){
             return;
         }
+        // when a speech button wraps the textarea, the wrapper (not the textarea itself)
+        // must be the one taken out of flow: fixing domNode alone leaves the relative
+        // wrapper at its collapsed in-flow size, detaching the button from the field.
+        var hasSpeechWrapper = domNode.parentElement && domNode.parentElement.classList.contains('gnr_speech_wrapper');
+        var target = hasSpeechWrapper ? domNode.parentElement : domNode;
         var h = parseInt(attr.height) || 100;
-        domNode.classList.add('cellEditFixed');
-        domNode.style.position = 'fixed';
-        domNode.style.height = h + 'px';
-        domNode.style.zIndex = '10';
-        domNode.style.margin = '0';
+        target.classList.add('cellEditFixed');
+        target.style.position = 'fixed';
+        target.style.height = h + 'px';
+        target.style.zIndex = '10';
+        target.style.margin = '0';
+        if(hasSpeechWrapper){
+            domNode.style.width = '100%';
+            domNode.style.height = '100%';
+        }
         var positionTextarea = function(){
             var rect = cellNode.getBoundingClientRect();
-            domNode.style.left = (rect.left + 1) + 'px';
-            domNode.style.top = (rect.top + 1) + 'px';
-            domNode.style.width = (rect.width - 2) + 'px';
+            target.style.left = (rect.left + 1) + 'px';
+            target.style.top = (rect.top + 1) + 'px';
+            target.style.width = (rect.width - 2) + 'px';
         };
         positionTextarea();
         var scrollNode = cellNode.closest('.dojoxGrid-scrollbox');

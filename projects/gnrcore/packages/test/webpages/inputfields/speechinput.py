@@ -16,7 +16,46 @@ class GnrCustomWebPage(object):
                          speech_stopWords='stop,fine,basta')
         fb.div('^.note', colspan=2)
 
-    def test_3_speechSynthesis(self, pane):
+    def test_1_matrixFormbuilder(self, pane):
+        """Matrix: editor False/True, inside a formbuilder, fixed size"""
+        fb = pane.formbuilder(cols=2, border_spacing='3px')
+        fb.simpleTextArea(value='^.fb_plain', height='180px', width='320px',
+                         lbl='editor=False', speech=True)
+        fb.simpleTextArea(value='^.fb_editor', height='180px', width='320px',
+                         lbl='editor=True', speech=True, editor=True)
+
+    def test_2_matrixStandalone(self, pane):
+        """Matrix: editor False/True, outside a formbuilder, fixed size"""
+        box = pane.div(margin='10px')
+        box.div('!!editor=False', margin_bottom='4px')
+        box.simpleTextArea(value='^.st_plain', height='180px', width='320px',
+                          speech=True, margin_bottom='16px')
+        box.div('!!editor=True', margin_bottom='4px')
+        box.simpleTextArea(value='^.st_editor', height='180px', width='320px',
+                          speech=True, editor=True)
+
+    def test_3_matrixFillPane(self, pane):
+        """Matrix: editor False/True, sole child of a pane filling the available area"""
+        bc = pane.borderContainer(height='500px')
+        top = bc.framePane(region='top', height='50%', splitter=True,
+                          _class='pbl_roundedGroup', margin='2px')
+        top.top.slotBar('2,vtitle,*', vtitle='!!editor=False (fills pane)',
+                       _class='pbl_roundedGroupLabel')
+        top.center.simpleTextArea(value='^.fill_plain', height='100%', width='100%', speech=True)
+        bottom = bc.framePane(region='center', _class='pbl_roundedGroup', margin='2px')
+        bottom.top.slotBar('2,vtitle,*', vtitle='!!editor=True (fills pane)',
+                          _class='pbl_roundedGroupLabel')
+        bottom.center.simpleTextArea(value='^.fill_editor', speech=True, editor=True)
+
+    def test_4_gridCellEdit(self, pane):
+        """Regression check: simpleTextArea speech=True as a grid cell editor"""
+        grid = pane.contentPane(region='center').quickGrid(value='^.griddata',
+                        height='300px', width='500px', border='1px solid silver')
+        grid.tools('addrow,delrow')
+        grid.column('note', name='Note', width='30em',
+                   edit=dict(tag='simpleTextArea', speech=True))
+
+    def test_5_speechSynthesis(self, pane):
         """Text-to-speech: type text, pick language, press Speak"""
         fb = pane.formbuilder(cols=2, border_spacing='3px')
         fb.textbox(value='^.speak_text', lbl='Text to speak',
@@ -38,7 +77,7 @@ class GnrCustomWebPage(object):
             setTimeout(function(){ clearInterval(iv); }, 30000);
         """, _fired='^.speak_text')
 
-    def test_4_voiceList(self, pane):
+    def test_6_voiceList(self, pane):
         """List available synthesis voices, optionally filtered by language"""
         fb = pane.formbuilder(cols=2, border_spacing='3px')
         fb.textbox(value='^.voice_lang', lbl='Filter by language',

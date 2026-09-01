@@ -212,6 +212,7 @@ div.cellContent{
     flex: 1;
     min-height: 0;
     position: relative;
+    box-sizing: border-box;
 }
 .textAreaWrapperButtons{
     flex-shrink: 0;
@@ -230,25 +231,6 @@ div.cellContent{
     opacity:1;
 }
 
-.TAspeechInputBox{
-    position:relative;
-    left:2px;
-    cursor: pointer;
-    display:inline-block;
-    width:34px;
-    height:14px;
-    overflow: hidden;
-}
-.TAspeechInput{
-    width:14px;
-    border:0;
-    color:transparent;
-    font-size:13px;
-    background:transparent;
-    position: relative;
-    left:8px;
-    top:0;
-}
 .ckBody{
     margin:2px;
 }
@@ -262,6 +244,19 @@ div.cellContent{
     display:inline-block;
     position:relative;
     cursor: pointer;
+}
+
+.textAreaWrapperButtons .gnr_speech_button{
+    position: static;
+    display: inline-block;
+    vertical-align: middle;
+    width: 16px;
+    height: 14px;
+    margin-left: 4px;
+    opacity: 0.6;
+}
+.textAreaWrapperButtons .gnr_speech_button:hover{
+    opacity: 1;
 }
 
 ._common_d11 .cke_skin_kama iframe {
