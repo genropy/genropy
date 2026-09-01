@@ -235,7 +235,22 @@ genropatches.tabContainer = function(){
         var container = dijit.byId(this.containerId);
         container.deletePage(page);
     };
-    
+
+};
+
+genropatches.contentPane = function(){
+    dojo.require("dijit.layout.ContentPane");
+    var original_resize = dijit.layout.ContentPane.prototype.resize;
+    // _singleChild is computed only at startup(): a single widget child built
+    // after that (e.g. a lazily built dialog form) leaves it unset, so parent
+    // resizes stop cascading at this pane and the child keeps its last
+    // stamped pixel height. Re-check before resizing.
+    dijit.layout.ContentPane.prototype.resize = function(size){
+        if(!this._singleChild && this.doLayout != "false" && this.doLayout !== false){
+            this._checkIfSingleChild();
+        }
+        return original_resize.apply(this, arguments);
+    };
 };
 genropatches.menu = function(){
     dojo.require('dijit.Menu');

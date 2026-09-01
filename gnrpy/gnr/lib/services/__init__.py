@@ -89,7 +89,10 @@ class BaseServiceType(object):
         self._implementations_lock = threading.RLock()
 
     def addService(self, service_name=None, **kwargs):
-        service_conf = kwargs or self.getConfiguration(service_name)
+        db_conf = self.getServiceConfigurationFromDb(service_name)
+        service_conf = kwargs or db_conf or \
+                self.getServiceConfigurationFromSiteConfig(service_name) or \
+                self.getServiceConfigurationFromSelf(service_name)
         if not service_conf:
             return
         implementation = service_conf.pop('implementation',None) or service_conf.pop('resource',None) #resource is the oldname for implementation
@@ -103,6 +106,7 @@ class BaseServiceType(object):
         service.service_type = self.service_type
         service.service_implementation = implementation
         service._service_creation_ts = datetime.now()
+        service._config_from_db = db_conf is not None
         self.service_instances[service_name] = service
         return service
 
@@ -229,6 +233,11 @@ class BaseServiceType(object):
     def __call__(self, service_name=None, **kwargs):
         service_name = service_name or self.default_service_name
         service = self.service_instances.get(service_name)
+        if service is not None and not service._config_from_db:
+            # The expiration timestamp is written only by the sys.service table
+            # triggers: a service whose configuration was not resolved from the
+            # database can never expire, so skip the register read entirely.
+            return service
         gs = self.site.register.globalStore()
         cache_key = 'globalServices_lastChangedConfigTS.%s_%s' % (self.service_type, service_name)
         lastChangedConfigurationTS = gs.getItem(cache_key)
