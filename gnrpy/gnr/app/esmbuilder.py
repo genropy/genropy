@@ -541,7 +541,7 @@ class GnrInstanceEsmBundler:
                 project, package = package.split(':')
             else:
                 project = None
-            package_folder = self.app.pkg_name_to_path(package, project)
+            package_folder = self.app.pkg_path_from_attrs(package, _pkgattrs, project)
             esm_req = os.path.join(package_folder, package, 'esm_requirements.txt')
             if os.path.isfile(esm_req):
                 for alias, spec in self.builder.parse_requirements(esm_req):
