@@ -508,3 +508,39 @@ def test_load_rebuilds_the_link_sets_from_the_restored_children():
 
     assert _connections_of(restored, 'anna') == {'conn-1'}
     assert _pages_of(restored, 'conn-1') == {'page-1', 'page-2'}
+
+
+def test_pages_prunes_a_dangling_id_by_connection():
+    """pages() is the reader on the request path: validate_page_id falls back to it."""
+    reg = _populate(_register())
+    reg.page_register.registerItems.pop('page-1')
+    got = sorted(p['register_item_id'] for p in reg.pages(connection_id='conn-1'))
+    assert got == ['page-2']
+    assert _pages_of(reg, 'conn-1') == {'page-2'}
+
+
+def test_pages_prunes_a_dangling_id_by_user_across_connections():
+    """The user walk spans several connections, so the prune cannot assume one parent."""
+    reg = _populate(_register())
+    reg.page_register.registerItems.pop('page-3')      # lives under conn-2
+    got = sorted(p['register_item_id'] for p in reg.pages(user='anna'))
+    assert got == ['page-1', 'page-2']
+    assert _pages_of(reg, 'conn-2') == set()
+
+
+def test_pages_with_include_data_prunes_instead_of_yielding_none():
+    """get_item returns None for a missing key: without the prune that None
+    travels on into Bag(page) and fails somewhere else entirely."""
+    reg = _populate(_register())
+    reg.page_register.registerItems.pop('page-1')
+    got = reg.pages(connection_id='conn-1', include_data=True)
+    assert None not in got
+    assert [p['register_item_id'] for p in got] == ['page-2']
+
+
+def test_connections_with_include_data_prunes_too():
+    reg = _populate(_register())
+    reg.connection_register.registerItems.pop('conn-1')
+    got = reg.connection_register.connections(user='anna', include_data=True)
+    assert None not in got
+    assert [c['register_item_id'] for c in got] == ['conn-2']

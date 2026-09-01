@@ -223,6 +223,27 @@ class BaseRegister(BaseRemoteObject):
         self.itemsTS.pop(register_item_id, None)
         return register_item
 
+    def _live_children(self, keys, parent_register, link_name):
+        """Pair each key with its item, pruning the keys that have none.
+
+        A link set is a cache of what the children say about their parent: a key
+        with no item is residual drift, not a reason to raise on every caller of
+        the parent. Pruning here keeps the set converging instead of carrying a
+        dead id for the life of the daemon.
+
+        The parent is not passed in: dropRegisterLinks scans them, so one call
+        cleans the key out of every parent that wrongly holds it, and a walk
+        spanning several parents (a user's pages, across its connections) needs
+        no special case. Pruning is the rare corrective path, so the scan costs
+        nothing on the ordinary one.
+        """
+        for k in keys:
+            register_item = self.registerItems.get(k)
+            if register_item is None:
+                self.siteregister.dropRegisterLinks(parent_register, link_name, k)
+                continue
+            yield k, register_item
+
     def update_item(self, register_item_id, upddict=None):
         register_item = self.get_item(register_item_id)
         if not register_item:
@@ -377,33 +398,21 @@ class ConnectionRegister(BaseRegister):
         return [(k, register_item)
                 for k, register_item in self._live_children(
                     self.user_connection_keys(user),
-                    self.siteregister.user_register, user, 'connections')]
+                    self.siteregister.user_register, 'connections')]
 
     def user_connections(self, user):
         return [register_item for k, register_item in self.user_connection_items(user)]
-
-    def _live_children(self, keys, parent_register, parent_id, link_name):
-        """Pair each key with its item, pruning the keys that have none.
-
-        A link set is a cache of what the children say about their parent: a key
-        with no item is residual drift, not a reason to raise on every caller of
-        the parent. Pruning here keeps the set converging instead of carrying a
-        dead id for the life of the daemon.
-        """
-        for k in keys:
-            register_item = self.registerItems.get(k)
-            if register_item is None:
-                self.siteregister.dropRegisterLink(parent_register, parent_id,
-                                                   link_name, k)
-                continue
-            yield k, register_item
 
 
     def connections(self, user=None, include_data=None):
         if not user:
             return self.values(include_data=include_data)
         if include_data:
-            return [self.get_item(k, include_data=True) for k in self.user_connection_keys(user)]
+            # through user_connection_items so a dangling id is pruned here too:
+            # get_item would return None for it and the caller would carry that
+            # None instead of raising, which is the quieter of the two failures
+            return [self.get_item(k, include_data=True)
+                    for k, register_item in self.user_connection_items(user)]
         return self.user_connections(user)
 
 
@@ -554,23 +563,7 @@ class PageRegister(BaseRegister):
         return [(k, register_item)
                 for k, register_item in self._live_children(
                     self.connection_page_keys(connection_id),
-                    self.siteregister.connection_register, connection_id, 'pages')]
-
-    def _live_children(self, keys, parent_register, parent_id, link_name):
-        """Pair each key with its item, pruning the keys that have none.
-
-        A link set is a cache of what the children say about their parent: a key
-        with no item is residual drift, not a reason to raise on every caller of
-        the parent. Pruning here keeps the set converging instead of carrying a
-        dead id for the life of the daemon.
-        """
-        for k in keys:
-            register_item = self.registerItems.get(k)
-            if register_item is None:
-                self.siteregister.dropRegisterLink(parent_register, parent_id,
-                                                   link_name, k)
-                continue
-            yield k, register_item
+                    self.siteregister.connection_register, 'pages')]
 
     def connection_pages(self, connection_id):
         return [register_item
@@ -588,10 +581,17 @@ class PageRegister(BaseRegister):
                         for page_id in self.connection_page_keys(cid)]
         if page_ids is None:
             pages = self.values(include_data=include_data)
-        elif include_data:
-            pages = [self.get_item(page_id, include_data=True) for page_id in page_ids]
         else:
-            pages = [self.registerItems[page_id] for page_id in page_ids]
+            # same pruning as the per-parent readers: this one is on the request
+            # path (validate_page_id falls back to it), and the include_data
+            # branch is the quieter half — get_item returns None for a missing
+            # key, so a dead id would travel on as a None into Bag(page)
+            live = list(self._live_children(page_ids,
+                                            self.siteregister.connection_register, 'pages'))
+            if include_data:
+                pages = [self.get_item(page_id, include_data=True) for page_id, _ in live]
+            else:
+                pages = [register_item for _, register_item in live]
         if connection_id and user:
             pages = [v for v in pages if v['user'] == user]
         if not filters or filters == '*':
