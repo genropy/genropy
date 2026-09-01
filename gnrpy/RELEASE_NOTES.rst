@@ -1,3 +1,11 @@
+Release 26.08.28
+================
+
+This is an hotfix release which solves:
+glbl - added the ISO 3166-1 missing codes assigned since the country list was compiled (#1199)
+migrate: keep column commands when the table also needs a pkey rebuild (#1198)
+
+
 Release 26.08.26
 ================
 
