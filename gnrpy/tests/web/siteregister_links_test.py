@@ -393,3 +393,118 @@ def test_dropping_while_iterating_the_walk_is_safe():
     assert reg.user_connection_keys('anna') == []
     assert not reg.connection_register.exists('conn-2')
     assert not reg.page_register.exists('page-3')
+
+
+# ---------------------------------------------------------------------------
+# drift: a link set outliving the child it points at (#1219)
+# ---------------------------------------------------------------------------
+
+
+def test_dropping_a_page_whose_item_already_vanished_still_unlinks_it():
+    """The unlink used to read the parent id off the page item, so it was skipped
+    exactly when the item was already gone — leaving a dead id in the set forever."""
+    reg = _register()
+    reg.new_connection('conn-1', user='anna')
+    _new_page(reg, 'page-1', 'conn-1', 'anna')
+    reg.page_register.registerItems.pop('page-1')   # item gone, set still holds it
+    reg.drop_page('page-1')
+    assert _pages_of(reg, 'conn-1') == set()
+
+
+def test_dropping_a_connection_whose_item_already_vanished_still_unlinks_it():
+    reg = _register()
+    reg.new_connection('conn-1', user='anna')
+    reg.connection_register.registerItems.pop('conn-1')
+    reg.drop_connection('conn-1')
+    assert _connections_of(reg, 'anna') == set()
+
+
+def test_drop_connections_converges_on_a_dangling_id():
+    """A dead id made drop_connection skip the unlink, so every later call walked
+    the same id again: the loop could never empty the set."""
+    reg = _register()
+    reg.new_connection('conn-1', user='anna')
+    reg.connection_register.registerItems.pop('conn-1')
+    reg.drop_connections('anna')
+    assert _connections_of(reg, 'anna') == set()
+    reg.drop_connections('anna')          # idempotent, nothing left to walk
+    assert _connections_of(reg, 'anna') == set()
+
+
+def test_a_dangling_page_is_pruned_instead_of_raising():
+    """connection_page_items indexed registerItems directly: one dead id raised
+    KeyError for every caller, and the id stayed. It is pruned and the live
+    children are still returned."""
+    reg = _register()
+    reg.new_connection('conn-1', user='anna')
+    _new_page(reg, 'page-1', 'conn-1', 'anna')
+    _new_page(reg, 'page-2', 'conn-1', 'anna')
+    reg.page_register.registerItems.pop('page-1')
+    got = reg.connection_page_items('conn-1')
+    assert [k for k, _ in got] == ['page-2']
+    assert _pages_of(reg, 'conn-1') == {'page-2'}
+
+
+def test_a_dangling_connection_is_pruned_instead_of_raising():
+    reg = _register()
+    reg.new_connection('conn-1', user='anna')
+    reg.new_connection('conn-2', user='anna')
+    reg.connection_register.registerItems.pop('conn-1')
+    got = reg.user_connection_items('anna')
+    assert [k for k, _ in got] == ['conn-2']
+    assert _connections_of(reg, 'anna') == {'conn-2'}
+
+
+def test_connection_pages_and_user_connections_prune_too():
+    reg = _register()
+    reg.new_connection('conn-1', user='anna')
+    _new_page(reg, 'page-1', 'conn-1', 'anna')
+    reg.page_register.registerItems.pop('page-1')
+    assert reg.connection_pages('conn-1') == []
+    reg.connection_register.registerItems.pop('conn-1')
+    assert reg.user_connections('anna') == []
+
+
+def test_dropRegisterLinks_scans_every_parent_holding_the_child():
+    """Driven by the sets rather than by the child, so it works with the child gone."""
+    reg = _register()
+    reg.new_connection('conn-1', user='anna')
+    reg.new_connection('conn-2', user='marco')
+    _pages_of(reg, 'conn-2').add('page-1')          # drift: two parents claim it
+    _new_page(reg, 'page-1', 'conn-1', 'anna')
+    reg.dropRegisterLinks(reg.connection_register, 'pages', 'page-1')
+    assert _pages_of(reg, 'conn-1') == set()
+    assert _pages_of(reg, 'conn-2') == set()
+
+
+def test_load_rebuilds_the_link_sets_from_the_restored_children():
+    """The three registers are pickled and restored independently, so a parent's
+    set knows nothing of the children that came back — and whatever it held
+    before dangles."""
+    import io as _io
+    reg = _register()
+    reg.new_connection('conn-1', user='anna')
+    _new_page(reg, 'page-1', 'conn-1', 'anna')
+    _new_page(reg, 'page-2', 'conn-1', 'anna')
+    storage = _io.BytesIO()
+    reg.user_register.dump(storage)
+    reg.connection_register.dump(storage)
+    reg.page_register.dump(storage)
+    storage.seek(0)
+
+    restored = _register()
+    restored.user_register.load(storage)
+    restored.connection_register.load(storage)
+    restored.page_register.load(storage)
+    # the state a restore leaves behind before the rebuild: sets carrying whatever
+    # was pickled with the parent, blind to the children actually restored
+    _connections_of(restored, 'anna').add('ghost-conn')
+    _pages_of(restored, 'conn-1').add('ghost-page')
+
+    restored.rebuildRegisterLinks(restored.user_register, restored.connection_register,
+                                  'user', 'connections')
+    restored.rebuildRegisterLinks(restored.connection_register, restored.page_register,
+                                  'connection_id', 'pages')
+
+    assert _connections_of(restored, 'anna') == {'conn-1'}
+    assert _pages_of(restored, 'conn-1') == {'page-1', 'page-2'}
