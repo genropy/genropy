@@ -573,7 +573,6 @@ class DynamicForm(BaseComponent):
             wdg_attr['colspan'] = wdg_attr.pop('colspan',1) or 1
         if tag.lower()=='simpletextarea':
             wdg_attr.setdefault('speech',True)
-            wdg_attr['width'] = wdg_attr.get('width') or '94%'
         customizer = getattr(self,'df_%(tag)s' %wdg_attr,None)
         if customizer:
             customizer(wdg_attr,dbstore_kwargs=dbstore_kwargs)

@@ -234,22 +234,25 @@ div.cellContent{
 
 .TAeditorPalette{
     background: transparent var(--icon-text-editor) no-repeat center center;
-    background-size: 13px 13px;
-    width:16px;
-    height:14px;
+    background-size: var(--bar-adornment-glyph);
+    width: var(--bar-adornment-size);
+    height: var(--bar-adornment-size);
     display:inline-block;
     vertical-align: middle;
     cursor: pointer;
 }
 
+/* in the action bar the mic is a plain inline icon beside the palette, not an
+   overlay: opt out of the grid placement and read the bar's own sizes */
 .textAreaWrapperButtons .gnr_speech_button{
-    position: static;
+    --field-adornment-size: var(--bar-adornment-size);
+    --field-adornment-glyph: var(--bar-adornment-glyph);
+    grid-area: auto;
+    justify-self: auto;
+    align-self: auto;
     display: inline-block;
     vertical-align: middle;
-    width: 16px;
-    height: 14px;
-    background-size: 14px 14px;
-    margin-left: 4px;
+    margin: 0 0 0 var(--bar-adornment-gap);
     opacity: 0.6;
 }
 .textAreaWrapperButtons .gnr_speech_button:hover{

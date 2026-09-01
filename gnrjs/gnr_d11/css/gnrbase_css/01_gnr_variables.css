@@ -224,6 +224,17 @@
     --field-focus-bg: var(--color-bg);
     --gnrfieldlabel-color: var(--gray-700); /* @theme — readable on light form surfaces */
 
+    /* --- Field adornments (voice input mic, textarea action bar) --- */
+    --field-adornment-size: 1.375rem;   /* @theme clickable box overlaid on the field */
+    --field-adornment-glyph: 1rem;      /* @theme icon drawn inside that box */
+    --field-adornment-inset: 0.125rem;  /* @theme gap between box and field border */
+    /* room the field must leave so text never runs under the adornment */
+    --field-adornment-reserve: calc(var(--field-adornment-size) + 2 * var(--field-adornment-inset));
+    /* the same adornments inline in the textarea action bar: no overlay, no inset */
+    --bar-adornment-size: 0.875rem;     /* @theme */
+    --bar-adornment-glyph: 0.8125rem;   /* @theme */
+    --bar-adornment-gap: 0.25rem;       /* @theme */
+
     /* --- Form-context field defaults (shared by formbuilder & formlet) --- */
     --form-field-border: var(--field-border);
     --form-field-bg: var(--field-bg);
