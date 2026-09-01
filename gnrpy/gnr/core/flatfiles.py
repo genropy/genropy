@@ -311,26 +311,37 @@ class XlsxReader(BaseSheetReader):
     def _process_firstline(self, firstline, sheet):
         headers = []
         for i, header in enumerate(firstline):
+            # slugify first: a header that slugifies to '' must become
+            # gnr_emptycol_N too, or it drops out of colindex and shifts
+            # every following column
+            header = slugify(header, sep='_') if header else ''
             if not header:
                 header = f'gnr_emptycol_{i}'
-            header = slugify(header, sep='_')
             headers.append(header)
         colindex = {i: True for i, h in enumerate(headers) if h}
         return headers, colindex
 
     def _sheetlines(self, sheet):
+        """Generate lines from the sheet, handling empty rows according to settings.
+
+        Rows are read with min_col=1 so that openpyxl pads every row from
+        column A up to the sheet width: appending the values then keeps each
+        row aligned with the header row even when the source file declares a
+        dimension that does not start at A or omits cells inside a row.
+
+        Cells are never inspected for their position: in read_only mode the
+        padding cells are EmptyCell instances, which expose `value` but have no
+        `column` attribute.
+        """
         last_line_empty = False
-        for line in sheet.rows:
+        for line in sheet.iter_rows(min_col=1):
             result = []
             empty_flag = True
             for cell in line:
                 value = cell.value
                 if value:
                     empty_flag = False
-                if value == '':
-                    result.append(None)
-                else:
-                    result.append(value)
+                result.append(None if value == '' else value)
             if empty_flag:
                 if self.allEmptyRows:
                     yield []
