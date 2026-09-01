@@ -59,16 +59,19 @@ class ResourceLoader(object):
     def page_class_cache_enabled(self):
         """The experimental flag, read through a small TTL (kill switch stays live).
 
-        ``getPreference`` resolves per dbstore: on a multidb instance the value
-        that holds for the next TTL is the one read by whichever store refreshed
-        it. That is fine for a kill switch - it is not a per-store setting.
+        The read is pinned to the root store: it runs at dispatch time, before
+        the page applies its own env, so the thread env still carries whatever
+        the previous request left there (possibly a multi-store selection).
+        A ``sys`` preference lives in the main store anyway.
         Turning the flag off also drops what is already cached, so the switch
         frees the classes instead of merely stopping new ones.
         """
         value, read_ts = self._page_class_cache_flag
         now = time.time()
         if now - read_ts > PAGE_CLASS_CACHE_FLAG_TTL:
-            new_value = bool(self.site.getPreference('experimental.page_class_cache', pkg='sys'))
+            db = self.site.db
+            with db.tempEnv(storename=db.rootstore):
+                new_value = bool(self.site.getPreference('experimental.page_class_cache', pkg='sys'))
             if value and not new_value:
                 self.clear_page_class_cache()
             value = new_value

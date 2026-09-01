@@ -889,7 +889,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         sourceNode.subscribe('updatedSelectedRow',function(){
             var selectedIndex = this.widget.selection.selectedIndex;
             this.widget.sourceNode.setAttributeInDatasource('selectedId', this.widget.rowIdByIndex(selectedIndex), 
-                                                                null, this.widget.rowByIndex(selectedIndex), true);
+                                                                null, this.widget.rowByIndex(selectedIndex));
         });
         sourceNode.subscribe('configuratorPalette',function(){
             this.widget.configuratorPalette();
@@ -1504,7 +1504,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                             selNodes, {'count':selNodes?selNodes.len():0});
         }
         if(this.sourceNode.attr.selectedId) {
-            this.sourceNode.setAttributeInDatasource('selectedId', selectedId, null, row, true);
+            this.sourceNode.setAttributeInDatasource('selectedId', selectedId, null, row);
         }
         if(this.sourceNode.attr.selectedRowData){
             var rowDataBag = new gnr.GnrBag(row);
