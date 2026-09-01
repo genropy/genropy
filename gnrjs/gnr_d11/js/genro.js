@@ -1586,7 +1586,7 @@ dojo.declare('gnr.GenroClient', null, {
         if (invalidNodes.length > 0) {
             var node = invalidNodes[0];
             var kw = {'evt':'invalid', 'node':node, 'pathlist':node.getFullpath().split('.')};
-            dojo.publish('_trigger_data', [kw]);
+            genro.publishDataTrigger(kw);
         }
         return (invalidNodes.length == 0);
     },
@@ -1609,7 +1609,7 @@ dojo.declare('gnr.GenroClient', null, {
                     var inner=dpath.slice(registered_path.length);
                     if(!inner || inner[0]=='.'){
                         genro._serverstore_changes = genro._serverstore_changes || {};
-                        genro._serverstore_changes[genro._serverstore_paths[registered_path]+inner] = asTypedTxt(kw.value);
+                        genro._serverstore_changes[genro._serverstore_paths[registered_path]+inner] = asTypedTxt(kw.node._value);
                         break;
                     }
                 }
@@ -1636,14 +1636,21 @@ dojo.declare('gnr.GenroClient', null, {
                 }
             }
         }
+        genro.publishDataTrigger(kw);
+    },
+
+    publishDataTrigger: function(kw) {
+        //dynamic ^attr subscriptions live in the trigger index; the dojo topic
+        //stays published for the few direct '_trigger_data' subscribers
+        genro.src.triggerIndex.publish(kw);
         dojo.publish('_trigger_data', [kw]);
     },
-    
+
     fireDataTrigger: function(path) {
         var node = genro.getDataNode(path);
         //var v=node.getValue();
         var kw = {'evt':'fired', 'node':node, 'pathlist':('main.' + path).split('.')};
-        dojo.publish('_trigger_data', [kw]);
+        genro.publishDataTrigger(kw);
     },
     getSourceNode: function(obj) {
         return genro.src.getNode(obj);

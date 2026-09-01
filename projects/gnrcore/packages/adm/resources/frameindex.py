@@ -97,7 +97,7 @@ class FrameIndex(BaseComponent):
             if pageAuth:
                 if self.avatar and self.avatar.user != self.avatar.user_id:
                     usernotification_tbl = self.db.table('adm.user_notification')
-                    usernotification_tbl.updateGenericNotification(self.avatar.user_id,user_tags=self.avatar.user_tags)
+                    usernotification_tbl.updateGenericNotification(self.avatar.user_id)
                     notification_id = usernotification_tbl.nextUserNotification(user_id=self.avatar.user_id) if self.avatar.user_id else None
                     self.pageSource().dataController('loginManager.notificationManager(notification_id);',notification_id=notification_id or False,_onStart=1,_if='notification_id')
                 if custom_index and custom_index!='*':

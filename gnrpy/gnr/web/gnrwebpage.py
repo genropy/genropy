@@ -2679,6 +2679,7 @@ class GnrWebPage(GnrBaseWebPage):
             handlername = bfhandler
         else:
             handlername = 'bf_{field}'.format(field=field)
+        bagfieldmodule = None
         if resource:
             if ':' not in resource:
                 resource = '{resource}:BagField_{field}'.format(resource=resource,field=field)
@@ -2687,7 +2688,7 @@ class GnrWebPage(GnrBaseWebPage):
                 mixinedClass = self.mixinTableResource(table,'bagfields/{resource}'.format(resource=resource),safeMode=True)
             else:
                 mixinedClass = self.mixinComponent(resource)
-        bagfieldmodule = getattr(mixinedClass,'__top_mixined_module',None)
+            bagfieldmodule = getattr(mixinedClass,'__top_mixined_module',None)
         box = pane.contentPane(datapath=valuepath,bagfieldmodule=bagfieldmodule)
         return getattr(self,handlername)(box,**kwargs)
         
