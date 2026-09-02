@@ -523,22 +523,36 @@ Open, deliberately:
    drop the restriction;
    `local_path(keep=True)` — refused with `NotImplementedError` on a remote mount rather
    than silently not keeping the file.
-3. **`pip check` is already dirty on this machine** (§7) — the `s3fs`/`gcsfs` exact pin
+3. **Two upstream round-trip costs on S3, reported as `genropy/genro-storage#78`**
+   *(measured)*: `copy_to()` issues 6 API calls where one `CopyObject` would do — two of
+   them `ListObjectVersions`, which a copy does not need — and `open('rb')` adds a
+   `HeadObject` before the `GetObject`. On a real endpoint that is ~180 ms instead of
+   ~30 for a copy, plus a billed request per `ListObjectVersions`. The copy nonetheless
+   stays server-side, so the cost is round trips and not a transfer through the client.
+   Our own `duplicateNode` could sidestep it by going through the backend's `copy()`
+   instead of the node's `copy_to()`; not done here, because it is an optimisation
+   beyond this branch's scope and the upstream fix would make it unnecessary.
+4. **One round-trip cost of our own, on the legacy side**: `StorageNode.open()`
+   (`gnr/lib/services/storage.py:357`) calls `service.autocreate(path, autocreate=-1)`
+   even when opening for reading, which on S3 costs a `HeadObject` plus a
+   `ListObjectsV2` per open — 3 round trips where 1 would do, on both the legacy and the
+   genro-storage path. Pre-existing, unrelated to this branch, worth its own issue.
+5. **`pip check` is already dirty on this machine** (§7) — the `s3fs`/`gcsfs` exact pin
    on `fsspec` predates this branch. Needs an environment call.
-4. **The daemon-based storage suite is skipped on this machine** (§8) because a daemon is
+6. **The daemon-based storage suite is skipped on this machine** (§8) because a daemon is
    already running. Whether the pre-existing 47+12 skips should be made to run (by
    stopping that daemon, or by teaching `BaseGnrDaemonTest` to attach to a running one)
    is a separate question from this migration.
-5. **The hybrid is the end state, not a stepping stone** (§2): with the switch on, a
+7. **The hybrid is the end state, not a stepping stone** (§2): with the switch on, a
    typical instance keeps every symbolic mount on the legacy layer. This is why the
    service-level design matters — `StorageService` bridges a copy or move between the
    two worlds by content on its own, with no code of ours in the path.
-6. **A local mount whose `base_path` does not exist yet stays legacy** (§8 Phase 2):
+8. **A local mount whose `base_path` does not exist yet stays legacy** (§8 Phase 2):
    genro-storage's local backend requires the directory to exist, the legacy service
    creates it on first write. On `gnrdevelop` this is the `mail` mount, and it logs one
    warning at handler construction. Pre-creating the directory at startup would be the
    alternative; not done, because a storage switch should not create directories.
-7. **Run with the flag on in a serving site: done, and it found two defects.**
+9. **Run with the flag on in a serving site: done, and it found two defects.**
    `projects/gnrcore/packages/test15/webpages/tools/storage_genro.py` is a testhandler
    page that exercises the switch through real requests — storage trees on the mounts
    genro-storage takes over and on the ones that stay legacy, an inspector over the whole
@@ -549,5 +563,5 @@ Open, deliberately:
    order), and `size`/`md5hash` raised on a directory instead of answering. Both are
    fixed, both now have a test. What is still untested in a live site: the upload path
    itself (it needs a file picked by hand) and multidomain.
-8. **The per-call node construction on local mounts** (§11) is the one measured
+10. **The per-call node construction on local mounts** (§11) is the one measured
    inefficiency: worth a cache in the service if a profile ever points here.
