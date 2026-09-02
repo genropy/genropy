@@ -551,6 +551,47 @@ class TestStorageHandler(BaseGnrDaemonTest):
         assert params.get('implementation') == 'local'
         assert params.get('base_path') == '/tmp/nested'
 
+        # The <storage> container node is not a service itself
+        assert 'storage' not in handler.storage_params
+
+    def test_load_storage_from_siteconfig_nested_and_flat_structure(self):
+        """Test that nested and flat storage services coexist without a phantom 'storage' mount."""
+        from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import BaseStorageHandler
+
+        # Create a mock site with both a nested section and a flat storage service
+        class MockSite:
+            def __init__(self):
+                self.config = Bag()
+                self.config['services.storage.minio'] = Bag()
+                self.config.setAttr('services.storage.minio',
+                    implementation='aws_s3', bucket='sandbox')
+                self.config['services.my_flat_store'] = Bag()
+                self.config.setAttr('services.my_flat_store',
+                    service_type='storage', implementation='local', base_path='/tmp/flat')
+                self.site_static_dir = '/tmp/test_site'
+
+            @property
+            def gnrapp(self):
+                class MockApp:
+                    packages = type('obj', (object,), {'keys': lambda self: []})()
+                return MockApp()
+
+            @property
+            def db(self):
+                return None
+
+        mock_site = MockSite()
+        handler = BaseStorageHandler.__new__(BaseStorageHandler)
+        handler.site = mock_site
+        handler.storage_params = {}
+
+        handler._loadStorageParametersFromSiteConfig()
+
+        assert handler.storage_params['minio'].get('implementation') == 'aws_s3'
+        assert handler.storage_params['minio'].get('bucket') == 'sandbox'
+        assert handler.storage_params['my_flat_store'].get('implementation') == 'local'
+        assert 'storage' not in handler.storage_params
+
     def test_load_storage_from_siteconfig_flat_structure(self):
         """Test loading storage params from flat <services><my_store service_type='storage' .../></services> structure."""
         from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import BaseStorageHandler
