@@ -264,11 +264,13 @@ class BagToHtmlWeb(BagToHtml):
         
 
     @extract_kwargs(extra=True)
-    def contentFromTemplate(self,record,template=None,locale=None, extra_kwargs=None, **kwargs):
+    def contentFromTemplate(self,record,template=None,locale=None, extra_kwargs=None,
+                            record_template=None, **kwargs):
         virtual_columns=None
         page = self.page or self.db.currentPage
-        if not template and page and self.record_template:
-            template = page.loadTemplate('%s:%s' %(self.tblobj.fullname,self.record_template))
+        record_template = record_template or self.record_template
+        if not template and page and record_template:
+            template = page.loadTemplate('%s:%s' %(self.tblobj.fullname,record_template))
         if isinstance(template,Bag):
             kwargs['locale'] = locale or template.getItem('main?locale')
             kwargs['masks'] = template.getItem('main?masks')
@@ -300,9 +302,11 @@ class BagToHtmlWeb(BagToHtml):
         return pdfpath   
 
 class TableTemplateToHtml(BagToHtmlWeb):
-    def __call__(self,record=None,template=None, htmlContent=None, locale=None,pdf=None,filepath=None,**kwargs):
+    def __call__(self,record=None,template=None, htmlContent=None, locale=None,pdf=None,filepath=None,
+                 record_template=None,**kwargs):
         if not htmlContent:
-            htmlContent = self.contentFromTemplate(record,template=template,locale=locale)
+            htmlContent = self.contentFromTemplate(record,template=template,locale=locale,
+                                                   record_template=record_template)
             record = self.record
         if pdf :
             filepath = filepath or self.getHtmlPath(f'{self.getDocName()}.html')
