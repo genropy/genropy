@@ -176,6 +176,8 @@ Tags
       when one is found next to the ``.tpl``, falling back to Mako otherwise.
     * ``page_class_cache``: reuse the page class built at the page's birth for every
       later request carrying the same ``page_id``.
+    * ``remoteForm``: default for the ``remote`` option of the table handler forms,
+      ``onEnter`` or ``delayed``; a form passing ``remote=`` overrides it.
 
     A missing tag or attribute reads as ``False``.
 
