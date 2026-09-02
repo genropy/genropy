@@ -298,6 +298,11 @@ class BaseRegister(BaseRemoteObject):
         register_item = self.get_item(register_item_id)
         if not register_item:
             return
+        if self.parent_field and upddict and self.parent_field in upddict:
+            # the parent field is one half of a link: writing it straight into the
+            # item would leave both sets naming the parent it no longer has
+            upddict = dict(upddict)
+            self.reparent_item(register_item_id, upddict.pop(self.parent_field))
         register_item.update(upddict)
         return register_item
 

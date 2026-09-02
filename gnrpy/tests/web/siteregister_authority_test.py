@@ -568,3 +568,51 @@ def test_reparenting_a_register_whose_items_have_no_parent_is_refused():
         reg.user_register.reparent_item('user-0', 'bruno')
     assert None not in reg.user_register.registerItems['user-0']
     assert_authoritative(reg)
+
+
+# ---------------------------------------------------------------------------
+# update_item: the parent field is a link, not an ordinary field
+# ---------------------------------------------------------------------------
+
+
+def test_update_item_moving_a_page_to_another_connection_moves_the_link():
+    """update_item writes whatever it is given straight into the item. The parent
+    field is half of a link, so it goes through reparent_item instead."""
+    reg = _populate(_register(), users=1, connections=2, pages=1)
+    reg.page_register.update_item('user-0/conn-0/page-0',
+                                  dict(connection_id='user-0/conn-1'))
+    assert_authoritative(reg)
+    assert reg.connection_page_keys('user-0/conn-0') == []
+    assert sorted(reg.connection_page_keys('user-0/conn-1')) == [
+        'user-0/conn-0/page-0', 'user-0/conn-1/page-0']
+
+
+def test_update_item_moving_a_connection_to_another_user_moves_the_link():
+    reg = _populate(_register(), users=2, connections=1, pages=1)
+    reg.connection_register.update_item('user-0/conn-0', dict(user='user-1'))
+    assert_authoritative(reg)
+    assert reg.user_connection_keys('user-0') == []
+
+
+def test_update_item_carries_the_other_fields_through():
+    reg = _populate(_register(), users=1, connections=2, pages=1)
+    reg.page_register.update_item('user-0/conn-0/page-0',
+                                  dict(connection_id='user-0/conn-1', pagename='moved'))
+    item = reg.page_register.registerItems['user-0/conn-0/page-0']
+    assert item['pagename'] == 'moved'
+    assert item['connection_id'] == 'user-0/conn-1'
+    assert_authoritative(reg)
+
+
+def test_update_item_without_the_parent_field_is_untouched():
+    reg = _populate(_register(), users=1, connections=1, pages=1)
+    reg.page_register.update_item('user-0/conn-0/page-0', dict(pagename='renamed'))
+    assert reg.page_register.registerItems['user-0/conn-0/page-0']['pagename'] == 'renamed'
+    assert_authoritative(reg)
+
+
+def test_update_item_on_a_register_whose_items_have_no_parent():
+    reg = _populate(_register(), users=1, connections=1, pages=1)
+    reg.user_register.update_item('user-0', dict(user_name='Zero'))
+    assert reg.user_register.registerItems['user-0']['user_name'] == 'Zero'
+    assert_authoritative(reg)
