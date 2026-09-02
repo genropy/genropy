@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from gnr.app import pkglog as logger
 from gnr.web.batch.btcaction import BaseResourceAction
 
 
@@ -18,10 +19,10 @@ class Main(BaseResourceAction):
         tblmessage = self.db.table('email.message')
         for r in selection.output('pkeylist'):
             try:
-                tblmessage.receive_imap(account=r)  
-            except Exception as e:
-                raise
-                print('ERROR IN RECEIVING IMAP receive_email batch', str(e))
+                tblmessage.receive_imap(account=r)
+            except Exception:
+                self.db.rollbackAll()
+                logger.exception('Receive email batch: account %s failed', r)
 
     def table_script_parameters_pane(self, pane, **kwargs):
         pass
