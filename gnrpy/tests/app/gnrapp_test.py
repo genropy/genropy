@@ -184,3 +184,37 @@ class TestGnrApp(BaseGnrAppTest):
             assert p['sys.error']['extra_where_filter'] == None
             assert p['sys.task_execution']['extra_where_filter'] == None
        
+
+
+class TestUserTagsOrder(object):
+    """The user tags string must not depend on set iteration order (#1173).
+
+    Python randomises string hashing at every process start, so joining a set
+    gave a different order in every process. The value travels into the
+    connection register item, the avatar and the logs, where an order that
+    moves on its own makes two runs impossible to compare.
+    """
+
+    def _app(self):
+        """makeAvatar with authenticate=False touches nothing else on the app."""
+        return object.__new__(ga.GnrApp)
+
+    def test_make_avatar_sorts_the_default_tags(self):
+        avatar = self._app().makeAvatar('u', defaultTags='superadmin,_DEV_,admin')
+        assert avatar.user_tags == '_DEV_,admin,superadmin'
+
+    def test_make_avatar_sorts_across_both_sources(self):
+        """defaultTags and tags are merged, and the merge must sort too."""
+        avatar = self._app().makeAvatar('u', defaultTags='user,_SYSTEM_',
+                                        tags='level/green,_TRD_')
+        assert avatar.user_tags == '_SYSTEM_,_TRD_,level/green,user'
+
+    def test_make_avatar_drops_duplicates_and_blanks(self):
+        avatar = self._app().makeAvatar('u', defaultTags='admin,,user',
+                                        tags='user,admin')
+        assert avatar.user_tags == 'admin,user'
+
+    def test_make_avatar_without_default_tags_is_untouched(self):
+        """No defaultTags means the branch never runs: the string passes through."""
+        avatar = self._app().makeAvatar('u', tags='b,a')
+        assert avatar.user_tags == 'b,a'
