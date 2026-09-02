@@ -29,12 +29,23 @@ def sqlite_temp_dir():
         shutil.rmtree(tmpdir, ignore_errors=True)
 
 
-def setup_module(module):
+@pytest.fixture(scope='module', autouse=True)
+def gnr_test_config():
+    """Ensure every module in this package runs with a genro configuration.
+
+    pytest does not call setup_module/teardown_module defined in conftest.py
+    for test modules, so this autouse fixture fills that role instead.
+    Modules that already provide their own GENRO_GNRFOLDER (via a
+    setup_module of their own) are detected and left alone.
+    """
+    if os.environ.get('GENRO_GNRFOLDER'):
+        yield
+        return
     BaseGnrTest.setup_class()
-
-
-def teardown_module(module):
-    BaseGnrTest.teardown_class()
+    try:
+        yield
+    finally:
+        BaseGnrTest.teardown_class()
 
 
 def _csv_dir():
