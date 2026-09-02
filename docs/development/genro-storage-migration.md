@@ -8,6 +8,20 @@ Goal: serve the replaceable part of the legacy storage layer through genro-stora
 behind a switch that is **off by default**, with the legacy code left intact and still
 the default. Nothing legacy is removed on this branch.
 
+> **Implementation note (§4.1 point 10, resolved further than planned).** The plan
+> called for a node adapter subclassing `StorageNode` over a service-shaped shim.
+> Implementing it showed the stronger form of the same idea: a **`StorageService` whose
+> backends are genro-storage**, with the legacy `StorageNode` unchanged on top. The
+> legacy node then keeps its own `isinstance` identity, `.service`, `serve()`, `mkdir()`,
+> `base64` shape, `internal_url`, `listdir`, `autocreate`, and the `StorageService`
+> copy/move machinery bridges the two worlds by content on its own. So there is no node
+> adapter and no bridging code: `gnr/lib/services/storage_genro.py` is the whole
+> variation, and `GenroStorageHandler` overrides exactly one method, `storage()`.
+> Consequences: planned Phase 3 collapsed into Phase 2, planned Phase 5 (cross-world
+> copy/move) needed no code — only tests — and planned Phase 8 (`ep_table` version keys)
+> became unnecessary, because the service reports `versions()` with the legacy boto3 key
+> names instead.
+
 Everything marked *(measured)* below was executed in this session on this machine
 (macOS 25.0.0, pyenv 3.13.2, MinIO at `http://127.0.0.1:9000`, bucket `sandbox`).
 Everything else is read from source.
@@ -176,20 +190,24 @@ two were fixed by later commits on that same branch, which the review text preda
 | # | Finding | Decision |
 |---|---|---|
 | 1 | **`http` backend unreachable** — `IMPLEMENTATION_MAP` mapped `http → ('http', {})` with an empty rename map while the guard required `base_path`, so every `http` mount was skipped with a misleading "missing a required parameter" warning, on every handler construction. | **Resolved, as not applicable.** Already fixed on wf/273 by `9760a260a6` (entry removed, guard clause removed, rationale documented). This plan confirms the choice on the merits: §2 shows Genropy's `_http_` and genro-storage's `http` are different shapes. `http` is absent from the map and `_http_` is legacy by design, with a test asserting it. |
-| 2 | **`makeNode` drops `autocreate`/`must_exist`/`mode`/`version`** on the genro-storage path. | **Resolved (all four honoured).** `must_exist` → `exists()` check raising `NotExistingStorageNode`; `version` → `manager.node(..., version=...)`, plus T2's `'_latest_'` sentinel handling; `mode` → stored on the node and used as `local_path`'s default, as legacy does; `autocreate` → accepted and, for the `-1` convention, satisfied by the backends creating parent directories on write *(measured: local and S3 both create intermediate dirs on `open('w')`)* — with a test that pins it instead of a comment. `gnrpy/gnr/web/gnrwsgisite.py:2037` passes `autocreate=-1` on a configurable upload path that can be a concrete mount, so this is a real path, not a hypothetical. |
+| 2 | **`makeNode` drops `autocreate`/`must_exist`/`mode`/`version`** on the genro-storage path. | **Resolved: the question stopped existing.** `makeNode` is not overridden at all — the inherited `LegacyStorageHandler.makeNode` builds a legacy `StorageNode`, which consumes all four itself. `must_exist` raises `NotExistingStorageNode` from `StorageNode.__init__`, `mode` is kept on the node and used as `local_path`'s default, `version` reaches the service's `open()` (which also handles T2's `'_latest_'` sentinel), and `autocreate` goes through `StorageService.autocreate` onto the service's `makedirs`. Pinned by `test_node_kwargs_reach_the_node`, `test_must_exist_raises_on_missing` and `test_open_write_creates_intermediate_directories` in both modes. |
 | 3 | **Stale mount when a service's implementation changes** — `updateStorageParams` only added or replaced mappable mounts, so `local → symbolic` kept being served by genro-storage until restart. | **Resolved, inherited.** Already fixed on wf/273 by `f57b38921b` (drop-then-re-register: `delete_mount` if present, then `_configure_mounts()`), with a test. Inherited as is; the cost (re-walking the registry per `sys.service` update) is acceptable for an admin-triggered event. |
-| 4 | **`base64` return-shape mismatch** — routed through a method-rename map, so `node.base64()` returned a `data:` URI instead of a bare string and `node.base64(mime=True)` passed `True` where a `str\|None` was expected. | **Resolved.** Explicit three-case wrapper (§3), plus `''` for a missing file, plus a test asserting each case against both modes. No in-repo caller passes `mime=`, but application code outside this repo is the actual audience of the legacy contract. |
+| 4 | **`base64` return-shape mismatch** — routed through a method-rename map, so `node.base64()` returned a `data:` URI instead of a bare string and `node.base64(mime=True)` passed `True` where a `str\|None` was expected. | **Resolved: `to_base64` is never called.** The service inherits `StorageService.base64`, which builds the string from `open()` — so the bare/`mime=True`/explicit-mime shapes and the `''` for a missing file are the legacy code itself, not a reimplementation of it. Four tests assert the four cases in both modes. |
 
 Also inherited from that review, non-blocking: the test that reaches into
 `manager._mounts` is rewritten to assert through the public API
 (`manager.node('site:x').resolved_path`).
 
-Two further defects found in this study and **not** in review.md, both fixed here:
-`serve()` and `mkdir()` delegated blind to incompatible signatures (§3). The first is a
-live `TypeError` on the WSGI serving path for any url carrying query kwargs — including
-the `?mtime=` that Genropy itself generates — which is very likely why wf/273's one
-deferred runtime check ("flag on in a real site, open a page serving a stored file") was
-never executed successfully.
+Two further defects found in this study and **not** in review.md: `serve()` and `mkdir()`
+delegated blind to incompatible signatures (§3). The first is a live `TypeError` on the
+WSGI serving path for any url carrying query kwargs — including the `?mtime=` that
+Genropy itself generates — which is very likely why wf/273's one deferred runtime check
+("flag on in a real site, open a page serving a stored file") was never executed
+successfully. Both are closed by the service-level design: `mkdir` keeps the legacy
+signature (and writes the `.gnrdir` sentinel on a remote mount, so `isdir` behaves as it
+does today), and `serve` is implemented on the service with the legacy `**kwargs`
+signature — streaming the file for a local mount, redirecting to a presigned url for a
+remote one, exactly as `BaseLocalService` and `aws_s3` do.
 
 ---
 
@@ -281,18 +299,26 @@ for a call, not done here.
 
 Each phase ends with a commit. No push, no PR.
 
-| # | What | Files | Verification |
-|---|---|---|---|
-| 1 | The optional extra | `gnrpy/pyproject.toml` | `pip check` output identical to §7's five lines; `python -c "import genro_storage"` |
-| 2 | `GenroStorageHandler` — registry translation, per-mount `configure`, warn-never-raise, `IMPLEMENTATION_MAP` for `local`/`raw`/`aws_s3` with T2's S3 parameter names; `storage_params=None` on `BaseStorageHandler.__init__`; `updateStorageParams`/`removeStorageFromCache` re-sync | `gnrpy/gnr/web/gnrwsgisite_proxy/gnrstoragehandler.py` | `pytest tests/web/gnrgenrostorage_test.py -q -k handler`; `flake8` on the file |
-| 3 | `GenroStorageNode` — **subclass of the legacy `StorageNode`** with a service-shaped `service`; the property wrappers; the explicit `base64`/`serve`/`mkdir`/`listdir`/`children`/`url`/`internal_url`/`public_url`/`internal_path`/`local_path`/`move`/`open`; missing-file normalisation | same file | `pytest tests/core/gnrstorage_compare_test.py -q`; `flake8` |
-| 4 | Routing + the flag: `makeNode` honouring the four kwargs, `has_mount` fallback, `GnrDomainProxy.storage_handler` reading `storage?use_genro_storage` | `gnrstoragehandler.py`, `gnrpy/gnr/web/gnrwsgisite.py` | `pytest tests/web/gnrgenrostorage_test.py -q`; full `pytest -q` unchanged vs baseline |
-| 5 | Cross-world copy/move bridging through the handler | `gnrstoragehandler.py` | `pytest tests/core/gnrstorage_compare_test.py -q -k "copy or move"` |
-| 6 | Comparison tests, local mount (§9) | `gnrpy/tests/core/gnrstorage_compare_test.py` | `pytest tests/core/gnrstorage_compare_test.py -q` — both parametrisations pass, no skips |
-| 7 | Comparison tests, S3 mount on MinIO (§9) | same file | with MinIO up: pass; with `GNR_TEST_S3_ENDPOINT` unset: explicit skip |
-| 8 | `ep_table._getVersionBag` version-key normalisation | `projects/gnrcore/packages/sys/webpages/ep_table.py` | targeted test on both key shapes |
-| 9 | Benchmark (§10) | `gnrpy/tests/core/gnrstorage_benchmark.py` | `pytest tests/core/gnrstorage_benchmark.py -s -q`; table pasted into §11 |
-| 10 | Docs: this file's status, `docs/development/envvars.py`, `TESTING.md` | `docs/development/*`, `gnrpy/tests/TESTING.md` | `python docs/development/envvars.py \| grep GNR_TEST_S3` |
+| # | What | Files | Verification | State |
+|---|---|---|---|---|
+| 1 | The optional extra `genro_storage`, and genro-storage in `developer` | `gnrpy/pyproject.toml` | `pip check` output identical to §7's five lines — **verified, no new line** | done |
+| 2 | `GenroStorageService`, `GenroStorageHandler` (registry translation, per-mount `configure`, warn-never-raise, `IMPLEMENTATION_MAP` for `local`/`raw`/`aws_s3` with T2's S3 parameter names), `storage_params=None` on `BaseStorageHandler.__init__`, `updateStorageParams`/`removeStorageFromCache` re-sync | `gnrpy/gnr/lib/services/storage_genro.py` (new), `gnrpy/gnr/web/gnrwsgisite_proxy/gnrstoragehandler.py` | `flake8` clean; smoke on the live `gnrdevelop` site | done |
+| 3 | *(collapsed into Phase 2 — see the implementation note above: no node adapter)* | — | — | n/a |
+| 4 | The flag: `GnrDomainProxy.storage_handler` reading `storage?use_genro_storage` | `gnrpy/gnr/web/gnrwsgisite.py` | `pytest tests/web/gnrgenrostoragehandler_test.py -q`; full suite unchanged vs baseline | done |
+| 5 | *(cross-world copy/move needed no code — `StorageService` bridges it; covered by tests instead)* | — | `pytest tests/core/gnrstorage_compare_test.py -q -k "copy or move"` | n/a |
+| 6 | Comparison tests, local mount (§9) | `gnrpy/tests/core/gnrstorage_compare_test.py`, `gnrpy/tests/core/storage_fixtures.py` | 94 passed, 0 skipped | done |
+| 7 | Comparison tests, S3 mount on MinIO (§9) | same files | 188 passed with MinIO up; 94 passed + 94 skipped with `GNR_TEST_S3_ENDPOINT` unset | done |
+| 8 | *(`ep_table` version keys — unnecessary: the service reports `versions()` with the legacy boto3 key names)* | — | — | n/a |
+| 9 | Benchmark (§10) | `gnrpy/tests/core/gnrstorage_benchmark.py` | table in §11 | done |
+| 10 | Docs: this file, `docs/development/envvars.py` | `docs/development/*` | `python docs/development/envvars.py \| grep GNR_TEST_S3` | done |
+
+Verification commands:
+
+```bash
+cd gnrpy && python -m pytest -q                                   # whole suite, switch off
+cd gnrpy && python -m pytest tests/core/gnrstorage_compare_test.py tests/web/gnrgenrostoragehandler_test.py -q
+cd gnrpy && python -m pytest tests/core/gnrstorage_benchmark.py -s -q
+```
 
 Baseline to compare against *(measured, on this branch before any change)*:
 
@@ -395,7 +421,61 @@ MINIO_ROOT_USER=minioadmin MINIO_ROOT_PASSWORD=minioadmin \
 
 ### Benchmark results
 
-*(To be filled by Phase 9 with measured numbers, date, machine and versions.)*
+Measured 2026-09-02 on macOS 25.0.0 (Darwin, Apple silicon), pyenv Python 3.13.2,
+genro-storage 0.8.0, fsspec 2025.10.0, s3fs 2025.9.0, boto3/botocore 1.40.18,
+smart_open 7.1.0, MinIO (homebrew binary) at `http://127.0.0.1:9000`, bucket `sandbox`.
+Reproduce with `cd gnrpy && python -m pytest tests/core/gnrstorage_benchmark.py -s -q`.
+Totals in ms for the stated repetition count; `ratio = genro_ms / legacy_ms`, so above 1
+genro-storage is slower.
+
+**Local mount**
+
+| operation | reps | legacy_ms | genro_ms | ratio |
+|---|---|---|---|---|
+| write small (4KB) | 10 | 0.45 | 1.35 | 3.01 |
+| write large (4MB) | 3 | 2.34 | 2.59 | 1.11 |
+| read small (4KB) | 10 | 0.38 | 1.09 | 2.89 |
+| read large (4MB) | 3 | 0.98 | 0.96 | 0.98 |
+| exists | 50 | 0.11 | 2.37 | 21.30 |
+| size | 50 | 0.11 | 2.83 | 26.93 |
+| mtime | 50 | 0.10 | 2.34 | 23.03 |
+| md5hash | 50 | 0.98 | 8.14 | 8.33 |
+| children (100 files) | 10 | 0.94 | 8.08 | 8.57 |
+| copy same mount | 10 | 1.23 | 4.03 | 3.27 |
+| internal_url | 50 | 0.04 | 0.05 | 1.28 |
+
+**S3 mount (MinIO on localhost)**
+
+| operation | reps | legacy_ms | genro_ms | ratio |
+|---|---|---|---|---|
+| write small (4KB) | 10 | 56.51 | 32.19 | 0.57 |
+| write large (4MB) | 3 | 53.35 | 46.40 | 0.87 |
+| read small (4KB) | 10 | 23.54 | 37.57 | 1.60 |
+| read large (4MB) | 3 | 11.83 | 19.01 | 1.61 |
+| exists | 50 | 33.46 | 32.51 | 0.97 |
+| size | 50 | 32.09 | 36.99 | 1.15 |
+| mtime | 50 | 32.52 | 33.14 | 1.02 |
+| md5hash | 50 | 32.38 | 97.47 | 3.01 |
+| children (100 files) | 10 | 69.10 | 79.44 | 1.15 |
+| copy same mount | 10 | 37.61 | 68.90 | 1.83 |
+| internal_url | 50 | 0.07 | 0.07 | 0.98 |
+
+Reading the numbers:
+
+- **Local metadata calls carry a constant per-call overhead**: genro-storage builds a
+  node object per call, so `exists`/`size`/`mtime` cost ~0.05 ms each against ~0.002 ms.
+  The ratio is large, the absolute cost is not; it is worth optimising (cache the node
+  per path in the service) only if a hot loop shows up.
+- **On S3 genro-storage wins the writes** (0.57–0.87) and loses the small reads. The
+  metadata calls are a wash: both pay one round trip.
+- **`md5hash` on S3 is not a like-for-like comparison.** The legacy service reads the
+  ETag and gives up when it is not 32 characters — which is what a multipart upload
+  produces — so its 32 ms buy a `None`. genro-storage's 97 ms return the real md5. This
+  is the divergence pinned in `TestNamedDivergences`.
+- **Run-to-run noise on S3 is material** at these repetition counts: across two runs,
+  `children` moved between 0.36 and 1.15 and `read small` between 1.60 and 2.96. The
+  local ratios were stable. Treat the S3 column as an order of magnitude, not a
+  measurement, and raise the repetitions before drawing a conclusion from a single cell.
 
 ---
 
@@ -403,16 +483,34 @@ MINIO_ROOT_USER=minioadmin MINIO_ROOT_PASSWORD=minioadmin \
 
 | Phase | State |
 |---|---|
-| 1–10 | not started (this document is the plan) |
+| 1, 2, 4, 6, 7, 9, 10 | done (see §8) |
+| 3, 5, 8 | not needed — see the implementation note at the top |
+
+Measured results against the acceptance criteria:
+
+| Criterion | Result |
+|---|---|
+| Switch off ⇒ same outcome as develop | **2339 passed, 69 skipped** — identical to the baseline measured on this branch before any change; no test went passed→failed, no new skip |
+| Switch on ⇒ comparison tests pass on local | **94 passed, 0 skipped** (both modes) |
+| Switch on ⇒ MinIO tests pass when configured, skip otherwise | **188 passed** with `GNR_TEST_S3_ENDPOINT` set; **94 passed + 94 skipped**, reason naming the variable, when unset |
+| Non-replaced implementations stay legacy with the switch on | `tests/web/gnrgenrostoragehandler_test.py` — 29 passed, including the nine symbolic mounts and `_http_`, and `internal_path` parity with the legacy handler for `rsrc:`, `pkg:`, `temp:`, `gnr:` |
+| `pip check` clean | **Not achievable as stated, and not caused by this branch** — see §7. Verified instead: the output is identical to the five pre-existing lines |
+| Benchmark table present and reproducible | §11, with the command |
 
 Open, deliberately:
 
 1. **`relative` and `sftp` deferred** (§2) — both are mappable, neither is testable in
    this environment, and each is a self-contained follow-up.
-2. **`public_url`, `readonly`/`write_in_local`, `local_path(keep=True)`, `internal_path`
-   for remote mounts** have no genro-storage counterpart. All four are handled in the
-   adapter by delegating to the legacy service or raising; each is a candidate upstream
-   request, and T2's `GENRO_STORAGE_ISSUE.md` is where they belong.
+2. **Four things genro-storage does not provide**, each handled and each an upstream
+   candidate (T2's `GENRO_STORAGE_ISSUE.md` is where they belong):
+   `public_url` — built in the service from the mount's endpoint and bucket;
+   `internal_path` for remote mounts — composed from the mount's `base_path`, since
+   `resolved_path` is `None` off the local filesystem;
+   `readonly`/`write_in_local` — no counterpart at all, so a readonly mount is **left on
+   the legacy service**, because serving it through a writable backend would silently
+   drop the restriction;
+   `local_path(keep=True)` — refused with `NotImplementedError` on a remote mount rather
+   than silently not keeping the file.
 3. **`pip check` is already dirty on this machine** (§7) — the `s3fs`/`gcsfs` exact pin
    on `fsspec` predates this branch. Needs an environment call.
 4. **The daemon-based storage suite is skipped on this machine** (§8) because a daemon is
@@ -420,6 +518,18 @@ Open, deliberately:
    stopping that daemon, or by teaching `BaseGnrDaemonTest` to attach to a running one)
    is a separate question from this migration.
 5. **The hybrid is the end state, not a stepping stone** (§2): with the switch on, a
-   typical instance keeps every symbolic mount on the legacy layer. The cross-world
-   copy/move bridge (§8 Phase 5) exists precisely because of that, and it is the part of
-   the design most worth reviewing before implementation.
+   typical instance keeps every symbolic mount on the legacy layer. This is why the
+   service-level design matters — `StorageService` bridges a copy or move between the
+   two worlds by content on its own, with no code of ours in the path.
+6. **A local mount whose `base_path` does not exist yet stays legacy** (§8 Phase 2):
+   genro-storage's local backend requires the directory to exist, the legacy service
+   creates it on first write. On `gnrdevelop` this is the `mail` mount, and it logs one
+   warning at handler construction. Pre-creating the directory at startup would be the
+   alternative; not done, because a storage switch should not create directories.
+7. **Never yet run with the flag on in a live serving site.** The switch, the routing,
+   the node surface and the WSGI-facing `serve()` are covered by tests against a real
+   site object, but no request has been served through the genro-storage handler in a
+   running daemon. That is the next thing to do before this goes anywhere near an
+   instance that matters.
+8. **The per-call node construction on local mounts** (§11) is the one measured
+   inefficiency: worth a cache in the service if a profile ever points here.

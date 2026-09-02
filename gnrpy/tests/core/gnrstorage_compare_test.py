@@ -14,144 +14,33 @@ operations themselves are never mocked.
 Run:
     cd gnrpy && pytest tests/core/gnrstorage_compare_test.py -q
 
-The S3 half needs an S3-compatible endpoint (MinIO is enough):
-    export GNR_TEST_S3_ENDPOINT=http://127.0.0.1:9000
-    export GNR_TEST_S3_ACCESS_KEY=minioadmin
-    export GNR_TEST_S3_SECRET_KEY=minioadmin
-    export GNR_TEST_S3_BUCKET=sandbox
-Without GNR_TEST_S3_ENDPOINT, or with an endpoint that does not answer, the S3
-tests skip with the reason naming it.
+The S3 half needs GNR_TEST_S3_ENDPOINT and friends (see storage_fixtures.py);
+without it those tests skip with the reason naming the variable.
 """
 
 import base64
 import hashlib
-import importlib.util
 import os
-import urllib.error
 import urllib.request
 import uuid
 
 import pytest
 
-from gnr.core.gnrbag import Bag
-from gnr.lib.services.storage import (BaseLocalService, NotExistingStorageNode,
-                                      StorageNode)
+from gnr.lib.services.storage import NotExistingStorageNode, StorageNode
 
-genro_storage = pytest.importorskip(
+pytest.importorskip(
     'genro_storage', reason="genro-storage is an optional dependency (genro_storage extra)")
+
 from genro_storage import StorageManager  # noqa: E402
 
 from gnr.lib.services import storage_genro  # noqa: E402
+from core.storage_fixtures import (CONTENT, MODES, S3_ACCESS_KEY,  # noqa: E402
+                                   S3_BUCKET, S3_ENDPOINT, S3_PREFIX,
+                                   S3_SECRET_KEY, SiteStub, local_storage,
+                                   s3_storage, s3_unavailable_reason)
 
-MODES = ['legacy', 'genro']
-
-S3_ENDPOINT = os.environ.get('GNR_TEST_S3_ENDPOINT')
-S3_ACCESS_KEY = os.environ.get('GNR_TEST_S3_ACCESS_KEY', 'minioadmin')
-S3_SECRET_KEY = os.environ.get('GNR_TEST_S3_SECRET_KEY', 'minioadmin')
-S3_BUCKET = os.environ.get('GNR_TEST_S3_BUCKET', 'sandbox')
-S3_PREFIX = os.environ.get('GNR_TEST_S3_PREFIX', 'gnrtest')
-
-CONTENT = b'genropy storage parity payload'
-
-
-def _s3_unavailable_reason():
-    if not S3_ENDPOINT:
-        return ("GNR_TEST_S3_ENDPOINT is not set: no S3-compatible endpoint to "
-                "compare against (see the module docstring)")
-    health = '%s/minio/health/live' % S3_ENDPOINT.rstrip('/')
-    try:
-        with urllib.request.urlopen(health, timeout=3) as response:
-            if response.code != 200:
-                return "%s answered %s" % (health, response.code)
-    except (urllib.error.URLError, OSError) as exc:
-        return "%s is not answering: %s" % (S3_ENDPOINT, exc)
-    return None
-
-
-S3_SKIP_REASON = _s3_unavailable_reason()
+S3_SKIP_REASON = s3_unavailable_reason()
 requires_s3 = pytest.mark.skipif(S3_SKIP_REASON is not None, reason=str(S3_SKIP_REASON))
-
-
-def _load_aws_s3_service():
-    """Load the legacy aws_s3 service, which lives as a site resource."""
-    here = os.path.dirname(__file__)
-    path = os.path.abspath(os.path.join(
-        here, '..', '..', '..', 'projects', 'gnrcore', 'packages', 'sys',
-        'resources', 'services', 'storage', 'aws_s3.py'))
-    spec = importlib.util.spec_from_file_location('gnrtest_legacy_aws_s3', path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module.Service
-
-
-class SiteStub:
-    """Minimal stand-in for the site: only what StorageNode and the services
-    dereference."""
-
-    external_host = 'http://localhost:8080'
-    cache_max_age = None
-    _local_mode = False
-
-    def __init__(self):
-        self.services = {}
-        app_config = Bag()
-        app_config['packages'] = Bag()
-        self.gnrapp = type('GnrAppStub', (), {'config': app_config})()
-
-    def add(self, service_name, service, implementation=None):
-        service.service_name = service_name
-        service.service_implementation = implementation
-        self.services[service_name] = service
-        return service
-
-    def storageNode(self, path, **kwargs):
-        service_name, _, storage_path = path.partition(':')
-        return StorageNode(parent=self, service=self.services[service_name],
-                           path=storage_path, **kwargs)
-
-    def getService(self, service_type=None, service_name=None, **kwargs):
-        return self.services[service_name]
-
-    def not_found_exception(self, environ, start_response):
-        start_response('404 Not Found', [])
-        return [b'']
-
-    def redirect(self, environ, start_response, location=None, temporary=False):
-        start_response('302 Found', [('Location', location)])
-        return [b'redirected']
-
-
-class Storage:
-    """The storage under test, in one of the two modes."""
-
-    def __init__(self, site, mode, mounts):
-        self.site = site
-        self.mode = mode
-        self.mounts = mounts
-
-    def node(self, path, **kwargs):
-        return self.site.storageNode(path, **kwargs)
-
-    def write(self, path, content=CONTENT):
-        node = self.node(path)
-        with node.open('wb') as fp:
-            fp.write(content)
-        return node
-
-
-def _local_storage(mode, base_paths):
-    """A Storage with one mount per name in base_paths, all local."""
-    site = SiteStub()
-    manager = StorageManager() if mode == 'genro' else None
-    for name, base_path in base_paths.items():
-        if mode == 'legacy':
-            site.add(name, BaseLocalService(parent=site, base_path=base_path), 'local')
-        else:
-            config = {'name': name, 'protocol': 'local', 'base_path': base_path}
-            manager.configure([config])
-            site.add(name, storage_genro.Service(
-                parent=site, manager=manager, mount_name=name, mount_config=config), 'local')
-    return Storage(site, mode, list(base_paths))
 
 
 @pytest.fixture(params=MODES)
@@ -161,42 +50,14 @@ def local(request, tmp_path):
     second = tmp_path / 'second'
     first.mkdir()
     second.mkdir()
-    return _local_storage(request.param, {'st': str(first), 'st2': str(second)})
-
-
-def _s3_storage(mode):
-    """A Storage with a 'st' mount on the configured S3 endpoint, under a
-    prefix of its own so the two modes never share objects."""
-    site = SiteStub()
-    prefix = '%s/%s' % (S3_PREFIX, uuid.uuid4().hex[:12])
-    if mode == 'legacy':
-        legacy_service = _load_aws_s3_service()
-        site.add('st', legacy_service(
-            parent=site, bucket=S3_BUCKET, base_path=prefix,
-            aws_access_key_id=S3_ACCESS_KEY, aws_secret_access_key=S3_SECRET_KEY,
-            region_name='us-east-1', custom_endpoint=True, endpoint_url=S3_ENDPOINT,
-            versioned=False), 'aws_s3')
-    else:
-        config = {'name': 'st', 'protocol': 's3', 'bucket': S3_BUCKET,
-                  'base_path': prefix, 'access_key': S3_ACCESS_KEY,
-                  'secret_key': S3_SECRET_KEY, 'endpoint_url': S3_ENDPOINT}
-        manager = StorageManager()
-        manager.configure([config])
-        site.add('st', storage_genro.Service(
-            parent=site, manager=manager, mount_name='st', mount_config=config,
-            versioned=False), 'aws_s3')
-    storage = Storage(site, mode, ['st'])
-    storage.prefix = prefix
-    return storage
+    return local_storage(request.param, {'st': str(first), 'st2': str(second)})
 
 
 @pytest.fixture(params=MODES)
 def s3(request):
-    storage = _s3_storage(request.param)
+    storage = s3_storage(request.param)
     yield storage
-    root = storage.node('st:')
-    if root.exists:
-        root.delete()
+    storage.cleanup()
 
 
 class StorageParity:
@@ -509,8 +370,8 @@ class TestNamedDivergences:
         legacy aws_s3 service already does."""
         base = tmp_path / 'base'
         base.mkdir()
-        legacy = _local_storage('legacy', {'st': str(base)})
-        genro = _local_storage('genro', {'st': str(base)})
+        legacy = local_storage('legacy', {'st': str(base)})
+        genro = local_storage('genro', {'st': str(base)})
         with pytest.raises(AttributeError):
             legacy.node('st:nope.txt').mtime
         assert genro.node('st:nope.txt').mtime is None
@@ -521,7 +382,7 @@ class TestNamedDivergences:
         """genro-storage refuses '..' in a path; the legacy service resolves it."""
         base = tmp_path / 'base'
         base.mkdir()
-        genro = _local_storage('genro', {'st': str(base)})
+        genro = local_storage('genro', {'st': str(base)})
         with pytest.raises(ValueError):
             genro.node('st:sub/../escaped.txt').exists
 
@@ -531,8 +392,8 @@ class TestNamedDivergences:
         when it is 32 characters long: a multipart upload (which is what
         smart_open does, and what MinIO reports back) makes it give up and
         return None. genro-storage reports the content md5 either way."""
-        legacy = _s3_storage('legacy')
-        genro = _s3_storage('genro')
+        legacy = s3_storage('legacy')
+        genro = s3_storage('genro')
         try:
             legacy_node = legacy.write('st:probe.txt')
             genro_node = genro.write('st:probe.txt')
