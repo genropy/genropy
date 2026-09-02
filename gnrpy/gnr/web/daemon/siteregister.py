@@ -103,6 +103,21 @@ class RemoteStoreBagHandler(BaseRemoteObject):
 
 class BaseRegister(BaseRemoteObject):
     """docstring for BaseRegister"""
+
+    # Where this register's items hang. The item field is the only statement of
+    # where a child belongs; the set on the parent says the same thing in the
+    # other direction, so it is an index, maintained here in the two calls that
+    # add and remove an item and derived from the children again on load.
+    # A register whose items have no parent leaves all three at None.
+    parent_field = None
+    parent_link_name = None
+    parent_register_name = None
+
+    # The set on this register's own items holding their children, named by the
+    # child register as parent_link_name. A register with no children leaves it
+    # at None; test_the_two_ends_of_a_link_agree_on_its_name checks the pair.
+    child_link_name = None
+
     def __init__(self, siteregister):
         self.siteregister = siteregister
         self.registerItems = dict()
@@ -110,6 +125,12 @@ class BaseRegister(BaseRemoteObject):
         self.itemsTS = dict()
         self.locked_items = dict()
         self.cached_tables = defaultdict(dict)
+
+    @property
+    def parent_register(self):
+        if not self.parent_register_name:
+            return None
+        return self.siteregister.get_register(self.parent_register_name)
 
     def lock_item(self, register_item_id, reason=None):
         locker = self.locked_items.get(register_item_id)
@@ -135,7 +156,27 @@ class BaseRegister(BaseRemoteObject):
 
     def addRegisterItem(self, register_item, data=None):
         register_item_id = register_item['register_item_id']
+        previous = self.registerItems.get(register_item_id)
+        if previous is not None:
+            # re-registering an id replaces the item wholesale, so the two ends of
+            # its links have to survive the replacement
+            if self.parent_field:
+                # the replacement may name another parent: unlink the previous one,
+                # or both end up claiming the same child
+                self.siteregister.updateRegisterLink(
+                    self.parent_register, previous.get(self.parent_field),
+                    self.parent_link_name, register_item_id)
+            if self.child_link_name:
+                # the replacement arrives with an empty set, but the children are
+                # still there and still name this item, so the set it had is true
+                register_item[self.child_link_name] = previous[self.child_link_name]
         self.registerItems[register_item_id] = register_item
+        if self.parent_field:
+            # the only insertion point, so no create can leave the parent's set
+            # behind whatever route reached it
+            self.siteregister.updateRegisterLink(
+                self.parent_register, register_item.get(self.parent_field),
+                self.parent_link_name, register_item_id, add=True)
         register_item['datachanges'] = list()
         register_item['datachanges_idx'] = 0
         register_item['subscribed_paths'] = set()
@@ -218,15 +259,50 @@ class BaseRegister(BaseRemoteObject):
         return self.__class__.__name__
 
     def drop_item(self, register_item_id):
+        if self.parent_field:
+            # before the pop, never after: the set is read to reach the items, so
+            # it must never point at one that is already gone
+            going = self.registerItems.get(register_item_id)
+            if going is not None:
+                self.siteregister.updateRegisterLink(
+                    self.parent_register, going.get(self.parent_field),
+                    self.parent_link_name, register_item_id)
         register_item = self.registerItems.pop(register_item_id, None)
         self.itemsData.pop(register_item_id, None)
         self.itemsTS.pop(register_item_id, None)
         return register_item
 
+    def reparent_item(self, register_item_id, parent_id):
+        """Move an item under another parent: the field and both sets, one call.
+
+        The only place an item's parent changes. Doing it in three statements at
+        the call site is what let the field and the sets disagree.
+        """
+        assert self.parent_field, \
+            'SITEREGISTER ERROR: %s items have no parent to move them under' % self.registerName
+        register_item = self.registerItems.get(register_item_id)
+        if register_item is None:
+            return False
+        old_parent_id = register_item.get(self.parent_field)
+        if old_parent_id == parent_id:
+            return False
+        parent_register = self.parent_register
+        self.siteregister.updateRegisterLink(parent_register, old_parent_id,
+                                             self.parent_link_name, register_item_id)
+        register_item[self.parent_field] = parent_id
+        self.siteregister.updateRegisterLink(parent_register, parent_id,
+                                             self.parent_link_name, register_item_id, add=True)
+        return True
+
     def update_item(self, register_item_id, upddict=None):
         register_item = self.get_item(register_item_id)
         if not register_item:
             return
+        if self.parent_field and upddict and self.parent_field in upddict:
+            # the parent field is one half of a link: writing it straight into the
+            # item would leave both sets naming the parent it no longer has
+            upddict = dict(upddict)
+            self.reparent_item(register_item_id, upddict.pop(self.parent_field))
         register_item.update(upddict)
         return register_item
 
@@ -316,6 +392,9 @@ class GlobalRegister(BaseRegister):
 
 class UserRegister(BaseRegister):
     """docstring for UserRegister"""
+
+    child_link_name = 'connections'
+
     def create(self, user, user_id=None, user_name=None, user_tags=None, avatar_extra=None):
         register_item = dict(
             register_item_id=user,
@@ -337,6 +416,12 @@ class UserRegister(BaseRegister):
 
 class ConnectionRegister(BaseRegister):
     """docstring for ConnectionRegister"""
+
+    parent_field = 'user'
+    parent_link_name = 'connections'
+    parent_register_name = 'user'
+    child_link_name = 'pages'
+
     def create(self, connection_id, connection_name=None, user=None, user_id=None,
                user_name=None, user_tags=None, user_ip=None, user_agent=None, browser_name=None,
                electron_static=None):
@@ -377,17 +462,24 @@ class ConnectionRegister(BaseRegister):
         return [(k, self.registerItems[k]) for k in self.user_connection_keys(user)]
 
     def user_connections(self, user):
-        return [self.registerItems[k] for k in self.user_connection_keys(user)]
+        return [register_item for k, register_item in self.user_connection_items(user)]
+
 
     def connections(self, user=None, include_data=None):
         if not user:
             return self.values(include_data=include_data)
         if include_data:
-            return [self.get_item(k, include_data=True) for k in self.user_connection_keys(user)]
+            return [self.get_item(k, include_data=True)
+                    for k in self.user_connection_keys(user)]
         return self.user_connections(user)
 
 
 class PageRegister(BaseRegister):
+
+    parent_field = 'connection_id'
+    parent_link_name = 'pages'
+    parent_register_name = 'connection'
+
     def __init__(self, *args, **kwargs):
         super(PageRegister, self).__init__(*args, **kwargs)
         self.pageProfilers = dict()
@@ -421,11 +513,19 @@ class PageRegister(BaseRegister):
             self.tableSubscribers[table].add(page_id)
         return bool(subscribed_tables)
 
-    def dropSubscriptions(self, page_id, subscribed_tables):
-        """Forget every subscription of a page that is going away."""
-        for table in list(subscribed_tables):
+    def dropSubscriptions(self, page_id, subscribed_tables=None):
+        """Forget every subscription of a page that is going away.
+
+        Driven by the index, not by the page's own list: the list says what the
+        current item believes, the index says what notifyDbEvents will actually
+        read. Scanning the index makes the removal atomic with the drop whatever
+        happened to the item before (an overwritten registration, a restored
+        pickle), so a dropped page can never leave a dangling subscriber behind.
+        """
+        for table in list(self.tableSubscribers):
             self._dropSubscriber(table, page_id)
-        del subscribed_tables[:]
+        if subscribed_tables:
+            del subscribed_tables[:]
 
     def _dropSubscriber(self, table, page_id):
         subscribers = self.tableSubscribers.get(table)
@@ -439,9 +539,24 @@ class PageRegister(BaseRegister):
         """Tables with at least one subscribed page."""
         return list(self.tableSubscribers)
 
+    def load(self, storagefile):
+        # A restored pickle replaces registerItems wholesale: rebuild the index from
+        # the restored per-page lists, or every restored subscription is invisible to
+        # notifyDbEvents and whatever the index held before dangles.
+        super(PageRegister, self).load(storagefile)
+        self.tableSubscribers = defaultdict(set)
+        for page_id, register_item in self.registerItems.items():
+            for table in register_item.get('subscribed_tables') or []:
+                self.tableSubscribers[table].add(page_id)
+
     def create(self, page_id, pagename=None, connection_id=None, subscribed_tables=None, user=None, user_ip=None, user_agent=None, relative_url=None, data=None):
         register_item_id = page_id
         start_ts = datetime.now()
+        if register_item_id in self.registerItems:
+            # Re-registering an existing page_id replaces the item wholesale: unindex
+            # the previous life first, or its subscriptions dangle in the index and
+            # outlive the item, breaking every notifyDbEvents on those tables.
+            self.dropSubscriptions(register_item_id)
         if subscribed_tables:
             subscribed_tables = subscribed_tables.split(',')
         subscribed_tables = subscribed_tables or []
@@ -467,7 +582,7 @@ class PageRegister(BaseRegister):
         # it must never point at one that is already gone.
         self.dropSubscriptions(register_item_id,
                                (self.registerItems.get(register_item_id) or {}
-                                ).get('subscribed_tables') or [])
+                                ).get('subscribed_tables'))
         register_item = self.drop_item(register_item_id)
         self.pageProfilers.pop(register_item_id, None)
         if cascade:
@@ -485,10 +600,20 @@ class PageRegister(BaseRegister):
     def subscribed_table_page_items(self, table):
         # registerItems rather than get_item: the scan this replaces did not refresh
         # a page's timestamp, and notifying an event must not keep a page alive.
-        return [(k, self.registerItems[k]) for k in self.subscribed_table_page_keys(table)]
+        items = []
+        for k in self.subscribed_table_page_keys(table):
+            register_item = self.registerItems.get(k)
+            if register_item is None:
+                # The index is a cache of the per-page lists: a key with no item is
+                # residual drift, and raising here would abort the notification for
+                # every live subscriber of the table. Prune it and move on.
+                self._dropSubscriber(table, k)
+                continue
+            items.append((k, register_item))
+        return items
 
     def subscribed_table_pages(self, table):
-        return [self.registerItems[k] for k in self.subscribed_table_page_keys(table)]
+        return [register_item for k, register_item in self.subscribed_table_page_items(table)]
 
     def connection_page_keys(self, connection_id):
         # from the connection item's link set; a list, so callers may drop while iterating
@@ -501,7 +626,8 @@ class PageRegister(BaseRegister):
         return [(k, self.registerItems[k]) for k in self.connection_page_keys(connection_id)]
 
     def connection_pages(self, connection_id):
-        return [self.registerItems[k] for k in self.connection_page_keys(connection_id)]
+        return [register_item
+                for k, register_item in self.connection_page_items(connection_id)]
 
     def pages(self, connection_id=None, user=None, include_data=None, filters=None):
         # walk the link sets rather than the whole registry: a connection knows its
@@ -673,6 +799,20 @@ class SiteRegister(BaseRemoteObject):
         children.discard(child_id)
         return True
 
+    def rebuildRegisterLinks(self, parent_register, child_register, parent_field, link_name):
+        """Rebuild every parent's link set from the children that name it.
+
+        Called after a register is restored from its pickle: the two registers are
+        loaded independently, so the sets a parent carries know nothing of the
+        children that actually came back.
+        """
+        for parent_item in parent_register.registerItems.values():
+            parent_item[link_name] = set()
+        for child_id, child_item in child_register.registerItems.items():
+            parent_item = parent_register.registerItems.get(child_item.get(parent_field))
+            if parent_item is not None:
+                parent_item[link_name].add(child_id)
+
     def new_connection(self, connection_id, connection_name=None, user=None, user_id=None,
                        user_name=None, user_tags=None, user_ip=None, user_agent=None, browser_name=None,
                        avatar_extra=None, electron_static=None):
@@ -684,7 +824,6 @@ class SiteRegister(BaseRemoteObject):
             connection_id, connection_name=connection_name, user=user, user_id=user_id,
             user_name=user_name, user_tags=user_tags, user_ip=user_ip, user_agent=user_agent,
             browser_name=browser_name, electron_static=electron_static)
-        self.updateRegisterLink(self.user_register, user, 'connections', connection_id, add=True)
         return connection_item
 
     def drop_pages(self, connection_id):
@@ -692,10 +831,6 @@ class SiteRegister(BaseRemoteObject):
             self.drop_page(page_id)
 
     def drop_page(self, page_id, cascade=None):
-        page_item = self.page_register.registerItems.get(page_id)
-        if page_item:
-            self.updateRegisterLink(self.connection_register, page_item['connection_id'],
-                                    'pages', page_id)
         return self.page_register.drop(page_id, cascade=cascade)
 
     def drop_connections(self, user):
@@ -703,10 +838,6 @@ class SiteRegister(BaseRemoteObject):
             self.drop_connection(connection_id)
 
     def drop_connection(self, connection_id, cascade=None):
-        connection_item = self.connection_register.registerItems.get(connection_id)
-        if connection_item:
-            self.updateRegisterLink(self.user_register, connection_item['user'],
-                                    'connections', connection_id)
         self.connection_register.drop(connection_id, cascade=cascade)
 
     def drop_user(self, user):
@@ -735,7 +866,6 @@ class SiteRegister(BaseRemoteObject):
         page_item = self.page_register.create(page_id, pagename=pagename, connection_id=connection_id,
                                               user=user, user_ip=user_ip, user_agent=user_agent,
                                               relative_url=relative_url, data=data)
-        self.updateRegisterLink(self.connection_register, connection_id, 'pages', page_id, add=True)
         return page_item
 
     def new_user(self, user=None, user_tags=None, user_id=None, user_name=None, avatar_extra=None):
@@ -783,15 +913,11 @@ class SiteRegister(BaseRemoteObject):
         if not newuser_item:
             newuser_item = self.new_user(user=user, user_tags=user_tags, user_id=user_id, user_name=user_name,
                                          avatar_extra=avatar_extra)
-        connection_item['user'] = user
+        self.connection_register.reparent_item(connection_id, user)
         connection_item['user_tags'] = user_tags
         connection_item['user_name'] = user_name
         connection_item['user_id'] = user_id
         connection_item['avatar_extra'] = avatar_extra
-        # move the link before the drop_user guard below: it reads the old
-        # user's link set, which must no longer hold this connection
-        self.updateRegisterLink(self.user_register, olduser, 'connections', connection_id)
-        self.updateRegisterLink(self.user_register, user, 'connections', connection_id, add=True)
         for p in self.pages(connection_id=connection_id):
             p['user'] = user
         if not self.connection_register.connections(olduser):
@@ -979,10 +1105,21 @@ class SiteRegister(BaseRemoteObject):
 
     def load(self):
         try:
-            with open(self.storage_path) as storagefile:
+            # 'rb': dump writes the pickle in binary, and a text stream makes
+            # pickle.load raise UnicodeDecodeError on the protocol header
+            with open(self.storage_path, 'rb') as storagefile:
                 self.user_register.load(storagefile)
                 self.connection_register.load(storagefile)
                 self.page_register.load(storagefile)
+            # The three registers are pickled and restored independently, so a
+            # parent's link set knows nothing of the children that came back.
+            # Rebuilt here rather than inside each load: it is the first point
+            # where every item exists, and it keeps a child register from having
+            # to reach up into the site to repair its parent.
+            self.rebuildRegisterLinks(self.user_register, self.connection_register,
+                                      'user', 'connections')
+            self.rebuildRegisterLinks(self.connection_register, self.page_register,
+                                      'connection_id', 'pages')
             loadedpath = self.storage_path.replace('.pik', '_loaded.pik')
             if os.path.exists(loadedpath):
                 os.remove(loadedpath)
