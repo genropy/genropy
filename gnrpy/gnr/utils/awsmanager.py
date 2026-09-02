@@ -522,7 +522,7 @@ class Route53Manager(BaseAwsService):
     def verify_record(self, name, record_type, value, hosted_zone_id=None):
         result = self.record_exists(name, hosted_zone_id=hosted_zone_id)
         if result['status'] == 'error':
-            return result
+            return dict(result, value=False)
         record = result['value']
         if record['type'].upper() != record_type.upper():
             return dict(value=False, status='error', description='Record type mismatch')

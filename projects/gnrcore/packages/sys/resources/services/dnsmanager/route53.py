@@ -30,20 +30,17 @@ class Service(DnsManager):
 
 class ServiceParameters(BaseComponent):
     def service_parameters(self, pane, datapath=None, **kwargs):
-        bc = pane.borderContainer()
-        fb = bc.contentPane(region='top').formbuilder(datapath=datapath)
+        fb = pane.formbuilder(datapath=datapath, cols=1, border_spacing='4px')
         fb.textbox(value='^.aws_access_key_id', lbl='Aws Access Key Id')
         fb.textbox(value='^.aws_secret_access_key', lbl='Aws Secret Access Key')
-        center = bc.contentPane(region='center', padding='8px')
 
-        cfb = center.formbuilder(cols=1)
-        cfb.button('List Hosted Zones').dataRpc(
+        fb.button('List Hosted Zones').dataRpc(
             self.r53_list_hosted_zones,
             service_name='=#FORM.record.service_name',
             _if='service_name'
         ).addCallback('genro.dlg.alert(result,"Hosted Zones")')
-        
-        cfb.button('Check Record Exists').dataRpc(
+
+        fb.button('Check Record Exists').dataRpc(
             self.r53_check_record_exists,
             service_name='=#FORM.record.service_name',
             _if='service_name',
@@ -52,8 +49,8 @@ class ServiceParameters(BaseComponent):
                 dict(name='hosted_zone_id', lbl='Hosted Zone ID (optional)')
             ])
         ).addCallback('genro.dlg.alert(result,"Record Exists")')
-        
-        cfb.button('Verify Record').dataRpc(
+
+        fb.button('Verify Record').dataRpc(
             self.r53_verify_record,
             service_name='=#FORM.record.service_name',
             _if='service_name',

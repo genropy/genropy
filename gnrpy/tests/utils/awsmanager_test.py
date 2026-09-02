@@ -135,6 +135,7 @@ def test_verify_record_missing():
     result = mgr.verify_record('missing.example.com', 'CNAME', 'x',
                                hosted_zone_id=ZONE_ID)
     assert result['status'] == 'error'
+    assert result['value'] is False
 
 
 # ---------- ensure_cname_record ----------
