@@ -422,7 +422,7 @@ MINIO_ROOT_USER=minioadmin MINIO_ROOT_PASSWORD=minioadmin \
 
 ### Benchmark results
 
-Measured 2026-09-02 on macOS 25.0.0 (Darwin, Apple silicon), pyenv Python 3.13.2,
+Measured 2026-09-02 on the committed code, macOS 25.0.0 (Darwin, Apple silicon), pyenv Python 3.13.2,
 genro-storage 0.8.0, fsspec 2025.10.0, s3fs 2025.9.0, boto3/botocore 1.40.18,
 smart_open 7.1.0, MinIO (homebrew binary) at `http://127.0.0.1:9000`, bucket `sandbox`.
 Reproduce with `cd gnrpy && python -m pytest tests/core/gnrstorage_benchmark.py -s -q`.
@@ -431,54 +431,65 @@ genro-storage is slower.
 
 **Local mount**
 
-| operation | reps | legacy_ms | genro_ms | ratio |
-|---|---|---|---|---|
-| write small (4KB) | 10 | 0.45 | 1.35 | 3.01 |
-| write large (4MB) | 3 | 2.34 | 2.59 | 1.11 |
-| read small (4KB) | 10 | 0.38 | 1.09 | 2.89 |
-| read large (4MB) | 3 | 0.98 | 0.96 | 0.98 |
-| exists | 50 | 0.11 | 2.37 | 21.30 |
-| size | 50 | 0.11 | 2.83 | 26.93 |
-| mtime | 50 | 0.10 | 2.34 | 23.03 |
-| md5hash | 50 | 0.98 | 8.14 | 8.33 |
-| children (100 files) | 10 | 0.94 | 8.08 | 8.57 |
-| copy same mount | 10 | 1.23 | 4.03 | 3.27 |
-| internal_url | 50 | 0.04 | 0.05 | 1.28 |
+| operation | reps | legacy_ms | genro_ms | ratio | per call: legacy → genro |
+|---|---|---|---|---|---|
+| write small (4KB) | 10 | 0.47 | 1.36 | 2.88 | 0.047 → 0.136 ms |
+| write large (4MB) | 3 | 2.32 | 2.42 | 1.04 | 0.77 → 0.81 ms |
+| read small (4KB) | 10 | 0.18 | 1.14 | 6.21 | 0.018 → 0.114 ms |
+| read large (4MB) | 3 | 0.74 | 0.99 | 1.33 | 0.25 → 0.33 ms |
+| exists | 50 | 0.10 | 2.33 | 22.49 | 0.002 → 0.047 ms |
+| size | 50 | 0.11 | 2.48 | 22.77 | 0.002 → 0.050 ms |
+| mtime | 50 | 0.10 | 2.49 | 24.03 | 0.002 → 0.050 ms |
+| md5hash | 50 | 0.95 | 7.91 | 8.36 | 0.019 → 0.158 ms |
+| children (100 files) | 10 | 0.93 | 8.27 | 8.88 | 0.093 → 0.827 ms |
+| copy same mount | 10 | 1.25 | 3.93 | 3.14 | 0.125 → 0.393 ms |
+| internal_url | 50 | 0.04 | 0.05 | 1.17 | 0.001 → 0.001 ms |
 
-**S3 mount (MinIO on localhost)**
+**S3 mount (MinIO on localhost, so almost no network latency: on a real remote
+endpoint the round trip dominates every row)**
 
-| operation | reps | legacy_ms | genro_ms | ratio |
-|---|---|---|---|---|
-| write small (4KB) | 10 | 56.51 | 32.19 | 0.57 |
-| write large (4MB) | 3 | 53.35 | 46.40 | 0.87 |
-| read small (4KB) | 10 | 23.54 | 37.57 | 1.60 |
-| read large (4MB) | 3 | 11.83 | 19.01 | 1.61 |
-| exists | 50 | 33.46 | 32.51 | 0.97 |
-| size | 50 | 32.09 | 36.99 | 1.15 |
-| mtime | 50 | 32.52 | 33.14 | 1.02 |
-| md5hash | 50 | 32.38 | 97.47 | 3.01 |
-| children (100 files) | 10 | 69.10 | 79.44 | 1.15 |
-| copy same mount | 10 | 37.61 | 68.90 | 1.83 |
-| internal_url | 50 | 0.07 | 0.07 | 0.98 |
+| operation | reps | legacy_ms | genro_ms | ratio | per call: legacy → genro |
+|---|---|---|---|---|---|
+| write small (4KB) | 10 | 49.76 | 29.30 | 0.59 | 4.98 → 2.93 ms |
+| write large (4MB) | 3 | 48.41 | 42.24 | 0.87 | 16.1 → 14.1 ms |
+| read small (4KB) | 10 | 21.95 | 36.59 | 1.67 | 2.20 → 3.66 ms |
+| read large (4MB) | 3 | 10.56 | 15.81 | 1.50 | 3.52 → 5.27 ms |
+| exists | 50 | 33.51 | 30.43 | 0.91 | 0.67 → 0.61 ms |
+| size | 50 | 30.61 | 31.21 | 1.02 | 0.61 → 0.62 ms |
+| mtime | 50 | 32.12 | 29.80 | 0.93 | 0.64 → 0.60 ms |
+| md5hash | 50 | 31.99 | 90.65 | 2.83 | 0.64 → 1.81 ms |
+| children (100 files) | 10 | 72.35 | 64.61 | 0.89 | 7.24 → 6.46 ms |
+| copy same mount | 10 | 35.10 | 76.58 | 2.18 | 3.51 → 7.66 ms |
+| internal_url | 50 | 0.07 | 0.07 | 0.99 | 0.001 → 0.001 ms |
 
 Reading the numbers:
 
-- **Local metadata calls carry a constant per-call overhead**: genro-storage builds a
-  node object per call, so `exists`/`size`/`mtime` cost ~0.05 ms each against ~0.002 ms.
-  The ratio is large, the absolute cost is not; it is worth optimising (cache the node
-  per path in the service) only if a hot loop shows up.
-- **On S3 genro-storage wins the writes** (0.57–0.87) and loses the small reads. The
-  metadata calls are a wash: both pay one round trip.
-- **`md5hash` on S3 is not a like-for-like comparison.** The legacy service reads the
-  ETag and gives up when it is not 32 characters — which is what a multipart upload
-  produces — so its 32 ms buy a `None`. genro-storage's 97 ms return the real md5. This
-  is the divergence pinned in `TestNamedDivergences`.
-- **Run-to-run noise on S3 is material** at these repetition counts: across two runs,
-  `children` moved between 0.36 and 1.15 and `read small` between 1.60 and 2.96. The
-  local ratios were stable. Treat the S3 column as an order of magnitude, not a
-  measurement, and raise the repetitions before drawing a conclusion from a single cell.
-
----
+- **The overhead is per call, not per byte.** On a local mount a metadata call
+  costs 0.002 ms through the legacy service and 0.047 ms through genro-storage,
+  which is the 22x: genro-storage builds a node object per call. On the 4 MB
+  file the ratio collapses to 1.04-1.33, because the fixed cost stops mattering.
+  So the ratio to watch is not the worst one, it is the one on the operation you
+  actually repeat thousands of times.
+- **The one local row that can reach a user** is `children` on 100 files: 0.09 ms
+  against 0.83 ms per listing. A `StorageResolver` walking a large directory pays
+  that per level. Still sub-millisecond, but it is the first place to look if a
+  tree ever feels slow, and the fix is a per-path node cache in the service.
+- **On S3 genro-storage is not slower overall**: writes are almost twice as fast
+  (s3fs against smart_open + boto3), metadata is a wash, `children` slightly
+  better. The real regression is the small read, 2.20 → 3.66 ms.
+- **The S3 copy stays server-side in both worlds** *(measured separately)*: the
+  cost does not grow with the file - 4 KB copies in 19.9 ms, 4 MB in 15.6 ms - so
+  no bytes travel through the client. genro-storage's 2.18x is extra round trips
+  for its own checks, a fixed cost, not a transfer.
+- **`md5hash` on S3 is not a like-for-like comparison.** The legacy service reads
+  the ETag and gives up when a multipart upload made it something other than an
+  md5, so its 0.64 ms buy a `None`; genro-storage's 1.81 ms return the real hash.
+  This is the divergence pinned in `TestNamedDivergences`.
+- **Run-to-run noise on S3 is material** at these repetition counts: across three
+  runs `children` moved between 0.36x and 1.15x and `read small` between 1.60x
+  and 2.96x. The local ratios were stable to within a few percent. Treat the S3
+  column as an order of magnitude and raise the repetitions before drawing a
+  conclusion from one cell.
 
 ## 12. Status and open points
 
