@@ -73,6 +73,8 @@ Tags
       :ref:`instanceconfig_db` section.
     * The ``<authentication>`` tag allow to handle all the access authorization to your project.
       Check the :ref:`instanceconfig_authentication` section for more information.
+    * The ``<experimental>`` tag switches on features that are not yet part of the default
+      behaviour. Check the :ref:`instanceconfig_experimental` section for more information.
     * The ``_T="NN"`` is a special attribute that allow to keep track of datatypes (for more
       information, check the :ref:`bag_from_to_XML` section).
     
@@ -155,6 +157,28 @@ Tags
         <db dbname="mypersonaldatabase" implementation="postgres"
             host="localhost" password="superSecurePwd" user="postgres"  />
         
+.. _instanceconfig_experimental:
+
+``<experimental>``
+^^^^^^^^^^^^^^^^^^
+
+    The ``<experimental>`` tag groups the switches of features that are still opt-in.
+    Every switch is an attribute of a child tag named after the area it affects; the
+    value is read once at startup, so a change requires a restart::
+
+        <experimental>
+            <page no_mako="True" page_class_cache="True"/>
+        </experimental>
+
+    ``<page>`` switches:
+
+    * ``no_mako``: render the rootPage from a Python struct template (``<name>.py``)
+      when one is found next to the ``.tpl``, falling back to Mako otherwise.
+    * ``page_class_cache``: reuse the page class built at the page's birth for every
+      later request carrying the same ``page_id``.
+
+    A missing tag or attribute reads as ``False``.
+
 .. _instanceconfig_authentication:
 
 ``<authentication>``

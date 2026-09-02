@@ -403,7 +403,7 @@ class GnrWebPage(GnrBaseWebPage):
     @property
     def wsk_enabled(self):
         if not hasattr(self, '_wsk_enabled'):
-            self._wsk_enabled = self.wsk and not self.getPreference('experimental.wsk_disabled',pkg='sys')
+            self._wsk_enabled = bool(self.wsk)
         return self._wsk_enabled
 
     @property
@@ -1099,12 +1099,11 @@ class GnrWebPage(GnrBaseWebPage):
             tpl = '%s.%s' % (self.pagename, 'tpl')
         self.htmlHeaders()
 
-        # When ``experimental.no_mako`` is on, look for a ``<name>.py``
+        # With the ``no_mako`` experimental flag on, look for a ``<name>.py``
         # struct template in the same resource dirs the Mako lookup uses.
         # If one is found, render it; otherwise fall through to Mako so a
         # missing struct template never breaks the page.
-        no_mako = self.getPreference('experimental.no_mako', pkg='sys')
-        if no_mako:
+        if self.application.experimentalFlag('page', 'no_mako'):
             tpl_name = tpl[:-4] if tpl.endswith('.tpl') else tpl
             template_cls = lookup_template_class(self.tpldirectories, tpl_name)
             if template_cls is not None:

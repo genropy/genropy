@@ -979,6 +979,14 @@ class GnrApp(object):
             'dbname': parsed.path.lstrip('/'),
         }
     
+    def experimentalFlag(self, group, name):
+        """A switch from the ``<experimental>`` tag of instanceconfig.xml.
+
+        ``<experimental><page no_mako="True"/></experimental>`` is read as
+        ``experimentalFlag('page', 'no_mako')``; a missing tag is ``False``.
+        """
+        return boolean(self.config['experimental.%s?%s' % (group, name)])
+
     def init(self, db_attrs=None, restorepath=None):
         """Initiate a :class:`GnrApp`
 
