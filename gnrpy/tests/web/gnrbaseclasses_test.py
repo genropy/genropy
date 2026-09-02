@@ -1,148 +1,158 @@
-# -*- coding: utf-8 -*-
-"""Coverage for the template-driven printing path of BagToHtmlWeb.
+"""Template-driven printing of one record: TableTemplateToHtml and the generic
+``tables/_default/html_res/print_recordtemplate`` resource.
 
-The generic ``tables/_default/html_res/print_record_template`` resource relies on
-``record_template`` being resolved by ``contentFromTemplate``; these tests pin
-that behaviour and the silent fallback that hits callers who pass a template
-*name* where a compiled Bag is expected.
+Everything runs on a real GnrDummySite over the isolated ``gnrtest`` instance,
+with a real ``adm.user`` record and the real ``homepage`` template resource of
+``adm.user``. The only stub is ``page.loadTemplate``: on sqlite its
+``adm.userobject`` lookup emits Postgres-only SQL (#1165), so the stub skips
+straight to ``templateFromResource``, the resource half of the same method.
 """
 
 import os
-import shutil
-import tempfile
-
-import pytest
 
 from core.common import BaseGnrTest
+
 from gnr.app.gnrapp import GnrApp
-from gnr.core.gnrbag import Bag
-from gnr.core.gnrlang import gnrImport
+from gnr.web import gnrbaseclasses
 from gnr.web.gnrbaseclasses import TableTemplateToHtml
+from gnr.web.gnrdummysite import GnrDummySite
 
-REPO_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-
-CUSTOMER_TPL = os.path.join(REPO_ROOT, 'projects', 'test_invoice', 'packages', 'invc',
-                            'resources', 'tables', 'customer', 'tpl', 'default.xml')
-
-DEFAULT_RESOURCE = os.path.join(REPO_ROOT, 'resources', 'common', 'tables', '_default',
-                                'html_res', 'print_record_template.py')
-
-ACCOUNT_NAME = 'Template Regression SpA'
+RESPATH = 'html_res/print_recordtemplate'
+RESOURCE_MODULE = os.path.join('resources', 'common', 'tables', '_default',
+                               'html_res', 'print_recordtemplate.py')
+USERNAME = 'template_regression'
 
 
-def setup_module(module):
-    BaseGnrTest.setup_class()
+class TestTemplatePrinting(BaseGnrTest):
 
-
-def teardown_module(module):
-    BaseGnrTest.teardown_class()
-
-
-class StubPage(object):
-    """Minimal page: records the addresses asked for, returns a real compiled Bag."""
-
-    def __init__(self, compiled):
-        self._compiled = compiled
-        self.loaded = []
-
-    def loadTemplate(self, template_address, **kwargs):
-        self.loaded.append(template_address)
-        return self._compiled
-
-
-class StubSite(object):
-    def externalUrl(self, url, **kwargs):
-        return url
-
-
-@pytest.fixture(scope='module')
-def customer_table():
-    """A real sqlite test_invoice db with one customer record."""
-    tmpdir = tempfile.mkdtemp()
-    try:
-        app = GnrApp('test_invoice', db_attrs=dict(
-            implementation='sqlite',
-            dbname=os.path.join(tmpdir, 'testing'),
-        ))
+    @classmethod
+    def setup_class(cls):
+        super().setup_class()
+        app = GnrApp(cls.test_instance_name)
         app.db.model.check(applyChanges=True)
-        tbl = app.db.table('invc.customer')
-        record = tbl.newrecord(account_name=ACCOUNT_NAME, street_address='Via Regression 1')
-        tbl.insert(record)
         app.db.commit()
-        yield tbl, record[tbl.pkey]
-    finally:
-        shutil.rmtree(tmpdir, ignore_errors=True)
+        cls.site = GnrDummySite(cls.test_instance_name, site_name=cls.test_instance_name)
+        cls.table = cls.site.db.table('adm.user')
+        record = cls.table.newrecord(username=USERNAME, firstname='Template',
+                                     lastname='Regression', email='template@example.com')
+        cls.table.insert(record)
+        cls.site.db.commit()
+        cls.pkey = record[cls.table.pkey]
+        cls.compiled = cls.page().templateFromResource(table='adm.user',
+                                                       tplname='homepage')[0]['compiled']
 
+    @classmethod
+    def page(cls):
+        """A real headless page recording the template addresses it is asked for."""
+        page = cls.site.dummyPage
+        page.loaded = []
 
-@pytest.fixture(scope='module')
-def compiled_template():
-    """The compiled Bag of the invc.customer 'default' template resource."""
-    return Bag(CUSTOMER_TPL)['compiled']
+        def loadTemplate(template_address, **kwargs):
+            page.loaded.append(template_address)
+            table, tplname = template_address.split(':')
+            return page.templateFromResource(table=table, tplname=tplname)[0]['compiled']
+        page.loadTemplate = loadTemplate
+        return page
 
+    def test_module_under_test(self):
+        # the editable install resolves gnr.* to the main checkout, so make sure
+        # the module being exercised is the one in this working tree
+        checkout = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        assert gnrbaseclasses.__file__.startswith(checkout + os.sep)
 
-def _builder(table, page, site=None):
-    """A TableTemplateToHtml wired with just what contentFromTemplate touches.
+    def test_constructor_record_template_is_resolved_against_own_table(self):
+        page = self.page()
+        builder = TableTemplateToHtml(page=page, table=self.table, record_template='homepage')
 
-    BagToHtmlWeb.__init__ pulls in the pdf service, the htmltemplate loader and
-    the letterhead machinery, none of which take part in template rendering.
-    """
-    builder = TableTemplateToHtml.__new__(TableTemplateToHtml)
-    builder.page = page
-    builder.tblobj = table
-    builder.db = table.db
-    builder.site = site or StubSite()
-    builder.record_template = None
-    builder.record = None
-    return builder
+        html = builder.contentFromTemplate(self.pkey)
 
+        assert page.loaded == ['adm.user:homepage']
+        assert USERNAME in html
 
-def test_record_template_is_resolved_against_own_table(customer_table, compiled_template):
-    """record_template alone must drive loadTemplate and render real field values."""
-    table, pkey = customer_table
-    page = StubPage(compiled_template)
-    builder = _builder(table, page)
-    builder.record_template = 'default'
+    def test_explicit_template_bag_wins_over_record_template(self):
+        page = self.page()
+        builder = TableTemplateToHtml(page=page, table=self.table, record_template='homepage')
 
-    html = builder.contentFromTemplate(pkey)
+        html = builder.contentFromTemplate(self.pkey, template=self.compiled)
 
-    assert page.loaded == ['invc.customer:default']
-    assert ACCOUNT_NAME in html
-    assert 'Via Regression 1' in html
+        assert page.loaded == []
+        assert USERNAME in html
 
+    def test_template_name_string_is_echoed_not_resolved(self):
+        """Documents the trap tracked by #1166, not desired behaviour.
 
-def test_explicit_template_bag_wins_over_record_template(customer_table, compiled_template):
-    """An explicit compiled Bag must skip the loadTemplate lookup entirely."""
-    table, pkey = customer_table
-    page = StubPage(compiled_template)
-    builder = _builder(table, page)
-    builder.record_template = 'default'
+        contentFromTemplate only special-cases Bag; any other value goes to
+        templateReplace, which returns a string containing no '$' unchanged, so
+        the caller gets a document whose whole body is the name they passed.
+        When contentFromTemplate learns to raise on a bare name, this test
+        must be inverted, not deleted.
+        """
+        page = self.page()
+        builder = TableTemplateToHtml(page=page, table=self.table)
 
-    html = builder.contentFromTemplate(pkey, template=compiled_template)
+        result = builder.contentFromTemplate(self.pkey, template='stampa_badge')
 
-    assert page.loaded == []
-    assert ACCOUNT_NAME in html
+        assert result == 'stampa_badge'
+        assert USERNAME not in result
+        assert page.loaded == []
 
+    def test_default_respath_resolves_through_the_tables_default_fallback(self):
+        page = self.page()
 
-def test_template_name_string_is_echoed_not_resolved(customer_table, compiled_template):
-    """Regression: a template *name* is not a template.
+        script = page.loadTableScript(table='adm.user', respath=RESPATH, record_template='homepage')
 
-    contentFromTemplate only special-cases Bag; any other value goes to
-    templateReplace, which returns a string containing no '$' unchanged. The
-    caller gets a document whose whole body is the name they passed.
-    """
-    table, pkey = customer_table
-    page = StubPage(compiled_template)
-    builder = _builder(table, page)
+        assert isinstance(script, TableTemplateToHtml)
+        assert script.tblobj is self.table
+        module = __import__(type(script).__module__, fromlist=['Main'])
+        assert module.__file__.endswith(os.sep + RESOURCE_MODULE)
 
-    result = builder.contentFromTemplate(pkey, template='stampa_badge')
+    def test_default_respath_prints_a_record_through_named_template(self):
+        page = self.page()
+        script = page.loadTableScript(table='adm.user', respath=RESPATH, record_template='homepage')
 
-    assert result == 'stampa_badge'
-    assert ACCOUNT_NAME not in result
-    assert page.loaded == []
+        html = script(record=self.pkey)
 
+        assert page.loaded == ['adm.user:homepage']
+        assert USERNAME in html
 
-def test_default_html_res_resource_prints_a_record_template():
-    """The generic _default resource must be a TableTemplateToHtml subclass."""
-    assert os.path.isfile(DEFAULT_RESOURCE)
-    module = gnrImport(DEFAULT_RESOURCE, avoidDup=True)
-    assert issubclass(module.Main, TableTemplateToHtml)
+    def test_default_respath_writes_a_pdf(self):
+        page = self.page()
+        script = page.loadTableScript(table='adm.user', respath=RESPATH, record_template='homepage')
+
+        pdfpath = script(record=self.pkey, pdf=True)
+        try:
+            assert pdfpath.endswith('.pdf')
+            assert os.path.isfile(pdfpath)
+            assert os.path.getsize(pdfpath) > 0
+        finally:
+            for path in (pdfpath, script.filepath):
+                if path and os.path.isfile(path):
+                    os.remove(path)
+
+    def test_call_time_record_template_leaves_no_sticky_state(self):
+        page = self.page()
+        script = page.loadTableScript(table='adm.user', respath=RESPATH)
+
+        html = script(record=self.pkey, record_template='homepage')
+
+        assert page.loaded == ['adm.user:homepage']
+        assert USERNAME in html
+        assert script.record_template is None
+
+    def test_page_callTableScript_forwards_record_template(self):
+        page = self.page()
+
+        html = page.callTableScript(table='adm.user', respath=RESPATH,
+                                    record=self.pkey, record_template='homepage')
+
+        assert page.loaded == ['adm.user:homepage']
+        assert USERNAME in html
+
+    def test_site_callTableScript_forwards_record_template(self):
+        page = self.page()
+
+        html = self.site.callTableScript(page=page, table='adm.user', respath=RESPATH,
+                                         record=self.pkey, record_template='homepage')
+
+        assert page.loaded == ['adm.user:homepage']
+        assert USERNAME in html
