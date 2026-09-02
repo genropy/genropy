@@ -103,6 +103,21 @@ class RemoteStoreBagHandler(BaseRemoteObject):
 
 class BaseRegister(BaseRemoteObject):
     """docstring for BaseRegister"""
+
+    # Where this register's items hang. The item field is the only statement of
+    # where a child belongs; the set on the parent says the same thing in the
+    # other direction, so it is an index, maintained here in the two calls that
+    # add and remove an item and derived from the children again on load.
+    # A register whose items have no parent leaves all three at None.
+    parent_field = None
+    parent_link_name = None
+    parent_register_name = None
+
+    # The set on this register's own items holding their children, named by the
+    # child register as parent_link_name. A register with no children leaves it
+    # at None; test_the_two_ends_of_a_link_agree_on_its_name checks the pair.
+    child_link_name = None
+
     def __init__(self, siteregister):
         self.siteregister = siteregister
         self.registerItems = dict()
@@ -110,6 +125,12 @@ class BaseRegister(BaseRemoteObject):
         self.itemsTS = dict()
         self.locked_items = dict()
         self.cached_tables = defaultdict(dict)
+
+    @property
+    def parent_register(self):
+        if not self.parent_register_name:
+            return None
+        return self.siteregister.get_register(self.parent_register_name)
 
     def lock_item(self, register_item_id, reason=None):
         locker = self.locked_items.get(register_item_id)
@@ -135,7 +156,27 @@ class BaseRegister(BaseRemoteObject):
 
     def addRegisterItem(self, register_item, data=None):
         register_item_id = register_item['register_item_id']
+        previous = self.registerItems.get(register_item_id)
+        if previous is not None:
+            # re-registering an id replaces the item wholesale, so the two ends of
+            # its links have to survive the replacement
+            if self.parent_field:
+                # the replacement may name another parent: unlink the previous one,
+                # or both end up claiming the same child
+                self.siteregister.updateRegisterLink(
+                    self.parent_register, previous.get(self.parent_field),
+                    self.parent_link_name, register_item_id)
+            if self.child_link_name:
+                # the replacement arrives with an empty set, but the children are
+                # still there and still name this item, so the set it had is true
+                register_item[self.child_link_name] = previous[self.child_link_name]
         self.registerItems[register_item_id] = register_item
+        if self.parent_field:
+            # the only insertion point, so no create can leave the parent's set
+            # behind whatever route reached it
+            self.siteregister.updateRegisterLink(
+                self.parent_register, register_item.get(self.parent_field),
+                self.parent_link_name, register_item_id, add=True)
         register_item['datachanges'] = list()
         register_item['datachanges_idx'] = 0
         register_item['subscribed_paths'] = set()
@@ -218,36 +259,50 @@ class BaseRegister(BaseRemoteObject):
         return self.__class__.__name__
 
     def drop_item(self, register_item_id):
+        if self.parent_field:
+            # before the pop, never after: the set is read to reach the items, so
+            # it must never point at one that is already gone
+            going = self.registerItems.get(register_item_id)
+            if going is not None:
+                self.siteregister.updateRegisterLink(
+                    self.parent_register, going.get(self.parent_field),
+                    self.parent_link_name, register_item_id)
         register_item = self.registerItems.pop(register_item_id, None)
         self.itemsData.pop(register_item_id, None)
         self.itemsTS.pop(register_item_id, None)
         return register_item
 
-    def _live_children(self, keys, parent_register, link_name):
-        """Pair each key with its item, pruning the keys that have none.
+    def reparent_item(self, register_item_id, parent_id):
+        """Move an item under another parent: the field and both sets, one call.
 
-        A link set is a cache of what the children say about their parent: a key
-        with no item is residual drift, not a reason to raise on every caller of
-        the parent. Pruning here keeps the set converging instead of carrying a
-        dead id for the life of the daemon.
-
-        The parent is not passed in: dropRegisterLinks scans them, so one call
-        cleans the key out of every parent that wrongly holds it, and a walk
-        spanning several parents (a user's pages, across its connections) needs
-        no special case. Pruning is the rare corrective path, so the scan costs
-        nothing on the ordinary one.
+        The only place an item's parent changes. Doing it in three statements at
+        the call site is what let the field and the sets disagree.
         """
-        for k in keys:
-            register_item = self.registerItems.get(k)
-            if register_item is None:
-                self.siteregister.dropRegisterLinks(parent_register, link_name, k)
-                continue
-            yield k, register_item
+        assert self.parent_field, \
+            'SITEREGISTER ERROR: %s items have no parent to move them under' % self.registerName
+        register_item = self.registerItems.get(register_item_id)
+        if register_item is None:
+            return False
+        old_parent_id = register_item.get(self.parent_field)
+        if old_parent_id == parent_id:
+            return False
+        parent_register = self.parent_register
+        self.siteregister.updateRegisterLink(parent_register, old_parent_id,
+                                             self.parent_link_name, register_item_id)
+        register_item[self.parent_field] = parent_id
+        self.siteregister.updateRegisterLink(parent_register, parent_id,
+                                             self.parent_link_name, register_item_id, add=True)
+        return True
 
     def update_item(self, register_item_id, upddict=None):
         register_item = self.get_item(register_item_id)
         if not register_item:
             return
+        if self.parent_field and upddict and self.parent_field in upddict:
+            # the parent field is one half of a link: writing it straight into the
+            # item would leave both sets naming the parent it no longer has
+            upddict = dict(upddict)
+            self.reparent_item(register_item_id, upddict.pop(self.parent_field))
         register_item.update(upddict)
         return register_item
 
@@ -337,6 +392,9 @@ class GlobalRegister(BaseRegister):
 
 class UserRegister(BaseRegister):
     """docstring for UserRegister"""
+
+    child_link_name = 'connections'
+
     def create(self, user, user_id=None, user_name=None, user_tags=None, avatar_extra=None):
         register_item = dict(
             register_item_id=user,
@@ -358,6 +416,12 @@ class UserRegister(BaseRegister):
 
 class ConnectionRegister(BaseRegister):
     """docstring for ConnectionRegister"""
+
+    parent_field = 'user'
+    parent_link_name = 'connections'
+    parent_register_name = 'user'
+    child_link_name = 'pages'
+
     def create(self, connection_id, connection_name=None, user=None, user_id=None,
                user_name=None, user_tags=None, user_ip=None, user_agent=None, browser_name=None,
                electron_static=None):
@@ -395,10 +459,7 @@ class ConnectionRegister(BaseRegister):
         return list(user_item['connections'])
 
     def user_connection_items(self, user):
-        return [(k, register_item)
-                for k, register_item in self._live_children(
-                    self.user_connection_keys(user),
-                    self.siteregister.user_register, 'connections')]
+        return [(k, self.registerItems[k]) for k in self.user_connection_keys(user)]
 
     def user_connections(self, user):
         return [register_item for k, register_item in self.user_connection_items(user)]
@@ -408,15 +469,17 @@ class ConnectionRegister(BaseRegister):
         if not user:
             return self.values(include_data=include_data)
         if include_data:
-            # through user_connection_items so a dangling id is pruned here too:
-            # get_item would return None for it and the caller would carry that
-            # None instead of raising, which is the quieter of the two failures
             return [self.get_item(k, include_data=True)
-                    for k, register_item in self.user_connection_items(user)]
+                    for k in self.user_connection_keys(user)]
         return self.user_connections(user)
 
 
 class PageRegister(BaseRegister):
+
+    parent_field = 'connection_id'
+    parent_link_name = 'pages'
+    parent_register_name = 'connection'
+
     def __init__(self, *args, **kwargs):
         super(PageRegister, self).__init__(*args, **kwargs)
         self.pageProfilers = dict()
@@ -560,10 +623,7 @@ class PageRegister(BaseRegister):
         return list(connection_item['pages'])
 
     def connection_page_items(self, connection_id):
-        return [(k, register_item)
-                for k, register_item in self._live_children(
-                    self.connection_page_keys(connection_id),
-                    self.siteregister.connection_register, 'pages')]
+        return [(k, self.registerItems[k]) for k in self.connection_page_keys(connection_id)]
 
     def connection_pages(self, connection_id):
         return [register_item
@@ -581,17 +641,10 @@ class PageRegister(BaseRegister):
                         for page_id in self.connection_page_keys(cid)]
         if page_ids is None:
             pages = self.values(include_data=include_data)
+        elif include_data:
+            pages = [self.get_item(page_id, include_data=True) for page_id in page_ids]
         else:
-            # same pruning as the per-parent readers: this one is on the request
-            # path (validate_page_id falls back to it), and the include_data
-            # branch is the quieter half — get_item returns None for a missing
-            # key, so a dead id would travel on as a None into Bag(page)
-            live = list(self._live_children(page_ids,
-                                            self.siteregister.connection_register, 'pages'))
-            if include_data:
-                pages = [self.get_item(page_id, include_data=True) for page_id, _ in live]
-            else:
-                pages = [register_item for _, register_item in live]
+            pages = [self.registerItems[page_id] for page_id in page_ids]
         if connection_id and user:
             pages = [v for v in pages if v['user'] == user]
         if not filters or filters == '*':
@@ -746,23 +799,6 @@ class SiteRegister(BaseRemoteObject):
         children.discard(child_id)
         return True
 
-    def dropRegisterLinks(self, register, link_name, child_id):
-        """Discard *child_id* from every parent that holds it, parent unknown.
-
-        Driven by the link sets rather than by the child item, so the removal is
-        atomic with the drop whatever happened to the child before. Reading the
-        parent id off the child cannot do this: the child is exactly what may be
-        missing, and skipping the unlink there is what leaves an id in a set for
-        the life of the daemon.
-        """
-        dropped = False
-        for parent_item in register.registerItems.values():
-            children = parent_item.get(link_name)
-            if children and child_id in children:
-                children.discard(child_id)
-                dropped = True
-        return dropped
-
     def rebuildRegisterLinks(self, parent_register, child_register, parent_field, link_name):
         """Rebuild every parent's link set from the children that name it.
 
@@ -788,7 +824,6 @@ class SiteRegister(BaseRemoteObject):
             connection_id, connection_name=connection_name, user=user, user_id=user_id,
             user_name=user_name, user_tags=user_tags, user_ip=user_ip, user_agent=user_agent,
             browser_name=browser_name, electron_static=electron_static)
-        self.updateRegisterLink(self.user_register, user, 'connections', connection_id, add=True)
         return connection_item
 
     def drop_pages(self, connection_id):
@@ -796,9 +831,6 @@ class SiteRegister(BaseRemoteObject):
             self.drop_page(page_id)
 
     def drop_page(self, page_id, cascade=None):
-        # driven by the sets, not by the page item: the item is exactly what may
-        # already be gone, and that is when the unlink matters most
-        self.dropRegisterLinks(self.connection_register, 'pages', page_id)
         return self.page_register.drop(page_id, cascade=cascade)
 
     def drop_connections(self, user):
@@ -806,9 +838,6 @@ class SiteRegister(BaseRemoteObject):
             self.drop_connection(connection_id)
 
     def drop_connection(self, connection_id, cascade=None):
-        # same as drop_page: a connection whose item vanished must still leave its
-        # user's set, or drop_connections walks that id again on every call
-        self.dropRegisterLinks(self.user_register, 'connections', connection_id)
         self.connection_register.drop(connection_id, cascade=cascade)
 
     def drop_user(self, user):
@@ -837,7 +866,6 @@ class SiteRegister(BaseRemoteObject):
         page_item = self.page_register.create(page_id, pagename=pagename, connection_id=connection_id,
                                               user=user, user_ip=user_ip, user_agent=user_agent,
                                               relative_url=relative_url, data=data)
-        self.updateRegisterLink(self.connection_register, connection_id, 'pages', page_id, add=True)
         return page_item
 
     def new_user(self, user=None, user_tags=None, user_id=None, user_name=None, avatar_extra=None):
@@ -885,15 +913,11 @@ class SiteRegister(BaseRemoteObject):
         if not newuser_item:
             newuser_item = self.new_user(user=user, user_tags=user_tags, user_id=user_id, user_name=user_name,
                                          avatar_extra=avatar_extra)
-        connection_item['user'] = user
+        self.connection_register.reparent_item(connection_id, user)
         connection_item['user_tags'] = user_tags
         connection_item['user_name'] = user_name
         connection_item['user_id'] = user_id
         connection_item['avatar_extra'] = avatar_extra
-        # move the link before the drop_user guard below: it reads the old
-        # user's link set, which must no longer hold this connection
-        self.updateRegisterLink(self.user_register, olduser, 'connections', connection_id)
-        self.updateRegisterLink(self.user_register, user, 'connections', connection_id, add=True)
         for p in self.pages(connection_id=connection_id):
             p['user'] = user
         if not self.connection_register.connections(olduser):

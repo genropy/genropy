@@ -10,6 +10,8 @@ the freeze file exists, and it is only written when the daemon is stopped with
 ``savestatus``. These tests take it every time.
 """
 
+import os
+
 import pytest
 
 from gnr.web.daemon.siteregister import SiteRegister
@@ -85,7 +87,6 @@ def test_the_restored_register_still_drops(tmp_path):
 
 def test_the_freeze_file_is_consumed_by_the_load(tmp_path):
     """Renamed to *_loaded.pik, so a restart cannot restore the same state twice."""
-    import os
     reg = _populate(_register(tmp_path), users=1, connections=1, pages=1)
     restored = _round_trip(reg, tmp_path)
     assert not os.path.exists(restored.storage_path)
