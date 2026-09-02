@@ -356,3 +356,77 @@
     background: url(/_rsrc/common/css_icons/svg/16/popup_white.svg) no-repeat right 70%;
     background-size: 10px;
 }
+
+/* @group menudiv_token: a menudiv rendered as a bare inline word + chevron — no box,
+   no border, no button chrome — so the token reads as a word in a phrase rather than
+   a control in a toolbar. THE DEFAULT for a value-bound menudiv (the widget adds the
+   class itself, gnr.widgets.MenuDiv); passing btn__class replaces the default class
+   wholesale, so it is also the opt-out (btn_* reaches the visible box; _class would
+   style the menu it opens).
+
+   The chevron is --icon-chevron-down (a stroked outline) used as a mask, so it takes
+   the token's own colour and follows the theme. The widget's own mark is a filled
+   popup.svg background on the inner .menudiv_text plus a right padding for it: both
+   suppressed here, or every token carries two marks.
+
+   Re-tint through the custom properties (e.g. a destructive context sets
+   --menutoken-color: var(--status-error) on an ancestor). Font size is inherited
+   from the context on purpose: the token is a word of the surrounding phrase. */
+._common_d11 .menudiv_token {
+    display: inline-flex;
+    align-items: center;
+    color: var(--menutoken-color);
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+._common_d11 .menudiv_token .menudiv_text:after {
+    content: '';
+    width: .62em;
+    height: .62em;
+    flex: none;
+    background-color: currentColor;
+    -webkit-mask: var(--icon-chevron-down) no-repeat center / contain;
+    mask: var(--icon-chevron-down) no-repeat center / contain;
+    opacity: .55;
+    transition: opacity .12s ease;
+}
+._common_d11 .menudiv_token:hover {
+    color: var(--menutoken-hover-color);
+}
+._common_d11 .menudiv_token:hover .menudiv_text:after {
+    opacity: .9;
+}
+._common_d11 .menudiv_token .menudiv_text {
+    background: none;
+    padding-right: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: inherit;
+    font-weight: inherit;
+    color: inherit;
+}
+._common_d11 .menudiv_token .menudiv_text div {
+    display: inline;
+    color: inherit;
+}
+/* the colorWhite variant (dark toolbars): the token stays on the surface's own
+   text colour instead of the accent */
+._common_d11 .menudiv_token.menudiv_token_white {
+    --menutoken-color: var(--text-on-dark);
+    --menutoken-hover-color: var(--text-on-dark);
+}
+/* a disabled token is a statement, not an offer: no chevron, no pointer */
+._common_d11 .menudiv_token[disabled],
+._common_d11 .dijitDisabled .menudiv_token,
+._common_d11 .menudiv_token.disabled {
+    color: var(--menutoken-disabled-color);
+    cursor: default;
+}
+._common_d11 .menudiv_token[disabled] .menudiv_text:after,
+._common_d11 .dijitDisabled .menudiv_token .menudiv_text:after,
+._common_d11 .menudiv_token.disabled .menudiv_text:after {
+    display: none;
+}
+/* @end */

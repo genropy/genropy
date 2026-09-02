@@ -4,6 +4,7 @@ import os
 import sys
 import types
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -12,6 +13,28 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from webcommon import BaseGnrTest
 
 from gnr.web import gnrtask_new as gnrtask
+
+ROME = ZoneInfo("Europe/Rome")
+
+
+def freeze_clocks(monkeypatch, instant_utc, zone=ROME):
+    """Pin every clock the scheduler could read to the same instant: the local
+    one, carrying the zone offset, and the UTC one.
+
+    Only the clock is replaced, the wall clock fields are computed by the real
+    conversion. A schedule entered as local wall clock time must match the
+    local reading, whichever clock the implementation happens to read.
+    """
+    local_instant = instant_utc.astimezone(zone)
+
+    class FrozenDatetime:
+        @staticmethod
+        def now(tz=None):
+            return instant_utc.astimezone(tz) if tz else instant_utc
+
+    monkeypatch.setattr(gnrtask, "localnow", lambda: local_instant, raising=False)
+    monkeypatch.setattr(gnrtask, "datetime", FrozenDatetime)
+    return local_instant
 
 
 class _AsyncFixtureWrapper:
@@ -176,6 +199,52 @@ class TestGnrTaskBasics(BaseGnrTest):
 
         result = task.is_due(timestamp=ts)
         assert result == "2024-4-1-12-15"
+
+    def test_task_is_due_does_not_run_before_configured_minute(self):
+        ts = datetime(2024, 4, 1, 12, 5, tzinfo=timezone.utc)
+        task = gnrtask.GnrTask(
+            name="calendar",
+            action="run",
+            db="test",
+            table_name="tbl",
+            schedule={"month": "4", "day": "1", "hour": "12", "minute": "15"},
+        )
+
+        assert task.is_due(timestamp=ts) is False
+
+    def _wallclock_task(self, **schedule):
+        return gnrtask.GnrTask(
+            name="wallclock",
+            action="run",
+            db="test",
+            table_name="tbl",
+            schedule=schedule,
+        )
+
+    def test_task_is_due_defaults_to_local_wall_clock(self, monkeypatch):
+        """The schedule columns hold local wall clock time as entered by the
+        user: with no explicit timestamp, is_due must compare them against the
+        local now, not against UTC (issue #975)."""
+        # 07:00 UTC is 09:00 in Rome (summer time)
+        freeze_clocks(monkeypatch, datetime(2024, 6, 15, 7, 0, tzinfo=timezone.utc))
+        task = self._wallclock_task(month="6", day="15", hour="9", minute="0")
+
+        assert task.is_due() == "2024-6-15-9-0"
+
+    def test_task_is_due_not_before_local_schedule(self, monkeypatch):
+        # 05:00 UTC is 07:00 in Rome: a task set for 09:00 must not run yet
+        freeze_clocks(monkeypatch, datetime(2024, 6, 15, 5, 0, tzinfo=timezone.utc))
+        task = self._wallclock_task(month="6", day="15", hour="9", minute="0")
+
+        assert task.is_due() is False
+
+    def test_task_is_due_local_wall_clock_crosses_midnight(self, monkeypatch):
+        # 22:30 UTC of the 15th is already 00:30 of the 16th in Rome: the whole
+        # calendar key, not just the hour, has to follow the local wall clock
+        freeze_clocks(monkeypatch, datetime(2024, 6, 15, 22, 30, tzinfo=timezone.utc))
+        task = self._wallclock_task(month="6", day="16", hour="0", minute="30")
+
+        assert task.is_due() == "2024-6-16-0-30"
 
 
 class TestGnrTaskScheduler(BaseGnrTest):
