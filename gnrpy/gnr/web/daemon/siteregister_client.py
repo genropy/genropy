@@ -490,7 +490,8 @@ class RegisterResolver(BagResolver):
             item['info'] = Bag(item_user)
             item['data'] = data
             item.setItem('connections', RegisterResolver(user=user), cacheTime=3)
-            result.setItem(user, item, user=user)
+            label = user.replace('.', '_').replace('@', '_')
+            result.setItem(label, item, user=user)
         return result
 
     def list_connections(self, user):
@@ -500,7 +501,7 @@ class RegisterResolver(BagResolver):
             delta = (datetime.now() - connection['start_ts']).seconds
             user = connection['user'] or 'Anonymous'
             connection_name = connection['connection_name']
-            itemlabel = '%s (%i)' % (connection_name, delta)
+            itemlabel = ('%s (%i)' % (connection_name, delta)).replace('.', '_').replace('@', '_')
             item = Bag()
             data = connection.pop('data', None)
             item['info'] = Bag(connection)
@@ -515,7 +516,7 @@ class RegisterResolver(BagResolver):
         for page_id, page in list(pagesDict.items()):
             delta = (datetime.now() - page['start_ts']).seconds
             pagename = page['pagename'].replace('.py', '')
-            itemlabel = '%s (%i)' % (pagename, delta)
+            itemlabel = ('%s (%i)' % (pagename, delta)).replace('.', '_').replace('@', '_')
             item = Bag()
             data = page.pop('data', None)
             item['info'] = Bag(page)
