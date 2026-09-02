@@ -88,6 +88,18 @@ class GnrCustomWebPage(object):
     @public_method
     def raceProvince(self,regione=None):
         return 'MI' if regione == 'LOM' else None
+
+    def test_9_condition_null(self,pane):
+        "Condition change and SET null in the same tick: caption clears, no validation error"
+        pane.data('.regione','VAL')
+        pane.data('.sigla','AO')
+        fb = pane.formbuilder(cols=2, border_spacing='4px')
+        fb.dbSelect(table='glbl.regione',value='^.regione',lbl='Regione',width='25em')
+        fb.dbSelect(table='glbl.provincia',value='^.sigla',method=self.delayedDbSelect,
+                    condition='$regione=:regione',condition_regione='^.regione',
+                    lbl='DbSelect',width='25em',nodeId='dbselect_condition_null')
+        fb.div('^.sigla',lbl='Datastore value')
+        fb.button('Set LOM / null',action="SET .regione='LOM'; SET .sigla=null;")
         
     def test_2_clientmethod(self,pane):
         "Manually set what to display with callbackSelect"

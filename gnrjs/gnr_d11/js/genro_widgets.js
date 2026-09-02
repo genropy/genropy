@@ -4995,6 +4995,9 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
                 this.setValue(null,false);
                 this.store.fetchItemByIdentity({identity:currvalue,onItem:function(){
                     if(self.sourceNode.getRelativeData(vpath) != currvalue){
+                        // the stale reply may have flagged a value that is no longer there
+                        delete self._lastQueryError;
+                        self.sourceNode.resetValidationError();
                         return;
                     }
                     self.setValue(currvalue,false);
