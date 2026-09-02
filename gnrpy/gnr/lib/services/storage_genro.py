@@ -109,13 +109,15 @@ class Service(StorageService):
     def mtime(self, *args):
         try:
             return self._node(*args).mtime()
-        except (FileNotFoundError, StorageError):
+        except (FileNotFoundError, StorageError, ValueError):
             return None
 
     def size(self, *args):
+        """None on a directory or a missing path: genro-storage raises on both,
+        while the legacy aws_s3 service already answers None."""
         try:
             return self._node(*args).size()
-        except (FileNotFoundError, StorageError):
+        except (FileNotFoundError, StorageError, ValueError):
             return None
 
     def ext_attributes(self, *args):
@@ -124,7 +126,7 @@ class Service(StorageService):
     def md5hash(self, *args):
         try:
             return self._node(*args).md5hash()
-        except (FileNotFoundError, StorageError):
+        except (FileNotFoundError, StorageError, ValueError):
             return None
 
     def open(self, *args, **kwargs):
@@ -147,11 +149,13 @@ class Service(StorageService):
         return self._node(*args).local_path(mode='rw' if 'w' in mode else 'r')
 
     def children(self, *args, **kwargs):
+        """Sorted by basename, as the legacy local service is: the order shows
+        up in every tree built on top of this."""
         node = self._node(*args)
         if not node.exists():
             return []
         out = []
-        for child in node.children():
+        for child in sorted(node.children(), key=lambda child: child.basename):
             if child.basename == GNRDIR_SENTINEL:
                 continue
             out.append(StorageNode(parent=self.parent, path=child.path, service=self))

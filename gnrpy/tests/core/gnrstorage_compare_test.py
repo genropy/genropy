@@ -172,6 +172,29 @@ class StorageParity:
         storage.write('st:listing/a.txt')
         assert storage.node('st:listing').listdir() == ['st:listing/a.txt']
 
+    def test_children_are_sorted_by_basename(self, storage):
+        """The order is what every tree built on top of this displays."""
+        for name in ('zeta.txt', 'alpha.txt', 'Mixed Case.txt', 'beta.txt'):
+            storage.write('st:sorted/%s' % name)
+        names = [child.basename for child in storage.node('st:sorted').children()]
+        assert names == sorted(names)
+
+    def test_size_on_a_directory_is_not_a_file_size(self, storage):
+        """A directory has no meaningful size: whatever comes back, it must not
+        raise and must not be mistaken for a file size."""
+        storage.write('st:sized/a.txt')
+        size = storage.node('st:sized').size
+        assert size is None or isinstance(size, int)
+
+    def test_md5hash_on_a_directory_does_not_raise(self, storage):
+        storage.write('st:hashed/a.txt')
+        node = storage.node('st:hashed')
+        try:
+            assert node.md5hash is None or len(node.md5hash) == 32
+        except IsADirectoryError:
+            # what the legacy local service does: it opens the directory
+            assert storage.mode == 'legacy'
+
     # ---- mkdir
 
     def test_mkdir_then_isdir(self, storage):

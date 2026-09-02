@@ -93,7 +93,8 @@ adapted. Verified by running both mounts (local, S3-on-MinIO) *(measured)*:
 | `public_url()` | plain non-expiring url (S3 `#990`) | absent | delegate to the legacy service |
 | `internal_path` | absolute fs path (local) or object key (S3) | `resolved_path` — path for local, **`None` for remote** | for S3, compose the key from the mount config; 73 grep hits depend on this |
 | `listdir()` | list of fullpaths, `None` if not a dir | absent | implement over `children()` |
-| `children()` | `None` if not a dir | raises | return `None` |
+| `children()` | `None` if not a dir, **sorted by basename** | raises; **order not guaranteed** | return `None`, and sort — the order is what every tree on top of this displays |
+| `size`/`md5hash` on a **directory** | `st_size` of the directory (a meaningless number) / `IsADirectoryError` | raises `ValueError` | answer `None`, which is what the legacy aws_s3 service already does for a directory |
 | `mkdir(*args)` | path segments, idempotent | `mkdir(parents=False, exist_ok=False)` | explicit method — otherwise `node.mkdir('sub')` passes `'sub'` as `parents` and creates nothing |
 | `serve(environ, start_response, **kwargs)` | swallows extra kwargs | `serve(environ, start_response, download, download_name, cache_max_age)` — **no `**kwargs`** | explicit method filtering kwargs; `storageDispatcher` passes arbitrary query-string kwargs, and Genropy's own `internal_url(nocache=True)` produces `?mtime=…` |
 | `local_path(mode, keep)` | `keep=True` keeps the temp file | `local_path(mode)` — no `keep` | raise on truthy `keep` until upstream has it |
@@ -526,10 +527,16 @@ Open, deliberately:
    creates it on first write. On `gnrdevelop` this is the `mail` mount, and it logs one
    warning at handler construction. Pre-creating the directory at startup would be the
    alternative; not done, because a storage switch should not create directories.
-7. **Never yet run with the flag on in a live serving site.** The switch, the routing,
-   the node surface and the WSGI-facing `serve()` are covered by tests against a real
-   site object, but no request has been served through the genro-storage handler in a
-   running daemon. That is the next thing to do before this goes anywhere near an
-   instance that matters.
+7. **Run with the flag on in a serving site: done, and it found two defects.**
+   `projects/gnrcore/packages/test15/webpages/tools/storage_genro.py` is a testhandler
+   page that exercises the switch through real requests — storage trees on the mounts
+   genro-storage takes over and on the ones that stay legacy, an inspector over the whole
+   node surface, a side-by-side of the two handlers on the same path, an uploader, a
+   cross-world copy/move, and a tree on an S3 mount. Driven against `gnrdevelop` with
+   the flag on it showed, on top of what the unit tests already covered:
+   `children()` was not sorted (the legacy local service sorts, so every tree changed
+   order), and `size`/`md5hash` raised on a directory instead of answering. Both are
+   fixed, both now have a test. What is still untested in a live site: the upload path
+   itself (it needs a file picked by hand) and multidomain.
 8. **The per-call node construction on local mounts** (§11) is the one measured
    inefficiency: worth a cache in the service if a profile ever points here.

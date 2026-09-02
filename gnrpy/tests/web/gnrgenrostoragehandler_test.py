@@ -12,6 +12,7 @@ Run:
 
 import os
 import tempfile
+from contextlib import contextmanager
 
 import pytest
 
@@ -52,26 +53,44 @@ def handler(site, tmp_path):
     return handler
 
 
+@contextmanager
+def flag(site, value):
+    """Set (or clear) storage?use_genro_storage and force the domain proxy to
+    build a fresh handler, then put back exactly what was there. The tests must
+    hold whatever the local siteconfig happens to say."""
+    proxy = site.domains[site.currentDomain]
+    previous_handler = proxy._storage_handler
+    previous_node = site.config.getNode('storage')
+    if value is None:
+        site.config.pop('storage')
+    else:
+        site.config.setItem('storage', None, use_genro_storage=value)
+    proxy._storage_handler = None
+    try:
+        yield site
+    finally:
+        site.config.pop('storage')
+        if previous_node is not None:
+            site.config.setItem('storage', previous_node.value, **(previous_node.attr or {}))
+        proxy._storage_handler = previous_handler
+
+
 class TestSwitch:
 
     def test_flag_absent_yields_the_legacy_handler(self, site):
-        assert site.config['storage?use_genro_storage'] in (None, '', False)
-        assert isinstance(site.storage_handler, LegacyStorageHandler)
-        assert not isinstance(site.storage_handler, GenroStorageHandler)
+        with flag(site, None) as flagged:
+            assert flagged.config['storage?use_genro_storage'] in (None, '', False)
+            assert isinstance(flagged.storage_handler, LegacyStorageHandler)
+            assert not isinstance(flagged.storage_handler, GenroStorageHandler)
+
+    def test_flag_off_yields_the_legacy_handler(self, site):
+        with flag(site, False) as flagged:
+            assert isinstance(flagged.storage_handler, LegacyStorageHandler)
+            assert not isinstance(flagged.storage_handler, GenroStorageHandler)
 
     def test_flag_on_yields_the_genro_handler(self, site):
-        proxy = site.domains[site.currentDomain]
-        previous_handler = proxy._storage_handler
-        previous_node = site.config.getNode('storage')
-        site.config.setItem('storage', None, use_genro_storage=True)
-        proxy._storage_handler = None
-        try:
-            assert isinstance(site.storage_handler, GenroStorageHandler)
-        finally:
-            site.config.pop('storage')
-            if previous_node is not None:
-                site.config.setItem('storage', previous_node.value, **(previous_node.attr or {}))
-            proxy._storage_handler = previous_handler
+        with flag(site, True) as flagged:
+            assert isinstance(flagged.storage_handler, GenroStorageHandler)
 
 
 class TestMountRouting:
