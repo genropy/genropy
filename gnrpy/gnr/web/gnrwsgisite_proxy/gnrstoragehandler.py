@@ -19,10 +19,17 @@ from gnr.lib.services.storage import StorageNode as LegacyStorageNode
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import deprecated
+from gnr.core.gnrstring import boolean
 from gnr.web import logger
 
-# Future integration with genro_storage brick implementation
-# from genro_storage import StorageNode as BrickStorageNode
+# genro-storage is an optional dependency (the genro_storage extra): with the
+# storage/use_genro_storage flag off nothing here is needed.
+try:
+    from genro_storage import StorageManager
+    from gnr.lib.services import storage_genro
+except ImportError:
+    StorageManager = None
+    storage_genro = None
 
 
 class BaseStorageHandler:
@@ -50,18 +57,24 @@ class BaseStorageHandler:
         '_http_': {'implementation': 'http'},
     }
 
-    def __init__(self, site, domain=None):
+    def __init__(self, site, domain=None, storage_params=None):
         """Initialize the storage handler.
 
         Args:
             site: The GnrWsgiSite instance
             domain: The domain this handler belongs to (for multidomain mode).
                     If None, uses site.currentDomain at query time.
+            storage_params: An existing registry to adopt instead of loading
+                    one. Two handlers sharing it stay in sync for free, and the
+                    sys.service query runs once.
         """
         self.site = site
         self.domain = domain
-        self.storage_params = {}
-        self._loadAllStorageParameters()
+        if storage_params is not None:
+            self.storage_params = storage_params
+        else:
+            self.storage_params = {}
+            self._loadAllStorageParameters()
 
     def _setStorageParams(self, service_name, parameters=None, implementation=None):
         """Set storage parameters for a service.
@@ -544,6 +557,159 @@ class LegacyStorageHandler(BaseStorageHandler):
             mode=mode,
             version=version
         )
+
+
+class GenroStorageHandler(LegacyStorageHandler):
+    """Storage handler serving the mappable mounts through genro-storage.
+
+    Only storage() is overridden: which service resolves a mount is the single
+    point of variation, so path parsing, node creation and the four StorageNode
+    kwargs keep coming from LegacyStorageHandler, and the legacy StorageNode
+    keeps sitting on top. A mount genro-storage cannot serve — every symbolic
+    one, http, compressed, relative, sftp, vol: and any unknown name — is
+    resolved by the legacy service, so with the flag on those keep behaving
+    exactly as before.
+
+    IMPLEMENTATION_MAP holds, per legacy implementation, the genro-storage
+    protocol and the parameter renames it needs.
+    """
+
+    IMPLEMENTATION_MAP = {
+        'local': ('local', {'base_path': 'base_path'}),
+        'raw': ('local', {}),
+        'aws_s3': ('s3', {'bucket': 'bucket',
+                          'base_path': 'base_path',
+                          'region_name': 'region',
+                          'region': 'region',
+                          'aws_access_key_id': 'access_key',
+                          'access_key': 'access_key',
+                          'aws_secret_access_key': 'secret_key',
+                          'secret_key': 'secret_key'}),
+    }
+
+    def __init__(self, site, domain=None, storage_params=None):
+        if StorageManager is None:
+            raise RuntimeError(
+                "genro-storage is not installed but storage/use_genro_storage "
+                "is enabled. Install it with `pip install 'genropy[genro_storage]'` "
+                "or drop the flag from siteconfig to keep the legacy handler."
+            )
+        self.manager = StorageManager()
+        self.mount_configs = {}
+        self._genro_services = {}
+        super().__init__(site, domain=domain, storage_params=storage_params)
+        self._configureMounts()
+
+    def _mountConfig(self, service_name, params):
+        """Translate one storage_params entry into a genro-storage mount config.
+
+        Returns None when the entry cannot or must not be served by
+        genro-storage; the caller then leaves it to the legacy handler.
+        """
+        implementation = params.get('implementation')
+        mapping = self.IMPLEMENTATION_MAP.get(implementation)
+        if not mapping:
+            return None
+        protocol, rename_map = mapping
+        mount = {'name': service_name, 'protocol': protocol}
+        for src_key, dest_key in rename_map.items():
+            if params.get(src_key):
+                mount[dest_key] = params[src_key]
+        if implementation == 'raw':
+            mount['base_path'] = '/'
+        if boolean(params.get('readonly')) or boolean(params.get('write_in_local')):
+            # No counterpart in genro-storage: serving a readonly mount through
+            # a writable backend would silently drop the restriction.
+            logger.warning(
+                "genro-storage: mount '%s' is readonly; it stays on the legacy handler",
+                service_name)
+            return None
+        if protocol == 'local':
+            base_path = mount.get('base_path')
+            if not base_path:
+                return None
+            if not os.path.isdir(base_path):
+                # genro-storage's local backend requires an existing directory,
+                # the legacy service creates it on first write.
+                logger.warning(
+                    "genro-storage: skipping mount '%s': base_path '%s' does not "
+                    "exist; it stays on the legacy handler", service_name, base_path)
+                return None
+        if protocol == 's3':
+            if not mount.get('bucket'):
+                logger.warning(
+                    "genro-storage: skipping mount '%s': no bucket; it stays on "
+                    "the legacy handler", service_name)
+                return None
+            if boolean(params.get('custom_endpoint')) and params.get('endpoint_url'):
+                mount['endpoint_url'] = params['endpoint_url']
+        return mount
+
+    def _configureMounts(self):
+        """Register every mappable mount, one at a time.
+
+        genro-storage validates a batch atomically, so a single unusable mount
+        would abort the whole registration (genropy/genro-storage#75). One bad
+        mount must never stop site startup: it is skipped with a warning and
+        served by the legacy handler.
+        """
+        for service_name, params in self.storage_params.items():
+            mount = self._mountConfig(service_name, params)
+            if not mount:
+                continue
+            try:
+                self.manager.configure([mount])
+            except Exception as exc:
+                logger.warning(
+                    "genro-storage: skipping mount '%s' (implementation '%s'): %s; "
+                    "it stays on the legacy handler",
+                    service_name, params.get('implementation'), exc)
+                continue
+            self.mount_configs[service_name] = mount
+
+    def _dropMount(self, service_name):
+        if self.manager.has_mount(service_name):
+            self.manager.delete_mount(service_name)
+        self.mount_configs.pop(service_name, None)
+        self._genro_services.pop(service_name, None)
+
+    def storage(self, storage_name, **kwargs):
+        """Return the genro-storage service for a registered mount, the legacy
+        one otherwise.
+
+        A call carrying kwargs overrides the stored parameters, which describes
+        a service configured on the fly: that stays legacy.
+        """
+        if kwargs or not self.manager.has_mount(storage_name):
+            return super().storage(storage_name, **kwargs)
+        service = self._genro_services.get(storage_name)
+        if service is None:
+            params = self.getStorageParameters(storage_name) or {}
+            service = storage_genro.Service(
+                parent=self.site,
+                manager=self.manager,
+                mount_name=storage_name,
+                mount_config=self.mount_configs[storage_name],
+                expand_paths=params.get('implementation') == 'raw',
+                versioned=boolean(params['versioned']) if 'versioned' in params else None,
+                tags=params.get('tags'))
+            service.service_name = storage_name
+            service.service_implementation = params.get('implementation')
+            self._genro_services[storage_name] = service
+        return service
+
+    def updateStorageParams(self, service_name):
+        result = super().updateStorageParams(service_name)
+        # Drop before re-reading: an entry that stopped being mappable must stop
+        # being served by genro-storage.
+        self._dropMount(service_name)
+        self._configureMounts()
+        return result
+
+    def removeStorageFromCache(self, service_name):
+        result = super().removeStorageFromCache(service_name)
+        self._dropMount(service_name)
+        return result
 
 
 
