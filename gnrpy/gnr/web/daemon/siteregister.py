@@ -1081,7 +1081,9 @@ class SiteRegister(BaseRemoteObject):
 
     def load(self):
         try:
-            with open(self.storage_path) as storagefile:
+            # 'rb': dump writes the pickle in binary, and a text stream makes
+            # pickle.load raise UnicodeDecodeError on the protocol header
+            with open(self.storage_path, 'rb') as storagefile:
                 self.user_register.load(storagefile)
                 self.connection_register.load(storagefile)
                 self.page_register.load(storagefile)
