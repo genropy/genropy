@@ -123,6 +123,8 @@
 <en_ready_to_send base="Ready to send" it="Pronti per l'invio" en="Ready to send"></en_ready_to_send>
 <en_sending_error base="Sending error" it="Errore invio" en="Sending error"></en_sending_error>
 <en_sent base="Sent" it="Inviato" en="Sent" es="Enviado"></en_sent>
+<en_dispatched_to_proxy base="Dispatched to proxy" it="Consegnato al proxy" en="Dispatched to proxy"></en_dispatched_to_proxy>
+<en_queue_issues base="Queue issues" it="Anomalie coda" en="Queue issues"></en_queue_issues>
 <en_all fr="Tous" de="Alle" en="All" it="Tutto" base="All"></en_all>
 <en_unread base="Unread" it="Non letti"></en_unread>
 <en_filter_messages base="Filter messages"></en_filter_messages>
