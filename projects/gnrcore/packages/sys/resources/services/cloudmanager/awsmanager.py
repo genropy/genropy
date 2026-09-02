@@ -59,6 +59,17 @@ class Service(CloudManager):
     def get_hosted_zones(self):
         return self.aws_manager.Route53.get_hosted_zones()
 
+    def route53_record_exists(self, name, hosted_zone_id=None):
+        return self.aws_manager.Route53.record_exists(name=name, hosted_zone_id=hosted_zone_id)
+
+    def route53_verify_record(self, name, record_type, value, hosted_zone_id=None):
+        return self.aws_manager.Route53.verify_record(name=name, record_type=record_type,
+            value=value, hosted_zone_id=hosted_zone_id)
+
+    def route53_ensure_cname_record(self, name, value, ttl=300, dryrun=False):
+        return self.aws_manager.Route53.ensure_cname_record(name=name, value=value,
+            ttl=ttl, dryrun=dryrun)
+
     # ECS Methods
     def list_ecs_clusters(self):
         return self.aws_manager.ECS.list_clusters()

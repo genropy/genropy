@@ -142,7 +142,7 @@ class ChatComponent(BaseComponent):
                             var rows = grid.getSelectedNodes();
                             var users =new gnr.GnrBag();
                             dojo.forEach(rows,function(n){
-                                users.setItem(n.attr.user,null,{user_name:n.attr.user_name,user:n.attr.user});
+                                users.setItem(ct_chat_utils.escape_user(n.attr.user),null,{user_name:n.attr.user_name,user:n.attr.user});
                             });
                             var roomId= 'cr_'+new Date().getTime();
                             ct_chat_utils.open_chat(roomId,users);
@@ -160,7 +160,9 @@ class ChatComponent(BaseComponent):
             msg = '<i>User %s left the room</i>' % self.user
         path = 'gnr.chat.msg.%s' % roomId
         for userNode in users:
-            user = userNode.label
+            # the label travels dot-escaped (Bag labels split on dots);
+            # the real username rides in the node's `user` attribute
+            user = userNode.attr.get('user') or userNode.label
             with self.userStore(user) as store:
                 if disconnect and (user == self.user):
                     store.drop_datachanges(path)

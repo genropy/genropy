@@ -164,8 +164,7 @@ class GnrWebUtils(GnrBaseProxy):
         result = Bag()
         path = os.path.normpath(path)
         path = path.rstrip('/')
-        if not os.path.exists(path):
-            os.makedirs(path)
+        os.makedirs(path, exist_ok=True)
         result[os.path.basename(path)] = DirectoryResolver(path, include=include, exclude=exclude, dropext=True,
                                                            ext=ext)
         return result

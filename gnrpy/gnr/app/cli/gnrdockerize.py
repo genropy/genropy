@@ -17,7 +17,7 @@ from mako.template import Template
 
 from gnr.core.cli import GnrCliArgParse
 from gnr.utils.dockercompose import DockerComposeBuilder
-from gnr.app.pathresolver import PathResolver
+from gnr.app.pathresolver import PathResolver, EntityNotFoundException
 from gnr.dev.builder import GnrProjectBuilder
 from gnr.app import logger
 
@@ -26,7 +26,12 @@ description = "Create a Docker image for the instance"
 class MultiStageDockerImageBuilder:
     def __init__(self, instance_name, options):
         self.instance_name = instance_name
-        self.instance_folder = PathResolver().instance_name_to_path(self.instance_name)
+        try:
+            self.instance_folder = PathResolver().instance_name_to_path(self.instance_name)
+        except EntityNotFoundException:
+            logger.error("Instance '%s' not found. Exiting", self.instance_name)
+            sys.exit(2)
+            
         self.image_name = options.image_name or self.instance_name
         self.options = options
         self.builder = GnrProjectBuilder(self.instance_name)
@@ -154,9 +159,16 @@ class MultiStageDockerImageBuilder:
                 if repo['subfolder']:
                     if repo_name == self.main_repo_name:
                         site_folder = f"/home/genro/genropy_projects/{repo['subfolder']}/instances/{self.instance_name}/site"
-                    dockerfile.write(f"COPY --chown=genro:genro {repo_name}/{repo['subfolder']} /home/genro/genropy_projects/{repo['subfolder']}\n")
-                else:
+                    dest_folder = repo['subfolder']
+                    if os.path.sep in repo['subfolder']:
+                        # we have a nested hierachy, we need to copy also what is exposed at top level
+                        dest_folder = os.path.basename(repo['subfolder'])
+                        dockerfile.write(f"COPY --chown=genro:genro {repo_name} /home/genro/genropy_projects/{repo_name}\n")
+                        dockerfile.write(f"COPY --chown=genro:genro {repo_name}/{repo['subfolder']} /home/genro/genropy_projects/{dest_folder}\n")
+                    else:
+                        dockerfile.write(f"COPY --chown=genro:genro {repo_name}/{repo['subfolder']} /home/genro/genropy_projects/{dest_folder}\n")
 
+                else:
                     dockerfile.write(f"COPY --chown=genro:genro {repo_name} /home/genro/genropy_projects/{repo_name}\n")
 
             dockerfile.write(f"RUN ln -s {site_folder} /home/genro/site\n")

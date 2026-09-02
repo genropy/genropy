@@ -509,7 +509,7 @@ class GnrWsgiSite(object):
         # and it initialze the register itself.
         self.register
         
-        self.datacollector = DataCollector(self.register.siteregister)
+        self.datacollector = DataCollector(self.register)
         
         self.onInited()
 
@@ -680,6 +680,12 @@ class GnrWsgiSite(object):
         if domain_proxy and domain_proxy._register is not None:
             return self.register.filter_subscribed_tables(tables,register_name='page')
 
+    def allSubscribedTables(self):
+        """Every table observed by at least one live page, from the register index."""
+        domain_proxy = self.domains[self.currentDomain]
+        if domain_proxy and domain_proxy._register is not None:
+            return self.register.subscribed_tables(register_name='page')
+
     @property
     def connectionLogEnabled(self):
         if not hasattr(self,'_connectionLogEnabled'):
@@ -826,8 +832,7 @@ class GnrWsgiSite(object):
             else:
                 autocreate_args = args
             dest_dir = static_handler.path(*autocreate_args)
-            if not os.path.exists(dest_dir):
-                os.makedirs(dest_dir)
+            os.makedirs(dest_dir, exist_ok=True)
         dest_path = static_handler.path(*args)
         return dest_path
 
@@ -1162,7 +1167,13 @@ class GnrWsgiSite(object):
             return exc(environ, start_response)
         finally:
             self.cleanup()
-            self.currentDomain = self.rootDomain
+            # Do not re-set currentDomain here: cleanup() already reset it
+            # to None, which pops this thread's entry from the underlying
+            # ThreadedDict. Assigning rootDomain again would re-add a
+            # {tid: '_main_'} entry that is never removed, i.e. the same
+            # unbounded thread-local growth fixed for currentRequest/
+            # currentPage in #379. The currentDomain getter already falls
+            # back to rootDomain when unset, so no re-assignment is needed.
 
     def raiseIfDeveloper(self, exception=None):
         page = self.currentPage
@@ -1407,7 +1418,19 @@ class GnrWsgiSite(object):
             response.data=result
         elif isinstance(result, Response):
             response = result
+        elif isinstance(result, Bag):
+            # A Bag is callable (Bag.__call__) but is regular page/rpc result
+            # data, not a WSGI app, so it must be serialised here rather than
+            # reaching the branch below: returned as a WSGI application it
+            # would later be invoked as response(environ, start_response) and
+            # raise a TypeError, since Bag.__call__ takes 0 or 1 argument.
+            # Same serialisation the method= entry point applies through
+            # GnrWebPageRpc.result_xml.
+            response.mimetype = kwargs.get('mimetype') or 'text/xml'
+            response.data = result.toXml(unresolved=True, omitUnknownTypes=True)
         elif callable(result):
+            # Objects that ARE the WSGI response: werkzeug HTTPException
+            # instances, GnrWsgiSite.forbidden_exception and friends.
             response = result
         return response
 
@@ -1427,6 +1450,7 @@ class GnrWsgiSite(object):
     def onClosedPage(self, page_id=None, **kwargs):
         "Drops page when closing"
         self.register.drop_page(page_id)
+        self.resource_loader.drop_page_class_cache(page_id)
 
     def cleanup(self):
         """clean up"""
@@ -1769,8 +1793,7 @@ class GnrWsgiSite(object):
         if not os.path.isdir(self.allConnectionsFolder):
             return
         try:
-            live_connections = {c['register_item_id']
-                                for c in self.register.connections()}
+            live_connections = self.register.connections()
         except Exception:
             logger.exception("Cleanup failed reading register")
             return

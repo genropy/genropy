@@ -1,7 +1,8 @@
+import atexit
 import sys
 import os
 import os.path
-import subprocess
+import weakref
 import pytest
 from testing.postgresql import Postgresql
 
@@ -47,12 +48,61 @@ excludewin32 = pytest.mark.skipif(sys.platform == "win32",
                                   reason="testing.postgresl doesn't run on Windows")
 
 
+# Ephemeral postgres servers started by this process.  Cleanup must stay
+# scoped to them: a machine-wide sweep (for instance `pkill -f postgres.*tmp`)
+# also matches the temporary servers of every other test run on the same
+# machine -- concurrent CI jobs on a shared runner, or two local pytest
+# sessions -- and tears their databases down mid-query.
+# Weak references only: holding a strong one would keep a server alive for
+# the whole session even after its fixture dropped it.
+_pg_instances = weakref.WeakSet()
+
+
+def _stop_own_pg_instances():
+    """Stop every ephemeral postgres this process still has running.
+
+    Registered with atexit so an interrupted or crashing run cleans up
+    after itself instead of leaving servers behind.  Stopping an instance
+    that a fixture already stopped is a no-op.
+    """
+    for pg_instance in list(_pg_instances):
+        try:
+            pg_instance.stop()
+        except Exception:
+            pass
+
+
+atexit.register(_stop_own_pg_instances)
+
+
+def _start_pg_instance():
+    """Start a temporary postgres server owned by this process."""
+    # postgresql's initdb needs a proper LANG; set it only for the time it
+    # takes to spawn initdb and the server, so the test session's own
+    # environment is left untouched.
+    previous_lang = os.environ.get('LANG')
+    os.environ['LANG'] = "en_GB.UTF-8"
+    try:
+        pg_instance = Postgresql()
+    finally:
+        if previous_lang is None:
+            os.environ.pop('LANG', None)
+        else:
+            os.environ['LANG'] = previous_lang
+    _pg_instances.add(pg_instance)
+    return pg_instance
+
+
 def get_pg_config():
     """Determine PostgreSQL connection parameters for tests.
 
     Returns (pg_conf, pg_instance) where pg_instance is not None
     only when a temporary testing.postgresql was started.  The caller
-    must call pg_instance.stop() when done.
+    must call pg_instance.stop() when done; anything still running is
+    stopped at interpreter exit as a fallback.
+
+    Raises when no server can be reached or started: postgres is required
+    by this suite, so callers let the failure surface.
     """
     if 'GITHUB_WORKFLOW' in os.environ:
         return dict(host='127.0.0.1', port='5432',
@@ -64,10 +114,7 @@ def get_pg_config():
             user=os.environ.get('GNR_TEST_PG_USER', 'postgres'),
             password=os.environ.get('GNR_TEST_PG_PASSWORD'),
         ), None
-    subprocess.run(['pkill', '-f', 'postgres.*tmp'], capture_output=True)
-    # we need to ensure that a proper LANG is set, needed by postgresql's initdb
-    os.environ['LANG'] = "en_GB.UTF-8"
-    pg_instance = Postgresql()
+    pg_instance = _start_pg_instance()
     return pg_instance.dsn(), pg_instance
 
 
@@ -99,11 +146,18 @@ class BaseGnrSqlTest:
         """
         Teardown testing enviroment
         """
-        if hasattr(cls, 'dbname'):
-            cls.db.closeConnection()
-            cls.db.dropDb(cls.dbname)
-        if cls.pg_instance is not None:
-            cls.pg_instance.stop()
+        try:
+            if hasattr(cls, 'dbname'):
+                cls.db.closeConnection()
+                cls.db.dropDb(cls.dbname)
+        finally:
+            # stop the server even when dropping the database failed:
+            # otherwise a raising teardown leaves a postgres running for
+            # the rest of the session, and enough of those exhaust the
+            # machine's shared memory segments.
+            if cls.pg_instance is not None:
+                cls.pg_instance.stop()
+                cls.pg_instance = None
 
 
 

@@ -35,7 +35,7 @@ from typing import Any
 
 from gnr.core.gnrlocale import defaultLocale
 from gnr.sql._typing import GnrSqlDbBaseMixin
-from gnr.sql.gnrsql.helpers import TempEnv
+from gnr.sql.gnrsql.helpers import MAIN_CONNECTION_NAME, TempEnv
 
 
 class EnvMixin(GnrSqlDbBaseMixin):
@@ -192,9 +192,13 @@ class EnvMixin(GnrSqlDbBaseMixin):
 
     def usingMainConnection(self) -> bool:
         """Return ``True`` if the current connection is the main connection."""
-        from gnr.sql.gnrsql.helpers import MAIN_CONNECTION_NAME
-
         return self.currentConnectionName == MAIN_CONNECTION_NAME
+
+    def usingMultiStore(self) -> bool:
+        """Return ``True`` if the current storename addresses more than one
+        store (``'*'`` or a comma-separated selection)."""
+        storename = self.currentStorename
+        return storename == '*' or ',' in storename
 
     @property
     def currentStorename(self) -> str:
@@ -204,8 +208,6 @@ class EnvMixin(GnrSqlDbBaseMixin):
     @property
     def currentConnectionName(self) -> str:
         """The name of the currently active connection."""
-        from gnr.sql.gnrsql.helpers import MAIN_CONNECTION_NAME
-
         return self.currentEnv.get('connectionName') or MAIN_CONNECTION_NAME
 
     def setLocale(self) -> None:
