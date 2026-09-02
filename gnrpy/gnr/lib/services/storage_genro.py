@@ -233,6 +233,12 @@ class Service(StorageService):
         expiration = kwargs.pop('expiration', None) or 3600
         return self._node(*args).url(expires_in=expiration)
 
+    def internal_url(self, *args, **kwargs):
+        if not self.is_local:
+            # The legacy aws_s3 service serves its internal urls as downloads.
+            kwargs['_download'] = True
+        return super().internal_url(*args, **kwargs)
+
     def public_url(self, *args, **kwargs):
         """A plain, non-expiring url: the object must be publicly readable, this
         only builds the address."""
