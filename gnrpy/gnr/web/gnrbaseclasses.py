@@ -290,14 +290,30 @@ class BagToHtmlWeb(BagToHtml):
     def getPdfPath(self, *args, **kwargs):
         return self.pdfpath or self.filepath.replace('.html','.pdf')
                         
+    def pdfMarginKwargs(self,pdf_kwargs=None):
+        """A print (or its letterhead) defining its own page margins must win over the
+        sys.pdf_render preference margins: page_margin_* are realized as inner offsets
+        in the html, so the preference @page margins would add up to them. Force them
+        to 0 unless explicitly overridden (htmltopdf_* attributes or pdf_kwargs).
+        page_margins_defined means a letterhead is loaded: its designer controls the
+        page geometry, so the preference is suppressed regardless of the page.*
+        values (the letterhead editor seeds zeros on every new letterhead, so a 0
+        cannot be told apart from an explicit edge-to-edge choice)."""
+        pdf_kwargs = dict(pdf_kwargs or {})
+        sides = ('top','bottom','left','right')
+        if self.page_margins_defined or any(getattr(self,'page_margin_%s' % side,0) for side in sides):
+            for side in sides:
+                pdf_kwargs.setdefault('margin_%s' % side,0)
+        return pdf_kwargs
+
     @extract_kwargs(pdf=True)
     def writePdf(self,pdfpath=None,docname=None,pdf_kwargs=None,**kwargs):
         pdfpath = pdfpath or self.getPdfPath(pdfpath=pdfpath,docname=docname,pdf_kwargs=pdf_kwargs,**kwargs)
-        self.print_handler.htmlToPdf(self.filepath,pdfpath, 
+        self.print_handler.htmlToPdf(self.filepath,pdfpath,
                                      orientation=self.orientation(),
-                                     pdf_kwargs=pdf_kwargs,
+                                     pdf_kwargs=self.pdfMarginKwargs(pdf_kwargs),
                                      pageSize=self.page_format)
-        return pdfpath   
+        return pdfpath
 
 class TableTemplateToHtml(BagToHtmlWeb):
     def __call__(self,record=None,template=None, htmlContent=None, locale=None,pdf=None,filepath=None,**kwargs):
@@ -379,6 +395,7 @@ class TableScriptToHtml(BagToHtmlWeb):
         self.pdfpath = pdfpath or self.getPdfPath('%s.pdf' % docname, autocreate=-1)
         pdf_kw = dict([(k[10:],getattr(self,k)) for k in dir(self) if k.startswith('htmltopdf_')])
         pdf_kw.update(pdf_kwargs)
+        pdf_kw = self.pdfMarginKwargs(pdf_kw)
         filepath = filepath or self.filepath
         if not isinstance(filepath,list):
             self.print_handler.htmlToPdf(filepath or self.filepath, self.pdfpath, orientation=self.orientation(), page_height=self.page_height, 
