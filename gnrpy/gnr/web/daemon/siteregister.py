@@ -320,9 +320,14 @@ class BaseRegister(BaseRemoteObject):
         return self.update_item(register_item_id, dict(datachanges=list(), datachanges_idx=0))
 
     def set_datachange(self, register_item_id, path, value=None, attributes=None, fired=False, reason=None, replace=False, delete=False):
+        """Queue a client data change on a register item.
+
+        Return True if the change was queued, False if the item is not registered
+        (any more) and the change was therefore dropped.
+        """
         register_item = self.get_item(register_item_id)
         if not register_item:
-            return
+            return False
         datachanges = register_item['datachanges']
         register_item['datachanges_idx'] = register_item.get('datachanges_idx', 0)
         register_item['datachanges_idx'] += 1
@@ -332,6 +337,7 @@ class BaseRegister(BaseRemoteObject):
         if replace and datachange in datachanges:
             datachanges.pop(datachanges.index(datachange))
         datachanges.append(datachange)
+        return True
 
     def drop_datachanges(self, register_item_id, path):
         register_item = self.get_item(register_item_id)
@@ -718,20 +724,29 @@ class PageRegister(BaseRegister):
 
     def setInClientData(self, path, value=None, attributes=None, page_id=None, filters=None,
                         fired=False, reason=None, public=False, replace=False):
+        """Queue one or more client data changes on the target pages.
+
+        Return True if every change was queued, False as soon as one target page is
+        not registered (any more) and its change was therefore dropped. A ``filters``
+        that matches no page returns True: nothing was dropped because nothing was
+        addressed.
+        """
         if filters:
             pages = [p['register_item_id'] for p in self.pages(filters=filters)]
         else:
             pages = [page_id]
+        done = []
         for page_id in pages:
             if isinstance(path, Bag):
                 changeBag = path
                 for changeNode in changeBag:
                     attr = changeNode.attr
-                    self.set_datachange(page_id, path=attr.pop('_client_path'), value=changeNode.value,
-                                        attributes=attr, fired=attr.pop('fired', None))
+                    done.append(self.set_datachange(page_id, path=attr.pop('_client_path'), value=changeNode.value,
+                                                    attributes=attr, fired=attr.pop('fired', None)))
             else:
-                self.set_datachange(page_id, path=path, value=value, reason=reason,
-                                    attributes=attributes, fired=fired)
+                done.append(self.set_datachange(page_id, path=path, value=value, reason=reason,
+                                                attributes=attributes, fired=fired))
+        return all(done)
 
 
 class SiteRegister(BaseRemoteObject):
