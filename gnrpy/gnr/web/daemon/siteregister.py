@@ -184,7 +184,10 @@ class BaseRegister(BaseRemoteObject):
         data.subscribe('datachanges', any=lambda **kwargs: self._on_data_trigger(register_item=register_item, **kwargs))
         self.itemsData[register_item_id] = data
 
-    def _on_data_trigger(self, node=None, ind=None, evt=None, pathlist=None, register_item=None, **kwargs):
+    def _on_data_trigger(self, node=None, ind=None, evt=None, pathlist=None, register_item=None,
+                         reason=None, **kwargs):
+        if reason == 'autocreate':
+            return
         if evt == 'ins':
             pathlist.append(node.label)
         path = '.'.join(pathlist)
