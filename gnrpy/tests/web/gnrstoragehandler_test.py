@@ -1,4 +1,5 @@
 import pytest
+import logging
 import os
 import tempfile
 import shutil
@@ -591,6 +592,44 @@ class TestStorageHandler(BaseGnrDaemonTest):
         assert handler.storage_params['minio'].get('bucket') == 'sandbox'
         assert handler.storage_params['my_flat_store'].get('implementation') == 'local'
         assert 'storage' not in handler.storage_params
+
+    def test_load_storage_from_siteconfig_old_container_shape_is_warned(self, caplog):
+        """An instance that followed the shape this docstring used to document -
+        <storage service_name="..."> - had its mount registered under the label
+        'storage'. The skip is right, but it must not be silent."""
+        from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import BaseStorageHandler
+
+        class MockSite:
+            def __init__(self):
+                self.config = Bag()
+                self.config['services.storage'] = Bag()
+                self.config.setAttr('services.storage',
+                    service_name='my_storage', implementation='local')
+                self.site_static_dir = '/tmp/test_site'
+
+            @property
+            def gnrapp(self):
+                class MockApp:
+                    packages = type('obj', (object,), {'keys': lambda self: []})()
+                return MockApp()
+
+            @property
+            def db(self):
+                return None
+
+        mock_site = MockSite()
+        handler = BaseStorageHandler.__new__(BaseStorageHandler)
+        handler.site = mock_site
+        handler.storage_params = {}
+
+        with caplog.at_level(logging.WARNING, logger='gnr.web'):
+            handler._loadStorageParametersFromSiteConfig()
+
+        assert 'storage' not in handler.storage_params
+        assert 'my_storage' not in handler.storage_params
+        messages = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
+        assert any('my_storage' in m for m in messages), \
+            'the skipped mount has to be named, or the instance loses it silently'
 
     def test_load_storage_from_siteconfig_flat_structure(self):
         """Test loading storage params from flat <services><my_store service_type='storage' .../></services> structure."""

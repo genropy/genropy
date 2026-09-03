@@ -171,6 +171,15 @@ class BaseStorageHandler:
             for service_name, attrs in services.digest('#k,#a'):
                 if service_name == 'storage':
                     # <services><storage> is the type section handled above, not a service
+                    if attrs and attrs.get('service_name'):
+                        # the shape this docstring used to document: an instance that
+                        # followed it had the mount registered under the label 'storage',
+                        # and would now lose it without a word
+                        logger.warning(
+                            "<services><storage service_name=%r> is the storage type section, "
+                            "not a service: the mount is not loaded. Declare it as a child, "
+                            "<storage><%s implementation=... /></storage>",
+                            attrs['service_name'], attrs['service_name'])
                     continue
                 attrs = dict(attrs) if attrs else {}
                 service_type = attrs.pop('service_type', None) or service_name
