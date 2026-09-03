@@ -10,7 +10,6 @@ import os
 
 import inspect
 import glob
-import time
 from collections import OrderedDict
 from threading import Lock
 
@@ -26,19 +25,17 @@ from gnr.core.gnrclasses import GnrMixinError,GnrMixinNotFound
 from gnr.core.gnrlang import uniquify
 from gnr.web import logger
 
-# Experimental page-class cache (sys preference
-# ``experimental.page_class_cache``): a page's class is a function of values
-# fixed at the page's birth (module, main package, plugin/custom mixins), so
-# the first build can serve every later request of the same page. Entries are
-# keyed by ``(page_id, module_path)``: a page_id is validated against the
-# connection, never against the url it is posted to, so the module path keeps
-# a request that names another page's page_id from reading - or, worse, from
-# depositing - a class built for a different url. The cache is dropped on
-# page close and LRU-bounded for whatever escapes that; the preference is
-# re-read at most every PAGE_CLASS_CACHE_FLAG_TTL seconds because a
-# getPreference call deepcopies the whole preference bag.
+# Experimental page-class cache (instanceconfig.xml
+# ``<experimental><page page_class_cache="True"/></experimental>``): a page's
+# class is a function of values fixed at the page's birth (module, main
+# package, plugin/custom mixins), so the first build can serve every later
+# request of the same page. Entries are keyed by ``(page_id, module_path)``:
+# a page_id is validated against the connection, never against the url it is
+# posted to, so the module path keeps a request that names another page's
+# page_id from reading - or, worse, from depositing - a class built for a
+# different url. The cache is dropped on page close and LRU-bounded for
+# whatever escapes that.
 PAGE_CLASS_CACHE_MAXSIZE = 2000
-PAGE_CLASS_CACHE_FLAG_TTL = 10
 
 
 class ResourceLoader(object):
@@ -54,29 +51,11 @@ class ResourceLoader(object):
         self.default_path = self.site.default_page and self.site.default_page.split('/')
         self._page_class_cache = OrderedDict()
         self._page_class_cache_lock = Lock()
-        self._page_class_cache_flag = (False, 0.0)
+        self._page_class_cache_enabled = self.gnrapp.experimentalFlag('page', 'page_class_cache')
 
     def page_class_cache_enabled(self):
-        """The experimental flag, read through a small TTL (kill switch stays live).
-
-        The read is pinned to the root store: it runs at dispatch time, before
-        the page applies its own env, so the thread env still carries whatever
-        the previous request left there (possibly a multi-store selection).
-        A ``sys`` preference lives in the main store anyway.
-        Turning the flag off also drops what is already cached, so the switch
-        frees the classes instead of merely stopping new ones.
-        """
-        value, read_ts = self._page_class_cache_flag
-        now = time.time()
-        if now - read_ts > PAGE_CLASS_CACHE_FLAG_TTL:
-            db = self.site.db
-            with db.tempEnv(storename=db.rootstore):
-                new_value = bool(self.site.getPreference('experimental.page_class_cache', pkg='sys'))
-            if value and not new_value:
-                self.clear_page_class_cache()
-            value = new_value
-            self._page_class_cache_flag = (value, now)
-        return value
+        """The experimental flag, fixed for the life of the process."""
+        return self._page_class_cache_enabled
 
     def load_page_class_cache(self, cache_key):
         """The cached class of a live page, or None on a miss."""
@@ -107,10 +86,10 @@ class ResourceLoader(object):
                 self._page_class_cache.pop(cache_key)
 
     def clear_page_class_cache(self):
-        """Empty the cache (the flag going off, or an explicit reset)."""
+        """Empty the cache (an explicit reset)."""
         with self._page_class_cache_lock:
             self._page_class_cache.clear()
-    
+
     @property
     def gnrapp(self):
         return self.site.gnrapp
@@ -185,7 +164,7 @@ class ResourceLoader(object):
     def get_page_class(self, basepath=None,relpath=None, pkg=None, plugin=None,avoid_module_cache=None,request_args=None,request_kwargs=None, page_factory=None):
         """Build the page class for a request — or serve the page's cached one.
 
-        With the experimental ``page_class_cache`` preference on, a request
+        With the experimental ``page_class_cache`` flag on, a request
         that names a ``page_id`` reuses the class built at that page's birth,
         provided it asks for the same module: the key is the pair, because a
         page_id is only ever validated against the connection. An explicit
