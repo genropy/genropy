@@ -111,7 +111,7 @@ class ExternalProcess:
             self.process.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
             logger.warning("Process didn't terminate after SIGTERM, issuing SIGKILL")
-            os.kiipg(pgid, signal.SIGKILL)
+            os.killpg(pgid, signal.SIGKILL)
             self.process.wait()
 
         if self.port_check:
@@ -120,7 +120,7 @@ class ExternalProcess:
     def _wait_until_port_free(self, timeout):
         deadline = time.time() + timeout
         while time.time() < deadline:
-            if not self._is_port_in_use:
+            if not self._is_port_in_use():
                 return
             time.sleep(0.2)
         logger.warning("Port still busy after waiting, probably due to TIME_WAIT")

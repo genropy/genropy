@@ -513,11 +513,7 @@ class MiscMixin:
                           _relation_value=pkey,
                           _resolver_name='relOneResolver')
             value = None
-            attributes = kw.get('_attributes')
-            colAttrs = selection.colAttrs
-            for k, v in list(attributes.items()):
-                if v and colAttrs.get(k, {}).get('dataType') == 'X':
-                    attributes[k] = "%s::X" % v
+            attributes = selection.typedAttributes(kw.get('_attributes'))
             if attributes and '__value__' in attributes:
                 value = attributes.pop('__value__')
             result.appendNode(row_key, value, **kw)

@@ -71,6 +71,27 @@ class TestGnrLocalization(BaseGnrAppTest):
         assert r["status"] == "NOKEY"
         assert r["translation"] == "bkasjklasjsd"
 
+    def test_missing_language_is_reported_as_nolang(self):
+        """
+        A fallback answer must stay distinguishable from a real translation:
+        the client caches a translation only when the status is OK.
+        """
+        al = gl.AppLocalizer(self.app)
+        al.localizationDict['en_records_to_delete'] = {'base': 'Records to delete'}
+        al.localizationDict['en_condition_op'] = {'base': 'Condition op', 'it': 'Operatore condizione'}
+
+        r = al.getTranslation('!!Records to delete', 'it')
+        assert r['status'] == 'NOLANG'
+        assert r['translation'] == 'Records to delete'
+
+        r = al.getTranslation('!!Condition op', 'it')
+        assert r['status'] == 'OK'
+        assert r['translation'] == 'Operatore condizione'
+
+        r = al.getTranslation(gl.GnrLocString('en_records_to_delete'), 'it')
+        assert r['status'] == 'NOLANG'
+        assert r['translation'] == 'Records to delete'
+
     def test_symbol_only_captions_not_translated(self):
         """
         Symbol-only captions ('=', '>=', '%', '#', whitespace, ...) all flatten
