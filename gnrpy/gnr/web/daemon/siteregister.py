@@ -1037,8 +1037,10 @@ class SiteRegister(BaseRemoteObject):
         if not page_item:
             return False
         catalog = self.catalog
-        if _serverstore_changes:
-            self.set_serverstore_changes(page_id, _serverstore_changes)
+        if _serverstore_changes and not self.set_serverstore_changes(page_id, _serverstore_changes):
+            # refresh answered above, so the page went while this ping travelled
+            logger.warning('page %s vanished from the register: serverstore changes discarded (%s)',
+                           page_id, ','.join(sorted(_serverstore_changes)))
         if _children_pages_info:
             for k, v in list(_children_pages_info.items()):
                 child_lastUserEventTs = v.pop('_lastUserEventTs', None)
@@ -1081,13 +1083,27 @@ class SiteRegister(BaseRemoteObject):
         return result
 
     def set_serverstore_changes(self, page_id=None, datachanges=None):
+        """File the client's serverstore changes on the page's register item.
+
+        Answers whether they were filed. `get_item_data` builds a detached Bag
+        for an id it does not know, so without the guard the changes went into
+        an object that died with the call - and the client has already dropped
+        its own buffer by then, so there is nothing to recover: the only
+        available answer is to report. Whether absence is exceptional depends on
+        the caller, so this one does not log.
+
+        `exists` rather than `get_item`: the latter stamps `itemsTS` before
+        testing, which would leak a timestamp for a page that never existed.
+
+        :param page_id: id of the target page
+        :param datachanges: the changes to file, as sent by the client
+        :returns: True when filed, False when the page is not in the register"""
         if not self.page_register.exists(page_id):
-            logger.warning('page %s not existing in register: serverstore changes discarded (%s)',
-                           page_id, ','.join(sorted(datachanges or {})))
-            return
+            return False
         page_item_data = self.page_register.get_item_data(page_id)
         for k, v in list(datachanges.items()):
             page_item_data.setItem(k, self._parse_change_value(v))
+        return True
 
     def _parse_change_value(self, change_value):
         if isinstance(change_value, (bytes, str)):
