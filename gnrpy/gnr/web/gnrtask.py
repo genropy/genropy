@@ -184,5 +184,13 @@ class GnrTaskWorker(object):
                     # it was never run either
                     logger.exception('Task %s failed', te_pkey)
                     self.db.rollbackAll()
+                    # taskToExecute committed start_ts and pid, so the rollback
+                    # cannot release the record: left as it is, active_workers
+                    # keeps counting it and checkAlive will not free it while
+                    # this worker lives, so the task is never retried
+                    self.tblobj.batchUpdate(dict(pid=None, start_ts=None),
+                                            _pkeys=[te_pkey],
+                                            for_update='SKIP LOCKED')
+                    self.db.commit()
             self.db.closeConnection()
             sleep(randrange(self.interval-10,self.interval+10))

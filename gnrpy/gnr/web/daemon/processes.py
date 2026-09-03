@@ -327,6 +327,7 @@ class GnrWorker(GnrRemoteProcess):
         task_id = task['id']
         page = self.site.dummyPage
         self.site.currentPage = page
+        registered = False
         try:
             if not task['concurrent']:
                 with self.lock:
@@ -335,11 +336,15 @@ class GnrWorker(GnrRemoteProcess):
                         return
                     else:
                         self.execution_dict[task_id] = os.getpid()
+                        registered = True
             self.site.db.table('sys.task').runTask(task, page=page)
-            self.execution_dict.pop(task_id, None)
         finally:
             # covers both the early return of the concurrency guard and any
-            # exception raised by runTask (#379/#380)
+            # exception raised by runTask (#379/#380). Only the call that
+            # registered the task may pop it: on the guard's early return the
+            # entry belongs to the execution already running it
+            if registered:
+                self.execution_dict.pop(task_id, None)
             self.site.currentPage = None
 
     def start(self):

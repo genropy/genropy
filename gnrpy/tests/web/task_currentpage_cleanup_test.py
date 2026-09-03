@@ -194,6 +194,9 @@ def test_worker_run_task_concurrency_guard_leaves_no_thread_local_residue():
     assert worker.logger.warnings, 'the guard should have logged the skip'
     assert site.db.tasktable.run_calls == [], 'the task must not run twice'
     assert site._currentPages._data == {}
+    assert worker.execution_dict == {'t1': 4242}, \
+        'the entry belongs to the execution already running it: releasing it here ' \
+        'would let a third call through the guard'
 
 
 # ---------------------------------------------------------------------------
@@ -307,6 +310,10 @@ class _FakeStartWorker:
         self._failing = failing
         self.attempted = []
         self.rollbacks = 0
+        self.released = []
+
+    def batchUpdate(self, updater, _pkeys=None, **kwargs):
+        self.released.append((tuple(_pkeys), dict(updater)))
 
     def taskToExecute(self):
         return list(self._pkeys)
@@ -337,6 +344,27 @@ def test_legacy_start_survives_a_failing_task(monkeypatch, caplog):
     assert worker.attempted == ['first', 'boom', 'last']
     assert any('boom' in r.getMessage() for r in caplog.records
                if r.levelno >= logging.ERROR)
+
+
+def test_legacy_start_releases_the_record_of_a_failing_task(monkeypatch, caplog):
+    """``taskToExecute`` commits ``start_ts`` and ``pid`` before yielding, so
+    surviving the failure without releasing the row leaves it claimed by a live
+    pid: ``active_workers`` keeps counting it and ``checkAlive`` will not free
+    it, and the task is never retried while this worker lives."""
+    site = _FakeSite(db=_FakeDb())
+    commits = []
+    site.db.commit = lambda: commits.append(1)
+    site.db.rollbackAll = lambda: None
+    worker = _FakeStartWorker(site, ['first', 'boom'], {'boom'})
+    monkeypatch.setattr(gnrtask, 'sleep', lambda *a, **k: (_ for _ in ()).throw(_StopLoop()))
+
+    with caplog.at_level(logging.ERROR, logger='gnr.web.gnrtask'):
+        with pytest.raises(_StopLoop):
+            worker.start()
+
+    assert worker.released == [(('boom',), {'pid': None, 'start_ts': None})], \
+        'only the failing task must be released, and with the same columns checkAlive clears'
+    assert len(commits) == 2, 'the release has to be committed, like the success path'
 
 
 # ---------------------------------------------------------------------------
