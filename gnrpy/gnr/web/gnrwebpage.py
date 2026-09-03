@@ -866,7 +866,7 @@ class GnrWebPage(GnrBaseWebPage):
         missingMessage = missingMessage or '<div class="chunkeditor_emptytemplate">Missing Template</div>'
         dataInfo = dict()
         if ':' in template_address:
-            segments,pkey = template_address.split(':')
+            segments,pkey = template_address.split(':', 1)
             if segments:
                 segments = segments.split('.')
         else:
@@ -905,7 +905,7 @@ class GnrWebPage(GnrBaseWebPage):
         #pkg.table:resource_module
         #pkg.table:resource_module,custom
         if ':' in template_address:
-            segments,pkey = template_address.split(':')
+            segments,pkey = template_address.split(':', 1)
             if segments:
                 segments = segments.split('.')
         else:
