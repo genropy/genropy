@@ -1081,6 +1081,10 @@ class SiteRegister(BaseRemoteObject):
         return result
 
     def set_serverstore_changes(self, page_id=None, datachanges=None):
+        if not self.page_register.exists(page_id):
+            logger.warning('page %s not existing in register: serverstore changes discarded (%s)',
+                           page_id, ','.join(sorted(datachanges or {})))
+            return
         page_item_data = self.page_register.get_item_data(page_id)
         for k, v in list(datachanges.items()):
             page_item_data.setItem(k, self._parse_change_value(v))
