@@ -851,6 +851,46 @@ function objectFromStyle(style) {
     return result;
 };
 
+var VALUEMAP_WILDCARD = '*';
+
+/* Client-side counterpart of gnr.core.gnrstring.valueMapFormat: resolve a value
+   through a 'key:label,key:label,*:default' map carried by the format column.
+   Returns null when the string is not a value map, or is one that this value
+   does not match, so the caller falls through to its normal formatting.
+   Deliberately not objectFromString, which splits on every ':' and so cannot
+   carry a label containing one. */
+function valueMapFormat(format_choice,value){
+    if(!format_choice || typeof(format_choice)!='string' ||
+            format_choice.indexOf('#')>=0 || format_choice.indexOf(':')<0){
+        return null;
+    }
+    var valuemap = {};
+    var chunks = format_choice.split(',');
+    var lastkey = null;
+    var has = function(k){ return Object.prototype.hasOwnProperty.call(valuemap,k); };
+    for(var i=0;i<chunks.length;i++){
+        var chunk = chunks[i];
+        var pos = chunk.indexOf(':');
+        if(pos<0){
+            if(lastkey===null){
+                return null;
+            }
+            valuemap[lastkey] = valuemap[lastkey]+','+chunk;
+            continue;
+        }
+        var key = chunk.slice(0,pos).trim();
+        if(!key){
+            return null;
+        }
+        valuemap[key] = chunk.slice(pos+1).trim();
+        lastkey = key;
+    }
+    if(has(value)){
+        return valuemap[value];
+    }
+    return has(VALUEMAP_WILDCARD)?valuemap[VALUEMAP_WILDCARD]:null;
+}
+
 function objectFromString(values,sep,mode){
     if(!values){
         return {};
@@ -1139,6 +1179,10 @@ var gnrformatter = {
         }
         if(format=='playsound'){
             return makeLink('javascript:genro.lockScreen(true,"sound"); genro.playUrl("'+value+'",function(){genro.lockScreen(false,"sound")});','<div class="iconbox sound"></div>')
+        }
+        var mapped = valueMapFormat(format,value);
+        if(mapped!==null){
+            return mapped;
         }
         if(typeof(format)=='string' && format.indexOf('#')>=0){ //to check
             format = format.split('');

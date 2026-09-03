@@ -70,7 +70,9 @@ def valueMapFormat(format_choice, value):
 
     Returns ``None`` when ``format_choice`` does not look like a value map (no
     ``:`` pairs, or it contains a ``#`` mask placeholder), so callers can fall
-    back to the standard dtype-based formatting.
+    back to the standard dtype-based formatting. A real format string that does
+    parse as a map — ``'auto:.5'``, ``'HH:mm'`` — also returns ``None``, but
+    only because no value equals one of its keys and it declares no wildcard.
 
     >>> valueMapFormat('A:Approvato,R:Respinto,*:In esame', 'A')
     'Approvato'
@@ -82,14 +84,20 @@ def valueMapFormat(format_choice, value):
     if not format_choice or '#' in format_choice or ':' not in format_choice:
         return None
     valuemap = {}
+    lastkey = None
     for chunk in format_choice.split(','):
         if ':' not in chunk:
-            return None
+            if lastkey is None:
+                return None
+            # a label may contain the separator: rejoin what the split took apart
+            valuemap[lastkey] = '%s,%s' % (valuemap[lastkey], chunk)
+            continue
         key, _, label = chunk.partition(':')
         key = key.strip()
         if not key:
             return None
-        valuemap[key] = label
+        valuemap[key] = label.strip()
+        lastkey = key
     if value in valuemap:
         return valuemap[value]
     return valuemap.get(VALUEMAP_WILDCARD)

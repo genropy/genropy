@@ -116,6 +116,26 @@ def test_valueMapFormat():
     assert gnrstring.valueMapFormat(None, 'A') is None
     assert gnrstring.valueMapFormat('', 'A') is None
 
+def test_valueMapFormat_label_separators():
+    # a comma inside a label used to discard the whole map, silently
+    assert gnrstring.valueMapFormat('A:Approvato, con riserva,R:Respinto',
+                                    'A') == 'Approvato, con riserva'
+    assert gnrstring.valueMapFormat('A:Approvato, con riserva,R:Respinto',
+                                    'R') == 'Respinto'
+    # a colon inside a label is kept: only the first one separates
+    assert gnrstring.valueMapFormat('A:Time 10:30', 'A') == 'Time 10:30'
+    # the label is stripped like the key
+    assert gnrstring.valueMapFormat('A: Approvato,R:Respinto', 'A') == 'Approvato'
+    # nothing to rejoin to, so it is not a value map
+    assert gnrstring.valueMapFormat('Approvato,R:Respinto', 'A') is None
+
+def test_valueMapFormat_real_format_strings_fall_through():
+    # these do parse as maps; they return None because no value matches a key
+    # and no wildcard is declared (localize_img, a time mask)
+    assert gnrstring.valueMapFormat('auto:.5', 'A') is None
+    assert gnrstring.valueMapFormat('x:34,y:56,z:1', 'A') is None
+    assert gnrstring.valueMapFormat('HH:mm', 'A') is None
+
 def test_asDict():
     """docstring for asDict"""
     d = gnrstring.asDict('height=22, weight=73')
