@@ -106,6 +106,7 @@ dojo.declare('gnr.GenroClient', null, {
         this.lastPing = start_ts;
         this._debugPaths = {};
         this._aliasDatapaths = {};
+        this._pageLocals = {};
         this.sendAllEvents=false;
         this._lastMouseEvent = {};
         this._longClickDuration = 1500;
