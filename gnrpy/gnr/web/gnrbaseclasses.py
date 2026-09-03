@@ -347,7 +347,9 @@ class TableScriptToHtml(BagToHtmlWeb):
         if record=='*':
             record = None
         else:
-            record = self.tblobj.recordAs(record, virtual_columns=self.captionVirtualColumns())
+            record = self.tblobj.recordAs(record,
+                                          virtual_columns=self.virtual_columns if isinstance(record, Bag)
+                                          else self.captionVirtualColumns())
         html_folder = self.getHtmlPath(autocreate=True)
         self.locale = locale or self.page.locale
         self.language = language or self.page.language

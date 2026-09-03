@@ -90,3 +90,21 @@ class TestTableScriptOutputName(BaseGnrTest):
         first = self.buildScript(FirstPrint, '*').filepath
         second = self.buildScript(FirstPrint, '*').filepath
         assert first != second
+
+    def test_a_bag_record_keeps_what_the_caller_merged_in(self):
+        # btcprint and print_template pass a Bag already loaded with the batch's
+        # own virtual_columns and extra keys merged in; asking recordAs for the
+        # caption columns would reload it from the database and drop both
+        record = self.tblobj.record(pkey=self.pkeys[0], mode='bag')
+        record['batch_parameter'] = 'kept'
+        script = self.buildScript(FirstPrint, record)
+        assert script.record['batch_parameter'] == 'kept'
+
+    def test_a_bag_record_still_prints_to_its_own_file(self):
+        names = []
+        for pkey in self.pkeys:
+            record = self.tblobj.record(pkey=pkey, mode='bag')
+            names.append(os.path.basename(self.buildScript(FirstPrint, record).filepath))
+        assert len(set(names)) == len(self.pkeys)
+        for pkey, name in zip(self.pkeys, names):
+            assert name.endswith('%s.html' % re.sub(r'\W', '_', pkey))
