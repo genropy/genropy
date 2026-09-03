@@ -15,7 +15,7 @@
 .gnr-tb-toolbar {
     flex-shrink: 0;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 6px;
     padding: 6px 10px;
     background: var(--tb-summary-bg);
@@ -24,16 +24,22 @@
 }
 
 .gnr-tb-toolbar-title {
-    flex: 1;
+    flex: 1 1 auto;
+    min-width: 0;
     font-weight: 600;
     color: var(--tb-error-color);
     font-size: 13px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    max-height: 8em;
+    overflow-y: auto;
+    cursor: text;
 }
 
 .gnr-tb-btn {
+    flex-shrink: 0;
+    white-space: nowrap;
     padding: 4px 10px;
     border: 1px solid var(--tb-btn-border);
     border-radius: var(--tb-frame-radius);
