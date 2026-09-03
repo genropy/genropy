@@ -48,7 +48,7 @@ class Form(BaseComponent):
         fb = pane.formlet(cols=1)
         fb.field('__ins_ts')
         fb.field('error_type')
-        fb.field('description')
+        fb.field('description',width=width,tag='simpleTextArea',height='5em')
         fb.field('username')
         fb.field('user_ip')
         fb.field('user_agent',width=width,tag='simpleTextArea',height='5em')

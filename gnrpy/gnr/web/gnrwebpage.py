@@ -866,7 +866,7 @@ class GnrWebPage(GnrBaseWebPage):
         missingMessage = missingMessage or '<div class="chunkeditor_emptytemplate">Missing Template</div>'
         dataInfo = dict()
         if ':' in template_address:
-            segments,pkey = template_address.split(':')
+            segments,pkey = template_address.split(':', 1)
             if segments:
                 segments = segments.split('.')
         else:
@@ -905,7 +905,7 @@ class GnrWebPage(GnrBaseWebPage):
         #pkg.table:resource_module
         #pkg.table:resource_module,custom
         if ':' in template_address:
-            segments,pkey = template_address.split(':')
+            segments,pkey = template_address.split(':', 1)
             if segments:
                 segments = segments.split('.')
         else:
@@ -1186,7 +1186,11 @@ class GnrWebPage(GnrBaseWebPage):
 
     @public_method
     def getRemoteTranslation(self, txt=None,language=None,**kwargs):
-        return self.localizer.getTranslation(txt,language=language or self.locale)
+        language = language or self.locale
+        result = self.localizer.getTranslation(txt,language=language)
+        if result['status'] != 'OK':
+            logger.debug("Missing translation (%s) for %s in %s", result['status'], txt, language)
+        return result
 
     def localize(self, txt, language=None,**kwargs):
         return self.localizer.translate(txt,language=language or self.locale)
@@ -2377,7 +2381,9 @@ class GnrWebPage(GnrBaseWebPage):
         if 'google' not in api_keys and google_mapkey:
             api_keys.setItem('google',None,mapkey = google_mapkey)
         page.data('gnr.api_keys',api_keys)
-        page.data('gnr.switches', Bag(self.application.config['switches']))
+        switches = Bag(self.application.config['switches'])
+        switches.update(Bag(self.application.config.getAttr('switches')))
+        page.data('gnr.switches', switches)
         if hasattr(self, 'main_root'):
             self.main_root(page, **kwargs)
             return (page, pageattr)
