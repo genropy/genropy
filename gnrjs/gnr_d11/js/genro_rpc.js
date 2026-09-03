@@ -547,7 +547,11 @@ dojo.declare("gnr.GnrRpcHandler", null, {
                     var serverpath_prefix = genro._serverstore_paths[clientpath_prefix];
                     if (stringStartsWith(changepath, serverpath_prefix)) {
                         let clientpath = clientpath_prefix + changepath.slice(serverpath_prefix.length);
-                        updater(clientpath, value, attr, reason);
+                        if (isDelete) {
+                            genro._data.delItem(clientpath);
+                        } else {
+                            updater(clientpath, value, attr, reason);
+                        }
                     }
                 }
             }
