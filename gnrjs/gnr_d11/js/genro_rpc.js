@@ -548,7 +548,10 @@ dojo.declare("gnr.GnrRpcHandler", null, {
                     if (stringStartsWith(changepath, serverpath_prefix)) {
                         let clientpath = clientpath_prefix + changepath.slice(serverpath_prefix.length);
                         if (isDelete) {
-                            genro._data.delItem(clientpath);
+                            // mark the removal as the server's, like the write path
+                            // below and the two other server-side pops: an unmarked
+                            // event is echoed back as a client write (genro.js:1621)
+                            genro._data.delItem(clientpath, reason);
                         } else {
                             updater(clientpath, value, attr, reason);
                         }
@@ -556,7 +559,7 @@ dojo.declare("gnr.GnrRpcHandler", null, {
                 }
             }
             else if (isDelete) {
-                genro._data.delItem(changepath);
+                genro._data.delItem(changepath, reason);
             }
             else {
                 updater(changepath, value, attr, reason);
