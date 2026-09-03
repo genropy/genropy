@@ -1578,8 +1578,8 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                 selection.select(idx);
             }
         }
-        if(scrollTo===true && typeof(idx)=='number' && idx>=0){
-            scrollTo = idx;
+        if(scrollTo===true){
+            scrollTo = (typeof(idx)=='number' && idx>=0) ? idx : false;
         }
         if(scrollTo){
             this.scrollToRow(scrollTo);
@@ -2877,6 +2877,14 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
                 that.restoreSelectedRows();
             },delay,'refreshContent'
         )
+    },
+
+    mixin_setSelectedId: function(pkey) {
+        if (this.rowCount == 0 || isNullOrBlank(pkey)) {
+            this.selection.unselectAll();
+        } else {
+            this.selectByRowAttr(this.rowIdentifier(), pkey, null, true);
+        }
     },
 
     mixin_newDataStore:function() {
