@@ -4981,6 +4981,10 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
         if(!isNullOrBlank(currvalue)){
             this.clearCache();
             if(oneOptionItem && currvalue !== datavalue){
+                // no identity fetch runs on this branch, so the resolver error
+                // of the previous condition would survive into a valid selection
+                // and keep validate_select returning query_error
+                delete this._lastQueryError;
                 this.item = oneOptionItem;
                 if(this._setValueFromItem){
                     this._setValueFromItem(oneOptionItem,false);
@@ -4995,9 +4999,15 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
                 this.setValue(null,false);
                 this.store.fetchItemByIdentity({identity:currvalue,onItem:function(){
                     if(self.sourceNode.getRelativeData(vpath) != currvalue){
-                        // the stale reply may have flagged a value that is no longer there
-                        delete self._lastQueryError;
-                        self.sourceNode.resetValidationError();
+                        // the stale reply may have flagged a value that is no longer
+                        // there. fetchItemByIdentity clears _lastQueryError before
+                        // the call, so a value here belongs to this reply: without
+                        // one there is nothing of ours to undo, and the node may
+                        // meanwhile hold the current value's own error or required
+                        if(self._lastQueryError){
+                            delete self._lastQueryError;
+                            self.sourceNode.resetValidationError();
+                        }
                         return;
                     }
                     self.setValue(currvalue,false);
