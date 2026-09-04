@@ -388,9 +388,11 @@ class AttachManager(BaseComponent):
                                         autoSelect=True,
                                      semaphore=False, searchOn=False,datapath=datapath,**kwargs)
         th.view.top.popNode('bar')
-        th.view.grid.attributes.update(dropTarget_grid='Files',onDrop='AttachManager.onDropFiles(this,files);',
+        th.view.grid.attributes.update(dropTarget_grid='Files',
+                                        onDrop='AttachManager.onDropFiles(this,files,"this.form.reload();");',
                                         dropTypes='Files',_uploader_fkey='=#FORM.pkey',
-                                        _uploader_onUploadingMethod=self.onUploadingAttachment)
+                                        _uploader_onUploadingMethod=self.onUploadingAttachment,
+                                        _uploader_onUploadedMethod=self.onUploadedAttachment)
         readerpane = bc.contentPane(region='center',datapath=datapath,margin='2px',border='1px solid #efefef',
                                 rounded=6,childname='atcviewer',overflow='hidden')
         readerpane.iframe(src='^.reader_url',height='100%',width='100%',
@@ -406,14 +408,16 @@ class AttachManager(BaseComponent):
         pane.slotButton('"Snapshot',iconClass='iconbox photo',action="""FIRE .takeSnapshot;""")
         pane.dataController("""
                         var attachment_table = this.getInheritedAttributes()['table'];
-                        var kw = {attachment_table:attachment_table,maintable_id:fkey,onUploadingMethod:onUploadingMethod,uploaderId:'attachmentManager'};
+                        var kw = {attachment_table:attachment_table,maintable_id:fkey,onUploadingMethod:onUploadingMethod,
+                                  onUploadedMethod:onUploadedMethod,uploaderId:'attachmentManager'};
                         var fm = genro.getParentGenro().framedIndexManager;
                         if(fm){
                             fm.callOnCurrentIframe('dev','takePicture',[kw]);
                         }else{
                             genro.dev.takePicture(kw);
                         }
-            """,_fired='^.takeSnapshot',fkey='=#FORM.pkey',onUploadingMethod=self.onUploadingAttachment)
+            """,_fired='^.takeSnapshot',fkey='=#FORM.pkey',onUploadingMethod=self.onUploadingAttachment,
+                onUploadedMethod=self.onUploadedAttachment)
 
     @struct_method
     def at_attachmentGallery(self,pane,title=None,searchOn=False,
