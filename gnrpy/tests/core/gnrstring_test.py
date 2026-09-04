@@ -129,6 +129,24 @@ def test_valueMapFormat_label_separators():
     # nothing to rejoin to, so it is not a value map
     assert gnrstring.valueMapFormat('Approvato,R:Respinto', 'A') is None
 
+def test_valueMapFormat_unmatched_value_renders_raw():
+    """An unmatched value renders as the value, never as nothing: here the raw
+    fallback comes from toText, on the client from valueMapFormat itself."""
+    assert gnrstring.toText('M::T', format='A:Approvato,R:Respinto') == 'M'
+    b = Bag()
+    b.setItem('status', 'M', format='A:Approvato,R:Respinto', dtype='T')
+    assert gnrstring.templateReplace('$status', b) == 'M'
+
+def test_valueMapFormat_label_keeps_the_raw_value():
+    # %s, the token of the mask column, so a wildcard does not lose the code
+    assert gnrstring.valueMapFormat('A:Approvato,R:Respinto,*:Altro [%s]', 'M') == 'Altro [M]'
+    assert gnrstring.valueMapFormat('A:Approvato,R:Respinto,*:Altro', 'M') == 'Altro'
+    assert gnrstring.valueMapFormat('A:Approvato [%s],R:Respinto', 'A') == 'Approvato [A]'
+    assert gnrstring.valueMapFormat('*:%s/%s', 'M') == 'M/M'
+    b = Bag()
+    b.setItem('status', 'M', format='A:Approvato,*:Altro [%s]', dtype='T')
+    assert gnrstring.templateReplace('$status', b) == 'Altro [M]'
+
 def test_valueMapFormat_real_format_strings_fall_through():
     # these do parse as maps; they return None because no value matches a key
     # and no wildcard is declared (localize_img, a time mask)

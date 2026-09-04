@@ -74,10 +74,16 @@ def valueMapFormat(format_choice, value):
     parse as a map — ``'auto:.5'``, ``'HH:mm'`` — also returns ``None``, but
     only because no value equals one of its keys and it declares no wildcard.
 
+    A label may carry the ``%s`` token of the ``mask`` column to keep the raw
+    value visible, which is what makes a ``*`` wildcard usable without losing
+    the codes it collapses.
+
     >>> valueMapFormat('A:Approvato,R:Respinto,*:In esame', 'A')
     'Approvato'
     >>> valueMapFormat('A:Approvato,R:Respinto,*:In esame', 'Z')
     'In esame'
+    >>> valueMapFormat('A:Approvato,R:Respinto,*:Altro [%s]', 'Z')
+    'Altro [Z]'
     >>> valueMapFormat('A:Approvato,R:Respinto', 'Z') is None
     True
     """
@@ -98,9 +104,10 @@ def valueMapFormat(format_choice, value):
             return None
         valuemap[key] = label.strip()
         lastkey = key
-    if value in valuemap:
-        return valuemap[value]
-    return valuemap.get(VALUEMAP_WILDCARD)
+    label = valuemap[value] if value in valuemap else valuemap.get(VALUEMAP_WILDCARD)
+    if label is None:
+        return None
+    return label.replace('%s', value)
 
 class LocalizedWrapper(object):
     """Missin doc"""

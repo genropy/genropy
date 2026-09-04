@@ -855,8 +855,10 @@ var VALUEMAP_WILDCARD = '*';
 
 /* Client-side counterpart of gnr.core.gnrstring.valueMapFormat: resolve a value
    through a 'key:label,key:label,*:default' map carried by the format column.
-   Returns null when the string is not a value map, or is one that this value
-   does not match, so the caller falls through to its normal formatting.
+   A label may carry the '%s' token of the mask column, replaced by the raw value.
+   Returns null only when the string is not a value map, so the caller falls
+   through to its normal formatting; a map this value does not match returns the
+   value itself, the raw fallback gnrstring.toText gives the server side.
    Deliberately not objectFromString, which splits on every ':' and so cannot
    carry a label containing one. */
 function valueMapFormat(format_choice,value){
@@ -885,10 +887,11 @@ function valueMapFormat(format_choice,value){
         valuemap[key] = chunk.slice(pos+1).trim();
         lastkey = key;
     }
-    if(has(value)){
-        return valuemap[value];
+    var label = has(value)?valuemap[value]:(has(VALUEMAP_WILDCARD)?valuemap[VALUEMAP_WILDCARD]:null);
+    if(label===null){
+        return value;
     }
-    return has(VALUEMAP_WILDCARD)?valuemap[VALUEMAP_WILDCARD]:null;
+    return label.replace(/%s/g,value);
 }
 
 function objectFromString(values,sep,mode){
