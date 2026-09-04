@@ -2,17 +2,20 @@
 """Model build behavior when a model module's filename does not match
 the table name declared by its config_db (issue #106).
 
-The table-mixin registry is keyed by module filename: before the fix,
-a module model/foo.py declaring pkg.table('bar') produced an empty
-phantom table 'foo' and left the real table 'bar' without its mixin;
-an empty module produced an empty table named after the file.
+The table-mixin registry is keyed by the module filename, the model by
+the name config_db declares.  When the two disagree the build used to
+call pkgsrc.table(filename), which is get-or-create: it materialized an
+empty phantom table named after the file and left the declared one
+without its mixin.  The mismatch is an error in the application model,
+so the build now refuses it instead of guessing what was meant.
 """
 
+import pytest
+
 from gnr.sql.gnrsql import GnrSqlDb
+from gnr.sql.gnrsql_exceptions import GnrSqlException
 
 from core.common import BaseGnrAppTest
-
-from .common import BaseGnrSqlTest
 
 
 class MatchingMixin:
@@ -30,49 +33,81 @@ class MismatchedMixin:
     def config_db(self, pkg):
         tbl = pkg.table('bar', pkey='id', name_long='Bar')
         tbl.column('id', 'L')
-        tbl.column('notes', name_long='Notes')
-
-    def bar_method(self):
-        return 'bar'
 
 
 class EmptyMixin:
-    """Simulates an empty model module"""
+    """Simulates a model module declaring nothing"""
     pass
 
 
-class TestModelTableNaming(BaseGnrSqlTest):
+class MultiTableMixin:
+    """Simulates model/alfa.py declaring both alfa and beta"""
+    def config_db(self, pkg):
+        for name in ('alfa', 'beta'):
+            tbl = pkg.table(name, pkey='id', name_long=name)
+            tbl.column('id', 'L')
 
-    @classmethod
-    def setup_class(cls):
-        super().setup_class()
-        cls.db = GnrSqlDb()
-        pkg = cls.db.packageSrc('demo')
-        pkg.attributes.update(name_short='demo', name_long='demo', name_full='demo')
-        cls.db.tableMixin('demo.real', MatchingMixin())
-        cls.db.tableMixin('demo.foo', MismatchedMixin())
-        cls.db.tableMixin('demo.whatever', EmptyMixin())
-        cls.db.startup()
+    def alfa_method(self):
+        return 'alfa'
 
-    def test_matching_module_unchanged(self):
-        tables = self.db.package('demo').tables
-        assert 'real' in tables
-        assert hasattr(self.db.table('demo.real'), 'real_method')
 
-    def test_no_phantom_table_on_name_mismatch(self):
-        tables = sorted(self.db.package('demo').tables.keys())
-        assert 'foo' not in tables
-        assert 'bar' in tables
+class MultiTableUnnamedMixin:
+    """Simulates model/gamma.py declaring delta and epsilon, but no gamma"""
+    def config_db(self, pkg):
+        for name in ('delta', 'epsilon'):
+            tbl = pkg.table(name, pkey='id', name_long=name)
+            tbl.column('id', 'L')
 
-    def test_mixin_rebound_to_declared_table(self):
-        bar = self.db.table('demo.bar')
-        assert hasattr(bar, 'bar_method')
-        assert bar.model.column('notes') is not None
 
-    def test_empty_module_creates_no_table(self):
-        tables = sorted(self.db.package('demo').tables.keys())
-        assert 'whatever' not in tables
-        assert tables == ['bar', 'real']
+def build_model(**mixins):
+    """Build a model for package `demo` out of the given filename/mixin pairs."""
+    db = GnrSqlDb()
+    pkgsrc = db.packageSrc('demo')
+    pkgsrc.attributes.update(name_short='demo', name_long='demo', name_full='demo')
+    for module_name, mixin in mixins.items():
+        db.tableMixin('demo.%s' % module_name, mixin)
+    db.startup()
+    return db
+
+
+class TestModelTableNaming:
+
+    def test_matching_module_builds_and_binds(self):
+        db = build_model(real=MatchingMixin())
+        assert sorted(db.package('demo').tables.keys()) == ['real']
+        assert hasattr(db.table('demo.real'), 'real_method')
+
+    def test_mismatched_module_is_refused(self):
+        with pytest.raises(GnrSqlException) as excinfo:
+            build_model(foo=MismatchedMixin())
+        message = str(excinfo.value)
+        assert 'demo/foo' in message
+        assert "no table named 'foo'" in message
+        assert 'declared: bar' in message
+
+    def test_module_declaring_nothing_is_refused(self):
+        with pytest.raises(GnrSqlException) as excinfo:
+            build_model(real=MatchingMixin(), whatever=EmptyMixin())
+        message = str(excinfo.value)
+        assert 'demo/whatever' in message
+        assert 'declared: real' in message
+
+    def test_module_declaring_nothing_in_an_empty_package(self):
+        with pytest.raises(GnrSqlException) as excinfo:
+            build_model(whatever=EmptyMixin())
+        assert 'declared: none' in str(excinfo.value)
+
+    def test_module_declaring_several_tables_is_accepted(self):
+        db = build_model(alfa=MultiTableMixin())
+        assert sorted(db.package('demo').tables.keys()) == ['alfa', 'beta']
+        assert hasattr(db.table('demo.alfa'), 'alfa_method')
+
+    def test_module_declaring_several_tables_but_not_its_own(self):
+        with pytest.raises(GnrSqlException) as excinfo:
+            build_model(gamma=MultiTableUnnamedMixin())
+        message = str(excinfo.value)
+        assert 'demo/gamma' in message
+        assert 'declared: delta, epsilon' in message
 
 
 class TestGnrDockerModel(BaseGnrAppTest):
