@@ -1,4 +1,5 @@
 import pytest
+import logging
 import os
 import tempfile
 import shutil
@@ -550,6 +551,85 @@ class TestStorageHandler(BaseGnrDaemonTest):
         params = handler.storage_params['my_nested_store']
         assert params.get('implementation') == 'local'
         assert params.get('base_path') == '/tmp/nested'
+
+        # The <storage> container node is not a service itself
+        assert 'storage' not in handler.storage_params
+
+    def test_load_storage_from_siteconfig_nested_and_flat_structure(self):
+        """Test that nested and flat storage services coexist without a phantom 'storage' mount."""
+        from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import BaseStorageHandler
+
+        # Create a mock site with both a nested section and a flat storage service
+        class MockSite:
+            def __init__(self):
+                self.config = Bag()
+                self.config['services.storage.minio'] = Bag()
+                self.config.setAttr('services.storage.minio',
+                    implementation='aws_s3', bucket='sandbox')
+                self.config['services.my_flat_store'] = Bag()
+                self.config.setAttr('services.my_flat_store',
+                    service_type='storage', implementation='local', base_path='/tmp/flat')
+                self.site_static_dir = '/tmp/test_site'
+
+            @property
+            def gnrapp(self):
+                class MockApp:
+                    packages = type('obj', (object,), {'keys': lambda self: []})()
+                return MockApp()
+
+            @property
+            def db(self):
+                return None
+
+        mock_site = MockSite()
+        handler = BaseStorageHandler.__new__(BaseStorageHandler)
+        handler.site = mock_site
+        handler.storage_params = {}
+
+        handler._loadStorageParametersFromSiteConfig()
+
+        assert handler.storage_params['minio'].get('implementation') == 'aws_s3'
+        assert handler.storage_params['minio'].get('bucket') == 'sandbox'
+        assert handler.storage_params['my_flat_store'].get('implementation') == 'local'
+        assert 'storage' not in handler.storage_params
+
+    def test_load_storage_from_siteconfig_old_container_shape_is_warned(self, caplog):
+        """An instance that followed the shape this docstring used to document -
+        <storage service_name="..."> - had its mount registered under the label
+        'storage'. The skip is right, but it must not be silent."""
+        from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import BaseStorageHandler
+
+        class MockSite:
+            def __init__(self):
+                self.config = Bag()
+                self.config['services.storage'] = Bag()
+                self.config.setAttr('services.storage',
+                    service_name='my_storage', implementation='local')
+                self.site_static_dir = '/tmp/test_site'
+
+            @property
+            def gnrapp(self):
+                class MockApp:
+                    packages = type('obj', (object,), {'keys': lambda self: []})()
+                return MockApp()
+
+            @property
+            def db(self):
+                return None
+
+        mock_site = MockSite()
+        handler = BaseStorageHandler.__new__(BaseStorageHandler)
+        handler.site = mock_site
+        handler.storage_params = {}
+
+        with caplog.at_level(logging.WARNING, logger='gnr.web'):
+            handler._loadStorageParametersFromSiteConfig()
+
+        assert 'storage' not in handler.storage_params
+        assert 'my_storage' not in handler.storage_params
+        messages = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
+        assert any('my_storage' in m for m in messages), \
+            'the skipped mount has to be named, or the instance loses it silently'
 
     def test_load_storage_from_siteconfig_flat_structure(self):
         """Test loading storage params from flat <services><my_store service_type='storage' .../></services> structure."""
