@@ -3,8 +3,8 @@
 Three things are pinned here:
 
 - the cache helpers on ``ResourceLoader``: hit, miss, LRU eviction at the
-  ceiling, drop on page close, clear on the flag going off;
-- the TTL on the preference read, in both directions of the boundary;
+  ceiling, drop on page close;
+- the flag, read once from the ``<experimental>`` tag of instanceconfig.xml;
 - the isolation of ``css_requires``/``js_requires``, which the cache turns
   from per-request lists into class attributes shared by every request of
   the same page.
@@ -29,46 +29,36 @@ class _FakeStatic:
         return '/'.join(str(a) for a in args)
 
 
-class _FakeTempEnv:
-    def __enter__(self):
-        return self
+class _FakeApp:
+    """The slice of GnrApp that page_class_cache_enabled touches."""
 
-    def __exit__(self, *exc):
-        return False
+    def __init__(self, flag):
+        self.flag = flag
+        self.flag_reads = 0
 
-
-class _FakeDb:
-    """The slice of GnrSqlDb that page_class_cache_enabled touches."""
-
-    rootstore = '_main_db'
-
-    def tempEnv(self, **kwargs):
-        return _FakeTempEnv()
+    def experimentalFlag(self, group, name):
+        assert (group, name) == ('page', 'page_class_cache')
+        self.flag_reads += 1
+        return self.flag
 
 
 class _FakeSite:
     """The slice of GnrWsgiSite that ResourceLoader.__init__ touches."""
 
-    def __init__(self, preference=False):
+    def __init__(self, flag=False):
         self.site_path = '/tmp/site'
         self.site_name = 'testsite'
         self.gnr_config = {}
         self.debug = False
         self.default_page = None
-        self.preference = preference
-        self.preference_reads = 0
-        self.db = _FakeDb()
+        self.gnrapp = _FakeApp(flag)
 
     def getStatic(self, name):
         return _FakeStatic()
 
-    def getPreference(self, path, pkg=None):
-        self.preference_reads += 1
-        return self.preference
 
-
-def _loader(preference=False):
-    site = _FakeSite(preference=preference)
+def _loader(flag=False):
+    site = _FakeSite(flag=flag)
     return ResourceLoader(site=site), site
 
 
@@ -158,54 +148,25 @@ def test_drop_of_an_unknown_page_is_harmless():
 
 
 # ---------------------------------------------------------------------------
-# The flag and its TTL
+# The flag
 # ---------------------------------------------------------------------------
 
 
-def test_flag_is_read_once_within_the_ttl(monkeypatch):
-    clock = [1000.0]
-    monkeypatch.setattr(grl.time, 'time', lambda: clock[0])
-    loader, site = _loader(preference=True)
+def test_flag_on_enables_the_cache():
+    loader, _site = _loader(flag=True)
     assert loader.page_class_cache_enabled() is True
-    assert site.preference_reads == 1
-    clock[0] += grl.PAGE_CLASS_CACHE_FLAG_TTL - 1
-    assert loader.page_class_cache_enabled() is True
-    assert site.preference_reads == 1
 
 
-def test_flag_is_re_read_past_the_ttl(monkeypatch):
-    clock = [1000.0]
-    monkeypatch.setattr(grl.time, 'time', lambda: clock[0])
-    loader, site = _loader(preference=True)
-    loader.page_class_cache_enabled()
-    clock[0] += grl.PAGE_CLASS_CACHE_FLAG_TTL + 1
-    site.preference = False
+def test_flag_off_disables_the_cache():
+    loader, _site = _loader(flag=False)
     assert loader.page_class_cache_enabled() is False
-    assert site.preference_reads == 2
 
 
-def test_turning_the_flag_off_drops_what_is_already_cached(monkeypatch):
-    clock = [1000.0]
-    monkeypatch.setattr(grl.time, 'time', lambda: clock[0])
-    loader, site = _loader(preference=True)
+def test_flag_is_read_once_at_startup():
+    loader, site = _loader(flag=True)
     loader.page_class_cache_enabled()
-    loader.store_page_class_cache(('page-1', '/pkg/a.py'), _PageA)
-    clock[0] += grl.PAGE_CLASS_CACHE_FLAG_TTL + 1
-    site.preference = False
-    assert loader.page_class_cache_enabled() is False
-    assert len(loader._page_class_cache) == 0
-
-
-def test_turning_the_flag_on_leaves_the_cache_alone(monkeypatch):
-    clock = [1000.0]
-    monkeypatch.setattr(grl.time, 'time', lambda: clock[0])
-    loader, site = _loader(preference=False)
     loader.page_class_cache_enabled()
-    loader.store_page_class_cache(('page-1', '/pkg/a.py'), _PageA)
-    clock[0] += grl.PAGE_CLASS_CACHE_FLAG_TTL + 1
-    site.preference = True
-    assert loader.page_class_cache_enabled() is True
-    assert loader.load_page_class_cache(('page-1', '/pkg/a.py')) is _PageA
+    assert site.gnrapp.flag_reads == 1
 
 
 # ---------------------------------------------------------------------------

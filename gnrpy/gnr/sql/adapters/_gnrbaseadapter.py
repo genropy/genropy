@@ -1135,7 +1135,7 @@ class SqlDbAdapter(object):
         """
         Generate a SQL statement to alter a table's column definition
         """
-        return 'ALTER TABLE %s ALTER TABLE %s TYPE %s' % (table, column, dtype)
+        return 'ALTER TABLE %s ALTER COLUMN %s TYPE %s' % (table, column, dtype)
 
     def dropEmptyTables(self, schema=None):
         """

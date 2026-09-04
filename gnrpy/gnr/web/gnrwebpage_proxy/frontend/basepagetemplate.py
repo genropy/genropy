@@ -5,7 +5,8 @@ A ``PageTemplate`` is a Python class that produces the HTML of a GenroPy
 rootPage using :class:`GnrHtmlSrc` and ``toXml``, replacing the Mako
 ``.tpl`` rendering path.
 
-Activation is opt-in via the ``experimental.no_mako`` preference.
+Activation is opt-in via ``<experimental><page no_mako="True"/></experimental>``
+in instanceconfig.xml.
 """
 
 from gnr.core.gnrhtml import GnrHtmlSrc
