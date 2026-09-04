@@ -979,6 +979,18 @@ class GnrApp(object):
             'dbname': parsed.path.lstrip('/'),
         }
     
+    def experimentalValue(self, group, name):
+        """A setting from the ``<experimental>`` tag of instanceconfig.xml.
+
+        ``<experimental><page remoteForm="delayed"/></experimental>`` is read
+        as ``experimentalValue('page', 'remoteForm')``; a missing tag is ``None``.
+        """
+        return self.config['experimental.%s?%s' % (group, name)]
+
+    def experimentalFlag(self, group, name):
+        """A boolean switch from the ``<experimental>`` tag: a missing tag is ``False``."""
+        return boolean(self.experimentalValue(group, name))
+
     def init(self, db_attrs=None, restorepath=None):
         """Initiate a :class:`GnrApp`
 
