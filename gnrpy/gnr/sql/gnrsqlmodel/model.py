@@ -152,7 +152,16 @@ class DbModel:
                     if hasattr(tblmix, 'config_db'):
                         tblmix._cls = tblmix.config_db.__self__
                     _doObjMixinConfig(tblmix, pkgsrc)
-                    tblsrc = pkgsrc.table(tblmix._tblname)
+                    if 'tables.%s' % tblname not in pkgsrc:
+                        # the mixin registry is keyed by module filename: calling
+                        # pkgsrc.table() here would materialize an empty phantom
+                        # table and leave the declared one without its mixin
+                        declared = set(pkgsrc['tables'].keys()) if 'tables' in pkgsrc else set()
+                        raise GnrSqlException(
+                            'model module %s/%s declares no table named %r (declared: %s): '
+                            'name the module after the table it declares'
+                            % (pkg, tblname, tblname, ', '.join(sorted(declared)) or 'none'))
+                    tblsrc = pkgsrc.table(tblname)
                     tblsrc._mixinobj = tblmix
                     tblmix.src = tblsrc
         onBuildingCalls: list[Any] = []
