@@ -672,25 +672,30 @@ def execute_task(sitename, task):
 
     page = site.dummyPage
     site.currentPage = page
-    page._db = None
-    page.db
-    record = task['payload'] #{x[0]:x[1] for x in task['payload']}
-    task_class = tasktbl.getBtcClass(table=record['table_name'],
-                                     command=record['action'],
-                                     page=page
-                                     )
-    if task_class:
-        task_obj = task_class(page=page, resource_table=page.db.table(record['table_name']),
-                              batch_selection_savedQuery=record['saved_query_code'])
-        task_params = record.get('parameters', {})
-        with db.tempEnv(connectionName="execution"):
-            logger.info("Executing task %s - %s",
-                        record['table_name'],
-                        record['action'])
-            task_obj(parameters=Bag(task_params),task_execution_record=record)
-    else:
-        logger.error("Can't find task class for command %s", record['action'])
-            
+    try:
+        page._db = None
+        page.db
+        record = task['payload'] #{x[0]:x[1] for x in task['payload']}
+        task_class = tasktbl.getBtcClass(table=record['table_name'],
+                                         command=record['action'],
+                                         page=page
+                                         )
+        if task_class:
+            task_obj = task_class(page=page, resource_table=page.db.table(record['table_name']),
+                                  batch_selection_savedQuery=record['saved_query_code'])
+            task_params = record.get('parameters', {})
+            with db.tempEnv(connectionName="execution"):
+                logger.info("Executing task %s - %s",
+                            record['table_name'],
+                            record['action'])
+                task_obj(parameters=Bag(task_params),task_execution_record=record)
+        else:
+            logger.error("Can't find task class for command %s", record['action'])
+    finally:
+        # currentPage is thread local: an exception raised by the task must not
+        # leave this executor thread's entry behind forever (#379/#380)
+        site.currentPage = None
+
     try:
         with requests.Session() as session:
             resp = session.post(f"{GNR_SCHEDULER_URL}/ack", json={"run_id": task["run_id"]})
