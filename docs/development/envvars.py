@@ -8,6 +8,11 @@ variables = {
             "GNR_TEST_PG_PORT": "Database server port for tests",
             "GNR_TEST_PG_USER": "Database server user for tests",
             "GNR_TESTING_INSTANCE_NAME": "Name of the instance when running tests",
+            "GNR_TEST_S3_ENDPOINT": "S3-compatible endpoint (e.g. a local MinIO at http://127.0.0.1:9000) for the storage comparison tests and benchmark; when unset those tests skip",
+            "GNR_TEST_S3_ACCESS_KEY": "Access key for GNR_TEST_S3_ENDPOINT",
+            "GNR_TEST_S3_SECRET_KEY": "Secret key for GNR_TEST_S3_ENDPOINT",
+            "GNR_TEST_S3_BUCKET": "Bucket the storage tests write to (default: sandbox)",
+            "GNR_TEST_S3_PREFIX": "Key prefix the storage tests create and delete under (default: gnrtest)",
     },
     "Deployment": {
         "GNR_RMS_CODE":"TBD",

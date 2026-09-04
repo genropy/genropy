@@ -72,6 +72,15 @@ pgsql = [
 
 mysql = ["mysqlclient"]
 
+# Optional: storage services backed by genro-storage instead of the legacy
+# implementations. s3fs belongs here and not in [project] dependencies because
+# it pulls aiobotocore, which caps botocore while genropy declares boto3 with
+# no upper bound (see #1079).
+genro_storage = [
+  "genro-storage>=0.8,<0.9",
+  "s3fs>=2023.1.0"
+]
+
 developer = [
   "pytest", "pytest-cov", "graphviz",
   "pytest-aiohttp", "pytest-asyncio",
@@ -81,7 +90,8 @@ developer = [
   "psycopg2-binary",
   "psycopg",
   "pymysql",
-  "testing.postgresql" # needed for tests, assuming developers runs tests
+  "testing.postgresql", # needed for tests, assuming developers runs tests
+  "genro-storage>=0.8,<0.9" # needed by the storage comparison tests
 ]
 
 [project.scripts]
