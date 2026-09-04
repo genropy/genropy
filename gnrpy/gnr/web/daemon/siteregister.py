@@ -188,8 +188,8 @@ class BaseRegister(BaseRemoteObject):
                          reason=None, **kwargs):
         if reason == 'autocreate':
             return
-        if evt == 'ins':
-            pathlist.append(node.label)
+        if evt in ('ins', 'del'):
+            pathlist = pathlist + [node.label]
         path = '.'.join(pathlist)
         if evt != 'del' and node.attr.get('_caching_table'):
             caching_subscribers = self.cached_tables[node.attr['_caching_table']]
@@ -201,7 +201,8 @@ class BaseRegister(BaseRemoteObject):
         for subscribed in register_item['subscribed_paths']:
             if path.startswith(subscribed):
                 register_item['datachanges'].append(
-                    ClientDataChange(path=path, value=node.value, reason='serverChange', attributes=node.attr))
+                    ClientDataChange(path=path, value=node.value, reason='serverChange', attributes=node.attr,
+                                     delete=evt == 'del'))
                 break
 
     def invalidateTableCache(self, table):
