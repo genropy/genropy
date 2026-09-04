@@ -23,6 +23,7 @@ import pytest
 
 import gnr.web.gnrwsgisite as gws
 from gnr.core.gnrlang import ThreadedDict
+from gnr.sql.gnrsqltable.helpers import RecordUpdater
 from gnr.web import gnrtask, gnrtask_new
 from gnr.web.daemon.processes import GnrWorker
 
@@ -66,10 +67,13 @@ class _FakeTaskTable:
 
 
 class _FakeDb:
-    def __init__(self, tasktable=None):
+    def __init__(self, tasktable=None, exectable=None):
         self.tasktable = tasktable or _FakeTaskTable()
+        self.exectable = exectable
 
     def table(self, name):
+        if name == 'sys.task_execution' and self.exectable is not None:
+            return self.exectable
         return self.tasktable
 
     @contextlib.contextmanager
@@ -310,10 +314,10 @@ class _FakeStartWorker:
         self._failing = failing
         self.attempted = []
         self.rollbacks = 0
-        self.released = []
+        self.closed = []
 
     def batchUpdate(self, updater, _pkeys=None, **kwargs):
-        self.released.append((tuple(_pkeys), dict(updater)))
+        self.closed.append((tuple(_pkeys), dict(updater)))
 
     def taskToExecute(self):
         return list(self._pkeys)
@@ -346,11 +350,11 @@ def test_legacy_start_survives_a_failing_task(monkeypatch, caplog):
                if r.levelno >= logging.ERROR)
 
 
-def test_legacy_start_releases_the_record_of_a_failing_task(monkeypatch, caplog):
-    """``taskToExecute`` commits ``start_ts`` and ``pid`` before yielding, so
-    surviving the failure without releasing the row leaves it claimed by a live
-    pid: ``active_workers`` keeps counting it and ``checkAlive`` will not free
-    it, and the task is never retried while this worker lives."""
+def test_legacy_start_closes_the_record_of_a_failing_task(monkeypatch, caplog):
+    """``recordToUpdate`` writes nothing on the way out of an exception, so the
+    row stays exactly as ``taskToExecute`` claimed it. It has to be closed the
+    way ``btcbase`` already closes an in-batch failure - ``is_error`` plus
+    ``errorbag`` - plus the ``end_ts`` the success path writes."""
     site = _FakeSite(db=_FakeDb())
     commits = []
     site.db.commit = lambda: commits.append(1)
@@ -362,9 +366,133 @@ def test_legacy_start_releases_the_record_of_a_failing_task(monkeypatch, caplog)
         with pytest.raises(_StopLoop):
             worker.start()
 
-    assert worker.released == [(('boom',), {'pid': None, 'start_ts': None})], \
-        'only the failing task must be released, and with the same columns checkAlive clears'
-    assert len(commits) == 2, 'the release has to be committed, like the success path'
+    assert len(worker.closed) == 1, 'only the failing task must be closed'
+    pkeys, updater = worker.closed[0]
+    assert pkeys == ('boom',)
+    assert updater['is_error'] is True
+    assert updater['end_ts'] is not None, 'without end_ts the row stays in active_workers'
+    assert 'start_ts' not in updater, \
+        'releasing start_ts hands the row straight back to the generator'
+    assert str(updater['errorbag']['error']) == 'task boom exploded'
+    assert len(commits) == 2, 'the closure has to be committed, like the success path'
+
+
+# ---------------------------------------------------------------------------
+# gnr/web/gnrtask.py - the real taskToExecute generator driving the real start
+# ---------------------------------------------------------------------------
+
+
+class _TooManyClaims(BaseException):
+    """Escape hatch for a worker that keeps re-claiming the same row.
+
+    Derived from ``BaseException`` on purpose: ``start`` catches ``Exception``,
+    so an ordinary sentinel would be swallowed by the very handler under test
+    and the loop would spin until the suite times out.
+    """
+
+
+class _FakeExecutionTable:
+    """``sys.task_execution`` reduced to what the worker query actually asks of
+    it: ``$start_ts IS NULL``, ``$task_stopped IS NOT TRUE``,
+    ``$task_active_workers < COALESCE($task_max_workers,1)`` - where
+    ``active_workers`` is ``COUNT(*)`` over the same task with ``$start_ts IS
+    NOT NULL AND $end_ts IS NULL`` - ordered by ``$__ins_ts``, ``limit 1``.
+
+    Rows live in a list, so the generator's second query sees whatever the
+    handler wrote, exactly as it would against the database.
+    """
+
+    pkey = 'id'
+    max_claims = 10
+
+    def __init__(self, rows):
+        self.rows = rows
+        self.claims = []
+        self.wheres = []
+
+    def _row(self, pkey):
+        return next(r for r in self.rows if r['id'] == pkey)
+
+    def _active_workers(self, task_id):
+        return len([r for r in self.rows if r['task_id'] == task_id
+                    and r['start_ts'] is not None and r['end_ts'] is None])
+
+    def query(self, where=None, limit=None, order_by=None, **kwargs):
+        self.wheres.append(where)
+        eligible = [r for r in sorted(self.rows, key=lambda r: r['__ins_ts'])
+                    if r['start_ts'] is None and not r['task_stopped']
+                    and self._active_workers(r['task_id']) < (r['task_max_workers'] or 1)]
+        return _FakeSelection([dict(r) for r in eligible[:limit or len(eligible)]])
+
+    def record(self, pkey=None, **kwargs):
+        return _FakeSelection([dict(self._row(pkey))])
+
+    def recordToUpdate(self, pkey=None, **kwargs):
+        return RecordUpdater(self, pkey=pkey, **kwargs)
+
+    def update(self, record, old_record=None, pkey=None, **kwargs):
+        if record['start_ts'] is not None and old_record['start_ts'] is None:
+            self.claims.append(record['id'])
+            if len(self.claims) > self.max_claims:
+                raise _TooManyClaims(self.claims)
+        self._row(record['id']).update(record)
+
+    def batchUpdate(self, updater, _pkeys=None, **kwargs):
+        for pkey in _pkeys:
+            self._row(pkey).update(updater)
+
+
+class _FakeSelection:
+    def __init__(self, rows):
+        self._rows = rows
+
+    def fetch(self):
+        return self._rows
+
+    def output(self, mode):
+        return self._rows[0]
+
+
+def _execution_row(pkey, task_id, ins_ts):
+    return dict(TASK_EXECUTION, id=pkey, task_id=task_id, __ins_ts=ins_ts,
+                start_ts=None, end_ts=None, pid=None, is_error=None, errorbag=None,
+                task_stopped=False, task_max_workers=None)
+
+
+def test_start_attempts_a_failing_task_once_per_pass(monkeypatch, caplog):
+    """``taskToExecute`` is a generator: ``while f:`` re-runs the query after
+    every ``yield``. Releasing ``start_ts`` on failure makes the released row
+    the first one the very next query returns, so the worker re-claims it
+    immediately, in the same pass, with no ``sleep`` in between - and nothing
+    queued behind it ever runs.
+
+    Everything here is the real thing except the site and the table: the real
+    ``__init__`` builds the real ``where``, the real generator drives the real
+    ``start``, and the real ``runTask`` fails the way an unimportable resource
+    module fails, out of the batch and past ``btcbase``.
+    """
+    exectbl = _FakeExecutionTable([_execution_row('e1', 'task1', 1),
+                                   _execution_row('e2', 'task1', 2)])
+    site = _FakeSite(db=_FakeDb(tasktable=_FakeTaskTable(raising=True),
+                                exectable=exectbl))
+    monkeypatch.setattr(gnrtask, 'GnrWsgiSite', lambda sitename: site)
+    monkeypatch.setattr(gnrtask, 'sleep', lambda *a, **k: (_ for _ in ()).throw(_StopLoop()))
+    site.db.commit = lambda: None
+    site.db.rollbackAll = lambda: None
+
+    worker = gnrtask.GnrTaskWorker('gnrtest')
+    with caplog.at_level(logging.ERROR, logger='gnr.web.gnrtask'):
+        with pytest.raises(_StopLoop):
+            worker.start()
+
+    assert '$start_ts IS NULL' in exectbl.wheres[0], 'the claim really is start_ts driven'
+    assert exectbl.claims == ['e1', 'e2'], \
+        'each row must be claimed once and the pass must reach sleep'
+    assert exectbl._row('e1')['start_ts'] is not None, 'the failing row stays out of the query'
+    assert exectbl._row('e1')['is_error'] is True
+    assert exectbl._row('e1')['end_ts'] is not None, \
+        'end_ts is what frees the worker slot for the next execution of the task'
+    assert site._currentPages._data == {}
 
 
 # ---------------------------------------------------------------------------

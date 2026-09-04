@@ -178,17 +178,22 @@ class GnrTaskWorker(object):
                         self.runTask(task_execution)
                         task_execution['end_ts'] = datetime.now(timezone.utc)
                     self.db.commit()
-                except Exception:
+                except Exception as e:
                     # a failing task used to propagate out of the loop and take
                     # the whole worker down with it, so every task queued behind
                     # it was never run either
                     logger.exception('Task %s failed', te_pkey)
                     self.db.rollbackAll()
-                    # taskToExecute committed start_ts and pid, so the rollback
-                    # cannot release the record: left as it is, active_workers
-                    # keeps counting it and checkAlive will not free it while
-                    # this worker lives, so the task is never retried
-                    self.tblobj.batchUpdate(dict(pid=None, start_ts=None),
+                    # recordToUpdate writes nothing on the way out of an
+                    # exception, so the row is still the one taskToExecute
+                    # claimed: close it the way btcbase closes an in-batch
+                    # failure, or active_workers keeps counting it forever.
+                    # Releasing start_ts instead would hand it straight back to
+                    # the generator; the retry comes from the scheduler, which
+                    # inserts a fresh execution on its next useful pass
+                    self.tblobj.batchUpdate(dict(is_error=True,
+                                                 errorbag=Bag(dict(error=str(e))),
+                                                 end_ts=datetime.now(timezone.utc)),
                                             _pkeys=[te_pkey],
                                             for_update='SKIP LOCKED')
                     self.db.commit()
