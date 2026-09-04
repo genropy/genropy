@@ -674,7 +674,7 @@ class GnrWebPage(GnrBaseWebPage):
             result = '<div>%s</div>' %str(e)
             if error_id:
                 if self.isDeveloper():
-                    detail_url = '/sys/ep_error?error_code=%s' % error_id
+                    detail_url = '%ssys/ep_error?error_code=%s' % (self.site.rootDomainHomeUri, error_id)
                     result = '%s <br/> Exception Id: <a href="%s" target="_blank">%s</a>' % (result, detail_url, error_id)
                 else:
                     result = '%s <br/> Check Exception Id: %s' % (result, error_id)
