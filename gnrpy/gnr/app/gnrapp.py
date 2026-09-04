@@ -62,6 +62,13 @@ class GnrRestrictedAccessException(GnrException):
     description = '!!User not allowed'
 
 
+class GnrUndeclaredPackageException(GnrException):
+    """Raised when a package required through ``Package.required_packages()`` is
+    not declared in the packages section of ``instanceconfig.xml``."""
+    code = 'GNRAPP-002'
+    description = '!!Required package not declared in instanceconfig'
+
+
 class NullLoader(object):
     """TODO"""
 
@@ -872,6 +879,7 @@ class GnrApp(object):
         self.kwargs = kwargs
         self.packages = Bag()
         self.packagesIdByPath = {}
+        self._declared_packages = None
         self.config = self.load_instance_config()
         self.config_locale = self.config('default?server_locale')
         if self.config_locale :
@@ -1061,6 +1069,15 @@ class GnrApp(object):
         self.localizer = AppLocalizer(self)
         self.onInited()
 
+    @property
+    def declared_packages(self):
+        """The package ids declared in the packages section of ``instanceconfig.xml``,
+        without their project prefix."""
+        if self._declared_packages is None:
+            self._declared_packages = set(k.split(':')[-1]
+                                          for k in self.config['packages'].digest('#k'))
+        return self._declared_packages
+
     def addPackage(self,pkgid,pkgattrs=None,pkgcontent=None):
         if ':' in pkgid:
             project,pkgid=pkgid.split(':')
@@ -1074,6 +1091,11 @@ class GnrApp(object):
         apppkg.content = pkgcontent or Bag()
         readOnlyAttrs = {'readOnly':True} if attrs.get('readOnly') else dict()
         for reqpkgid in apppkg.required_packages():
+            if reqpkgid.split(':')[-1] not in self.declared_packages:
+                raise GnrUndeclaredPackageException(
+                    f"Package '{pkgid}' requires '{reqpkgid}', which is not declared "
+                    f"in the packages section of instanceconfig.xml. Declare it there: "
+                    f"its python dependencies are not checked otherwise.")
             self.addPackage(reqpkgid,pkgattrs=dict(readOnlyAttrs))
         self.packagesIdByPath[os.path.realpath(apppkg.packageFolder)] = pkgid
         self.packages[pkgid] = apppkg
