@@ -396,6 +396,8 @@ class CsvReader(BaseReader):
 
     def __call__(self):
         for r in self.rows:
+            if not r:
+                continue
             yield GnrNamedList(self.index, r)
         if self._owns_filecsv:
             self.filecsv.close()

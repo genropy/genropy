@@ -593,6 +593,28 @@ def test_CsvReader_delimiter_without_dialect():
     assert len(list(reader())) == 6
 
 
+
+def test_CsvReader_doubled_line_terminators():
+    """Test CsvReader on a file whose records end with CR CR LF.
+
+    Some Windows exporters emit a doubled CR, which every csv reader (clevercsv
+    and the stdlib alike, in text mode and with newline='') splits into an extra
+    zero-field row per record.
+    """
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, newline='') as f:
+        csv_file = f.name
+        f.write('id;name\r\r\n1;Alice\r\r\n2;Bob\r\r\n')
+
+    try:
+        reader = CsvReader(csv_file, delimiter=';')
+        assert reader.headers == ['id', 'name']
+        rows = list(reader())
+        assert len(rows) == 2
+        assert [r['name'] for r in rows] == ['Alice', 'Bob']
+    finally:
+        os.unlink(csv_file)
+
+
 ### ported from gnrlist_test
 def test_getReader():
 
