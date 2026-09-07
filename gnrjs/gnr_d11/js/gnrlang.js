@@ -66,20 +66,23 @@ function _T(str,lazy){
         return str;
     }
     var localsdict = genro.getFromStorage('local',localekey) || {};
-    if(isNullOrBlank(localsdict[str])){
-        var toTranslate = noLocMarker?'!!'+str:str;
-        var result = genro.serverCall('getRemoteTranslation',{txt:toTranslate,language:language}) || {};
-        var localizedString = result['translation'];
-        if(result.status!='OK'){
-            localsdict[str] ='<span class="unlocalized">'+localizedString+'</span>';
-        }
-        localsdict[str] = localizedString;
-        genro.setInStorage('local',localekey,localsdict);
-        return localizedString;
-    }else{
+    if(!isNullOrBlank(localsdict[str])){
         return localsdict[str];
     }
-    return str;
+    var pagelocals = genro._pageLocals[localekey] = genro._pageLocals[localekey] || {};
+    if(!isNullOrBlank(pagelocals[str])){
+        return pagelocals[str];
+    }
+    var toTranslate = noLocMarker?'!!'+str:str;
+    var result = genro.serverCall('getRemoteTranslation',{txt:toTranslate,language:language}) || {};
+    var localizedString = result['translation'];
+    if(result.status=='OK'){
+        localsdict[str] = localizedString;
+        genro.setInStorage('local',localekey,localsdict);
+    }else{
+        pagelocals[str] = localizedString;
+    }
+    return localizedString;
 }
 
 function _F(val,format,dtype){
@@ -545,6 +548,31 @@ function objectIsEqual(obj1, obj2) {
             return false;
         }
     }
+}
+
+function changedAttrKeys(currattr, newattr, updattr) {
+    if (newattr == null) {
+        return []; //a setter without attributes leaves them untouched
+    }
+    currattr = currattr || {};
+    var changed = [];
+    for (var k in newattr) {
+        if (updattr == '*' && newattr[k] == null) {
+            if (k in currattr) {
+                changed.push(k); //update with '*': a null deletes the attribute
+            }
+        } else if (!(k in currattr) || !isEqual(newattr[k], currattr[k])) {
+            changed.push(k);
+        }
+    }
+    if (!updattr) {
+        for (var k in currattr) {
+            if (!(k in newattr)) {
+                changed.push(k); //replace semantics: a dropped attribute changes its own path
+            }
+        }
+    }
+    return changed;
 }
 
 function isNullOrBlank(elem){
