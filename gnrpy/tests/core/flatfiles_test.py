@@ -572,6 +572,27 @@ def test_CsvReader_auto_dialect():
         assert last_row[9] == expected_description
 
 
+
+def test_CsvReader_delimiter_without_dialect():
+    """Test CsvReader and getReader with an explicit delimiter and no dialect.
+
+    clevercsv rejects dialect=None where the stdlib csv accepts it, so the
+    delimiter has to be passed on its own.
+    """
+    test_file = os.path.join(DATA_DIR, 'test_CsvAuto_SemiColon.csv')
+
+    reader = CsvReader(test_file, delimiter=';', encoding='utf-8')
+    assert reader.ncols == 11
+    assert reader.headers[0] == 'Data contabile'
+    rows = list(reader())
+    assert len(rows) == 6
+    assert rows[5][2] == '-50,00'
+
+    reader = getReader(test_file, delimiter=';', encoding='utf-8')
+    assert reader.ncols == 11
+    assert len(list(reader())) == 6
+
+
 ### ported from gnrlist_test
 def test_getReader():
 
