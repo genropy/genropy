@@ -84,3 +84,15 @@ class TestGridDataSelectionOrder(BaseGnrAppTest):
         )
 
         assert _codes(resource.gridData()) == selection_pkeys
+
+    def test_duplicate_selection_pkeys_keep_unselected_last(self):
+        resource = _make_resource(
+            self.app.db,
+            selection_pkeys=['C1', 'C1', 'C3'],
+            export_mode=True,
+        )
+
+        codes = _codes(resource.gridData())
+
+        assert codes[:2] == ['C1', 'C3']
+        assert set(codes[2:]) == {'C2', 'C4'}
