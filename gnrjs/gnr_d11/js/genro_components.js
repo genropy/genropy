@@ -4304,9 +4304,7 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
                 gnrwdg.fakeinputNode.domNode.click();
             }
         }
-        if(label && label.startsWith('!!')){
-            label = _T(label)
-        }
+        label = _T(label,true);
         dropAreaKw.innerHTML = dropAreaKw.innerHTML || label || '&nbsp;';
         var maxsize = objectPop(kw,'maxsize');
         var allowedExtensions = objectPop(kw,'extensions');
@@ -4377,7 +4375,7 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
                 }
                 if (totSize>maxsize){
                     var size_kb = maxsize/1000
-                    genro.dlg.alert("File exeeds size limit ("+size_kb+"KB)",'Error');
+                    genro.dlg.alert(_T("File exceeds size limit")+` (${size_kb}KB)`,_T('Error'));
                     return false;
                 }
             }
