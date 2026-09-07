@@ -2,6 +2,11 @@
 
 "Dbselect"
 
+from time import sleep
+
+from gnr.core.gnrdecorator import public_method
+
+
 class GnrCustomWebPage(object):
     py_requires="gnrcomponents/testhandler:TestHandlerFull"
 
@@ -37,7 +42,64 @@ class GnrCustomWebPage(object):
         fb = pane.formbuilder(cols=2, border_spacing='4px')
         fb.dbSelect(table='glbl.regione',value='^.regione',lbl='Regione',width='25em',selected_nome='.nome_regione')
         fb.dbSelect(table='glbl.provincia',value='^.sigla',condition='$regione=:regione',condition_regione='^.regione',
-                        lbl='Sigla',width='25em', validate_notnull=True, validate_notnull_error='Manca il valore')
+                        lbl='Sigla',width='25em', selected_nome='.nome_provincia',
+                        validate_notnull=True, validate_notnull_error='Manca il valore')
+        fb.textbox(value='^.nome_provincia',lbl='Nome provincia')
+
+    def test_7_condition_single_option(self,pane):
+        "A single option updates both select widgets and their related values"
+        pane.data('.regione','LOM')
+        pane.data('.sigla','MI')
+        pane.data('.sigla_combo','MI')
+        fb = pane.formbuilder(cols=2, border_spacing='4px')
+        fb.dbSelect(table='glbl.regione',value='^.regione',lbl='Regione',width='25em')
+        fb.dbSelect(table='glbl.provincia',value='^.sigla',condition='$regione=:regione',
+                    condition_regione='^.regione',lbl='DbSelect',width='25em',
+                    selected_nome='.nome_provincia',validate_notnull=True)
+        fb.dbComboBox(table='glbl.provincia',value='^.sigla_combo',alternatePkey='sigla',
+                      condition='$regione=:regione',condition_regione='^.regione',
+                      lbl='DbComboBox',width='25em',selected_nome='.nome_provincia_combo',
+                      validate_notnull=True)
+        fb.textbox(value='^.nome_provincia',lbl='Nome dbSelect')
+        fb.textbox(value='^.nome_provincia_combo',lbl='Nome dbComboBox')
+        fb.button('Set VAL / AO',action="SET .regione='VAL'; SET .sigla='AO'; SET .sigla_combo='AO';")
+
+    def test_8_condition_race(self,pane):
+        "A stale condition reply must not restore or invalidate a newer value"
+        pane.data('.regione','VAL')
+        pane.data('.sigla','AO')
+        fb = pane.formbuilder(cols=2, border_spacing='4px')
+        fb.dbSelect(table='glbl.regione',value='^.regione',lbl='Regione',width='25em')
+        fb.dbSelect(table='glbl.provincia',value='^.sigla',method=self.delayedDbSelect,
+                    condition='$regione=:regione',condition_regione='^.regione',
+                    lbl='DbSelect',width='25em')
+        fb.div('^.sigla',lbl='Datastore value')
+        pane.dataRpc('.race_province',self.raceProvince,regione='^.regione',
+                     _if="regione=='LOM'",_else='null')
+        pane.dataController("SET .sigla=province;",province='^.race_province',_if='province')
+        fb.button('Set LOM / MI',action="SET .regione='LOM';")
+
+    @public_method
+    def delayedDbSelect(self,_id=None,**kwargs):
+        if _id == 'AO':
+            sleep(1)
+        return self.app.dbSelect(_id=_id,**kwargs)
+
+    @public_method
+    def raceProvince(self,regione=None):
+        return 'MI' if regione == 'LOM' else None
+
+    def test_9_condition_null(self,pane):
+        "Condition change and SET null in the same tick: caption clears, no validation error"
+        pane.data('.regione','VAL')
+        pane.data('.sigla','AO')
+        fb = pane.formbuilder(cols=2, border_spacing='4px')
+        fb.dbSelect(table='glbl.regione',value='^.regione',lbl='Regione',width='25em')
+        fb.dbSelect(table='glbl.provincia',value='^.sigla',method=self.delayedDbSelect,
+                    condition='$regione=:regione',condition_regione='^.regione',
+                    lbl='DbSelect',width='25em',nodeId='dbselect_condition_null')
+        fb.div('^.sigla',lbl='Datastore value')
+        fb.button('Set LOM / null',action="SET .regione='LOM'; SET .sigla=null;")
         
     def test_2_clientmethod(self,pane):
         "Manually set what to display with callbackSelect"
