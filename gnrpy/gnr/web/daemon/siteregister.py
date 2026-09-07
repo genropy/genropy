@@ -199,7 +199,7 @@ class BaseRegister(BaseRemoteObject):
             else:
                 caching_subscribers[register_item_id].add(path)
         for subscribed in register_item['subscribed_paths']:
-            if path.startswith(subscribed):
+            if path == subscribed or path.startswith(subscribed + '.'):
                 register_item['datachanges'].append(
                     ClientDataChange(path=path, value=node.value, reason='serverChange', attributes=node.attr))
                 break
