@@ -54,7 +54,7 @@ dependencies = [
 	     "six", # evaluate if needed
 	     "smart_open<8.0",
 	     "supervisor",
-	     "tzlocal",
+	     "tzlocal>=3",
 	     "unidecode",
 	     "vobject",
 	     "watchfiles", # used in asyncio for autoreload

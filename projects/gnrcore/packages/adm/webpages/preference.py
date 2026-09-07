@@ -20,4 +20,4 @@ class GnrCustomWebPage(object):
         return '!!Preference panel'
 
     def main(self, rootBC, **kwargs):
-        mainbc, top, bottom = self.pbl_rootBorderContainer(rootBC, '!!Preference')
+        rootBC.rootBorderContainer('!!Preference')

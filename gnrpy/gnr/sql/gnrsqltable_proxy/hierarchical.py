@@ -257,6 +257,15 @@ class HierarchicalHandler(object):
         if parent_id:
             parent_record = tblobj.query(where='$%s=:pid' %pkeyfield,pid=parent_id,subtable='*').fetch()
             parent_record = parent_record[0] if parent_record else None
+        has_counter = tblobj.column('_row_count') is not None
+        if has_counter and old_record is None and record.get('_row_count') is None:
+            #has counter and inserting a new record without '_row_count':
+            #it must be assigned before the hierarchical loop, because '_row_count'
+            #can itself be one of the hierarchical fields
+            where = '$parent_id IS NULL' if not parent_id else '$parent_id =:p_id'
+            last_counter = tblobj.readColumns(columns='$_row_count',where=where,subtable='*',
+                                        order_by='$_row_count desc',limit=1,p_id=parent_id)
+            record['_row_count'] = (last_counter or 0)+1
         for fld in tblobj.attributes.get('hierarchical').split(','):
             parent_h_fld='_parent_h_%s'%fld
             h_fld='hierarchical_%s'%fld
@@ -267,15 +276,9 @@ class HierarchicalHandler(object):
             for field,colobj in tblobj.columns.items():
                 if colobj.attributes.get('copyFromParent'):
                     record[field] = parent_record[field]
-        if tblobj.column('_row_count') is None:
-            return 
+        if not has_counter:
+            return
         record['_parent_h_count'] = parent_record['_h_count'] if parent_record else None
-        if old_record is None and record.get('_row_count') is None:
-            #has counter and inserting a new record without '_row_count'
-            where = '$parent_id IS NULL' if not record.get('parent_id') else '$parent_id =:p_id' 
-            last_counter = tblobj.readColumns(columns='$_row_count',where=where,subtable='*',
-                                        order_by='$_row_count desc',limit=1,p_id=parent_id)
-            record['_row_count'] = (last_counter or 0)+1
         if old_record is None or tblobj.fieldsChanged('_row_count,_parent_h_count',record,old_record):
             record['_h_count'] = '%s%s' %(record.get('_parent_h_count') or '',encode36(record['_row_count'],2))
         

@@ -8,8 +8,9 @@ calculateExternalUrl, homonym disambiguation and 404 fallbacks.
 import os
 from contextlib import contextmanager
 from datetime import date
-from pathlib import Path
 from types import SimpleNamespace
+
+from werkzeug.exceptions import NotFound
 
 from gnr.app.gnrlocalization import AppLocalizer
 from gnr.core.gnrlang import gnrImport
@@ -19,7 +20,6 @@ from core.common import BaseGnrAppTest
 BASE_URL = 'https://docs.example.org'
 CDN_BASE_URL = 'https://cdn.example.org'
 INSTANCE_HOST = 'https://instance.example.org'
-COMMON_RESOURCES = Path(__file__).resolve().parents[5] / 'resources' / 'common'
 
 
 class TestDocuResolver(BaseGnrAppTest):
@@ -39,6 +39,9 @@ class TestDocuResolver(BaseGnrAppTest):
         testguide: guide -> install, usage -> advanced, ghost (unpublished)
         otherbook: other -> install
         relbook: relroot -> setup (handbook_url stored as host-relative path)
+        twinbook: twinroot -> twinsection -> twinpage, with a local twin handbook
+                  sharing the same docroot
+        zipbook: ziproot -> zippage, local handbook only (no published site)
         """
         def add_doc(name, parent_id=None, publish_date=True):
             record = dict(name=name, parent_id=parent_id,
@@ -55,6 +58,11 @@ class TestDocuResolver(BaseGnrAppTest):
         add_doc('install', parent_id=other_root)
         rel_root = add_doc('relroot')
         add_doc('setup', parent_id=rel_root)
+        twin_root = add_doc('twinroot')
+        twin_section = add_doc('twinsection', parent_id=twin_root)
+        add_doc('twinpage', parent_id=twin_section)
+        zip_root = add_doc('ziproot')
+        add_doc('zippage', parent_id=zip_root)
 
         handbook_tbl = cls.db.table('docu.handbook')
         handbook_tbl.insert(dict(name='testguide', title='Test guide', docroot_id=guide_root,
@@ -63,6 +71,14 @@ class TestDocuResolver(BaseGnrAppTest):
                                  handbook_url=f'{BASE_URL}/otherbook/'))
         handbook_tbl.insert(dict(name='relbook', title='Relative book', docroot_id=rel_root,
                                  handbook_url='/docs/relbook/'))
+        handbook_tbl.insert(dict(name='twinbook', title='Twin book', docroot_id=twin_root,
+                                 handbook_url=f'{BASE_URL}/twinbook/'))
+        handbook_tbl.insert(dict(name='twinbook_local', title='Twin book (local)',
+                                 docroot_id=twin_root, is_local_handbook=True,
+                                 handbook_url=f'{BASE_URL}/twinbook/'))
+        handbook_tbl.insert(dict(name='zipbook', title='Zip book', docroot_id=zip_root,
+                                 is_local_handbook=True,
+                                 handbook_url=f'{BASE_URL}/zipbook/'))
         cls.db.commit()
 
     def resolve(self, path):
@@ -84,6 +100,20 @@ class TestDocuResolver(BaseGnrAppTest):
             f'{BASE_URL}/testguide/install.html'
         assert self.resolve('otherbook/oldsection/install.html') == \
             f'{BASE_URL}/otherbook/install.html'
+
+    def test_shared_docroot_does_not_double_handbook_root(self):
+        """Two handbooks on the same docroot repeat it in the ancestors join: the
+        repeated row must not become an extra path segment (issue: the handbook
+        root name appeared twice in the redirect)"""
+        assert self.resolve('twinbook/oldsection/twinpage.html') == \
+            f'{BASE_URL}/twinbook/twinsection/twinpage.html'
+        assert self.resolve('oldsite/twinroot.html') == f'{BASE_URL}/twinbook/index.html'
+
+    def test_local_handbook_never_resolves(self):
+        """A local handbook is a downloadable zip with no published site: its
+        pages have no url to redirect to, stale handbook_url included"""
+        assert self.resolve('zipbook/oldsection/zippage.html') is None
+        assert self.resolve('oldsite/ziproot.html') is None
 
     def test_homonym_unresolvable_ambiguity(self):
         assert self.resolve('unknownbook/install.html') is None
@@ -128,24 +158,17 @@ class TestDocuResolver(BaseGnrAppTest):
             assert self.resolve('testguide/oldsection/advanced.html') == \
                 f'{BASE_URL}/testguide/usage/advanced.html'
 
-    def _resolver_tool(self, resources=True):
+    def _resolver_tool(self):
         module_path = os.path.join(self.app.packages['docu'].packageFolder,
                                    'webtools', 'resolver.py')
         module = gnrImport(module_path, avoidDup=True)
         tool = module.DocuResolver()
-
-        def getResource(path, ext=None, pkg=None):
-            if not resources:
-                return None
-            resource_path = COMMON_RESOURCES / path
-            return str(resource_path) if resource_path.exists() else None
 
         def externalUrl(url, **kwargs):
             fmt = '{}{}' if url.startswith('/') else '{}/{}'
             return fmt.format(INSTANCE_HOST, url)
 
         tool.site = SimpleNamespace(db=self.db, gnrapp=self.app,
-                                    getResource=getResource,
                                     externalUrl=externalUrl)
         return tool
 
@@ -165,20 +188,52 @@ class TestDocuResolver(BaseGnrAppTest):
         assert response.status_code == 301
         assert response.headers['Location'] == f'{CDN_BASE_URL}/docs/relbook/setup.html'
 
-    def test_webtool_unknown_page_404(self):
+    def test_webtool_unknown_page_404_is_framework_page(self):
+        """The 404 body is the plain framework page any unresolvable instance url
+        answers with, not a placeholder image page"""
         response = self._resolver_tool()('testguide', 'nowhere.html')
         assert response.status_code == 404
-        template = (COMMON_RESOURCES / 'html_pages' / 'missing_result.html').read_text()
-        assert response.get_data(as_text=True) == template
-
-    def test_webtool_404_without_template_is_localized(self):
-        """No framework page and no instance override: the body still has to be
-        a localized message rather than a raw localization marker."""
-        response = self._resolver_tool(resources=False)('testguide', 'nowhere.html')
-        assert response.status_code == 404
         body = response.get_data(as_text=True)
-        assert body == AppLocalizer(self.app).translate('!!Page not found')
-        assert body and '!!' not in body
+        assert body.startswith(NotFound().get_body())
+        assert len(body) < 1024
+
+    def test_webtool_404_links_back_to_handbook(self):
+        """A dead url under a published handbook is not a dead end: the 404 page
+        carries a link to the handbook index, with a localized label"""
+        response = self._resolver_tool()('testguide', 'nowhere.html')
+        body = response.get_data(as_text=True)
+        label = AppLocalizer(self.app).translate('!!Back to handbook')
+        assert f'href="{BASE_URL}/testguide/index.html"' in body
+        assert f'>{label}</a>' in body
+        assert '!!' not in body
+
+    def test_webtool_404_without_handbook_has_no_link(self):
+        """A path naming no published handbook has no index to go back to: the
+        body stays the bare framework page"""
+        response = self._resolver_tool()('unknownbook', 'nowhere.html')
+        assert response.status_code == 404
+        assert response.get_data(as_text=True) == NotFound().get_body()
+
+    def test_webtool_404_link_skips_local_handbook(self):
+        """A local handbook is a zip download: it publishes no index to link"""
+        response = self._resolver_tool()('zipbook', 'nowhere.html')
+        assert response.status_code == 404
+        assert response.get_data(as_text=True) == NotFound().get_body()
+
+    def test_handbook_index_url_from_request_path(self):
+        handbook_tbl = self.db.table('docu.handbook')
+        assert handbook_tbl.indexUrlFromRequestPath('testguide/usage/advanced.html') == \
+            f'{BASE_URL}/testguide/index.html'
+        assert handbook_tbl.indexUrlFromRequestPath('nothing/here.html') is None
+        assert handbook_tbl.indexUrlFromRequestPath('') is None
+
+    def test_handbook_index_url_absolutized_by_preference(self):
+        """A handbook_url stored as a host-relative path is absolutized against
+        the same preference the export publishes with: the 404 page may be read
+        through the docs host, which is not the instance one"""
+        with self.sphinxBaseurl(f'{CDN_BASE_URL}/'):
+            assert self.db.table('docu.handbook').indexUrlFromRequestPath(
+                'docs/relbook/setup.html') == f'{CDN_BASE_URL}/docs/relbook/index.html'
 
     # kept last: it publishes a crowd of homonyms the other tests do not expect
 

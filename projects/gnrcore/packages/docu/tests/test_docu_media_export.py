@@ -20,42 +20,13 @@ from types import SimpleNamespace
 import pytest
 
 from gnr.core.gnrlang import gnrImport
-from gnr.lib.services.storage import BaseLocalService
 
 from core.common import BaseGnrAppTest
-from sitestub import StorageSiteStub, INSTANCE_HOST, MEDIA_HOST
+from sitestub import (BUCKET_HOST, INSTANCE_HOST, MEDIA_HOST,
+                      PrivateBucketLocalService, SigningLocalService,
+                      StorageSiteStub)
 
-PUBLIC_HOST = 'https://cdn.example.org'
-BUCKET_HOST = 'https://s3.eu-south-1.amazonaws.com'
 IMAGEFINDER = re.compile(r"\.\. image:: ([\w./:-]+)")
-
-
-class SigningLocalService(BaseLocalService):
-    """Local service mimicking a signing storage with a public base of its own
-    (e.g. aws_s3 with public_base_url): url() is signed, expiring and served by
-    the instance, while public_url() is plain, permanent and served by the
-    public base, which declares the content readable by anyone."""
-
-    public_base_url = PUBLIC_HOST
-
-    def url(self, *args, **kwargs):
-        return '%s?Signature=deadbeef&Expires=123' % super().url(*args, **kwargs)
-
-    def public_url(self, *args, **kwargs):
-        return '/'.join([self.public_base_url, self.service_name] + list(args))
-
-
-class PrivateBucketLocalService(BaseLocalService):
-    """Local service mimicking a signing storage with no public base configured
-    (e.g. aws_s3 without public_base_url): public_url() still answers a url on
-    the bucket endpoint, outside the instance, but nothing says that bucket is
-    publicly readable, so linking it would publish 403s."""
-
-    def url(self, *args, **kwargs):
-        return '%s?Signature=deadbeef&Expires=123' % super().url(*args, **kwargs)
-
-    def public_url(self, *args, **kwargs):
-        return '/'.join([BUCKET_HOST, self.service_name] + list(args))
 
 
 class TestDocuMediaExport(BaseGnrAppTest):
