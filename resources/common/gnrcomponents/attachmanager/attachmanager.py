@@ -27,6 +27,8 @@ from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import public_method,extract_kwargs
 
 
+DEFAULT_DROPAREA_LABEL = '<div>[!!Drop document here]</div><div>[!!or double click to upload]</div>'
+
 IMAGES_EXT = ('.png','.jpg','.jpeg','.gif','.webp')
 VIDEOS_EXT = ('.mp4','.avi','.mpg','.mpeg')
 
@@ -271,13 +273,18 @@ class AttachManager(BaseComponent):
         th.view.grid_envelope.attributes['margin'] = '10px'
         th.view.grid_envelope.attributes['margin_top'] = '0'
 
-    @extract_kwargs(default=True)
+    def _atc_dropAreaLabel(self,label=None):
+        #the caller replaces only the text: the styled atc_galleryDropArea wrapper is always preserved
+        content = '<div>%s</div>' %label if label else DEFAULT_DROPAREA_LABEL
+        return '<div class="atc_galleryDropArea">%s</div>' %content
+
+    @extract_kwargs(default=True,uploader=True)
     @struct_method
     def at_attachmentViewer(self,pane,title=None,
                             datapath='.attachments',maintable_id=None,
                             relation=None,table=None,preview=True,delrow=False,searchOn=False,
                             viewResource=None,uploaderButton=None,ask=None,default_kwargs=None,
-                            **kwargs):
+                            uploader_kwargs=None,**kwargs):
         if not table:
             relation=relation or '@atc_attachments'
         viewResource = viewResource or ('gnrcomponents/attachmanager/attachmanager:ViewAtcMobile' if preview else 'gnrcomponents/attachmanager/attachmanager:ViewAtcMobileNoPreview')
@@ -290,7 +297,7 @@ class AttachManager(BaseComponent):
                                      **kwargs)
         if uploaderButton:
             th.view.bottom.dropUploader(
-                            label='<div class="atc_galleryDropArea"><div>[!!Drop document here]</div><div>[!!or double click to upload]</div></div>',
+                            label=self._atc_dropAreaLabel(uploader_kwargs.pop('label',None)),
                             height='40px',
                             ask=ask,
                             onUploadingMethod=self.onUploadingAttachment,
@@ -299,7 +306,8 @@ class AttachManager(BaseComponent):
                             rpc_attachment_table= th.view.grid.attributes['table'],
                             _class='importerPaletteDropUploaderBox',
                             cursor='pointer',nodeId='%(nodeId)s_uploader' %th.attributes,
-                            **{f'rpc_{k}':v for k,v in default_kwargs.items()})
+                            **{f'rpc_{k}':v for k,v in default_kwargs.items()},
+                            **uploader_kwargs)
 
         if not searchOn:
             th.view.top.pop('bar')
@@ -355,10 +363,8 @@ class AttachManager(BaseComponent):
         if screenshot:
             th.view.top.bar.replaceSlots('delrow','delrow,screenshot,5')
         if uploaderButton:
-            custom_label = uploader_kwargs.pop('label', None)
-            label_content = '<div>%s</div>' % custom_label if custom_label else '<div>[!!Drop document here]</div><div>[!!or double click to upload]</div>'
             th.view.bottom.dropUploader(
-                            label='<div class="atc_galleryDropArea">%s</div>' % label_content,
+                            label=self._atc_dropAreaLabel(uploader_kwargs.pop('label',None)),
                             height='40px',
                             ask=ask,
                             onUploadingMethod=self.onUploadingAttachment,
@@ -438,12 +444,13 @@ class AttachManager(BaseComponent):
             """,_fired='^.takeSnapshot',fkey='=#FORM.pkey',onUploadingMethod=self.onUploadingAttachment,
                 onUploadedMethod=self.onUploadedAttachment)
 
+    @extract_kwargs(uploader=True)
     @struct_method
     def at_attachmentGallery(self,pane,title=None,searchOn=False,
                         datapath='.attachments',mode=None,viewResource=None,
                         table=None,maintable_id=None,nodeId=None,
                         parentStack=None,
-                        uploaderButton=True,
+                        uploaderButton=True,uploader_kwargs=None,
                         **kwargs):
         #it will replace at_attachmentPane and at_attachmentGrid
 
@@ -484,14 +491,15 @@ class AttachManager(BaseComponent):
 
         if uploaderButton:
             th.view.bottom.dropUploader(
-                            label='<div class="atc_galleryDropArea"><div>[!!Drop document here]</div><div>[!!or double click to upload]</div></div>',
+                            label=self._atc_dropAreaLabel(uploader_kwargs.pop('label',None)),
                             height='40px',
                             onUploadingMethod=self.onUploadingAttachment,
                             onUploadedMethod=self.onUploadedAttachment,
                             rpc_maintable_id= maintable_id.replace('^','=') if maintable_id else '=#FORM.pkey' ,
                             rpc_attachment_table= th.view.grid.attributes['table'],
                             _class='importerPaletteDropUploaderBox',
-                            cursor='pointer',nodeId='%(nodeId)s_uploader' %th.attributes)
+                            cursor='pointer',nodeId='%(nodeId)s_uploader' %th.attributes,
+                            **uploader_kwargs)
         th.view.grid.dataController("""
             genro.dlg.prompt(dlgtitle,{lbl:_T('Description'),dflt:pars.description,action:function(result){
                     genro.serverCall(rpcmethod,{pkey:pars.pkey,description:result,table:table},function(){},null,'POST');

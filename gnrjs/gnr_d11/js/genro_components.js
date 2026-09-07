@@ -4304,9 +4304,7 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
                 gnrwdg.fakeinputNode.domNode.click();
             }
         }
-        if(label && label.startsWith('!!')){
-            label = _T(label)
-        }
+        label = _T(label,true);
         dropAreaKw.innerHTML = dropAreaKw.innerHTML || label || '&nbsp;';
         var maxsize = objectPop(kw,'maxsize');
         var allowedExtensions = objectPop(kw,'extensions');

@@ -194,6 +194,8 @@
 <en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm" zh="确认"></en_confirm>
 <en_notes fr="Remarques" de="Aufzeichnungen" en="Notes" it="Note" base="Notes"></en_notes>
 <en_drop_import_file_here base="Drop import file here" it="Trascina qui il file di importazione"></en_drop_import_file_here>
+<en_file_exceeds_size_limit base="File exceeds size limit" it="Il file supera la dimensione massima"></en_file_exceeds_size_limit>
+<en_error base="Error" de="Fehler" en="Error" fr="Erreur" it="Errore"></en_error>
 <en_the_lines_in_preview_are_limited_to base="The lines in preview are limited to"></en_the_lines_in_preview_are_limited_to>
 <en_errors fr="Erreurs" de="Fehler" en="Errors" it="Errori" base="Errors"></en_errors>
 <en_method fr="Méthode" de="Verfahren" en="Method" it="Metodo" base="Method"></en_method>
@@ -422,6 +424,9 @@
 <en_double_click_to_upload base="Double click to upload" it="Doppio click per caricare" en=""></en_double_click_to_upload>
 <en_drop_document_here base="Drop document here" it="Trascina qui il documento" en=""></en_drop_document_here>
 <en_or_double_click_to_upload base="or double click to upload" it="o fai doppio click per caricare" en=""></en_or_double_click_to_upload>
+<en_type base="Type" de="Art" en="Type" fr="Type" it="Tipo"></en_type>
+<en_open base="Open" it="Apri" en=""></en_open>
+<en_copy base="Copy" it="Copia" en=""></en_copy>
 <en_attachment base="Attachment" de="Befestigung" en="Attachment" fr="Attachement" it="Allegato"></en_attachment>
 <en_attachments base="Attachments" de="Zubehör" en="Attachments" fr="Pièces jointes" it="Allegati"></en_attachments>
 <en_delete_attachment base="Delete attachment" de="Anhang löschen" en="Delete attachment" fr="Supprimer la pièce jointe" it="Elimina allegato"></en_delete_attachment>
