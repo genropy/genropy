@@ -365,7 +365,13 @@ class CsvReader(BaseReader):
         else:
             self.filecsv = docname
             self._owns_filecsv = False
-        self.rows = csv.reader(self.filecsv, dialect=dialect, delimiter=delimiter or ',')
+
+        if dialect and delimiter:
+            self.rows = csv.reader(self.filecsv, dialect=dialect, delimiter=delimiter)
+        elif dialect:
+            self.rows = csv.reader(self.filecsv, dialect=dialect)
+        else:
+            self.rows = csv.reader(self.filecsv, delimiter=delimiter or ',')
         self.headers = next(self.rows)
         name = docname if isinstance(docname, str) else (getattr(docname, 'name', None) or '<file-like>')
         index, _ = self._build_index(self.headers, f"CSV file '{name}'")
@@ -374,6 +380,8 @@ class CsvReader(BaseReader):
 
     def __call__(self):
         for r in self.rows:
+            if not r:
+                continue
             yield GnrNamedList(self.index, r)
         if self._owns_filecsv:
             self.filecsv.close()
