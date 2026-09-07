@@ -2,7 +2,7 @@ import pytest
 import os
 import threading
 from gnr.core import gnrlang as gl
-from gnr.core.gnrbag import Bag
+from gnr.core.gnrbag import Bag, BagResolver
 from gnr.core.gnrerror import tracebackBag
 
 class TestGnrLang():
@@ -130,6 +130,28 @@ class TestGnrLang():
     def test_tracebackBag(self):
         r = tracebackBag()
         #FIXME: how to test this properly?
+
+    def test_tracebackBag_resolver_locals(self):
+        calls = []
+
+        class FailingResolver(BagResolver):
+            classKwargs = {'cacheTime': 0, 'readOnly': True}
+            classArgs = []
+
+            def load(self):
+                calls.append(1)
+                raise ValueError('resolver failure')
+
+        b = Bag()
+        b.setItem('root', FailingResolver())
+        try:
+            b['root']
+        except ValueError:
+            r = tracebackBag()
+        assert calls == [1]
+        xml = r.toXml()
+        assert calls == [1]
+        assert '*RESOLVER* FailingResolver' in xml
 
     def test_thlocal(self):
         r = gl.thlocal()
