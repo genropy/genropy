@@ -1,3 +1,9 @@
+Release 26.09.04
+================
+
+Hotfix release: fixed attachmentPane grid drop, where the uploads was
+successfull but the record wasn't created.
+
 Release 26.09.01
 ================
 
