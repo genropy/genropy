@@ -381,6 +381,7 @@ class CsvReader(BaseReader):
 
         # Delimiter argument has priority over dialect in clevercsv.reader,
         # which rejects dialect=None where the stdlib csv accepts it
+
         if dialect and delimiter:
             self.rows = csv.reader(self.filecsv, dialect=dialect, delimiter=delimiter)
         elif dialect:
