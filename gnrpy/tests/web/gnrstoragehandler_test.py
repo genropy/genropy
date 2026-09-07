@@ -892,6 +892,8 @@ class TestStorageHandler(BaseGnrDaemonTest):
         assert not node.exists
         with pytest.raises(GnrException):
             node.open(mode='w')
+        with pytest.raises(GnrException):
+            node.delete()
 
     def test_relative_storage_unsupported_parent_service(self):
         """Test that a symbolic storage cannot be the parent of a relative storage."""
@@ -977,3 +979,74 @@ class TestStorageHandler(BaseGnrDaemonTest):
         assert '_raw_' not in options
         # the configured parent is always an option, even if it is not available any more
         assert 'removed_parent_storage' in options
+
+    def test_relative_storage_missing_parent_service_name(self):
+        """Test that a relative storage on a missing parent service does not re-root.
+
+        An unknown storage name is served as a new folder of the site static dir:
+        a relative storage must not silently move there when its parent is gone.
+        """
+        service_name = self._addStorage('rel_gone_storage', implementation='relative',
+                                         parent_service='rel_gone_parent_storage',
+                                         relative_path='docs')
+        service = self.site.storage(service_name)
+        assert service.base_path is None
+        assert not os.path.exists(os.path.join(self.site.site_static_dir,
+                                               'rel_gone_parent_storage'))
+        with pytest.raises(GnrException):
+            self.site.storageNode('%s:invoice.pdf' % service_name).open(mode='w')
+
+    def test_relative_storage_deleted_parent_service(self):
+        """Test that a relative storage stops resolving when its parent is deleted."""
+        parent_dir = os.path.join(self.test_dir, 'deleted_parent')
+        os.makedirs(parent_dir, exist_ok=True)
+        parent_name = self._addStorage('rel_deleted_parent', implementation='local',
+                                        base_path=parent_dir)
+        service_name = self._addStorage('rel_orphan_storage', implementation='relative',
+                                         parent_service=parent_name, relative_path='sub')
+        assert self.site.storage(service_name).base_path == '%s/sub' % parent_dir
+
+        self.storage_handler.removeStorageFromCache(parent_name)
+        self.services_handler('storage').service_instances.pop(service_name, None)
+        assert self.site.storage(service_name).base_path is None
+
+    def test_relative_storage_looping_parent_services(self):
+        """Test that relative storages pointing at each other do not recurse.
+
+        A service instance is cached only once it is built, so a loop in the
+        configuration would be resolved until the stack ends.
+        """
+        first_name = self._addStorage('rel_loop_first', implementation='relative',
+                                       parent_service='rel_loop_second', relative_path='a')
+        second_name = self._addStorage('rel_loop_second', implementation='relative',
+                                        parent_service='rel_loop_first', relative_path='b')
+        assert self.site.storage(first_name).base_path is None
+        assert self.site.storage(second_name).base_path is None
+
+    def test_relative_storage_parent_of_itself(self):
+        """Test that a relative storage cannot be its own parent."""
+        service_name = self._addStorage('rel_self_storage', implementation='relative',
+                                         parent_service='rel_self_storage',
+                                         relative_path='docs')
+        assert self.site.storage(service_name).base_path is None
+
+    def test_relative_storage_parent_without_base_path(self):
+        """Test that a local parent service with no base path cannot be the parent.
+
+        Its base path is None, so the relative path would be resolved from the
+        current working directory of the process.
+        """
+        parent_name = self._addStorage('rel_nobase_parent', implementation='local')
+        assert self.site.storage(parent_name).base_path is None
+        service_name = self._addStorage('rel_nobase_storage', implementation='relative',
+                                         parent_service=parent_name, relative_path='docs')
+        assert self.site.storage(service_name).base_path is None
+
+    def test_relative_storage_on_unconfigured_relative_parent(self):
+        """Test that an unconfigured relative storage cannot be the parent of another."""
+        parent_name = self._addStorage('rel_unconfigured_parent', implementation='relative',
+                                        relative_path='docs')
+        service_name = self._addStorage('rel_chained_storage', implementation='relative',
+                                         parent_service=parent_name, relative_path='2026')
+        assert self.site.storage(parent_name).base_path is None
+        assert self.site.storage(service_name).base_path is None

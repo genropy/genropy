@@ -56,17 +56,53 @@ class Service(StorageService):
             self.__class__ = relativeServiceClass(self.parent_service)
 
     def _resolveParentService(self, parent_service):
-        """Returns the parent storage service, None if it is missing or unusable"""
+        """Returns the parent storage service, None if it is missing or unusable
+
+        :param parent_service: name of the parent storage service"""
         if not parent_service:
-            logger.warning('Relative storage service without parent service')
+            logger.warning('Relative storage service on %s has no parent service',
+                           self.relative_path or '/')
             return None
-        service = self.parent.storage(parent_service)
-        implementation = getattr(service, 'service_implementation', None)
-        if implementation in UNSUPPORTED_PARENT_IMPLEMENTATIONS:
+        parent_params = self.parent.storage_handler.getStorageParameters(parent_service)
+        if not parent_params:
+            #an unknown storage name is served as a new folder of the site static dir:
+            #a relative service must not silently re-root there when its parent is gone
+            logger.warning('Missing parent storage service %s', parent_service)
+            return None
+        if self._loopingParentChain(parent_service):
+            logger.warning('Parent storage service %s loops back on a relative service',
+                           parent_service)
+            return None
+        if parent_params.get('implementation') in UNSUPPORTED_PARENT_IMPLEMENTATIONS:
             logger.warning('Storage service %s cannot be the parent of a relative service',
                            parent_service)
             return None
+        service = self.parent.storage(parent_service)
+        if getattr(service, 'base_path', None) is None:
+            #a local service with no base path (and an unconfigured relative service)
+            #has no place a subpath could be relative to
+            logger.warning('Parent storage service %s has no base path', parent_service)
+            return None
         return service
+
+    def _loopingParentChain(self, parent_service):
+        """Returns True if the chain of relative parent services loops on itself.
+
+        The instance of a service is cached only once it is built, so a loop in the
+        configuration would be resolved recursively until the stack ends: the chain
+        is walked on the stored parameters instead.
+
+        :param parent_service: name of the parent storage service"""
+        getStorageParameters = self.parent.storage_handler.getStorageParameters
+        walked = set()
+        service_name = parent_service
+        while service_name and service_name not in walked:
+            params = getStorageParameters(service_name) or {}
+            if params.get('implementation') != 'relative':
+                return False
+            walked.add(service_name)
+            service_name = params.get('parent_service')
+        return bool(service_name)
 
     @property
     def base_path(self):
@@ -115,6 +151,15 @@ class UnconfiguredService(StorageService):
         return ''
 
     def open(self, *args, **kwargs):
+        raise GnrException(self._unconfigured_message)
+
+    def delete(self, *args):
+        raise GnrException(self._unconfigured_message)
+
+    def renameNode(self, sourceNode=None, destNode=None):
+        raise GnrException(self._unconfigured_message)
+
+    def duplicateNode(self, sourceNode=None, destNode=None):
         raise GnrException(self._unconfigured_message)
 
     def local_path(self, *args, **kwargs):
