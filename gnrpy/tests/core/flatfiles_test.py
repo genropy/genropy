@@ -572,6 +572,49 @@ def test_CsvReader_auto_dialect():
         assert last_row[9] == expected_description
 
 
+
+def test_CsvReader_delimiter_without_dialect():
+    """Test CsvReader and getReader with an explicit delimiter and no dialect.
+
+    clevercsv rejects dialect=None where the stdlib csv accepts it, so the
+    delimiter has to be passed on its own.
+    """
+    test_file = os.path.join(DATA_DIR, 'test_CsvAuto_SemiColon.csv')
+
+    reader = CsvReader(test_file, delimiter=';', encoding='utf-8')
+    assert reader.ncols == 11
+    assert reader.headers[0] == 'Data contabile'
+    rows = list(reader())
+    assert len(rows) == 6
+    assert rows[5][2] == '-50,00'
+
+    reader = getReader(test_file, delimiter=';', encoding='utf-8')
+    assert reader.ncols == 11
+    assert len(list(reader())) == 6
+
+
+
+def test_CsvReader_doubled_line_terminators():
+    """Test CsvReader on a file whose records end with CR CR LF.
+
+    Some Windows exporters emit a doubled CR, which every csv reader (clevercsv
+    and the stdlib alike, in text mode and with newline='') splits into an extra
+    zero-field row per record.
+    """
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, newline='') as f:
+        csv_file = f.name
+        f.write('id;name\r\r\n1;Alice\r\r\n2;Bob\r\r\n')
+
+    try:
+        reader = CsvReader(csv_file, delimiter=';')
+        assert reader.headers == ['id', 'name']
+        rows = list(reader())
+        assert len(rows) == 2
+        assert [r['name'] for r in rows] == ['Alice', 'Bob']
+    finally:
+        os.unlink(csv_file)
+
+
 ### ported from gnrlist_test
 def test_getReader():
 

@@ -379,13 +379,14 @@ class CsvReader(BaseReader):
         for _ in range(start_at_line):
             next(self.filecsv)
 
-        # Delimiter argument has priority over dialect in clevercsv.reader
-        if delimiter:
+        # Delimiter argument has priority over dialect in clevercsv.reader,
+        # which rejects dialect=None where the stdlib csv accepts it
+        if dialect and delimiter:
             self.rows = csv.reader(self.filecsv, dialect=dialect, delimiter=delimiter)
         elif dialect:
             self.rows = csv.reader(self.filecsv, dialect=dialect)
         else:
-            self.rows = csv.reader(self.filecsv, delimiter=',')
+            self.rows = csv.reader(self.filecsv, delimiter=delimiter or ',')
 
         self.headers = next(self.rows)
         name = docname if isinstance(docname, str) else (getattr(docname, 'name', None) or '<file-like>')
@@ -395,6 +396,8 @@ class CsvReader(BaseReader):
 
     def __call__(self):
         for r in self.rows:
+            if not r:
+                continue
             yield GnrNamedList(self.index, r)
         if self._owns_filecsv:
             self.filecsv.close()
