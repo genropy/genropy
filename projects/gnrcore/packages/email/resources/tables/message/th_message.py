@@ -159,6 +159,7 @@ class Form(BaseComponent):
         r.cell('error',name='Error', width='100%')
 
     def th_form(self, form):
+        form.store.handler('load',virtual_columns='$compiled_body')
         bc = form.center.borderContainer(margin='5px')
         top = bc.contentPane(region='top',datapath='.record')
         fb = top.div(margin_right='20px').formbuilder(cols=4,border_spacing='3px',
@@ -181,6 +182,7 @@ class Form(BaseComponent):
 
         tc = bc.tabContainer(region='center', margin_top='15px')
         tc.contentPane(title='!![en]Body').simpleTextArea(value='^.record.body',editor=True)
+        tc.contentPane(title='!![en]Preview',overflow='auto',padding='10px').div('^.record.compiled_body')
         sc = tc.stackContainer(title='!![en]Attachments')
         sc.plainTableHandler(relation='@attachments',pbl_classes=True)
         sc.attachmentGrid(pbl_classes=True)
@@ -210,8 +212,9 @@ class Form(BaseComponent):
 class FormFromDashboard(Form):
 
     def th_form(self, form):
+        form.store.handler('load',virtual_columns='$compiled_body')
         pane = form.record
-        pane.div('^.body')
+        pane.div('^.compiled_body')
     
     def th_options(self):
         return dict(showtoolbar=False)

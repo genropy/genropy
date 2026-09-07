@@ -204,6 +204,12 @@
 				<en_for_all_users fr="Pour tous les utilisateurs" de="Für alle Benutzer" en="For all users" it="Per tutti gli utenti" base="For all users"/>
 				<en_letterhead fr="Tête" de="Briefkopf" en="Letterhead" it="Carta intestata" base="Letterhead" zh="信头"/>
 				<en_linked_query base="Linked query" it="Query collegata" en="Linked query" zh="关联查询"/>
+				<en_dynamic_list base="Dynamic list" en="Dynamic list" it="Lista dinamica"/>
+				<en_dynamic base="Dynamic" en="Dynamic" it="Dinamica"/>
+				<en_confirmed_users base="Confirmed users" en="Confirmed users" it="Utenti confermati"/>
+				<en_conf_users base="Conf.users" en="Conf.users" it="Utenti conf."/>
+				<en_pending_users base="Pending users" en="Pending users" it="Utenti da confermare"/>
+				<en_pend_users base="Pend.users" en="Pend.users" it="Utenti pend."/>
 		</notification>
 		<pkginfo path="model/pkginfo.py" ext="py">
 			<en_package_info base="Package info" en="Package info" it="Informazioni sul pacchetto"/>

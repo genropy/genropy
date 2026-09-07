@@ -70,3 +70,47 @@ class TestGnrLocalization(BaseGnrAppTest):
         r = al.getTranslation(gl.GnrLocString("bkasjklasjsd", lockey="xk"), "it")
         assert r["status"] == "NOKEY"
         assert r["translation"] == "bkasjklasjsd"
+
+    def test_missing_language_is_reported_as_nolang(self):
+        """
+        A fallback answer must stay distinguishable from a real translation:
+        the client caches a translation only when the status is OK.
+        """
+        al = gl.AppLocalizer(self.app)
+        al.localizationDict['en_records_to_delete'] = {'base': 'Records to delete'}
+        al.localizationDict['en_condition_op'] = {'base': 'Condition op', 'it': 'Operatore condizione'}
+
+        r = al.getTranslation('!!Records to delete', 'it')
+        assert r['status'] == 'NOLANG'
+        assert r['translation'] == 'Records to delete'
+
+        r = al.getTranslation('!!Condition op', 'it')
+        assert r['status'] == 'OK'
+        assert r['translation'] == 'Operatore condizione'
+
+        r = al.getTranslation(gl.GnrLocString('en_records_to_delete'), 'it')
+        assert r['status'] == 'NOLANG'
+        assert r['translation'] == 'Records to delete'
+
+    def test_symbol_only_captions_not_translated(self):
+        """
+        Symbol-only captions ('=', '>=', '%', '#', whitespace, ...) all flatten
+        to the same single '_' lockey: they must never resolve through whatever
+        junk entry happens to occupy that '<lang>__' slot.
+        """
+        al = gl.AppLocalizer(self.app)
+        al.localizationDict['en__'] = {'base': '%', 'it': ''}
+        al.localizationDict['en_condition_op'] = {'base': 'Condition op', 'it': 'Operatore condizione'}
+
+        for symbol in ('=', '>', '>=', '<', '<=', '!=', '#', '%'):
+            r = al.getTranslation('!!%s' % symbol, 'it')
+            assert r['translation'] == symbol
+
+        # a real, non-symbol-only caption still resolves normally
+        r = al.getTranslation('!!Condition op', 'it')
+        assert r['translation'] == 'Operatore condizione'
+
+        # digits survive flatten (flatten('100%') == '100_'), so this still
+        # reaches the ordinary lookup instead of being short-circuited
+        r = al.getTranslation('!!100%', 'it')
+        assert r['translation'] == '100%'

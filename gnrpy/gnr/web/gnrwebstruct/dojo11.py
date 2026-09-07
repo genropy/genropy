@@ -29,6 +29,12 @@ from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrwebstruct.base import GnrDomSrc, GnrDomSrcError
 from gnr.web.gnrwebstruct._helpers import _selected_defaultFrom
 
+#: A column declaring `values` is a closed set of choices, so `field()`
+#: resolves it to a filteringSelect whatever its dtype. These dtypes are the
+#: exception: a boolean is a checkBox and a Bag is a tree, neither of which is
+#: a list of choices, so their own widget wins over the store.
+DTYPES_IGNORING_VALUES = ('B', 'X')
+
 
 class GnrDomSrc_dojo_11(GnrDomSrc):
     """TODO"""
@@ -1055,11 +1061,11 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                 result['alternatePkey'] = onerelfld
         #elif attr.get('mode')=='M':
         #    result['tag']='bagfilteringtable'
-        elif dtype in ('A', 'T') and fldattr.get('values', False):
+        elif fldattr.get('values', False) and dtype not in DTYPES_IGNORING_VALUES:
             values = fldattr['values']
             values = getattr(fieldobj.table.dbtable, values ,lambda: values)()
             fldattr['values'] = values
-            result['tag'] = 'filteringselect' if ':' in values else 'combobox'
+            result['tag'] = 'filteringselect'
             result['values'] = values
         elif dtype in ('A','T') and fldattr.get('dest_stn'):
             result['tag'] = 'modalUploader'
