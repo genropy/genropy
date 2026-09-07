@@ -237,6 +237,7 @@ def make_pdf_site(tmp_path):
         debug=False,
         getStatic=lambda name: None,
         default_page=None,
+        gnrapp=SimpleNamespace(packages={}, experimentalFlag=lambda group, name: False),
     )
     site.resource_loader = ResourceLoader(site)
     site.resources_dirs = [COMMON_RESOURCES]
