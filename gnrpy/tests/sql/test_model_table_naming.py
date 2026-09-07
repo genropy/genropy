@@ -51,6 +51,13 @@ class MultiTableMixin:
         return 'alfa'
 
 
+class LateMatchingMixin:
+    """Simulates model/zeta.py declaring pkg.table('zeta'), sorting last"""
+    def config_db(self, pkg):
+        tbl = pkg.table('zeta', pkey='id', name_long='Zeta')
+        tbl.column('id', 'L')
+
+
 class MultiTableUnnamedMixin:
     """Simulates model/gamma.py declaring delta and epsilon, but no gamma"""
     def config_db(self, pkg):
@@ -92,7 +99,21 @@ class TestModelTableNaming:
         assert 'demo/whatever' in message
         assert 'declared: real' in message
 
+    def test_module_declaring_nothing_sorting_first_still_lists_the_package(self):
+        """declared must be the package, not the modules that sort before this one.
+
+        config_db runs in sorted order, so a check reading pkgsrc inside that loop
+        sees only the earlier modules: with the offending module first it reported
+        'declared: none' on a package that declares a table.
+        """
+        with pytest.raises(GnrSqlException) as excinfo:
+            build_model(aaa=EmptyMixin(), zeta=LateMatchingMixin())
+        message = str(excinfo.value)
+        assert 'demo/aaa' in message
+        assert 'declared: zeta' in message
+
     def test_module_declaring_nothing_in_an_empty_package(self):
+        """The other half of the pair above: here 'none' is the truth."""
         with pytest.raises(GnrSqlException) as excinfo:
             build_model(whatever=EmptyMixin())
         assert 'declared: none' in str(excinfo.value)
