@@ -16,6 +16,7 @@ import os
 import tempfile
 import csv
 
+import openpyxl
 import pytest
 
 from gnr.core.flatfiles import (
@@ -1032,7 +1033,6 @@ def _write_xlsx(rows):
 
     Returns the file path; the caller is responsible for removing it.
     """
-    import openpyxl
     wb = openpyxl.Workbook()
     ws = wb.active
     for r, row in enumerate(rows, start=1):
@@ -1071,7 +1071,13 @@ def test_XlsxReader_blank_header_before_named_columns():
 
 
 def test_XlsxReader_header_slugifying_to_empty_is_renamed():
-    """Headers made only of punctuation slugify to '' and get a generated name."""
+    """A header left empty by slugify gets a generated name, one kept keeps it.
+
+    '#' slugifies to '' and must be renamed, exactly like a whitespace-only
+    header; '---' slugifies to '_', which is a usable name and is kept. Two
+    different punctuation-only headers can therefore end up sharing the same
+    name -- a limitation of naming columns after slugify, unchanged here.
+    """
     path = _write_xlsx([
         ['#', 'id', '---'],
         ['x', 'K1', 'y'],
