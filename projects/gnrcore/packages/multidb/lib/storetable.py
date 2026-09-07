@@ -70,7 +70,7 @@ class StoreTable(GnrDboTable):
                 tbl.insertMany(main_f)
             old_rec = dict(record)
         with self.db.tempEnv(storename=dbstore):
-            self.db.application.pkgBroadcast('onDbUpgrade,onDbUpgrade_*')
+            self.db.application.dbUpgradeBroadcast()
             self.db.table('adm.counter').initializeApplicationSequences()
         record['startup_data_ts'] = self.newUTCDatetime()
         self.update(record,old_rec)

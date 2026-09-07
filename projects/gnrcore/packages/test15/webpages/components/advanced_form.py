@@ -6,7 +6,7 @@ class GnrCustomWebPage(object):
     py_requires = 'public'
 
     def main(self, rootBC, **kwargs):
-        center, top, bottom = self.pbl_rootBorderContainer(rootBC, title="!!Terapia", margin="1em", **kwargs)
+        center = rootBC.rootBorderContainer(title="!!Terapia", margin="1em", **kwargs)
 
         btPane = center.contentPane(region="bottom")
         buttons = btPane.div(width="100%")

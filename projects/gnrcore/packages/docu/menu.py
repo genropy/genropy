@@ -5,7 +5,6 @@ class Menu(object):
         documentation.thpage(u"!!Documentation", table="docu.documentation", tags="")
         documentation.thpage(u"!!Contents", table="docu.content", tags="")
         documentation.thpage(u"!!Handbooks", table="docu.handbook", tags="")
-        documentation.thpage(u"!!Redirects", table="docu.redirect", tags="")
         documentation.lookupBranch(u"!!Docu tables", pkg="docu")
         faqs = documentation.branch(u"!!FAQs")
         faqs.thpage(u"!!FAQs Submission", table="docu.faq_area", tags="")

@@ -103,7 +103,9 @@ class Table(object):
 
 ##################################
 
-    def onDbUpgrade_checkResourceUserObject(self):
+    def onDbUpgradeDone_checkResourceUserObject(self):
+        # Runs after every package completed its onDbUpgrade pass: resource
+        # userobjects may reference records (fk) created by downstream packages
         self.checkResourceUserObject()
 
     def uo_identifier(self,record):

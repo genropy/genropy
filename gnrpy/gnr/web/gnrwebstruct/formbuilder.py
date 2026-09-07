@@ -227,6 +227,20 @@ class GnrFormBuilder(object):
         for c in range(self.colmax):
             self._formCell(r, c)
                 
+    def _lblCellPath(self, r, c):
+        """Relative source path from the field cell to the cell holding its label.
+
+        With ``lblpos='L'`` label and field are siblings in the same row
+        (``c_N_l``/``c_N_f``); with ``lblpos='T'`` they live in two twin rows
+        (``r_N_l``/``r_N_f``) where the cell keeps the same childname.
+
+        :param r: the row of the field cell
+        :param c: the column of the field cell
+        """
+        if self.lblpos == 'L':
+            return 'parent/c_%i_l' % c
+        return 'parent/parent/r_%i_l/c_%i' % (r, c)
+
     def _formCell(self, r, c, field=None):
         row = self.getRow(r)
         row_attributes = dict()
@@ -254,7 +268,7 @@ class GnrFormBuilder(object):
             if field.get('checkpref'):
                 lbl_kwargs['checkpref'] = field['checkpref']
                 lbl_kwargs.update(dictExtract(field,'checkpref_'))
-            if 'hidden' in field and 'lbl_hidden' not in field and self.lblpos=='L':
+            if 'hidden' in field and 'lbl_hidden' not in field:
                 onCreating = field.get('onCreating') or ''
                 field['onCreating'] = """
                     %s
@@ -265,7 +279,10 @@ class GnrFormBuilder(object):
                     this._hiddenTargets = [];
                     var tdNode = this.attributeOwnerNode('tag','td');
                     this._hiddenTargets.push(tdNode.domNode)
-                    this._hiddenTargets.push(tdNode.getChild('parent/'+tdNode.label.replace('_f','_l')).domNode);
+                    var lblTdNode = tdNode.getChild('%s');
+                    if(lblTdNode && lblTdNode.domNode){
+                        this._hiddenTargets.push(lblTdNode.domNode);
+                    }
                     var hiddenGroup = this.attr.hiddenGroup;
                     if(hiddenGroup){
                         var tblNode = this.attributeOwnerNode('tag','table');
@@ -277,17 +294,20 @@ class GnrFormBuilder(object):
                         that.setHidden(that._startHidden);
                         delete that._startHidden;
                     },1);
-                """ %onCreated
+                """ %(onCreated,self._lblCellPath(r,c))
             if field.get('hiddenGroup') and 'hidden' not in field:
                 onCreated = field.get('onCreated') or ''
                 field['onCreated'] = """%s
                     var hiddenGroup = this.attr.hiddenGroup;
                     var tblNode = this.attributeOwnerNode('tag','table');
-                    var tdNode = this.getChild('parent');
+                    var tdNode = this.attributeOwnerNode('tag','td');
                     var groupHiddenTargets = tblNode._hiddenGroups[hiddenGroup];
                     groupHiddenTargets.push(tdNode.domNode)
-                    groupHiddenTargets.push(tdNode.getChild('parent/'+tdNode.label.replace('_f','_l')).domNode);
-                """ %onCreated
+                    var lblTdNode = tdNode.getChild('%s');
+                    if(lblTdNode && lblTdNode.domNode){
+                        groupHiddenTargets.push(lblTdNode.domNode);
+                    }
+                """ %(onCreated,self._lblCellPath(r,c))
             if lbl and '_valuelabel' not in field and not lbl.startswith('=='):  #BECAUSE IT CANNOT CALCULATE ON THE FIELD SOURCENODE SCOPE
                 field['_valuelabel'] = lbl
             if 'lbl_href' in field:

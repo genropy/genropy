@@ -1109,6 +1109,40 @@ class TestSubQueryColumn:
         for r in rows:
             assert float(r['max_row_price']) > 0
 
+    def test_notes_xml_distinct_pg(self, db_pg):
+        """mode='xml' under SELECT DISTINCT: xml has no equality operator."""
+        rows = db_pg.table('invc.invoice').query(
+            columns='$id, $notes_xml',
+            where='$notes_xml IS NOT NULL', distinct=True, limit=3
+        ).fetch()
+        assert rows
+        for r in rows:
+            assert '<' in str(r['notes_xml'])
+
+    def test_rows_json_distinct_pg(self, db_pg):
+        """mode='json' under SELECT DISTINCT: still parsed to a list."""
+        rows = db_pg.table('invc.invoice').query(
+            columns='$id, $rows_json',
+            where='$row_count > 0', distinct=True, limit=3
+        ).fetch()
+        assert rows
+        for r in rows:
+            if r['rows_json']:
+                data = r['rows_json']
+                assert isinstance(data, list)
+                assert 'product_id' in data[0]
+
+    def test_subquery_columns_auto_distinct_pg(self, db_pg):
+        """xml/json columns survive the DISTINCT auto-injected on
+        exploding many-relations (the real-world grid case)."""
+        q = db_pg.table('invc.invoice').query(
+            columns='$id, $notes_xml, $rows_json, @rows.unit_price',
+            limit=3
+        )
+        rows = q.fetch()
+        assert q.compiled.distinct == 'DISTINCT '
+        assert rows
+
     def test_max_row_price_cross_validate_pg(self, db_pg):
         """max_row_price matches direct MAX query."""
         row = db_pg.table('invc.invoice').query(

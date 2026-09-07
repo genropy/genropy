@@ -6,7 +6,8 @@
 
 from json import dumps
 from datetime import datetime
-import re, sys, time
+from importlib.util import find_spec
+import re, sys
 
 if sys.version_info[0] == 3:
     from urllib.request import urlopen
@@ -17,7 +18,6 @@ else:
     from urllib import urlopen
 
 from sphinx.cmd.build import main as sphinx_build_main
-import boto3
 
 from gnr.web.batch.btcbase import BaseResourceBatch
 from gnr.app.gnrlocalization import AppLocalizer
@@ -38,22 +38,84 @@ class Main(BaseResourceBatch):
     batch_steps = 'prepareConfFile,prepareRstDocs,buildHtmlDocs'
 
     def pre_process(self):
-        self.handbook_id = self.batch_parameters['extra_parameters']['handbook_id']
-        self.handbook_record = self.tblobj.record(self.handbook_id, virtual_columns='$sphinx_path').output('bag')
-        self.doctable =self.db.table('docu.documentation')
+        self.doctable = self.db.table('docu.documentation')
+        self.handbook_ids = self.handbookIds()
+        self.zip_urls = []
+        self.failures = []
+
+    def handbookIds(self):
+        """Pkeys of the handbooks this run has to export.
+
+        The gear menu of the view hands the batch the current grid selection, the
+        form toolbar button hands the pkey of the record on screen as an extra
+        parameter: the selection wins and the single record is the fallback, so
+        the button - and any other caller passing handbook_id - keeps working."""
+        pkeys = self.get_selection_pkeys()
+        if pkeys:
+            return pkeys
+        handbook_id = (self.batch_parameters.get('extra_parameters') or {}).get('handbook_id')
+        return [handbook_id] if handbook_id else []
+
+    def call_steps(self, offset=1):
+        """Run the export steps once for every handbook of the selection.
+
+        The framework calls this instead of do() because batch_steps is set: the
+        steps of a single export stay the base ones, this only wraps them in the
+        loop over the selection, adding the handbook thermo line above them - so
+        the base bookkeeping of the step lines starts one line further down."""
+        for handbook_id in self.btc.thermo_wrapper(self.handbook_ids, 'btc_handbooks',
+                                                   message=self.handbookCaption):
+            try:
+                #the setup of a handbook is inside the try with its steps: resolving
+                #its tree, its storage node or its pkey fails as easily as the build
+                self.prepareHandbook(handbook_id)
+                super().call_steps(offset=offset + 1)
+                self.publishHandbook()
+            except self.btc.exception_stopped:
+                raise
+            except Exception as e:
+                #a broken manual is a reported failure, not the end of the run: the
+                #handbooks left in the selection must still get their export
+                self.handbookFailed(handbook_id, e)
+
+    def handbookCaption(self, handbook_id, progress, maximum, **kwargs):
+        """Thermo message naming the handbook being exported."""
+        return '%s (%i/%i)' % (self.handbookName(handbook_id), progress, maximum)
+
+    def handbookName(self, handbook_id):
+        """Name of a handbook read from its pkey.
+
+        The loop names a handbook before its record is loaded and after its setup
+        has failed, so the name cannot come from the state of the export."""
+        return self.tblobj.readColumns(columns='$name', pkey=handbook_id) or handbook_id
+
+    def handbookFailed(self, handbook_id, error):
+        """Register the failure of the handbook being exported and let the run go on.
+
+        Whatever the failed export left uncommitted is dropped, so the handbooks
+        still to be exported do not inherit a transaction of someone else's making."""
+        name = self.handbookName(handbook_id)
+        logger.exception('Export to sphinx of the handbook %s failed', name)
+        self.batch_log_write('%s: export failed (%s)' % (name, error))
+        self.failures.append(name)
+        self.db.rollbackAll()
+
+    def prepareHandbook(self, handbook_id):
+        """Set up the export state of a single handbook.
+
+        Every step reads the handbook it is building from self: the batch exports
+        one handbook at a time and this resets that state at the beginning of each
+        of them, so nothing of the former export leaks into the next one."""
+        self.handbook_id = handbook_id
+        self.handbook_record = self.tblobj.record(handbook_id).output('bag')
         self.doc_data = self.doctable.getHierarchicalData(root_id=self.handbook_record['docroot_id'], condition='$is_published IS TRUE')['root']['#0']
-        #DP202208 Temporary node to build files, moved after creation to definitive folder
-        self.handbookNode = self.page.site.storageNode('site:handbooks', self.handbook_record['name'])
-        self.sphinxNode = self.handbookNode.child('sphinx') 
-        self.sourceDirNode = self.sphinxNode.child('source')
-        #DP202208 publishedDocNode node is where the final documentation will be published, at beginning of the process we erase former docs
-        self.publishedDocNode = self.page.site.storageNode(self.handbook_record['sphinx_path'])
-        self.publishedDocNode.delete()
+        self.prepareHandbookFolder()
         self.html_baseurl = self.db.application.getPreference('.sphinx_baseurl',pkg='docu') or self.page.site.externalUrl('/_documentation/')
         self.handbook_url = f"{self.html_baseurl}{self.handbook_record['name']}/"
         self.enable_sitemap = self.db.application.getPreference('.enable_sitemap',pkg='docu')
         self.imagesDict = dict()
         self.imagesPath='_static/images'
+        self.mediaUrlsDict = dict()
         self.examplesPath='_static/_webpages'
         self.examples_root = None 
         self.examples_pars = Bag(self.handbook_record['examples_pars'])
@@ -66,11 +128,23 @@ class Main(BaseResourceBatch):
             self.examples_root_local = '%(examples_local_site)s/webpages/%(examples_directory)s' %self.handbook_record
         self.imagesDirNode = self.sourceDirNode.child(self.imagesPath)
         self.examplesDirNode = self.sourceDirNode.child(self.examplesPath)
-        #DP202112 Check if there are active redirects
-        if self.db.application.getPreference('.manage_redirects',pkg='docu'):
-            self.redirect_pkeys = self.db.table('docu.redirect').query(where='$old_handbook_id=:h_id AND $is_active IS TRUE', 
-                        h_id=self.handbook_id).selection().output('pkeylist')   
             
+    def prepareHandbookFolder(self):
+        """Wire the folders of the export, erasing the former one.
+
+        Sphinx reads its sources and writes its build through the filesystem, which
+        the storage the handbook is published in has not necessarily got (a bucket,
+        an sftp host): the export always works in a disposable folder of the page,
+        which the site cleans up with the page itself, and publishHandbook moves
+        the result into the handbook folder."""
+        self.publishedDocNode = self.tblobj.handbookStorageNode(self.handbook_record)
+        self.sphinxNode = self.page.site.storageNode('page:handbook_build',
+                                                     self.handbook_record['name'], 'sphinx')
+        #the export regenerates every file of both folders: nothing of the former survives
+        self.publishedDocNode.delete()
+        self.sphinxNode.delete()
+        self.sourceDirNode = self.sphinxNode.child('source')
+
     def step_prepareConfFile(self):
         "Prepare conf file"
         confSn = self.sourceDirNode.child('conf.py')
@@ -91,7 +165,7 @@ class Main(BaseResourceBatch):
             f"html_baseurl='{self.html_baseurl}'",
         ]
         if handbooks_theme_pref.get('logo'):
-            conf_lines.append(f"html_logo = '{self.page.site.externalUrl(handbooks_theme_pref['logo'])}'")
+            conf_lines.append(f"html_logo = '{self.logoUrl(handbooks_theme_pref['logo'])}'")
             conf_lines.append("html_short_title = 'Handbook'")
         if handbooks_theme_pref.get('copyright'):
             conf_lines.append("show_copyright = True")
@@ -104,12 +178,37 @@ class Main(BaseResourceBatch):
             conf_lines.append("html_last_updated_fmt = '%d-%m-%Y'")
         if handbooks_theme_pref.get('show_authors'):
             conf_lines.append("show_authors = True")
-        if self.enable_sitemap: #DP Enabled extensions = ['sphinx_sitemap','sphinxext.opengraph']
+        sphinx_extensions = []
+        if self.enable_sitemap:
+            #DP the sitemap file is written by the sphinx_sitemap extension: the url scheme alone builds nothing
+            sphinx_extensions.append('sphinx_sitemap')
             conf_lines.append(f"sitemap_url_scheme = '{self.handbook_record['name']}/{{link}}'")
+        if self.handbook_record['ogp_image']:
+            #DP the ogp_image passed to sphinx-build is a config value of the opengraph extension
+            sphinx_extensions.append('sphinxext.opengraph')
+        sphinx_extensions = self.installedSphinxExtensions(sphinx_extensions)
+        if sphinx_extensions:
+            #DP default_conf.py sets no extension: this assignment comes later in conf.py, so it wins
+            conf_lines.append(f"extensions = {sphinx_extensions}")
         extra_conf = '\n'.join(conf_lines)
         with confSn.open('a') as confFile:
             confFile.write(extra_conf)
             logger.info("Extra conf lines added to conf.py: %s" % extra_conf)
+
+    def installedSphinxExtensions(self, extensions):
+        """Keep only the extensions available in the environment: a missing one
+        aborts the whole sphinx build instead of dropping just its own feature"""
+        result = []
+        for extension in extensions:
+            try:
+                installed = find_spec(extension) is not None
+            except ModuleNotFoundError:
+                installed = False
+            if installed:
+                result.append(extension)
+            else:
+                logger.warning(f"Sphinx extension '{extension}' is not installed: skipped. Install the docu package requirements to enable it")
+        return result
             
     def step_prepareRstDocs(self):
         "Prepare Rst docs"
@@ -195,51 +294,42 @@ class Main(BaseResourceBatch):
         args = [self.sourceDirNode.internal_path, self.resultNode.internal_path] + args
         sphinx_build_main(args)
 
-    def post_process(self):     
+    def publishHandbook(self):
+        """Publish the build of the handbook just exported and register it on its record."""
         with self.tblobj.recordToUpdate(self.handbook_id) as record:
             record['last_exp_ts'] = datetime.now()
             if record['is_local_handbook']:
-                self.zipNode = self.handbookNode.child('%s.zip' % self.handbook_record['name'])
-                self.page.site.zipFiles([self.resultNode.fullpath], self.zipNode.internal_path)
-                #DP202208 Zip file will be moved to published Doc node after creation. Building folders will be deleted
-                destNode = self.publishedDocNode.child(self.zipNode.basename)
-                self.zipNode.move(destNode)
-                self.result_url = self.zipNode.internal_url().split('?')[0] #Remove ?download=True if present
-                record['local_handbook_zip'] = self.result_url
+                #the zip is the published file: it is written straight in the handbook folder
+                zipNode = self.publishedDocNode.child('%s.zip' % self.handbook_record['name'])
+                self.page.site.zipFiles([self.resultNode.fullpath], zipNode.fullpath)
+                zip_url = zipNode.internal_url().split('?')[0] #Remove ?download=True if present
+                record['local_handbook_zip'] = zip_url
+                self.zip_urls.append(zip_url)
             else:
-                #DP202208 Html files will be moved to published Doc node after creation. Building folders will be deleted
-                logger.info(f"Moving HTML build from {self.resultNode.fullpath} to {self.publishedDocNode.fullpath}")
+                #the build is promoted to the root of the handbook folder: what the
+                #docs web server publishes is the handbook folder itself
+                logger.info(f"Publishing HTML build from {self.resultNode.fullpath} to {self.publishedDocNode.fullpath}")
                 self.resultNode.move(self.publishedDocNode)
-                logger.info(f"Move completed. Published doc available at: {self.publishedDocNode.fullpath}")
+                logger.info(f"Publishing completed. Published doc available at: {self.publishedDocNode.fullpath}")
                 record['handbook_url'] = self.handbook_url
-                self.result_url = None
         if not self.db.application.getPreference('.save_src_debug',pkg='docu'):
             self.sphinxNode.delete()
+        #every handbook is committed as soon as it is published: a failure of the
+        #next one leaves what is already online registered on its record
         self.db.commit()
 
-        if self.db.application.getPreference('.manage_redirects',pkg='docu'):
-            if self.redirect_pkeys or not self.batch_parameters.get('skip_redirects'):
-            #DP202112 Make redirect files
-                redirect_recs = self.db.table('docu.redirect').query(columns='*,$old_handbook_path,$old_handbook_url').fetchAsDict('id')
-                for redirect_pkey in self.redirect_pkeys:
-                    redirect_rec = redirect_recs[redirect_pkey]
-                    self.db.table('docu.redirect').makeRedirect(redirect_rec)
-
-        if self.batch_parameters.get('invalidate_cache'):
-            self.invalidateCloudfrontCache()
-
-        if self.db.package('genrobot'):
-            if self.batch_parameters.get('send_notification'):
-                #DP202101 Send notification message via Telegram (gnrextra genrobot required)
-                notification_message = self.batch_parameters['notification_message'].format(handbook_title=self.handbook_record['title'], 
-                                            timestamp=datetime.now(), handbook_url=self.handbook_url)
-                notification_bot = self.batch_parameters['bot_token']
-                self.sendNotification(notification_message=notification_message, notification_bot=notification_bot)
-
     def result_handler(self):
-        resultAttr = dict() 
-        if self.result_url:
-            resultAttr['url'] = self.result_url
+        resultAttr = dict()
+        if len(self.zip_urls) == 1:
+            #a lone zip stays the download of the batch result, as the export of a
+            #single local handbook has always been
+            resultAttr['url'] = self.zip_urls[0]
+        if not self.handbook_ids:
+            return 'No handbook to export', resultAttr
+        if self.failures:
+            return 'Exported %i of %i handbooks, failed: %s' % (len(self.handbook_ids) - len(self.failures),
+                                                                len(self.handbook_ids),
+                                                                ', '.join(self.failures)), resultAttr
         return 'Export done', resultAttr
 
     def prepare(self, data, pathlist, skip_first=False):
@@ -380,10 +470,46 @@ class Main(BaseResourceBatch):
     def fixImages(self, m):
         old_filepath = m.group(1)
         filename = old_filepath.split('/')[-1]
+        media_url = self.imagePublicUrl(old_filepath)
+        if media_url:
+            return ".. image:: %s" % media_url
         new_filepath = '%s/%s' % (self.imagesPath, '/'.join(self.curr_pathlist+[filename]))
         self.imagesDict[new_filepath]=old_filepath
         result = ".. image:: /%s" % new_filepath
         return result
+
+    def logoUrl(self, logo):
+        """Absolute url of the handbook logo for the sphinx build.
+
+        The logo is uploaded on the documentation storage, so it goes through the
+        same gate as any other image of the build: the stable public url when that
+        service publishes it on a public base of its own, the instance-served one
+        otherwise - which is also what the logos uploaded on the instance home
+        before the move to the documentation storage keep answering."""
+        return self.imagePublicUrl(logo) or self.page.site.externalUrl(logo)
+
+    def imagePublicUrl(self, old_filepath):
+        """Return the public url of an image served outside the instance.
+
+        Images stored on the instance are referenced by their storage url
+        (e.g. /_storage/service/path): only when their service publishes them on
+        a public base of its own (see documentation.publicMediaUrl) the image can
+        be linked as-is, otherwise it keeps the standard download-and-embed
+        behavior so that the published handbook stays self-contained. Returns
+        None for sources that do not resolve to an existing storage node
+        (e.g. external urls) too."""
+        if old_filepath in self.mediaUrlsDict:
+            return self.mediaUrlsDict[old_filepath]
+        media_url = None
+        if old_filepath.startswith('/'):
+            path_list = self.page.site.pathListFromUrl(old_filepath)
+            storage_type = self.page.site.storageType(path_list) if path_list else None
+            if storage_type:
+                node = self.page.site.storageNodeFromPathList(path_list, storage_type)
+                if node is not None and node.exists:
+                    media_url = self.doctable.publicMediaUrl(node)
+        self.mediaUrlsDict[old_filepath] = media_url
+        return media_url
         
     def fixLinks(self, m):
         prefix = '%s/' % self.db.package('docu').htmlProcessorName()
@@ -422,31 +548,6 @@ class Main(BaseResourceBatch):
 
         return '\n%s\n%s\n\n\n   %s' % (".. toctree::", '\n'.join(toc_options),'\n   '.join(elements))
 
-    def invalidateCloudfrontCache(self):
-        client = boto3.client('cloudfront')
-        response = client.create_invalidation(
-                    DistributionId=self.db.application.getPreference('.cloudfront_distribution_id',pkg='docu'),
-                    InvalidationBatch={
-                        'Paths': {
-                            'Quantity': 1,
-                            'Items': [
-                                '/{handbook_name}/*'.format(handbook_name=self.handbook_record['name'])
-                                ],
-                            },
-                            'CallerReference': str(time.time()).replace(".", "")
-                        }
-                    )
-        return response
-
-    def sendNotification(self, notification_bot=None, notification_message=None):
-        notification_recipients = self.db.table('genrobot.bot_contact').query(columns='@contact_id.username AS username', 
-                        where='@bot_id.bot_token=:bot_token', bot_token=notification_bot).fetchAsDict('username')
-        socialservice = self.page.site.getService(service_type='telegram', service_name='telegram')
-        assert socialservice,'set in siteconfig the service social/telegram'
-        for recipient in notification_recipients:
-            result = socialservice.publishPost(message=notification_message, 
-                                            bot_token=notification_bot, page_id_code=recipient)
-             
     def createFile(self, pathlist=None, name=None, title=None, rst=None, hname=None, tocstring=None, footer=''):
         reference_label='.. _%s:\n' % hname if hname else ''
         title = title or name
@@ -456,25 +557,6 @@ class Main(BaseResourceBatch):
             f.write(content.encode())
 
     
-    def table_script_parameters_pane(self,pane,**kwargs):   
-        fb = pane.formbuilder(cols=1, border_spacing='5px')
-        if self.db.application.getPreference('.manage_redirects',pkg='docu'):
-            fb.checkbox(label='!![en]Skip redirects', value='^.skip_redirects')
-        if self.db.application.getPreference('.cloudfront_distribution_id',pkg='docu'):
-            fb.checkbox(label='!![en]Force Cloudfront cache invalidation', value='^.invalidate_cache')
-        #DP202101 Ask for Telegram notification option if enabled in docu settings
-        if self.db.application.getPreference('.telegram_notification',pkg='docu'):
-            fb.checkbox(label='!![en]Send notification via Telegram', value='^.send_notification', default=True)
-            fb.dbselect('^.bot_token', lbl='BOT', table='genrobot.bot', columns='$bot_name', alternatePkey='bot_token',
-                        colspan=3, hasDownArrow=True, default=self.db.application.getPreference('.bot_token',pkg='docu'),
-                        hidden='^.send_notification?=!#v')                
-            fb.simpleTextArea(lbl='!![en]Notification content', value='^.notification_message', hidden='^.send_notification?=!#v',
-                    default="!![en]Genropy Documentation updated: {handbook_title} was modified @ {timestamp}. Check out what's new on {handbook_url}", 
-                    height='60px', width='200px')
-            #pane.inlineTableHandler(table='genrobot.bot_contact', datapath='.notification_recipients',
-            #                title='!![en]Notification recipients', 
-            #                margin='2px', pbl_classes=True, addrow=False, delrow=False, height='200px')
-
     def processCssCustomizations(self):
         customCssPath='_static/custom.css' #DP Customizable?
         cssStyles = [

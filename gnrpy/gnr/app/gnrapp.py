@@ -794,6 +794,9 @@ class GnrPackage(object):
     def onDbUpgrade(self):
         self.tableBroadcast('onDbUpgrade,onDbUpgrade_*')
 
+    def onDbUpgradeDone(self):
+        self.tableBroadcast('onDbUpgradeDone,onDbUpgradeDone_*')
+
     def tableBroadcast(self,evt,autocommit=False,**kwargs):
         changed = False
         for evt in evt.split(','):
@@ -976,6 +979,18 @@ class GnrApp(object):
             'dbname': parsed.path.lstrip('/'),
         }
     
+    def experimentalValue(self, group, name):
+        """A setting from the ``<experimental>`` tag of instanceconfig.xml.
+
+        ``<experimental><page remoteForm="delayed"/></experimental>`` is read
+        as ``experimentalValue('page', 'remoteForm')``; a missing tag is ``None``.
+        """
+        return self.config['experimental.%s?%s' % (group, name)]
+
+    def experimentalFlag(self, group, name):
+        """A boolean switch from the ``<experimental>`` tag: a missing tag is ``False``."""
+        return boolean(self.experimentalValue(group, name))
+
     def init(self, db_attrs=None, restorepath=None):
         """Initiate a :class:`GnrApp`
 
@@ -1279,6 +1294,15 @@ class GnrApp(object):
         for method in method.split(','):
             result+=self._pkgBroadcast(method,*args,**kwargs)
         return result
+
+    def dbUpgradeBroadcast(self):
+        """Run the db upgrade lifecycle: broadcast onDbUpgrade to every package,
+        then onDbUpgradeDone once all packages completed their upgrade pass.
+
+        onDbUpgradeDone hooks can rely on records created by any package during
+        the onDbUpgrade phase (mandatory sysRecords, lookup rows)."""
+        self.pkgBroadcast('onDbUpgrade,onDbUpgrade_*')
+        self.pkgBroadcast('onDbUpgradeDone,onDbUpgradeDone_*')
     
     def _pkgBroadcast(self,method,*args,**kwargs):
         result = []

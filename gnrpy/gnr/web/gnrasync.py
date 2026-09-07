@@ -370,15 +370,23 @@ class SharedStatus(SharedObject):
     def sharedObjects(self):
         return self.data['sharedObjects']
 
+    @staticmethod
+    def _userkey(user):
+        """Bag labels split on '.', so a dotted username must be escaped
+        before it can key the users tree; the real username still rides in
+        the node's 'user' attribute/value."""
+        return user.replace('.', '_').replace('@', '_')
+
     def registerPage(self, page):
         page_item = page.page_item
         users = self.users
         page_id = page.page_id
-        if page.user not in users:
-            users[page.user] = Bag(dict(
+        userkey = self._userkey(page.user)
+        if userkey not in users:
+            users[userkey] = Bag(dict(
                 start_ts=page_item['start_ts'], user=page.user, connections=Bag(),
             ))
-        userbag = users[page.user]
+        userbag = users[userkey]
         connection_id = page.connection_id
         if connection_id not in userbag['connections']:
             userbag['connections'][connection_id] = Bag(dict(
@@ -397,7 +405,8 @@ class SharedStatus(SharedObject):
 
     def unregisterPage(self, page):
         users = self.users
-        userbag = users[page.user]
+        userkey = self._userkey(page.user)
+        userbag = users[userkey]
         connection_id = page.connection_id
         userconnections = userbag['connections']
         connection_pages = userconnections[connection_id]['pages']
@@ -405,13 +414,13 @@ class SharedStatus(SharedObject):
         if not connection_pages:
             userconnections.popNode(connection_id)
             if not userconnections:
-                users.popNode(page.user)
+                users.popNode(userkey)
 
     def onPing(self, page_id, lastEventAge):
         page = self.server.pages.get(page_id)
         if not page:
             return
-        userdata = self.users[page.user]
+        userdata = self.users[self._userkey(page.user)]
         conndata = userdata['connections'][page.connection_id]
         pagedata = conndata['pages'][page_id]
         pagedata['lastEventAge'] = lastEventAge
@@ -426,7 +435,7 @@ class SharedStatus(SharedObject):
         page = self.server.pages.get(page_id)
         if not page:
             return
-        pagedata = self.users[page.user]['connections'][page.connection_id]['pages'][page_id]
+        pagedata = self.users[self._userkey(page.user)]['connections'][page.connection_id]['pages'][page_id]
         old_targetId = pagedata['evt_targetId']
         for k, v in list(event.items()):
             pagedata['evt_%s' % k] = v
