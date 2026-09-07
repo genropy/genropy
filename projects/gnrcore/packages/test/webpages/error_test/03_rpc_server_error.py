@@ -8,7 +8,8 @@ EXPECTED BEHAVIOR:
 - A persistent error toast appears with the error message and a reference code
   in format (ref: YYMMDD-XXXXX).
 - For DEVELOPER users: the toast message includes a clickable link to the
-  error detail page at /sys/ep_error?error_code=<id>.
+  error detail page at sys/ep_error?error_code=<id>, prefixed with /_main_/
+  in multidomain instances, where errors are stored in the root store.
 - For NORMAL users: the toast shows the reference code as plain text.
 - The error is stored in the sys.error table with full context:
   error_code, description, traceback, username, user_ip, user_agent,

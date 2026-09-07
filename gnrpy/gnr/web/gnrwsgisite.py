@@ -675,6 +675,17 @@ class GnrWsgiSite(object):
             return f'{self.default_uri}{self.currentDomain}/'
         return self.default_uri
 
+    @property
+    def rootDomainHomeUri(self):
+        """Returns the home URI of the rootDomain.
+
+        In multidomain mode _syspackage records live in the root store,
+        so they are reachable only through the rootDomain.
+        """
+        if self.multidomain:
+            return f'{self.default_uri}{self.rootDomain}/'
+        return self.default_uri
+
     def getSubscribedTables(self,tables):
         domain_proxy = self.domains[self.currentDomain]
         if domain_proxy and domain_proxy._register is not None:
