@@ -189,7 +189,13 @@ dojo.declare("gnr.widgets.MenuDiv", gnr.widgets.gnrwdg, {
 
         var tip = objectPop(kw,'tip');
         iconClass = iconClass? 'iconbox ' +iconClass :null;
-        var box_kw = objectUpdate({_class:'menuButtonDiv buttonDiv',disabled:disabled,tip:tip},buttonkw);
+        //a value-bound menudiv defaults to the menudiv_token look (bare word +
+        //chevron); btn__class replaces the whole default, so it stays the opt-out
+        var default_class = 'menuButtonDiv buttonDiv';
+        if(value && !iconClass && !label){
+            default_class += ' menudiv_token'+(colorWhite? ' menudiv_token_white':'');
+        }
+        var box_kw = objectUpdate({_class:default_class,disabled:disabled,tip:tip},buttonkw);
         if(parentForm){
             box_kw.parentForm = parentForm;
         }
@@ -208,12 +214,27 @@ dojo.declare("gnr.widgets.MenuDiv", gnr.widgets.gnrwdg, {
             }
             box = box._('div',objectUpdate({font_weight:'bold',cursor:'pointer',_class:colorWhite?'menudiv_text menudiv_text_white':'menudiv_text'},sourceStyleKw));
             let value_path = value.slice(1);
-            let caption_path = objectPop(kw,'caption_path') || `${value_path}?label`;
+            let caption_path = objectPop(kw,'caption_path');
             let key = objectPop(kw,'key') || 'fullpath';
             let caption = objectPop(kw,'caption') || 'caption';
             let placeholder = objectPop(kw,'placeholder') || 'Empty';
-            box._('div',{innerHTML:`^${caption_path}?=#v||'${placeholder}'`});
-            kw.action = `this.setRelativeData('${value_path}',$1['${key}']);this.setRelativeData('${caption_path}',$1['${caption}'] || $1.label);`;
+            if(!caption_path && typeof(kw.values)=='string' && !sourceNode.isPointerPath(kw.values)){
+                //static values: the visible caption FOLLOWS THE VALUE, resolved against
+                //the same values the menu shows -- so a value set from anywhere (form
+                //load, a controller, a default) displays right with no bookkeeping,
+                //and only the code is ever written: no ?label attribute that would
+                //ride along in a record cluster
+                let capmap = objectFromString(kw.values,null,'kv');
+                box._('div',{innerHTML:`^${value_path}?=(${JSON.stringify(capmap)})[#v]||#v||'${placeholder}'`});
+                kw.action = `this.setRelativeData('${value_path}',$1['${key}']);`;
+            }else{
+                //dynamic values (storepath or a bound values path): the caption cannot
+                //be resolved here, so it lives on caption_path (default: the value
+                //node's ?label attribute) and picking a line writes both
+                caption_path = caption_path || `${value_path}?label`;
+                box._('div',{innerHTML:`^${caption_path}?=#v||'${placeholder}'`});
+                kw.action = `this.setRelativeData('${value_path}',$1['${key}']);this.setRelativeData('${caption_path}',$1['${caption}'] || $1.label);`;
+            }
         }
 
         kw._class = kw._class || 'smallmenu';

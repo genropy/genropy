@@ -246,7 +246,7 @@
 <en_you_are_about_to_set_archiviation_date_in_the_selected_count_records base="You are about to set archiviation date in the selected $count records" it="Stai per archiviare, impostando la data di archiviazione a $count records"></en_you_are_about_to_set_archiviation_date_in_the_selected_count_records>
 <en_date fr="Date" de="Datum" en="Date" it="Data" base="Date"></en_date>
 <en_n_records base="N.Records"></en_n_records>
-<en_records_to_delete base="Records to delete"></en_records_to_delete>
+<en_records_to_delete base="Records to delete" it="Record da eliminare"></en_records_to_delete>
 <en_duplicate_rows base="Duplicate rows"></en_duplicate_rows>
 <en_you_are_going_to_duplicate base="You are going to duplicate"></en_you_are_going_to_duplicate>
 <en_records base="records" it="Record"></en_records></genro_components>

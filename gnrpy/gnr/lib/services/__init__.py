@@ -24,6 +24,7 @@
 #Copyright (c) 2007 Softwell. All rights reserved.
 
 
+import inspect
 import os
 import threading
 from datetime import datetime
@@ -100,7 +101,8 @@ class BaseServiceType(object):
         if service_factory is None:
             raise GnrException('no implementation %r for service type %r (service %r)'
                                % (implementation, self.service_type, service_name))
-        service_conf = service_conf or {}
+        service_conf = self.filterServiceConf(service_factory, service_conf or {},
+                                              service_name=service_name, implementation=implementation)
         service = service_factory(self.site, **service_conf)
         service.service_name = service_name
         service.service_type = self.service_type
@@ -109,6 +111,21 @@ class BaseServiceType(object):
         service._config_from_db = db_conf is not None
         self.service_instances[service_name] = service
         return service
+
+    def filterServiceConf(self, service_factory, service_conf, service_name=None, implementation=None):
+        # The parameters bag is shared by every implementation of every service type,
+        # so it can carry keys a given factory never declared (see issue #1181).
+        try:
+            parameters = inspect.signature(service_factory).parameters
+        except (TypeError, ValueError):
+            return service_conf
+        if any(p.kind is p.VAR_KEYWORD for p in parameters.values()):
+            return service_conf
+        unknown = sorted(k for k in service_conf if k not in parameters)
+        if unknown:
+            logger.warning("Service %s/%s: implementation %s does not accept parameters %s: ignored",
+                           self.service_type, service_name, implementation, ', '.join(unknown))
+        return {k: v for k, v in service_conf.items() if k in parameters}
 
     def getConfiguration(self, service_name):
         return self.getServiceConfigurationFromDb(service_name) or \
