@@ -141,18 +141,25 @@ def local_storage(mode, base_paths):
     return Storage(site, mode, list(base_paths))
 
 
-def s3_storage(mode):
+def s3_storage(mode, **legacy_params):
     """A Storage with a 'st' mount on the configured S3 endpoint, under a
-    prefix of its own so the two modes never share objects."""
+    prefix of its own so the two modes never share objects.
+
+    legacy_params reach the legacy aws_s3 service in both modes: in genro mode
+    that is the service the url layer is delegated to, so a parameter like
+    url_expiration or public_base_url must take effect there too.
+    """
     site = SiteStub()
     prefix = '%s/%s' % (S3_PREFIX, uuid.uuid4().hex[:12])
+    legacy_service = load_legacy_aws_s3_service()
+    params = dict(
+        parent=site, bucket=S3_BUCKET, base_path=prefix,
+        aws_access_key_id=S3_ACCESS_KEY, aws_secret_access_key=S3_SECRET_KEY,
+        region_name='us-east-1', custom_endpoint=True, endpoint_url=S3_ENDPOINT,
+        versioned=False)
+    params.update(legacy_params)
     if mode == 'legacy':
-        legacy_service = load_legacy_aws_s3_service()
-        site.add('st', legacy_service(
-            parent=site, bucket=S3_BUCKET, base_path=prefix,
-            aws_access_key_id=S3_ACCESS_KEY, aws_secret_access_key=S3_SECRET_KEY,
-            region_name='us-east-1', custom_endpoint=True, endpoint_url=S3_ENDPOINT,
-            versioned=False), 'aws_s3')
+        site.add('st', legacy_service(**params), 'aws_s3')
     else:
         config = {'name': 'st', 'protocol': 's3', 'bucket': S3_BUCKET,
                   'base_path': prefix, 'access_key': S3_ACCESS_KEY,
@@ -161,7 +168,8 @@ def s3_storage(mode):
         manager.configure([config])
         site.add('st', storage_genro.Service(
             parent=site, manager=manager, mount_name='st', mount_config=config,
-            versioned=False), 'aws_s3')
+            versioned=False,
+            legacy_service=legacy_service(**params)), 'aws_s3')
     storage = Storage(site, mode, ['st'])
     storage.prefix = prefix
     return storage

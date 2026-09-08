@@ -692,7 +692,8 @@ class GenroStorageHandler(LegacyStorageHandler):
                 mount_config=self.mount_configs[storage_name],
                 expand_paths=params.get('implementation') == 'raw',
                 versioned=boolean(params['versioned']) if 'versioned' in params else None,
-                tags=params.get('tags'))
+                tags=params.get('tags'),
+                legacy_service=lambda: LegacyStorageHandler.storage(self, storage_name))
             service.service_name = storage_name
             service.service_implementation = params.get('implementation')
             self._genro_services[storage_name] = service

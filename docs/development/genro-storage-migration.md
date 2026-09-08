@@ -515,7 +515,12 @@ Open, deliberately:
    this environment, and each is a self-contained follow-up.
 2. **Four things genro-storage does not provide**, each handled and each an upstream
    candidate (T2's `GENRO_STORAGE_ISSUE.md` is where they belong):
-   `public_url` — built in the service from the mount's endpoint and bucket;
+   **the whole url layer on a remote mount** — `url(expires_in=…)` is all genro-storage
+   0.8 signs, so it can carry neither a content disposition, nor the mount's
+   `url_expiration`, nor a non-expiring `public_url`; `url()` and `public_url()`
+   therefore delegate to the legacy service of the same mount, which already signs with
+   `ResponseContentDisposition` and knows `public_base_url`. A remote mount without a
+   legacy service raises: a download that silently opens inline is worse than an error;
    `internal_path` for remote mounts — composed from the mount's `base_path`, since
    `resolved_path` is `None` off the local filesystem;
    `readonly`/`write_in_local` — no counterpart at all, so a readonly mount is **left on
@@ -565,3 +570,11 @@ Open, deliberately:
    itself (it needs a file picked by hand) and multidomain.
 10. **The per-call node construction on local mounts** (§11) is the one measured
    inefficiency: worth a cache in the service if a profile ever points here.
+11. **A pre-existing legacy defect, now shared by both paths**: `aws_s3.url()`
+   (`projects/gnrcore/packages/sys/resources/services/storage/aws_s3.py:325`) reads
+   `_content_disposition` into a local *before* the `_download` branch writes it back
+   into `kwargs`, so the branch is dead and `url(_download=True)` always signs
+   `inline`. It reaches the genro-storage path too, since that is where the urls are
+   built now. `serve(download=True)` is unaffected — it passes `_content_disposition`
+   explicitly. Pinned by `test_url_download_flag_is_inert_in_both_modes`; the fix
+   belongs to the legacy service and wants its own issue.

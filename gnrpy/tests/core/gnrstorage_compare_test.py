@@ -21,6 +21,7 @@ without it those tests skip with the reason naming the variable.
 import base64
 import hashlib
 import os
+import urllib.parse
 import urllib.request
 import uuid
 
@@ -382,6 +383,31 @@ class TestS3Parity(StorageParity):
             assert os.path.exists(local_path)
             assert local_path != node.internal_path
 
+    def test_url_carries_the_content_disposition(self, s3):
+        node = s3.write('st:sub/probe.txt')
+        url = node.url(_content_disposition='attachment; filename=given.txt')
+        assert 'response-content-disposition' in url.lower()
+        assert 'attachment; filename=given.txt' in urllib.parse.unquote(url)
+
+    def test_public_url_does_not_expire(self, s3):
+        node = s3.write('st:sub/probe.txt')
+        public_url = node.public_url()
+        assert 'X-Amz-Signature' not in public_url
+        assert public_url.endswith(node.internal_path)
+
+    def test_serve_download_redirects_carrying_the_disposition(self, s3):
+        node = s3.write('st:sub/probe.txt')
+        captured = {}
+
+        def start_response(status, headers):
+            captured['status'] = status
+            captured['headers'] = dict(headers)
+
+        node.serve({}, start_response, download=True)
+        assert captured['status'].startswith('302')
+        location = urllib.parse.unquote(captured['headers']['Location'])
+        assert 'attachment; filename=probe.txt' in location
+
 
 class TestNamedDivergences:
     """Where the two modes legitimately differ, the difference is pinned here
@@ -408,6 +434,47 @@ class TestNamedDivergences:
         genro = local_storage('genro', {'st': str(base)})
         with pytest.raises(ValueError):
             genro.node('st:sub/../escaped.txt').exists
+
+    @requires_s3
+    def test_url_expiration_of_the_mount_is_honoured(self):
+        """The mount's own url_expiration, not a per-call default: the two
+        modes must sign for the same window."""
+        for mode in MODES:
+            storage = s3_storage(mode, url_expiration=120)
+            try:
+                assert 'X-Amz-Expires=120' in storage.write('st:probe.txt').url()
+            finally:
+                storage.cleanup()
+
+    @requires_s3
+    def test_public_url_uses_the_configured_public_base_url(self):
+        """public_base_url fronts the bucket with a CDN or custom domain; it
+        must win over the endpoint in both modes."""
+        for mode in MODES:
+            storage = s3_storage(mode, public_base_url='https://cdn.example.com')
+            try:
+                node = storage.write('st:probe.txt')
+                assert node.public_url() == 'https://cdn.example.com/%s' % node.internal_path
+            finally:
+                storage.cleanup()
+
+    @requires_s3
+    def test_url_download_flag_is_inert_in_both_modes(self):
+        """aws_s3.url() reads _content_disposition into a local before the
+        _download branch writes it back into kwargs, so the branch is dead and
+        the disposition stays 'inline'. Pre-existing on the legacy path, and
+        both modes share it because the genro-storage service builds its urls
+        through that same legacy service. serve(download=True) is unaffected:
+        it passes _content_disposition explicitly."""
+        for mode in MODES:
+            storage = s3_storage(mode)
+            try:
+                url = urllib.parse.unquote(
+                    storage.write('st:probe.txt').url(_download=True))
+                assert 'response-content-disposition=inline' in url
+                assert 'attachment' not in url
+            finally:
+                storage.cleanup()
 
     @requires_s3
     def test_md5hash_on_s3_legacy_gives_up_on_a_multipart_etag(self):

@@ -32,11 +32,14 @@ class Service(StorageService):
         expand_paths: expand '~' in incoming paths (the legacy 'raw' behaviour)
         versioned: False disables versioning on a backend that supports it,
                 as the legacy aws_s3 service's own versioned parameter does
+        legacy_service: the legacy service for the same mount, or a callable
+                returning it. Required on a remote mount, which serves its
+                urls through it (see the legacy_service property).
     """
 
     def __init__(self, parent=None, manager=None, mount_name=None,
                  mount_config=None, expand_paths=False, versioned=None,
-                 tags=None, **kwargs):
+                 tags=None, legacy_service=None, **kwargs):
         self.parent = parent
         self.manager = manager
         self.mount_name = mount_name
@@ -44,6 +47,7 @@ class Service(StorageService):
         self.expand_paths = expand_paths
         self.versioned = versioned
         self.tags = tags
+        self._legacy_service = legacy_service
 
     # ---- plumbing
 
@@ -58,6 +62,27 @@ class Service(StorageService):
     @property
     def is_local(self):
         return self.protocol == 'local'
+
+    @property
+    def legacy_service(self):
+        """The legacy service for this mount, which owns the url layer.
+
+        genro-storage 0.8's url() carries only expires_in, so a presigned url
+        cannot express a content disposition, the mount's url_expiration or a
+        non-expiring public url. Losing those silently turns a download into an
+        inline view, so a remote mount without a legacy service is an error
+        rather than a degraded url."""
+        service = self._legacy_service
+        if callable(service):
+            service = service()
+            self._legacy_service = service
+        if service is None:
+            raise RuntimeError(
+                'the genro-storage mount %r has no legacy service to build its '
+                'urls with: url(), public_url() and serve() need it to carry '
+                'the content disposition and url_expiration that '
+                'genro-storage cannot' % self.mount_name)
+        return service
 
     @property
     def base_path(self):
@@ -234,8 +259,7 @@ class Service(StorageService):
     def url(self, *args, **kwargs):
         if self.is_local:
             return self.internal_url(*args, **kwargs)
-        expiration = kwargs.pop('expiration', None) or 3600
-        return self._node(*args).url(expires_in=expiration)
+        return self.legacy_service.url(*args, **kwargs)
 
     def internal_url(self, *args, **kwargs):
         if not self.is_local:
@@ -244,15 +268,9 @@ class Service(StorageService):
         return super().internal_url(*args, **kwargs)
 
     def public_url(self, *args, **kwargs):
-        """A plain, non-expiring url: the object must be publicly readable, this
-        only builds the address."""
         if self.is_local:
             return self.internal_url(*args, **kwargs)
-        endpoint = (self.mount_config.get('endpoint_url') or '').rstrip('/')
-        bucket = self.mount_config.get('bucket')
-        if not (endpoint and bucket):
-            return self.url(*args, **kwargs)
-        return '%s/%s/%s' % (endpoint, bucket, self.internal_path(*args))
+        return self.legacy_service.public_url(*args, **kwargs)
 
     def serve(self, path, environ, start_response, download=False, download_name=None, **kwargs):
         if not self.is_local:
