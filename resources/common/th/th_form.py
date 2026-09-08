@@ -32,7 +32,7 @@ class TableHandlerForm(BaseComponent):
             grid =  pane.view.grid
             linkTo = grid
         #context_dbstore = pane.getInheritedAttributes().get('context_dbstore')
-        remoteForm = options.pop('remote',None) or (self.getPreference('experimental.remoteForm',pkg='sys'))
+        remoteForm = options.pop('remote',None) or self.application.experimentalValue('page', 'remoteForm')
         if formInIframe:
             remoteForm = False
         remotePars = dict()

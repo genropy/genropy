@@ -66,20 +66,23 @@ function _T(str,lazy){
         return str;
     }
     var localsdict = genro.getFromStorage('local',localekey) || {};
-    if(isNullOrBlank(localsdict[str])){
-        var toTranslate = noLocMarker?'!!'+str:str;
-        var result = genro.serverCall('getRemoteTranslation',{txt:toTranslate,language:language}) || {};
-        var localizedString = result['translation'];
-        if(result.status!='OK'){
-            localsdict[str] ='<span class="unlocalized">'+localizedString+'</span>';
-        }
-        localsdict[str] = localizedString;
-        genro.setInStorage('local',localekey,localsdict);
-        return localizedString;
-    }else{
+    if(!isNullOrBlank(localsdict[str])){
         return localsdict[str];
     }
-    return str;
+    var pagelocals = genro._pageLocals[localekey] = genro._pageLocals[localekey] || {};
+    if(!isNullOrBlank(pagelocals[str])){
+        return pagelocals[str];
+    }
+    var toTranslate = noLocMarker?'!!'+str:str;
+    var result = genro.serverCall('getRemoteTranslation',{txt:toTranslate,language:language}) || {};
+    var localizedString = result['translation'];
+    if(result.status=='OK'){
+        localsdict[str] = localizedString;
+        genro.setInStorage('local',localekey,localsdict);
+    }else{
+        pagelocals[str] = localizedString;
+    }
+    return localizedString;
 }
 
 function _F(val,format,dtype){

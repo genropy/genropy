@@ -311,14 +311,25 @@ class XlsxReader(BaseSheetReader):
     def _process_firstline(self, firstline, sheet):
         headers = []
         for i, header in enumerate(firstline):
+            # slugify first: a header that slugifies to '' must become
+            # gnr_emptycol_N too, or it drops out of colindex and shifts
+            # every following column
+            header = slugify(header, sep='_') if header else ''
             if not header:
                 header = f'gnr_emptycol_{i}'
-            header = slugify(header, sep='_')
             headers.append(header)
         colindex = {i: True for i, h in enumerate(headers) if h}
         return headers, colindex
 
     def _sheetlines(self, sheet):
+        """Generate lines from the sheet, handling empty rows according to settings.
+
+        Values are appended in iteration order and stay aligned with the header
+        row: the read_only reader pads every row from column A up to the sheet
+        width, placing each value at its own column and filling the gaps with
+        EmptyCell. Cells must never be inspected for their position, because
+        those padding cells expose `value` but have no `column` attribute.
+        """
         last_line_empty = False
         for line in sheet.rows:
             result = []
@@ -379,13 +390,15 @@ class CsvReader(BaseReader):
         for _ in range(start_at_line):
             next(self.filecsv)
 
-        # Delimiter argument has priority over dialect in clevercsv.reader
-        if delimiter:
+        # Delimiter argument has priority over dialect in clevercsv.reader,
+        # which rejects dialect=None where the stdlib csv accepts it
+
+        if dialect and delimiter:
             self.rows = csv.reader(self.filecsv, dialect=dialect, delimiter=delimiter)
         elif dialect:
             self.rows = csv.reader(self.filecsv, dialect=dialect)
         else:
-            self.rows = csv.reader(self.filecsv, delimiter=',')
+            self.rows = csv.reader(self.filecsv, delimiter=delimiter or ',')
 
         self.headers = next(self.rows)
         name = docname if isinstance(docname, str) else (getattr(docname, 'name', None) or '<file-like>')
@@ -395,6 +408,8 @@ class CsvReader(BaseReader):
 
     def __call__(self):
         for r in self.rows:
+            if not r:
+                continue
             yield GnrNamedList(self.index, r)
         if self._owns_filecsv:
             self.filecsv.close()

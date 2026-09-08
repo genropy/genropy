@@ -16,6 +16,7 @@ import os
 import tempfile
 import csv
 
+import openpyxl
 import pytest
 
 from gnr.core.flatfiles import (
@@ -572,6 +573,49 @@ def test_CsvReader_auto_dialect():
         assert last_row[9] == expected_description
 
 
+
+def test_CsvReader_delimiter_without_dialect():
+    """Test CsvReader and getReader with an explicit delimiter and no dialect.
+
+    clevercsv rejects dialect=None where the stdlib csv accepts it, so the
+    delimiter has to be passed on its own.
+    """
+    test_file = os.path.join(DATA_DIR, 'test_CsvAuto_SemiColon.csv')
+
+    reader = CsvReader(test_file, delimiter=';', encoding='utf-8')
+    assert reader.ncols == 11
+    assert reader.headers[0] == 'Data contabile'
+    rows = list(reader())
+    assert len(rows) == 6
+    assert rows[5][2] == '-50,00'
+
+    reader = getReader(test_file, delimiter=';', encoding='utf-8')
+    assert reader.ncols == 11
+    assert len(list(reader())) == 6
+
+
+
+def test_CsvReader_doubled_line_terminators():
+    """Test CsvReader on a file whose records end with CR CR LF.
+
+    Some Windows exporters emit a doubled CR, which every csv reader (clevercsv
+    and the stdlib alike, in text mode and with newline='') splits into an extra
+    zero-field row per record.
+    """
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, newline='') as f:
+        csv_file = f.name
+        f.write('id;name\r\r\n1;Alice\r\r\n2;Bob\r\r\n')
+
+    try:
+        reader = CsvReader(csv_file, delimiter=';')
+        assert reader.headers == ['id', 'name']
+        rows = list(reader())
+        assert len(rows) == 2
+        assert [r['name'] for r in rows] == ['Alice', 'Bob']
+    finally:
+        os.unlink(csv_file)
+
+
 ### ported from gnrlist_test
 def test_getReader():
 
@@ -1021,3 +1065,122 @@ def test_readTab():
 
     finally:
         os.unlink(tab_file)
+
+
+# ===========================================================================
+# XlsxReader — column alignment (issue #797)
+# ===========================================================================
+
+def _write_xlsx(rows):
+    """Write *rows* (lists of values, None for a blank cell) to a temp xlsx.
+
+    Returns the file path; the caller is responsible for removing it.
+    """
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    for r, row in enumerate(rows, start=1):
+        for c, value in enumerate(row, start=1):
+            if value is not None:
+                ws.cell(row=r, column=c, value=value)
+    with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as f:
+        path = f.name
+    wb.save(path)
+    return path
+
+
+def test_XlsxReader_blank_header_before_named_columns():
+    """A blank first header must not shift the following columns (issue #797).
+
+    A whitespace-only header is truthy but slugifies to '', so it used to drop
+    out of colindex while still occupying a slot in the index: every following
+    column was read one position to the left and row['id'] returned the value
+    of the next column.
+    """
+    path = _write_xlsx([
+        ['   ', 'id', 'importo'],
+        ['note', 'K1', 100],
+    ])
+    try:
+        r = XlsxReader(path)
+        assert r.headers == ['gnr_emptycol_0', 'id', 'importo']
+        assert r.ncols == 3
+        rows = list(r())
+        assert len(rows) == 1
+        assert rows[0]['id'] == 'K1'
+        assert rows[0]['importo'] == 100
+        assert rows[0]['gnr_emptycol_0'] == 'note'
+    finally:
+        os.unlink(path)
+
+
+def test_XlsxReader_header_slugifying_to_empty_is_renamed():
+    """A header left empty by slugify gets a generated name, one kept keeps it.
+
+    '#' slugifies to '' and must be renamed, exactly like a whitespace-only
+    header; '---' slugifies to '_', which is a usable name and is kept. Two
+    different punctuation-only headers can therefore end up sharing the same
+    name -- a limitation of naming columns after slugify, unchanged here.
+    """
+    path = _write_xlsx([
+        ['#', 'id', '---'],
+        ['x', 'K1', 'y'],
+    ])
+    try:
+        r = XlsxReader(path)
+        assert r.headers[0] == 'gnr_emptycol_0'
+        assert r.headers[1] == 'id'
+        assert r.headers[2] == '_'
+        rows = list(r())
+        assert rows[0]['id'] == 'K1'
+    finally:
+        os.unlink(path)
+
+
+def test_XlsxReader_rows_with_blank_cells():
+    """Blank cells anywhere in a row keep the row aligned with the header.
+
+    In read_only mode openpyxl pads rows with EmptyCell objects, which expose
+    `value` but no `column`: the reader must not rely on cell coordinates.
+    """
+    path = _write_xlsx([
+        ['id', 'importo', 'note'],
+        [None, 100, 'x'],          # blank leading cell
+        ['K2', None, 'y'],         # blank cell inside the row
+        ['K3', 300, None],         # blank trailing cell
+    ])
+    try:
+        r = XlsxReader(path)
+        assert r.headers == ['id', 'importo', 'note']
+        rows = list(r())
+        assert len(rows) == 3
+        assert rows[0]['id'] is None
+        assert rows[0]['importo'] == 100
+        assert rows[0]['note'] == 'x'
+        assert rows[1]['id'] == 'K2'
+        assert rows[1]['importo'] is None
+        assert rows[1]['note'] == 'y'
+        assert rows[2]['id'] == 'K3'
+        assert rows[2]['importo'] == 300
+        assert rows[2]['note'] is None
+    finally:
+        os.unlink(path)
+
+
+def test_XlsxReader_empty_rows_are_skipped_by_default():
+    """Fully empty rows are dropped unless allEmptyRows/compressEmptyRows ask for them."""
+    path = _write_xlsx([
+        ['id', 'importo'],
+        ['K1', 1],
+        [None, None],
+        [None, None],
+        ['K2', 2],
+    ])
+    try:
+        assert [row['id'] for row in XlsxReader(path)()] == ['K1', 'K2']
+        compressed = list(XlsxReader(path, compressEmptyRows=True)())
+        assert len(compressed) == 3
+        assert compressed[1] == []
+        allrows = list(XlsxReader(path, allEmptyRows=True)())
+        assert len(allrows) == 4
+    finally:
+        os.unlink(path)

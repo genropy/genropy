@@ -71,6 +71,27 @@ class TestGnrLocalization(BaseGnrAppTest):
         assert r["status"] == "NOKEY"
         assert r["translation"] == "bkasjklasjsd"
 
+    def test_missing_language_is_reported_as_nolang(self):
+        """
+        A fallback answer must stay distinguishable from a real translation:
+        the client caches a translation only when the status is OK.
+        """
+        al = gl.AppLocalizer(self.app)
+        al.localizationDict['en_records_to_delete'] = {'base': 'Records to delete'}
+        al.localizationDict['en_condition_op'] = {'base': 'Condition op', 'it': 'Operatore condizione'}
+
+        r = al.getTranslation('!!Records to delete', 'it')
+        assert r['status'] == 'NOLANG'
+        assert r['translation'] == 'Records to delete'
+
+        r = al.getTranslation('!!Condition op', 'it')
+        assert r['status'] == 'OK'
+        assert r['translation'] == 'Operatore condizione'
+
+        r = al.getTranslation(gl.GnrLocString('en_records_to_delete'), 'it')
+        assert r['status'] == 'NOLANG'
+        assert r['translation'] == 'Records to delete'
+
     def test_symbol_only_captions_not_translated(self):
         """
         Symbol-only captions ('=', '>=', '%', '#', whitespace, ...) all flatten
@@ -93,3 +114,36 @@ class TestGnrLocalization(BaseGnrAppTest):
         # reaches the ordinary lookup instead of being short-circuited
         r = al.getTranslation('!!100%', 'it')
         assert r['translation'] == '100%'
+
+    def test_markup_label_fragments_are_localized(self):
+        """
+        A drop uploader label is markup carrying embedded [!!...] fragments:
+        each fragment needs its own core localization entry, otherwise the
+        widget renders the marker itself instead of the translated text.
+        """
+        al = gl.AppLocalizer(self.app)
+        label = ('<div class="atc_galleryDropArea">'
+                 '<div>[!!Drop document here]</div>'
+                 '<div>[!!or double click to upload]</div></div>')
+        r = al.getTranslation(label, 'it')
+        assert r['status'] == 'OK'
+        assert r['translation'] == ('<div class="atc_galleryDropArea">'
+                                    '<div>Trascina qui il documento</div>'
+                                    '<div>o fai doppio click per caricare</div></div>')
+
+    def test_attachmanager_captions_are_localized(self):
+        """
+        The attachment grid captions and the upload size alert are marked for
+        translation: a missing entry would silently fall back to English.
+        """
+        al = gl.AppLocalizer(self.app)
+        expected = {'!!Type': 'Tipo',
+                    '!!Open': 'Apri',
+                    '!!DL': 'DL',
+                    '!!Copy': 'Copia',
+                    '!!File exceeds size limit': 'Il file supera la dimensione massima',
+                    '!!Error': 'Errore'}
+        for txt, translation in expected.items():
+            r = al.getTranslation(txt, 'it')
+            assert r['status'] == 'OK', txt
+            assert r['translation'] == translation

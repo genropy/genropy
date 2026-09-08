@@ -1,3 +1,16 @@
+Release 26.09.07
+================
+
+Hotfix release: cherry-picked fixes for #1270 (PR #1271), where a
+non-existing dialect caused clevercsv to fail, and handling doubled
+line terminators parsing.
+
+Release 26.09.04
+================
+
+Hotfix release: fixed attachmentPane grid drop, where the uploads was
+successfull but the record wasn't created.
+
 Release 26.09.01
 ================
 

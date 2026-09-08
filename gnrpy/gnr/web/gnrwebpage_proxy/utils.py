@@ -353,16 +353,17 @@ class GnrWebUtils(GnrBaseProxy):
                                                     constants=constant_kwargs)
 
     def defaultMatchImporterXls(self,tblobj=None,reader=None,match_index=None,sql_mode=None,constants=None,mandatories=None, import_mode=None):
-        rows = self.adaptedRecords(tblobj=tblobj,reader=reader,match_index=match_index,sql_mode=sql_mode,constants=constants)
+        # a generated pkey belongs to the insertMany path only: the update_only
+        # rows go to recordToUpdate(raw=sql_mode), where raw_update takes the
+        # WHERE from the record read out of the db and the SET from the row, so
+        # a pkey coming from the row would be written over the existing one
+        # (SET pkey=<generated> WHERE pkey=<current>), orphaning every fkey
+        rows = self.adaptedRecords(tblobj=tblobj,reader=reader,match_index=match_index,sql_mode=sql_mode,constants=constants,
+                                    assign_pkey=bool(sql_mode) and import_mode!='update_only')
         docommit = False
         if import_mode=='replace':
             tblobj.empty()
-        if sql_mode:
-            rows_to_insert = list(rows)
-            if rows_to_insert:
-                tblobj.insertMany(rows_to_insert)
-                docommit=True
-        elif import_mode=='update_only':
+        if import_mode=='update_only':
             _updater_keyfield = match_index.pop('_updater_keyfield',None)
             if not _updater_keyfield:
                 return
@@ -379,6 +380,11 @@ class GnrWebUtils(GnrBaseProxy):
                 if missing_keys:
                     self.page.clientPublish('floating_message',message='Missing record to update %s' %','.join(missing_keys),
                                             messageType='warning')
+        elif sql_mode:
+            rows_to_insert = list(rows)
+            if rows_to_insert:
+                tblobj.insertMany(rows_to_insert)
+                docommit=True
         else:
             for r in rows:
                 pkey = r.get(tblobj.pkey)
@@ -395,14 +401,30 @@ class GnrWebUtils(GnrBaseProxy):
        
         return 'OK'
     
-    def adaptedRecords(self,tblobj=None,reader=None,match_index=None,sql_mode=None,constants=None):
+    def adaptedRecords(self,tblobj=None,reader=None,match_index=None,sql_mode=None,constants=None,
+                        assign_pkey=None):
+        """Yield the reader rows as records of tblobj, mapped through match_index.
+
+        :param match_index: dict of source column -> destination column, plus the
+                            client's `_updater_keyfield` metadata entry
+        :param sql_mode: rows are meant for a raw write
+        :param assign_pkey: assign a new pkey to the rows that have none. Defaults
+                            to sql_mode, because a raw insert needs the key up front,
+                            and must be False whenever the rows are going to update
+                            existing records: their pkey would be overwritten
+        """
+        assign_pkey = sql_mode if assign_pkey is None else assign_pkey
         for row in self.quickThermo(reader(),maxidx=reader.nrows if hasattr(reader,'nrows') else None,
                         labelfield=tblobj.attributes.get('caption_field') or tblobj.name):
             r = dict(constants) if constants else dict()
-            f =  {v:row[k] for k,v in match_index.items() if v != ''} if match_index else dict(row)
+            # _updater_keyfield is metadata, not a column: keeping it in would
+            # look up a row column of that name and raise KeyError. The
+            # update_only path pops it from match_index before consuming this
+            # generator, but the other paths never do
+            f =  {v:row[k] for k,v in match_index.items() if v != '' and k != '_updater_keyfield'} if match_index else dict(row)
             r.update(f)
             tblobj.recordCoerceTypes(r)
-            if sql_mode:
+            if assign_pkey:
                 tpkey = tblobj.pkey
                 if not r.get(tpkey):
                     r[tpkey] = tblobj.newPkeyValue(r)
