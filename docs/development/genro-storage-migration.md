@@ -2,7 +2,8 @@
 
 Reference issue: #251 (testing request for the genro-storage integration).
 Branch: `feature/251-genro-storage-switch`, cut from `origin/develop` @ `919a3a572a`.
-Target package: `genro-storage` 0.8.0 (PyPI, installed), `fsspec` 2025.10.0, `s3fs` 2025.9.0.
+Target package: `genro-storage` 0.8.1 (PyPI; the pin stays `>=0.8,<0.9`, since nothing
+here needs 0.8.1 to work — see §11 for what it buys), `fsspec` 2025.10.0, `s3fs` 2025.9.0.
 
 Goal: serve the replaceable part of the legacy storage layer through genro-storage,
 behind a switch that is **off by default**, with the legacy code left intact and still
@@ -422,74 +423,103 @@ MINIO_ROOT_USER=minioadmin MINIO_ROOT_PASSWORD=minioadmin \
 
 ### Benchmark results
 
-Measured 2026-09-02 on the committed code, macOS 25.0.0 (Darwin, Apple silicon), pyenv Python 3.13.2,
-genro-storage 0.8.0, fsspec 2025.10.0, s3fs 2025.9.0, boto3/botocore 1.40.18,
+Measured 2026-09-08 on the committed code, macOS 25.0.0 (Darwin, Apple silicon), pyenv Python 3.13.2,
+**genro-storage 0.8.1**, fsspec 2025.10.0, s3fs 2025.9.0, boto3/botocore 1.40.18,
 smart_open 7.1.0, MinIO (homebrew binary) at `http://127.0.0.1:9000`, bucket `sandbox`.
 Reproduce with `cd gnrpy && python -m pytest tests/core/gnrstorage_benchmark.py -s -q`.
 Totals in ms for the stated repetition count; `ratio = genro_ms / legacy_ms`, so above 1
-genro-storage is slower.
+genro-storage is slower. `ext_attributes` and the `tree` row were added after the first
+round: they are the shape `StorageResolver` (`gnr/lib/services/storage.py:914`) actually
+uses, one `ext_attributes` per child of a listing, and nothing else in the table was
+measuring it.
 
 **Local mount**
 
 | operation | reps | legacy_ms | genro_ms | ratio | per call: legacy → genro |
 |---|---|---|---|---|---|
-| write small (4KB) | 10 | 0.47 | 1.36 | 2.88 | 0.047 → 0.136 ms |
-| write large (4MB) | 3 | 2.32 | 2.42 | 1.04 | 0.77 → 0.81 ms |
-| read small (4KB) | 10 | 0.18 | 1.14 | 6.21 | 0.018 → 0.114 ms |
-| read large (4MB) | 3 | 0.74 | 0.99 | 1.33 | 0.25 → 0.33 ms |
-| exists | 50 | 0.10 | 2.33 | 22.49 | 0.002 → 0.047 ms |
-| size | 50 | 0.11 | 2.48 | 22.77 | 0.002 → 0.050 ms |
-| mtime | 50 | 0.10 | 2.49 | 24.03 | 0.002 → 0.050 ms |
-| md5hash | 50 | 0.95 | 7.91 | 8.36 | 0.019 → 0.158 ms |
-| children (100 files) | 10 | 0.93 | 8.27 | 8.88 | 0.093 → 0.827 ms |
-| copy same mount | 10 | 1.25 | 3.93 | 3.14 | 0.125 → 0.393 ms |
-| internal_url | 50 | 0.04 | 0.05 | 1.17 | 0.001 → 0.001 ms |
+| write small (4KB) | 10 | 0.43 | 1.34 | 3.14 | 0.043 → 0.134 ms |
+| write large (4MB) | 3 | 6.65 | 3.09 | 0.46 | 2.22 → 1.03 ms |
+| read small (4KB) | 10 | 0.19 | 1.34 | 7.17 | 0.019 → 0.134 ms |
+| read large (4MB) | 3 | 0.75 | 1.30 | 1.74 | 0.25 → 0.43 ms |
+| exists | 50 | 0.10 | 2.40 | 23.48 | 0.002 → 0.048 ms |
+| size | 50 | 0.10 | 2.51 | 24.25 | 0.002 → 0.050 ms |
+| mtime | 50 | 0.10 | 2.38 | 24.27 | 0.002 → 0.048 ms |
+| md5hash | 50 | 0.95 | 7.96 | 8.39 | 0.019 → 0.159 ms |
+| ext_attributes | 50 | 0.10 | 9.17 | 87.59 | 0.002 → 0.183 ms |
+| children (100 files) | 10 | 0.94 | 8.84 | 9.35 | 0.094 → 0.884 ms |
+| tree: children + ext_attributes | 5 | 1.34 | 104.49 | 78.24 | 0.27 → 20.9 ms per tree |
+| copy same mount | 10 | 1.23 | 3.88 | 3.17 | 0.123 → 0.388 ms |
+| internal_url | 50 | 0.04 | 0.05 | 1.21 | 0.001 → 0.001 ms |
 
 **S3 mount (MinIO on localhost, so almost no network latency: on a real remote
 endpoint the round trip dominates every row)**
 
 | operation | reps | legacy_ms | genro_ms | ratio | per call: legacy → genro |
 |---|---|---|---|---|---|
-| write small (4KB) | 10 | 49.76 | 29.30 | 0.59 | 4.98 → 2.93 ms |
-| write large (4MB) | 3 | 48.41 | 42.24 | 0.87 | 16.1 → 14.1 ms |
-| read small (4KB) | 10 | 21.95 | 36.59 | 1.67 | 2.20 → 3.66 ms |
-| read large (4MB) | 3 | 10.56 | 15.81 | 1.50 | 3.52 → 5.27 ms |
-| exists | 50 | 33.51 | 30.43 | 0.91 | 0.67 → 0.61 ms |
-| size | 50 | 30.61 | 31.21 | 1.02 | 0.61 → 0.62 ms |
-| mtime | 50 | 32.12 | 29.80 | 0.93 | 0.64 → 0.60 ms |
-| md5hash | 50 | 31.99 | 90.65 | 2.83 | 0.64 → 1.81 ms |
-| children (100 files) | 10 | 72.35 | 64.61 | 0.89 | 7.24 → 6.46 ms |
-| copy same mount | 10 | 35.10 | 76.58 | 2.18 | 3.51 → 7.66 ms |
-| internal_url | 50 | 0.07 | 0.07 | 0.99 | 0.001 → 0.001 ms |
+| write small (4KB) | 10 | 53.64 | 27.93 | 0.52 | 5.36 → 2.79 ms |
+| write large (4MB) | 3 | 49.65 | 43.31 | 0.87 | 16.6 → 14.4 ms |
+| read small (4KB) | 10 | 22.18 | 29.67 | 1.34 | 2.22 → 2.97 ms |
+| read large (4MB) | 3 | 12.90 | 12.54 | 0.97 | 4.30 → 4.18 ms |
+| exists | 50 | 32.74 | 30.09 | 0.92 | 0.65 → 0.60 ms |
+| size | 50 | 30.09 | 30.42 | 1.01 | 0.60 → 0.61 ms |
+| mtime | 50 | 29.63 | 30.59 | 1.03 | 0.59 → 0.61 ms |
+| md5hash | 50 | 30.25 | 94.10 | 3.11 | 0.61 → 1.88 ms |
+| ext_attributes | 50 | 80.07 | 31.82 | 0.40 | 1.60 → 0.64 ms |
+| children (100 files) | 10 | 64.65 | 25.27 | 0.39 | 6.47 → 2.53 ms |
+| tree: children + ext_attributes | 5 | 3281.14 | 25.52 | **0.01** | 656 → 5.1 ms per tree |
+| copy same mount | 10 | 32.06 | 63.04 | 1.97 | 3.21 → 6.30 ms |
+| internal_url | 50 | 0.07 | 0.07 | 1.04 | 0.001 → 0.001 ms |
+
+**What 0.8.1 changed**, same benchmark, same machine, only the package swapped
+(0.8.1 reads mtime, size and directory status in one backend `info()` instead of
+four separate calls):
+
+| mount | operation | genro_ms 0.8.0 | genro_ms 0.8.1 | gain |
+|---|---|---|---|---|
+| S3 | ext_attributes (50) | 124.76 | 31.05-31.82 | **~4x** |
+| S3 | tree, 5x100 children | 93.27 | 25.37-25.91 | **~3.6x** |
+| local | ext_attributes (50) | 9.81 | 9.17-9.65 | none |
+| local | tree, 5x100 children | 110.74 | 104.49-112.36 | none |
 
 Reading the numbers:
 
+- **0.8.1 only helps the fsspec backends.** `LocalStorage` does not override
+  `ext_attributes`, so a local mount still falls back to the base implementation's
+  four separate calls and gains nothing. Worth an upstream note.
+- **The biggest number in the table is a win, not a cost**: a storage tree on an S3
+  mount is **~128x faster with the switch on** — 656 ms against 5.1 ms for a
+  100-file listing. The legacy `aws_s3` service issues a `HeadObject` per child,
+  while s3fs answers each child from the listing it has just made. Since
+  `StorageResolver` is exactly this shape, an S3 folder in the UI is where a user
+  would feel the switch first, and in their favour.
 - **The overhead is per call, not per byte.** On a local mount a metadata call
-  costs 0.002 ms through the legacy service and 0.047 ms through genro-storage,
-  which is the 22x: genro-storage builds a node object per call. On the 4 MB
-  file the ratio collapses to 1.04-1.33, because the fixed cost stops mattering.
-  So the ratio to watch is not the worst one, it is the one on the operation you
-  actually repeat thousands of times.
-- **The one local row that can reach a user** is `children` on 100 files: 0.09 ms
-  against 0.83 ms per listing. A `StorageResolver` walking a large directory pays
-  that per level. Still sub-millisecond, but it is the first place to look if a
-  tree ever feels slow, and the fix is a per-path node cache in the service.
+  costs 0.002 ms through the legacy service and ~0.05 ms through genro-storage,
+  which is the 22-24x: genro-storage builds a node object per call. On the 4 MB
+  file the ratio collapses, because the fixed cost stops mattering. So the ratio to
+  watch is not the worst one, it is the one on the operation you actually repeat.
+- **The local tree row is the one local cost that can reach a user**: 21 ms per
+  100-file listing against 0.27 ms, because it pays the per-call node construction
+  100 times and 0.8.1 does not help here. Still a fraction of a page render, but it
+  is the first place to look if a tree ever feels slow, and the fix is a per-path
+  node cache in the service (§12 point 10).
 - **On S3 genro-storage is not slower overall**: writes are almost twice as fast
-  (s3fs against smart_open + boto3), metadata is a wash, `children` slightly
-  better. The real regression is the small read, 2.20 → 3.66 ms.
+  (s3fs against smart_open + boto3), plain metadata is a wash, `children` and
+  `ext_attributes` are better. What is genuinely slower is `md5hash` and the copy.
 - **The S3 copy stays server-side in both worlds** *(measured separately)*: the
-  cost does not grow with the file - 4 KB copies in 19.9 ms, 4 MB in 15.6 ms - so
-  no bytes travel through the client. genro-storage's 2.18x is extra round trips
-  for its own checks, a fixed cost, not a transfer.
+  cost does not grow with the file — 4 KB copies in 19.9 ms, 4 MB in 15.6 ms — so
+  no bytes travel through the client. The ~2x is extra round trips for
+  genro-storage's own checks, a fixed cost and not a transfer. That is
+  `genropy/genro-storage#78`, still open on 0.8.1.
 - **`md5hash` on S3 is not a like-for-like comparison.** The legacy service reads
   the ETag and gives up when a multipart upload made it something other than an
-  md5, so its 0.64 ms buy a `None`; genro-storage's 1.81 ms return the real hash.
+  md5, so its 0.61 ms buy a `None`; genro-storage's 1.88 ms return the real hash.
   This is the divergence pinned in `TestNamedDivergences`.
 - **Run-to-run noise on S3 is material** at these repetition counts: across three
-  runs `children` moved between 0.36x and 1.15x and `read small` between 1.60x
-  and 2.96x. The local ratios were stable to within a few percent. Treat the S3
-  column as an order of magnitude and raise the repetitions before drawing a
-  conclusion from one cell.
+  0.8.1 runs `md5hash` moved between 2.73x and 3.11x and `copy same mount` between
+  1.97x and 2.66x, mostly because the legacy denominator wanders. The rows that
+  matter here — `ext_attributes`, `children`, `tree` — held to within a few percent.
+  The local column is stable; `write large` on local is not, it moved 2.32-6.65 ms
+  between rounds. Treat a single S3 cell as an order of magnitude.
 
 ## 12. Status and open points
 

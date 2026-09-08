@@ -62,8 +62,12 @@ OPERATIONS = [
     ('size', 50, lambda st: st.node('st:bench/small.dat').size),
     ('mtime', 50, lambda st: st.node('st:bench/small.dat').mtime),
     ('md5hash', 50, lambda st: st.node('st:bench/small.dat').md5hash),
+    ('ext_attributes', 50, lambda st: st.node('st:bench/small.dat').ext_attributes),
     ('children (%d files)' % CHILDREN_COUNT, 10,
      lambda st: st.node('st:bench/listing').children()),
+    ('tree: children + ext_attributes', 5,
+     lambda st: [child.ext_attributes
+                 for child in st.node('st:bench/listing').children()]),
     ('copy same mount', 10, lambda st: st.node('st:bench/small.dat').copy(
         st.node('st:bench/copied.dat'))),
     ('internal_url', 50, lambda st: st.node('st:bench/small.dat').internal_url()),
