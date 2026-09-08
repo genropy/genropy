@@ -4965,23 +4965,55 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
     },
     mixin_setCondition:function(value,kw){
         var vpath = this.sourceNode.attr.value;
-        var currvalue = this.sourceNode.getRelativeData(vpath);
+        var datavalue = this.sourceNode.getRelativeData(vpath);
+        var currvalue = datavalue;
+        var oneOptionItem = null;
         var reskwargs = this.store.rootDataNode().getResolver().kwargs;
         if(reskwargs.notnull){
             reskwargs = objectUpdate({},reskwargs);
             var reskwargs = objectUpdate(reskwargs,{limit:2,_querystring:'*',notnull:true});
             var singleOption = genro.serverCall(objectPop(reskwargs,'method'),reskwargs);
             if(singleOption._value.len()==1){
-                currvalue = singleOption._value.getAttr('#0')[this.store._identifier];
+                oneOptionItem = singleOption._value.getNode('#0');
+                currvalue = oneOptionItem.attr[this.store._identifier];
             }
         }
         if(!isNullOrBlank(currvalue)){
             this.clearCache();
-            this.setValue(null,true);
-            this.setValue(currvalue,true);
-        } 
-
-        //this.sourceNode.setRelativeData(vpath,currvalue);
+            if(oneOptionItem && currvalue !== datavalue){
+                // no identity fetch runs on this branch, so the resolver error
+                // of the previous condition would survive into a valid selection
+                // and keep validate_select returning query_error
+                delete this._lastQueryError;
+                this.item = oneOptionItem;
+                if(this._setValueFromItem){
+                    this._setValueFromItem(oneOptionItem,false);
+                }else{
+                    this.setValue(currvalue,false);
+                }
+                this.sourceNode.setRelativeData(vpath,currvalue);
+                this._updateSelect(oneOptionItem);
+            }else{
+                // Reset _lastValue so the identity fetch is not skipped.
+                var self = this;
+                this.setValue(null,false);
+                this.store.fetchItemByIdentity({identity:currvalue,onItem:function(){
+                    if(self.sourceNode.getRelativeData(vpath) != currvalue){
+                        // the stale reply may have flagged a value that is no longer
+                        // there. fetchItemByIdentity clears _lastQueryError before
+                        // the call, so a value here belongs to this reply: without
+                        // one there is nothing of ours to undo, and the node may
+                        // meanwhile hold the current value's own error or required
+                        if(self._lastQueryError){
+                            delete self._lastQueryError;
+                            self.sourceNode.resetValidationError();
+                        }
+                        return;
+                    }
+                    self.setValue(currvalue,false);
+                }});
+            }
+        }
     },
     
     mixin_onSetValueFromItem: function(item, priorityChange) {

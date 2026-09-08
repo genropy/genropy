@@ -16,6 +16,15 @@ class TestGnrWsgiSite(BaseGnrDaemonTest):
         assert self.site.remote_edit is None
         assert self.site.locale
         
+    def test_root_domain_home_uri(self, monkeypatch):
+        assert not self.site.multidomain
+        assert self.site.rootDomainHomeUri == self.site.default_uri
+        monkeypatch.setattr(type(self.site.db), 'multidb_config',
+                            property(lambda db: {'multidomain': 'true'}))
+        assert self.site.multidomain
+        assert self.site.rootDomainHomeUri == f'{self.site.default_uri}{self.site.rootDomain}/'
+        assert self.site.rootDomainHomeUri == '/_main_/'
+
     def test_apikeys(self):
         r = self.site.getApiKeys("booger")
         assert r is None
