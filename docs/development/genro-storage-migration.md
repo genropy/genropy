@@ -570,11 +570,19 @@ Open, deliberately:
    itself (it needs a file picked by hand) and multidomain.
 10. **The per-call node construction on local mounts** (§11) is the one measured
    inefficiency: worth a cache in the service if a profile ever points here.
-11. **A pre-existing legacy defect, now shared by both paths**: `aws_s3.url()`
-   (`projects/gnrcore/packages/sys/resources/services/storage/aws_s3.py:325`) reads
-   `_content_disposition` into a local *before* the `_download` branch writes it back
-   into `kwargs`, so the branch is dead and `url(_download=True)` always signs
-   `inline`. It reaches the genro-storage path too, since that is where the urls are
-   built now. `serve(download=True)` is unaffected — it passes `_content_disposition`
-   explicitly. Pinned by `test_url_download_flag_is_inert_in_both_modes`; the fix
-   belongs to the legacy service and wants its own issue.
+11. **The `download` attribute never worked on a remote mount — fixed here, on the
+   legacy path too.** Two dead ends, both pre-existing and both independent of the
+   switch. `aws_s3.url()` read `_content_disposition` into a local *before* the
+   `_download` branch wrote it back into `kwargs`, so the branch was dead and
+   `url(_download=True)` always signed `inline`; it now derives the disposition once,
+   from `_download` or `download`, which also makes `btcprint.py:202`
+   (`url(nocache=True, download=True)`) behave on S3 as it already did on a local
+   mount. And `_download` had three writers — `aws_s3.internal_url()`,
+   `sftp.internal_url()` and the genro-storage service — but no reader on the serving
+   path: `serve()` reads `download`, so the `?_download=True` that `internal_url()`
+   puts in its own url was discarded and the file opened inline. `StorageNode.serve()`
+   now maps `_download` onto `download` in one shared place, which covers the legacy
+   local, `aws_s3` and `sftp` services and the genro-storage one, with the switch on or
+   off. Pinned in both modes by `test_url_download_names_the_file`,
+   `test_serve_honours_the_download_query_of_internal_url` and
+   `TestLocalDownload`.

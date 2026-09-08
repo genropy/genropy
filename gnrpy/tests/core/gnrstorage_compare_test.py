@@ -61,6 +61,14 @@ def s3(request):
     storage.cleanup()
 
 
+def _capture(captured):
+    """A start_response that records the status and headers it is given."""
+    def start_response(status, headers):
+        captured['status'] = status
+        captured['headers'] = dict(headers)
+    return start_response
+
+
 class StorageParity:
     """The parity body. Subclasses bind `storage` to a local or an S3 mount."""
 
@@ -352,6 +360,22 @@ class TestLocalParity(StorageParity):
             assert local_path == node.internal_path
 
 
+class TestLocalDownload:
+    """The download attribute on a local mount, in both modes."""
+
+    def test_serve_download_sets_the_attachment_header(self, tmp_path):
+        base = tmp_path / 'base'
+        base.mkdir()
+        for mode in MODES:
+            storage = local_storage(mode, {'st': str(base)})
+            node = storage.write('st:probe.txt')
+            for kwargs in ({'download': True}, {'_download': 'True'}):
+                captured = {}
+                node.serve({}, _capture(captured), **kwargs)
+                assert captured['headers']['Content-Disposition'] == (
+                    'attachment; filename=probe.txt'), (mode, kwargs)
+
+
 @requires_s3
 class TestS3Parity(StorageParity):
     """The parity body on an S3 mount."""
@@ -395,15 +419,27 @@ class TestS3Parity(StorageParity):
         assert 'X-Amz-Signature' not in public_url
         assert public_url.endswith(node.internal_path)
 
+    def test_url_download_names_the_file(self, s3):
+        node = s3.write('st:sub/probe.txt')
+        for flag in ('download', '_download'):
+            url = urllib.parse.unquote(node.url(**{flag: True}))
+            assert 'attachment; filename=probe.txt' in url, flag
+
+    def test_serve_honours_the_download_query_of_internal_url(self, s3):
+        """internal_url() marks the url with _download; serving it must
+        redirect to an attachment."""
+        node = s3.write('st:sub/probe.txt')
+        assert '_download=True' in node.internal_url()
+        captured = {}
+        node.serve({}, _capture(captured), _download='True')
+        assert captured['status'].startswith('302')
+        assert 'attachment; filename=probe.txt' in urllib.parse.unquote(
+            captured['headers']['Location'])
+
     def test_serve_download_redirects_carrying_the_disposition(self, s3):
         node = s3.write('st:sub/probe.txt')
         captured = {}
-
-        def start_response(status, headers):
-            captured['status'] = status
-            captured['headers'] = dict(headers)
-
-        node.serve({}, start_response, download=True)
+        node.serve({}, _capture(captured), download=True)
         assert captured['status'].startswith('302')
         location = urllib.parse.unquote(captured['headers']['Location'])
         assert 'attachment; filename=probe.txt' in location
@@ -455,24 +491,6 @@ class TestNamedDivergences:
             try:
                 node = storage.write('st:probe.txt')
                 assert node.public_url() == 'https://cdn.example.com/%s' % node.internal_path
-            finally:
-                storage.cleanup()
-
-    @requires_s3
-    def test_url_download_flag_is_inert_in_both_modes(self):
-        """aws_s3.url() reads _content_disposition into a local before the
-        _download branch writes it back into kwargs, so the branch is dead and
-        the disposition stays 'inline'. Pre-existing on the legacy path, and
-        both modes share it because the genro-storage service builds its urls
-        through that same legacy service. serve(download=True) is unaffected:
-        it passes _content_disposition explicitly."""
-        for mode in MODES:
-            storage = s3_storage(mode)
-            try:
-                url = urllib.parse.unquote(
-                    storage.write('st:probe.txt').url(_download=True))
-                assert 'response-content-disposition=inline' in url
-                assert 'attachment' not in url
             finally:
                 storage.cleanup()
 
