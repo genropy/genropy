@@ -61,6 +61,7 @@ dojo.declare('gnr.GenroClient', null, {
         this.domRootName = kwargs.domRootName || 'mainWindow';
         this.page_id = kwargs.page_id;
         this.startArgs = kwargs.startArgs || {};
+        genropatches.dojoXhr(this.startArgs.dojoXhrPatch);
         this.debuglevel = kwargs.startArgs.debug || null;
         this.debug_sql = kwargs.startArgs.debug_sql;
         dojo.subscribe('gnrServerLog', this, 'serverLog');
