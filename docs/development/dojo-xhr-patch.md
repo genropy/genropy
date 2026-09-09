@@ -75,7 +75,8 @@ Dojo 1.1 builds. Reloading starts again with original Dojo.
 
 Coverage includes methods and raw bodies, parameter encoding, request and
 response headers, XML attributes, callback order/context, chained Deferreds,
-HTTP and parse errors, recovery, cancellation, timeout, synchronous calls,
+HTTP and parse errors, XML without Content-Type, malformed XML, recovery,
+cancellation, timeout, synchronous calls,
 form serialization, cookies, fallback routing and fetch network failure.
 An explicit assertion verifies that fetch does not enter `dojo._ioWatch`.
 
@@ -114,3 +115,29 @@ The two CSV failures (`test_getCsvDialect_limited_lines` and
 `test_CsvReader_auto_dialect`) also reproduce in isolation without importing
 the modified webpage module. This run does not establish a green full suite.
 Real form/TableHandler validation and the broader benchmark remain pending.
+
+## XML compatibility and instance validation, 2026-09-09
+
+Responses without Content-Type now use XHR's XML default. Explicit text/plain
+responses still have no responseXML. Malformed XML is recognized with both
+the Mozilla and XHTML parser-error namespaces used by browser engines.
+The added contract check first reproduced both regressions, then passed
+after the corrections. The updated suite passed 20 checks on each bundled
+Dojo build in the integrated browser, and on the compact build in Chrome.
+
+The `/test/datastore/dojo_xhr` testhandler page exercises real application
+RPC, the returned Dojo Deferred, callback chaining, Bag results, datachanges,
+error recovery and a province TableHandler. Run it against a disposable
+instance with the transport option enabled. Set the site's `wsgi.debug` to
+`false` to exercise application error callbacks; debug mode can re-raise
+the deliberate exception as HTTP 500.
+
+Validation on the isolated `sandboxpg_fetchmode` PostgreSQL instance passed
+the RPC and datachange checks, HTTP and application error recovery, resource
+loading, and form load/save. A province name was changed through the form,
+verified directly in PostgreSQL, and restored through the form. The runtime
+used Python and JavaScript from the feature worktree. Four Python bootstrap
+and webpage tests passed. After rebasing onto current develop, the full Python
+suite passed with 2,509 passed and 10 skipped (Python 3.13). The compact browser
+contract and application RPC/error-recovery checks also passed after the rebase.
+Broader latency/concurrency measurements remain pending.

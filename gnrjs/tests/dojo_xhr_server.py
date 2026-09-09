@@ -35,9 +35,16 @@ class Handler(SimpleHTTPRequestHandler):
         result = json.dumps(dict(
             method=self.command, query=query, body=body.decode(),
             headers=dict(self.headers))).encode()
-        if parsed.path.endswith('/xml'):
+        if parsed.path.endswith(('/xml', '/xml-no-content-type',
+                                 '/xml-invalid', '/xml-text')):
             content_type = 'application/xml'
             result = b'<GenRoBag><result answer="yes">hello</result></GenRoBag>'
+            if parsed.path.endswith('/xml-no-content-type'):
+                content_type = None
+            elif parsed.path.endswith('/xml-invalid'):
+                result = b'<GenRoBag><result></GenRoBag>'
+            elif parsed.path.endswith('/xml-text'):
+                content_type = 'text/plain'
         elif parsed.path.endswith('/invalid-json'):
             result = b'{broken'
         elif parsed.path.endswith('/close'):
@@ -45,7 +52,8 @@ class Handler(SimpleHTTPRequestHandler):
             self.connection.close()
             return
         self.send_response(status)
-        self.send_header('Content-Type', content_type)
+        if content_type:
+            self.send_header('Content-Type', content_type)
         self.send_header('Content-Length', str(len(result)))
         self.send_header('X-GnrTime', str(time.perf_counter() - started))
         self.end_headers()

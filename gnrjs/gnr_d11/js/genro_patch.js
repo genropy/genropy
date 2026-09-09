@@ -130,11 +130,12 @@ genropatches.dojoXhr = function(transport){
                     if(finished){ return; }
                     xhr.responseText = text;
                     xhr.readyState = 4;
-                    if(/(?:\/|\+)xml(?:\s*;|$)/i.test(xhr.getResponseHeader('Content-Type') || '')){
+                    if(/(?:\/|\+)xml(?:\s*;|$)/i.test(xhr.getResponseHeader('Content-Type') || 'text/xml')){
                         var xml = new DOMParser().parseFromString(text, 'application/xml');
                         var parseErrors = xml.getElementsByTagNameNS(
-                            'http://www.mozilla.org/newlayout/xml/parsererror.xml', 'parsererror');
-                        xhr.responseXML = parseErrors.length ? null : xml;
+                            'http://www.mozilla.org/newlayout/xml/parsererror.xml', 'parsererror').length ||
+                            xml.getElementsByTagNameNS('http://www.w3.org/1999/xhtml', 'parsererror').length;
+                        xhr.responseXML = parseErrors ? null : xml;
                     }
                     if(!dojo._isDocumentOk(xhr)){
                         var error = new Error('Unable to load ' + ioArgs.url + ' status:' + xhr.status);

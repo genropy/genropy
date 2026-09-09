@@ -64,6 +64,19 @@
             assert(await wait(dfd) === 42, 'Transformed result');
             assert(order.join(',') === 'load,handle,callback', 'Callback ordering');
         });
+        await test(transport + ': XML MIME defaults and invalid documents', async function(){
+            for(const name of ['xml', 'xml-no-content-type', 'xml-invalid', 'xml-text']){
+                const dfd = dojo.xhrGet({url: '/transport-test/' + name, handleAs: 'xml'});
+                assert(dfd instanceof dojo.Deferred, 'XML request returns a Dojo Deferred');
+                const xml = await wait(dfd);
+                if(name === 'xml' || name === 'xml-no-content-type'){
+                    assert(xml && xml.documentElement.nodeName === 'GenRoBag', name + ' XML document');
+                }else{
+                    assert(xml === null, name + ' has no XML document: ' +
+                        (xml && xml.documentElement.outerHTML));
+                }
+            }
+        });
         await test(transport + ': empty raw PUT retains legacy content and Deferred chaining', async function(){
             const dfd = dojo.rawXhrPut({url: endpoint, handleAs: 'json', putData: '',
                 content: {value: 'preserved'}});
