@@ -320,11 +320,12 @@ class TableTemplateToHtml(BagToHtmlWeb):
         if not htmlContent:
             htmlContent = self.contentFromTemplate(record,template=template,locale=locale)
             record = self.record
+        callingPdfPath = pdf if isinstance(pdf,str) else None
         if pdf :
             filepath = filepath or self.getHtmlPath(f'{self.getDocName()}.html')
         result = super(TableTemplateToHtml, self).__call__(record=record,htmlContent=htmlContent,filepath=filepath,**kwargs)
-        if pdf is True:
-            return self.writePdf()
+        if pdf:
+            return self.writePdf(pdfpath=callingPdfPath)
         return result
     
     def getDocName(self):
