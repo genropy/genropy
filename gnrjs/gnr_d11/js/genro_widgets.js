@@ -4346,6 +4346,9 @@ dojo.declare("gnr.widgets.NumberTextBox", gnr.widgets._BaseTextBox, {
         if ('ftype' in attributes) {
             attributes.constraints['type'] = objectPop(attributes['ftype']);
         }
+        objectPop(attributes, 'keypad');
+        objectPop(attributes, 'keypad_calculator');
+        objectPop(attributes, 'keypad_size');
     },
 
     created: function(widget, savedAttrs, sourceNode) {
@@ -4358,6 +4361,214 @@ dojo.declare("gnr.widgets.NumberTextBox", gnr.widgets._BaseTextBox, {
             });
         }
         widget.setValue(sourceNode.getRelativeData(sourceNode.attr.value)); //avoid set 0 as null value by dojo widget
+        this._attachKeypad(widget, sourceNode);
+    },
+
+    _supportsKeypad: true,
+
+    //'=' is entity-escaped: a bare '=' in an attribute is a genro datasource expression
+    _keypadOpLabels: {'*':'\u00d7', '/':'\u00f7', '-':'\u2212', '+':'+', '=':'&#61;'},
+
+    _keypadRows: [
+        [{k:'C', t:'clear'}, {k:'&#9003;', t:'back'}, {k:'&plusmn;', t:'sign'}, {k:'/', t:'op', calc:true}],
+        [{k:'7', t:'digit'}, {k:'8', t:'digit'}, {k:'9', t:'digit'}, {k:'*', t:'op', calc:true}],
+        [{k:'4', t:'digit'}, {k:'5', t:'digit'}, {k:'6', t:'digit'}, {k:'-', t:'op', calc:true}],
+        [{k:'1', t:'digit'}, {k:'2', t:'digit'}, {k:'3', t:'digit'}, {k:'+', t:'op', calc:true}],
+        [{k:'0', t:'digit', wide:true}, {k:'.', t:'dec'}, {k:'=', t:'eq', calc:true}]
+    ],
+
+    _attachKeypad: function(widget, sourceNode) {
+        var calculator = !!sourceNode.attr.keypad_calculator;
+        if (!this._supportsKeypad || !(sourceNode.attr.keypad || calculator)) {
+            return;
+        }
+        var that = this;
+        var openerId = 'gnr_keypad_' + genro.getCounter();
+        var state = {tokens:[], entry:'', error:false,
+                     padId:openerId + '_pad', displayId:openerId + '_display'};
+        genro.dom.addClass(widget.focusNode, 'comboArrowTextbox gnr_keypad_field');
+        sourceNode.freeze();
+        var box = sourceNode._('div', {_class:'gnr_keypad_opener', cursor:'pointer',
+                                tabindex:-1, position:'absolute', top:0, bottom:0, right:0,
+                                connect_onclick:function(evt) {
+                                    genro.publish(openerId + '_open', {evt:evt, domNode:evt.currentTarget});
+                                }});
+        box._('div', {_class:'gnr_keypad_glyph' + (calculator? ' gnr_keypad_glyph_calc':''),
+                      position:'absolute', top:0, bottom:0, left:0, right:0, tabindex:-1});
+        //evt:'noevt' leaves the opening to the publish above: the subtree is built frozen,
+        //so the node tooltipPane would pick to connect on its own is not the opener
+        var pane = box._('tooltipPane', {openerId:openerId, evt:'noevt', _class:'gnr_keypad_pane',
+                                onOpening:function(){ that._keypadOpen(state, widget); },
+                                connect_onClose:function(){ that._keypadCommit(state, widget); }});
+        this._buildKeypad(pane, state, widget, calculator, openerId, sourceNode.attr.keypad_size);
+        sourceNode.unfreeze();
+    },
+
+    _buildKeypad: function(pane, state, widget, calculator, openerId, size) {
+        var that = this;
+        //the keys are plain divs: without this the mousedown blurs the dropdown and
+        //dijit closes the popup before the click on the key is delivered
+        var kp = pane._('div', {nodeId:state.padId,
+                                _class:'gnr_keypad' + (calculator? ' gnr_keypad_withops':'') + (size? ' gnr_keypad_' + size:''),
+                                connect_onmousedown:function(evt) { dojo.stopEvent(evt); }});
+        kp._('div', {nodeId:state.displayId, _class:'gnr_keypad_display'});
+        var grid = kp._('div', {_class:'gnr_keypad_grid'});
+        this._keypadRows.forEach(function(row) {
+            row.forEach(function(key) {
+                if (key.calc && !calculator) {
+                    return;
+                }
+                grid._('div', {_class:'gnr_keypad_key gnr_keypad_key_' + key.t + (key.wide? ' gnr_keypad_key_wide':''),
+                               innerHTML: that._keypadOpLabels[key.k] || key.k,
+                               connect_onclick:function(evt) {
+                                   that._keypadKey(state, widget, key, evt);
+                               }});
+            });
+        });
+        var foot = kp._('div', {_class:'gnr_keypad_foot'});
+        foot._('div', {_class:'gnr_keypad_key gnr_keypad_cancel', innerHTML:'&#10005;',
+                       connect_onclick:function(evt) {
+                           dojo.stopEvent(evt);
+                           state.discard = true;
+                           that._keypadClose(openerId, evt);
+                       }});
+        foot._('div', {_class:'gnr_keypad_key gnr_keypad_confirm', innerHTML:'&#10003;',
+                       connect_onclick:function(evt) {
+                           dojo.stopEvent(evt);
+                           that._keypadConfirm(state, widget, openerId, evt);
+                       }});
+    },
+
+    _keypadOpen: function(state, widget) {
+        //the pane lives outside the field in the popup layer, so the field font-size
+        //has to be carried over: every measure of the pad is an em against it
+        var pad = genro.domById(state.padId);
+        if (pad) {
+            pad.style.fontSize = dojo.getComputedStyle(widget.focusNode).fontSize;
+        }
+        var v = widget.getValue();
+        state.tokens = [];
+        state.error = false;
+        state.discard = false;
+        state.entry = (typeof(v)=='number' && isFinite(v))? String(v) : '';
+        this._keypadRender(state, widget);
+    },
+
+    _keypadRender: function(state, widget) {
+        var dom = genro.domById(state.displayId);
+        if (!dom) {
+            return;
+        }
+        var that = this;
+        var chunks = state.tokens.map(function(t) {
+            return (typeof(t)=='string')? (that._keypadOpLabels[t] || t) : String(t);
+        });
+        if (state.entry) {
+            chunks.push(state.entry);
+        }
+        var txt = chunks.join(' ') || '0';
+        dom.innerHTML = txt.split('.').join(dojo.number._parseInfo(widget.constraints).decimal);
+        dojo.toggleClass(dom, 'gnr_keypad_error', state.error);
+    },
+
+    _keypadKey: function(state, widget, key, evt) {
+        dojo.stopEvent(evt);
+        state.error = false;
+        if (key.t=='digit') {
+            state.entry = (state.entry=='0')? key.k : state.entry + key.k;
+        }else if (key.t=='dec') {
+            if (state.entry.indexOf('.')<0) {
+                state.entry = (state.entry || '0') + '.';
+            }
+        }else if (key.t=='back') {
+            state.entry = state.entry.slice(0, -1);
+        }else if (key.t=='clear') {
+            state.tokens = [];
+            state.entry = '';
+        }else if (key.t=='sign') {
+            state.entry = stringStartsWith(state.entry, '-')? state.entry.slice(1) : '-' + state.entry;
+        }else if (key.t=='op') {
+            this._keypadPushOp(state, key.k);
+        }else if (key.t=='eq') {
+            var r = this._keypadResult(state);
+            state.tokens = [];
+            state.error = (r===null);
+            state.entry = (r===null)? '' : String(r);
+        }
+        this._keypadRender(state, widget);
+    },
+
+    _keypadPushOp: function(state, op) {
+        var n = this._keypadEntryValue(state);
+        if (n===null) {
+            if (state.tokens.length) {
+                state.tokens[state.tokens.length - 1] = op;
+            }
+            return;
+        }
+        state.tokens.push(n, op);
+        state.entry = '';
+    },
+
+    _keypadEntryValue: function(state) {
+        var n = Number(state.entry);
+        return (state.entry && isFinite(n))? n : null;
+    },
+
+    /* tokens are [number, op, number, ...]; a dangling operator is dropped rather
+       than evaluated, so an incomplete expression yields the part already typed */
+    _keypadResult: function(state) {
+        var t = state.tokens.slice();
+        var last = this._keypadEntryValue(state);
+        if (last!==null) {
+            t.push(last);
+        }
+        if (t.length % 2 === 0) {
+            t.pop();
+        }
+        if (!t.length) {
+            return null;
+        }
+        for (var i=1; i<t.length-1; ) {
+            if (t[i]=='*' || t[i]=='/') {
+                if (t[i]=='/' && t[i+1]===0) {
+                    return null;
+                }
+                t.splice(i-1, 3, (t[i]=='*')? t[i-1]*t[i+1] : t[i-1]/t[i+1]);
+            }else{
+                i += 2;
+            }
+        }
+        var res = t[0];
+        for (var j=1; j<t.length-1; j+=2) {
+            res = (t[j]=='+')? res + t[j+1] : res - t[j+1];
+        }
+        return isFinite(res)? res : null;
+    },
+
+    _keypadConfirm: function(state, widget, openerId, evt) {
+        if (this._keypadResult(state)===null) {
+            state.error = true;
+            this._keypadRender(state, widget);
+            return;
+        }
+        this._keypadClose(openerId, evt);
+    },
+
+    //every way out of the pane but the cancel key writes the value: closing by
+    //clicking away is a confirm, and dijit routes that through the dropdown onClose
+    _keypadCommit: function(state, widget) {
+        var v = state.discard? null : this._keypadResult(state);
+        state.discard = false;
+        state.tokens = [];
+        state.entry = '';
+        if (v!==null) {
+            widget.setValue(v);
+        }
+    },
+
+    _keypadClose: function(openerId, evt) {
+        genro.publish({topic:'close', nodeId:openerId}, {evt:evt});
     },
 
     onSettingValueInData: function(sourceNode, value,valueAttr) {
@@ -4404,9 +4615,9 @@ dojo.declare("gnr.widgets.NumberSpinner", gnr.widgets.NumberTextBox, {
     constructor: function(application) {
         this._domtag = 'input';
         this._dojotag = 'NumberSpinner';
-    }
-    
-    
+    },
+    //the spinner arrows already occupy the right edge of the field
+    _supportsKeypad: false
 });
 
 dojo.declare("gnr.widgets.Slider", gnr.widgets.baseDojo, {

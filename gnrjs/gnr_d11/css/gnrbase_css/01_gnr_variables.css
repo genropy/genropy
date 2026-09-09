@@ -230,6 +230,15 @@
     --field-adornment-inset: 0.125rem;  /* @theme gap between box and field border */
     /* room the field must leave so text never runs under the adornment */
     --field-adornment-reserve: calc(var(--field-adornment-size) + 2 * var(--field-adornment-inset));
+    /* --- Numeric keypad / calculator popup (keypad=True) ---
+       em, against the font-size the pad inherits from its own field: the pad has to
+       look like it belongs to that field. keypad_size='large' swaps in absolute
+       units instead, for a coarse touch target on a small field. */
+    --keypad-key-size: 3em;       /* @theme */
+    --keypad-key-font: 1.125em;   /* @theme */
+    --keypad-gap: 0.3125em;       /* @theme */
+    --keypad-field-reserve: 1.4em; /* @theme room the field leaves for the opener */
+
     /* the same adornments inline in the textarea action bar: no overlay, no inset */
     --bar-adornment-size: 0.875rem;     /* @theme */
     --bar-adornment-glyph: 0.8125rem;   /* @theme */
