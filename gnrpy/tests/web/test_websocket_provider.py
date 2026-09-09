@@ -28,9 +28,9 @@ class Handler:
         pass
 ''')
         env = os.environ.copy()
-        env.pop('GNR_WEBSOCKET_PROVIDER', None)
+        env.pop('GNR_DAEMON_PROVIDER', None)
         if provider:
-            env['GNR_WEBSOCKET_PROVIDER'] = provider
+            env['GNR_DAEMON_PROVIDER'] = provider
         env['PYTHONPATH'] = os.pathsep.join([directory, str(SOURCE)])
         return subprocess.run([sys.executable, '-c', code], env=env,
                               capture_output=True, text=True, timeout=20)

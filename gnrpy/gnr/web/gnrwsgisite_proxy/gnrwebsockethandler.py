@@ -171,7 +171,7 @@ class HTTPSocketConnection(http.client.HTTPConnection):
 
 def _select_websocket_handler():
     """Select an explicitly requested handler without changing classic installs."""
-    provider = os.environ.get('GNR_WEBSOCKET_PROVIDER')
+    provider = os.environ.get('GNR_DAEMON_PROVIDER')
     if not provider:
         return WsgiWebSocketHandler
     entries = importlib.metadata.entry_points(
@@ -180,7 +180,7 @@ def _select_websocket_handler():
                 if provider in (entry.module, getattr(entry.dist, 'name', None))]
     if len(matching) != 1:
         raise ImportError(
-            f'GNR_WEBSOCKET_PROVIDER={provider!r} matches {len(matching)} '
+            f'GNR_DAEMON_PROVIDER={provider!r} matches {len(matching)} '
             'gnr.web:websockethandler entry points; expected exactly one')
     handler = matching[0].load()
     if not isinstance(handler, type) or not all(

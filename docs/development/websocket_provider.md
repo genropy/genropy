@@ -1,9 +1,10 @@
 # Optional WebSocket provider
 
 Classic installations continue to use the existing WebSocket handler and client.
-Installing an alternative provider does not activate it. Selection is explicit:
-`GNR_WEBSOCKET_PROVIDER` must name a distribution or module exporting a
-`gnr.web` entry point called `websockethandler`.
+Installing an alternative provider does not activate it. Selection reuses
+`GNR_DAEMON_PROVIDER`, the existing daemon selector; there is no separate
+WebSocket switch. The selected provider also exports a `gnr.web` entry point
+called `websockethandler`. The bridge selects `genropy-asgi` for both interfaces.
 
 The provider must export a handler class with `checkSocket` and
 `sendCommandToPage`. An explicitly selected missing, ambiguous or invalid provider
