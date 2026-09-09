@@ -1382,6 +1382,10 @@ class GnrWebPage(GnrBaseWebPage):
         arg_dict['bodyclasses'] = self.get_bodyclasses()
         arg_dict['gnrModulePath'] = gnrModulePath
         gnrimports = self.frontend.gnrjs_frontend()
+        if os.environ.get('GNR_WEBSOCKET_PROVIDER'):
+            websocket_client = getattr(self.wsk, 'client_module', 'gnrwebsocket')
+            gnrimports = [websocket_client if name == 'gnrwebsocket' else name
+                          for name in gnrimports]
         if localroot:
             arg_dict['genroJsImport'] = [gnr_static_handler.url(self.gnrjsversion, 'js', '%s.js' % f, _localroot=localroot) for f in gnrimports]
         elif _nodebug is False and (self.isDeveloper()):

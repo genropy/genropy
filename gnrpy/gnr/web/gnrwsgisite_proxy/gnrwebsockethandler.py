@@ -21,6 +21,7 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 import os
+import importlib.metadata
 import http.client
 import socket
 import urllib.request, urllib.parse, urllib.error
@@ -166,3 +167,28 @@ class HTTPSocketConnection(http.client.HTTPConnection):
     def close(self):
         if hasattr(self,'sock') and self.sock:
             self.sock.close()
+
+
+def _select_websocket_handler():
+    """Select an explicitly requested handler without changing classic installs."""
+    provider = os.environ.get('GNR_WEBSOCKET_PROVIDER')
+    if not provider:
+        return WsgiWebSocketHandler
+    entries = importlib.metadata.entry_points(
+        group='gnr.web', name='websockethandler')
+    matching = [entry for entry in entries
+                if provider in (entry.module, getattr(entry.dist, 'name', None))]
+    if len(matching) != 1:
+        raise ImportError(
+            f'GNR_WEBSOCKET_PROVIDER={provider!r} matches {len(matching)} '
+            'gnr.web:websockethandler entry points; expected exactly one')
+    handler = matching[0].load()
+    if not isinstance(handler, type) or not all(
+            callable(getattr(handler, name, None))
+            for name in ('checkSocket', 'sendCommandToPage')):
+        raise ImportError('WebSocket provider must export a handler class with '
+                          'checkSocket and sendCommandToPage methods')
+    return handler
+
+
+WsgiWebSocketHandler = _select_websocket_handler()
