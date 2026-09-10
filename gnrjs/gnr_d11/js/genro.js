@@ -1059,6 +1059,11 @@ dojo.declare('gnr.GenroClient', null, {
         if(sourceNode.grid){
             return;
         }
+        //dijit notifies the focus to every widget above the focused node, the field a
+        //popup (keypad, tooltipPane) was opened from included: when the focus is landing
+        //in that popup, pulling it back on the form's current field would close it
+        var active = document.activeElement;
+        var focusInPopup = !!(active && active.closest && active.closest('.dijitPopup'));
         var destform = sourceNode.form; 
         var changedForm = destform!=genro.activeForm;
         if(changedForm){
@@ -1070,7 +1075,7 @@ dojo.declare('gnr.GenroClient', null, {
         if(genro.activeForm){
             genro.activeForm.onFocusElement(wdg);
             if(changedForm){
-                destform.onFocusForm();
+                destform.onFocusForm(focusInPopup);
             }
         }
     },

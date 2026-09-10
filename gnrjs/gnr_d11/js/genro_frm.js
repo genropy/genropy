@@ -1065,9 +1065,11 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             }
         }
     },
-    onFocusForm:function(){
+    onFocusForm:function(keepFocus){
         genro.dom.addClass(this.sourceNode,'form_activeForm');
-        this.focusCurrentField();
+        if(!keepFocus){
+            this.focusCurrentField();
+        }
     },
     
     onBlurForm:function(){

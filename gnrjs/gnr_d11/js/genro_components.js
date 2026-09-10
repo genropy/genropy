@@ -117,6 +117,7 @@ dojo.declare("gnr.widgets.TooltipPane", gnr.widgets.gnrwdg, {
         var parentDomNode;
         var sn = sourceNode;
         var placingId = objectPop(kw,'placingId'); 
+        var placingNode = objectPop(kw,'placingNode');
         while(!parentDomNode){
             sn = sn.getParentNode();
             parentDomNode = sn.getDomNode();
@@ -133,13 +134,14 @@ dojo.declare("gnr.widgets.TooltipPane", gnr.widgets.gnrwdg, {
                                         this.widget._closeDropDown();
                                     }
                                 }};
-        if(placingId){
+        if(placingId || placingNode){
+            //placingId (a dom id) or placingNode (a dom node) anchor the popup to another
+            //node than the one that opened it
             ddkw.onOpeningPopup = function(openKw,evtDomNode){
-                                    var placingDomNode = genro.domById(placingId);
+                                    var placingDomNode = placingNode || genro.domById(placingId);
                                     if(placingDomNode){
                                         openKw.around = placingDomNode;
                                         openKw.popup.domNode.setAttribute('connector',"none");
-                                        //dojo.removeClass(openKw.popup.domNode,'dijitTooltipBelow');
                                     }
                                 };
         }

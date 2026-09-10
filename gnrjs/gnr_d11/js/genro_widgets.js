@@ -4388,8 +4388,13 @@ dojo.declare("gnr.widgets.NumberTextBox", gnr.widgets._BaseTextBox, {
                      padId:openerId + '_pad', displayId:openerId + '_display'};
         genro.dom.addClass(widget.focusNode, 'comboArrowTextbox gnr_keypad_field');
         sourceNode.freeze();
+        //the opener sits inside the field, at its start so the right-aligned value keeps
+        //its place. dijit _FormWidget defers a focus() of the input on any mousedown in
+        //there and, on a tap, that focus lands after the popup opened and closes it:
+        //stopping the mousedown keeps the field out of it
         var box = sourceNode._('div', {_class:'gnr_keypad_opener', cursor:'pointer',
-                                tabindex:-1, position:'absolute', top:0, bottom:0, right:0,
+                                tabindex:-1, position:'absolute', top:0, bottom:0, left:0,
+                                connect_onmousedown:function(evt) { dojo.stopEvent(evt); },
                                 connect_onclick:function(evt) {
                                     genro.publish(openerId + '_open', {evt:evt, domNode:evt.currentTarget});
                                 }});
@@ -4397,7 +4402,10 @@ dojo.declare("gnr.widgets.NumberTextBox", gnr.widgets._BaseTextBox, {
                       position:'absolute', top:0, bottom:0, left:0, right:0, tabindex:-1});
         //evt:'noevt' leaves the opening to the publish above: the subtree is built frozen,
         //so the node tooltipPane would pick to connect on its own is not the opener
+        //anchored to the whole field, not to the opener: the pad opens right below the
+        //number it edits and never covers it
         var pane = box._('tooltipPane', {openerId:openerId, evt:'noevt', _class:'gnr_keypad_pane',
+                                placingNode:widget.domNode,
                                 onOpening:function(){ that._keypadOpen(state, widget); },
                                 connect_onClose:function(){ that._keypadCommit(state, widget); }});
         this._buildKeypad(pane, state, widget, calculator, openerId, sourceNode.attr.keypad_size);
