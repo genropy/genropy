@@ -775,6 +775,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         :param replaceStr: MANDATORY. A string with the list of the slots to add
         """
         self.attributes.update(kwargs)
+        self._slotArgs = dict(getattr(self,'_slotArgs',None) or dict(),**kwargs) #_addSlot consumes the slot parameters out of the attributes
         toolbarArgs = self.attributes
         slotstr = toolbarArgs['slots']
         slotbarCode= toolbarArgs.get('slotbarCode')

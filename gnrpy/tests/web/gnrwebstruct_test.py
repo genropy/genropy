@@ -659,3 +659,15 @@ def test_replaceslots_adds_the_new_slot_with_its_parameters():
     assert bar.attributes['slots'] == 'withid,plain,*'
     assert _slotContentAttr(bar, 'plain')['x'] == 'zz'
     assert list(page._register_nodeId) == ['fixed_id']
+
+
+def test_updateslotsattr_keeps_the_parameters_added_by_replaceslots():
+    """`replaceSlots` parameters must survive a later `updateSlotsAttr` on the
+    same slot: `_addSlot` consumes them out of the bar attributes, so the
+    snapshot has to see them too."""
+    page, bar = _slotbar(slots='withid,*')
+    bar.replaceSlots('*', 'plain,*', plain_x='zz')
+    bar.updateSlotsAttr(plain_y='ww')
+    attr = _slotContentAttr(bar, 'plain')
+    assert attr['x'] == 'zz'
+    assert attr['y'] == 'ww'
