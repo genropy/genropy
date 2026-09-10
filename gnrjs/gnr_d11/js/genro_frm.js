@@ -1516,7 +1516,12 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     },
 
     externalChange:function(field,value,triggerChanges){
-        this.sourceNode.setRelativeData(this.formDatapath+'.'+field,value,triggerChanges?{}:{_loadedValue:value});
+        var path = this.formDatapath+'.'+field;
+        if(!triggerChanges && isEqual(this.sourceNode.getRelativeData(path),value)){
+            return;
+        }
+        this.sourceNode.setRelativeData(path,value,triggerChanges?{}:{_loadedValue:value},
+                                        null,null,null,{_updattr:true});
     },
 
     getFormData: function() {
