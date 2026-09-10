@@ -3801,7 +3801,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         genro.setData(paletteRoot+'.status','info');
     },
 
-    openTemplatePalette:function(chunkNode,editorConstrain,showLetterhead){
+    openTemplatePalette:function(chunkNode,editorConstrain,showLetterhead,showParameters){
         let componentNode = chunkNode.getParentNode();
         var paletteCode = componentNode.getAttributeFromDatasource('paletteCode');
         if(!paletteCode){
@@ -3821,6 +3821,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
             var table = componentNode.getAttributeFromDatasource('table');
             var remote_datasourcepath = chunkNode.attr.datasource? chunkNode.absDatapath(chunkNode.attr.datasource):null;
             showLetterhead = typeof(showLetterhead) == 'string' ? chunkNode.getRelativeData(showLetterhead) : showLetterhead;
+            showParameters = typeof(showParameters) == 'string' ? chunkNode.getRelativeData(showParameters) : showParameters;
             var kw = {'paletteCode':paletteCode,'dockTo':'dommyDock:open',
                     title:'Template Edit '+table?table.split('.')[1]:'',width:'750px',
                     maxable:true,
@@ -3833,6 +3834,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                     remote_resource_mode:!table || (templateHandler.dataInfo && templateHandler.dataInfo.respath!=null),
                     remote_datasourcepath:remote_datasourcepath,
                     remote_showLetterhead:showLetterhead,
+                    remote_showParameters:showParameters,
                     remote_editorConstrain: editorConstrain
                     };  
            //kw.remote__onRemote = function(){
@@ -3946,6 +3948,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         var tplpars = objectExtract(kw,'template,editable');
         var editorConstrain = objectExtract(kw,'constrain_*',null,true);
         var showLetterhead = objectPop(kw, 'showLetterhead');
+        var showParameters = objectPop(kw, 'showParameters');
         if(paletteCode && (paletteCode[0]=='^' || paletteCode[0]=='=')){
             paletteCode = paletteCode[0]+sourceNode.absDatapath(paletteCode);
         }
@@ -3960,6 +3963,9 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         }
         if(typeof(showLetterhead)=='string'){
             showLetterhead = sourceNode.absDatapath(showLetterhead);
+        }
+        if(typeof(showParameters)=='string'){
+            showParameters = sourceNode.absDatapath(showParameters);
         }
         var record_id = objectPop(kw, 'record_id');
         if(record_id){
@@ -3992,11 +3998,11 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         var handler = this;
         if(tplpars.editable){
             kw.selfsubscribe_openTemplatePalette = function(){
-                handler.openTemplatePalette(this,editorConstrain,showLetterhead);
+                handler.openTemplatePalette(this,editorConstrain,showLetterhead,showParameters);
             }
             kw.connect_ondblclick = function(evt){
                 if(tplpars.editable===true || evt.shiftKey){
-                    handler.openTemplatePalette(this,editorConstrain,showLetterhead);
+                    handler.openTemplatePalette(this,editorConstrain,showLetterhead,showParameters);
                 }
            };
         }
