@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grouplet Family — For Dummies</title>
+<style>
+  :root {
+    --bg:           #0f1117;
+    --surface:      #1a1d27;
+    --surface-2:    #232733;
+    --border:       #2e3340;
+    --text:         #d8dae5;
+    --text-dim:     #9aa0b0;
+    --text-faint:   #5d6273;
+    --accent:       #6c9eff;
+    --accent-2:     #a78bfa;
+    --ok:           #7dd3a8;
+    --warn:         #ffb86b;
+    --err:          #ff6b8a;
+    --kw:           #c792ea;  /* keywords */
+    --fn:           #82aaff;  /* functions */
+    --str:          #c3e88d;  /* strings */
+    --cmt:          #5d6273;  /* comments */
+    --num:          #f78c6c;  /* numbers */
+    --dec:          #ffcb6b;  /* decorators */
+    --cls:          #ffcb6b;  /* class names */
+    --tag:          #f07178;  /* html tags */
+    --attr:         #ffcb6b;  /* html attrs */
+  }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-size: 15px; line-height: 1.55;
+    overflow: hidden;
+  }
+  * { box-sizing: border-box; }
+
+  /* Layout: header + tab bar + tab content */
+  .app {
+    display: flex; flex-direction: column;
+    height: 100vh;
+  }
+  .topbar {
+    flex: 0 0 auto;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    display: flex; align-items: center; gap: 16px;
+  }
+  .topbar h1 {
+    margin: 0; font-size: 18px; font-weight: 600;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .topbar .subtitle {
+    color: var(--text-dim); font-size: 13px;
+  }
+  .tabbar {
+    flex: 0 0 auto;
+    display: flex; flex-wrap: wrap;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 16px;
+    overflow-x: auto;
+  }
+  .tab-btn {
+    background: transparent; color: var(--text-dim);
+    border: none; padding: 10px 14px;
+    font: inherit; cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color .15s, border-color .15s;
+    white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active {
+    color: var(--accent); border-bottom-color: var(--accent);
+  }
+  .tab-btn .badge {
+    display: inline-block; margin-left: 6px;
+    padding: 1px 6px; border-radius: 10px;
+    background: var(--accent-2); color: var(--bg);
+    font-size: 10px; font-weight: 700;
+  }
+
+  .panels { flex: 1 1 auto; position: relative; overflow: hidden; }
+  .panel {
+    position: absolute; inset: 0;
+    overflow-y: auto;
+    padding: 28px 32px 64px;
+    display: none;
+  }
+  .panel.active { display: block; }
+  .panel-inner { max-width: 1100px; margin: 0 auto; }
+
+  /* Typography */
+  h2 {
+    margin: 0 0 8px;
+    font-size: 28px; font-weight: 700;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  h3 {
+    margin: 32px 0 10px;
+    font-size: 18px; font-weight: 600; color: var(--text);
+    padding-bottom: 4px; border-bottom: 1px solid var(--border);
+  }
+  h4 {
+    margin: 20px 0 6px;
+    font-size: 15px; font-weight: 600; color: var(--text);
+  }
+  p, li { color: var(--text); }
+  p.lede {
+    font-size: 16px; color: var(--text-dim);
+    margin: 0 0 24px;
+  }
+  a { color: var(--accent); }
+
+  code:not(pre code) {
+    background: var(--surface-2);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    color: var(--accent);
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  /* Code blocks */
+  pre {
+    position: relative;
+    background: #14171f;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px; line-height: 1.5;
+    margin: 12px 0;
+  }
+  pre code { color: var(--text); }
+  pre .kw { color: var(--kw); }
+  pre .fn { color: var(--fn); }
+  pre .str { color: var(--str); }
+  pre .cmt { color: var(--cmt); font-style: italic; }
+  pre .num { color: var(--num); }
+  pre .dec { color: var(--dec); }
+  pre .cls { color: var(--cls); }
+  pre .tag { color: var(--tag); }
+  pre .attr { color: var(--attr); }
+  pre .op { color: var(--text-dim); }
+  pre .self { color: var(--err); }
+
+  .copy-btn {
+    position: absolute; top: 8px; right: 8px;
+    background: var(--surface-2); color: var(--text-dim);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 8px; font-size: 11px;
+    font-family: inherit; cursor: pointer;
+    opacity: 0; transition: opacity .15s;
+  }
+  pre:hover .copy-btn { opacity: 1; }
+  .copy-btn:hover { color: var(--accent); }
+  .copy-btn.copied { color: var(--ok); }
+
+  /* Tables */
+  table {
+    width: 100%; border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 13px;
+  }
+  th, td {
+    text-align: left; padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th {
+    background: var(--surface);
+    color: var(--text-dim);
+    font-weight: 600; font-size: 12px;
+    text-transform: uppercase; letter-spacing: 0.4px;
+  }
+  td code { font-size: 12px; }
+
+  /* Callouts */
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: var(--surface);
+    padding: 12px 16px; margin: 16px 0;
+    border-radius: 0 4px 4px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); }
+  .callout.danger { border-left-color: var(--err); }
+  .callout.ok { border-left-color: var(--ok); }
+  .callout .callout-title {
+    font-weight: 600; margin-bottom: 4px;
+    color: var(--text);
+  }
+  .callout p:last-child { margin-bottom: 0; }
+
+  /* Cards grid */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px; margin: 16px 0;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+  }
+  .card h4 {
+    margin: 0 0 6px; color: var(--accent);
+    font-size: 14px;
+  }
+  .card p {
+    margin: 0; font-size: 13px; color: var(--text-dim);
+  }
+
+  /* SVG diagrams */
+  .diagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px; margin: 16px 0;
+    overflow-x: auto;
+  }
+  .diagram svg {
+    display: block; margin: 0 auto;
+    max-width: 100%;
+  }
+
+  /* Responsive */
+  @media (max-width: 720px) {
+    .panel { padding: 16px; }
+    h2 { font-size: 22px; }
+    pre { font-size: 12px; }
+    table { font-size: 12px; }
+    .topbar h1 { font-size: 15px; }
+    .topbar .subtitle { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <h1>Grouplet Family</h1>
+    <span class="subtitle">A "For Dummies" tour of GenroPy's modular UI fragments</span>
+  </header>
+
+  <nav class="tabbar" id="tabbar">
+    <button class="tab-btn active" data-tab="why">Why</button>
+    <button class="tab-btn" data-tab="quickstart">Quick Start</button>
+    <button class="tab-btn" data-tab="grouplet">grouplet</button>
+    <button class="tab-btn" data-tab="chunk">groupletChunk</button>
+    <button class="tab-btn" data-tab="form">groupletForm</button>
+    <button class="tab-btn" data-tab="panel">groupletPanel</button>
+    <button class="tab-btn" data-tab="wizard">groupletWizard</button>
+    <button class="tab-btn" data-tab="grid">groupletGrid <span class="badge">NEW</span></button>
+    <button class="tab-btn" data-tab="topic">Topic Grid</button>
+    <button class="tab-btn" data-tab="dialogs">Dialog Editors</button>
+    <button class="tab-btn" data-tab="cheatsheet">Cheat Sheet</button>
+  </nav>
+
+  <main class="panels" id="panels">
+    <section class="panel active" data-panel="why"><div class="panel-inner" id="content-why"></div></section>
+    <section class="panel" data-panel="quickstart"><div class="panel-inner" id="content-quickstart"></div></section>
+    <section class="panel" data-panel="grouplet"><div class="panel-inner" id="content-grouplet"></div></section>
+    <section class="panel" data-panel="chunk"><div class="panel-inner" id="content-chunk"></div></section>
+    <section class="panel" data-panel="form"><div class="panel-inner" id="content-form"></div></section>
+    <section class="panel" data-panel="panel"><div class="panel-inner" id="content-panel"></div></section>
+    <section class="panel" data-panel="wizard"><div class="panel-inner" id="content-wizard"></div></section>
+    <section class="panel" data-panel="grid"><div class="panel-inner" id="content-grid"></div></section>
+    <section class="panel" data-panel="topic"><div class="panel-inner" id="content-topic"></div></section>
+    <section class="panel" data-panel="dialogs"><div class="panel-inner" id="content-dialogs"></div></section>
+    <section class="panel" data-panel="cheatsheet"><div class="panel-inner" id="content-cheatsheet"></div></section>
+  </main>
+
+</div>
+
+<script>
+  // Tab navigation
+  const tabs = document.querySelectorAll('.tab-btn');
+  const panels = document.querySelectorAll('.panel');
+  tabs.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const t = btn.dataset.tab;
+      tabs.forEach(b => b.classList.toggle('active', b.dataset.tab === t));
+      panels.forEach(p => p.classList.toggle('active', p.dataset.panel === t));
+      const initial = location.hash.slice(1);
+      history.replaceState(null, '', '#' + t);
+    });
+  });
+  // Activate from hash on load
+  const initial = location.hash.slice(1);
+  if (initial) {
+    const btn = document.querySelector(`.tab-btn[data-tab="${initial}"]`);
+    if (btn) btn.click();
+  }
+
+  // Load tab fragments from tabs/<name>.html and inject
+  async function loadTab(name) {
+    const target = document.getElementById('content-' + name);
+    if (!target || target.dataset.loaded) return;
+    try {
+      const res = await fetch('tabs/' + name + '.html');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      target.innerHTML = await res.text();
+      target.dataset.loaded = '1';
+      attachCopyButtons(target);
+    } catch (err) {
+      target.innerHTML = '<div class="callout warn"><div class="callout-title">Tab content not available</div>' +
+        '<p>Could not load <code>tabs/' + name + '.html</code>: ' + err.message + '</p>' +
+        '<p>If you are viewing this page via <code>file://</code>, the browser may block <code>fetch()</code>. ' +
+        'Serve the folder over HTTP (e.g. <code>python -m http.server</code>) and reopen.</p></div>';
+    }
+  }
+  // Load all tabs upfront — small payloads, simpler navigation
+  ['why','quickstart','grouplet','chunk','form','panel','wizard','grid','topic','dialogs','cheatsheet']
+    .forEach(loadTab);
+
+  // Copy buttons on <pre> blocks
+  function attachCopyButtons(root) {
+    root.querySelectorAll('pre').forEach(pre => {
+      if (pre.querySelector('.copy-btn')) return;
+      const btn = document.createElement('button');
+      btn.className = 'copy-btn'; btn.textContent = 'Copy';
+      btn.addEventListener('click', async () => {
+        const code = pre.querySelector('code') || pre;
+        const text = code.innerText;
+        try {
+          await navigator.clipboard.writeText(text);
+          btn.textContent = 'Copied!'; btn.classList.add('copied');
+          setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+        } catch (e) {
+          btn.textContent = 'Failed';
+        }
+      });
+      pre.appendChild(btn);
+    });
+  }
+</script>
+</body>
+</html>
