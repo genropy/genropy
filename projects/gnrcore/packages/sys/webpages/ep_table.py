@@ -101,11 +101,13 @@ class GnrCustomWebPage(object):
         clientRecordUpdater = Bag()
         if documentPath:
             documentNode = self.site.storageNode(documentPath,version=version) 
-            if documentNode and not documentNode.exists:
+            if documentNode and not version and not documentNode.exists:
                 documentNode = None
-        if handler and not documentNode:
+        if handler and not documentNode and not version:
             documentPath = handler(pkey,documentPath=documentPath,**kwargs)
             documentNode = self.site.storageNode(documentPath)
+        if not documentNode:
+            return
         if documentNode and isCachedInField and record[source] != documentNode.fullpath:
             with tblobj.recordToUpdate(pkey,raw=True) as rec:
                 rec[source] = documentNode.fullpath
@@ -158,4 +160,3 @@ class GnrCustomWebPage(object):
             'image/svg+xml'
         }
         return storageNode.mimetype.lower() in INLINE_MIME_TYPES
-
