@@ -18,6 +18,13 @@ class GnrCustomWebPage(object):
         fb.numberTextBox(value='^.calc', lbl='keypad_calculator=True', keypad_calculator=True)
         fb.div('^.calc')
 
+    def test_0a_placement(self, pane):
+        """The pad opens below the whole field, not below the opener, and a tap on the
+        opener keeps it open (a click that also focused the field used to close it)"""
+        fb = pane.div(text_align='right', padding='4px').formbuilder(cols=1, border_spacing='3px')
+        fb.numberTextBox(value='^.right', lbl='Field at the right edge', keypad=True)
+        fb.div('^.right')
+
     def test_0b_size(self, pane):
         """The pad scales with the font of its own field; keypad_size='large' is the
         opt-out, an absolute touch target even on a small field"""

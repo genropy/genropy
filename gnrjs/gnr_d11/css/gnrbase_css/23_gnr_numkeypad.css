@@ -2,9 +2,9 @@
    23_gnr_numkeypad.css — keypad / calculator popup on numeric fields
    (keypad=True, keypad_calculator=True on numberTextBox / currencyTextBox)
 
-   The opener mirrors the dateTextBox calendar icon: a box on the right edge of
-   a .comboArrowTextbox field, with a monochrome mask-image glyph that follows
-   the theme. The popup is a tooltipPane, so placing, opening and closing stay
+   The opener mirrors the dateTextBox calendar icon: a box at the start of a
+   .comboArrowTextbox field (the value is right-aligned and keeps its place),
+   with a monochrome mask-image glyph that follows the theme. The popup is a tooltipPane, so placing, opening and closing stay
    the framework's; only the pad inside it is styled here.
    ========================================================================== */
 
@@ -34,12 +34,13 @@
     width: var(--keypad-field-reserve);
 }
 
-/* numeric fields are right-aligned, so the value ends exactly where the glyph is.
-   border-box is required: dijit gives the input a fixed content width, and on
-   content-box the reserved room would just overflow the clipped input field */
+/* the opener takes the start of the field: numeric values are right-aligned and
+   stay where they are. border-box is required: dijit gives the input a fixed
+   content width, and on content-box the reserved room would just overflow the
+   clipped input field */
 ._common_d11 input.gnr_keypad_field {
     box-sizing: border-box;
-    padding-inline-end: var(--keypad-field-reserve);
+    padding-inline-start: var(--keypad-field-reserve);
 }
 
 /* the .dateTextBoxCal disabled rule, extended to the click target: on a field
