@@ -1780,6 +1780,15 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             allowed = !this._protectedNode(kw.node);
         }
         if( kw.value==kw.oldvalue  || (isNullOrBlank(kw.value) && isNullOrBlank(kw.oldvalue))){
+            if('_loadedValue' in kw.node.attr && (kw.node.attr._loadedValue==kw.value
+                    || (isNullOrBlank(kw.node.attr._loadedValue) && isNullOrBlank(kw.value)))){
+                // a silent server push writes _loadedValue with the value it pushes:
+                // when it pushes the value the node already had, nothing below runs
+                // and the marker would send the field back in the next changeSet
+                delete kw.node.attr._loadedValue;
+                this.getChangesLogger().pop(this.getChangeKey(kw.node));
+                this.updateStatus();
+            }
             if(kw.updattr && kw.changedAttr && kw.changedAttr!='_displayedValue'){
                 var cattr = kw.changedAttr;
                 var oldvalue = kw.oldattr[cattr];
