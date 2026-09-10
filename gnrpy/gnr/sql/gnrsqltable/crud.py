@@ -546,7 +546,9 @@ class CrudMixin(SqlTableBaseMixin):
                 )
                 for fnode in main_changeSet:
                     fname = fnode.label
-                    if testForMerge:
+                    # only physical columns carry conflict information: a
+                    # virtual one is absent from old_record and never written
+                    if testForMerge and fname in self.model.columns:
                         incompatible = False
                         if fnode.getAttr('_gnrbag'):
                             pass
