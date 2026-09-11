@@ -37,7 +37,7 @@ class GnrCustomWebPage(object):
 
     def test_2_copy(self,root,**kwargs):
         bc = root.borderContainer(_anchor=True,height='400px')
-        bc.storageTreeFrame(frameCode='localStorage',storagepath='pkg:test15/lib',
+        bc.storageTreeFrame(frameCode='localStorage',storagepath='pkg:test15/resources',
                                 border='1px solid silver',margin='2px',rounded=4,
                                 region='center',preview_region='right',
                                 store__onBuilt=True,

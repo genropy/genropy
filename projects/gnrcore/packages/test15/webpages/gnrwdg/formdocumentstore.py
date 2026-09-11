@@ -27,14 +27,14 @@ class GnrCustomWebPage(object):
                                     autoToolbar=False,
                                     region='center',
                                     datapath='.view')
-        frame.grid.fsStore(childname='store',folders='pkg:test15/testdata/docstore',_onStart=True,_fired='^.reload')
+        frame.grid.fsStore(childname='store',folders='pkg:test/testdata/docstore',_onStart=True,_fired='^.reload')
 
     def test_3_document_collection_form(self,pane):
         view = pane.borderContainer(height='400px').frameGrid(frameCode='test3',struct=self.struct_doc,
                                     autoToolbar=False,
                                     region='center',
                                     datapath='.view')
-        view.grid.fsStore(childname='store',folders='pkg:test15/testdata/docstore',_onStart=True,_fired='^.reload')
+        view.grid.fsStore(childname='store',folders='pkg:test/testdata/docstore',_onStart=True,_fired='^.reload')
         form = view.grid.linkedForm(frameCode='F_documents' ,
                                  datapath='.form',loadEvent='onRowDblClick',
                                  dialog_height='450px',dialog_width='620px',
