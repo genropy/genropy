@@ -118,3 +118,36 @@ class GnrCustomWebPage(object):
         "This bagGrid test was explained in this LearnGenropy video"
         pane.iframe(src='https://www.youtube.com/embed/MnqfBy6Q2Ns', width='240px', height='180px',
                         allow="autoplay; fullscreen")
+
+    def test_4_columnset_scroll(self,pane):
+        "bagGrid with a fixed first column and ten columnsets, to check horizontal scrolling"
+        pane.data('.dati',self.getScrollRows())
+        pane.dataController('SET .gridstore = dati.deepCopy();',dati='=.dati',_fired='^.loadBag')
+        pane.dataFormula('.gridstore',"new gnr.GnrBag();",_onStart=True)
+        frame = pane.bagGrid(frameCode='test',title='Test',
+                                struct=self.scrollstruct,
+                                height='300px',
+                                storepath='.gridstore')
+        frame.bottom.button('Load',fire='.loadBag')
+
+    def scrollstruct(self,struct):
+        "Struct of test_4_columnset_scroll: one fixed column plus ten columnsets of three cells"
+        view_0 = struct.view(fixedColumn=1)
+        rows = view_0.rows()
+        rows.cell('nome',width='10em',name='Nome')
+        for i in range(10):
+            cs = rows.columnset('cs_{}'.format(i),name='Cs {}'.format(i))
+            for j in range(3):
+                cs.cell('val_{i:02}{j:02}'.format(i=i,j=j),name='Col {}'.format(i))
+
+    def getScrollRows(self):
+        "Rows of test_4_columnset_scroll, one Bag row per record"
+        result = Bag()
+        for i in range(5):
+            row = Bag()
+            result.addItem('r_{i:02}'.format(i=i),row)
+            row['nome'] = 'row {i:02}'.format(i=i)
+            for j in range(10):
+                for z in range(3):
+                    row['val_{i:02}{j:02}'.format(i=j,j=z)] = i*100+j
+        return result

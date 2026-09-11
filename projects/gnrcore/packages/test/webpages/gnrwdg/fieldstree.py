@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 
-# gnrlayout.py
-# Created by Francesco Porcari on 2011-01-27.
-# Copyright (c) 2011 Softwell. All rights reserved.
+"""Browsing a table's fields and relations with relationExplorer in a treeGrid
 
+`relationExplorer` returns the fields of a table plus, as branches, the fields
+reachable through its relations; feeding it to a treeGrid gives the field picker
+the framework uses wherever a user chooses a column. The rows are draggable, so
+the same tree is what a drag-and-drop column chooser drags from.
+"""
 
 
 class GnrCustomWebPage(object):
@@ -13,6 +16,7 @@ class GnrCustomWebPage(object):
         return 'fieldstree'
          
     def test_0_base(self,pane):
+        """The fields of the chosen table, dtype and caption included, as a draggable treeGrid"""
         bc = pane.borderContainer(height='400px',width='800px')
         top = bc.contentPane(region='top',height='50px')
         fb = top.formbuilder(cols=1,border_spacing='3px')
@@ -22,7 +26,6 @@ class GnrCustomWebPage(object):
         center.dataRpc('.tree.currentData', self.relationExplorer, 
                             table='^.table', dosort=False)
         tree = center.treeGrid(storepath='.tree.currentData', 
-                    #onDrag=self.onDrag(),
                     draggable=True,
                     checked_fieldpath='.zzz',
                     dragClass='draggedItem',headers=True)

@@ -64,4 +64,5 @@ jobs:
         # instance and a running daemon, which this job does not provide. Its
         # backpressure logic is covered without one, so that check runs here.
         pytest projects/gnrcore/packages/test/tests/test_pages_documented.py \
+               projects/gnrcore/packages/test/tests/test_pages_ratchet.py \
                projects/gnrcore/packages/test/tests/test_smoke_backpressure.py -q

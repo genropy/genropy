@@ -64,3 +64,13 @@ class GnrCustomWebPage(object):
         r = struct.view().rows()
         r.cell('code', name='Code', width='5em')
         r.cell('caption', name='Caption', width='auto')
+
+    def test_6_palettePane_dockButton(self, pane):
+        "palettePane bigger than the viewport, reachable only through its own dockButton"
+        pane.palettePane(paletteCode='pippo', title='pippo', dockButton=True,
+                         height='4000px', width='3000px').div('CIao')
+
+    def test_7_palettePane_hiddenDock(self, pane):
+        "palettePane docked to a hiddenDock div, the anchor genro uses for its own iframe palettes"
+        pane.div(height='6px', width='6px', background='red',
+                 _class='hiddenDock').palettePane('hiddendock', title='Pippo', dockTo='*')

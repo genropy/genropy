@@ -40,6 +40,8 @@ mydb
 projects/gnrcore/instances/gnrdevelop/data/adm.db
 projects/gnrcore/instances/gnrdevelop/data/sys.db
 projects/gnrcore/instances/gnrdevelop/data/test.db
+projects/gnrcore/instances/gnrdevelop/data/glbl.db
+projects/gnrcore/instances/gnrdevelop/data/biz.db
 projects/gnrcore/instances/gnrdevelop/site/
 projects/test_invoice/instances/data/
 projects/test_invoice/test_invoice_db.zip
@@ -49,3 +51,8 @@ projects/test_invoice/data/export/invoice_row.csv
 gnrpy/tests/core/tmp_*/
 /temp/
 .gnr/
+
+# phased-workflow run artifacts: plans, per-phase logs and state.
+# The roadmap is documentation and stays.
+.phased/*
+!.phased/roadmap.md
