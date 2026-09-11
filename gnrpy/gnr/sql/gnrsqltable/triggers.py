@@ -32,6 +32,7 @@ from __future__ import annotations
 
 from gnr.sql import logger
 from gnr.sql._typing import SqlTableBaseMixin
+from gnr.sql.gnrsqltable.helpers import NO_SELECTION, prepare_batch_selection
 
 
 class TriggersMixin(SqlTableBaseMixin):
@@ -48,27 +49,21 @@ class TriggersMixin(SqlTableBaseMixin):
     def notifyDbUpdate(self, record=None, where=None, **kwargs):
         self.db.notifyDbUpdate(self, recordOrPkey=record, where=where, **kwargs)
 
-    def touchRecords(self, _pkeys=None, _wrapper=None, _wrapperKwargs=None,
-                     _notifyOnly=False, pkey=None, order_by=None,
+    def touchRecords(self, _pkeys=NO_SELECTION, _wrapper=None,
+                     _wrapperKwargs=None, _notifyOnly=False,
+                     pkey=NO_SELECTION, order_by=None,
                      method=None, columns=None, **kwargs):
         """Touch (re-save or apply method to) a set of records.
 
         :param _pkeys: list of primary keys
         :param method: ``'update'`` or a callable/method name
+        :raises GnrSqlBusinessLogicException: if the call carries no row
+                selection at all (no ``where``, no ``pkey``, no ``_pkeys``)
         """
         if 'where' not in kwargs:
-            if pkey:
-                _pkeys = [pkey]
-            if not _pkeys:
+            if prepare_batch_selection(self, kwargs, pkey=pkey,
+                                       _pkeys=_pkeys):
                 return
-            kwargs['where'] = '$%s IN :_pkeys' % self.pkey
-            if isinstance(_pkeys, str):
-                _pkeys = _pkeys.strip(',').split(',')
-            kwargs['_pkeys'] = _pkeys
-            kwargs.setdefault('subtable', '*')
-            kwargs.setdefault('excludeDraft', False)
-            kwargs.setdefault('ignorePartition', True)
-            kwargs.setdefault('excludeLogicalDeleted', False)
         method = method or 'update'
         for_update = method == 'update'
         handler = getattr(self, method) if isinstance(method, str) else method
