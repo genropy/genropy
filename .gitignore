@@ -51,3 +51,8 @@ projects/test_invoice/data/export/invoice_row.csv
 gnrpy/tests/core/tmp_*/
 /temp/
 .gnr/
+
+# phased-workflow run artifacts: plans, per-phase logs and state.
+# The roadmap is documentation and stays.
+.phased/*
+!.phased/roadmap.md

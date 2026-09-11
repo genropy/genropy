@@ -8,7 +8,7 @@ leave the area empty. The two ratchets (`docstring_debt.txt`,
 shrink them.
 
 - Macro 1 (done, on `refactor/test15-example-migration-macro1`): the regression net — documentation ratchet wired into CI, render sweep with port backpressure — plus the `websocket` and `components` areas, 38 dead pages removed, `testdata/docstore` moved, `gnrcore:test` mounted in gnrdevelop. Filed #1101-#1105, #1108.
-- Macro 2 (current): the `gnrwdg` area, 25 pages — detailed in `active/test15-gnrwdg-macro2/plan.md` as Phases 1..7. Mounts `gnr_it:glbl` in gnrdevelop and adds the reusable absent-package guard to the sweep, which every later macro inherits.
+- Macro 2 (current): the `gnrwdg` area, 25 pages. Adds the reusable absent-package guard to the sweep, which every later macro inherits: a page whose packages the instance does not mount is skipped rather than failed, so the nine `glbl` pages of this area needed no rewrite and gnrdevelop mounts nothing out of `gnr_it`. Mounts `gnrcore:biz`, which the dashboard component needs and which carries no data of its own.
 - Macro 3: `tools`, first half (~22 of 44 pages). The area's shared resource `webpages/_resources/storetester.py` is used by four of them, so it moves with whichever half takes the last of the four.
 - Macro 4: `tools`, second half, and the area emptied.
 - Macro 5: `chart` (4 pages) and the leftovers — `dd` 2, `html` 2, and one each of `calendar`, `events`, `mobile`, `revised`, `webservices`. Small enough to close in one pass; `revised/gui/multibutton.py` folds into `test/webpages/components/multibutton.py`, which macro 2 already touched.
