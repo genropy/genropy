@@ -1,0 +1,146 @@
+/* ==========================================================================
+   23_gnr_numkeypad.css — keypad / calculator popup on numeric fields
+   (keypad=True, keypad_calculator=True on numberTextBox / currencyTextBox)
+
+   The opener mirrors the dateTextBox calendar icon: a box at the start of a
+   .comboArrowTextbox field (the value is right-aligned and keeps its place),
+   with a monochrome mask-image glyph that follows the theme. The popup is a tooltipPane, so placing, opening and closing stay
+   the framework's; only the pad inside it is styled here.
+   ========================================================================== */
+
+.gnr_keypad_glyph {
+    background-color: var(--text-secondary, #636366);
+    -webkit-mask-image: url(/_rsrc/common/css_icons/svg/16/keypad.svg);
+    mask-image: url(/_rsrc/common/css_icons/svg/16/keypad.svg);
+    -webkit-mask-size: 0.85em 0.85em;
+    mask-size: 0.85em 0.85em;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    opacity: .7;
+}
+
+.gnr_keypad_glyph_calc {
+    -webkit-mask-image: url(/_rsrc/common/css_icons/svg/16/calculator.svg);
+    mask-image: url(/_rsrc/common/css_icons/svg/16/calculator.svg);
+}
+
+._common_d11 .gnr_keypad_opener:hover .gnr_keypad_glyph {
+    opacity: 1;
+}
+
+._common_d11 .gnr_keypad_opener {
+    width: var(--keypad-field-reserve);
+}
+
+/* the opener takes the start of the field: numeric values are right-aligned and
+   stay where they are. border-box is required: dijit gives the input a fixed
+   content width, and on content-box the reserved room would just overflow the
+   clipped input field */
+._common_d11 input.gnr_keypad_field {
+    box-sizing: border-box;
+    padding-inline-start: var(--keypad-field-reserve);
+}
+
+/* the .dateTextBoxCal disabled rule, extended to the click target: on a field
+   that cannot take a value the opener must not answer at all */
+._common_d11 .dijitTextBoxDisabled .gnr_keypad_opener,
+._common_d11 .dijitTextBoxReadOnly .gnr_keypad_opener,
+._common_d11 .dijitDisabled .gnr_keypad_opener {
+    visibility: hidden;
+    pointer-events: none;
+}
+
+/* the pad carries the field's font-size (set in _keypadOpen), so every em below
+   is against that field and the two look like one control */
+._common_d11 .gnr_keypad {
+    padding: var(--keypad-gap);
+    user-select: none;
+    touch-action: manipulation;
+}
+
+._common_d11 .gnr_keypad_display {
+    font-size: var(--keypad-key-font);
+    min-height: 1.9em;
+    line-height: 1.9em;
+    margin-bottom: 0.3em;
+    padding: 0 0.45em;
+    border: 1px solid var(--field-border, #c7c7cc);
+    border-radius: var(--radius-sm, 3px);
+    background: var(--field-bg, #fff);
+    font-family: monospace;
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+._common_d11 .gnr_keypad_display.gnr_keypad_error {
+    color: var(--color-error, #E53935);
+}
+
+/* keypad_size='large': absolute units on purpose, so a coarse touch target can be
+   asked for on a small field */
+._common_d11 .gnr_keypad_large {
+    --keypad-key-size: 3.25rem;
+    --keypad-key-font: 1.375rem;
+    --keypad-gap: 0.375rem;
+}
+
+/* the key box comes from the grid tracks, not from the key: the key sets its own
+   font-size, and an em height would then compound with it */
+._common_d11 .gnr_keypad_grid {
+    display: grid;
+    grid-template-columns: repeat(3, var(--keypad-key-size));
+    grid-auto-rows: var(--keypad-key-size);
+    gap: var(--keypad-gap);
+}
+
+._common_d11 .gnr_keypad_withops .gnr_keypad_grid {
+    grid-template-columns: repeat(4, var(--keypad-key-size));
+}
+
+._common_d11 .gnr_keypad_key_wide {
+    grid-column: span 2;
+}
+
+._common_d11 .gnr_keypad_key {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--keypad-key-font);
+    border: 1px solid var(--border-color, #d1d1d6);
+    border-radius: var(--radius-sm, 3px);
+    background: var(--color-bg, #fff);
+    cursor: pointer;
+}
+
+._common_d11 .gnr_keypad_key:hover {
+    background: var(--gray-100, #f2f2f7);
+}
+
+._common_d11 .gnr_keypad_key:active {
+    background: var(--gray-200, #e5e5ea);
+}
+
+._common_d11 .gnr_keypad_key_op,
+._common_d11 .gnr_keypad_key_eq {
+    font-weight: bold;
+}
+
+._common_d11 .gnr_keypad_foot {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-auto-rows: var(--keypad-key-size);
+    gap: var(--keypad-gap);
+    margin-top: var(--keypad-gap);
+}
+
+._common_d11 .gnr_keypad_confirm {
+    color: var(--color-success, #43A047);
+    font-weight: bold;
+}
+
+._common_d11 .gnr_keypad_cancel {
+    color: var(--text-secondary, #636366);
+}

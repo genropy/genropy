@@ -110,6 +110,7 @@ class GnrUserNotAllowed(GnrException):
 
 class GnrBasicAuthenticationError(GnrException):
     code = 'AUTH-901'
+    caption = "!!Error code %(code)s : %(msg)s."
 
 EXCEPTIONS = {
     'user_not_allowed': GnrUserNotAllowed,
@@ -403,7 +404,7 @@ class GnrWebPage(GnrBaseWebPage):
     @property
     def wsk_enabled(self):
         if not hasattr(self, '_wsk_enabled'):
-            self._wsk_enabled = self.wsk and not self.getPreference('experimental.wsk_disabled',pkg='sys')
+            self._wsk_enabled = bool(self.wsk)
         return self._wsk_enabled
 
     @property
@@ -674,7 +675,7 @@ class GnrWebPage(GnrBaseWebPage):
             result = '<div>%s</div>' %str(e)
             if error_id:
                 if self.isDeveloper():
-                    detail_url = '/sys/ep_error?error_code=%s' % error_id
+                    detail_url = '%ssys/ep_error?error_code=%s' % (self.site.rootDomainHomeUri, error_id)
                     result = '%s <br/> Exception Id: <a href="%s" target="_blank">%s</a>' % (result, detail_url, error_id)
                 else:
                     result = '%s <br/> Check Exception Id: %s' % (result, error_id)
@@ -866,7 +867,7 @@ class GnrWebPage(GnrBaseWebPage):
         missingMessage = missingMessage or '<div class="chunkeditor_emptytemplate">Missing Template</div>'
         dataInfo = dict()
         if ':' in template_address:
-            segments,pkey = template_address.split(':')
+            segments,pkey = template_address.split(':', 1)
             if segments:
                 segments = segments.split('.')
         else:
@@ -905,7 +906,7 @@ class GnrWebPage(GnrBaseWebPage):
         #pkg.table:resource_module
         #pkg.table:resource_module,custom
         if ':' in template_address:
-            segments,pkey = template_address.split(':')
+            segments,pkey = template_address.split(':', 1)
             if segments:
                 segments = segments.split('.')
         else:
@@ -1099,12 +1100,11 @@ class GnrWebPage(GnrBaseWebPage):
             tpl = '%s.%s' % (self.pagename, 'tpl')
         self.htmlHeaders()
 
-        # When ``experimental.no_mako`` is on, look for a ``<name>.py``
+        # With the ``no_mako`` experimental flag on, look for a ``<name>.py``
         # struct template in the same resource dirs the Mako lookup uses.
         # If one is found, render it; otherwise fall through to Mako so a
         # missing struct template never breaks the page.
-        no_mako = self.getPreference('experimental.no_mako', pkg='sys')
-        if no_mako:
+        if self.application.experimentalFlag('page', 'no_mako'):
             tpl_name = tpl[:-4] if tpl.endswith('.tpl') else tpl
             template_cls = lookup_template_class(self.tpldirectories, tpl_name)
             if template_cls is not None:
@@ -1186,7 +1186,11 @@ class GnrWebPage(GnrBaseWebPage):
 
     @public_method
     def getRemoteTranslation(self, txt=None,language=None,**kwargs):
-        return self.localizer.getTranslation(txt,language=language or self.locale)
+        language = language or self.locale
+        result = self.localizer.getTranslation(txt,language=language)
+        if result['status'] != 'OK':
+            logger.debug("Missing translation (%s) for %s in %s", result['status'], txt, language)
+        return result
 
     def localize(self, txt, language=None,**kwargs):
         return self.localizer.translate(txt,language=language or self.locale)
@@ -1278,7 +1282,7 @@ class GnrWebPage(GnrBaseWebPage):
                 raise GnrException('Verifier wrong class')
         elif getattr(handler, 'tags',None):
             verifier = AuthorizationBaseTagsVerifier(self)
-            verifier_error = verifier(tags=handler.tags)
+            verifier_error = verifier(tags=handler.tags, method=method)
         if verifier_error:
             raise verifier_error                
         return handler
@@ -2377,7 +2381,9 @@ class GnrWebPage(GnrBaseWebPage):
         if 'google' not in api_keys and google_mapkey:
             api_keys.setItem('google',None,mapkey = google_mapkey)
         page.data('gnr.api_keys',api_keys)
-        page.data('gnr.switches', Bag(self.application.config['switches']))
+        switches = Bag(self.application.config['switches'])
+        switches.update(Bag(self.application.config.getAttr('switches')))
+        page.data('gnr.switches', switches)
         if hasattr(self, 'main_root'):
             self.main_root(page, **kwargs)
             return (page, pageattr)
@@ -2677,6 +2683,7 @@ class GnrWebPage(GnrBaseWebPage):
             handlername = bfhandler
         else:
             handlername = 'bf_{field}'.format(field=field)
+        bagfieldmodule = None
         if resource:
             if ':' not in resource:
                 resource = '{resource}:BagField_{field}'.format(resource=resource,field=field)
@@ -2685,7 +2692,7 @@ class GnrWebPage(GnrBaseWebPage):
                 mixinedClass = self.mixinTableResource(table,'bagfields/{resource}'.format(resource=resource),safeMode=True)
             else:
                 mixinedClass = self.mixinComponent(resource)
-        bagfieldmodule = getattr(mixinedClass,'__top_mixined_module',None)
+            bagfieldmodule = getattr(mixinedClass,'__top_mixined_module',None)
         box = pane.contentPane(datapath=valuepath,bagfieldmodule=bagfieldmodule)
         return getattr(self,handlername)(box,**kwargs)
         

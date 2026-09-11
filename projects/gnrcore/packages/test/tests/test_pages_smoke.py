@@ -56,7 +56,7 @@ from pages_ratchet import (SMOKE_RATCHET, assert_ratchet, discover_pages,
 # until the TIME_WAIT backlog drains and renders the page again. A full sweep
 # pays about one 35s drain round on a 16384-port host (none expected on a
 # Linux-sized range), and a failing page can add one when it fails with
-# CommunicationError or before any page has answered 200.
+# CommunicationError.
 PORT_DRAIN_SECONDS = 35  # > 2*MSL on macOS (30s); Linux (60s) needs two rounds
 PORT_DRAIN_ROUNDS = 3
 REGISTER_UNREACHABLE = 'register unreachable'
@@ -104,11 +104,15 @@ class TestPagesSmoke(BaseGnrDaemonTest):
                 skipped[page_path] = sorted(missing)
                 continue
             status = cls.render_status(page_path)
-            if not status.startswith('200') and not register_dead:
-                probe = canary or page_path
+            # the backpressure needs a page known to render as its probe: with
+            # the failing page as its own probe it waits the full drain out and
+            # then latches `register_dead`, disabling the protection for the
+            # rest of the sweep. Before the first 200 there is no such page, and
+            # there is no exhaustion either — it takes hundreds of renders.
+            if not status.startswith('200') and canary and not register_dead:
                 if (status.startswith(REGISTER_UNREACHABLE)
-                        or not cls.render_status(probe).startswith('200')):
-                    if cls.wait_ports_drained(probe):
+                        or not cls.render_status(canary).startswith('200')):
+                    if cls.wait_ports_drained(canary):
                         status = cls.render_status(page_path)
                     else:
                         register_dead = True

@@ -530,9 +530,8 @@ class GnrCustomWebPage(object):
         return result
 
     def _message_body(self, record):
-        if record.get('html') and record.get('body'):
-            return record['body']
-        return record.get('body') or record.get('body_plain') or ''
+        body = self.db.table('email.message').getBody(record)
+        return body or record.get('body_plain') or ''
 
 
     def _address_list(self, value):

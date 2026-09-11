@@ -33,7 +33,7 @@ def main():
                         help="May be repeated. Ex: -l customer:myself -l price:10")
     parser.add_argument('-f', '--fqdn',
                         action="append",
-                        required=True,
+                        default=[],
                         dest="fqdns",
                         help="One (or more) FQDN of the deployed service")
     parser.add_argument('-n', '--name',

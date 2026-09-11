@@ -39,6 +39,8 @@ class Form(BaseComponent):
                                                     service_name='=.service_name', 
                                                     _if="service_type && implementation",
                                                     _fired='^#FORM.controller.loaded',
+                                                    _onRemote="""const frm = this.form;
+                                                        if(frm){this.delayedCall(()=>{frm.checkInvalidFields()},1,'serviceParameters');}""",
                                                     _async=True,_waitingMessage=True)
 
 

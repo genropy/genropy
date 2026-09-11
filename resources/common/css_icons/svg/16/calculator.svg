@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+  <title>Calculator_16x16</title>
+  <g id="Layer_1" data-name="Layer 1">
+    <rect x="1.5" y="0.5" width="13" height="15" rx="1.5" fill="none" stroke="#5b5b5b"/>
+    <rect x="3" y="2" width="10" height="3.5" rx="0.5" fill="#1b4d7f"/>
+    <rect x="3" y="7.5" width="2.5" height="2" fill="#515151"/>
+    <rect x="6.75" y="7.5" width="2.5" height="2" fill="#515151"/>
+    <rect x="10.5" y="7.5" width="2.5" height="2" fill="#515151"/>
+    <rect x="3" y="11" width="2.5" height="2" fill="#515151"/>
+    <rect x="6.75" y="11" width="2.5" height="2" fill="#515151"/>
+    <rect x="10.5" y="11" width="2.5" height="2" fill="#515151"/>
+  </g>
+</svg>

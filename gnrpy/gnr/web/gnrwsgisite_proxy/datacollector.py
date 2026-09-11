@@ -16,8 +16,15 @@ class FilterableCollection(list):
         
         
 class DataCollector(object):
-    def __init__(self, siteregister):
-        self._r = siteregister
+    def __init__(self, register):
+        self._register = register
+
+    @property
+    def _r(self):
+        # Asked for on every access, never stored: the register hands out a Pyro
+        # proxy owned by the current process, and this object is built before the
+        # wsgi server forks its workers.
+        return self._register.siteregister
 
     @property
     def users(self):

@@ -46,19 +46,38 @@ class Table(object):
         return self.nextUserNotification(rec['user_id'])
 
     def nextUserNotification(self,user_id=None):
-        f = self.query(where='$user_id=:uid AND $confirmed IS NOT TRUE',uid=user_id,limit=1,order_by='$__ins_ts asc').fetch()
+        f = self.query(where="""$user_id=:uid AND $confirmed IS NOT TRUE
+                                AND (@notification_id.start_date IS NULL OR @notification_id.start_date<=:today)
+                                AND (@notification_id.end_date IS NULL OR @notification_id.end_date>=:today)""",
+                       uid=user_id,today=self.db.workdate,limit=1,order_by='$__ins_ts asc').fetch()
         user_notification_id = f[0]['id'] if f else None
         if user_notification_id:
             return user_notification_id
-        
 
-    def updateGenericNotification(self,user_id=None,user_tags=None):
-        generic_notification = self.db.table('adm.notification').query(where="""($all_users IS TRUE OR $tag_rule IS NOT NULL )
-                                                                                AND NOT $existing_for_current_user
-                                                                                """,env_user_id=user_id).fetch()
+
+    def updateGenericNotification(self,user_id=None,**kwargs):
+        """Enrol a user that just logged in into the dynamic notifications
+        they match.
+
+        Only dynamic notifications gain new users over time, and only while
+        they are inside their active date window: a static list is frozen at
+        the snapshot taken when the notification was saved. The test is
+        `IS NOT FALSE` so that a NULL keeps meaning dynamic: the rows that
+        predate the column were delivered by this very incremental alignment,
+        and nothing stops being delivered after the upgrade.
+
+        `**kwargs` absorbs the avatar tags older callers still pass: the tag
+        rule is now evaluated on the user record, through the same
+        `audienceWhere` + `tagRuleMatches` pair the bulk snapshot uses."""
+        notification_tbl = self.db.table('adm.notification')
+        dynamic_notification = notification_tbl.query(where="""$dynamic_list IS NOT FALSE
+                                                               AND NOT $existing_for_current_user
+                                                               AND ($start_date IS NULL OR $start_date<=:today)
+                                                               AND ($end_date IS NULL OR $end_date>=:today)""",
+                                                      env_user_id=user_id,today=self.db.workdate).fetch()
         commit = False
-        for n in generic_notification:
-            if n['all_users'] or self.db.application.checkResourcePermission(n['tag_rule'],user_tags):
+        for n in dynamic_notification:
+            if notification_tbl.userMatchesAudience(n,user_id):
                 if not self.checkDuplicate(user_id=user_id,notification_id=n['id']):
                     commit = True
                     self.insert(dict(user_id=user_id,notification_id=n['id']))

@@ -121,3 +121,54 @@ class GnrCustomWebPage(object):
         bluefb.div(_class='checkboxOff', width='1.4em', height='1.4em', lbl='checkboxOff')
         bluefb.div(_class='radioOn', width='1.4em', height='1.4em', lbl='radioOn')
         bluefb.div(_class='radioOff', width='1.4em', height='1.4em', lbl='radioOff')
+
+    def test_11_checkstrip_checkboxes(self, pane):
+        "Independent checkboxes behave as one-click cells in a checkstrip"
+        pane.data('.alpha', True)
+        pane.data('.beta', False)
+        pane.data('.gamma', True)
+        pane.data('.disabled', False)
+
+        strip = pane.div(_class='checkstrip', id='checkstrip_checkboxes')
+        strip.checkbox(value='^.alpha', label='Alpha')
+        strip.checkbox(value='^.beta', label='Beta', disabled='^.disabled')
+        strip.checkbox(value='^.gamma', label='Gamma')
+
+        fb = pane.formbuilder(cols=2, border_spacing='6px', margin_top='12px')
+        fb.div('^.alpha', lbl='Alpha')
+        fb.div('^.beta', lbl='Beta')
+        fb.div('^.gamma', lbl='Gamma')
+        fb.checkbox(value='^.disabled', label='Disable Beta', colspan=2)
+
+    def test_12_checkstrip_checkboxtext(self, pane):
+        "Inline checkboxText flattens rows into a single toggle strip"
+        pane.data('.selection', 'b,d')
+        pane.checkBoxText(value='^.selection',
+                          values='a:Alpha,b:Beta,/,g:Gamma,d:Delta',
+                          popup=False, cols=2,
+                          _class='checkstrip',
+                          id='checkstrip_checkboxtext')
+        pane.div('^.selection', margin_top='12px')
+        pane.button('Select Alpha and Gamma externally',
+                    action="SET .selection='a,g';")
+        pane.button('Clear externally', action='SET .selection=null;')
+
+    def test_13_checkstrip_scale(self, pane):
+        "Checkstrip geometry scales with the font size of its context"
+        pane.data('.small_a', True)
+        pane.data('.small_b', False)
+        pane.data('.large_a', False)
+        pane.data('.large_b', True)
+
+        pane.div('12px context', font_weight='bold', margin_bottom='4px')
+        small = pane.div(_class='checkstrip', font_size='12px',
+                         id='checkstrip_small')
+        small.checkbox(value='^.small_a', label='Alpha')
+        small.checkbox(value='^.small_b', label='Beta')
+
+        pane.div('20px context', font_weight='bold',
+                 margin_top='14px', margin_bottom='4px')
+        large = pane.div(_class='checkstrip', font_size='20px',
+                         id='checkstrip_large')
+        large.checkbox(value='^.large_a', label='Alpha')
+        large.checkbox(value='^.large_b', label='Beta')
