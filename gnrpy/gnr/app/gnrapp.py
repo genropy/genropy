@@ -693,7 +693,8 @@ class GnrPackage(object):
         #modelfolder=os.path.join(folder,'model')
         
         if os.path.isdir(modelfolder):
-            tbldict.update(dict([(x[:-3], None) for x in os.listdir(modelfolder) if x.endswith('.py')]))
+            tbldict.update(dict([(x[:-3], None) for x in os.listdir(modelfolder)
+                                 if x.endswith('.py') and x != '__init__.py']))
         tblkeys = list(tbldict.keys())
         tblkeys.sort()
         for tbl in tblkeys:
