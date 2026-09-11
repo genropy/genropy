@@ -723,6 +723,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         namespace = namespace or self.parent.attributes.get('namespace')
         tb = self.child('slotBar',slotbarCode=slotbarCode,slots=slots,childname=childname,**kwargs)
         toolbarArgs = tb.attributes
+        tb._slotArgs = dict(toolbarArgs) #_addSlot consumes the slot parameters out of the attributes
         slots = gnrstring.splitAndStrip(str(slots))
         frame = self.parent
         frameCode = self.getInheritedAttributes().get('frameCode')
@@ -734,7 +735,17 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         
         #se ritorni la toolbar hai una toolbar vuota 
     
+    def _extractSlotArgs(self,slot,args):
+        slotName = slot.split('@')[0]
+        slotPrefix = '%s_' %slot.replace('@','_')
+        return dict([(k,v) for k,v in list(args.items())
+                        if k==slotName or k.startswith(slotPrefix)])
+
     def slotbar_updateslotsattr(self,**kwargs):
+        slotArgs = getattr(self,'_slotArgs',None)
+        if slotArgs is None:
+            slotArgs = self._slotArgs = dict()
+        slotArgs.update(kwargs)
         self.attributes.update(kwargs)
         toolbarArgs = self.attributes
         slotstr = toolbarArgs['slots']
@@ -746,9 +757,14 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         frame = self.parent.parent
         prefix = slotbarCode or frameCode
         for slot in slots:
-            if slot!='*' and slot!='|' and not slot.isdigit():
-                self.pop(slot)
-                self._addSlot(slot,prefix=prefix,frame=frame,frameCode=frameCode,namespace=namespace,toolbarArgs=toolbarArgs)
+            if slot=='*' or slot=='|' or slot.isdigit():
+                continue
+            if not self._extractSlotArgs(slot,kwargs):
+                continue
+            toolbarArgs.update(self._extractSlotArgs(slot,slotArgs))
+            self.unregisterNodeIds(slot)
+            self.pop(slot)
+            self._addSlot(slot,prefix=prefix,frame=frame,frameCode=frameCode,namespace=namespace,toolbarArgs=toolbarArgs)
 
     def slotbar_replaceslots(self, toReplace, replaceStr,**kwargs):
         """Allow to redefine the preset bars of the :ref:`slotBars <slotbar>` and the
@@ -759,6 +775,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         :param replaceStr: MANDATORY. A string with the list of the slots to add
         """
         self.attributes.update(kwargs)
+        self._slotArgs = dict(getattr(self,'_slotArgs',None) or dict(),**kwargs) #_addSlot consumes the slot parameters out of the attributes
         toolbarArgs = self.attributes
         slotstr = toolbarArgs['slots']
         slotbarCode= toolbarArgs.get('slotbarCode')
