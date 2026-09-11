@@ -7,10 +7,15 @@ from weasyprint import CSS, HTML
 from gnr.lib.services.htmltopdf import HtmlToPdfService
 
 class Service(HtmlToPdfService):
-    def writePdf(self,srcPath, destPath,pageSize=None,pageMargin=None,stylesheets=None, **kwargs):
+    def writePdf(self,srcPath, destPath,pageSize=None,pageMargin=None,stylesheets=None,
+                pdf_kwargs=None, **kwargs):
 
         srcPath = self.parent.storageNode(srcPath, parent=self.parent)
         stylesheets = stylesheets or []
+        #an explicit pageMargin wins over the sys.pdf_render preference margins: it is
+        #resolved before the block below reassigns pageMargin to its 0 fallback
+        apply_pref_margins = pageMargin is None
+        pref_margins = self.pageMarginsFromPdfKwargs(pdf_kwargs) if apply_pref_margins else {}
         if pageSize or pageMargin is not None:
             margin_priority = ' !important' if pageMargin is not None else ''
             pageMargin = pageMargin if pageMargin is not None else 0
@@ -19,6 +24,21 @@ class Service(HtmlToPdfService):
                 margin: {pageMargin}{margin_priority}; /* Set margin on each page */
             }}"""
             stylesheets.append(page_css_input)
+        if apply_pref_margins and pref_margins:
+            #stylesheets passed to weasyprint are user stylesheets: preference margins need
+            #!important to win over the @page margin:0 emitted in the document (author CSS);
+            #once at least one side is set in preferences the missing sides default to 0 as
+            #plain declarations (symmetric output), beating the weasyprint UA default margin
+            #but still losing to margins declared by the document. With no preference margins
+            #at all no stylesheet is appended, so raw html without a @page rule of its own
+            #(grid pdf export, pagededitor preview) keeps the weasyprint UA default margins
+            declarations = []
+            for side in ('top','bottom','left','right'):
+                if side in pref_margins:
+                    declarations.append(f'margin-{side}: {pref_margins[side]} !important;')
+                else:
+                    declarations.append(f'margin-{side}: 0;')
+            stylesheets.append('@page { %s }' % ' '.join(declarations))
         stylesheets = [CSS(string=css) for css in stylesheets]
         if destPath is None:
             tmp = tempfile.NamedTemporaryFile(prefix='temp', suffix='.pdf',delete=False)

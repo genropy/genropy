@@ -60,12 +60,26 @@ class AuthorizationBearerVerifier(GnrVerifier):
 
 
 class AuthorizationBaseTagsVerifier(GnrVerifier):
-    """Verifier for HTTP Basic Authentication with tag-based authorization.
+    """Verifier for tag-based authorization.
 
-    Decodes Basic Auth credentials, authenticates the user via getAvatar,
-    and checks resource permissions against the handler's required tags."""
+    Checks the handler's required tags against the tags of the logged in
+    user. A caller with no session is authenticated through HTTP Basic
+    Authentication first, so the same handler serves both a browser page
+    and an external client."""
 
-    def verify(self,tags=None,**kwargs):
+    def verify(self,tags=None,method=None,**kwargs):
+        userTags = self.page.userTags
+        if not userTags:
+            error = self.basicAuthenticate()
+            if error:
+                return error
+            userTags = self.page.avatar.user_tags
+        if not self.page.application.checkResourcePermission(tags, userTags):
+            return self.page.exception('user_not_allowed', method=method)
+
+    def basicAuthenticate(self):
+        """Authenticate the caller through the Basic Authorization header,
+        setting page.avatar. Returns an exception instance on failure."""
         authorization = self.page.request.headers.get('Authorization')
         if not authorization:
             return self.page.exception('basic_authentication',msg='Missing Basic Authorization')
@@ -79,6 +93,3 @@ class AuthorizationBaseTagsVerifier(GnrVerifier):
         self.page.avatar = self.page.application.getAvatar(user, pwd, authenticate=True)
         if not self.page.avatar:
             return self.page.exception('basic_authentication', msg='Wrong Authorization Login')
-        userTags = self.page.userTags or self.page.avatar.user_tags
-        if not self.page.application.checkResourcePermission(tags, userTags):
-            return self.page.exception('basic_authentication', msg='User not allowed')

@@ -117,6 +117,7 @@ dojo.declare("gnr.widgets.TooltipPane", gnr.widgets.gnrwdg, {
         var parentDomNode;
         var sn = sourceNode;
         var placingId = objectPop(kw,'placingId'); 
+        var placingNode = objectPop(kw,'placingNode');
         while(!parentDomNode){
             sn = sn.getParentNode();
             parentDomNode = sn.getDomNode();
@@ -133,13 +134,14 @@ dojo.declare("gnr.widgets.TooltipPane", gnr.widgets.gnrwdg, {
                                         this.widget._closeDropDown();
                                     }
                                 }};
-        if(placingId){
+        if(placingId || placingNode){
+            //placingId (a dom id) or placingNode (a dom node) anchor the popup to another
+            //node than the one that opened it
             ddkw.onOpeningPopup = function(openKw,evtDomNode){
-                                    var placingDomNode = genro.domById(placingId);
+                                    var placingDomNode = placingNode || genro.domById(placingId);
                                     if(placingDomNode){
                                         openKw.around = placingDomNode;
                                         openKw.popup.domNode.setAttribute('connector',"none");
-                                        //dojo.removeClass(openKw.popup.domNode,'dijitTooltipBelow');
                                     }
                                 };
         }
@@ -189,7 +191,13 @@ dojo.declare("gnr.widgets.MenuDiv", gnr.widgets.gnrwdg, {
 
         var tip = objectPop(kw,'tip');
         iconClass = iconClass? 'iconbox ' +iconClass :null;
-        var box_kw = objectUpdate({_class:'menuButtonDiv buttonDiv',disabled:disabled,tip:tip},buttonkw);
+        //a value-bound menudiv defaults to the menudiv_token look (bare word +
+        //chevron); btn__class replaces the whole default, so it stays the opt-out
+        var default_class = 'menuButtonDiv buttonDiv';
+        if(value && !iconClass && !label){
+            default_class += ' menudiv_token'+(colorWhite? ' menudiv_token_white':'');
+        }
+        var box_kw = objectUpdate({_class:default_class,disabled:disabled,tip:tip},buttonkw);
         if(parentForm){
             box_kw.parentForm = parentForm;
         }
@@ -208,12 +216,27 @@ dojo.declare("gnr.widgets.MenuDiv", gnr.widgets.gnrwdg, {
             }
             box = box._('div',objectUpdate({font_weight:'bold',cursor:'pointer',_class:colorWhite?'menudiv_text menudiv_text_white':'menudiv_text'},sourceStyleKw));
             let value_path = value.slice(1);
-            let caption_path = objectPop(kw,'caption_path') || `${value_path}?label`;
+            let caption_path = objectPop(kw,'caption_path');
             let key = objectPop(kw,'key') || 'fullpath';
             let caption = objectPop(kw,'caption') || 'caption';
             let placeholder = objectPop(kw,'placeholder') || 'Empty';
-            box._('div',{innerHTML:`^${caption_path}?=#v||'${placeholder}'`});
-            kw.action = `this.setRelativeData('${value_path}',$1['${key}']);this.setRelativeData('${caption_path}',$1['${caption}'] || $1.label);`;
+            if(!caption_path && typeof(kw.values)=='string' && !sourceNode.isPointerPath(kw.values)){
+                //static values: the visible caption FOLLOWS THE VALUE, resolved against
+                //the same values the menu shows -- so a value set from anywhere (form
+                //load, a controller, a default) displays right with no bookkeeping,
+                //and only the code is ever written: no ?label attribute that would
+                //ride along in a record cluster
+                let capmap = objectFromString(kw.values,null,'kv');
+                box._('div',{innerHTML:`^${value_path}?=(${JSON.stringify(capmap)})[#v]||#v||'${placeholder}'`});
+                kw.action = `this.setRelativeData('${value_path}',$1['${key}']);`;
+            }else{
+                //dynamic values (storepath or a bound values path): the caption cannot
+                //be resolved here, so it lives on caption_path (default: the value
+                //node's ?label attribute) and picking a line writes both
+                caption_path = caption_path || `${value_path}?label`;
+                box._('div',{innerHTML:`^${caption_path}?=#v||'${placeholder}'`});
+                kw.action = `this.setRelativeData('${value_path}',$1['${key}']);this.setRelativeData('${caption_path}',$1['${caption}'] || $1.label);`;
+            }
         }
 
         kw._class = kw._class || 'smallmenu';
@@ -794,7 +817,9 @@ dojo.declare("gnr.widgets.FramePane", gnr.widgets.gnrwdg, {
             kw.frameCode = frameCode = frameCode.replace('#',sourceNode.getStringId()); 
         }
         var frameId = frameCode+'_frame';
-        genro.assert(!genro.nodeById(frameId),'existing frame');
+        //frames always register their nodeId on creation: the plain index
+        //lookup avoids the full source-tree scan of a genro.nodeById miss
+        genro.assert(!genro.src._index[frameId],'existing frame');
         sourceNode.attr.nodeId = frameId;
         sourceNode._registerNodeId();
         objectPop(kw,'datapath');
@@ -3778,7 +3803,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         genro.setData(paletteRoot+'.status','info');
     },
 
-    openTemplatePalette:function(chunkNode,editorConstrain,showLetterhead){
+    openTemplatePalette:function(chunkNode,editorConstrain,showLetterhead,showParameters){
         let componentNode = chunkNode.getParentNode();
         var paletteCode = componentNode.getAttributeFromDatasource('paletteCode');
         if(!paletteCode){
@@ -3798,6 +3823,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
             var table = componentNode.getAttributeFromDatasource('table');
             var remote_datasourcepath = chunkNode.attr.datasource? chunkNode.absDatapath(chunkNode.attr.datasource):null;
             showLetterhead = typeof(showLetterhead) == 'string' ? chunkNode.getRelativeData(showLetterhead) : showLetterhead;
+            showParameters = typeof(showParameters) == 'string' ? chunkNode.getRelativeData(showParameters) : showParameters;
             var kw = {'paletteCode':paletteCode,'dockTo':'dommyDock:open',
                     title:'Template Edit '+table?table.split('.')[1]:'',width:'750px',
                     maxable:true,
@@ -3810,6 +3836,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                     remote_resource_mode:!table || (templateHandler.dataInfo && templateHandler.dataInfo.respath!=null),
                     remote_datasourcepath:remote_datasourcepath,
                     remote_showLetterhead:showLetterhead,
+                    remote_showParameters:showParameters,
                     remote_editorConstrain: editorConstrain
                     };  
            //kw.remote__onRemote = function(){
@@ -3923,6 +3950,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         var tplpars = objectExtract(kw,'template,editable');
         var editorConstrain = objectExtract(kw,'constrain_*',null,true);
         var showLetterhead = objectPop(kw, 'showLetterhead');
+        var showParameters = objectPop(kw, 'showParameters');
         if(paletteCode && (paletteCode[0]=='^' || paletteCode[0]=='=')){
             paletteCode = paletteCode[0]+sourceNode.absDatapath(paletteCode);
         }
@@ -3937,6 +3965,9 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         }
         if(typeof(showLetterhead)=='string'){
             showLetterhead = sourceNode.absDatapath(showLetterhead);
+        }
+        if(typeof(showParameters)=='string'){
+            showParameters = sourceNode.absDatapath(showParameters);
         }
         var record_id = objectPop(kw, 'record_id');
         if(record_id){
@@ -3969,11 +4000,11 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         var handler = this;
         if(tplpars.editable){
             kw.selfsubscribe_openTemplatePalette = function(){
-                handler.openTemplatePalette(this,editorConstrain,showLetterhead);
+                handler.openTemplatePalette(this,editorConstrain,showLetterhead,showParameters);
             }
             kw.connect_ondblclick = function(evt){
                 if(tplpars.editable===true || evt.shiftKey){
-                    handler.openTemplatePalette(this,editorConstrain,showLetterhead);
+                    handler.openTemplatePalette(this,editorConstrain,showLetterhead,showParameters);
                 }
            };
         }
@@ -4281,9 +4312,7 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
                 gnrwdg.fakeinputNode.domNode.click();
             }
         }
-        if(label && label.startsWith('!!')){
-            label = _T(label)
-        }
+        label = _T(label,true);
         dropAreaKw.innerHTML = dropAreaKw.innerHTML || label || '&nbsp;';
         var maxsize = objectPop(kw,'maxsize');
         var allowedExtensions = objectPop(kw,'extensions');
@@ -4354,7 +4383,7 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
                 }
                 if (totSize>maxsize){
                     var size_kb = maxsize/1000
-                    genro.dlg.alert("File exeeds size limit ("+size_kb+"KB)",'Error');
+                    genro.dlg.alert(_T("File exceeds size limit")+` (${size_kb}KB)`,_T('Error'));
                     return false;
                 }
             }

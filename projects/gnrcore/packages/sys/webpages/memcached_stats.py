@@ -32,9 +32,9 @@ class GnrCustomWebPage(object):
         return 'user'
 
     def main(self, root, **kwargs):
-        center, top, bottom = self.pbl_rootContentPane(root, title='!!Mem Stats')
-        center.dataRpc('root', 'getStats', _timing=45, _init=True)
-        center.tree(storepath='root')
+        frame = root.rootContentPane(title='!!Mem Stats')
+        frame.dataRpc('root', 'getStats', _timing=45, _init=True)
+        frame.tree(storepath='root')
 
     def rpc_getStats(self):
         result = Bag()
