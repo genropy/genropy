@@ -107,7 +107,15 @@ class TestHandler(BaseComponent):
         if not any(os.path.isfile(os.path.join(pkgfolder, 'startup_data.%s' % ext))
                    for ext in ('pik', 'gz')):
             return False
-        return not self.db.table(tablename).countRecords()
+        # the question is whether the table holds anything, not how much: this
+        # component is mixed into every test page of every project, and
+        # countRecords() would make each render pay a full count per table it
+        # addresses. One row answers it, logically deleted and draft rows
+        # included — they are rows the loader would not insert again.
+        tblobj = self.db.table(tablename)
+        return not tblobj.query(columns='$%s' % tblobj.pkey, limit=1,
+                                addPkeyColumn=False, excludeLogicalDeleted=False,
+                                excludeDraft=False).fetch()
 
 
 class TestHandlerBase(TestHandler):
