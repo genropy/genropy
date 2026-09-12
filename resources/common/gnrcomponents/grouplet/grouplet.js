@@ -3,10 +3,11 @@ var gnr_grouplet = {
         var formId = frameCode + '_step_form';
         var form = genro.formById(formId);
         if (form && !form.isValid()) {
-            genro.publish('floating_message', {
-                message: 'Please complete required fields',
-                messageType: 'warning'
-            });
+            //the form's own channel, not the global one: a wizard is normally
+            //inside a dialog, where a message published on _gnrRoot lands
+            //behind it. The form message also names the offending fields.
+            form.publish('message', {message: form._buildInvalidMessage(),
+                                     sound: '$error', messageType: 'error'});
             return;
         }
         if (form) {

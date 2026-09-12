@@ -3608,7 +3608,14 @@ dojo.declare("gnr.widgets.LightButton", [gnr.widgets.baseHtml,gnr.widgets._Butto
     created: function(widget, savedAttrs, sourceNode) {
         var that = this;
         widget.addEventListener("mousedown", function(event) {
-            event.stopPropagation(); 
+            //dijit hooks _onTouchNode on document.onmousedown, and that is what
+            //blurs the widget being left - synchronously, so a field commits its
+            //value before our click handler runs. stopPropagation below would
+            //take that away, leaving only the native blur, whose fallback path
+            //is a 100ms timer (dijit/_base/focus.js:231): the click would then
+            //act on the value the field had BEFORE the edit.
+            dijit._onTouchNode(event.target);
+            event.stopPropagation();
         });
         dojo.connect(widget, 'onclick', function(e){
             that.clickHandler(sourceNode,e);
