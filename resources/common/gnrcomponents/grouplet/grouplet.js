@@ -2,16 +2,29 @@ var gnr_grouplet = {
     wizardNext: function(sourceNode, frameCode) {
         var formId = frameCode + '_step_form';
         var form = genro.formById(formId);
-        if (form && !form.isValid()) {
+        var that = this;
+        if (!form) {
+            this.wizardStepForward(frameCode);
+            return;
+        }
+        if (!form.isValid()) {
             genro.publish('floating_message', {
                 message: 'Please complete required fields',
                 messageType: 'warning'
             });
             return;
         }
-        if (form) {
-            form.save();
-        }
+        // always, and the step moves in the reload callback. The step form is
+        // a copy of the main record: a save that decides it has nothing to do
+        // never reloads, and the next step is rebuilt from the record the save
+        // writes, so advancing on the line after the save reads the record as
+        // it was BEFORE this step.
+        form.save({always: true, onReload: function() {
+            that.wizardStepForward(frameCode);
+        }});
+    },
+
+    wizardStepForward: function(frameCode) {
         var frameNode = genro.getFrameNode(frameCode);
         var idx = frameNode.getRelativeData('.step_index');
         var steps = frameNode.getRelativeData('.wizard_steps');

@@ -1421,6 +1421,13 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                 });
             }else{
                 this.reset();
+                //a synchronous store (memory) has already saved AND reloaded
+                //inside store.save, so its caller's onReload belongs here: the
+                //branch above never runs without a deferred, and onReload was
+                //popped out of kw, so it would otherwise be dropped.
+                if(onReload){
+                    funcApply(onReload,{},this);
+                }
             }
             return deferred;
         }
