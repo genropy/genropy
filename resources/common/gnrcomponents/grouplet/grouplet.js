@@ -14,11 +14,7 @@ var gnr_grouplet = {
             });
             return;
         }
-        // always, and the step moves in the reload callback. The step form is
-        // a copy of the main record: a save that decides it has nothing to do
-        // never reloads, and the next step is rebuilt from the record the save
-        // writes, so advancing on the line after the save reads the record as
-        // it was BEFORE this step.
+        // always: an unchanged step still carries defaults to write back
         form.save({always: true, onReload: function() {
             that.wizardStepForward(frameCode);
         }});

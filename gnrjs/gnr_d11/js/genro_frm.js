@@ -1421,10 +1421,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                 });
             }else{
                 this.reset();
-                //a synchronous store (memory) has already saved AND reloaded
-                //inside store.save, so its caller's onReload belongs here: the
-                //branch above never runs without a deferred, and onReload was
-                //popped out of kw, so it would otherwise be dropped.
+                //synchronous store: already saved and reloaded
                 if(onReload){
                     funcApply(onReload,{},this);
                 }
@@ -3241,7 +3238,7 @@ dojo.declare("gnr.formstores.Item", gnr.formstores.Base, {
             var dosave = funcApply(onSaving,{data:formData,sourceBag:sourceBag},this);
             if(dosave===false){
                 this.form.setOpStatus(null);
-                return;
+                return false;
             }
         }
         var oldsubbag,path;
@@ -3390,7 +3387,7 @@ dojo.declare("gnr.formstores.Collection", gnr.formstores.Base, {
             var dosave = funcApply(onSaving,{data:formData},this);
             if(dosave===false){
                 this.form.setOpStatus(null);
-                return;
+                return false;
             }
         }
         var currPkey = form.getCurrentPkey();
