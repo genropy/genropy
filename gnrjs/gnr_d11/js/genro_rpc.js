@@ -875,11 +875,7 @@ dojo.declare("gnr.GnrRpcHandler", null, {
             '_storename':params._storename};
         var storefield = params._storefield;
         var resolver_kwargs = params._resolver_kwargs;
-        //closure scope: onloading and onloaded are two different functions and
-        //both need it. As a var inside onloading it left onloaded throwing
-        //ReferenceError on every resolver whose node carries neither
-        //_from_fld nor _target_fld — and that throw propagates up through
-        //whatever wrote the relation value, a form save included.
+        //shared by onloading and onloaded
         var targetTable = params._target_fld.split('.').slice(0, 2).join('_');
         kwargs.method = 'app.getRelatedRecord';
         var resolver = new gnr.GnrRemoteResolver(kwargs, isGetter, cacheTime);
