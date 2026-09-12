@@ -461,13 +461,15 @@ class GroupletHandler(BaseComponent):
             frame.data('.wizard_page', 'steps')
             frame.data('.wizard_showing_summary', False)
             sc = frame.center.stackContainer(selectedPage='^.wizard_page')
-            sc.contentPane(pageName='steps', overflow='auto').GroupletForm(
+            sc.contentPane(pageName='steps', overflow='auto',
+                           _class='wizard_step_pane').GroupletForm(
                 **grouplet_kwargs)
             sc.contentPane(pageName='summary', overflow='auto',
                            _class='wizard_summary').div(
                 template=summary_template, datasource=value)
         else:
-            frame.center.contentPane(overflow='auto').GroupletForm(
+            frame.center.contentPane(overflow='auto',
+                                     _class='wizard_step_pane').GroupletForm(
                 **grouplet_kwargs)
         bottom = frame.bottom.div(_class='wizard_bottom_bar')
         if has_summary:
