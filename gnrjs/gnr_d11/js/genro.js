@@ -2522,8 +2522,9 @@ dojo.declare('gnr.GenroClient', null, {
 
 });
 
-dojo.declare("gnr.GnrClientCaller", gnr.GnrBagResolver, {
-    constructor: function(kwargs/*callback, params*/) {
+gnr.GnrClientCaller = class GnrClientCaller extends gnr.GnrBagResolver {
+    constructor(kwargs/*callback, params*/) {
+        super(...arguments);
         if (typeof kwargs.callback == 'string') {
             this.callback = genro.evaluate(kwargs.callback);
         } else {
@@ -2538,7 +2539,10 @@ dojo.declare("gnr.GnrClientCaller", gnr.GnrBagResolver, {
             this.evaluate = null;
             this.params = kwargs.params;
         }
-    },
+    }
+};
+Object.assign(gnr.GnrClientCaller.prototype, {
+    declaredClass: 'gnr.GnrClientCaller',
 
     load: function (kwargs) {
         if (this.evaluate) {
@@ -2555,4 +2559,3 @@ dojo.declare("gnr.GnrClientCaller", gnr.GnrBagResolver, {
         }
     }
 });
-

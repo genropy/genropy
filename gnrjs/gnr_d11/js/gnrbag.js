@@ -24,11 +24,41 @@
 
 //########################  Bag #########################
 
+if (typeof gnr == 'undefined') {
+    var gnr = {};
+}
+
 
 //######################## class BagNode##########################
 
 
-dojo.declare("gnr.GnrBagNode", null, {
+gnr.GnrBagNode = class GnrBagNode {
+    constructor(parentbag, label, value, _attr, _resolver) {
+        this._id = this._counter[0] += 1;
+        this.label = (label == '#id') ? genro.time36Id() : label;
+        this.locked = false;
+        this._value = null;
+        this.setResolver(_resolver);
+        this.setParentBag(parentbag);
+        this.attr = {};
+        this._status = 'loaded';
+
+        this._onChangedValue = null;
+        if (_attr) {
+            var attr = objectUpdate({}, _attr);
+            this.setAttr(attr, false);
+        }
+        if (value === undefined) {
+            value = null;
+        }
+        if (!_resolver) {
+            this.setValue(value, false);
+            this._status = 'loaded';
+        }
+    }
+};
+Object.assign(gnr.GnrBagNode.prototype, {
+    declaredClass: 'gnr.GnrBagNode',
     //summary:a bagnode is a slot of a bag
     //description: Or we could just get a new roomate.
     /**
@@ -44,29 +74,6 @@ dojo.declare("gnr.GnrBagNode", null, {
      */
     _counter : [0],
 
-    constructor: function(parentbag, label, value, _attr, _resolver) {
-        this._id = this._counter[0] += 1;
-        this.label = (label == '#id') ? genro.time36Id() : label;
-        this.locked = false;
-        this._value = null;
-        this.setResolver(_resolver);
-        this.setParentBag(parentbag);
-        this.attr = {};
-        this._status = 'loaded';
-
-        this._onChangedValue = null;
-        if (_attr) { // && parentbag){ ??? a cosa serve? commentato da francesco per test 1/12/08
-            var attr = objectUpdate({}, _attr);
-            this.setAttr(attr, /*update trigger*/false);
-        }
-        if (value === undefined) {
-            value = null;
-        }
-        if (!_resolver) {
-            this.setValue(value, /*update trigger*/false);
-            this._status = 'loaded';
-        }
-    },
     getStringId:function() {
         return 'n_' + this._id;
     },
@@ -545,14 +552,8 @@ dojo.declare("gnr.GnrBagNode", null, {
 
 //######################## class Bag##########################
 
-dojo.declare("gnr.GnrBag", null, {
-    //summary: A flexible container object. A Javascript version of python gnrBag.
-    /**
-     * @id gnr.GnrBag
-     * @param {Object} source //not implemented yet
-     */
-    _nodeFactory: gnr.GnrBagNode,
-    constructor: function(source,kw) {
+gnr.GnrBag = class GnrBag {
+    constructor(source, kw) {
         this._nodes = [];
         this._backref = false;
         this._parentnode = null;
@@ -560,10 +561,18 @@ dojo.declare("gnr.GnrBag", null, {
         this._symbols = null;
         this._subscribers = {};
         if (source) {
-            this.fillFrom(source,kw);
+            this.fillFrom(source, kw);
         }
-
-    },
+    }
+};
+Object.assign(gnr.GnrBag.prototype, {
+    declaredClass: 'gnr.GnrBag',
+    //summary: A flexible container object. A Javascript version of python gnrBag.
+    /**
+     * @id gnr.GnrBag
+     * @param {Object} source //not implemented yet
+     */
+    _nodeFactory: gnr.GnrBagNode,
     newNode: function(parentbag, label, value, _attr, _resolver) {
         return  new this._nodeFactory(parentbag, label, value, _attr, _resolver);
     },
@@ -2342,8 +2351,8 @@ dojo.declare("gnr.GnrBag", null, {
  */
 //######################## class BagResolver##########################
 
-dojo.declare("gnr.GnrBagResolver", null, {
-    constructor: function(kwargs, isGetter, cacheTime, load) {
+gnr.GnrBagResolver = class GnrBagResolver {
+    constructor(kwargs, isGetter, cacheTime, load) {
         /*  cacheTime > 0: resolve after cacheTime seconds
          cacheTime = 0: resolve always
          cacheTime < 0: resolve once
@@ -2357,7 +2366,10 @@ dojo.declare("gnr.GnrBagResolver", null, {
         if (load) {
             this.load = load;
         }
-    },
+    }
+};
+Object.assign(gnr.GnrBagResolver.prototype, {
+    declaredClass: 'gnr.GnrBagResolver',
     onSetResolver: function(node) {
         //override me
     },
@@ -2488,8 +2500,9 @@ dojo.declare("gnr.GnrBagResolver", null, {
 
 //######################## class BagFormula##########################
 
-dojo.declare("gnr.GnrBagFormula", gnr.GnrBagResolver, {
-    constructor: function(root, expr, symbols, kwargs) {
+gnr.GnrBagFormula = class GnrBagFormula extends gnr.GnrBagResolver {
+    constructor(root, expr, symbols, kwargs) {
+        super(...arguments);
         this.root = root;
 
         if (symbols != null) {
@@ -2500,7 +2513,10 @@ dojo.declare("gnr.GnrBagFormula", gnr.GnrBagResolver, {
         }
         objectUpdate(symbols, fromKwargs(kwargs));
         this.expr = templateReplace(expr, symbols);
-    },
+    }
+};
+Object.assign(gnr.GnrBagFormula.prototype, {
+    declaredClass: 'gnr.GnrBagFormula',
 
 
     load: function() {
@@ -2528,11 +2544,15 @@ var fromKwargs = function(kwargs) {
 };
 
 
-dojo.declare("gnr.GnrBagGetter", gnr.GnrBagResolver, {
-    constructor: function(bag, path, what) {
+gnr.GnrBagGetter = class GnrBagGetter extends gnr.GnrBagResolver {
+    constructor(bag, path, what) {
+        super(...arguments);
         this.path = path;
         this.what = what || 'node';
-    },
+    }
+};
+Object.assign(gnr.GnrBagGetter.prototype, {
+    declaredClass: 'gnr.GnrBagGetter',
     load: function() {
         var node = genro.getNode(this.path);
         if (thisWhat || this == 'node') {
@@ -2549,13 +2569,17 @@ dojo.declare("gnr.GnrBagGetter", gnr.GnrBagResolver, {
 });
 //*******************BagCbResolver****************************
 
-dojo.declare("gnr.GnrBagCbResolver", gnr.GnrBagResolver, {
-    constructor: function(kwargs,isGetter,cacheTime) {
+gnr.GnrBagCbResolver = class GnrBagCbResolver extends gnr.GnrBagResolver {
+    constructor(kwargs,isGetter,cacheTime) {
+        super(...arguments);
         this.method = kwargs.method;
         this.parameters = kwargs.parameters;
         this.isGetter = isGetter;
         this.cacheTime = cacheTime || 0;
-    },
+    }
+};
+Object.assign(gnr.GnrBagCbResolver.prototype, {
+    declaredClass: 'gnr.GnrBagCbResolver',
 
     load: function(kwargs) {
         var kw = objectUpdate({},this.parameters)

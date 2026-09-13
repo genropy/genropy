@@ -25,8 +25,9 @@
 
 
 //######################## genro  #########################
-dojo.declare("gnr.GnrRemoteResolver", gnr.GnrBagResolver, {
-    constructor: function(kwargs, isGetter, cacheTime) {
+gnr.GnrRemoteResolver = class GnrRemoteResolver extends gnr.GnrBagResolver {
+    constructor(kwargs, isGetter, cacheTime) {
+        super(...arguments);
         this.xhrKwargs = {'handleAs': 'xml',
             'timeout': 50000,
             'load': 'resultHandler',
@@ -47,7 +48,10 @@ dojo.declare("gnr.GnrRemoteResolver", gnr.GnrBagResolver, {
         this.onResult = objectPop(kwargs,'_onResult');
         this.onCalling = objectPop(kwargs,'_onCalling');
 
-    },
+    }
+};
+Object.assign(gnr.GnrRemoteResolver.prototype, {
+    declaredClass: 'gnr.GnrRemoteResolver',
     load: function (kwargs) {
         if (this.onloading) {
             this.onloading(kwargs);
@@ -109,8 +113,9 @@ dojo.declare("gnr.GnrRemoteResolver", gnr.GnrBagResolver, {
     }
 });
 
-dojo.declare("gnr.GnrServerCaller", gnr.GnrBagResolver, {
-    constructor: function(kwargs /*url, page_id, methodname, params*/) {
+gnr.GnrServerCaller = class GnrServerCaller extends gnr.GnrBagResolver {
+    constructor(kwargs /*url, page_id, methodname, params*/) {
+        super(...arguments);
         alert("GnrServerCaller");
         if (typeof kwargs.params == 'string') {
             this.evaluate = 'this.params = ' + kwargs.params;
@@ -121,7 +126,10 @@ dojo.declare("gnr.GnrServerCaller", gnr.GnrBagResolver, {
         }
         this.methodname = kwargs.methodname;
         this.respars = kwargs.respars || {};
-    },
+    }
+};
+Object.assign(gnr.GnrServerCaller.prototype, {
+    declaredClass: 'gnr.GnrServerCaller',
 
     load: function (kwargs, cb) {
         if (this.evaluate) {

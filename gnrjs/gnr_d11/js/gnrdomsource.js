@@ -25,13 +25,17 @@
 
 
 //######################## class BagNode##########################
-dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
-    constructor:function(){
+gnr.GnrDomSourceNode = class GnrDomSourceNode extends gnr.GnrBagNode {
+    constructor() {
+        super(...arguments);
         var mobile_kw = objectExtract(this.attr,'mobile_*');
         if(genro.isMobile && objectNotEmpty(mobile_kw)){
             objectUpdate(this.attr,mobile_kw);
         }
-    },
+    }
+};
+Object.assign(gnr.GnrDomSourceNode.prototype, {
+    declaredClass: 'gnr.GnrDomSourceNode',
 
     application:function() {
         return this.getParentBag().getRoot().application;
@@ -2197,13 +2201,17 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
 
 });
 
-dojo.declare("gnr.GnrStructData", gnr.GnrBag, {
+gnr.GnrStructData = class GnrStructData extends gnr.GnrBag {};
+Object.assign(gnr.GnrStructData.prototype, {
+    declaredClass: 'gnr.GnrStructData',
     // constructor: function(source){
     //     this._validationPrefix = 'structvalidate_';
     // }
 });
 
-dojo.declare("gnr.GnrDomSource", gnr.GnrStructData, {
+gnr.GnrDomSource = class GnrDomSource extends gnr.GnrStructData {};
+Object.assign(gnr.GnrDomSource.prototype, {
+    declaredClass: 'gnr.GnrDomSource',
     _validationPrefix: 'structvalidate_',
     _nodeFactory:gnr.GnrDomSourceNode,
 
@@ -2320,4 +2328,3 @@ dojo.declare("gnr.GnrDomSource", gnr.GnrStructData, {
         return node;
     }
 });
-
