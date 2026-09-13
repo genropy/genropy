@@ -55,6 +55,14 @@ to interact with BagNode instances inside a Bag.
           
 .. note:: Some methods have the "square-brackets notation": it is a shorter notation for the method"""
 
+import gnr as _gnr
+
+if _gnr.BAG_MODE == 'genro-bag':
+    raise ImportError(
+        "Historical gnrbag.py is disabled in genro-bag mode; "
+        "import classes from the genro-bag gnr.core.gnrbag facade"
+    )
+
 from functools import cmp_to_key
 import os
 import os.path
