@@ -166,7 +166,17 @@ dojo.declare("gnr.GnrSrcHandler", null, {
     },
     
     nodeTrigger:function(kw) {
-        if (kw.node.isFreezed() || kw.node._isBuilding){
+        if (kw.node._isBuilding){
+            return;
+        }
+        if (kw.node.isFreezed()){
+            //the rebuild waits for unfreeze, but a replaced or popped content
+            //is already detached: its subscriptions must leave the index now
+            if (kw.evt == 'del') {
+                this.cleanupNodeSubscriptions(kw.node);
+            } else if (kw.evt == 'upd' && kw.oldvalue !== kw.node._value) {
+                this.cleanupContentSubscriptions(kw.oldvalue);
+            }
             return;
         }
         this.pendingBuild.push(kw);
