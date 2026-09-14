@@ -116,7 +116,6 @@ dojo.declare("gnr.GnrSrcHandler", null, {
         this._subscribedNodes = {};
         this._started=false;
         this._index = {};
-        this._deletingNodeContent = 0;
         this.pendingBuild = [];
         this.afterBuildCalls = [];
         this.building = false;
@@ -167,7 +166,34 @@ dojo.declare("gnr.GnrSrcHandler", null, {
     
     nodeTrigger:function(kw) {
         var originNode = kw.evt === 'del' && kw.where && kw.where.getParentNode();
-        if (kw.node.isFreezed() || kw.node._isBuilding || (originNode && (originNode.isFreezed() || originNode._isBuilding))){
+        //a deleted node can already be detached from its parent, so isFreezed()
+        //no longer reaches the frozen ancestor: the bag it was removed from
+        //still knows it
+        if (kw.node._isBuilding || (originNode && originNode._isBuilding)){
+            return;
+        }
+        if (kw.node.isFreezed() || (originNode && originNode.isFreezed())){
+            //the rebuild waits for unfreeze, but a replaced or popped content is
+            //already detached: what the unfreeze rebuild cannot do for it later
+            //has to happen now. The rebuild runs on the new value, so it never
+            //sees this content again, and externalWidgets hang off no dijit
+            //parent, so no destroyRecursive reaches them either
+            if (kw.evt == 'del') {
+                kw.node._onDeleting();
+                this._onDeletingContent(kw.node._value);
+                this.deleteChildrenExternalWidget(kw.node);
+                if (kw.node.externalWidget && kw.node.externalWidget.destroy) {
+                    kw.node.externalWidget.destroy();
+                }
+                this.cleanupNodeSubscriptions(kw.node);
+            } else if (kw.evt == 'upd' && kw.oldvalue !== kw.node._value) {
+                //the discarded content only: this node is not dying, it is
+                //frozen and rebuilds on unfreeze, and tearing it down here
+                //would take it off screen before that
+                this._onDeletingContent(kw.oldvalue);
+                this.deleteContentExternalWidget(kw.oldvalue);
+                this.cleanupContentSubscriptions(kw.oldvalue);
+            }
             return;
         }
         this.pendingBuild.push(kw);
@@ -378,8 +404,11 @@ dojo.declare("gnr.GnrSrcHandler", null, {
     },
 
     deleteChildrenExternalWidget:function(deletingNode){
-        if(deletingNode._value && deletingNode._value.len()>0){
-            deletingNode._value.walk(function(n){
+        this.deleteContentExternalWidget(deletingNode._value);
+    },
+    deleteContentExternalWidget:function(content){
+        if(content instanceof gnr.GnrBag && content.len()>0){
+            content.walk(function(n){
                 if(n.externalWidget && n.externalWidget.destroy){
                     n.externalWidget.destroy();
                 }
@@ -399,11 +428,9 @@ dojo.declare("gnr.GnrSrcHandler", null, {
 
     deleteNodeContent:function(sourceNode){
         var children = sourceNode._value;
-        this._deletingNodeContent = this._deletingNodeContent + 1;
         children.forEach(function(n){
             children.popNode(n.label);
         })
-        this._deletingNodeContent = this._deletingNodeContent - 1;
     },
     
     
@@ -521,45 +548,6 @@ dojo.declare("gnr.GnrSrcHandler", null, {
           //     }
         }
         return;
-    },
-    refreshSourceIndexAndSubscribers:function() {
-        if(this._deletingNodeContent>0){
-            return;
-        }
-        var oldSubscribedNodes = this._subscribedNodes;
-        var oldIndex = this._index;
-        this._index = {};
-        this._subscribedNodes = {};
-        var refresher = dojo.hitch(this, function(n) {
-           //if(n.attr._lazyBuild){
-           //    return true;
-           //}
-            var id = n.getStringId();
-            var oldSubscriber = oldSubscribedNodes[id];
-            if (oldSubscriber) {
-                genro.src._subscribedNodes[id] = oldSubscriber;
-                oldSubscribedNodes[id] = null;
-            }
-            if (n.attr.nodeId) {
-                if (!(n.attr.nodeId in oldIndex)){
-                    //console.log('ignorato',n.attr.nodeId);
-                    return;
-                }
-                genro.src._index[n.attr.nodeId] = n;
-            }
-        });
-        this._main.walk(refresher, 'static');
-        var that = this;
-        for (var subscriber in oldSubscribedNodes) {
-            if (oldSubscribedNodes[subscriber]) {
-                for (var attr in oldSubscribedNodes[subscriber]) {
-                    dojo.forEach(oldSubscribedNodes[subscriber][attr],function(n){
-                        that.unsubscribeHandle(n);
-                    });
-                }
-
-            }
-        }
     },
     stripData: function(node) {
         this.stripDataNode(node);

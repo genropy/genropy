@@ -417,15 +417,24 @@ test('detached source deletions respect the frozen origin and still dispatch aft
     content._('div', 'first', {});
     content._('div', 'second', {});
     const handled = [];
-    const handler = {pendingBuild: [], building: false, _trigger_del: event => handled.push(event.node.label)};
+    const discarded = [];
+    const handler = {pendingBuild: [], building: false,
+        _trigger_del: event => handled.push(event.node.label),
+        _onDeletingContent: () => {},
+        deleteChildrenExternalWidget: node => discarded.push(node.label),
+        cleanupNodeSubscriptions: () => {}};
     source.subscribe('delete-test', {del: event => gnr.GnrSrcHandler.prototype.nodeTrigger.call(handler, event)});
     parent.freeze();
     const removed = content.popNode('first');
     assert.equal(removed.getParentBag(), null);
+    //no rebuild while frozen, but the detached content is torn down now: the
+    //rebuild on unfreeze runs on the new value and never sees it again
     assert.deepEqual(handled, []);
+    assert.deepEqual(discarded, ['first']);
     parent.unfreeze(true);
     content.popNode('second');
     assert.deepEqual(handled, ['second']);
+    assert.deepEqual(discarded, ['first']);
 });
 
 test('framework parent path normalization remains available without the legacy Bag module', () => {
