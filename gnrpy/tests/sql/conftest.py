@@ -25,19 +25,13 @@ def sqlite_temp_dir():
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
 
-def setup_module(module):
-    BaseGnrTest.setup_class()
-def teardown_module(module):
-    BaseGnrTest.teardown_class()
-
-
 @pytest.fixture(scope='module', autouse=True)
 def gnr_test_config():
     """Make sure every module in this package runs with a genro configuration.
 
-    The setup_module/teardown_module above are never called: pytest honours
-    xunit module hooks on test modules, not on a conftest.  Every module that
-    needs a configuration therefore repeats the call itself -- and
+    pytest does not call setup_module/teardown_module defined in conftest.py
+    for test modules.  Every module that needs a configuration therefore
+    repeats the call itself -- and
     test_db_notify and test_gnrlistener do not, so on a machine without a
     ~/.gnr of its own, CI included, their fixtures died with
     'Missing genro configuration'.  Modules that already set one up keep it.
