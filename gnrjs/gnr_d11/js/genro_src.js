@@ -548,45 +548,6 @@ dojo.declare("gnr.GnrSrcHandler", null, {
         }
         return;
     },
-    refreshSourceIndexAndSubscribers:function() {
-        if(this._deletingNodeContent>0){
-            return;
-        }
-        var oldSubscribedNodes = this._subscribedNodes;
-        var oldIndex = this._index;
-        this._index = {};
-        this._subscribedNodes = {};
-        var refresher = dojo.hitch(this, function(n) {
-           //if(n.attr._lazyBuild){
-           //    return true;
-           //}
-            var id = n.getStringId();
-            var oldSubscriber = oldSubscribedNodes[id];
-            if (oldSubscriber) {
-                genro.src._subscribedNodes[id] = oldSubscriber;
-                oldSubscribedNodes[id] = null;
-            }
-            if (n.attr.nodeId) {
-                if (!(n.attr.nodeId in oldIndex)){
-                    //console.log('ignorato',n.attr.nodeId);
-                    return;
-                }
-                genro.src._index[n.attr.nodeId] = n;
-            }
-        });
-        this._main.walk(refresher, 'static');
-        var that = this;
-        for (var subscriber in oldSubscribedNodes) {
-            if (oldSubscribedNodes[subscriber]) {
-                for (var attr in oldSubscribedNodes[subscriber]) {
-                    dojo.forEach(oldSubscribedNodes[subscriber][attr],function(n){
-                        that.unsubscribeHandle(n);
-                    });
-                }
-
-            }
-        }
-    },
     stripData: function(node) {
         this.stripDataNode(node);
         var content = node.getValue('static');
