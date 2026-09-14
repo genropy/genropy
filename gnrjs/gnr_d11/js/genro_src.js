@@ -170,11 +170,25 @@ dojo.declare("gnr.GnrSrcHandler", null, {
             return;
         }
         if (kw.node.isFreezed()){
-            //the rebuild waits for unfreeze, but a replaced or popped content
-            //is already detached: its subscriptions must leave the index now
+            //the rebuild waits for unfreeze, but a replaced or popped content is
+            //already detached: what the unfreeze rebuild cannot do for it later
+            //has to happen now. The rebuild runs on the new value, so it never
+            //sees this content again, and externalWidgets hang off no dijit
+            //parent, so no destroyRecursive reaches them either
             if (kw.evt == 'del') {
+                kw.node._onDeleting();
+                this._onDeletingContent(kw.node._value);
+                this.deleteChildrenExternalWidget(kw.node);
+                if (kw.node.externalWidget && kw.node.externalWidget.destroy) {
+                    kw.node.externalWidget.destroy();
+                }
                 this.cleanupNodeSubscriptions(kw.node);
             } else if (kw.evt == 'upd' && kw.oldvalue !== kw.node._value) {
+                //the discarded content only: this node is not dying, it is
+                //frozen and rebuilds on unfreeze, and tearing it down here
+                //would take it off screen before that
+                this._onDeletingContent(kw.oldvalue);
+                this.deleteContentExternalWidget(kw.oldvalue);
                 this.cleanupContentSubscriptions(kw.oldvalue);
             }
             return;
@@ -387,8 +401,11 @@ dojo.declare("gnr.GnrSrcHandler", null, {
     },
 
     deleteChildrenExternalWidget:function(deletingNode){
-        if(deletingNode._value && deletingNode._value.len()>0){
-            deletingNode._value.walk(function(n){
+        this.deleteContentExternalWidget(deletingNode._value);
+    },
+    deleteContentExternalWidget:function(content){
+        if(content instanceof gnr.GnrBag && content.len()>0){
+            content.walk(function(n){
                 if(n.externalWidget && n.externalWidget.destroy){
                     n.externalWidget.destroy();
                 }

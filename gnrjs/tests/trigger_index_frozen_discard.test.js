@@ -113,3 +113,52 @@ test('a frozen node with no discarded content is left alone', () => {
     assert.equal(indexed(), 2);
     assert.deepEqual(publish('gnr.batch.b1.thermo.l1').sort(), ['maximum', 'progress']);
 });
+
+//the teardown the unfreeze rebuild can no longer do: it runs on the new value,
+//so the discarded content never sees `_onDeleting` again, and an externalWidget
+//hangs off no dijit parent, so no destroyRecursive reaches it either
+function spyTeardown(node) {
+    const seen = {deleted: false, widgetDestroyed: false};
+    const original = node._onDeleting;
+    node._onDeleting = function() {
+        seen.deleted = true;
+        return original.apply(this, arguments);
+    };
+    node.externalWidget = {destroy: () => {seen.widgetDestroyed = true;}};
+    return seen;
+}
+
+test('content replaced under freeze is torn down, the frozen node is not', () => {
+    const {thermoNode, lineNode, barNode} = createSrc();
+    const thermo = spyTeardown(thermoNode);
+    const line = spyTeardown(lineNode);
+    const bar = spyTeardown(barNode);
+    thermoNode.freeze();
+    thermoNode.clearValue();
+    assert.deepEqual(line, {deleted: true, widgetDestroyed: true});
+    assert.deepEqual(bar, {deleted: true, widgetDestroyed: true});
+    //the node whose content went is frozen, not dying: it rebuilds on unfreeze
+    assert.deepEqual(thermo, {deleted: false, widgetDestroyed: false});
+});
+
+test('a node popped under a frozen ancestor is torn down with its content', () => {
+    const {thermoNode, lineNode, barNode} = createSrc();
+    const thermo = spyTeardown(thermoNode);
+    const line = spyTeardown(lineNode);
+    const bar = spyTeardown(barNode);
+    thermoNode.freeze();
+    lineNode._destroy();
+    assert.deepEqual(line, {deleted: true, widgetDestroyed: true});
+    assert.deepEqual(bar, {deleted: true, widgetDestroyed: true});
+    assert.deepEqual(thermo, {deleted: false, widgetDestroyed: false});
+});
+
+test('a same-bag rebuild under freeze tears nothing down', () => {
+    const {thermoNode, lineNode, barNode} = createSrc();
+    const line = spyTeardown(lineNode);
+    const bar = spyTeardown(barNode);
+    thermoNode.freeze();
+    thermoNode.rebuild();
+    assert.deepEqual(line, {deleted: false, widgetDestroyed: false});
+    assert.deepEqual(bar, {deleted: false, widgetDestroyed: false});
+});
