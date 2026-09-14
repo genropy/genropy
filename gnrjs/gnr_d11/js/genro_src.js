@@ -116,7 +116,6 @@ dojo.declare("gnr.GnrSrcHandler", null, {
         this._subscribedNodes = {};
         this._started=false;
         this._index = {};
-        this._deletingNodeContent = 0;
         this.pendingBuild = [];
         this.afterBuildCalls = [];
         this.building = false;
@@ -425,11 +424,9 @@ dojo.declare("gnr.GnrSrcHandler", null, {
 
     deleteNodeContent:function(sourceNode){
         var children = sourceNode._value;
-        this._deletingNodeContent = this._deletingNodeContent + 1;
         children.forEach(function(n){
             children.popNode(n.label);
         })
-        this._deletingNodeContent = this._deletingNodeContent - 1;
     },
     
     
