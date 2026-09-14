@@ -41,7 +41,7 @@ No CDN or sibling checkout is needed at runtime.
 
 | Behavior | Framework caller | Legacy API | Standalone API | Integration | Regression |
 | --- | --- | --- | --- | --- | --- |
-| Ordered storage and direct node access | DOM source, forms, grids | Array-like `_nodes` | `BagNodeContainer` | Numeric indexes plus `forEach`, `map`, `indexOf` and `splice` compatibility | Standalone container and framework class tests |
+| Ordered storage and direct node access | DOM source, forms, grids | Array-like `_nodes` | `BagNodeContainer` | Framework callers use `getNodes()`; the container keeps `_dict` and `_list` as in Python, without numeric properties or an array facade | Standalone container and active mixin tests |
 | Nested specialization | DOM source construction and path autocreate | `_nodeFactory` | `nodeClass` and lexical child construction | Adapter maps `_nodeFactory`; standalone uses the runtime child factory | DOM source node identity test |
 | Path reads and writes | Data binding, forms, stores | Mode strings and kwargs object | Boolean static mode and positional options | Adapter translates signatures without replacing standalone storage | Form external-change suite under both implementations |
 | Change events | Data logger and bindings | `upd`, `ins`, `del` payloads | `update`, `insert`, `delete` subscribers | Adapter restores event names, payload fields, reasons, paths and parent propagation | Form and event-order tests |

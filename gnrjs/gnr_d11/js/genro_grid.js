@@ -1174,7 +1174,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                 if(!rows || rows.len()==0){
                     return;
                 }
-                rows._nodes.forEach(function(n){
+                rows.getNodes().forEach(function(n){
                     let r = getEditedRow(n);
                     let label = '#id';
                     if(grid.rowIdentity(r)){
@@ -5063,7 +5063,7 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         var headerTable = dojo.query('table',this.viewsHeaderNode)[0];
         const totalWidth =headerTable? headerTable.clientWidth:0;
 
-        cells._nodes.forEach(function(n,idx){
+        cells.getNodes().forEach(function(n,idx){
             if((n.attr.hidden && (n.attr.hidden===true || sourceNode.getRelativeData(n.attr.hidden))) || !genro.dom.isVisible(headerList[idx])){
                 cells.popNode(n.label);
                 return;
@@ -5087,7 +5087,7 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         var cells = struct.getItem('#0.#0');
         var sourceNode = this.sourceNode;
         var headerList = dojo.query('th',this.viewsHeaderNode);
-        var visibleColumns = cells._nodes.map(function(n,idx){
+        var visibleColumns = cells.getNodes().map(function(n,idx){
             if(n.attr.calculated){
                 return;
             }

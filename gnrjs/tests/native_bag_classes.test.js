@@ -25,6 +25,8 @@ function loadClasses(filenames = ['gnrlang.js', 'gnrbag.js', 'gnrdomsource.js'],
     const context = {
         alert() {},
         console,
+        TextEncoder, TextDecoder, Uint8Array,
+        atob, btoa,
         dijit: {},
         document: {},
         File: function() {},
@@ -103,7 +105,7 @@ test('Bag classes preserve identity, metadata, and enumerable prototype members'
         assert.ok(bag instanceof context.GenroBagJS.Bag);
         assert.ok(node instanceof context.GenroBagJS.BagNode);
         assert.equal(context.GenroBagJS.TYTX.getDecimalLibrary(), 'number');
-        assert.deepEqual(Array.from(bag._nodes.map(item => item.label)), ['answer']);
+        assert.deepEqual(Array.from(bag.getNodes().map(item => item.label)), ['answer']);
     }
 });
 
@@ -354,7 +356,7 @@ test('selected Bag concat moves component children without insertion events',
 
         content.concat(children);
 
-        assert.deepEqual(Array.from(content._nodes.map(node => node.label)),
+        assert.deepEqual(Array.from(content.getNodes().map(node => node.label)),
             ['generated', 'declared']);
         assert.equal(content.getNode('generated'), existing);
         assert.equal(content.getNode('declared'), moved);
@@ -626,7 +628,7 @@ test('selected slotbar cleanup removes consecutive slot nodes while iterating',
         children.setItem('secondSlot', null, {tag: 'slot'});
         children.setItem('button', null, {tag: 'button'});
 
-        children._nodes.forEach(function(node) {
+        children.getNodes().forEach(function(node) {
             if (node.attr.tag === 'slot') children.popNode(node.label);
         });
 
@@ -644,7 +646,7 @@ test('selected copy-on-pop keeps specialized source ancestry and freeze propagat
         children.setItem('secondSlot', null, {tag: 'slot'});
         bar.freeze();
 
-        children._nodes.forEach(function(node) {
+        children.getNodes().forEach(function(node) {
             if (node.attr.tag === 'slot') children.popNode(node.label);
         });
 

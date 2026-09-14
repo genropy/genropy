@@ -23,6 +23,8 @@ function loadClasses(filenames = ['gnrlang.js', 'gnrbag.js', 'gnrdomsource.js'],
     const context = {
         alert() {},
         console,
+        TextEncoder, TextDecoder, Uint8Array,
+        atob, btoa,
         dijit: {},
         document: {},
         File: function() {},

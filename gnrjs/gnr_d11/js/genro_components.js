@@ -55,7 +55,7 @@ dojo.declare("gnr.widgets.gnrwdg", null, {
     popSubTagItems:function(maintag,children){
         var result = {};
         for (var tag in this.subtags){
-            var sc = children._nodes.filter(function(n){
+            var sc = children.getNodes().filter(function(n){
                 return n.attr.tag == (maintag+'_'+tag).toLowerCase();
             });
             var subtag_items = new gnr.GnrBag();
@@ -3563,7 +3563,7 @@ dojo.declare("gnr.widgets.BagEditor", gnr.widgets.gnrwdg, {
         var f;
         header.setItem('cell_0',null,{field:'nodelabel',width:'12em',name:'Node Label'});
         if(rows && rows.len && rows.len()){
-            rows._nodes.forEach(function(n,idx){
+            rows.getNodes().forEach(function(n,idx){
                     var attr = objectUpdate({},n.attr);
                     for(var k in attr){
                         f = k.replace(/\W/g, '_');
@@ -6215,7 +6215,7 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
         var slots = objectPop(kw,'slots');
         var orientation = objectPop(kw,'orientation');
         var result = this['createContent_'+orientation](sourceNode,kw,kw.slotbarCode,slots,children);
-        Array.from(children._nodes).forEach(function(n){if(n.attr.tag=='slot'){children.popNode(n.label);}});
+        Array.from(children.getNodes()).forEach(function(n){if(n.attr.tag=='slot'){children.popNode(n.label);}});
         return result;
     },
     
@@ -6872,7 +6872,7 @@ dojo.declare("gnr.stores._Collection",null,{
 
     
     getItems:function(){
-        return this.getData()._nodes;
+        return this.getData().getNodes();
     },
     len:function(filtered){
         if(filtered && this._filtered){

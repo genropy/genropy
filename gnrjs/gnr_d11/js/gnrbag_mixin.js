@@ -3,6 +3,26 @@ if (typeof GenroBagJS === 'undefined') throw new Error('genro-bag-js bundle is r
 if (typeof gnr === 'undefined') var gnr = {};
 
 (function(api) {
+    // Legacy duplicate labels require insertion of existing nodes. Keep this
+    // bridge here; the standalone container has no array facade.
+    function spliceNodes(bag, start, count, ...nodes) {
+        const container = bag._nodes;
+        const list = container._list;
+        const append = start === list.length && count === 0;
+        const removed = list.splice(start, count, ...nodes);
+        if (append) {
+            for (const node of nodes) {
+                if (!Object.hasOwn(container._dict, node.label)) container._dict[node.label] = node;
+            }
+        } else {
+            for (const label of new Set([...removed, ...nodes].map(node => node.label))) {
+                const first = list.find(node => node.label === label);
+                if (first) container._dict[label] = first;
+                else delete container._dict[label];
+            }
+        }
+        return removed;
+    }
     let nextNodeId = 0;
     let lazySetWarningShown = false;
     let callbackItemWarningShown = false;
@@ -86,7 +106,7 @@ if (typeof gnr === 'undefined') var gnr = {};
         replaceAttr(attributes) { this.setAttr(attributes, true, false, false); }
         getFullpath(mode, root) {
             if (!this.parentBag || this.parentBag === root) return this.label;
-            const index = this.parentBag._nodes.indexOf(this);
+            const index = this.parentBag.getNodes().indexOf(this);
             const label = mode === '##' ? '#' + index : mode === '#' ? String(index) :
                 this.parentBag.getNode(this.label) === this ? this.label : '#' + index;
             const parentPath = this.parentBag.getFullpath(mode, root);
@@ -269,9 +289,8 @@ if (typeof gnr === 'undefined') var gnr = {};
             if (!bag) return;
             for (const node of [...bag]) {
                 node.setParentBag(this);
-                this._nodes.splice(this.length, 0, node);
+                spliceNodes(this, this.length, 0, node);
             }
-            for (const node of [...this].reverse()) this._nodes._dict[node.label] = node;
         }
         findNodeById(id) {
             return this.walk(node => node._id == id ? node : undefined, true) || undefined;
@@ -296,11 +315,10 @@ if (typeof gnr === 'undefined') var gnr = {};
         moveNode(from, to, trigger = true) {
             if (to < 0) return;
             trigger = trigger == null ? true : trigger;
-            const destination = this._nodes[to].label;
+            const destination = this.getNode(to).label;
             const insert = (node, index) => {
                 node.setParentBag(this);
-                this._nodes.splice(index, 0, node);
-                for (const item of [...this].reverse()) this._nodes._dict[item.label] = item;
+                spliceNodes(this, index, 0, node);
                 if (this.backref && trigger !== false) this._onNodeInserted(node, index, null, trigger);
             };
             if (Array.isArray(from) && from.length > 1) {
@@ -317,11 +335,47 @@ if (typeof gnr === 'undefined') var gnr = {};
         fromXmlDoc(source, clsdict = {}) {
             const parsed = typeof source === 'string' ? api.Bag.fromXml(source) :
                 api.Bag._xmlElementToBag(source.nodeType === 9 ? source.documentElement : source);
+            return this._importWireBag(parsed, clsdict, true);
+        }
+        fromTytxDoc(source, clsdict = {}) {
+            return this._importWireBag(api.Bag.fromTytx(source, 'json'), clsdict, false);
+        }
+        toTytxParameter() {
+            return this.toTytx('json') + '::BAGTYTX';
+        }
+        _importWireBag(parsed, clsdict, xml) {
+            const normalizeTransportValue = value => {
+                if (value instanceof Number) return value.valueOf();
+                if (Array.isArray(value)) return value.map(normalizeTransportValue);
+                if (value && Object.getPrototypeOf(value) === Object.prototype) {
+                    return Object.fromEntries(Object.entries(value).map(
+                        ([key, item]) => [key, normalizeTransportValue(item)]));
+                }
+                return value;
+            };
+            const remoteResolverParameters = resolver => {
+                const marker = resolver && resolver.payload;
+                if (typeof marker !== 'string' || !marker.startsWith('::RSLV:')) return null;
+                try {
+                    const data = JSON.parse(marker.slice(7));
+                    if (!data || typeof data.resolver_module !== 'string' ||
+                        typeof data.resolver_class !== 'string') return null;
+                    return {
+                        resolvermodule: data.resolver_module,
+                        resolverclass: data.resolver_class,
+                        args: data.args || [],
+                        kwargs: data.kwargs || {}
+                    };
+                } catch (e) {
+                    return null;
+                }
+            };
             const append = (target, sourceBag) => {
                 for (const node of sourceBag) {
-                    const attributes = {...node.attr};
+                    const attributes = Object.fromEntries(Object.entries(node.attr).map(
+                        ([key, value]) => [key, normalizeTransportValue(value)]));
                     for (const key of Object.keys(attributes)) {
-                        if (typeof attributes[key] === 'string' && attributes[key].includes('::')) {
+                        if (xml && typeof attributes[key] === 'string' && attributes[key].includes('::')) {
                             attributes[key] = convertFromText(attributes[key]);
                         }
                     }
@@ -334,11 +388,15 @@ if (typeof gnr === 'undefined') var gnr = {};
                         const child = new Class();
                         append(child, value);
                         value = child;
-                    } else if (dtype || typeof value === 'string' && value.includes('::')) {
-                        value = convertFromText(value, dtype);
-                        if (dtype === 'H') attributes.dtype = dtype;
+                    } else {
+                        value = normalizeTransportValue(value);
+                        if (xml && (dtype || typeof value === 'string' && value.includes('::'))) {
+                            value = convertFromText(value, dtype);
+                            if (dtype === 'H') attributes.dtype = dtype;
+                        }
                     }
-                    const resolverDescription = attributes._resolver;
+                    const portableResolver = remoteResolverParameters(node.resolver);
+                    const resolverDescription = attributes._resolver || portableResolver;
                     const resolverName = attributes._resolver_name;
                     const resolvedInfo = attributes._resolvedInfo;
                     delete attributes._resolver;
@@ -346,8 +404,11 @@ if (typeof gnr === 'undefined') var gnr = {};
                     delete attributes._resolvedInfo;
                     let resolver;
                     if (resolverDescription) {
-                        const parameters = genro.evaluate(resolverDescription);
-                        const cacheTime = 'cacheTime' in attributes ? attributes.cacheTime : parameters.kwargs.cacheTime;
+                        const parameters = typeof resolverDescription === 'string' ? genro.evaluate(resolverDescription) : resolverDescription;
+                        const rawCacheTime = 'cacheTime' in attributes ? attributes.cacheTime :
+                            (parameters.kwargs.cacheTime ?? parameters.kwargs.cache_time);
+                        // Python uses False for infinite cache; GenroJS uses -1.
+                        const cacheTime = portableResolver && rawCacheTime === false ? -1 : rawCacheTime;
                         parameters.cacheTime = 0;
                         resolver = genro.rpc.remoteResolver('resolverRecall', {resolverPars:parameters}, {cacheTime});
                     } else if (resolverName) {
@@ -423,9 +484,8 @@ if (typeof gnr === 'undefined') var gnr = {};
             const [bag, label] = this._htraverse(path, true);
             const node = new bag.nodeClass(bag, label, value, attributes);
             const index = bag._nodes._parsePosition(options._position);
-            bag._nodes.splice(index, 0, node);
+            spliceNodes(bag, index, 0, node);
             // Legacy label lookup selects the first duplicate in display order.
-            for (const item of [...bag._nodes].reverse()) bag._nodes._dict[item.label] = item;
             if (bag.backref && options.doTrigger !== false) {
                 bag._onNodeInserted(node, index, null, options.doTrigger);
             }

@@ -1335,7 +1335,7 @@ Object.assign(gnr.GnrDomSourceNode.prototype, {
     lazyBuildFinalize:function(widget){
         var content = this.getValue();
         if (content instanceof gnr.GnrBag){
-            var nodes = Array.from(content._nodes);
+            var nodes = Array.from(content.getNodes());
             content.clear(false);
             dojo.forEach(nodes,function(n){
                 content.setItem(n.label,n);
@@ -2127,7 +2127,7 @@ Object.assign(gnr.GnrDomSourceNode.prototype, {
     replaceContent:function(value){
         var currval = this._value;
         if(currval instanceof gnr.GnrDomSource){
-            dojo.forEach(currval._nodes,function(n){
+            dojo.forEach(currval.getNodes(),function(n){
                 currval.popNode(n.label);
             });
         }else{
@@ -2136,7 +2136,7 @@ Object.assign(gnr.GnrDomSourceNode.prototype, {
             currval.setBackRef(this, this._parentbag);
         }
         if(value){
-                dojo.forEach(value._nodes,function(n){
+                dojo.forEach(value.getNodes(),function(n){
                 var node = value.popNode(n.label);
                 currval.setItem(node.label,node);
             });
@@ -2148,7 +2148,7 @@ Object.assign(gnr.GnrDomSourceNode.prototype, {
         var mergetable = this.attr.tag=='tbody';
         var currval = this._value;
         if(currval instanceof gnr.GnrDomSource){
-            dojo.forEach(currval._nodes,function(n){
+            dojo.forEach(currval.getNodes(),function(n){
                 if(!mergetable || stringStartsWith(n.label,'remote_merged_')){
                     currval.popNode(n.label);
                 }
@@ -2166,7 +2166,7 @@ Object.assign(gnr.GnrDomSourceNode.prototype, {
                 }
                 value = valueNode._value;
             }
-            dojo.forEach(value._nodes,function(n){
+            dojo.forEach(value.getNodes(),function(n){
                 var node = value.popNode(n.label);
                 var label = mergetable?'remote_merged_'+node.label:node.label;
                 currval.setItem(label,node);

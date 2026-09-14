@@ -56,7 +56,8 @@ for (const original of [null,'previous']) {
         dojo.indexOf = (array,value) => array.indexOf(value);
         const editedRow = new gnr.GnrBag();
         const field = new GenroBagJS.BagNode(editedRow,'field','local',{caption:'Field'});
-        editedRow._nodes.splice(0,0,field);
+        editedRow._nodes._list.push(field);
+        editedRow._nodes._dict.field = field;
         const data = new gnr.GnrBag();
         data.setItem('row',editedRow,{_pkey:'r1',field:original});
         const remoteNode = new GenroBagJS.BagNode(null,'row',null,{_pkey:'r1'});

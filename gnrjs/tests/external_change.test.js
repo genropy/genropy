@@ -5,7 +5,7 @@ const {test} = require('node:test');
 const vm = require('node:vm');
 
 function createForm() {
-    const context = {console, File: function() {}, gnr: {}, genro: {}};
+    const context = {console, TextEncoder, TextDecoder, Uint8Array, atob, btoa, File: function() {}, gnr: {}, genro: {}};
     context.dojo = {
         Deferred: function() {},
         eval,

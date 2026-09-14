@@ -10,8 +10,111 @@ from __future__ import annotations
 import linecache
 import os
 import sys
+import warnings
 
 from genro_bag import Bag, BagResolver
+
+
+def install_resolver_serialization_bridge():
+    """Honor legacy resolver overrides while callers migrate to serialize()."""
+    if getattr(BagResolver.serialize, '__genropy_legacy_bridge__', False):
+        return
+    native_serialize = BagResolver.serialize
+    legacy_base = BagResolver.resolverSerialize
+
+    def serialize(self):
+        legacy_override = type(self).resolverSerialize
+        if legacy_override is legacy_base:
+            return native_serialize(self)
+        warnings.warn(
+            f"{type(self).__name__}.resolverSerialize() is deprecated for TYTX; "
+            "move the serialization override to serialize()",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        # The legacy base builds its record directly, without calling serialize(),
+        # so overrides using super().resolverSerialize() do not recurse.
+        result = dict(legacy_override(self))
+        result['resolver_module'] = result.pop('resolvermodule')
+        result['resolver_class'] = result.pop('resolverclass')
+        return result
+
+    serialize.__genropy_legacy_bridge__ = True
+    BagResolver.serialize = serialize
+
+
+class _GenroPyReference(str):
+    """A catalog reference that must bypass localization."""
+
+
+def _catalog_reference(value, catalog):
+    value_type = catalog.getType(value)
+    if value_type == "RPC" and not hasattr(value, "__self__"):
+        from gnr.core.gnrlang import serializedFuncName
+        return _GenroPyReference(serializedFuncName(value, cls=type(value)) + "::RPC")
+    if value_type in ("RPC", "CLS"):
+        return _GenroPyReference(catalog.asTypedText(value))
+    return value
+
+
+def genropy_reference_rows(rows, catalog):
+    """Convert GenroPy callable and class references in flattened Bag rows."""
+    excluded = None
+    for parent, label, tag, value, attr in rows:
+        path = f"{parent}.{label}" if parent else label
+        if excluded is not None:
+            if parent == excluded or parent.startswith(excluded + "."):
+                continue
+            excluded = None
+        if "__forbidden__" in attr:
+            excluded = path
+            continue
+        yield (
+            parent,
+            label,
+            tag,
+            _catalog_reference(value, catalog),
+            {key: _catalog_reference(item, catalog) for key, item in attr.items()
+             if not callable(item) or isinstance(item, type)
+             or hasattr(item, "is_rpc") or hasattr(item, "__safe__")
+             or getattr(item, "__name__", "").startswith("rpc_")},
+        )
+
+
+def translated_genropy_rows(rows, translator, branch_markers):
+    """Apply legacy scalar-string localization without changing source rows."""
+    for parent, label, tag, value, attr in rows:
+        if isinstance(value, _GenroPyReference):
+            value = str(value)
+        elif (translator is not None and isinstance(value, str)
+              and value != "::NN" and not value.startswith("::RSLV:")
+              and value not in branch_markers):
+            value = translator(value)
+        attr = {
+            key: (str(item) if isinstance(item, _GenroPyReference)
+                  else translator(item)
+                  if (translator is not None and isinstance(item, str)
+                      and not item.startswith("::RSLV:"))
+                  else item)
+            for key, item in attr.items()
+        }
+        yield (parent, label, tag, value, attr)
+
+
+def to_genropy_js(self, translator=None):
+    """Return GenroPy-compatible typed rows ready for TYTX encoding."""
+    from gnr.core.gnrclasses import GnrClassCatalog
+    from genro_tytx import TYPE_REGISTRY
+
+    rows = self._node_flattener()
+    rows = genropy_reference_rows(rows, GnrClassCatalog())
+    branch_markers = {
+        f"::{value_type.__tytx_suffix__}"
+        for value_type in TYPE_REGISTRY
+        if hasattr(value_type, "__tytx_suffix__")
+    }
+    rows = translated_genropy_rows(rows, translator, branch_markers)
+    return {"rows": list(rows)}
 
 
 class TraceBackResolver(BagResolver):

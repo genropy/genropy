@@ -38,7 +38,13 @@ def activate() -> ModuleType:
     from genro_bag import Bag, BagException, BagNode, BagNodeException, BagResolver
     from genro_bag.resolver import BagCbResolver
     from genro_bag.resolvers import DirectoryResolver
-    from gnr.core.nativebag_helpers import NetBag, TraceBackResolver
+    from gnr.core.nativebag_helpers import (NetBag, TraceBackResolver, to_genropy_js,
+                                            install_resolver_serialization_bridge)
+
+    # GenroPy owns this compatibility surface while retaining the native Bag
+    # class identity required by consumers and the TYTX registry.
+    Bag.to_genropy_js = to_genropy_js
+    install_resolver_serialization_bridge()
 
     class BagValidationError(BagException):
         pass

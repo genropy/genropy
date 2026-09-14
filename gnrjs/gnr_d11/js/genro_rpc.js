@@ -103,7 +103,7 @@ Object.assign(gnr.GnrRemoteResolver.prototype, {
         return genro.rpc.errorHandler(response, ioArgs);
     },
     resultHandler: function(response, ioArgs) {
-        if (response.documentElement.tagName == 'parsererror') {
+        if (response && response.documentElement && response.documentElement.tagName == 'parsererror') {
             // We got an error parsing the XML response from the server
             debugger;
         }
@@ -366,6 +366,7 @@ dojo.declare("gnr.GnrRpcHandler", null, {
         kw.content = content;
         //kw.preventCache = kw.preventCache - just to remember that we can have it
         kw.handleAs = kw.handleAs || 'xml';
+        if (genro.startArgs.bagTransport === 'tytx' && kw.handleAs === 'xml' && content.mode !== 'xml') kw.handleAs = 'genro-bag';
         this.register_call(kw);
         var xhrResult;
         if(!sysrpc){
@@ -609,12 +610,16 @@ dojo.declare("gnr.GnrRpcHandler", null, {
         this._onServerSuccess();
         var envelope = new gnr.GnrBag();
         try {
-            envelope.fromXmlDoc(response, genro.clsdict);
+            if ((ioArgs.xhr.getResponseHeader('Content-Type') || '').includes('application/vnd.genro.bag+tytx')) {
+                envelope.fromTytxDoc(response, genro.clsdict);
+            } else {
+                envelope.fromXmlDoc(response, genro.clsdict);
+            }
         }
         catch(e) {
             genro.publish('client_error', {
-                errorType: 'xml_parse',
-                description: 'Error parsing RPC response',
+                errorType: 'bag_parse',
+                description: 'Error parsing RPC response: ' + e.message,
                 error: e.toString(),
                 url: ioArgs.url
             });
@@ -787,7 +792,8 @@ dojo.declare("gnr.GnrRpcHandler", null, {
                     kwargs[attr + '_attr'] = asTypedTxt(nodeattrs);
                 }
             }
-            kwargs[attr] = asTypedTxt(currarg);
+            kwargs[attr] = genro.startArgs.bagTransport === 'tytx' && currarg instanceof gnr.GnrBag ?
+                currarg.toTytxParameter() : asTypedTxt(currarg);
             cntrlstr.push(attr + '_' + kwargs[attr]);
         }
         return kwargs;

@@ -5827,7 +5827,7 @@ var GenroBagJS = (() => {
         if (Array.isArray(parsedQs)) {
           const keys = parsedQs.length ? parsedQs : Object.keys(this._attr);
           const values = keys.map((key) => {
-            const value = this._attr[key];
+            const value = this.getAttr(key);
             return !isStatic && value instanceof BagResolver ? value.resolve() : value;
           });
           const result = (attrs) => parsedQs.length === 0 ? Object.fromEntries(keys.map((key, index) => [key, attrs[index]])) : attrs.length === 1 ? attrs[0] : attrs;
@@ -6292,15 +6292,6 @@ var GenroBagJS = (() => {
       this._list = [];
       this._parentBag = null;
     }
-    _syncIndexes() {
-      let index = 0;
-      while (Object.prototype.hasOwnProperty.call(this, index)) {
-        delete this[index++];
-      }
-      this._list.forEach((node, nodeIndex) => {
-        this[nodeIndex] = node;
-      });
-    }
     /**
      * Return the index of a label in this container.
      *
@@ -6514,7 +6505,6 @@ var GenroBagJS = (() => {
         const idx = this._parsePosition(nodePosition);
         this._dict[label] = node;
         this._list.splice(idx, 0, node);
-        this._syncIndexes();
         if (doTrigger && parentBag && parentBag.backref) {
           parentBag._onNodeInserted(node, idx, null, reason);
         }
@@ -6537,7 +6527,6 @@ var GenroBagJS = (() => {
         const idx = this._list.indexOf(node);
         if (idx >= 0) {
           this._list.splice(idx, 1);
-          this._syncIndexes();
         }
         node.parentBag = null;
         return node;
@@ -6570,28 +6559,6 @@ var GenroBagJS = (() => {
       }
       this._dict = {};
       this._list = [];
-      this._syncIndexes();
-    }
-    forEach(callback, thisArg = void 0) {
-      return this._list.forEach(callback, thisArg);
-    }
-    map(callback, thisArg = void 0) {
-      return this._list.map(callback, thisArg);
-    }
-    filter(callback, thisArg = void 0) {
-      return this._list.filter(callback, thisArg);
-    }
-    indexOf(node) {
-      return this._list.indexOf(node);
-    }
-    splice(start, deleteCount, ...nodes) {
-      const removed = this._list.splice(start, deleteCount, ...nodes);
-      this._dict = {};
-      for (const node of this._list) {
-        this._dict[node.label] = node;
-      }
-      this._syncIndexes();
-      return removed;
     }
     /**
      * Return node labels in order.
@@ -6686,7 +6653,6 @@ var GenroBagJS = (() => {
           this._parentBag._onNodeInserted(node, position);
         }
       }
-      this._syncIndexes();
     }
     /**
      * Check equality with another BagNodeContainer.
@@ -7484,7 +7450,7 @@ var GenroBagJS = (() => {
      * @returns {Array<{key: string, value: *}>} Array of key/value objects.
      */
     items() {
-      return this._nodes.map((node) => ({ key: node.label, value: node.getValue() }));
+      return [...this._nodes].map((node) => ({ key: node.label, value: node.getValue() }));
     }
     // -------------------------------------------------------------------------
     // Node Access Methods
@@ -8140,7 +8106,8 @@ var GenroBagJS = (() => {
         copied.setAttr({ ...node.attr }, false, false, false);
         copied.nodeTag = node.nodeTag;
         copied.xmlTag = node.xmlTag;
-        result._nodes.splice(result._nodes.length, 0, copied);
+        result._nodes._list.push(copied);
+        result._nodes._dict[copied.label] = copied;
       }
       return result;
     }
@@ -9269,7 +9236,7 @@ ${content}`;
 
   // src/browser.js
   setDecimalLibrary("number");
-  var version = "0.4.0";
+  var version = "0.5.1";
   return __toCommonJS(browser_exports);
 })();
 //# sourceMappingURL=genro-bag.browser.js.map

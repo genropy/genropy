@@ -510,3 +510,30 @@ test('menu full paths with root=true omit the datastore wrapper', () => {
     assert.equal(node.getFullpath(null, true), 'menu.entry');
     assert.equal(root.getItem('main').getNode(node.getFullpath(null, true)), node);
 });
+
+
+test('bulk framework insertion keeps container storage without numeric aliases', () => {
+    const c = loadClasses(['gnrlang.js','genro_bagjs_bundle.js','gnrbag_mixin.js']);
+    const bag = new c.gnr.GnrBag();
+    for (let i = 0; i < 15000; i++) bag.addItem('r_' + i, i);
+    assert.equal(bag.getNodes().length, 15000);
+    assert.equal(bag.getNode(14999).label, 'r_14999');
+    assert.equal(bag.getItem('r_100'), 100);
+    assert.equal(Object.keys(bag._nodes).some(key => /^\d+$/.test(key)), false);
+    bag.addItem('r_100', 'duplicate');
+    assert.equal(bag.getItem('r_100'), 100);
+});
+
+test('unqueried store attributes keep the public title without an undefined counter', () => {
+    const c = load();
+    const bag = new c.gnr.GnrBag();
+    bag.setItem('view.store', new c.gnr.GnrBag());
+    const totalRowCount = bag.getItem('view.store?totalRowCount');
+    const totalrows = bag.getItem('view.store?totalrows');
+    let title = 'Customers';
+    if (totalRowCount !== null) title += ' (' + totalrows + '/' + totalRowCount + ')';
+    else if (totalrows) title += ' (' + totalrows + ')';
+    assert.equal(title, 'Customers');
+    bag.getNode('view.store').setAttr({totalrows: 0, totalRowCount: 0});
+    assert.equal(bag.getItem('view.store?totalRowCount'), 0);
+});

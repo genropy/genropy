@@ -562,7 +562,7 @@ gnr.GroupletDataStore = class GroupletDataStore {
         if (op !== '<' && op !== '>') return null;
         const targetKey = position.slice(1);
         const bag = this.getData();
-        const nodes = bag._nodes;
+        const nodes = bag.getNodes();
         const fromIdx = nodes.findIndex((n) => n.label === rowKey);
         const targetIdx = nodes.findIndex((n) => n.label === targetKey);
         if (fromIdx < 0 || targetIdx < 0 || fromIdx === targetIdx) return null;

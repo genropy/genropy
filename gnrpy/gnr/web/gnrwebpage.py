@@ -1346,6 +1346,8 @@ class GnrWebPage(GnrBaseWebPage):
         kwargs['servertime'] = datetime.datetime.now()
         kwargs['websockets_url'] = '/websocket' if self.wsk_enabled else None
         kwargs['websockets_endpoint'] = self.async_endpoint if self.wsk_enabled else None
+        kwargs['dojoXhrPatch'] = self.application.config.getItem(
+            'experimental-features?dojo-xhr-patch') or ''
         self.getPwaIntegration(arg_dict)
         self.getSquareLogoUrl(arg_dict)
         self.getCoverLogoUrl(arg_dict)
@@ -1370,6 +1372,8 @@ class GnrWebPage(GnrBaseWebPage):
             localroot ='file://%s/app/lib/static/' %self.connection.electron_static
         if getattr(self,'_avoid_module_cache',None):
             kwargs['_avoid_module_cache'] = True
+        from gnr.web.gnrbagtransport import transport_format
+        kwargs['bagTransport'] = transport_format(self.application)
         safety_re = re.compile(r"(.*<.*.*?>.+?</.*>)")
         startArgs = dict([(k,self.catalog.asTypedText(v)) for k,v in list(kwargs.items())])
         for arg in list(startArgs.keys()):

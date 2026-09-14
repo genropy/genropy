@@ -1982,7 +1982,14 @@ class GnrWsgiSite(object):
             k = k.strip()
             if isinstance(v, (bytes,str)):
                 try:
-                    v = catalog.fromTypedText(v)
+                    if isinstance(v, str) and v.endswith('::RPC'):
+                        # Keep callable references as names; normal RPC dispatch authorizes them.
+                        v = v[:-5]
+                    elif isinstance(v, str) and v.endswith('::BAGTYTX'):
+                        from gnr.web.gnrbagtransport import decode_parameter
+                        v = decode_parameter(v, self.gnrapp)
+                    else:
+                        v = catalog.fromTypedText(v)
                     result[k] = v
                 except Exception as e:
                     raise
