@@ -62,15 +62,6 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         conn.cursor_factory = GnrDictCursor
         return conn
 
-    def vacuum(self, table='', full=False): #TODO: TEST IT, SEEMS TO LOCK SUBSEQUENT TRANSACTIONS!!!
-        """Perform analyze routines on the db"""
-        self.dbroot.connection.isolation_level=IsolationLevel.READ_UNCOMMITTED
-        if full:
-            self.dbroot.execute('VACUUM FULL ANALYZE %s;' % table)
-        else:
-            self.dbroot.execute('VACUUM ANALYZE %s;' % table)
-        self.dbroot.connection.isolation_level=IsolationLevel.READ_COMMITTED
-        
     def adaptTupleListSet(self,sql,sqlargs):
         
         for k,v in list(sqlargs.items()):
