@@ -318,7 +318,7 @@ dojo.declare('gnr.GenroClient', null, {
         try{
             return cb();
         }catch(e){
-            console.error(e.message);
+            console.error(e.stack || e.message);
             console.log(e.stack);
         }
 
@@ -2245,7 +2245,7 @@ dojo.declare('gnr.GenroClient', null, {
     setSelectedVal:function(obj, value) {
         /*Set the attr selectedValue*/
         var dataNode = genro.getDataNode(obj.sourceNode);
-        dataNode.setAttr({'selectedValue':value});
+        dataNode.setAttr({'selectedValue':value},true,true);
     },
     evaluate:function(expr,showError) {
         try {

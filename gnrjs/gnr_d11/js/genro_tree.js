@@ -352,7 +352,7 @@ dojo.declare("gnr.widgets.Tree", gnr.widgets.baseDojo, {
     
     attributes_mixin_checkBoxCalcStatus:function(bagnode) {
         var checked,ck;
-        if (bagnode._resolver && bagnode._resolver.expired()) {
+        if (bagnode._resolver && bagnode._resolver.expired) {
             return false;
         } else if (bagnode._value instanceof gnr.GnrBag) {
             bagnode._value.forEach(function(node) {
@@ -434,7 +434,7 @@ dojo.declare("gnr.widgets.Tree", gnr.widgets.baseDojo, {
         this._pending_deferred = {};
         var filterForEach = function(b,cb,mode,valid_paths){
             b.forEach(function(n){
-                if(mode=='async' && n.getResolver() && n.getResolver().expired()){
+                if(mode=='async' && n.getResolver() && n.getResolver().expired){
                     if(valid_paths && valid_paths.indexOf(n.label)<0){
                         return;
                     }
@@ -577,12 +577,12 @@ dojo.declare("gnr.widgets.Tree", gnr.widgets.baseDojo, {
 
                         checkedStatus = allUnchecked ? false : -1;
                     }
-                    n.setAttr({'checked':checkedStatus}, true, true);
+                    n.setAttr({'checked':checkedStatus}, true, true, false);
 
-                } else if (n._resolver && n._resolver.expired()) {
-                    n.setAttr({'checked':false}, true, true);
+                } else if (n._resolver && n._resolver.expired) {
+                    n.setAttr({'checked':false}, true, true, false);
                 } else {
-                    n.setAttr({'checked':checked}, true, true);
+                    n.setAttr({'checked':checked}, true, true, false);
                 }
             });
         };
@@ -592,12 +592,12 @@ dojo.declare("gnr.widgets.Tree", gnr.widgets.baseDojo, {
                 updBranchCheckedStatus(value);
             }
         }
-        bagnode.setAttr({'checked':checked}, true, true);
+        bagnode.setAttr({'checked':checked}, true, true, false);
         var parentNode = bagnode.getParentNode();
         var rootNodeId = genro.getDataNode(this.model.store.datapath)._id;
         if(this.sourceNode.attr.checkChildren!==false){
             while (parentNode && (parentNode._id != rootNodeId)) {
-                parentNode.setAttr({'checked':this.checkBoxCalcStatus(parentNode)}, true, true);
+                parentNode.setAttr({'checked':this.checkBoxCalcStatus(parentNode)}, true, true, false);
                 parentNode = parentNode.getParentNode();
             }
         }
@@ -828,7 +828,7 @@ dojo.declare("gnr.widgets.Tree", gnr.widgets.baseDojo, {
         }
         var store = this.sourceNode.getRelativeData(this.sourceNode.attr.storepath);
         store.walk(function(n){
-            n.setAttr({'checked':false}, true, true);
+            n.setAttr({'checked':false}, true, true, false);
         },'static');
         var paths = this.sourceNode.getRelativeData(this.sourceNode.attr.checkedPaths);
         if(!paths){

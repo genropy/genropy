@@ -158,7 +158,7 @@ Object.assign(gnr.GnrDomSourceNode.prototype, {
     },
 
     trigger_data:function(prop, kw) {
-        var trigger_reason = this.getTriggerReason(this.attrDatapath(prop),kw)
+        var trigger_reason = this.getTriggerReason(this.attrDatapath(prop),kw);
         if (trigger_reason) {
             if ((kw.evt == 'fired') && (trigger_reason == 'child')) {
                 // pass fired event on child datapath: get only parent changes for variable datapaths
@@ -1335,8 +1335,8 @@ Object.assign(gnr.GnrDomSourceNode.prototype, {
     lazyBuildFinalize:function(widget){
         var content = this.getValue();
         if (content instanceof gnr.GnrBag){
-            var nodes = content._nodes;
-            content._nodes = [];
+            var nodes = Array.from(content._nodes);
+            content.clear(false);
             dojo.forEach(nodes,function(n){
                 content.setItem(n.label,n);
             });
@@ -1419,11 +1419,11 @@ Object.assign(gnr.GnrDomSourceNode.prototype, {
             if(valuepath){
                 var updattr = {};
                 updattr[attr.slice(5)] = kw.value;
-                genro.getDataNode(this.absDatapath(valuepath)).updAttributes(updattr);
+                genro.getDataNode(this.absDatapath(valuepath)).setAttr(updattr,true,true,false);
             }
         }
         if(this._original_attributes){
-            this.setAttr(this._original_attributes,true);
+            this.setAttr(this._original_attributes,true,false,false);
             this._original_attributes=null;
         }
         var autocreate = kw.reason =='autocreate';
@@ -1441,7 +1441,7 @@ Object.assign(gnr.GnrDomSourceNode.prototype, {
                     var wdg_modifiers = objectExtract(valueNode.attr,wdg_prefix);
                     if(objectNotEmpty(wdg_modifiers)){
                         this._original_attributes = objectUpdate({},this.attr);
-                        this.updAttributes(wdg_modifiers,true);
+                        this.setAttr(wdg_modifiers,true,true,false);
                     }
                 }
             }
@@ -1600,7 +1600,7 @@ Object.assign(gnr.GnrDomSourceNode.prototype, {
                                     valueToFormat = _displayedValue;
                                 }
                             }
-                            valueNode.updAttributes({_formattedValue:genro.formatter.asText(valueToFormat, nattr)},this);
+                            valueNode.setAttr({_formattedValue:genro.formatter.asText(valueToFormat, nattr)},this,true,false);
                         }
 
                     }
@@ -1657,7 +1657,7 @@ Object.assign(gnr.GnrDomSourceNode.prototype, {
             }
             else {
                 var attrdict = {};
-                this.setAttr(attrdict, this, true);
+                this.setAttr(attrdict, this, true, false);
                 //this.setAttr({attr:value}, this, true);
 
                 //domnode.setAttribute(attr,value);

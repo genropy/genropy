@@ -287,12 +287,12 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             if(!container){
                 return;
             }
-            container.updAttributes({width:(totalWidth+2+'px')});
+            container.setAttr({width:(totalWidth+2+'px')},true,true,false);
             const tr = container.getValue().getItem('#0.#0.#0');
             tr.forEach(function(n){
                 const c = headerList[n.attr.idx];
                 const width = c.clientWidth+'px';
-                n.updAttributes({width:width});
+                n.setAttr({width:width},true,true,false);
             });
         };
         const columnsets = this.structBag.getItem('info.columnsets');
@@ -999,7 +999,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             }
         });
         dojo.connect(sourceNode.widget,'setCellWidth',function(inIndex, inUnitWidth){
-            this.structBag.getItem('view_0.rows_0').getNode('#'+inIndex).updAttributes({width:inUnitWidth});
+            this.structBag.getItem('view_0.rows_0').getNode('#'+inIndex).setAttr({width:inUnitWidth},true,true,false);
             //this.structBag.getNodeByAttr('field',this.getCell(inIndex).original_field).updAttributes({width:inUnitWidth});
         });
         dojo.connect(widget,'onFocus',function(){
@@ -1600,7 +1600,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                 attributes[attr] = newvalue;
             }
         }
-        bagnode.setAttr(attributes);
+        bagnode.setAttr(attributes,true,false,false);
     },
 
 
@@ -3150,7 +3150,9 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
         if (this.datamode == 'bag') {
             editnode.getValue().setItem(inFieldIndex, inValue);
         } else {
-            editnode.setAttr(inFieldIndex, inValue);
+            var attributes = {};
+            attributes[inFieldIndex] = inValue;
+            editnode.setAttr(attributes,true,true,false);
         }
     },
 
@@ -3566,7 +3568,7 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
                 }
             }
             ;
-            chNode.updAttributes(currAttr);
+            chNode.setAttr(currAttr,true,true,false);
         }
         
         var idx = storebag.index(rowLabel);
@@ -4261,7 +4263,7 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
             }else{
                 var newattr = {};
                 newattr[fieldname] = v;
-                n.updAttributes(newattr);
+                n.setAttr(newattr,true,true,false);
             }
         },'static');
         

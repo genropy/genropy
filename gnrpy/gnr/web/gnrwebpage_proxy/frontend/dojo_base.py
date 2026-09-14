@@ -12,6 +12,17 @@ from gnr.web.gnrwebpage_proxy.frontend.gnrbasefrontend import GnrBaseFrontend
 from gnr.core.gnrlang import boolean
 
 class GnrBaseDojoFrontend(GnrBaseFrontend):
+    def bag_javascript_files(self):
+        implementation = self.page.application.experimentalValue('bag_js', 'implementation')
+        implementation = implementation or 'legacy'
+        if implementation == 'legacy':
+            return ['gnrbag']
+        if implementation == 'genro-bag-js-mixin':
+            return ['genro_bagjs_bundle', 'gnrbag_mixin']
+        if implementation == 'genro-bag-js':
+            return ['genro_bagjs_bundle', 'gnrbag_genro']
+        raise ValueError("Unsupported JavaScript Bag implementation: %s" % implementation)
+
     def importer(self):
         return '<script type="text/javascript" src="%s" djConfig="%s"> </script>' % (self.dojolib, self.djConfig)
         

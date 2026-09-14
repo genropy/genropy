@@ -82,7 +82,7 @@ Object.assign(gnr.GnrBagNode.prototype, {
             return false;
         }
         else {
-            return this._resolver.expired();
+            return this._resolver.expired;
         }
     },
     isLoaded:function() {
@@ -220,7 +220,7 @@ Object.assign(gnr.GnrBagNode.prototype, {
         else if (this._status == 'resolving') {
             return this._resolver.meToo(dojo.hitch(this, "getValue2", mode, optkwargs));
         }
-        else if ((this._status == 'loaded') && (!this._resolver.expired()) && (mode.indexOf('reload') < 0)) {
+        else if ((this._status == 'loaded') && (!this._resolver.expired) && (mode.indexOf('reload') < 0)) {
             return this._value;
         }
         else {
@@ -2352,6 +2352,20 @@ Object.assign(gnr.GnrBag.prototype, {
 //######################## class BagResolver##########################
 
 gnr.GnrBagResolver = class GnrBagResolver {
+    get expired() {
+        var expired = false;
+        if (this.cacheTime < 0) {
+            if (this.lastUpdate == null) {
+                expired = true;
+            }
+        }
+        else {
+            var now = new Date();
+            var delta = (now - (this.lastUpdate || new Date(0))) / 1000;
+            expired = (delta > this.cacheTime);
+        }
+        return expired;
+    }
     constructor(kwargs, isGetter, cacheTime, load) {
         /*  cacheTime > 0: resolve after cacheTime seconds
          cacheTime = 0: resolve always
@@ -2382,20 +2396,6 @@ Object.assign(gnr.GnrBagResolver.prototype, {
 
     reset: function() {
         this.lastUpdate = null;
-    },
-    expired: function(kwargs) {
-        var expired = false;
-        if (this.cacheTime < 0) {
-            if (this.lastUpdate == null) {
-                expired = true;
-            }
-        }
-        else {
-            var now = new Date();
-            var delta = (now - (this.lastUpdate || new Date(0))) / 1000;
-            expired = (delta > this.cacheTime);
-        }
-        return expired;
     },
     resolve: function(optkwargs, destinationNode) {
         var destFullpath = destinationNode ? destinationNode.getFullpath(null, genro._data) : '';

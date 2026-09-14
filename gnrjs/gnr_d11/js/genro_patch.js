@@ -1243,7 +1243,7 @@ genropatches.tree = function() {
     dijit.Tree.prototype._expandNode_replaced=dijit.Tree.prototype._expandNode;
     dijit.Tree.prototype._collapseNode_replaced=dijit.Tree.prototype._collapseNode;
     dijit.Tree.prototype._expandNode = function(node) {
-        if(node.item && node.item._resolver && node.item._resolver.expired()){
+        if(node.item && node.item._resolver && node.item._resolver.expired){
             node.state = 'UNCHECKED';
         }
         if(node.__eventmodifier=='Shift' && node.isExpandable){
@@ -1257,7 +1257,7 @@ genropatches.tree = function() {
         }
     }
     dijit.Tree.prototype._collapseNode = function(node) {
-        if(node.item && node.item._resolver && node.item._resolver.expired()){
+        if(node.item && node.item._resolver && node.item._resolver.expired){
             node.state = 'UNCHECKED';
         }
         if(node.__eventmodifier=='Shift' && node.isExpandable){

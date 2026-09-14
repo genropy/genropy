@@ -166,7 +166,8 @@ dojo.declare("gnr.GnrSrcHandler", null, {
     },
     
     nodeTrigger:function(kw) {
-        if (kw.node.isFreezed() || kw.node._isBuilding){
+        var originNode = kw.evt === 'del' && kw.where && kw.where.getParentNode();
+        if (kw.node.isFreezed() || kw.node._isBuilding || (originNode && (originNode.isFreezed() || originNode._isBuilding))){
             return;
         }
         this.pendingBuild.push(kw);
@@ -602,7 +603,7 @@ dojo.declare("gnr.GnrSrcHandler", null, {
                     if(valuepath){
                         var valueNode = genro.getDataNode(node.absDatapath(valuepath));
                         if(valueNode){
-                            valueNode.updAttributes(node.evaluateOnNode(specialattr));
+                            valueNode.setAttr(node.evaluateOnNode(specialattr),true,true,false);
                         }
                     }
                 }                

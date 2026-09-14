@@ -3588,7 +3588,7 @@ dojo.declare("gnr.widgets.BagEditor", gnr.widgets.gnrwdg, {
                 var nl = branchNode.getParentNode().label;
                 var updkw = {};
                 updkw[branchNode.label] = kw.value;
-                b.getNode(nl).updAttributes(updkw);
+                b.getNode(nl).setAttr(updkw,true,true,false);
             }else if(kw.evt=='ins' && nv instanceof gnr.GnrBag){
                 var pos = branch.index(branchNode.label);
                 b.setItem(branchNode.label,null,nv.asDict(),{_position:pos>=0?pos:null});
@@ -4534,7 +4534,7 @@ dojo.declare("gnr.widgets.SlotButton", gnr.widgets.gnrwdg, {
             kw.command = kw.command || null;
             //kw.opt = objectExtract(kw,'opt_*',true);
             if(tag=='button'){
-                kw['action'] = "genro.publish(topic,{'command':command,modifiers:genro.dom.getEventModifiers(event),opt:objectExtract(_kwargs,'opt_*'),evt:event,_counter:_counter});";
+                kw['action'] = "genro.publish(topic,{'command':_kwargs.command == null ? null : _kwargs.command,modifiers:genro.dom.getEventModifiers(event),opt:objectExtract(_kwargs,'opt_*'),evt:event,_counter:_counter});";
             }else{
                 kw['action'] = "objectPop($1,'caption');genro.publish('"+kw.topic+"',{'command':'"+(kw.command || '')+ "' ||null,modifiers:genro.dom.getEventModifiers(event),evt:event,opt:$1});";
             }
@@ -4977,7 +4977,7 @@ dojo.declare("gnr.widgets.StackButtons", gnr.widgets.gnrwdg, {
                     let titleNode = c._value.getNode(paneId);
                     if(titleNode){
                         let innernode = titleNode.getValue().getNode('mb_caption');
-                        innernode.updAttributes({innerHTML:kw.title},true);
+                        innernode.setAttr({innerHTML:kw.title},true,true,false);
                     }
                 });
             });
@@ -6215,7 +6215,7 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
         var slots = objectPop(kw,'slots');
         var orientation = objectPop(kw,'orientation');
         var result = this['createContent_'+orientation](sourceNode,kw,kw.slotbarCode,slots,children);
-        children._nodes.forEach(function(n){if(n.attr.tag=='slot'){children.popNode(n.label);}});
+        Array.from(children._nodes).forEach(function(n){if(n.attr.tag=='slot'){children.popNode(n.label);}});
         return result;
     },
     
@@ -7265,7 +7265,7 @@ dojo.declare("gnr.stores.AttributesBagRows",gnr.stores.BagRows,{
     },
     updateRowNode:function(rowNode,updDict){
         var idx = this.getData().index(rowNode.label);
-        rowNode.updAttributes(updDict,{editedRowIndex:idx});
+        rowNode.setAttr(updDict,{editedRowIndex:idx},true,false);
     },
     keyGetter :function(n){
         return n.attr[this.identifier];
@@ -7703,7 +7703,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
                                     if(rowValue instanceof gnr.GnrBag){
                                         let editedNode = rowValue.getNode(attrname);
                                         if(editedNode){
-                                            editedNode.updAttributes({'_loadedValue':objectPop(newattr,attrname)},false);
+                                            editedNode.setAttr({'_loadedValue':objectPop(newattr,attrname)},false,true,false);
                                         }
                                     }
                                     if(attrname in newattr){
@@ -7712,12 +7712,12 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
                                  }else if(rowValue instanceof gnr.GnrBag){
                                      let editedNode = rowValue.getNode(attrname);
                                      if(editedNode){
-                                        editedNode.updAttributes({'_loadedValue':objectPop(newattr,attrname)},false);
+                                        editedNode.setAttr({'_loadedValue':objectPop(newattr,attrname)},false,true,false);
                                      }
                                  }
                             }
                         }
-                        rowNode.updAttributes(newattr,true);
+                        rowNode.setAttr(newattr,true,true,false);
                         if(selectedPkeysDict[pkey]){
                             selectedPkeysDict[pkey].forEach(function(grid){
                                 grid.sourceNode.publish('updatedSelectedRow');

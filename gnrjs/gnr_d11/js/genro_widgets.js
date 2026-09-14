@@ -3268,7 +3268,7 @@ dojo.declare("gnr.widgets.Menu", gnr.widgets.baseDojo, {
         this.ctxTargetSourceNode = ctxSourceNode;
         if (sourceNode) {
             var resolver = sourceNode.getResolver();
-            if (resolver && resolver.expired()) {
+            if (resolver && resolver.expired) {
                 var optkwargs = {};
                 if(sourceNode.attr.onOpeningMenu){
                     let extraOptKwargs = funcApply(sourceNode.attr.onOpeningMenu,{evt:e},sourceNode) || {};
@@ -3359,7 +3359,7 @@ dojo.declare("gnr.widgets.Menu", gnr.widgets.baseDojo, {
         var sourceNode = this.focusedChild.popup.sourceNode;
         if (sourceNode) {
             var resolver = sourceNode.getResolver();
-            if (resolver && resolver.expired()) {
+            if (resolver && resolver.expired) {
                 var result = sourceNode.getValue('notrigger');
                 if (result instanceof gnr.GnrBag) {
                     var menubag = new gnr.GnrDomSource();
@@ -6269,7 +6269,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
         var valueNode = genro.getDataNode(sourceNode.absDatapath(sourceNode.attr.src));
         if(valueNode){
             var formattedValue = genro.formatter.asText(kwimg.formattedUrl,{dtype:'P',format:sourceNode.attr.format,mask:sourceNode.attr.mask});
-            valueNode.updAttributes({_formattedValue:formattedValue},sourceNode);  
+            valueNode.setAttr({_formattedValue:formattedValue},sourceNode,true,false);
         }
     }
 });

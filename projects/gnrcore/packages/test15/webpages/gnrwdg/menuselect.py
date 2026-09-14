@@ -29,6 +29,6 @@ class GnrCustomWebPage(object):
         pane.dataController("""
                             if($2.kw.updvalue){
                                 var path = this.absDatapath('.value');
-                                genro._data.setAttr(path,b.getNode(p).attr);
+                                genro._data.getNode(path,false,true).setAttr(b.getNode(p).attr,true,false,false);
                             }
                             """,p="^.value",b='=.menu')

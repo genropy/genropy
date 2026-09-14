@@ -81,7 +81,7 @@ class GnrCustomWebPage(object):
                     var nl = _node.getParentNode().label;
                     var kw = {};
                     kw[_node.label] = _triggerpars.kw.value;
-                    b.getNode(nl).updAttributes(kw);
+                    b.getNode(nl).setAttr(kw,true,true,false);
                 }else if(_triggerpars.kw.evt=='ins' && nv instanceof gnr.GnrBag){
                     var pos = branch.index(_node.label);
                     b.setItem(_node.label,null,_node.getValue().asDict(),{_position:pos>=0?pos:null});
