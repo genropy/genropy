@@ -110,6 +110,7 @@ class GnrUserNotAllowed(GnrException):
 
 class GnrBasicAuthenticationError(GnrException):
     code = 'AUTH-901'
+    caption = "!!Error code %(code)s : %(msg)s."
 
 EXCEPTIONS = {
     'user_not_allowed': GnrUserNotAllowed,
@@ -1281,7 +1282,7 @@ class GnrWebPage(GnrBaseWebPage):
                 raise GnrException('Verifier wrong class')
         elif getattr(handler, 'tags',None):
             verifier = AuthorizationBaseTagsVerifier(self)
-            verifier_error = verifier(tags=handler.tags)
+            verifier_error = verifier(tags=handler.tags, method=method)
         if verifier_error:
             raise verifier_error                
         return handler
