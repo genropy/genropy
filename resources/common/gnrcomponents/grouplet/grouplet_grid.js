@@ -740,6 +740,7 @@ gnr.GroupletGridController = class GroupletGridController {
         this.activePkey = null;
         this._tabsByPkey = {};
         this._pendingActivate = null;
+        this._pendingFocus = null;
         this.templateSources = {};
         this.templateLoading = {};
         this.cellmap = {};
@@ -1836,7 +1837,29 @@ gnr.GroupletGridController = class GroupletGridController {
             delete this._pendingFlash[pkey];
             this._flashTile(pkey);
         }
+        // Set by _doAddItem: a row the user just asked for is a row they are
+        // about to fill in, so the caret goes there. Last, after the tabs
+        // branch above has mounted the body of a lazy tile.
+        if (this._pendingFocus === pkey) {
+            this._pendingFocus = null;
+            this._focusFirstEditor(tile);
+        }
         if (this.structAdapter) this._scheduleStructSync();
+    }
+
+    _focusFirstEditor(tile) {
+        const dom = tile && tile.domNode();
+        if (!dom) return;
+        // One tick: the widgets of a just-grafted tile are instantiated when
+        // the framework drains its afterBuildCalls, after this mount returns.
+        setTimeout(function() {
+            if (!dom.isConnected) return;
+            const el = dom.querySelector(
+                'input:not([type=hidden]):not([disabled]):not([readonly]),'
+                + 'textarea:not([disabled]):not([readonly]),'
+                + 'select:not([disabled])');
+            if (el) el.focus();
+        }, 0);
     }
 
     _graftNode(parentContent, srcNode) {
@@ -1943,6 +1966,7 @@ gnr.GroupletGridController = class GroupletGridController {
         // Tabs: the row's _renderTile runs from the gnr_storepath
         // trigger below; _afterTileMounted clears _pendingActivate.
         if (this._isTabsLayout()) this._pendingActivate = newKey;
+        this._pendingFocus = newKey;
         const merged = objectUpdate({}, this.defaultRow || {});
         objectUpdate(merged, defaults || {});
         this.dataStore.addRow(newKey, merged, position);

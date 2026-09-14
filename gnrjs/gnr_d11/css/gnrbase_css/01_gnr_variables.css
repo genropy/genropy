@@ -210,6 +210,7 @@
 
     /* --- Form fields --- */
     --field-bg: var(--color-bg); /* @theme */
+    --field-color: var(--text-color); /* @theme */
     --field-border: var(--gray-400); /* @theme */
     --field-error-border: #DE9091; /* color-error #E53935 45% + gray-300 #D8D8DC */
     --field-error-dot-size: 8px; /* @theme */
@@ -221,6 +222,7 @@
     --field-disabled-opacity: 0.85;
     --field-readonly-border: var(--gray-200);
     --field-readonly-bg: var(--field-bg);
+    --field-readonly-color: var(--field-color);
     --field-focus-bg: var(--color-bg);
     --gnrfieldlabel-color: var(--gray-700); /* @theme — readable on light form surfaces */
 
@@ -247,6 +249,7 @@
     /* --- Form-context field defaults (shared by formbuilder & formlet) --- */
     --form-field-border: var(--field-border);
     --form-field-bg: var(--field-bg);
+    --form-field-color: var(--field-color);
     --form-field-border-width: 1px;
     --form-field-radius: var(--radius-sm);
     --form-label-font-size: .9em;
@@ -261,6 +264,7 @@
     --formbuilder-plaintext-border: var(--form-field-border);
     --formbuilder-field-border: var(--form-field-border);
     --formbuilder-field-bg: var(--form-field-bg);
+    --formbuilder-field-color: var(--form-field-color);
     --formbuilder-field-border-width: var(--form-field-border-width);
     --formbuilder-field-radius: var(--form-field-radius);
     --formbuilder-field-padding-x: 3px;
