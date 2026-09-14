@@ -45,10 +45,9 @@ class Plugin(GnrBasePlugin):
         arg_dict['mainpage'] = page
         arg_dict.update(kwargs)
 
-        # When the no_mako preference is on, look for a struct template
+        # With the no_mako experimental flag on, look for a struct template
         # next to the requested .tpl. Falls through to Mako otherwise.
-        no_mako = page.getPreference('experimental.no_mako', pkg='sys')
-        if no_mako:
+        if page.application.experimentalFlag('page', 'no_mako'):
             tpl_basename = os.path.basename(mako_path)
             tpl_name = tpl_basename[:-4] if tpl_basename.endswith('.tpl') else tpl_basename
             template_cls = lookup_template_class(tpldirectories, tpl_name)
