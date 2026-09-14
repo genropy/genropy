@@ -6,13 +6,18 @@
 # Units are 1/1000 of the font size in points.
 # Example: at 10pt, 'A' in Helvetica = 667/1000 * 10 = 6.67 pt wide.
 #
-# Width data is stored in resources/common/fonts/afm_widths.json and loaded
-# at first use.
+# Width data is stored in the shared resources directory
+# (common/fonts/afm_widths.json) and loaded at first use.
 
 import json
 import os
 
+from gnr.core.gnrsys import expandpath
+from gnr.utils import logger
+
 _AFM_WIDTHS = None
+
+_AFM_RELATIVE_PATH = os.path.join('common', 'fonts', 'afm_widths.json')
 
 _DEFAULT_CHAR_WIDTH = 556  # fallback for unknown chars (avg lowercase Helvetica)
 
@@ -36,17 +41,53 @@ _FONT_ALIASES = {
 }
 
 
+def _afm_widths_candidates():
+    """Yield candidate paths of the metrics file, most authoritative first.
+
+    1. the ``resources`` directories declared in environment.xml, so that a
+       deployment can override the metrics like any other shared resource
+       (the lookup ``resource_name_to_path`` uses)
+    2. ``resources`` inside the ``gnr`` package: a pip-installed genropy ships
+       the shared resources as the ``gnr.resources`` package, so the installed
+       layout resolves even with no resources declared
+    3. the checkout-relative path, for a repository used without installing
+    """
+    # deferred import: gnr.core.gnrconfig imports gnr.core.gnrstring,
+    # which imports this module at load time
+    from gnr.core.gnrconfig import getGnrConfig
+    try:
+        environment_xml = getGnrConfig()['gnr.environment_xml']
+    except Exception:  # getGnrConfig raises a bare Exception when unconfigured
+        environment_xml = None
+    if environment_xml and 'resources' in environment_xml:
+        for path in environment_xml.digest('resources:#a.path'):
+            yield expandpath(os.path.join(path, _AFM_RELATIVE_PATH))
+    package_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    yield os.path.join(package_path, 'resources', _AFM_RELATIVE_PATH)
+    yield os.path.normpath(os.path.join(package_path, '..', '..',
+                                        'resources', _AFM_RELATIVE_PATH))
+
+
 def _load_afm_widths():
+    """Return the AFM width maps, loading them from the first readable candidate.
+
+    A metrics problem must never take a print down: when no candidate is
+    usable the widths degrade to the approximate default char width.
+    """
     global _AFM_WIDTHS
     if _AFM_WIDTHS is not None:
         return _AFM_WIDTHS
-    json_path = os.path.join(
-        os.path.dirname(__file__),
-        '..', '..', '..', 'resources', 'common', 'fonts', 'afm_widths.json'
-    )
-    json_path = os.path.normpath(json_path)
-    with open(json_path, 'r', encoding='utf-8') as f:
-        _AFM_WIDTHS = json.load(f)
+    for json_path in _afm_widths_candidates():
+        if not os.path.isfile(json_path):
+            continue
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                _AFM_WIDTHS = json.load(f)
+            return _AFM_WIDTHS
+        except (ValueError, OSError):
+            logger.warning('Invalid AFM metrics file %s, skipped', json_path)
+    logger.warning('AFM metrics file not found: string widths will be approximate')
+    _AFM_WIDTHS = {'Helvetica': {}}
     return _AFM_WIDTHS
 
 
