@@ -1421,6 +1421,10 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                 });
             }else{
                 this.reset();
+                //synchronous store: already saved and reloaded
+                if(onReload){
+                    funcApply(onReload,{},this);
+                }
             }
             return deferred;
         }
@@ -3234,7 +3238,7 @@ dojo.declare("gnr.formstores.Item", gnr.formstores.Base, {
             var dosave = funcApply(onSaving,{data:formData,sourceBag:sourceBag},this);
             if(dosave===false){
                 this.form.setOpStatus(null);
-                return;
+                return false;
             }
         }
         var oldsubbag,path;
@@ -3383,7 +3387,7 @@ dojo.declare("gnr.formstores.Collection", gnr.formstores.Base, {
             var dosave = funcApply(onSaving,{data:formData},this);
             if(dosave===false){
                 this.form.setOpStatus(null);
-                return;
+                return false;
             }
         }
         var currPkey = form.getCurrentPkey();
