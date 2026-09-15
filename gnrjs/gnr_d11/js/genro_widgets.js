@@ -1368,6 +1368,10 @@ dojo.declare("gnr.widgets.video", gnr.widgets.baseHtml, {
     },
     setSrc:function(domNode,src){
         dojo.forEach(domNode.children,function(c){domNode.removeChild(c)});
+        if(isNullOrBlank(src)){
+            domNode.removeAttribute('src');
+            return;
+        }
         domNode.setAttribute('src',src);
     },
 
