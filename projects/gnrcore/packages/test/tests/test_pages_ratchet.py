@@ -1,56 +1,82 @@
-"""Unit tests for the page-source helpers of `pages_ratchet`.
+"""Unit tests for the ratchet mechanism both page suites assert through.
+
+`assert_ratchet` is the only thing keeping either list honest, and the render
+sweep now leans on it alone: a page leaves the checked set by being written into
+`smoke_known_failures.txt` and nowhere else. A ratchet that failed in one
+direction only would let that list grow unnoticed, which is the whole property
+it exists to deny, so both directions are checked here.
 
 Source-only by design: no instance, no db, no daemon. That is what lets this
-suite run in CI next to `test_pages_documented.py`, while the render sweep
-stays local. The pages asserted on belong to the `test` package and are not
-touched by the migration macros, so the expectations stay true.
+suite run in CI next to `test_pages_documented.py`, while the render sweep stays
+local.
 """
-from pages_ratchet import page_required_packages, resource_owner_package
+import pytest
+
+from pages_ratchet import assert_ratchet, page_url, read_ratchet
 
 
-class TestPageRequiredPackages(object):
-    """page_required_packages reads the packages a page addresses off its source"""
-
-    def test_table_kwarg(self):
-        """A page whose dbSelect/tableSelect calls name tables requires their packages"""
-        required = page_required_packages('test/webpages/inputfields/dbselect.py')
-        assert required == {'adm', 'glbl'}
-
-    def test_single_package(self):
-        """A page addressing only its own package requires only that one"""
-        required = page_required_packages('test/webpages/components/palette_importer.py')
-        assert required == {'test'}
-
-    def test_no_table(self):
-        """A page addressing no table requires no package"""
-        assert page_required_packages('test/webpages/html/div.py') == set()
-
-    def test_py_requires_component(self):
-        """A page mixing in a component requires the package owning that resource"""
-        required = page_required_packages('test/webpages/components/dashboards.py')
-        assert required == {'adm', 'biz'}
-
-    def test_py_requires_unmountable_component(self):
-        """A page mixing in a component of an unmounted package names it too"""
-        required = page_required_packages('test/webpages/tools/flibpicker.py')
-        assert required == {'flib'}
+def write_ratchet(tmp_path, *lines):
+    """A ratchet file holding the given lines, as the committed ones look"""
+    ratchet_path = tmp_path / 'ratchet.txt'
+    ratchet_path.write_text('# a comment\n\n%s\n' % '\n'.join(lines), encoding='utf-8')
+    return str(ratchet_path)
 
 
-class TestResourceOwnerPackage(object):
-    """resource_owner_package tells which package a py_requires entry needs"""
+class TestAssertRatchet(object):
+    """assert_ratchet fails in both directions and passes on an exact match"""
 
-    def test_package_resource(self):
-        """A resource living in one package alone is owned by it"""
-        assert resource_owner_package('dashboard_component/dashboard_component') == 'biz'
+    def test_offender_outside_the_list(self, tmp_path):
+        """An offender the list does not hold is a regression, and is named"""
+        ratchet_path = write_ratchet(tmp_path, 'test/webpages/tools/flibpicker.py')
+        with pytest.raises(AssertionError) as failure:
+            assert_ratchet(['test/webpages/tools/flibpicker.py', 'test/webpages/html/div.py'],
+                           ratchet_path, 'failing pages')
+        assert 'test/webpages/html/div.py' in str(failure.value)
 
-    def test_common_resource(self):
-        """A resource under resources/common belongs to no package"""
-        assert resource_owner_package('gnrcomponents/testhandler') is None
+    def test_entry_that_no_longer_offends(self, tmp_path):
+        """A list entry that stopped offending is stale, and is named
 
-    def test_ambiguous_resource(self):
-        """A resource several packages provide constrains nothing: any of them serves"""
-        assert resource_owner_package('preference') is None
+        This is the direction that makes the list shrink by itself: without it
+        an entry survives its own fix and quietly keeps a page out of the check.
+        """
+        ratchet_path = write_ratchet(tmp_path, 'test/webpages/tools/flibpicker.py')
+        with pytest.raises(AssertionError) as failure:
+            assert_ratchet([], ratchet_path, 'failing pages')
+        assert 'test/webpages/tools/flibpicker.py' in str(failure.value)
 
-    def test_unknown_resource(self):
-        """A resource no package provides constrains nothing"""
-        assert resource_owner_package('no/such/resource') is None
+    def test_offenders_matching_the_list(self, tmp_path):
+        """Offenders that are exactly the list are the state the ratchet allows"""
+        ratchet_path = write_ratchet(tmp_path, 'test/webpages/tools/flibpicker.py')
+        assert_ratchet(['test/webpages/tools/flibpicker.py'], ratchet_path, 'failing pages')
+
+    def test_no_offenders_and_an_empty_list(self, tmp_path):
+        """An empty list with nothing offending passes"""
+        assert_ratchet([], write_ratchet(tmp_path), 'failing pages')
+
+    def test_missing_ratchet_file(self, tmp_path):
+        """A ratchet file that does not exist holds nothing, it does not raise"""
+        missing_path = str(tmp_path / 'absent.txt')
+        assert read_ratchet(missing_path) == set()
+        with pytest.raises(AssertionError):
+            assert_ratchet(['test/webpages/html/div.py'], missing_path, 'failing pages')
+
+
+class TestReadRatchet(object):
+    """read_ratchet keeps the comments the committed files carry out of the set"""
+
+    def test_comments_and_blank_lines(self, tmp_path):
+        """Only page paths are read; comments and blank lines are not entries"""
+        ratchet_path = write_ratchet(tmp_path, 'test/webpages/html/div.py', '', '# another one')
+        assert read_ratchet(ratchet_path) == {'test/webpages/html/div.py'}
+
+
+class TestPageUrl(object):
+    """page_url maps a discovered path to the url the sweep requests"""
+
+    def test_nested_page(self):
+        """The package prefix is kept and the webpages folder drops out"""
+        assert page_url('test/webpages/inputfields/dbselect.py') == '/test/inputfields/dbselect'
+
+    def test_page_at_the_root_of_the_package(self):
+        """A page directly under webpages keeps its package and its name"""
+        assert page_url('test15/webpages/index.py') == '/test15/index'

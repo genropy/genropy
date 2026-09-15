@@ -1,2 +1,8 @@
-# Pages the render sweep is allowed to fail on. Empty: every discovered page
-# either renders or is skipped for a package the instance does not mount.
+# Pages the render sweep is allowed to fail on. One entry per page, and the
+# sweep fails on a stale one too, so the list only shrinks on purpose.
+#
+# flibpicker mixes in `flib:FlibPicker` through py_requires, and gnrdevelop does
+# not mount `gnrcore:flib`: an entry the resource loader cannot resolve is a
+# hard GnrMixinNotFound, not a page rendering without a widget. Its own case
+# docstring says so -- "Add flib pkg in instance to manage media files".
+test/webpages/tools/flibpicker.py
