@@ -328,8 +328,14 @@ def write_source(tmp_path, name, body, page_css='@page{size:A4;margin:0}'):
     return name
 
 
-SPREAD_BODY = ''.join('<div style="position:absolute;top:%imm;left:10mm">Line %02i</div>'
-                      % (10 + index * 12, index) for index in range(20))
+#content spread over both axes: a fixture stacked on a single left coordinate
+#would leave the horizontal scale unobservable (fitAxis pins it to 1 and folds
+#everything into the offset), so a horizontal measurement made on it would
+#report the difference of two engines as a translation whatever it really is
+SPREAD_BODY = ''.join(
+    '<div style="position:absolute;top:%imm;left:%imm">L%02i</div>' % (
+        10 + (index % 20) * 12, 10 + (index // 20) * 40, index)
+    for index in range(60))
 
 
 @BOTH_ENGINES
