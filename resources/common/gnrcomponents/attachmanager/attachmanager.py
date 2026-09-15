@@ -27,6 +27,8 @@ from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import public_method,extract_kwargs
 
 
+DEFAULT_DROPAREA_LABEL = '<div>[!!Drop document here]</div><div>[!!or double click to upload]</div>'
+
 IMAGES_EXT = ('.png','.jpg','.jpeg','.gif','.webp')
 VIDEOS_EXT = ('.mp4','.avi','.mpg','.mpeg')
 
@@ -79,15 +81,15 @@ class AttachManagerView(AttachManagerViewBase):
         r.fieldcell('description',edit=True,width='20em')
         #r.fieldcell('mimetype')
         if hasattr(r.tblobj,'atc_types'):
-            r.fieldcell('atc_type',edit=True,name='Type')
+            r.fieldcell('atc_type',edit=True,name='!!Type')
         if hasattr(r.tblobj,'atc_download'):
-            r.fieldcell('atc_download',edit=True,name='Open')
-        r.fieldcell('full_external_url', name='DL', width='2.5em',
+            r.fieldcell('atc_download',edit=True,name='!!Open')
+        r.fieldcell('full_external_url', name='!!DL', width='2.5em',
                template='<a href="$full_external_url" target="_blank"><img src="/_rsrc/common/css_icons/svg/16/link_connected.svg" height="13px" /></a>')
         
-        r.cell('copyurl',calculated=True,name='Copy url',cellClasses='cellbutton',
+        r.cell('copyurl',calculated=True,name='!!Copy',cellClasses='cellbutton',
                     format_buttonclass='copy iconbox',
-                    format_isbutton=True,
+                    format_isbutton=True, width='3em',
                     format_onclick="""
             var row = this.widget.rowByIndex($1.rowIndex);
             var external_url = row.full_external_url;
@@ -271,13 +273,18 @@ class AttachManager(BaseComponent):
         th.view.grid_envelope.attributes['margin'] = '10px'
         th.view.grid_envelope.attributes['margin_top'] = '0'
 
-    @extract_kwargs(default=True)
+    def _atc_dropAreaLabel(self,label=None):
+        #the caller replaces only the text: the styled atc_galleryDropArea wrapper is always preserved
+        content = '<div>%s</div>' %label if label else DEFAULT_DROPAREA_LABEL
+        return '<div class="atc_galleryDropArea">%s</div>' %content
+
+    @extract_kwargs(default=True,uploader=True)
     @struct_method
     def at_attachmentViewer(self,pane,title=None,
                             datapath='.attachments',maintable_id=None,
                             relation=None,table=None,preview=True,delrow=False,searchOn=False,
                             viewResource=None,uploaderButton=None,ask=None,default_kwargs=None,
-                            **kwargs):
+                            uploader_kwargs=None,**kwargs):
         if not table:
             relation=relation or '@atc_attachments'
         viewResource = viewResource or ('gnrcomponents/attachmanager/attachmanager:ViewAtcMobile' if preview else 'gnrcomponents/attachmanager/attachmanager:ViewAtcMobileNoPreview')
@@ -290,7 +297,7 @@ class AttachManager(BaseComponent):
                                      **kwargs)
         if uploaderButton:
             th.view.bottom.dropUploader(
-                            label='<div class="atc_galleryDropArea"><div>Drop document here</div><div>or double click</div></div>',
+                            label=self._atc_dropAreaLabel(uploader_kwargs.pop('label',None)),
                             height='40px',
                             ask=ask,
                             onUploadingMethod=self.onUploadingAttachment,
@@ -299,7 +306,8 @@ class AttachManager(BaseComponent):
                             rpc_attachment_table= th.view.grid.attributes['table'],
                             _class='importerPaletteDropUploaderBox',
                             cursor='pointer',nodeId='%(nodeId)s_uploader' %th.attributes,
-                            **{f'rpc_{k}':v for k,v in default_kwargs.items()})
+                            **{f'rpc_{k}':v for k,v in default_kwargs.items()},
+                            **uploader_kwargs)
 
         if not searchOn:
             th.view.top.pop('bar')
@@ -335,12 +343,12 @@ class AttachManager(BaseComponent):
         """,src=src,_if='src',sc=sc.js_widget,
             IMAGES_EXT=IMAGES_EXT, VIDEOS_EXT=VIDEOS_EXT)
 
-    @extract_kwargs(default=True,vpane=True,fpane=True)
+    @extract_kwargs(default=True,vpane=True,fpane=True,uploader=True)
     @struct_method
     def at_attachmentGrid(self,pane,title=None,searchOn=False,pbl_classes=True,datapath='.attachments',
                             screenshot=False,viewResource=None,
                             design=None,maintable_id=None,uploaderButton=True,ask=None,default_kwargs=None,vpane_kwargs=None,
-                            fpane_kwargs=None,**kwargs):
+                            fpane_kwargs=None,uploader_kwargs=None,**kwargs):
         design = design or 'sidebar'
         bc = pane.borderContainer(design=design)
         d = dict(sidebar=dict(region='left',width='400px'),headline=dict(region='top',height='300px'))
@@ -356,7 +364,7 @@ class AttachManager(BaseComponent):
             th.view.top.bar.replaceSlots('delrow','delrow,screenshot,5')
         if uploaderButton:
             th.view.bottom.dropUploader(
-                            label='<div class="atc_galleryDropArea"><div>Drop document here</div><div>or double click</div></div>',
+                            label=self._atc_dropAreaLabel(uploader_kwargs.pop('label',None)),
                             height='40px',
                             ask=ask,
                             onUploadingMethod=self.onUploadingAttachment,
@@ -365,7 +373,8 @@ class AttachManager(BaseComponent):
                             rpc_attachment_table= th.view.grid.attributes['table'],
                             _class='importerPaletteDropUploaderBox',
                             cursor='pointer',nodeId='%(nodeId)s_uploader' %th.attributes,
-                            **{f'rpc_{k}':v for k,v in default_kwargs.items()})
+                            **{f'rpc_{k}':v for k,v in default_kwargs.items()},
+                            **uploader_kwargs)
         fpane_kw = dict(margin='2px',border='1px solid silver')
         fpane_kw.update(fpane_kwargs)
         readerpane = bc.contentPane(region='center',datapath=datapath,overflow='hidden',**fpane_kw)
@@ -435,12 +444,13 @@ class AttachManager(BaseComponent):
             """,_fired='^.takeSnapshot',fkey='=#FORM.pkey',onUploadingMethod=self.onUploadingAttachment,
                 onUploadedMethod=self.onUploadedAttachment)
 
+    @extract_kwargs(uploader=True)
     @struct_method
     def at_attachmentGallery(self,pane,title=None,searchOn=False,
                         datapath='.attachments',mode=None,viewResource=None,
                         table=None,maintable_id=None,nodeId=None,
                         parentStack=None,
-                        uploaderButton=True,
+                        uploaderButton=True,uploader_kwargs=None,
                         **kwargs):
         #it will replace at_attachmentPane and at_attachmentGrid
 
@@ -481,14 +491,15 @@ class AttachManager(BaseComponent):
 
         if uploaderButton:
             th.view.bottom.dropUploader(
-                            label='<div class="atc_galleryDropArea"><div>Drop document here</div><div>or double click</div></div>',
+                            label=self._atc_dropAreaLabel(uploader_kwargs.pop('label',None)),
                             height='40px',
                             onUploadingMethod=self.onUploadingAttachment,
                             onUploadedMethod=self.onUploadedAttachment,
                             rpc_maintable_id= maintable_id.replace('^','=') if maintable_id else '=#FORM.pkey' ,
                             rpc_attachment_table= th.view.grid.attributes['table'],
                             _class='importerPaletteDropUploaderBox',
-                            cursor='pointer',nodeId='%(nodeId)s_uploader' %th.attributes)
+                            cursor='pointer',nodeId='%(nodeId)s_uploader' %th.attributes,
+                            **uploader_kwargs)
         th.view.grid.dataController("""
             genro.dlg.prompt(dlgtitle,{lbl:_T('Description'),dflt:pars.description,action:function(result){
                     genro.serverCall(rpcmethod,{pkey:pars.pkey,description:result,table:table},function(){},null,'POST');
