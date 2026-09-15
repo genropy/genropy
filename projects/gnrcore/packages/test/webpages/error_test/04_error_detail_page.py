@@ -7,7 +7,9 @@ EXPECTED BEHAVIOR:
 - First trigger an error using the button (creates an error record).
 - Then click "Open Error Table" to see sys.error records.
 - The error_code column should be the first column.
-- Click "Detail" link on any row -> opens /sys/ep_error?error_code=<id> in new tab.
+- Click "Detail" link on any row -> opens sys/ep_error?error_code=<id> in new tab
+  (prefixed with /_main_/ in multidomain instances, where errors are stored in
+  the root store).
 - The error detail page shows:
   * Header with error code and description (red left border)
   * Info grid: error type, date, user, IP, RPC method, page ID
@@ -15,7 +17,7 @@ EXPECTED BEHAVIOR:
   * Traceback section: expandable frames with module, line, function,
     file hash (gray badge), locals count (blue badge)
   * Expandable locals table per frame
-- Test 404: navigating to /sys/ep_error?error_code=INVALID shows "Not Found".
+- Test 404: navigating to sys/ep_error?error_code=INVALID shows "Not Found".
 - Test auth: page requires _DEV_ or admin tags.
 
 VERIFY:
@@ -53,7 +55,8 @@ class GnrCustomWebPage(object):
     def test_2_test_404(self, pane):
         """Open error detail page with invalid code - should show 'Not Found'"""
         pane.button('Open Invalid Error Page',
-                     action="window.open('/sys/ep_error?error_code=INVALID_CODE_999', '_blank');")
+                     action="window.open('%ssys/ep_error?error_code=INVALID_CODE_999', '_blank');"
+                            % self.site.rootDomainHomeUri)
 
     def test_3_open_latest_error(self, pane):
         """After generating an error, open the latest error detail page.
@@ -64,4 +67,5 @@ class GnrCustomWebPage(object):
         fb.textbox(value='^.error_code_input', lbl='Error code',
                     width='15em', placeholder='YYMMDD-XXXXX')
         fb.button('Open Detail Page',
-                   action="window.open('/sys/ep_error?error_code=' + GET .error_code_input, '_blank');")
+                   action="window.open('%ssys/ep_error?error_code=' + GET .error_code_input, '_blank');"
+                          % self.site.rootDomainHomeUri)

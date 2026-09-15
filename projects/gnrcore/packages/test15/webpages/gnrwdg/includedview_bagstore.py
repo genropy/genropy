@@ -30,7 +30,57 @@ class GnrCustomWebPage(object):
         gridEditor.textbox(gridcell='name')
         gridEditor.numbertextbox(gridcell='age')
         gridEditor.textbox(gridcell='work')
-        
+
+    def test_1_selected_id_on_store_replacement(self, pane):
+        "Legacy selectedId parity on store replacement and NewIncludedView smoke"
+        root = pane.borderContainer(height='480px', datapath='.selected_id_test')
+        root.data('.seed', self.selected_id_data())
+        root.dataFormula('.legacy.rows', 'new gnr.GnrBag()', _onStart=True)
+        root.dataFormula('.new.rows', 'new gnr.GnrBag()', _onStart=True)
+
+        toolbar = root.contentPane(region='top', height='32px')
+        toolbar.button('Load rows').dataController(
+            'SET .legacy.rows = seed.deepCopy(); SET .new.rows = seed.deepCopy();',
+            seed='=.seed')
+        toolbar.button('Select last').dataController(
+            "SET .legacy.selectedId = 'row_039'; SET .new.grid.selectedId = 'row_039';")
+        toolbar.button('Select missing').dataController(
+            "SET .legacy.selectedId = 'row_999'; SET .new.grid.selectedId = 'row_999';")
+        toolbar.button('Clear selection').dataController(
+            'SET .legacy.selectedId = null; SET .new.grid.selectedId = null;')
+        toolbar.textbox(value='^.legacy.selectedId', lbl='Legacy selected id', readOnly=True)
+        toolbar.textbox(value='^.new.grid.selectedId', lbl='New selected id', readOnly=True)
+
+        grids = root.borderContainer(region='center')
+        legacy = grids.borderContainer(region='left', width='50%', splitter=True)
+        self.includedViewBox(legacy, nodeId='selected_id_legacy',
+                             label='Legacy IncludedView', datapath='.legacy',
+                             storepath='.rows', struct=self.selected_id_struct,
+                             datamode='bag', autoWidth=True)
+
+        grids.bagGrid(region='center', frameCode='selected_id_new_frame',
+                      datapath='.new', storepath='.rows',
+                      title='NewIncludedView smoke', struct=self.selected_id_struct,
+                      grid_nodeId='selected_id_new', grid_selectedId='^.selectedId',
+                      store__identifier='_pkey', gridEditor=False,
+                      addrow=False, delrow=False, batchAssign=False)
+
+    def selected_id_data(self):
+        result = Bag()
+        for i in range(40):
+            pkey = 'row_%03i' % i
+            result.setItem(pkey, Bag(dict(nome='Locality %02i' % i,
+                                          cap='%05i' % (20000 + i),
+                                          codice_istat='%06i' % i)),
+                           _pkey=pkey)
+        return result
+
+    def selected_id_struct(self, struct):
+        r = struct.view().rows()
+        r.cell('nome', name='Name', width='16em')
+        r.cell('cap', name='Postal code', width='8em')
+        r.cell('codice_istat', name='ISTAT code', width='8em')
+
     def common_data(self):
         result = Bag()
         for i in range(5):
@@ -42,4 +92,3 @@ class GnrCustomWebPage(object):
         r.cell('name',name='Name',width='10em')
         r.cell('age',name='Age',dtype='I',width='5em')
         r.cell('work',name='Work',width='10em')
-        
