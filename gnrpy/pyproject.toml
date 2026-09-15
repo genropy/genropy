@@ -41,7 +41,7 @@ dependencies = [
 	     "packaging",
 	     "paramiko", # gnr.core.gnrssh
 	     "psutil",
-	     "pymupdf",
+	     "pymupdf>=1.24.3", # the pymupdf module name, fitz only before it
 	     "pypdftk",
 	     "PyPDF2",
 	     "pyro4",
