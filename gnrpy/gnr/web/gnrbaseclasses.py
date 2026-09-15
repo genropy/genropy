@@ -32,7 +32,7 @@ from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrstring import splitAndStrip, slugify, templateReplace
 from gnr.core.gnrlang import GnrObject
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrlang import getUuid
+from gnr.core.gnrlang import getUuid, uniquify
 from gnr.web import logger
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 
@@ -290,14 +290,30 @@ class BagToHtmlWeb(BagToHtml):
     def getPdfPath(self, *args, **kwargs):
         return self.pdfpath or self.filepath.replace('.html','.pdf')
                         
+    def pdfMarginKwargs(self,pdf_kwargs=None):
+        """A print (or its letterhead) defining its own page margins must win over the
+        sys.pdf_render preference margins: page_margin_* are realized as inner offsets
+        in the html, so the preference @page margins would add up to them. Force them
+        to 0 unless explicitly overridden (htmltopdf_* attributes or pdf_kwargs).
+        page_margins_defined means a letterhead is loaded: its designer controls the
+        page geometry, so the preference is suppressed regardless of the page.*
+        values (the letterhead editor seeds zeros on every new letterhead, so a 0
+        cannot be told apart from an explicit edge-to-edge choice)."""
+        pdf_kwargs = dict(pdf_kwargs or {})
+        sides = ('top','bottom','left','right')
+        if self.page_margins_defined or any(getattr(self,'page_margin_%s' % side,0) for side in sides):
+            for side in sides:
+                pdf_kwargs.setdefault('margin_%s' % side,0)
+        return pdf_kwargs
+
     @extract_kwargs(pdf=True)
     def writePdf(self,pdfpath=None,docname=None,pdf_kwargs=None,**kwargs):
         pdfpath = pdfpath or self.getPdfPath(pdfpath=pdfpath,docname=docname,pdf_kwargs=pdf_kwargs,**kwargs)
-        self.print_handler.htmlToPdf(self.filepath,pdfpath, 
+        self.print_handler.htmlToPdf(self.filepath,pdfpath,
                                      orientation=self.orientation(),
-                                     pdf_kwargs=pdf_kwargs,
+                                     pdf_kwargs=self.pdfMarginKwargs(pdf_kwargs),
                                      pageSize=self.page_format)
-        return pdfpath   
+        return pdfpath
 
 class TableTemplateToHtml(BagToHtmlWeb):
     def __call__(self,record=None,template=None, htmlContent=None, locale=None,pdf=None,filepath=None,**kwargs):
@@ -347,7 +363,9 @@ class TableScriptToHtml(BagToHtmlWeb):
         if record=='*':
             record = None
         else:
-            record = self.tblobj.recordAs(record, virtual_columns=self.virtual_columns)
+            record = self.tblobj.recordAs(record,
+                                          virtual_columns=self.virtual_columns if isinstance(record, Bag)
+                                          else self.captionVirtualColumns())
         html_folder = self.getHtmlPath(autocreate=True)
         self.locale = locale or self.page.locale
         self.language = language or self.page.language
@@ -371,6 +389,15 @@ class TableScriptToHtml(BagToHtmlWeb):
             #with open(temp.name,'rb') as f:
             #    result=f.read()
 
+    def captionVirtualColumns(self):
+        """:attr:`virtual_columns` plus the virtual columns the rowcaption is built on,
+        which would otherwise be missing from the loaded record"""
+        virtual_columns = self.virtual_columns.split(',') if self.virtual_columns else []
+        model_virtual_columns = self.tblobj.model.virtual_columns
+        caption_columns = [c.replace('$', '') for c in self.tblobj.rowcaptionDecode()[0]]
+        virtual_columns.extend([c for c in caption_columns if c in model_virtual_columns])
+        return ','.join(uniquify(virtual_columns)) or None
+
     def getDocName(self):
         return os.path.splitext(os.path.basename(self.filepath))[0]
 
@@ -379,6 +406,7 @@ class TableScriptToHtml(BagToHtmlWeb):
         self.pdfpath = pdfpath or self.getPdfPath('%s.pdf' % docname, autocreate=-1)
         pdf_kw = dict([(k[10:],getattr(self,k)) for k in dir(self) if k.startswith('htmltopdf_')])
         pdf_kw.update(pdf_kwargs)
+        pdf_kw = self.pdfMarginKwargs(pdf_kw)
         filepath = filepath or self.filepath
         if not isinstance(filepath,list):
             self.print_handler.htmlToPdf(filepath or self.filepath, self.pdfpath, orientation=self.orientation(), page_height=self.page_height, 
@@ -757,19 +785,32 @@ class TableScriptToHtml(BagToHtmlWeb):
         """
         return self.builder.calcRowsNumber(text, width_mm=width_mm, font_name=font_name, font_size=font_size)
 
+    def outputDocIdentifier(self):
+        """Identity of the print resource and of the printed record, so that concurrent
+        prints never write to the same file"""
+        public_name = getattr(self, '_gnrPublicName', None) or self.__class__.__name__
+        resource_id = slugify(' '.join(public_name.rsplit('.', 2)[-2:]).replace('/', ' '), sep='_')
+        record_id = None
+        if self.record is not None and not self.record.get('selectionPkeys'):
+            record_id = self.record.get(self.tblobj.pkey)
+        record_id = re.sub(r'\W', '_', str(record_id)) if record_id else getUuid()
+        return '%s_%s' % (resource_id, record_id)
+
     def outputDocName(self, ext=''):
-        """TODO
-        :param ext: TODO"""
+        """Return the output file name for the current record
+
+        :param ext: the filename extension"""
         if ext and not ext[0] == '.':
             ext = '.%s' % ext
-        caption = ''
+        chunks = [self.tblobj.name]
         if self.record is not None:
             caption = slugify(self.tblobj.recordCaption(self.record))
-            idx = self.record_idx
-            if idx is not None:
-                caption = '%s_%i' %(caption,idx)
-        doc_name = '%s_%s%s' % (self.tblobj.name, caption, ext)
-        return doc_name
+            if caption:
+                chunks.append(caption)
+            if self.record_idx is not None:
+                chunks.append(str(self.record_idx))
+        chunks.append(self.outputDocIdentifier())
+        return '%s%s' % ('_'.join(chunks), ext)
 
 
 

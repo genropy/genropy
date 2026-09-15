@@ -126,6 +126,16 @@
     background: var(--accent-color, #007AFF);
 }
 
+/* The step content is the only thing in a wizard that may be taller than the
+   window. Everything between the frame and here is a dijit layout pane that
+   the BorderContainer sizes and clips (overflow:hidden, whatever the pane was
+   asked for), so the scroll has to sit on the grouplet box itself: it is
+   already bounded to the pane, and only its content overflows. Without this a
+   tall step is cut off with no way to reach the rest of it. */
+.wizard_step_pane .grouplet_box {
+    overflow: auto;
+}
+
 /* --- Bottom navigation bar --- */
 .wizard_bottom_bar {
     display: flex;

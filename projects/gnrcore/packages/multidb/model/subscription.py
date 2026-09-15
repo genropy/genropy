@@ -2,6 +2,7 @@
 
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
+from gnr.app import pkglog as logger
 from copy import deepcopy
 
 
@@ -53,7 +54,10 @@ class Table(object):
         if not self.checkDuplicate(**dict(record)):
             self.insert(record)
             self.db.table(table).syncChildren(pkey)
-    
+        else:
+            logger.debug('Subscription already exists for table %s, pkey %s, dbstore %s: skipping insert and syncChildren',
+                          tblobj.fullname, pkey, dbstore)
+
     @public_method
     def delRowsSubscription(self,table,pkeys=None,dbstore=None):
         for pkey in pkeys:
@@ -90,6 +94,8 @@ class Table(object):
             tblobj = self.db.table(table)
             storename = subscription_record['dbstore']
         if not self.db.dbstores.get(storename):
+            logger.warning('Store %s is not registered: skipping syncStore for table %s, pkey %s, event %s',
+                            storename, tblobj.fullname, pkey, event)
             return
         if master_record:
             data_record = deepcopy(master_record)
@@ -98,6 +104,8 @@ class Table(object):
             if data_record:
                 data_record = dict(data_record[0])
             else:
+                logger.debug('Master record not found for table %s, pkey %s: skipping syncStore to store %s (event %s)',
+                              tblobj.fullname, pkey, storename, event)
                 return
         with self.db.tempEnv(storename=storename,_systemDbEvent=True,_multidbSync=True):
             f = tblobj.query(where='$%s=:pkey' %tblobj.pkey,pkey=pkey,for_update=True,ignorePartition=True,

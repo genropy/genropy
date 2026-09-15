@@ -72,7 +72,7 @@ window.gnrProfiler = (function() {
         });
         const srcP = gnr.GnrSrcHandler.prototype;
         ['stripData', 'stripDataNode', 'moveData', 'buildNode',
-         'refreshSourceIndexAndSubscribers', 'nodeTrigger'].forEach(function(m) {
+         'nodeTrigger'].forEach(function(m) {
             wrap(srcP, m, 'Src.' + m);
         });
         const wdgP = gnr.GnrWdgHandler.prototype;

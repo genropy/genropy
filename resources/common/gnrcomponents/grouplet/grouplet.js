@@ -2,16 +2,25 @@ var gnr_grouplet = {
     wizardNext: function(sourceNode, frameCode) {
         var formId = frameCode + '_step_form';
         var form = genro.formById(formId);
-        if (form && !form.isValid()) {
+        var that = this;
+        if (!form) {
+            this.wizardStepForward(frameCode);
+            return;
+        }
+        if (!form.isValid()) {
             genro.publish('floating_message', {
                 message: 'Please complete required fields',
                 messageType: 'warning'
             });
             return;
         }
-        if (form) {
-            form.save();
-        }
+        // always: an unchanged step still carries defaults to write back
+        form.save({always: true, onReload: function() {
+            that.wizardStepForward(frameCode);
+        }});
+    },
+
+    wizardStepForward: function(frameCode) {
         var frameNode = genro.getFrameNode(frameCode);
         var idx = frameNode.getRelativeData('.step_index');
         var steps = frameNode.getRelativeData('.wizard_steps');
