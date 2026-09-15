@@ -1,10 +1,13 @@
-"""Unit tests for the port-exhaustion backpressure of the render sweep.
+"""Unit tests for the sweep loop: when it waits, and when it does not.
 
-The drain path of `page_statuses` costs `PORT_DRAIN_ROUNDS * PORT_DRAIN_SECONDS`
-and, when it gives up, latches itself off for the rest of the run: it has to
-fire where the register is stalled and nowhere else. These tests drive the loop
-with its two IO boundaries — the render and the sleep — answered by the test, so
-they need no site, no daemon and no wait.
+`page_statuses` decides something no other check covers: whether a failed render
+is a stalled register worth waiting for or a broken page. The drain path costs
+`PORT_DRAIN_ROUNDS * PORT_DRAIN_SECONDS` and latches itself off when it gives
+up, so it has to fire where the register is stalled and nowhere else.
+
+These tests drive the loop with its two IO boundaries — the render and the wait
+— answered by the test through a subclass, so they need no site, no daemon and
+no wait.
 
 The module is imported rather than its class, so that `TestPagesSmoke` does not
 land in this module's namespace and get collected a second time here.

@@ -167,7 +167,7 @@ Tags
     value is read once at startup, so a change requires a restart::
 
         <experimental>
-            <page no_mako="True" page_class_cache="True"/>
+            <page no_mako="True" page_class_cache="True" dojo_xhr_patch="fetch"/>
         </experimental>
 
     ``<page>`` switches:
@@ -178,8 +178,12 @@ Tags
       later request carrying the same ``page_id``.
     * ``remoteForm``: default for the ``remote`` option of the table handler forms,
       ``onEnter`` or ``delayed``; a form passing ``remote=`` overrides it.
+    * ``dojo_xhr_patch``: transport of the supported asynchronous Dojo HTTP requests.
+      Only ``fetch`` replaces the original XHR transport; see
+      ``docs/development/dojo-xhr-patch.md``.
 
-    A missing tag or attribute reads as ``False``.
+    A missing tag or attribute reads as ``False`` for a boolean switch and as
+    ``None`` for one carrying a value.
 
 .. _instanceconfig_authentication:
 
