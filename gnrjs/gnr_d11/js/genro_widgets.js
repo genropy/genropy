@@ -1367,7 +1367,17 @@ dojo.declare("gnr.widgets.video", gnr.widgets.baseHtml, {
         domNode.appendChild(track);
     },
     setSrc:function(domNode,src){
+        var that = this;
+        domNode.sourceNode.watch('isVisibile_src',
+                        function(){return genro.dom.isVisible(domNode);},
+                        function(){that.setSrc_do(domNode,src);});
+    },
+    setSrc_do:function(domNode,src){
         dojo.forEach(domNode.children,function(c){domNode.removeChild(c)});
+        if(isNullOrBlank(src)){
+            domNode.removeAttribute('src');
+            return;
+        }
         domNode.setAttribute('src',src);
     },
 
