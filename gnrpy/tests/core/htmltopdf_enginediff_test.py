@@ -33,6 +33,7 @@ from gnr.utils.htmltopdfdiff import (DEFAULT_REFERENCE, HtmlToPdfEngineRunner,
 from gnr.utils.pdfcompare import (MM_TO_PT, comparePdf, fitAxis, matchWords,
                                   pageInkDiffRatio, pageOverlay, pageTransform,
                                   pdfGeometry)
+from gnr.utils.printgeometry import PrintGeometry, engineScale, probeDocument
 
 A4_WIDTH = 595.276
 A4_HEIGHT = 841.89
@@ -369,10 +370,15 @@ def test_equal_margins_align_the_engines_horizontally(tmp_path):
 
 
 @BOTH_ENGINES
-def test_wkhtmltopdf_scales_a_genropy_layout_print_down(tmp_path):
+def test_wkhtmltopdf_draws_a_genropy_layout_print_at_the_binary_scale(tmp_path):
     """A real print built by GnrHtmlBuilder, whose layout is positioned in
-    absolute millimeters: wkhtmltopdf renders it visibly smaller than
-    weasyprint, a divergence no margin setting accounts for, and the fit
+    absolute millimeters. Its layout is exactly as wide as the printable area,
+    so the fit term cannot bite and what is left is the constant of the
+    installed binary: a stock Qt build draws it smaller, an official patched
+    one at 1:1. The figure is measured here rather than asserted, since writing
+    one build's number into the test is what makes it fail on the next.
+
+    What the test does assert is that whatever the difference is, the fit
     explains it as a uniform zoom rather than as a layout difference."""
     builder = GnrHtmlBuilder(page_width=210, page_height=297, page_margin_top=10,
                              page_margin_left=10, page_margin_right=10,
@@ -386,13 +392,21 @@ def test_wkhtmltopdf_scales_a_genropy_layout_print_down(tmp_path):
         row.cell('Row %02i label' % index, width=60, lbl='lbl%02i' % index)
         row.cell('value %i' % index)
     builder.toHtml(str(tmp_path / 'layout.html'))
-    result = compareEngines(make_pdf_site(tmp_path), 'layout.html', 'out', name='layout')
+    site = make_pdf_site(tmp_path)
+    result = compareEngines(site, 'layout.html', 'out', name='layout')
     page = result.comparisons['wk'].pages[0]
     assert page.has_scale
-    assert page.scale[0] < 0.95
-    assert abs(page.scale[0] - page.scale[1]) < 0.01
-    #a uniform zoom, not a reflow: the fit accounts for every word
-    assert not page.has_residual
+    #the constant of whatever binary is installed, measured on a canvas narrow
+    #enough that the fit cannot apply to it
+    (tmp_path / 'out').mkdir(exist_ok=True)
+    _geometry, shrink = measured_scale(site, tmp_path, 150)
+    assert abs(max(page.scale) - shrink) < 0.02
+    assert abs(page.scale[0] - page.scale[1]) < 0.02
+    #a uniform zoom, not a reflow: the fit accounts for every word to within a
+    #millimeter, which is the width two text shapers disagree by inside a line
+    #of real text. A reflow leaves tens of points unexplained, as the synthetic
+    #test_comparison_reports_a_layout_difference_as_residual shows
+    assert page.residual_pt < 4.0
 
 
 @BOTH_ENGINES
@@ -463,3 +477,72 @@ def test_application_prints_are_comparable(tmp_path):
     print('\nprint comparison report: %s\n%s' % (
         report, '\n'.join(result.describe() for result in results)))
     assert not [result for result in results if result.failed]
+
+
+# --- what wkhtmltopdf does to a print's declared page ------------------------
+
+def measured_scale(site, tmp_path, page_width, page_height=297):
+    """The scale wkhtmltopdf draws a canvas of this size at, against weasyprint."""
+    geometry = PrintGeometry('p', page_width=page_width, page_height=page_height)
+    probe = str(tmp_path / ('probe_%s.html' % page_width))
+    probeDocument(geometry, probe)
+    result = compareEngines(site, os.path.basename(probe), 'out',
+                            name='probe_%s' % page_width,
+                            orientation=geometry.wk_orientation)
+    return geometry, engineScale(result.comparisons['wk'])
+
+
+@BOTH_ENGINES
+def test_the_wk_scale_is_not_one_number_per_installation(tmp_path):
+    """The measurement the print migration rests on, and the reason there is no
+    instance-wide setting that reproduces a wkhtmltopdf rendering.
+
+    Two terms decide how small wkhtmltopdf draws a print. One is the binary's:
+    a stock Qt build shrinks every document by a constant, the official patched
+    builds do not. The other is the print's: the layout is fitted into the
+    printable width, so a wide canvas is drawn smaller than a narrow one by the
+    same binary. Whichever binary is installed here, the first term is measured
+    on a canvas narrow enough that the fit cannot bite, and the rest has to
+    follow from the print's own geometry.
+
+    This is what makes the scale a per print measurement: knowing it for one
+    print says nothing about the next one.
+
+    wkScale is checked as the estimate it is, not as a law. The two terms do not
+    simply take the smaller of the two on a build that shrinks: measured against
+    an official patched build the estimate lands within half a percent, and
+    against the stock Qt build of the Ubuntu package within four."""
+    site = make_pdf_site(tmp_path)
+    (tmp_path / 'out').mkdir()
+    #on a canvas this narrow the fit term cannot apply, so what is left is the
+    #constant of the binary, whatever build happens to be installed
+    _geometry, shrink = measured_scale(site, tmp_path, 150)
+    assert shrink is not None
+    scales = []
+    for width in (210, 215, 250, 292):
+        geometry, measured = measured_scale(site, tmp_path, width)
+        scales.append(measured)
+        predicted = geometry.wkScale(shrink=shrink)
+        assert abs(measured - predicted) < 0.06, (
+            'canvas %smm: measured %.4f, predicted %.4f from a shrink of %.4f'
+            % (width, measured, predicted, shrink))
+    #the claim the print migration rests on, independent of the estimate above:
+    #one binary, one run, and the wider the declared page the smaller the print
+    #comes out. Never increasing rather than strictly decreasing, because while
+    #the binary's own constant is the smaller term two canvases saturate on it
+    #and order themselves inside the measurement noise
+    assert all(later <= earlier + 0.005
+               for earlier, later in zip(scales, scales[1:])), scales
+    #and the spread is real, not noise: no single number covers this range
+    assert shrink - min(scales) > 0.05
+
+
+@BOTH_ENGINES
+def test_a_wider_canvas_is_drawn_smaller_by_the_same_binary(tmp_path):
+    """Stated on its own, because it is the whole argument against a single
+    configured factor: one binary, one run, two prints, two scales."""
+    site = make_pdf_site(tmp_path)
+    (tmp_path / 'out').mkdir()
+    _narrow, narrow_scale = measured_scale(site, tmp_path, 210)
+    _wide, wide_scale = measured_scale(site, tmp_path, 292)
+    assert wide_scale < narrow_scale - 0.05

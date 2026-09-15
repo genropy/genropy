@@ -74,15 +74,55 @@ That separates three different problems:
 - **offset**: the engines disagree on the page margins. wkhtmltopdf applies its
   own margins even to a document declaring `@page {margin: 0}`, so the content
   starts a few millimeters inside the page. Fixed by aligning the margins.
-- **scale**: wkhtmltopdf lays the document out on a wide viewport and fits it
-  into the printable area, shrinking the whole print by a constant factor.
-  Fixed by a zoom, not by margins.
+- **scale**: wkhtmltopdf draws the print smaller than weasyprint does. Fixed by
+  a zoom, not by margins, and the zoom is not the same for two prints rendered
+  by the same binary: see below.
 - **residual**: what neither an offset nor a zoom explains. A residual means
   the engines broke lines or paginated differently, and no global setting will
   reconcile them.
 
 Both engines are optional: the tests are skipped unless `weasyprint` is
-importable and the `wkhtmltopdf` binary is on the PATH.
+importable and the `wkhtmltopdf` binary is on the PATH. The CI test job installs
+wkhtmltopdf, so the comparison runs there rather than silently skipping.
+
+### Why the scale has to be measured print by print
+
+The obvious way to migrate an instance off wkhtmltopdf without any print
+changing is an instance-wide setting that reproduces its geometry: same sheet,
+same margins, layout drawn at the factor wkhtmltopdf shrinks by. Measuring the
+engines shows that no single factor exists, because two independent terms decide
+how small a print comes out (`PrintGeometry.wkScale`):
+
+- one belongs to the **binary**. A build compiled against a stock Qt renders a
+  css pixel smaller than a 96dpi pixel and shrinks every document by that
+  constant. The official builds, the ones reporting `with patched qt` and the
+  ones that drew most clients' prints, do not shrink at all.
+- one belongs to the **print**. wkhtmltopdf ignores the `@page` rule, prints on
+  its own sheet, and fits the layout into the printable width of that sheet. A
+  print declaring a 180mm canvas comes out at 1:1 and one declaring 292mm at
+  about 0.65, from the same binary in the same run.
+
+So the factor cannot be configured once per instance: it is a property of each
+print's declared page. `test_the_wk_scale_is_not_one_number_per_installation`
+measures both terms on whatever binary is installed and states this.
+
+`wkScale` predicts the result as an estimate, not as a law: on a build that also
+shrinks by a constant the two terms do not simply take the smaller of the two.
+Measured against an official patched build it lands within half a percent, and
+against the stock Qt build of the Ubuntu package within four. That is enough to
+plan a print by and not enough to decide one by, which is what `measureWkScale`
+is for. That is why
+this branch carries no `wk_geometry` preference: a print drawn against
+wkhtmltopdf has to be checked, and where needed redrawn, one print at a time,
+with the harness above measuring each one before and after.
+
+`gnr.utils.printgeometry` is the inventory for that work. `scanPrintResources`
+reads the page every print resource of a project declares and resolves it the
+way `BagToHtml.prepareTemplates` does, so the prints whose declared page is not
+a paper size at all -- the layouts designed against an engine that never honoured
+`@page` -- are listed rather than discovered one at a time. `probeDocument`
+builds a measurable document out of one declared geometry, and `measureWkScale`
+reports what the installed binary really did to it.
 
 ### Comparing the prints of an application
 
