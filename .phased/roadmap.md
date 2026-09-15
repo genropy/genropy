@@ -44,7 +44,11 @@ structure, after the page has already answered 200.
   `test15/resources/test_proxy.py` moved under `test`, where a th resource macro 1
   promoted already mixes it in and currently cannot resolve it; `framecode_debt.txt`
   is in place, reads `pages_ratchet.PACKAGES` like its two siblings, runs in CI, and
-  lists exactly the two offenders left in the tree, both of them in macro 5's set.
+  lists the one offender left in the tree, `revised/gui/multibutton.py`, which is in
+  macro 5's set. `chart/chartjs.py` looks like a second one to a grep and is not one to
+  the check: its three `frameCode='pippo'` lines are all commented out, and a call that
+  is commented out builds no frame and raises nothing. The unit tests pin that
+  distinction, with `chartjs.py` as the negative case.
 
 ## Macro 4: tools, second half, and the area emptied
 - Objective: triage the remaining 24 pages of `tools` — widgets, editors, media, maps,
@@ -87,15 +91,15 @@ structure, after the page has already answered 200.
   no `tools/`, no `_resources/`.
 - Ends at: `test15/webpages/` holds no page and no folder; `resources/canvas.js` has
   travelled with `chart/canvas.py` and `html/webRTC.py`, its last readers; none of the
-  three ratchets carries a `test15/...` line, `framecode_debt.txt` included — its two
-  entries, `chart/chartjs.py` and `revised/gui/multibutton.py`, are the only offenders
-  in the tree and both are cleared here, so the file ends empty.
+  three ratchets carries a `test15/...` line, `framecode_debt.txt` included — its one
+  entry, `revised/gui/multibutton.py`, is the only offender in the tree and it is
+  cleared here, so the file ends empty.
 - Delivers: an empty `test15/webpages/`, consumed by macro 6.
 - Consumes: `test15/webpages/` reduced to its eight folders (macro 4); the frameCode
   ratchet (macro 3); the promotion recipe and the two original ratchets (macro 1).
 - Requires of earlier work: the frameCode check must be a RATCHET against a committed
-  list, not a hard failure — its two offenders live here, and a hard failure would have
-  made macro 3 fix pages outside its own scope.
+  list, not a hard failure — its one offender lives here, and a hard failure would have
+  made macro 3 fix a page outside its own scope.
 - Open decisions: whether `revised/gui/multibutton.py` folds case-by-case into
   `test/webpages/components/multibutton.py`, which macro 2 already touched.
 
