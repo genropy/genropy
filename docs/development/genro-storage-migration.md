@@ -114,7 +114,7 @@ Same across both worlds *(measured)*: md5 of the same bytes, `to_base64` payload
 
 | | strategy | switch | disposition |
 |---|---|---|---|
-`wf/273-genro-storage-handler` (local, 13 commits) | `GenroStorageHandler(BaseStorageHandler)` by **composition** — holds a `LegacyStorageHandler`, routes per mount on `manager.has_mount()`; `GenroStorageNode` adapter | `storage?use_genro_storage` in siteconfig, default off | **the base of this work** |
+`wf/273-genro-storage-handler` (local, 13 commits) | `GenroStorageHandler(BaseStorageHandler)` by **composition** — holds a `LegacyStorageHandler`, routes per mount on `manager.has_mount()`; `GenroStorageNode` adapter | `storage?use_genro_storage` in siteconfig, default off (now `experimental.storage?use_genro_storage` in instanceconfig) | **the base of this work** |
 `origin/feature/genro-storage-integration` (T1, merged by cgabriel) | side adapter module + an `if` re-inlined into `GnrWsgiSite.storageNode`, bypassing the handler | `<storage_backend>genro-storage</storage_backend>` | **discard the seam, inherit one test file** |
 `origin/feature/gs-storage-integration` (T2, 26 commits, 881 behind) | sibling `NewStorageHandler` behind a factory; first ~9 commits *are* today's develop handler | `<storage mode="ns"/>` | **inherit specific pieces** |
 `origin/feature/prepare-storage-integration` (T3, 1 commit) | preparatory extraction only, no genro-storage | none (`# TODO`) | **superseded**; as committed it does not even import (`self.storage` shadows the `storage()` method, two `NameError`s left by a rename) |
@@ -215,18 +215,25 @@ remote one, exactly as `BaseLocalService` and `aws_s3` do.
 
 ## 6. The switch
 
-**Spelling** — `storage?use_genro_storage` in siteconfig, i.e. an attribute on a
-top-level `<storage>` node, read with `boolean()` (the established pattern for
-`wsgi?...` flags). Inherited from wf/273. To avoid the confusion with the
-`<services><storage>` section that defines services, the key is documented here and
-in `TESTING.md`.
+**Spelling** — `experimental.storage?use_genro_storage` in instanceconfig, read with
+`experimentalFlag()`, like every other opt-in switch of the framework
+(`instanceconfig.rst`, section `<experimental>`). It was `storage?use_genro_storage`
+in siteconfig, inherited from wf/273, until the switches were consolidated under one
+tag. The `<experimental>` parent also removes the confusion with the
+`<services><storage>` section that defines services.
 
 ```xml
-<storage use_genro_storage="True"/>
+<experimental>
+    <storage use_genro_storage="True"/>
+</experimental>
 ```
 
-**Default** — absent → falsy → `LegacyStorageHandler`. An untouched siteconfig behaves
-exactly as today. A test asserts the negative branch.
+It is read from the **main** instance, never from `site.gnrapp`: that property follows
+the thread's current aux instance, while the handler is built once and cached per
+domain.
+
+**Default** — absent → falsy → `LegacyStorageHandler`. An untouched instanceconfig
+behaves exactly as today. A test asserts the negative branch.
 
 **Granularity** — global to switch *on*, per mount to take *effect*. One flag per site
 (per domain, since the handler is per domain) enables the genro-storage handler; that
@@ -306,7 +313,7 @@ Each phase ends with a commit. No push, no PR.
 | 1 | The optional extra `genro_storage`, and genro-storage in `developer` | `gnrpy/pyproject.toml` | `pip check` output identical to §7's five lines — **verified, no new line** | done |
 | 2 | `GenroStorageService`, `GenroStorageHandler` (registry translation, per-mount `configure`, warn-never-raise, `IMPLEMENTATION_MAP` for `local`/`raw`/`aws_s3` with T2's S3 parameter names), `storage_params=None` on `BaseStorageHandler.__init__`, `updateStorageParams`/`removeStorageFromCache` re-sync | `gnrpy/gnr/lib/services/storage_genro.py` (new), `gnrpy/gnr/web/gnrwsgisite_proxy/gnrstoragehandler.py` | `flake8` clean; smoke on the live `gnrdevelop` site | done |
 | 3 | *(collapsed into Phase 2 — see the implementation note above: no node adapter)* | — | — | n/a |
-| 4 | The flag: `GnrDomainProxy.storage_handler` reading `storage?use_genro_storage` | `gnrpy/gnr/web/gnrwsgisite.py` | `pytest tests/web/gnrgenrostoragehandler_test.py -q`; full suite unchanged vs baseline | done |
+| 4 | The flag: `GnrDomainProxy.storage_handler` reading `experimental.storage?use_genro_storage` | `gnrpy/gnr/web/gnrwsgisite.py` | `pytest tests/web/gnrgenrostoragehandler_test.py -q`; full suite unchanged vs baseline | done |
 | 5 | *(cross-world copy/move needed no code — `StorageService` bridges it; covered by tests instead)* | — | `pytest tests/core/gnrstorage_compare_test.py -q -k "copy or move"` | n/a |
 | 6 | Comparison tests, local mount (§9) | `gnrpy/tests/core/gnrstorage_compare_test.py`, `gnrpy/tests/core/storage_fixtures.py` | 94 passed, 0 skipped | done |
 | 7 | Comparison tests, S3 mount on MinIO (§9) | same files | 188 passed with MinIO up; 94 passed + 94 skipped with `GNR_TEST_S3_ENDPOINT` unset | done |

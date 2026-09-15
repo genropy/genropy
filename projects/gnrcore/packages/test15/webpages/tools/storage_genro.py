@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""Storage: legacy services vs genro-storage (storage?use_genro_storage)"""
+"""Storage: legacy services vs genro-storage (experimental/storage@use_genro_storage)"""
 
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
@@ -82,12 +82,13 @@ class GnrCustomWebPage(object):
         head = pane.div(padding='4px')
         head.div('handler: %s' % handler.__class__.__name__,
                  font_weight='bold', color='#2a6' if is_genro else '#a62')
-        head.div('siteconfig storage?use_genro_storage: %r'
-                 % self.site.config['storage?use_genro_storage'], color='#666')
+        head.div('instanceconfig experimental/storage@use_genro_storage: %r'
+                 % self.site._main_gnrapp.experimentalValue(
+                     'storage', 'use_genro_storage'), color='#666')
         if not is_genro:
             head.div('The flag is off, so every row below says "legacy". '
-                     'Set <storage use_genro_storage="True"/> in the siteconfig '
-                     'to switch the mappable mounts over.',
+                     'Set <experimental><storage use_genro_storage="True"/></experimental> '
+                     'in the instanceconfig to switch the mappable mounts over.',
                      color='#a62', padding_top='4px')
 
         table = pane.div(margin_top='6px').table(border_collapse='collapse',

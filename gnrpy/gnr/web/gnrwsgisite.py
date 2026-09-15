@@ -193,7 +193,9 @@ class GnrDomainProxy(object):
     def storage_handler(self):
         if self._storage_handler is None:
             site = self.parent.site
-            if boolean(site.config['storage?use_genro_storage']):
+            # The main instance, not site.gnrapp: that one follows the thread's
+            # current aux instance, and this handler is built once and cached.
+            if site._main_gnrapp.experimentalFlag('storage', 'use_genro_storage'):
                 self._storage_handler = GenroStorageHandler(site, domain=self.domain)
             else:
                 self._storage_handler = LegacyStorageHandler(site, domain=self.domain)

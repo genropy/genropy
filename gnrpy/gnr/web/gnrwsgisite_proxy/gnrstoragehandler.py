@@ -23,7 +23,7 @@ from gnr.core.gnrstring import boolean
 from gnr.web import logger
 
 # genro-storage is an optional dependency (the genro_storage extra): with the
-# storage/use_genro_storage flag off nothing here is needed.
+# experimental/storage@use_genro_storage flag off nothing here is needed.
 try:
     from genro_storage import StorageManager
     from gnr.lib.services import storage_genro
@@ -602,9 +602,10 @@ class GenroStorageHandler(LegacyStorageHandler):
     def __init__(self, site, domain=None, storage_params=None):
         if StorageManager is None:
             raise RuntimeError(
-                "genro-storage is not installed but storage/use_genro_storage "
-                "is enabled. Install it with `pip install 'genropy[genro_storage]'` "
-                "or drop the flag from siteconfig to keep the legacy handler."
+                "genro-storage is not installed but "
+                "experimental/storage@use_genro_storage is enabled. Install it with "
+                "`pip install 'genropy[genro_storage]'` or drop the flag from "
+                "instanceconfig to keep the legacy handler."
             )
         self.manager = StorageManager()
         self.mount_configs = {}

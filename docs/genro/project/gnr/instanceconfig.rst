@@ -179,6 +179,12 @@ Tags
     * ``remoteForm``: default for the ``remote`` option of the table handler forms,
       ``onEnter`` or ``delayed``; a form passing ``remote=`` overrides it.
 
+    ``<storage>`` switches:
+
+    * ``use_genro_storage``: serve the mappable storage mounts through the
+      ``genro-storage`` package instead of the legacy services; see
+      ``docs/development/genro-storage-migration.md``.
+
     A missing tag or attribute reads as ``False``.
 
 .. _instanceconfig_authentication:

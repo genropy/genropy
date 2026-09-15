@@ -55,23 +55,25 @@ def handler(site, tmp_path):
 
 @contextmanager
 def flag(site, value):
-    """Set (or clear) storage?use_genro_storage and force the domain proxy to
-    build a fresh handler, then put back exactly what was there. The tests must
-    hold whatever the local siteconfig happens to say."""
+    """Set (or clear) experimental/storage@use_genro_storage and force the domain
+    proxy to build a fresh handler, then put back exactly what was there. The
+    tests must hold whatever the local instanceconfig happens to say."""
+    config = site._main_gnrapp.config
     proxy = site.domains[site.currentDomain]
     previous_handler = proxy._storage_handler
-    previous_node = site.config.getNode('storage')
+    previous_node = config.getNode('experimental.storage')
     if value is None:
-        site.config.pop('storage')
+        config.pop('experimental.storage')
     else:
-        site.config.setItem('storage', None, use_genro_storage=value)
+        config.setItem('experimental.storage', None, use_genro_storage=value)
     proxy._storage_handler = None
     try:
         yield site
     finally:
-        site.config.pop('storage')
+        config.pop('experimental.storage')
         if previous_node is not None:
-            site.config.setItem('storage', previous_node.value, **(previous_node.attr or {}))
+            config.setItem('experimental.storage', previous_node.value,
+                           **(previous_node.attr or {}))
         proxy._storage_handler = previous_handler
 
 
@@ -79,7 +81,8 @@ class TestSwitch:
 
     def test_flag_absent_yields_the_legacy_handler(self, site):
         with flag(site, None) as flagged:
-            assert flagged.config['storage?use_genro_storage'] in (None, '', False)
+            assert flagged._main_gnrapp.experimentalFlag(
+                'storage', 'use_genro_storage') is False
             assert isinstance(flagged.storage_handler, LegacyStorageHandler)
             assert not isinstance(flagged.storage_handler, GenroStorageHandler)
 
