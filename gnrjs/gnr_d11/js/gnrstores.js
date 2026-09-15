@@ -641,10 +641,15 @@ dojo.declare("gnr.GnrStoreQuery", gnr.GnrStoreBag, {
             }
             var finalize = dojo.hitch(this, function(r) {
                 var scope = request.scope ? request.scope : dojo.global;
-                if(r.attr.errors){
-                    this._parentSourceNode.widget._lastQueryError = r.attr.errors;
-                    
-                    this._parentSourceNode.setValidationError({error:r.attr.errors});
+                var sn = this._parentSourceNode;
+                // the reply's error belongs to the identity it asked about: the datastore
+                // may have moved to another value, and setValidationError is wholesale
+                var stale = sn && sn.attr.value && request.identity != sn.getRelativeData(sn.attr.value);
+                if(r.attr.errors && sn && sn.widget && !stale){
+                    sn.widget._lastQueryError = r.attr.errors;
+                    sn.setValidationError({error:r.attr.errors,
+                                           warnings:sn.getValidationWarnings(),
+                                           required:sn.isValidationRequired()});
                 }
                 var result = r.getValue();
                 if (result instanceof gnr.GnrBag) {

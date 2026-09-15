@@ -100,7 +100,24 @@ class GnrCustomWebPage(object):
                     lbl='DbSelect',width='25em',nodeId='dbselect_condition_null')
         fb.div('^.sigla',lbl='Datastore value')
         fb.button('Set LOM / null',action="SET .regione='LOM'; SET .sigla=null;")
-        
+
+    def test_10_condition_race_validation(self,pane):
+        "A stale condition reply must not overwrite the validation state of the newer value"
+        pane.data('.regione','VAL')
+        pane.data('.sigla','AO')
+        fb = pane.formbuilder(cols=2, border_spacing='4px')
+        fb.dbSelect(table='glbl.regione',value='^.regione',lbl='Regione',width='25em')
+        fb.dbSelect(table='glbl.provincia',value='^.sigla',method=self.delayedDbSelect,
+                    condition='$regione=:regione',condition_regione='^.regione',
+                    lbl='DbSelect',width='25em',validate_notnull=True,
+                    validate_notnull_error='Manca il valore',
+                    nodeId='dbselect_race_validation')
+        fb.div('^.sigla',lbl='Datastore value')
+        pane.dataRpc('.race_province',self.raceProvince,regione='^.regione',
+                     _if="regione=='LOM'",_else='null')
+        pane.dataController("SET .sigla=province;",province='^.race_province',_if='province')
+        fb.button('Set LOM / MI',action="SET .regione='LOM';")
+
     def test_2_clientmethod(self,pane):
         "Manually set what to display with callbackSelect"
         fb = pane.formbuilder(cols=1, border_spacing='4px')
