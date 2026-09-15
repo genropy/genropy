@@ -931,13 +931,17 @@ class SqlDbAdapter(object):
         self.dbroot.execute('ANALYZE;')
 
     def vacuum(self, table='', full=False):
-        """Perform analyze routines on the database
-        
-        :param table: the :ref:`database table <table>` name, in the form ``packageName.tableName``
-                      (packageName is the name of the :ref:`package <packages>` to which the table
-                      belongs to)
-        :param full: boolean. TODO"""
-        self.dbroot.execute('VACUUM ANALYZE %s;' % table)
+        """Run ``VACUUM ANALYZE`` (or ``VACUUM FULL ANALYZE``) on the database or on one table.
+
+        VACUUM cannot run inside a transaction block, so the statement goes
+        through a dedicated autocommit connection, not the current one.
+
+        :param table: the table's SQL name, schema-qualified (``tblobj.model.sqlfullname``,
+                      e.g. ``invc.invc_customer``); empty vacuums the whole database
+        :param full: boolean. If True issue ``VACUUM FULL``, which rewrites the table and
+                     returns the reclaimed space to the filesystem"""
+        sql = 'VACUUM FULL ANALYZE %s;' if full else 'VACUUM ANALYZE %s;'
+        self.execute(sql % table, autoCommit=True)
 
     def string_agg(self, fieldpath, separator):
         """
