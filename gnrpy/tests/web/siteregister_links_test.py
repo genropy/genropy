@@ -2,9 +2,10 @@
 
 A register item carries its parent id (a page knows its connection, a connection
 knows its user), but the other direction had no structure: every walk down the
-hierarchy scanned the whole registry. The user item now holds a ``connections``
-set and the connection item a ``pages`` set, both written exclusively through
-``SiteRegister.updateRegisterLink`` so the two directions of a link cannot drift.
+hierarchy scanned the whole registry. The user item holds a ``connections`` set
+and the connection item a ``pages`` set, maintained in ``addRegisterItem`` and
+``drop_item`` -- the only two calls that put an item in a register and take it
+out -- so no route can change the hierarchy and leave the sets behind.
 
 ``SiteRegister`` is built directly with a stand-in server: the only thing its
 constructor needs is ``server.daemon.register`` for the remote-bag handler.
@@ -400,79 +401,83 @@ def test_dropping_while_iterating_the_walk_is_safe():
 # ---------------------------------------------------------------------------
 
 
-def test_dropping_a_page_whose_item_already_vanished_still_unlinks_it():
-    """The unlink used to read the parent id off the page item, so it was skipped
-    exactly when the item was already gone — leaving a dead id in the set forever."""
+def test_removing_the_page_item_unlinks_it_from_its_connection():
+    """drop_item is the only removal, and it unlinks before the item goes, so the
+    page cannot vanish while its connection still lists it."""
     reg = _register()
     reg.new_connection('conn-1', user='anna')
     _new_page(reg, 'page-1', 'conn-1', 'anna')
-    reg.page_register.registerItems.pop('page-1')   # item gone, set still holds it
-    reg.drop_page('page-1')
+    reg.page_register.drop_item('page-1')
+    assert _pages_of(reg, 'conn-1') == set()
+    reg.drop_page('page-1')                          # nothing left to unlink
     assert _pages_of(reg, 'conn-1') == set()
 
 
-def test_dropping_a_connection_whose_item_already_vanished_still_unlinks_it():
+def test_removing_the_connection_item_unlinks_it_from_its_user():
     reg = _register()
     reg.new_connection('conn-1', user='anna')
-    reg.connection_register.registerItems.pop('conn-1')
+    reg.connection_register.drop_item('conn-1')
+    assert _connections_of(reg, 'anna') == set()
     reg.drop_connection('conn-1')
     assert _connections_of(reg, 'anna') == set()
 
 
-def test_drop_connections_converges_on_a_dangling_id():
-    """A dead id made drop_connection skip the unlink, so every later call walked
-    the same id again: the loop could never empty the set."""
+def test_drop_connections_has_nothing_left_to_walk():
+    """drop_connections iterates the user's set: an id left in it after the item
+    went would be walked again on every call, and the loop could never empty."""
     reg = _register()
     reg.new_connection('conn-1', user='anna')
-    reg.connection_register.registerItems.pop('conn-1')
+    reg.connection_register.drop_item('conn-1')
+    assert _connections_of(reg, 'anna') == set()
     reg.drop_connections('anna')
     assert _connections_of(reg, 'anna') == set()
-    reg.drop_connections('anna')          # idempotent, nothing left to walk
+    reg.drop_connections('anna')          # idempotent
     assert _connections_of(reg, 'anna') == set()
 
 
-def test_a_dangling_page_is_pruned_instead_of_raising():
-    """connection_page_items indexed registerItems directly: one dead id raised
-    KeyError for every caller, and the id stayed. It is pruned and the live
-    children are still returned."""
+def test_connection_page_items_returns_the_pages_that_are_left():
+    """The reader indexes the set directly: it can, because the set never holds a
+    key whose item is gone."""
     reg = _register()
     reg.new_connection('conn-1', user='anna')
     _new_page(reg, 'page-1', 'conn-1', 'anna')
     _new_page(reg, 'page-2', 'conn-1', 'anna')
-    reg.page_register.registerItems.pop('page-1')
+    reg.page_register.drop_item('page-1')
     got = reg.connection_page_items('conn-1')
     assert [k for k, _ in got] == ['page-2']
     assert _pages_of(reg, 'conn-1') == {'page-2'}
 
 
-def test_a_dangling_connection_is_pruned_instead_of_raising():
+def test_user_connection_items_returns_the_connections_that_are_left():
     reg = _register()
     reg.new_connection('conn-1', user='anna')
     reg.new_connection('conn-2', user='anna')
-    reg.connection_register.registerItems.pop('conn-1')
+    reg.connection_register.drop_item('conn-1')
     got = reg.user_connection_items('anna')
     assert [k for k, _ in got] == ['conn-2']
     assert _connections_of(reg, 'anna') == {'conn-2'}
 
 
-def test_connection_pages_and_user_connections_prune_too():
+def test_connection_pages_and_user_connections_follow_the_same_rule():
     reg = _register()
     reg.new_connection('conn-1', user='anna')
     _new_page(reg, 'page-1', 'conn-1', 'anna')
-    reg.page_register.registerItems.pop('page-1')
+    reg.page_register.drop_item('page-1')
     assert reg.connection_pages('conn-1') == []
-    reg.connection_register.registerItems.pop('conn-1')
+    reg.connection_register.drop_item('conn-1')
     assert reg.user_connections('anna') == []
 
 
-def test_dropRegisterLinks_scans_every_parent_holding_the_child():
-    """Driven by the sets rather than by the child, so it works with the child gone."""
+def test_a_page_is_listed_by_one_connection_only():
+    """Two parents claiming the same child is what made a parent-unknown scan
+    necessary. The page item names one connection, and only that one lists it."""
     reg = _register()
     reg.new_connection('conn-1', user='anna')
     reg.new_connection('conn-2', user='marco')
-    _pages_of(reg, 'conn-2').add('page-1')          # drift: two parents claim it
     _new_page(reg, 'page-1', 'conn-1', 'anna')
-    reg.dropRegisterLinks(reg.connection_register, 'pages', 'page-1')
+    assert _pages_of(reg, 'conn-1') == {'page-1'}
+    assert _pages_of(reg, 'conn-2') == set()
+    reg.drop_page('page-1')
     assert _pages_of(reg, 'conn-1') == set()
     assert _pages_of(reg, 'conn-2') == set()
 
@@ -510,37 +515,37 @@ def test_load_rebuilds_the_link_sets_from_the_restored_children():
     assert _pages_of(restored, 'conn-1') == {'page-1', 'page-2'}
 
 
-def test_pages_prunes_a_dangling_id_by_connection():
+def test_pages_by_connection_returns_what_is_left():
     """pages() is the reader on the request path: validate_page_id falls back to it."""
     reg = _populate(_register())
-    reg.page_register.registerItems.pop('page-1')
+    reg.page_register.drop_item('page-1')
     got = sorted(p['register_item_id'] for p in reg.pages(connection_id='conn-1'))
     assert got == ['page-2']
     assert _pages_of(reg, 'conn-1') == {'page-2'}
 
 
-def test_pages_prunes_a_dangling_id_by_user_across_connections():
-    """The user walk spans several connections, so the prune cannot assume one parent."""
+def test_pages_by_user_span_several_connections():
+    """The user walk crosses connections: each page leaves the set of its own."""
     reg = _populate(_register())
-    reg.page_register.registerItems.pop('page-3')      # lives under conn-2
+    reg.page_register.drop_item('page-3')              # lives under conn-2
     got = sorted(p['register_item_id'] for p in reg.pages(user='anna'))
     assert got == ['page-1', 'page-2']
     assert _pages_of(reg, 'conn-2') == set()
 
 
-def test_pages_with_include_data_prunes_instead_of_yielding_none():
-    """get_item returns None for a missing key: without the prune that None
-    travels on into Bag(page) and fails somewhere else entirely."""
+def test_pages_with_include_data_never_yields_none():
+    """get_item returns None for a missing key, and that None would travel on into
+    Bag(page) to fail somewhere else entirely."""
     reg = _populate(_register())
-    reg.page_register.registerItems.pop('page-1')
+    reg.page_register.drop_item('page-1')
     got = reg.pages(connection_id='conn-1', include_data=True)
     assert None not in got
     assert [p['register_item_id'] for p in got] == ['page-2']
 
 
-def test_connections_with_include_data_prunes_too():
+def test_connections_with_include_data_never_yield_none():
     reg = _populate(_register())
-    reg.connection_register.registerItems.pop('conn-1')
+    reg.connection_register.drop_item('conn-1')
     got = reg.connection_register.connections(user='anna', include_data=True)
     assert None not in got
     assert [c['register_item_id'] for c in got] == ['conn-2']

@@ -6,24 +6,33 @@ unions the subscriptions of every registered page, so a per-page question would 
 the cross-page updates that broadcast exists for — a menu badge on page A watching a
 table that page B writes.
 
-``PageRegister`` is built directly: ``BaseRegister.__init__`` only wants a siteregister
-object, so no daemon and no Pyro are involved. The gate's memo is exercised on a real
-``GnrWsgiWebApp.subscribedTables`` with stubbed db/site.
+The page register is taken from a real ``SiteRegister``, built with a stand-in server:
+its constructor only needs ``server.daemon.register`` for the remote-bag handler, so no
+daemon and no Pyro are involved. A register maintains its parent's link set as items come
+and go, so it needs the sibling registers next to it -- a stub site would have to
+reimplement that. The gate's memo is exercised on a real ``GnrWsgiWebApp.subscribedTables``
+with stubbed db/site.
 """
 
 import io
 
-from gnr.web.daemon.siteregister import PageRegister
+from gnr.web.daemon.siteregister import SiteRegister
 from gnr.web.gnrwebapp import GnrWsgiWebApp
 
 
-class _FakeSiteRegister:
-    def refresh_ts(self, *args, **kwargs):
+class _FakeDaemon:
+    def register(self, obj, name):
         pass
 
 
+class _FakeServer:
+    daemon = _FakeDaemon()
+    gnr_daemon_uri = None
+    hmac_key = None
+
+
 def _register():
-    return PageRegister(_FakeSiteRegister())
+    return SiteRegister(_FakeServer(), sitename='testsite').page_register
 
 
 # ---------------------------------------------------------------------------
