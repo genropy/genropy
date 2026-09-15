@@ -8,6 +8,20 @@ is a stale entry, so the list can only shrink. Pages are discovered by walking
 the tree (`pages_ratchet.discover_pages`), so the sweep shrinks by itself as
 test15 empties.
 
+Every discovered page is rendered, the ones addressing a package the instance
+does not mount included. Naming a package is not the same as needing it mounted
+to answer: `test/webpages/inputfields/dbselect.py` binds `glbl.provincia` and
+renders 200 with `gnr_it` absent, only with an empty selection. Deciding from
+the source which pages cannot work would therefore take 48 pages that do work
+out of the sweep. A page leaves the checked set only by failing its render, and
+it leaves it through `smoke_known_failures.txt`, where the entry is visible and
+removing it is an edit somebody has to justify.
+
+`gnrdevelop` mounts `gnrcore:biz` for the dashboard component. It does not
+mount `gnr_it:glbl`: the checklist sysrecord that package injects into `adm`
+deadlocks the sqlite of the instance the whole app/web suite boots. The pages
+bound to `glbl` tables render anyway, against empty tables.
+
 This half needs a booted site and a running daemon, which is why the
 documentation ratchet lives in `test_pages_documented.py` instead: a check that
 can skip must not be the one guarding the documentation debt.
@@ -92,6 +106,7 @@ class TestPagesSmoke(BaseGnrDaemonTest):
 
     def test_pages_answer_200(self):
         """Every page returns 200, except the ones in smoke_known_failures.txt"""
-        failing = [page_path for page_path, status in self.page_statuses().items()
+        statuses = self.page_statuses()
+        failing = [page_path for page_path, status in statuses.items()
                    if not status.startswith('200')]
         assert_ratchet(failing, SMOKE_RATCHET, 'failing pages')
