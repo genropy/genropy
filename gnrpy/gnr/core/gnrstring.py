@@ -57,6 +57,58 @@ class NoneIsBlankMapWrapper(object):
             value= ''
         return value
 
+VALUEMAP_WILDCARD = '*'
+
+def valueMapFormat(format_choice, value):
+    """Resolve a text/enum ``value`` through a ``key:label,key:label,*:default``
+    value map carried by the template editor's ``format`` column.
+
+    Server-side counterpart of the client-side value map already applied in
+    ``gnrjs/gnr_d11/js/gnrlang.js`` (``objectFromString(valueattr.values)[value]``),
+    reusing the ``,``-separated ``key:value`` convention of ``objectFromString``
+    and the section-fallback idea of :func:`gnr.core.gnrlocale.localize_boolean`.
+
+    Returns ``None`` when ``format_choice`` does not look like a value map (no
+    ``:`` pairs, or it contains a ``#`` mask placeholder), so callers can fall
+    back to the standard dtype-based formatting. A real format string that does
+    parse as a map — ``'auto:.5'``, ``'HH:mm'`` — also returns ``None``, but
+    only because no value equals one of its keys and it declares no wildcard.
+
+    A label may carry the ``%s`` token of the ``mask`` column to keep the raw
+    value visible, which is what makes a ``*`` wildcard usable without losing
+    the codes it collapses.
+
+    >>> valueMapFormat('A:Approvato,R:Respinto,*:In esame', 'A')
+    'Approvato'
+    >>> valueMapFormat('A:Approvato,R:Respinto,*:In esame', 'Z')
+    'In esame'
+    >>> valueMapFormat('A:Approvato,R:Respinto,*:Altro [%s]', 'Z')
+    'Altro [Z]'
+    >>> valueMapFormat('A:Approvato,R:Respinto', 'Z') is None
+    True
+    """
+    if not format_choice or '#' in format_choice or ':' not in format_choice:
+        return None
+    valuemap = {}
+    lastkey = None
+    for chunk in format_choice.split(','):
+        if ':' not in chunk:
+            if lastkey is None:
+                return None
+            # a label may contain the separator: rejoin what the split took apart
+            valuemap[lastkey] = '%s,%s' % (valuemap[lastkey], chunk)
+            continue
+        key, _, label = chunk.partition(':')
+        key = key.strip()
+        if not key:
+            return None
+        valuemap[key] = label.strip()
+        lastkey = key
+    label = valuemap[value] if value in valuemap else valuemap.get(VALUEMAP_WILDCARD)
+    if label is None:
+        return None
+    return label.replace('%s', value)
+
 class LocalizedWrapper(object):
     """Missin doc"""
     def __init__(self,data, locale=None,templates=None, formats=None,
@@ -126,6 +178,10 @@ class LocalizedWrapper(object):
             caption = attrs.get('name_long','')
         format_choice = self.formats.get(as_name) or format_choice
         mask = self.masks.get(as_name) or mask
+        if isinstance(value, str):
+            mapped_value = valueMapFormat(format_choice, value)
+            if mapped_value is not None:
+                return mapped_value if not self.emptyMode else ''
         dtype = self.dtypes.get(as_name)
         if dtype =='P' and value and not value.startswith('data:') and self.urlformatter:
             value = self.urlformatter(value)
