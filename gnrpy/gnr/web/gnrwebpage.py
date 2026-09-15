@@ -110,6 +110,7 @@ class GnrUserNotAllowed(GnrException):
 
 class GnrBasicAuthenticationError(GnrException):
     code = 'AUTH-901'
+    caption = "!!Error code %(code)s : %(msg)s."
 
 EXCEPTIONS = {
     'user_not_allowed': GnrUserNotAllowed,
@@ -674,7 +675,7 @@ class GnrWebPage(GnrBaseWebPage):
             result = '<div>%s</div>' %str(e)
             if error_id:
                 if self.isDeveloper():
-                    detail_url = '/sys/ep_error?error_code=%s' % error_id
+                    detail_url = '%ssys/ep_error?error_code=%s' % (self.site.rootDomainHomeUri, error_id)
                     result = '%s <br/> Exception Id: <a href="%s" target="_blank">%s</a>' % (result, detail_url, error_id)
                 else:
                     result = '%s <br/> Check Exception Id: %s' % (result, error_id)
@@ -1281,7 +1282,7 @@ class GnrWebPage(GnrBaseWebPage):
                 raise GnrException('Verifier wrong class')
         elif getattr(handler, 'tags',None):
             verifier = AuthorizationBaseTagsVerifier(self)
-            verifier_error = verifier(tags=handler.tags)
+            verifier_error = verifier(tags=handler.tags, method=method)
         if verifier_error:
             raise verifier_error                
         return handler
@@ -1345,6 +1346,8 @@ class GnrWebPage(GnrBaseWebPage):
         kwargs['servertime'] = datetime.datetime.now()
         kwargs['websockets_url'] = '/websocket' if self.wsk_enabled else None
         kwargs['websockets_endpoint'] = self.async_endpoint if self.wsk_enabled else None
+        kwargs['dojoXhrPatch'] = self.application.experimentalValue(
+            'page', 'dojo_xhr_patch') or ''
         self.getPwaIntegration(arg_dict)
         self.getSquareLogoUrl(arg_dict)
         self.getCoverLogoUrl(arg_dict)

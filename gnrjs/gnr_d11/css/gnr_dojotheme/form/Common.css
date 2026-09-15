@@ -18,6 +18,7 @@
 .gnr_dojotheme .dijitSpinner,
 .gnr_dojotheme .dijitInlineEditor input {
     background: var(--formbuilder-field-bg, var(--field-bg, #fff));
+    color: var(--formbuilder-field-color, var(--field-color, var(--text-color)));
     background-image: none;
     border: var(--formbuilder-field-border-width, 1px) solid var(--formbuilder-field-border, var(--field-border, #AEAEB2));
     border-radius: var(--formbuilder-field-radius, var(--radius-sm));

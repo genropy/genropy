@@ -390,7 +390,8 @@
 /* --- Linker --- */
 .th_enableLinker .th_linkerField, .th_linkerAlwaysOpen .th_linkerField{
     display:block;
-    min-width:16em;
+    min-width:0;
+    flex:1 1 auto;
     width:100%;
     max-width:100%;
     font-size:var(--font-size);
@@ -398,6 +399,34 @@
     padding-top:0;
     overflow:hidden;
     text-overflow:ellipsis;
+}
+
+.th_linkerBar .slotbar_row{
+    display:flex;
+    align-items:center;
+}
+
+.th_linkerBar .slotbar_cell{
+    width:auto;
+    flex-shrink:0;
+}
+
+.th_linkerBar .slotbar_elastic_spacer{
+    flex:1;
+}
+
+.th_linkerBar .slotbar_cell:has(>.th_linker){
+    min-width:0;
+}
+
+.th_linkerBar .slotbar_cell:has(>.th_enableLinker),
+.th_linkerAlwaysOpen .th_linkerBar .slotbar_cell:has(>.th_linker){
+    flex:1;
+}
+
+.th_linkerBar:has(.th_enableLinker) .slotbar_elastic_spacer,
+.th_linkerAlwaysOpen .th_linkerBar .slotbar_elastic_spacer{
+    display:none;
 }
 
 /* --- Zoom cell (grid hyperlinks) --- */

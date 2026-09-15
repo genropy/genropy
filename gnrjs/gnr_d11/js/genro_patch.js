@@ -1,6 +1,182 @@
 
 
 var genropatches = {};
+genropatches.dojoXhr = function(transport){
+    if(transport !== 'fetch' || genropatches.dojoXhr.installed ||
+            !window.fetch || !window.AbortController || !window.DOMParser ||
+            !window.URL || !window.Headers){
+        return;
+    }
+    var original = {xhr: dojo.xhr, rawXhrPost: dojo.rawXhrPost,
+                    rawXhrPut: dojo.rawXhrPut, cancelAll: dojo._ioCancelAll};
+    var pending = new Set();
+    var handlers = ['text', 'json', 'xml', 'javascript',
+                    'json-comment-filtered', 'json-comment-optional'];
+
+    function supported(args){
+        if(args.sync || args.user || args.password || args.responseType ||
+                args.onprogress || args.upload || args.iframeProxyUrl ||
+                handlers.indexOf(args.handleAs || 'text') < 0){
+            return false;
+        }
+        var form = args.form && dojo.byId(args.form);
+        if(form && form.querySelector('input[type="file"]')){
+            return false;
+        }
+        try{
+            var url = new URL(args.url || (form && form.getAttribute('action')),
+                              document.baseURI);
+            return /^https?:$/.test(url.protocol) && !url.username && !url.password &&
+                   url.origin === window.location.origin;
+        }catch(error){
+            return false;
+        }
+    }
+
+    function request(method, args, hasBody, rawField){
+        var controller = new AbortController();
+        var finished = false;
+        var timer;
+        var responseHeaders;
+        function cleanup(){
+            finished = true;
+            clearTimeout(timer);
+            pending.delete(dfd);
+        }
+        var dfd = dojo._ioSetArgs(args, function(deferred){
+            deferred.canceled = true;
+            cleanup();
+            controller.abort();
+            xhr.readyState = 0;
+            xhr.status = 0;
+            xhr.statusText = '';
+            responseHeaders = null;
+            var error = new Error('xhr cancelled');
+            error.dojoType = 'cancel';
+            return error;
+        }, function(deferred){
+            return dojo._contentHandlers[deferred.ioArgs.handleAs](xhr);
+        }, function(error){
+            return error;
+        });
+        var ioArgs = dfd.ioArgs;
+        // Preserve the response surface used by Dojo handlers and RPC bookkeeping.
+        var xhr = ioArgs.xhr = {
+            readyState: 1, status: 0, statusText: '', responseText: '', responseXML: null,
+            getResponseHeader: function(name){
+                return responseHeaders ? responseHeaders.get(name) : null;
+            },
+            getAllResponseHeaders: function(){
+                var result = '';
+                if(responseHeaders){
+                    responseHeaders.forEach(function(value, name){
+                        result += name + ': ' + value + '\r\n';
+                    });
+                }
+                return result;
+            },
+            abort: function(){ dfd.cancel(); }
+        };
+        function fail(error){
+            if(finished){ return; }
+            if(!error.status){
+                xhr.readyState = 4;
+                xhr.status = 0;
+                xhr.statusText = '';
+                responseHeaders = null;
+            }
+            cleanup();
+            dfd.errback(error);
+        }
+        if(rawField){
+            if(rawField === 'postData' || args.putData){
+                ioArgs.query = args[rawField];
+            }
+            if(rawField === 'putData' && args.putData){
+                args.putData = null;
+            }
+        }else if(!hasBody){
+            dojo._ioAddQueryToUrl(ioArgs);
+        }
+        pending.add(dfd);
+        try{
+            var headers = new Headers(args.headers || {});
+            if(args.contentType || !headers.has('Content-Type')){
+                headers.set('Content-Type', args.contentType || 'application/x-www-form-urlencoded');
+            }
+            if(!headers.has('X-Requested-With')){
+                headers.set('X-Requested-With', 'XMLHttpRequest');
+            }
+            if(args.timeout){
+                dfd.startTime = Date.now();
+                timer = setTimeout(function(){
+                    if(finished){ return; }
+                    controller.abort();
+                    var error = new Error('timeout exceeded');
+                    error.dojoType = 'timeout';
+                    fail(error);
+                }, args.timeout);
+            }
+            window.fetch(ioArgs.url, {
+                method: method, headers: headers, body: hasBody ? ioArgs.query : null,
+                credentials: 'same-origin', signal: controller.signal
+            }).then(function(response){
+                if(finished){ return; }
+                xhr.status = response.status;
+                xhr.statusText = response.statusText;
+                xhr.readyState = 2;
+                responseHeaders = response.headers;
+                return response.text().then(function(text){
+                    if(finished){ return; }
+                    xhr.responseText = text;
+                    xhr.readyState = 4;
+                    if(/(?:\/|\+)xml(?:\s*;|$)/i.test(xhr.getResponseHeader('Content-Type') || 'text/xml')){
+                        var xml = new DOMParser().parseFromString(text, 'application/xml');
+                        var parseErrors = xml.getElementsByTagNameNS(
+                            'http://www.mozilla.org/newlayout/xml/parsererror.xml', 'parsererror').length ||
+                            xml.getElementsByTagNameNS('http://www.w3.org/1999/xhtml', 'parsererror').length;
+                        xhr.responseXML = parseErrors ? null : xml;
+                    }
+                    if(!dojo._isDocumentOk(xhr)){
+                        var error = new Error('Unable to load ' + ioArgs.url + ' status:' + xhr.status);
+                        error.status = xhr.status;
+                        error.responseText = text;
+                        fail(error);
+                        return;
+                    }
+                    cleanup();
+                    dfd.callback(dfd);
+                });
+            }).catch(fail);
+        }catch(error){
+            // Keep setup failures asynchronous, like other fetch failures.
+            Promise.resolve().then(function(){ fail(error); });
+        }
+        return dfd;
+    }
+
+    dojo.xhr = function(method, args, hasBody){
+        if(!supported(args) || (hasBody && (method === 'GET' || method === 'HEAD')) ||
+                ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD'].indexOf(method) < 0){
+            return original.xhr.apply(dojo, arguments);
+        }
+        return request(method, args, hasBody);
+    };
+    dojo.rawXhrPost = function(args){
+        return supported(args) ? request('POST', args, true, 'postData') :
+                                original.rawXhrPost.apply(dojo, arguments);
+    };
+    dojo.rawXhrPut = function(args){
+        return supported(args) ? request('PUT', args, true, 'putData') :
+                                original.rawXhrPut.apply(dojo, arguments);
+    };
+    dojo._ioCancelAll = function(){
+        Array.from(pending).forEach(function(dfd){ dfd.cancel(); });
+        return original.cancelAll.apply(dojo, arguments);
+    };
+    genropatches.dojoXhr.installed = true;
+};
+
 genropatches.places = function(){
     var placeOnScreenAroundElement = dijit.placeOnScreenAroundElement;
     dijit.placeOnScreenAroundElement = function(
