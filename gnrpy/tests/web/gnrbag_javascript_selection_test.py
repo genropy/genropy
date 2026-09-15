@@ -25,10 +25,9 @@ def test_legacy_bag_is_the_default(implementation):
     assert 'genro_bagjs_bundle' not in imports
 
 
-def test_genro_bag_js_bundle_and_adapter_precede_consumers():
-    imports = frontend('genro-bag-js').gnrjs_frontend()
-    assert imports[:3] == ['genro_bagjs_bundle', 'gnrbag_genro', 'gnrdomsource']
-    assert 'gnrbag' not in imports
+def test_removed_adapter_selection_fails_explicitly():
+    with pytest.raises(ValueError, match='Unsupported JavaScript Bag implementation: genro-bag-js'):
+        frontend('genro-bag-js').gnrjs_frontend()
 
 
 def test_unknown_bag_implementation_fails_explicitly():
@@ -37,7 +36,7 @@ def test_unknown_bag_implementation_fails_explicitly():
 
 
 
-def test_lightweight_mixin_is_separate_from_the_reserve_adapter():
+def test_lightweight_mixin_precedes_consumers():
     imports = frontend('genro-bag-js-mixin').gnrjs_frontend()
     assert imports[:3] == ['genro_bagjs_bundle', 'gnrbag_mixin', 'gnrdomsource']
     assert 'gnrbag_genro' not in imports

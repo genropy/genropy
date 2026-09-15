@@ -1,5 +1,7 @@
 # Adapter pruning
 
+> Historical audit of the removed reserve adapter. This document does not describe the active mixin or a supported runtime path.
+
 The adapter has been reduced from 1,993 to 1,839 lines in this pass. Passing integration tests is not proof that the remaining overrides are minimal.
 
 ## Removed implementations

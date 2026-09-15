@@ -1,5 +1,7 @@
 # GnrBagNode legacy compatibility audit
 
+> Historical audit of the removed reserve adapter. This document does not describe the active mixin or a supported runtime path.
+
 Baseline: `gnrjs/gnr_d11/js/gnrbag.js` on the integration branch. Selected
 implementation: `GenroBagJS.BagNode` plus `gnrbag_genro.js`. Evidence is in
 `gnrjs/tests/bagnode_legacy_audit.test.js`, the existing selected-mode tests,

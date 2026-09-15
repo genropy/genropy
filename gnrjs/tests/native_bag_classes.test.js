@@ -68,8 +68,8 @@ function loadClasses(filenames = ['gnrlang.js', 'gnrbag.js', 'gnrdomsource.js'],
     {filename: 'dojo/_base/Deferred.js'});
     const sourceDir = process.env.GNR_JS_SOURCE || path.join(__dirname, '../gnr_d11/js');
     for (const requested of filenames) {
-        const selected = requested === 'gnrbag.js' && process.env.GNR_JS_BAG === 'genro-bag-js'
-            ? ['genro_bagjs_bundle.js', 'gnrbag_genro.js'] : [requested];
+        const selected = requested === 'gnrbag.js' && process.env.GNR_JS_BAG === 'genro-bag-js-mixin'
+            ? ['genro_bagjs_bundle.js', 'gnrbag_mixin.js'] : [requested];
         for (const filename of selected) {
             vm.runInContext(readFileSync(path.join(sourceDir, filename), 'utf8'), context, {filename});
         }
@@ -101,7 +101,7 @@ test('Bag classes preserve identity, metadata, and enumerable prototype members'
     assert.equal(bag.declaredClass, 'gnr.GnrBag');
     assert.equal(Object.prototype.propertyIsEnumerable.call(gnr.GnrBag.prototype, '_nodeFactory'), true);
     assert.equal(Object.prototype.propertyIsEnumerable.call(gnr.GnrBagNode.prototype, 'getValue'), true);
-    if (process.env.GNR_JS_BAG === 'genro-bag-js') {
+    if (process.env.GNR_JS_BAG === 'genro-bag-js-mixin') {
         assert.ok(bag instanceof context.GenroBagJS.Bag);
         assert.ok(node instanceof context.GenroBagJS.BagNode);
         assert.equal(context.GenroBagJS.TYTX.getDecimalLibrary(), 'number');
@@ -123,7 +123,7 @@ test('DomSource construction runs base initialization with the specialized node 
     assert.equal(node.declaredClass, 'gnr.GnrDomSourceNode');
 });
 
-test('selected adapter reads legacy typed XML envelopes', {skip: process.env.GNR_JS_BAG !== 'genro-bag-js'}, () => {
+test('selected adapter reads legacy typed XML envelopes', {skip: process.env.GNR_JS_BAG !== 'genro-bag-js-mixin'}, () => {
     const context = loadClasses();
     const {gnr} = context;
     const recalls = [];
@@ -153,7 +153,7 @@ test('selected adapter reads legacy typed XML envelopes', {skip: process.env.GNR
 });
 
 test('selected XML keeps populated resolver branches loaded with resolved metadata',
-    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js'}, () => {
+    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js-mixin'}, () => {
         const context = loadClasses();
         const {gnr} = context;
         context.genro.rpc = {
@@ -177,7 +177,7 @@ test('selected XML keeps populated resolver branches loaded with resolved metada
     });
 
 test('selected XML reconstructs and synchronously loads scalar relation resolvers',
-    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js'}, () => {
+    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js-mixin'}, () => {
         const context = loadClasses();
         const {gnr} = context;
         let calls = 0;
@@ -203,7 +203,7 @@ test('selected XML reconstructs and synchronously loads scalar relation resolver
     });
 
 test('selected htraverse continues through a Deferred relation branch',
-    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js'}, () => {
+    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js-mixin'}, () => {
         const {gnr, dojo} = loadClasses();
         const deferred = new dojo.Deferred();
         const data = new gnr.GnrBag();
@@ -221,7 +221,7 @@ test('selected htraverse continues through a Deferred relation branch',
     });
 
 test('selected adapter loads RPC XML documents and preserves declared branch classes',
-    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js'}, () => {
+    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js-mixin'}, () => {
         const {gnr} = loadClasses();
         class SpecializedBag extends gnr.GnrDomSource {}
         const text = value => ({nodeType: 3, nodeValue: value});
@@ -273,7 +273,7 @@ test('Bag notifications retain their order and parent propagation', () => {
 });
 
 test('selected event envelopes drive the real source insertion consumer',
-    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js'}, () => {
+    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js-mixin'}, () => {
         const context = loadClasses(['gnrlang.js', 'gnrbag.js', 'gnrdomsource.js', 'genro_src.js']);
         const {gnr} = context;
         const handler = new gnr.GnrSrcHandler({});
@@ -304,7 +304,7 @@ test('selected event envelopes drive the real source insertion consumer',
     });
 
 test('selected DomSource clear follows legacy silent and per-node delete events',
-    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js'}, () => {
+    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js-mixin'}, () => {
         const {gnr} = loadClasses(['gnrlang.js', 'gnrbag.js', 'gnrdomsource.js', 'genro_src.js']);
         const handler = new gnr.GnrSrcHandler({});
         const deleted = [];
@@ -345,7 +345,7 @@ test('Resolver subclasses initialize the base state and preserve sync and Deferr
 });
 
 test('selected Bag concat moves component children without insertion events',
-    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js'}, () => {
+    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js-mixin'}, () => {
         const {gnr} = loadClasses();
         const content = new gnr.GnrDomSource();
         const children = new gnr.GnrDomSource();
@@ -365,7 +365,7 @@ test('selected Bag concat moves component children without insertion events',
     });
 
 test('selected resolver preserves static, cache, concurrency, node state and Dojo Deferred errors',
-    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js'}, async () => {
+    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js-mixin'}, async () => {
         const {gnr, dojo} = loadClasses();
         const bag = new gnr.GnrBag();
         bag.setBackRef();
@@ -436,7 +436,7 @@ test('RPC resolver subclasses retain BagResolver construction and inheritance', 
 });
 
 test('selected FramePane-style #id insertion generates unique child labels',
-    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js'}, () => {
+    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js-mixin'}, () => {
         const context = loadClasses();
         const {gnr} = context;
         let generatedId = 0;
@@ -462,7 +462,7 @@ test('selected FramePane-style #id insertion generates unique child labels',
     });
 
 test('selected DomSource nodes support component attribute detachment',
-    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js'}, () => {
+    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js-mixin'}, () => {
         const context = loadClasses();
         const {gnr} = context;
         context.genro.wdg = {getHandler() { return null; }};
@@ -497,7 +497,7 @@ test('ClientCaller retains BagResolver construction and callback behavior', () =
 });
 
 test('selected data Bags detach cleanly from the DOM source event tree',
-    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js'}, () => {
+    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js-mixin'}, () => {
         const {gnr} = loadClasses();
         const oldParent = new gnr.GnrBag();
         const data = new gnr.GnrBag();
@@ -519,7 +519,7 @@ test('selected data Bags detach cleanly from the DOM source event tree',
 });
 
 test('selected DOM source attribute lookup does not resolve preceding data nodes',
-    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js'}, () => {
+    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js-mixin'}, () => {
         const {gnr} = loadClasses();
         let loads = 0;
         const data = new gnr.GnrBag();
@@ -536,7 +536,7 @@ test('selected DOM source attribute lookup does not resolve preceding data nodes
 });
 
 test('selected menu full paths round-trip against the main data root',
-    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js'}, () => {
+    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js-mixin'}, () => {
         const {gnr} = loadClasses();
         const dataRoot = new gnr.GnrBag();
         const main = new gnr.GnrBag();
@@ -555,7 +555,7 @@ test('selected menu full paths round-trip against the main data root',
 });
 
 test('selected insert bubbling never reparents the inserted Bag to an ancestor',
-    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js'}, () => {
+    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js-mixin'}, () => {
         const {gnr} = loadClasses();
         const dataRoot = new gnr.GnrBag();
         const main = new gnr.GnrBag();
@@ -576,7 +576,7 @@ test('selected insert bubbling never reparents the inserted Bag to an ancestor',
 });
 
 test('selected getNode autocreate labels every insert for source-trigger suppression',
-    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js'}, () => {
+    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js-mixin'}, () => {
         const {gnr} = loadClasses();
         const bag = new gnr.GnrBag();
         const events = [];
@@ -589,7 +589,7 @@ test('selected getNode autocreate labels every insert for source-trigger suppres
     });
 
 test('selected adapter exposes legacy bagRealPath normalization',
-    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js'}, () => {
+    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js-mixin'}, () => {
         const {gnr} = loadClasses();
 
         assert.equal(gnr.bagRealPath('main.section.#parent.sibling'), 'main.sibling');
@@ -599,7 +599,7 @@ test('selected adapter exposes legacy bagRealPath normalization',
     });
 
 test('selected node container supports the component popSubTagItems pipeline',
-    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js'}, () => {
+    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js-mixin'}, () => {
         const {gnr} = loadClasses([
             'gnrlang.js', 'gnrbag.js', 'gnrdomsource.js', 'genro_components.js'
         ]);
@@ -619,7 +619,7 @@ test('selected node container supports the component popSubTagItems pipeline',
     });
 
 test('selected slotbar cleanup removes consecutive slot nodes while iterating',
-    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js'}, () => {
+    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js-mixin'}, () => {
         const {gnr} = loadClasses([
             'gnrlang.js', 'gnrbag.js', 'gnrdomsource.js', 'genro_components.js'
         ]);
@@ -636,7 +636,7 @@ test('selected slotbar cleanup removes consecutive slot nodes while iterating',
     });
 
 test('selected copy-on-pop keeps specialized source ancestry and freeze propagation',
-    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js'}, () => {
+    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js-mixin'}, () => {
         const {gnr} = loadClasses(['gnrlang.js', 'gnrbag.js', 'gnrdomsource.js', 'genro_src.js']);
         const handler = new gnr.GnrSrcHandler({});
         handler._trigger_ins = () => {};
@@ -657,7 +657,7 @@ test('selected copy-on-pop keeps specialized source ancestry and freeze propagat
     });
 
 test('selected slot wrapper adopts a source node without traversing its internals',
-    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js'}, () => {
+    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js-mixin'}, () => {
         const {gnr} = loadClasses();
         const source = new gnr.GnrDomSource();
         const slotNode = source.setItem('objTitle', 'title', {tag: 'div'});
@@ -674,7 +674,7 @@ test('selected slot wrapper adopts a source node without traversing its internal
     });
 
 test('selected node attributes replace by default and remove null only in star mode',
-    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js'}, () => {
+    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js-mixin'}, () => {
         const {gnr} = loadClasses();
         const node = new gnr.GnrBag().setItem('item', 1, {old: true, keepNull: null});
         assert.equal(Object.hasOwn(node.attr, 'keepNull'), true);
@@ -686,7 +686,7 @@ test('selected node attributes replace by default and remove null only in star m
     });
 
 test('selected getItem attribute suffix returns grid metadata instead of Bag rows',
-    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js'}, () => {
+    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js-mixin'}, () => {
         const {gnr} = loadClasses();
         const rows = new gnr.GnrBag();
         rows.setItem('P_0.name', 'First');
@@ -700,7 +700,7 @@ test('selected getItem attribute suffix returns grid metadata instead of Bag row
     });
 
 test('selected source ancestry resolves FORM alternatives and inheritance boundaries',
-    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js'}, () => {
+    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js-mixin'}, () => {
         const {gnr} = loadClasses();
         const source = new gnr.GnrDomSource();
         const formNode = source.setItem('form', new gnr.GnrDomSource(), {
@@ -723,7 +723,7 @@ test('selected source ancestry resolves FORM alternatives and inheritance bounda
     });
 
 test('selected query captions resolve through inner parent attribute paths',
-    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js'}, () => {
+    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js-mixin'}, () => {
         const {gnr} = loadClasses();
         const data = new gnr.GnrBag();
         data.setItem('query.where.c_0', null, {
@@ -739,7 +739,7 @@ test('selected query captions resolve through inner parent attribute paths',
     });
 
 test('selected getNode attribute paths preserve metadata during autocreate lookup',
-    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js'}, () => {
+    {skip: process.env.GNR_JS_BAG !== 'genro-bag-js-mixin'}, () => {
         const {gnr} = loadClasses();
         const data = new gnr.GnrBag();
         const queryMode = data.setItem('queryMode', 'S', {caption: 'Search'});

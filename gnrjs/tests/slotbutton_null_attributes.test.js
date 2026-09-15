@@ -5,7 +5,7 @@ const {loadClasses} = require('./bag_audit_harness.cjs');
 
 function setup() {
     const previous = process.env.GNR_JS_BAG;
-    process.env.GNR_JS_BAG = 'genro-bag-js';
+    process.env.GNR_JS_BAG = 'genro-bag-js-mixin';
     let context;
     try {
         context = loadClasses(['gnrlang.js', 'gnrbag.js', 'gnrdomsource.js', 'genro_components.js']);

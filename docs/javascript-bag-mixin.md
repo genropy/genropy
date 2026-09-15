@@ -1,8 +1,8 @@
 # Lightweight JavaScript Bag mixins
 
-The new path composes subclasses of the standalone classes. It does not load
-`gnrbag_genro.js`, copy its methods, or make inherited methods enumerable.
-The reserve adapter remains unchanged and independently selectable.
+The integration composes subclasses of the standalone classes and loads only
+`genro_bagjs_bundle.js` and `gnrbag_mixin.js`. The former reserve adapter has
+been removed. Inherited methods are not made enumerable.
 
 ```xml
 <experimental>
@@ -10,9 +10,8 @@ The reserve adapter remains unchanged and independently selectable.
 </experimental>
 ```
 
-Use `genro-bag-js` to select the reserve adapter, or `legacy` for the original
-Bag. The default remains legacy. No instance configuration is changed by this
-implementation.
+Use `legacy` for the original Bag. Missing configuration selects legacy.
+The removed `genro-bag-js` option is rejected explicitly.
 
 ## Boundaries retained
 
@@ -30,22 +29,30 @@ framework namespace and `declaredClass` identify the final subclasses without
 changing prototype enumerability. `_parentbag` and `_parentnode` are accessors
 for standalone references, not duplicate mutable state.
 
-## Acceptance limits
+## Validation scope
 
-The focused tests load the real language helpers, standalone bundle, new mixin
-and DOM source builder. They do not fall back to the reserve adapter. Python
-selection tests verify that each configuration loads the correct asset list.
-The reserve regression suite is tested separately and does not establish
-compatibility of the new mixin.
+Focused tests load the actual language helpers, bundle, mixin and DOM source
+builder. Selection tests verify the asset order and reject the retired option.
+The test harness selects this same mixin for standalone comparisons.
 
-This path has not passed a complete browser application trial. Legacy typed
-XML, remote resolver reconstruction, Deferred-specific resolver lifecycle,
-advanced path semantics and all existing caller return-shape expectations
-still require individual review. Truthy `setItem` options `_duplicate`,
-`lazySet`, and `fired` currently raise an explicit unsupported-option error.
-Do not enable this path for normal instance use yet.
+The active path has been exercised with XML and JSON/TYTX on the invoice test
+application, including menus, customer rows and record navigation. This is not
+full acceptance of every application workflow. Earlier differential audits
+contain legacy parity expectations that require review against the current
+standalone contract; removing an adapter must not erase those regressions.
 
 Each further bridge needs a concrete framework consumer and a behavior test.
-A defect in a standalone contract belongs in the library; it must not become
-an adapter workaround. Remaining differences must be reviewed before adding
-compatibility code.
+Standalone contract defects belong in the library.
+
+### Removal verification
+
+After removing the reserve adapter, the active mixin/transport suite passes
+40 tests and the frontend selection suite passes 5 tests. The full historical
+JS suite reports 117 passed, 62 failed and 26 skipped, both before and after
+cleanup, but the failing test identities differ because the comparison target
+is now the active mixin. These counts must not be presented as full parity.
+The explicitly selected DOM-source/form consumer suites improve from 9 passed
+and 62 failed against the retired adapter to 59 passed and 12 failed against
+the mixin. Outstanding failures include old enumerability assumptions and
+resolver/path/XML expectations; they need contract review, not automatic
+restoration of the removed implementation.

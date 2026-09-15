@@ -12,7 +12,7 @@ function run(mode, body) { return body(loadPair()[mode === 'legacy' ? 'legacy' :
 function differential(name, body) {
     test(name, () => {
         const legacy = run('legacy', body);
-        const selected = run('genro-bag-js', body);
+        const selected = run('genro-bag-js-mixin', body);
         assert.deepEqual(selected, legacy);
     });
 }
@@ -104,7 +104,7 @@ test('Getter intentionally repairs legacy undefined thisWhat for node/value/attr
         genro.getNode = () => ({});
         assert.throws(()=>new gnr.GnrBagGetter(null,'a').load(),/thisWhat/);
     });
-    run('genro-bag-js', ({gnr,genro}) => {
+    run('genro-bag-js-mixin', ({gnr,genro}) => {
         const bag = new gnr.GnrBag(); bag.setItem('a',3,{caption:'A'});
         const node = bag.getNode('a'); genro.getNode = () => node;
         assert.equal(new gnr.GnrBagGetter(null,'a').load(),node);

@@ -6,7 +6,7 @@ paths=subprocess.check_output(['rg','--files','gnrjs','resources','projects','-g
 uses={n:[] for n in sorted(names)}
 patt=re.compile(r'(?P<receiver>[\w.$]+|\))\s*(?:\.\s*(?P<dot>\w+)|\[\s*[\'"](?P<bracket>\w+)[\'"]\s*\])\s*\(')
 for p in paths:
- if '/tests/' in p or p.endswith(('/gnrbag.js','/gnrbag_genro.js','/gnrbag_mixin.js')):continue
+ if '/tests/' in p or p.endswith(('/gnrbag.js','/gnrbag_mixin.js')):continue
  for i,line in enumerate((root/p).read_text(errors='replace').splitlines(),1):
   if line.lstrip().startswith(('//','#')):continue
   for m in patt.finditer(line):

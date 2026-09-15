@@ -14,7 +14,7 @@ paths = subprocess.check_output(['rg', '--files', 'gnrjs', 'resources', 'project
                                  '-g', '*.js', '-g', '*.py', '-g', '!genro_bagjs_bundle.js'],
                                 cwd=root, text=True).splitlines()
 for relative in paths:
-    if relative.startswith('gnrjs/tests/') or relative.endswith(('/gnrbag.js', '/gnrbag_genro.js')):
+    if relative.startswith('gnrjs/tests/') or relative.endswith(('/gnrbag.js', '/gnrbag_mixin.js')):
         continue
     for number, line in enumerate((root / relative).read_text(errors='replace').splitlines(), 1):
         for match in pattern.finditer(line):

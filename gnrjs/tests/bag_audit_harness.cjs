@@ -66,8 +66,8 @@ function loadClasses(filenames = ['gnrlang.js', 'gnrbag.js', 'gnrdomsource.js'],
     {filename: 'dojo/_base/Deferred.js'});
     const sourceDir = process.env.GNR_JS_SOURCE || path.join(__dirname, '../gnr_d11/js');
     for (const requested of filenames) {
-        const selected = requested === 'gnrbag.js' && process.env.GNR_JS_BAG === 'genro-bag-js'
-            ? ['genro_bagjs_bundle.js', 'gnrbag_genro.js'] : [requested];
+        const selected = requested === 'gnrbag.js' && process.env.GNR_JS_BAG === 'genro-bag-js-mixin'
+            ? ['genro_bagjs_bundle.js', 'gnrbag_mixin.js'] : [requested];
         for (const filename of selected) {
             vm.runInContext(readFileSync(path.join(sourceDir, filename), 'utf8'), context, {filename});
         }
@@ -81,7 +81,7 @@ module.exports = {loadClasses};
 
 function loadPair() {
  const previous = process.env.GNR_JS_BAG;
- try { delete process.env.GNR_JS_BAG; const legacy = loadClasses(); process.env.GNR_JS_BAG = 'genro-bag-js'; return {legacy, selected: loadClasses()}; }
+ try { delete process.env.GNR_JS_BAG; const legacy = loadClasses(); process.env.GNR_JS_BAG = 'genro-bag-js-mixin'; return {legacy, selected: loadClasses()}; }
  finally { if (previous === undefined) delete process.env.GNR_JS_BAG; else process.env.GNR_JS_BAG = previous; }
 }
 module.exports.loadPair = loadPair;

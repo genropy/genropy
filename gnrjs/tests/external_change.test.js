@@ -29,8 +29,8 @@ function createForm() {
     };
     vm.createContext(context);
     const sourceDir = process.env.GNR_JS_SOURCE || path.join(__dirname, '../gnr_d11/js');
-    const bagFiles = process.env.GNR_JS_BAG === 'genro-bag-js'
-        ? ['genro_bagjs_bundle.js', 'gnrbag_genro.js']
+    const bagFiles = process.env.GNR_JS_BAG === 'genro-bag-js-mixin'
+        ? ['genro_bagjs_bundle.js', 'gnrbag_mixin.js']
         : ['gnrbag.js'];
     for (const filename of ['gnrlang.js', ...bagFiles, 'gnrdomsource.js', 'genro_frm.js']) {
         vm.runInContext(readFileSync(path.join(sourceDir, filename), 'utf8'), context, {filename});

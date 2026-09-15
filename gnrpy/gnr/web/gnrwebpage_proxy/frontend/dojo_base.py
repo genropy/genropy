@@ -19,8 +19,6 @@ class GnrBaseDojoFrontend(GnrBaseFrontend):
             return ['gnrbag']
         if implementation == 'genro-bag-js-mixin':
             return ['genro_bagjs_bundle', 'gnrbag_mixin']
-        if implementation == 'genro-bag-js':
-            return ['genro_bagjs_bundle', 'gnrbag_genro']
         raise ValueError("Unsupported JavaScript Bag implementation: %s" % implementation)
 
     def importer(self):
