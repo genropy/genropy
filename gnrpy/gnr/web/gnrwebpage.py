@@ -1346,8 +1346,8 @@ class GnrWebPage(GnrBaseWebPage):
         kwargs['servertime'] = datetime.datetime.now()
         kwargs['websockets_url'] = '/websocket' if self.wsk_enabled else None
         kwargs['websockets_endpoint'] = self.async_endpoint if self.wsk_enabled else None
-        kwargs['dojoXhrPatch'] = self.application.config.getItem(
-            'experimental-features?dojo-xhr-patch') or ''
+        kwargs['dojoXhrPatch'] = self.application.experimentalValue(
+            'page', 'dojo_xhr_patch') or ''
         self.getPwaIntegration(arg_dict)
         self.getSquareLogoUrl(arg_dict)
         self.getCoverLogoUrl(arg_dict)

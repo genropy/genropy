@@ -1,6 +1,6 @@
 # Experimental Dojo HTTP transport
 
-The `dojo-xhr-patch` experiment replaces supported asynchronous Dojo HTTP
+The `dojo_xhr_patch` experiment replaces supported asynchronous Dojo HTTP
 requests with native fetch. It applies to `dojo.xhr`, `xhrGet`, `xhrPost`,
 `xhrPut`, `xhrDelete`, `rawXhrPost` and `rawXhrPut`, including callers outside
 `genro.rpc`. Fetch completes the existing Dojo Deferred directly, bypassing
@@ -8,10 +8,13 @@ the legacy 50 ms completion polling interval.
 
 ## Configuration and rollback
 
-Add this child to the instance's `instanceconfig.xml`:
+Add this switch to the `<experimental>` tag of the instance's
+`instanceconfig.xml`:
 
 ```xml
-<experimental-features dojo-xhr-patch="fetch"/>
+<experimental>
+    <page dojo_xhr_patch="fetch"/>
+</experimental>
 ```
 
 Restart the instance to reload its configuration, then reload browser pages.
