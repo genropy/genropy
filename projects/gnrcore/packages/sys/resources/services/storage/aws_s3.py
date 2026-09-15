@@ -322,10 +322,10 @@ class Service(StorageService):
 
     def url(self, *args , **kwargs):
         kwargs = kwargs or {}
-        _content_disposition = kwargs.get('_content_disposition') or 'inline'
-        _download = kwargs.get('_download')
-        if _download:
-            kwargs['_content_disposition'] = "attachment; filename=%s" % self.basename(*args)
+        if kwargs.get('_download') or kwargs.get('download'):
+            _content_disposition = "attachment; filename=%s" % self.basename(*args)
+        else:
+            _content_disposition = kwargs.get('_content_disposition') or 'inline'
         internal_path = self.internal_path(*args)
         _content_type = mimetypes.guess_type(internal_path)[0]
         expiration = kwargs.pop('expiration', self.url_expiration)

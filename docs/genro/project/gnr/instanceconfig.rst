@@ -182,6 +182,12 @@ Tags
       Only ``fetch`` replaces the original XHR transport; see
       ``docs/development/dojo-xhr-patch.md``.
 
+    ``<storage>`` switches:
+
+    * ``use_genro_storage``: serve the mappable storage mounts through the
+      ``genro-storage`` package instead of the legacy services; see
+      ``docs/development/genro-storage-migration.md``.
+
     A missing tag or attribute reads as ``False`` for a boolean switch and as
     ``None`` for one carrying a value.
 

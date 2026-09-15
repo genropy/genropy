@@ -389,6 +389,10 @@ class StorageNode(object):
 
     def serve(self, environ, start_response, **kwargs):
         """Serves the file content"""
+        if kwargs.pop('_download', None):
+            # internal_url() marks a download with _download, which arrives here
+            # as a query kwarg; every service implementation reads 'download'.
+            kwargs['download'] = True
         return self.service.serve(self.path, environ, start_response, **kwargs)
 
     def local_path(self, mode=None, keep=False):
