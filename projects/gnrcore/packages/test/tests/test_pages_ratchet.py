@@ -1,6 +1,7 @@
-"""Unit tests for the ratchet mechanism both page suites assert through.
+"""Unit tests for the ratchet mechanism the page suites assert through, and for
+the frameCode collision walk one of them is built on.
 
-`assert_ratchet` is the only thing keeping either list honest, and the render
+`assert_ratchet` is the only thing keeping those lists honest, and the render
 sweep now leans on it alone: a page leaves the checked set by being written into
 `smoke_known_failures.txt` and nowhere else. A ratchet that failed in one
 direction only would let that list grow unnoticed, which is the whole property
@@ -12,7 +13,7 @@ local.
 """
 import pytest
 
-from pages_ratchet import assert_ratchet, page_url, read_ratchet
+from pages_ratchet import assert_ratchet, duplicate_framecodes, page_url, read_ratchet
 
 
 def write_ratchet(tmp_path, *lines):
@@ -68,6 +69,42 @@ class TestReadRatchet(object):
         """Only page paths are read; comments and blank lines are not entries"""
         ratchet_path = write_ratchet(tmp_path, 'test/webpages/html/div.py', '', '# another one')
         assert read_ratchet(ratchet_path) == {'test/webpages/html/div.py'}
+
+
+class TestDuplicateFramecodes(object):
+    """duplicate_framecodes reports a frameCode literal used more than once
+
+    Synthetic sources throughout, like the rest of this file: the walk takes a
+    source string, so a test never opens a page and deleting one never reds it.
+    Whether the real tree holds a collision is `test_pages_framecodes.py`'s
+    question, asked against `framecode_debt.txt` in both directions.
+    """
+
+    def test_two_frames_sharing_one_code(self):
+        """A code two frames share is reported; one used once is not"""
+        source = ("def build(pane):\n"
+                  "    pane.framePane(frameCode='frameStore', height='400px')\n"
+                  "    pane.framePane(frameCode='frameStore', height='400px')\n"
+                  "    pane.framePane(frameCode='frameAlone', height='100px')\n")
+        assert duplicate_framecodes(source) == ['frameStore']
+
+    def test_repeated_code_inside_comments(self):
+        """A literal repeated only in comments is not a collision
+
+        This is the direction a text search gets wrong: a commented-out call
+        builds no frame and raises nothing, so the walk must stay silent where
+        a grep over the same source would report three hits.
+        """
+        source = ("def build(pane):\n"
+                  "    #pane.framePane(frameCode='pippo', region='right')\n"
+                  "    #pane.framePane(frameCode='pippo', region='right')\n"
+                  "    #pane.framePane(frameCode='pippo', region='right')\n"
+                  "    pane.div('no frame is built here')\n")
+        assert duplicate_framecodes(source) == []
+
+    def test_source_building_no_frame(self):
+        """A page carrying no frameCode at all reports nothing"""
+        assert duplicate_framecodes("def build(pane):\n    pane.div('hello')\n") == []
 
 
 class TestPageUrl(object):
