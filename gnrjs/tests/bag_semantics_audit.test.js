@@ -92,9 +92,21 @@ test('update replaces content and reports only the effective change with its rea
         }
     }
 });
-parity('deepCopy preserves duplicate labels and independent nested Bags', `
- const b=new gnr.GnrBag(); b.addItem('a',new gnr.GnrBag({x:1})); b.addItem('a',2); const c=b.deepCopy(); c.getItem('#0').setItem('x',3); return [c.keys(), c.getItem('#0.x'), b.getItem('#0.x')];
-`);
+test('deepCopy preserves each implementation collision labels and independent nested Bags', () => {
+    const pair = loadPair();
+    for (const [name, context] of Object.entries(pair)) {
+        const result = JSON.parse(vm.runInContext(`JSON.stringify((()=>{
+            const b=new gnr.GnrBag(); b.addItem('a',new gnr.GnrBag({x:1})); b.addItem('a',2);
+            const c=b.deepCopy(); c.getItem('#0').setItem('x',3);
+            return [c.keys(), c.getItem('#0.x'), b.getItem('#0.x'), c.getItem('#1'),
+                c.getNode('#1').xmlTag || null];
+        })())`, context));
+        // The active mixin now uses Python's rename-on-collision contract.
+        assert.deepEqual(result, name === 'legacy'
+            ? [['a', 'a'], 3, 1, 2, null]
+            : [['a', 'a__dup_1'], 3, 1, 2, 'a']);
+    }
+});
 parity('walk and forEach pass kwargs and index and honor early return', `
  const b=new gnr.GnrBag(); b.setItem('a',new gnr.GnrBag({x:1})); b.setItem('b',2); let visited=[];
  const result=b.walk((n,kw,i)=>{visited.push([n.label,kw.token,i]);return n.label==='a'?'__continue__':n.label==='b'?'stop':null;},'static',{token:5});
@@ -110,24 +122,78 @@ parity('setAttr autocreates missing nodes and replaces existing attributes', `
 parity('isEqual compares identity rather than equal content', `
  const a=new gnr.GnrBag({x:1}), b=new gnr.GnrBag({x:1}); return [a.isEqual(b),a.isEqual(a),a.isEqual(null)];
 `);
-parity('getNode uses attribute lookup and missing tuple preserves destination', `
- const b=new gnr.GnrBag(); b.setItem('a',1,{id:'target'}); const missing=b.getNode('missing',true); return [b.getItem('#=target'), b.getNode('#=target').label, missing.obj===b, missing.node];
-`);
+test('getNode retains attribute lookup but removes tuple lookup in the mixin', () => {
+    for (const [kind, context] of Object.entries(loadPair())) {
+        const b = new context.gnr.GnrBag();
+        b.setItem('a', 1, {id: 'target'});
+        assert.equal(b.getItem('#id=target'), 1);
+        assert.equal(b.getNode('#id=target').label, 'a');
+        if (kind === 'legacy') {
+            const missing = b.getNode('missing', true);
+            assert.equal(missing.obj, b);
+            assert.equal(missing.node, null);
+        } else {
+            assert.throws(() => b.getNode('missing', true), /no longer supports asTuple/);
+            assert.equal(b.getNode('missing'), null);
+        }
+    }
+});
 parity('XML serialization retains GenRoBag wrapper and legacy dtype encoding', `
  const b=new gnr.GnrBag(); b.setItem('a',1,{flag:true}); b.setItem('child',new gnr.GnrBag({x:'hello'})); return b.toXml();
 `);
-parity('clearBackRef retains node ownership and clears child backrefs', `
- const b=new gnr.GnrBag(); b.setBackRef(); b.setItem('a',new gnr.GnrBag({x:1})); const child=b.getItem('a'); b.clearBackRef(); return [b.getBackRef(),b.getNode('a').getParentBag()===b, child.getBackRef(), child.getParentNode()];
-`);
-parity('getNodeByAttr prioritizes depth-first and preserves existence search', `
- const b=new gnr.GnrBag(); const child=new gnr.GnrBag(); child.setItem('deep',1,{match:'yes'}); b.setItem('branch',child); b.setItem('sibling',2,{match:'yes'}); return [b.getNodeByAttr('match','yes').label,b.getNodeByAttr('match').label];
-`);
+test('clearBackRef removes node backrefs in the new contract, unlike legacy JS', () => {
+    for (const [kind, context] of Object.entries(loadPair())) {
+        const b = new context.gnr.GnrBag();
+        b.setBackRef();
+        b.setItem('a', new context.gnr.GnrBag({x: 1}));
+        const branch = b.getNode('a');
+        const child = b.getItem('a');
+        const leaf = child.getNode('x');
+        b.clearBackRef();
+        assert.equal(b.getBackRef(), false);
+        assert.equal(child.getBackRef(), false);
+        assert.equal(child.getParentNode(), null);
+        assert.equal(branch.getParentBag(), kind === 'legacy' ? b : null);
+        assert.equal(leaf.getParentBag(), kind === 'legacy' ? child : null);
+        // Clearing upward links does not remove or replace the contained nodes.
+        assert.equal(b.getNode('a'), branch);
+        assert.equal(child.getNode('x'), leaf);
+        assert.equal(child.getItem('x'), 1);
+        b.setBackRef();
+        assert.equal(branch.getParentBag(), b);
+        assert.equal(leaf.getParentBag(), child);
+        assert.equal(child.getParentNode(), branch);
+    }
+});
+test('getNodeByAttr mixin retains legacy order and permits explicit level priority', () => {
+    const pair = loadPair();
+    for (const [kind, context] of Object.entries(pair)) {
+        const b = new context.gnr.GnrBag();
+        const child = new context.gnr.GnrBag();
+        child.setItem('deep', 1, {match: 'yes'});
+        b.setItem('branch', child);
+        b.setItem('sibling', 2, {match: 'yes'});
+        const expected = 'deep';
+        if (kind === 'selected') {
+            assert.equal(b.getNodeByAttr('match', 'yes', false, false).label, 'sibling');
+        }
+        assert.equal(b.getNodeByAttr('match', 'yes').label, expected);
+        assert.equal(b.getNodeByAttr('match').label, expected);
+        b.popNode('sibling');
+        assert.equal(b.getNodeByAttr('match', 'yes').label, 'deep');
+    }
+});
 parity('getNodeByValue traverses nested fields', `
  const b=new gnr.GnrBag(); b.setItem('a',new gnr.GnrBag({nested:{field:1}})); return b.getNodeByValue('nested.field',1).label;
 `);
-parity('getNodes exposes live container and applies filters', `
- const b=new gnr.GnrBag({a:1,b:2}); return [b.getNodes()===b._nodes, b.getNodes(n=>n.label==='b').map(n=>n.label)];
-`);
+test('getNodes intentionally snapshots structure and retains filtering', () => {
+    const {legacy, selected} = loadPair();
+    for (const context of [legacy, selected]) {
+        const bag = new context.gnr.GnrBag({a: 1, b: 2});
+        assert.equal(bag.getNodes() === bag._nodes, context === legacy);
+        assert.equal(bag.getNodes(n => n.label === 'b')[0], bag.getNode('b'));
+    }
+});
 test('root Bag uses null for its absent parent and preserves other absent accessors', () => {
     const {legacy, selected} = loadPair();
     for (const context of [legacy, selected]) {

@@ -165,62 +165,31 @@ assert type(obj.make_bag()) is NativeBag
     assert result.returncode == 0, result.stderr
 
 
-@pytest.mark.parametrize('operation', ['class', 'instance', 'clone', 'closure'])
-def test_native_mixin_rejects_historical_classes_before_mutation(tmp_path, operation):
+@pytest.mark.parametrize('public_mode', ['legacy', 'genro-bag'])
+def test_legacy_file_cannot_be_loaded_by_changing_public_mode(tmp_path, public_mode):
     config = tmp_path / 'instanceconfig.xml'
     config.write_text('<GenRoBag><experimental><bag implementation="genro-bag"/></experimental></GenRoBag>')
-    code = '''
+    code = """
 import importlib.util
 import sys
 from pathlib import Path
-import gnr.core
+import gnr, gnr.core
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrlang import classMixin, instanceMixin, cloneClass
-from gnr.core.nativebag import ActivationError
+from genro_bag import Bag as NativeBag
+gnr.BAG_MODE = sys.argv[1]
 path = Path(gnr.core.__file__).parent / 'gnrbag.py'
 spec = importlib.util.spec_from_file_location('historical_bag_probe', path)
 old = importlib.util.module_from_spec(spec)
-sys.modules[spec.name] = old
-# Simulate stale references created before native activation. The import
-# guard itself is tested separately without changing the selected mode.
-import gnr
-saved_mode = gnr.BAG_MODE
-gnr.BAG_MODE = 'legacy'
 try:
     spec.loader.exec_module(old)
-finally:
-    gnr.BAG_MODE = saved_mode
-OldBag = old.Bag
-class Target(Bag):
-    pass
-class Extension:
-    def imported_old_bag(self):
-        return OldBag()
-def closure_factory(cls):
-    def captured(self):
-        return cls()
-    return captured
-class Captured:
-    captured = closure_factory(OldBag)
-operation = sys.argv[1]
-try:
-    if operation == 'class':
-        classMixin(Target, Extension)
-    elif operation == 'instance':
-        obj = Target()
-        instanceMixin(obj, Extension)
-    elif operation == 'clone':
-        cloneClass('BadClone', OldBag)
-    else:
-        classMixin(Target, Captured)
-except ActivationError as exc:
-    assert 'Historical Bag' in str(exc)
+except ImportError as exc:
+    assert 'Historical gnrbag.py is disabled' in str(exc)
 else:
-    raise AssertionError('Historical binding accepted')
-assert 'imported_old_bag' not in Target.__dict__
-assert 'captured' not in Target.__dict__
-'''
-    result = _run(config, code, arguments=(operation,))
+    raise AssertionError('Legacy file executed')
+assert not any(name in vars(old) for name in ('Bag', 'BagNode', 'BagResolver'))
+assert Bag is NativeBag
+"""
+    result = _run(config, code, arguments=(public_mode,))
     assert result.returncode == 0, result.stderr
 
 
@@ -323,4 +292,109 @@ except ImportError as error:
 else:
     raise AssertionError('Missing implementation fell back silently')
 """)
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize('action', ['reload', 'reimport', 'reconfigure', 'reload_config', 'delete_export'])
+def test_native_import_selection_is_stable(tmp_path, action):
+    config = tmp_path / 'instanceconfig.xml'
+    config.write_text('<GenRoBag><experimental><bag implementation="genro-bag"/></experimental></GenRoBag>')
+    code = '''
+import importlib, os, sys
+from pathlib import Path
+import gnr
+import gnr.core.gnrbag as public
+from gnr.core.nativebag import activate, ActivationError
+from gnr._bag_mode import configure_bag_mode
+from genro_bag import Bag
+original = public
+original_classes = (public.Bag, public.BagNode, public.BagResolver)
+action = sys.argv[1]
+if action == 'reload':
+    public = importlib.reload(public)
+elif action == 'reimport':
+    del sys.modules['gnr.core.gnrbag']
+    del gnr.core.gnrbag
+    public = importlib.import_module('gnr.core.gnrbag')
+elif action in ('reconfigure', 'reload_config'):
+    Path(os.environ['GNR_INSTANCE_CONFIG']).write_text('<GenRoBag/>')
+    gnr.BAG_MODE = 'legacy'
+    if action == 'reload_config':
+        import gnr._bag_mode
+        importlib.reload(gnr._bag_mode)
+        importlib.reload(gnr)
+    assert configure_bag_mode() == 'genro-bag'
+    assert activate() is original
+else:
+    try:
+        del public.Bag
+    except ActivationError:
+        pass
+    else:
+        raise AssertionError('Export deletion accepted')
+assert public is original
+assert (public.Bag, public.BagNode, public.BagResolver) == original_classes
+assert public.Bag is Bag
+from gnr.core.gnrbag import Bag as Imported
+assert Imported is Bag
+'''
+    result = _run(config, code, arguments=(action,))
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize('load_bag_first', [False, True])
+def test_legacy_process_rejects_late_native_activation(tmp_path, load_bag_first):
+    config = tmp_path / 'instanceconfig.xml'
+    config.write_text('<GenRoBag/>')
+    code = '''
+import gnr, sys
+if sys.argv[1] == 'True':
+    from gnr.core.gnrbag import Bag
+from gnr.core.nativebag import activate, ActivationError
+gnr.BAG_MODE = 'genro-bag'
+try:
+    activate()
+except ActivationError as exc:
+    assert 'fixed at startup' in str(exc)
+else:
+    raise AssertionError('Late activation accepted')
+from gnr.core.gnrbag import Bag
+assert Bag.__module__ == 'gnr.core.gnrbag'
+'''
+    result = _run(config, code, arguments=(str(load_bag_first),))
+    assert result.returncode == 0, result.stderr
+
+
+def test_mixin_composition_does_not_rescan_existing_functions(tmp_path):
+    config = tmp_path / 'instanceconfig.xml'
+    config.write_text('<GenRoBag><experimental><bag implementation="genro-bag"/></experimental></GenRoBag>')
+    code = '''
+import sys
+from gnr.core.gnrbag import Bag
+from gnr.core.gnrlang import classMixin, instanceMixin, cloneClass, moduleClasses
+import gnr.core.gnrbag as public
+import gnr.core.nativebag as nativebag
+assert 'Bag' in moduleClasses(public)
+class Target:
+    pass
+calls = []
+def profile(frame, event, arg):
+    if event == 'call' and frame.f_code.co_filename == nativebag.__file__:
+        calls.append(frame.f_code.co_name)
+sys.setprofile(profile)
+try:
+    for i in range(100):
+        def method(self):
+            return Bag()
+        extension = type('Extension', (), {'make_' + str(i): method})
+        classMixin(Target, extension)
+    obj = cloneClass('Cloned', Target)()
+    instanceMixin(obj, extension)
+finally:
+    sys.setprofile(None)
+assert calls == [], calls
+assert isinstance(obj.make_0(), Bag)
+assert isinstance(obj.make_99(), Bag)
+'''
+    result = _run(config, code)
     assert result.returncode == 0, result.stderr

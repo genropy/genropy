@@ -11,6 +11,23 @@ from pathlib import Path
 import sys
 import xml.etree.ElementTree as ET
 
+# Reloading configuration code must not reopen process-wide selection.
+_selected_implementation = globals().get('_selected_implementation')
+
+
+def selected_bag_mode():
+    """Return the process selection, independently of the public gnr.BAG_MODE label."""
+    return _selected_implementation
+
+
+def assert_legacy_bag_allowed():
+    """Guard direct file loads as well as ordinary imports of the legacy module."""
+    if selected_bag_mode() != "legacy":
+        raise ImportError(
+            "Historical gnrbag.py is disabled in genro-bag mode; "
+            "import classes from the genro-bag gnr.core.gnrbag facade"
+        )
+
 
 def _config_path():
     explicit = os.environ.get("GNR_INSTANCE_CONFIG")
@@ -74,11 +91,15 @@ def bag_implementation(path):
 
 def configure_bag_mode():
     """Activate only when the resolved instance explicitly opts in."""
+    global _selected_implementation
+    if _selected_implementation is not None:
+        return _selected_implementation
     path = _config_path()
     implementation = bag_implementation(path)
     if path is not None:
         # Children and dedicated daemon workers resolve the same instance.
         os.environ["GNR_INSTANCE_CONFIG"] = str(path)
+    _selected_implementation = implementation
     if implementation == "genro-bag":
         from gnr.core.nativebag import activate
 

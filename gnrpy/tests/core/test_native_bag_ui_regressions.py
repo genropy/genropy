@@ -104,7 +104,8 @@ class CallbackResolver(BagResolver):
         return Bag(dict(record_id=self.record_id, page_bound=self._page is page))
 page = object.__new__(GnrWebPage)
 page.response = SimpleNamespace(content_type=None)
-page.site = SimpleNamespace(gnrapp=SimpleNamespace(catalog=GnrClassCatalog()))
+page.site = SimpleNamespace(gnrapp=SimpleNamespace(
+    catalog=GnrClassCatalog(), experimentalValue=lambda *args: None))
 page._frontend = SimpleNamespace(domSrcFactory=type('NeverDomSource', (), {}))
 page._closed = False
 page._subscribe_event = lambda *args: None

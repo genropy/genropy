@@ -15,6 +15,21 @@ import warnings
 from genro_bag import Bag, BagResolver
 
 
+def legacy_walk(self, callback, _mode='static', **kwargs):
+    """Bridge the legacy callback-only walk API to native for_each."""
+    warnings.warn('Bag.walk is deprecated; use for_each(..., deep=True)',
+                  DeprecationWarning, stacklevel=2)
+
+    def invoke(node, **context):
+        # Legacy tracking lists describe ancestors, excluding the current node.
+        for key in ('_pathlist', '_indexlist'):
+            if key in context:
+                context[key] = context[key][:-1]
+        return callback(node, **context)
+
+    return self.for_each(invoke, static='static' in (_mode or ''), deep=True, **kwargs)
+
+
 def install_resolver_serialization_bridge():
     """Honor legacy resolver overrides while callers migrate to serialize()."""
     if getattr(BagResolver.serialize, '__genropy_legacy_bridge__', False):

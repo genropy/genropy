@@ -2509,9 +2509,6 @@ dojo.declare("gnr.widgets.VirtualGrid", gnr.widgets.DojoGrid, {
         }
         var cell = this.layout.cells[sortInfo - 1];
         var sortedBy = cell.field + ':' + order;
-        if ((cell.dtype == 'A') || ( cell.dtype == 'T')) {
-            sortedBy = sortedBy + '*';
-        }
         var path = this.sourceNode.attrDatapath('sortedBy');
         genro._data.setItem(path, sortedBy);
 
@@ -3055,9 +3052,6 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
             sortedBy = cell.field + ':' + order;
         } else {
             sortedBy = '#a.' + cell.field + ':' + order;
-        }
-        if ((cell.dtype == 'A') || ( cell.dtype == 'T')) {
-            sortedBy = sortedBy + '*';
         }
         if (!this.sourceNode.attr.sortedBy) {
             this.setSortedBy(sortedBy);

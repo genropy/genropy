@@ -344,21 +344,11 @@ def args(*args, **kwargs):
     """TODO"""
     return (args, kwargs)
 
-def _validate_native_bag_mixin(*sources):
-    public = sys.modules.get('gnr.core.gnrbag')
-    native_mode = getattr(sys.modules.get('gnr'), 'BAG_MODE', None) == 'genro-bag'
-    if native_mode or (public is not None and getattr(public, '__native_genro_bag__', False)):
-        from gnr.core.nativebag import validate_mixin_bindings
-        for source in sources:
-            validate_mixin_bindings(source)
-
-
 def cloneClass(name, source_class):
     """TODO
 
     :param name: TODO
     :param source_class: TODO"""
-    _validate_native_bag_mixin(source_class)
     return type(name, source_class.__bases__, dict([(k, v) for k, v in list(source_class.__dict__.items())
                                                     if not k in ('__dict__', '__module__', '__weakref__', '__doc__')]))
 
@@ -370,7 +360,6 @@ def moduleClasses(m):
     if modulename == 'gnr.core.gnrbag' and getattr(m, '__native_genro_bag__', False):
         # The native facade intentionally re-exports classes without changing
         # their identity or __module__; wildcard mixins must still see them.
-        _validate_native_bag_mixin(m.Bag)
         return sorted(m.__native_genro_bag_exports__)
     return [x for x in dir(m) if (not x.startswith('__')) and  getattr(getattr(m, x), '__module__', None) == modulename]
 
@@ -425,7 +414,6 @@ def classMixin(target_class, source_class, methods=None, only_callables=True,
         return
     if source_class is None:
         return
-    _validate_native_bag_mixin(target_class, source_class)
     if hasattr(source_class, '__py_requires__'):
         py_requires_iterator = source_class.__py_requires__(target_class, **kwargs)
         for cls_address in py_requires_iterator:
@@ -490,7 +478,6 @@ def classMixin(target_class, source_class, methods=None, only_callables=True,
                 setattr(target_class, '%s_' % name, original)
     if hasattr(source_class, '__on_class_mixin__'):
         source_class.__on_class_mixin__(target_class, **kwargs)
-    _validate_native_bag_mixin(target_class)
 
 def base_visitor(cls):
     """TODO
@@ -571,7 +558,6 @@ def instanceMixin(obj, source, methods=None, attributes=None, only_callables=Tru
         return _mixined
     if source is None:
         return
-    _validate_native_bag_mixin(obj, source)
     source_dir = dir(source)
     proxies = {k:getattr(source, k) for k in source_dir if k.endswith('_proxyclass')}
     blacklist = dir(type) + \
@@ -630,7 +616,6 @@ def instanceMixin(obj, source, methods=None, attributes=None, only_callables=Tru
                 setattr(obj, attribute, getattr(source, attribute))
     if hasattr(source, '__onmixin__'):
         source.__onmixin__.__func__(obj, _mixinsource=source, **kwargs)
-    _validate_native_bag_mixin(obj)
     return _mixined
 
 def safeStr(self, o):

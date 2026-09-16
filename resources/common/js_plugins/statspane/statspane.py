@@ -327,7 +327,7 @@ class StatsPane(BaseComponent):
                                                         action="""
                                                             if(selectedDataframe){
                                                                 dfindex.popNode(selectedDataframe);
-                                                                commands.getNodes().reverse().forEach(function(n){
+                                                                commands.getNodes().slice().reverse().forEach(function(n){
                                                                     if(n.getValue().getItem('dfname')==selectedDataframe){
                                                                         commands.popNode(n.label);
                                                                     }

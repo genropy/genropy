@@ -8,6 +8,8 @@ their modules are first created.
 from __future__ import annotations
 
 import sys
+from importlib.abc import Loader, MetaPathFinder
+from importlib.util import spec_from_loader
 from types import ModuleType
 
 _PUBLIC_MODULE = "gnr.core.gnrbag"
@@ -15,6 +17,42 @@ _PUBLIC_MODULE = "gnr.core.gnrbag"
 
 class ActivationError(RuntimeError):
     """Raised when process-local activation cannot preserve class identity."""
+
+
+class _NativeBagModule(ModuleType):
+    """Prevent ordinary assignments from replacing the selected public classes."""
+
+    def __setattr__(self, name, value):
+        if name in self.__dict__.get('__native_genro_bag_exports__', ()):
+            if self.__dict__.get(name) is not value:
+                raise ActivationError(f'genro-bag {name} export was replaced after activation')
+        if name == '__native_genro_bag_exports__' and name in self.__dict__:
+            raise ActivationError('genro-bag exports are fixed for this process')
+        super().__setattr__(name, value)
+
+    def __delattr__(self, name):
+        if name in self.__dict__.get('__native_genro_bag_exports__', ()) or name == '__native_genro_bag_exports__':
+            raise ActivationError(f'genro-bag {name} export cannot be deleted after activation')
+        super().__delattr__(name)
+
+
+class _NativeBagImporter(MetaPathFinder, Loader):
+    """Keep reload and cache-miss imports on the same process-local facade."""
+
+    def __init__(self, module):
+        self.module = module
+
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == _PUBLIC_MODULE:
+            return spec_from_loader(fullname, self, origin=__file__)
+        return None
+
+    def create_module(self, spec):
+        return self.module
+
+    def exec_module(self, module):
+        if module is not self.module:
+            raise ActivationError('Cannot replace the process-local Bag facade')
 
 
 class BagAsXml:
@@ -26,6 +64,10 @@ class BagAsXml:
 
 def activate() -> ModuleType:
     """Activate native Bag exports before any GenroPy consumer import."""
+    from gnr._bag_mode import selected_bag_mode
+
+    if selected_bag_mode() != 'genro-bag':
+        raise ActivationError('Bag implementation is fixed at startup; restart with genro-bag enabled')
     existing = sys.modules.get(_PUBLIC_MODULE)
     if existing is not None:
         if getattr(existing, "__native_genro_bag__", False):
@@ -39,15 +81,13 @@ def activate() -> ModuleType:
     from genro_bag.resolver import BagCbResolver
     from genro_bag.resolvers import DirectoryResolver
     from gnr.core.nativebag_helpers import (NetBag, TraceBackResolver, to_genropy_js,
-                                            install_resolver_serialization_bridge)
+                                            install_resolver_serialization_bridge, legacy_walk)
 
     # GenroPy owns this compatibility surface while retaining the native Bag
     # class identity required by consumers and the TYTX registry.
     Bag.to_genropy_js = to_genropy_js
+    Bag.walk = legacy_walk
     install_resolver_serialization_bridge()
-
-    class BagValidationError(BagException):
-        pass
 
     class BagDeprecatedCall(BagException):
         def __init__(self, errcode, message):
@@ -55,12 +95,11 @@ def activate() -> ModuleType:
             self.message = message
 
     BagAsXml.__module__ = _PUBLIC_MODULE
-    BagValidationError.__module__ = _PUBLIC_MODULE
     BagDeprecatedCall.__module__ = _PUBLIC_MODULE
     TraceBackResolver.__module__ = _PUBLIC_MODULE
     NetBag.__module__ = _PUBLIC_MODULE
 
-    public = ModuleType(_PUBLIC_MODULE)
+    public = _NativeBagModule(_PUBLIC_MODULE)
     public.__file__ = __file__
     public.__package__ = "gnr.core"
     public.__doc__ = __doc__
@@ -72,7 +111,6 @@ def activate() -> ModuleType:
     public.BagAsXml = BagAsXml
     public.BagCbResolver = BagCbResolver
     public.DirectoryResolver = DirectoryResolver
-    public.BagValidationError = BagValidationError
     public.BagDeprecatedCall = BagDeprecatedCall
     public.TraceBackResolver = TraceBackResolver
     public.NetBag = NetBag
@@ -86,91 +124,17 @@ def activate() -> ModuleType:
         "BagAsXml",
         "BagCbResolver",
         "DirectoryResolver",
-        "BagValidationError",
         "BagDeprecatedCall",
         "TraceBackResolver",
         "NetBag",
     )
 
+    importer = _NativeBagImporter(public)
+    public.__spec__ = importer.find_spec(_PUBLIC_MODULE)
+    public.__loader__ = importer
+    sys.meta_path.insert(0, importer)
     sys.modules[_PUBLIC_MODULE] = public
     import gnr.core as core_package
 
     core_package.gnrbag = public
     return public
-
-
-def validate_mixin_bindings(source):
-    """Reject historical Bag classes carried into an opted-in native mixin.
-
-    Checks class ancestry and class references used by copied functions,
-    including closures and wrapped functions. It does not prohibit application
-    overrides or attempt to certify arbitrary dynamically computed imports.
-    """
-    from types import FunctionType, MethodType
-
-    from genro_bag import Bag, BagNode, BagResolver
-
-    native_types = (Bag, BagNode, BagResolver)
-    public = sys.modules.get(_PUBLIC_MODULE)
-    for cls in native_types:
-        if public is None or getattr(public, cls.__name__, None) is not cls:
-            raise ActivationError(f'genro-bag {cls.__name__} export was replaced after activation')
-    seen = set()
-
-    def check_class(cls):
-        for base in cls.__mro__:
-            if base in native_types or base.__name__ not in {'Bag', 'BagNode', 'BagResolver'}:
-                continue
-            initializer = base.__dict__.get('__init__')
-            code = getattr(initializer, '__code__', None)
-            if code and code.co_filename.replace('\\', '/').endswith('/gnrbag.py'):
-                raise ActivationError(
-                    f'Historical {base.__name__} from {code.co_filename} reached a genro-bag mixin'
-                )
-
-    def check(value):
-        if id(value) in seen:
-            return
-        seen.add(id(value))
-        if isinstance(value, type):
-            check_class(value)
-            # Inspect methods without invoking dynamic __getattr__ or properties.
-            for base in value.__mro__:
-                if base is object:
-                    continue
-                for member in vars(base).values():
-                    if isinstance(member, (FunctionType, MethodType, staticmethod, classmethod)):
-                        check(member)
-                    elif isinstance(member, property):
-                        check(member.fget)
-                        check(member.fset)
-        elif isinstance(value, (staticmethod, classmethod, MethodType)):
-            check(value.__func__)
-        elif isinstance(value, FunctionType):
-            for name in value.__code__.co_names:
-                bound = value.__globals__.get(name)
-                if isinstance(bound, type):
-                    check_class(bound)
-                elif isinstance(bound, ModuleType):
-                    for classname in ('Bag', 'BagNode', 'BagResolver'):
-                        cls = vars(bound).get(classname)
-                        if isinstance(cls, type):
-                            check_class(cls)
-            for cell in value.__closure__ or ():
-                try:
-                    bound = cell.cell_contents
-                except ValueError:
-                    continue
-                if isinstance(bound, type):
-                    check_class(bound)
-                elif isinstance(bound, FunctionType):
-                    check(bound)
-            check(getattr(value, '__wrapped__', None))
-
-    if isinstance(source, type):
-        check(source)
-    else:
-        check(type(source))
-        for value in getattr(source, '__dict__', {}).values():
-            if isinstance(value, (FunctionType, MethodType)):
-                check(value)

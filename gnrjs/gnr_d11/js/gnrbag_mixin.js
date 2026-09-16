@@ -31,9 +31,9 @@ if (typeof gnr === 'undefined') var gnr = {};
     const staticMode = mode => mode === true || mode === 'static';
 
     gnr.GenropyNodeMixin = Base => class extends Base {
-        constructor(parent, label, value, attributes, resolver) {
+        constructor(parent, label, value, attributes, resolver, nodeTag, xmlTag) {
             super(parent, label === '#id' ? genro.time36Id() : label,
-                resolver ? null : value, attributes, resolver);
+                resolver ? null : value, attributes, resolver, nodeTag, xmlTag);
             this._id = ++nextNodeId;
             this.locked = false;
             this._status = 'loaded';
@@ -77,18 +77,43 @@ if (typeof gnr === 'undefined') var gnr = {};
         }
         return (!isNullOrBlank(v) || !kw.omitEmpty)?((this.attr._valuelabel || this.attr.name_long || stringCapitalize(this.label)) +': ' +_F(v,null,this.attr.dtype)):''; 
     }
+        getValue2() { return this.getValue('static'); }
         getValue(mode, options, kwargs) {
-            const isStatic = staticMode(mode);
-            if (typeof mode === 'string' && mode.includes('reload') && this.resolver) this.resolver.reset();
-            const tracksLoad = this.resolver && !isStatic;
-            if (tracksLoad) this._status = 'resolving';
-            const complete = value => { if (tracksLoad) this._status = 'loaded'; return value; };
-            const failed = error => { if (tracksLoad) this._status = 'unloaded'; throw error; };
-            try {
-                const result = typeof mode === 'boolean' ? super.getValue(mode, options, kwargs) :
-                    super.getValue(isStatic, null, options || {});
-                return result && typeof result.then === 'function' ? result.then(complete, failed) : complete(result);
-            } catch (error) { return failed(error); }
+            // Extended native attribute queries retain their own parsing path.
+            if (typeof mode === 'boolean' && options != null) {
+                return super.getValue(mode, options, kwargs);
+            }
+            const legacyMode = typeof mode === 'boolean' ? (mode ? 'static' : '') : (mode || '');
+            const resolver = this.resolver;
+            if (!resolver || legacyMode.includes('static') || this._status === 'loading') {
+                return this.staticValue;
+            }
+            const parameters = typeof mode === 'boolean' ? kwargs : options;
+            // Standalone resolver instances retain the standalone resolution
+            // policy. The Dojo queue belongs only to legacy resolver bridges.
+            if (!(resolver instanceof gnr.GnrBagResolver)) {
+                return super.getValue(false, null, parameters || {});
+            }
+            if (resolver.isGetter || resolver.readOnly) return resolver.resolve(parameters, this);
+            if (this._status === 'resolving') return resolver.meToo(() => this.getValue2());
+            if (this._status === 'loaded' && !resolver.expired && !legacyMode.includes('reload')) {
+                return this.staticValue;
+            }
+            this._status = 'resolving';
+            const result = resolver.resolve(parameters, this);
+            const finalize = value => {
+                this._status = 'loading';
+                this.setValue(value, legacyMode === 'notrigger' ? false : 'resolver');
+                this._status = 'loaded';
+                if (resolver._pendingDeferred.length) {
+                    const pending = resolver._pendingDeferred;
+                    resolver._pendingDeferred = [];
+                    setTimeout(() => resolver.runPendingDeferred(pending), 1);
+                }
+                if (resolver.onloaded) resolver.onloaded.call(this);
+                return this.staticValue;
+            };
+            return result instanceof dojo.Deferred ? result.addCallback(finalize) : finalize(result);
         }
         setValue(value, trigger, attributes, merge, fired) {
             if (arguments.length > 5) return super.setValue(...arguments);
@@ -104,12 +129,37 @@ if (typeof gnr === 'undefined') var gnr = {};
         setAttribute(name, value, trigger) { this.setAttr({[name]: value}, trigger, true); }
         updAttributes(attributes, trigger) { this.setAttr(attributes, trigger, true, false); }
         replaceAttr(attributes) { this.setAttr(attributes, true, false, false); }
+        _toXmlBlock(kwargs) {
+            // Legacy XML carries the cached value, without invoking resolvers.
+            const value = this.resolver ? this.getValue(true) : this.getValue();
+            const tag = this.xmlTag || this.label;
+            return value instanceof api.Bag
+                ? xml_buildTag(tag, (value.toXmlBlock || gnr.GnrBag.prototype.toXmlBlock).call(value, kwargs),
+                    objectUpdate({_T: 'bag'}, this.attr), true)
+                : xml_buildTag(tag, value, this.attr);
+        }
         getFullpath(mode, root) {
-            if (!this.parentBag || this.parentBag === root) return this.label;
-            const index = this.parentBag.getNodes().indexOf(this);
-            const label = mode === '##' ? '#' + index : mode === '#' ? String(index) :
-                this.parentBag.getNode(this.label) === this ? this.label : '#' + index;
-            const parentPath = this.parentBag.getFullpath(mode, root);
+            const parent = this.parentBag;
+            if (!parent) return null;
+            if (root === true) root = parent.root.getItem('#0');
+            const numeric = mode === '#' || mode === '##';
+            if (!numeric) {
+                const boundary = root instanceof api.Bag ? root : parent.root;
+                // Native relativePath uses labels. Verify they identify these
+                // nodes before delegating, including previously imported duplicates.
+                let current = this;
+                while (current && current.parentBag &&
+                        current.parentBag.getNode(current.label) === current) {
+                    if (current.parentBag === boundary) return boundary.relativePath(this);
+                    current = current.parentNode;
+                }
+            }
+            let label = this.label;
+            if (numeric || parent.getNode(label) !== this) {
+                const index = parent.getNodes().indexOf(this);
+                label = mode === '#' ? String(index) : '#' + index;
+            }
+            const parentPath = parent === root ? '' : parent.getFullpath(mode, root);
             return parentPath ? parentPath + '.' + label : label;
         }
         isChildOf(ancestor) {
@@ -279,6 +329,59 @@ if (typeof gnr === 'undefined') var gnr = {};
     }    };
 
     gnr.GenropyBagMixin = Base => class extends Base {
+        rowchild(tag, kw) {
+            if (!Object.hasOwn(this.constructor, '_rowchildWarningShown')) {
+                console.warn('Bag.rowchild is deprecated; use setItem with explicit label and attributes.');
+                this.constructor._rowchildWarningShown = true;
+            }
+            const label = tag.startsWith('#') ? kw[tag.slice(1)] : tag + '_' + genro.time36Id();
+            genro.assert(label, 'Missing label in this node');
+            this.setItem(label, null, kw);
+        }
+        fillFrom(source) {
+            if (!Object.hasOwn(this.constructor, '_fillFromWarningShown')) {
+                console.warn('Bag.fillFrom is deprecated; decode the source and use replace(Bag).');
+                this.constructor._fillFromWarningShown = true;
+            }
+            if (source == null) return this;
+            const prepared = this.createChildBag();
+            if (source instanceof api.Bag) return this.replace(source);
+            if (Array.isArray(source)) {
+                if (Array.isArray(source[0])) {
+                    for (const row of source) prepared.setItem(row[0], row[1], row[2]);
+                } else if (source.length && typeof source[0] === 'object') {
+                    source.forEach((row, i) => prepared.setItem('r_' + i,
+                        new gnr.GnrBag(row), {_autolist: true}));
+                }
+            } else if (typeof source === 'string') {
+                prepared.fromXmlDoc(new DOMParser().parseFromString(source, 'text/xml'), genro.clsdict);
+            } else {
+                prepared._loadSource(source);
+            }
+            return this.replace(prepared);
+        }
+        walk(callback, mode, kw, notRecursive) {
+            if (!this.constructor._walkDeprecationShown) {
+                console.warn('Bag.walk is deprecated; use forEach(callback, {deep: true}).');
+                this.constructor._walkDeprecationShown = true;
+            }
+            const isStatic = typeof mode === 'boolean' ? mode : !!(mode && mode.indexOf('static') >= 0);
+            let lastResult;
+            const stopped = api.Bag.prototype.forEach.call(this, (node, ignored, index) => {
+                lastResult = callback(node, kw, index);
+                if (lastResult === '__continue__') return false;
+                // Wrap falsey results so the native visitor can propagate a stop.
+                return lastResult == null ? null : {value: lastResult};
+            }, {static: isStatic, deep: !notRecursive});
+            return stopped ? stopped.value : lastResult;
+        }
+        forEach(callback, options, kw) {
+            if (options && typeof options === 'object') {
+                return api.Bag.prototype.forEach.call(this, callback, options);
+            }
+            // Legacy forEach always visits only direct nodes, in static mode.
+            this.walk(callback, 'static', kw, true);
+        }
         asObj(formatAttributes) {
             const result = {};
             for (const node of this) result[node.label] = node.resolver ? '**' : node.getValue();
@@ -293,7 +396,7 @@ if (typeof gnr === 'undefined') var gnr = {};
             }
         }
         findNodeById(id) {
-            return this.walk(node => node._id == id ? node : undefined, true) || undefined;
+            return api.Bag.prototype.forEach.call(this, node => node._id == id ? node : undefined, {deep: true}) || undefined;
         }
         getIndex() {
             const result = [], visited = new Set([this]);
@@ -310,6 +413,10 @@ if (typeof gnr === 'undefined') var gnr = {};
             };
             visit(this, []);
             return result;
+        }
+        getIndexList(asText = false) {
+            const paths = this.getIndex().map(([parts]) => parts.join('.'));
+            return asText ? paths.join('\n') : paths;
         }
         get_modified() { return this._modified; }
         moveNode(from, to, trigger = true) {
@@ -336,6 +443,16 @@ if (typeof gnr === 'undefined') var gnr = {};
             const parsed = typeof source === 'string' ? api.Bag.fromXml(source) :
                 api.Bag._xmlElementToBag(source.nodeType === 9 ? source.documentElement : source);
             return this._importWireBag(parsed, clsdict, true);
+        }
+        toXml(kwargs = {}) {
+            kwargs = kwargs || {};
+            const encoding = kwargs.encoding || 'utf-8';
+            return '<?xml version="1.0" encoding="' + encoding + '"?>\n' +
+                xml_buildTag('GenRoBag', this.toXmlBlock(kwargs), null, true);
+        }
+        toXmlBlock(kwargs) {
+            return this.getNodes().map(node =>
+                (node._toXmlBlock || gnr.GnrBagNode.prototype._toXmlBlock).call(node, kwargs)).join('\n');
         }
         fromTytxDoc(source, clsdict = {}) {
             return this._importWireBag(api.Bag.fromTytx(source, 'json'), clsdict, false);
@@ -414,7 +531,9 @@ if (typeof gnr === 'undefined') var gnr = {};
                     } else if (resolverName) {
                         resolver = genro.getRelationResolver(attributes, resolverName, target);
                     }
-                    const inserted = target.addItem(node.label, resolver && !(value instanceof api.Bag) ? resolver : value, attributes);
+                    const inserted = target.addItem(node.label,
+                        resolver && !(value instanceof api.Bag) ? resolver : value, attributes,
+                        {nodeTag: node.nodeTag, xmlTag: node.xmlTag});
                     if (resolver && value instanceof api.Bag) {
                         inserted.setResolver(resolver);
                         inserted._status = 'loaded';
@@ -459,9 +578,11 @@ if (typeof gnr === 'undefined') var gnr = {};
             const result = super.getItem(path, fallback, staticMode(mode), options);
             return result;
         }
-        getNode(path, asTuple, autocreate, fallback) {
-            const node = super.getNode(path, true, autocreate, fallback);
-            return asTuple ? {obj: node && node.parentBag, node} : node;
+        getNode(path, reserved, autocreate, fallback) {
+            if (reserved === true) {
+                throw new TypeError('getNode no longer supports asTuple; use getNode(path) for the node');
+            }
+            return super.getNode(path, true, autocreate, fallback);
         }
         setItem(path, value, attributes, options = {}) {
             if (arguments.length > 4 || (options != null && typeof options !== 'object')) {
@@ -478,14 +599,27 @@ if (typeof gnr === 'undefined') var gnr = {};
             }
             return super.setItem(path, value, attributes, options._position,
                 options._updattr, false, options.doTrigger, false,
-                options.doTrigger !== false);
+                options.doTrigger !== false, null, options.nodeTag);
         }
         addItem(path, value, attributes, options = {}) {
-            const [bag, label] = this._htraverse(path, true);
-            const node = new bag.nodeClass(bag, label, value, attributes);
+            const policy = options.duplicate_policy ?? 'rename_warn';
+            if (policy !== 'rename_warn' && policy !== 'error') {
+                throw new RangeError("duplicate_policy must be 'rename_warn' or 'error'");
+            }
+            const [bag, requestedLabel] = this._htraverse(path, true);
+            let label = requestedLabel;
+            if (Object.hasOwn(bag._nodes._dict, label)) {
+                if (policy === 'error') throw new Error('Bag label already exists: ' + label);
+                let suffix = 1;
+                while (Object.hasOwn(bag._nodes._dict, requestedLabel + '__dup_' + suffix)) suffix++;
+                label = requestedLabel + '__dup_' + suffix;
+                console.warn('GenroJS Bag: addItem renamed duplicate ' + requestedLabel +
+                    ' to ' + label + ' (deprecated).');
+            }
+            const node = new bag.nodeClass(bag, label, value, attributes, null,
+                options.nodeTag, options.xmlTag ?? (label !== requestedLabel ? requestedLabel : null));
             const index = bag._nodes._parsePosition(options._position);
             spliceNodes(bag, index, 0, node);
-            // Legacy label lookup selects the first duplicate in display order.
             if (bag.backref && options.doTrigger !== false) {
                 bag._onNodeInserted(node, index, null, options.doTrigger);
             }
@@ -519,7 +653,32 @@ if (typeof gnr === 'undefined') var gnr = {};
         }
         delItem(path, trigger) { return this.pop(path, trigger); }
         clear(trigger = false) {
-            for (let i = this.length - 1; i >= 0; i--) this._pop('#' + i, trigger);
+            const container = this._nodes;
+            const nodes = this.getNodes();
+            const notify = trigger && this.backref;
+            // Empty storage without detaching: subscribers still need the origin.
+            // Container.clear() detaches in 0.5.1 but leaves that to Bag in 0.5.2.
+            container._list.length = 0;
+            for (const label of Object.keys(container._dict)) delete container._dict[label];
+            const detach = node => {
+                // A subscriber may have reinserted or moved the node.
+                if (node.parentBag === this && this._nodes._dict[node.label] !== node) {
+                    node.parentBag = null;
+                }
+            };
+            try {
+                for (let i = nodes.length - 1; i >= 0; i--) {
+                    const node = nodes[i];
+                    try {
+                        if (notify) this._onNodeDeleted(node, i, [node.label], null);
+                    } finally {
+                        detach(node);
+                    }
+                }
+            } finally {
+                // Also release unnotified nodes if a subscriber throws.
+                for (const node of nodes) detach(node);
+            }
         }
         fireItem(path, value = true, attributes, reason = true) {
             value = value == null ? true : value;
@@ -528,10 +687,129 @@ if (typeof gnr === 'undefined') var gnr = {};
             else node = this.setItem(path, value, attributes, {doTrigger: reason});
             node.setValue(null, false);
         }
+        // Framework equality identifies the Bag location, not equal contents.
+        isEqual(otherbag) {
+            if (!otherbag) return false;
+            if (this === otherbag) return true;
+            if (this._parentnode && otherbag._parentnode) {
+                return this._parentnode._id == otherbag._parentnode._id;
+            }
+            return false;
+        }
         deepCopy(resolve) { return this.deepcopy(Boolean(resolve)); }
+        getNodeByAttr(attr, value, caseInsensitive = false, deep_first = true) {
+            return super.getNodeByAttr(attr, value, caseInsensitive, deep_first);
+        }
+        asDict(recursive = false, excludeNullValues = false) {
+            const convert = bag => {
+                const nodes = bag.getNodes();
+                const result = nodes.some(node => node.attr._autolist) ? [] : {};
+                const put = (key, value) => Object.defineProperty(result, key, {
+                    value, enumerable: true, writable: true, configurable: true
+                });
+                for (const node of nodes) {
+                    let value = node.getValue();
+                    const isBag = value instanceof api.Bag;
+                    if (excludeNullValues && (value === null || isBag && value.len() === 0)) continue;
+                    if (recursive && isBag) {
+                        value = convert(value);
+                        if (recursive === 'flat') {
+                            for (const key of Object.keys(value)) put(key, value[key]);
+                            continue;
+                        }
+                    }
+                    if (Array.isArray(result)) result.push(value);
+                    else if (typeof value !== 'string' || !value.endsWith('::JS')) put(node.label, value);
+                }
+                return result;
+            };
+            return convert(this);
+        }
+        digest(what = null, condition = null, asColumns = false) {
+            const columns = typeof condition === 'boolean' ? condition : asColumns;
+            const result = super.digest(what, condition, asColumns);
+            const singleField = Array.isArray(what) ? what.length === 1 :
+                typeof what === 'string' && what.trim() !== '' && what.split(',').length === 1;
+            if (!columns && singleField) {
+                console.warn('GenroJS Bag.digest: single-field row wrapping is deprecated; use query(what, condition) for a flat result.');
+                return result.map(value => [value]);
+            }
+            return result;
+        }
+        sort(key) {
+            if (typeof key === 'function') return super.sort(key);
+            const translated = (key || '#k:a').split(',').map(level => {
+                const [criterion, rawMode = 'a'] = level.split(':');
+                let mode = rawMode.trim();
+                if (/^[adAD]$/.test(mode)) return criterion.trim() + ':' + mode;
+                mode = mode.toLowerCase();
+                const insensitive = mode.endsWith('*');
+                if (insensitive) {
+                    console.warn('Bag.sort: * is deprecated; use a/d for case-insensitive sorting and A/D for case-sensitive sorting.');
+                    mode = mode.slice(0, -1);
+                }
+                const ascending = mode === 'a' || mode === 'asc' || mode === '>';
+                const direction = ascending ? 'a' : 'd';
+                return criterion.trim() + ':' + (insensitive ? direction : direction.toUpperCase());
+            }).join(',');
+            return super.sort(translated);
+        }
     };
 
     gnr.GenropyResolverMixin = Base => class extends Base {
+        get isGetter() { return this.readOnly; }
+        set isGetter(value) { this._readOnly = value; }
+        get lastUpdate() { return this._lastUpdate == null ? null : new Date(this._lastUpdate); }
+        set lastUpdate(value) { this._lastUpdate = value == null ? null : Number(value); }
+        _finalize(value) {
+            // Dojo 1.1 Deferred is not a Promise/thenable. Complete the native
+            // cache only when the Deferred resolves, retaining its identity.
+            if (value instanceof dojo.Deferred) {
+                return value.addCallback(result => super._finalize(result));
+            }
+            return super._finalize(value);
+        }
+        resolve(options, destinationNode) {
+            if (destinationNode === undefined) return super.resolve(options);
+            const parameters = objectUpdate({}, this.kwargs);
+            parameters._destFullpath = destinationNode ? destinationNode.getFullpath(null, genro._data) : '';
+            if (options) objectUpdate(parameters, options);
+            if (this.isGetter) return this.load(parameters);
+            const result = this.load(parameters, destinationNode);
+            const finalize = value => { this.lastUpdate = new Date(); return value; };
+            return result instanceof dojo.Deferred ? result.addCallback(finalize) : finalize(result);
+        }
+        meToo(callback) {
+            const pending = new dojo.Deferred();
+            pending.addCallback(callback);
+            this._pendingDeferred.push(pending);
+            return pending;
+        }
+        runPendingDeferred(pending) {
+            for (const deferred of pending) deferred.callback();
+        }
+        cancelMeToo() {
+            const pending = this._pendingDeferred || [];
+            this._pendingDeferred = [];
+            for (const deferred of pending) deferred.cancel();
+        }
+        _resolvedBagCompat() {
+            if (!Object.hasOwn(this.constructor, '_bagDelegationWarningShown')) {
+                console.warn('Resolver Bag delegation is deprecated; use resolver.resolve() explicitly.');
+                this.constructor._bagDelegationWarningShown = true;
+            }
+            return this.resolve();
+        }
+        keys() { return this._resolvedBagCompat().keys(); }
+        items() { return this._resolvedBagCompat().items(); }
+        values() { return this._resolvedBagCompat().values(); }
+        digest(key) { return this._resolvedBagCompat().digest(key || null); }
+        sum(key) { return this._resolvedBagCompat().sum(key || null); }
+        len() { return this._resolvedBagCompat().len(); }
+        contains() { return this._resolvedBagCompat().contains(); }
+        htraverse(kwargs) {
+            return this._resolvedBagCompat().htraverse(kwargs.pathlist, kwargs.autocreate);
+        }
         _computeEffectiveFingerprint(kwargs) {
             const sourceNode = kwargs._sourceNode;
             if (!sourceNode || typeof sourceNode !== 'object') return super._computeEffectiveFingerprint(kwargs);
@@ -540,8 +818,10 @@ if (typeof gnr === 'undefined') var gnr = {};
                 _sourceNode: sourceNodeCacheIds.get(sourceNode)});
         }
         constructor(kwargs = {}, isGetter = false, cacheTime = 0, load) {
-            super({...kwargs, readOnly: isGetter, cacheTime, asBag: false});
-            this.kwargs = kwargs;
+            // Preserve legacy enumerable inputs, but retain the base's merged,
+            // filtered parameter object and all changes made by init().
+            super({...objectUpdate({}, kwargs), readOnly: isGetter, cacheTime, asBag: false});
+            this._pendingDeferred = [];
             if (load) this.load = load;
         }
         getParentNode() { return this._node; }

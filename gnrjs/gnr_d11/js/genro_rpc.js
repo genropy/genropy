@@ -28,6 +28,13 @@
 gnr.GnrRemoteResolver = class GnrRemoteResolver extends gnr.GnrBagResolver {
     constructor(kwargs, isGetter, cacheTime) {
         super(...arguments);
+        const parameters = this.kwargs;
+        const popOption = key => {
+            const value = objectPop(parameters, key);
+            // Legacy callers observe consumed options on their input object.
+            if (kwargs && kwargs !== parameters) objectPop(kwargs, key);
+            return value;
+        };
         this.xhrKwargs = {'handleAs': 'xml',
             'timeout': 50000,
             'load': 'resultHandler',
@@ -37,16 +44,16 @@ gnr.GnrRemoteResolver = class GnrRemoteResolver extends gnr.GnrBagResolver {
         };
         var k;
         for (k in this.xhrKwargs) {
-            if (k in kwargs) {
-                this.xhrKwargs[k] = objectPop(kwargs, k);
+            if (k in parameters) {
+                this.xhrKwargs[k] = popOption(k);
             }
         }
         this.xhrKwargs.load = dojo.hitch(this, this.xhrKwargs.load);
         this.xhrKwargs.error = dojo.hitch(this, this.xhrKwargs.error);
-        this.httpMethod = objectPop(kwargs, 'httpMethod') || 'POST';
+        this.httpMethod = popOption('httpMethod') || 'POST';
         this.onloading = null;
-        this.onResult = objectPop(kwargs,'_onResult');
-        this.onCalling = objectPop(kwargs,'_onCalling');
+        this.onResult = popOption('_onResult');
+        this.onCalling = popOption('_onCalling');
 
     }
 };
