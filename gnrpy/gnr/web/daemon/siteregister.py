@@ -347,7 +347,8 @@ class BaseRegister(BaseRemoteObject):
         if not register_item:
             return
         datachanges = register_item['datachanges']
-        datachanges[:] = [dc for dc in datachanges if not dc.path.startswith(path)]
+        datachanges[:] = [dc for dc in datachanges
+                          if not (dc.path == path or dc.path.startswith(path + '.'))]
 
     def subscribe_path(self, register_item_id, path):
         register_item = self.get_item(register_item_id)
