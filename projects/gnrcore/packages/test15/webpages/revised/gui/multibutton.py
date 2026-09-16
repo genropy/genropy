@@ -32,6 +32,13 @@ class GnrCustomWebPage(object):
         pane.multibutton(value='^.base',values='^.values',itemsMaxWidth='100px')
 
 
+    def test_43_multibutton_dark_container(self,pane):
+        """Hover and pressed states on a dark container"""
+        pane.data('.dark','pluto')
+        box = pane.div(background='var(--toolbar-dark-bg)',padding='12px')
+        box.multibutton(value='^.dark',values='pippo:Pippo,pluto:Pluto,paperino:Paperino')
+
+
     def test_1_multibutton_item(self,pane):
         pane.dataController("console.log(z);",z='^.base')
         mb = pane.multibutton(value='^.base',sticky=False)
