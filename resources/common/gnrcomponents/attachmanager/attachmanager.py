@@ -30,7 +30,8 @@ from gnr.core.gnrdecorator import public_method,extract_kwargs
 DEFAULT_DROPAREA_LABEL = '<div>[!!Drop document here]</div><div>[!!or double click to upload]</div>'
 
 IMAGES_EXT = ('.png','.jpg','.jpeg','.gif','.webp')
-VIDEOS_EXT = ('.mp4','.avi','.mpg','.mpeg')
+VIDEOS_EXT = ('.mp4','.webm','.mov','.m4v')
+UNPLAYABLE_VIDEOS_EXT = ('.avi','.mpg','.mpeg','.wmv','.mkv','.flv')
 
 
 class ViewAtcMobile(BaseComponent):
@@ -328,7 +329,16 @@ class AttachManager(BaseComponent):
                 imgDom.style.zoom = zoomValue || '';
             """,zoomValue=currentPreviewZoom,imgDom=img.js_domNode)
         sc.contentPane(pageName='video', overflow='hidden').video(src=src,height='100%',width='100%',
-                                    border=0,controls=True)
+                                    border=0,controls=True,preload='none')
+        unsupported = sc.contentPane(pageName='unsupported', overflow='auto')
+        unsupportedbox = unsupported.div(position='absolute',top=0,bottom=0,left=0,right=0,display='flex',
+                            flex_direction='column',align_items='center',justify_content='center',
+                            padding='30px',text_align='center')
+        unsupportedbox.div(_class='iconbox warning',font_size='40px',color='#bbb',margin_bottom='16px')
+        unsupportedbox.div('!!This video format cannot be played in the browser. Download it to watch it.',
+                            color='#666',font_size='15px',margin_bottom='20px',max_width='420px')
+        unsupportedbox.button('!!Open in a new tab',
+                            action='genro.openBrowserTab(url,{target:"_blank"})',url=src)
         parent.dataController("""       
         const parsedSrc = parseURL(src);
         const ext = (parsedSrc.params.source_ext || parsedSrc.file.split('.').pop() || '').toLowerCase();
@@ -337,11 +347,14 @@ class AttachManager(BaseComponent):
             sc.switchPage('image');
         }else if(VIDEOS_EXT.includes(`.${ext}`)){
             sc.switchPage('video');
+        }else if(UNPLAYABLE_VIDEOS_EXT.includes(`.${ext}`)){
+            sc.switchPage('unsupported');
         }else{
             sc.switchPage('document');
         }
         """,src=src,_if='src',sc=sc.js_widget,
-            IMAGES_EXT=IMAGES_EXT, VIDEOS_EXT=VIDEOS_EXT)
+            IMAGES_EXT=IMAGES_EXT, VIDEOS_EXT=VIDEOS_EXT,
+            UNPLAYABLE_VIDEOS_EXT=UNPLAYABLE_VIDEOS_EXT)
 
     @extract_kwargs(default=True,vpane=True,fpane=True,uploader=True)
     @struct_method

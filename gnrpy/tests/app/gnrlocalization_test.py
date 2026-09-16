@@ -133,8 +133,9 @@ class TestGnrLocalization(BaseGnrAppTest):
 
     def test_attachmanager_captions_are_localized(self):
         """
-        The attachment grid captions and the upload size alert are marked for
-        translation: a missing entry would silently fall back to English.
+        The attachment grid captions, the upload size alert and the preview
+        fallback notices are marked for translation: a missing entry would
+        silently fall back to English.
         """
         al = gl.AppLocalizer(self.app)
         expected = {'!!Type': 'Tipo',
@@ -142,7 +143,10 @@ class TestGnrLocalization(BaseGnrAppTest):
                     '!!DL': 'DL',
                     '!!Copy': 'Copia',
                     '!!File exceeds size limit': 'Il file supera la dimensione massima',
-                    '!!Error': 'Errore'}
+                    '!!Error': 'Errore',
+                    '!!Open in a new tab': 'Apri in una nuova scheda',
+                    '!!This video format cannot be played in the browser. Download it to watch it.':
+                        'Questo formato video non può essere riprodotto nel browser. Scaricalo per vederlo.'}
         for txt, translation in expected.items():
             r = al.getTranslation(txt, 'it')
             assert r['status'] == 'OK', txt
