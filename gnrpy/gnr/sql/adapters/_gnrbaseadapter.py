@@ -934,7 +934,11 @@ class SqlDbAdapter(object):
         """Run ``VACUUM ANALYZE`` (or ``VACUUM FULL ANALYZE``) on the database or on one table.
 
         VACUUM cannot run inside a transaction block, so the statement goes
-        through a dedicated autocommit connection, not the current one.
+        through a dedicated autocommit connection, not the current one. That
+        connection takes its own locks: do not vacuum a table the caller's
+        transaction has already touched. ``VACUUM FULL`` asks for ACCESS
+        EXCLUSIVE and would wait for a lock only the blocked caller can
+        release, a self-deadlock Postgres does not detect.
 
         :param table: the table's SQL name, schema-qualified (``tblobj.model.sqlfullname``,
                       e.g. ``invc.invc_customer``); empty vacuums the whole database

@@ -10,7 +10,7 @@ Verifies that:
 import pytest
 
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter
-from gnr.sql.adapters import gnrpostgres, gnrpostgres3
+from gnr.sql.adapters import gnrpostgres
 
 IN_TRANSACTION = 2
 
@@ -33,7 +33,8 @@ class TestVacuumStatement:
 
     def test_postgres_adapters_inherit_base_vacuum(self):
         assert gnrpostgres.SqlDbAdapter.vacuum is SqlDbAdapter.vacuum
-        assert gnrpostgres3.SqlDbAdapter.vacuum is SqlDbAdapter.vacuum
+        pg3 = pytest.importorskip('gnr.sql.adapters.gnrpostgres3', exc_type=ImportError)
+        assert pg3.SqlDbAdapter.vacuum is SqlDbAdapter.vacuum
         pg8000 = pytest.importorskip('gnr.sql.adapters.gnrpostgres8000', exc_type=ImportError)
         assert pg8000.SqlDbAdapter.vacuum is SqlDbAdapter.vacuum
 
