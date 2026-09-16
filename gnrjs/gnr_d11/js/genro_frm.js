@@ -1610,14 +1610,15 @@ dojo.declare("gnr.GnrFrmHandler", null, {
 
     updateDraftMarker:function(isDraft){
         var dm = this.draftMarker;
+        var marked = (isDraft && dm!==false) ? true : false;
         var dmPos = (dm === true || dm === undefined) ? 'tr' : dm;
-        genro.dom.setClass(this.sourceNode,'form_draft',isDraft);
+        genro.dom.setClass(this.sourceNode,'form_draft',marked);
         var domNode = this.sourceNode.getDomNode();
         if(domNode && this.draftLabel){
             domNode.style.setProperty('--form-draft-label','"'+this.draftLabel.replace(/"/g,'\\"')+'"');
         }
         ['tr','tl','br','bl'].forEach(function(pos){
-            genro.dom.setClass(this.sourceNode,'draft_marker_' + pos, isDraft && dmPos === pos);
+            genro.dom.setClass(this.sourceNode,'draft_marker_' + pos, marked && dmPos === pos);
         }, this);
     },
 
