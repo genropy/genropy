@@ -13,7 +13,7 @@ so the build now refuses it instead of guessing what was meant.
 import pytest
 
 from gnr.sql.gnrsql import GnrSqlDb
-from gnr.sql.gnrsql_exceptions import GnrSqlException
+from gnr.sql.gnrsql_exceptions import NotMatchingModelError
 
 from core.common import BaseGnrAppTest
 
@@ -85,7 +85,7 @@ class TestModelTableNaming:
         assert hasattr(db.table('demo.real'), 'real_method')
 
     def test_mismatched_module_is_refused(self):
-        with pytest.raises(GnrSqlException) as excinfo:
+        with pytest.raises(NotMatchingModelError) as excinfo:
             build_model(foo=MismatchedMixin())
         message = str(excinfo.value)
         assert 'demo/foo' in message
@@ -93,7 +93,7 @@ class TestModelTableNaming:
         assert 'declared: bar' in message
 
     def test_module_declaring_nothing_is_refused(self):
-        with pytest.raises(GnrSqlException) as excinfo:
+        with pytest.raises(NotMatchingModelError) as excinfo:
             build_model(real=MatchingMixin(), whatever=EmptyMixin())
         message = str(excinfo.value)
         assert 'demo/whatever' in message
@@ -106,7 +106,7 @@ class TestModelTableNaming:
         sees only the earlier modules: with the offending module first it reported
         'declared: none' on a package that declares a table.
         """
-        with pytest.raises(GnrSqlException) as excinfo:
+        with pytest.raises(NotMatchingModelError) as excinfo:
             build_model(aaa=EmptyMixin(), zeta=LateMatchingMixin())
         message = str(excinfo.value)
         assert 'demo/aaa' in message
@@ -114,7 +114,7 @@ class TestModelTableNaming:
 
     def test_module_declaring_nothing_in_an_empty_package(self):
         """The other half of the pair above: here 'none' is the truth."""
-        with pytest.raises(GnrSqlException) as excinfo:
+        with pytest.raises(NotMatchingModelError) as excinfo:
             build_model(whatever=EmptyMixin())
         assert 'declared: none' in str(excinfo.value)
 
@@ -124,7 +124,7 @@ class TestModelTableNaming:
         assert hasattr(db.table('demo.alfa'), 'alfa_method')
 
     def test_module_declaring_several_tables_but_not_its_own(self):
-        with pytest.raises(GnrSqlException) as excinfo:
+        with pytest.raises(NotMatchingModelError) as excinfo:
             build_model(gamma=MultiTableUnnamedMixin())
         message = str(excinfo.value)
         assert 'demo/gamma' in message

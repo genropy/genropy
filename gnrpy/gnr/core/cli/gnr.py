@@ -15,6 +15,8 @@ import importlib.util
 from pathlib import Path
 from collections import defaultdict
 
+from gnr.sql.gnrsql_exceptions import NotMatchingModelError
+
 import gnr
 
 class CommandManager():
@@ -205,10 +207,17 @@ class CommandManager():
 
                 # measure execution time
                 start_time = time.time()
-                if self.instance:
-                    cmd_module.main(self.instance)
-                else:
-                    cmd_module.main()
+                try:
+                    if self.instance:
+                        cmd_module.main(self.instance)
+                    else:
+                        cmd_module.main()
+                except NotMatchingModelError as e:
+                    # a model declaration error is the developer's, not the
+                    # database's: the message names the module and the fix,
+                    # and the frames between here and model.build() add nothing
+                    print(e, file=sys.stderr)
+                    sys.exit(1)
                     
                 end_time = time.time() - start_time
                 

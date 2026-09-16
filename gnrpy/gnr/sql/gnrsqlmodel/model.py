@@ -43,7 +43,7 @@ from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrlang import moduleDict
 from gnr.core.gnrstructures import GnrStructData
 from gnr.sql import logger
-from gnr.sql.gnrsql_exceptions import GnrSqlException, GnrSqlRelationError
+from gnr.sql.gnrsql_exceptions import GnrSqlException, GnrSqlRelationError, NotMatchingModelError
 from gnr.sql.gnrsqlmodel.columns import DbVirtualColumnObj
 from gnr.sql.gnrsqlmodel.containers import DbIndexObj
 from gnr.sql.gnrsqlmodel.helpers import (
@@ -161,7 +161,7 @@ class DbModel:
                         # the mixin registry is keyed by module filename: calling
                         # pkgsrc.table() here would materialize an empty phantom
                         # table and leave the declared one without its mixin
-                        raise GnrSqlException(
+                        raise NotMatchingModelError(
                             'model module %s/%s declares no table named %r (declared: %s): '
                             'name the module after the table it declares'
                             % (pkg, tblname, tblname, ', '.join(sorted(declared)) or 'none'))
