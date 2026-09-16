@@ -146,7 +146,9 @@ class TestGnrLocalization(BaseGnrAppTest):
                     '!!Error': 'Errore',
                     '!!Open in a new tab': 'Apri in una nuova scheda',
                     '!!This video format cannot be played in the browser. Download it to watch it.':
-                        'Questo formato video non può essere riprodotto nel browser. Scaricalo per vederlo.'}
+                        'Questo formato video non può essere riprodotto nel browser. Scaricalo per vederlo.',
+                    '!!This attachment links to an external site and cannot be previewed here.':
+                        'Questo allegato rimanda a un sito esterno e non può essere visualizzato qui.'}
         for txt, translation in expected.items():
             r = al.getTranslation(txt, 'it')
             assert r['status'] == 'OK', txt
