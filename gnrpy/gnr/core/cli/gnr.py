@@ -15,7 +15,7 @@ import importlib.util
 from pathlib import Path
 from collections import defaultdict
 
-from gnr.sql.gnrsql_exceptions import NotMatchingModelError
+from gnr.core.gnrlang import GnrException
 
 import gnr
 
@@ -212,10 +212,12 @@ class CommandManager():
                         cmd_module.main(self.instance)
                     else:
                         cmd_module.main()
-                except NotMatchingModelError as e:
-                    # a model declaration error is the developer's, not the
-                    # database's: the message names the module and the fix,
-                    # and the frames between here and model.build() add nothing
+                except GnrException as e:
+                    # an exception genropy raises on purpose carries its
+                    # explanation in the message. Anything else is a crash and
+                    # keeps its traceback, which is where the frames answer
+                    if os.environ.get('GNR_TRACEBACK'):
+                        raise
                     print(e, file=sys.stderr)
                     sys.exit(1)
                     
