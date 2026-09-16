@@ -151,7 +151,25 @@ class GnrDomSrc(GnrStructData):
         :param nodeId: the :ref:`nodeid`"""
         assert nodeId not in self.register_nodeId,'%s is duplicated' %nodeId
         self.page._register_nodeId[nodeId] = self
-        
+
+    def unregisterNodeIds(self, childname):
+        """Remove from the :ref:`nodeid` register every :ref:`nodeid` declared
+        inside a child subtree, so that the child can be rebuilt
+
+        :param childname: the :ref:`childname` of the subtree"""
+        childnode = self.getNode(childname)
+        if childnode is None:
+            return
+        register = self.register_nodeId
+        nodes = [childnode]
+        childvalue = childnode.getStaticValue()
+        if isinstance(childvalue, Bag):
+            nodes += list(childvalue.traverse())
+        for node in nodes:
+            nodeId = node.attr.get('nodeId')
+            if nodeId:
+                register.pop(nodeId, None)
+
     @property
     def register_nodeId(self):
         """TODO"""

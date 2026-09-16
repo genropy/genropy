@@ -544,3 +544,130 @@ def test_hidden_group_member_targets_its_own_label_cell():
     assert "this.attributeOwnerNode('tag','td')" in memberNode.attr['onCreated']
     labelCell = _hiddenFieldLabelCell(root, '^.gamma')
     assert labelCell.attr['innerHTML'] == 'Gamma'
+
+
+# ---------------------------------------------------------------------------
+# nodeId register: unregisterNodeIds
+# ---------------------------------------------------------------------------
+
+def test_unregisterNodeIds_clears_a_nested_subtree():
+    """Every nodeId declared inside the subtree leaves the register, so the
+    same subtree can be built again."""
+    page = _PageStub()
+    root = _make_root(page=page)
+    box = root.child('div', childname='box', nodeId='box_id')
+    box.child('div', childname='inner').child('div', childname='leaf',
+                                              nodeId='leaf_id')
+    assert sorted(page._register_nodeId) == ['box_id', 'leaf_id']
+    root.unregisterNodeIds('box')
+    assert page._register_nodeId == {}
+    root.pop('box')
+    root.child('div', childname='box', nodeId='box_id')
+    assert list(page._register_nodeId) == ['box_id']
+
+
+def test_unregisterNodeIds_on_a_missing_child_is_a_noop():
+    page = _PageStub()
+    root = _make_root(page=page)
+    root.child('div', childname='box', nodeId='box_id')
+    root.unregisterNodeIds('nowhere')
+    assert list(page._register_nodeId) == ['box_id']
+
+
+# ---------------------------------------------------------------------------
+# slotBar: updateSlotsAttr rebuilds only the slots it addresses
+# ---------------------------------------------------------------------------
+
+def _slotbar(slots='withid,plain,*', **kwargs):
+    """Build a real slotBar with two slots: `withid`, whose handler assigns a
+    fixed nodeId (as the table handler query menu does), and `plain`."""
+
+    @struct_method('slotbar_withid')
+    def _withid_slot(struct, withid=None, frameCode=None, **slotkw):
+        struct.div(childname='content', nodeId='fixed_id', **slotkw)
+
+    @struct_method('slotbar_plain')
+    def _plain_slot(struct, plain=None, frameCode=None, **slotkw):
+        struct.div(childname='content', **slotkw)
+
+    page = _PageStub()
+    page._withid_slot = _withid_slot
+    page._plain_slot = _plain_slot
+    pane = _make_root(page=page).child('div', childname='frame') \
+                               .child('div', childname='pane')
+    return page, pane.slotBar(slots, **kwargs)
+
+
+def _slotContentAttr(bar, slot):
+    return bar.getNode(slot).value.getNode('content').attr
+
+
+def test_slotbar_builds_its_slots_with_their_parameters():
+    page, bar = _slotbar(withid_label='hello')
+    assert _slotContentAttr(bar, 'withid')['label'] == 'hello'
+    assert list(page._register_nodeId) == ['fixed_id']
+
+
+def test_updateslotsattr_does_not_duplicate_registered_nodeids():
+    """Rebuilding a sibling slot must not walk over the slot holding a
+    nodeId: that is the `... is duplicated` assertion of the issue."""
+    page, bar = _slotbar(withid_label='hello')
+    bar.updateSlotsAttr(plain_x='zz')
+    assert _slotContentAttr(bar, 'plain')['x'] == 'zz'
+    assert list(page._register_nodeId) == ['fixed_id']
+
+
+def test_updateslotsattr_keeps_the_parameters_of_untouched_slots():
+    page, bar = _slotbar(withid_label='hello')
+    withidSlot = bar.getNode('withid').value
+    bar.updateSlotsAttr(plain_x='zz')
+    assert _slotContentAttr(bar, 'withid')['label'] == 'hello'
+    # not addressed by the call, hence not rebuilt at all
+    assert bar.getNode('withid').value is withidSlot
+
+
+def test_updateslotsattr_rebuilds_the_addressed_slot_only():
+    page, bar = _slotbar(withid_label='hello')
+    plainSlot = bar.getNode('plain').value
+    bar.updateSlotsAttr(withid_label='world')
+    assert _slotContentAttr(bar, 'withid')['label'] == 'world'
+    assert bar.getNode('plain').value is plainSlot
+    # the register points at the rebuilt subtree, not at the discarded one
+    assert list(page._register_nodeId) == ['fixed_id']
+    assert page._register_nodeId['fixed_id'] is bar.getNode('withid').value
+
+
+def test_updateslotsattr_accumulates_over_repeated_calls():
+    page, bar = _slotbar(withid_label='hello')
+    bar.updateSlotsAttr(withid_label='world')
+    bar.updateSlotsAttr(withid_extra='x')
+    attr = _slotContentAttr(bar, 'withid')
+    assert attr['label'] == 'world'
+    assert attr['extra'] == 'x'
+    assert list(page._register_nodeId) == ['fixed_id']
+
+
+def test_updateslotsattr_still_updates_the_bar_attributes():
+    page, bar = _slotbar(withid_label='hello')
+    bar.updateSlotsAttr(_class='mybar')
+    assert bar.attributes['_class'] == 'mybar'
+
+
+def test_replaceslots_adds_the_new_slot_with_its_parameters():
+    page, bar = _slotbar(slots='withid,*')
+    bar.replaceSlots('*', 'plain,*', plain_x='zz')
+    assert bar.attributes['slots'] == 'withid,plain,*'
+    assert _slotContentAttr(bar, 'plain')['x'] == 'zz'
+    assert list(page._register_nodeId) == ['fixed_id']
+
+
+def test_updateslotsattr_keeps_the_parameters_added_by_replaceslots():
+    """`replaceSlots` parameters must survive a later `updateSlotsAttr` on the
+    same slot: `_addSlot` consumes them out of the bar attributes, so the
+    snapshot has to see them too."""
+    page, bar = _slotbar(slots='withid,*')
+    bar.replaceSlots('*', 'plain,*', plain_x='zz')
+    bar.updateSlotsAttr(plain_y='ww')
+    attr = _slotContentAttr(bar, 'plain')
+    assert attr['x'] == 'zz'
+    assert attr['y'] == 'ww'
