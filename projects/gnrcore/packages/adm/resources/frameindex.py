@@ -24,7 +24,7 @@ class FrameIndex(BaseComponent):
                    gnrcomponents/maintenance:MaintenancePlugin
                    """
     #gnrcomponents/datamover:MoverPlugin, removed
-    js_requires='frameindex'
+    js_requires='frameindex,adm_notification'
     css_requires='frameindex'
     
     custom_plugin_list = None
